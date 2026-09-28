@@ -15,6 +15,7 @@
 #include "storage.h"
 #include "form_ode.h"
 #include "expr.h"
+#include "xpp_io.h"
 #include "browse.h"
 #include "xpp_ui.h"
 #include "integrate.h"
@@ -239,12 +240,11 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
   xpp::session().data_store.add_column(xpp::model().neq+1);
   /* the column's name as the browser shows it: at most 79 characters of
      the formula, upper case */
-  std::string shown=std::string(formula).substr(0,79);
-  for(char &c:shown)c=static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+  std::string shown=xpp::upper_case(std::string(formula).substr(0,79));
   set_ode_name(xpp::model().neq,shown);
   std::string &col_name=xpp::model().uvar_names[xpp::model().neq];
   col_name=name;
-  strupr(col_name.data());
+  xpp::to_upper(col_name.data());
   for(i=0;i<b->maxrow;i++)
     xpp::session().data_store.col[xpp::model().neq+1][i]=0.0;   /*  zero it all   */
   for(i=0;i<b->maxrow;i++){

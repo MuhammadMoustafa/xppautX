@@ -7,6 +7,7 @@
 
 #include "markov.h"
 #include "expr.h"
+#include "xpp_io.h"
 #include "tabular.h"
 
 #include <stdio.h>
@@ -211,7 +212,7 @@ void add_vectorizer_name(const char *name, const char *rhs)
   }
   if(name_too_long(name))xpp_model_failed();
   xpp::model().vectors[xpp::model().nvector].name=name;
-  if(add_vector_name( xpp::model().nvector,name))
+  if(add_net_name(xpp::model().nvector,name,1))
     xpp_model_failed();
   xpp::model().nvector++;
 
@@ -702,7 +703,7 @@ void add_special_name(const char *name, char *rhs)
     }
     if(name_too_long(name))xpp_model_failed();
     xpp::model().networks[xpp::model().nnetwork].name=name;
-    add_net_name(xpp::model().nnetwork,name);
+    add_net_name(xpp::model().nnetwork,name,0);
     xpp::model().nnetwork++;
   }
   else
@@ -712,7 +713,7 @@ void add_special_name(const char *name, char *rhs)
 int is_network(char *s)
 {
   de_space(s);
-  strupr(s);
+  xpp::to_upper(s);
  /* n=strlen(s); Not used*/
   if(s[0]=='C' &&s[1]=='O' &&s[2]=='N' && s[3]=='V')return 1;
   if(s[0]=='S' &&s[1]=='P' &&s[2]=='A' && s[3]=='R')return 2;

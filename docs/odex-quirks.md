@@ -5,7 +5,7 @@ Code extension (C:\gitRepos\XPP-ODE-Extension: `operatorCheckerCore.ts`,
 `semanticCheckerCore.ts`, `variableCheckerCore.ts`,
 `parenthesesCheckerCore.ts`, `constants.ts`) and checked against xppautX's
 own parser: line level in `core/form_ode.cpp`, formula level in
-`core/parserslow2.cpp` (the operator table at :64-119). Each entry gives a
+`core/expr_symbols.cpp` (the built-in symbol table, `builtins`). Each entry gives a
 one-line `.ode` that shows the quirk, the value or error xppautX gives
 today (measured with `./xppautX model.ode -silent`, reading `output.dat`;
 `y'=0; y(0)=1; aux z=EXPR; @ total=0,dt=1; done` isolates one expression:
@@ -16,7 +16,7 @@ this card's list but worth W75 catching it too), what the extension
 says (or "not flagged"), and .odex's rule. .odex's rules below restate
 the maintainer's decisions on issue #121.
 
-## Operator precedence (parserslow2.cpp:64-119)
+## Operator precedence (expr_symbols.cpp, `builtins`)
 
 The table: priority 7 is `^`, `**` and every comparison (`<`, `>`, `<=`,
 `>=`, `==`, `!=`); priority 6 is `*`, `/`, `&`, `not` and unary minus
@@ -108,7 +108,7 @@ splitter, and can fuse two words together at a token boundary.
 ## `^` grouping, comparisons, chained comparisons, `&`/`|`
 
 Covered in "Operator precedence" above (the whole table comes from one
-priority table in `parserslow2.cpp:64-119`).
+priority table in `expr_symbols.cpp`, `builtins`).
 
 ## `!=`, `&&`, `||`, `!`
 
@@ -121,7 +121,7 @@ priority table in `parserslow2.cpp:64-119`).
 
 ## if/then/else, with and without parentheses
 
-`parserslow2.cpp:918-940` compiles `MYIF`/`MYTHEN`/`MYELSE` into jumps;
+`expr_compile.cpp` (`alg_to_rpn`) compiles `MYIF`/`MYTHEN`/`MYELSE` into jumps;
 `:1541-1551` at runtime takes exactly one branch (short-circuit: the
 untaken branch is never evaluated). The condition is true when not
 `0.0`.
@@ -155,8 +155,8 @@ Measured on master (`par NAME=2`, `y'=-NAME*y`):
 
 ## Case-insensitive names
 
-`form_ode.cpp:1015`, `:1395`, `:2006` (`strupr`) and
-`parserslow2.cpp:255` upper-case every name, so `V` and `v` are the same
+`form_ode.cpp` (`xpp::to_upper`, xpp_io.h) and
+`expr_symbols.cpp` (`converted`) upper-case every name, so `V` and `v` are the same
 name.
 
 | quirk | `.ode` | xppautX today | extension | .odex |
@@ -179,7 +179,7 @@ about 9-10 characters.
 |---|---|---|---|---|
 | a formula in `init` | `par a=2`, `init y=a`; `init y=2*3` | the value is read with `atof` (form_ode.cpp, `take_apart`), like a numeric `@` value: `init y=a` starts y at 0, `init y=2*3` at 2, `init x[1..2]=a` both at 0 | `init-value`, **error** (0.4.1) | an initial value is an expression, evaluated after the parameters: y starts at 2 and 6 |
 | a formula in a scalar `y(0)=` | `par a=2`, `y(0)=a`; `y(0)=2*3`; `y(0)=exp(0)` | y starts at the number `atof` finds: 0, 2 and 0. The formula is kept only as y's history for delay equations (`delay_string`). Measured 2026-09-27; the cause is `atof`, not the order in which parameters are set | `initcond-formula`, **warning** (information when the model uses `delay`) (0.4.1) | parameters are set first: y starts at 2; `--convert` writes `y(0)=0` with a comment naming `a` |
-| division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (parserslow2.cpp:1619), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | `division-by-zero`, warning, for a literal `0` divisor (0.4.1) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
+| division by zero | `aux z=1/0`, `aux z=0/0` | guarded: a zero divisor becomes 2.23e-15 (expr_eval.cpp, `DOUB_EPS`), so `1/0` = 4.5e14 and `0/0` = 0, silently (kept in `.ode`; `--check` warns) | `division-by-zero`, warning, for a literal `0` divisor (0.4.1) | IEEE: inf and NaN, and the run stops with an error at the first NaN or inf in the state |
 
 ## Checked, not quirks
 

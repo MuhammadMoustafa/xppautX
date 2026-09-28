@@ -13,6 +13,7 @@
 #include "xpp_log.h"
 
 #include "expr.h"
+#include "xpp_io.h"
 #include "markov.h"
 #include "xpp_files.h"
 #include "load_eqn.h"
@@ -556,7 +557,7 @@ int compiler(const std::string &bob, FILE *fptr)
   }
   xpp::Tokens tokens(bob);
   std::string command=tokens.text(" ,");
-  strlwr(command.data());
+  xpp::to_lower(command.data());
   /* the "name=value"s after the command */
   std::string_view values=tokens.rest();
   switch(command[0])
@@ -1020,9 +1021,9 @@ int get_eqn(FILE *fptr)
 
   for(i=0;i<xpp::model().neq;i++)
       {
-	strupr(uvar_names[i].data());
+	xpp::to_upper(uvar_names[i].data());
 	std::string formula=xpp::model().formulas[i];
-	strupr(formula.data());
+	xpp::to_upper(formula.data());
         de_space(formula.data());
 	c_resync(formula);
 	set_ode_name(i,formula);
@@ -1400,7 +1401,7 @@ int parse_a_string(std::string &s1, VAR_INFO &v)
   remove_blanks(s1);
 
   const std::string s1old=s1;
-  strupr(s1.data());
+  xpp::to_upper(s1.data());
   const char *s=s1.c_str();
   if(s1.empty()){
     return 0;
@@ -2011,7 +2012,7 @@ int parse_model(FILE *fp, const std::string &first, int nnn, bool at_end)
      return -1;
    }
    if(done==1){
-     if(v.type==COMMAND)strupr(v.lhs.data());
+     if(v.type==COMMAND)xpp::to_upper(v.lhs.data());
      if(v.type==COMMAND && char_at(v.lhs,0)=='G' && char_at(v.lhs,1)=='R') {
        xpp::Tokens tokens(v.rhs);
        name=tokens.text(" ");

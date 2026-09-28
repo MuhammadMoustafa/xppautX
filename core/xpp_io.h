@@ -207,6 +207,24 @@ inline bool equal_ignoring_case(std::string_view a, std::string_view b)
   return true;
 }
 
+/* s in upper (lower) case, in place up to its NUL: ASCII letters only (the
+   C locale's toupper/tolower), as the parser keeps a model's names;
+   change_case turns the letters from..from+25 into to..to+25 */
+inline void change_case(char *s, char from, char to)
+{
+  for(;*s;s++)
+    if(*s>=from&&*s<=from+25)*s=static_cast<char>(*s-from+to);
+}
+inline void to_upper(char *s) { change_case(s,'a','A'); }
+inline void to_lower(char *s) { change_case(s,'A','a'); }
+/* s in upper case (ASCII letters only), all of it */
+inline std::string upper_case(std::string s)
+{
+  for(char &c:s)
+    if(c>='a'&&c<='z')c=static_cast<char>(c-'a'+'A');
+  return s;
+}
+
 /* strtok's tokens without writing into the text (the core's one
    tokenizer: the parser, the options, the .ani reader, the fit's lists):
    next(delims) passes over the delimiters, returns the text up to the

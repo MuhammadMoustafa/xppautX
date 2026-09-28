@@ -15,6 +15,9 @@
 #define MAXNET 50
 #define MAXMARK 200
 #define MAX_INTERN_SET 500
+/* a user function's arguments, and the longest compiled program (expr.h) */
+#define MAXARG 20
+#define MAXEXPLEN 1024
 
 /* Longest name, not counting the NUL, of anything a model names: variables,
    parameters, auxiliary quantities, functions and their arguments, tables,

@@ -44,7 +44,7 @@ every `.ode` quirk `.odex` removes.
   A block function is pure: it may declare locals with `let` and must
   `return`, and may never write a parameter or a state variable. It
   compiles to the same stack program with jumps the current `if/then/
-  else` compiler already produces (parserslow2.cpp:918-940), so there is
+  else` compiler already produces (expr_compile.cpp, `alg_to_rpn`), so there is
   no runtime cost.
 - Names are case-sensitive (`V` and `v` are two names) with no length
   limit (W76 removes `.ode`'s own `XPP_NAME_MAX` cap too).
@@ -200,7 +200,7 @@ a rule for every built-in that takes options. The exact names are settled
 against the 11 Volterra examples before W74.
 
 Built-in functions (from `.ode`'s own reserved set, `constants.ts:31-39`,
-checked against `parserslow2.cpp`'s symbol table): `sin`, `cos`, `tan`,
+checked against `expr_symbols.cpp`'s symbol table): `sin`, `cos`, `tan`,
 `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `exp`, `ln`,
 `log`, `log10`, `sqrt`, `heav`, `sign`, `flr`, `ran`, `abs`, `delay`,
 `shift`, `ishift`, `del_shft`, `sum`, `of`, `max`, `min`, `normal`,
@@ -309,7 +309,7 @@ from):
    `.odex` gives real IEEE results, `1/0` is inf and `0/0` is NaN, and a
    run stops with an error naming the equation and the time at the step
    where a NaN or inf first enters the state. `.ode` keeps XPP's guard
-   (a zero divisor replaced by 2.23e-15, parserslow2.cpp:1619: `1/0` is
+   (a zero divisor replaced by 2.23e-15, expr_eval.cpp, `DOUB_EPS`: `1/0` is
    4.5e14, `0/0` is 0), so old models give XPP's numbers; `--check`
    (W75) warns where a `.ode` formula divides by something that can be 0.
    One flag per model, chosen by the file's extension; the evaluator is

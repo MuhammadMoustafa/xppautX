@@ -3,13 +3,15 @@
 
 #include "xpplim.h"
 
+/* a kernel that is a convolution (KERNEL's flag) */
+#define CONV 2
 
 #ifdef __cplusplus
 #include <array>
 #include <string>
 #include <vector>
 
-/* An integral equation's kernel as the model declares it (parserslow2.cpp
+/* An integral equation's kernel as the model declares it (expr_symbols.cpp
    add_kernel; volterra2.cpp alloc_v_memory compiles it while the model
    loads): K(t,t',u) with the constant mu, or a convolution kerexpr#expr
    (flag CONV). xpp::Model's kernels hold them; the running integrals are

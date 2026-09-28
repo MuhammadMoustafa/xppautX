@@ -184,7 +184,7 @@ struct Model {
   std::array<Network,MAXNET> networks;
   std::array<Vectorizer,MAXVEC> vectors;
 
-  /* ---- the user functions (parserslow2.cpp), nfun of them ---- */
+  /* ---- the user functions (expr_symbols.cpp), nfun of them ---- */
   int nfun=0;
   /* each one's argument count */
   std::array<int,MAXUFUN> narg_fun{};

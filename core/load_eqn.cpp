@@ -15,6 +15,7 @@
 #include "xpp_util.h"
 #include "markov.h"
 #include "expr.h"
+#include "xpp_io.h"
 
 #include "xpp_files.h"
 #include "load_eqn.h"
@@ -101,13 +102,6 @@ void each_option(std::string_view line, std::string_view first, std::string_view
     split_apart(*t, name, value);
     if (!name.empty() && !value.empty()) set(name, value);
   }
-}
-
-std::string upper_case(std::string s)
-{
-  std::transform(s.begin(), s.end(), s.begin(),
-                 [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-  return s;
 }
 
 /* one line of fp, whatever its length ("" at the end) */
@@ -461,7 +455,7 @@ void set_internopts_xpprc_and_comline()
     std::string name,value;
     while(std::optional<std::string_view> t=tok.next(" ,\n\r")){
       split_apart(*t,name,value);
-      name=upper_case(name);
+      name=xpp::upper_case(name);
       if(name=="QUIET"||name=="LOGFILE")
         set_option(name.c_str(),value.c_str(),0,NULL);
     }
@@ -506,7 +500,7 @@ int add_model_option(const char *s1)
   const char *refused=nullptr;
   each_option(s1," ,"," ,\n\r",[&refused](const std::string &name,const std::string &){
     if(refused)return;
-    std::string upper=upper_case(name);
+    std::string upper=xpp::upper_case(name);
     if(msc("DLL_LIB",upper.c_str()))refused="dll_lib";
     else if(msc("DLL_FUN",upper.c_str()))refused="dll_fun";
   });
@@ -524,7 +518,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
  /* the option's name is matched upper case: upper-case a copy, not the
     caller's text (a literal from the command line's options) */
  std::string upper(name);
- strupr(upper.data());
+ xpp::to_upper(upper.data());
  const char *s1=upper.c_str();
  if(msc("QUIET",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))

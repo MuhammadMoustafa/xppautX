@@ -1,62 +1,48 @@
-#include "expr.h"
-#include "session.h"
+/* The expression engine's symbol table (expr.h): the names a formula may
+   use, what each compiles to, and the parameters' and variables' values
+   by name. The table is the current Session's (ParserState::symbols):
+   its first STDSYM entries are the built-ins below, then come the
+   model's names as the load adds them. */
+#include "expr_internal.h"
 #include "model.h"
 #include "comline.h"
-#include "volterra2.h"
-#include "delay_handle.h"
 #include "xpp_log.h"
-
-#include <time.h>
+#include "xpp_io.h"
+#include "xpp_math.h"
 #include "tabular.h"
-#include "markov.h"
-#include "simplenet.h"
+#include "getvar.h"
 
-#include <stdlib.h> 
-
-#include <ctype.h>
-
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
-#include <array>
+#include <cctype>
+#include <cmath>
+#include <ctime>
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "getvar.h"
-
-#define DOUB_EPS 2.23E-15 
-#define POP stack[--stack_pointer]
-static double zippy;
-#define PUSH(a) zippy=(a); stack[stack_pointer++]=zippy;
-
 
 #ifndef M_PI
 # define M_PI	3.14159265358979323846264338327950288
 #endif
 
-constexpr double CurrentIndex=0;
-static int SumIndex=1;
-
-/* FIXXX */
-static int stack_pointer,uptr;
-static double stack[200],ustack[200];
-
+using xpp::expr::symbols;
+using xpp::expr::is_ucon;
+using xpp::expr::is_uvar;
+using xpp::expr::is_lookup;
 
 namespace {
-/* a name the parser knows: its length, what it compiles to (com), its
-   number of arguments and its priority */
-struct SYMBOL {
-  std::string name;
+
+/* a built-in symbol: its name, length, what it compiles to, number of
+   arguments and priority (ExprSymbol's fields); its index is its token */
+struct Builtin {
+  const char *name;
   int len;
   int com;
   int arg;
   int pri;
 };
-}
 
-static std::array<SYMBOL,MAX_SYMBS> my_symb=
-{{
+constexpr Builtin builtins[]=
+{
    {"(",1,999,0,1},      /*  0   */
    {")",1,999,0,2},
    {",",1,999,0,3},
@@ -153,21 +139,25 @@ static std::array<SYMBOL,MAX_SYMBS> my_symb=
    {"BESSELI",7,COM(FUN2TYPE,20),2,10},/* Bessel I  # 93 */
    {"LGAMMA",6,COM(FUN1TYPE,25),1,10}, /* Log Gamma  #94 */
    {"BESSELIS",8,COM(FUN2TYPE,21),2,10},/* Bessel I Scaled  # 95 */
-      }};
+};
+static_assert(std::size(builtins)==STDSYM,"STDSYM is the number of built-in symbols");
 
+/* 1 (with an INFO) when name is already a symbol */
+int duplicate_name(std::string_view junk);
+/* name's symbol index in *index (-1 when none) */
+void find_name(std::string_view string, int *index);
 
-/*     pointers to functions    */
+}
 
-static double (*fun1[50])(double);
-static double (*fun2[50])(double, double);
-
-/*************************
-  RPN COMPILER           *
-**************************/
+ParserState::ParserState()
+{
+  for(int i=0;i<STDSYM;i++){
+    const Builtin &b=builtins[i];
+    symbols[i]={b.name,b.len,b.com,b.arg,b.pri};
+  }
+}
 
 /*****************************
-*      PARSER.C              *
-*
 *
 *     parses any algebraic expression
 *     and converts to an integer array
@@ -177,14 +167,6 @@ static double (*fun2[50])(double, double);
 *     the main data structure is a contiguous
 *     list of symbols with their priorities
 *     and their symbol value
-*
-*     on the first pass, the expression is converted to
-*     a list of integers without any checking except for
-*     valid symbols and for numbers
-*
-*     next this list of integers is converted to an RPN expression
-*     for evaluation.
-*
 *
 *  6/95  stuff added to add names to namelist without compilation
 *************************************************************/
@@ -201,14 +183,12 @@ void init_rpn()
 
     xpp::session().numerics.max_points=4000;
     xpp::session().parser.nsym = STDSYM;
-    two_args();
-    one_arg();
     add_con("PI", M_PI);
 
+    /* I', the constant SUM sets: xpp::expr::SUM_INDEX */
         add_con("I'",0.0);
     /*   This is going to be for interacting with the
          animator */
-    SumIndex=xpp::session().parser.ncon-1;
         add_con("mouse_x",0.0);
         add_con("mouse_y",0.0);
         add_con("mouse_vx",0.0);
@@ -224,7 +204,7 @@ void init_rpn()
     nsrand48(xpp::session().numerics.rand_seed);
 }
 
- /*  FREE_UFUNS   */
+namespace {
 
 int duplicate_name(std::string_view junk)
 {
@@ -241,6 +221,8 @@ int duplicate_name(std::string_view junk)
   return(0);
 }
 
+}
+
 /* name as convert makes it: blanks removed, upper case (never longer) */
 std::string converted(std::string_view name)
 {
@@ -249,15 +231,25 @@ std::string converted(std::string_view name)
     if(ch=='\0')break;
     if(!isspace(static_cast<unsigned char>(ch)))s+=ch;
   }
-  strupr(s.data());
+  xpp::to_upper(s.data());
   return s;
 }
 
-/* Puts name, without blanks and in upper case, into symbol slot k.
-   Returns 1 (and says why) when it is empty or longer than XPP_NAME_MAX;
-   with primed set, the primed name X' of a variable X (form_ode.c) may be
-   one longer. */
-static int set_symbol_name(int k, std::string_view name, int primed)
+void convert(const char *source, char *dest)
+{
+  std::string s=converted(source);
+  s.copy(dest,s.size());
+  dest[s.size()]='\0';
+}
+
+namespace {
+
+/* the next symbol of the table: name (without blanks, in upper case),
+   priority, number of arguments, what it compiles to. Returns 1 (and says
+   why) when name is empty or longer than XPP_NAME_MAX; with primed set,
+   the primed name X' of a variable X (form_ode.cpp) may be one longer.
+   The table's count (nsym) is the caller's to raise. */
+int set_symbol(std::string_view name, int primed, int pri, int arg, int com)
 {
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
@@ -267,9 +259,15 @@ static int set_symbol_name(int k, std::string_view name, int primed)
   }
   if(len>XPP_NAME_MAX&&!(primed&&len==MXLEN&&string[len-1]=='\''))
     return name_too_long(name);
-  my_symb[k].name=std::move(string);
-  my_symb[k].len=len;
+  ExprSymbol &s=symbols()[xpp::session().parser.nsym];
+  s.name=std::move(string);
+  s.len=len;
+  s.pri=pri;
+  s.arg=arg;
+  s.com=com;
   return 0;
+}
+
 }
 
 /* 1 (with a message) when name, blanks removed, is longer than
@@ -281,22 +279,23 @@ int name_too_long(std::string_view name)
   return 1;
 }
 
-/*  ADD_CONSTANT   */
+namespace {
 
+/*  ADD_CONSTANT: the name of the last constant added */
 int add_constant(const char *junk)
 {
+ ParserState &p=xpp::session().parser;
  if(duplicate_name(junk)==1)return(1);
- if(xpp::session().parser.ncon>=MAXPAR)
+ if(p.ncon>=MAXPAR)
  {
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
- if(set_symbol_name(xpp::session().parser.nsym,junk,0))return 1;
- my_symb[xpp::session().parser.nsym].pri=10;
- my_symb[xpp::session().parser.nsym].arg=0;
- my_symb[xpp::session().parser.nsym].com=COM(CONTYPE,xpp::session().parser.ncon-1);
- xpp::session().parser.nsym++;
+ if(set_symbol(junk,0,10,0,COM(CONTYPE,p.ncon-1)))return 1;
+ p.nsym++;
  return(0);
+}
+
 }
 
 int get_var_index(std::string_view name)
@@ -305,7 +304,7 @@ int get_var_index(std::string_view name)
   int type,com;
   find_name(name,&type);
   if(type<0)return -1;
-  com=my_symb[type].com;
+  com=symbols()[type].com;
   if(is_uvar(com))
   {
       return(com%MAXTYPE);
@@ -313,28 +312,27 @@ int get_var_index(std::string_view name)
   return(-1);
 }
 
-/* GET_TYPE   */
-
 /*   ADD_CON      */
 
 int add_con(const char *name, double value)
 {
-
- if(xpp::session().parser.ncon>=MAXPAR)
+ ParserState &p=xpp::session().parser;
+ if(p.ncon>=MAXPAR)
  {
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
- xpp::session().parser.constants[xpp::session().parser.ncon]=value;
- xpp::session().parser.ncon++;
+ p.constants[p.ncon]=value;
+ p.ncon++;
  return(add_constant(name));
 }
 
 int add_kernel(const char *name, double mu, const char *expr)
 {
+  xpp::Model &m=xpp::model();
   int in=-1;
   if(duplicate_name(name)==1)return(1);
-  if(xpp::model().nkernel==MAXKER){
+  if(m.nkernel==MAXKER){
     xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
   }
@@ -342,12 +340,10 @@ int add_kernel(const char *name, double mu, const char *expr)
     xpp_log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
-  if(set_symbol_name(xpp::session().parser.nsym,name,0))return 1;
-  my_symb[xpp::session().parser.nsym].pri=10;
-  my_symb[xpp::session().parser.nsym].arg=0;
-  my_symb[xpp::session().parser.nsym].com=COM(KERTYPE,xpp::model().nkernel);
-  xpp::model().kernels[xpp::model().nkernel].mu=mu;
-  xpp::model().kernels[xpp::model().nkernel].flag=0;
+  if(set_symbol(name,0,10,0,COM(KERTYPE,m.nkernel)))return 1;
+  KERNEL &k=m.kernels[m.nkernel];
+  k.mu=mu;
+  k.flag=0;
   std::string_view text(expr);
   size_t hash=text.rfind('#');
   if(hash!=std::string_view::npos)in=static_cast<int>(hash);
@@ -356,19 +352,18 @@ int add_kernel(const char *name, double mu, const char *expr)
     return(1);
   }
   if(in>0){
-    xpp::model().kernels[xpp::model().nkernel].flag=CONV;
+    k.flag=CONV;
     /* split at the # */
-    xpp::model().kernels[xpp::model().nkernel].kerexpr=text.substr(0,in);
-    xpp::model().kernels[xpp::model().nkernel].expr=text.substr(in+1);
-    xpp::log(XPP_LOG_INFO, "Convolving {} with {}\n",
-	   xpp::model().kernels[xpp::model().nkernel].kerexpr,xpp::model().kernels[xpp::model().nkernel].expr);
+    k.kerexpr=text.substr(0,in);
+    k.expr=text.substr(in+1);
+    xpp::log(XPP_LOG_INFO, "Convolving {} with {}\n",k.kerexpr,k.expr);
   }
   else {
-    xpp::model().kernels[xpp::model().nkernel].expr=text;
+    k.expr=text;
   }
-  xpp::model().kernels[xpp::model().nkernel].name=name;
+  k.name=name;
   xpp::session().parser.nsym++;
-  xpp::model().nkernel++;
+  m.nkernel++;
   return(0);
 }
 
@@ -376,67 +371,28 @@ int add_kernel(const char *name, double mu, const char *expr)
 
 int add_var(std::string_view junk, double value)
 {
+ ParserState &p=xpp::session().parser;
+ xpp::Model &m=xpp::model();
  if(duplicate_name(junk)==1)return(1);
- if(xpp::model().nvar>=MAXODE1)
+ if(m.nvar>=MAXODE1)
  {
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
+  if(p.errout)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
- if(set_symbol_name(xpp::session().parser.nsym,junk,1))return 1;
- my_symb[xpp::session().parser.nsym].pri=10;
- my_symb[xpp::session().parser.nsym].arg=0;
- my_symb[xpp::session().parser.nsym].com=COM(VARTYPE,xpp::model().nvar);
- xpp::session().parser.nsym++;
- xpp::session().parser.variables[xpp::model().nvar]=value;
- xpp::model().nvar++;
+ if(set_symbol(junk,1,10,0,COM(VARTYPE,m.nvar)))return 1;
+ p.nsym++;
+ p.variables[m.nvar]=value;
+ m.nvar++;
  return(0);
 }
 
-/* ADD_EXPR   */
-
-int add_expr(const char *expr, int *command, int *length)
+int add_net_name(int index, const char *name, int vectorizer)
 {
- int err,i;
- std::string dest=converted(expr);
- /* make_toks writes a token per character at most, three for a number
-    (its token and the double's two ints), the end, and slack */
- std::vector<int> my_token(3*dest.size()+8);
- err=make_toks(dest.c_str(),my_token.data());
- if(err!=0)return(1);
- err = alg_to_rpn(my_token.data(),command);
- if(err!=0)return(1);
-  i=0;
-   while(command[i]!=ENDEXP)i++;
-   *length=i+1;
-   return(0);
-}
-
-int add_vector_name(int index,const char *name)
-{
-  xpp_log(XPP_LOG_INFO, " Adding vectorizer %s %d \n",name,index);
+  xpp_log(XPP_LOG_INFO, " Adding %s %s %d \n",vectorizer?"vectorizer":"net",name,index);
   if(duplicate_name(name)==1)return(1);
-  xpp_log(XPP_LOG_DEBUG, " 1\n");
-  if(set_symbol_name(xpp::session().parser.nsym,name,0))return 1;
-  my_symb[xpp::session().parser.nsym].pri=10;
-  my_symb[xpp::session().parser.nsym].arg=1;
-  my_symb[xpp::session().parser.nsym].com=COM(VECTYPE,index);
-
+  if(set_symbol(name,0,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
   xpp::session().parser.nsym++;
   return(0);
-   
-}
-
-int add_net_name(int index, const char *name)
-{
-  xpp_log(XPP_LOG_INFO, " Adding net %s %d \n",name,index);
-  if(duplicate_name(name)==1)return(1);
-  if(set_symbol_name(xpp::session().parser.nsym,name,0))return 1;
-  my_symb[xpp::session().parser.nsym].pri=10;
-  my_symb[xpp::session().parser.nsym].arg=1;
-  my_symb[xpp::session().parser.nsym].com=COM(NETTYPE,index);
-  xpp::session().parser.nsym++;
-  return(0);
-   
 }
 
 /* ADD LOOKUP TABLE   */
@@ -459,17 +415,14 @@ int add_file_table(int index, const char *file)
       if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
        return(1);
     }
- 
+
     return(0);
 }
 
 int add_table_name(int index, const char *name)
 {
      if(duplicate_name(name)==1)return(1);
-     if(set_symbol_name(xpp::session().parser.nsym,name,0))return 1;
-     my_symb[xpp::session().parser.nsym].pri=10;
-     my_symb[xpp::session().parser.nsym].arg=1;
-     my_symb[xpp::session().parser.nsym].com=COM(TABTYPE, index);
+     if(set_symbol(name,0,10,1,COM(TABTYPE, index)))return 1;
      set_table_name(name,index);
      xpp::session().parser.nsym++;
      return(0);
@@ -487,22 +440,31 @@ int add_form_table(int index, int nn, double xlo, double xhi, const char *formul
     return(0);
 }
 
+namespace {
+
+/* the symbols ARG1..ARGnarg back to their own names */
 void set_old_arg_names(int narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    my_symb[FIRST_ARG+i].name=xpp::format("ARG{}",i+1);
-    my_symb[FIRST_ARG+i].len=4;
+    ExprSymbol &s=symbols()[FIRST_ARG+i];
+    s.name=xpp::format("ARG{}",i+1);
+    s.len=static_cast<int>(s.name.size());
   }
 }
 
+/* the symbols ARG1..ARGn stand for user function index's own argument
+   names (xpp::Model ufun_args), until set_old_arg_names puts them back */
 void set_ufun_arg_names(int index)
 {
   const std::vector<std::string> &args=xpp::model().ufun_args[index];
   for(size_t i=0;i<args.size();i++){
-    my_symb[FIRST_ARG+i].name=args[i];
-    my_symb[FIRST_ARG+i].len=static_cast<int>(my_symb[FIRST_ARG+i].name.size());
+    ExprSymbol &s=symbols()[FIRST_ARG+i];
+    s.name=args[i];
+    s.len=static_cast<int>(s.name.size());
  }
+}
+
 }
 
 /* NEW ADD_FUN for new form_ode code  */
@@ -516,31 +478,34 @@ int add_ufun_name(const char *name, int index, int narg)
   return(1);
  }
   xpp_log(XPP_LOG_INFO, " Added user fun %s \n",name);
-  if(set_symbol_name(xpp::session().parser.nsym,name,0))return 1;
-  my_symb[xpp::session().parser.nsym].pri=10;
-  my_symb[xpp::session().parser.nsym].arg=narg;
-  my_symb[xpp::session().parser.nsym].com=COM(UFUNTYPE, index);
+  if(set_symbol(name,0,10,narg,COM(UFUNTYPE, index)))return 1;
   xpp::session().parser.nsym++;
   xpp::model().ufun_names[index]=name;
   return (0);
 }
 
+namespace {
+
 /* ends a compiled user function of narg arguments whose formula add_expr
    wrote in l commands */
-static void fixup_endfun(int *u, int l, int narg)
+void fixup_endfun(int *u, int l, int narg)
 {
  u[l-1]=ENDFUN;
  u[l]=narg;
  u[l+1]=ENDEXP;
 }
 
+/* user function index's definition becomes def (Model::ufun_defs) */
 void set_ufun_def(int index, std::string_view def)
 {
   xpp::model().ufun_defs[index]=def;
 }
 
+}
+
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
 {
+  xpp::Model &m=xpp::model();
   int end;
   int narg=static_cast<int>(args.size());
    if(narg>MAXARG){
@@ -548,19 +513,19 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
     return(1);
   }
   /* add_expr compiles into it in place: MAXEXPLEN commands */
-  xpp::model().ufun_programs[index].assign(MAXEXPLEN,0);
+  m.ufun_programs[index].assign(MAXEXPLEN,0);
   set_ufun_def(index,"");
-  xpp::model().ufun_args[index].assign(args.begin(),args.end());
+  m.ufun_args[index].assign(args.begin(),args.end());
   set_ufun_arg_names(index);
-  if(add_expr(rhs,xpp::model().ufun_programs[index].data(),&end)==0)
+  if(add_expr(rhs,m.ufun_programs[index].data(),&end)==0)
     {
-      fixup_endfun(xpp::model().ufun_programs[index].data(),end,narg);
+      fixup_endfun(m.ufun_programs[index].data(),end,narg);
       set_ufun_def(index,rhs);
-      xpp::model().narg_fun[index]=narg;
+      m.narg_fun[index]=narg;
       set_old_arg_names(narg);
       return(0);
-    } 
-  
+    }
+
   set_old_arg_names(narg);
   if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
   return(1);
@@ -570,87 +535,40 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
 
 int add_ufun(const char *junk, const char *expr, int narg)
 {
+ xpp::Model &m=xpp::model();
  int i;
  int end;
 
  if(duplicate_name(junk)==1)return(1);
  if(name_too_long(junk))return(1);
- if(xpp::model().nfun>=MAXUFUN)
+ if(m.nfun>=MAXUFUN)
  {
   if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
- xpp::model().ufun_programs[xpp::model().nfun].assign(MAXEXPLEN,0);
- set_ufun_def(xpp::model().nfun,"");
+ std::vector<int> &program=m.ufun_programs[m.nfun];
+ program.assign(MAXEXPLEN,0);
+ set_ufun_def(m.nfun,"");
 
- if(add_expr(expr,xpp::model().ufun_programs[xpp::model().nfun].data(),&end)==0)
+ if(add_expr(expr,program.data(),&end)==0)
  {
-  set_symbol_name(xpp::session().parser.nsym,junk,0);
-  my_symb[xpp::session().parser.nsym].pri=10;
-  my_symb[xpp::session().parser.nsym].arg=narg;
-  my_symb[xpp::session().parser.nsym].com=COM(UFUNTYPE, xpp::model().nfun);
+  set_symbol(junk,0,10,narg,COM(UFUNTYPE, m.nfun));
   xpp::session().parser.nsym++;
-  xpp::model().ufun_programs[xpp::model().nfun][end-1]=ENDFUN;
-  xpp::model().ufun_programs[xpp::model().nfun][end]=narg;
-  xpp::model().ufun_programs[xpp::model().nfun][end+1]=ENDEXP;
+  fixup_endfun(program.data(),end,narg);
   /* the definition without its last character */
   std::string_view def(expr);
   if(!def.empty())def.remove_suffix(1);
-  set_ufun_def(xpp::model().nfun,def);
-  xpp::model().ufun_names[xpp::model().nfun]=junk;
-  xpp::model().narg_fun[xpp::model().nfun]=narg;
-  std::vector<std::string> &arg_names=xpp::model().ufun_args[xpp::model().nfun];
+  set_ufun_def(m.nfun,def);
+  m.ufun_names[m.nfun]=junk;
+  m.narg_fun[m.nfun]=narg;
+  std::vector<std::string> &arg_names=m.ufun_args[m.nfun];
   arg_names.clear();
   for(i=0;i<narg;i++)arg_names.push_back(xpp::format("ARG{}",i+1));
-  xpp::model().nfun++;
+  m.nfun++;
   return(0);
  }
        if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
        return(1);
-}
-
-/* is_ufun         */
-
-int is_ufun(int x)
-{
- if((x/MAXTYPE)==UFUNTYPE) return(1);
- else return(0);
-}
-
-/* IS_UCON        */
-
-int is_ucon(int x)
-{
- if (x/MAXTYPE == CONTYPE) return(1);
- else return(0);
-}
-
-/* IS_UVAR       */
-
-int is_uvar(int x)
-{
- if (x / MAXTYPE == VARTYPE) return(1); else return(0);
-}
-
-int isvar(int y)
-{
- return (y == VARTYPE);
-}
-
-int iscnst(int y)
-{
- return (y == CONTYPE);
-}
-
-int isker(int y)
-{
-  return (y == KERTYPE);
-}
-
-int is_lookup(int x)
-{
- if((x/MAXTYPE)==TABTYPE)return(1);
- else return(0);
 }
 
 int find_lookup(std::string_view name)
@@ -658,26 +576,32 @@ int find_lookup(std::string_view name)
  int index,com;
  find_name(name,&index);
   if(index==-1)return(-1);
-  com=my_symb[index].com;
+  com=symbols()[index].com;
   if(is_lookup(com))return(com%MAXTYPE);
   return(-1);
 }
+
+namespace {
 
 /* FIND_NAME    */
 
 void find_name(std::string_view string, int *index)
 {
+  const std::array<ExprSymbol,MAX_SYMBS> &table=symbols();
+  const int nsym=xpp::session().parser.nsym;
   int i;
   std::string junk=converted(string);
   int len=static_cast<int>(junk.size());
-  for(i=0;i<xpp::session().parser.nsym;i++)
+  for(i=0;i<nsym;i++)
   {
-   if(len==my_symb[i].len)
-    if(my_symb[i].name.compare(0,len,junk)==0)break;
+   if(len==table[i].len)
+    if(table[i].name.compare(0,len,junk)==0)break;
   }
-   if(i<xpp::session().parser.nsym)
+   if(i<nsym)
     *index=i;
    else *index=-1;
+}
+
 }
 
 int get_param_index(std::string_view name)
@@ -685,7 +609,7 @@ int get_param_index(std::string_view name)
  int type,com;
   find_name(name,&type);
   if(type<0)return(-1);
-  com=my_symb[type].com;
+  com=symbols()[type].com;
   if(is_ucon(com))
   {
       return(com % MAXTYPE);
@@ -702,7 +626,7 @@ int get_val(std::string_view name, double *value)
   *value=0.0;
   find_name(name,&type);
   if(type<0)return(0);
-  com=my_symb[type].com;
+  com=symbols()[type].com;
   if(is_ucon(com))
   {
    *value=xpp::session().parser.constants[com % MAXTYPE];
@@ -723,11 +647,11 @@ int set_val(std::string_view name, double value)
   int type,com;
   find_name(name,&type);
   if(type<0)return(0);
-  com=my_symb[type].com;
+  com=symbols()[type].com;
   if(is_ucon(com))
   {
          xpp::session().parser.constants[com % MAXTYPE]=value;
-   
+
     return(1);
   }
   if(is_uvar(com))
@@ -746,942 +670,4 @@ void set_ivar(int i, double value)
 
 double get_ivar(int i)
 {       	 return(GETVAR(i));
-}
-
-int alg_to_rpn(int *toklist, int *command)
-{
-  int tokstak[500],comptr=0,tokptr=0,lstptr=0,temp;
-  int ncomma=0;
-  int loopstk[100];
-  int lptr=0;
-  int nif=0,nthen=0,nelse=0;
-  int newtok,oldtok;
-  int my_com,my_arg,jmp;
-
-  tokstak[0]=STARTTOK;
-  tokptr=1;
-  oldtok=STARTTOK;
-  while(1)
-         {
- getnew:
-          newtok=toklist[lstptr++];
-/*        check for delay symbol             */
-          if(newtok==DELSYM)
-	  {
-           temp=my_symb[toklist[lstptr+1]].com;
-   /* !! */   if(is_uvar(temp))
-	   {
-	    /* ram -- is this right? not sure I understand what was happening here */
-	    my_symb[LASTTOK].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
-            xpp::model().ndelays++;
-           toklist[lstptr+1]=LASTTOK;
-	  	
-	    my_symb[LASTTOK].pri=10;
-	 
-	   	    }
-	   else 
-	   {
-		xpp_log(XPP_LOG_WARN, "Illegal use of DELAY \n");
-		return(1);
-           }
-
-	 }
-
-/*        check for delshft symbol             */
-          if(newtok==DELSHFTSYM)
-	  {
-           temp=my_symb[toklist[lstptr+1]].com;
-   /* !! */   if(is_uvar(temp))
-	   {
-	    /* ram -- same issue */
-	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
-            xpp::model().ndelays++;
-           toklist[lstptr+1]=LASTTOK;
-	  	
-	    my_symb[LASTTOK].pri=10;
-	 
-	   	    }
-	   else 
-	   {
-		xpp_log(XPP_LOG_WARN, "Illegal use of DELAY Shift \n");
-		return(1);
-           }
-
-	 }
-
-	  if(newtok==SETSYM){
-	     temp=my_symb[toklist[lstptr+1]].com;
-             if(is_uvar(temp))
-	   {
-	    /* ram -- same issue */
-	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
-           toklist[lstptr+1]=LASTTOK;
-	  	
-	    my_symb[LASTTOK].pri=10;
-	   }
-	     else
-	       {
-		 xpp_log(XPP_LOG_WARN, "Illegal use of set - variables only\n");
-		   return(1);
-	       }
-	  }
-	 
-/* check for shift  */
-	  if(newtok==SHIFTSYM||newtok==ISHIFTSYM)
-	  {
-           temp=my_symb[toklist[lstptr+1]].com;
-/* !! */	   if(is_uvar(temp) || is_ucon(temp))
-	   {
-	    /* ram -- same issue */
-             if(is_uvar(temp))my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE);
-	        if(is_ucon(temp))my_symb[LASTTOK].com=COM(SCONTYPE, temp%MAXTYPE);
-/* create a temporary sybol */
-         
-           toklist[lstptr+1]=LASTTOK;
-	  	
-	    my_symb[LASTTOK].pri=10;
-	 
-	   	    }
-	   else 
-	   {
-		xpp_log(XPP_LOG_WARN, "Illegal use of SHIFT \n");
-		return(1);
-           }
-
-       	  }
-
- next:
-          if((newtok==ENDTOK)&&(oldtok==STARTTOK))break;
-         
-          if(newtok==LPAREN)
-           {
-             tokstak[tokptr]=LPAREN;
-             tokptr++;
-             oldtok=LPAREN;
-             goto getnew;
-            }
-           if(newtok==RPAREN)
-           {
-            switch(oldtok)
-                  {
-                     case LPAREN:
-                                 tokptr--;
-                                 oldtok=tokstak[tokptr-1];
-                                 goto getnew;
-                     case COMMA:
-                                 tokptr--;
-                                 ncomma++;
-                                 oldtok=tokstak[tokptr-1];
-                                 goto next;
-                  }
-           }
-           if((newtok==COMMA)&&(oldtok==COMMA))
-           {
-            tokstak[tokptr]=COMMA;
-            tokptr++;
-            goto getnew;
-           }
-           /* ram -- the THOUS problem */
-
-     if(my_symb[oldtok].pri>=my_symb[newtok].pri)
-           {
-            command[comptr]=my_symb[oldtok].com;
-	    if((my_symb[oldtok].arg==2)&&
-	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
-	      ncomma--;
-            my_com=command[comptr];
-	                comptr++;
- /*   New code   3/95      */
-	   if(my_com==NUMSYM){
-	     tokptr--;
-	     command[comptr]=tokstak[tokptr-1];
-	     comptr++;
-	     tokptr--;
-	     command[comptr]=tokstak[tokptr-1];
-	     comptr++;
-	   }
- /*   end new code    3/95    */
-           if(my_com==SUMSYM){
-	     loopstk[lptr]=comptr;
-             comptr++;
-             lptr++;
-             ncomma-=1;
-	   }
-           if(my_com==ENDSUM){
-	     lptr--;
-             jmp=comptr-loopstk[lptr]-1;
-             command[loopstk[lptr]]=jmp;
-	   }
-	   if(my_com==MYIF){
-         	     loopstk[lptr]=comptr; /* add some space for jump */
-                     comptr++;
-		     lptr++;
-		     nif++;
-                }    
-	   if(my_com==MYTHEN){ 
-		              /* First resolve the if jump */
-			lptr--;
-			jmp=comptr-loopstk[lptr];  /* -1 is old */
-			command[loopstk[lptr]]=jmp;
-			   /* Then set up for the then jump */
-			loopstk[lptr]=comptr;
-			lptr++;
-			comptr++;
-			nthen++;
-			}
-	   if(my_com==MYELSE){
-			     lptr--;
-			     jmp=comptr-loopstk[lptr]-1;
-			     command[loopstk[lptr]]=jmp;
-			     nelse++;
-			     }
-
-             if(my_com==ENDDELAY||my_com==ENDSHIFT||my_com==ENDISHIFT){
-        
-	     ncomma-=1;
-                }
-             if(my_com==ENDDELSHFT||my_com==ENDSET)
-	       ncomma-=2;  
-
-            /*    CHECK FOR USER FUNCTION       */
-            if(is_ufun(my_com))
-            {
-             my_arg=my_symb[oldtok].arg;
-                         command[comptr]=my_arg;
-             comptr++;
-             ncomma=ncomma+1-my_arg;
-            }
-           /*      USER FUNCTION OKAY          */
-            tokptr--;
-            oldtok=tokstak[tokptr-1];
-            goto next;
-          }
-  /*    NEW code       3/95     */
-	  if(newtok==NUMTOK){
-	    tokstak[tokptr++]=toklist[lstptr++];
-	    tokstak[tokptr++]=toklist[lstptr++];
-	  }
- /*  end  3/95     */
-          tokstak[tokptr]=newtok;
-          oldtok=newtok;
-          tokptr++;
-          goto getnew;
-       }
-        if(ncomma!=0){
-        xpp_log(XPP_LOG_WARN, "Illegal number of arguments\n");
-	return(1);
-        }
-	if((nif!=nelse)||(nif!=nthen)){
-	  xpp_log(XPP_LOG_WARN, "If statement missing ELSE or THEN \n");
-	  return(1);
-	    }
-        command[comptr]=my_symb[ENDTOK].com;
-
-        return(0);
-    }
-
-void show_where(const char *string, int index)
-{
-  /* a caret under string's character index */
-  std::string junk(index>0?index:0,' ');
-  junk+='^';
-  xpp::log(XPP_LOG_WARN, "{}\n{}\n",string,junk);
-}
-
-int function_sym(int token) /* functions should have ( after them  */
-{
-  int com=my_symb[token].com;
-  int i1=com/MAXTYPE;
-
-    if(i1==FUN1TYPE&&!unary_sym(token))return(1); /* single variable functions */
-  if(i1==FUN2TYPE&&!binary_sym(token))return(1); /* two-variable function */
-  /* ram this was: if(i1==UFUN||i1==7||i1==6||i1==5)return(1); recall: 5 was bad */
-  if (i1 == UFUNTYPE || i1 == TABTYPE || i1==VECTYPE||i1 == NETTYPE) return(1);
-  if(token==DELSHFTSYM||token==SETSYM||token==DELSYM||token==SHIFTSYM||token==ISHIFTSYM||com==MYIF||com==MYTHEN||com==MYELSE
-     ||com==SUMSYM||com==ENDSUM)return(1);
-  return(0);
-}
-
-int unary_sym(int token)
-{
-  /* ram: these are tokens not byte code, so no change here? */
-  if(token==9||token==55)return(1);
-  return(0);
-}
-
-int binary_sym(int token)
-{
-  /* ram: these are tokens not byte code, so no change here? */
-  if(token>2&&token<9)return(1);
-  if(token>43&&token<51)return(1);
-  if(token==54)return(1);
-  return(0);
-}
-
-int pure_number(int token)
-{
-  int com=my_symb[token].com;
-  int i1=com/MAXTYPE;
-/* !! */  if(token==NUMTOK||isvar(i1)||iscnst(i1)||isker(i1)||i1==USTACKTYPE||token==INDX)
-    return(1);
-  return(0);
-}
-
-int gives_number(int token)
-{
-  int com=my_symb[token].com;
-  int i1=com/MAXTYPE;
-  if(token==INDX)return(1);
-  if(token==NUMTOK)return(1);
-  if(i1==FUN1TYPE&&!unary_sym(token))return(1); /* single variable functions */
-  if(i1==FUN2TYPE&&!binary_sym(token))return(1); /* two-variable function */
-  /* !! */ 
-  /* ram: 5 issue; was if(i1==8||isvar(i1)||iscnst(i1)||i1==7||i1==6||i1==5||isker(i1)||i1==UFUN)return(1); */
-  if (i1 == USTACKTYPE || isvar(i1) || iscnst(i1) || i1 == TABTYPE || i1==VECTYPE||i1 == NETTYPE || isker(i1) || i1 == UFUNTYPE) return(1);
-  if(com==MYIF||token==DELSHFTSYM||token==SETSYM||token==DELSYM||token==SHIFTSYM||token==ISHIFTSYM||com==SUMSYM)return(1);
-  return(0);
-}
-
-int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
-{
-  int com2=my_symb[newtoken].com;
-
-/* if the first symbol or (  or binary symbol then must be unary symbol or 
-   something that returns a number or another (   
-*/
-
-  if(unary_sym(oldtoken)||oldtoken==COMMA||oldtoken==STARTTOK
-     ||oldtoken==LPAREN||binary_sym(oldtoken))
-   {
-     if(unary_sym(newtoken)||gives_number(newtoken)||newtoken==LPAREN)return(0);
-     return(1);
-   }
-
-/* if this is a regular function, then better have ( 
-*/
- 
- if(function_sym(oldtoken)){
-   if(newtoken==LPAREN)return(0);
-   return(1);
- }
-
-/* if we have a constant or variable or ) or kernel then better
-   have binary symbol or "then" or "else" as next symbol
-*/
-   
- if(pure_number(oldtoken)){
-   if(binary_sym(newtoken)||newtoken==RPAREN
-      ||newtoken==COMMA||newtoken==ENDTOK)
-     return(0);
-
-   return(1);
- }
-
- if(oldtoken==RPAREN){
-   if(binary_sym(newtoken)||newtoken==RPAREN
-      ||newtoken==COMMA||newtoken==ENDTOK)return(0);
-   if(com2==MYELSE||com2==MYTHEN||com2==ENDSUM)return(0);
-
-   return(1);
- }
-
-  xpp_log(XPP_LOG_WARN, "Bad token %d \n",oldtoken);
-  return(1);
-    
-}
-
-/******************************
-*    PARSER                   *
-******************************/
-
-int make_toks(const char *dest, int *my_token)
-{
- std::array<char,40> num{}; /* do_num writes the number's start */
- double value;
-  int old_tok=STARTTOK,tok_in=0;
- int index=0,token,nparen=0,lastindex=0;
- union    /*  WARNING  -- ASSUMES 32 bit int  and 64 bit double  */
-   {
-     struct {
-       int int1;
-       int int2;
-     } pieces;
-     struct {
-       double z;
-     } num;
-   } encoder;
-
- while(dest[index]!='\0')
-  {
-   lastindex=index;
-   find_tok(dest,&index,&token);
-   if((token==MINUS)&&
-   ((old_tok==STARTTOK)||(old_tok==COMMA)||(old_tok==LPAREN)))
-  token=NEGATE;
-  if(token==LPAREN)++nparen;
-  if(token==RPAREN)--nparen;
-  
-  if(token==xpp::session().parser.nsym)
-    {
-      if(do_num(dest,num.data(),&value,&index)){
-	show_where(dest,index);
-	return(1);
-      }
-/*    new code        3/95      */
-      encoder.num.z=value;
-      my_token[tok_in++]=NUMTOK;
-      my_token[tok_in++]=encoder.pieces.int1;
-      my_token[tok_in++]=encoder.pieces.int2;
-      if(check_syntax(old_tok,NUMTOK)==1){
-	 xpp_log(XPP_LOG_WARN, "Illegal syntax \n");
-	 show_where(dest,lastindex);
-	 return(1);
-       }
-      old_tok=NUMTOK;
- 
-    }
-   
-   else
-     {
-       my_token[tok_in++]=token;
-       if(check_syntax(old_tok,token)==1){
-	 xpp_log(XPP_LOG_WARN, "Illegal syntax (Ref:%d %d) \n",old_tok,token);
-	 show_where(dest,lastindex);
-         tokeninfo(old_tok);
-         tokeninfo(token);
-	 return(1);
-       }
-
-       old_tok=token;
-     }
- }
-
-my_token[tok_in++]=ENDTOK;
-if(check_syntax(old_tok,ENDTOK)==1){
-  xpp_log(XPP_LOG_WARN, "Premature end of expression \n");
-  show_where(dest,lastindex);
-  return(1);
-}
-if(nparen!=0)
-{
- if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " parentheses don't match\n");
- return(1);
-}
-return(0);
-
-}
-
-void tokeninfo(int tok)
-{
- xpp::log(XPP_LOG_DEBUG, " {} {} {} {} {} \n",
-	my_symb[tok].name,my_symb[tok].len,my_symb[tok].com,
-        my_symb[tok].arg,my_symb[tok].pri);
-}
-
-int do_num(const char *source, char *num, double *value, int *ind)
-{
- int i=*ind,error=0;
- int ndec=0,nexp=0,ndig=0;
- std::string text;
- char ch,oldch;
- oldch='\0';
- *value=0.0;
- while(1)
- {
-  ch=source[i];
-  if(((ch=='+')||(ch=='-'))&&(oldch!='E'))break;
-  if((ch=='*')||(ch=='^')||(ch=='/')||(ch==',')||(ch==')')||(ch=='\0')
-              || (ch=='|') || (ch=='>') || (ch=='<') || (ch=='&')
-               || (ch=='='))break;
-  if((ch=='E')||(ch=='.')||(ch=='+')||(ch=='-')||isdigit(ch))
-  {
-   if(isdigit(ch))ndig++;
-   switch(ch)
-             {
-              case 'E':
-                       nexp++;
-                       if((nexp==2)||(ndig==0))goto err;
-                       break;
-              case '.':
-                       ndec++;
-                       if((ndec==2)||(nexp==1))goto err;
-                       break;
-
-             }
-   text+=ch;
-   i++;
-   oldch=ch;
-  }
-  else
-  {
-err:
-    text+=ch;
-    error=1;
-    break;
-  }
-  }
-  size_t n=text.copy(num,39);
-  num[n]='\0';
-  if(error==0)*value=atof(text.c_str());
-  else
-  if(xpp::session().parser.errout)xpp::log(XPP_LOG_WARN, " illegal expression: {}\n",text);
-  *ind=i;
-  return(error);
-}
-
-void convert(const char *source, char *dest)
-{
- char ch;
- int i=0,j=0;
- while (1)
- {
-  ch=source[i];
-  if(!isspace(ch))dest[j++]=ch;
-  i++;
-  if(ch=='\0')break;
- }
- strupr(dest);
-}
-
-void find_tok(const char *source, int *index, int *tok)
-{
- int i=*index,maxlen=0,symlen;
- int k,j,my_tok,match;
- my_tok=xpp::session().parser.nsym;
- for(k=0;k<xpp::session().parser.nsym;k++)
- {
-  symlen=my_symb[k].len;
-  if(symlen<=maxlen)continue;
-
-   match=1;
-   for(j=0;j<symlen;j++)
-   {
-    if(source[i+j]!=my_symb[k].name[j])
-     {
-      match=0;
-      break;
-     }
-   }
-   if(match!=0)
-    {
-     my_tok=k;
-     maxlen=symlen;
-    }
- }
-   *index=*index+maxlen;
-   *tok=my_tok;
-}
-
-double pmod(double x, double y)
-{
-  double z=fmod(x,y);
-  if(z<0)z+=y;
-  return(z);
-}
-
-void two_args()
-{
- fun2[4]=atan2;
- fun2[5]=pow;
- fun2[6]=max;
- fun2[7]=min;
- fun2[8]=pmod; /* This always gives an answer in [0,y) for mod(x,y) */
- fun2[9]=dand;
- fun2[10]=dor;
- fun2[11]=dgt;
- fun2[12]=dlt;
- fun2[13]=deq;
- fun2[14]=dge;
- fun2[15]=dle;
- fun2[16]=dne;
- fun2[17]=normal;
- fun2[18]=xpp_bessel_j;
- fun2[19]=xpp_bessel_y;
- fun2[20]=xpp_bessel_i;
- fun2[21]=xpp_bessel_i_scaled;
-
-}
-
-/*********************************************
-          FANCY DELAY HERE                   *-------------------------<<<
-*********************************************/
-
-double do_shift(double shift, double variable)
-{
-  int it, in;
-  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
-
-  if(i<0) return(0.0);
-   it=i/MAXTYPE;
-   in = (i % MAXTYPE) + ish;
-  switch(it){
-  case CONTYPE:
-	if(in>xpp::session().parser.ncon)
-	  return 0.0;
-	else
-	  return xpp::session().parser.constants[in]; 
-	break;
-  case VARTYPE:
-	if(in>MAXODE)
-	  return 0.0;
-	else 
-	  return xpp::session().parser.variables[in];  
-  default:
-    xpp_log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
-    return 0.0;
-  }
-}
-double do_ishift(double shift, double variable)
-{
-  
- return variable+shift;
- 
-}
-
-double do_delay_shift(double delay, double shift, double variable)
-{
- int in;
-  int i=static_cast<int>(variable),ish=static_cast<int>(shift);
-  if(i<0) return(0.0);
-  in=(i % MAXTYPE)+ish;
-
-  if(in>MAXODE)
-    return 0.0;
- 
-  if(xpp::session().delay.stab_flag>0){
-    if(xpp::session().delay.flag&&delay>0.0)
-      return(get_delay(in-1,delay));
-    return(xpp::session().parser.variables[in]);
-  }
- 
-  return(delay_stab_eval(delay,in));
-
-}
-double do_delay(double delay, double i)
-{
-
-  int variable;
-    /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
-    variable = (static_cast<int>(i)) % MAXTYPE;
-
-  if(xpp::session().delay.stab_flag>0){
-    if(xpp::session().delay.flag&&delay>0.0) {
-      return(get_delay(variable-1,delay));
-    }
-    return(xpp::session().parser.variables[variable]);
-  }
- 
-  return(delay_stab_eval(delay,static_cast<int>(variable)));
-  
-}
-
-/* HOM_BCS(x), a one-argument function of the parser (fun1): deprecated,
-   always 0 */
-double hom_bcs(double x)
-{
-  static_cast<void>(x);
-  return 0.0;
-}
-void one_arg()
-{
- fun1[0]=sin;
- fun1[1]=cos;
- fun1[2]=tan;
- fun1[3]=asin;
- fun1[4]=acos;
- fun1[5]=atan;
- fun1[6]=sinh;
- fun1[7]=tanh;
- fun1[8]=cosh;
- fun1[9]=fabs;
- fun1[10]=exp;
- fun1[11]=log;
- fun1[12]=log10;
- fun1[13]=sqrt;
- fun1[14]=neg;
- fun1[15]=recip;
- fun1[16]=heaviside;
- fun1[17]=signum;
- fun1[18]=floor;
- fun1[19]=rndom;
- fun1[20]=dnot;
- fun1[21]=erf;
- fun1[22]=erfc;
- fun1[23]=hom_bcs;
-  fun1[24]=poidev;
-  fun1[25]=lgamma;
-}
-
-double max(double x, double y)
-{
- return(((x>y)?x:y));
-}
-
-double min(double x, double y)
-{
- return(((x<y)?x:y));
-}
-
-double neg(double z)
-{
- return(-z);
-}
-
-double recip(double z)
-{
- return(1.00/z);
-}
-
-double heaviside(double z)
-{
- float w=1.0;
- if(z<0)w=0.0;
- return(w);
-}
-
-double rndom(double z)
-{
-  return(z*ndrand48());
-}
-
-double signum(double z)
-{
-  if(z<0.0)return(-1.0);
-  if(z>0.0)return(1.0);
-  return(0.0);
-}
-
-/*  logical stuff  */
-
-double dnot(double x)
-{
- return(static_cast<double>(x==0.0));
-}
-double dand(double x, double y)
-{
- return(static_cast<double>(x&&y));
-}
-double dor(double x, double y)
-{
- return(static_cast<double>(x||y));
-}
-double dge(double x, double y)
-{
- return(static_cast<double>(x>=y));
-}
-double dle(double x, double y)
-{
- return(static_cast<double>(x<=y));
-}
-double deq(double x, double y)
-{
- return(static_cast<double>(x==y));
-}
-double dne(double x, double y)
-{
- return(static_cast<double>(x!=y));
-}
-double dgt(double x, double y)
-{
- return(static_cast<double>(x>y));
-}
-double dlt(double x, double y)
-{
- return(static_cast<double>(x<y));
-}
-
-/*              end of logical stuff    */
-
- double evaluate(int *equat)
-{
-  uptr=0;
-  stack_pointer=0;
-  return(eval_rpn(equat));
- }
-
- double eval_rpn(int *equat)
-{
-   int i,it,in,j,*tmpeq;
-  int is;
-  
-  int low,high,ijmp,iv;
-  double temx,temy,temz;
-  double sum;
-  union    /*  WARNING  -- ASSUMES 32 bit int  and 64 bit double  */
-   {
-     struct {
-       int int1;
-       int int2;
-     } pieces;
-     struct {
-       double z;
-     } num;
-   } encoder;
-  /* read on every token: the constants and variables once */
-  double *const constants=xpp::session().parser.constants.data();
-  double *const variables=xpp::session().parser.variables.data();
-
-  while((i=*equat++)!=ENDEXP)
-  {
-
-   switch(i)
-   {
-   case NUMSYM:
-     encoder.pieces.int2=*equat++;
-     encoder.pieces.int1=*equat++;
-     PUSH(encoder.num.z);
-     break;
-   case ENDFUN:
-   		 i=*equat++;
-		
-    		 uptr-=i;
-		
-   		 break;
-
-   case MYIF:
-		temx=POP;
-		ijmp=*equat++;
-		if(temx==0.0)equat+=ijmp;
-                break;
-   case MYTHEN:
-	       ijmp=*equat++;
-	       equat+=ijmp;
-		break;
-   case MYELSE:
-		break;
-  
-   case ENDDELSHFT:
-     temx=POP;
-     temy=POP;
-     temz=POP;
-     PUSH(do_delay_shift(temx,temy,temz));
-     break;
-   case ENDSET:  /* indirectly set a variable + shift to a value
-                    SET(name,shift,value)  */
-     temx=POP;
-     temy=POP;
-     temz=POP;
-     iv=static_cast<int>(temy)+((static_cast<int>(temz)) % MAXTYPE);
-     variables[iv]=temx;
-     PUSH(temx);
-     break;
-   case ENDDELAY:
-		    temx=POP;
-		    temy=POP;
-                   
-                   PUSH(do_delay(temx,temy));
-		   break;
-
-   case ENDSHIFT:
-                 temx=POP;
-                 temy=POP;
-                 PUSH(do_shift(temx,temy));
-                 break;
-   case ENDISHIFT:
-                 temx=POP;
-                 temy=POP;
-                 PUSH(do_ishift(temx,temy));
-                 break;
-   case SUMSYM:
-              temx=POP;
-              high=static_cast<int>(temx);
-              temx=POP;
-              low=static_cast<int>(temx);
-              ijmp=*equat++;
-              sum=0.0;
-              if(low<=high){
-		for(is=low;is<=high;is++){
-		  tmpeq=equat;
-		  constants[SumIndex]=static_cast<double>(is);
-		  sum+=eval_rpn(tmpeq);
-		}
-	      }
-             equat+=ijmp;
-             PUSH(sum);
-             break;
-
-   case ENDSUM:
-            return(POP);
-   case INDXCOM:
-     PUSH(CurrentIndex);
-     break;
-   default:
-   {
-   it=i/MAXTYPE;
-   in=i%MAXTYPE;
-   switch(it)
-    {
-     case FUN1TYPE: PUSH(fun1[in](POP));
-            break;
-     case FUN2TYPE:
-	    {
-
-	     if(in==0){temx=POP;temy=POP;PUSH(temx+temy);goto bye;}
-	     if(in==2){temx=POP;temy=POP;PUSH(temx*temy);goto bye;}
-	     if(in==1){temx=POP;temy=POP;PUSH(temy-temx);goto bye;}
-	     if(in==3){temx=POP;if(temx==0.0)temx=DOUB_EPS;
-		      temy=POP;PUSH(temy/temx);goto bye;}
-             temx=POP;
-             temy=POP;
-	     PUSH(fun2[in](temy,temx));break;
-	    }
-     case CONTYPE: 
-              PUSH(constants[in]);break;
-    case VECTYPE: PUSH(vector_value(POP,in)); break;	      
-     case NETTYPE:  PUSH(network_value(POP,in));break;
-     case TABTYPE: PUSH(lookup(POP,in));break;
-            
-     case USTACKTYPE:
-        /* ram: so this means ustacks really do need to be of USTACKTYPE */
-            PUSH(ustack[uptr-1-in]); break;
-     case KERTYPE: PUSH(ker_val(in));break;
-    case VARTYPE:
-             PUSH(variables[in]); break;
-       
-     /* indexes for shift and delay operators... */
-     case SCONTYPE:
-        
-         PUSH(static_cast<double>(COM(CONTYPE, in))); break;
-     case SVARTYPE:
-        
-             PUSH(static_cast<double>(COM(VARTYPE, in))); break;
-
-     case UFUNTYPE: i=*equat++;
-         
-            for(j=0;j<i;j++)
-            {
-            ustack[uptr]=POP;
-	 
-	    uptr++;
-            }
-            PUSH(eval_rpn(xpp::model().ufun_programs[in].data())); 
-break;
-    }
-bye: j=0;
-   }
-  }
-  }
-   return(POP);
-
-}
-
-/*  STRING STUFF  */
-void strupr(char *s)
-{
- int i=0;
- while(s[i])
- {
-  if(islower(s[i]))s[i]-=32;
-  i++;
-  }
-}
-
-void strlwr(char *s)
-{
- int i=0;
- while(s[i])
- {
-  if(isupper(s[i]))s[i]+=32;
-  i++;
-  }
 }

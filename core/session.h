@@ -82,7 +82,8 @@ struct Session {
   /* the numerics and the main plot's settings in use (load_eqn.cpp) */
   NumericsSettings numerics;
   PlotSettings plot_settings;
-  /* the parser's constants, variables and counts (parserslow2.cpp) */
+  /* the expression engine's constants, variables, counts, symbol table
+     and evaluation stacks (expr.h) */
   ParserState parser;
   /* the parameter sliders the model sets up (@ s1=name, slo1=, shi1=,
      likewise 2 and 3) */

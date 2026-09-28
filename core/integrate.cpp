@@ -665,7 +665,7 @@ namespace {
    sweep, batch_integrate_once's plain run): rand_seed is the seed shown
    or set for the next run (docs/roadmap.md W71, "@ seed=" in
    load_eqn.cpp, Stochastic > New seed in markov.cpp, -newseed in
-   parserslow2.cpp's init_rpn -- each of those already calls nsrand48
+   expr_symbols.cpp's init_rpn -- each of those already calls nsrand48
    with it immediately too, unchanged, so this reapplies exactly the
    same value and changes nothing there); apply it, log it and keep it
    as last_seed for the protocol's state and a saved data file's

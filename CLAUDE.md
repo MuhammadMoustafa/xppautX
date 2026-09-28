@@ -256,8 +256,7 @@ run it with clang64/bin on PATH):
     PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j8 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
 
 Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
-with core names like `max`, `MessageBox`, `VARTYPE`); the core's own
-`strupr`/`strlwr` are renamed on Windows in parserslow.h. The exceptions
+with core names like `max`, `MessageBox`, `VARTYPE`). The exceptions
 are the two files that include no core header but small C APIs:
 `core/xpp_http.cpp` (sockets) and `core/xpp_window.cpp` (the desktop
 window's menu bar, dialogs and icon, behind `_WIN32`); windows.h never

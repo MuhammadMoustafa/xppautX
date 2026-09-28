@@ -28,8 +28,6 @@
 #define VECTOR 28
 
 #define NAMLEN XPP_NAME_MAX
-#define MAXARG 20
-#define MAXEXPLEN 1024
 
 #ifdef __cplusplus
 #include <string>

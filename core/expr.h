@@ -1,156 +1,69 @@
 #ifndef XPP_EXPR_H
 #define XPP_EXPR_H
+/* The expression engine: a model's formulas, compiled once as it loads and
+   evaluated at every step. Four files, one job each:
 
-#include "volterra.h"
+   - expr_symbols.cpp, the symbol table: the names a formula may use (the
+     built-in functions and operators, then the model's parameters,
+     variables, user functions, tables, kernels, networks), what each
+     compiles to, and the parameters' and variables' values by name
+     (add_con, add_var, get_val, set_val ...);
+   - expr_compile.cpp, the compiler: a formula's text, tokens (the symbol
+     table's), checked, then a program in reverse Polish order (add_expr);
+   - expr_eval.cpp, the evaluator: runs a program on its stack (evaluate),
+     every right-hand side at every step, the hottest code there is;
+   - expr_functions.cpp, the built-in functions a program calls (heaviside,
+     max, mod, ran, delay, shift, the comparisons ...).
+
+   A compiled program is the interface between a compiler and the
+   evaluator: an int array ending in ENDEXP, whose format expr_program.h
+   documents. A second front end (the .odex parser, W74) writes the same
+   programs, and evaluate() and the built-ins serve both. The four files
+   share expr_internal.h; the rest of the core uses this header. */
 #include "xpplim.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define FUN1TYPE 9
-#define FUN2TYPE 1
-#define VARTYPE 3  /* standard variable */
-#define CONTYPE 2  /* standard parameter */
-#define UFUNTYPE   24
-#define SVARTYPE 4  /* shifted variable */
-#define SCONTYPE 32  /* shifted constant  */
-#define NETTYPE 6
-#define TABTYPE 7
-#define USTACKTYPE 8
-#define KERTYPE 10
-#define VECTYPE 13  /* for vectorized stuff */
-#define MAXTYPE 20000000  /* this is the maximum number of named stuff */ 
-
-#define COM(a,b) ((a)*MAXTYPE+(b))
-
-#define MAXARG 20
-#define NEGATE 9
-#define MINUS 4
-#define LPAREN 0
-#define RPAREN 1
-#define COMMA  2
-#define STARTTOK 10
-#define ENDTOK 11
-
-#define ENDEXP 999
-#define ENDFUN 998
-#define DELSYM  42
-#define ENDDELAY 996
-#define MYIF  995
-#define MYELSE 993
-#define MYTHEN 994
-#define SUMSYM 990
-#define ENDSUM 991
-#define SHIFTSYM 64
-#define ISHIFTSYM 67
-#define ENDSHIFT 988
-#define LASTTOK MAX_SYMBS-2
-#define NUMSYM 987
-#define NUMTOK 59
-#define CONV 2
-#define FIRST_ARG 73
-#define ENDDELSHFT 986
-#define DELSHFTSYM 65
-#define ENDISHIFT 985
-#define SETSYM  72
-#define ENDSET 981
-#define INDX 68
-
+/* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
 
-#define INDXCOM 922
-
-/* longest symbol name: a model's names, and the primed name X' that
-   form_ode.c adds for each variable X */
-#define MXLEN (XPP_NAME_MAX+1)
-
-/* the longest program add_expr writes (the callers' command arrays) */
-#define MAXEXPLEN 1024
-
-
+/* starts a load: the symbol table back to the built-ins, no parameters,
+   variables, user functions or kernels, and the random generator seeded */
 void init_rpn(void);
-int add_constant(const char *junk);
+/* the symbol table's entries, each returning 0 when the name was added
+   and 1 (said why) when it was not: a parameter of value, a kernel of
+   mu and formula expr ("kerexpr#expr" is a convolution), network index's
+   name (with vectorizer set, vectorizer index's), table index's name, user function name (index, narg
+   arguments; add_ufun also compiles expr) */
 int add_con(const char *name, double value);
 int add_kernel(const char *name, double mu, const char *expr);
-int add_expr(const char *expr, int *command, int *length);
-int add_net_name(int index, const char *name);
-int add_vector_name(int index, const char *name);
-int add_2d_table(const char *name, const char *file);
-int add_file_table(int index, const char *file);
+int add_net_name(int index, const char *name, int vectorizer);
 int add_table_name(int index, const char *name);
-int add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
-void set_old_arg_names(int narg);
-/* the symbols ARG1..ARGn stand for user function index's own argument
-   names (xpp::Model ufun_args), until set_old_arg_names puts them back */
-void set_ufun_arg_names(int index);
 int add_ufun_name(const char *name, int index, int narg);
 int add_ufun(const char *junk, const char *expr, int narg);
-int is_ufun(int x);
-int is_ucon(int x);
-int is_uvar(int x);
-int isvar(int y);
-int iscnst(int y);
-int isker(int y);
-int is_lookup(int x);
+/* table index filled from a file, or from formula at nn points in
+   [xlo,xhi]: 0 when it was; a 2-D table (not supported): 1 */
+int add_2d_table(const char *name, const char *file);
+int add_file_table(int index, const char *file);
+int add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
+/* variable i's value (0 past the model's variables) */
 void set_ivar(int i, double value);
 double get_ivar(int i);
-int alg_to_rpn(int *toklist, int *command);
-void show_where(const char *string, int index);
-int function_sym(int token);
-int unary_sym(int token);
-int binary_sym(int token);
-int pure_number(int token);
-int gives_number(int token);
-int check_syntax(int oldtoken, int newtoken);
-int make_toks(const char *dest, int *my_token);
-void tokeninfo(int tok);
-int do_num(const char *source, char *num, double *value, int *ind);
+/* name without blanks, in upper case, into dest (never longer than name) */
 void convert(const char *source, char *dest);
-void find_tok(const char *source, int *index, int *tok);
-double pmod(double x, double y);
-void two_args(void);
-double do_shift(double shift, double variable);
-double do_ishift(double shift, double variable);
-double do_delay_shift(double delay, double shift, double variable);
-double do_delay(double delay, double i);
-void one_arg(void);
-double max(double x, double y);
-double min(double x, double y);
 
-double neg(double z);
-double recip(double z);
-double heaviside(double z);
-double rndom(double z);
-double signum(double z);
-double dnot(double x);
-double dand(double x, double y);
-double dor(double x, double y);
-double dge(double x, double y);
-double dle(double x, double y);
-double deq(double x, double y);
-double dne(double x, double y);
-double dgt(double x, double y);
-double dlt(double x, double y);
-double evaluate(int *equat);
-double eval_rpn(int *equat);
+/* compiles expr into command, at most MAXEXPLEN ints ending in ENDEXP;
+   *length is the program's length, ENDEXP included; 0 when it compiled,
+   1 (said why) when it did not (expr_compile.cpp) */
+int add_expr(const char *expr, int *command, int *length);
+/* the number at source[*ind] (the parser's grammar): its text into num
+   (at most 39 characters and a NUL), its value into *value, *ind past
+   it; 1 (with a WARN) when it is not a number */
+int do_num(const char *source, char *num, double *value, int *ind);
 
-/*  STRING STUFF  */
-#ifdef _WIN32
-/* the Windows C library has its own char *strupr/strlwr; use private names */
-#ifdef __cplusplus
-}
-#endif
-#include <string.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-#define strupr xpp_strupr
-#define strlwr xpp_strlwr
-#endif
-void strupr(char *s);
-void strlwr(char *s);
-
-/*****************************************************/
+/* program's value (expr_eval.cpp) */
+double evaluate(const int *program);
 
 #ifdef __cplusplus
 }
@@ -159,23 +72,17 @@ void strlwr(char *s);
 #include <span>
 #include <string>
 #include <string_view>
-#include <vector>
 
-/* user function index's definition becomes def (Model::ufun_defs) */
-void set_ufun_def(int index, std::string_view def);
 /* user function index with the arguments args and the formula rhs */
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
-/* the symbol table by name (as converted makes it): 1 (with an INFO)
-   when name is already a symbol, 1 (with a WARN) when it is longer than
-   XPP_NAME_MAX; name's symbol index in *index (-1 when none), a
-   variable's, a lookup table's or a parameter's index (-1 when name is
-   not one); a parameter's or variable's value got or set (1 when name
-   is one); add_var adds a variable (0 when it did) */
-int duplicate_name(std::string_view name);
+/* the symbol table by name (as converted makes it): 1 (with a WARN) when
+   it is longer than XPP_NAME_MAX; a variable's, a lookup table's or a
+   parameter's index (-1 when name is not one); a parameter's or
+   variable's value got or set (1 when name is one); add_var adds a
+   variable (0 when it did) */
 int name_too_long(std::string_view name);
-void find_name(std::string_view name, int *index);
 int get_var_index(std::string_view name);
 int find_lookup(std::string_view name);
 int get_param_index(std::string_view name);
@@ -183,18 +90,43 @@ int get_val(std::string_view name, double *value);
 int set_val(std::string_view name, double value);
 int add_var(std::string_view name, double value);
 
-/* The parser's working state (parserslow2.cpp's), a Session's
-   (session.h): the constants (parameters and numbers) and variables as
-   the compiled programs read them, how many constants and symbols there
-   are (an expression compiled after the load adds its own above the
-   Model's ncon_start/nsym_start and rolls back to them), and whether a
-   parse reports its errors (errout) */
+/* a name the symbol table knows: its length, what it compiles to (com,
+   an instruction of expr_program.h), its number of arguments and its
+   priority (the compiler's) */
+struct ExprSymbol {
+  std::string name;
+  int len = 0;
+  int com = 0;
+  int arg = 0;
+  int pri = 0;
+};
+
+/* the evaluator's two stacks (expr_eval.cpp): the values it computes, and
+   the arguments of the user functions it is inside */
+constexpr int EXPR_STACK = 200;
+struct ExprStack {
+  std::array<double, EXPR_STACK> values{};
+  int top = 0;
+  std::array<double, EXPR_STACK> args{};
+  int nargs = 0;
+};
+
+/* The expression engine's state, a Session's (session.h): the constants
+   (parameters and numbers) and variables as the programs read them, how
+   many constants and symbols there are (an expression compiled after the
+   load adds its own above the Model's ncon_start/nsym_start and rolls
+   back to them), whether a parse reports its errors (errout), the symbol
+   table (its first STDSYM the built-ins, which the constructor puts
+   there: expr_symbols.cpp) and the evaluator's stacks */
 struct ParserState {
+  ParserState();
   std::array<double, MAXPAR> constants{};
   std::array<double, MAXODE1> variables{};
   int ncon = 0;
   int nsym = STDSYM;
   int errout = 0;
+  std::array<ExprSymbol, MAX_SYMBS> symbols;
+  ExprStack stack;
 };
 #endif
 #endif

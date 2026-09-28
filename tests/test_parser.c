@@ -49,6 +49,18 @@ int main(void)
     CHECK(close_to(calc("2<=1", &ok), 0.0) && ok);
     CHECK(close_to(calc("if(1>0)then(5)else(9)", &ok), 5.0) && ok);
     CHECK(close_to(calc("if(1<0)then(5)else(9)", &ok), 9.0) && ok);
+    CHECK(close_to(calc("2*if(1)then(3)else(4)+1", &ok), 7.0) && ok);
+
+    /* sum(low,high)of(...) evaluates its part once per index i', on the
+       same stack as what surrounds it */
+    CHECK(close_to(calc("sum(1,4)of(i')", &ok), 10.0) && ok);
+    CHECK(close_to(calc("1+sum(1,3)of(i'*2)*2", &ok), 25.0) && ok);
+    CHECK(close_to(calc("sum(3,1)of(i')", &ok), 0.0) && ok);
+
+    /* mod is always in [0,y); a zero divisor becomes 2.23e-15 */
+    CHECK(close_to(calc("mod(-1,3)", &ok), 2.0) && ok);
+    CHECK(fabs(calc("1/0", &ok) - 1/2.23e-15) < 1 && ok);
+    CHECK(close_to(calc("0/0", &ok), 0.0) && ok);
 
     /* a name that no model defines must be refused, not silently zero */
     calc("nosuchthing+1", &ok);

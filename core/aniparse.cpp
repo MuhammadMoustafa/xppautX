@@ -26,6 +26,7 @@
 #include "ani_data.h"
 #include "xpp_log.h"
 #include "expr.h"
+#include "xpp_io.h"
 #include "form_ode.h"
 #include "my_rhs.h"
 #include "nullcline.h"
@@ -115,7 +116,7 @@ struct Comet {
     int i = 0;
 };
 
-/* one command of the .ani file: its compiled expressions (parserslow's
+/* one command of the .ani file: its compiled expressions (add_expr's
    tokens, each ending in ENDEXP) and their values in the current frame */
 struct AniCom {
     Comet c;
@@ -386,7 +387,7 @@ int chk_ani_color(std::string &s, int *index)
     *index = -1;
     de_space(s.data());
     s.resize(std::strlen(s.c_str()));
-    strupr(s.data());
+    xpp::to_upper(s.data());
     if (s.empty()) {
         *index = 0;
         return 1;
@@ -767,7 +768,7 @@ int parse_ani_string(std::string &s, xpp::LineReader &fp)
     std::optional<std::string_view> first = tokens.next("; ");
     if (!first) return -1;
     std::string command(*first);
-    strupr(command.data());
+    xpp::to_upper(command.data());
     for (const auto &k : ani_commands)
         if (std::strncmp(k.prefix, command.c_str(), 2) == 0) type = k.type;
     bool ok = true;
