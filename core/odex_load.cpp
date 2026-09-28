@@ -22,6 +22,7 @@
 #include "xpp_util.h"
 
 #include <array>
+#include <charconv>
 #include <cmath>
 #include <map>
 #include <optional>
@@ -127,6 +128,7 @@ public:
   Lowered run()
   {
     for (const Statement &s : p_.statements) declare(s);
+    scan_neartol();
     out_.lines.push_back("# " + p_.files[0]);
     for (const Statement &s : p_.statements) lower(s);
     out_.lines.push_back("done");
@@ -212,6 +214,26 @@ private:
     return it == decls_.end() ? nullptr : &it->second;
   }
 
+  /* the model's own near()'s tol, @ neartol= (default 1e-9, docs/odex.md
+     question 7): scanned once, whole-model (not position-sensitive: a
+     near() before the @ line that sets it still reads it), never passed
+     on to the .ode line (which would warn "not recognized") */
+  void scan_neartol()
+  {
+    for (const Statement &s : p_.statements) {
+      if (s.kind != Statement::Kind::Options) continue;
+      for (const Option &o : s.options) {
+        if (o.name != "neartol") continue;
+        double v = 0;
+        const char *b = o.value.data(), *e = b + o.value.size();
+        const auto r = std::from_chars(b, e, v);
+        if (r.ec != std::errc() || r.ptr != e || !(v > 0))
+          fail(o.value_pos, xpp::format("@ neartol={} is not a positive number", o.value));
+        neartol_ = v;
+      }
+    }
+  }
+
   /* "`X` is not declared", with the name of another case if there is one */
   [[noreturn]] void undeclared(const Expr &e, std::string_view what) const
   {
@@ -260,7 +282,7 @@ private:
     if (e.text == "t" || e.text == "pi" || e.text.starts_with("mouse_")) {
       if (is_reserved(e.text)) return;
     }
-    if (builtin_arity(e.text) != -1)
+    if (builtin_arity(e.text) != -1 || e.text == "near")
       fail(e.pos, xpp::format("`{}` is a built-in function: call it", e.text));
     const Decl *d = find(e.text);
     if (!d) undeclared(e, "the name");
@@ -288,6 +310,10 @@ private:
     }
     if (e.text == "volterra") {
       check_volterra(e, sc);
+      return;
+    }
+    if (e.text == "near") {
+      check_near(e, sc);
       return;
     }
     if (arity >= 0) {
@@ -355,6 +381,28 @@ private:
     inner.kernel = true;
     inner.volterra = false;
     check(e.args[0], inner);
+  }
+
+  /* near(a, b[, tol=t]): a translation (docs/odex.md question 7), not a
+     built-in of the expression engine: put_call writes it as pure .odex
+     syntax with abs and max (checked to have the arities near needs) */
+  void check_near(const Expr &e, const Scope &sc) const
+  {
+    const int n = static_cast<int>(e.args.size());
+    if (n < 2 || n > 3) fail(e.pos, xpp::format("near takes 2 or 3 arguments, not {}", n));
+    if (!e.arg_names[1].empty())
+      fail(e.args[1].pos, xpp::format("near's second argument is b, not a named argument (`{}=`)", e.arg_names[1]));
+    check(e.args[0], sc);
+    check(e.args[1], sc);
+    if (n == 3) {
+      if (e.arg_names[2] != "tol") {
+        fail(e.args[2].pos, e.arg_names[2].empty() ? std::string("near's third argument must be named tol=")
+                                                    : xpp::format("near has no argument named `{}`: only tol=",
+                                                                  e.arg_names[2]));
+      }
+      const Expr &t = e.args[2];
+      if (t.kind != Expr::Kind::Number || !(t.value > 0)) fail(t.pos, "near's tol= is not a positive number");
+    }
   }
 
   /* ---- .ode text ---- */
@@ -468,6 +516,21 @@ private:
       out += "})";
       return;
     }
+    if (e.text == "near") {
+      /* |a-b| <= tol*max(1, |a|, |b|); tol the call's own (checked a
+         positive literal) or the model's neartol_ */
+      const std::string tol = print_number(e.args.size() == 3 ? e.args[2].value : neartol_);
+      out += "(abs((";
+      put(out, e.args[0], 0, false);
+      out += ")-(";
+      put(out, e.args[1], 0, false);
+      out += "))<=(" + tol + ")*max(1,max(abs(";
+      put(out, e.args[0], 0, false);
+      out += "),abs(";
+      put(out, e.args[1], 0, false);
+      out += "))))";
+      return;
+    }
     out += e.text + "(";
     for (size_t i = 0; i < e.args.size(); i++) {
       if (i) out += ',';
@@ -579,10 +642,16 @@ private:
     switch (s.kind) {
     case Statement::Kind::Comment: L.push_back("\" " + s.text); break;
     case Statement::Kind::Options: {
+      /* neartol is .odex-only (scan_neartol already read it): the .ode
+         reader would warn "Option neartol not recognized" */
       std::string line = "@ ";
-      for (size_t i = 0; i < s.options.size(); i++)
-        line += (i ? "," : "") + s.options[i].name + "=" + s.options[i].value;
-      L.push_back(line);
+      bool first = true;
+      for (const Option &o : s.options) {
+        if (o.name == "neartol") continue;
+        line += (first ? "" : ",") + o.name + "=" + o.value;
+        first = false;
+      }
+      if (!first) L.push_back(line);
       break;
     }
     case Statement::Kind::Par:
@@ -705,6 +774,8 @@ private:
   bool subst_pars_ = false;
   /* writing an event's actions (put) */
   bool in_event_ = false;
+  /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
+  double neartol_ = 1e-9;
   Lowered out_;
   std::set<std::string> initialized_;
   std::vector<Binding> historied_;

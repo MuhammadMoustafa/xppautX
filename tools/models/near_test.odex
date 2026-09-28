@@ -1,0 +1,13 @@
+# near(a, b[, tol=]) (docs/odex.md question 7, W78): a known-answer
+# model for tests/test_odex.cpp's numeric check, read back from
+# output.dat rather than through the translation's .ode text directly.
+# x is a dummy state (near reads only literals here, so nothing depends
+# on x); each aux is 0 or 1 in every row.
+x' = 0
+init x = 0
+aux t_true = near(1, 1)
+aux t_false = near(1, 2)
+aux t_bound = near(0, 0.000001, tol=0.000001)
+aux t_over = near(0, 0.0000011, tol=0.000001)
+aux t_default = near(1, 1.0000000005)
+@ total=.1, dt=.1

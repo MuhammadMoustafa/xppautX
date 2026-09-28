@@ -11,7 +11,10 @@ case-sensitive names, `# ...` and nested `/* ... */` comments, no
 `done`, every mistake an error at its line and column. A parameter's
 value and an initial value are expressions (the parameters set first),
 and `/` divides as IEEE does (`1/0` is inf; a run stops at the first
-NaN or inf). The model above as `.odex`:
+NaN or inf). `==` and `!=` are exact; `near(a, b)` is approximate
+equality, true when `|a-b| <= tol*max(1, |a|, |b|)`, `tol` the model's
+`@ neartol=` (default `1e-9`) or a call's own `near(a, b, tol=1e-6)`.
+The model above as `.odex`:
 
     # Forced Fitzhugh-Nagumo, fhn.odex
     par a = .25, eps = .05, gamma = 1, I_0 = .25

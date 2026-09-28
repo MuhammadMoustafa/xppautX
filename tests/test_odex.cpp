@@ -5,6 +5,7 @@
 #include "odex.h"
 #include "xpp_batch.h"
 
+#include <cstdio>
 #include <string>
 
 using xpp::odex::Error;
@@ -135,6 +136,8 @@ int main(void)
   CHECK_STR(parsed("volterra(exp(-t), of=u, mu=0.5)").c_str(), "(volterra (exp (- t)) of=u mu=0.5)");
   CHECK_STR(parsed("max(a, b==c)").c_str(), "(max a (== b c))");
   CHECK_STR(parsed("sum(shift(u0, i'), from=0, to=9)").c_str(), "(sum (shift u0 i') from=0 to=9)");
+  CHECK_STR(parsed("near(a, b, tol=1e-6)").c_str(), "(near a b tol=1e-6)");
+  CHECK_STR(parsed("near(a, b)").c_str(), "(near a b)");
 
   /* errors, each at its line and column */
   CHECK(starts(parsed("3<2<1"), "error 1:4 comparisons do not chain"));
@@ -256,7 +259,9 @@ int main(void)
   CHECK(starts(model_error("event 2 x, x=0\n"), "1:7 the event's direction is 1, -1 or 0"));
   CHECK(starts(model_error("include \"no/such/file.incx\"\n"), "1:9 cannot read the included file no/such/file.incx"));
   CHECK(xpp::odex::is_reserved("volterra") && !xpp::odex::is_reserved("e") && !xpp::odex::is_reserved("int"));
+  CHECK(xpp::odex::is_reserved("near") && !xpp::odex::is_reserved("neartol"));
   CHECK(xpp::odex::is_name("v_1") && !xpp::odex::is_name("1v") && !xpp::odex::is_name("_v"));
+  CHECK(starts(model_error("par near = 1\nx' = 1\n"), "1:5 `near` is a reserved word and cannot be a name"));
 
   /* the .ode lines a model becomes: .ode's parentheses keep .odex's
      grouping, a sign and an if always bracketed */
@@ -296,6 +301,24 @@ int main(void)
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
 
+  /* near(a, b[, tol=]) (docs/odex.md question 7, W78): |a-b| <=
+     tol*max(1,|a|,|b|), tol the model's neartol (default 1e-9) or the
+     call's own, always written as a literal */
+  {
+    const std::string t9 = xpp::odex::print_number(1e-9);
+    const std::string t6 = xpp::odex::print_number(1e-6);
+    CHECK_STR(lowered("x' = 1\naux flag = near(x, 1)\n").c_str(),
+              ("x'=1|aux flag=(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))").c_str());
+    CHECK_STR(lowered("x' = 1\naux flag = near(x, 1, tol=1e-6)\n").c_str(),
+              ("x'=1|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
+    CHECK_STR(lowered("x' = 1\n@ neartol=1e-6\naux flag = near(x, 1)\n").c_str(),
+              ("x'=1|aux flag=(abs((x)-(1))<=(" + t6 + ")*max(1,max(abs(x),abs(1))))").c_str());
+    /* the @ line drops neartol, keeping any options beside it */
+    CHECK_STR(lowered("x' = 1\n@ neartol=1e-6, dt=.1\n").c_str(), "x'=1|@ dt=.1");
+    CHECK_STR(lowered("x' = 1\nevent 1 near(x, 1) - 1, x = 0\n").c_str(),
+              ("x'=1|global 1 {(abs((x)-(1))<=(" + t9 + ")*max(1,max(abs(x),abs(1))))-1} {x=0}").c_str());
+  }
+
   /* what the checks refuse, at its line and column */
   CHECK(starts(lowered("x' = y\n"), "error 1:6 the name `y` is not declared"));
   CHECK(starts(lowered("par V = 1\nx' = v\n"), "error 2:6 the name `v` is not declared (names have case: did you mean `V`?)"));
@@ -315,6 +338,14 @@ int main(void)
   CHECK(starts(lowered("x' = x[1]\n"), "error 1:7 indexing (x[i]) is not part of .odex yet"));
   CHECK(starts(lowered("x' = sum(i', from=0)\n"), "error 1:6 sum needs from= and to="));
   CHECK(starts(lowered("x' = 1\nset s = a = x+1\n"), "error 2:13 a set's value is a number or a name, not `x+1` (a=)"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x)\n"), "error 2:12 near takes 2 or 3 arguments, not 1"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1, 1)\n"), "error 2:12 near takes 2 or 3 arguments, not 4"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, 1e-6)\n"), "error 2:23 near's third argument must be named tol="));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, eps=1e-6)\n"), "error 2:27 near has no argument named `eps`: only tol="));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=-1)\n"), "error 2:27 near's tol= is not a positive number"));
+  CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number"));
+  CHECK(starts(lowered("x' = 1\n@ neartol=-1\n"), "error 2:11 @ neartol=-1 is not a positive number"));
+  CHECK(starts(lowered("x' = 1\n@ neartol=0\n"), "error 2:11 @ neartol=0 is not a positive number"));
 
   /* --convert: what the .ode's reader understood, its quirks explicit */
   {
@@ -356,6 +387,29 @@ int main(void)
       back = e.text();
     }
     CHECK_STR(back.c_str(), "");
+  }
+
+  /* near(a, b[, tol=]) numerically: tools/models/near_test.odex's aux
+     columns, read back from output.dat (not the translation's text) */
+  {
+    char arg0[] = "test_odex", model[] = "tools/models/near_test.odex", outflag[] = "-outfile",
+         outfile[] = "build/test_odex_near_output.dat";
+    char *argv[] = {arg0, model, outflag, outfile, nullptr};
+    CHECK(xpp_batch_main(4, argv) == 0);
+    FILE *fp = fopen("build/test_odex_near_output.dat", "r");
+    CHECK(fp != nullptr);
+    if (fp) {
+      char line[512];
+      CHECK(fgets(line, sizeof line, fp) != nullptr); /* t=0's row: t, x, then the auxes in order */
+      double t_true = 0, t_false = 0, t_bound = 0, t_over = 0, t_default = 0;
+      CHECK(sscanf(line, "%*g %*g %lg %lg %lg %lg %lg", &t_true, &t_false, &t_bound, &t_over, &t_default) == 5);
+      CHECK(t_true == 1);
+      CHECK(t_false == 0);
+      CHECK(t_bound == 1); /* the boundary, |a-b| == tol*max(...): near is <=, so true */
+      CHECK(t_over == 0);
+      CHECK(t_default == 1); /* within the default 1e-9 */
+      fclose(fp);
+    }
   }
 
   TEST_REPORT("odex: grammar");

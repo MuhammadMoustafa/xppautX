@@ -25,14 +25,15 @@ namespace {
 
 /* the words docs/odex.md reserves: the statement keywords (and solv and
    only, the .ode statements .odex keeps with their own spelling), the
-   operator words, volterra, the built-in functions (every one the
-   expression engine has, lgamma, poisson and besselis included) and
-   constants (t, pi, and the animator's mouse_x ... mouse_vy) */
+   operator words, volterra, near (W78: near(a,b[,tol=]), a translation,
+   never an expression-engine built-in), the built-in functions (every
+   one the expression engine has, lgamma, poisson and besselis included)
+   and constants (t, pi, and the animator's mouse_x ... mouse_vy) */
 constexpr auto reserved_words = std::to_array<std::string_view>({
   "par", "init", "aux", "fun", "let", "return", "if", "then", "else", "set",
   "table", "markov", "wiener", "event", "boundary", "network", "include",
   "solv", "only", "history",
-  "and", "or", "not", "mod", "volterra",
+  "and", "or", "not", "mod", "volterra", "near",
   "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh",
   "tanh", "exp", "ln", "log", "log10", "sqrt", "heav", "sign", "flr", "ran",
   "abs", "delay", "shift", "ishift", "del_shft", "sum", "of", "max", "min",
