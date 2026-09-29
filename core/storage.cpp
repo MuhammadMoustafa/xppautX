@@ -12,12 +12,6 @@
 #include "load_eqn.h"
 #include "model.h"
 
-#define BACKEUL 7
-#define VOLTERRA 6
-#define STIFF 9
-#define GEAR 5
-#define RB23 13
-
 void init_alloc_info()
 {
   SolverWork &w=xpp::session().solver_work;
@@ -30,34 +24,6 @@ void init_alloc_info()
     xpp_out_of_memory("the state vector");
   }
   w.xpv.x=w.state.data();
-}
-
-void alloc_meth()
-{
-  SolverWork &w=xpp::session().solver_work;
-  int nn=w.xpv.node+w.xpv.nvec;
-  int sz=30*nn;
-  switch(xpp::session().numerics.method){
-  case STIFF:
-     sz=2*nn*nn+13*nn+100;
-
-     break;
-  case GEAR:
-    sz=30*nn+nn*nn+100;
-    break;
-  case BACKEUL:
-  case VOLTERRA:
-    sz=10*nn+nn*nn+100;
-    break;
-  case RB23:
-    sz=12*nn+100+nn*nn;
-    break;
-  }
-  try {
-    w.work.assign(sz,0.0);
-  } catch (const std::bad_alloc &) {
-    xpp_out_of_memory("the solver's work space");
-  }
 }
 
 void DataStore::allocate(int nrow, int ncol)

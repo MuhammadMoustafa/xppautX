@@ -589,7 +589,7 @@ int *istart,int n,double *work,int *ierr)
 
 }
 
-int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag)
+int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
    double yold[MAXODE],told;
   int i,hit;
@@ -599,7 +599,7 @@ int one_flag_step_dp(int *istart, double *y, double *t, int n, double tout, doub
     for(i=0;i<n;i++)
       yold[i]=y[i];
     told=*t;
-    dormprin(istart,y,t,n,tout,tol,atol,flag,kflag);
+    dormprin(istart,y,t,n,tout,tol,atol,flag,kflag,work);
     if(*kflag!=1) break;
     if((hit=one_flag_step(yold,y,istart,told,t,n,&s ))==0)
       break;

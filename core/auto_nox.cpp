@@ -50,6 +50,7 @@
 #include "my_rhs.h"    /* extra() */
 #include "menus.h"
 #include "my_ps.h"
+#include "solver.h"
 
 #define PARAM_BOX 1
 
@@ -93,7 +94,6 @@
 #define CSEQ 1
 #define CUEQ 2
 
-#define DISCRETE 0
 /* the label the running continuation started from (Auto.irs), for its
    first point: do_auto sets it, addbif takes it (auto_run_from_take) */
 static int run_from;
@@ -1716,7 +1716,7 @@ void auto_start_choice()
   static const char *const key="spbhe";
   char ch;
   xpp::session().auto_state.homo_flag=0;
-  if(xpp::session().numerics.method==DISCRETE){
+  if(xpp::session().numerics.method==xpp::method::DISCRETE){
     auto_new_discrete();
     return;
   }
@@ -1822,7 +1822,7 @@ void hopf_choice()
   static const char *m[]={"Periodic","Extend","New Point","Two Param"};
   static const char *const key="pent";
   char ch;
-  if(xpp::session().numerics.method==DISCRETE){
+  if(xpp::session().numerics.method==xpp::method::DISCRETE){
     auto_2p_hopf();
     return;
   }
@@ -2001,7 +2001,7 @@ void auto_start_diff_ss()
   xpp::Session &s=xpp::session();
   s.auto_state.type_of_calc=EQ1;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==DISCRETE)s.auto_state.bifur.ips=-1;
+  if(s.numerics.method==xpp::method::DISCRETE)s.auto_state.bifur.ips=-1;
   s.auto_state.bifur.irs=0;
   s.auto_state.bifur.itp=0;
   s.auto_state.bifur.ilp=1;
@@ -2137,7 +2137,7 @@ void auto_extend_ss()
   s.auto_state.bifur.ilp=1;
   s.auto_state.bifur.isw=1;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==DISCRETE)
+  if(s.numerics.method==xpp::method::DISCRETE)
     s.auto_state.bifur.ips=-1;
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
@@ -2338,7 +2338,7 @@ void auto_switch_ss()
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==DISCRETE)
+  if(s.numerics.method==xpp::method::DISCRETE)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=0;
   do_auto(OPEN_3,APPEND,s.auto_state.bifur.itp);
@@ -2431,7 +2431,7 @@ void auto_2p_branch(int ips)
   }
 
   s.auto_state.bifur.ips=ipsuse;
-  if(s.numerics.method==DISCRETE)
+  if(s.numerics.method==xpp::method::DISCRETE)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=BR2;
       s.auto_state.type_of_calc=BR2;
@@ -2481,7 +2481,7 @@ void auto_2p_hopf()
   s.auto_state.bifur.isw=2;
   s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==DISCRETE)
+  if(s.numerics.method==xpp::method::DISCRETE)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=HB2;
     s.auto_state.type_of_calc=HB2;

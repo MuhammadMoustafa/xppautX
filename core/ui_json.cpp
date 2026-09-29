@@ -593,10 +593,12 @@ void json_ui_hello(const char *title)
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, xpp::format("{} {}", i, color_names[i]).c_str());
     }
-    BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],"
-                "[\"0 Discrete\",\"1 Euler\",\"2 Mod. Euler\",\"3 Runge-Kutta\",\"4 Adams\",\"5 Gear\","
-                "\"6 Volterra\",\"7 BackEul\",\"8 QualRK\",\"9 Stiff\",\"10 CVode\",\"11 DoPri5\","
-                "\"12 DoPri8(3)\",\"13 Rosenbrock\",\"14 Symplectic\"]]");
+    BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],[");
+    for (const xpp::SolverInfo &m : xpp::solvers()) {
+        if (m.id) BUF_LIT(&b, ",");
+        buf_str(&b, xpp::format("{} {}", static_cast<int>(m.id), m.name).c_str());
+    }
+    BUF_LIT(&b, "]]");
     BUF_LIT(&b, ",\"auto_hints\":");
     buf_str_array(&b, auto_hint, 9);
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */

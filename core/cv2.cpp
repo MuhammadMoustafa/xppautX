@@ -49,7 +49,7 @@ static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
   
 }
 
-void cvode_err_msg(int kflag)
+std::string cvode_error_text(int kflag)
 {
   std::string s;
   switch(kflag){
@@ -74,8 +74,7 @@ void cvode_err_msg(int kflag)
   case -9: s = "Flags error...";
     break;
   }
-  if(!s.empty())
-    err_msg(s.c_str());
+  return s;
 }
 
 int cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */

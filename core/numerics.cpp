@@ -16,7 +16,6 @@
 #include <math.h>
 #include "browse.h"
 #include "volterra2.h"
-#include "odesol2.h"
 #include "pp_shoot.h"
 #include "storage.h"
 #include "delay_handle.h"
@@ -26,16 +25,9 @@
 #include "load_eqn.h"
 #include "expr.h"
 #include "model.h"
-#define VOLTERRA 6
-#define BACKEUL 7
-#define RKQS 8
-#define STIFF 9
-#define CVODE 10
-#define GEAR 5
-#define DP5 11
-#define DP83 12
-#define RB23 13
-#define SYMPLECT 14
+#include "solver.h"
+
+namespace method = xpp::method;
 
 /*   This is numerics.c    
  *   The input is primitive and eventually, I want to make it so
@@ -50,7 +42,7 @@
 
 void chk_volterra()
 {
-  if (xpp::model().nkernel>0)xpp::session().numerics.method=VOLTERRA;
+  if (xpp::model().nkernel>0)xpp::session().numerics.method=method::VOLTERRA;
 }
 
 void  check_pos(int *j)
@@ -166,35 +158,37 @@ void  get_num_par(char ch)
 		case 'm': flash(8);
 			 /* method */
 			 get_method();
-			 if(s.numerics.method==VOLTERRA&&xpp::model().nkernel==0){
+			 if(s.numerics.method==method::VOLTERRA&&xpp::model().nkernel==0){
 			   err_msg("Volterra only for integral eqns");
-			   s.numerics.method=4; 
+			   s.numerics.method=method::ADAMS;
 			 }
-		       if(xpp::model().nkernel>0)s.numerics.method=VOLTERRA;
-			if(s.numerics.method==GEAR||s.numerics.method==RKQS||s.numerics.method==STIFF)
+		       if(xpp::model().nkernel>0)s.numerics.method=method::VOLTERRA;
+		       {
+			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
+			if(traits.step_tolerance)
 		{
 		 new_float("Tolerance :",&s.numerics.toler);
 		 new_float("minimum step :",&s.numerics.hmin);
 		 new_float("maximum step :",&s.numerics.hmax);
 		}
-			if(s.numerics.method==CVODE||s.numerics.method==DP5||s.numerics.method==DP83||s.numerics.method==RB23)
+			if(traits.rel_abs_tolerance)
 			  {
 			    new_float("Relative tol:",&s.numerics.toler);
 			    new_float("Abs. Toler:",&s.numerics.atoler);
 			  }
 
-		       if(s.numerics.method==BACKEUL||s.numerics.method==VOLTERRA){
+		       if(traits.newton){
 			 new_float("Tolerance :",&s.numerics.eul_tol);
 			 new_int("MaxIter :",&s.numerics.max_eul_iter);
 		       }
-		       if(s.numerics.method==VOLTERRA){
+		       if(s.numerics.method==method::VOLTERRA){
 			 tmp=s.numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
 			 new_int("AutoEval(1=yes) :",&s.numerics.auto_evaluate);
 			 allocate_volterra(tmp,1);
 		       }
 			 
-		       if(s.numerics.method==CVODE||s.numerics.method==RB23)
+		       if(traits.banded)
 			 {
 			   new_int("Banded system(0/1)?",&s.numerics.cv_bandflag);
 			   if(s.numerics.cv_bandflag==1){
@@ -202,11 +196,12 @@ void  get_num_par(char ch)
 			     new_int("Upper band:",&s.numerics.cv_bandupper);
 			   }
 			 }
-		       if(s.numerics.method==SYMPLECT){
+		       if(s.numerics.method==method::SYMPLECT){
 			 if((xpp::model().node%2)!=0){
 			   err_msg("Symplectic is only for even dimensions");
-			   s.numerics.method=4;
+			   s.numerics.method=method::ADAMS;
 			 }
+		       }
 		       }
 			flash(8);
 			break;
@@ -256,7 +251,6 @@ void  get_num_par(char ch)
 		case 27: 
 		       do_meth();
 		      s.numerics.tend=fabs(s.numerics.tend);
-		       alloc_meth();
 			show_main_menu(MAIN_MENU);
 			break;
 
@@ -510,28 +504,11 @@ void set_col_par_com(int i)
 void do_meth()
 {
  xpp::Session &s=xpp::session();
- if(xpp::model().nkernel>0)s.numerics.method=VOLTERRA;
- switch(s.numerics.method)
- {
-  case 0: s.integrator.solver=discrete; s.numerics.delta_t=1;break;
-  case 1: s.integrator.solver=euler;break;
-  case 2: s.integrator.solver=mod_euler;break;
-  case 3: s.integrator.solver=rung_kut;break;
-  case 4: s.integrator.solver=adams;break;
-  case 5: s.numerics.njmp=1;break;
-  case 6: s.integrator.solver=volterra;break;
-  case SYMPLECT: 
-       s.integrator.solver=symplect3;
-       break;
- case BACKEUL: s.integrator.solver=bak_euler;break;
- case RKQS:
- case STIFF:
- case CVODE:
- case DP5:
- case DP83:
- case RB23:
-   s.numerics.njmp=1; break;
-  default: s.integrator.solver=rung_kut;
- }
+ if(xpp::model().nkernel>0)s.numerics.method=method::VOLTERRA;
+ const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
+ if(traits.discrete)s.numerics.delta_t=1;
+ /* a method that picks its own steps stores every output time */
+ if(!traits.fixed_step)s.numerics.njmp=1;
+ xpp::start_solver();
 }
 

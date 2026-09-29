@@ -59,9 +59,12 @@ int do_auto_range_go();
 #ifdef __cplusplus
 }
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "solver.h"
 
 /* the model's array initial values (x[j1..j2](0)=formula, applied by
    arr_ic_start when set_all_vals sets the model up), element by element:
@@ -79,8 +82,8 @@ struct RangeVars {
 
 /* the integrator's state, a Session's (session.h) */
 struct IntegratorState {
-  /* the fixed-step integrator Integrate uses (numerics.cpp picks it) */
-  int (*solver)(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work) = nullptr;
+  /* the method's solver, with its work memory (xpp::start_solver) */
+  std::unique_ptr<xpp::Solver> solver;
   /* the right-hand side the solvers step (my_rhs, or AUTO's and the
      adjoint's own while they run) */
   int (*rhs)(double t, double *y, double *ydot, int neq) = nullptr;

@@ -369,9 +369,8 @@ extern int dopri5
 
 
 void dprhs(unsigned n, double t, double *y, double *f);
-void dp_err(int k);
-int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
-int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag);
+int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
+int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
 
 
 

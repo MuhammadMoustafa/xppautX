@@ -9,9 +9,6 @@
 #include "xpp_globals.h"
 #include "integrate.h"
 
-#include "dormpri.h"
-#include "stiff.h"
-#include "cv2.h"
 #include "storage.h"
 
 #include "expr.h"
@@ -29,7 +26,6 @@
 #include "flags.h"
 #include "histogram.h"
 
-#include "odesol2.h"
 #include "nullcline.h"
 
 #include "pp_shoot.h"
@@ -37,6 +33,7 @@
 #include "my_ps.h"
 #include "my_svg.h"
 #include "numerics.h"
+#include "my_rhs.h" /* extra */
 #include "volterra2.h"
 #include <stdlib.h> 
 #include "aniparse.h"
@@ -49,19 +46,8 @@
  
 */
 
-/* 
-New stuff for 9/96 -- cvode added 
- cvode(command,y,t,n,tout,kflag,atol,rtol) 
- command =0 continue, 1 is start 2 finish
- kflag is error < 0 is bad -- call cvode_err_msg(kflag)
- call end_cv() to end it normally 
- on return y is new stuff, t is new time kflag is error if any
- if kflag < 0 thats bad
-
-NOTE: except for the structure MyGraph, it is "x-free" so it
- is completely portable
-
-*/ 
+/* The steps are the method's xpp::Solver's (solver.h): the Session's
+   integrator.solver, which xpp::start_solver made for numerics.method. */
 
 #include <stdio.h>
 #include <math.h>
@@ -97,15 +83,6 @@ static void row_stored(void)
 
 #define MAXFP 400
 #define NAR_IC 50
-#define VOLTERRA 6
-#define BACKEUL 7
-#define RKQS 8
-#define STIFF 9
-#define GEAR 5
-#define CVODE 10
-#define DP5 11
-#define DP83 12
-#define RB23 13
 
 constexpr int OnTheFly=1;
 
@@ -1168,7 +1145,7 @@ void do_init_data(int com)
       s.numerics.t0=s.integrator.last_time;
       s.data_store.current_time=s.numerics.t0;
     }
-    if(s.numerics.method==VOLTERRA&&oldstart==0){
+    if(s.numerics.method==xpp::method::VOLTERRA&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
       if(ch=='n')s.integrator.my_start=oldstart;
     }
@@ -1563,14 +1540,12 @@ void get_ic(int it, double *x)
 int ode_int(double *y, double *t, int *istart, int ishow)
 {
  xpp::Session &s=xpp::session();
- double error[MAXODE];
-
- int kflag;
+ xpp::Solver &solver=*s.integrator.solver;
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec;
  int nit,nout=s.numerics.njmp;
  double tend=s.numerics.tend;
- double dt=s.numerics.delta_t,tout;
-  if(s.numerics.method==0){
+ double dt=s.numerics.delta_t;
+  if(solver.traits().discrete){
  nit=tend;
  dt=dt/fabs(dt);
  }
@@ -1583,113 +1558,35 @@ int ode_int(double *y, double *t, int *istart, int ishow)
 }
  MSWTCH(s.solver_work.xpv.x,y);
  evaluate_derived(); 
- if(s.numerics.method<GEAR ||s.numerics.method==BACKEUL){
-
-   kflag=s.integrator.solver(s.solver_work.xpv.x,t,dt,nit,nodes,istart,s.solver_work.work.data());
-   MSWTCH(y,s.solver_work.xpv.x);
-
-   if(kflag<0){
-     ping();
-     if(s.integrator.range_flag)return(0);
-     switch(kflag)
-	    {
-	     case -1: err_msg(" Singular Jacobian "); break;
-	     case -2: err_msg("Too many iterates");break;
-	      }
-           
-            return(0);
-   }
+ solver.begin(istart);
+ xpp::SolverStep step{.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=istart};
+ if(solver.traits().fixed_step){
+   step.dt=dt;
+   step.steps=nit;
  }
- else
-   {
-           tout=*t+tend*dt/fabs(dt);
-           switch(s.numerics.method){
-	   case GEAR:
-	     if(*istart==1)*istart=0;
-	     gear(nodes,t,tout,s.solver_work.xpv.x,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,
-		  &kflag,istart,s.solver_work.work.data(),s.solver_work.iwork.data());
-	     MSWTCH(y,s.solver_work.xpv.x);
-	     if(kflag<0)
-	       {
-		 ping();
-		 if(s.integrator.range_flag)return(0);
-		 switch(kflag)
-		   {
-		   case -1: err_msg("kflag=-1: minimum step too big"); break;
-		   case -2: err_msg("kflag=-2: required order too big");break;
-		   case -3: err_msg("kflag=-3: minimum step too big");break;
-		   case -4: err_msg("kflag=-4: tolerance too small");break;
-		   }
-		 
-		 return(0);
-	       }
-	     break;
-#ifdef CVODE_YES
-	   case CVODE:
-	     cvode(istart,s.solver_work.xpv.x,t,nodes,tout,&kflag,&s.numerics.toler,&s.numerics.atoler);
-	     MSWTCH(y,s.solver_work.xpv.x);
-	     if(kflag<0){
-	       cvode_err_msg(kflag);
-	       return(0);
-	     }
-             end_cv();
-	     break;
-#endif
-           case DP5:
-	   case DP83:
-	     dp(istart,s.solver_work.xpv.x,t,nodes,tout,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
-	     MSWTCH(y,s.solver_work.xpv.x);
-	     if(kflag<0){
-	        if(s.integrator.range_flag)return(0);
-	       dp_err(kflag);
-	       return 0;
-	     }
-	   
-	   break;
-           case RB23:
-	     rb23(s.solver_work.xpv.x,t,tout,istart,nodes,s.solver_work.work.data(),&kflag);
-	     MSWTCH(y,s.solver_work.xpv.x);
-	     if(kflag<0){
-	       ping();
-	       if(s.integrator.range_flag)return(0);
-	       err_msg("Step size too small");
-	       return 0;
-	     }
-	     break;
-	   case RKQS:
-	   case STIFF:
-	     adaptive(s.solver_work.xpv.x,nodes,t,tout,s.numerics.toler,&dt,
-		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,istart);
-	     MSWTCH(y,s.solver_work.xpv.x);
-	     if(kflag){
-	       ping();
-	       if(s.integrator.range_flag)return(0);
-	       switch(kflag){
-	       case 2: err_msg("Step size too small"); break;
-	       case 3: err_msg("Too many steps"); break;	 
-	       case -1: err_msg("singular jacobian encountered"); break;
-	       case 1: err_msg("stepsize is close to 0"); break;
-	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
-	       }
-	       return(0);
-	     }
-	     break;
-	   }
-	 }
-
-  return(1);
+ else{
+   step.tout=*t+tend*dt/fabs(dt);
+   step.hguess=&dt;
+ }
+ xpp::SolverResult r=solver.advance(step);
+ MSWTCH(y,s.solver_work.xpv.x);
+ if(!r.ok){
+   xpp::report_solver_failure(r,s.integrator.range_flag);
+   return(0);
+ }
+ solver.finish();
+ return(1);
 }
 
 int integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
   xpp::Session &s=xpp::session();
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
+  xpp::Solver &solver=*s.integrator.solver;
 
  float xv[MAXODE+1],xvold[MAXODE+1];
  float oldperiod=0.0;
- double error[MAXODE];
  double xprime[MAXODE],oldxprime[MAXODE],hguess=dt;
- int kflag;
 
  int torcross[MAXODE];
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec-xpp::model().nmarkov;
@@ -1715,8 +1612,8 @@ if(program.interactive) cwidth=get_command_width();
  s.integrator.last_time=*t;
  evaluate_derived();
 
- if((s.numerics.method==GEAR)&&(*start==1))*start=0;
- if(s.numerics.method==0){
+ solver.begin(start);
+ if(solver.traits().discrete){
  nit=tend;
  dt=dt/fabs(dt);
  }
@@ -1746,205 +1643,46 @@ if(program.interactive) cwidth=get_command_width();
  while(1)
  {
 	
-           switch(s.numerics.method){
-	   case GEAR:
-	     {
-	     	
-	       tout=tzero+dt*(icount+1);
-	       if(fabs(dt)<fabs(s.numerics.hmin)){
-		 s.integrator.last_time=*t;
-		 return(1);
-	       }
-	       
-	       MSWTCH(s.solver_work.xpv.x,x);
-	       
-	       gear(nodes,t,tout,s.solver_work.xpv.x,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,&kflag,start,s.solver_work.work.data(),s.solver_work.iwork.data()); 
-	       
-	       MSWTCH(x,s.solver_work.xpv.x);
-	       stor_delay(x);
-	       if(s.integrator.delay_err){
-		 s.integrator.delay_err=0;
-		 s.integrator.last_time=*t;
-		 err_dae();
-		 return(1);
-		
-	       }
-	       if(kflag<0)
-		 {
-		   ping();
-		   if(s.integrator.range_flag||s.integrator.suppress_bounds){
-		     s.integrator.last_time=*t;
-		     return(1);
-		   }
-		   switch(kflag)
-		     {
-		     case -1: err_msg("kflag=-1: minimum step too big"); break;
-		     case -2: err_msg("kflag=-2: required order too big");break;
-		     case -3: err_msg("kflag=-3: minimum step too big");break;
-		     case -4: err_msg("kflag=-4: tolerance too small");break;
-		     }
-		   
-		   s.integrator.last_time=*t;
-		   return(1);
-		 }
-	     }
-	     break;
-#ifdef CVODE_YES
-	   case CVODE:
-	   	
-	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(s.numerics.hmin)){
-	       s.integrator.last_time=*t;
-               end_cv();
-	       return(1);
-	     }
-	     MSWTCH(s.solver_work.xpv.x,x);
-	     cvode(start,s.solver_work.xpv.x,t,nodes,tout,&kflag,&s.numerics.toler,&s.numerics.atoler);
-	     MSWTCH(x,s.solver_work.xpv.x);
-	     stor_delay(x);
-	       if(s.integrator.delay_err){
-		 s.integrator.delay_err=0;
-		 err_dae();
-		 s.integrator.last_time=*t;
-		 return(1);
-		
-	       }
-	     if(kflag<0){
-	       ping();
-	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
-		 s.integrator.last_time=*t;
-		 return(1);
-	       }
-	       cvode_err_msg(kflag);
-	       s.integrator.last_time=*t;
-	       return(1);
-	     }
-
-	     break;
-#endif
-
-	   case DP5:
-	   case DP83:
-	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(s.numerics.hmin)){
-	       s.integrator.last_time=*t;
-
-	       return(1);
-	     }
-	     MSWTCH(s.solver_work.xpv.x,x);
-	     dp(start,s.solver_work.xpv.x,t,nodes,tout,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
-	     MSWTCH(x,s.solver_work.xpv.x);
-	     stor_delay(x);
-	       if(s.integrator.delay_err){
-		 s.integrator.delay_err=0;
-		 err_dae();
-		 s.integrator.last_time=*t;
-		 return(1);
-		
-	       }
-	     if(kflag<0){
-	       
-	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
-		 s.integrator.last_time=*t;
-		 return(1);
-	       }
-	       dp_err(kflag);
-	       s.integrator.last_time=*t;
-	       return(1);
-	     }
-
-	     break;
-	   case RB23:
-	      tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(s.numerics.hmin)){
-	       s.integrator.last_time=*t;
-
-	       return(1);
-	     }
-	     MSWTCH(s.solver_work.xpv.x,x);
-	     rb23(s.solver_work.xpv.x,t,tout,start,nodes,s.solver_work.work.data(),&kflag);
-	     MSWTCH(x,s.solver_work.xpv.x);
-              stor_delay(x);
-	       if(s.integrator.delay_err){
-		 s.integrator.delay_err=0;
-		 err_dae();
-		 s.integrator.last_time=*t;
-		 return(1);
-		
-	       }
-              if(kflag<0){
-	       
-	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
-		 s.integrator.last_time=*t;
-		 return(1);
-	       }
-	       err_msg("Step size too small");
-	       s.integrator.last_time=*t;
-	       return(1);
-	     }
-
-	     break;
-
-	   case RKQS:
-	   case STIFF:
+	   if(!solver.traits().fixed_step){
+	     /* on to the next output time, in steps of the method's own */
 	     tout=tzero+dt*(icount+1);
 	     if(fabs(dt)<fabs(s.numerics.hmin)){
 	       s.integrator.last_time=*t;
+	       solver.finish();
 	       return(1);
 	     }
 	     MSWTCH(s.solver_work.xpv.x,x);
-	     adaptive(s.solver_work.xpv.x,nodes,t,tout,s.numerics.toler,&hguess,
-		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,start);
+	     xpp::SolverResult r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
+						 .tout=tout,.hguess=&hguess});
 	     MSWTCH(x,s.solver_work.xpv.x);
 	     stor_delay(x);
-	       if(s.integrator.delay_err){
-		 s.integrator.delay_err=0;
-		 err_dae();
-		 s.integrator.last_time=*t;
-		 return(1);
-		
-	       }
-	     if(kflag){
-	       ping();
-	       if(s.integrator.range_flag||s.integrator.suppress_bounds){
-		 s.integrator.last_time=*t;
-		 return(1);
-	       }
-	       switch(kflag){
-	       case 2: err_msg("Step size too small"); break;
-	       case 3: err_msg("Too many steps"); break;	 
-	       case -1: err_msg("singular jacobian encountered"); break;
-	       case 1: err_msg("stepsize is close to 0"); break;
-	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
-	       }
+	     if(s.integrator.delay_err){
+	       s.integrator.delay_err=0;
+	       err_dae();
 	       s.integrator.last_time=*t;
 	       return(1);
 	     }
-
-	     break;
-           default: {
-	       
-	       MSWTCH(s.solver_work.xpv.x,x);
-
-	     kflag=s.integrator.solver(s.solver_work.xpv.x,t,dt,nout,nodes,start,s.solver_work.work.data());
-	    
+	     if(!r.ok){
+	       xpp::report_solver_failure(r,s.integrator.range_flag||s.integrator.suppress_bounds);
+	       s.integrator.last_time=*t;
+	       return(1);
+	     }
+	   }
+	   else{
+	     /* nout steps of dt */
+	     MSWTCH(s.solver_work.xpv.x,x);
+	     xpp::SolverResult r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
+						 .dt=dt,.steps=nout});
 	     MSWTCH(x,s.solver_work.xpv.x);
-	    
-	     if(kflag<0)
-	       {
-		 ping();
-		 if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
-		 switch(kflag)
-		   {
-		   case -1: err_msg("Singular Jacobian "); break;
-		   case -2: err_msg("Too many iterates ");break;
-		   }
-           
+	     if(!r.ok){
+	       /* a range or a run without bounds checks goes on */
+	       bool quiet=s.integrator.range_flag||s.integrator.suppress_bounds;
+	       xpp::report_solver_failure(r,quiet);
+	       if(!quiet){
 		 s.integrator.last_time=*t;
 		 return(1);
 	       }
-	   }
-	   
+	     }
 	   }
 	   /*   START POST INTEGRATE STUFF */           
 
@@ -2167,10 +1905,7 @@ out:
  }
  
        s.integrator.last_time=*t;
-#ifdef CVODE_YES
-       if(s.numerics.method==CVODE)
-	 end_cv();
-#endif
+       solver.finish();
        return(rval);
   }
 void send_halt(double *y, double t)

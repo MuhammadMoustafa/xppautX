@@ -7,9 +7,6 @@
 #include "xpp_log.h"
 #include "xpp_math.h"
 
-#include "cv2.h"
-#include "dormpri.h"
-#include "stiff.h"
 #include "expr.h"
 #include "derived.h"
 #include <array>
@@ -19,9 +16,7 @@
 #include <math.h>
 #include <string>
 #include <vector>
-#include "odesol2.h"
 #include "delay_handle.h"
-#include "gear.h"
 #include "browse.h"
 #include "xpp_ui.h"
 
@@ -30,13 +25,6 @@
 
 /*  this is also X free ! */
  
-#define GEAR 5
-#define RKQS 8
-#define STIFF 9
-#define CVODE 10
-#define DP5 11
-#define DP83 12
-#define RB23 13
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 namespace {
@@ -109,6 +97,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
    if(do_init_delay(s.numerics.delay)==0)return;
   }
 evaluate_derived();
+  s.integrator.solver->begin(&istart);
 /*   This gets the values at the desired points  */
   for(i=0;i<nvars;i++){
     iv=ivar[i];
@@ -129,10 +118,7 @@ evaluate_derived();
       yfit[i+k0]=y[iv];
     }
   }   
-#ifdef CVODE_YES 
-  if(s.numerics.method==CVODE)
-    end_cv();
-#endif
+  s.integrator.solver->finish();
   /*  Now we take the derivatives !!   */
   for(l=0;l<npars;l++){
     istart=1;
@@ -161,6 +147,7 @@ evaluate_derived();
    if(do_init_delay(s.numerics.delay)==0)return;
   }
     evaluate_derived();
+    s.integrator.solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
       k0=k*nvars;
@@ -179,10 +166,7 @@ evaluate_derived();
     /* Now return the parameter to its old value */
     if(ip<0)s.parser.constants[-ip]=par;
     evaluate_derived();
-#ifdef CVODE_YES
-if(s.numerics.method==CVODE)
-  end_cv();
-#endif
+    s.integrator.solver->finish();
 
   }
  *flag=1;
@@ -194,94 +178,33 @@ if(s.numerics.method==CVODE)
 int one_step_int(double *y, double t0, double t1, int *istart)
 {
   xpp::Session &s=xpp::session();
-  int nit;
-   int kflag;
+  xpp::Solver &solver=*s.integrator.solver;
+  int neq=xpp::model().node;
   double dt=s.numerics.delta_t;
-  double z;
-  double error[MAXODE];
   double t=t0;
-#ifdef CVODE_YES
-  if(s.numerics.method==CVODE){
-    cvode(istart,y,&t,xpp::model().node,t1,&kflag,&s.numerics.toler,&s.numerics.atoler);
-    if(kflag<0){
-      cvode_err_msg(kflag);
+  xpp::SolverResult r;
+  if(!solver.traits().fixed_step){
+    r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.tout=t1,.hguess=&dt});
+    if(!r.ok){
+      xpp::report_solver_failure(r,false);
       return(0);
     }
     stor_delay(y);
-    return 1;
-  }
-#endif
-  if(s.numerics.method==DP5||s.numerics.method==DP83){
-    dp(istart,y,&t,xpp::model().node,t1,&s.numerics.toler,&s.numerics.atoler,s.numerics.method-DP5,&kflag);
-    if(kflag!=1){
-      dp_err(kflag);
-      return(0);
-    }
-        stor_delay(y);
-    return 1;
-  }
-  if(s.numerics.method==RB23){
-    rb23(y,&t,t1,istart,xpp::model().node,s.solver_work.work.data(),&kflag);
-    if(kflag<0){
-       err_msg("Step size too small");
-       return(0);
-    }
-        stor_delay(y);
-    return 1;
-  }
-if(s.numerics.method==RKQS||s.numerics.method==STIFF){
-      adaptive(y,xpp::model().node,&t,t1,s.numerics.toler,&dt,
-		      s.numerics.hmin,s.solver_work.work.data(),&kflag,s.numerics.newt_err,s.numerics.method,istart);
-      if(kflag){
-	ping();
-	 switch(kflag){
-	       case 2: err_msg("Step size too small"); break;
-	       case 3: err_msg("Too many steps"); break;	 
-	       case -1: err_msg("singular jacobian encountered"); break;
-	       case 1: err_msg("stepsize is close to 0"); break;
-	       case 4: 	err_msg("exceeded MAXTRY in stiff"); break;
-	       }
-	return(0);
-      }
-          stor_delay(y);
-      return(1);
-    }
-  /* cvode(command,y,t,n,tout,kflag,atol,rtol) 
- command =0 continue, 1 is start 2 finish   */
-  if(s.numerics.method==GEAR){
-    gear(xpp::model().node,&t,t1,y,s.numerics.hmin,s.numerics.hmax,s.numerics.toler,2,error,&kflag,istart,s.solver_work.work.data(),s.solver_work.iwork.data());
-    if(kflag<0)
-      {
-	ping();
-	switch(kflag)
-	  {
-	  case -1: err_msg("kflag=-1: minimum step too big"); break;
-	  case -2: err_msg("kflag=-2: required order too big");break;
-	  case -3: err_msg("kflag=-3: minimum step too big");break;
-	  case -4: err_msg("kflag=-4: tolerance too small");break;
-	  }
-	
-	return(0);
-      }
-        stor_delay(y);
     return(1);
   }
-  if(s.numerics.method==0){
-    nit=fabs(t0-t1);
+  if(solver.traits().discrete){
+    int nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    kflag=s.integrator.solver(y,&t,dt,nit,xpp::model().node,istart,s.solver_work.work.data());
-
+    solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
     return(1);
   }
-  z=(t1-t0)/dt;
-  nit=static_cast<int>(z);
-  kflag=s.integrator.solver(y,&t,dt,nit,xpp::model().node,istart,s.solver_work.work.data());
-
-  if(kflag<0)return(0);
+  int nit=static_cast<int>((t1-t0)/dt);
+  r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
+  if(!r.ok)return(0);
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
-    kflag=s.integrator.solver(y,&t,dt,1,xpp::model().node,istart,s.solver_work.work.data());
-    if(kflag<0)return(0);
+    r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=1});
+    if(!r.ok)return(0);
   }
 
   return(1);

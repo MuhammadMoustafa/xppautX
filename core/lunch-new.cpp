@@ -30,7 +30,6 @@
 
 #define READEM 1
 #define WRITEM 0
-#define VOLTERRA 6
 
 static int set_type=0;
 
@@ -122,7 +121,7 @@ int read_set(FILE *fp, bool ask)
     return 0;
   }
   io_numerics(f,fp);
-  if(xpp::session().numerics.method==VOLTERRA){
+  if(xpp::session().numerics.method==xpp::method::VOLTERRA){
     io_int(&temp,fp,f," ");
     allocate_volterra(temp,1);
     xpp::session().integrator.my_start=1;
@@ -163,15 +162,12 @@ void ps_write_pars(FILE *fp)
 void do_info(FILE *fp)
 {
   xpp::Session &s=xpp::session();
-  static const char *method[]={"Discrete","Euler","Mod. Euler",
-	"Runge-Kutta","Adams","Gear","Volterra","BackEul","QualRK",
-         "Stiff","CVode","DoPri5","DoPri8(3)","Rosenbrock","Symplectic"};
   xpp::print(fp,"File: {} \n\n Equations... \n",xpp::model().this_file);
   put_equations(fp);
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
   xpp::print(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
-	 s.numerics.njmp,s.numerics.nmesh,method[s.numerics.method],s.numerics.evec_iter);
+	 s.numerics.njmp,s.numerics.nmesh,xpp::solver_info(s.numerics.method).name,s.numerics.evec_iter);
   xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
 	 s.numerics.bvp_eps,s.numerics.bvp_tol,s.numerics.bvp_maxit);
   xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
@@ -207,7 +203,7 @@ void write_lunch(FILE *fp)
  io_int(&xpp::model().neq,fp,f,"Number of equations and auxiliaries");
  io_int(&xpp::model().nupar,fp,f,"Number of parameters");
  io_numerics(f,fp);
- if(xpp::session().numerics.method==VOLTERRA){
+ if(xpp::session().numerics.method==xpp::method::VOLTERRA){
      io_int(&xpp::session().numerics.max_points,fp,f,"Max points for volterra");
      }
    io_exprs(f,fp);
@@ -252,10 +248,6 @@ void dump_eqn(FILE *fp)
 void io_numerics(int f, FILE *fp)
 {
   xpp::Session &s=xpp::session();
-const char *method[]={"Discrete","Euler","Mod. Euler",
-        "Runge-Kutta","Adams","Gear","Volterra","BackEul",
-                      "Qual RK","Stiff","CVode","DorPrin5","DorPri8(3)",
-                      "Rosenbrock","Symplectic"};
 const char *pmap[]={"Poincare None","Poincare Section","Poincare Max","Period"};
 if(f==READEM&&set_type==1){
   skip_heading_line(fp);
@@ -264,8 +256,8 @@ if(f!=READEM)
   xpp::print(fp,"# Numerical stuff\n");
 io_int(&s.numerics.njmp,fp,f," nout");
 io_int(&s.numerics.nmesh,fp,f," nullcline mesh");
-io_int(&s.numerics.method,fp,f,method[s.numerics.method]);
- if(f==READEM){do_meth();alloc_meth();}
+io_int(&s.numerics.method,fp,f,xpp::solver_info(s.numerics.method).set_label);
+ if(f==READEM)do_meth();
 io_double(&s.numerics.tend,fp,f,"total");
 io_double(&s.numerics.delta_t,fp,f,"DeltaT");
 io_double(&s.numerics.t0,fp,f,"T0");

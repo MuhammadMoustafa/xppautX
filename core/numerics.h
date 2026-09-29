@@ -17,6 +17,8 @@ void ruelle(void);
 void get_pmap_pars_com(int l);
 void get_method(void);
 void set_col_par_com(int i);
+/* applies numerics.method (Volterra when the model has integrals): its
+   settings, then a fresh solver (xpp::start_solver) */
 void do_meth(void);
 void set_total(double total);
 void user_set_color_par(int flag,const char *via,double lo,double hi);

@@ -13,7 +13,7 @@
 #include "model.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
-   stdout) are xpp_log WARNs: the caller's dp_err reports the failure
+   stdout) are xpp_log WARNs: its Solver (solver.cpp) reports the failure
    itself; the stdout of --server is the protocol. */
 static long      nfcn, nstep, naccpt, nrejct;
 static double    hout, xold, xout;
@@ -28,27 +28,12 @@ void dprhs(unsigned n, double t, double *y, double *f)
 
 }
 
-void dp_err(int k)
-{ 
-  ping();
-  switch(k){
-  case -1: err_msg("Input is not consistent");
-    break;
-  case -2: err_msg("Larger nmax needed");
-    break;
-  case -3: err_msg("Step size too small");
-    break;
-  case -4: err_msg("Problem became stiff");
-    break;
-  }
-}
-    
-int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag)
+int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
  int err=0;
  if(xpp::model().nflags==0)
-   return(dormprin(istart,y,t,n,tout,tol,atol,flag,kflag));
- err=one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag);
+   return(dormprin(istart,y,t,n,tout,tol,atol,flag,kflag,work));
+ err=one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag,work);
  if(err==1)*kflag=-9;
  return 1;
 }
@@ -60,7 +45,7 @@ int dp(int *istart, double *y, double *t, int n, double tout, double *tol, doubl
   istart=1 for first time
   istart=0 for continuation
 */
-int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag)
+int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
   double hg=0.0;
   if(*istart==0)hg=hout;
@@ -68,12 +53,12 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
   switch(flag){
   case 0:
     *kflag=dopri5(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,xpp::session().solver_work.work.data());
+           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
            *t=tout;
     return 1;
   case 1:
      *kflag=dop853(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
-           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,xpp::session().solver_work.work.data());
+           0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
            *t=tout;
      return 1;
   }

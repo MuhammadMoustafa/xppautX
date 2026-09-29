@@ -26,7 +26,6 @@
 #include "browse.h"
 #include "numerics.h"
 #include "integrate.h"
-#include "odesol2.h"
 #include "adj2.h"
 #include "arrayplot.h"
 #include "lunch-new.h"
@@ -225,7 +224,6 @@ void set_all_vals()
  s.numerics.storflag=0;
 
  s.numerics.inflag=0;
- s.integrator.solver=rung_kut;
  s.plot_settings.plot_3d=0;
  if (s.not_already_set.METHOD){s.numerics.method=3;s.not_already_set.METHOD=0;};
  if (s.not_already_set.XLO){s.plot_settings.my_xlo=0.0;s.plot_settings.x_3d[0]=s.plot_settings.my_xlo;s.not_already_set.XLO=0;s.not_already_set.XMIN=0;};
@@ -319,7 +317,7 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
  alloc_h_stuff();
 
  alloc_v_memory();  /* allocate stuff for volterra equations */
- alloc_meth();
+ xpp::start_solver();
  set_initial_values(); /* the initial values given as formulas */
  arr_ic_start(); /* take care of all predefined array ics */
 
@@ -472,7 +470,6 @@ void do_intern_set(const char *name1, const char *value)
       set_option(name,value,1,NULL);
    }
   }
- alloc_meth();
  do_meth();
 }
 /*  ODE options stuff  here !!   */
