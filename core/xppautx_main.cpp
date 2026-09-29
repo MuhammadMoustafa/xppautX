@@ -160,6 +160,28 @@ static void run_session(void)
     text_metrics.big_width = 9; text_metrics.big_height = 15;
 
     json_ui_install();
+#ifdef __APPLE__
+    /* a document Finder or `open` gave xppautX.app when it launched it (an
+       Apple Event, not an argument: xpp_window.h) is the model, loaded from
+       its own folder as File > Open model loads one; without one, an app
+       Finder started (in "/") starts in the home folder, where the Open
+       dialog the load then shows begins */
+    static std::string launch_name;
+    static std::vector<char *> launch_argv;
+    if (const char *doc = xpp_window_launch_document()) {
+        const std::pair<std::string, std::string> where = xpp_files_split_path(doc);
+        if (!where.first.empty()) xpp_files_change_dir(where.first.c_str());
+        launch_name = where.second;
+        launch_argv.assign(session_argv, session_argv + session_argc);
+        launch_argv.push_back(launch_name.data());
+        launch_argv.push_back(nullptr);
+        session_argc = static_cast<int>(launch_argv.size()) - 1;
+        session_argv = launch_argv.data();
+    } else if (xpp_files_working_dir() == "/") {
+        const char *home = getenv("HOME");
+        if (home && *home) xpp_files_change_dir(home);
+    }
+#endif
     /* a session file on the command line: its model is loaded, from its
        own folder as File > Open model loads one, and the session restored */
     std::string snapx, model_name;
@@ -227,6 +249,11 @@ int main(int argc, char **argv)
         else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
         else if (xpp_log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
+#ifdef __APPLE__
+        /* the process serial number an older macOS gave an app Finder
+           started, which xppaut's options would take for a bad one */
+        else if (strncmp(argv[i], "-psn_", 5) == 0) {}
+#endif
         else {
             /* xppaut's own switch for a run with no interface at all */
             if (strcmp(argv[i], "-silent") == 0) batch = 1;

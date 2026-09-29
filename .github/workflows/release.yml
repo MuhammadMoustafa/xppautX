@@ -164,8 +164,8 @@ jobs:
           tools/examples_check.sh --platform ${{ matrix.md5 }}
       - name: Package
         run: tools/package_release.sh ${{ matrix.arch }}
-      # the .app inside the .dmg starts (double-clicking a .ode is not
-      # checked: see README)
+      # the .app inside the .dmg starts (a model opened in the .app as
+      # Finder opens one is build.yml's macos-core)
       - name: Check the .dmg
         run: |
           hdiutil attach -nobrowse -mountpoint /tmp/xppdmg xppautX-*-${{ matrix.arch }}.dmg

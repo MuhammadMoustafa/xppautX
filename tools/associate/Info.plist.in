@@ -7,8 +7,10 @@
      below are substituted by the Makefile's app target from the same
      XPPAUTX_VERSION that "xppautX --version" prints. Declares the .ode
      and .odex document types and the .snapx session file so Finder offers xppautX to open one and double-clicking
-     one starts it (a second .ode a second process, as on Windows and Linux:
-     the core cannot load a second model into a running session). -->
+     one starts it. Finder sends the file as an open-documents Apple Event,
+     which core/xpp_window.cpp handles (W91): at launch it is the model, and
+     one opened while the app runs loads in its window as File > Open model
+     does. -->
 <dict>
     <key>CFBundleName</key>
     <string>xppautX</string>

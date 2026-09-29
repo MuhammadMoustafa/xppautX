@@ -104,11 +104,15 @@ opens it the same way, once xppautX is registered as its opener: run
 the matching script in `tools/associate/`
 once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
 entry, no admin rights; Linux: `install-linux.sh`, a `.desktop` file and
-MIME type under `~/.local/share`; macOS: `make app` builds `xppautX.app`
-with the type declared in its `Info.plist`, untested). Each has an
-`-Unregister`/`--uninstall` counterpart. A second `.ode` opened this way
-starts a second xppautX, its own window; File > Open model… loads one in
-place of the current model instead.
+MIME type under `~/.local/share`; macOS: the release's `.dmg`, or `make
+app`, gives `xppautX.app`, with the types declared in its `Info.plist`).
+Each script has an `-Unregister`/`--uninstall` counterpart. A second
+`.ode` opened this way starts a second xppautX, its own window; File >
+Open model… loads one in place of the current model instead. On macOS,
+where Finder hands a file to the running app rather than to a new
+program, the first double-click starts `xppautX.app` on that model, and
+a later one opens in the same window as File > Open model… does, asking
+first; starting the app on its own shows the Open dialog.
 
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. File/open Model (`F M` in the page, File > Open model… in

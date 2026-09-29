@@ -433,7 +433,10 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   loop on a thread of its own (WebView2 wants an STA thread with a message
   loop, GTK one thread that initialises and runs it), except on macOS,
   where Cocoa needs the main thread and the session moves to a second
-  thread (untested). Closing the window pushes `{"cmd":"quit"}` into the
+  thread (untested); there a file Finder opens in xppautX.app comes as an
+  open-documents Apple Event, which xpp_window.cpp handles (W91: the
+  launch's is the model, `xpp_window_launch_document`, a later one opens
+  as File > Open model; CI's macos-core checks it with `open -a`). Closing the window pushes `{"cmd":"quit"}` into the
   inbox (the protocol's Quit) and calls `xpp_http_release()`; the core's
   exit closes the window after a bye, and after an error leaves it open
   on the log until it is closed (xpp_http's at_exit waits for that, or

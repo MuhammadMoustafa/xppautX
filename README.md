@@ -138,10 +138,10 @@ without unpacking anything:
   the window).
 - **macOS:** `xppautX-<version>-macos-arm64.dmg` (Apple silicon) or
   `-macos-x64.dmg` (Intel): open it and drag `xppautX.app` to Applications
-  (unsigned: see the macOS note below). Starting `xppautX.app` works; a
-  double-clicked `.ode` may not reach the program yet, because Finder passes
-  a file as an Apple Event rather than an argument (use File > Open model, or
-  run the binary inside the app on the file).
+  (unsigned: see the macOS note below). Double-clicking a `.ode`, `.odex`
+  or `.snapx` starts it on that file (Finder sends it as an Apple Event,
+  which the app handles), and one opened while it runs loads in the same
+  window, asking first; starting the app on its own shows the Open dialog.
 
 The archives hold the same program with the examples and `tools/associate/`.
 Unpack one and run the program on a model:
@@ -183,7 +183,7 @@ Run it once; after that, double-clicking a `.ode` file opens it in its own
 xppautX window (a second `.ode` opens a second window: the core cannot load
 a second model into a running session). The .deb does this for Linux and
 the .exe needs the script above; on macOS the .dmg's `xppautX.app` declares
-the types (see above for its limit).
+the types (and a second file opens in the running app's window instead).
 
 The binaries are not signed or notarized, because a signing identity costs
 money at both Apple and Microsoft, so each system asks once before running a
@@ -252,7 +252,8 @@ if you try it.
 `make app` assembles `xppautX.app` (the binary, `assets/icon.icns`, and
 `tools/associate/Info.plist.in`'s `.ode` document type, so Finder offers
 xppautX and double-clicking a `.ode` opens it); drag it to Applications by
-hand. Untested: no macOS machine has built or run the bundle yet.
+hand. CI's macos-core job opens a model in it with `open -a`, as Finder
+does; no one has double-clicked one on a Mac yet.
 
 ### Windows
 

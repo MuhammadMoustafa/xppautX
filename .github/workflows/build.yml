@@ -201,6 +201,23 @@ jobs:
       - name: Command-line modes (--help, --browser, --no-open)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
+      # W91: Finder hands xppautX.app a file as an open-documents Apple
+      # Event, not an argument, and `open -a` sends the same event. The app
+      # logs the file the event named (--verbose: INFO), then the parser's
+      # stats once that model has loaded; the window runs in the runner's
+      # own desktop session.
+      - name: "xppautX.app loads the model it is opened with (open -a, as Finder)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          make app
+          log="$RUNNER_TEMP/app.log"
+          : > "$log"
+          open -n -a "$PWD/xppautX.app" --stderr "$log" "$PWD/examples/ode/lecar.ode" --args --verbose
+          i=0
+          while [ $i -lt 60 ] && ! grep -q 'Used [0-9]* constants' "$log"; do sleep 1; i=$((i + 1)); done
+          pkill -f 'xppautX.app/Contents/MacOS/xppautX' || true
+          tail -n 20 "$log"
+          grep -q 'macOS asked to open .*/examples/ode/lecar.ode' "$log" && grep -q 'Used [0-9]* constants' "$log"
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 tools/autocheck.py

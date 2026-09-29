@@ -40,6 +40,16 @@ int xpp_window_run(void (*session)(void), const char *about);
    a no-op without a window */
 void xpp_window_set_model(const char *path);
 
+#ifdef __APPLE__
+/* The document Finder (a double-click, a drop on the app) or `open` asked
+   xppautX.app to open when it launched it, which macOS sends as an
+   open-documents Apple Event rather than an argument (W91): the model to
+   load, from the session xpp_window_run runs; NULL when there was none.
+   One that comes while the app runs is opened as File > Open model opens
+   one (W61). */
+const char *xpp_window_launch_document(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -35,6 +35,9 @@
 int xpp_window_supported(void) { return 0; }
 int xpp_window_run(void (*)(void), const char *) { return 0; }
 void xpp_window_set_model(const char *) {}
+#ifdef __APPLE__
+const char *xpp_window_launch_document(void) { return nullptr; }
+#endif
 
 #else /* XPP_WINDOW */
 
@@ -57,6 +60,7 @@ void xpp_window_set_model(const char *) {}
 #elif defined(__APPLE__)
 #include <objc/message.h>
 #include <objc/runtime.h>
+#include <cstdint>
 #include <pthread.h>
 #include <unistd.h>
 #else
@@ -111,6 +115,10 @@ struct State {
     std::string model;         /* the title's file name */
     std::string about;         /* Help > About's text */
     std::string error_msg;     /* why the window failed to open (W35e) */
+#ifdef __APPLE__
+    bool session_started = false; /* a document to open is opened, not the model to load */
+    std::string launch_document;  /* the file the launch's open-documents event named */
+#endif
     std::promise<void> done;   /* the window has closed and let go */
     std::shared_future<void> done_f = done.get_future().share();
 };
@@ -428,6 +436,120 @@ std::optional<std::string> pick_file(void *, const FileDialog &d)
     return std::string(path);
 }
 
+/* ---- Finder's documents (W91) -------------------------------------------
+   Double-clicking a .ode, .odex or .snapx (xppautX.app's Info.plist
+   declares them), dropping one on the app or `open -a xppautX file` sends
+   the app an open-documents Apple Event, not an argument. Our handler
+   replaces NSApplication's own (which would hand the files to the
+   delegate, and webview's WebviewAppDelegate is left as it is): installed
+   when NSApplicationWillFinishLaunchingNotification is posted, where Apple
+   says a handler replaces the standard one, and before the event a launch
+   brings, which Cocoa dispatches before applicationDidFinishLaunching:.
+   That all happens inside xpp_webview_create (webview runs the app until
+   it has finished launching), so a launch's document is known before the
+   session starts, and becomes its model (xpp_window_launch_document);
+   one that comes later is opened as File > Open model opens one (W61),
+   asking first. On the main thread, from the run loop. Not tested: written
+   without a Mac. */
+
+/* the Apple Event Manager's four-character codes (AE/AppleEvents.h) */
+constexpr uint32_t four_cc(const char (&c)[5])
+{
+    return static_cast<uint32_t>(static_cast<unsigned char>(c[0])) << 24 |
+           static_cast<uint32_t>(static_cast<unsigned char>(c[1])) << 16 |
+           static_cast<uint32_t>(static_cast<unsigned char>(c[2])) << 8 |
+           static_cast<uint32_t>(static_cast<unsigned char>(c[3]));
+}
+constexpr uint32_t CORE_EVENT_CLASS = four_cc("aevt"); /* kCoreEventClass */
+constexpr uint32_t OPEN_DOCUMENTS = four_cc("odoc");   /* kAEOpenDocuments */
+constexpr uint32_t DIRECT_OBJECT = four_cc("----");    /* keyDirectObject */
+constexpr const char *HANDLE_DOCUMENTS = "handleOpenDocuments:withReplyEvent:";
+constexpr const char *WILL_FINISH_LAUNCHING = "applicationWillFinishLaunching:";
+
+/* the files an open-documents event names, in its order */
+std::vector<std::string> document_paths(id event)
+{
+    std::vector<std::string> paths;
+    id list = event ? msg(event, "paramDescriptorForKeyword:", DIRECT_OBJECT) : nullptr;
+    if (!list) return paths;
+    auto add = [&paths](id item) {
+        id url = item ? msg(item, "fileURLValue") : nullptr; /* coerced from an alias if need be */
+        id path = url ? msg(url, "path") : nullptr;
+        const char *s = path ? msg<const char *>(path, "UTF8String") : nullptr;
+        if (s && *s) paths.emplace_back(s);
+    };
+    const long n = msg<long>(list, "numberOfItems"); /* NSInteger; not a list: 0 */
+    if (n <= 0) add(list);
+    for (long i = 1; i <= n; i++) add(msg(list, "descriptorAtIndex:", i)); /* from 1 */
+    return paths;
+}
+
+/* -handleOpenDocuments:withReplyEvent: (called from Cocoa: nothing may
+   throw) */
+void open_documents(id, SEL, id event, id)
+{
+    try {
+        std::vector<std::string> paths = document_paths(event);
+        if (paths.empty()) return;
+        if (paths.size() > 1)
+            host->log(XPP_LOG_WARN, "xppautX: %zu files to open, one model at a time: only the first\n", paths.size());
+        host->log(XPP_LOG_INFO, "xppautX: macOS asked to open %s\n", paths[0].c_str());
+        {
+            std::lock_guard<std::mutex> lk(st->mu);
+            if (!st->session_started) {
+                st->launch_document = paths[0];
+                return;
+            }
+        }
+        host->open_model(paths[0].c_str());
+    } catch (const std::exception &e) {
+        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost: %s\n", e.what());
+    } catch (...) {
+        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost\n");
+    }
+}
+
+/* the handler, on the object below */
+void install_documents_handler(id handler)
+{
+    id events = msg(cls("NSAppleEventManager"), "sharedAppleEventManager");
+    if (events)
+        msg<void>(events, "setEventHandler:andSelector:forEventClass:andEventID:", handler,
+                  sel_registerName(HANDLE_DOCUMENTS), CORE_EVENT_CLASS, OPEN_DOCUMENTS);
+}
+
+/* -applicationWillFinishLaunching:, the notification's */
+void will_finish_launching(id self, SEL, id) { install_documents_handler(self); }
+
+/* An object of a class of our own (XppDocumentsHandler, NSObject's) that
+   observes the launch and handles the event; kept for the process's life.
+   Before the web view is created. */
+void watch_for_documents()
+{
+    constexpr const char *CLASS_NAME = "XppDocumentsHandler";
+    id pool = msg(cls("NSAutoreleasePool"), "new");
+    Class c = objc_lookUpClass(CLASS_NAME);
+    if (!c) {
+        c = objc_allocateClassPair(objc_lookUpClass("NSObject"), CLASS_NAME, 0);
+        if (c) {
+            class_addMethod(c, sel_registerName(HANDLE_DOCUMENTS),
+                            reinterpret_cast<IMP>(open_documents), "v@:@@");
+            class_addMethod(c, sel_registerName(WILL_FINISH_LAUNCHING),
+                            reinterpret_cast<IMP>(will_finish_launching), "v@:@");
+            objc_registerClassPair(c);
+        }
+    }
+    id handler = c ? msg(reinterpret_cast<id>(c), "new") : nullptr;
+    if (handler) {
+        msg<void>(msg(cls("NSNotificationCenter"), "defaultCenter"), "addObserver:selector:name:object:", handler,
+                  sel_registerName(WILL_FINISH_LAUNCHING),
+                  ns_string("NSApplicationWillFinishLaunchingNotification"), static_cast<id>(nullptr));
+        /* and now, should the application have finished launching already */
+        install_documents_handler(handler);
+    }
+    msg<void>(pool, "drain");
+}
+
 #else /* Linux: GTK 3 (webkit2gtk-4.1) */
 
 #if GTK_MAJOR_VERSION >= 4
@@ -712,7 +834,10 @@ int run(void (*session)(void), const char *about)
         st->about = about ? about : "";
 #ifdef __APPLE__
         /* Cocoa: the window on the main thread, the session on another,
-           with the main thread's 8 MB of stack (a new thread gets 512 KB) */
+           with the main thread's 8 MB of stack (a new thread gets 512 KB).
+           Finder's documents first: the launch's comes while the view is
+           created */
+        watch_for_documents();
         webview_t w = open_view();
         if (!w) {
             host->log(XPP_LOG_WARN, "%s", no_view_message());
@@ -721,6 +846,7 @@ int run(void (*session)(void), const char *about)
         {
             std::lock_guard<std::mutex> lk(st->mu);
             st->view = w;
+            st->session_started = true; /* a document from now on is opened */
         }
         std::atexit(on_exit);
         pthread_attr_t attr;
@@ -776,6 +902,14 @@ extern "C" __attribute__((visibility("default"))) int xpp_window_plugin_init(con
 int xpp_window_supported(void) { return 1; }
 void xpp_window_set_model(const char *path) { set_model(path); }
 int xpp_window_run(void (*session)(void), const char *about) { return run(session, about); }
+#ifdef __APPLE__
+const char *xpp_window_launch_document(void)
+{
+    if (!st) return nullptr;
+    std::lock_guard<std::mutex> lk(st->mu);
+    return st->launch_document.empty() ? nullptr : st->launch_document.c_str();
+}
+#endif
 #endif
 
 #endif /* XPP_WINDOW */
