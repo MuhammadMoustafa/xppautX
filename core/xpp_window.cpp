@@ -3,7 +3,7 @@
    as its own object from src/webview.cc; this file sees only its C API).
 
    Like xpp_http.cpp this file includes no core header but small C APIs
-   (xpp_http.h, xpp_inbox.h, xpp_log.h), so the platform headers it needs
+   (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), so the platform headers it needs
    for the menu bar (<windows.h> on Windows, GTK on Linux) cannot clash
    with core names: the one exception to "Windows API code lives only in
    xpp_win32.cpp", kept behind _WIN32 and out of every header. It calls them
@@ -20,6 +20,7 @@
 #include "xpp_http.h"
 #include "xpp_inbox.h"
 #include "xpp_log.h"
+#include "ui_json.h"
 #include "xpp_webview.h"
 #include "xpp_window_hint.h"
 #include <array>
@@ -72,7 +73,7 @@ namespace {
 const XppWindowHost *host; /* the loader's, kept for the process's life */
 #else
 const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
-                                  xpp_inbox_push, xpp_log};
+                                  xpp_inbox_push, json_ui_push_open, xpp_log};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -183,14 +184,14 @@ void on_exit()
     st->done_f.wait_for(std::chrono::seconds(3));
 }
 
-/* ---- File > Open model: a new xppautX with the file ---------------------
-   The core has no way to load another model into a running session, so a
-   second model is a second process (its own window), started in the
-   model's folder as a double-click would. */
+/* ---- File > Open model and Reload: the protocol's open and reload -------
+   The model picked is loaded in this process (W61): the core asks before
+   the model it has goes, offering to save its session, in the page. */
+[[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"reload\"}";
 
 /* ---- the platform's menu bar, icon and dialogs -------------------------- */
 
-enum MenuId { ID_OPEN = 101, ID_QUIT, ID_MANUAL, ID_KEYS, ID_ABOUT };
+enum MenuId { ID_OPEN = 101, ID_RELOAD, ID_QUIT, ID_MANUAL, ID_KEYS, ID_ABOUT };
 [[maybe_unused]] const char *const KEYS_CHAPTER = "05-commands"; /* the hotkeys, from its first paragraph */
 
 #if defined(_WIN32)
@@ -202,6 +203,16 @@ std::wstring wide(const std::string &s)
     if (n > 0) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &w[0], n);
     w.resize(w.size() - 1);
     return w;
+}
+
+/* UTF-16 to UTF-8, wide's inverse */
+std::string narrow(const wchar_t *w)
+{
+    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+    std::string s(n > 0 ? static_cast<size_t>(n) : 1, '\0');
+    if (n > 0) WideCharToMultiByte(CP_UTF8, 0, w, -1, &s[0], n, nullptr, nullptr);
+    s.resize(s.size() - 1);
+    return s;
 }
 
 void open_model(HWND owner)
@@ -217,22 +228,7 @@ void open_model(HWND owner)
     ofn.lpstrTitle = L"Open model";
     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
     if (!GetOpenFileNameW(&ofn)) return;
-    std::wstring path(file), dir = path.substr(0, ofn.nFileOffset);
-    wchar_t exe[MAX_PATH];
-    DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    if (n == 0 || n >= MAX_PATH) return;
-    std::wstring cmd = L"\"" + std::wstring(exe) + L"\" \"" + path + L"\"";
-    STARTUPINFOW si;
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&si, sizeof si);
-    si.cb = sizeof si;
-    /* a console of its own that nobody sees: its window is the web view */
-    if (CreateProcessW(exe, &cmd[0], nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr,
-                       dir.c_str(), &si, &pi)) {
-        CloseHandle(pi.hThread);
-        CloseHandle(pi.hProcess);
-    } else
-        host->log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX (error %lu)\n", GetLastError());
+    host->open_model(narrow(file).c_str());
 }
 
 WNDPROC webview_proc; /* the library's own window procedure */
@@ -247,6 +243,7 @@ LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         }
         switch (LOWORD(wp)) {
         case ID_OPEN: open_model(hwnd); return 0;
+        case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); return 0;
         case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0;
         case ID_MANUAL: if (w) open_help(w, nullptr); return 0;
         case ID_KEYS: if (w) open_help(w, KEYS_CHAPTER); return 0;
@@ -272,6 +269,7 @@ void add_menus(webview_t w)
 
     HMENU bar = CreateMenu(), file = CreatePopupMenu(), help = CreatePopupMenu();
     AppendMenuW(file, MF_STRING, ID_OPEN, L"&Open model…");
+    AppendMenuW(file, MF_STRING, ID_RELOAD, L"&Reload");
     AppendMenuW(file, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(file, MF_STRING, ID_QUIT, L"&Quit");
     AppendMenuW(help, MF_STRING, ID_MANUAL, L"&Manual");
@@ -339,19 +337,7 @@ void open_model(GtkWindow *parent)
         path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dlg));
     gtk_widget_destroy(dlg);
     if (!path) return;
-    char *exe = g_file_read_link("/proc/self/exe", nullptr), *dir = g_path_get_dirname(path);
-    char *argv[] = {exe, path, nullptr};
-    GError *err = nullptr;
-    /* the parent's descriptors (the listening socket, the log pipe) are
-       closed in the child; its output would land in this page's log */
-    if (!exe || !g_spawn_async(dir, argv, nullptr,
-                               static_cast<GSpawnFlags>(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL),
-                               nullptr, nullptr, nullptr, &err)) {
-        host->log(XPP_LOG_ERROR, "xppautX: cannot start a second xppautX: %s\n", err ? err->message : "no path");
-        if (err) g_error_free(err);
-    }
-    g_free(exe);
-    g_free(dir);
+    host->open_model(path);
     g_free(path);
 }
 
@@ -362,6 +348,7 @@ void on_menu(GtkMenuItem *, gpointer id_ptr)
     GtkWindow *win = GTK_WINDOW(webview_get_window(w));
     switch (GPOINTER_TO_INT(id_ptr)) {
     case ID_OPEN: open_model(win); break;
+    case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); break;
     case ID_QUIT: gtk_window_close(win); break;
     case ID_MANUAL: open_help(w, nullptr); break;
     case ID_KEYS: open_help(w, KEYS_CHAPTER); break;
@@ -429,6 +416,7 @@ void add_menus(webview_t w)
     GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");
     menu_item(file, "_Open model\xe2\x80\xa6", ID_OPEN);
+    menu_item(file, "_Reload", ID_RELOAD);
     gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
     menu_item(file, "_Quit", ID_QUIT);
     menu_item(help, "_Manual", ID_MANUAL);

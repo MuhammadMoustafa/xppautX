@@ -49,12 +49,16 @@ struct {
     std::string xlabel, ylabel;
 } dg_ax;
 
+} // namespace
+
 /* the client has nothing: a new window, or one it no longer holds */
 void diag_forget(void)
 {
     dg_n = dg_client = dg_dirty = 0;
     dg_replay = dg_match = dg_axes = 0;
 }
+
+namespace {
 
 int diag_same(const XppDiagPoint *a, const XppDiagPoint *b)
 {

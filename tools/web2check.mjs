@@ -3782,6 +3782,21 @@ async function files(dir) {
         return !w || w === '*' ? !i.accept : i.accept === w.split('*').join('') })()`), JSON.stringify(await S('s.ask')));
     await key('Escape');
     check('Esc cancels the ask', await until('!s.ask', 'esc'));
+
+    /* W61: File/open Model: the .ode picked is copied into the model's folder and loaded
+       here, in place of this model, after the question whether to save it first */
+    fs.writeFileSync(path.join(up, 'w61.ode'), "par a=2\ninit x=0.5\nx'=-a*x\n@ total=5\ndone\n");
+    check('File/open Model opens an open dialog', await fileMenu('m', 'read'), JSON.stringify(await S('s.ask')));
+    await pickFiles('[data-file-input=open]', [path.join(up, 'w61.ode')]);
+    check('... then asks whether to save this session first',
+      await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'sd'", 'save first?'), JSON.stringify(await S('s.ask')));
+    await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+    check('Don\'t save loads it here: a new hello names it, the state is its own',
+      await until("!s.busy && !s.ask && s.hello.file === 'w61.ode' && s.core.pars.length === 1 && s.core.pars[0][0] === 'a'"
+        + " && s.core.pars[0][1] === 2 && s.core.ics[0][0] === 'X'", 'opened'),
+      JSON.stringify(await S('[s.hello && s.hello.file, s.core.pars, s.core.ics]')));
+    check('... and the page asked for the new model\'s plot data, as on a reconnection',
+      await S("__xpp.sent().slice(-3).some(c => c.cmd === 'data')"), JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   } finally {
     await cdp.send('Browser.setDownloadBehavior', {behavior: 'default'}).catch(() => {});
     fs.rmSync(downloads, {recursive: true, force: true, maxRetries: 5});

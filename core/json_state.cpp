@@ -479,6 +479,13 @@ int last_eq_n;
 
 } // namespace
 
+void state_forget(void)
+{
+    last_eq_n = 0;
+    state_dirty = 1;
+    browser_dirty = 1;
+}
+
 void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
     Buf b;

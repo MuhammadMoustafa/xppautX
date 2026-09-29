@@ -133,7 +133,8 @@ This brings up a menu with several options. Type `Esc` to abort.
   model), shows the line and, on Copy, puts it on the clipboard:
   `set name {a=1,b=2,...,x=0.5,...}` with every parameter and initial
   condition as they are now, numbers exactly as they read back. Paste it
-  into your `.ode` (XPP never writes it for you), reload the model, and
+  into your `.ode` (XPP never writes it for you), reload the model
+  (**r(E)load** below), and
   the regime is a named set in **(G)et par set**, keeping its meaning
   whatever else you change in the file. If the browser refuses the
   clipboard, the line stays on screen to copy by hand.
@@ -146,6 +147,17 @@ This brings up a menu with several options. Type `Esc` to abort.
   is not set.
 - **t(U)torial**: Steps through a series of short tips ("Did you know you
   can...") one at a time; Next for another, Done to stop.
+- **open (M)odel**: Asks for a `.ode` or `.odex` file, then whether to
+  save this session first (**Save first**, **Don't save**; Escape keeps
+  the current model), and loads it in place of the current model: its data,
+  diagram and windows go, and the new model starts as a double-click would
+  start it, from its own folder. A file that cannot be loaded changes
+  nothing: an error says so and the current model goes on (see
+  [Opening another model](01-introduction.md#starting-it)).
+- **r(E)load**: Reads the model's file again (edit it in your editor, then
+  Reload). Parameters, initial data and numerics keep their values by name;
+  what the file adds comes with the file's values, and what it drops is
+  left out. A file that no longer loads changes nothing.
 
 ### (P)arameters
 

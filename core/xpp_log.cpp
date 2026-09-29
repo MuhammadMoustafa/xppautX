@@ -20,15 +20,30 @@ FILE *sink()
 {
     return log_settings.file != nullptr && log_settings.file != stdout ? log_settings.file : stderr;
 }
+
+/* a log file of its own is closed (never stdout or stderr) */
+void close_log_file()
+{
+    if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
+        std::fclose(log_settings.file);
+}
 } // namespace
 
 XppLogSettings log_settings = {NULL, 1, 0, 0};
 
 void xpp_log_open_file(const char *path)
 {
-    if (log_settings.file != nullptr && log_settings.file != stdout && log_settings.file != stderr)
-        std::fclose(log_settings.file);
+    close_log_file();
     log_settings.file = xpp_files_open_stream(path, "w");
+}
+
+void xpp_log_new_model(void)
+{
+    if (!log_settings.file_from_command_line) {
+        close_log_file();
+        log_settings.file = stdout;
+    }
+    if (!log_settings.quiet_from_command_line) log_settings.verbose = 1;
 }
 
 void xpp_log_set_threshold(XppLogLevel level) { threshold = level; }

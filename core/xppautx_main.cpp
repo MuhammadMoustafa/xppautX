@@ -138,33 +138,6 @@ static std::optional<std::string> ask_terminal(const std::string &question, cons
 /* what xppautX does with the session */
 enum { MODE_WINDOW, MODE_BROWSER, MODE_SERVER };
 
-/* init_grafs() without the window: graph 0 is client window 1 */
-static void init_main_graph(void)
-{
-    xpp::Session &s=xpp::session();
-    int i;
-    for (i = 0; i < MAXLAB; i++) {
-        s.labels[i].use = 0;
-        s.labels[i].w = 0;
-    }
-    for (i = 0; i < MAXGROB; i++) {
-        s.grobs[i].w = 0;
-        s.grobs[i].use = 0;
-    }
-    init_bd();
-    for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
-    for (i = 0; i < MAXPOP; i++) s.plot_windows.graph[i].Use = 0;
-    s.plot_windows.open[0] = 0;
-    init_all_graph();
-    s.plot_windows.graph[0].w = 1;
-    s.plot_windows.graph[0].Use = 1;
-    s.plot_windows.graph[0].Nullrestore = 1;
-    s.plot_windows.count = 1;
-    s.plot_windows.draw_win = s.plot_windows.graph[0].w;
-    s.plot_windows.active = 0;
-    get_draw_area();
-}
-
 /* the session: load the model and serve it until Quit (the core exits);
    on the main thread (on macOS beside the window's: xpp_window.h) */
 static int session_argc;
@@ -181,32 +154,7 @@ static void run_session(void)
         json_ui_load_error(*failed);
         exit(1);
     }
-    const std::string &file = xpp::model().this_file;
-    xpp_window_set_model(file.c_str());
-
-    std::string title = file.size() < 60
-                            ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
-                            : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
-    program.interactive = 1;
-    color_table.enabled = 1;     /* init_X on a colour display */
-    xpp::session().drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
-    xpp_build_colormap();
-    init_main_graph();
-    init_browser();
-    ani_zero();
-    set_extra_graphs();
-    set_colorization_stuff();
-    if_needed_load_set();
-    if_needed_load_par();
-    if_needed_load_ic();
-    if_needed_load_ext_options();
-    default_window();
-
-    json_ui_hello(title.c_str());
-    if (xpp::session().animation.options.use_file) {
-        new_vcr();
-        get_ani_file(xpp::session().animation.options.file.c_str());
-    }
+    json_ui_start_model();
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || xpp::session().run_immediately == 1) {

@@ -10,9 +10,15 @@ extern "C" {
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(void);        /* protocol on the current stdout */
-void json_ui_hello(const char *title);   /* hello, palette, main window, state */
+/* a model just loaded (xpp_load_model): the front end's set-up, then
+   hello, the main window and state (json_model.cpp) */
+void json_ui_start_model(void);
+void json_ui_hello(void);   /* hello, main window, state */
 void json_ui_handle(const char *line);
 void json_ui_loop(void);           /* read and run commands until EOF */
+/* {"cmd":"open","file":path} into the inbox, as if the page had sent it:
+   the desktop window's File > Open model, from the window's thread */
+void json_ui_push_open(const char *path);
 
 /* --script FILE: play FILE's lines instead of reading stdin (docs/protocol.md
    "Scripts"). Call before json_ui_install(), which then skips the stdin

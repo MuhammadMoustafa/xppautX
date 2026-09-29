@@ -40,6 +40,10 @@
 /* a string literal into a Buf */
 #define BUF_LIT(b, lit) xpp::json::buf_add(b, lit, sizeof(lit) - 1)
 
+namespace xpp {
+struct ModelRequest; /* model_switch.h */
+}
+
 namespace xpp::json {
 
 /* ---- ui_json.cpp ---- */
@@ -177,6 +181,7 @@ void apply_set(const char *line);
 void default_command(const char *line);
 void slide_command(const char *line);
 void values_command(const char *line);
+void state_forget(void); /* what the model before showed (its last equilibrium) goes */
 
 /* ---- json_windows.cpp ---- */
 
@@ -223,6 +228,7 @@ void j_aplot_draw_one(const char *tag);
 /* ---- json_auto.cpp ---- */
 
 void diag_flush(int final);
+void diag_forget(void); /* the client has no diagram */
 int diag_point_of_node(int node);
 void auto_command(const char *line);
 void auto_key(int ch);
@@ -240,6 +246,12 @@ void j_auto_show_hint(void);
 void j_auto_scroll_window(void);
 void j_auto_diagram(const XppDiagPoint *p);
 void j_auto_refresh(void);
+
+/* ---- json_model.cpp ---- */
+
+/* loads req's model (File > Open model, Reload) in place of this one, and
+   serves it; when it cannot be loaded, the model before stays */
+void switch_model(const xpp::ModelRequest &req);
 
 /* ---- json_ani.cpp ---- */
 

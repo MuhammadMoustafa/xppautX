@@ -6,6 +6,7 @@
 #include "ode_read.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "axes2.h"
 #include "graphics.h"
@@ -616,4 +617,12 @@ void xpp_cleanup_auto_dir(void)
     xpp_files_remove_temp_dir(dir.c_str());
     dir.clear();
   }
+}
+
+void xpp_renew_auto_dir(void)
+{
+  std::string &dir=xpp::session().auto_state.dir;
+  if (dir.empty()) return; /* none was made: AUTO writes beside the model */
+  xpp_files_remove_temp_dir(dir.c_str());
+  dir=xpp_files_make_temp_dir();
 }

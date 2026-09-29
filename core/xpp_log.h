@@ -64,6 +64,11 @@ extern XppLogSettings log_settings;
    went to before is closed, unless that was stdout or stderr. */
 void xpp_log_open_file(const char *path);
 
+/* A model's load starts: what the model before set with @ logfile= and
+   @ quiet= goes (a log file it opened is closed, the log goes to stdout
+   again); what the command line set stays. */
+void xpp_log_new_model(void);
+
 /* Default is XPP_LOG_WARN. */
 void xpp_log_set_threshold(XppLogLevel level);
 /* 1 when a message at level would be printed now (the threshold, and

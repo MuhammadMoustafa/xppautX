@@ -163,6 +163,17 @@ void do_comline(int argc, char **argv)
  setfilename.clear();
  parfilename.clear();
  icfilename.clear();
+ /* what a command line before asked for (a load before this one: File >
+    Open model, Reload) goes; this one says it again if it does */
+ loadsetfile=loadparfile=loadicfile=0;
+ loadincludefile=0;
+ include_files.clear();
+ select_intern_sets=0;
+ sets2use.clear();
+ setsNOTuse.clear();
+ externaloptionsflag=0;
+ readsetfile.clear();
+ externaloptionsstring.clear();
  for(i=1;i<argc;i++){
    k=parse_it(argv[i]);
    if(k==1){

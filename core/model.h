@@ -237,6 +237,12 @@ struct Model {
   std::string options_file;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
+  /* the command line it was loaded with (argv, the program's name first):
+     File > Reload loads it again (model_switch.h) */
+  std::vector<std::string> command_line;
+  /* the working directory it was loaded in, which the command line's
+     relative paths name files of */
+  std::string load_dir;
 };
 
 /* the current Model (xpp_current.h) */

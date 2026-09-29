@@ -367,6 +367,7 @@ void begin_model()
 {
   init_rpn();
   IN_VARS=0;
+  Naux=0;
   xpp::model().node=0;
   BVP_N=0;
   xpp::model().nupar=0;
@@ -1425,10 +1426,11 @@ void create_plot_list()
 {
   int k;
   const std::vector<std::string> &only=xpp::model().only;
+  /* a model loaded before may have had its own */
+  N_plist=0;
   if(only.empty())return;
   plot_columns.assign(only.size()+1,0);
   plotlist=plot_columns.data();
-  N_plist=0;
   for(const std::string &name : only){
     find_variable(name.c_str(),&k);
     if(k>=0){

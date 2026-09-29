@@ -155,7 +155,8 @@ the front end opens in a window of its own (the system's web view:
 WebView2 on Windows, which ships with Windows 10 and 11; the system's
 WKWebView on macOS; WebKitGTK 4.1 on Linux, where a system without it
 gets the browser and the command that installs it), served by the
-program itself. Its menu bar has File (Open model…, Quit) and Help
+program itself. Its menu bar has File (Open model…, which loads another
+model in its place, Reload, Quit) and Help
 (Manual, Keyboard shortcuts, About), and closing the window quits — except
 on macOS, which has no menu bar of its own yet (W13d). `--browser` opens
 the same page in your browser instead and prints its address (`XPP:

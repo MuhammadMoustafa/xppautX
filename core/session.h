@@ -39,8 +39,10 @@
 #include "userbut.h"
 #include "diagnostic.h"
 #include "xpp_log.h"
+#include "model_switch.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -143,6 +145,10 @@ struct Session {
   /* the model's buttons (@ button=name:keys; userbut.cpp) */
   int nuserbut=0;
   std::array<USERBUT,USERBUTMAX> userbut{};
+
+  /* File > Open model's or Reload's model to load once the command that
+     asked for it has returned (model_switch.h) */
+  std::optional<ModelRequest> model_request;
 };
 
 /* the current Session (xpp_current.h) */

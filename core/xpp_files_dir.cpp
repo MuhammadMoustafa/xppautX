@@ -230,6 +230,22 @@ std::string xpp_files_working_dir()
     }
 }
 
+std::pair<std::string, std::string> xpp_files_split_path(const std::string &path)
+{
+#ifdef _WIN32
+    const size_t sep = path.find_last_of("/\\");
+#else
+    const size_t sep = path.find_last_of('/');
+#endif
+    if (sep == std::string::npos) return {std::string(), path};
+    /* "/x" (and on Windows "C:\x"): the root itself */
+    size_t keep = sep == 0 ? 1 : sep;
+#ifdef _WIN32
+    if (sep == 2 && path[1] == ':') keep = 3;
+#endif
+    return {path.substr(0, keep), path.substr(sep + 1)};
+}
+
 const char *xpp_files_cur_dir(void) { return cur_dir_str.c_str(); }
 
 int xpp_files_refresh_cur_dir(void)

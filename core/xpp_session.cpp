@@ -45,6 +45,12 @@ bool base_name(const char *title, const char *base, std::string &out)
 const char *xpp_session_set_file(void) { return session_set.c_str(); }
 const char *xpp_session_auto_file(void) { return session_auto.c_str(); }
 
+void xpp_session_forget(void)
+{
+    session_set.clear();
+    session_auto.clear();
+}
+
 int xpp_session_save(const char *base_arg)
 {
     std::string base;

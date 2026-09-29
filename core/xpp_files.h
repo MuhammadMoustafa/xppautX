@@ -144,6 +144,7 @@ void xpp_files_command(const char *op, const char *name_json, const char *data_j
 }
 
 #include <string>
+#include <utility>
 #include <vector>
 
 /* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
@@ -172,6 +173,9 @@ bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out);
 
 /* the working directory, whatever its length ("" when it cannot be had) */
 std::string xpp_files_working_dir();
+/* path's folder ("" when it names none: a bare name) and its last part,
+   either separator ('/', or '\' too on Windows) */
+std::pair<std::string, std::string> xpp_files_split_path(const std::string &path);
 /* the folders of direct and its files that match the Unix-style wildcard
    wild (*, ?, [..]), each list sorted; false (dirs/files left empty, a
    WARN) when direct cannot be read. core/read_dir.cpp's old list_folder,

@@ -54,8 +54,8 @@ its own, titled "xppautX — model.ode", with the system's own web view
 (WebView2 on Windows, the system's WKWebView on macOS, WebKitGTK on
 Linux). Its menu
 bar holds what belongs to the app rather than the model: **File** (Open
-model…, which starts a second xppautX with the model you pick, in its own
-window; Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
+model… and Reload, the page's File/open Model and File/rEload, below;
+Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
 commit, compiler, protocol version and license) — except on macOS, which
 has no menu bar of its own yet (untested there beyond CI). The model's
 own menus stay inside the page. Closing the window quits xppautX, as the
@@ -93,8 +93,8 @@ all and always uses the browser; `xppautX --help` says which you have.
 To try the window by hand: start `xppautX examples/ode/lecar.ode`; the
 window opens with the xppautX icon and title; Help > Manual and Help >
 Keyboard shortcuts open the Help view in the page, Help > About shows
-the version box; File > Open model… starts a second window with the
-model you choose; File > Quit, or closing the window, ends xppautX and
+the version box; File > Open model… loads the model you choose in the
+same window, after asking; File > Quit, or closing the window, ends xppautX and
 leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
@@ -106,8 +106,25 @@ entry, no admin rights; Linux: `install-linux.sh`, a `.desktop` file and
 MIME type under `~/.local/share`; macOS: `make app` builds `xppautX.app`
 with the type declared in its `Info.plist`, untested). Each has an
 `-Unregister`/`--uninstall` counterpart. A second `.ode` opened this way
-starts a second xppautX, its own window, the same as File > Open model…
-does.
+starts a second xppautX, its own window; File > Open model… loads one in
+place of the current model instead.
+
+**Opening another model, reloading this one.** xppautX serves one model
+at a time. File/open Model (`F M` in the page, File > Open model… in
+the window's menu bar) picks a `.ode` or `.odex` file and asks first:
+the current model's data and AUTO diagram go, so it offers **Save
+first** (File/Write set's `.set`, and the diagram's `.auto` when there
+is one, as the protocol's session save does) or **Don't save**; Escape
+keeps the current model. The new model is loaded from its own folder,
+which becomes the folder the page's files are in, and every window of
+the model before closes. File/rEload (`F E`, File > Reload) reads the
+model's own file again, with the command line it was started with: edit
+the `.ode` in your editor, then Reload. Its parameters, initial data
+and numerics keep the values you gave them, by name; a parameter or
+variable the file no longer has is left out, and one it adds comes with
+the file's value. A model that cannot be loaded (a mistake in the file,
+a file that is gone) changes nothing: an error says so, the log says
+why, and the model before goes on as it was.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself

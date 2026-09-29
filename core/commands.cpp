@@ -5,6 +5,7 @@
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
 #include "session.h"
+#include "model_switch.h"
 #include "xpp_mem.h"
 #include "xpp_log.h"
 #include "xpp_io.h"
@@ -479,6 +480,8 @@ void commander(int ch)
       break;
     case 'l': clone_ode(); break;
     case 'o': copy_set_line(); break;
+    case 'm': xpp_model_open(nullptr); break;
+    case 'e': xpp_model_reload(); break;
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }

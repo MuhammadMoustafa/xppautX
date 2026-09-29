@@ -2808,6 +2808,141 @@ def check_copy_set():
 
 check_copy_set()
 
+
+def check_open_reload():
+    """W61: File > Open model and Reload load in this process. Open asks
+    (save first / don't save), then the page gets a new hello and the new
+    model's state; Reload keeps the values by name and takes the file's
+    edits; a model that cannot be loaded leaves the one before running,
+    integrating to the same data."""
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        other = os.path.join(r, 'other.ode')
+        with open(other, 'w') as f:
+            f.write('par a=1\ninit x=0.5\nx\'=-a*x\n@ total=5, dt=0.05\ndone\n')
+        with open(os.path.join(r, 'broken.ode'), 'w') as f:
+            f.write('par a=1\nx\'=-a*y+\ndone\n')
+
+        def rows_of(name):
+            """the stored data as written by the browser (csv), comments dropped"""
+            snd(cmd='browser', op='write', what='table', format='csv', name=name)
+            col(is_idle)
+            with open(os.path.join(r, name)) as f:
+                return [l.strip() for l in f if l.strip() and not l.startswith('#')]
+
+        def integrate():
+            snd(cmd='key', key='i')
+            _, ask = col(lambda e: e.get('ev') == 'ask')
+            if ask:
+                snd(cmd='answer', id=ask['id'], key='g')
+            col(is_idle)
+
+        def open_model(file, key='d'):
+            """open file, answering its question with key; the events until idle"""
+            snd(cmd='open', file=file)
+            got = []
+            while True:
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
+                got += evs
+                if e is None or e['ev'] == 'idle':
+                    return got
+                if key:
+                    snd(cmd='answer', id=e['id'], key=key)
+                else:
+                    snd(cmd='answer', id=e['id'], ok=0)
+
+        integrate()
+        first = rows_of('lecar1.csv')
+        snd(cmd='key', key='f')
+        col(is_idle)
+        snd(cmd='key', key='a')
+        evs, _ = col(is_idle)
+
+        def made(evs, op, win):
+            return any(e.get('ev') == 'window' and e.get('op') == op and e.get('win') == win for e in evs)
+
+        check('File/Auto opens window 101 before the open', made(evs, 'create', 101), '')
+        evs = open_model('other.ode', key=None)
+        asks = [e for e in evs if e.get('ev') == 'ask']
+        check('open asks first, offering to save (choice s/d)',
+              asks and asks[0]['kind'] == 'choice' and asks[0].get('keys') == 'sd', str(asks[:1]))
+        check('open cancelled: no hello, lecar still loaded',
+              not [e for e in evs if e.get('ev') == 'hello'] and not made(evs, 'destroy', 101)
+              and last_state(evs)['ics'][0][0] == 'V',
+              str(last_state(evs))[:120])
+        evs = open_model('other.ode')
+        hello = next((e for e in evs if e.get('ev') == 'hello'), None)
+        st = last_state(evs)
+        check("open: the model before's AUTO window goes", made(evs, 'destroy', 101), '')
+        check('open loads the model here: a new hello names it', hello is not None and hello.get('file') == 'other.ode',
+              str(hello)[:120])
+        check('open: the state is the new model\'s', st and st['pars'] == [['a', 1]] and st['ics'] == [['X', 0.5]],
+              str(st)[:200])
+        integrate()
+        other1 = rows_of('other1.csv')
+        check('the opened model integrates (its 101 rows and their heading)', len(other1) == 102, str(other1[:3]))
+
+        # Reload after editing: a's value set in the session stays, the new b comes with its file value
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
+        col(is_idle)
+        with open(other, 'w') as f:
+            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total=5, dt=0.05\ndone\n')
+        snd(cmd='reload')
+        evs, _ = col(is_idle)
+        st = last_state(evs)
+        hello = next((e for e in evs if e.get('ev') == 'hello'), None)
+        check('reload: a new hello, the file\'s own defaults', hello is not None
+              and hello.get('defaults', {}).get('pars') == [1, 7], str(hello and hello.get('defaults')))
+        check('reload keeps the values by name, the new parameter from the file',
+              st and st['pars'] == [['a', 3], ['b', 7]] and st['ics'] == [['X', 2]], str(st and (st['pars'], st['ics'])))
+        # the numerics too: nUmerics/Total 10 survives a reload (the file says 5)
+        snd(cmd='key', key='u')
+        snd(cmd='key', key='t')
+        _, ask = col(lambda e: e.get('ev') == 'ask')
+        if ask:
+            snd(cmd='answer', id=ask['id'], ok=1, value='10')
+            col(is_idle)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        snd(cmd='reload')
+        col(is_idle)
+        integrate()
+        check('reload keeps the numerics: Total 10 gives 201 rows', len(rows_of('other_t10.csv')) == 202, '')
+
+        # a model that cannot be loaded: the one before stays, integrating to the same data
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1}, {'kind': 'ic', 'name': 'X', 'value': 0.5}])
+        col(is_idle)
+        integrate()
+        before = rows_of('other2.csv')
+        evs = open_model('broken.ode')
+        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('a broken model: an error, no hello',
+              errs and 'broken.ode' in errs[-1]['error'] and not [e for e in evs if e.get('ev') == 'hello'],
+              str(errs)[:200])
+        check('a broken model: the model before is still loaded, its values untouched',
+              last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(last_state(evs))[:200])
+        evs = open_model('missing.ode')
+        check('a missing model: an error, nothing asked',
+              [e for e in evs if e.get('ev') == 'message' and 'missing.ode' in e.get('error', '')]
+              and not [e for e in evs if e.get('ev') == 'ask'], str(evs)[:200])
+        integrate()
+        after = rows_of('other3.csv')
+        check('after a failed open the model integrates to the same data', after == before and len(after) > 100,
+              '%d vs %d rows' % (len(after), len(before)))
+
+        # back to lecar: the same data as the first run, nothing of other.ode left
+        evs = open_model(os.path.basename(args.ode))
+        check('open back the first model: its hello', any(e.get('ev') == 'hello' for e in evs), '')
+        integrate()
+        check('the first model integrates to its first data again', rows_of('lecar2.csv') == first, '')
+        check('the process is alive after it all', p.poll() is None, '')
+    finally:
+        stop_server(p, r, snd)
+
+
+check_open_reload()
+
 send(cmd='key', key='f')
 send(cmd='key', key='q')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

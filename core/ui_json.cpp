@@ -26,6 +26,8 @@
 #include "userbut.h"
 #include "menudrive.h"
 #include "xpp_session.h"
+#include "xpp_globals.h"
+#include "model_switch.h"
 #include "plot_data.h"
 #include "phase_data.h"
 #include "marks_data.h"
@@ -434,10 +436,19 @@ void handle_line(const char *line, unsigned long seq)
         xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
     } else if (is_cmd(line, "values")) {
         values_command(line);
+    } else if (is_cmd(line, "open")) {
+        std::string file;
+        get_string(line, "file", file);
+        xpp_model_open(file.c_str());
+    } else if (is_cmd(line, "reload")) {
+        xpp_model_reload();
     } else if (!is_cmd(line, "abort")) {
         std::string c;
         if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c).c_str());
     }
+    /* File > Open model or Reload asked for another model: loaded now,
+       when nothing of this one's Session is in use any more */
+    if (std::optional<xpp::ModelRequest> req = xpp::take_model_request()) switch_model(*req);
     apply_deferred_sets();
     aplot_update();
     browser_update();
@@ -493,6 +504,20 @@ void json_ui_loop(void)
     }
 }
 
+void json_ui_push_open(const char *path)
+{
+    /* on the window's thread, called from C (Win32, GTK): nothing may throw */
+    try {
+        Buf b;
+        BUF_LIT(&b, "{\"cmd\":\"open\",\"file\":");
+        buf_str(&b, path);
+        BUF_LIT(&b, "}");
+        xpp_inbox_push(b.s.data(), b.s.size());
+    } catch (...) {
+        xpp_out_of_memory("opening a model");
+    }
+}
+
 int json_ui_set_script(const char *path)
 {
     if (!xpp_inbox_start_file(path)) return 0;
@@ -538,11 +563,18 @@ void json_ui_load_error(const xpp::Diagnostic &d)
     send_buf(&b);
 }
 
-/* the first events a client sees */
-void json_ui_hello(const char *title)
+/* the first events a client sees, and again for a model loaded in place
+   of the one before (json_model.cpp) */
+void json_ui_hello(void)
 {
     Buf b;
     int i;
+    const std::string &file = xpp::model().this_file;
+    const std::string title_text =
+        file.size() < 60
+            ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
+            : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
+    const char *title = title_text.c_str();
     BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");

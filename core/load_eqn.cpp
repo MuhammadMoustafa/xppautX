@@ -577,7 +577,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
-	exit(-1);
+	xpp_model_failed(); /* a load fails, else the program ends */
    }
    if (log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
    {
@@ -596,7 +596,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
-	exit(-1);
+	xpp_model_failed(); /* a load fails, else the program ends */
    }
    return; /* X11's bell: checked, not kept */
  }
@@ -655,7 +655,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
 	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
    		 xpp_log(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
-		 exit(-1);
+		 xpp_model_failed(); /* a load fails, else the program ends */
 	    }
 	    s.not_already_set.UserGradients=0;
     }
@@ -1596,7 +1596,7 @@ if(msc("TUTORIAL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp_log(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
-	exit(-1);
+	xpp_model_failed(); /* a load fails, else the program ends */
    }
    if ((xpp::session().not_already_set.TUTORIAL||force) || ((mask!=NULL)&&(mask->TUTORIAL==1)))
    {

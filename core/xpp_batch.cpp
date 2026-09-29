@@ -30,6 +30,7 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include "xpp_files.h"
 #include "graf_par.h"
 
 XppBatchOptions batch_options;
@@ -250,12 +251,14 @@ static void load_and_set_up(int argc, char **argv, int batch)
     program.interactive = 0;
     batch_options.out_file = "output.dat";
     xpp::session().plot_export.format = "ps";
-    log_settings.file = stdout;
     check_for_quiet(argc, argv);
     do_comline(argc, argv);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */
 
     load_eqn();
+    /* the log settings of the model before (@ logfile, @ quiet) go, now
+       that this one has parsed; its own options below set them again */
+    xpp_log_new_model();
     /* the boundary conditions in use start as the model's */
     xpp::session().bcs = xpp::model().bcs;
 
@@ -287,9 +290,16 @@ std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch)
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
     xpp::Load load;
+    /* the process-wide settings a load writes, put back when it fails */
+    const XppProgram program_before = program;
+    const XppBatchOptions batch_before = batch_options;
     try {
+        xpp::model().command_line.assign(argv, argv + argc);
+        xpp::model().load_dir = xpp_files_working_dir();
         load_and_set_up(argc, argv, batch);
     } catch (xpp::LoadFailed &failed) {
+        program = program_before;
+        batch_options = batch_before;
         return std::move(failed.diagnostic);
     }
     load.commit();

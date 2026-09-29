@@ -17,13 +17,15 @@ extern "C" {
    The library sees nothing of the core: what it calls there comes in this
    table, filled by the loader. The static builds (Windows, macOS) fill it
    with the same functions at compile time, so the window's code is one. */
-#define XPP_WINDOW_HOST_VERSION 1
+#define XPP_WINDOW_HOST_VERSION 2
 typedef struct XppWindowHost {
     int version; /* XPP_WINDOW_HOST_VERSION */
     const char *(*http_url)(void);
     void (*http_release)(void);
     int (*http_said_bye)(void);
     void (*inbox_push)(const char *line, size_t n);
+    /* File > Open model's file, as the protocol's open command (ui_json.h) */
+    void (*open_model)(const char *path);
     void (*log)(XppLogLevel level, const char *fmt, ...)
 #ifdef __GNUC__
         __attribute__((format(printf, 2, 3)))

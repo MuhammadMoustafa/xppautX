@@ -26,6 +26,9 @@ int xpp_session_save(const char *base);
 int xpp_session_load(const char *base);
 const char *xpp_session_set_file(void);
 const char *xpp_session_auto_file(void);
+/* another model is loaded (File > Open model, Reload): the files named
+   above were the model before's, and go */
+void xpp_session_forget(void);
 
 #ifdef __cplusplus
 }

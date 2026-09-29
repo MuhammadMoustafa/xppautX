@@ -40,6 +40,10 @@ void do_txt_action(const char *s);
 /* atexit hook: removes the Session's AUTO scratch folder (auto_state.h) if it is set, and
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
+/* another model is loaded (File > Open model, Reload): a new, empty AUTO
+   scratch folder in place of the Session's, whose files (<model>.s, .b,
+   .d) were the model before's */
+void xpp_renew_auto_dir(void);
 
 #ifdef __cplusplus
 }

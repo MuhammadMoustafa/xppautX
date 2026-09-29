@@ -20,6 +20,7 @@
 #include "xpp_window_hint.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include "ui_json.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -42,7 +43,7 @@ extern "C" const unsigned long xpp_window_lib_len;
 namespace {
 
 const XppWindowHost host = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
-                            xpp_inbox_push, xpp_log};
+                            xpp_inbox_push, json_ui_push_open, xpp_log};
 XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;
 
