@@ -14,11 +14,6 @@
 
 namespace xpp::odex {
 
-std::string Error::text() const
-{
-  return xpp::format("{}:{}:{}: {}", file, pos.line, pos.col, message);
-}
-
 namespace {
 
 /* the words docs/odex.md reserves: the statement keywords (and solv and
@@ -155,7 +150,7 @@ private:
     line_start_ = i_;
   }
 
-  [[noreturn]] void fail(Pos p, std::string msg) const { throw Error{name_, p, std::move(msg)}; }
+  [[noreturn]] void fail(Pos p, std::string msg) const { throw error_at(name_, p, std::move(msg)); }
 
   /* passes white space and comments; true when there were some */
   bool skip_blank()
@@ -267,7 +262,7 @@ private:
   }
   [[noreturn]] void fail(Pos p, std::string msg) const
   {
-    throw Error{out_.files[p.file], p, std::move(msg)};
+    throw error_at(out_.files[p.file], p, std::move(msg));
   }
   void expect_punct(std::string_view p, std::string_view what)
   {
@@ -1005,7 +1000,7 @@ Parsed parse(std::string_view text, const std::string &file)
 Parsed parse_file(const std::string &path)
 {
   std::string text;
-  if (!xpp::read_bytes(path.c_str(), text)) throw Error{path, Pos{}, "cannot read the file"};
+  if (!xpp::read_bytes(path.c_str(), text)) throw error_at(path, Pos{}, "cannot read the file");
   return parse(text, path);
 }
 

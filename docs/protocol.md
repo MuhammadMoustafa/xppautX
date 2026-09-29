@@ -25,6 +25,32 @@ reaches a running computation.
 
 A client that draws sends `data` next (see "The plot as data").
 
+### A model that does not load
+
+When the model does not load (a line the reader does not understand, a
+formula that does not compile, a name given twice), the server sends one
+`error` event instead of `hello` and exits with status 1 (W63c). The log
+(stderr, the page's `log` event) says what it always said; the event is
+the same as values:
+
+    {"ev":"error","file":"bad.ode","line":3,"col":0,"cause":"Premature end of expression\n-X+A*\n    ^\nERROR compiling X'","source":"x'=-x+a*"}
+
+- `file`: the file the problem is in, as the server was given it, or the
+  file the model includes (`#include`) when the problem is there.
+- `line`, `col`: where, both from 1; 0 when not known. An .ode problem
+  has its line (a statement continued with `\` is at the line it starts
+  at) and column 0; an .odex one has both. A problem of the whole model
+  (no equations, too many boundary conditions) has line 0.
+- `cause`: what is wrong, the error and warning lines logged about that
+  line, joined with `\n` (a formula and a caret under where it stops
+  making sense are two of them).
+- `source`: line `line` of `file` as written ("" when `line` is 0).
+
+In browser and window mode the server keeps serving after the exit, so
+the page gets the event (and `exit` after it) whenever it connects. The
+core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
+`xpp::load_model` (core/xpp_batch.h) returns for a load that fails.
+
 ## Commands (client to server)
 
 | cmd | fields | meaning |
@@ -163,7 +189,8 @@ reading commands from stdin: FILE holds the same line-delimited JSON
 commands a `--server` client sends, one per line (blank lines and lines
 whose first non-blank character is `#` are ignored). Protocol events go to
 stdout exactly as `--server` sends them. The process exits 0 when FILE
-runs out, or 1 if a `message` event of `error` kind was sent. A line that
+runs out, or 1 if a `message` event of `error` kind (or, for a model that
+does not load, an `error` event) was sent. A line that
 does not fit the dialogue stops the script at once with exit status 1 and
 a message on stderr naming the line and the open question: an `answer`
 when no question is open, or a command where an answer was due (a prompt
@@ -276,6 +303,7 @@ Run it with:
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
 | `bye` | | The program is exiting. |
+| `error` | `file`, `line`, `col`, `cause`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
 

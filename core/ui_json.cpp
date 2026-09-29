@@ -523,6 +523,21 @@ void json_ui_install(void)
     xpp_set_ui(&json_ui);
 }
 
+void json_ui_load_error(const xpp::Diagnostic &d)
+{
+    /* a script whose model does not load fails, as an error message does */
+    if (session.script_mode) session.script_error = 1;
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"error\",\"file\":");
+    buf_str(&b, d.file);
+    buf_format(&b, ",\"line\":{:d},\"col\":{:d},\"cause\":", d.line, d.col);
+    buf_str(&b, d.cause);
+    BUF_LIT(&b, ",\"source\":");
+    buf_str(&b, d.source);
+    BUF_LIT(&b, "}");
+    send_buf(&b);
+}
+
 /* the first events a client sees */
 void json_ui_hello(const char *title)
 {

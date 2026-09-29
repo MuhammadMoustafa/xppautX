@@ -62,10 +62,12 @@
    values panel opening Help at its section with the heading in view once
    loaded, search finding a known term, a result and a table-of-contents
    link navigating, an in-chapter cross-reference link too, and F1
-   reopening it where it was left.
+   reopening it where it was left. `loaderror` (W63c): a model that does not
+   load shows the core's `error` event, its file, line and cause, with the
+   line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help] [-v]
+     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -4028,6 +4030,33 @@ async function kinescope(dir) {
    page at /, then `fn` (given the model's folder). `record` collects every
    check() call made during it rather than printing them (session() below
    decides, once it knows whether a rerun is needed, what to print). */
+/* A model that does not load (W63c): no session() -- there is no hello and
+   the core has exited -- but the page still gets the `error` event (and the
+   exit) when it connects, and shows where and why. */
+async function loadErrorCheck() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-bad-'));
+  fs.writeFileSync(path.join(dir, 'bad.ode'), ['# a model that does not load', 'par a=1', "x'=-x+a*", 'init x=1', 'done', ''].join('\n'));
+  const server = await startServer(bin, dir, ['bad.ode']);
+  try {
+    await cdp.eval('window.__left = true').catch(() => {});
+    await cdp.send('Page.navigate', {url: server.url});
+    check('load error: the page gets the error event and the exit',
+      await until('!window.__left && s.loadError && s.exited !== null', 'the load error', 30000 * SLOW));
+    const e = await S('s.loadError');
+    check('load error: its file, line, line as written and cause',
+      !!e && e.file === 'bad.ode' && e.line === 3 && e.col === 0 && e.source === "x'=-x+a*"
+        && e.cause.includes("ERROR compiling X'"), JSON.stringify(e));
+    check('load error: no hello', await S('s.hello === null'));
+    const text = await cdp.eval("(document.querySelector('.load-error') || {}).innerText || ''");
+    check('load error: the page shows the place, the line and the cause',
+      text.includes('bad.ode, line 3') && text.includes("x'=-x+a*") && text.includes("ERROR compiling X'"), JSON.stringify(text));
+  } finally {
+    await stopServer(server);
+    await sleep(300);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 async function sessionAttempt(ode, fn, expected) {
   const rec = record = [];
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
@@ -4158,6 +4187,7 @@ async function main() {
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
     if (run('help')) await session(ODE, helpCheck);
+    if (run('loaderror')) await loadErrorCheck();
   } finally {
     b.proc.kill();
     await sleep(500);

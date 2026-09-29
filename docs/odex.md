@@ -331,7 +331,8 @@ from):
      since `.ode` folds case) is written with its declaration's spelling
      everywhere; `--convert` lists the lines it rewrote. Two declarations
      that differ only by case cannot occur: such a `.ode` does not load
-     (measured: `par V=1` and `par v=2` give 'ERROR at line N').
+     (measured: `par V=1` and `par v=2`: 'V is a name already, or one
+     parameter too many').
    - A `.ode` name that `.odex` makes a keyword (`and`, `or`, `fun`, `let`,
      `return`) must be renamed: `--convert` lists each one and asks for its
      new name, one by one, with a suggestion ready (the name plus `_`, then

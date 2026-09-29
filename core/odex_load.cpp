@@ -115,7 +115,7 @@ public:
   }
 
 private:
-  [[noreturn]] void fail(Pos pos, std::string msg) const { throw Error{p_.files[pos.file], pos, std::move(msg)}; }
+  [[noreturn]] void fail(Pos pos, std::string msg) const { throw error_at(p_.files[pos.file], pos, std::move(msg)); }
 
   /* ---- the names ---- */
   void add(const std::string &name, Kind kind, Pos pos, int arity = 0)
@@ -616,7 +616,7 @@ int load(const std::string &path)
     build_model(ready(parse_file(path)));
   } catch (const Error &e) {
     xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
-    xpp_model_failed();
+    xpp::model_failed(e);
   }
   /* the model's source: the .odex file's own lines */
   std::vector<std::string> &source = xpp::model().source;

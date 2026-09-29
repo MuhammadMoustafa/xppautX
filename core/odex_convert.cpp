@@ -215,7 +215,7 @@ struct Symbols {
 
 [[noreturn]] void refuse(std::string msg)
 {
-  throw Error{xpp::model().this_file, Pos{}, std::move(msg)};
+  throw error_at(xpp::model().this_file, Pos{}, std::move(msg));
 }
 
 Expr name_expr(std::string text, bool primed = false)
@@ -1182,7 +1182,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     text = convert_model(auto_answer, ask);
     before = fingerprint();
   } catch (const Error &e) {
-    xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.message);
+    xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.cause);
     return 1;
   }
   if (xpp_files_exists(out.c_str()) && !auto_answer) {

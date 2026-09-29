@@ -25,6 +25,7 @@ int xpp_batch_main(int argc, char **argv);
 int xpp_load_model(int argc, char **argv, int batch);
 
 /* the model cannot be loaded (a parse or compile error, already logged):
+   xpp::model_failed, at the place the load is (xpp::Load::diagnostic):
    during a load, the load fails (xpp::LoadFailed, caught by
    xpp_load_model); otherwise the program exits with status 1. In browser
    and window mode the page stays open on the log until it is closed
@@ -34,8 +35,23 @@ int xpp_load_model(int argc, char **argv, int batch);
 #ifdef __cplusplus
 }
 
+#include "diagnostic.h"
+
+#include <optional>
 #include <string>
 #include <vector>
+
+namespace xpp {
+/* xpp_load_model, saying why a load fails: nothing when the model loaded
+   (its Model and Session are the current ones), else what is wrong and
+   where (the ones before stay current) */
+std::optional<Diagnostic> load_model(int argc, char **argv, int batch);
+/* the model cannot be loaded, for the reason d (already logged): during a
+   load, the load fails (LoadFailed with d, the line d.line of d.file
+   added as it is written); otherwise the program exits with status 1 */
+[[noreturn]] void model_failed(Diagnostic d);
+}
+
 /* How a run without an interface goes and where its output lands: the
    command line (-silent, -outfile, -equil, -iset) and the ODE file's
    @ output=, @ range= options set these. */

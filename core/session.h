@@ -37,9 +37,12 @@
 #include "arrayplot.h"
 #include "aniparse.h"
 #include "userbut.h"
+#include "diagnostic.h"
+#include "xpp_log.h"
 
 #include <array>
 #include <string>
+#include <string_view>
 
 namespace xpp {
 
@@ -149,8 +152,11 @@ inline Session &session()
 }
 
 /* what xpp_model_failed throws while a Load is in progress: the model
-   cannot be loaded (a parse or compile error, already logged) */
-struct LoadFailed {};
+   cannot be loaded (a parse or compile error, already logged), what is
+   wrong and where */
+struct LoadFailed {
+  Diagnostic diagnostic;
+};
 
 /* A load in progress: while it lives the current Model and Session are
    fresh ones, which the parser and the load's set-up fill (the core is
@@ -169,10 +175,20 @@ public:
   void commit();
   /* a Load is in progress */
   static bool running() noexcept { return detail::current_slot<Load>()!=nullptr; }
+  /* The load is at line (and column) of file: the model's readers and
+     builder say where they are, so that a problem is reported there;
+     line 0, the model as a whole. The messages logged before are no
+     longer about it. Nothing when no Load is in progress. */
+  static void at(std::string_view file, int line=0, int col=0);
+  /* what went wrong where the load is (a Load is in progress): the place
+     at() gave, and as the cause the ERROR and WARN messages logged since */
+  static Diagnostic diagnostic();
 private:
   Model *previous_model;
   Session *previous_session;
   bool committed=false;
+  Diagnostic where;
+  LogCapture messages;
 };
 
 }

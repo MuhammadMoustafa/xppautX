@@ -1,12 +1,18 @@
 /* See xpp_log.h. */
 #include "xpp_log.h"
 #include "xpp_files.h"
+#include "xpp_mem.h"
 #include <cstdio>
 #include <cstring>
+#include <new>
+#include <string>
 
 namespace {
 XppLogLevel threshold = XPP_LOG_WARN;
 int auto_echo;
+/* the LogCapture that keeps this thread's messages (the latest made), if
+   any */
+thread_local xpp::LogCapture *capture = nullptr;
 
 /* where messages go: -logfile's file when one was given, else stderr
    (stdout is the protocol's in --server mode; the file's default is stdout) */
@@ -38,9 +44,45 @@ int xpp_log_enabled(XppLogLevel level)
     return level <= threshold && (level != XPP_LOG_INFO || log_settings.verbose);
 }
 
+xpp::LogCapture::LogCapture() : outer_(capture)
+{
+    capture = this;
+}
+
+xpp::LogCapture::~LogCapture() { capture = outer_; }
+
+void xpp::LogCapture::keep(const char *message) noexcept
+{
+    try {
+        text_ += message;
+    } catch (const std::bad_alloc &) {
+        xpp_out_of_memory("a load's messages");
+    }
+}
+
 void xpp_log_v(XppLogLevel level, const char *fmt, va_list ap)
 {
     FILE *out = sink();
+    if (capture != nullptr && level <= XPP_LOG_WARN) {
+        /* the message once as text, for the capture and the log */
+        va_list again;
+        va_copy(again, ap);
+        const int n = std::vsnprintf(nullptr, 0, fmt, again);
+        va_end(again);
+        if (n < 0) return;
+        std::string message;
+        try {
+            message.resize(static_cast<size_t>(n));
+        } catch (const std::bad_alloc &) {
+            xpp_out_of_memory("a log message");
+        }
+        std::vsnprintf(message.data(), message.size() + 1, fmt, ap);
+        capture->keep(message.c_str());
+        if (!xpp_log_enabled(level)) return;
+        std::fputs(message.c_str(), out);
+        fflush(out);
+        return;
+    }
     if (!xpp_log_enabled(level)) return;
     std::vfprintf(out, fmt, ap);
     fflush(out);

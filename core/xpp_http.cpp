@@ -103,6 +103,7 @@ struct Server {
     std::array<sock_t, MAX_CLIENTS> clients{};
     int nclients = 0;
     std::string sticky_hello, sticky_state, sticky_ask, exit_event;
+    std::string load_error; /* the error event of a model that did not load */
     std::array<WindowLine, MAX_WINDOWS> windows;
     std::string log_text; /* the last LOG_KEEP bytes printed */
 };
@@ -244,6 +245,7 @@ void emit(std::string_view line)
         else if (*ev == "ask") srv.sticky_ask = line;
         else if (*ev == "idle") srv.sticky_ask.clear();
         else if (*ev == "bye") saw_bye = 1;
+        else if (*ev == "error") srv.load_error = line;
         else if (*ev == "window") {
             std::optional<std::string_view> op = field(line, "op"), win = field(line, "win");
             if (op && win) track_window(line, *op, *win);
@@ -364,6 +366,7 @@ void open_events(sock_t s)
         if (!srv.windows[i].line.empty()) ok = send_event(s, srv.windows[i].line);
     if (ok && !srv.sticky_state.empty()) ok = send_event(s, srv.sticky_state);
     if (ok && !srv.sticky_ask.empty()) ok = send_event(s, srv.sticky_ask);
+    if (ok && !srv.load_error.empty()) ok = send_event(s, srv.load_error);
     if (ok && !srv.exit_event.empty()) ok = send_event(s, srv.exit_event);
     if (ok && srv.nclients < MAX_CLIENTS) {
         had_client = 1;

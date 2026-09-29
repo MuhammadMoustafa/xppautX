@@ -1,6 +1,7 @@
 /* The layout shell: title bar, command menu (a drawer on narrow screens),
    the plot windows, messages, status, notifications and the prompt dialog.
    Panels still to come (docs/ui-v2.md) get their own components here. */
+import type {LoadErrorEvent} from '../protocol/types';
 import type {Session} from '../session';
 import {AplotView} from './AplotView';
 import {AniView} from './AniView';
@@ -21,11 +22,45 @@ import {Toasts} from './Toasts';
 import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
 
+/* where a load error is, in words: the file, its line and column when known */
+function loadErrorPlace(e: LoadErrorEvent): string {
+  if (e.line <= 0) return e.file;
+  return `${e.file}, line ${e.line}` + (e.col > 0 ? `, column ${e.col}` : '');
+}
+
+/* a model that did not load (W63c): where, the line as written with a
+   caret under the column when there is one, and what is wrong */
+function LoadError({e}: {e: LoadErrorEvent}) {
+  return (
+    <div class="banner error load-error" role="alert">
+      <p class="load-error-title">The model does not load: {loadErrorPlace(e)}</p>
+      {e.line > 0 && (
+        <div class="source-lines load-error-source" aria-label={`Line ${e.line} of ${e.file}`}>
+          <div class="source-row">
+            <span class="source-lineno" aria-hidden="true">{e.line}</span>
+            <span class="source-text">{e.source || ' '}</span>
+          </div>
+          {e.col > 0 && (
+            <div class="source-row" aria-hidden="true">
+              <span class="source-lineno" />
+              <span class="source-text load-error-caret">{' '.repeat(e.col - 1) + '^'}</span>
+            </div>
+          )}
+        </div>
+      )}
+      <pre class="load-error-cause">{e.cause}</pre>
+      <p>Correct the model and start XPP again; Messages below show everything it printed.</p>
+    </div>
+  );
+}
+
 /* what is wrong with the connection, in words, or nothing */
 function Banner() {
   const connected = useStore(s => s.connected);
   const exited = useStore(s => s.exited);
   const hello = useStore(s => s.hello);
+  const loadError = useStore(s => s.loadError);
+  if (loadError) return <LoadError e={loadError} />;
   if (exited !== null) {
     return (
       <div class="banner error" role="alert">

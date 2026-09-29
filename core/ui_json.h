@@ -23,5 +23,11 @@ int json_ui_set_script(const char *path);
 
 #ifdef __cplusplus
 }
+
+#include "diagnostic.h"
+
+/* the model did not load: why and where, as the `error` event (in place
+   of hello; docs/protocol.md "A model that does not load") */
+void json_ui_load_error(const xpp::Diagnostic &d);
 #endif
 #endif

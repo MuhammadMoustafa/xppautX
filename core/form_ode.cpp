@@ -380,7 +380,7 @@ void begin_model()
 void add_parameter(const std::string &name, double value)
 {
   if(add_con(name.c_str(),value)){
-    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
+    xpp::log(XPP_LOG_ERROR, "{} is a name already, or one parameter too many\n",name);
     xpp_model_failed();
   }
   xpp::model().default_val[xpp::model().nupar]=value;
@@ -393,7 +393,7 @@ void add_constant(const std::string &name, double value, bool wiener)
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
   if(add_con(name.c_str(),value)){
-    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
+    xpp::log(XPP_LOG_ERROR, "{} is a name already, or one parameter too many\n",name);
     xpp_model_failed();
   }
   if(wiener)add_wiener(xpp::session().parser.ncon-1);
@@ -954,9 +954,18 @@ public:
     evaluate_parameters();
     ConvertStyle=0;
     begin_model();
-    for(Statement &s : p_.statements) declare(s);
+    for(Statement &s : p_.statements){
+      at(s);
+      declare(s);
+    }
+    /* what follows is the whole model's */
+    xpp::Load::at(xpp::model().this_file);
     add_names();
-    for(Statement &s : p_.statements) compile(s);
+    for(Statement &s : p_.statements){
+      at(s);
+      compile(s);
+    }
+    xpp::Load::at(xpp::model().this_file);
     if(compile_derived()==1)
       xpp_model_failed();
     if(compile_svars()==1)
@@ -971,10 +980,22 @@ public:
   }
 
 private:
-  /* where a statement's binding is, for an error */
-  std::string where(const xpp::odex::Pos &pos) const
+  /* the file of a place in the model */
+  const std::string &file(const xpp::odex::Pos &pos) const
   {
-    return xpp::odex::Error{pos.file<static_cast<int>(p_.files.size())?p_.files[pos.file]:std::string(),pos,""}.text();
+    return pos.file<static_cast<int>(p_.files.size())?p_.files[pos.file]:xpp::model().this_file;
+  }
+
+  /* where a statement's binding is, for an error */
+  xpp::Diagnostic where(const xpp::odex::Pos &pos) const
+  {
+    return xpp::odex::error_at(file(pos),pos,"");
+  }
+
+  /* the load is at statement s: a problem there is reported at it */
+  void at(const Statement &s) const
+  {
+    xpp::Load::at(file(s.pos),s.pos.line,s.pos.col);
   }
 
   /* e as the text the expression engine compiles: an .ode formula as
@@ -1005,8 +1026,8 @@ private:
 	  const std::string formula=xpp::odex::engine_text(b.value,&values);
 	  int ok=0;
 	  const double z=calculate(formula.c_str(),&ok);
-	  if(!ok)throw xpp::odex::Error{p_.files[b.value.pos.file],b.value.pos,
-					xpp::format("the value of {} does not evaluate",b.name)};
+	  if(!ok)throw xpp::odex::error_at(p_.files[b.value.pos.file],b.value.pos,
+					    xpp::format("the value of {} does not evaluate",b.name));
 	  Expr number;
 	  number.kind=Expr::Kind::Number;
 	  number.pos=b.value.pos;
@@ -1388,8 +1409,10 @@ void set_initial_values()
     int ok=0;
     const double z=calculate(init.formula.c_str(),&ok);
     if(!ok){
-      xpp::log(XPP_LOG_ERROR, "{} the initial value of {} does not evaluate\n",init.where,init.name);
-      xpp_model_failed();
+      xpp::Diagnostic d=init.where;
+      d.cause=xpp::format("the initial value of {} does not evaluate",init.name);
+      xpp::log(XPP_LOG_ERROR, "{} {}\n",init.where.text(),d.cause);
+      xpp::model_failed(std::move(d));
     }
     const int i=find_user_name(ICBOX,init.name);
     xpp::session().last_ic[i]=z;

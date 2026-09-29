@@ -44,7 +44,7 @@ std::string tree(const Expr &e)
 Expr expression(const char *text)
 {
   Parsed p = xpp::odex::parse(std::string("x' =\n") + text, "e.odex");
-  if (p.statements.size() != 1) throw Error{"e.odex", xpp::odex::Pos{0, 2, 1}, "not one expression"};
+  if (p.statements.size() != 1) throw xpp::odex::error_at("e.odex", xpp::odex::Pos{0, 2, 1}, "not one expression");
   return p.statements[0].expr;
 }
 
@@ -53,7 +53,7 @@ std::string parsed(const char *text)
   try {
     return tree(expression(text));
   } catch (const Error &e) {
-    return "error " + std::to_string(e.pos.line - 1) + ":" + std::to_string(e.pos.col) + " " + e.message;
+    return "error " + std::to_string(e.line - 1) + ":" + std::to_string(e.col) + " " + e.cause;
   }
 }
 
@@ -63,7 +63,7 @@ std::string model_error(const char *text)
   try {
     xpp::odex::parse(text, "m.odex");
   } catch (const Error &e) {
-    return std::to_string(e.pos.line) + ":" + std::to_string(e.pos.col) + " " + e.message;
+    return std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
   }
   return "";
 }
@@ -141,7 +141,7 @@ std::string lowered(const char *text)
     }
     return out;
   } catch (const Error &e) {
-    return "error " + std::to_string(e.pos.line) + ":" + std::to_string(e.pos.col) + " " + e.message;
+    return "error " + std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
   }
 }
 

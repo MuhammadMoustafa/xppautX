@@ -27,6 +27,7 @@
    each at its own offset), and an index past what the model uses reads
    an empty name. */
 #include "xpplim.h"
+#include "diagnostic.h"
 #include "volterra.h"
 #include "tabular.h"
 #include "simplenet.h"
@@ -147,9 +148,10 @@ struct Model {
   /* the initial values a model gives as formulas (an .odex's init): each
      variable (by name) and its formula (the expression engine's text),
      evaluated in order once the model is set up (form_ode.cpp's
-     set_initial_values); where its init is, for an error */
+     set_initial_values); where its init is, for an error (no cause) */
   struct InitialValue {
-    std::string name, formula, where;
+    std::string name, formula;
+    Diagnostic where;
   };
   std::vector<InitialValue> initial_values;
   /* its @ lines, each whole, as read: load_eqn.cpp's set_internopts

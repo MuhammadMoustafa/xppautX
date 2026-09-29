@@ -26,6 +26,36 @@ Load::~Load()
   detail::current_slot<Session>()=previous_session;
 }
 
+void Load::at(std::string_view file, int line, int col)
+{
+  Load *load=detail::current_slot<Load>();
+  if(!load)return;
+  load->where.file=file;
+  load->where.line=line;
+  load->where.col=col;
+  load->messages.clear();
+}
+
+Diagnostic Load::diagnostic()
+{
+  const Load &load=*detail::current_slot<Load>();
+  Diagnostic d=load.where;
+  /* the messages without the blank lines around them, each line without
+     the blanks at its end (a caret line keeps those in front) */
+  std::string_view text=load.messages.text();
+  while(!text.empty()){
+    const size_t eol=text.find('\n');
+    std::string_view line=text.substr(0,eol);
+    text=eol==std::string_view::npos?std::string_view():text.substr(eol+1);
+    while(!line.empty()&&(line.back()==' '||line.back()=='\r'||line.back()=='\t'))line.remove_suffix(1);
+    if(line.empty())continue;
+    if(!d.cause.empty())d.cause+='\n';
+    d.cause+=line;
+  }
+  if(d.cause.empty())d.cause="the model does not load";
+  return d;
+}
+
 void Load::commit()
 {
   committed=true;

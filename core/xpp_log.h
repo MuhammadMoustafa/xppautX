@@ -98,6 +98,28 @@ int xpp_log_parse_arg(const char *arg);
 #endif
 
 namespace xpp {
+/* While one lives, the ERROR and WARN messages logged on the thread that
+   made it are also kept here, as well as written as ever: a load's
+   diagnostic (session.h, xpp::Load) takes what was logged about the line
+   that failed as its cause. The latest made keeps them; the one before
+   again once it goes. */
+class LogCapture {
+public:
+    LogCapture();
+    ~LogCapture();
+    LogCapture(const LogCapture &) = delete;
+    LogCapture &operator=(const LogCapture &) = delete;
+    /* what was kept since it was made or last cleared */
+    const std::string &text() const noexcept { return text_; }
+    void clear() noexcept { text_.clear(); }
+    /* an ERROR or WARN message logged (xpp_log_v) */
+    void keep(const char *message) noexcept;
+
+private:
+    std::string text_;
+    LogCapture *outer_;
+};
+
 #ifdef XPP_LOG_HAVE_STD_FORMAT
 /* Compile-time checked counterpart of xpp_log() for the .cpp files (see
    core/xpp_io.h's xpp::format, same idea): a bad "{}" against the

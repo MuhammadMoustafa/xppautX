@@ -68,7 +68,11 @@ illegal formula, a value out of bounds, a file it cannot read) shows as a
 toast notification and stays until dismissed. One message is shown at a
 time; starting the next command clears it. If the model cannot be loaded
 at all, the program keeps serving the page so you can read what it
-printed.
+printed, and the top of the page says where the problem is: the file
+(the model's, or a file it includes), the line number with the line as
+you wrote it (and, in an `.odex` model, a caret under the column), and
+what is wrong, such as a formula that stops making sense and where.
+Correct the line and start XPP again.
 
 ## Tabs instead of windows
 

@@ -377,8 +377,22 @@ export interface FilmEvent {
   delay: number;
 }
 
+/** A model that does not load (docs/protocol.md "A model that does not
+    load"), sent instead of hello: the file the problem is in, its line and
+    column from 1 (0 when not known), what is wrong (one or more lines) and
+    the line as written */
+export interface LoadErrorEvent {
+  ev: 'error';
+  file: string;
+  line: number;
+  col: number;
+  cause: string;
+  source: string;
+}
+
 export type XppEvent =
   | HelloEvent
+  | LoadErrorEvent
   | StateEvent
   | SeriesEvent
   | SeriesAppendEvent

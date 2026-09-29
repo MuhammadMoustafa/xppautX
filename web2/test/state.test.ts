@@ -208,3 +208,13 @@ test('zoomAbout keeps the point under the pointer', () => {
   const r = zoomAbout({x: {min: 0, max: 10}, y: {min: 0, max: 10}}, 0.2, 0.5, 0.5);
   assert.deepEqual(r, {x: {min: 1, max: 6}, y: {min: 2.5, max: 7.5}});
 });
+
+test('a model that does not load: the error event is kept, with the exit after it (W63c)', () => {
+  const e = {ev: 'error', file: 'bad.ode', line: 3, col: 0, cause: "ERROR compiling X'", source: "x'=-x+a*"};
+  let s = ev(initialState, e);
+  assert.deepEqual(s.loadError, e);
+  assert.equal(s.hello, null);
+  s = ev(s, {ev: 'exit', code: 1});
+  assert.equal(s.exited, 1);
+  assert.deepEqual(s.loadError, e, 'the exit keeps the error');
+});

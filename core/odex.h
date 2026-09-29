@@ -22,11 +22,14 @@
 
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
+#include "diagnostic.h"
+
 #include <functional>
 #include <map>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace xpp::odex {
@@ -39,14 +42,14 @@ struct Pos {
   int col = 0;
 };
 
-/* a problem found in a model: where, and what */
-struct Error {
-  std::string file;
-  Pos pos;
-  std::string message;
-  /* "file:line:col: message" */
-  std::string text() const;
-};
+/* a problem found in a model: where, and what (the load's own
+   diagnostic, diagnostic.h) */
+using Error = xpp::Diagnostic;
+/* the problem cause at pos of file */
+inline Error error_at(std::string file, Pos pos, std::string cause)
+{
+  return Error{std::move(file), pos.line, pos.col, std::move(cause), {}};
+}
 
 /* an expression */
 struct Expr {
@@ -201,7 +204,7 @@ bool is_odex(std::string_view path);
 /* the .odex model at path into the current Model and Session, as get_eqn
    reads an .ode's (ode_read.h): parse_file, ready, then build_model: 1;
    a problem is logged (file, line, column) and the load fails
-   (xpp_model_failed) */
+   (xpp::model_failed, with the problem as its diagnostic) */
 int load(const std::string &path);
 
 /* --convert's question about a name .odex reserves: the question and a

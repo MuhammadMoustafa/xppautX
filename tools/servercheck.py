@@ -132,6 +132,58 @@ def check(name, ok, detail=''):
 check_logging()
 
 
+def check_load_error():
+    """A model that does not load (W63c, docs/protocol.md "A model that does
+    not load"): the server sends one `error` event, in place of hello, with
+    the file, line, column and cause, and the line as written, then exits 1;
+    the log reads as it did. A problem in an included file is at its line
+    in that file."""
+    bad_dir = tempfile.mkdtemp(prefix='xppbadload')
+    try:
+        def load(ode):
+            p = subprocess.run([os.path.abspath(args.server), '--server', ode], cwd=bad_dir, input='',
+                               capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+            evs = [json.loads(l) for l in p.stdout.splitlines() if l.strip()]
+            return p, evs
+
+        with open(os.path.join(bad_dir, 'bad.ode'), 'w') as f:
+            f.write("# a model that does not load\npar a=1\nx'=-x+a*\ninit x=1\ndone\n")
+        p, evs = load('bad.ode')
+        errs = [e for e in evs if e.get('ev') == 'error']
+        e = errs[0] if errs else {}
+        check('load error: a model that does not load exits 1 after one error event, no hello',
+              p.returncode == 1 and len(errs) == 1 and not any(v.get('ev') == 'hello' for v in evs),
+              '%r %r' % (p.returncode, [v.get('ev') for v in evs]))
+        check('load error: the event names the file, the line and what is wrong',
+              e.get('file') == 'bad.ode' and e.get('line') == 3 and e.get('col') == 0
+              and "ERROR compiling X'" in e.get('cause', '') and e.get('source') == "x'=-x+a*", str(e))
+        check('load error: the log reads as before', "ERROR compiling X'" in p.stderr
+              and 'Premature end of expression' in p.stderr, repr(p.stderr[-300:]))
+
+        with open(os.path.join(bad_dir, 'inc.ode'), 'w') as f:
+            f.write("par b=2\ny'=-y+(b\n")
+        with open(os.path.join(bad_dir, 'main.ode'), 'w') as f:
+            f.write("par a=1\n#include inc.ode\nx'=-x\ndone\n")
+        p, evs = load('main.ode')
+        e = next((v for v in evs if v.get('ev') == 'error'), {})
+        check('load error: a problem in an included file is at its line there',
+              p.returncode == 1 and e.get('file') == 'inc.ode' and e.get('line') == 2
+              and e.get('source') == "y'=-y+(b", str(e))
+
+        with open(os.path.join(bad_dir, 'bad.odex'), 'w') as f:
+            f.write("par a = 1\nx' = -x + * a\n")
+        p, evs = load('bad.odex')
+        e = next((v for v in evs if v.get('ev') == 'error'), {})
+        check('load error: an .odex problem has its line and column',
+              p.returncode == 1 and e.get('file') == 'bad.odex' and e.get('line') == 2 and e.get('col', 0) > 0
+              and e.get('source') == "x' = -x + * a" and e.get('cause'), str(e))
+    finally:
+        shutil.rmtree(bad_dir, ignore_errors=True)
+
+
+check_load_error()
+
+
 def is_state(e):
     return e.get('ev') == 'state'
 

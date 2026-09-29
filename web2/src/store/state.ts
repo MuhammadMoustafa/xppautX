@@ -3,7 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
-import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
+import type {AskEvent, Command, HelloEvent, LoadErrorEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {ANI_KEYS, AUTO_KEYS, isWindowKey} from '../protocol/windowKeys';
 import {
   coreMoved, eraseWindow, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, redrawWindow,
@@ -79,6 +79,8 @@ export interface Toast {
 export interface AppState {
   connected: boolean;
   exited: number | null;
+  /** why the model did not load, and where (W63c): the page shows it by its line */
+  loadError: LoadErrorEvent | null;
   hello: HelloEvent | null;
   core: StateEvent | null;
   busy: boolean;
@@ -169,6 +171,7 @@ export type Action =
 export const initialState: AppState = {
   connected: false,
   exited: null,
+  loadError: null,
   hello: null,
   core: null,
   busy: false,
@@ -437,6 +440,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, help: reduceHelp(state.help, {type: 'open', target: {chapter: ev.chapter, anchor: ev.anchor}})};
     case 'log':
       return addLogText(state, ev.text);
+    case 'error':
+      return {...state, loadError: ev};
     case 'exit':
       return {...state, exited: ev.code, busy: false, running: null, stopping: false};
     case 'bye':

@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "xpp_log.h"
+#include "xpp_io.h"
+#include <optional>
+#include <string_view>
+#include <utility>
 #include "graf_par.h"
 
 XppBatchOptions batch_options;
@@ -240,7 +244,7 @@ void xpp_reset_options(void)
 
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
-static void load_model(int argc, char **argv, int batch)
+static void load_and_set_up(int argc, char **argv, int batch)
 {
     xpp_reset_options();
     program.interactive = 0;
@@ -278,24 +282,43 @@ static void load_model(int argc, char **argv, int batch)
     create_plot_list();
 }
 
-int xpp_load_model(int argc, char **argv, int batch)
+std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
     xpp::Load load;
     try {
-        load_model(argc, argv, batch);
-    } catch (const xpp::LoadFailed &) {
-        return 0;
+        load_and_set_up(argc, argv, batch);
+    } catch (xpp::LoadFailed &failed) {
+        return std::move(failed.diagnostic);
     }
     load.commit();
-    return 1;
+    return std::nullopt;
+}
+
+int xpp_load_model(int argc, char **argv, int batch)
+{
+    return !xpp::load_model(argc, argv, batch);
+}
+
+void xpp::model_failed(Diagnostic d)
+{
+    if (!xpp::Load::running()) exit(1);
+    if (d.line > 0 && d.source.empty() && !d.file.empty()) {
+        xpp::LineReader lines(d.file.c_str());
+        int n = 0;
+        while (std::optional<std::string_view> line = lines.next())
+            if (++n == d.line) {
+                d.source = *line;
+                break;
+            }
+    }
+    throw xpp::LoadFailed{std::move(d)};
 }
 
 void xpp_model_failed(void)
 {
-    if (xpp::Load::running()) throw xpp::LoadFailed();
-    exit(1);
+    xpp::model_failed(xpp::Load::running() ? xpp::Load::diagnostic() : xpp::Diagnostic());
 }
 
 int xpp_batch_main(int argc, char **argv)

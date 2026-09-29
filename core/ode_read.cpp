@@ -59,9 +59,15 @@ struct VAR_INFO {
   std::vector<std::string> args;
 };
 
-/* where a model's lines come from */
+/* where a model's lines come from: the file, its name and its index in
+   Parsed::files, how many lines were read from it and the line the last
+   logical line (read_a_line) began at */
 struct LineSource {
   FILE *fp=nullptr;
+  std::string file;
+  int index=0;
+  int lines=0;
+  int line=0;
 };
 
 
@@ -202,8 +208,12 @@ bool read_raw_line(LineSource &src, std::string &line)
   int c;
   while((c=getc(fp))!=EOF){
     line+=static_cast<char>(c);
-    if(c=='\n')return true;
+    if(c=='\n'){
+      src.lines++;
+      return true;
+    }
   }
+  if(!line.empty())src.lines++;
   return false;
 }
 
@@ -227,6 +237,7 @@ bool read_a_line(LineSource &src, std::string &s)
 {
   bool more=true,in_file=true;
   s.clear();
+  src.line=src.lines+1;
   while(more){
     std::string temp;
     in_file=read_raw_line(src,temp)&&in_file;
@@ -283,15 +294,15 @@ void split_rhs(VAR_INFO &v, size_t name_end, size_t rest_start)
   v.rhs=rest_start<big.size()?big.substr(rest_start):std::string();
 }
 
-int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, std::vector<Statement> &out);
+int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p);
 
 /* no exception crosses into C: the only one parse_model() can throw is
    std::bad_alloc, and running out of memory ends the program, as
    xpp_malloc() does */
-int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end, std::vector<Statement> &out)
+int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p)
 {
   try {
-    return parse_model(src, first, nnn, at_end, out);
+    return parse_model(src, first, nnn, at_end, p);
   } catch (const std::bad_alloc &) {
     xpp::log(XPP_LOG_ERROR, "out of memory reading {}\n", first);
     exit(1);
@@ -826,10 +837,12 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
   out.push_back(std::move(s));
 }
 
-int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, std::vector<Statement> &out)
+int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p)
 {
+ std::vector<Statement> &out=p.statements;
  VAR_INFO v;
  std::vector<std::string> strings; /* this line, or a for loop's lines */
+ std::vector<int> string_lines; /* where each of strings is in the file */
  int ns;
  int done=0,start=0,i1,i2,istates;
  int jj1=0,jj2=0,jj,notdone=1,jjsgn=1;
@@ -849,6 +862,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
  };
  while(notdone){
    strings.clear();
+   string_lines.clear();
    if(start||nnn==1){
      next_line(old);
    }
@@ -867,7 +881,10 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			IN_INCLUDED_FILE++;
 			LineSource inc_src;
 			inc_src.fp=fnew.get();
-       			do_new_parser(inc_src,inc,1,false,out);
+			inc_src.file=inc;
+			inc_src.index=static_cast<int>(p.files.size());
+			p.files.push_back(inc);
+       			do_new_parser(inc_src,inc,1,false,p);
 		}
 	}
 
@@ -893,12 +910,16 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        IN_INCLUDED_FILE++;
        LineSource inc_src;
        inc_src.fp=fnew.get();
-       do_new_parser(inc_src,newfile,1,false,out);
+       inc_src.file=newfile;
+       inc_src.index=static_cast<int>(p.files.size());
+       p.files.push_back(newfile);
+       do_new_parser(inc_src,newfile,1,false,p);
        fnew.reset();
        if (IN_INCLUDED_FILE <= 0)
              continue;
     }
 
+    xpp::Load::at(src.file,src.line);
     search_array(old.data(),newstr,&jj1,&jj2,&is_array);
    jj=jj1;
    jjsgn=1;
@@ -908,6 +929,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      case 0:  /*  not a for loop so */
      case 1:
            strings.assign(1,newstr);
+           string_lines.assign(1,src.line);
            break;
       case 2: /*  a for loop, so we will ignore the first line */
             while(1){
@@ -915,6 +937,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
              if(old[0]=='%')
                break;
              strings.push_back(old);
+             string_lines.push_back(src.line);
              if(strings.size()>255)break;
              }
 
@@ -923,6 +946,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
    while(1){
       for(ns=0;ns<static_cast<int>(strings.size());ns++){
+      xpp::Load::at(src.file,string_lines[ns]);
+      const size_t first_new=out.size();
       subsk(strings[ns].c_str(),big,jj,is_array);
 
    done=parse_a_string(big,v,out);
@@ -1060,6 +1085,9 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
     add_statement(v,out);
       }
+      /* the statements the line made are at it */
+      for(size_t k=first_new;k<out.size();k++)
+        if(out[k].pos.line==0)out[k].pos=xpp::odex::Pos{src.index,string_lines[ns],0};
    } /* end loop for the strings */
    if(done==2)notdone=0;
    if(at_end)
@@ -1274,9 +1302,11 @@ int get_eqn(FILE *fptr)
 {
   LineSource src;
   src.fp=fptr;
+  src.file=xpp::model().this_file;
   std::string first;
   xpp::model().source.clear();
   bool in_file=read_raw_line(src,first);
+  src.line=1;
   save_line(first);
   const int neq=atoi(first.c_str());
   if(neq>0){ /* an old-style model: each line built as it is read */
@@ -1284,13 +1314,14 @@ int get_eqn(FILE *fptr)
       read_raw_line(src,line);
       if(line.empty())return false;
       save_line(line);
+      xpp::Load::at(src.file,src.lines);
       return true;
     });
     return 1;
   }
   Parsed p;
-  p.files.push_back(xpp::model().this_file);
-  if(do_new_parser(src,first,0,!in_file,p.statements)<0)xpp_model_failed();
+  p.files.push_back(src.file);
+  if(do_new_parser(src,first,0,!in_file,p)<0)xpp_model_failed();
   build_model(std::move(p));
   return 1;
 }

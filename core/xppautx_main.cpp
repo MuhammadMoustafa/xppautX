@@ -177,7 +177,10 @@ static void run_session(void)
     text_metrics.big_width = 9; text_metrics.big_height = 15;
 
     json_ui_install();
-    if (!xpp_load_model(session_argc, session_argv, 0)) exit(1);
+    if (std::optional<xpp::Diagnostic> failed = xpp::load_model(session_argc, session_argv, 0)) {
+        json_ui_load_error(*failed);
+        exit(1);
+    }
     const std::string &file = xpp::model().this_file;
     xpp_window_set_model(file.c_str());
 

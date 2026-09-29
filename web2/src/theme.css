@@ -516,6 +516,12 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   border: 1px solid var(--border);
 }
 .banner.error { background: var(--danger-bg); border-color: var(--danger); }
+/* a model that does not load: its line, a caret under the column, the cause */
+.load-error p { margin: 0 0 var(--space-2); }
+.load-error-title { font-weight: 650; overflow-wrap: anywhere; }
+.load-error-source { margin: 0 0 var(--space-2); }
+.load-error-caret { color: var(--danger); font-weight: 650; }
+.load-error-cause { margin: 0 0 var(--space-2); font: var(--text-sm) var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .status-bar {
   grid-area: status;
   display: flex;

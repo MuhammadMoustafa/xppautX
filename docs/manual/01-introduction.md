@@ -60,7 +60,8 @@ commit, compiler, protocol version and license) — except on macOS, which
 has no menu bar of its own yet (untested there beyond CI). The model's
 own menus stay inside the page. Closing the window quits xppautX, as the
 page's File/Quit does; after an error that stops the model, the window
-stays open on the page's Messages until you close it.
+stays open on the page's Messages until you close it (a model that does
+not load shows its problem's line at the top of the page).
 
 The other modes:
 
