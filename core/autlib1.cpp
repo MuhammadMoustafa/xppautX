@@ -12,7 +12,6 @@
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
 #include "form_ode.h"
 #include "model.h"
-static int restart_flag=0;
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -26,6 +25,25 @@ static int restart_flag=0;
    last stored point, so a cancelled run always ends the same way (the EP
    repeating that point) and a script can replay it exactly. */
 static int auto_locating = 0;
+
+namespace {
+/* auto_locating = 1 for a scope: cleared however it ends, a failed solve
+   (xpp::AutoFailed) included, so the next run can be cancelled again */
+struct Locating {
+  Locating() { auto_locating = 1; }
+  ~Locating() { auto_locating = 0; }
+  Locating(const Locating &) = delete;
+  Locating &operator=(const Locating &) = delete;
+};
+
+/* AutoLib::setubv_stop set for one solvbv, cleared the same way */
+struct SetubvStop {
+  explicit SetubvStop(int on) { xpp::session().auto_lib.setubv_stop = on; }
+  ~SetubvStop() { xpp::session().auto_lib.setubv_stop = 0; }
+  SetubvStop(const SetubvStop &) = delete;
+  SetubvStop &operator=(const SetubvStop &) = delete;
+};
+} // namespace
 
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz)
 {
@@ -304,10 +322,7 @@ chdim(iap_type *iap)
   npar = iap->nfpr;
 
   if (npar > NPARX) {
-    if (iap->mynode == 0) {
-      xpp_log_auto("Dimension exceeded : NPAR=%5ld  maximum=%5d (Increase NPARX in auto.h and recompile AUTO",npar,NPARX);
-    }
-    exit(0);
+    xpp::auto_fail(xpp::format("dimension exceeded: {} free parameters, at most {}", npar, NPARX));
   }
 
   return 0;
@@ -560,7 +575,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       nmx = 5;
       if (iap->mynode == 0) {
 	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	restart_flag=1;
+	xpp::session().auto_lib.restart_flag=1;
       }
 
     } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 6) && ips == 2) {
@@ -596,7 +611,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       nmx = 5;
       if (iap->mynode == 0) {
 	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	restart_flag=1;
+	xpp::session().auto_lib.restart_flag=1;
       }
 
     } else if (f2c::abs(itp) / 10 == 7 && ips == 2) {
@@ -626,7 +641,7 @@ rt */
       nmx = 5;
       if (iap->mynode == 0) {
 	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
-	restart_flag=1;
+	xpp::session().auto_lib.restart_flag=1;
       }
 
     } else if (f2c::abs(itp) / 10 == 8 && ips == 2) {
@@ -656,7 +671,7 @@ rt */
       isp = 0;
       nmx = 5; 
       if (iap->mynode == 0) {
-	restart_flag=1;
+	xpp::session().auto_lib.restart_flag=1;
 	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
       }
 
@@ -1521,11 +1536,12 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
 
   contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
 	 udot);
-  auto_locating = 1; /* xppautX: cancel: runs to the end */
-  solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
-	 rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
-	 dfdu, dfdp, thl, thu);
-  auto_locating = 0;
+  {
+    Locating locating; /* xppautX: cancel: runs to the end */
+    solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
+	   rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
+	   dfdu, dfdp, thl, thu);
+  }
   istop = iap->istop;
   if (istop == 1) {
     *q = 0.;
@@ -2690,9 +2706,9 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
   integer nt, ndm, itp, lb;
   lb=*lab;
-  if((restart_flag==1)&&(lb!=0)){
+  if((s.auto_lib.restart_flag==1)&&(lb!=0)){
     
-    restart_flag=0;
+    s.auto_lib.restart_flag=0;
     s.auto_state.restart_label=*lab;
   }
 
@@ -3085,10 +3101,7 @@ cpnts(const integer ncol, doublereal *zm)
 
   /* Generates the collocation points with respect to [0,1]. */
   if (ncol > 7) {
-    xpp_log_auto("Dimension exceeded : NCOL=%5ld  maximum=7\n",ncol);
-    xpp_log_auto("AUTO does not contain weights for NCOL > 1\n");
-    xpp_log_auto("Please reset NCOL to 7 or smaller\n");
-    exit(1);
+    xpp::auto_fail(xpp::format("Ncol is {}: AUTO has collocation weights for at most 7; set Ncol (Numerics) to 7 or smaller", ncol));
   }
 
   switch (static_cast<int>(ncol - 1)) {
@@ -4024,8 +4037,7 @@ ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublere
 
   for (irh = 0; irh < nrhs; ++irh) {
     if(ARRAY2D(a, ir[n - 1], ic[n - 1]) == 0) {
-      xpp_log_auto("Division by Zero, exiting\n");
-      exit(0);
+      xpp::auto_fail("division by zero: the linear system of a Newton step is singular");
     }
     ARRAY2D(u, ic[n - 1], irh) = ARRAY2D(f, ir[n - 1], irh) / ARRAY2D(a, ir[n - 1], ic[n - 1]);
     for (i1 = 0; i1 < n - 1; ++i1) {
@@ -5157,13 +5169,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
       ifst = 1;
     }
 
-    xpp::session().auto_lib.setubv_stop = !auto_locating; /* xppautX: cancel */
-    solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
-	   rds, &nllv, rlcur, rlold, rldot, ndxloc, 
-	   ups, dups, uoldps, 
-	   udotps, upoldp, dtm, fa, fc, p0, 
-	   p1, thl, thu);
-    xpp::session().auto_lib.setubv_stop = 0; /* xppautX: cancel */
+    {
+      SetubvStop stop(!auto_locating); /* xppautX: cancel */
+      solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
+	     rds, &nllv, rlcur, rlold, rldot, ndxloc, 
+	     ups, dups, uoldps, 
+	     udotps, upoldp, dtm, fa, fc, p0, 
+	     p1, thl, thu);
+    }
     if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     /* Add Newton increments. */
 
@@ -5962,11 +5975,12 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
 
   contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
 	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
-  auto_locating = 1; /* xppautX: cancel: runs to the end */
-  stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
-								 1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
-	 upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
-  auto_locating = 0;
+  {
+    Locating locating; /* xppautX: cancel: runs to the end */
+    stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
+								   1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
+	   upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
+  }
   istop = iap->istop;
   if (istop != 0) {
     *q = 0.;

@@ -13,6 +13,7 @@
 
 #include <array>
 #include <string>
+#include <utility>
 
 /* the AUTO settings the model's @ options give (auto_ntst=, ...), which
    init_auto_win copies into AutoState::bifur */
@@ -101,6 +102,25 @@ struct AutoLib {
      solves, such as stdrbv's starting direction and the location of a
      special point (lcspae, lcspbv), always run to the end. */
   int setubv_stop=0;
+  /* 1 from init's "Generating starting data" (a restart that switches
+     branch) until the run writes its first label, which becomes the
+     follow-up run's restart label (autlib1.cpp); a failed run clears it */
+  int restart_flag=0;
 };
+
+namespace xpp {
+/* What AUTO's numerics throw where they used to exit() (W63a): a
+   dimension or setting AUTO cannot run with (Ncol above 7, Ntst below
+   the number of nodes), a singular solve, a BLAS routine's argument out
+   of range. do_auto (auto_nox.cpp), where every run starts, catches it
+   and reports `what`; the run ends as a cancelled one does: gogoauto's
+   RunUnits closes fort.3/7/9 as the stack unwinds, close_auto saves the
+   diagram so far, and the work arrays are std::vectors, so nothing leaks
+   and the next run starts clean. */
+struct AutoFailed {
+  std::string what;
+};
+[[noreturn]] inline void auto_fail(std::string what) { throw AutoFailed{std::move(what)}; }
+} // namespace xpp
 
 #endif

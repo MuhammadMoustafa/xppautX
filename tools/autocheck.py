@@ -5,8 +5,11 @@ travels as data, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
-session, script, replay, names, scratch (default: all; tools/verify.sh runs
-them all).
+session, script, replay, names, scratch, errors (default: all; tools/verify.sh
+runs them all).
+errors (W63a) runs AUTO into what its numerics used to exit() on (Ncol 8,
+Ntst 0): an error message, the session goes on, and the next run computes
+the same points as before.
 scratch checks that a start removes an xppautoX-<pid>-N folder (xpp_util.cpp's
 AUTO scratch directory) left by a dead pid, and leaves one alone whose pid is
 still running (issue #32). grab checks "auto" "grab" by label and by type+index
@@ -41,7 +44,7 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'script', 'replay', 'names', 'scratch'])
+                                                'sessions', 'session', 'script', 'replay', 'names', 'scratch', 'errors'])
 args = ap.parse_args()
 if args.list:
     print(' '.join(ap.get_default('sections')))
@@ -1358,6 +1361,69 @@ def section_scratch():
     finally:
         shutil.rmtree(live_dir, ignore_errors=True)
         shutil.rmtree(dead_dir, ignore_errors=True)
+
+
+# ---- errors: a failed AUTO computation ends the run, not the program ----
+
+NUMERICS = ['ntst', 'nmx', 'npr', 'ncol']  # the Numerics form's first fields, in its order
+
+
+def set_numerics(s, **values):
+    """Auto/Numerics, the form answered with the given fields changed (the
+    form takes what `auto set` refuses: Ncol 8, Ntst 0)"""
+    s.send(cmd='auto', op='numerics')
+    _, ask = s.collect(lambda e: is_ask(e) or is_idle(e))
+    vals = list(ask['values'])
+    for k, v in values.items():
+        vals[NUMERICS.index(k)] = str(v)
+    s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
+    s.collect(is_idle)
+
+
+def errors_of(evs):
+    return [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+
+
+def section_errors():
+    """What AUTO's numerics used to exit() on (W63a) is an error message
+    now: the run ends, the session goes on, and the next run computes as
+    if nothing had happened. A periodic run from lecar's Hopf point with
+    Ncol 8 (collocation weights exist up to 7) and with Ntst 0 (fewer
+    mesh intervals than nodes); tests/test_auto_errors.cpp covers the
+    failures no model reaches."""
+    s = Server(args.server, LECAR, verbose=args.v)
+    s.collect(is_idle)
+    dg = Diagram().apply(hopf_steady(s))
+    dg.apply(run_any(s, 's'))
+
+    def periodic():
+        """grab the first HB, a periodic run; its events and new points"""
+        s.send(cmd='auto', op='grab', type='HB', index=1)
+        s.collect(is_idle)
+        n = len(dg.pts)
+        evs = run_any(s, 'p')
+        dg.apply(evs)
+        return evs, dg.pts[n:]
+
+    _, good = periodic()
+    check('errors: a periodic run from the Hopf point computes points', len(good) > 2, '%d points' % len(good))
+    for field, bad, word in (('ncol', 8, 'Ncol'), ('ntst', 0, 'Ntst')):
+        normal = {'ncol': 4, 'ntst': 15}[field]
+        set_numerics(s, **{field: bad})
+        evs, pts = periodic()
+        errs = errors_of(evs)
+        check('errors: %s %d: the run stops with an error naming %s' % (word, bad, word),
+              any(e.startswith('AUTO stopped') and word in e for e in errs), str(errs))
+        check('errors: %s %d: the session is still up' % (word, bad), s.proc.poll() is None)
+        s.send(cmd='data', events=['autosettings'])
+        evs, idle = s.collect(is_idle)
+        check('errors: %s %d: a command after it answers' % (word, bad), idle is not None)
+        set_numerics(s, **{field: normal})
+        evs, again = periodic()
+        check('errors: %s back to %d: the next run computes the same points as before' % (word, normal),
+              not errors_of(evs) and [p['y'] for p in again] == [p['y'] for p in good],
+              '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
+    s.close()
 
 
 for name in args.sections:

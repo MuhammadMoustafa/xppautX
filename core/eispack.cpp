@@ -7,6 +7,7 @@
  */
 
 #include "xpp_log.h"
+#include "auto_state.h" /* xpp::auto_fail */
 #include "auto_c.h"
 /* Table of constant values */
 
@@ -3846,10 +3847,8 @@ xerbla(const char *srname, integer *info, integer srname_len)
 
 /*     .. Executable Statements .. */
 
-    xpp::log(XPP_LOG_ERROR, "On entry to {}{}{}{}{}{} parameter number {} had an illegal value\n",
-	   srname[0],srname[1],srname[2],srname[3],srname[4],srname[5],(*info));
-    exit(0);
-    return 0;
+    xpp::auto_fail(xpp::format("on entry to {}{}{}{}{}{} parameter number {} had an illegal value",
+	   srname[0],srname[1],srname[2],srname[3],srname[4],srname[5],(*info)));
 
 /*     End of XERBLA. */
 

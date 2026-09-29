@@ -150,8 +150,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   nclm = nrow + ndim;
   
   if (kwt > ntst) {
-    xpp_log_auto("NTST is less than the number of nodes\n");
-    exit(0);
+    xpp::auto_fail(xpp::format("Ntst is {}, less than the number of nodes ({}); set Ntst (Numerics) to 1 or more", ntst, kwt));
   } else {
     partition(&ntst, &kwt, main_auto_storage.np.data());
   }

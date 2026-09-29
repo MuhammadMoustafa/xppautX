@@ -466,16 +466,13 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 
     
   if (*k < 1 || *k > *j) {
-    xpp::print(xpp::session().auto_lib.fp9,"Domain error for K in DHHPR\n");	
-    exit(0);
+    xpp::auto_fail("domain error for K in DHHPR");
   }
   if (*j > *n) {
-    xpp::print(xpp::session().auto_lib.fp9,"Domain error for J in DHHPR\n");	
-    exit(0);
+    xpp::auto_fail("domain error for J in DHHPR");
   }
   if (*incx < 1) {
-    xpp::print(xpp::session().auto_lib.fp9,"Domain error for INCX in DHHPR\n");	
-    exit(0);
+    xpp::auto_fail("domain error for INCX in DHHPR");
   }
 
   /*  Number of potential non-zero elements in V. */
@@ -627,22 +624,18 @@ on.*/
   a_dim1 = *lda;
     
   if (*job != 1 && *job != 2) {
-    xpp::print(xpp::session().auto_lib.fp9,"Domain error for JOB in DHHAP\n");	
-    exit(0);
+    xpp::auto_fail("domain error for JOB in DHHAP");
   }
   if (*k < 1 || *k > *j) {
-    xpp::print(xpp::session().auto_lib.fp9,"Domain error for K in DHHAP\n");	
-    exit(0);
+    xpp::auto_fail("domain error for K in DHHAP");
   }
   if (*job == 1) {
     if (*j > *n) {
-      xpp::print(xpp::session().auto_lib.fp9,"Domain error for J in DHHAP\n");	
-      exit(0);
+      xpp::auto_fail("domain error for J in DHHAP");
     }
   } else {
     if (*j > *q) {
-      xpp::print(xpp::session().auto_lib.fp9,"Domain error for J in DHHAP\n");	
-      exit(0);
+      xpp::auto_fail("domain error for J in DHHAP");
     }
   }
 

@@ -542,22 +542,34 @@ void do_auto(int iold, int isave, int itp)
     xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
     run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
     stability_run_start(); /* what its first point's stability is (auto_stability.h) */
+    std::string failed; /* why the run failed (xpp::AutoFailed), empty if it did not */
     {
         xpp::Computation computing; /* what Abort stops (xpp_job.h) */
         std::array<double, 8> before{}; /* AutoPar's size */
         for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
-        go_go_auto(); /* this complets the initialization and calls the
-                          main routines
-                       */
+        try {
+            go_go_auto(); /* this complets the initialization and calls the
+                              main routines
+                           */
+        } catch (const xpp::AutoFailed &e) {
+            /* W63a: what the numerics used to exit() on ends the run
+               instead, as a cancel does (auto_state.h) */
+            failed = e.what;
+        }
         auto_restore_finite_pars(before.data()); /* leave no NaN parameter behind (QA SCI-001) */
     }
     run_from=0;
-    if(xpp_job_cancelled())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+    if(xpp_job_cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+    if(!failed.empty())s.auto_lib.restart_flag=0;
     xpp_job_end();
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
 		       */
+    if(!failed.empty()){
+      xpp::log_auto("AUTO stopped: {}\n",failed); /* the AUTO window's Output */
+      err_msg(("AUTO stopped: "+failed).c_str());
+    }
     
     if(s.auto_state.restart_label!=0){
       xpp_log_auto("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
