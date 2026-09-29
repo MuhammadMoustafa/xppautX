@@ -3017,7 +3017,10 @@ async function runsCheck(dir) {
   await cdp.eval(`${legend}.click()`);
   await until('w.showRuns', 'show runs');
   await focusPlot();
-  check('runs: a third run (Go) keeps both earlier ones', (await integrate(601, 30000)) && await until('w.history.runs.length === 2', '3 runs'));
+  const ran3 = await integrate(601, 30000);
+  check('runs: a third run (Go) keeps both earlier ones', ran3 && await until('w.history.runs.length === 2', '3 runs'),
+    JSON.stringify({ran: ran3, runs: await S('w.history.runs.length'), rows: await S('w.series.rows'), busy: await S('s.busy'),
+      plot: await cdp.eval('__xpp.plot().runs')}));
 
   /* Erase blanks the picture, Redraw draws the current data again */
   await focusPlot();
@@ -4155,6 +4158,9 @@ async function sessionAttempt(ode, fn, expected) {
     await fn(dir);
     const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
+  } catch (e) {
+    if (e && typeof e === 'object') e.recorded = rec; /* what ran before it threw (thrown()) */
+    throw e;
   } finally {
     await stopServer(server);
     await sleep(300);
@@ -4179,13 +4185,22 @@ async function sessionAttempt(ode, fn, expected) {
    attempts (fn itself branched differently, or the rerun threw) means the
    rerun cannot be matched up with the first one: the first attempt's own
    results are reported as-is instead of guessing. */
+/* an attempt that threw: its message, then the checks it had recorded that
+   failed and the last one that ran, which say where it went wrong */
+function thrown(ode, e, what) {
+  console.log(`  (${path.basename(ode)}: ${what} threw (${e.message || e})`);
+  const rec = (e && e.recorded) || [];
+  for (const r of rec.filter(r => !r.ok)) console.log(`    before it: FAIL ${r.name}  ${r.detail}`);
+  if (rec.length) console.log(`    last check before it: ${rec[rec.length - 1].name}`);
+}
+
 async function session(ode, fn, expected = []) {
   let rec1;
   try {
     rec1 = await sessionAttempt(ode, fn, expected);
   } catch (e) {
     record = null;
-    console.log(`  (${path.basename(ode)}: the first attempt threw (${e.message || e}); rerunning the section once)`);
+    thrown(ode, e, 'the first attempt');
     rec1 = null;
   }
   if (rec1 && rec1.every(r => r.ok)) {
@@ -4199,8 +4214,8 @@ async function session(ode, fn, expected = []) {
     rec2 = await sessionAttempt(ode, fn, expected);
   } catch (e) {
     record = null;
+    thrown(ode, e, 'the rerun');
     if (!rec1) throw e; /* both attempts crashed: a real failure, not a flake */
-    console.log(`  (the rerun also threw (${e.message || e}))`);
     for (const r of rec1) check(r.name, r.ok, r.detail);
     return;
   }
