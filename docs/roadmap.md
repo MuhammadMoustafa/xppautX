@@ -171,6 +171,7 @@ issue; the card here is the one kept up to date.
 | W102 | #151 | A reopened .snapx with a diagram shows an empty main plot after Back (maintainer, 2026-09-29), though the data table is in the file: restore and send it | none | in-progress |
 | W103 | #152 | An .autox opened as a model is parsed as an .ode, its zip bytes printed (maintainer, 2026-09-29): refuse a non-.ode clearly; what opening an .autox does is the maintainer's to decide | none | blocked (decision) |
 | W104 | #153 | An error that stops an action as a centred dialog with OK (maintainer, 2026-09-29: "the user needs to know what went wrong"; go easy with the dialog): an error message (err_msg: the action the user asked for did not happen) opens a centred dialog with OK and is kept in Messages; several at once are one dialog listing them; warnings and progress stay in the status bar, a new warning flashing it briefly; page-only (the core already marks errors); web2check reads the dialog's state | W95 | blocked |
+| W105 | #154 | The checks leak disk (coordinator, 2026-09-29, after the maintainer's full disk and restarts): wslrun.sh keeps a WSL clone per worktree forever (34 GB), cdp.mjs leaves a Chrome profile per run in %TEMP% (4.5 GB); wslrun.sh prunes the clones of removed worktrees, cdp.mjs deletes its profile after Chrome exits and sweeps stale ones | none | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
