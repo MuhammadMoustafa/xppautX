@@ -40,8 +40,9 @@ extern const char *const file_menu_keys;
 #define XPP_KIND_COMPUTE 'x'
 
 /* the kinds of the three main-window menus' items, parallel to their keys;
-   an item that opens a pop-up menu has the most restrictive kind among
-   that menu's items (it can do nothing more during a computation) */
+   an item that opens a pop-up menu has the least restrictive kind among
+   that menu's items: it opens when any of them could run (during a
+   computation it opens once the computation ends) */
 extern const char *const main_menu_kinds;
 extern const char *const num_menu_kinds;
 extern const char *const file_menu_kinds;

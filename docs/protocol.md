@@ -102,8 +102,10 @@ Every action has a kind (W95), defined once in the core and sent in
 
 - `hello.menus` has `main_kinds`, `file_kinds` and `num_kinds`, one letter
   per item, parallel to `main_keys` etc. (core/menus.cpp). An item that
-  opens a pop-up menu has the most restrictive kind among that menu's
-  items (Nullcline, Kinescope, Graphic stuff, stocHast, Averaging); every
+  opens a pop-up menu has the least restrictive kind among that menu's
+  items, so a menu opens when any of its items could run (Nullcline,
+  Dir.field, Kinescope and Graphic stuff are views, run once a
+  computation ends; stocHast and Averaging data); every
   pop-up menu's items have their kinds in core/menus.cpp too (checked when
   it compiles), for the core itself.
 - `hello.windows` is the windows' key layers ("Window keys" below), by

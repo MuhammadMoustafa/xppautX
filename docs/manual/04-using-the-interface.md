@@ -258,7 +258,7 @@ action is; every button and menu item has one of four kinds:
 | Kind | Examples | During a computation |
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
-| View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
+| View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
 | Data | Save and Load of values, Write set and Read set, every file written, Save session, AUTO's Save and Load diagram, Parameters, the numerics | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 

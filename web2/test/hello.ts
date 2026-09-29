@@ -5,9 +5,9 @@ import type {HelloEvent} from '../src/protocol/types';
 export const HELLO: HelloEvent = {
   ev: 'hello', protocol: 2, title: 't', file: 'f.ode', lists: [], userbuttons: [], sliders: [],
   menus: {
-    main: [], main_keys: 'icndwakgufpemtsvxr3b', main_hints: [], main_kinds: 'xxxxvdddvvdvvvxvvvvx',
+    main: [], main_keys: 'icndwakgufpemtsvxr3b', main_hints: [], main_kinds: 'xxvvvdvvvvdvvvxvvvvx',
     file: [], file_keys: 'pwracshqtglxuomevn', file_hints: [], file_kinds: 'vddvvdvcddddvvdddd',
-    num: [], num_keys: 'tsrdniobmechpukva\x1b', num_hints: [], num_kinds: 'ddddddddddvxddddxv',
+    num: [], num_keys: 'tsrdniobmechpukva\x1b', num_hints: [], num_kinds: 'ddddddddddvddddddv',
   },
   windows: {
     auto: {items: [], keys: 'panrgucdf', kinds: 'dvdxddvvx', hints: [],

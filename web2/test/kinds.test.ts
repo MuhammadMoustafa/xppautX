@@ -27,9 +27,9 @@ test('W95: each action has the kind hello gives it', () => {
 
 test('W95: while a computation runs only control and view actions start; an open question takes only control', () => {
   for (const cmd of [{cmd: 'abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', win: 1}, {cmd: 'click', win: 2},
-    {cmd: 'key', key: 'w'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1}])
+    {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1}])
     assert.ok(may(cmd, true), JSON.stringify(cmd));
-  for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'key', key: 'g'}, {cmd: 'set', kind: 'par'}, {cmd: 'values', op: 'write'},
+  for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'key', key: 'p'}, {cmd: 'set', kind: 'par'}, {cmd: 'values', op: 'write'},
     {cmd: 'browser', op: 'write'}, {cmd: 'key', win: 'auto', key: 'r'}, {cmd: 'key', win: 'ani', key: 'a'}, {cmd: 'unknown'}])
     assert.ok(!may(cmd, true), JSON.stringify(cmd));
   /* not computing (the page's own catch-up only, or idle): everything starts */

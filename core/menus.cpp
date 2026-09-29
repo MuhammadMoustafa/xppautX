@@ -379,13 +379,15 @@ const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
 const char *const file_menu_keys="pwracshqtglxuomevn";
 
-/* their kinds (menus.h): an item that opens a pop-up menu takes the most
-   restrictive kind of that menu's items (Nullcline, Dir.field, Kinescope,
-   Graphic stuff, stocHast, Averaging); nUmerics and File only switch the
-   main menu, Esc switches it back */
+/* their kinds (menus.h): an item that opens a pop-up menu takes the least
+   restrictive kind of that menu's items (the maintainer's "menus open, only
+   their disabled items greyed": Nullcline, Dir.field, Kinescope and Graphic
+   stuff are views, stocHast and Averaging data; Initialconds, Sing pts and
+   Bndryval, whose items all compute, computations); nUmerics and File only
+   switch the main menu, Esc switches it back */
 namespace {
-constexpr char main_kinds[] = "xxxxvdddvvdvvvxvvvvx";
-constexpr char num_kinds[] = "ddddddddddvxddddxv";
+constexpr char main_kinds[] = "xxvvvdvvvvdvvvxvvvvx";
+constexpr char num_kinds[] = "ddddddddddvddddddv";
 constexpr char file_kinds[] = "vddvvdvcddddvvdddd";
 static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
 static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
