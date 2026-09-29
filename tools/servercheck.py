@@ -2675,6 +2675,74 @@ def check_dropped_during_run():
 
 check_dropped_during_run()
 
+def check_copy_set():
+    """W67: File/cOpy set line asks the set's name, shows the line, and sends it
+    (the copy event); pasted into the .ode, Get par set reproduces the state"""
+    p, r, snd, col, _ = launch_server()
+    p2 = r2 = None
+    try:
+        col(is_idle)
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.1234567891234567},
+                               {'kind': 'ic', 'name': 'V', 'value': -0.7000000000000001}])
+        evs, _ = col(is_idle)
+        st = last_state(evs)
+
+        def copy_with(name):
+            snd(cmd='key', key='f')
+            col(is_idle)
+            snd(cmd='key', key='o')
+            got, prompt = [], None
+            while True:
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=20 * SLOW)
+                got += evs
+                if e is None or e['ev'] == 'idle':
+                    return got, prompt
+                if e['kind'] == 'string':
+                    prompt = e
+                    snd(cmd='answer', id=e['id'], value=name)
+                else:
+                    prompt = prompt or e
+                    snd(cmd='answer', id=e['id'], key='c')
+
+        evs, first = copy_with('set1')
+        check('cOpy set line: the name is asked, pre-filled with set1',
+              first and first['kind'] == 'string' and first.get('value') == 'set1', str(first))
+        copies = [e for e in evs if e.get('ev') == 'copy']
+        line = copies[0]['text'] if copies else ''
+        check('cOpy set line: the copy event carries a set line with every parameter and IC',
+              len(copies) == 1 and line.startswith('set set1 {') and line.endswith('}')
+              and line.count('=') == len(st['pars']) + len(st['ics']) and 'iapp=0.1234567891234567' in line, line[:200])
+        for name in ('bad name', 'set'):
+            evs, _ = copy_with(name)
+            check('cOpy set line: refuses %r (no copy)' % name, not [e for e in evs if e.get('ev') == 'copy'], '')
+        odelines = open(os.path.join(r, os.path.basename(args.ode)), encoding='utf-8').read().splitlines()
+        at = next(i for i, l in reversed(list(enumerate(odelines))) if l.strip().lower() in ('d', 'done'))
+        odelines.insert(at, line)
+        with open(os.path.join(r, 'withset.ode'), 'w', encoding='utf-8') as f:
+            f.write('\n'.join(odelines) + '\n')
+        p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.ode'))
+        evs2, _ = col2(is_idle)
+        st0 = last_state(evs2)
+        check('set line loads: values differ before Get par set', st0 and st0['pars'] != st['pars'], '')
+        snd2(cmd='key', key='f')
+        col2(is_idle)
+        snd2(cmd='key', key='g')
+        evs2, ask = col2(lambda e: e.get('ev') == 'ask')
+        check('Get par set lists the copied set', ask is not None and ask['kind'] == 'menu', str(ask))
+        if ask:
+            snd2(cmd='answer', id=ask['id'], key=next(i[0] for i in ask['items'] if i.endswith(': set1')))
+        evs2, _ = col2(is_idle)
+        st2 = last_state(evs2)
+        check('Get par set with the copied name reproduces the parameters and ICs exactly',
+              st2 and st2['pars'] == st['pars'] and st2['ics'] == st['ics'], str((st2 or {}).get('pars'))[:200])
+    finally:
+        stop_server(p, r, snd)
+        if p2:
+            stop_server(p2, r2, snd2)
+
+
+check_copy_set()
+
 send(cmd='key', key='f')
 send(cmd='key', key='q')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

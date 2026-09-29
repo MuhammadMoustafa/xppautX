@@ -8,7 +8,7 @@ extern "C" {
 #define FILE_MENU 1
 #define NUM_MENU 2
 #define MAIN_ENTRIES 20
-#define FILE_ENTRIES 13
+#define FILE_ENTRIES 14
 #define NUM_ENTRIES 18
 
 extern const char *const main_menu[];

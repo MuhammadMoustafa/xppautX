@@ -425,6 +425,18 @@ void j_open_help(const char *chapter, const char *anchor)
     send_buf(&b);
 }
 
+/* text for the page's clipboard */
+void j_copy_text(const char *what, const char *text)
+{
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"copy\",\"what\":");
+    buf_str(&b, what);
+    BUF_LIT(&b, ",\"text\":");
+    buf_str(&b, text);
+    BUF_LIT(&b, "}");
+    send_buf(&b);
+}
+
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */
 int ask_drag(unsigned long win, int *x, int *y)

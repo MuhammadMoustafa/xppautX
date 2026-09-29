@@ -20,7 +20,8 @@ const char *const num_menu[]={"NUMERICS","Total","Start time","tRansient",
 const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Save info",
-"Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial"};
+"Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
+"cOpy set line"};
 
 /* hints for the main menus */
 const char *const main_hint[]=
@@ -59,7 +60,8 @@ const char *const file_hint[]={
 "Set predefined parameters",
 "Clone the ode file",
 "Edit your .xpprc preferences file",
-"Run a quick tutorial on XPPAUT"
+"Run a quick tutorial on XPPAUT",
+"Copy the current values as a named set line for the .ode"
 };
 
 
@@ -362,7 +364,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwracshqtglxu";
+const char *const file_menu_keys="pwracshqtglxuo";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",

@@ -81,6 +81,24 @@ export class Session {
   private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
   /** the last angle a window was turned to while the core was busy, sent at its idle */
   private rotate3dHeld = new Map<number, {theta: number; phi: number}>();
+  /** File/cOpy set line: the text to the clipboard; the toast shows it either
+      way, and stays (an error toast) when the clipboard is refused, so the
+      line can be copied by hand */
+  private async copyText(text: string): Promise<void> {
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      copied = true;
+    } catch {
+      /* refused or absent: shown below */
+    }
+    this.store.dispatch({
+      type: 'toast',
+      kind: copied ? 'info' : 'error',
+      text: copied ? `Copied to the clipboard: ${text}` : `Copy this line by hand: ${text}`,
+    });
+  }
+
   /** the tab last picked while the core was busy, shown and sent at its idle */
   private windowHeld: number | null = null;
   /** a command went out in this turn of the event loop: the rest of that one
@@ -122,6 +140,8 @@ export class Session {
       const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings']
         .filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
+    } else if (ev.ev === 'copy') {
+      void this.copyText(ev.text);
     } else if (ev.ev === 'film') {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {

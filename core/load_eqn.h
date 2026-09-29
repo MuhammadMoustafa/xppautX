@@ -302,5 +302,15 @@ struct PlotSettings {
    (set) of an internal set's "$ ..." as extract_action does: each
    item without a name or a value left out (@ total = 1 sets nothing) */
 std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set);
+
+/* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of
+   the model */
+std::string intern_set_default_name();
+/* why name cannot name a new set (not a name the parser reads, or already
+   a set), "" when it can */
+std::string intern_set_name_problem(std::string_view name);
+/* `set name {p=v,...,x=v,...}`: every parameter and initial condition as
+   it is now, numbers that read back exactly */
+std::string intern_set_line(std::string_view name);
 #endif
 #endif

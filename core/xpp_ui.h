@@ -151,6 +151,7 @@ void redraw_the_graph(void);
 void make_txtview(void);
 void q_calc(void);
 void open_help(const char *chapter, const char *anchor);
+void copy_text(const char *what, const char *text);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -349,6 +350,8 @@ typedef struct XppUi {
     void (*make_txtview)(void); /* File/Prt src: source and active comments */
     void (*q_calc)(void);       /* File/Calculator: evaluate formulas */
     void (*open_help)(const char *chapter, const char *anchor); /* File/Help: open the manual there */
+    /* File/cOpy set line: text for the user's clipboard (what: "set") */
+    void (*copy_text)(const char *what, const char *text);
 
     /* program is quitting */
     void (*exit_program)(void);

@@ -148,6 +148,7 @@ int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
 int j_menu_choose(const struct XppMenu *m, int def);
 void j_show_menu(int which);
 void j_open_help(const char *chapter, const char *anchor);
+void j_copy_text(const char *what, const char *text);
 int j_check_abort(void);
 int j_progress_begin(void);
 void j_progress(int nit, int icount, int cwidth);

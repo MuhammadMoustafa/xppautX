@@ -2821,6 +2821,26 @@ async function keysCheck() {
     && await cdp.eval(`document.activeElement.matches('.title-bar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
   await key('Escape');
   await until('s.core.menu === 0 && !s.busy', 'main menu 2');
+  /* W67: File/cOpy set line by its menu button: the core asks the set's name, shows the line,
+     and sends it; the page shows what it copies (the toast holds the line, copied or, when the
+     clipboard is refused, to copy by hand) */
+  await key('f');
+  await until('s.core.menu === 1 && !s.busy', 'file menu for copy');
+  const sentCopy0 = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`document.querySelector('.menu-panel .menu-item[aria-keyshortcuts=o]').click()`);
+  check('copy set: its File menu button sends the key o',
+    await cdp.eval(`__xpp.sent().slice(${sentCopy0}).some(c => c.cmd === 'key' && c.key === 'o')`));
+  check('copy set: the core asks the name, pre-filled set1 or the next free one',
+    await until("s.ask && s.ask.kind === 'string' && /^set[0-9]+$/.test(s.ask.value)", 'name ask'), JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'mine'})`);
+  check('copy set: the line is shown for confirmation before it is copied',
+    await until("s.ask && s.ask.kind === 'choice' && s.ask.question.includes('set mine {') && s.ask.question.includes('iapp=')", 'line ask'),
+    JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'c'})`);
+  check('copy set: the page receives the line (a toast holds it)',
+    await until("s.toasts.some(t => /set mine \{iapp=[^}]*,V=[^}]*\}/.test(t.text))", 'copy toast') && await until('!s.busy', 'idle after copy'),
+    JSON.stringify(await S('s.toasts')));
+  await until('s.core.menu === 0 && !s.busy', 'main menu after copy');
   /* a letter typed into a field stays there */
   const sent0 = await cdp.eval('__xpp.sent().length');
   await cdp.eval(`(() => { const i = document.querySelector('.messages-search input'); i.closest('details').open = true; i.focus(); })()`);

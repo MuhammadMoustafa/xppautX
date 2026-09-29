@@ -405,6 +405,8 @@ export type XppEvent =
   | {ev: 'menu'; which: number}
   /** File/Help: open the manual at this chapter (and anchor) */
   | {ev: 'help'; chapter: string; anchor?: string}
+  /** File/cOpy set line: text for the clipboard */
+  | {ev: 'copy'; what: string; text: string}
   | {ev: 'window'; op: 'create' | 'select' | 'destroy'; win: number; w: number; h: number; title?: string}
   | {ev: 'log'; text: string}
   | {ev: 'exit'; code: number}

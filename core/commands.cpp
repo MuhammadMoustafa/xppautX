@@ -204,6 +204,23 @@ void get_intern_set(void)
   reset_graph();
 }
 
+/* File/cOpy set line (W67): the current values as a `set` line for the
+   .ode, shown for confirmation, then sent to the page's clipboard */
+void copy_set_line(void)
+{
+  std::string name = intern_set_default_name();
+  if (!new_string("Name of the set", name)) return;
+  std::string problem = intern_set_name_problem(name);
+  if (!problem.empty()) {
+    err_msg(problem.c_str());
+    return;
+  }
+  std::string line = intern_set_line(name);
+  std::string question = xpp::format("Copy this line to paste into the .ode, then reload:\n{}", line);
+  if (TwoChoice("Copy", "Cancel", question.c_str(), "cn") != 'c') return;
+  copy_text("set", line.c_str());
+}
+
 /* ---- the command switch --------------------------------------------- */
 
 void run_the_commands(int com)
@@ -297,7 +314,7 @@ void run_the_commands(int com)
     do_windows_com(com - M_MC);
     return;
   }
-  if (com >= M_FP && com <= M_FL) {
+  if (com >= M_FP && com <= M_FO) {
     do_file_com(com);
     return;
   }
@@ -343,6 +360,7 @@ void do_file_com(int com)
     if (yes_no_box()) bye_bye();
     break;
   case M_FL: clone_ode(); break;
+  case M_FO: copy_set_line(); break;
   }
 }
 
@@ -477,6 +495,7 @@ void commander(int ch)
       flash(7);
       break;
     case 'l': clone_ode(); break;
+    case 'o': copy_set_line(); break;
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }

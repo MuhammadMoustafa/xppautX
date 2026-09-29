@@ -160,6 +160,8 @@ extern "C" {
 
 /* CLONE change ! */
 #define M_FL 218
+/* File/cOpy set line (W67) */
+#define M_FO 219
 
 /*  some numerics commands */
 
@@ -251,6 +253,7 @@ void show_main_menu(int which);
 extern int help_menu;
 void draw_many_lines(void);
 void get_intern_set(void);
+void copy_set_line(void);
 
 
 

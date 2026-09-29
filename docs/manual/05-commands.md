@@ -128,6 +128,15 @@ This brings up a menu with several options. Type `Esc` to abort.
 - 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
 - **(G)et par set**: This loads one of the parameter sets that you have defined in the ODE file.
+- **c(O)py set line**: Asks for a name for the set (`set1`, `set2`, ... is
+  suggested; the name must be a valid name and not already a set of the
+  model), shows the line and, on Copy, puts it on the clipboard:
+  `set name {a=1,b=2,...,x=0.5,...}` with every parameter and initial
+  condition as they are now, numbers exactly as they read back. Paste it
+  into your `.ode` (XPP never writes it for you), reload the model, and
+  the regime is a named set in **(G)et par set**, keeping its meaning
+  whatever else you change in the file. If the browser refuses the
+  clipboard, the line stays on screen to copy by hand.
 - **c(L)one**: Asks for a file name and writes a new ODE file next to it that
   reproduces the current model: the source lines, with the parameters and
   boundary conditions replaced by their current (possibly since-edited)

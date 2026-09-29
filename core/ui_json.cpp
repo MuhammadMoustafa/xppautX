@@ -357,6 +357,7 @@ XppUi make_json_ui(void)
     u.make_txtview = j_make_txtview;
     u.q_calc = j_q_calc;
     u.open_help = j_open_help;
+    u.copy_text = j_copy_text;
     u.exit_program = j_exit_program;
     return u;
 }

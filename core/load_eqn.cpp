@@ -398,6 +398,46 @@ void add_intern_set(const char *name, const char *does)
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
 
+std::string intern_set_default_name()
+{
+  const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
+  for(std::size_t n=1;;n++){
+    std::string name=xpp::format("set{}",n);
+    bool taken=false;
+    for(const auto &s : sets)
+      if(xpp::equal_ignoring_case(s.name,name))taken=true;
+    if(!taken)return name;
+  }
+}
+
+std::string intern_set_name_problem(std::string_view name)
+{
+  if(!xpp::odex::is_name(name)||xpp::odex::is_reserved(name))
+    return xpp::format("{} is not a valid name for a set",name);
+  for(const auto &s : xpp::model().intern_sets)
+    if(xpp::equal_ignoring_case(s.name,name))
+      return xpp::format("{} is already a set of the model",name);
+  return "";
+}
+
+std::string intern_set_line(std::string_view name)
+{
+  const xpp::Model &m=xpp::model();
+  std::string line=xpp::format("set {} {{",name);
+  const char *sep="";
+  for(int i=0;i<m.nupar;i++){
+    double z=0;
+    get_val(m.upar_names[i],&z);
+    line+=xpp::format("{}{}={}",sep,m.upar_names[i],xpp::number(z));
+    sep=",";
+  }
+  for(int i=0;i<m.node+m.nmarkov;i++){
+    line+=xpp::format("{}{}={}",sep,m.uvar_names[i],xpp::number(xpp::session().last_ic[i]));
+    sep=",";
+  }
+  return line+"}";
+}
+
 void extract_action(const char *ptr)
 {
   each_option(ptr," "," ,;\n",[](const std::string &name,const std::string &value){
