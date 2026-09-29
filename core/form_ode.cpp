@@ -15,6 +15,7 @@
 #include <string_view>
 #include <functional>
 #include <map>
+#include <set>
 
 #include "xpp_util.h"
 #include "session.h"
@@ -943,6 +944,84 @@ using xpp::odex::Expr;
 using xpp::odex::Parsed;
 using xpp::odex::Statement;
 
+/* ---- derived quantities (docs/odex.md question 9) ----
+   What a formula reads, to tell whether it reads only parameters, consts
+   and pure functions: the formula as the expression engine's text (an
+   .ode's as written, an .odex's engine_text), its words in upper case, as
+   the engine reads them. */
+class Purity {
+public:
+  /* the parameters and consts (their values are set before anything is
+     worked out, whatever their order), the derived quantities so far,
+     the tables (data), the user functions */
+  std::set<std::string> constants,derived,tables;
+  std::map<std::string,const Statement *> functions;
+
+  /* text reads only what a quantity worked out when a parameter changes
+     may read: the constants, the derived quantities before it (with
+     derived), a function's own arguments (args), numbers, the built-in
+     functions that are pure, the tables and the pure user functions; never
+     t, a variable, a primed name, a Volterra kernel, ran, normal or
+     poisson, a network, delay or shift */
+  bool reads(const std::string &text, const std::vector<std::string> &args, bool with_derived)
+  {
+    if(text.find_first_of("'#")!=std::string::npos)return false;
+    for(const std::string &w : xpp::words_of(text)){
+      const std::string u=xpp::upper_case(w);
+      if(std::find(args.begin(),args.end(),u)!=args.end())continue;
+      if(constants.count(u)||tables.count(u)||builtin(u))continue;
+      if(with_derived&&derived.count(u))continue;
+      auto f=functions.find(u);
+      if(f!=functions.end()&&function(u,*f->second))continue;
+      return false;
+    }
+    return true;
+  }
+
+private:
+  static bool builtin(const std::string &u)
+  {
+    static const std::set<std::string> pure={
+      "SIN","COS","TAN","ASIN","ACOS","ATAN","ATAN2","SINH","COSH","TANH","EXP","LN","LOG","LOG10","SQRT",
+      "HEAV","SIGN","FLR","ABS","MAX","MIN","BESSELJ","BESSELY","BESSELI","BESSELIS","ERF","ERFC","LGAMMA",
+      "MOD","PI","IF","THEN","ELSE","NOT","AND","OR"};
+    return pure.count(u)>0;
+  }
+
+  /* a user function is pure when its formula reads only its arguments,
+     the constants and pure functions (never a derived quantity, which a
+     call may read before it is worked out) */
+  bool function(const std::string &u, const Statement &f)
+  {
+    auto known=pure_.find(u);
+    if(known!=pure_.end())return known->second;
+    pure_[u]=false; /* a function that calls itself is not pure */
+    std::vector<std::string> args;
+    for(const std::string &a : f.names)args.push_back(xpp::upper_case(a));
+    const std::string body=f.expr.kind==Expr::Kind::Text?f.expr.text:xpp::odex::engine_text(f.expr);
+    return pure_[u]=reads(body,args,false);
+  }
+
+  std::map<std::string,bool> pure_;
+};
+
+/* the names a formula (the engine's text) needs to be variables: the
+   first argument of delay, shift, ishift and del_shft, and a Volterra
+   kernel's variable (#name) */
+void needs_variables(const std::string &text, std::set<std::string> &out)
+{
+  const std::string t=xpp::upper_case(text);
+  auto word_at=[&t,&out](size_t i){
+    while(i<t.size()&&t[i]==' ')i++;
+    size_t b=i;
+    while(i<t.size()&&xpp::is_word_char(t[i]))i++;
+    if(i>b)out.insert(t.substr(b,i-b));
+  };
+  for(std::string_view f : {"DELAY(","SHIFT(","DEL_SHFT("})
+    for(size_t p=t.find(f);p!=std::string::npos;p=t.find(f,p+1))word_at(p+f.size());
+  for(size_t p=t.find('#');p!=std::string::npos;p=t.find('#',p+1))word_at(p+1);
+}
+
 /* ---- the builder ---- */
 class Builder {
 public:
@@ -952,9 +1031,9 @@ public:
   {
     xpp::Model &m=xpp::model();
     m.ieee_division=p_.ieee_division;
-    evaluate_parameters();
     ConvertStyle=0;
     begin_model();
+    find_derived();
     for(Statement &s : p_.statements){
       at(s);
       declare(s);
@@ -1010,33 +1089,75 @@ private:
     return t;
   }
 
-  /* each parameter's value: a number, or an expression of numbers, pi
-     and the parameters before it, evaluated in order, the model's
-     divisions its own */
-  void evaluate_parameters()
+  /* every formula of s, as the expression engine's text */
+  static std::vector<std::string> formulas(const Statement &s)
   {
-    std::map<std::string,std::string> values;
+    std::vector<std::string> out={text(s.expr,true)};
+    for(const Binding &b : s.bindings)out.push_back(text(b.value,true));
+    for(const Expr &c : s.cells)out.push_back(text(c,true));
+    return out;
+  }
+
+  /* The derived quantities, whichever reader made the statements (docs/
+     odex.md question 9): a fixed variable whose formula reads only
+     parameters, consts, pure functions and the derived quantities before
+     it is worked out only when a parameter changes, as .ode's !name =
+     expr is (a slider, an event setting a parameter, each AUTO
+     evaluation): the same numbers, worked out less often. One an aux
+     quantity records under its name, delay, shift or a Volterra kernel
+     needs as a variable, or a network or a vector may read (any name a
+     word of theirs starts: p{1-4} reads p1 ... p4) stays one. An .ode's !name =
+     expr stays what it is; parameters_only says whether it reads only
+     those (--convert refuses one that does not). */
+  void find_derived()
+  {
+    Purity pure;
+    std::set<std::string> keep,prefixes;
+    for(const Statement &s : p_.statements){
+      switch(s.kind){
+      case Statement::Kind::Par:
+      case Statement::Kind::Const:
+	for(const Binding &b : s.bindings)pure.constants.insert(xpp::upper_case(b.name));
+	break;
+      case Statement::Kind::Fun: pure.functions[xpp::upper_case(s.name)]=&s; break;
+      case Statement::Kind::Table: pure.tables.insert(xpp::upper_case(s.name)); break;
+      case Statement::Kind::Aux:
+	for(const Binding &b : s.bindings)keep.insert(xpp::upper_case(b.name));
+	break;
+      case Statement::Kind::Network:
+      case Statement::Kind::Vector:
+	for(const std::string &w : xpp::words_of(s.text))prefixes.insert(xpp::upper_case(w));
+	break;
+      default: break;
+      }
+      for(const std::string &f : formulas(s))needs_variables(f,keep);
+    }
+    auto kept=[&keep,&prefixes](const std::string &name){
+      const std::string u=xpp::upper_case(name);
+      if(keep.count(u))return true;
+      for(const std::string &p : prefixes)
+	if(u.starts_with(p))return true;
+      return false;
+    };
+    const std::vector<std::string> none;
     for(Statement &s : p_.statements){
-      if(s.kind!=Statement::Kind::Par)continue;
-      for(Binding &b : s.bindings){
-	if(b.value.kind!=Expr::Kind::Number){
-	  /* calculate() rolls the symbol table back to the Model's own:
-	     here, before the build, the built-ins */
-	  xpp::model().ncon_start=0;
-	  xpp::model().nsym_start=STDSYM;
-	  const std::string formula=xpp::odex::engine_text(b.value,&values);
-	  int ok=0;
-	  const double z=calculate(formula.c_str(),&ok);
-	  if(!ok)throw xpp::odex::error_at(p_.files[b.value.pos.file],b.value.pos,
-					    xpp::format("the value of {} does not evaluate",b.name));
-	  Expr number;
-	  number.kind=Expr::Kind::Number;
-	  number.pos=b.value.pos;
-	  number.value=z;
-	  number.text=xpp::odex::print_number(z);
-	  b.value=std::move(number);
-	}
-	values[b.name]=xpp::odex::print_number(b.value.value);
+      if(s.kind==Statement::Kind::Derived){
+	s.parameters_only=true;
+	for(const Binding &b : s.bindings)
+	  s.parameters_only=s.parameters_only&&pure.reads(text(b.value,true),none,true);
+	for(const Binding &b : s.bindings)pure.derived.insert(xpp::upper_case(b.name));
+      }
+      else if(s.kind==Statement::Kind::Fixed&&!kept(s.name)&&
+	      pure.reads(text(s.expr,true),none,true)){
+	Binding b;
+	b.name=s.name;
+	b.pos=s.name_pos;
+	b.value=std::move(s.expr);
+	s.expr=Expr();
+	s.kind=Statement::Kind::Derived;
+	s.bindings.assign(1,std::move(b));
+	s.parameters_only=true;
+	pure.derived.insert(xpp::upper_case(s.name));
       }
     }
   }

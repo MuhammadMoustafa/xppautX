@@ -11,13 +11,8 @@
 #include "xpp_io.h"
 
 #include <cmath>
-#include <map>
 #include <string>
 #include <string_view>
-
-#ifndef M_PI
-# define M_PI 3.14159265358979323846264338327950288
-#endif
 
 namespace xpp::odex {
 
@@ -153,8 +148,6 @@ const Expr *named_arg(const Expr &e, std::string_view name)
 
 class EngineText {
 public:
-  explicit EngineText(const std::map<std::string, std::string> *values) : values_(values) {}
-
   void put(std::string &out, const Expr &e, int parent, bool right) const
   {
     const int pri = engine_priority(e);
@@ -185,7 +178,7 @@ public:
       break;
     case Expr::Kind::Binary: binary(out, e, pri); break;
     case Expr::Kind::Call: call(out, e); break;
-    case Expr::Kind::Index: break; /* the .odex reader refuses it */
+    case Expr::Kind::Index: break; /* the .odex reader makes it a name */
     }
     if (paren) out += ')';
   }
@@ -193,17 +186,6 @@ public:
 private:
   void name(std::string &out, const Expr &e) const
   {
-    if (values_ && !e.primed) {
-      auto v = values_->find(e.text);
-      if (v != values_->end()) {
-        out += v->second;
-        return;
-      }
-      if (e.text == "pi") {
-        out += print_number(M_PI);
-        return;
-      }
-    }
     out += e.text;
     if (e.primed) out += '\'';
   }
@@ -272,15 +254,14 @@ private:
     out += ')';
   }
 
-  const std::map<std::string, std::string> *values_;
 };
 
 } // namespace
 
-std::string engine_text(const Expr &e, const std::map<std::string, std::string> *values)
+std::string engine_text(const Expr &e)
 {
   std::string out;
-  EngineText(values).put(out, e, 0, false);
+  EngineText().put(out, e, 0, false);
   return out;
 }
 

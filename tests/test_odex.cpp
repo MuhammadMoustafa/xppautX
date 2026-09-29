@@ -3,8 +3,11 @@
    an error at the right line and column for each kind of mistake. */
 #include "xpptest.h"
 #include "odex.h"
+#include "derived.h"
 #include "model.h"
+#include "expr.h"
 #include "xpp_batch.h"
+#include "xpp_io.h"
 
 #include <cmath>
 #include <cstdio>
@@ -95,8 +98,14 @@ std::string lowered(const char *text)
       case K::Comment: add("\" " + s.text); break;
       case K::Options: add(s.text); break;
       case K::Par:
-        for (const xpp::odex::Binding &b : s.bindings) add("par " + b.name + "=" + engine_text(b.value));
+      case K::Const:
+        for (const xpp::odex::Binding &b : s.bindings)
+          add((s.kind == K::Par ? "par " : "const ") + b.name + "=" + engine_text(b.value));
         break;
+      case K::Wiener:
+        for (const std::string &n : s.names) add("wiener " + n);
+        break;
+      case K::Network: add("special " + s.name + "=" + s.text); break;
       case K::History:
         for (const xpp::odex::Binding &b : s.bindings) add(b.name + "(0)=" + engine_text(b.value));
         break;
@@ -145,21 +154,41 @@ std::string lowered(const char *text)
   }
 }
 
-/* the parameters' values of the model text, built (written to a file and
-   loaded); none when it does not load */
-std::vector<double> parameter_values(const char *text)
+/* the model text written to build/test_odex_model.<ext> and loaded: 1
+   when it loads */
+int load_text(const char *text, const char *ext = "odex")
 {
-  std::string path = "build/test_odex_pars.odex";
+  std::string path = std::string("build/test_odex_model.") + ext;
   FILE *fp = fopen(path.c_str(), "w");
-  if (!fp) return {};
+  if (!fp) return 0;
   fputs(text, fp);
   fclose(fp);
   char arg0[] = "test_odex";
   char *argv[] = {arg0, path.data(), nullptr};
-  std::vector<double> out;
-  if (xpp_load_model(2, argv, 1) != 1) return out;
-  for (int i = 0; i < xpp::model().nupar; i++) out.push_back(xpp::model().default_val[i]);
+  return xpp_load_model(2, argv, 1);
+}
+
+/* the model text's fixed variables and derived quantities as the builder
+   made them, "name:fixed" or "name:derived" joined by '|' */
+std::string quantities(const char *text, const char *ext = "odex")
+{
+  if (load_text(text, ext) != 1) return "does not load";
+  std::string out;
+  for (const Statement &s : xpp::model().statements) {
+    if (s.kind == Statement::Kind::Fixed) out += (out.empty() ? "" : "|") + s.name + ":fixed";
+    if (s.kind == Statement::Kind::Derived)
+      for (const xpp::odex::Binding &b : s.bindings) out += (out.empty() ? "" : "|") + b.name + ":derived";
+  }
   return out;
+}
+
+/* the value of the model's constant (a parameter, a const, a derived
+   quantity) name */
+double constant(const char *name)
+{
+  double v = -12345;
+  get_val(xpp::upper_case(name), &v);
+  return v;
 }
 
 } // namespace
@@ -253,7 +282,7 @@ int main(void)
       "u(t) = sin(t) + volterra(exp(-t), of=u)\n"
       "w = x^2\n"
       "aux z = x + 1, z2 = 0\n"
-      "!d = 1/(a*a)\n"
+      "const n = 3\n"
       "fun f(v, s) = v*s\n"
       "fun g(v, w) { let s = v + w  if s > 1 { return a*s } else if s > 0 { return b } else { return 0 } }\n"
       "@ total = 20, dt=0.05, meth=stiff, output=out.dat\n"
@@ -287,7 +316,7 @@ int main(void)
       CHECK(s[3].kind == Statement::Kind::Volterra && s[3].name == "u");
       CHECK(s[4].kind == Statement::Kind::Fixed && s[4].name == "w");
       CHECK(s[5].kind == Statement::Kind::Aux && s[5].bindings.size() == 2);
-      CHECK(s[6].kind == Statement::Kind::Derived && s[6].bindings[0].name == "d");
+      CHECK(s[6].kind == Statement::Kind::Const && s[6].bindings[0].name == "n");
       CHECK(s[7].kind == Statement::Kind::Fun && !s[7].has_body && s[7].names.size() == 2);
       CHECK(s[8].kind == Statement::Kind::Fun && s[8].has_body && s[8].body.size() == 2);
       CHECK(s[9].kind == Statement::Kind::Options && s[9].options.size() == 4);
@@ -357,15 +386,9 @@ int main(void)
             "x'=(if(x>0)then(1)else((if(x<0)then((-1))else(0))))");
   CHECK_STR(lowered("x' = sum(shift(x, i'), from=0, to=2)\n").c_str(), "x'=(sum(0,2)of(shift(x,i')))");
   CHECK_STR(lowered("u(t) = sin(t)+volterra(exp(-t), of=u, mu=0.5)\n").c_str(), "volt u=sin(t)+(int[0.5]{exp((-t))#u})");
-  CHECK_STR(lowered("par a = 2*pi, b = a/4\nx' = b\n").c_str(), "par a=2*pi|par b=a/4|x'=b");
-  {
-    /* a parameter's value evaluated in order by the builder, pi and the
-       parameters before it read, its division IEEE's */
-    const std::vector<double> ab = parameter_values("par a = 2*pi, b = a/4\nx' = b\n");
-    CHECK(ab.size() == 2 && ab[0] == 2 * 3.141592653589793 && ab[1] == 3.141592653589793 / 2);
-    const std::vector<double> z = parameter_values("par z = 1/0\nx' = z\n");
-    CHECK(z.size() == 1 && std::isinf(z[0]) && z[0] > 0);
-  }
+  /* par takes numbers (docs/odex.md question 9) */
+  CHECK_STR(lowered("par a = -2, b = 1e-3\nx' = b\n").c_str(), "par a=-2|par b=0.001|x'=b");
+  CHECK(starts(lowered("par a = 2*pi\nx' = a\n"), "error 1:9 a parameter's value is a number, not `2*pi`"));
   CHECK_STR(lowered("init x = a\npar a = 2\nx' = -x\n").c_str(), "par a=2|x'=(-x)");
   CHECK_STR(lowered("x' = -delay(x, 1)\nhistory x = cos(t)\n").c_str(), "x'=(-delay(x,1))|x(0)=cos(t)");
   /* an event's formula whole: the builder takes its actions one by one,
@@ -415,11 +438,11 @@ int main(void)
   CHECK(starts(lowered("x' = sin\n"), "error 1:6 `sin` is a built-in function: call it"));
   CHECK(starts(lowered("par a = 1\nfun g(v) { let a = v  return a }\nx' = g(x)\n"), "error 2:12 fun g cannot set `a`, a parameter"));
   CHECK(starts(lowered("par a = 1\ninit a = 2\nx' = 1\n"), "error 2:6 `a` is not a variable"));
-  CHECK(starts(lowered("par a = x\nx' = 1\n"), "error 1:9 a parameter's value can read numbers, pi and the parameters before it, not `x`"));
+  CHECK(starts(lowered("par a = x\nx' = 1\n"), "error 1:9 a parameter's value is a number, not `x`"));
   CHECK(starts(lowered("x' = delay(2*x, 1)\n"), "error 1:12 delay's first argument is the name of a variable"));
   CHECK(starts(lowered("aux z = volterra(x)\nx' = 1\n"), "error 1:9 volterra(...) belongs in"));
   CHECK(starts(lowered("x' = x'\n"), "error 1:6 `x'` cannot be read here"));
-  CHECK(starts(lowered("x' = x[1]\n"), "error 1:7 indexing (x[i]) is not part of .odex yet"));
+  CHECK(starts(lowered("x' = x[1]\n"), "error 1:6 the name `x1` is not declared"));
   CHECK(starts(lowered("x' = sum(i', from=0)\n"), "error 1:6 sum needs from= and to="));
   CHECK(starts(lowered("x' = 1\nset s = a = x+1\n"), "error 2:13 a set's value is a number or a name, not `x+1` (a=)"));
   CHECK(starts(lowered("x' = 1\naux flag = near(x)\n"), "error 2:12 near takes 2 or 3 arguments, not 1"));
@@ -430,6 +453,82 @@ int main(void)
   CHECK(starts(lowered("x' = 1\naux flag = near(x, 1, tol=x)\n"), "error 2:27 near's tol= is not a positive number"));
   CHECK(starts(lowered("x' = 1\n@ neartol=-1\n"), "error 2:11 @ neartol=-1 is not a positive number"));
   CHECK(starts(lowered("x' = 1\n@ neartol=0\n"), "error 2:11 @ neartol=0 is not a positive number"));
+
+  /* arrays (docs/odex.md "Arrays", W80): a trailing range on a
+     statement, its index named, both ends included, by a positive step */
+  {
+    Parsed p = xpp::odex::parse("x[j]' = -x[j] + x[j-1]  for j in 1..n\naux s[j] = x[j]^2  for j in 1..n by 2\n",
+                                "m.odex");
+    CHECK(p.statements.size() == 2);
+    if (p.statements.size() == 2) {
+      const Statement &a = p.statements[0], &b = p.statements[1];
+      CHECK(a.kind == Statement::Kind::Ode && a.name == "x" && a.name_index && tree(*a.name_index) == "j");
+      CHECK_STR(tree(a.expr).c_str(), "(+ (- ([] x j)) ([] x (- j 1)))");
+      CHECK(a.range.index == "j" && tree(a.range.lo) == "1" && tree(a.range.hi) == "n" && tree(a.range.step) == "1");
+      CHECK(a.range.index_pos.line == 1 && a.range.index_pos.col == 29);
+      CHECK(b.kind == Statement::Kind::Aux && b.bindings.size() == 1 && b.bindings[0].index);
+      CHECK(tree(b.range.step) == "2");
+    }
+  }
+  CHECK(starts(model_error("x[j]' = 1 for j in 1..3..2\n"), "1:24 a range is a..b, its step written `by k`"));
+  CHECK(starts(model_error("x[j]' = 1 for j in 1..3 step 2\n"), "1:25 a range's step is written `by k`"));
+  CHECK(starts(model_error("x[j]' = 1 for j in 1..3 for i in 1..2\n"), "1:25 a statement takes one range"));
+  CHECK(starts(model_error("x[j]' = 1 for j 1..3\n"), "1:17 expected `in` after for j"));
+  CHECK(starts(model_error("x[j]' = 1 for by in 1..3\n"), "1:15 `by` is a reserved word"));
+  CHECK(starts(model_error("par const = 1\n"), "1:5 `const` is a reserved word"));
+  CHECK(starts(model_error("x' = 1\n!d = 2\n"), "2:1 `!d = expr` is .ode's: in .odex write `d = expr`"));
+  CHECK(model_error("par in = 1\nx' = in\n").empty()); /* for and in are words only in a range */
+  /* the copies, each element the name followed by its index's value */
+  CHECK_STR(lowered("const n = 3\nx[j]' = -x[j] for j in 1..n\n").c_str(), "const n=3|x1'=(-x1)|x2'=(-x2)|x3'=(-x3)");
+  CHECK_STR(lowered("x[j]' = j for j in 0..4 by 2\n").c_str(), "x0'=0|x2'=2|x4'=4");
+  CHECK_STR(lowered("x[2*j+1]' = x[2*j+1] for j in 0..1\n").c_str(), "x1'=x1|x3'=x3");
+  CHECK_STR(lowered("x[1]' = 0\nx[j]' = x[j-1] for j in 2..3\n").c_str(), "x1'=0|x2'=x1|x3'=x2");
+  CHECK_STR(lowered("x[j]' = if j == 1 then 0 else x[j] for j in 1..2\n").c_str(),
+            "x1'=(if(1==1)then(0)else(x1))|x2'=(if(2==1)then(0)else(x2))");
+  CHECK_STR(lowered("x[j]' = 1 for j in 1..2\ninit x[j] = j/2 for j in 1..2\naux s[j] = x[j]^2 for j in 1..2\n").c_str(),
+            "x1'=1|x2'=1|aux s1=x1^2|aux s2=x2^2");
+  CHECK_STR(lowered("x[j]' = w[j] for j in 1..2\nwiener w[j] for j in 1..2\n").c_str(), "x1'=w1|x2'=w2|wiener w1|wiener w2");
+  CHECK_STR(lowered("x[j]' = 1 for j in 0..1\nevent 1 t - 1, x[j] = 0 for j in 0..1\n").c_str(),
+            "x0'=1|x1'=1|global 1 {t-1} {x0=0}|global 1 {t-1} {x1=0}");
+  CHECK_STR(lowered("x[j]' = 1 for j in 0..1\ntable w \"w.tab\"\nnetwork k[j] = conv(even, 2, 1, w, x[j]) for j in 0..1\n").c_str(),
+            "x0'=1|x1'=1|table w % 0 0 0 0|special k0=conv(even,2,1,w,x0)|special k1=conv(even,2,1,w,x1)");
+  /* what an array refuses, at its line and column, naming the copy */
+  CHECK(starts(lowered("x[j]' = y[j] for j in 1..2\n"), "error 1:9 the name `y1` is not declared (where j = 1)"));
+  CHECK(starts(lowered("x[j]' = x[j-1] for j in 0..1\n"), "error 1:11 the index of x `j-1` is -1: an element's index is 0 or more (where j = 0)"));
+  CHECK(starts(lowered("par j = 1\nx[j]' = 1 for j in 1..2\n"), "error 2:15 the index `j` is a parameter, declared at 1:5"));
+  CHECK(starts(lowered("par n = 3\nx[j]' = 1 for j in 1..n\n"), "error 2:23 the range's last index reads numbers, the consts before it"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..2.5\n"), "error 1:23 the range's last index `2.5` is 2.5, not a whole number"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 3..1\n"), "error 1:20 the range 3..1 is empty"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by 0\n"), "error 1:28 the range's step is a whole number above 0, not 0"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by -1\n"), "error 1:28 the range's step is a whole number above 0, not -1"));
+  CHECK(starts(lowered("x' = 1\n@ total=10 for j in 1..2\n"), "error 2:12 this statement takes no range"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already declared at 1:1"));
+
+  /* const: fixed at load, from numbers and the consts before it */
+  CHECK_STR(lowered("const n = 2, m = n*3+1\nx' = m\n").c_str(), "const n=2|const m=7|x'=m");
+  CHECK(starts(lowered("par a = 1\nconst n = a\nx' = n\n"), "error 2:11 the value of const n reads numbers, the consts before it"));
+  CHECK(starts(lowered("const n = m\nconst m = 1\nx' = n\n"), "error 1:11 the value of const n reads numbers, the consts before it"));
+  CHECK(starts(lowered("const n = 1\nx' = 1\nevent 1 t, n = 2\n"), "error 3:12 an event sets a variable"));
+
+  /* derived quantities (docs/odex.md question 9): a fixed quantity that
+     reads only parameters, consts and pure functions is worked out when
+     a parameter changes, whichever reader */
+  CHECK_STR(quantities("par a = 2\nconst n = 3\nfun f(u) = u*a\nfun g(u) = u+ran(1)\n"
+                       "d = -a\ne = f(n)+d\nw = x*a\nr = ran(1)\nq = g(1)\nk = t*a\nv = x\nx' = d+e+w+r+q+k+v\n")
+                .c_str(),
+            "d:derived|e:derived|w:fixed|r:fixed|q:fixed|k:fixed|v:fixed");
+  /* one read later, or needed as a variable (aux of its name, delay), stays one */
+  CHECK_STR(quantities("par a = 2\ne = d*2\nd = a\nx' = e\n").c_str(), "e:fixed|d:derived");
+  CHECK_STR(quantities("par a = 2\nd = a\naux d = d\nx' = d\n").c_str(), "d:fixed");
+  CHECK_STR(quantities("par a = 2\nd = a\nx' = delay(d, 1)\n").c_str(), "d:fixed");
+  CHECK_STR(quantities("par a=2\n!tr=-a\nw=a*2\nv=x\nx'=tr+w+v\n", "ode").c_str(), "TR:derived|W:derived|V:fixed");
+  CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
+  {
+    /* worked out again when a parameter changes, as .ode's ! is */
+    set_val("A", 5);
+    evaluate_derived();
+    CHECK(constant("d") == 15);
+  }
 
   /* --convert: what the .ode's reader understood, its quirks explicit */
   {
@@ -458,6 +557,10 @@ int main(void)
     CHECK(has("aux w = x and y or z"));
     CHECK(has("# y=2*3 in the .ode: XPP reads the number at its front, 2"));
     CHECK(has("init x = 1, y = 2"));
+    CHECK(has("const nn = 5"));
+    CHECK(has("dd = a*2"));
+    CHECK(has("v[j]' = -v[j]+j for j in 1..3"));
+    CHECK(has("aux sq[j] = v[j]^2 for j in 1..3"));
     CHECK(has("event 1 x-1, y = y/(if x then x else 2.23e-15), z = 0"));
     CHECK(has("@ total=2, dt=.1"));
     CHECK(has("# anything here is kept as a comment"));
@@ -471,6 +574,20 @@ int main(void)
       back = e.text();
     }
     CHECK_STR(back.c_str(), "");
+  }
+
+  /* --convert refuses an .ode's !d = expr that reads a variable: .odex's
+     d = expr would be worked out at every evaluation, not only when a
+     parameter changes */
+  {
+    std::string err;
+    CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
+    try {
+      xpp::odex::convert_model(true, xpp::odex::Ask());
+    } catch (const Error &e) {
+      err = e.cause;
+    }
+    CHECK(starts(err, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
   }
 
   /* near(a, b[, tol=]) numerically: tools/models/near_test.odex's aux

@@ -62,9 +62,20 @@ grammar:
 - State variable: `x' = EXPR` (the only derivative spelling; `.ode`'s
   `dx/dt=`, `x(t+1)=` and `!x=` are covered by `--convert`, not by new
   `.odex` syntax, since a fresh `.odex` model always uses `x'=`).
-- `par NAME = EXPR, NAME = EXPR, ...` — one or more parameters. Unlike
-  `.ode`'s `@`-option numbers, a parameter's default value is a full
-  expression, evaluated once at load (already true in `.ode`).
+- `par NAME = NUMBER, NAME = NUMBER, ...` — one or more parameters, each
+  a number (W80: `par` takes numbers only; a quantity worked out from
+  parameters is `d = expr`, below).
+- `const NAME = EXPR, ...` — a constant fixed at load (W80, `.ode`'s
+  `number`): its value an expression of numbers and the consts before
+  it, usable anywhere a number is (formulas, a range's ends and step), not
+  in the values panel, never set.
+- `NAME = EXPR` — a quantity: always the formula's current value. When the
+  formula reads only parameters, consts, pure functions (not `ran`,
+  `normal`, `poisson`, nor a user function calling one) and the
+  quantities before it, the loader works it out only when a parameter
+  changes (a slider, an event setting a parameter, each AUTO evaluation),
+  as `.ode`'s `!` does, so the numbers are identical; otherwise at every
+  evaluation (question 9).
 - `init NAME = EXPR, ...` — initial conditions, evaluated once at load
   with every parameter in scope (fixing the `.ode` quirk in
   docs/odex-quirks.md where a parameter read into `init`/`x(0)=` was
@@ -87,23 +98,68 @@ grammar:
   (decided, maintainer, 2026-09-27): it may span lines and nest (so a
   region that already holds one can be commented out), and a `/*` never
   closed is an error at the line where it opened.
+- A trailing range makes a statement an array (below, "Arrays").
+
+## Arrays
+
+W80 (question 8). One form: a statement followed, on the line it ends
+on, by a range, `for INDEX in FIRST..LAST` or `for INDEX in FIRST..LAST
+by STEP`:
+
+    const n = 20
+    x[1]' = -x[1]
+    x[j]' = -x[j] + x[j-1]  for j in 2..n
+    aux s[j] = x[j]^2  for j in 1..n by 2
+    init x[j] = j/n  for j in 1..n
+
+- The statement is made once for each value of the index, FIRST, FIRST +
+  STEP, ... up to LAST, both ends included; STEP (`by`) is a whole number
+  above 0, 1 when it is not written. A range that counts down is an error
+  (so is `a..b..k`: which number is the step is ambiguous; and `step`,
+  a likely parameter name, is not the word).
+- FIRST, LAST and STEP are whole numbers worked out at load from numbers
+  and the consts before them, with `+ - * / mod ^` and a sign: never a
+  parameter (the number of equations is fixed at load; a slider cannot
+  resize an array).
+- The index is named (`for j in`, `for i in`, ...): an index named like a
+  declared name is an error. In each copy it is a number, anywhere in the
+  statement: `x[j]' = if j == 1 then 0 else 1`.
+- An element `x[e]` is the name `x` followed by e's value (`x[3]` is the
+  name `x3`, which the model may also write as `x3`); e is any integer
+  expression of numbers, consts and the index, `x[2*j+1]`, whose value
+  is 0 or more. Every element a copy names must exist, in both branches
+  of an `if` too: the ends of a chain are statements of their own
+  (`x[1]' = ...`, then `for j in 2..n`).
+- No blocks and no logic: no `for ... { }` and no declaration-time `if`.
+- Every statement takes a range but an `@` line, a comment the model
+  shows, `only` and `set`. An element may name what the statement
+  declares (`x[j]'`, `x[j] =`, `u[j](t) =`, the names of `par`, `init`,
+  `aux`, `history`, `const`, `wiener`, an event's targets, a network and
+  a network's arguments, `solv`, `markov`).
+- A problem in a copy is reported at its place in the statement, naming
+  the copy: `the name `y1` is not declared (where j = 1)`.
 
 ## Grammar (EBNF)
 
 ```ebnf
 model        = { statement } ;
-statement    = ode_decl | par_decl | init_decl | aux_decl
-             | fun_decl | option_decl | set_decl | table_decl
+statement    = ( ode_decl | par_decl | const_decl | init_decl | aux_decl
+             | fixed_decl | fun_decl | option_decl | set_decl | table_decl
              | markov_decl | wiener_decl | event_decl | boundary_decl
-             | network_decl | include_decl ;
+             | network_decl | include_decl ) , [ range ] ;
 (* comments, '#' to the end of the line and nested '/* */' blocks, are
    removed by the tokenizer before this grammar *)
+range        = "for" , name , "in" , expr , ".." , expr , [ "by" , expr ] ;
+(* on the line the statement ends on; for and in are words only here *)
+element      = name , [ "[" , expr , "]" ] ;   (* x or x[e] *)
 
-ode_decl     = name , "'" , "=" , expr ;
-par_decl     = "par" , name_init_list ;
+ode_decl     = name , "'" , "=" , expr | name , "[" , expr , "]" , "'" , "=" , expr ;
+fixed_decl   = element , "=" , expr ;
+par_decl     = "par" , element , "=" , [ "-" ] , number , { "," , element , "=" , [ "-" ] , number } ;
+const_decl   = "const" , name_init_list ;
 init_decl    = "init" , name_init_list ;
 aux_decl     = "aux" , name_init_list ;
-name_init_list = name , "=" , expr , { "," , name , "=" , expr } ;
+name_init_list = element , "=" , expr , { "," , element , "=" , expr } ;
 
 fun_decl     = "fun" , name , "(" , [ arg_list ] , ")" , "=" , expr
              | "fun" , name , "(" , [ arg_list ] , ")" , block ;
@@ -182,7 +238,10 @@ outrank all arithmetic.
 
 Statement keywords: `par`, `init`, `aux`, `fun`, `let`, `return`, `if`,
 `then`, `else`, `set`, `table`, `markov`, `wiener`, `event`, `boundary`,
-`network`, `include`.
+`network`, `include`, `const`; `by` (a range's step). `for` and `in`
+are words only where a range starts, after a statement on its line, so
+a parameter may be called `in` (W80). `!` and `number` are not `.odex`
+(W80: `d = expr`, `const`).
 
 Renamed from `.ode` (decided, maintainer, 2026-09-27): `global` is `event`,
 `bdry` is `boundary`, `special` is `network`; `volt` is gone (an equation
@@ -226,9 +285,11 @@ e^x is written `exp(x)`.
 - New in `.odex` (accepted as names in `.ode` today): the statement
   keywords `par`, `init`, `aux`, `table`, `markov`, `wiener`, `event`,
   `boundary`, `network`, `include`; `fun`, `let`, `return`; `and`, `or`;
-  `volterra`.
+  `volterra`; `const` and `by` (W80; `for` and `in` only where a range
+  starts).
 - Dropped in `.odex`: `arg1`..`arg9` (a function's arguments are named);
-  `global`, `bdry`, `special` (renamed), `volt`, `done` (gone);
+  `global`, `bdry`, `special` (renamed), `volt`, `done`, `number` and
+  `!` (gone; W80: `const`, `d = expr`);
   `int` loses its meaning (it was never refused as a name in `.ode`, and
   `volterra` replaces the operator).
 - Unchanged: the built-in functions, `not`, `mod`, `set`, `if`/`then`/`else`,
@@ -413,7 +474,8 @@ variable and the time.
   `aux ica = ica`, as `.ode` allows); a Volterra equation `u(t) = expr`
   (with or without `volterra(...)`: `.ode`'s `volt u=...` has none in
   fp.ode, and `junk = volterra(0, of=x)` is a fixed variable, fr.ode); a
-  derived parameter `!d = expr` (`.ode`'s `number n=100` too); the
+  quantity worked out from parameters is `d = expr` (W80; `.ode`'s `!d =
+  expr`), and `.ode`'s `number n=100` is `const n = 100`; the
   algebraic `solv y = guess` and `0 = expr`; `only x, y`; a comment the
   model shows is a string statement, `"{gk=0} text"` with its action.
   New reserved words: `solv`, `only`, `history`; the built-ins the spec's
@@ -436,11 +498,11 @@ variable and the time.
   variable, an aux quantity, a parameter, `out_put`, `arret` or
   `no_interp`.
 - A list statement ends with its line: `par a=1 b=2` is an error (the
-  missing comma), never a second statement `b=2`. A parameter's value
-  reads numbers, `pi`, built-in functions and the parameters before it.
-- Not in `.odex`: `.ode`'s arrays and `%` loops (a converted file has
-  them expanded), `vector`, `group` and `options`; `x[i]` parses (the
-  grammar's postfix) and is refused as not part of `.odex` yet.
+  missing comma), never a second statement `b=2`; a range may follow it
+  on that line. A parameter's value is a number (W80).
+- Not in `.odex`: `.ode`'s `%[a..b]` blocks (a block's lines take turns,
+  copy k of each, then copy k+1; `.odex` has a range per statement and no
+  blocks), `vector`, `group` and `options`.
 - Until W76 and a core that keeps a name's case: names differing only by
   case, and a name that reads as a built-in in upper case (`Sin`), are
   refused with an error saying so. A name has no length limit (W76).
@@ -448,9 +510,22 @@ variable and the time.
 ### What --convert writes
 
 `xppautX --convert [--auto] model.ode` writes model.odex beside it:
-the statements in the order the reader read them (Model::statements,
-arrays expanded), each formula read back from the program it compiled
-to. A quirk of `.ode`'s precedence becomes explicit parentheses; a
+the statements in the order the reader read them (Model::statements),
+each formula read back from the program it compiled to. An array's
+copies (the .ode reader marks each, `Statement::array`) are written back
+as one statement with its range (W80): what differs between the copies'
+own text is the index (a number equal to it, `j`) or an element (a name
+followed by `a*j+b`, `x[j-1]`), found from the copies themselves, so the
+`.odex` expands to the same programs. The copies stay written one by
+one where that cannot be said (a number the index works out to, `[j+1]`
+alone, which `.odex` would compute rather than read; a range that counts
+down), for a `%[a..b]` block of several lines (separate ranges would
+reorder the variables, the output's columns: `cgl.ode`) and for an `@`
+line's `x[0..99]` (an `@` line takes no range). `number n=5` is `const
+n = 5`, and `!d = expr` is `d = expr`, which the `.odex`'s builder works
+out only when parameters change, as the `.ode`'s did: one that reads t,
+a variable, a random function or a derived quantity after it is
+refused, since `d = expr` would then be current at every evaluation. A quirk of `.ode`'s precedence becomes explicit parentheses; a
 number `atof` cut, an option spaced around its `=` (dropped) or cut, a
 formula in `x(0)=` (its value, and its history in a delay model) are
 written as XPP read them, with a comment. A division by something that
@@ -466,4 +541,22 @@ compile to the `.ode`'s own programs (an `.odex` division and its guard
 read as `.ode`'s division), or `--convert` fails: exact by construction,
 and checked. `tools/odexcheck.sh` (verify.sh) converts every example
 that loads by itself and runs the `.odex`: every output.dat's md5 is its
-`.ode`'s (tests/examples.md5).
+`.ode`'s (tests/examples.md5), and an example with arrays must have
+each of its array lines written as one statement with its range.
+
+### Arrays, consts and derived quantities in the code (W80)
+
+The `.ode` reader expands an `.ode`'s arrays as it always did (a line's
+text rewritten for each index, `[j+1]`, `[j*2]` and a bare `[3]` its
+quirks) and marks each copy; the `.odex` reader (`odex_load.cpp`) works
+out each const's value in order, then each range and makes the copies,
+every element `x[e]` the name it is, and checks them as any statement.
+The builder (`form_ode.cpp`'s `find_derived`), for both readers' models,
+makes a fixed quantity that reads only parameters, consts, pure
+functions and the derived quantities before it a derived one (one an aux
+records under its name, one `delay`, `shift` or a Volterra kernel needs
+as a variable, and one a network or vector may read stay variables), and
+marks an `.ode`'s own `!` quantities that read anything else (which
+--convert refuses). The derived quantities are the Model's
+(`Model::derived`), so a model loaded after another starts without the
+one before's.

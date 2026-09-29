@@ -1,7 +1,8 @@
 /* xppautX --convert (odex.h; docs/odex.md "What --convert writes"): the
    loaded .ode model written as .odex from what the .ode parser understood,
    not from its text. The statements come in the order the reader read
-   them (Model::statements, arrays expanded); every formula is the one it
+   them (Model::statements), an array's copies (Statement::array) written
+   back as one array statement (docs/odex.md "Arrays"); every formula is the one it
    compiled, read back from its program (expr_program.h) into .odex's tree
    and printed with the parentheses .odex needs to group it the same way:
    a quirk of .ode's precedence becomes explicit parentheses, never a
@@ -37,33 +38,6 @@
 namespace xpp::odex {
 
 namespace {
-
-bool is_word_start(char c)
-{
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-}
-
-bool is_word_char(char c)
-{
-  return is_word_start(c) || (c >= '0' && c <= '9');
-}
-
-/* the words of a line: letters, digits and '_', not starting with a digit */
-std::vector<std::string> words_of(std::string_view line)
-{
-  std::vector<std::string> out;
-  size_t i = 0;
-  while (i < line.size()) {
-    if (is_word_start(line[i]) && (i == 0 || !is_word_char(line[i - 1]))) {
-      size_t b = i;
-      while (i < line.size() && is_word_char(line[i])) i++;
-      out.emplace_back(line.substr(b, i - b));
-    } else {
-      i++;
-    }
-  }
-  return out;
-}
 
 std::string trimmed(std::string_view s)
 {
@@ -272,7 +246,22 @@ public:
     rename_reserved();
     steady_constants();
     std::string body;
-    for (const Statement &s : m_.statements) body += statement(s);
+    const std::vector<Statement> &st = m_.statements;
+    for (size_t i = 0; i < st.size();) {
+      /* an array's copies, one statement each, consecutive */
+      const ArrayCopy &a = st[i].array;
+      size_t e = i + 1;
+      if (a.group && !a.interleaved)
+        while (e < st.size() && st[e].array.group == a.group) e++;
+      std::vector<std::string> texts;
+      std::vector<int> values;
+      for (size_t k = i; k < e; k++) {
+        texts.push_back(statement(st[k]));
+        values.push_back(st[k].array.value);
+      }
+      body += e - i > 1 ? as_array(texts, values, a) : texts[0];
+      i = e;
+    }
     body += array_initials();
     body += comments();
     body += options();
@@ -303,6 +292,122 @@ private:
       constants_.insert(in);
       if (n != "PI") constant_values_[name(n)] = s_.parser.constants[in];
     }
+  }
+
+  /* ---- arrays ---- */
+  /* text in pieces to compare copies with: a run of word characters and
+     '.' (a name, a number), or any other character alone */
+  static std::vector<std::string> pieces(std::string_view text)
+  {
+    std::vector<std::string> out;
+    size_t i = 0;
+    while (i < text.size()) {
+      size_t b = i;
+      while (i < text.size() && (is_word_char(text[i]) || text[i] == '.')) i++;
+      if (i == b) i++;
+      out.emplace_back(text.substr(b, i - b));
+    }
+    return out;
+  }
+
+  /* p as a whole number written plainly (no sign, no leading 0) */
+  static std::optional<long> plain_whole(std::string_view p)
+  {
+    if (p.empty() || p.size() > 9 || (p.size() > 1 && p[0] == '0')) return std::nullopt;
+    long v = 0;
+    for (char c : p) {
+      if (c < '0' || c > '9') return std::nullopt;
+      v = v * 10 + (c - '0');
+    }
+    return v;
+  }
+
+  /* index expression a*j+b */
+  static std::string affine(const std::string &j, long a, long b)
+  {
+    std::string t = a == 1 ? j : a == -1 ? "-" + j : std::to_string(a) + "*" + j;
+    if (b > 0) t += "+" + std::to_string(b);
+    if (b < 0) t += "-" + std::to_string(-b);
+    return t;
+  }
+
+  /* An array's copies written back as one statement (docs/odex.md
+     "Arrays"): texts the copies' own, values their index. A piece that
+     differs between copies is the index (a number equal to it: j) or an
+     element (a name x followed by a*j+b: x[a*j+b]), found from the
+     copies themselves, the range written after the statement. When a
+     piece differs otherwise (a number the index works out to, which .odex
+     would compute rather than read, or text that is not an index), or
+     the range counts down, the copies are written as they are. */
+  std::string as_array(const std::vector<std::string> &texts, const std::vector<int> &values, const ArrayCopy &a)
+  {
+    std::string expanded;
+    for (const std::string &t : texts) expanded += t;
+    if (a.step <= 0 || values.size() < 2 || expanded.empty() || values.front() != a.lo || values.back() != a.hi)
+      return expanded;
+    for (size_t c = 0; c < values.size(); c++)
+      if (values[c] != a.lo + static_cast<int>(c) * a.step) return expanded;
+    std::vector<std::vector<std::string>> p;
+    for (const std::string &t : texts) p.push_back(pieces(t));
+    const size_t n = p[0].size();
+    for (const std::vector<std::string> &q : p)
+      if (q.size() != n) return expanded;
+    /* the pieces that differ: an element's name (the index at slot i) or
+       the index itself (empty name) */
+    struct Varying {
+      std::string name;
+      long a = 1, b = 0;
+    };
+    std::map<size_t, Varying> varying;
+    for (size_t i = 0; i < n; i++) {
+      bool same = true;
+      for (const std::vector<std::string> &q : p) same = same && q[i] == p[0][i];
+      if (same) continue;
+      std::vector<long> v;
+      std::string name;
+      for (size_t c = 0; c < p.size(); c++) {
+        const std::string &q = p[c][i];
+        size_t d = q.size();
+        while (d > 0 && q[d - 1] >= '0' && q[d - 1] <= '9') d--;
+        const std::string head = q.substr(0, d);
+        std::optional<long> k = plain_whole(std::string_view(q).substr(d));
+        if (!k || (c > 0 && head != name) || (d > 0 && !is_word_start(head[0]))) return expanded;
+        name = head;
+        v.push_back(*k);
+      }
+      const long dk = values[1] - values[0], dv = v[1] - v[0];
+      if (dk == 0 || dv % dk != 0) return expanded;
+      Varying x;
+      x.name = name;
+      x.a = dv / dk;
+      x.b = v[0] - x.a * values[0];
+      for (size_t c = 0; c < v.size(); c++)
+        if (v[c] != x.a * values[c] + x.b) return expanded;
+      if (name.empty() && (x.a != 1 || x.b != 0)) return expanded;
+      varying[i] = x;
+    }
+    /* the index: a name no piece and no declared name has */
+    std::set<std::string> used = taken_;
+    for (const std::vector<std::string> &q : p)
+      for (const std::string &w : q) used.insert(xpp::upper_case(w));
+    for (const auto &[i, x] : varying) used.insert(xpp::upper_case(x.name));
+    std::string j;
+    for (const char *c : {"j", "i", "k", "n", "m", "jj", "kk", "idx"})
+      if (!used.count(xpp::upper_case(c))) {
+        j = c;
+        break;
+      }
+    if (j.empty()) return expanded;
+    std::string out;
+    for (size_t i = 0; i < n; i++) {
+      auto x = varying.find(i);
+      if (x == varying.end()) out += p[0][i];
+      else if (x->second.name.empty()) out += j;
+      else out += x->second.name + "[" + affine(j, x->second.a, x->second.b) + "]";
+    }
+    while (!out.empty() && out.back() == '\n') out.pop_back();
+    return xpp::format("{} for {} in {}..{}{}\n", out, j, a.lo, a.hi,
+                       a.step == 1 ? std::string() : xpp::format(" by {}", a.step));
   }
 
   /* ---- names ---- */
@@ -346,6 +451,7 @@ private:
     const std::vector<std::string> names = declared();
     std::set<std::string> taken;
     for (const std::string &n : names) taken.insert(xpp::upper_case(n));
+    taken_ = taken;
     std::vector<std::string> unanswered;
     for (const std::string &n : names) {
       if (renames_.count(n) || (!is_reserved(n) && is_name(n))) continue;
@@ -370,6 +476,7 @@ private:
           refuse(xpp::format("`{}` cannot be the new name of `{}`: it is taken, reserved or not a name", chosen, n));
       }
       taken.insert(xpp::upper_case(chosen));
+      taken_.insert(xpp::upper_case(chosen));
       renames_[n] = chosen;
     }
     if (!unanswered.empty()) {
@@ -734,9 +841,19 @@ private:
       return out + ") = " + text(m_.ufun_programs[f], f) + "\n";
     }
     case K::Derived: {
+      /* d = expr: the .odex's builder finds it reads only parameters,
+         consts and pure functions, as this builder did (docs/odex.md
+         question 9) */
       std::string out;
-      for (const Binding &b : s.bindings)
-        out += "!" + name(xpp::upper_case(b.name)) + " = " + text(compiled(b.value.text)) + "\n";
+      for (const Binding &b : s.bindings) {
+        const std::string d = name(xpp::upper_case(b.name));
+        const std::string f = text(compiled(b.value.text));
+        if (!s.parameters_only)
+          refuse(xpp::format("!{} = {} reads t, a variable, a random function or a derived quantity after it: an "
+                             ".odex quantity is worked out only when parameters change when it reads only "
+                             "parameters, consts and pure functions (docs/odex.md question 9)", d, f));
+        out += d + " = " + f + "\n";
+      }
       return out;
     }
     case K::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
@@ -804,13 +921,28 @@ private:
 
   /* the .ode's array initial values, x[j1..j2](0)=formula: one init each,
      evaluated where XPP evaluates them, once the model is set up */
-  std::string array_initials() const
+  std::string array_initials()
   {
     std::string out;
-    for (const auto &[var, formula] : array_initial_values()) {
-      const std::string upper = xpp::upper_case(var);
-      if (find_user_name(ICBOX, upper) < 0) continue;
-      out += "init " + name(upper) + " = " + text(compiled(formula)) + "\n";
+    const std::vector<ArrayInitialValue> all = array_initial_values();
+    for (size_t i = 0; i < all.size();) {
+      size_t e = i;
+      std::vector<std::string> texts;
+      std::vector<int> values;
+      for (; e < all.size() && all[e].group == all[i].group; e++) {
+        const std::string upper = xpp::upper_case(all[e].var);
+        if (find_user_name(ICBOX, upper) < 0) continue;
+        texts.push_back("init " + name(upper) + " = " + text(compiled(all[e].formula)) + "\n");
+        values.push_back(all[e].j);
+      }
+      ArrayCopy a;
+      a.group = all[i].group;
+      if (!values.empty()) {
+        a.lo = values.front();
+        a.hi = values.back();
+      }
+      if (!texts.empty()) out += texts.size() > 1 ? as_array(texts, values, a) : texts[0];
+      i = e;
     }
     return out;
   }
@@ -825,9 +957,11 @@ private:
       for (size_t k = 0; k < list.size(); k++) out += (k ? ", " : "") + name(xpp::upper_case(list[k].name));
       return out + "\n";
     }
-    if (s.kind == Statement::Kind::Const) { /* a hidden constant: a derived parameter of that value */
-      for (const Binding &b : list) out += "!" + name(xpp::upper_case(b.name)) + " = " + read_number(b) + "\n";
-      return out;
+    if (s.kind == Statement::Kind::Const) { /* .ode's number: a const */
+      out = "const ";
+      for (size_t k = 0; k < list.size(); k++)
+        out += (k ? ", " : "") + name(xpp::upper_case(list[k].name)) + " = " + read_number(list[k]);
+      return out + "\n";
     }
     out = s.kind == Statement::Kind::Par ? "par " : "init ";
     for (size_t k = 0; k < list.size(); k++) {
@@ -1067,6 +1201,9 @@ private:
   bool auto_;
   const Ask &ask_;
   std::map<std::string, std::string> renames_;
+  /* every declared name and new name, in upper case (an array's index is
+     none of them) */
+  std::set<std::string> taken_;
   std::set<int> constants_;
   std::map<std::string, double> constant_values_;
   std::vector<std::string> option_notes_;

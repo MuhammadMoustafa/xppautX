@@ -9,9 +9,14 @@ right, a sign allowed anywhere (`2*-3`), `if a then b else if c then d
 else e` with or without parentheses, `!=`, block functions in braces,
 case-sensitive names, `# ...` and nested `/* ... */` comments, no
 `done`, every mistake an error at its line and column. A parameter's
-value and an initial value are expressions (the parameters set first),
-and `/` divides as IEEE does (`1/0` is inf; a run stops at the first
-NaN or inf). `==` and `!=` are exact; `near(a, b)` is approximate
+value is a number, an initial value an expression (the parameters set
+first), `const n = 20` a constant fixed at load, and `d = expr` a
+quantity that is always its formula's current value (worked out only
+when a parameter changes when it reads only parameters and consts, as
+`.ode`'s `!d=expr`). An array is a statement with a range after it:
+`x[j]' = -x[j] + x[j-1]  for j in 2..n` (both ends included, `by 2` for
+a step; `x[3]` is the name `x3`). `/` divides as IEEE does (`1/0` is inf;
+a run stops at the first NaN or inf). `==` and `!=` are exact; `near(a, b)` is approximate
 equality, true when `|a-b| <= tol*max(1, |a|, |b|)`, `tol` the model's
 `@ neartol=` (default `1e-9`) or a call's own `near(a, b, tol=1e-6)`.
 The model above as `.odex`:

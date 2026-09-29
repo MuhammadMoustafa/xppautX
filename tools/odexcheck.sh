@@ -5,7 +5,11 @@
 # checks the .odex compiles to the .ode's own programs) and the .odex run
 # (xppautX model.odex -silent); output.dat's md5, CRs removed, must be the
 # .ode's own baseline entry. A model that does not load by itself
-# ("noload": an include, a DLL) is skipped. tools/verify.sh runs this.
+# ("noload": an include, a DLL) is skipped. A model with arrays must
+# convert to arrays (W80, docs/odex.md "Arrays"): each of the .ode's
+# array statements (a line before done with x[a..b], not an @ line nor
+# a %[a..b] block's) is one .odex statement with its range, "for j in",
+# never its copies. tools/verify.sh runs this.
 #
 # Usage: tools/odexcheck.sh [--bin PATH] [--baseline FILE] [--keep DIR]
 #   --bin PATH       the binary (default ./xppautX, or ./xppautX.exe)
@@ -34,8 +38,11 @@ if [ "${1:-}" = --one ]; then
   elif gtimeout --version >/dev/null 2>&1; then tmo="gtimeout $tmo_s"
   fi
   why=
+  arrays=$(awk '/^[dD][oO][nN][eE]/{exit} /^[^#%@]*\[[0-9]+\.\.[0-9]+\]/{n++} END{print n+0}' "$f")
   if ! ( cd "$run" && exec $tmo "$bin" --convert --auto "$base.ode" >convert.log 2>&1 ); then
     why="the conversion failed"
+  elif [ "$(grep -v '^#' "$run/$base.odex" | grep -cE ' for [a-z]+ in ')" -lt "$arrays" ]; then
+    why="its $arrays array statements were not all written as arrays (for j in ...)"
   else
     rm -f "$run/output.dat"
     st=0

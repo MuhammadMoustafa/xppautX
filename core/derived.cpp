@@ -1,28 +1,17 @@
+/* The derived quantities (derived.h): a formula of the parameters worked
+   out only when one changes (.ode's !name = expr, and what the Model
+   builder finds reads only parameters, consts and pure functions,
+   form_ode.cpp). They are the Model's (Model::derived), so a model loaded
+   after another starts with none. */
 #include "derived.h"
+#include "expr.h"
 #include "session.h"
 #include "xpp_log.h"
 
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
-
-#include "expr.h"
-
-/* Derived parameter stuff !!  */
-#define MAXDERIVED 200
-
-namespace {
-struct Derived {
-  int index = 0;
-  std::vector<int> form;
-  std::string rhs;
-  double value = 0.0;
-};
-
-std::array<Derived, MAXDERIVED> derived;
-}  // namespace
-
-static int nderived = 0;
 
 /* This compiles all of the formulae
 It is called only once during the session
@@ -31,12 +20,12 @@ int compile_derived()
 {
   std::array<int, 256> f;
   int n;
-  for (int i = 0; i < nderived; i++) {
-    if (add_expr(derived[i].rhs.c_str(), f.data(), &n) == 1) {
+  for (xpp::Model::DerivedQuantity &d : xpp::model().derived) {
+    if (add_expr(d.rhs.c_str(), f.data(), &n) == 1) {
       xpp::log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
       return 1;
     }
-    derived[i].form.assign(f.begin(), f.begin() + n);
+    d.form.assign(f.begin(), f.begin() + n);
   }
   evaluate_derived();
   return 0;
@@ -48,25 +37,19 @@ and after changing parameters and constants
 */
 void evaluate_derived()
 {
-  for (int i = 0; i < nderived; i++) {
-    derived[i].value = evaluate(derived[i].form.data());
-    xpp::session().parser.constants[derived[i].index] = derived[i].value;
-  }
+  std::array<double, MAXPAR> &constants = xpp::session().parser.constants;
+  for (xpp::Model::DerivedQuantity &d : xpp::model().derived) constants[d.index] = evaluate(d.form.data());
 }
 
 /* this adds a derived quantity  */
 int add_derived(const char *name, const char *rhs)
 {
-  if (nderived >= MAXDERIVED) {
-    xpp::log(XPP_LOG_ERROR, " Too many derived constants! \n");
-    return 1;
-  }
-  int i0 = nderived;
-  derived[i0].rhs = rhs;
+  xpp::Model::DerivedQuantity d;
+  d.rhs = rhs;
   /* this is the constant to which it addresses */
-  derived[i0].index = xpp::session().parser.ncon;
+  d.index = xpp::session().parser.ncon;
   /* add the name to the recognized symbols */
   xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", xpp::session().parser.ncon, name, rhs);
-  nderived++;
+  xpp::model().derived.push_back(std::move(d));
   return add_con(name, 0.0);
 }

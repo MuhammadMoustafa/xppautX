@@ -122,6 +122,16 @@ struct Model {
   int nflags=0;
   std::array<GlobalFlag,MAXFLAG> flags;
 
+  /* ---- the derived quantities (derived.cpp): each one's constant (its
+     place in the parser's constants) and formula, as text and compiled,
+     worked out in this order whenever a parameter changes ---- */
+  struct DerivedQuantity {
+    int index=0;
+    std::string rhs;
+    std::vector<int> form;
+  };
+  std::vector<DerivedQuantity> derived;
+
   /* ---- the DAEs (dae_fun.cpp) ---- */
   /* an algebraic variable (solv): its name, the formula of its first
      guess (rhs, compiled form), its place in the parser's variables */
@@ -214,8 +224,10 @@ struct Model {
      characters blanks at the end of the load) */
   std::vector<std::string> source;
   int nlines() const { return static_cast<int>(source.size()); }
-  /* its statements as its reader read them (odex.h; an .ode's arrays
-     expanded), in order: xppautX --convert writes them (odex_convert.cpp) */
+  /* its statements as its reader read them (odex.h; an array's copies,
+     each marked), in order, as the builder made them (a fixed quantity
+     of parameters a derived one): xppautX --convert writes them
+     (odex_convert.cpp) */
   std::vector<odex::Statement> statements;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */

@@ -45,8 +45,8 @@ void set_initial_values(void);
 /* The Model builder: a model's statements (odex.h), whichever reader made
    them, into the current Model and Session; a statement that does not
    build fails the load (xpp_model_failed, at the statement: the load's
-   diagnostic). Throws odex::Error for a
-   parameter whose value does not evaluate. */
+   diagnostic). A fixed quantity that reads only parameters, consts and
+   pure functions becomes a derived one (docs/odex.md question 9). */
 void build_model(xpp::odex::Parsed p);
 /* an old-style model, neq its number of equations: each line next_line
    gives (false at the end) built as it is read, fptr the file (a Markov

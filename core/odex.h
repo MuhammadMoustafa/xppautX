@@ -25,7 +25,6 @@
 #include "diagnostic.h"
 
 #include <functional>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -89,11 +88,36 @@ struct BlockStmt {
   std::vector<std::vector<BlockStmt>> blocks;
 };
 
-/* name = value, one of a list */
+/* name = value, one of a list; index the name's own (x[e] = value, an
+   array's element) */
 struct Binding {
   std::string name;
   Pos pos;
   Expr value;
+  std::optional<Expr> index;
+};
+
+/* a statement's trailing range (.odex's arrays, W80): for index in
+   lo..hi by step, each end included, step 1 when by is not written;
+   index "" when the statement has none */
+struct Range {
+  std::string index;
+  Pos pos, index_pos;
+  Expr lo, hi, step;
+};
+
+/* which array statement a statement is a copy of (W80): group 0 when it
+   is none; the index and its value in this copy, the range's ends and
+   step. Both readers make the copies (an .ode's arrays are text its reader
+   rewrites, an .odex's the .odex reader expands) and mark them so, and
+   --convert writes the copies back as one statement with its range;
+   interleaved when the copies are .ode's %[..] block of several lines,
+   which take turns (copy k of each line, then copy k+1) */
+struct ArrayCopy {
+  int group = 0;
+  std::string index;
+  int value = 0, lo = 0, hi = 0, step = 1;
+  bool interleaved = false;
 };
 
 /* an @ option: its name and its value's text */
@@ -110,9 +134,9 @@ struct Statement {
     Map,      /* name(t+1) = expr (.ode) */
     Volterra, /* name(t) = expr */
     Fixed,    /* name = expr */
-    Par,      /* par bindings: a number, or (.odex) an expression of numbers,
-                 pi and the parameters before it */
-    Const,    /* const bindings: numbers fixed at load (.ode's number) */
+    Par,      /* par bindings: numbers */
+    Const,    /* const bindings: numbers fixed at load (.ode's number;
+                 .odex's const, whose value the .odex reader works out) */
     Init,     /* init bindings: formulas, evaluated in order with every
                  parameter set once the model is set up (.odex's) */
     InitNumbers, /* init bindings, each a number set at once (.ode's init;
@@ -120,7 +144,9 @@ struct Statement {
     History,  /* history bindings: a variable's values before the start
                  (.ode's x(0)=formula is an init and a history) */
     Aux,      /* aux bindings */
-    Derived,  /* !name = expr, in bindings */
+    Derived,  /* .ode's !name = expr, in bindings; the builder makes a
+                 Fixed whose formula reads only parameters, consts and pure
+                 functions one too (parameters_only) */
     Fun,      /* fun name(names) = expr, or with a body */
     Options,  /* @ options; text the @ line the Model keeps */
     OptionFile, /* .ode's options file: text, its name */
@@ -145,11 +171,25 @@ struct Statement {
   Pos pos;
   std::string name;
   Pos name_pos;
+  /* the name's index, x[e] (an array's element) */
+  std::optional<Expr> name_index;
   std::string text;
   Expr expr;
   std::vector<Binding> bindings;
   std::vector<std::string> names;
   std::vector<Pos> name_positions;
+  /* each of names' index, when one has one (empty when none has) */
+  std::vector<std::optional<Expr>> name_indices;
+  /* the trailing range (.odex), and which array statement this one is a
+     copy of (both readers' copies) */
+  Range range;
+  ArrayCopy array;
+  /* a Derived computed only when a parameter changes, as its formula
+     reads only parameters, consts and pure functions (and derived
+     quantities before it): the builder's finding (form_ode.cpp), false
+     for an .ode's !name = expr that reads t, a variable or a random
+     function, which --convert refuses */
+  bool parameters_only = false;
   /* a block function's body (has_body) */
   bool has_body = false;
   std::vector<BlockStmt> body;
@@ -166,8 +206,10 @@ struct Statement {
   TableKind table_kind = TableKind::File;
   /* a Markov variable's transitions, row by row */
   std::vector<Expr> cells;
-  /* a network's arguments, each as written */
+  /* a network's arguments, each as written, and each one's index when it
+     is an array's element, name[e] (empty when none is) */
   std::vector<std::string> call_args;
+  std::vector<std::optional<Expr>> call_arg_indices;
 };
 
 /* a parsed model: its files (the model's, then those it includes) and
@@ -231,9 +273,8 @@ std::string print(const Expr &e);
 std::string print_number(double v);
 /* e as the expression engine's text (an .ode formula's), with the
    parentheses the engine's precedence needs to keep e's grouping, a sign
-   and an if always bracketed; an .ode formula (Text) as it is. A name in
-   values (a parameter's, pi) is its value's text instead. */
-std::string engine_text(const Expr &e, const std::map<std::string, std::string> *values = nullptr);
+   and an if always bracketed; an .ode formula (Text) as it is */
+std::string engine_text(const Expr &e);
 
 }
 

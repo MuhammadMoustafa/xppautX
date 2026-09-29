@@ -126,6 +126,7 @@ void xpp_writer_abort(XppWriter *w);
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
 #include <format>
@@ -269,6 +270,35 @@ public:
 private:
   std::string_view rest_;
 };
+
+/* c starts a word (a letter or '_'), c is in one (a digit too): a model's
+   names are words */
+inline bool is_word_start(char c)
+{
+  return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||c=='_';
+}
+inline bool is_word_char(char c)
+{
+  return is_word_start(c)||(c>='0'&&c<='9');
+}
+/* the words of text in order, each as written: runs of word characters
+   that start with a letter or '_' (a formula's names and calls; the e of
+   a number's exponent, 1e-3, is none) */
+inline std::vector<std::string> words_of(std::string_view text)
+{
+  std::vector<std::string> out;
+  size_t i=0;
+  while(i<text.size()){
+    if(is_word_start(text[i])&&(i==0||!is_word_char(text[i-1]))){
+      size_t b=i;
+      while(i<text.size()&&is_word_char(text[i]))i++;
+      out.emplace_back(text.substr(b,i-b));
+    }
+    else
+      i++;
+  }
+  return out;
+}
 
 /* ---- JSON strings -------------------------------------------------------
    The one place that reads or writes a JSON string's content (the core's

@@ -3,11 +3,14 @@
    and readied for the Model builder (form_ode.cpp's build_model), the
    one an .ode model's statements go through too (docs/odex.md question
    10). What .odex means where .ode means something else is said in the
-   statements themselves: a parameter's value an expression (the builder
-   evaluates it in order), an initial value a formula (evaluated with the
+   statements themselves: an initial value a formula (evaluated with the
    parameters set, once the model is set up), a history only a history,
    a block function the one expression its returns make, near() with its
-   tol, and the model's divisions IEEE's (Parsed::ieee_division). */
+   tol, and the model's divisions IEEE's (Parsed::ieee_division). A
+   const's value is worked out here, and an array statement (a trailing
+   range, for j in lo..hi by step: docs/odex.md "Arrays") made its copies,
+   each element x[e] the name x followed by e's value, each copy marked
+   (Statement::array) for --convert. */
 #include "odex.h"
 #include "expr.h"
 #include "form_ode.h"
@@ -19,9 +22,9 @@
 #include "xpp_util.h"
 
 #include <array>
+#include <cmath>
 #include <map>
 #include <optional>
-#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,7 +34,7 @@ namespace xpp::odex {
 namespace {
 
 /* what a declared name is */
-enum class Kind { Variable, Markov, Fixed, Aux, Param, Derived, Wiener, Function, Table, Network, Algebraic };
+enum class Kind { Variable, Markov, Fixed, Aux, Param, Const, Wiener, Function, Table, Network, Algebraic };
 
 const char *kind_name(Kind k)
 {
@@ -41,7 +44,7 @@ const char *kind_name(Kind k)
   case Kind::Fixed: return "a fixed variable";
   case Kind::Aux: return "an aux quantity";
   case Kind::Param: return "a parameter";
-  case Kind::Derived: return "a derived parameter";
+  case Kind::Const: return "a const";
   case Kind::Wiener: return "a Wiener parameter";
   case Kind::Function: return "a function";
   case Kind::Table: return "a table";
@@ -95,9 +98,15 @@ struct Scope {
   /* volterra(...) allowed: an ODE's, a Volterra equation's or a fixed
      variable's formula (the .ode reader looks for its kernels there) */
   bool volterra = false;
-  /* a parameter's value: numbers, pi and the parameters before it */
-  bool par_value = false;
 };
+
+/* the statements that may take a range: every one but an @ line, a
+   comment the model shows, only and a set */
+bool takes_range(Statement::Kind k)
+{
+  using K = Statement::Kind;
+  return k != K::Options && k != K::Comment && k != K::Only && k != K::Set;
+}
 
 class Loader {
 public:
@@ -105,17 +114,189 @@ public:
 
   Parsed run()
   {
-    for (const Statement &s : p_.statements) declare(s);
+    const std::vector<Statement> statements = expanded();
+    for (const Statement &s : statements) in_copy(s.array, [&] { declare(s); });
+    for (const Statement &s : p_.statements)
+      if (!s.range.index.empty())
+        if (const Decl *d = find(s.range.index))
+          fail(s.range.index_pos, xpp::format("the index `{}` is {}, declared at {}:{}: an index is named like "
+                                              "no declared name", s.range.index, kind_name(d->kind),
+                                              d->pos.line, d->pos.col));
     scan_neartol();
     Parsed out;
     out.files = p_.files;
     out.ieee_division = true;
-    for (const Statement &s : p_.statements) ready(s, out.statements);
+    for (const Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
     return out;
   }
 
 private:
   [[noreturn]] void fail(Pos pos, std::string msg) const { throw error_at(p_.files[pos.file], pos, std::move(msg)); }
+
+  /* f(), a problem in an array's copy (a) saying which copy */
+  template <class F> static void in_copy(const ArrayCopy &a, F f)
+  {
+    try {
+      f();
+    } catch (Error &e) {
+      if (a.group) e.cause += xpp::format(" (where {} = {})", a.index, a.value);
+      throw;
+    }
+  }
+
+  /* ---- consts and arrays ---- */
+  /* the value of e, worked out at load: numbers, the consts before it and
+     the range's index (in index, its value in value), with + - * / mod ^
+     and a sign (docs/odex.md "Arrays"); what is an index or a range's end
+     says so in what */
+  double load_value(const Expr &e, std::string_view what, const std::string &index, int value) const
+  {
+    switch (e.kind) {
+    case Expr::Kind::Number: return e.value;
+    case Expr::Kind::Name: {
+      if (!e.primed && !index.empty() && e.text == index) return value;
+      auto c = consts_.find(e.text);
+      if (!e.primed && c != consts_.end()) return c->second;
+      fail(e.pos, xpp::format("{} reads numbers, the consts before it and the range's index, not `{}{}`", what,
+                              e.text, e.primed ? "'" : ""));
+    }
+    case Expr::Kind::Neg: return -load_value(e.args[0], what, index, value);
+    case Expr::Kind::Binary: {
+      const std::string &op = e.text;
+      if (op == "+" || op == "-" || op == "*" || op == "/" || op == "mod" || op == "^") {
+        const double a = load_value(e.args[0], what, index, value), b = load_value(e.args[1], what, index, value);
+        if (op == "+") return a + b;
+        if (op == "-") return a - b;
+        if (op == "*") return a * b;
+        if (op == "/") return a / b;
+        if (op == "^") return std::pow(a, b);
+        /* mod as the expression engine's: in [0, b) */
+        const double z = std::fmod(a, b);
+        return z < 0 ? z + b : z;
+      }
+      break;
+    }
+    default: break;
+    }
+    fail(e.pos, xpp::format("{} is worked out at load from numbers, consts and the range's index with + - * / mod "
+                            "^: `{}` is not", what, print(e)));
+  }
+
+  /* e's value, a whole number (and not negative with nonnegative) */
+  int whole(const Expr &e, std::string_view what, const std::string &index, int value, bool nonnegative) const
+  {
+    const double v = load_value(e, what, index, value);
+    if (!(v == std::floor(v)) || std::fabs(v) > 1e9)
+      fail(e.pos, xpp::format("{} `{}` is {}, not a whole number", what, print(e), print_number(v)));
+    if (nonnegative && v < 0) fail(e.pos, xpp::format("{} `{}` is {}: an element's index is 0 or more", what, print(e), print_number(v)));
+    return static_cast<int>(v);
+  }
+
+  /* name with its index's value: x[e] is the name x followed by e's */
+  std::string element(const std::string &name, const Expr &index, const std::string &ix, int value) const
+  {
+    return name + std::to_string(whole(index, xpp::format("the index of {}", name), ix, value, true));
+  }
+
+  /* e with the range's index its value (value) and every element x[e]
+     the name it is */
+  Expr resolved(const Expr &e, const std::string &index, int value) const
+  {
+    if (e.kind == Expr::Kind::Name && !e.primed && !index.empty() && e.text == index) {
+      Expr n;
+      n.kind = Expr::Kind::Number;
+      n.pos = e.pos;
+      n.value = value;
+      n.text = std::to_string(value);
+      return n;
+    }
+    if (e.kind == Expr::Kind::Index) {
+      const Expr &a = e.args[0];
+      if (a.kind != Expr::Kind::Name || a.primed) fail(e.pos, "only a name can be indexed: x[j]");
+      Expr n = a;
+      n.text = element(a.text, e.args[1], index, value);
+      return n;
+    }
+    Expr out = e;
+    for (Expr &a : out.args) a = resolved(a, index, value);
+    return out;
+  }
+
+  void resolve_block(std::vector<BlockStmt> &body, const std::string &index, int value) const
+  {
+    for (BlockStmt &b : body) {
+      b.value = resolved(b.value, index, value);
+      for (Expr &c : b.conds) c = resolved(c, index, value);
+      for (std::vector<BlockStmt> &blk : b.blocks) resolve_block(blk, index, value);
+    }
+  }
+
+  /* s's copy for index = value (index "" for a statement with no range):
+     its formulas and names resolved */
+  Statement copy(const Statement &s, const std::string &index, int value)
+  {
+    Statement c = s;
+    c.range = Range();
+    if (c.name_index) c.name = element(c.name, *c.name_index, index, value);
+    c.name_index.reset();
+    c.expr = resolved(c.expr, index, value);
+    for (Binding &b : c.bindings) {
+      if (b.index) b.name = element(b.name, *b.index, index, value);
+      b.index.reset();
+      b.value = resolved(b.value, index, value);
+    }
+    for (size_t i = 0; i < c.name_indices.size(); i++)
+      if (c.name_indices[i]) c.names[i] = element(c.names[i], *c.name_indices[i], index, value);
+    c.name_indices.clear();
+    for (size_t i = 0; i < c.call_arg_indices.size(); i++)
+      if (c.call_arg_indices[i]) c.call_args[i] = element(c.call_args[i], *c.call_arg_indices[i], index, value);
+    c.call_arg_indices.clear();
+    for (Expr &e : c.cells) e = resolved(e, index, value);
+    resolve_block(c.body, index, value);
+    if (c.kind == Statement::Kind::Const) {
+      /* its value now, the consts before it read */
+      for (Binding &b : c.bindings) {
+        const double v = load_value(b.value, xpp::format("the value of const {}", b.name), index, value);
+        Expr n;
+        n.kind = Expr::Kind::Number;
+        n.pos = b.value.pos;
+        n.value = v;
+        n.text = print_number(v);
+        b.value = std::move(n);
+        consts_[b.name] = v;
+      }
+    }
+    return c;
+  }
+
+  /* the model's statements, each array statement's copies in its place
+     (for j in lo..hi by step: lo, lo+step, ... up to hi) */
+  std::vector<Statement> expanded()
+  {
+    std::vector<Statement> out;
+    int group = 0;
+    for (const Statement &s : p_.statements) {
+      const Range &r = s.range;
+      if (r.index.empty()) {
+        out.push_back(copy(s, std::string(), 0));
+        continue;
+      }
+      if (!takes_range(s.kind)) fail(r.pos, "this statement takes no range");
+      const int lo = whole(r.lo, "the range's first index", std::string(), 0, false);
+      const int hi = whole(r.hi, "the range's last index", std::string(), 0, false);
+      const int step = whole(r.step, "the range's step", std::string(), 0, false);
+      if (step <= 0) fail(r.step.pos, xpp::format("the range's step is a whole number above 0, not {}", step));
+      if (hi < lo) fail(r.lo.pos, xpp::format("the range {}..{} is empty: a range counts up from its first index to "
+                                              "its last", lo, hi));
+      group++;
+      for (int k = lo; k <= hi; k += step) {
+        const ArrayCopy a{group, r.index, k, lo, hi, step, false};
+        in_copy(a, [&] { out.push_back(copy(s, r.index, k)); });
+        out.back().array = a;
+      }
+    }
+    return out;
+  }
 
   /* ---- the names ---- */
   void add(const std::string &name, Kind kind, Pos pos, int arity = 0)
@@ -167,8 +348,8 @@ private:
     case Statement::Kind::Par:
       for (const Binding &b : s.bindings) add(b.name, Kind::Param, b.pos);
       break;
-    case Statement::Kind::Derived:
-      for (const Binding &b : s.bindings) add(b.name, Kind::Derived, b.pos);
+    case Statement::Kind::Const:
+      for (const Binding &b : s.bindings) add(b.name, Kind::Const, b.pos);
       break;
     case Statement::Kind::Wiener:
       for (size_t i = 0; i < s.names.size(); i++) add(s.names[i], Kind::Wiener, s.name_positions[i]);
@@ -227,7 +408,7 @@ private:
     case Expr::Kind::If:
       for (const Expr &a : e.args) check(a, sc);
       return;
-    case Expr::Kind::Index: fail(e.pos, "indexing (x[i]) is not part of .odex yet");
+    case Expr::Kind::Index: fail(e.pos, "an element x[e] reads here only as a name"); /* copy() resolved it */
     case Expr::Kind::Call: check_call(e, sc); return;
     }
   }
@@ -245,11 +426,6 @@ private:
     if (sc.args)
       for (const std::string &a : *sc.args)
         if (a == e.text) return;
-    if (sc.par_value) {
-      if (e.text == "pi") return;
-      if (pars_.count(e.text)) return;
-      fail(e.pos, xpp::format("a parameter's value can read numbers, pi and the parameters before it, not `{}`", e.text));
-    }
     if (e.text == "t" || e.text == "pi" || e.text.starts_with("mouse_")) {
       if (is_reserved(e.text)) return;
     }
@@ -273,7 +449,6 @@ private:
   void check_call(const Expr &e, const Scope &sc) const
   {
     const int n = static_cast<int>(e.args.size());
-    if (sc.par_value) fail(e.pos, xpp::format("a parameter's value cannot call {}", e.text));
     const int arity = builtin_arity(e.text);
     if (e.text == "sum") {
       check_sum(e, sc);
@@ -297,7 +472,7 @@ private:
         const Decl *d = v.kind == Expr::Kind::Name && !v.primed ? find(v.text) : nullptr;
         const bool var = d && (d->kind == Kind::Variable || d->kind == Kind::Markov || d->kind == Kind::Fixed ||
                                d->kind == Kind::Algebraic);
-        const bool con = d && (d->kind == Kind::Param || d->kind == Kind::Derived || d->kind == Kind::Wiener);
+        const bool con = d && (d->kind == Kind::Param || d->kind == Kind::Const || d->kind == Kind::Wiener);
         const bool ok = var || ((e.text == "shift" || e.text == "ishift") && con);
         if (!ok) fail(v.pos, xpp::format("{}'s first argument is the name of a variable", e.text));
         for (int i = 1; i < n; i++) check(e.args[i], sc);
@@ -502,15 +677,24 @@ private:
       s.text = line;
       break;
     }
-    case Statement::Kind::Par: {
-      Scope sc;
-      sc.par_value = true;
-      for (const Binding &b : s.bindings) {
-        check(b.value, sc);
-        pars_.insert(b.name);
+    case Statement::Kind::Par:
+      /* numbers only (docs/odex.md question 9): a quantity worked out
+         from the parameters is d = expr */
+      for (Binding &b : s.bindings) {
+        const Expr &v = b.value;
+        const bool neg = v.kind == Expr::Kind::Neg && v.args[0].kind == Expr::Kind::Number;
+        if (v.kind != Expr::Kind::Number && !neg)
+          fail(v.pos, xpp::format("a parameter's value is a number, not `{}` (par takes numbers; a quantity worked "
+                                  "out from parameters is `{} = ...` outside par)", print(v), b.name));
+        if (neg) {
+          Expr n = v.args[0];
+          n.pos = v.pos;
+          n.value = -n.value;
+          n.text = print_number(n.value);
+          b.value = std::move(n);
+        }
       }
       break;
-    }
     case Statement::Kind::Init:
       variables(s, true, "init gives a variable its initial value");
       for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
@@ -523,7 +707,6 @@ private:
     case Statement::Kind::Volterra:
     case Statement::Kind::Fixed: s.expr = formula(s.expr, formula_scope(true)); break;
     case Statement::Kind::Aux:
-    case Statement::Kind::Derived:
       for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
       break;
     case Statement::Kind::Fun: {
@@ -592,8 +775,9 @@ private:
   const Parsed &p_;
   std::map<std::string, Decl> decls_;
   std::map<std::string, std::string> folded_;
-  /* the parameters so far: what a parameter's value may read */
-  std::set<std::string> pars_;
+  /* the consts so far and their values: what a const's value, a range's
+     ends and step and an index read (expanded() fills it in order) */
+  std::map<std::string, double> consts_;
   /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
   double neartol_ = 1e-9;
 };

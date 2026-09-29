@@ -1380,17 +1380,21 @@ void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
 {
   array_ic_for(newic,j1,j2).formula=formula;
 }
-std::vector<std::pair<std::string, std::string>> array_initial_values()
+std::vector<ArrayInitialValue> array_initial_values()
 {
-  std::vector<std::pair<std::string, std::string>> out;
+  std::vector<ArrayInitialValue> out;
   if(ar_ic_defined==0)return out;
+  int group=0;
   for(const ARRAY_IC &ic : ar_ic){
     if(ic.type!=2)continue;
+    group++;
     for(int j=ic.j1;j<=ic.j2;j++){
-      std::string vp,fp;
-      subsk(ic.var.c_str(),vp,j,1);
-      subsk(ic.formula.c_str(),fp,j,1);
-      out.emplace_back(vp,fp);
+      ArrayInitialValue v;
+      subsk(ic.var.c_str(),v.var,j,1);
+      subsk(ic.formula.c_str(),v.formula,j,1);
+      v.j=j;
+      v.group=group;
+      out.push_back(std::move(v));
     }
   }
   return out;

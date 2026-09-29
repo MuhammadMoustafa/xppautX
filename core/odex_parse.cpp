@@ -8,6 +8,7 @@
 #include "xpp_io.h"
 
 #include <array>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,11 +22,13 @@ namespace {
    operator words, volterra, near (W78: near(a,b[,tol=]), a translation,
    never an expression-engine built-in), the built-in functions (every
    one the expression engine has, lgamma, poisson and besselis included)
-   and constants (t, pi, and the animator's mouse_x ... mouse_vy) */
+   and constants (t, pi, and the animator's mouse_x ... mouse_vy); const
+   and by (W80: const n = 20, and a range's step, for j in 1..n by 2; for
+   and in are words only where a range starts, after a statement) */
 constexpr auto reserved_words = std::to_array<std::string_view>({
   "par", "init", "aux", "fun", "let", "return", "if", "then", "else", "set",
   "table", "markov", "wiener", "event", "boundary", "network", "include",
-  "solv", "only", "history",
+  "solv", "only", "history", "const", "by",
   "and", "or", "not", "mod", "volterra", "near",
   "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh",
   "tanh", "exp", "ln", "log", "log10", "sqrt", "heav", "sign", "flr", "ran",
@@ -105,7 +108,8 @@ public:
       } else if (is_digit(c) || (c == '.' && i_ + 1 < s_.size() && is_digit(s_[i_ + 1]))) {
         size_t b = i_;
         while (i_ < s_.size() && is_digit(s_[i_])) i_++;
-        if (i_ < s_.size() && s_[i_] == '.') {
+        /* 1..n is 1, then .. (a range), never the number 1. */
+        if (i_ < s_.size() && s_[i_] == '.' && s_.substr(i_, 2) != "..") {
           i_++;
           while (i_ < s_.size() && is_digit(s_[i_])) i_++;
         }
@@ -129,7 +133,7 @@ public:
         t.text = std::string(s_.substr(b, i_ - b));
         i_++;
       } else {
-        static constexpr std::array<std::string_view, 4> two = {"<=", ">=", "==", "!="};
+        static constexpr std::array<std::string_view, 5> two = {"<=", ">=", "==", "!=", ".."};
         t.kind = Token::Kind::Punct;
         t.text = std::string(1, c);
         for (std::string_view p : two)
@@ -286,11 +290,54 @@ private:
     return take();
   }
 
+  /* a declared name's index, [expr], when one follows */
+  std::optional<Expr> name_index()
+  {
+    if (!at_punct("[")) return std::nullopt;
+    take();
+    Expr e = expr();
+    expect_punct("]", "to close the index");
+    return e;
+  }
+
+  /* a range starts here: `for`, on the line the statement ended on */
+  bool at_range() const { return at_word("for") && peek().pos.line == last_line_; }
+
+  /* for index in lo..hi [by step] (docs/odex.md "Arrays") */
+  Range range()
+  {
+    Range r;
+    r.pos = take().pos;
+    const Token &n = declared_name("the range's index");
+    r.index = n.text;
+    r.index_pos = n.pos;
+    expect_word("in", xpp::format("after for {}", r.index));
+    r.lo = expr();
+    expect_punct("..", "between the range's first and last index (a..b)");
+    r.hi = expr();
+    if (at_punct(".."))
+      fail(peek().pos, "a range is a..b, its step written `by k` (not a..b..k)");
+    if (at_word("by")) {
+      take();
+      r.step = expr();
+    } else {
+      r.step.kind = Expr::Kind::Number;
+      r.step.pos = r.pos;
+      r.step.value = 1;
+      r.step.text = "1";
+    }
+    if (at_word("step") && peek().pos.line == last_line_)
+      fail(peek().pos, "a range's step is written `by k`");
+    if (at_range()) fail(peek().pos, "a statement takes one range");
+    return r;
+  }
+
   /* a list statement ends at the end of its line: another item on the
      same line needs its comma (par a=1 b=2 would otherwise read b=2 as
      a statement of its own) */
   void end_of_list(std::string_view what)
   {
+    if (at_range()) return;
     if (!at_end() && peek().pos.line == last_line_)
       fail(peek().pos, xpp::format("expected `,` between the items of {}, found {}", what, describe(peek())));
   }
@@ -312,14 +359,9 @@ private:
       options(s);
       return;
     }
-    if (t.kind == Token::Kind::Punct && t.text == "!") {
-      take();
-      s.kind = Statement::Kind::Derived;
-      s.bindings.push_back(binding("a derived parameter's name"));
-      end_of_list("a derived parameter");
-      push(std::move(s));
-      return;
-    }
+    if (t.kind == Token::Kind::Punct && t.text == "!")
+      fail(t.pos, "`!d = expr` is .ode's: in .odex write `d = expr` (a formula of parameters is worked out "
+                  "when they change)");
     if (t.kind == Token::Kind::Number && t.text == "0" && at_punct("=", 1)) {
       take();
       take();
@@ -342,10 +384,11 @@ private:
       return;
     }
     const std::string word = t.text;
-    if (word == "par" || word == "init" || word == "aux" || word == "history") {
+    if (word == "par" || word == "init" || word == "aux" || word == "history" || word == "const") {
       take();
       s.kind = word == "par" ? Statement::Kind::Par : word == "init" ? Statement::Kind::Init
-             : word == "aux" ? Statement::Kind::Aux : Statement::Kind::History;
+             : word == "aux" ? Statement::Kind::Aux : word == "const" ? Statement::Kind::Const
+             : Statement::Kind::History;
       bindings(s, word);
       push(std::move(s));
     } else if (word == "fun") {
@@ -367,13 +410,17 @@ private:
     } else if (word == "wiener" || word == "only") {
       take();
       s.kind = word == "wiener" ? Statement::Kind::Wiener : Statement::Kind::Only;
+      bool indexed = false;
       for (;;) {
         const Token &n = word == "wiener" ? declared_name("a name") : name_token("a name");
         s.names.push_back(n.text);
         s.name_positions.push_back(n.pos);
+        s.name_indices.push_back(name_index());
+        indexed = indexed || s.name_indices.back();
         if (!at_punct(",")) break;
         take();
       }
+      if (!indexed) s.name_indices.clear();
       end_of_list(word);
       push(std::move(s));
     } else if (word == "event") {
@@ -399,27 +446,37 @@ private:
       include();
     } else if (is_reserved(word)) {
       fail(t.pos, xpp::format("`{}` is a reserved word and cannot start a statement", word));
-    } else if (at_punct("=", 1)) {
-      s.kind = Statement::Kind::Fixed;
-      name_of(s, "a name");
-      take();
-      s.expr = expr();
-      push(std::move(s));
-    } else if (at_punct("(", 1) && at_word("t", 2) && at_punct(")", 3) && at_punct("=", 4)) {
-      s.kind = Statement::Kind::Volterra;
-      name_of(s, "a name");
-      take();
-      take();
-      take();
-      take();
-      s.expr = expr();
-      push(std::move(s));
     } else {
-      fail(peek(1).pos, xpp::format("expected `'`, `=` or `(t) =` after `{}`, found {}", word, describe(peek(1))));
+      /* x = ..., x(t) = ..., or an array's element: x[e]' = ..., x[e] =
+         ..., x[e](t) = ... */
+      name_of(s, "a name");
+      if (s.name_index && at_punct("'") && !peek().space_before) {
+        take();
+        s.kind = Statement::Kind::Ode;
+        expect_punct("=", xpp::format("after {}[...]'", s.name));
+      } else if (at_punct("=")) {
+        take();
+        s.kind = Statement::Kind::Fixed;
+      } else if (at_punct("(") && at_word("t", 1) && at_punct(")", 2) && at_punct("=", 3)) {
+        take();
+        take();
+        take();
+        take();
+        s.kind = Statement::Kind::Volterra;
+      } else {
+        fail(peek().pos, xpp::format("expected `'`, `=` or `(t) =` after `{}`, found {}", word, describe(peek())));
+      }
+      s.expr = expr();
+      push(std::move(s));
     }
   }
 
-  void push(Statement s) { out_.statements.push_back(std::move(s)); }
+  /* s, its range with it when one follows */
+  void push(Statement s)
+  {
+    if (at_range()) s.range = range();
+    out_.statements.push_back(std::move(s));
+  }
 
   const Token &name_token(std::string_view what)
   {
@@ -428,11 +485,13 @@ private:
     return take();
   }
 
+  /* a declared name, and its index when it is an array's element */
   void name_of(Statement &s, std::string_view what)
   {
     const Token &n = declared_name(what);
     s.name = n.text;
     s.name_pos = n.pos;
+    s.name_index = name_index();
   }
 
   Binding binding(std::string_view what)
@@ -441,6 +500,7 @@ private:
     const Token &n = declared_name(what);
     b.name = n.text;
     b.pos = n.pos;
+    b.index = name_index();
     expect_punct("=", xpp::format("after {}", b.name));
     b.value = expr();
     return b;
@@ -692,6 +752,7 @@ private:
       const Token &t = name_token("a name to set");
       b.name = t.text;
       b.pos = t.pos;
+      b.index = name_index();
       expect_punct("=", xpp::format("after {}", b.name));
       b.value = expr();
       s.bindings.push_back(std::move(b));
@@ -708,8 +769,19 @@ private:
     const Token &f = name_token("the network's kind (conv, sparse, ...)");
     s.text = f.text;
     expect_punct("(", xpp::format("after {}", s.text));
+    bool indexed = false;
     for (;;) {
       const Pos at = peek().pos;
+      /* an array's element, name[e] */
+      if (peek().kind == Token::Kind::Name && !peek().primed && at_punct("[", 1)) {
+        s.call_args.push_back(take().text);
+        s.call_arg_indices.push_back(name_index());
+        indexed = true;
+        if (at_punct(")")) break;
+        expect_punct(",", xpp::format("between the arguments of {}", s.text));
+        continue;
+      }
+      s.call_arg_indices.emplace_back();
       int depth = 0;
       size_t b = peek().begin, e = b;
       while (!at_end() && !(depth == 0 && (at_punct(",") || at_punct(")")))) {
@@ -723,6 +795,7 @@ private:
       expect_punct(",", xpp::format("between the arguments of {}", s.text));
     }
     take();
+    if (!indexed) s.call_arg_indices.clear();
     push(std::move(s));
   }
 
@@ -957,7 +1030,7 @@ private:
     static constexpr auto words = std::to_array<std::string_view>({
       "par", "init", "aux", "fun", "let", "return", "if", "then", "else",
       "table", "markov", "wiener", "event", "boundary", "network", "include",
-      "solv", "only", "history", "and", "or", "not", "mod", "of"});
+      "solv", "only", "history", "const", "by", "and", "or", "not", "mod", "of"});
     for (std::string_view k : words)
       if (k == w) return true;
     return false;

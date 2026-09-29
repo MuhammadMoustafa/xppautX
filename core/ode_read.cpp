@@ -944,6 +944,9 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
             break;
        }
 
+   /* each line's copies are one array's (Statement::array), numbered by
+      where the first of them is in out */
+   std::vector<int> groups(strings.size(),0);
    while(1){
       for(ns=0;ns<static_cast<int>(strings.size());ns++){
       xpp::Load::at(src.file,string_lines[ns]);
@@ -1088,6 +1091,11 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       /* the statements the line made are at it */
       for(size_t k=first_new;k<out.size();k++)
         if(out[k].pos.line==0)out[k].pos=xpp::odex::Pos{src.index,string_lines[ns],0};
+      if(is_array&&out.size()>first_new){
+        if(groups[ns]==0)groups[ns]=static_cast<int>(first_new)+1;
+        for(size_t k=first_new;k<out.size();k++)
+          out[k].array=xpp::odex::ArrayCopy{groups[ns],"j",jj,jj1,jj2,jjsgn,is_array==2&&strings.size()>1};
+      }
    } /* end loop for the strings */
    if(done==2)notdone=0;
    if(at_end)
