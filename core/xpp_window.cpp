@@ -4,7 +4,8 @@
 
    Like xpp_http.cpp this file includes no core header but small C APIs
    (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), so the platform headers it needs
-   for the menu bar (<windows.h> on Windows, GTK on Linux) cannot clash
+   for the menu bar and the file dialogs (<windows.h> and <shobjidl.h> on
+   Windows, GTK on Linux, the Objective-C runtime on macOS) cannot clash
    with core names: the one exception to "Windows API code lives only in
    xpp_win32.cpp", kept behind _WIN32 and out of every header. It calls them
    through an XppWindowHost table (xpp_window_plugin.h).
@@ -25,7 +26,9 @@
 #include "xpp_window_hint.h"
 #include <array>
 #include <cstring>
+#include <optional>
 #include <string>
+#include <vector>
 
 #ifndef XPP_WINDOW
 
@@ -50,8 +53,10 @@ void xpp_window_set_model(const char *) {}
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <commdlg.h>
+#include <shobjidl.h>
 #elif defined(__APPLE__)
+#include <objc/message.h>
+#include <objc/runtime.h>
 #include <pthread.h>
 #include <unistd.h>
 #else
@@ -184,10 +189,40 @@ void on_exit()
     st->done_f.wait_for(std::chrono::seconds(3));
 }
 
+/* ---- the native file dialog (W88) ---------------------------------------
+   A `file` ask shown in the window is answered from the operating system's
+   own open or save dialog, with the true path picked (docs/ui-v2.md section
+   4): web2 calls the page's __xppFileDialog, bound below, instead of showing
+   its own dialog, and answers the ask with what it resolves to. What the
+   dialog filters by (exts) is web2's wildExtensions (web2/src/pickers.ts),
+   the one reading of an ask's pattern; File > Open model's is its own.
+   A save dialog does not ask before replacing a file: the core does, as
+   in every front end (open_writer_asking), and one question is enough. */
+struct FileDialog {
+    bool save = false;
+    std::string title;
+    std::string dir;               /* the folder shown first ("": the system's choice) */
+    std::string file;              /* the name offered (a base name) */
+    std::string filter;            /* the filter's name */
+    std::vector<std::string> exts; /* ".set" ...; none: no filter but All files */
+};
+
+/* the platform's dialog, below, on the window's UI thread, owned by window
+   (its native window): the path picked, "" when cancelled, nullopt when it
+   could not open */
+std::optional<std::string> pick_file(void *window, const FileDialog &d);
+
 /* ---- File > Open model and Reload: the protocol's open and reload -------
    The model picked is loaded in this process (W61): the core asks before
    the model it has goes, offering to save its session, in the page. */
 [[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"reload\"}";
+
+[[maybe_unused]] void open_model(void *window)
+{
+    const FileDialog models{false, "Open model", "", "", "XPP models (*.ode, *.odex)", {".ode", ".odex"}};
+    std::optional<std::string> path = pick_file(window, models);
+    if (path && !path->empty()) host->open_model(path->c_str());
+}
 
 /* ---- the platform's menu bar, icon and dialogs -------------------------- */
 
@@ -195,6 +230,8 @@ enum MenuId { ID_OPEN = 101, ID_RELOAD, ID_QUIT, ID_MANUAL, ID_KEYS, ID_ABOUT };
 [[maybe_unused]] const char *const KEYS_CHAPTER = "05-commands"; /* the hotkeys, from its first paragraph */
 
 #if defined(_WIN32)
+
+constexpr bool HAS_FILE_DIALOG = true;
 
 std::wstring wide(const std::string &s)
 {
@@ -215,20 +252,63 @@ std::string narrow(const wchar_t *w)
     return s;
 }
 
-void open_model(HWND owner)
+/* a COM interface, released at the end of its scope */
+template <class T> struct Com {
+    T *p = nullptr;
+    Com() = default;
+    Com(const Com &) = delete;
+    Com &operator=(const Com &) = delete;
+    ~Com()
+    {
+        if (p) p->Release();
+    }
+    void **out() { return reinterpret_cast<void **>(&p); }
+    T *operator->() const { return p; }
+};
+
+/* the Common Item Dialog (IFileOpenDialog, IFileSaveDialog), on the
+   window's STA thread */
+std::optional<std::string> pick_file(void *window, const FileDialog &d)
 {
-    wchar_t file[32768] = L"";
-    OPENFILENAMEW ofn;
-    ZeroMemory(&ofn, sizeof ofn);
-    ofn.lStructSize = sizeof ofn;
-    ofn.hwndOwner = owner;
-    ofn.lpstrFilter = L"XPP models (*.ode, *.odex)\0*.ode;*.odex\0All files (*.*)\0*.*\0";
-    ofn.lpstrFile = file;
-    ofn.nMaxFile = sizeof file / sizeof file[0];
-    ofn.lpstrTitle = L"Open model";
-    ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-    if (!GetOpenFileNameW(&ofn)) return;
-    host->open_model(narrow(file).c_str());
+    Com<IFileDialog> dlg;
+    if (FAILED(CoCreateInstance(d.save ? __uuidof(FileSaveDialog) : __uuidof(FileOpenDialog), nullptr,
+                                CLSCTX_INPROC_SERVER, __uuidof(IFileDialog), dlg.out())))
+        return std::nullopt;
+    FILEOPENDIALOGOPTIONS opts = 0;
+    dlg->GetOptions(&opts);
+    opts |= FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR | FOS_PATHMUSTEXIST;
+    if (d.save)
+        opts &= ~static_cast<FILEOPENDIALOGOPTIONS>(FOS_OVERWRITEPROMPT); /* the core asks (FileDialog) */
+    else
+        opts |= FOS_FILEMUSTEXIST;
+    dlg->SetOptions(opts);
+    if (!d.title.empty()) dlg->SetTitle(wide(d.title).c_str());
+    std::wstring name = wide(d.filter), patterns;
+    for (const std::string &e : d.exts) patterns += (patterns.empty() ? L"*" : L";*") + wide(e);
+    std::vector<COMDLG_FILTERSPEC> types;
+    if (!patterns.empty()) types.push_back({name.c_str(), patterns.c_str()});
+    types.push_back({L"All files (*.*)", L"*.*"});
+    dlg->SetFileTypes(static_cast<UINT>(types.size()), types.data());
+    dlg->SetFileTypeIndex(1);
+    if (d.save && !d.exts.empty()) dlg->SetDefaultExtension(wide(d.exts[0].substr(1)).c_str());
+    if (!d.dir.empty()) {
+        std::wstring dir = wide(d.dir);
+        std::replace(dir.begin(), dir.end(), L'/', L'\\');
+        if (dir.size() > 3 && dir.back() == L'\\') dir.pop_back();
+        Com<IShellItem> folder;
+        if (SUCCEEDED(SHCreateItemFromParsingName(dir.c_str(), nullptr, __uuidof(IShellItem), folder.out())))
+            dlg->SetFolder(folder.p);
+    }
+    if (!d.file.empty()) dlg->SetFileName(wide(d.file).c_str());
+    HRESULT shown = dlg->Show(static_cast<HWND>(window));
+    if (shown == HRESULT_FROM_WIN32(ERROR_CANCELLED)) return std::string();
+    Com<IShellItem> item;
+    PWSTR path = nullptr;
+    if (FAILED(shown) || FAILED(dlg->GetResult(&item.p)) || FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)))
+        return std::nullopt;
+    std::string picked = narrow(path);
+    CoTaskMemFree(path);
+    return picked;
 }
 
 WNDPROC webview_proc; /* the library's own window procedure */
@@ -307,12 +387,56 @@ void add_menus(webview_t) {}
 /* the library centres the window, and Cocoa keeps a window on its screen */
 void place_window(webview_t) {}
 
+constexpr bool HAS_FILE_DIALOG = true;
+
+/* an Objective-C message from C++, as the webview library sends them */
+template <typename R = id, typename... A> R msg(id self, const char *sel, A... a)
+{
+    return reinterpret_cast<R (*)(id, SEL, A...)>(objc_msgSend)(self, sel_registerName(sel), a...);
+}
+id cls(const char *name) { return reinterpret_cast<id>(objc_getClass(name)); }
+id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8String:", s.c_str()); }
+
+/* NSOpenPanel, NSSavePanel, application-modal on the main thread (not
+   tested: written without a Mac). An open panel has no type menu of its
+   own, so it filters nothing and every file stays pickable (All files);
+   a save panel takes the types, the first added to a name without one. */
+std::optional<std::string> pick_file(void *, const FileDialog &d)
+{
+    id panel = d.save ? msg(cls("NSSavePanel"), "savePanel") : msg(cls("NSOpenPanel"), "openPanel");
+    if (!panel) return std::nullopt;
+    if (!d.title.empty()) {
+        msg<void>(panel, "setTitle:", ns_string(d.title));
+        msg<void>(panel, "setMessage:", ns_string(d.title));
+    }
+    if (!d.dir.empty())
+        msg<void>(panel, "setDirectoryURL:",
+                  msg(cls("NSURL"), "fileURLWithPath:isDirectory:", ns_string(d.dir), static_cast<BOOL>(YES)));
+    if (d.save && !d.file.empty()) msg<void>(panel, "setNameFieldStringValue:", ns_string(d.file));
+    if (d.save && !d.exts.empty()) {
+        id types = msg(cls("NSMutableArray"), "array");
+        for (const std::string &e : d.exts) msg<void>(types, "addObject:", ns_string(e.substr(1)));
+        msg<void>(panel, "setAllowedFileTypes:", types);
+        msg<void>(panel, "setAllowsOtherFileTypes:", static_cast<BOOL>(YES));
+    }
+    constexpr long MODAL_RESPONSE_OK = 1; /* NSModalResponseOK */
+    if (msg<long>(panel, "runModal") != MODAL_RESPONSE_OK) return std::string();
+    id url = msg(panel, "URL");
+    const char *path = url ? msg<const char *>(msg(url, "path"), "UTF8String") : nullptr;
+    if (!path) return std::nullopt;
+    return std::string(path);
+}
+
 #else /* Linux: GTK 3 (webkit2gtk-4.1) */
 
 #if GTK_MAJOR_VERSION >= 4
 void add_menus(webview_t) {} /* webkitgtk-6.0 (GTK 4) has no GtkMenuBar */
 void place_window(webview_t) {} /* nor a work area or a window position */
+/* nor gtk_dialog_run: web2 shows its own file dialog */
+constexpr bool HAS_FILE_DIALOG = false;
+std::optional<std::string> pick_file(void *, const FileDialog &) { return std::nullopt; }
 #else
+constexpr bool HAS_FILE_DIALOG = true;
 
 webview_t view_of_menu()
 {
@@ -320,25 +444,50 @@ webview_t view_of_menu()
     return st->view;
 }
 
-void open_model(GtkWindow *parent)
+/* a pattern that matches ext in any case (GTK 3's are case-sensitive):
+   ".ode" is "*.[oO][dD][eE]" */
+std::string any_case(const std::string &ext)
 {
-    GtkWidget *dlg = gtk_file_chooser_dialog_new("Open model", parent, GTK_FILE_CHOOSER_ACTION_OPEN, "_Cancel",
-                                                 GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, nullptr);
-    GtkFileFilter *ode = gtk_file_filter_new(), *all = gtk_file_filter_new();
-    gtk_file_filter_set_name(ode, "XPP models (*.ode, *.odex)");
-    gtk_file_filter_add_pattern(ode, "*.ode");
-    gtk_file_filter_add_pattern(ode, "*.odex");
+    std::string p = "*";
+    for (char c : ext) {
+        const char lo = g_ascii_tolower(c), up = g_ascii_toupper(c);
+        if (lo == up) p += c;
+        else p += std::string("[") + lo + up + "]";
+    }
+    return p;
+}
+
+/* GtkFileChooserDialog, on the GTK thread */
+std::optional<std::string> pick_file(void *window, const FileDialog &d)
+{
+    GtkWidget *dlg = gtk_file_chooser_dialog_new(d.title.empty() ? nullptr : d.title.c_str(), GTK_WINDOW(window),
+                                                 d.save ? GTK_FILE_CHOOSER_ACTION_SAVE : GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                 "_Cancel", GTK_RESPONSE_CANCEL, d.save ? "_Save" : "_Open",
+                                                 GTK_RESPONSE_ACCEPT, nullptr);
+    if (!dlg) return std::nullopt;
+    GtkFileChooser *fc = GTK_FILE_CHOOSER(dlg);
+    gtk_file_chooser_set_local_only(fc, TRUE);
+    gtk_file_chooser_set_do_overwrite_confirmation(fc, FALSE); /* the core asks (FileDialog) */
+    if (!d.exts.empty()) {
+        GtkFileFilter *types = gtk_file_filter_new();
+        gtk_file_filter_set_name(types, d.filter.c_str());
+        for (const std::string &e : d.exts) gtk_file_filter_add_pattern(types, any_case(e).c_str());
+        gtk_file_chooser_add_filter(fc, types);
+    }
+    GtkFileFilter *all = gtk_file_filter_new();
     gtk_file_filter_set_name(all, "All files");
     gtk_file_filter_add_pattern(all, "*");
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), ode);
-    gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), all);
-    char *path = nullptr;
-    if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT)
-        path = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dlg));
+    gtk_file_chooser_add_filter(fc, all);
+    if (!d.dir.empty()) gtk_file_chooser_set_current_folder(fc, d.dir.c_str());
+    if (d.save && !d.file.empty()) gtk_file_chooser_set_current_name(fc, d.file.c_str());
+    std::optional<std::string> picked = std::string();
+    if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT) {
+        char *path = gtk_file_chooser_get_filename(fc);
+        if (path) picked = std::string(path);
+        g_free(path);
+    }
     gtk_widget_destroy(dlg);
-    if (!path) return;
-    host->open_model(path);
-    g_free(path);
+    return picked;
 }
 
 void on_menu(GtkMenuItem *, gpointer id_ptr)
@@ -454,6 +603,51 @@ void place_window(webview_t w)
 
 #endif /* platform */
 
+/* the page's __xppFileDialog({mode, title, dir, file, wild, exts}), in
+   webview's JSON (xpp_webview.h) */
+FileDialog file_dialog_of(const std::string &request)
+{
+    const std::string o = xpp_webview_json_value(request, nullptr, 0);
+    FileDialog d;
+    d.save = xpp_webview_json_value(o, "mode", 0) == "write";
+    d.title = xpp_webview_json_value(o, "title", 0);
+    d.dir = xpp_webview_json_value(o, "dir", 0);
+    d.file = xpp_webview_json_value(o, "file", 0);
+    d.filter = xpp_webview_json_value(o, "wild", 0);
+    const std::string exts = xpp_webview_json_value(o, "exts", 0);
+    for (int i = 0;; i++) {
+        std::string e = xpp_webview_json_value(exts, nullptr, i);
+        if (e.empty()) break;
+        d.exts.push_back(std::move(e));
+    }
+    return d;
+}
+
+/* __xppFileDialog's call, on the UI thread (webview dispatches it there,
+   out of the web view's own event): resolves with the path picked, null
+   when cancelled, and rejects when the dialog could not open. Called from
+   the library: nothing may throw. */
+void file_dialog_cb(const char *id, const char *request, void *arg)
+{
+    webview_t w = static_cast<webview_t>(arg);
+    int status = 0;
+    std::string reply = "null";
+    try {
+        std::optional<std::string> path = pick_file(webview_get_window(w), file_dialog_of(request ? request : ""));
+        if (!path) {
+            status = 1;
+            reply = xpp_webview_json_quote("the file dialog could not open");
+        } else if (!path->empty()) {
+            reply = xpp_webview_json_quote(*path);
+        }
+    } catch (const std::exception &e) {
+        status = 1;
+        reply = "null";
+        host->log(XPP_LOG_WARN, "xppautX: the file dialog failed: %s\n", e.what());
+    }
+    webview_return(w, id, status, reply.c_str());
+}
+
 /* the window, on the thread that runs it; NULL when it cannot open, with
    why in st->error_msg */
 webview_t open_view()
@@ -474,6 +668,8 @@ webview_t open_view()
     webview_set_size(w, WIDTH, HEIGHT, WEBVIEW_HINT_NONE);
     add_menus(w);
     place_window(w);
+    /* before the page loads, so it is there from its first script */
+    if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     /* the token stays out of sight: the web view has no address bar */
     webview_navigate(w, host->http_url());
     return w;

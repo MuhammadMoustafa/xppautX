@@ -762,7 +762,7 @@ as above for the diagram, dropped by other axes. `{"cmd":"auto","op":"display",
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
 | `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
-| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file`; or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
+| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); or `cd` (a folder name or `..`) or `wild` (a new pattern) to be asked again with that listing |
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |

@@ -311,7 +311,7 @@ int j_file_selector(const char *title, std::string &file, const char *wild)
             continue;
         }
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
-        get_string(answer.c_str(), "file", file, 256); /* the X11 selector's 255 characters */
+        get_string(answer.c_str(), "file", file); /* a name in the folder or a full path, whole (W88) */
         return !file.empty();
     }
 }

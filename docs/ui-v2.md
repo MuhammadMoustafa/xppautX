@@ -206,7 +206,7 @@ new page adds direct manipulation that maps onto existing commands:
 | `string`, `form` | modal form, first field focused and selected, Enter submits (from a select too), Escape cancels | done; a `*n` field is a select of `hello.lists[n]` (`protocol/lists.ts`): a numbered item (`2 Box`) answers its number, a value the list lacks is kept as an option of its own |
 | `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
-| `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); one prompt with "Choose file…" that opens the picker filtered by `wild`; a save asks the name | done |
+| `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); one prompt with "Choose file…" that opens the picker filtered by `wild`; a save asks the name; in the desktop window the operating system's own dialog, answered with the full path (W88) | done |
 | `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is simply replaced, no history: GitHub #110). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
 | `grab` (AUTO) | a mode of the AUTO view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
@@ -272,6 +272,31 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
   with a focused "Choose file…" (Enter) and Cancel (Esc); it never opens by
   itself. The core's listing (`dirs`, `files`, `cd`) stays in the protocol
   but the page no longer shows it (maintainer, 2026-09-29).
+- **The desktop window (W88, maintainer 2026-09-28: "the browse dialog
+  looks strange, why not the OS one")** has no browser around the page, so
+  none of the above applies there: a `file` ask opens the operating
+  system's own dialog (Windows' IFileOpenDialog/IFileSaveDialog, GTK's
+  FileChooser, macOS' NSOpenPanel/NSSavePanel), which knows true paths, and
+  is answered with the full path picked; nothing is copied, and the page
+  shows no dialog of its own. The window binds `window.__xppFileDialog`
+  into the page (core/xpp_window.cpp, webview_bind; the call runs on the
+  window's UI thread, where the dialog must); web2 sees it, calls it for a
+  `file` ask with `{mode, title, dir, file, wild, exts}` (pickers.ts
+  `nativeFileRequest`: `exts` is `wildExtensions`, the one reading of
+  `wild`, so the window never parses a pattern; `dir` is the ask's, or
+  `file`'s own folder when that is a full path) and answers the ask with
+  the path it resolves to, or cancels on null (Cancel) or a rejection (the
+  dialog could not open, which a notification says). The protocol and the
+  core's flow stay as they are: the core already takes a path in `file`
+  (read and write alike, now whole: the 255-character cut went), and
+  `--server` and browser mode never see the binding. A save dialog does not
+  ask before replacing: the core's own "File Exists! Overwrite?" does, as
+  for every client (except macOS, whose save panel always asks). macOS'
+  open panel has no type menu, so it filters nothing there. File > Open
+  model uses the same dialog (W61's menu). Tests: web2check's `native`
+  section stubs the binding in the page and checks the answer carries the
+  stub's path, the core read and wrote there, Cancel cancels and no web2
+  dialog appeared; the dialogs themselves are checked by hand.
 - **Endpoints** (xpp_http.cpp, token-protected like `/cmd`, base names only,
   no separators, no `..`, no dot files, a size cap of 64 MB):
   `GET /files` (listing: name, size, mtime, sha-256), `GET /files/NAME`,

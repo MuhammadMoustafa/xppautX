@@ -525,6 +525,40 @@ if ask:
     send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
 
+# W88: a file ask answered with a full path outside the model's folder (what
+# the desktop window's own dialog answers) is read and written right there,
+# the path whole, however long (Windows' fopen stops at MAX_PATH, so shorter
+# there)
+elsewhere = tempfile.mkdtemp(prefix='xppelsewhere')
+far = os.path.join(elsewhere, 'd' * (40 if os.name == 'nt' else 200))
+os.makedirs(far)
+far_set = os.path.join(far, 'w88 far.set')
+send(cmd='set', kind='par', name='iapp', value=0.33)
+collect(is_idle)
+send(cmd='key', key='f')
+send(cmd='key', key='w')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+if ask:
+    send(cmd='answer', id=ask['id'], ok=1, file=far_set)
+collect(is_idle)
+check('File/Write set to a full path elsewhere writes it there, the path whole',
+      ask is not None and ask.get('mode') == 'write' and os.path.exists(far_set)
+      and not os.path.exists(os.path.join(run, 'w88 far.set')), far_set)
+send(cmd='set', kind='par', name='iapp', value=0.77)
+collect(is_idle)
+send(cmd='key', key='f')
+send(cmd='key', key='r')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+if ask:
+    send(cmd='answer', id=ask['id'], ok=1, file=far_set)
+collect(is_idle)
+send(cmd='state')
+evs, st = collect(is_state)
+collect(is_idle)
+check('File/Read set from that full path reads it (the parameter it saved is back)',
+      ask is not None and st is not None and dict(st['pars'])['iapp'] == 0.33, str(st and dict(st['pars']).get('iapp')))
+shutil.rmtree(elsewhere, ignore_errors=True)
+
 send(cmd='key', key='f')
 send(cmd='key', key='t')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')

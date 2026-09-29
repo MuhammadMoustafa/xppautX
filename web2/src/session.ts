@@ -1,6 +1,6 @@
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
-import {offerDownload, writeTo, type SaveHandle} from './pickers';
+import {nativeFileDialog, nativeFileRequest, offerDownload, writeTo, type SaveHandle} from './pickers';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
 import type {AplotColorMap} from './plot/aplotColors';
 import {bytesToBase64} from './plot/gif';
@@ -190,6 +190,7 @@ export class Session {
         if (this.dragQueue.length) this.answer(ev, this.dragQueue.shift()!);
         else this.cancel(ev);
       } else if (this.replayAnswers.length) this.continueReplay(ev);
+      else if (ev.kind === 'file' && nativeFileDialog()) void this.nativeFile(ev);
       else this.continueKeys(ev);
     } else if (ev.ev === 'progress') {
       /* a computation: the keys typed meanwhile are discarded, like any typed during it (W68) */
@@ -1183,6 +1184,23 @@ export class Session {
     return new Promise(resolve => {
       this.replaceChoice = resolve;
     });
+  }
+
+  /** a `file` ask in the desktop window (W88): the operating system's own
+      dialog, answered with the full path picked, no copy (the core reads
+      and writes it where it is); Cancel there cancels the ask, as the
+      page's dialog's Cancel does. A dialog that could not open says so and
+      cancels. */
+  async nativeFile(ask: AskEvent): Promise<void> {
+    let path: unknown = null;
+    try {
+      path = await nativeFileDialog()!(nativeFileRequest(ask));
+    } catch (e) {
+      this.failed(`The file dialog could not open: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (this.store.getState().ask?.id !== ask.id) return; /* the prompt went meanwhile */
+    if (typeof path === 'string' && path) this.answer(ask, {file: path});
+    else this.cancel(ask);
   }
 
   /** the user's answer to the replace confirm */

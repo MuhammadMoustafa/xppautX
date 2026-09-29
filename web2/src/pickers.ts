@@ -95,3 +95,45 @@ export function offerDownload(name: string, data: Blob): void {
   download(name, url);
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
+
+/** what the desktop window's own file dialog is asked (core/xpp_window.cpp) */
+export interface NativeFileRequest {
+  mode: 'read' | 'write';
+  title: string;
+  /** the folder shown first ('': the system's choice) */
+  dir: string;
+  /** the name offered */
+  file: string;
+  /** the filter's name */
+  wild: string;
+  /** what it filters by (wildExtensions); All files stays */
+  exts: string[];
+}
+
+/** the operating system's own open or save dialog (docs/ui-v2.md section 4,
+    W88): the desktop window binds it into the page as `__xppFileDialog`;
+    it resolves with the full path picked, or null when the user cancelled,
+    and rejects when it could not open. Undefined in a browser. */
+export type NativeFileDialog = (request: NativeFileRequest) => Promise<string | null>;
+
+export const nativeFileDialog = (): NativeFileDialog | undefined => {
+  const f = (window as unknown as {__xppFileDialog?: unknown}).__xppFileDialog;
+  return typeof f === 'function' ? f as NativeFileDialog : undefined;
+};
+
+/** a file ask's native dialog: its folder is the one `file` names when that
+    is a full path, else the ask's `dir`; the name offered is `file`'s base
+    name; the filter is wildExtensions' reading of `wild` */
+export function nativeFileRequest(ask: {title?: string; mode?: string; file?: string; wild?: string; dir?: string}): NativeFileRequest {
+  const file = ask.file ?? '';
+  const cut = Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\'));
+  const absolute = /^([A-Za-z]:)?[\\/]/.test(file);
+  return {
+    mode: ask.mode === 'write' ? 'write' : 'read',
+    title: ask.title ?? '',
+    dir: cut >= 0 && absolute ? file.slice(0, cut + 1) : ask.dir ?? '',
+    file: file.slice(cut + 1),
+    wild: ask.wild ?? '',
+    exts: wildExtensions(ask.wild),
+  };
+}

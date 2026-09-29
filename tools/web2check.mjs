@@ -3809,6 +3809,70 @@ async function files(dir) {
   }
 }
 
+/* ---- the desktop window's own file dialog (docs/ui-v2.md section 4, W88) --------- */
+
+/* The window binds window.__xppFileDialog into the page (core/xpp_window.cpp);
+   a headless browser has no window, so a stub stands in for the dialog: it
+   records what it was asked and answers window.__nativeReply (a path, null
+   for Cancel, or a rejection). The OS dialogs themselves are checked by hand. */
+async function nativeFiles(dir) {
+  await desktopMetrics();
+  await until('!s.busy && !s.ask', 'idle');
+  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-native-'));
+  const far = path.join(elsewhere, 'w88 native.set');
+  await cdp.eval(`(() => {
+    window.__nativeAsked = []; window.__nativeReply = null; window.__fileDialogShown = false;
+    window.__xppFileDialog = async o => {
+      window.__nativeAsked.push(o);
+      if (window.__nativeReply === 'reject') throw new Error('no dialog here');
+      return window.__nativeReply;
+    };
+    new MutationObserver(() => {
+      if (document.querySelector('.file-ask, [data-ask=file]')) window.__fileDialogShown = true;
+    }).observe(document.body, {childList: true, subtree: true});
+    return true; })()`);
+  const fileKey = async (k, reply) => {
+    await cdp.eval(`window.__nativeReply = ${JSON.stringify(reply)}; true`);
+    await focusPlot();
+    await key('f');
+    await until('!s.busy && s.core.menu === 1', 'the File menu');
+    await key(k);
+    return until('!s.busy && !s.ask', `file ask ${k} answered`);
+  };
+  const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
+  try {
+    check('a new parameter value', await setPar('iapp', 0.21));
+    check('File/Write set in the window: the ask is answered from the native dialog', await fileKey('w', far));
+    const w = await asked();
+    check('... asked for a save, filtered by *.set (wildExtensions), in the model\'s folder, the name offered',
+      w && w.mode === 'write' && w.wild === '*.set' && JSON.stringify(w.exts) === '[".set"]' && w.dir
+      && w.file.endsWith('.set') && !/[\\/]/.test(w.file), JSON.stringify(w));
+    check('... answered with the full path picked', (await lastAnswer())?.file === far, JSON.stringify(await lastAnswer()));
+    const saved = await waitFile(far);
+    check('... and the core wrote it there, nothing in the model\'s folder, nothing offered',
+      saved && saved.length > 100 && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.offered')),
+      String(saved && saved.length));
+
+    await setPar('iapp', 0.4);
+    check('File/Read set in the window: answered from the native dialog', await fileKey('r', far));
+    const r = await asked();
+    check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
+    check('... the core read it where it is (the parameter it saved is back), nothing copied',
+      Math.abs(await par('iapp') - 0.21) < 1e-12 && (await lastAnswer())?.file === far
+      && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));
+
+    check('Cancel in the native dialog cancels the ask', await fileKey('r', null)
+      && (await lastAnswer())?.ok === 0 && Math.abs(await par('iapp') - 0.21) < 1e-12, JSON.stringify(await lastAnswer()));
+    check('a dialog that cannot open: a notification, and the ask cancelled', await fileKey('r', 'reject')
+      && (await lastAnswer())?.ok === 0
+      && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),
+      JSON.stringify(await S('s.toasts')));
+    check('no web2 file dialog appeared at any point', !(await cdp.eval('window.__fileDialogShown')));
+  } finally {
+    fs.rmSync(elsewhere, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 /* ---- animation (docs/ui-v2.md T13) ---------------------------------------------- */
 
 /* the frame the store holds, the one drawn (__xpp.ani()), and the slider, once the core is idle */
@@ -4198,6 +4262,7 @@ async function main() {
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, files, ['Cannot open file']);
+    if (run('native')) await session(ODE, nativeFiles);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);

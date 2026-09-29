@@ -281,6 +281,16 @@ browser never silently downloads anything on its own.
   notification offers "Add file…", which uploads it under that name and
   repeats the command.
 
+In the desktop window (not the browser), every Open and Save shows the
+operating system's own file dialog instead: it starts in the model's
+folder with the suggested name, lists the files of the kind the command
+reads or writes (All files is one choice away, for the tables a `.set`
+uses), and xppautX reads or writes the file right where you picked it,
+with nothing copied into the model's folder. Cancel there cancels the
+command. A save onto an existing file asks "File Exists! Overwrite?" in
+the page, as before, rather than in the dialog. File > Open model… uses
+the same dialog.
+
 Two differences from X11 worth knowing:
 
 - Pictures saved as GIF or PPM (kinescope, animation frames, array plots)

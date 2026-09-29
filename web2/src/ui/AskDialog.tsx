@@ -15,6 +15,7 @@ import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds
 import type {AskEvent} from '../protocol/types';
 import {Field} from './Field';
 import {FileAsk} from './FileDialog';
+import {nativeFileDialog} from '../pickers';
 import {HelpButton} from './HelpButton';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
@@ -230,6 +231,7 @@ export function AskDialog() {
   if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return null;
   if (pick && pick.ask === ask.id) return null; /* a plot mode (PlotView.tsx, AutoView.tsx) */
   if (ask.kind === 'grab' && auto) return null; /* the AUTO view's grab (AutoView.tsx) */
+  if (ask.kind === 'file' && nativeFileDialog()) return null; /* the desktop window's own dialog (session.ts) */
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />

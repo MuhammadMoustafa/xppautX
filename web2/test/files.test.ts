@@ -8,7 +8,7 @@ import {
   type RunRecord,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
-import {wildExtensions} from '../src/pickers';
+import {nativeFileRequest, wildExtensions} from '../src/pickers';
 import {initialState, reduce} from '../src/store/state';
 
 test('safeName follows the core: base names only', () => {
@@ -96,4 +96,23 @@ test('the picker filter comes from a pattern of the ask', () => {
   assert.deepEqual(wildExtensions('*.DAT *.tab'), ['.dat', '.tab']);
   assert.deepEqual(wildExtensions('*.dat, *.tab'), ['.dat', '.tab']);
   for (const none of ['*', '', undefined, '*.*', '*.pars*', 'x*.set', '*.set *']) assert.deepEqual(wildExtensions(none), [], String(none));
+});
+
+test('the desktop window\'s own dialog (W88) is asked with the filter of wildExtensions, the folder and the name', () => {
+  assert.deepEqual(nativeFileRequest({title: 'Load SET File', mode: 'read', file: 'lecar.ode.set', wild: '*.set', dir: '/m/'}),
+    {mode: 'read', title: 'Load SET File', dir: '/m/', file: 'lecar.ode.set', wild: '*.set', exts: ['.set']});
+  const save = nativeFileRequest({title: 'Save data', mode: 'write', file: 'data.dat', wild: '*.DAT *.tab', dir: 'C:\\m'});
+  assert.equal(save.mode, 'write');
+  assert.deepEqual(save.exts, ['.dat', '.tab']);
+  assert.equal(save.dir, 'C:\\m');
+  /* a pattern that is not *.ext words filters nothing (All files alone) */
+  assert.deepEqual(nativeFileRequest({title: 'Open model', mode: 'read', file: '', wild: '*.ode*', dir: '/m/'}).exts, []);
+  /* a full path in `file` names the folder too */
+  assert.deepEqual([nativeFileRequest({file: '/home/u/models/', dir: '/m/'}).dir, nativeFileRequest({file: '/home/u/models/'}).file],
+    ['/home/u/models/', '']);
+  const win = nativeFileRequest({file: 'C:\\Users\\u\\x.set', dir: 'D:\\'});
+  assert.deepEqual([win.dir, win.file, win.mode], ['C:\\Users\\u\\', 'x.set', 'read']);
+  /* a relative path keeps the ask's folder, the base name offered */
+  assert.deepEqual([nativeFileRequest({file: 'sub/x.set', dir: '/m/'}).dir, nativeFileRequest({file: 'sub/x.set', dir: '/m/'}).file],
+    ['/m/', 'x.set']);
 });
