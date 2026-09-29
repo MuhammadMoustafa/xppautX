@@ -437,7 +437,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   Ctrl+C). If the web view cannot start (no WebView2 runtime, no
   display) xppautX logs it and falls back to browser mode. Its menu bar
   (Win32 menu; GTK 3 menu bar on Linux; none yet on macOS): File > Open
-  model (a second xppautX process: the core cannot load a second model),
+  model and Reload (W61: loaded in this process, core/model_switch.cpp,
+  once the command has returned; a failed load keeps the model before),
   Quit; Help > Manual and Keyboard shortcuts (web2's
   `window.__xppOpenHelp`, web2/src/desktop.ts, through webview_eval),
   About (a native message box). The icon is `assets/icon.svg`, made into
