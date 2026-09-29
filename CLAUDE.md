@@ -438,8 +438,13 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   display) xppautX logs it and falls back to browser mode. Its menu bar
   (Win32 menu; GTK 3 menu bar on Linux; none yet on macOS): File > Open
   model and Reload (W61: loaded in this process, core/model_switch.cpp,
-  once the command has returned; a failed load keeps the model before),
-  Quit; Help > Manual and Keyboard shortcuts (web2's
+  once the command has returned; a failed load keeps the model before;
+  Open model picks the file in the OS dialog below), Quit; a `file` ask
+  opens the OS's own open or save dialog (W88: web2 calls the page's
+  `__xppFileDialog`, bound with webview_bind and run on the UI thread by
+  `pick_file` in xpp_window.cpp, and answers the ask with the true path;
+  its filter is web2's `wildExtensions`; browser mode keeps the browser's
+  picker, W90); Help > Manual and Keyboard shortcuts (web2's
   `window.__xppOpenHelp`, web2/src/desktop.ts, through webview_eval),
   About (a native message box). The icon is `assets/icon.svg`, made into
   `assets/icon.ico` by `tools/make_icons.py`, compiled into the Windows
