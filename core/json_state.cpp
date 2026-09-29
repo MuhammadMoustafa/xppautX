@@ -126,12 +126,17 @@ void send_state(void)
                    s.auto_state.bifur.ymin, s.auto_state.bifur.ymax);
     buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, help_menu, s.plot_windows.draw_win);
     if (s.numerics.last_seed) buf_format(&b, ",\"seed\":{:d}", *s.numerics.last_seed);
-    if (xpp_session_set_file()[0]) {
+    const SavedSession &saved = s.saved_session;
+    if (!saved.file.empty()) {
+        BUF_LIT(&b, ",\"session\":{\"file\":");
+        buf_str(&b, saved.file.c_str());
+        BUF_LIT(&b, "}");
+    } else if (!saved.set.empty()) {
         BUF_LIT(&b, ",\"session\":{\"set\":");
-        buf_str(&b, xpp_session_set_file());
-        if (xpp_session_auto_file()[0]) {
+        buf_str(&b, saved.set.c_str());
+        if (!saved.auto_file.empty()) {
             BUF_LIT(&b, ",\"auto\":");
-            buf_str(&b, xpp_session_auto_file());
+            buf_str(&b, saved.auto_file.c_str());
         }
         BUF_LIT(&b, "}");
     }

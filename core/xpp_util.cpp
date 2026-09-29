@@ -53,6 +53,14 @@ void make_active(int i, int flag)
     xpp_ui.activate_graph(i, flag);
 }
 
+int graph_of(XppWinId w)
+{
+    const xpp::Session &s = xpp::session();
+    for (int i = 0; i < MAXPOP; i++)
+        if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w == w) return i;
+    return 0;
+}
+
 void clr_scrn(void)
 {
     xpp_ui.blank_draw_window();

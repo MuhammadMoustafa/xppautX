@@ -6,6 +6,7 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_session.h"
+#include "snapx.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "expr.h"
@@ -64,12 +65,19 @@ void xpp_model_open(const char *path)
     err_msg(xpp::format("Cannot open {}",file).c_str());
     return;
   }
-  std::pair<std::string,std::string> where=xpp_files_split_path(file);
+  /* a session file: its model, then the session restored */
+  std::string session,model=file;
+  if(xpp::snapx::is_session_file(file)){
+    session=xpp_files_absolute(file);
+    model=xpp_session_model(session);
+    if(model.empty())return;
+  }
+  std::pair<std::string,std::string> where=xpp_files_split_path(model);
   const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
-                                         where.second);
+                                         xpp_files_split_path(file).second);
   switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
   case 's':
-    if(!xpp_session_save(nullptr))return;
+    if(!xpp_session_save(nullptr,-1))return;
     break;
   case 'd':
     break;
@@ -78,7 +86,7 @@ void xpp_model_open(const char *path)
   }
   /* loaded from its own folder, as a double-click starts it: the folder
      the page's files are (xpp_files.h) */
-  xpp::session().model_request=xpp::ModelRequest{where.first,where.second,{program_name(),where.second},false};
+  xpp::session().model_request=xpp::ModelRequest{where.first,where.second,{program_name(),where.second},false,session};
 }
 
 void xpp_model_reload(void)
@@ -92,7 +100,7 @@ void xpp_model_reload(void)
      by its name this time */
   std::vector<std::string> command_line=m.command_line;
   if(!xpp::session().got_file)command_line={program_name(),m.this_file};
-  xpp::session().model_request=xpp::ModelRequest{m.load_dir,m.this_file,std::move(command_line),true};
+  xpp::session().model_request=xpp::ModelRequest{m.load_dir,m.this_file,std::move(command_line),true,{}};
 }
 
 namespace xpp {

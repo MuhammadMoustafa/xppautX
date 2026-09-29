@@ -23,8 +23,9 @@ join the diagram file's; stability checks that a point's
 eigenvalues are its own (a run's first point is not computed unless it
 restarts from a label of the same kind: auto_stability.h); sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
-docs/protocol.md (issue #11): one name for the .set and .auto pair a long
-AUTO run is picked back up from; script plays
+docs/protocol.md (issue #11, W57): one session file, name.snapx, a long
+AUTO run is picked back up from, and the older .set and .auto pair still
+loading alone; script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
 tools/models/longnames.ode (200-character names: no length limit, W76)
@@ -794,7 +795,20 @@ def section_sessions():
 
 # ---- session: "cmd":"session" save/load picks a long AUTO run back up -----
 
+def open_session(s, name):
+    """session load of a .snapx, answering Open's "save first?" with d: the events"""
+    s.send(cmd='session', op='load', name=name)
+    evs = []
+    while True:
+        got, e = s.collect(lambda e: is_ask(e) or is_idle(e), timeout=20 * SLOW)
+        evs += got
+        if e is None or is_idle(e):
+            return evs
+        s.send(cmd='answer', id=e['id'], key='d')
+
+
 def section_session():
+    import zipfile
     home1 = tempfile.mkdtemp(prefix='xpphome')
     s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
     s.collect(is_idle)
@@ -808,31 +822,37 @@ def section_session():
     st = [x for x in evs if x.get('ev') == 'state']
     saved = st[-1] if st else None
     sess = saved.get('session') if saved else None
-    check('session save reports the .set and .auto files',
-          sess == {'set': 's1.set', 'auto': 's1.auto'}, str(sess))
-    set_path = os.path.join(s.run, 's1.set')
-    auto_path = os.path.join(s.run, 's1.auto')
-    check('session save writes the .set file', os.path.exists(set_path))
-    check('session save writes the .auto file', os.path.exists(auto_path))
+    check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
+    snap_path = os.path.join(s.run, 's1.snapx')
+    members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
+    check('session save writes s1.snapx with the .set and .auto files in it',
+          'model.set' in members and 'model.auto' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
-    # a NEW server, in a new directory, with only the two saved files copied in
+    # a NEW server, in a new directory, with only the session file copied in
     home2 = tempfile.mkdtemp(prefix='xpphome')
     s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
     s2.collect(is_idle)
-    if os.path.exists(set_path): shutil.copy(set_path, s2.run)
-    if os.path.exists(auto_path): shutil.copy(auto_path, s2.run)
+    if os.path.exists(snap_path): shutil.copy(snap_path, s2.run)
+    # and the older pair of files, taken out of it: .set and .auto alone still load
+    home3 = tempfile.mkdtemp(prefix='xpphome')
+    s3 = Server(args.server, LECAR, env={'HOME': home3}, verbose=args.v)
+    s3.collect(is_idle)
+    if members:
+        z = zipfile.ZipFile(snap_path)
+        for m, f in (('model.set', 'old.set'), ('model.auto', 'old.auto')):
+            with open(os.path.join(s3.run, f), 'wb') as out:
+                out.write(z.read(m))
     s.close()
     shutil.rmtree(home1, ignore_errors=True)
 
-    s2.send(cmd='session', op='load', name='s1')
-    evs, e = s2.collect(is_idle, timeout=20 * SLOW)
+    evs = open_session(s2, 's1')
     st = [x for x in evs if x.get('ev') == 'state']
     loaded = st[-1] if st else None
     sess2 = loaded.get('session') if loaded else None
-    check('session load reports the same files', sess2 == sess, str(sess2))
+    check('session load reports the file opened', bool(sess2) and sess2.get('file', '').endswith('s1.snapx'), str(sess2))
     pars2 = dict(loaded['pars']) if loaded else {}
-    check('session load restores the first session\'s parameters',
+    check("session load restores the first session's parameters",
           bool(pars1) and pars1 == pars2, 'saved %s loaded %s' % (pars1, pars2))
     check('session load opens the AUTO window',
           any(x.get('ev') == 'window' and x.get('win') == 101 for x in evs))
@@ -853,6 +873,16 @@ def section_session():
     check('extending the loaded branch draws no NaN message', 'nan' not in msgs.lower(), msgs[:200])
     s2.close()
     shutil.rmtree(home2, ignore_errors=True)
+
+    s3.send(cmd='session', op='load', name='old')
+    evs, e = s3.collect(is_idle, timeout=20 * SLOW)
+    st = [x for x in evs if x.get('ev') == 'state']
+    old = st[-1] if st else None
+    check("an older session's .set and .auto alone still load into the model",
+          old is not None and old.get('session') == {'set': 'old.set', 'auto': 'old.auto'}
+          and dict(old['pars']) == pars1 and any(is_point(e) for e in evs), str(old and old.get('session')))
+    s3.close()
+    shutil.rmtree(home3, ignore_errors=True)
 
 
 # ---- control: Abort, Quit and dropped commands during a long integration ----
@@ -1131,21 +1161,20 @@ def section_names():
           bool(lines) and lines[0].split(',') == cols + [added.upper()], str(lines[:1])[:300])
 
     # the .set file of a session keeps the values under the long names
+    import zipfile
     s.send(cmd='session', op='save', name='ln')
     s.collect(is_idle, timeout=20 * SLOW)
-    set_path = os.path.join(s.run, 'ln.set')
-    text = open(set_path).read() if os.path.exists(set_path) else ''
+    snap_path = os.path.join(s.run, 'ln.snapx')
+    text = zipfile.ZipFile(snap_path).read('model.set').decode() if os.path.exists(snap_path) else ''
     check('names: the .set file names the long parameter whole', LONG_B in text)
     s2 = Server(args.server, LONG, env={'HOME': home}, verbose=args.v)
     s2.collect(is_idle)
-    for f in ('ln.set', 'ln.auto'):
-        if os.path.exists(os.path.join(s.run, f)):
-            shutil.copy(os.path.join(s.run, f), s2.run)
+    if os.path.exists(snap_path):
+        shutil.copy(snap_path, s2.run)
     s.close()
-    s2.send(cmd='session', op='load', name='ln')
-    evs, _ = s2.collect(is_idle, timeout=20 * SLOW)
+    evs = open_session(s2, 'ln')
     st = last_state(evs)
-    check('names: a .set round trip keeps the long-named values',
+    check('names: a session file round trip keeps the long-named values',
           st is not None and dict(st['pars']).get(LONG_B) == 0.9 and
           dict(st['ics']).get('SLOW_RECOVERY_VARIABLE_W') == -0.25, str(st and (st['pars'], st['ics']))[:300])
     s2.close()

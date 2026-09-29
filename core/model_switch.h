@@ -14,7 +14,8 @@ extern "C" {
 
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the
    user picks when it is NULL or empty; asks before this model goes,
-   offering to save its session first (xpp_session_save) */
+   offering to save its session first (xpp_session_save). A session file
+   (.snapx, xpp_session.h) opens its model and restores the session. */
 void xpp_model_open(const char *path);
 /* File > Reload (key e) and {"cmd":"reload"}: the model's file again, with
    the command line it was loaded with; the parameters, initial data and
@@ -39,6 +40,9 @@ struct ModelRequest {
   std::vector<std::string> command_line;
   /* Reload: the values of the Session before carry over by name */
   bool keep_values=false;
+  /* Open session: the session file (an absolute path) restored once the
+     model is loaded (xpp_session_restore) */
+  std::string session;
 };
 
 /* the request the last command made, taken: nullopt when it made none */

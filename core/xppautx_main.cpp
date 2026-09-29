@@ -23,6 +23,9 @@
                                     a built-in script (json_silent.cpp) of
                                     the protocol's commands, played like
                                     --script with its events going nowhere
+     xppautX name.snapx             a session file (xpp_session.h) in any
+                                    mode but -silent: its model, loaded and
+                                    restored as the session was saved
 
    usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
@@ -55,6 +58,8 @@
 #include "xpp_window.h"
 #include "xpp_win32.h"
 #include "odex.h"
+#include "snapx.h"
+#include "xpp_session.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -122,6 +127,8 @@ static const char *const usage_tail =
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
     "  -silent          (an xppaut option) a headless run that writes output.dat\n"
+    "A session file (name.snapx, File/saVe session) in place of file.ode opens its\n"
+    "model and restores the session as it was saved.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n";
@@ -153,11 +160,29 @@ static void run_session(void)
     text_metrics.big_width = 9; text_metrics.big_height = 15;
 
     json_ui_install();
+    /* a session file on the command line: its model is loaded, from its
+       own folder as File > Open model loads one, and the session restored */
+    std::string snapx, model_name;
+    for (int i = 1; i < session_argc; i++) {
+        if (!xpp::snapx::is_session_file(session_argv[i])) continue;
+        snapx = xpp_files_absolute(session_argv[i]);
+        const std::string model = xpp_session_model(snapx);
+        if (model.empty()) { /* the error message said why */
+            xpp_log(XPP_LOG_ERROR, "xppautX: cannot open the session %s\n", snapx.c_str());
+            exit(1);
+        }
+        const std::pair<std::string, std::string> where = xpp_files_split_path(model);
+        if (!where.first.empty()) xpp_files_change_dir(where.first.c_str());
+        model_name = where.second;
+        session_argv[i] = model_name.data();
+        break;
+    }
     if (std::optional<xpp::Diagnostic> failed = xpp::load_model(session_argc, session_argv, 0)) {
         json_ui_load_error(*failed);
         exit(1);
     }
     json_ui_start_model();
+    if (!snapx.empty()) xpp_session_restore(snapx);
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || xpp::session().run_immediately == 1) {
@@ -218,7 +243,14 @@ int main(int argc, char **argv)
         }
         return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
     }
-    if (batch) return json_ui_silent(argc, argv);
+    if (batch) {
+        for (i = 1; i < argc; i++)
+            if (xpp::snapx::is_session_file(argv[i])) {
+                xpp_log(XPP_LOG_ERROR, "xppautX: a session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
+                return 2;
+            }
+        return json_ui_silent(argc, argv);
+    }
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */
     if (mode == MODE_WINDOW && (!open_browser || !xpp_window_supported())) mode = MODE_BROWSER;

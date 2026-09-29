@@ -10,6 +10,7 @@
 #include "xpp_mem.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <charconv>
 #include <cstdio>
@@ -244,6 +245,23 @@ std::pair<std::string, std::string> xpp_files_split_path(const std::string &path
     if (sep == 2 && path[1] == ':') keep = 3;
 #endif
     return {path.substr(0, keep), path.substr(sep + 1)};
+}
+
+std::string xpp_files_absolute(const std::string &path, const std::string &dir)
+{
+#ifdef _WIN32
+    const auto sep = [](char c) { return c == '/' || c == '\\'; };
+    const bool absolute = (!path.empty() && sep(path[0])) ||
+                          (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' &&
+                           sep(path[2]));
+#else
+    const auto sep = [](char c) { return c == '/'; };
+    const bool absolute = !path.empty() && path[0] == '/';
+#endif
+    if (absolute || path.empty()) return path;
+    std::string base = dir.empty() ? xpp_files_working_dir() : dir;
+    if (!base.empty() && !sep(base.back())) base += '/';
+    return base + path;
 }
 
 const char *xpp_files_cur_dir(void) { return cur_dir_str.c_str(); }

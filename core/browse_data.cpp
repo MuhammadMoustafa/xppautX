@@ -106,6 +106,40 @@ void write_mybrowser_data(xpp::Writer &w)
   xpp::data_format_named("dat")->write(browser_table(b,output_columns(b)),w);
 }
 
+xpp::DataTable stored_data_table()
+{
+  const xpp::Session &s=xpp::session();
+  const int ncol=xpp::model().neq+1;
+  xpp::DataTable t;
+  for(int j=0;j<ncol;j++){
+    t.names.push_back(browse_column_name(j));
+    const float *c=s.data_store.col[j];
+    t.columns.emplace_back(c,c+s.data_store.rows);
+  }
+  t.seed=s.numerics.last_seed;
+  return t;
+}
+
+int put_stored_data(const xpp::DataTable &t)
+{
+  xpp::Session &s=xpp::session();
+  const int neq=xpp::model().neq;
+  const int rows=static_cast<int>(t.rows());
+  if(rows>s.data_store.max_rows){
+    if(!s.data_store.grow(neq+1,rows))return 0;
+    s.data_store.max_rows=rows;
+  }
+  for(std::size_t k=0;k<t.columns.size();k++){
+    int col;
+    find_variable(xpp::data_column_name(t,k),&col);
+    if(col<0||col>neq||t.columns[k].size()<static_cast<std::size_t>(rows))continue;
+    std::copy(t.columns[k].begin(),t.columns[k].begin()+rows,s.data_store.col[col]);
+  }
+  s.data_store.rows=rows;
+  refresh_browser(rows);
+  return rows;
+}
+
 void find_variable(std::string_view s, int *col)
 {
  *col=-1;

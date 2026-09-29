@@ -2,6 +2,7 @@
 #define XPP_UTIL_H
 
 #include <stdio.h>
+#include "xpp_types.h"
 #ifdef __cplusplus
 #include "many_pops.h"
 #include "session.h"
@@ -16,6 +17,9 @@ void new_parameter(void);
 void set_default_params(void);
 void clone_ode(void);
 void make_active(int i, int flag);
+/* the plot window (its graph's index) whose window is w; 0, the main
+   one, when none in use is */
+int graph_of(XppWinId w);
 void clr_scrn(void);
 void de_space(char *s);
 void get_max(int index, double *vmin, double *vmax);

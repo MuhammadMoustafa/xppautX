@@ -30,6 +30,9 @@ void io_graph(int f, FILE *fp);
 
 #include <string>
 #include <string_view>
+#include <vector>
+#include "struct.h" /* GRAPH */
+namespace xpp { struct KeptValues; } /* model_switch.h */
 /* a number of a set file (f READEM), or z written with its name ss */
 void io_int(int *i, FILE *fp, int f, std::string_view ss);
 void io_double(double *z, FILE *fp, int f, std::string_view ss);
@@ -47,5 +50,17 @@ void load_ic_file(std::string name);
    those asked for, each under its # heading, into name (-silent's
    -qsets/-qpars/-qics, the protocol's `values` `query`) */
 void write_values_query(const char *name, bool sets, bool pars, bool ics);
+
+/* A session file's pieces (xpp_session.cpp, W57), in a set file's lines:
+   one plot window's settings as io_graph writes the current one's */
+void write_graph(FILE *fp, GRAPH &g);
+void read_graph(FILE *fp, GRAPH &g);
+/* A set file written for a model that has changed since (a session's
+   model.set): its values by the names the model had then -- vars its
+   variables and auxiliaries (the first node are the ODEs, then nmarkov
+   Markov variables), pars its parameters -- into kept, for
+   restore_values; false when it is not a set file of that many */
+bool read_set_by_name(FILE *fp, const std::vector<std::string> &vars, int node, int nmarkov,
+                      const std::vector<std::string> &pars, xpp::KeptValues &kept);
 #endif
 #endif

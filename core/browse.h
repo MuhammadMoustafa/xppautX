@@ -5,6 +5,7 @@
 #include <stdio.h>
 #ifdef __cplusplus
 #include "xpp_io.h"
+#include "data_formats.h"
 extern "C" {
 #endif
 
@@ -71,6 +72,16 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
 /* the browser's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into the stored columns, in order */
 void data_read(BROWSER *b, std::string_view format, std::string_view name);
+
+/* the data table as a session file saves it (xpp_session.cpp, W57):
+   every stored row of T and the model's variables and auxiliaries, and
+   the seed of the run that made them */
+xpp::DataTable stored_data_table();
+/* table's columns into the stored ones of the same names (find_variable
+   below; a name the model does not have is left out), the store grown to
+   hold every row: its rows, the new data set; 0 when there was no memory
+   for them */
+int put_stored_data(const xpp::DataTable &table);
 
 /* the data column of variable s: 0 for T, i+1 for variable i, a browser
    column added by data_add_col (by name, case ignored, below), -1 for

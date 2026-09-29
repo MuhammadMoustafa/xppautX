@@ -147,9 +147,11 @@ This brings up a menu with several options. Type `Esc` to abort.
   is not set.
 - **t(U)torial**: Steps through a series of short tips ("Did you know you
   can...") one at a time; Next for another, Done to stop.
-- **open (M)odel**: Asks for a `.ode` or `.odex` file, then whether to
-  save this session first (**Save first**, **Don't save**; Escape keeps
-  the current model), and loads it in place of the current model: its data,
+- **open (M)odel**: Asks for a `.ode` or `.odex` file (or a `.snapx`
+  session file, which opens that session: **opeN session** below), then
+  whether to save this session first (**Save first** writes a session
+  file, **Don't save**; Escape keeps the current model), and loads it in
+  place of the current model: its data,
   diagram and windows go, and the new model starts as a double-click would
   start it, from its own folder. A file that cannot be loaded changes
   nothing: an error says so and the current model goes on (see
@@ -158,6 +160,20 @@ This brings up a menu with several options. Type `Esc` to abort.
   Reload). Parameters, initial data and numerics keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
+- **sa(V)e session**: Asks for a file name and writes one session file,
+  `name.snapx`, to continue later exactly where you are: the model's path
+  and fingerprint, the values and numerics (**Write set**'s file), every
+  plot window with its axes, variables and zoom, the text, arrows and
+  frozen curves, AUTO's diagram and settings (AUTO's **Save diagram**
+  file) and view, and the data table (NumPy's `.npz`). The earlier runs a
+  window keeps until Erase are left out. A data table above 50 MB asks
+  whether to leave it out (**Leave it out**: Go computes it again).
+- **ope(N) session**: Asks for a `.snapx` file, then whether to save this
+  session first (as **open (M)odel**), loads its model and restores the
+  session as it was saved. A model edited since warns and keeps what
+  still fits by name, as **r(E)load** does (AUTO's diagram only when the
+  variables and parameters are the same). See
+  [session files](01-introduction.md#starting-it).
 
 ### (P)arameters
 

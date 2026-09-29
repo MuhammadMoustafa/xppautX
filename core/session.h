@@ -41,6 +41,7 @@
 #include "xpp_log.h"
 #include "model_switch.h"
 #include "display_state.h"
+#include "xpp_session.h"
 
 #include <array>
 #include <optional>
@@ -155,6 +156,9 @@ struct Session {
   /* File > Open model's or Reload's model to load once the command that
      asked for it has returned (model_switch.h) */
   std::optional<ModelRequest> model_request;
+  /* the session file this session was last saved to or opened from
+     (xpp_session.h) */
+  SavedSession saved_session;
 };
 
 /* the current Session (xpp_current.h) */

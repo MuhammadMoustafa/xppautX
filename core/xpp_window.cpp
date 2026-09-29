@@ -214,12 +214,13 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d);
 
 /* ---- File > Open model and Reload: the protocol's open and reload -------
    The model picked is loaded in this process (W61): the core asks before
-   the model it has goes, offering to save its session, in the page. */
+   the model it has goes, offering to save its session, in the page. A
+   session file (.snapx, W57) picked here opens that session. */
 [[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"reload\"}";
 
 [[maybe_unused]] void open_model(void *window)
 {
-    const FileDialog models{false, "Open model", "", "", "XPP models (*.ode, *.odex)", {".ode", ".odex"}};
+    const FileDialog models{false, "Open model", "", "", "XPP models and sessions (*.ode, *.odex, *.snapx)", {".ode", ".odex", ".snapx"}};
     std::optional<std::string> path = pick_file(window, models);
     if (path && !path->empty()) host->open_model(path->c_str());
 }

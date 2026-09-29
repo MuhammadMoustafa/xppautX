@@ -90,6 +90,13 @@ xpp::DataTable plot_curves_table();
    internal set's (_name), then the run's number i (_0007) unless i < 0,
    and the plot format's extension (@ plotfmt=) */
 std::string batch_plot_name(int i);
+#include <vector>
+/* frozen curve slot i as a session file restores it (xpp_session.cpp,
+   W57): in window w, of grtype type (z's points only when type>0: 3D),
+   its colour, key and name; false when the slot is in use or the points'
+   counts differ */
+bool restore_frozen_curve(int i, XppWinId w, int type, int color, std::string key, std::string name,
+                          std::vector<float> x, std::vector<float> y, std::vector<float> z);
 
 /* How plots are written to files (PostScript, SVG) */
 struct XppPlotExport {

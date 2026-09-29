@@ -59,6 +59,12 @@ const DataFormat *data_format_named(std::string_view id);
 /* the format whose extension path ends with (case ignored), or nullptr */
 const DataFormat *data_format_of_file(std::string_view path);
 
+/* NPZ's writer and reader on bytes in memory rather than a file: the
+   session file's data.npz and frozen.npz (xpp_session.cpp, W57) */
+std::string npz_bytes(const DataTable &table) noexcept;
+/* false (and table empty) when bytes are not a .npz this reads */
+bool npz_table(std::string_view bytes, DataTable &table) noexcept;
+
 } // namespace xpp
 
 #endif

@@ -22,6 +22,8 @@
 #include "xpp_globals.h"
 #include "xpp_batch.h"
 #include "delay_handle.h"
+#include "model_switch.h"
+#include "solver.h"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -496,59 +498,130 @@ void io_exprs(int f, FILE *fp)
  }
 }
 
-void io_graph(int f, FILE *fp)
+static void io_graph_of(int f, FILE *fp, GRAPH &g)
 {
- xpp::Session &s=xpp::session();
  int j,k;
  io_heading(f,fp,"# Graphics");
  for(j=0;j<3;j++)
    for(k=0;k<3;k++)
-     io_double(&(s.plot_windows.current->rm[k][j]),fp,f,"rm");
+     io_double(&(g.rm[k][j]),fp,f,"rm");
  for(j=0;j<MAXPERPLOT;j++){
-        io_int(&(s.plot_windows.current->xv[j]),fp,f," ");
-        io_int(&(s.plot_windows.current->yv[j]),fp,f," ");
-        io_int(&(s.plot_windows.current->zv[j]),fp,f," ");
-        io_int(&(s.plot_windows.current->line[j]),fp,f," ");
-        io_int(&(s.plot_windows.current->color[j]),fp,f," ");
+        io_int(&(g.xv[j]),fp,f," ");
+        io_int(&(g.yv[j]),fp,f," ");
+        io_int(&(g.zv[j]),fp,f," ");
+        io_int(&(g.line[j]),fp,f," ");
+        io_int(&(g.color[j]),fp,f," ");
         }
 
-    io_double(&(s.plot_windows.current->ZPlane),fp,f," ");
-    io_double(&(s.plot_windows.current->ZView),fp,f," ");
-    io_int(&(s.plot_windows.current->PerspFlag),fp,f," ");
-    io_int(&(s.plot_windows.current->ThreeDFlag),fp,f,"3DFlag");
-    io_int(&(s.plot_windows.current->TimeFlag),fp,f,"Timeflag");
-    io_int(&(s.plot_windows.current->ColorFlag),fp,f,"Colorflag");
-    io_int(&(s.plot_windows.current->grtype),fp,f,"Type");
-    io_double(&(s.plot_windows.current->color_scale),fp,f,"color scale");
-    io_double(&(s.plot_windows.current->min_scale),fp,f," minscale");
+    io_double(&(g.ZPlane),fp,f," ");
+    io_double(&(g.ZView),fp,f," ");
+    io_int(&(g.PerspFlag),fp,f," ");
+    io_int(&(g.ThreeDFlag),fp,f,"3DFlag");
+    io_int(&(g.TimeFlag),fp,f,"Timeflag");
+    io_int(&(g.ColorFlag),fp,f,"Colorflag");
+    io_int(&(g.grtype),fp,f,"Type");
+    io_double(&(g.color_scale),fp,f,"color scale");
+    io_double(&(g.min_scale),fp,f," minscale");
 
-    io_double(&(s.plot_windows.current->xmax),fp,f," xmax");
-    io_double(&(s.plot_windows.current->xmin),fp,f," xmin");
-    io_double(&(s.plot_windows.current->ymax),fp,f," ymax");
-    io_double(&(s.plot_windows.current->ymin),fp,f," ymin");
-    io_double(&(s.plot_windows.current->zmax),fp,f," zmax");
-    io_double(&(s.plot_windows.current->zmin),fp,f," zmin");
-    io_double(&(s.plot_windows.current->xbar),fp,f, " ");
-    io_double(&(s.plot_windows.current->dx  ),fp,f," ");
-    io_double(&(s.plot_windows.current->ybar),fp,f," ");
-    io_double(&(s.plot_windows.current->dy  ),fp,f," ");
-    io_double(&(s.plot_windows.current->zbar),fp,f," ");
-    io_double(&(s.plot_windows.current->dz  ),fp,f," ");
+    io_double(&(g.xmax),fp,f," xmax");
+    io_double(&(g.xmin),fp,f," xmin");
+    io_double(&(g.ymax),fp,f," ymax");
+    io_double(&(g.ymin),fp,f," ymin");
+    io_double(&(g.zmax),fp,f," zmax");
+    io_double(&(g.zmin),fp,f," zmin");
+    io_double(&(g.xbar),fp,f, " ");
+    io_double(&(g.dx  ),fp,f," ");
+    io_double(&(g.ybar),fp,f," ");
+    io_double(&(g.dy  ),fp,f," ");
+    io_double(&(g.zbar),fp,f," ");
+    io_double(&(g.dz  ),fp,f," ");
 
-    io_double(&(s.plot_windows.current->Theta),fp,f," Theta");
-    io_double(&(s.plot_windows.current->Phi),fp,f, " Phi");
-    io_int(&(s.plot_windows.current->xshft),fp,f," xshft");
-    io_int(&(s.plot_windows.current->yshft),fp,f," yshft");
-    io_int(&(s.plot_windows.current->zshft),fp,f," zshft");
-    io_double(&(s.plot_windows.current->xlo),fp,f," xlo");
-    io_double(&(s.plot_windows.current->ylo),fp,f," ylo");
-    io_double(&(s.plot_windows.current->oldxlo),fp,f," ");
-    io_double(&(s.plot_windows.current->oldylo),fp,f," ");
-    io_double(&(s.plot_windows.current->xhi),fp,f," xhi");
-    io_double(&(s.plot_windows.current->yhi),fp,f," yhi");
-    io_double(&(s.plot_windows.current->oldxhi),fp,f," ");
-    io_double(&(s.plot_windows.current->oldyhi),fp,f," ");
-    if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
+    io_double(&(g.Theta),fp,f," Theta");
+    io_double(&(g.Phi),fp,f, " Phi");
+    io_int(&(g.xshft),fp,f," xshft");
+    io_int(&(g.yshft),fp,f," yshft");
+    io_int(&(g.zshft),fp,f," zshft");
+    io_double(&(g.xlo),fp,f," xlo");
+    io_double(&(g.ylo),fp,f," ylo");
+    io_double(&(g.oldxlo),fp,f," ");
+    io_double(&(g.oldylo),fp,f," ");
+    io_double(&(g.xhi),fp,f," xhi");
+    io_double(&(g.yhi),fp,f," yhi");
+    io_double(&(g.oldxhi),fp,f," ");
+    io_double(&(g.oldyhi),fp,f," ");
+}
+
+void io_graph(int f, FILE *fp)
+{
+  io_graph_of(f,fp,*xpp::session().plot_windows.current);
+  if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
+}
+
+void write_graph(FILE *fp, GRAPH &g)
+{
+  io_graph_of(WRITEM,fp,g);
+}
+
+void read_graph(FILE *fp, GRAPH &g)
+{
+  set_type=1; /* its "# Graphics" heading */
+  io_graph_of(READEM,fp,g);
+}
+
+bool read_set_by_name(FILE *fp, const std::vector<std::string> &vars, int node, int nmarkov,
+                      const std::vector<std::string> &pars, xpp::KeptValues &kept)
+{
+  xpp::Session &s=xpp::session();
+  std::optional<std::string> first=next_line(fp);
+  if(!first||first->empty()||(*first)[0]!='#')return false;
+  set_type=1;
+  int ne,np;
+  io_int(&ne,fp,READEM," ");
+  io_int(&np,fp,READEM," ");
+  const int nic=node+nmarkov;
+  if(ne!=static_cast<int>(vars.size())||np!=static_cast<int>(pars.size())||node<0||nmarkov<0||nic>ne)return false;
+  /* the numerics go through the session's own, which restore_values then
+     sets from kept: the ones of this model until then */
+  const NumericsSettings numerics=s.numerics;
+  const int delay_flag=s.delay.flag,my_start=s.integrator.my_start;
+  io_numerics(READEM,fp);
+  kept.numerics=s.numerics;
+  s.numerics=numerics;
+  s.delay.flag=delay_flag;
+  s.integrator.my_start=my_start;
+  do_meth();
+  const int poi=kept.numerics.poivar;
+  kept.poivar=poi==0?std::string("T"):poi>0&&poi<=ne?vars[poi-1]:std::string();
+  if(kept.numerics.method==xpp::method::VOLTERRA){
+    int points;
+    io_int(&points,fp,READEM," ");
+  }
+  /* io_exprs's lines, by the saved model's counts */
+  std::string text;
+  double z;
+  kept.delays.clear();
+  kept.ics.clear();
+  kept.pars.clear();
+  skip_heading_line(fp);
+  for(int i=0;i<node;i++){
+    io_string(text,fp,READEM);
+    kept.delays.emplace_back(vars[i],text);
+  }
+  skip_heading_line(fp);
+  for(int i=0;i<node;i++)io_string(text,fp,READEM); /* the boundary conditions: not by name */
+  skip_heading_line(fp);
+  for(int i=0;i<nic;i++){
+    io_double(&z,fp,READEM," ");
+    kept.ics.emplace_back(vars[i],z);
+  }
+  skip_heading_line(fp);
+  for(int i=0;i<nic;i++)io_double(&z,fp,READEM," "); /* where the last run ended */
+  skip_heading_line(fp);
+  for(int i=0;i<np;i++){
+    io_double(&z,fp,READEM," ");
+    kept.pars.emplace_back(pars[i],z);
+  }
+  return true;
 }
 
 void io_int(int *i, FILE *fp, int f, std::string_view ss)

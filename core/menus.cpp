@@ -21,7 +21,7 @@ const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
-"cOpy set line","open Model","rEload"};
+"cOpy set line","open Model","rEload","saVe session","opeN session"};
 
 /* hints for the main menus */
 const char *const main_hint[]=
@@ -63,7 +63,9 @@ const char *const file_hint[]={
 "Run a quick tutorial on XPPAUT",
 "Copy the current values as a named set line for the .ode",
 "Load another model in place of this one",
-"Read the model's file again, keeping the values"
+"Read the model's file again, keeping the values",
+"Save everything to one session file (.snapx) to continue later",
+"Open a session file: its model, values, windows, data and diagram"
 };
 
 
@@ -366,7 +368,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwracshqtglxuome";
+const char *const file_menu_keys="pwracshqtglxuomevn";
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
 static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",

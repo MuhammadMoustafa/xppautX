@@ -133,8 +133,8 @@ without unpacking anything:
   anywhere and run it.
 - **Linux:** `xppautX-<version>-linux-x64.deb` (amd64):
   `sudo apt install ./xppautX-<version>-linux-x64.deb` puts `xppautX` in
-  `/usr/bin`, adds the menu entry and icons, and registers the `.ode` and
-  `.odex` file types system-wide (it recommends `libwebkit2gtk-4.1-0` for
+  `/usr/bin`, adds the menu entry and icons, and registers the `.ode`,
+  `.odex` and `.snapx` (session) file types system-wide (it recommends `libwebkit2gtk-4.1-0` for
   the window).
 - **macOS:** `xppautX-<version>-macos-arm64.dmg` (Apple silicon) or
   `-macos-x64.dmg` (Intel): open it and drag `xppautX.app` to Applications

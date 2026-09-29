@@ -919,49 +919,68 @@ void auto_freeze_it()
   create_crv(0);
 }
 
+namespace {
+
+/* frozen curve slot i holds these points (z empty unless type>0: 3D) in
+   window w, under its default name and key */
+void fill_frozen_curve(int i, std::vector<float> x, std::vector<float> y, std::vector<float> z, int type, XppWinId w)
+{
+  CURVE &c=xpp::session().frozen_curves.curve[i];
+  std::array<std::vector<float>,3> &pts=frozen_points[i];
+  pts[0]=std::move(x);
+  pts[1]=std::move(y);
+  if(type>0)pts[2]=std::move(z);
+  else std::vector<float>().swap(pts[2]);
+  c.xv=pts[0].data();
+  c.yv=pts[1].data();
+  c.zv=type>0?pts[2].data():nullptr;
+  c.use=1;
+  c.len=static_cast<int>(pts[0].size());
+  c.type=type;
+  c.w=w;
+  c.name=xpp::format("crv{}",static_cast<char>('a'+i));
+  c.key=c.name;
+  marks_data_frozen_new(i); /* the window shows it: it is its current curve */
+}
+
+} // namespace
+
 int create_crv(int ind)
 {
   xpp::Session &s=xpp::session();
-  int i,type,j;
-  int ix,iy,iz;
-
-  for(i=0;i<MAXFRZ;i++){
+  for(int i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==0){
-      ix=s.plot_windows.current->xv[ind];
-      iy=s.plot_windows.current->yv[ind];
-      iz=s.plot_windows.current->zv[ind];
+      const int ix=s.plot_windows.current->xv[ind];
+      const int iy=s.plot_windows.current->yv[ind];
+      const int iz=s.plot_windows.current->zv[ind];
       if(s.browser.view.maxrow<=2){
 	err_msg("No Curve to freeze");
 	return(-1);
       }
-      type=s.plot_windows.current->grtype;
-      std::array<std::vector<float>,3> &pts=frozen_points[i];
-      pts[0].assign(s.browser.view.maxrow,0.0f);
-      pts[1].assign(s.browser.view.maxrow,0.0f);
-      if(type>0)pts[2].assign(s.browser.view.maxrow,0.0f);
-      else std::vector<float>().swap(pts[2]);
-      s.frozen_curves.curve[i].xv=pts[0].data();
-      s.frozen_curves.curve[i].yv=pts[1].data();
-      s.frozen_curves.curve[i].zv=type>0?pts[2].data():nullptr;
-      s.frozen_curves.curve[i].use=1;
-      s.frozen_curves.curve[i].len=s.browser.view.maxrow;
-      for(j=0;j<s.browser.view.maxrow;j++){
-	s.frozen_curves.curve[i].xv[j]=s.browser.view.data[ix][j];
-	s.frozen_curves.curve[i].yv[j]=s.browser.view.data[iy][j];
-	if(type>0)
-	  s.frozen_curves.curve[i].zv[j]=s.browser.view.data[iz][j];
-      }
-      s.frozen_curves.curve[i].type=type;
-      s.frozen_curves.curve[i].w=s.plot_windows.draw_win;
-      s.frozen_curves.curve[i].name=xpp::format("crv{}",static_cast<char>('a'+i));
-      s.frozen_curves.curve[i].key=xpp::format("crv{}",static_cast<char>('a'+i));
-      marks_data_frozen_new(i); /* the window shows it: it is its current curve */
+      const int type=s.plot_windows.current->grtype;
+      const int n=s.browser.view.maxrow;
+      float *const *d=s.browser.view.data;
+      fill_frozen_curve(i,std::vector<float>(d[ix],d[ix]+n),std::vector<float>(d[iy],d[iy]+n),
+                        type>0?std::vector<float>(d[iz],d[iz]+n):std::vector<float>(),type,s.plot_windows.draw_win);
       return(i);
     }
   }
     err_msg("All curves used");
     return(-1);
 }	
+
+bool restore_frozen_curve(int i, XppWinId w, int type, int color, std::string key, std::string name,
+                          std::vector<float> x, std::vector<float> y, std::vector<float> z)
+{
+  if(i<0||i>=MAXFRZ||xpp::session().frozen_curves.curve[i].use||x.size()!=y.size()||
+     (type>0&&z.size()!=x.size()))return false;
+  fill_frozen_curve(i,std::move(x),std::move(y),std::move(z),type,w);
+  CURVE &c=xpp::session().frozen_curves.curve[i];
+  c.color=color;
+  c.key=std::move(key);
+  c.name=std::move(name);
+  return true;
+}
 
 void edit_frz_crv(int i)
 {

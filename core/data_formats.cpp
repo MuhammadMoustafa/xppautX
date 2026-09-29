@@ -230,7 +230,7 @@ std::string npy(std::span<const double> values, std::size_t rows, std::size_t co
     return o;
 }
 
-bool write_npz(const DataTable &t, Writer &w)
+std::string npz_of(const DataTable &t)
 {
     std::vector<zip::Entry> entries;
     const std::size_t n = t.rows();
@@ -261,8 +261,10 @@ bool write_npz(const DataTable &t, Writer &w)
         const double seed_value = *t.seed;
         entries.push_back({"seed.npy", npy(std::span<const double>(&seed_value, 1), 1, 0)});
     }
-    return w.write(zip::make_zip(entries));
+    return zip::make_zip(entries);
 }
+
+bool write_npz(const DataTable &t, Writer &w) { return w.write(npz_of(t)); }
 
 /* the value after "'key':" in a .npy header's dict, up to the next ',' or
    '}' outside parentheses */
@@ -368,10 +370,8 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
     return true;
 }
 
-bool read_npz(const char *path, DataTable &t)
+bool parse_npz(std::string_view bytes, DataTable &t)
 {
-    std::string bytes;
-    if (!read_bytes(path, bytes)) return false;
     const std::optional<std::vector<zip::Entry>> entries = zip::read_zip(bytes);
     if (!entries) return false;
     for (const zip::Entry &e : *entries) {
@@ -396,29 +396,45 @@ bool read_npz(const char *path, DataTable &t)
     return true;
 }
 
-/* a format function, ending the program on a failed allocation (no
-   exception leaves the core's formats) */
+bool read_npz(const char *path, DataTable &t)
+{
+    std::string bytes;
+    return read_bytes(path, bytes) && parse_npz(bytes, t);
+}
+
+/* F(args...), ending the program on a failed allocation (no exception
+   leaves the core's formats) */
+template <auto F, class... A>
+auto guarded(const char *what, A... args) noexcept
+{
+    try {
+        return F(args...);
+    } catch (const std::bad_alloc &) {
+        xpp_out_of_memory(what);
+    }
+}
+
+/* a reader F of src into t: t empty unless it read */
+template <auto F, class Src>
+bool read_clean(Src src, DataTable &t)
+{
+    t = DataTable();
+    if (F(src, t)) return true;
+    t = DataTable();
+    return false;
+}
+
+/* a format function as the registry holds it */
 template <auto F>
 bool guarded_write(const DataTable &t, Writer &w) noexcept
 {
-    try {
-        return F(t, w);
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("writing a data file");
-    }
+    return guarded<F, const DataTable &, Writer &>("writing a data file", t, w);
 }
 
 template <auto F>
 bool guarded_read(const char *path, DataTable &t) noexcept
 {
-    try {
-        t = DataTable();
-        if (F(path, t)) return true;
-        t = DataTable();
-        return false;
-    } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("reading a data file");
-    }
+    return guarded<read_clean<F, const char *>, const char *, DataTable &>("reading a data file", path, t);
 }
 
 /* The registry: one line per format, in the Save data menu's order. */
@@ -438,6 +454,17 @@ std::string data_column_name(const DataTable &t, std::size_t i)
 }
 
 std::span<const DataFormat> data_formats() { return registry; }
+
+std::string npz_bytes(const DataTable &table) noexcept
+{
+    return guarded<npz_of, const DataTable &>("writing a data file", table);
+}
+
+bool npz_table(std::string_view bytes, DataTable &table) noexcept
+{
+    return guarded<read_clean<parse_npz, std::string_view>, std::string_view, DataTable &>("reading a data file",
+                                                                                        bytes, table);
+}
 
 const DataFormat *data_format_named(std::string_view id)
 {

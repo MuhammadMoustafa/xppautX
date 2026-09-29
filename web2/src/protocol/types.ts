@@ -43,7 +43,7 @@ export interface StateEvent {
   rows: number;
   menu: number;
   win: number;
-  session?: {set: string; auto?: string};
+  session?: {file?: string; set?: string; auto?: string};
 }
 
 /** One curve of the active plot window: storage columns (0 is T) and XPP's style. */

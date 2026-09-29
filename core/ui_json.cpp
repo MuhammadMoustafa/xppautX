@@ -432,7 +432,9 @@ void handle_line(const char *line, unsigned long seq)
         std::string o, name;
         get_string(line, "op", o, 8);
         get_string(line, "name", name, XPP_MAX_NAME);
-        if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str());
+        /* data: in (1), left out (0), or asked above 50 MB (absent) */
+        const char *jd = js_find(line, "data");
+        if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
         else if (o == "load") xpp_session_load(name.empty() ? nullptr : name.c_str());
     } else if (is_cmd(line, "file")) {
         /* the model's folder for a client that cannot reach it (xpp_files.h) */

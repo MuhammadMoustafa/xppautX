@@ -99,8 +99,9 @@ leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
 
-**Double-clicking a .ode file** opens it the same way, once xppautX is
-registered as its opener: run the matching script in `tools/associate/`
+**Double-clicking a .ode file** (or a `.snapx` session file, below)
+opens it the same way, once xppautX is registered as its opener: run
+the matching script in `tools/associate/`
 once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
 entry, no admin rights; Linux: `install-linux.sh`, a `.desktop` file and
 MIME type under `~/.local/share`; macOS: `make app` builds `xppautX.app`
@@ -111,11 +112,10 @@ place of the current model instead.
 
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. File/open Model (`F M` in the page, File > Open model… in
-the window's menu bar) picks a `.ode` or `.odex` file and asks first:
-the current model's data and AUTO diagram go, so it offers **Save
-first** (File/Write set's `.set`, and the diagram's `.auto` when there
-is one, as the protocol's session save does) or **Don't save**; Escape
-keeps the current model. The new model is loaded from its own folder,
+the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
+session file) and asks first: the current model's data and AUTO diagram
+go, so it offers **Save first** (a session file, as File/saVe session
+writes it) or **Don't save**; Escape keeps the current model. The new model is loaded from its own folder,
 which becomes the folder the page's files are in, and every window of
 the model before closes. File/rEload (`F E`, File > Reload) reads the
 model's own file again, with the command line it was started with: edit
@@ -125,6 +125,28 @@ variable the file no longer has is left out, and one it adds comes with
 the file's value. A model that cannot be loaded (a mistake in the file,
 a file that is gone) changes nothing: an error says so, the log says
 why, and the model before goes on as it was.
+
+**Continuing where you stopped: session files.** File/saVe session (`F
+V`) writes everything you would need to pick up tomorrow into one file,
+`name.snapx`: the model's path and a fingerprint of its `.ode`, the
+parameters, initial data and numerics, every plot window (its axes,
+variables, zoom and the earlier-runs toggle), the text, arrows, markers
+and frozen curves, AUTO's diagram, settings and view, and the data
+table. File/opeN session (`F N`), a double-click on the file, or
+`xppautX name.snapx` loads its model (looked for beside the `.snapx`
+first, then where it was when saved) and restores it all as it was
+saved; AUTO can grab a point of the restored diagram and go on. If the
+`.ode` has been edited since, a warning says so and what still fits is
+kept by name, as Reload does: a parameter or variable the file no
+longer has is left out, and the diagram too when the model's variables
+or parameters changed. The earlier runs a window shows until Erase are
+not saved (the data table is the last run's), nor are Sing pts'
+equilibrium symbols. A data table above 50 MB makes Save session ask
+whether to leave it out (Go computes it again). A `.snapx` is a zip of
+ordinary files: renamed to `.zip`, its `model.set` and `model.auto` read
+in the original XPPAUT (File/Read set, AUTO's File/Load diagram) and its
+`data.npz` in NumPy (`numpy.load`). A `.set` file and a `.auto` file on
+their own keep working as they always have.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself

@@ -43,18 +43,6 @@ int win_w[MAXPOP], win_h[MAXPOP];
 
 /* ---- plot windows ------------------------------------------------------------ */
 
-namespace {
-
-int graph_of(unsigned long w)
-{
-    int i;
-    for (i = 0; i < MAXPOP; i++)
-        if (xpp::session().plot_windows.graph[i].Use && xpp::session().plot_windows.graph[i].w == w) return i;
-    return 0;
-}
-
-} // namespace
-
 void windows_init(void)
 {
     int i;

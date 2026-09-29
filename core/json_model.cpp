@@ -115,9 +115,9 @@ void switch_model(const xpp::ModelRequest &req)
     diag_forget();
     plot_data_changed();
     state_forget();
-    xpp_session_forget();
     xpp_renew_auto_dir();
     start_model(req.keep_values ? &kept : nullptr);
+    if (!req.session.empty()) xpp_session_restore(req.session); /* Open session */
     j_redraw_graph();
     auto_redraw_for_client();
     /* @ runnow=1, as at the start */

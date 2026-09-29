@@ -176,6 +176,29 @@ std::string xpp_files_working_dir();
 /* path's folder ("" when it names none: a bare name) and its last part,
    either separator ('/', or '\' too on Windows) */
 std::pair<std::string, std::string> xpp_files_split_path(const std::string &path);
+/* path itself when it is absolute ("/x", and on Windows "C:\x" or "\x"),
+   else under the folder dir ("" the working directory) */
+std::string xpp_files_absolute(const std::string &path, const std::string &dir = std::string());
+
+namespace xpp {
+/* a scratch folder of its own (xpp_files_make_temp_dir), removed with the
+   files in it when this goes; path() is empty when none could be made */
+class TempDir {
+public:
+    TempDir() : path_(xpp_files_make_temp_dir()) {}
+    ~TempDir()
+    {
+        if (!path_.empty()) xpp_files_remove_temp_dir(path_.c_str());
+    }
+    TempDir(const TempDir &) = delete;
+    TempDir &operator=(const TempDir &) = delete;
+    const std::string &path() const noexcept { return path_; }
+    /* the path of the file name in it */
+    std::string file(const std::string &name) const { return path_ + "/" + name; }
+private:
+    std::string path_;
+};
+} // namespace xpp
 /* the folders of direct and its files that match the Unix-style wildcard
    wild (*, ?, [..]), each list sorted; false (dirs/files left empty, a
    WARN) when direct cannot be read. core/read_dir.cpp's old list_folder,
