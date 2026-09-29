@@ -954,19 +954,29 @@ def section_autox():
 
     # a new server loads it: the same diagram exactly, and a grab restarts from it
     s = server()
+    # nothing integrated yet: Start/Periodic has no orbit to start from
+    evs = run_menu(s, 'p')
+    check('autox: Start/Periodic with nothing integrated refuses, and the server lives',
+          'Integrate first' in messages(evs) and s.alive(), messages(evs)[:200])
     evs = load_diagram(s, d1)
     dg2 = Diagram().apply(evs).pts
     check('autox: Load diagram in a new server gives the same diagram, exactly',
           dg1 and dg2 == dg1 and 'left as they were' not in messages(evs), '%d vs %d points, first difference %s' % (
               len(dg2), len(dg1), next(((a, b) for a, b in zip(dg2, dg1) if a != b), None)))
-    s.send(cmd='auto', op='grab', type='HB', index=1)
-    s.collect(is_idle)
-    evs = run_menu(s, 'p', timeout=120 * SLOW)
+    # the periodic branch's last label (its end point): extending it restarts
+    # from the orbit in the restored solutions.s
+    last = max((p['lab'] for p in dg2 if p['lab']), default=0)
+    s.send(cmd='auto', op='grab', label=last)
+    evs, _ = s.collect(is_idle)
+    check("autox: the loaded diagram's last label is grabbed", last > 0 and 'error' not in messages(evs),
+          'label %d; %s' % (last, messages(evs)[:200]))
+    evs = run_any(s, 'e')
     more = Diagram()
     more.pts = list(dg2)
     more.apply(evs)
-    check('autox: a grab of its Hopf point and a periodic run continue the loaded diagram',
-          len(more.pts) > len(dg2) and more.pts[:len(dg2)] == dg2 and s.alive() and 'nan' not in messages(evs).lower(),
+    check('autox: extending the grabbed periodic branch continues the loaded diagram',
+          len(more.pts) > len(dg2) and more.pts[:len(dg2)] == dg2 and s.alive() and 'error' not in messages(evs)
+          and 'nan' not in messages(evs).lower(),
           '%d points after %d; %s' % (len(more.pts), len(dg2), messages(evs)[:200]))
     s.close()
 

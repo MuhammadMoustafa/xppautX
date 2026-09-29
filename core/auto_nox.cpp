@@ -1720,6 +1720,12 @@ void auto_start_choice()
     auto_new_ss();
     return;
   }
+  /* the other starts take the orbit last integrated (autpp.cpp stpnt:
+     get_start_period, get_start_orbit) */
+  if(strchr("pbhe",ch)!=NULL&&ch!=0&&xpp::session().data_store.rows<2){
+    err_msg("Integrate first: this start takes its orbit from the last integration");
+    return;
+  }
   if(ch=='p'){
   auto_start_at_per();
     return;
