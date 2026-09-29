@@ -154,6 +154,7 @@ issue; the card here is the one kept up to date.
 | W85 | #134 | The plot's axes before a run are the model's (maintainer, 2026-09-28): with no data, uPlot padded and rounded the window (-110..60 read as -130..80); the chart's scales take the range as given | none | done |
 | W86 | #135 | Progress bar at the right end of the status bar (maintainer, 2026-09-28; W83 put it after Ready): the fixed slot moves to the bar's right end, nothing moves as it shows or hides | none | done |
 | W87 | #136 | Smaller release binaries (maintainer, 2026-09-28): the stripped CI binaries grew 10-15% with W74 (Windows 1.80 -> 2.09 MB zipped); measure -Os, -flto and --gc-sections (size, and speed on heavy/million -silent and the examples) and adopt the best that costs no speed and no numerics (every platform's examples md5); local and test builds keep -g | none | done |
+| W88 | #137 | Native file dialogs in the desktop window (maintainer, 2026-09-28: the browse dialog looks strange, why not the OS one): a `file` ask in the window opens the OS dialog (IFileOpenDialog/IFileSaveDialog, GTK FileChooser, NSOpenPanel) with true paths and no copy; browser mode keeps ui-v2.md's option C; decision pending | W61 | blocked |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
