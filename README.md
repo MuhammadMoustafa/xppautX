@@ -126,8 +126,25 @@ browser and checks its state (docs/ui-v2.md).
 
 ## Installing a release
 
-Each release attaches one archive per platform. Unpack it and run the
-program on a model:
+Each release attaches one archive per platform, and a file that installs
+without unpacking anything:
+
+- **Windows:** `xppautX-<version>-windows-x64.exe`, the bare program: put it
+  anywhere and run it.
+- **Linux:** `xppautX-<version>-linux-x64.deb` (amd64):
+  `sudo apt install ./xppautX-<version>-linux-x64.deb` puts `xppautX` in
+  `/usr/bin`, adds the menu entry and icons, and registers the `.ode` and
+  `.odex` file types system-wide (it recommends `libwebkit2gtk-4.1-0` for
+  the window).
+- **macOS:** `xppautX-<version>-macos-arm64.dmg` (Apple silicon) or
+  `-macos-x64.dmg` (Intel): open it and drag `xppautX.app` to Applications
+  (unsigned: see the macOS note below). Starting `xppautX.app` works; a
+  double-clicked `.ode` may not reach the program yet, because Finder passes
+  a file as an Apple Event rather than an argument (use File > Open model, or
+  run the binary inside the app on the file).
+
+The archives hold the same program with the examples and `tools/associate/`.
+Unpack one and run the program on a model:
 
 ```bash
 ./xppautX examples/ode/lecar.ode
@@ -163,8 +180,9 @@ tools/associate/install-linux.sh --uninstall     # undo
 
 Run it once; after that, double-clicking a `.ode` file opens it in its own
 xppautX window (a second `.ode` opens a second window: the core cannot load
-a second model into a running session). macOS double-click association is
-still `make app` from source (below); the release archive has no bundle yet.
+a second model into a running session). The .deb does this for Linux and
+the .exe needs the script above; on macOS the .dmg's `xppautX.app` declares
+the types (see above for its limit).
 
 The binaries are not signed or notarized, because a signing identity costs
 money at both Apple and Microsoft, so each system asks once before running a

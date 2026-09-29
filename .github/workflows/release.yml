@@ -82,7 +82,15 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: linux-x64
-          path: xppautX-*-*.tar.gz*
+          path: |
+            xppautX-*-*.tar.gz*
+            xppautX-*-*.deb*
+      # the .deb installs (dependencies resolved) and its program starts
+      - name: Install the .deb
+        run: |
+          sudo apt-get install -y ./xppautX-*-linux-x64.deb
+          xppautX --version
+          test -f /usr/share/applications/xppautx.desktop
 
   windows:
     runs-on: windows-latest
@@ -117,7 +125,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: windows-x64
-          path: xppautX-*.zip*
+          path: |
+            xppautX-*.zip*
+            xppautX-*.exe*
 
   macos:
     # the window (WKWebView) is on by default since W13d (CI builds
@@ -154,10 +164,19 @@ jobs:
           tools/examples_check.sh --platform ${{ matrix.md5 }}
       - name: Package
         run: tools/package_release.sh ${{ matrix.arch }}
+      # the .app inside the .dmg starts (double-clicking a .ode is not
+      # checked: see README)
+      - name: Check the .dmg
+        run: |
+          hdiutil attach -nobrowse -mountpoint /tmp/xppdmg xppautX-*-${{ matrix.arch }}.dmg
+          /tmp/xppdmg/xppautX.app/Contents/MacOS/xppautX --version
+          hdiutil detach /tmp/xppdmg
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.arch }}
-          path: xppautX-*-*.tar.gz*
+          path: |
+            xppautX-*-*.tar.gz*
+            xppautX-*-*.dmg*
 
   publish:
     needs: [source, linux, windows, macos]

@@ -59,6 +59,11 @@ xppautX --help the modes.
 Only this machine can reach it, and the address carries a one-time token.
 Every xppaut option still works; xppautX's own options have to come first.
 
+Installable files of the same release: xppautX-$version-windows-x64.exe
+(the bare program), xppautX-$version-linux-x64.deb (sudo apt install
+./xppautX-*.deb: /usr/bin, menu entry, icons, .ode file type) and
+xppautX-$version-macos-*.dmg (drag xppautX.app to Applications).
+
 To open a .ode file by double-clicking it, run the matching script in
 tools/associate/ once (per user, no admin rights): xppautx-associate.ps1
 -Register on Windows, install-linux.sh on Linux; each has an
@@ -79,5 +84,75 @@ case "$platform" in
   windows-*) ( cd build && zip -qr "../$name.zip" "$name" ) && sha256sum "$name.zip" > "$name.zip.sha256" ;;
   *) tar -czf "$name.tar.gz" -C build "$name" && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256" 2>/dev/null ||
      sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" ;;
+esac
+
+# Installable files beside the archive (W89): the bare .exe, a .deb, a .dmg.
+# Built from the stripped binary of the archive's folder.
+bin="build/$name/xppautX$suffix"
+case "$platform" in
+  windows-*)
+    cp "$bin" "$name.exe" && sha256sum "$name.exe" > "$name.exe.sha256"
+    ;;
+  linux-x64)
+    command -v dpkg-deb >/dev/null 2>&1 || { echo "package_release: dpkg-deb not found" >&2; exit 1; }
+    # a Debian version starts with a digit: v1.2-3-gabc -> 1.2-3-gabc, a bare hash -> 0~hash
+    debver=${version#v}
+    case "$debver" in [0-9]*) ;; *) debver="0~$debver" ;; esac
+    debver=$(printf '%s' "$debver" | tr -c 'A-Za-z0-9.+~\n-' '.')
+    root="build/$name-deb"
+    rm -rf "$root" && mkdir -p "$root/DEBIAN" "$root/usr/bin" "$root/usr/share/applications" \
+      "$root/usr/share/mime/packages" "$root/usr/share/doc/xppautx" || exit 1
+    cp "$bin" "$root/usr/bin/xppautX" && chmod 755 "$root/usr/bin/xppautX"
+    # what install-linux.sh does per user, system-wide
+    cp tools/associate/xppautx.desktop "$root/usr/share/applications/xppautx.desktop"
+    cp tools/associate/xppautx-ode.xml "$root/usr/share/mime/packages/xppautx-ode.xml"
+    for d in assets/icons/hicolor/*/apps; do
+      size=$(basename "$(dirname "$d")")
+      mkdir -p "$root/usr/share/icons/hicolor/$size/apps"
+      cp "$d/xppautx.png" "$root/usr/share/icons/hicolor/$size/apps/xppautx.png"
+    done
+    cp LICENSE "$root/usr/share/doc/xppautx/copyright"
+    cp README.md "$root/usr/share/doc/xppautx/README.md"
+    # libc6 from the release runner's glibc floor; libstdc++/libgcc only
+    # when the binary links them dynamically
+    deps="libc6 (>= 2.39)"
+    if command -v readelf >/dev/null 2>&1; then
+      needed=$(readelf -d "$bin" 2>/dev/null)
+      case "$needed" in *libstdc++.so.6*) deps="$deps, libstdc++6 (>= 14)" ;; esac
+      case "$needed" in *libgcc_s.so.1*) deps="$deps, libgcc-s1" ;; esac
+    fi
+    size_kb=$(du -sk "$root/usr" | cut -f1)
+    cat > "$root/DEBIAN/control" <<EOF
+Package: xppautx
+Version: $debver
+Architecture: amd64
+Maintainer: Muhammad Moustafa <engmuhammadmoustafa@gmail.com>
+Installed-Size: $size_kb
+Depends: $deps
+Recommends: libwebkit2gtk-4.1-0
+Section: science
+Priority: optional
+Homepage: https://github.com/MuhammadMoustafa/xppautX
+Description: xppautX, ODE simulation and bifurcation analysis (XPPAUT without X11)
+ A modernised fork of XPPAUT. Opens its front end in a window of its own
+ (WebKitGTK 4.1, recommended; without it, in your browser).
+ Registers the .ode and .odex file types.
+EOF
+    dpkg-deb --root-owner-group --build "$root" "$name.deb" >/dev/null || exit 1
+    sha256sum "$name.deb" > "$name.deb.sha256"
+    ;;
+  macos-*)
+    # unsigned xppautX.app (Info.plist from the template the Makefile's
+    # "app" target also uses, icon from assets/icon.icns) and an
+    # /Applications link, in a compressed disk image
+    app="build/$name-dmg/xppautX.app"
+    rm -rf "build/$name-dmg" && mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" || exit 1
+    cp "$bin" "$app/Contents/MacOS/xppautX"
+    cp assets/icon.icns "$app/Contents/Resources/icon.icns"
+    sed "s/@XPPAUTX_VERSION@/$version/g" tools/associate/Info.plist.in > "$app/Contents/Info.plist"
+    ln -s /Applications "build/$name-dmg/Applications"
+    hdiutil create -volname "xppautX $version" -srcfolder "build/$name-dmg" -ov -format UDZO "$name.dmg" >/dev/null || exit 1
+    shasum -a 256 "$name.dmg" > "$name.dmg.sha256"
+    ;;
 esac
 ls -l "$name".*
