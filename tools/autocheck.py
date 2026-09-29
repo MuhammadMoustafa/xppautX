@@ -5,7 +5,7 @@ travels as data, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
-session, script, replay, names, scratch, errors (default: all; tools/verify.sh
+session, sessiondata, script, replay, names, scratch, errors (default: all; tools/verify.sh
 runs them all).
 errors (W63a) runs AUTO into what its numerics used to exit() on (Ncol 8,
 Ntst 0): an error message, the session goes on, and the next run computes
@@ -49,7 +49,7 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'autox', 'script', 'replay', 'names', 'scratch', 'errors'])
+                                                'sessions', 'session', 'sessiondata', 'autox', 'script', 'replay', 'names', 'scratch', 'errors'])
 args = ap.parse_args()
 if args.list:
     print(' '.join(ap.get_default('sections')))
@@ -1592,6 +1592,82 @@ def section_errors():
               not errors_of(evs) and [p['y'] for p in again] == [p['y'] for p in good],
               '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
     s.close()
+
+
+# ---- sessiondata: a session's stored rows come back in the main window's plot ----
+
+def series_of(evs, win=1):
+    """the last full series event of window win (the curves' rows), or None"""
+    full = [e for e in evs if e.get('ev') == 'series' and e.get('win') == win and 'op' not in e]
+    return full[-1] if full else None
+
+
+PAGE_EVENTS = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings']  # web2's subscription
+
+
+def section_sessiondata():
+    for with_auto in (False, True):
+        tag = 'sessiondata (%s)' % ('AUTO diagram' if with_auto else 'no AUTO')
+        home1 = tempfile.mkdtemp(prefix='xpphome')
+        s = Server(args.server, LECAR, env={'HOME': home1}, verbose=args.v)
+        s.collect(is_idle)
+        s.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        evs, _ = s.collect(is_idle)
+        # W against V, as a phase plane
+        s.send(cmd='key', win=1, key='v')
+        evs, ask = s.collect(is_ask)
+        s.send(cmd='answer', id=ask['id'], key='2')
+        evs, ask = s.collect(is_ask)
+        vals = list(ask['values'])
+        vals[0], vals[1] = 'V', 'W'
+        s.send(cmd='answer', id=ask['id'], ok=1, values=vals)
+        s.collect(is_idle)
+        s.send(cmd='key', win=1, key='i')
+        evs, ask = s.collect(is_ask)
+        s.send(cmd='answer', id=ask['id'], key='g')
+        evs, _ = s.collect(is_idle, timeout=30 * SLOW)
+        saved = series_of(evs)
+        if with_auto:
+            open_auto(s)
+            run_menu(s, 's')
+            grab_hopf(s)
+            run_menu(s, 'p', timeout=120 * SLOW)
+        rows = saved['rows'] if saved else -1
+        s.send(cmd='session', op='save', name='d1')
+        s.collect(is_idle, timeout=20 * SLOW)
+        snap = os.path.join(s.run, 'd1.snapx')
+        home2 = tempfile.mkdtemp(prefix='xpphome')
+        s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
+        s2.collect(is_idle)
+        if os.path.exists(snap): shutil.copy(snap, s2.run)
+        # the same server opens its own session again (the desktop window's File/Open)
+        evs = open_session(s, 'd1')
+        same = series_of(evs)
+        check('%s: reopening the session in the same server keeps its rows in the plot' % tag,
+              same is not None and same['rows'] == rows, 'saved %s, after open %s' % (rows, same and same['rows']))
+        s.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        evs, _ = s.collect(is_idle)
+        same = series_of(evs)
+        check('%s: and after the page asks again' % tag, same is not None and same['rows'] == rows, str(same and same['rows']))
+        s.close()
+        shutil.rmtree(home1, ignore_errors=True)
+        # the page's subscription is sent again after a model switch's new hello
+        s2.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        s2.collect(is_idle)
+        evs = open_session(s2, 'd1')
+        got = series_of(evs)
+        check('%s: the saved rows are in the main plot after Open session' % tag,
+              rows > 0 and got is not None and got['rows'] == rows, 'saved %s, after open %s' % (rows, got and got['rows']))
+        if saved and got and saved['rows'] == got['rows']:
+            check('%s: the plotted values are the saved ones' % tag,
+                  [c.get('data') for c in saved['columns']] == [c.get('data') for c in got['columns']] if 'columns' in saved else True)
+        s2.send(cmd='data', events=PAGE_EVENTS, enc='f32')
+        evs, _ = s2.collect(is_idle)
+        again = series_of(evs)
+        check('%s: asking for the series again sends the saved rows' % tag,
+              again is not None and again['rows'] == rows, str(again and again['rows']))
+        s2.close()
+        shutil.rmtree(home2, ignore_errors=True)
 
 
 for name in args.sections:
