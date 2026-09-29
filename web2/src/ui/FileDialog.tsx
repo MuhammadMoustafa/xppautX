@@ -80,7 +80,7 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
       <p>
         Pick the file to open{ask.wild && ask.wild !== '*' ? <> ({ask.wild})</> : null}. XPP reads it from the model's
         folder, so it is copied there first. Pick the files it refers to at the same time (tables, included files)
-        to copy them too.
+        to copy them too{wildExtensions(ask.wild).length ? <> (All files in the dialog's type list shows them)</> : null}.
       </p>
       <input ref={input} type="file" multiple accept={wildExtensions(ask.wild).join(',') || undefined} class="visually-hidden" tabIndex={-1} aria-hidden="true"
         data-file-input="open" onChange={e => {
