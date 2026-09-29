@@ -1174,7 +1174,9 @@ async function windows() {
   check('the tabs name what each window plots', await cdp.eval(`[...document.querySelectorAll('[role=tab]')].map(t => t.textContent).join('|')`)
     === `1${t1}|2V vs T`);
   await focusPlot();
+  const zoom2 = await displays();
   await key('-');
+  await displayTold(zoom2, 'the zoom told'); /* before tab 1 is clicked (macos-ui, W93) */
   const z2 = await S('w.viewport');
   check('window 2 zoomed on its own', !!z2.x && JSON.stringify(z2) !== JSON.stringify(z1), JSON.stringify(z2));
 
@@ -1601,12 +1603,13 @@ const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden
 /** a key, then the key that answers the menu it opens */
 /* The page takes no key or click while a command runs (T11). A zoom, a pan
    or the legend's runs toggle tells the core through W65's display command,
-   sent a moment later; the next key or click must wait until it has been
-   sent and done, else it is lost (W93: macos-ui and linux-ui lost them).
-   displays() before the action, then displayTold(n) after it. */
-const displays = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'display').length");
-const displayTold = (n, what = 'the display told') =>
-  until(`__xpp.sent().filter(c => c.cmd === 'display').length > ${n} && !s.busy`, what);
+   sent a moment later (AUTO's view: auto op display); the next key or click
+   must wait until it has been sent and done, else it is lost (W93: macos-ui
+   and linux-ui lost them). displays() before the action, then
+   displayTold(n) after it. */
+const DISPLAYS = "__xpp.sent().filter(c => c.cmd === 'display' || (c.cmd === 'auto' && c.op === 'display')).length";
+const displays = () => cdp.eval(DISPLAYS);
+const displayTold = (n, what = 'the display told') => until(`${DISPLAYS} > ${n} && !s.busy`, what);
 
 async function menuKeys(first, then) {
   await key(first);
@@ -2282,8 +2285,10 @@ async function autoView(dir) {
   await cdp.eval(`[...document.querySelectorAll('.auto-panel .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
   check("the AUTO tools' own Fit does the same as the corner button",
     await until(fitCondition(dataExtent), 'fit2 applied'), JSON.stringify([await DG(), dataExtent]));
+  const reset3 = await displays();
   await key('0');
   await until('s.diagram.viewport.x === null', 'auto reset 3');
+  await displayTold(reset3, 'auto reset 3 told'); /* before g (macos-ui, W93) */
 
   /* Escape cancels a grab */
   await key('g');
@@ -2523,8 +2528,9 @@ async function autoView(dir) {
    result -- rows kept, the EP label, a second run working -- not how long
    it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
+  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
   await key('f');
-  await until('!s.busy', 'file menu');
+  await until('!s.busy && s.core.menu === 1', 'file menu'); /* not only !busy: a sent too soon is lost (macos-ui, W93) */
   await key('a');
   check('AUTO Stop race: File/Auto opens the AUTO view',
     await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open')
