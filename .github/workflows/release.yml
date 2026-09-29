@@ -67,12 +67,14 @@ jobs:
           sudo apt-get install -y -o Dir::Cache::Archives="$HOME/apt-cache" libwebkit2gtk-4.1-dev
           sudo chown -R "$(id -u):$(id -g)" ~/apt-cache
       - name: Build
-        run: make -j4 xppautx WINDOW=1
+        run: make -j4 xppautx WINDOW=1 RELEASE=1
       - name: Check
         run: |
           python3 tools/servercheck.py
           python3 tools/webcheck.py
           sh tools/modecheck.sh
+          # the release flags (RELEASE=1) must not change the numerics
+          tools/examples_check.sh
       # package_release.sh strips the archived binary (debug info out of
       # the download); this build itself is untouched
       - name: Package
@@ -102,11 +104,12 @@ jobs:
           release: false
           install: make zip mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-python
       - name: Build
-        run: make -j4 xppautx
+        run: make -j4 xppautx RELEASE=1
       - name: Check
         run: |
           python tools/servercheck.py --server ./xppautX.exe
           python tools/webcheck.py --bin ./xppautX.exe
+          tools/examples_check.sh --bin xppautX.exe --platform windows
       # package_release.sh strips the archived binary; this build itself
       # is untouched
       - name: Package
@@ -125,10 +128,14 @@ jobs:
       matrix:
         include:
           # macos-14's Apple clang has no -std=c++23
+          # md5: the examples baseline (tests/examples.<md5>.md5); Intel has
+          # none, so it only reports differences from Linux's (a crash fails)
           - runner: macos-15
             arch: macos-arm64
+            md5: macos
           - runner: macos-15-intel
             arch: macos-x64
+            md5: macos-x64
     runs-on: ${{ matrix.runner }}
     env:
       # the oldest macOS the binaries run on, not the runner's own: 13.3
@@ -139,11 +146,12 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
       - name: Build
-        run: make -j3 xppautx
+        run: make -j3 xppautx RELEASE=1
       - name: Check
         run: |
           python3 tools/servercheck.py
           python3 tools/webcheck.py
+          tools/examples_check.sh --platform ${{ matrix.md5 }}
       - name: Package
         run: tools/package_release.sh ${{ matrix.arch }}
       - uses: actions/upload-artifact@v7

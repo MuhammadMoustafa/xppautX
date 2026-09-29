@@ -23,6 +23,15 @@ WARN    ?= -Wall -Wunused-macros -Wunused-but-set-parameter
 STRICT  ?= -Werror=implicit-function-declaration -Werror=implicit-int -Werror=int-conversion -Werror=incompatible-pointer-types -Werror=return-type
 CXXSTRICT ?= -Werror=return-type
 OPT     ?= -g -O2
+# RELEASE=1 (release.yml only, W87): -O2 with link-time optimisation and
+# no -g (package_release.sh strips anyway); local and test builds keep
+# -g -O2. Measured 2026-09-28, stripped: Linux 4.36 -> 3.99 MB, Windows
+# 5.27 -> 4.97 MB, the same speed on heavy.ode and million.ode and the
+# same examples md5s; -Os was 3.16 MB on Linux but up to 1.9x slower.
+ifeq ($(RELEASE),1)
+OPT     = -O2 -flto=auto
+RELEASE_LD = -O2 -flto=auto
+endif
 DEFS     = -DNOERRNO -DNON_UNIX_STDIO -DAUTO -DCVODE_YES \
            -DMYSTR1=$(MAJORVER) -DMYSTR2=$(MINORVER)
 # what `xppautX --version` prints: the release tag (release.yml sets
@@ -302,7 +311,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
