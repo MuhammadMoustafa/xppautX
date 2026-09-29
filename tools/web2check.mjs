@@ -1149,7 +1149,9 @@ async function windows() {
   check('one window: no tab list', await S('s.plots.windows.length === 1') && (await tabs()).length === 0);
   const t1 = await S('w.info && w.info.title'); /* what window 1 plots after the sessions above */
   await focusPlot();
+  const shown0 = await displays();
   await key('+');
+  await displayTold(shown0, 'the zoom told'); /* before New window (macos-ui, W93) */
   const z1 = await S('w.viewport');
   check('window 1 zoomed', !!z1.x, JSON.stringify(z1));
 
@@ -1342,8 +1344,10 @@ async function viewCheck() {
   /* the user's case: the axes already fit, a scroll loses the data, Fit again. The core's
      axes do not move this time, so it is the page that must drop its own pan (session.fitView) */
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
+  const pans0 = await displays();
   for (let st = 0; st < 15; st++) await key('ArrowRight');
   await until('w.viewport.x', 'panned away again');
+  await displayTold(pans0, 'the pan told'); /* before Fit (macos-ui, W93) */
   await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
   check('Fit again with the axes already fitted still brings the data back (the page drops its pan)',
     await until('w.viewport.x === null && w.viewport.y === null && !s.busy', 'second corner fit'),
@@ -1595,6 +1599,15 @@ const lastAnswer = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cm
 const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
 
 /** a key, then the key that answers the menu it opens */
+/* The page takes no key or click while a command runs (T11). A zoom, a pan
+   or the legend's runs toggle tells the core through W65's display command,
+   sent a moment later; the next key or click must wait until it has been
+   sent and done, else it is lost (W93: macos-ui and linux-ui lost them).
+   displays() before the action, then displayTold(n) after it. */
+const displays = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'display').length");
+const displayTold = (n, what = 'the display told') =>
+  until(`__xpp.sent().filter(c => c.cmd === 'display').length > ${n} && !s.busy`, what);
+
 async function menuKeys(first, then) {
   await key(first);
   if (!(await until("s.ask && s.ask.kind === 'menu'", `menu of ${first}`))) return false;
@@ -3014,8 +3027,10 @@ async function runsCheck(dir) {
   check('runs: the legend lists "previous runs (1)"', await cdp.eval(`(${legend} || {}).textContent === 'previous runs (1)'`));
   await cdp.eval(`${legend}.click()`);
   check('runs: the legend entry hides them', await until('!w.showRuns && __xpp.plot().runs.shown === false && __xpp.plot().runs.drawn === 0', 'hide runs'));
+  const shown0 = await displays();
   await cdp.eval(`${legend}.click()`);
   await until('w.showRuns', 'show runs');
+  await displayTold(shown0, 'show runs told'); /* before I, G: else the run never starts (linux-ui, W93) */
   await focusPlot();
   const ran3 = await integrate(601, 30000);
   check('runs: a third run (Go) keeps both earlier ones', ran3 && await until('w.history.runs.length === 2', '3 runs'),
@@ -3280,11 +3295,18 @@ async function valuesLive() {
   check('values: the page connects', connected);
   if (!connected) return;
   const ics0 = await S(icsOf), fields0 = await icFields();
+  /* the ICs sampled every frame (they must not change); Now recorded at
+     every change of its text while the run goes, whatever the frame rate
+     (macos-ui drew too few frames during the run to see it move, W93) */
   await cdp.eval(`window.__icSeen = []; window.__nowSeen = []; window.__sampling = true;
     (function tick() { const s = __xpp.state();
-      if (s.busy) { __icSeen.push(JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join());
-        __nowSeen.push([...document.querySelectorAll('.value-now')].map(o => o.textContent).join()); }
-      if (window.__sampling) requestAnimationFrame(tick); })(); true`);
+      if (s.busy) __icSeen.push(JSON.stringify(s.core.ics.map(p => p[1])) + [...document.querySelectorAll('[data-section="ic"] .value-field input')].map(i => i.value).join());
+      if (window.__sampling) requestAnimationFrame(tick); })();
+    const nowText = () => [...document.querySelectorAll('.value-now')].map(o => o.textContent).join();
+    window.__nowObserver = new MutationObserver(() => { if (window.__sampling && __xpp.state().busy) __nowSeen.push(nowText()); });
+    __nowObserver.observe(document.body,
+      {subtree: true, childList: true, characterData: true});
+    __nowSeen.push(nowText()); true`);
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'menu');
@@ -3300,7 +3322,7 @@ async function valuesLive() {
   const sent0 = await cdp.eval('__xpp.sent().length');
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
   await sleep(500);
-  await cdp.eval('window.__sampling = false; true');
+  await cdp.eval('window.__sampling = false; window.__nowObserver.disconnect(); true');
   const afterRun = await cdp.eval(`__xpp.sent().slice(${sent0})`);
   check('values: five edits while busy wait (the latest, marked) and stay pending once the run ends',
     wasBusy && pendingDuring === JSON.stringify([{kind: 'par', name: 'iapp', text: '0.055'}]) && marked
@@ -3659,6 +3681,11 @@ async function setPar(name, value) {
 
 /** File, then the File menu's key: the dialog of the file ask it opens */
 async function fileMenu(k, mode) {
+  /* the command before has ended (the ask it answered or cancelled gone
+     from the page is not that): else the File menu of the last one still
+     shows, the wait below passes before `f` is read, and `k` reaches the
+     main menu (macos-ui: m, File/open Model, opened Makewindow, W93) */
+  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
   await focusPlot();
   await key('f');
   await until('!s.busy && s.core.menu === 1', 'the File menu');
