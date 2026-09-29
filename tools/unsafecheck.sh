@@ -90,7 +90,7 @@ case "$mode" in
     # the baseline (0 when a file/category is not in it), instead of a
     # shell loop that would spawn an awk per baseline lookup.
     awk -v tab="$tab" '
-      NR == FNR { n = split($0, a, " "); base[a[1] SUBSEP a[2]] = a[3]; next }
+      FILENAME == ARGV[1] { n = split($0, a, " "); base[a[1] SUBSEP a[2]] = a[3]; next }
       {
         n = split($0, a, tab)
         fn = a[2]; cat = a[3]; cur = a[4] + 0

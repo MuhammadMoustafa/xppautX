@@ -86,7 +86,7 @@ case "$mode" in
   check)
     [ -f "$BASELINE" ] || { echo "globalcheck: missing $BASELINE (run tools/globalcheck.sh --update)"; exit 1; }
     baseline_total=$(awk '{ s += $2 } END { print s + 0 }' "$BASELINE")
-    awk 'NR == FNR { base[$1] = $2; next }
+    awk 'FILENAME == ARGV[1] { base[$1] = $2; next }
          { b = base[$1] + 0; if ($2 > b) print $1, b, $2 }' "$BASELINE" "$tmp/counts.txt" > "$tmp/grew.txt"
     if [ -s "$tmp/grew.txt" ]; then
       while read -r f b n; do
