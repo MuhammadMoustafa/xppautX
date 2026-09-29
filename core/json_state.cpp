@@ -317,6 +317,7 @@ void data_command(const char *line)
     marks_data_subscribe(marks, f32);
     ani_data_subscribe(ani);
     auto_data_subscribe(autoinfo);
+    auto_view_subscribe(autoinfo);
     auto_settings_subscribe(autosettings);
 }
 

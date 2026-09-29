@@ -40,6 +40,7 @@
 #include "diagnostic.h"
 #include "xpp_log.h"
 #include "model_switch.h"
+#include "display_state.h"
 
 #include <array>
 #include <optional>
@@ -55,6 +56,10 @@ struct Session {
   XppPlotWindows plot_windows{};
   /* the frozen curves of every window (graf_par.cpp) */
   XppFrozenCurves frozen_curves{};
+  /* what the page displays of each window: earlier runs, zoom (display_state.h) */
+  std::array<PlotDisplay,MAXPOP> plot_display;
+  /* AUTO's hidden branches and zoom */
+  AutoView auto_view;
   /* how plots are written to files (graf_par.cpp) */
   XppPlotExport plot_export;
 

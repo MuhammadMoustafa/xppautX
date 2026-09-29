@@ -152,7 +152,10 @@ one-finger drag on touch, a double click (or `0`) goes back to the
 window's axes, the nearest point is named
 under the mouse, on a tap, or by stepping with `[` `]` from the keyboard,
 curves can be hidden from the legend, and CSV export (written by xppautX
-itself, then offered as a download) what is shown. There is no zoom
+itself, then offered as a download) what is shown. The zoom shown and
+the earlier runs (drawn lighter until Erase, with a legend toggle) are
+held by the core's window and sent as data, so a saved session keeps
+them. There is no zoom
 history: "Reset view" and the **Fit** button
 below are the way back. "Use this view" makes the client's current zoom
 the window's axes, so PostScript/SVG export and Restore agree with

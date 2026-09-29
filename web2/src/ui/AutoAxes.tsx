@@ -59,7 +59,7 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
     const v = {...session.store.getState().diagram.viewport, [axis]: r};
     if (!v.x && axes) v.x = {min: axes.xmin, max: axes.xmax};
     if (!v.y && axes) v.y = {min: axes.ymin, max: axes.ymax};
-    session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport: v}});
+    session.setDiagramViewport(v);
   };
   const r = typedRange(minText, maxText);
   const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */

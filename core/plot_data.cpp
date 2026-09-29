@@ -36,11 +36,9 @@ bool series_on, plots_on, series_f32;
 unsigned long data_version; /* counts data changes */
 
 /* what a window's series shows: equal signatures, the same event */
-struct SeriesSig {
+struct SeriesSig : xpp::PlotCurves {
     unsigned long win, version;
-    int rows, nvars, three;
-    int xv[MAXPERPLOT], yv[MAXPERPLOT], zv[MAXPERPLOT], line[MAXPERPLOT], color[MAXPERPLOT];
-    int shift[3];
+    int rows;
 };
 
 /* what the client holds of each window (graph index): its last full
@@ -78,6 +76,26 @@ void emit(const std::string &s)
 
 /* ---- series ---- */
 
+/* the curves window g plots (zero-filled: two are compared with memcmp) */
+xpp::PlotCurves curves_of(const GRAPH &g)
+{
+    xpp::PlotCurves c;
+    std::memset(&c, 0, sizeof c);
+    c.nvars = g.nvars;
+    c.three = g.ThreeDFlag;
+    for (int i = 0; i < g.nvars && i < MAXPERPLOT; i++) {
+        c.xv[i] = g.xv[i];
+        c.yv[i] = g.yv[i];
+        c.zv[i] = g.zv[i];
+        c.line[i] = g.line[i];
+        c.color[i] = g.color[i];
+    }
+    c.shift[0] = g.xshft;
+    c.shift[1] = g.yshft;
+    c.shift[2] = g.zshft;
+    return c;
+}
+
 SeriesSig series_sig(int pop)
 {
     SeriesSig s;
@@ -86,18 +104,7 @@ SeriesSig series_sig(int pop)
     s.win = static_cast<unsigned long>(g.w);
     s.version = data_version;
     s.rows = xpp::session().browser.view.maxrow;
-    s.nvars = g.nvars;
-    s.three = g.ThreeDFlag;
-    for (int i = 0; i < g.nvars && i < MAXPERPLOT; i++) {
-        s.xv[i] = g.xv[i];
-        s.yv[i] = g.yv[i];
-        s.zv[i] = g.zv[i];
-        s.line[i] = g.line[i];
-        s.color[i] = g.color[i];
-    }
-    s.shift[0] = g.xshft;
-    s.shift[1] = g.yshft;
-    s.shift[2] = g.zshft;
+    s.PlotCurves::operator=(curves_of(g));
     return s;
 }
 
@@ -118,7 +125,7 @@ void add_values(std::string &o, int col, int from, int to)
     xpp_series_append(o, xpp::session().browser.view.data[col] + from, to - from, series_f32);
 }
 
-void add_curves(std::string &o, const SeriesSig &s)
+void add_curves(std::string &o, const xpp::PlotCurves &s)
 {
     o += "\"curves\":[";
     for (int i = 0; i < s.nvars && i < MAXPERPLOT; i++) {
@@ -145,7 +152,7 @@ void add_curves(std::string &o, const SeriesSig &s)
 }
 
 /* T and each column a curve uses, once each */
-std::vector<int> used_columns(const SeriesSig &s)
+std::vector<int> used_columns(const xpp::PlotCurves &s)
 {
     std::vector<int> cols{0}; /* T always: a readout names the time of any point */
     std::vector<bool> used(MAXODE + 1, false);
@@ -161,11 +168,175 @@ std::vector<int> used_columns(const SeriesSig &s)
     return cols;
 }
 
+/* ---- earlier runs (display_state.h, docs/protocol.md "The plot as data") ----
+
+   A plot window shows every run over the ones before until Erase, so a new
+   run keeps the one it replaces, drawn lighter under it. The core holds
+   them (Session::plot_display) and tells the client with `runs` events:
+
+   - a full series with other curves (Xi vs t, Viewaxes, ...) is another
+     picture: the runs go;
+   - a full series of other data (its version differs) keeps the current
+     run as an earlier one, unless the current one is being extended in
+     this command (appends: the full series ends that run) or was erased;
+   - an append that starts again before the rows the client holds (a new
+     run under way, or the next run of a range) keeps the current run first;
+   - Erase forgets the runs and hides the current data until the next run
+     or Redraw; Redraw shows the current data again, without the runs. */
+
+/* at most this many earlier runs per window, oldest dropped, and at most
+   this many rows in all of them, so memory stays bounded */
+constexpr std::size_t runs_keep = 50;
+constexpr long runs_max_rows = 4000000;
+
+xpp::PlotDisplay &disp(int pop) { return xpp::session().plot_display[pop]; }
+
+bool same_curves(const xpp::PlotCurves &a, const xpp::PlotCurves &b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+
+/* the runs event: the client drops its `drop` oldest runs (all of them when
+   `clear`), then adds the last `added` of ours; `erased` as now */
+void emit_runs(int pop, bool clear, std::size_t drop, std::size_t added)
+{
+    const xpp::PlotDisplay &d = disp(pop);
+    std::string o = "{\"ev\":\"runs\",\"win\":";
+    add_int(o, static_cast<long>(xpp::session().plot_windows.graph[pop].w));
+    o += ",\"erased\":";
+    add_int(o, d.erased);
+    o += ",\"clear\":";
+    add_int(o, clear);
+    o += ",\"drop\":";
+    add_int(o, static_cast<long>(drop));
+    if (series_f32) o += ",\"enc\":\"f32\"";
+    o += ",\"add\":[";
+    for (std::size_t i = d.runs.size() - added; i < d.runs.size(); i++) {
+        const xpp::PlotRun &r = d.runs[i];
+        if (i + added != d.runs.size()) o += ',';
+        o += "{\"rows\":";
+        add_int(o, r.rows);
+        o += ",\"three\":";
+        add_int(o, r.curves.three);
+        o += ',';
+        add_curves(o, r.curves);
+        o += ",\"columns\":[";
+        for (std::size_t k = 0; k < r.cols.size(); k++) {
+            if (k) o += ',';
+            o += "{\"col\":";
+            add_int(o, r.cols[k]);
+            o += ",\"name\":";
+            xpp::json_append_string(o, ind_to_sym(r.cols[k]));
+            o += ",\"data\":";
+            xpp_series_append(o, r.data[k].data(), r.rows, series_f32);
+            o += '}';
+        }
+        o += "]}";
+    }
+    o += "]}";
+    emit(o);
+}
+
+/* `r` becomes the newest earlier run (within the limits); how many oldest
+   ones went, and whether it was kept */
+struct Kept {
+    std::size_t drop = 0;
+    std::size_t added = 0;
+};
+
+Kept keep_run(xpp::PlotDisplay &d, xpp::PlotRun &&r)
+{
+    Kept k;
+    if (r.rows <= 0) return k;
+    d.runs.push_back(std::move(r));
+    long rows = 0;
+    for (const xpp::PlotRun &x : d.runs) rows += x.rows;
+    std::size_t drop = d.runs.size() > runs_keep ? d.runs.size() - runs_keep : 0;
+    for (std::size_t i = 0; i < drop; i++) rows -= d.runs[i].rows;
+    while (drop + 1 < d.runs.size() && rows > runs_max_rows) rows -= d.runs[drop++].rows;
+    d.runs.erase(d.runs.begin(), d.runs.begin() + static_cast<std::ptrdiff_t>(drop));
+    k.drop = drop;
+    k.added = 1;
+    return k;
+}
+
+/* window pop's current run replaced by the full series `s` of `cols`; `refresh`: the
+   client asked again for what it had (nothing about the runs changed) */
+void runs_on_full(int pop, const SeriesSig &s, const std::vector<int> &cols, int rows, bool refresh)
+{
+    xpp::PlotDisplay &d = disp(pop);
+    if (refresh && d.has_cur && same_curves(d.cur.curves, s) && d.cur_version == s.version) {
+        if (!d.runs.empty() || d.erased) emit_runs(pop, true, 0, d.runs.size());
+    } else if (!d.has_cur || !same_curves(d.cur.curves, s)) {
+        if (!d.runs.empty() || d.erased || d.live) {
+            d.runs.clear();
+            d.erased = d.live = false;
+            emit_runs(pop, true, 0, 0);
+        }
+    } else if (d.erased || d.live) {
+        const bool was = d.erased;
+        d.erased = d.live = false;
+        if (was) emit_runs(pop, false, 0, 0);
+    } else if (s.version != d.cur_version && d.cur.rows > 0) {
+        const Kept k = keep_run(d, std::move(d.cur));
+        emit_runs(pop, false, k.drop, k.added);
+    }
+    d.has_cur = true;
+    d.cur_version = s.version;
+    d.cur.curves = s;
+    d.cur.rows = rows;
+    d.cur.cols = cols;
+    d.cur.data.assign(cols.size(), std::vector<float>());
+    for (std::size_t k = 0; k < cols.size(); k++) {
+        const float *src = xpp::session().browser.view.data[cols[k]];
+        d.cur.data[k].assign(src, src + rows);
+    }
+}
+
+/* an append from row `from` continues window pop's current run; then the
+   rows [from, rows) of its columns join the copy */
+void runs_on_append(int pop, int from, int rows)
+{
+    xpp::PlotDisplay &d = disp(pop);
+    if (from < d.cur.rows) { /* a new run (or the next of a range): the rows it replaces become an earlier run */
+        Kept k;
+        if (!d.erased) {
+            if (from == 0) {
+                const std::vector<int> cols = d.cur.cols;
+                const xpp::PlotCurves curves = d.cur.curves;
+                k = keep_run(d, std::move(d.cur));
+                d.cur = xpp::PlotRun();
+                d.cur.curves = curves;
+                d.cur.cols = cols;
+                d.cur.data.assign(cols.size(), std::vector<float>());
+            } else {
+                xpp::PlotRun r = d.cur;
+                k = keep_run(d, std::move(r));
+            }
+        }
+        d.erased = false;
+        d.live = true;
+        emit_runs(pop, false, k.drop, k.added);
+    } else if (!(d.live && !d.erased)) {
+        const bool was = d.erased;
+        d.erased = false;
+        d.live = true;
+        if (was) emit_runs(pop, false, 0, 0);
+    }
+    d.cur.rows = rows;
+    for (std::size_t k = 0; k < d.cur.cols.size(); k++) {
+        const float *src = xpp::session().browser.view.data[d.cur.cols[k]];
+        d.cur.data[k].resize(static_cast<std::size_t>(from));
+        d.cur.data[k].insert(d.cur.data[k].end(), src + from, src + rows);
+    }
+}
+
+/* the window is gone: what it showed goes with it */
+void runs_forget(int pop) { disp(pop) = xpp::PlotDisplay(); }
+
 /* window pop's whole series: rows 0..rows of the columns its curves use */
 void send_series(int pop, const SeriesSig &s, int rows)
 {
     const GRAPH &g = xpp::session().plot_windows.graph[pop];
     const std::vector<int> cols = used_columns(s);
+    runs_on_full(pop, s, cols, rows, !sent[pop].valid);
     std::string o = "{\"ev\":\"series\",\"win\":";
     add_int(o, static_cast<long>(s.win));
     o += ",\"rows\":";
@@ -211,12 +382,13 @@ void series_append(int rows)
     const SeriesSig s = series_sig(pop);
     Sent &w = sent[pop];
     appended = pop;
-    if (!w.valid || !same_plot(s, w.sig)) {
+    if (!w.valid || !same_plot(s, w.sig) || !disp(pop).has_cur || disp(pop).cur.cols != w.cols) {
         send_series(pop, s, rows); /* other columns: the whole series, as far as it goes */
         return;
     }
     const int from = w.held;
     if (rows <= from) return;
+    runs_on_append(pop, from, rows);
     std::string o = "{\"ev\":\"series\",\"op\":\"append\",\"win\":";
     add_int(o, static_cast<long>(s.win));
     o += ",\"from\":";
@@ -246,6 +418,7 @@ void series_update()
         const int pop = k == 0 ? xpp::session().plot_windows.active : (k == xpp::session().plot_windows.active ? 0 : k);
         if (!xpp::session().plot_windows.graph[pop].Use) {
             sent[pop].valid = false; /* a window made again later starts afresh */
+            runs_forget(pop);
             continue;
         }
         const SeriesSig s = series_sig(pop);
@@ -263,6 +436,32 @@ std::string title(const GRAPH &g)
 {
     const std::string x = ind_to_sym(g.xv[0]), y = ind_to_sym(g.yv[0]), z = ind_to_sym(g.zv[0]);
     return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
+}
+
+/* the zoom is for the axes and curves it was made at: other ones drop it */
+void zoom_upkeep(int pop)
+{
+    const GRAPH &g = xpp::session().plot_windows.graph[pop];
+    xpp::PlotDisplay &d = disp(pop);
+    const double axes[4] = {g.xlo, g.xhi, g.ylo, g.yhi};
+    const xpp::PlotCurves c = curves_of(g);
+    if (d.axes_seen && (std::memcmp(axes, d.axes, sizeof axes) != 0 || !same_curves(c, d.axes_curves))) d.zoom = xpp::Zoom();
+    d.axes_seen = true;
+    std::memcpy(d.axes, axes, sizeof axes);
+    d.axes_curves = c;
+}
+
+void add_zoom(std::string &o, const xpp::AxisRange &r)
+{
+    if (!r.set) {
+        o += "null";
+        return;
+    }
+    o += '[';
+    xpp::json::json_append_number_shortest(o, r.lo);
+    o += ',';
+    xpp::json::json_append_number_shortest(o, r.hi);
+    o += ']';
 }
 
 std::string plots_event()
@@ -306,6 +505,13 @@ std::string plots_event()
         add_int(o, g.PerspFlag);
         xpp::json::json_append_field(o, "zplane", g.ZPlane);
         xpp::json::json_append_field(o, "zview", g.ZView);
+        zoom_upkeep(pop);
+        o += ",\"zoom\":{\"x\":";
+        add_zoom(o, disp(pop).zoom.x);
+        o += ",\"y\":";
+        add_zoom(o, disp(pop).zoom.y);
+        o += "},\"runs\":";
+        add_int(o, disp(pop).show_runs);
         o += ',';
         SeriesSig s = series_sig(pop);
         add_curves(o, s);
@@ -355,6 +561,13 @@ extern "C" void plot_data_picture(int redraw)
             add_int(o, static_cast<long>(xpp::session().plot_windows.graph[pop].w));
             o += '}';
             emit(o);
+            xpp::PlotDisplay &d = disp(pop);
+            if (redraw ? (!d.runs.empty() || d.erased) : true) {
+                d.runs.clear();
+                d.erased = !redraw;
+                d.live = false;
+                emit_runs(pop, true, 0, 0);
+            }
         }
     } catch (...) {
     }

@@ -558,6 +558,8 @@ export class Chart {
       if (!u) return;
       const x = u.scales.x, y = u.scales.y;
       if (x.min == null || x.max == null || y.min == null || y.max == null) return;
+      /* no curve shown (every one hidden from the legend): uPlot's fallback range is not a zoom */
+      if (!u.series.some((s, i) => i > 0 && s.show)) return;
       this.cb.onViewport({x: {min: x.min, max: x.max}, y: {min: y.min, max: y.max}});
     });
   }

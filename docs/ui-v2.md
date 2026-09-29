@@ -347,8 +347,9 @@ Rules:
   zoom maths, nearest point) has no DOM and is unit-tested in Node; adapters
   (uPlot, EventSource, downloads) are thin.
 - **The store is the truth for anything a test checks**: connection, busy,
-  the open prompt, the plot windows (each one's series, viewport and undo
-  history, the active one), the readout, notifications, the drawer, the
+  the open prompt, the plot windows (each one's series, viewport and earlier
+  runs, the active one; the viewport and the runs are the core's display
+  state, W65, and the page's copy follows it), the readout, notifications, the drawer, the
   theme. A chart's own state (ranges, visible curves) is read through
   `__xpp.plot(win)` (the active window's without `win`).
 - **State slices** follow the views: `plots` (windows, T6, done),

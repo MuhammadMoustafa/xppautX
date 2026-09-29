@@ -9,6 +9,7 @@
 #include "diagram.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "json_number.h"
 #include <array>
 #include <climits>
 #include <cmath>
@@ -261,6 +262,61 @@ void j_auto_refresh(void)
         json_flush();
         auto_data_update(0);
     }
+}
+
+/* ---- what the page displays of the diagram: hidden branches and zoom (display_state.h) ----
+   The `autoview` event, sent with the autoinfo subscription when it changed:
+   the points before `earlier` are the branches computed before Clear
+   (hidden unless `show`), and the zoom shown. A zoom belongs to the axes it
+   was made at: other ones drop it. */
+
+namespace {
+
+bool av_on, av_valid;
+std::string av_sent;
+
+void av_range(std::string &o, const xpp::AxisRange &r)
+{
+    if (!r.set) {
+        o += "null";
+        return;
+    }
+    o += '[';
+    json_append_number_shortest(o, r.lo);
+    o += ',';
+    json_append_number_shortest(o, r.hi);
+    o += ']';
+}
+
+} // namespace
+
+void auto_view_subscribe(int on)
+{
+    av_on = on != 0;
+    av_valid = false;
+}
+
+void auto_view_update(void)
+{
+    if (!av_on) return;
+    xpp::AutoView &v = xpp::session().auto_view;
+    const auto &bf = xpp::session().auto_state.bifur;
+    const double axes[4] = {bf.xmin, bf.xmax, bf.ymin, bf.ymax};
+    if (v.axes_seen && std::memcmp(axes, v.axes, sizeof axes) != 0) v.zoom = xpp::Zoom();
+    v.axes_seen = true;
+    std::memcpy(v.axes, axes, sizeof axes);
+    if (v.earlier > diagram_count()) v.earlier = diagram_count(); /* a diagram that holds fewer points than Clear hid (File/Reset diagram) */
+    if (v.earlier == 0) v.show_earlier = false;
+    std::string o = "{\"ev\":\"autoview\",\"earlier\":" + std::to_string(v.earlier) + ",\"show\":" +
+                    (v.show_earlier ? "1" : "0") + ",\"zoom\":{\"x\":";
+    av_range(o, v.zoom.x);
+    o += ",\"y\":";
+    av_range(o, v.zoom.y);
+    o += "}}";
+    if (av_valid && o == av_sent) return;
+    out_line(o.data(), o.size());
+    av_sent.swap(o);
+    av_valid = true;
 }
 
 /* a reconnected client has a blank diagram, and no data: all of it again,
@@ -517,6 +573,19 @@ void auto_command(const char *line)
         } else j_err_msg("Grab: give a label, or a type and index");
     }
     else if (o == "set") auto_set_command(line);
+    else if (o == "display") {
+        /* the zoom shown in the diagram, and (with `show`) whether the
+           branches before Clear are drawn */
+        xpp::AutoView &v = xpp::session().auto_view;
+        xpp::Zoom z = v.zoom;
+        if (get_range(line, "x", z.x) < 0 || get_range(line, "y", z.y) < 0) {
+            j_err_msg("auto display: x and y are [low, high] with low below high, or null");
+            return;
+        }
+        v.zoom = z;
+        const char *js = js_find(line, "show");
+        if (js) v.show_earlier = js_num(js, 0) != 0 && v.earlier > 0;
+    }
     else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */
         const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
@@ -530,6 +599,7 @@ void auto_command(const char *line)
         send_window("destroy", WIN_AUTO, 0, 0, NULL);
         diag_forget();
         auto_data_forget();
+        xpp::session().auto_view = xpp::AutoView();
     }
     else j_err_msg(xpp::format("Unknown auto op {}", o).c_str());
 }
@@ -544,7 +614,12 @@ void auto_key(int ch)
     case AK_RUN: auto_run(); break;
     case AK_GRAB: auto_grab(); break;
     case AK_USR: auto_per_par(); break;
-    case AK_CLEAR: draw_bif_axes(); break;
+    case AK_CLEAR:
+        /* the branches so far are the earlier ones, hidden until shown again */
+        xpp::session().auto_view.earlier = dg_n;
+        xpp::session().auto_view.show_earlier = false;
+        draw_bif_axes();
+        break;
     case AK_REDRAW: redraw_diagram(); break;
     case AK_FILE: auto_file(); break;
     }

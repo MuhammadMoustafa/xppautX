@@ -220,6 +220,25 @@ void click_command(const char *line)
     if (win >= 0 && win < MAXPOP && xpp::session().plot_windows.graph[win].Use && xpp::session().plot_windows.active != win) select_graph(win);
 }
 
+void display_command(const char *line)
+{
+    const int win = get_int(line, "win", 1) - 1;
+    if (win < 0 || win >= MAXPOP || !xpp::session().plot_windows.graph[win].Use) {
+        j_err_msg("display: no such plot window");
+        return;
+    }
+    xpp::PlotDisplay &d = xpp::session().plot_display[win];
+    xpp::Zoom z = d.zoom;
+    const int rx = get_range(line, "x", z.x), ry = get_range(line, "y", z.y);
+    if (rx < 0 || ry < 0) {
+        j_err_msg("display: x and y are [low, high] with low below high, or null");
+        return;
+    }
+    d.zoom = z;
+    const char *jr = js_find(line, "runs");
+    if (jr) d.show_runs = js_num(jr, 1) != 0;
+}
+
 /* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
 void j_scroll_window(void)
 {

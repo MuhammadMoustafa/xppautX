@@ -118,6 +118,37 @@ export interface PlotWindowInfo {
   zview: number;
   curves: Curve[];
   shift: [number, number, number];
+  /** the zoom shown (docs/protocol.md "Display state"): [low, high] per axis, null the window's own */
+  zoom?: {x: [number, number] | null; y: [number, number] | null};
+  /** 1: the earlier runs are drawn */
+  runs?: number;
+}
+
+/** a plot window's earlier runs changed (docs/protocol.md "The plot as data"): forget them
+    all (`clear`) or the `drop` oldest, then add these; `erased`: Erase hid the current run */
+export interface RunsEvent {
+  ev: 'runs';
+  win: number;
+  enc?: 'f32';
+  erased: number;
+  clear: number;
+  drop: number;
+  add: {
+    rows: number;
+    three: number;
+    curves: Curve[];
+    shift: [number, number, number];
+    columns: SeriesColumn[];
+  }[];
+}
+
+/** AUTO's diagram display (docs/protocol.md "Display state"): the branches before `earlier`
+    are those computed before Clear, `show`n or not, and the zoom shown */
+export interface AutoViewEvent {
+  ev: 'autoview';
+  earlier: number;
+  show?: number;
+  zoom?: {x: [number, number] | null; y: [number, number] | null};
 }
 
 /** every plot window and the active one */
@@ -397,6 +428,8 @@ export type XppEvent =
   | SeriesEvent
   | SeriesAppendEvent
   | PlotsEvent
+  | RunsEvent
+  | AutoViewEvent
   | NullclinesEvent
   | DfieldEvent
   | MarksEvent

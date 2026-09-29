@@ -8,10 +8,10 @@
    confirm it. A window's nullclines, direction field and flows (T7) and
    its marks (T8) come from their own events and are kept beside its
    series. Pure: no DOM, no I/O. */
-import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, RunsEvent, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
 import {marksFromEvent, type Marks} from './marks';
 import {dfieldFromEvent, nullclinesFromEvent, type Dfield, type Nullclines} from './phase';
-import {emptyHistory, onAppendFrom, onErase, onFull, onRedraw, type RunHistory} from './runs';
+import {emptyHistory, onRuns, type RunHistory} from './runs';
 import {appendRows, seriesFromEvent, type PlotSeries} from './series';
 
 export interface Range {
@@ -93,12 +93,26 @@ function sameCurves(a: PlotSeries | null, b: PlotSeries): boolean {
   return !!a && JSON.stringify(a.curves) === JSON.stringify(b.curves);
 }
 
-/** the windows the core has now: kept ones keep their series, zoom and,
-    once set, their own 3D angles (the client's to turn from here on) */
+/** a zoom as the core sends it ([low, high] or null per axis) */
+export function viewportOf(z: NonNullable<PlotWindowInfo['zoom']>): Viewport {
+  const r = (a: [number, number] | null): Range | null => (a ? {min: a[0], max: a[1]} : null);
+  return {x: r(z.x), y: r(z.y)};
+}
+
+/** the windows the core has now: kept ones keep their series and, once
+    set, their own 3D angles (the client's to turn from here on). The zoom
+    shown and the earlier runs' toggle are the core's (W65): a window's own
+    are taken from what it says (session.ts leaves them out while a change
+    of the user's is on its way) */
 export function onPlots(p: PlotsState, ev: PlotsEvent): PlotsState {
   const windows = ev.windows.map(info => {
     const w = windowOf(p, info.win) ?? blank(info.win);
-    return {...w, info, view3d: w.view3d ?? (info.three ? {theta: info.theta, phi: info.phi} : null)};
+    const viewport = info.zoom ? viewportOf(info.zoom) : w.viewport;
+    return {
+      ...w, info, viewport: sameViewport(viewport, w.viewport) ? w.viewport : viewport,
+      showRuns: info.runs === undefined ? w.showRuns : info.runs !== 0,
+      view3d: w.view3d ?? (info.three ? {theta: info.theta, phi: info.phi} : null),
+    };
   });
   return {windows, active: ev.active};
 }
@@ -115,23 +129,16 @@ export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {
   return update(p, ev.win, w => {
     /* other curves: the user's zoom does not apply to them */
     const keep = sameCurves(w.series, series);
-    const history = onFull(w.history, w.series, series);
-    return {...w, series, history, viewport: keep ? w.viewport : HOME};
+    return {...w, series, viewport: keep ? w.viewport : HOME};
   });
 }
 
-/** Erase (docs/protocol.md `erase`): the window shows nothing until its next run or Redraw */
-export function eraseWindow(p: PlotsState, win: number): PlotsState {
-  if (!windowOf(p, win)) return p;
-  return update(p, win, w => ({...w, history: onErase()}));
-}
-
-/** Redraw (docs/protocol.md `redraw`): the current data again, without the earlier runs */
-export function redrawWindow(p: PlotsState, win: number): PlotsState {
-  const w = windowOf(p, win);
-  if (!w) return p;
-  const history = onRedraw(w.history);
-  return history === w.history ? p : update(p, win, x => ({...x, history}));
+/** the core's earlier runs of window `win` changed (Erase and Redraw included) */
+export function onWindowRuns(p: PlotsState, ev: RunsEvent): PlotsState {
+  return update(p, ev.win, w => {
+    const history = onRuns(w.history, ev);
+    return history === w.history ? w : {...w, history};
+  });
 }
 
 /** the legend's "previous runs" toggle */
@@ -161,8 +168,7 @@ export function onAppend(p: PlotsState, ev: SeriesAppendEvent): PlotsState | nul
   const w = windowOf(p, ev.win);
   const series = w?.series && appendRows(w.series, ev);
   if (!w || !series) return null;
-  const history = onAppendFrom(w.history, w.series!, ev.from);
-  return update(p, ev.win, x => ({...x, series, history}));
+  return update(p, ev.win, x => ({...x, series}));
 }
 
 export function select(p: PlotsState, win: number): PlotsState {

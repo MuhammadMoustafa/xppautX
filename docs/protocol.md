@@ -69,9 +69,10 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
+| `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own) and whether its earlier runs are drawn. Sent as a normal command, so not while a computation runs (the page holds it for the idle). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `grab` (`label`, or `type`+`index`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`x`, `y`, `show`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` the zoom, `show` whether the branches hidden by Clear are drawn; `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
 | `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode*`). A file that is not there fails at once (`message` `error`, nothing asked). Then asks `choice` with `keys` `sd`: `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. The model is loaded from its own folder, which becomes the working directory (the page's files, "Files" below), with a command line of the file alone. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does but without asking: the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
@@ -281,9 +282,11 @@ Run it with:
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
-| `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw`. Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
+| `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
+| `autoview` | `earlier`, `show`, `zoom` | AUTO's hidden branches and zoom, for a client that asked for `autoinfo`; see "Display state". |
+| `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
-| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
+| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
@@ -530,9 +533,10 @@ significant digits, so they convert back to exactly the stored floats:
 time, and `version`, a number that changes when the stored data does (an
 integration, a browser Load, ...): a series with the version of the one
 before shows the same data again (other curves or style of it), another
-version other data. web2 keeps the series a new run replaces as an earlier
-run, drawn lighter under the current one, until `erase` or `redraw`
-(store/runs.ts); an `append` from row 0 starts such a run.
+version other data. The core keeps the series a new run replaces as an
+earlier run, drawn lighter under the current one, until Erase or Redraw,
+and sends it as a `runs` event ("Display state" below); an `append` from
+row 0 starts such a run.
 
 At the start of each integration (its first stored row) the server sends
 `state` too, so the initial conditions the run starts from (Initialconds/Last
@@ -693,6 +697,61 @@ core/xpp_ui.h, called for every stored row; `plot_data_rows_stored` in
 core/plot_data.cpp sends at most one append per 1/60 s, so a page that
 draws each on its next animation frame extends the curve at every frame;
 W82).
+
+### Display state
+
+What the page displays is the core's (W65, docs/ui-v2.md): the earlier runs
+of each plot window until Erase, its zoom, whether the earlier runs are
+drawn, and AUTO's hidden branches and zoom. They are members of the
+session (`xpp::Session::plot_display`, `auto_view`, core/display_state.h),
+set by the `display` commands or by the runs themselves, and sent as data,
+so a session file can save them. The page keeps a copy it changes at once
+(a drag cannot wait for a round trip) and sends the change; the core's
+events set it back, and it leaves a window's own alone while its change is
+on its way.
+
+**`runs`** (with `series`): a window's earlier runs. A full series with
+other curves (Xi vs t, Viewaxes, ...) forgets them; a full series of other
+data (its `version`) keeps the current run as an earlier one, unless the
+current one grew by appends in this command (the full series ends that run)
+or was erased; an append that starts again before the rows the client holds
+(a new run under way, the next run of a range) keeps the current run first.
+Erase forgets them and hides the current run (`erased` 1) until its next
+run or Redraw. At most 50 earlier runs and 4 million rows in all are kept,
+the oldest dropped.
+
+```
+{"ev":"runs","win":1,"erased":0,"clear":0,"drop":0,"enc":"f32","add":[
+ {"rows":601,"three":0,"curves":[...],"shift":[0,0,0],
+  "columns":[{"col":0,"name":"T","data":[...]},{"col":2,"name":"W","data":[...]}]}]}
+```
+
+| field | meaning |
+|---|---|
+| `win` | the plot window |
+| `erased` | 1: Erase blanked the window, the current series is not drawn |
+| `clear` | 1: forget every earlier run held first |
+| `drop` | forget this many of the oldest ones first |
+| `add` | runs to append, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `series`, of the columns the run's curves use |
+
+Sent when it changes (not at all for a window with none), and whole (`clear`
+1 with all the runs) after `data` asks for `series` again.
+
+**`plots`** carries each window's `zoom` (`{"x":[low,high]|null,"y":...}`,
+the part of its axes shown; `null` the window's own) and `runs` (1: the
+earlier runs are drawn). Other axes or curves of the window (Viewaxes,
+Window/Zoom, Fit, Xi vs t) drop the zoom. The `display` command sets them:
+`{"cmd":"display","win":1,"x":[0,10],"y":null,"runs":false}` (a missing key
+is left as it is).
+
+**`autoview`** (with `autoinfo`): `{"ev":"autoview","earlier":n,"show":0,
+"zoom":{"x":null,"y":null}}`, sent at the end of a command when it
+changed, and at once after `data`. `earlier`: the diagram's points before
+this index are the branches computed before Clear (the AUTO window's key
+`c` sets it to the points so far; a diagram of fewer points, File/Reset
+diagram, lowers it, closing AUTO clears it); `show` 1: they are drawn; `zoom`
+as above for the diagram, dropped by other axes. `{"cmd":"auto","op":"display",
+"show":true,"x":[...],"y":null}` sets `show` and the zoom.
 
 ### Asks
 

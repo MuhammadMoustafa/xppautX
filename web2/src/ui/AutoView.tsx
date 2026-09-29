@@ -227,7 +227,7 @@ function AutoPanel({dark}: {dark: boolean}) {
 
   useEffect(() => {
     const c = new DiagramChart(host.current!, {
-      onViewport: viewport => session.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport}}),
+      onViewport: viewport => session.setDiagramViewport(viewport),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -476,7 +476,7 @@ function AutoPanel({dark}: {dark: boolean}) {
               <li>
                 <button class={'small auto-earlier' + (showEarlier ? ' active' : '')} aria-pressed={showEarlier}
                   title={showEarlier ? 'Hide the branches computed before Clear' : 'Show the branches computed before Clear'}
-                  onClick={() => session.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show: !showEarlier}})}>
+                  onClick={() => session.setShowEarlier(!showEarlier)}>
                   Earlier branches ({nEarlier})
                 </button>
               </li>

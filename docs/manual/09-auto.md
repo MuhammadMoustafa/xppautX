@@ -19,7 +19,7 @@ back). It has:
   type (below), and the segment from a Hopf point to the first point of
   the periodic branch it started (`from`, which XPP itself leaves blank);
   it zooms (wheel) and pans (Shift+drag or the middle button) in the
-  client, with no history (Reset view goes back to AUTO's own axes), and
+  page, the core holding the zoom shown (`autoview`), with no history (Reset view goes back to AUTO's own axes), and
   a tooltip or the readout names the point under the mouse or cursor; a
   **Fit** button in the diagram's own top-right corner (also in the tools
   row, alongside Reset view) fits the view to the branches currently
@@ -78,7 +78,9 @@ back). It has:
   nearest point (see "Points and labels" below for what grabbing does);
 - **Clear** hides the branches computed so far behind a key entry
   ("Earlier branches") instead of blanking the window until a redraw (AUTO
-  has no reDraw button any more: the diagram is always current); it also
+  has no reDraw button any more: the diagram is always current); which
+  branches are hidden and whether they are shown is the core's, sent as
+  `autoview`; it also
   sends the AUTO window's own Clear key, which redraws the axes; and
   **Mark values** for user points (the `Usr Period` dialog below).
 

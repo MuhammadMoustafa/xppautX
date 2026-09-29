@@ -2941,7 +2941,114 @@ def check_open_reload():
         stop_server(p, r, snd)
 
 
+# W65: what the page displays is the core's (docs/protocol.md "Display state"):
+# earlier runs until Erase (the `runs` event), the zoom shown and the earlier
+# runs' toggle (`display`, `plots` zoom/runs), AUTO's hidden branches and zoom
+# (`autoview`).
+def check_display_state():
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+
+    def after(**cmd):
+        snd(**cmd)
+        return col(is_idle, timeout=60 * SLOW)[0]
+
+    def keys(key, *answers):
+        snd(cmd='key', key=key)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    runs_of = lambda evs: [e for e in evs if e.get('ev') == 'runs']
+    added = lambda evs: [x for e in runs_of(evs) for x in e['add']]
+    win1 = lambda evs: [w for e in evs if e.get('ev') == 'plots' for w in e['windows'] if w['win'] == 1]
+    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    try:
+        col(is_idle)
+        evs = after(cmd='data', events=['series', 'plots'])
+        w = win1(evs)
+        check('display: a window shows its own axes and its earlier runs at first',
+              w and w[-1].get('zoom') == {'x': None, 'y': None} and w[-1].get('runs') == 1, str(w))
+        check('display: no runs event before there is a run', not runs_of(evs))
+        evs = keys('i', {'key': 'g'})
+        first = full(evs)[-1]
+        check('display: the first run has nothing before it', not added(evs) and not any(e['erased'] for e in runs_of(evs)))
+        evs = keys('i', {'key': 'g'})
+        got = added(evs)
+        cols1 = {c['col']: c['data'] for c in first['columns']}
+        check('display: a second run keeps the first as an earlier run (one runs event, its data)',
+              len(got) == 1 and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
+              and {c['col']: c['data'] for c in got[0]['columns']} == cols1
+              and all(e['erased'] == 0 and not e['clear'] and e['drop'] == 0 for e in runs_of(evs)), str(runs_of(evs))[:300])
+        evs = after(cmd='data', events=['series', 'plots'])
+        check('display: asking for the data again sends the earlier runs whole, once',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and len(added(evs)) == 1, str(runs_of(evs))[:200])
+        evs = keys('e')
+        check('display: Erase forgets the earlier runs and hides the current one',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 1
+              and not added(evs), str(runs_of(evs)))
+        evs = keys('r')
+        check('display: Redraw shows the current run again, without earlier ones',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 0
+              and not added(evs), str(runs_of(evs)))
+
+        evs = after(cmd='display', win=1, x=[0, 10], y=[-0.5, 0.5], runs=False)
+        w = win1(evs)
+        check('display: a zoom and the runs toggle are held by the window and sent in plots',
+              w and w[-1]['zoom'] == {'x': [0, 10], 'y': [-0.5, 0.5]} and w[-1]['runs'] == 0, str(w))
+        evs = after(cmd='display', win=1, x=None)
+        w = win1(evs)
+        check('display: null returns one axis to the window own axes', w and w[-1]['zoom'] == {'x': None, 'y': [-0.5, 0.5]}, str(w))
+        evs = after(cmd='display', win=1, x=[5, 1])
+        check('display: a range with low not below high is refused, the zoom unchanged',
+              any(e.get('ev') == 'message' and 'error' in e for e in evs) and not win1(evs), str(evs)[:200])
+        evs = after(cmd='display', win=7, x=[0, 1])
+        check('display: an unknown window is refused',
+              any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
+        evs = keys('w', {'key': 'w'}, {'ok': 1, 'values': ['-1', '1', '-1', '1']})
+        w = win1(evs)
+        check('display: other axes of the window drop the zoom', w and w[-1]['zoom'] == {'x': None, 'y': None}, str(w))
+    finally:
+        stop_server(p, r, snd)
+
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['autoinfo'])
+        evs, _ = col(is_idle)
+        av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
+        check('autoview: sent at once after data, nothing hidden, the diagram own axes',
+              [(e['earlier'], e['show'], e['zoom']) for e in av(evs)] == [(0, 0, {'x': None, 'y': None})], str(av(evs)))
+        evs = lecar_to_auto(snd, col)
+        n = len(rebuild_diagram(evs, []))
+        check('autoview: a run hides nothing', not av(evs) or av(evs)[-1]['earlier'] == 0, str(av(evs)))
+        snd(cmd='key', win='auto', key='c')
+        evs, _ = col(is_idle)
+        snd(cmd='key', win='auto', key='d')
+        evs2, _ = col(is_idle)
+        got = av(evs) + av(evs2)
+        check('autoview: Clear makes the points so far the earlier branches, hidden',
+              got and got[-1]['earlier'] == n and got[-1]['show'] == 0 and n > 1, str(got) + ' n=%d' % n)
+        snd(cmd='auto', op='display', show=True, x=[0.1, 0.2], y=None)
+        evs, _ = col(is_idle)
+        check('autoview: show and the zoom are set by auto display',
+              av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, zoom={'x': [0.1, 0.2], 'y': None}), str(av(evs)))
+        snd(cmd='auto', op='display', x=[3, 3])
+        evs, _ = col(is_idle)
+        check('autoview: a bad range is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
+        snd(cmd='auto', op='close')
+        evs, _ = col(is_idle)
+        check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
+              and av(evs)[-1]['zoom'] == {'x': None, 'y': None}, str(av(evs)))
+    finally:
+        stop_server(p, r, snd)
+
+
 check_open_reload()
+check_display_state()
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

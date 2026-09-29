@@ -416,6 +416,8 @@ void handle_line(const char *line, unsigned long seq)
         action_command(line);
     } else if (is_cmd(line, "click")) {
         click_command(line);
+    } else if (is_cmd(line, "display")) {
+        display_command(line);
     } else if (is_cmd(line, "redraw")) {
         j_redraw_graph();
         auto_redraw_for_client();
@@ -458,6 +460,7 @@ void handle_line(const char *line, unsigned long seq)
     ani_data_update();
     diag_flush(1);
     auto_data_update(1);
+    auto_view_update();
     auto_settings_update();
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have

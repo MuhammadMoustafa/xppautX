@@ -126,9 +126,12 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   assert.equal(hidden.hopf.length, 1);
   const all = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes, 0);
   assert.ok(all.curves.some(c => c.branch === 1));
-  /* a redraw in other quantities keeps them hidden; a diagram emptied (Reset diagram) has none left */
+  /* a redraw in other quantities keeps them hidden (the core's Clear count survives the blank between
+     the clear and the redraw); a diagram emptied (Reset diagram) has none left: the core says so */
   s = ev(s, {ev: 'diagram', op: 'reset', keep: 0, ...axes});
   s = ev(s, {ev: 'idle'});
+  assert.equal(s.diagram.earlier, 5);
+  s = ev(s, {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}});
   assert.equal(s.diagram.earlier, 0);
 });
 

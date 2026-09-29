@@ -11,7 +11,8 @@
    as data), the grab (the core's `grab` ask, answered from the view) and
    the point a click stored in a two-parameter diagram (`auto point`).
    Pure: no DOM, no I/O. */
-import type {Viewport} from './plots';
+import type {AutoViewEvent} from '../protocol/types';
+import {viewportOf, type Viewport} from './plots';
 
 /** `diagram` `axes` (and `reset`): the core's view of the diagram */
 export interface DiagramAxes {
@@ -217,10 +218,11 @@ export type DiagramAction =
   /** Run pressed (start), its Start menu answered (clock), its command ended (end) */
   | {type: 'run'; op: 'start' | 'clock' | 'end'; at: number}
   | {type: 'runStopped'}
-  /** Clear: what is drawn now becomes the earlier branches */
+  /** Clear: what is drawn now becomes the earlier branches (until the core's `autoview` says) */
   | {type: 'clear'}
-  /** the branches before the core's own clear and redraw are the earlier ones again */
-  | {type: 'earlier'; count: number}
+  /** the core's display of the diagram (W65): the branches Clear hid, whether they are shown, the
+      zoom; `show` and `zoom` are absent while a change of the user's is on its way (session.ts) */
+  | {type: 'autoview'; ev: AutoViewEvent}
   | {type: 'showEarlier'; show: boolean};
 
 export function pointCount(p: DiagramPoints): number {
@@ -349,8 +351,11 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
       return {...s, earlier: pointCount(s.points), showEarlier: false, hover: null};
-    case 'earlier':
-      return {...s, earlier: Math.min(a.count, pointCount(s.points)), showEarlier: false, hover: null};
+    case 'autoview': {
+      const t = {...s, earlier: a.ev.earlier, hover: a.ev.earlier === s.earlier ? s.hover : null};
+      const shown = a.ev.show === undefined ? t : {...t, showEarlier: a.ev.show !== 0};
+      return a.ev.zoom ? setViewport(shown, viewportOf(a.ev.zoom)) : shown;
+    }
     case 'showEarlier':
       return a.show === s.showEarlier ? s : {...s, showEarlier: a.show};
   }
@@ -363,13 +368,10 @@ function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): Diag
   return {...s, run: {...s.run, active: false, ended: at}};
 }
 
-/** a command ended: no grab any more, and a diagram that holds fewer points
-    than Clear hid (File/Reset diagram) has no earlier branches left (a
-    redraw in other quantities sends them all again before its end) */
+/** a command ended: no grab any more. (A diagram that holds fewer points than Clear hid, File/Reset
+    diagram, has no earlier branches left: the core says so in its `autoview`.) */
 export function diagramSettled(s: DiagramState): DiagramState {
-  const t = reduceDiagram(s, {type: 'grabbing', on: false});
-  const n = pointCount(t.points);
-  return t.earlier > n ? {...t, earlier: n} : t;
+  return reduceDiagram(s, {type: 'grabbing', on: false});
 }
 
 /** the points Clear hid, and whether they are shown */

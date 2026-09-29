@@ -22,6 +22,7 @@
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
+#include "display_state.h"
 #include <stddef.h>
 #include <iterator>
 #include <span>
@@ -119,6 +120,10 @@ bool get_string(const char *obj, const char *key, std::string &out, size_t max =
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
 int is_cmd(const char *line, const char *name);
+/* the zoom range `key` of a command: an array [lo, hi], or null for the
+   window's own. 0 when the key is absent; 1 read (r set or unset); -1 not a
+   range (r untouched) */
+int get_range(const char *obj, const char *key, xpp::AxisRange &r);
 int key_code(const char *k);
 
 /* ---- json_prompts.cpp ---- */
@@ -190,6 +195,8 @@ void send_main_window(const char *title);
 void send_window(const char *what, unsigned long id, int w, int h, const char *title);
 void select_graph(int i);
 void click_command(const char *line);
+/* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
+void display_command(const char *line);
 void j_get_draw_size(unsigned int *w, unsigned int *h);
 void j_blank_draw_window(void);
 void j_redraw_all(void);
@@ -231,6 +238,9 @@ void diag_flush(int final);
 void diag_forget(void); /* the client has no diagram */
 int diag_point_of_node(int node);
 void auto_command(const char *line);
+/* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
+void auto_view_subscribe(int on);
+void auto_view_update(void);
 void auto_key(int ch);
 void auto_redraw_for_client(void);
 int is_auto_set(const char *line);

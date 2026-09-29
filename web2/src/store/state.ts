@@ -6,7 +6,7 @@ import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, LoadErrorEvent, StateEvent, View, XppEvent} from '../protocol/types';
 import {ANI_KEYS, AUTO_KEYS, isWindowKey} from '../protocol/windowKeys';
 import {
-  coreMoved, eraseWindow, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, redrawWindow,
+  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
   rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
   type Viewport,
 } from './plots';
@@ -339,10 +339,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'plots':
       return withPlots(state, onPlots(state.plots, ev));
-    case 'erase':
-      return withPlots(state, eraseWindow(state.plots, ev.win));
-    case 'redraw':
-      return withPlots(state, redrawWindow(state.plots, ev.win));
+    case 'runs':
+      return withPlots(state, onWindowRuns(state.plots, ev));
     case 'nullclines':
       return withPlots(state, onNullclines(state.plots, ev));
     case 'dfield':
@@ -399,6 +397,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'stopped':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'runStopped'})};
+    case 'autoview':
+      return {...state, diagram: reduceDiagram(state.diagram, {type: 'autoview', ev})};
     case 'autoinfo':
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
     case 'autosettings':

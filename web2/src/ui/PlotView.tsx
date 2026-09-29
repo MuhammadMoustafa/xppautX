@@ -208,7 +208,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
 
   useEffect(() => {
     const c = new Chart(host.current!, {
-      onViewport: v => session.store.dispatch({type: 'viewport', viewport: v, win}),
+      onViewport: v => session.setViewport(win, v),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -333,7 +333,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
               data-layer="runs"
               aria-pressed={runsShown}
               title="Show or hide the earlier runs (Erase clears them)"
-              onClick={() => session.store.dispatch({type: 'showRuns', win, show: !runsShown})}>
+              onClick={() => session.setShowRuns(win, !runsShown)}>
               <span class="swatch swatch-runs" aria-hidden="true" />
               previous runs ({runs.length})
             </button>

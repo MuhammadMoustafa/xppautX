@@ -319,6 +319,11 @@ async function desktop(want) {
   await mouse('mousePressed', cx, cy, {button: 'left', buttons: 1, clickCount: 2});
   await mouse('mouseReleased', cx, cy, {button: 'left', clickCount: 2});
   check("a double click goes back to the core's window", await until('w.viewport.x === null && w.viewport.y === null', 'reset'));
+  /* W65: the zoom shown is the core's: every change went to it as a display command, the last one back to its own axes */
+  check('the zoom went to the core (display commands), the last one the reset',
+    await until(`(() => { const d = __xpp.sent().filter(c => c.cmd === 'display' && c.win === 1);
+      return d.length >= 3 && d.some(c => c.x && c.x[1] - c.x[0] < ${width(z1.x)}) && d[d.length - 1].x === null && d[d.length - 1].y === null; })()`,
+      'display commands'));
   await mouse('mouseMoved', 5, 5);
 
   /* T20: a click on the drawn canvas, on empty space and on the legend must

@@ -8,7 +8,7 @@ import {renderFrame} from './plot/kinescopeRender';
 import {pickAnswer, type PickState} from './plot/pick';
 import {chartOf} from './plot/registry';
 import type {Ranges} from './plot/viewmath';
-import {HOME, windowOf} from './store/plots';
+import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import {ANI_KEYS, APLOT_KEYS, AUTO_KEYS, BROWSER_KEYS, EQUILIBRIUM_KEYS, windowKey} from './protocol/windowKeys';
@@ -32,6 +32,20 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
 
 /** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
 export type AutoOp = keyof typeof AUTO_KEYS;
+
+/** a change of what a window displays, as the `display` command carries it: the zoom of each axis
+    ([low, high] or null), the earlier runs' toggle (`runs`), AUTO's earlier branches' toggle (`show`) */
+interface DisplayPatch {
+  x?: [number, number] | null;
+  y?: [number, number] | null;
+  runs?: boolean;
+  show?: boolean;
+}
+
+const rangesOf = (v: Viewport): DisplayPatch => ({
+  x: v.x ? [v.x.min, v.x.max] : null,
+  y: v.y ? [v.y.min, v.y.max] : null,
+});
 
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
 type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
@@ -82,6 +96,16 @@ export class Session {
   private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
   /** the last angle a window was turned to while the core was busy, sent at its idle */
   private rotate3dHeld = new Map<number, {theta: number; phi: number}>();
+  /** what the page displays is the core's (W65, docs/protocol.md "Display state"): the zoom
+      shown, the earlier runs' toggle, AUTO's shown branches. The page keeps a copy it changes
+      at once (a drag cannot wait for a round trip) and tells the core; the core's events
+      set it back, except for a window whose change is held or on its way: `displayHeld` is the
+      latest change of each (window 0: the AUTO diagram) not yet sent, `displayGuard` the
+      windows whose zoom and toggles the core's events leave alone, until the idle of the
+      command that carried the change (`displayIdles` counts down to it). */
+  private displayHeld = new Map<number, DisplayPatch>();
+  private displayGuard = new Set<number>();
+  private displayIdles = 0;
   /** File/cOpy set line: the text to the clipboard; the toast shows it either
       way, and stays (an error toast) when the clipboard is refused, so the
       line can be copied by hand */
@@ -127,8 +151,11 @@ export class Session {
   }
 
   private receive(ev: XppEvent): void {
-    this.store.dispatch({type: 'event', ev});
+    this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
     if (ev.ev === 'hello') {
+      this.displayHeld.clear();
+      this.displayGuard.clear();
+      this.displayIdles = 0;
       this.keyWaiting = false; /* a new connection: nothing is waiting any more */
       this.idlesOwed = this.keyIdlesAhead = 0;
       this.settleValues();
@@ -193,6 +220,8 @@ export class Session {
       if (next) this.send(next);
       else this.flushAutoSettings();
       this.flushRotate3d();
+      if (this.displayIdles > 0 && --this.displayIdles === 0) this.displayGuard = new Set(this.displayHeld.keys());
+      this.flushDisplay();
       this.flushWindow();
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
@@ -393,6 +422,59 @@ export class Session {
     this.keys('m', 'd');
   }
 
+  /* ---- the display state (W65) ---- */
+
+  /** the core's events without what a change of the user's on its way would undo */
+  private unguarded(ev: XppEvent): XppEvent {
+    if (!this.displayGuard.size) return ev;
+    if (ev.ev === 'plots')
+      return {...ev, windows: ev.windows.map(w => (this.displayGuard.has(w.win) ? {...w, zoom: undefined, runs: undefined} : w))};
+    if (ev.ev === 'autoview' && this.displayGuard.has(0)) return {...ev, show: undefined, zoom: undefined};
+    return ev;
+  }
+
+  private display(win: number, patch: DisplayPatch): void {
+    this.displayGuard.add(win);
+    this.displayHeld.set(win, {...this.displayHeld.get(win), ...patch});
+    this.flushDisplay();
+  }
+
+  /** the oldest held change goes out when the core is not busy, else at its idle */
+  private flushDisplay(): void {
+    if (this.blocked()) return;
+    const first = this.displayHeld.entries().next();
+    if (first.done) return;
+    const [win, patch] = first.value;
+    this.displayHeld.delete(win);
+    this.send(win === 0 ? {cmd: 'auto', op: 'display', ...patch} : {cmd: 'display', win, ...patch});
+    this.displayGuard.add(win);
+    this.displayIdles = this.idlesOwed;
+  }
+
+  /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
+  setViewport(win: number, viewport: Viewport): void {
+    this.store.dispatch({type: 'viewport', viewport, win});
+    this.display(win, rangesOf(viewport));
+  }
+
+  /** the AUTO diagram's zoom changed */
+  setDiagramViewport(viewport: Viewport): void {
+    this.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport}});
+    this.display(0, rangesOf(viewport));
+  }
+
+  /** the legend's "previous runs" toggle of window `win` */
+  setShowRuns(win: number, show: boolean): void {
+    this.store.dispatch({type: 'showRuns', win, show});
+    this.display(win, {runs: show});
+  }
+
+  /** AUTO's "Earlier branches" toggle */
+  setShowEarlier(show: boolean): void {
+    this.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show}});
+    this.display(0, {show});
+  }
+
   /* ---- Use this view (docs/ui-v2.md T9) ---- */
 
   /** "Use this view": the client's current zoom of `win` becomes the
@@ -423,7 +505,7 @@ export class Session {
       the plot would otherwise stay where a scroll or zoom left it (T30) */
   fitView(): void {
     const p = this.store.getState().plots, w = windowOf(p, p.active);
-    if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.store.dispatch({type: 'viewport', viewport: HOME});
+    if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.setViewport(w.win, HOME);
     this.keys('w', 'f');
   }
 
@@ -499,10 +581,8 @@ export class Session {
     if (op === 'clear') {
       /* the core's clear blanks the diagram (its points go from the page), then its redraw sends them
          all again, and the branches so far are the earlier ones once more */
-      const {points} = this.store.getState().diagram, n = points.x.length;
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
-      this.runPlan([windowKey('auto', AUTO_KEYS.clear), windowKey('auto', AUTO_KEYS.redraw)], [], () =>
-        this.store.dispatch({type: 'diagram', action: {type: 'earlier', count: n}}));
+      this.runPlan([windowKey('auto', AUTO_KEYS.clear), windowKey('auto', AUTO_KEYS.redraw)], []);
       return;
     }
     if (op === 'run') {

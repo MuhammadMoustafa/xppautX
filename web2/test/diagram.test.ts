@@ -370,3 +370,19 @@ test('fitRanges: no branches yet is [0, 1], not NaN or an inverted range', () =>
   const r = fitRanges(buildDiagramModel(opened().diagram.points, [], null));
   assert.deepEqual(r, {x: {min: 0, max: 1}, y: {min: 0, max: 1}});
 });
+
+test('autoview (W65): the branches Clear hid, whether they are shown and the zoom are the core\'s', () => {
+  let s = lecar();
+  const n = s.diagram.points.x.length;
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: 1, zoom: {x: [0, 1], y: null}} as never});
+  assert.equal(s.diagram.earlier, n);
+  assert.equal(s.diagram.showEarlier, true);
+  assert.deepEqual(s.diagram.viewport, {x: {min: 0, max: 1}, y: null});
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: undefined, zoom: undefined} as never});
+  assert.equal(s.diagram.showEarlier, true, 'without show and zoom (a change of the user\'s on its way) they stay');
+  assert.deepEqual(s.diagram.viewport, {x: {min: 0, max: 1}, y: null});
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}} as never});
+  assert.equal(s.diagram.earlier, 0);
+  assert.equal(s.diagram.showEarlier, false);
+  assert.deepEqual(s.diagram.viewport, {x: null, y: null});
+});
