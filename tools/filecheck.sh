@@ -43,7 +43,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 for f in core/*.cpp core/*.h; do
   case "$f" in
-    core/xpp_files.cpp|core/xpp_io.cpp|core/xpp_win32.cpp) continue ;;
+    core/xpp_files.cpp|core/xpp_files_*|core/xpp_io.cpp|core/xpp_win32.cpp) continue ;; # the owners
   esac
   awk -f tools/strip_comments.awk "$f" | awk -v file="$f" '
     {
@@ -73,7 +73,7 @@ case "$mode" in
     [ -f "$BASELINE" ] || { echo "filecheck: missing $BASELINE (run tools/filecheck.sh --update)"; exit 1; }
     base_total=$(awk '{ s += $2 } END { print s + 0 }' "$BASELINE")
     awk '
-      NR == FNR { base[$1] = $2; next }
+      FILENAME == ARGV[1] { base[$1] = $2; next } # not NR == FNR: an empty baseline would read now.txt as the baseline
       { b = base[$1] + 0; if ($2 > b) print "filecheck: " $1 " grew: " b " -> " $2 }
     ' "$BASELINE" "$tmp/now.txt" > "$tmp/grew.txt"
     if [ -s "$tmp/grew.txt" ]; then
