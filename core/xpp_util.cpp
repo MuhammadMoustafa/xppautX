@@ -3,6 +3,7 @@
    touches a window. */
 #include "model.h"
 #include "session.h"
+#include "ode_read.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "xpp_ui.h"
@@ -95,6 +96,12 @@ std::string short_name(std::string_view name, int width)
   if(name.size()<=w)
     return std::string(name);
   return w?std::string(name.substr(0,w-1))+'~':std::string();
+}
+
+void de_space(std::string &s)
+{
+  de_space(s.data());
+  s.resize(strlen(s.c_str()));
 }
 
 void de_space(char *s)

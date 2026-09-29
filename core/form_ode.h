@@ -21,35 +21,36 @@ extern FILE *convertf;
 
 int make_eqn(void);
 void strip_saveqn(void);
-int get_eqn(FILE *fptr);
 void create_plot_list(void);
-int find_char(const char *s1, const char *s2, int i0, int *i1);
 /* a model statement that calls compiled C code (export, dll_lib, dll_fun,
    a network's import; W55 removed them): logs why the line is refused
    and returns -1, the parsers' "this line does not parse" */
 int refuse_compiled_functions(const char *what);
+/* the initial values an .odex model gives as formulas
+   (Model::initial_values), each evaluated with every parameter set:
+   set_all_vals (load_eqn.cpp) calls this once the model is set up, where
+   an .ode's array initial values are evaluated too */
+void set_initial_values(void);
 
 
 #ifdef __cplusplus
 }
 
-#include <array>
-#include <optional>
+#include "odex.h"
+
+#include <functional>
 #include <string>
 #include <string_view>
-#include <vector>
 
-/* the name=value items of a par, init, number or wiener line as the
-   reader splits them (get_next2, take_apart): each name, its value's
-   text and the number atof reads from it */
-struct OdeItem {
-  std::string name, text;
-  double value = 0;
-};
-std::vector<OdeItem> ode_items(std::string_view rhs);
-/* get_eqn, the model's lines made already (an .odex model's: odex_load.cpp)
-   rather than read from its file */
-int get_eqn_lines(const std::vector<std::string> &lines);
+/* The Model builder: a model's statements (odex.h), whichever reader made
+   them, into the current Model and Session; a statement that does not
+   build fails the load (xpp_model_failed). Throws odex::Error for a
+   parameter whose value does not evaluate. */
+void build_model(xpp::odex::Parsed p);
+/* an old-style model, neq its number of equations: each line next_line
+   gives (false at the end) built as it is read, fptr the file (a Markov
+   table's lines are read from it) */
+void build_old_style(int neq, FILE *fptr, const std::function<bool(std::string &)> &next_line);
 /* 1 when the model is a map: is_a_map, or file ends in .dis or .dif */
 int disc(std::string_view file);
 /* boundary condition i's formula (Model::bcs[i].string, at most 255 bytes
@@ -57,12 +58,5 @@ int disc(std::string_view file);
 void set_bc_formula(int i, std::string_view string);
 /* formula i (Model::formulas) becomes text */
 void set_ode_name(int i, std::string_view text);
-/* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,
-   or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
-   is malformed. A line of initial data x[..](0)=... goes to
-   extract_ic_data, which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag);
-/* big with its subscripts worked out for index k */
-void subsk(const char *big, std::string &newstr, int k, int flag);
 #endif
 #endif

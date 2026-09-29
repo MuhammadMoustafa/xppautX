@@ -656,6 +656,7 @@ private:
       push(std::move(s));
       return;
     }
+    s.table_kind = Statement::TableKind::Formula;
     s.expr = expr();
     named_number_key("n");
     s.count = whole_number("the number of points");

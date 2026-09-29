@@ -51,6 +51,9 @@ void xpp_cleanup_auto_dir(void);
    one keeps its start and ends in '~' so it cannot pass for another name */
 std::string short_name(std::string_view name, int width);
 
+/* s without its white space (de_space's, up to a NUL in it) */
+void de_space(std::string &s);
+
 /* "name:formula" (do_calc's "set this name to that"): 1 with name the
    text before the first ':' (of any length) and *where the formula's
    start; 0 when z has no ':' */

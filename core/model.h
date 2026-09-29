@@ -31,7 +31,7 @@
 #include "tabular.h"
 #include "simplenet.h"
 #include "xpp_current.h"
-#include "newpars.h"
+#include "odex.h"
 
 #include <array>
 #include <string>
@@ -62,9 +62,10 @@ struct Model {
   int ncon_start=0,nsym_start=0;
   /* the first primed symbol (a variable's x') */
   int prime_start=0;
-  /* an .odex model's formulas divide as IEEE does (1/0 is inf, 0/0 NaN),
-     where an .ode's replace a zero divisor by ZERO_DIVISOR (expr_compile.cpp;
-     docs/odex.md, question 1) */
+  /* the model's formulas divide as IEEE does (1/0 is inf, 0/0 NaN), where
+     an .ode's replace a zero divisor by ZERO_DIVISOR (expr_compile.cpp;
+     docs/odex.md, question 1): the builder's copy of its statement list's
+     Parsed::ieee_division, which only the .odex reader sets */
   bool ieee_division=false;
   /* each variable's kind: 1 a Volterra integral equation (x(t)=...),
      0 an ODE or a map */
@@ -72,7 +73,7 @@ struct Model {
 
   /* ---- the compiled right-hand sides (form_ode.cpp) ---- */
   /* each quantity's formula as typed and as compiled for evaluate(), by
-     the index form_ode.cpp's compile_em gives it: the ODEs (node), the
+     the index form_ode.cpp's builder gives it: the ODEs (node), the
      fixed variables (fix_var), the Markov variables' transition
      placeholders, then the aux quantities; browse_data's added column
      takes the next one. An unused index has "" and no program. */
@@ -143,9 +144,10 @@ struct Model {
      last_ic) */
   std::array<double,MAXPAR> default_val{};
   std::array<double,MAXODE> default_ic{};
-  /* an .odex model's initial values: each variable (by name) and its
-     formula (.ode text), evaluated in order once the model is set up
-     (odex_load.cpp's set_initials); where its init is, for an error */
+  /* the initial values a model gives as formulas (an .odex's init): each
+     variable (by name) and its formula (the expression engine's text),
+     evaluated in order once the model is set up (form_ode.cpp's
+     set_initial_values); where its init is, for an error */
   struct InitialValue {
     std::string name, formula, where;
   };
@@ -210,10 +212,9 @@ struct Model {
      characters blanks at the end of the load) */
   std::vector<std::string> source;
   int nlines() const { return static_cast<int>(source.size()); }
-  /* its statements as the reader split them (form_ode.cpp's VAR_INFO,
-     arrays expanded), in order: xppautX --convert writes them
-     (odex_convert.cpp) */
-  std::vector<VAR_INFO> statements;
+  /* its statements as its reader read them (odex.h; an .ode's arrays
+     expanded), in order: xppautX --convert writes them (odex_convert.cpp) */
+  std::vector<odex::Statement> statements;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */
   struct Comment {

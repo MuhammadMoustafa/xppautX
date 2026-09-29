@@ -6,7 +6,6 @@ extern "C" {
 
 
 /* flags.c */
-int add_global(const char *cond, int sign, const char *rest);
 int compile_flags(void);
 int one_flag_step(double *yold, double *ynew, int *istart, double told, double *tnew, int neq, double *s);
 int one_flag_step_symp(double *y, double dt, double *work, int neq, double *tim, int *istart);
@@ -23,6 +22,22 @@ int one_flag_step_cvode(int *command,double *y,double *t,int n,double tout,int *
 
 #ifdef __cplusplus
 }
+
+#include <string>
+#include <vector>
+
+/* one event of a flag: the name it sets, and its value's formula */
+struct FlagEvent {
+  std::string name,formula;
+};
+/* an .ode global's events, rest "{name=formula;name=formula;...}" (blanks
+   and braces dropped, each name the text before its event's last =): 0,
+   or 1 (said why, cond the flag's condition) when one names nothing,
+   there are none or too many */
+int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events);
+/* a flag: when cond crosses 0 in the direction sign, each event sets its
+   name to its formula; 0, or 1 (said why) */
+int add_global(const char *cond, int sign, const std::vector<FlagEvent> &events);
 #endif
 #endif
 

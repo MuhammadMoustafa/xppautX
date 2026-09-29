@@ -3,10 +3,13 @@
    an error at the right line and column for each kind of mistake. */
 #include "xpptest.h"
 #include "odex.h"
+#include "model.h"
 #include "xpp_batch.h"
 
+#include <cmath>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 using xpp::odex::Error;
 using xpp::odex::Expr;
@@ -19,6 +22,7 @@ namespace {
 std::string tree(const Expr &e)
 {
   switch (e.kind) {
+  case Expr::Kind::Text:
   case Expr::Kind::Number: return e.text;
   case Expr::Kind::Name: return e.text + (e.primed ? "'" : "");
   case Expr::Kind::Neg: return "(- " + tree(e.args[0]) + ")";
@@ -74,18 +78,88 @@ std::string reprinted(const char *text)
   return xpp::odex::print(expression(text));
 }
 
-/* a model's .ode lines joined by '|' (its first line, a comment, and
-   the last, done, left out), or "error line:col message" */
+/* a model's statements as the .odex reader readies them for the Model
+   builder, each written as .ode would say it (its formulas the text the
+   expression engine compiles) and joined by '|' (an init left out), or
+   "error line:col message" */
 std::string lowered(const char *text)
 {
+  using xpp::odex::engine_text;
+  using K = Statement::Kind;
   try {
-    xpp::odex::Lowered low = xpp::odex::lower(xpp::odex::parse(text, "m.odex"));
+    const Parsed p = xpp::odex::ready(xpp::odex::parse(text, "m.odex"));
     std::string out;
-    for (size_t i = 1; i + 1 < low.lines.size(); i++) out += (i > 1 ? "|" : "") + low.lines[i];
+    auto add = [&out](const std::string &line) { out += (out.empty() ? "" : "|") + line; };
+    for (const Statement &s : p.statements) {
+      switch (s.kind) {
+      case K::Comment: add("\" " + s.text); break;
+      case K::Options: add(s.text); break;
+      case K::Par:
+        for (const xpp::odex::Binding &b : s.bindings) add("par " + b.name + "=" + engine_text(b.value));
+        break;
+      case K::History:
+        for (const xpp::odex::Binding &b : s.bindings) add(b.name + "(0)=" + engine_text(b.value));
+        break;
+      case K::Aux:
+      case K::Derived:
+        for (const xpp::odex::Binding &b : s.bindings)
+          add((s.kind == K::Aux ? "aux " : "!") + b.name + "=" + engine_text(b.value));
+        break;
+      case K::Ode: add(s.name + "'=" + engine_text(s.expr)); break;
+      case K::Volterra: add("volt " + s.name + "=" + engine_text(s.expr)); break;
+      case K::Fixed: add(s.name + "=" + engine_text(s.expr)); break;
+      case K::Fun: {
+        std::string line = s.name + "(";
+        for (size_t i = 0; i < s.names.size(); i++) line += (i ? "," : "") + s.names[i];
+        add(line + ")=" + engine_text(s.expr));
+        break;
+      }
+      case K::Set: add("set " + s.name + " {" + s.text + "}"); break;
+      case K::Table:
+        add("table " + s.name + " % " + std::to_string(s.count) + " " + xpp::odex::print_number(s.lo) + " " +
+            xpp::odex::print_number(s.hi) + " " + engine_text(s.expr));
+        break;
+      case K::Markov: {
+        add("markov " + s.name + " " + std::to_string(s.count));
+        for (int r = 0; r < s.count; r++) {
+          std::string row;
+          for (int c = 0; c < s.count; c++) row += "{" + engine_text(s.cells[r * s.count + c]) + "} ";
+          add(row);
+        }
+        break;
+      }
+      case K::Event: {
+        std::string line = "global " + std::to_string(s.count) + " {" + engine_text(s.expr) + "} {";
+        for (size_t i = 0; i < s.bindings.size(); i++)
+          line += (i ? ";" : "") + s.bindings[i].name + "=" + engine_text(s.bindings[i].value);
+        add(line + "}");
+        break;
+      }
+      case K::Boundary: add("bdry " + engine_text(s.expr)); break;
+      default: break;
+      }
+    }
     return out;
   } catch (const Error &e) {
     return "error " + std::to_string(e.pos.line) + ":" + std::to_string(e.pos.col) + " " + e.message;
   }
+}
+
+/* the parameters' values of the model text, built (written to a file and
+   loaded); none when it does not load */
+std::vector<double> parameter_values(const char *text)
+{
+  std::string path = "build/test_odex_pars.odex";
+  FILE *fp = fopen(path.c_str(), "w");
+  if (!fp) return {};
+  fputs(text, fp);
+  fclose(fp);
+  char arg0[] = "test_odex";
+  char *argv[] = {arg0, path.data(), nullptr};
+  std::vector<double> out;
+  if (xpp_load_model(2, argv, 1) != 1) return out;
+  for (int i = 0; i < xpp::model().nupar; i++) out.push_back(xpp::model().default_val[i]);
+  return out;
 }
 
 } // namespace
@@ -263,8 +337,9 @@ int main(void)
   CHECK(xpp::odex::is_name("v_1") && !xpp::odex::is_name("1v") && !xpp::odex::is_name("_v"));
   CHECK(starts(model_error("par near = 1\nx' = 1\n"), "1:5 `near` is a reserved word and cannot be a name"));
 
-  /* the .ode lines a model becomes: .ode's parentheses keep .odex's
-     grouping, a sign and an if always bracketed */
+  /* the statements a model becomes, their formulas the expression
+     engine's text: parentheses keep .odex's grouping, a sign and an if
+     always bracketed */
   CHECK_STR(lowered("x' = 2*3<4\n").c_str(), "x'=(2*3)<4");
   CHECK_STR(lowered("x' = 2^3^2\n").c_str(), "x'=2^(3^2)");
   CHECK_STR(lowered("x' = (2^3)^2\n").c_str(), "x'=2^3^2");
@@ -282,12 +357,21 @@ int main(void)
             "x'=(if(x>0)then(1)else((if(x<0)then((-1))else(0))))");
   CHECK_STR(lowered("x' = sum(shift(x, i'), from=0, to=2)\n").c_str(), "x'=(sum(0,2)of(shift(x,i')))");
   CHECK_STR(lowered("u(t) = sin(t)+volterra(exp(-t), of=u, mu=0.5)\n").c_str(), "volt u=sin(t)+(int[0.5]{exp((-t))#u})");
-  CHECK_STR(lowered("par a = 2*pi, b = a/4\nx' = b\n").c_str(), "par a=6.283185307179586|par b=1.5707963267948966|x'=b");
-  CHECK_STR(lowered("par z = 1/0\nx' = z\n").c_str(), "par z=1e999|x'=z");
+  CHECK_STR(lowered("par a = 2*pi, b = a/4\nx' = b\n").c_str(), "par a=2*pi|par b=a/4|x'=b");
+  {
+    /* a parameter's value evaluated in order by the builder, pi and the
+       parameters before it read, its division IEEE's */
+    const std::vector<double> ab = parameter_values("par a = 2*pi, b = a/4\nx' = b\n");
+    CHECK(ab.size() == 2 && ab[0] == 2 * 3.141592653589793 && ab[1] == 3.141592653589793 / 2);
+    const std::vector<double> z = parameter_values("par z = 1/0\nx' = z\n");
+    CHECK(z.size() == 1 && std::isinf(z[0]) && z[0] > 0);
+  }
   CHECK_STR(lowered("init x = a\npar a = 2\nx' = -x\n").c_str(), "par a=2|x'=(-x)");
   CHECK_STR(lowered("x' = -delay(x, 1)\nhistory x = cos(t)\n").c_str(), "x'=(-delay(x,1))|x(0)=cos(t)");
+  /* an event's formula whole: the builder takes its actions one by one,
+     so == needs no rewriting (W79) */
   CHECK_STR(lowered("x' = 1\nevent 1 x, x = (x == 1) + (x != 2)\n").c_str(),
-            "x'=1|global 1 {x} {x=((x<=1)&(x>=1))+not((x<=2)&(x>=2))}");
+            "x'=1|global 1 {x} {x=x==1+not(x==2)}");
   CHECK_STR(lowered("fun g(v, w) { let s = v + w  if s > 1 { return 2*s } else if s > 0 { return 1 } return 0 }\nx' = g(x, 1)\n").c_str(),
             "g(v,w)=(if((v+w)>1)then(2*(v+w))else((if((v+w)>0)then(1)else(0))))|x'=g(x,1)");
   CHECK_STR(lowered("fun g(v) { if v > 0 { let s = 2  return s } let s = 3  return s }\nx' = g(x)\n").c_str(),
@@ -382,7 +466,7 @@ int main(void)
     /* what the converted text reads back as */
     std::string back;
     try {
-      xpp::odex::lower(xpp::odex::parse(text, "odex_quirks.odex"));
+      xpp::odex::ready(xpp::odex::parse(text, "odex_quirks.odex"));
     } catch (const Error &e) {
       back = e.text();
     }

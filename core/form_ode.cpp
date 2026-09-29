@@ -1,3 +1,11 @@
+/* The Model builder (form_ode.h, odex.h): a model's statements to the
+   xpp::Model, whichever reader made them, the .ode reader (ode_read.cpp)
+   or the .odex reader (odex_load.cpp): one route after the reading, so a
+   fix in how a statement becomes the Model holds for both formats
+   (docs/odex.md question 10). An old-style model (the number of
+   equations on its first line) is built here line by line as it is read
+   (compiler, build_old_style), with the same pieces. And the file
+   selector's choice of a model to load (make_eqn). */
 #include <new>
 #include <string>
 #include <vector>
@@ -5,10 +13,13 @@
 #include <array>
 #include <optional>
 #include <string_view>
+#include <functional>
+#include <map>
 
 #include "xpp_util.h"
 #include "session.h"
 #include "form_ode.h"
+#include "ode_read.h"
 #include "model.h"
 #include "xpp_log.h"
 
@@ -41,8 +52,6 @@
 #define MAXONLY 1000
 #define MAXCOMMENTS 500
 
-static int IN_INCLUDED_FILE=0;
-
 
 int *plotlist;
 int N_plist;
@@ -59,11 +68,8 @@ FILE *convertf;
 static int IN_VARS;
 
 
-namespace {
-/* the lines of the model being read, in order: do_new_parser() adds them,
-   compile_em() compiles them, free_varinfo() lets them go */
-std::vector<VAR_INFO> model_lines;
 
+namespace {
 /* an old-style file rewritten in the new syntax (ConvertStyle): convertf
    is its FILE *, which markov.cpp's old_build_markov writes into too */
 xpp::Writer convert_writer;
@@ -76,7 +82,6 @@ std::vector<int> plot_columns;                    /* plotlist */
 /* the model's named auxiliary variables */
 std::array<std::string,MAXODE> aux_names;
 int Naux=0;
-int OldStyle=1;
 int is_a_map=0;
 
 } // namespace
@@ -143,209 +148,6 @@ void set_ode_name(int i, std::string_view text)
 }
 
 namespace {
-/* where a model's lines come from: its file, or lines already made (an
-   .odex model's, odex_load.cpp) */
-struct LineSource {
-  FILE *fp=nullptr;
-  const std::vector<std::string> *lines=nullptr;
-  size_t next=0;
-};
-int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end);
-int get_eqn_from(LineSource &src);
-}
-
-namespace {
-
-bool is_space(char c)
-{
-  return isspace(static_cast<unsigned char>(c))!=0;
-}
-
-/* s without its leading and trailing white space */
-std::string trimmed(std::string_view s)
-{
-  size_t b=0,e=s.size();
-  while(b<e&&is_space(s[b]))b++;
-  while(e>b&&is_space(s[e-1]))e--;
-  return std::string(s.substr(b,e-b));
-}
-
-int atoi_of(std::string_view s)
-{
-  return atoi(std::string(s).c_str());
-}
-
-double atof_of(std::string_view s)
-{
-  return atof(std::string(s).c_str());
-}
-
-/* the name of "name=value" (blanks around both trimmed) and its value
-   (0 without a '=') */
-std::string take_apart(std::string_view bob, double *value)
-{
-  size_t k=bob.find('=');
-  if(k==std::string_view::npos){
-    *value=0.0;
-    return trimmed(bob);
-  }
-  /* the number after the '=', whatever its length */
-  *value=atof_of(bob.substr(k+1));
-  return trimmed(bob.substr(0,k));
-}
-
-/* old's first length characters, a final comma dropped */
-std::string new_string2(std::string_view old)
-{
-  std::string s(old);
-  if (!s.empty() && s.back() == ',')
-    s.pop_back();
-  return s;
-}
-
-/* The next "name=value" of tokens (blanks around the = allowed, or a
-   name alone), ending at a blank or a comma, which it passes over;
-   nullopt when no text is left */
-std::optional<std::string> get_next2(std::string_view &tokens)
-{
-    size_t start=0;
-    while (start < tokens.size() && is_space(tokens[start])) start++;
-    tokens.remove_prefix(start);
-    if (tokens.empty()) return std::nullopt;
-    size_t len = tokens.size();
-    size_t i;
-    /* advance past space/the equal sign/comma */
-    bool success = false;
-    for (i = 1; i < len; i++) {
-        if (tokens[i] == '=' || is_space(tokens[i]) || tokens[i] == ',') {
-            success = true;
-            break;
-        }
-    }
-    auto take=[&tokens](size_t n, size_t next){
-      std::string s=new_string2(tokens.substr(0,n));
-      tokens.remove_prefix(next);
-      return s;
-    };
-    if (!success) /* this is either a variable alone or a syntax error */
-        return take(len,len);
-    /* advance past any spaces */
-    success = false;
-    for (; i < len; i++) {
-        if (!is_space(tokens[i])) {
-            success = true;
-            break;
-        }
-    }
-    if (!success) /* this is either a variable alone or a syntax error */
-        return take(len,len);
-    if (tokens[i] != '=')
-        return take(i,tokens[i]==','?i+1:i);
-    /* advance until the first non-space */
-    success = false;
-    for (i = i + 1; i < len; i++) {
-        if (!is_space(tokens[i])) {
-            success = true;
-            break;
-        }
-    }
-    if (!success) /* also a syntax error */
-        return take(len,len);
-    /* advance past the nonspaces and non-commas */
-    for (; i < len; i++) {
-        if (is_space(tokens[i]) || tokens[i] == ',') break;
-    }
-    /* advance past any spaces */
-    for (; i < len; i++) {
-        if (!is_space(tokens[i])) {
-            break;
-        }
-    }
-    /* advance past a comma, if any */
-    if (i < len && tokens[i] == ',') i++;
-    return take(i,i);
-}
-
-} // namespace
-
-std::vector<OdeItem> ode_items(std::string_view rhs)
-{
-  std::vector<OdeItem> out;
-  for(std::optional<std::string> tok;(tok=get_next2(rhs));){
-    OdeItem item;
-    item.name=take_apart(*tok,&item.value);
-    size_t k=tok->find('=');
-    if(k!=std::string::npos)item.text=trimmed(std::string_view(*tok).substr(k+1));
-    out.push_back(std::move(item));
-  }
-  return out;
-}
-
-namespace {
-
-/* the model's source line: fgets without its size, the line with its
-   '\n' ("" at the end of the file); false once the end was met, what
-   feof(fp) says after it */
-bool read_raw_line(LineSource &src, std::string &line)
-{
-  line.clear();
-  if(src.lines){
-    if(src.next>=src.lines->size())return false;
-    line=(*src.lines)[src.next++]+"\n";
-    return true;
-  }
-  FILE *fp=src.fp;
-  int c;
-  while((c=getc(fp))!=EOF){
-    line+=static_cast<char>(c);
-    if(c=='\n')return true;
-  }
-  return false;
-}
-
-/* keeps one line of the model's source in Model::source, up to a NUL
-   (the front ends read it as text) */
-void save_line(const std::string &line)
-{
-  std::vector<std::string> &source=xpp::model().source;
-  if (source.size()>=MAXLINES) {
-    xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
-    xpp_model_failed();
-  }
-  source.push_back(line.substr(0,line.find('\0')));
-}
-
-/* The next logical line: a line ending in a backslash goes on in the
-   next one (the text from the first backslash on is dropped); the
-   line's end becomes a blank and one more blank follows it. false once
-   the end of the file was met. */
-bool read_a_line(LineSource &src, std::string &s)
-{
-  bool more=true,in_file=true;
-  s.clear();
-  while(more){
-    std::string temp;
-    in_file=read_raw_line(src,temp)&&in_file;
-    save_line(temp);
-    size_t hat=temp.find('\\');
-    more=hat!=std::string::npos;
-    if(more)temp.resize(hat);
-    s+=temp;
-  }
-  if(!s.empty()&&(s.back()=='\n'||s.back()=='\r'))s.back()=' '; /* empty at the end of the file */
-  s+=' ';
-  return in_file;
-}
-
-/* the first n names of list: where name is, -1 when it is not */
-int find_the_name(const std::vector<std::string> &list, int n, std::string_view name)
-{
-  int m=std::min(n,static_cast<int>(list.size()));
-  for(int i=0;i<m;i++)
-    if(list[i]==name)
-      return(i);
-  return(-1);
-}
 
 void format_list(const std::vector<std::string> &s)
 {
@@ -559,8 +361,76 @@ void find_ker(std::string &string, int *alt)
   string=std::move(newstr);
 }
 
-/* One line of the old syntax (a command letter and its arguments), and
-   the lines compile_em makes of the new one's commands. 0 at "done". */
+/* a load's start: the parser's symbols and the counts from nothing, t
+   the first variable */
+void begin_model()
+{
+  init_rpn();
+  IN_VARS=0;
+  xpp::model().node=0;
+  BVP_N=0;
+  xpp::model().nupar=0;
+  xpp::model().nwiener=0;
+  xpp::model().options_file="default.opt";
+  add_var("t",0.0);
+}
+
+/* ---- what a statement or an old-style line does (compiler uses them
+   too) ---- */
+void add_parameter(const std::string &name, double value)
+{
+  if(add_con(name.c_str(),value)){
+    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
+    xpp_model_failed();
+  }
+  xpp::model().default_val[xpp::model().nupar]=value;
+  xpp::model().upar_names[xpp::model().nupar++]=name;
+  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
+}
+
+/* a constant (.ode's number), or with wiener a Wiener parameter */
+void add_constant(const std::string &name, double value, bool wiener)
+{
+  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
+  if(add_con(name.c_str(),value)){
+    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
+    xpp_model_failed();
+  }
+  if(wiener)add_wiener(xpp::session().parser.ncon-1);
+}
+
+void add_options_file(const std::string &name)
+{
+  xpp::model().options_file=name;
+  xpp::log(XPP_LOG_INFO, " Loading new options file:<{}>\n",name);
+}
+
+void add_boundary(std::string_view formula)
+{
+  set_bc(BVP_N,formula);
+  xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",xpp::model().bcs[BVP_N].name.data(),xpp::model().bcs[BVP_N].string.data());
+  BVP_N++;
+}
+
+void add_flag(const std::string &cond, int sign, const std::vector<FlagEvent> &events)
+{
+  xpp::log(XPP_LOG_DEBUG, " GLOBAL: sign ={} condition = {} \n",sign,cond);
+  if(add_global(cond.c_str(),sign,events)){
+    xpp_log(XPP_LOG_WARN, "Bad global !! \n");
+    xpp_model_failed();
+  }
+}
+
+void add_only(std::string_view s)
+{
+  if(s.empty())return;
+  std::vector<std::string> &only=xpp::model().only;
+  if(only.size()>=MAXONLY)return;
+  only.emplace_back(s);
+}
+
+/* One line of an old-style model (a command letter and its arguments),
+   built as it is read. 0 at "done". */
 int compiler(const std::string &bob, FILE *fptr)
 {
   xpp::Session &s=xpp::session();
@@ -600,90 +470,56 @@ int compiler(const std::string &bob, FILE *fptr)
       add_intern_set(condition.c_str(),formula.c_str());
       break;
     case 'w':  /*  Make a Wiener (heh heh) constants  */
-      xpp_log(XPP_LOG_INFO, "Wiener constants\n");
-      if(ConvertStyle)
-	xpp::print(convertf,"wiener ");
-      for(std::optional<std::string> tok;(tok=get_next2(values));)
-	{
-	  name=take_apart(*tok,&value);
-	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
-	  if(ConvertStyle)
-	    xpp::print(convertf,"{}  ",name);
-	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
-	    xpp_model_failed();
-	  }
-	  add_wiener(s.parser.ncon-1);
-
-	}
-      if(ConvertStyle)
-	xpp::print(convertf,"\n");
-      xpp_log(XPP_LOG_DEBUG, "\n");
-           break;
     case 'n':
-      xpp_log(XPP_LOG_INFO, " Hidden params:\n");
+      xpp_log(XPP_LOG_INFO, command[0]=='w'?"Wiener constants\n":" Hidden params:\n");
       if(ConvertStyle)
-	xpp::print(convertf,"number ");
-
-      for(std::optional<std::string> tok;(tok=get_next2(values));)
+	xpp::print(convertf,"{}",command[0]=='w'?"wiener ":"number ");
+      for(const OdeItem &item : ode_items(values))
 	{
-	  name=take_apart(*tok,&value);
-	  if(ConvertStyle)
-	    xpp::print(convertf,"{}={:g}  ",name,value);
-
-	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
-	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
-	    xpp_model_failed();
+	  if(ConvertStyle){
+	    if(command[0]=='w')
+	      xpp::print(convertf,"{}  ",item.name);
+	    else
+	      xpp::print(convertf,"{}={:g}  ",item.name,item.value);
 	  }
-
+	  add_constant(item.name,item.value,command[0]=='w');
 	}
-       if(ConvertStyle)
+      if(ConvertStyle)
 	xpp::print(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
-    case 'g': /* global */
-      sign=atoi_of(tokens.text("{ "));
-      xpp_log(XPP_LOG_DEBUG, " GLOBAL: sign =%d \n",sign);
+    case 'g': { /* global */
+      sign=atoi(tokens.text("{ ").c_str());
       condition=tokens.text("{}");
-      xpp::log(XPP_LOG_DEBUG, " condition = {} \n",condition);
       formula=tokens.text("\n");
       xpp::log(XPP_LOG_DEBUG, " events={} \n",formula);
-      if(add_global(condition.c_str(),sign,formula.c_str())){
+      std::vector<FlagEvent> events;
+      if(split_events(condition.c_str(),formula.c_str(),events)){
 	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
 	xpp_model_failed();
       }
+      add_flag(condition,sign,events);
       if(ConvertStyle){
 	xpp::print(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
       }
       break;
+    }
     case 'p':
       xpp_log(XPP_LOG_INFO, "Parameters:\n");
       if(ConvertStyle)
 	xpp::print(convertf,"par ");
-
-      for(std::optional<std::string> tok;(tok=get_next2(values));)
+      for(const OdeItem &item : ode_items(values))
 	{
-
-	  name=take_apart(*tok,&value);
-	  if(add_con(name.c_str(),value)){
-	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
-	    xpp_model_failed();
-	  }
-	  xpp::model().default_val[xpp::model().nupar]=value;
-	  xpp::model().upar_names[xpp::model().nupar++]=name;
+	  add_parameter(item.name,item.value);
 	  if(ConvertStyle)
-	    xpp::print(convertf,"{}={:g}  ",name,value);
-	  xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
-
+	    xpp::print(convertf,"{}={:g}  ",item.name,item.value);
 	}
       if(ConvertStyle)
 	xpp::print(convertf,"\n");
       xpp_log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c':
-      xpp::model().options_file=tokens.text(" \n");
-      xpp::log(XPP_LOG_INFO, " Loading new options file:<{}>\n",xpp::model().options_file);
+      add_options_file(tokens.text(" \n"));
       if(ConvertStyle)
 	xpp::print(convertf,"option {}\n",xpp::model().options_file);
       break;
@@ -692,8 +528,8 @@ int compiler(const std::string &bob, FILE *fptr)
       goto vrs;
     case 'm': /* Markov variable  */
       name=tokens.text(" ");
-      value=atof_of(tokens.text(" "));
-      nstates=atoi_of(tokens.text(" \n"));
+      value=atof(tokens.text(" ").c_str());
+      nstates=atoi(tokens.text(" \n").c_str());
       if(add_var(name,value)){
 	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
@@ -702,7 +538,7 @@ int compiler(const std::string &bob, FILE *fptr)
       s.last_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::model().default_ic[IN_VARS+xpp::model().nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
-      if(OldStyle)add_markov(nstates,name.c_str());
+      add_markov(nstates,name.c_str());
       if(ConvertStyle)
 	xpp::print(convertf,"{}(0)={:g}\n",name,value);
       break;
@@ -718,18 +554,19 @@ int compiler(const std::string &bob, FILE *fptr)
       if(ConvertStyle)
 	xpp::print(convertf,"init ");
     vrs:
-      if(xpp::model().nmarkov>0&&OldStyle) {
+      if(xpp::model().nmarkov>0) {
 	xpp_log(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",xpp::model().nlines());
 	xpp_model_failed();
       }
-      for(std::optional<std::string> tok;(tok=get_next2(values));)
+      for(const OdeItem &item : ode_items(values))
 	{
 	  if((IN_VARS>xpp::model().neq)||(IN_VARS==MAXODE))
 	    {
 	      xpp_log(XPP_LOG_ERROR, " too many variables at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
-	  name=take_apart(*tok,&value);
+	  name=item.name;
+	  value=item.value;
 	  if(add_var(name,value)){
 	    xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	    xpp_model_failed();
@@ -757,17 +594,15 @@ int compiler(const std::string &bob, FILE *fptr)
 	xpp::print(convertf,"\n");
       break;
     case 'b':
-      set_bc(BVP_N,tokens.text("\n"));
+      add_boundary(tokens.text("\n"));
       if(ConvertStyle)
-	xpp::print(convertf,"bndry {}\n",xpp::model().bcs[BVP_N].string.data());
-      xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",xpp::model().bcs[BVP_N].name.data(),xpp::model().bcs[BVP_N].string.data());
-      BVP_N++;
+	xpp::print(convertf,"bndry {}\n",xpp::model().bcs[BVP_N-1].string.data());
       break;
     case 'k':
       if(ConvertStyle)
 	xpp_log(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
       name=tokens.text(" ");
-      value=atof_of(tokens.text(" "));
+      value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
       if(add_kernel(name.c_str(),value,formula.c_str())){
@@ -785,9 +620,9 @@ int compiler(const std::string &bob, FILE *fptr)
       formula=tokens.text(" \n");
       if(formula[0]=='%') {
 	xpp_log(XPP_LOG_INFO, " Function form of table....\n");
-	nn=atoi_of(tokens.text(" "));
-	xlo=atof_of(tokens.text(" "));
-	xhi=atof_of(tokens.text(" "));
+	nn=atoi(tokens.text(" ").c_str());
+	xlo=atof(tokens.text(" ").c_str());
+	xhi=atof(tokens.text(" ").c_str());
 	formula=tokens.text("\n");
 	xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
 	       name,nn,xlo,xhi,formula);
@@ -832,7 +667,7 @@ int compiler(const std::string &bob, FILE *fptr)
 
     case 'u':
       name=tokens.text(" ");
-      narg=atoi_of(tokens.text(" "));
+      narg=atoi(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_INFO, "{} {} :\n",name,narg);
       if(ConvertStyle){
@@ -926,108 +761,50 @@ int compiler(const std::string &bob, FILE *fptr)
   return(done);
 }
 
-} // namespace
-
-int make_eqn()
+void add_comment(std::string_view line)
 {
-   xpp::model().neq=2;
-   xpp::model().fix_var=0;
-   xpp::model().nmarkov=0;
-   return(read_eqn());
-}
-
-void strip_saveqn()
-{
-  for(std::string &line : xpp::model().source)
-    for(char &c : line)
-      if(c<32)
-	c=32;
-}
-
-int disc(std::string_view s)
-{
-  if(is_a_map==1)return(1);
-  /* what follows the first '.' */
-  size_t dot=s.find('.');
-  std::string_view end=dot==std::string_view::npos?std::string_view():s.substr(dot+1);
-  return end=="dis"||end=="dif";
-}
-
-int get_eqn(FILE *fptr)
-{
-  LineSource src;
-  src.fp=fptr;
-  return get_eqn_from(src);
-}
-
-int get_eqn_lines(const std::vector<std::string> &lines)
-{
-  LineSource src;
-  src.lines=&lines;
-  return get_eqn_from(src);
-}
-
-namespace {
-
-int get_eqn_from(LineSource &src)
-{
-  FILE *fptr=src.fp;
-  std::string bob;
-  int done=1,i;
-  int flag;
-  init_rpn();
-  xpp::model().source.clear();
-  IN_VARS=0;
-  xpp::model().node=0;
-  BVP_N=0;
-  xpp::model().nupar=0;
-  xpp::model().nwiener=0;
-  /*check_for_xpprc();  This is now done just once and in do_vis_env()
-  */
-  xpp::model().options_file="default.opt";
-  add_var("t",0.0);
-  bool in_file=read_raw_line(src,bob);
-  save_line(bob);
-  i=atoi(bob.c_str());
-  if(i<=0) { /* New parser ---   */
-
-    OldStyle=0;
-    ConvertStyle=0;
-    flag=do_new_parser(src,bob,0,!in_file);
-    if(flag<0) xpp_model_failed();
+  std::vector<xpp::Model::Comment> &comments=xpp::model().comments;
+  if(comments.size()>=MAXCOMMENTS)return;
+  xpp::Model::Comment c;
+  std::string &text=c.text;
+  size_t open=line.find('{');
+  if(open==std::string_view::npos){
+    text=line.empty()?std::string_view():line.substr(1);
+    c.aflag=0;
   }
-  else if(fptr==nullptr){ /* lines made by odex_load: never old style */
-    xpp_log(XPP_LOG_ERROR, "An old-style model must be read from its file\n");
-    xpp_model_failed();
-  }
-  else{
-    OldStyle=1;
-    xpp::model().neq=i;
-    xpp_log(XPP_LOG_INFO, "NEQ=%d\n",xpp::model().neq);
-    if(ConvertStyle){
-      const std::string &this_file=xpp::model().this_file;
-      std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
-      convert_writer=xpp::Writer(filename.c_str());
-      convertf=convert_writer.file();
-      if(convertf==NULL){
-	xpp::log(XPP_LOG_WARN, " Cannot open {} - no conversion done \n",filename);
-	ConvertStyle=0;
+  else {
+    std::string &action=c.action;
+    action="$ ";
+    size_t j1=open+1;
+    for(size_t i=open+1;i<line.size();i++){
+      char ch=line[i];
+      if(ch==','){
+        action+=' ';
+        continue;
       }
-      xpp::print(convertf,"# converted {} \n",this_file);
-    }
-    while(done)
-      {
-	read_raw_line(src,bob);
-	if(bob.empty())break;
-	save_line(bob);
-	done=compiler(bob,fptr);
+      if(ch=='}'){
+        action+=' ';
+        j1=i+1;
+        break;
       }
-    if(ConvertStyle){
-      xpp::print(convertf,"done\n");
-      convert_writer.commit();
-      convertf=NULL;
+      action+=ch;
     }
+    text="* ";
+    text+=line.substr(j1);
+    c.aflag=1;
   }
+ xpp::log(XPP_LOG_DEBUG, "text={} \n",text);
+ if(c.aflag==1)
+   xpp::log(XPP_LOG_DEBUG, "action={} \n",c.action);
+ comments.push_back(std::move(c));
+}
+
+/* a load's end, whichever the model's form: the counts checked, the
+   boundary conditions filled up, the formulas and names in upper case,
+   the primed variables, Markov chains, flags and aux quantities added */
+void finish_model()
+{
+  int i;
  if((xpp::model().node+xpp::model().nmarkov)==0){
    xpp_log(XPP_LOG_ERROR, " Must have at least one equation! \n Probably not an ODE file.\n");
    xpp_model_failed();
@@ -1070,8 +847,7 @@ int get_eqn_from(LineSource &src)
 	xpp::to_upper(uvar_names[i].data());
 	std::string formula=xpp::model().formulas[i];
 	xpp::to_upper(formula.data());
-        de_space(formula.data());
-	c_resync(formula);
+	de_space(formula);
 	set_ode_name(i,formula);
       }
   /*
@@ -1101,1111 +877,526 @@ int get_eqn_from(LineSource &src)
   program.version_minor=static_cast<float>(cstringmin);
   xpp_log(XPP_LOG_INFO, "Used %d constants and %d symbols \n",xpp::session().parser.ncon,xpp::session().parser.nsym);
   xpp_log(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
-    return(1);
 }
 
 } // namespace
+
+int make_eqn()
+{
+   xpp::model().neq=2;
+   xpp::model().fix_var=0;
+   xpp::model().nmarkov=0;
+   return(read_eqn());
+}
+
+void strip_saveqn()
+{
+  for(std::string &line : xpp::model().source)
+    for(char &c : line)
+      if(c<32)
+	c=32;
+}
+
+int disc(std::string_view s)
+{
+  if(is_a_map==1)return(1);
+  /* what follows the first '.' */
+  size_t dot=s.find('.');
+  std::string_view end=dot==std::string_view::npos?std::string_view():s.substr(dot+1);
+  return end=="dis"||end=="dif";
+}
+
+void build_old_style(int neq, FILE *fptr, const std::function<bool(std::string &)> &next_line)
+{
+  begin_model();
+  xpp::model().neq=neq;
+  xpp_log(XPP_LOG_INFO, "NEQ=%d\n",neq);
+  if(ConvertStyle){
+    const std::string &this_file=xpp::model().this_file;
+    std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
+    convert_writer=xpp::Writer(filename.c_str());
+    convertf=convert_writer.file();
+    if(convertf==NULL){
+      xpp::log(XPP_LOG_WARN, " Cannot open {} - no conversion done \n",filename);
+      ConvertStyle=0;
+    }
+    xpp::print(convertf,"# converted {} \n",this_file);
+  }
+  std::string bob;
+  for(int done=1;done&&next_line(bob);)
+    done=compiler(bob,fptr);
+  if(ConvertStyle){
+    xpp::print(convertf,"done\n");
+    convert_writer.commit();
+    convertf=NULL;
+  }
+  finish_model();
+}
+
+/* ---- the Model builder: a model's statements to the Model ---- */
 
 namespace {
 
-/* "#include file": the file's name, blanks removed, into nf */
-bool if_include_file(const std::string &old, std::string &nf)
-{
-  std::string_view s(old);
-  if(!s.starts_with("#include"))return false;
-  size_t blank=s.find(' ');
-  if(blank==std::string_view::npos)return false;
-  nf=s.substr(blank+1);
-  de_space(nf.data());
-  c_resync(nf);
-  return true;
-}
+using xpp::odex::Binding;
+using xpp::odex::Expr;
+using xpp::odex::Parsed;
+using xpp::odex::Statement;
 
-bool if_end_include(std::string_view old)
-{
-  if (IN_INCLUDED_FILE>0)
+/* ---- the builder ---- */
+class Builder {
+public:
+  explicit Builder(Parsed &p) : p_(p) {}
+
+  void run()
   {
-  	if(old.starts_with("#done"))return true;
-  	if(old.starts_with("done"))return true;
-	/*Note that the end of an included file
-	 is also possible but that condition is checked
-	elsewhere (currently near the bottom of do_new_parser)
-	*/
+    xpp::Model &m=xpp::model();
+    m.ieee_division=p_.ieee_division;
+    evaluate_parameters();
+    ConvertStyle=0;
+    begin_model();
+    for(Statement &s : p_.statements) declare(s);
+    add_names();
+    for(Statement &s : p_.statements) compile(s);
+    if(compile_derived()==1)
+      xpp_model_failed();
+    if(compile_svars()==1)
+      xpp_model_failed();
+    evaluate_derived();
+    xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
+    m.node=nvar_+naux_+nfix_;
+    xpp_log(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
+	   nvar_,naux_,nfix_,nmark_,m.neq,m.node);
+    m.statements=std::move(p_.statements);
+    finish_model();
   }
-  return false;
-}
 
-/* how far s's text (up to a NUL a C function wrote into it) matches the
-   character at i ('\0' past its end) */
-char char_at(const std::string &s, size_t i)
-{
-  return i<s.size()?s[i]:'\0';
-}
-
-/* "name = rest" of v.rhs: v.lhs the name, v.rhs the rest (the text
-   around the character at i1) */
-void split_rhs(VAR_INFO &v, size_t name_end, size_t rest_start)
-{
-  std::string big=v.rhs;
-  v.lhs=big.substr(0,name_end);
-  v.rhs=rest_start<big.size()?big.substr(rest_start):std::string();
-}
-
-int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end);
-
-/* no exception crosses into C: the only one parse_model() can throw is
-   std::bad_alloc, and running out of memory ends the program, as
-   xpp_malloc() does */
-int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end)
-{
-  try {
-    return parse_model(src, first, nnn, at_end);
-  } catch (const std::bad_alloc &) {
-    xpp::log(XPP_LOG_ERROR, "out of memory reading {}\n", first);
-    exit(1);
+private:
+  /* where a statement's binding is, for an error */
+  std::string where(const xpp::odex::Pos &pos) const
+  {
+    return xpp::odex::Error{pos.file<static_cast<int>(p_.files.size())?p_.files[pos.file]:std::string(),pos,""}.text();
   }
-}
 
-void add_only(std::string_view s)
-{
-  if(s.empty())return;
-  std::vector<std::string> &only=xpp::model().only;
-  if(only.size()>=MAXONLY)return;
-  only.emplace_back(s);
-}
-
-void break_up_list(std::string_view rhs)
-{
-  /* the names between blanks and commas */
-  std::string s;
-  for(char c : rhs){
-    if(c=='\0')break;
-    if(c==' '||c==','){
-      add_only(s);
-      s.clear();
-    }
-    else
-      s+=c;
+  /* e as the text the expression engine compiles: an .ode formula as
+     written; an .odex one with the parentheses it needs, in upper case
+     where the Model keeps .ode's so (upper) */
+  static std::string text(const Expr &e, bool upper=false)
+  {
+    if(e.kind==Expr::Kind::Text)return e.text;
+    std::string t=xpp::odex::engine_text(e);
+    if(upper)xpp::to_upper(t.data());
+    return t;
   }
-  add_only(s);
-}
 
-/* the line v, kept for compile_em */
-void add_varinfo(const VAR_INFO &v)
-{
-  try {
-    model_lines.push_back(v);
-  } catch (const std::bad_alloc &) { /* no exception crosses into C */
-    xpp_log(XPP_LOG_ERROR, "out of memory: the model's line %d\n", static_cast<int>(model_lines.size()) + 1);
-    exit(1);
-  }
-}
-
-/* compiled: the lines go to the Model, whose statements they are */
-void keep_statements()
-{
-  xpp::model().statements=std::move(model_lines);
-  model_lines.clear();
-}
-
-/* this code checks if the right-hand side for an initial
-   condition is a formula (for delays) or a number
-*/
-int formula_or_number(const char *expr,double *z)
-{
-  std::array<char,40> num{}; /* do_num's 40 bytes */
-  int flag,i=0;
-  int olderr=xpp::session().parser.errout;
-  xpp::session().parser.errout=0;
-  *z=0.0; /* initial it to 0 */
-  /* convert only drops blanks: never longer than expr */
-  std::string form(expr);
-  convert(expr,form.data());
-  c_resync(form);
-  flag=do_num(form.c_str(),num.data(),z,&i);
-  if(i<static_cast<int>(form.size()))flag=1;
-  xpp::session().parser.errout=olderr;
-  if(flag==0)
-    return 0; /* 0 is a number */
-  return 1; /* 1 is a formula */
-}
-
-int extract_ode(const char *s1, int *ie, int i1)  /* name is char 1-i1  ie is start of rhs */
-{
-  int i=0,n=strlen(s1);
-
-  i=i1;
-  while(i<n){
-    if(s1[i]=='='){
-      *ie=i+1;
-      return 1;
-    }
-    i++;
-  }
-  return 0;
-}
-
-int strparse(const char *s1, const char *s2, int i0, int *i1)
-{
-  int i=i0;
-  int n=strlen(s1);
-  int m=strlen(s2);
-  int j=0;
-  char ch;
-  int start=0;
-
-  while(i<n){
-    ch=s1[i];
-    if(start==1){
-
-      if(ch==s2[j]|| ch==' '){
-        if(ch==s2[j])j++;
-        i++;
-	if(j==m){
-	  *i1=i;
-	  return(1);
+  /* each parameter's value: a number, or an expression of numbers, pi
+     and the parameters before it, evaluated in order, the model's
+     divisions its own */
+  void evaluate_parameters()
+  {
+    std::map<std::string,std::string> values;
+    for(Statement &s : p_.statements){
+      if(s.kind!=Statement::Kind::Par)continue;
+      for(Binding &b : s.bindings){
+	if(b.value.kind!=Expr::Kind::Number){
+	  /* calculate() rolls the symbol table back to the Model's own:
+	     here, before the build, the built-ins */
+	  xpp::model().ncon_start=0;
+	  xpp::model().nsym_start=STDSYM;
+	  const std::string formula=xpp::odex::engine_text(b.value,&values);
+	  int ok=0;
+	  const double z=calculate(formula.c_str(),&ok);
+	  if(!ok)throw xpp::odex::Error{p_.files[b.value.pos.file],b.value.pos,
+					xpp::format("the value of {} does not evaluate",b.name)};
+	  Expr number;
+	  number.kind=Expr::Kind::Number;
+	  number.pos=b.value.pos;
+	  number.value=z;
+	  number.text=xpp::odex::print_number(z);
+	  b.value=std::move(number);
 	}
-      }
-      else
-	{
-	  start=0;
-	  j=0;
-	}
-    }
-    else /* just starting */
-      {
-
-	if(ch==s2[0]){
-	  j++;
-	  i++;
-	  start=1;
-	  if(j==m){  /* only one char */
-	    *i1=i;
-	    return(1);
-	  }
-	}
-      else
-	i++;
-      }
-
-  }
-  return(0);
-}
-
-/* the names in s1 from i0 up to its ')' into args; *ie where the
-   formula after the '=' starts. 0 when they are not there. */
-int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args)
-{
-  int i=i0,n=strlen(s1);
-  int type,i1;
-  args.clear();
-  while(i<n){
-    type=find_char(s1,",)",i,&i1);
-    if(type<0)break;
-    if(static_cast<int>(args.size())>=MAXARG){
-      xpp_log(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
-      return 0;
-    }
-    args.emplace_back(s1+i,s1+i1);
-    i=i1+1;
-    if(type==1){
-      find_char(s1,"=",i,&i1);
-      *ie=i1+1;
-      return 1;
-    }
-  }
-  return(0);
-}
-
-int next_nonspace(const char *s1, int i0, int *i1)
-{
-  int i=i0;
-  int n=strlen(s1);
-  char ch;
-  *i1=n-1;
-  while(i<n){
-    ch=s1[i];
-    if(ch!=' '){
-      *i1=i;
-      return(static_cast<int>(ch));
-    }
-    i++;
-  }
-  return(-1);
-}
-
-/* removes starting blanks from s  */
-void remove_blanks(std::string &s)
-{
-  size_t i=0;
-  while(i<s.size()&&is_space(s[i]))i++;
-  s.erase(0,i);
-}
-
-int check_if_ic(const char *big)
-{
-  char c;
-  int n=strlen(big);
-  int j;
-  j=0;
-  while(1){
-    c=big[j];
-    if(c==']'){
-      if((big[j+1]=='(') && (big[j+2]=='0') && (big[j+3]==')')){
-	return 1;
-
+	values[b.name]=xpp::odex::print_number(b.value.value);
       }
     }
-    j++;
-    if(j>=n)break;
   }
-  return 0;
-}
 
-int not_ker(const char *s, int i) /* returns 1 if string is not 'int[' */
-{
-  if(i<3)return 1;
-  if(s[i-3]=='i'&&s[i-2]=='n'&&s[i-1]=='t')return 0;
-  return 1;
-}
-
-int is_comment(const char *s)
-{
-  int n=strlen(s);
-  int i=0;
-  char c;
-  while(1) {
-    c=s[i];
-    if(c=='#')return 1;
-    if(isspace(c)){
-      i++;
-
-      if(i>=n)return 0;
-    }
-    else
-      return 0;
-  }
-}
-
-/* A " line: its text, or with {name=value,...} an action ("$ name=value
-   ...") and the text after the braces ("* text") */
-void add_comment(std::string_view line)
-{
-  std::vector<xpp::Model::Comment> &comments=xpp::model().comments;
-  if(comments.size()>=MAXCOMMENTS)return;
-  xpp::Model::Comment c;
-  std::string &text=c.text;
-  size_t open=line.find('{');
-  if(open==std::string_view::npos){
-    text=line.empty()?std::string_view():line.substr(1);
-    c.aflag=0;
-  }
-  else {
-    std::string &action=c.action;
-    action="$ ";
-    size_t j1=open+1;
-    for(size_t i=open+1;i<line.size();i++){
-      char ch=line[i];
-      if(ch==','){
-        action+=' ';
-        continue;
+  /* first, the names: every statement's that the formulas compiled
+     after them may read, and what does not wait for them */
+  void declare(Statement &s)
+  {
+    xpp::Model &m=xpp::model();
+    switch(s.kind){
+    case Statement::Kind::Options:
+      if(add_model_option(s.text.c_str())<0){
+	xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",s.text);
+	xpp_model_failed();
       }
-      if(ch=='}'){
-        action+=' ';
-        j1=i+1;
-        break;
-      }
-      action+=ch;
-    }
-    text="* ";
-    text+=line.substr(j1);
-    c.aflag=1;
-  }
- xpp::log(XPP_LOG_DEBUG, "text={} \n",text);
- if(c.aflag==1)
-   xpp::log(XPP_LOG_DEBUG, "action={} \n",c.action);
- comments.push_back(std::move(c));
-}
-
-/* The line s1 (made upper case, its leading blanks removed) as v: 1, 2
-   for "done", 0 for a line that is not one (a comment, an option), -1
-   when it cannot be read */
-int parse_a_string(std::string &s1, VAR_INFO &v)
-{
-  int i0=0,i1,i2,i3;
-  std::string lhs,rhs;
-  std::vector<std::string> args;
-  int type,type2;
-  if(char_at(s1,0)=='"'){
-    add_comment(s1);
-    return 0;
-  }
-  if(char_at(s1,0)=='@')
-    return add_model_option(s1.c_str());
-  remove_blanks(s1);
-
-  const std::string s1old=s1;
-  xpp::to_upper(s1.data());
-  const char *s=s1.c_str();
-  if(s1.empty()){
-    return 0;
-  }
-  if(s1[0]=='0'&&char_at(s1,1)=='='){
-   type2=DAE;
-   lhs="0=";
-   rhs=s1.substr(2);
-   goto good_type;
-  }
-  if(s1[0]=='#'){
-    return 0;
-  }
-
-  type=find_char(s," =/'(",i0,&i1);
-  switch(type){
-  case 0:
-    i0=i1;
-    switch(next_nonspace(s,i0,&i2)){
-    case '=' :
-      if(s1[0]=='!'){
-	lhs=s1.substr(1,i1-1);
-	rhs=s1.substr(i2+1);
-	type2=DERIVE_PAR;
-	break;
-      }
-      lhs=s1.substr(0,i1);
-      rhs=s1.substr(i2+1);
-      type2=FIXED;
       break;
-    default:
-      type2=COMMAND;
-      lhs=s1.substr(0,i1);
-      rhs=s1old.substr(i2);
+    case Statement::Kind::Comment: add_comment("\""+s.text); break;
+    case Statement::Kind::Only:
+      for(const std::string &n : s.names)add_only(n);
+      break;
+    case Statement::Kind::Markov: {
+      add_markov(s.count,s.name.c_str());
+      std::vector<std::string> cells;
+      for(const Expr &c : s.cells)cells.push_back(text(c));
+      build_markov(cells,s.name.c_str());
+      /* a second chain of the same name has no variable of its own */
+      std::string name=converted(s.name);
+      if(std::find(mnames_.begin(),mnames_.end(),name)==mnames_.end())mnames_.push_back(std::move(name));
       break;
     }
-    break;
-  case 1:
-    if(s1[0]=='!'){
-      lhs=s1.substr(1,i1-1);
-      rhs=s1.substr(i1+1);
-      type2=DERIVE_PAR;
+    case Statement::Kind::Par:
+      xpp_log(XPP_LOG_INFO, "Parameters:\n");
+      for(const Binding &b : s.bindings)add_parameter(b.name,b.value.value);
+      xpp_log(XPP_LOG_DEBUG, "\n");
+      break;
+    case Statement::Kind::Wiener:
+    case Statement::Kind::Const:
+      xpp_log(XPP_LOG_INFO, s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
+      for(const Binding &b : s.bindings)add_constant(b.name,b.value.value,s.kind==Statement::Kind::Wiener);
+      xpp_log(XPP_LOG_DEBUG, "\n");
+      break;
+    case Statement::Kind::OptionFile: add_options_file(s.text); break;
+    case Statement::Kind::Set: add_intern_set(s.name.c_str(),s.text.c_str()); break;
+    case Statement::Kind::Boundary: add_boundary(text(s.expr)); break;
+    case Statement::Kind::Event: {
+      std::vector<FlagEvent> events;
+      for(const Binding &b : s.bindings)events.push_back({b.name,text(b.value)});
+      add_flag(text(s.expr),s.count,events);
       break;
     }
-
-    type2=FIXED;
-    lhs=s1.substr(0,i1);
-    rhs=s1.substr(i1+1);
-    break;
-  case 2:
-    if(s1[0]!='D')return -1;
-    if(extract_ode(s,&i2,i1)){
-      lhs=s1.substr(1,i1-1);
-      rhs=s1.substr(i2);
-      type2=ODE;
-    }
-    else
-      return -1;
-    break;
-  case 3:
-    if(extract_ode(s,&i2,i1)){
-      lhs=s1.substr(0,i1);
-      rhs=s1.substr(i2);
-      type2=ODE;
-    }
-    else
-      return -1;
-    break;
-
-  case 4:
-    i0=i1;
-    if(strparse(s,"T+1)=",i0,&i2)){
-      type2=MAP;
-      is_a_map=1;
-      lhs=s1.substr(0,i1);
-      rhs=s1.substr(i2);
-      break;
-    }
-    if(strparse(s,"(0)=",i0-1,&i2)){
-
-      type2=IC;
-      lhs=s1.substr(0,i1);
-      rhs=s1.substr(i2);
-      break;
-     }
-    if(strparse(s,"T)=",i0,&i2)){
-
-      if(strparse(s,"INT{",0,&i3)==1||
-	 strparse(s,"INT[",0,&i3)==1){
-	type2=VEQ;
-	lhs=s1.substr(0,i1);
-	rhs=s1.substr(i2);
-	break;
+    case Statement::Kind::Ode:
+    case Statement::Kind::Map:
+    case Statement::Kind::Volterra: {
+      std::string name=converted(s.name);
+      if(std::find(vnames_.begin(),vnames_.end(),name)!=vnames_.end()){
+	xpp::log(XPP_LOG_ERROR, " {} is a duplicate name \n",name);
+	xpp_model_failed();
       }
-      else {
-	type2=FUNCTION;
-        if(extract_args(s,i0+1,&i2,args)==0)return -1;
-	lhs=s1.substr(0,i0);
-	rhs=s1.substr(i2);
-	break;
-      }
+      vnames_.push_back(std::move(name));
+      break;
     }
-    i0++;
-    if(extract_args(s,i0,&i2,args)==0)return -1;
-    type2=FUNCTION;
-    lhs=s1.substr(0,i0-1);
-    rhs=s1.substr(i2);
-    break;
-  default:
-    return -1;
+    case Statement::Kind::Vector: add_vectorizer_name(s.name.c_str(),s.text.c_str()); break;
+    case Statement::Kind::Network:
+      add_special_name(s.name.c_str(),s.text.data());
+      c_resync(s.text);
+      break;
+    case Statement::Kind::Solv:
+      if(add_svar(s.name.c_str(),text(s.expr).c_str())==1)
+	xpp_model_failed();
+      break;
+    case Statement::Kind::Aux:
+      for(const Binding &b : s.bindings){
+	anames_.push_back(converted(b.name));
+	xpp::log(XPP_LOG_INFO, "{} = {} \n",anames_.back(),text(b.value));
+      }
+      break;
+    case Statement::Kind::Derived:
+      for(const Binding &b : s.bindings)
+	if(add_derived(xpp::upper_case(b.name).c_str(),text(b.value,true).c_str())==1)
+	  xpp_model_failed();
+      break;
+    case Statement::Kind::Fixed: {
+      const int k=static_cast<int>(fnames_.size());
+      m.fixinfo[k].name=xpp::upper_case(s.name);
+      m.fixinfo[k].value=text(s.expr,true);
+      fnames_.push_back(converted(s.name));
+      xpp::log(XPP_LOG_INFO, "{} = {} \n",fnames_.back(),m.fixinfo[k].value);
+      break;
+    }
+    case Statement::Kind::Table: {
+      const std::string name=converted(s.name);
+      if(add_table_name(ntab_,name.c_str())==1){
+	xpp::log(XPP_LOG_ERROR, " {} is duplicate name \n",name);
+	xpp_model_failed();
+      }
+      xpp_log(XPP_LOG_DEBUG, "added name %d\n",ntab_);
+      ntab_++;
+      break;
+    }
+    case Statement::Kind::Fun: {
+      const std::string name=converted(s.name);
+      if(add_ufun_name(name.c_str(),nufun_,static_cast<int>(s.names.size()))==1){
+	xpp::log(XPP_LOG_ERROR, "Duplicate name or too many functions for {} \n",name);
+	xpp_model_failed();
+      }
+      nufun_++;
+      break;
+    }
+    default: break;
+    }
   }
 
-good_type:
-  v.type=type2;
-  v.lhs=std::move(lhs);
-  v.rhs=std::move(rhs);
-  v.args=std::move(args);
-
-  if(char_at(v.lhs,0)=='D'&&type2==COMMAND)
-    return 2;
-  return 1;
-}
-
-void compile_em() /* Now we try to keep track of markov, fixed, etc as
-		well as their names  */
-{
- std::vector<std::string> vnames,fnames,anames,mnames;
- double z,xlo,xhi;
- std::string tmp,formula;
- int nmark=0,nfix=0,naux=0,nvar=0,nn,alt,in,i,ntab=0,nufun=0;
- int in1,in2,iflag,ok;
- int fon;
- int len; /* a program's length, from add_expr */
- FILE *fp=NULL;
- /* v.lhs/v.rhs after a C function wrote into them: cut at their NUL */
- auto resync=[](VAR_INFO &v){
-   c_resync(v.lhs);
-   c_resync(v.rhs);
- };
-
- /* On this first pass through, all the variable names
-    are kept as well as fixed declarations, boundary conds,
-    and parameters, functions and tables.  Once this pass is
-    completed all the names will be known to the compiler.
- */
- for(VAR_INFO &v : model_lines)
-   {
-    const char *lhs=v.lhs.c_str(),*rhs=v.rhs.c_str();
-    if(v.type==COMMAND && lhs[0]=='P')
-      compiler("par "+v.rhs+" \n",fp);
-    if(v.type==COMMAND && lhs[0]=='W')
-      compiler("wie "+v.rhs+" \n",fp);
-    if(v.type==COMMAND && lhs[0]=='N')
-      compiler("num "+v.rhs+" \n",fp);
-    if(v.type==COMMAND && lhs[0]=='O')
-      compiler("c "+v.rhs+" \n",fp);
-    if(v.type==COMMAND && lhs[0]=='S' && lhs[1]=='E')
-      compiler("x "+v.rhs+"\n",fp);
-    if(v.type==COMMAND && lhs[0]=='B')
-      compiler("b "+v.rhs+" \n",fp);
-    if(v.type==COMMAND && lhs[0]=='G')
-      compiler("g "+v.rhs+" \n",fp);
-    if(v.type==MAP||v.type==ODE||v.type==VEQ){
-      tmp=converted(v.lhs);
-      if(find_the_name(vnames,nvar,tmp)<0){
-	vnames.push_back(tmp);
-	nvar++;
+  /* the variables' names, the fixed variables', the Markov variables',
+     the aux quantities', the algebraic variables': the indices the
+     formulas are compiled at */
+  void add_names()
+  {
+    xpp::Model &m=xpp::model();
+    xpp::Session &s=xpp::session();
+    const int nvar=static_cast<int>(vnames_.size());
+    for(int i=0;i<nvar;i++){
+      if(add_var(vnames_[i].c_str(),0.0)){
+	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",vnames_[i]);
+	xpp_model_failed();
       }
-      else
-	{
-	  xpp::log(XPP_LOG_ERROR, " {} is a duplicate name \n",tmp);
+      m.uvar_names[i]=vnames_[i];
+      s.last_ic[i]=0.0;
+      m.default_ic[i]=0.0;
+    }
+    for(const std::string &f : fnames_)
+      if(add_var(f.c_str(),0.0)){
+	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",f);
+	xpp_model_failed();
+      }
+    for(size_t i=0;i<mnames_.size();i++){
+      if(add_var(mnames_[i].c_str(),0.0)){
+	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",mnames_[i]);
+	xpp_model_failed();
+      }
+      m.uvar_names[i+nvar]=mnames_[i];
+      s.last_ic[i+nvar]=0.0;
+      m.default_ic[i+nvar]=0.0;
+    }
+    for(size_t i=0;i<anames_.size();i++)
+      aux_names[i]=anames_[i];
+    add_svar_names();
+    IN_VARS=nvar;
+    Naux=static_cast<int>(anames_.size());
+    m.neq=nvar+m.nmarkov+Naux;
+    m.fix_var=static_cast<int>(fnames_.size());
+    s.ntable=ntab_;
+    m.nfun=nufun_;
+    ntab_=0;
+    nufun_=0;
+  }
+
+  /* where name is among the variables (then the Markov variables, their
+     index after the variables'): -1 when it is neither */
+  int variable(const std::string &name, bool &markov) const
+  {
+    auto v=std::find(vnames_.begin(),vnames_.end(),name);
+    markov=false;
+    if(v!=vnames_.end())return static_cast<int>(v-vnames_.begin());
+    auto k=std::find(mnames_.begin(),mnames_.end(),name);
+    if(k==mnames_.end())return -1;
+    markov=true;
+    return IN_VARS+static_cast<int>(k-mnames_.begin());
+  }
+
+  void initial_value(const Binding &b)
+  {
+    const std::string name=converted(b.name);
+    bool markov;
+    const int in=variable(name,markov);
+    if(in<0){
+      xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",name);
+      xpp_model_failed();
+    }
+    const double z=b.value.value;
+    xpp::session().last_ic[in]=z;
+    xpp::model().default_ic[in]=z;
+    set_val(name.c_str(),z);
+    xpp::log(XPP_LOG_INFO, " {} {}(0)={:g}\n",markov?"Markov":"Initial",name,z);
+  }
+
+  void history(const Binding &b)
+  {
+    const std::string name=converted(b.name);
+    bool markov;
+    const int in=variable(name,markov);
+    if(in<0){
+      xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",name);
+      xpp_model_failed();
+    }
+    if(!markov)xpp::session().delay_string[in]=text(b.value,true);
+  }
+
+  /* then, in order, what reads the names: the formulas compiled */
+  void compile(Statement &s)
+  {
+    xpp::Model &m=xpp::model();
+    int alt,len;
+    switch(s.kind){
+    case Statement::Kind::InitNumbers:
+      for(const Binding &b : s.bindings)initial_value(b);
+      break;
+    case Statement::Kind::Init:
+      /* evaluated in order with every parameter set, once the model is
+         set up (set_initial_values) */
+      for(const Binding &b : s.bindings)
+	m.initial_values.push_back({b.name,text(b.value),where(b.value.pos)});
+      break;
+    case Statement::Kind::History:
+      for(const Binding &b : s.bindings)history(b);
+      break;
+    case Statement::Kind::Ode:
+    case Statement::Kind::Map:
+    case Statement::Kind::Volterra: {
+      std::string rhs=text(s.expr,s.kind!=Statement::Kind::Volterra);
+      m.eq_type[nvar_]=s.kind==Statement::Kind::Volterra;
+      set_ode_name(nvar_,rhs);
+      new_program(nvar_);
+      find_ker(rhs,&alt);
+      if(add_expr(rhs.c_str(),m.programs[nvar_].data(),&len)){
+	xpp::log(XPP_LOG_ERROR, "ERROR compiling {}' \n",s.name);
+	xpp_model_failed();
+      }
+      if(s.kind==Statement::Kind::Map){
+	xpp::log(XPP_LOG_INFO, "{}(t+1)={}\n",s.name,rhs);
+	is_a_map=1;
+      }
+      if(s.kind==Statement::Kind::Volterra)
+	xpp::log(XPP_LOG_INFO, "{}(t)={}\n",s.name,rhs);
+      if(s.kind==Statement::Kind::Ode)
+	xpp::log(XPP_LOG_INFO, "{}:d{}/dt={}\n",nvar_,s.name,rhs);
+      nvar_++;
+      break;
+    }
+    case Statement::Kind::Fixed: {
+      std::string rhs=text(s.expr,true);
+      find_ker(rhs,&alt);
+      new_program(nfix_+IN_VARS);
+      if(add_expr(rhs.c_str(),m.programs[nfix_+IN_VARS].data(),&len)!=0){
+	xpp::log(XPP_LOG_ERROR, " Error allocating or compiling {}\n",s.name);
+	xpp_model_failed();
+      }
+      nfix_++;
+      xpp::log(XPP_LOG_INFO, "{}={}\n",s.name,rhs);
+      break;
+    }
+    case Statement::Kind::Dae: {
+      const std::string rhs=text(s.expr,true);
+      if(add_aeqn(rhs.c_str())==1)
+	xpp_model_failed();
+      xpp::log(XPP_LOG_INFO, " DAE eqn: {}=0 \n",rhs);
+      break;
+    }
+    case Statement::Kind::Aux:
+      for(const Binding &b : s.bindings){
+	const std::string rhs=text(b.value);
+	const int in1=IN_VARS+m.nmarkov+naux_,in2=IN_VARS+m.fix_var+naux_;
+	set_ode_name(in1,rhs);
+	new_program(in2);
+	if(add_expr(rhs.c_str(),m.programs[in2].data(),&len)){
+	  xpp::log(XPP_LOG_ERROR, "ERROR compiling {} \n",b.name);
 	  xpp_model_failed();
 	}
-    }
-
-    if(v.type==MARKOV_VAR){
-      tmp=converted(v.lhs);
-      if(find_the_name(mnames,nmark,tmp)<0){
-	mnames.push_back(tmp);
-	nmark++;
+	naux_++;
+	xpp::log(XPP_LOG_INFO, "{}={}\n",b.name,rhs);
       }
-    }
-    if(v.type==VECTOR){
-      add_vectorizer_name(lhs,rhs);
-
-    }
-    if(v.type==SPEC_FUN){
-      add_special_name(lhs,v.rhs.data());
-      resync(v);
-    }
-    if(v.type==SOL_VAR){
-       if(add_svar(lhs,rhs)==1)
-	 xpp_model_failed();
-    }
-
-    if(v.type==AUX_VAR){
-      tmp=converted(v.lhs);
-      anames.push_back(tmp);
-      naux++;
-      xpp::log(XPP_LOG_INFO, "{} = {} \n",anames[naux-1],v.rhs);
-    }
-    if(v.type==DERIVE_PAR){
-      if(add_derived(lhs,rhs)==1)
-	xpp_model_failed();
-    }
-    if(v.type==FIXED){
-      xpp::model().fixinfo[nfix].name=v.lhs;
-      xpp::model().fixinfo[nfix].value=v.rhs;
-      tmp=converted(v.lhs);
-      fnames.push_back(tmp);
-      nfix++;
-     xpp::log(XPP_LOG_INFO, "{} = {} \n",fnames[nfix-1],v.rhs);
-    }
-
-    if(v.type==TABLE){
-      tmp=converted(v.lhs);
-      if(add_table_name(ntab,tmp.c_str())==1){
-	xpp::log(XPP_LOG_ERROR, " {} is duplicate name \n", tmp);
+      break;
+    case Statement::Kind::Vector: {
+      const int ok=add_vectorizer(s.name.c_str(),s.text.data());
+      c_resync(s.text);
+      if(ok==0){
+	xpp::log(XPP_LOG_ERROR, " Illegal vector  {} \n",s.text);
 	xpp_model_failed();
       }
-      xpp_log(XPP_LOG_DEBUG, "added name %d\n",ntab);
-      ntab++;
+      break;
     }
-
-    if(v.type==FUNCTION){
-      tmp=converted(v.lhs);
-      if(add_ufun_name(tmp.c_str(),nufun,static_cast<int>(v.args.size()))==1){
-	xpp::log(XPP_LOG_ERROR, "Duplicate name or too many functions for {} \n",tmp);
+    case Statement::Kind::Network: {
+      const int ok=add_spec_fun(s.name.c_str(),s.text.data());
+      c_resync(s.text);
+      if(ok==0){
+	xpp::log(XPP_LOG_ERROR, " Illegal special function {} \n",s.text);
 	xpp_model_failed();
       }
-
-      nufun++;
+      break;
     }
-   }
-
- /* now we add all the names of the variables and the
-    fixed stuff
- */
- for(i=0;i<nvar;i++){
-      if(add_var(vnames[i].c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",vnames[i]);
+    case Statement::Kind::Markov:
+      set_ode_name(IN_VARS+nmark_,"...many states..");
+      nmark_++;
+      xpp::log(XPP_LOG_INFO, "{}: ...many states..",s.name);
+      break;
+    case Statement::Kind::Fun: {
+      const std::string rhs=text(s.expr,true);
+      /* the arguments as the formula reads them: an .odex formula is in
+         upper case, an .ode one as its reader keeps it */
+      std::vector<std::string> args=s.names;
+      if(s.expr.kind!=Expr::Kind::Text)
+	for(std::string &a : args)xpp::to_upper(a.data());
+      if(add_ufun_new(nufun_,rhs.c_str(),args)!=0){
+	xpp::log(XPP_LOG_ERROR, " Function {} messed up \n",s.name);
 	xpp_model_failed();
       }
-      xpp::model().uvar_names[i]=vnames[i];
-      xpp::session().last_ic[i]=0.0;
-      xpp::model().default_ic[i]=0.0;
+      nufun_++;
+      xpp::log(XPP_LOG_INFO, "{}({}",s.name,s.names.empty()?std::string():s.names[0]);
+      for(size_t a=1;a<s.names.size();a++)
+	xpp::log(XPP_LOG_INFO, ",{}",s.names[a]);
+      xpp::log(XPP_LOG_INFO, ")={}\n",rhs);
+      break;
     }
- for(i=0;i<nfix;i++){
-   if(add_var(fnames[i].c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",fnames[i]);
+    case Statement::Kind::Table: table(s); break;
+    default: break;
+    }
+  }
+
+  void table(const Statement &s)
+  {
+    switch(s.table_kind){
+    case Statement::TableKind::Formula: {
+      const std::string formula=text(s.expr);
+      xpp_log(XPP_LOG_INFO, " Function form of table....\n");
+      xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.count,s.lo,s.hi,formula);
+      if(add_form_table(ntab_,s.count,s.lo,s.hi,formula.c_str())){
+	xpp::log(XPP_LOG_ERROR, "ERROR computing {}\n",s.name);
 	xpp_model_failed();
       }
- }
- for(i=0;i<nmark;i++){
-   if(add_var(mnames[i].c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",mnames[i]);
+      ntab_++;
+      break;
+    }
+    case Statement::TableKind::TwoD:
+      xpp_log(XPP_LOG_INFO, " Two-dimensional array: \n ");
+      xpp::log(XPP_LOG_INFO, " {} = {} \n",s.name,s.text);
+      if(add_2d_table(s.name.c_str(),s.text.c_str())){
+	xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	xpp_model_failed();
       }
-   xpp::model().uvar_names[i+nvar]=mnames[i];
-   xpp::session().last_ic[i+nvar]=0.0;
-   xpp::model().default_ic[i+nvar]=0.0;
- }
- for(i=0;i<naux;i++)
-   aux_names[i]=anames[i];
- add_svar_names();
-
-/* NODE = nvars ; Naux = naux ; NEQ = NODE+NMarkov+Naux ; FIX_VAR = nfix; */
-
- IN_VARS=nvar;
- Naux=naux;
- xpp::model().neq=nvar+xpp::model().nmarkov+Naux;
- xpp::model().fix_var=nfix;
- xpp::session().ntable=ntab;
- xpp::model().nfun=nufun;
-
-/* Reset all this stuff so we align the indices correctly */
-
- nvar=0;
- naux=0;
- ntab=0;
- nufun=0;
- nfix=0;
- nmark=0;
-
- for(VAR_INFO &v : model_lines)
-   {
-     if(v.type==COMMAND && v.lhs[0]=='I'){
-      std::string big="i "+v.rhs+" \n";
-      xpp::Tokens tokens(big);
-      tokens.next(" ,");
-      std::string_view values=tokens.rest();
-      for(std::optional<std::string> tok;(tok=get_next2(values));)
-	{
-	   tmp=converted(take_apart(*tok,&z));
-	   in=find_the_name(vnames,IN_VARS,tmp);
-	   if(in>=0){
-	     xpp::session().last_ic[in]=z;
-	     xpp::model().default_ic[in]=z;
-	     set_val(tmp.c_str(),z);
-	     xpp::log(XPP_LOG_INFO, " Initial {}(0)={:g}\n",tmp,z);
-	   }
-	   else {
-	     in=find_the_name(mnames,xpp::model().nmarkov,tmp);
-	     if(in>=0){
-	       xpp::session().last_ic[in+IN_VARS]=z;
-               xpp::model().default_ic[in+IN_VARS]=z;
-	       set_val(tmp.c_str(),z);
-	       xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);
-	     }
-	     else
-	       {
-		 xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",
-			tmp);
-		 xpp_model_failed();
-	       }
-	   }
-	 } /* end take apart */
-     }  /* end  init  command    */
-     if(v.type==IC){
-       tmp=converted(v.lhs);
-       fon=formula_or_number(v.rhs.c_str(),&z);
-
-	  if(fon==1){
-
-	 if(char_at(v.rhs,0)=='-'&&(isdigit(char_at(v.rhs,1))||(char_at(v.rhs,1)=='.')))
-	   {
-
-	     z=atof(v.rhs.c_str());
-
-	   }
-       }
-
-       in=find_the_name(vnames,IN_VARS,tmp);
-       if(in>=0){
-	 xpp::session().last_ic[in]=z;
-         xpp::model().default_ic[in]=z;
-	 set_val(tmp.c_str(),z);
-	   xpp::session().delay_string[in]=v.rhs;
-
-	 xpp::log(XPP_LOG_INFO, " Initial {}(0)={}\n",tmp,v.rhs);
-       }
-       else {
-	 in=find_the_name(mnames,xpp::model().nmarkov,tmp);
-	 if(in>=0){
-	   xpp::session().last_ic[in+IN_VARS]=z;
-           xpp::model().default_ic[in+IN_VARS]=z;
-	   set_val(tmp.c_str(),z);
-	   xpp::log(XPP_LOG_INFO, " Markov {}(0)={:g}\n",tmp,z);
-	 }
-	 else
-	   {
-	     xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",
-		    tmp);
-	     xpp_model_failed();
-	   }
-       }
-     } /* end IC stuff  */
-
- /*   all that is left is the right-hand sides !!   */
-     iflag=0;
-     switch(v.type){
-     case VEQ:
-       iflag=1;
-       [[fallthrough]];
-     case ODE:
-     case MAP:
-       xpp::model().eq_type[nvar]=iflag;
-       set_ode_name(nvar,v.rhs);
-       new_program(nvar);
-       find_ker(v.rhs,&alt);
-       if(add_expr(v.rhs.c_str(),xpp::model().programs[nvar].data(),&len)){
-	 xpp::log(XPP_LOG_ERROR, "ERROR compiling {}' \n",v.lhs);
-	 xpp_model_failed();
-       }
-       if(v.type==MAP){
-	 xpp::log(XPP_LOG_INFO, "{}(t+1)={}\n",v.lhs,v.rhs);
-	 is_a_map=1;
-       }
-       if(v.type==VEQ)
-	 xpp::log(XPP_LOG_INFO, "{}(t)={}\n",v.lhs,v.rhs);
-       if(v.type==ODE)
-	 xpp::log(XPP_LOG_INFO, "{}:d{}/dt={}\n",nvar,v.lhs,v.rhs);
-       nvar++;
-       break;
-      case FIXED:
-       find_ker(v.rhs,&alt);
-       new_program(nfix+IN_VARS);
-       if(add_expr(v.rhs.c_str(),xpp::model().programs[nfix+IN_VARS].data(),&len)!=0){
-	 xpp::log(XPP_LOG_ERROR, " Error allocating or compiling {}\n",v.lhs);
-	 xpp_model_failed();
-       }
-       nfix++;
-       xpp::log(XPP_LOG_INFO, "{}={}\n",v.lhs,v.rhs);
-       break;
-     case DAE:
-       if(add_aeqn(v.rhs.c_str())==1)
-	 xpp_model_failed();
-       xpp::log(XPP_LOG_INFO, " DAE eqn: {}=0 \n",v.rhs);
-       break;
-
-     case  AUX_VAR:
-       in1=IN_VARS+xpp::model().nmarkov+naux;
-       in2=IN_VARS+xpp::model().fix_var+naux;
-       set_ode_name(in1,v.rhs);
-       new_program(in2);
-       if(add_expr(v.rhs.c_str(),xpp::model().programs[in2].data(),&len)){
-	 xpp::log(XPP_LOG_ERROR, "ERROR compiling {} \n",v.lhs);
-	 xpp_model_failed();
-       }
-       naux++;
-       xpp::log(XPP_LOG_INFO, "{}={}\n",v.lhs,v.rhs);
-       break;
-     case VECTOR:
-       ok=add_vectorizer(v.lhs.c_str(),v.rhs.data());
-       resync(v);
-       if(ok==0){
-	 xpp::log(XPP_LOG_ERROR, " Illegal vector  {} \n",v.rhs);
-	 xpp_model_failed();
-       }
-
-       break;
-     case SPEC_FUN:
-       ok=add_spec_fun(v.lhs.c_str(),v.rhs.data());
-       resync(v);
-       if(ok==0){
-	 xpp::log(XPP_LOG_ERROR, " Illegal special function {} \n",v.rhs);
-	 xpp_model_failed();
-       }
-       break;
-     case MARKOV_VAR:
-       set_ode_name(IN_VARS+nmark,v.rhs);
-       nmark++;
-       xpp::log(XPP_LOG_INFO, "{}: {}",v.lhs,v.rhs);
-       break;
-     case  FUNCTION:
-       if(add_ufun_new(nufun,v.rhs.c_str(),v.args)!=0){
-	 xpp::log(XPP_LOG_ERROR, " Function {} messed up \n",v.lhs);
-	 xpp_model_failed();
-       }
-       nufun++;
-       xpp::log(XPP_LOG_INFO, "{}({}",v.lhs,v.args.empty()?std::string():v.args[0]);
-       for(size_t a=1;a<v.args.size();a++)
-	 xpp::log(XPP_LOG_INFO, ",{}",v.args[a]);
-       xpp::log(XPP_LOG_INFO, ")={}\n",v.rhs);
-       break;
-
-     case TABLE:
-       {
-       std::string big="t "+v.lhs+" "+v.rhs+" ";
-       xpp::Tokens tokens(big);
-       tokens.next(" ,");
-       tokens.next(" ");
-       formula=tokens.text(" \n");
-       if(formula[0]=='%') {
-	 xpp_log(XPP_LOG_INFO, " Function form of table....\n");
-	 nn=atoi_of(tokens.text(" "));
-	 xlo=atof_of(tokens.text(" "));
-	 xhi=atof_of(tokens.text(" "));
-	 formula=tokens.text("\n");
-	 xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",
-		v.lhs,nn,xlo,xhi,formula);
-	 if(add_form_table(ntab,nn,xlo,xhi,formula.c_str())){
-	   xpp::log(XPP_LOG_ERROR, "ERROR computing {}\n",v.lhs);
-	   xpp_model_failed();
-	 }
-	 ntab++;
-       }
-       else
-	 if(formula[0]=='@'){
-	   xpp_log(XPP_LOG_INFO, " Two-dimensional array: \n ");
-	   formula=tokens.text(" ");
-	   xpp::log(XPP_LOG_INFO, " {} = {} \n",v.lhs,formula);
-	   if(add_2d_table(v.lhs.c_str(),formula.c_str())){
-	     xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
-	     xpp_model_failed();
-	   }
-	 }
-	 else
-	   {
-	     xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",v.lhs,formula);
-
-	     if(add_file_table(ntab,formula.c_str())){
-	       xpp::log(XPP_LOG_ERROR, "ERROR computing {}",v.lhs);
-	       xpp_model_failed();
-	     }
-	     ntab++;
-	   }
-       }
-       break;
-     }
-   }
- if(compile_derived()==1)
-   xpp_model_failed();
- if(compile_svars()==1)
-   xpp_model_failed();
- evaluate_derived();
- xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
- xpp::model().node=nvar+naux+nfix;
- xpp_log(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
-	nvar,naux,nfix,nmark,xpp::model().neq,xpp::model().node);
-
-}
-
-int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end)
-{
- VAR_INFO v;
- std::vector<std::string> strings; /* this line, or a for loop's lines */
- int ns;
- int done=0,start=0,i1,i2,istates;
- int jj1=0,jj2=0,jj,notdone=1,jjsgn=1;
- std::string name;
- int nstates=0;
- std::string newfile;
- /* the line read, with its array range worked out, and one of its
-    strings with its subscripts worked out (parse_a_string edits it in
-    place, never longer) */
- std::string old,newstr,big;
- /* a Markov line's states as read and with their subscripts worked out */
- std::vector<std::string> markov_states,markov_states2;
- int is_array=0;
- /* the next line of fp into s; at_end once the file's end was met */
- auto next_line=[&src,&at_end](std::string &s){
-   if(!read_a_line(src,s))at_end=true;
- };
- if(nnn==0){model_lines.clear();}
- while(notdone){
-   strings.clear();
-   if(start||nnn==1){
-     next_line(old);
-   }
-   else {
-        if(loadincludefile)
-	{
-		loadincludefile=0;/*Only do this once*/
-		for (const std::string &inc : include_files)
-		{
-			xpp::UniqueFile fnew=xpp::open_read(inc.c_str());
-      			if(!fnew){
-         		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
-			  xpp_model_failed();
-       			}
-      			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
-			IN_INCLUDED_FILE++;
-			LineSource inc_src;
-			inc_src.fp=fnew.get();
-       			do_new_parser(inc_src,inc,1,false);
-		}
-	}
-
-     old=first; /* pass the first line ....  */
-     start=1;
-   }
-   if (IN_INCLUDED_FILE > 0)
-    {
-	    if (if_end_include(old) || at_end)
-	    {
-	    	xpp::log(XPP_LOG_INFO, "Completed include of file {}\n",first);
-	    	IN_INCLUDED_FILE--;
-	    	return 1;
-	    }
-    }
-    if(if_include_file(old,newfile)){
-      xpp::UniqueFile fnew=xpp::open_read(newfile.c_str());
-      if(!fnew){
-         xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
-         continue;
-       }
-       xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
-       IN_INCLUDED_FILE++;
-       LineSource inc_src;
-       inc_src.fp=fnew.get();
-       do_new_parser(inc_src,newfile,1,false);
-       fnew.reset();
-       if (IN_INCLUDED_FILE <= 0)
-             continue;
-    }
-
-    search_array(old.data(),newstr,&jj1,&jj2,&is_array);
-   jj=jj1;
-   jjsgn=1;
-   if(jj2<jj1)jjsgn=-1;
-
-   switch(is_array){
-     case 0:  /*  not a for loop so */
-     case 1:
-           strings.assign(1,newstr);
-           break;
-      case 2: /*  a for loop, so we will ignore the first line */
-            while(1){
-             next_line(old);
-             if(old[0]=='%')
-               break;
-             strings.push_back(old);
-             if(strings.size()>255)break;
-             }
-
-            break;
-       }
-
-   while(1){
-      for(ns=0;ns<static_cast<int>(strings.size());ns++){
-      subsk(strings[ns].c_str(),big,jj,is_array);
-
-   done=parse_a_string(big,v);
-
-   if(done==-1){
-     xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
-     return -1;
-   }
-   if(done==1){
-     if(v.type==COMMAND)xpp::to_upper(v.lhs.data());
-     if(v.type==COMMAND && char_at(v.lhs,0)=='G' && char_at(v.lhs,1)=='R') {
-       xpp::Tokens tokens(v.rhs);
-       name=tokens.text(" ");
-       std::optional<std::string_view> parts=tokens.next(" \n");
-       nstates=parts?atoi_of(*parts):0;
-       if(nstates<1){
-	 xpp::log(XPP_LOG_ERROR, "Group {}  must have at least 1 part \n",name);
-	 return -1;
-       }
-       xpp::log(XPP_LOG_INFO, "Group {} has {} parts\n",name,nstates);
-       for(istates=0;istates<nstates;istates++){
-	 next_line(old);
-	 xpp::log(XPP_LOG_DEBUG, "part {} is {} \n",istates,old);
-       }
-
-       v.type=GROUP;
-     }
-   /* check for Markov to get rid of extra lines */
-
-     if(v.type==COMMAND && char_at(v.lhs,0)=='M' && char_at(v.lhs,1)=='A'){
-       xpp::Tokens tokens(v.rhs);
-       name=tokens.text(" ");
-       std::optional<std::string_view> count=tokens.next(" \n");
-       nstates=count?atoi_of(*count):0;
-       if(nstates<2){
-	 xpp::log(XPP_LOG_ERROR, "Markov variable {}  must have at least 2 states \n",name);
-	 return -1;
-       }
-       add_markov(nstates,name.c_str());
-       if(jj==jj1) {  /* test to see if this is the first one */
-	 markov_states.assign(nstates,std::string());
-	 for(istates=0;istates<nstates;istates++){
-           if(is_array==2)
-	     markov_states[istates]=strings[ns+1+istates];
-	   else
-	     next_line(markov_states[istates]);
-	 }
-       }
-
-       /*  now we clean up these arrays */
-       markov_states2.assign(nstates,std::string());
-       std::vector<const char *> states(nstates);
-       for(istates=0;istates<nstates;istates++){
-	 subsk(markov_states[istates].c_str(),markov_states2[istates],jj,is_array);
-	 states[istates]=markov_states2[istates].c_str();
-       }
-
-       build_markov(states.data(),name.c_str());
-       v.type=MARKOV_VAR;
-       v.lhs=name;
-       v.rhs="...many states..";
-     }
-
-        /* take care of special form for SOLVE-VARIABLE */
-          if(v.type==COMMAND && char_at(v.lhs,0)=='S' && char_at(v.lhs,1)=='O'){
-           if(find_char(v.rhs.c_str(),"=",0,&i1)<0){
-             v.lhs=v.rhs;
-             v.rhs="0";
-            }
-          else
-	    split_rhs(v,i1,i1+1);
-          v.type=SOL_VAR;
-     }
-
-   /* take care of special form for auxiliary */
-     if(v.type==COMMAND && char_at(v.lhs,0)=='A' && char_at(v.lhs,1)=='U'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
-	 split_rhs(v,i1,i1+1);
-       v.type=AUX_VAR;
-     }
-
-     /* take care of special form for vector */
-     if(v.type==COMMAND && char_at(v.lhs,0)=='V' && char_at(v.lhs,1)=='E' && char_at(v.lhs,5)=='R')
-     {
-      if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
-	split_rhs(v,i1,i1+1);
-       v.type=VECTOR;
-     }
-        /* take care of special form for special */
-     if(v.type==COMMAND && char_at(v.lhs,0)=='S'&&char_at(v.lhs,1)=='P'&&char_at(v.lhs,5)=='A'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
-	 split_rhs(v,i1,i1+1);
-       v.type=SPEC_FUN;
-     }
-
-/*   export {inputs} {outputs} called a compiled library's function   */
-     if(v.type==COMMAND && char_at(v.lhs,0)=='E' && char_at(v.lhs,1)=='X'){
-       refuse_compiled_functions("export");
-       xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
-       return -1;
-     }
-
-/*  ONLY save options  */
-
-    if(v.type==COMMAND && char_at(v.lhs,0)=='O' && char_at(v.lhs,1)=='N')
-    {
-      break_up_list(v.rhs);
-      v.type=ONLY;
-     }
-
- /*  forced integral equation form */
-     if(v.type==COMMAND && char_at(v.lhs,0)=='V'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
-	 split_rhs(v,i1,i1+1);
-       v.type=VEQ;
-     }
-    /* take care of tables   */
-
-     if(v.type==COMMAND && char_at(v.lhs,0)=='T' && char_at(v.lhs,1)=='A'){
-      int i0=0;
-      next_nonspace(v.rhs.c_str(),i0,&i1);
-      i0=i1;
-      i2=find_char(v.rhs.c_str()," ",i0,&i1);
-      if(i2!=0){
-	xpp::log(XPP_LOG_WARN, " Illegal definition of table {} \n",v.rhs);
+      break;
+    case Statement::TableKind::File:
+      xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",s.name,s.text);
+      if(add_file_table(ntab_,s.text.c_str())){
+	xpp::log(XPP_LOG_ERROR, "ERROR computing {}",s.name);
 	xpp_model_failed();
       }
-      std::string rest=v.rhs;
-      v.lhs=rest.substr(i0,i1-i0);
-      v.rhs=rest.substr(i1+1);
-      v.type=TABLE;
+      ntab_++;
+      break;
     }
+  }
 
-    add_varinfo(v);
-      }
-   } /* end loop for the strings */
-   if(done==2)notdone=0;
-   if(at_end)
-   	notdone=0;
-
-   if(jj==jj2)break;
-
-     jj+=jjsgn;
-
-   }
-
-   /* a Markov line's states (build_markov copied them) */
-   markov_states.clear();
-   markov_states2.clear();
-
- }
- compile_em();
-
- keep_statements();
- return 1;
-
-}
+  Parsed &p_;
+  /* the names of the variables, the Markov variables, the fixed
+     variables and the aux quantities (converted: blanks removed, upper
+     case), in order */
+  std::vector<std::string> vnames_,mnames_,fnames_,anames_;
+  /* how many of each the compiling has met */
+  int nvar_=0,nfix_=0,naux_=0,nmark_=0,ntab_=0,nufun_=0;
+};
 
 } // namespace
+
+void build_model(Parsed p)
+{
+  Builder(p).run();
+}
+
+void set_initial_values()
+{
+  xpp::Model &m=xpp::model();
+  for(const xpp::Model::InitialValue &init : m.initial_values){
+    int ok=0;
+    const double z=calculate(init.formula.c_str(),&ok);
+    if(!ok){
+      xpp::log(XPP_LOG_ERROR, "{} the initial value of {} does not evaluate\n",init.where,init.name);
+      xpp_model_failed();
+    }
+    const int i=find_user_name(ICBOX,init.name);
+    xpp::session().last_ic[i]=z;
+    m.default_ic[i]=z;
+    set_val(converted(init.name),z);
+  }
+}
 
 void create_plot_list()
 {
@@ -2223,192 +1414,3 @@ void create_plot_list()
     }
   }
 }
-
-int find_char(const char *s1, const char *s2, int i0, int *i1)
-{
-  int m=strlen(s2),n=strlen(s1);
-  int i=i0;
-  char ch;
-  int j;
-  while(i<n){
-    ch=s1[i];
-    for(j=0;j<m;j++){
-      if(ch==s2[j]){
-	*i1=i;
-	return(j);
-      }
-    }
-    i++;
-  }
-  return(-1);
-}
-
-/* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,
-   or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
-   is malformed. A line of initial data x[..](0)=... goes to
-   extract_ic_data, which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
-{
-  int i,j;
-  int ileft,iright;
-  int n=strlen(old);
-  std::string num1="0",num2="0";
-  char ch,chp;
-  ileft=n-1;
-  iright=-1;
-  *i1=0;
-  *i2=0;
-  *flag=0;
-  if(old[0]=='#'||(n>0&&old[1]=='#')) {  /* check for comments */
-    newstr=old;
-    return 1;
-  }
-  if(check_if_ic(old)==1){
-    extract_ic_data(old);
-    newstr=old;
-    return 1;
-  }
-  for(i=0;i<n;i++){
-    ch=old[i];
-    chp=old[i+1];
-    if(ch=='.'&&chp=='.'){
-      j=0;
-      *flag=1;
-      if(old[0]=='%')
-	*flag=2;   /*   FOR LOOP CONSTRUCTION  */
-      while(1){
-	ch=old[i+j];
-	if(ch=='['){
-	  ileft=i+j;
-	  num1.assign(old+i+j+1,old+i);
-	  break;
-	}
-	j--;
-	if((i+j)<=0){
-	  *i1=0;
-          *i2=0;
-	  newstr=old;
-          xpp_log(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
-	  return(0); /* error in array  */
-	}
-      }
-      j=2;
-      while(1){
-	ch=old[i+j];
-	if(ch==']'){
-	  iright=i+j;
-	  num2.assign(old+i+2,old+i+j);
-	  break;
-	}
-	j++;
-	if((i+j)>=n) {
-	  *i1=0;
-          *i2=0;
-	  newstr=old;
-          xpp_log(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
-	  return(0); /* error again   */
-	}
-      }
-    }
-  }
-  *i1=atoi(num1.c_str());
-  *i2=atoi(num2.c_str());
-  /* now we have the numbers and will get rid of the junk inbetween */
-  newstr.assign(old,old+ileft+1);
-  if(iright>0){
-    newstr+='j';
-    newstr.append(old+iright,old+n);
-  }
-  return 1;
-}
-
-/* big with its subscripts worked out for index k: [n] becomes n, [j+n]
-   k+n, [j-n] k-n, [j*n] k*n ([j] only in an array line, flag nonzero) */
-void subsk(const char *big, std::string &newstr, int k, int flag)
-{
-  int n=strlen(big),i=0,add,isign,multflag=0;
-  bool ok;
-  char ch,chp;
-  std::string num;
-  newstr.clear();
-  if(is_comment(big)){
-    newstr=big;
-    return;
-  }
-  /* the subscript's text runs to its ']' */
-  auto unterminated=[big](){
-    xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
-    xpp_model_failed();
-  };
-  while(i<n){
-    ch=big[i];
-    chp=big[i+1];
-    if(ch=='['&&chp != 'j'&&not_ker(big,i)){
-      ok=true;
-      num.clear();
-      i++;
-      while(ok){
-	if(i>=n)unterminated();
-	ch=big[i];
-	i++;
-	if(ch==']'){
-	  add=atoi(num.c_str());
-	  newstr+=std::to_string(add);
-	  ok=false;
-	}
-	else
-	  num+=ch;
-      }
-    }
-    else if(ch=='['&&chp=='j'){
-      if(flag==0){
-	xpp_log(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
-	xpp_model_failed();
-      }
-      num.clear();
-      isign=1;
-      i+=2;
-      ok=true;
-      while(ok){
-	if(i>=n)unterminated();
-	ch=big[i];
-	switch(ch){
-	case '+':
-	  isign=1;
-	  i++;
-	  break;
-	case '-':
-	  isign=-1;
-	  i++;
-	  break;
-	case '*':
-	  i++;
-	  isign=1;
-	  multflag=1;
-	  break;
-	case ']':
-	  i++;
-	  if(multflag==0){
-	    add=atoi(num.c_str())*isign+k;
-	  }
-	  else {
-	    add=atoi(num.c_str())*k;
-	    multflag=0;
-	  }
-	  newstr+=std::to_string(add);
-	  ok=false;
-	  break;
-	default:
-	  i++;
-	  num+=ch;
-	  break;
-	}
-      }
-    }
-    else {
-      newstr+=ch;
-      i++;
-    }
-  }
-}
-

@@ -11,7 +11,6 @@ extern "C" {
 void add_wiener(int index);
 void set_wieners(double dt, double *x, double t);
 void add_markov(int nstate, const char *name);
-int build_markov(const char *const *ma, const char *name);
 int old_build_markov(FILE *fptr, const char *name);
 void create_markov(int nstates, double *st, int type, const char *name);
 void add_markov_entry(int index, int j, int k, const char *expr);
@@ -34,8 +33,16 @@ void  do_stats(int ierr);
 }
 
 #include <array>
+#include <span>
+#include <string>
 #include <vector>
 #include "xpplim.h"
+/* an .ode transition row's next cell from *start on: the text between
+   its { and }, *start past the } */
+std::string markov_cell(const char *row, int *start);
+/* the Markov variable name's transitions, cells its nstates x nstates
+   formulas row by row (text, or numbers for a fixed chain): its index */
+int build_markov(std::span<const std::string> cells, const char *name);
 /* stocHast's many-runs state (markov.cpp), a Session's (session.h):
    whether a Compute is running (flag), whether its mean and variance
    exist (here), the number of trials and the length of each run, and the

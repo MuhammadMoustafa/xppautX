@@ -1,20 +1,29 @@
 #ifndef XPP_ODEX_H
 #define XPP_ODEX_H
-/* .odex, the model format without .ode's quirks (docs/odex.md; W74). C++
-   only.
+/* The statement list both model formats are read into, and .odex, the
+   model format without .ode's quirks (docs/odex.md; W74, W79). C++ only.
 
-   - odex_parse.cpp: the tokenizer and the grammar, text to the statements
-     below (parse), every problem an Error at a line and column;
-   - odex_print.cpp: an expression back to .odex text (print), with the
-     parentheses .odex's precedence needs and no others;
-   - odex_load.cpp: a parsed model into the xpp::Model the .ode parser
-     builds (the same Model: one route after the parse);
+   Two readers make the statement list and one builder makes the Model
+   from it (docs/odex.md question 10):
+   - ode_read.cpp: the .ode reader, an .ode file's lines to statements,
+     every quirk of .ode's kept (its formulas .ode text, Expr::Kind::Text);
+   - odex_parse.cpp: the tokenizer and the grammar, .odex text to
+     statements (parse), every problem an Error at a line and column;
+     odex_load.cpp, the .odex reader, checks them (every name declared
+     once, read where it may be, called with its arguments) and readies
+     them for the builder (ready);
+   - form_ode.cpp: the builder, statements to the xpp::Model (build_model,
+     form_ode.h), whichever reader made them;
+   - odex_print.cpp: an expression as .odex text (print), with the
+     parentheses .odex's precedence needs and no others, and as the
+     expression engine's text (engine_text), which the builder compiles;
    - odex_convert.cpp: xppautX --convert, a loaded .ode's Model written as
      .odex.
 
    The expression tree is .odex's own: an operator is the word or symbol
    .odex spells it with ("and", "mod", "!=", ...). */
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,6 +51,9 @@ struct Error {
 /* an expression */
 struct Expr {
   enum class Kind {
+    Text,   /* an .ode formula (text) as the .ode reader keeps it: the
+               expression engine compiles it as written, .ode's precedence
+               and all */
     Number, /* value, text as written */
     Name,   /* text; primed for a name written x' */
     Neg,    /* -args[0] */
@@ -87,29 +99,43 @@ struct Option {
   Pos pos, value_pos;
 };
 
-/* a statement of the model */
+/* a statement of the model; its formulas .odex's trees or, from the .ode
+   reader, .ode text (Expr::Kind::Text) */
 struct Statement {
   enum class Kind {
     Ode,      /* name' = expr */
+    Map,      /* name(t+1) = expr (.ode) */
     Volterra, /* name(t) = expr */
     Fixed,    /* name = expr */
-    Par,      /* par bindings */
-    Init,     /* init bindings */
-    History,  /* history bindings: a variable's values before the start */
+    Par,      /* par bindings: a number, or (.odex) an expression of numbers,
+                 pi and the parameters before it */
+    Const,    /* const bindings: numbers fixed at load (.ode's number) */
+    Init,     /* init bindings: formulas, evaluated in order with every
+                 parameter set once the model is set up (.odex's) */
+    InitNumbers, /* init bindings, each a number set at once (.ode's init;
+                 text, when set, the x(0)=text it was read from) */
+    History,  /* history bindings: a variable's values before the start
+                 (.ode's x(0)=formula is an init and a history) */
     Aux,      /* aux bindings */
     Derived,  /* !name = expr, in bindings */
     Fun,      /* fun name(names) = expr, or with a body */
-    Options,  /* @ options */
-    Set,      /* set name = bindings */
-    Table,    /* table name "file" (text), or table name expr, n=, lo=, hi= */
+    Options,  /* @ options; text the @ line the Model keeps */
+    OptionFile, /* .ode's options file: text, its name */
+    Set,      /* set name = bindings; text its actions as the Model keeps
+                 them, a=1,b=2 */
+    Table,    /* table name "file" (text), or table name expr, n=, lo=,
+                 hi= (table_kind says which) */
     Markov,   /* markov name count {cells}: count*count transitions */
     Wiener,   /* wiener names */
     Event,    /* event sign expr, bindings */
     Boundary, /* boundary expr */
-    Network,  /* network name = text(call_args) */
+    Network,  /* network name = text(call_args); read, text is the whole
+                 definition, kind(arguments) */
+    Vector,   /* .ode's vector name = text */
     Solv,     /* solv name = expr */
     Dae,      /* 0 = expr */
     Only,     /* only names */
+    Group,    /* .ode's group (its lines skipped) */
     Comment   /* "text": a comment the model shows (text) */
   };
   Kind kind = Kind::Fixed;
@@ -130,6 +156,11 @@ struct Statement {
   int count = 0;
   /* a formula table's lo and hi */
   double lo = 0, hi = 0;
+  /* a table's kind: a file's values (text the file), a formula's (expr,
+     count points from lo to hi), or .ode's 2-D table (table name @ file:
+     text the file) */
+  enum class TableKind { File, Formula, TwoD };
+  TableKind table_kind = TableKind::File;
   /* a Markov variable's transitions, row by row */
   std::vector<Expr> cells;
   /* a network's arguments, each as written */
@@ -137,10 +168,13 @@ struct Statement {
 };
 
 /* a parsed model: its files (the model's, then those it includes) and
-   its statements in order, an include's where the include was */
+   its statements in order, an include's where the include was;
+   ieee_division when its formulas divide as IEEE does (1/0 inf, 0/0 NaN:
+   .odex's, docs/odex.md question 1), not as .ode's */
 struct Parsed {
   std::vector<std::string> files;
   std::vector<Statement> statements;
+  bool ieee_division = false;
 };
 
 /* text, the contents of file, parsed; an include is read relative to
@@ -155,31 +189,19 @@ bool is_reserved(std::string_view word);
 /* name is an .odex name: a letter, then letters, digits and '_' */
 bool is_name(std::string_view name);
 
-/* a parsed model checked and written as the .ode reader's lines
-   (odex_load.cpp; each formula with the parentheses .ode's precedence
-   needs), a parameter's value evaluated; the current Model is the one
-   being built (its divisions become IEEE's). Each init's variable and
-   formula, to evaluate once the Model is built. Throws Error. */
-struct Lowered {
-  struct Initial {
-    std::string name, formula, file;
-    Pos pos;
-  };
-  std::vector<std::string> lines;
-  std::vector<Initial> initials;
-};
-Lowered lower(const Parsed &p);
-/* an .odex model's initial values (Model::initial_values), each
-   evaluated with every parameter set: set_all_vals (load_eqn.cpp) calls
-   this once the model is set up, where an .ode's array initial values
-   are evaluated too */
-void set_initials();
+/* the .odex reader's second half (odex_load.cpp): a parsed model checked
+   and readied for the builder: a block function made the one expression
+   its returns make, near's tol filled in, wiener's names given their
+   value, an @ line's, a set's, a network's and a comment's text the
+   Model's own, ieee_division set. Throws Error. */
+Parsed ready(const Parsed &p);
 
 /* path names an .odex model (its extension, any case) */
 bool is_odex(std::string_view path);
 /* the .odex model at path into the current Model and Session, as get_eqn
-   reads an .ode's (load_eqn.cpp): 1; a problem is logged (file, line,
-   column) and the load fails (xpp_model_failed) */
+   reads an .ode's (ode_read.h): parse_file, ready, then build_model: 1;
+   a problem is logged (file, line, column) and the load fails
+   (xpp_model_failed) */
 int load(const std::string &path);
 
 /* --convert's question about a name .odex reserves: the question and a
@@ -204,6 +226,11 @@ std::string odex_name(const std::string &ode);
 std::string print(const Expr &e);
 /* v as an .odex number: the shortest text that reads back as v */
 std::string print_number(double v);
+/* e as the expression engine's text (an .ode formula's), with the
+   parentheses the engine's precedence needs to keep e's grouping, a sign
+   and an if always bracketed; an .ode formula (Text) as it is. A name in
+   values (a parameter's, pi) is its value's text instead. */
+std::string engine_text(const Expr &e, const std::map<std::string, std::string> *values = nullptr);
 
 }
 

@@ -8,6 +8,7 @@
 #include <vector>
 #include "model.h"
 #include "session.h"
+#include "ode_read.h"
 #include "my_ps.h"
 #include "nullcline.h"
 #include "colormap.h"
@@ -158,7 +159,7 @@ void load_eqn()
    make_eqn();
    return;
  }
- /* an .odex model: its own parser, then the same route (odex.h) */
+ /* an .odex model: its own reader, then the same builder (odex.h) */
  if(xpp::session().got_file==1&&std==0&&xpp::odex::is_odex(this_file))
  {
    okay=xpp::odex::load(this_file);
@@ -319,7 +320,7 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
 
  alloc_v_memory();  /* allocate stuff for volterra equations */
  alloc_meth();
- xpp::odex::set_initials(); /* an .odex model's initial values */
+ set_initial_values(); /* the initial values given as formulas */
  arr_ic_start(); /* take care of all predefined array ics */
 
 }

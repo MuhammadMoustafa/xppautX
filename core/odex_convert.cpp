@@ -11,10 +11,10 @@
 #include "odex.h"
 #include "expr_internal.h"
 #include "form_ode.h"
+#include "ode_read.h"
 #include "integrate.h"
 #include "load_eqn.h"
 #include "model.h"
-#include "newpars.h"
 #include "session.h"
 #include "tabular.h"
 #include "xpp_batch.h"
@@ -144,7 +144,7 @@ private:
   }
 
   /* the names a line declares, as the reader tells its statements apart
-     (form_ode.cpp's parse_a_string and compile_em) */
+     (ode_read.cpp's parse_a_string and command) */
   void declarations(const std::string &line)
   {
     if (line[0] == '!') {
@@ -272,7 +272,7 @@ public:
     rename_reserved();
     steady_constants();
     std::string body;
-    for (const VAR_INFO &v : m_.statements) body += statement(v);
+    for (const Statement &s : m_.statements) body += statement(s);
     body += array_initials();
     body += comments();
     body += options();
@@ -680,91 +680,125 @@ private:
      above the statement */
   static std::string noted(const std::string &note) { return "# " + note + "\n"; }
 
-  /* a number the reader read from text with atof: the value, with a note
-     when the text was not that number alone */
-  std::string read_number(const std::string &what, const OdeItem &item)
+  /* a number the reader read from text with atof (b's value, its text
+     as written): the value, with a note when the text was not that
+     number alone */
+  std::string read_number(const Binding &b)
   {
     char *end = nullptr;
-    const std::string t = trimmed(item.text);
+    const std::string &text = b.value.text;
+    const std::string t = trimmed(text);
     std::strtod(t.c_str(), &end);
-    if (!t.empty() && end && *end == '\0') return print_number(item.value);
-    pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", what,
-                                  item.text.empty() ? std::string("(nothing)") : item.text, print_number(item.value)));
-    return print_number(item.value);
+    if (!t.empty() && end && *end == '\0') return print_number(b.value.value);
+    pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", b.name,
+                                  text.empty() ? std::string("(nothing)") : text, print_number(b.value.value)));
+    return print_number(b.value.value);
   }
 
-  std::string statement(const VAR_INFO &v)
+  std::string statement(const Statement &s)
   {
     pending_.clear();
-    const std::string line = statement_line(v);
+    const std::string line = statement_line(s);
     return pending_ + line;
   }
 
-  std::string statement_line(const VAR_INFO &v)
+  std::string statement_line(const Statement &s)
   {
+    using K = Statement::Kind;
     const int node = m_.node, fix = m_.fix_var;
-    switch (v.type) {
-    case ODE:
-    case MAP:
-    case VEQ: {
+    switch (s.kind) {
+    case K::Ode:
+    case K::Map:
+    case K::Volterra: {
       const int k = nvar_++;
-      const std::string x = name(xpp::upper_case(v.lhs));
-      if (v.type == VEQ) return x + "(t) = " + text(m_.programs[k]) + "\n";
+      const std::string x = name(xpp::upper_case(s.name));
+      if (s.kind == K::Volterra) return x + "(t) = " + text(m_.programs[k]) + "\n";
       return x + "' = " + text(m_.programs[k]) + "\n";
     }
-    case FIXED: {
+    case K::Fixed: {
       const int k = nfix_++;
-      return name(xpp::upper_case(v.lhs)) + " = " + text(m_.programs[node + k]) + "\n";
+      return name(xpp::upper_case(s.name)) + " = " + text(m_.programs[node + k]) + "\n";
     }
-    case AUX_VAR: {
-      const int k = naux_++;
-      return "aux " + name(m_.uvar_names[node + m_.nmarkov + k]) + " = " + text(m_.programs[node + fix + k]) + "\n";
+    case K::Aux: {
+      std::string out;
+      for (size_t b = 0; b < s.bindings.size(); b++) {
+        const int k = naux_++;
+        out += "aux " + name(m_.uvar_names[node + m_.nmarkov + k]) + " = " + text(m_.programs[node + fix + k]) + "\n";
+      }
+      return out;
     }
-    case FUNCTION: {
+    case K::Fun: {
       const int f = nfun_++;
       std::string out = "fun " + name(m_.ufun_names[f]) + "(";
       for (int i = 0; i < m_.narg_fun[f]; i++) out += (i ? ", " : "") + arg_name(f, i);
       return out + ") = " + text(m_.ufun_programs[f], f) + "\n";
     }
-    case DERIVE_PAR: return "!" + name(xpp::upper_case(v.lhs)) + " = " + text(compiled(v.rhs)) + "\n";
-    case DAE: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
-    case SOL_VAR: {
+    case K::Derived: {
+      std::string out;
+      for (const Binding &b : s.bindings)
+        out += "!" + name(xpp::upper_case(b.name)) + " = " + text(compiled(b.value.text)) + "\n";
+      return out;
+    }
+    case K::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
+    case K::Solv: {
       const Model::AlgebraicVariable &a = m_.svars[nsol_++];
       return "solv " + name(xpp::upper_case(trimmed(a.name))) + " = " + text(a.form) + "\n";
     }
-    case IC: return initial(v);
-    case TABLE: return table(v);
-    case SPEC_FUN: return network(v);
-    case MARKOV_VAR: return markov();
-    case ONLY: {
+    case K::InitNumbers: return s.text.empty() ? items(s) : initial(s);
+    case K::History: return history(s);
+    case K::Par:
+    case K::Const:
+    case K::Wiener: return items(s);
+    case K::Table: return table(s);
+    case K::Network: return network(s);
+    case K::Markov: return markov();
+    case K::Only: {
       std::string out = "only ";
       int n = 0;
-      for (const std::string &w : words_of(v.rhs)) out += (n++ ? ", " : "") + name(xpp::upper_case(w));
+      for (const std::string &w : s.names) out += (n++ ? ", " : "") + name(xpp::upper_case(w));
       return out + "\n";
     }
-    case VECTOR: refuse("a vector statement has no .odex form yet");
-    case GROUP: refuse("a group statement has no .odex form yet");
-    case COMMAND: return command(v);
+    case K::Vector: refuse("a vector statement has no .odex form yet");
+    case K::Group: refuse("a group statement has no .odex form yet");
+    case K::Set: return set_statement();
+    case K::Boundary: {
+      const Model::BoundaryCondition &bc = m_.bcs[nbc_++];
+      return "boundary " + text(compiled(std::string(bc.string.data()))) + "\n";
+    }
+    case K::Event: return event();
+    case K::OptionFile: refuse("the options statement (a file of options) has no .odex form yet");
     default: return std::string();
     }
   }
 
-  std::string initial(const VAR_INFO &v)
+  /* x(0)=formula (s.text): x's initial value, and its history when the
+     model has delays */
+  std::string initial(const Statement &s)
   {
-    const std::string upper = xpp::upper_case(v.lhs);
+    const std::string upper = xpp::upper_case(s.bindings[0].name);
     const int i = find_user_name(ICBOX, upper);
-    if (i < 0) refuse(xpp::format("{}(0): no such variable", v.lhs));
+    if (i < 0) refuse(xpp::format("{}(0): no such variable", s.bindings[0].name));
     const double z = m_.default_ic[i];
     char *end = nullptr;
-    const std::string t = trimmed(v.rhs);
+    const std::string t = trimmed(s.text);
     std::strtod(t.c_str(), &end);
     if (t.empty() || !end || *end != '\0')
       pending_ += noted(xpp::format("{}(0)={} in the .ode: XPP starts {} at {} (the number at the formula's front; the "
                                     "formula is only {}'s history for delays)",
-                                    name(upper), v.rhs, name(upper), print_number(z), name(upper)));
-    std::string out = "init " + name(upper) + " = " + print_number(z) + "\n";
-    /* x(0)= is also x's history: a delay reads it before the start */
-    if (m_.ndelays > 0 && i < m_.node) out += "history " + name(upper) + " = " + text(compiled(v.rhs)) + "\n";
+                                    name(upper), s.text, name(upper), print_number(z), name(upper)));
+    return "init " + name(upper) + " = " + print_number(z) + "\n";
+  }
+
+  /* x(0)=formula's history: what a delay reads before the start */
+  std::string history(const Statement &s)
+  {
+    std::string out;
+    for (const Binding &b : s.bindings) {
+      const std::string upper = xpp::upper_case(b.name);
+      const int i = find_user_name(ICBOX, upper);
+      if (m_.ndelays > 0 && i >= 0 && i < m_.node)
+        out += "history " + name(upper) + " = " + text(compiled(b.value.text)) + "\n";
+    }
     return out;
   }
 
@@ -781,38 +815,26 @@ private:
     return out;
   }
 
-  std::string command(const VAR_INFO &v)
+  /* par, init, number and wiener's name=value items */
+  std::string items(const Statement &s)
   {
-    const char c0 = v.lhs.empty() ? '\0' : v.lhs[0];
-    const char c1 = v.lhs.size() > 1 ? v.lhs[1] : '\0';
-    if (c0 == 'P' || c0 == 'N' || c0 == 'W' || c0 == 'I') {
-      std::string out;
-      const std::vector<OdeItem> items = ode_items(v.rhs);
-      if (c0 == 'W') {
-        out = "wiener ";
-        for (size_t k = 0; k < items.size(); k++) out += (k ? ", " : "") + name(xpp::upper_case(items[k].name));
-        return out + "\n";
-      }
-      if (c0 == 'N') { /* a hidden constant: a derived parameter of that value */
-        for (const OdeItem &item : items)
-          out += "!" + name(xpp::upper_case(item.name)) + " = " + read_number(item.name, item) + "\n";
-        return out;
-      }
-      out = c0 == 'P' ? "par " : "init ";
-      for (size_t k = 0; k < items.size(); k++) {
-        const std::string value = read_number(items[k].name, items[k]);
-        out += (k ? ", " : "") + name(xpp::upper_case(items[k].name)) + " = " + value;
-      }
+    std::string out;
+    const std::vector<Binding> &list = s.bindings;
+    if (s.kind == Statement::Kind::Wiener) {
+      out = "wiener ";
+      for (size_t k = 0; k < list.size(); k++) out += (k ? ", " : "") + name(xpp::upper_case(list[k].name));
       return out + "\n";
     }
-    if (c0 == 'S' && c1 == 'E') return set_statement();
-    if (c0 == 'B') {
-      const Model::BoundaryCondition &bc = m_.bcs[nbc_++];
-      return "boundary " + text(compiled(std::string(bc.string.data()))) + "\n";
+    if (s.kind == Statement::Kind::Const) { /* a hidden constant: a derived parameter of that value */
+      for (const Binding &b : list) out += "!" + name(xpp::upper_case(b.name)) + " = " + read_number(b) + "\n";
+      return out;
     }
-    if (c0 == 'G') return event();
-    if (c0 == 'O') refuse("the options statement (a file of options) has no .odex form yet");
-    return std::string();
+    out = s.kind == Statement::Kind::Par ? "par " : "init ";
+    for (size_t k = 0; k < list.size(); k++) {
+      const std::string value = read_number(list[k]);
+      out += (k ? ", " : "") + name(xpp::upper_case(list[k].name)) + " = " + value;
+    }
+    return out + "\n";
   }
 
   std::string set_statement()
@@ -863,11 +885,11 @@ private:
     return out + "\n";
   }
 
-  std::string table(const VAR_INFO &v)
+  std::string table(const Statement &s)
   {
     const int k = ntab_++;
     const TABULAR &t = s_.tables[k];
-    const std::string n = name(xpp::upper_case(t.name.empty() ? v.lhs : t.name));
+    const std::string n = name(xpp::upper_case(t.name.empty() ? s.name : t.name));
     if (t.flag == 2) {
       /* the formula's variable is t; its values at n points on [xlo,xhi] */
       return xpp::format("table {} {}, n={}, lo={}, hi={}\n", n, text(compiled(t.filename)), t.n,
@@ -878,14 +900,14 @@ private:
   }
 
   /* a network: its kind and arguments as written, each name spelled */
-  std::string network(const VAR_INFO &v)
+  std::string network(const Statement &s)
   {
-    std::string rhs = trimmed(v.rhs);
+    std::string rhs = trimmed(s.text);
     const size_t open = rhs.find('(');
     const size_t close = rhs.rfind(')');
     if (open == std::string::npos || close == std::string::npos || close < open)
-      refuse(xpp::format("the network {} is not kind(arguments)", v.lhs));
-    std::string out = "network " + name(xpp::upper_case(v.lhs)) + " = " + xpp::lower_case(rhs.substr(0, open)) + "(";
+      refuse(xpp::format("the network {} is not kind(arguments)", s.name));
+    std::string out = "network " + name(xpp::upper_case(s.name)) + " = " + xpp::lower_case(rhs.substr(0, open)) + "(";
     const std::string args = rhs.substr(open + 1, close - open - 1);
     int depth = 0;
     std::string arg;

@@ -1,16 +1,13 @@
-/* An .odex model into the xpp::Model the .ode parser builds (odex.h):
-   one route after the parse (docs/odex.md). The statements parse() read
-   are checked (every name declared once, where it may be read, called
-   with its arguments), then written as the .ode reader's own statements,
-   each formula with the parentheses .ode's precedence needs to keep
-   .odex's grouping (a sign always bracketed, if/then/else whole): no
-   .ode quirk can be reached from them. form_ode.cpp's reader builds the
-   Model from those lines (get_eqn_lines), the same code an .ode model
-   goes through. Where .odex means something else, this file does it:
-   a parameter's value is an expression (evaluated here, in order), an
-   initial value one evaluated with the parameters set (after the build),
-   a division IEEE's (Model::ieee_division), and a block function the
-   one expression its returns make. */
+/* The .odex reader (odex.h): the statements parse() read, checked (every
+   name declared once, where it may be read, called with its arguments)
+   and readied for the Model builder (form_ode.cpp's build_model), the
+   one an .ode model's statements go through too (docs/odex.md question
+   10). What .odex means where .ode means something else is said in the
+   statements themselves: a parameter's value an expression (the builder
+   evaluates it in order), an initial value a formula (evaluated with the
+   parameters set, once the model is set up), a history only a history,
+   a block function the one expression its returns make, near() with its
+   tol, and the model's divisions IEEE's (Parsed::ieee_division). */
 #include "odex.h"
 #include "expr.h"
 #include "form_ode.h"
@@ -22,17 +19,12 @@
 #include "xpp_util.h"
 
 #include <array>
-#include <cmath>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#ifndef M_PI
-# define M_PI 3.14159265358979323846264338327950288
-#endif
 
 namespace xpp::odex {
 
@@ -107,37 +99,19 @@ struct Scope {
   bool par_value = false;
 };
 
-/* an .odex expression as .ode formula text (priority of an operator in
-   .ode's table, expr_symbols.cpp: | + - 4, & * / 6, ^ and the
-   comparisons 7, all grouping left) */
-int ode_priority(const Expr &e)
-{
-  if (e.kind != Expr::Kind::Binary) return 100;
-  const std::string &op = e.text;
-  if (op == "or" || op == "+" || op == "-") return 4;
-  if (op == "and" || op == "*" || op == "/") return 6;
-  if (op == "mod" || op == "!=") return 100; /* written as calls */
-  return 7;
-}
-
 class Loader {
 public:
   explicit Loader(const Parsed &p) : p_(p) {}
 
-  Lowered run()
+  Parsed run()
   {
     for (const Statement &s : p_.statements) declare(s);
     scan_neartol();
-    out_.lines.push_back("# " + p_.files[0]);
-    for (const Statement &s : p_.statements) lower(s);
-    out_.lines.push_back("done");
-    /* a variable with a history and no init starts at 0, not at the
-       number the reader finds at the history's front */
-    std::vector<Lowered::Initial> zero;
-    for (const Binding &b : historied_)
-      if (!initialized_.count(b.name)) zero.push_back({b.name, "0", p_.files[b.pos.file], b.pos});
-    out_.initials.insert(out_.initials.begin(), zero.begin(), zero.end());
-    return std::move(out_);
+    Parsed out;
+    out.files = p_.files;
+    out.ieee_division = true;
+    for (const Statement &s : p_.statements) ready(s, out.statements);
+    return out;
   }
 
 private:
@@ -215,8 +189,8 @@ private:
 
   /* the model's own near()'s tol, @ neartol= (default 1e-9, docs/odex.md
      question 7): scanned once, whole-model (not position-sensitive: a
-     near() before the @ line that sets it still reads it), never passed
-     on to the .ode line (which would warn "not recognized") */
+     near() before the @ line that sets it still reads it), never among
+     the options the Model keeps (which would warn "not recognized") */
   void scan_neartol()
   {
     for (const Statement &s : p_.statements) {
@@ -244,6 +218,7 @@ private:
   void check(const Expr &e, const Scope &sc) const
   {
     switch (e.kind) {
+    case Expr::Kind::Text:
     case Expr::Kind::Number: return;
     case Expr::Kind::Name: check_name(e, sc); return;
     case Expr::Kind::Neg:
@@ -272,8 +247,7 @@ private:
         if (a == e.text) return;
     if (sc.par_value) {
       if (e.text == "pi") return;
-      auto v = par_values_.find(e.text);
-      if (v != par_values_.end()) return;
+      if (pars_.count(e.text)) return;
       fail(e.pos, xpp::format("a parameter's value can read numbers, pi and the parameters before it, not `{}`", e.text));
     }
     if (e.text == "t" || e.text == "pi" || e.text.starts_with("mouse_")) {
@@ -380,9 +354,9 @@ private:
     check(e.args[0], inner);
   }
 
-  /* near(a, b[, tol=t]): a translation (docs/odex.md question 7), not a
-     built-in of the expression engine: put_call writes it as pure .odex
-     syntax with abs and max (checked to have the arities near needs) */
+  /* near(a, b[, tol=t]) (docs/odex.md question 7): not a built-in of the
+     expression engine; engine_text (odex_print.cpp) writes it with abs
+     and max (checked to have the arities near needs) */
   void check_near(const Expr &e, const Scope &sc) const
   {
     const int n = static_cast<int>(e.args.size());
@@ -400,140 +374,6 @@ private:
       const Expr &t = e.args[2];
       if (t.kind != Expr::Kind::Number || !(t.value > 0)) fail(t.pos, "near's tol= is not a positive number");
     }
-  }
-
-  /* ---- .ode text ---- */
-  std::string ode(const Expr &e) const
-  {
-    std::string out;
-    put(out, e, 0, false);
-    return out;
-  }
-
-  void put(std::string &out, const Expr &e, int parent, bool right) const
-  {
-    const int pri = ode_priority(e);
-    const bool paren = pri < parent || (right && pri == parent);
-    if (paren) out += '(';
-    switch (e.kind) {
-    case Expr::Kind::Number: out += print_number(e.value); break;
-    case Expr::Kind::Name: {
-      auto v = par_values_.find(e.text);
-      if (subst_pars_ && !e.primed && v != par_values_.end())
-        out += v->second;
-      else if (subst_pars_ && e.text == "pi")
-        out += print_number(M_PI);
-      else
-        out += e.text + (e.primed ? "'" : "");
-      break;
-    }
-    case Expr::Kind::Neg:
-      out += "(-";
-      put(out, e.args[0], 7, false);
-      out += ')';
-      break;
-    case Expr::Kind::Not:
-      out += "not(";
-      put(out, e.args[0], 0, false);
-      out += ')';
-      break;
-    case Expr::Kind::If:
-      out += "(if(";
-      put(out, e.args[0], 0, false);
-      out += ")then(";
-      put(out, e.args[1], 0, false);
-      out += ")else(";
-      put(out, e.args[2], 0, false);
-      out += "))";
-      break;
-    case Expr::Kind::Binary: {
-      const std::string &op = e.text;
-      /* an event's actions: the reader splits them at every '=', so an
-         equality is written without one: a<=b & a>=b is a==b, NaN too */
-      if (in_event_ && (op == "==" || op == "!=")) {
-        out += op == "!=" ? "not((" : "((";
-        put(out, e.args[0], 7, false);
-        out += "<=";
-        put(out, e.args[1], 7, true);
-        out += ")&(";
-        put(out, e.args[0], 7, false);
-        out += ">=";
-        put(out, e.args[1], 7, true);
-        out += "))";
-        break;
-      }
-      if (op == "mod" || op == "!=") {
-        out += op == "mod" ? "mod(" : "not(";
-        put(out, e.args[0], op == "mod" ? 0 : 7, false);
-        out += op == "mod" ? "," : "==";
-        put(out, e.args[1], op == "mod" ? 0 : 7, op != "mod");
-        out += ')';
-        break;
-      }
-      put(out, e.args[0], pri, false);
-      out += op == "and" ? "&" : op == "or" ? "|" : op;
-      put(out, e.args[1], pri, true);
-      break;
-    }
-    case Expr::Kind::Call: put_call(out, e); break;
-    case Expr::Kind::Index: break; /* refused by check */
-    }
-    if (paren) out += ')';
-  }
-
-  static const Expr *named(const Expr &e, std::string_view name)
-  {
-    for (size_t i = 1; i < e.args.size(); i++)
-      if (e.arg_names[i] == name) return &e.args[i];
-    return nullptr;
-  }
-
-  void put_call(std::string &out, const Expr &e) const
-  {
-    if (e.text == "sum") {
-      out += "(sum(";
-      put(out, *named(e, "from"), 0, false);
-      out += ',';
-      put(out, *named(e, "to"), 0, false);
-      out += ")of(";
-      put(out, e.args[0], 0, false);
-      out += "))";
-      return;
-    }
-    if (e.text == "volterra") {
-      const Expr *mu = named(e, "mu"), *of = named(e, "of");
-      out += "(int";
-      if (mu) out += "[" + print_number(mu->value) + "]";
-      out += '{';
-      put(out, e.args[0], 0, false);
-      if (of) {
-        out += '#';
-        put(out, *of, 0, false);
-      }
-      out += "})";
-      return;
-    }
-    if (e.text == "near") {
-      /* |a-b| <= tol*max(1, |a|, |b|); tol the call's own (checked a
-         positive literal) or the model's neartol_ */
-      const std::string tol = print_number(e.args.size() == 3 ? e.args[2].value : neartol_);
-      out += "(abs((";
-      put(out, e.args[0], 0, false);
-      out += ")-(";
-      put(out, e.args[1], 0, false);
-      out += "))<=(" + tol + ")*max(1,max(abs(";
-      put(out, e.args[0], 0, false);
-      out += "),abs(";
-      put(out, e.args[1], 0, false);
-      out += "))))";
-      return;
-    }
-    out += e.text + "(";
-    for (size_t i = 0; i < e.args.size(); i++) {
-      if (i) out += ',';
-      put(out, e.args[i], 0, false);
-    }
-    out += ')';
   }
 
   /* ---- block functions ---- */
@@ -593,7 +433,7 @@ private:
     return out;
   }
 
-  /* ---- statements to .ode lines ---- */
+  /* ---- statements readied for the builder ---- */
   static Scope formula_scope(bool volterra = false)
   {
     Scope sc;
@@ -601,10 +441,27 @@ private:
     return sc;
   }
 
-  std::string formula(const Expr &e, const Scope &sc) const
+  /* e checked, near's tol filled in (its third argument, the model's
+     neartol when the call gives none) */
+  Expr formula(const Expr &e, const Scope &sc) const
   {
     check(e, sc);
-    return ode(e);
+    Expr out = e;
+    fill_near(out);
+    return out;
+  }
+
+  void fill_near(Expr &e) const
+  {
+    for (Expr &a : e.args) fill_near(a);
+    if (e.kind != Expr::Kind::Call || e.text != "near" || e.args.size() != 2) return;
+    Expr tol;
+    tol.kind = Expr::Kind::Number;
+    tol.pos = e.pos;
+    tol.value = neartol_;
+    tol.text = print_number(neartol_);
+    e.args.push_back(std::move(tol));
+    e.arg_names.push_back("tol");
   }
 
   /* a set's value: a number (signed) or a name, as .ode's sets hold them */
@@ -617,30 +474,23 @@ private:
     fail(v.pos, xpp::format("a set's value is a number or a name, not `{}` ({}=)", print(v), b.name));
   }
 
-  /* par's values, evaluated here in order (a value is an expression:
-     docs/odex.md) */
-  double par_value(const Binding &b)
+  /* each binding's variable: a variable (a Markov one too, with markov) */
+  void variables(const Statement &s, bool markov, std::string_view what) const
   {
-    Scope sc;
-    sc.par_value = true;
-    check(b.value, sc);
-    subst_pars_ = true;
-    const std::string text = ode(b.value);
-    subst_pars_ = false;
-    int ok = 0;
-    const double z = calculate(text.c_str(), &ok);
-    if (!ok) fail(b.value.pos, xpp::format("the value of {} does not evaluate", b.name));
-    return z;
+    for (const Binding &b : s.bindings) {
+      const Decl *d = find(b.name);
+      if (!d || !(d->kind == Kind::Variable || (markov && d->kind == Kind::Markov)))
+        fail(b.pos, xpp::format("`{}` is not a variable: {}", b.name, what));
+    }
   }
 
-  void lower(const Statement &s)
+  void ready(const Statement &in, std::vector<Statement> &out)
   {
-    std::vector<std::string> &L = out_.lines;
+    Statement s = in;
     switch (s.kind) {
-    case Statement::Kind::Comment: L.push_back("\" " + s.text); break;
     case Statement::Kind::Options: {
-      /* neartol is .odex-only (scan_neartol already read it): the .ode
-         reader would warn "Option neartol not recognized" */
+      /* neartol is .odex's own (scan_neartol read it): the options the
+         Model keeps would warn "Option neartol not recognized" */
       std::string line = "@ ";
       bool first = true;
       for (const Option &o : s.options) {
@@ -648,90 +498,67 @@ private:
         line += (first ? "" : ",") + o.name + "=" + o.value;
         first = false;
       }
-      if (!first) L.push_back(line);
+      if (first) return;
+      s.text = line;
       break;
     }
-    case Statement::Kind::Par:
+    case Statement::Kind::Par: {
+      Scope sc;
+      sc.par_value = true;
       for (const Binding &b : s.bindings) {
-        const std::string value = print_number(par_value(b));
-        par_values_[b.name] = value;
-        L.push_back("par " + b.name + "=" + value);
+        check(b.value, sc);
+        pars_.insert(b.name);
       }
       break;
+    }
     case Statement::Kind::Init:
-      /* evaluated once the model is set up (set_initials), with every
-         parameter set: no line of the reader's */
-      for (const Binding &b : s.bindings) {
-        const Decl *d = find(b.name);
-        if (!d || (d->kind != Kind::Variable && d->kind != Kind::Markov))
-          fail(b.pos, xpp::format("`{}` is not a variable: init gives a variable its initial value", b.name));
-        const std::string text = formula(b.value, formula_scope());
-        out_.initials.push_back({b.name, text, p_.files[b.value.pos.file], b.value.pos});
-        initialized_.insert(b.name);
-      }
+      variables(s, true, "init gives a variable its initial value");
+      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
       break;
     case Statement::Kind::History:
-      /* the reader's x(0)=formula: the formula is x's history (t before
-         the start), the initial value its own (0 unless an init says) */
-      for (const Binding &b : s.bindings) {
-        const Decl *d = find(b.name);
-        if (!d || d->kind != Kind::Variable)
-          fail(b.pos, xpp::format("`{}` is not a variable: history gives a variable its values before the start", b.name));
-        L.push_back(b.name + "(0)=" + formula(b.value, formula_scope()));
-        historied_.push_back(b);
-      }
+      variables(s, false, "history gives a variable its values before the start");
+      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
       break;
-    case Statement::Kind::Ode: L.push_back(s.name + "'=" + formula(s.expr, formula_scope(true))); break;
-    case Statement::Kind::Volterra: L.push_back("volt " + s.name + "=" + formula(s.expr, formula_scope(true))); break;
-    case Statement::Kind::Fixed: L.push_back(s.name + "=" + formula(s.expr, formula_scope(true))); break;
+    case Statement::Kind::Ode:
+    case Statement::Kind::Volterra:
+    case Statement::Kind::Fixed: s.expr = formula(s.expr, formula_scope(true)); break;
     case Statement::Kind::Aux:
-      for (const Binding &b : s.bindings) L.push_back("aux " + b.name + "=" + formula(b.value, formula_scope()));
-      break;
     case Statement::Kind::Derived:
-      for (const Binding &b : s.bindings) L.push_back("!" + b.name + "=" + formula(b.value, formula_scope()));
+      for (Binding &b : s.bindings) b.value = formula(b.value, formula_scope());
       break;
     case Statement::Kind::Fun: {
       Scope sc;
-      sc.args = &s.names;
-      const Expr body = s.has_body ? flatten(s, s.body, 0, {}, nullptr) : s.expr;
-      std::string line = s.name + "(";
-      for (size_t i = 0; i < s.names.size(); i++) line += (i ? "," : "") + s.names[i];
-      L.push_back(line + ")=" + formula(body, sc));
+      sc.args = &in.names;
+      s.expr = formula(s.has_body ? flatten(in, in.body, 0, {}, nullptr) : in.expr, sc);
+      s.has_body = false;
+      s.body.clear();
       break;
     }
-    case Statement::Kind::Set: {
-      std::string line = "set " + s.name + " {";
-      for (size_t i = 0; i < s.bindings.size(); i++) line += (i ? "," : "") + s.bindings[i].name + "=" + set_value(s.bindings[i]);
-      L.push_back(line + "}");
+    case Statement::Kind::Set:
+      for (size_t i = 0; i < s.bindings.size(); i++)
+        s.text += (i ? "," : "") + s.bindings[i].name + "=" + set_value(s.bindings[i]);
       break;
-    }
     case Statement::Kind::Table:
-      if (s.text.size() || !s.count)
-        L.push_back("table " + s.name + " " + s.text);
-      else
-        L.push_back(xpp::format("table {} % {} {} {} {}", s.name, s.count, print_number(s.lo), print_number(s.hi),
-                                formula(s.expr, formula_scope())));
+      if (s.table_kind == Statement::TableKind::Formula) s.expr = formula(s.expr, formula_scope());
       break;
-    case Statement::Kind::Markov: {
-      L.push_back(xpp::format("markov {} {}", s.name, s.count));
-      for (int r = 0; r < s.count; r++) {
-        std::string row;
-        for (int c = 0; c < s.count; c++) row += "{" + formula(s.cells[r * s.count + c], formula_scope()) + "} ";
-        L.push_back(row);
+    case Statement::Kind::Markov:
+      for (Expr &c : s.cells) c = formula(c, formula_scope());
+      break;
+    case Statement::Kind::Wiener:
+      /* a Wiener parameter starts at 0, as .ode's wiener w does */
+      for (size_t i = 0; i < s.names.size(); i++) {
+        Binding b;
+        b.name = s.names[i];
+        b.pos = s.name_positions[i];
+        b.value.kind = Expr::Kind::Number;
+        b.value.pos = b.pos;
+        b.value.text = "0";
+        s.bindings.push_back(std::move(b));
       }
       break;
-    }
-    case Statement::Kind::Wiener:
-    case Statement::Kind::Only: {
-      std::string line = s.kind == Statement::Kind::Wiener ? "wiener " : "only ";
-      for (size_t i = 0; i < s.names.size(); i++) line += (i ? "," : "") + s.names[i];
-      L.push_back(line);
-      break;
-    }
-    case Statement::Kind::Event: {
-      std::string line = xpp::format("global {} {{{}}} {{", s.count, formula(s.expr, formula_scope()));
-      for (size_t i = 0; i < s.bindings.size(); i++) {
-        const Binding &b = s.bindings[i];
+    case Statement::Kind::Event:
+      s.expr = formula(s.expr, formula_scope());
+      for (Binding &b : s.bindings) {
         const Decl *d = find(b.name);
         /* what flags.cpp's compile_flags finds: a column (a variable or
            an aux quantity), a parameter, or out_put, arret, no_interp */
@@ -740,52 +567,36 @@ private:
         if (!target && b.name != "out_put" && b.name != "arret" && b.name != "no_interp")
           fail(b.pos, xpp::format("an event sets a variable, an aux quantity, a parameter, out_put, arret or "
                                   "no_interp, not `{}`", b.name));
-        in_event_ = true;
-        line += (i ? ";" : "") + b.name + "=" + formula(b.value, formula_scope());
-        in_event_ = false;
+        b.value = formula(b.value, formula_scope());
       }
-      L.push_back(line + "}");
       break;
-    }
     case Statement::Kind::Boundary: {
       Scope sc;
       sc.primed_vars = true;
-      L.push_back("bdry " + formula(s.expr, sc));
+      s.expr = formula(s.expr, sc);
       break;
     }
     case Statement::Kind::Network: {
-      std::string line = "special " + s.name + "=" + s.text + "(";
-      for (size_t i = 0; i < s.call_args.size(); i++) line += (i ? "," : "") + s.call_args[i];
-      L.push_back(line + ")");
+      std::string def = s.text + "(";
+      for (size_t i = 0; i < s.call_args.size(); i++) def += (i ? "," : "") + s.call_args[i];
+      s.text = def + ")";
       break;
     }
-    case Statement::Kind::Solv: L.push_back("solv " + s.name + "=" + formula(s.expr, formula_scope())); break;
-    case Statement::Kind::Dae: L.push_back("0=" + formula(s.expr, formula_scope())); break;
+    case Statement::Kind::Solv:
+    case Statement::Kind::Dae: s.expr = formula(s.expr, formula_scope()); break;
+    default: break;
     }
+    out.push_back(std::move(s));
   }
 
   const Parsed &p_;
   std::map<std::string, Decl> decls_;
   std::map<std::string, std::string> folded_;
-  std::map<std::string, std::string> par_values_;
-  bool subst_pars_ = false;
-  /* writing an event's actions (put) */
-  bool in_event_ = false;
+  /* the parameters so far: what a parameter's value may read */
+  std::set<std::string> pars_;
   /* near()'s default tol, @ neartol= (docs/odex.md question 7) */
   double neartol_ = 1e-9;
-  Lowered out_;
-  std::set<std::string> initialized_;
-  std::vector<Binding> historied_;
 };
-
-/* the .odex file's own lines, for the model's source (Model::source) */
-std::vector<std::string> source_lines(const std::string &path)
-{
-  std::vector<std::string> out;
-  xpp::LineReader lr(path.c_str());
-  while (std::optional<std::string_view> line = lr.next()) out.push_back(std::string(*line) + "\n");
-  return out;
-}
 
 } // namespace
 
@@ -794,48 +605,25 @@ bool is_odex(std::string_view path)
   return path.size() > 5 && xpp::equal_ignoring_case(path.substr(path.size() - 5), ".odex");
 }
 
-Lowered lower(const Parsed &p)
+Parsed ready(const Parsed &p)
 {
-  xpp::Model &m = xpp::model();
-  m.ieee_division = true;
-  /* calculate() rolls the symbol table back to the Model's own: before
-     the build that is the built-ins */
-  m.ncon_start = 0;
-  m.nsym_start = STDSYM;
   return Loader(p).run();
 }
 
 int load(const std::string &path)
 {
-  xpp::Model &m = xpp::model();
   try {
-    const Lowered low = lower(parse_file(path));
-    if (get_eqn_lines(low.lines) != 1) xpp_model_failed();
-    for (const Lowered::Initial &init : low.initials)
-      m.initial_values.push_back({init.name, init.formula, Error{init.file, init.pos, ""}.text()});
+    build_model(ready(parse_file(path)));
   } catch (const Error &e) {
     xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
     xpp_model_failed();
   }
-  m.source = source_lines(path);
+  /* the model's source: the .odex file's own lines */
+  std::vector<std::string> &source = xpp::model().source;
+  source.clear();
+  xpp::LineReader lr(path.c_str());
+  while (std::optional<std::string_view> line = lr.next()) source.push_back(std::string(*line) + "\n");
   return 1;
-}
-
-void set_initials()
-{
-  xpp::Model &m = xpp::model();
-  for (const Model::InitialValue &init : m.initial_values) {
-    int ok = 0;
-    const double z = calculate(init.formula.c_str(), &ok);
-    if (!ok) {
-      xpp::log(XPP_LOG_ERROR, "{} the initial value of {} does not evaluate\n", init.where, init.name);
-      xpp_model_failed();
-    }
-    const int i = find_user_name(ICBOX, init.name);
-    xpp::session().last_ic[i] = z;
-    m.default_ic[i] = z;
-    set_val(converted(init.name), z);
-  }
 }
 
 }

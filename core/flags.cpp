@@ -107,55 +107,62 @@ std::array<FlagState,MAXFLAG> fstate;
 }
 
 
-/* rest is "{name=formula;name=formula;...}" (spaces ignored): the flag's
-   events, in order */
-int add_global(const char *cond, int sign, const char *rest)
+int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events)
 {
-  std::array<xpp::Model::GlobalFlag,MAXFLAG> &flags=xpp::model().flags;
-  int nevents,j=xpp::model().nflags;
-  std::string temp;
-  if(xpp::model().nflags>=MAXFLAG){
-    xpp_log(XPP_LOG_WARN, "Too many global conditions\n");
-    return(1);
-  }
-  flags[j].cond=cond;
-  nevents=0;
-  flags[j].lhsname[0].clear();
+  std::string temp,name;
+  events.clear();
   for(const char *p=rest;*p;p++){
     char ch=*p;
     if(ch=='{'||ch==' ')continue;
     if(ch=='}'||ch==';'){
-      if(nevents==MAX_EVENTS){
+      if(static_cast<int>(events.size())==MAX_EVENTS){
 	xpp_log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
-      if(flags[j].lhsname[nevents].empty()){
+      if(name.empty()){
 	xpp::log(XPP_LOG_WARN, " No event variable named for {} \n",temp);
 	return(1);
       }
-      flags[j].rhs[nevents]=temp;
-      nevents++;
+      events.push_back({name,temp});
+      name.clear();
       temp.clear();
       if(ch=='}')break;
       continue;
     }
     if(ch=='='){
-      flags[j].lhsname[nevents]=temp;
+      name=temp;
       temp.clear();
-      if(nevents<MAX_EVENTS-1)
-	flags[j].lhsname[nevents+1].clear();
       continue;
     }
     temp+=ch;
   }
-  if(nevents==0){
+  if(events.empty()){
     xpp_log(XPP_LOG_WARN, " No events for condition %s \n",cond);
     return(1);
   }
- /*  we now have the condition, the names, and the formulae */
-  flags[j].sign=sign;
-  flags[j].nevents=nevents;
-  xpp::model().nflags++;
+  return(0);
+}
+
+int add_global(const char *cond, int sign, const std::vector<FlagEvent> &events)
+{
+  xpp::Model &m=xpp::model();
+  if(m.nflags>=MAXFLAG){
+    xpp_log(XPP_LOG_WARN, "Too many global conditions\n");
+    return(1);
+  }
+  if(static_cast<int>(events.size())>MAX_EVENTS){
+    xpp_log(XPP_LOG_WARN, " Too many events per flag \n");
+    return(1);
+  }
+  xpp::Model::GlobalFlag &f=m.flags[m.nflags];
+  f.cond=cond;
+  for(size_t e=0;e<events.size();e++){
+    f.lhsname[e]=events[e].name;
+    f.rhs[e]=events[e].formula;
+  }
+  f.sign=sign;
+  f.nevents=static_cast<int>(events.size());
+  m.nflags++;
   return(0);
 }
 

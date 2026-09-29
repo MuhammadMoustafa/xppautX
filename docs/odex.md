@@ -376,23 +376,33 @@ from):
     and .odex readers each produce the statement list, one builder makes
     the Model; W74's translation into .ode lines goes.
 
-## The implementation (W74)
+## The implementation (W74, W79)
 
-The code: `core/odex.h` (the tree), `odex_parse.cpp` (tokenizer and
-grammar), `odex_print.cpp` (a tree back to text), `odex_load.cpp` (a
-parsed model into the Model), `odex_convert.cpp` (`--convert`). An
-`.odex` model is checked (every name declared once, read where it may be,
-called with its arguments), then written as the `.ode` reader's own
-statements, each formula with the parentheses `.ode`'s precedence needs
-to keep `.odex`'s grouping and every sign and `if` bracketed, so no
-`.ode` quirk can be reached from them; form_ode.cpp's reader builds the
-Model from those lines, the same code an `.ode` goes through. What
-differs on purpose is done around it: a parameter's value is evaluated
-in order, the initial values once the model is set up, `/` compiles to
-IEEE's division (`Model::ieee_division`), a block function becomes the
-one if/then/else expression its returns make. The integrator already
-stops a run at a NaN in the state (always) and at |x| > `bound` (an
-inf), naming the variable and the time.
+Two readers and one builder (question 10). `core/odex.h` holds the
+statement list both formats are read into. The `.ode` reader,
+`core/ode_read.cpp`, turns an `.ode` file's lines into statements with
+every quirk of its reading kept (a backslash joining lines, `#include`,
+arrays and for loops, a command told apart by its first letters,
+`name=value` items read with atof, a global's events split at every `=`
+and `;`, `x(0)=formula` an init of the number at the formula's front and
+the formula as the history); its formulas stay `.ode` text, which the
+expression engine compiles as written, `.ode`'s precedence and all. The
+`.odex` reader, `odex_parse.cpp` (tokenizer and grammar) and
+`odex_load.cpp`, checks a model (every name declared once, read where it
+may be, called with its arguments) and readies its statements: a block
+function becomes the one if/then/else expression its returns make,
+`near()` gets its tol, and the model's divisions are IEEE's
+(`Parsed::ieee_division`, which only this reader sets). The builder,
+`form_ode.cpp`'s `build_model`, makes the Model from either list: an
+`.odex` formula is written as the expression engine's text
+(`odex_print.cpp`'s `engine_text`, every sign and `if` bracketed and the
+parentheses the engine's precedence needs, so no `.ode` quirk is
+reached), a parameter's value evaluated in order, an `.odex` initial
+value once the model is set up (an `.ode`'s numbers at once), an
+event's actions taken one by one (so `==` in one needs no rewriting).
+`odex_convert.cpp` is `--convert`. The integrator already stops a run at
+a NaN in the state (always) and at |x| > `bound` (an inf), naming the
+variable and the time.
 
 ### Where this spec was open: the smallest reading taken
 

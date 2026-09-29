@@ -22,6 +22,7 @@
 
 #include "model.h"
 #include "session.h"
+#include "ode_read.h"
 #include "aniparse.h"
 #include "ani_data.h"
 #include "xpp_log.h"

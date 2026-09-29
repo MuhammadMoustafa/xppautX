@@ -27,18 +27,5 @@
 
 #define VECTOR 28
 
-#ifdef __cplusplus
-#include <string>
-#include <vector>
-
-/* one line of a model as form_ode.cpp's parse_a_string splits it: its
-   kind, the text left and right of its '=' and a function's argument
-   names */
-struct VAR_INFO {
-  int type=0;
-  std::string lhs,rhs;
-  std::vector<std::string> args;
-};
-#endif
 
 #endif

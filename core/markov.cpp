@@ -49,10 +49,6 @@ void add_markov(int nstate, const char *name)
   create_markov(nstate,st,0,name);
 }
 
-/* file-local: builds the "{...}" substring extracted from a line, used
-   only by build_markov/old_build_markov below */
-static std::string extract_expr(const char *source, int *i0);
-
 /* the Markov variable a transition table names (the longest name that
    is a prefix of it); a model naming none fails to load. Writes the
    table's header line when converting. */
@@ -75,24 +71,17 @@ static int markov_named(const char *name)
   return index;
 }
 
-int build_markov(const char *const *ma, const char *name)
+int build_markov(std::span<const std::string> cells, const char *name)
 {
-  int istart;
-
- int i,j;
  int index=markov_named(name);
  int nstates=xpp::model().markov[index].nstates;
  xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
- for(i=0;i<nstates;i++){
-   std::string line = ma[i];
-   if(ConvertStyle)
-     xpp::print(convertf,"{}",line);
-   istart=0;
-     for(j=0;j<nstates;j++){
-       std::string expr = extract_expr(line.c_str(),&istart);
-       xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
-       add_markov_entry(index,i,j,expr.c_str());
-     }
+ for(int i=0;i<nstates;i++){
+   for(int j=0;j<nstates;j++){
+     const std::string &expr=cells[static_cast<size_t>(i*nstates+j)];
+     xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
+     add_markov_entry(index,i,j,expr.c_str());
+   }
    xpp_log(XPP_LOG_INFO, "\n");
  }
  return index;
@@ -125,7 +114,7 @@ int old_build_markov(FILE *fptr, const char *name)
    }
    istart=0;
      for(j=0;j<nstates;j++){
-       std::string expr = extract_expr(line.c_str(),&istart);
+       std::string expr = markov_cell(line.c_str(),&istart);
        xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
        add_markov_entry(index,i,j,expr.c_str());
      }
@@ -135,7 +124,7 @@ int old_build_markov(FILE *fptr, const char *name)
  return index;
 }
   
-static std::string extract_expr(const char *source, int *i0)
+std::string markov_cell(const char *source, int *i0)
 {
  std::string dest;
  char ch;
