@@ -1371,7 +1371,7 @@ NUMERICS = ['ntst', 'nmx', 'npr', 'ncol']  # the Numerics form's first fields, i
 def set_numerics(s, **values):
     """Auto/Numerics, the form answered with the given fields changed (the
     form takes what `auto set` refuses: Ncol 8, Ntst 0)"""
-    s.send(cmd='auto', op='numerics')
+    s.send(cmd='key', win='auto', key='n')
     _, ask = s.collect(lambda e: is_ask(e) or is_idle(e))
     vals = list(ask['values'])
     for k, v in values.items():
