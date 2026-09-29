@@ -8,6 +8,7 @@
 #include <iterator>
 #include <cctype>
 #include <cerrno>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -406,7 +407,18 @@ bool parse_number(std::string_view text, double &value)
     char *end = nullptr;
     errno = 0;
     const double v = std::strtod(s.c_str(), &end);
-    if (end != s.c_str() + s.size() || errno == ERANGE) return false;
+    /* ERANGE on a subnormal result too, which is in range: only an
+       overflow or an underflow to 0 is out of it */
+    if (end != s.c_str() + s.size() || (errno == ERANGE && (v == 0 || std::isinf(v)))) return false;
+    value = v;
+    return true;
+}
+
+bool parse_int(std::string_view text, int &value)
+{
+    int v = 0;
+    const std::from_chars_result r = std::from_chars(text.data(), text.data() + text.size(), v);
+    if (text.empty() || r.ec != std::errc() || r.ptr != text.data() + text.size()) return false;
     value = v;
     return true;
 }

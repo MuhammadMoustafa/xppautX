@@ -20,6 +20,7 @@
 #include "expr.h"
 #include "xpp_util.h"
 #include "form_ode.h"
+#include "xpp_mem.h"
 
 namespace {
 
@@ -119,47 +120,71 @@ int auto_index_of(const int pars[8], const char *name)
 /* ---- the event ---- */
 
 /* a JSON string, or null for no name */
-void add_str_or_null(std::string &o, const char *s)
+void add_str_or_null(std::string &o, const std::string &s)
 {
-    if (s) xpp::json_append_string(o, s);
+    if (!s.empty()) xpp::json_append_string(o, s.c_str());
     else o += "null";
 }
 
 void add_num(std::string &o, double v) { o += std::isfinite(v) ? xpp::number(v) : std::string("null"); }
 
-std::string event_text()
+/* a name, or "" for none */
+std::string name_or_empty(const char *s) { return s ? std::string(s) : std::string(); }
+
+AutoSettingsSet settings_now()
 {
     xpp::Session &s=xpp::session();
+    AutoSettingsSet set;
+    read_num(set.num.data());
+    set.has_num.fill(1);
+    set.npars = s.auto_state.npar < AUTO_SETTINGS_PARS ? s.auto_state.npar : AUTO_SETTINGS_PARS;
+    for (int k = 0; k < set.npars; k++) set.pars[k] = name_or_empty(auto_par_name(k));
+    set.has_plot = 1;
+    set.plot = s.auto_state.bifur.plot;
+    if (s.auto_state.bifur.var >= 0 && s.auto_state.bifur.var < xpp::model().node)
+        set.var = xpp::model().uvar_names[s.auto_state.bifur.var];
+    set.par1 = name_or_empty(auto_par_name(s.auto_state.bifur.icp1));
+    set.par2 = name_or_empty(auto_par_name(s.auto_state.bifur.icp2));
+    set.has_range.fill(1);
+    set.range = {s.auto_state.bifur.xmin, s.auto_state.bifur.xmax, s.auto_state.bifur.ymin, s.auto_state.bifur.ymax};
+    set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
+    for (int i = 0; i < set.nmarks; i++) {
+        set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? std::string("T") : name_or_empty(auto_par_name(s.auto_state.bifur.uzrpar[i]));
+        set.mark_value[i] = s.auto_state.bifur.period[i];
+    }
+    return set;
+}
+
+std::string event_text()
+{
+    const AutoSettingsSet set = settings_now();
     std::string o = "{\"ev\":\"autosettings\",\"numerics\":{";
-    double v[AUTO_NUM_N];
-    read_num(v);
     for (int i = 0; i < AUTO_NUM_N; i++) {
         o += xpp::format("{}\"{}\":", i ? "," : "", num_fields[i].key);
-        add_num(o, v[i]);
+        add_num(o, set.num[i]);
     }
     o += "},\"pars\":[";
-    for (int k = 0; k < s.auto_state.npar; k++) {
+    for (int k = 0; k < set.npars; k++) {
         if (k) o += ',';
-        add_str_or_null(o, auto_par_name(k));
+        add_str_or_null(o, set.pars[k]);
     }
-    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", s.auto_state.bifur.plot);
-    add_str_or_null(o, s.auto_state.bifur.var >= 0 && s.auto_state.bifur.var < xpp::model().node ? xpp::model().uvar_names[s.auto_state.bifur.var].c_str() : nullptr);
+    o += xpp::format("],\"axes\":{{\"plot\":{},\"var\":", set.plot);
+    add_str_or_null(o, set.var);
     o += ",\"par1\":";
-    add_str_or_null(o, auto_par_name(s.auto_state.bifur.icp1));
+    add_str_or_null(o, set.par1);
     o += ",\"par2\":";
-    add_str_or_null(o, auto_par_name(s.auto_state.bifur.icp2));
-    const std::pair<const char *, double> range[] = {
-        {"xmin", s.auto_state.bifur.xmin}, {"xmax", s.auto_state.bifur.xmax}, {"ymin", s.auto_state.bifur.ymin}, {"ymax", s.auto_state.bifur.ymax}};
-    for (const auto &[name, value] : range) {
-        o += xpp::format(",\"{}\":", name);
-        add_num(o, value);
+    add_str_or_null(o, set.par2);
+    static const char *const range_names[4] = {"xmin", "xmax", "ymin", "ymax"};
+    for (int i = 0; i < 4; i++) {
+        o += xpp::format(",\"{}\":", range_names[i]);
+        add_num(o, set.range[i]);
     }
     o += "},\"marks\":[";
-    for (int i = 0; i < s.auto_state.bifur.nper && i < AUTO_SETTINGS_MARKS; i++) {
+    for (int i = 0; i < set.nmarks; i++) {
         o += i ? ",[" : "[";
-        add_str_or_null(o, s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? "T" : auto_par_name(s.auto_state.bifur.uzrpar[i]));
+        add_str_or_null(o, set.mark_name[i]);
         o += ',';
-        add_num(o, s.auto_state.bifur.period[i]);
+        add_num(o, set.mark_value[i]);
         o += ']';
     }
     o += "]}";
@@ -391,6 +416,15 @@ void auto_settings_update(void)
 }
 
 } // extern "C"
+
+AutoSettingsSet auto_settings_now()
+{
+    try {
+        return settings_now();
+    } catch (...) {
+        xpp_out_of_memory("reading AUTO's settings");
+    }
+}
 
 int auto_settings_num_ok(int i, double v, std::string &why)
 {

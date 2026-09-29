@@ -225,7 +225,7 @@ and F1 open it too.
 
 The core reads and writes files on its own machine, in its working directory
 (the model's folder), and many of XPP's files refer to others by relative
-name: `.set` files, `.auto` diagrams, `#include`d files, `table` files, data
+name: `.set` files, `.autox` diagrams, `#include`d files, `table` files, data
 files for the browser's Load, `-anifile`. The page runs on the same machine
 (127.0.0.1) but the browser never tells a page where a picked file lives.
 

@@ -3251,13 +3251,20 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed',
-              names == ['session.txt', 'model.set', 'model.auto', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
+              names == ['session.txt', 'model.set', 'model.autox', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
             check('session save: model.set is a set file of lecar, session.txt names it',
                   z.read('model.set').startswith(b'## Set file for lecar.ode')
                   and b'\nname lecar.ode' in z.read('session.txt'), str(z.read('session.txt')[:200]))
+            if 'model.autox' in names:
+                import io
+                a = zipfile.ZipFile(io.BytesIO(z.read('model.autox')))
+                check("session save: model.autox is AUTO's own file (W92), of lecar",
+                      a.namelist() == ['autox.txt', 'settings.txt', 'diagram.csv', 'solutions.s']
+                      and a.read('autox.txt').startswith(b'xppautX autox 1\n') and b'\nname lecar.ode\n' in a.read('autox.txt'),
+                      str(a.namelist()))
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
         s2 = os.path.join(r, 's2.snapx')
@@ -3296,14 +3303,11 @@ def check_session_file():
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
         diagram2 = rebuild_diagram(allev, [])
-        # model.auto is AUTO's File/Save diagram file, which prints the
-        # points with 6 digits: the same points, as far as it keeps them
-        close = lambda a, b: a[:3] == b[:3] and a[6] == b[6] and all(
-            abs(x - y) <= 1e-6 + 1e-5 * abs(x) for x, y in zip(a[3:6], b[3:6]))
-        check("open session: the diagram is the saved one (to model.auto's 6 digits)",
-              diagram1 and len(diagram1) == len(diagram2) and all(map(close, diagram1, diagram2)),
+        # model.autox keeps every point at full precision (W92): the same points exactly
+        check("open session: the diagram is the saved one, exactly",
+              diagram1 and diagram1 == diagram2,
               '%d vs %d points, first difference %s' % (len(diagram1), len(diagram2),
-                                                          next(((a, b) for a, b in zip(diagram1, diagram2) if not close(a, b)), None)))
+                                                          next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
         answered(snd, col, (), cmd='auto', op='grab', type='HB', index=1)
         evs = key(snd, col, 'r', 'p', win='auto')
         more = rebuild_diagram(allev, [])

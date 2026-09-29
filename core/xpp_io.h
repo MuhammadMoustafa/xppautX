@@ -210,10 +210,13 @@ inline bool equal_ignoring_case(std::string_view a, std::string_view b)
 
 /* text, all of it, as a decimal number (strtod's grammar in the C locale:
    inf and nan too, no hexadecimal, no leading space); false when the text
-   is not one number or is out of double's range. Not std::from_chars:
+   is not one number or is out of double's range (a subnormal is in it). Not std::from_chars:
    macOS's libc++ has no floating-point from_chars before macOS 26, and the
    release runs on 13.3 */
 bool parse_number(std::string_view text, double &value);
+/* text, all of it, as a whole number in int's range (an optional '-',
+   then digits); false otherwise, value untouched */
+bool parse_int(std::string_view text, int &value);
 
 /* s in upper (lower) case, in place up to its NUL: ASCII letters only (the
    C locale's toupper/tolower), as the parser keeps a model's names;

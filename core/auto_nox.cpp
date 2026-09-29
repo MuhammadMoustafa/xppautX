@@ -1,5 +1,8 @@
 #include "model.h"
 #include "session.h"
+#include "autox.h"
+#include "snapx.h"
+#include "xpp_session.h"
 #include "integrate.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -2549,53 +2552,25 @@ void load_auto_orbit()
 
 void save_auto()
 {
-
-  int status;
-  std::string filename=xpp::format("{}.auto",basename(this_auto_file.data()));
-  status=file_selector("Save Auto",filename,"*.auto");
-  if(status==0)return;
-  /* written beside filename and renamed over it once whole */
-  xpp::Writer w=open_writer_asking(filename.c_str());
-  if(!w)return;
-  status=save_auto_file(w.file());
-  if(status!=1){
-    /* an empty diagram: say so, and leave no file without orbits (nor
-       replace an existing one with it) */
-    w.abort();
+  std::string filename=xpp_session_file_name(xpp::autox::extension);
+  if(!file_selector("Save diagram",filename,"*.autox"))return;
+  if(xpp::snapx::has_extension(filename,".auto"))filename+='x'; /* the old name, the new file */
+  filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
+  std::optional<std::string> bytes=xpp::autox::file_bytes();
+  if(!bytes){
+    /* leave no file without a diagram (nor replace one with it) */
     auto_err("Empty diagram -- nothing to save");
     return;
   }
+  /* written beside filename and renamed over it once whole */
+  xpp::Writer w=open_writer_asking(filename.c_str(),true);
+  if(!w)return;
+  if(!w.write(*bytes)){
+    w.abort();
+    err_msg(xpp::format("Cannot write {}",filename).c_str());
+    return;
+  }
   w.commit();
-}
-
-/* save_auto without its dialog (xpp_session.c): 1 written, else the
-   diagram was empty and fp holds only the numerics and graph header */
-int save_auto_file(FILE *fp)
-{
-  int status;
-  save_auto_numerics(fp);
-  save_auto_graph(fp);
-  status=save_diagram(fp,xpp::model().node);
-  if(status!=1)return status;
-  save_q_file(fp);
-  return 1;
-}
- 
-void save_auto_numerics(FILE *fp)
-{
-  xpp::Session &s=xpp::session();
-  int i;
-  std::string line=xpp::format("{} ",s.auto_state.npar);
-  for(i=0;i<s.auto_state.npar;i++)
-    line+=xpp::format("{} ",s.auto_state.par[i]);
-  line+=xpp::format("{}\n",s.auto_state.nuzr);
-  for(i=0;i<9;i++)
-    line+=xpp::format("{:g} {}\n",s.auto_state.uzr_period[i],s.auto_state.uzr_par[i]);
-  line+=xpp::format("{} {} {} \n",s.auto_state.bifur.ntst,s.auto_state.bifur.nmx,s.auto_state.bifur.npr);
-  line+=xpp::format("{:g} {:g} {:g} \n",s.auto_state.bifur.ds,s.auto_state.bifur.dsmin,s.auto_state.bifur.dsmax);
-  line+=xpp::format("{:g} {:g} {:g} {:g}\n",s.auto_state.bifur.rl0,s.auto_state.bifur.rl1,s.auto_state.bifur.a0,s.auto_state.bifur.a1);
-  line+=xpp::format("{} {} {} {} {} {} {}\n",s.auto_state.advanced.iad,s.auto_state.advanced.mxbf,s.auto_state.advanced.iid,s.auto_state.advanced.itmx,s.auto_state.advanced.itnw,s.auto_state.advanced.nwtn,s.auto_state.advanced.iads);
-  xpp::print(fp,"{}",line);
 }
 
 void load_auto_numerics(FILE *fp)
@@ -2627,12 +2602,6 @@ void load_auto_numerics(FILE *fp)
      || !tr.read(s.auto_state.advanced.itnw) || !tr.read(s.auto_state.advanced.nwtn) || !tr.read(s.auto_state.advanced.iads)) return;
 }
 
-void save_auto_graph(FILE *fp)
-{
-  xpp::print(fp,"{:g} {:g} {:g} {:g} {} {} \n",xpp::session().auto_state.bifur.xmin,xpp::session().auto_state.bifur.ymin,xpp::session().auto_state.bifur.xmax,xpp::session().auto_state.bifur.ymax,
-	xpp::session().auto_state.bifur.var,xpp::session().auto_state.bifur.plot);
-}
-
 void load_auto_graph(FILE *fp)
 {
   xpp::TokenReader tr=xpp::TokenReader::attach(fp);
@@ -2640,18 +2609,6 @@ void load_auto_graph(FILE *fp)
       || !tr.read(xpp::session().auto_state.bifur.var) || !tr.read(xpp::session().auto_state.bifur.plot)) return;
 }
   
-void save_q_file(FILE *fp) /* I am keeping the name q_file even though they are s_files */
-{
-  std::string string=this_auto_file+".s";
-  xpp::LineReader lr(string.c_str());
-  if(!lr){
-    auto_err("Couldnt open s-file");
-    return;
-  }
-  while(auto line=lr.next())
-    xpp::print(fp,"{}\n",*line);
-}
-
 namespace {
 /* a blank line, which make_q_file leaves out */
 bool noinfo(std::string_view s)
@@ -2683,30 +2640,24 @@ void make_q_file(FILE *fp)
 
 void load_auto()
 {
-
-  int ok;
-
-  int status;
   if(diagram_count()>1){
-    ok=reset_auto();
-    if(ok==0)return;
+    if(reset_auto()==0)return;
   }
 
-  std::string filename=xpp::format("{}.auto",basename(this_auto_file.data()));
-  status=file_selector("Load Auto",filename,"*.auto");
-  if(status==0)return;
-  xpp::UniqueFile fp=xpp::open_read(filename.c_str());
-  if(!fp){
-    auto_err("Cannot open file");
-    return;
-  }
-  
-  load_auto_file(fp.get());
+  std::string filename=xpp_session_file_name(xpp::autox::extension);
+  if(!file_selector("Load diagram",filename,"*.autox *.auto"))return;
+  xpp::autox::load_file(filename);
 }
 
-/* load_auto without its reset and dialog (xpp_session.c): 1 loaded,
-   -1 an empty diagram */
-int load_auto_file(FILE *fp)
+std::string auto_solutions_file()
+{
+  return this_auto_file+".s";
+}
+
+/* an XPPAUT .auto file, at fp, imported: its settings, diagram and
+   solutions (xpp_session.cpp's older files too): 1 loaded, -1 an empty
+   diagram */
+int import_auto_file(FILE *fp)
 {
   int status;
   load_auto_numerics(fp);

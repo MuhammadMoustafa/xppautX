@@ -508,8 +508,8 @@ const XppMenu menu_auto_branch={"auto","Branch Pt",4,auto_branch_items,"sent",no
 /* the File menu's own 15 hints plus one for the CSV export */
 static const char *const auto_file_hint[]={
 "Load a computed orbit into XPP",
-"Write diagram info to file for reuse",
-"Load previously saved file for restart",
+"Save the diagram, its orbits and AUTO's settings (.autox)",
+"Load a saved diagram (.autox, or import an XPPAUT .auto) for restart",
 "Create postscript file of picture",
 "Create SVG file of picture",
 "Delete all points of diagram and associated files",

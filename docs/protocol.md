@@ -270,7 +270,7 @@ that bifurcates from it, and saves the diagram:
 
 {"cmd":"key","win":"auto","key":"f"}
 {"cmd":"answer","key":"s"}
-{"cmd":"answer","file":"lecar.auto"}
+{"cmd":"answer","file":"lecar.autox"}
 ```
 
 Run it with:
@@ -746,7 +746,7 @@ files, in this order:
 |---|---|
 | `session.txt` | the manifest: `xppautX session 1`, then `model` (the `.ode`'s absolute path when saved), `name` (its file name), `sha256` (the fingerprint of its bytes and of every file it includes: SHA-256 over each file's length and contents, the model's first), `node`, `markov`, `vars` and `pars` (the model's names then), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics): the original XPPAUT reads it |
-| `model.auto` | AUTO's File/Save diagram file (its settings, the diagram and its orbits), when there is a diagram: XPPAUT reads it too |
+| `model.autox` | AUTO's File/Save diagram file ("AUTO files" below: its settings, the diagram at full precision and its orbits), when there is a diagram |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's view (`autoview`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
@@ -755,8 +755,9 @@ files, in this order:
 Opening one loads the model (beside the `.snapx` first, else at the saved
 path) as `open` does, then restores the members: `state`, `plots`,
 `marks` (but Sing pts' equilibrium symbols), `autoview` and the diagram
-are as they were at the save, the diagram to `model.auto`'s printed
-precision (6 digits). The earlier runs a window keeps until Erase are
+are as they were at the save, the diagram exactly (every digit). A
+session file saved before W92 holds XPPAUT's `model.auto` instead, which
+is imported (to its printed 6 digits). The earlier runs a window keeps until Erase are
 not saved. When the fingerprint differs (the `.ode` or a file it includes edited since), a `message` `bottom`
 says the model has changed since; with the same variable and parameter
 names everything is restored, otherwise the values, numerics, windows
@@ -764,6 +765,37 @@ and data are restored by name (Reload's rule, a name the model lost left
 out) and AUTO's diagram is left out, which another `message` `bottom`
 says. The command line opens one too, `xppautX name.snapx` (every mode
 but `-silent`).
+
+### AUTO files
+
+AUTO's own file, `name.autox` (W92, core/autox_io.cpp; its pure part, the
+member names and the text of its members, core/autox.h), holds AUTO's
+work alone, without a whole session: the AUTO window's File/Save diagram
+(key `s` of its File menu, a `file` ask with wildcard `*.autox`) writes
+one, `.autox` added unless the name ends so (a name ending in `.auto`
+gets an `x`), and File/Load diagram (key `l`, wildcard `*.autox *.auto`)
+reads one, after asking whether to destroy the diagram there is. A
+session file holds the same file as its `model.autox`. It is a zip of
+ordinary files, in this order:
+
+| Member | What it holds |
+|---|---|
+| `autox.txt` | the manifest, as a session file's `session.txt` but for its first line, `xppautX autox 1`, and no `data` line: the `.ode`'s absolute path, its file name, its fingerprint (`sha256`), `node`, `markov`, `vars` and `pars` |
+| `settings.txt` | AUTO's settings, one `key value` line each, with the keys of `auto` `set` ("AUTO's settings as data" above): every Numerics key (`ntst` ... `suppbp`), `pars` and AUTO's parameters' names, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax`, and one `mark NAME VALUE` line per Mark value; `-` stands for no name |
+| `diagram.csv` | the diagram, a header row of names and one row per point in the order stored: `calc`, `ibr` (branch), `ntot` (point, negative when stable), `itp` (type), `lab` (label), `nfpar`, `icp1`..`icp4`, `flag2`, `from` (the label its run started from), `norm`, `per`, `torper`, `par1`..`par20` (AUTO's parameters' values), then for each variable x `u0.x`, `uhi.x`, `ulo.x`, `ubar.x`, and last `evr1`, `evi1` ... `evrN`, `eviN` (the eigenvalues or Floquet multipliers, zeros when not computed) |
+| `solutions.s` | AUTO's solution file (`fort.8`) as AUTO wrote it: the solutions at the labelled points, which a grab restarts from |
+
+Every number is the shortest text that reads back as the same double, so
+a diagram saved and loaded is the same bit for bit, and continues from a
+grabbed point as the one saved would. Loading one whose manifest names
+other variables or parameters than the model's is refused (a `message`
+`error`); one whose fingerprint differs (the `.ode` or a file it includes
+edited since) loads, and a `message` `bottom` says the model has changed.
+A setting the model no longer takes leaves AUTO's settings as they were,
+which a `message` `bottom` says. An XPPAUT `.auto` file still loads, as an
+import: its settings, its diagram (to the 6 digits it prints) and its
+solutions; File/Save diagram then writes an `.autox`. Nothing writes a
+`.auto` any more.
 
 ### Display state
 

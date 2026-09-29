@@ -67,6 +67,27 @@ DIAGRAM *diagram_prev(const DIAGRAM *d)
   return diagram_point(d->index-1);
 }
 
+void diagram_restore(std::deque<DiagramPoint> points)
+{
+  xpp::Session &s=xpp::session();
+  if(points.empty()){
+    start_diagram(xpp::model().node);
+    return;
+  }
+  s.diagram.points=std::move(points);
+  int index=0;
+  for(DiagramPoint &p:s.diagram.points){
+    p.d.uhi=p.uhi.data();
+    p.d.ulo=p.ulo.data();
+    p.d.u0=p.u0.data();
+    p.d.ubar=p.ubar.data();
+    p.d.evr=p.evr.data();
+    p.d.evi=p.evi.data();
+    p.d.index=index++;
+  }
+  s.auto_state.diag_flag=1;
+}
+
 void start_diagram(int n)
 {
   xpp::session().diagram.points.clear();
@@ -417,31 +438,6 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     d=diagram_next(d);
     if(d==NULL)break;
   }
-}
-
-int save_diagram(FILE *fp, int n)
-{
-  int i;
-  DIAGRAM *d;
-  xpp::print(fp,"{}\n",diagram_count()-1);
-  if(diagram_count()==1)
-    return(-1);
-  d=diagram_first();
-  while(1){
-    std::string line=xpp::format("{} {} {} {} {} {} {} {} {} {} {} {}\n",
-	    d->calc,d->ibr,d->ntot,d->itp,d->lab,d->index,d->nfpar,
-	    d->icp1,d->icp2,d->icp3,d->icp4,d->flag2);
-    for(i=0;i<8;i++)line+=xpp::format("{:g} ",d->par[i]);
-    line+=xpp::format("{:g} {:g} \n",d->norm,d->per);
-    xpp::print(fp,"{}",line);
-
-    for(i=0;i<n;i++)
-      xpp::print(fp,"{:f} {:f} {:f} {:f} {:f} {:f}\n",d->u0[i],d->uhi[i],d->ulo[i],
-		 d->ubar[i],d->evr[i],d->evi[i]);
-    d=diagram_next(d);
-    if(d==NULL)break;
-  }
-  return(1);
 }
 
 int load_diagram(FILE *fp, int node)

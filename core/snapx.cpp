@@ -1,15 +1,22 @@
 /* The session file's pure part: see snapx.h. */
 #include "snapx.h"
 #include "xpp_sha256.h"
+#include "xpp_io.h"
 
-#include <charconv>
 #include <cctype>
 
 namespace xpp::snapx {
 
 namespace {
 
-constexpr std::string_view first_line = "xppautX session ";
+/* "xppautX <kind> " before the version */
+std::string first_line(std::string_view kind)
+{
+    std::string o = "xppautX ";
+    o += kind;
+    o += ' ';
+    return o;
+}
 
 void add_line(std::string &o, std::string_view key, std::string_view value)
 {
@@ -45,28 +52,12 @@ std::vector<std::string> words(std::string_view s)
     return w;
 }
 
-bool number(std::string_view s, int &v)
-{
-    const auto r = std::from_chars(s.data(), s.data() + s.size(), v);
-    return r.ec == std::errc() && r.ptr == s.data() + s.size();
-}
-
-bool ends_with_nocase(std::string_view s, std::string_view end)
-{
-    if (s.size() < end.size()) return false;
-    s = s.substr(s.size() - end.size());
-    for (std::size_t i = 0; i < end.size(); i++)
-        if (std::tolower(static_cast<unsigned char>(s[i])) != std::tolower(static_cast<unsigned char>(end[i])))
-            return false;
-    return true;
-}
-
 } // namespace
 
-std::string manifest_text(const Manifest &m)
+std::string manifest_text(const Manifest &m, std::string_view kind)
 {
     std::string o;
-    o += first_line;
+    o += first_line(kind);
     o += std::to_string(m.version);
     o += '\n';
     add_line(o, "model", m.model);
@@ -76,21 +67,22 @@ std::string manifest_text(const Manifest &m)
     add_line(o, "markov", std::to_string(m.nmarkov));
     add_line(o, "vars", joined(m.vars));
     add_line(o, "pars", joined(m.pars));
-    add_line(o, "data", m.data ? "1" : "0");
+    if (kind == session_kind) add_line(o, "data", m.data ? "1" : "0");
     return o;
 }
 
-std::optional<Manifest> parse_manifest(std::string_view text)
+std::optional<Manifest> parse_manifest(std::string_view text, std::string_view kind)
 {
     Manifest m;
     bool first = true;
+    const std::string head = first_line(kind);
     while (!text.empty()) {
         const std::size_t nl = text.find('\n');
         std::string_view line = text.substr(0, nl);
         text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
         if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
         if (first) {
-            if (!line.starts_with(first_line) || !number(line.substr(first_line.size()), m.version) || m.version != 1)
+            if (!line.starts_with(head) || !xpp::parse_int(line.substr(head.size()), m.version) || m.version != 1)
                 return std::nullopt;
             first = false;
             continue;
@@ -103,9 +95,9 @@ std::optional<Manifest> parse_manifest(std::string_view text)
         else if (key == "name") m.model_name = value;
         else if (key == "sha256") m.sha256 = value;
         else if (key == "node") {
-            if (!number(value, m.node)) return std::nullopt;
+            if (!xpp::parse_int(value, m.node)) return std::nullopt;
         } else if (key == "markov") {
-            if (!number(value, m.nmarkov)) return std::nullopt;
+            if (!xpp::parse_int(value, m.nmarkov)) return std::nullopt;
         } else if (key == "vars") m.vars = words(value);
         else if (key == "pars") m.pars = words(value);
         else if (key == "data") m.data = value == "1";
@@ -126,13 +118,25 @@ std::string fingerprint(std::span<const std::string> files)
     return h.hex();
 }
 
-bool is_session_file(std::string_view path) { return ends_with_nocase(path, extension); }
+bool has_extension(std::string_view path, std::string_view ext)
+{
+    if (path.size() < ext.size()) return false;
+    path = path.substr(path.size() - ext.size());
+    for (std::size_t i = 0; i < ext.size(); i++)
+        if (std::tolower(static_cast<unsigned char>(path[i])) != std::tolower(static_cast<unsigned char>(ext[i])))
+            return false;
+    return true;
+}
 
-std::string session_file_name(std::string_view name)
+std::string with_extension(std::string_view name, std::string_view ext)
 {
     std::string n(name);
-    if (!is_session_file(n)) n += extension;
+    if (!has_extension(n, ext)) n += ext;
     return n;
 }
+
+bool is_session_file(std::string_view path) { return has_extension(path, extension); }
+
+std::string session_file_name(std::string_view name) { return with_extension(name, extension); }
 
 } // namespace xpp::snapx

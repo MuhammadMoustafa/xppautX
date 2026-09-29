@@ -8,8 +8,8 @@ extern "C" {
    continuing where the user stopped, from one file, name.snapx -- a zip
    of ordinary files (snapx.h names them): the model's path and
    fingerprint, model.set (File/Write set's file: values, numerics, the
-   active window's graphics), model.auto (AUTO's File/Save diagram's: the
-   diagram and AUTO's settings), windows.set (every plot window's axes,
+   active window's graphics), model.autox (AUTO's File/Save diagram's,
+   autox.h: the diagram, AUTO's settings and solutions), windows.set (every plot window's axes,
    variables and zoom, AUTO's view), marks.set and frozen.npz (labels,
    arrows and markers, frozen curves) and data.npz (the data table, NPZ
    as Save data writes it). The earlier runs a window keeps until Erase
@@ -42,6 +42,8 @@ int xpp_session_load(const char *name);
 }
 
 #include <string>
+#include <string_view>
+#include "snapx.h"
 
 /* the files a session was last saved to or opened from: a session file,
    or (an older session loaded) its .set and .auto; a Session's (session.h) */
@@ -53,6 +55,19 @@ struct SavedSession {
 /* the current model's fingerprint (snapx.h): its file and every file it
    included, read again now (one that cannot be read counts as empty) */
 std::string xpp_session_fingerprint();
+
+/* the model's file name without .ode/.odex, and ext (".snapx", ".autox"):
+   the name Save session and AUTO's Save diagram offer */
+std::string xpp_session_file_name(std::string_view ext);
+
+/* the current model as a manifest names it (snapx.h): its path, file
+   name, fingerprint, node, nmarkov, variables and parameters */
+xpp::snapx::Manifest xpp_session_manifest();
+/* man names the variables and parameters the current model has, in its
+   order (a diagram or a set file of it reads by index) */
+bool xpp_session_same_names(const xpp::snapx::Manifest &man);
+/* a changed model's note, in the log and on the status line */
+void xpp_session_warn(const std::string &text);
 
 /* session file snapx's model, found beside it first (its saved name) and
    else at the path it was saved from: its absolute path, or empty (and an

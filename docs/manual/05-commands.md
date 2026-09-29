@@ -165,7 +165,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   and fingerprint, the values and numerics (**Write set**'s file), every
   plot window with its axes, variables and zoom, the text, arrows and
   frozen curves, AUTO's diagram and settings (AUTO's **Save diagram**
-  file) and view, and the data table (NumPy's `.npz`). The earlier runs a
+  file, `.autox`) and view, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this

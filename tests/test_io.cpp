@@ -442,7 +442,13 @@ int main(void)
         CHECK(!xpp::parse_number("1.5a", v));
         CHECK(!xpp::parse_number("0x10", v));
         CHECK(!xpp::parse_number("1e999", v));
+        CHECK(!xpp::parse_number("1e-999", v)); /* underflows to 0 */
         CHECK(v == 1); /* untouched on failure */
+        CHECK(xpp::parse_number("4.9406564584124654e-324", v) && v > 0 && v < 1e-320); /* a subnormal is a number */
+        int k = 5;
+        CHECK(xpp::parse_int("-42", k) && k == -42);
+        CHECK(!xpp::parse_int("", k) && !xpp::parse_int("4.5", k) && !xpp::parse_int(" 1", k) && !xpp::parse_int("1x", k));
+        CHECK(!xpp::parse_int("99999999999", k) && k == -42); /* out of range, untouched */
     }
 
     TEST_REPORT("test_io");

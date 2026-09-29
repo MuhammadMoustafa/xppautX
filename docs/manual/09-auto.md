@@ -44,7 +44,7 @@ back). It has:
   point, starts "not computed", and a two-parameter curve of periodic
   orbits has none at all (AUTO computes no multipliers along it). XPPAUT shows, and saves in `.auto`
   files, the values of the last point computed before, often on another
-  branch; xppautX saves zeros there, which XPPAUT reads as before); it is the
+  branch; xppautX saves zeros there); it is the
   only status line on screen while AUTO is shown, so it also carries the
   core's last message and the connection state when it is not simply
   connected, as the main window's status bar does;
@@ -397,11 +397,26 @@ If the grabbed point is a special one and is a periodic orbit, this loads the or
 
 ### Save diagram
 
-Writes a file for the complete diagram which you can use later.
+Writes the diagram to `name.autox`, AUTO's own file, to pick up later
+without saving a whole session: every point at full precision (its
+values, label, type and eigenvalues or Floquet multipliers), AUTO's
+settings (Numerics, Parameter, Axes and the Mark values), the orbits of
+the labelled points, and the model's path and fingerprint. It is a zip
+of ordinary files: renamed to `.zip`, its `diagram.csv` opens in any
+spreadsheet or `pandas.read_csv` (the file's members are listed in
+docs/protocol.md "AUTO files"). A session file (File/saVe session)
+carries the same file.
 
 ### Load Diagram
 
-Loads a previously saved one.
+Loads an `.autox` in place of the diagram there is (after asking whether
+to destroy it): the diagram exactly as it was saved, and AUTO's settings;
+grab a point and AUTO continues from it. A file saved from a model whose
+variables or parameters have changed since is refused; if only the
+`.ode` changed (an edited formula, say), a warning says so and the
+diagram loads. An XPPAUT `.auto` file loads too, as an import (its
+diagram to the 6 digits it prints); Save diagram then writes it as an
+`.autox`. Nothing writes `.auto` files any more.
 
 ### Postscript
 

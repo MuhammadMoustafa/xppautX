@@ -159,16 +159,16 @@ void auto_err(const char *s);
 void auto_run(void);
 void load_auto_orbit(void);
 void load_auto_orbitx(int ibr,int flag, int lab, double per);
+/* File/Save diagram and Load diagram: an .autox (autox.h), or an XPPAUT
+   .auto imported */
 void save_auto(void);
-int save_auto_file(FILE *fp);
-void save_auto_numerics(FILE *fp);
-void load_auto_numerics(FILE *fp);
-void save_auto_graph(FILE *fp);
-void load_auto_graph(FILE *fp);
-void save_q_file(FILE *fp);
-void make_q_file(FILE *fp);
 void load_auto(void);
-int load_auto_file(FILE *fp);
+/* the parts of an XPPAUT .auto file, read (import_auto_file reads them
+   all) */
+void load_auto_numerics(FILE *fp);
+void load_auto_graph(FILE *fp);
+void make_q_file(FILE *fp);
+int import_auto_file(FILE *fp);
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
 void auto_file(void);
@@ -210,6 +210,10 @@ std::string auto_screen_col(const std::string &col);
 /* AUTO's index of parameter or period name s (10 for the period, T),
    -1 when it is not one of AUTO's parameters */
 int auto_name_to_index(std::string_view s);
+
+/* AUTO's solution file (fort.8 after a run, the orbits of the labelled
+   points a grab restarts from): <HOME or the model's folder>/<model>.s */
+std::string auto_solutions_file();
 
 /* the diagram's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */

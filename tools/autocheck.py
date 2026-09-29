@@ -25,7 +25,11 @@ restarts from a label of the same kind: auto_stability.h); sessions checks that 
 keep their AUTO files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11, W57): one session file, name.snapx, a long
 AUTO run is picked back up from, and the older .set and .auto pair still
-loading alone; script plays
+loading alone; autox is AUTO's own file (W92, docs/protocol.md "AUTO
+files"): File/Save diagram's .autox loaded in a new server gives the same
+diagram exactly and continues from a grabbed point, an XPPAUT .auto is
+imported and saved as .autox, and an edited .ode warns or, with other
+names, is refused; script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
 tools/models/longnames.ode (200-character names: no length limit, W76)
@@ -45,7 +49,7 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'script', 'replay', 'names', 'scratch', 'errors'])
+                                                'sessions', 'session', 'autox', 'script', 'replay', 'names', 'scratch', 'errors'])
 args = ap.parse_args()
 if args.list:
     print(' '.join(ap.get_default('sections')))
@@ -53,7 +57,8 @@ if args.list:
 here = os.path.dirname(os.path.abspath(__file__))
 LECAR = 'examples/ode/lecar.ode'
 HEAVY = os.path.join(here, 'models', 'heavy.ode')
-DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.auto')
+DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.csv')  # the .autox's diagram.csv of section_files
+OLD_AUTO = os.path.join(here, 'models', 'lecar_diagram.auto')  # XPPAUT's .auto of the same diagram
 SCRIPT = 'examples/scripts/lecar_auto.jsonl'
 failures = 0
 
@@ -501,23 +506,41 @@ def section_abort():
 
 # ---- files: the saved diagram of lecar is what it always was --------------
 
+def save_diagram(s, name, written=None):
+    """File/Save diagram, answering name; the members of the .autox it
+    wrote, written (name when not given), by name ({} if not written)"""
+    import zipfile
+    s.send(cmd='key', win='auto', key='f')
+    s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
+                            'file': lambda e: {'ok': 1, 'file': name},
+                            'string': lambda e: {'ok': 1, 'value': name},
+                            'choice': lambda e: {'key': 'y'}})
+    path = os.path.join(s.run, written or name)
+    if not os.path.exists(path) or not zipfile.is_zipfile(path):
+        return {}
+    z = zipfile.ZipFile(path)
+    return {n: z.read(n).decode() for n in z.namelist()}
+
+
+def load_diagram(s, path):
+    """File/Load diagram of path (answering a reset's question yes): the events"""
+    s.send(cmd='key', win='auto', key='f')
+    evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'l'},
+                                     'file': lambda e: {'ok': 1, 'file': path},
+                                     'string': lambda e: {'ok': 1, 'value': path},
+                                     'choice': lambda e: {'key': 'y'}})
+    return evs
+
+
 def lecar_diagram(s):
     """steady state, grab the first label, a periodic branch, File/Save
-    diagram; returns the file's text (None if not written)"""
+    diagram; returns the .autox's diagram.csv (None if not written)"""
     s.collect(is_idle)
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
     run_menu(s, 'p', timeout=120 * SLOW)
-    s.send(cmd='key', win='auto', key='f')
-    evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
-                                     'file': lambda e: {'ok': 1, 'file': 'diagram.auto'},
-                                     'string': lambda e: {'ok': 1, 'value': 'diagram.auto'}})
-    path = os.path.join(s.run, 'diagram.auto')
-    if not os.path.exists(path):
-        return None
-    with open(path) as f:
-        return f.read()
+    return save_diagram(s, 'diagram.autox').get('diagram.csv')
 
 
 def lines_close(a, b, rtol=1e-6, atol=1e-9):
@@ -544,7 +567,10 @@ def section_files():
     got = lecar_diagram(s)
     s.close()
     shutil.rmtree(home, ignore_errors=True)
-    lines = got.splitlines() if got else []
+    # every digit is there now: numbers within 1e-6 (glibc and mingw-w64
+    # libm differ by a few ULPs, which a continuation grows), as the 6
+    # digits of the .auto this reference replaced were
+    lines = [l.replace(',', ' ') for l in got.splitlines()] if got else []
     check('File/Save diagram writes the diagram', len(lines) > 50, '%d lines' % len(lines))
     if got is None:
         return
@@ -554,8 +580,8 @@ def section_files():
         print('INFO wrote %s (the reference diagram)' % DIAGRAM)
         return
     with open(DIAGRAM, newline='') as f:
-        want = f.read().splitlines()
-    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if not lines_close(a, b)), None)
+        want = [l.replace(',', ' ') for l in f.read().splitlines()]
+    diff = next((i for i, (a, b) in enumerate(zip(lines, want)) if not lines_close(a, b, atol=1e-6)), None)
     check('the saved diagram of lecar is unchanged',
           len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
@@ -825,8 +851,8 @@ def section_session():
     check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
     snap_path = os.path.join(s.run, 's1.snapx')
     members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
-    check('session save writes s1.snapx with the .set and .auto files in it',
-          'model.set' in members and 'model.auto' in members, str(members))
+    check('session save writes s1.snapx with the .set and .autox files in it',
+          'model.set' in members and 'model.autox' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
     # a NEW server, in a new directory, with only the session file copied in
@@ -834,15 +860,14 @@ def section_session():
     s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
     s2.collect(is_idle)
     if os.path.exists(snap_path): shutil.copy(snap_path, s2.run)
-    # and the older pair of files, taken out of it: .set and .auto alone still load
+    # and the older pair of files: its .set and an XPPAUT .auto alone still load
     home3 = tempfile.mkdtemp(prefix='xpphome')
     s3 = Server(args.server, LECAR, env={'HOME': home3}, verbose=args.v)
     s3.collect(is_idle)
     if members:
-        z = zipfile.ZipFile(snap_path)
-        for m, f in (('model.set', 'old.set'), ('model.auto', 'old.auto')):
-            with open(os.path.join(s3.run, f), 'wb') as out:
-                out.write(z.read(m))
+        with open(os.path.join(s3.run, 'old.set'), 'wb') as out:
+            out.write(zipfile.ZipFile(snap_path).read('model.set'))
+        shutil.copy(OLD_AUTO, os.path.join(s3.run, 'old.auto'))
     s.close()
     shutil.rmtree(home1, ignore_errors=True)
 
@@ -883,6 +908,110 @@ def section_session():
           and dict(old['pars']) == pars1 and any(is_point(e) for e in evs), str(old and old.get('session')))
     s3.close()
     shutil.rmtree(home3, ignore_errors=True)
+
+
+# ---- autox: AUTO's own file, name.autox (W92, docs/protocol.md "AUTO files") ----
+
+def messages(evs):
+    return ' '.join(str(e) for e in evs if e.get('ev') == 'message')
+
+
+def section_autox():
+    import re
+    homes, scratch = [], tempfile.mkdtemp(prefix='xppautox')
+
+    def server(ode=LECAR):
+        home = tempfile.mkdtemp(prefix='xpphome')
+        homes.append(home)
+        s = Server(args.server, ode, env={'HOME': home}, verbose=args.v)
+        s.collect(is_idle)
+        open_auto(s)
+        return s
+
+    s = server()
+    evs = run_menu(s, 's')
+    grab_hopf(s)
+    evs += run_menu(s, 'p', timeout=120 * SLOW)
+    dg1 = Diagram().apply(evs).pts
+    # an old name asked for: the .autox beside it
+    got = save_diagram(s, 'd1.auto', 'd1.autox')
+    check('autox: Save diagram writes d1.autox, a zip of the files listed',
+          list(got) == ['autox.txt', 'settings.txt', 'diagram.csv', 'solutions.s'], str(list(got)))
+    check('autox: autox.txt is the manifest of lecar.ode',
+          got.get('autox.txt', '').startswith('xppautX autox 1\nmodel ') and '\nname lecar.ode\n' in got['autox.txt']
+          and re.search(r'\nsha256 [0-9a-f]{64}\n', got['autox.txt']) is not None, got.get('autox.txt', '')[:300])
+    check('autox: settings.txt has the numerics, the parameters and the axes',
+          all(re.search(r'(^|\n)%s ' % k, got.get('settings.txt', '')) for k in ('ntst', 'ds', 'pars', 'plot', 'xmin')),
+          got.get('settings.txt', '')[:300])
+    rows = got.get('diagram.csv', '').splitlines()
+    check("autox: diagram.csv has a header and the diagram's points", len(rows) > 50 and rows[0].startswith('calc,ibr,'),
+          '%d rows' % len(rows))
+    check('autox: solutions.s holds the orbits', len(got.get('solutions.s', '')) > 1000, str(len(got.get('solutions.s', ''))))
+    d1 = os.path.join(scratch, 'd1.autox')
+    if os.path.exists(os.path.join(s.run, 'd1.autox')):
+        shutil.copy(os.path.join(s.run, 'd1.autox'), d1)
+    s.close()
+
+    # a new server loads it: the same diagram exactly, and a grab restarts from it
+    s = server()
+    evs = load_diagram(s, d1)
+    dg2 = Diagram().apply(evs).pts
+    check('autox: Load diagram in a new server gives the same diagram, exactly',
+          dg1 and dg2 == dg1 and 'left as they were' not in messages(evs), '%d vs %d points, first difference %s' % (
+              len(dg2), len(dg1), next(((a, b) for a, b in zip(dg2, dg1) if a != b), None)))
+    s.send(cmd='auto', op='grab', type='HB', index=1)
+    s.collect(is_idle)
+    evs = run_menu(s, 'p', timeout=120 * SLOW)
+    more = Diagram()
+    more.pts = list(dg2)
+    more.apply(evs)
+    check('autox: a grab of its Hopf point and a periodic run continue the loaded diagram',
+          len(more.pts) > len(dg2) and more.pts[:len(dg2)] == dg2 and s.alive() and 'nan' not in messages(evs).lower(),
+          '%d points after %d; %s' % (len(more.pts), len(dg2), messages(evs)[:200]))
+    s.close()
+
+    # an XPPAUT .auto: imported, then saved as .autox, which loads as imported
+    s = server()
+    shutil.copy(OLD_AUTO, os.path.join(s.run, 'old.auto'))
+    with open(OLD_AUTO) as f:
+        old_points = int(f.read().split('\n')[15]) + 1  # after the settings: the last point's index
+    dg3 = Diagram().apply(load_diagram(s, 'old.auto')).pts
+    check('autox: Load diagram imports an XPPAUT .auto', len(dg3) > 10, '%d points' % len(dg3))
+    got = save_diagram(s, 'old.auto', 'old.autox')
+    rows = got.get('diagram.csv', '').splitlines()
+    check('autox: saving the imported diagram writes old.autox with every point, and leaves old.auto as it was',
+          len(rows) == old_points + 1 and open(OLD_AUTO, 'rb').read() == open(os.path.join(s.run, 'old.auto'), 'rb').read(),
+          '%d rows for %d points' % (len(rows), old_points))
+    # the client keeps its points across the reset and redraw: only a
+    # difference would be sent (a reset dropping points, and new ones)
+    dg4 = Diagram()
+    dg4.pts = list(dg3)
+    evs = load_diagram(s, 'old.autox')
+    dg4.apply(evs)
+    check('autox: old.autox loads the diagram the .auto imported', dg3 and dg4.pts == dg3 and 'error' not in messages(evs),
+          '%d vs %d points; %s' % (len(dg4.pts), len(dg3), messages(evs)[:200]))
+    s.close()
+
+    # the .ode edited since: the same names warn and load; other names are refused
+    with open(LECAR) as f:
+        text = f.read()
+    for edit, what in (('# edited since\n' + text, 'same'), (re.sub(r'\bphi\b', 'phi2', text), 'renamed')):
+        folder = tempfile.mkdtemp(prefix='xppode', dir=scratch)
+        ode = os.path.join(folder, 'lecar.ode')
+        with open(ode, 'w') as f:
+            f.write(edit)
+        s = server(ode)
+        evs = load_diagram(s, d1)
+        pts = Diagram().apply(evs).pts
+        if what == 'same':
+            check('autox: an edited .ode with the same names: a warning says so, and the diagram loads',
+                  'changed since' in messages(evs) and pts == dg1, messages(evs)[:300])
+        else:
+            check("autox: an .ode whose names changed: the diagram is refused, an error says why",
+                  'not this model' in messages(evs) and not any(is_point(e) for e in evs), messages(evs)[:300])
+        s.close()
+    for h in homes + [scratch]:
+        shutil.rmtree(h, ignore_errors=True)
 
 
 # ---- control: Abort, Quit and dropped commands during a long integration ----
@@ -1212,7 +1341,7 @@ def section_script():
     check('xppautX --script plays lecar_auto.jsonl to the end', code == 0, 'exit %d, %s' % (code, out[-300:]))
     check('it reaches idle after each of its commands', idles >= 8, '%d idles' % idles)
     check('it saves the AUTO diagram (File/Save diagram, key s)',
-          os.path.exists(os.path.join(run, 'lecar.auto')))
+          os.path.exists(os.path.join(run, 'lecar.autox')))
     shutil.rmtree(run, ignore_errors=True)
 
     # a bad formula in a "set" sends a "message" "error" event
@@ -1329,7 +1458,7 @@ def section_replay():
         at = (stopped_events(out) or [None])[0]
         check('replay: an interrupted AUTO run stops exactly at the armed point', code == 0 and at == abort_at,
               'exit %d, %s vs %s' % (code, at, abort_at))
-        diagram = file_content(os.path.join(run, 'lecar.auto'))
+        diagram = file_content(os.path.join(run, 'lecar.autox'), 'rb')
         check('replay: and saves a diagram at that point', diagram is not None and len(diagram) > 0,
               str(diagram and len(diagram)))
         os.unlink(path)

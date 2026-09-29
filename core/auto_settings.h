@@ -75,6 +75,12 @@ struct AutoSettingsSet {
     std::array<double, AUTO_SETTINGS_MARKS> mark_value{};
 };
 
+/* the settings now, whole: every Numerics field, AUTO's parameters, the
+   axes and the Mark values, names empty where there is none (the event's
+   null). What the event sends and an .autox's settings.txt saves (autox.h);
+   applied with auto_settings_apply, it gives the settings back. */
+AutoSettingsSet auto_settings_now();
+
 /* 1 when a value of field i is AUTO's (an integer where the field is one,
    in the field's range); why names the field and its range otherwise.
    Pure: no model state. Nothing is thrown. */

@@ -42,7 +42,9 @@ void write_pts(void);
    here) */
 void export_auto_picture(int fmt);
 void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi);
-int save_diagram(FILE *fp, int n);
+/* the diagram of an XPPAUT .auto file, at fp after its settings (AUTO's
+   File/Load diagram imports one: auto_nox.cpp import_auto_file): 1 read,
+   -1 an empty diagram */
 int load_diagram(FILE *fp, int node);
 
 
@@ -65,5 +67,10 @@ struct DiagramPoint {
 struct AutoDiagram {
   std::deque<DiagramPoint> points;
 };
+
+/* points, whole (an .autox's diagram, autox.h), in place of the diagram:
+   each point's DIAGRAM arrays and index set to its own, the first point
+   filled in (DiagFlag); none is start_diagram's empty diagram */
+void diagram_restore(std::deque<DiagramPoint> points);
 #endif
 #endif

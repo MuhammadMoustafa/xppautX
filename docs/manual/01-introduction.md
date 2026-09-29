@@ -148,10 +148,11 @@ or parameters changed. The earlier runs a window shows until Erase are
 not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
 whether to leave it out (Go computes it again). A `.snapx` is a zip of
-ordinary files: renamed to `.zip`, its `model.set` and `model.auto` read
-in the original XPPAUT (File/Read set, AUTO's File/Load diagram) and its
-`data.npz` in NumPy (`numpy.load`). A `.set` file and a `.auto` file on
-their own keep working as they always have.
+ordinary files: renamed to `.zip`, its `model.set` is a set file
+(File/Read set), its `model.autox` AUTO's own file (AUTO's File/Load
+diagram) and its `data.npz` reads in NumPy (`numpy.load`). A `.set` file
+on its own keeps working as it always has, and an XPPAUT `.auto` file
+loads as an import.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
