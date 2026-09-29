@@ -27,6 +27,12 @@ void json_ui_push_open(const char *path);
    could not be matched to the ask it was meant to answer; 0 otherwise. */
 int json_ui_set_script(const char *path);
 
+/* xppautX model.ode -silent: load the model with no interface, then run
+   the built-in script its options make (core/json_silent.cpp) through
+   this front end, its events going nowhere; exits 0 when the script
+   ends, 1 when the model does not load */
+int json_ui_silent(int argc, char **argv);
+
 #ifdef __cplusplus
 }
 

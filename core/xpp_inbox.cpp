@@ -27,7 +27,9 @@
 #include <array>
 #include <cstring>
 #include <deque>
+#include <functional>
 #include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -243,6 +245,9 @@ namespace {
 
 xpp::UniqueFile script_fp;
 int script_line; /* of the line last pushed, for error messages */
+/* a script made as it goes (xpp_inbox_start_generated: -silent's) in
+   place of a file: it is never read ahead */
+std::function<std::optional<std::string>()> script_gen;
 
 struct Ahead {
     bool valid = false; /* read, not yet pushed or skipped */
@@ -296,8 +301,29 @@ int xpp_inbox_start_file(const char *path)
     return script_fp != nullptr;
 }
 
+void xpp_inbox_start_generated(std::function<std::optional<std::string>()> next)
+{
+    script_gen = std::move(next);
+}
+
 void xpp_inbox_script_advance(void)
 {
+    if (script_gen) {
+        std::optional<std::string> line;
+        try {
+            line = script_gen();
+        } catch (const std::bad_alloc &) {
+            out_of_memory("making the script");
+        }
+        if (line) {
+            script_line++;
+            xpp_inbox_push(line->data(), line->size());
+        } else {
+            script_gen = nullptr; /* closed once: later calls do nothing */
+            xpp_inbox_close();
+        }
+        return;
+    }
     if (!script_open()) return;
     try {
         read_ahead();
@@ -318,7 +344,7 @@ void xpp_inbox_script_advance(void)
 
 const char *xpp_inbox_script_peek(int *line_no)
 {
-    if (!script_open()) return nullptr;
+    if (script_gen || !script_open()) return nullptr;
     try {
         read_ahead();
     } catch (const std::bad_alloc &) {

@@ -331,23 +331,13 @@ void xpp_model_failed(void)
     xpp::model_failed(xpp::Load::running() ? xpp::Load::diagnostic() : xpp::Diagnostic());
 }
 
-int xpp_batch_main(int argc, char **argv)
+void xpp_batch_start(void)
 {
-    if (!xpp_load_model(argc, argv, 1)) exit(1);
-
     xpp_build_colormap();
     init_browser();
     init_all_graph();
-    if_needed_load_set();
-    if_needed_load_par();
-    if_needed_load_ic();
     if_needed_select_sets();
-    if_needed_load_ext_options();
+    load_command_line_values();
     set_extra_graphs();
     set_colorization_stuff();
-    batch_integrate();
-    if (xpp::session().nullclines.nc_batch > 0) silent_nullclines();
-    if (xpp::session().nullclines.df_batch > 0) silent_dfields();
-    silent_equilibria();
-    return 0;
 }

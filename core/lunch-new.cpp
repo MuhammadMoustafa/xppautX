@@ -20,6 +20,7 @@
 #include "adj2.h"
 #include "integrate.h"
 #include "xpp_globals.h"
+#include "xpp_batch.h"
 #include "delay_handle.h"
 #include <algorithm>
 #include <array>
@@ -402,6 +403,32 @@ void load_parameter_file(std::string name)
 void load_ic_file(std::string name)
 {
   named_value_file(std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
+}
+
+void write_values_query(const char *name, bool sets, bool pars, bool ics)
+{
+  const xpp::Model &m=xpp::model();
+  xpp::Writer w(name);
+  if(!w){
+    xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",name);
+    return;
+  }
+  if(sets){
+    w.print("#Internal sets query:\n");
+    for(std::size_t i=0;i<m.intern_sets.size();i++)
+      w.print("{} {} {}\n",m.intern_sets[i].name,batch_options.uses_intern_set(i),m.intern_sets[i].does);
+  }
+  if(pars){
+    w.print("#Parameters query:\n");
+    for(int i=0;i<m.nupar;i++)
+      w.print("{} {:f}\n",m.upar_names[i],m.default_val[i]);
+  }
+  if(ics){
+    w.print("#Initial conditions query:\n");
+    for(int i=0;i<m.neq;i++)
+      w.print("{} {:f}\n",m.uvar_names[i],xpp::session().last_ic[i]);
+  }
+  w.commit();
 }
 
 void io_parameters(int f, FILE *fp)

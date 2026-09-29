@@ -19,7 +19,10 @@
                                     exits when FILE ends (docs/protocol.md
                                     "Scripts")
      xppautX model.ode -silent      a headless batch run that writes
-                                    output.dat, as upstream xppaut -silent
+                                    output.dat, as upstream xppaut -silent:
+                                    a built-in script (json_silent.cpp) of
+                                    the protocol's commands, played like
+                                    --script with its events going nowhere
 
    usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
@@ -27,8 +30,8 @@
    Every xppaut option still applies; ours have to come first. --verbose
    and --debug raise the core/xpp_log.h threshold (default: warnings and
    errors only) so the banner, parser stats and integrator chatter show
-   on stderr too; xpp_log_parse_arg() also recognizes xpp_batch_main's
-   own argv, so they work with -silent as well. */
+   on stderr too; xpp_log_parse_arg() also recognizes them
+   among xppaut's own options, so they work with -silent as well. */
 #include "model.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -215,7 +218,7 @@ int main(int argc, char **argv)
         }
         return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
     }
-    if (batch) return xpp_batch_main(argc, argv);
+    if (batch) return json_ui_silent(argc, argv);
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */
     if (mode == MODE_WINDOW && (!open_browser || !xpp_window_supported())) mode = MODE_BROWSER;

@@ -73,10 +73,7 @@ void start_model(const xpp::KeptValues *kept)
     ani_zero();
     set_extra_graphs();
     set_colorization_stuff();
-    if_needed_load_set();
-    if_needed_load_par();
-    if_needed_load_ic();
-    if_needed_load_ext_options();
+    load_command_line_values();
     default_window();
     if (kept) xpp::restore_values(*kept);
     json_ui_hello();

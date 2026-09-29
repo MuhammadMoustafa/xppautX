@@ -18,9 +18,10 @@ void restore_nullclines(void);
 void new_clines_com(int c);
 void do_batch_nclines(void);
 void do_batch_dfield(void);
-/* the -silent run's nullclines.dat and dirfields.dat */
-void silent_nullclines(void);
-void silent_dfields(void);
+/* the direction field the current window shows, one arrow a line (x y
+   and the arrow's end), in PostScript's frame (-silent's dirfields.dat,
+   the protocol's `dfield` `write`); an error message when it shows none */
+void write_dfield(const char *name);
 
 #ifdef __cplusplus
 }

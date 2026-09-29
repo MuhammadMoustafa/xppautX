@@ -325,10 +325,12 @@ int set_up_range()
  std::array<std::string, 8> values;
  int status;
  static  const char *yn[]={"N","Y"};
- if(!program.interactive){
-   return(range_item());
+ if(!program.interactive){ /* no dialog: the range the options set */
+   if(range_item()==0)return 0;
+   s.integrator.range_flag=1;
+   return 1;
  }
- 
+
  values[0] = s.integrator.range.item;
  values[1] = xpp::format("{}", s.integrator.range.steps);
  values[2] = xpp::format("{:.16g}", s.integrator.range.plow);
@@ -640,7 +642,7 @@ int do_auto_range_go()
 namespace {
 
 /* Seeds the random generator for a run about to start (Go, a do_range
-   sweep, batch_integrate_once's plain run): rand_seed is the seed shown
+   sweep, usual_integrate_stuff's plain run): rand_seed is the seed shown
    or set for the next run (docs/roadmap.md W71, "@ seed=" in
    load_eqn.cpp, Stochastic > New seed in markov.cpp, -newseed in
    expr_symbols.cpp's init_rpn -- each of those already calls nsrand48
@@ -848,26 +850,25 @@ s.plot_windows.current->color[0]=color;
 
 }
 
-void silent_equilibria()
+void write_equilibrium(const char *name, int shoot)
 {
-  double x[MAXODE],er[MAXODE],em[MAXODE];
-  int ierr,i;
-  if(batch_options.equilibria<0)return;
-  for(i=0;i<xpp::model().node;i++)
-    x[i]=xpp::session().last_ic[i];
+  xpp::Session &s=xpp::session();
+  const int n=xpp::model().node;
+  std::array<double,MAXODE> x,er,em;
+  int ierr;
+  for(int i=0;i<n;i++)
+    x[i]=s.last_ic[i];
 
-  do_sing_info(x,xpp::session().numerics.newt_err,xpp::session().numerics.evec_err,xpp::session().numerics.bound,xpp::session().numerics.evec_iter,xpp::model().node,er,em,&ierr);
-  if(ierr==0){
-    xpp::Writer w("equil.dat");
-    if(w){
-      for(i=0;i<xpp::model().node;i++)
-        w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
-      w.commit();
-    }
-    if(batch_options.equilibria==1)
-      save_batch_shoot();
+  do_sing_info(x.data(),s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,n,er.data(),em.data(),&ierr);
+  if(ierr!=0)return;
+  xpp::Writer w(name);
+  if(w){
+    for(int i=0;i<n;i++)
+      w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
+    w.commit();
   }
-
+  if(shoot)
+    save_batch_shoot();
 }
   
 void find_equilib_com(int com)
@@ -931,151 +932,6 @@ void find_equilib_com(int com)
  
 }
  
-void batch_integrate()
-{
-
-  const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
-  
-  if (sets.empty() || (batch_options.intern_sets_used==0)){
-    xpp::session().this_internset.clear();
-    do_batch_dry_run();
-    batch_integrate_once();
-    return;
-  }
- 
-  for(std::size_t i=0;i<sets.size();i++)
-  {
-  
-  	  xpp::session().this_internset=xpp::format("_{}",sets[i].name);
-	  if (batch_options.user_out_file.empty()) /*Use the set name for outfile name*/
-	  {
-	      batch_options.out_file=xpp::format("{}.dat",sets[i].name);
-	  }
-	  else/*Use the command line supplied outfile name*/
-	  {
-	      /*Will get over-written each internal set*/
-	      batch_options.out_file=batch_options.user_out_file;
-	  }
-	  xpp::log(XPP_LOG_INFO, "out={}\n",batch_options.out_file);
-	  extract_internset(static_cast<int>(i));
-	  chk_delay();
-	  do_batch_dry_run();
-	  if (batch_options.uses_intern_set(i))
-	  {
-		batch_integrate_once(); 
-	  }
-  }
- 
-} 
-
-void do_batch_dry_run()
-{
-	if (!dryrun){return;}
-
-	xpp::log(XPP_LOG_INFO, "It's a dry run...\n");
-	
-	xpp::Writer w(batch_options.out_file.c_str());
-   	if(!w){
-     		xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
-     		return;
-   	}
-	if (querysets)
-	{
-		w.print("#Internal sets query:\n");
-		const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
-		for(std::size_t i=0;i<sets.size();i++)
-		{
-			w.print("{} {} {}\n",sets[i].name,batch_options.uses_intern_set(i),sets[i].does);
-		}
-	}
-
-	if (querypars)
-	{
-		w.print("#Parameters query:\n");
-		for(int i=0;i<xpp::model().nupar;i++)
-		{
-			w.print("{} {:f}\n",xpp::model().upar_names[i],xpp::model().default_val[i]);
-		}
-	}
-
-	if (queryics)
-	{
-		w.print("#Initial conditions query:\n");
-		for(int i=0;i<xpp::model().neq;i++)
-		{
-			w.print("{} {:f}\n",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
-		}
-	}
-
-	w.commit();
- 	return;
-
-}
-
-void batch_integrate_once()
-{
- xpp::Session &s=xpp::session();
- if (dryrun){return;}
- double *x;
- int i;
-  s.integrator.my_start=1;
-  x=&s.data_store.current[0];
-  s.integrator.range_flag=0;
-  s.integrator.delay_err=0;
-   s.data_store.current_time=s.numerics.t0;
-  
-  s.numerics.storflag=1;
-  s.numerics.poiext=0;
-  s.data_store.rows=0;
-  reset_browser();
- if(batch_options.range==1||s.stochastic.flag>0){
-   reset_dae();
-   s.integrator.range_flag=1;
-
-  if(do_range(x,0)!=0)
-    xpp::log(XPP_LOG_WARN, " Errors occured in range integration \n");
- }
- else {
-   seed_this_run();
-   get_ic(2,x);
-    if(s.delay.flag){
-      /* restart initial data */
-      if(do_init_delay(s.numerics.delay)==0)return;
-    }
-   do_start_flags(x,&s.data_store.current_time);
-  if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
-    {
-      s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
-      extra(x,s.data_store.current_time,xpp::model().node,xpp::model().neq);
-      for(i=0;i<xpp::model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
-      s.data_store.rows=1;
-    }
-
-  if(integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start)!=0)
-    xpp::log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
-
-   s.numerics.inflag=1;
-  refresh_browser(s.data_store.rows);
- }
- post_process_stuff();
- if(!batch_options.range || s.integrator.range.reset==0){
-   if(s.stochastic.flag==1)mean_back();
-   if(s.stochastic.flag==2)variance_back();
-   if(!s.integrator.suppress_out){
-  xpp::Writer w(batch_options.out_file.c_str());
-   if(!w){
-     xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",batch_options.out_file);
-     return;
-   }
-   write_mybrowser_data(w);
-
-   w.commit();
-   }
-    if(s.integrator.make_plot_flag)dump_ps(-1);
- }
-  xpp::log(XPP_LOG_INFO, " Run complete ... \n");
-}
-
 int write_this_run(const char *file, int i)
 {
   if(!xpp::session().integrator.suppress_out){
@@ -1127,8 +983,8 @@ void do_init_data(int com)
 
   switch(com){
   case M_IR: /* do range   */
-
-    do_range(x,0);
+    if(do_range(x,0)!=0&&!program.interactive)
+      xpp::log(XPP_LOG_WARN, " Errors occured in range integration \n");
     return;
   case M_I2:
     do_range(x,1);
@@ -1284,7 +1140,8 @@ void do_init_data(int com)
     }
     break;
   }
-usual_integrate_stuff(x);
+if(usual_integrate_stuff(x)!=0&&!program.interactive)
+  xpp::log(XPP_LOG_WARN, " Integration not completed -- will write anyway...\n");
 s.numerics.delta_t=old_dt;
 }	
 void run_now()
@@ -1313,7 +1170,7 @@ void do_start_flags(double *x,double *t)
  one_flag_step(x,x,&iflagstart,*t,&tnew,xpp::model().node,&sss);
 
 }
-void usual_integrate_stuff(double *x)
+int usual_integrate_stuff(double *x)
 {
   xpp::Session &s=xpp::session();
   int i;
@@ -1329,7 +1186,7 @@ void usual_integrate_stuff(double *x)
     }
  
   xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-  integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+  const int failed=integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
   xpp_job_end();
   
   ping();
@@ -1339,6 +1196,7 @@ void usual_integrate_stuff(double *x)
  auto_freeze_it();
   redraw_ics();
   }
+  return failed;
 }
 /*  form_ic  --  u_i(0) = F(i)  where  "i" is represented by "t"
     or  

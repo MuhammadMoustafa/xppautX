@@ -82,7 +82,17 @@ void xpp_inbox_script_skip(void);
 #ifdef __cplusplus
 }
 
+#include <functional>
+#include <optional>
 #include <string>
+
+/* A script made as it goes, in place of --script's file (-silent's
+   built-in script, core/json_silent.cpp): xpp_inbox_script_advance()
+   pushes what next() gives, or closes the inbox when it gives nothing,
+   and asks it only then, so each line can depend on what the lines before
+   it did. It is never peeked at (xpp_inbox_script_peek gives NULL: it
+   holds no recorded interruption). next() runs on the core's thread. */
+void xpp_inbox_start_generated(std::function<std::optional<std::string>()> next);
 
 /* The next line from `which` queue (XPP_INBOX_NORMAL, _CONTROL, _ANY or
    _ARRIVAL), waiting at most wait_ms (< 0: block, 0: poll). Returns 1 with

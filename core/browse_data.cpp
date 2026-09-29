@@ -90,11 +90,20 @@ std::vector<int> all_columns(const BROWSER &b)
 
 } // namespace
 
+namespace {
+
+/* the columns a batch run writes: the "only" list, else every column */
+std::vector<int> output_columns(const BROWSER &b)
+{
+  return N_plist>0?std::vector<int>(plotlist,plotlist+N_plist):all_columns(b);
+}
+
+} // namespace
+
 void write_mybrowser_data(xpp::Writer &w)
 {
   const BROWSER &b=xpp::session().browser.view;
-  const std::vector<int> cols=N_plist>0?std::vector<int>(plotlist,plotlist+N_plist):all_columns(b);
-  xpp::data_format_named("dat")->write(browser_table(b,cols),w);
+  xpp::data_format_named("dat")->write(browser_table(b,output_columns(b)),w);
 }
 
 void find_variable(std::string_view s, int *col)
@@ -172,12 +181,23 @@ bool may_write_file(const char *fil)
 
 } // namespace
 
-xpp::Writer open_writer_asking(const char *fil, bool binary)
+namespace {
+
+/* fil opened for a write that replaces it at commit, whether or not it
+   exists: an empty Writer when it cannot be written (err_msg says so) */
+xpp::Writer open_writer(const char *fil, bool binary)
 {
- if(!may_write_file(fil))return xpp::Writer();
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
  if(!w)err_msg("Cannot open file");
  return w;
+}
+
+} // namespace
+
+xpp::Writer open_writer_asking(const char *fil, bool binary)
+{
+ if(!may_write_file(fil))return xpp::Writer();
+ return open_writer(fil,binary);
 }
 
 void  wipe_rep()
@@ -578,7 +598,7 @@ const xpp::DataFormat *choose_data_format()
 
 } // namespace
 
-void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name)
+void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name, bool replace)
 {
  bool plot;
  if(what.empty()){
@@ -586,9 +606,9 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
    if(k!='t'&&k!='p')return;
    plot=k=='p';
  }
- else if(what=="table"||what=="plot")plot=what=="plot";
+ else if(what=="table"||what=="plot"||what=="output")plot=what=="plot";
  else {
-   err_msg(xpp::format("Save data writes the table or the plot, not {}",what).c_str());
+   err_msg(xpp::format("Save data writes the table, the output or the plot, not {}",what).c_str());
    return;
  }
  const xpp::DataFormat *f=nullptr;
@@ -603,9 +623,9 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
  }
- xpp::DataTable t=plot?plot_curves_table():browser_table(*b,all_columns(*b));
+ xpp::DataTable t=plot?plot_curves_table():browser_table(*b,what=="output"?output_columns(*b):all_columns(*b));
  t.seed=xpp::session().numerics.last_seed;
- xpp::Writer w=open_writer_asking(fil.c_str(),f->binary);
+ xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
  if(!f->write(t,w)){
    err_msg(xpp::format("Cannot write {}",fil).c_str());

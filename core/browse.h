@@ -59,11 +59,15 @@ xpp::Writer open_writer_asking(const char *fil, bool binary = false);
 void write_mybrowser_data(xpp::Writer &w);
 
 /* Save data (the browser's Write, docs/protocol.md): what is "table" (the
-   rows First..Last of every column) or "plot" (what the current plot
-   window shows: its curves and frozen curves as one table curve,x,y[,z]),
-   format a data format's id (data_formats.h), name the file; whichever
-   is empty is asked for (a menu, a menu of the formats, a file). */
-void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name);
+   rows First..Last of every column), "output" (those rows of the model's
+   output columns: its "only" list when it has one, as -silent's
+   output.dat) or "plot" (what the current plot window shows: its curves
+   and frozen curves as one table curve,x,y[,z]), format a data format's
+   id (data_formats.h), name the file; whichever is empty is asked for (a
+   menu, a menu of the formats, a file). An existing file is replaced
+   without asking when replace is set, else after asking. */
+void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name,
+                bool replace = false);
 /* the browser's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into the stored columns, in order */
 void data_read(BROWSER *b, std::string_view format, std::string_view name);

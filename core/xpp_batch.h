@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 /* Reset the "which options were explicitly set" table. Called at the start
-   of the headless xpp_batch_main(). */
+   of a load (xpp_load_model). */
 void xpp_reset_options(void);
 
 /* Command-line scan for -quiet / -logfile (they must win over .xpprc) */
@@ -14,9 +14,12 @@ void check_for_quiet(int argc, char **argv);
 /* .xpprc, environment and command-line option processing */
 void do_vis_env(void);
 
-/* Headless run: parse argv like xppaut does, force batch mode, load the
-   ODE file, integrate, write output.dat. Returns 0 on success. */
-int xpp_batch_main(int argc, char **argv);
+/* After xpp_load_model with no interface (-silent, a unit test): the
+   browser, the graphs and the colours set up, and the command line's
+   files and internal sets taken in (-setfile, -parfile, -icfile,
+   -readset/-with, -internset/-uset/-rset). What -silent then runs is
+   its built-in script (json_silent.cpp). */
+void xpp_batch_start(void);
 
 /* the shared start: options, the ODE file, numerics set-up; batch forces
    batch mode. 1 when the model loaded (its Model and Session are the

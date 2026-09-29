@@ -3081,6 +3081,87 @@ def check_display_state():
         stop_server(p, r, snd)
 
 
+def check_silent_commands():
+    """W56: -silent is a built-in script of the protocol's own commands.
+    Each command it uses where the interface had none (browser write of
+    the output columns with replace, browser postprocess, values query,
+    dfield write, equilibrium write) writes, from a --script, the very
+    file the -silent run writes; -silent prints nothing on stdout."""
+    def silent(ode, *flags):
+        d = tempfile.mkdtemp(prefix='xppsilent')
+        shutil.copy(ode, d)
+        r = subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'] + list(flags), cwd=d,
+                           capture_output=True, text=True, timeout=60 * SLOW)
+        return d, r
+
+    def script(ode, lines, before=None):
+        d = tempfile.mkdtemp(prefix='xppscript')
+        shutil.copy(ode, d)
+        if before:
+            before(d)
+        with open(os.path.join(d, 'script.jsonl'), 'w') as f:
+            f.write(''.join(json.dumps(c) + chr(10) for c in lines))
+        r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', os.path.basename(ode)],
+                           cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
+        return d, r
+
+    def read(d, n):
+        path = os.path.join(d, n)
+        return open(path, 'rb').read().replace(b'\r', b'') if os.path.exists(path) else None
+
+    go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+    dirs = []
+    try:
+        s, r = silent(args.ode, '-qsets', '-qpars', '-qics', '-outfile', 'q.txt')
+        dirs.append(s)
+        q, rq = script(args.ode, [{'cmd': 'values', 'op': 'query', 'name': 'q.txt', 'sets': 1, 'pars': 1, 'ics': 1}])
+        dirs.append(q)
+        check('values query writes what -silent -qsets -qpars -qics writes', rq.returncode == 0 and
+              read(q, 'q.txt') is not None and read(q, 'q.txt') == read(s, 'q.txt'), rq.stderr[-300:])
+
+        s, r = silent(args.ode, '-dfdraw', '4', '-equil', '0')
+        dirs.append(s)
+        check('-silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])
+        stale = lambda d: open(os.path.join(d, 'output.dat'), 'w').write('stale\n')
+        c, rc = script(args.ode, go + [
+            {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat', 'name': 'output.dat', 'replace': 1},
+            {'cmd': 'equilibrium', 'op': 'write', 'name': 'equil.dat'},
+            {'cmd': 'key', 'key': 'd'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'value': '16'},
+            {'cmd': 'dfield', 'op': 'write', 'name': 'dirfields.dat'}], before=stale)
+        dirs.append(c)
+        check('the script with -silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
+        check('browser write of the output, replace: -silent\'s output.dat, over the file there, unasked',
+              read(c, 'output.dat') is not None and read(c, 'output.dat') == read(s, 'output.dat'))
+        check('equilibrium write: -silent -equil 0\'s equil.dat',
+              read(c, 'equil.dat') is not None and read(c, 'equil.dat') == read(s, 'equil.dat'))
+        df = read(c, 'dirfields.dat') or b''
+        check('dfield write: the direction field shown, one arrow a line (17 x 17), in -silent -dfdraw 4\'s form',
+              len(df.splitlines()) == 17 * 17 and df == read(s, 'dirfields.dat'),
+              '%d lines' % len(df.splitlines()))
+        bad, rb = script(args.ode, [{'cmd': 'dfield', 'op': 'write', 'name': 'none.dat'}])
+        dirs.append(bad)
+        check('dfield write with no field shown is an error, and writes nothing',
+              rb.returncode == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
+
+        dirs.append(tempfile.mkdtemp(prefix='xpppost'))
+        post = os.path.join(dirs[-1], 'post.ode')
+        with open(post, 'w') as f:
+            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\ndone\n")
+        s, r = silent(post)
+        dirs.append(s)
+        c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
+                                   {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat',
+                                    'name': 'output.dat'}])
+        dirs.append(c)
+        hist = read(c, 'output.dat') or b''
+        check('browser postprocess: the model\'s @ postprocess (a 20-bin histogram), as -silent writes it',
+              len(hist.splitlines()) == 21 and hist == read(s, 'output.dat'), '%d lines' % len(hist.splitlines()))
+    finally:
+        for d in dirs:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+check_silent_commands()
 check_open_reload()
 check_display_state()
 

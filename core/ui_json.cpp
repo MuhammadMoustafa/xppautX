@@ -15,6 +15,9 @@
 #include "session.h"
 #include "ui_json.h"
 #include "form_ode.h"
+#include "xpp_batch.h"
+#include "integrate.h"
+#include "nullcline.h"
 #include "ui_json_internal.h"
 #include "xpp_log.h"
 #include "xpp_http.h"
@@ -438,6 +441,14 @@ void handle_line(const char *line, unsigned long seq)
         xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
     } else if (is_cmd(line, "values")) {
         values_command(line);
+    } else if (is_cmd(line, "dfield") || is_cmd(line, "equilibrium")) {
+        /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
+        std::string o, name;
+        get_string(line, "op", o, 8);
+        get_string(line, "name", name, XPP_MAX_NAME);
+        if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
+        else if (is_cmd(line, "dfield")) write_dfield(name.c_str());
+        else write_equilibrium(name.c_str(), get_int(line, "shoot", 0));
     } else if (is_cmd(line, "open")) {
         std::string file;
         get_string(line, "file", file);
@@ -528,9 +539,15 @@ int json_ui_set_script(const char *path)
     return 1;
 }
 
-void json_ui_install(void)
+namespace {
+
+/* the front end: the XppUi table, the data modules' output, the input
+   classifier, and the protocol on stdio unless silent (-silent: its
+   events go nowhere, and what the core says goes to the log, as with no
+   interface at all: xpp_ui.cpp's headless messages) */
+void install(bool silent)
 {
-    if (!xpp_http_active()) { /* browser mode has taken stdout and stderr */
+    if (!silent && !xpp_http_active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
         /* commands from stdin, read on a thread of their own; a script's
            file (json_ui_set_script(), called before this) is read by the
@@ -548,7 +565,33 @@ void json_ui_install(void)
     auto_data_init(data_emit, diag_point_of_node);
     auto_settings_init(data_emit);
     xpp_inbox_set_classifier(classify);
-    xpp_set_ui(&json_ui);
+    XppUi ui = json_ui;
+    if (silent) {
+        /* NULL keeps the headless entry (xpp_set_ui) */
+        ui.err_msg = nullptr;
+        ui.respond_box = nullptr;
+        ui.show_eq_box = nullptr;
+        ui.copy_text = nullptr;
+    }
+    xpp_set_ui(&ui);
+}
+
+} // namespace
+
+void json_ui_install(void) { install(false); }
+
+int json_ui_silent(int argc, char **argv)
+{
+    /* the model loads as with no interface at all: a model that does not
+       load exits 1, its reason logged */
+    if (!xpp_load_model(argc, argv, 1)) exit(1);
+    xpp_batch_start();
+    session.script_mode = 1;
+    xpp_inbox_start_generated(silent_script());
+    install(true);
+    script_next(); /* its first line */
+    json_ui_loop(); /* exits when the script ends */
+    return 0;
 }
 
 void json_ui_load_error(const xpp::Diagnostic &d)

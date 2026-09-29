@@ -32,12 +32,14 @@ program for you.
 xppautX also has two front-end-free modes, for scripting and automated
 checks rather than interactive use:
 
-- **`xppautX model.ode -silent`**: no interface at all
-  (`xpp_batch_main`); loads the model, does whatever the ODE file's `@`
-  options, an options file, or further command-line flags
+- **`xppautX model.ode -silent`**: no interface at all; loads the model,
+  does whatever the ODE file's `@` options, an options file, or further
+  command-line flags
   ([Quick reference](16-quick-reference.md#command-line-arguments)) tell
-  it to (typically: integrate) and writes `output.dat`, then exits. This
-  is what to use from a shell script or a test.
+  it to (typically: integrate) and writes `output.dat`, then exits. It
+  runs these as the commands the page sends (Initialconds/Go, Save data,
+  ...), so a run from the shell and the same run in the page do the same
+  thing. This is what to use from a shell script or a test.
 - **`xppautX --server model.ode`**: the same JSON protocol web2 speaks
   over HTTP, instead over stdin/stdout, for a process that wants to drive
   xppautX directly (docs/protocol.md is the contract). `--script FILE`

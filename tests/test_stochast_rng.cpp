@@ -17,6 +17,7 @@
 #include "histogram.h"
 #include "integrate.h"
 #include "xpp_batch.h"
+#include "menudrive.h"
 
 #include <cmath>
 
@@ -46,9 +47,8 @@ int main(void)
     char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.ode";
     char *argv[] = {arg0, arg1, NULL};
     xpp_load_model(2, argv, 1);
-    init_browser();
-    init_all_graph();
-    batch_integrate();
+    xpp_batch_start();
+    run_the_commands(M_IG); /* Initialconds/Go, as -silent's script runs it */
 
     int n = xpp::session().data_store.rows;
     CHECK(n > 3900); /* total=4000, dt=1: ~4001 rows */

@@ -336,7 +336,7 @@ void do_comline(int argc, char **argv)
  }
 }
 
-int if_needed_load_ext_options()
+static int if_needed_load_ext_options()
 {
   if(externaloptionsflag==0)
     return 1;
@@ -393,7 +393,7 @@ int if_needed_select_sets()
 	return 1;
 }
 
-int if_needed_load_set()
+static int if_needed_load_set()
 {
   if(!loadsetfile)
   {
@@ -409,7 +409,7 @@ int if_needed_load_set()
   return 1;
 }
 
-int if_needed_load_par()
+static int if_needed_load_par()
 {
 
   if(!loadparfile)
@@ -421,7 +421,7 @@ int if_needed_load_par()
   return 1;
 }
 
-int if_needed_load_ic()
+static int if_needed_load_ic()
 {
   
   if(!loadicfile)
@@ -431,6 +431,12 @@ int if_needed_load_ic()
   xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",icfilename);
   io_ic_file(icfilename.c_str(),1);
   return(1);
+}
+
+void load_command_line_values()
+{
+  for(int (*load)() : {if_needed_load_set,if_needed_load_par,if_needed_load_ic,if_needed_load_ext_options})
+    load();
 }
 
 int parse_it(const char *com)

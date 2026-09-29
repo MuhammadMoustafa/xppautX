@@ -9,6 +9,9 @@
 #include "expr.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
+#include "session.h"
+#include "storage.h"
+#include "menudrive.h"
 
 #include <cmath>
 #include <cstdio>
@@ -601,25 +604,24 @@ int main(void)
   }
 
   /* near(a, b[, tol=]) numerically: tools/models/near_test.odex's aux
-     columns, read back from output.dat (not the translation's text) */
+     columns, integrated as -silent does (Initialconds/Go) and read from
+     the stored columns (not the translation's text) */
   {
-    char arg0[] = "test_odex", model[] = "tools/models/near_test.odex", outflag[] = "-outfile",
-         outfile[] = "build/test_odex_near_output.dat";
-    char *argv[] = {arg0, model, outflag, outfile, nullptr};
-    CHECK(xpp_batch_main(4, argv) == 0);
-    FILE *fp = fopen("build/test_odex_near_output.dat", "r");
-    CHECK(fp != nullptr);
-    if (fp) {
-      char line[512];
-      CHECK(fgets(line, sizeof line, fp) != nullptr); /* t=0's row: t, x, then the auxes in order */
-      double t_true = 0, t_false = 0, t_bound = 0, t_over = 0, t_default = 0;
-      CHECK(sscanf(line, "%*g %*g %lg %lg %lg %lg %lg", &t_true, &t_false, &t_bound, &t_over, &t_default) == 5);
-      CHECK(t_true == 1);
-      CHECK(t_false == 0);
-      CHECK(t_bound == 1); /* the boundary, |a-b| == tol*max(...): near is <=, so true */
-      CHECK(t_over == 0);
-      CHECK(t_default == 1); /* within the default 1e-9 */
-      fclose(fp);
+    char arg0[] = "test_odex", model[] = "tools/models/near_test.odex";
+    char *argv[] = {arg0, model, nullptr};
+    CHECK(xpp_load_model(2, argv, 1) == 1);
+    xpp_batch_start();
+    run_the_commands(M_IG);
+    const DataStore &d = xpp::session().data_store;
+    CHECK(d.rows > 0);
+    if (d.rows > 0) {
+      /* t=0's row: t, x, then the auxes in order */
+      auto aux = [&d](int k) { return static_cast<double>(d.col[2 + k][0]); };
+      CHECK(aux(0) == 1);
+      CHECK(aux(1) == 0);
+      CHECK(aux(2) == 1); /* the boundary, |a-b| == tol*max(...): near is <=, so true */
+      CHECK(aux(3) == 0);
+      CHECK(aux(4) == 1); /* within the default 1e-9 */
     }
   }
 

@@ -63,8 +63,10 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
-| `browser` | `op` (`write`, `load`); for `write` `what`, `format`, `name`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. |
+| `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `-silent` does after its run. The other buttons are the window's keys ("Window keys"). |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window; one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. |
+| `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `-silent`'s `-dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
+| `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `-silent`'s `-equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
@@ -111,7 +113,9 @@ per format):
 | `npz` | `.npz` | NumPy's `numpy.savez_compressed` format: a zip of `.npy` files, one float64 array per column named after it (`T.npy`, `V.npy`, ...) |
 
 `what` is `table` (the rows First..Last of every column: `T`, then the
-browser's `cols`) or `plot` (the current plot window's curves, then its
+browser's `cols`), `output` (those rows of the model's output columns: its
+`only` list when it has one, else every column: what `-silent` writes as
+output.dat) or `plot` (the current plot window's curves, then its
 frozen curves, as one long table `curve,x,y` (and `z` in 3D), one row per
 point, the curves numbered from 1; in NPZ one (points, 2 or 3) array per
 curve, `curve1`, `curve2`, ...). Graphic stuff > exp(O)rt (keys `g`, `o`)
@@ -122,7 +126,8 @@ What is not given is asked, in this order: `what` as a `menu` ask named
 `save_format` (one item per registered format, in the table's order, keys
 `d`, `c`, `g`, `n`), the name as a `file` ask whose `wild` is `*` and the
 format's extension. An existing file is only replaced after a `choice` ask
-(File Exists! Overwrite?). An unknown `what` or `format` is an error message.
+(File Exists! Overwrite?), or without it with `replace` 1 (a script cannot
+know whether the file is there). An unknown `what` or `format` is an error message.
 
 The browser's `load` asks for `name` (a `file` ask, `wild` `*`) when it is
 not given and reads it as `format`, or else as the format of its extension,
@@ -271,6 +276,39 @@ that bifurcates from it, and saves the diagram:
 Run it with:
 
     xppautX --script examples/scripts/lecar_auto.jsonl examples/ode/lecar.ode
+
+## -silent
+
+`xppautX model.ode -silent` is a script of these same commands, built in
+(core/json_silent.cpp): after the model loads with no interface at all (a
+model that does not load exits 1), the command line and the model's `@`
+options say which commands, and they are played as `--script` plays a
+file, with no reader, their events going nowhere and what the core says
+going to the log as with no interface (nothing new on stdout; an error
+message leaves the exit status 0, as before). Each step is made when its
+turn comes, after the steps before it ran, since an internal set may
+change any option. The questions the commands ask are answered by the
+script's next lines; one it does not expect stops it (exit 1). For each
+run (once, or for each internal set in turn with `-internset`/`-uset`/`-rset`,
+each set's data then in `<set>.dat` unless `-outfile` is given):
+
+| what | commands |
+|---|---|
+| the internal set | `values` `internset` with its `index` (File/Get par set) |
+| `-qsets`/`-qpars`/`-qics`, `-dryrun` | `values` `query` into the output file; nothing is run |
+| the run | `key` `i`, `answer` `g` (Initialconds/Go), or `answer` `r` (Range) for `@ range=1` or `@ stoch=` |
+| `@ postprocess=` | `browser` `postprocess` |
+| unless each run of a range wrote its own `output.dat.N`: `@ stoch=1`/`2` | `key` `u`, `key` `h`, `answer` `m` (Mean) or `v` (Variance), `key` `Escape` |
+| output.dat (`@ output=`, `-outfile`; not with `-noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
+| `-mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `-plotfmt svg`), then `answer` `file` |
+
+and after every run: `@ ncdraw=2` (on a phase plane) `key` `n`, `answer`
+`n`, `key` `n`, `answer` `s`, `answer` `file` nullclines.dat; `@ dfdraw=4`/`5`
+(on a phase plane) `key` `d`, `answer` `d` or `s`, `answer` the grid,
+`dfield` `write` dirfields.dat; `-equil 0`/`1` `equilibrium` `write`
+equil.dat (`shoot` 1 for `-equil 1`). The files the command line names
+(`-setfile`, `-parfile`, `-icfile`, `-readset`, `-with`) are read by the
+model's start in every mode, before the script.
 
 ## Events (server to client)
 

@@ -81,6 +81,7 @@ void out_line(const char *s, size_t n)
         xpp_http_emit(s, n);
         return;
     }
+    if (!proto) return; /* -silent: nowhere */
     fwrite(s, 1, n, proto);
     fputc('\n', proto);
 }

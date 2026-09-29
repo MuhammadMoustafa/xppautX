@@ -252,6 +252,10 @@ void show_main_menu(int which);
    (commands.cpp) */
 extern int help_menu;
 void get_intern_set(void);
+/* File/Get par set's work on the model's internal set j (0-based): its
+   values and options, its plot settings on the current window; it
+   becomes the set in use (Session::this_internset) */
+void use_intern_set(int j);
 void copy_set_line(void);
 
 

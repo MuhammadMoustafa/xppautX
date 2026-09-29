@@ -33,8 +33,6 @@
 
 #define MAX_NULL 10000
 
-static int NCSuppress=0;
-static int DFSuppress=0;
 
 constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
 
@@ -268,7 +266,7 @@ void quad_contour(Pt p1, Pt p2, Pt p3, Pt p4)
     if(interpolate(p1,p4,0.0,&x[count],&y[count]))count++;
 
   if(count==2){
-    if(!NCSuppress)line_abs(x[0],y[0],x[1],y[1]);
+    line_abs(x[0],y[0],x[1],y[1]);
     stor_null(x[0],y[0],x[1],y[1]);
   }
 }
@@ -390,7 +388,7 @@ void get_max_dfield(double *y, double *ydot, double u0, double v0, double du, do
 
 /* The direction field's grid (DF_FLAG 1 or 4: arrows, 2: colored boxes),
    drawn and recorded for the front end; dump, when only computed
-   (DFSuppress), gets each arrow instead of the screen. */
+   (write_dfield), gets each arrow instead of the screen. */
 void dfield_grid(int grid, double u0, double v0, double du, double dv, double dz,
                  int inx, int iny, xpp::Writer *dump)
 {
@@ -498,31 +496,6 @@ void froz_cline_stuff_com(int i)
   }
 }
 
-void silent_dfields()
-{
-  if(xpp::session().nullclines.df_batch==5 ||xpp::session().nullclines.df_batch==4){
-    DFSuppress=1;
-    init_ps();
-    do_batch_dfield();
-    DFSuppress=0;
-  }
-}
-
-void silent_nullclines()
-{
-  if(xpp::session().nullclines.nc_batch!=2)return;
-  NCSuppress=1;
-  new_clines_com(0);
-  xpp::Writer fp("nullclines.dat");
-  if(!fp){
-    xpp_log(XPP_LOG_WARN, "Cannot open nullcline file\n");
-    return;
-  }
-  dump_clines(fp,x_null.data(),num_x_n,y_null.data(),num_y_n);
-  fp.commit();
-  NCSuppress=0;
-}
-
 int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
 {
   if(who<0){
@@ -600,22 +573,24 @@ void do_batch_dfield()
   redraw_dfield();
 }
 
-void redraw_dfield()
+namespace {
+
+/* the current window shows the direction field set last */
+bool dfield_shown()
+{
+  const xpp::Session &s=xpp::session();
+  return !(s.nullclines.df_flag==0||
+     s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag
+     || DF_IX!=s.plot_windows.current->xv[0]||DF_IY!=s.plot_windows.current->yv[0]);
+}
+
+/* the current window's direction field, drawn, or into dump */
+void dfield_of_window(xpp::Writer *dump)
 {
   xpp::Session &s=xpp::session();
   const int inx=s.plot_windows.current->xv[0]-1;
   const int iny=s.plot_windows.current->yv[0]-1;
   const int grid=s.nullclines.df_grid;
-  if(s.nullclines.df_flag==0||
-     s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag
-     || DF_IX!=s.plot_windows.current->xv[0]||DF_IY!=s.plot_windows.current->yv[0])
-    return;
-  xpp::Writer dump;
-  if(DFSuppress==1){
-    dump=xpp::Writer("dirfields.dat");
-    if(!dump)return;
-  }
-
   const double du=(s.plot_windows.current->xhi-s.plot_windows.current->xlo)/static_cast<double>(grid);
   const double dv=(s.plot_windows.current->yhi-s.plot_windows.current->ylo)/static_cast<double>(grid);
 
@@ -624,11 +599,34 @@ void redraw_dfield()
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
-  if(!DFSuppress)set_linestyle(s.plot_windows.current->color[0]);
-  dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,DFSuppress==1?&dump:nullptr);
-  if(DFSuppress==1)
-    dump.commit();
-  DFSuppress=0;
+  if(!dump)set_linestyle(s.plot_windows.current->color[0]);
+  dfield_grid(grid,u0,v0,du,dv,dz,inx,iny,dump);
+}
+
+} // namespace
+
+void redraw_dfield()
+{
+  if(dfield_shown())dfield_of_window(nullptr);
+}
+
+void write_dfield(const char *name)
+{
+  xpp::Session &s=xpp::session();
+  if(!dfield_shown()){
+    err_msg("No direction field in this window");
+    return;
+  }
+  /* in PostScript's frame, whatever the window's, as -silent always
+     wrote it: the arrows' lengths do not depend on the window's size */
+  const DrawingState drawn=s.drawing;
+  init_ps();
+  xpp::Writer w(name);
+  if(w){
+    dfield_of_window(&w);
+    w.commit();
+  }
+  s.drawing=drawn;
 }
 
 void direct_field_com(int c)
@@ -772,14 +770,13 @@ void new_clines_com(int c)
   null_storage(course);
 
   WHICH_CRV=null_ix;
-  if(!NCSuppress)set_linestyle(col1);
+  set_linestyle(col1);
   new_nullcline(course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
   ping();
 
   WHICH_CRV=null_iy;
-  if(!NCSuppress)set_linestyle(col2);
+  set_linestyle(col2);
   new_nullcline(course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
   ping();
-  if(!NCSuppress)
-    phase_data_nullclines(x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
+  phase_data_nullclines(x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
 }

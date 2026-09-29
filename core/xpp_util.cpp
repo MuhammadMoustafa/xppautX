@@ -252,13 +252,17 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 }
 
-void dump_ps(int i)
+std::string batch_plot_name(int i)
 {
   const std::string &file=xpp::model().this_file,&set=xpp::session().this_internset;
   const std::string &format=xpp::session().plot_export.format;
-  std::string filename=i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
-                          :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
+  return i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
+            :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
+}
 
+void dump_ps(int i)
+{
+  const std::string filename=batch_plot_name(i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(xpp::session().plot_export.format);
    if(fmt && fmt->begin(filename.c_str(),xpp::session().plot_export.color))
      fmt->restore();

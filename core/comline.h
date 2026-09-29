@@ -11,10 +11,9 @@ extern "C" {
 
 void do_comline(int argc, char **argv);
 int if_needed_select_sets(void);
-int if_needed_load_set(void);
-int if_needed_load_par(void);
-int if_needed_load_ic(void);
-int if_needed_load_ext_options(void);
+/* after a load, in every mode: the files the command line names
+   (-setfile, -parfile, -icfile) and its -readset/-with options */
+void load_command_line_values(void);
 int parse_it(const char *com);
 
 /* the command line's switches: -include (loadincludefile), -qsets/-qpars/

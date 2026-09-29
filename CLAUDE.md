@@ -379,8 +379,10 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
-- `core/xpp_batch.cpp` is the headless entry point; `xpp_load_model()` there
-  is the start shared with the server.
+- `core/xpp_batch.cpp` holds `xpp_load_model()`, the start every mode
+  shares, and `xpp_batch_start()`, the set-up with no interface (-silent,
+  a unit test); what -silent runs is `core/json_silent.cpp`'s built-in
+  script, played through the JSON front end (W56).
 - `core/ui_json.cpp` + `core/xppautx_main.cpp` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). ui_json.cpp holds the `XppUi`
   table, the command dispatch (`handle_line`), the input classifier,
@@ -400,7 +402,8 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.cpp` picks
   the desktop window (the default), browser mode (`--browser`/`--web`, or
   `--no-open`), `--server` (the protocol on stdin/stdout) or `-silent`
-  (xpp_batch_main, no interface at all). The window (W13a) is
+  (no interface at all: json_ui_silent plays json_silent.cpp's built-in
+  script of protocol commands, W56). The window (W13a) is
   `core/xpp_window.cpp` (C API in xpp_window.h) over the vendored
   `third_party/webview` (built as its own object, `webview.o`, from
   `core/xpp_webview.cpp`, which includes it and adds `xpp_webview_create`:

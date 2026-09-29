@@ -24,6 +24,7 @@
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "lunch-new.h"
+#include "histogram.h"
 #include "menus.h"
 #include <strings.h>
 #include <climits>
@@ -220,7 +221,8 @@ void j_browser_changed(int)
 
 /* {"cmd":"browser","op":"load"|"write",...}: Save data's and Load's
    choices given, each asked for when not given (the keys l and w of
-   menu_browser_window ask them all) */
+   menu_browser_window ask them all); "postprocess": the model's
+   @ postprocess on the data (histogram.cpp) */
 void browser_command(const char *line)
 {
     xpp::Session &s=xpp::session();
@@ -230,7 +232,8 @@ void browser_command(const char *line)
     get_string(line, "format", format, 16);
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o == "load") data_read(&s.browser.view, format, name);
-    else if (o == "write") data_write(&s.browser.view, what, format, name);
+    else if (o == "write") data_write(&s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
+    else if (o == "postprocess") post_process_stuff();
     else j_err_msg(xpp::format("Unknown browser op {}", o).c_str());
     browser_dirty = 1;
 }
@@ -437,9 +440,24 @@ void slide_command(const char *line)
 void values_command(const char *line)
 {
     std::string o, kind, name;
-    get_string(line, "op", o, 8);
+    get_string(line, "op", o, 16);
     get_string(line, "kind", kind, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
+    if (o == "internset") { /* File/Get par set, the set given by index or name */
+        const std::vector<xpp::Model::InternalSet> &sets = xpp::model().intern_sets;
+        int j = get_int(line, "index", -1);
+        for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
+            if (sets[i].name == name) j = static_cast<int>(i);
+        if (j < 0) j_err_msg(xpp::format("No internal set {}", name).c_str());
+        else use_intern_set(j);
+        state_dirty = 1;
+        return;
+    }
+    if (o == "query") {
+        if (name.empty()) j_err_msg("values query needs a name");
+        else write_values_query(name.c_str(), get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
+        return;
+    }
     if (kind != "par" && kind != "ic") {
         j_err_msg(xpp::format("values writes or reads par or ic, not {}", kind).c_str());
         return;

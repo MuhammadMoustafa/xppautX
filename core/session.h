@@ -122,7 +122,8 @@ struct Session {
      (set_bc_formula) and compiled when a shooting starts (pp_shoot.cpp) */
   std::array<xpp::Model::BoundaryCondition,MAXODE> bcs;
 
-  /* "_<name>" of the internal set a batch run last applied, "" when none */
+  /* "_<name>" of the internal set applied last (use_intern_set), "" when
+     none: a batch run's plot files are named after it (batch_plot_name) */
   std::string this_internset;
 
   /* the delay equations' state (delay_handle.cpp) */

@@ -4,7 +4,7 @@
    in a different order shifts every value after it, which a user only
    notices as a restored session that behaves differently.
 
-   The model is loaded the way xppautX -silent loads it (xpp_batch_main),
+   The model is loaded the way xppautX -silent loads it (xpp_load_model),
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "session.h"

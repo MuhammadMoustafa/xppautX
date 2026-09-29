@@ -24,7 +24,9 @@
 #include "xpp_mem.h"
 #include "display_state.h"
 #include <stddef.h>
+#include <functional>
 #include <iterator>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -65,6 +67,12 @@ int during_run(const char *line);     /* what a running computation takes (ui_js
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
+
+/* ---- json_silent.cpp ---- */
+
+/* -silent's built-in script: its command lines, each made when its turn
+   comes (xpp_inbox_start_generated) */
+std::function<std::optional<std::string>()> silent_script(void);
 
 /* ---- json_io.cpp: output ---- */
 

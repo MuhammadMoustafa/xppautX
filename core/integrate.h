@@ -7,7 +7,12 @@
 extern "C" {
 #endif
 
-void silent_equilibria(void);
+/* the equilibrium Newton finds from the initial data, with its
+   eigenvalues (x, re, im per variable), written to name (nothing when
+   Newton does not converge); shoot: also the invariant manifolds of a
+   saddle, integrated into UMk.dat/SMk.dat (-silent's -equil 0/1, the
+   protocol's `equilibrium` `write`) */
+void write_equilibrium(const char *name, int shoot);
 void init_ar_ic(void);
 void dump_range(FILE *fp, int f);
 void init_range(void);
@@ -25,14 +30,11 @@ void swap_color(int *col, int rorw);
 void set_cycle(int flag, int *icol);
 int do_range(double *x, int flag);
 void find_equilib_com(int com);
-void batch_integrate(void);
-void do_batch_dry_run(void);
-void batch_integrate_once(void);
 int write_this_run(const char *file, int i);
 void do_init_data(int com);
 void run_now(void);
 void do_start_flags(double *x, double *t);
-void usual_integrate_stuff(double *x);
+int usual_integrate_stuff(double *x); /* integrate()'s result */
 void do_new_array_ic(const char *newic, int j1, int j2);
 void store_new_array_ic(const char *newic, int j1, int j2, const char *formula);
 void evaluate_ar_ic(const char *v, const char *f, int j1, int j2);

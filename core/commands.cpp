@@ -177,8 +177,13 @@ void get_intern_set(void)
   XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
                no_hint, -1};
   char ch = static_cast<char>(menu_choose(&m, 0));
-  int j = ch - 'a';
-  if (j < 0 || j >= count) {
+  use_intern_set(ch - 'a');
+}
+
+void use_intern_set(int j)
+{
+  const std::vector<xpp::Model::InternalSet> &sets = xpp::model().intern_sets;
+  if (j < 0 || j >= static_cast<int>(sets.size())) {
     err_msg("Not a valid set");
     return;
   }
@@ -188,6 +193,7 @@ void get_intern_set(void)
   redraw_params();
   redraw_ics();
   reset_graph();
+  xpp::session().this_internset = "_" + sets[static_cast<std::size_t>(j)].name;
 }
 
 /* File/cOpy set line (W67): the current values as a `set` line for the

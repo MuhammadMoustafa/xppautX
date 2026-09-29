@@ -42,5 +42,10 @@ void save_parameter_file(std::string name);
 void save_ic_file(std::string name);
 void load_parameter_file(std::string name);
 void load_ic_file(std::string name);
+/* the model's internal sets (name, whether -silent runs it, what it
+   sets), its parameters' values in the file and its initial conditions,
+   those asked for, each under its # heading, into name (-silent's
+   -qsets/-qpars/-qics, the protocol's `values` `query`) */
+void write_values_query(const char *name, bool sets, bool pars, bool ics);
 #endif
 #endif

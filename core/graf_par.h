@@ -86,6 +86,11 @@ namespace xpp { struct DataTable; } /* data_formats.h */
    point, as the columns curve, x, y and, in 3D, z */
 xpp::DataTable plot_curves_table();
 
+/* the plot file of a batch run (dump_ps): the model's file name, the
+   internal set's (_name), then the run's number i (_0007) unless i < 0,
+   and the plot format's extension (@ plotfmt=) */
+std::string batch_plot_name(int i);
+
 /* How plots are written to files (PostScript, SVG) */
 struct XppPlotExport {
     std::string format; /* a batch run's plot files: "ps" or "svg" (@ plotfmt=) */
