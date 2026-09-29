@@ -225,9 +225,9 @@ struct Model {
   std::vector<std::string> source;
   int nlines() const { return static_cast<int>(source.size()); }
   /* its statements as its reader read them (odex.h; an array's copies,
-     each marked), in order, as the builder made them (a fixed quantity
-     of parameters a derived one): xppautX --convert writes them
-     (odex_convert.cpp) */
+     each marked), in order, as the builder made them (in an .odex, a
+     fixed quantity of parameters a derived one): xppautX --convert
+     writes them (odex_convert.cpp) */
   std::vector<odex::Statement> statements;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */

@@ -4,6 +4,7 @@
 #include "xpptest.h"
 #include "odex.h"
 #include "derived.h"
+#include "form_ode.h"
 #include "model.h"
 #include "expr.h"
 #include "xpp_batch.h"
@@ -521,7 +522,16 @@ int main(void)
   CHECK_STR(quantities("par a = 2\ne = d*2\nd = a\nx' = e\n").c_str(), "e:fixed|d:derived");
   CHECK_STR(quantities("par a = 2\nd = a\naux d = d\nx' = d\n").c_str(), "d:fixed");
   CHECK_STR(quantities("par a = 2\nd = a\nx' = delay(d, 1)\n").c_str(), "d:fixed");
-  CHECK_STR(quantities("par a=2\n!tr=-a\nw=a*2\nv=x\nx'=tr+w+v\n", "ode").c_str(), "TR:derived|W:derived|V:fixed");
+  /* an .ode's fixed quantity of parameters stays fixed, as XPPAUT's; the
+     same .odex d = expr is derived (maintainer, 2026-09-29) */
+  CHECK_STR(quantities("par a=2\n!tr=-a\nw=a*2\nv=x\nx'=tr+w+v\n", "ode").c_str(), "TR:derived|W:fixed|V:fixed");
+  CHECK_STR(quantities("par a = 2\ntr = -a\nw = a*2\nv = x\nx' = tr+w+v\n").c_str(), "tr:derived|w:derived|v:fixed");
+  {
+    /* --convert's check builds the .ode as the .odex will be */
+    const OdeAsOdex as_odex;
+    CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:derived");
+  }
+  CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:fixed");
   CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
   {
     /* worked out again when a parameter changes, as .ode's ! is */

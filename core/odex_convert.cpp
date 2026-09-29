@@ -1311,6 +1311,9 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     xpp::log(XPP_LOG_ERROR, "{} is .odex already\n", ode);
     return 1;
   }
+  /* the .ode built with .odex's derived quantities, as its .odex will be:
+     the check compares like with like (the numbers are the same) */
+  const OdeAsOdex as_odex;
   if (!xpp_load_model(2, argv.data(), 1)) return 1;
   const std::string out = odex_name(ode);
   std::string text;

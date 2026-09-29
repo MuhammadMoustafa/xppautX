@@ -551,12 +551,16 @@ text rewritten for each index, `[j+1]`, `[j*2]` and a bare `[3]` its
 quirks) and marks each copy; the `.odex` reader (`odex_load.cpp`) works
 out each const's value in order, then each range and makes the copies,
 every element `x[e]` the name it is, and checks them as any statement.
-The builder (`form_ode.cpp`'s `find_derived`), for both readers' models,
-makes a fixed quantity that reads only parameters, consts, pure
-functions and the derived quantities before it a derived one (one an aux
-records under its name, one `delay`, `shift` or a Volterra kernel needs
-as a variable, and one a network or vector may read stay variables), and
-marks an `.ode`'s own `!` quantities that read anything else (which
---convert refuses). The derived quantities are the Model's
+The builder (`form_ode.cpp`'s `find_derived`), for an `.odex` model
+(`Parsed::derived`), makes a fixed quantity that reads only parameters,
+consts, pure functions and the derived quantities before it a derived
+one (one an aux records under its name, one `delay`, `shift` or a
+Volterra kernel needs as a variable, and one a network or vector may
+read stay variables). An `.ode` follows XPPAUT (maintainer, 2026-09-29):
+its fixed quantities stay fixed and only its `!` quantities are derived;
+the builder marks those that read anything else (which --convert
+refuses). --convert's check builds the `.ode` as the `.odex` will be
+(`OdeAsOdex`), so that the two compile alike; the numbers are the same
+either way. The derived quantities are the Model's
 (`Model::derived`), so a model loaded after another starts without the
 one before's.

@@ -1022,6 +1022,10 @@ void needs_variables(const std::string &text, std::set<std::string> &out)
   for(size_t p=t.find('#');p!=std::string::npos;p=t.find('#',p+1))word_at(p+1);
 }
 
+/* OdeAsOdex's count (form_ode.h): more than 0 while --convert's check
+   builds an .ode as an .odex */
+int ode_as_odex=0;
+
 /* ---- the builder ---- */
 class Builder {
 public:
@@ -1033,7 +1037,7 @@ public:
     m.ieee_division=p_.ieee_division;
     ConvertStyle=0;
     begin_model();
-    find_derived();
+    find_derived(p_.derived||ode_as_odex>0);
     for(Statement &s : p_.statements){
       at(s);
       declare(s);
@@ -1098,18 +1102,19 @@ private:
     return out;
   }
 
-  /* The derived quantities, whichever reader made the statements (docs/
-     odex.md question 9): a fixed variable whose formula reads only
-     parameters, consts, pure functions and the derived quantities before
-     it is worked out only when a parameter changes, as .ode's !name =
-     expr is (a slider, an event setting a parameter, each AUTO
-     evaluation): the same numbers, worked out less often. One an aux
-     quantity records under its name, delay, shift or a Volterra kernel
-     needs as a variable, or a network or a vector may read (any name a
-     word of theirs starts: p{1-4} reads p1 ... p4) stays one. An .ode's !name =
-     expr stays what it is; parameters_only says whether it reads only
-     those (--convert refuses one that does not). */
-  void find_derived()
+  /* The derived quantities (docs/odex.md question 9). With fixed (an
+     .odex model), a fixed variable whose formula reads only parameters,
+     consts, pure functions and the derived quantities before it is worked
+     out only when a parameter changes, as .ode's !name = expr is (a
+     slider, an event setting a parameter, each AUTO evaluation): the same
+     numbers, worked out less often. One an aux quantity records under its
+     name, delay, shift or a Volterra kernel needs as a variable, or a
+     network or a vector may read (any name a word of theirs starts:
+     p{1-4} reads p1 ... p4) stays one. An .ode's fixed quantities stay
+     fixed, as XPPAUT's, and its !name = expr stays what it is;
+     parameters_only says whether it reads only those (--convert refuses
+     one that does not). */
+  void find_derived(bool fixed)
   {
     Purity pure;
     std::set<std::string> keep,prefixes;
@@ -1147,7 +1152,7 @@ private:
 	  s.parameters_only=s.parameters_only&&pure.reads(text(b.value,true),none,true);
 	for(const Binding &b : s.bindings)pure.derived.insert(xpp::upper_case(b.name));
       }
-      else if(s.kind==Statement::Kind::Fixed&&!kept(s.name)&&
+      else if(fixed&&s.kind==Statement::Kind::Fixed&&!kept(s.name)&&
 	      pure.reads(text(s.expr,true),none,true)){
 	Binding b;
 	b.name=s.name;
@@ -1522,6 +1527,16 @@ private:
 void build_model(Parsed p)
 {
   Builder(p).run();
+}
+
+OdeAsOdex::OdeAsOdex()
+{
+  ode_as_odex++;
+}
+
+OdeAsOdex::~OdeAsOdex()
+{
+  ode_as_odex--;
 }
 
 void set_initial_values()

@@ -215,11 +215,15 @@ struct Statement {
 /* a parsed model: its files (the model's, then those it includes) and
    its statements in order, an include's where the include was;
    ieee_division when its formulas divide as IEEE does (1/0 inf, 0/0 NaN:
-   .odex's, docs/odex.md question 1), not as .ode's */
+   .odex's, docs/odex.md question 1), not as .ode's; derived when a fixed
+   quantity that reads only parameters, consts and pure functions is a
+   derived one (.odex's, docs/odex.md question 9; an .ode's fixed
+   quantities stay fixed, as XPPAUT's) */
 struct Parsed {
   std::vector<std::string> files;
   std::vector<Statement> statements;
   bool ieee_division = false;
+  bool derived = false;
 };
 
 /* text, the contents of file, parsed; an include is read relative to

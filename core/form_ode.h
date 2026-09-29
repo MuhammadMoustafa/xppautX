@@ -45,9 +45,21 @@ void set_initial_values(void);
 /* The Model builder: a model's statements (odex.h), whichever reader made
    them, into the current Model and Session; a statement that does not
    build fails the load (xpp_model_failed, at the statement: the load's
-   diagnostic). A fixed quantity that reads only parameters, consts and
-   pure functions becomes a derived one (docs/odex.md question 9). */
+   diagnostic). In an .odex model (Parsed::derived), a fixed quantity that
+   reads only parameters, consts and pure functions becomes a derived one
+   (docs/odex.md question 9); an .ode's stays fixed, as XPPAUT's. */
 void build_model(xpp::odex::Parsed p);
+/* While one lives (xppautX --convert's check, odex_convert.cpp), an .ode
+   model is built with .odex's derived quantities, so that the .ode and
+   the .odex written from it compile alike (the numbers are the same
+   either way); otherwise an .ode's fixed quantities stay fixed. */
+class OdeAsOdex {
+public:
+  OdeAsOdex();
+  ~OdeAsOdex();
+  OdeAsOdex(const OdeAsOdex &) = delete;
+  OdeAsOdex &operator=(const OdeAsOdex &) = delete;
+};
 /* an old-style model, neq its number of equations: each line next_line
    gives (false at the end) built as it is read, fptr the file (a Markov
    table's lines are read from it) */

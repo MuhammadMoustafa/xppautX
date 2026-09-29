@@ -126,6 +126,7 @@ public:
     Parsed out;
     out.files = p_.files;
     out.ieee_division = true;
+    out.derived = true;
     for (const Statement &s : statements) in_copy(s.array, [&] { ready(s, out.statements); });
     return out;
   }
