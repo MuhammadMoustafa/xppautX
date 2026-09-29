@@ -4082,6 +4082,9 @@ async function kinescope(dir) {
   check('kinescope: integrate once (601 rows)', await integrate(601, 30000));
 
   const openKinescope = async item => {
+    /* the command before ended (Make Anigif's runs on after its file is
+       written): a k typed while it runs is lost (W93) */
+    await until('!s.busy && !s.ask', 'the command before ended');
     await key('k');
     if (!(await until("s.ask && s.ask.kind === 'menu'", 'kinescope menu'))) return false;
     await key(item);
