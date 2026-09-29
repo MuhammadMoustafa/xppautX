@@ -1218,6 +1218,8 @@ async function windows() {
   const clicks = await cdp.eval(`__xpp.sent().slice(${sentBefore}).filter(c => c.cmd === 'click').map(c => c.win)`);
   check('the second, sent while the first was busy, is held and applied at its idle',
     heldOk && JSON.stringify(clicks) === '[1,2]', JSON.stringify([await S('[s.busy, s.plots.active, s.core.win]'), clicks]));
+  check('... and its tab has the focus: the tab it left, disabled while the click ran, did not take it away (W93)',
+    await until(`!s.busy && document.activeElement.id === 'plot-tab-2'`, 'held tab focused'), await tabState());
 
   /* a plot mode (T4) on the tab shown: Window/Zoom by the keyboard zooms window 2, not window 1 */
   const axes1 = await S('JSON.stringify(s.plots.windows[0].info)');
@@ -2541,7 +2543,9 @@ async function autoStopRace() {
   await key('a');
   check('AUTO Stop race: File/Auto opens the AUTO view',
     await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open')
-    && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`));
+    && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`),
+    JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state(); return {busy: s.busy, menu: s.core.menu, ask: s.ask,
+      diagram: [s.diagram.open, s.diagram.shown, !!s.diagram.axes], sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`)));
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
 
   /* heavy.ode starts at a stable point (mu=-1): the steady branch finds
@@ -4136,10 +4140,14 @@ async function kinescope(dir) {
       JSON.stringify(gif));
   } else check('kinescope: the GIF has one frame per capture, all the same size', false, 'anim.gif missing');
 
-  check('kinescope: Playback (k, p) shows frame 1 then frame 2', await openKinescope('p')
-    && await until('s.kinescope.playing && s.kinescope.shown === 0', 'showing 0')
-    && await until('s.kinescope.shown === 1', 'showing 1')
-    && await until('!s.kinescope.playing && !s.busy', 'play done'));
+  const played = [];
+  const playOk = await openKinescope('p')
+    && (played.push('opened'), await until('s.kinescope.playing && s.kinescope.shown === 0', 'showing 0'))
+    && (played.push('0'), await until('s.kinescope.shown === 1', 'showing 1'))
+    && (played.push('1'), await until('!s.kinescope.playing && !s.busy', 'play done'));
+  check('kinescope: Playback (k, p) shows frame 1 then frame 2', playOk,
+    JSON.stringify({reached: played, kinescope: await S('({playing: s.kinescope.playing, shown: s.kinescope.shown, frames: s.kinescope.frames.length})'),
+      busy: await S('s.busy'), sent: await cdp.eval('__xpp.sent().slice(-3)')}));
 
   /* Make Anigif (k, m) directly, the raw protocol path the Export GIF
      button above also drives: no prompt, so a plain menu pick */

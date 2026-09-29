@@ -5,7 +5,7 @@
    active one (`click`), so keys and menus act on the window shown.
    Keyboard: the WAI-ARIA tabs pattern, automatic activation (arrow keys,
    Home, End move and select; Tab leaves the tab list). */
-import {useRef} from 'preact/hooks';
+import {useEffect, useRef} from 'preact/hooks';
 import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import type {PlotWindow} from '../store/plots';
 import {BUSY_TITLE, useSession, useStore} from './context';
@@ -55,6 +55,17 @@ export function Plots({dark}: {dark: boolean}) {
   const active = useStore(s => s.plots.active);
   const busy = useStore(s => s.busy);
   const tabs = useRef<HTMLDivElement>(null);
+  /* the tab a key picked: a pick while the core is busy is held for its idle
+     (session.selectWindow), and the tab it leaves is disabled while the
+     pick's own click runs, which takes the focus from it; the tab the key
+     picked gets it once it is the active one, so the next key is the tabs'
+     again, not an XPP hotkey (W93) */
+  const keyPicked = useRef<number | null>(null);
+  useEffect(() => {
+    if (keyPicked.current !== active) return;
+    keyPicked.current = null;
+    tabs.current?.querySelector<HTMLElement>(`#plot-tab-${active}`)?.focus();
+  }, [active, busy]);
   /* before the first `plots` or `series`: window 1, empty */
   const shownWins = windows.length ? windows.map(w => w.win) : [1];
   const tabbed = windows.length > 1;
@@ -69,6 +80,7 @@ export function Plots({dark}: {dark: boolean}) {
     e.preventDefault();
     e.stopPropagation(); /* not an XPP hotkey */
     const win = windows[next].win;
+    keyPicked.current = win;
     session.selectWindow(win);
     tabs.current?.querySelector<HTMLElement>(`#plot-tab-${win}`)?.focus();
   };
