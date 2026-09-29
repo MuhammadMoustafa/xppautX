@@ -320,10 +320,7 @@ xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 .PHONY: app
 APP_DIR := xppautX.app
 app: xppautx assets/icon.icns
-	@mkdir -p $(APP_DIR)/Contents/MacOS $(APP_DIR)/Contents/Resources
-	cp xppautX $(APP_DIR)/Contents/MacOS/xppautX
-	cp assets/icon.icns $(APP_DIR)/Contents/Resources/icon.icns
-	sed 's/@XPPAUTX_VERSION@/$(XPPAUTX_VERSION)/g' tools/associate/Info.plist.in > $(APP_DIR)/Contents/Info.plist
+	tools/make_app.sh xppautX $(APP_DIR) $(XPPAUTX_VERSION)
 	@echo "app: wrote $(APP_DIR) (XPPAUTX_VERSION=$(XPPAUTX_VERSION))"
 
 # unit tests over libxppcore, for pure code that an end-to-end run would only

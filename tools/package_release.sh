@@ -114,9 +114,11 @@ case "$platform" in
     cp LICENSE "$root/usr/share/doc/xppautx/copyright"
     cp README.md "$root/usr/share/doc/xppautx/README.md"
     chmod 644 "$root"/usr/share/doc/xppautx/*
-    # libc6 from the release runner's glibc floor; libstdc++/libgcc only
-    # when the binary links them dynamically
-    deps="libc6 (>= 2.39)"
+    # libc6 from the newest glibc symbol version the binary uses;
+    # libstdc++/libgcc only when the binary links them dynamically
+    glibc=$(objdump -T "$bin" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -V | tail -1)
+    [ -n "$glibc" ] || { echo "package_release: no GLIBC version in $bin" >&2; exit 1; }
+    deps="libc6 (>= $glibc)"
     if command -v readelf >/dev/null 2>&1; then
       needed=$(readelf -d "$bin" 2>/dev/null)
       case "$needed" in *libstdc++.so.6*) deps="$deps, libstdc++6 (>= 13)" ;; esac
@@ -146,11 +148,7 @@ EOF
     # unsigned xppautX.app (Info.plist from the template the Makefile's
     # "app" target also uses, icon from assets/icon.icns) and an
     # /Applications link, in a compressed disk image
-    app="build/$name-dmg/xppautX.app"
-    rm -rf "build/$name-dmg" && mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" || exit 1
-    cp "$bin" "$app/Contents/MacOS/xppautX"
-    cp assets/icon.icns "$app/Contents/Resources/icon.icns"
-    sed "s/@XPPAUTX_VERSION@/$version/g" tools/associate/Info.plist.in > "$app/Contents/Info.plist"
+    rm -rf "build/$name-dmg" && tools/make_app.sh "$bin" "build/$name-dmg/xppautX.app" "$version" || exit 1
     ln -s /Applications "build/$name-dmg/Applications"
     hdiutil create -volname "xppautX $version" -srcfolder "build/$name-dmg" -ov -format UDZO "$name.dmg" >/dev/null || exit 1
     shasum -a 256 "$name.dmg" > "$name.dmg.sha256"
