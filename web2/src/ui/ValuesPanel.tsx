@@ -22,7 +22,7 @@ import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, pendingText, sixSig, type ValueKind} from '../store/values';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -143,14 +143,16 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
   const what = kind === 'par' ? 'parameters' : 'initial conditions';
+  /* a file written or read: data, not while a computation runs (W95) */
+  const saveOff = !useMay()({cmd: 'values', op: 'write'});
   return (
     <>
-      <button class="small" onClick={() => session.saveValues(kind)}
-        title={`Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, -icfile'})`}>
+      <button class="small" onClick={() => session.saveValues(kind)} disabled={saveOff}
+        title={saveOff ? BUSY_TITLE : `Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, -icfile'})`}>
         Save
       </button>
-      <button class="small" onClick={() => input.current?.click()}
-        title={`Load ${what} from a file in XPP's own format`}>Load</button>
+      <button class="small" onClick={() => input.current?.click()} disabled={saveOff}
+        title={saveOff ? BUSY_TITLE : `Load ${what} from a file in XPP's own format`}>Load</button>
       <input ref={input} id={`values-load-${kind}`} type="file" hidden
         onChange={async e => {
           const el = e.target as HTMLInputElement, file = el.files?.[0];
@@ -203,7 +205,7 @@ function StateSection() {
   const session = useSession();
   const ics = useStore(s => s.core?.ics);
   const hasNow = useStore(s => !!s.core?.now);
-  const busy = useStore(s => s.busy);
+  const busy = !useMay()({cmd: 'key', key: 'i'}); /* Initialconds/Last: a computation (W95) */
   const now = useNow();
   if (!ics?.length) return null;
   return (
@@ -252,7 +254,7 @@ function IndexedSection({id, title, kind, entries, hint}: {
 
 function UserButtonsBlock() {
   const session = useSession();
-  const busy = useStore(s => s.busy);
+  const busy = !useMay()({cmd: 'userbut'});
   const names = useStore(s => s.hello?.userbuttons ?? []);
   if (!names.length) return null;
   return (

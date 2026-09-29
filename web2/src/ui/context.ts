@@ -1,11 +1,13 @@
 /* How components reach the session and read the store. */
 import {createContext} from 'preact';
 import {useContext, useEffect, useReducer, useRef} from 'preact/hooks';
+import type {LayerWindow} from '../protocol/kinds';
+import type {Command} from '../protocol/types';
 import type {Session} from '../session';
 import type {AppState} from '../store/state';
 
-/** the title of a control that needs the core while it computes (T21: the core runs one command at a time) */
-export const BUSY_TITLE = 'Busy: available when the current run ends';
+/** the title of a control whose kind waits while the core computes (W95: data and computation) */
+export const BUSY_TITLE = 'Not while a computation runs: available when it ends';
 
 export const SessionContext = createContext<Session | null>(null);
 
@@ -34,4 +36,22 @@ export function useStore<T>(select: (s: AppState) => T): T {
     return stop;
   }, [session]);
   return selected;
+}
+
+/** whether a command may go out now (Session.may: by its kind, protocol/kinds.ts, W95),
+    for a control's `disabled`; the component renders again when that can change */
+export function useMay(): (cmd: Command) => boolean {
+  const session = useSession();
+  useStore(s => s.computing);
+  useStore(s => s.ask);
+  useStore(s => s.hello);
+  useStore(s => s.core?.menu);
+  return cmd => session.may(cmd);
+}
+
+/** the same for item `id` of window `win`'s key layer (Session.mayKey) */
+export function useMayKey(): (win: LayerWindow, id: string) => boolean {
+  const session = useSession();
+  useMay();
+  return (win, id) => session.mayKey(win, id);
 }

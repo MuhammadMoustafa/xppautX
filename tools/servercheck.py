@@ -213,6 +213,46 @@ check('size is no command any more (removed in protocol 2): an unknown-command e
       [e.get('ev') for e in evs] == ['message', 'state', 'idle'] and 'Unknown command' in evs[0].get('error', ''),
       str(evs)[:200])
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
+
+# W95: every action's kind, one letter (c control, v view, d data, x
+# computation): each item of the three main-window menus and of the windows'
+# key layers (core/menus.cpp), and every command that is not a key (the
+# command table core/ui_json.cpp dispatches from); the documented commands
+# (docs/protocol.md's table) are each in it
+def check_hello_kinds():
+    menus = hello.get('menus', {})
+    bad = [w for w in ('main', 'file', 'num')
+           if len(menus.get(w + '_kinds', '')) != len(menus.get(w + '_keys', ''))
+           or len(menus.get(w + '_kinds', '')) != len(menus.get(w, []))
+           or set(menus.get(w + '_kinds', '')) - set('cvdx')]
+    check('W95: hello gives each item of the main, File and Numerics menus a kind', not bad, str(bad))
+    wins = hello.get('windows', {})
+    badw = [w for w, l in wins.items()
+            if not (len(l.get('kinds', '')) == len(l.get('keys', '')) == len(l.get('ids', [])) == len(l.get('items', [])))
+            or set(l.get('kinds', '')) - set('cvdx')]
+    check('W95: hello gives the key layers of auto, browser, ani, aplot and equilibrium, a kind and a name per key',
+          sorted(wins) == ['ani', 'aplot', 'auto', 'browser', 'equilibrium'] and not badw, str(sorted(wins)) + str(badw))
+    cmds = hello.get('commands', [])
+    kinds = {(c['cmd'], c.get('op')): c['kind'] for c in cmds}
+    doc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'protocol.md'),
+               encoding='utf-8').read()
+    section = doc[doc.index('## Commands (client to server)'):doc.index('## Window keys')]
+    documented = set(re.findall(r'^\| `(\w+)` \|', section, re.M)) - {'key'}
+    missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
+    check('W95: hello gives every documented command but key a kind', not missing and cmds
+          and all(k in 'cvdx' for k in kinds.values()), str(missing))
+    want = {('display', None): 'v', ('set', None): 'd', ('values', None): 'd', ('abort', None): 'c',
+            ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 'd', ('userbut', None): 'x'}
+    check('W95: kinds as decided: display a view, set/values/Save data, abort control, a user button a computation',
+          all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
+    main = dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', '')))
+    check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Write set is data, File/Quit control',
+          main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
+          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('w') == 'd'
+          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('q') == 'c', str(main))
+
+
+check_hello_kinds()
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']
@@ -2778,13 +2818,17 @@ try:
 finally:
     stop_server(p3, r3, snd3)
 
-# W68 (GitHub #116, docs/protocol.md "Commands during a command"): while a
-# computation runs, a command it does not act on is dropped with one log
-# line, never queued to run after it. lecar with Total 1e7 (2e8 steps) does not end on
-# its own before the Abort below, whatever the machine's speed; its first
-# progress event says it is under way, and its stopped that it still was
-# when the Abort came, after the lines under test.
-def check_dropped_during_run():
+# W68, W95 (GitHub #116, #144, docs/protocol.md "Commands during a command"):
+# while a computation runs, a command of the data or computation kind is
+# refused (one log line, then, after the computation, an error message, state
+# and idle of its own: never run), a view command is kept and runs after the
+# computation, and what the computation acts on (browser with from, abort) is
+# taken at once. The computation says it began (`computing`, before its
+# progress). lecar with Total 1e7 (2e8 steps) does not end on its own before
+# the Abort below, whatever the machine's speed; its first progress event
+# says it is under way, and its stopped that it still was when the Abort
+# came, after the lines under test.
+def check_refused_during_run():
     log = []
     p, r, snd, col, _ = launch_server(log=log)
     is_ask = lambda e: e.get('ev') == 'ask'
@@ -2801,31 +2845,50 @@ def check_dropped_during_run():
         col(is_idle)
         snd(cmd='key', key='i')
         evs, ask = col(is_ask)
+        check('W95: a menu opened is no computation (no computing event yet)',
+              not any(e.get('ev') == 'computing' for e in evs), str([e.get('ev') for e in evs]))
         snd(cmd='answer', id=ask['id'], key='g')
         evs, prog = col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
-        snd(cmd='key', key='u')  # nUmerics, whose Total would ask after the run if it were queued
-        snd(cmd='key', key='t')
-        snd(cmd='set', kind='par', name='iapp', value=0.3)
+        check('W95: the integration says it computes (computing) before its progress',
+              [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
+        snd(cmd='key', key='s')  # Sing pts: a computation
+        snd(cmd='key', key='c')  # Continue: a computation
+        snd(cmd='set', kind='par', name='iapp', value=0.3)  # data
+        snd(cmd='display', win=1, x=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
-        during = [e for e in evs if e.get('ev') in ('ask', 'idle')]
+        during = [e for e in evs if e.get('ev') in ('ask', 'idle', 'message')]
         snd(cmd='abort')
         evs, e = col(is_idle, timeout=30 * SLOW)
         stopped = any(x.get('ev') == 'stopped' for x in evs)
         check('W68: during a run, a browser request is answered at once and the run goes on until the Abort (stopped)',
               prog is not None and rows is not None and not during and stopped, str([x.get('ev') for x in evs])[-200:])
-        snd(cmd='state')
-        evs2, _ = col(is_idle)
-        asks = [x for x in evs + evs2 if is_ask(x)]
-        st2 = [x for x in evs + evs2 if is_state(x)]
-        check('W68: a key and a set sent during a run are dropped: no menu or ask after it, the parameter unchanged',
-              not asks and st2 and iapp(st2[-1]) == 0.05, str(asks)[:200] + ' ' + str(st2 and iapp(st2[-1])))
-        want = ['ignored during a run: key u', 'ignored during a run: key t', 'ignored during a run: set']
+        after = []
+        for _ in range(4):  # the three refused lines, then the display, each with its own idle
+            more, _ = col(is_idle)
+            after.append(more)
+        refused = [[x.get('error', '') for x in m if x.get('ev') == 'message'] for m in after[:3]]
+        check('W95: a computation or data command sent during a run is refused after it: an error, state and idle each',
+              all(len(m) == 1 and 'Not while a computation runs' in m[0] for m in refused)
+              and not any(is_ask(x) for m in after for x in m), str(refused))
+        st = [x for m in after for x in m if is_state(x)]
+        check('W95: the refused set left the parameter unchanged', st and iapp(st[-1]) == 0.05,
+              str(st and iapp(st[-1])))
+        snd(cmd='data', events=['plots'])
+        evs, _ = col(is_idle)
+        plots = [x for x in evs if x.get('ev') == 'plots']
+        w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 1), None)
+        check('W95: a view command sent during a run runs after it (display: the zoom shown)',
+              not any(x.get('ev') == 'message' for x in after[3]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
+              str(w1 and w1.get('zoom')))
+        want = ['refused during a computation: key s', 'refused during a computation: key c',
+                'refused during a computation: set']
         deadline = time.monotonic() + 5 * SLOW
         while not all(w in log for w in want) and time.monotonic() < deadline:
             time.sleep(0.05)
-        check('W68: each dropped line is logged once ("ignored during a run: key u")',
-              all(log.count(w) == 1 for w in want), str([l for l in log if 'ignored' in l]))
+        check('W95: each refused line is logged once ("refused during a computation: key s"), the view none',
+              all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 3,
+              str([l for l in log if 'refused' in l]))
         snd(cmd='key', key='u')
         col(is_idle)
         snd(cmd='key', key='t')
@@ -2839,7 +2902,30 @@ def check_dropped_during_run():
         stop_server(p, r, snd)
 
 
-check_dropped_during_run()
+check_refused_during_run()
+
+
+# W95: a command sent right behind one that asks, before the client saw the
+# question, is kept for after that command, never lost: its own idle comes
+# (the key i opens a menu; the state behind it runs once the menu is answered)
+def check_kept_behind_ask():
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='key', key='i')
+        snd(cmd='equations')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], ok=0)
+        evs, _ = col(is_idle)
+        evs2, _ = col(is_idle)
+        check('W95: a command sent before a question it could not see runs after that command (equations, own idle)',
+              any(x.get('ev') == 'equations' for x in evs2) and not any(x.get('ev') == 'equations' for x in evs),
+              str([x.get('ev') for x in evs2]))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_kept_behind_ask()
 
 def check_copy_set():
     """W67: File/cOpy set line asks the set's name, shows the line, and sends it

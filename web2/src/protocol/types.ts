@@ -1,6 +1,8 @@
 /* The protocol's messages as types (docs/protocol.md). Only the fields the
    new front end reads are typed; everything else passes through untouched. */
 
+import type {CommandKind, LayerWindow, WindowLayer} from './kinds';
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
@@ -11,7 +13,13 @@ export interface HelloEvent {
     main: string[]; main_keys: string; main_hints: string[];
     file: string[]; file_keys: string; file_hints: string[];
     num: string[]; num_keys: string; num_hints: string[];
+    /** each item's kind, one letter per key (protocol/kinds.ts); absent from an older server */
+    main_kinds?: string; file_kinds?: string; num_kinds?: string;
   };
+  /** the windows' key layers (protocol/kinds.ts) */
+  windows?: Partial<Record<LayerWindow, WindowLayer>>;
+  /** every command that is not a key, with its kind */
+  commands?: CommandKind[];
   lists: string[][];
   userbuttons: string[];
   sliders: {name: string; lo: number; hi: number}[];
@@ -447,6 +455,8 @@ export type XppEvent =
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'erase' | 'redraw'; win: number}
   | {ev: 'progress'; n: number; of: number}
+  /** the running command began computing: until its idle only view and control actions start */
+  | {ev: 'computing'}
   | {ev: 'title'; text: string}
   | {ev: 'menu'; which: number}
   /** File/Help: open the manual at this chapter (and anchor) */

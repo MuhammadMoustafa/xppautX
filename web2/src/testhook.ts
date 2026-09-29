@@ -22,6 +22,9 @@ export function installTestHook(session: Session): void {
      own: from the last that started it over (a reset to no points), for AUTO's
      window as it is now */
   let diagramEvents: unknown[] = [];
+  /* every kinescope frame the page showed, in order (null: none), so a test
+     sees a playback's steps however fast they pass (W94: a poll can miss one) */
+  const kinescopeShown: (number | null)[] = [];
   const dispatch = session.store.dispatch;
   session.store.dispatch = (a: Action) => {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
@@ -34,7 +37,13 @@ export function installTestHook(session: Session): void {
       sent.push(a.cmd);
       if (sent.length > KEEP) sent.shift();
     }
+    const shown = session.store.getState().kinescope.shown;
     dispatch(a);
+    const now = session.store.getState().kinescope.shown;
+    if (now !== shown) {
+      kinescopeShown.push(now);
+      if (kinescopeShown.length > KEEP) kinescopeShown.shift();
+    }
   };
   (window as unknown as {__xpp: unknown}).__xpp = {
     state: () => session.store.getState(),
@@ -49,6 +58,8 @@ export function installTestHook(session: Session): void {
     send: (cmd: {cmd: string}) => session.send(cmd),
     /** the animation's last drawing: the frame, its primitive count, the canvas and the box on it */
     ani: () => aniDrawInfo(),
+    /** the kinescope frames shown, each change in order (null: none shown) */
+    kinescopeShown: () => kinescopeShown.slice(),
     /** Stop: a client-only action, nothing to send (session.ts kinescopeStop) */
     kinescopeStop: () => session.kinescopeStop(),
   };

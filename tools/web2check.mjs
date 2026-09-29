@@ -2683,13 +2683,13 @@ async function busyAuto() {
   const a = await autoArea();
   await mouse('mouseMoved', a.x + a.w / 2, a.y + a.h / 2);
   await mouse('mouseWheel', a.x + a.w / 2, a.y + a.h / 2, {deltaX: 0, deltaY: -120});
-  check('busy: during an integration the AUTO diagram zooms, and Run is disabled with "Busy: available when the current run ends"',
+  check('busy: during an integration the AUTO diagram zooms, and Run is disabled with "Not while a computation runs"',
     busy && await until('s.busy && s.diagram.viewport.x', 'zoom while busy', 3000) && run.disabled
-    && run.title === 'Busy: available when the current run ends', JSON.stringify([busy, run, await DS('d.viewport')]));
-  check('busy: T22: Parameter, Numerics and Mark values stay enabled (their changes wait)',
-    await cdp.eval(`['P', 'N', 'U'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
+    && run.title === 'Not while a computation runs: available when it ends', JSON.stringify([busy, run, await DS('d.viewport')]));
+  check('busy: T22: Parameter, Numerics and Mark values stay enabled (their changes wait), and Axes and Clear (views, W95)',
+    await cdp.eval(`['P', 'N', 'U', 'A', 'C'].every(k => !document.querySelector('.auto-tools button[aria-keyshortcuts=' + k + ']').disabled)`));
   check("busy: ... and the main window's menu waits the same way", !!menu && menu[0] === true
-    && menu[1] === 'Busy: available when the current run ends', JSON.stringify(menu));
+    && menu[1] === 'Not while a computation runs: available when it ends', JSON.stringify(menu));
   await until('!s.busy', 'integration done', 30000);
 }
 
@@ -2717,19 +2717,39 @@ async function busyKeys() {
   const n0 = await cdp.eval('__xpp.actions().length');
   await key('g');
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
-  const ui = await cdp.eval(`(() => ({
-    status: document.querySelector('[data-testid=status]').textContent,
-    menu: [...document.querySelectorAll('.menu-panel .menu-item')].every(b => b.disabled),
-    integrate: document.querySelector('.title-bar button.primary').getAttribute('aria-disabled'),
-    newWindow: [...document.querySelectorAll('.plot-window-tools button')].find(b => /New window/.test(b.textContent)).disabled,
-  }))()`);
-  check('busy keys: during a run the status says what runs and that Escape stops it, and the menu, Integrate and New window are disabled',
-    running && ui.status === 'Running Go… Esc stops' && ui.menu && ui.integrate === 'true' && ui.newWindow, JSON.stringify(ui));
+  /* W95: what is disabled during a computation is decided by each action's kind, from hello */
+  const ui = await cdp.eval(`(() => {
+    const item = k => document.querySelector('.menu-panel .menu-item[aria-keyshortcuts="' + k + '"]');
+    const tool = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
+    const off = [...document.querySelectorAll('.menu-panel .menu-item')].filter(b => b.disabled)
+      .map(b => b.getAttribute('aria-keyshortcuts')).join('');
+    return {
+      status: document.querySelector('[data-testid=status]').textContent, off,
+      integrate: document.querySelector('.title-bar button.primary').getAttribute('aria-disabled'),
+      newWindow: tool('New window').disabled,
+      save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
+      stop: document.querySelector('.status-bar button.danger').disabled,
+      viewItems: ['w', 'v', 'x', 'r', 'e', 'f'].every(k => !item(k).disabled),
+    };
+  })()`);
+  check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
+    + 'and data (Initialconds, Sing pts, Parameters...) and Save are disabled',
+    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.save
+    && ['i', 'c', 'n', 'd', 's', 'b', 'p', 'g'].every(k => ui.off.includes(k)), JSON.stringify(ui));
+  check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File), New window and Stop stay enabled',
+    ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
+  /* a view clicked during the run is sent, and the core runs it after the run (the menu it
+     opens is answered then): New window makes window 2 once the run has stopped */
+  const sentView = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`[...document.querySelectorAll('.plot-window-tools button')].find(b => /New window/.test(b.textContent)).click()`);
+  const viewSent = await cdp.eval(`__xpp.sent().slice(${sentView})`);
+  check('W95: a view button clicked during the run goes out (New window: Makewindow)',
+    viewSent.length === 1 && viewSent[0].key === 'm' && await S('s.busy'), JSON.stringify(viewSent));
   const sent0 = await cdp.eval('__xpp.sent().length');
   await focusPlot();
-  await key('f');
   await key('i');
-  await key('g');
+  await key('s');
+  await key('c');
   const typed = await cdp.eval(`__xpp.sent().slice(${sent0})`);
   const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
@@ -2740,18 +2760,25 @@ async function busyKeys() {
   const pending = await S(`s.values.pending.length === 1 && s.values.pending[0].name === 'iapp'
     && document.querySelector('[data-slider="${sid}"]').classList.contains('queued')`);
   const stillBusy = await S('s.busy');
-  check('busy keys: letters typed during a run send nothing, and a slider moved then sends nothing, its edit pending',
+  check('busy keys: computation keys typed during a run (I, S, C) send nothing, and a slider moved then sends nothing, its edit pending',
     typed.length === 0 && dragged.length === 0 && pending && stillBusy, JSON.stringify({typed, dragged, pending, stillBusy}));
   await focusPlot();
   await key('Escape');
   const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
-  const out = await cdp.eval(`__xpp.sent().slice(${sent0}).map(c => c.cmd)`);
+  /* (the New window's own menu, answered by its key once the core runs it after the run, is no typed key) */
+  const out = await cdp.eval(`__xpp.sent().slice(${sent0}).map(c => c.cmd).filter(c => c !== 'answer')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
   const iapp0 = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the parameter is unchanged',
     stopped && cancelled && out.length === 0 && Math.abs(iapp0 - 0.05) < 1e-9 && (await S('s.values.pending.length')) === 1,
     JSON.stringify({stopped, cancelled, out, iapp0}));
+  /* the New window clicked during the run ran after it: its menu answered by the click's own key */
+  check('W95: the view clicked during the run ran after it: window 2 exists',
+    await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
+    JSON.stringify(await S('[s.busy, s.ask, s.plots.windows.length]')));
+  await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'plot-tab-1').click()`);
+  await until('!s.busy && s.plots.active === 1', 'window 1 again');
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
      command that computes takes the slider's pending edit */
   const draggedTo = await S('s.values.pending.length ? Number(s.values.pending[0].text) : null');
@@ -3107,7 +3134,14 @@ async function runsCheck(dir) {
      the files API (session.ts loadValues, the same PUT any other upload
      uses) and sends `values` `read` -- applied at once, like File/Read
      set, not staged as a pending edit, so no Go is needed. */
-  await cdp.eval(`[...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click()`);
+  /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
+     catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
+  const sentSave = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`(() => { __xpp.send({cmd: 'redraw'});
+    [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').click(); })()`);
+  const behind = await cdp.eval(`__xpp.sent().slice(${sentSave}).map(c => c.cmd + (c.op ? ' ' + c.op : ''))`);
+  check('W95: a click right behind a command the page sent itself is not lost (Save behind a redraw goes out)',
+    JSON.stringify(behind) === JSON.stringify(['redraw', 'values write']), JSON.stringify(behind));
   await until("s.files.offered && s.files.offered.name.endsWith('.par') && !s.busy", 'par saved');
   const parName = await S('s.files.offered.name');
   const saved = fs.readFileSync(path.join(dir, parName), 'utf8').replace(/\r\n/g, '\n');
@@ -4140,13 +4174,16 @@ async function kinescope(dir) {
       JSON.stringify(gif));
   } else check('kinescope: the GIF has one frame per capture, all the same size', false, 'anim.gif missing');
 
-  const played = [];
-  const playOk = await openKinescope('p')
-    && (played.push('opened'), await until('s.kinescope.playing && s.kinescope.shown === 0', 'showing 0'))
-    && (played.push('0'), await until('s.kinescope.shown === 1', 'showing 1'))
-    && (played.push('1'), await until('!s.kinescope.playing && !s.busy', 'play done'));
-  check('kinescope: Playback (k, p) shows frame 1 then frame 2', playOk,
-    JSON.stringify({reached: played, kinescope: await S('({playing: s.kinescope.playing, shown: s.kinescope.shown, frames: s.kinescope.frames.length})'),
+  /* the frames shown are read from the page's record of every change
+     (__xpp.kinescopeShown), not polled: a poll on a slow runner could miss
+     frame 0 (W94), and the play's end is its own state, not a clock */
+  const shownFrom = (await cdp.eval('__xpp.kinescopeShown()')).length;
+  const playOk = await openKinescope('p') && await until(`!s.kinescope.playing && !s.busy
+    && __xpp.kinescopeShown().length >= ${shownFrom + 2}`, 'play done', 30000);
+  const shownSeq = (await cdp.eval('__xpp.kinescopeShown()')).slice(shownFrom);
+  check('kinescope: Playback (k, p) shows frame 1 then frame 2', playOk
+    && JSON.stringify(shownSeq.filter(x => x !== null)) === '[0,1]',
+    JSON.stringify({shown: shownSeq, kinescope: await S('({playing: s.kinescope.playing, shown: s.kinescope.shown, frames: s.kinescope.frames.length})'),
       busy: await S('s.busy'), sent: await cdp.eval('__xpp.sent().slice(-3)')}));
 
   /* Make Anigif (k, m) directly, the raw protocol path the Export GIF

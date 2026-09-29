@@ -1,7 +1,7 @@
 /* The top bar: the menu drawer's button (narrow screens), the model, the
    most used command, the theme, and the panels' toggles. */
 import type {Theme} from '../store/state';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {saveTheme} from './theme';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
@@ -41,7 +41,8 @@ export function TitleBar() {
   const aplotOpen = useStore(s => s.aplot.open);
   const aniOpen = useStore(s => s.ani.open);
   const helpOpen = useStore(s => s.help.open);
-  const busy = useStore(s => s.busy);
+  const may = useMay();
+  const busy = !may({cmd: 'key', key: 'i'}); /* Integrate is a computation (W95) */
   const setTheme = () => {
     const t = NEXT_THEME[theme];
     saveTheme(t);

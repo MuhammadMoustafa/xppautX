@@ -19,7 +19,7 @@ import {useFocusBackOnClose} from './focusBack';
 import {HELP} from '../help/links';
 import type {BrowserOp} from '../session';
 import {rowAt} from '../store/table';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
@@ -71,7 +71,8 @@ function useRowHeight(ref: {current: HTMLElement | null}): number {
 
 export function TableView() {
   const session = useSession();
-  const busy = useStore(s => s.busy);
+  const may = useMay();
+  const mayKey = useMayKey();
   const open = useStore(s => s.table.open);
   const page = useStore(s => s.table.page);
   const selected = useStore(s => s.table.selected);
@@ -178,15 +179,16 @@ export function TableView() {
         <h2>Data</h2>
         <HelpButton target={HELP.dataTab} label="the Data tab" />
         <button class="small" onClick={() => session.writeDataFile('table', 'csv', 'data.csv')}
-          disabled={!page?.data.length || busy}
+          disabled={!page?.data.length || !may({cmd: 'browser', op: 'write'})}
           title="Save every stored row as a CSV file (written by the core, then downloaded)">
           Export CSV
         </button>
       </div>
       <div class="table-tools">
-        {BUTTONS.map(([label, op, hint]) => (
-          <button key={op} title={busy ? BUSY_TITLE : hint} disabled={busy} onClick={() => session.browserOp(op)}>{label}</button>
-        ))}
+        {BUTTONS.map(([label, op, hint]) => {
+          const off = !mayKey('browser', op);
+          return <button key={op} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.browserOp(op)}>{label}</button>;
+        })}
       </div>
       <p class="table-info" role="status">
         {!rows ? 'No data yet: integrate first.'

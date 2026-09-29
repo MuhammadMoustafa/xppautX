@@ -23,7 +23,7 @@ import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
 import {HOME, windowOf} from '../store/plots';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 
 type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
 
@@ -190,7 +190,10 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const viewport = pw?.viewport ?? HOME;
   const view = useStore(s => s.core?.view);
   const hover = useStore(s => (shown ? s.hover : null));
-  const busy = useStore(s => s.busy);
+  const busy = useStore(s => s.computing);
+  const may = useMay();
+  const windowOff = !may({cmd: 'key', key: 'w'}); /* Window/zoom: a view (W95) */
+  const csvOff = !may({cmd: 'browser', op: 'write'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
   const host = useRef<HTMLDivElement>(null);
@@ -358,13 +361,13 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
-          <button disabled={!zoomed || busy} onClick={() => session.useThisView(win, chart.current!.ranges())}
+          <button disabled={!zoomed || windowOff} onClick={() => session.useThisView(win, chart.current!.ranges())}
             title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
             Use this view
           </button>
-          <button disabled={noCurves || busy} onClick={() => session.fitView()}
+          <button disabled={noCurves || windowOff} onClick={() => session.fitView()}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
-          <button disabled={noCurves || busy} onClick={() => session.writeDataFile('plot', 'csv', 'xpp-curves.csv')}
+          <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv', 'xpp-curves.csv')}
             title="Save the plotted numbers as CSV (written by the core, then downloaded)">CSV</button>
         </div>
       </header>
@@ -378,7 +381,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         aria-label={label}
         aria-describedby={picking ? 'pick-instruction plot-keys-help' : 'plot-keys-help'}
         onKeyDown={onKeyDown}>
-        {!noCurves && <FitButton onClick={() => session.fitView()} disabled={busy}
+        {!noCurves && <FitButton onClick={() => session.fitView()} disabled={windowOff}
           title="Fit the window's axes to the data (Window/Fit)" />}
         {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}

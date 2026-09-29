@@ -500,12 +500,15 @@ Target: WCAG 2.2 AA. Rules:
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
   result (an AUTO branch ending on its EP, to grab and continue). While
-  the core is busy nothing new starts, discarded at the source (W68,
-  GitHub #116): buttons that would send a command are disabled, keys but
-  Escape (which is Stop) do nothing and are not kept, and session.ts
-  sends only what a running computation takes (store/state.ts
-  `takenWhileBusy`, the core's own list: docs/protocol.md "Commands during
-  a command"); the status bar says what runs ("Running Go… Esc stops").
+  a computation runs only control and view actions start (W68, W95,
+  GitHub #116, #144): each action's kind comes from the core in `hello`
+  (protocol/kinds.ts; docs/protocol.md "Action kinds"), and the core's
+  `computing` event, until the command's idle, says a computation runs;
+  data and computation buttons and menu items are disabled then, their
+  keys do nothing and are not kept, and session.ts `may()` discards
+  anything else at the source. The page's own catch-up commands (a held
+  zoom or tab pick, AUTO's settings) make it busy but disable nothing;
+  the status bar says what runs ("Running Go… Esc stops").
   Typing ahead into a menu still works (a menu is a question, not a
   computation), and value edits wait for the next computation (W69). The
   bar itself has a fixed height, and reserves a fixed-width slot at its

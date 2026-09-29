@@ -18,6 +18,8 @@ std::atomic<unsigned long> cancel_upto{0};
 std::atomic<bool> running{false}; /* depth > 0, for other threads */
 std::atomic<bool> computing{false}; /* compute_depth > 0, for other threads */
 int compute_depth; /* nesting of compute_begin/end */
+bool compute_told;  /* the hook was called for this job */
+void (*compute_hook)(void);
 std::atomic<unsigned long> shared_seq{0}; /* job_seq, for other threads (xpp_job_stopping) */
 
 int depth;             /* nesting of begin/end */
@@ -40,6 +42,7 @@ void xpp_job_begin(unsigned long seq)
 {
     if (depth++ > 0) return;
     progress = XppJobProgress{};
+    compute_told = false;
     if (seq == 0) { /* no command line: a number no cancel so far covers */
         seq = last_seq > load_upto() ? last_seq : load_upto();
         seq++;
@@ -100,8 +103,15 @@ int xpp_job_running(void) { return running.load(std::memory_order_acquire); }
 
 void xpp_job_compute_begin(void)
 {
-    if (compute_depth++ == 0) computing.store(true, std::memory_order_release);
+    if (compute_depth++ > 0) return;
+    computing.store(true, std::memory_order_release);
+    if (depth > 0 && !compute_told && compute_hook) {
+        compute_told = true;
+        compute_hook();
+    }
 }
+
+void xpp_job_set_compute_hook(void (*hook)(void)) { compute_hook = hook; }
 
 void xpp_job_compute_end(void)
 {

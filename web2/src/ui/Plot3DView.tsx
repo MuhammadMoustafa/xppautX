@@ -13,7 +13,7 @@ import {buildModel3d} from '../plot/model3d';
 import {KEY_STEP, KEY_STEP_FINE, rotateByDrag, rotateByKey} from '../plot/project3d';
 import {setChart} from '../plot/registry';
 import {windowOf} from '../store/plots';
-import {useSession, useStore} from './context';
+import {useMay, useSession, useStore} from './context';
 import {FitButton} from './PlotView';
 
 interface Props {
@@ -43,7 +43,8 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
   const info = pw?.info ?? null;
   const series = pw?.series ?? null;
   const view3d = pw?.view3d ?? null;
-  const busy = useStore(s => s.busy);
+  const busy = useStore(s => s.computing);
+  const may = useMay();
 
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -138,7 +139,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
         {!noCurves && (
-          <FitButton onClick={() => session.fitView()} disabled={busy} title="Fit the window's axes to the data (Window/Fit)" />
+          <FitButton onClick={() => session.fitView()} disabled={!may({cmd: 'key', key: 'w'})} title="Fit the window's axes to the data (Window/Fit)" />
         )}
         {noCurves && (
           <div class="plot-empty">

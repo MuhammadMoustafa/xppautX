@@ -23,7 +23,7 @@ import {dragScroll, wheelScroll} from '../plot/aplotScroll';
 import type {AplotColorMap} from '../store/aplot';
 import {columnName, timeAt, valueAt} from '../store/aplot';
 import type {AplotOp} from '../session';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -45,7 +45,7 @@ function fmt6(v: number): string {
 
 export function AplotView() {
   const session = useSession();
-  const busy = useStore(s => s.busy);
+  const mayKey = useMayKey();
   const open = useStore(s => s.aplot.open);
   const windowOpen = useStore(s => s.aplot.windowOpen);
   const aplot = useStore(s => s.aplot);
@@ -172,9 +172,10 @@ export function AplotView() {
         </label>
       </div>
       <div class="aplot-tools">
-        {BUTTONS.map(([label2, op, hint]) => (
-          <button key={op} title={busy ? BUSY_TITLE : hint} disabled={busy} onClick={() => session.aplotOp(op)}>{label2}</button>
-        ))}
+        {BUTTONS.map(([label2, op, hint]) => {
+          const off = !mayKey('aplot', op);
+          return <button key={op} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.aplotOp(op)}>{label2}</button>;
+        })}
       </div>
       <p class="aplot-info" role="status">
         {!windowOpen ? 'No array plot yet: use the Window/zoom menu (Axes, Array) to define one.'

@@ -166,6 +166,7 @@ void data_emit(const char *line, size_t n)
 namespace {
 
 unsigned long line_seq;
+bool line_refused;
 std::string last_line; /* the line read_line gave last, freed at the next call */
 
 } // namespace
@@ -173,7 +174,7 @@ std::string last_line; /* the line read_line gave last, freed at the next call *
 char *read_line(int which, int wait_ms)
 {
     std::string().swap(last_line); /* a pixels answer is megabytes: not kept while waiting */
-    int r = xpp_inbox_next(which, wait_ms, last_line, &line_seq);
+    int r = xpp_inbox_next(which, wait_ms, last_line, &line_seq, &line_refused);
     switch (r) {
     case 1:
         return last_line.data();
@@ -187,6 +188,8 @@ char *read_line(int which, int wait_ms)
 }
 
 unsigned long read_line_seq(void) { return line_seq; }
+
+bool read_line_refused(void) { return line_refused; }
 
 /* ---- a small JSON reader for flat command objects ------------------------ */
 

@@ -47,6 +47,7 @@ namespace {
 struct Item {
     unsigned long seq = 0;
     std::string line; /* moved out to the caller as it is */
+    bool refused = false; /* the classifier's XPP_INBOX_REFUSE */
 };
 
 pthread_mutex_t push_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -106,6 +107,7 @@ void xpp_inbox_push(const char *line, size_t n)
         return;
     }
     if (c == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
+    it.refused = c == XPP_INBOX_REFUSE;
     pthread_mutex_lock(&lock);
     try {
         queues[q].push_back(std::move(it));
@@ -126,7 +128,7 @@ void xpp_inbox_close(void)
     pthread_mutex_unlock(&lock);
 }
 
-int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq)
+int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq, bool *refused)
 {
     struct timespec until = {};
     int q, r = 0;
@@ -150,6 +152,7 @@ int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq
         Item &it = queues[q].front();
         line = std::move(it.line); /* no allocation: it takes the item's block */
         if (seq) *seq = it.seq;
+        if (refused) *refused = it.refused;
         queues[q].pop_front();
         r = 1;
     } else if (closed && queues[0].empty() && queues[1].empty()) {

@@ -250,16 +250,32 @@ job first, then closes; **Stop** itself keeps the view and whatever
 partial result it has (an interrupted AUTO branch ending on its last
 point, ready to Grab and continue).
 
-While a command runs, the status bar says what (`Running Go… Esc
-stops`), and nothing else is started until it ends: the buttons and
-menu items that would start a command are disabled (their tooltip says
-"Busy: available when the current run ends"), and every key but Escape
-does nothing — a key typed during a run is not kept to act afterwards.
-Escape is Stop. Typing ahead into menus still works: I then G typed
-quickly integrates, because the G answers the menu the I opens. The
-values panel's fields and sliders stay usable during a run: an edit
-waits, marked, and is applied with the next command that computes, never
-to the run in progress.
+While a computation runs (an integration, a range, Sing pts, a
+boundary value problem, an AUTO run), the status bar says what
+(`Running Go… Esc stops`). What you can do meanwhile depends on what an
+action is; every button and menu item has one of four kinds:
+
+| Kind | Examples | During a computation |
+|---|---|---|
+| Control | Stop (Escape), Quit, answering a question | works |
+| View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
+| Data | Save and Load of values, Write set and Read set, every file written, Save session, AUTO's Save and Load diagram, Parameters, the numerics | disabled |
+| Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
+
+A disabled control says so in its tooltip ("Not while a computation
+runs: available when it ends"), and a key of those kinds typed during a
+computation does nothing and is not kept to act afterwards; Escape is
+Stop. Menus still open: only their items that would save, load or
+compute are greyed out. Nothing is disabled merely because the program
+is busy for a moment otherwise (catching up with a zoom or a window you
+picked): a click then is carried out in its turn, never lost. While the
+program asks you something, only answering or cancelling that question
+applies. Typing ahead into menus still works: I then G typed quickly
+integrates, because the G answers the menu the I opens. The values
+panel's fields and sliders stay usable during a run: an edit waits,
+marked, and is applied with the next command that computes, never to
+the run in progress; so do AUTO's Parameter, Numerics and Mark values
+forms.
 
 ## Saving pictures and files
 

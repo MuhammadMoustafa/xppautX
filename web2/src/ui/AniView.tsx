@@ -17,7 +17,7 @@ import {fromCanvas} from '../ani/frame';
 import {drawAniFrame, frameBox} from '../ani/render';
 import {HELP} from '../help/links';
 import {sixSig} from '../store/values';
-import {useSession, useStore} from './context';
+import {useMay, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {useDark} from './theme';
 
@@ -35,7 +35,9 @@ export function AniView() {
   const coreRows = useStore(s => s.core?.rows ?? 0);
   const speed = useStore(s => s.ani.speed);
   const grab = useStore(s => s.ani.grab);
-  const busy = useStore(s => s.busy);
+  const may = useMay(), mayKey = useMayKey();
+  /* the player is a view: it works during a run too (W95); Grab sets values (data) */
+  const busy = !may({cmd: 'ani', op: 'seek'});
   const theme = useStore(s => s.theme);
   const dark = useDark(theme);
   const rows = Math.max(aniRows, coreRows);
@@ -134,8 +136,8 @@ export function AniView() {
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />
-        {!exists && <button onClick={() => session.openAni()} disabled={busy}>Open</button>}
-        <button onClick={() => session.aniLoad()} disabled={busy || !exists} title="Load an animation (.ani) file">
+        {!exists && <button onClick={() => session.openAni()} disabled={!may({cmd: 'key', key: 'v'})}>Open</button>}
+        <button onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
           Load…
         </button>
       </div>
@@ -159,17 +161,17 @@ export function AniView() {
           }} />
       </div>
       <div class="ani-controls" role="group" aria-label="Player">
-        <button onClick={() => session.aniSeek(0)} disabled={!canStep || (busy && !playing)} title="First frame (Home)"
+        <button onClick={() => session.aniSeek(0)} disabled={!canStep || busy} title="First frame (Home)"
           aria-label="First frame">⏮</button>
-        <button onClick={() => session.aniStep(-1)} disabled={!canStep || (busy && !playing)} title="One frame back (Left arrow)"
+        <button onClick={() => session.aniStep(-1)} disabled={!canStep || busy} title="One frame back (Left arrow)"
           aria-label="One frame back">◀</button>
-        <button class="primary ani-play" onClick={playPause} disabled={!canStep || (busy && !playing)}
+        <button class="primary ani-play" onClick={playPause} disabled={!canStep || busy}
           title="Play or pause (Space)" aria-pressed={playing}>
           {playing ? 'Pause' : 'Play'}
         </button>
-        <button onClick={() => session.aniStep(1)} disabled={!canStep || (busy && !playing)} title="One frame forward (Right arrow)"
+        <button onClick={() => session.aniStep(1)} disabled={!canStep || busy} title="One frame forward (Right arrow)"
           aria-label="One frame forward">▶</button>
-        <button onClick={() => session.aniSeek(last)} disabled={!canStep || (busy && !playing)} title="Last frame (End)"
+        <button onClick={() => session.aniSeek(last)} disabled={!canStep || busy} title="Last frame (End)"
           aria-label="Last frame">⏭</button>
         <label class="ani-speed">
           <span>Delay</span>
@@ -178,7 +180,7 @@ export function AniView() {
             {speeds.map(ms => <option key={ms} value={String(ms)}>{ms} ms</option>)}
           </select>
         </label>
-        <button onClick={() => session.aniGrab()} disabled={!canStep || busy} aria-pressed={grab}
+        <button onClick={() => session.aniGrab()} disabled={!canStep || !mayKey('ani', 'grab')} aria-pressed={grab}
           title="Drag the animation's grab points with the pointer">Grab</button>
       </div>
     </section>

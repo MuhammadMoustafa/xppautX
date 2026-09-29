@@ -62,16 +62,16 @@ import {AutoAxisDialog, type AxisName} from './AutoAxes';
 import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
 import {AutoInfo} from './AutoInfo';
 import {AutoOutput, AutoStatus} from './AutoStatus';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {FitButton, PickBar, PickOverlay, pickSink} from './PlotView';
 import './auto.css';
 
-/** label, op, key (auto_x11.c auto_keypress), in the X11 window's order; no
+/** label and op (its key is the core's: hello.windows.auto), in the X11 window's order; no
     reDraw (T21): the diagram is always the current one */
-const BUTTONS: [string, AutoOp, string][] = [
-  ['Parameter', 'param', 'p'], ['Axes', 'axes', 'a'], ['Numerics', 'numerics', 'n'], ['Run', 'run', 'r'],
-  ['Grab', 'grab', 'g'], ['Mark values…', 'usr', 'u'], ['Clear', 'clear', 'c'], ['File', 'file', 'f'],
+const BUTTONS: [string, AutoOp][] = [
+  ['Parameter', 'param'], ['Axes', 'axes'], ['Numerics', 'numerics'], ['Run', 'run'],
+  ['Grab', 'grab'], ['Mark values…', 'usr'], ['Clear', 'clear'], ['File', 'file'],
 ];
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoOp, string>> = {
@@ -85,11 +85,6 @@ const SETTINGS_DIALOG: Partial<Record<AutoOp, AutoSettingsDialogKind>> = {param:
 const PENDING_OF: Record<AutoSettingsDialogKind, (field: string) => boolean> = {
   pars: f => f === 'pars', numerics: f => f.startsWith('numerics.'), marks: f => f === 'marks',
 };
-/** the buttons that work while a command runs (the view's own) */
-const WHILE_BUSY = new Set<AutoOp>(['clear', 'param', 'numerics', 'usr']);
-const OP_OF_KEY: Record<string, AutoOp> = Object.fromEntries(BUTTONS.map(([, op, k]) => [k, op]));
-/** the X11 window's buttons, whose order `hello.auto_hints` follows */
-const BUTTONS_X11: AutoOp[] = ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file'];
 
 const KEYS_HELP = 'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undoes a zoom, square brackets and Page Up '
   + 'or Down step through the points of a branch, braces change the branch, less than and greater than go from '
@@ -182,8 +177,12 @@ function AutoPanel({dark}: {dark: boolean}) {
   const axes = useStore(s => s.diagram.axes);
   const viewport = useStore(s => s.diagram.viewport);
   const hover = useStore(s => s.diagram.hover);
-  const busy = useStore(s => s.busy);
-  const hints = useStore(s => (s.hello as {auto_hints?: string[]} | null)?.auto_hints);
+  const busy = useStore(s => s.computing);
+  const layer = useStore(s => s.hello?.windows?.auto);
+  /* a button that opens the page's own form works during a run too (its edits wait); the others
+     by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
+  const mayKey = useMayKey();
+  const off = (op: AutoOp) => !SETTINGS_DIALOG[op] && !mayKey('auto', op);
   const grabbing = useStore(s => s.diagram.grabbing);
   const info = useStore(s => s.diagram.info);
   const stored = useStore(s => (s.diagram.axes?.plot === 4 ? s.diagram.stored : null));
@@ -374,9 +373,11 @@ function AutoPanel({dark}: {dark: boolean}) {
       session.showAuto(false);
       return;
     }
-    const op = OP_OF_KEY[e.key.toLowerCase()];
+    const layer = session.store.getState().hello?.windows?.auto;
+    const i = layer && e.key.length === 1 ? layer.keys.indexOf(e.key.toLowerCase()) : -1;
+    const op = BUTTONS.find(([, o]) => o === layer?.ids[i])?.[1];
     /* a letter typed on a button is AUTO's too (T21): the focus stays on a button after a click */
-    if (op && (!running || WHILE_BUSY.has(op)) && !t.closest('input, select, textarea, [role="dialog"]')) {
+    if (op && (SETTINGS_DIALOG[op] || session.mayKey('auto', op)) && !t.closest('input, select, textarea, [role="dialog"]')) {
       e.preventDefault();
       e.stopPropagation();
       act(op);
@@ -431,14 +432,15 @@ function AutoPanel({dark}: {dark: boolean}) {
         </button>
       </div>
       <div class="auto-tools" role="toolbar" aria-label="AUTO">
-        {BUTTONS.map(([text, op, k]) => {
+        {BUTTONS.map(([text, op]) => {
+          const k = layer?.keys[layer.ids.indexOf(op)] ?? '';
           const kind = SETTINGS_DIALOG[op];
           const waits = !!kind && [...pending].some(PENDING_OF[kind]);
           return (
-            <button key={op} disabled={busy && !WHILE_BUSY.has(op)} aria-keyshortcuts={k.toUpperCase()}
+            <button key={op} disabled={off(op)} aria-keyshortcuts={k.toUpperCase()}
               class={waits ? 'auto-pending' : undefined} data-op={op}
-              title={busy && !WHILE_BUSY.has(op) ? BUSY_TITLE
-                : (TITLES[op] ?? hints?.[BUTTONS_X11.indexOf(op)] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
+              title={off(op) ? BUSY_TITLE
+                : (TITLES[op] ?? layer?.hints[layer.ids.indexOf(op)] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
               onClick={() => act(op)}>{text}</button>
           );
         })}

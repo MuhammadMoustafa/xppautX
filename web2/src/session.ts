@@ -11,14 +11,14 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {ANI_KEYS, APLOT_KEYS, AUTO_KEYS, BROWSER_KEYS, EQUILIBRIUM_KEYS, windowKey} from './protocol/windowKeys';
+import {kindOf, mayStart, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
 import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, noIdle, reduce, takenWhileBusy, type Action, type AppState} from './store/state';
+import {initialState, noIdle, reduce, type Action, type AppState} from './store/state';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
@@ -30,8 +30,8 @@ import {parseSettings, setCommand as autoSetCommand, type AutoSettingsPatch} fro
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
   | 'restore' | 'addcol' | 'delcol';
 
-/** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
-export type AutoOp = keyof typeof AUTO_KEYS;
+/** the AUTO window's buttons (their names in hello.windows.auto.ids); Close is session.closeAuto */
+export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
 
 /** a change of what a window displays, as the `display` command carries it: the zoom of each axis
     ([low, high] or null), the earlier runs' toggle (`runs`), AUTO's earlier branches' toggle (`show`) */
@@ -50,8 +50,8 @@ const rangesOf = (v: Viewport): DisplayPatch => ({
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
 type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
-/** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
-export type AplotOp = keyof typeof APLOT_KEYS;
+/** the array plot window's buttons (their names in hello.windows.aplot.ids) */
+export type AplotOp = 'redraw' | 'edit' | 'fit' | 'range' | 'print' | 'gif';
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -126,10 +126,10 @@ export class Session {
 
   /** the tab last picked while the core was busy, shown and sent at its idle */
   private windowHeld: number | null = null;
-  /** a command went out in this turn of the event loop: the rest of that one
-      action (a flushed set and its key, Escape F P, Pause and Seek) follows
-      it, even though the first made the page busy (W68, send) */
-  private actionOpen = false;
+  /** key sequences clicked while a key waits for its menu (a second Integrate
+      right behind the first): each goes out after the idle before it, so the
+      menu the first opens is answered by its own keys (W95) */
+  private clickedKeys: string[][] = [];
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command | null = null;
@@ -226,20 +226,24 @@ export class Session {
       this.flushWindow();
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
+      else if (!this.keyWaiting && this.clickedKeys.length) {
+        const [first, ...then] = this.clickedKeys.shift()!;
+        this.keys(first, ...then);
+      }
     }
     this.checkDiagram(ev);
   }
 
   /* the AUTO diagram is data the page must hold whole: a page that connected
      after AUTO opened has none, and an `add` it could not place leaves it out
-     of step; `redraw` makes the core send all of it again (docs/protocol.md) */
+     of step; `redraw` makes the core send all of it again (docs/protocol.md);
+     at the idle, the page's own catch-up like the held changes below */
   private checkDiagram(ev: XppEvent): void {
     const {diagram: d, busy} = this.store.getState();
     if (!d.open || (d.axes && !d.outOfStep)) {
       this.diagramAsked = false;
       return;
     }
-    /* not while a command runs (W68: the core would drop it): at its idle */
     if (this.diagramAsked || busy || (ev.ev !== 'state' && ev.ev !== 'idle')) return;
     this.diagramAsked = true;
     this.send({cmd: 'redraw'});
@@ -268,24 +272,32 @@ export class Session {
     else this.pendingKeys = []; /* anything else is the user's to answer */
   }
 
-  /** whether an action starting now would be discarded: the core is busy,
-      and no command went out yet in this turn (W68) */
-  private blocked(): boolean {
-    return this.store.getState().busy && !this.actionOpen;
+  /** whether `cmd` may go out now, by its kind (protocol/kinds.ts, W95): a
+      control action always, a view action also while a computation runs, a
+      data or computation action only when none runs; while a question is
+      open only its answer. The page's being busy with a command of its own
+      (a held zoom sent at an idle) disables nothing: the core runs what
+      comes after it in turn. */
+  may(cmd: Command): boolean {
+    const {hello, core, computing, ask} = this.store.getState();
+    return mayStart(kindOf(hello, core?.menu ?? 0, cmd), computing, ask !== null);
   }
 
-  /** the one place commands go out. While the core is busy only what a
-      running computation takes goes (store/state.ts takenWhileBusy), with
-      the rest of an action that began before (actionOpen): anything else
-      is discarded here, at the source, never queued and never sent to be
-      dropped by the core with no reply (W68, docs/protocol.md "Commands
-      during a command") */
+  /** whether item `id` of window `win`'s key layer may go out now (may) */
+  mayKey(win: LayerWindow, id: string): boolean {
+    return this.may(this.layerKey(win, id));
+  }
+
+  /** the command of item `id` of window `win`'s key layer, as hello names it */
+  private layerKey(win: LayerWindow, id: string, extra: Record<string, unknown> = {}): Command {
+    return layerCommand(this.store.getState().hello, win, id, extra);
+  }
+
+  /** the one place commands go out. What may not start now (may) is
+      discarded here, at the source: its control is disabled anyway, and the
+      core would refuse it (docs/protocol.md "Commands during a command") */
   send(cmd: Command): void {
-    if (this.blocked() && !takenWhileBusy(cmd)) return;
-    if (!this.actionOpen) {
-      this.actionOpen = true;
-      queueMicrotask(() => { this.actionOpen = false; });
-    }
+    if (!this.may(cmd)) return;
     if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
@@ -297,7 +309,7 @@ export class Session {
       whatever it turns out to be -- a view-only key still just sets them
       a little early, never wrongly */
   key(key: string): void {
-    if (this.blocked()) { /* W68: the pending values stay pending too */
+    if (!this.may({cmd: 'key', key})) { /* W68: the pending values stay pending too */
       this.pendingKeys = [];
       return;
     }
@@ -309,29 +321,36 @@ export class Session {
 
   /** a hotkey typed on the page (ui/hotkeys.ts): it answers an open menu,
       waits behind a key whose menu has not come yet (typing I then G
-      quickly integrates), or goes out. While the core is busy otherwise
-      Escape stops what runs and every other key does nothing: it is not
-      kept to go out later (W68) */
+      quickly integrates), or goes out. While the core is busy Escape stops
+      what runs; while it computes a key of the data or computation kind
+      does nothing: it is not kept to go out later (W68, W95) */
   typeKey(k: string): void {
-    const {ask, busy, stopping} = this.store.getState();
+    const {ask, busy, computing, stopping} = this.store.getState();
     if (ask) {
       const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
       if ((ask.kind === 'menu' || ask.kind === 'choice') && k.length === 1 && i >= 0) this.answer(ask, {key: ask.keys![i]});
       return;
     }
-    if (this.keyWaiting && k !== 'Escape') {
-      this.typeahead.push(k);
+    if (k === 'Escape' && busy) {
+      if (!stopping) this.abort();
       return;
     }
-    if (busy) {
-      if (k === 'Escape' && !stopping) this.abort();
+    /* during a computation a key of its kind is not kept for later either (W68) */
+    if (computing && !this.may({cmd: 'key', key: k})) return;
+    if (this.keyWaiting && k !== 'Escape') {
+      this.typeahead.push(k);
       return;
     }
     this.key(k);
   }
 
-  /** a key, then keys for the menus it opens: keys('i', 'g') integrates */
+  /** a key, then keys for the menus it opens: keys('i', 'g') integrates.
+      Behind a key still waiting for its menu it goes out after that one's idle. */
   keys(first: string, ...then: string[]): void {
+    if (this.keyWaiting && this.may({cmd: 'key', key: first})) {
+      this.clickedKeys.push([first, ...then]);
+      return;
+    }
     this.pendingKeys = then;
     this.key(first);
   }
@@ -442,7 +461,7 @@ export class Session {
 
   /** the oldest held change goes out when the core is not busy, else at its idle */
   private flushDisplay(): void {
-    if (this.blocked()) return;
+    if (this.store.getState().busy) return;
     const first = this.displayHeld.entries().next();
     if (first.done) return;
     const [win, patch] = first.value;
@@ -485,7 +504,7 @@ export class Session {
       to "the core's axes" (store/plots.ts coreMoved, from the `state`
       reducer), with no visible jump since they are now the same range. */
   useThisView(win: number, ranges: Ranges): void {
-    if (this.blocked()) return; /* W68 */
+    if (!this.may({cmd: 'key', key: 'w'})) return; /* W68 */
     const cmds: Command[] = [];
     if (this.store.getState().plots.active !== win) {
       this.store.dispatch({type: 'selectWindow', win});
@@ -529,7 +548,7 @@ export class Session {
     const send = () => {
       this.rotate3dLast.set(win, performance.now());
       this.rotate3dTimer.delete(win);
-      /* busy: the core would drop it (W68); the latest angle goes at the idle */
+      /* busy: held, the latest angle goes at the idle */
       if (this.store.getState().busy) this.rotate3dHeld.set(win, {theta, phi});
       else this.turn3d(win, theta, phi);
     };
@@ -578,19 +597,19 @@ export class Session {
       the branches so far become the earlier ones, hidden until shown
       again; the core's own clear and redraw (keys `c`, `d`) follow */
   autoOp(op: AutoOp): void {
-    if (this.blocked()) return; /* W68 */
+    if (!this.may(this.layerKey('auto', op))) return; /* W68 */
     if (op === 'clear') {
       /* the core's clear blanks the diagram (its points go from the page), then its redraw sends them
          all again, and the branches so far are the earlier ones once more */
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
-      this.runPlan([windowKey('auto', AUTO_KEYS.clear), windowKey('auto', AUTO_KEYS.redraw)], []);
+      this.runPlan([this.layerKey('auto', 'clear'), this.layerKey('auto', 'redraw')], []);
       return;
     }
     if (op === 'run') {
       this.flushValues();
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
     }
-    this.send(windowKey('auto', AUTO_KEYS[op]));
+    this.send(this.layerKey('auto', op));
   }
 
   /* a planned dialogue: `cmds` go out one after the other's idle (a command
@@ -645,7 +664,7 @@ export class Session {
         + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
       return;
     }
-    this.runPlan([windowKey('auto', AUTO_KEYS.file)], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
+    this.runPlan([this.layerKey('auto', 'file')], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
   }
 
   /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
@@ -878,7 +897,7 @@ export class Session {
       `browser` op; Find, Replace, Table, Load and Write prompt through the
       ordinary `ask`, AskDialog already shows) */
   browserOp(op: BrowserOp): void {
-    this.send(windowKey('browser', BROWSER_KEYS[op], {row: this.store.getState().table.selected}));
+    this.send(this.layerKey('browser', op, {row: this.store.getState().table.selected}));
   }
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
@@ -902,8 +921,7 @@ export class Session {
   /** shows the panel, opening the core's animation window first (Viewaxes/Toon) when there is none */
   openAni(): void {
     this.store.dispatch({type: 'ani', action: {type: 'open', open: true}});
-    const {ani, busy} = this.store.getState();
-    if (!ani.exists && !busy) this.keys('v', 't');
+    if (!this.store.getState().ani.exists) this.keys('v', 't');
   }
 
   /** hides the panel; a playing animation stops */
@@ -914,12 +932,12 @@ export class Session {
 
   /** File: an .ani file, through the file ask (the browser's open dialog) */
   aniLoad(): void {
-    this.send(windowKey('ani', ANI_KEYS.file));
+    this.send(this.layerKey('ani', 'file'));
   }
 
   /** Go: plays from the core's position to the last frame; never started by the page itself (A6) */
   aniPlay(): void {
-    if (!this.store.getState().ani.playing) this.send(windowKey('ani', ANI_KEYS.go));
+    if (!this.store.getState().ani.playing) this.send(this.layerKey('ani', 'go'));
   }
 
   /** Pause: reaches the running Go at once (a control line: no idle of its own) */
@@ -947,7 +965,7 @@ export class Session {
 
   /** Grab: the frame's grab points wait for the pointer */
   aniGrab(): void {
-    this.send(windowKey('ani', ANI_KEYS.grab));
+    this.send(this.layerKey('ani', 'grab'));
   }
 
   /** the pointer over the picture while grabbing, in unit coordinates (u, v: y up) */
@@ -1001,9 +1019,9 @@ export class Session {
   }
 
   /** the core's Kinescope menu (keys k then the item's own mnemonic); a no-op
-      while a command is already running, like the rest of the menu keys */
+      while a computation runs, like the rest of the menu keys of its kind */
   private kinescopeMenu(item: string): void {
-    if (!this.store.getState().busy) this.keys('k', item);
+    this.keys('k', item);
   }
 
   kinescopeCapture(): void {
@@ -1051,7 +1069,7 @@ export class Session {
       the page only offers the result as a download, at the idle that
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
-    if (this.store.getState().busy || !this.store.getState().kinescope.frames.length) return;
+    if (!this.may({cmd: 'key', key: 'k'}) || !this.store.getState().kinescope.frames.length) return;
     this.pendingSave = {name: 'anim.gif', handle: null};
     this.kinescopeMenu('m');
   }
@@ -1123,7 +1141,7 @@ export class Session {
   /** the equilibrium window's Import: the last equilibrium becomes the
       initial conditions (the next `state` has them) */
   importEquilibrium(): void {
-    this.send(windowKey('equilibrium', EQUILIBRIUM_KEYS.import));
+    this.send(this.layerKey('equilibrium', 'import'));
   }
 
   /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */
@@ -1279,7 +1297,7 @@ export class Session {
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
       AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
   aplotOp(op: AplotOp): void {
-    this.send(windowKey('aplot', APLOT_KEYS[op]));
+    this.send(this.layerKey('aplot', op));
   }
 
   /** the picture scrolled through time by dragging, wheeling or a keyboard

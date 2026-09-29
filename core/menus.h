@@ -28,6 +28,28 @@ extern const char *const main_menu_keys;
 extern const char *const num_menu_keys;
 extern const char *const file_menu_keys;
 
+/* The kind of an action (W95), one letter: what the page may still do while
+   a computation runs (docs/protocol.md "Action kinds"). A control action
+   (Abort, Quit, an answer) always goes; a view action only changes what is
+   shown and goes during a computation too (the core runs it after the
+   computation); a data action (saving, loading, a value or setting) and a
+   computation (anything that starts one) are refused during one. */
+#define XPP_KIND_CONTROL 'c'
+#define XPP_KIND_VIEW 'v'
+#define XPP_KIND_DATA 'd'
+#define XPP_KIND_COMPUTE 'x'
+
+/* the kinds of the three main-window menus' items, parallel to their keys;
+   an item that opens a pop-up menu has the most restrictive kind among
+   that menu's items (it can do nothing more during a computation) */
+extern const char *const main_menu_kinds;
+extern const char *const num_menu_kinds;
+extern const char *const file_menu_kinds;
+
+/* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
+   FILE_MENU, NUM_MENU), 0 when that menu has no such key */
+char xpp_main_menu_kind(int which, int ch);
+
 /* A pop-up menu as data. Core code asks the front end to show one with
    menu_choose() and gets back the chosen key. Item i usually runs
    run_the_commands(first_cmd + i); first_cmd is -1 when the caller handles
@@ -41,6 +63,10 @@ typedef struct XppMenu {
   const char *keys;
   const char *const *hints;
   int first_cmd;
+  /* one XPP_KIND_* letter per item, parallel to keys (every menu of
+     menus.cpp); NULL for a list a command builds as it asks (a parameter
+     set, a table, a marker): its items take the kind of that command */
+  const char *kinds;
 } XppMenu;
 
 /* The windows' own key layers (protocol: {"cmd":"key","win":...}), one XppMenu
@@ -55,6 +81,20 @@ enum EquilibriumWindowKey { EK_IMPORT };
 
 /* the index of the item of m that key ch picks, -1 for none */
 int xpp_menu_index(const XppMenu *m, int ch);
+/* the kind of the item of m that key ch picks, 0 for none */
+char xpp_menu_kind(const XppMenu *m, int ch);
+
+/* A window's key layer: the protocol's `win` name, its menu, and the page's
+   name for each item (hello.windows, docs/protocol.md "Window keys"). */
+typedef struct XppWindowLayer {
+  const char *win;
+  const XppMenu *menu;
+  const char *const *ids;
+} XppWindowLayer;
+#define XPP_WINDOW_LAYERS 5
+extern const XppWindowLayer xpp_window_layers[XPP_WINDOW_LAYERS];
+/* the layer of window `win`, NULL for none */
+const XppWindowLayer *xpp_window_layer(const char *win);
 
 extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, menu_aplot_window,
   menu_equilibrium_window;

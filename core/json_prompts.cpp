@@ -88,10 +88,13 @@ int ask_wait(Buf *b, int id)
             defer_auto_set(line);
             continue;
         }
-        /* anything else (keys typed at the plot while a dialog is up) is
-           dropped, as the X11 dialogs do; for a script this line was
-           supposed to answer this ask, and nothing after it can line up */
+        /* for a script this line was supposed to answer this ask, and
+           nothing after it can line up */
         if (session.script_mode) script_fail("does not answer the open question", line, script_ask.c_str());
+        /* anything else was sent before the client saw the question (a
+           click right behind the command that asks): kept for after the
+           command, never lost (W95) */
+        defer_line(line, read_line_refused());
     }
 }
 
@@ -406,6 +409,7 @@ int j_menu_choose(const struct XppMenu *m, int def)
 
 void j_show_menu(int which)
 {
+    session.menu.store(which, std::memory_order_relaxed);
     Buf b;
     buf_format(&b, "{{\"ev\":\"menu\",\"which\":{:d}}}", which);
     send_buf(&b);
@@ -476,9 +480,14 @@ int j_check_abort(void)
     }
     /* only the control queue, judged by the list of what a computation
        takes (during_run()): a line queued just before it began, a key or a
-       set, is dropped like one sent during it */
+       set, is kept for after the command like one sent during it, refused
+       when its kind is data or computation */
     while ((line = read_line(XPP_INBOX_CONTROL, 0)) != NULL) {
-        if (during_run(line) == XPP_INBOX_DROP) continue;
+        const int take = during_run(line);
+        if (take != XPP_INBOX_CONTROL) {
+            defer_line(line, take == XPP_INBOX_REFUSE);
+            continue;
+        }
         int r = control_line(line);
         if (r != 64 && r != ANI_PAUSE) return r;
     }

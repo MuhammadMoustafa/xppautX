@@ -1092,8 +1092,8 @@ def section_control():
     evs, e = s.collect(is_idle, timeout=60 * SLOW)
     check('a command sent after an Abort runs in full', rows(evs) == 2001, 'rows %s' % rows(evs))
 
-    # a command sent during a computation is dropped, not queued behind it
-    # (W68, docs/protocol.md "Commands during a command")
+    # a view command sent during a computation is kept and runs after it,
+    # not dropped (W95, docs/protocol.md "Commands during a command"): Close
     set_total(s, 400)
     open_auto(s)
     run_now(s)
@@ -1107,9 +1107,7 @@ def section_control():
     s.send(cmd='state')
     more, _ = s.collect(is_idle, timeout=10 * SLOW)
     closed = [x for x in evs + more if x.get('ev') == 'window' and x.get('win') == 101 and x.get('op') == 'destroy']
-    check('a command sent during a computation is dropped, not run after it (Close)', not closed)
-    s.send(cmd='auto', op='close')
-    s.collect(is_idle)
+    check('W95: a view command sent during a computation runs after it (Close)', bool(closed))
 
     # Quit during an integration
     run_now(s)

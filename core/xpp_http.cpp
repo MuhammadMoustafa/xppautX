@@ -103,6 +103,7 @@ struct Server {
     std::array<sock_t, MAX_CLIENTS> clients{};
     int nclients = 0;
     std::string sticky_hello, sticky_state, sticky_ask, exit_event;
+    std::string sticky_computing; /* the running command computes: until its idle */
     std::string load_error; /* the error event of a model that did not load */
     std::array<WindowLine, MAX_WINDOWS> windows;
     std::string log_text; /* the last LOG_KEEP bytes printed */
@@ -243,7 +244,11 @@ void emit(std::string_view line)
         if (*ev == "hello") srv.sticky_hello = line;
         else if (*ev == "state") srv.sticky_state = line;
         else if (*ev == "ask") srv.sticky_ask = line;
-        else if (*ev == "idle") srv.sticky_ask.clear();
+        else if (*ev == "computing") srv.sticky_computing = line;
+        else if (*ev == "idle") {
+            srv.sticky_ask.clear();
+            srv.sticky_computing.clear();
+        }
         else if (*ev == "bye") saw_bye = 1;
         else if (*ev == "error") srv.load_error = line;
         else if (*ev == "window") {
@@ -365,6 +370,7 @@ void open_events(sock_t s)
     for (int i = 0; ok && i < MAX_WINDOWS; i++)
         if (!srv.windows[i].line.empty()) ok = send_event(s, srv.windows[i].line);
     if (ok && !srv.sticky_state.empty()) ok = send_event(s, srv.sticky_state);
+    if (ok && !srv.sticky_computing.empty()) ok = send_event(s, srv.sticky_computing);
     if (ok && !srv.sticky_ask.empty()) ok = send_event(s, srv.sticky_ask);
     if (ok && !srv.load_error.empty()) ok = send_event(s, srv.load_error);
     if (ok && !srv.exit_event.empty()) ok = send_event(s, srv.exit_event);

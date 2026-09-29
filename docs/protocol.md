@@ -12,14 +12,17 @@ protocol 2" at the end for what protocol 1 had besides.
 The core is single-threaded. A command runs to completion, then the server
 sends `state` and `idle`. While a command runs the server can stop and
 **ask** the client something (a menu, a prompt, a mouse click); it waits for
-the matching `answer` and ignores other commands except `state`,
-`browser` with `from`, and `quit`. See "Commands during a command" for what
-reaches a running computation.
+the matching `answer`, answers `state`, `browser` with `from` and `quit` at
+once, and keeps any other command for after the one that asked. See
+"Commands during a command" for what reaches a running computation, and
+"Action kinds" for which commands those are.
 
 ## Startup
 
 1. `hello`: protocol version (2), window title, the three main menus
-   (`main`, `file`, `num` with `_keys` and `_hints`).
+   (`main`, `file`, `num` with `_keys`, `_hints` and `_kinds`), the
+   windows' key layers (`windows`) and the other commands' kinds
+   (`commands`): see "Action kinds".
 2. `window` `create` for window 1, the main plot.
 3. `state`, then `idle`.
 
@@ -71,7 +74,7 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
-| `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own) and whether its earlier runs are drawn. Sent as a normal command, so not while a computation runs (the page holds it for the idle). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
+| `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own) and whether its earlier runs are drawn. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
 | `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`x`, `y`, `show`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` the zoom, `show` whether the branches hidden by Clear are drawn; `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
@@ -84,9 +87,44 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
 
+## Action kinds
+
+Every action has a kind (W95), defined once in the core and sent in
+`hello`, so a client knows what it may still do while a computation runs
+(see "Commands during a command"). A kind is one letter:
+
+| kind | letter | what | during a computation |
+|---|---|---|---|
+| control | `c` | Abort, Quit, an answer | acted on |
+| view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
+| data | `d` | saves, loads, values and settings: Save/Load values, Write/Read set, every file written, a session, AUTO's diagram files and settings, a `set` | refused |
+| computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
+
+- `hello.menus` has `main_kinds`, `file_kinds` and `num_kinds`, one letter
+  per item, parallel to `main_keys` etc. (core/menus.cpp). An item that
+  opens a pop-up menu has the most restrictive kind among that menu's
+  items (Nullcline, Kinescope, Graphic stuff, stocHast, Averaging); every
+  pop-up menu's items have their kinds in core/menus.cpp too (checked when
+  it compiles), for the core itself.
+- `hello.windows` is the windows' key layers ("Window keys" below), by
+  `win`: {`items`, `keys`, `kinds`, `ids`, `hints`}, `ids` the page's name
+  for each item (`run`, `grab`, `write`, `go`, ...). A client takes a
+  window's keys from here; web2 has no copy of them.
+- `hello.commands` is every command but `key` (whose kind is its menu
+  item's), [{`cmd`, `op`, `kind`}...]: an entry with `op` is for that op,
+  the entry without for the command's other lines (`browser` with `from`
+  is a view, its `write` data). It is core/ui_json.cpp's command table,
+  the one handle_line dispatches from: every command of the table above
+  is in it.
+
+The core says when the running command begins computing: `computing`
+(once per command, before its first `progress`; its `idle` ends it). A
+client disables data and computation actions from then until that
+`idle`, and nothing merely because a command it sent itself is running.
+
 ## Window keys
 
-The windows other than the main one have a key layer of their own: `{"cmd":"key","win":W,"key":k}`, one letter one command, defined in core/menus.cpp (`menu_auto_window`, `menu_browser_window`, `menu_ani_window`, `menu_aplot_window`, `menu_equilibrium_window`), which a page's buttons send. A key the window's layer does not have is ignored; an unknown `win` is a `message` `error`. Like any command they start after the one before ends: while a command runs they are dropped (the page does not send them).
+The windows other than the main one have a key layer of their own: `{"cmd":"key","win":W,"key":k}`, one letter one command, defined in core/menus.cpp (`menu_auto_window`, `menu_browser_window`, `menu_ani_window`, `menu_aplot_window`, `menu_equilibrium_window`), which a page's buttons send (their keys, kinds and names come in `hello.windows`: "Action kinds"). A key the window's layer does not have is ignored; an unknown `win` is a `message` `error`. Like any command they start after the one before ends: while a command runs they are dropped (the page does not send them).
 
 | `win` | keys |
 |---|---|
@@ -150,24 +188,30 @@ in the input.
   after an `abort` counts as the user's last word: the rest of that command
   is not cancelled. `quit` then exits.
 - While a *computation* runs (an integration, a range of them, Sing pts, a
-  boundary value problem, an AUTO run: what Escape stops), the server takes
-  only what the computation itself acts on, and discards everything else
-  the moment it arrives (one list, core/ui_json.cpp `during_run`):
+  boundary value problem, an AUTO run: what Escape stops; the `computing`
+  event says it began), the server judges each line the moment it arrives
+  by its kind ("Action kinds"; one list, core/ui_json.cpp `during_run`):
   - acted on at once, at the computation's next check: `abort`, `quit`,
     the stop keys (`key` `Escape`; `/`, which ends a range or a shooting
     for good), and what only reads or steers a view: `state`, `browser`
     with `from`, `ani` `pause`/`fast`/`slow`/`speed`;
-  - kept for their turn: an `answer` (the computation's own questions)
-    and `data` (what this client is sent: a page that connects during a
-    run asks for it), which runs after the computation's `idle`;
-  - anything else -- another key, a `set`, any other command -- is
-    dropped with one log line (`ignored during a run: key g`), never
-    queued to run afterwards and never answered: no refusal event, no
-    `idle` of its own. A client that waits for each command's `idle`, as
-    web2 does, never sends one: it disables its controls while it is
-    busy, holds value edits until the next command that computes, and
-    sends only Escape (as `abort`); a script is read one line at a time
-    after each `idle`, so every step of it starts from idle.
+  - kept for their turn, run after the computation's `idle` with their
+    own `state` and `idle`: an `answer` (the computation's own
+    questions) and every other command of the view kind (`data`, a
+    `display`, a `click`, a menu key that only shows, such as Window/zoom
+    or a window's Axes: its menu opens then);
+  - refused: a command of the data or computation kind (a key that
+    computes or saves, a `set`, a file written, AUTO's `set`), with one
+    log line when it arrives (`refused during a computation: key s`); it
+    never runs, and after the computation it gets a `message` `error`
+    ("Not while a computation runs: key was refused"), `state` and `idle`
+    of its own, so a client's count of commands and idles stays right. (Until
+    W95 every such line, views included, was dropped with no reply.) A
+    client that enables its actions by kind, as web2 does, sends none: it
+    disables data and computation actions from `computing` to the
+    command's `idle`, holds value edits until the next command that
+    computes, and sends Escape as `abort`; a script is read one line at a
+    time after each `idle`, so every step of it starts from idle.
 
   Once the computation is stopping (an `abort` or Escape cancelled it), a
   line that arrives is for after it: it is taken as below, so a command
@@ -181,9 +225,12 @@ in the input.
   not get to runs after it as an ordinary command.
 - Every other command sent during a job, outside a computation, is queued
   and runs, in order, after the job's `idle` (with its own `state` and
-  `idle`). Keys and edits sent while a prompt is open are dropped; an
-  `auto` `set` sent then is kept and applied when the command that asked
-  ends (not in a script, where the line after an ask is its answer).
+  `idle`). A command a prompt reads that does not answer it (sent before
+  the client saw the question: a click right behind the command that
+  asks) is kept the same way, for after the command that asked (W95; it
+  used to be dropped); an `auto` `set` sent then is applied when that
+  command ends. Not in a script, where the line after an ask is its
+  answer and anything else fails the script.
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
@@ -314,7 +361,7 @@ model's start in every mode, before the script.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`), `title`, `file`, `menus`, `lists`, `auto_hints`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
@@ -337,6 +384,7 @@ model's start in every mode, before the script.
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
+| `computing` | | The running command began computing (once per command, before its first `progress`); until its `idle` the server refuses data and computation commands ("Action kinds", "Commands during a command"). A page that connects meanwhile gets it again. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |

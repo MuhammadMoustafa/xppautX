@@ -4,7 +4,7 @@
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, LoadErrorEvent, StateEvent, View, XppEvent} from '../protocol/types';
-import {ANI_KEYS, AUTO_KEYS, isWindowKey} from '../protocol/windowKeys';
+import {isWindowKey} from '../protocol/kinds';
 import {
   coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
   rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
@@ -84,6 +84,9 @@ export interface AppState {
   hello: HelloEvent | null;
   core: StateEvent | null;
   busy: boolean;
+  /** the running command computes (the core's `computing` event, until its idle): only view
+      and control actions start then (protocol/kinds.ts, W95); busy alone disables nothing */
+  computing: boolean;
   /** what the busy command runs, for the status line: the menu item last
       answered ("Go"), "AUTO" for the AUTO view's Run; null when unknown (W68) */
   running: string | null;
@@ -175,6 +178,7 @@ export const initialState: AppState = {
   hello: null,
   core: null,
   busy: false,
+  computing: false,
   running: null,
   stopping: false,
   ask: null,
@@ -253,18 +257,6 @@ export function noIdle(cmd: Command): boolean {
   return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
 }
 
-/** the commands that go out while the page is busy (W68): what a running
-    computation takes, the core's one list (core/ui_json.cpp during_run,
-    docs/protocol.md "Commands during a command"): Stop (`abort`, which is
-    also what Escape sends then), quit, answers, and what only reads or
-    steers a view (`state`, `data`, `browser` with `from`, the animation's
-    pause and speed). Anything else would be dropped by the core with no
-    reply, so session.ts discards it at the source. */
-export function takenWhileBusy(cmd: Command): boolean {
-  if (noIdle(cmd) || cmd.cmd === 'answer' || cmd.cmd === 'state' || cmd.cmd === 'data') return true;
-  return cmd.cmd === 'ani' && ['pause', 'fast', 'slow', 'speed'].includes(String(cmd.op));
-}
-
 /** the status while busy: what runs, when no question is open (W68: every
     key but Escape does nothing then, so the line says which one does) */
 export function busyText(running: string | null, asking: boolean): string {
@@ -274,8 +266,8 @@ export function busyText(running: string | null, asking: boolean): string {
 
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
-function runningName(cmd: Command, ask: AskEvent | null): string | null {
-  if (isWindowKey(cmd, 'auto', AUTO_KEYS.run)) return 'AUTO';
+function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
+  if (isWindowKey(hello, cmd, 'auto', 'run')) return 'AUTO';
   if (cmd.cmd !== 'answer' || !ask || (ask.kind !== 'menu' && ask.kind !== 'choice') || typeof cmd.key !== 'string')
     return null;
   const i = (ask.keys ?? '').toLowerCase().indexOf(cmd.key.toLowerCase());
@@ -378,7 +370,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'idle':
       return {
-        ...state, busy: false, running: null, stopping: false, ask: null, pick: null, box: '', progress: null,
+        ...state, busy: false, computing: false, running: null, stopping: false, ask: null, pick: null, box: '',
+        progress: null,
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
         diagram: diagramSettled(state.diagram),
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'settled'}),
@@ -405,6 +398,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, autoSettings: reduceAutoSettings(state.autoSettings, {type: 'event', ev: ev as unknown as AutoSettings})};
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
+    case 'computing':
+      return {...state, computing: true};
     case 'title':
       return {...state, title: ev.text};
     case 'message':
@@ -443,7 +438,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'error':
       return {...state, loadError: ev};
     case 'exit':
-      return {...state, exited: ev.code, busy: false, running: null, stopping: false};
+      return {...state, exited: ev.code, busy: false, computing: false, running: null, stopping: false};
     case 'bye':
       return addLog(state, {kind: 'info', text: 'XPP has exited.'});
     default:
@@ -456,20 +451,21 @@ export function reduce(state: AppState, action: Action): AppState {
     case 'event':
       return onEvent(state, action.ev);
     case 'connection':
-      return action.open === state.connected ? state : {...state, connected: action.open};
+      /* a new connection is told again when the core computes (its computing event is kept) */
+      return action.open === state.connected ? state : {...state, connected: action.open, computing: false};
     case 'sent': {
       const files = onSent(state.files, action.cmd, state.ask, state.core?.menu ?? 0);
       if (files !== state.files) state = {...state, files};
       if (action.cmd.cmd === 'answer') {
         /* a point or a box is done once answered; a drag is asked again until it ends */
         const p = state.pick, cancelled = action.cmd.ok === 0;
-        const running = runningName(action.cmd, state.ask) ?? state.running;
+        const running = runningName(state.hello, action.cmd, state.ask) ?? state.running;
         return {...state, ask: null, running, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
-      if (isWindowKey(action.cmd, 'ani', ANI_KEYS.go))
+      if (isWindowKey(state.hello, action.cmd, 'ani', 'go'))
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (noIdle(action.cmd)) return state;
-      return {...state, busy: true, running: state.busy ? state.running : runningName(action.cmd, null)};
+      return {...state, busy: true, running: state.busy ? state.running : runningName(state.hello, action.cmd, null)};
     }
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;

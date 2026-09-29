@@ -19,7 +19,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
-import {BUSY_TITLE, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -52,7 +52,7 @@ function SourceLineRow({line, session, busy}: {line: SourceLine; session: Sessio
 
 function SourceView() {
   const session = useSession();
-  const busy = useStore(s => s.busy);
+  const busy = !useMay()({cmd: 'action'}); /* an action sets values: data (W95) */
   const source = useStore(s => s.text.source);
   if (!source) return <p class="text-empty">No source yet.</p>;
   const actionCount = source.comments.filter(c => c.hasAction).length;
@@ -83,7 +83,8 @@ function stabilityClass(type: string): string {
 
 function EquilibriumView() {
   const session = useSession();
-  const busy = useStore(s => s.busy);
+  const may = useMay(), mayKey = useMayKey();
+  const busy = !may({cmd: 'key', key: 's'}); /* Sing pts: a computation (W95) */
   const eq = useStore(s => s.text.equilibrium);
   return (
     <div class="text-equilibrium">
@@ -92,7 +93,7 @@ function EquilibriumView() {
           title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
           Find equilibrium
         </button>
-        <button onClick={() => session.importEquilibrium()} disabled={!eq || busy}
+        <button onClick={() => session.importEquilibrium()} disabled={!eq || !mayKey('equilibrium', 'import')}
           title="Make this equilibrium the initial conditions">
           Import
         </button>

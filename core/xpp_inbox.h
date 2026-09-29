@@ -25,15 +25,17 @@ extern "C" {
 #define XPP_INBOX_ANY 2     /* next(): the control queue first, then the normal one */
 #define XPP_INBOX_ARRIVAL 3 /* next(): both queues, the older line first (sequence order) */
 #define XPP_INBOX_DROP 4    /* a classifier result: the line is discarded, never queued */
+#define XPP_INBOX_REFUSE 5  /* a classifier result: queued as a normal line, marked refused (next()) */
 
 /* One line, without its newline (it must contain none), stored as given:
    the caller strips line ends. Empty lines are kept. Thread-safe; pushes
    from several threads are serialised, so sequence order is queue order. */
 void xpp_inbox_push(const char *line, size_t n);
 
-/* cls(line, seq) returns XPP_INBOX_CONTROL, XPP_INBOX_NORMAL or
-   XPP_INBOX_DROP (the line is discarded: its sequence number is used up,
-   nothing is queued). It runs on the pushing reader thread, before the
+/* cls(line, seq) returns XPP_INBOX_CONTROL, XPP_INBOX_NORMAL,
+   XPP_INBOX_REFUSE (a normal line the core is to refuse when it takes it:
+   next() says so) or XPP_INBOX_DROP (the line is discarded: its sequence
+   number is used up, nothing is queued). It runs on the pushing reader thread, before the
    line is queued, with no inbox lock held that the core waits on (it may
    set atomics, log or signal the core), but it must not touch core state
    or call back into the inbox. The pushing thread may hold its own locks
@@ -97,10 +99,11 @@ void xpp_inbox_start_generated(std::function<std::optional<std::string>()> next)
 /* The next line from `which` queue (XPP_INBOX_NORMAL, _CONTROL, _ANY or
    _ARRIVAL), waiting at most wait_ms (< 0: block, 0: poll). Returns 1 with
    the line in `line` (and *seq, when seq is not NULL, set to its sequence
-   number); 0 when nothing came in time, or when input has ended and only
-   the other queue still holds lines; -1 when input has ended
+   number, and *refused, when refused is not NULL, whether the classifier
+   refused it); 0 when nothing came in time, or when input has ended and
+   only the other queue still holds lines; -1 when input has ended
    (xpp_inbox_close) and both queues are empty. `line` is left alone
    unless 1 is returned. Nothing is thrown. */
-int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq);
+int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq, bool *refused = nullptr);
 #endif
 #endif

@@ -92,19 +92,21 @@ int handle_async(const char *line)
      for good), and what only reads or steers a view: state, browser with
      from, ani pause/fast/slow/speed;
    - kept for its turn (XPP_INBOX_NORMAL): an answer (the computation's own
-     questions) and data (what this client is sent: a page that connects
-     during a run asks for it);
-   - everything else (XPP_INBOX_DROP) is discarded with one log line and
-     never queued: another key, a set (a value edit waits for the next
-     computation, W69), any other command. A client that waits for each
-     command's idle, as the page does, never sends one (docs/ui-v2.md). */
+     questions), and every other command of the view kind (W95: data, a
+     zoom, a window picked, a menu that only shows): it runs after the
+     computation's idle;
+   - refused (XPP_INBOX_REFUSE), with one log line: a command of the data
+     or computation kind (a key that computes or saves, a set, a file
+     written): never run, it gets an error message, state and idle when
+     the core takes it, after the computation. A client that enables its
+     actions by kind, as the page does (W95), never sends one. */
 int during_run(const char *line)
 {
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
     get_string(line, "cmd", c, 16);
     if (c == "abort" || c == "quit" || c == "state") return XPP_INBOX_CONTROL;
     if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
-    if (c == "answer" || c == "data") return XPP_INBOX_NORMAL;
+    if (c == "answer") return XPP_INBOX_NORMAL;
     if (c == "key" && !js_find(line, "win")) {
         get_string(line, "key", o, 16);
         int k = key_code(o.c_str());
@@ -113,15 +115,26 @@ int during_run(const char *line)
                && (o == "pause" || o == "fast" || o == "slow" || o == "speed")) {
         return XPP_INBOX_CONTROL;
     }
-    xpp_log(XPP_LOG_WARN, "ignored during a run: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(), o.empty() ? "" : " ",
-            o.c_str());
-    return XPP_INBOX_DROP;
+    const char kind = line_kind(line);
+    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL) return XPP_INBOX_NORMAL;
+    xpp_log(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
+            o.empty() ? "" : " ", o.c_str());
+    return XPP_INBOX_REFUSE;
+}
+
+void defer_line(const char *line, bool refused)
+{
+    try {
+        session.deferred.push_back({line, read_line_seq(), refused});
+    } catch (...) {
+        xpp_out_of_memory("keeping a command");
+    }
 }
 
 namespace {
 
 /* The input classifier (xpp_inbox.h), on the reader thread: it only parses
-   the line, touches xpp_job's atomics and logs a dropped line.
+   the line, touches xpp_job's atomics and logs a refused line.
 
    abort and quit go to the control queue always, and cancel the running
    job (and any not yet begun that came before them) at once: the
@@ -129,8 +142,8 @@ namespace {
    input. Quit then exits when the engine takes the line.
 
    While a computation runs, during_run() decides: what it acts on is a
-   control line, an answer or data waits its turn, anything else is
-   dropped. Once it is stopping (cancelled by an abort or Escape), a line
+   control line, an answer or a view command waits its turn, a data or
+   computation command is refused. Once it is stopping (cancelled by an abort or Escape), a line
    is for after it and is classified as below: a command sent after an
    abort runs normally.
 
@@ -272,6 +285,10 @@ void j_exit_program(void)
 void j_void(void) {}
 void j_int(int) {}
 
+/* the running command's first computation began (xpp_job.h): the client
+   disables what it may not do until the command's idle */
+void send_computing(void) { send_simple("computing", NULL, NULL); }
+
 /* the JSON front end's table: assignments, so C++17 needs no designated
    initializers; fields not set stay null, as in the C initializer */
 XppUi make_json_ui(void)
@@ -380,83 +397,174 @@ void window_key(const std::string &win, int ch, const char *line)
     else j_err_msg(xpp::format("No key layer for the window {}", win).c_str());
 }
 
+void key_command(const char *line)
+{
+    std::string k, win;
+    get_string(line, "key", k, 32);
+    if (get_string(line, "win", win, 16)) window_key(win, key_code(k.c_str()), line);
+    else commander(key_code(k.c_str()));
+}
+
+void session_command(const char *line)
+{
+    std::string o, name;
+    get_string(line, "op", o, 8);
+    get_string(line, "name", name, XPP_MAX_NAME);
+    /* data: in (1), left out (0), or asked above 50 MB (absent) */
+    const char *jd = js_find(line, "data");
+    if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
+    else if (o == "load") xpp_session_load(name.empty() ? nullptr : name.c_str());
+}
+
+/* the model's folder for a client that cannot reach it (xpp_files.h) */
+void file_command(const char *line)
+{
+    std::string o;
+    get_string(line, "op", o, 8);
+    xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
+}
+
+/* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
+void write_command(const char *line)
+{
+    std::string o, name;
+    get_string(line, "op", o, 8);
+    get_string(line, "name", name, XPP_MAX_NAME);
+    if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
+    else if (is_cmd(line, "dfield")) write_dfield(name.c_str());
+    else write_equilibrium(name.c_str(), get_int(line, "shoot", 0));
+}
+
+/* The protocol's commands (docs/protocol.md "Commands"): the one table of
+   what handle_line runs and of each command's kind (menus.h XPP_KIND_*,
+   W95), which hello sends and during_run() judges by. An entry with an op
+   is for lines with that "op"; the entry after it with none for the
+   command's other lines. A key's kind is its menu item's (0 here). */
+struct CommandInfo {
+    const char *cmd;
+    const char *op;
+    char kind;
+    void (*run)(const char *line);
+};
+
+constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
+
+const CommandInfo commands[] = {
+    {"key", nullptr, 0, key_command},
+    {"answer", nullptr, C,
+     [](const char *line) {
+         /* reaching the main dispatch (rather than ask_wait) means no ask
+            was pending for it (docs/protocol.md "Scripts") */
+         if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
+     }},
+    {"abort", nullptr, C, [](const char *) {}},
+    {"quit", nullptr, C, [](const char *) { quit_session(); }},
+    {"state", nullptr, V, [](const char *) { send_state(); }},
+    {"data", nullptr, V, data_command},
+    {"equations", nullptr, V, [](const char *) { send_equations(); }},
+    {"click", nullptr, V, click_command},
+    {"display", nullptr, V, display_command},
+    {"redraw", nullptr, V,
+     [](const char *) {
+         j_redraw_graph();
+         auto_redraw_for_client();
+     }},
+    {"plotvars", nullptr, V, plotvars_command},
+    {"aplot", nullptr, V, aplot_command},
+    {"ani", nullptr, V, ani_command},
+    {"browser", "write", D, browser_command},
+    {"browser", "load", D, browser_command},
+    {"browser", "postprocess", X, browser_command},
+    {"browser", nullptr, V, browser_command}, /* with from: the block shown */
+    {"auto", "set", D, auto_command},
+    {"auto", "grab", D, auto_command},
+    {"auto", nullptr, V, auto_command}, /* display, point, close */
+    {"file", "put", D, file_command},
+    {"file", nullptr, V, file_command}, /* list, get */
+    {"set", nullptr, D, apply_set},
+    {"default", nullptr, D, default_command},
+    {"slide", nullptr, D, slide_command},
+    {"action", nullptr, D, action_command},
+    {"values", nullptr, D, values_command},
+    {"session", nullptr, D, session_command},
+    {"dfield", nullptr, D, write_command},
+    {"open", nullptr, D,
+     [](const char *line) {
+         std::string file;
+         get_string(line, "file", file);
+         xpp_model_open(file.c_str());
+     }},
+    {"reload", nullptr, D, [](const char *) { xpp_model_reload(); }},
+    {"equilibrium", nullptr, X, write_command},
+    {"userbut", nullptr, X,
+     [](const char *line) {
+         int i = get_int(line, "index", -1);
+         if (i >= 0 && i < xpp::session().nuserbut) run_the_commands(xpp::session().userbut[i].com);
+     }},
+};
+
+/* the table's entry for `line`, NULL for an unknown command; allocation-free */
+const CommandInfo *command_of(const char *line)
+{
+    std::string c, o; /* at most 15 bytes */
+    if (!get_string(line, "cmd", c, 16)) return nullptr;
+    get_string(line, "op", o, 16);
+    for (const CommandInfo &e : commands)
+        if (c == e.cmd && (!e.op || o == e.op)) return &e;
+    return nullptr;
+}
+
+/* hello's "commands": the table, a key's kind left to its menu */
+void buf_commands(Buf *b)
+{
+    BUF_LIT(b, ",\"commands\":[");
+    bool first = true;
+    for (const CommandInfo &e : commands) {
+        if (!e.kind) continue;
+        if (!first) BUF_LIT(b, ",");
+        first = false;
+        BUF_LIT(b, "{\"cmd\":");
+        buf_str(b, e.cmd);
+        if (e.op) {
+            BUF_LIT(b, ",\"op\":");
+            buf_str(b, e.op);
+        }
+        buf_format(b, ",\"kind\":\"{}\"}}", e.kind);
+    }
+    BUF_LIT(b, "]");
+}
+
+} // namespace
+
+char line_kind(const char *line)
+{
+    const CommandInfo *e = command_of(line);
+    if (!e) return 0;
+    if (e->kind) return e->kind;
+    std::string k, win; /* a key: its menu item's kind */
+    get_string(line, "key", k, 16);
+    const int ch = key_code(k.c_str());
+    if (!get_string(line, "win", win, 16)) return xpp_main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
+    const XppWindowLayer *l = xpp_window_layer(win.c_str());
+    return l ? xpp_menu_kind(l->menu, ch) : 0;
+}
+
+namespace {
+
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
-   number: an abort cancels it from the reader thread */
-void handle_line(const char *line, unsigned long seq)
+   number: an abort cancels it from the reader thread. A line refused
+   during a computation (during_run) only says so, and ends as any does. */
+void handle_line(const char *line, unsigned long seq, bool refused)
 {
     xpp_job_begin(seq);
-    if (handle_async(line)) {
-    } else if (is_cmd(line, "key")) {
-        std::string k, win;
-        get_string(line, "key", k, 32);
-        if (get_string(line, "win", win, 16)) window_key(win, key_code(k.c_str()), line);
-        else commander(key_code(k.c_str()));
-    } else if (is_cmd(line, "set")) {
-        apply_set(line);
-    } else if (is_cmd(line, "default")) {
-        default_command(line);
-    } else if (is_cmd(line, "slide")) {
-        slide_command(line);
-    } else if (is_cmd(line, "userbut")) {
-        int i = get_int(line, "index", -1);
-        if (i >= 0 && i < xpp::session().nuserbut) run_the_commands(xpp::session().userbut[i].com);
-    } else if (is_cmd(line, "browser")) {
-        browser_command(line);
-    } else if (is_cmd(line, "aplot")) {
-        aplot_command(line);
-    } else if (is_cmd(line, "plotvars")) {
-        plotvars_command(line);
-    } else if (is_cmd(line, "answer")) {
-        /* reaching the main dispatch (rather than ask_wait) means no ask
-           was pending for it (docs/protocol.md "Scripts") */
-        if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
-    } else if (is_cmd(line, "data")) {
-        data_command(line);
-    } else if (is_cmd(line, "equations")) {
-        send_equations();
-    } else if (is_cmd(line, "action")) {
-        action_command(line);
-    } else if (is_cmd(line, "click")) {
-        click_command(line);
-    } else if (is_cmd(line, "display")) {
-        display_command(line);
-    } else if (is_cmd(line, "redraw")) {
-        j_redraw_graph();
-        auto_redraw_for_client();
-    } else if (is_cmd(line, "ani")) {
-        ani_command(line);
-    } else if (is_cmd(line, "auto")) {
-        auto_command(line);
-    } else if (is_cmd(line, "session")) {
-        std::string o, name;
-        get_string(line, "op", o, 8);
-        get_string(line, "name", name, XPP_MAX_NAME);
-        /* data: in (1), left out (0), or asked above 50 MB (absent) */
-        const char *jd = js_find(line, "data");
-        if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
-        else if (o == "load") xpp_session_load(name.empty() ? nullptr : name.c_str());
-    } else if (is_cmd(line, "file")) {
-        /* the model's folder for a client that cannot reach it (xpp_files.h) */
-        std::string o;
-        get_string(line, "op", o, 8);
-        xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
-    } else if (is_cmd(line, "values")) {
-        values_command(line);
-    } else if (is_cmd(line, "dfield") || is_cmd(line, "equilibrium")) {
-        /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
-        std::string o, name;
-        get_string(line, "op", o, 8);
-        get_string(line, "name", name, XPP_MAX_NAME);
-        if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
-        else if (is_cmd(line, "dfield")) write_dfield(name.c_str());
-        else write_equilibrium(name.c_str(), get_int(line, "shoot", 0));
-    } else if (is_cmd(line, "open")) {
-        std::string file;
-        get_string(line, "file", file);
-        xpp_model_open(file.c_str());
-    } else if (is_cmd(line, "reload")) {
-        xpp_model_reload();
-    } else if (!is_cmd(line, "abort")) {
+    if (refused) {
+        std::string c;
+        get_string(line, "cmd", c, 32);
+        j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
+    } else if (handle_async(line)) {
+    } else if (const CommandInfo *e = command_of(line)) {
+        e->run(line);
+    } else {
         std::string c;
         if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c).c_str());
     }
@@ -497,24 +605,32 @@ void handle_line(const char *line, unsigned long seq)
 
 using namespace xpp::json;
 
-void json_ui_handle(const char *line) { handle_line(line, 0); }
+void json_ui_handle(const char *line) { handle_line(line, 0, false); }
 
 void json_ui_loop(void)
 {
-    std::string copy;
+    DeferredLine next;
     for (;;) {
-        /* a copy: the command's own prompts read further lines */
-        char *line = read_line(XPP_INBOX_ARRIVAL, -1);
-        unsigned long seq = read_line_seq();
-        try {
-            copy = line;
-        } catch (...) {
-            xpp_out_of_memory("taking a command");
+        /* what the last command's prompts or computation kept for after
+           it comes first (defer_line), then the input in arrival order;
+           a copy: the command's own prompts read further lines */
+        if (!session.deferred.empty()) {
+            next = std::move(session.deferred.front());
+            session.deferred.pop_front();
+        } else {
+            char *line = read_line(XPP_INBOX_ARRIVAL, -1);
+            try {
+                next.line = line;
+            } catch (...) {
+                xpp_out_of_memory("taking a command");
+            }
+            next.seq = read_line_seq();
+            next.refused = read_line_refused();
         }
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
-        if (!is_cmd(copy.c_str(), "abort")) handle_line(copy.c_str(), seq);
+        if (!is_cmd(next.line.c_str(), "abort")) handle_line(next.line.c_str(), next.seq, next.refused);
         else if (session.script_mode) script_next();
     }
 }
@@ -566,6 +682,7 @@ void install(bool silent)
     auto_data_init(data_emit, diag_point_of_node);
     auto_settings_init(data_emit);
     xpp_inbox_set_classifier(classify);
+    xpp_job_set_compute_hook(send_computing);
     XppUi ui = json_ui;
     if (silent) {
         /* NULL keeps the headless entry (xpp_set_ui) */
@@ -644,7 +761,35 @@ void json_ui_hello(void)
     buf_str(&b, num_menu_keys);
     BUF_LIT(&b, ",\"num_hints\":");
     buf_str_array(&b, num_hint, NUM_ENTRIES);
+    /* each item's kind (W95, menus.h), parallel to the keys */
+    BUF_LIT(&b, ",\"main_kinds\":");
+    buf_str(&b, main_menu_kinds);
+    BUF_LIT(&b, ",\"file_kinds\":");
+    buf_str(&b, file_menu_kinds);
+    BUF_LIT(&b, ",\"num_kinds\":");
+    buf_str(&b, num_menu_kinds);
     BUF_LIT(&b, "}");
+    /* the windows' key layers (menus.h xpp_window_layers) and the other
+       commands' kinds: what the page enables while a computation runs */
+    BUF_LIT(&b, ",\"windows\":{");
+    for (i = 0; i < XPP_WINDOW_LAYERS; i++) {
+        const XppWindowLayer &l = xpp_window_layers[i];
+        if (i) BUF_LIT(&b, ",");
+        buf_str(&b, l.win);
+        BUF_LIT(&b, ":{\"items\":");
+        buf_str_array(&b, l.menu->items, l.menu->n);
+        BUF_LIT(&b, ",\"keys\":");
+        buf_str(&b, l.menu->keys);
+        BUF_LIT(&b, ",\"kinds\":");
+        buf_str(&b, l.menu->kinds);
+        BUF_LIT(&b, ",\"ids\":");
+        buf_str_array(&b, l.ids, l.menu->n);
+        BUF_LIT(&b, ",\"hints\":");
+        buf_str_array(&b, l.menu->hints, l.menu->n);
+        BUF_LIT(&b, "}");
+    }
+    BUF_LIT(&b, "}");
+    buf_commands(&b);
     /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
     BUF_LIT(&b, ",\"lists\":[[\"T\"");
     const xpp::Model &m = xpp::model();
@@ -678,8 +823,6 @@ void json_ui_hello(void)
         buf_str(&b, xpp::format("{} {}", static_cast<int>(m.id), m.name).c_str());
     }
     BUF_LIT(&b, "]]");
-    BUF_LIT(&b, ",\"auto_hints\":");
-    buf_str_array(&b, auto_hint, 9);
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
     BUF_LIT(&b, ",\"userbuttons\":[");
     for (i = 0; i < xpp::session().nuserbut; i++) {

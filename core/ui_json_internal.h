@@ -24,6 +24,8 @@
 #include "xpp_mem.h"
 #include "display_state.h"
 #include <stddef.h>
+#include <atomic>
+#include <deque>
 #include <functional>
 #include <iterator>
 #include <optional>
@@ -52,11 +54,24 @@ namespace xpp::json {
 /* ---- ui_json.cpp ---- */
 
 /* the session's mutable state that more than one file needs */
+/* a command line kept for after the running command (defer_line) */
+struct DeferredLine {
+    std::string line;
+    unsigned long seq;
+    bool refused; /* classify() refused it during a computation */
+};
+
 struct ProtocolSession {
     /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
        json_ui_set_script(), script_error by an error message, which makes
        the process exit 1 at the end of the file */
     int script_mode, script_error;
+    /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
+       reader thread's classify(): which menu a key is an item of */
+    std::atomic<int> menu{0};
+    /* the lines a command's prompt or computation took that were meant for
+       after it, in arrival order; the command loop runs them first */
+    std::deque<DeferredLine> deferred;
 };
 extern ProtocolSession session;
 
@@ -64,6 +79,10 @@ extern ProtocolSession session;
 int handle_async(const char *line);   /* commands that make sense at any moment */
 int control_line(const char *line);   /* a control line taken by a checkpoint */
 int during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
+/* keep the line read last (read_line) for after the running command;
+   refused: during_run() refused it (the command loop answers it so) */
+void defer_line(const char *line, bool refused);
+char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
@@ -113,6 +132,7 @@ void data_emit(const char *line, size_t n);
 
 char *read_line(int which, int wait_ms);
 unsigned long read_line_seq(void); /* the sequence number of read_line()'s line */
+bool read_line_refused(void);      /* whether classify() refused read_line()'s line */
 
 const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
