@@ -8,6 +8,7 @@
    fingerprint itself. Writing and reading the members is xpp_session.cpp's.
    C++ only. */
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -30,7 +31,7 @@ struct Manifest {
     int version = 1;
     std::string model;      /* the .ode's absolute path when it was saved */
     std::string model_name; /* its file name, looked for beside the .snapx first */
-    std::string sha256;     /* of the .ode's bytes: an edit since changes it */
+    std::string sha256;     /* fingerprint() of the .ode and its includes */
     int node = 0, nmarkov = 0;
     std::vector<std::string> vars; /* the model's variables and auxiliaries (uvar_names) */
     std::vector<std::string> pars; /* its parameters (upar_names) */
@@ -43,8 +44,11 @@ std::string manifest_text(const Manifest &m);
    line, a later version, a count that is not a number) */
 std::optional<Manifest> parse_manifest(std::string_view text);
 
-/* the fingerprint of a model file's bytes: their SHA-256, 64 hex digits */
-std::string fingerprint(std::string_view bytes);
+/* the fingerprint of a model: the SHA-256 (64 hex digits) of its files'
+   contents, the model's own first, then each file it includes, in the
+   order read (each file's length first, so no two lists of files give the
+   same bytes); an edit to any of them changes it */
+std::string fingerprint(std::span<const std::string> files);
 
 /* path names a session file: it ends in .snapx (case ignored) */
 bool is_session_file(std::string_view path);

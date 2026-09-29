@@ -249,6 +249,11 @@ struct Model {
   std::string options_file;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
+  /* the files the parser read: this_file, then every file it included
+     (#include, include "...", -include), as it named them (relative to
+     load_dir); a session file's fingerprint covers them all
+     (xpp_session_fingerprint). Empty for an old-style model. */
+  std::vector<std::string> source_files;
   /* the command line it was loaded with (argv, the program's name first):
      File > Reload loads it again (model_switch.h) */
   std::vector<std::string> command_line;

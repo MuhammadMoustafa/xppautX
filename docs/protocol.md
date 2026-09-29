@@ -744,7 +744,7 @@ files, in this order:
 
 | Member | What it holds |
 |---|---|
-| `session.txt` | the manifest: `xppautX session 1`, then `model` (the `.ode`'s absolute path when saved), `name` (its file name), `sha256` (its bytes' fingerprint), `node`, `markov`, `vars` and `pars` (the model's names then), `data` (1 when `data.npz` is there), one `key value` line each |
+| `session.txt` | the manifest: `xppautX session 1`, then `model` (the `.ode`'s absolute path when saved), `name` (its file name), `sha256` (the fingerprint of its bytes and of every file it includes: SHA-256 over each file's length and contents, the model's first), `node`, `markov`, `vars` and `pars` (the model's names then), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics): the original XPPAUT reads it |
 | `model.auto` | AUTO's File/Save diagram file (its settings, the diagram and its orbits), when there is a diagram: XPPAUT reads it too |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's view (`autoview`), the browser's added columns; set-file lines, a value and its name |
@@ -757,7 +757,7 @@ path) as `open` does, then restores the members: `state`, `plots`,
 `marks` (but Sing pts' equilibrium symbols), `autoview` and the diagram
 are as they were at the save, the diagram to `model.auto`'s printed
 precision (6 digits). The earlier runs a window keeps until Erase are
-not saved. When the `.ode`'s fingerprint differs, a `message` `bottom`
+not saved. When the fingerprint differs (the `.ode` or a file it includes edited since), a `message` `bottom`
 says the model has changed since; with the same variable and parameter
 names everything is restored, otherwise the values, numerics, windows
 and data are restored by name (Reload's rule, a name the model lost left

@@ -1526,6 +1526,7 @@ private:
 
 void build_model(Parsed p)
 {
+  xpp::model().source_files=p.files;
   Builder(p).run();
 }
 

@@ -50,6 +50,10 @@ struct SavedSession {
     std::string set, auto_file;
 };
 
+/* the current model's fingerprint (snapx.h): its file and every file it
+   included, read again now (one that cannot be read counts as empty) */
+std::string xpp_session_fingerprint();
+
 /* session file snapx's model, found beside it first (its saved name) and
    else at the path it was saved from: its absolute path, or empty (and an
    error message) when snapx is not a session file or neither is there */

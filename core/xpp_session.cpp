@@ -498,10 +498,7 @@ int xpp_session_save(const char *name_arg, int data)
     xpp::snapx::Manifest man;
     man.model = model_path();
     man.model_name = xpp_files_split_path(m.this_file).second;
-    std::string ode;
-    if (!xpp::read_bytes(man.model.c_str(), ode))
-        xpp::log(XPP_LOG_WARN, "Save session: cannot read {}; the session will not know it has changed\n", man.model);
-    else man.sha256 = xpp::snapx::fingerprint(ode);
+    man.sha256 = xpp_session_fingerprint();
     man.node = m.node;
     man.nmarkov = m.nmarkov;
     man.vars.assign(m.uvar_names.begin(), m.uvar_names.begin() + m.neq);
@@ -580,6 +577,20 @@ int xpp_session_load(const char *name_arg)
     return 1;
 }
 
+std::string xpp_session_fingerprint()
+{
+    const xpp::Model &m = xpp::model();
+    std::vector<std::string> contents;
+    for (const std::string &f : m.source_files.empty() ? std::vector<std::string>{m.this_file} : m.source_files) {
+        std::string bytes;
+        const std::string path = xpp_files_absolute(f, m.load_dir);
+        if (!xpp::read_bytes(path.c_str(), bytes))
+            xpp::log(XPP_LOG_WARN, "Session: cannot read {} for the model's fingerprint\n", path);
+        contents.push_back(std::move(bytes));
+    }
+    return xpp::snapx::fingerprint(contents);
+}
+
 std::string xpp_session_model(const std::string &snapx)
 {
     std::optional<std::map<std::string, std::string>> m = members(snapx);
@@ -608,12 +619,10 @@ bool xpp_session_restore(const std::string &snapx)
         return false;
     }
 
-    std::string ode;
-    xpp::read_bytes(model_path().c_str(), ode);
     const bool same_names = man->node == m.node && man->nmarkov == m.nmarkov &&
                             std::equal(man->vars.begin(), man->vars.end(), m.uvar_names.begin(), m.uvar_names.begin() + m.neq) &&
                             std::equal(man->pars.begin(), man->pars.end(), m.upar_names.begin(), m.upar_names.begin() + m.nupar);
-    if (xpp::snapx::fingerprint(ode) != man->sha256)
+    if (xpp_session_fingerprint() != man->sha256)
         warn(xpp::format("{} has changed since {} was saved: {}", m.this_file, xpp_files_split_path(snapx).second,
                          same_names ? "its names are the same, and everything is restored"
                                     : "what still fits is restored by name"));

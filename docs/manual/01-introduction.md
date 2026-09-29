@@ -128,7 +128,8 @@ why, and the model before goes on as it was.
 
 **Continuing where you stopped: session files.** File/saVe session (`F
 V`) writes everything you would need to pick up tomorrow into one file,
-`name.snapx`: the model's path and a fingerprint of its `.ode`, the
+`name.snapx`: the model's path and a fingerprint of its `.ode` and
+the files it includes, the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
 and frozen curves, AUTO's diagram, settings and view, and the data
@@ -136,7 +137,7 @@ table. File/opeN session (`F N`), a double-click on the file, or
 `xppautX name.snapx` loads its model (looked for beside the `.snapx`
 first, then where it was when saved) and restores it all as it was
 saved; AUTO can grab a point of the restored diagram and go on. If the
-`.ode` has been edited since, a warning says so and what still fits is
+`.ode` or a file it includes has been edited since, a warning says so and what still fits is
 kept by name, as Reload does: a parameter or variable the file no
 longer has is left out, and the diagram too when the model's variables
 or parameters changed. The earlier runs a window shows until Erase are

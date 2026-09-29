@@ -115,10 +115,14 @@ std::optional<Manifest> parse_manifest(std::string_view text)
     return m;
 }
 
-std::string fingerprint(std::string_view bytes)
+std::string fingerprint(std::span<const std::string> files)
 {
     Sha256 h;
-    h.update(bytes.data(), bytes.size());
+    for (const std::string &f : files) {
+        const std::string length = std::to_string(f.size()) + '\n';
+        h.update(length.data(), length.size());
+        h.update(f.data(), f.size());
+    }
     return h.hex();
 }
 
