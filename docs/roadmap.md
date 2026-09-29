@@ -127,8 +127,8 @@ issue; the card here is the one kept up to date.
 | W61 | #109 | Open and Reload in the same process (maintainer, 2026-09-27, decision 1): Open model asks, offers to save, resets and loads here (no second process); Reload keeps the Session's values by name; a failed load leaves the current model untouched | W47c | ready |
 | W62 | #110 | No undo (maintainer, 2026-09-27, decision 2): the values panel's Undo goes, Reset one or all to the .ode's values is the way back; the plot and diagram zoom history goes, one Fit returns to the window's own ranges | none | done |
 | W63 | #111 | Errors are values (design section 9), split as the issue asks (AUTO's exits first, 2026-09-28): W63a, W63b, W63c | W63a-c | blocked |
-| W63a | #111 | The numerics' exit() calls (autlib1/2/4, eispack) become errors returned up to the command, which reports it and leaves the program running; md5s and AUTO output unchanged | none | running |
-| W63b | #111 | Computations return an error value (what failed, where) instead of calling err_msg or the UI (err_msg in 36 core files; integrate.cpp's film_clip/put_text); the command layer turns it into the message | W63a | blocked |
+| W63a | #111 | The numerics' exit() calls (autlib1/2/4, eispack) become errors returned up to the command, which reports it and leaves the program running; md5s and AUTO output unchanged | none | done |
+| W63b | #111 | Computations return an error value (what failed, where) instead of calling err_msg or the UI (err_msg in 36 core files; integrate.cpp's film_clip/put_text); the command layer turns it into the message | W63a | ready |
 | W63c | #111 | A load's diagnostics as values (line, column, cause), sent as an `error` event the page shows next to the line; after W79's readers | W79 | blocked |
 | W64 | #112 | Grab an AUTO label by number: `auto grab <label>` for scripts, W56 and W59's replay; the interactive grab unchanged | none | done |
 | W65 | #113 | What the page displays lives in the core (maintainer, 2026-09-27, decision 3): earlier runs until Erase, AUTO's hidden branches, the zoom shown; held by the core's windows and sent as data, so the session file saves them | W47c | ready |
