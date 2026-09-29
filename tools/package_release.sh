@@ -113,12 +113,13 @@ case "$platform" in
     done
     cp LICENSE "$root/usr/share/doc/xppautx/copyright"
     cp README.md "$root/usr/share/doc/xppautx/README.md"
+    chmod 644 "$root"/usr/share/doc/xppautx/*
     # libc6 from the release runner's glibc floor; libstdc++/libgcc only
     # when the binary links them dynamically
     deps="libc6 (>= 2.39)"
     if command -v readelf >/dev/null 2>&1; then
       needed=$(readelf -d "$bin" 2>/dev/null)
-      case "$needed" in *libstdc++.so.6*) deps="$deps, libstdc++6 (>= 14)" ;; esac
+      case "$needed" in *libstdc++.so.6*) deps="$deps, libstdc++6 (>= 13)" ;; esac
       case "$needed" in *libgcc_s.so.1*) deps="$deps, libgcc-s1" ;; esac
     fi
     size_kb=$(du -sk "$root/usr" | cut -f1)
