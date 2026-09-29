@@ -301,10 +301,10 @@ void auto_view_update(void)
     if (!av_on) return;
     xpp::AutoView &v = xpp::session().auto_view;
     const auto &bf = xpp::session().auto_state.bifur;
-    const double axes[4] = {bf.xmin, bf.xmax, bf.ymin, bf.ymax};
-    if (v.axes_seen && std::memcmp(axes, v.axes, sizeof axes) != 0) v.zoom = xpp::Zoom();
+    const std::array<double, 4> axes = {bf.xmin, bf.xmax, bf.ymin, bf.ymax};
+    if (v.axes_seen && axes != v.axes) v.zoom = xpp::Zoom();
     v.axes_seen = true;
-    std::memcpy(v.axes, axes, sizeof axes);
+    v.axes = axes;
     if (v.earlier > diagram_count()) v.earlier = diagram_count(); /* a diagram that holds fewer points than Clear hid (File/Reset diagram) */
     if (v.earlier == 0) v.show_earlier = false;
     std::string o = "{\"ev\":\"autoview\",\"earlier\":" + std::to_string(v.earlier) + ",\"show\":" +

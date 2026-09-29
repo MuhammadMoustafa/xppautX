@@ -14,6 +14,7 @@
    "plots" lists the windows themselves; it is compared as text with the
    last one sent. */
 #include <cstdio>
+#include <array>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -39,6 +40,7 @@ unsigned long data_version; /* counts data changes */
 struct SeriesSig : xpp::PlotCurves {
     unsigned long win, version;
     int rows;
+    bool operator==(const SeriesSig &) const = default;
 };
 
 /* what the client holds of each window (graph index): its last full
@@ -76,11 +78,10 @@ void emit(const std::string &s)
 
 /* ---- series ---- */
 
-/* the curves window g plots (zero-filled: two are compared with memcmp) */
+/* the curves window g plots (the rest zero) */
 xpp::PlotCurves curves_of(const GRAPH &g)
 {
-    xpp::PlotCurves c;
-    std::memset(&c, 0, sizeof c);
+    xpp::PlotCurves c{};
     c.nvars = g.nvars;
     c.three = g.ThreeDFlag;
     for (int i = 0; i < g.nvars && i < MAXPERPLOT; i++) {
@@ -98,8 +99,7 @@ xpp::PlotCurves curves_of(const GRAPH &g)
 
 SeriesSig series_sig(int pop)
 {
-    SeriesSig s;
-    std::memset(&s, 0, sizeof s); /* padding too: signatures are compared with memcmp */
+    SeriesSig s{};
     const GRAPH &g = xpp::session().plot_windows.graph[pop];
     s.win = static_cast<unsigned long>(g.w);
     s.version = data_version;
@@ -108,7 +108,7 @@ SeriesSig series_sig(int pop)
     return s;
 }
 
-bool same(const SeriesSig &a, const SeriesSig &b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+bool same(const SeriesSig &a, const SeriesSig &b) { return a == b; }
 
 /* the same window and curves, whatever the data */
 bool same_plot(const SeriesSig &a, const SeriesSig &b)
@@ -191,7 +191,7 @@ constexpr long runs_max_rows = 4000000;
 
 xpp::PlotDisplay &disp(int pop) { return xpp::session().plot_display[pop]; }
 
-bool same_curves(const xpp::PlotCurves &a, const xpp::PlotCurves &b) { return std::memcmp(&a, &b, sizeof a) == 0; }
+bool same_curves(const xpp::PlotCurves &a, const xpp::PlotCurves &b) { return a == b; }
 
 /* the runs event: the client drops its `drop` oldest runs (all of them when
    `clear`), then adds the last `added` of ours; `erased` as now */
@@ -443,11 +443,11 @@ void zoom_upkeep(int pop)
 {
     const GRAPH &g = xpp::session().plot_windows.graph[pop];
     xpp::PlotDisplay &d = disp(pop);
-    const double axes[4] = {g.xlo, g.xhi, g.ylo, g.yhi};
+    const std::array<double, 4> axes = {g.xlo, g.xhi, g.ylo, g.yhi};
     const xpp::PlotCurves c = curves_of(g);
-    if (d.axes_seen && (std::memcmp(axes, d.axes, sizeof axes) != 0 || !same_curves(c, d.axes_curves))) d.zoom = xpp::Zoom();
+    if (d.axes_seen && (axes != d.axes || !same_curves(c, d.axes_curves))) d.zoom = xpp::Zoom();
     d.axes_seen = true;
-    std::memcpy(d.axes, axes, sizeof axes);
+    d.axes = axes;
     d.axes_curves = c;
 }
 

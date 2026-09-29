@@ -3,7 +3,7 @@
 /* What the page displays, held by the core (W65, docs/ui-v2.md "Display
    state"): each plot window's earlier runs until Erase, the zoom shown and
    whether the earlier runs are drawn; AUTO's hidden branches and zoom.
-   Members of xpp::Session (session.h), set by the `view` and `auto`
+   Members of xpp::Session (session.h), set by the `display` and `auto`
    commands or by the runs themselves and sent as data (plot_data.cpp's
    `runs` and `plots` events, json_auto.cpp's `autoview`), so a session
    file can save them. C++ only. */
@@ -29,12 +29,12 @@ struct Zoom {
     bool operator==(const Zoom &) const = default;
 };
 
-/* the curves a window plots: its series' identity (plain ints, so two are
-   compared with memcmp once zero-filled) */
+/* the curves a window plots: its series' identity */
 struct PlotCurves {
     int nvars, three;
     int xv[MAXPERPLOT], yv[MAXPERPLOT], zv[MAXPERPLOT], line[MAXPERPLOT], color[MAXPERPLOT];
     int shift[3];
+    bool operator==(const PlotCurves &) const = default;
 };
 
 /* one run's stored columns, as the page has them: the columns `cols` (T
@@ -60,7 +60,7 @@ struct PlotDisplay {
     unsigned long cur_version = 0;
     /* the axes and curves the zoom was made for: other ones drop it */
     bool axes_seen = false;
-    double axes[4] = {0, 0, 0, 0};
+    std::array<double, 4> axes{};
     PlotCurves axes_curves{};
 };
 
@@ -72,7 +72,7 @@ struct AutoView {
     Zoom zoom;
     /* the axes the zoom was made for */
     bool axes_seen = false;
-    double axes[4] = {0, 0, 0, 0};
+    std::array<double, 4> axes{};
 };
 
 } // namespace xpp
