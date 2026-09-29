@@ -258,7 +258,8 @@ written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.
 
 - **Open** (Read set, Load diagram, the browser's Load, ...): the page
-  shows the browser's own file picker; picked files are uploaded into
+  shows a prompt whose "Choose file…" opens the browser's own file picker, showing
+  the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in
   `#include`, tables and diagrams keep resolving as they always have. A
   name that already exists with different content asks to Replace, Keep
@@ -272,9 +273,6 @@ browser never silently downloads anything on its own.
 - **Missing companions**: when xppautX reports it cannot open a file, the
   notification offers "Add file…", which uploads it under that name and
   repeats the command.
-- **The core's own file listing** stays reachable as a second tab of the
-  dialog ("In the model's folder"), for the rare case that needs a path
-  elsewhere on the machine running xppautX.
 
 Two differences from X11 worth knowing:
 

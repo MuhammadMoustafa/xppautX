@@ -23,8 +23,15 @@ export interface SaveHandle {
 }
 
 interface PickerWindow {
-  showOpenFilePicker?: (o?: {multiple?: boolean}) => Promise<{getFile(): Promise<File>}[]>;
-  showSaveFilePicker?: (o?: {suggestedName?: string}) => Promise<SaveHandle>;
+  showOpenFilePicker?: (o?: {
+    multiple?: boolean;
+    excludeAcceptAllOption?: boolean;
+    types?: {description?: string; accept: Record<string, string[]>}[];
+  }) => Promise<{getFile(): Promise<File>}[]>;
+  showSaveFilePicker?: (o?: {
+    suggestedName?: string;
+    types?: {description?: string; accept: Record<string, string[]>}[];
+  }) => Promise<SaveHandle>;
 }
 
 const w = () => window as unknown as PickerWindow;
@@ -34,10 +41,29 @@ export const canPickSave = () => typeof w().showSaveFilePicker === 'function';
 
 const cancelled = (e: unknown) => e instanceof DOMException && e.name === 'AbortError';
 
-/** the files picked, or null when the user closed the dialog */
-export async function pickOpen(multiple: boolean): Promise<File[] | null> {
+/** the extensions an ask's `wild` pattern ("*.set", "*.dat *.tab") names, for a
+    picker's filter: [] (no filter) for "*", for a pattern that is not just
+    "*.ext" words (a "*.pars*" cannot be an extension), and when any is odd */
+export function wildExtensions(wild: string | undefined): string[] {
+  const words = (wild ?? '').split(/[\s,;|]+/).filter(Boolean);
+  if (!words.length) return [];
+  const exts: string[] = [];
+  for (const word of words) {
+    const m = /^\*(\.[A-Za-z0-9_-]{1,15})$/.exec(word);
+    if (!m) return [];
+    exts.push(m[1].toLowerCase());
+  }
+  return exts;
+}
+
+/** the files picked, or null when the user closed the dialog; `wild` filters
+    (the All files option stays, for the tables a .set refers to) */
+export async function pickOpen(multiple: boolean, wild?: string): Promise<File[] | null> {
   try {
-    const handles = await w().showOpenFilePicker!({multiple});
+    const exts = wildExtensions(wild);
+    const handles = await w().showOpenFilePicker!(exts.length
+      ? {multiple, excludeAcceptAllOption: false, types: [{description: wild, accept: {'application/octet-stream': exts}}]}
+      : {multiple});
     return await Promise.all(handles.map(h => h.getFile()));
   } catch (e) {
     if (cancelled(e)) return null;
@@ -46,9 +72,12 @@ export async function pickOpen(multiple: boolean): Promise<File[] | null> {
 }
 
 /** where to save, or null when the user closed the dialog */
-export async function pickSave(suggestedName: string): Promise<SaveHandle | null> {
+export async function pickSave(suggestedName: string, wild?: string): Promise<SaveHandle | null> {
   try {
-    return await w().showSaveFilePicker!({suggestedName});
+    const exts = wildExtensions(wild);
+    return await w().showSaveFilePicker!(exts.length
+      ? {suggestedName, types: [{description: wild, accept: {'application/octet-stream': exts}}]}
+      : {suggestedName});
   } catch (e) {
     if (cancelled(e)) return null;
     throw e;

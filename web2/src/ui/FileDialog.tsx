@@ -1,19 +1,19 @@
 /* The `file` ask (docs/ui-v2.md section 4): the browser's own dialogs, with
-   the model's folder as the workspace. Opening a file copies what the user
-   picks into the folder XPP reads (a name taken by other content asks
-   first: Replace, Keep both, Cancel); saving lets XPP write into the folder
-   and hands the file to the location picked (showSaveFilePicker) or to the
-   browser as a download. The core's own listing stays as a second tab, "In
-   the model's folder", answered with `cd`, `wild` and `file` as always. */
+   the model's folder as the workspace. Opening a file shows the browser's
+   picker, filtered by the ask's `wild`, and copies what the user picks into
+   the folder XPP reads (a name taken by other content asks first: Replace,
+   Keep both, Cancel); a picker needs a user gesture, and the ask comes from
+   the core, so the dialog is one prompt with "Choose file…" (focused: Enter
+   opens the picker, Esc cancels). Saving lets XPP write into the folder and
+   hands the file to the location picked (showSaveFilePicker) or to the
+   browser as a download. */
 import {useEffect, useRef, useState} from 'preact/hooks';
-import {canPickOpen, canPickSave, pickOpen, pickSave} from '../pickers';
+import {canPickOpen, canPickSave, pickOpen, pickSave, wildExtensions} from '../pickers';
 import type {AskEvent} from '../protocol/types';
 import {baseName, safeName} from '../store/files';
-import {FILE, TEXT} from '../store/fieldKinds';
+import {FILE} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
-
-type Tab = 'computer' | 'folder';
 
 /* Enter in a field submits its form (A3), as in AskDialog's forms */
 function enterSubmits(e: KeyboardEvent) {
@@ -69,7 +69,7 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
       return;
     }
     try {
-      const files = await pickOpen(true);
+      const files = await pickOpen(true, ask.wild);
       if (files) open(files);
     } catch {
       input.current!.click(); /* a picker that failed: the plain input still works */
@@ -82,7 +82,7 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
         folder, so it is copied there first. Pick the files it refers to at the same time (tables, included files)
         to copy them too.
       </p>
-      <input ref={input} type="file" multiple class="visually-hidden" tabIndex={-1} aria-hidden="true"
+      <input ref={input} type="file" multiple accept={wildExtensions(ask.wild).join(',') || undefined} class="visually-hidden" tabIndex={-1} aria-hidden="true"
         data-file-input="open" onChange={e => {
           const el = e.target as HTMLInputElement, files = [...(el.files ?? [])];
           el.value = ''; /* the same file can be picked again (after Cancel at the confirm) */
@@ -113,7 +113,7 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
       session.saveFile(ask, name, null);
       return;
     }
-    const handle = await pickSave(name).catch(() => null);
+    const handle = await pickSave(name, ask.wild).catch(() => null);
     if (!handle) return;
     session.saveFile(ask, safeName(handle.name) ? handle.name : name, handle);
   };
@@ -137,80 +137,10 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
   );
 }
 
-/* the core's own listing (the X11 file selector's), for a file elsewhere on its machine */
-function InTheFolder({ask}: {ask: AskEvent}) {
-  const session = useSession();
-  const [file, setFile] = useState(ask.file ?? '');
-  const [wild, setWild] = useState(ask.wild ?? '*');
-  const dirs = (ask.dirs ?? []).filter(d => d !== '.' && d !== '..');
-  return (
-    <form onKeyDown={enterSubmits} onSubmit={e => {
-      e.preventDefault();
-      session.answer(ask, {file});
-    }}>
-      <p class="muted file-dir">{ask.dir}</p>
-      <div class="form-grid">
-        <label>
-          <span>File</span>
-          <Field spec={TEXT} value={file} data-folder-file="" onInput={setFile} />
-        </label>
-        <label>
-          <span>Show</span>
-          <Field spec={TEXT} value={wild} title="Which files to list; Enter lists again" onInput={setWild}
-            onKeyDown={e => {
-              if (e.key !== 'Enter') return;
-              e.preventDefault();
-              e.stopPropagation();
-              session.answer(ask, {wild});
-            }} />
-        </label>
-      </div>
-      <ul class="file-list" aria-label="Files and folders">
-        <li><button type="button" class="file-entry dir" onClick={() => session.answer(ask, {cd: '..'})}>../</button></li>
-        {dirs.map(d => (
-          <li key={`d${d}`}>
-            <button type="button" class="file-entry dir" onClick={() => session.answer(ask, {cd: d})}>{d}/</button>
-          </li>
-        ))}
-        {(ask.files ?? []).map(f => (
-          <li key={`f${f}`}>
-            <button type="button" class={'file-entry' + (f === file ? ' selected' : '')} aria-pressed={f === file}
-              onClick={() => setFile(f)} onDblClick={() => session.answer(ask, {file: f})}>{f}</button>
-          </li>
-        ))}
-      </ul>
-      <div class="dialog-actions">
-        <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
-        <button type="submit" class="primary">{ask.mode === 'write' ? 'Save' : 'Open'}</button>
-      </div>
-    </form>
-  );
-}
-
 export function FileAsk({ask}: {ask: AskEvent}) {
-  const [tab, setTab] = useState<Tab>('computer');
-  const tabs: [Tab, string][] = [['computer', 'This computer'], ['folder', "In the model's folder"]];
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    const next = tab === 'computer' ? 'folder' : 'computer';
-    setTab(next);
-    document.getElementById(`file-tab-${next}`)?.focus();
-  };
   return (
     <div class="file-ask" data-mode={ask.mode ?? 'read'}>
-      <div class="file-tabs" role="tablist" aria-label="Where the file is" onKeyDown={onKeyDown}>
-        {tabs.map(([t, label]) => (
-          <button key={t} id={`file-tab-${t}`} type="button" role="tab" class="plot-tab" aria-selected={tab === t}
-            aria-controls={`file-panel-${t}`} tabIndex={tab === t ? 0 : -1} onClick={() => setTab(t)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <div id={`file-panel-${tab}`} role="tabpanel" aria-labelledby={`file-tab-${tab}`}>
-        {tab === 'folder' ? <InTheFolder ask={ask} />
-          : ask.mode === 'write' ? <SaveToComputer ask={ask} /> : <OpenFromComputer ask={ask} />}
-      </div>
+      {ask.mode === 'write' ? <SaveToComputer ask={ask} /> : <OpenFromComputer ask={ask} />}
     </div>
   );
 }

@@ -206,7 +206,7 @@ new page adds direct manipulation that maps onto existing commands:
 | `string`, `form` | modal form, first field focused and selected, Enter submits (from a select too), Escape cancels | done; a `*n` field is a select of `hello.lists[n]` (`protocol/lists.ts`): a numbered item (`2 Box`) answers its number, a value the list lacks is kept as an option of its own |
 | `checklist` | checkbox list with All and None | done |
 | `alert` | a notification (toast); the ask is answered at once, so the run is not blocked | done |
-| `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); the core's listing is the second tab, "In the model's folder" | done |
+| `file` | the browser's open or save dialog (section 4, `ui/FileDialog.tsx`); one prompt with "Choose file…" that opens the picker filtered by `wild`; a save asks the name | done |
 | `mouse`, `rubber`, `drag` | a plot mode (`plot/pick.ts`, the store's `pick`): a crosshair (click or tap picks), a box or line (drag it), or a drag of the plot, with an instruction bar and Cancel (Done for a drag); Escape cancels; from the keyboard, arrows move the crosshair or the free corner (Shift: ten times as far), Enter picks or fixes a corner, arrows drag in a drag. Answered in data coordinates (`xd`, `yd`, `xd2`, `yd2`, docs/protocol.md), so no pixel maths; the drag's events queue while the core works. When the core's window moves (Window/Zoom, Viewaxes), the plot shows it again (the client zoom is simply replaced, no history: GitHub #110). Asks for windows the page does not draw yet (AUTO, 3D) say so and offer Cancel | done |
 | `grab` (AUTO) | a mode of the AUTO view: arrows, `[` `]`, Tab to the labels, Enter takes, Escape cancels, a click or tap takes the nearest point; answered by index (`point`) | done (T11b) |
 | `pixels` | answered `ok:0` by the session: web2 renders frames from data (kinescope, GIF) itself | done / T15 |
@@ -264,9 +264,14 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 - **Missing companions.** When the core reports it cannot open a file (an
   error naming it), the notification offers "Add file…", which uploads it
   under that name and repeats the command.
-- **The core's listing stays reachable** as a secondary tab of the dialog
-  ("In the model's folder"), for the rare ask that needs a path elsewhere
-  on the core's machine; it answers with `cd` and `file` as today.
+- **The picker is filtered by the ask's `wild`** (`*.set`, `*.dat *.tab`;
+  `*` or a pattern that is not plain `*.ext` words means no filter):
+  `showOpenFilePicker`'s `types` (the All files option stays, for the tables
+  a `.set` refers to), else the hidden input's `accept`. A picker needs a
+  user gesture and the ask comes from the core, so a read ask is one prompt
+  with a focused "Choose file…" (Enter) and Cancel (Esc); it never opens by
+  itself. The core's listing (`dirs`, `files`, `cd`) stays in the protocol
+  but the page no longer shows it (maintainer, 2026-09-29).
 - **Endpoints** (xpp_http.cpp, token-protected like `/cmd`, base names only,
   no separators, no `..`, no dot files, a size cap of 64 MB):
   `GET /files` (listing: name, size, mtime, sha-256), `GET /files/NAME`,
@@ -287,7 +292,7 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
   any declared length up to the endpoint's cap) and `ui_json.cpp` as the
   `file` command. The `file` ask carries `mode` (`read` or `write`, from
   the selector's title). docs/protocol.md "Files" is the contract.
-- **Page**: `ui/FileDialog.tsx` (the two tabs, the replace confirm),
+- **Page**: `ui/FileDialog.tsx` (the one prompt, the replace confirm),
   `pickers.ts` (the pickers, the input and download fallbacks),
   `protocol/files.ts` (the endpoints), `store/files.ts` (pure: names,
   Keep both names, the upload plan, the running command's record and the

@@ -3755,13 +3755,9 @@ async function files(dir) {
     /* a file the core cannot open: "Add file…" copies it under that name and runs the command again */
     await setPar('iapp', 0.4);
     await fileMenu('r', 'read');
-    await cdp.eval(`document.getElementById('file-tab-folder').click()`);
-    await until('document.querySelector("[data-folder-file]")', 'folder tab');
-    await cdp.eval(`(() => { const i = document.querySelector('[data-folder-file]'); i.value = 'gone.set';
-      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-    await sleep(50);
-    await key('Enter');
-    check('the core\'s listing answers with the name (In the model\'s folder)', (await lastAnswer())?.file === 'gone.set');
+    /* the core answers with a name the folder does not have (the page's picker only ever answers with a copied file) */
+    await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'gone.set'})`);
+    check('an answer with a name not in the folder', (await lastAnswer())?.file === 'gone.set');
     check('a file the core cannot open: the notification offers "Add file…"',
       await until(`s.toasts.some(t => t.action && t.action.name === 'gone.set') && document.querySelector('[data-add-file="gone.set"]')`,
         'add file'), JSON.stringify(await S('s.toasts')));
@@ -3772,6 +3768,18 @@ async function files(dir) {
       && fs.existsSync(path.join(dir, 'gone.set')) && fs.readFileSync(path.join(dir, 'gone.set')).equals(saved),
       JSON.stringify([await par('iapp'), await S('s.toasts'), await cdp.eval('__xpp.sent().slice(-4)')]));
     check('no file dialog is left open', await S('!s.ask'));
+
+    /* a read ask is one prompt (no tabs, no folder listing) that opens the browser's picker filtered by wild */
+    await fileMenu('r', 'read');
+    check('a read ask has no tabs and no listing, one Choose file… button, focused',
+      await cdp.eval(`!document.querySelector('.file-tabs, .file-list, [data-folder-file]')
+        && document.querySelector('.file-ask button.primary')?.textContent === 'Choose file…'
+        && document.activeElement === document.querySelector('.file-ask button.primary')`));
+    check('the hidden input filters by the pattern of the ask',
+      await cdp.eval(`(() => { const w = __xpp.state().ask.wild, i = document.querySelector('[data-file-input=open]');
+        return !w || w === '*' ? !i.accept : i.accept === w.split('*').join('') })()`), JSON.stringify(await S('s.ask')));
+    await key('Escape');
+    check('Esc cancels the ask', await until('!s.ask', 'esc'));
   } finally {
     await cdp.send('Browser.setDownloadBehavior', {behavior: 'default'}).catch(() => {});
     fs.rmSync(downloads, {recursive: true, force: true, maxRetries: 5});

@@ -209,7 +209,7 @@ export interface AskEvent {
   /** a `file` ask: whether the command opens the file or saves one */
   mode?: 'read' | 'write';
   /** a `file` ask: the name offered (possibly a path), the pattern, and the
-      core's folder listing (the "In the model's folder" tab) */
+      core's folder listing (no longer shown by the page) */
   file?: string;
   wild?: string;
   dir?: string;

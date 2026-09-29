@@ -8,6 +8,7 @@ import {
   type RunRecord,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
+import {wildExtensions} from '../src/pickers';
 import {initialState, reduce} from '../src/store/state';
 
 test('safeName follows the core: base names only', () => {
@@ -88,4 +89,11 @@ test('an error of a command that read a file gets "Add file…"', () => {
   assert.ok(s.files.runFailed);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});
   assert.ok(!s.files.runFailed, 'a new command starts clean');
+});
+
+test('the picker filter comes from a pattern of the ask', () => {
+  assert.deepEqual(wildExtensions('*.set'), ['.set']);
+  assert.deepEqual(wildExtensions('*.DAT *.tab'), ['.dat', '.tab']);
+  assert.deepEqual(wildExtensions('*.dat, *.tab'), ['.dat', '.tab']);
+  for (const none of ['*', '', undefined, '*.*', '*.pars*', 'x*.set', '*.set *']) assert.deepEqual(wildExtensions(none), [], String(none));
 });
