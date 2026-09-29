@@ -37,8 +37,10 @@ jobs:
           path: xppautX-*-source.tar.gz*
 
   linux:
-    # an older runner so the binaries also run on older distributions
-    runs-on: ubuntu-22.04
+    # the runner CI builds on (its gcc 13 has std::format; 22.04's gcc 11
+    # does not): the binary needs glibc 2.39 or newer (maintainer,
+    # 2026-09-28: Ubuntu 22.04 need not be supported)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -116,17 +118,22 @@ jobs:
 
   macos:
     # the window (WKWebView) is on by default since W13d (CI builds
-    # it); nobody has tried an archive from this job by hand yet. The
+    # it); a user has run the app on a Mac (2026-09-28). The
     # binaries are unsigned, so macOS asks the user to allow them
     # (Gatekeeper). Signing and notarizing need an Apple account.
     strategy:
       matrix:
         include:
-          - runner: macos-14
+          # macos-14's Apple clang has no -std=c++23
+          - runner: macos-15
             arch: macos-arm64
           - runner: macos-15-intel
             arch: macos-x64
     runs-on: ${{ matrix.runner }}
+    env:
+      # the oldest macOS the binaries run on, not the runner's own: 13.3
+      # is the first whose libc++ has floating-point to_chars (std::format)
+      MACOSX_DEPLOYMENT_TARGET: '13.3'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -165,8 +172,10 @@ jobs:
             installed (elsewhere it says what to install and uses your
             browser); nothing else is needed. `-silent` runs it headlessly
             and writes output.dat, as upstream xppaut does; `--server`
-            speaks the JSON protocol on stdin/stdout. `macos-arm64` is for
-            Apple silicon Macs, `macos-x64` for Intel Macs. The macOS and
+            speaks the JSON protocol on stdin/stdout. `linux-x64` needs
+            glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 and
+            later). `macos-arm64` is for Apple silicon Macs, `macos-x64` for
+            Intel Macs, macOS 13.3 or newer. The macOS and
             Windows binaries are not signed, so the system asks you to
             allow them the first time (macOS: `xattr -dr
             com.apple.quarantine` on the unpacked folder, or right-click >
