@@ -4,11 +4,21 @@ Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
 
 ## Build (from Windows this repo builds only under WSL)
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && make -j8"
+Nothing builds or checks in WSL over /mnt/c (maintainer, 2026-09-28):
+WSL reads the Windows disk through 9P, several times slower, and runs
+side by side there stalled. Commit, then run the build and every check
+from WSL's own copy with `tools/wslrun.sh`, from Git Bash in the
+checkout (the main one or a worktree):
+
+    tools/wslrun.sh make -j8 WERROR=1 xppautx test
+    tools/wslrun.sh tools/odexcheck.sh
+    tools/wslrun.sh python3 tools/servercheck.py
+
+Windows-side tools (the MSYS2 builds, web2, web2check against
+xppautX.exe) run from Git Bash on the checkout itself, as below.
 
 Full check after any change (build xppautX, smoke-test checksum,
-print the metrics). This is the gate: commit, then, from Git Bash in the
-checkout (the main one or a worktree),
+print the metrics), run by the reviewer on a wave's merged tip:
 
     tools/wslrun.sh tools/verify.sh
 
@@ -18,24 +28,25 @@ filesystem (~/.cache/xppautx-verify/<checkout folder>, build/ kept
 between runs): verify.sh read over /mnt/c took 22-25 minutes, from
 there 6.5-9.5 (once 22, just after WSL had started up; the cause is
 not pinned down). It refuses a checkout with uncommitted changes, since
-only HEAD would be checked. Run in place (`wsl -e bash -lc "cd
-/mnt/c/gitRepos/xppautX && tools/verify.sh"`) it still works, slowly.
+only HEAD would be checked. A check run in place over /mnt/c
+(`wsl -e bash -lc "cd /mnt/c/..."`) still works but is not used.
 
-Gates come in two tiers. Every task: a clean build with 0 warnings, the
-unit tests and web2's typecheck, verify.sh (always: it guards the
-numerics), and `node tools/web2check.mjs --only <the task's sections>`
-when web2 changed. A task that changes only `web2/` (and its docs) runs
-`verify.sh --no-source-checks`: the source checks rebuild and relink the
-whole core and cannot see web2, and CI's `source` job runs them on every
-push. One verify.sh at a time (W84): the script takes a lock
-(`flock`, $TMPDIR/xppautx-verify.lock) and a second run waits for it,
-since runs side by side over /mnt/c slowed each to 40+ minutes. The
-reviewer does not rerun verify.sh on every branch after each rebase:
-the agent gated its branch, the reviewer merges a wave's finished
-branches one after another (rebuilding web2/dist on a conflict there,
-with web2's checks and the task's web2check sections) and runs
-verify.sh once on the merged tip; a failure is traced to its branch by
-verifying the branches alone. Every 5 merged tasks, and before any push: the full
+Gates come in two tiers. Every task (the agent, in its worktree): a
+clean build with 0 warnings (`make WERROR=1`), the unit tests, web2's
+typecheck, and only the checks the task touches, run directly (the
+examples md5s, goldencheck, servercheck, autocheck, odexcheck, `node
+tools/web2check.mjs --only <the task's sections>` when web2 changed).
+Agents never run verify.sh (maintainer, 2026-09-28): five agents each
+waiting their turn at it, one at a time, left the last one idle for 40
+minutes. The reviewer merges a wave's finished branches one after
+another (rebuilding web2/dist on a conflict there, with web2's checks
+and the task's web2check sections) and runs verify.sh once on the
+merged tip (`--no-source-checks` when only `web2/` changed: the source
+checks rebuild and relink the whole core and cannot see web2, and CI's
+`source` job runs them on every push); a failure is traced to its
+branch by verifying the branches alone. One verify.sh at a time (W84):
+the script takes a lock (`flock`, $TMPDIR/xppautx-verify.lock) and a
+second run waits for it. Every 5 merged tasks, and before any push: the full
 web2check, tools/asancheck.sh, and the Windows unit tests (`make test`
 with MinGW) and servercheck (CI also runs
 everything on each push). A new request that comes up while a task is
@@ -48,7 +59,7 @@ comment on what landed.
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
-    wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat"
+    tools/wslrun.sh sh -c 'make -j8 xppautx && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat'
 
 Run it (opens its desktop window; `--browser` for the browser front end):
 
@@ -304,7 +315,8 @@ difficulty) implements one card in the worktree its brief names:
   module is outside your card's files, say so in the report instead of
   copying it.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
-  sections>`; never run the full web2check or tools/asancheck.sh.
+  sections>`; never run verify.sh, the full web2check or
+  tools/asancheck.sh.
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.
