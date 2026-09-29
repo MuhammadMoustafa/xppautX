@@ -1188,16 +1188,23 @@ async function windows() {
     && Math.abs(p1.x.min - z1.x.min) < 1e-9 && Math.abs(p1.x.max - z1.x.max) < 1e-9, JSON.stringify([back, p1 && p1.x]));
   check('its chart is the one shown', p1 && p1.curves[0].label === t1 && p1.width > 200, JSON.stringify(p1 && [p1.curves, p1.width]));
 
+  /* what a failing tab check saw: busy, the page's and the core's window, the focus, the last
+     commands sent and actions taken (W93: macos-ui lost ArrowLeft here) */
+  const tabState = async () => JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state();
+    return {busy: s.busy, active: s.plots.active, core: s.core.win, ask: s.ask && s.ask.kind, focus: document.activeElement.id,
+      sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`));
   await cdp.eval(`document.getElementById('plot-tab-1').focus()`);
   await key('ArrowRight');
   check('ArrowRight on the tabs moves to window 2, focus with it',
     await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'arrow right'));
   check('tab 2 kept its zoom', JSON.stringify(await S('w.viewport')) === JSON.stringify(z2));
+  const beforeLeft = await tabState();
   await key('ArrowLeft');
-  check('ArrowLeft back to window 1', await until(`s.plots.active === 1 && document.activeElement.id === 'plot-tab-1'`, 'arrow left'));
+  check('ArrowLeft back to window 1', await until(`s.plots.active === 1 && document.activeElement.id === 'plot-tab-1'`, 'arrow left'),
+    `before: ${beforeLeft} after: ${await tabState()}`);
   await key('End');
-  check('End to the last tab', await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'End'));
-  check('the tab key goes back to the core', await until('!s.busy && s.core.win === 2', 'core win 2'));
+  check('End to the last tab', await until(`s.plots.active === 2 && document.activeElement.id === 'plot-tab-2'`, 'End'), await tabState());
+  check('the tab key goes back to the core', await until('!s.busy && s.core.win === 2', 'core win 2'), await tabState());
   /* two tab keys in one turn of the event loop: the second always arrives
      while the first one's click is still the core's (busy), so it is held
      for the idle, never dropped (a slow runner lost End this way) */
@@ -4284,6 +4291,10 @@ async function main() {
   try {
     await cdp.send('Page.enable');
     await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
+    /* XPP_CPU_THROTTLE=N runs the page N times slower (Chrome's own CPU
+       throttling), to reproduce a slow runner's timing here (W93) */
+    if (Number(process.env.XPP_CPU_THROTTLE) > 1)
+      await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.XPP_CPU_THROTTLE)});
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async (dir) => {
