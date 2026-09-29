@@ -20,7 +20,6 @@ extern const char *const num_hint[];
 extern const char *const auto_hint[];
 extern const char *const no_hint[];
 extern const char *const aaxes_hint[];
-extern const char *const afile_hint[];
 extern const char *const aspecial_hint[];
 extern const char *const arun_hint[];
 
@@ -66,6 +65,11 @@ extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_windows, menu_windows_simoff, menu_text, menu_text_edit,
   menu_equilibria, menu_view, menu_bvp, menu_stochastic, menu_poincare,
   menu_color_code, menu_adjoint, menu_lookup, menu_method, menu_save_what;
+
+/* AUTO's pop-up menus; menu_auto_special has no title (its caller's) */
+extern const XppMenu menu_auto_plot_type, menu_auto_mark, menu_auto_start, menu_auto_torus,
+  menu_auto_per_doub, menu_auto_periodic, menu_auto_hopf, menu_auto_branch, menu_auto_file,
+  menu_auto_special;
 
 
 

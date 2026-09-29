@@ -132,8 +132,6 @@ void draw_auto_info(const char *bob, int x, int y);
 void refreshdisplay(void);
 int byeauto_(int *iflag);
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
-                     int def, int x, int y, const char *const *hints, const char *httxt);
 void auto_scroll_window(void);
 void auto_diagram(const XppDiagPoint *p);
 void init_txtview(void);
@@ -305,8 +303,6 @@ typedef struct XppUi {
     void (*auto_refresh)(void);
     int (*auto_check_abort)(int *iflag);
     int (*auto_rubber)(int *i1, int *j1, int *i2, int *j2, int flag);
-    int (*auto_choose_key)(const char *title, const char *const *list, const char *key, int n, int max,
-                           int def, int x, int y, const char *const *hints, const char *httxt);
     void (*auto_scroll_window)(void);
     /* Grab: wait for a key (returns its code, mykeydef.h), a click on
        the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a

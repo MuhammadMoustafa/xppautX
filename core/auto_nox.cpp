@@ -676,8 +676,7 @@ void auto_per_par()
 {
   xpp::Session &s=xpp::session();
   
-  static const char *m[]={"0","1","2","3","4","5","6","7","8","9"};
-  static const char *const key="0123456789";
+  const char *const key=menu_auto_mark.keys;
   std::array<std::string, 9> values;
   static const char *n[]={"Uzr1","Uzr2","Uzr3","Uzr4","Uzr5",
 		      "Uzr6","Uzr7","Uzr8","Uzr9"};
@@ -685,8 +684,7 @@ void auto_per_par()
   char ch;
   /* "Mark values" (T21): AUTO labels (UZ) the points where a parameter or
      the period reaches one of these values */
-  ch=static_cast<char>(auto_pop_up_list("Mark values: how many?",m,key,10,12,s.auto_state.bifur.nper,10,10,no_hint,
-		       s.auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_mark,s.auto_state.bifur.nper));
   for(i=0;i<10;i++)
     if(ch==key[i])s.auto_state.bifur.nper=i;
   s.auto_state.nuzr=s.auto_state.bifur.nper;
@@ -811,10 +809,7 @@ void auto_plot_par()
 {
   xpp::Session &s=xpp::session();
 
-  static const char *m[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
-		      "last 1 par", "last 2 par","Fit",
-		    "fRequency","Average","Default","Scroll"};
-  static const char *const key="hniptzo12frads";
+  const char *const key=menu_auto_plot_type.keys;
   char ch;
 
   static const char *n[]={"*1Y-axis","*2Main Parm", "*2Secnd Parm", "Xmin", "Ymin",
@@ -823,8 +818,7 @@ void auto_plot_par()
   int  status,i;
   int ii1,ii2,ji1,ji2;
   int i1=s.auto_state.bifur.var+1;
-  ch=static_cast<char>(auto_pop_up_list("Plot Type",m,key,14,10,s.auto_state.bifur.plot,10,50,
-		       aaxes_hint,s.auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_plot_type,s.auto_state.bifur.plot));
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
@@ -1712,16 +1706,13 @@ void get_start_orbit(double *u, double t, double p, int n)
   
 void auto_start_choice()
 {
-  static const char *m[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
-  static const char *const key="spbhe";
   char ch;
   xpp::session().auto_state.homo_flag=0;
   if(xpp::session().numerics.method==xpp::method::DISCRETE){
     auto_new_discrete();
     return;
   }
-  ch=static_cast<char>(auto_pop_up_list("Start",m,key,5,13,0,10,10,arun_hint,
-		       xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_start,0));
    if(ch=='s'){
     auto_new_ss();
     return;
@@ -1752,12 +1743,8 @@ void auto_start_choice()
 
 void torus_choice()
 {
-  static const char *m[]={"Two Param","Fixed period","Extend"};
-  /*static const char *m[]={"Fixed period","Extend"}; */
-  static const char *const key="tfe";
   char ch;
-  ch=static_cast<char>(auto_pop_up_list("Torus",m,key,3,10,0,10,10,
-		       no_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_torus,0));
    if(ch=='e'){
     auto_new_per();
     return;
@@ -1775,10 +1762,8 @@ void torus_choice()
  
 void per_doub_choice()
 {
-  static const char *m[]={"Doubling","Two Param","Fixed period","Extend"};
-  static const char *const key="dtfe";
   char ch;
-  ch=static_cast<char>(auto_pop_up_list("Per. Doub.",m,key,4,10,0,10,10,no_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_per_doub,0));
   if(ch=='d'){
     auto_period_double();
     return;
@@ -1800,11 +1785,8 @@ void per_doub_choice()
   
 void periodic_choice()
 {
-  static const char *m[]={"Extend","Fixed Period"};
-  static const char *const key="ef";
   char ch;
-  ch=static_cast<char>(auto_pop_up_list("Periodic ",m,key,2,14,0,10,10,
-		       no_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_periodic,0));
   if(ch=='e'){
     auto_new_per();
     return;
@@ -1819,16 +1801,14 @@ void periodic_choice()
 
 void hopf_choice()
 {
-  static const char *m[]={"Periodic","Extend","New Point","Two Param"};
-  static const char *const key="pent";
-  char ch;
   if(xpp::session().numerics.method==xpp::method::DISCRETE){
     auto_2p_hopf();
     return;
   }
 
-  ch=static_cast<char>(auto_pop_up_list("Hopf Pt",m,key,4,10,0,10,10,
-		       no_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  char ch;
+  ch=static_cast<char>(menu_choose(&menu_auto_hopf,0));
+
   if(ch=='p'){
     auto_new_per();
     return;
@@ -1927,12 +1907,9 @@ void auto_homo_choice(int itp)
 void auto_branch_choice(int ibr, int ips)
 {
 
-  static const char *m[]={"Switch","Extend","New Point","Two Param"};
-  static const char *const key="sent";
   char ch;
   int ipsuse;
-  ch=static_cast<char>(auto_pop_up_list("Branch Pt",m,key,4,10,0,10,10,
-		       no_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_branch,0));
 
   if(ch=='s'){
        if(ibr<0&&ips==2)
@@ -2773,23 +2750,6 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
      if (!tr.read(u[i])) return;
  }
 
-/* W26 (issue #42): a File entry beside afile_hint's 15 (menus.c), not
-   inside it -- afile_hint's own 15 hints plus one more, built lazily (well
-   after menus.c's static data is initialised) so afile_hint stays the one
-   copy of its own text and stays reached. */
-static const char **afile_hint_csv()
-{
-  static const char *h[16];
-  static int done=0;
-  if(!done){
-    int i;
-    for(i=0;i<15;i++)h[i]=afile_hint[i];
-    h[15]="Write the diagram, and its eigenvalues/multipliers, as CSV";
-    done=1;
-  }
-  return h;
-}
-
 /* the diagram and its eigenvalues/multipliers as CSV (csv_export.h),
    pandas.read_csv/MATLAB readtable read with no options; one file dialog
    answer names both files (csv_export_diagram_pair derives the second) */
@@ -2804,12 +2764,8 @@ void export_auto_csv()
 void auto_file()
 {
 
-  static const char *m[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
-		    "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt","draw laBled","lOad branch","eXport CSV"};
-  static const char *const key="islpvrcwadtnebox";
   char ch;
-  ch=static_cast<char>(auto_pop_up_list("File",m,key,16,16,0,10,10,afile_hint_csv(),
-		       xpp::session().auto_state.bifur.hinttxt.c_str()));
+  ch=static_cast<char>(menu_choose(&menu_auto_file,0));
   if(ch=='i'){
     load_auto_orbit();
     return;
@@ -2999,13 +2955,12 @@ static void finish_grab();
 
 const char *query_special(const char *title)
 {
-        static const char *m[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
-	static const char *const key="behlmptu";
-	int ch=static_cast<char>(auto_pop_up_list(title,m,key,8,11,1,10,10,
-			     aspecial_hint,xpp::session().auto_state.bifur.hinttxt.c_str()));
+	XppMenu menu=menu_auto_special;
+	menu.title=title;
+	int ch=static_cast<char>(menu_choose(&menu,1));
 	redraw_auto_menus();
-	const char *k=ch!=0?strchr(key,ch):NULL;
-	return k!=NULL?m[k-key]:NULL;
+	int i=ch!=0?xpp_menu_index(&menu,ch):-1;
+	return i>=0?menu.items[i]:NULL;
 }
 
 void traverse_diagram()

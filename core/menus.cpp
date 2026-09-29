@@ -328,24 +328,6 @@ const char *const aaxes_hint[]={
 "Scroll around the plot"
 };
 
-const char *const afile_hint[]={
-"Load a computed orbit into XPP",
-"Write diagram info to file for reuse",
-"Load previously saved file for restart",
-"Create postscript file of picture",
-"Create SVG file of picture",
-"Delete all points of diagram and associated files",
-"Clear grab point to allow start from new point",
-"Write the x-y values of the current diagram to file",
-"Write all the info for the whole diagram!",
-"Save initial data for whole diagram",
-"Toggle automatic redraw",
-"Range over a marked branch",
-"Select a point in 2 parameter diagram",
-"Draw orbits of labeled points automatically",
-"Put all data from branch into browser",
-};
-
 const char *const aspecial_hint[]={
 "Bifurcation or branch point",
 "Endpoint of a branch",
@@ -493,3 +475,58 @@ static const char *equilibrium_window_items[]={"(I)mport"};
 static const char *const equilibrium_window_hint[]={"Make the equilibrium the initial conditions"};
 const XppMenu menu_equilibrium_window={"equilibrium_window","Equilibrium",1,equilibrium_window_items,"i",
   equilibrium_window_hint,-1};
+
+/* AUTO's pop-up menus (W96). The protocol names each one "auto": that is the
+   name the page has always been sent. Nothing about them is dynamic but the
+   default item, which the caller passes to menu_choose, and the Special
+   menu's title (menu_auto_special copied with its own). */
+static const char *auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
+  "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll"};
+const XppMenu menu_auto_plot_type={"auto","Plot Type",14,auto_plot_items,"hniptzo12frads",aaxes_hint,-1};
+
+static const char *auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
+const XppMenu menu_auto_mark={"auto","Mark values: how many?",10,auto_mark_items,"0123456789",no_hint,-1};
+
+static const char *auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
+const XppMenu menu_auto_start={"auto","Start",5,auto_start_items,"spbhe",arun_hint,-1};
+
+static const char *auto_torus_items[]={"Two Param","Fixed period","Extend"};
+const XppMenu menu_auto_torus={"auto","Torus",3,auto_torus_items,"tfe",no_hint,-1};
+
+static const char *auto_per_doub_items[]={"Doubling","Two Param","Fixed period","Extend"};
+const XppMenu menu_auto_per_doub={"auto","Per. Doub.",4,auto_per_doub_items,"dtfe",no_hint,-1};
+
+static const char *auto_periodic_items[]={"Extend","Fixed Period"};
+const XppMenu menu_auto_periodic={"auto","Periodic ",2,auto_periodic_items,"ef",no_hint,-1};
+
+static const char *auto_hopf_items[]={"Periodic","Extend","New Point","Two Param"};
+const XppMenu menu_auto_hopf={"auto","Hopf Pt",4,auto_hopf_items,"pent",no_hint,-1};
+
+static const char *auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
+const XppMenu menu_auto_branch={"auto","Branch Pt",4,auto_branch_items,"sent",no_hint,-1};
+
+/* the File menu's own 15 hints plus one for the CSV export */
+static const char *const auto_file_hint[]={
+"Load a computed orbit into XPP",
+"Write diagram info to file for reuse",
+"Load previously saved file for restart",
+"Create postscript file of picture",
+"Create SVG file of picture",
+"Delete all points of diagram and associated files",
+"Clear grab point to allow start from new point",
+"Write the x-y values of the current diagram to file",
+"Write all the info for the whole diagram!",
+"Save initial data for whole diagram",
+"Toggle automatic redraw",
+"Range over a marked branch",
+"Select a point in 2 parameter diagram",
+"Draw orbits of labeled points automatically",
+"Put all data from branch into browser",
+"Write the diagram, and its eigenvalues/multipliers, as CSV"};
+static const char *auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
+  "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
+  "draw laBled","lOad branch","eXport CSV"};
+const XppMenu menu_auto_file={"auto","File",16,auto_file_items,"islpvrcwadtnebox",auto_file_hint,-1};
+
+static const char *auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
+const XppMenu menu_auto_special={"auto","",8,auto_special_items,"behlmptu",aspecial_hint,-1};

@@ -360,19 +360,6 @@ int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
-int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int, int def, int, int,
-                      const char *const *hints, const char *)
-{
-    XppMenu m;
-    m.name = "auto";
-    m.title = title;
-    m.n = n;
-    m.items = list;
-    m.keys = key;
-    m.hints = hints;
-    m.first_cmd = -1;
-    return j_menu_choose(&m, def);
-}
 
 namespace {
 

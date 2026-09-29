@@ -348,7 +348,6 @@ XppUi make_json_ui(void)
     u.auto_refresh = j_auto_refresh;
     u.auto_check_abort = j_auto_check_abort;
     u.auto_rubber = j_auto_rubber;
-    u.auto_choose_key = j_auto_choose_key;
     u.auto_scroll_window = j_auto_scroll_window;
     u.auto_grab_event = j_auto_grab_event;
     u.auto_show_hint = j_auto_show_hint;

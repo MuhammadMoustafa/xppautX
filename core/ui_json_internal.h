@@ -257,8 +257,6 @@ void apply_deferred_sets(void);
 void j_auto_make_window(const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int j_auto_choose_key(const char *title, const char *const *list, const char *key, int n, int max, int def, int x, int y, const char *const *hints,
-                      const char *httxt);
 int j_auto_grab_event(int *x, int *y);
 void j_auto_show_hint(void);
 void j_auto_scroll_window(void);

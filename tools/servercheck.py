@@ -876,8 +876,32 @@ check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 an
 # Run, Grab a labelled point, Run again: the second run restarts from the
 # label in fort.3 (findlb/readlb). On Windows the backward fseek that located
 # the label line was undefined on a text stream and corrupted the heap.
+# W96: AUTO's pop-up menus live in menus.cpp (menu_auto_*); every one seen in
+# this session is compared with what the page was sent before they moved
+# there. The protocol name of each is "auto", the default item goes as "def".
+AUTO_MENUS = {
+    'Start': (['Steady state', 'Periodic', 'Bdry Value', 'Homoclinic', 'hEteroclinic'], 'spbhe'),
+    'Plot Type': (['Hi', 'Norm', 'hI-lo', 'Period', 'Two par', '(Z)oom in', 'Zoom (O)ut', 'last 1 par',
+                   'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll'], 'hniptzo12frads'),
+    'Mark values: how many?': (list('0123456789'), '0123456789'),
+    'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
+              'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
+              'lOad branch', 'eXport CSV'], 'islpvrcwadtnebox'),
+    'Torus': (['Two Param', 'Fixed period', 'Extend'], 'tfe'),
+    'Per. Doub.': (['Doubling', 'Two Param', 'Fixed period', 'Extend'], 'dtfe'),
+    'Periodic ': (['Extend', 'Fixed Period'], 'ef'),
+    'Hopf Pt': (['Periodic', 'Extend', 'New Point', 'Two Param'], 'pent'),
+    'Branch Pt': (['Switch', 'Extend', 'New Point', 'Two Param'], 'sent'),
+}
+auto_menus_seen = []
+
+def note_auto_menu(ask):
+    if ask and ask.get('ev') == 'ask' and ask.get('kind') == 'menu' and ask.get('name') == 'auto':
+        auto_menus_seen.append(ask)
+
 send(cmd='key', win='auto', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
+note_auto_menu(ask)
 check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
 if ask:
     send(cmd='answer', id=ask['id'], key='s')
@@ -899,6 +923,7 @@ if ask:
     send(cmd='key', win='auto', key='r')
     evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
     if e is not None and e.get('ev') == 'ask':
+        note_auto_menu(e)
         send(cmd='answer', id=e['id'], ok=0)
         evs, e = collect(is_idle, timeout=30 * SLOW)
     check('Auto/Run after a Grab restarts from the label and the server survives',
@@ -934,6 +959,7 @@ if ask:
             evs += ev
             if ask is None or ask.get('ev') != 'ask':
                 return evs, ask
+            note_auto_menu(ask)
             send(cmd='answer', id=ask['id'], **(a(ask) if callable(a) else a))
         ev, _ = collect(is_idle, timeout=30 * SLOW)
         return evs + ev, None
@@ -953,6 +979,15 @@ if ask:
     check('File/Reset diagram empties the diagram at once (reset 0, nothing added)',
           dg and dg[-1]['op'] == 'reset' and dg[-1]['keep'] == 0 and not any(e['op'] == 'add' for e in dg),
           str([(e['op'], e.get('keep')) for e in dg]))
+
+    titles_seen = {m['title'] for m in auto_menus_seen}
+    check('W96: AUTO menus seen: Start, Plot Type, Mark values, File and the grabbed one',
+          {'Start', 'Plot Type', 'Mark values: how many?', 'File'} <= titles_seen, str(sorted(titles_seen)))
+    for m in auto_menus_seen:
+        want = AUTO_MENUS.get(m['title'])
+        check('W96: AUTO menu %r is as menus.cpp defines it' % m['title'],
+              want is not None and m['items'] == want[0] and m['keys'] == want[1]
+              and len(m.get('hints', [])) == len(want[0]), str(m)[:300])
 
 
 # Live plotting (docs/protocol.md "The plot as data"): while an integration

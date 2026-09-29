@@ -62,12 +62,6 @@ static int hl_auto_rubber(int *, int *, int *, int *, int)
 {
     return 0;
 }
-static int hl_auto_choose_key(const char *, const char *const *, const char *key, int n, int,
-                              int def, int, int, const char *const *, const char *)
-{
-    if (def >= 0 && def < n) return key[def];
-    return 0;
-}
 static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
@@ -189,7 +183,6 @@ XppUi xpp_ui = {
     .auto_refresh = hl_void,
     .auto_check_abort = hl_auto_check_abort,
     .auto_rubber = hl_auto_rubber,
-    .auto_choose_key = hl_auto_choose_key,
     .auto_scroll_window = hl_void,
     .auto_grab_event = hl_auto_grab_event,
     .auto_show_hint = hl_void,
@@ -335,11 +328,6 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
 {
     return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);
-}
-int auto_pop_up_list(const char *title, const char *const *list, const char *key, int n, int max,
-                     int def, int x, int y, const char *const *hints, const char *httxt)
-{
-    return xpp_ui.auto_choose_key(title, list, key, n, max, def, x, y, hints, httxt);
 }
 void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
 void auto_diagram(const XppDiagPoint *p) { xpp_ui.auto_diagram(p); }
