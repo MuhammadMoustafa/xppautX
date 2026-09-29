@@ -78,7 +78,8 @@ back). It has:
   nearest point (see "Points and labels" below for what grabbing does);
 - **Clear** hides the branches computed so far behind a key entry
   ("Earlier branches") instead of blanking the window until a redraw (AUTO
-  has no reDraw button any more: the diagram is always current); and
+  has no reDraw button any more: the diagram is always current); it also
+  sends the AUTO window's own Clear key, which redraws the axes; and
   **Mark values** for user points (the `Usr Period` dialog below).
 
 There is no Abort button in the view (A10 in docs/ui-v2.md): the status

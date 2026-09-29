@@ -2,7 +2,7 @@
    theta and phi, with an optional perspective. The core draws this with
    graphics.c's make_rot/scale3d/rot_3dvec/threed_proj; this module is the
    same maths in the client, in the same order, so a projection and a
-   `view3d` sent from the same angles agree pixel for pixel. Pure: no DOM. */
+   key `3` answered with the same angles agree pixel for pixel. Pure: no DOM. */
 
 export interface Box3 {
   xmin: number; xmax: number;

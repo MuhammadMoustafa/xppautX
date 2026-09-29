@@ -13,7 +13,7 @@
    showSource). Equilibrium shows the last Sing pts result (docs/protocol.md
    `equilibrium`): its type, eigenvalue counts, and values, six significant
    digits (A14) with the full value on hover/title; Import
-   (docs/protocol.md `eqimport`) makes it the initial conditions. */
+   (the equilibrium window's key `i`, docs/protocol.md) makes it the initial conditions. */
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';

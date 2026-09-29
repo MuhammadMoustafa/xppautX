@@ -238,10 +238,6 @@ void  get_num_par(char ch)
 		          do_stochast();
 		          flash(11);
 		          break;      
-		case 'f': flash(11);
-			 /* FFT */
-			flash(11);
-			break;
 		case 'p': flash(12);
 			 /*Poincare map */
 		        get_pmap_pars();

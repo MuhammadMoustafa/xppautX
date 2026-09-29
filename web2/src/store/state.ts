@@ -4,6 +4,7 @@
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, StateEvent, View, XppEvent} from '../protocol/types';
+import {ANI_KEYS, AUTO_KEYS, isWindowKey} from '../protocol/windowKeys';
 import {
   coreMoved, eraseWindow, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, redrawWindow,
   rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
@@ -140,7 +141,7 @@ export type Action =
   /** window `win`'s zoom (the active window's without `win`) */
   | {type: 'viewport'; viewport: Viewport; win?: number}
   /** a 3D window `win` turned to `theta`, `phi` (a drag, arrow keys, or the
-      core's own echo of a `view3d` sent for it), docs/ui-v2.md T14 */
+      core's own echo of the turn sent for it), docs/ui-v2.md T14 */
   | {type: 'rotate3d'; win: number; theta: number; phi: number}
   /** the user picked a plot window's tab (the core is told with `click`) */
   | {type: 'selectWindow'; win: number}
@@ -271,7 +272,7 @@ export function busyText(running: string | null, asking: boolean): string {
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
 function runningName(cmd: Command, ask: AskEvent | null): string | null {
-  if (cmd.cmd === 'auto' && cmd.op === 'run') return 'AUTO';
+  if (isWindowKey(cmd, 'auto', AUTO_KEYS.run)) return 'AUTO';
   if (cmd.cmd !== 'answer' || !ask || (ask.kind !== 'menu' && ask.kind !== 'choice') || typeof cmd.key !== 'string')
     return null;
   const i = (ask.keys ?? '').toLowerCase().indexOf(cmd.key.toLowerCase());
@@ -460,7 +461,7 @@ export function reduce(state: AppState, action: Action): AppState {
         const running = runningName(action.cmd, state.ask) ?? state.running;
         return {...state, ask: null, running, pick: !p || cancelled ? null : p.mode === 'drag' ? p : {...p, waiting: true}};
       }
-      if (action.cmd.cmd === 'ani' && action.cmd.op === 'go')
+      if (isWindowKey(action.cmd, 'ani', ANI_KEYS.go))
         state = {...state, ani: reduceAni(state.ani, {type: 'playing', playing: true})};
       if (noIdle(action.cmd)) return state;
       return {...state, busy: true, running: state.busy ? state.running : runningName(action.cmd, null)};

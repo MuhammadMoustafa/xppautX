@@ -157,8 +157,9 @@ check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'cre
                                  for e in evs))
 send(cmd='size', win=1, w=800, h=600)
 evs, _ = collect(is_idle)
-check('size is no command any more (removed in protocol 2): nothing but state and idle',
-      [e.get('ev') for e in evs] == ['state', 'idle'], str(evs)[:200])
+check('size is no command any more (removed in protocol 2): an unknown-command error, then state and idle',
+      [e.get('ev') for e in evs] == ['message', 'state', 'idle'] and 'Unknown command' in evs[0].get('error', ''),
+      str(evs)[:200])
 check('hello lists the series feature', 'series' in hello.get('features', []), str(hello.get('features')))
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
@@ -312,7 +313,7 @@ evs, br = collect(lambda e: e.get('ev') == 'browser')
 collect(is_idle)
 check('browser sends the rows asked for', br is not None and br['rows'] == 601 and br['from'] == 10
       and len(br['data']) == 3 and len(br['data'][0]) == 2 and br['cols'][:3] == ['T', 'V', 'W'], str(br)[:200])
-send(cmd='browser', op='get', row=10)
+send(cmd='key', win='browser', key='g', row=10)
 evs, _ = collect(is_idle)
 st = last_state(evs)
 check('browser Get sets the initial conditions from a row',
@@ -342,7 +343,7 @@ def near(a, b, tol=1e-5):
     return len(a) == len(b) and all(abs(x - y) < tol for x, y in zip(a, b))
 
 
-send(cmd='browser', op='addcol')
+send(cmd='key', win='browser', key='a')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('addcol asks for the column name', ask is not None and ask['kind'] == 'string' and ask.get('name') == 'Name',
       str(ask))
@@ -737,7 +738,7 @@ check('aplot values equal the browser numbers for the same rows and columns',
 # the "data" subscription's own "enc", core/plot_data_want_f32)
 send(cmd='data', events=[], enc='f32')
 collect(is_idle)
-send(cmd='aplot', op='redraw')
+send(cmd='key', win='aplot', key='d')
 evs, _ = collect(is_idle)
 ap2 = [e for e in evs if e.get('ev') == 'aplot']
 check('aplot values as base64 float32 when the client asked for it',
@@ -746,7 +747,7 @@ check('aplot values as base64 float32 when the client asked for it',
 send(cmd='data', events=[])
 collect(is_idle)
 
-send(cmd='aplot', op='range')
+send(cmd='key', win='aplot', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check("T32: array plot Range saving's Basename is a file, Still/Tag integers",
       ask is not None and ask['kind'] == 'form'
@@ -781,7 +782,7 @@ send(cmd='key', key='a')
 evs, _ = collect(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
 check('File/Auto opens the AUTO window', any(e.get('ev') == 'window' and e.get('win') == 101 for e in evs))
 collect(is_idle)
-send(cmd='auto', op='redraw')
+send(cmd='key', win='auto', key='d')
 evs, _ = collect(is_idle)
 axes = [e for e in evs if e.get('ev') == 'diagram' and e['op'] in ('axes', 'reset')]
 check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 and axes[-1]['xlabel'], str(axes))
@@ -789,7 +790,7 @@ check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 an
 # Run, Grab a labelled point, Run again: the second run restarts from the
 # label in fort.3 (findlb/readlb). On Windows the backward fseek that located
 # the label line was undefined on a text stream and corrupted the heap.
-send(cmd='auto', op='run')
+send(cmd='key', win='auto', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Auto/Run opens the start menu', ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))
 if ask:
@@ -798,7 +799,7 @@ if ask:
     adds = [e for e in evs if e.get('ev') == 'diagram' and e['op'] == 'add']
     check('Auto/Run sends the points it draws as diagram data',
           adds and adds[0]['from'] == 0 and sum(len(r['x']) for e in adds for r in e['runs']) > 0, str(adds)[:200])
-    send(cmd='auto', op='grab')
+    send(cmd='key', win='auto', key='g')
     evs, ask = collect(lambda e: e.get('ev') == 'ask')
     check('Auto/Grab asks for a point', ask is not None and ask['kind'] == 'grab', str(ask))
     for k in ['Tab', 'Tab', 'Return']:
@@ -809,7 +810,7 @@ if ask:
         if k == 'Return' and ask is not None and ask.get('ev') == 'ask':
             send(cmd='answer', id=ask['id'], ok=0)  # a confirmation is not expected; cancel it
             collect(is_idle)
-    send(cmd='auto', op='run')
+    send(cmd='key', win='auto', key='r')
     evs, e = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
     if e is not None and e.get('ev') == 'ask':
         send(cmd='answer', id=e['id'], ok=0)
@@ -840,7 +841,7 @@ if ask:
     # reDraw: a data client shows what the core sent), File/Reset diagram
     # empties it at once, and Usr period's prompts say what it does
     def auto_dialog(op, *answers):
-        send(cmd='auto', op=op)
+        send(cmd='key', win='auto', key={'axes': 'a', 'usr': 'u', 'file': 'f'}[op])
         evs = []
         for a in answers:
             ev, ask = collect(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
@@ -1225,9 +1226,9 @@ def check_values_protocol():
         before = last_state(after(cmd='state'))
         evs = after(cmd='set', kind='ic', **{'from': 'last'})
         st = last_state(evs)
-        check('set from last: the ICs become now, without a run',
-              st and st['ics'] and [v for _, v in st['ics']] == before['now'] and not full(evs),
-              str(st and st['ics']) + ' vs ' + str(before and before.get('now')))
+        check('set from last is gone (W60: Initialconds/Last is the key): the ICs stay, no run',
+              st and st['ics'] == before['ics'] and not full(evs),
+              str(st and st['ics']) + ' vs ' + str(before and before.get('ics')))
         after(cmd='set', kind='ic', name='v', value=-0.3)
         prev_now = last_state(after(cmd='state'))['now']
         evs = keys('i', {'key': 'l'})
@@ -1432,58 +1433,56 @@ def check_phase_data():
 check_phase_data()
 
 
-# "Use this view" (docs/ui-v2.md T9, GitHub issue #18): {"cmd":"view",
-# "win":w,"xlo":..,"xhi":..,"ylo":..,"yhi":..} sets window w's axes exactly
-# as Window/Window (graf_par.cpp update_view) would, so state.view, "plots"
-# and a PostScript export all agree with it afterward. An invalid range
-# (inverted or non-finite) or a window that does not exist is refused
-# (message error) and changes nothing.
+# "Use this view" (docs/ui-v2.md T9, GitHub issue #18, W60): the keys
+# Window/Window (w w) and its form's four numbers set the active window's axes
+# (graf_par.cpp user_window), so state.view, "plots" and a PostScript export
+# all agree with them afterward. The `view` command that used to do it is gone
+# (an unknown command).
 def check_view():
     proc6, run6, send6, collect6, _ = launch_server()
     collect6(is_idle)  # startup hello/state/idle
     send6(cmd='data', events=['plots'])
     collect6(is_idle)
 
-    def view_cmd(**kw):
-        """sends {"cmd":"view",...}; returns (plots or None, message-error
-        text or None, state.view) of the command's events up to its idle"""
-        send6(cmd='view', **kw)
-        evs, _ = collect6(is_idle)
-        pl = next((e for e in evs if e.get('ev') == 'plots'), None)
-        msg = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
-        st = last_state(evs)
+    def view_keys(xlo, xhi, ylo, yhi):
+        """Window/Window answered with the four numbers; returns (plots or
+        None, message-error text or None, state.view) of the events up to idle"""
+        send6(cmd='key', key='w')
+        got = []
+        answers = [{'key': 'w'}, {'ok': 1, 'values': [str(v) for v in (xlo, xhi, ylo, yhi)]}]
+        while True:
+            evs, e = collect6(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                break
+            send6(cmd='answer', id=e['id'], **(answers.pop(0) if answers else {'ok': 0}))
+        pl = next((e for e in got if e.get('ev') == 'plots'), None)
+        msg = next((e.get('error') for e in got if e.get('ev') == 'message' and 'error' in e), None)
+        st = last_state(got)
         return pl, msg, st and st.get('view')
 
     def axes(v):
         return v and (v['xlo'], v['xhi'], v['ylo'], v['yhi'])
 
     try:
-        pl, msg, view = view_cmd(win=1, xlo=-100, xhi=100, ylo=-100, yhi=100)
+        pl, msg, view = view_keys(-100, 100, -100, 100)
         w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
-        check('view sets the window\'s axes: plots reflects them',
+        check('Window/Window sets the axes of the window: plots reflects them',
               msg is None and axes(w) == (-100, 100, -100, 100), str(w))
         check('... and state.view matches, for the active window',
               view is not None and view['win'] == 1 and axes(view) == (-100, 100, -100, 100), str(view))
 
-        # an inverted range (lo >= hi) is refused and changes nothing
-        _, msg2, view2 = view_cmd(win=1, xlo=5, xhi=5, ylo=-1, yhi=1)
-        check('an inverted range (lo >= hi) is refused (message error)', msg2 is not None, str(msg2))
-        check('... and leaves the axes unchanged', axes(view2) == (-100, 100, -100, 100), str(view2))
-
-        # a non-finite bound is refused too
-        _, msg3, view3 = view_cmd(win=1, xlo=float('-inf'), xhi=100, ylo=-1, yhi=1)
-        check('a non-finite bound is refused too', msg3 is not None, str(msg3))
-        check('... and leaves the axes unchanged', axes(view3) == (-100, 100, -100, 100), str(view3))
-
-        # a window that does not exist is refused
-        _, msg4, view4 = view_cmd(win=7, xlo=0, xhi=1, ylo=0, yhi=1)
-        check('a window that does not exist is refused (message error)', msg4 is not None, str(msg4))
-        check('... and leaves the axes unchanged', axes(view4) == (-100, 100, -100, 100), str(view4))
+        # the command the page's "Use this view" button used to send is gone
+        send6(cmd='view', win=1, xlo=-1, xhi=1, ylo=-1, yhi=1)
+        evs, _ = collect6(is_idle)
+        msg5 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        check('the view command is gone: an unknown command', msg5 is not None and 'Unknown command' in msg5, str(msg5))
+        check('... and leaves the axes unchanged', axes(last_state(evs).get('view')) == (-100, 100, -100, 100))
 
         # Graphic stuff/Postscript (key g, then its submenu's p): a menu,
         # then a form for the PS parameters (answered with its own
         # defaults), then a file to write; the written file's axes come
-        # from the same MyGraph the view command set, so its tick labels
+        # from the same MyGraph Window/Window set, so its tick labels
         # ("%g" of the boundary, Box_axis/draw_xtics/draw_ytics in
         # axes2.cpp) are the boundary values themselves, -100 and 100 (a
         # symmetric [-100,100] range makes make_tics() choose a 20-wide
@@ -1519,13 +1518,13 @@ def check_view():
         stop_server(proc6, run6, send6)
 
 
-# 3D plots turned by the client (docs/ui-v2.md T14, GitHub issue #18):
-# {"cmd":"view3d","win":w,"theta":..,"phi":..} sets window w's angles
-# directly and redraws (core/json_windows.cpp view3d_command), so "plots" and
-# state.view.theta/phi agree with whatever web2 settled on after
-# projecting the box itself and turning it locally (no need to replay
-# rotate's pixel deltas). lorenz.ode sets axes=3d and phi=60 (theta stays
-# the default 45).
+# 3D plots turned by the client (docs/ui-v2.md T14, GitHub issue #18, W60):
+# the key 3 (3d-params) and its form, with Theta and Phi answered with the
+# angles web2 settled on after projecting the box itself and turning it
+# locally, set the active window's angles and redraw it, so "plots" and
+# state.view.theta/phi agree. The `view3d` command that used to do it is gone
+# (an unknown command). lorenz.ode sets axes=3d and phi=60 (theta stays the
+# default 45).
 def check_view3d():
     proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.ode')
     # runnow=1 loads, then runs, as two command cycles (the load's own idle
@@ -1552,36 +1551,44 @@ def check_view3d():
     send7(cmd='data', events=['plots'])
     collect7(is_idle)
 
-    def view3d_cmd(**kw):
-        """sends {"cmd":"view3d",...}; returns (plots or None, message-error
-        text or None, state.view) of the command's events up to its idle"""
-        send7(cmd='view3d', **kw)
-        evs, _ = collect7(is_idle)
-        pl = next((e for e in evs if e.get('ev') == 'plots'), None)
-        msg = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
-        st = last_state(evs)
+    def turn(theta, phi):
+        """key 3, its form answered with theta and phi (the rest as offered);
+        returns (plots or None, message-error text or None, state.view)"""
+        send7(cmd='key', key='3')
+        got = []
+        while True:
+            evs, e = collect7(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                break
+            vals = list(e.get('values', []))
+            names = e.get('names', [])
+            if e['kind'] == 'form' and 'Theta' in names and 'Phi' in names:
+                vals[names.index('Theta')] = str(theta)
+                vals[names.index('Phi')] = str(phi)
+            send7(cmd='answer', id=e['id'], ok=1, values=vals)
+        pl = next((e for e in got if e.get('ev') == 'plots'), None)
+        msg = next((e.get('error') for e in got if e.get('ev') == 'message' and 'error' in e), None)
+        st = last_state(got)
         return pl, msg, st and st.get('view')
 
     def angles(v):
         return v and (v['theta'], v['phi'])
 
     try:
-        pl, msg, view = view3d_cmd(win=1, theta=10, phi=-20)
+        pl, msg, view = turn(10, -20)
         w = pl and next((x for x in pl['windows'] if x['win'] == 1), None)
-        check('view3d sets the window\'s angles: plots reflects them',
+        check('3d-params sets the angles of the window: plots reflects them',
               msg is None and w is not None and (w['theta'], w['phi']) == (10, -20), str(w))
         check('... and state.view.theta/phi matches, for the active window',
               view is not None and view['win'] == 1 and angles(view) == (10, -20), str(view))
 
-        # a non-finite angle is refused and changes nothing
-        _, msg2, view2 = view3d_cmd(win=1, theta=float('nan'), phi=0)
-        check('a non-finite angle is refused (message error)', msg2 is not None, str(msg2))
-        check('... and leaves the angles unchanged', angles(view2) == (10, -20), str(view2))
-
-        # a window that does not exist is refused
-        _, msg3, view3 = view3d_cmd(win=7, theta=0, phi=0)
-        check('a window that does not exist is refused (message error)', msg3 is not None, str(msg3))
-        check('... and leaves the angles unchanged', angles(view3) == (10, -20), str(view3))
+        # the command the page used to send is gone
+        send7(cmd='view3d', win=1, theta=0, phi=0)
+        evs, _ = collect7(is_idle)
+        msg2 = next((e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+        check('the view3d command is gone: an unknown command', msg2 is not None and 'Unknown command' in msg2, str(msg2))
+        check('... and leaves the angles unchanged', angles(last_state(evs)['view']) == (10, -20))
     finally:
         stop_server(proc7, run7, send7)
 
@@ -1760,8 +1767,14 @@ def check_ani_data():
         send6(cmd='key', key=key)
         return answered(list(answers))
 
+    ani_keys = {'file': 'f', 'go': 'g', 'reset': 'r', 'skip': 's', 'mpeg': 'm', 'fly': 'o', 'grab': 'a'}
+
     def ani(op, *answers, **kw):
-        send6(cmd='ani', op=op, **kw)
+        """the animation window's key (menu_ani_window) when it has one, else its ani op"""
+        if op in ani_keys:
+            send6(cmd='key', win='ani', key=ani_keys[op])
+        else:
+            send6(cmd='ani', op=op, **kw)
         return answered(list(answers))
 
     def colours_ok(f):
@@ -1947,7 +1960,7 @@ def lecar_to_auto(snd, col):
         return col(lambda e: is_idle(e) or e.get('ev') == 'ask', timeout=30 * SLOW)
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
-              {'cmd': 'eqimport'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'auto', 'op': 'run'}):
+              {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}, {'cmd': 'key', 'win': 'auto', 'key': 'r'}):
         step(**c)
     snd(cmd='answer', key='s')
     evs, _ = col(is_idle, timeout=60 * SLOW)
@@ -1988,7 +2001,7 @@ def check_autoinfo():
         diag_b = rebuild_diagram(evs, [])
         check('autoinfo: a client that did not ask gets none', not infos(evs))
 
-        snda(cmd='auto', op='grab')
+        snda(cmd='key', win='auto', key='g')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)
         info = got[-1]['info'] if got else None
@@ -2029,14 +2042,14 @@ def check_autoinfo():
         evs, end = cola(is_idle)
         check('grab by point: point and Return take it in one answer', end is not None
               and not any(e.get('ev') == 'ask' for e in evs), str(evs)[:300])
-        sndb(cmd='auto', op='grab')
+        sndb(cmd='key', win='auto', key='g')
         for k in ['Tab', 'Return']:
             evs, ask = colb(lambda e: e.get('ev') == 'ask')
             sndb(cmd='answer', id=ask['id'], key=k)
         colb(is_idle)
         run_evs = []
         for snd, col, diag in ((snda, cola, diag_a), (sndb, colb, diag_b)):
-            snd(cmd='auto', op='run')
+            snd(cmd='key', win='auto', key='r')
             evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=30 * SLOW)
             snd(cmd='answer', id=ask['id'], key='p')
             evs, _ = col(is_idle, timeout=120 * SLOW)
@@ -2059,7 +2072,7 @@ def check_autoinfo():
               '%d events, the first %s' % (len(infos(evs)), str(infos(evs)[:1])[:300]))
         # a redraw after a grab: the strip and the circle stay the grabbed point's (W49: the circle
         # used to move to the diagram's last point, under the grabbed point's info)
-        snda(cmd='auto', op='grab')
+        snda(cmd='key', win='auto', key='g')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         snda(cmd='answer', id=ask['id'], point=5, key='Return')
         evs, _ = cola(is_idle)
@@ -2134,17 +2147,17 @@ def check_autosettings():
         check('autosettings: sent at once after data, before AUTO is open', st is not None
               and sorted(st['numerics']) == sorted(NUM_KEYS) and len(st['pars']) == 8
               and st['axes']['par1'] == st['pars'][0], str(st)[:300])
-        ask = ask_of(cmd='auto', op='numerics')
+        ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
         check("autosettings: the numerics are the Numerics form's values, field for field",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
-        ask = ask_of(cmd='auto', op='param')
+        ask = ask_of(cmd='key', win='auto', key='p')
         cancel(ask)
         check("autosettings: pars are the Parameter form's names", ask and ask['values'] == st['pars'],
               '%s vs %s' % (ask and ask['values'], st['pars']))
         plot_key = {0: 'h', 1: 'n', 2: 'i', 3: 'p', 4: 't', 10: 'r', 11: 'a'}[st['axes']['plot']]
-        menu_ask = ask_of(cmd='auto', op='axes')
+        menu_ask = ask_of(cmd='key', win='auto', key='a')
         snda(cmd='answer', id=menu_ask['id'], key=plot_key)
         ask = cola(lambda e: e.get('ev') == 'ask')[1]
         cancel(ask)
@@ -2152,13 +2165,13 @@ def check_autosettings():
         want = [a['var'], a['par1'], a['par2']] + [form_text(a[k]) for k in ('xmin', 'ymin', 'xmax', 'ymax')]
         check("autosettings: axes are the Axes menu's plot type and the AutoPlot form's values",
               ask and ask['kind'] == 'form' and ask['values'] == want, '%s vs %s' % (ask and ask['values'], want))
-        ask = ask_of(cmd='auto', op='usr')
+        ask = ask_of(cmd='key', win='auto', key='u')
         snda(cmd='answer', id=ask['id'], key='0')
         cola(is_idle)
         check('autosettings: no Mark values at first, as the form says', st['marks'] == [], str(st['marks']))
 
         # a form's OK shows in the event too
-        ask = ask_of(cmd='auto', op='numerics')
+        ask = ask_of(cmd='key', win='auto', key='n')
         vals = list(ask['values'])
         vals[NUM_KEYS.index('npr')] = '40'
         snda(cmd='answer', id=ask['id'], ok=1, values=vals)
@@ -2175,11 +2188,11 @@ def check_autosettings():
               and st3['numerics']['nmx'] == 12 and st3['numerics']['ds'] == -0.01 and st3['pars'][:2] == [p1, p0]
               and st3['axes']['plot'] == 1 and st3['axes']['var'] == 'W' and st3['axes']['par1'] == p1
               and st3['marks'] == [[p0, 0.25], ['T', 30]], '%s %s' % (errs, st3))
-        ask = ask_of(cmd='auto', op='numerics')
+        ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
         check('auto set: the Numerics form shows it', ask and ask['values'][1] == '12' and ask['values'][4] == '-0.01',
               str(ask and ask['values']))
-        ask = ask_of(cmd='auto', op='usr')
+        ask = ask_of(cmd='key', win='auto', key='u')
         snda(cmd='answer', id=ask['id'], key='2')
         ask2 = cola(lambda e: e.get('ev') == 'ask')[1]
         cancel(ask2)
@@ -2198,7 +2211,7 @@ def check_autosettings():
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
         # a set sent while a question is open is kept for the command's end, not dropped
-        ask = ask_of(cmd='auto', op='numerics')
+        ask = ask_of(cmd='key', win='auto', key='n')
         snda(cmd='auto', op='set', numerics={'nmx': 77})
         evs = cancel(ask)
         st5 = settings_of(evs)
@@ -2239,7 +2252,7 @@ def auto_stop_run(numerics, abort=False):
         snd(cmd='auto', op='set', numerics=numerics)
         evs, _ = col(is_idle)
         errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
-        snd(cmd='auto', op='run')
+        snd(cmd='key', win='auto', key='r')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         if errs or not ask or ask.get('ev') != 'ask':
             return {'errors': errs, 'ask': ask}, 0
@@ -2307,7 +2320,7 @@ def check_auto_no_nan_par():
             col(lambda e: is_idle(e) or e.get('ev') == 'ask')
         snd(cmd='auto', op='set', numerics={**wide, 'rl1': 10})
         col(is_idle)
-        snd(cmd='auto', op='run')
+        snd(cmd='key', win='auto', key='r')
         _, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         ok = isinstance(ask, dict) and ask.get('ev') == 'ask'
         states = []
@@ -2558,7 +2571,7 @@ send2(cmd='key', key='f')
 send2(cmd='key', key='a')
 collect2(lambda e: e.get('ev') == 'window' and e.get('win') == 101)
 collect2(is_idle)
-send2(cmd='auto', op='run')
+send2(cmd='key', win='auto', key='r')
 evs, ask = collect2(lambda e: e.get('ev') == 'ask')
 check('bad-HOME server: Auto/Run opens the Start menu',
       ask is not None and ask['kind'] == 'menu' and 's' in ask['keys'], str(ask))

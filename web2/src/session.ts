@@ -11,6 +11,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
+import {ANI_KEYS, APLOT_KEYS, AUTO_KEYS, BROWSER_KEYS, EQUILIBRIUM_KEYS, windowKey} from './protocol/windowKeys';
 import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {
@@ -30,13 +31,13 @@ export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'lo
   | 'restore' | 'addcol' | 'delcol';
 
 /** the AUTO window's buttons (docs/protocol.md `auto` op); Close is session.closeAuto */
-export type AutoOp = 'param' | 'axes' | 'numerics' | 'run' | 'grab' | 'usr' | 'clear' | 'redraw' | 'file';
+export type AutoOp = keyof typeof AUTO_KEYS;
 
 /** one step of a planned dialogue: the answer to `ask`, or null when that ask is the user's */
 type PlanStep = (ask: AskEvent) => Record<string, unknown> | null;
 
 /** the array plot window's buttons (docs/protocol.md `aplot` op; web/xpp-client.js's buildArrayPlot) */
-export type AplotOp = 'redraw' | 'edit' | 'print' | 'fit' | 'range' | 'gif' | 'close';
+export type AplotOp = keyof typeof APLOT_KEYS;
 
 export class Session {
   readonly store: Store<AppState, Action>;
@@ -75,7 +76,7 @@ export class Session {
   /** a command run again after "Add file…": the answers its prompts get, and
       the idles to wait for (the menu keys before it, then its own) */
   private replayAnswers: RunAnswer[] = [];
-  /** rotate3d's throttle: the last time a `view3d` went out for a window,
+  /** rotate3d's throttle: the last time the 3d-params turn went out for a window,
       and its pending trailing send, by window */
   private rotate3dLast = new Map<number, number>();
   private rotate3dTimer = new Map<number, ReturnType<typeof setTimeout>>();
@@ -395,13 +396,24 @@ export class Session {
   /* ---- Use this view (docs/ui-v2.md T9) ---- */
 
   /** "Use this view": the client's current zoom of `win` becomes the
-      core's own axes (`{"cmd":"view",...}`, docs/protocol.md), exactly as
-      Window/Window would. The core's `plots` and `state.view` that follow
-      report the new axes; the plot's own viewport then goes back to "the
-      core's axes" (store/plots.ts coreMoved, from the `state` reducer),
-      with no visible jump since they are now the same range. */
+      core's own axes, by the keys Window/Window (w w) and its four
+      numbers, answered here. The core's `plots` and `state.view` that
+      follow report the new axes; the plot's own viewport then goes back
+      to "the core's axes" (store/plots.ts coreMoved, from the `state`
+      reducer), with no visible jump since they are now the same range. */
   useThisView(win: number, ranges: Ranges): void {
-    this.send({cmd: 'view', win, xlo: ranges.x.min, xhi: ranges.x.max, ylo: ranges.y.min, yhi: ranges.y.max});
+    if (this.blocked()) return; /* W68 */
+    const cmds: Command[] = [];
+    if (this.store.getState().plots.active !== win) {
+      this.store.dispatch({type: 'selectWindow', win});
+      cmds.push({cmd: 'click', win});
+    }
+    cmds.push({cmd: 'key', key: 'w'});
+    const {x, y} = ranges;
+    this.runPlan(cmds, [
+      ask => (ask.kind === 'menu' ? {key: 'w'} : null),
+      ask => (ask.kind === 'form' ? {values: [x.min, x.max, y.min, y.max].map(String)} : null),
+    ]);
   }
 
   /** Window/Fit: the key sequence the classic page uses ('w' opens the
@@ -421,8 +433,8 @@ export class Session {
       keys on the focused plot): the store updates at once, so the plot
       (projected in the client, plot/project3d.ts) redraws with no round
       trip. The core's own state (a PostScript/SVG export, `state.view`,
-      any other client) is kept in step with `{"cmd":"view3d",...}`,
-      throttled to at most 10 a second while the turn continues; a trailing send 150 ms
+      any other client) is kept in step by the key `3` (3d-params) and its
+      form, answered here, throttled to at most 10 a second while the turn continues; a trailing send 150 ms
       after the last change always lands, so the settled angle reaches the
       core even with no explicit end wired in (a key held down auto-
       repeats, with no keyup between steps). */
@@ -436,7 +448,7 @@ export class Session {
       this.rotate3dTimer.delete(win);
       /* busy: the core would drop it (W68); the latest angle goes at the idle */
       if (this.store.getState().busy) this.rotate3dHeld.set(win, {theta, phi});
-      else this.send({cmd: 'view3d', win, theta, phi});
+      else this.turn3d(win, theta, phi);
     };
     if (performance.now() - last >= 100) send();
     else this.rotate3dTimer.set(win, setTimeout(send, 150));
@@ -445,8 +457,29 @@ export class Session {
   /* at an idle: the latest angle each window was turned to while the core was busy (rotate3d) */
   private flushRotate3d(): void {
     if (this.store.getState().busy) return;
-    for (const [win, {theta, phi}] of this.rotate3dHeld) this.send({cmd: 'view3d', win, theta, phi});
-    this.rotate3dHeld.clear();
+    /* one plan at a time: the next window's angle goes at the next idle */
+    const first = this.rotate3dHeld.entries().next();
+    if (first.done) return;
+    this.rotate3dHeld.delete(first.value[0]);
+    this.turn3d(first.value[0], first.value[1].theta, first.value[1].phi);
+  }
+
+  /** 3d-params (`3`) of window `win`: its form's Theta and Phi answered with the angles, the rest as offered */
+  private turn3d(win: number, theta: number, phi: number): void {
+    const cmds: Command[] = [];
+    if (this.store.getState().plots.active !== win) {
+      this.store.dispatch({type: 'selectWindow', win});
+      cmds.push({cmd: 'click', win});
+    }
+    cmds.push({cmd: 'key', key: '3'});
+    this.runPlan(cmds, [ask => {
+      const t = ask.names?.indexOf('Theta') ?? -1, p = ask.names?.indexOf('Phi') ?? -1;
+      if (ask.kind !== 'form' || t < 0 || p < 0 || !ask.values) return null;
+      const values = ask.values.slice();
+      values[t] = String(theta);
+      values[p] = String(phi);
+      return {values};
+    }]);
   }
 
   /** stops the running command; it still ends with its idle */
@@ -457,20 +490,26 @@ export class Session {
 
   /* ---- the AUTO view (docs/ui-v2.md T11a, docs/protocol.md `auto`) ---- */
 
-  /** one of the AUTO window's buttons; its prompts come as ordinary asks.
-      Clear is the view's own (T21): the branches so far become the earlier
-      ones, hidden until shown again, and the core keeps them */
+  /** one of the AUTO window's buttons, sent as its key (`win` `auto`); its
+      prompts come as ordinary asks. Clear also is the view's own (T21):
+      the branches so far become the earlier ones, hidden until shown
+      again; the core's own clear and redraw (keys `c`, `d`) follow */
   autoOp(op: AutoOp): void {
+    if (this.blocked()) return; /* W68 */
     if (op === 'clear') {
+      /* the core's clear blanks the diagram (its points go from the page), then its redraw sends them
+         all again, and the branches so far are the earlier ones once more */
+      const {points} = this.store.getState().diagram, n = points.x.length;
       this.store.dispatch({type: 'diagram', action: {type: 'clear'}});
+      this.runPlan([windowKey('auto', AUTO_KEYS.clear), windowKey('auto', AUTO_KEYS.redraw)], [], () =>
+        this.store.dispatch({type: 'diagram', action: {type: 'earlier', count: n}}));
       return;
     }
-    if (this.blocked()) return; /* W68 */
     if (op === 'run') {
       this.flushValues();
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
     }
-    this.send({cmd: 'auto', op});
+    this.send(windowKey('auto', AUTO_KEYS[op]));
   }
 
   /* a planned dialogue: `cmds` go out one after the other's idle (a command
@@ -525,7 +564,7 @@ export class Session {
         + 'labelled point of the periodic branch (Tab steps through them) to plot its limit cycle.'});
       return;
     }
-    this.runPlan([{cmd: 'auto', op: 'file'}], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
+    this.runPlan([windowKey('auto', AUTO_KEYS.file)], [ask => (ask.kind === 'menu' ? {key: 'i'} : null)]);
   }
 
   /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
@@ -670,9 +709,9 @@ export class Session {
     }
   }
 
-  /** "Use current state": the ICs from where the last run ended (Initialconds/Last's values), no run */
+  /** "Use current state": Initialconds/Last (`i` `l`), the ICs from where the last run ended */
   useCurrentState(): void {
-    this.send({cmd: 'set', kind: 'ic', from: 'last'});
+    this.keys('i', 'l');
   }
 
   /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
@@ -758,7 +797,7 @@ export class Session {
       `browser` op; Find, Replace, Table, Load and Write prompt through the
       ordinary `ask`, AskDialog already shows) */
   browserOp(op: BrowserOp): void {
-    this.send({cmd: 'browser', op, row: this.store.getState().table.selected});
+    this.send(windowKey('browser', BROWSER_KEYS[op], {row: this.store.getState().table.selected}));
   }
 
   /** Get: the selected row becomes the initial conditions (the next `state` has them) */
@@ -794,12 +833,12 @@ export class Session {
 
   /** File: an .ani file, through the file ask (the browser's open dialog) */
   aniLoad(): void {
-    this.send({cmd: 'ani', op: 'file'});
+    this.send(windowKey('ani', ANI_KEYS.file));
   }
 
   /** Go: plays from the core's position to the last frame; never started by the page itself (A6) */
   aniPlay(): void {
-    if (!this.store.getState().ani.playing) this.send({cmd: 'ani', op: 'go'});
+    if (!this.store.getState().ani.playing) this.send(windowKey('ani', ANI_KEYS.go));
   }
 
   /** Pause: reaches the running Go at once (a control line: no idle of its own) */
@@ -827,7 +866,7 @@ export class Session {
 
   /** Grab: the frame's grab points wait for the pointer */
   aniGrab(): void {
-    this.send({cmd: 'ani', op: 'grab'});
+    this.send(windowKey('ani', ANI_KEYS.grab));
   }
 
   /** the pointer over the picture while grabbing, in unit coordinates (u, v: y up) */
@@ -937,7 +976,7 @@ export class Session {
   }
 
   /* ---- text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`, ---- */
-  /* `action`, `equilibrium`, `eqimport`): equations, the source with its comment
+  /* `action`, `equilibrium`): equations, the source with its comment
      actions, and the last Sing pts equilibrium */
 
   /** opens the panel (R6: a side panel from 48rem, a sheet under that), on
@@ -1003,7 +1042,7 @@ export class Session {
   /** the equilibrium window's Import: the last equilibrium becomes the
       initial conditions (the next `state` has them) */
   importEquilibrium(): void {
-    this.send({cmd: 'eqimport'});
+    this.send(windowKey('equilibrium', EQUILIBRIUM_KEYS.import));
   }
 
   /* ---- files (docs/ui-v2.md section 4, T5): the model's folder is the workspace ---- */
@@ -1142,7 +1181,7 @@ export class Session {
   /** the classic array plot window's own buttons: Redraw, Edit (a form,
       AskDialog), Fit, Range, Print, GIF (a file ask, FileDialog), Close */
   aplotOp(op: AplotOp): void {
-    this.send({cmd: 'aplot', op});
+    this.send(windowKey('aplot', APLOT_KEYS[op]));
   }
 
   /** the picture scrolled through time by dragging, wheeling or a keyboard

@@ -29,33 +29,43 @@ A client that draws sends `data` next (see "The plot as data").
 
 | cmd | fields | meaning |
 |---|---|---|
-| `key` | `key` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. |
+| `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
-| `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. `kind` `ic` with `from` `last` and nothing else: every initial condition from where the last run ended (`state.now`, what Initialconds/Last starts from), without a run; `message` `error` "No prior solution" before any run. The values panel holds every edit (sliders, value fields, Default/Reset, a loaded .par/.ic file) as pending in the page and sends them together in one `set`, right before the next command that computes, so a computation always uses what the panel shows; a client that only wants to change a value sends `set` alone, as before. |
+| `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. The values panel holds every edit (sliders, value fields, Default/Reset, a loaded .par/.ic file) as pending in the page and sends them together in one `set`, right before the next command that computes, so a computation always uses what the panel shows; a client that only wants to change a value sends `set` alone, as before. |
 | `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). |
 | `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69: the values panel holds a slider's edits pending like any other and sends them in the next `set`). |
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
-| `browser` | `op` (`find`, `get`, `replace`, `unreplace`, `table`, `load`, `write`, `first`, `last`, `restore`, `addcol`, `delcol`), `row`; for `write` `what`, `format`, `name`; for `load` `format`, `name` | A data browser button, with `row` the selected row (the X11 browser's top row). `write` is Save data and `load` Load (see "Saving data" below): each of their fields that is given skips its question. |
+| `browser` | `op` (`write`, `load`); for `write` `what`, `format`, `name`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. The other buttons are the window's keys ("Window keys"). |
 | `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. |
-| `eqimport` | | The equilibrium window's Import: the last equilibrium becomes the initial conditions. |
 | `equations` | | Send `equations`. |
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
-| `view` | `win`, `xlo`, `xhi`, `ylo`, `yhi` | "Use this view" (docs/ui-v2.md T9): sets window `win`'s 2D axes exactly as Window/Window would (graf_par.cpp `update_view`), so a later PostScript/SVG export, Restore and redraw all agree with them; the `plots` and `state.view` that follow the command show the new axes. Refused (`message` `error`) and nothing changed when `xlo`..`yhi` are not all finite, `xlo>=xhi`, `ylo>=yhi`, or `win` names no open window. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `param`, `axes`, `numerics`, `run`, `grab` (`label`, or `type`+`index`), `usr`, `clear`, `redraw`, `file`, `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | The AUTO window buttons; `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `grab` with `label` or `type`+`index` grabs that stored point directly, with no ask ("Grab by label" below); with neither it is the interactive grab ("Grab by point" below); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name` | Save or load a session: `<name>.set` (File/Write set, File/Read set) and, when a diagram exists (save) or a `<name>.auto` file is found (load), `<name>.auto` too (AUTO File/Save diagram, File/Load diagram). Without `name`, asks for one (`ask` kind `file`, like any other Save/Load). A load opens the AUTO window first when `<name>.auto` exists and AUTO is not already open. `state.session` (below) names the files the current session was last saved to or loaded from. |
-| `aplot` | `op`: `redraw`, `edit`, `print`, `fit`, `range`, `gif`, `close`, `scroll` (`dy` pixels) | The array plot window buttons; dragging the plot scrolls through time. |
-| `rotate` | `what` (`down`, `move`, `up`), `x`, `y` | Dragging a 3D plot turns it (the active window, when `state.view.three`). |
-| `view3d` | `win`, `theta`, `phi` | Sets window `win`'s 3D angles (degrees) directly and redraws (docs/ui-v2.md T14): a client that projects the box itself (web2, dragging or arrow keys) reports where it settled, so the core's own state (`plots`, `state.view.theta/phi`) and a PostScript/SVG export all agree; simpler than replaying `rotate`'s pixel deltas outside the drag the core tracks. Refused (`message` `error`) and nothing changed when `win` names no open window, it is not a 3D plot, or `theta`/`phi` is not finite. |
-| `ani` | `op`: `go`, `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `reset`, `skip`, `file`, `mpeg`, `grab`, `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `fly`, `close` | The animation window buttons. `go` plays until the last frame; `pause`, `fast`, `slow` and `speed` sent while it plays reach its loop. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `file` loads an `.ani` file (a `file` ask) and, when there is data, shows its first frame. `mpeg` asks for frame saving (PPM files or `anim.gif`), done with `pixels` asks while playing. `mouse` drags a grab point after `grab`, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
+| `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
+| `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | | Exit, at once even during a computation. |
+
+## Window keys
+
+The windows other than the main one have a key layer of their own: `{"cmd":"key","win":W,"key":k}`, one letter one command, defined in core/menus.cpp (`menu_auto_window`, `menu_browser_window`, `menu_ani_window`, `menu_aplot_window`, `menu_equilibrium_window`), which a page's buttons send. A key the window's layer does not have is ignored; an unknown `win` is a `message` `error`. Like any command they start after the one before ends: while a command runs they are dropped (the page does not send them).
+
+| `win` | keys |
+|---|---|
+| `auto` | `p` Parameter, `a` Axes, `n` Numerics, `r` Run, `g` Grab (interactive, "Grab by point"), `u` Usr period, `c` Clear (redraws the axes; the diagram's points stay), `d` reDraw, `f` File |
+| `browser` | `f` Find, `g` Get (the selected `row` becomes the initial conditions), `r` Replace, `u` Unreplace, `t` Table, `h` Home (the first row kept is `row`), `e` End (the last), `s` reStore, `a` Add column, `d` Delete column, `l` Load, `w` Write (Save data) |
+| `ani` | `f` File, `g` Go, `r` Reset, `s` Skip, `m` Mpeg, `o` On the fly, `a` grAb |
+| `aplot` | `d` reDraw, `e` Edit, `f` Fit, `r` Range, `p` Print, `g` GIF |
+| `equilibrium` | `i` Import: the last equilibrium becomes the initial conditions |
+
+Use this view, the 3D turn and Use current state have no layer of their own: they are main-window keys, `w` `w` (Window/Window, whose four numbers the page answers), `3` (3d-params, whose Theta and Phi the page answers) and `i` `l` (Initialconds/Last, which runs). The buttons with no key at all are the commands with their own row above: `slide`, `default`, `values`, `userbut`, `action`, `plotvars`, `click`, `redraw` and the parameter-carrying `set`, `auto` (`set`, `point`, `grab` by label, `close`), `browser` (`write`, `load` with their choices, the paging request), `ani` (`step`, `seek`, `speed`, `mouse`, `pause`, `fast`, `slow`, `close`) and `aplot` (`scroll`, `close`). A command the protocol does not have (the removed `view`, `view3d`, `rotate`, `eqimport`) is a `message` `error` "Unknown command X", an `op` of `auto`, `browser`, `ani` or `aplot` it no longer has "Unknown auto op X" and so on.
 
 ## Saving data
 
@@ -129,7 +139,8 @@ in the input.
   line that arrives is for after it: it is taken as below, so a command
   sent right behind an `abort` runs normally, in its turn.
 - Outside a computation, while a job runs (a command in its prompts, the
-  animation's Go, a command finishing), `key`, `set`, `state`, `browser`
+  animation's Go, a command finishing), `key` (a main-window key: not one
+  with a `win`, which waits its turn), `set`, `state`, `browser`
   with `from` and `ani` `pause`/`fast`/`slow`/`speed` are *control* lines
   (the animation's Go acts on them between frames: Escape or Pause stops
   it, a `set` changes a parameter under it). A control line the job does
@@ -207,22 +218,22 @@ that bifurcates from it, and saves the diagram:
 {"cmd":"key","key":"s"}
 {"cmd":"answer","key":"g"}
 {"cmd":"answer","key":"n"}
-{"cmd":"eqimport"}
+{"cmd":"key","win":"equilibrium","key":"i"}
 
 {"cmd":"key","key":"f"}
 {"cmd":"key","key":"a"}
 
-{"cmd":"auto","op":"run"}
+{"cmd":"key","win":"auto","key":"r"}
 {"cmd":"answer","key":"s"}
 
-{"cmd":"auto","op":"grab"}
+{"cmd":"key","win":"auto","key":"g"}
 {"cmd":"answer","key":"Tab"}
 {"cmd":"answer","key":"Return"}
 
-{"cmd":"auto","op":"run"}
+{"cmd":"key","win":"auto","key":"r"}
 {"cmd":"answer","key":"p"}
 
-{"cmd":"auto","op":"file"}
+{"cmd":"key","win":"auto","key":"f"}
 {"cmd":"answer","key":"s"}
 {"cmd":"answer","file":"lecar.auto"}
 ```
@@ -260,7 +271,7 @@ Run it with:
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
 | `equations` | `lines` | One `dX/dT=...` line per equation. |
 | `ani` | `pos`, `rows`, `fly`, `grab`, `skip`, `speed`, `loaded`, `open`; or `op` `frame`, ... | Animation state for its slider and toggles, sent with every frame drawn and after every `ani` command: `pos` the row the next step starts from, `speed` the ms between frames of Go, `loaded` 1 when an `.ani` file is loaded, `open` 1 while the animation window exists. With `op` `frame`: a frame as data, for a client that asked (`data`); see "The animation as data". |
-| `aplot` | `title`, `nx`, `ny`, `cells` (ny rows of nx colour indices, -1 blank), `values`, `enc`, `first`, `ncolors`, `zmin`, `zmax`, `tlo`, `thi`, `tag` | The array plot (window 105): cell index k is colour `first`+k of the core's colour table (what its GIF writer paints). `values` is the same `ny` rows of `nx` cells' stored numbers, before that mapping (float32, `null`/NaN off the stored rows or columns, same layout as `cells`), for a client that picks its own colour scale from them and `zmin`/`zmax`; `enc` `"f32"` (the client's last `data` `enc`, reused here since `aplot` is not itself in the `data` subscription list) sends `values` as base64 float32 like a series column (see "The plot as data"). |
+| `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
@@ -521,7 +532,7 @@ labels or 3D view); its text is compared with the last one sent.
 | `xlo`, `xhi`, `ylo`, `yhi` | the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's |
 | `xlabel`, `ylabel`, `zlabel` | the axis labels; empty means "the plotted column's name" |
 | `box` | the 3D box (3d-params, Viewaxes in 3D): the data ranges of x, y and z |
-| `theta`, `phi` | the 3D view's angles in degrees (3d-params, `rotate`, `view3d`) |
+| `theta`, `phi` | the 3D view's angles in degrees (3d-params, `3`) |
 | `persp`, `zplane`, `zview` | perspective on (1) or off, and its planes |
 | `curves`, `shift` | as in `series` |
 
@@ -728,8 +739,9 @@ type instead (`auto_bif_sym`'s `BP`, `EP`, `HB`, `LP`, `MX`, `PD`, `TR`,
 `UZ`: "the 2nd HB"). A label no stored point has, or a `type`/`index` with
 no such point, is a `message` `error` and nothing changes -- the diagram,
 `grabpt` and the info strip stay as they were. `{"cmd":"auto","op":"grab"}`
-with neither field is the interactive grab, unchanged: it asks (`grab`,
-above). A script that recorded an interactive grab (W59) replays it as the
+with neither field is refused (`message` `error`): the interactive grab is
+the AUTO window's key `g`, `{"cmd":"key","win":"auto","key":"g"}`, which
+asks (`grab`, above). A script that recorded an interactive grab (W59) replays it as the
 keys it was answered with, exactly as it was driven; `grab`/`label` is for
 a script that names the point instead (W56's -silent commands).
 

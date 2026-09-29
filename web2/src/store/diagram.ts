@@ -219,6 +219,8 @@ export type DiagramAction =
   | {type: 'runStopped'}
   /** Clear: what is drawn now becomes the earlier branches */
   | {type: 'clear'}
+  /** the branches before the core's own clear and redraw are the earlier ones again */
+  | {type: 'earlier'; count: number}
   | {type: 'showEarlier'; show: boolean};
 
 export function pointCount(p: DiagramPoints): number {
@@ -347,6 +349,8 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
       return {...s, earlier: pointCount(s.points), showEarlier: false, hover: null};
+    case 'earlier':
+      return {...s, earlier: Math.min(a.count, pointCount(s.points)), showEarlier: false, hover: null};
     case 'showEarlier':
       return a.show === s.showEarlier ? s : {...s, showEarlier: a.show};
   }

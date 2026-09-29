@@ -140,7 +140,7 @@ test('app state: ani events and window 104 reach the slice; Go plays until its i
   assert.equal(s.plots, initialState.plots, 'not a plot window');
   s = reduce(s, {type: 'event', ev: frameEv({pos: 12})});
   assert.equal(s.ani.frame!.pos, 12);
-  s = reduce(s, {type: 'sent', cmd: {cmd: 'ani', op: 'go'}});
+  s = reduce(s, {type: 'sent', cmd: {cmd: 'key', win: 'ani', key: 'g'}});
   assert.ok(s.ani.playing && s.busy);
   s = reduce(s, {type: 'event', ev: {ev: 'ani', pos: 13, rows: 601, fly: 0, grab: 0, skip: 1, speed: 5}});
   assert.equal(s.ani.pos, 13);

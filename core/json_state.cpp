@@ -24,6 +24,7 @@
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "lunch-new.h"
+#include "menus.h"
 #include <strings.h>
 #include <climits>
 #include <stdio.h>
@@ -217,34 +218,44 @@ void j_browser_changed(int)
     aplot_changed(); /* X11 redraws an auto-redrawn array plot on expose */
 }
 
-/* {"cmd":"browser","op":...,"row":selected row} */
+/* {"cmd":"browser","op":"load"|"write",...}: Save data's and Load's
+   choices given, each asked for when not given (the keys l and w of
+   menu_browser_window ask them all) */
 void browser_command(const char *line)
 {
     xpp::Session &s=xpp::session();
-    std::string o;
-    int row = get_int(line, "row", -1);
+    std::string o, what, format, name;
     get_string(line, "op", o, 16);
+    get_string(line, "what", what, 8);
+    get_string(line, "format", format, 16);
+    get_string(line, "name", name, XPP_MAX_NAME);
+    if (o == "load") data_read(&s.browser.view, format, name);
+    else if (o == "write") data_write(&s.browser.view, what, format, name);
+    else j_err_msg(xpp::format("Unknown browser op {}", o).c_str());
+    browser_dirty = 1;
+}
+
+/* a key of the data browser window (menu_browser_window), on the selected
+   row: {"cmd":"key","win":"browser","key":k,"row":r} */
+void browser_key(int ch, const char *line)
+{
+    xpp::Session &s=xpp::session();
+    int row = get_int(line, "row", -1);
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
-    if (o == "find") data_find(&s.browser.view);
-    else if (o == "get") data_get(&s.browser.view);
-    else if (o == "replace") data_replace(&s.browser.view);
-    else if (o == "unreplace") data_unreplace(&s.browser.view);
-    else if (o == "table") data_table(&s.browser.view);
-    else if (o == "load" || o == "write") {
-        /* Save data's and Load's choices, each asked for when not given */
-        std::string what, format, name;
-        get_string(line, "what", what, 8);
-        get_string(line, "format", format, 16);
-        get_string(line, "name", name, XPP_MAX_NAME);
-        if (o == "load") data_read(&s.browser.view, format, name);
-        else data_write(&s.browser.view, what, format, name);
+    switch (xpp_menu_index(&menu_browser_window, ch)) {
+    case BK_FIND: data_find(&s.browser.view); break;
+    case BK_GET: data_get(&s.browser.view); break;
+    case BK_REPLACE: data_replace(&s.browser.view); break;
+    case BK_UNREPLACE: data_unreplace(&s.browser.view); break;
+    case BK_TABLE: data_table(&s.browser.view); break;
+    case BK_FIRST: data_first(&s.browser.view); break;
+    case BK_LAST: data_last(&s.browser.view); break;
+    case BK_RESTORE: data_restore(&s.browser.view); break;
+    case BK_ADDCOL: data_add_col(&s.browser.view); break;
+    case BK_DELCOL: data_del_col(&s.browser.view); break;
+    case BK_LOAD: data_read(&s.browser.view, "", ""); break;
+    case BK_WRITE: data_write(&s.browser.view, "", "", ""); break;
     }
-    else if (o == "first") data_first(&s.browser.view);
-    else if (o == "last") data_last(&s.browser.view);
-    else if (o == "restore") data_restore(&s.browser.view);
-    else if (o == "addcol") data_add_col(&s.browser.view);
-    else if (o == "delcol") data_del_col(&s.browser.view);
-    else if (o == "close") br_count = 0;
     browser_dirty = 1;
 }
 
@@ -379,26 +390,13 @@ int apply_value(const char *line)
 } // namespace
 
 /* {"cmd":"set", one value's members (apply_value), or "values":[{...}...]
-   to set several in one command, or "kind":"ic", "from":"last" for the
-   initial conditions from where the last run ended, what
-   Initialconds/Last starts from, without a run. Never runs anything
+   to set several in one command. Never runs anything
    itself (W69): the page holds every edit and sends them in one `set`
    right before the next command that computes. */
 void apply_set(const char *line)
 {
     const char *values = js_find(line, "values");
-    std::string from;
     int i;
-    if (get_string(line, "from", from, 8)) {
-        if (from != "last") return;
-        if (!xpp::session().numerics.inflag) {
-            j_err_msg("No prior solution");
-            return;
-        }
-        get_ic(0, xpp::session().data_store.current); /* integrate.c do_init_data M_IL: last_ic = the current state */
-        state_dirty = 1;
-        return;
-    }
     if (values)
         for (i = 0; js_elem(values, i); i++) apply_value(js_elem(values, i));
     else
@@ -516,10 +514,10 @@ void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev
     send_buf(&b);
 }
 
-/* the equilibrium window's Import */
-void eqimport_command(void)
+/* a key of the equilibrium window (menu_equilibrium_window): Import */
+void equilibrium_key(int ch)
 {
-    if (last_eq_n) eq_import(last_eq, last_eq_n);
+    if (xpp_menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(last_eq, last_eq_n);
 }
 
 void j_make_txtview(void)

@@ -100,7 +100,7 @@ export function reduceFiles(state: FilesState, action: FilesAction): FilesState 
 
 /* commands that start something the user asked for (not an answer, a
    query, a size or a data subscription): a new run record */
-const ROOT = new Set(['key', 'session', 'browser', 'auto', 'ani', 'aplot', 'plotvars', 'userbut', 'action', 'eqimport']);
+const ROOT = new Set(['key', 'session', 'browser', 'auto', 'ani', 'aplot', 'plotvars', 'userbut', 'action']);
 
 /** a command was sent while `ask` was open and the main menu was `menu` */
 export function onSent(state: FilesState, cmd: Command, ask: AskEvent | null, menu: number): FilesState {
@@ -112,7 +112,7 @@ export function onSent(state: FilesState, cmd: Command, ask: AskEvent | null, me
     return {...state, run: {...state.run, answers: [...state.run.answers, answer]}};
   }
   if (!ROOT.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd)) return state;
-  const at = state.nextMenu ?? menu, key = cmd.cmd === 'key' ? String(cmd.key) : '';
+  const at = state.nextMenu ?? menu, key = cmd.cmd === 'key' && !cmd.win ? String(cmd.key) : '';
   /* F and U in the main menu switch to the File and nUmerics menus (core/commands.c commander) */
   const nextMenu = at === 0 && key === 'f' ? 1 : at === 0 && key === 'u' ? 2 : null;
   return {...state, run: {menu: at, cmd, answers: []}, runFailed: false, nextMenu};

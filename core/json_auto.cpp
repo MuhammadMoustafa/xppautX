@@ -16,6 +16,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include "menus.h"
 
 namespace xpp::json {
 
@@ -487,20 +488,18 @@ void apply_deferred_sets(void)
     }
 }
 
-/* {"cmd":"auto","op":...}: the AUTO window's buttons */
+/* {"cmd":"auto","op":...}: what the AUTO window's keys (menu_auto_window)
+   do not say: a grab by label or by type and index, the settings, a click
+   on the diagram, the window closed */
 void auto_command(const char *line)
 {
     std::string o;
     get_string(line, "op", o, 16);
-    if (o == "param") auto_params();
-    else if (o == "axes") auto_plot_par();
-    else if (o == "numerics") auto_num_par();
-    else if (o == "run") auto_run();
-    else if (o == "grab") {
+    if (o == "grab") {
         /* a label, or a type and index ("the 2nd HB"), grabs that stored
            point directly, exactly as the interactive grab ending with
-           Return on it would (docs/protocol.md "Grab by label"); with
-           neither, the interactive grab starts as before. */
+           Return on it would (docs/protocol.md "Grab by label"); the
+           interactive grab is the window's key g */
         const char *jl = js_find(line, "label");
         std::string type;
         if (jl != NULL) {
@@ -511,24 +510,39 @@ void auto_command(const char *line)
             int idx = get_int(line, "index", 0);
             if (!auto_grab_type_index(type.c_str(), idx))
                 j_err_msg(xpp::format("Grab: no {} point number {}", type, idx).c_str());
-        } else auto_grab();
+        } else j_err_msg("Grab: give a label, or a type and index");
     }
-    else if (o == "usr") auto_per_par();
-    else if (o == "clear") draw_bif_axes();
-    else if (o == "redraw") redraw_diagram();
-    else if (o == "file") auto_file();
     else if (o == "set") auto_set_command(line);
-    else if (o == "point" && xpp::session().auto_state.bifur.exist) {
+    else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */
         const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
+        if (!xpp::session().auto_state.bifur.exist) return;
         if (jx && jy) auto_point_xy(js_num(jx, 0), js_num(jy, 0));
         else auto_motion_xy(get_int(line, "x", 0), get_int(line, "y", 0));
     }
-    else if (o == "close" && xpp::session().auto_state.bifur.exist) {
+    else if (o == "close") {
+        if (!xpp::session().auto_state.bifur.exist) return;
         xpp::session().auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
         send_window("destroy", WIN_AUTO, 0, 0, NULL);
         diag_forget();
         auto_data_forget();
+    }
+    else j_err_msg(xpp::format("Unknown auto op {}", o).c_str());
+}
+
+/* a key of the AUTO window (menu_auto_window) */
+void auto_key(int ch)
+{
+    switch (xpp_menu_index(&menu_auto_window, ch)) {
+    case AK_PARAM: auto_params(); break;
+    case AK_AXES: auto_plot_par(); break;
+    case AK_NUMERICS: auto_num_par(); break;
+    case AK_RUN: auto_run(); break;
+    case AK_GRAB: auto_grab(); break;
+    case AK_USR: auto_per_par(); break;
+    case AK_CLEAR: draw_bif_axes(); break;
+    case AK_REDRAW: redraw_diagram(); break;
+    case AK_FILE: auto_file(); break;
     }
 }
 

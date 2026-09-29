@@ -21,28 +21,28 @@
 # "Print eigenvalues?" -- no
 {"cmd":"answer","key":"n"}
 # the equilibrium window's Import: the point just found becomes the IC
-{"cmd":"eqimport"}
+{"cmd":"key","win":"equilibrium","key":"i"}
 
 # File / Auto: open the AUTO window
 {"cmd":"key","key":"f"}
 {"cmd":"key","key":"a"}
 
 # Run -> steady state, from the converged fixed point
-{"cmd":"auto","op":"run"}
+{"cmd":"key","win":"auto","key":"r"}
 {"cmd":"answer","key":"s"}
 
 # Grab the first label on the diagram: Tab cycles the candidates, Return
 # picks the one shown
-{"cmd":"auto","op":"grab"}
+{"cmd":"key","win":"auto","key":"g"}
 {"cmd":"answer","key":"Tab"}
 {"cmd":"answer","key":"Return"}
 
 # The grabbed point is a Hopf bifurcation, so Run now offers its own menu;
 # Periodic starts the periodic branch bifurcating from it
-{"cmd":"auto","op":"run"}
+{"cmd":"key","win":"auto","key":"r"}
 {"cmd":"answer","key":"p"}
 
 # File / Save diagram
-{"cmd":"auto","op":"file"}
+{"cmd":"key","win":"auto","key":"f"}
 {"cmd":"answer","key":"s"}
 {"cmd":"answer","file":"lecar.auto"}

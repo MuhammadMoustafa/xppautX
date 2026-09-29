@@ -148,7 +148,7 @@ def run_lecar(home):
             values[0] = 'lecar_array.ps'
             return {'ok': 1, 'values': values}
 
-        s.send(cmd='aplot', op='print')
+        s.send(cmd='key', win='aplot', key='p')
         s.answer_asks(is_idle, {'form': print_form})
         check_file('lecar_array.ps', read(s.run, 'lecar_array.ps'))
         s.send(cmd='aplot', op='close')
@@ -178,8 +178,9 @@ def run_vanderpol(home):
         # depend on any auto-scaling of this run's own trajectory
         s.send(cmd='plotvars', how=1, names=['x', 'xp'])
         s.collect(is_idle)
-        s.send(cmd='view', win=1, xlo=-3, xhi=3, ylo=-3, yhi=3)
-        s.collect(is_idle)
+        # (Window/Window: the keys w w, then the four numbers)
+        s.send(cmd='key', key='w')
+        s.answer_asks(is_idle, {'menu': menu('w'), 'form': lambda e: {'ok': 1, 'values': ['-3', '3', '-3', '3']}})
 
         # Nullcline/New, then Dir.field-Flow/(D)irect Field, so the
         # export carries a nullcline and a direction field, not curves

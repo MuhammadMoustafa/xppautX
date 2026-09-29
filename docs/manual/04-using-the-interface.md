@@ -98,7 +98,9 @@ beside the plot (a sheet on a phone):
   columns: **Initial**, the initial conditions you edit, and **Now**, the
   last point of the latest run (read only). `Go` runs from Initial;
   `Last` (Initialconds/Last) copies Now into Initial, then runs;
-  **← Use current state** copies Now into Initial without running.
+  **← Use current state** sends the same keys, `i` then `l`: it copies Now
+  into Initial and runs (a button sends its key's command; there is no
+  copy-without-running).
 - A value becomes **pending** when you leave the field (Tab, Enter or a
   click elsewhere), marked on the field (dashed) — it changes nothing
   yet. Every pending edit (a field, a slider, Default, a reset, a loaded

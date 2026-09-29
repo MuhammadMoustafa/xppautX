@@ -11,6 +11,7 @@
 #include "scrngif.h"
 #include "my_rhs.h"
 #include "form_ode.h"
+#include "menus.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -132,6 +133,8 @@ void ani_go(void)
 
 } // namespace
 
+/* {"cmd":"ani","op":...}: what the animation window's keys do not say, the
+   ones that carry a number or steer a running Go */
 void ani_command(const char *line)
 {
     xpp::Session &s=xpp::session();
@@ -149,29 +152,48 @@ void ani_command(const char *line)
         return;
     }
     if (o == "step") ani_flip1(get_int(line, "n", 1));
-    else if (o == "reset") ani_reset();
-    else if (o == "file") {
-        /* a new animation shows its first frame at once when there is data */
-        if (get_ani_file(NULL) && s.browser.view.maxrow >= 2) ani_reset();
-    } else if (o == "go") ani_go();
-    else if (o == "skip") ani_newskip();
-    else if (o == "mpeg") ani_create_mpeg();
-    else if (o == "fly") s.animation.options.on_the_fly = 1 - s.animation.options.on_the_fly;
-    else if (o == "grab") ani_grab_start();
-    else if (o == "seek" && s.browser.view.maxrow >= 2) {
-        s.animation.vcr.pos = 0;
-        ani_flip1(0);
-        ani_flip1(get_int(line, "pos", 0));
-    } else if (o == "mouse" && s.animation.grab_flag) {
+    else if (o == "seek") {
+        if (s.browser.view.maxrow >= 2) {
+            s.animation.vcr.pos = 0;
+            ani_flip1(0);
+            ani_flip1(get_int(line, "pos", 0));
+        }
+    } else if (o == "mouse") {
         /* dragging a grab point: down, move..., up (which may integrate) */
         get_string(line, "what", what, 8);
-        if (what == "down") ani_grab_mouse(1, x, yy);
-        else if (what == "move") update_ani_motion_stuff(x, yy);
-        else if (what == "up") ani_grab_mouse(0, x, yy);
-    } else if (o == "close" && s.animation.vcr.iexist) {
-        s.animation.vcr.iexist = 0;
-        s.animation.grab_flag = 0;
-        send_window("destroy", WIN_ANI, 0, 0, NULL);
+        if (s.animation.grab_flag) {
+            if (what == "down") ani_grab_mouse(1, x, yy);
+            else if (what == "move") update_ani_motion_stuff(x, yy);
+            else if (what == "up") ani_grab_mouse(0, x, yy);
+        }
+    } else if (o == "close") {
+        if (s.animation.vcr.iexist) {
+            s.animation.vcr.iexist = 0;
+            s.animation.grab_flag = 0;
+            send_window("destroy", WIN_ANI, 0, 0, NULL);
+        }
+    } else {
+        j_err_msg(xpp::format("Unknown ani op {}", o).c_str());
+        return;
+    }
+    j_ani_slider();
+}
+
+/* a key of the animation window (menu_ani_window) */
+void ani_key(int ch)
+{
+    xpp::Session &s=xpp::session();
+    switch (xpp_menu_index(&menu_ani_window, ch)) {
+    case NK_FILE:
+        /* a new animation shows its first frame at once when there is data */
+        if (get_ani_file(NULL) && s.browser.view.maxrow >= 2) ani_reset();
+        break;
+    case NK_GO: ani_go(); break;
+    case NK_RESET: ani_reset(); break;
+    case NK_SKIP: ani_newskip(); break;
+    case NK_MPEG: ani_create_mpeg(); break;
+    case NK_FLY: s.animation.options.on_the_fly = 1 - s.animation.options.on_the_fly; break;
+    case NK_GRAB: ani_grab_start(); break;
     }
     j_ani_slider();
 }

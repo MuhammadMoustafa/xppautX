@@ -80,7 +80,7 @@ def open_auto(s):
 
 def run_menu(s, key, timeout=60 * SLOW):
     """Auto/Run, answer the start menu with key; returns the events to idle"""
-    s.send(cmd='auto', op='run')
+    s.send(cmd='key', win='auto', key='r')
     evs, ask = s.collect(is_ask)
     if ask is None:
         return evs
@@ -91,7 +91,7 @@ def run_menu(s, key, timeout=60 * SLOW):
 
 def grab_hopf(s):
     """Grab, Tab to the first label, take it"""
-    s.send(cmd='auto', op='grab')
+    s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = s.collect(is_ask)
@@ -151,7 +151,7 @@ def section_diagram():
     s.send(cmd='data', events=['autoinfo'])
     s.collect(is_idle)
     open_auto(s)
-    s.send(cmd='auto', op='redraw')
+    s.send(cmd='key', win='auto', key='d')
     evs, _ = s.collect(is_idle)
     dg = Diagram().apply(evs)
     evs = run_menu(s, 's')
@@ -180,14 +180,14 @@ def section_diagram():
     check('the run ends with its last point\'s stability circle (autoinfo)',
           bool(got) and got[-1]['stab'] is not None and got[-1]['info'] is None, str(got[-1:]))
 
-    s.send(cmd='auto', op='redraw')
+    s.send(cmd='key', win='auto', key='d')
     evs, _ = s.collect(is_idle)
     print('INFO reDraw: %d events %s' % (len(evs), sorted({e.get('ev') for e in evs})))
     check('a reDraw arrives in a few events', len(evs) <= 10, '%d events' % len(evs))
     check('a reDraw of the same diagram sends its axes, not its points again', diagram_ops(evs) == ['axes'],
           str(diagram_ops(evs)))
 
-    s.send(cmd='auto', op='grab')
+    s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     evs, ask = s.collect(is_ask)
@@ -208,7 +208,7 @@ def section_diagram():
     check('taking a grab point (Enter) ends in a few events', len(take_evs) < 10, '%d events' % len(take_evs))
 
     # Esc ends a grab without taking anything
-    s.send(cmd='auto', op='grab')
+    s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='ArrowRight')
     esc_evs, ask = s.collect(is_ask)
@@ -222,14 +222,14 @@ def section_diagram():
     # same values, a steady branch's max and min being one, so only the
     # axes go out); a Fit after that only sends the new axes
     n = len(dg.pts)
-    s.send(cmd='auto', op='axes')
+    s.send(cmd='key', win='auto', key='a')
     evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'i'},
                                      'form': lambda e: {'ok': 1, 'values': e['values']}})
     dg.apply(evs)
     check('Axes/hI-lo draws the diagram again at once: every point, the new plot type',
           'axes' in diagram_ops(evs) and len(dg.pts) == n and dg.axes['plot'] == 2,
           '%s, %d points of %d' % (diagram_ops(evs), len(dg.pts), n))
-    s.send(cmd='auto', op='axes')
+    s.send(cmd='key', win='auto', key='a')
     evs, _ = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'f'}})
     dg.apply(evs)
     st = [e for e in evs if is_state(e)][-1]['auto']
@@ -402,7 +402,7 @@ def periodic_run(s):
     open_auto(s)
     run_menu(s, 's')
     grab_hopf(s)
-    s.send(cmd='auto', op='run')
+    s.send(cmd='key', win='auto', key='r')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='p')
     stamps = []
@@ -417,7 +417,7 @@ def periodic_run(s):
 def run_periodic(s):
     """Auto/Run from the grabbed point, continuing its periodic branch: the
     Hopf point's menu starts it (p), a periodic label's extends it (e)"""
-    s.send(cmd='auto', op='run')
+    s.send(cmd='key', win='auto', key='r')
     evs, ask = s.collect(is_ask)
     if ask:
         s.send(cmd='answer', id=ask['id'], key='p' if 'p' in ask.get('keys', '') else 'e')
@@ -441,7 +441,7 @@ def section_abort():
 
     # the run ends on an end point (EP, not MX: no convergence), which is
     # where it can be continued from
-    s.send(cmd='auto', op='grab')
+    s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], key='End')
     evs, ask = s.collect(is_ask)
@@ -505,7 +505,7 @@ def lecar_diagram(s):
     run_menu(s, 's')
     grab_hopf(s)
     run_menu(s, 'p', timeout=120 * SLOW)
-    s.send(cmd='auto', op='file')
+    s.send(cmd='key', win='auto', key='f')
     evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 's'},
                                      'file': lambda e: {'ok': 1, 'file': 'diagram.auto'},
                                      'string': lambda e: {'ok': 1, 'value': 'diagram.auto'}})
@@ -571,7 +571,7 @@ def lecar_csv(s):
     grab_hopf(s)
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg = Diagram().apply(evs)
-    s.send(cmd='auto', op='file')
+    s.send(cmd='key', win='auto', key='f')
     s.answer_asks(is_idle, {'menu': lambda e: {'key': 'x'},
                             'file': lambda e: {'ok': 1, 'file': 'lecar.csv'}})
     dpath = os.path.join(s.run, 'lecar.csv')
@@ -641,14 +641,14 @@ def hopf_steady(s):
     evs = []
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
-              {'cmd': 'eqimport'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
+              {'cmd': 'key', 'win': 'equilibrium', 'key': 'i'}, {'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'a'}):
         evs += step(s, **c)[0]
     return evs
 
 
 def run_any(s, key, timeout=120 * SLOW):
     """Auto/Run, answering its menu with key if it asks; the events to idle"""
-    s.send(cmd='auto', op='run')
+    s.send(cmd='key', win='auto', key='r')
     evs, e = s.collect(lambda e: is_idle(e) or is_ask(e), timeout=timeout)
     if e is not None and is_ask(e):
         s.send(cmd='answer', id=e['id'], key=key)
@@ -660,7 +660,7 @@ def run_any(s, key, timeout=120 * SLOW):
 def grab_point(s, i, take=False):
     """Grab, go to point i of the diagram data; take it (Return) or leave
     (Escape); returns the autoinfo there"""
-    s.send(cmd='auto', op='grab')
+    s.send(cmd='key', win='auto', key='g')
     evs, ask = s.collect(is_ask)  # the grab starts on the first point: its autoinfo is here
     if take:
         s.send(cmd='answer', id=ask['id'], point=i, key='Return')
@@ -767,7 +767,7 @@ def section_sessions():
     check('two sessions on one model both save their diagram', da is not None and db is not None)
     check('and the two diagrams agree', da == db)
     # a grabs the label its own run wrote, after b has run too
-    a.send(cmd='auto', op='grab')
+    a.send(cmd='key', win='auto', key='g')
     evs, ask = a.collect(is_ask)
     a.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = a.collect(is_ask)
@@ -837,7 +837,7 @@ def section_session():
 
     # grab the first label and Run extending the branch, as section_sessions
     # does for a session's own orbit: new points, and no NaN
-    s2.send(cmd='auto', op='grab')
+    s2.send(cmd='key', win='auto', key='g')
     evs, ask = s2.collect(is_ask)
     s2.send(cmd='answer', id=ask['id'], key='Tab')
     evs, ask = s2.collect(is_ask)
@@ -1083,7 +1083,7 @@ def section_names():
           and up(au['pars'][:2]) == up([LONG_B, LONG_PAR])
           and au['axes']['par1'].upper() == LONG_B.upper() and au['axes']['var'].upper() == LONG_V,
           '%s %s' % (errs, str(au)[:300]))
-    s.send(cmd='auto', op='param')
+    s.send(cmd='key', win='auto', key='p')
     evs, ask = s.collect(lambda e: e.get('ev') == 'ask' or is_idle(e))
     if ask is not None and ask.get('ev') == 'ask':
         s.send(cmd='answer', id=ask['id'], ok=0)
@@ -1105,7 +1105,7 @@ def section_names():
           str(br and br['cols'])[:300])
     # a column added under a 200-character name, from a formula over 200
     added = long_name('added_column_of_the_product')
-    s.send(cmd='browser', op='addcol')
+    s.send(cmd='key', win='browser', key='a')
     evs, ask = s.collect(is_ask)
     s.send(cmd='answer', id=ask['id'], ok=1, value=added)
     evs, ask = s.collect(is_ask)

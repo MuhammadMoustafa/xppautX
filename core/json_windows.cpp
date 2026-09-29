@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include "kinescope.h"
+#include "menus.h"
 #include "load_eqn.h"
 
 /* the core's own globals and functions that have no header of their own */
@@ -217,97 +218,6 @@ void click_command(const char *line)
 {
     int win = get_int(line, "win", 1) - 1;
     if (win >= 0 && win < MAXPOP && xpp::session().plot_windows.graph[win].Use && xpp::session().plot_windows.active != win) select_graph(win);
-}
-
-namespace {
-
-/* the plot window a command names ("win", 1-based): its index, or -1
-   after telling the client it does not exist */
-int command_window(const char *line)
-{
-    int i = get_int(line, "win", -1) - 1;
-    if (i < 0 || i >= MAXPOP || !xpp::session().plot_windows.graph[i].Use) {
-        j_err_msg("No such window");
-        return -1;
-    }
-    return i;
-}
-
-} // namespace
-
-/* "Use this view" (docs/ui-v2.md T9): {"cmd":"view","win":w,"xlo":..,
-   "xhi":..,"ylo":..,"yhi":..} sets window w's axes exactly as
-   Window/Window (graf_par.c user_window, here update_view()) would: the
-   client's zoom becomes the core's own, so a PostScript/SVG export,
-   Restore and later redraws all agree with it. A range that is not
-   finite or not increasing, or a window that does not exist, is refused
-   (message error) and changes nothing. */
-void view_command(const char *line)
-{
-    int i = command_window(line);
-    double xlo = get_num(line, "xlo", 0), xhi = get_num(line, "xhi", 0);
-    double ylo = get_num(line, "ylo", 0), yhi = get_num(line, "yhi", 0);
-    if (i < 0) return;
-    if (!isfinite(xlo) || !isfinite(xhi) || !isfinite(ylo) || !isfinite(yhi) || xlo >= xhi || ylo >= yhi) {
-        j_err_msg("Bad view");
-        return;
-    }
-    if (i != xpp::session().plot_windows.active) select_graph(i);
-    update_view(static_cast<float>(xlo), static_cast<float>(xhi), static_cast<float>(ylo), static_cast<float>(yhi));
-}
-
-/* dragging a 3D plot turns it (many_pops.c rotate3dcheck):
-   {"cmd":"rotate","what":"down|move|up","x","y"} */
-void rotate_command(const char *line)
-{
-    static int x0, y0;
-    static double theta, phi;
-    std::string what;
-    int x = get_int(line, "x", 0), y = get_int(line, "y", 0);
-    if (!xpp::session().plot_windows.current->ThreeDFlag) return;
-    get_string(line, "what", what, 8);
-    if (what == "down") {
-        x0 = x;
-        y0 = y;
-        phi = xpp::session().plot_windows.current->Phi;
-        theta = xpp::session().plot_windows.current->Theta;
-    } else if (what == "move") {
-        xpp::session().plot_windows.current->Phi = phi - static_cast<double>(y - y0);
-        xpp::session().plot_windows.current->Theta = theta - static_cast<double>(x - x0);
-        redraw_cube_pt(xpp::session().plot_windows.current->Theta, xpp::session().plot_windows.current->Phi);
-    } else if (what == "up") {
-        do_axes();
-        j_redraw_all();
-    }
-}
-
-/* a web2 client turns a 3D plot itself (projecting the box with its own
-   angles, docs/ui-v2.md T14) and reports where it settled, so the core's
-   own state agrees for a PostScript/SVG export, Restore, and any other
-   client: {"cmd":"view3d","win":w,"theta":..,"phi":..} sets window w's
-   angles exactly, redraws it, and sends state and idle as usual. Simpler
-   than replaying `rotate`'s pixel deltas, which only make sense relative
-   to a drag the core itself is tracking. A window that is not a 3D plot,
-   does not exist, or an angle that is not finite, is refused (message
-   error) and changes nothing. */
-void view3d_command(const char *line)
-{
-    int i = command_window(line);
-    double theta = get_num(line, "theta", 0), phi = get_num(line, "phi", 0);
-    if (i < 0) return;
-    if (!xpp::session().plot_windows.graph[i].ThreeDFlag) {
-        j_err_msg("Not a 3D window");
-        return;
-    }
-    if (!isfinite(theta) || !isfinite(phi)) {
-        j_err_msg("Bad view");
-        return;
-    }
-    if (i != xpp::session().plot_windows.active) select_graph(i);
-    xpp::session().plot_windows.current->Theta = theta;
-    xpp::session().plot_windows.current->Phi = phi;
-    do_axes();
-    j_redraw_all();
 }
 
 /* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
@@ -650,24 +560,18 @@ void j_aplot_draw_one(const char *tag)
     xpp::session().array_plot.range_count++;
 }
 
-/* the array plot window's buttons */
+/* {"cmd":"aplot","op":"scroll"|"close"}: what the array plot window's keys
+   (menu_aplot_window) do not say */
 void aplot_command(const char *line)
 {
     std::string o;
     get_string(line, "op", o, 16);
+    if (o != "scroll" && o != "close") {
+        j_err_msg(xpp::format("Unknown aplot op {}", o).c_str());
+        return;
+    }
     if (!xpp::session().array_plot.plot.alive) return;
-    if (o == "redraw") send_aplot(NULL);
-    else if (o == "edit") {
-        editaplot(&xpp::session().array_plot.plot);
-        send_aplot(NULL);
-    } else if (o == "fit") fit_aplot();
-    else if (o == "range") set_up_aplot_range();
-    else if (o == "print") print_aplot(&xpp::session().array_plot.plot);
-    else if (o == "gif") {
-        const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
-        std::string file = xpp::format("{}.{}", xpp::model().this_file, ext);
-        if (file_selector("GIF plot", file, xpp::format("*.{}", ext).c_str())) aplot_gif(file.c_str(), 1);
-    } else if (o == "scroll") {
+    if (o == "scroll") {
         /* dragging the plot by dy pixels moves the first row, as in X11 */
         xpp::session().array_plot.plot.nstart -= get_int(line, "dy", 0);
         if (xpp::session().array_plot.plot.nstart < 0) xpp::session().array_plot.plot.nstart = 0;
@@ -675,6 +579,28 @@ void aplot_command(const char *line)
     } else if (o == "close") {
         xpp::session().array_plot.plot.alive = 0;
         send_window("destroy", WIN_APLOT, 0, 0, NULL);
+    }
+}
+
+/* a key of the array plot window (menu_aplot_window) */
+void aplot_key(int ch)
+{
+    if (!xpp::session().array_plot.plot.alive) return;
+    switch (xpp_menu_index(&menu_aplot_window, ch)) {
+    case PK_REDRAW: send_aplot(NULL); break;
+    case PK_EDIT:
+        editaplot(&xpp::session().array_plot.plot);
+        send_aplot(NULL);
+        break;
+    case PK_FIT: fit_aplot(); break;
+    case PK_RANGE: set_up_aplot_range(); break;
+    case PK_PRINT: print_aplot(&xpp::session().array_plot.plot); break;
+    case PK_GIF: {
+        const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
+        std::string file = xpp::format("{}.{}", xpp::model().this_file, ext);
+        if (file_selector("GIF plot", file, xpp::format("*.{}", ext).c_str())) aplot_gif(file.c_str(), 1);
+        break;
+    }
     }
 }
 

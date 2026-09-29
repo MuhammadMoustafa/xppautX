@@ -49,12 +49,7 @@
 /* Pop up m and return the index of the chosen item, -1 if none. */
 static int menu_pick(const XppMenu *m, int def)
 {
-  int i;
-  char ch = static_cast<char>(menu_choose(m, def));
-  for (i = 0; i < m->n; i++)
-    if (ch == m->keys[i])
-      return i;
-  return -1;
+  return xpp_menu_index(m, menu_choose(m, def));
 }
 
 /* Pop up m and run the command of the chosen item. */
@@ -158,16 +153,6 @@ void do_movie_com(int c)
   case 5: xpp_ui.movie_make_anigif(); break;
   case 6: break;
   }
-}
-
-/* debug stress test on the 'y' key: half a million random lines */
-void draw_many_lines(void)
-{
-  int NLINE = 500000;
-  int i;
-  for (i = 0; i < NLINE; i++)
-    xpp_ui.draw_line(rand() % 200, rand() % 200, rand() % 200, rand() % 200);
-  xpp_log(XPP_LOG_DEBUG, "Done\n");
 }
 
 void get_intern_set(void)
@@ -455,7 +440,6 @@ void commander(int ch)
     case 'f': flash(9); flash(9); show_main_menu(FILE_MENU); break;
     case 'p': flash(10); new_param(); flash(10); break;
     case 'e': flash(11); clear_screens(); flash(11); break;
-    case 'h':
     case 'm': do_windows(); flash(12); break;
     case 't': flash(13); do_gr_objs(); flash(13); break;
     case 's': flash(14); find_equilibrium(); flash(14); break;
@@ -464,7 +448,6 @@ void commander(int ch)
     case 'x': flash(16); x_vs_t(); flash(16); break;
     case 'r': flash(17); redraw_them_all(); flash(17); break;
     case '3': get_3d_par(); break;
-    case 'y': draw_many_lines(); break;
     }
     break;
 

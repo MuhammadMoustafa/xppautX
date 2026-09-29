@@ -100,7 +100,7 @@ int during_run(const char *line)
     if (c == "abort" || c == "quit" || c == "state") return XPP_INBOX_CONTROL;
     if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
     if (c == "answer" || c == "data") return XPP_INBOX_NORMAL;
-    if (c == "key") {
+    if (c == "key" && !js_find(line, "win")) {
         get_string(line, "key", o, 16);
         int k = key_code(o.c_str());
         if (k == ESC || k == '/') return XPP_INBOX_CONTROL;
@@ -150,7 +150,7 @@ int classify(const char *line, unsigned long seq)
     }
     if (xpp_job_computing() && !xpp_job_stopping()) return during_run(line);
     if (!xpp_job_running()) return XPP_INBOX_NORMAL;
-    if (c == "key" || c == "set" || c == "state") return XPP_INBOX_CONTROL;
+    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state") return XPP_INBOX_CONTROL;
     if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
     if (c == "ani" && get_string(line, "op", o, 16) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
         return XPP_INBOX_CONTROL;
@@ -364,6 +364,19 @@ XppUi make_json_ui(void)
 
 const XppUi json_ui = make_json_ui();
 
+/* a key of a window's own layer (menus.h): {"cmd":"key","win":...,"key":k},
+   the AUTO, data browser, animation, array plot or equilibrium window; the
+   browser's takes the selected "row" too */
+void window_key(const std::string &win, int ch, const char *line)
+{
+    if (win == "auto") auto_key(ch);
+    else if (win == "browser") browser_key(ch, line);
+    else if (win == "ani") ani_key(ch);
+    else if (win == "aplot") aplot_key(ch);
+    else if (win == "equilibrium") equilibrium_key(ch);
+    else j_err_msg(xpp::format("No key layer for the window {}", win).c_str());
+}
+
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
    number: an abort cancels it from the reader thread */
 void handle_line(const char *line, unsigned long seq)
@@ -371,9 +384,10 @@ void handle_line(const char *line, unsigned long seq)
     xpp_job_begin(seq);
     if (handle_async(line)) {
     } else if (is_cmd(line, "key")) {
-        std::string k;
+        std::string k, win;
         get_string(line, "key", k, 32);
-        commander(key_code(k.c_str()));
+        if (get_string(line, "win", win, 16)) window_key(win, key_code(k.c_str()), line);
+        else commander(key_code(k.c_str()));
     } else if (is_cmd(line, "set")) {
         apply_set(line);
     } else if (is_cmd(line, "default")) {
@@ -387,16 +401,8 @@ void handle_line(const char *line, unsigned long seq)
         browser_command(line);
     } else if (is_cmd(line, "aplot")) {
         aplot_command(line);
-    } else if (is_cmd(line, "view")) {
-        view_command(line);
-    } else if (is_cmd(line, "rotate")) {
-        rotate_command(line);
-    } else if (is_cmd(line, "view3d")) {
-        view3d_command(line);
     } else if (is_cmd(line, "plotvars")) {
         plotvars_command(line);
-    } else if (is_cmd(line, "eqimport")) {
-        eqimport_command();
     } else if (is_cmd(line, "answer")) {
         /* reaching the main dispatch (rather than ask_wait) means no ask
            was pending for it (docs/protocol.md "Scripts") */
@@ -429,6 +435,9 @@ void handle_line(const char *line, unsigned long seq)
         xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
     } else if (is_cmd(line, "values")) {
         values_command(line);
+    } else if (!is_cmd(line, "abort")) {
+        std::string c;
+        if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c).c_str());
     }
     apply_deferred_sets();
     aplot_update();

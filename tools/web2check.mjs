@@ -27,7 +27,7 @@
    equilibrium in the store, drawn, in the legend, toggled, cleared by
    Erase). 3D plots (T14, examples/ode/lorenz.ode: the store's own window,
    the projection drawn on a canvas, a drag and the arrow keys turning it
-   locally at once, throttled `view3d` commands, and state.view settling
+   locally at once, throttled 3d-params turns (key 3), and state.view settling
    to agree). Then live plotting (tools/models/live.ode: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
    and a run of 10^6 rows (tools/models/million.ode) that draws and zooms,
@@ -667,7 +667,7 @@ async function dataTable(want, dir) {
 }
 
 /* text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`,
-   `action`, `equilibrium`, `eqimport`): equations, source with a comment
+   `action`, `equilibrium`, its window's Import key): equations, source with a comment
    action, equilibrium with Import, and Tab reachability. lecar.ode's own
    tutorial ("To set parameters click on the asterisks") is the model with
    comment actions the task asks for: six `"..{name=value,...}"` lines, each
@@ -712,10 +712,10 @@ async function textViews() {
     JSON.stringify(eq.eigenvalues));
   await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Import').click()`);
   const wantIcs = eq.values.map(([, v]) => v);
-  check('Import (eqimport) makes the equilibrium the initial conditions',
+  check('Import (the equilibrium window key i) makes the equilibrium the initial conditions',
     await until(`(() => { const ics = s.core.ics.map(p => p[1]);
       return ics.length === ${wantIcs.length} && ics.every((v, i) => Math.abs(v - (${JSON.stringify(wantIcs)})[i]) < 1e-6); })() && !s.busy`,
-      'eqimport'), JSON.stringify({ics: await S('s.core.ics'), want: wantIcs}));
+      'import'), JSON.stringify({ics: await S('s.core.ics'), want: wantIcs}));
 
   /* Source: File/Prt src, with a button on the comment actions' lines */
   await cdp.eval(`[...document.querySelectorAll('.text-tab')].find(b => b.textContent === 'Source').click()`);
@@ -1108,7 +1108,7 @@ async function aplotView() {
   /* Redraw, then Back leaves the core's window alive */
   await cdp.eval(`[...document.querySelectorAll('.aplot-tools button')].find(b => b.textContent === 'Redraw').click()`);
   check('Redraw asks for a fresh picture', await until('!s.busy', 'redraw')
-    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'aplot' && c.op === 'redraw')`));
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.win === 'aplot' && c.key === 'd')`));
   await cdp.eval(`document.querySelector('.aplot-back').click()`);
   check('Back closes the panel; the core\'s array plot window stays alive',
     await until('!s.aplot.open && s.aplot.windowOpen', 'close panel'));
@@ -1348,7 +1348,8 @@ async function viewCheck() {
 const rawArea3d = () => cdp.eval(`(() => { const r = document.querySelector('.plot-view:not([hidden]) .plot-host').getBoundingClientRect();
   return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
 const area3d = () => settled(rawArea3d);
-const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'view3d').length");
+/* a turn is the key 3 (3d-params) and its form's answer (W60) */
+const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'key' && c.key === '3' && !c.win).length");
 
 /* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.ode sets axes=3d
    and phi=60 (theta stays the default 45) and runnow=1, which the core
@@ -1392,7 +1393,7 @@ async function threePlot() {
   check('... and the drawn projection changed too (still dragging, no round trip needed)',
     during && JSON.stringify(during.box) !== JSON.stringify(before.box), '');
   const sentDuring = (await sentView3d()) - sentBefore;
-  check(`throttled: ${steps} pointer moves sent far fewer view3d commands (${sentDuring})`,
+  check(`throttled: ${steps} pointer moves sent far fewer 3d-params turns (${sentDuring})`,
     sentDuring > 0 && sentDuring < steps, String(sentDuring));
   await mouse('mouseReleased', cx + 3 * steps, cy - 2 * steps, {button: 'left', buttons: 0, clickCount: 1});
 
@@ -1908,7 +1909,7 @@ async function autoView(dir) {
   await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
   await menuKey('n');
   await until('!s.busy', 'fixed point', 30000);
-  await cdp.eval(`__xpp.send({cmd: 'eqimport'})`);
+  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
   await until('!s.busy', 'import');
   await key('f');
   await until('!s.busy', 'file menu');
@@ -2169,8 +2170,8 @@ async function autoView(dir) {
   await key('Enter');
   check('T21: grabbing a labelled periodic point imports its orbit: the main plot shows the limit cycle',
     grabbed && grabbed.type >= 3 && await until(`!s.busy && s.core.rows > 10 && w.series && w.series.rows === s.core.rows`, 'orbit', 20000)
-    && JSON.stringify((await cdp.eval(`__xpp.sent().slice(${sentGrab})`)).filter(c => c.cmd === 'auto' || c.key === 'i')
-      .map(c => c.op || c.key)) === JSON.stringify(['file', 'i']),
+    && JSON.stringify((await cdp.eval(`__xpp.sent().slice(${sentGrab})`)).filter(c => c.win === 'auto' || c.key === 'i')
+      .map(c => c.key)) === JSON.stringify(['f', 'i']),
     JSON.stringify([grabbed && [grabbed.br, grabbed.pt, grabbed.type, grabbed.lab], await S('[s.core.rows, w.series && w.series.rows]'),
       await cdp.eval(`__xpp.sent().slice(${sentGrab})`)]));
 
@@ -2313,7 +2314,7 @@ async function autoView(dir) {
   check('T21: Axes/Norm, OK: the diagram holds all its points again, in norms, without a reDraw',
     await until(`!s.busy && s.diagram.axes.plot === 1 && s.diagram.points.x.length === ${nAll}`, 'norm axes')
     && JSON.stringify(await DS('d.points.y.slice(0, 50)')) !== JSON.stringify(y0)
-    && !(await cdp.eval(`__xpp.sent().slice(${sentAxes}).some(c => c.cmd === 'redraw' || c.op === 'redraw')`))
+    && !(await cdp.eval(`__xpp.sent().slice(${sentAxes}).some(c => c.cmd === 'redraw' || (c.win === 'auto' && c.key === 'd'))`))
     && (await DG()).curves.length > 0, JSON.stringify(await DS('[d.axes, d.points.x.length]')));
   /* and the axis dialog does the same: hI-lo from its Plots select, then a Fit */
   await cdp.eval(`document.querySelector('.auto-axis-name[data-axis=y]').click()`);
@@ -2336,13 +2337,15 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`);
   await until('s.diagram.viewport.y === null', 'view reset 2');
 
-  /* T21: Clear hides the branches so far in the view, the key shows them again; nothing goes to the core */
+  /* T21: Clear hides the branches so far in the view, the key shows them again; the core is sent the AUTO
+     window's clear key (W60) */
   const nCurvesAll = (await DG()).curves.length, sentClear = await cdp.eval('__xpp.sent().length');
   await autoButton('C');
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
-    await until(`__xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll}`, 'cleared')
+    await until(`!s.busy && __xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll} && !!document.querySelector('.auto-earlier')`, 'cleared')
     && /Earlier branches \(2\)/.test(await cdp.eval(`document.querySelector('.auto-earlier').textContent`))
-    && (await cdp.eval(`__xpp.sent().length`)) === sentClear, await cdp.eval(`document.querySelector('.auto-legend').textContent`));
+    && JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentClear})`)) === JSON.stringify([{cmd: 'key', win: 'auto', key: 'c'}, {cmd: 'key', win: 'auto', key: 'd'}]),
+    await cdp.eval(`document.querySelector('.auto-legend').textContent`));
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
@@ -2549,7 +2552,7 @@ async function autoStopRace() {
   check('T22: during the run the axis dialog\'s plot type and variable can change (they would wait), and min/max change the view at once',
     running && !dlg.plot && !dlg.yvar && !dlg.min && await until(`s.busy && s.diagram.viewport.y && s.diagram.viewport.y.min === 0.2
       && s.diagram.viewport.y.max === 1.2`, 'axis range during run', 5000 * SLOW)
-      && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && (c.op === 'axes' || c.op === 'set'))`)),
+      && !(await cdp.eval(`__xpp.sent().some(c => (c.win === 'auto' && c.key === 'a') || (c.cmd === 'auto' && c.op === 'set'))`)),
     JSON.stringify([running, dlg, await DS('d.viewport'), await S('s.busy')]));
   await key('Escape');
   await until('!document.querySelector(".auto-axis-dialog")', 'axis closed');
@@ -3020,12 +3023,15 @@ async function runsCheck(dir) {
   check('runs: Redraw shows the current data again',
     await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
 
-  /* "Use current state": the ICs become Now, no run */
+  /* "Use current state" is Initialconds/Last (i, l, W60): the ICs become the Now it was clicked at, and a run follows */
+  const nowBefore = await S('s.core.now'), n1 = await S('s.seriesCount');
+  const sentUse = await cdp.eval('__xpp.sent().length');
   await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent.includes('Use current state')).click()`);
-  const n1 = await S('s.seriesCount');
-  check('runs: "Use current state" makes the ICs equal Now, without a run',
-    await until(`!s.busy && s.core.ics.every((p, i) => p[1] === s.core.now[i])`, 'use state') && (await S('s.seriesCount')) === n1,
-    JSON.stringify(await S('[s.core.ics, s.core.now]')));
+  check('runs: "Use current state" sends Initialconds/Last (keys i, l), the ICs become the Now it started from and it runs',
+    await until(`!s.busy && s.seriesCount > ${n1}`, 'use state')
+    && JSON.stringify((await cdp.eval(`__xpp.sent().slice(${sentUse})`)).map(c => c.key)) === JSON.stringify(['i', 'l'])
+    && JSON.stringify(await S('s.core.ics.map(p => p[1])')) === JSON.stringify(nowBefore),
+    JSON.stringify([await S('s.core.ics'), nowBefore]));
 
   /* a parameter's reset (GitHub #117): the edit is pending, marked, and
      changes nothing until Go flushes it; the model-value marking follows
@@ -3813,7 +3819,7 @@ async function animation() {
   check('ani: drawn with every primitive, at the dimension box\'s aspect',
     d0.prims === f0.prims.length && Math.abs(d0.box.w / d0.box.h - aspect) < 1e-6 && d0.box.w > 100,
     JSON.stringify(d0));
-  check('ani: nothing plays by itself (A6): no Go was sent', !(await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'ani' && c.op === 'go'));
+  check('ani: nothing plays by itself (A6): no Go was sent', !(await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'key' && c.win === 'ani' && c.key === 'g'));
 
   /* keyboard on the picture: arrows step, Shift ten, End and Home */
   await focusStage();
@@ -3843,7 +3849,7 @@ async function animation() {
   const n0 = await S('s.ani.frames');
   await key(' ');
   check('ani: Space plays (Go)', await until('s.ani.playing', 'playing')
-    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'ani' && c.op === 'go'));
+    && (await cdp.eval('__xpp.sent()')).some(c => c.cmd === 'key' && c.win === 'ani' && c.key === 'g'));
   check('ani: the frames advance while it plays', await until(`s.ani.frames >= ${n0} + 3 && s.ani.frame.pos > 300`, 'advance'),
     JSON.stringify(await S('[s.ani.frames, s.ani.frame.pos]')));
   await focusStage();

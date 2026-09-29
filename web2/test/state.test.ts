@@ -104,8 +104,8 @@ test('W68: while busy only what a running computation takes goes out', () => {
     {cmd: 'ani', op: 'speed', ms: 20}])
     assert.ok(takenWhileBusy(cmd), JSON.stringify(cmd));
   for (const cmd of [{cmd: 'key', key: 'g'}, {cmd: 'key', key: 'Escape'}, {cmd: 'set', kind: 'par', name: 'a', text: '1'},
-    {cmd: 'view', win: 1}, {cmd: 'click', win: 2}, {cmd: 'redraw'}, {cmd: 'browser', op: 'get', row: 0},
-    {cmd: 'ani', op: 'seek', pos: 3}, {cmd: 'auto', op: 'run'}])
+    {cmd: 'click', win: 2}, {cmd: 'redraw'}, {cmd: 'key', win: 'browser', key: 'g', row: 0},
+    {cmd: 'ani', op: 'seek', pos: 3}, {cmd: 'key', win: 'auto', key: 'r'}])
     assert.ok(!takenWhileBusy(cmd), JSON.stringify(cmd));
 });
 
@@ -118,7 +118,7 @@ test('W68: the status line names what runs (the menu item answered) and that Esc
   assert.equal(s.running, 'Go');
   assert.equal(busyText(s.running, s.ask !== null), 'Running Go… Esc stops');
   assert.equal(busyText(null, false), 'Working… Esc stops');
-  assert.equal(reduce(ev(s, {ev: 'idle'}), {type: 'sent', cmd: {cmd: 'auto', op: 'run'}}).running, 'AUTO');
+  assert.equal(reduce(ev(s, {ev: 'idle'}), {type: 'sent', cmd: {cmd: 'key', win: 'auto', key: 'r'}}).running, 'AUTO');
   assert.equal(ev(s, {ev: 'idle'}).running, null);
 });
 

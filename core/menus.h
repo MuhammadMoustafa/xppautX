@@ -44,6 +44,22 @@ typedef struct XppMenu {
   int first_cmd;
 } XppMenu;
 
+/* The windows' own key layers (protocol: {"cmd":"key","win":...}), one XppMenu
+   each, the keys defined here and nowhere else; the enums number the items in
+   the menus' order (xpp_menu_index gives the item a key picks). */
+enum AutoWindowKey { AK_PARAM, AK_AXES, AK_NUMERICS, AK_RUN, AK_GRAB, AK_USR, AK_CLEAR, AK_REDRAW, AK_FILE };
+enum BrowserWindowKey { BK_FIND, BK_GET, BK_REPLACE, BK_UNREPLACE, BK_TABLE, BK_FIRST, BK_LAST, BK_RESTORE,
+  BK_ADDCOL, BK_DELCOL, BK_LOAD, BK_WRITE };
+enum AniWindowKey { NK_FILE, NK_GO, NK_RESET, NK_SKIP, NK_MPEG, NK_FLY, NK_GRAB };
+enum AplotWindowKey { PK_REDRAW, PK_EDIT, PK_FIT, PK_RANGE, PK_PRINT, PK_GIF };
+enum EquilibriumWindowKey { EK_IMPORT };
+
+/* the index of the item of m that key ch picks, -1 for none */
+int xpp_menu_index(const XppMenu *m, int ch);
+
+extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, menu_aplot_window,
+  menu_equilibrium_window;
+
 extern const XppMenu menu_integrate, menu_nullclines, menu_freeze_cline,
   menu_dirfield, menu_window, menu_torus, menu_kinescope, menu_curves,
   menu_freeze, menu_freeze_off, menu_freeze_key, menu_colormap,

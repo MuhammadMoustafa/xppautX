@@ -1,5 +1,5 @@
 /* 3D plot projection (docs/ui-v2.md T14): the same maths as core/graphics.c
-   make_rot/scale3d/rot_3dvec/threed_proj, so a `view3d` sent from the
+   make_rot/scale3d/rot_3dvec/threed_proj, so the `3` key answered from the
    client's angles draws what the core would. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';

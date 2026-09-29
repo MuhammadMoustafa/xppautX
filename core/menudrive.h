@@ -251,7 +251,6 @@ void show_main_menu(int which);
 /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU, NUM_MENU
    (commands.cpp) */
 extern int help_menu;
-void draw_many_lines(void);
 void get_intern_set(void);
 void copy_set_line(void);
 

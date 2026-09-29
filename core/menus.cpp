@@ -380,7 +380,7 @@ static const char *window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
 static const char *torus_items[]={"(A)ll","(N)one","(C)hoose"};
 /* (X)tra is defined but not shown: the menu has 6 entries */
 static const char *kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
-  "(S)ave","(M)ake AniGif","(X)tra"};
+  "(S)ave","(M)ake AniGif"};
 static const char *curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
   "(E)dit curve","(P)ostscript","S(V)G","(F)reeze","a(X)es opts",
   "exp(O)rt data","(C)olormap"};
@@ -421,7 +421,7 @@ const XppMenu menu_freeze_cline={"freeze_cline","Freeze cline",4,frzcline_items,
 const XppMenu menu_dirfield={"dirfield","Two-D Fun",5,dfield_items,"dfncs",flow_hint,M_DD};
 const XppMenu menu_window={"window","Window",6,window_items,"wzofds",wind_hint,M_WW};
 const XppMenu menu_torus={"torus","Torus",3,torus_items,"anc",phas_hint,M_AA};
-const XppMenu menu_kinescope={"kinescope","Kinescope",6,kin_items,"crpasmx",kin_hint,M_KC};
+const XppMenu menu_kinescope={"kinescope","Kinescope",6,kin_items,"crpasm",kin_hint,M_KC};
 /* (F)reeze and (C)olormap open the next two menus instead of a command */
 const XppMenu menu_curves={"curves","Curves",10,curve_items,"adrepvfxoc",graf_hint,M_GA};
 const XppMenu menu_freeze={"freeze","Freeze",8,freeze_items,"fderkbco",frz_hint,M_GFF};
@@ -450,3 +450,42 @@ const XppMenu menu_save_what={"save_what","Save data",2,save_what_items,"tp",sav
 /* sets METHOD directly */
 const XppMenu menu_method={"method","Method",15,meth_items,"demragvbqsc582y",meth_hint,-1};
 
+
+/* ---- the windows' key layers (menus.h) ---- */
+
+int xpp_menu_index(const XppMenu *m, int ch)
+{
+  for (int i = 0; i < m->n; i++)
+    if (ch == m->keys[i])
+      return i;
+  return -1;
+}
+
+static const char *auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
+  "(U)sr period","(C)lear","re(D)raw","(F)ile"};
+const XppMenu menu_auto_window={"auto_window","AUTO",9,auto_window_items,"panrgucdf",auto_hint,-1};
+
+static const char *browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
+  "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};
+static const char *const browser_window_hint[]={"Find a value in a column","Make the selected row the initial conditions",
+  "Replace a column's values","Undo the last replace","View a table","The first row to keep","The last row to keep",
+  "Keep every row again","Add a column from a formula","Delete the last added column","Load data from a file",
+  "Save the data or the plot to a file"};
+const XppMenu menu_browser_window={"browser_window","Data browser",12,browser_window_items,"fgruthesadlw",
+  browser_window_hint,-1};
+
+static const char *ani_window_items[]={"(F)ile","(G)o","(R)eset","(S)kip","(M)peg","(O)n the fly","gr(A)b"};
+static const char *const ani_window_hint[]={"Load an animation file","Play the animation","Back to the first frame",
+  "Frames skipped between two shown","Save the frames as files","Toggle drawing while integrating",
+  "Grab a point of the picture"};
+const XppMenu menu_ani_window={"ani_window","Animation",7,ani_window_items,"fgrsmoa",ani_window_hint,-1};
+
+static const char *aplot_window_items[]={"re(D)raw","(E)dit","(F)it","(R)ange","(P)rint","(G)IF"};
+static const char *const aplot_window_hint[]={"Redraw the array plot","Edit its settings","Fit the range to the data",
+  "Draw a range of parameter values","Write PostScript","Write a GIF"};
+const XppMenu menu_aplot_window={"aplot_window","Array plot",6,aplot_window_items,"defrpg",aplot_window_hint,-1};
+
+static const char *equilibrium_window_items[]={"(I)mport"};
+static const char *const equilibrium_window_hint[]={"Make the equilibrium the initial conditions"};
+const XppMenu menu_equilibrium_window={"equilibrium_window","Equilibrium",1,equilibrium_window_items,"i",
+  equilibrium_window_hint,-1};

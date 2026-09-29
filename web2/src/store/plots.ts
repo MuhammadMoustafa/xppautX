@@ -29,7 +29,7 @@ export const HOME: Viewport = {x: null, y: null};
 
 /** a 3D plot's angles (docs/ui-v2.md T14): set from the core's `theta`,
     `phi` the first time a window is seen, then owned by the client (a
-    drag or arrow keys turn it at once; `view3d` tells the core where it
+    drag or arrow keys turn it at once; the key `3` tells the core where it
     settled, throttled, see session.ts), so it does not fight the core's
     own echo of the same numbers. */
 export interface View3d {
@@ -104,7 +104,7 @@ export function onPlots(p: PlotsState, ev: PlotsEvent): PlotsState {
 }
 
 /** a 3D window turned, locally (a drag or arrow keys) or by the core's own
-    echo of a `view3d` it sent (session.ts): the store is what the plot
+    echo of the turn it sent (session.ts): the store is what the plot
     draws from, so this is the single point a rotation changes it. */
 export function rotate3d(p: PlotsState, win: number, theta: number, phi: number): PlotsState {
   return update(p, win, w => ({...w, view3d: {theta, phi}}));
