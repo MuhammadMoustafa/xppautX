@@ -177,7 +177,9 @@ void get_intern_set(void)
 
   XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
                no_hint, -1};
-  char ch = static_cast<char>(menu_choose(&m, 0));
+  int ch = menu_choose(&m, 0);
+  /* Esc or a dismissed menu chooses nothing: a cancel is not an error */
+  if (ch < 'a' || ch >= 'a' + count) return;
   use_intern_set(ch - 'a');
 }
 

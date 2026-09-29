@@ -1281,6 +1281,38 @@ check_plot_windows()
 # flag is gone from set/slide/default and ignored if sent), the ICs from
 # where the last run ended, the state at the start of a run, the series
 # version, and the erase/redraw events of the Erase and Redraw commands only.
+def check_param_set_cancel():
+    """W101: a cancelled Param set menu is silent; Save of an edited parameter
+    writes the file with no error"""
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'value': 0.3}])
+        col(is_idle)
+        snd(cmd='key', key='f')
+        col(is_idle)
+        snd(cmd='key', key='g')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        check('Param set menu is asked', ask is not None and ask['kind'] == 'menu', str(ask))
+        if ask:
+            snd(cmd='answer', id=ask['id'], ok=0)
+        evs, _ = col(is_idle)
+        check('Param set menu cancelled: no error message',
+              not [e for e in evs if e.get('ev') == 'message' and 'error' in e], str(evs)[:200])
+        snd(cmd='values', op='write', kind='par', name='w101.par')
+        evs, _ = col(is_idle)
+        with open(os.path.join(r, 'w101.par')) as f:
+            txt = f.read()
+        check('values write par with an edited value: file written, no error',
+              '0.3  iapp' in txt and not [e for e in evs if e.get('ev') == 'message' and 'error' in e],
+              txt[:80] + str(evs)[:150])
+    finally:
+        stop_server(p, r, snd)
+
+
+check_param_set_cancel()
+
+
 def check_values_protocol():
     pv, rv, sndv, colv, _ = launch_server()
 
