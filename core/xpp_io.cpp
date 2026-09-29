@@ -397,6 +397,20 @@ std::string vformat(std::string_view fmt, std::format_args args) noexcept
     }
 }
 
+bool parse_number(std::string_view text, double &value)
+{
+    if (text.empty() || std::isspace(static_cast<unsigned char>(text[0])) ||
+        text.find_first_of("xX") != std::string_view::npos)
+        return false;
+    const std::string s(text); /* strtod needs the NUL */
+    char *end = nullptr;
+    errno = 0;
+    const double v = std::strtod(s.c_str(), &end);
+    if (end != s.c_str() + s.size() || errno == ERANGE) return false;
+    value = v;
+    return true;
+}
+
 void vformat_append(std::string &out, std::string_view fmt, std::format_args args) noexcept
 {
     try {

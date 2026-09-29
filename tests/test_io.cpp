@@ -428,5 +428,22 @@ int main(void)
         CHECK_STR(in.c_str(), "I\xce\xb1pp \"quoted\"\n");
     }
 
+    /* parse_number: the whole text, one decimal number (the .odex reader) */
+    {
+        double v = 0;
+        CHECK(xpp::parse_number("2.5e-3", v) && v == 2.5e-3);
+        CHECK(xpp::parse_number("-4", v) && v == -4);
+        CHECK(xpp::parse_number(".5", v) && v == 0.5);
+        CHECK(xpp::parse_number(std::string_view("7xyz", 1), v) && v == 7); /* no NUL needed */
+        v = 1;
+        CHECK(!xpp::parse_number("", v));
+        CHECK(!xpp::parse_number(" 1", v));
+        CHECK(!xpp::parse_number("1 ", v));
+        CHECK(!xpp::parse_number("1.5a", v));
+        CHECK(!xpp::parse_number("0x10", v));
+        CHECK(!xpp::parse_number("1e999", v));
+        CHECK(v == 1); /* untouched on failure */
+    }
+
     TEST_REPORT("test_io");
 }

@@ -22,7 +22,6 @@
 #include "xpp_util.h"
 
 #include <array>
-#include <charconv>
 #include <cmath>
 #include <map>
 #include <optional>
@@ -225,9 +224,7 @@ private:
       for (const Option &o : s.options) {
         if (o.name != "neartol") continue;
         double v = 0;
-        const char *b = o.value.data(), *e = b + o.value.size();
-        const auto r = std::from_chars(b, e, v);
-        if (r.ec != std::errc() || r.ptr != e || !(v > 0))
+        if (!xpp::parse_number(o.value, v) || !(v > 0))
           fail(o.value_pos, xpp::format("@ neartol={} is not a positive number", o.value));
         neartol_ = v;
       }

@@ -8,10 +8,8 @@
 #include "xpp_io.h"
 
 #include <array>
-#include <charconv>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <vector>
 
 namespace xpp::odex {
@@ -77,9 +75,7 @@ bool read_number(std::string_view text, double &value)
 {
   if (text.empty()) return false;
   if (text[0] == '+') text.remove_prefix(1);
-  const char *first = text.data(), *last = text.data() + text.size();
-  std::from_chars_result r = std::from_chars(first, last, value);
-  return r.ec == std::errc() && r.ptr == last;
+  return xpp::parse_number(text, value);
 }
 
 class Lexer {
