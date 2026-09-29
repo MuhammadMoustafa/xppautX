@@ -278,7 +278,6 @@ XppUi make_json_ui(void)
     u.message_box = j_message_box;
     u.kill_message_box = j_kill_message_box;
     u.title_text = j_title_text;
-    u.canvas_xy = j_canvas_xy;
     u.new_string = j_new_string;
     u.yes_no_box = j_yes_no_box;
     u.two_choice = j_two_choice;

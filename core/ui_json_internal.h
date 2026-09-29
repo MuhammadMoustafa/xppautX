@@ -133,7 +133,6 @@ void j_bottom_msg(int line, const char *msg);
 void j_message_box(const char *msg);
 void j_kill_message_box(void);
 void j_title_text(const char *s);
-void j_canvas_xy(const char *s);
 int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int kind);
 int j_new_string(const char *name, std::string &value, int kind);
 int j_yes_no_box(void);

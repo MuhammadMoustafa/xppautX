@@ -265,7 +265,7 @@ Run it with:
 | `help` | `chapter`, `anchor` (optional) | File/Help: open the manual at this chapter (and anchor). |
 | `copy` | `what`, `text` | File/cOpy set line (key `o`): text for the page to put on the clipboard (`what` is `set`: a `set <name> {par=value,...,var=value,...}` line, every parameter and initial condition as they are now, numbers printed to read back exactly). The core first asks the set's name (a `string` ask, pre-filled with the first free `set1`, `set2`, ...; refused with an `error` message if not a name the parser reads or already a set of the model), then a `choice` ask that shows the line (`Copy` `c` / `Cancel` `n`); both answers are recorded like any other. The page shows the line as well, so it can be copied by hand when the clipboard is refused. |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
-| `message` | one of `error`, `bottom`, `box`, `xy`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
+| `message` | one of `error`, `bottom`, `box`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |

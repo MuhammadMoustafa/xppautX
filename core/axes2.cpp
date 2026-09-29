@@ -89,14 +89,6 @@ void re_title()
   title_text(make_title().c_str());
 }
 
-void redraw_cube_pt(double theta,double phi)
-{
-  set_linestyle(0);
-  make_rot(theta,phi);
-  clr_scrn();
-  canvas_xy(xpp::format("theta={:g} phi={:g}",theta,phi).c_str());
-}
-
 void do_axes()
 {
     xpp::Session &s=xpp::session();

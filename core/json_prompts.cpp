@@ -121,7 +121,6 @@ void j_bottom_msg(int, const char *msg)
 void j_message_box(const char *msg) { send_simple("message", "box", msg); }
 void j_kill_message_box(void) { send_simple("message", "box", ""); }
 void j_title_text(const char *s) { send_simple("title", "text", s); }
-void j_canvas_xy(const char *s) { send_simple("message", "xy", s); }
 
 namespace {
 

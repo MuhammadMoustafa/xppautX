@@ -227,7 +227,6 @@ export interface MessageEvent {
   error?: string;
   bottom?: string;
   box?: string;
-  xy?: string;
   auto?: string;
   calc?: string;
 }

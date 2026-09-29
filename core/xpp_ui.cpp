@@ -104,7 +104,6 @@ XppUi xpp_ui = {
     .message_box = hl_str,
     .kill_message_box = hl_void,
     .title_text = hl_str,
-    .canvas_xy = hl_str,
     .new_string = hl_new_string,
     .yes_no_box = hl_no,
     .two_choice = hl_two_choice,
@@ -238,7 +237,6 @@ void bottom_msg(int line, const char *msg) { xpp_ui.bottom_msg(line, msg); }
 void MessageBox(const char *m) { xpp_ui.message_box(m); }
 void KillMessageBox(void) { xpp_ui.kill_message_box(); }
 void title_text(const char *s) { xpp_ui.title_text(s); }
-void canvas_xy(const char *s) { xpp_ui.canvas_xy(s); }
 int new_string(const char *name, std::string &value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
 int new_string_of(const char *name, std::string &value, int kind) { return xpp_ui.new_string(name, value, kind); }
 int yes_no_box(void) { return xpp_ui.yes_no_box(); }

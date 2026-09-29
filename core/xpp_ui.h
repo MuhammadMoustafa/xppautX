@@ -85,7 +85,6 @@ void bottom_msg(int line, const char *msg);
 void MessageBox(const char *m);
 void KillMessageBox(void);
 void title_text(const char *s);
-void canvas_xy(const char *s);
 int new_int(const char *name, int *value);
 int new_float(const char *name, double *value);
 int yes_no_box(void);
@@ -179,7 +178,6 @@ typedef struct XppUi {
     void (*message_box)(const char *msg);
     void (*kill_message_box)(void);
     void (*title_text)(const char *s);
-    void (*canvas_xy)(const char *s);
 
     /* prompts */
     int (*new_string)(const char *name, std::string &value, int kind);

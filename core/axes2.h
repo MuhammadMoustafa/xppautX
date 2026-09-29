@@ -8,7 +8,6 @@ extern "C" {
 
 /* axes2.cpp: the plot's axes, tick labels and title */
 void re_title(void);
-void redraw_cube_pt(double theta, double phi);
 void do_axes(void);
 void Box_axis(double x_min, double x_max, double y_min, double y_max, const char *sx, const char *sy, int flag);
 
