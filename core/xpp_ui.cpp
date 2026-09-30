@@ -54,7 +54,7 @@ static void hl_draw_frect(int, int, int, int) {}
 static void hl_draw_special_text(int, int, const char *, int) {}
 static void hl_auto_make_window(const char *, const char *) {}
 static void hl_auto_circle(int, int, int) {}
-static void hl_auto_diagram(const XppDiagPoint *) {}
+static void hl_auto_diagram(int, const XppDiagPoint *) {}
 static void hl_auto_draw_info(const char *, int, int) {}
 static int hl_auto_grab_event(int *, int *) { return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
@@ -335,7 +335,7 @@ int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
     return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);
 }
 void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
-void auto_diagram(const XppDiagPoint *p) { xpp_ui.auto_diagram(p); }
+void auto_diagram(int view, const XppDiagPoint *p) { xpp_ui.auto_diagram(view, p); }
 void init_txtview(void) { xpp_ui.init_txtview(); }
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)

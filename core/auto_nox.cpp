@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <string_view>
+#include <limits>
 #include "numerics.h"
 #include "xpp_globals.h"
 #include "xpp_ui.h"
@@ -275,7 +276,7 @@ void colset2(int flag2)
 
 void storeautopoint(double x,double y)
 {
-  if(xpp::session().auto_state.bifur.plot==P_P){
+  if(xpp::session().auto_state.axes().plot==P_P){
     XfromAuto=x;
     YfromAuto=y;
     FromAutoFlag=1;
@@ -286,8 +287,8 @@ void setautopoint()
   if(FromAutoFlag)
     {
       FromAutoFlag=0;
-      set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp1]],XfromAuto);
-      set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp2]],YfromAuto);
+      set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.axes().icp1]],XfromAuto);
+      set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.axes().icp2]],YfromAuto);
       evaluate_derived();
       xpp::ok_or_show(redo_all_fun_tables());
       redraw_params();
@@ -307,14 +308,14 @@ std::string par_label(int k)
 struct AxisLabels {
   std::string x,y;
 };
-AxisLabels axis_labels()
+AxisLabels axis_labels(const AUTOAX &ax)
 {
   AxisLabels l;
-  l.x=par_label(xpp::session().auto_state.bifur.icp1);
-  switch(xpp::session().auto_state.bifur.plot){
+  l.x=par_label(ax.icp1);
+  switch(ax.plot){
   case HI_P:
   case HL_P:
-    l.y=xpp::model().uvar_names[xpp::session().auto_state.bifur.var];
+    l.y=xpp::model().uvar_names[ax.var];
     break;
   case NR_P:
     l.y="Norm";
@@ -326,19 +327,19 @@ AxisLabels axis_labels()
     l.y="Frequency";
     break;
   case P_P:
-    l.y=par_label(xpp::session().auto_state.bifur.icp2);
+    l.y=par_label(ax.icp2);
     break;
   case AV_P:
-    l.y=xpp::model().uvar_names[xpp::session().auto_state.bifur.var]+"_bar";
+    l.y=xpp::model().uvar_names[ax.var]+"_bar";
     break;
   }
   return l;
 }
 } // namespace
 
-void get_auto_str(std::string &xlabel, std::string &ylabel)
+void get_auto_str(const AUTOAX &ax, std::string &xlabel, std::string &ylabel)
 {
-  AxisLabels l=axis_labels();
+  AxisLabels l=axis_labels(ax);
   xlabel=std::move(l.x);
   ylabel=std::move(l.y);
 }
@@ -347,9 +348,9 @@ void get_auto_str(std::string &xlabel, std::string &ylabel)
    export_diagram), whichever ps_init/svg_init began */
 void draw_export_axes()
 {
- set_scale(xpp::session().auto_state.bifur.xmin,xpp::session().auto_state.bifur.ymin,xpp::session().auto_state.bifur.xmax,xpp::session().auto_state.bifur.ymax);
- const AxisLabels l=axis_labels();
- Box_axis(xpp::session().auto_state.bifur.xmin,xpp::session().auto_state.bifur.xmax,xpp::session().auto_state.bifur.ymin,xpp::session().auto_state.bifur.ymax,l.x.c_str(),l.y.c_str(),0);
+ set_scale(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymax);
+ const AxisLabels l=axis_labels(xpp::session().auto_state.axes());
+ Box_axis(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().ymax,l.x.c_str(),l.y.c_str(),0);
 }
 
 void draw_bif_axes()
@@ -362,37 +363,38 @@ void draw_bif_axes()
  ALINE(x1,y0,x1,y1);
  ALINE(x1,y1,x0,y1);
  ALINE(x0,y1,x0,y0);
- junk=xpp::format("{:g}",xpp::session().auto_state.bifur.xmin);
+ junk=xpp::format("{:g}",xpp::session().auto_state.axes().xmin);
  ATEXT(x0,y1+text_metrics.small_height+2,junk.c_str());
- junk=xpp::format("{:g}",xpp::session().auto_state.bifur.xmax);
+ junk=xpp::format("{:g}",xpp::session().auto_state.axes().xmax);
  ii=static_cast<int>(junk.size())*text_metrics.small_width;
  ATEXT(x1-ii,y1+text_metrics.small_height+2,junk.c_str());
- junk=xpp::format("{:g}",xpp::session().auto_state.bifur.ymin);
+ junk=xpp::format("{:g}",xpp::session().auto_state.axes().ymin);
  ii=static_cast<int>(junk.size());
  i0=9-ii;
  if(i0<0)i0=0;
  ATEXT(i0*text_metrics.small_width,y1,junk.c_str());
- junk=xpp::format("{:g}",xpp::session().auto_state.bifur.ymax);
+ junk=xpp::format("{:g}",xpp::session().auto_state.axes().ymax);
  ii=static_cast<int>(junk.size());
  i0=9-ii;
  if(i0<0)i0=0;
  ATEXT(i0*text_metrics.small_width,y0+text_metrics.small_height,junk.c_str());
- const AxisLabels l=axis_labels();
+ const AxisLabels l=axis_labels(xpp::session().auto_state.axes());
  ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,l.x.c_str());
  ATEXT(10*text_metrics.small_width,text_metrics.small_height,l.y.c_str());
- auto_diagram(NULL); /* the data of the diagram starts again too */
+ /* the data of the diagram starts again too, in every view */
+ for(int v=0;v<static_cast<int>(xpp::session().auto_state.views.size());v++)auto_diagram(v,NULL);
  refreshdisplay();
 }
 
 int IXVal(double x)
 {
-  double temp=static_cast<double>(xpp::session().auto_state.bifur.wid)*(x-xpp::session().auto_state.bifur.xmin)/(xpp::session().auto_state.bifur.xmax-xpp::session().auto_state.bifur.xmin);
+  double temp=static_cast<double>(xpp::session().auto_state.bifur.wid)*(x-xpp::session().auto_state.axes().xmin)/(xpp::session().auto_state.axes().xmax-xpp::session().auto_state.axes().xmin);
   return (static_cast<int>(temp)+xpp::session().auto_state.bifur.x0);
 }
 
 int IYVal(double y)
 {
-  double temp=static_cast<double>(xpp::session().auto_state.bifur.hgt)*(y-xpp::session().auto_state.bifur.ymin)/(xpp::session().auto_state.bifur.ymax-xpp::session().auto_state.bifur.ymin);
+  double temp=static_cast<double>(xpp::session().auto_state.bifur.hgt)*(y-xpp::session().auto_state.axes().ymin)/(xpp::session().auto_state.axes().ymax-xpp::session().auto_state.axes().ymin);
   return(xpp::session().auto_state.bifur.hgt-static_cast<int>(temp)+xpp::session().auto_state.bifur.y0);
 }
 
@@ -593,8 +595,8 @@ void set_auto() /* Caution - need to include NICP here */
   s.auto_state.nuzr=s.auto_state.bifur.nper;
   init_auto(xpp::model().node,s.auto_state.bifur.nfpar,s.auto_state.bifur.nbc,s.auto_state.bifur.ips,s.auto_state.bifur.irs,s.auto_state.bifur.ilp,s.auto_state.bifur.ntst,s.auto_state.bifur.isp,
 	    s.auto_state.bifur.isw,s.auto_state.bifur.nmx,s.auto_state.bifur.npr,s.auto_state.bifur.ds,s.auto_state.bifur.dsmin,
-	    s.auto_state.bifur.dsmax,s.auto_state.bifur.rl0,s.auto_state.bifur.rl1,s.auto_state.bifur.a0,s.auto_state.bifur.a1,s.auto_state.bifur.icp1,
-	    s.auto_state.bifur.icp2,s.auto_state.bifur.icp3,s.auto_state.bifur.icp4,s.auto_state.bifur.icp5,s.auto_state.bifur.nper,s.auto_state.bifur.epsl,s.auto_state.bifur.epsu,s.auto_state.bifur.epss,s.auto_state.bifur.ncol);
+	    s.auto_state.bifur.dsmax,s.auto_state.bifur.rl0,s.auto_state.bifur.rl1,s.auto_state.bifur.a0,s.auto_state.bifur.a1,s.auto_state.axes().icp1,
+	    s.auto_state.axes().icp2,s.auto_state.bifur.icp3,s.auto_state.bifur.icp4,s.auto_state.bifur.icp5,s.auto_state.bifur.nper,s.auto_state.bifur.epsl,s.auto_state.bifur.epsu,s.auto_state.bifur.epss,s.auto_state.bifur.ncol);
   
 }
 int auto_name_to_index(std::string_view s)
@@ -821,15 +823,15 @@ void auto_plot_par()
   std::array<std::string, 7> values;
   int  status,i;
   int ii1,ii2,ji1,ji2;
-  int i1=s.auto_state.bifur.var+1;
-  ch=static_cast<char>(menu_choose(&menu_auto_plot_type,s.auto_state.bifur.plot));
+  int i1=s.auto_state.axes().var+1;
+  ch=static_cast<char>(menu_choose(&menu_auto_plot_type,s.auto_state.axes().plot));
   if(ch==ESC) 
     return;
   for(i=0;i<5;i++){
-    if(ch==key[i])s.auto_state.bifur.plot=i;
+    if(ch==key[i])s.auto_state.axes().plot=i;
   }
-  if(ch==key[10])s.auto_state.bifur.plot=10;
-  if(ch==key[11])s.auto_state.bifur.plot=11;
+  if(ch==key[10])s.auto_state.axes().plot=10;
+  if(ch==key[11])s.auto_state.axes().plot=11;
   if(ch==key[5]){
     if(auto_rubber(&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
       auto_zoom_in(ii1,ji1,ii2,ji2);
@@ -876,26 +878,30 @@ void auto_plot_par()
     redraw_diagram();
     return;
   }
+  if(ch==key[14]){
+    auto_new_view();
+    return;
+  }
   values[0] = ind_to_sym(i1);
-  values[1] = xpp::model().upar_names[s.auto_state.par[s.auto_state.bifur.icp1]];
-  values[2] = xpp::model().upar_names[s.auto_state.par[s.auto_state.bifur.icp2]];
-  values[3] = xpp::format("{:g}", s.auto_state.bifur.xmin);
-  values[4] = xpp::format("{:g}", s.auto_state.bifur.ymin);
-  values[5] = xpp::format("{:g}", s.auto_state.bifur.xmax);
-  values[6] = xpp::format("{:g}", s.auto_state.bifur.ymax);
+  values[1] = xpp::model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]];
+  values[2] = xpp::model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]];
+  values[3] = xpp::format("{:g}", s.auto_state.axes().xmin);
+  values[4] = xpp::format("{:g}", s.auto_state.axes().ymin);
+  values[5] = xpp::format("{:g}", s.auto_state.axes().xmax);
+  values[6] = xpp::format("{:g}", s.auto_state.axes().ymax);
   static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
   status=do_string_box_of(7,1,"AutoPlot",n,values,kinds);
   if(status!=0){
     /*  get variable names  */
     find_variable(values[0].c_str(),&i);
     if(i>0)
-      s.auto_state.bifur.var=i-1;
+      s.auto_state.axes().var=i-1;
     /*  Now check the parameters  */
     i1=find_user_name(PARAM_BOX,values[1].c_str());
     if(i1>=0){
       for(i=0;i<s.auto_state.npar;i++){
 	if(i1==s.auto_state.par[i]){
-	  s.auto_state.bifur.icp1=i;
+	  s.auto_state.axes().icp1=i;
 
 	}
       }
@@ -904,17 +910,17 @@ void auto_plot_par()
     if(i1>=0){
       for(i=0;i<s.auto_state.npar;i++){
 	if(i1==s.auto_state.par[i]){
-	  s.auto_state.bifur.icp2=i;
+	  s.auto_state.axes().icp2=i;
 	}
       }
     }
 
-    s.auto_state.bifur.xmin=atof(values[3].c_str());
-    s.auto_state.bifur.ymin=atof(values[4].c_str());
-    s.auto_state.bifur.xmax=atof(values[5].c_str());
-    s.auto_state.bifur.ymax=atof(values[6].c_str());
-    if(s.auto_state.bifur.plot<4)keep_last_plot(1);
-    if(s.auto_state.bifur.plot==4)keep_last_plot(2);
+    s.auto_state.axes().xmin=atof(values[3].c_str());
+    s.auto_state.axes().ymin=atof(values[4].c_str());
+    s.auto_state.axes().xmax=atof(values[5].c_str());
+    s.auto_state.axes().ymax=atof(values[6].c_str());
+    if(s.auto_state.axes().plot<4)keep_last_plot(1);
+    if(s.auto_state.axes().plot==4)keep_last_plot(2);
     redraw_diagram();
 
 }
@@ -922,20 +928,20 @@ void auto_plot_par()
 
 void auto_default()
 {
-  xpp::session().auto_state.bifur.xmin=xpp::session().auto_state.options.xmin;
-  xpp::session().auto_state.bifur.xmax=xpp::session().auto_state.options.xmax;
-  xpp::session().auto_state.bifur.ymin=xpp::session().auto_state.options.ymin;
-  xpp::session().auto_state.bifur.ymax=xpp::session().auto_state.options.ymax;
+  xpp::session().auto_state.axes().xmin=xpp::session().auto_state.options.xmin;
+  xpp::session().auto_state.axes().xmax=xpp::session().auto_state.options.xmax;
+  xpp::session().auto_state.axes().ymin=xpp::session().auto_state.options.ymin;
+  xpp::session().auto_state.axes().ymax=xpp::session().auto_state.options.ymax;
 }
 
 void auto_fit()
 {
-  double xlo=xpp::session().auto_state.bifur.xmin,xhi=xpp::session().auto_state.bifur.xmax,ylo=xpp::session().auto_state.bifur.ymin,yhi=xpp::session().auto_state.bifur.ymax;
+  double xlo=xpp::session().auto_state.axes().xmin,xhi=xpp::session().auto_state.axes().xmax,ylo=xpp::session().auto_state.axes().ymin,yhi=xpp::session().auto_state.axes().ymax;
   bound_diagram(&xlo,&xhi,&ylo,&yhi);
-  xpp::session().auto_state.bifur.xmin=xlo;
-  xpp::session().auto_state.bifur.xmax=xhi;
-  xpp::session().auto_state.bifur.ymin=ylo;
-  xpp::session().auto_state.bifur.ymax=yhi;
+  xpp::session().auto_state.axes().xmin=xlo;
+  xpp::session().auto_state.axes().xmax=xhi;
+  xpp::session().auto_state.axes().ymin=ylo;
+  xpp::session().auto_state.axes().ymax=yhi;
 }
   
 void auto_zoom_in(int i1, int j1, int i2, int j2)
@@ -945,12 +951,12 @@ void auto_zoom_in(int i1, int j1, int i2, int j2)
    int temp;
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
    if(j2>j1){temp=j1;j1=j2;j2=temp;}
-   double dx = (s.auto_state.bifur.xmax-s.auto_state.bifur.xmin);
-   double dy = (s.auto_state.bifur.ymax-s.auto_state.bifur.ymin);
-   x1 = s.auto_state.bifur.xmin+static_cast<double>((i1-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
-   x2 = s.auto_state.bifur.xmin+static_cast<double>((i2-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
-   y1 = s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
-   y2 = s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
+   double dx = (s.auto_state.axes().xmax-s.auto_state.axes().xmin);
+   double dy = (s.auto_state.axes().ymax-s.auto_state.axes().ymin);
+   x1 = s.auto_state.axes().xmin+static_cast<double>((i1-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
+   x2 = s.auto_state.axes().xmin+static_cast<double>((i2-s.auto_state.bifur.x0))*(dx)/static_cast<double>(s.auto_state.bifur.wid);
+   y1 = s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j1))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
+   y2 = s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.hgt+s.auto_state.bifur.y0-j2))*(dy)/static_cast<double>(s.auto_state.bifur.hgt);
  
    if((i1==i2)||(j1==j2))
    { 
@@ -959,17 +965,17 @@ void auto_zoom_in(int i1, int j1, int i2, int j2)
 	  dx = dx/2;
 	  dy = dy/2;
 	  /*Shrink by thirds and center (track) about the point clicked*/
-	  s.auto_state.bifur.xmin=x1-dx/2;
-	  s.auto_state.bifur.xmax=x1+dx/2;
-	  s.auto_state.bifur.ymin=y1-dy/2;
-	  s.auto_state.bifur.ymax=y1+dy/2;
+	  s.auto_state.axes().xmin=x1-dx/2;
+	  s.auto_state.axes().xmax=x1+dx/2;
+	  s.auto_state.axes().ymin=y1-dy/2;
+	  s.auto_state.axes().ymax=y1+dy/2;
   }
   else
   {           
-	  s.auto_state.bifur.xmin=x1;
-	  s.auto_state.bifur.ymin=y1;
-	  s.auto_state.bifur.xmax=x2;
-	  s.auto_state.bifur.ymax=y2;     
+	  s.auto_state.axes().xmin=x1;
+	  s.auto_state.axes().ymin=y1;
+	  s.auto_state.axes().xmax=x2;
+	  s.auto_state.axes().ymax=y2;     
   }
   	
 }
@@ -979,8 +985,8 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
    xpp::Session &s=xpp::session();
    double x1=0.0,y1=0.0,x2=0.0,y2=0.0;
    int temp;
-   double dx = (s.auto_state.bifur.xmax-s.auto_state.bifur.xmin);
-   double dy = (s.auto_state.bifur.ymax-s.auto_state.bifur.ymin);
+   double dx = (s.auto_state.axes().xmax-s.auto_state.axes().xmin);
+   double dy = (s.auto_state.axes().ymax-s.auto_state.axes().ymin);
    double a1,a2,b1,b2;
 
    if(i1>i2){temp=i1;i1=i2;i2=temp;}
@@ -997,34 +1003,34 @@ void auto_zoom_out(int i1, int j1, int i2, int j2)
 	  dx = dx*2;
 	  dy = dy*2;
 	  /*Shrink by thirds and center (track) about the point clicked*/
-	  s.auto_state.bifur.xmin=x1-dx/2;
-	  s.auto_state.bifur.xmax=x1+dx/2;
-	  s.auto_state.bifur.ymin=y1-dy/2;
-	  s.auto_state.bifur.ymax=y1+dy/2;
+	  s.auto_state.axes().xmin=x1-dx/2;
+	  s.auto_state.axes().xmax=x1+dx/2;
+	  s.auto_state.axes().ymin=y1-dy/2;
+	  s.auto_state.axes().ymax=y1+dy/2;
   }
   else
   {           
-    x1=(a1*s.auto_state.bifur.xmax-a2*s.auto_state.bifur.xmin)/(a1-a2);
-    x2=(s.auto_state.bifur.xmin-s.auto_state.bifur.xmax+a1*s.auto_state.bifur.xmax-a2*s.auto_state.bifur.xmin)/(a1-a2);
-    y1=(b1*s.auto_state.bifur.ymax-b2*s.auto_state.bifur.ymin)/(b1-b2);
-    y2=(s.auto_state.bifur.ymin-s.auto_state.bifur.ymax+b1*s.auto_state.bifur.ymax-b2*s.auto_state.bifur.ymin)/(b1-b2);
-	  s.auto_state.bifur.xmin=x1;
-	  s.auto_state.bifur.ymin=y1;
-	  s.auto_state.bifur.xmax=x2;
-	  s.auto_state.bifur.ymax=y2;
+    x1=(a1*s.auto_state.axes().xmax-a2*s.auto_state.axes().xmin)/(a1-a2);
+    x2=(s.auto_state.axes().xmin-s.auto_state.axes().xmax+a1*s.auto_state.axes().xmax-a2*s.auto_state.axes().xmin)/(a1-a2);
+    y1=(b1*s.auto_state.axes().ymax-b2*s.auto_state.axes().ymin)/(b1-b2);
+    y2=(s.auto_state.axes().ymin-s.auto_state.axes().ymax+b1*s.auto_state.axes().ymax-b2*s.auto_state.axes().ymin)/(b1-b2);
+	  s.auto_state.axes().xmin=x1;
+	  s.auto_state.axes().ymin=y1;
+	  s.auto_state.axes().xmax=x2;
+	  s.auto_state.axes().ymax=y2;
   }
 
 } 
 
-void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a)
+void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a)
 {
  /* a plot type none of the cases know leaves the point at (par1, 0) */
  *x=par1;
  *y1=*y2=0.0;
- switch(xpp::session().auto_state.bifur.plot){
+ switch(ax->plot){
   case HI_P:
     *x=par1;
-    *y1=uhigh[xpp::session().auto_state.bifur.var];
+    *y1=uhigh[ax->var];
     *y2=*y1;
     break;
   case NR_P:
@@ -1034,12 +1040,12 @@ void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, d
     break;
   case HL_P:
     *x=par1;
-    *y1=uhigh[xpp::session().auto_state.bifur.var];
-    *y2=ulow[xpp::session().auto_state.bifur.var];
+    *y1=uhigh[ax->var];
+    *y2=ulow[ax->var];
     break;
   case AV_P:
     *x=par1;
-    *y1=ubar[xpp::session().auto_state.bifur.var];
+    *y1=ubar[ax->var];
     *y2=*y1;
     break;
   case PE_P:
@@ -1070,29 +1076,29 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
   int type1=type;
   par1=par[icp1];
   if(icp2<s.auto_state.npar)par2=par[icp2];
-  auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
+  auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
   if(flg==0){
     s.auto_state.bifur.lastx=x;
     s.auto_state.bifur.lasty=y1;
   }
-  if(flag2==0&&s.auto_state.bifur.plot==P_P)
+  if(flag2==0&&s.auto_state.axes().plot==P_P)
     {
   
        return;
      }
-  if(flag2>0&&s.auto_state.bifur.plot!=P_P){
+  if(flag2>0&&s.auto_state.axes().plot!=P_P){
   
     return;
   }
 
-  if((flag2>0)&&(s.auto_state.bifur.plot==P_P))
+  if((flag2>0)&&(s.auto_state.axes().plot==P_P))
    type1=CSEQ;
   switch(type1){
  
   case CSEQ:
-    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
+    if(icp1!=s.auto_state.axes().icp1)break;
+    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
 
     if(s.plot_export.color){
       set_linestyle(1);
@@ -1103,10 +1109,10 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case CUEQ:
-    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
-    if(s.auto_state.bifur.plot!=P_P)
+    if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
+    if(icp1!=s.auto_state.axes().icp1)break;
+    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
+    if(s.auto_state.axes().plot!=P_P)
       {if(s.plot_export.color) set_linestyle(0);else set_linestyle(4);}
     else
       {
@@ -1120,8 +1126,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
       set_linestyle(9); 
     else 
       set_linestyle(0);
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    if(icp1!=s.auto_state.axes().icp1)break;
+    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=UPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2));
@@ -1131,8 +1137,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
       set_linestyle(7);
     else
       set_linestyle(0);
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
+    if(icp1!=s.auto_state.axes().icp1)break;
+    if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=SPT;
     point_abs(static_cast<float>(x),static_cast<float>(y1));
     point_abs(static_cast<float>(x),static_cast<float>(y2)); 
@@ -1151,7 +1157,7 @@ void auto_line(double x1i, double y1i, double x2i, double y2i)
   float x1_out,y1_out,x2_out,y2_out;
 
   get_scale(&xmin,&ymin,&xmax,&ymax);
-  set_scale(xpp::session().auto_state.bifur.xmin,xpp::session().auto_state.bifur.ymin,xpp::session().auto_state.bifur.xmax,xpp::session().auto_state.bifur.ymax);
+  set_scale(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymax);
   if(clip(x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
     x1d=x1_out;
     x2d=x2_out;
@@ -1217,30 +1223,36 @@ static int auto_point_color(int type,int flag2)
 */
 int check_plot_type(int flag2,int icp1, int icp2)
 {
-  if(flag2==0 && xpp::session().auto_state.bifur.plot==P_P)
+  if(flag2==0 && xpp::session().auto_state.axes().plot==P_P)
     return 0;
-  if(flag2>0  && xpp::session().auto_state.bifur.plot!=P_P)
+  if(flag2>0  && xpp::session().auto_state.axes().plot!=P_P)
     return 0; 
-  if(icp1!=xpp::session().auto_state.bifur.icp1)
+  if(icp1!=xpp::session().auto_state.axes().icp1)
     return 0;
-  if(flag2>0 && icp2!=xpp::session().auto_state.bifur.icp2)
+  if(flag2>0 && icp2!=xpp::session().auto_state.axes().icp2)
     return 0;
   return 1;
 
 } 
-/* main plotting code  */ 
-void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a,
-	       int type, int flg, int lab, int npar, int icp1, int icp2, int icp3, int icp4, int flag2,
-	       double *evr, double *evi)
+namespace {
+
+/* the point add_point() is given, in view v (axes ax): its data
+   (auto_diagram) and, in the active view, its drawing. A point the view
+   does not plot (a one-parameter point in a two-parameter view, a
+   two-parameter point in any other) goes to the data too, with no
+   coordinates, so every view holds one entry per point of the diagram in
+   the same order: a point's index is the same in every view (the grab,
+   Clear's earlier branches). */
+void view_point(int v, const AUTOAX &ax, bool active, double *par, double per, double *uhigh, double *ulow,
+                double *ubar, double a, int type, int flg, int lab, int icp1, int icp2, int flag2)
 {
   xpp::Session &s=xpp::session();
   double x,y1,y2,par1,par2=0;
-  int ix,iy1,iy2,type1=type;
-  std::string bob=xpp::format("{}",lab);
+  int ix=0,iy1=0,iy2=0,type1=type;
   XppDiagPoint dp;
   par1=par[icp1];
   if(icp2<s.auto_state.npar)par2=par[icp2];
-auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
+  auto_xy_plot(&ax,&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits on axes */
   memset(&dp,0,sizeof dp);
   dp.ibr=dpt_ibr;
   dp.pt=dpt_ntot;
@@ -1255,96 +1267,96 @@ auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a); /* figure out who sits
   dp.x=x;
   dp.y1=y1;
   dp.y2=y2;
-  if(flg==0){
+  if(active){
+    if(flg==0){
+      s.auto_state.bifur.lastx=x;
+      s.auto_state.bifur.lasty=y1;
+    }
+    ix=IXVal(x);
+    iy1=IYVal(y1);
+    iy2=IYVal(y2);
+    autobw();
+  }
+  if((flag2==0&&ax.plot==P_P)||(flag2>0&&ax.plot!=P_P)){
+    dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
+    auto_diagram(v,&dp);
+    return;
+  }
+  if(flag2>0) /* a two-parameter point in a two-parameter view */
+    type1=CSEQ;
+  switch(type1){
+  case CSEQ:
+  case CUEQ:
+    if(ax.plot==PE_P||ax.plot==FR_P)break;
+    if(icp1!=ax.icp1)break;
+    if(flag2>0&&ax.icp2!=icp2)break;
+    dp.draw=1;
+    if(active){
+      LineWidth(type1==CSEQ?2:1);
+      colset(type);
+      if(flag2>0)colset2(flag2);
+      auto_line(x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
+      autobw();
+    }
+    break;
+  case UPER:
+  case SPER:
+    if(icp1!=ax.icp1)break;
+    if(flag2>0&&ax.icp2!=icp2)break;
+    dp.draw=type1==SPER?2:3;
+    if(active){
+      LineWidth(1);
+      colset(type);
+      if(flag2>0)colset2(flag2);
+      if(type1==SPER){
+        if(chk_auto_bnds(ix,iy1))FillCircle(ix,iy1,3);
+        if(chk_auto_bnds(ix,iy2))FillCircle(ix,iy2,3);
+      }
+      else{
+        if(chk_auto_bnds(ix,iy1))Circle(ix,iy1,3);
+        if(chk_auto_bnds(ix,iy2))Circle(ix,iy2,3);
+      }
+      autobw();
+    }
+    break;
+  }
+  if(lab!=0&&icp1==ax.icp1&&(flag2==0||ax.icp2==icp2)){
+    dp.lab=lab;
+    if(active){
+      const std::string bob=xpp::format("{}",lab);
+      LineWidth(1);
+      if(chk_auto_bnds(ix,iy1)){
+        ALINE(ix-4,iy1,ix+4,iy1);
+        ALINE(ix,iy1-4,ix,iy1+4);
+      }
+      if(chk_auto_bnds(ix,iy2)){
+        ALINE(ix-4,iy2,ix+4,iy2);
+        ALINE(ix,iy2-4,ix,iy2+4);
+      }
+      if(chk_auto_bnds(ix,iy1))ATEXT(ix+8,iy1+8,bob.c_str());
+    }
+  }
+  if(active){
     s.auto_state.bifur.lastx=x;
     s.auto_state.bifur.lasty=y1;
   }
-  ix=IXVal(x);
-  iy1=IYVal(y1);
-  iy2=IYVal(y2);
-  autobw();
-if(flag2==0&&s.auto_state.bifur.plot==P_P) /* if the point was a 1 param run and we are in 2 param plot, skip */
-    {
-       if(flg==0)auto_diagram(&dp); /* not drawn, but the next line starts here */
-       show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
-       refreshdisplay();
-       return;
-     }
-if(flag2>0&&s.auto_state.bifur.plot!=P_P){ /* two parameter and not in two parameter plot, just skip it */
-    if(flg==0)auto_diagram(&dp);
-    show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
-    refreshdisplay();
-    return;
-  }
+  auto_diagram(v,&dp);
+}
 
- if((flag2>0)&&(s.auto_state.bifur.plot==P_P))
-   type1=CSEQ;
- switch(type1){
-  
-  case CSEQ:
-    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
-    dp.draw=1;
-    LineWidth(2);
-    colset(type);
-    if(flag2>0)colset2(flag2);
-    auto_line(x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
-    autobw();
-    break;
-  case CUEQ:
-    if(s.auto_state.bifur.plot==PE_P||s.auto_state.bifur.plot==FR_P)break;
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
-    dp.draw=1;
-    LineWidth(1);
-        colset(type);
-	if(flag2>0)colset2(flag2);
-    auto_line(x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
-    autobw();
-    break;
-  case UPER:
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
-    dp.draw=3;
-    LineWidth(1);
-        colset(type);
-	if(flag2>0)colset2(flag2);
-    if(chk_auto_bnds(ix,iy1))Circle(ix,iy1,3);
-    if(chk_auto_bnds(ix,iy2))Circle(ix,iy2,3);
-    autobw();
-    break;
-  case SPER:
-    if(icp1!=s.auto_state.bifur.icp1)break;
-    if(flag2>0&&s.auto_state.bifur.icp2!=icp2)break;
-    dp.draw=2;
-    LineWidth(1);
-        colset(type);
-	if(flag2>0)colset2(flag2);
-    if(chk_auto_bnds(ix,iy1))FillCircle(ix,iy1,3);
-    if(chk_auto_bnds(ix,iy2))FillCircle(ix,iy2,3);
-    autobw();
-    break;
-  }
-  if(lab!=0){
-    if(icp1==s.auto_state.bifur.icp1){
-      if(flag2==0||(flag2>0&&s.auto_state.bifur.icp2==icp2)){
-	dp.lab=lab;
-	LineWidth(1);
-        if(chk_auto_bnds(ix,iy1)){
-	ALINE(ix-4,iy1,ix+4,iy1);
-	ALINE(ix,iy1-4,ix,iy1+4); }
-	if(chk_auto_bnds(ix,iy2)){
-	ALINE(ix-4,iy2,ix+4,iy2);
-	ALINE(ix,iy2-4,ix,iy2+4);}
-	if(chk_auto_bnds(ix,iy1))ATEXT(ix+8,iy1+8,bob.c_str()); 
-      }
-    }
-  }
+} // namespace
 
-  s.auto_state.bifur.lastx=x;
-  s.auto_state.bifur.lasty=y1;
-  auto_diagram(&dp);
+/* main plotting code: the point in every view */
+void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a,
+	       int type, int flg, int lab, int npar, int icp1, int icp2, int icp3, int icp4, int flag2,
+	       double *evr, double *evi)
+{
+  xpp::Session &s=xpp::session();
+  (void)npar;
+  (void)icp3;
+  (void)icp4;
+  for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
+    view_point(v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,par,per,uhigh,
+               ulow,ubar,a,type,flg,lab,icp1,icp2,flag2);
   show_stab(evr,evi,xpp::model().node,type==SPER||type==UPER);
   refreshdisplay();
 }
@@ -1381,7 +1393,7 @@ void info_header(int flag2, int icp1, int icp2)
   auto short10=[](std::string_view name){ return short_name(name,10); };
   const std::string p1name=short10(xpp::model().upar_names[xpp::session().auto_state.par[icp1]]);
   const std::string p2name=icp2<xpp::session().auto_state.npar?short10(xpp::model().upar_names[xpp::session().auto_state.par[icp2]]):std::string("   ");
-  const std::string vname=short10(xpp::model().uvar_names[xpp::session().auto_state.bifur.var]);
+  const std::string vname=short10(xpp::model().uvar_names[xpp::session().auto_state.axes().var]);
   SmallBase();
   std::string bob=xpp::format("  Br  Pt Ty  Lab {:>10} {:>10}       norm {:>10}     period",
 	  p1name,
@@ -1432,7 +1444,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
   symb=auto_bif_sym(itp);
  par1=par[icp1];
   if(icp2<xpp::session().auto_state.npar)par2=par[icp2];  
-    auto_xy_plot(&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
+    auto_xy_plot(&xpp::session().auto_state.axes(),&x,&y1,&y2,par1,par2,per,d->uhi,d->ulo,d->ubar,norm);
   
     *ix=IXVal(x);
     *iy=IYVal(y1);
@@ -1440,7 +1452,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
     {
       AutoDataInfo ai;
     	XORCross(*ix,*iy);
-  	new_info(ibr,pt,symb,lab,par,norm,d->u0[xpp::session().auto_state.bifur.var],per,flag2,icp1,icp2);
+  	new_info(ibr,pt,symb,lab,par,norm,d->u0[xpp::session().auto_state.axes().var],per,flag2,icp1,icp2);
       /* what the strip shows, as data */
       ai.ibr=ibr;
       ai.pt=pt;
@@ -1455,8 +1467,8 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.p2name=icp2<xpp::session().auto_state.npar?xpp::model().upar_names[xpp::session().auto_state.par[icp2]].c_str():NULL;
       ai.p2=par2;
       ai.norm=norm;
-      ai.vname=xpp::model().uvar_names[xpp::session().auto_state.bifur.var].c_str();
-      ai.u=d->u0[xpp::session().auto_state.bifur.var];
+      ai.vname=xpp::model().uvar_names[xpp::session().auto_state.axes().var].c_str();
+      ai.u=d->u0[xpp::session().auto_state.axes().var];
       ai.per=per;
       ai.x=x;
       ai.y=y1;
@@ -1491,24 +1503,24 @@ void load_last_plot(int flg)
 {
  xpp::Session &s=xpp::session();
  if(flg==1) {/* one parameter */
-  s.auto_state.bifur.xmin=Old1p.xmin;
-  s.auto_state.bifur.xmax=Old1p.xmax;
-  s.auto_state.bifur.ymin=Old1p.ymin;
-  s.auto_state.bifur.ymax=Old1p.ymax;
-  s.auto_state.bifur.icp1=Old1p.icp1;
-  s.auto_state.bifur.icp2=Old1p.icp2;
-  s.auto_state.bifur.plot=Old1p.plot;
- s.auto_state.bifur.var=Old1p.var;
+  s.auto_state.axes().xmin=Old1p.xmin;
+  s.auto_state.axes().xmax=Old1p.xmax;
+  s.auto_state.axes().ymin=Old1p.ymin;
+  s.auto_state.axes().ymax=Old1p.ymax;
+  s.auto_state.axes().icp1=Old1p.icp1;
+  s.auto_state.axes().icp2=Old1p.icp2;
+  s.auto_state.axes().plot=Old1p.plot;
+ s.auto_state.axes().var=Old1p.var;
 }
 if(flg==2) {/* two parameter */
-  s.auto_state.bifur.xmin=Old2p.xmin;
-  s.auto_state.bifur.xmax=Old2p.xmax;
-  s.auto_state.bifur.ymin=Old2p.ymin;
-  s.auto_state.bifur.ymax=Old2p.ymax;
-  s.auto_state.bifur.icp1=Old2p.icp1;
-  s.auto_state.bifur.icp2=Old2p.icp2;
-  s.auto_state.bifur.plot=Old2p.plot;
- s.auto_state.bifur.var=Old2p.var;
+  s.auto_state.axes().xmin=Old2p.xmin;
+  s.auto_state.axes().xmax=Old2p.xmax;
+  s.auto_state.axes().ymin=Old2p.ymin;
+  s.auto_state.axes().ymax=Old2p.ymax;
+  s.auto_state.axes().icp1=Old2p.icp1;
+  s.auto_state.axes().icp2=Old2p.icp2;
+  s.auto_state.axes().plot=Old2p.plot;
+ s.auto_state.axes().var=Old2p.var;
 }
 
 }
@@ -1516,25 +1528,57 @@ void keep_last_plot(int flg)
 {
   xpp::Session &s=xpp::session();
   if(flg==1){ /* one parameter */
-    Old1p.xmin=s.auto_state.bifur.xmin;
-    Old1p.xmax=s.auto_state.bifur.xmax;
-    Old1p.ymin=s.auto_state.bifur.ymin;
-    Old1p.ymax=s.auto_state.bifur.ymax;
-    Old1p.icp1=s.auto_state.bifur.icp1;
-    Old1p.icp2=s.auto_state.bifur.icp2;
-    Old1p.plot=s.auto_state.bifur.plot;
-    Old1p.var=s.auto_state.bifur.var;
+    Old1p.xmin=s.auto_state.axes().xmin;
+    Old1p.xmax=s.auto_state.axes().xmax;
+    Old1p.ymin=s.auto_state.axes().ymin;
+    Old1p.ymax=s.auto_state.axes().ymax;
+    Old1p.icp1=s.auto_state.axes().icp1;
+    Old1p.icp2=s.auto_state.axes().icp2;
+    Old1p.plot=s.auto_state.axes().plot;
+    Old1p.var=s.auto_state.axes().var;
   }
   if(flg==2){
-    Old2p.xmin=s.auto_state.bifur.xmin;
-    Old2p.xmax=s.auto_state.bifur.xmax;
-    Old2p.ymin=s.auto_state.bifur.ymin;
-    Old2p.ymax=s.auto_state.bifur.ymax;
-    Old2p.icp1=s.auto_state.bifur.icp1;
-    Old2p.icp2=s.auto_state.bifur.icp2;
+    Old2p.xmin=s.auto_state.axes().xmin;
+    Old2p.xmax=s.auto_state.axes().xmax;
+    Old2p.ymin=s.auto_state.axes().ymin;
+    Old2p.ymax=s.auto_state.axes().ymax;
+    Old2p.icp1=s.auto_state.axes().icp1;
+    Old2p.icp2=s.auto_state.axes().icp2;
     Old2p.plot=P_P;
-    Old2p.var=s.auto_state.bifur.var;
+    Old2p.var=s.auto_state.axes().var;
   }
+}
+
+void auto_new_view()
+{
+  xpp::Session &s=xpp::session();
+  AutoDiagramView v;
+  v.axes=s.auto_state.axes();
+  s.auto_state.views.push_back(v);
+  s.auto_state.active_view=static_cast<int>(s.auto_state.views.size())-1;
+  if(s.auto_state.bifur.exist)redraw_diagram();
+}
+
+int auto_close_view(int k)
+{
+  xpp::Session &s=xpp::session();
+  const int n=static_cast<int>(s.auto_state.views.size());
+  if(k<0||k>=n||n<2)return 0;
+  s.auto_state.views.erase(s.auto_state.views.begin()+k);
+  /* the active one keeps its view; closed, the one in its place (or the
+     last) takes over */
+  if(s.auto_state.active_view>k)s.auto_state.active_view--;
+  else if(s.auto_state.active_view==k)s.auto_state.active_view=std::min(k,n-2);
+  if(s.auto_state.bifur.exist)redraw_diagram();
+  return 1;
+}
+
+int auto_activate_view(int k)
+{
+  xpp::Session &s=xpp::session();
+  if(k<0||k>=static_cast<int>(s.auto_state.views.size()))return 0;
+  s.auto_state.active_view=k;
+  return 1;
 }
 
 void init_auto_win()
@@ -1588,19 +1632,20 @@ void init_auto_win()
     s.auto_state.bifur.epsu=s.auto_state.options.epsu;
   s.auto_state.bifur.epss=s.auto_state.options.epss;
 
-/* The diagram plotting stuff    */
-
-  s.auto_state.bifur.xmax=s.auto_state.options.xmax;
-  s.auto_state.bifur.xmin=s.auto_state.options.xmin;
-  s.auto_state.bifur.ymax=s.auto_state.options.ymax;
-  s.auto_state.bifur.ymin=s.auto_state.options.ymin;
-  s.auto_state.bifur.plot=HL_P;
-  s.auto_state.bifur.var=s.auto_state.options.var;
+/* The diagram plotting stuff: one view (W50)    */
+  s.auto_state.views.assign(1,AutoDiagramView{});
+  s.auto_state.active_view=0;
+  s.auto_state.axes().xmax=s.auto_state.options.xmax;
+  s.auto_state.axes().xmin=s.auto_state.options.xmin;
+  s.auto_state.axes().ymax=s.auto_state.options.ymax;
+  s.auto_state.axes().ymin=s.auto_state.options.ymin;
+  s.auto_state.axes().plot=HL_P;
+  s.auto_state.axes().var=s.auto_state.options.var;
 
 /* xpp parameters    */
   
-  s.auto_state.bifur.icp1=0;
-  s.auto_state.bifur.icp2=1;
+  s.auto_state.axes().icp1=0;
+  s.auto_state.axes().icp2=1;
    s.auto_state.bifur.icp3=1;
   s.auto_state.bifur.icp4=1;
   s.auto_state.bifur.icp5=1;
@@ -2607,8 +2652,8 @@ void load_auto_numerics(FILE *fp)
 void load_auto_graph(FILE *fp)
 {
   xpp::TokenReader tr=xpp::TokenReader::attach(fp);
-  if (!tr.read(xpp::session().auto_state.bifur.xmin) || !tr.read(xpp::session().auto_state.bifur.ymin) || !tr.read(xpp::session().auto_state.bifur.xmax) || !tr.read(xpp::session().auto_state.bifur.ymax)
-      || !tr.read(xpp::session().auto_state.bifur.var) || !tr.read(xpp::session().auto_state.bifur.plot)) return;
+  if (!tr.read(xpp::session().auto_state.axes().xmin) || !tr.read(xpp::session().auto_state.axes().ymin) || !tr.read(xpp::session().auto_state.axes().xmax) || !tr.read(xpp::session().auto_state.axes().ymax)
+      || !tr.read(xpp::session().auto_state.axes().var) || !tr.read(xpp::session().auto_state.axes().plot)) return;
 }
   
 namespace {
@@ -2784,7 +2829,7 @@ void auto_file()
       do_auto_range();
   }
   if(ch=='e'){
-    if(xpp::session().auto_state.bifur.plot!=P_P){
+    if(xpp::session().auto_state.axes().plot!=P_P){
       err_msg("Must be in 2 parameter plot");
       return;
     }
@@ -3273,10 +3318,10 @@ void clear_msg()
 
 void auto_update_view(float xlo,float xhi, float ylo, float yhi)
 {
-              xpp::session().auto_state.bifur.xmin=xlo;
-	      xpp::session().auto_state.bifur.ymin=ylo;
-	      xpp::session().auto_state.bifur.xmax=xhi;
-	      xpp::session().auto_state.bifur.ymax=yhi;
+              xpp::session().auto_state.axes().xmin=xlo;
+	      xpp::session().auto_state.axes().ymin=ylo;
+	      xpp::session().auto_state.axes().xmax=xhi;
+	      xpp::session().auto_state.axes().ymax=yhi;
 	      redraw_diagram();
 
 }
@@ -3286,8 +3331,8 @@ void auto_motion_xy(int i,int j)
 {
   xpp::Session &s=xpp::session();
   double x,y;
-    x=s.auto_state.bifur.xmin+static_cast<double>((i-s.auto_state.bifur.x0))*(s.auto_state.bifur.xmax-s.auto_state.bifur.xmin)/static_cast<double>(s.auto_state.bifur.wid);
-    y=s.auto_state.bifur.ymin+static_cast<double>((s.auto_state.bifur.y0-j+s.auto_state.bifur.hgt))*(s.auto_state.bifur.ymax-s.auto_state.bifur.ymin)/static_cast<double>(s.auto_state.bifur.hgt);
+    x=s.auto_state.axes().xmin+static_cast<double>((i-s.auto_state.bifur.x0))*(s.auto_state.axes().xmax-s.auto_state.axes().xmin)/static_cast<double>(s.auto_state.bifur.wid);
+    y=s.auto_state.axes().ymin+static_cast<double>((s.auto_state.bifur.y0-j+s.auto_state.bifur.hgt))*(s.auto_state.axes().ymax-s.auto_state.axes().ymin)/static_cast<double>(s.auto_state.bifur.hgt);
     auto_point_xy(x,y);
 }
 

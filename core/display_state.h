@@ -65,14 +65,11 @@ struct PlotDisplay {
 };
 
 /* AUTO's diagram display: the points before `earlier` are the branches
-   computed before Clear, hidden unless `show_earlier` */
+   computed before Clear, hidden unless `show_earlier` (in every view; each
+   view's zoom is its own, auto_state.h's AutoDiagramView) */
 struct AutoView {
     int earlier = 0;
     bool show_earlier = false;
-    Zoom zoom;
-    /* the axes the zoom was made for */
-    bool axes_seen = false;
-    std::array<double, 4> axes{};
 };
 
 } // namespace xpp

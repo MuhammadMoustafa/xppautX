@@ -347,8 +347,8 @@ void answer_point(unsigned long win, int k, int *x, int *y)
         *x = get_int(answer.c_str(), px[k], 0);
         *y = get_int(answer.c_str(), py[k], 0);
     } else if (win == WIN_AUTO) {
-        *x = data_to_pixel(js_num(jx, 0), s.auto_state.bifur.xmin, s.auto_state.bifur.xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
-        *y = data_to_pixel(js_num(jy, 0), s.auto_state.bifur.ymin, s.auto_state.bifur.ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
+        *x = data_to_pixel(js_num(jx, 0), s.auto_state.axes().xmin, s.auto_state.axes().xmax, s.auto_state.bifur.x0, s.auto_state.bifur.x0 + s.auto_state.bifur.wid);
+        *y = data_to_pixel(js_num(jy, 0), s.auto_state.axes().ymin, s.auto_state.axes().ymax, s.auto_state.bifur.y0 + s.auto_state.bifur.hgt, s.auto_state.bifur.y0);
     } else {
         get_draw_area();
         *x = data_to_pixel(js_num(jx, 0), s.plot_windows.current->xlo, s.plot_windows.current->xhi, s.drawing.d_left, s.drawing.d_right);

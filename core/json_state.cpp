@@ -123,8 +123,8 @@ void send_state(void)
     BUF_LIT(&b, "}");
     if (s.auto_state.bifur.exist)
         buf_format(&b, ",\"auto\":{{\"x0\":{:d},\"y0\":{:d},\"wid\":{:d},\"hgt\":{:d},\"xmin\":{:g},\"xmax\":{:g},"
-                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.bifur.xmin, s.auto_state.bifur.xmax,
-                   s.auto_state.bifur.ymin, s.auto_state.bifur.ymax);
+                   "\"ymin\":{:g},\"ymax\":{:g}}}", s.auto_state.bifur.x0, s.auto_state.bifur.y0, s.auto_state.bifur.wid, s.auto_state.bifur.hgt, s.auto_state.axes().xmin, s.auto_state.axes().xmax,
+                   s.auto_state.axes().ymin, s.auto_state.axes().ymax);
     buf_format(&b, ",\"rows\":{:d},\"menu\":{:d},\"win\":{:d}", s.browser.view.maxrow, help_menu, s.plot_windows.draw_win);
     if (s.numerics.last_seed) buf_format(&b, ",\"seed\":{:d}", *s.numerics.last_seed);
     const SavedSession &saved = s.saved_session;

@@ -31,12 +31,12 @@ void load_model()
     xpp::session().auto_state.bifur.dsmax = 0.5;
     xpp::session().auto_state.bifur.rl0 = 0;
     xpp::session().auto_state.bifur.rl1 = 2;
-    xpp::session().auto_state.bifur.xmin = -1;
-    xpp::session().auto_state.bifur.xmax = 1;
-    xpp::session().auto_state.bifur.ymin = -1;
-    xpp::session().auto_state.bifur.ymax = 1;
-    xpp::session().auto_state.bifur.icp1 = 0;
-    xpp::session().auto_state.bifur.icp2 = 1;
+    xpp::session().auto_state.axes().xmin = -1;
+    xpp::session().auto_state.axes().xmax = 1;
+    xpp::session().auto_state.axes().ymin = -1;
+    xpp::session().auto_state.axes().ymax = 1;
+    xpp::session().auto_state.axes().icp1 = 0;
+    xpp::session().auto_state.axes().icp2 = 1;
 }
 
 bool ok(int field, double v)
@@ -104,17 +104,17 @@ int main()
     s.var = "w";
     s.has_plot = 1;
     s.plot = 1;
-    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.bifur.icp1 == 1 && xpp::session().auto_state.bifur.var == 1 && xpp::session().auto_state.bifur.plot == 1);
+    CHECK(auto_settings_apply(s, why) == 0 && xpp::session().auto_state.axes().icp1 == 1 && xpp::session().auto_state.axes().var == 1 && xpp::session().auto_state.axes().plot == 1);
     s.par1 = "nosuch";
-    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.icp1 == 1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.axes().icp1 == 1);
     s = AutoSettingsSet{};
     s.has_plot = 1;
     s.plot = 5;
-    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.plot == 1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.axes().plot == 1);
     s = AutoSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */
-    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.bifur.ymin == -1);
+    CHECK(auto_settings_apply(s, why) == -1 && xpp::session().auto_state.axes().ymin == -1);
 
     /* Mark values: a parameter of AUTO's or T, into AUTO's user points */
     s = AutoSettingsSet{};

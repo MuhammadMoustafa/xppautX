@@ -58,9 +58,10 @@ enum {
 /* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
 #define XPP_AUTO_NODE 1001
 
-/* One point of the AUTO diagram as add_point() (auto_nox.c) plots it, in
-   the diagram's current axis quantities (auto_xy_plot), for a front end
-   that draws the diagram from data. */
+/* One point of the AUTO diagram as add_point() (auto_nox.c) plots it in
+   one of its views, in that view's axis quantities (auto_xy_plot), for a
+   front end that draws the diagram from data. A point the view does not
+   plot has draw 0 and x, y1 and y2 NaN. */
 typedef struct XppDiagPoint {
     int ibr, pt;   /* AUTO's branch and point number, signed as AUTO has them */
     int itp;       /* AUTO's point type (auto_bif_sym) */
@@ -134,7 +135,7 @@ void refreshdisplay(void);
 int byeauto_(int *iflag);
 int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 void auto_scroll_window(void);
-void auto_diagram(const XppDiagPoint *p);
+void auto_diagram(int view, const XppDiagPoint *p);
 void init_txtview(void);
 void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n);
@@ -311,10 +312,10 @@ typedef struct XppUi {
     void (*auto_show_hint)(void); /* Auto.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */
     void (*auto_grab_end)(int done);
-    /* The diagram as data, beside the drawing: p is a point add_point()
-       just plotted, NULL that the diagram was cleared and its axes (Auto)
-       drawn again. */
-    void (*auto_diagram)(const XppDiagPoint *p);
+    /* The diagram as data, beside the drawing, in view `view` (W50,
+       AutoState::views): p is a point add_point() just plotted there, NULL
+       that the view was cleared and its axes drawn again. */
+    void (*auto_diagram)(int view, const XppDiagPoint *p);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */

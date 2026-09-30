@@ -1,6 +1,7 @@
-/* AUTO's file, .autox (autox.h, W92, W103): its settings and diagram
-   read back bit for bit, a file of another shape is refused, and in a
-   session the whole file (the model, settings, diagram, solutions)
+/* AUTO's file, .autox (autox.h, W92, W103): its settings, diagram and
+   views (W50) read back bit for bit, a file of another shape is refused,
+   and in a session the whole file (the model, settings, diagram,
+   solutions, two views)
    written and restored gives the same AUTO state, in the same model or
    with its saved model loaded from it (the .ode on the disk edited); a
    file without its model is refused; an XPPAUT .auto is imported
@@ -140,6 +141,28 @@ void check_settings_text()
     CHECK(!xpp::autox::parse_settings("plot 1.5\n"));
 }
 
+/* views.txt (W50): the views read back bit for bit, a degenerate range
+   (a Fit of a flat quantity) and no zoom included; a file of another
+   shape is refused */
+void check_views_text()
+{
+    xpp::autox::SavedViews v;
+    v.views.push_back({2, "v", "iapp", "phi", {awk(0), awk(1), awk(2), awk(3)}, {}});
+    xpp::Zoom z;
+    z.x = {true, awk(4), awk(5) + 1};
+    v.views.push_back({3, "", "iapp", "", {-0.2, 0.08, 0, 0}, z});
+    v.active = 1;
+    const std::string text = xpp::autox::views_text(v);
+    const std::optional<xpp::autox::SavedViews> r = xpp::autox::parse_views(text);
+    CHECK(r && *r == v);
+    CHECK(text.ends_with("active 1\n"));
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\n"));                /* no active line */
+    CHECK(!xpp::autox::parse_views("active 0\n"));                                     /* no view */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 1\n"));     /* no view 1 */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 1:0 -\nactive 0\n"));   /* a zoom low above high */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 -\nactive 0\n"));        /* a field short */
+}
+
 void check_diagram_csv()
 {
     const std::vector<std::string> vars = {"v", "w", "long_name_of_a_variable"};
@@ -196,14 +219,21 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     s.auto_state.bifur.dsmax = 0.5;
     s.auto_state.bifur.rl1 = 1.0 / 3.0;
     const AutoSettingsSet before = auto_settings_now();
+    /* a second view (W50), the norm, a zoom of its own; the first active */
+    auto_new_view();
+    s.auto_state.views[1].axes.plot = 1;
+    s.auto_state.views[1].axes.ymax = 5;
+    s.auto_state.views[1].zoom.y = {true, 0.5, 1.5};
+    s.auto_state.active_view = 0;
 
     const std::optional<std::string> bytes = xpp::autox::file_bytes();
     CHECK(bytes.has_value());
     if (!bytes) return;
     const std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(*bytes);
     const std::string model_member = "model/" + xpp::model().this_file;
-    CHECK(entries && entries->size() == 5 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
-          (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s");
+    CHECK(entries && entries->size() == 6 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
+          (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s" &&
+          (*entries)[5].name == "views.txt");
     const std::optional<xpp::snapx::Manifest> man =
         entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind) : std::nullopt;
     CHECK(man && man->model_name == xpp::model().this_file);
@@ -215,6 +245,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(write_file(auto_solutions_file(), "other"));
     s.auto_state.bifur.ds = 0.05;
     s.auto_state.bifur.rl1 = 7;
+    s.auto_state.views.resize(1);
     const std::string path = tmp.file("t.autox");
     CHECK(write_file(path, *bytes));
     std::optional<SavedFile> f = xpp_saved_read(path);
@@ -229,6 +260,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(same_bits(s.auto_state.bifur.ds, 0.1 + 0.2) && same_bits(s.auto_state.bifur.rl1, 1.0 / 3.0));
     const AutoSettingsSet after = auto_settings_now();
     CHECK(xpp::autox::settings_text(after) == xpp::autox::settings_text(before));
+    CHECK(s.auto_state.views.size() == 2 && s.auto_state.active_view == 0 && s.auto_state.views[1].axes.plot == 1 &&
+          s.auto_state.views[1].axes.ymax == 5 && (s.auto_state.views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
+          !s.auto_state.views[1].zoom.x.set && s.auto_state.views[0].axes.plot == s.auto_state.axes().plot);
 
     /* another model loaded, the .ode on the disk edited: the file's own
        model loads from it, with the diagram */
@@ -267,7 +301,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     xpp::autox::add_members(entries, "auto/");
     std::map<std::string, std::string> members;
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
-    CHECK(members.size() == 3 && members.contains("auto/diagram.csv"));
+    CHECK(members.size() == 4 && members.contains("auto/diagram.csv") && members.contains("auto/views.txt"));
     start_diagram(xpp::model().node);
     CHECK(xpp::autox::restore_members(members, "auto/", "lecar.snapx"));
     CHECK(same_diagram(s.diagram.points, imported));
@@ -283,6 +317,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 int main(void)
 {
     check_settings_text();
+    check_views_text();
     check_diagram_csv();
     CHECK(xpp::zip::is_zip(std::string_view("PK\x03\x04", 4)) && !xpp::zip::is_zip("8 0 1 2"));
 

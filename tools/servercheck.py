@@ -933,7 +933,7 @@ check('the AUTO diagram sends its axes as data', axes and axes[-1]['wid'] > 0 an
 AUTO_MENUS = {
     'Start': (['Steady state', 'Periodic', 'Bdry Value', 'Homoclinic', 'hEteroclinic'], 'spbhe'),
     'Plot Type': (['Hi', 'Norm', 'hI-lo', 'Period', 'Two par', '(Z)oom in', 'Zoom (O)ut', 'last 1 par',
-                   'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll'], 'hniptzo12frads'),
+                   'last 2 par', 'Fit', 'fRequency', 'Average', 'Default', 'Scroll', 'new (V)iew'], 'hniptzo12fradsv'),
     'Mark values: how many?': (list('0123456789'), '0123456789'),
     'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
               'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
@@ -2141,10 +2141,10 @@ def close_pairs(a, b, tol):
     return True
 
 
-def rebuild_diagram(evs, pts):
-    """the diagram data after these events: (br, pt, ty, x, y, y2, from) per point"""
+def rebuild_diagram(evs, pts, view=0):
+    """view `view`'s diagram data after these events: (br, pt, ty, x, y, y2, from) per point"""
     for e in evs:
-        if e.get('ev') != 'diagram':
+        if e.get('ev') != 'diagram' or e.get('view') != view:
             continue
         if e['op'] == 'reset':
             del pts[e['keep']:]
@@ -3322,7 +3322,8 @@ def check_display_state():
         evs, _ = col(is_idle)
         av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
         check('autoview: sent at once after data, nothing hidden, the diagram own axes',
-              [(e['earlier'], e['show'], e['zoom']) for e in av(evs)] == [(0, 0, {'x': None, 'y': None})], str(av(evs)))
+              [(e['earlier'], e['show'], e['active'], e['views']) for e in av(evs)] == [(0, 0, 0, [{'zoom': {'x': None, 'y': None}}])],
+              str(av(evs)))
         evs = lecar_to_auto(snd, col)
         n = len(rebuild_diagram(evs, []))
         check('autoview: a run hides nothing', not av(evs) or av(evs)[-1]['earlier'] == 0, str(av(evs)))
@@ -3336,14 +3337,15 @@ def check_display_state():
         snd(cmd='auto', op='display', show=True, x=[0.1, 0.2], y=None)
         evs, _ = col(is_idle)
         check('autoview: show and the zoom are set by auto display',
-              av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, zoom={'x': [0.1, 0.2], 'y': None}), str(av(evs)))
+              av(evs) and av(evs)[-1] == dict(av(evs)[-1], earlier=n, show=1, views=[{'zoom': {'x': [0.1, 0.2], 'y': None}}]),
+              str(av(evs)))
         snd(cmd='auto', op='display', x=[3, 3])
         evs, _ = col(is_idle)
         check('autoview: a bad range is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), str(evs)[:200])
         snd(cmd='auto', op='close')
         evs, _ = col(is_idle)
         check('autoview: closing AUTO resets it', av(evs) and av(evs)[-1]['earlier'] == 0
-              and av(evs)[-1]['zoom'] == {'x': None, 'y': None}, str(av(evs)))
+              and av(evs)[-1]['views'] == [{'zoom': {'x': None, 'y': None}}], str(av(evs)))
     finally:
         stop_server(p, r, snd)
 
@@ -3472,6 +3474,11 @@ def check_session_file():
         key(snd, col, 'i', 'g')
         answered(snd, col, (), cmd='display', win=1, x=[0, 50], y=[-0.5, 0.3], runs=False)
         answered(snd, col, (), cmd='auto', op='display', x=[0.05, 0.3], y=None)
+        # W50: a second view of the diagram, the norm, with a zoom of its own; the first active again
+        answered(snd, col, (), cmd='auto', op='view', new=1)
+        answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 1, 'fit': True})
+        answered(snd, col, (), cmd='auto', op='display', view=1, x=None, y=[0, 0.5])
+        answered(snd, col, (), cmd='auto', op='view', active=0)
         key(snd, col, 't', 't', {'value': 'here'}, {'value': '2'}, {'xd': 10, 'yd': 0.1})
         key(snd, col, 'g', 'f', 'f', {'values': ['4', 'first', 'frz1']})
         key(snd, col, 'm', 'c')
@@ -3482,11 +3489,12 @@ def check_session_file():
         saved = {k: no_t(last(k)) for k in ('plots', 'autoview')}
         marks1 = [no_t(last('marks', win=w)) for w in (1, 2)]
         diagram1 = rebuild_diagram(allev, [])
+        view1 = rebuild_diagram(allev, [], 1)
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
               names == ['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
+                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
@@ -3495,6 +3503,10 @@ def check_session_file():
                   and b'\nname lecar.ode\n' in z.read('session.txt'), str(z.read('session.txt')[:200]))
             with open(os.path.join(r, 'lecar.ode'), 'rb') as f:
                 check('session save: model/lecar.ode is the model, byte for byte', z.read('model/lecar.ode') == f.read())
+            vt = z.read('auto/views.txt').decode().splitlines()
+            check('session save: auto/views.txt holds both views, the first active',
+                  len(vt) == 3 and vt[0].startswith('view 2 V iapp ') and vt[1].startswith('view 1 V iapp ')
+                  and vt[1].endswith(' - 0:0.5') and vt[2] == 'active 0', str(vt))
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
         s2 = os.path.join(r, 's2.snapx')
@@ -3534,6 +3546,10 @@ def check_session_file():
               diagram1 and diagram1 == diagram2,
               '%d vs %d points, first difference %s' % (len(diagram1), len(diagram2),
                                                           next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
+        view2 = rebuild_diagram(allev, [], 1)
+        check('%s: the second view is the saved one, its points exactly' % tag,
+              view1 and view1 == view2 and last('autoview') and len(last('autoview')['views']) == 2,
+              '%d vs %d points' % (len(view1), len(view2)))
         return diagram2
 
     # the same model open (the same bytes): the session it replaces may be
@@ -3588,9 +3604,120 @@ def check_session_file():
         msgs = ' '.join(str(e.get('bottom', '')) + str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
         check('a session file without its model is refused, an error says the model is missing',
               'model is missing' in msgs and not last('hello') and not any(e.get('ev') == 'ask' for e in allev), msgs[:300])
+        # W50: a session file without the views of its diagram: an error names the member (no older files)
+        with zipfile.ZipFile(os.path.join(r, 'noviews.snapx'), 'w') as out:
+            for n in z.namelist():
+                if n != 'auto/views.txt':
+                    out.writestr(n, z.read(n))
+        del allev[:]
+        answered(snd, col, ('d',), cmd='open', file='noviews.snapx')
+        msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
+        check('a session file without the views of its diagram: an error names auto/views.txt',
+              'auto/views.txt cannot be read' in msgs, msgs[:300])
     finally:
         stop_server(p, r, snd)
         shutil.rmtree(keep, ignore_errors=True)
+
+
+# W50: any number of views of the one AUTO diagram (docs/protocol.md "Views
+# of the diagram"): each with its own axes and zoom, every one holding the
+# same points in the same order; a new view, a closed one and the active one
+# over `auto` `view` and the Axes menu; a run's points reach every view, a
+# grab goes by the active view's data.
+def check_auto_views():
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+    allev = []
+
+    def after(**cmd):
+        snd(**cmd)
+        evs = col(is_idle, timeout=60 * SLOW)[0]
+        allev.extend(evs)
+        return evs
+
+    def menu(k, *answers, win='auto'):
+        """key k of window win, its asks answered in order, up to idle"""
+        snd(cmd='key', win=win, key=k)
+        got, pending = [], list(answers)
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got += evs
+            allev.extend(evs)
+            if e is None or e['ev'] == 'idle':
+                return got
+            snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
+
+    av = lambda evs: [e for e in evs if e.get('ev') == 'autoview']
+    dg = lambda evs, view=None: [e for e in evs if e.get('ev') == 'diagram' and (view is None or e.get('view') == view)]
+    views_n = lambda evs: [e['n'] for e in dg(evs) if e['op'] == 'views']
+    last_axes = lambda view: next((e for e in reversed(dg(allev, view)) if e['op'] in ('axes', 'reset')), None)
+    same_points = lambda a, b: len(a) == len(b) and [x[:3] for x in a] == [x[:3] for x in b]
+    try:
+        col(is_idle)
+        after(cmd='data', events=['autoinfo'])
+        allev.extend(lecar_to_auto(snd, col))
+        v0 = rebuild_diagram(allev, [])
+        evs = after(cmd='auto', op='view', new=1)
+        check('views: a new view says there are two, then sends the diagram at the same axes, view 0 unchanged',
+              views_n(evs) == [2] and len(v0) > 1 and rebuild_diagram(allev, [], 1) == v0
+              and not [e for e in dg(evs, 0) if e['op'] != 'axes'], str([(e.get('op'), e.get('view')) for e in dg(evs)]))
+        check('views: the new view is the active one, with a zoom of its own',
+              av(evs) and av(evs)[-1]['active'] == 1 and len(av(evs)[-1]['views']) == 2, str(av(evs)))
+
+        evs = after(cmd='auto', op='set', axes={'view': 1, 'plot': 1, 'fit': True})
+        a0, a1 = last_axes(0), last_axes(1)
+        check("views: a view's axes are its own: view 1 plots the norm, view 0 still hI-lo",
+              a1 and a1['plot'] == 1 and a1['ylabel'] == 'Norm' and a0 and a0['plot'] == 2
+              and not [e for e in dg(evs, 0) if e['op'] != 'axes'], '%s | %s' % (a0, a1))
+        v1 = rebuild_diagram(allev, [], 1)
+        check('views: every view holds the same points in the same order (branch, point, kind), at its own axes',
+              same_points(v0, v1) and rebuild_diagram(allev, [], 0) == v0 and v1 != v0, '%d vs %d' % (len(v0), len(v1)))
+
+        evs = menu('a', {'key': 'v'})
+        a2 = last_axes(2)
+        check("views: the Axes menu's new view makes a third, the active one, with the active one's axes (the norm)",
+              views_n(evs) == [3] and a2 and a2['plot'] == 1 and av(evs) and av(evs)[-1]['active'] == 2
+              and rebuild_diagram(allev, [], 2) == v1, '%s %s' % (views_n(evs), a2))
+
+        evs = after(cmd='auto', op='display', view=0, x=[0.1, 0.2], y=None)
+        check('views: auto display with a view zooms that view alone',
+              av(evs) and [v['zoom']['x'] for v in av(evs)[-1]['views']] == [[0.1, 0.2], None, None], str(av(evs)))
+
+        after(cmd='auto', op='view', active=0)
+        after(cmd='auto', op='grab', type='HB', index=1)
+        menu('r', {'key': 'p'})
+        lists = [rebuild_diagram(allev, [], v) for v in range(3)]
+        check("views: a run's points reach every view, the same points in each",
+              len(lists[0]) > len(v0) and same_points(lists[0], lists[1]) and same_points(lists[0], lists[2])
+              and lists[0][:len(v0)] == v0, str([len(x) for x in lists]))
+
+        after(cmd='auto', op='view', active=1)
+        snd(cmd='key', win='auto', key='g')
+        evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
+        at = next((i for i, x in enumerate(lists[1]) if x[3] is not None and x[4] is not None and i > 3), 4)
+        snd(cmd='answer', id=ask['id'], point=at)
+        evs, ask = col(lambda e: e.get('ev') == 'ask', timeout=60 * SLOW)
+        info = next((e['info'] for e in reversed(evs) if e.get('ev') == 'autoinfo' and e.get('info')), None)
+        check('views: a grab in another view goes to the point of its data (the same index in every view)',
+              info is not None and info['point'] == at and (info['br'], info['pt']) == lists[1][at][:2]
+              and (info['br'], info['pt']) == lists[0][at][:2], '%s %s' % (info, lists[1][at] if at < len(lists[1]) else None))
+        snd(cmd='answer', id=ask['id'], key='Escape')
+        col(is_idle, timeout=60 * SLOW)
+
+        evs = after(cmd='auto', op='view', close=0)
+        check('views: closing view 0 leaves two, the others move down, the active one stays active (now view 0)',
+              views_n(evs) == [2] and av(evs) and av(evs)[-1]['active'] == 0 and len(av(evs)[-1]['views']) == 2
+              and rebuild_diagram(allev, [], 0) == lists[1] and rebuild_diagram(allev, [], 1) == lists[2],
+              '%s %s' % (views_n(evs), av(evs)))
+        evs = after(cmd='auto', op='view', close=7)
+        check('views: closing a view there is not is refused', any(e.get('ev') == 'message' and 'error' in e for e in evs), '')
+        after(cmd='auto', op='view', close=1)
+        evs = after(cmd='auto', op='view', close=0)
+        check('views: the last view cannot be closed', any(e.get('ev') == 'message' and 'last view' in e.get('error', '')
+                                                         for e in evs), str(evs)[:200])
+        check('the process is alive after it all', p.poll() is None, '')
+    finally:
+        stop_server(p, r, snd)
+
 
 
 def check_model_bcs():
@@ -3614,6 +3741,7 @@ check_model_bcs()
 
 check_open_reload()
 check_display_state()
+check_auto_views()
 check_session_file()
 
 send(cmd='key', key='f')

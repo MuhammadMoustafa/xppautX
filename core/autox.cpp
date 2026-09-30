@@ -43,6 +43,21 @@ std::vector<std::string_view> split(std::string_view s, char sep)
 
 constexpr std::array<const char *, 4> range_keys = {"xmin", "xmax", "ymin", "ymax"};
 
+/* a view's zoom of one axis: LO:HI, or "-" when it shows the whole axis */
+std::string range_text(const xpp::AxisRange &r)
+{
+    return r.set ? xpp::number(r.lo) + ':' + xpp::number(r.hi) : std::string(no_name);
+}
+bool parse_range(std::string_view text, xpp::AxisRange &r)
+{
+    r = xpp::AxisRange();
+    if (text == no_name) return true;
+    const std::size_t c = text.find(':');
+    if (c == std::string_view::npos) return false;
+    r.set = true;
+    return xpp::parse_number(text.substr(0, c), r.lo) && xpp::parse_number(text.substr(c + 1), r.hi) && r.lo < r.hi;
+}
+
 /* diagram.csv's columns before the parameters: n_ints whole numbers, then
    three numbers */
 constexpr std::array<const char *, 15> lead_columns = {"calc", "ibr",  "ntot",  "itp",  "lab",  "nfpar", "icp1",  "icp2",
@@ -108,6 +123,43 @@ std::optional<AutoSettingsSet> parse_settings(std::string_view text)
         }
     }
     return s;
+}
+
+std::string views_text(const SavedViews &v)
+{
+    std::string o;
+    for (const SavedView &w : v.views) {
+        o += xpp::format("view {} {} {} {}", w.plot, name_text(w.var), name_text(w.par1), name_text(w.par2));
+        for (double r : w.range) o += ' ' + xpp::number(r);
+        o += ' ' + range_text(w.zoom.x) + ' ' + range_text(w.zoom.y) + '\n';
+    }
+    o += xpp::format("active {}\n", v.active);
+    return o;
+}
+
+std::optional<SavedViews> parse_views(std::string_view text)
+{
+    SavedViews v;
+    bool active = false;
+    for (std::string_view line : lines_of(text)) {
+        const std::vector<std::string_view> w = split(line, ' ');
+        if (w[0] == "active" && w.size() == 2) {
+            if (!xpp::parse_int(w[1], v.active)) return std::nullopt;
+            active = true;
+            continue;
+        }
+        if (w[0] != "view" || w.size() != 11) return std::nullopt;
+        SavedView &s = v.views.emplace_back();
+        if (!xpp::parse_int(w[1], s.plot)) return std::nullopt;
+        s.var = name_of(w[2]);
+        s.par1 = name_of(w[3]);
+        s.par2 = name_of(w[4]);
+        for (std::size_t i = 0; i < s.range.size(); i++)
+            if (!xpp::parse_number(w[5 + i], s.range[i])) return std::nullopt;
+        if (!parse_range(w[9], s.zoom.x) || !parse_range(w[10], s.zoom.y)) return std::nullopt;
+    }
+    if (!active || v.views.empty() || v.active < 0 || v.active >= static_cast<int>(v.views.size())) return std::nullopt;
+    return v;
 }
 
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars)

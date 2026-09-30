@@ -354,7 +354,8 @@ const char *const aaxes_hint[]={
 "Plot frequency vs parameter",
 "Plot average of orbit vs parameter",
 "Return to default bounds of the plot",
-"Scroll around the plot"
+"Scroll around the plot",
+"Another view of the diagram, with the same axes to start with"
 };
 
 const char *const aspecial_hint[]={
@@ -569,8 +570,8 @@ const XppWindowLayer *xpp_window_layer(const char *win)
    default item, which the caller passes to menu_choose, and the Special
    menu's title (menu_auto_special copied with its own). */
 static const char *auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
-  "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll"};
-const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12frads", "vvvvvvvvvvvvvv", aaxes_hint, -1);
+  "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll","new (V)iew"};
+const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12fradsv", "vvvvvvvvvvvvvvv", aaxes_hint, -1);
 
 static const char *auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
 const XppMenu menu_auto_mark = XPP_MENU("auto", "Mark values: how many?", auto_mark_items, "0123456789", "ssssssssss", no_hint, -1);

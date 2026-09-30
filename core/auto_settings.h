@@ -70,6 +70,7 @@ struct AutoSettingsSet {
     std::array<int, 4> has_range{}; /* xmin, xmax, ymin, ymax */
     std::array<double, 4> range{};
     int fit = 0; /* Axes/Fit after the axes are set */
+    int view = -1; /* the view whose axes these are (W50), made the active one; -1: the active one */
     int nmarks = -1; /* -1: no "marks"; else how many (0 to 9) */
     std::array<std::string, AUTO_SETTINGS_MARKS> mark_name;
     std::array<double, AUTO_SETTINGS_MARKS> mark_value{};
@@ -80,6 +81,9 @@ struct AutoSettingsSet {
    null). What the event sends and an .autox's settings.txt saves (autox.h);
    applied with auto_settings_apply, it gives the settings back. */
 AutoSettingsSet auto_settings_now();
+/* view `view`'s axes alone (W50, AutoState::views; it must be one), as the
+   axes keys and `view`: applied, they give the view its axes back */
+AutoSettingsSet auto_settings_view(int view);
 
 /* 1 when a value of field i is AUTO's (an integer where the field is one,
    in the field's range); why names the field and its range otherwise.

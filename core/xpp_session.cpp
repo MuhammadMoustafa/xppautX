@@ -133,7 +133,6 @@ bool write_windows(FILE *fp)
     xpp::AutoView &v = s.auto_view;
     io_int(&v.earlier, fp, writing, "AUTO: points before Clear");
     io_bool(writing, fp, v.show_earlier, "AUTO: show them");
-    io_zoom(writing, fp, v.zoom);
     int added = static_cast<int>(s.browser.added_columns.size());
     io_int(&added, fp, writing, "added columns");
     for (AddedColumn &c : s.browser.added_columns) {
@@ -224,7 +223,6 @@ bool read_windows(FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
     make_active(slot.contains(active) ? slot[active] : 0, 1);
     io_int(&rest.auto_view.earlier, fp, reading, "");
     io_bool(reading, fp, rest.auto_view.show_earlier, "");
-    io_zoom(reading, fp, rest.auto_view.zoom);
     int added = 0;
     io_int(&added, fp, reading, "");
     for (int k = 0; k < added; k++) {
@@ -441,8 +439,6 @@ bool restore_session(const SavedFile &f)
     if (diagram) {
         s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count());
         s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
-        s.auto_view.zoom = rest.auto_view.zoom;
-        s.auto_view.axes_seen = false;
     }
     s.browser.added_columns = std::move(rest.added);
     if (const std::string *d = member(mem, xpp::snapx::data_member)) {

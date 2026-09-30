@@ -289,7 +289,7 @@ int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
 int j_auto_grab_event(int *x, int *y);
 void j_auto_show_hint(void);
 void j_auto_scroll_window(void);
-void j_auto_diagram(const XppDiagPoint *p);
+void j_auto_diagram(int view, const XppDiagPoint *p);
 void j_auto_refresh(void);
 
 /* ---- json_model.cpp ---- */

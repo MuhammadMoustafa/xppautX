@@ -111,14 +111,14 @@ def grab_hopf(s):
 
 
 class Diagram:
-    """the AUTO diagram as the client keeps it from "diagram" events"""
+    """a view of the AUTO diagram (view 0 unless named) as the client keeps it from "diagram" events"""
 
-    def __init__(self):
-        self.axes, self.pts = None, []
+    def __init__(self, view=0):
+        self.axes, self.pts, self.view = None, [], view
 
     def apply(self, evs):
         for e in evs:
-            if e.get('ev') != 'diagram':
+            if e.get('ev') != 'diagram' or e.get('view') != self.view:
                 continue
             if e['op'] in ('axes', 'reset'):
                 if e['op'] == 'reset':
@@ -1009,10 +1009,18 @@ def section_autox():
     grab_hopf(s)
     evs += run_menu(s, 'p', timeout=120 * SLOW)
     dg1 = Diagram().apply(evs).pts
+    # W50: a second view of the diagram, the period, the first active again: an .autox keeps its views
+    s.send(cmd='auto', op='view', new=1)
+    evs += s.collect(is_idle)[0]
+    s.send(cmd='auto', op='set', axes={'view': 1, 'plot': 3, 'fit': True})
+    evs += s.collect(is_idle)[0]
+    s.send(cmd='auto', op='view', active=0)
+    evs += s.collect(is_idle)[0]
+    view1 = Diagram(1).apply(evs)
     # an old name asked for: the .autox beside it
     got = save_diagram(s, 'd1.auto', 'd1.autox')
     check('autox: Save diagram writes d1.autox, a zip of the files listed, the model in it',
-          list(got) == ['autox.txt', 'model/lecar.ode', 'settings.txt', 'diagram.csv', 'solutions.s'], str(list(got)))
+          list(got) == ['autox.txt', 'model/lecar.ode', 'settings.txt', 'diagram.csv', 'solutions.s', 'views.txt'], str(list(got)))
     check('autox: autox.txt is the manifest of lecar.ode, which is in it byte for byte',
           got.get('autox.txt', '') == 'xppautX autox 1\nname lecar.ode\n'
           and got.get('model/lecar.ode') == open(LECAR).read(), got.get('autox.txt', '')[:300])
@@ -1023,6 +1031,9 @@ def section_autox():
     check("autox: diagram.csv has a header and the diagram's points", len(rows) > 50 and rows[0].startswith('calc,ibr,'),
           '%d rows' % len(rows))
     check('autox: solutions.s holds the orbits', len(got.get('solutions.s', '')) > 1000, str(len(got.get('solutions.s', ''))))
+    check('autox: views.txt holds the two views of the diagram, the first active',
+          re.fullmatch(r'view 2 V iapp \S+( \S+){6}\nview 3 V iapp \S+( \S+){6}\nactive 0\n', got.get('views.txt', '')) is not None,
+          got.get('views.txt', '')[:300])
     d1 = os.path.join(scratch, 'd1.autox')
     if os.path.exists(os.path.join(s.run, 'd1.autox')):
         shutil.copy(os.path.join(s.run, 'd1.autox'), d1)
@@ -1042,6 +1053,10 @@ def section_autox():
     rows_before = last_state(evs)['rows'] if last_state(evs) else None
     evs = load_diagram(s, d1)
     dg2 = Diagram().apply(evs).pts
+    v1 = Diagram(1).apply(evs)
+    check('autox: Load diagram in a new server gives its two views, the second the period, its points exactly',
+          view1.pts and v1.pts == view1.pts and v1.axes and v1.axes['plot'] == 3 and v1.axes['ylabel'] == 'Period',
+          '%d vs %d points, %s' % (len(v1.pts), len(view1.pts), v1.axes))
     check('autox: Load diagram in a new server gives the same diagram, exactly',
           dg1 and dg2 == dg1 and 'left as they were' not in messages(evs), '%d vs %d points, first difference %s' % (
               len(dg2), len(dg1), next(((a, b) for a, b in zip(dg2, dg1) if a != b), None)))

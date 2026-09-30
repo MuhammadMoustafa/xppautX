@@ -22,13 +22,13 @@ typedef struct  {
   int exist;
   int ntst,nmx,npr;
   double ds,dsmax,dsmin,rl0,rl1,a0,a1;
-  double xmin,xmax,ymin,ymax;
+  /* the active view's last point, where its next line starts (the
+     axes are the views', AutoState::views) */
   double lastx,lasty;
   int wid,hgt,x0,y0;
   int nfpar,nbc;
   int ips,irs,ilp,isp,isw,itp;
-  int plot,var;
-  int icp1,icp2,icp3,icp4,icp5;
+  int icp3,icp4,icp5;
   int nper;
   std::string hinttxt;
   double period[MAX_AUT_PER];
@@ -65,6 +65,11 @@ typedef struct diagram {
   int from; /* the label its run started from, on a run's first point (not saved in files) */
 } DIAGRAM;
 
+/* a view of the diagram's axes (W50, AutoState::views): what it plots
+   (Auto.plot: HI_P ... AV_P; the variable var; icp1 the x axis' parameter
+   and, in a two-parameter view, icp2 the y axis', both indices into
+   AutoState::par) and the ranges. The active view's icp1 and icp2 are also
+   the parameters a run continues in. */
 typedef struct {
   int plot,var,icp1,icp2;
   double xmin,ymin,xmax,ymax;
@@ -98,9 +103,20 @@ void auto_num_par(void);
 void auto_plot_par(void);
 void auto_fit(void);
 void auto_default(void);
+/* the diagram's views (W50, AutoState::views). New view: one more, a copy
+   of the active one's axes, made active. Close view k: 0 when it is the
+   last one (it stays) or there is no view k. Activate view k: the one the
+   Axes menu, zoom, the exports and a run's parameters then use; 0 when
+   there is no view k. Each draws the diagram again when AUTO's window is
+   open. */
+void auto_new_view(void);
+int auto_close_view(int k);
+int auto_activate_view(int k);
 void auto_zoom_in(int i1, int j1, int i2, int j2);
 void auto_zoom_out(int i1, int j1, int i2, int j2);
-void auto_xy_plot(double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
+/* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
+   or y1 twice) */
+void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
 void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
 void auto_line(double x1i, double y1i, double x2i, double y2i);
 /* who the next add_point() is: AUTO's branch, point and type, its entry in
@@ -220,8 +236,8 @@ int auto_name_to_index(std::string_view s);
    points a grab restarts from): <HOME or the model's folder>/<model>.s */
 std::string auto_solutions_file();
 
-/* the diagram's axis labels as the axes show them: a name, name_bar or
+/* view ax's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */
-void get_auto_str(std::string &xlabel, std::string &ylabel);
+void get_auto_str(const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
 #endif
 #endif

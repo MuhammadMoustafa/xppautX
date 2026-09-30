@@ -46,7 +46,49 @@ void add_members(std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
     entries.push_back({named(prefix, settings_member), settings_text(auto_settings_now())});
     entries.push_back({named(prefix, diagram_member), diagram_csv(xpp::session().diagram.points, vars)});
     entries.push_back({named(prefix, solutions_member), std::move(solutions)});
+    const xpp::Session &s = xpp::session();
+    SavedViews views;
+    views.active = s.auto_state.active_view;
+    for (std::size_t k = 0; k < s.auto_state.views.size(); k++) {
+        const AutoSettingsSet a = auto_settings_view(static_cast<int>(k));
+        views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
+    }
+    entries.push_back({named(prefix, views_member), views_text(views)});
 }
+
+namespace {
+
+/* the views saved (W50) as this session's, each with its axes and zoom */
+void restore_views(const SavedViews &saved, const std::string &name)
+{
+    xpp::Session &s = xpp::session();
+    s.auto_state.views.assign(saved.views.size(), AutoDiagramView{s.auto_state.axes(), {}, false, {}});
+    s.auto_state.active_view = 0;
+    for (std::size_t k = 0; k < saved.views.size(); k++) {
+        const SavedView &v = saved.views[k];
+        AutoSettingsSet a;
+        a.has_plot = 1;
+        a.plot = v.plot;
+        a.var = v.var;
+        a.par1 = v.par1;
+        a.par2 = v.par2;
+        a.view = static_cast<int>(k);
+        std::string why;
+        if (auto_settings_apply(a, why) != 0)
+            xpp_session_warn(xpp::format("{}: view {} of the diagram keeps the axes it had: {}", file_name(name), k + 1, why));
+        /* the ranges as they were, even the ones a form refuses (a Fit of
+           a flat quantity leaves its axis a point) */
+        AUTOAX &ax = s.auto_state.views[k].axes;
+        ax.xmin = v.range[0];
+        ax.xmax = v.range[1];
+        ax.ymin = v.range[2];
+        ax.ymax = v.range[3];
+        s.auto_state.views[k].zoom = v.zoom;
+    }
+    s.auto_state.active_view = saved.active;
+}
+
+} // namespace
 
 std::optional<std::string> file_bytes()
 {
@@ -64,14 +106,16 @@ bool restore_members(const std::map<std::string, std::string> &members, std::str
         return it == members.end() ? nullptr : &it->second;
     };
     const std::string *settings_text = text(settings_member), *diagram_text = text(diagram_member),
-                      *solutions = text(solutions_member);
+                      *solutions = text(solutions_member), *views_text = text(views_member);
     std::optional<AutoSettingsSet> settings;
     std::optional<std::deque<DiagramPoint>> points;
+    std::optional<SavedViews> views;
     if (settings_text) settings = parse_settings(*settings_text);
     if (diagram_text) points = parse_diagram_csv(*diagram_text, xpp::model().node);
-    if (!settings || !points) {
-        err_msg(xpp::format("{}: its {} cannot be read", file_name(name), named(prefix, settings ? diagram_member : settings_member))
-                    .c_str());
+    if (views_text) views = parse_views(*views_text);
+    if (!settings || !points || !views) {
+        const char *bad = !settings ? settings_member : !points ? diagram_member : views_member;
+        err_msg(xpp::format("{}: its {} cannot be read", file_name(name), named(prefix, bad)).c_str());
         return false;
     }
 
@@ -82,6 +126,7 @@ bool restore_members(const std::map<std::string, std::string> &members, std::str
         xpp_session_warn(xpp::format("{}: AUTO's settings are left as they were: {}", file_name(name), why));
     auto_data_forget(); /* the strip described the diagram this one replaces */
     diagram_restore(std::move(*points));
+    restore_views(*views, name);
     const std::string solutions_path = auto_solutions_file();
     xpp::Writer w = xpp::Writer::binary(solutions_path.c_str());
     if (!w || !w.write(solutions ? *solutions : std::string()) || !w.commit())

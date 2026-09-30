@@ -132,6 +132,18 @@ void add_num(std::string &o, double v) { o += std::isfinite(v) ? xpp::number(v) 
 /* a name, or "" for none */
 std::string name_or_empty(const char *s) { return s ? std::string(s) : std::string(); }
 
+/* view axes a as the `set` command's axes keys */
+void axes_of(const AUTOAX &a, AutoSettingsSet &set)
+{
+    set.has_plot = 1;
+    set.plot = a.plot;
+    if (a.var >= 0 && a.var < xpp::model().node) set.var = xpp::model().uvar_names[a.var];
+    set.par1 = name_or_empty(auto_par_name(a.icp1));
+    set.par2 = name_or_empty(auto_par_name(a.icp2));
+    set.has_range.fill(1);
+    set.range = {a.xmin, a.xmax, a.ymin, a.ymax};
+}
+
 AutoSettingsSet settings_now()
 {
     xpp::Session &s=xpp::session();
@@ -140,14 +152,7 @@ AutoSettingsSet settings_now()
     set.has_num.fill(1);
     set.npars = s.auto_state.npar < AUTO_SETTINGS_PARS ? s.auto_state.npar : AUTO_SETTINGS_PARS;
     for (int k = 0; k < set.npars; k++) set.pars[k] = name_or_empty(auto_par_name(k));
-    set.has_plot = 1;
-    set.plot = s.auto_state.bifur.plot;
-    if (s.auto_state.bifur.var >= 0 && s.auto_state.bifur.var < xpp::model().node)
-        set.var = xpp::model().uvar_names[s.auto_state.bifur.var];
-    set.par1 = name_or_empty(auto_par_name(s.auto_state.bifur.icp1));
-    set.par2 = name_or_empty(auto_par_name(s.auto_state.bifur.icp2));
-    set.has_range.fill(1);
-    set.range = {s.auto_state.bifur.xmin, s.auto_state.bifur.xmax, s.auto_state.bifur.ymin, s.auto_state.bifur.ymax};
+    axes_of(s.auto_state.axes(), set);
     set.nmarks = s.auto_state.bifur.nper < 0 ? 0 : s.auto_state.bifur.nper < AUTO_SETTINGS_MARKS ? s.auto_state.bifur.nper : AUTO_SETTINGS_MARKS;
     for (int i = 0; i < set.nmarks; i++) {
         set.mark_name[i] = s.auto_state.bifur.uzrpar[i] == AUTO_PERIOD_INDEX ? std::string("T") : name_or_empty(auto_par_name(s.auto_state.bifur.uzrpar[i]));
@@ -283,8 +288,15 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     }
 
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
-    int plot = xpp::session().auto_state.bifur.plot, var = xpp::session().auto_state.bifur.var, icp1 = xpp::session().auto_state.bifur.icp1, icp2 = xpp::session().auto_state.bifur.icp2;
-    double range[4] = {xpp::session().auto_state.bifur.xmin, xpp::session().auto_state.bifur.xmax, xpp::session().auto_state.bifur.ymin, xpp::session().auto_state.bifur.ymax};
+    /* of the view named (W50), else the active one: setting a view's axes makes it the active one */
+    const int view = s->view < 0 ? xpp::session().auto_state.active_view : s->view;
+    if (view >= static_cast<int>(xpp::session().auto_state.views.size())) {
+        why = xpp::format("there is no view {}", view);
+        return false;
+    }
+    const AUTOAX &now = xpp::session().auto_state.views[static_cast<std::size_t>(view)].axes;
+    int plot = now.plot, var = now.var, icp1 = now.icp1, icp2 = now.icp2;
+    double range[4] = {now.xmin, now.xmax, now.ymin, now.ymax};
     if (s->has_plot) {
         if (!plot_ok(s->plot)) {
             why = xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", s->plot);
@@ -357,16 +369,17 @@ bool apply(const AutoSettingsSet *s, std::string &why)
     bool axes = s->has_plot || !s->var.empty() || !s->par1.empty() || !s->par2.empty() || s->fit;
     for (int i = 0; i < 4; i++) axes = axes || s->has_range[i];
     if (axes) {
-        xpp::session().auto_state.bifur.plot = plot;
-        xpp::session().auto_state.bifur.var = var;
-        xpp::session().auto_state.bifur.icp1 = icp1;
-        xpp::session().auto_state.bifur.icp2 = icp2;
-        xpp::session().auto_state.bifur.xmin = range[0];
-        xpp::session().auto_state.bifur.xmax = range[1];
-        xpp::session().auto_state.bifur.ymin = range[2];
-        xpp::session().auto_state.bifur.ymax = range[3];
-        if (xpp::session().auto_state.bifur.plot < 4) keep_last_plot(1);
-        if (xpp::session().auto_state.bifur.plot == 4) keep_last_plot(2);
+        xpp::session().auto_state.active_view = view;
+        xpp::session().auto_state.axes().plot = plot;
+        xpp::session().auto_state.axes().var = var;
+        xpp::session().auto_state.axes().icp1 = icp1;
+        xpp::session().auto_state.axes().icp2 = icp2;
+        xpp::session().auto_state.axes().xmin = range[0];
+        xpp::session().auto_state.axes().xmax = range[1];
+        xpp::session().auto_state.axes().ymin = range[2];
+        xpp::session().auto_state.axes().ymax = range[3];
+        if (xpp::session().auto_state.axes().plot < 4) keep_last_plot(1);
+        if (xpp::session().auto_state.axes().plot == 4) keep_last_plot(2);
         if (s->fit) auto_fit();
     }
     if (s->nmarks >= 0) {
@@ -406,6 +419,18 @@ AutoSettingsSet auto_settings_now()
 {
     try {
         return settings_now();
+    } catch (...) {
+        xpp_out_of_memory("reading AUTO's settings");
+    }
+}
+
+AutoSettingsSet auto_settings_view(int view)
+{
+    try {
+        AutoSettingsSet set;
+        axes_of(xpp::session().auto_state.views[static_cast<std::size_t>(view)].axes, set);
+        set.view = view;
+        return set;
     } catch (...) {
         xpp_out_of_memory("reading AUTO's settings");
     }

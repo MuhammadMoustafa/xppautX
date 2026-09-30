@@ -388,7 +388,7 @@ void write_pts()
        current view 
     */
     if(check_plot_type(d->flag2,icp1,icp2)==1){
-      auto_xy_plot(&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
+      auto_xy_plot(&xpp::session().auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
       w.print("{:g} {:g} {:g} {} {} {}\n",
 	      x,y1,y2,type,abs(d->ibr),d->flag2);
     }
@@ -430,7 +430,7 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     }
     par1=d->par[d->icp1];
     if(d->icp2<xpp::session().auto_state.npar)par2=d->par[d->icp2];
-    auto_xy_plot(&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+    auto_xy_plot(&xpp::session().auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;
