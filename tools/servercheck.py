@@ -204,6 +204,11 @@ check('hello', hello is not None and len(hello['menus']['main']) == 20)
 check('hello says protocol 2, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 2 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
+check('hello carries the About text: author, email, issues URL, version',
+      hello is not None and all(t in hello.get('about', '') for t in
+          ('Author: Muhammad Ahmad', 'muhammadmoustafa22@gmail.com',
+           'https://github.com/MuhammadMoustafa/xppautX/issues', 'Protocol 2', 'xppautX ')),
+      str(hello and hello.get('about')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
 check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1
                                  for e in evs))

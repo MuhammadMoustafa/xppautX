@@ -3297,6 +3297,16 @@ async function helpCheck() {
       await until(`s.help.chapter === ${JSON.stringify(wantChapter)}`, 'link nav'), JSON.stringify(await S('s.help')));
   }
 
+  /* Help > About: hello's about text (core/xpp_about.cpp), shown from Help's About button */
+  await cdp.eval(`document.querySelector('.help-about-toggle').click()`);
+  check('help: the About button shows hello.about (author, email, issues URL)', await until(`(() => {
+    const t = document.querySelector('.help-about')?.textContent ?? '';
+    return s.help.about && t === s.hello.about.split('\n').join('') && t.includes('Muhammad Ahmad')
+      && t.includes('muhammadmoustafa22@gmail.com') && t.includes('https://github.com/MuhammadMoustafa/xppautX/issues');
+  })()`, 'about shown'), JSON.stringify(await S('s.help')));
+  await cdp.eval(`[...document.querySelectorAll('.help-toc-item')][0].click()`);
+  check('help: a chapter link leaves About', await until(`!s.help.about && !document.querySelector('.help-about')`, 'about left'));
+
   /* Back closes it; F1 (focus away from any field) reopens it where it was left */
   await cdp.eval(`document.querySelector('.help-back').click()`);
   check('help: Back closes it', await until('!s.help.open', 'closed'));

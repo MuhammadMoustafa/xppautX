@@ -11,14 +11,17 @@ export interface HelpState {
   /** the heading to scroll to when `chapter` next renders; cleared once used */
   anchor: string | null;
   query: string;
+  /** the About text shows in place of a chapter */
+  about: boolean;
 }
 
 export const HELP_HOME = '01-introduction';
 
-export const initialHelp: HelpState = {open: false, chapter: HELP_HOME, anchor: null, query: ''};
+export const initialHelp: HelpState = {open: false, chapter: HELP_HOME, anchor: null, query: '', about: false};
 
 export type HelpAction =
   | {type: 'open'; target?: HelpTarget}
+  | {type: 'about'}
   | {type: 'close'}
   | {type: 'go'; target: HelpTarget}
   | {type: 'query'; query: string};
@@ -31,14 +34,16 @@ export function reduceHelp(state: HelpState, action: HelpAction): HelpState {
          first heading, means the same as no anchor); no target (F1, the
          title bar's Help button) reopens wherever it was left */
       return {
-        ...state, open: true,
+        ...state, open: true, about: action.target ? false : state.about,
         chapter: action.target?.chapter ?? state.chapter,
         anchor: action.target ? (action.target.anchor || null) : state.anchor,
       };
+    case 'about':
+      return {...state, open: true, about: true};
     case 'close':
       return state.open ? {...state, open: false} : state;
     case 'go':
-      return {...state, chapter: action.target.chapter, anchor: action.target.anchor || null};
+      return {...state, about: false, chapter: action.target.chapter, anchor: action.target.anchor || null};
     case 'query':
       return action.query === state.query ? state : {...state, query: action.query};
   }

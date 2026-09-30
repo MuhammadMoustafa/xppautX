@@ -19,7 +19,7 @@ once, and keeps any other command for after the one that asked. See
 
 ## Startup
 
-1. `hello`: protocol version (2), window title, the three main menus
+1. `hello`: protocol version (2), `about` (Help > About's text: version, commit, compiler, credit, the author's contact details and the issue tracker; core/xpp_about.cpp, the same string the desktop window's own About box shows), window title, the three main menus
    (`main`, `file`, `num` with `_keys`, `_hints` and `_kinds`), the
    windows' key layers (`windows`) and the other commands' kinds
    (`commands`): see "Action kinds".

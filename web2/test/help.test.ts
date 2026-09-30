@@ -7,6 +7,7 @@
    regenerate and compare dist/manual.json against docs/manual/*.md. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {aboutLines} from '../src/help/about';
 import {manualLinkTarget} from '../src/help/links';
 import type {ManualChapter} from '../src/help/manual';
 import {searchManual} from '../src/help/search';
@@ -30,7 +31,7 @@ const MANUAL: ManualChapter[] = [
 
 test('reduceHelp: open with a target shows it, closes, "open" with none keeps the place', () => {
   const opened = reduceHelp(initialHelp, {type: 'open', target: {chapter: '09-auto', anchor: 'diagram-axes'}});
-  assert.deepEqual(opened, {open: true, chapter: '09-auto', anchor: 'diagram-axes', query: ''});
+  assert.deepEqual(opened, {open: true, chapter: '09-auto', anchor: 'diagram-axes', query: '', about: false});
   const closed = reduceHelp(opened, {type: 'close'});
   assert.equal(closed.open, false);
   assert.equal(closed.chapter, '09-auto', 'closing does not forget where it was');
@@ -84,4 +85,22 @@ test('manualLinkTarget leaves an ordinary link (mailto:, an outside doc) alone',
   assert.equal(manualLinkTarget('mailto:doedel@cs.concordia.edu', '09-auto'), null);
   assert.equal(manualLinkTarget('docs/protocol.md', '01-introduction'), null);
   assert.equal(manualLinkTarget('https://example.com', '01-introduction'), null);
+});
+
+test('About: the text splits into lines whose URLs are links', () => {
+  const lines = aboutLines('Author: Muhammad Ahmad\nGitHub: https://github.com/x/y\n\nReport: https://github.com/x/y/issues');
+  assert.equal(lines.length, 4);
+  assert.deepEqual(lines[0], [{text: 'Author: Muhammad Ahmad'}]);
+  assert.deepEqual(lines[1], [{text: 'GitHub: '}, {text: 'https://github.com/x/y', url: 'https://github.com/x/y'}]);
+  assert.deepEqual(lines[2], [{text: ''}]);
+  assert.equal(lines[3][1].url, 'https://github.com/x/y/issues');
+});
+
+test('About: the reducer shows it in place of a chapter, a chapter target leaves it', () => {
+  let s = reduceHelp(initialHelp, {type: 'about'});
+  assert.equal(s.open, true);
+  assert.equal(s.about, true);
+  s = reduceHelp(s, {type: 'go', target: {chapter: '09-auto'}});
+  assert.equal(s.about, false);
+  assert.equal(s.chapter, '09-auto');
 });

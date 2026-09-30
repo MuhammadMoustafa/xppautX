@@ -163,7 +163,7 @@ the same page in your browser instead and prints its address (`XPP:
 http://127.0.0.1:...`), for a remote machine or the VS Code extension;
 `xppautX --help` lists the modes. To check the window by hand: the title
 reads "xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
-page's Help, Help > About shows the version, and after File > Quit (or
+page's Help, Help > About shows the version, the author and where to report a problem, and after File > Quit (or
 closing the window) no xppautX process is left.
 
 **Double-clicking a .ode file.** Each archive's `tools/associate/` sets
@@ -367,6 +367,17 @@ or GitHub's "Cite this repository") and cite XPPAUT itself: the numerics are
 Bard Ermentrout's, described in *Simulating, Analyzing, and Animating
 Dynamical Systems: A Guide to XPPAUT for Researchers and Students* (SIAM,
 2002). Citing is a request, not a licence condition.
+
+## Author and contact
+
+xppautX is by Muhammad Ahmad (the numerics are Bard Ermentrout's XPPAUT).
+
+- Email: muhammadmoustafa22@gmail.com
+- GitHub: https://github.com/MuhammadMoustafa
+- LinkedIn: https://www.linkedin.com/in/muhammad-ahmad-62743a125/
+- Report a problem: https://github.com/MuhammadMoustafa/xppautX/issues
+
+The same text is Help > About in the window and in the page.
 
 ## License
 

@@ -9,6 +9,8 @@ export interface HelloEvent {
   features?: string[];
   title: string;
   file: string;
+  /** Help > About's text (core/xpp_about.h), the desktop window's own box too; absent from an older server */
+  about?: string;
   menus: {
     main: string[]; main_keys: string; main_hints: string[];
     file: string[]; file_keys: string; file_hints: string[];

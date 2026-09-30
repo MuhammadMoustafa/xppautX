@@ -55,6 +55,7 @@
 #include "xpp_http.h"
 #include "xpp_util.h"
 #include "xpp_files.h"
+#include "xpp_about.h"
 #include "xpp_window.h"
 #include "xpp_win32.h"
 #include "odex.h"
@@ -81,34 +82,8 @@ static void start_auto_dir(void)
     if (!dir.empty()) atexit(xpp_cleanup_auto_dir);
 }
 
-/* What --version prints. The Makefile passes the release tag when there is
-   one (XPP_VERSION in release.yml, else git describe); a build from a tree with
-   no tags and no git says "dev". */
-#ifndef XPPAUTX_VERSION
-#define XPPAUTX_VERSION "dev"
-#endif
-/* the commit it was built from, for the window's About (git rev-parse) */
-#ifndef XPPAUTX_COMMIT
-#define XPPAUTX_COMMIT "unknown"
-#endif
-#if defined(__clang__)
-#define XPPAUTX_COMPILER "clang " __clang_version__
-#elif defined(__GNUC__)
-#define XPPAUTX_COMPILER "gcc " __VERSION__
-#else
-#define XPPAUTX_COMPILER "unknown"
-#endif
-
-/* the desktop window's Help > About */
-static const char *const about_text =
-    "xppautX " XPPAUTX_VERSION "\n"
-    "Commit " XPPAUTX_COMMIT "\n"
-    "Compiler: " XPPAUTX_COMPILER "\n"
-    "Protocol " JSON_UI_STR(JSON_UI_PROTOCOL) "\n\n"
-    "XPPAUT is by Bard Ermentrout; xppautX is its modernised fork.\n"
-    "GPL v2, as XPPAUT; no warranty (see LICENSE).\n\n"
-    "https://github.com/MuhammadMoustafa/xppautX";
-
+/* the desktop window's Help > About: the same text hello sends the page
+   (xpp_about.h) */
 /* --help: the modes, then the options that go with them */
 static const char *const usage_head =
     "usage: xppautX [MODE] [--port N] [--no-open] [--verbose|--debug] file.ode [xppaut options]\n"
@@ -296,7 +271,7 @@ int main(int argc, char **argv)
     session_argc = argc;
     session_argv = argv;
     /* the window runs the session itself; when it cannot open, the browser */
-    if (mode == MODE_WINDOW && !xpp_window_run(run_session, about_text)) xpp_http_show(1);
+    if (mode == MODE_WINDOW && !xpp_window_run(run_session, xpp_about_text().c_str())) xpp_http_show(1);
     run_session();
     return 0;
 }

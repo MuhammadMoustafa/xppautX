@@ -19,6 +19,7 @@
    settles) renders and scrolls to, same as if it had already loaded. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
+import {aboutLines} from '../help/about';
 import {manualLinkTarget, type HelpTarget} from '../help/links';
 import type {ManualChapter} from '../help/manual';
 import {searchManual} from '../help/search';
@@ -53,9 +54,28 @@ function useManual(load: boolean): {chapters: ManualChapter[] | null; error: str
   return {chapters, error};
 }
 
+/** the About text (hello.about). The desktop window has no way to open a
+    link in the system browser (a click would navigate the web view away
+    from the program), so there the URLs stay plain, selectable text. */
+function AboutBody({text}: {text: string}) {
+  const desktop = typeof (window as unknown as {__xppFileDialog?: unknown}).__xppFileDialog === 'function';
+  return (
+    <div class="help-about" aria-label="About">
+      {aboutLines(text).map((parts, i) => (
+        <p key={i}>
+          {parts.map((p, j) => p.url && !desktop
+            ? <a key={j} href={p.url} target="_blank" rel="noopener noreferrer">{p.text}</a>
+            : p.text)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function HelpView() {
   const session = useSession();
   const help = useStore(s => s.help);
+  const hello = useStore(s => s.hello);
   const panel = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const close = () => session.store.dispatch({type: 'help', action: {type: 'close'}});
@@ -123,13 +143,16 @@ export function HelpView() {
       <div class="help-header">
         <button class="help-back" onClick={close}>Back</button>
         <h2>Help</h2>
+        <button type="button" class="help-about-toggle" aria-pressed={help.about}
+          onClick={() => session.store.dispatch({type: 'help', action: {type: 'about'}})}>About</button>
       </div>
       <label class="help-search">
         <span class="visually-hidden">Search the manual</span>
         <Field type="search" spec={TEXT} placeholder="Search the manual" value={help.query} disabled={!chapters}
           onInput={query => session.store.dispatch({type: 'help', action: {type: 'query', query}})} />
       </label>
-      {chapters && help.query.trim() !== '' && (
+      {help.open && help.about && <AboutBody text={hello?.about ?? ''} />}
+      {!help.about && chapters && help.query.trim() !== '' && (
         <ul class="help-results" aria-label="Search results">
           {results.length === 0 && <li class="muted help-no-results">No match.</li>}
           {results.map((r, i) => (
@@ -142,9 +165,9 @@ export function HelpView() {
           ))}
         </ul>
       )}
-      {error && <p class="help-error" role="alert">Could not load the manual: {error}</p>}
-      {!chapters && !error && <p class="help-loading" role="status">Loading the manual…</p>}
-      {chapters && chapter && (
+      {!help.about && error && <p class="help-error" role="alert">Could not load the manual: {error}</p>}
+      {!help.about && !chapters && !error && <p class="help-loading" role="status">Loading the manual…</p>}
+      {!help.about && chapters && chapter && (
         <div class="help-body">
           <nav class="help-toc" aria-label="Chapters">
             <ol>

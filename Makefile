@@ -117,7 +117,7 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
-SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_http xpp_inbox)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_about xpp_http xpp_inbox)
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
@@ -127,6 +127,8 @@ CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURC
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
   web2/dist/inter-greek.woff2 web2/dist/inter-OFL.txt
 SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
+$(BUILDDIR)/xpp_about.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
+$(BUILDDIR)/xpp_about.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 $(BUILDDIR)/xppautx_main.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 $(BUILDDIR)/xppautx_main.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 
@@ -233,7 +235,7 @@ $(BUILDDIR)/xppautx_res.o: assets/xppautx.rc assets/icon.ico assets/xppautx.mani
 endif
 # the version is an input of xppautx_main.o: the stamp is rewritten only when
 # it changes, so --version never names an older commit than the build's
-$(BUILDDIR)/xppautx_main.o: $(BUILDDIR)/version.stamp
+$(BUILDDIR)/xppautx_main.o $(BUILDDIR)/xpp_about.o: $(BUILDDIR)/version.stamp
 CORE_OBJECTS := $(call obj,$(CORE_SOURCES))
 # vendored third_party/miniz (deflate, gzip and zip; only core/xpp_zip.cpp
 # includes it), its own object in the core library: its warnings are not

@@ -14,6 +14,7 @@
 #include "model.h"
 #include "session.h"
 #include "ui_json.h"
+#include "xpp_about.h"
 #include "form_ode.h"
 #include "xpp_batch.h"
 #include "integrate.h"
@@ -761,6 +762,8 @@ void json_ui_hello(void)
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, xpp::model().this_file);
+    BUF_LIT(&b, ",\"about\":");
+    buf_str(&b, xpp_about_text());
     BUF_LIT(&b, ",\"menus\":{\"main\":");
     buf_str_array(&b, main_menu + 1, MAIN_ENTRIES); /* [0] is the title */
     BUF_LIT(&b, ",\"main_keys\":");
