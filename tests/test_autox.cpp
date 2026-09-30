@@ -250,7 +250,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(write_file(path, *bytes));
     std::optional<SavedFile> f = xpp_saved_read(path);
     CHECK(f && !f->session && f->model.files == xpp::model().files);
-    CHECK(f && xpp_saved_restore(*f));
+    CHECK(f && xpp_saved_restore(xpp::session(), *f));
     CHECK(same_diagram(s.diagram.points, pts));
     bool pointers = true;
     for (int i = 0; i < diagram_count(); i++)
@@ -268,7 +268,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
        model loads from it, with the diagram */
     CHECK(write_file(xpp::model().this_file, "par a=1\nq'=-a*q\ndone\n"));
     CHECK(load(tmp.file("u.ode")));
-    CHECK(f && load(f->manifest.model_name, &f->model) && xpp_saved_restore(*f));
+    CHECK(f && load(f->manifest.model_name, &f->model) && xpp_saved_restore(xpp::session(), *f));
     CHECK(xpp::model().node == 2 && xpp::model().saved_in == path && same_diagram(xpp::session().diagram.points, pts));
 
     /* a file without its model, or that is not a zip, is refused */
@@ -298,12 +298,12 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::string solutions = file_text(auto_solutions_file());
 
     std::vector<xpp::zip::Entry> entries;
-    xpp::autox::add_members(entries, "auto/");
+    xpp::autox::add_members(xpp::session(), entries, "auto/");
     std::map<std::string, std::string> members;
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
     CHECK(members.size() == 4 && members.contains("auto/diagram.csv") && members.contains("auto/views.txt"));
     start_diagram(xpp::model().node);
-    CHECK(xpp::autox::restore_members(members, "auto/", "lecar.snapx"));
+    CHECK(xpp::autox::restore_members(xpp::session(), members, "auto/", "lecar.snapx"));
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(auto_solutions_file()) == solutions);
 

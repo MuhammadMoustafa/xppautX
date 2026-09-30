@@ -8,6 +8,7 @@
 #include "snapx.h"
 #include "model.h"
 #include "model_files.h"
+#include "session.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -95,7 +96,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::model().saved_in.empty() && xpp::model().nupar == 1);
 
     /* written as a session file's first members, read back whole */
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::snapx::Manifest{}, xpp::snapx::session_kind);
+    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");

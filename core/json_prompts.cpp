@@ -43,8 +43,9 @@ std::string script_ask; /* the open question (cut to SCRIPT_ASK_MAX), for script
    answer says ok (or has no ok member), 0 when cancelled. */
 int ask_wait(Buf *b, int id)
 {
+    xpp::Session &s = xpp::session(); /* an ask is an entry point: core code asks */
     BUF_LIT(b, "}");
-    diag_flush(1);
+    diag_flush(s, 1);
     auto_data_update(1);
     auto_settings_update();
     json_flush();
@@ -62,7 +63,7 @@ int ask_wait(Buf *b, int id)
     for (;;) {
         char *line = read_line(XPP_INBOX_ANY, -1);
         int lid;
-        if (handle_async(line)) {
+        if (handle_async(s, line)) {
             flush_pending();
             out_flush();
             continue;
@@ -87,7 +88,7 @@ int ask_wait(Buf *b, int id)
         /* a setting (W106): at once before the command computes, else
            after it (take_setting) */
         if (!session.script_mode && !is_cmd(line, "key") && line_kind(line) == XPP_KIND_SETTING) {
-            take_setting(line);
+            take_setting(s, line);
             continue;
         }
         /* anything else was sent before the client saw the question (a
@@ -487,7 +488,7 @@ int j_check_abort(void)
             defer_line(line, take == XPP_INBOX_REFUSE);
             continue;
         }
-        int r = control_line(line);
+        int r = control_line(xpp::session(), line);
         if (r != 64 && r != ANI_PAUSE) return r;
     }
     return 64;

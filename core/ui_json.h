@@ -10,10 +10,6 @@ extern "C" {
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(void);        /* protocol on the current stdout */
-/* a model just loaded (xpp_load_model): the front end's set-up, then
-   hello, the main window and state (json_model.cpp) */
-void json_ui_start_model(void);
-void json_ui_hello(void);   /* hello, main window, state */
 void json_ui_handle(const char *line);
 void json_ui_loop(void);           /* read and run commands until EOF */
 /* {"cmd":"open","file":path} into the inbox, as if the page had sent it:
@@ -37,6 +33,14 @@ int json_ui_silent(int argc, char **argv);
 }
 
 #include "diagnostic.h"
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the model of s just loaded (xpp_load_model): the front end's set-up,
+   then hello, the main window and state (json_model.cpp) */
+void json_ui_start_model(xpp::Session &s);
 
 /* the model did not load: why and where, as the `error` event (in place
    of hello; docs/protocol.md "A model that does not load") */

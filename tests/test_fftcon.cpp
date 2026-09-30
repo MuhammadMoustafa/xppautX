@@ -39,7 +39,7 @@ static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
                     NULL};
     if (!xpp_load_model(2, argv, 1)) return 0;
     xpp_batch_start();
-    run_the_commands(M_IG);
+    run_the_commands(xpp::session(), M_IG);
     const DataStore &d = xpp::session().data_store;
     if (d.rows < 2) return 0;
     auto at = [&d](int col) { return static_cast<double>(d.col[col][1]); }; /* t=1 */

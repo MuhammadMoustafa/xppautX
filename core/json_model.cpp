@@ -32,9 +32,8 @@ namespace xpp::json {
 namespace {
 
 /* init_grafs() without the window: graph 0 is client window 1 */
-void init_main_graph(void)
+void init_main_graph(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i;
     for (i = 0; i < MAXLAB; i++) {
         s.labels[i].use = 0;
@@ -61,32 +60,31 @@ void init_main_graph(void)
 /* the model just loaded: the front end's set-up (what main.c did after
    opening its window), then Reload's kept values, hello, and -anifile's
    animation */
-void start_model(const xpp::KeptValues *kept)
+void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {
     xpp_window_set_model(xpp::model_title().c_str());
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
-    xpp::session().drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
+    s.drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
     xpp_build_colormap();
-    init_main_graph();
+    init_main_graph(s);
     init_browser();
     ani_zero();
     set_extra_graphs();
     set_colorization_stuff();
     load_command_line_values();
     default_window();
-    if (kept) xpp::restore_values(*kept);
-    json_ui_hello();
-    if (xpp::session().animation.options.use_file) {
+    if (kept) xpp::restore_values(s, *kept);
+    send_hello(s);
+    if (s.animation.options.use_file) {
         new_vcr();
-        get_ani_file(xpp::session().animation.options.file.c_str());
+        get_ani_file(s.animation.options.file.c_str());
     }
 }
 
 /* the windows besides the main one the page has of the current model */
-std::vector<unsigned long> shown_windows(void)
+std::vector<unsigned long> shown_windows(const xpp::Session &s)
 {
-    const xpp::Session &s = xpp::session();
     std::vector<unsigned long> w;
     for (int i = 1; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use) w.push_back(s.plot_windows.graph[i].w);
@@ -98,12 +96,15 @@ std::vector<unsigned long> shown_windows(void)
 
 } // namespace
 
-void switch_model(const xpp::ModelRequest &req)
+xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
 {
-    const std::vector<unsigned long> shown = shown_windows();
+    const std::vector<unsigned long> shown = shown_windows(before);
     xpp::KeptValues kept;
-    if (req.keep_values) kept = xpp::keep_values();
-    if (!xpp::load_requested(req)) return; /* the model before goes on */
+    if (req.keep_values) kept = xpp::keep_values(before);
+    xpp::Session *loaded = xpp::load_requested(before, req);
+    if (!loaded) return before; /* the model before goes on */
+    /* before is gone: the new model's session from here on */
+    xpp::Session &s = *loaded;
     for (unsigned long w : shown) send_window("destroy", w, 0, 0, NULL);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < MAXPOP; i++) {
@@ -116,17 +117,18 @@ void switch_model(const xpp::ModelRequest &req)
     plot_data_changed();
     state_forget();
     xpp_renew_auto_dir();
-    start_model(req.keep_values ? &kept : nullptr);
-    if (req.restore) xpp_saved_restore(*req.restore); /* an AUTO or session file */
-    j_redraw_graph();
-    auto_redraw_for_client();
+    start_model(s, req.keep_values ? &kept : nullptr);
+    if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
+    redraw_graph(s);
+    auto_redraw_for_client(s);
     /* @ runnow=1, as at the start */
-    if (xpp::session().run_immediately == 1) {
-        run_the_commands(4);
-        xpp::session().run_immediately = 0;
+    if (s.run_immediately == 1) {
+        run_the_commands(s, 4);
+        s.run_immediately = 0;
     }
+    return s;
 }
 
 } // namespace xpp::json
 
-void json_ui_start_model(void) { xpp::json::start_model(nullptr); }
+void json_ui_start_model(xpp::Session &s) { xpp::json::start_model(s, nullptr); }

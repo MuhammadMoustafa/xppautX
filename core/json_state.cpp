@@ -51,29 +51,29 @@ int state_dirty;
 
 /* ---- state ------------------------------------------------------------------ */
 
-void send_state(void)
+void send_state(xpp::Session &s)
 {
-    xpp::Session &s=xpp::session();
+    const xpp::Model &m = s.model();
     Buf b;
     int i;
     double z;
     state_dirty = 0;
     evaluate_derived();
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
-    for (i = 0; i < xpp::model().nupar; i++) {
-        get_val(xpp::model().upar_names[i], &z);
+    for (i = 0; i < m.nupar; i++) {
+        get_val(m.upar_names[i], &z);
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, xpp::model().upar_names[i]);
+        buf_str(&b, m.upar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, z, 16);
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
+    for (i = 0; i < m.node + m.nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, xpp::model().uvar_names[i]);
+        buf_str(&b, m.uvar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, s.last_ic[i], 16);
         BUF_LIT(&b, "]");
@@ -82,14 +82,14 @@ void send_state(void)
     /* where the last run ended (MyData, what Initialconds/Last starts from) */
     if (s.numerics.inflag) {
         BUF_LIT(&b, ",\"now\":[");
-        for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
+        for (i = 0; i < m.node + m.nmarkov; i++) {
             if (i) BUF_LIT(&b, ",");
             buf_num(&b, s.data_store.current[i], 16);
         }
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, ",\"bcs\":[");
-    for (i = 0; xpp::model().bc_defined > 0 && i < xpp::model().node; i++) {
+    for (i = 0; m.bc_defined > 0 && i < m.node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, s.bcs[i].name.data());
@@ -100,10 +100,10 @@ void send_state(void)
     BUF_LIT(&b, "]");
     if (s.delay.flag) {
         BUF_LIT(&b, ",\"delays\":[");
-        for (i = 0; i < xpp::model().node; i++) {
+        for (i = 0; i < m.node; i++) {
             if (i) BUF_LIT(&b, ",");
             BUF_LIT(&b, "[");
-            buf_str(&b, xpp::model().uvar_names[i]);
+            buf_str(&b, m.uvar_names[i]);
             BUF_LIT(&b, ",");
             buf_str(&b, s.delay_string[i].c_str());
             BUF_LIT(&b, "]");
@@ -141,7 +141,8 @@ void j_state_dirty(void) { state_dirty = 1; }
 
 void send_state_if_dirty(void)
 {
-    if (state_dirty) send_state();
+    /* at a flush (json_io.cpp), from anywhere: the current session */
+    if (state_dirty) send_state(xpp::session());
 }
 
 /* ---- data browser ---------------------------------------------------------------
@@ -160,9 +161,8 @@ void buf_float(Buf *b, double z, int digits)
     else buf_format(b, "{:.{}g}", z, digits);
 }
 
-void send_browser(void)
+void send_browser(const xpp::Session &s)
 {
-    xpp::Session &s=xpp::session();
     Buf b;
     int i, j, last, maxcol = s.browser.view.maxcol;
     browser_dirty = 0;
@@ -198,7 +198,7 @@ void send_browser(void)
 
 /* {"cmd":"browser","from":row,"count":n,"col":first column,"ncol":n}: the
    block the client can see; answered at once, even during a prompt */
-void browser_rows(const char *line)
+void browser_rows(const xpp::Session &s, const char *line)
 {
     br_from = get_int(line, "from", 0);
     br_count = get_int(line, "count", 100);
@@ -206,7 +206,7 @@ void browser_rows(const char *line)
     br_ncol = get_int(line, "ncol", 20);
     if (br_count > 2000) br_count = 2000;
     if (br_ncol > 500) br_ncol = 500;
-    send_browser();
+    send_browser(s);
 }
 
 void j_browser_changed(int)
@@ -221,9 +221,8 @@ void j_browser_changed(int)
    choices given, each asked for when not given (the keys l and w of
    menu_browser_window ask them all); "postprocess": the model's
    @ postprocess on the data (histogram.cpp) */
-void browser_command(const char *line)
+void browser_command(xpp::Session &s, const char *line)
 {
-    xpp::Session &s=xpp::session();
     std::string o, what, format, name;
     get_string(line, "op", o, 16);
     get_string(line, "what", what, 8);
@@ -238,9 +237,8 @@ void browser_command(const char *line)
 
 /* a key of the data browser window (menu_browser_window), on the selected
    row: {"cmd":"key","win":"browser","key":k,"row":r} */
-void browser_key(int ch, const char *line)
+void browser_key(xpp::Session &s, int ch, const char *line)
 {
-    xpp::Session &s=xpp::session();
     int row = get_int(line, "row", -1);
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
     switch (xpp_menu_index(&menu_browser_window, ch)) {
@@ -261,22 +259,23 @@ void browser_key(int ch, const char *line)
 }
 
 /* the block the client sees, when the data changed */
-void browser_update(void)
+void browser_update(const xpp::Session &s)
 {
-    if (browser_dirty && br_count) send_browser();
+    if (browser_dirty && br_count) send_browser(s);
 }
 
 /* the ICs box's xvst (0) and pp (1) buttons: {"cmd":"plotvars","how":0,"names":[...]} */
-void plotvars_command(const char *line)
+void plotvars_command(xpp::Session &s, const char *line)
 {
+    const xpp::Model &m = s.model();
     std::array<int, MAXODE> isck{};
-    int i, n = xpp::model().node + xpp::model().nmarkov;
+    int i, n = m.node + m.nmarkov;
     const char *arr = js_find(line, "names");
     std::string name;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name)) continue;
         for (int k = 0; k < n; k++)
-            if (xpp::equal_ignoring_case(xpp::model().uvar_names[k], name)) isck[k] = 1;
+            if (xpp::equal_ignoring_case(m.uvar_names[k], name)) isck[k] = 1;
     }
     if (get_int(line, "how", 0) == 2) {
         /* arry: the array of variables from the first to the second checked */
@@ -296,7 +295,7 @@ void plotvars_command(const char *line)
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
    sends the events' value arrays as base64 of little-endian float32,
    anything else as JSON numbers. */
-void data_command(const char *line)
+void data_command(xpp::Session &, const char *line)
 {
     const char *arr = js_find(line, "events");
     std::string name, enc;
@@ -326,20 +325,21 @@ void data_command(const char *line)
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
-void send_equations(void)
+void send_equations(const xpp::Session &s)
 {
+    const xpp::Model &m = s.model();
     Buf b, line;
     int i;
     BUF_LIT(&b, "{\"ev\":\"equations\",\"lines\":[");
-    for (i = 0; i < xpp::model().neq; i++) {
-        const std::string &name = xpp::model().uvar_names[i];
-        const char *rhs = xpp::model().formulas[i].c_str();
+    for (i = 0; i < m.neq; i++) {
+        const std::string &name = m.uvar_names[i];
+        const char *rhs = m.formulas[i].c_str();
         line.s.clear();
-        if (i < xpp::model().node && xpp::model().eq_type[i] != 1 && xpp::session().numerics.method > 0) BUF_LIT(&line, "d");
+        if (i < m.node && m.eq_type[i] != 1 && s.numerics.method > 0) BUF_LIT(&line, "d");
         buf_add(&line, name.data(), name.size());
-        if (i < xpp::model().node && xpp::model().eq_type[i] == 1) BUF_LIT(&line, "(t)");
-        else if (i < xpp::model().node && xpp::session().numerics.method == 0) BUF_LIT(&line, "(n+1)");
-        else if (i < xpp::model().node) BUF_LIT(&line, "/dT");
+        if (i < m.node && m.eq_type[i] == 1) BUF_LIT(&line, "(t)");
+        else if (i < m.node && s.numerics.method == 0) BUF_LIT(&line, "(n+1)");
+        else if (i < m.node) BUF_LIT(&line, "/dT");
         BUF_LIT(&line, "=");
         buf_add(&line, rhs, strlen(rhs));
         if (i) BUF_LIT(&b, ",");
@@ -361,8 +361,9 @@ namespace {
    the numerics (num, W106) a number, or a method's name, the field named by
    its key (numerics_settings.h). 0 when set (or nothing to set), -1 on a
    formula that does not evaluate or a numerics value refused. */
-int apply_value(const char *line)
+int apply_value(const xpp::Session &s, const char *line)
 {
+    const xpp::Model &m = s.model();
     std::string kind, name, text;
     double z;
     int type, i, n, index = -1;
@@ -379,14 +380,14 @@ int apply_value(const char *line)
         j_err_msg(xpp::format("Numerics: {}", why).c_str());
         return -1;
     } else return 0;
-    n = type == 1 ? xpp::model().nupar : type == 2 ? xpp::model().node + xpp::model().nmarkov : xpp::model().node;
+    n = type == 1 ? m.nupar : type == 2 ? m.node + m.nmarkov : m.node;
     /* BC names are not unique ("0="): those come by index */
     index = get_int(line, "index", -1);
     if (index >= n) index = -1;
     for (i = 0; index < 0 && i < n; i++) {
-        const char *bc = type == 4 ? xpp::session().bcs[i].name.data() : nullptr;
+        const char *bc = type == 4 ? s.bcs[i].name.data() : nullptr;
         if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
-                      : xpp::equal_ignoring_case(type == 1 ? xpp::model().upar_names[i] : xpp::model().uvar_names[i], name))
+                      : xpp::equal_ignoring_case(type == 1 ? m.upar_names[i] : m.uvar_names[i], name))
             index = i;
     }
     state_dirty = 1;
@@ -405,18 +406,18 @@ int apply_value(const char *line)
    to set several in one command. Never runs anything itself (W69). A
    setting (W106): sent during a computation it applies when that ends,
    never to the run in progress (ui_json.cpp control_line). */
-void apply_set(const char *line)
+void apply_set(xpp::Session &s, const char *line)
 {
     const char *values = js_find(line, "values");
     int i;
     if (values)
-        for (i = 0; js_elem(values, i); i++) apply_value(js_elem(values, i));
+        for (i = 0; js_elem(values, i); i++) apply_value(s, js_elem(values, i));
     else
-        apply_value(line);
+        apply_value(s, line);
 }
 
 /* {"cmd":"default","kind":"par|ic"}: the model file's values */
-void default_command(const char *line)
+void default_command(xpp::Session &, const char *line)
 {
     std::string kind;
     get_string(line, "kind", kind, 16);
@@ -428,7 +429,7 @@ void default_command(const char *line)
    only, like `set`; the page sends it as part of the next `set` before the
    next computation, never on its own any more, but the command still just
    sets the value for a client that does) */
-void slide_command(const char *line)
+void slide_command(xpp::Session &, const char *line)
 {
     std::string name;
     int type, index;
@@ -445,19 +446,19 @@ void slide_command(const char *line)
    load_parameter_file/load_ic_file, which write/read the model's folder
    the way `browser`'s `write` (Save data) does; `name` given skips the
    file ask, empty asks like Save data. */
-void values_command(const char *line)
+void values_command(xpp::Session &s, const char *line)
 {
     std::string o, kind, name;
     get_string(line, "op", o, 16);
     get_string(line, "kind", kind, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o == "internset") { /* File/Get par set, the set given by index or name */
-        const std::vector<xpp::Model::InternalSet> &sets = xpp::model().intern_sets;
+        const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
         int j = get_int(line, "index", -1);
         for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
             if (sets[i].name == name) j = static_cast<int>(i);
         if (j < 0) j_err_msg(xpp::format("No internal set {}", name).c_str());
-        else use_intern_set(j);
+        else use_intern_set(s, j);
         state_dirty = 1;
         return;
     }
@@ -515,6 +516,7 @@ void state_forget(void)
 
 void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
+    const xpp::Model &m = xpp::model(); /* an XppUi entry point */
     Buf b;
     int i;
     redraw_ics();
@@ -526,7 +528,7 @@ void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev
     for (i = 0; i < n; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
-        buf_str(&b, xpp::model().uvar_names[i]);
+        buf_str(&b, m.uvar_names[i]);
         BUF_LIT(&b, ",");
         buf_num(&b, y[i], 16);
         BUF_LIT(&b, "]");
@@ -557,7 +559,7 @@ void equilibrium_key(int ch)
 void j_make_txtview(void)
 {
     Buf b;
-    const xpp::Model &m = xpp::model();
+    const xpp::Model &m = xpp::model(); /* an XppUi entry point */
     BUF_LIT(&b, "{\"ev\":\"source\",\"lines\":");
     buf_str_array(&b, m.source);
     /* comments; one with an action runs it when picked ({"cmd":"action"}) */
@@ -574,10 +576,10 @@ void j_make_txtview(void)
 
 /* a comment of the source window picked: {"cmd":"action","index":i} runs
    its action */
-void action_command(const char *line)
+void action_command(xpp::Session &s, const char *line)
 {
     int i = get_int(line, "index", -1);
-    const std::vector<xpp::Model::Comment> &comments = xpp::model().comments;
+    const std::vector<xpp::Model::Comment> &comments = s.model().comments;
     if (i >= 0 && i < static_cast<int>(comments.size()) && comments[i].aflag > 0)
         do_txt_action(comments[i].action.c_str());
 }

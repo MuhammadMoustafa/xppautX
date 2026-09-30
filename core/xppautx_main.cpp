@@ -186,14 +186,17 @@ static void run_session(void)
         json_ui_load_error(*failed);
         exit(1);
     }
-    json_ui_start_model();
-    if (saved) xpp_saved_restore(*saved);
+    /* the session the load made: the program's from here (a protocol
+       command chooses its own, ui_json.cpp handle_line) */
+    xpp::Session &s = xpp::session();
+    json_ui_start_model(s);
+    if (saved) xpp_saved_restore(s, *saved);
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
-    if (program.tutorial == 1 || xpp::session().run_immediately == 1) {
+    if (program.tutorial == 1 || s.run_immediately == 1) {
         if (program.tutorial == 1) do_tutorial();
-        if (xpp::session().run_immediately == 1) run_the_commands(4);
-        xpp::session().run_immediately = 0;
+        if (s.run_immediately == 1) run_the_commands(s, 4);
+        s.run_immediately = 0;
         json_ui_handle("{\"cmd\":\"state\"}");
     }
     json_ui_loop();

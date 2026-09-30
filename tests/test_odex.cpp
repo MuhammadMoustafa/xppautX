@@ -611,7 +611,7 @@ int main(void)
     char *argv[] = {arg0, model, nullptr};
     CHECK(xpp_load_model(2, argv, 1) == 1);
     xpp_batch_start();
-    run_the_commands(M_IG);
+    run_the_commands(xpp::session(), M_IG);
     const DataStore &d = xpp::session().data_store;
     CHECK(d.rows > 0);
     if (d.rows > 0) {

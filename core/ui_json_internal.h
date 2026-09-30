@@ -11,7 +11,14 @@
    json_auto.cpp     the AUTO window, its diagram data and settings
    json_ani.cpp      the animation window
 
-   docs/protocol.md is the contract. */
+   docs/protocol.md is the contract.
+
+   The Session a command runs in is chosen once, by handle_line, and passed
+   down: a command's function takes it (xpp::Session &s) and reaches the
+   Model through s.model(). The j_ functions are the XppUi table's: core
+   code calls them with no Session, so each reads the current one once
+   (xpp::session()), as do an ask and a checkpoint, until the stages of
+   W47d (docs/roadmap.md) pass the Session through the XppUi seam too. */
 #ifndef XPP_UI_JSON_INTERNAL_H
 #define XPP_UI_JSON_INTERNAL_H
 
@@ -47,6 +54,7 @@
 
 namespace xpp {
 struct ModelRequest; /* model_switch.h */
+struct Session;      /* session.h */
 }
 
 namespace xpp::json {
@@ -77,8 +85,8 @@ struct ProtocolSession {
 extern ProtocolSession session;
 
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
-int handle_async(const char *line);   /* commands that make sense at any moment */
-int control_line(const char *line);   /* a control line taken by a checkpoint */
+int handle_async(xpp::Session &s, const char *line);   /* commands that make sense at any moment */
+int control_line(xpp::Session &s, const char *line);   /* a control line taken by a checkpoint */
 /* A setting (W106: a command of the setting kind, not a key) taken while
    a job runs, by a checkpoint or a question's wait. Once the job has begun
    computing it is kept for after the job, as a command of its own
@@ -88,7 +96,7 @@ int control_line(const char *line);   /* a control line taken by a checkpoint */
    question still open, the animation's Go) applies at once, and still ends
    with its own state and idle after the job, so a client counts one idle
    per setting whenever it sends one. */
-void take_setting(const char *line);
+void take_setting(xpp::Session &s, const char *line);
 int during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
 /* keep the line read last (read_line) for after the running command;
    refused: during_run() refused it (the command loop answers it so);
@@ -98,12 +106,14 @@ char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_js
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
+/* hello, the main window and state: the first events of the model of s */
+void send_hello(xpp::Session &s);
 
 /* ---- json_silent.cpp ---- */
 
-/* -silent's built-in script: its command lines, each made when its turn
-   comes (xpp_inbox_start_generated) */
-std::function<std::optional<std::string>()> silent_script(void);
+/* -silent's built-in script for the session s: its command lines, each
+   made when its turn comes (xpp_inbox_start_generated) */
+std::function<std::optional<std::string>()> silent_script(const xpp::Session &s);
 
 /* ---- json_io.cpp: output ---- */
 
@@ -204,28 +214,28 @@ void j_q_calc(void);
 
 /* ---- json_state.cpp ---- */
 
-void send_state(void);
+void send_state(xpp::Session &s);
 void send_state_if_dirty(void);
 void j_state_dirty(void);
 void j_state_dirty_i(int i);
 void j_state_dirty_is(int i, const char *s);
-void browser_rows(const char *line);
-void browser_command(const char *line);
-void browser_key(int ch, const char *line);
-void browser_update(void); /* at a command's end */
+void browser_rows(const xpp::Session &s, const char *line);
+void browser_command(xpp::Session &s, const char *line);
+void browser_key(xpp::Session &s, int ch, const char *line);
+void browser_update(const xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(int nrows);
-void plotvars_command(const char *line);
-void data_command(const char *line);
-void send_equations(void);
+void plotvars_command(xpp::Session &s, const char *line);
+void data_command(xpp::Session &s, const char *line);
+void send_equations(const xpp::Session &s);
 void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 void equilibrium_key(int ch);
 void j_make_txtview(void);
-void action_command(const char *line);
-void apply_set(const char *line);
-void default_command(const char *line);
-void slide_command(const char *line);
-void values_command(const char *line);
+void action_command(xpp::Session &s, const char *line);
+void apply_set(xpp::Session &s, const char *line);
+void default_command(xpp::Session &s, const char *line);
+void slide_command(xpp::Session &s, const char *line);
+void values_command(xpp::Session &s, const char *line);
 void state_forget(void); /* what the model before showed (its last equilibrium) goes */
 
 /* ---- json_windows.cpp ---- */
@@ -233,13 +243,14 @@ void state_forget(void); /* what the model before showed (its last equilibrium) 
 void windows_init(void);
 void send_main_window(const char *title);
 void send_window(const char *what, unsigned long id, int w, int h, const char *title);
-void select_graph(int i);
-void click_command(const char *line);
+void select_graph(xpp::Session &s, int i);
+void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
-void display_command(const char *line);
+void display_command(xpp::Session &s, const char *line);
 void j_get_draw_size(unsigned int *w, unsigned int *h);
 void j_blank_draw_window(void);
 void j_redraw_all(void);
+void redraw_graph(xpp::Session &s);
 void j_redraw_graph(void);
 void j_redraw_screens(void);
 void j_clear_screens(void);
@@ -265,24 +276,24 @@ void j_movie_save(const char *basename, int fmat);
 void j_movie_make_anigif(void);
 
 void aplot_changed(void); /* the data behind an array plot changed */
-void aplot_update(void);  /* at a command's end */
-void aplot_command(const char *line);
-void aplot_key(int ch);
+void aplot_update(xpp::Session &s); /* at a command's end */
+void aplot_command(xpp::Session &s, const char *line);
+void aplot_key(xpp::Session &s, int ch);
 void j_aplot_make(const char *name);
 void j_aplot_redraw(void);
 void j_aplot_draw_one(const char *tag);
 
 /* ---- json_auto.cpp ---- */
 
-void diag_flush(int final);
+void diag_flush(const xpp::Session &s, int final);
 void diag_forget(void); /* the client has no diagram */
 int diag_point_of_node(int node);
-void auto_command(const char *line);
+void auto_command(xpp::Session &s, const char *line);
 /* the `autoview` event (hidden branches and zoom), for a client that asked for autoinfo */
 void auto_view_subscribe(int on);
-void auto_view_update(void);
-void auto_key(int ch);
-void auto_redraw_for_client(void);
+void auto_view_update(xpp::Session &s);
+void auto_key(xpp::Session &s, int ch);
+void auto_redraw_for_client(const xpp::Session &s);
 void j_auto_make_window(const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
@@ -294,15 +305,16 @@ void j_auto_refresh(void);
 
 /* ---- json_model.cpp ---- */
 
-/* loads req's model (File > Open model, Reload) in place of this one, and
-   serves it; when it cannot be loaded, the model before stays */
-void switch_model(const xpp::ModelRequest &req);
+/* loads req's model (File > Open model, Reload) in place of the one of
+   before, and serves it: its Session, current from now on (before is
+   gone); when it cannot be loaded, before, which stays */
+xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req);
 
 /* ---- json_ani.cpp ---- */
 
-int ani_speed_op(const char *o, const char *line);
-void ani_command(const char *line);
-void ani_key(int ch);
+int ani_speed_op(xpp::Session &s, const char *o, const char *line);
+void ani_command(xpp::Session &s, const char *line);
+void ani_key(xpp::Session &s, int ch);
 void j_ani_slider(void);
 void j_new_vcr(void);
 void j_ani_show(void);

@@ -3,6 +3,7 @@
    lines that come in, from the inbox; and a small reader for the flat
    JSON objects they are. */
 #include "ui_json_internal.h"
+#include "session.h"
 #include "json_number.h"
 #include "xpp_mem.h"
 #include "xpp_http.h"
@@ -106,8 +107,9 @@ void open_protocol_stdout(void)
 }
 
 /* what is pending goes out before any other event: the AUTO diagram's
-   points (json_auto.cpp) */
-void flush_pending(void) { diag_flush(0); }
+   points (json_auto.cpp); before every event, from anywhere: the current
+   session's */
+void flush_pending(void) { diag_flush(xpp::session(), 0); }
 
 /* one complete event line */
 void send_buf(Buf *b)

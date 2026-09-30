@@ -217,51 +217,40 @@ extern "C" {
 #define M_UC 410
 
 
-void run_the_commands(int com);
 void do_stochast(void);
 void get_pmap_pars(void);
 void set_col_par(void);
 void make_adj(void);
-void do_file_com(int com);
-void do_gr_objs(void);
 void new_lookup(void);
-void find_bvp(void);
-void change_view(void);
-void do_windows(void);
-void add_a_curve(void);
-void do_movie(void);
-void do_torus(void);
-void window_zoom(void);
-void direct_field(void);
-void new_clines(void);
 void froz_cline_stuff(void);
-void find_equilibrium(void);
-void ini_data_menu(void);
-void new_param(void);
-void clear_screens(void);
-void x_vs_t(void);
-void redraw_them_all(void);
-void get_3d_par(void);
 void edit_xpprc();
 void do_tutorial();
-void commander(int ch);
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
    the one its keys go to */
 void show_main_menu(int which);
 /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU, NUM_MENU
    (commands.cpp) */
 extern int help_menu;
-void get_intern_set(void);
-/* File/Get par set's work on the model's internal set j (0-based): its
-   values and options, its plot settings on the current window; it
-   becomes the set in use (Session::this_internset) */
-void use_intern_set(int j);
-void copy_set_line(void);
 
 
 
 #ifdef __cplusplus
 }
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The command layer's entry points take the Session a command runs in
+   (ui_json.cpp's handle_line chooses it, W47d). */
+/* the M_* command com */
+void run_the_commands(xpp::Session &s, int com);
+/* the main window's key ch, in the menu it shows (show_main_menu) */
+void commander(xpp::Session &s, int ch);
+/* File/Get par set's work on the model's internal set j (0-based): its
+   values and options, its plot settings on the current window; it
+   becomes the set in use (Session::this_internset) */
+void use_intern_set(xpp::Session &s, int j);
 #endif
 #endif
 

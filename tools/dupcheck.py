@@ -68,7 +68,6 @@ core/graphics.cpp frect|keep: see core/graphics.cpp point
 core/graphics.cpp point_abs|keep: see core/graphics.cpp point
 core/graphics.cpp bead_abs|keep: see core/graphics.cpp point
 core/json_ani.cpp j_ani_show|same shape, not a duplicate: two-line functions each calling a different pair (flush/out, blank/axes, advance/arm, xpprc/options); nothing to merge (W32c), keep
-core/json_windows.cpp j_reset_graphics|see core/json_ani.cpp j_ani_show
 core/ui_json.cpp script_next|see core/json_ani.cpp j_ani_show
 core/xpp_batch.cpp do_vis_env|see core/json_ani.cpp j_ani_show
 core/lunch-new.cpp io_int|keep (W33e looked): a .set file's one-number line, read whole through xpp::LineReader (atoi/atof of it, the format's own grammar) or written with its label, each type in its own print format; the io_string/io_int/io_double family of the .set format

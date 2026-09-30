@@ -1,8 +1,19 @@
 #ifndef _xpp_session_h_
 #define _xpp_session_h_
 #ifdef __cplusplus
-extern "C" {
-#endif
+
+#include <map>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+#include "model_files.h"
+#include "snapx.h"
+#include "xpp_zip.h"
+
+namespace xpp {
+struct Session; /* session.h */
+}
 
 /* Save session and Open session (W57, docs/protocol.md "Session files"):
    continuing where the user stopped, from one file, name.snapx -- a zip
@@ -28,21 +39,9 @@ extern "C" {
    Return 1 on success, 0 on failure or a cancel (err_msg names a
    problem). The session file last saved or opened is the Session's
    saved_session (below): core/json_state.cpp reports it as the state
-   event's "session" member. */
-int xpp_session_save(const char *name, int data);
-int xpp_session_load(const char *name);
-
-#ifdef __cplusplus
-}
-
-#include <map>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <vector>
-#include "model_files.h"
-#include "snapx.h"
-#include "xpp_zip.h"
+   event's "session" member. Both work on the session s. */
+int xpp_session_save(xpp::Session &s, const char *name, int data);
+int xpp_session_load(xpp::Session &s, const char *name);
 
 /* the session file last saved or opened; a Session's (session.h) */
 struct SavedSession {
@@ -72,14 +71,14 @@ std::optional<SavedFile> xpp_saved_read(const std::string &path);
    -anifile's animation when it was loaded with one */
 std::vector<std::string> xpp_saved_args(const SavedFile &f);
 /* the first members of a file of kind (snapx.h's session_kind, autox.h's
-   kind) that carries the current model: the manifest man and the model's
+   kind) that carries the model of s: the manifest man and the model's
    files; nothing, with an error message, when the model was not read
    from files (a model typed in) */
-std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(xpp::snapx::Manifest man, std::string_view kind);
-/* what f adds to its model into the current one, which is f's (loaded
-   from it, or the same files): AUTO's diagram, or the session: false,
-   with an error message, when it could not be read */
-bool xpp_saved_restore(const SavedFile &f);
+std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind);
+/* what f adds to its model into the session s, whose model is f's
+   (loaded from it, or the same files): AUTO's diagram, or the session:
+   false, with an error message, when it could not be read */
+bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
 /* the model's file name without .ode/.odex, and ext (".snapx", ".autox"):
    the name Save session and AUTO's Save diagram offer */

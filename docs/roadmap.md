@@ -110,7 +110,13 @@ issue; the card here is the one kept up to date.
 | W47a | #92 | No global state, stage 1 (maintainer, 2026-09-27: globals avoided): const/constexpr for globals nothing writes, internal linkage for one-file globals, tools/globalcheck counting mutable data symbols against a baseline | W46a, W46c (both edit most declarations) | done |
 | W47b | #93 | xpp::Model: everything a load produces, out of globals; a load swaps a new Model in only on success | W46c, W47a | done |
 | W47c | #94 | xpp::Session: everything a run changes (data_store, plot windows, integrator, AUTO, browser, kinescope), referring to its Model; left by W47b: the parser's working state (NCON, NSYM, constants, variables), the numerics/plot settings in load_eqn, itor/last_ic/delay_string, simplenet's networks (definition mixed with per-step values), and the Model writes after a load (the browser's added column, table recomputation, boundary conditions: set_bc_formula from a `set` or a .set, pp_shoot recompiling them in place); a load is not yet build-then-swap (the fresh Model is current from the start, a failed load still exits) | W47b | done |
-| W47d | #95 | Model&/Session& passed instead of a current-one global; only the session list stays (about 2500 call sites, 2026-09-30: in stages, the first stage writes the staging plan here and does one coherent part); ThreadSanitizer split out as W47e | W47c | in-progress |
+| W47d | #95 | Model&/Session& passed instead of a current-one global; only the session list stays (about 2500 call sites, 2026-09-30: in stages, the first stage writes the staging plan here and does one coherent part); ThreadSanitizer split out as W47e; the stages are W47d1-W47d6 below, the plan in "W47d: Model and Session passed, in stages" at the end | W47c | in-progress |
+| W47d1 | #95 | Stage 1, the command layer and the front end: a Session knows its Model (`s.model()`); ui_json.cpp's handle_line chooses the command's Session once and passes it to every command (the command table's `run(Session&, line)`), commands.cpp (`commander`, `run_the_commands`, the menus), json_*.cpp, model_switch.cpp (load_requested returns the new Session), xpp_session.cpp, autox_io.cpp, xppautx_main.cpp; the XppUi j_ callbacks, asks and checkpoints read the current one once (entry points until W47d6). Proof: those files' xpp::session()/xpp::model() uses 285 to 50, all entry points; md5s, goldencheck, servercheck, autocheck | W47c | review |
+| W47d2 | #95 | Stage 2, what the commands reach: the data modules and the browser (plot_data, phase_data, marks_data, ani_data, auto_data, csv_export, browse_data, numerics_settings, userbut, xpp_ui, xpp_util, histogram, tabular, diagram, derived, lunch-new: 442 uses) and the drawing and picture export (graphics, axes2, grobs, my_ps, my_svg, graf_par, arrayplot, aniparse, nullcline: 470); two commits by group if it helps. Their functions take Session& (or the member they use: a GRAPH&, the DataStore&) from the commands and handle_line's `*_update(s)`; the data modules' subscriptions and caches stay file-local. Proof: the counts to the entry points left; goldencheck byte for byte, md5s, servercheck, autocheck | W47d1 | ready |
+| W47d3 | #95 | Stage 3, the parser and the load (load_eqn, form_ode, ode_read, expr_symbols, expr_compile, expr_functions, xpp_batch, comline, odex_convert, odex_load: 379 uses): xpp::Load hands its fresh Model and Session to the readers (`load.model()`, `load.session()`), which take Model&/Session& instead of reading the current ones; the model's post-load writes (xpp_batch) likewise. Proof: the counts; test_load and test_names, the md5s, servercheck's load and failed-load checks, goldencheck | W47d2 | ready |
+| W47d4 | #95 | Stage 4, the integrator and the right-hand side, the hot path (integrate, numerics, storage, torus, pp_shoot, do_fit, markov, adj2, gear: 475; my_rhs, expr_eval, simplenet, flags, delay_handle, del_stab, dae_fun, volterra2, odesol2, stiff, cv2, dormpri: 385), two commits (driver, then the right-hand side). A run takes the Session once where it starts (the command, or the Solver's start, W51) and keeps it for its steps: the solvers' fixed `rhs(t, y, ydot, neq)` reaches the Model and Session through the Solver object or IntegratorState, never per step through a global; nothing new per step. Proof: md5s unchanged, examples_check's and a heavy model's run time unchanged (measured before and after, as a note, not a gate), odexcheck, unit tests | W47d3 | ready |
+| W47d5 | #95 | Stage 5, AUTO (auto_nox, auto_settings, autevd, autpp, gogoauto, autlib1-5, setubv2, auto_stop: 547 uses): the AUTO window's functions take Session& from the commands (auto_key has it since W47d1); a run's Session goes into the AUTO library's own state (AutoLib), from which the translated routines, whose callback signatures (funi, stpnt, bcni, icni, fopi, pvli) are fixed, reach it; no signature of theirs changes. Proof: autocheck, the saved AUTO diagram in verify.sh, servercheck's AUTO sections, test_auto_* | W47d4 | ready |
+| W47d6 | #95 | Stage 6, the seam and the end: the XppUi callbacks that need a Session get it (a parameter, or the front end's session per client), the entry points W47d1-5 left (json_windows' j_ functions, asks, checkpoints, flush_pending) with them; xpp::session() and xpp::model() go: the session list (one per client; the reader threads' inbox behind its locks, W47e) is the only global; a source check fails a new current-one read outside its owner. Proof: 0 uses; globalcheck; every check of the per-task tier and W47e's tsancheck | W47d5 | ready |
 | W47e | #158 | ThreadSanitizer (split from W47d, 2026-09-30): make tsan with clang, tools/tsancheck.sh runs servercheck and webcheck under it, fails on any report; every race in our code fixed | none | done |
 | W48 | #96 | Retire the C-only text and memory APIs nothing calls since W46c (xpp_strlcpy/strlcat/snprintf and the XPP_* macros, xpp_malloc/calloc/strdup), tabular's raw block to a std::vector if it can be, the deadcode allowlist entries and CLAUDE.md's C-file guidance with them | W46c | done |
 | W49 | #97 | autoinfo: after a periodic run from a grabbed HB point the strip's state turns to the HB point after the run's last event; only the next idle sends it (seen once on macos-sanitizers, hidden elsewhere by the 0.1 s throttle): reproduce, fix, make the check deterministic | none | done |
@@ -461,3 +467,48 @@ build is browser-only, so building xppautX never requires it.
 **Done when.** Double-clicking a .ode file on Windows opens its window with
 the app's name and icon; Help, About and Check for updates work; closing
 the window leaves no process; browser mode passes its checks as before.
+
+## W47d: Model and Session passed, in stages
+
+Inventory (2026-09-30, master 593b654): 1984 `xpp::session()` and 991
+`xpp::model()` uses in core/*.cpp, 2975 in all: 285 in the front end and
+the command layer (W47d1, which left 50 entry points), and after W47d1
+442 in the data modules, 470 in drawing and export, 379 in the parser
+and the load, 475 in the integrator's driver, 385 in the right-hand side
+and the solvers, 547 in AUTO (2747 with W47d1's 50). How the Session can reach each group decides the
+stages: a command gets it from the dispatcher; the data modules and
+drawing from the commands that call them; the parser from the Load that
+builds a fresh one; the right-hand side and the solvers are called
+through fixed function pointers on every step (numerics and speed must
+not change); AUTO's translated routines have fixed callback signatures;
+the XppUi callbacks are called by core code with no Session at all.
+
+Where the current Session is chosen, once, and passed down:
+
+- a protocol command: ui_json.cpp's `handle_line` takes `xpp::session()`
+  once per command and passes it to the command table's `run(s, line)`,
+  and from there to `commander`, `run_the_commands` and every command
+  function. A model switch (File > Open model, Reload) is the one thing
+  that replaces it: `switch_model` returns the new Session (from
+  `load_requested`, which picks up the one the load made current), and
+  handle_line's end of command (`*_update`, state) uses that;
+- the start of the program (xppautx_main.cpp, after the first load) and
+  -silent's script (json_ui_silent: the script holds the Session it runs);
+- a load: `xpp::Load` builds the Model and Session (W47d3 hands them to
+  the parser from there);
+- until W47d6, the entry points core code calls without a Session (the
+  XppUi j_ callbacks, an ask, a checkpoint, flush_pending, the menus the
+  Numerics menu opens, AUTO's File menu) read the current one once each,
+  at their top, and pass it on.
+
+A Session knows its Model (`Session::model()`, set by Load; the first
+Session, made before any load, has the first Model), so a function takes
+one `Session&` and needs no `Model&` beside it; a function that only
+reads the model (a parser helper, a name lookup) takes `const Model&`.
+A function that uses one part of the Session takes that part (the
+kinescope's menu takes the `XppKinescope&`).
+
+Each stage: its files' uses reduced to the entry points its callers in
+later stages still need, the counts before and after in the commit, no
+behaviour change (the md5s, goldencheck, servercheck, autocheck), and
+globalcheck not grown.

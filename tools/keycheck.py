@@ -161,7 +161,7 @@ def main():
             errors.append(f'menus.h: enum {enum} has {count} keys, {menu} has {sizes.get(menu)}')
 
     cmds = strip((ROOT / 'core/commands.cpp').read_text(encoding='utf-8'))
-    start = cmds.index('void commander(int ch)')
+    start = cmds.index('void commander(xpp::Session &s, int ch)')
     body = block(cmds, start)
     outer = block(body, body.index('switch (help_menu)'))
     for menu, keys in (('MAIN_MENU', 'main_menu_keys'), ('FILE_MENU', 'file_menu_keys')):

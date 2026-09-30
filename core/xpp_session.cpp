@@ -104,9 +104,8 @@ void io_zoom(int f, FILE *fp, xpp::Zoom &z)
 
 /* ---- windows.set: the plot windows, AUTO's view, the added columns ---- */
 
-bool write_windows(FILE *fp)
+bool write_windows(xpp::Session &s, FILE *fp)
 {
-    xpp::Session &s = xpp::session();
     int count = 0;
     for (int i = 0; i < MAXPOP; i++) count += s.plot_windows.graph[i].Use != 0;
     io_int(&count, fp, writing, "windows");
@@ -144,7 +143,7 @@ bool write_windows(FILE *fp)
 
 /* g's curves by their variables' names: a name this model no longer has
    drops its curve */
-void curves_by_name(GRAPH &g, const std::vector<std::string> &names)
+void curves_by_name(const xpp::Model &m, GRAPH &g, const std::vector<std::string> &names)
 {
     const int nvars = std::min(g.nvars, static_cast<int>(names.size() / 3));
     int n = 0;
@@ -163,7 +162,7 @@ void curves_by_name(GRAPH &g, const std::vector<std::string> &names)
     }
     if (n == 0) { /* none left: the first variable against time */
         g.xv[0] = 0;
-        g.yv[0] = xpp::model().neq > 0 ? 1 : 0;
+        g.yv[0] = m.neq > 0 ? 1 : 0;
         n = 1;
     }
     g.nvars = n;
@@ -177,9 +176,8 @@ struct WindowsRead {
 
 /* the windows of windows.set made and set as saved, the saved active one
    active; slot says which window each saved one became */
-bool read_windows(FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
+bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
 {
-    xpp::Session &s = xpp::session();
     int count = 0, active = 0;
     io_int(&count, fp, reading, "");
     io_int(&active, fp, reading, "");
@@ -211,7 +209,7 @@ bool read_windows(FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
         xpp::PlotDisplay &d = made ? s.plot_display[i] : scratch_display;
         read_graph(fp, g);
         g.nvars = nvars;
-        curves_by_name(g, names);
+        curves_by_name(s.model(), g, names);
         g.xlabel = std::move(xlabel);
         g.ylabel = std::move(ylabel);
         g.zlabel = std::move(zlabel);
@@ -236,9 +234,8 @@ bool read_windows(FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
 
 /* ---- marks.set and frozen.npz: labels, arrows and markers, frozen curves ---- */
 
-bool write_marks(FILE *fp)
+bool write_marks(xpp::Session &s, FILE *fp)
 {
-    xpp::Session &s = xpp::session();
     int n = 0;
     for (const LABEL &l : s.labels) n += l.use != 0;
     io_int(&n, fp, writing, "labels");
@@ -290,9 +287,8 @@ bool write_marks(FILE *fp)
 
 /* the frozen curves' points, one array per curve ("curve<slot>", rows of
    x, y, z) */
-std::optional<std::string> frozen_npz()
+std::optional<std::string> frozen_npz(const xpp::Session &s)
 {
-    const xpp::Session &s = xpp::session();
     xpp::DataTable t;
     t.names = {"curve", "x", "y", "z"};
     t.curves = true;
@@ -320,15 +316,14 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
     return {};
 }
 
-XppWinId window_of(const std::map<int, int> &slot, int saved)
+XppWinId window_of(const xpp::Session &s, const std::map<int, int> &slot, int saved)
 {
     const auto it = slot.find(saved);
-    return xpp::session().plot_windows.graph[it == slot.end() ? 0 : it->second].w;
+    return s.plot_windows.graph[it == slot.end() ? 0 : it->second].w;
 }
 
-bool read_marks(FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &frozen)
+bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &frozen)
 {
-    xpp::Session &s = xpp::session();
     int n = 0;
     io_int(&n, fp, reading, "");
     for (int k = 0; k < n; k++) {
@@ -344,7 +339,7 @@ bool read_marks(FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &
         for (LABEL &l : s.labels) {
             if (l.use) continue;
             l.use = 1;
-            l.w = window_of(slot, win);
+            l.w = window_of(s, slot, win);
             l.x = static_cast<float>(x);
             l.y = static_cast<float>(y);
             l.size = size;
@@ -368,7 +363,7 @@ bool read_marks(FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &
         for (GROB &g : s.grobs) {
             if (g.use) continue;
             g = GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye),
-                     size, 1, window_of(slot, win), type, color};
+                     size, 1, window_of(s, slot, win), type, color};
             break;
         }
     }
@@ -388,7 +383,7 @@ bool read_marks(FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &
         std::vector<float> x = points_of(frozen, array + "0", len), y = points_of(frozen, array + "1", len),
                            z = type > 0 ? points_of(frozen, array + "2", len) : std::vector<float>();
         if (len <= 0 || static_cast<int>(x.size()) != len ||
-            !restore_frozen_curve(i, window_of(slot, win), type, color, std::move(key), std::move(name), std::move(x),
+            !restore_frozen_curve(i, window_of(s, slot, win), type, color, std::move(key), std::move(name), std::move(x),
                                   std::move(y), std::move(z)))
             xpp::log(XPP_LOG_WARN, "Open session: frozen curve {} left out\n", i + 1);
     }
@@ -406,10 +401,9 @@ const std::string *member(const std::map<std::string, std::string> &m, const cha
 
 /* session file f (its model the current one) restored: the values,
    AUTO's diagram, the windows and what they show */
-bool restore_session(const SavedFile &f)
+bool restore_session(xpp::Session &s, const SavedFile &f)
 {
     const std::map<std::string, std::string> &mem = f.members;
-    xpp::Session &s = xpp::session();
     xpp::TempDir tmp;
     if (tmp.path().empty()) {
         err_msg("Open session: no scratch folder");
@@ -425,7 +419,7 @@ bool restore_session(const SavedFile &f)
     /* AUTO's diagram and settings */
     bool diagram = false;
     if (mem.contains(std::string(xpp::snapx::auto_folder) + xpp::autox::diagram_member)) {
-        diagram = xpp::autox::restore_members(mem, xpp::snapx::auto_folder, f.path);
+        diagram = xpp::autox::restore_members(s, mem, xpp::snapx::auto_folder, f.path);
         if (!diagram) xpp_session_warn("Open session: AUTO's diagram could not be read");
     }
 
@@ -433,7 +427,7 @@ bool restore_session(const SavedFile &f)
     std::map<int, int> slot = {{0, 0}};
     WindowsRead rest;
     if (const std::string *w = member(mem, xpp::snapx::windows_member)) {
-        if (!read_as_file(tmp, xpp::snapx::windows_member, *w, [&](FILE *fp) { return read_windows(fp, slot, rest); }))
+        if (!read_as_file(tmp, xpp::snapx::windows_member, *w, [&](FILE *fp) { return read_windows(s, fp, slot, rest); }))
             xpp_session_warn("Open session: its windows could not be read");
     }
     if (diagram) {
@@ -449,7 +443,7 @@ bool restore_session(const SavedFile &f)
     if (const std::string *mk = member(mem, xpp::snapx::marks_member)) {
         xpp::DataTable frozen;
         if (const std::string *fz = member(mem, xpp::snapx::frozen_member)) xpp::npz_table(*fz, frozen);
-        read_as_file(tmp, xpp::snapx::marks_member, *mk, [&](FILE *fp) { return read_marks(fp, slot, frozen); });
+        read_as_file(tmp, xpp::snapx::marks_member, *mk, [&](FILE *fp) { return read_marks(s, fp, slot, frozen); });
     }
 
     /* every window drawn as it now is, the active one last */
@@ -467,13 +461,12 @@ bool restore_session(const SavedFile &f)
 
 } // namespace
 
-int xpp_session_save(const char *name_arg, int data)
+int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
 {
     std::string name;
     if (!name_or_ask("Save session", "*.snapx", name_arg, name)) return 0;
     const std::string file = xpp::snapx::session_file_name(name);
-    const xpp::Model &m = xpp::model();
-    xpp::Session &s = xpp::session();
+    const xpp::Model &m = s.model();
 
     xpp::snapx::Manifest man;
     man.data = s.data_store.rows > 0 && data != 0;
@@ -492,7 +485,7 @@ int xpp_session_save(const char *name_arg, int data)
         }
     }
 
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(man, xpp::snapx::session_kind);
+    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, man, xpp::snapx::session_kind);
     if (!entries) return 0;
     xpp::TempDir tmp;
     if (tmp.path().empty()) {
@@ -509,16 +502,16 @@ int xpp_session_save(const char *name_arg, int data)
         return 0;
     }
     entries->push_back({xpp::snapx::set_member, std::move(*set)});
-    if (diagram_count() > 1) xpp::autox::add_members(*entries, xpp::snapx::auto_folder); /* a diagram exists */
-    std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, write_windows);
-    std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, write_marks);
+    if (diagram_count() > 1) xpp::autox::add_members(s, *entries, xpp::snapx::auto_folder); /* a diagram exists */
+    std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, [&s](FILE *fp) { return write_windows(s, fp); });
+    std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, [&s](FILE *fp) { return write_marks(s, fp); });
     if (!windows || !marks) {
         err_msg("Save session: cannot write the windows");
         return 0;
     }
     entries->push_back({xpp::snapx::windows_member, std::move(*windows)});
     entries->push_back({xpp::snapx::marks_member, std::move(*marks)});
-    if (std::optional<std::string> frozen = frozen_npz()) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
+    if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
     if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table())});
 
     xpp::Writer w = xpp::Writer::binary(file.c_str());
@@ -530,11 +523,11 @@ int xpp_session_save(const char *name_arg, int data)
     return 1;
 }
 
-int xpp_session_load(const char *name_arg)
+int xpp_session_load(xpp::Session &s, const char *name_arg)
 {
     std::string name;
     if (!name_or_ask("Open session", "*.snapx", name_arg, name)) return 0;
-    xpp_model_open(xpp::snapx::session_file_name(name).c_str());
+    xpp_model_open(s, xpp::snapx::session_file_name(name).c_str());
     return 1;
 }
 
@@ -588,10 +581,9 @@ std::vector<std::string> xpp_saved_args(const SavedFile &f)
     return args;
 }
 
-std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(xpp::snapx::Manifest man, std::string_view kind)
+std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind)
 {
-    const xpp::Model &m = xpp::model();
-    const xpp::Session &s = xpp::session();
+    const xpp::Model &m = s.model();
     auto has = [&m](const std::string &name) {
         return std::any_of(m.files.begin(), m.files.end(), [&name](const xpp::ModelFile &f) { return f.name == name; });
     };
@@ -608,11 +600,11 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(xpp::snapx::Manife
     return entries;
 }
 
-bool xpp_saved_restore(const SavedFile &f)
+bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
 {
-    if (f.session) return restore_session(f);
+    if (f.session) return restore_session(s, f);
     if (diagram_count() > 1) yes_reset_auto(); /* the diagram before goes, with AUTO's files */
-    return xpp::autox::restore_members(f.members, "", f.path);
+    return xpp::autox::restore_members(s, f.members, "", f.path);
 }
 
 std::string xpp_session_file_name(std::string_view ext)

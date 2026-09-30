@@ -48,7 +48,7 @@ int main(void)
     char *argv[] = {arg0, arg1, NULL};
     xpp_load_model(2, argv, 1);
     xpp_batch_start();
-    run_the_commands(M_IG); /* Initialconds/Go, as -silent's script runs it */
+    run_the_commands(xpp::session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
 
     int n = xpp::session().data_store.rows;
     CHECK(n > 3900); /* total=4000, dt=1: ~4001 rows */

@@ -9,8 +9,18 @@
    the ones before current, untouched, and says so. */
 
 #ifdef __cplusplus
-extern "C" {
-#endif
+
+#include "load_eqn.h"
+#include "model_files.h"
+#include "xpp_session.h"
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace xpp {
+struct Session; /* session.h */
+}
 
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the
    user picks when it is NULL or empty; asks before this model goes,
@@ -21,23 +31,12 @@ extern "C" {
    files, byte for byte) nothing is asked: an AUTO file's diagram goes
    into it, keeping its data, and a session file loads it again with the
    session. */
-void xpp_model_open(const char *path);
+void xpp_model_open(xpp::Session &s, const char *path);
 /* File > Reload (key e) and {"cmd":"reload"}: the model's file again, with
    the command line it was loaded with (a saved model's from its saved
    files); the parameters, initial data and numerics keep their values by
    name (restore_values) */
-void xpp_model_reload(void);
-
-#ifdef __cplusplus
-}
-
-#include "load_eqn.h"
-#include "model_files.h"
-#include "xpp_session.h"
-#include <optional>
-#include <string>
-#include <utility>
-#include <vector>
+void xpp_model_reload(xpp::Session &s);
 
 namespace xpp {
 
@@ -55,8 +54,8 @@ struct ModelRequest {
   std::optional<SavedFile> restore;
 };
 
-/* the request the last command made, taken: nullopt when it made none */
-std::optional<ModelRequest> take_model_request();
+/* the request the last command in s made, taken: nullopt when it made none */
+std::optional<ModelRequest> take_model_request(Session &s);
 
 /* what Reload carries over, by name: each parameter's value, each
    variable's initial data (and a delay equation's history text), and the
@@ -67,18 +66,18 @@ struct KeptValues {
   NumericsSettings numerics;
   std::string poivar;
 };
-/* the current model's and session's */
-KeptValues keep_values();
-/* into the current model and session, a name at a time: a name the model
-   no longer has is left out, and what kept does not name keeps the value
-   the load gave it */
-void restore_values(const KeptValues &kept);
+/* the session's and its model's */
+KeptValues keep_values(const Session &s);
+/* into the session s, just loaded, and its model, a name at a time: a
+   name the model no longer has is left out, and what kept does not name
+   keeps the value the load gave it */
+void restore_values(Session &s, const KeptValues &kept);
 
-/* loads what req asks for: true when the new Model and Session are
-   current; false (an error message said why) when the file cannot be
-   read or loaded, the Model and Session before still current and the
-   working folder the one before */
-bool load_requested(const ModelRequest &req);
+/* loads what req, made in the session now, asks for: the new Session,
+   current now (its Model its model()), now gone; nullptr (an error message
+   said why) when the file cannot be read or loaded, now and its Model
+   still current and the working folder the one before */
+Session *load_requested(const Session &now, const ModelRequest &req);
 
 }
 #endif

@@ -21,9 +21,9 @@ namespace {
 
 /* the program's name a command line starts with: the one the model was
    loaded with */
-std::string program_name()
+std::string program_name(const xpp::Model &m)
 {
-  const std::vector<std::string> &now=xpp::model().command_line;
+  const std::vector<std::string> &now=m.command_line;
   return now.empty()?std::string("xppautX"):now[0];
 }
 
@@ -35,24 +35,22 @@ bool model_file_ok(const std::string &file)
 }
 
 /* variable i's name, "T" for 0 (the Poincare section's numbering) */
-std::string poincare_name(int i)
+std::string poincare_name(const xpp::Model &m, int i)
 {
-  const xpp::Model &m=xpp::model();
   if(i==0)return "T";
   return i>0&&i<=m.neq?m.uvar_names[i-1]:std::string();
 }
 
 /* the model's own ICs (the ODEs and Markov variables): not an aux quantity */
-int ic_index(const std::string &name)
+int ic_index(const xpp::Model &m, const std::string &name)
 {
-  const xpp::Model &m=xpp::model();
   int i=find_user_name(ICBOX,name);
   return i<m.node+m.nmarkov?i:-1;
 }
 
 } // namespace
 
-void xpp_model_open(const char *path)
+void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
@@ -70,9 +68,9 @@ void xpp_model_open(const char *path)
     saved=xpp_saved_read(file);
     if(!saved)return;
   }
-  const bool same=saved&&saved->model.files==xpp::model().files;
+  const bool same=saved&&saved->model.files==s.model().files;
   if(same&&!saved->session){ /* only the diagram, into this model */
-    xpp_saved_restore(*saved);
+    xpp_saved_restore(s,*saved);
     return;
   }
   /* everything below replaces this session (a .snapx of this very model
@@ -83,7 +81,7 @@ void xpp_model_open(const char *path)
                                            xpp_files_split_path(file).second);
     switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
     case 's':
-      if(!xpp_session_save(nullptr,-1))return;
+      if(!xpp_session_save(s,nullptr,-1))return;
       break;
     case 'd':
       break;
@@ -98,7 +96,7 @@ void xpp_model_open(const char *path)
   if(saved){
     req.dir=xpp_files_split_path(saved->path).first;
     req.file=saved->manifest.model_name;
-    req.command_line={program_name()};
+    req.command_line={program_name(s.model())};
     for(std::string &a : xpp_saved_args(*saved))req.command_line.push_back(std::move(a));
     req.saved=saved->model;
     req.restore=std::move(saved);
@@ -106,14 +104,14 @@ void xpp_model_open(const char *path)
     const std::pair<std::string,std::string> where=xpp_files_split_path(file);
     req.dir=where.first;
     req.file=where.second;
-    req.command_line={program_name(),where.second};
+    req.command_line={program_name(s.model()),where.second};
   }
-  xpp::session().model_request=std::move(req);
+  s.model_request=std::move(req);
 }
 
-void xpp_model_reload(void)
+void xpp_model_reload(xpp::Session &s)
 {
-  const xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   if(m.command_line.empty()||m.this_file=="console"){
     err_msg("This model was not read from a file: there is nothing to reload");
     return;
@@ -121,25 +119,24 @@ void xpp_model_reload(void)
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
   std::vector<std::string> command_line=m.command_line;
-  if(!xpp::session().got_file)command_line={program_name(),m.this_file};
+  if(!s.got_file)command_line={program_name(m),m.this_file};
   xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
   if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
-  xpp::session().model_request=std::move(req);
+  s.model_request=std::move(req);
 }
 
 namespace xpp {
 
-std::optional<ModelRequest> take_model_request()
+std::optional<ModelRequest> take_model_request(Session &s)
 {
-  std::optional<ModelRequest> req=std::move(session().model_request);
-  session().model_request.reset();
+  std::optional<ModelRequest> req=std::move(s.model_request);
+  s.model_request.reset();
   return req;
 }
 
-KeptValues keep_values()
+KeptValues keep_values(const Session &s)
 {
-  const Model &m=model();
-  const Session &s=session();
+  const Model &m=s.model();
   KeptValues kept;
   for(int i=0;i<m.nupar;i++){
     double z=0;
@@ -151,14 +148,13 @@ KeptValues keep_values()
   for(int i=0;i<m.node;i++)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
   kept.numerics=s.numerics;
-  kept.poivar=poincare_name(s.numerics.poivar);
+  kept.poivar=poincare_name(m,s.numerics.poivar);
   return kept;
 }
 
-void restore_values(const KeptValues &kept)
+void restore_values(Session &s, const KeptValues &kept)
 {
-  const Model &m=model();
-  Session &s=session();
+  const Model &m=s.model();
   /* the numerics: the settings kept, what a run leaves (data stored, a
      range's or shooting's state, the last seed) the new session's own */
   const NumericsSettings loaded=s.numerics;
@@ -196,27 +192,27 @@ void restore_values(const KeptValues &kept)
     if(find_user_name(PARAMBOX,p.first)>=0)set_val(p.first,p.second);
   box_values_loaded(PARAMBOX);
   for(const std::pair<std::string,double> &v : kept.ics){
-    const int i=ic_index(v.first);
+    const int i=ic_index(m,v.first);
     if(i>=0)s.last_ic[i]=v.second;
   }
   for(const std::pair<std::string,std::string> &d : kept.delays){
-    const int i=ic_index(d.first);
+    const int i=ic_index(m,d.first);
     if(i>=0&&i<m.node)s.delay_string[i]=d.second;
   }
 }
 
-bool load_requested(const ModelRequest &req)
+Session *load_requested(const Session &now, const ModelRequest &req)
 {
-  const std::string before=xpp_files_working_dir(),before_file=model().this_file;
+  const std::string before=xpp_files_working_dir(),before_file=now.model().this_file;
   if(!req.dir.empty()&&xpp_files_change_dir(req.dir.c_str())!=0){
     err_msg(xpp::format("Cannot open the folder {}",req.dir).c_str());
-    return false;
+    return nullptr;
   }
   auto back=[&before](){ if(!before.empty())xpp_files_change_dir(before.c_str()); };
   if(!req.saved&&!model_file_ok(req.file)){
     back();
     err_msg(xpp::format("Cannot open {}",req.file).c_str());
-    return false;
+    return nullptr;
   }
   /* load_model takes argv as main has it: writable, NULL after the last */
   std::vector<std::string> args=req.command_line;
@@ -226,9 +222,10 @@ bool load_requested(const ModelRequest &req)
   if(std::optional<Diagnostic> failed=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr)){
     back();
     err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.file,failed->text(),before_file).c_str());
-    return false;
+    return nullptr;
   }
-  return true;
+  /* the load made its Session current: the one place a switch picks it up */
+  return &session();
 }
 
 }

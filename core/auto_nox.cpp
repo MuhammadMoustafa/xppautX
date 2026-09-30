@@ -2690,7 +2690,7 @@ void load_auto()
      its diagram into that model (the same one: only the diagram, in
      place of the one there) */
   if(xpp_saved_file_name(filename)){
-    xpp_model_open(filename.c_str());
+    xpp_model_open(xpp::session(), filename.c_str());
     return;
   }
   if(diagram_count()>1&&reset_auto()==0)return;

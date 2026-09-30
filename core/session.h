@@ -11,10 +11,16 @@
    (storage.h's DataStore, many_pops.h's XppPlotWindows, ...), and the
    Session holds one of each.
 
-   For now the current Session is reached through xpp::session(), like
-   xpp::model(); W47d passes it explicitly. A hot loop takes
-   `xpp::Session &s=xpp::session()` once. A load builds a new Model and
-   Session together (Load, below) and keeps them only when it succeeds. */
+   A Session runs one Model, the one its load built: model() reaches it,
+   so a function that takes a Session& needs no Model& beside it.
+
+   The current Session is chosen once where work starts (W47d,
+   docs/roadmap.md: a protocol command in ui_json.cpp's handle_line, the
+   start of the program, a load) and passed down from there as
+   `xpp::Session &s`; xpp::session() and xpp::model() are for the entry
+   points the stages of W47d have not reached yet. A hot loop takes the
+   Session once. A load builds a new Model and Session together (Load,
+   below) and keeps them only when it succeeds. */
 #include "model.h"
 #include "storage.h"
 #include "many_pops.h"
@@ -51,6 +57,17 @@
 namespace xpp {
 
 struct Session {
+  /* a Session of the Model m (Load) */
+  explicit Session(Model &m) noexcept : model_(&m) {}
+  /* the first one, made on first use before any load: of the first Model */
+  Session() : Session(detail::current<Model>()) {}
+  Session(const Session &)=delete;
+  Session &operator=(const Session &)=delete;
+
+  /* the Model this session runs */
+  Model &model() noexcept { return *model_; }
+  const Model &model() const noexcept { return *model_; }
+
   /* the rows a run stores and where the last run ended (storage.cpp) */
   DataStore data_store;
   /* the plot windows, the active one, Simulplot (xpp_util.cpp) */
@@ -159,6 +176,9 @@ struct Session {
   /* the session file this session was last saved to or opened from
      (xpp_session.h) */
   SavedSession saved_session;
+
+private:
+  Model *model_;
 };
 
 /* the current Session (xpp_current.h) */

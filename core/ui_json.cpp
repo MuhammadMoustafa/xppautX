@@ -68,15 +68,15 @@ void script_fail(const char *what, const char *line, const char *ask)
 }
 
 /* commands that make sense at any moment, even while a prompt is open */
-int handle_async(const char *line)
+int handle_async(xpp::Session &s, const char *line)
 {
     if (is_cmd(line, "quit")) quit_session();
     if (is_cmd(line, "state")) {
-        send_state();
+        send_state(s);
         return 1;
     }
     if (is_cmd(line, "browser") && js_find(line, "from")) {
-        browser_rows(line);
+        browser_rows(s, line);
         return 1;
     }
     return 0;
@@ -182,33 +182,33 @@ int classify(const char *line, unsigned long seq)
 
 } // namespace
 
-void take_setting(const char *line)
+void take_setting(xpp::Session &s, const char *line)
 {
     const bool now = !xpp_job_computed() && is_cmd(line, "set");
-    if (now) apply_set(line);
+    if (now) apply_set(s, line);
     defer_line(line, false, now);
 }
 
 /* a control line taken by a checkpoint: every kind classify() puts there
    is acted on, none dropped. Returns ESC for abort, the code of a key,
    ANI_PAUSE for the animation's Pause, 64 otherwise. A setting: take_setting(). */
-int control_line(const char *line)
+int control_line(xpp::Session &s, const char *line)
 {
     std::string k;
-    if (handle_async(line)) return 64;
+    if (handle_async(s, line)) return 64;
     if (is_cmd(line, "abort")) return ESC;
     if (is_cmd(line, "key")) {
         get_string(line, "key", k, 32);
         return key_code(k.c_str());
     }
     if (line_kind(line) == XPP_KIND_SETTING) {
-        take_setting(line);
+        take_setting(s, line);
         return 64;
     }
     if (is_cmd(line, "ani")) {
         get_string(line, "op", k, 32);
         if (k == "pause") return ANI_PAUSE;
-        ani_speed_op(k.c_str(), line);
+        ani_speed_op(s, k.c_str(), line);
     }
     return 64;
 }
@@ -399,37 +399,37 @@ const XppUi json_ui = make_json_ui();
 /* a key of a window's own layer (menus.h): {"cmd":"key","win":...,"key":k},
    the AUTO, data browser, animation, array plot or equilibrium window; the
    browser's takes the selected "row" too */
-void window_key(const std::string &win, int ch, const char *line)
+void window_key(xpp::Session &s, const std::string &win, int ch, const char *line)
 {
-    if (win == "auto") auto_key(ch);
-    else if (win == "browser") browser_key(ch, line);
-    else if (win == "ani") ani_key(ch);
-    else if (win == "aplot") aplot_key(ch);
+    if (win == "auto") auto_key(s, ch);
+    else if (win == "browser") browser_key(s, ch, line);
+    else if (win == "ani") ani_key(s, ch);
+    else if (win == "aplot") aplot_key(s, ch);
     else if (win == "equilibrium") equilibrium_key(ch);
     else j_err_msg(xpp::format("No key layer for the window {}", win).c_str());
 }
 
-void key_command(const char *line)
+void key_command(xpp::Session &s, const char *line)
 {
     std::string k, win;
     get_string(line, "key", k, 32);
-    if (get_string(line, "win", win, 16)) window_key(win, key_code(k.c_str()), line);
-    else commander(key_code(k.c_str()));
+    if (get_string(line, "win", win, 16)) window_key(s, win, key_code(k.c_str()), line);
+    else commander(s, key_code(k.c_str()));
 }
 
-void session_command(const char *line)
+void session_command(xpp::Session &s, const char *line)
 {
     std::string o, name;
     get_string(line, "op", o, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
     /* data: in (1), left out (0), or asked above 50 MB (absent) */
     const char *jd = js_find(line, "data");
-    if (o == "save") xpp_session_save(name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
-    else if (o == "load") xpp_session_load(name.empty() ? nullptr : name.c_str());
+    if (o == "save") xpp_session_save(s, name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
+    else if (o == "load") xpp_session_load(s, name.empty() ? nullptr : name.c_str());
 }
 
 /* the model's folder for a client that cannot reach it (xpp_files.h) */
-void file_command(const char *line)
+void file_command(xpp::Session &, const char *line)
 {
     std::string o;
     get_string(line, "op", o, 8);
@@ -437,7 +437,7 @@ void file_command(const char *line)
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
-void write_command(const char *line)
+void write_command(xpp::Session &, const char *line)
 {
     std::string o, name;
     get_string(line, "op", o, 8);
@@ -456,7 +456,7 @@ struct CommandInfo {
     const char *cmd;
     const char *op;
     char kind;
-    void (*run)(const char *line);
+    void (*run)(xpp::Session &s, const char *line);
 };
 
 constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
@@ -464,22 +464,22 @@ constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D 
 const CommandInfo commands[] = {
     {"key", nullptr, 0, key_command},
     {"answer", nullptr, C,
-     [](const char *line) {
+     [](xpp::Session &, const char *line) {
          /* reaching the main dispatch (rather than ask_wait) means no ask
             was pending for it (docs/protocol.md "Scripts") */
          if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
      }},
-    {"abort", nullptr, C, [](const char *) {}},
-    {"quit", nullptr, C, [](const char *) { quit_session(); }},
-    {"state", nullptr, V, [](const char *) { send_state(); }},
+    {"abort", nullptr, C, [](xpp::Session &, const char *) {}},
+    {"quit", nullptr, C, [](xpp::Session &, const char *) { quit_session(); }},
+    {"state", nullptr, V, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, data_command},
-    {"equations", nullptr, V, [](const char *) { send_equations(); }},
+    {"equations", nullptr, V, [](xpp::Session &s, const char *) { send_equations(s); }},
     {"click", nullptr, V, click_command},
     {"display", nullptr, V, display_command},
     {"redraw", nullptr, V,
-     [](const char *) {
-         j_redraw_graph();
-         auto_redraw_for_client();
+     [](xpp::Session &s, const char *) {
+         redraw_graph(s);
+         auto_redraw_for_client(s);
      }},
     {"plotvars", nullptr, V, plotvars_command},
     {"aplot", nullptr, V, aplot_command},
@@ -503,17 +503,17 @@ const CommandInfo commands[] = {
     {"session", nullptr, D, session_command},
     {"dfield", nullptr, D, write_command},
     {"open", nullptr, D,
-     [](const char *line) {
+     [](xpp::Session &s, const char *line) {
          std::string file;
          get_string(line, "file", file);
-         xpp_model_open(file.c_str());
+         xpp_model_open(s, file.c_str());
      }},
-    {"reload", nullptr, D, [](const char *) { xpp_model_reload(); }},
+    {"reload", nullptr, D, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
     {"equilibrium", nullptr, X, write_command},
     {"userbut", nullptr, X,
-     [](const char *line) {
+     [](xpp::Session &s, const char *line) {
          int i = get_int(line, "index", -1);
-         if (i >= 0 && i < xpp::session().nuserbut) run_the_commands(xpp::session().userbut[i].com);
+         if (i >= 0 && i < s.nuserbut) run_the_commands(s, s.userbut[i].com);
      }},
 };
 
@@ -573,30 +573,33 @@ namespace {
 void handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp_job_begin(seq);
+    /* the session this command runs in: chosen here, once, and passed down
+       (W47d); only a model loaded in its place below replaces it */
+    xpp::Session *s = &xpp::session();
     if (applied) {
     } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);
         j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
-    } else if (handle_async(line)) {
+    } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
-        e->run(line);
+        e->run(*s, line);
     } else {
         std::string c;
         if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c).c_str());
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
-    if (std::optional<xpp::ModelRequest> req = xpp::take_model_request()) switch_model(*req);
-    aplot_update();
-    browser_update();
+    if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) s = &switch_model(*s, *req);
+    aplot_update(*s);
+    browser_update(*s);
     plot_data_update();
     phase_data_update();
     marks_data_update();
     ani_data_update();
-    diag_flush(1);
+    diag_flush(*s, 1);
     auto_data_update(1);
-    auto_view_update();
+    auto_view_update(*s);
     auto_settings_update();
     numerics_settings_update();
     json_flush();
@@ -606,7 +609,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
     if (session.script_mode && xpp_job_stop_armed()) script_stop_missed();
     /* the command is finished; the client may send the next one */
     xpp_job_end();
-    send_state();
+    send_state(*s);
     send_simple("idle", NULL, NULL);
     /* a script's next line is the next command (docs/protocol.md
        "Scripts"); this also releases the very first script line, since
@@ -724,7 +727,7 @@ int json_ui_silent(int argc, char **argv)
     if (!xpp_load_model(argc, argv, 1)) exit(1);
     xpp_batch_start();
     session.script_mode = 1;
-    xpp_inbox_start_generated(silent_script());
+    xpp_inbox_start_generated(silent_script(xpp::session())); /* the session the load made */
     install(true);
     script_next(); /* its first line */
     json_ui_loop(); /* exits when the script ends */
@@ -746,10 +749,13 @@ void json_ui_load_error(const xpp::Diagnostic &d)
     send_buf(&b);
 }
 
+namespace xpp::json {
+
 /* the first events a client sees, and again for a model loaded in place
    of the one before (json_model.cpp) */
-void json_ui_hello(void)
+void send_hello(xpp::Session &s)
 {
+    const xpp::Model &m = s.model();
     Buf b;
     int i;
     const std::string file = xpp::model_title();
@@ -761,7 +767,7 @@ void json_ui_hello(void)
     BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, xpp::model().this_file);
+    buf_str(&b, m.this_file);
     BUF_LIT(&b, ",\"about\":");
     buf_str(&b, xpp_about_text());
     BUF_LIT(&b, ",\"menus\":{\"main\":");
@@ -813,25 +819,24 @@ void json_ui_hello(void)
     buf_commands(&b);
     /* the lists a form field *n picks from (pop_list.c make_scrbox_lists) */
     BUF_LIT(&b, ",\"lists\":[[\"T\"");
-    const xpp::Model &m = xpp::model();
-    for (i = 0; i < xpp::model().neq; i++) {
+    for (i = 0; i < m.neq; i++) {
         BUF_LIT(&b, ",");
         buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
+    for (i = 0; i < m.node + m.nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, m.uvar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < xpp::model().nupar; i++) {
+    for (i = 0; i < m.nupar; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, m.upar_names[i]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < xpp::model().node + xpp::model().nmarkov + xpp::model().nupar; i++) {
+    for (i = 0; i < m.node + m.nmarkov + m.nupar; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, i < xpp::model().node + xpp::model().nmarkov ? m.uvar_names[i] : m.upar_names[i - xpp::model().node - xpp::model().nmarkov]);
+        buf_str(&b, i < m.node + m.nmarkov ? m.uvar_names[i] : m.upar_names[i - m.node - m.nmarkov]);
     }
     BUF_LIT(&b, "],[");
     for (i = 0; i < 11; i++) {
@@ -839,47 +844,49 @@ void json_ui_hello(void)
         buf_str(&b, xpp::format("{} {}", i, color_names[i]).c_str());
     }
     BUF_LIT(&b, "],[\"2 Box\",\"3 Diamond\",\"4 Triangle\",\"5 Plus\",\"6 X\",\"7 Circle\"],[");
-    for (const xpp::SolverInfo &m : xpp::solvers()) {
-        if (m.id) BUF_LIT(&b, ",");
-        buf_str(&b, xpp::format("{} {}", static_cast<int>(m.id), m.name).c_str());
+    for (const xpp::SolverInfo &solver : xpp::solvers()) {
+        if (solver.id) BUF_LIT(&b, ",");
+        buf_str(&b, xpp::format("{} {}", static_cast<int>(solver.id), solver.name).c_str());
     }
     BUF_LIT(&b, "]]");
     /* @ button name:keys lines of the ODE file ({"cmd":"userbut","index":i}) */
     BUF_LIT(&b, ",\"userbuttons\":[");
-    for (i = 0; i < xpp::session().nuserbut; i++) {
+    for (i = 0; i < s.nuserbut; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_str(&b, xpp::session().userbut[i].bname);
+        buf_str(&b, s.userbut[i].bname);
     }
     /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
     BUF_LIT(&b, "],\"sliders\":[");
     {
-        int set[3] = {!xpp::session().not_already_set.SLIDER1, !xpp::session().not_already_set.SLIDER2, !xpp::session().not_already_set.SLIDER3};
+        int set[3] = {!s.not_already_set.SLIDER1, !s.not_already_set.SLIDER2, !s.not_already_set.SLIDER3};
         int k = 0;
         for (i = 0; i < XPP_NSLIDERS; i++) {
             if (!set[i]) continue;
             if (k++) BUF_LIT(&b, ",");
             BUF_LIT(&b, "{\"name\":");
-            buf_str(&b, xpp::session().sliders[i].var.c_str());
+            buf_str(&b, s.sliders[i].var.c_str());
             BUF_LIT(&b, ",\"lo\":");
-            buf_num(&b, xpp::session().sliders[i].lo, 16);
+            buf_num(&b, s.sliders[i].lo, 16);
             BUF_LIT(&b, ",\"hi\":");
-            buf_num(&b, xpp::session().sliders[i].hi, 16);
+            buf_num(&b, s.sliders[i].hi, 16);
             BUF_LIT(&b, "}");
         }
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");
-    for (i = 0; i < xpp::model().nupar; i++) {
+    for (i = 0; i < m.nupar; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_num(&b, xpp::model().default_val[i], 16);
+        buf_num(&b, m.default_val[i], 16);
     }
     BUF_LIT(&b, "],\"ics\":[");
-    for (i = 0; i < xpp::model().node + xpp::model().nmarkov; i++) {
+    for (i = 0; i < m.node + m.nmarkov; i++) {
         if (i) BUF_LIT(&b, ",");
-        buf_num(&b, xpp::model().default_ic[i], 16);
+        buf_num(&b, m.default_ic[i], 16);
     }
     BUF_LIT(&b, "]}}");
     send_buf(&b);
     send_main_window(title);
-    send_state();
+    send_state(s);
 }
+
+} // namespace xpp::json

@@ -30,6 +30,10 @@
 #include "display_state.h"
 #include "xpp_zip.h"
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
 namespace xpp::autox {
 
 inline constexpr std::string_view extension = ".autox";
@@ -100,16 +104,16 @@ std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text,
    read, which an error message says) */
 std::optional<std::string> file_bytes();
 
-/* AUTO's members (settings, diagram, solutions, views) of this session after
-   entries', each named prefix and its name (a session file's "auto/") */
-void add_members(std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
+/* AUTO's members (settings, diagram, solutions, views) of the session s
+   after entries', each named prefix and its name (a session file's "auto/") */
+void add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
 
 /* AUTO's members of a file (named name in messages; prefix as
-   add_members') restored into this session, whose model the file's is:
+   add_members') restored into the session s, whose model the file's is:
    AUTO's settings, the diagram, its solution file and the views of it,
    with the AUTO window opened and the diagram drawn. False with an error message when nothing
    was restored. */
-bool restore_members(const std::map<std::string, std::string> &members, std::string_view prefix, const std::string &name);
+bool restore_members(Session &s, const std::map<std::string, std::string> &members, std::string_view prefix, const std::string &name);
 
 /* AUTO's File/Load diagram of an XPPAUT .auto, path: imported, its
    diagram to the 6 digits it prints. The diagram before is replaced but

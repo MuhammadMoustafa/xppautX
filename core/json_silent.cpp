@@ -47,10 +47,11 @@ namespace {
 
 class SilentScript {
 public:
-    SilentScript();
+    explicit SilentScript(const xpp::Session &s);
     std::optional<std::string> next();
 
 private:
+    const xpp::Session &session; /* the session -silent runs (no other is ever loaded) */
     std::deque<std::string> lines;               /* the step's lines not yet given */
     std::deque<std::function<void()>> steps;     /* the steps still to make */
     bool ran = false;                            /* the current run integrates */
@@ -65,9 +66,8 @@ private:
 
 /* the current window is a phase plane: its nullclines and direction
    field can be computed */
-bool phase_plane()
+bool phase_plane(const xpp::Session &s)
 {
-    const xpp::Session &s = xpp::session();
     const auto &w = *s.plot_windows.current;
     return !(w.ThreeDFlag || w.TimeFlag || w.xv[0] == w.yv[0]);
 }
@@ -110,7 +110,7 @@ void SilentScript::add_run(int set)
         if (set < 0) return;
         /* its data file is named after it without -outfile (its plots
            always are: batch_plot_name) */
-        const std::string &name = xpp::model().intern_sets[static_cast<std::size_t>(set)].name;
+        const std::string &name = session.model().intern_sets[static_cast<std::size_t>(set)].name;
         batch_options.out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;
         xpp::log(XPP_LOG_INFO, "out={}\n", batch_options.out_file);
         command("values", "internset", name, xpp::format(",\"index\":{:d}", set));
@@ -122,16 +122,16 @@ void SilentScript::add_run(int set)
     });
     steps.push_back([this] {
         if (!ran) return;
-        const bool range = batch_options.range == 1 || xpp::session().stochastic.flag > 0;
+        const bool range = batch_options.range == 1 || session.stochastic.flag > 0;
         key("i");
         answer("key", range ? "r" : "g");
     });
     steps.push_back([this] {
-        if (ran && xpp::session().histogram.post_process != 0) command("browser", "postprocess", "");
+        if (ran && session.histogram.post_process != 0) command("browser", "postprocess", "");
     });
     steps.push_back([this] {
         if (!ran) return;
-        xpp::Session &s = xpp::session();
+        const xpp::Session &s = session;
         /* a range that resets its storage wrote each run's file itself
            (integrate.cpp do_range, write_this_run) */
         if (!batch_options.range || s.integrator.range.reset == 0) {
@@ -165,14 +165,14 @@ void SilentScript::add_run(int set)
     });
 }
 
-SilentScript::SilentScript()
+SilentScript::SilentScript(const xpp::Session &s) : session(s)
 {
-    const std::size_t sets = xpp::model().intern_sets.size();
+    const std::size_t sets = s.model().intern_sets.size();
     if (sets == 0 || batch_options.intern_sets_used == 0) add_run(-1);
     else
         for (std::size_t i = 0; i < sets; i++) add_run(static_cast<int>(i));
     steps.push_back([this] {
-        if (xpp::session().nullclines.nc_batch != 2 || !phase_plane()) return;
+        if (session.nullclines.nc_batch != 2 || !phase_plane(session)) return;
         key("n");
         answer("key", "n");
         key("n");
@@ -180,9 +180,9 @@ SilentScript::SilentScript()
         answer("file", "nullclines.dat");
     });
     steps.push_back([this] {
-        const xpp::Session &s = xpp::session();
+        const xpp::Session &s = session;
         const int df = s.nullclines.df_batch;
-        if ((df != 4 && df != 5) || !phase_plane() || s.nullclines.df_grid <= 1) return;
+        if ((df != 4 && df != 5) || !phase_plane(s) || s.nullclines.df_grid <= 1) return;
         key("d");
         answer("key", df == 4 ? "d" : "s"); /* arrows of one length, or scaled */
         answer("value", xpp::format("{:d}", s.nullclines.df_grid));
@@ -209,9 +209,9 @@ std::optional<std::string> SilentScript::next()
 
 } // namespace
 
-std::function<std::optional<std::string>()> silent_script(void)
+std::function<std::optional<std::string>()> silent_script(const xpp::Session &s)
 {
-    auto script = std::make_shared<SilentScript>();
+    auto script = std::make_shared<SilentScript>(s);
     return [script] { return script->next(); };
 }
 

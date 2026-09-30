@@ -295,10 +295,10 @@ void diag_flush_view(int v, ViewData &d, int final)
 
 /* send what the client does not have yet. final: the command ends or asks
    something, so a replay that has not been completed never will be */
-void diag_flush(int final)
+void diag_flush(const xpp::Session &s, int final)
 {
-    const int n = static_cast<int>(xpp::session().auto_state.views.size());
-    if (n != client_views && xpp::session().auto_state.bifur.exist) {
+    const int n = static_cast<int>(s.auto_state.views.size());
+    if (n != client_views && s.auto_state.bifur.exist) {
         /* the lists of views no longer there go on both sides; a new one
            starts empty on both */
         const std::string e = xpp::format("{{\"ev\":\"diagram\",\"op\":\"views\",\"n\":{:d}}}", n);
@@ -358,10 +358,9 @@ void auto_view_subscribe(int on)
     av_valid = false;
 }
 
-void auto_view_update(void)
+void auto_view_update(xpp::Session &s)
 {
     if (!av_on) return;
-    xpp::Session &s = xpp::session();
     xpp::AutoView &v = s.auto_view;
     if (v.earlier > diagram_count()) v.earlier = diagram_count(); /* a diagram that holds fewer points than Clear hid (File/Reset diagram) */
     if (v.earlier == 0) v.show_earlier = false;
@@ -389,9 +388,9 @@ void auto_view_update(void)
 
 /* a reconnected client has a blank diagram, and no data: all of it again,
    starting with a reset */
-void auto_redraw_for_client(void)
+void auto_redraw_for_client(const xpp::Session &s)
 {
-    if (!xpp::session().auto_state.bifur.exist) return;
+    if (!s.auto_state.bifur.exist) return;
     client_views = 1; /* a new client holds one empty view */
     views.resize(1);
     ViewData &d = views.front();
@@ -404,14 +403,15 @@ void auto_redraw_for_client(void)
 
 void j_auto_make_window(const char *wname, const char *)
 {
-    xpp::session().auto_state.bifur.hgt = 20 * text_metrics.big_height;
-    xpp::session().auto_state.bifur.wid = 67 * text_metrics.big_width;
-    xpp::session().auto_state.bifur.x0 = 10 * text_metrics.small_width;
-    xpp::session().auto_state.bifur.y0 = 2 * text_metrics.small_height;
-    xpp::session().auto_state.bifur.hinttxt = "hint";
+    xpp::Session &s = xpp::session();
+    s.auto_state.bifur.hgt = 20 * text_metrics.big_height;
+    s.auto_state.bifur.wid = 67 * text_metrics.big_width;
+    s.auto_state.bifur.x0 = 10 * text_metrics.small_width;
+    s.auto_state.bifur.y0 = 2 * text_metrics.small_height;
+    s.auto_state.bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
     auto_data_forget(); /* nor an info strip or a stability circle */
-    send_window("create", WIN_AUTO, xpp::session().auto_state.bifur.wid + 12 * text_metrics.small_width, xpp::session().auto_state.bifur.hgt + 4 * text_metrics.small_height, wname);
+    send_window("create", WIN_AUTO, s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname);
     draw_bif_axes();
 }
 
@@ -474,8 +474,9 @@ void j_auto_show_hint(void) { send_simple("message", "auto", xpp::session().auto
 /* AUTO Axes/Scroll: drag the diagram (auto_x11.c x11_auto_scroll_window) */
 void j_auto_scroll_window(void)
 {
+    const xpp::Session &s = xpp::session();
     int i, j, t, i0 = 0, j0 = 0, state = 0;
-    float xlo = xpp::session().auto_state.axes().xmin, ylo = xpp::session().auto_state.axes().ymin, xhi = xpp::session().auto_state.axes().xmax, yhi = xpp::session().auto_state.axes().ymax, dx = 0, dy = 0;
+    float xlo = s.auto_state.axes().xmin, ylo = s.auto_state.axes().ymin, xhi = s.auto_state.axes().xmax, yhi = s.auto_state.axes().ymax, dx = 0, dy = 0;
     send_simple("message", "auto", "Drag the diagram to scroll it; any key ends");
     while ((t = ask_drag(WIN_AUTO, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
@@ -483,8 +484,8 @@ void j_auto_scroll_window(void)
             j0 = j;
             state = 1;
         } else if (t == 2 && state == 1) {
-            dx = static_cast<float>(i0 - i) * (xhi - xlo) / static_cast<float>(xpp::session().auto_state.bifur.wid);
-            dy = static_cast<float>(j - j0) * (yhi - ylo) / static_cast<float>(xpp::session().auto_state.bifur.hgt);
+            dx = static_cast<float>(i0 - i) * (xhi - xlo) / static_cast<float>(s.auto_state.bifur.wid);
+            dy = static_cast<float>(j - j0) * (yhi - ylo) / static_cast<float>(s.auto_state.bifur.hgt);
             auto_update_view(xlo + dx, xhi + dx, ylo + dy, yhi + dy);
         } else if (t == 3) {
             state = 0;
@@ -585,7 +586,7 @@ void auto_set_command(const char *line)
 /* {"cmd":"auto","op":...}: what the AUTO window's keys (menu_auto_window)
    do not say: a grab by label or by type and index, the settings, a click
    on the diagram, the window closed */
-void auto_command(const char *line)
+void auto_command(xpp::Session &s, const char *line)
 {
     std::string o;
     get_string(line, "op", o, 16);
@@ -611,7 +612,6 @@ void auto_command(const char *line)
         /* the zoom shown in a view of the diagram (the active one unless
            `view` names another), and (with `show`) whether the branches
            before Clear are drawn */
-        xpp::Session &s = xpp::session();
         xpp::AutoView &v = s.auto_view;
         const int k = get_int(line, "view", s.auto_state.active_view);
         if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
@@ -629,7 +629,6 @@ void auto_command(const char *line)
     }
     else if (o == "view") {
         /* the views of the diagram (W50): a new one, one closed, the active one */
-        xpp::Session &s = xpp::session();
         const int n = static_cast<int>(s.auto_state.views.size());
         if (js_find(line, "new")) auto_new_view();
         else if (js_find(line, "close")) {
@@ -644,24 +643,24 @@ void auto_command(const char *line)
     else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */
         const char *jx = js_find(line, "xd"), *jy = js_find(line, "yd");
-        if (!xpp::session().auto_state.bifur.exist) return;
+        if (!s.auto_state.bifur.exist) return;
         if (jx && jy) auto_point_xy(js_num(jx, 0), js_num(jy, 0));
         else auto_motion_xy(get_int(line, "x", 0), get_int(line, "y", 0));
     }
     else if (o == "close") {
-        if (!xpp::session().auto_state.bifur.exist) return;
-        xpp::session().auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
+        if (!s.auto_state.bifur.exist) return;
+        s.auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
         send_window("destroy", WIN_AUTO, 0, 0, NULL);
         diag_forget();
         auto_data_forget();
-        xpp::session().auto_view = xpp::AutoView();
-        for (AutoDiagramView &w : xpp::session().auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
+        s.auto_view = xpp::AutoView();
+        for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
     }
     else j_err_msg(xpp::format("Unknown auto op {}", o).c_str());
 }
 
 /* a key of the AUTO window (menu_auto_window) */
-void auto_key(int ch)
+void auto_key(xpp::Session &s, int ch)
 {
     switch (xpp_menu_index(&menu_auto_window, ch)) {
     case AK_PARAM: auto_params(); break;
@@ -672,8 +671,8 @@ void auto_key(int ch)
     case AK_USR: auto_per_par(); break;
     case AK_CLEAR:
         /* the branches so far are the earlier ones, hidden until shown again */
-        xpp::session().auto_view.earlier = diag_points_held();
-        xpp::session().auto_view.show_earlier = false;
+        s.auto_view.earlier = diag_points_held();
+        s.auto_view.show_earlier = false;
         draw_bif_axes();
         break;
     case AK_REDRAW: redraw_diagram(); break;
