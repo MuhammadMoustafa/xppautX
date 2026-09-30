@@ -320,6 +320,9 @@ difficulty) implements one card in the worktree its brief names:
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.
+- Stop only your own processes, by their PID (`taskkill /PID`, `kill`),
+  never by name (`taskkill /IM xppautX.exe`, `pkill xppautX`): that also
+  ends the maintainer's own xppautX and other agents' runs.
 - Background tasks are registered (maintainer, 2026-09-27): every
   background run (a command run in the background, a background agent, a
   server or program left running) gets a line in
