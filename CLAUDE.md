@@ -238,6 +238,10 @@ off, since Apple Silicon runners do not support it; ASan and UBSan still
 run there. The script is portable to macOS (nproc/sysctl, timeout/gtimeout,
 md5sum/`md5 -q`), same as tools/examples_check.sh.
 
+`make tsan` (W47e) builds xppautX with ThreadSanitizer into build/tsan; `tools/tsancheck.sh` builds it and runs servercheck and webcheck under it side by side (waits doubled by `XPP_CHECK_SLOW`), reports written to build/tsan/reports, and fails on any. It checks that the reader threads (xpp_http.cpp, the --server stdin reader) touch only the inbox and xpp_job's atomics. Linux only, a few minutes, not in verify.sh or CI yet; tools/tsan.supp only for code we do not own, a reason per line:
+
+    tools/wslrun.sh tools/tsancheck.sh
+
 The sanitizers do not see a read of memory never written; valgrind's
 memcheck does. `make vg` builds xppautX at -O1 without sanitizers into
 build/vg; `tools/valgrindcheck.sh` (W21; Linux, ~25 min on 32 threads, not
