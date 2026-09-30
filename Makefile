@@ -149,7 +149,7 @@ WEBVIEW_DIR = third_party/webview
 # the vendored library's language standard: ours, except on macOS (below)
 # and with clang's libc++ anywhere, for the macOS reason: C++17
 WEBVIEW_STD = $(if $(CLANG),$(subst ++23,++17,$(CXXSTD)),$(CXXSTD))
-ifneq ($(ASAN)$(VALGRIND),)
+ifneq ($(ASAN)$(VALGRIND)$(TSAN),)
 WINDOW := 0
 endif
 ifeq ($(OS),Windows_NT)
@@ -286,6 +286,16 @@ endif
 asan:
 	@$(MAKE) BUILDDIR=build/asan ASAN=1 asan-link
 asan-link: $(BUILDDIR)/xppautX$(EXE)
+# ThreadSanitizer (W47e): built into build/tsan, the program in the tree
+# left alone; tools/tsancheck.sh builds it and runs the protocol and browser
+# checks over it. Its own build: TSan cannot be combined with ASan.
+ifeq ($(TSAN),1)
+SANITIZE := -fsanitize=thread -fno-omit-frame-pointer
+OPT := -g -O1 $(SANITIZE) -Wno-format-overflow $(if $(CLANG),,-Wno-restrict)
+endif
+.PHONY: tsan
+tsan:
+	@$(MAKE) BUILDDIR=build/tsan TSAN=1 asan-link
 # for valgrind's memcheck (tools/valgrindcheck.sh): no sanitizer, -O1 so
 # its reports point at the right lines, into build/vg
 ifeq ($(VALGRIND),1)

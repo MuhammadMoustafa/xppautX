@@ -1,0 +1,2 @@
+# ThreadSanitizer suppressions: only code we do not own, one reason per line.
+# (none yet)
