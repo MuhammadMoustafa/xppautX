@@ -11,6 +11,7 @@
 #include "xpp_log.h"
 #include "xpp_win32.h"
 #include "mykeydef.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -255,6 +256,45 @@ const char *js_find(const char *obj, const char *key)
         if (*p != ',') return nullptr;
         p++;
     }
+}
+
+std::string_view js_raw(const char *v)
+{
+    if (!v) return {};
+    const char *end = skip_value(v);
+    while (end > v && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) end--;
+    return std::string_view(v, static_cast<size_t>(end - v));
+}
+
+std::string js_object_without(const char *obj, std::initializer_list<std::string_view> drop)
+{
+    std::string out = "{";
+    const char *p = skip_ws(obj);
+    if (*p == '{') p++;
+    for (;;) {
+        p = skip_ws(p);
+        if (*p != '"') break;
+        const char *k = p++;
+        while (*p && *p != '"') {
+            if (*p == '\\' && p[1]) p++;
+            p++;
+        }
+        if (!*p) break;
+        const std::string_view key(k + 1, static_cast<size_t>(p - k - 1));
+        const char *colon = skip_ws(p + 1);
+        if (*colon != ':') break;
+        const char *v = skip_ws(colon + 1);
+        if (std::find(drop.begin(), drop.end(), key) == drop.end()) {
+            if (out.size() > 1) out += ',';
+            out.append(k, static_cast<size_t>(p + 1 - k));
+            out += ':';
+            out += js_raw(v);
+        }
+        p = skip_ws(skip_value(v));
+        if (*p != ',') break;
+        p++;
+    }
+    return out + "}";
 }
 
 bool js_string(const char *v, std::string &out, size_t max)

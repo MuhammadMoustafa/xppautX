@@ -117,7 +117,7 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
-SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_about xpp_http xpp_inbox)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_about xpp_http xpp_inbox)
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)

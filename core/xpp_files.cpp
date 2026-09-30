@@ -539,7 +539,21 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
 
 } // namespace
 
-FILE *xpp_files_open_stream(const char *path, const char *mode) { return path ? std::fopen(path, mode) : nullptr; }
+namespace {
+
+/* xpp_files_observe_reads()'s observer (the core thread's) */
+void (*read_observer)(const char *path);
+
+} // namespace
+
+void xpp_files_observe_reads(void (*observer)(const char *path)) { read_observer = observer; }
+
+FILE *xpp_files_open_stream(const char *path, const char *mode)
+{
+    FILE *f = path ? std::fopen(path, mode) : nullptr;
+    if (f && read_observer && mode[0] == 'r' && !std::strchr(mode, '+')) read_observer(path);
+    return f;
+}
 
 int xpp_files_stream_fd(FILE *f)
 {

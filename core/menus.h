@@ -8,7 +8,7 @@ extern "C" {
 #define FILE_MENU 1
 #define NUM_MENU 2
 #define MAIN_ENTRIES 20
-#define FILE_ENTRIES 18
+#define FILE_ENTRIES 19
 #define NUM_ENTRIES 18
 
 extern const char *const main_menu[];
@@ -54,6 +54,8 @@ extern const char *const file_menu_kinds;
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */
 char xpp_main_menu_kind(int which, int ch);
+/* the item of main-window menu `which` that key ch picks, NULL for none */
+const char *xpp_main_menu_item(int which, int ch);
 
 /* A pop-up menu as data. Core code asks the front end to show one with
    menu_choose() and gets back the chosen key. Item i usually runs
@@ -120,5 +122,12 @@ extern const XppMenu menu_auto_plot_type, menu_auto_mark, menu_auto_start, menu_
 
 #ifdef __cplusplus
 }
+
+#include <string>
+#include <string_view>
+
+/* an item as a person reads it, its key's parentheses gone: "(G)o" is
+   "Go" (a recording's step labels, W59a) */
+std::string xpp_menu_label(std::string_view item);
 #endif
 #endif

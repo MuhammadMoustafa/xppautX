@@ -129,7 +129,7 @@ export class Session {
   /** key sequences clicked while a key waits for its menu (a second Integrate
       right behind the first): each goes out after the idle before it, so the
       menu the first opens is answered by its own keys (W95) */
-  private clickedKeys: string[][] = [];
+  private clickedKeys: {button?: string; keys: [string, ...string[]]}[] = [];
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command | null = null;
@@ -221,8 +221,8 @@ export class Session {
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
       else if (!this.keyWaiting && this.clickedKeys.length) {
-        const [first, ...then] = this.clickedKeys.shift()!;
-        this.keys(first, ...then);
+        const {button, keys: [first, ...then]} = this.clickedKeys.shift()!;
+        this.sendKeys(button, first, then);
       }
     }
     this.checkDiagram(ev);
@@ -284,7 +284,8 @@ export class Session {
 
   /** the command of item `id` of window `win`'s key layer, as hello names it */
   private layerKey(win: LayerWindow, id: string, extra: Record<string, unknown> = {}): Command {
-    return layerCommand(this.store.getState().hello, win, id, extra);
+    /* every layer key is sent by the window's button: `button` names it for a recording */
+    return layerCommand(this.store.getState().hello, win, id, {button: id, ...extra});
   }
 
   /** the one place commands go out. What may not start now (may) is
@@ -301,14 +302,15 @@ export class Session {
 
   /** an XPP hotkey, as typed in the X11 main window (the values edited
       went to the core when they were edited, W106) */
-  key(key: string): void {
+  key(key: string, button?: string): void {
     if (!this.may({cmd: 'key', key})) { /* W68 */
       this.pendingKeys = [];
       return;
     }
     this.keyWaiting = true;
     this.keyIdlesAhead = this.idlesOwed;
-    this.send({cmd: 'key', key});
+    /* `button`: the control clicked, for a recording's step (docs/protocol.md "Recordings") */
+    this.send(button ? {cmd: 'key', key, button} : {cmd: 'key', key});
   }
 
   /** a hotkey typed on the page (ui/hotkeys.ts): it answers an open menu,
@@ -339,12 +341,22 @@ export class Session {
   /** a key, then keys for the menus it opens: keys('i', 'g') integrates.
       Behind a key still waiting for its menu it goes out after that one's idle. */
   keys(first: string, ...then: string[]): void {
+    this.sendKeys(undefined, first, then);
+  }
+
+  /** keys() from a button the page shows (Integrate): the core records which
+      control was used (docs/protocol.md "Recordings") */
+  buttonKeys(button: string, first: string, ...then: string[]): void {
+    this.sendKeys(button, first, then);
+  }
+
+  private sendKeys(button: string | undefined, first: string, then: string[]): void {
     if (this.keyWaiting && this.may({cmd: 'key', key: first})) {
-      this.clickedKeys.push([first, ...then]);
+      this.clickedKeys.push({button, keys: [first, ...then]});
       return;
     }
     this.pendingKeys = then;
-    this.key(first);
+    this.key(first, button);
   }
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
@@ -844,6 +856,23 @@ export class Session {
       return;
     }
     this.send({cmd: 'values', op: 'read', kind, name: file.name});
+  }
+
+  /* ---- recording (W59a, docs/protocol.md "Recordings") ---- */
+
+  /** starts recording the steps (File/recorD, the title bar's Record) */
+  startRecording(): void {
+    this.send({cmd: 'record', op: 'start'});
+  }
+
+  /** the recording bar's Stop: the core asks the file's name (a `file` ask) and writes it */
+  stopRecording(): void {
+    this.send({cmd: 'record', op: 'stop'});
+  }
+
+  /** the note shown above the next step (the recording bar's note box) */
+  recordNote(text: string): void {
+    this.send({cmd: 'record', op: 'note', text});
   }
 
   /** an `@ button` of the ODE file */

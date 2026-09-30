@@ -3740,6 +3740,149 @@ def check_model_bcs():
 
 check_model_bcs()
 
+
+def read_recx(text):
+    """a .recx's parts (docs/protocol.md "Recordings"): the header lines, the
+    embedded files {name: lines}, the steps [(step, note)], the fingerprint
+    written and the one its files and steps give"""
+    lines = text.split('\n')
+    header, files, steps, hashed, note = lines[:4], {}, [], [], []
+    name, body, in_steps, written = None, None, False, None
+    for l in lines[4:]:
+        if body is not None:
+            hashed.append(l)
+            if l == '@end':
+                files[name], body = body, None
+            else:
+                body.append(l[1:] if l.startswith('@@') else l)
+        elif l.startswith('@file '):
+            name, body = l[6:], []
+            hashed.append(l)
+        elif l == '@steps':
+            in_steps = True
+        elif l.startswith('fingerprint: '):
+            written = l[len('fingerprint: '):]
+        elif in_steps and l.startswith('#'):
+            note.append(l[2:] if l.startswith('# ') else l[1:])
+        elif in_steps and l.strip():
+            hashed.append(l)
+            steps.append((json.loads(l), '\n'.join(note)))
+            note = []
+    got = hashlib.sha256(''.join(h + '\n' for h in hashed).encode('utf-8')).hexdigest()
+    return header, files, steps, written, got
+
+
+def check_recording():
+    """W59a: File/recorD and the record command write name.recx: the model
+    embedded, one step per command idle to idle (a menu's key, a dialog's
+    answers, a cancel, an Abort with where it stopped, a view), a note above
+    its step, and a fingerprint of the files and steps, not the notes"""
+    p, r, snd, col, _ = launch_server()
+    is_ask = lambda e: e.get('ev') == 'ask'
+
+    def run(**cmd):
+        snd(**cmd)
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        return evs
+
+    def asked(**cmd):
+        snd(**cmd)
+        return col(is_ask)[1]
+
+    try:
+        col(is_idle)
+        st = last_state(run(cmd='record', op='start'))
+        check('record: start, and state says recording, no step yet',
+              st and st.get('recording') == {'steps': 0, 'note': ''}, str(st and st.get('recording')))
+        st = last_state(run(cmd='record', op='note', text='First run.\nThe cell settles.'))
+        check('record: a note waits for the next step (state.recording.note)',
+              st and st['recording'] == {'steps': 0, 'note': 'First run.\nThe cell settles.'}, str(st and st.get('recording')))
+        ask = asked(cmd='key', key='i')
+        run(cmd='answer', id=ask['id'], key='g')
+        ask = asked(cmd='key', key='i')
+        run(cmd='answer', id=ask['id'], ok=0)
+        run(cmd='key', key='u')
+        ask = asked(cmd='key', key='t')
+        run(cmd='answer', id=ask['id'], value='1e7')
+        run(cmd='key', key='Escape')
+        ask = asked(cmd='key', key='i')
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
+        run(cmd='display', win=1, x=[0, 50])
+        st = last_state(run(cmd='set', kind='par', name='iapp', value=0.1))
+        check('record: state counts the steps taken', st and st['recording']['steps'] == 8, str(st and st.get('recording')))
+        evs = run(cmd='record', op='stop', name='mine')
+        path = os.path.join(r, 'mine.recx')
+        check('record: stop writes name.recx and the recording ends',
+              os.path.exists(path) and 'recording' not in (last_state(evs) or {'recording': 1}), str(os.listdir(r)))
+        text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
+        header, files, steps, written, got = read_recx(text)
+        ode = os.path.basename(args.ode)
+        check('record: the header names the format, program, model and date',
+              header[0] == 'xppautx-recording 1' and header[1].startswith('program: xppautX ')
+              and header[2] == 'model: ' + ode and re.match(r'recorded: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$', header[3]),
+              str(header))
+        want = open(os.path.join(r, ode), encoding='utf-8').read().splitlines()
+        check('record: the model is embedded whole, and nothing else was read',
+              list(files) == [ode] and files[ode] == want, str(list(files)))
+        s = [x for x, _ in steps]
+        check('record: I G is one step, its keys and label from the menus, its note above it',
+              s and s[0] == {'step': 'Initialconds → Go', 'keys': ['i', 'g']} and steps[0][1] == 'First run.\nThe cell settles.',
+              str(steps[:1]))
+        check('record: a cancelled menu is a step (keys i, Escape)',
+              len(s) > 1 and s[1] == {'step': 'Initialconds', 'keys': ['i', 'Escape']} and steps[1][1] == '', str(s[1:2]))
+        check('record: a dialog\'s answer is in its step (nUmerics, Total 1e7, Esc)',
+              s[2:5] == [{'step': 'nUmerics', 'keys': ['u'], 'view': True},
+                         {'step': 'nUmerics → Total', 'keys': ['t'], 'answers': ['1e7']},
+                         {'step': 'nUmerics → [Esc]-exit', 'keys': ['Escape'], 'view': True}], str(s[2:5]))
+        check('record: an Abort belongs to its step, where it stopped as the stopped event said',
+              len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
+              and stopped[0]['what'] == 'integrate', str(s[5:6]) + str(stopped))
+        check('record: a zoom is a view step with its command; a set a step of its own',
+              s[6:8] == [{'step': 'Zoom window 1', 'cmd': {'cmd': 'display', 'win': 1, 'x': [0, 50]}, 'view': True},
+                         {'step': 'Set iapp = 0.1', 'cmd': {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.1}}]
+              and len(s) == 8, str(s[6:]))
+        check('record: the fingerprint is the files\' and steps\' SHA-256', written == got and len(got) == 64, '%s %s' % (written, got))
+        edited = text.replace('# First run.', '# The first run.')
+        _, _, _, w2, g2 = read_recx(edited)
+        check('record: editing a note keeps the fingerprint', edited != text and w2 == g2, '')
+        edited = text.replace('"keys":["i","Escape"]', '"keys":["i","c"]')
+        _, _, _, w2, g2 = read_recx(edited)
+        check('record: editing a step changes it', edited != text and w2 != g2, '')
+
+        # File/recorD starts and stops; the File menu opened to stop is no step
+        run(cmd='values', op='write', kind='par', name='saved.par')
+        run(cmd='key', key='f')
+        run(cmd='key', key='d')
+        run(cmd='values', op='read', kind='par', name='saved.par')
+        run(cmd='key', key='e')
+        run(cmd='key', key='f')
+        snd(cmd='key', key='d')
+        evs, ask = col(lambda e: is_ask(e) or is_idle(e))
+        check('File/recorD again asks the name, as the other File saves (*.recx, the model\'s name)',
+              ask and ask.get('kind') == 'file' and ask.get('wild') == '*.recx' and ask.get('file') == 'lecar.recx', str(ask))
+        if ask and ask.get('kind') == 'file':
+            run(cmd='answer', id=ask['id'], file='menu')
+        _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
+                                                  if os.path.exists(os.path.join(r, 'menu.recx')) else '')
+        check('File/recorD: the steps between, and not the File menu opened to stop',
+              [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'}},
+                                        {'step': 'Erase', 'keys': ['e'], 'view': True}] and written == got, str(steps))
+        par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
+        check('record: a file the session read while recording is embedded after the model',
+              list(files) == [ode, 'saved.par'] and files['saved.par'] == par, str(list(files)))
+        evs = run(cmd='record', op='note', text='x')
+        check('record: a note while not recording is an error',
+              any(e.get('ev') == 'message' and 'Not recording' in e.get('error', '') for e in evs), '')
+    finally:
+        stop_server(p, r, snd)
+
+
+check_recording()
+
 check_open_reload()
 check_display_state()
 check_auto_views()

@@ -43,6 +43,8 @@ export function TitleBar() {
   const helpOpen = useStore(s => s.help.open);
   const may = useMay();
   const busy = !may({cmd: 'key', key: 'i'}); /* Integrate is a computation (W95) */
+  const recording = useStore(s => !!s.core?.recording);
+  const mayRecord = may({cmd: 'record', op: 'start'});
   const setTheme = () => {
     const t = NEXT_THEME[theme];
     saveTheme(t);
@@ -57,8 +59,12 @@ export function TitleBar() {
       <span class="spacer" />
       {/* aria-disabled, not disabled: a disabled button loses the focus, and the
           letters typed next (XPP's keys, which a focused button passes on) with it */}
-      <button class="primary" aria-disabled={busy} onClick={() => { if (!busy) session.keys('i', 'g'); }}
+      <button class="primary" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', 'i', 'g'); }}
         title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
+      {!recording && (
+        <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
+          title={mayRecord ? 'Record the steps you take to a .recx file (File/recorD)' : BUSY_TITLE}>Record</button>
+      )}
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
         <ThemeIcon theme={theme} />

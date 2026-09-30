@@ -133,6 +133,7 @@ void send_state(xpp::Session &s)
         buf_str(&b, saved.file.c_str());
         BUF_LIT(&b, "}");
     }
+    buf_recording(&b);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }

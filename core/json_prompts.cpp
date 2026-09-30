@@ -31,6 +31,7 @@ namespace {
 
 int ask_id;
 int ask_user; /* the open ask is the user's to answer, not the client's (pixels) */
+const char *ask_kind = ""; /* the open ask's kind, a literal (ask_begin) */
 std::string answer;
 
 constexpr size_t SCRIPT_ASK_MAX = 399;
@@ -80,7 +81,11 @@ int ask_wait(Buf *b, int id)
             /* an Abort sent before this answer no longer stops the command */
             if (ask_user) xpp_job_resume(read_line_seq());
             const char *ok = js_find(answer.c_str(), "ok");
-            return ok == NULL || js_num(ok, 0) != 0;
+            const bool answered = ok == NULL || js_num(ok, 0) != 0;
+            /* the user's answer is part of the step a recording is taking
+               (a pixels ask is the client's to answer: no step's) */
+            if (ask_user) record_answer(ask_kind, answer.c_str(), answered);
+            return answered;
         }
         /* for a script this line was supposed to answer this ask, and
            nothing after it can line up */
@@ -103,6 +108,7 @@ int ask_begin(Buf *b, const char *kind)
     b->s.clear();
     ask_id++;
     ask_user = strcmp(kind, "pixels") != 0;
+    ask_kind = kind;
     buf_format(b, "{{\"ev\":\"ask\",\"id\":{:d},\"kind\":\"{}\"", ask_id, kind);
     return ask_id;
 }
@@ -404,7 +410,9 @@ int j_menu_choose(const struct XppMenu *m, int def)
     buf_format(&b, ",\"def\":{:d}", def);
     if (!ask_wait(&b, id)) return 27;
     get_string(answer.c_str(), "key", k, 8);
-    return k[0] ? static_cast<unsigned char>(k[0]) : 27;
+    const int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
+    record_menu_pick(m, ch);
+    return ch;
 }
 
 void j_show_menu(int which)

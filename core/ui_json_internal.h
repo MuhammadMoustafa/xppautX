@@ -34,10 +34,12 @@
 #include <atomic>
 #include <deque>
 #include <functional>
+#include <initializer_list>
 #include <iterator>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -58,6 +60,8 @@ struct Session;      /* session.h */
 }
 
 namespace xpp::json {
+
+struct Buf; /* an event line being built (json_io.cpp, below) */
 
 /* ---- ui_json.cpp ---- */
 
@@ -106,8 +110,32 @@ char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_js
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
+/* where the running job was when it was cancelled, the stopped event's
+   `at` object (docs/protocol.md "stopped"), into b */
+void buf_stopped_at(Buf *b);
 /* hello, the main window and state: the first events of the model of s */
 void send_hello(xpp::Session &s);
+
+/* ---- json_record.cpp: File/recorD, a recording's steps (W59a) ---- */
+
+/* {"cmd":"record","op":"start"|"stop"|"note",...} */
+void record_command(xpp::Session &s, const char *line);
+void j_record_toggle(void); /* File/recorD: start, or stop and save */
+/* a command handle_line is about to run: a step begins, when recording
+   and the command is one (not a request of the client's own) */
+void record_begin(const char *line);
+/* an ask of kind (ask_begin's) answered with the line answer; ok: not cancelled */
+void record_answer(const char *kind, const char *answer, bool ok);
+/* the menu m's item of key ch picked (j_menu_choose): the step's label */
+void record_menu_pick(const struct XppMenu *m, int ch);
+/* a setting a running command took and applied at once (take_setting): a
+   step of its own, before that command's */
+void record_setting(const char *line);
+/* the command ends (handle_line, before its state): its step, with where
+   it stopped when cancelled */
+void record_end(xpp::Session &s, bool cancelled);
+/* state's "recording" member while recording */
+void buf_recording(Buf *b);
 
 /* ---- json_silent.cpp ---- */
 
@@ -159,6 +187,11 @@ bool read_line_refused(void);      /* whether classify() refused read_line()'s l
 const char *skip_ws(const char *p);
 const char *skip_value(const char *p);
 const char *js_find(const char *obj, const char *key);
+/* the JSON text of the value at v (its whitespace after it left out;
+   empty for NULL) */
+std::string_view js_raw(const char *v);
+/* the object at obj as JSON text without its members named in drop */
+std::string js_object_without(const char *obj, std::initializer_list<std::string_view> drop);
 /* the JSON string at v into out, cut to max - 1 bytes (a short keyword's
    bound; a name or a value is read whole); false (out empty) when v is
    not a string */

@@ -4,6 +4,8 @@
 #include "menudrive.h"
 
 #include <cstring>
+#include <string>
+#include <string_view>
 
 namespace {
 
@@ -50,7 +52,7 @@ const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
-"cOpy set line","open Model","rEload","saVe session","opeN session"};
+"cOpy set line","open Model","rEload","saVe session","opeN session","recorD"};
 
 /* hints for the main menus */
 const char *const main_hint[]=
@@ -94,7 +96,8 @@ const char *const file_hint[]={
 "Load another model in place of this one",
 "Read the model's file again, keeping the values",
 "Save everything to one session file (.snapx) to continue later",
-"Open a session file: its model, values, windows, data and diagram"
+"Open a session file: its model, values, windows, data and diagram",
+"Record the steps you take to a .recx file; again to stop and save it"
 };
 
 
@@ -380,7 +383,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwracshqtglxuomevn";
+const char *const file_menu_keys="pwracshqtglxuomevnd";
 
 /* their kinds (menus.h): an item that opens a pop-up menu takes the least
    restrictive kind of that menu's items (the maintainer's "menus open, only
@@ -394,7 +397,7 @@ const char *const file_menu_keys="pwracshqtglxuomevn";
 namespace {
 constexpr char main_kinds[] = "xxvvvdvvvvsvvvxvvvvx";
 constexpr char num_kinds[] = "ssssssssssvdssdsdv";
-constexpr char file_kinds[] = "vddvvdvcdsddvvdddd";
+constexpr char file_kinds[] = "vddvvdvcdsddvvddddd";
 static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
 static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
 static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds), "one kind per File menu item");
@@ -402,6 +405,22 @@ static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds),
 const char *const main_menu_kinds = main_kinds;
 const char *const num_menu_kinds = num_kinds;
 const char *const file_menu_kinds = file_kinds;
+
+const char *xpp_main_menu_item(int which, int ch)
+{
+    const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
+    const char *const *items = which == FILE_MENU ? file_menu : which == NUM_MENU ? num_menu : main_menu;
+    const char *at = ch > 0 && ch < 256 ? std::strchr(keys, ch) : nullptr;
+    return at ? items[at - keys + 1] : nullptr; /* [0] is the title */
+}
+
+std::string xpp_menu_label(std::string_view item)
+{
+    std::string out;
+    for (char c : item)
+        if (c != '(' && c != ')') out += c;
+    return out;
+}
 
 char xpp_main_menu_kind(int which, int ch)
 {

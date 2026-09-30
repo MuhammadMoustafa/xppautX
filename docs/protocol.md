@@ -58,7 +58,7 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 
 | cmd | fields | meaning |
 |---|---|---|
-| `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. |
+| `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
 | `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. |
@@ -81,6 +81,7 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/saVe session and File/opeN session, keys `v` and `n` of the File menu. Without `name`, asks for one (`ask` kind `file`, wildcard `*.snapx`). `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
 | `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode* *.autox *.snapx`). A file that is not there fails at once (`message` `error`, nothing asked); so does a session file (`.snapx`) or an AUTO file (`.autox`) that cannot be read or has no model in it ("Session files" below). Then asks `choice` with `keys` `sd`: `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. A session file or an AUTO file loads the model saved in it, from its saved files and never the disk's (however the `.ode` there has changed, or when there is none), then restores the session or loads the diagram; when the model open is that one (the same files, byte for byte), an AUTO file's diagram goes into it with nothing asked, the data kept and no model loaded, while a session file still asks (it replaces this session's values, data and diagram) and then loads the model again with its session. The model is loaded from its own folder (a saved model from the folder of its file), which becomes the working directory (the page's files, "Files" below: outputs go there, and nothing is written beside a session or AUTO file), with a command line of the file alone (and `-anifile` with its saved animation when it was loaded with one). `hello`'s `title` names a saved model's file and the one it is saved in, `lecar.ode (saved in lecar.autox)`. A file that is not a model's text (a zip, another binary file) is refused, as a model that does not load (below), its bytes never shown. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does but without asking: the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
+| `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one (an error when one runs); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
 | `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
@@ -349,6 +350,87 @@ Run it with:
 
     xppautX --script examples/scripts/lecar_auto.jsonl examples/ode/lecar.ode
 
+## Recordings
+
+File/recorD (key `d` of the File menu) or `{"cmd":"record","op":"start"}`
+starts recording the session (W59a, core/json_record.cpp; the file's
+format is core/recx.h); File/recorD again or `record` `stop` writes it,
+`name.recx`, one plain text file that any editor opens:
+
+```
+xppautx-recording 1
+program: xppautX 8.1
+model: lecar.ode
+recorded: 2026-09-30T10:14:02Z
+
+@file lecar.ode
+par iapp=0.1
+...
+@end
+
+@steps
+# First run: the cell fires once and settles.
+{"step":"Initialconds → Go","keys":["i","g"]}
+{"step":"nUmerics → Total","keys":["t"],"answers":["1e7"]}
+{"step":"Initialconds → Go","keys":["i","g"],"abort":{"what":"integrate","rows":2193,"t":219.2}}
+{"step":"Zoom window 1","cmd":{"cmd":"display","win":1,"x":[0,50]},"view":true}
+
+fingerprint: 5f0c...(64 hex digits)
+```
+
+- The header: the format, the program (`--version`'s), the model's file
+  as it names itself, and when the recording began (UTC).
+- `@file NAME` ... `@end`, one section per file: the model's files first
+  (its `.ode` or `.odex` and every file its load read, as a session file
+  saves them), then every other text file the session read while
+  recording (a set, a parameter or IC file, a table, an animation), by
+  the name it was opened with, a line of the file a line here. A line of
+  the file that is `@end` or starts with `@@` is written with one more
+  `@` in front. A file read again with other bytes (a model edited and
+  reloaded) is a second section of the same name, after the first; a file
+  that is not text (a zip, a binary table) is not embedded. A recording
+  holds no data: a replay computes it again.
+- `@steps`: one JSON object a line, one per step. A step is everything
+  from leaving idle to the next `idle`: the command, the answers to what
+  it asked, and where it stopped when an `abort` or Escape cancelled it.
+  `step` is a label for a person, from the menus (core/menus.cpp: the
+  main menu's item, then each menu item picked, `→` between them; a
+  window key's window title first; another command's name and values).
+  `keys`: the key the step began with (as the `key` command sent it: a
+  character or a named key), then the key of every `menu` or `choice` ask
+  it answered (`Escape` for a cancel). `win`: a window key's layer
+  ("Window keys"). `button`: the control the key came from, when the
+  page said so (the `key` command's `button`); the key stays in `keys`,
+  what a replay sends. `cmd`: a command other than `key`, whole (`set`,
+  `display`, `values`, ...). `answers`: the answer to every other ask, in
+  order: a `string` ask's value, a `form`'s values (an array), any other
+  ask's answer without `cmd`, `id` and `ok` (`{"file":"x.set"}`,
+  `{"xd":1.5,"yd":-60}`, a grab's `{"key":"Tab"}`), `null` for a cancel;
+  a `pixels` ask (the client's, not the user's) and an `alert` have none.
+  `view`: the step only changes what is shown (its kind, "Action kinds",
+  refined by the menu item it picked), so a player may run it quickly.
+  `abort`: the `stopped` event's `at`, as a script's abort line has it
+  ("Scripts"). Every zoom or pan (`display`) is a step of its own. A
+  setting sent while a command had not computed yet (a value edited while
+  the Initialconds menu is open) is a step of its own just before that
+  command's, since it applied before anything computed. Not steps: `state`,
+  `data`, `equations`, `redraw`, `browser` paging (`from`), `file`, an
+  `abort`, `quit`, and `record` itself; nor File/recorD's own opening of
+  the File menu (the `f` just before the `d` that stops).
+- `# ` lines just before a step are its note (a note of several lines is
+  several `#` lines; `#` alone is an empty line of it): `record` `note`
+  sets it while recording, and an editor can add or change one later.
+- `fingerprint:` the SHA-256 (64 lowercase hex digits) of every line of
+  the `@file` sections (their `@file` and `@end` lines included) and every
+  step line, in the file's order, each followed by `\n` (a CR before it
+  not counted). The header, blank lines, the notes and the fingerprint
+  line itself are not in it: editing a note keeps the fingerprint, and a
+  changed step or embedded file does not match it any more.
+
+Idle time is not recorded, and nothing is read from any older format:
+there is none. `tools/servercheck.py` (`check_recording`) reads a file
+back.
+
 ## -silent
 
 `xppautX model.ode -silent` is a script of these same commands, built in
@@ -401,7 +483,7 @@ model's start in every mode, before the script.
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
-| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`} | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `-silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any. |
+| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `-silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one. |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |

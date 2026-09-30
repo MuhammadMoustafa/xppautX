@@ -67,7 +67,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -2398,7 +2398,7 @@ async function autoView(dir) {
   check('T21: Clear hides every branch so far; the key offers "Earlier branches (2)"',
     await until(`!s.busy && __xpp.diagram().curves.length === 0 && s.diagram.earlier === ${nAll} && !!document.querySelector('.auto-earlier')`, 'cleared')
     && /Earlier branches \(2\)/.test(await cdp.eval(`document.querySelector('.auto-earlier').textContent`))
-    && JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentClear})`)) === JSON.stringify([{cmd: 'key', win: 'auto', key: 'c'}, {cmd: 'key', win: 'auto', key: 'd'}]),
+    && JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentClear})`)) === JSON.stringify([{cmd: 'key', win: 'auto', key: 'c', button: 'clear'}, {cmd: 'key', win: 'auto', key: 'd', button: 'redraw'}]),
     await cdp.eval(`document.querySelector('.auto-legend').textContent`));
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
@@ -3144,6 +3144,49 @@ async function statusBarLayout() {
 }
 
 /* ---- T21: where keys go, the theme switch, long menus in columns ---------------- */
+
+/* W59a: the recording bar. Record in the title bar starts a recording: the
+   red bar shows the steps taken and a note box; a note typed there goes to
+   the core when the box is left and with the next step, which empties it;
+   Integrate says it is a button; Stop asks the file's name and the bar goes.
+   The file holds the step with its note above it. */
+async function recordCheck(dir) {
+  await desktopMetrics();
+  check('record: no recording bar before one starts, Record in the title bar',
+    !(await cdp.eval(`!!document.querySelector('.recbar')`)) && await cdp.eval(`!!document.querySelector('.title-bar .record-toggle')`));
+  await cdp.eval(`document.querySelector('.title-bar .record-toggle').click()`);
+  check('record: Record starts one: the red bar with its dot and 0 steps, Record gone from the title bar',
+    await until(`s.core.recording && s.core.recording.steps === 0 && !s.busy`, 'recording')
+    && await cdp.eval(`!!document.querySelector('.recbar .rec-dot') && document.querySelector('.recbar .rec-count').textContent.trim() === '0 steps'
+      && !document.querySelector('.title-bar .record-toggle')`));
+  await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea'); t.focus(); })()`);
+  await key('g');
+  check('record: a letter typed into the note box stays there (no hotkey)',
+    await cdp.eval(`document.querySelector('.recbar textarea').value === 'g'`) && !(await S('s.ask')));
+  await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea');
+    t.value = 'First run.\\nIt settles.'; t.dispatchEvent(new Event('input', {bubbles: true})); t.blur(); })()`);
+  check('record: the note goes to the core when the box is left, and waits for the next step',
+    await until(`s.core.recording.note === 'First run.\\nIt settles.' && !s.busy`, 'note'), JSON.stringify(await S('s.core.recording')));
+  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  check('record: a step taken (Integrate): 1 step, the note gone with it, the box empty',
+    await until(`s.core.recording.steps === 1 && s.core.recording.note === '' && !s.busy`, 'step', 20000)
+    && await cdp.eval(`document.querySelector('.recbar textarea').value === '' && document.querySelector('.recbar .rec-count').textContent.trim() === '1 step'`),
+    JSON.stringify(await S('s.core.recording')));
+  check('record: Integrate sends its key as a button', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.key === 'i' && c.button === 'Integrate')`));
+  await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
+  check('record: Stop asks the file\'s name, the model\'s offered',
+    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx' && s.ask.file === 'lecar.recx'`, 'file ask'), JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'web'})`);
+  check('record: the recording ends and the bar goes',
+    await until(`!s.core.recording && !s.busy`, 'stopped') && !(await cdp.eval(`!!document.querySelector('.recbar')`)));
+  const file = path.join(dir, 'web.recx');
+  const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
+  const at = lines.indexOf('@steps');
+  check('record: web.recx holds the model and the step, its note above it, the button named',
+    lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.ode') && at > 0
+    && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
+    && lines[at + 3] === '{"step":"Initialconds → Go","button":"Integrate","keys":["i","g"]}', JSON.stringify(lines.slice(at, at + 5)));
+}
 
 async function keysCheck() {
   await desktopMetrics();
@@ -4852,6 +4895,7 @@ async function main() {
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('autoviews')) await session(ODE, autoViews);
     if (run('keys')) await session(ODE, keysCheck);
+    if (run('record')) await session(ODE, recordCheck);
     if (run('lostf')) await session(ODE, lostF);
     if (run('lostf')) await session(HEAVY_ODE, lostFRunning);
     if (run('busy')) await session(LIVE, busyAuto);

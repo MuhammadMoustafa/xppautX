@@ -185,7 +185,10 @@ int classify(const char *line, unsigned long seq)
 void take_setting(xpp::Session &s, const char *line)
 {
     const bool now = !xpp_job_computed() && is_cmd(line, "set");
-    if (now) apply_set(s, line);
+    if (now) {
+        record_setting(line);
+        apply_set(s, line);
+    }
     defer_line(line, false, now);
 }
 
@@ -213,26 +216,34 @@ int control_line(xpp::Session &s, const char *line)
     return 64;
 }
 
+/* where the running job was when it was cancelled, from what the
+   computation reported last (xpp_job.h): the stopped event's `at`, and a
+   recorded step's `abort` (json_record.cpp) */
+void buf_stopped_at(Buf *b)
+{
+    XppJobProgress p = xpp_job_progress();
+    if (p.what == XPP_JOB_INTEGRATE) {
+        /* t is a stored single-precision number: 9 digits read back exactly */
+        buf_format(b, "{{\"what\":\"integrate\",\"rows\":{:d},\"t\":", p.rows);
+        buf_num(b, p.t, 9);
+        BUF_LIT(b, "}");
+    } else if (p.what == XPP_JOB_AUTO) {
+        buf_format(b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
+    } else {
+        BUF_LIT(b, "{\"what\":\"other\"}");
+    }
+}
+
 namespace {
 
 /* {"ev":"stopped","at":AT}: where the running job was when it was
-   cancelled (docs/protocol.md "stopped"), from what the computation
-   reported last (xpp_job.h). A script replays the interruption from AT. */
+   cancelled (docs/protocol.md "stopped"). A script replays the
+   interruption from AT. */
 void send_stopped(void)
 {
-    XppJobProgress p = xpp_job_progress();
     Buf b;
     BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
-    if (p.what == XPP_JOB_INTEGRATE) {
-        /* t is a stored single-precision number: 9 digits read back exactly */
-        buf_format(&b, "{{\"what\":\"integrate\",\"rows\":{:d},\"t\":", p.rows);
-        buf_num(&b, p.t, 9);
-        BUF_LIT(&b, "}");
-    } else if (p.what == XPP_JOB_AUTO) {
-        buf_format(&b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
-    } else {
-        BUF_LIT(&b, "{\"what\":\"other\"}");
-    }
+    buf_stopped_at(&b);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }
@@ -390,6 +401,7 @@ XppUi make_json_ui(void)
     u.q_calc = j_q_calc;
     u.open_help = j_open_help;
     u.copy_text = j_copy_text;
+    u.record_toggle = j_record_toggle;
     u.exit_program = j_exit_program;
     return u;
 }
@@ -509,6 +521,8 @@ const CommandInfo commands[] = {
          xpp_model_open(s, file.c_str());
      }},
     {"reload", nullptr, D, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
+    {"record", "note", C, record_command},
+    {"record", nullptr, D, record_command}, /* start, stop */
     {"equilibrium", nullptr, X, write_command},
     {"userbut", nullptr, X,
      [](xpp::Session &s, const char *line) {
@@ -583,6 +597,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
         j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
+        record_begin(line);
         e->run(*s, line);
     } else {
         std::string c;
@@ -607,6 +622,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
        stopped where the recorded session did */
     if (xpp_job_cancelled()) send_stopped();
     if (session.script_mode && xpp_job_stop_armed()) script_stop_missed();
+    record_end(*s, xpp_job_cancelled());
     /* the command is finished; the client may send the next one */
     xpp_job_end();
     send_state(*s);

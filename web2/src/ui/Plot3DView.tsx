@@ -145,7 +145,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
             {!busy && (
-              <button class="primary" onClick={() => session.keys('i', 'g')}>Integrate (I, G)</button>
+              <button class="primary" onClick={() => session.buttonKeys('Integrate', 'i', 'g')}>Integrate (I, G)</button>
             )}
           </div>
         )}

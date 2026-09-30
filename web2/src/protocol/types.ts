@@ -55,6 +55,8 @@ export interface StateEvent {
   menu: number;
   win: number;
   session?: {file?: string; set?: string; auto?: string};
+  /** while the core records the steps (W59a): how many so far, and the note waiting for the next one */
+  recording?: {steps: number; note: string};
 }
 
 /** One curve of the active plot window: storage columns (0 is T) and XPP's style. */

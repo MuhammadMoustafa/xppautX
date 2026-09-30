@@ -175,6 +175,24 @@ This brings up a menu with several options. Type `Esc` to abort.
   A session file without its model (saved before this version) is
   refused with an error. See
   [session files](01-introduction.md#starting-it).
+- **recor(D)**: Starts recording what you do, step by step; press it
+  again (or **Stop** on the red recording bar the page shows, or
+  **Record** in the title bar to start) to stop, and it asks for a file
+  name and writes one plain text file, `name.recx`, next to the model: the
+  model itself and every text file the session read while recording (a
+  set, a parameter file, a table), then the steps. A step is everything
+  one command does until XPP is ready again: **Initialconds** then **Go**
+  is one step, with the keys you pressed, a dialog's answers are part of
+  the step that asked, a menu you left with `Esc` is a step too, and a run
+  you stopped keeps where it stopped. Each zoom or pan is a step of its
+  own; the time you spent between steps is not recorded. While recording,
+  the bar's **Note for the next step** box holds a note that goes with the
+  next step you take (a caption for whoever plays it back); notes can also
+  be written afterwards in any text editor, as `#` lines just above a
+  step. The file ends with a fingerprint of the embedded files and the
+  steps (not the notes): editing a note keeps it, changing a step or a file
+  does not. A recording holds no data: playing it back computes everything
+  again.
 
 ### (P)arameters
 

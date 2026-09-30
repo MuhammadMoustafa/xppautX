@@ -13,6 +13,7 @@ import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
 import {Messages} from './Messages';
 import {Plots} from './Plots';
+import {RecordBar} from './RecordBar';
 import {StatusBar} from './StatusBar';
 import {TableView} from './TableView';
 import {TextViews} from './TextViews';
@@ -84,6 +85,7 @@ function Shell() {
       <MenuPanel />
       <main id="main" class="workspace">
         <Banner />
+        <RecordBar />
         <AutoShow />
         <Plots dark={dark} />
         <SliderStrip />

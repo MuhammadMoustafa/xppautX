@@ -88,6 +88,7 @@ static int hl_checklist(const char *, const char *const *, int *, int)
 static void hl_movie_save(const char *, int) {}
 static void hl_open_help(const char *, const char *) {}
 static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
+static void hl_record_toggle(void) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -205,6 +206,7 @@ XppUi xpp_ui = {
     .q_calc = hl_void,
     .open_help = hl_open_help,
     .copy_text = hl_copy_text,
+    .record_toggle = hl_record_toggle,
     .exit_program = hl_exit_program,
 };
 
@@ -358,6 +360,7 @@ void make_txtview(void) { xpp_ui.make_txtview(); }
 void q_calc(void) { xpp_ui.q_calc(); }
 void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
 void copy_text(const char *what, const char *text) { xpp_ui.copy_text(what, text); }
+void record_toggle(void) { xpp_ui.record_toggle(); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
    was a thin wrapper around xpp_log() at INFO (the banner, "All formulas

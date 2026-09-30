@@ -83,6 +83,16 @@ std::string xpp_files_make_temp_dir()
     return {};
 }
 
+bool xpp_files_is_scratch(std::string_view path)
+{
+    try {
+        const std::string prefix = xpp::format("{}{}xppautoX-{}-", temp_base(), SEP, own_pid());
+        return path.starts_with(prefix);
+    } catch (const std::bad_alloc &) {
+        xpp_out_of_memory("naming the scratch folder");
+    }
+}
+
 void xpp_files_remove_temp_dir(const char *dir)
 {
     if (dir == nullptr) return;

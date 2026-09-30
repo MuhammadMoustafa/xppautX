@@ -80,6 +80,11 @@ int xpp_files_replace_file(const char *from, const char *to);
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *xpp_files_open_stream(const char *path, const char *mode);
+/* While set, observer(path) is called on every file xpp_files_open_stream
+   (so xpp_io.h's readers too) has just opened for reading only (a mode
+   "r" or "rb"): what a recording embeds (W59a, json_record.cpp). The core
+   thread's alone; NULL stops it. */
+void xpp_files_observe_reads(void (*observer)(const char *path));
 /* the descriptor a standard stream (stdout, stderr) writes through, given
    one (the null device) if it has none: the Windows exe is a GUI-subsystem
    program, and started with no console (Explorer, a shortcut,
@@ -144,6 +149,7 @@ void xpp_files_command(const char *op, const char *name_json, const char *data_j
 }
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -160,6 +166,9 @@ int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string 
    $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
    path, or empty on failure */
 std::string xpp_files_make_temp_dir();
+/* path is in one of this process's scratch folders (as the path above
+   names them): a file the core itself keeps there, never the user's */
+bool xpp_files_is_scratch(std::string_view path);
 
 /* a folder's entry: its name, and whether it is a folder itself (a link
    followed) */

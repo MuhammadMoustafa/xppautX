@@ -151,6 +151,7 @@ void make_txtview(void);
 void q_calc(void);
 void open_help(const char *chapter, const char *anchor);
 void copy_text(const char *what, const char *text);
+void record_toggle(void);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -347,6 +348,9 @@ typedef struct XppUi {
     void (*open_help)(const char *chapter, const char *anchor); /* File/Help: open the manual there */
     /* File/cOpy set line: text for the user's clipboard (what: "set") */
     void (*copy_text)(const char *what, const char *text);
+    /* File/recorD: start recording the session's steps, or stop and save
+       the recording (W59a, json_record.cpp) */
+    void (*record_toggle)(void);
 
     /* program is quitting */
     void (*exit_program)(void);
