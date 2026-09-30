@@ -583,6 +583,17 @@ stalled upload holds up no command, `abort` above all; two POSTs in flight at
 once may therefore reach the core in either order, and a client that needs
 its order sends the next one once the last was answered, as the page does.
 
+When the page goes away (web2's `pagehide`, browser mode only: the desktop
+window closes through its own path) it POSTs `/leave?t=TOKEN` with
+`navigator.sendBeacon` (204; 403 without the token). xppautX then waits about
+2 seconds for an event stream to connect again, which a reload does within
+that, and ends the program as the watchdog would (no `bye`, no page left to
+tell) if none has and no other stream still answers. A page that vanishes
+without a word (a crashed browser) is found by the heartbeat, an SSE comment
+every 2 seconds, and ends the program after 10 seconds without a page. Before
+closing, the browser-mode page also asks the browser's own "Leave site?"
+(`beforeunload`): closing the tab loses the session.
+
 Two more events come from the host, not the server: `log` {`text`} carries what the
 server printed on stderr (xppaut reports model errors, such as a formula that does
 not parse, only there; also when the Windows exe was started with no stderr

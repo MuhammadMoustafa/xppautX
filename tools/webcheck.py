@@ -270,6 +270,85 @@ except subprocess.TimeoutExpired:
     check('the program exits', False)
 shutil.rmtree(run, ignore_errors=True)
 
+# ---- W108: a page that says it is leaving ends the program soon; a reload inside the wait keeps it.
+# Pass/fail never depends on speed: the exit must come after the leave and before a generous safety
+# timeout; the reload case passes when the same process still answers after the wait has passed.
+
+
+lrun = tempfile.mkdtemp(prefix='xppleave')
+shutil.copy(args.ode, lrun)
+
+
+def leave_session():
+    """a fresh --browser process with one event stream open; (proc, port, token, stream's connection)"""
+    p = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', os.path.basename(args.ode)],
+                         cwd=lrun, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+    mm = None
+    for _ in range(50):
+        mm = re.search(r'http://127\.0\.0\.1:(\d+)/\?t=(\w+)', p.stdout.readline())
+        if mm:
+            break
+    if not mm:
+        p.kill()
+        return None
+    threading.Thread(target=lambda: [None for _ in p.stdout], daemon=True).start()
+    pt, tk = int(mm.group(1)), mm.group(2)
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
+    c.request('GET', '/events?t=' + tk)
+    c.getresponse().readline()  # the first event: the page is connected
+    return p, pt, tk, c
+
+
+def leave_post(pt, tk):
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
+    c.request('POST', '/leave?t=' + tk, body='')
+    r = c.getresponse()
+    r.read()
+    return r.status
+
+
+def answers(pt, tk):
+    try:
+        c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
+        c.request('POST', '/cmd?t=' + tk, body=json.dumps({'cmd': 'state'}))
+        return c.getresponse().status == 204
+    except OSError:
+        return False
+
+
+sess = leave_session()
+check('W108: a second process starts for the leave check', sess is not None)
+if sess:
+    p, pt, tk, c = sess
+    check('W108: /leave needs the token', leave_post(pt, 'wrong') == 403)
+    time.sleep(0.5)
+    check('W108: a wrong-token leave does not end the program', p.poll() is None)
+    c.close()  # the page's pagehide: the stream closes, then the beacon
+    t0 = time.time()
+    check('W108: the leave beacon is accepted', leave_post(pt, tk) == 204)
+    try:
+        p.wait(timeout=8)  # generous safety timeout; the wait itself is about 2 s
+        print('perf: leave-exit %.2f s' % (time.time() - t0))
+        check('W108: the program ends after the page says it is leaving', p.returncode == 0, str(p.returncode))
+    except subprocess.TimeoutExpired:
+        p.kill()
+        check('W108: the program ends after the page says it is leaving', False, 'still running after 8 s')
+
+sess = leave_session()
+if sess:
+    p, pt, tk, c = sess
+    c.close()
+    check('W108: a reload leave beacon is accepted', leave_post(pt, tk) == 204)
+    c2 = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)  # the reloaded page's stream
+    c2.request('GET', '/events?t=' + tk)
+    c2.getresponse().readline()
+    time.sleep(3.5)  # past the 2 s wait
+    check('W108: the same process still answers after a reload inside the wait', p.poll() is None and answers(pt, tk))
+    c2.close()
+    p.kill()
+    p.wait()
+shutil.rmtree(lrun, ignore_errors=True)
+
 # ---- T27: the Windows exe with no standard error handle ------------------------------
 # xppautX.exe is a GUI-subsystem program: started from Explorer, a shortcut,
 # Start-Process or a terminal it has no standard error, and its C library

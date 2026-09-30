@@ -76,6 +76,10 @@ The other modes:
 else (a remote machine through an SSH tunnel, the VS Code extension, a
 test): it prints `XPP: http://127.0.0.1:PORT/?t=TOKEN`, the address with
 the session's token, and opens it. The window never shows that address.
+Closing the browser tab ends xppautX about two seconds later (a reload
+inside that time keeps the session), and the browser first asks "Leave
+site?", since the session is lost; xppautX's own questions cannot be shown
+once the tab is gone. The desktop window needs no such question.
 If the web view cannot start (no WebView2 runtime on Windows, no display
 on Linux), xppautX says so in its log and uses the browser instead. On
 macOS the window is always available (the system's own WKWebView);

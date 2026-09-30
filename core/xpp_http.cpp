@@ -28,6 +28,7 @@
 #include <array>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -173,32 +174,72 @@ bool send_event(sock_t s, std::string_view line)
    start is not mistaken for a closed one. */
 constexpr int ALONE_SECONDS = 10;
 
+/* A page that says it is leaving (POST /leave, from web2's pagehide) is
+   waited for only this long: a reload comes back within it (its new event
+   stream cancels the wait), a closed tab does not. */
+constexpr long LEAVE_MS = 2000;
+constexpr long TICK_MS = 100;       /* the watchdog's poll */
+constexpr long HEARTBEAT_MS = 2000; /* between its comments to the streams */
+
 int had_client;
 time_t alone_since;
+long long leave_at; /* steady_clock ms of the last /leave, 0: none pending (the lock) */
+
+long long now_ms()
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count() + 1;
+}
+
+/* a comment on every stream: one that is gone fails the write and is dropped
+   (the first write to a closed peer can still succeed; the next fails) */
+void heartbeat()
+{
+    for (int i = 0; i < srv.nclients; i++) {
+        if (!send_all(srv.clients[i], ":\n\n")) drop_client(i--); /* a comment: the page ignores it */
+    }
+}
+
+[[noreturn]] void end_program()
+{
+    /* exit() would run at_exit(), which tells the page the program is
+       going and waits on the same lock from this thread: it hangs, and
+       there is no page left to tell anyway. Flush what the core wrote,
+       then go. */
+    std::fflush(nullptr);
+    _exit(0);
+}
 
 void *watchdog_main(void *)
 {
+    long long next_beat = now_ms() + HEARTBEAT_MS;
     for (;;) {
 #ifdef _WIN32
-        Sleep(2000);
+        Sleep(TICK_MS);
 #else
-        sleep(2);
+        usleep(TICK_MS * 1000);
 #endif
         pthread_mutex_lock(&lock);
-        for (int i = 0; i < srv.nclients; i++) {
-            if (!send_all(srv.clients[i], ":\n\n")) drop_client(i--); /* a comment: the page ignores it */
+        long long now = now_ms();
+        if (now >= next_beat) {
+            next_beat = now + HEARTBEAT_MS;
+            heartbeat();
+            if (srv.nclients > 0) alone_since = 0;
+            else if (had_client && !alone_since) alone_since = time(nullptr);
+            if (had_client && srv.nclients == 0 && alone_since
+                && time(nullptr) - alone_since >= ALONE_SECONDS) {
+                pthread_mutex_unlock(&lock);
+                end_program();
+            }
         }
-        if (srv.nclients > 0) alone_since = 0;
-        else if (had_client && !alone_since) alone_since = time(nullptr);
-        if (had_client && srv.nclients == 0 && alone_since
-            && time(nullptr) - alone_since >= ALONE_SECONDS) {
-            pthread_mutex_unlock(&lock);
-            /* exit() would run at_exit(), which tells the page the program is
-               going and waits on the same lock from this thread: it hangs, and
-               there is no page left to tell anyway. Flush what the core wrote,
-               then go. */
-            std::fflush(nullptr);
-            _exit(0);
+        if (leave_at && now - leave_at >= LEAVE_MS) {
+            heartbeat(); /* the page's closed stream fails on the second write */
+            heartbeat();
+            if (srv.nclients == 0) {
+                pthread_mutex_unlock(&lock);
+                end_program();
+            }
+            leave_at = 0; /* another page is still connected */
         }
         pthread_mutex_unlock(&lock);
     }
@@ -377,6 +418,7 @@ void open_events(sock_t s)
     if (ok && srv.nclients < MAX_CLIENTS) {
         had_client = 1;
         alone_since = 0;
+        leave_at = 0; /* a page is back: a reload, not a close */
         srv.clients[srv.nclients++] = s;
         /* the page draws from scratch; a redraw would wait behind an open prompt */
         if (!srv.sticky_hello.empty() && srv.sticky_ask.empty() && srv.exit_event.empty())
@@ -536,6 +578,21 @@ void serve_cmd(Request &q)
     pthread_mutex_lock(&lock);
     if (cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
     if (srv.exit_event.empty()) push_command(cmd);
+    pthread_mutex_unlock(&lock);
+    reply(q.s, "204 No Content", "text/plain", {});
+}
+
+/* POST /leave?t=TOKEN: the page is going away (a beacon from pagehide).
+   The watchdog ends the program unless a page has connected again by
+   LEAVE_MS later. */
+void serve_leave(Request &q)
+{
+    if (!token_ok(q.target)) {
+        reply_text(q.s, "403 Forbidden", "bad token");
+        return;
+    }
+    pthread_mutex_lock(&lock);
+    leave_at = now_ms();
     pthread_mutex_unlock(&lock);
     reply(q.s, "204 No Content", "text/plain", {});
 }
@@ -743,6 +800,8 @@ void handle(sock_t s)
             return;
         }
         reply_text(s, "403 Forbidden", "bad token");
+    } else if (q->method == "POST" && q->target.starts_with("/leave")) {
+        serve_leave(*q);
     } else if (command) {
         serve_cmd(*q);
     } else if (n >= 6 && q->target.starts_with("/files") && (n == 6 || q->target[6] == '/')) {

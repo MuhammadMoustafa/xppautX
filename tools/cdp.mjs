@@ -33,6 +33,7 @@ export class Cdp {
     this.pending = new Map();
     this.ws.onmessage = m => {
       const d = JSON.parse(m.data);
+      if (d.method && this.onEvent) this.onEvent(d);
       const p = d.id && this.pending.get(d.id);
       if (!p) return;
       this.pending.delete(d.id);
@@ -90,7 +91,19 @@ const PERF_SCRIPT = `(() => {
 
 /** installs PERF_SCRIPT for every document this tab navigates to from now
     on; call once, right after Page.enable, before the first Page.navigate */
-export function installPerfObserver(cdp) {
+export async function installPerfObserver(cdp) {
+  /* The page asks "Leave site?" before a reload and tells the core it is
+     leaving (W108, browser mode): a check must not hang on the prompt, nor
+     let the core's 2 s exit race a slow reload, so the page's beforeunload
+     listener is stopped before it runs (an accepted prompt would delay the
+     reload under the check's first evaluation) and the beacon is a no-op. */
+  cdp.onEvent = d => {
+    if (d.method === 'Page.javascriptDialogOpening')
+      cdp.send('Page.handleJavaScriptDialog', {accept: true}).catch(() => undefined);
+  };
+  await cdp.send('Page.addScriptToEvaluateOnNewDocument',
+    {source: "navigator.sendBeacon = () => true; "
+      + "window.addEventListener('beforeunload', e => e.stopImmediatePropagation(), true);"});
   return cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: PERF_SCRIPT});
 }
 
