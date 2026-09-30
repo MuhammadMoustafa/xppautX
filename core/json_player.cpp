@@ -21,6 +21,7 @@
    command loop's and a question's wait (player_wait_ms, player_fire):
    the core stays single-threaded, and reads the client's lines while it
    waits. */
+#include "ui_json.h"
 #include "ui_json_internal.h"
 #include "model.h"
 #include "model_files.h"
