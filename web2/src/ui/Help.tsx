@@ -151,8 +151,8 @@ export function HelpView() {
         <Field type="search" spec={TEXT} placeholder="Search the manual" value={help.query} disabled={!chapters}
           onInput={query => session.store.dispatch({type: 'help', action: {type: 'query', query}})} />
       </label>
-      {help.open && help.about && <AboutBody text={hello?.about ?? ''} />}
-      {!help.about && chapters && help.query.trim() !== '' && (
+      {help.about && !chapter && <AboutBody text={hello?.about ?? ''} />}
+      {chapters && help.query.trim() !== '' && (
         <ul class="help-results" aria-label="Search results">
           {results.length === 0 && <li class="muted help-no-results">No match.</li>}
           {results.map((r, i) => (
@@ -165,15 +165,15 @@ export function HelpView() {
           ))}
         </ul>
       )}
-      {!help.about && error && <p class="help-error" role="alert">Could not load the manual: {error}</p>}
+      {error && <p class="help-error" role="alert">Could not load the manual: {error}</p>}
       {!help.about && !chapters && !error && <p class="help-loading" role="status">Loading the manual…</p>}
-      {!help.about && chapters && chapter && (
+      {chapters && chapter && (
         <div class="help-body">
           <nav class="help-toc" aria-label="Chapters">
             <ol>
               {chapters.map((c, i) => (
                 <li key={c.id}>
-                  <button type="button" class={'help-toc-item' + (c.id === chapter.id ? ' current' : '')}
+                  <button type="button" class={'help-toc-item' + (c.id === chapter.id && !help.about ? ' current' : '')}
                     aria-current={c.id === chapter.id ? 'page' : undefined} onClick={() => go({chapter: c.id})}>
                     {i + 1}. {c.title}
                   </button>
@@ -182,8 +182,12 @@ export function HelpView() {
             </ol>
           </nav>
           <div class="help-content" ref={content} onClick={onContentClick}>
-            <h1>{chapter.title}</h1>
-            <div dangerouslySetInnerHTML={{__html: chapter.html}} />
+            {help.about
+              ? <AboutBody text={hello?.about ?? ''} />
+              : <>
+                  <h1>{chapter.title}</h1>
+                  <div dangerouslySetInnerHTML={{__html: chapter.html}} />
+                </>}
           </div>
         </div>
       )}

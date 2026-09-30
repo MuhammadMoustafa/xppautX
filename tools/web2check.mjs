@@ -3301,7 +3301,7 @@ async function helpCheck() {
   await cdp.eval(`document.querySelector('.help-about-toggle').click()`);
   check('help: the About button shows hello.about (author, email, issues URL)', await until(`(() => {
     const t = document.querySelector('.help-about')?.textContent ?? '';
-    return s.help.about && t === s.hello.about.split('\n').join('') && t.includes('Muhammad Ahmad')
+    return s.help.about && t === s.hello.about.split(String.fromCharCode(10)).join('') && t.includes('Muhammad Ahmad')
       && t.includes('muhammadmoustafa22@gmail.com') && t.includes('https://github.com/MuhammadMoustafa/xppautX/issues');
   })()`, 'about shown'), JSON.stringify(await S('s.help')));
   await cdp.eval(`[...document.querySelectorAll('.help-toc-item')][0].click()`);
