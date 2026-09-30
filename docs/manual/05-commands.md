@@ -149,7 +149,8 @@ This brings up a menu with several options. Type `Esc` to abort.
   can...") one at a time; Next for another, Done to stop.
 - **open (M)odel**: Asks for a `.ode` or `.odex` file (or a `.snapx`
   session file, which opens that session: **opeN session** below; or an
-  `.autox` AUTO file, which opens its model with its diagram), then
+  `.autox` AUTO file, which opens its model with its diagram; or a `.recx`
+  recording, which opens in the player), then
   whether to save this session first (**Save first** writes a session
   file, **Don't save**; Escape keeps the current model), and loads it in
   place of the current model: its data,

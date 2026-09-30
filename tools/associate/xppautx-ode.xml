@@ -26,4 +26,11 @@
     <icon name="xppautx"/>
     <glob pattern="*.autox"/>
   </mime-type>
+  <mime-type type="application/x-xppautx-recording">
+    <comment>xppautX recording (.recx)</comment>
+    <comment xml:lang="en">xppautX recording (.recx)</comment>
+    <sub-class-of type="text/plain"/>
+    <icon name="xppautx"/>
+    <glob pattern="*.recx"/>
+  </mime-type>
 </mime-info>

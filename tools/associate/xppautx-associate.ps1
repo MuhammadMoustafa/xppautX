@@ -1,19 +1,19 @@
 <#
 .SYNOPSIS
     Register or unregister xppautX as the handler for .ode and .odex files,
-    .snapx session files and .autox AUTO files, for the
+    .snapx session files, .autox AUTO files and .recx recordings, for the
     current user only (HKCU\Software\Classes: no admin rights needed, and
     nothing outside this user's own registry hive is touched).
 
 .DESCRIPTION
     Register writes a ProgID, "xppautX.Model", under HKCU\Software\Classes
     with the exe's icon and open command, and points the default value of
-    .ode, .odex, .snapx and .autox at it; Unregister removes them. Either way, SHChangeNotify tells Explorer
+    .ode, .odex, .snapx, .autox and .recx at it; Unregister removes them. Either way, SHChangeNotify tells Explorer
     to pick up the change without a sign-out. Run it again after moving or
     renaming xppautX.exe: the command line it wrote has the old path.
 
 .PARAMETER Register
-    Associate .ode, .odex, .snapx and .autox with xppautX (the default action).
+    Associate .ode, .odex, .snapx, .autox and .recx with xppautX (the default action).
 
 .PARAMETER Unregister
     Remove the associations (each extension only while xppautX still owns
@@ -44,7 +44,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProgId = 'xppautX.Model'
-$Extensions = @('.ode', '.odex', '.snapx', '.autox')
+$Extensions = @('.ode', '.odex', '.snapx', '.autox', '.recx')
 $ClassesRoot = 'HKCU:\Software\Classes'
 
 if (-not $ExePath) {

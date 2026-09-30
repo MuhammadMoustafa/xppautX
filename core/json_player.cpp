@@ -388,7 +388,7 @@ void send_player()
     send_buf(&b);
 }
 
-void open_recording(xpp::Session &s, const char *path)
+void open_recording(xpp::Session &s, const char *path, bool ask = true)
 {
     if (player.running >= 0) {
         j_err_msg("Not while a recording plays a step");
@@ -420,7 +420,7 @@ void open_recording(xpp::Session &s, const char *path)
             j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error).c_str());
             return;
         }
-    if (!xpp_model_may_leave(s, file)) return;
+    if (ask && !xpp_model_may_leave(s, file)) return;
     close_player();
     player.path = xpp_files_absolute(file);
     player.rec = std::move(got->rec);
@@ -524,6 +524,34 @@ void j_play_recording(const char *path)
 {
     open_recording(xpp::session(), path); /* an XppUi callback: an entry point */
 }
+
+} // namespace xpp::json
+
+/* the C++ API of ui_json.h (global) */
+std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
+{
+    std::string bytes, error;
+    if (!xpp::read_bytes(path.c_str(), bytes)) {
+        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s
+", path.c_str());
+        return std::nullopt;
+    }
+    std::optional<xpp::recx::Read> got = xpp::recx::read(bytes, error);
+    if (!got || got->rec.model.empty() || got->rec.files.empty()) {
+        xpp_log(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s
+", path.c_str(),
+                got ? "it names no model" : error.c_str());
+        return std::nullopt;
+    }
+    return RecordingLaunch{xpp::SavedModel{xpp_files_absolute(path), got->rec.files}, got->rec.model};
+}
+
+void json_ui_play_launched(xpp::Session &s, const std::string &path)
+{
+    xpp::json::open_recording(s, path.c_str(), false);
+}
+
+namespace xpp::json {
 
 int player_wait_ms(void)
 {

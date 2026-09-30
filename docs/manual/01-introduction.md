@@ -99,8 +99,8 @@ leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
 
-**Double-clicking a .ode file** (or a `.snapx` session file or an
-`.autox` AUTO file, below)
+**Double-clicking a .ode file** (or a `.snapx` session file, an
+`.autox` AUTO file or a `.recx` recording, which opens in the player, below)
 opens it the same way, once xppautX is registered as its opener: run
 the matching script in `tools/associate/`
 once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
@@ -118,7 +118,7 @@ first; starting the app on its own shows the Open dialog.
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
-session file or an `.autox` AUTO file, below) and asks first: the current model's data and AUTO diagram
+session file, an `.autox` AUTO file or a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
 go, so it offers **Save first** (a session file, as File/saVe session
 writes it) or **Don't save**; Escape keeps the current model. The new model is loaded from its own folder,
 which becomes the folder the page's files are in, and every window of

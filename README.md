@@ -134,12 +134,12 @@ without unpacking anything:
 - **Linux:** `xppautX-<version>-linux-x64.deb` (amd64):
   `sudo apt install ./xppautX-<version>-linux-x64.deb` puts `xppautX` in
   `/usr/bin`, adds the menu entry and icons, and registers the `.ode`,
-  `.odex` and `.snapx` (session) file types system-wide (it recommends `libwebkit2gtk-4.1-0` for
+  `.odex`, `.snapx` (session), `.autox` and `.recx` (recording) file types system-wide (it recommends `libwebkit2gtk-4.1-0` for
   the window).
 - **macOS:** `xppautX-<version>-macos-arm64.dmg` (Apple silicon) or
   `-macos-x64.dmg` (Intel): open it and drag `xppautX.app` to Applications
-  (unsigned: see the macOS note below). Double-clicking a `.ode`, `.odex`
-  or `.snapx` starts it on that file (Finder sends it as an Apple Event,
+  (unsigned: see the macOS note below). Double-clicking a `.ode`, `.odex`,
+  `.snapx`, `.autox` or `.recx` starts it on that file (Finder sends it as an Apple Event,
   which the app handles), and one opened while it runs loads in the same
   window, asking first; starting the app on its own shows the Open dialog.
 

@@ -6,7 +6,7 @@
      no macOS machine has built or run this bundle yet). The version tokens
      below are substituted by the Makefile's app target from the same
      XPPAUTX_VERSION that "xppautX --version" prints. Declares the .ode
-     and .odex document types, the .snapx session file and the .autox AUTO file so Finder offers xppautX to open one and double-clicking
+     and .odex document types, the .snapx session file, the .autox AUTO file and the .recx recording so Finder offers xppautX to open one and double-clicking
      one starts it. Finder sends the file as an open-documents Apple Event,
      which core/xpp_window.cpp handles (W91): at launch it is the model, and
      one opened while the app runs loads in its window as File > Open model
@@ -96,6 +96,20 @@
                 <string>io.github.MuhammadMoustafa.xppautX.autox</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>xppautX recording (.recx)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>io.github.MuhammadMoustafa.xppautX.recx</string>
+            </array>
+        </dict>
     </array>
     <key>UTExportedTypeDeclarations</key>
     <array>
@@ -107,7 +121,24 @@
             <key>UTTypeConformsTo</key>
             <array>
                 <string>public.plain-text</string>
+                <dict>
+            <key>UTTypeIdentifier</key>
+            <string>io.github.MuhammadMoustafa.xppautX.recx</string>
+            <key>UTTypeDescription</key>
+            <string>xppautX recording (.recx)</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.plain-text</string>
             </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>recx</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
             <key>UTTypeTagSpecification</key>
             <dict>
                 <key>public.filename-extension</key>

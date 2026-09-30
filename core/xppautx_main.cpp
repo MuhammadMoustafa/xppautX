@@ -23,6 +23,8 @@
                                     a built-in script (json_silent.cpp) of
                                     the protocol's commands, played like
                                     --script with its events going nowhere
+     xppautX name.recx              a recording (W59c): its model starts,
+                                    then it opens in the player
      xppautX name.snapx             a session file or an AUTO file (.autox,
                                     xpp_session.h) in any mode but -silent:
                                     the model saved in it, loaded from its
@@ -53,6 +55,8 @@
 #include "aniparse.h"
 #include "comline.h"
 #include "load_eqn.h"
+#include "recx.h"
+#include "snapx.h"
 #include "menudrive.h"
 #include "xpp_http.h"
 #include "xpp_util.h"
@@ -105,7 +109,8 @@ static const char *const usage_tail =
     "  -silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/saVe session) or an AUTO file (name.autox,\n"
     "AUTO's File/Save diagram) in place of file.ode opens the model saved in it,\n"
-    "then the session or the diagram as it was saved.\n"
+    "then the session or the diagram as it was saved. A recording (name.recx)\n"
+    "opens in the player.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n";
@@ -163,10 +168,18 @@ static void run_session(void)
        file or a session file): its saved model is loaded, from the file's
        own folder as File > Open model loads one, then what the file adds */
     std::optional<SavedFile> saved;
+    std::optional<RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
     std::vector<std::string> args;
     std::vector<char *> argv;
     args.assign(session_argv, session_argv + session_argc);
     for (size_t i = 1; i < args.size(); i++) {
+        if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
+            recording = json_ui_recording_launch(args[i]);
+            if (!recording) exit(1); /* the error said why */
+            xpp_files_change_dir(xpp_files_split_path(recording->saved.in).first.c_str());
+            args[i] = recording->model;
+            break;
+        }
         if (!xpp_saved_file_name(args[i])) continue;
         saved = xpp_saved_read(args[i]);
         if (!saved) { /* the error message said why */
@@ -182,7 +195,8 @@ static void run_session(void)
     for (std::string &a : args) argv.push_back(a.data());
     argv.push_back(nullptr);
     if (std::optional<xpp::Diagnostic> failed =
-            xpp::load_model(static_cast<int>(args.size()), argv.data(), 0, saved ? &saved->model : nullptr)) {
+            xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
+                            saved ? &saved->model : recording ? &recording->saved : nullptr)) {
         json_ui_load_error(*failed);
         exit(1);
     }
@@ -191,6 +205,7 @@ static void run_session(void)
     xpp::Session &s = xpp::session();
     json_ui_start_model(s);
     if (saved) xpp_saved_restore(s, *saved);
+    if (recording) json_ui_play_launched(s, recording->saved.in); /* loaded by the redraw below */
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || s.run_immediately == 1) {

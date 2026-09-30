@@ -32,7 +32,11 @@ int json_ui_silent(int argc, char **argv);
 #ifdef __cplusplus
 }
 
+#include <optional>
+#include <string>
+
 #include "diagnostic.h"
+#include "model_files.h"
 
 namespace xpp {
 struct Session; /* session.h */
@@ -45,5 +49,19 @@ void json_ui_start_model(xpp::Session &s);
 /* the model did not load: why and where, as the `error` event (in place
    of hello; docs/protocol.md "A model that does not load") */
 void json_ui_load_error(const xpp::Diagnostic &d);
+
+/* A recording (.recx) given on the command line or opened by the OS
+   (W59c): json_ui_recording_launch reads it and returns the model it
+   holds, to start the session with (xpp::load_model's `saved`, `model`
+   the name the model's file is given as); nullopt, with the reason
+   logged, when it is not a recording. json_ui_play_launched, once that
+   model has started, opens the recording in the player without the
+   question File > Open model asks (nothing is to be saved yet). */
+struct RecordingLaunch {
+    xpp::SavedModel saved;
+    std::string model;
+};
+std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path);
+void json_ui_play_launched(xpp::Session &s, const std::string &path);
 #endif
 #endif

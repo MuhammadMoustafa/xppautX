@@ -1063,6 +1063,12 @@ session file saved before W103), or without its manifest, is refused (a
 line opens one too, `xppautX name.snapx` (every mode but `-silent`),
 from its own folder.
 
+A recording, `name.recx` (W59c), is registered with the OS beside them (the
+same scripts in `tools/associate/`), and `xppautX name.recx` (every mode
+but `-silent`) starts the recording's own model and opens the recording in
+the player, as `{"cmd":"play","op":"open"}` does, without the question
+File/open Model asks (nothing is open to save).
+
 ### AUTO files
 
 AUTO's own file, `name.autox` (W92, core/autox_io.cpp; its pure part, the
