@@ -100,7 +100,7 @@ int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, doubl
   work2=dydx+nvar;
   x=x1;
   h=SIGN(h1,x2-x1);
-  set_wieners(*hguess,ystart,x1);
+  set_wieners(xpp::session(),*hguess,ystart,x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=MAXSTP;nstp++){

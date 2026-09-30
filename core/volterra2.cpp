@@ -301,7 +301,7 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
   for(i=0;i<nt;i++)                      /* the real computation            */
     {
       *t=*t+dt;
-      set_wieners(dt,y,*t);
+      set_wieners(xpp::session(),dt,y,*t);
       if((j=volt_step(y,*t,dt,neq,yg,yp,yp2,ytemp,errvec,jac))!=0)
 	return(j);
       stor_delay(y); 

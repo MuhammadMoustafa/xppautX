@@ -13,8 +13,6 @@ typedef struct {
   double *x;
 } XPPVEC;
 
-void init_alloc_info(void);
-
 #ifdef __cplusplus
 }
 
@@ -22,6 +20,13 @@ void init_alloc_info(void);
 #include <vector>
 
 #include "xpp_error.h"
+
+namespace xpp {
+struct Session; /* session.h */
+}
+/* the Session s's state vector, zeroed, for its Model's ODEs and Markov
+   variables */
+void init_alloc_info(xpp::Session &s);
 
 /* the integrator's state vector (init_alloc_info), a Session's
    (session.h); each solver owns its own work memory (solver.h) */
@@ -74,9 +79,9 @@ private:
    or the next make(). */
 class LentColumns {
 public:
-  /* n zeroed columns of len floats, the store's n..last after them; the
+  /* n zeroed columns of len floats, store's n..last after them; the
      table */
-  float **make(int n, int len, int last);
+  float **make(const DataStore &store, int n, int len, int last);
   void release();
   float **table() noexcept { return table_.data(); }
 private:

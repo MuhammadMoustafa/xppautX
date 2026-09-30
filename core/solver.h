@@ -62,6 +62,7 @@ struct SolverStep {
 using SolverResult = Result<>;
 
 class Solver;
+struct Session; /* session.h */
 
 /* a row of the registry */
 struct SolverInfo {
@@ -69,13 +70,13 @@ struct SolverInfo {
   const char *name;      /* do_info's and the front end's */
   const char *set_label; /* the label .set files write beside it */
   SolverTraits traits;
-  /* the solver, with its work memory for n equations */
-  std::unique_ptr<Solver> (*start)(const SolverInfo &info, int n);
+  /* the solver of the Session s, with its work memory for n equations */
+  std::unique_ptr<Solver> (*start)(const SolverInfo &info, Session &s, int n);
 };
 
 class Solver {
 public:
-  explicit Solver(const SolverInfo &info) : info_(info) {}
+  Solver(const SolverInfo &info, Session &s) : session_(s), info_(info) {}
   virtual ~Solver() = default;
   Solver(const Solver &) = delete;
   Solver &operator=(const Solver &) = delete;
@@ -91,6 +92,9 @@ public:
   virtual void finish() {}
 
 protected:
+  /* the Session it steps: the run takes it once, where it starts (W47d4) */
+  Session &session_;
+
   /* a failed advance of this method */
   SolverResult failed(std::string what) const { return fail(info_.name, std::move(what)); }
 
@@ -104,9 +108,9 @@ std::span<const SolverInfo> solvers();
 const SolverInfo &solver_info(int method);
 
 
-/* starts the solver of numerics.method: a fresh one, with fresh work
+/* starts the solver of s's numerics.method: a fresh one, with fresh work
    memory, the Session's (integrate.h's IntegratorState) */
-void start_solver();
+void start_solver(Session &s);
 
 } // namespace xpp
 

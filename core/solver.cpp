@@ -45,8 +45,8 @@ using StepFn = int (*)(double *y, double *t, double dt, int nt, int neq, int *st
 
 class FixedStep final : public Solver {
 public:
-  FixedStep(const SolverInfo &info, StepFn step, int work)
-    : Solver(info), step_(step), work_(make_work(work)) {}
+  FixedStep(const SolverInfo &info, Session &s, StepFn step, int work)
+    : Solver(info,s), step_(step), work_(make_work(work)) {}
   SolverResult advance(const SolverStep &s) override
   {
     int kflag=step_(s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
@@ -65,15 +65,15 @@ private:
 
 class Gear final : public Solver {
 public:
-  Gear(const SolverInfo &info, int n) : Solver(info), work_(make_work(gear_work(n))) {}
+  Gear(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(gear_work(n))) {}
   /* Gear starts afresh from 0 and continues from its order */
   void begin(int *start) override { if(*start==1)*start=0; }
   SolverResult advance(const SolverStep &s) override
   {
-    NumericsSettings &num=session().numerics;
+    NumericsSettings &num=session_.numerics;
     std::array<double,MAXODE> error{};
     int kflag=0;
-    gear(s.neq,s.t,s.tout,s.y,num.hmin,num.hmax,num.toler,2,error.data(),&kflag,s.start,
+    gear(session_,s.neq,s.t,s.tout,s.y,num.hmin,num.hmax,num.toler,2,error.data(),&kflag,s.start,
          work_.data(),iwork_.data());
     switch(kflag){
     case -1: return failed("kflag=-1: minimum step too big");
@@ -93,10 +93,10 @@ private:
 /* stiff.cpp's adaptive Runge-Kutta (QualRK) and its stiff method */
 class Adaptive final : public Solver {
 public:
-  Adaptive(const SolverInfo &info, int work) : Solver(info), work_(make_work(work)) {}
+  Adaptive(const SolverInfo &info, Session &s, int work) : Solver(info,s), work_(make_work(work)) {}
   SolverResult advance(const SolverStep &s) override
   {
-    NumericsSettings &num=session().numerics;
+    NumericsSettings &num=session_.numerics;
     int kflag=0;
     adaptive(s.y,s.neq,s.t,s.tout,num.toler,s.hguess,num.hmin,work_.data(),&kflag,
              num.newt_err,info().id,s.start);
@@ -116,10 +116,10 @@ private:
 
 class Cvode final : public Solver {
 public:
-  explicit Cvode(const SolverInfo &info) : Solver(info) {}
+  Cvode(const SolverInfo &info, Session &s) : Solver(info,s) {}
   SolverResult advance(const SolverStep &s) override
   {
-    NumericsSettings &num=session().numerics;
+    NumericsSettings &num=session_.numerics;
     int kflag=0;
     cvode(s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
     if(kflag<0)return failed(cvode_error_text(kflag));
@@ -131,10 +131,10 @@ public:
 /* dormpri.cpp's Dormand-Prince 5 and 8(3) */
 class DormandPrince final : public Solver {
 public:
-  DormandPrince(const SolverInfo &info, int n) : Solver(info), work_(make_work(standard_work(n))) {}
+  DormandPrince(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(standard_work(n))) {}
   SolverResult advance(const SolverStep &s) override
   {
-    NumericsSettings &num=session().numerics;
+    NumericsSettings &num=session_.numerics;
     int kflag=0;
     dp(s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().id==method::DP83,&kflag,
        work_.data());
@@ -154,7 +154,7 @@ private:
 
 class Rosenbrock final : public Solver {
 public:
-  Rosenbrock(const SolverInfo &info, int n) : Solver(info), work_(make_work(rosenbrock_work(n))) {}
+  Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n))) {}
   SolverResult advance(const SolverStep &s) override
   {
     int kflag=0;
@@ -167,35 +167,35 @@ private:
 };
 
 template <StepFn F, int (*Work)(int)>
-std::unique_ptr<Solver> fixed_step(const SolverInfo &info, int n)
+std::unique_ptr<Solver> fixed_step(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<FixedStep>(info,F,Work(n));
+  return std::make_unique<FixedStep>(info,s,F,Work(n));
 }
 
-std::unique_ptr<Solver> start_gear(const SolverInfo &info, int n)
+std::unique_ptr<Solver> start_gear(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<Gear>(info,n);
+  return std::make_unique<Gear>(info,s,n);
 }
 
 template <int (*Work)(int)>
-std::unique_ptr<Solver> start_adaptive(const SolverInfo &info, int n)
+std::unique_ptr<Solver> start_adaptive(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<Adaptive>(info,Work(n));
+  return std::make_unique<Adaptive>(info,s,Work(n));
 }
 
-std::unique_ptr<Solver> start_cvode(const SolverInfo &info, int)
+std::unique_ptr<Solver> start_cvode(const SolverInfo &info, Session &s, int)
 {
-  return std::make_unique<Cvode>(info);
+  return std::make_unique<Cvode>(info,s);
 }
 
-std::unique_ptr<Solver> start_dormand_prince(const SolverInfo &info, int n)
+std::unique_ptr<Solver> start_dormand_prince(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<DormandPrince>(info,n);
+  return std::make_unique<DormandPrince>(info,s,n);
 }
 
-std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, int n)
+std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int n)
 {
-  return std::make_unique<Rosenbrock>(info,n);
+  return std::make_unique<Rosenbrock>(info,s,n);
 }
 
 /* traits */
@@ -248,11 +248,10 @@ const SolverInfo &solver_info(int m)
   return registry[m];
 }
 
-void start_solver()
+void start_solver(Session &s)
 {
-  Session &s=session();
   const SolverInfo &info=solver_info(s.numerics.method);
-  s.integrator.solver=info.start(info,s.solver_work.xpv.node+s.solver_work.xpv.nvec);
+  s.integrator.solver=info.start(info,s,s.solver_work.xpv.node+s.solver_work.xpv.nvec);
 }
 
 } // namespace xpp

@@ -143,7 +143,7 @@ bool check(const xpp::Model &m_of, const Field &f, std::string_view text, double
             why = xpp::format("{}: no method {}", f.label, text);
             return false;
         }
-        if (const char *no = method_refusal(m)) {
+        if (const char *no = method_refusal(m_of,m)) {
             why = xpp::format("{}: {}", f.label, no);
             return false;
         }
@@ -204,10 +204,10 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             n.*f->whole = static_cast<int>(v);
         }
         /* what the menu does after each of these */
-        if (f->real == &N::delta_t) dt_changed();
-        else if (f->real == &N::delay) chk_delay();
-        else if (f->real == &N::bvp_tol || f->real == &N::bvp_eps || f->whole == &N::bvp_maxit) reset_bvp();
-        do_meth();
+        if (f->real == &N::delta_t) dt_changed(s);
+        else if (f->real == &N::delay) chk_delay(s);
+        else if (f->real == &N::bvp_tol || f->real == &N::bvp_eps || f->whole == &N::bvp_maxit) reset_bvp(s);
+        do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
         xpp_out_of_memory("setting the numerics");

@@ -7,27 +7,8 @@
 extern "C" {
 #endif
 
-/* markov.c */
-void add_wiener(int index);
-void set_wieners(double dt, double *x, double t);
-void add_markov(int nstate, const char *name);
-int old_build_markov(FILE *fptr, const char *name);
-void create_markov(int nstates, double *st, int type, const char *name);
-void add_markov_entry(int index, int j, int k, const char *expr);
-void compile_all_markov(void);
-int compile_markov(int index, int j, int k);
-void update_markov(double *x, double t, double dt);
-double new_state(double old, int index, double dt);
 void  make_gill_nu(double *nu, int n, int m, double *v);
 void  one_gill_step(int meth, int nrxn, int *rxn, double *v);
-void  do_stochast_com(int i);
-void  mean_back(void);
-void  variance_back(void);
-void  compute_em(void);
-void  free_stoch(void);
-void  init_stoch(int len);
-void  append_stoch(int first, int length);
-void  do_stats(int ierr);
 
 #ifdef __cplusplus
 }
@@ -37,12 +18,39 @@ void  do_stats(int ierr);
 #include <string>
 #include <vector>
 #include "xpplim.h"
+
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the Markov variables, the Wiener parameters and stocHast (markov.cpp),
+   in the Session s: a load's, or the run's */
+void add_markov(xpp::Session &s, int nstate, const char *name);
+void add_wiener(xpp::Session &s, int index);
+void set_wieners(xpp::Session &s, double dt, double *x, double t);
+int old_build_markov(xpp::Session &s, FILE *fptr, const char *name);
+void create_markov(xpp::Session &s, int nstates, double *st, int type, const char *name);
+void add_markov_entry(xpp::Session &s, int index, int j, int k, const char *expr);
+void compile_all_markov(xpp::Session &s);
+int compile_markov(xpp::Session &s, int index, int j, int k);
+void update_markov(xpp::Session &s, double *x, double t, double dt);
+double new_state(xpp::Session &s, double old, int index, double dt);
+void  do_stochast_com(xpp::Session &s, int i);
+void  mean_back(xpp::Session &s);
+void  variance_back(xpp::Session &s);
+void  compute_em(xpp::Session &s);
+void  free_stoch(xpp::Session &s);
+void  init_stoch(xpp::Session &s, int len);
+void  append_stoch(xpp::Session &s, int first, int length);
+void  do_stats(xpp::Session &s, int ierr);
+
 /* an .ode transition row's next cell from *start on: the text between
    its { and }, *start past the } */
 std::string markov_cell(const char *row, int *start);
 /* the Markov variable name's transitions, cells its nstates x nstates
    formulas row by row (text, or numbers for a fixed chain): its index */
-int build_markov(std::span<const std::string> cells, const char *name);
+int build_markov(xpp::Session &s, std::span<const std::string> cells, const char *name);
 /* stocHast's many-runs state (markov.cpp), a Session's (session.h):
    whether a Compute is running (flag), whether its mean and variance
    exist (here), the number of trials and the length of each run, and the

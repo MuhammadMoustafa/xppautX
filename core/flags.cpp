@@ -349,7 +349,7 @@ int one_flag_step(double *yold, double *ynew, int *istart, double told, double *
 	      set_val(xpp::model().upar_names[in],fstate[i].vrhs[j]);
 	    else{
 
-	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))send_output(ynew,*tnew);
+	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))send_output(xpp::session(),ynew,*tnew);
 	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))send_halt(ynew,*tnew);
 	    }
 	  }
@@ -541,7 +541,7 @@ int one_flag_step_gear(int neq, double *t, double tout, double *y, double hmin, 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    ggear(neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
+    ggear(xpp::session(),neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
     if(*kflag<0) break;
     if((hit=one_flag_step(yold,y,jstart,told,t,neq,&s ))==0)
       break;

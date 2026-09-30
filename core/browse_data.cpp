@@ -684,9 +684,9 @@ void  data_last(BROWSER *b)
  b->iend=b->row0+1;
 }
 
-void  data_restore(BROWSER *b)
+void  data_restore(xpp::Session &s, BROWSER *b)
  {
-  restore(b->istart,b->iend);
+  restore(s,b->istart,b->iend);
 
   }
 

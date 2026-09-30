@@ -40,9 +40,9 @@ namespace method = xpp::method;
 
 /*   I will need access to storage  */
 
-void chk_volterra()
+void chk_volterra(xpp::Session &s)
 {
-  if (xpp::model().nkernel>0)xpp::session().numerics.method=method::VOLTERRA;
+  if (s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
 }
 
 void  check_pos(int *j)
@@ -50,41 +50,39 @@ void  check_pos(int *j)
   if(*j<=0)*j=1;
  }
 
-void quick_num(int com)
+void quick_num(xpp::Session &s, int com)
 {
   static const char *const key="tsrdnviobec";
   if(com>=0&&com<11)
-    get_num_par(key[com]);
+    get_num_par(s,key[com]);
 }
 
-const char *method_refusal(int m)
+const char *method_refusal(const xpp::Model &model, int m)
 {
-  if(m==method::VOLTERRA&&xpp::model().nkernel==0)return "Volterra only for integral eqns";
-  if(m==method::SYMPLECT&&(xpp::model().node%2)!=0)return "Symplectic is only for even dimensions";
+  if(m==method::VOLTERRA&&model.nkernel==0)return "Volterra only for integral eqns";
+  if(m==method::SYMPLECT&&(model.node%2)!=0)return "Symplectic is only for even dimensions";
   return nullptr;
 }
 
-void dt_changed()
+void dt_changed(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
-  chk_delay();
-  if(xpp::model().nkernel>0){
+  chk_delay(s);
+  if(s.model().nkernel>0){
     s.numerics.inflag=0;
     s.integrator.my_start=1;
     alloc_kernels(1);
   }
 }
 
-void set_total(double total)
+void set_total(xpp::Session &s, double total)
 {
   int n;
-  n=(total/fabs(xpp::session().numerics.delta_t))+1;
-  xpp::session().numerics.tend=n*fabs(xpp::session().numerics.delta_t);
+  n=(total/fabs(s.numerics.delta_t))+1;
+  s.numerics.tend=n*fabs(s.numerics.delta_t);
 }
 
-void  get_num_par(char ch)
+void  get_num_par(xpp::Session &s, char ch)
 {
-  xpp::Session &s=xpp::session();
   double temp;
   int tmp;
    switch(ch){
@@ -119,7 +117,7 @@ void  get_num_par(char ch)
 		         temp=s.numerics.delta_t;
 			 new_float("Delta t :",&s.numerics.delta_t);
 		         if(s.numerics.delta_t==0.0)s.numerics.delta_t=temp;
-		         dt_changed();
+		         dt_changed(s);
 			flash(3);
 			break;
 		case 'n': flash(4);
@@ -135,7 +133,7 @@ void  get_num_par(char ch)
 		         check_pos(&s.numerics.bvp_maxit);
 		         new_float("Tolerance :",&s.numerics.bvp_tol);
 		         new_float("Epsilon :",&s.numerics.bvp_eps);
-		         reset_bvp();
+		         reset_bvp(s);
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
@@ -143,7 +141,7 @@ void  get_num_par(char ch)
 			 check_pos(&s.numerics.evec_iter);
 			 new_float("Newton tolerance :",&s.numerics.evec_err);
 			 new_float("Jacobian epsilon :",&s.numerics.newt_err);
-		       if(xpp::model().nflags>0)
+		       if(s.model().nflags>0)
 			 new_float("SMIN :",&s.numerics.stol);
 		       
 			flash(5);
@@ -163,12 +161,12 @@ void  get_num_par(char ch)
 			break;
 		case 'm': flash(8);
 			 /* method */
-			 get_method();
-			 if(const char *why=method_refusal(s.numerics.method)){
+			 get_method(s);
+			 if(const char *why=method_refusal(s.model(),s.numerics.method)){
 			   err_msg(why);
 			   s.numerics.method=method::ADAMS;
 			 }
-		       if(xpp::model().nkernel>0)s.numerics.method=method::VOLTERRA;
+		       if(s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
 		       {
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
 			if(traits.step_tolerance)
@@ -207,12 +205,12 @@ void  get_num_par(char ch)
 			break;
 		case 'e': flash(9);
 			 /* delay */
-                        if(xpp::model().ndelays==0)break;
+                        if(s.model().ndelays==0)break;
 			new_float("Maximal delay :",&s.numerics.delay);
                         new_float("real guess :", &s.delay.alpha_max);
 			   new_float("imag guess :", &s.delay.omega_max); 
 		        new_int("DelayGrid :",&s.delay.grid);
-		        chk_delay();
+		        chk_delay(s);
 
 			flash(9);
 			break;
@@ -233,7 +231,7 @@ void  get_num_par(char ch)
 			break;
 		case 'u': flash(13);
 			 /* ruelle */
-                       ruelle();
+                       ruelle(s);
 			flash(13);
 			break;
 		case 'k': flash(14);
@@ -242,7 +240,7 @@ void  get_num_par(char ch)
 			flash(14);
 			break;
 		case 27: 
-		       do_meth();
+		       do_meth(s);
 		      s.numerics.tend=fabs(s.numerics.tend);
 			show_main_menu(MAIN_MENU);
 			break;
@@ -250,42 +248,41 @@ void  get_num_par(char ch)
 		}  /* End num switch */
 	   } 
 
-void chk_delay()
+void chk_delay(xpp::Session &s)
 {
-  if(xpp::session().numerics.delay>0.0) {
+  if(s.numerics.delay>0.0) {
 			  free_delay();
-			  if(alloc_delay(xpp::session().numerics.delay)){
-			    xpp::session().numerics.inflag=0; /*  Make sure no last ics allowed */
+			  if(alloc_delay(s.numerics.delay)){
+			    s.numerics.inflag=0; /*  Make sure no last ics allowed */
 			  }
 			}
 			  else 
 			    free_delay();
 }
 
-void set_delay()
+void set_delay(xpp::Session &s)
 {
- if(xpp::model().ndelays==0)return;
- if(xpp::session().numerics.delay>0.0){
+ if(s.model().ndelays==0)return;
+ if(s.numerics.delay>0.0){
    free_delay();
-   if(alloc_delay(xpp::session().numerics.delay)){
-     xpp::session().numerics.inflag=0;
+   if(alloc_delay(s.numerics.delay)){
+     s.numerics.inflag=0;
    }
  }
 }
 
-void ruelle()
+void ruelle(xpp::Session &s)
 {
-   new_int("x-axis shift ",&(xpp::session().plot_windows.current->xshft));
-   new_int("y-axis shift ",&(xpp::session().plot_windows.current->yshft));
-   new_int("z-axis shift",&(xpp::session().plot_windows.current->zshft));
-   if(xpp::session().plot_windows.current->xshft<0)xpp::session().plot_windows.current->xshft=0;
-   if(xpp::session().plot_windows.current->yshft<0)xpp::session().plot_windows.current->yshft=0;
-   if(xpp::session().plot_windows.current->zshft<0)xpp::session().plot_windows.current->zshft=0;
+   new_int("x-axis shift ",&(s.plot_windows.current->xshft));
+   new_int("y-axis shift ",&(s.plot_windows.current->yshft));
+   new_int("z-axis shift",&(s.plot_windows.current->zshft));
+   if(s.plot_windows.current->xshft<0)s.plot_windows.current->xshft=0;
+   if(s.plot_windows.current->yshft<0)s.plot_windows.current->yshft=0;
+   if(s.plot_windows.current->zshft<0)s.plot_windows.current->zshft=0;
 }
 
-void compute_one_period(double period,double *x,const char *name)
+void compute_one_period(xpp::Session &s, double period,double *x,const char *name)
 {
-  xpp::Session &s=xpp::session();
   int opm=s.numerics.poimap;
   double ot=s.numerics.trans,ote=s.numerics.tend;
   s.numerics.trans=0;
@@ -295,7 +292,7 @@ void compute_one_period(double period,double *x,const char *name)
   s.numerics.poimap=0; /* turn off poincare map */
   reset_browser();
 
-  usual_integrate_stuff(x);
+  usual_integrate_stuff(s,x);
   {
     xpp::Writer w(xpp::format("orbit.{}.dat",name).c_str());
     if(w){
@@ -309,22 +306,22 @@ void compute_one_period(double period,double *x,const char *name)
       return;
     }
   }
-  new_adjoint();
+  new_adjoint(s);
   {
     xpp::Writer w(xpp::format("adjoint.{}.dat",name).c_str());
     if(w){
       write_mybrowser_data(w);
       w.commit();
-      data_back();
+      data_back(s);
     }
   }
-  new_h_fun(1);
+  new_h_fun(s,1);
   {
     xpp::Writer w(xpp::format("hfun.{}.dat",name).c_str());
     if(w){
       write_mybrowser_data(w);
       w.commit();
-      data_back();
+      data_back(s);
     }
   }
 
@@ -335,9 +332,8 @@ void compute_one_period(double period,double *x,const char *name)
   s.numerics.tend=ote;
 
 }
-void get_pmap_pars_com(int l)
+void get_pmap_pars_com(xpp::Session &s, int l)
 {
- xpp::Session &s=xpp::session();
  static const char *const mkey="nsmp";
  char ch;
  static const char *n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
@@ -376,51 +372,50 @@ void get_pmap_pars_com(int l)
 
 }
 
-void get_method()
+void get_method(xpp::Session &s)
 {
  char ch;
  int i;
- ch = static_cast<char>(menu_choose(&menu_method,xpp::session().numerics.method));
+ ch = static_cast<char>(menu_choose(&menu_method,s.numerics.method));
  for(i=0;i<menu_method.n;i++)
- if(ch==menu_method.keys[i])xpp::session().numerics.method=i;
+ if(ch==menu_method.keys[i])s.numerics.method=i;
  }
 
-void user_set_color_par(int flag,const char *via,double lo,double hi)
+void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,double hi)
 {
   int ivar;
-   xpp::session().plot_windows.current->min_scale=lo;
+   s.plot_windows.current->min_scale=lo;
   if(hi>lo)
-    xpp::session().plot_windows.current->color_scale=(hi-lo);
+    s.plot_windows.current->color_scale=(hi-lo);
   else
-    xpp::session().plot_windows.current->color_scale=1;
+    s.plot_windows.current->color_scale=1;
   
   if(strncasecmp("speed",via,5)==0)
     {
-      xpp::session().plot_windows.current->ColorFlag=1;
+      s.plot_windows.current->ColorFlag=1;
     }
   else
     {
       find_variable(via,&ivar);
       if(ivar>=0){
-	xpp::session().plot_windows.current->ColorValue=ivar;
-	xpp::session().plot_windows.current->ColorFlag=2;
+	s.plot_windows.current->ColorValue=ivar;
+	s.plot_windows.current->ColorFlag=2;
       }
       else
 	{
-	  xpp::session().plot_windows.current->ColorFlag=0; /* no valid colorizing */
+	  s.plot_windows.current->ColorFlag=0; /* no valid colorizing */
 
 	}
     }
   if(flag==0){ /* force overwrite  */
-    xpp::session().plot_windows.current->ColorFlag=0;
+    s.plot_windows.current->ColorFlag=0;
   
   }
 
 }
  
-void set_col_par_com(int i)
+void set_col_par_com(xpp::Session &s, int i)
    {
-    xpp::Session &s=xpp::session();
     int j,ivar;
     double temp[2];
     float maxder=0.0,minder=0.0,sum=0.0;
@@ -473,7 +468,7 @@ void set_col_par_com(int i)
   for(i=1;i<s.browser.view.maxrow;i++)
   {
    sum=0.0;
-   for(j=0;j<xpp::model().node;j++)
+   for(j=0;j<s.model().node;j++)
    sum+=static_cast<float>(fabs(static_cast<double>(s.browser.view.data[1+j][i]-s.browser.view.data[1+j][i-1])));
    if(sum<minder)minder=sum;
    if(sum>maxder)maxder=sum;
@@ -494,14 +489,13 @@ void set_col_par_com(int i)
   
 }
 
-void do_meth()
+void do_meth(xpp::Session &s)
 {
- xpp::Session &s=xpp::session();
- if(xpp::model().nkernel>0)s.numerics.method=method::VOLTERRA;
+ if(s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
  if(traits.discrete)s.numerics.delta_t=1;
  /* a method that picks its own steps stores every output time */
  if(!traits.fixed_step)s.numerics.njmp=1;
- xpp::start_solver();
+ xpp::start_solver(s);
 }
 

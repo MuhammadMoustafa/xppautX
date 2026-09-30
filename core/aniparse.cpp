@@ -1359,7 +1359,7 @@ void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy)
         s.animation.grab_flag = 0;
         redraw_params();
         if (run_now_grab()) {
-            run_now();
+            run_now(s);
             s.animation.grab_flag = 0;
         }
     }

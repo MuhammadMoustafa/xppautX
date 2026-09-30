@@ -87,7 +87,7 @@ void j_redraw_all(void)
 {
     xpp::Session &s = xpp::session();
     redraw_dfield(s);
-    restore(0, s.browser.view.maxrow);
+    restore(s, 0, s.browser.view.maxrow);
     draw_label(s, s.plot_windows.draw_win);
     draw_freeze(s,s.plot_windows.draw_win);
 }
@@ -97,7 +97,7 @@ void redraw_graph(xpp::Session &s)
     blank_draw_window(s);
     set_normal_scale(s);
     do_axes(s);
-    restore(0, s.browser.view.maxrow);
+    restore(s, 0, s.browser.view.maxrow);
     draw_label(s, s.plot_windows.draw_win);
     draw_freeze(s,s.plot_windows.draw_win);
     redraw_dfield(s);

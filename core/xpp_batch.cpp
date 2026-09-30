@@ -266,10 +266,10 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     OptionsSet mask = s.not_already_set;
     set_internopts(s, &mask);
 
-    init_alloc_info();
+    init_alloc_info(s);
     do_vis_env(s);
     set_all_vals(s);
-    init_alloc_info();
+    init_alloc_info(s);
     set_init_guess();
     update_all_ffts();
 #ifdef AUTO
@@ -278,8 +278,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     if (disc(m.this_file)) s.numerics.method = 0;
     program.version_major = static_cast<float>(cstringmaj);
     program.version_minor = static_cast<float>(cstringmin);
-    do_meth();
-    set_delay();
+    do_meth(s);
+    set_delay(s);
     s.integrator.rhs = my_rhs;
     init_fit_info();
     strip_saveqn(m);

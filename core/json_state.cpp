@@ -251,7 +251,7 @@ void browser_key(xpp::Session &s, int ch, const char *line)
     case BK_TABLE: data_table(s, &s.browser.view); break;
     case BK_FIRST: data_first(&s.browser.view); break;
     case BK_LAST: data_last(&s.browser.view); break;
-    case BK_RESTORE: data_restore(&s.browser.view); break;
+    case BK_RESTORE: data_restore(s,&s.browser.view); break;
     case BK_ADDCOL: data_add_col(s, &s.browser.view); break;
     case BK_DELCOL: data_del_col(s, &s.browser.view); break;
     case BK_LOAD: data_read(s, &s.browser.view, "", ""); break;

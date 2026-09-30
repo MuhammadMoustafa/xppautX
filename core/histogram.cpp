@@ -97,12 +97,12 @@ void new_four(xpp::Session &s, int nmodes, int col)
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
   float *bob;
   if(s.histogram.four_here){
-   data_back();
+   data_back(s);
    s.histogram.four_columns.release();
    s.histogram.four_here=0;
  }
   s.histogram.four_len=nmodes;
- s.histogram.four_columns.make(3,length,s.model().neq);
+ s.histogram.four_columns.make(s.data_store,3,length,s.model().neq);
  s.histogram.four_here=1;
 for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total; 
  bob=get_data_col(s,col);
@@ -151,13 +151,13 @@ int twod_hist(xpp::Session &s)
     length=s.data_store.max_rows-1;
 
   if(s.histogram.hist_here){
-    data_back();
+    data_back(s);
     s.histogram.hist_columns.release();
     s.histogram.hist_here=0;
   }
 
    s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(3,length,s.model().neq);
+  s.histogram.hist_columns.make(s.data_store,3,length,s.model().neq);
   s.histogram.hist_here=2;
   s.histogram.hist_len=length;
   two_d_hist(s,s.histogram.info.col,s.histogram.info.col2,s.data_store.rows,
@@ -222,12 +222,12 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     length=s.data_store.max_rows-1;
   dz=(zhi-zlo)/static_cast<double>((length-1));
   if(s.histogram.hist_here){
-    data_back();
+    data_back(s);
     s.histogram.hist_columns.release();
     s.histogram.hist_here=0;
   }
   s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(2,length,s.model().neq);
+  s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(i=0;i<length;i++){
     s.histogram.hist()[0][i]=static_cast<float>((zlo+dz*i));
@@ -496,13 +496,13 @@ void just_sd(xpp::Session &s, int flag)
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
   spec_type=flag;
   if(s.histogram.hist_here){
-    data_back();
+    data_back(s);
     s.histogram.hist_columns.release();
     s.histogram.hist_here=0;
   }  
    s.histogram.hist_len=s.histogram.spec_wid/2;
    length=s.histogram.hist_len+2;
-  s.histogram.hist_columns.make(2,length,s.model().neq);
+  s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(j=0;j<s.histogram.hist_len;j++)s.histogram.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/s.histogram.spec_wid)/total;
   if(spec_type==0)

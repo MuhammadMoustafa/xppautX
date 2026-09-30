@@ -11,10 +11,10 @@
 #include "load_eqn.h"
 #include "model.h"
 
-void init_alloc_info()
+void init_alloc_info(xpp::Session &s)
 {
-  SolverWork &w=xpp::session().solver_work;
-  w.xpv.node=xpp::model().node+xpp::model().nmarkov;
+  SolverWork &w=s.solver_work;
+  w.xpv.node=s.model().node+s.model().nmarkov;
   w.xpv.nvec=0; /* this is just for now */
   /* called again once the model's options are read: a fresh zeroed block */
   try {
@@ -62,7 +62,7 @@ void DataStore::lend_columns(float **dst, int from, int to) const
   for(int c=from;c<=to;c++)dst[c]=table_[c];
 }
 
-float **LentColumns::make(int n, int len, int last)
+float **LentColumns::make(const DataStore &store, int n, int len, int last)
 {
   try {
     own_.assign(n,std::vector<float>(len,0.0f));
@@ -71,7 +71,7 @@ float **LentColumns::make(int n, int len, int last)
   }
   table_.fill(nullptr);
   for(int c=0;c<n;c++)table_[c]=own_[c].data();
-  xpp::session().data_store.lend_columns(table_.data(),n,last);
+  store.lend_columns(table_.data(),n,last);
   return table_.data();
 }
 

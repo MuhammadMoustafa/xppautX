@@ -192,7 +192,7 @@ void use_intern_set(xpp::Session &s, int j)
   }
   get_graph(s);
   extract_internset(s, j);
-  chk_delay();
+  chk_delay(s);
   redraw_params();
   redraw_ics();
   reset_graph(s);
@@ -224,15 +224,15 @@ void run_the_commands(xpp::Session &s, int com)
 {
   if (com < 0) return;
   if (com <= MAX_M_I) {
-    do_init_data(com);
+    do_init_data(s,com);
     return;
   }
   if (com == M_C) {
-    cont_integ();
+    cont_integ(s);
     return;
   }
   if (com >= M_SG && com <= M_SC) {
-    find_equilib_com(com - M_SG);
+    find_equilib_com(s,com - M_SG);
     return;
   }
   if (com >= M_NFF && com <= M_NFA) {
@@ -256,7 +256,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_AA && com <= M_AC) {
-    do_torus_com(com - M_AA);
+    do_torus_com(s,com - M_AA);
     return;
   }
   if (com >= M_KC && com <= M_KM) {
@@ -324,21 +324,21 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_BR && com <= M_BH) {
-    find_bvp_com(com - M_BR);
+    find_bvp_com(s,com - M_BR);
     return;
   }
   if (com >= M_V2 && com <= M_VT) change_view_com(s,com - M_V2);
-  if (com >= M_UAN && com <= M_UAR) make_adj_com(com - M_UAN);
-  if (com >= M_UCN && com <= M_UCA) set_col_par_com(com - M_UCN);
-  if (com >= M_UPN && com <= M_UPP) get_pmap_pars_com(com - M_UPN);
-  if (com >= M_UHN && com <= M_UH2) do_stochast_com(com - M_UHN);
-  if (com >= M_UT && com <= M_UC) quick_num(com - M_UT);
+  if (com >= M_UAN && com <= M_UAR) make_adj_com(s,com - M_UAN);
+  if (com >= M_UCN && com <= M_UCA) set_col_par_com(s,com - M_UCN);
+  if (com >= M_UPN && com <= M_UPP) get_pmap_pars_com(s,com - M_UPN);
+  if (com >= M_UHN && com <= M_UH2) do_stochast_com(s,com - M_UHN);
+  if (com >= M_UT && com <= M_UC) quick_num(s, com - M_UT);
 }
 
 static void do_file_com(xpp::Session &s, int com)
 {
   switch (com) {
-  case M_FT: do_transpose(); break;
+  case M_FT: do_transpose(s); break;
   case M_FG: get_intern_set(s); break;
   case M_FP: make_txtview(); break;
   case M_FW: do_lunch(s, 0); break;
@@ -446,7 +446,7 @@ void commander(xpp::Session &s, int ch)
   case MAIN_MENU:
     switch (ch) {
     case 'i': flash(0); ini_data_menu(s); flash(0); break;
-    case 'c': flash(1); cont_integ(); flash(1); break;
+    case 'c': flash(1); cont_integ(s); flash(1); break;
     case 'n': flash(2); new_clines(s); flash(2); break;
     case 'd': flash(3); direct_field(s); flash(3); break;
     case 'w': flash(4); window_zoom(s); flash(4); break;
@@ -469,12 +469,12 @@ void commander(xpp::Session &s, int ch)
     break;
 
   case NUM_MENU:
-    get_num_par(static_cast<char>(ch));
+    get_num_par(s,static_cast<char>(ch));
     break;
 
   case FILE_MENU:
     switch (ch) {
-    case 't': do_transpose(); break;
+    case 't': do_transpose(s); break;
     case 'g': get_intern_set(s); break;
     case 'p': flash(0); make_txtview(); flash(0); break;
     case 'w': flash(1); do_lunch(s, 0); flash(1); break;

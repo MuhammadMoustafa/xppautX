@@ -2051,7 +2051,7 @@ void auto_start_at_bvp()
 {
   xpp::Session &s=xpp::session();
   int opn=NO_OPEN_3,cls=OVERWRITE;
- compile_bvp();
+ compile_bvp(xpp::session());
   if(s.numerics.bvp_flag==0)
     return; 
   s.auto_state.type_of_calc=BV1;
@@ -2912,14 +2912,14 @@ void find_point(int ibr, int pt)
 	   /* now we use this info to set parameters and init data */
 	   for(i=0;i<xpp::model().node;i++)
 	     set_ivar(i+1,d->u0[i]);
-	   get_ic(0,d->u0);
+	   get_ic(xpp::session(),0,d->u0);
 	   auto_set_pars_from(d->par);
 	   evaluate_derived();
 	   xpp::ok_or_show(redo_all_fun_tables());
 	   redraw_params();
 	   redraw_ics();
            if((d->per)>0)
-	     set_total(d->per);		       
+	     set_total(xpp::session(),d->per);		       
 	   break;
 	 }
        dnew=diagram_next(d);
@@ -2936,7 +2936,7 @@ void do_auto_range()
   double t=xpp::session().numerics.tend;
   
   if(diagram_mark.state==2)
-    do_auto_range_go();
+    do_auto_range_go(xpp::session());
   xpp::session().numerics.tend=t;
 }
 
@@ -3250,7 +3250,7 @@ static void grab_diagram_point(const DIAGRAM *d)
     grabpt.ubar[i]=d->ubar[i];
     set_ivar(i+1,grabpt.u0[i]);
   }
-  get_ic(0,grabpt.u0);
+  get_ic(xpp::session(),0,grabpt.u0);
   grabpt.flag=1;
   grabpt.itp=d->itp;
   grabpt.nfpar=d->nfpar;

@@ -6,23 +6,11 @@
 extern "C" {
 #endif
 
-void init_trans(void);
 void dump_transpose_info(FILE *fp, int f);
-int do_transpose(void);
-int create_transpose(void);
-void alloc_h_stuff(void);
-void data_back(void);
 void adj_back(void);
 void h_back(void);
-void make_adj_com(int com);
 void adjoint_parameters(void);
-void new_h_fun(int silent);
-void dump_h_stuff(FILE *fp, int f);
-int make_h(float **orb, float **adj, float **h, int nt, double dt, int node,int silent);
-void new_adjoint(void);
-void do_liapunov(void);
 void alloc_liap(int n);
-void do_this_liaprun(int i, double p);
 void norm_vec(double *v, double *mu, int n);
 
 
@@ -32,11 +20,29 @@ void norm_vec(double *v, double *mu, int n);
 
 #include "xpp_error.h"
 
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+void init_trans(xpp::Session &s);
+int do_transpose(xpp::Session &s);
+int create_transpose(xpp::Session &s);
+void alloc_h_stuff(xpp::Session &s);
+void data_back(xpp::Session &s);
+void make_adj_com(xpp::Session &s, int com);
+void new_h_fun(xpp::Session &s, int silent);
+void dump_h_stuff(xpp::Session &s, FILE *fp, int f);
+int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double dt, int node,int silent);
+void new_adjoint(xpp::Session &s);
+void do_liapunov(xpp::Session &s);
+void do_this_liaprun(xpp::Session &s, int i, double p);
+
 /* adjoints and the maximal Liapunov exponent return why they failed; the
    command (new_adjoint, do_liapunov) shows it */
-xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node);
+xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node);
 xpp::Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt);
-xpp::Result<double> hrw_liapunov(double eps);
+xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps);
 #endif
 #endif
 

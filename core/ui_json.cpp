@@ -481,7 +481,7 @@ void write_command(xpp::Session &s, const char *line)
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
     else if (is_cmd(line, "dfield")) write_dfield(s,name.c_str());
-    else write_equilibrium(name.c_str(), get_int(line, "shoot", 0));
+    else write_equilibrium(s,name.c_str(), get_int(line, "shoot", 0));
 }
 
 /* The protocol's commands (docs/protocol.md "Commands"): the one table of

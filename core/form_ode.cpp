@@ -401,7 +401,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
     xpp::log(XPP_LOG_ERROR, "{} is a name already, or one parameter too many\n",name);
     xpp_model_failed();
   }
-  if(wiener)add_wiener(s.parser.ncon-1);
+  if(wiener)add_wiener(s,s.parser.ncon-1);
 }
 
 void add_options_file(xpp::Model &m, const std::string &name)
@@ -544,14 +544,14 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       s.last_ic[IN_VARS+m.nmarkov]=value;
       m.default_ic[IN_VARS+m.nmarkov]=value;
       xpp::log(XPP_LOG_INFO, " Markov variable {}={:f} has {} states \n",name,value,nstates);
-      add_markov(nstates,name.c_str());
+      add_markov(s,nstates,name.c_str());
       if(ConvertStyle)
 	xpp::print(convertf,"{}(0)={:g}\n",name,value);
       break;
     case 'r': /* state table for Markov variables  */
       name=tokens.text("\n");
       nlin=m.nlines();
-      index=old_build_markov(fptr,name.c_str());
+      index=old_build_markov(s,fptr,name.c_str());
       set_ode_name(m,IN_VARS+index,xpp::format("{{ {} ... }}",m.source[nlin]));
       break;
     case 'v':
@@ -873,7 +873,7 @@ void finish_model(xpp::Session &s)
     xpp_log(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
   }
   if(m.nmarkov>0)
-    compile_all_markov();
+    compile_all_markov(s);
   if(compile_flags()==1){
     xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
     xpp_model_failed();
@@ -1191,10 +1191,10 @@ private:
       for(const std::string &n : s.names)add_only(m,n);
       break;
     case Statement::Kind::Markov: {
-      add_markov(s.count,s.name.c_str());
+      add_markov(s_,s.count,s.name.c_str());
       std::vector<std::string> cells;
       for(const Expr &c : s.cells)cells.push_back(text(c));
-      build_markov(cells,s.name.c_str());
+      build_markov(s_,cells,s.name.c_str());
       /* a second chain of the same name has no variable of its own */
       std::string name=converted(s.name);
       if(std::find(mnames_.begin(),mnames_.end(),name)==mnames_.end())mnames_.push_back(std::move(name));

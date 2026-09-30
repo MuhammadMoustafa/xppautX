@@ -7,50 +7,10 @@
 extern "C" {
 #endif
 
-/* the equilibrium Newton finds from the initial data, with its
-   eigenvalues (x, re, im per variable), written to name (nothing when
-   Newton does not converge); shoot: also the invariant manifolds of a
-   saddle, integrated into UMk.dat/SMk.dat (-silent's -equil 0/1, the
-   protocol's `equilibrium` `write`) */
-void write_equilibrium(const char *name, int shoot);
 void init_ar_ic(void);
-void dump_range(FILE *fp, int f);
-void init_range(void);
-int set_up_eq_range(void);
-void cont_integ(void);
-int range_item(void);
-int range_item2(void);
-int set_up_range(void);
-int set_up_range2(void);
-void init_monte_carlo(void);
-void monte_carlo(void);
-void do_eq_range(double *x);
-void swap_color(int *col, int rorw);
-void set_cycle(int flag, int *icol);
-int do_range(double *x, int flag);
-void find_equilib_com(int com);
-int write_this_run(const char *file, int i);
-void do_init_data(int com);
-void run_now(void);
-void do_start_flags(double *x, double *t);
-int usual_integrate_stuff(double *x); /* the run: integrate()'s result, 1 when it failed (the error shown) */
-void do_new_array_ic(const char *newic, int j1, int j2);
 void store_new_array_ic(const char *newic, int j1, int j2, const char *formula);
-void evaluate_ar_ic(const char *v, const char *f, int j1, int j2);
 int extract_ic_data(char *big);
-void arr_ic_start(void);
-int set_array_ic(void);
-int form_ic(void);
-void get_ic(int it, double *x);
 void send_halt(double *y, double t);
-void send_output(double *y, double t);
-void do_plot(float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl);
-void plot_the_graphs(float *xv, float *xvold, int node, int neq, double ddt, int *tc,int flag);
-void plot_one_graph(float *xv, float *xvold, int node, int neq, double ddt, int *tc);
-void restore(int i1, int i2);
-void comp_color(float *v1, float *v2, int n, float dt);
-int stor_full(void);
-int do_auto_range_go();
 
 #ifdef __cplusplus
 }
@@ -62,6 +22,54 @@ int do_auto_range_go();
 #include <vector>
 
 #include "solver.h"
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The integrator's driver works on the Session s the command (or the run)
+   that started it passes down (W47d4). */
+
+/* the equilibrium Newton finds from the initial data, with its
+   eigenvalues (x, re, im per variable), written to name (nothing when
+   Newton does not converge); shoot: also the invariant manifolds of a
+   saddle, integrated into UMk.dat/SMk.dat (-silent's -equil 0/1, the
+   protocol's `equilibrium` `write`) */
+void write_equilibrium(xpp::Session &s, const char *name, int shoot);
+void dump_range(xpp::Session &s, FILE *fp, int f);
+void init_range(xpp::Session &s);
+int set_up_eq_range(xpp::Session &s);
+void cont_integ(xpp::Session &s);
+int range_item(xpp::Session &s);
+int range_item2(xpp::Session &s);
+int set_up_range(xpp::Session &s);
+int set_up_range2(xpp::Session &s);
+void init_monte_carlo(xpp::Session &s);
+void monte_carlo(xpp::Session &s);
+void do_eq_range(xpp::Session &s, double *x);
+void swap_color(xpp::Session &s, int *col, int rorw);
+void set_cycle(xpp::Session &s, int flag, int *icol);
+int do_range(xpp::Session &s, double *x, int flag);
+void find_equilib_com(xpp::Session &s, int com);
+int write_this_run(xpp::Session &s, const char *file, int i);
+void do_init_data(xpp::Session &s, int com);
+void run_now(xpp::Session &s);
+void do_start_flags(xpp::Session &s, double *x, double *t);
+int usual_integrate_stuff(xpp::Session &s, double *x); /* the run: integrate()'s result, 1 when it failed (the error shown) */
+void do_new_array_ic(xpp::Session &s, const char *newic, int j1, int j2);
+void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j2);
+void arr_ic_start(xpp::Session &s);
+int set_array_ic(xpp::Session &s);
+int form_ic(xpp::Session &s);
+void get_ic(xpp::Session &s, int it, double *x);
+void send_output(xpp::Session &s, double *y, double t);
+void do_plot(xpp::Session &s, float *oldxpl, float *oldypl, float *oldzpl, float *xpl, float *ypl, float *zpl);
+void plot_the_graphs(xpp::Session &s, float *xv, float *xvold, int node, int neq, double ddt, int *tc,int flag);
+void plot_one_graph(xpp::Session &s, float *xv, float *xvold, int node, int neq, double ddt, int *tc);
+void restore(xpp::Session &s, int i1, int i2);
+void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt);
+int stor_full(xpp::Session &s);
+int do_auto_range_go(xpp::Session &s);
 
 /* the model's array initial values (x[j1..j2](0)=formula, applied by
    arr_ic_start when set_all_vals sets the model up), element by element:
@@ -116,19 +124,19 @@ struct IntegratorState {
    method), else 0; or why it failed (a variable NaN or out of
    bounds, the method's own failure, a delay or DAE step), for the
    command that ran it to show (W63b) */
-xpp::Result<int> integrate(double *t, double *x, double tend, double dt, int count, int nout, int *start);
+xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int nout, int *start);
 /* shooting's integration over the whole interval (drawn as it runs when
    ishow, where a failure only ends the curve), or the method's failure */
-xpp::Result<> ode_int(double *y, double *t, int *istart, int ishow);
+xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int ishow);
 /* a delay out of range in a step: records why (the first), and the
    integration ends after the step and returns it */
-void stop_integration(xpp::Error why);
+void stop_integration(xpp::Session &s, xpp::Error why);
 /* the curve from x (shoot: from xg along evec, the side sgn), bounds
    unchecked, or the error it failed with */
-xpp::Result<> shoot(double *x, double *xg, double *evec, int sgn);
-xpp::Result<> shoot_easy(double *x);
+xpp::Result<> shoot(xpp::Session &s, double *x, double *xg, double *evec, int sgn);
+xpp::Result<> shoot_easy(xpp::Session &s, double *x);
 /* Monte Carlo's search for equilibria from random guesses (with their
    manifolds when ishoot), or the first manifold that failed */
-xpp::Result<> do_monte_carlo_search(int append, int stuffbrowse,int ishoot);
+xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse,int ishoot);
 #endif
 #endif

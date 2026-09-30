@@ -115,7 +115,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
   
   int iter=0,info,ipivot[MAXODE1];
   int ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper,mt=ml+mr+1;
-  set_wieners(dt,y,*t);
+  set_wieners(xpp::session(),dt,y,*t);
   *t=*t+dt;
   xpp::session().integrator.rhs(*t,y,yp2,neq);
   for(i=0;i<neq;i++)yg[i]=y[i];
@@ -162,7 +162,7 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
-   set_wieners(dt,y,*t);
+   set_wieners(xpp::session(),dt,y,*t);
      xpp::session().integrator.rhs(*t,y,yp,neq);
      *t=*t+dt;
      for(j=0;j<neq;j++){y[j]=yp[j];
@@ -188,7 +188,7 @@ void one_step_euler(double *y, double dt, double *yp, int neq, double *t)
    
  int j;
 
-   set_wieners(dt,y,*t);
+   set_wieners(xpp::session(),dt,y,*t);
    xpp::session().integrator.rhs(*t,y,yp,neq);
    *t+=dt;
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
@@ -198,7 +198,7 @@ void one_step_rk4(double *y, double dt, double *yval[3], int neq, double *tim)
 {
  int i;
  double t=*tim,t1,t2;
- set_wieners(dt,y,t);
+ set_wieners(xpp::session(),dt,y,t);
  xpp::session().integrator.rhs(t,y,yval[1],neq);
  for(i=0;i<neq;i++)
    {
@@ -228,7 +228,7 @@ void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
 {
  int i;
  double t=*tim,t1;
-  set_wieners(dt,y,*tim);
+  set_wieners(xpp::session(),dt,y,*tim);
   xpp::session().integrator.rhs(t,y,yval[0],neq);
   for(i=0;i<neq;i++)yval[0][i]=dt*yval[0][i]+y[i];
   t1=t+dt;
@@ -335,7 +335,7 @@ n400:
 
   if(istpst==nstep) goto n450;
   for(n=istpst+1;n<nstep+1;n++) {
-    set_wieners(dt,y,x0);
+    set_wieners(xpp::session(),dt,y,x0);
    abmpc(y,&x0,dt,neq);
    stor_delay(y);
  }

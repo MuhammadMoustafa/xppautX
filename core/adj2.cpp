@@ -67,10 +67,10 @@ std::vector<std::string> coup_string;
 
 /* extern Window main_win; */
 
-void init_trans()
+void init_trans(xpp::Session &s)
 {
   my_trans.here=0;
-  my_trans.firstcol=xpp::model().uvar_names[0];
+  my_trans.firstcol=s.model().uvar_names[0];
   my_trans.ncol=2;
   my_trans.nrow=1;
   my_trans.rowskip=1;
@@ -96,7 +96,7 @@ void dump_transpose_info(FILE *fp, int f)
 
 }
 
-int do_transpose()
+int do_transpose(xpp::Session &s)
 {
  int i,status;
  static const char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
@@ -111,7 +111,7 @@ int do_transpose()
    
    trans_columns.release();
    my_trans.here=0;
-   data_back();
+   data_back(s);
  }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
@@ -127,35 +127,35 @@ int do_transpose()
      }
    my_trans.firstcol=values[0];
    i=atoi(values[4].c_str());
-   if(i>=xpp::model().neq)i=xpp::model().neq-1;
+   if(i>=s.model().neq)i=s.model().neq-1;
    my_trans.nrow=i;
    my_trans.ncol=atoi(values[1].c_str());
    my_trans.colskip=atoi(values[2].c_str());
    my_trans.row0=atoi(values[3].c_str());
    my_trans.rowskip=atoi(values[5].c_str());
-   return (create_transpose());
+   return (create_transpose(s));
  }
  return 0; 
 
 }
  
-int create_transpose()
+int create_transpose(xpp::Session &s)
 {
   int i,j;
   int inrow,incol;
-  float **data=trans_columns.make(my_trans.nrow+1,my_trans.ncol,xpp::model().neq);
+  float **data=trans_columns.make(s.data_store,my_trans.nrow+1,my_trans.ncol,s.model().neq);
   for(j=0;j<my_trans.ncol;j++)
     data[0][j]=j+1;
 
   for(i=0;i<my_trans.ncol;i++){
     incol=my_trans.col0-1+i*my_trans.colskip;
-    if(incol>xpp::model().neq)
-      incol=xpp::model().neq;
+    if(incol>s.model().neq)
+      incol=s.model().neq;
     for(j=0;j<my_trans.nrow;j++){
       inrow=my_trans.row0+j*my_trans.rowskip;
-      if(inrow>xpp::session().data_store.rows)
-	inrow=xpp::session().data_store.rows;
-      data[j+1][i]=xpp::session().data_store.col[incol][inrow];
+      if(inrow>s.data_store.rows)
+	inrow=s.data_store.rows;
+      data[j+1][i]=s.data_store.col[incol][inrow];
     }
   }
   
@@ -164,16 +164,16 @@ int create_transpose()
    return 1;
 }
 
-void alloc_h_stuff()
+void alloc_h_stuff(xpp::Session &s)
 {
- coup_fun.assign(xpp::model().node,{});
- coup_string.assign(xpp::model().node,"0");
+ coup_fun.assign(s.model().node,{});
+ coup_string.assign(s.model().node,"0");
 }
 
-void data_back()
+void data_back(xpp::Session &s)
 {
- xpp::session().histogram.four_here=0;
- new_browse_dat(xpp::session().data_store.col,xpp::session().data_store.rows);
+ s.histogram.four_here=0;
+ new_browse_dat(s.data_store.col,s.data_store.rows);
 }
 
 void adj_back()
@@ -202,21 +202,21 @@ void h_back()
     orbit, adjoint, and H function and save. Files are of the form
     orbit.parname_parvalue.dat etc
 */
-void make_adj_com(int com)
+void make_adj_com(xpp::Session &s, int com)
 {
 static const char *const key="nmaohpr";
  switch(key[com]){
  case 'n': 
-   new_adjoint();
+   new_adjoint(s);
    break;
  case 'm':
-   new_h_fun(0);
+   new_h_fun(s,0);
    break;
  case 'a':
    adj_back();
    break;
  case 'o':
-   data_back();
+   data_back(s);
    break;
  case 'h':
    h_back();
@@ -225,7 +225,7 @@ static const char *const key="nmaohpr";
    adjoint_parameters();
    break;
  case 'r':
-   xpp::session().integrator.adj_range=1;
+   s.integrator.adj_range=1;
    break;
  
  }
@@ -237,7 +237,7 @@ void adjoint_parameters()
   new_float("Adjoint error tolerance :",&ADJ_ERR);
 }
 
-void new_h_fun(int silent)
+void new_h_fun(xpp::Session &s, int silent)
 {
 
  int n=2;
@@ -245,7 +245,7 @@ void new_h_fun(int silent)
    err_msg("Must compute adjoint first!");
    return;
  }
-  if(xpp::session().data_store.rows!=adj_len){
+  if(s.data_store.rows!=adj_len){
      err_msg("incompatible data and adjoint");
      return;
    }
@@ -254,14 +254,14 @@ void new_h_fun(int silent)
    H_HERE=0;
    HODD_EV=0;
  }
-   if(xpp::model().neq>2){
+   if(s.model().neq>2){
      HODD_EV=1;
      n=4;
    }
-   h_len=xpp::session().data_store.rows;
-   data_back(); 
-   h_columns.make(n,h_len,xpp::model().neq);
-   if(make_h(xpp::session().data_store.col,my_adj,my_h,h_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,xpp::model().node,silent )){
+   h_len=s.data_store.rows;
+   data_back(s); 
+   h_columns.make(s.data_store,n,h_len,s.model().neq);
+   if(make_h(s,s.data_store.col,my_adj,my_h,h_len,s.numerics.delta_t*s.numerics.njmp,s.model().node,silent )){
      H_HERE=1;
      h_back();
    }
@@ -269,7 +269,7 @@ void new_h_fun(int silent)
   
 }
 
-void dump_h_stuff(FILE *fp, int f)
+void dump_h_stuff(xpp::Session &s, FILE *fp, int f)
 {
   int i;
   if(f==READEM){
@@ -278,21 +278,21 @@ void dump_h_stuff(FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Coupling stuff for H funs\n");
- for(i=0;i<xpp::model().node ;i++)
+ for(i=0;i<s.model().node ;i++)
    io_string(coup_string[i],fp,f);
 
 }
 
-int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
+int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
 {
 
  int i,j,rval=0;
  float sum;
  double z;
- int n0=node+1+xpp::model().fix_var,k2,k;
+ int n0=node+1+s.model().fix_var,k2,k;
  if(silent==0){
-   for(i=0;i<xpp::model().node ;i++){
-     std::string name=xpp::format("Coupling for {} eqn:",xpp::model().uvar_names[i]);
+   for(i=0;i<s.model().node ;i++){
+     std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
      new_string_of(name.c_str(),coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(coup_string[i].c_str(),coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
@@ -336,23 +336,23 @@ int make_h(float **orb, float **adj, float **h, int nt, double dt, int node, int
    rval=1;
       
  bye:
-  xpp::session().parser.nsym=xpp::model().nsym_start;
-  xpp::session().parser.ncon=xpp::model().ncon_start;
+  s.parser.nsym=s.model().nsym_start;
+  s.parser.ncon=s.model().ncon_start;
   return(rval);
 
 }
 
-void new_adjoint()
+void new_adjoint(xpp::Session &s)
 {
- int n=xpp::model().node +1;
+ int n=s.model().node +1;
  if(ADJ_HERE){
-   data_back();
+   data_back(s);
    adj_columns.release();
    ADJ_HERE=0;
  }
- adj_len=xpp::session().data_store.rows;
- adj_columns.make(n,adj_len,xpp::model().neq);
- auto done=adjoint(xpp::session().data_store.col,my_adj,adj_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node );
+ adj_len=s.data_store.rows;
+ adj_columns.make(s.data_store,n,adj_len,s.model().neq);
+ auto done=adjoint(s,s.data_store.col,my_adj,adj_len,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,s.model().node );
  if(done){
    ADJ_HERE=1;;
  adj_back();
@@ -382,7 +382,7 @@ void new_adjoint()
     t in the first column.
   */
 
-xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
+xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
 {
   double ytemp;
   double t,prod,del;
@@ -410,14 +410,14 @@ xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double ep
   for(k=0;k<nt;k++){
 	l=nt-1-k;  /* reverse the limit cycle  */
 	for(i=0;i<node;i++)yold[i]=static_cast<double>(orbit[i+1][l]);
-        xpp::session().integrator.rhs(0.0,yold,fold,node);
+        s.integrator.rhs(0.0,yold,fold,node);
 	for(j=0;j<node;j++){
 		ytemp=yold[j];
 		del=eps*fabs(ytemp);
 		if(del<eps)del=eps;
 		
 		yold[j]+=del;
-		xpp::session().integrator.rhs(0.0,yold,fdev,node);
+		s.integrator.rhs(0.0,yold,fdev,node);
 		yold[j]=ytemp;
 		for(i=0;i<node;i++)
 			jac[i+node*j][k]=(fdev[i]-fold[i])/del;
@@ -453,7 +453,7 @@ xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double ep
 	error=0.0;
 	
          for(i=0;i<node;i++){
-	  if(fabs(yold[i])>xpp::session().numerics.bound){
+	  if(fabs(yold[i])>s.numerics.bound){
 	    
 	  rval=xpp::fail("adjoint","Out of bounds");
 	  goto bye;
@@ -477,7 +477,7 @@ xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double ep
         l=nt-k-1;
 	t+=dt; 
         for(i=0;i<node;i++)fdev[i]=static_cast<double>(orbit[i+1][l]);
-	xpp::session().integrator.rhs(0.0,fdev,yprime,node);
+	s.integrator.rhs(0.0,fdev,yprime,node);
 	for(j=0;j<node;j++){
 	adjnt[j+1][l]=static_cast<float>(yold[j]);
 	prod+=yold[j]*yprime[j]*dt;
@@ -538,26 +538,26 @@ return {};
    to get an approximation
 */
 
-void do_liapunov()
+void do_liapunov(xpp::Session &s)
 {
   int i;
   double *x;
   new_int("Range over parameters?(0/1)",&LIAP_FLAG);
   if(LIAP_FLAG!=1){
-    auto z=hrw_liapunov(xpp::session().numerics.newt_err);
+    auto z=hrw_liapunov(s,s.numerics.newt_err);
     if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z).c_str());
     else xpp::show_error(z.error());
     return;
   }
-  x=&xpp::session().data_store.current[0];
-  do_range(x,0); 
+  x=&s.data_store.current[0];
+  do_range(s,x,0); 
   /* done the range */
   for(i=0;i<LIAP_I;i++){
-    xpp::session().data_store.col[0][i]=my_liap[0][i];
-    xpp::session().data_store.col[1][i]=my_liap[1][i];
+    s.data_store.col[0][i]=my_liap[0][i];
+    s.data_store.col[1][i]=my_liap[1][i];
   }
-  xpp::session().data_store.rows=LIAP_I;
-  refresh_browser(xpp::session().data_store.rows);
+  s.data_store.rows=LIAP_I;
+  refresh_browser(s.data_store.rows);
   LIAP_FLAG=0;
   for(auto &c : my_liap)c.clear();
 }
@@ -569,12 +569,12 @@ void alloc_liap(int n)
   LIAP_I=0;
 }
 
-void do_this_liaprun(int i,double p)
+void do_this_liaprun(xpp::Session &s, int i,double p)
 {
  if(LIAP_FLAG==0)return;
  my_liap[0][i]=p;
  /* a sweep's step that fails is not shown: its point is 0 */
- my_liap[1][i]=static_cast<float>(hrw_liapunov(xpp::session().numerics.newt_err).value_or(0.0));
+ my_liap[1][i]=static_cast<float>(hrw_liapunov(s,s.numerics.newt_err).value_or(0.0));
  LIAP_I++;
 }
 
@@ -592,7 +592,7 @@ void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector
   return;
 }
 
-xpp::Result<double> hrw_liapunov(double eps)
+xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
 {
  double y[MAXODE];
  double yp[MAXODE],nrm,dy[MAXODE];
@@ -600,35 +600,35 @@ xpp::Result<double> hrw_liapunov(double eps)
  double sum=0.0;
  int istart=1;
  int i,j;
-  if(xpp::session().data_store.rows<2){
+  if(s.data_store.rows<2){
    return xpp::fail("Liapunov","You need to compute an orbit first");
  }
 
  /* lets make an initial random perturbation */
-   for(i=0;i<xpp::model().node;i++)
+   for(i=0;i<s.model().node;i++)
       dy[i]=0; 
    dy[0]=eps;
    
-   for(j=0;j<(xpp::session().data_store.rows-1);j++){
-     t0=xpp::session().data_store.col[0][j];
-     t1=xpp::session().data_store.col[0][j+1];
+   for(j=0;j<(s.data_store.rows-1);j++){
+     t0=s.data_store.col[0][j];
+     t1=s.data_store.col[0][j+1];
      istart=1;
-     for(i=0;i<xpp::model().node;i++)
-       y[i]=xpp::session().data_store.col[i+1][j]+dy[i];
-     if(auto st=one_step_int(y,t0,t1,&istart);!st)return std::unexpected(st.error());
-     for(i=0;i<xpp::model().node;i++)
-       yp[i]=(y[i]-xpp::session().data_store.col[i+1][j+1]);
-     norm_vec(yp,&nrm,xpp::model().node);
+     for(i=0;i<s.model().node;i++)
+       y[i]=s.data_store.col[i+1][j]+dy[i];
+     if(auto st=one_step_int(s,y,t0,t1,&istart);!st)return std::unexpected(st.error());
+     for(i=0;i<s.model().node;i++)
+       yp[i]=(y[i]-s.data_store.col[i+1][j+1]);
+     norm_vec(yp,&nrm,s.model().node);
      nrm=nrm/eps;
      if(nrm==0.0){
        return xpp::fail("Liapunov","Liapunov:-infinity exponent!"); /* something wrong here */
      }
      sum=sum+log(nrm);
-    for(i=0;i<xpp::model().node;i++)
+    for(i=0;i<s.model().node;i++)
       dy[i]=eps*yp[i];
 
    }
-   t1=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0];
+   t1=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
    if(t1!=0)
      sum=sum/t1;
 

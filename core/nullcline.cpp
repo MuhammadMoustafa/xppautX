@@ -395,7 +395,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   std::array<float,MAXODE> v1,v2;
   double mdf,dxp,dyp;
   const bool suppress=dump!=nullptr;
-  get_ic(2,y.data());
+  get_ic(s,2,y.data());
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
     phase_data_dfield_begin(s.plot_windows,grid+1,du,dv,DFIELD_TYPE==0,s.plot_windows.current->color[0]);
@@ -416,7 +416,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
           v1[k+1]=static_cast<float>(y[k]);
           v2[k+1]=v1[k+1]+static_cast<float>(ydot[k]);
         }
-        if(!suppress)comp_color(v1.data(),v2.data(),s.model().node,1.0);
+        if(!suppress)comp_color(s,v1.data(),v2.data(),s.model().node,1.0);
       }
       if(s.nullclines.df_flag==1||s.nullclines.df_flag==4){
         if(!suppress)phase_data_arrow(s.plot_windows,y[inx],y[iny],ydot[inx],ydot[iny]);
@@ -540,7 +540,7 @@ void do_batch_nclines(xpp::Session &s)
 
 void set_colorization_stuff(xpp::Session &s)
 {
-  user_set_color_par(s.nullclines.colorize_flag,s.nullclines.color_via.c_str(),s.nullclines.color_via_lo,s.nullclines.color_via_hi);
+  user_set_color_par(s,s.nullclines.colorize_flag,s.nullclines.color_via.c_str(),s.nullclines.color_via_lo,s.nullclines.color_via_hi);
 }
 
 void do_batch_dfield(xpp::Session &s)
@@ -675,13 +675,13 @@ void direct_field_com(xpp::Session &s, int c)
   for(int k=0;k<2;k++){
     for(int i=0;i<=grid;i++)
       for(int j=0;j<=grid;j++){
-        get_ic(2,y.data());
+        get_ic(s,2,y.data());
         y[inx]=u0+du*i;
         y[iny]=v0+dv*j;
         double t=0.0;
         int start=1;
         phase_data_flow_next();
-        failure.keep(integrate(&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start));
+        failure.keep(integrate(s,&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start));
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }

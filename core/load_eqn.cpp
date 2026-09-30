@@ -290,12 +290,12 @@ void set_all_vals(xpp::Session &s)
  if(xpp::UniqueFile fp=xpp::open_model_file(s.model().options_file))
   read_defaults(s,fp.get());
 
- init_range();
- init_trans();
+ init_range(s);
+ init_trans(s);
  init_my_aplot(s);
  init_txtview();
 
-  chk_volterra();  
+  chk_volterra(s);  
 
 /*                           */
 
@@ -333,13 +333,13 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
  } 
  s.data_store.allocate(s.data_store.max_rows,s.model().neq+1);
  if(s.plot_settings.axes>=5)s.plot_settings.plot_3d=1;
- chk_delay(); /* check for delay allocation */
- alloc_h_stuff();
+ chk_delay(s); /* check for delay allocation */
+ alloc_h_stuff(s);
 
  alloc_v_memory();  /* allocate stuff for volterra equations */
- xpp::start_solver();
+ xpp::start_solver(s);
  set_initial_values(s); /* the initial values given as formulas */
- arr_ic_start(); /* take care of all predefined array ics */
+ arr_ic_start(s); /* take care of all predefined array ics */
 
 }
 
@@ -489,7 +489,7 @@ void do_intern_set(xpp::Session &s, const char *name1, const char *value)
       set_option(s,name,value,1,NULL);
    }
   }
- do_meth();
+ do_meth(s);
 }
 /*  ODE options stuff  here !!   */
 

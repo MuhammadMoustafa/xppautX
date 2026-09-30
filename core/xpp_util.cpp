@@ -312,7 +312,7 @@ void ps_restore(xpp::Session &s)
  if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke();}
   }
 
-  restore(0,s.browser.view.maxrow);  
+  restore(s,0,s.browser.view.maxrow);  
  
   do_batch_nclines(s);
   do_batch_dfield(s); 
@@ -331,7 +331,7 @@ void svg_restore(xpp::Session &s)
 
   redraw_dfield(s);
  if(s.plot_windows.current->Nullrestore){restore_nullclines(s);}
- restore(0,s.browser.view.maxrow);
+ restore(s,0,s.browser.view.maxrow);
  do_axes(s);
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
@@ -624,7 +624,7 @@ void do_txt_action(xpp::Session &s, const char *action)
  get_graph(s);
  extract_action(s,action);
  ping();
-  chk_delay();
+  chk_delay(s);
   redraw_params();
   redraw_ics();
   reset_graph(s);

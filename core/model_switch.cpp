@@ -201,8 +201,8 @@ void restore_values(Session &s, const KeptValues &kept)
     n.sos=loaded.sos;
   }else n.poivar=poi;
   if(disc(m.this_file))n.method=0;
-  do_meth(); /* starts the method's solver too */
-  set_delay();
+  do_meth(s); /* starts the method's solver too */
+  set_delay(s);
 
   for(const std::pair<std::string,double> &p : kept.pars)
     if(find_user_name(PARAMBOX,p.first)>=0)set_val(p.first,p.second);

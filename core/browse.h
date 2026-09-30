@@ -31,10 +31,12 @@ void refresh_browser(int length);
 void reset_browser(void);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
-void data_restore(BROWSER *b);
 
 #ifdef __cplusplus
 }
+
+
+void data_restore(xpp::Session &s, BROWSER *b);
 
 /* A file the user named, opened for a write that replaces it only at
    commit (xpp::Writer, binary: byte for byte), after asking whether to

@@ -66,7 +66,7 @@ void set_up_aplot_range(xpp::Session &s)
  s.array_plot.range=1;
  s.array_plot.range_count=0;
  x=&s.data_store.current[0];
- do_range(x,0);
+ do_range(s,x,0);
  }
 }
 void fit_aplot(xpp::Session &s)

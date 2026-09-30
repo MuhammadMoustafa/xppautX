@@ -28,7 +28,7 @@ int main(void)
 
     CHECK(xpp::session().data_store.rows > 100);
 
-    auto liap = hrw_liapunov(xpp::session().numerics.newt_err);
+    auto liap = hrw_liapunov(xpp::session(), xpp::session().numerics.newt_err);
     CHECK(liap.has_value());
     CHECK(liap && std::fabs(*liap - (-0.7)) < 1e-3);
 

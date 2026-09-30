@@ -33,9 +33,8 @@ constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 			{{1,1,1},{87.97,1,.0139}}};
 
 /* main fixed point finder */ 
-xpp::Result<> do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
- xpp::Session &s=xpp::session();
  xpp::FirstError failure; /* an eigenvector or a manifold's */
  int kmem,i,j,ipivot[MAXODE];
  int oldcol,dummy;
@@ -61,7 +60,7 @@ xpp::Result<> do_sing(double *x, double eps, double err, double big, int maxit, 
  b=eval+2*n;
  bp=b+n;
  ework=bp+n;
- rooter(x,err,eps,big,work,ierr,maxit,n);
+ rooter(s,x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
   for(i=0;i<n;i++)x[i]=old_x[i];
@@ -175,10 +174,10 @@ if(!s.numerics.par_fol)
      if(*ierr==0)
      {
      change_current_linestyle(s.manifolds.unstable_color,&oldcol);
-     pr_evec(x,b,n,pr,eval[2*pose],1);
+     pr_evec(s,x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
-      failure.keep(shoot(bp,x,b,1));
-      failure.keep(shoot(bp,x,b,-1));
+      failure.keep(shoot(s,bp,x,b,1));
+      failure.keep(shoot(s,bp,x,b,-1));
      change_current_linestyle(oldcol,&dummy);
 
      }
@@ -192,10 +191,10 @@ if(!s.numerics.par_fol)
      if(*ierr==0)
      {
         change_current_linestyle(s.manifolds.stable_color,&oldcol);
-	pr_evec(x,b,n,pr,eval[2*nege],-1);
+	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
-      failure.keep(shoot(bp,x,b,1));
-      failure.keep(shoot(bp,x,b,-1));
+      failure.keep(shoot(s,bp,x,b,1));
+      failure.keep(shoot(s,bp,x,b,-1));
         change_current_linestyle(oldcol,&dummy);
      }
      else
@@ -226,10 +225,10 @@ if(!s.numerics.par_fol)
 	   if(*ierr==0)
 	     {
 	       change_current_linestyle(s.manifolds.unstable_color,&oldcol);
-	       pr_evec(x,b,n,pr,bigpos,1);
+	       pr_evec(s,x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
-	       failure.keep(shoot(bp,x,b,1));
-	       failure.keep(shoot(bp,x,b,-1));
+	       failure.keep(shoot(s,bp,x,b,1));
+	       failure.keep(shoot(s,bp,x,b,-1));
 	       change_current_linestyle(oldcol,&dummy);
 	       
 	     }
@@ -244,10 +243,10 @@ if(!s.numerics.par_fol)
 	   if(*ierr==0)
 	     {
 	       change_current_linestyle(s.manifolds.stable_color,&oldcol);
-	       pr_evec(x,b,n,pr,bigneg,-1);
+	       pr_evec(s,x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
-	       failure.keep(shoot(bp,x,b,1));
-	       failure.keep(shoot(bp,x,b,-1));
+	       failure.keep(shoot(s,bp,x,b,1));
+	       failure.keep(shoot(s,bp,x,b,-1));
 	       change_current_linestyle(oldcol,&dummy);
 	     }
 	   else
@@ -261,23 +260,22 @@ if(!s.numerics.par_fol)
  return failure.result();
 }
 
-void save_batch_shoot()
+void save_batch_shoot(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
 int i,k,type;
   double x[MAXODE],olddt;
   if(s.manifolds.count<1)return;
   olddt=s.numerics.delta_t;
   s.numerics.storflag=1;
   for(k=0;k<s.manifolds.count;k++){
-    for(i=0;i<xpp::model().node;i++)
+    for(i=0;i<s.model().node;i++)
       x[i]=s.manifolds.ic[k][i];
 
     type=ShootType[k];
     if(type>0){
 
        s.numerics.delta_t=fabs(s.numerics.delta_t);
-       usual_integrate_stuff(x);
+       usual_integrate_stuff(s,x);
        {
          xpp::Writer w(xpp::format("UM{}.dat",k).c_str());
          if(w){ write_mybrowser_data(w); w.commit(); }
@@ -286,7 +284,7 @@ int i,k,type;
     if(type<0){
 
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       usual_integrate_stuff(x);
+       usual_integrate_stuff(s,x);
        {
          xpp::Writer w(xpp::format("SM{}.dat",k).c_str());
          if(w){ write_mybrowser_data(w); w.commit(); }
@@ -297,9 +295,8 @@ int i,k,type;
   s.numerics.delta_t=olddt;
 
 }
-xpp::Result<> shoot_this_now() /* this uses the current labeled saddle point stuff to integrate */
+xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled saddle point stuff to integrate */
 {
-  xpp::Session &s=xpp::session();
   xpp::FirstError failure;
   int i,k,type,oldcol,dummy;
   double x[MAXODE],olddt;
@@ -307,20 +304,20 @@ xpp::Result<> shoot_this_now() /* this uses the current labeled saddle point stu
   olddt=s.numerics.delta_t;
 
   for(k=0;k<s.manifolds.count;k++){
-    for(i=0;i<xpp::model().node;i++)
+    for(i=0;i<s.model().node;i++)
       x[i]=s.manifolds.ic[k][i];
     
     type=ShootType[k];
     if(type>0){
        change_current_linestyle(s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
-       failure.keep(shoot_easy(x));
+       failure.keep(shoot_easy(s,x));
        change_current_linestyle(oldcol,&dummy);
     }
     if(type<0){
       change_current_linestyle(s.manifolds.stable_color,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       failure.keep(shoot_easy(x));
+       failure.keep(shoot_easy(s,x));
        change_current_linestyle(oldcol,&dummy);
     }
   }
@@ -329,7 +326,7 @@ xpp::Result<> shoot_this_now() /* this uses the current labeled saddle point stu
 }
 
 /* fixed point with no requests and store manifolds */ 
-void do_sing_info(double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
+void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
  int kmem,i,j,ipivot[MAXODE];
 
@@ -347,15 +344,15 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  std::vector<double> work_buf(kmem, 0.0);
  work=work_buf.data();
 
- xpp::session().manifolds.ic_flag=0;
- xpp::session().manifolds.count=0;
+ s.manifolds.ic_flag=0;
+ s.manifolds.count=0;
  for(i=0;i<n;i++){old_x[i]=x[i];}
  oldwork=work+n*n;
  eval=oldwork+n*n;
  b=eval+2*n;
  bp=b+n;
  ework=bp+n;
- rooter(x,err,eps,big,work,ierr,maxit,n);
+ rooter(s,x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
   for(i=0;i<n;i++)x[i]=old_x[i];
@@ -389,7 +386,7 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
   er[i]=real;
   em[i]=imag;
 
-  if(xpp::session().numerics.method==0)real=real*real+imag*imag-1.00;
+  if(s.numerics.method==0)real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -445,7 +442,7 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
 
      if(*ierr==0)
      {
-       pr_evec(x,b,n,pr,eval[2*pose],1);
+       pr_evec(s,x,b,n,pr,eval[2*pose],1);
 
      }
 
@@ -458,7 +455,7 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
 
      if(*ierr==0)
      {
-       pr_evec(x,b,n,pr,eval[2*nege],-1);
+       pr_evec(s,x,b,n,pr,eval[2*nege],-1);
 
      }
 
@@ -469,9 +466,8 @@ void do_sing_info(double *x, double eps, double err, double big, int maxit, int 
  return;
 }
 
-void pr_evec(double *x, double *ev, int n, int pr, double eval, int type)
+void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval, int type)
 {
-  xpp::Session &s=xpp::session();
 
  int i;
  double d=fabs(s.numerics.delta_t)*.1;
@@ -565,12 +561,12 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
      return;
   }
 
-void getjac(double *x, double *y, double *yp, double *xp, double eps, double *dermat, int n)
+void getjac(xpp::Session &s, double *x, double *y, double *yp, double *xp, double eps, double *dermat, int n)
 {
  int i,j,k;
  double r;
-   xpp::session().integrator.rhs(0.0,x,y,n);
-   if(xpp::session().numerics.method==0)
+   s.integrator.rhs(0.0,x,y,n);
+   if(s.numerics.method==0)
    for(i=0;i<n;i++)y[i]=y[i]-x[i];
 
   for(i=0;i<n;i++)
@@ -578,8 +574,8 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
-    xpp::session().integrator.rhs(0.0,xp,yp,n);
-    if(xpp::session().numerics.method==0){
+    s.integrator.rhs(0.0,xp,yp,n);
+    if(s.numerics.method==0){
      for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
     }
     for(j=0;j<n;j++)
@@ -590,18 +586,18 @@ void getjac(double *x, double *y, double *yp, double *xp, double eps, double *de
   }
 }
 
-void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *dermat, int n)
+void getjactrans(xpp::Session &s, double *x,double *y,double *yp,double *xp, double eps, double *dermat, int n)
 
 {
  int i,j,k;
  double r;
-   xpp::session().integrator.rhs(0.0,x,y,n);
+   s.integrator.rhs(0.0,x,y,n);
   for(i=0;i<n;i++)
   {
     for(k=0;k<n;k++) xp[k]=x[k];
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
-    xpp::session().integrator.rhs(0.0,xp,yp,n);
+    s.integrator.rhs(0.0,xp,yp,n);
     for(j=0;j<n;j++)
     {
     dermat[j+n*i]=(yp[j]-y[j])/r;
@@ -610,7 +606,7 @@ void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *
   }
 }
 
-void rooter(double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
+void rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
 {
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  int i,iter,ipivot[MAXODE],info;
@@ -641,14 +637,14 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
        if(ch=='/')
 	 {
 	   *ierr=1;
-	   xpp::session().numerics.endsing=1;
+	   s.numerics.endsing=1;
 	   return;
 	 }
-       if(ch=='p')xpp::session().numerics.pauser=1;
+       if(ch=='p')s.numerics.pauser=1;
      }
    }
  
-  getjac(x,y,yp,xp,eps,dermat,n);
+  getjac(s,x,y,yp,xp,eps,dermat,n);
   sgefa(dermat,n,n,ipivot,&info);
   if(info!=-1)
   {
@@ -665,8 +661,8 @@ void rooter(double *x, double err, double eps, double big, double *work, int *ie
   }
   if(r<err)
   {
-     getjac(x,y,yp,xp,eps,dermat,n);
-     if(xpp::session().numerics.method==0)
+     getjac(s,x,y,yp,xp,eps,dermat,n);
+     if(s.numerics.method==0)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      return; /* success !! */
   }
@@ -689,16 +685,16 @@ double sqr2(double z)
 return(z*z);
 }
 
-int gear(int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
-  if(xpp::model().nflags==0)
-    return(ggear( n,t, tout,y, hmin, hmax,eps,
+  if(s.model().nflags==0)
+    return(ggear(s, n,t, tout,y, hmin, hmax,eps,
 	  mf,error,kflag,jstart,work,iwork));
   return(one_flag_step_gear(n,t, tout,y, hmin, 
 		   hmax,eps,mf,error,kflag,jstart,work,iwork));
 }
 
-int ggear(int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
+int ggear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork)
 {
   double deltat=0.0,hnew=0.0,hold=0.0,h=0.0,racum=0.0,told=0.0,r=0.0,d=0.0;
   double *a,pr1,pr2,pr3,r1;
@@ -794,7 +790,7 @@ L120:
    
     nq=1;	
 	
-        xpp::session().integrator.rhs(*t,ytable[0],save11,n);
+        s.integrator.rhs(*t,ytable[0],save11,n);
 
     for(i=0;i<n;i++)
     {
@@ -898,7 +894,7 @@ L330:
       error[i]=0.0;
     for(l=0;l<3;l++)
      {
-      xpp::session().integrator.rhs(*t,ytable[0],save11,n);
+      s.integrator.rhs(*t,ytable[0],save11,n);
       if(iweval<1)
 	{ 
 	  goto L460;
@@ -910,7 +906,7 @@ L330:
        r=eps*std::max(eps,fabs(save9[j]));
        ytable[0][j]=ytable[0][j]+r;
        d=a[0]*h/r;
-       xpp::session().integrator.rhs(*t,ytable[0],save12,n);
+       s.integrator.rhs(*t,ytable[0],save12,n);
        for(i=0;i<n;i++)
        dermat[n*i+j]=(save12[i]-save11[i])*d;
        ytable[0][j]=save9[j];
@@ -1083,7 +1079,7 @@ L770:
 L790:
 	
     if(nq==1)goto L850;
-    xpp::session().integrator.rhs(*t,ytable[0],save11,n);
+    s.integrator.rhs(*t,ytable[0],save11,n);
     r=h/hold;
     for(i=0;i<n;i++)
     {

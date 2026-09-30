@@ -126,7 +126,7 @@ double get_delay(int in, double tau)
  int i0,i1,i2,i3;
 
  if(tau<0.0||tau>xpp::session().numerics.delay){
-			stop_integration({"delay","Delay negative or too large"});
+			stop_integration(xpp::session(),{"delay","Delay negative or too large"});
 			return(0.0);
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */
