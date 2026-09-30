@@ -114,7 +114,7 @@ kbd { font: 600 var(--text-xs) var(--mono); min-width: 1.6em; text-align: center
 .keycap.down { background: var(--lit); color: var(--lit-fg); border-color: var(--warn); border-bottom-width: 1px; transform: translateY(2px); }
 .keycap.wide { font-size: .9rem; }
 .keys-label { font-size: var(--text-xs); color: var(--fg-muted); margin-right: var(--space-1); }
-.statuskeys { display: inline-flex; align-items: center; gap: var(--space-1); }
+.statuskeys { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); border: 1px solid var(--warn); border-radius: .375rem; background: var(--surface-2); }
 .statuskeys .keycap { font-size: .8rem; min-width: 1.5rem; height: 1.5rem; }
 .capband { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--space-3) var(--space-4); background: color-mix(in srgb, var(--surface) 88%, transparent); border-top: 1px solid var(--border); font-size: 1.25rem; font-weight: 650; z-index: 2; }
 .ask { position: absolute; left: 50%; top: 45%; transform: translate(-50%,-50%); width: min(20rem, 92%); background: var(--surface); border: 1px solid var(--field-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--space-3); z-index: 4; }
@@ -383,7 +383,16 @@ function keycapsHtml(st, upto) {
   if (st.button) return `<span class="keys-label">Button</span><span class="keycap wide down">${st.button}</span>`;
   return `<span class="keys-label">Keys</span>` + st.keys.map((k, i) => `<span class="keycap${i === upto ? ' down' : ''}" style="${i > upto ? 'opacity:.3' : ''}">${esc(k)}</span>`).join('');
 }
+let lastKeys = null; // what the highlight shows now, redrawn in the other place when the option changes
+/* paused or not started: the next step's keys, dimmed, so the two places can be compared without playing */
+function previewNext() {
+  if (mode === 'rec' || busy || playing || cur >= steps.length - 1) return;
+  const st = steps[cur + 1];
+  showKeys(st.button ? `<span class="keys-label">Next: button</span><span class="keycap wide">${esc(st.button)}</span>`
+    : `<span class="keys-label">Next: keys</span>` + st.keys.map(k => `<span class="keycap">${esc(k)}</span>`).join(''));
+}
 function showKeys(html) {
+  lastKeys = html;
   $('keysOver').hidden = opt.keys !== 'A' || !html; $('keysOver').innerHTML = opt.keys === 'A' && html ? html : '';
   if (opt.keys === 'B') $('statusMsg').innerHTML = html ? `<span class="statuskeys">${html}</span>` : '';
 }
@@ -452,13 +461,13 @@ async function playLoop() {
 }
 async function stepFwd() {
   if (busy || cur >= steps.length - 1) return; playing = false; stepOnce = true; syncPlay();
-  const g = gen; await runStep(cur + 1); if (g === gen) { stepOnce = false; syncPlay(); }
+  const g = gen; await runStep(cur + 1); if (g === gen) { stepOnce = false; syncPlay(); previewNext(); }
 }
 function syncPlay() { const b = $('bPlay'); b.innerHTML = playing ? '&#10074;&#10074; Pause' : (cur >= steps.length - 1 ? '&#9654; Play again' : '&#9654; Play'); b.setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
 function restart(to) {
   gen++; playing = false; stepOnce = false; busy = false; cur = to;
   showKeys(null); litMenu(null); litSub(null); showSub(null); $('ask').hidden = true; idleRun();
-  worldTo(to + 1); setCaption(to >= 0 ? steps[to] : null); renderSteps(); renderProg(to >= 0 ? 1 : 0); setStatus('Ready', false, ''); $('rows').textContent = '0 rows'; syncPlay();
+  worldTo(to + 1); setCaption(to >= 0 ? steps[to] : null); renderSteps(); renderProg(to >= 0 ? 1 : 0); setStatus('Ready', false, ''); $('rows').textContent = '0 rows'; syncPlay(); previewNext();
 }
 
 /* ===== progress indicator ===== */
@@ -567,7 +576,7 @@ document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => { speed
 document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
 document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => {
   opt[b.dataset.opt] = b.dataset.v; document.querySelectorAll(`[data-opt="${b.dataset.opt}"]`).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  if (mode !== 'rec') { setCaption(cur >= 0 ? steps[cur] : null); renderProg(1); showKeys(null); if (opt.keys === 'A') $('statusMsg').textContent = ''; }
+  if (mode !== 'rec') { setCaption(cur >= 0 ? steps[cur] : null); renderProg(1); const k = lastKeys; $('statusMsg').textContent = ''; showKeys(k); }
 });
 const themes = ['system', 'light', 'dark'];
 $('theme').onclick = () => {
