@@ -28,10 +28,9 @@ int main(void)
 
     CHECK(xpp::session().data_store.rows > 100);
 
-    double liap = 0;
-    int ok = hrw_liapunov(&liap, 1, xpp::session().numerics.newt_err);
-    CHECK(ok == 1);
-    CHECK(std::fabs(liap - (-0.7)) < 1e-3);
+    auto liap = hrw_liapunov(xpp::session().numerics.newt_err);
+    CHECK(liap.has_value());
+    CHECK(liap && std::fabs(*liap - (-0.7)) < 1e-3);
 
     TEST_REPORT("stochast liapunov exponent");
 }

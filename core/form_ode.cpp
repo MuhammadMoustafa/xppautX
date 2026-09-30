@@ -632,7 +632,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	       name,nn,xlo,xhi,formula);
 	add_table_name(s.ntable,name.c_str());
 
-	if(add_form_table(s.ntable,nn,xlo,xhi,formula.c_str())){
+	if(auto t=add_form_table(s.ntable,nn,xlo,xhi,formula.c_str());!t){
+	  xpp::show_error(t.error());
 	  xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	  xpp_model_failed();
 	}
@@ -658,7 +659,8 @@ int compiler(const std::string &bob, FILE *fptr)
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
             add_table_name(s.ntable,name.c_str());
-	    if(add_file_table(s.ntable,formula.c_str())){
+	    if(auto t=add_file_table(s.ntable,formula.c_str());!t){
+	      xpp::show_error(t.error());
 	      xpp_log(XPP_LOG_ERROR, "ERROR at line %d\n",xpp::model().nlines());
 	      xpp_model_failed();
 	    }
@@ -1489,7 +1491,8 @@ private:
       const std::string formula=text(s.expr);
       xpp_log(XPP_LOG_INFO, " Function form of table....\n");
       xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.count,s.lo,s.hi,formula);
-      if(add_form_table(ntab_,s.count,s.lo,s.hi,formula.c_str())){
+      if(auto t=add_form_table(ntab_,s.count,s.lo,s.hi,formula.c_str());!t){
+	xpp::show_error(t.error());
 	xpp::log(XPP_LOG_ERROR, "ERROR computing {}\n",s.name);
 	xpp_model_failed();
       }
@@ -1506,7 +1509,8 @@ private:
       break;
     case Statement::TableKind::File:
       xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",s.name,s.text);
-      if(add_file_table(ntab_,s.text.c_str())){
+      if(auto t=add_file_table(ntab_,s.text.c_str());!t){
+	xpp::show_error(t.error());
 	xpp::log(XPP_LOG_ERROR, "ERROR computing {}",s.name);
 	xpp_model_failed();
       }

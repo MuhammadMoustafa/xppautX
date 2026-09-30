@@ -155,10 +155,8 @@ void auto_homo_choice(int itp);
 void auto_2p_fixper(void);
 void auto_2p_hopf(void);
 void auto_period_double(void);
-void auto_err(const char *s);
 void auto_run(void);
 void load_auto_orbit(void);
-void load_auto_orbitx(int ibr,int flag, int lab, double per);
 /* File/Save diagram and Load diagram: an .autox (autox.h), or an XPPAUT
    .auto imported */
 void save_auto(void);
@@ -167,7 +165,6 @@ void load_auto(void);
    all) */
 void load_auto_numerics(FILE *fp);
 void load_auto_graph(FILE *fp);
-void make_q_file(FILE *fp);
 int import_auto_file(FILE *fp);
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
@@ -200,6 +197,14 @@ void do_auto_range(void);
 }
 
 #include <string>
+#include "xpp_error.h"
+
+/* orbit lab of the solution file into the data (a labelled point's, when
+   a grab or a diagram point asks for it); what failed otherwise, for the
+   command to show */
+xpp::Result<> load_auto_orbitx(int ibr,int flag, int lab, double per);
+/* the .auto's copy of the solution file, written beside this model's */
+xpp::Result<> make_q_file(FILE *fp);
 
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */

@@ -56,12 +56,12 @@ void init_fit_info()
   fin.file.clear();
 }
 
-void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
+xpp::Result<> get_fit_info(double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
 /*  
   y     initial condition
   a     initial guesses for the parameters
   t0    vector of output times
-  flag  1 for success  0 for failure 
+  returns why it failed (an integration or a delay's start), if it did
   eps   derivative step
   yfit  has y[i1](t0),...,y[im](t0), ..., y[i1](tn),...,y[im](tn)
         which are the values of the test functions at the npts 
@@ -79,10 +79,9 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
  */
 {
   xpp::Session &s=xpp::session();
-  int i,iv,ip,istart=1,j,k,l,k0,ok;
+  int i,iv,ip,istart=1,j,k,l,k0;
   double yold[MAXODE],dp;
   double par;
-  *flag=0;
 /* set up all initial data and parameter guesses  */
   for(l=0;l<npars;l++){
     ip=ipar[l];
@@ -94,7 +93,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
   }
   if(s.delay.flag){
    /* restart initial data */
-   if(!xpp::ok_or_show(do_init_delay(s.numerics.delay)))return;
+   if(auto d=do_init_delay(s.numerics.delay); !d)return std::unexpected(d.error());
   }
 evaluate_derived();
   s.integrator.solver->begin(&istart);
@@ -105,12 +104,12 @@ evaluate_derived();
   }
   for(k=1;k<npts;k++){
     k0=k*nvars;
-    ok=one_step_int(y,t0[k-1],t0[k],&istart);
-    if(ok==0){
+    auto ok=one_step_int(y,t0[k-1],t0[k],&istart);
+    if(!ok){
          for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
 
-      return;
+      return ok;
        }
    
     for(i=0;i<nvars;i++){
@@ -144,19 +143,19 @@ evaluate_derived();
     }
     if(s.delay.flag){
    /* restart initial data */
-   if(!xpp::ok_or_show(do_init_delay(s.numerics.delay)))return;
+   if(auto d=do_init_delay(s.numerics.delay); !d)return std::unexpected(d.error());
   }
     evaluate_derived();
     s.integrator.solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
       k0=k*nvars;
-      ok=one_step_int(y,t0[k-1],t0[k],&istart);
-      if(ok==0){
+      auto ok=one_step_int(y,t0[k-1],t0[k],&istart);
+      if(!ok){
          for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
 
-       return;
+       return ok;
      }
       for(i=0;i<nvars;i++){
 	iv=ivar[i];
@@ -169,13 +168,12 @@ evaluate_derived();
     s.integrator.solver->finish();
 
   }
- *flag=1;
      for(i=0;i<xpp::model().node;i++)
 	y[i]=yold[i];
-
+  return {};
 }
 
-int one_step_int(double *y, double t0, double t1, int *istart)
+xpp::Result<> one_step_int(double *y, double t0, double t1, int *istart)
 {
   xpp::Session &s=xpp::session();
   xpp::Solver &solver=*s.integrator.solver;
@@ -185,30 +183,26 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   xpp::SolverResult r;
   if(!solver.traits().fixed_step){
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.tout=t1,.hguess=&dt});
-    if(!r){
-      ping();
-      xpp::show_error(r.error()); /* the fit's own errors are values next (W63b's follow-up) */
-      return(0);
-    }
+    if(!r)return r;
     stor_delay(y);
-    return(1);
+    return {};
   }
   if(solver.traits().discrete){
     int nit=fabs(t0-t1);
     dt=dt/fabs(dt);
     solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
-    return(1);
+    return {};
   }
   int nit=static_cast<int>((t1-t0)/dt);
   r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
-  if(!r)return(0);
+  if(!r)return r;
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=1});
-    if(!r)return(0);
+    if(!r)return r;
   }
 
-  return(1);
+  return {};
 } 
 
 void print_fit_info()
@@ -227,7 +221,7 @@ void print_fit_info()
 void test_fit()
 {
  std::array<double, 1000> a{}, y0{};
- int nvars,npars,i,ok;
+ int nvars,npars,i;
  fin.nvars=0;
  fin.npars=0;
  if(get_fit_params()==0)return;
@@ -286,12 +280,17 @@ void test_fit()
 
  print_fit_info();
  xpp::log(XPP_LOG_INFO, " Running the fit...\n");
- ok=run_fit(fin.file.c_str(), fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
+ auto ok=run_fit(fin.file.c_str(), fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
          fin.eps,fin.tol,
 	 fin.ipar.data(),fin.ivar.data(),fin.icols.data(),
 	 y0.data(),a.data(),yfit);
 
-   if(ok==0)return;
+   if(!ok){
+     ping();
+     xpp::show_error(ok.error());
+     return;
+   }
+   err_msg(*ok==FitEnd::Converged ? " Success! " : "Max iterations exceeded...");
 
  /* get the latest par values ...  */
  
@@ -304,7 +303,7 @@ void test_fit()
 
 }
 
-int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
+xpp::Result<FitEnd> run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, int ndim, double eps, double tol, int *ipar, int *ivar, int *icols, double *y0, double *a, double *yfit)
 /* 
    filename is where the data file is -- it is of the form:
    t1 y11 y12 .... y1m
@@ -317,7 +316,8 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
    
 */
 {
-  int i,j,k,ioff,ictrl=0,ok=0;
+  int i,j,k,ioff,ictrl=0;
+  xpp::Result<> ok;
   int niter=0,good_flag=0;
   double tol10=10*tol;
   double t,ytemp[MAXODE];
@@ -326,8 +326,7 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 
   xpp::TokenReader reader(filename);
   if(!reader){
-    err_msg("No such file...");
-    return(0);
+    return xpp::fail("fit","No such file...");
   }
   std::vector<double> t0_v(static_cast<size_t>(npts)+1);
   std::vector<double> y_v(static_cast<size_t>(npts+1)*nvars);
@@ -336,14 +335,12 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 
   for(i=0;i<npts;i++){
     if(!reader.read(t)){
-      err_msg("Data file too short...");
-      return(0);
+      return xpp::fail("fit","Data file too short...");
     }
 
     for(j=0;j<ndim-1;j++)
       if(!reader.read(ytemp[j])){
-	err_msg("Data file too short...");
-	return(0);
+	return xpp::fail("fit","Data file too short...");
       }
     t0[i]=t;
 
@@ -380,12 +377,12 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
     niter++;
     xpp::log(XPP_LOG_INFO, " step {} is {}  -- lambda= {:g}  chisq= {:g} oldchi= {:g}\n",
-	   niter,ok,alambda,chisq,ochisq);
+	   niter,ok.has_value()?1:0,alambda,chisq,ochisq);
     xpp::log(XPP_LOG_INFO, " params: ");
     for(i=0;i<npars;i++)
       xpp::log(XPP_LOG_INFO, " {:g} ",a[i]);
     xpp::log(XPP_LOG_INFO, "\n");
-    if((ok==0)||(niter>=maxiter))break;
+    if(!ok||(niter>=maxiter))break;
     if(ochisq>chisq){
       if(((ochisq-chisq)<tol10)||(((ochisq-chisq)/MAX(1.0,chisq))<tol))
       {
@@ -401,19 +398,12 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
 
   }
 
-  if(ok==0){
-    err_msg("Error in step...");
-    return(0);
-  }
-  if(niter>=maxiter){
-    err_msg("Max iterations exceeded...");
-    return(1);
-  }
+  if(!ok)return std::unexpected(ok.error());
+  if(niter>=maxiter)return FitEnd::MaxIterations;
   ictrl=2;
-  marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
+  (void)marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
 	       yderv.data(),yfit,&ochisq,ictrl,eps);
-  err_msg(" Success! ");
   /* have the covariance matrix -- so what?   */
   xpp::log(XPP_LOG_INFO, " covariance: \n");
   for(i=0;i<npars;i++){
@@ -422,10 +412,10 @@ int run_fit(const char *filename, int npts, int npars, int nvars, int maxiter, i
     xpp::log(XPP_LOG_INFO, "\n");
   }
 
-  return(1);
+  return FitEnd::Converged;
 }
 
-int marlevstep(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
+xpp::Result<> marlevstep(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *covar, double *alpha, double *chisq, double *alambda, double *work, double **yderv, double *yfit, double *ochisq, int ictrl, double eps)
 /*   One step of Levenberg-Marquardt  
      
 nvars  the number of variables to fit
@@ -461,10 +451,10 @@ sigma  weights on nvars
 
   if(ictrl==0){
     *alambda=.001;
-    if(mrqcof(t0,y0,y,sig,a,npts,nvars,npars,
+    if(auto m=mrqcof(t0,y0,y,sig,a,npts,nvars,npars,
 	      ivar,ipar,alpha,chisq,beta,
-	      yderv,yfit,eps)==0) 
-      return(0);
+	      yderv,yfit,eps); !m)
+      return m;
     for(i=0;i<npars;i++)atry[i]=a[i];
     *ochisq=(*chisq);
   }
@@ -475,8 +465,7 @@ sigma  weights on nvars
   }
   sgefa(covar,npars,npars,ipivot,&ierr);
     if(ierr!=-1){
-      err_msg(" Singular matrix encountered...");
-      return(0);
+      return xpp::fail("fit"," Singular matrix encountered...");
     }
   
   sgesl(covar,npars,npars,ipivot,oneda);
@@ -492,14 +481,14 @@ sigma  weights on nvars
       sgesl(alpha,npars,npars,ipivot,oneda);
       for(k=0;k<npars;k++)covar[j+k*npars]=oneda[k];
     }
-    return(1);
+    return {};
   }
   for(j=0;j<npars;j++) {
     atry[j]=a[j]+da[j];
   }
-  if(mrqcof(t0,y0,y,sig,atry,npts,nvars,npars,
+  if(auto m=mrqcof(t0,y0,y,sig,atry,npts,nvars,npars,
 	   ivar,ipar,covar,chisq,da,
-	   yderv,yfit,eps)==0)return(0);
+	   yderv,yfit,eps); !m)return m;
 
   if(*chisq<*ochisq){
     *alambda *= 0.1;
@@ -512,20 +501,16 @@ sigma  weights on nvars
   else {
     *alambda *= 10.0;
   }
-  return(1);
+  return {};
 }
 
- int mrqcof(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps)
+ xpp::Result<> mrqcof(double *t0, double *y0, double *y, double *sig, double *a, int npts, int nvars, int npars, int *ivar, int *ipar, double *alpha, double *chisq, double *beta, double **yderv, double *yfit, double eps)
 {
-       int flag,i,j,k,l,k0;
+       int i,j,k,l,k0;
        double sig2i,dy,wt;
       
-       get_fit_info(y0,a,t0,&flag,eps,yfit,yderv,npts,npars,nvars,ivar,ipar);
-       if(flag==0)
-	 {
-	   err_msg(" Integration error ...\n");
-	   return(0);
-	 }
+       if(auto g=get_fit_info(y0,a,t0,eps,yfit,yderv,npts,npars,nvars,ivar,ipar); !g)
+         return g;
        for(i=0;i<npars;i++){
 	 beta[i]=0.0;
 	 for(j=0;j<npars;j++){
@@ -552,7 +537,7 @@ sigma  weights on nvars
 */
 	 }
        }
-       return(1);
+       return {};
      }
 
 int get_fit_params()

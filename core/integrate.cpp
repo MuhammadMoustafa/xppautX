@@ -556,6 +556,8 @@ namespace {
 /* a range's movie takes a frame of each step into the kinescope: false
    when it is out of film */
 using TakeFrame = std::function<bool()>;
+/* a sweep's progress line ("p=0.3  i=4"), which the command shows */
+using ShowProgress = std::function<void(const std::string &)>;
 
 /* a range command's movie (Range's, Range Equilibria's): the frames its
    sweep takes go into the kinescope until it is out of film, which the
@@ -570,6 +572,10 @@ public:
       return false;
     };
   }
+  static ShowProgress progress()
+  {
+    return [](const std::string &line){ bottom_msg(2,line.c_str()); };
+  }
   void report() const { if(out_)err_msg("Out of film"); }
 private:
   bool out_=false;
@@ -578,7 +584,7 @@ private:
 /* Range Equilibria's sweep over eq_range: each step's equilibrium (or
    Monte Carlo's) stored as a row; the first step that failed is
    returned once the sweep has ended */
-xpp::Result<> eq_range_sweep(double *x, const TakeFrame &take_frame)
+xpp::Result<> eq_range_sweep(double *x, const TakeFrame &take_frame, const ShowProgress &show_progress)
 {
  xpp::Session &s=xpp::session();
  double parlo,parhi,dpar,temp;
@@ -617,9 +623,9 @@ xpp::Result<> eq_range_sweep(double *x, const TakeFrame &take_frame)
       s.numerics.par_fol=1;
       {
         std::string bob=xpp::format("{}={:.16g}",eq_range.item,temp);
-        bottom_msg(2,bob.c_str());
+        show_progress(bob);
         evaluate_derived();
-        /*  I think  */ redo_all_fun_tables();
+        /*  I think  */ failure.keep(redo_all_fun_tables());
         if(mc) {
 	  failure.keep(do_monte_carlo_search(0,0,1));
         }
@@ -655,7 +661,7 @@ void do_eq_range(double *x)
 {
  if(set_up_eq_range()==0)return;
  RangeFilm film;
- const xpp::Result<> r=eq_range_sweep(x,film.taker());
+ const xpp::Result<> r=eq_range_sweep(x,film.taker(),film.progress());
  film.report();
  if(!r)xpp::show_error(r.error());
 }
@@ -709,7 +715,7 @@ void seed_this_run()
    diagram), the settings made: one integration per step; -1 when one
    stopped early (the sweep ends there), else 0; or the error it failed
    with */
-xpp::Result<int> range_sweep(double *x, int flag, const TakeFrame &take_frame)
+xpp::Result<int> range_sweep(double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress)
 {
   xpp::Session &s=xpp::session();
   std::optional<xpp::Error> failure;
@@ -796,7 +802,7 @@ if(s.integrator.range.type==PARAM)get_val(s.integrator.range.item,&temp);
      if(itype==IC)x[ivar]=p;
      else {
        set_val(s.integrator.range.item,p);
-       redo_all_fun_tables(); 
+       if(auto t=redo_all_fun_tables();!t&&!failure)failure=t.error();
        re_evaluate_kernels();
        
      }
@@ -804,7 +810,7 @@ if(s.integrator.range.type==PARAM)get_val(s.integrator.range.item,&temp);
        if(itype2==IC)x[ivar2]=p2;
        else {
 	 set_val(s.integrator.range.item2,p2);
-	 redo_all_fun_tables();
+	 if(auto t=redo_all_fun_tables();!t&&!failure)failure=t.error();
 	 re_evaluate_kernels();
        }
      }
@@ -813,7 +819,7 @@ if(s.integrator.range.type==PARAM)get_val(s.integrator.range.item,&temp);
 	 bob=xpp::format("{}={:.16g}  {}={:.16g}",s.integrator.range.item,p,s.integrator.range.item2,p2);
        else
 	 bob=xpp::format("{}={:.16g}  i={}",s.integrator.range.item,p,i);
-       bottom_msg(2,bob.c_str());
+       show_progress(bob);
      }
    }  /* normal range stuff   */ 
    else {  /* auto range stuff */
@@ -821,7 +827,7 @@ if(s.integrator.range.type==PARAM)get_val(s.integrator.range.item,&temp);
      get_ic(2,x);
      get_val(parn,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);
-     bottom_msg(2,bob.c_str());
+     show_progress(bob);
    }
    do_start_flags(x,&s.data_store.current_time);
 if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
@@ -904,7 +910,7 @@ int do_range(double *x, int flag)  /* 0 for 1-param 1 for 2 parameter 2 for Auto
    if(set_up_range2()==0)return -1;
  }
  RangeFilm film;
- const xpp::Result<int> r=range_sweep(x,flag,film.taker());
+ const xpp::Result<int> r=range_sweep(x,flag,film.taker(),film.progress());
  film.report();
  if(!r){
    xpp::show_error(r.error());

@@ -280,7 +280,7 @@ void   redo_stuff()
     {
       evaluate_derived();
    re_evaluate_kernels();
-	  redo_all_fun_tables();
+	  xpp::ok_or_show(redo_all_fun_tables());
         evaluate_derived();
 }
 
@@ -443,7 +443,7 @@ void   set_default_params()
  
  redraw_params();
  re_evaluate_kernels();
- redo_all_fun_tables(); 
+ xpp::ok_or_show(redo_all_fun_tables()); 
  }
 
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
@@ -519,7 +519,7 @@ void box_values_loaded(int type)
 {
   if(type==PARAMBOX){
     re_evaluate_kernels();
-    redo_all_fun_tables();
+    xpp::ok_or_show(redo_all_fun_tables());
   }
   if(type==DELAYBOX){
    xpp::ok_or_show(do_init_delay(xpp::session().numerics.delay));

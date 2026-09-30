@@ -126,7 +126,7 @@ void post_process_stuff()
       return;
     }
     if(s.histogram.post_process==1){
-      new_hist(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0);
+      xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0));
       return;
     }
     if(s.histogram.post_process==2){
@@ -212,12 +212,13 @@ if(s.histogram.info.nbins2<2){
   return(twod_hist());
 }
   
-void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
+xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
 {
   xpp::Session &s=xpp::session();
   int i,j,index;
   int command[256];
   int cond=0,flag=1;
+  xpp::Result<> condition_error; /* a condition that does not compile is ignored */
   double z,y;
   double dz;
   int length=nbins+1;
@@ -241,8 +242,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     else
       {
 	if(add_expr(condition,command,&i)){
-	  err_msg("Bad condition. Ignoring...");
-	  
+	  condition_error=xpp::fail("histogram","Bad condition. Ignoring...");
 	}
 	else {
 	  cond=1;
@@ -269,7 +269,7 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     s.parser.nsym=xpp::model().nsym_start;
     hist_back();
     ping();
-    return;
+    return condition_error;
   }
   if(which==1){
     for(i=0;i<s.data_store.rows;i++){
@@ -283,21 +283,21 @@ void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *
     }
     hist_back();
     ping();
-    return;
+    return {};
   }
   if(which==2){
     mycor2(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,nbins,s.histogram.hist()[1],1);
     hist_back();
     ping();
-    return;
+    return {};
   }
   if(which==3){
     fftxcorr(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,(nbins-1)/2,s.histogram.hist()[1],1);
     hist_back();
     ping();
-    return;
+    return {};
   }
-
+  return {};
 }
 
 void column_mean()
@@ -589,8 +589,8 @@ void compute_correl()
   
   if(get_col_info(&s.histogram.info.col,"Variable 1 ")==0)return;
   if(get_col_info(&s.histogram.info.col2,"Variable 2 ")==0)return;
-  new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
-	   s.histogram.info.xhi,s.histogram.info.col,s.histogram.info.col2,s.histogram.info.cond.c_str(),2+s.histogram.info.fftc);
+  xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
+	   s.histogram.info.xhi,s.histogram.info.col,s.histogram.info.col2,s.histogram.info.cond.c_str(),2+s.histogram.info.fftc));
 }
 void compute_stacor()
 {
@@ -598,8 +598,8 @@ void compute_stacor()
   new_float("Low ",&xpp::session().histogram.info.xlo);
   new_float("Hi ",&xpp::session().histogram.info.xhi);
   if(get_col_info(&xpp::session().histogram.info.col,"Variable ")==0)return;
-   new_hist(xpp::session().histogram.info.nbins,xpp::session().histogram.info.xlo,
-	   xpp::session().histogram.info.xhi,xpp::session().histogram.info.col,0,xpp::session().histogram.info.cond.c_str(),1);
+   xpp::ok_or_show(new_hist(xpp::session().histogram.info.nbins,xpp::session().histogram.info.xlo,
+	   xpp::session().histogram.info.xhi,xpp::session().histogram.info.col,0,xpp::session().histogram.info.cond.c_str(),1));
 }
 
 void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
@@ -641,8 +641,8 @@ void compute_hist()
   new_float("Hi ",&s.histogram.info.xhi);
   if(get_col_info(&s.histogram.info.col,"Variable ")==0)return;
   new_string_of("Condition ",s.histogram.info.cond,XPP_FIELD_EXPRESSION);
-  new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
-	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),0);
+  xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
+	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),0));
 }
 
 /* experimental -- does it work */

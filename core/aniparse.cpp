@@ -878,21 +878,19 @@ int load_ani_file(xpp::LineReader &fp)
 
 /* the .ani filename: -anifile's is one of the model's files (model_file,
    model_files.h), one picked in the animation window a file of the disk */
-int ani_new_file(const char *filename, bool model_file)
+xpp::Result<> ani_new_file(const char *filename, bool model_file)
 {
     xpp::LineReader fp = model_file ? xpp::model_file_lines(filename) : xpp::LineReader(filename);
     if (!fp) {
-        err_msg("Couldn't open ani-file");
-        return -1;
+        return xpp::fail("animation", "Couldn't open ani-file");
     }
     if (xpp::session().animation.ncom > 0) free_ani();
     /* a new animation: its frames start again, nothing of the old one shows */
     ani_data_forget();
     if (load_ani_file(fp) == 0) {
-        err_msg(xpp::format("Bad ani-file at line {}", ani_lineno).c_str());
-        return -1;
+        return xpp::fail("animation", xpp::format("Bad ani-file at line {}", ani_lineno));
     }
-    return 0;
+    return {};
 }
 
 void ani_frame(int task)
@@ -1223,7 +1221,7 @@ int get_ani_file(const char *fname)
         xpp::session().animation.vcr.file = fname;
     const xpp::Session &s = xpp::session();
     const bool model_file = fname != nullptr && s.animation.options.use_file && s.animation.vcr.file == s.animation.options.file;
-    if (ani_new_file(s.animation.vcr.file.c_str(), model_file) < 0) return 0;
+    if (!xpp::ok_or_show(ani_new_file(s.animation.vcr.file.c_str(), model_file))) return 0;
     xpp::session().animation.vcr.ok = 1; /* loaded and compiled */
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", xpp::session().animation.ncom);
     xpp::session().animation.grab_flag = 0;

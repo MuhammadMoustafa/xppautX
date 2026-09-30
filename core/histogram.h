@@ -2,6 +2,7 @@
 #define _histogram_h_
 #ifdef __cplusplus
 #include <string>
+#include "xpp_error.h"
 extern "C" {
 #endif
 
@@ -13,7 +14,6 @@ void hist_back(void);
 void new_four(int nmodes, int col);
 int new_2d_hist(void);
 int twod_hist(void);
-void new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which);
 void column_mean(void);
 int get_col_info(int *col, const char *prompt);
 void compute_power(void);
@@ -53,6 +53,11 @@ struct HIST_INFO {
    browser and the tests),
    whether one exists and its length, and the spectrum's settings (the
    model's own @ options set spec_*) and a batch run's post-processing */
+/* a histogram or correlation of the stored data; the error of a condition
+   that did not compile (it was ignored, the rest is done), for the command
+   to show */
+xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which);
+
 struct HistogramState {
   HIST_INFO info{100,100,1,1,0,0,1,0,1,""};
   LentColumns hist_columns, four_columns;

@@ -28,7 +28,7 @@ extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer 
      
    }
    evaluate_derived();
-   redo_all_fun_tables();
+   if(auto r=redo_all_fun_tables();!r)xpp::auto_fail(r.error().what);
    xpp::session().integrator.rhs(0.0,u,f,ndim);
    if(ijac==1){
      getjactrans(u,y.data(),yp.data(),xp.data(),xpp::session().numerics.newt_err,dfdu,ndim);
@@ -93,7 +93,7 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
  }
 
  evaluate_derived();
- redo_all_fun_tables();
+ if(auto r=redo_all_fun_tables();!r)xpp::auto_fail(r.error().what);
  do_bc(u0,0.0,u1,1.0,fb,nbc);
 
     return 0;

@@ -352,10 +352,12 @@ void new_adjoint()
  }
  adj_len=xpp::session().data_store.rows;
  adj_columns.make(n,adj_len,xpp::model().neq);
- if(adjoint(xpp::session().data_store.col,my_adj,adj_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node )){
+ auto done=adjoint(xpp::session().data_store.col,my_adj,adj_len,xpp::session().numerics.delta_t*xpp::session().numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,xpp::model().node );
+ if(done){
    ADJ_HERE=1;;
  adj_back();
  }
+ else xpp::show_error(done.error());
  ping();
 }
 /* this computes the periodic orbit and stores it in 
@@ -380,11 +382,12 @@ void new_adjoint()
     t in the first column.
   */
 
-int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
+xpp::Result<> adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
 {
   double ytemp;
   double t,prod,del;
-  int i,j,k,l,k2,rval=0;
+  int i,j,k,l,k2;
+  xpp::Result<> rval;
   int n2=node*node;
   double error;
 
@@ -441,8 +444,8 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
 	for(k=0;k<nt-1;k++){
 		k2=k+1;
 		if(k2>=nt)k2=k2-nt;
-		if(step_eul(jac,k,k2,yold,work,node,dt)==0){
-		  rval=0;
+		if(auto e=step_eul(jac,k,k2,yold,work,node,dt);!e){
+		  rval=e;
 		  goto bye;
 		} 
 	      }
@@ -452,8 +455,7 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
          for(i=0;i<node;i++){
 	  if(fabs(yold[i])>xpp::session().numerics.bound){
 	    
-	     rval=0;
-	  err_msg("Out of bounds");
+	  rval=xpp::fail("adjoint","Out of bounds");
 	  goto bye;
 	  }
 	error+=fabs(yold[i]-fdev[i]);
@@ -482,8 +484,8 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
       }
 	k2=k+1;
 	if(k2>=nt)k2-=nt;
-	 if(step_eul(jac,k,k2,yold,work,node,dt)==0){
-	  rval=0;
+	 if(auto e=step_eul(jac,k,k2,yold,work,node,dt);!e){
+	  rval=e;
 	  goto bye;
 	    }	 
 
@@ -495,13 +497,12 @@ int adjoint(float **orbit, float **adjnt, int nt, double dt, double eps, double 
      for(j=0;j<node;j++)adjnt[j+1][k]=adjnt[j+1][k]/static_cast<float>(prod);
      adjnt[0][k]=orbit[0][k];
    }
-  rval=1;
 
  bye:
    return(rval);
  }
 
-int step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt)
+xpp::Result<> step_eul(double **jac, int k, int k2, double *yold, double *work, int node, double dt)
 {
 
 int j,i,n2=node*node,info;
@@ -521,11 +522,10 @@ mat=work+node;
   sgefa(mat,node,node,ipvt,&info);
 if(info!=-1){
   
-  err_msg("Univertible Jacobian");
-  return(0);
+  return xpp::fail("adjoint","Univertible Jacobian");
 }
 sgesl(mat,node,node,ipvt,yold);
-return(1);
+return {};
 }
 
 /* this is some code for the maximal liapunov exponent
@@ -540,12 +540,13 @@ return(1);
 
 void do_liapunov()
 {
-  double z;
   int i;
   double *x;
   new_int("Range over parameters?(0/1)",&LIAP_FLAG);
   if(LIAP_FLAG!=1){
-    hrw_liapunov(&z,0,xpp::session().numerics.newt_err);
+    auto z=hrw_liapunov(xpp::session().numerics.newt_err);
+    if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z).c_str());
+    else xpp::show_error(z.error());
     return;
   }
   x=&xpp::session().data_store.current[0];
@@ -570,11 +571,10 @@ void alloc_liap(int n)
 
 void do_this_liaprun(int i,double p)
 {
- double liap;
  if(LIAP_FLAG==0)return;
  my_liap[0][i]=p;
- hrw_liapunov(&liap,1,xpp::session().numerics.newt_err);
- my_liap[1][i]=liap;
+ /* a sweep's step that fails is not shown: its point is 0 */
+ my_liap[1][i]=static_cast<float>(hrw_liapunov(xpp::session().numerics.newt_err).value_or(0.0));
  LIAP_I++;
 }
 
@@ -592,7 +592,7 @@ void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector
   return;
 }
 
-int hrw_liapunov(double *liap,int batch,double eps)
+xpp::Result<double> hrw_liapunov(double eps)
 {
  double y[MAXODE];
  double yp[MAXODE],nrm,dy[MAXODE];
@@ -601,8 +601,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
  int istart=1;
  int i,j;
   if(xpp::session().data_store.rows<2){
-   if(batch==0)err_msg("You need to compute an orbit first");
-   return(0);
+   return xpp::fail("Liapunov","You need to compute an orbit first");
  }
 
  /* lets make an initial random perturbation */
@@ -616,14 +615,13 @@ int hrw_liapunov(double *liap,int batch,double eps)
      istart=1;
      for(i=0;i<xpp::model().node;i++)
        y[i]=xpp::session().data_store.col[i+1][j]+dy[i];
-     one_step_int(y,t0,t1,&istart);
+     if(auto st=one_step_int(y,t0,t1,&istart);!st)return std::unexpected(st.error());
      for(i=0;i<xpp::model().node;i++)
        yp[i]=(y[i]-xpp::session().data_store.col[i+1][j+1]);
      norm_vec(yp,&nrm,xpp::model().node);
      nrm=nrm/eps;
      if(nrm==0.0){
-       if(batch==0)err_msg("Liapunov:-infinity exponent!");
-       return 0; /* something wrong here */
+       return xpp::fail("Liapunov","Liapunov:-infinity exponent!"); /* something wrong here */
      }
      sum=sum+log(nrm);
     for(i=0;i<xpp::model().node;i++)
@@ -633,11 +631,7 @@ int hrw_liapunov(double *liap,int batch,double eps)
    t1=xpp::session().data_store.col[0][xpp::session().data_store.rows-1]-xpp::session().data_store.col[0][0];
    if(t1!=0)
      sum=sum/t1;
-   *liap=sum;
-   if(batch==0){
-     err_msg(xpp::format("Maximal exponent is {:g}",sum).c_str());
-   }
 
- return 1; /*  success !! */
+ return sum; /*  success !! */
 }
 

@@ -289,7 +289,7 @@ void setautopoint()
       set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp1]],XfromAuto);
       set_val(xpp::model().upar_names[xpp::session().auto_state.par[xpp::session().auto_state.bifur.icp2]],YfromAuto);
       evaluate_derived();
-      redo_all_fun_tables();
+      xpp::ok_or_show(redo_all_fun_tables());
       redraw_params();
     }
 }
@@ -1469,7 +1469,7 @@ void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw)
       show_stab(evr,evi,xpp::model().node,ibr<0);
     }
     if(lab>0 && load_all_labeled_orbits>0)
-      load_auto_orbitx(ibr,1,lab,per);
+      xpp::ok_or_show(load_auto_orbitx(ibr,1,lab,per));
 
 }
 
@@ -2497,16 +2497,11 @@ void auto_period_double()
 
 /**********   END RUN AUTO *********************/
 
-void auto_err(const char *s)
-{
-  err_msg(s);
-}
-
 void load_auto_orbit()
 {
-  load_auto_orbitx(grabpt.ibr,grabpt.flag,grabpt.lab,grabpt.per);
+  xpp::ok_or_show(load_auto_orbitx(grabpt.ibr,grabpt.flag,grabpt.lab,grabpt.per));
 }
-  void load_auto_orbitx(int ibr,int flag, int lab, double per)
+  xpp::Result<> load_auto_orbitx(int ibr,int flag, int lab, double per)
 {
   xpp::Session &s=xpp::session();
   double *x;
@@ -2516,13 +2511,12 @@ void load_auto_orbit()
   std::string string;
   int nrow,ndim,label,flg;
 
-  if((ibr>0&&(s.auto_state.bifur.ips!=4)&&(s.auto_state.bifur.ips!=3)&&(s.auto_state.bifur.ips!=9))||flag==0)return;
+  if((ibr>0&&(s.auto_state.bifur.ips!=4)&&(s.auto_state.bifur.ips!=3)&&(s.auto_state.bifur.ips!=9))||flag==0)return {};
    /* either nothing grabbed or just a fixed point and that is already loaded */
   string=this_auto_file+".s";
   xpp::UniqueFile fp=xpp::open_read(string.c_str());
   if(!fp){
-    auto_err("No such file");
-    return;
+    return xpp::fail("AUTO","No such file");
   }
   label=lab;
   period=per;
@@ -2531,8 +2525,7 @@ void load_auto_orbit()
   if(ndim>xpp::model().node)nstor=xpp::model().node;
   if(flg==0){
     xpp_log_auto("Could not find label %d in file %s \n",label,string.c_str());
-    auto_err("Cant find labeled pt");
-    return;
+    return xpp::fail("AUTO","Cant find labeled pt");
   }
   x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
@@ -2555,6 +2548,7 @@ void load_auto_orbit()
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();
   drw_all_scrns();
+  return {};
 }
 
 void save_auto()
@@ -2565,7 +2559,7 @@ void save_auto()
   filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
   if(diagram_count()<=1){
     /* leave no file without a diagram (nor replace one with it) */
-    auto_err("Empty diagram -- nothing to save");
+    err_msg("Empty diagram -- nothing to save");
     return;
   }
   std::optional<std::string> bytes=xpp::autox::file_bytes();
@@ -2627,14 +2621,13 @@ bool noinfo(std::string_view s)
 }
 } // namespace
 
-void make_q_file(FILE *fp)
+xpp::Result<> make_q_file(FILE *fp)
 {
   std::string string=this_auto_file+".s";
   /* written beside the .s and renamed over it once whole */
   xpp::Writer w(string.c_str());
   if(!w){
-    auto_err("Couldnt open s-file");
-    return;
+    return xpp::fail("AUTO","Couldnt open s-file");
   }
 
   /* the rest of fp, the .auto's copy of the .s, without its blank lines */
@@ -2644,6 +2637,7 @@ void make_q_file(FILE *fp)
       w.print("{}\n",*line);
   }
   w.commit();
+  return {};
 }
 
 void load_auto()
@@ -2677,7 +2671,7 @@ int import_auto_file(FILE *fp)
   auto_data_forget(); /* the strip described the diagram this one replaces */
   status=load_diagram(fp,xpp::model().node);
   if(status!=1)return status;
-  make_q_file(fp);
+  xpp::ok_or_show(make_q_file(fp));
   return 1;
 }
 
@@ -2874,7 +2868,7 @@ void find_point(int ibr, int pt)
 	   get_ic(0,d->u0);
 	   auto_set_pars_from(d->par);
 	   evaluate_derived();
-	   redo_all_fun_tables();
+	   xpp::ok_or_show(redo_all_fun_tables());
 	   redraw_params();
 	   redraw_ics();
            if((d->per)>0)
@@ -3220,7 +3214,7 @@ static void grab_diagram_point(const DIAGRAM *d)
 static void finish_grab()
 {
   evaluate_derived();
-  redo_all_fun_tables();
+  xpp::ok_or_show(redo_all_fun_tables());
   redraw_params();
   redraw_ics();
 }

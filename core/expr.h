@@ -42,11 +42,8 @@ int add_net_name(int index, const char *name, int vectorizer);
 int add_table_name(int index, const char *name);
 int add_ufun_name(const char *name, int index, int narg);
 int add_ufun(const char *junk, const char *expr, int narg);
-/* table index filled from a file, or from formula at nn points in
-   [xlo,xhi]: 0 when it was; a 2-D table (not supported): 1 */
+/* a 2-D table (not supported): 1 */
 int add_2d_table(const char *name, const char *file);
-int add_file_table(int index, const char *file);
-int add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
 /* variable i's value (0 past the model's variables) */
 void set_ivar(int i, double value);
 double get_ivar(int i);
@@ -72,7 +69,12 @@ double evaluate(const int *program);
 #include <span>
 #include <string>
 #include <string_view>
+#include "xpp_error.h"
 
+/* table index filled from a file, or from formula at nn points in
+   [xlo,xhi]: what failed otherwise (the loader shows it) */
+xpp::Result<> add_file_table(int index, const char *file);
+xpp::Result<> add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
 /* user function index with the arguments args and the formula rhs */
 int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
 /* name as the symbol table keeps it: blanks removed, upper case */

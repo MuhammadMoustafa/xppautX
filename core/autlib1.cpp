@@ -2879,10 +2879,9 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   if(s.auto_lib.fp8_is_open==0){
     s.auto_lib.fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
     if(s.auto_lib.fp8 == NULL) {
-      /* Report instead of exit(1): a server must outlive a bad HOME. fp8_is_open
-	 stays 0 so later calls retry the open instead of using a NULL fp8. */
-      err_msg(xpp::format("Could not open {:.200}", auto_fort_path(8)).c_str());
-      return 0;
+      /* Fail the run instead of exit(1): a server must outlive a bad HOME.
+	 fp8_is_open stays 0 so a later run retries the open. */
+      xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));
     }
     s.auto_lib.fp8_is_open=1;
   }
@@ -6654,8 +6653,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     s.auto_lib.fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
     if(s.auto_lib.fp8 == NULL) {
       /* as in wrtsp8() */
-      err_msg(xpp::format("Could not open {:.200}", auto_fort_path(8)).c_str());
-      return 0;
+      xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));
     }
     s.auto_lib.fp8_is_open=1;
   }

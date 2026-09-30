@@ -391,20 +391,16 @@ int add_2d_table(const char *name, const char *file)
  return(1);
 }
 
-int add_file_table(int index, const char *file)
+xpp::Result<> add_file_table(int index, const char *file)
 {
   /* the name's printable characters */
   std::string file2;
   for(const char *p=file;*p;p++)
     if(*p>31&&*p<127)
       file2+=*p;
-  if(load_table(file2.c_str(),index,1)==0)
-    {
-      if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
-       return(1);
-    }
-
-    return(0);
+  auto loaded=load_table(file2.c_str(),index,1);
+  if(!loaded&&xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  return loaded;
 }
 
 int add_table_name(int index, const char *name)
@@ -417,15 +413,12 @@ int add_table_name(int index, const char *name)
    }
 /* ADD LOOKUP TABLE   */
 
-int add_form_table(int index, int nn, double xlo, double xhi, const char *formula)
+xpp::Result<> add_form_table(int index, int nn, double xlo, double xhi, const char *formula)
 {
 
-  if(create_fun_table(nn,xlo,xhi,formula,index)==0)
-    {
-      if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
-       return(1);
-    }
-    return(0);
+  auto made=create_fun_table(nn,xlo,xhi,formula,index);
+  if(!made&&xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  return made;
 }
 
 namespace {

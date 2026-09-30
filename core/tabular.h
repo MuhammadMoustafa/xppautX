@@ -40,18 +40,24 @@ double lookupxy(double x, int n, double *xv, double *yv);
 double tab_interp(double xlo, double h, double x, double *y, int n, int i);
 double lookup(double x, int index);
 void init_table(void);
-void redo_all_fun_tables(void);
-int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y);
-int create_fun_table(int npts, double xlo, double xhi, const char *formula, int index);
-/* table index read from the file filename (quoted or not): one of the
-   model's own files (model_file, model_files.h: a file table of the
-   model) or a file the user picked (Numerics' table file) */
-int load_table(const char *filename, int index, int model_file);
 int get_lookup_len(int i);
 
 
 #ifdef __cplusplus
 }
+
+#include "xpp_error.h"
+
+/* Tables return why they failed; the command (or the model load) shows it. */
+/* the function tables again, after a parameter changed: the first
+   failure, the others still done */
+xpp::Result<> redo_all_fun_tables(void);
+xpp::Result<> eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y);
+xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *formula, int index);
+/* table index read from the file filename (quoted or not): one of the
+   model's own files (model_file, model_files.h: a file table of the
+   model) or a file the user picked (Numerics' table file) */
+xpp::Result<> load_table(const char *filename, int index, int model_file);
 #endif
 #endif
 
