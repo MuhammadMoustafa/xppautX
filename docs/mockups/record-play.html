@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xppautX mockup: Record and Play (W59)</title>
+<style>
+/* Tokens copied from web2/src/theme.css (light and dark). Mockup only: nothing here is the app. */
+:root {
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; --text-lg: 1.125rem;
+  --space-1: .25rem; --space-2: .5rem; --space-3: .75rem; --space-4: 1rem; --space-6: 1.5rem;
+  --radius: .5rem; --target: 2rem; --menu-width: 13rem;
+  --bg: #f6f7f9; --surface: #fff; --surface-2: #eef0f3; --border: #d5dae1; --field-border: #7b8494;
+  --fg: #1c2330; --fg-muted: #525c6b; --grid: #e6e9ee; --accent: #2563d6; --accent-fg: #fff; --focus: #1a56c8;
+  --danger: #b42318; --danger-bg: #fdecea; --ok: #2b8a3e; --warn: #b26b00; --warn-bg: #fff4dc;
+  --shadow: 0 .5rem 1.75rem rgba(15,23,42,.18); --lit: #fff2b8; --lit-fg: #3d2f00;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1216; --surface: #171b21; --surface-2: #222933; --border: #343c48; --field-border: #6b7584;
+    --fg: #e6e9ee; --fg-muted: #a3adbb; --grid: #262c35; --accent: #6aa5ff; --accent-fg: #0b1220; --focus: #8fbcff;
+    --danger: #ff8a80; --danger-bg: #3a1614; --ok: #69db7c; --warn: #ffc14d; --warn-bg: #3a2c0a;
+    --shadow: 0 .5rem 1.75rem rgba(0,0,0,.55); --lit: #5a4a10; --lit-fg: #fff2b8; color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #0f1216; --surface: #171b21; --surface-2: #222933; --border: #343c48; --field-border: #6b7584;
+  --fg: #e6e9ee; --fg-muted: #a3adbb; --grid: #262c35; --accent: #6aa5ff; --accent-fg: #0b1220; --focus: #8fbcff;
+  --danger: #ff8a80; --danger-bg: #3a1614; --ok: #69db7c; --warn: #ffc14d; --warn-bg: #3a2c0a;
+  --shadow: 0 .5rem 1.75rem rgba(0,0,0,.55); --lit: #5a4a10; --lit-fg: #fff2b8; color-scheme: dark;
+}
+@media (pointer: coarse) { :root { --target: 2.75rem; } }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: var(--text-sm)/1.45 var(--font); font-feature-settings: 'tnum' 1; overflow-x: hidden; }
+h1, h2 { margin: 0; }
+button {
+  font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--border); border-radius: .375rem;
+  min-height: var(--target); min-width: var(--target); padding: 0 var(--space-3); display: inline-flex; align-items: center;
+  justify-content: center; gap: var(--space-2); cursor: pointer; white-space: nowrap;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.danger { color: var(--danger); border-color: var(--danger); }
+button.small { font-size: var(--text-xs); }
+:focus { outline: none; } :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input, textarea { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--field-border); border-radius: .375rem; min-height: var(--target); padding: 0 var(--space-2); min-width: 0; }
+textarea { padding: var(--space-2); width: 100%; resize: vertical; }
+kbd { font: 600 var(--text-xs) var(--mono); min-width: 1.6em; text-align: center; padding: 0 var(--space-1); border-radius: .25rem; background: var(--surface-2); border: 1px solid var(--border); }
+.muted { color: var(--fg-muted); }
+
+/* ---- the mockup's own control strip (not part of the app) ---- */
+.mock { background: var(--surface-2); border-bottom: 2px dashed var(--field-border); padding: var(--space-2) var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; font-size: var(--text-xs); }
+.mock b { font-weight: 650; }
+.mock .grp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.seg button { border-radius: 0; min-height: 1.75rem; font-size: var(--text-xs); }
+.seg button:first-of-type { border-radius: .375rem 0 0 .375rem; } .seg button:last-of-type { border-radius: 0 .375rem .375rem 0; }
+.seg button[aria-pressed='true'] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+/* ---- shell (theme.css .shell) ---- */
+.shell { display: grid; grid-template-columns: var(--menu-width) minmax(0,1fr) 20rem; grid-template-rows: auto minmax(0,1fr) auto; grid-template-areas: 'title title title' 'menu work side' 'status status status'; min-height: 40rem; }
+.title-bar { grid-area: title; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: var(--surface); border-bottom: 1px solid var(--border); min-width: 0; }
+.title-bar h1 { font-size: var(--text-md); font-weight: 650; }
+.title-bar .file { font-size: var(--text-xs); } .spacer { flex: 1; }
+.menu-panel { grid-area: menu; overflow: auto; background: var(--surface); border-right: 1px solid var(--border); padding: var(--space-2); }
+.menu-title { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); padding: var(--space-1) var(--space-2) var(--space-2); }
+.menu-panel ul { list-style: none; margin: 0; padding: 0; }
+.menu-item { width: 100%; justify-content: flex-start; gap: var(--space-3); border: none; background: none; padding: 0 var(--space-2); }
+.menu-item:hover:not(:disabled) { background: var(--surface-2); }
+.menu-item.lit, .sub-item.lit, button.lit { background: var(--lit) !important; color: var(--lit-fg); box-shadow: 0 0 0 2px var(--warn); animation: pulse .6s ease-out; }
+.menu-item.lit kbd, .sub-item.lit kbd { background: var(--warn); color: var(--surface); border-color: var(--warn); }
+@keyframes pulse { from { box-shadow: 0 0 0 .5rem transparent; } to { box-shadow: 0 0 0 2px var(--warn); } }
+.sub { border-top: 1px dashed var(--border); margin-top: var(--space-2); padding-top: var(--space-2); }
+.sub[hidden] { display: none; }
+.sub .menu-title { padding-bottom: var(--space-1); }
+.sub-item { width: 100%; justify-content: flex-start; gap: var(--space-3); border: none; background: none; padding: 0 var(--space-2); min-height: 1.75rem; }
+
+.work { grid-area: work; display: flex; flex-direction: column; min-width: 0; padding: var(--space-3) var(--space-4); gap: var(--space-3); }
+.side { grid-area: side; background: var(--surface); border-left: 1px solid var(--border); min-width: 0; overflow: auto; display: flex; flex-direction: column; }
+.status-bar { grid-area: status; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-1) var(--space-4); font-size: var(--text-xs); background: var(--surface); border-top: 1px solid var(--border); min-width: 0; height: 2rem; }
+.status-dot { flex: none; width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok); } .status-dot.busy { background: var(--warn); }
+.status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: var(--space-2); }
+.status-run { flex: none; display: flex; align-items: center; gap: var(--space-2); width: 10.5rem; }
+.status-run progress { width: 4.5rem; visibility: hidden; } .status-run progress.shown { visibility: visible; }
+
+/* ---- recording bar ---- */
+.recbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); background: var(--danger-bg); border: 1px solid var(--danger); border-radius: var(--radius); }
+.recbar[hidden], .controls[hidden], .banner[hidden], .editor[hidden] { display: none; }
+.rec-dot { width: .75rem; height: .75rem; border-radius: 50%; background: var(--danger); animation: blink 1.2s infinite; flex: none; }
+@keyframes blink { 50% { opacity: .25; } }
+.recbar .count { font-weight: 650; }
+.recbar .note { flex: 1; min-width: 12rem; display: flex; gap: var(--space-2); align-items: center; }
+.recbar .note input { flex: 1; }
+.hint { font-size: var(--text-xs); color: var(--fg-muted); }
+.hint.ok { color: var(--ok); }
+
+/* ---- player ---- */
+.banner { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-2) var(--space-3); background: var(--warn-bg); border: 1px solid var(--warn); border-radius: var(--radius); color: var(--fg); }
+.banner b { color: var(--warn); }
+.caption { font-size: 1.5rem; line-height: 1.25; font-weight: 650; min-height: 2.2em; display: flex; align-items: flex-end; }
+.caption.empty { color: var(--fg-muted); font-size: var(--text-md); font-weight: 500; }
+.stage { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.stage svg { display: block; width: 100%; height: auto; max-height: 55vh; }
+.stage .tools { position: absolute; top: var(--space-2); right: var(--space-2); display: flex; gap: var(--space-1); z-index: 5; }
+.overlay-keys { position: absolute; left: 50%; top: var(--space-3); transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--warn); border-radius: var(--radius); box-shadow: var(--shadow); z-index: 3; }
+.overlay-keys[hidden], .capband[hidden], .ask[hidden] { display: none; }
+.keycap { font: 700 1.25rem var(--mono); min-width: 2.25rem; height: 2.25rem; padding: 0 var(--space-2); display: inline-flex; align-items: center; justify-content: center; border-radius: .4rem; background: var(--surface-2); border: 1px solid var(--field-border); border-bottom-width: 3px; color: var(--fg); }
+.keycap.down { background: var(--lit); color: var(--lit-fg); border-color: var(--warn); border-bottom-width: 1px; transform: translateY(2px); }
+.keycap.wide { font-size: .9rem; }
+.keys-label { font-size: var(--text-xs); color: var(--fg-muted); margin-right: var(--space-1); }
+.statuskeys { display: inline-flex; align-items: center; gap: var(--space-1); }
+.statuskeys .keycap { font-size: .8rem; min-width: 1.5rem; height: 1.5rem; }
+.capband { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--space-3) var(--space-4); background: color-mix(in srgb, var(--surface) 88%, transparent); border-top: 1px solid var(--border); font-size: 1.25rem; font-weight: 650; z-index: 2; }
+.ask { position: absolute; left: 50%; top: 45%; transform: translate(-50%,-50%); width: min(20rem, 92%); background: var(--surface); border: 1px solid var(--field-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--space-3); z-index: 4; }
+.ask h2 { font-size: var(--text-md); margin-bottom: var(--space-2); }
+.ask label { display: grid; grid-template-columns: 6rem 1fr; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); font-size: var(--text-xs); }
+.ask .val { min-height: var(--target); border: 1px solid var(--field-border); border-radius: .375rem; padding: .35rem var(--space-2); font: var(--text-sm) var(--mono); background: var(--surface); }
+.ask .val.typing { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
+.ask .val.typing::after { content: '|'; animation: blink .8s infinite; }
+.ask .btns { display: flex; justify-content: flex-end; gap: var(--space-2); }
+button.pressed { transform: translateY(1px); }
+
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.controls .btns { display: flex; gap: var(--space-1); }
+.controls .speed { display: flex; align-items: center; gap: var(--space-1); }
+.controls .prog { flex: 1; min-width: 10rem; display: flex; flex-direction: column; gap: var(--space-1); }
+.segs { display: flex; gap: 3px; } .segs i { flex: 1; height: .5rem; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); position: relative; overflow: hidden; }
+.segs i.view { flex: .5; } .segs i.done { background: var(--accent); border-color: var(--accent); }
+.segs i.now::after { content: ''; position: absolute; inset: 0; width: var(--p, 0%); background: var(--accent); }
+.segs i.now { border-color: var(--accent); }
+.bar { height: .5rem; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); position: relative; }
+.bar > span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; }
+.bar > em { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--field-border); }
+.prog .txt { font-size: var(--text-xs); color: var(--fg-muted); display: flex; justify-content: space-between; gap: var(--space-2); }
+
+/* ---- step list ---- */
+.side h2 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); padding: var(--space-3) var(--space-3) var(--space-1); }
+.steps { list-style: none; margin: 0; padding: 0 var(--space-2); }
+.step { width: 100%; display: block; text-align: left; white-space: normal; border: 1px solid transparent; background: none; padding: var(--space-1) var(--space-2); border-radius: .375rem; min-height: var(--target); }
+.step:hover { background: var(--surface-2); }
+.step .cap { display: block; font-size: var(--text-xs); color: var(--fg-muted); font-style: italic; }
+.step .lbl { display: flex; align-items: baseline; gap: var(--space-2); }
+.step .n { color: var(--fg-muted); font-size: var(--text-xs); min-width: 1.4rem; }
+.step .tag { margin-left: auto; font-size: .65rem; text-transform: uppercase; color: var(--fg-muted); border: 1px solid var(--border); border-radius: .25rem; padding: 0 .25rem; }
+.step.sel { border-color: var(--field-border); background: var(--surface-2); }
+.step.cur { border-left: 3px solid var(--accent); }
+.step.cur .lbl b { color: var(--accent); }
+.step.done .lbl { color: var(--fg-muted); }
+.editor { padding: var(--space-3); border-top: 1px solid var(--border); margin-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
+.editor .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+details.recx { border-top: 1px solid var(--border); margin-top: auto; }
+details.recx summary { cursor: pointer; padding: var(--space-2) var(--space-3); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); min-height: var(--target); display: flex; align-items: center; }
+pre.file { margin: 0; padding: var(--space-2) var(--space-3) var(--space-3); font: var(--text-xs)/1.5 var(--mono); overflow-x: auto; white-space: pre; max-height: 22rem; }
+pre.file .c { color: var(--fg-muted); } pre.file .h { color: var(--accent); font-weight: 700; }
+pre.file .n { color: var(--ok); } pre.file .bad { background: var(--danger-bg); color: var(--danger); display: inline-block; width: 100%; }
+pre.file .cur { background: var(--lit); color: var(--lit-fg); display: inline-block; width: 100%; }
+
+/* narrow: one column; the menu becomes a compact wrapped list */
+@media (max-width: 60rem) {
+  .shell { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto auto auto auto; grid-template-areas: 'title' 'menu' 'work' 'side' 'status'; }
+  .menu-panel { border-right: none; border-bottom: 1px solid var(--border); max-height: 11rem; }
+  .menu-panel ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+  .side { border-left: none; border-top: 1px solid var(--border); }
+  .work { padding: var(--space-2); }
+  .caption { font-size: 1.2rem; }
+  .status-run { width: 5rem; } .status-run progress { width: 2rem; }
+  .mock { padding: var(--space-2); }
+}
+@media (prefers-reduced-motion: reduce) { .rec-dot, .lit, .ask .val.typing::after { animation: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="mock" role="group" aria-label="Mockup controls (not part of the app)">
+  <b>MOCKUP, not the app.</b>
+  <span class="grp seg" role="group" aria-label="Screen"><span>Screen:</span>
+    <button data-mode="rec" aria-pressed="true">1 Recording</button>
+    <button data-mode="play" aria-pressed="false">2 Player</button>
+    <button data-mode="changed" aria-pressed="false">3 Changed file</button>
+  </span>
+  <span class="grp seg" role="group" aria-label="Caption position"><span>Caption:</span>
+    <button data-opt="cap" data-v="A" aria-pressed="true">Option A above plot</button>
+    <button data-opt="cap" data-v="B" aria-pressed="false">Option B over plot</button>
+  </span>
+  <span class="grp seg" role="group" aria-label="Keycaps position"><span>Keycaps:</span>
+    <button data-opt="keys" data-v="A" aria-pressed="true">Option A over plot</button>
+    <button data-opt="keys" data-v="B" aria-pressed="false">Option B status bar</button>
+  </span>
+  <span class="grp seg" role="group" aria-label="Progress style"><span>Progress:</span>
+    <button data-opt="prog" data-v="A" aria-pressed="true">Option A segment per step</button>
+    <button data-opt="prog" data-v="B" aria-pressed="false">Option B continuous bar</button>
+  </span>
+  <span class="grp"><button class="small" id="theme">Theme: system</button></span>
+</div>
+
+<div class="shell">
+  <header class="title-bar">
+    <h1>xppautX</h1><span class="file muted">lecar.ode</span><span class="muted file" id="modeTitle"></span>
+    <span class="spacer"></span>
+    <button class="small" id="startRec">Record</button>
+    <button class="small" id="openPlay">Play a recording…</button>
+  </header>
+
+  <nav class="menu-panel" aria-label="Commands">
+    <div class="menu-title">Commands</div>
+    <ul id="menu"></ul>
+    <div class="sub" id="submenu" hidden></div>
+  </nav>
+
+  <main class="work">
+    <section class="recbar" id="recbar" aria-label="Recording">
+      <span class="rec-dot" aria-hidden="true"></span><b>Recording</b>
+      <span class="count" id="recCount">0 steps</span>
+      <span class="note">
+        <label for="noteIn" class="hint">Note for the next step</label>
+        <input id="noteIn" placeholder="e.g. Now switch the current on" autocomplete="off">
+      </span>
+      <button class="danger" id="stopRec">&#9632; Stop</button>
+      <span class="hint" style="flex-basis:100%" id="noteHint"></span>
+    </section>
+
+    <div class="banner" id="banner" hidden role="alert">
+      <span><b>This recording was changed after it was made.</b> A step or an embedded file no longer matches its fingerprint (step 3, marked in the file at the right). It can still be played, but it may not show what really happened.</span>
+      <button class="small" id="bannerX">Dismiss</button>
+    </div>
+
+    <div class="caption empty" id="capTop" aria-live="polite"></div>
+
+    <div class="stage" id="stage">
+      <div class="overlay-keys" id="keysOver" hidden></div>
+      <div class="ask" id="ask" hidden></div>
+      <div class="tools">
+        <button class="small" data-btn="Erase">Erase</button>
+        <button class="small" data-btn="Fit">Fit</button>
+      </div>
+      <svg id="plot" viewBox="0 0 640 380" role="img" aria-label="Fake phase plane of the Lecar model: V against w"></svg>
+      <div class="capband" id="capBand" hidden aria-live="polite"></div>
+    </div>
+
+    <section class="controls" id="controls" aria-label="Player controls">
+      <div class="btns">
+        <button class="primary" id="bPlay" aria-label="Play">&#9654; Play</button>
+        <button id="bStep" aria-label="Step forward">Step &#9197;</button>
+        <button id="bRestart" aria-label="Restart">&#8634;</button>
+      </div>
+      <div class="speed seg" role="group" aria-label="Speed"><span class="muted">Speed</span>
+        <button data-speed=".5" aria-pressed="false">0.5x</button>
+        <button data-speed="1" aria-pressed="true">1x</button>
+        <button data-speed="2" aria-pressed="false">2x</button>
+        <button data-speed="4" aria-pressed="false">4x</button>
+      </div>
+      <div class="prog" id="prog"></div>
+    </section>
+  </main>
+
+  <aside class="side" aria-label="Steps">
+    <h2 id="stepsTitle">Steps</h2>
+    <ol class="steps" id="steps"></ol>
+    <div class="editor" id="editor" hidden>
+      <label for="noteEdit"><b id="editTitle"></b><br><span class="hint">Note shown above this step. It is not part of the fingerprint.</span></label>
+      <textarea id="noteEdit" rows="2"></textarea>
+      <div class="row"><button class="primary small" id="noteSave">Save note</button><button class="small" id="playFrom">Play from here</button></div>
+      <span class="hint" id="saveHint"></span>
+    </div>
+    <details class="recx" open>
+      <summary>lecar.recx (the file)</summary>
+      <pre class="file" id="file"></pre>
+    </details>
+  </aside>
+
+  <footer class="status-bar">
+    <span class="status-dot" id="dot" aria-hidden="true"></span>
+    <span role="status" id="statusText">Ready</span>
+    <span class="status-message" id="statusMsg"></span>
+    <span class="muted" id="rows">0 rows</span>
+    <span class="status-run"><progress id="runProg" max="1" value="0"></progress><button class="small" id="stopBtn" style="visibility:hidden">Stop</button></span>
+  </footer>
+</div>
+
+<script>
+'use strict';
+/* ===== fake data ===== */
+const MENU = [ // [item, key] as in core/menus.cpp main_menu
+  ['Initialconds','i'],['Continue','c'],['Nullcline','n'],['Dir.field/flow','d'],['Window/zoom','w'],['phAsespace','a'],
+  ['Kinescope','k'],['Graphic stuff','g'],['nUmerics','u'],['File','f'],['Parameters','p'],['Erase','e'],['Makewindow','m'],
+  ['Text,etc','t'],['Sing pts','s'],['Viewaxes','v'],['Xi vs t','x'],['Restore','r'],['3d-params','3'],['Bndryval','b']];
+const SUB = { // second-level menus the first key opens
+  i: {title:'Initial conditions', items:[['Go','g'],['Mouse','m'],['Range','r'],['Last','l'],['New','n']]},
+  w: {title:'Window/zoom', items:[['Zoom in','z'],['Zoom out','o'],['Window','w'],['Fit','f']]},
+  n: {title:'Nullcline', items:[['New','n'],['Restore','r'],['Auto','a'],['Save','s']]},
+};
+const keyItem = k => MENU.find(m => m[1] === k);
+const STEPS0 = [
+  {label:'Initial conditions → Go', keys:['i','g'], note:'First run: the cell fires a single spike and settles.'},
+  {label:'Parameters', keys:['p'], answers:['I','90'], note:'Raise the drive current to 90.'},
+  {label:'Initial conditions → Go', keys:['i','g'], note:''},
+  {label:'Window/zoom → Zoom in', keys:['w','z'], answers:['-45','15','-0.1','0.5'], view:true, note:'Zoom in on the limit cycle.'},
+  {label:'Nullcline → New', keys:['n','n'], note:'The nullclines cross once, inside the loop.'},
+  {label:'Erase', button:'Erase', note:''},
+];
+const DLG = { p: ['Name','Value'], w: ['X lo','X hi','Y lo','Y hi'] };
+const HASH = 'sha256:9c1f0e7a4b…d2';
+
+let mode = 'rec', steps = [], sel = -1, cur = -1, playing = false, busy = false, gen = 0, speed = 1, changed = false, stepOnce = false;
+const opt = {cap:'A', keys:'A', prog:'A'};
+const $ = id => document.getElementById(id);
+const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const isView = st => !!st.view;
+
+/* ===== menu ===== */
+function buildMenu() {
+  const ul = $('menu'); ul.innerHTML = '';
+  MENU.forEach(([name, k]) => {
+    const li = el('li'), b = el('button', 'menu-item', `<kbd aria-hidden="true">${k.toUpperCase()}</kbd><span>${name}</span>`);
+    b.dataset.key = k; b.onclick = () => menuClick(k); li.append(b); ul.append(li);
+  });
+}
+function litMenu(k) { document.querySelectorAll('.menu-item').forEach(b => b.classList.toggle('lit', !!k && b.dataset.key === k)); }
+function showSub(k) {
+  const s = $('submenu'), d = SUB[k];
+  if (!d) { s.hidden = true; s.innerHTML = ''; return; }
+  s.hidden = false; s.innerHTML = `<div class="menu-title">${d.title}</div>`;
+  d.items.forEach(([n, kk]) => { const b = el('button', 'sub-item', `<kbd aria-hidden="true">${kk.toUpperCase()}</kbd><span>${n}</span>`); b.dataset.key = kk; b.onclick = () => subClick(k, kk); s.append(b); });
+}
+function litSub(kk) { document.querySelectorAll('.sub-item').forEach(b => b.classList.toggle('lit', !!kk && b.dataset.key === kk)); }
+
+/* ===== fake plot ===== */
+const W = {I: 60, curves: [], nc: false, view: [-60, 40, -.2, .8]};
+const svg = $('plot');
+function px(v) { const [x0, x1, y0, y1] = W.view; return [40 + (v[0] - x0) / (x1 - x0) * 580, 340 - (v[1] - y0) / (y1 - y0) * 320]; }
+function cyclePts(I, n = 90) {
+  const a = 18 + (I - 60) * .9, cx = -12 + (I - 60) * .12, b = .22 + (I - 60) * .004, cy = .28;
+  return Array.from({length: n + 1}, (_, i) => { const t = i / n * 2 * Math.PI; return [cx + a * Math.cos(t) + .3 * a * Math.cos(2 * t), cy + b * Math.sin(t) * (1 + .2 * Math.cos(t))]; });
+}
+function ncPts() {
+  const v = Array.from({length: 60}, (_, i) => { const x = -60 + i * 100 / 59; return [x, .25 + .35 * Math.sin((x + 60) / 100 * 3.2) - .002 * (x + 10)]; });
+  const w = Array.from({length: 60}, (_, i) => { const x = -60 + i * 100 / 59; return [x, .5 / (1 + Math.exp(-(x + 12) / 10))]; });
+  return [v, w];
+}
+const path = pts => 'M' + pts.map(p => px(p).map(n => n.toFixed(1)).join(' ')).join(' L');
+function drawPlot() {
+  const [x0, x1, y0, y1] = W.view;
+  let s = `<rect x="0" y="0" width="640" height="380" fill="var(--surface)"/>`;
+  for (let i = 0; i <= 5; i++) {
+    const gx = 40 + i * 116, gy = 20 + i * 64;
+    s += `<line x1="${gx}" y1="20" x2="${gx}" y2="340" stroke="var(--grid)"/><line x1="40" y1="${gy}" x2="620" y2="${gy}" stroke="var(--grid)"/>`;
+    s += `<text x="${gx}" y="358" fill="var(--fg-muted)" font-size="11" text-anchor="middle">${(x0 + i * (x1 - x0) / 5).toFixed(0)}</text><text x="34" y="${340 - i * 64 + 4}" fill="var(--fg-muted)" font-size="11" text-anchor="end">${(y0 + i * (y1 - y0) / 5).toFixed(2)}</text>`;
+  }
+  s += `<text x="330" y="376" fill="var(--fg-muted)" font-size="12" text-anchor="middle">V</text><text x="8" y="14" fill="var(--fg-muted)" font-size="12">w</text>`;
+  s += `<rect x="40" y="20" width="580" height="320" fill="none" stroke="var(--field-border)"/>`;
+  if (W.nc) { const [a, b] = ncPts(); s += `<path d="${path(a)}" fill="none" stroke="#c2410c" stroke-width="2"/><path d="${path(b)}" fill="none" stroke="#0d9488" stroke-width="2"/>`; }
+  W.curves.forEach((c, i) => { const last = i === W.curves.length - 1; s += `<path ${last ? 'id="live"' : ''} d="${path(cyclePts(c))}" fill="none" stroke="${last ? 'var(--accent)' : 'var(--fg-muted)'}" stroke-width="${last ? 2.5 : 1.5}" ${last ? 'pathLength="1" stroke-dasharray="1" stroke-dashoffset="0"' : 'opacity=".6"'}/>`; });
+  svg.innerHTML = s;
+}
+function applyWorld(st) {
+  if (st.keys && st.keys.join() === 'p' && st.answers) W.I = +st.answers[1] || W.I;
+  if (/→ Go$/.test(st.label)) W.curves.push(W.I);
+  if (/Zoom in/.test(st.label)) W.view = [-45, 15, -.1, .5];
+  if (/Fit/.test(st.label)) W.view = [-60, 40, -.2, .8];
+  if (/Nullcline/.test(st.label)) W.nc = true;
+  if (st.label === 'Erase') { W.curves = []; W.nc = false; }
+}
+function worldTo(k) { W.I = 60; W.curves = []; W.nc = false; W.view = [-60, 40, -.2, .8]; for (let i = 0; i < k; i++) applyWorld(steps[i]); drawPlot(); }
+
+/* ===== timing that honours pause and speed ===== */
+const paused = () => mode !== 'rec' && !playing && !stepOnce;
+function tick(ms, g) {
+  return new Promise(res => { let left = ms; const t = setInterval(() => {
+    if (g !== gen) { clearInterval(t); res(false); return; }
+    if (!paused()) left -= 25 * speed;
+    if (left <= 0) { clearInterval(t); res(true); } }, 25); });
+}
+
+/* ===== highlight: keycaps, dialog answers, run ===== */
+function keycapsHtml(st, upto) {
+  if (st.button) return `<span class="keys-label">Button</span><span class="keycap wide down">${st.button}</span>`;
+  return `<span class="keys-label">Keys</span>` + st.keys.map((k, i) => `<span class="keycap${i === upto ? ' down' : ''}" style="${i > upto ? 'opacity:.3' : ''}">${esc(k)}</span>`).join('');
+}
+function showKeys(html) {
+  $('keysOver').hidden = opt.keys !== 'A' || !html; $('keysOver').innerHTML = opt.keys === 'A' && html ? html : '';
+  if (opt.keys === 'B') $('statusMsg').innerHTML = html ? `<span class="statuskeys">${html}</span>` : '';
+}
+async function typeAnswers(st, g) {
+  const labels = DLG[st.keys[0]] || [], box = $('ask'); box.hidden = false;
+  box.innerHTML = `<h2>${st.keys[0] === 'p' ? 'Parameters' : 'Window'}</h2>` + st.answers.map((a, i) => `<label>${labels[i] || 'Value'}<span class="val" id="ans${i}"></span></label>`).join('') + `<div class="btns"><button class="small">Cancel</button><button class="small primary" id="askOk">OK</button></div>`;
+  for (let i = 0; i < st.answers.length; i++) {
+    const v = $('ans' + i); v.classList.add('typing');
+    for (const ch of st.answers[i]) { if (!await tick(110, g)) return false; v.textContent += ch; }
+    if (!await tick(250, g)) return false; v.classList.remove('typing');
+  }
+  $('askOk').classList.add('lit'); if (!await tick(350, g)) return false;
+  box.hidden = true; return true;
+}
+function setCaption(st) {
+  const t = st && st.note ? st.note : '', cap = $('capTop'), band = $('capBand');
+  if (opt.cap === 'A') {
+    band.hidden = true; cap.style.display = '';
+    cap.classList.toggle('empty', !t);
+    cap.textContent = t || (st ? 'Step ' + (steps.indexOf(st) + 1) + ': ' + st.label + ' (no note)' : 'Press Play to watch the recording.');
+  } else { cap.style.display = 'none'; band.hidden = !t; band.textContent = t; }
+}
+function setStatus(txt, busyOn, msg) { $('statusText').textContent = txt; $('dot').classList.toggle('busy', busyOn); if (msg !== undefined && opt.keys !== 'B') $('statusMsg').textContent = msg; }
+function idleRun() { $('runProg').className = ''; $('stopBtn').style.visibility = 'hidden'; }
+
+async function runStep(i) {
+  const g = gen, st = steps[i]; busy = true; cur = i; sel = i; renderSteps(); renderProg(0); setCaption(st);
+  setStatus('Playing', true, `Step ${i + 1} of ${steps.length}: ${st.label}`);
+  // 1. the highlight, before the step runs
+  if (st.button) {
+    showKeys(keycapsHtml(st)); const b = document.querySelector(`[data-btn="${st.button}"]`); b && b.classList.add('lit');
+    if (!await tick(isView(st) ? 250 : 900, g)) return end();
+    b && b.classList.remove('lit'); b && b.classList.add('pressed'); await tick(150, g); b && b.classList.remove('pressed');
+  } else {
+    for (let k = 0; k < st.keys.length; k++) {
+      showKeys(keycapsHtml(st, k)); const key = st.keys[k];
+      if (k === 0) { litSub(null); showSub(null); litMenu(key); if (SUB[key] && st.keys.length > 1) showSub(key); } else litSub(key);
+      if (!await tick(isView(st) ? 200 : 600, g)) return end();
+    }
+    if (st.answers) { showKeys(keycapsHtml(st, st.keys.length) + '<span class="keys-label">then the answers</span>'); if (!await typeAnswers(st, g)) return end(); }
+  }
+  litMenu(null); litSub(null); showSub(null); showKeys(null);
+  // 2. it runs: only computation takes time
+  applyWorld(st); drawPlot();
+  if (/→ Go$/.test(st.label)) {
+    const live = $('live'), n = 26;
+    for (let j = 0; j <= n; j++) {
+      live && live.setAttribute('stroke-dashoffset', (1 - j / n).toFixed(3)); renderProg(j / n);
+      $('runProg').className = 'shown'; $('runProg').value = j / n; $('stopBtn').style.visibility = 'visible'; $('rows').textContent = Math.round(601 * j / n) + ' rows';
+      if (!await tick(60, g)) return end();
+    }
+    idleRun();
+  } else if (/Nullcline/.test(st.label)) { if (!await tick(500, g)) return end(); }
+  else await tick(isView(st) ? 120 : 300, g);
+  renderProg(1); setStatus('Ready', false, '');
+  // 3. idle: the step is over; the player moves on after its display pace (view-only steps: quickly, never skipped)
+  if (!await tick(isView(st) ? 250 : 900, g)) return end();
+  busy = false; return true;
+}
+function end() { busy = false; return false; }
+
+async function playLoop() {
+  const g = gen;
+  while (playing && g === gen && cur < steps.length - 1) { if (busy) return; if (!await runStep(cur + 1)) return; }
+  if (g === gen && cur >= steps.length - 1) { playing = false; setStatus('Finished', false, 'End of recording'); syncPlay(); }
+}
+async function stepFwd() {
+  if (busy || cur >= steps.length - 1) return; playing = false; stepOnce = true; syncPlay();
+  const g = gen; await runStep(cur + 1); if (g === gen) { stepOnce = false; syncPlay(); }
+}
+function syncPlay() { const b = $('bPlay'); b.innerHTML = playing ? '&#10074;&#10074; Pause' : (cur >= steps.length - 1 ? '&#9654; Play again' : '&#9654; Play'); b.setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
+function restart(to) {
+  gen++; playing = false; stepOnce = false; busy = false; cur = to;
+  showKeys(null); litMenu(null); litSub(null); showSub(null); $('ask').hidden = true; idleRun();
+  worldTo(to + 1); setCaption(to >= 0 ? steps[to] : null); renderSteps(); renderProg(to >= 0 ? 1 : 0); setStatus('Ready', false, ''); $('rows').textContent = '0 rows'; syncPlay();
+}
+
+/* ===== progress indicator ===== */
+function renderProg(frac) {
+  const p = $('prog'), n = steps.length;
+  const txt = `<div class="txt"><span>Step ${Math.max(cur + 1, 0)} of ${n}</span><span>${cur >= 0 && steps[cur] ? esc(steps[cur].label) : 'not started'}</span></div>`;
+  if (opt.prog === 'A') p.innerHTML = `<div class="segs">${steps.map((s, i) => `<i class="${s.view ? 'view ' : ''}${i < cur ? 'done' : i === cur ? 'now' : ''}" style="${i === cur ? '--p:' + (frac * 100) + '%' : ''}" title="${esc(s.label)}"></i>`).join('')}</div>${txt}`;
+  else { const w = n ? ((Math.max(cur, 0) + (cur >= 0 ? frac : 0)) / n * 100) : 0; p.innerHTML = `<div class="bar"><span style="width:${w}%"></span>${steps.map((_, i) => i ? `<em style="left:${i / n * 100}%"></em>` : '').join('')}</div>${txt}`; }
+}
+
+/* ===== step list and note editing ===== */
+function renderSteps() {
+  const ol = $('steps'); ol.innerHTML = '';
+  steps.forEach((s, i) => {
+    const li = el('li'), b = el('button', 'step' + (i === sel ? ' sel' : '') + (i === cur && mode !== 'rec' ? ' cur' : '') + (i < cur ? ' done' : ''),
+      (s.note ? `<span class="cap">“${esc(s.note)}”</span>` : '') + `<span class="lbl"><span class="n">${i + 1}</span><b>${esc(s.label)}</b>${s.view ? '<span class="tag">view</span>' : ''}${s.button ? '<span class="tag">button</span>' : ''}</span>`);
+    b.onclick = () => { sel = i; renderSteps(); openEditor(); }; li.append(b); ol.append(li);
+  });
+  $('stepsTitle').textContent = mode === 'rec' ? `Recorded steps (${steps.length})` : `Steps (${steps.length})`;
+  if (mode === 'rec' || sel < 0 || !steps[sel]) $('editor').hidden = true;
+  renderFile();
+}
+function openEditor(keepHint) { if (mode === 'rec' || sel < 0) return; $('editor').hidden = false; $('editTitle').textContent = `Step ${sel + 1}: ${steps[sel].label}`; $('noteEdit').value = steps[sel].note || ''; if (!keepHint) $('saveHint').textContent = ''; }
+$('noteSave').onclick = () => {
+  steps[sel].note = $('noteEdit').value.trim(); renderSteps(); openEditor(true);
+  $('saveHint').className = 'hint ok'; $('saveHint').textContent = 'Saved to lecar.recx. The fingerprint is unchanged: notes are not part of it.';
+  if (sel === cur) setCaption(steps[cur]);
+};
+$('playFrom').onclick = () => { restart(sel - 1); playing = true; syncPlay(); playLoop(); };
+
+/* ===== the fake .recx text ===== */
+function stepJson(s, i) {
+  const o = {step: s.label}; if (s.button) o.button = s.button; else o.keys = s.keys; if (s.answers) o.answers = s.answers; if (s.view) o.view = true;
+  let j = JSON.stringify(o); if (changed && i === 2) j = j.replace('"g"]', '"c"]');
+  return j;
+}
+function renderFile() {
+  const L = ['<span class="h">xppautx-recording 1</span>', 'program: xppautX 8.0.3', 'model: lecar.ode', 'recorded: 2026-09-30T10:14:02Z', '',
+    '<span class="h">@file lecar.ode</span>', '<span class="c"># the model, embedded: the replay needs nothing else</span>', 'par I=60, gl=2, gk=8, gca=4', "v'=(I-gl*(v-vl)-gk*w*(v-vk)-gca*m*(v-vca))/c", "w'=phi*(winf(v)-w)/tauw(v)", 'init v=-60, w=0', 'done', '@end', '', '<span class="h">@steps</span>'];
+  steps.forEach((s, i) => {
+    if (s.note) L.push('<span class="n">' + esc('# ' + s.note) + '</span>');
+    const j = esc(stepJson(s, i)); L.push(changed && i === 2 ? `<span class="bad">${j}</span>` : (i === cur && mode !== 'rec' ? `<span class="cur">${j}</span>` : j));
+  });
+  L.push('', '<span class="c"># the hash covers the embedded files and the step lines, never the # notes</span>', changed ? `<span class="bad">fingerprint: ${HASH}  (does not match)</span>` : 'fingerprint: ' + HASH);
+  $('file').innerHTML = L.join('\n');
+}
+
+/* ===== recording ===== */
+function recCount() { $('recCount').textContent = `${steps.length} step${steps.length === 1 ? '' : 's'}`; }
+function menuClick(k) {
+  if (mode !== 'rec') return;
+  if (SUB[k]) { showSub(k); litMenu(k); $('noteHint').className = 'hint'; $('noteHint').textContent = `Now choose from the ${SUB[k].title} menu.`; return; }
+  showSub(null); litMenu(null); addStep({label: keyItem(k)[0], keys: [k]});
+}
+function subClick(k, kk) {
+  if (mode !== 'rec') return; const it = SUB[k].items.find(x => x[1] === kk); showSub(null); litMenu(null);
+  const st = {label: `${SUB[k].title} → ${it[0]}`, keys: [k, kk]}; if (k === 'w') st.view = true; addStep(st);
+}
+function addStep(st) {
+  const note = $('noteIn').value.trim(); st.note = note; steps.push(st); recCount();
+  $('noteHint').className = note ? 'hint ok' : 'hint';
+  $('noteHint').textContent = note ? `Note attached to step ${steps.length}: “${note}”` : 'Step recorded. Idle time between steps is not recorded.';
+  if (note) $('noteIn').value = '';
+  applyWorld(st); drawPlot(); sel = steps.length - 1; renderSteps(); if (/Go$/.test(st.label)) $('rows').textContent = '601 rows';
+}
+$('noteIn').addEventListener('input', () => {
+  const v = $('noteIn').value.trim(); $('noteHint').className = 'hint';
+  $('noteHint').textContent = v ? 'This note will be attached to the next step you take.' : 'Type a note, then use any command: it is attached to the next step you take.';
+});
+$('stopRec').onclick = () => setMode('play');
+$('startRec').onclick = () => setMode('rec', true);
+$('openPlay').onclick = () => setMode('play');
+document.querySelectorAll('[data-btn]').forEach(b => b.onclick = () => {
+  if (mode !== 'rec') return; const nm = b.dataset.btn;
+  addStep({label: nm === 'Fit' ? 'Window/zoom → Fit' : nm, button: nm, view: nm === 'Fit'});
+});
+
+/* ===== modes ===== */
+function setMode(m, fresh) {
+  gen++; playing = false; stepOnce = false; busy = false; mode = m === 'changed' ? 'play' : m; changed = m === 'changed';
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === (fresh ? 'rec' : m))));
+  $('recbar').hidden = mode !== 'rec'; $('controls').hidden = mode === 'rec'; $('banner').hidden = !changed;
+  $('modeTitle').textContent = mode === 'rec' ? '· recording' : '· playing lecar.recx';
+  showKeys(null); litMenu(null); litSub(null); showSub(null); $('ask').hidden = true; idleRun();
+  $('startRec').disabled = mode === 'rec';
+  if (mode === 'rec') {
+    steps = fresh ? [] : STEPS0.slice(0, 2).map(s => ({...s})); if (!fresh) steps[1].note = '';
+    W.I = 60; W.curves = []; W.nc = false; W.view = [-60, 40, -.2, .8]; steps.forEach(applyWorld); drawPlot();
+    $('noteIn').value = fresh ? '' : 'Now the current is on: watch the cycle grow.';
+    $('noteHint').className = 'hint'; $('noteHint').textContent = fresh ? 'Type a note, then use any command: it is attached to the next step you take.' : 'This note will be attached to the next step you take: try Initialconds, then Go.';
+    cur = -1; sel = steps.length - 1; recCount();
+    $('capTop').style.display = 'none'; $('capBand').hidden = true; setStatus('Recording', true, 'Recording lecar.recx'); $('rows').textContent = fresh ? '0 rows' : '601 rows';
+    $('dot').style.background = 'var(--danger)'; renderSteps();
+  } else {
+    $('dot').style.background = ''; steps = STEPS0.map(s => ({...s})); sel = -1; restart(-1); $('editor').hidden = true; renderSteps();
+  }
+}
+$('bPlay').onclick = () => {
+  if (busy && !playing) return; if (cur >= steps.length - 1 && !playing) restart(-1);
+  playing = !playing; stepOnce = false; syncPlay(); if (playing) playLoop();
+};
+$('bStep').onclick = stepFwd;
+$('bRestart').onclick = () => restart(-1);
+$('bannerX').onclick = () => { $('banner').hidden = true; };
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => { speed = +b.dataset.speed; document.querySelectorAll('[data-speed]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => {
+  opt[b.dataset.opt] = b.dataset.v; document.querySelectorAll(`[data-opt="${b.dataset.opt}"]`).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (mode !== 'rec') { setCaption(cur >= 0 ? steps[cur] : null); renderProg(1); showKeys(null); if (opt.keys === 'A') $('statusMsg').textContent = ''; }
+});
+const themes = ['system', 'light', 'dark'];
+$('theme').onclick = () => {
+  const c = document.documentElement.dataset.theme || 'system', nx = themes[(themes.indexOf(c) + 1) % 3];
+  if (nx === 'system') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = nx;
+  $('theme').textContent = 'Theme: ' + nx; drawPlot();
+};
+
+buildMenu(); setMode('rec');
+</script>
+</body>
+</html>
