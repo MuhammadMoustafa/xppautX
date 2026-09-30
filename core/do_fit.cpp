@@ -401,9 +401,12 @@ xpp::Result<FitEnd> run_fit(const char *filename, int npts, int npars, int nvars
   if(!ok)return std::unexpected(ok.error());
   if(niter>=maxiter)return FitEnd::MaxIterations;
   ictrl=2;
-  (void)marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
+  /* the covariance: a singular matrix here is still the fit's error, as
+     it was shown before W63d */
+  if(auto last=marlevstep(t0,y0,y,sig,a,npts,nvars,npars,
 	       ivar,ipar,covar,alpha,&chisq,&alambda,work,
-	       yderv.data(),yfit,&ochisq,ictrl,eps);
+	       yderv.data(),yfit,&ochisq,ictrl,eps); !last)
+    return std::unexpected(last.error());
   /* have the covariance matrix -- so what?   */
   xpp::log(XPP_LOG_INFO, " covariance: \n");
   for(i=0;i<npars;i++){
