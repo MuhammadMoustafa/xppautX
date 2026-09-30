@@ -17,7 +17,8 @@ test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, 1, {cmd: 'key', key: 'q'}), 'control');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', key: 'Escape'}), 'control');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'r'}), 'computation');
-  assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'key', win: 'auto', key: 'f'}), 'view');
+  assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'a'}), 'view');
+  assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'f'}), 'view'); /* AUTO's File: a menu holding a view */
   assert.equal(kindOf(HELLO, 0, {cmd: 'browser', op: 'write', name: 'x'}), 'data');
   assert.equal(kindOf(HELLO, 0, {cmd: 'browser', from: 0, count: 10}), 'view');
   assert.equal(kindOf(HELLO, 0, {cmd: 'userbut', index: 0}), 'computation');
