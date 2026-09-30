@@ -480,7 +480,9 @@ continues in), and a grab's point by its data.
   same); `{"cmd":"auto","op":"view","close":k}` closes view k (an error
   message when there is no view k, or it is the last one: one always
   stays); `{"cmd":"auto","op":"view","active":k}` makes view k the active
-  one. They are views (kind `v`), done during a run too.
+  one. They are views (kind `v`): sent while AUTO runs, they run after it
+  ("Commands during a command"), while every view gets the run's points
+  as they come.
 
 - `{"ev":"diagram","op":"axes","view":v, xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
   the diagram was drawn again at these axes (`plot` is `Auto.plot`: 0 hi,
