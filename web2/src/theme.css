@@ -153,7 +153,10 @@ kbd {
   display: grid;
   height: 100%;
   grid-template-columns: var(--menu-width) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* the values row takes what its content needs, but at most 40% of the height:
+     the plot row keeps the rest (W98: an auto row let a tall Values panel
+     squeeze the plot to nothing between 48rem and 80rem) */
+  grid-template-rows: auto minmax(10rem, 1fr) minmax(0, fit-content(40%)) auto;
   grid-template-areas: 'title title' 'menu work' 'menu values' 'status status';
 }
 .title-bar {
@@ -557,7 +560,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .status-run button.shown { visibility: visible; }
 
 /* ---- plot windows (tabs), plot ---- */
-.plots { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
+.plots { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; min-height: 0; }
 .plot-windows { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-1) var(--space-2); min-width: 0; }
 .plot-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
 .plot-tab {
@@ -1067,6 +1070,7 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 @media (max-width: 47.99rem) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: 'title' 'work' 'status';
   }
   .menu-toggle, .values-toggle { display: inline-flex; }

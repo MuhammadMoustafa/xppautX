@@ -6,7 +6,7 @@ import type {Session} from '../session';
 import {AplotView} from './AplotView';
 import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
-import {AutoView} from './AutoView';
+import {AutoShow, AutoView} from './AutoView';
 import {SessionContext, useStore} from './context';
 import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
@@ -84,6 +84,7 @@ function Shell() {
       <MenuPanel />
       <main id="main" class="workspace">
         <Banner />
+        <AutoShow />
         <Plots dark={dark} />
         <SliderStrip />
         <Messages />

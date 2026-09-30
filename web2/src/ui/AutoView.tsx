@@ -546,10 +546,8 @@ function AutoPanel({dark}: {dark: boolean}) {
 }
 
 export function AutoView({dark}: {dark: boolean}) {
-  const session = useSession();
   const open = useStore(s => s.diagram.open);
   const shown = useStore(s => s.diagram.shown);
-  const showButton = useRef<HTMLButtonElement>(null);
   const wasShown = useRef(false);
 
   /* the focus goes back to the main plot when the panel is hidden or AUTO closes (T21):
@@ -561,10 +559,19 @@ export function AutoView({dark}: {dark: boolean}) {
     wasShown.current = open && shown;
   }, [open, shown]);
 
-  if (!open) return null;
-  if (shown) return <AutoPanel dark={dark} />;
+  if (open && shown) return <AutoPanel dark={dark} />;
+  return null;
+}
+
+/* Show AUTO (the view hidden): a row at the top of the workspace, above the plot
+   (always in view, a touch target on a phone), in the flow, so it never covers the message strip (W98) */
+export function AutoShow() {
+  const session = useSession();
+  const open = useStore(s => s.diagram.open);
+  const shown = useStore(s => s.diagram.shown);
+  if (!open || shown) return null;
   return (
-    <button ref={showButton} class="auto-show" aria-controls="auto-panel" aria-expanded="false"
+    <button class="auto-show" aria-controls="auto-panel" aria-expanded="false"
       onClick={() => session.showAuto(true)} title="Show the AUTO view again">Show AUTO</button>
   );
 }

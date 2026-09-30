@@ -68,18 +68,9 @@
 .auto-label-mark { display: inline-block; width: 1em; font-weight: 600; text-align: center; }
 .auto-label-mark-star, .auto-label-mark-diamond { font-size: 1.1em; }
 .auto-label { color: var(--accent); }
-.auto-show {
-  position: fixed;
-  left: var(--space-2);
-  bottom: 3rem;
-  z-index: 120;
-  box-shadow: var(--shadow);
-  font-weight: 600;
-}
-@media (min-width: 48rem) {
-  /* Show AUTO (the view hidden): beside the menu column */
-  .auto-show { left: calc(var(--menu-width) + var(--space-4)); }
-}
+/* in the workspace's flow above the plot, and stuck to its top when the workspace
+   scrolls (a focus scroll on a phone must not hide the way back into AUTO) */
+.auto-show { flex: none; align-self: flex-start; position: sticky; top: 0; z-index: 5; font-weight: 600; }
 @container (max-width: 34rem) {
   .auto-view .plot-tools { width: 100%; }
   .auto-view .plot-tools button { flex: 1; }

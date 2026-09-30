@@ -67,7 +67,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,lostf,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,lostf,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -4505,6 +4505,157 @@ async function session(ode, fn, expected = []) {
   }
 }
 
+/* ---- layout (W98, #147): the plot at every window width, Show AUTO clear of the messages,
+   and the main plot after a session with an AUTO diagram is opened and Back is pressed (W102, #151) ---- */
+
+/** the layout's rectangles, read from the DOM (never pixels) */
+const layoutRects = () => cdp.eval(`(() => {
+  const r = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect();
+    return {l: b.left, t: b.top, r: b.right, b: b.bottom, w: b.width, h: b.height, d: getComputedStyle(e).display,
+      v: getComputedStyle(e).visibility}; };
+  return {vw: innerWidth, vh: innerHeight, sw: document.documentElement.scrollWidth,
+    plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.menu-panel'),
+    menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('.auto-show'), msgs: r('.messages'),
+    status: r('.status-bar')}; })()`);
+/** the part of rectangle a inside b (a plot taller than its scrolling container shows only that much) */
+const rectClip = (a, b) => (!a || !b) ? a : {...a, t: Math.max(a.t, b.t), b: Math.min(a.b, b.b), l: Math.max(a.l, b.l), r: Math.min(a.r, b.r)};
+const rectsCross = (a, b) => !!a && !!b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
+
+/** what is wrong with the layout at this size: a list of words, empty when it is right */
+function layoutProblems(L) {
+  const bad = [];
+  const {plot, ws, vals, menu} = L;
+  if (!plot || plot.w < 100 || plot.h < 150) bad.push(`plot ${plot ? `${Math.round(plot.w)}x${Math.round(plot.h)}` : 'missing'}`);
+  else {
+    if (plot.l < -0.5 || plot.r > L.vw + 0.5) bad.push('plot outside the width');
+    if (ws && (plot.t < ws.t - 0.5 || plot.t > ws.b - 40)) bad.push('plot not in view at the top of its container');
+  }
+  if (L.sw > L.vw) bad.push(`horizontal scroll ${L.sw} > ${L.vw}`);
+  if (L.vw >= 768) {
+    if (!vals || vals.w < 100 || vals.h < 40 || vals.d === 'none') bad.push('values panel not shown');
+    else if (vals.r > L.vw + 0.5 || vals.b > L.vh + 0.5) bad.push('values panel outside the window');
+    if (!menu || menu.w < 100 || menu.d === 'none' || menu.v === 'hidden') bad.push('menu not shown');
+    if (rectsCross(rectClip(plot, ws), vals)) bad.push('plot and values overlap');
+    if (rectsCross(rectClip(plot, ws), menu)) bad.push('plot and menu overlap');
+  } else {
+    if (!L.valuesToggle || L.valuesToggle.d === 'none') bad.push('no values toggle');
+    if (!L.menuToggle || L.menuToggle.d === 'none') bad.push('no menu toggle');
+  }
+  return bad;
+}
+
+async function layoutCheck(dir) {
+  await desktopMetrics();
+  check('layout: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('layout: a run stores rows for the plot', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+
+  for (const h of [900, 560]) {
+    const bad = [];
+    for (let w = 600; w <= 2000; w += 25) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: h, deviceScaleFactor: 1, mobile: false});
+      await sleep(40);
+      const p = layoutProblems(await layoutRects());
+      if (p.length) bad.push(`${w}: ${p.join(', ')}`);
+    }
+    check(`layout: at every width 600..2000 (step 25) x ${h} the plot, the values panel and the menu are shown and reachable`,
+      bad.length === 0, bad.slice(0, 6).join(' | ') + (bad.length > 6 ? ` (+${bad.length - 6})` : ''));
+  }
+  /* the widths of the maintainer's report, with a tall window */
+  for (const w of [1000, 1070, 1180, 1279, 1280, 1880]) {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: 1000, deviceScaleFactor: 1, mobile: false});
+    await sleep(60);
+    const L = await layoutRects();
+    check(`layout: ${w}x1000 shows the plot with the Values panel`, layoutProblems(L).length === 0,
+      JSON.stringify([layoutProblems(L), L.plot]));
+  }
+  /* a phone: the Values sheet opens and closes, the plot stays */
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 600, height: 900, deviceScaleFactor: 1, mobile: false});
+  await sleep(100);
+  await cdp.eval(`document.querySelector('.values-toggle').click()`);
+  check('layout: 600 px: the Values sheet opens over the window', await until('s.valuesOpen', 'values open')
+    && (await layoutRects()).vals.h >= 800);
+  await cdp.eval(`document.querySelector('.values-back').click()`);
+  check('layout: ... and closes, the plot still there', await until('!s.valuesOpen', 'values closed')
+    && layoutProblems(await layoutRects()).length === 0);
+  await desktopMetrics();
+  await sleep(100);
+
+  /* AUTO open, Back: Show AUTO in the flow, off the plot, the messages and the status bar */
+  await key('f');
+  await until('!s.busy', 'file menu');
+  await key('g');
+  await menuKey('d');
+  await until('!s.busy', 'hopf set');
+  await key('s');
+  await menuKey('g');
+  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
+  await menuKey('n');
+  await until('!s.busy', 'fixed point', 30000);
+  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
+  await until('!s.busy', 'import');
+  await key('f');
+  await until('!s.busy', 'file menu');
+  await key('a');
+  check('layout: File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open'));
+  await autoButton('R');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
+  await menuKey('s');
+  check('layout: an AUTO run stores a diagram', await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000));
+  const nPts = await DS('d.points.x.length');
+  await cdp.eval(`document.querySelector('.auto-back').click()`);
+  check('layout: Back hides the view, Show AUTO appears', await until('!s.diagram.shown && s.diagram.open', 'auto back')
+    && await cdp.eval(`!!document.querySelector('.auto-show')`));
+  for (const h of [900, 560]) {
+    const bad = [];
+    for (let w = 600; w <= 2000; w += 50) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: h, deviceScaleFactor: 1, mobile: false});
+      await sleep(40);
+      const L = await layoutRects();
+      const p = layoutProblems(L);
+      if (!L.show) p.push('no Show AUTO');
+      else {
+        const shown = rectClip(L.show, L.ws); /* the workspace scrolls: a button below its edge is clipped, not covering */
+        if (rectsCross(shown, L.msgs)) p.push('Show AUTO covers the messages');
+        if (rectsCross(shown, L.status)) p.push('Show AUTO covers the status bar');
+        if (rectsCross(shown, rectClip(L.plot, L.ws))) p.push('Show AUTO covers the plot');
+        if (L.show.l < 0 || L.show.r > L.vw + 0.5) p.push('Show AUTO outside the width');
+        if (!(await cdp.eval(`(() => { const b = document.querySelector('.auto-show'); b.scrollIntoView({block: 'nearest'}); const r = b.getBoundingClientRect(), w = document.querySelector('.workspace').getBoundingClientRect(); const ok = r.top >= w.top - 0.5 && r.bottom <= w.bottom + 0.5; document.querySelector('.workspace').scrollTop = 0; return ok; })()`))) p.push('Show AUTO not reachable by scrolling');
+      }
+      if (p.length) bad.push(`${w}: ${p.join(', ')}`);
+    }
+    check(`layout: with the AUTO view hidden, at 600..2000 x ${h} Show AUTO covers no message, no status bar, no plot`,
+      bad.length === 0, bad.slice(0, 6).join(' | '));
+  }
+  await desktopMetrics();
+  await sleep(100);
+  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+  await until(`s.bottom === 'Bad formula'`, 'bottom message');
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
+  await until(`!s.toasts.length`, 'toasts dismissed');
+  check('layout: the message strip is the topmost element at its left end (nothing over it)',
+    await cdp.eval(`(() => { const e = document.querySelector('.status-message'), r = e.getBoundingClientRect();
+      return e.contains(document.elementFromPoint(r.left + Math.min(20, r.width / 2), r.top + r.height / 2)); })()`));
+
+  /* W102: a session with the run's rows and the AUTO diagram, opened again, then Back */
+  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w102', data: true})`);
+  await until('!s.busy', 'session saved');
+  check('layout: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
+  await cdp.eval(`__xpp.send({cmd: 'session', op: 'load', name: 'w102'})`);
+  if (await until("s.ask && s.ask.kind === 'choice'", 'save first?', 15000))
+    await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
+  check('layout: opening it brings the AUTO view back with its diagram',
+    await until(`s.diagram.open && s.diagram.shown && s.diagram.points.x.length === ${nPts} && !s.busy`, 'session opened', 30000),
+    JSON.stringify(await DS('[d.open, d.shown, d.points.x.length]')));
+  await cdp.eval(`document.querySelector('.auto-back').click()`);
+  await until('!s.diagram.shown && s.diagram.open', 'back after open');
+  await sleep(300);
+  const L = await layoutRects();
+  const pl = await cdp.eval(`__xpp.plot()`);
+  check('layout: W102: after Back the main plot is in the layout, sized, and holds the rows',
+    layoutProblems(L).length === 0 && !!pl && pl.curves.length > 0 && pl.curves[0].points > 0,
+    JSON.stringify([layoutProblems(L), L.plot, pl && pl.curves.map(c => c.points)]));
+}
+
 /* Remove stale Chrome profiles older than an hour (W105) */
 function cleanStaleProfiles() {
   const tmpDir = os.tmpdir();
@@ -4566,6 +4717,7 @@ async function main() {
       await windows();
       await textViews();
     });
+    if (run('layout')) await session(ODE, layoutCheck, ['Illegal formula ..', 'Bad formula']);
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
