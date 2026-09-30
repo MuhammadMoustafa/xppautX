@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.." || exit 1
 # it is matched literally (grep -F), so a line-number shift needs no edit
 # here.
 ALLOW="core/comline.cpp|XPPAUT Version %g.%g|the -version flag's own text, like --help
-core/xppautx_main.cpp|printf(\"xppautX %s\\n\", XPPAUTX_VERSION)|--version text the VS Code extension reads
+core/xppautx_main.cpp|printf(\"xppautX %s\\n\", xpp_version_string())|--version text the VS Code extension reads
 core/xpp_http.cpp|printf(\"XPP: %s\\n\", page_url)|the XPP: address line xppautX prints in browser mode
 core/xppautx_main.cpp|printf(\"%s%s%s\", usage_head|the --help text"
 
