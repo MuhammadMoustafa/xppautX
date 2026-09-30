@@ -27,8 +27,8 @@ int main(void)
     char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.ode";
     char *argv[] = {arg0, arg1, NULL};
     xpp_load_model(2, argv, 1);
-    init_browser();
-    init_all_graph();
+    init_browser(xpp::session());
+    init_all_graph(xpp::session());
 
     const int ntrials = 400;
     xpp::session().integrator.range.item = "dummy";

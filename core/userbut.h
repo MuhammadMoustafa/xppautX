@@ -8,7 +8,6 @@ extern "C" {
 
 #define USERBUTMAX 20
 
-void add_user_button(const char *s); /* parse "name:keys" from an @ button line */
 
 #ifdef __cplusplus
 }
@@ -20,5 +19,12 @@ struct USERBUT {
   std::string bname;
   int com;
 };
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* parse "name:keys" from an @ button line into a button of s */
+void add_user_button(xpp::Session &s, const char *spec);
 #endif
 #endif

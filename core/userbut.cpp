@@ -39,12 +39,12 @@ int find_kbs(const std::string &sc)
 
 } // namespace
 
-void add_user_button(const char *s)
+void add_user_button(xpp::Session &s, const char *spec)
 {
-  if (xpp::session().nuserbut >= USERBUTMAX) return;
-  if (s == nullptr || s[0] == '\0') return;
+  if (s.nuserbut >= USERBUTMAX) return;
+  if (spec == nullptr || spec[0] == '\0') return;
   std::string bname, sc;
-  get_button_info(s, bname, sc);
+  get_button_info(spec, bname, sc);
   if (bname.empty() || sc.empty()) return;
   int z = find_kbs(sc);
   if (z == -1) {
@@ -52,12 +52,12 @@ void add_user_button(const char *s)
     return;
   }
   /* Don't add buttons with the same functionality twice. */
-  for (int i = 0; i < xpp::session().nuserbut; i++) {
-    if (xpp::session().userbut[i].com == z) return;
+  for (int i = 0; i < s.nuserbut; i++) {
+    if (s.userbut[i].com == z) return;
   }
-  xpp::session().userbut[xpp::session().nuserbut].com = z;
-  xpp::session().userbut[xpp::session().nuserbut].bname = bname;
-  xpp::log(XPP_LOG_INFO, " added button({})  -- {} {}\n",
-           xpp::session().nuserbut, xpp::session().userbut[xpp::session().nuserbut].bname, xpp::session().userbut[xpp::session().nuserbut].com);
-  xpp::session().nuserbut++;
+  s.userbut[s.nuserbut].com = z;
+  s.userbut[s.nuserbut].bname = bname;
+  xpp::log(XPP_LOG_INFO, " added button({})  -- {} {}\n", s.nuserbut, s.userbut[s.nuserbut].bname,
+           s.userbut[s.nuserbut].com);
+  s.nuserbut++;
 }

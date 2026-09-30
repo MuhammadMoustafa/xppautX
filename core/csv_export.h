@@ -3,6 +3,10 @@
 
 #include "xpp_error.h"
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
 /* CSV exports pandas.read_csv and MATLAB readtable read with no options:
    a header row of names, "\n" line ends, full precision (W26, issue #42).
    Beside the old whitespace formats (Write pts/diagram.dat, All info's
@@ -20,7 +24,7 @@
    packed into cells. true when written, false when there was nothing
    to write (the diagram has no points), or the error when the file
    could not be written. C++ only. */
-xpp::Result<bool> csv_export_diagram(const char *filename);
+xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename);
 
 /* Writes filename as CSV keyed by branch and point: one row per
    eigenvalue (a steady state) or Floquet multiplier (a periodic orbit) of
@@ -30,13 +34,13 @@ xpp::Result<bool> csv_export_diagram(const char *filename);
    stored (autevd.cpp addbif, auto_stability_for), the one source of them;
    zeros mean "not computed", as elsewhere. Returns as
    csv_export_diagram does. */
-xpp::Result<bool> csv_export_diagram_eigenvalues(const char *filename);
+xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename);
 
 /* Both of the above from one file dialog answer: filename for the
    diagram, and filename with "_eig" inserted before its extension (or
    appended, no extension) for the eigenvalues. Returns as
    csv_export_diagram does (the eigenvalues file follows from the same
    data, its error returned too). */
-xpp::Result<bool> csv_export_diagram_pair(const char *filename);
+xpp::Result<bool> csv_export_diagram_pair(const xpp::Session &s, const char *filename);
 
 #endif

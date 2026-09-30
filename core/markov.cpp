@@ -366,7 +366,7 @@ void do_stochast_com(int i)
     compute_hist();
     break;
   case 'o':
-    hist_back();
+    hist_back(xpp::session());
     break;
   case 'f':
     compute_fourier(); 

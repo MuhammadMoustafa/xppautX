@@ -10,47 +10,63 @@ extern "C" {
 #endif
 
 /* xpp_util.c: pure helpers relocated out of X11 files */
-void ps_restore(void);
-void svg_restore(void);
-void set_active_windows(void);
-void new_parameter(void);
-void set_default_params(void);
-void clone_ode(void);
-void make_active(int i, int flag);
-/* the plot window (its graph's index) whose window is w; 0, the main
-   one, when none in use is */
-int graph_of(XppWinId w);
-void clr_scrn(void);
+
 void de_space(char *s);
-void get_max(int index, double *vmin, double *vmax);
 int do_calc(const char *temp, double *z);
 double calculate(const char *expr, int *ok);
 void man_ic(void);
-void set_default_ics(void);
 int to_float(const char *s, double *z);
-int box_set_value(int type, int i, const char *s, double *z);
-void box_values_loaded(int type);
-void plot_checked_vars(int how, int *isck, int n);
+
 int find_par_or_var(const char *name, int *type, int *index);
-void set_par_or_var(const char *name, int type, int index, double val);
-void eq_import(double *y, int n);
-/* the model's user functions, as lunch-new.cpp's file info writes them */
-void user_fun_info(FILE *fp);
 const char *eq_stability(int cp, int rp, int im);
 void redo_stuff(void);
-/* a comment's action (the source's "# ... {action}"), run when it is picked */
-void do_txt_action(const char *s);
+
 
 /* atexit hook: removes the Session's AUTO scratch folder (auto_state.h) if it is set, and
    clears it. Registered by xppautx_main.c, not the X11 front end. */
 void xpp_cleanup_auto_dir(void);
-/* another model is loaded (File > Open model, Reload): a new, empty AUTO
-   scratch folder in place of the Session's, whose files (<model>.s, .b,
-   .d) were the model before's */
-void xpp_renew_auto_dir(void);
 
 #ifdef __cplusplus
 }
+
+/* The session s's plot windows: which are open (set_active_windows), the
+   active one (make_active), the plot window (its graph's index) whose
+   window is w (graph_of; 0, the main one, when none in use is), and the
+   active window's bounds made valid (check_windows) */
+void set_active_windows(xpp::Session &s);
+void make_active(xpp::Session &s, int i, int flag);
+int graph_of(const xpp::Session &s, XppWinId w);
+void check_windows(xpp::Session &s);
+/* the least and greatest of s's browser column index, widened when equal */
+void get_max(const xpp::Session &s, int index, double *vmin, double *vmax);
+/* the values behind the parameter and IC boxes and the sliders of s */
+void new_parameter(xpp::Session &s);
+void set_default_params(xpp::Session &s);
+void set_default_ics(xpp::Session &s);
+int box_set_value(xpp::Session &s, int type, int i, const char *text, double *z);
+void box_values_loaded(xpp::Session &s, int type);
+void set_par_or_var(xpp::Session &s, const char *name, int type, int index, double val);
+void eq_import(xpp::Session &s, double *y, int n);
+/* the plot of s redrawn into the picture file begun (image_format.h's
+   restore), which it then closes */
+void ps_restore(xpp::Session &s);
+void svg_restore(xpp::Session &s);
+/* s's active plot window blanked, its axes drawn again */
+void clr_scrn(xpp::Session &s);
+/* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot s's checked
+   variables (isck, n entries) and uncheck them */
+void plot_checked_vars(xpp::Session &s, int how, int *isck, int n);
+/* a comment's action (the source's "# ... {action}"), run on s when it is
+   picked */
+void do_txt_action(xpp::Session &s, const char *action);
+/* File > Clone: s's model file with its values now */
+void clone_ode(xpp::Session &s);
+/* the model m's user functions, as lunch-new.cpp's file info writes them */
+void user_fun_info(const xpp::Model &m, FILE *fp);
+/* another model is loaded (File > Open model, Reload): a new, empty AUTO
+   scratch folder in place of the Session s's, whose files (<model>.s, .b,
+   .d) were the model before's */
+void xpp_renew_auto_dir(xpp::Session &s);
 
 #include <string>
 #include <string_view>
@@ -78,22 +94,22 @@ std::string ind_to_sym(int ind);
 #define ICBOX 2
 int find_user_name(int type, std::string_view oname);
 
-/* f() on the active plot window, or under Simulplot on each open one in
-   turn (made active with make_active(i, flag)), the active one made
+/* f() on the active plot window of s, or under Simulplot on each open one
+   in turn (made active with make_active(s, i, flag)), the active one made
    active again after */
 template <class F>
-void for_each_shown_window(int flag, F f)
+void for_each_shown_window(xpp::Session &s, int flag, F f)
 {
-    if (xpp::session().plot_windows.simul == 0) {
+    if (s.plot_windows.simul == 0) {
         f();
         return;
     }
-    const int ic = xpp::session().plot_windows.active;
-    for (int i = 0; i < xpp::session().plot_windows.count; i++) {
-        make_active(xpp::session().plot_windows.open[i], flag);
+    const int ic = s.plot_windows.active;
+    for (int i = 0; i < s.plot_windows.count; i++) {
+        make_active(s, s.plot_windows.open[i], flag);
         f();
     }
-    make_active(ic, flag);
+    make_active(s, ic, flag);
 }
 #endif
 #endif

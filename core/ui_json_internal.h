@@ -229,7 +229,7 @@ void plotvars_command(xpp::Session &s, const char *line);
 void data_command(xpp::Session &s, const char *line);
 void send_equations(const xpp::Session &s);
 void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
-void equilibrium_key(int ch);
+void equilibrium_key(xpp::Session &s, int ch);
 void j_make_txtview(void);
 void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);

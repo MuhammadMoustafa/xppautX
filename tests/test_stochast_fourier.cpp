@@ -47,8 +47,8 @@ int main(void)
     char *argv[] = {const_cast<char *>("test_stochast_fourier"),
                      const_cast<char *>("tools/models/stochast_fourier_test.ode"), NULL};
     xpp_load_model(2, argv, 1);
-    init_browser();
-    init_all_graph();
+    init_browser(xpp::session());
+    init_all_graph(xpp::session());
 
     const int N = 64;
     xpp::session().data_store.rows = N;
@@ -63,7 +63,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::session().data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N));
         int nmodes = N / 2 - 1;
-        new_four(nmodes, 1);
+        new_four(xpp::session(),nmodes, 1);
         CHECK(xpp::session().histogram.four_here == 1);
         CHECK(xpp::session().histogram.four_len == nmodes);
         CHECK(relerr(xpp::session().histogram.four()[1][m], A) < 1e-4);
@@ -85,7 +85,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::session().data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N) +
                                                 B * std::sin(2 * PI * m * i / N));
-        just_fourier(1);
+        just_fourier(xpp::session(),1);
         CHECK(xpp::session().histogram.four_here == 1);
         /* just_fourier(1) converts my_four[1]/[2] from (cos,sin) coefficients
            to (magnitude,phase) in place (four_back() inside new_four() points
@@ -112,7 +112,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::session().data_store.col[2][i] = static_cast<float>(x[((i - L) % N + N) % N]);
         int nbins = N;
-        new_hist(nbins, 0.0, 1.0, 1, 2, "", 2);
+        new_hist(xpp::session(),nbins, 0.0, 1.0, 1, 2, "", 2);
         CHECK(xpp::session().histogram.hist_here == 1);
         int lag = nbins / 2;
         int worst_ok = 1;
@@ -142,7 +142,7 @@ int main(void)
         xpp::session().histogram.spec_col = 1;
         xpp::session().histogram.spec_wid = win;
         xpp::session().histogram.spec_win = 0; /* square */
-        just_sd(0);
+        just_sd(xpp::session(),0);
         CHECK(xpp::session().histogram.hist_here == 1);
         CHECK(xpp::session().histogram.hist_len == win / 2);
         CHECK(relerr(xpp::session().histogram.hist()[1][m], A) < 1e-3);

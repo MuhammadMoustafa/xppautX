@@ -20,11 +20,6 @@ extern "C" {
 /* the event: {"ev":"numerics","fields":[...]} with the values now */
 typedef void (*NumericsSettingsEmit)(const char *line, size_t len);
 void numerics_settings_init(NumericsSettingsEmit emit);
-/* {"cmd":"data"} with or without "numerics": sent at the next update
-   whatever it holds */
-void numerics_settings_subscribe(int on);
-/* send the event if the values changed since the one sent last */
-void numerics_settings_update(void);
 
 #ifdef __cplusplus
 }
@@ -32,12 +27,22 @@ void numerics_settings_update(void);
 #include <string>
 #include <string_view>
 
-/* set field `key` (the event's keys: total, dt, method, ...) to `text` (a
-   number; for method a name, as the event's choices, or its number), then
-   apply the numerics as leaving the Numerics menu does (do_meth): 0 when
-   set, -1 with why (a sentence naming the field) when not. Nothing is
-   thrown. */
-int numerics_settings_set(std::string_view key, std::string_view text, std::string &why);
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* {"cmd":"data"} with or without "numerics": sent (s's) at once, and
+   then at each update, whatever it holds */
+void numerics_settings_subscribe(const xpp::Session &s, int on);
+/* send s's event if the values changed since the one sent last */
+void numerics_settings_update(const xpp::Session &s);
+
+/* set s's field `key` (the event's keys: total, dt, method, ...) to `text`
+   (a number; for method a name, as the event's choices, or its number),
+   then apply the numerics as leaving the Numerics menu does (do_meth): 0
+   when set, -1 with why (a sentence naming the field) when not. Nothing
+   is thrown. */
+int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why);
 #endif
 
 #endif

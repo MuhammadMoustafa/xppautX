@@ -51,46 +51,49 @@ bool point_is_stable(int type) { return type == 1 || type == 3; }
 
 } // namespace
 
-xpp::Result<bool> csv_export_diagram(const char *filename)
+xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename)
 {
-    if (diagram_count() < 2) return false; /* nothing recorded */
+    const xpp::Model &m = s.model();
+    if (s.diagram.points.size() < 2) return false; /* nothing recorded */
     xpp::Writer w(filename);
     if (!w) return xpp::fail("CSV export", "Can't open file");
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
-    for (int i = 0; i < xpp::model().node; i++) w.print(",{}_max", xpp::model().uvar_names[i]);
-    for (int i = 0; i < xpp::model().node; i++) w.print(",{}_min", xpp::model().uvar_names[i]);
+    for (int i = 0; i < m.node; i++) w.print(",{}_max", m.uvar_names[i]);
+    for (int i = 0; i < m.node; i++) w.print(",{}_min", m.uvar_names[i]);
     w.print("\n");
     /* the first point is a stored point itself (edit_start fills it in
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
-    for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
+    for (const DiagramPoint &p : s.diagram.points) {
+        const DIAGRAM *d = &p.d;
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *sym = auto_bif_sym(d->itp);
         while (*sym == ' ') sym++;
         double par1 = d->par[d->icp1];
-        double par2 = d->icp2 < xpp::session().auto_state.npar ? d->par[d->icp2] : par1;
+        double par2 = d->icp2 < s.auto_state.npar ? d->par[d->icp2] : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
         w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
                 point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1)),
                 xpp::number(par1), csv_field(par_name(d->icp2)), xpp::number(par2), xpp::number(d->per));
-        for (int i = 0; i < xpp::model().node; i++) w.print(",{}", xpp::number(d->uhi[i]));
-        for (int i = 0; i < xpp::model().node; i++) w.print(",{}", xpp::number(d->ulo[i]));
+        for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->uhi[i]));
+        for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");
     }
     if (!w.commit()) return xpp::fail("CSV export", "Can't open file");
     return true;
 }
 
-xpp::Result<bool> csv_export_diagram_eigenvalues(const char *filename)
+xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename)
 {
-    if (diagram_count() < 2) return false;
+    if (s.diagram.points.size() < 2) return false;
     xpp::Writer w(filename);
     if (!w) return xpp::fail("CSV export", "Can't open file");
     w.print("branch,point,index,re,im,kind\n");
-    for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
+    for (const DiagramPoint &p : s.diagram.points) {
+        const DIAGRAM *d = &p.d;
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
-        for (int i = 0; i < xpp::model().node; i++)
+        for (int i = 0; i < s.model().node; i++)
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);
     }
@@ -98,9 +101,9 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const char *filename)
     return true;
 }
 
-xpp::Result<bool> csv_export_diagram_pair(const char *filename)
+xpp::Result<bool> csv_export_diagram_pair(const xpp::Session &s, const char *filename)
 {
-    const xpp::Result<bool> written = csv_export_diagram(filename);
+    const xpp::Result<bool> written = csv_export_diagram(s, filename);
     if (!written || !*written) return written;
     std::string eig(filename);
     size_t slash = eig.find_last_of("/\\");
@@ -109,5 +112,5 @@ xpp::Result<bool> csv_export_diagram_pair(const char *filename)
         eig.insert(dot, "_eig");
     else
         eig += "_eig.csv";
-    return csv_export_diagram_eigenvalues(eig.c_str());
+    return csv_export_diagram_eigenvalues(s, eig.c_str());
 }

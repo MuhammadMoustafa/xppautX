@@ -27,7 +27,7 @@
 #define PS_HTIC (PS_YMAX/80)
 
 #define PS_SC (10)				/* scale is 1pt = 10 units */
-#define PS_VCHAR (xpp::session().plot_file.ps_font_size*PS_SC)		
+		
 
 #define LEFT 0
 #define RIGHT 2
@@ -126,20 +126,20 @@ std::string ps_string(std::string_view str)
 
 } // namespace
 
-xpp::Result<> ps_init(const char *filename, int color)
+xpp::Result<> ps_init(xpp::Session &s, const char *filename, int color)
 {
-  xpp::Session &s=xpp::session();
   ps_writer = xpp::Writer(filename);
   if (!ps_writer) return xpp::fail("PostScript export","Cannot open file ");
-  init_ps();
+  init_ps(s);
   s.plot_file.plt_fmt_flag=1;
   s.plot_file.ps_lines=0;
   s.plot_file.last_ps_x=-10000;
   s.plot_file.last_ps_y=-10000;
+  const int ps_vchar=s.plot_file.ps_font_size*PS_SC; /* the characters' height */
   ps_writer.print("%!PS-Adobe-2.0\n");
   ps_writer.print("%Creator: xppaut\n");
   ps_writer.print("%%BoundingBox: {} {} {} {}\n",PS_XOFF,PS_YOFF,
-           static_cast<int>(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*PS_VCHAR),static_cast<int>(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*PS_VCHAR));
+           static_cast<int>(PS_YMAX/PS_SC+.5+PS_YOFF+0.1*ps_vchar),static_cast<int>(PS_XMAX/PS_SC+.5+PS_XOFF+0.1*ps_vchar));
   ps_writer.print("/xppdict 40 dict def\nxppdict begin\n");
   if(color==0){
     ps_writer.print("/Color false def \n");
@@ -152,7 +152,7 @@ xpp::Result<> ps_init(const char *filename, int color)
     s.plot_file.ps_color_flag=1;
   }
   ps_writer.print("/xpplinewidth {:.3f} def\n",s.plot_file.ps_lw);
-  ps_writer.print("/vshift {} def\n", static_cast<int>(PS_VCHAR)/(-3));
+  ps_writer.print("/vshift {} def\n", static_cast<int>(ps_vchar)/(-3));
   ps_writer.print("/dl {{{} mul}} def\n",PS_SC); /* dash length */
   ps_writer.print("/hpt {:.1f} def\n",PS_HTIC/2.0);
   ps_writer.print("/vpt {:.1f} def\n",PS_VTIC/2.0);
@@ -177,39 +177,38 @@ void ps_stroke()
   ps_writer.print("stroke\n");
 }
 
-void ps_do_color(int color)
+void ps_do_color(const PlotFileState &pf, int color)
 {
   float r,g,b;
-  if(xpp::session().plot_file.plt_fmt_flag==0)return;
-  if(xpp::session().plot_file.ps_color_flag==0)return;
+  if(pf.plt_fmt_flag==0)return;
+  if(pf.ps_color_flag==0)return;
   get_ps_color(color,&r,&g,&b);
   ps_writer.print("{:f} {:f} {:f} RGb\n",r,g,b);
 }
 
-void ps_end()
+void ps_end(xpp::Session &s)
 {
   ps_write("stroke");
   ps_write("grestore");
   ps_write("end");
   ps_write("showpage");
-  ps_write_pars(ps_writer.file());
+  ps_write_pars(s,ps_writer.file());
   ps_writer.commit();
-  xpp::session().plot_file.plt_fmt_flag=0;
-  if(program.interactive)init_x11();
+  s.plot_file.plt_fmt_flag=0;
+  if(program.interactive)init_x11(s);
 }
 
-void ps_bead(int /*x*/, int /*y*/)
+void ps_bead(xpp::Session &, int /*x*/, int /*y*/)
 {
 }
 
-void ps_frect(int x, int y, int w, int h)
+void ps_frect(xpp::Session &, int x, int y, int w, int h)
 {
   ps_writer.print(" newpath {} {} M {} {} R {} {} R {} {} R closepath fill\n",x,y,0,-h,w,0,0,h);
 }
 
-void ps_line(int xp1, int yp1, int xp2, int yp2)
+void ps_line(xpp::Session &s, int xp1, int yp1, int xp2, int yp2)
 {
-  xpp::Session &s=xpp::session();
   if(s.plot_file.no_break_line!=1 && xp1==s.plot_file.last_ps_x && yp1==s.plot_file.last_ps_y){
     s.plot_file.last_ps_x=xp2;
     s.plot_file.last_ps_y=yp2;
@@ -225,37 +224,37 @@ void ps_line(int xp1, int yp1, int xp2, int yp2)
     s.plot_file.last_ps_x=xp2;
     s.plot_file.last_ps_y=yp2;
   }
-  chk_ps_lines();
+  chk_ps_lines(s);
 }
 
-void chk_ps_lines()
+void chk_ps_lines(xpp::Session &s)
 {
-  xpp::session().plot_file.ps_lines++;
-  if(xpp::session().plot_file.ps_lines>=MAXPSLINE){
+  s.plot_file.ps_lines++;
+  if(s.plot_file.ps_lines>=MAXPSLINE){
     ps_writer.print("currentpoint stroke moveto\n");
-    xpp::session().plot_file.ps_lines=0;
+    s.plot_file.ps_lines=0;
   }
 }
 
-void ps_linetype(int linetype)
+void ps_linetype(xpp::Session &s, int linetype)
 {
   constexpr std::string_view line = "ba0123456789c";
   ps_writer.print("LT{}\n", line[(linetype%11)+2]);
-  xpp::session().plot_file.ps_lines=0;
-  xpp::session().plot_file.last_ps_x=-100000000;
-  xpp::session().plot_file.last_ps_y=-100000000;
+  s.plot_file.ps_lines=0;
+  s.plot_file.last_ps_x=-100000000;
+  s.plot_file.last_ps_y=-100000000;
 }
 
-void ps_point(int x, int y)
+void ps_point(xpp::Session &s, int x, int y)
 {
   constexpr std::string_view point="PDABCTSKF";
-  int number=xpp::session().drawing.point_type;
+  int number=s.drawing.point_type;
   number %= POINT_TYPES;
   if(number < -1)
     number = -1;
-  if(xpp::session().drawing.point_radius>0)number=7;
+  if(s.drawing.point_radius>0)number=7;
   ps_writer.print("{} {} {}\n",x,y,point[number+1]);
-  xpp::session().plot_file.ps_lines=0;
+  s.plot_file.ps_lines=0;
 }
 
 void ps_write(const char *str)
@@ -263,18 +262,18 @@ void ps_write(const char *str)
   ps_writer.print("{}\n",str);
 }
 
-void ps_fnt(int cf,int scale)
+void ps_fnt(const xpp::Session &s, int cf,int scale)
 {
   if(cf==0)
-    ps_writer.print("/{} findfont {} scalefont setfont \n",xpp::session().plot_file.ps_font,scale);
+    ps_writer.print("/{} findfont {} scalefont setfont \n",s.plot_file.ps_font,scale);
   else
     ps_writer.print("{} Symfnt\n",scale);
 }
 
-void ps_show(const char *str,int type)
+void ps_show(xpp::Session &s, const char *str,int type)
 {
   ps_writer.print("{} {}\n",ps_string(str),type==1 ? "Lshow" : "show");
-  xpp::session().plot_file.ps_lines=0;
+  s.plot_file.ps_lines=0;
 }
 
 void ps_abs(int x, int y)
@@ -289,7 +288,7 @@ void ps_rel(int x, int y)
 
 /* str with its escapes: \0 and \1 the text and the symbol font, \s and
    \S a sub- and superscript, \n back to the base line */
-void special_put_text_ps(int x, int y, const char *str, int size)
+void special_put_text_ps(xpp::Session &s, int x, int y, const char *str, int size)
 {
   static constexpr std::array<int,5> sz={8,10,14,18,24};
   int type=1;
@@ -301,62 +300,62 @@ void special_put_text_ps(int x, int y, const char *str, int size)
   int pssz=sz[size]*PS_SC;
   const int sub=static_cast<int>(.3*pssz);
   const int sup=static_cast<int>(.6*pssz);
-  ps_fnt(cf,pssz);
-  const std::string_view s(str);
-  for(size_t i=0;i<s.size();i++){
-    const char c=s[i];
+  ps_fnt(s,cf,pssz);
+  const std::string_view text(str);
+  for(size_t i=0;i<text.size();i++){
+    const char c=text[i];
     if(c!='\\'){
       tmp+=c;
       continue;
     }
     i++;
-    const char e=i<s.size() ? s[i] : '\0';
+    const char e=i<text.size() ? text[i] : '\0';
     if(!tmp.empty()){
-      ps_show(tmp.c_str(),type);
+      ps_show(s,tmp.c_str(),type);
       type=0;
     }
     tmp.clear();
     if(e=='0'){
       cf=0;
-      ps_fnt(cf,pssz);
+      ps_fnt(s,cf,pssz);
     }
     if(e=='n'){
       ps_rel(0,-cy);
       cy=0;
       pssz=PS_SC*sz[size];
-      ps_fnt(cf,pssz);
+      ps_fnt(s,cf,pssz);
     }
     if(e=='s'){
       cy=cy-sub;
       ps_rel(0,-sub);
       pssz=3*PS_SC*sz[size]/5;
-      ps_fnt(cf,pssz);
+      ps_fnt(s,cf,pssz);
     }
     if(e=='S'){
       pssz=3*PS_SC*sz[size]/5;
       cy=cy+sup;
       ps_rel(0,sup);
-      ps_fnt(cf,pssz);
+      ps_fnt(s,cf,pssz);
     }
     if(e=='1'){
       cf=1;
-      ps_fnt(cf,pssz);
+      ps_fnt(s,cf,pssz);
     }
   }
   if(!tmp.empty())
-    ps_show(tmp.c_str(),type);
+    ps_show(s,tmp.c_str(),type);
 }
 
-void ps_text(int x, int y, const char *str)
+void ps_text(xpp::Session &s, int x, int y, const char *str)
 {
   ps_writer.print("0 0 0 setrgbcolor \n");
-  ps_writer.print("/{} findfont {} ",xpp::session().plot_file.ps_font,xpp::session().plot_file.ps_font_size*PS_SC);
+  ps_writer.print("/{} findfont {} ",s.plot_file.ps_font,s.plot_file.ps_font_size*PS_SC);
   ps_writer.print("scalefont setfont\n");
   ps_writer.print("{} {} moveto\n",x,y);
   if (TextAngle != 0)
     ps_writer.print("currentpoint gsave translate {} rotate 0 0 moveto\n",TextAngle*90);
   ps_writer.print("{}",ps_string(str));
-  switch(xpp::session().drawing.text_justify) {
+  switch(s.drawing.text_justify) {
   case LEFT : ps_writer.print(" Lshow\n");
     break;
   case CENTER : ps_writer.print(" Cshow\n");
@@ -366,12 +365,11 @@ void ps_text(int x, int y, const char *str)
   }
   if (TextAngle != 0)
     ps_writer.print("grestore\n");
-  xpp::session().plot_file.ps_lines=0;
+  s.plot_file.ps_lines=0;
 }
 
-int ps_ask_params()
+int ps_ask_params(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
   std::array<std::string,5> values;
   values[0]=xpp::format("{:d}",s.plot_export.color);

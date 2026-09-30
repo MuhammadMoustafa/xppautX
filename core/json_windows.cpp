@@ -57,7 +57,8 @@ void send_main_window(const char *title) { send_window("create", 1, win_w[0], wi
 
 void j_get_draw_size(unsigned int *w, unsigned int *h)
 {
-    int i = graph_of(xpp::session().plot_windows.draw_win);
+    const xpp::Session &s = xpp::session();
+    int i = graph_of(s, s.plot_windows.draw_win);
     *w = win_w[i];
     *h = win_h[i];
 }
@@ -84,34 +85,39 @@ void j_blank_draw_window(void) { blank_draw_window(xpp::session()); }
 void j_redraw_all(void)
 {
     xpp::Session &s = xpp::session();
-    redraw_dfield();
+    redraw_dfield(s);
     restore(0, s.browser.view.maxrow);
-    draw_label(s.plot_windows.draw_win);
-    draw_freeze(s.plot_windows.draw_win);
+    draw_label(s, s.plot_windows.draw_win);
+    draw_freeze(s,s.plot_windows.draw_win);
 }
 
 void redraw_graph(xpp::Session &s)
 {
     blank_draw_window(s);
-    set_normal_scale();
-    do_axes();
+    set_normal_scale(s);
+    do_axes(s);
     restore(0, s.browser.view.maxrow);
-    draw_label(s.plot_windows.draw_win);
-    draw_freeze(s.plot_windows.draw_win);
-    redraw_dfield();
-    if (s.plot_windows.current->Nullrestore) restore_nullclines();
+    draw_label(s, s.plot_windows.draw_win);
+    draw_freeze(s,s.plot_windows.draw_win);
+    redraw_dfield(s);
+    if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
 }
 
 void j_redraw_graph(void) { redraw_graph(xpp::session()); }
 
-void j_redraw_screens(void) { for_each_shown_window(1, j_redraw_all); }
+void j_redraw_screens(void) { for_each_shown_window(xpp::session(), 1, j_redraw_all); }
 
-void j_clear_screens(void) { for_each_shown_window(1, clr_scrn); }
+void j_clear_screens(void)
+{
+    xpp::Session &s = xpp::session();
+    for_each_shown_window(s, 1, [&s] { clr_scrn(s); });
+}
 
 void j_reset_graphics(void)
 {
-    blank_draw_window(xpp::session());
-    do_axes();
+    xpp::Session &s = xpp::session();
+    blank_draw_window(s);
+    do_axes(s);
 }
 
 void send_window(const char *what, unsigned long id, int w, int h, const char *title)
@@ -129,7 +135,7 @@ void select_graph(xpp::Session &s, int i)
     s.plot_windows.active = i;
     s.plot_windows.current = &s.plot_windows.graph[i];
     s.plot_windows.draw_win = s.plot_windows.graph[i].w;
-    get_draw_area();
+    get_draw_area(s);
     send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i], NULL);
 }
 
@@ -137,7 +143,7 @@ void j_activate_graph(int i, int flag)
 {
     xpp::Session &s = xpp::session();
     s.plot_windows.draw_win = s.plot_windows.graph[i].w;
-    get_draw_area_flag(flag);
+    get_draw_area_flag(s,flag);
 }
 
 void j_create_plot_window(void)
@@ -150,7 +156,7 @@ void j_create_plot_window(void)
         j_respond_box("Okay", "Too many windows!");
         return;
     }
-    copy_graph(i, s.plot_windows.active);
+    copy_graph(s,i, s.plot_windows.active);
     s.plot_windows.graph[i].w = i + 1;
     win_w[i] = 450;
     win_h[i] = 350;
@@ -164,7 +170,7 @@ namespace {
 void destroy_graph(xpp::Session &s, int i)
 {
     s.plot_windows.graph[i].Use = 0;
-    destroy_labels_and_grobs(s.plot_windows.graph[i].w);
+    destroy_labels_and_grobs(s, s.plot_windows.graph[i].w);
     send_window("destroy", s.plot_windows.graph[i].w, 0, 0, NULL);
     s.plot_windows.count--;
 }
@@ -179,7 +185,7 @@ void j_destroy_plot_window(void)
         j_respond_box("Okay", "Can't destroy big window!");
         return;
     }
-    i = graph_of(s.plot_windows.draw_win);
+    i = graph_of(s, s.plot_windows.draw_win);
     if (i == 0) return;
     select_graph(s, 0);
     destroy_graph(s, i);
@@ -197,6 +203,7 @@ void j_kill_plot_windows(void)
 
 void j_cput_text(void)
 {
+    xpp::Session &s = xpp::session(); /* an XppUi callback: an entry point (W47d6) */
     std::string string;
     int x, y, size = 2;
     if (new_string("Text: ", string) == 0) return;
@@ -207,12 +214,16 @@ void j_cput_text(void)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(&x, &y)) {
         const std::string text = fill_in_text(string);
-        marks_data_label(xpp::session().plot_windows.draw_win, add_label(string.c_str(), x, y, size, 0), text.c_str());
+        marks_data_label(s.plot_windows, s.plot_windows.draw_win, add_label(s, string.c_str(), x, y, size, 0), text.c_str());
     }
     j_kill_message_box();
 }
 
-void j_draw_freeze(void) { draw_freeze(xpp::session().plot_windows.draw_win); }
+void j_draw_freeze(void)
+{
+    xpp::Session &s = xpp::session();
+    draw_freeze(s, s.plot_windows.draw_win);
+}
 
 /* {"cmd":"click","win":w}: the user clicked in plot window w */
 void click_command(xpp::Session &s, const char *line)
@@ -250,13 +261,13 @@ void j_scroll_window(void)
     send_simple("message", "box", "Drag the plot to scroll it; any key ends");
     while ((t = ask_drag(s.plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
-            scale_to_real(i, j, &x0, &y0);
+            scale_to_real(s,i, j, &x0, &y0);
             state = 1;
         } else if (t == 2 && state == 1) {
-            scale_to_real(i, j, &x, &y);
+            scale_to_real(s,i, j, &x, &y);
             dx = -(x - x0) / 2;
             dy = -(y - y0) / 2;
-            update_view(xlo + dx, xhi + dx, ylo + dy, yhi + dy);
+            update_view(s,xlo + dx, xhi + dx, ylo + dy, yhi + dy);
         } else if (t == 3) {
             state = 0;
             xlo += dx;
@@ -621,12 +632,12 @@ void aplot_key(xpp::Session &s, int ch)
     switch (xpp_menu_index(&menu_aplot_window, ch)) {
     case PK_REDRAW: send_aplot(s, NULL); break;
     case PK_EDIT:
-        editaplot(&s.array_plot.plot);
+        editaplot(s, &s.array_plot.plot);
         send_aplot(s, NULL);
         break;
-    case PK_FIT: fit_aplot(); break;
-    case PK_RANGE: set_up_aplot_range(); break;
-    case PK_PRINT: print_aplot(&s.array_plot.plot); break;
+    case PK_FIT: fit_aplot(s); break;
+    case PK_RANGE: set_up_aplot_range(s); break;
+    case PK_PRINT: print_aplot(s, &s.array_plot.plot); break;
     case PK_GIF: {
         const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
         std::string file = xpp::format("{}.{}", s.model().this_file, ext);

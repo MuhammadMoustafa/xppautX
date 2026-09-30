@@ -37,19 +37,21 @@ and after changing parameters and constants
 */
 void evaluate_derived()
 {
-  std::array<double, MAXPAR> &constants = xpp::session().parser.constants;
-  for (xpp::Model::DerivedQuantity &d : xpp::model().derived) constants[d.index] = evaluate(d.form.data());
+  xpp::Session &s = xpp::session(); /* an entry point: the integrator, AUTO, the parser (W47d3-5) */
+  std::array<double, MAXPAR> &constants = s.parser.constants;
+  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(d.form.data());
 }
 
 /* this adds a derived quantity  */
 int add_derived(const char *name, const char *rhs)
 {
+  xpp::Session &s = xpp::session(); /* an entry point: the parser (W47d3) */
   xpp::Model::DerivedQuantity d;
   d.rhs = rhs;
   /* this is the constant to which it addresses */
-  d.index = xpp::session().parser.ncon;
+  d.index = s.parser.ncon;
   /* add the name to the recognized symbols */
-  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", xpp::session().parser.ncon, name, rhs);
-  xpp::model().derived.push_back(std::move(d));
+  xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", s.parser.ncon, name, rhs);
+  s.model().derived.push_back(std::move(d));
   return add_con(name, 0.0);
 }

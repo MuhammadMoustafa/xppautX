@@ -47,14 +47,14 @@ void init_main_graph(xpp::Session &s)
     for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
     for (i = 0; i < MAXPOP; i++) s.plot_windows.graph[i].Use = 0;
     s.plot_windows.open[0] = 0;
-    init_all_graph();
+    init_all_graph(s);
     s.plot_windows.graph[0].w = 1;
     s.plot_windows.graph[0].Use = 1;
     s.plot_windows.graph[0].Nullrestore = 1;
     s.plot_windows.count = 1;
     s.plot_windows.draw_win = s.plot_windows.graph[0].w;
     s.plot_windows.active = 0;
-    get_draw_area();
+    get_draw_area(s);
 }
 
 /* the model just loaded: the front end's set-up (what main.c did after
@@ -68,17 +68,17 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     s.drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
     xpp_build_colormap();
     init_main_graph(s);
-    init_browser();
-    ani_zero();
-    set_extra_graphs();
-    set_colorization_stuff();
+    init_browser(s);
+    ani_zero(s);
+    set_extra_graphs(s);
+    set_colorization_stuff(s);
     load_command_line_values();
-    default_window();
+    default_window(s);
     if (kept) xpp::restore_values(s, *kept);
     send_hello(s);
     if (s.animation.options.use_file) {
         new_vcr();
-        get_ani_file(s.animation.options.file.c_str());
+        get_ani_file(s,s.animation.options.file.c_str());
     }
 }
 
@@ -116,7 +116,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     diag_forget();
     plot_data_changed();
     state_forget();
-    xpp_renew_auto_dir();
+    xpp_renew_auto_dir(s);
     start_model(s, req.keep_values ? &kept : nullptr);
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
     redraw_graph(s);

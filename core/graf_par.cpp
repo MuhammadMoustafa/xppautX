@@ -66,9 +66,9 @@ struct {
    frozen_points[i][0..2] (CURVE, struct.h, holds plain pointers) */
 std::array<std::array<std::vector<float>,3>,MAXFRZ> frozen_points;
 
-void draw_bd(XppWinId w);
+void draw_bd(xpp::Session &s, XppWinId w);
 void free_bd(void);
-void frz_bd(void);
+void frz_bd(xpp::Session &s);
 
 } // namespace
 
@@ -81,12 +81,12 @@ const char *const color_names[]={"WHITE","RED","REDORANGE","ORANGE","YELLOWORANG
                     "YELLOW","YELLOWGREEN","GREEN","BLUEGREEN",
 		      "BLUE","PURPLE","BLACK"};
 
-void change_view_com(int com)
+void change_view_com(xpp::Session &s, int com)
 {
  
  if(com==2){
    make_my_aplot("Array!");
-   editaplot(&xpp::session().array_plot.plot);
+   editaplot(s,&s.array_plot.plot);
    return;
  }
  if(com==3){
@@ -94,25 +94,24 @@ void change_view_com(int com)
    return;
  }
 
-  xpp::session().plot_windows.current->grtype=5*com; 
- if(xpp::session().plot_windows.current->grtype<5)get_2d_view(CurrentCurve);
- else get_3d_view(CurrentCurve);
- check_flags();
+  s.plot_windows.current->grtype=5*com; 
+ if(s.plot_windows.current->grtype<5)get_2d_view(s,CurrentCurve);
+ else get_3d_view(s,CurrentCurve);
+ check_flags(s);
  redraw_the_graph();
 } 
 
-void check_flags()
+void check_flags(xpp::Session &s)
 {
-  if(xpp::session().plot_windows.current->grtype>4)xpp::session().plot_windows.current->ThreeDFlag=1;
-  else xpp::session().plot_windows.current->ThreeDFlag=0;
-  if((xpp::session().plot_windows.current->xv[0]==0)||(xpp::session().plot_windows.current->yv[0]==0)||
-     ((xpp::session().plot_windows.current->zv[0]==0)&&(xpp::session().plot_windows.current->ThreeDFlag==1)))xpp::session().plot_windows.current->TimeFlag=1;
-  else xpp::session().plot_windows.current->TimeFlag=0;
+  if(s.plot_windows.current->grtype>4)s.plot_windows.current->ThreeDFlag=1;
+  else s.plot_windows.current->ThreeDFlag=0;
+  if((s.plot_windows.current->xv[0]==0)||(s.plot_windows.current->yv[0]==0)||
+     ((s.plot_windows.current->zv[0]==0)&&(s.plot_windows.current->ThreeDFlag==1)))s.plot_windows.current->TimeFlag=1;
+  else s.plot_windows.current->TimeFlag=0;
 }
 
-void get_2d_view(int ind)
+void get_2d_view(xpp::Session &s, int ind)
 {
- xpp::Session &s=xpp::session();
  static const char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
  std::array<std::string, 8> values;
@@ -148,14 +147,13 @@ void get_2d_view(int ind)
 	      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
 	     s.plot_windows.current->xlabel=values[6];
 	     s.plot_windows.current->ylabel=values[7];
-	      check_windows();
+	      check_windows(s);
 		     
 	      }
 }
 
-void axes_opts()
+void axes_opts(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   static const char *n[]={"X-origin","Y-origin","Z-origin",
 		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
 		    "PSFontSize"};
@@ -184,9 +182,8 @@ void axes_opts()
    
 }
 
-void get_3d_view(int ind)
+void get_3d_view(xpp::Session &s, int ind)
 {
- xpp::Session &s=xpp::session();
  static const char *n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
 		   "Xmin", "Xmax", "Ymin",
 		   "Ymax", "Zmin","Zmax",
@@ -240,7 +237,7 @@ void get_3d_view(int ind)
 	      s.plot_windows.current->ylo=atof(values[11].c_str());
 	      s.plot_windows.current->xhi=atof(values[10].c_str());
 	      s.plot_windows.current->yhi=atof(values[12].c_str());
-              check_windows();
+              check_windows(s);
 
 	      }
 }
@@ -249,46 +246,46 @@ void pretty(double *x1, double *x2)  /* this was always pretty ugly */
 {
 }
 
-void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
+void corner_cube(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)
 {
  float x,y;
  float x1,x2,y1,y2;
- threedproj(-1.,-1.,-1.,&x,&y);
+ threedproj(s,-1.,-1.,-1.,&x,&y);
  x1=x;
  x2=x;
  y1=y;
  y2=y;
- threedproj(-1.,-1.,1.,&x,&y);
+ threedproj(s,-1.,-1.,1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(-1.,1.,-1.,&x,&y);
+ threedproj(s,-1.,1.,-1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(-1.,1.,1.,&x,&y);
+ threedproj(s,-1.,1.,1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(1.,-1.,-1.,&x,&y);
+ threedproj(s,1.,-1.,-1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(1.,-1.,1.,&x,&y);
+ threedproj(s,1.,-1.,1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(1.,1.,1.,&x,&y);
+ threedproj(s,1.,1.,1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
  if(y>y2)y2=y;
- threedproj(1.,1.,-1.,&x,&y);
+ threedproj(s,1.,1.,-1.,&x,&y);
  if(x<x1)x1=x;
  if(x>x2)x2=x;
  if(y<y1)y1=y;
@@ -299,9 +296,8 @@ void corner_cube(double *xlo, double *xhi, double *ylo, double *yhi)
  *yhi=y2;
 }
 
-void default_window()
+void default_window(xpp::Session &s)
 {
- 	xpp::Session &s=xpp::session();
  	if(s.plot_windows.current->ThreeDFlag){
 	      s.plot_windows.current->xmax=s.plot_settings.x_3d[1];
     	      s.plot_windows.current->ymax=s.plot_settings.y_3d[1];
@@ -313,10 +309,10 @@ void default_window()
 	      pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
 	      pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
 	      pretty(&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
-	      corner_cube(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
+	      corner_cube(s,&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
 	      pretty(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi));
 	      pretty(&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
-	      check_windows(); 
+	      check_windows(s); 
 	}
 	else  
     	{
@@ -332,31 +328,30 @@ void default_window()
 	      s.plot_windows.current->ylo=s.plot_windows.current->ymin;
 	      s.plot_windows.current->xhi=s.plot_windows.current->xmax;
 	      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
-	      check_windows();
+	      check_windows(s);
 	}
 	
 	redraw_the_graph();
              
 }
 
-void fit_window()
+void fit_window(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
   int i,n=s.plot_windows.current->nvars;
   if(s.data_store.rows<2)return;
   if(s.plot_windows.current->ThreeDFlag){
     for(i=0;i<n;i++){
       
-      get_max(s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+      get_max(s,s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
       Mx=lmax(s.plot_windows.current->xmax,Mx);
       mx=-lmax(-s.plot_windows.current->xmin,-mx);
       
-      get_max(s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+      get_max(s,s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
       My=lmax(s.plot_windows.current->ymax,My);
       my=-lmax(-s.plot_windows.current->ymin,-my);
       
-      get_max(s.plot_windows.current->zv[i],&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
+      get_max(s,s.plot_windows.current->zv[i],&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
       Mz=lmax(s.plot_windows.current->zmax,Mz);
       mz=-lmax(-s.plot_windows.current->zmin,-mz);
       
@@ -371,19 +366,19 @@ void fit_window()
     pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
     pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
     pretty(&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
-    corner_cube(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
+    corner_cube(s,&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi),&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
     pretty(&(s.plot_windows.current->xlo),&(s.plot_windows.current->xhi));
     pretty(&(s.plot_windows.current->ylo),&(s.plot_windows.current->yhi));
-    check_windows();
+    check_windows(s);
   }
   else  
     {
       for(i=0;i<n;i++){
-	get_max(s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+	get_max(s,s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
 	Mx=lmax(s.plot_windows.current->xmax,Mx);
 	mx=-lmax(-s.plot_windows.current->xmin,-mx);
 	
-       get_max(s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+       get_max(s,s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
 	My=lmax(s.plot_windows.current->ymax,My);
 	my=-lmax(-s.plot_windows.current->ymin,-my);
 	
@@ -400,14 +395,13 @@ void fit_window()
       s.plot_windows.current->ylo=s.plot_windows.current->ymin;
       s.plot_windows.current->xhi=s.plot_windows.current->xmax;
       s.plot_windows.current->yhi=s.plot_windows.current->ymax;
-      check_windows();
+      check_windows(s);
     }
   redraw_the_graph();
 }
 
-void user_window()
+void user_window(xpp::Session &s)
 {
- xpp::Session &s=xpp::session();
  static const char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
  std::array<std::string, 4> values;
  int status;
@@ -429,14 +423,13 @@ void user_window()
 	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
 	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
-	      check_windows();
+	      check_windows(s);
              }
  redraw_the_graph();
 }
 
-void xi_vs_t() /*  a short cut   */
+void xi_vs_t(xpp::Session &s) /*  a short cut   */
 {
- xpp::Session &s=xpp::session();
  int i=s.plot_windows.current->yv[0];
 
  std::string value=ind_to_sym(i);
@@ -448,9 +441,9 @@ void xi_vs_t() /*  a short cut   */
    s.plot_windows.current->grtype=0;
    s.plot_windows.current->xv[0]=0;
    if(s.data_store.rows>=2){
-      get_max(s.plot_windows.current->xv[0],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
+      get_max(s,s.plot_windows.current->xv[0],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
    pretty(&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
-    get_max(s.plot_windows.current->yv[0],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
+    get_max(s,s.plot_windows.current->yv[0],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
      pretty(&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax)); 
    
     }
@@ -462,34 +455,33 @@ void xi_vs_t() /*  a short cut   */
     s.plot_windows.current->ylo=s.plot_windows.current->ymin;
     s.plot_windows.current->xhi=s.plot_windows.current->xmax;
     s.plot_windows.current->yhi=s.plot_windows.current->ymax;
-    check_windows();
-    check_flags();
-   set_normal_scale();
+    check_windows(s);
+    check_flags(s);
+   set_normal_scale(s);
     redraw_the_graph();
  }
 }
 
-void movie_rot(double start, double increment, int nclip, int angle)
+void movie_rot(xpp::Session &s, double start, double increment, int nclip, int angle)
 {
   int i;
-  double thetaold=xpp::session().plot_windows.current->Theta,phiold=xpp::session().plot_windows.current->Phi;
+  double thetaold=s.plot_windows.current->Theta,phiold=s.plot_windows.current->Phi;
   reset_film();
   for(i=0;i<=nclip;i++){
    
     if(angle==0)
-      make_rot(start+i*increment,phiold);
+      make_rot(s,start+i*increment,phiold);
     else
-      make_rot(thetaold,start+i*increment);
+      make_rot(s,thetaold,start+i*increment);
     redraw_the_graph();
     xpp_ui.film_clip();
   }
-  xpp::session().plot_windows.current->Theta=thetaold;
-  xpp::session().plot_windows.current->Phi=phiold;
+  s.plot_windows.current->Theta=thetaold;
+  s.plot_windows.current->Phi=phiold;
 }
 
-void get_3d_par_com()
+void get_3d_par_com(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
 
  static const char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
                    "Vary (theta/phi)","Start angle", "Increment",
@@ -533,10 +525,10 @@ void get_3d_par_com()
 	      angle=0;
               if(mov3d.angle[0]=='p'||mov3d.angle[0]=='P')
 		angle=1;
-	      movie_rot(start,increment,nclip,angle);
+	      movie_rot(s,start,increment,nclip,angle);
 	     }
 	       
-                make_rot(s.plot_windows.current->Theta,s.plot_windows.current->Phi);   
+                make_rot(s,s.plot_windows.current->Theta,s.plot_windows.current->Phi);   
 	    /*  Redraw the picture   */	
 	       redraw_the_graph();
          
@@ -544,9 +536,8 @@ void get_3d_par_com()
 	     
 }
 
-void update_view(float xlo,float xhi, float ylo, float yhi)
+void update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
 {
-              xpp::Session &s=xpp::session();
               s.plot_windows.current->xlo=xlo;
 	      s.plot_windows.current->ylo=ylo;
 	      s.plot_windows.current->xhi=xhi;
@@ -557,44 +548,43 @@ void update_view(float xlo,float xhi, float ylo, float yhi)
 	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
 	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
-	      check_windows();
+	      check_windows(s);
             
  redraw_the_graph();
 
 }
     
-void window_zoom_com(int c)
+void window_zoom_com(xpp::Session &s, int c)
 {
  int i1,i2,j1,j2;
   switch(c){
-	    case 0:user_window(); break;
+	    case 0:user_window(s); break;
 	    case 1:
 	    
 	    	if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
-		     zoom_in(i1,j1,i2,j2);
+		     zoom_in(s,i1,j1,i2,j2);
 		 
 		     break;
        	    case 2: if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
-		     zoom_out(i1,j1,i2,j2);
+		     zoom_out(s,i1,j1,i2,j2);
 		     break;
- 	    case 3: fit_window();
+ 	    case 3: fit_window(s);
 		      break; 
-	    case 4: default_window();
+	    case 4: default_window(s);
 		      break;
             case 5: scroll_window();
                       break;
             }
- set_normal_scale();
+ set_normal_scale(s);
 }
 
-void zoom_in(int i1, int j1, int i2, int j2)
+void zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2)
 {
- xpp::Session &s=xpp::session();
  float x1,y1,x2,y2;
  float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
  float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
- scale_to_real(i1,j1,&x1,&y1);
- scale_to_real(i2,j2,&x2,&y2);
+ scale_to_real(s,i1,j1,&x1,&y1);
+ scale_to_real(s,i2,j2,&x2,&y2);
    if(x1==x2||y1==y2)
    {
    
@@ -624,21 +614,20 @@ void zoom_in(int i1, int j1, int i2, int j2)
 	      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
 	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
-	      check_windows();
+	      check_windows(s);
               redraw_the_graph();
 	      draw_help(); 
 }
 
-void zoom_out(int i1, int j1, int i2, int j2)
+void zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
 {
- xpp::Session &s=xpp::session();
  
  float x1,y1,x2,y2;
  float bx,mux,by,muy;
  float dx=s.plot_windows.current->xhi-s.plot_windows.current->xlo;
  float dy=s.plot_windows.current->yhi-s.plot_windows.current->ylo;
- scale_to_real(i1,j1,&x1,&y1);
- scale_to_real(i2,j2,&x2,&y2);
+ scale_to_real(s,i1,j1,&x1,&y1);
+ scale_to_real(s,i2,j2,&x2,&y2);
 
  if(x1==x2||y1==y2)
  {
@@ -677,14 +666,13 @@ void zoom_out(int i1, int j1, int i2, int j2)
 		      s.plot_windows.current->ymin=s.plot_windows.current->ylo;
 		      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 		      }
-	      check_windows();
+	      check_windows(s);
               redraw_the_graph();
               draw_help(); 
 }
 
-void graph_all(int *list, int n, int type)
+void graph_all(xpp::Session &s, int *list, int n, int type)
 {
-  xpp::Session &s=xpp::session();
   int i;
   if(type==0){
     for(i=0;i<n;i++){
@@ -709,14 +697,13 @@ void graph_all(int *list, int n, int type)
       s.plot_windows.current->ThreeDFlag=1;
     }
   }
-  check_flags();
-  fit_window();
+  check_flags(s);
+  fit_window(s);
 
 }
 
-int alter_curve(const char *title, int in_it, int n)
+int alter_curve(xpp::Session &s, const char *title, int in_it, int n)
 {
- xpp::Session &s=xpp::session();
  static const char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  std::array<std::string, 5> values;
  int status,i;
@@ -751,19 +738,19 @@ int alter_curve(const char *title, int in_it, int n)
  return(0);
 }
 
-void edit_curve()
+void edit_curve(xpp::Session &s)
 {
  int crv=0;
  ping();
- new_int(xpp::format("Edit 0-{} :",xpp::session().plot_windows.current->nvars-1).c_str(),&crv);
- if(crv>=0&&crv<xpp::session().plot_windows.current->nvars)
-   alter_curve(xpp::format("Edit curve {}",crv).c_str(),crv,crv);
+ new_int(xpp::format("Edit 0-{} :",s.plot_windows.current->nvars-1).c_str(),&crv);
+ if(crv>=0&&crv<s.plot_windows.current->nvars)
+   alter_curve(s,xpp::format("Edit curve {}",crv).c_str(),crv,crv);
 }
 
-void new_curve()
+void new_curve(xpp::Session &s)
 {
- if(alter_curve("New Curve",0,xpp::session().plot_windows.current->nvars))
-   xpp::session().plot_windows.current->nvars=xpp::session().plot_windows.current->nvars+1;
+ if(alter_curve(s,"New Curve",0,s.plot_windows.current->nvars))
+   s.plot_windows.current->nvars=s.plot_windows.current->nvars+1;
   
  }  
 
@@ -773,25 +760,24 @@ void new_curve()
    parameter dialog; SVG asks nothing) is that row's ask_params, the rest
    (file_selector, begin, restore) is shared. Same dialog, default name,
    title and wildcard per format as before. */
-void export_plot_picture(int fmt)
+void export_plot_picture(xpp::Session &s, int fmt)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
- xpp::Session &s=xpp::session();
- if(f.ask_params && !f.ask_params())return;
+ if(f.ask_params && !f.ask_params(s))return;
  std::string filename,title;
  if(fmt==xpp::IMAGE_FORMAT_PS){
-   filename=xpp::format("{:.250}.ps",xpp::model().this_file);
+   filename=xpp::format("{:.250}.ps",s.model().this_file);
    title="Print postscript";
  }else{
    /* the model's name without its ".ode" */
-   filename=xpp::model().this_file;
+   filename=s.model().this_file;
    filename.resize(filename.size()>=4?filename.size()-4:0);
    filename+=xpp::format(".{}",f.extension);
    title="Print svg";
  }
  if(!file_selector(title.c_str(),filename,xpp::format("*.{}",f.extension).c_str()))return;
- if(xpp::ok_or_show(f.begin(filename.c_str(),s.plot_export.color))){
-   f.restore();
+ if(xpp::ok_or_show(f.begin(s,filename.c_str(),s.plot_export.color))){
+   f.restore(s);
    ping();
  }
 }
@@ -802,70 +788,69 @@ void change_cmap_com(int i)
 
 }
 
-void freeze_com(int c)
+void freeze_com(xpp::Session &s, int c)
 {
 
  switch(c){
  case 0: 
-   freeze_crv(0);
+   freeze_crv(s,0);
    break;
  case 1: /* delete, or edit, the graph's frozen curve (asked which) */
  case 2: {
-   int i=get_frz_index(xpp::session().plot_windows.draw_win);
+   int i=get_frz_index(s,s.plot_windows.draw_win);
    if(i<0)break;
-   if(c==1)delete_frz_crv(i);
-   else edit_frz_crv(i);
+   if(c==1)delete_frz_crv(s,i);
+   else edit_frz_crv(s,i);
    break;
  }
  case 3:
-   kill_frz();
+   kill_frz(s);
    break;
  case 5:
-   frz_bd();
+   frz_bd(s);
    break;
  case 6:
    free_bd();
    break;
  case 7:
-   xpp::session().frozen_curves.auto_freeze=1-xpp::session().frozen_curves.auto_freeze;
+   s.frozen_curves.auto_freeze=1-s.frozen_curves.auto_freeze;
    break;
    
  }
 }
 
-void set_key(int x, int y)
+void set_key(xpp::Session &s, int x, int y)
 {
   float xp,yp;
-  scale_to_real(x,y,&xp,&yp);
+  scale_to_real(s,x,y,&xp,&yp);
   FreezeKeyX=xp;
   FreezeKeyY=yp;
   FreezeKeyFlag=1;
 }
 
-void draw_freeze_key()
+void draw_freeze_key(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   int ix,iy;
   int i,y0;
   int ix2;
   int dy=2*s.drawing.h_char;
   if(FreezeKeyFlag==SCRNFMT)return;
   if(s.plot_file.plt_fmt_flag==PSFMT)dy=-dy;
-  scale_to_screen(static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
+  scale_to_screen(s,static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
   ix2=ix+4*s.drawing.h_char;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win&&!s.frozen_curves.curve[i].key.empty()){
       set_linestyle(abs(s.frozen_curves.curve[i].color));
-      line(ix,y0,ix2,y0);
+      line(s,ix,y0,ix2,y0);
       set_linestyle(0);
-      put_text(ix2+s.drawing.h_char,y0,s.frozen_curves.curve[i].key.c_str());
+      put_text(s,ix2+s.drawing.h_char,y0,s.frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
   }
 }
 
-void key_frz_com(int c)
+void key_frz_com(xpp::Session &s, int c)
 {
   int x,y;
   switch(c){
@@ -875,57 +860,57 @@ void key_frz_com(int c)
   case 1:
     MessageBox("Position with mouse");
     if(GetMouseXY(&x,&y)){
-      set_key(x,y);
-      draw_freeze_key();
+      set_key(s,x,y);
+      draw_freeze_key(s);
     }
     KillMessageBox();
   }
 }
 
-void delete_frz_crv(int i)
+void delete_frz_crv(xpp::Session &s, int i)
 {
-  if(xpp::session().frozen_curves.curve[i].use==0)return;
-  xpp::session().frozen_curves.curve[i].use=0;
-  xpp::session().frozen_curves.curve[i].name.clear();
-  xpp::session().frozen_curves.curve[i].key.clear();
+  if(s.frozen_curves.curve[i].use==0)return;
+  s.frozen_curves.curve[i].use=0;
+  s.frozen_curves.curve[i].name.clear();
+  s.frozen_curves.curve[i].key.clear();
   for(std::vector<float> &v:frozen_points[i])
     std::vector<float>().swap(v);
-  xpp::session().frozen_curves.curve[i].xv=nullptr;
-  xpp::session().frozen_curves.curve[i].yv=nullptr;
-  xpp::session().frozen_curves.curve[i].zv=nullptr;
+  s.frozen_curves.curve[i].xv=nullptr;
+  s.frozen_curves.curve[i].yv=nullptr;
+  s.frozen_curves.curve[i].zv=nullptr;
 }
 
-void kill_frz()
+void kill_frz(xpp::Session &s)
 {
   int i;
   for(i=0;i<MAXFRZ;i++){
-    if(xpp::session().frozen_curves.curve[i].use==1&&xpp::session().frozen_curves.curve[i].w==xpp::session().plot_windows.draw_win)
-      delete_frz_crv(i);
+    if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win)
+      delete_frz_crv(s,i);
   }
 }
 
-int freeze_crv(int ind)
+int freeze_crv(xpp::Session &s, int ind)
 {
  int i;
- i=create_crv(ind);
+ i=create_crv(s,ind);
  if(i<0)return(-1);
- edit_frz_crv(i);
+ edit_frz_crv(s,i);
  return(1);
 }
 
-void auto_freeze_it()
+void auto_freeze_it(xpp::Session &s)
 {
-  if(xpp::session().frozen_curves.auto_freeze==0)return;
-  create_crv(0);
+  if(s.frozen_curves.auto_freeze==0)return;
+  create_crv(s,0);
 }
 
 namespace {
 
 /* frozen curve slot i holds these points (z empty unless type>0: 3D) in
    window w, under its default name and key */
-void fill_frozen_curve(int i, std::vector<float> x, std::vector<float> y, std::vector<float> z, int type, XppWinId w)
+void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector<float> y, std::vector<float> z, int type, XppWinId w)
 {
-  CURVE &c=xpp::session().frozen_curves.curve[i];
+  CURVE &c=s.frozen_curves.curve[i];
   std::array<std::vector<float>,3> &pts=frozen_points[i];
   pts[0]=std::move(x);
   pts[1]=std::move(y);
@@ -940,14 +925,13 @@ void fill_frozen_curve(int i, std::vector<float> x, std::vector<float> y, std::v
   c.w=w;
   c.name=xpp::format("crv{}",static_cast<char>('a'+i));
   c.key=c.name;
-  marks_data_frozen_new(i); /* the window shows it: it is its current curve */
+  marks_data_frozen_new(s,i); /* the window shows it: it is its current curve */
 }
 
 } // namespace
 
-int create_crv(int ind)
+int create_crv(xpp::Session &s, int ind)
 {
-  xpp::Session &s=xpp::session();
   for(int i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==0){
       const int ix=s.plot_windows.current->xv[ind];
@@ -960,7 +944,7 @@ int create_crv(int ind)
       const int type=s.plot_windows.current->grtype;
       const int n=s.browser.view.maxrow;
       float *const *d=s.browser.view.data;
-      fill_frozen_curve(i,std::vector<float>(d[ix],d[ix]+n),std::vector<float>(d[iy],d[iy]+n),
+      fill_frozen_curve(s,i,std::vector<float>(d[ix],d[ix]+n),std::vector<float>(d[iy],d[iy]+n),
                         type>0?std::vector<float>(d[iz],d[iz]+n):std::vector<float>(),type,s.plot_windows.draw_win);
       return(i);
     }
@@ -969,45 +953,44 @@ int create_crv(int ind)
     return(-1);
 }	
 
-bool restore_frozen_curve(int i, XppWinId w, int type, int color, std::string key, std::string name,
+bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int color, std::string key, std::string name,
                           std::vector<float> x, std::vector<float> y, std::vector<float> z)
 {
-  if(i<0||i>=MAXFRZ||xpp::session().frozen_curves.curve[i].use||x.size()!=y.size()||
+  if(i<0||i>=MAXFRZ||s.frozen_curves.curve[i].use||x.size()!=y.size()||
      (type>0&&z.size()!=x.size()))return false;
-  fill_frozen_curve(i,std::move(x),std::move(y),std::move(z),type,w);
-  CURVE &c=xpp::session().frozen_curves.curve[i];
+  fill_frozen_curve(s,i,std::move(x),std::move(y),std::move(z),type,w);
+  CURVE &c=s.frozen_curves.curve[i];
   c.color=color;
   c.key=std::move(key);
   c.name=std::move(name);
   return true;
 }
 
-void edit_frz_crv(int i)
+void edit_frz_crv(xpp::Session &s, int i)
 {
  static const char *nn[]={"*4Color","Key","Name"};
  std::array<std::string, 3> values;
  int status;
- values[0] = xpp::format("{:d}", xpp::session().frozen_curves.curve[i].color);
- values[1] = xpp::session().frozen_curves.curve[i].key;
- values[2] = xpp::session().frozen_curves.curve[i].name;
+ values[0] = xpp::format("{:d}", s.frozen_curves.curve[i].color);
+ values[1] = s.frozen_curves.curve[i].key;
+ values[2] = s.frozen_curves.curve[i].name;
  static const int kinds[]={XPP_FIELD_NAME_IN(4),XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(3,1,"Edit Freeze",nn,values,kinds);
  if(status!=0){
-   xpp::session().frozen_curves.curve[i].color=atoi(values[0].c_str());
-   xpp::session().frozen_curves.curve[i].key=xpp::format("{:.19}",values[1]);
-   xpp::session().frozen_curves.curve[i].name=xpp::format("{:.9}",values[2]);
+   s.frozen_curves.curve[i].color=atoi(values[0].c_str());
+   s.frozen_curves.curve[i].key=xpp::format("{:.19}",values[1]);
+   s.frozen_curves.curve[i].name=xpp::format("{:.9}",values[2]);
  }
 }
 
-void draw_freeze(XppWinId w)
+void draw_freeze(xpp::Session &s, XppWinId w)
 {
-  xpp::Session &s=xpp::session();
   int i,j,type=s.plot_windows.current->grtype,lt=0;
   float oldxpl,oldypl,oldzpl=0.0,xpl,ypl,zpl=0.0;
   float *xv,*yv,*zv;
   for(i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
-      if(type==0)marks_data_frozen(w,i); /* the curve as data */
+      if(type==0)marks_data_frozen(s.plot_windows,w,i); /* the curve as data */
       if(s.frozen_curves.curve[i].color<0){
 	set_linestyle(-s.frozen_curves.curve[i].color);
 	lt=1;
@@ -1028,15 +1011,15 @@ void draw_freeze(XppWinId w)
 	  zpl=zv[j];
         if(lt==0){
 	if(type==0)
-	  line_abs(oldxpl,oldypl,xpl,ypl);
+	  line_abs(s,oldxpl,oldypl,xpl,ypl);
 	else
-	  line_3d(oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
+	  line_3d(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
 	}
 	else {
 	  if(type==0)
-	  point_abs(xpl,ypl);
+	  point_abs(s,xpl,ypl);
 	else
-	  point_3d(xpl,ypl,zpl);
+	  point_3d(s,xpl,ypl,zpl);
 	}
 	oldxpl=xpl;
 	oldypl=ypl;
@@ -1045,15 +1028,15 @@ void draw_freeze(XppWinId w)
       }
     }
   }
-  draw_freeze_key();
-  draw_bd(w);
+  draw_freeze_key(s);
+  draw_bd(s,w);
 } 
 
 /*  Bifurcation curve importing */
 
 namespace {
 
-void draw_bd(XppWinId w)
+void draw_bd(xpp::Session &s, XppWinId w)
 {
  if(w!=my_bd.w)return;
  for(const BifCurve &c:my_bd.curves){
@@ -1064,7 +1047,7 @@ void draw_bd(XppWinId w)
      const float oldxpl=xpl,oldypl=ypl;
      xpl=c.x[j];
      ypl=c.y[j];
-     line_abs(oldxpl,oldypl,xpl,ypl);
+     line_abs(s,oldxpl,oldypl,xpl,ypl);
    }
  }
 }
@@ -1091,7 +1074,7 @@ void add_bd_crv(const float *x, const float *y, int len, int type)
 /* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
    each run of points of one type and branch is a curve (two, ylo and yhi,
    for periodic orbits) */
-void read_bd(xpp::TokenReader &fp)
+void read_bd(xpp::Session &s, xpp::TokenReader &fp)
 {
   int oldtype,type,oldbr,br,ncrv=0,len,f2;
   std::vector<float> x(1),ylo(1),yhi(1);
@@ -1136,10 +1119,10 @@ void read_bd(xpp::TokenReader &fp)
     }
   }
   xpp::log(XPP_LOG_INFO, " got {} bifurcation curves\n",ncrv);
-  my_bd.w=xpp::session().plot_windows.draw_win;
+  my_bd.w=s.plot_windows.draw_win;
 }
 
-void frz_bd()
+void frz_bd(xpp::Session &s)
 {
   std::string filename="diagram.dat";
   ping();
@@ -1149,7 +1132,7 @@ void frz_bd()
     err_msg("Couldn't open file");
     return;
   }
-  read_bd(fp);
+  read_bd(s,fp);
 }
 
 } // namespace
@@ -1159,7 +1142,7 @@ void init_bd()
   free_bd();
 }
 
-int get_frz_index(XppWinId w)
+int get_frz_index(xpp::Session &s, XppWinId w)
 {
   std::vector<std::string> labels;
   std::vector<const char *> items;
@@ -1167,14 +1150,14 @@ int get_frz_index(XppWinId w)
   int i;
   int count=0;
   for(i=0;i<MAXFRZ;i++){
-    if(xpp::session().frozen_curves.curve[i].use==1&&w==xpp::session().frozen_curves.curve[i].w){
-      labels.push_back(xpp::format("{}", xpp::session().frozen_curves.curve[i].name));
+    if(s.frozen_curves.curve[i].use==1&&w==s.frozen_curves.curve[i].w){
+      labels.push_back(xpp::format("{}", s.frozen_curves.curve[i].name));
       key.push_back(static_cast<char>('a'+i));
       count++;
     }
   }
   if(count==0)return(-1);
-  for(const auto &s : labels) items.push_back(s.c_str());
+  for(const auto &l : labels) items.push_back(l.c_str());
   XppMenu m={"freeze_curves","Curves",count,items.data(),key.c_str(),no_hint,-1};
   char ch=static_cast<char>(menu_choose(&m,0));
   return(static_cast<int>(ch-'a'));
@@ -1182,14 +1165,13 @@ int get_frz_index(XppWinId w)
 
 /* Graphic stuff > exp(O)rt: Save data of what the plot shows, the format
    asked from the data formats' registry (data_formats.h) */
-void export_graf_data()
+void export_graf_data(xpp::Session &s)
 {
- data_write(&xpp::session().browser.view,"plot","","");
+ data_write(s,&s.browser.view,"plot","","");
 }
 
-xpp::DataTable plot_curves_table()
+xpp::DataTable plot_curves_table(const xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   const GRAPH &g=*s.plot_windows.current;
   const BROWSER &b=s.browser.view;
   const bool three=g.ThreeDFlag>0;
@@ -1224,33 +1206,33 @@ xpp::DataTable plot_curves_table()
   return t;
 }
 
-void add_a_curve_com(int c)
+void add_a_curve_com(xpp::Session &s, int c)
 {
 
  switch(c){
- case 0: if(xpp::session().plot_windows.current->nvars>=MAXPERPLOT)
+ case 0: if(s.plot_windows.current->nvars>=MAXPERPLOT)
    {
      err_msg("Too many plots!");
      return;
    }
-   new_curve();
+   new_curve(s);
    break;
- case 1:if(xpp::session().plot_windows.current->nvars>1)xpp::session().plot_windows.current->nvars=xpp::session().plot_windows.current->nvars-1;
+ case 1:if(s.plot_windows.current->nvars>1)s.plot_windows.current->nvars=s.plot_windows.current->nvars-1;
    break;
- case 2:xpp::session().plot_windows.current->nvars=1;
+ case 2:s.plot_windows.current->nvars=1;
    break;
- case 3: edit_curve();
+ case 3: edit_curve(s);
    break;
- case 4: export_plot_picture(xpp::IMAGE_FORMAT_PS);
+ case 4: export_plot_picture(s,xpp::IMAGE_FORMAT_PS);
    break;
- case 5: export_plot_picture(xpp::IMAGE_FORMAT_SVG);
+ case 5: export_plot_picture(s,xpp::IMAGE_FORMAT_SVG);
    break;
- case 7: axes_opts();
+ case 7: axes_opts(s);
    break;
- case 8: export_graf_data();
+ case 8: export_graf_data(s);
    break;
  }
- check_flags();
+ check_flags(s);
  redraw_the_graph();
    
 }

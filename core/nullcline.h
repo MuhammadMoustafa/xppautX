@@ -8,20 +8,8 @@ extern "C" {
 #endif
 
 
-void create_new_cline(void);
-void froz_cline_stuff_com(int i);
 /* the nullclines (current, or frozen number who) as segments: 4 floats each */
 int get_nullcline_floats(float **v, int *n, int who, int type);
-void redraw_dfield(void);
-void direct_field_com(int c);
-void restore_nullclines(void);
-void new_clines_com(int c);
-void do_batch_nclines(void);
-void do_batch_dfield(void);
-/* the direction field the current window shows, one arrow a line (x y
-   and the arrow's end), in PostScript's frame (-silent's dirfields.dat,
-   the protocol's `dfield` `write`); an error message when it shows none */
-void write_dfield(const char *name);
 
 #ifdef __cplusplus
 }
@@ -42,7 +30,25 @@ struct NullclineSettings {
   int colorize_flag = 0;
 };
 
-/* C++ linkage: xppautx_main.cpp declares it so itself */
-void set_colorization_stuff(void);
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The nullclines and the direction field of the session s's active plot
+   window: its commands, and redrawn with it */
+void create_new_cline(xpp::Session &s);
+void froz_cline_stuff_com(xpp::Session &s, int i);
+void redraw_dfield(xpp::Session &s);
+void direct_field_com(xpp::Session &s, int c);
+void restore_nullclines(xpp::Session &s);
+void new_clines_com(xpp::Session &s, int c);
+void do_batch_nclines(xpp::Session &s);
+void do_batch_dfield(xpp::Session &s);
+/* the direction field the current window shows, one arrow a line (x y
+   and the arrow's end), in PostScript's frame (-silent's dirfields.dat,
+   the protocol's `dfield` `write`); an error message when it shows none */
+void write_dfield(xpp::Session &s, const char *name);
+/* the orbits' colouring (@ colorize=, colorvia=) of s in use */
+void set_colorization_stuff(xpp::Session &s);
 #endif
 #endif

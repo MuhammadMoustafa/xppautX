@@ -622,7 +622,7 @@ void set_option(const char *name, const char *s2, int force, OptionsSet *mask)
    return; /* X11's bell: checked, not kept */
  }
  if(msc("BUT",s1)){
-    add_user_button(s2);
+    add_user_button(s,s2);
     return;
   }
  /* BIGFONT .. HEIGHT and BACK were the X11 window's fonts, colours, image,
@@ -774,7 +774,7 @@ if(msc("UMC",s1)){
 	    if(i<2&&i>-6)
 	    {  
 	      s.plot_settings.start_line_type=i; 
-	      reset_all_line_type();
+	      reset_all_line_type(s);
 	      s.not_already_set.START_LINE_TYPE=0;
 	      }
      }
@@ -1528,7 +1528,7 @@ if(msc("EPSS",s1)){
      if ((s.not_already_set.AUTOEVAL||force)|| ((mask!=NULL)&&(mask->AUTOEVAL==1)))
      {
    	f=atoi(s2);
-   	set_auto_eval_flags(f);
+   	set_auto_eval_flags(s,f);
 	s.not_already_set.AUTOEVAL=0;
     }
    return;

@@ -339,11 +339,12 @@ void xpp_model_failed(void)
 
 void xpp_batch_start(void)
 {
+    xpp::Session &s = xpp::session(); /* the loaded model's: an entry point (W47d3) */
     xpp_build_colormap();
-    init_browser();
-    init_all_graph();
+    init_browser(s);
+    init_all_graph(s);
     if_needed_select_sets();
     load_command_line_values();
-    set_extra_graphs();
-    set_colorization_stuff();
+    set_extra_graphs(s);
+    set_colorization_stuff(s);
 }

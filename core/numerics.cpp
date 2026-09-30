@@ -486,7 +486,7 @@ void set_col_par_com(int i)
  }
  else
  {
-  get_max(s.plot_windows.current->ColorValue,&temp[0],&temp[1]);
+  get_max(s,s.plot_windows.current->ColorValue,&temp[0],&temp[1]);
   s.plot_windows.current->min_scale=temp[0];
   s.plot_windows.current->color_scale=(temp[1]-temp[0]);
   if(s.plot_windows.current->color_scale==0.0)s.plot_windows.current->color_scale=1.0;

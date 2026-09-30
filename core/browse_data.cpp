@@ -42,9 +42,9 @@ void new_browse_dat(float **new_dat, int dat_len)
   refresh_browser(dat_len);
 }
 
-float *get_data_col(int c)
+float *get_data_col(const xpp::Session &s, int c)
 {
-  return xpp::session().browser.view.data[c];
+  return s.browser.view.data[c];
 }
 
 void waitasec(int msec)
@@ -54,10 +54,11 @@ void waitasec(int msec)
 
 std::string browse_column_name(int j)
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   if(j==0)return "T";
-  const xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   if(j>0&&j<=m.neq)return m.uvar_names[j-1];
-  const std::vector<AddedColumn> &added=xpp::session().browser.added_columns;
+  const std::vector<AddedColumn> &added=s.browser.added_columns;
   if(j>m.neq){
     const std::size_t k=static_cast<std::size_t>(j-m.neq-1);
     if(k<added.size())return added[k].name;
@@ -106,10 +107,9 @@ void write_mybrowser_data(xpp::Writer &w)
   xpp::data_format_named("dat")->write(browser_table(b,output_columns(b)),w);
 }
 
-xpp::DataTable stored_data_table()
+xpp::DataTable stored_data_table(const xpp::Session &s)
 {
-  const xpp::Session &s=xpp::session();
-  const int ncol=xpp::model().neq+1;
+  const int ncol=s.model().neq+1;
   xpp::DataTable t;
   for(int j=0;j<ncol;j++){
     t.names.push_back(browse_column_name(j));
@@ -120,10 +120,9 @@ xpp::DataTable stored_data_table()
   return t;
 }
 
-int put_stored_data(const xpp::DataTable &t)
+int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
 {
-  xpp::Session &s=xpp::session();
-  const int neq=xpp::model().neq;
+  const int neq=s.model().neq;
   const int rows=static_cast<int>(t.rows());
   if(rows>s.data_store.max_rows){
     if(const xpp::Result<> r=s.data_store.grow(neq+1,rows);!r){
@@ -143,22 +142,23 @@ int put_stored_data(const xpp::DataTable &t)
   return rows;
 }
 
-void find_variable(std::string_view s, int *col)
+void find_variable(std::string_view name, int *col)
 {
+  const xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  *col=-1;
-  if(xpp::equal_ignoring_case("T",s)){
+  if(xpp::equal_ignoring_case("T",name)){
    *col=0;
     return;
    }
-  *col=find_user_name(2,s);
+  *col=find_user_name(2,name);
   if(*col>-1){
     *col=*col+1;
     return;
   }
-  const std::vector<AddedColumn> &added=xpp::session().browser.added_columns;
+  const std::vector<AddedColumn> &added=s.browser.added_columns;
   for(std::size_t k=0;k<added.size();k++){
-    if(xpp::equal_ignoring_case(added[k].name,s)){
-      *col=xpp::model().neq+1+static_cast<int>(k);
+    if(xpp::equal_ignoring_case(added[k].name,name)){
+      *col=s.model().neq+1+static_cast<int>(k);
       return;
     }
   }
@@ -166,7 +166,7 @@ void find_variable(std::string_view s, int *col)
 
 void  refresh_browser(int length)
 {
- xpp::Session &s=xpp::session();
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  s.browser.view.dataflag=1;
  s.browser.view.maxrow=length;
  s.browser.view.iend=length;
@@ -175,11 +175,11 @@ void  refresh_browser(int length)
       every added column over it (docs/manual/07-data-browser.md: it
       stays computed "as though ... another auxiliary variable") rather
       than dropping it (docs/roadmap.md W77) */
-   const xpp::Model &m=xpp::model();
+   const xpp::Model &m=s.model();
    for(std::size_t k=0;k<s.browser.added_columns.size();k++){
      const int col_index=m.neq+1+static_cast<int>(k);
      s.data_store.add_column(col_index); /* fresh max_rows zeros */
-     compute_added_column(s.browser.added_columns[k].formula,col_index,length);
+     compute_added_column(s,s.browser.added_columns[k].formula,col_index,length);
    }
    s.browser.view.maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
  }
@@ -188,21 +188,22 @@ void  refresh_browser(int length)
 
 void reset_browser()
 {
-  xpp::session().browser.view.maxrow=0;
-  xpp::session().browser.view.dataflag=0;
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  s.browser.view.maxrow=0;
+  s.browser.view.dataflag=0;
 }
 
-void init_browser()
+void init_browser(xpp::Session &s)
 {
  
- xpp::session().browser.view.dataflag=0;
- xpp::session().browser.view.data=xpp::session().data_store.col;
- xpp::session().browser.view.maxcol=xpp::model().neq+1;
- xpp::session().browser.view.maxrow=0;
- xpp::session().browser.view.row0=0;
- xpp::session().browser.view.istart=0;
- xpp::session().browser.view.iend=0;
- xpp::session().browser.added_columns.clear();
+ s.browser.view.dataflag=0;
+ s.browser.view.data=s.data_store.col;
+ s.browser.view.maxcol=s.model().neq+1;
+ s.browser.view.maxrow=0;
+ s.browser.view.row0=0;
+ s.browser.view.istart=0;
+ s.browser.view.iend=0;
+ s.browser.added_columns.clear();
 
 }
 
@@ -237,51 +238,52 @@ xpp::Writer open_writer_asking(const char *fil, bool binary)
  return open_writer(fil,binary);
 }
 
-void  wipe_rep()
+void  wipe_rep(BrowserState &b)
  {
-    if(!xpp::session().browser.replaced)return;
-    std::vector<float>().swap(xpp::session().browser.old_column);
-    xpp::session().browser.replaced=0;
+    if(!b.replaced)return;
+    std::vector<float>().swap(b.old_column);
+    b.replaced=0;
   }
 
-void data_get(BROWSER *b)
+void data_get(xpp::Session &s, BROWSER *b)
 {
  int i,in=b->row0;
- set_ivar(0,static_cast<double>(xpp::session().data_store.col[0][in]));
- for(i=0;i<xpp::model().node;i++)
+ set_ivar(0,static_cast<double>(s.data_store.col[0][in]));
+ for(i=0;i<s.model().node;i++)
  {
-  xpp::session().last_ic[i]=static_cast<double>(xpp::session().data_store.col[i+1][in]);
-  set_ivar(i+1,xpp::session().last_ic[i]);
+  s.last_ic[i]=static_cast<double>(s.data_store.col[i+1][in]);
+  set_ivar(i+1,s.last_ic[i]);
  } 
- for(i=0;i<xpp::model().nmarkov;i++){
-   xpp::session().last_ic[i+xpp::model().node]=static_cast<double>(xpp::session().data_store.col[i+xpp::model().node+1][in]);
-   set_ivar(i+1+xpp::model().node+xpp::model().fix_var,xpp::session().last_ic[i+xpp::model().node]);
+ for(i=0;i<s.model().nmarkov;i++){
+   s.last_ic[i+s.model().node]=static_cast<double>(s.data_store.col[i+s.model().node+1][in]);
+   set_ivar(i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
  }
- for(i=xpp::model().node+xpp::model().nmarkov;i<xpp::model().neq;i++)
-   set_val(xpp::model().uvar_names[i],xpp::session().data_store.col[i+1][in]);
+ for(i=s.model().node+s.model().nmarkov;i<s.model().neq;i++)
+   set_val(s.model().uvar_names[i],s.data_store.col[i+1][in]);
 
  redraw_ics();
 }
 
 extern "C" void data_get_mybrowser(int row)
 {
-  xpp::session().browser.view.row0=row;
-  data_get(&xpp::session().browser.view);
+  xpp::Session &s=xpp::session(); /* an entry point: the integrator (W47d4) */
+  s.browser.view.row0=row;
+  data_get(s,&s.browser.view);
 }
 
-void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off)
+void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off)
 {
-  int in=xpp::session().browser.view.row0+off;
-  *x=xpp::session().browser.view.data[i1][in];
-  *y=xpp::session().browser.view.data[i2][in];
-  *z=xpp::session().browser.view.data[i3][in];
+  int in=s.browser.view.row0+off;
+  *x=s.browser.view.data[i1][in];
+  *y=s.browser.view.data[i2][in];
+  *z=s.browser.view.data[i3][in];
 }
 
 /* ---- the browser's commands (were in browse.c); the widget calls them ---- */
 
-int check_for_stor(float **data)
+int check_for_stor(const xpp::Session &s, float **data)
 {
- if(data!=xpp::session().data_store.col){
+ if(data!=s.data_store.col){
    err_msg("Only data can be in browser");
    return(0);
  }
@@ -289,30 +291,29 @@ int check_for_stor(float **data)
 
 }
 
-void data_del_col(BROWSER *b)  /*  this only works with storage  */
+void data_del_col(const xpp::Session &s, BROWSER *b)  /*  this only works with storage  */
 {
-    if(check_for_stor(b->data)==0)return;
+    if(check_for_stor(s,b->data)==0)return;
   err_msg("Sorry - not working very well yet...");
 }
 
-void data_add_col(BROWSER *b)
+void data_add_col(xpp::Session &s, BROWSER *b)
 {
   int status;
   std::string var,form;
-   if(check_for_stor(b->data)==0)return;
+   if(check_for_stor(s,b->data)==0)return;
   status=get_dialog("Add Column","Name",var,"Ok","Cancel");
   if(status!=0){
     status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",XPP_FIELD_EXPRESSION);
      if(status!=0)
-      add_stor_col(var.c_str(),form.c_str(),b);
+      add_stor_col(s,var.c_str(),form.c_str(),b);
   }
 }
 
-bool compute_added_column(const std::string &formula, int col_index, int nrows)
+bool compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
 {
   int com[4000],i,j;
-  xpp::Session &s=xpp::session();
-  const xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   if(add_expr(formula.c_str(),com,&i)){
     err_msg("Bad Formula .... ");
     return false;
@@ -331,10 +332,9 @@ bool compute_added_column(const std::string &formula, int col_index, int nrows)
   return true;
 }
 
-int add_stor_col(const char *name, const char *formula, BROWSER *b)
+int add_stor_col(xpp::Session &s, const char *name, const char *formula, BROWSER *b)
 {
-  xpp::Session &s=xpp::session();
-  const xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
 
   /* the added column's data_store index: right after the model's own
      columns and every column data_add_col has added so far (the Model
@@ -346,7 +346,7 @@ int add_stor_col(const char *name, const char *formula, BROWSER *b)
     return(0);
   }
   s.data_store.add_column(col_index); /* max_rows zeros */
-  if(!compute_added_column(formula,col_index,b->maxrow))return(0);
+  if(!compute_added_column(s,formula,col_index,b->maxrow))return(0);
   std::string col_name(name);
   xpp::to_upper(col_name.data());
   s.browser.added_columns.push_back({std::move(col_name),std::string(formula)});
@@ -369,9 +369,8 @@ void chk_seq(const char *f,int *seq, double *a1, double *a2)
   *a2=std::atof(std::string(s.substr(j+1)).c_str());
 }
 
-void replace_column(const char *var, char *form, float **dat, int n)
+void replace_column(xpp::Session &s, const char *var, char *form, float **dat, int n)
 {
- xpp::Session &s=xpp::session();
  int com[200],i,j;
  int intflag=0;
  int dif_var=-1;
@@ -418,8 +417,8 @@ if(dif_var<0)
 
  if(dif_var<0&&seq==0){
    if(add_expr(form,com,&i)){
-     s.parser.ncon=xpp::model().ncon_start;
-     s.parser.nsym=xpp::model().nsym_start;
+     s.parser.ncon=s.model().ncon_start;
+     s.parser.nsym=s.model().nsym_start;
      err_msg("Illegal formula...");
      return;
    }
@@ -429,15 +428,15 @@ if(dif_var<0)
  find_variable(var,&i);
  if(i<0){
    err_msg("No such column...");
-   s.parser.ncon=xpp::model().ncon_start;
-   s.parser.nsym=xpp::model().nsym_start;
+   s.parser.ncon=s.model().ncon_start;
+   s.parser.nsym=s.model().nsym_start;
    return;
  }
  s.browser.replaced_col=i;
 
  /* Okay the formula is cool so lets allocate and replace  */
 
- wipe_rep();
+ wipe_rep(s.browser);
  s.browser.old_column.assign(n,0.0f);
  s.browser.replaced=1;
  for(i=0;i<n;i++)
@@ -447,8 +446,8 @@ if(dif_var<0)
      {
        if(seq==0)
 	 {
-	   for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
-	   for(j=xpp::model().node;j<xpp::model().neq;j++)set_val(xpp::model().uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   for(j=0;j<s.model().node+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
+	   for(j=s.model().node;j<s.model().neq;j++)set_val(s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(evaluate(com));
@@ -471,18 +470,18 @@ if(dif_var<0)
        dat[s.browser.replaced_col][i]=derv;
      }
  }
- s.parser.ncon=xpp::model().ncon_start;
- s.parser.nsym=xpp::model().nsym_start;
+ s.parser.ncon=s.model().ncon_start;
+ s.parser.nsym=s.model().nsym_start;
 
 }
 
-void unreplace_column()
+void unreplace_column(xpp::Session &s)
 
 {
- int i,n=xpp::session().browser.view.maxrow;
- if(!xpp::session().browser.replaced)return;
- for(i=0;i<n;i++)xpp::session().browser.view.data[xpp::session().browser.replaced_col][i]=xpp::session().browser.old_column[i];
- wipe_rep();
+ int i,n=s.browser.view.maxrow;
+ if(!s.browser.replaced)return;
+ for(i=0;i<n;i++)s.browser.view.data[s.browser.replaced_col][i]=s.browser.old_column[i];
+ wipe_rep(s.browser);
  
  }
 
@@ -517,26 +516,26 @@ void find_value(int col, double val, int *row, BROWSER b)
  *row=ihot;
 }
 
-void data_replace(BROWSER *b)
+void data_replace(xpp::Session &s, BROWSER *b)
 {
  int status;
- std::string var=xpp::model().uvar_names[0],form=xpp::model().uvar_names[0];
+ std::string var=s.model().uvar_names[0],form=s.model().uvar_names[0];
 status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_FIELD_NAME_IN(0));
 if(status!=0){
  status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",XPP_FIELD_EXPRESSION);
- if(status!=0)replace_column(var.data(),form.data(),b->data,b->maxrow);
+ if(status!=0)replace_column(s,var.data(),form.data(),b->data,b->maxrow);
  xpp_ui.browser_redraw(0);
 }
 
  }
 
-void data_unreplace(BROWSER *b)
+void data_unreplace(xpp::Session &s)
 {
- unreplace_column();
+ unreplace_column(s);
  xpp_ui.browser_redraw(0);
 }
 
-void data_table(BROWSER *b)
+void data_table(const xpp::Session &s, BROWSER *b)
 {
  int status;
 
@@ -545,7 +544,7 @@ void data_table(BROWSER *b)
 
  double xlo=0,xhi=1;
  int col;
- value[0] = xpp::model().uvar_names[0];
+ value[0] = s.model().uvar_names[0];
  value[1] = "0.00";
  value[2] = "1.00";
  value[3] = value[0] + ".tab";
@@ -559,7 +558,7 @@ void data_table(BROWSER *b)
    make_d_table(xlo,xhi,col,value[3].c_str(),*b);
 }
 
-void data_find(BROWSER *b)
+void data_find(const xpp::Session &s, BROWSER *b)
 {
  int status;
 
@@ -569,7 +568,7 @@ void data_find(BROWSER *b)
 
  double val;
 
- value[0] = xpp::model().uvar_names[0];
+ value[0] = s.model().uvar_names[0];
  value[1] = "0.00";
  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
  status=do_string_box_of(2,1,"Find Data",name,value,kinds);
@@ -585,7 +584,7 @@ void data_find(BROWSER *b)
 
 }
 
-void data_read(BROWSER *b, std::string_view format, std::string_view name)
+void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string_view name)
 {
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format))){
@@ -607,11 +606,11 @@ void data_read(BROWSER *b, std::string_view format, std::string_view name)
  /*  The file's columns fill the stored ones in order: more columns than
      there are are left out, and at most max_rows rows are read. This data
      can be plotted etc like anything else */
- const int len=static_cast<int>(std::min<std::size_t>(t.rows(),static_cast<std::size_t>(xpp::session().data_store.max_rows)));
+ const int len=static_cast<int>(std::min<std::size_t>(t.rows(),static_cast<std::size_t>(s.data_store.max_rows)));
  for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
    std::copy(t.columns[k].begin(),t.columns[k].begin()+len,b->data[k]);
  refresh_browser(len);
- xpp::session().data_store.rows=len;
+ s.data_store.rows=len;
 }
 
 namespace {
@@ -635,7 +634,7 @@ const xpp::DataFormat *choose_data_format()
 
 } // namespace
 
-void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name, bool replace)
+void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::string_view format, std::string_view name, bool replace)
 {
  bool plot;
  if(what.empty()){
@@ -660,8 +659,8 @@ void data_write(BROWSER *b, std::string_view what, std::string_view format, std:
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
  }
- xpp::DataTable t=plot?plot_curves_table():browser_table(*b,what=="output"?output_columns(*b):all_columns(*b));
- t.seed=xpp::session().numerics.last_seed;
+ xpp::DataTable t=plot?plot_curves_table(s):browser_table(*b,what=="output"?output_columns(*b):all_columns(*b));
+ t.seed=s.numerics.last_seed;
  xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
  if(!f->write(t,w)){

@@ -190,7 +190,7 @@ void restore_values(Session &s, const KeptValues &kept)
 
   for(const std::pair<std::string,double> &p : kept.pars)
     if(find_user_name(PARAMBOX,p.first)>=0)set_val(p.first,p.second);
-  box_values_loaded(PARAMBOX);
+  box_values_loaded(s,PARAMBOX);
   for(const std::pair<std::string,double> &v : kept.ics){
     const int i=ic_index(m,v.first);
     if(i>=0)s.last_ic[i]=v.second;

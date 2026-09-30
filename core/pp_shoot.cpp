@@ -158,7 +158,7 @@ void do_sh_range(double *ystart, double *yend)
      set_val(shoot_range.item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp).c_str());
      if(shoot_range.movie==1)
-       clr_scrn();
+       clr_scrn(s);
      
      xpp::ok_or_show(bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,xpp::model().node,0,
 	     0,0,0,0.0));
@@ -181,7 +181,7 @@ void do_sh_range(double *ystart, double *yend)
      ping();
    }
   refresh_browser(s.data_store.rows);
-  auto_freeze_it();     
+  auto_freeze_it(s);     
  swap_color(&color,1);
 
 }
@@ -236,7 +236,7 @@ void find_bvp_com(int com)
    err_msg("Can't do BVP with integral or markov eqns");
    return;
  }
- wipe_rep();
+ wipe_rep(xpp::session().browser);
  data_back();
  compile_bvp();
  if(s.numerics.fft||s.numerics.hist||s.delay.flag||s.numerics.bvp_flag==0)return;
@@ -283,7 +283,7 @@ void find_bvp_com(int com)
  const xpp::Result<> last=last_shot(1);
  s.numerics.inflag=1;
  refresh_browser(s.data_store.rows);
- auto_freeze_it();
+ auto_freeze_it(s);
  ping();
  if(!last)xpp::show_error(last.error());
 }

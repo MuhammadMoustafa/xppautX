@@ -123,7 +123,7 @@ bool restore_members(Session &s, const std::map<std::string, std::string> &membe
     if (auto_settings_apply(*settings, why) != 0)
         xpp_session_warn(xpp::format("{}: AUTO's settings are left as they were: {}", file_name(name), why));
     auto_data_forget(); /* the strip described the diagram this one replaces */
-    diagram_restore(std::move(*points));
+    diagram_restore(s, std::move(*points));
     restore_views(s, *views, name);
     const std::string solutions_path = auto_solutions_file();
     xpp::Writer w = xpp::Writer::binary(solutions_path.c_str());

@@ -203,7 +203,7 @@ bool have_settings() { return xpp::model().node <= NAUTO; }
 /* the event, none for a model with no settings */
 std::string event_if_any() { return have_settings() ? event_text() : std::string(); }
 
-xpp::ChangedEvent event{event_if_any, "sending AUTO's settings"};
+xpp::ChangedEvent<> event{event_if_any, "sending AUTO's settings"};
 
 bool num_ok(int i, double v, std::string &why)
 {

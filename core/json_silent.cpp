@@ -153,11 +153,11 @@ void SilentScript::add_run(int set)
                         xpp::format("{:d}", s.plot_file.ps_font_size), s.plot_file.ps_font,
                         xpp::format("{:.17g}", s.plot_file.ps_lw)};
                     answer_values(ps);
-                    answer("file", batch_plot_name(-1));
+                    answer("file", batch_plot_name(s, -1));
                 } else if (format == "svg") {
                     key("g");
                     answer("key", "v");
-                    answer("file", batch_plot_name(-1));
+                    answer("file", batch_plot_name(s, -1));
                 }
             }
         }

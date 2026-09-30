@@ -9,12 +9,7 @@
 extern "C" {
 #endif
 
-void close_aplot_files(void);
-void optimize_aplot(int *plist);
-void set_up_aplot_range(void);
-void fit_aplot(void);
 void init_my_aplot(void);
-void dump_aplot(FILE *fp, int f);
 
 
 #ifdef __cplusplus
@@ -34,9 +29,22 @@ struct APLOT {
   int type;
 };
 
-void scale_aplot(APLOT *ap, double *zmax, double *zmin);
-int editaplot(APLOT *ap);
-void print_aplot(APLOT *ap);
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The array plot of the session s: its range saving's movie closed,
+   Plotvars' columns shown, Array range saving's settings, Fit, the range
+   of ap's values, Edit, Print, and its settings in a .set file (f: 1 read,
+   else write) */
+void close_aplot_files(xpp::Session &s);
+void optimize_aplot(xpp::Session &s, int *plist);
+void set_up_aplot_range(xpp::Session &s);
+void fit_aplot(xpp::Session &s);
+void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
+int editaplot(xpp::Session &s, APLOT *ap);
+void print_aplot(const xpp::Session &s, APLOT *ap);
+void dump_aplot(xpp::Session &s, FILE *fp, int f);
 /* splits an array plot's first column name at its trailing digits: "u10"
    gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);

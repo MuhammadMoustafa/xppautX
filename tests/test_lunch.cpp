@@ -39,7 +39,7 @@ static char *body(const char *path)
 static void save(const char *path)
 {
     FILE *fp = fopen(path, "w");
-    write_lunch(fp);
+    write_lunch(xpp::session(),fp);
     fclose(fp);
 }
 
@@ -53,8 +53,8 @@ int main(void)
     char *sa, *sb;
 
     xpp_load_model(2, argv, 1);
-    init_browser();
-    init_all_graph();
+    init_browser(xpp::session());
+    init_all_graph(xpp::session());
 
     get_val("iapp", &iapp);
     v0 = xpp::session().last_ic[0];
@@ -70,7 +70,7 @@ int main(void)
     fp = fopen(a, "r");
     CHECK(fp != NULL);
     if (!fp) TEST_REPORT("lunch round trip");
-    CHECK(read_lunch(fp) == 1);
+    CHECK(read_lunch(xpp::session(),fp) == 1);
     fclose(fp);
 
     get_val("iapp", &x);

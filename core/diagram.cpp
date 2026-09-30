@@ -25,9 +25,9 @@
 
 namespace {
 /* a new last point of n variables, zeroed */
-DIAGRAM *new_point(int n)
+DIAGRAM *new_point(AutoDiagram &dg, int n)
 {
-  DiagramPoint &p=xpp::session().diagram.points.emplace_back();
+  DiagramPoint &p=dg.points.emplace_back();
   for(std::vector<double> *v:{&p.uhi,&p.ulo,&p.u0,&p.ubar,&p.evr,&p.evi})
     v->assign(n,0.0);
   p.d.uhi=p.uhi.data();
@@ -36,8 +36,41 @@ DIAGRAM *new_point(int n)
   p.d.ubar=p.ubar.data();
   p.d.evr=p.evr.data();
   p.d.evi=p.evi.data();
-  p.d.index=static_cast<int>(xpp::session().diagram.points.size())-1;
+  p.d.index=static_cast<int>(dg.points.size())-1;
   return &p.d;
+}
+
+/* point d set to a point of AUTO's run (s: the run's kind of calculation) */
+void edit_diagram(const xpp::Session &s, DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi, double tp)
+{
+  int i;
+  d->calc=s.auto_state.type_of_calc;
+  d->ibr=ibr;
+  d->ntot=ntot;
+  d->itp=itp;
+  d->lab=lab;
+  d->nfpar=nfpar;
+  d->norm=a;
+  for(i=0;i<8;i++){
+    d->par[i]=par[i];
+  }
+
+  d->per=per;
+ 
+  d->icp1=icp1;
+  d->icp2=icp2;
+  d->icp3=icp3;
+  d->icp4=icp4;
+  d->flag2=flag2;
+  for(i=0;i<n;i++){
+    d->ulo[i]=ulo[i];
+    d->uhi[i]=uhi[i];
+    d->ubar[i]=ubar[i];
+    d->u0[i]=u0[i];
+    d->evr[i]=evr[i];
+    d->evi[i]=evi[i];
+   }
+  d->torper=tp;
 }
 } // namespace
 
@@ -67,11 +100,10 @@ DIAGRAM *diagram_prev(const DIAGRAM *d)
   return diagram_point(d->index-1);
 }
 
-void diagram_restore(std::deque<DiagramPoint> points)
+void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
 {
-  xpp::Session &s=xpp::session();
   if(points.empty()){
-    start_diagram(xpp::model().node);
+    start_diagram(s.model().node);
     return;
   }
   s.diagram.points=std::move(points);
@@ -90,54 +122,26 @@ void diagram_restore(std::deque<DiagramPoint> points)
 
 void start_diagram(int n)
 {
-  xpp::session().diagram.points.clear();
-  new_point(n);
-  xpp::session().auto_state.diag_flag=0;
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  s.diagram.points.clear();
+  new_point(s.diagram,n);
+  s.auto_state.diag_flag=0;
 }
 
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
-  edit_diagram(diagram_first(),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-	       par,per,n,icp1,icp2,icp3,icp4,xpp::session().auto_state.two_param,evr,evi,xpp::session().auto_state.blrtn.torper);
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  edit_diagram(s,diagram_first(),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
+	       par,per,n,icp1,icp2,icp3,icp4,s.auto_state.two_param,evr,evi,s.auto_state.blrtn.torper);
 }
 
-void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi, double tp)
-{
-  int i;
-  d->calc=xpp::session().auto_state.type_of_calc;
-  d->ibr=ibr;
-  d->ntot=ntot;
-  d->itp=itp;
-  d->lab=lab;
-  d->nfpar=nfpar;
-  d->norm=a;
-  for(i=0;i<8;i++){
-    d->par[i]=par[i];
-  }
-
-  d->per=per;
- 
-  d->icp1=icp1;
-  d->icp2=icp2;
-  d->icp3=icp3;
-  d->icp4=icp4;
-  d->flag2=flag2;
-  for(i=0;i<n;i++){
-    d->ulo[i]=ulo[i];
-    d->uhi[i]=uhi[i];
-    d->ubar[i]=ubar[i];
-    d->u0[i]=u0[i];
-    d->evr[i]=evr[i];
-    d->evi[i]=evi[i];
-   }
-  d->torper=tp;
-}
   
 void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
 {
- DIAGRAM *dnew=new_point(n);
- edit_diagram(dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
-	      icp1,icp2,icp3,icp4,flag2,evr,evi,xpp::session().auto_state.blrtn.torper);
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+ DIAGRAM *dnew=new_point(s.diagram,n);
+ edit_diagram(s,dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
+	      icp1,icp2,icp3,icp4,flag2,evr,evi,s.auto_state.blrtn.torper);
 }
 
 DIAGRAM *last_diagram(void)
@@ -152,8 +156,9 @@ void set_last_diagram_from(int from)
 
 const DIAGRAM *diagram_of_label(int lab)
 {
-  if(lab<=0||xpp::session().auto_state.diag_flag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
-  for(const DiagramPoint &p:xpp::session().diagram.points)
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  if(lab<=0||s.auto_state.diag_flag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
+  for(const DiagramPoint &p:s.diagram.points)
     if(p.d.lab==lab)return &p.d;
   return NULL;
 }
@@ -209,14 +214,14 @@ xpp::Writer diagram_file(const char *title, const char *name)
 
 /* the diagram as a picture: PostScript or SVG, whichever begin (ps_init
    or svg_init) opened, finished with end */
-void export_diagram(const char *title, const char *name, const char *wild,
-                    xpp::Result<> (*begin)(const char *, int), void (*end)(void))
+void export_diagram(xpp::Session &s, const char *title, const char *name, const char *wild,
+                    xpp::Result<> (*begin)(xpp::Session &, const char *, int), void (*end)(xpp::Session &))
 {
   DIAGRAM *d;
   int type,flag=0;
   std::string filename=name;
   if(!file_selector(title,filename,wild))return;
-  if(!xpp::ok_or_show(begin(filename.c_str(),xpp::session().plot_export.color)))
+  if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color)))
     return;
   draw_export_axes();
   d=diagram_first();
@@ -234,14 +239,15 @@ void export_diagram(const char *title, const char *name, const char *wild,
     d=diagram_next(d);
     if(d==NULL)break;
   }
-  end();
-  set_normal_scale();
+  end(s);
+  set_normal_scale(s);
 }
 
 } // namespace
 
 void write_info_out()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type,i;
   /*int flag=0
@@ -265,7 +271,7 @@ void write_info_out()
    /* u0=d->u0; Not used*/
     /* a=d->norm; Not used*/
     par1=par[icp1];
-    if(icp2<xpp::session().auto_state.npar)
+    if(icp2<s.auto_state.npar)
       par2=par[icp2];
     else 
       par2=par1;
@@ -273,11 +279,11 @@ void write_info_out()
     {
       std::string line=xpp::format("{} {} {} {:g} {:g} {:g} ",
 	      type,d->ibr,d->flag2,par1,par2,per);
-      for(i=0;i<xpp::model().node;i++)
+      for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",uhigh[i]);
-      for(i=0;i<xpp::model().node;i++)
+      for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",ulow[i]);
-      for(i=0;i<xpp::model().node;i++)
+      for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} {:g} ",d->evr[i],d->evi[i]);
       line+='\n';
       w.print("{}",line);
@@ -291,6 +297,7 @@ void write_info_out()
 
 extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
    DIAGRAM *d;
    int i,j,pt;
   int icp1;
@@ -316,16 +323,16 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
       u0=d->u0;
 
       par1=par[icp1];
-      xpp::session().data_store.col[0][j]=par1;
-      for(i=0;i<xpp::model().node;i++)
-	xpp::session().data_store.col[i+1][j]=u0[i];
+      s.data_store.col[0][j]=par1;
+      for(i=0;i<s.model().node;i++)
+	s.data_store.col[i+1][j]=u0[i];
       j++;
     }
     d=diagram_next(d);
     if(d==NULL)break;
         
  }
- xpp::session().data_store.rows=nrows;
+ s.data_store.rows=nrows;
  refresh_browser(nrows);
 }
 void write_init_data_file()
@@ -361,6 +368,7 @@ void write_init_data_file()
 
 void write_pts()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type;
   int icp1,icp2;
@@ -381,14 +389,14 @@ void write_pts()
     ubar=d->ubar;
     a=d->norm;
     par1=par[icp1];
-    if(icp2<xpp::session().auto_state.npar)
+    if(icp2<s.auto_state.npar)
       par2=par[icp2];
 
     /* now we have to check is the diagram parameters correspond to the 
        current view 
     */
     if(check_plot_type(d->flag2,icp1,icp2)==1){
-      auto_xy_plot(&xpp::session().auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
+      auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
       w.print("{:g} {:g} {:g} {} {} {}\n",
 	      x,y1,y2,type,abs(d->ibr),d->flag2);
     }
@@ -404,14 +412,16 @@ void write_pts()
    "*.ps"/"*.svg" filter as before */
 void export_auto_picture(int fmt)
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   const xpp::ImageFormat &f=xpp::image_formats[fmt];
   std::string name=xpp::format("auto.{}",f.extension);
   std::string wild=xpp::format("*.{}",f.extension);
-  export_diagram(f.name,name.c_str(),wild.c_str(),f.begin,f.end);
+  export_diagram(s,f.name,name.c_str(),wild.c_str(),f.begin,f.end);
 }
 
 void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type;
   
@@ -429,8 +439,8 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
         xpp::log(XPP_LOG_WARN, "Unable to get bifurcation type.\n");
     }
     par1=d->par[d->icp1];
-    if(d->icp2<xpp::session().auto_state.npar)par2=d->par[d->icp2];
-    auto_xy_plot(&xpp::session().auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
+    if(d->icp2<s.auto_state.npar)par2=d->par[d->icp2];
+    auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,d->per,d->uhi,d->ulo,d->ubar,d->norm);
     if(x<*xlo)*xlo=x;
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;

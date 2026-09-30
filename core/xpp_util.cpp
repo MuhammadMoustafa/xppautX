@@ -46,25 +46,24 @@
 
 /* ---- graph bookkeeping (was many_pops.c / main.c) ----------------------- */
 
-void make_active(int i, int flag)
+void make_active(xpp::Session &s, int i, int flag)
 {
-    xpp::session().plot_windows.active = i;
-    xpp::session().plot_windows.current = &xpp::session().plot_windows.graph[xpp::session().plot_windows.active];
+    s.plot_windows.active = i;
+    s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
     xpp_ui.activate_graph(i, flag);
 }
 
-int graph_of(XppWinId w)
+int graph_of(const xpp::Session &s, XppWinId w)
 {
-    const xpp::Session &s = xpp::session();
     for (int i = 0; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w == w) return i;
     return 0;
 }
 
-void clr_scrn(void)
+void clr_scrn(xpp::Session &s)
 {
     xpp_ui.blank_draw_window();
-    do_axes();
+    do_axes(s);
 }
 
 /* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
@@ -76,16 +75,16 @@ std::string ind_to_sym(int ind)
  return browse_column_name(ind);
 }
 
-void  get_max(int index, double *vmin, double *vmax)
+void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
 {
    float x0,x1,z;
    double temp;
    int i;
-   x0=xpp::session().browser.view.data[index][0];
+   x0=s.browser.view.data[index][0];
    x1=x0;
-   for(i=0;i<xpp::session().browser.view.maxrow;i++)
+   for(i=0;i<s.browser.view.maxrow;i++)
    {
-    z=xpp::session().browser.view.data[index][i];
+    z=s.browser.view.data[index][i];
     if(z<x0)x0=z;
     if(z>x1)x1=z;
    }
@@ -130,17 +129,18 @@ void de_space(char *s)
 
 int find_user_name(int type, std::string_view oname)
 {
+  const xpp::Model &m=xpp::model(); /* an entry point (W47d) */
  std::string name; /* oname without blanks, of any length */
  int i=-1;
  for(char ch : oname)
    if(!isspace(static_cast<unsigned char>(ch)))name+=ch;
 
- for(i=0;i<xpp::model().nupar;i++)
-         if((type==PARAMBOX)&&xpp::equal_ignoring_case(xpp::model().upar_names[i],name))break;
- if(i<xpp::model().nupar)return(i);
- for(i=0;i<xpp::model().neq;i++)
-	 if((type==ICBOX)&&xpp::equal_ignoring_case(xpp::model().uvar_names[i],name))break;
-   if(i<xpp::model().neq)return(i);
+ for(i=0;i<m.nupar;i++)
+         if((type==PARAMBOX)&&xpp::equal_ignoring_case(m.upar_names[i],name))break;
+ if(i<m.nupar)return(i);
+ for(i=0;i<m.neq;i++)
+	 if((type==ICBOX)&&xpp::equal_ignoring_case(m.uvar_names[i],name))break;
+   if(i<m.neq)return(i);
 	return(-1);
  }
 
@@ -174,7 +174,7 @@ int do_calc(const char *temp, double *z)
     }
     set_val(val,newz);
 
-    xpp::session().last_ic[i]=newz;
+    xpp::session().last_ic[i]=newz; /* do_calc: an entry point, the dialogs and the integrator (W47d4, W47d6) */
     *z=newz;
     redraw_ics();
   }
@@ -198,6 +198,7 @@ int has_eq(std::string_view z, std::string &name, int *where)
 
  double calculate(const char *expr, int *ok)
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int com[400],i;
   double z=0.0;
     if(add_expr(expr,com,&i)){
@@ -208,26 +209,25 @@ int has_eq(std::string_view z, std::string &name, int *where)
   z=evaluate(com);
  *ok=1;
 bye:
-  xpp::session().parser.ncon=xpp::model().ncon_start;
-  xpp::session().parser.nsym=xpp::model().nsym_start;
+  s.parser.ncon=s.model().ncon_start;
+  s.parser.nsym=s.model().nsym_start;
   return(z);
  }
 
-void set_active_windows()
+void set_active_windows(xpp::Session &s)
 {
   int i,np=0;
    for(i=0;i<MAXPOP;i++){
-   if(xpp::session().plot_windows.graph[i].Use==1){
-     xpp::session().plot_windows.open[np]=i;
+   if(s.plot_windows.graph[i].Use==1){
+     s.plot_windows.open[np]=i;
      np++;
    }
  }
- xpp::session().plot_windows.count=np;
+ s.plot_windows.count=np;
 }  
 
-void check_windows()
+void check_windows(xpp::Session &s)
 {
- xpp::Session &s=xpp::session();
  double zip,zap;
  check_val(&s.plot_windows.current->xmin,&s.plot_windows.current->xmax,&s.plot_windows.current->xbar,&s.plot_windows.current->dx);
  check_val(&s.plot_windows.current->ymin,&s.plot_windows.current->ymax,&s.plot_windows.current->ybar,&s.plot_windows.current->dy);
@@ -260,20 +260,21 @@ void check_val(double *x1, double *x2, double *xb, double *xd)
 
 }
 
-std::string batch_plot_name(int i)
+std::string batch_plot_name(const xpp::Session &s, int i)
 {
-  const std::string &file=xpp::model().this_file,&set=xpp::session().this_internset;
-  const std::string &format=xpp::session().plot_export.format;
+  const std::string &file=s.model().this_file,&set=s.this_internset;
+  const std::string &format=s.plot_export.format;
   return i<0?xpp::format("{:.100}{:.100}.{:.10}",file,set,format)
             :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
 }
 
 void dump_ps(int i)
 {
-  const std::string filename=batch_plot_name(i);
-   const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(xpp::session().plot_export.format);
-   if(fmt && xpp::ok_or_show(fmt->begin(filename.c_str(),xpp::session().plot_export.color)))
-     fmt->restore();
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  const std::string filename=batch_plot_name(s,i);
+   const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
+   if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)))
+     fmt->restore(s);
 }
 
 void   redo_stuff()
@@ -284,60 +285,60 @@ void   redo_stuff()
         evaluate_derived();
 }
 
-void user_fun_info(FILE *fp)
+void user_fun_info(const xpp::Model &m, FILE *fp)
 {
-  for(int j=0;j<xpp::model().nfun;j++){
-    std::string line=xpp::format("{}(",xpp::model().ufun_names[j]);
-    for(int i=0;i<xpp::model().narg_fun[j];i++)
-      line+=xpp::format("{}{}",xpp::model().ufun_args[j][i],i<xpp::model().narg_fun[j]-1?",":"");
-    line+=xpp::format(") = {}\n",xpp::model().ufun_defs[j]);
+  for(int j=0;j<m.nfun;j++){
+    std::string line=xpp::format("{}(",m.ufun_names[j]);
+    for(int i=0;i<m.narg_fun[j];i++)
+      line+=xpp::format("{}{}",m.ufun_args[j][i],i<m.narg_fun[j]-1?",":"");
+    line+=xpp::format(") = {}\n",m.ufun_defs[j]);
     fwrite(line.data(),1,line.size(),fp);
   }
 }
 
-void ps_restore()
+void ps_restore(xpp::Session &s)
 {
   if(program.interactive){
- redraw_dfield();
- ps_do_color(0);
- if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();ps_stroke();}
+ redraw_dfield(s);
+ ps_do_color(s.plot_file,0);
+ if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke();}
   }
 
-  restore(0,xpp::session().browser.view.maxrow);  
+  restore(0,s.browser.view.maxrow);  
  
-  do_batch_nclines();
-  do_batch_dfield(); 
- do_axes(); 
+  do_batch_nclines(s);
+  do_batch_dfield(s); 
+ do_axes(s); 
   
- ps_do_color(0); 
+ ps_do_color(s.plot_file,0); 
  if(program.interactive){
- draw_label(xpp::session().plot_windows.draw_win);
+ draw_label(s,s.plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
- ps_end();
+ ps_end(s);
 }
 
-void svg_restore()
+void svg_restore(xpp::Session &s)
 {
 
-  redraw_dfield();
- if(xpp::session().plot_windows.current->Nullrestore){restore_nullclines();}
- restore(0,xpp::session().browser.view.maxrow);
- do_axes();
+  redraw_dfield(s);
+ if(s.plot_windows.current->Nullrestore){restore_nullclines(s);}
+ restore(0,s.browser.view.maxrow);
+ do_axes(s);
  if(program.interactive){
- draw_label(xpp::session().plot_windows.draw_win);
+ draw_label(s,s.plot_windows.draw_win);
  xpp_ui.draw_freeze();
  }
-  do_batch_nclines();
-  do_batch_dfield(); 
- svg_end();
+  do_batch_nclines(s);
+  do_batch_dfield(s); 
+ svg_end(s);
 }
 
-void clone_ode()
+void clone_ode(xpp::Session &s)
 {
   int i,j,x,y;
   std::string clone;
-  const char *s;
+  const char *line;
   time_t ttt;
   double z;
   if(!file_selector("Clone ODE file",clone,"*.ode"))return;
@@ -347,51 +348,51 @@ void clone_ode()
       return;
     }
   ttt=time(0);
-  fp.print("# clone of {} on {}",xpp::model().this_file,ctime(&ttt));
-  for(i=0;i<xpp::model().nlines();i++){
-    s=xpp::model().source[i].c_str();
+  fp.print("# clone of {} on {}",s.model().this_file,ctime(&ttt));
+  for(i=0;i<s.model().nlines();i++){
+    line=s.model().source[i].c_str();
 
-    if(s[0]=='p'||s[0]=='P'||s[0]=='b'||s[0]=='B'){
-      x=find_char(s,"'",0,&j);
-      y=find_char(s,"=",0,&j);
+    if(line[0]=='p'||line[0]=='P'||line[0]=='b'||line[0]=='B'){
+      x=find_char(line,"'",0,&j);
+      y=find_char(line,"=",0,&j);
 
       if(x!=0||y!=0){
-	fp.print("# original\n# {}\n",s);
+	fp.print("# original\n# {}\n",line);
 	continue;
       }
     }
-    if(strncasecmp("done",s,4)==0)continue;
-    fp.print("{}\n",s);
+    if(strncasecmp("done",line,4)==0)continue;
+    fp.print("{}\n",line);
   }
   fp.print("# Cloned parameters etc here\n");
   /* now we do parameters boundary conds and ICs */
   j=0;
   fp.print("init ");
-  for(i=0;i<(xpp::model().node+xpp::model().nmarkov);i++){
+  for(i=0;i<(s.model().node+s.model().nmarkov);i++){
     if(j==8){
       fp.print("\ninit ");
       j=0;
     }
-    fp.print("{}={:g} ",xpp::model().uvar_names[i],xpp::session().last_ic[i]);
+    fp.print("{}={:g} ",s.model().uvar_names[i],s.last_ic[i]);
     j++;
   }
   fp.print("\n");
 
   /* BDRY conds */
-  if(xpp::session().bcs[0].string.data()[0]!='0'){
-    for(i=0;i<xpp::model().node;i++)
-      fp.print("bdry {}\n",xpp::session().bcs[i].string.data());
+  if(s.bcs[0].string.data()[0]!='0'){
+    for(i=0;i<s.model().node;i++)
+      fp.print("bdry {}\n",s.bcs[i].string.data());
   }
   j=0;
-  if(xpp::model().nupar>0){
+  if(s.model().nupar>0){
     fp.print("par ");
-    for(i=0;i<xpp::model().nupar;i++){
+    for(i=0;i<s.model().nupar;i++){
       if(j==8){
 	fp.print("\npar ");
         j=0;
       }
-      get_val(xpp::model().upar_names[i],&z);
-      fp.print("{}={:g} ",xpp::model().upar_names[i],z);
+      get_val(s.model().upar_names[i],&z);
+      fp.print("{}={:g} ",s.model().upar_names[i],z);
       j++;
     }
   }
@@ -400,7 +401,7 @@ void clone_ode()
   fp.commit();
 }
 
-void new_parameter()
+void new_parameter(xpp::Session &s)
 {
   int done,index;
   double z;
@@ -410,17 +411,17 @@ void new_parameter()
     done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
     if(name.empty()||done==0){redo_stuff(); return;}
     if(strncasecmp(name.data(),"DEFAULT",7  )==0){
-      set_default_params();
+      set_default_params(s);
       continue;
     }
 
     else {
       index=find_user_name(PARAMBOX,name.data());
       if(index>=0){
-	get_val(xpp::model().upar_names[index],&z);
+	get_val(s.model().upar_names[index],&z);
 	done=new_float(xpp::format("{} :",name.data()).c_str(),&z);
 	if(done==0){
-	  set_val(xpp::model().upar_names[index],z);
+	  set_val(s.model().upar_names[index],z);
 	  xpp_ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
 	  xpp_ui.param_box_redraw(index);
 	}
@@ -433,12 +434,12 @@ void new_parameter()
   }
 }
 
-void   set_default_params()
+void   set_default_params(xpp::Session &s)
  {
 
- for(int i=0;i<xpp::model().nupar;i++){
-   set_val(xpp::model().upar_names[i],xpp::model().default_val[i]);
-   xpp_ui.param_box_set(i,xpp::format("{:.16g}",xpp::model().default_val[i]).c_str());
+ for(int i=0;i<s.model().nupar;i++){
+   set_val(s.model().upar_names[i],s.model().default_val[i]);
+   xpp_ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
  }
  
  redraw_params();
@@ -449,11 +450,11 @@ void   set_default_params()
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
    parameter sliders (logic from init_conds.c; the widgets stay there) ---- */
 
-void   set_default_ics()
+void   set_default_ics(xpp::Session &s)
 {
   int i;
-  for(i=0;i<xpp::model().node+xpp::model().nmarkov;i++)
-    xpp::session().last_ic[i]=xpp::model().default_ic[i];
+  for(i=0;i<s.model().node+s.model().nmarkov;i++)
+    s.last_ic[i]=s.model().default_ic[i];
    redraw_ics();
 }
 
@@ -473,17 +474,18 @@ int to_float(const char *s, double *z)
 
 void man_ic()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int done,index=0;
   double z;
   while(1){
-    z=xpp::session().last_ic[index];
-    done=new_float(xpp::format("{} :",xpp::model().uvar_names[index]).c_str(),&z);
+    z=s.last_ic[index];
+    done=new_float(xpp::format("{} :",s.model().uvar_names[index]).c_str(),&z);
     if(done==0){
-      xpp::session().last_ic[index]=z;
+      s.last_ic[index]=z;
       xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
       xpp_ui.ic_box_redraw(index);
       index++;
-      if(index>=xpp::model().node+xpp::model().nmarkov)return;
+      if(index>=s.model().node+s.model().nmarkov)return;
     }
     if(done==-1)return;
   }
@@ -492,43 +494,43 @@ void man_ic()
 /* store the text s typed for entry i of a box of the given type. Numbers
    (ICs, parameters) come back in *z and the result is 1; BCs and delays are
    strings (0); -1 when a %formula does not evaluate. */
-int box_set_value(int type,int i,const char *s,double *z)
+int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
 {
   *z=0.0;
   switch(type){
   case ICBOX:
-    if(to_float(s,z)==-1)return -1;
-    xpp::session().last_ic[i]=*z;
+    if(to_float(text,z)==-1)return -1;
+    s.last_ic[i]=*z;
     return 1;
   case PARAMBOX:
-    if(to_float(s,z)==-1)return -1;
-    set_val(xpp::model().upar_names[i],*z);
+    if(to_float(text,z)==-1)return -1;
+    set_val(s.model().upar_names[i],*z);
     return 1;
   case BCBOX:
-    set_bc_formula(i,s);
+    set_bc_formula(i,text);
     return 0;
   case DELAYBOX:
-    xpp::session().delay_string[i]=s;
+    s.delay_string[i]=text;
     return 0;
   }
   return 0;
 }
 
 /* every entry of a box was just stored: recompute what depends on them */
-void box_values_loaded(int type)
+void box_values_loaded(xpp::Session &s, int type)
 {
   if(type==PARAMBOX){
     re_evaluate_kernels();
     xpp::ok_or_show(redo_all_fun_tables());
   }
   if(type==DELAYBOX){
-   xpp::ok_or_show(do_init_delay(xpp::session().numerics.delay));
+   xpp::ok_or_show(do_init_delay(s.numerics.delay));
   }
 }
 
 /* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot the checked
    variables (isck, n entries) and uncheck them */
-void plot_checked_vars(int how,int *isck,int n)
+void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 {
   int i;
   int plot_list[10];
@@ -542,9 +544,9 @@ void plot_checked_vars(int how,int *isck,int n)
       isck[i]=0;
     }
   if(how==0&&k>0)
-    graph_all(plot_list,k,0);
+    graph_all(s,plot_list,k,0);
   if(how==1&&k>1)
-    graph_all(plot_list,k,1);
+    graph_all(s,plot_list,k,1);
 }
 
 /* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
@@ -562,11 +564,11 @@ int find_par_or_var(const char *name,int *type,int *index)
   return 1;
 }
 
-void set_par_or_var(const char *name,int type,int index,double val)
+void set_par_or_var(xpp::Session &s, const char *name,int type,int index,double val)
 {
   set_val(name,val);
   if(type==ICBOX)
-    xpp::session().last_ic[index]=val;
+    s.last_ic[index]=val;
 }
 
 /* ---- the equilibrium window's Import button and its label (logic from
@@ -576,21 +578,21 @@ static int sparity=0;
 
 /* make equilibrium y (n values) the initial data; for small systems it is
    also saved alternately as the left/right equilibrium for homoclinics */
-void eq_import(double *y,int n)
+void eq_import(xpp::Session &s, double *y,int n)
 {
   int i;
   for(i=0;i<n;i++)
-    xpp::session().last_ic[i]=y[i];
+    s.last_ic[i]=y[i];
 
   if(n<20){
     if(sparity==0){
       for(i=0;i<n;i++)
-	xpp::session().auto_state.homo_l[i]=y[i];
+	s.auto_state.homo_l[i]=y[i];
       xpp_log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     if(sparity==1){
       for(i=0;i<n;i++)
-	xpp::session().auto_state.homo_r[i]=y[i];
+	s.auto_state.homo_r[i]=y[i];
       xpp_log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
     sparity=1-sparity;
@@ -609,31 +611,31 @@ const char *eq_stability(int cp, int rp, int im)
 /* ---- a comment with an action in the ODE file was picked (logic from
    txtread.c): run its "name=value ..." settings ---- */
 
-void do_txt_action(const char *s)
+void do_txt_action(xpp::Session &s, const char *action)
 {
- get_graph();
- extract_action(s);
+ get_graph(s);
+ extract_action(action);
  ping();
   chk_delay();
   redraw_params();
   redraw_ics();
-  reset_graph();
+  reset_graph(s);
 }
 
 /* ---- AUTO's private scratch directory (session.h: AutoState::dir),
    made by xpp_files_make_temp_dir ---- */
 void xpp_cleanup_auto_dir(void)
 {
-  std::string &dir=xpp::session().auto_state.dir;
+  std::string &dir=xpp::session().auto_state.dir; /* an entry point: at exit */
   if (!dir.empty()) {
     xpp_files_remove_temp_dir(dir.c_str());
     dir.clear();
   }
 }
 
-void xpp_renew_auto_dir(void)
+void xpp_renew_auto_dir(xpp::Session &s)
 {
-  std::string &dir=xpp::session().auto_state.dir;
+  std::string &dir=s.auto_state.dir;
   if (dir.empty()) return; /* none was made: AUTO writes beside the model */
   xpp_files_remove_temp_dir(dir.c_str());
   dir=xpp_files_make_temp_dir();

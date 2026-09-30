@@ -6,6 +6,9 @@
 #ifdef __cplusplus
 #include "xpp_io.h"
 #include "data_formats.h"
+namespace xpp {
+struct Session; /* session.h */
+}
 extern "C" {
 #endif
 
@@ -18,29 +21,14 @@ typedef struct {
 } BROWSER;
 
 float **get_browser_data(void);
-float *get_data_col(int c);
 void waitasec(int msec);
 void data_get_mybrowser(int row);
-int check_for_stor(float **data);
-void data_del_col(BROWSER *b);
-void data_add_col(BROWSER *b);
-int add_stor_col(const char *name, const char *formula, BROWSER *b);
 void chk_seq(const char *f, int *seq, double *a1, double *a2);
-void replace_column(const char *var, char *form, float **dat, int n);
-void wipe_rep(void);
-void unreplace_column(void);
 void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
 void new_browse_dat(float **new_dat, int dat_len);
 void refresh_browser(int length);
 void reset_browser(void);
-void init_browser(void);
-void get_data_xyz(float *x, float *y, float *z, int i1, int i2, int i3, int off);
-void data_get(BROWSER *b);
-void data_replace(BROWSER *b);
-void data_unreplace(BROWSER *b);
-void data_table(BROWSER *b);
-void data_find(BROWSER *b);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
 void data_restore(BROWSER *b);
@@ -67,21 +55,21 @@ void write_mybrowser_data(xpp::Writer &w);
    id (data_formats.h), name the file; whichever is empty is asked for (a
    menu, a menu of the formats, a file). An existing file is replaced
    without asking when replace is set, else after asking. */
-void data_write(BROWSER *b, std::string_view what, std::string_view format, std::string_view name,
-                bool replace = false);
+void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::string_view format,
+                std::string_view name, bool replace = false);
 /* the browser's Load: name (asked for when empty) read as format (by its
-   extension when empty, else .dat) into the stored columns, in order */
-void data_read(BROWSER *b, std::string_view format, std::string_view name);
+   extension when empty, else .dat) into s's stored columns, in order */
+void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string_view name);
 
 /* the data table as a session file saves it (xpp_session.cpp, W57):
    every stored row of T and the model's variables and auxiliaries, and
    the seed of the run that made them */
-xpp::DataTable stored_data_table();
+xpp::DataTable stored_data_table(const xpp::Session &s);
 /* table's columns into the stored ones of the same names (find_variable
    below; a name the model does not have is left out), the store grown to
    hold every row: its rows, the new data set; 0 when there was no memory
    for them */
-int put_stored_data(const xpp::DataTable &table);
+int put_stored_data(xpp::Session &s, const xpp::DataTable &table);
 
 /* the data column of variable s: 0 for T, i+1 for variable i, a browser
    column added by data_add_col (by name, case ignored, below), -1 for
@@ -94,13 +82,13 @@ void find_variable(std::string_view s, int *col);
 std::string browse_column_name(int j);
 
 /* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
-   them (add_expr's constants roll back to xpp::model()'s own end right
+   them (add_expr's constants roll back to the Model's own end right
    after, like a histogram condition -- the column is not a symbol a
-   later formula can name), into xpp::session().data_store.col[col_index].
+   later formula can name), into s.data_store.col[col_index].
    data_add_col's own add, and a fresh run's recompute (refresh_browser)
    of every added column, both go through this; false (and an error) on
    a formula that no longer compiles */
-bool compute_added_column(const std::string &formula, int col_index, int nrows);
+bool compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows);
 
 #include <vector>
 /* an Add column (browse_data.cpp data_add_col): its name and formula, as
@@ -127,6 +115,26 @@ struct BrowserState {
      column stays computed "as though ... another auxiliary variable". */
   std::vector<AddedColumn> added_columns;
 };
+
+/* The browser's commands and what they reach, on the session s whose
+   browser view b is (docs/protocol.md "The data browser") */
+float *get_data_col(const xpp::Session &s, int c);
+int check_for_stor(const xpp::Session &s, float **data);
+void data_del_col(const xpp::Session &s, BROWSER *b);
+void data_add_col(xpp::Session &s, BROWSER *b);
+int add_stor_col(xpp::Session &s, const char *name, const char *formula, BROWSER *b);
+void replace_column(xpp::Session &s, const char *var, char *form, float **dat, int n);
+/* Replace's saved column dropped: nothing to Unreplace */
+void wipe_rep(BrowserState &b);
+void unreplace_column(xpp::Session &s);
+/* the browser at the start of a model: s's stored data, no rows */
+void init_browser(xpp::Session &s);
+void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, int i2, int i3, int off);
+void data_get(xpp::Session &s, BROWSER *b);
+void data_replace(xpp::Session &s, BROWSER *b);
+void data_unreplace(xpp::Session &s);
+void data_table(const xpp::Session &s, BROWSER *b);
+void data_find(const xpp::Session &s, BROWSER *b);
 #endif
 #endif
 

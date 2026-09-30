@@ -63,17 +63,17 @@ constexpr Field fields[] = {
     {"bvp_eps", "BVP epsilon", Rule::positive, Use::always, &N::bvp_eps, nullptr},
 };
 
-/* whether the current method (and model) uses field f */
-bool used(const Field &f)
+/* whether the session's method (and model) uses field f */
+bool used(const xpp::Session &s, const Field &f)
 {
-    const xpp::SolverTraits &t = xpp::solver_info(xpp::session().numerics.method).traits;
+    const xpp::SolverTraits &t = xpp::solver_info(s.numerics.method).traits;
     switch (f.use) {
     case Use::always: return true;
     case Use::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
     case Use::step: return t.step_tolerance;
     case Use::rel: return t.rel_abs_tolerance;
     case Use::newton: return t.newton;
-    case Use::delays: return xpp::model().ndelays > 0;
+    case Use::delays: return s.model().ndelays > 0;
     }
     return true;
 }
@@ -84,27 +84,26 @@ const Field *field_of(std::string_view key)
     return it == std::ranges::end(fields) ? nullptr : &*it;
 }
 
-double value_of(const Field &f)
+double value_of(const NumericsSettings &n, const Field &f)
 {
-    const NumericsSettings &n = xpp::session().numerics;
     if (f.real == &N::tend && n.forever) return -n.tend;
     return f.real ? n.*f.real : n.*f.whole;
 }
 
-std::string event_text()
+std::string event_text(const xpp::Session &s)
 {
     std::string o = "{\"ev\":\"numerics\",\"fields\":[";
     bool first = true;
     for (const Field &f : fields) {
-        if (f.use == Use::delays && !used(f)) continue; /* no delays: no field */
-        const double v = value_of(f);
+        if (f.use == Use::delays && !used(s, f)) continue; /* no delays: no field */
+        const double v = value_of(s.numerics, f);
         o += xpp::format("{}{{\"key\":\"{}\",\"label\":", first ? "" : ",", f.key);
         first = false;
         xpp::json_append_string(o, f.label);
         o += ",\"value\":";
         o += std::isfinite(v) ? xpp::number(v) : std::string("null");
         if (f.whole) o += ",\"integer\":true";
-        if (!used(f)) o += ",\"unused\":true";
+        if (!used(s, f)) o += ",\"unused\":true";
         if (f.rule == Rule::method) {
             o += ",\"choices\":[";
             bool c1 = true;
@@ -121,7 +120,7 @@ std::string event_text()
     return o;
 }
 
-xpp::ChangedEvent event{event_text, "sending the numerics"};
+xpp::ChangedEvent<xpp::Session> event{event_text, "sending the numerics"};
 
 /* the method `text` names (a name of xpp::solvers(), any case, or its
    number); -1 for none */
@@ -134,8 +133,9 @@ int method_of(std::string_view text)
     return -1;
 }
 
-/* the value of text for field f, checked; false with why */
-bool check(const Field &f, std::string_view text, double &v, std::string &why)
+/* the value of text for field f of a model m's numerics, checked; false
+   with why */
+bool check(const xpp::Model &m_of, const Field &f, std::string_view text, double &v, std::string &why)
 {
     if (f.rule == Rule::method) {
         const int m = method_of(text);
@@ -147,7 +147,7 @@ bool check(const Field &f, std::string_view text, double &v, std::string &why)
             why = xpp::format("{}: {}", f.label, no);
             return false;
         }
-        if (xpp::model().nkernel > 0 && m != xpp::method::VOLTERRA) {
+        if (m_of.nkernel > 0 && m != xpp::method::VOLTERRA) {
             why = xpp::format("{}: a model with integral equations is integrated by Volterra", f.label);
             return false;
         }
@@ -184,17 +184,17 @@ bool check(const Field &f, std::string_view text, double &v, std::string &why)
 
 } // namespace
 
-int numerics_settings_set(std::string_view key, std::string_view text, std::string &why)
+int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
 {
     try {
         const Field *f = field_of(key);
         double v = 0;
-        if (!f || (f->use == Use::delays && !used(*f))) {
+        if (!f || (f->use == Use::delays && !used(s, *f))) {
             why = xpp::format("no numerics setting {}", key);
             return -1;
         }
-        if (!check(*f, text, v, why)) return -1;
-        NumericsSettings &n = xpp::session().numerics;
+        if (!check(s.model(), *f, text, v, why)) return -1;
+        NumericsSettings &n = s.numerics;
         if (f->real == &N::tend) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;
             n.tend = std::fabs(v);
@@ -216,6 +216,6 @@ int numerics_settings_set(std::string_view key, std::string_view text, std::stri
 
 void numerics_settings_init(NumericsSettingsEmit emit) { event.init(emit); }
 
-void numerics_settings_subscribe(int on) { event.subscribe(on != 0); }
+void numerics_settings_subscribe(const xpp::Session &s, int on) { event.subscribe(on != 0, s); }
 
-void numerics_settings_update(void) { event.update(); }
+void numerics_settings_update(const xpp::Session &s) { event.update(s); }

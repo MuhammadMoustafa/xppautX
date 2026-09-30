@@ -43,8 +43,9 @@ static void hl_activate_graph(int, int) {}
 static void hl_get_draw_size(unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
-    *w = xpp::session().plot_windows.current && xpp::session().plot_windows.current->x11Wid > 0 ? static_cast<unsigned int>(xpp::session().plot_windows.current->x11Wid) : 640;
-    *h = xpp::session().plot_windows.current && xpp::session().plot_windows.current->x11Hgt > 0 ? static_cast<unsigned int>(xpp::session().plot_windows.current->x11Hgt) : 480;
+    const GRAPH *g = xpp::session().plot_windows.current; /* an XppUi default: an entry point (W47d6) */
+    *w = g && g->x11Wid > 0 ? static_cast<unsigned int>(g->x11Wid) : 640;
+    *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
 static void hl_put_text(int, int, const char *) {}
 static int hl_film_clip(void) { return 1; }

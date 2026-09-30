@@ -341,7 +341,7 @@ XppUi make_json_ui(void)
     u.redraw_graph = j_redraw_graph;
     u.redraw_screens = j_redraw_screens;
     u.clear_screens = j_clear_screens;
-    u.clear_draw_window = clr_scrn;
+    u.clear_draw_window = [] { clr_scrn(xpp::session()); }; /* an XppUi callback: an entry point (W47d6) */
     u.reset_graphics = j_reset_graphics;
     u.data_changed = j_browser_changed;
     u.rows_stored = j_rows_stored;
@@ -405,7 +405,7 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
     else if (win == "browser") browser_key(s, ch, line);
     else if (win == "ani") ani_key(s, ch);
     else if (win == "aplot") aplot_key(s, ch);
-    else if (win == "equilibrium") equilibrium_key(ch);
+    else if (win == "equilibrium") equilibrium_key(s, ch);
     else j_err_msg(xpp::format("No key layer for the window {}", win).c_str());
 }
 
@@ -437,13 +437,13 @@ void file_command(xpp::Session &, const char *line)
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
-void write_command(xpp::Session &, const char *line)
+void write_command(xpp::Session &s, const char *line)
 {
     std::string o, name;
     get_string(line, "op", o, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
-    else if (is_cmd(line, "dfield")) write_dfield(name.c_str());
+    else if (is_cmd(line, "dfield")) write_dfield(s,name.c_str());
     else write_equilibrium(name.c_str(), get_int(line, "shoot", 0));
 }
 
@@ -593,15 +593,15 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
     if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) s = &switch_model(*s, *req);
     aplot_update(*s);
     browser_update(*s);
-    plot_data_update();
-    phase_data_update();
-    marks_data_update();
+    plot_data_update(*s);
+    phase_data_update(*s);
+    marks_data_update(*s);
     ani_data_update();
     diag_flush(*s, 1);
     auto_data_update(1);
     auto_view_update(*s);
     auto_settings_update();
-    numerics_settings_update();
+    numerics_settings_update(*s);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */

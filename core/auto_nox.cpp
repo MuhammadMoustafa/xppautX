@@ -350,7 +350,7 @@ void draw_export_axes()
 {
  set_scale(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymax);
  const AxisLabels l=axis_labels(xpp::session().auto_state.axes());
- Box_axis(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().ymax,l.x.c_str(),l.y.c_str(),0);
+ Box_axis(xpp::session(),xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().ymax,l.x.c_str(),l.y.c_str(),0);
 }
 
 void draw_bif_axes()
@@ -1111,7 +1111,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     }
     else 
       set_linestyle(8);
-    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
+    line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case CUEQ:
     if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
@@ -1124,7 +1124,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
 	pscolset2(flag2);
       
       }
-    line_abs(static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
+    line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case UPER:
     if(s.plot_export.color) 
@@ -1134,8 +1134,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=UPT;
-    point_abs(static_cast<float>(x),static_cast<float>(y1));
-    point_abs(static_cast<float>(x),static_cast<float>(y2));
+    point_abs(s,static_cast<float>(x),static_cast<float>(y1));
+    point_abs(s,static_cast<float>(x),static_cast<float>(y2));
     break;
   case SPER:
     if(s.plot_export.color)
@@ -1145,8 +1145,8 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=SPT;
-    point_abs(static_cast<float>(x),static_cast<float>(y1));
-    point_abs(static_cast<float>(x),static_cast<float>(y2)); 
+    point_abs(s,static_cast<float>(x),static_cast<float>(y1));
+    point_abs(s,static_cast<float>(x),static_cast<float>(y2)); 
     break;
   }
 
@@ -1163,7 +1163,7 @@ void auto_line(double x1i, double y1i, double x2i, double y2i)
 
   get_scale(&xmin,&ymin,&xmax,&ymax);
   set_scale(xpp::session().auto_state.axes().xmin,xpp::session().auto_state.axes().ymin,xpp::session().auto_state.axes().xmax,xpp::session().auto_state.axes().ymax);
-  if(clip(x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
+  if(clip(xpp::session().drawing,x1,x2,y1,y2,&x1_out,&y1_out,&x2_out,&y2_out)){
     x1d=x1_out;
     x2d=x2_out;
     y1d=y1_out;
@@ -2761,7 +2761,7 @@ void export_auto_csv()
 {
   std::string filename="diagram.csv";
   if(!file_selector("Export CSV",filename,"*.csv"))return;
-  const xpp::Result<bool> written=csv_export_diagram_pair(filename.c_str());
+  const xpp::Result<bool> written=csv_export_diagram_pair(xpp::session(),filename.c_str());
   if(!written)xpp::show_error(written.error());
   else if(!*written)err_msg("Nothing to export: run or load a diagram first");
 }

@@ -112,7 +112,7 @@ void send_state(xpp::Session &s)
     }
     /* pixel to plot coordinates of the active window and the AUTO diagram,
        for the x,y readout under the mouse (scale_to_real, auto_motion_xy) */
-    get_draw_area();
+    get_draw_area(s);
     buf_format(&b, ",\"view\":{{\"win\":{:d},\"left\":{:d},\"right\":{:d},\"top\":{:d},\"bottom\":{:d},"
                "\"xlo\":{:g},\"xhi\":{:g},\"ylo\":{:g},\"yhi\":{:g},\"three\":{:d}",
                s.plot_windows.draw_win, s.drawing.d_left, s.drawing.d_right, s.drawing.d_top, s.drawing.d_bottom, s.plot_windows.current->xlo, s.plot_windows.current->xhi,
@@ -228,9 +228,9 @@ void browser_command(xpp::Session &s, const char *line)
     get_string(line, "what", what, 8);
     get_string(line, "format", format, 16);
     get_string(line, "name", name, XPP_MAX_NAME);
-    if (o == "load") data_read(&s.browser.view, format, name);
-    else if (o == "write") data_write(&s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
-    else if (o == "postprocess") post_process_stuff();
+    if (o == "load") data_read(s, &s.browser.view, format, name);
+    else if (o == "write") data_write(s, &s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
+    else if (o == "postprocess") post_process_stuff(s);
     else j_err_msg(xpp::format("Unknown browser op {}", o).c_str());
     browser_dirty = 1;
 }
@@ -242,18 +242,18 @@ void browser_key(xpp::Session &s, int ch, const char *line)
     int row = get_int(line, "row", -1);
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
     switch (xpp_menu_index(&menu_browser_window, ch)) {
-    case BK_FIND: data_find(&s.browser.view); break;
-    case BK_GET: data_get(&s.browser.view); break;
-    case BK_REPLACE: data_replace(&s.browser.view); break;
-    case BK_UNREPLACE: data_unreplace(&s.browser.view); break;
-    case BK_TABLE: data_table(&s.browser.view); break;
+    case BK_FIND: data_find(s, &s.browser.view); break;
+    case BK_GET: data_get(s, &s.browser.view); break;
+    case BK_REPLACE: data_replace(s, &s.browser.view); break;
+    case BK_UNREPLACE: data_unreplace(s); break;
+    case BK_TABLE: data_table(s, &s.browser.view); break;
     case BK_FIRST: data_first(&s.browser.view); break;
     case BK_LAST: data_last(&s.browser.view); break;
     case BK_RESTORE: data_restore(&s.browser.view); break;
-    case BK_ADDCOL: data_add_col(&s.browser.view); break;
-    case BK_DELCOL: data_del_col(&s.browser.view); break;
-    case BK_LOAD: data_read(&s.browser.view, "", ""); break;
-    case BK_WRITE: data_write(&s.browser.view, "", "", ""); break;
+    case BK_ADDCOL: data_add_col(s, &s.browser.view); break;
+    case BK_DELCOL: data_del_col(s, &s.browser.view); break;
+    case BK_LOAD: data_read(s, &s.browser.view, "", ""); break;
+    case BK_WRITE: data_write(s, &s.browser.view, "", "", ""); break;
     }
     browser_dirty = 1;
 }
@@ -283,10 +283,10 @@ void plotvars_command(xpp::Session &s, const char *line)
         int k = 0;
         for (i = 0; i < n && k < 2; i++)
             if (isck[i]) list[k++] = i + 1;
-        if (k == 2) optimize_aplot(list.data());
+        if (k == 2) optimize_aplot(s, list.data());
         return;
     }
-    plot_checked_vars(get_int(line, "how", 0), isck.data(), n);
+    plot_checked_vars(s, get_int(line, "how", 0), isck.data(), n);
 }
 
 /* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics"],"enc":"f32"}:
@@ -295,7 +295,7 @@ void plotvars_command(xpp::Session &s, const char *line)
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
    sends the events' value arrays as base64 of little-endian float32,
    anything else as JSON numbers. */
-void data_command(xpp::Session &, const char *line)
+void data_command(xpp::Session &s, const char *line)
 {
     const char *arr = js_find(line, "events");
     std::string name, enc;
@@ -321,7 +321,7 @@ void data_command(xpp::Session &, const char *line)
     auto_data_subscribe(autoinfo);
     auto_view_subscribe(autoinfo);
     auto_settings_subscribe(autosettings);
-    numerics_settings_subscribe(numerics);
+    numerics_settings_subscribe(s, numerics);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -361,7 +361,7 @@ namespace {
    the numerics (num, W106) a number, or a method's name, the field named by
    its key (numerics_settings.h). 0 when set (or nothing to set), -1 on a
    formula that does not evaluate or a numerics value refused. */
-int apply_value(const xpp::Session &s, const char *line)
+int apply_value(xpp::Session &s, const char *line)
 {
     const xpp::Model &m = s.model();
     std::string kind, name, text;
@@ -376,7 +376,7 @@ int apply_value(const xpp::Session &s, const char *line)
     else if (kind == "bc") type = 4;    /* BCBOX */
     else if (kind == "num") {
         std::string why;
-        if (numerics_settings_set(name, text, why) == 0) return 0;
+        if (numerics_settings_set(s, name, text, why) == 0) return 0;
         j_err_msg(xpp::format("Numerics: {}", why).c_str());
         return -1;
     } else return 0;
@@ -392,11 +392,11 @@ int apply_value(const xpp::Session &s, const char *line)
     }
     state_dirty = 1;
     if (index < 0) return 0;
-    if (box_set_value(type, index, text.c_str(), &z) == -1) {
+    if (box_set_value(s, type, index, text.c_str(), &z) == -1) {
         j_err_msg("Bad formula");
         return -1;
     }
-    box_values_loaded(type);
+    box_values_loaded(s, type);
     return 0;
 }
 
@@ -417,25 +417,25 @@ void apply_set(xpp::Session &s, const char *line)
 }
 
 /* {"cmd":"default","kind":"par|ic"}: the model file's values */
-void default_command(xpp::Session &, const char *line)
+void default_command(xpp::Session &s, const char *line)
 {
     std::string kind;
     get_string(line, "kind", kind, 16);
-    if (kind == "par") set_default_params();
-    else set_default_ics();
+    if (kind == "par") set_default_params(s);
+    else set_default_ics(s);
 }
 
 /* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
    only, like `set`; the page sends it as part of the next `set` before the
    next computation, never on its own any more, but the command still just
    sets the value for a client that does) */
-void slide_command(xpp::Session &, const char *line)
+void slide_command(xpp::Session &s, const char *line)
 {
     std::string name;
     int type, index;
     get_string(line, "name", name);
     if (find_par_or_var(name.c_str(), &type, &index)) {
-        set_par_or_var(name.c_str(), type, index, get_num(line, "value", 0));
+        set_par_or_var(s, name.c_str(), type, index, get_num(line, "value", 0));
         state_dirty = 1;
     }
 }
@@ -464,7 +464,7 @@ void values_command(xpp::Session &s, const char *line)
     }
     if (o == "query") {
         if (name.empty()) j_err_msg("values query needs a name");
-        else write_values_query(name.c_str(), get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
+        else write_values_query(s, name.c_str(), get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
         return;
     }
     if (kind != "par" && kind != "ic") {
@@ -494,7 +494,7 @@ void j_rows_stored(int nrows)
         json_flush();
     }
     last = nrows;
-    plot_data_rows_stored(nrows);
+    plot_data_rows_stored(xpp::session(), nrows); /* an XppUi callback: an entry point (W47d6) */
 }
 
 /* ---- equilibria, source ------------------------------------------------------ */
@@ -551,9 +551,9 @@ void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev
 }
 
 /* a key of the equilibrium window (menu_equilibrium_window): Import */
-void equilibrium_key(int ch)
+void equilibrium_key(xpp::Session &s, int ch)
 {
-    if (xpp_menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(last_eq, last_eq_n);
+    if (xpp_menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(s, last_eq, last_eq_n);
 }
 
 void j_make_txtview(void)
@@ -581,7 +581,7 @@ void action_command(xpp::Session &s, const char *line)
     int i = get_int(line, "index", -1);
     const std::vector<xpp::Model::Comment> &comments = s.model().comments;
     if (i >= 0 && i < static_cast<int>(comments.size()) && comments[i].aflag > 0)
-        do_txt_action(comments[i].action.c_str());
+        do_txt_action(s, comments[i].action.c_str());
 }
 
 } // namespace xpp::json

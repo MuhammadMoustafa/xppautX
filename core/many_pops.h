@@ -1,14 +1,5 @@
 #ifndef _many_pops_h
 #define _many_pops_h
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-int select_table(void);
-#ifdef __cplusplus
-}
-#endif
 #include "grobs.h"
 #ifdef __cplusplus
 extern "C" {

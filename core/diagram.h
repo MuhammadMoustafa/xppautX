@@ -22,7 +22,6 @@ DIAGRAM *diagram_first(void);
 DIAGRAM *diagram_next(const DIAGRAM *d);
 DIAGRAM *diagram_prev(const DIAGRAM *d);
 void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,double *evr, double *evi);
-void edit_diagram(DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,int flag2, double *evr, double *evi, double tp);
 void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3,int icp4,int flag2, double *evr, double *evi);
 void kill_diagrams(void);
 /* the entry add_diagram or edit_start made last */
@@ -68,9 +67,13 @@ struct AutoDiagram {
   std::deque<DiagramPoint> points;
 };
 
-/* points, whole (an .autox's diagram, autox.h), in place of the diagram:
-   each point's DIAGRAM arrays and index set to its own, the first point
-   filled in (DiagFlag); none is start_diagram's empty diagram */
-void diagram_restore(std::deque<DiagramPoint> points);
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* points, whole (an .autox's diagram, autox.h), in place of the session
+   s's diagram: each point's DIAGRAM arrays and index set to its own, the
+   first point filled in (DiagFlag); none is start_diagram's empty diagram */
+void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points);
 #endif
 #endif

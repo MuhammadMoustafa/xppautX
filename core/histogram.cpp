@@ -35,7 +35,7 @@ std::array<int, 10> post_process_plotlist{};
 
 
 
-int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)
+int two_d_hist(xpp::Session &s, int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,double ylo,double yhi)
      /*
        col1,2 are the data you want to histogram
        ndat - number of points in the data
@@ -65,34 +65,33 @@ int two_d_hist(int col1,int col2,int ndat,int n1,int n2,double xlo,double xhi,do
   */
   for(i=0;i<n1;i++)
     for(j=0;j<n2;j++){
-      xpp::session().histogram.hist()[0][i+j*n1]=xlo + (i+.5)*dx;
-      xpp::session().histogram.hist()[1][i+j*n1]=ylo + (j+.5)*dy;
-      xpp::session().histogram.hist()[2][i+j*n1]=0.0;
+      s.histogram.hist()[0][i+j*n1]=xlo + (i+.5)*dx;
+      s.histogram.hist()[1][i+j*n1]=ylo + (j+.5)*dy;
+      s.histogram.hist()[2][i+j*n1]=0.0;
     }
   for(k=0;k<ndat;k++){
-    x=(xpp::session().data_store.col[col1][k]-xlo)/dx;
-    y=(xpp::session().data_store.col[col2][k]-ylo)/dy;
+    x=(s.data_store.col[col1][k]-xlo)/dx;
+    y=(s.data_store.col[col2][k]-ylo)/dy;
     i=static_cast<int>(x);
     j=static_cast<int>(y);
     if((i>=0)&&(i<n1)&&(j>=0)&&(j<n2))
-      xpp::session().histogram.hist()[2][i+j*n1]+=norm;
+      s.histogram.hist()[2][i+j*n1]+=norm;
    }  
   return 0;
 }
 
-void four_back()
+void four_back(xpp::Session &s)
 {
- if(xpp::session().histogram.four_here)new_browse_dat(xpp::session().histogram.four(),xpp::session().histogram.four_len);
+ if(s.histogram.four_here)new_browse_dat(s.histogram.four(),s.histogram.four_len);
 }
 
-void hist_back()
+void hist_back(xpp::Session &s)
 {
- if(xpp::session().histogram.hist_here)new_browse_dat(xpp::session().histogram.hist(),xpp::session().histogram.hist_len);
+ if(s.histogram.hist_here)new_browse_dat(s.histogram.hist(),s.histogram.hist_len);
 }
 
-void new_four(int nmodes, int col)
+void new_four(xpp::Session &s, int nmodes, int col)
 {
-  xpp::Session &s=xpp::session();
   int i;
   int length=nmodes+1;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
@@ -103,18 +102,17 @@ void new_four(int nmodes, int col)
    s.histogram.four_here=0;
  }
   s.histogram.four_len=nmodes;
- s.histogram.four_columns.make(3,length,xpp::model().neq);
+ s.histogram.four_columns.make(3,length,s.model().neq);
  s.histogram.four_here=1;
 for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total; 
- bob=get_data_col(col);
+ bob=get_data_col(s,col);
     fft(bob,s.histogram.four()[1],s.histogram.four()[2],nmodes,s.data_store.rows);
- four_back();
+ four_back(s);
   ping();
 }
 
-void post_process_stuff()
+void post_process_stuff(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
 
   if(s.histogram.post_process==0)return;
     if(N_plist<1)plotlist=post_process_plotlist.data();
@@ -122,32 +120,31 @@ void post_process_stuff()
     plotlist[0]=0;
     plotlist[1]=1;
     if(s.histogram.post_process==7){ /* two-d histogram stuff */
-      twod_hist();
+      twod_hist(s);
       return;
     }
     if(s.histogram.post_process==1){
-      xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0));
+      xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.col,0,"",0));
       return;
     }
     if(s.histogram.post_process==2){
-      just_fourier(0);
+      just_fourier(s,0);
       return;
     }
     if(s.histogram.post_process==3){
-      just_fourier(1);
+      just_fourier(s,1);
       return;
     }
     if(s.histogram.post_process>3&&s.histogram.post_process<7){
-      just_sd(s.histogram.post_process-4);
+      just_sd(s,s.histogram.post_process-4);
       return;
     }
 
 }
 
-int twod_hist()
+int twod_hist(xpp::Session &s)
 
 {
-  xpp::Session &s=xpp::session();
   int length;
  length=s.histogram.info.nbins*s.histogram.info.nbins2;
    if(length>=s.data_store.max_rows)
@@ -160,14 +157,14 @@ int twod_hist()
   }
 
    s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(3,length,xpp::model().neq);
+  s.histogram.hist_columns.make(3,length,s.model().neq);
   s.histogram.hist_here=2;
   s.histogram.hist_len=length;
-  two_d_hist(s.histogram.info.col,s.histogram.info.col2,s.data_store.rows,
+  two_d_hist(s,s.histogram.info.col,s.histogram.info.col2,s.data_store.rows,
 	     s.histogram.info.nbins,s.histogram.info.nbins2,
 	     s.histogram.info.xlo,s.histogram.info.xhi,s.histogram.info.ylo,s.histogram.info.yhi);
 
-  hist_back();
+  hist_back(s);
 
       ping();
       
@@ -176,13 +173,13 @@ int twod_hist()
 }  
 int new_2d_hist()
 {
-  xpp::Session &s=xpp::session();
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
 
-  if((xpp::model().neq<2)||(s.data_store.rows<3)){
+  if((s.model().neq<2)||(s.data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
     return 0;
   }
-  if(get_col_info(&s.histogram.info.col,"Variable 1 ")==0)return(-1);  
+  if(get_col_info(s,&s.histogram.info.col,"Variable 1 ")==0)return(-1);  
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float("Low ",&s.histogram.info.xlo);
   new_float("Hi ",&s.histogram.info.xhi);
@@ -195,7 +192,7 @@ int new_2d_hist()
     return(0);
   }
   
-  if(get_col_info(&s.histogram.info.col2,"Variable 2 ")==0)return(-1);  
+  if(get_col_info(s,&s.histogram.info.col2,"Variable 2 ")==0)return(-1);  
   new_int("Number of bins ",&s.histogram.info.nbins2);
   new_float("Low ",&s.histogram.info.ylo);
   new_float("Hi ",&s.histogram.info.yhi);
@@ -209,12 +206,11 @@ if(s.histogram.info.nbins2<2){
     return(0);
   }
 
-  return(twod_hist());
+  return(twod_hist(s));
 }
   
-xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
+xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which)
 {
-  xpp::Session &s=xpp::session();
   int i,j,index;
   int command[256];
   int cond=0,flag=1;
@@ -231,7 +227,7 @@ xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, con
     s.histogram.hist_here=0;
   }
   s.histogram.hist_len=length;
-  s.histogram.hist_columns.make(2,length,xpp::model().neq);
+  s.histogram.hist_columns.make(2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(i=0;i<length;i++){
     s.histogram.hist()[0][i]=static_cast<float>((zlo+dz*i));
@@ -252,9 +248,9 @@ xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, con
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<xpp::model().node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
-	  for(j=0;j<xpp::model().nmarkov;j++)
-	    set_ivar(j+xpp::model().node+1+xpp::model().fix_var,static_cast<double>(s.data_store.col[j+xpp::model().node+1][i]));
+	  for(j=0;j<s.model().node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
+	  for(j=0;j<s.model().nmarkov;j++)
+	    set_ivar(j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
 	  z=evaluate(command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
@@ -265,9 +261,9 @@ xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, con
 	  s.histogram.hist()[1][index]+=1.0;
 	}
       }
-    s.parser.ncon=xpp::model().ncon_start;
-    s.parser.nsym=xpp::model().nsym_start;
-    hist_back();
+    s.parser.ncon=s.model().ncon_start;
+    s.parser.nsym=s.model().nsym_start;
+    hist_back(s);
     ping();
     return condition_error;
   }
@@ -281,19 +277,19 @@ xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, con
 	  s.histogram.hist()[1][index]+=1.0;
       }
     }
-    hist_back();
+    hist_back(s);
     ping();
     return {};
   }
   if(which==2){
     mycor2(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,nbins,s.histogram.hist()[1],1);
-    hist_back();
+    hist_back(s);
     ping();
     return {};
   }
   if(which==3){
     fftxcorr(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,(nbins-1)/2,s.histogram.hist()[1],1);
-    hist_back();
+    hist_back(s);
     ping();
     return {};
   }
@@ -302,29 +298,30 @@ xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, con
 
 void column_mean()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  int i;
  double sum,sum2,ss;
  double mean,sdev;
- if(xpp::session().data_store.rows<=1){
+ if(s.data_store.rows<=1){
    err_msg("Need at least 2 data points!");
    return;
  }
- if(get_col_info(&xpp::session().histogram.info.col,"Variable ")==0)return;
+ if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
  sum=0.0;
  sum2=0.0;
- for(i=0;i<xpp::session().data_store.rows;i++){
-   ss=xpp::session().data_store.col[xpp::session().histogram.info.col][i];
+ for(i=0;i<s.data_store.rows;i++){
+   ss=s.data_store.col[s.histogram.info.col][i];
    sum+=ss;
    sum2+=(ss*ss);
  }
- mean=sum/static_cast<double>(xpp::session().data_store.rows);
- sdev=sqrt(sum2/static_cast<double>(xpp::session().data_store.rows)-mean*mean);
+ mean=sum/static_cast<double>(s.data_store.rows);
+ sdev=sqrt(sum2/static_cast<double>(s.data_store.rows)-mean*mean);
  err_msg(xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev).c_str());
 }
 
-int get_col_info(int *col, const char *prompt)
+int get_col_info(const xpp::Session &s, int *col, const char *prompt)
 {
- std::string variable=*col==0?"t":xpp::model().uvar_names[*col-1];
+ std::string variable=*col==0?"t":s.model().uvar_names[*col-1];
  new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
  find_variable(variable.c_str(),col);
  if(*col<0){
@@ -336,19 +333,20 @@ int get_col_info(int *col, const char *prompt)
 
 void compute_power()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int i;
-  double s,c;
+  double sv,c;
   float *datx,*daty,ptot=0;
   compute_fourier();
-  if((xpp::model().neq<2)||(xpp::session().data_store.rows<=1))return;
-  datx=get_data_col(1);
-  daty=get_data_col(2);
+  if((s.model().neq<2)||(s.data_store.rows<=1))return;
+  datx=get_data_col(s,1);
+  daty=get_data_col(s,2);
 
-  for(i=0;i<xpp::session().histogram.four_len;i++){
+  for(i=0;i<s.histogram.four_len;i++){
     c=datx[i];
-    s=daty[i];
-    datx[i]=sqrt(s*s+c*c);
-    daty[i]=atan2(s,c);
+    sv=daty[i];
+    datx[i]=sqrt(sv*sv+c*c);
+    daty[i]=atan2(sv,c);
     ptot+=(datx[i]*datx[i]);
   }
   xpp::log(XPP_LOG_INFO, "a0={:g} L2norm= {:g}  \n",datx[0],sqrt(ptot));
@@ -492,9 +490,8 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
  return(1);
 }
 
-void just_sd(int flag)
+void just_sd(xpp::Session &s, int flag)
 {
- xpp::Session &s=xpp::session();
  int length,j;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
   spec_type=flag;
@@ -505,46 +502,47 @@ void just_sd(int flag)
   }  
    s.histogram.hist_len=s.histogram.spec_wid/2;
    length=s.histogram.hist_len+2;
-  s.histogram.hist_columns.make(2,length,xpp::model().neq);
+  s.histogram.hist_columns.make(2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(j=0;j<s.histogram.hist_len;j++)s.histogram.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/s.histogram.spec_wid)/total;
   if(spec_type==0)
     spectrum(s.data_store.col[s.histogram.spec_col],s.data_store.rows,s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1]);
   else
     cross_spectrum(s.data_store.col[s.histogram.spec_col],s.data_store.col[s.histogram.spec_col2],s.data_store.rows,s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],spec_type);
-  hist_back();
+  hist_back(s);
   ping();
 }
 void compute_sd()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
   
-  if(get_col_info(&xpp::session().histogram.spec_col,"Variable ")==0)return;
+  if(get_col_info(s,&s.histogram.spec_col,"Variable ")==0)return;
   if(spec_type>0)
-      if(get_col_info(&xpp::session().histogram.spec_col2,"Variable 2 ")==0)return;
-  new_int("Window length ",&xpp::session().histogram.spec_wid);
-  new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&xpp::session().histogram.spec_win);
-  just_sd(spec_type);
+      if(get_col_info(s,&s.histogram.spec_col2,"Variable 2 ")==0)return;
+  new_int("Window length ",&s.histogram.spec_wid);
+  new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&s.histogram.spec_win);
+  just_sd(s,spec_type);
 }
  
-void just_fourier(int flag)
+void just_fourier(xpp::Session &s, int flag)
 {
   int i;
-  double s,c;
+  double sv,c;
   float *datx,*daty;
-  int nmodes=xpp::session().data_store.rows/2-1;
-  if(xpp::model().neq<2||xpp::session().data_store.rows<=1)return;
-   new_four(nmodes,xpp::session().histogram.spec_col);
+  int nmodes=s.data_store.rows/2-1;
+  if(s.model().neq<2||s.data_store.rows<=1)return;
+   new_four(s,nmodes,s.histogram.spec_col);
    if(flag)
      {
-       datx=get_data_col(1);
-       daty=get_data_col(2);
+       datx=get_data_col(s,1);
+       daty=get_data_col(s,2);
        
-       for(i=0;i<xpp::session().histogram.four_len;i++){
+       for(i=0;i<s.histogram.four_len;i++){
 	 c=datx[i];
-	 s=daty[i];
-	 datx[i]=sqrt(s*s+c*c);
-	 daty[i]=atan2(s,c);
+	 sv=daty[i];
+	 datx[i]=sqrt(sv*sv+c*c);
+	 daty[i]=atan2(sv,c);
 	 
        }
 
@@ -553,24 +551,25 @@ void just_fourier(int flag)
   
 void compute_fourier()
 {
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int nmodes=10;
-  if(xpp::model().neq<2){
+  if(s.model().neq<2){
     err_msg("Need at least three data columns");
     return;
   }
-  if(xpp::session().data_store.rows<=1){
+  if(s.data_store.rows<=1){
     err_msg("No data!");
     return;
   }
-  if(get_col_info(&xpp::session().histogram.spec_col,"Variable ")==1){
-    nmodes=xpp::session().data_store.rows/2-1;
-    new_four(nmodes,xpp::session().histogram.spec_col);
+  if(get_col_info(s,&s.histogram.spec_col,"Variable ")==1){
+    nmodes=s.data_store.rows/2-1;
+    new_four(s,nmodes,s.histogram.spec_col);
   }
 }
 
 void compute_correl()
 {
-  xpp::Session &s=xpp::session();
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int lag;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0],dta;
   dta=total/static_cast<float>((s.data_store.rows-1));
@@ -587,19 +586,20 @@ void compute_correl()
   s.histogram.info.xlo=-lag*dta;
   s.histogram.info.xhi=lag*dta;
   
-  if(get_col_info(&s.histogram.info.col,"Variable 1 ")==0)return;
-  if(get_col_info(&s.histogram.info.col2,"Variable 2 ")==0)return;
-  xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
+  if(get_col_info(s,&s.histogram.info.col,"Variable 1 ")==0)return;
+  if(get_col_info(s,&s.histogram.info.col2,"Variable 2 ")==0)return;
+  xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
 	   s.histogram.info.xhi,s.histogram.info.col,s.histogram.info.col2,s.histogram.info.cond.c_str(),2+s.histogram.info.fftc));
 }
 void compute_stacor()
 {
-  new_int("Number of bins ",&xpp::session().histogram.info.nbins);
-  new_float("Low ",&xpp::session().histogram.info.xlo);
-  new_float("Hi ",&xpp::session().histogram.info.xhi);
-  if(get_col_info(&xpp::session().histogram.info.col,"Variable ")==0)return;
-   xpp::ok_or_show(new_hist(xpp::session().histogram.info.nbins,xpp::session().histogram.info.xlo,
-	   xpp::session().histogram.info.xhi,xpp::session().histogram.info.col,0,xpp::session().histogram.info.cond.c_str(),1));
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  new_int("Number of bins ",&s.histogram.info.nbins);
+  new_float("Low ",&s.histogram.info.xlo);
+  new_float("Hi ",&s.histogram.info.xhi);
+  if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
+   xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
+	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),1));
 }
 
 void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
@@ -634,14 +634,14 @@ void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
 
 void compute_hist()
 {
-  xpp::Session &s=xpp::session();
+  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float("Low ",&s.histogram.info.xlo);
   new_float("Hi ",&s.histogram.info.xhi);
-  if(get_col_info(&s.histogram.info.col,"Variable ")==0)return;
+  if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
   new_string_of("Condition ",s.histogram.info.cond,XPP_FIELD_EXPRESSION);
-  xpp::ok_or_show(new_hist(s.histogram.info.nbins,s.histogram.info.xlo,
+  xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
 	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),0));
 }
 

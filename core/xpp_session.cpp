@@ -198,7 +198,7 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
            saved one is read and left) */
         int i = 0;
         if (saved != 0) {
-            make_active(0, 1);
+            make_active(s, 0, 1);
             create_a_pop();
             i = s.plot_windows.active;
         }
@@ -218,7 +218,7 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
         d.axes_seen = false; /* the zoom is for the axes just read */
         if (made) slot[saved] = i;
     }
-    make_active(slot.contains(active) ? slot[active] : 0, 1);
+    make_active(s, slot.contains(active) ? slot[active] : 0, 1);
     io_int(&rest.auto_view.earlier, fp, reading, "");
     io_bool(reading, fp, rest.auto_view.show_earlier, "");
     int added = 0;
@@ -241,7 +241,7 @@ bool write_marks(xpp::Session &s, FILE *fp)
     io_int(&n, fp, writing, "labels");
     for (LABEL &l : s.labels) {
         if (!l.use) continue;
-        int win = graph_of(l.w);
+        int win = graph_of(s, l.w);
         double x = l.x, y = l.y;
         io_int(&win, fp, writing, "window");
         io_double(&x, fp, writing, "x");
@@ -255,7 +255,7 @@ bool write_marks(xpp::Session &s, FILE *fp)
     io_int(&n, fp, writing, "arrows and markers");
     for (GROB &g : s.grobs) {
         if (!g.use) continue;
-        int win = graph_of(g.w);
+        int win = graph_of(s, g.w);
         double xs = g.xs, ys = g.ys, xe = g.xe, ye = g.ye;
         io_int(&win, fp, writing, "window");
         io_int(&g.type, fp, writing, "type");
@@ -273,7 +273,7 @@ bool write_marks(xpp::Session &s, FILE *fp)
     for (int i = 0; i < MAXFRZ; i++) {
         CURVE &c = s.frozen_curves.curve[i];
         if (!c.use) continue;
-        int win = graph_of(c.w), type = c.type;
+        int win = graph_of(s, c.w), type = c.type;
         io_int(&i, fp, writing, "slot");
         io_int(&win, fp, writing, "window");
         io_int(&type, fp, writing, "type");
@@ -383,7 +383,7 @@ bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const
         std::vector<float> x = points_of(frozen, array + "0", len), y = points_of(frozen, array + "1", len),
                            z = type > 0 ? points_of(frozen, array + "2", len) : std::vector<float>();
         if (len <= 0 || static_cast<int>(x.size()) != len ||
-            !restore_frozen_curve(i, window_of(s, slot, win), type, color, std::move(key), std::move(name), std::move(x),
+            !restore_frozen_curve(s,i, window_of(s, slot, win), type, color, std::move(key), std::move(name), std::move(x),
                                   std::move(y), std::move(z)))
             xpp::log(XPP_LOG_WARN, "Open session: frozen curve {} left out\n", i + 1);
     }
@@ -412,7 +412,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
 
     /* the values and numerics (and the active window's graphics) */
     if (const std::string *set = member(mem, xpp::snapx::set_member)) {
-        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [](FILE *fp) { return read_lunch(fp) != 0; }))
+        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [&s](FILE *fp) { return read_lunch(s, fp) != 0; }))
             xpp_session_warn("Open session: its parameters and numerics could not be read");
     }
 
@@ -437,7 +437,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
     s.browser.added_columns = std::move(rest.added);
     if (const std::string *d = member(mem, xpp::snapx::data_member)) {
         xpp::DataTable t;
-        if (!xpp::npz_table(*d, t) || (t.rows() > 0 && put_stored_data(t) == 0)) xpp_session_warn("Open session: its data could not be read");
+        if (!xpp::npz_table(*d, t) || (t.rows() > 0 && put_stored_data(s, t) == 0)) xpp_session_warn("Open session: its data could not be read");
         else s.numerics.last_seed = t.seed;
     }
     if (const std::string *mk = member(mem, xpp::snapx::marks_member)) {
@@ -450,10 +450,10 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
     const int active = s.plot_windows.active;
     for (int i = 0; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use && i != active) {
-            make_active(i, 1);
+            make_active(s, i, 1);
             redraw_the_graph();
         }
-    make_active(active, 1);
+    make_active(s, active, 1);
     redraw_the_graph();
     s.saved_session = SavedSession{f.path};
     return true;
@@ -493,8 +493,8 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
         return 0;
     }
     redraw_params(); /* as File/Write set does, before write_lunch */
-    std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [](FILE *fp) {
-        write_lunch(fp);
+    std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [&s](FILE *fp) {
+        write_lunch(s, fp);
         return true;
     });
     if (!set) {
@@ -512,7 +512,7 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
     entries->push_back({xpp::snapx::windows_member, std::move(*windows)});
     entries->push_back({xpp::snapx::marks_member, std::move(*marks)});
     if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
-    if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table())});
+    if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table(s))});
 
     xpp::Writer w = xpp::Writer::binary(file.c_str());
     if (!w || !w.write(xpp::zip::make_zip(*entries)) || !w.commit()) {

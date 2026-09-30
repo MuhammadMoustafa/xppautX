@@ -2,6 +2,7 @@
 #define MARKS_DATA_H
 #include <stddef.h>
 #include "xpp_types.h"
+#include "many_pops.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,29 +37,36 @@ void marks_data_init(MarksDataEmit emit);
    window at the next update) and whether values go as base64 float32 */
 void marks_data_subscribe(int on, int f32);
 
-/* the end of a command: the events of every window whose marks changed */
-void marks_data_update(void);
 
 /* plot window pop was blanked: it shows none of its marks any more */
 void marks_data_cleared(int pop);
 
-/* the current window marks an equilibrium at (x, y) (plot coordinates)
-   with eq_symb's symbol: 0 box (unstable), 1 triangle (saddle), 3 circle
-   (stable) */
-void marks_data_equilibrium(double x, double y, int symbol);
-
-/* window w shows label lb[slot] as `text` (its \{expr} filled in) */
-void marks_data_label(XppWinId w, int slot, const char *text);
-
-/* window w shows graphic object grob[slot] */
-void marks_data_grob(XppWinId w, int slot);
-
-/* window w shows frozen curve frozen_curves.curve[slot]; frozen_new: it was just
-   made (a new curve, even in a slot used before), in the window it names */
-void marks_data_frozen(XppWinId w, int slot);
-void marks_data_frozen_new(int slot);
-
 #ifdef __cplusplus
 }
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the end of a command on s: the events of every window whose marks
+   changed */
+void marks_data_update(const xpp::Session &s);
+
+/* the active window of the plot windows pw marks an equilibrium at (x, y)
+   (plot coordinates) with eq_symb's symbol: 0 box (unstable), 1 triangle
+   (saddle), 3 circle (stable) */
+void marks_data_equilibrium(const XppPlotWindows &pw, double x, double y, int symbol);
+
+/* window w of pw shows label lb[slot] as `text` (its \{expr} filled in) */
+void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, const char *text);
+
+/* window w of pw shows graphic object grob[slot] */
+void marks_data_grob(const XppPlotWindows &pw, XppWinId w, int slot);
+
+/* window w of pw shows frozen curve frozen_curves.curve[slot]; frozen_new:
+   s's curve was just made (a new curve, even in a slot used before), in the
+   window it names */
+void marks_data_frozen(const XppPlotWindows &pw, XppWinId w, int slot);
+void marks_data_frozen_new(const xpp::Session &s, int slot);
 #endif
 #endif

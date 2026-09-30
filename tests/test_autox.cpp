@@ -211,7 +211,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
         p.d.icp1 = 0;
         p.d.icp2 = 1;
     }
-    diagram_restore(pts);
+    diagram_restore(s, pts);
     CHECK(diagram_count() == 9 && diagram_point(3)->uhi[1] == pts[3].uhi[1]);
     const std::string solutions = "   1   1   4   1   2   0   1   3 ...\r\n0.0 1 2\n";
     CHECK(write_file(auto_solutions_file(), solutions));

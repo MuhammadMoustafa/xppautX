@@ -96,10 +96,11 @@ Window windows[MAXPOP];
 bool flowing;
 unsigned long trajectory;
 
-Window *current()
+/* the record of the windows pw's active one, the window drawn in */
+Window *current(const XppPlotWindows &pw)
 {
-    if (!emit_line || xpp::session().plot_windows.active < 0 || xpp::session().plot_windows.active >= MAXPOP) return nullptr;
-    return &windows[xpp::session().plot_windows.active];
+    if (!emit_line || pw.active < 0 || pw.active >= MAXPOP) return nullptr;
+    return &windows[pw.active];
 }
 
 /* ---- flows ---- */
@@ -154,11 +155,11 @@ std::size_t flow_values(const Field &f)
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
 /* a variable's name ("" for none): the model's own, letters, digits, underscores */
-void add_name(std::string &o, int col)
+void add_name(std::string &o, const xpp::Model &m, int col)
 {
     o += '"';
     if (col > 0 && col <= MAXODE)
-        for (char c : xpp::model().uvar_names[col - 1])
+        for (char c : m.uvar_names[col - 1])
             if (c != '"' && c != '\\' && static_cast<unsigned char>(c) >= 0x20) o += c;
     o += '"';
 }
@@ -168,23 +169,23 @@ void add_values(std::string &o, const Floats &v)
     xpp_series_append(o, v.data(), static_cast<int>(v.size()), values_f32);
 }
 
-void begin_event(std::string &o, const char *ev, int pop)
+void begin_event(std::string &o, const char *ev, const GRAPH &g)
 {
     o = "{\"ev\":\"";
     o += ev;
     o += "\",\"win\":";
-    add_int(o, static_cast<long>(xpp::session().plot_windows.graph[pop].w));
+    add_int(o, static_cast<long>(g.w));
     if (values_f32) o += ",\"enc\":\"f32\"";
 }
 
-void send_nullclines(int pop, const Nullclines &nc)
+void send_nullclines(const xpp::Session &s, int pop, const Nullclines &nc)
 {
     std::string o;
-    begin_event(o, "nullclines", pop);
+    begin_event(o, "nullclines", s.plot_windows.graph[pop]);
     o += ",\"xname\":";
-    add_name(o, nc.ix);
+    add_name(o, s.model(), nc.ix);
     o += ",\"yname\":";
-    add_name(o, nc.iy);
+    add_name(o, s.model(), nc.iy);
     o += ",\"xcolor\":";
     add_int(o, nc.xcolor);
     o += ",\"ycolor\":";
@@ -205,10 +206,10 @@ void send_nullclines(int pop, const Nullclines &nc)
     emit_line(o.data(), o.size());
 }
 
-void send_dfield(int pop, const Field &f)
+void send_dfield(const GRAPH &g, const Field &f)
 {
     std::string o;
-    begin_event(o, "dfield", pop);
+    begin_event(o, "dfield", g);
     o += ",\"scaled\":";
     add_int(o, f.scaled);
     o += ",\"color\":";
@@ -237,22 +238,22 @@ void send_dfield(int pop, const Field &f)
     emit_line(o.data(), o.size());
 }
 
-void update()
+void update(const xpp::Session &s)
 {
     for (int k = 0; k < MAXPOP; k++) {
-        const int pop = k == 0 ? xpp::session().plot_windows.active : (k == xpp::session().plot_windows.active ? 0 : k); /* the active window first */
+        const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k); /* the active window first */
         Window &w = windows[pop];
-        if (!xpp::session().plot_windows.graph[pop].Use) {
+        if (!s.plot_windows.graph[pop].Use) {
             w = Window(); /* a window made again later starts afresh */
             continue;
         }
         if (nullclines_on && !(w.nc_valid && w.nc == w.nc_sent)) {
-            send_nullclines(pop, w.nc);
+            send_nullclines(s, pop, w.nc);
             w.nc_sent = w.nc;
             w.nc_valid = true;
         }
         if (dfield_on && !(w.df_valid && w.df == w.df_sent)) {
-            send_dfield(pop, w.df);
+            send_dfield(s.plot_windows.graph[pop], w.df);
             w.df_sent = w.df;
             w.df_valid = true;
         }
@@ -273,11 +274,11 @@ extern "C" void phase_data_subscribe(int nullclines, int dfield, int f32)
     for (Window &w : windows) w.nc_valid = w.df_valid = false; /* the next update sends */
 }
 
-extern "C" void phase_data_update(void)
+void phase_data_update(const xpp::Session &s)
 {
     if (!emit_line || (!nullclines_on && !dfield_on)) return;
     try {
-        update();
+        update(s);
     } catch (...) {
     }
 }
@@ -291,10 +292,10 @@ extern "C" void phase_data_cleared(int pop)
     w.df = Field();
 }
 
-extern "C" void phase_data_nullclines(const float *xn, int nx, const float *yn, int ny, int ix, int iy, int xcolor,
-                                      int ycolor)
+void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
+                           int xcolor, int ycolor)
 {
-    Window *w = current();
+    Window *w = current(pw);
     if (!w) return;
     try {
         Nullclines &nc = w->nc;
@@ -309,14 +310,14 @@ extern "C" void phase_data_nullclines(const float *xn, int nx, const float *yn, 
     }
 }
 
-extern "C" void phase_data_frozen_begin(void)
+void phase_data_frozen_begin(const XppPlotWindows &pw)
 {
-    if (Window *w = current()) w->nc.frozen.clear();
+    if (Window *w = current(pw)) w->nc.frozen.clear();
 }
 
-extern "C" void phase_data_frozen(const float *xn, int nx, const float *yn, int ny)
+void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny)
 {
-    Window *w = current();
+    Window *w = current(pw);
     if (!w) return;
     try {
         Clines c;
@@ -327,9 +328,9 @@ extern "C" void phase_data_frozen(const float *xn, int nx, const float *yn, int 
     }
 }
 
-extern "C" void phase_data_dfield_begin(int n, double du, double dv, int scaled, int color)
+void phase_data_dfield_begin(const XppPlotWindows &pw, int n, double du, double dv, int scaled, int color)
 {
-    Window *w = current();
+    Window *w = current(pw);
     if (!w) return;
     Field &f = w->df;
     f.n = n;
@@ -341,9 +342,9 @@ extern "C" void phase_data_dfield_begin(int n, double du, double dv, int scaled,
     f.speed.clear();
 }
 
-extern "C" void phase_data_arrow(double x, double y, double fx, double fy)
+void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, double fy)
 {
-    Window *w = current();
+    Window *w = current(pw);
     if (!w) return;
     const double s = std::hypot(fx, fy);
     const bool unit = s > 0 && std::isfinite(s);
@@ -363,17 +364,17 @@ extern "C" void phase_data_flow_start(void) { flowing = emit_line != nullptr; }
 
 extern "C" void phase_data_flow_next(void) { trajectory++; }
 
-extern "C" void phase_data_flow_step(int ncurves, const float *ox, const float *oy, const float *x, const float *y,
-                                     const int *color)
+void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox, const float *oy, const float *x,
+                          const float *y, const int *color)
 {
     if (!flowing) return;
-    Window *w = current();
-    if (!w || xpp::session().plot_windows.graph[xpp::session().plot_windows.active].ThreeDFlag || ncurves <= 0) return;
+    Window *w = current(pw);
+    if (!w || pw.graph[pw.active].ThreeDFlag || ncurves <= 0) return;
     try {
         Field &f = w->df;
         if (flow_values(f) > FLOW_MAX) return;
         if (f.flows.size() != static_cast<std::size_t>(ncurves)) f.flows.resize(ncurves);
-        const GRAPH &g = xpp::session().plot_windows.graph[xpp::session().plot_windows.active];
+        const GRAPH &g = pw.graph[pw.active];
         const double ex = std::fabs(g.xhi - g.xlo) * FLOW_STEP, ey = std::fabs(g.yhi - g.ylo) * FLOW_STEP;
         const bool first = w->trajectory != trajectory;
         w->trajectory = trajectory;

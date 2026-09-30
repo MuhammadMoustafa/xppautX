@@ -97,7 +97,7 @@ void ani_go(xpp::Session &s)
     xpp::Writer gif; /* anim.gif, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
     if (s.animation.ncom == 0 || s.browser.view.maxrow < 2) return;
-    set_ani_perm();
+    set_ani_perm(s);
     if (s.animation.mpeg.aviflag == 1) {
         gif = xpp::Writer::binary("anim.gif");
         set_global_map(1);
@@ -107,7 +107,7 @@ void ani_go(xpp::Session &s)
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(static_cast<double>(ss[0][row]), y);
         xpp_ui.ani_clear();
-        render_ani();
+        render_ani(s);
         xpp_ui.ani_show();
         if (ppm || gif) {
             std::vector<unsigned char> rgb = ask_pixels(WIN_ANI, -1, &w, &h);
@@ -155,20 +155,20 @@ void ani_command(xpp::Session &s, const char *line)
         send_ani_slider(s);
         return;
     }
-    if (o == "step") ani_flip1(get_int(line, "n", 1));
+    if (o == "step") ani_flip1(s,get_int(line, "n", 1));
     else if (o == "seek") {
         if (s.browser.view.maxrow >= 2) {
             s.animation.vcr.pos = 0;
-            ani_flip1(0);
-            ani_flip1(get_int(line, "pos", 0));
+            ani_flip1(s,0);
+            ani_flip1(s,get_int(line, "pos", 0));
         }
     } else if (o == "mouse") {
         /* dragging a grab point: down, move..., up (which may integrate) */
         get_string(line, "what", what, 8);
         if (s.animation.grab_flag) {
-            if (what == "down") ani_grab_mouse(1, x, yy);
-            else if (what == "move") update_ani_motion_stuff(x, yy);
-            else if (what == "up") ani_grab_mouse(0, x, yy);
+            if (what == "down") ani_grab_mouse(s,1, x, yy);
+            else if (what == "move") update_ani_motion_stuff(s,x, yy);
+            else if (what == "up") ani_grab_mouse(s,0, x, yy);
         }
     } else if (o == "close") {
         if (s.animation.vcr.iexist) {
@@ -189,14 +189,14 @@ void ani_key(xpp::Session &s, int ch)
     switch (xpp_menu_index(&menu_ani_window, ch)) {
     case NK_FILE:
         /* a new animation shows its first frame at once when there is data */
-        if (get_ani_file(NULL) && s.browser.view.maxrow >= 2) ani_reset();
+        if (get_ani_file(s,NULL) && s.browser.view.maxrow >= 2) ani_reset(s);
         break;
     case NK_GO: ani_go(s); break;
-    case NK_RESET: ani_reset(); break;
-    case NK_SKIP: ani_newskip(); break;
-    case NK_MPEG: ani_create_mpeg(); break;
+    case NK_RESET: ani_reset(s); break;
+    case NK_SKIP: ani_newskip(s); break;
+    case NK_MPEG: ani_create_mpeg(s); break;
     case NK_FLY: s.animation.options.on_the_fly = 1 - s.animation.options.on_the_fly; break;
-    case NK_GRAB: ani_grab_start(); break;
+    case NK_GRAB: ani_grab_start(s); break;
     }
     send_ani_slider(s);
 }
@@ -213,7 +213,7 @@ void j_new_vcr(void)
     s.animation.vcr.hgt = 350;
     s.animation.vcr.iexist = 1;
     send_window("create", WIN_ANI, s.animation.vcr.wid, s.animation.vcr.hgt, "Animation");
-    ani_view_created();
+    ani_view_created(s);
 }
 void j_ani_show(void)
 {

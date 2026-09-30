@@ -8,14 +8,8 @@ extern "C" {
 
 
 /* histogram.c */
-int two_d_hist(int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo, double yhi);
-void four_back(void);
-void hist_back(void);
-void new_four(int nmodes, int col);
 int new_2d_hist(void);
-int twod_hist(void);
 void column_mean(void);
-int get_col_info(int *col, const char *prompt);
 void compute_power(void);
 int spectrum(float *data, int nr, int win, int w_type, float *pow);
 int cross_spectrum(float *data, float *data2, int nr, int win, int w_type, float *pow, int type);
@@ -27,9 +21,6 @@ void mycor2(float *x, float *y, int n, int nbins, float *z, int flag);
 void compute_hist(void);
 void fftxcorr(float *data1, float *data2, int length, int nlag, float *cr, int flag);
 void fft(float *data, float *ct, float *st, int nmodes, int length);
-void post_process_stuff();
-void just_fourier(int flag);
-void just_sd(int flag);
 
 
 #ifdef __cplusplus
@@ -53,11 +44,6 @@ struct HIST_INFO {
    browser and the tests),
    whether one exists and its length, and the spectrum's settings (the
    model's own @ options set spec_*) and a batch run's post-processing */
-/* a histogram or correlation of the stored data; the error of a condition
-   that did not compile (it was ignored, the rest is done), for the command
-   to show */
-xpp::Result<> new_hist(int nbins, double zlo, double zhi, int col, int col2, const char *condition, int which);
-
 struct HistogramState {
   HIST_INFO info{100,100,1,1,0,0,1,0,1,""};
   LentColumns hist_columns, four_columns;
@@ -67,6 +53,30 @@ struct HistogramState {
   int spec_col=1, spec_wid=512, spec_win=2, spec_col2=1;
   int post_process=0;
 };
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* a histogram or correlation of the session s's stored data; the error of
+   a condition that did not compile (it was ignored, the rest is done), for
+   the command to show */
+xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
+                       int which);
+/* the other results of s's stored data: a 2D histogram, the Fourier
+   modes, a spectrum; shown in the browser (four_back, hist_back) */
+int two_d_hist(xpp::Session &s, int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo,
+               double yhi);
+int twod_hist(xpp::Session &s);
+void four_back(xpp::Session &s);
+void hist_back(xpp::Session &s);
+void new_four(xpp::Session &s, int nmodes, int col);
+void just_fourier(xpp::Session &s, int flag);
+void just_sd(xpp::Session &s, int flag);
+/* a batch run's post-processing (@ post_process=) of s's data */
+void post_process_stuff(xpp::Session &s);
+/* asks for a column of s's model (prompt); 0 when it names none */
+int get_col_info(const xpp::Session &s, int *col, const char *prompt);
 #endif
 #endif
 

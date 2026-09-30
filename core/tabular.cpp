@@ -83,52 +83,49 @@ namespace {
    regrow after a shrink leaving stale rather than zeroed values (unlike
    xpp_realloc, std::vector::resize does not re-zero capacity it already
    had) never shows. y stays a raw double*: see TABULAR (tabular.h). */
-void resize_values(int index, int length)
+void resize_values(TABULAR &t, int length)
 {
-  xpp::Session &s=xpp::session();
-  s.tables[index].y_storage.resize(static_cast<size_t>(length));
-  s.tables[index].y=s.tables[index].y_storage.data();
+  t.y_storage.resize(static_cast<size_t>(length));
+  t.y=t.y_storage.data();
 }
 }
 
-void set_auto_eval_flags(int f)
+void set_auto_eval_flags(xpp::Session &s, int f)
 {
  int i;
   for(i=0;i<MAX_TAB;i++) 
-    xpp::session().tables[i].autoeval=f;
+    s.tables[i].autoeval=f;
 }
 void set_table_name(const char *name, int index)
 {
   xpp::session().tables[index].name=name;
 }
 
-void view_table(int index)
+void view_table(xpp::Session &s, int index)
 {
-  xpp::Session &s=xpp::session();
   int i;
   int n=s.tables[index].n,len;
   double *y=s.tables[index].y;
   double xlo=s.tables[index].xlo,dx=s.tables[index].dx;
   len=n;
-  if(len>=xpp::session().data_store.max_rows)len=xpp::session().data_store.max_rows-1;
+  if(len>=s.data_store.max_rows)len=s.data_store.max_rows-1;
   for(i=0;i<len;i++){
-    xpp::session().data_store.col[0][i]=xlo+i*dx;
-    xpp::session().data_store.col[1][i]=y[i];
+    s.data_store.col[0][i]=xlo+i*dx;
+    s.data_store.col[1][i]=y[i];
   }
   refresh_browser(len);
 }
 
-void new_lookup_com(int i)
+void new_lookup_com(xpp::Session &s, int i)
 {
-  xpp::Session &s=xpp::session();
  int index,status;
  double xlo,xhi;
  int npts;
 
-  index=select_table();
+  index=select_table(s);
   if(index==-1)return;
   if(i==1){
-    view_table(index);
+    view_table(s,index);
     return;
   }
    if(s.tables[index].flag==1){
@@ -247,23 +244,23 @@ xpp::Result<> redo_all_fun_tables()
   xpp::FirstError first;
   for(i=0;i<s.ntable;i++){
     if(s.tables[i].flag==2&&s.tables[i].autoeval==1)
-      first.keep(eval_fun_table(s.tables[i].n,s.tables[i].xlo,
+      first.keep(eval_fun_table(s,s.tables[i].n,s.tables[i].xlo,
 		     s.tables[i].xhi,s.tables[i].filename.c_str(),s.tables[i].y));
   }
   update_all_ffts();
   return first.result();
 }
 
-xpp::Result<> eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y)
+xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y)
 {
   int i;
   
   double dx;
   double oldt;
-  int command[200],ncold=xpp::session().parser.ncon,nsym=xpp::session().parser.nsym;
+  int command[200],ncold=s.parser.ncon,nsym=s.parser.nsym;
   if(add_expr(formula,command,&i)){
-    xpp::session().parser.ncon=ncold;
-    xpp::session().parser.nsym=nsym;
+    s.parser.ncon=ncold;
+    s.parser.nsym=nsym;
     return xpp::fail("table","Illegal formula...");
   }
   oldt=get_ivar(0);
@@ -273,8 +270,8 @@ xpp::Result<> eval_fun_table(int n, double xlo, double xhi, const char *formula,
     y[i]=evaluate(command);
   }
   set_ivar(0,oldt);
-  xpp::session().parser.ncon=ncold;
-  xpp::session().parser.nsym=nsym;
+  s.parser.ncon=ncold;
+  s.parser.nsym=nsym;
   return {};
 }
 
@@ -292,9 +289,9 @@ xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *for
   if(npts<2){
     return xpp::fail("table","Too few points...");
   }
-  resize_values(index,length);
+  resize_values(s.tables[index],length);
   s.tables[index].flag=2;
-  auto ev=eval_fun_table(npts,xlo,xhi,formula,s.tables[index].y);
+  auto ev=eval_fun_table(s,npts,xlo,xhi,formula,s.tables[index].y);
   if(!ev)return ev;
   s.tables[index].xlo=xlo;
   s.tables[index].xhi=xhi;
@@ -373,7 +370,7 @@ xpp::Result<> load_table(const char *filename, int index, int model_file)
     return xpp::fail("table","xlo >= xhi ??? ");
   }
   bool fresh=(s.tables[index].flag==0);
-  resize_values(index,length);
+  resize_values(s.tables[index],length);
   for(i=0;i<length;i++){
     auto line=next_line();
     if(!line){
@@ -420,25 +417,25 @@ for npts lines
 */
 
 #include "menus.h"
-int select_table(void)
+int select_table(const xpp::Session &s)
 {
  int j;
  char ch;
  std::string key;
  std::vector<std::string> names;
  std::vector<const char *> n;
- for(int i=0;i<xpp::session().ntable;i++){
+ for(int i=0;i<s.ntable;i++){
    key+=static_cast<char>('a'+i);
-   names.push_back(xpp::format("{}: {}",key[i],xpp::session().tables[i].name));
+   names.push_back(xpp::format("{}: {}",key[i],s.tables[i].name));
  }
  for(const std::string &s : names)n.push_back(s.c_str());
  {
    XppMenu m={"table","Table",0,NULL,NULL,NULL,-1};
-   m.n=xpp::session().ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
+   m.n=s.ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
    ch=static_cast<char>(menu_choose(&m,0));
  }
  j=static_cast<int>(ch-'a');
- if(j<0||j>=xpp::session().ntable){
+ if(j<0||j>=s.ntable){
    err_msg("Not a valid table");
    return -1;
  }

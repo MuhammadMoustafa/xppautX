@@ -6,8 +6,9 @@
    settings (auto_settings.cpp) and the main numerics
    (numerics_settings.cpp). The front end gives the line's sink once
    (init); subscribe() says whether the client wants it and sends it at
-   once whatever it holds; update() sends it when its text changed. C++
-   only. */
+   once whatever it holds; update() sends it when its text changed. The
+   event's text is built from Args (the Session it is about, W47d), which
+   subscribe() and update() pass on. C++ only. */
 
 #include <cstddef>
 #include <new>
@@ -17,26 +18,27 @@
 
 namespace xpp {
 
+template <class... Args>
 class ChangedEvent {
 public:
     using Emit = void (*)(const char *line, size_t len);
     /* the event's line now; empty: none to send (nothing to say yet) */
-    using Build = std::string (*)();
+    using Build = std::string (*)(const Args &...);
 
     constexpr ChangedEvent(Build build, const char *what) : build_(build), what_(what) {}
 
     void init(Emit emit) { emit_ = emit; }
-    void subscribe(bool on)
+    void subscribe(bool on, const Args &...args)
     {
         subscribed_ = on;
         sent_valid_ = false;
-        update();
+        update(args...);
     }
-    void update()
+    void update(const Args &...args)
     {
         if (!emit_ || !subscribed_) return;
         try {
-            std::string text = build_();
+            std::string text = build_(args...);
             if (text.empty() || (sent_valid_ && text == sent_)) return;
             emit_(text.c_str(), text.size());
             sent_ = std::move(text);

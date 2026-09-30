@@ -1,6 +1,7 @@
 #ifndef PHASE_DATA_H
 #define PHASE_DATA_H
 #include <stddef.h>
+#include "many_pops.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,39 +38,51 @@ void phase_data_init(PhaseDataEmit emit);
    window at the next update) and whether values go as base64 float32 */
 void phase_data_subscribe(int nullclines, int dfield, int f32);
 
-/* the end of a command: the events of every window whose record changed */
-void phase_data_update(void);
 
 /* plot window pop was blanked: it shows none of this any more */
 void phase_data_cleared(int pop);
 
-/* the current window now shows these nullclines (nx and ny segments of 4
-   floats, of the variables ix and iy, 1-based) in these colour indices */
-void phase_data_nullclines(const float *xn, int nx, const float *yn, int ny, int ix, int iy, int xcolor,
-                           int ycolor);
-
-/* the current window's frozen nullclines: begin (none), then each set drawn */
-void phase_data_frozen_begin(void);
-void phase_data_frozen(const float *xn, int nx, const float *yn, int ny);
-
-/* the current window's direction field: begin with the grid (n points a
-   side, spacing du, dv in plot units), then each arrow at (x, y) with the
-   vector field's components (fx, fy) there. scaled: 1 every arrow has one
-   length (Scaled Dir.Fld), 0 the length follows the speed (Direct field) */
-void phase_data_dfield_begin(int n, double du, double dv, int scaled, int color);
-void phase_data_arrow(double x, double y, double fx, double fy);
-
 /* Flow: flow_start before the trajectories, flow_next before each one,
    flow_stop after; in between the integrator reports each segment it draws
-   in the current window with flow_step (a no-op otherwise): ncurves
-   segments from (ox[i], oy[i]) to (x[i], y[i]) in colour color[i] */
+   with phase_data_flow_step (below) */
 void phase_data_flow_start(void);
 void phase_data_flow_next(void);
-void phase_data_flow_step(int ncurves, const float *ox, const float *oy, const float *x, const float *y,
-                          const int *color);
 void phase_data_flow_stop(void);
 
 #ifdef __cplusplus
 }
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the end of a command on s: the events of every window whose record
+   changed */
+void phase_data_update(const xpp::Session &s);
+
+/* The recorders below record into the active window of the plot windows pw
+   (a Session's plot_windows), the one drawn in. */
+
+/* that window now shows these nullclines (nx and ny segments of 4 floats,
+   of the variables ix and iy, 1-based) in these colour indices */
+void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
+                           int xcolor, int ycolor);
+
+/* its frozen nullclines: begin (none), then each set drawn */
+void phase_data_frozen_begin(const XppPlotWindows &pw);
+void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny);
+
+/* its direction field: begin with the grid (n points a side, spacing du,
+   dv in plot units), then each arrow at (x, y) with the vector field's
+   components (fx, fy) there. scaled: 1 every arrow has one length (Scaled
+   Dir.Fld), 0 the length follows the speed (Direct field) */
+void phase_data_dfield_begin(const XppPlotWindows &pw, int n, double du, double dv, int scaled, int color);
+void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, double fy);
+
+/* between flow_start and flow_stop, each segment of Flow the integrator
+   draws (a no-op otherwise): ncurves segments from (ox[i], oy[i]) to
+   (x[i], y[i]) in colour color[i] */
+void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox, const float *oy, const float *x,
+                          const float *y, const int *color);
 #endif
 #endif

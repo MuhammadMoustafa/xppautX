@@ -405,7 +405,7 @@ static int if_needed_load_set()
     xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
     return 0;
   }
-  read_lunch(fp.get());
+  read_lunch(xpp::session(),fp.get());
   return 1;
 }
 

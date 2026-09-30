@@ -190,12 +190,12 @@ void use_intern_set(xpp::Session &s, int j)
     err_msg("Not a valid set");
     return;
   }
-  get_graph();
+  get_graph(s);
   extract_internset(j);
   chk_delay();
   redraw_params();
   redraw_ics();
-  reset_graph();
+  reset_graph(s);
   s.this_internset = "_" + sets[static_cast<std::size_t>(j)].name;
 }
 
@@ -236,23 +236,23 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_NFF && com <= M_NFA) {
-    froz_cline_stuff_com(com - M_NFF);
+    froz_cline_stuff_com(s,com - M_NFF);
     return;
   }
   if (com >= M_NN && com <= M_NS) {
-    new_clines_com(com - M_NN);
+    new_clines_com(s,com - M_NN);
     return;
   }
   if (com >= M_DD && com <= M_DS) {
-    direct_field_com(com - M_DD);
+    direct_field_com(s,com - M_DD);
     if ((com - M_DD) == 1)
       return;
-    create_new_cline();
+    create_new_cline(s);
     xpp_ui.redraw_graph();
     return;
   }
   if (com >= M_WW && com <= M_WS) {
-    window_zoom_com(com - M_WW);
+    window_zoom_com(s,com - M_WW);
     return;
   }
   if (com >= M_AA && com <= M_AC) {
@@ -264,51 +264,51 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_GA && com <= M_GC) {
-    add_a_curve_com(com - M_GA);
+    add_a_curve_com(s,com - M_GA);
     return;
   }
   if (com >= M_GFF && com <= M_GFO) {
-    freeze_com(com - M_GFF);
+    freeze_com(s,com - M_GFF);
     return;
   }
   if (com >= M_GCN && com <= M_GCU) {
     change_cmap_com(com - M_GCN);
-    redraw_dfield();
+    redraw_dfield(s);
     return;
   }
   if (com == M_GFKK || com == M_GFKN) {
-    key_frz_com(com - M_GFKN);
+    key_frz_com(s,com - M_GFKN);
     return;
   }
   if (com == M_UKE || com == M_UKV) {
-    new_lookup_com(com - M_UKE);
+    new_lookup_com(s, com - M_UKE);
     return;
   }
   if (com == M_R) {
     drw_all_scrns();
-    plot_data_picture(1); /* a data client draws the current data again */
+    plot_data_picture(s, 1); /* a data client draws the current data again */
     return;
   }
   if (com == M_EE) {
     clr_all_scrns();
-    plot_data_picture(0); /* and blanks its picture */
+    plot_data_picture(s, 0); /* and blanks its picture */
     s.nullclines.df_flag = 0;
     return;
   }
   if (com == M_X) {
-    xi_vs_t();
+    xi_vs_t(s);
     return;
   }
   if (com == M_3) {
-    get_3d_par_com();
+    get_3d_par_com(s);
     return;
   }
   if (com == M_P) {
-    new_parameter();
+    new_parameter(s);
     return;
   }
   if (com >= M_MC && com <= M_MS) {
-    do_windows_com(com - M_MC);
+    do_windows_com(s, com - M_MC);
     return;
   }
   if (com >= M_FP && com <= M_FO) {
@@ -316,18 +316,18 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_TT && com <= M_TS) {
-    do_gr_objs_com(com - M_TT);
+    do_gr_objs_com(s, com - M_TT);
     return;
   }
   if (com >= M_TEM && com <= M_TED) {
-    edit_object_com(com - M_TEM);
+    edit_object_com(s, com - M_TEM);
     return;
   }
   if (com >= M_BR && com <= M_BH) {
     find_bvp_com(com - M_BR);
     return;
   }
-  if (com >= M_V2 && com <= M_VT) change_view_com(com - M_V2);
+  if (com >= M_V2 && com <= M_VT) change_view_com(s,com - M_V2);
   if (com >= M_UAN && com <= M_UAR) make_adj_com(com - M_UAN);
   if (com >= M_UCN && com <= M_UCA) set_col_par_com(com - M_UCN);
   if (com >= M_UPN && com <= M_UPP) get_pmap_pars_com(com - M_UPN);
@@ -341,22 +341,22 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FT: do_transpose(); break;
   case M_FG: get_intern_set(s); break;
   case M_FP: make_txtview(); break;
-  case M_FW: do_lunch(0); break;
-  case M_FS: file_inf(); break;
+  case M_FW: do_lunch(s, 0); break;
+  case M_FS: file_inf(s); break;
   case M_FA:
 #ifdef AUTO
     do_auto_win();
 #endif
     break;
   case M_FC: q_calc(); break;
-  case M_FR: do_lunch(1); break;
+  case M_FR: do_lunch(s, 1); break;
   case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
   case M_FQ:
     if (yes_no_box()) bye_bye();
     break;
-  case M_FL: clone_ode(); break;
+  case M_FL: clone_ode(s); break;
   case M_FO: copy_set_line(); break;
   }
 }
@@ -477,8 +477,8 @@ void commander(xpp::Session &s, int ch)
     case 't': do_transpose(); break;
     case 'g': get_intern_set(s); break;
     case 'p': flash(0); make_txtview(); flash(0); break;
-    case 'w': flash(1); do_lunch(0); flash(1); break;
-    case 's': flash(2); file_inf(); flash(2); break;
+    case 'w': flash(1); do_lunch(s, 0); flash(1); break;
+    case 's': flash(2); file_inf(s); flash(2); break;
     case 'a':
       flash(3);
 #ifdef AUTO
@@ -487,14 +487,14 @@ void commander(xpp::Session &s, int ch)
       flash(3);
       break;
     case 'c': flash(4); q_calc(); flash(4); break;
-    case 'r': flash(5); do_lunch(1); flash(5); break;
+    case 'r': flash(5); do_lunch(s, 1); flash(5); break;
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);
       if (yes_no_box()) bye_bye();
       flash(7);
       break;
-    case 'l': clone_ode(); break;
+    case 'l': clone_ode(s); break;
     case 'o': copy_set_line(); break;
     case 'm': xpp_model_open(s, nullptr); break;
     case 'e': xpp_model_reload(s); break;

@@ -32,10 +32,7 @@ extern "C" {
 
 
 /* tabular.c */
-void set_auto_eval_flags(int f);
 void set_table_name(const char *name, int index);
-void view_table(int index);
-void new_lookup_com(int i);
 double lookupxy(double x, int n, double *xv, double *yv);
 double tab_interp(double xlo, double h, double x, double *y, int n, int i);
 double lookup(double x, int index);
@@ -52,7 +49,16 @@ int get_lookup_len(int i);
 /* the function tables again, after a parameter changed: the first
    failure, the others still done */
 xpp::Result<> redo_all_fun_tables(void);
-xpp::Result<> eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y);
+namespace xpp {
+struct Session; /* session.h */
+}
+xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y);
+/* the session s's tables: @ autoeval= for each, View, Numerics' tables
+   menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
+void set_auto_eval_flags(xpp::Session &s, int f);
+void view_table(xpp::Session &s, int index);
+void new_lookup_com(xpp::Session &s, int i);
+int select_table(const xpp::Session &s);
 xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *formula, int index);
 /* table index read from the file filename (quoted or not): one of the
    model's own files (model_file, model_files.h: a file table of the
