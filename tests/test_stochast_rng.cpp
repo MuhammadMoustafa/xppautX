@@ -79,7 +79,7 @@ int main(void)
 
     /* 1D histogram of ran(1) over [0,1) in 10 bins: each bin's count is a
        binomial(n, 0.1) draw; check against 5 std of that. */
-    new_hist(xpp::client_session(),10, 0.0, 1.0, rcol, 0, "", 0);
+    CHECK(new_hist(xpp::client_session(),10, 0.0, 1.0, rcol, 0, "", 0).has_value());
     CHECK(xpp::client_session().histogram.hist_here == 1);
     double expect = static_cast<double>(n) / 10.0;
     double binsd = std::sqrt(static_cast<double>(n) * 0.1 * 0.9);
@@ -97,7 +97,7 @@ int main(void)
        new_hist's truncating (int) cast never lands two different lags in
        the same bin; restricted to |lag|<=50 to stay well under MAXSTOR so
        no pair is dropped. */
-    new_hist(xpp::client_session(),100, -50.0, 50.0, 0, 0, "", 1);
+    CHECK(new_hist(xpp::client_session(),100, -50.0, 50.0, 0, 0, "", 1).has_value());
     CHECK(xpp::client_session().histogram.hist_here == 1);
     CHECK(xpp::client_session().histogram.hist()[1][50] == static_cast<float>(n)); /* lag 0: n self-pairs */
     CHECK(xpp::client_session().histogram.hist()[1][60] == static_cast<float>(n - 10)); /* lag 10 */

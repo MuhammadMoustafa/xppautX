@@ -112,7 +112,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::client_session().data_store.col[2][i] = static_cast<float>(x[((i - L) % N + N) % N]);
         int nbins = N;
-        new_hist(xpp::client_session(),nbins, 0.0, 1.0, 1, 2, "", 2);
+        CHECK(new_hist(xpp::client_session(),nbins, 0.0, 1.0, 1, 2, "", 2).has_value());
         CHECK(xpp::client_session().histogram.hist_here == 1);
         int lag = nbins / 2;
         int worst_ok = 1;
