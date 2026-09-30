@@ -532,14 +532,12 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 {
     std::string bytes, error;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s
-", path.c_str());
+        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s\n", path.c_str());
         return std::nullopt;
     }
     std::optional<xpp::recx::Read> got = xpp::recx::read(bytes, error);
     if (!got || got->rec.model.empty() || got->rec.files.empty()) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s
-", path.c_str(),
+        xpp_log(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s\n", path.c_str(),
                 got ? "it names no model" : error.c_str());
         return std::nullopt;
     }
