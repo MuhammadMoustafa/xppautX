@@ -511,9 +511,11 @@ char xpp_menu_kind(const XppMenu *m, int ch)
   return i >= 0 && m->kinds ? m->kinds[i] : 0;
 }
 
+/* (F)ile opens AUTO's File menu: a view, as a menu opener takes its items'
+   least restrictive kind (its Toggle redraw), so it opens once a run ends */
 static const char *auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
   "(U)sr period","(C)lear","re(D)raw","(F)ile"};
-const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "svsxdsvvx", auto_hint, -1);
+const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "svsxdsvvv", auto_hint, -1);
 
 static const char *browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
   "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};

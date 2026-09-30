@@ -10,7 +10,7 @@ export const HELLO: HelloEvent = {
     num: [], num_keys: 'tsrdniobmechpukva\x1b', num_hints: [], num_kinds: 'ssssssssssvdssdsdv',
   },
   windows: {
-    auto: {items: [], keys: 'panrgucdf', kinds: 'svsxdsvvx', hints: [],
+    auto: {items: [], keys: 'panrgucdf', kinds: 'svsxdsvvv', hints: [],
       ids: ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']},
     ani: {items: [], keys: 'fgrsmoa', kinds: 'vvvvdvd', hints: [], ids: ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']},
   },
