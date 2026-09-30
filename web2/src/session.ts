@@ -14,6 +14,7 @@ import type {Transport} from './protocol/transport';
 import {kindOf, mayStart, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
 import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
+import {AUTO_WIN} from './store/diagram';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
@@ -713,6 +714,10 @@ export class Session {
 
   /** Back hides the AUTO panel (the core's window stays open); Show brings it back */
   showAuto(shown: boolean): void {
+    /* a grab or plot mode waiting on the diagram is cancelled with it: the ask would stay open behind
+       the main window and swallow every key typed there (W100) */
+    const {ask, pick, diagram} = this.store.getState();
+    if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === AUTO_WIN))) this.cancelPick();
     this.store.dispatch({type: 'diagram', action: {type: 'show', shown}});
   }
 

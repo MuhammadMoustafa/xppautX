@@ -15,6 +15,9 @@ import type {AutoViewEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
 /** `diagram` `axes` (and `reset`): the core's view of the diagram */
+/** the AUTO diagram's window number in the protocol */
+export const AUTO_WIN = 101;
+
 export interface DiagramAxes {
   xmin: number; xmax: number; ymin: number; ymax: number;
   /** where the core draws it in window 101's pixels (for answers in pixels) */

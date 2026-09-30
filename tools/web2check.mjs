@@ -67,7 +67,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,phase,marks,auto,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,phase,marks,auto,lostf,keys,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -2657,6 +2657,145 @@ async function autoStopRace() {
 
 /* T21: while the core computes (an integration here), the AUTO view's own
    actions stay live and the buttons that need the core say why they wait */
+/* W100 (GitHub #149): F was lost twice in the desktop window. (1) In AUTO, after a steady run,
+   a grab of the Hopf point and a Periodic run, F did nothing; (2) after AUTO's Back, F in the
+   main window did not open the File menu. The page and the core must agree on the menu at every
+   step, and typed keys go to the menu the page shows. */
+async function lostF() {
+  await desktopMetrics();
+  check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await key('g');
+  await menuKey('d');
+  await until('!s.busy', 'hopf set');
+  await key('s');
+  await menuKey('g');
+  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
+  await menuKey('n');
+  await until('!s.busy', 'fixed point', 30000);
+  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
+  await until('!s.busy', 'import');
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'file menu 2');
+  await key('a');
+  await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open');
+  check('lostF: File/Auto returns the core to its main menu', await until('s.core.menu === 0', 'menu after auto'), JSON.stringify(await S('s.core')));
+
+  /* sequence 2 first half: Back at once, F in the main window */
+  const back = await center('.auto-back'); /* a real click, as the window gets: the focus is on the button that then goes */
+  await click(back.x, back.y);
+  await until('!s.diagram.shown && s.diagram.open && !s.busy', 'back');
+  const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.menu-panel').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.menu-panel'); })()`);
+  check('lostF: after Back the main menu is shown and the core is in its main menu', await menuShown() && (await S('s.core.menu')) === 0,
+    JSON.stringify(await cdp.eval(`[document.activeElement.tagName, document.activeElement.className]`)));
+  await key('f');
+  check('lostF: after Back, F opens the main File menu (page and core agree)',
+    await until('s.core.menu === 1 && !s.busy', 'file menu after back') && await menuShown(),
+    JSON.stringify([await S('s.core.menu'), await cdp.eval(`document.activeElement.className`)]));
+  await key('Escape');
+  check('lostF: Escape closes it: the core is back in its main menu', await until('s.core.menu === 0 && !s.busy', 'main menu'));
+  await key('u');
+  check('lostF: after Back a typed key reaches the menu the page shows (U opens Numerics)',
+    await until('s.core.menu === 2 && !s.busy', 'numerics after back'), JSON.stringify(await S('s.core.menu')));
+  await key('Escape');
+  await until('s.core.menu === 0 && !s.busy', 'main menu 2');
+
+  /* sequence 1: steady state, grab the Hopf point, Periodic, then F in the AUTO view */
+  await cdp.eval(`document.querySelector('.auto-show').click()`);
+  await until('s.diagram.shown', 'auto show');
+  await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
+  await menuKey('s');
+  await until('!s.busy && s.diagram.points.x.length > 10', 'steady state', 60000);
+  /* Back during a grab: the grab ask stays open with the panel hidden, and every key is swallowed by it */
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab'", 'grab 0');
+  const back2 = await center('.auto-back');
+  await click(back2.x, back2.y);
+  await until('!s.diagram.shown', 'back during grab');
+  check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
+    await until('!s.busy && !s.ask && !s.diagram.grabbing && s.core.menu === 0', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
+  await key('f');
+  check('lostF: ... and F opens the main File menu',
+    await until('s.core.menu === 1 && !s.busy && !s.ask', 'file menu after grab'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
+  await key('Escape');
+  await until('s.core.menu === 0 && !s.busy', 'main menu 3');
+  await cdp.eval(`document.querySelector('.auto-show').click()`);
+  await until('s.diagram.shown', 'auto show 2');
+  await until(`document.activeElement.closest('.auto-host')`, 'auto focus 2');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab'", 'grab');
+  await key('Tab');
+  await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab');
+  await key('Enter');
+  await until('!s.busy && !s.diagram.grabbing', 'grabbed');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu');
+  await menuKey('p');
+  /* F straight away: while the run goes or after it, AUTO's File menu opens */
+  await key('f');
+  const opened = await until("s.ask && s.ask.kind === 'menu' && /file/i.test(s.ask.title || '')", 'auto file menu', 120000);
+  check("lostF: F in the AUTO view after the periodic run opens AUTO's File menu",
+    opened, JSON.stringify(await S('[s.busy, s.ask, s.core]')));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'auto file menu closed', 120000);
+  await key('f');
+  check("lostF: ... and again once the run has ended", await until("s.ask && s.ask.kind === 'menu' && /file/i.test(s.ask.title || '')", 'auto file menu 2'),
+    JSON.stringify(await S('[s.busy, s.ask]')));
+  await key('Escape');
+  await until('!s.busy && !s.ask', 'closed');
+}
+
+/* W100, sequence 1 on a run that is still going (heavy.ode: seconds per point): F in the AUTO view
+   while the periodic run computes reaches AUTO's File menu (a view action: the run goes on, the
+   menu is answered at once), not the main window's, and nothing is left hidden in the core. */
+async function lostFRunning() {
+  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await key('a');
+  await until('s.diagram.open && s.diagram.shown && s.diagram.axes && !s.busy', 'auto open');
+  await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
+  await menuKey('s');
+  await until('!s.busy && s.diagram.points.x.length > 2', 'steady', 60000 * SLOW);
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
+  for (let i = 0; i < 20 && !(await DS("d.info && d.info.sym === 'HB'")); i++) {
+    const n = await DS('d.infoEvents');
+    await key('Tab');
+    await until(`s.diagram.infoEvents > ${n} && s.ask`, 'grab tab');
+  }
+  await key('Enter');
+  await until('!s.busy && !s.diagram.grabbing', 'grabbed');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu'", 'hopf menu');
+  const nPre = await DS('d.points.x.length');
+  await menuKey('p');
+  check('lostF: the periodic run is going',
+    await until(`s.busy && !s.ask && s.diagram.points.x.length > ${nPre}`, 'periodic going', 60000 * SLOW));
+  const sent0 = await cdp.eval('__xpp.sent().length');
+  const menu0 = await S('s.core.menu');
+  await key('f');
+  const sent = await cdp.eval(`__xpp.sent().slice(${sent0})`);
+  check("lostF: F in the AUTO view during the run is AUTO's File key (win auto), never the main window's",
+    sent.length === 1 && sent[0].cmd === 'key' && sent[0].win === 'auto' && sent[0].key === 'f', JSON.stringify(sent));
+  check("lostF: ... its menu opens when the run ends (a view action queued in the core), AUTO's File menu, not the main one",
+    await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'File' && s.ask.items.includes('Save diagram')", 'auto file menu', 120000 * SLOW)
+    && (await S('s.core.menu')) === menu0, JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+  await key('Escape');
+  check('lostF: Escape closes it and the core is idle in its main menu',
+    await until('!s.busy && !s.ask && s.core.menu === 0', 'closed', 60000 * SLOW), JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+}
+
 async function busyAuto() {
   await desktopMetrics();
   check('busy: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -4431,6 +4570,8 @@ async function main() {
     if (run('auto')) await session(ODE, autoView);
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('keys')) await session(ODE, keysCheck);
+    if (run('lostf')) await session(ODE, lostF);
+    if (run('lostf')) await session(HEAVY_ODE, lostFRunning);
     if (run('busy')) await session(LIVE, busyAuto);
     if (run('busy')) await session(LIVE, busyKeys);
     if (run('busy')) await session(LIVE, statusBarLayout);

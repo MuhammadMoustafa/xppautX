@@ -56,7 +56,7 @@ import type {Ranges} from '../plot/viewmath';
 import {HELP} from '../help/links';
 import type {AutoOp, Session} from '../session';
 import {pendingFields} from '../store/autoSettings';
-import {pointCount, type DiagramHover} from '../store/diagram';
+import {AUTO_WIN as WIN, pointCount, type DiagramHover} from '../store/diagram';
 import {branchesBefore, earlierCount} from '../store/diagram';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
 import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
@@ -94,7 +94,6 @@ function setHover(session: Session, hover: DiagramHover | null): void {
   session.store.dispatch({type: 'diagram', action: {type: 'hover', hover}});
 }
 
-const WIN = 101;
 const GRAB_PX = 48; /* how far from a point a click or a tap still takes it */
 
 /** the plot mode of an ask on the diagram, while it waits for the user */
