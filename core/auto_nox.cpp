@@ -1351,9 +1351,6 @@ void add_point(double *par, double per, double *uhigh, double *ulow, double *uba
 	       double *evr, double *evi)
 {
   xpp::Session &s=xpp::session();
-  (void)npar;
-  (void)icp3;
-  (void)icp4;
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
     view_point(v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,par,per,uhigh,
                ulow,ubar,a,type,flg,lab,icp1,icp2,flag2);
