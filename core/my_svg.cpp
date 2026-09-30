@@ -259,7 +259,7 @@ std::string svg_stroke_fill()
 
 } // namespace
 
-int svg_init(const char *filename, int /*color*/)
+xpp::Result<> svg_init(const char *filename, int /*color*/)
 {
   init_svg();
 
@@ -267,10 +267,7 @@ int svg_init(const char *filename, int /*color*/)
   xpp::session().plot_file.last_ps_y=-10000;
 
   svg_writer=xpp::Writer(filename);
-  if(!svg_writer){
-    err_msg("Cannot open file ");
-    return(0);
-  }
+  if(!svg_writer)return xpp::fail("SVG export","Cannot open file ");
   xpp::session().plot_file.svgfile=svg_writer.file();
   xpp::session().plot_file.plt_fmt_flag=SVGFMT;
   svg_writer.print("{}",svg_head);
@@ -287,7 +284,7 @@ int svg_init(const char *filename, int /*color*/)
     }
   }
   svg_writer.print("           ]]>\n      </style>\n\n");
-  return(1);
+  return {};
 }
 
 void svg_write(const char *str)

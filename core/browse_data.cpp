@@ -126,7 +126,10 @@ int put_stored_data(const xpp::DataTable &t)
   const int neq=xpp::model().neq;
   const int rows=static_cast<int>(t.rows());
   if(rows>s.data_store.max_rows){
-    if(!s.data_store.grow(neq+1,rows))return 0;
+    if(const xpp::Result<> r=s.data_store.grow(neq+1,rows);!r){
+      xpp::show_error(r.error());
+      return 0;
+    }
     s.data_store.max_rows=rows;
   }
   for(std::size_t k=0;k<t.columns.size();k++){

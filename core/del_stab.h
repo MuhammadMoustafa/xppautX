@@ -9,7 +9,6 @@ typedef struct{
 }COMPLEX;
 
 /* del_stab.c */
-void do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
 COMPLEX cdif(COMPLEX z, COMPLEX w);
 COMPLEX cmlt(COMPLEX z, COMPLEX w);
 COMPLEX cdivv(COMPLEX z, COMPLEX w);
@@ -28,5 +27,11 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
 
 #ifdef __cplusplus
 }
+
+#include "xpp_error.h"
+
+/* Sing pts for a delay equation: the equilibrium Newton finds from x
+   (or Could not converge, an error) and its stability (stabinfo) */
+xpp::Result<> do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
 #endif
 #endif

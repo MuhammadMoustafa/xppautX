@@ -24,7 +24,7 @@
    a delay differential equation. 
 */
 
-void do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
       xpp::Session &s=xpp::session();
       double rr[2];
@@ -43,9 +43,8 @@ void do_delay_sing(double *x, double eps, double err, double big, int maxit, int
  if(*ierr!=0)
    {
      s.delay.stab_flag=1;
-     err_msg("Could not converge to root");
      for(i=0;i<n;i++)x[i]=old_x[i];
-     return;
+     return xpp::fail("equilibrium","Could not converge to root");
    }
  /* OKAY -- we have the root */
  s.delay.ndelay=0;
@@ -115,6 +114,7 @@ if(i==0&&okroot==1&&s.delay.alpha_max>0)
  /* DING; */
  s.delay.stab_flag=1;
  if(okroot==1)*stabinfo=s.delay.alpha_max;
+ return {};
 }
 
 COMPLEX cdif(COMPLEX z, COMPLEX w)

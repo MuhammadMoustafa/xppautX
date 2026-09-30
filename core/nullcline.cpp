@@ -677,6 +677,7 @@ void direct_field_com(int c)
   s.integrator.suppress_bounds=1;
   phase_data_flow_start();
   std::array<double,MAXODE> y;
+  xpp::FirstError failure; /* a trajectory's, shown once the flow is drawn */
   for(int k=0;k<2;k++){
     for(int i=0;i<=grid;i++)
       for(int j=0;j<=grid;j++){
@@ -686,7 +687,7 @@ void direct_field_com(int c)
         double t=0.0;
         int start=1;
         phase_data_flow_next();
-        integrate(&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start);
+        failure.keep(integrate(&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start));
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }
@@ -697,6 +698,7 @@ void direct_field_com(int c)
     s.nullclines.doing_dfield=0;
     svg_write("</g>");
   }
+  if(const xpp::Result<> r=failure.result();!r)xpp::show_error(r.error());
 }
 
 /* animated nullclines stuff

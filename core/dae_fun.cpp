@@ -130,26 +130,17 @@ void set_init_guess()
     svar_last[i]=z;
   }
 }
-void err_dae()
+namespace {
+/* why solve_dae failed (its status -1, -2 or -3), as a value */
+xpp::Error dae_failure(int status)
 {
-  
-  switch(dae_work.status){
-  case 2: 
-    err_msg(" Warning - no change in Iterates");
-    break;
-  case -1:
-    err_msg(" Singular jacobian for dae\n");
-    
-    break;
-  case -2:
-    err_msg(" Maximum iterates exceeded for dae\n");
-    
-    break;
-  case -3:
-    err_msg(" Newton update out of bounds\n");
-    break;
+  switch(status){
+  case -1: return {"DAE"," Singular jacobian for dae\n"};
+  case -2: return {"DAE"," Maximum iterates exceeded for dae\n"};
+  case -3: return {"DAE"," Newton update out of bounds\n"};
   }
-  dae_work.status=1;
+  return {"DAE",""};
+}
 }
 
 void init_dae_work()
@@ -180,7 +171,9 @@ void do_daes()
   ans=solve_dae();
   dae_work.status=ans;
   if(ans==1||ans==2)return; /* accepts a no change error! */
-  xpp::session().integrator.delay_err=1;
+  /* the integration stops after this step and returns it */
+  if(!xpp::session().integrator.step_error)
+    xpp::session().integrator.step_error=dae_failure(ans);
 
 }
 

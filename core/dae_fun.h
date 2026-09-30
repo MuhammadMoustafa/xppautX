@@ -10,7 +10,6 @@ int add_aeqn(const char *rhs);
 int compile_svars(void);
 void reset_dae(void);
 void set_init_guess(void);
-void err_dae(void);
 void init_dae_work(void);
 void get_dae_fun(double *y, double *f);
 void do_daes(void);

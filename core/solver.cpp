@@ -18,7 +18,6 @@
 #include "stiff.h"
 #include "volterra2.h"
 #include "xpp_mem.h" /* xpp_out_of_memory */
-#include "xpp_ui.h"  /* ping, err_msg */
 
 namespace xpp {
 namespace {
@@ -38,11 +37,6 @@ std::vector<double> make_work(int size)
     xpp_out_of_memory("the solver's work space");
   }
   return {};
-}
-
-SolverResult failed(std::string error)
-{
-  return {false,std::move(error)};
 }
 
 /* a method that advances a number of steps of dt (odesol2.cpp's,
@@ -252,12 +246,6 @@ const SolverInfo &solver_info(int m)
 {
   if(m<0||m>=method::COUNT)return registry[method::RK4];
   return registry[m];
-}
-
-void report_solver_failure(const SolverResult &r, bool quiet)
-{
-  ping();
-  if(!quiet&&!r.error.empty())err_msg(r.error.c_str());
 }
 
 void start_solver()

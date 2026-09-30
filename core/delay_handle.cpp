@@ -126,8 +126,7 @@ double get_delay(int in, double tau)
  int i0,i1,i2,i3;
 
  if(tau<0.0||tau>xpp::session().numerics.delay){
-			 err_msg("Delay negative or too large");
-			stop_integration();
+			stop_integration({"delay","Delay negative or too large"});
 			return(0.0);
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */
@@ -155,7 +154,7 @@ double get_delay(int in, double tau)
  }
 
 /*  Handling of the initial data  */
-int do_init_delay(double big)
+xpp::Result<> do_init_delay(double big)
 {
  xpp::Session &s=xpp::session();
  double t=s.numerics.t0,old_t,y[MAXODE];
@@ -171,10 +170,9 @@ int do_init_delay(double big)
  s.parser.nsym=xpp::model().nsym_start;
  for(i=0;i<(xpp::model().node );i++){
 	 if(add_expr(s.delay_string[i].c_str(),del_form[i].data(),&len)){
-		err_msg("Illegal delay expression");
 		 s.parser.ncon=xpp::model().ncon_start;
 		s.parser.nsym=xpp::model().nsym_start;
-		return(0);
+		return xpp::fail("delay","Illegal delay expression");
 		}
 	 }        /*  Okay all formulas are cool... */
   LatestDelay=1;
@@ -191,6 +189,6 @@ int do_init_delay(double big)
    s.parser.ncon=xpp::model().ncon_start;
    s.parser.nsym=xpp::model().nsym_start;
   set_val("t",old_t);
-   return(1);
+   return {};
  }
 

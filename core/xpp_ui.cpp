@@ -143,7 +143,6 @@ XppUi xpp_ui = {
     .get_draw_size = hl_get_draw_size,
     .draw_freeze = hl_void,
     .blank_draw_window = hl_void,
-    .put_text = hl_put_text,
     .small_base = hl_void,
     .small_gr = hl_void,
     .film_clip = hl_film_clip,
@@ -225,6 +224,12 @@ void xpp_set_ui(const XppUi *ui)
 /* ---- dispatchers with the historical names ---------------------------- */
 
 void err_msg(const char *string) { xpp_ui.err_msg(string); }
+
+void xpp::show_error(const Error &e)
+{
+    xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
+    if (!e.what.empty()) err_msg(e.what.c_str());
+}
 void ping(void) { xpp_ui.ping(); }
 void bottom_msg(int line, const char *msg) { xpp_ui.bottom_msg(line, msg); }
 void MessageBox(const char *m) { xpp_ui.message_box(m); }

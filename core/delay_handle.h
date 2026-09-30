@@ -11,13 +11,17 @@ void free_delay(void);
 void stor_delay(double *y);
 void polint(double *xa, double *ya, int n, double x, double *y, double *dy);
 double get_delay(int in, double tau);
-int do_init_delay(double big);
 
 #ifdef __cplusplus
 }
 
 #include <array>
+#include "xpp_error.h"
 #include "xpplim.h"
+
+/* the delay's initial data, from t0-big to t0, stored from the Delay ICs'
+   formulas, or the error when one does not parse */
+xpp::Result<> do_init_delay(double big);
 /* the delay equations' state (delay_handle.cpp, del_stab.cpp), a
    Session's (session.h): the model has delays (flag); the stability
    search's grid and bounds (grid, alpha_max, omega_max), whether the

@@ -210,13 +210,13 @@ xpp::Writer diagram_file(const char *title, const char *name)
 /* the diagram as a picture: PostScript or SVG, whichever begin (ps_init
    or svg_init) opened, finished with end */
 void export_diagram(const char *title, const char *name, const char *wild,
-                    int (*begin)(const char *, int), void (*end)(void))
+                    xpp::Result<> (*begin)(const char *, int), void (*end)(void))
 {
   DIAGRAM *d;
   int type,flag=0;
   std::string filename=name;
   if(!file_selector(title,filename,wild))return;
-  if(!begin(filename.c_str(),xpp::session().plot_export.color))
+  if(!xpp::ok_or_show(begin(filename.c_str(),xpp::session().plot_export.color)))
     return;
   draw_export_axes();
   d=diagram_first();

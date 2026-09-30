@@ -33,9 +33,10 @@ constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
 			{{1,1,1},{87.97,1,.0139}}};
 
 /* main fixed point finder */ 
-void do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
  xpp::Session &s=xpp::session();
+ xpp::FirstError failure; /* an eigenvector or a manifold's */
  int kmem,i,j,ipivot[MAXODE];
  int oldcol,dummy;
  int rp=0,rn=0,cp=0,cn=0,im=0;
@@ -63,9 +64,8 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  rooter(x,err,eps,big,work,ierr,maxit,n);
  if(*ierr!=0)
  {
-  err_msg("Could not converge to root");
   for(i=0;i<n;i++)x[i]=old_x[i];
-  return;
+  return xpp::fail("equilibrium","Could not converge to root");
  }
  DING;
  
@@ -84,10 +84,7 @@ void do_sing(double *x, double eps, double err, double big, int maxit, int n, in
  }
  xpp_eigenvalues(n,work,eval,ework,ierr);
  if(*ierr!=0)
- {
-  err_msg("Could not compute eigenvalues");
-  return;
- }
+  return xpp::fail("equilibrium","Could not compute eigenvalues");
 /* succesfully computed evals now lets work with them */
 ch='n';
 if(!s.numerics.par_fol)
@@ -180,13 +177,13 @@ if(!s.numerics.par_fol)
      change_current_linestyle(s.manifolds.unstable_color,&oldcol);
      pr_evec(x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
-      shoot(bp,x,b,1);
-      shoot(bp,x,b,-1);
+      failure.keep(shoot(bp,x,b,1));
+      failure.keep(shoot(bp,x,b,-1));
      change_current_linestyle(oldcol,&dummy);
 
      }
      else
-     err_msg("Failed to compute eigenvector");
+       failure.keep({"equilibrium","Failed to compute eigenvector"});
    }
    if(rn==1)
    {
@@ -197,12 +194,12 @@ if(!s.numerics.par_fol)
         change_current_linestyle(s.manifolds.stable_color,&oldcol);
 	pr_evec(x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
-      shoot(bp,x,b,1);
-      shoot(bp,x,b,-1);
+      failure.keep(shoot(bp,x,b,1));
+      failure.keep(shoot(bp,x,b,-1));
         change_current_linestyle(oldcol,&dummy);
      }
      else
-     err_msg("Failed to compute eigenvector");
+       failure.keep({"equilibrium","Failed to compute eigenvector"});
    }
     s.numerics.delta_t=oldt;
   }
@@ -231,13 +228,13 @@ if(!s.numerics.par_fol)
 	       change_current_linestyle(s.manifolds.unstable_color,&oldcol);
 	       pr_evec(x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
-	       shoot(bp,x,b,1);
-	       shoot(bp,x,b,-1);
+	       failure.keep(shoot(bp,x,b,1));
+	       failure.keep(shoot(bp,x,b,-1));
 	       change_current_linestyle(oldcol,&dummy);
 	       
 	     }
 	   else
-	     err_msg("Failed to compute eigenvector");   
+	     failure.keep({"equilibrium","Failed to compute eigenvector"});   
 	 }
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
@@ -249,19 +246,19 @@ if(!s.numerics.par_fol)
 	       change_current_linestyle(s.manifolds.stable_color,&oldcol);
 	       pr_evec(x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
-	       shoot(bp,x,b,1);
-	       shoot(bp,x,b,-1);
+	       failure.keep(shoot(bp,x,b,1));
+	       failure.keep(shoot(bp,x,b,-1));
 	       change_current_linestyle(oldcol,&dummy);
 	     }
 	   else
-	     err_msg("Failed to compute eigenvector");
+	     failure.keep({"equilibrium","Failed to compute eigenvector"});
 
 	 }
      }
         s.numerics.delta_t=oldt;
  }
 
- return;
+ return failure.result();
 }
 
 void save_batch_shoot()
@@ -300,12 +297,13 @@ int i,k,type;
   s.numerics.delta_t=olddt;
 
 }
-void shoot_this_now() /* this uses the current labeled saddle point stuff to integrate */
+xpp::Result<> shoot_this_now() /* this uses the current labeled saddle point stuff to integrate */
 {
   xpp::Session &s=xpp::session();
+  xpp::FirstError failure;
   int i,k,type,oldcol,dummy;
   double x[MAXODE],olddt;
-  if(s.manifolds.count<1)return;
+  if(s.manifolds.count<1)return {};
   olddt=s.numerics.delta_t;
 
   for(k=0;k<s.manifolds.count;k++){
@@ -316,18 +314,18 @@ void shoot_this_now() /* this uses the current labeled saddle point stuff to int
     if(type>0){
        change_current_linestyle(s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
-       shoot_easy(x);
+       failure.keep(shoot_easy(x));
        change_current_linestyle(oldcol,&dummy);
     }
     if(type<0){
       change_current_linestyle(s.manifolds.stable_color,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
-       shoot_easy(x);
+       failure.keep(shoot_easy(x));
        change_current_linestyle(oldcol,&dummy);
     }
   }
   s.numerics.delta_t=olddt;
-
+  return failure.result();
 }
 
 /* fixed point with no requests and store manifolds */ 

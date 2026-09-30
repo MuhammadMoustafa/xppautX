@@ -272,7 +272,7 @@ void dump_ps(int i)
 {
   const std::string filename=batch_plot_name(i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(xpp::session().plot_export.format);
-   if(fmt && fmt->begin(filename.c_str(),xpp::session().plot_export.color))
+   if(fmt && xpp::ok_or_show(fmt->begin(filename.c_str(),xpp::session().plot_export.color)))
      fmt->restore();
 }
 
@@ -522,7 +522,7 @@ void box_values_loaded(int type)
     redo_all_fun_tables();
   }
   if(type==DELAYBOX){
-   do_init_delay(xpp::session().numerics.delay);
+   xpp::ok_or_show(do_init_delay(xpp::session().numerics.delay));
   }
 }
 

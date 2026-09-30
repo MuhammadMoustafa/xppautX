@@ -8,7 +8,6 @@
 #include "xpp_io.h"
 #include "diagram.h"
 #include "autevd.h"
-#include "xpp_ui.h"
 #include "form_ode.h"
 #include <string>
 
@@ -52,14 +51,11 @@ bool point_is_stable(int type) { return type == 1 || type == 3; }
 
 } // namespace
 
-int csv_export_diagram(const char *filename)
+xpp::Result<bool> csv_export_diagram(const char *filename)
 {
-    if (diagram_count() < 2) return 0; /* nothing recorded */
+    if (diagram_count() < 2) return false; /* nothing recorded */
     xpp::Writer w(filename);
-    if (!w) {
-        err_msg("Can't open file");
-        return 0;
-    }
+    if (!w) return xpp::fail("CSV export", "Can't open file");
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
     for (int i = 0; i < xpp::model().node; i++) w.print(",{}_max", xpp::model().uvar_names[i]);
     for (int i = 0; i < xpp::model().node; i++) w.print(",{}_min", xpp::model().uvar_names[i]);
@@ -81,21 +77,15 @@ int csv_export_diagram(const char *filename)
         for (int i = 0; i < xpp::model().node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");
     }
-    if (!w.commit()) {
-        err_msg("Can't open file");
-        return 0;
-    }
-    return 1;
+    if (!w.commit()) return xpp::fail("CSV export", "Can't open file");
+    return true;
 }
 
-int csv_export_diagram_eigenvalues(const char *filename)
+xpp::Result<bool> csv_export_diagram_eigenvalues(const char *filename)
 {
-    if (diagram_count() < 2) return 0;
+    if (diagram_count() < 2) return false;
     xpp::Writer w(filename);
-    if (!w) {
-        err_msg("Can't open file");
-        return 0;
-    }
+    if (!w) return xpp::fail("CSV export", "Can't open file");
     w.print("branch,point,index,re,im,kind\n");
     for (const DIAGRAM *d = diagram_first(); d != NULL; d = diagram_next(d)) {
         int type = get_bif_type(d->ibr, d->ntot, d->lab);
@@ -104,16 +94,14 @@ int csv_export_diagram_eigenvalues(const char *filename)
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);
     }
-    if (!w.commit()) {
-        err_msg("Can't open file");
-        return 0;
-    }
-    return 1;
+    if (!w.commit()) return xpp::fail("CSV export", "Can't open file");
+    return true;
 }
 
-int csv_export_diagram_pair(const char *filename)
+xpp::Result<bool> csv_export_diagram_pair(const char *filename)
 {
-    if (!csv_export_diagram(filename)) return 0;
+    const xpp::Result<bool> written = csv_export_diagram(filename);
+    if (!written || !*written) return written;
     std::string eig(filename);
     size_t slash = eig.find_last_of("/\\");
     size_t dot = eig.find_last_of('.');
@@ -121,6 +109,5 @@ int csv_export_diagram_pair(const char *filename)
         eig.insert(dot, "_eig");
     else
         eig += "_eig.csv";
-    csv_export_diagram_eigenvalues(eig.c_str());
-    return 1;
+    return csv_export_diagram_eigenvalues(eig.c_str());
 }

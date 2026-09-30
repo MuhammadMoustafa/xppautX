@@ -6,6 +6,8 @@
    into. C++ only (every caller is a .cpp file). */
 #include <string_view>
 
+#include "xpp_error.h"
+
 namespace xpp {
 
 /* PostScript and SVG are vector pictures: begin opens the file (renamed
@@ -22,7 +24,7 @@ namespace xpp {
 struct ImageFormat {
   const char *name;                                 /* "Postscript", "SVG", "GIF" */
   const char *extension;                            /* no dot: "ps", "svg", "gif" */
-  int (*begin)(const char *filename, int color);
+  Result<> (*begin)(const char *filename, int color); /* or why it cannot */
   void (*end)();
   void (*restore)();
   int (*ask_params)();                              /* 0: the user cancelled */

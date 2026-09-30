@@ -94,7 +94,7 @@ void get_fit_info(double *y, double *a, double *t0, int *flag, double eps, doubl
   }
   if(s.delay.flag){
    /* restart initial data */
-   if(do_init_delay(s.numerics.delay)==0)return;
+   if(!xpp::ok_or_show(do_init_delay(s.numerics.delay)))return;
   }
 evaluate_derived();
   s.integrator.solver->begin(&istart);
@@ -144,7 +144,7 @@ evaluate_derived();
     }
     if(s.delay.flag){
    /* restart initial data */
-   if(do_init_delay(s.numerics.delay)==0)return;
+   if(!xpp::ok_or_show(do_init_delay(s.numerics.delay)))return;
   }
     evaluate_derived();
     s.integrator.solver->begin(&istart);
@@ -185,8 +185,9 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   xpp::SolverResult r;
   if(!solver.traits().fixed_step){
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.tout=t1,.hguess=&dt});
-    if(!r.ok){
-      xpp::report_solver_failure(r,false);
+    if(!r){
+      ping();
+      xpp::show_error(r.error()); /* the fit's own errors are values next (W63b's follow-up) */
       return(0);
     }
     stor_delay(y);
@@ -200,11 +201,11 @@ int one_step_int(double *y, double t0, double t1, int *istart)
   }
   int nit=static_cast<int>((t1-t0)/dt);
   r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
-  if(!r.ok)return(0);
+  if(!r)return(0);
   if((dt<0&&t>t1)||(dt>0&&t<t1)){    
     dt=t1-t;
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=1});
-    if(!r.ok)return(0);
+    if(!r)return(0);
   }
 
   return(1);

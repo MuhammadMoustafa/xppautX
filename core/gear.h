@@ -4,11 +4,9 @@
 extern "C" {
 #endif
 
-void do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
 void do_sing_info(double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 
 
-void shoot_this_now();
 void pr_evec(double *x, double *ev, int n, int pr, double eval,int type);
 void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
 void getjactrans(double *x,double *y,double *yp,double *xp, double eps, double *d, int n);
@@ -23,7 +21,17 @@ int ggear(int n, double *t, double tout, double *y, double hmin, double hmax, do
 }
 
 #include <array>
+#include "xpp_error.h"
 #include "xpplim.h"
+
+/* Sing pts: the equilibrium Newton finds from x (Could not converge,
+   no eigenvalues: an error), its stability (stabinfo) and, when asked,
+   its invariant manifolds, integrated from it; an eigenvector or a
+   manifold that failed is returned once the rest are done */
+xpp::Result<> do_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo);
+/* integrates the manifolds from the saddle's stored starting points,
+   returning the first that failed once all are done */
+xpp::Result<> shoot_this_now();
 /* Sing pts' shooting (gear.cpp), a Session's (session.h): the initial
    conditions it found along the unstable and stable manifolds (count of
    ic, ic_flag once there are any), and the manifolds' colours (@ smc=,

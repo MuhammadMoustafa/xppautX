@@ -14,14 +14,22 @@ void bad_shoot(int iret);
 void do_sh_range(double *ystart, double *yend);
 int set_up_periodic(int *ipar, int *ivar, double *sect, int *ishow);
 void find_bvp_com(int com);
-void last_shot(int flag);
 int set_up_sh_range(void);
-void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
 #ifdef __cplusplus
 }
 
 #include <string_view>
+
+#include "xpp_error.h"
+
+/* the solution the shooting found, integrated and stored (flag), or the
+   error the integration failed with */
+xpp::Result<> last_shot(int flag);
+/* shoots for the boundary conditions from y (iret: how it ended, for
+   bad_shoot); the error the curve drawn as it runs (ishow) failed
+   with, once the shooting has ended */
+xpp::Result<> bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
 /* Range shoot's settings, over parameter s */
 void init_shoot_range(std::string_view s);

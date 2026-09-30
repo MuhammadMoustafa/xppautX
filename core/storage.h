@@ -21,6 +21,8 @@ void init_alloc_info(void);
 #include <array>
 #include <vector>
 
+#include "xpp_error.h"
+
 /* the integrator's state vector (init_alloc_info), a Session's
    (session.h); each solver owns its own work memory (solver.h) */
 struct SolverWork {
@@ -46,9 +48,9 @@ struct DataStore {
   /* ncol columns of nrow rows, empty (rows = 0); nrow becomes max_rows */
   void allocate(int nrow, int ncol);
   /* the first ncol columns to nrow rows, keeping what they hold (the rows
-     added are zero); false (and an error message) when there is no
-     memory. The caller sets max_rows. */
-  bool grow(int ncol, int nrow);
+     added are zero), or the error when there is no memory (the columns
+     as they were). The caller sets max_rows. */
+  xpp::Result<> grow(int ncol, int nrow);
   /* column c (a new user column) with max_rows rows of zeros */
   void add_column(int c);
   /* A derived data set (a histogram, the Fourier modes, the adjoint's

@@ -790,7 +790,7 @@ void export_plot_picture(int fmt)
    title="Print svg";
  }
  if(!file_selector(title.c_str(),filename,xpp::format("*.{}",f.extension).c_str()))return;
- if(f.begin(filename.c_str(),s.plot_export.color)){
+ if(xpp::ok_or_show(f.begin(filename.c_str(),s.plot_export.color))){
    f.restore();
    ping();
  }

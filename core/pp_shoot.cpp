@@ -160,8 +160,8 @@ void do_sh_range(double *ystart, double *yend)
      if(shoot_range.movie==1)
        clr_scrn();
      
-     bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,xpp::model().node,0,
-	     0,0,0,0.0);
+     xpp::ok_or_show(bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,xpp::model().node,0,
+	     0,0,0,0.0));
      if(ierr==-5)continue;
      if(ierr<0){ 
        bad_shoot(ierr);
@@ -176,7 +176,7 @@ void do_sh_range(double *ystart, double *yend)
      s.data_store.rows++;
      set_cycle(cycle,&icol);
      get_ic(0,ystart);
-     last_shot(0);
+     if(const xpp::Result<> r=last_shot(0);!r)xpp::show_error(r.error());
      if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
@@ -267,11 +267,12 @@ void find_bvp_com(int com)
    iper=0;
    break;
  }
- if(iper)
- bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,
-	iper,ipar,ivar,sect);
- else 
- bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,0,0,0,0.0 );
+ {
+ const xpp::Result<> shot=iper
+   ? bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,
+	iper,ipar,ivar,sect)
+   : bvshoot(ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,xpp::model().node,ishow,0,0,0,0.0 );
+ if(!shot)xpp::show_error(shot.error());
  bad_shoot(iret);
  if(iret==1||iret==2) {
  get_ic(0,ystart);  
@@ -279,19 +280,21 @@ void find_bvp_com(int com)
  if(ishow){
    reset_graphics();
  }
- last_shot(1);
+ const xpp::Result<> last=last_shot(1);
  s.numerics.inflag=1;
  refresh_browser(s.data_store.rows);
  auto_freeze_it();
  ping();
+ if(!last)xpp::show_error(last.error());
 }
 else 
  if(iper)set_val(xpp::model().upar_names[ipar],oldpar);
+ }
   
 bye:  s.numerics.trans=oldtrans;
 }
 
-void last_shot(int flag)
+xpp::Result<> last_shot(int flag)
 {
  xpp::Session &s=xpp::session();
  int i;
@@ -308,7 +311,8 @@ void last_shot(int flag)
   s.data_store.rows=1;
 
 }
- integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+ return integrate(&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start)
+   .transform([](int){});
 }
 
 int set_up_sh_range()
@@ -355,9 +359,10 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  return(0);
 }
 
-void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
+xpp::Result<> bvshoot(double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect)
 {
  xpp::Computation computing; /* what Escape stops (xpp_job.h) */
+ xpp::FirstError shown; /* the drawn curve's failure */
  double dev,error,ytemp;
 
   int ntot=n;
@@ -392,10 +397,14 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
  istart=1;
  if(iper)set_val(xpp::model().upar_names[ipar],y0[n]);
 
- if(ode_int(y,&t,&istart,ishow)==0)
  {
-   *iret=-4;
-   goto bye;
+   const xpp::Result<> run=ode_int(y,&t,&istart,ishow);
+   /* drawn as it runs, a failure only ends the curve */
+   if(ishow)shown.keep(run);
+   else if(!run){
+     *iret=-4;
+     goto bye;
+   }
  }
  for(i=0;i<n;i++){
    y1[i]=y[i];
@@ -440,7 +449,7 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
      t=t0;
      istart=1;
 
-      if(ode_int(y,&t,&istart,0)==0){
+      if(!ode_int(y,&t,&istart,0)){
 	*iret=-4;
 	goto bye;
       }
@@ -473,6 +482,6 @@ void bvshoot(double *y, double *yend, double err, double eps, int maxit, int *ir
 }
   
  bye:
-   return;
+   return shown.result();
 }
 

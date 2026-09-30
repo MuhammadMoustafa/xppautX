@@ -126,14 +126,11 @@ std::string ps_string(std::string_view str)
 
 } // namespace
 
-int ps_init(const char *filename, int color)
+xpp::Result<> ps_init(const char *filename, int color)
 {
   xpp::Session &s=xpp::session();
   ps_writer = xpp::Writer(filename);
-  if (!ps_writer) {
-    err_msg("Cannot open file ");
-    return(0);
-  }
+  if (!ps_writer) return xpp::fail("PostScript export","Cannot open file ");
   init_ps();
   s.plot_file.plt_fmt_flag=1;
   s.plot_file.ps_lines=0;
@@ -172,7 +169,7 @@ int ps_init(const char *filename, int color)
   ps_writer.print("/{} findfont {} ",s.plot_file.ps_font,s.plot_file.ps_font_size*PS_SC);
   ps_writer.print("scalefont setfont\n");
   ps_writer.print("newpath\n");
-  return(1);
+  return {};
 }
 
 void ps_stroke()

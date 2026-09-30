@@ -31,6 +31,7 @@
 #ifdef __cplusplus
 #include <span>
 #include <string>
+#include "xpp_error.h"
 extern "C" {
 #endif
 
@@ -247,7 +248,6 @@ typedef struct XppUi {
     void (*get_draw_size)(unsigned int *w, unsigned int *h);
     void (*draw_freeze)(void); /* frozen curves */
     void (*blank_draw_window)(void);
-    void (*put_text)(int x, int y, const char *s);
     void (*small_base)(void);  /* pen selection for small text */
     void (*small_gr)(void);
     int (*film_clip)(void); /* returns 0 when the movie buffer is full */
@@ -373,6 +373,19 @@ int file_selector(const char *title, std::string &file, const char *wild);
 int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel);
 int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
                   const char *cancel, int kind);
+
+namespace xpp {
+/* the command layer's side of xpp::Error (xpp_error.h): shows what a
+   computation it ran returned, as err_msg does (logging where at DEBUG);
+   an empty `what` shows nothing (the computation said it already) */
+void show_error(const Error &e);
+/* whether r succeeded, its error shown when it did not */
+template <class T> bool ok_or_show(const Result<T> &r)
+{
+  if (!r) show_error(r.error());
+  return r.has_value();
+}
+}
 
 #endif
 #endif

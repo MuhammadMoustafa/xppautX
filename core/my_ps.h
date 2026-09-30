@@ -6,7 +6,6 @@ extern "C" {
 
 
 
-int ps_init(const char *filename, int color);
 void ps_stroke(void);
 void ps_do_color(int color);
 void ps_end(void);
@@ -35,6 +34,12 @@ int ps_ask_params(void);
 
 #include <stdio.h>
 #include <string>
+
+#include "xpp_error.h"
+
+/* opens filename for a PostScript picture (color: in colour), or the
+   error when it cannot be written */
+xpp::Result<> ps_init(const char *filename, int color);
 /* a picture file's state (my_ps.cpp, my_svg.cpp, shared with
    graphics.cpp), a Session's (session.h): which format is being written
    (plt_fmt_flag), in colour, the line count, the last point drawn and

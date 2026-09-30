@@ -7,7 +7,6 @@ extern "C" {
 
 
 /* my_svg.cpp */
-int svg_init(const char *filename, int color);
 void svg_do_color(int color);
 void svg_end(void);
 void svg_bead(int x, int y);
@@ -24,5 +23,11 @@ void svg_y_axis_label(int x, int y, const char *label);
 
 #ifdef __cplusplus
 }
+
+#include "xpp_error.h"
+
+/* opens filename for an SVG picture, or the error when it cannot be
+   written */
+xpp::Result<> svg_init(const char *filename, int color);
 #endif
 #endif

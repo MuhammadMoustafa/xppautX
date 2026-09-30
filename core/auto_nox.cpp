@@ -2720,8 +2720,9 @@ void export_auto_csv()
 {
   std::string filename="diagram.csv";
   if(!file_selector("Export CSV",filename,"*.csv"))return;
-  if(!csv_export_diagram_pair(filename.c_str()))
-    err_msg("Nothing to export: run or load a diagram first");
+  const xpp::Result<bool> written=csv_export_diagram_pair(filename.c_str());
+  if(!written)xpp::show_error(written.error());
+  else if(!*written)err_msg("Nothing to export: run or load a diagram first");
 }
 
 void auto_file()
