@@ -223,12 +223,14 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d);
 /* ---- File > Open model and Reload: the protocol's open and reload -------
    The model picked is loaded in this process (W61): the core asks before
    the model it has goes, offering to save its session, in the page. A
-   session file (.snapx, W57) picked here opens that session. */
+   session file (.snapx, W57) or AUTO file (.autox, W92) picked here opens
+   the model saved in it with that session or diagram (W103). */
 [[maybe_unused]] constexpr std::string_view RELOAD = "{\"cmd\":\"reload\"}";
 
 [[maybe_unused]] void open_model(void *window)
 {
-    const FileDialog models{false, "Open model", "", "", "XPP models and sessions (*.ode, *.odex, *.snapx)", {".ode", ".odex", ".snapx"}};
+    const FileDialog models{false, "Open model", "", "", "XPP models, sessions and AUTO files (*.ode, *.odex, *.snapx, *.autox)",
+                            {".ode", ".odex", ".snapx", ".autox"}};
     std::optional<std::string> path = pick_file(window, models);
     if (path && !path->empty()) host->open_model(path->c_str());
 }
@@ -437,7 +439,7 @@ std::optional<std::string> pick_file(void *, const FileDialog &d)
 }
 
 /* ---- Finder's documents (W91) -------------------------------------------
-   Double-clicking a .ode, .odex or .snapx (xppautX.app's Info.plist
+   Double-clicking a .ode, .odex, .snapx or .autox (xppautX.app's Info.plist
    declares them), dropping one on the app or `open -a xppautX file` sends
    the app an open-documents Apple Event, not an argument. Our handler
    replaces NSApplication's own (which would hand the files to the

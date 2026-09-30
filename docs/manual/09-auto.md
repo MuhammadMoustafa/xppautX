@@ -401,20 +401,24 @@ Writes the diagram to `name.autox`, AUTO's own file, to pick up later
 without saving a whole session: every point at full precision (its
 values, label, type and eigenvalues or Floquet multipliers), AUTO's
 settings (Numerics, Parameter, Axes and the Mark values), the orbits of
-the labelled points, and the model's path and fingerprint. It is a zip
-of ordinary files: renamed to `.zip`, its `diagram.csv` opens in any
-spreadsheet or `pandas.read_csv` (the file's members are listed in
-docs/protocol.md "AUTO files"). A session file (File/saVe session)
-carries the same file.
+the labelled points, and the model itself (its `.ode` and every file it
+read). It is a zip of ordinary files: renamed to `.zip`, its
+`diagram.csv` opens in any spreadsheet or `pandas.read_csv` (the file's
+members are listed in docs/protocol.md "AUTO files"). A session file
+(File/saVe session) carries the same members.
 
 ### Load Diagram
 
-Loads an `.autox` in place of the diagram there is (after asking whether
-to destroy it): the diagram exactly as it was saved, and AUTO's settings;
-grab a point and AUTO continues from it. A file saved from a model whose
-variables or parameters have changed since is refused; if only the
-`.ode` changed (an edited formula, say), a warning says so and the
-diagram loads. An XPPAUT `.auto` file loads too, as an import (its
+Opens an `.autox` with the model saved in it: the diagram exactly as it
+was saved, and AUTO's settings; grab a point and AUTO continues from it.
+When the model open is that model (the same files, byte for byte), only
+the diagram loads, in place of the one there, and the data stays;
+otherwise the saved model is loaded, as File/open Model loads one (it
+asks whether to save this session first), from the `.autox` alone,
+however the `.ode` has changed since or wherever it is, and the diagram
+into it. A file without its model (saved before this version) is
+refused with an error. An XPPAUT `.auto` file loads into the model open,
+as an import (after asking whether to destroy the diagram there is; its
 diagram to the 6 digits it prints); Save diagram then writes it as an
 `.autox`. Nothing writes `.auto` files any more.
 

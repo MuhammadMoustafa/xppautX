@@ -6,6 +6,7 @@
    dropped, cut or skipped. */
 #include "odex.h"
 #include "xpp_io.h"
+#include "model_files.h"
 
 #include <array>
 #include <optional>
@@ -811,7 +812,7 @@ private:
     bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
     std::string path = (slash == std::string::npos || absolute) ? name : here.substr(0, slash + 1) + name;
     std::string text;
-    if (!xpp::read_bytes(path.c_str(), text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
+    if (!xpp::read_model_file(path, text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
     out_.files.push_back(path);
     Parser(out_, static_cast<int>(out_.files.size()) - 1, text, depth_ + 1).model();
   }
@@ -1073,7 +1074,7 @@ Parsed parse(std::string_view text, const std::string &file)
 Parsed parse_file(const std::string &path)
 {
   std::string text;
-  if (!xpp::read_bytes(path.c_str(), text)) throw error_at(path, Pos{}, "cannot read the file");
+  if (!xpp::read_model_file(path, text)) throw error_at(path, Pos{}, "cannot read the file");
   return parse(text, path);
 }
 

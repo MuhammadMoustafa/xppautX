@@ -8,5 +8,5 @@ TryExec=xppautX
 Icon=xppautx
 Terminal=false
 Categories=Science;Math;Education;
-MimeType=text/x-xpp-ode;text/x-xpp-odex;application/x-xppautx-session;
+MimeType=text/x-xpp-ode;text/x-xpp-odex;application/x-xppautx-session;application/x-xppautx-auto;
 StartupNotify=true

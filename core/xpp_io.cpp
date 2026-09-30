@@ -30,11 +30,14 @@
    W7b). See xpp_io.h for the contract. */
 
 /* fp is the stream read; owned holds it too when the reader opened it
-   itself (and closes it with the reader), and is empty when attached */
+   itself (and closes it with the reader), and is empty when attached;
+   without fp, the lines are text's, from pos on (xpp::line_reader_of_text) */
 struct XppLineReader {
     std::FILE *fp = nullptr;
     xpp::UniqueFile owned;
     std::string line;
+    std::string text;
+    size_t pos = 0;
 };
 
 struct XppTokenReader {
@@ -149,9 +152,36 @@ XppLineReader *xpp_line_reader_attach(FILE *fp)
     }
 }
 
+XppLineReader *xpp::line_reader_of_text(std::string text) noexcept
+{
+    try {
+        XppLineReader *r = new XppLineReader;
+        r->text = std::move(text);
+        return r;
+    } catch (const std::bad_alloc &) {
+        return nullptr;
+    }
+}
+
+namespace {
+
+/* the next line of r's text, as read_line reads a file's */
+bool text_line(XppLineReader &r)
+{
+    if (r.pos >= r.text.size()) return false;
+    size_t nl = r.text.find('\n', r.pos);
+    if (nl == std::string::npos) nl = r.text.size();
+    r.line.assign(r.text, r.pos, nl - r.pos);
+    r.pos = nl + 1;
+    if (!r.line.empty() && r.line.back() == '\r') r.line.pop_back();
+    return true;
+}
+
+} // namespace
+
 const char *xpp_line_reader_next(XppLineReader *r, size_t *len)
 {
-    if (!r || !r->fp || !read_line(r->fp, r->line)) {
+    if (!r || !(r->fp ? read_line(r->fp, r->line) : text_line(*r))) {
         if (len) *len = 0;
         return nullptr;
     }

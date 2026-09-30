@@ -19,6 +19,8 @@
 #include "xpp_io.h"
 
 #include "xpp_files.h"
+#include "xpp_zip.h"
+#include "model_files.h"
 #include "load_eqn.h"
 #include "form_ode.h"
 #include "odex.h"
@@ -158,6 +160,25 @@ void load_eqn()
    make_eqn();
    return;
  }
+ /* the model's file: text (a zip or another binary file is refused, its
+    bytes never shown as a parse error's line), and for a saved model its
+    saved copy (model_files.h) */
+ if(xpp::session().got_file==1&&std==0)
+ {
+   std::string bytes;
+   const bool read=xpp::read_model_file(this_file,bytes);
+   if(read&&!xpp::is_model_text(bytes))
+   {
+     xpp::log(XPP_LOG_ERROR, "{} is not a model: {}\n",this_file,
+              xpp::zip::is_zip(bytes)?"it is a zip file (an AUTO file is a .autox, a session file a .snapx)":"it is a binary file");
+     xpp_model_failed();
+   }
+   if(!read&&!xpp::model().saved_in.empty())
+   {
+     xpp::log(XPP_LOG_ERROR, "{} is not saved in {}\n",this_file,xpp::model().saved_in);
+     xpp_model_failed();
+   }
+ }
  /* an .odex model: its own reader, then the same builder (odex.h) */
  if(xpp::session().got_file==1&&std==0&&xpp::odex::is_odex(this_file))
  {
@@ -166,7 +187,7 @@ void load_eqn()
  }
  if(xpp::session().got_file==1)
  {
-   xpp::UniqueFile fptr=xpp::open_read(this_file.c_str());
+   xpp::UniqueFile fptr=std==1?xpp::open_read(this_file.c_str()):xpp::open_model_file(this_file);
    if(fptr)
    {
      if(std==1)this_file="console";
@@ -267,7 +288,7 @@ void set_all_vals()
  /* internal options go here  */
  set_internopts(NULL);
 
- if(xpp::UniqueFile fp=xpp::open_read(xpp::model().options_file.c_str()))
+ if(xpp::UniqueFile fp=xpp::open_model_file(xpp::model().options_file))
   read_defaults(fp.get());
 
  init_range();

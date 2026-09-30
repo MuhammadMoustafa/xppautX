@@ -32,6 +32,9 @@ struct Entry {
 /* a zip archive of these entries, in this order, each deflated */
 std::string make_zip(const std::vector<Entry> &entries);
 
+/* bytes begin as a zip archive does (its first local file header) */
+bool is_zip(std::string_view bytes);
+
 /* the file entries of a zip archive (folders left out), in the archive's
    order, or nothing when it is not one or an entry cannot be read */
 std::optional<std::vector<Entry>> read_zip(std::string_view zip);

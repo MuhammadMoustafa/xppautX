@@ -398,7 +398,7 @@ int add_file_table(int index, const char *file)
   for(const char *p=file;*p;p++)
     if(*p>31&&*p<127)
       file2+=*p;
-  if(load_table(file2.c_str(),index)==0)
+  if(load_table(file2.c_str(),index,1)==0)
     {
       if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
        return(1);

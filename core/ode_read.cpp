@@ -20,6 +20,7 @@
 #include "integrate.h"
 #include "markov.h"
 #include "model.h"
+#include "model_files.h"
 #include "newpars.h"
 #include "odex.h"
 #include "session.h"
@@ -872,7 +873,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 		loadincludefile=0;/*Only do this once*/
 		for (const std::string &inc : include_files)
 		{
-			xpp::UniqueFile fnew=xpp::open_read(inc.c_str());
+			xpp::UniqueFile fnew=xpp::open_model_file(inc);
       			if(!fnew){
          		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
 			  xpp_model_failed();
@@ -901,7 +902,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 	    }
     }
     if(if_include_file(old,newfile)){
-      xpp::UniqueFile fnew=xpp::open_read(newfile.c_str());
+      xpp::UniqueFile fnew=xpp::open_model_file(newfile);
       if(!fnew){
          xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
          continue;

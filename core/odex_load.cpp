@@ -15,6 +15,7 @@
 #include "expr.h"
 #include "form_ode.h"
 #include "model.h"
+#include "model_files.h"
 #include "session.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -806,7 +807,7 @@ int load(const std::string &path)
   /* the model's source: the .odex file's own lines */
   std::vector<std::string> &source = xpp::model().source;
   source.clear();
-  xpp::LineReader lr(path.c_str());
+  xpp::LineReader lr = xpp::model_file_lines(path);
   while (std::optional<std::string_view> line = lr.next()) source.push_back(std::string(*line) + "\n");
   return 1;
 }

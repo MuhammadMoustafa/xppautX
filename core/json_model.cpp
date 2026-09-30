@@ -63,7 +63,7 @@ void init_main_graph(void)
    animation */
 void start_model(const xpp::KeptValues *kept)
 {
-    xpp_window_set_model(xpp::model().this_file.c_str());
+    xpp_window_set_model(xpp::model_title().c_str());
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
     xpp::session().drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
@@ -117,7 +117,7 @@ void switch_model(const xpp::ModelRequest &req)
     state_forget();
     xpp_renew_auto_dir();
     start_model(req.keep_values ? &kept : nullptr);
-    if (!req.session.empty()) xpp_session_restore(req.session); /* Open session */
+    if (req.restore) xpp_saved_restore(*req.restore); /* an AUTO or session file */
     j_redraw_graph();
     auto_redraw_for_client();
     /* @ runnow=1, as at the start */

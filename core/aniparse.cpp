@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "model.h"
+#include "model_files.h"
 #include "session.h"
 #include "ode_read.h"
 #include "aniparse.h"
@@ -875,9 +876,11 @@ int load_ani_file(xpp::LineReader &fp)
     return 1;
 }
 
-int ani_new_file(const char *filename)
+/* the .ani filename: -anifile's is one of the model's files (model_file,
+   model_files.h), one picked in the animation window a file of the disk */
+int ani_new_file(const char *filename, bool model_file)
 {
-    xpp::LineReader fp(filename);
+    xpp::LineReader fp = model_file ? xpp::model_file_lines(filename) : xpp::LineReader(filename);
     if (!fp) {
         err_msg("Couldn't open ani-file");
         return -1;
@@ -1218,7 +1221,9 @@ int get_ani_file(const char *fname)
         xpp::session().animation.vcr.file = file;
     } else if (fname != xpp::session().animation.vcr.file.c_str())
         xpp::session().animation.vcr.file = fname;
-    if (ani_new_file(xpp::session().animation.vcr.file.c_str()) < 0) return 0;
+    const xpp::Session &s = xpp::session();
+    const bool model_file = fname != nullptr && s.animation.options.use_file && s.animation.vcr.file == s.animation.options.file;
+    if (ani_new_file(s.animation.vcr.file.c_str(), model_file) < 0) return 0;
     xpp::session().animation.vcr.ok = 1; /* loaded and compiled */
     xpp::log(XPP_LOG_INFO, "Loaded {} lines successfully!\n", xpp::session().animation.ncom);
     xpp::session().animation.grab_flag = 0;

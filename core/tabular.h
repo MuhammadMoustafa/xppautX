@@ -43,7 +43,10 @@ void init_table(void);
 void redo_all_fun_tables(void);
 int eval_fun_table(int n, double xlo, double xhi, const char *formula, double *y);
 int create_fun_table(int npts, double xlo, double xhi, const char *formula, int index);
-int load_table(const char *filename, int index);
+/* table index read from the file filename (quoted or not): one of the
+   model's own files (model_file, model_files.h: a file table of the
+   model) or a file the user picked (Numerics' table file) */
+int load_table(const char *filename, int index, int model_file);
 int get_lookup_len(int i);
 
 

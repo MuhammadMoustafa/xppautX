@@ -6,34 +6,28 @@ extern "C" {
 
 /* Save session and Open session (W57, docs/protocol.md "Session files"):
    continuing where the user stopped, from one file, name.snapx -- a zip
-   of ordinary files (snapx.h names them): the model's path and
-   fingerprint, model.set (File/Write set's file: values, numerics, the
-   active window's graphics), model.autox (AUTO's File/Save diagram's,
-   autox.h: the diagram, AUTO's settings and solutions), windows.set (every plot window's axes,
-   variables and zoom, AUTO's view), marks.set and frozen.npz (labels,
-   arrows and markers, frozen curves) and data.npz (the data table, NPZ
-   as Save data writes it). The earlier runs a window keeps until Erase
-   are not saved: the data table is the last run's.
+   of ordinary files (snapx.h names them): the manifest, the model itself
+   (W103: every file it read, model/<name>), model.set (File/Write set's
+   file: values, numerics, the active window's graphics), AUTO's members
+   (auto/: the diagram, AUTO's settings and solutions, autox.h), windows.set
+   (every plot window's axes, variables and zoom, AUTO's view), marks.set
+   and frozen.npz (labels, arrows and markers, frozen curves) and data.npz
+   (the data table, NPZ as Save data writes it). The earlier runs a window
+   keeps until Erase are not saved: the data table is the last run's.
 
    xpp_session_save writes name.snapx (.snapx added unless name has it;
    NULL or empty asks for one, the way File/Write set does). data: 1 the
    data table goes in, 0 it is left out, -1 it goes in unless it is above
    50 MB, when the user is asked whether to leave it out (Go computes it
-   again). Opening one loads its model in this process (File > Open
-   model's switch, model_switch.h) and then restores everything as it was
-   saved (xpp_session_restore below); a model file that has changed since
-   (its fingerprint) is warned about and keeps what still fits by name.
+   again).
 
-   xpp_session_load(name): a .snapx (name.snapx, or name when it ends so)
-   is opened as File > Open model opens a model (xpp_model_open: it asks
-   whether to save this session first); otherwise the older pair of files
-   a session was before W57, <name>.set and, when there is one,
-   <name>.auto, is read into the current model as before. NULL or empty
-   asks for a .snapx.
+   xpp_session_load(name) opens name.snapx (name when it ends so) as File >
+   Open model opens it (xpp_model_open, model_switch.h): its saved model,
+   then everything as it was saved. NULL or empty asks for one.
 
    Return 1 on success, 0 on failure or a cancel (err_msg names a
-   problem). The files last saved or opened are the Session's
-   saved_session (below): core/json_state.cpp reports them as the state
+   problem). The session file last saved or opened is the Session's
+   saved_session (below): core/json_state.cpp reports it as the state
    event's "session" member. */
 int xpp_session_save(const char *name, int data);
 int xpp_session_load(const char *name);
@@ -41,41 +35,57 @@ int xpp_session_load(const char *name);
 #ifdef __cplusplus
 }
 
+#include <map>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
+#include "model_files.h"
 #include "snapx.h"
+#include "xpp_zip.h"
 
-/* the files a session was last saved to or opened from: a session file,
-   or (an older session loaded) its .set and .auto; a Session's (session.h) */
+/* the session file last saved or opened; a Session's (session.h) */
 struct SavedSession {
-    std::string file;      /* the .snapx */
-    std::string set, auto_file;
+    std::string file; /* the .snapx */
 };
 
-/* the current model's fingerprint (snapx.h): its file and every file it
-   included, read again now (one that cannot be read counts as empty) */
-std::string xpp_session_fingerprint();
+/* A file that carries a model (W103): an AUTO file (.autox, autox.h) or
+   a session file (.snapx), read whole by the one reader both share. The
+   model is always in it: opening one loads that model, from those saved
+   files and never the disk (model_files.h), then what the file adds. */
+struct SavedFile {
+    std::string path;              /* absolute */
+    bool session = false;          /* a .snapx, else an .autox */
+    xpp::snapx::Manifest manifest;
+    std::map<std::string, std::string> members; /* every member, by its name */
+    xpp::SavedModel model;         /* the model's files, saved in path */
+};
+
+/* path is named as a file that carries a model: .autox or .snapx (case
+   ignored) */
+bool xpp_saved_file_name(std::string_view path);
+/* the file path (a .autox or .snapx, xpp_saved_file_name) read whole:
+   nothing, with an error message, when it cannot be read, is not a zip,
+   has no manifest of its kind or has no model */
+std::optional<SavedFile> xpp_saved_read(const std::string &path);
+/* the command line's arguments that load f's model: its file, and
+   -anifile's animation when it was loaded with one */
+std::vector<std::string> xpp_saved_args(const SavedFile &f);
+/* the first members of a file of kind (snapx.h's session_kind, autox.h's
+   kind) that carries the current model: the manifest man and the model's
+   files; nothing, with an error message, when the model was not read
+   from files (a model typed in) */
+std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(xpp::snapx::Manifest man, std::string_view kind);
+/* what f adds to its model into the current one, which is f's (loaded
+   from it, or the same files): AUTO's diagram, or the session: false,
+   with an error message, when it could not be read */
+bool xpp_saved_restore(const SavedFile &f);
 
 /* the model's file name without .ode/.odex, and ext (".snapx", ".autox"):
    the name Save session and AUTO's Save diagram offer */
 std::string xpp_session_file_name(std::string_view ext);
 
-/* the current model as a manifest names it (snapx.h): its path, file
-   name, fingerprint, node, nmarkov, variables and parameters */
-xpp::snapx::Manifest xpp_session_manifest();
-/* man names the variables and parameters the current model has, in its
-   order (a diagram or a set file of it reads by index) */
-bool xpp_session_same_names(const xpp::snapx::Manifest &man);
-/* a changed model's note, in the log and on the status line */
+/* a note on restoring a file, in the log and on the status line */
 void xpp_session_warn(const std::string &text);
-
-/* session file snapx's model, found beside it first (its saved name) and
-   else at the path it was saved from: its absolute path, or empty (and an
-   error message) when snapx is not a session file or neither is there */
-std::string xpp_session_model(const std::string &snapx);
-/* session file snapx restored into the model just loaded from its
-   xpp_session_model (model_switch.h's request, or the command line's):
-   false (an error message) when snapx cannot be read at all */
-bool xpp_session_restore(const std::string &snapx);
 #endif
 #endif

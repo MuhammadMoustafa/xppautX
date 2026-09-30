@@ -74,6 +74,7 @@ to be added later
 #include <math.h>
 #include <stdio.h>
 #include "model.h"
+#include "model_files.h"
 
 
 namespace {
@@ -134,7 +135,7 @@ void new_lookup_com(int i)
      std::string file=s.tables[index].filename;
      status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
-     ok=load_table(file.c_str(),index);
+     ok=load_table(file.c_str(),index,0);
      if(ok==1)s.tables[index].filename=file;
 
    }
@@ -307,7 +308,7 @@ int create_fun_table(int npts, double xlo, double xhi, const char *formula, int 
    return(0);
 }
 
-int load_table(const char *filename, int index)
+int load_table(const char *filename, int index, int model_file)
 {
   xpp::Session &s=xpp::session();
   int i;
@@ -330,7 +331,7 @@ int load_table(const char *filename, int index)
     return(0);
   }
 
-  xpp::LineReader reader(filename2.c_str());
+  xpp::LineReader reader=model_file?xpp::model_file_lines(filename2):xpp::LineReader(filename2.c_str());
   if(!reader){
     xpp_files_refresh_cur_dir();
     err_msg(xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp_files_cur_dir()).c_str());

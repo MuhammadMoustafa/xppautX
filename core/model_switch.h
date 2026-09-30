@@ -14,18 +14,26 @@ extern "C" {
 
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the
    user picks when it is NULL or empty; asks before this model goes,
-   offering to save its session first (xpp_session_save). A session file
-   (.snapx, xpp_session.h) opens its model and restores the session. */
+   offering to save its session first (xpp_session_save). A file that
+   carries a model (W103, xpp_session.h: an AUTO file, .autox, or a
+   session file, .snapx) loads its saved model, from its saved files, then
+   its diagram or session; when the model open is that one (the same
+   files, byte for byte) nothing is asked: an AUTO file's diagram goes
+   into it, keeping its data, and a session file loads it again with the
+   session. */
 void xpp_model_open(const char *path);
 /* File > Reload (key e) and {"cmd":"reload"}: the model's file again, with
-   the command line it was loaded with; the parameters, initial data and
-   numerics keep their values by name (restore_values) */
+   the command line it was loaded with (a saved model's from its saved
+   files); the parameters, initial data and numerics keep their values by
+   name (restore_values) */
 void xpp_model_reload(void);
 
 #ifdef __cplusplus
 }
 
 #include "load_eqn.h"
+#include "model_files.h"
+#include "xpp_session.h"
 #include <optional>
 #include <string>
 #include <utility>
@@ -40,9 +48,11 @@ struct ModelRequest {
   std::vector<std::string> command_line;
   /* Reload: the values of the Session before carry over by name */
   bool keep_values=false;
-  /* Open session: the session file (an absolute path) restored once the
-     model is loaded (xpp_session_restore) */
-  std::string session;
+  /* a saved model: its files, read in place of the disk's (model_files.h) */
+  std::optional<SavedModel> saved;
+  /* Open of an AUTO or session file: what it adds, restored once its
+     model is loaded (xpp_saved_restore) */
+  std::optional<SavedFile> restore;
 };
 
 /* the request the last command made, taken: nullopt when it made none */

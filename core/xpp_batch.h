@@ -39,6 +39,7 @@ int xpp_load_model(int argc, char **argv, int batch);
 }
 
 #include "diagnostic.h"
+#include "model_files.h"
 
 #include <optional>
 #include <string>
@@ -47,8 +48,10 @@ int xpp_load_model(int argc, char **argv, int batch);
 namespace xpp {
 /* xpp_load_model, saying why a load fails: nothing when the model loaded
    (its Model and Session are the current ones), else what is wrong and
-   where (the ones before stay current) */
-std::optional<Diagnostic> load_model(int argc, char **argv, int batch);
+   where (the ones before stay current). saved: a model saved in an AUTO
+   or session file, whose files the load reads instead of the disk's
+   (model_files.h); argv names its first file. */
+std::optional<Diagnostic> load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr);
 /* the model cannot be loaded, for the reason d (already logged): during a
    load, the load fails (LoadFailed with d, the line d.line of d.file
    added as it is written); otherwise the program exits with status 1 */

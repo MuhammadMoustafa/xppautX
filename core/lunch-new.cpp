@@ -22,7 +22,6 @@
 #include "xpp_globals.h"
 #include "xpp_batch.h"
 #include "delay_handle.h"
-#include "model_switch.h"
 #include "solver.h"
 #include <algorithm>
 #include <array>
@@ -566,62 +565,6 @@ void read_graph(FILE *fp, GRAPH &g)
 {
   set_type=1; /* its "# Graphics" heading */
   io_graph_of(READEM,fp,g);
-}
-
-bool read_set_by_name(FILE *fp, const std::vector<std::string> &vars, int node, int nmarkov,
-                      const std::vector<std::string> &pars, xpp::KeptValues &kept)
-{
-  xpp::Session &s=xpp::session();
-  std::optional<std::string> first=next_line(fp);
-  if(!first||first->empty()||(*first)[0]!='#')return false;
-  set_type=1;
-  int ne,np;
-  io_int(&ne,fp,READEM," ");
-  io_int(&np,fp,READEM," ");
-  const int nic=node+nmarkov;
-  if(ne!=static_cast<int>(vars.size())||np!=static_cast<int>(pars.size())||node<0||nmarkov<0||nic>ne)return false;
-  /* the numerics go through the session's own, which restore_values then
-     sets from kept: the ones of this model until then */
-  const NumericsSettings numerics=s.numerics;
-  const int delay_flag=s.delay.flag,my_start=s.integrator.my_start;
-  io_numerics(READEM,fp);
-  kept.numerics=s.numerics;
-  s.numerics=numerics;
-  s.delay.flag=delay_flag;
-  s.integrator.my_start=my_start;
-  do_meth();
-  const int poi=kept.numerics.poivar;
-  kept.poivar=poi==0?std::string("T"):poi>0&&poi<=ne?vars[poi-1]:std::string();
-  if(kept.numerics.method==xpp::method::VOLTERRA){
-    int points;
-    io_int(&points,fp,READEM," ");
-  }
-  /* io_exprs's lines, by the saved model's counts */
-  std::string text;
-  double z;
-  kept.delays.clear();
-  kept.ics.clear();
-  kept.pars.clear();
-  skip_heading_line(fp);
-  for(int i=0;i<node;i++){
-    io_string(text,fp,READEM);
-    kept.delays.emplace_back(vars[i],text);
-  }
-  skip_heading_line(fp);
-  for(int i=0;i<node;i++)io_string(text,fp,READEM); /* the boundary conditions: not by name */
-  skip_heading_line(fp);
-  for(int i=0;i<nic;i++){
-    io_double(&z,fp,READEM," ");
-    kept.ics.emplace_back(vars[i],z);
-  }
-  skip_heading_line(fp);
-  for(int i=0;i<nic;i++)io_double(&z,fp,READEM," "); /* where the last run ended */
-  skip_heading_line(fp);
-  for(int i=0;i<np;i++){
-    io_double(&z,fp,READEM," ");
-    kept.pars.emplace_back(pars[i],z);
-  }
-  return true;
 }
 
 void io_int(int *i, FILE *fp, int f, std::string_view ss)

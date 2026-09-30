@@ -6,7 +6,6 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_session.h"
-#include "snapx.h"
 #include "xpp_ui.h"
 #include "xpp_util.h"
 #include "expr.h"
@@ -59,34 +58,54 @@ void xpp_model_open(const char *path)
   if(file.empty()){
     file=xpp_files_working_dir();
     if(file.empty()||file.back()!='/')file+='/';
-    if(!file_selector("Open model",file,"*.ode*"))return;
+    if(!file_selector("Open model",file,"*.ode* *.autox *.snapx"))return;
   }
   if(!model_file_ok(file)){
     err_msg(xpp::format("Cannot open {}",file).c_str());
     return;
   }
-  /* a session file: its model, then the session restored */
-  std::string session,model=file;
-  if(xpp::snapx::is_session_file(file)){
-    session=xpp_files_absolute(file);
-    model=xpp_session_model(session);
-    if(model.empty())return;
+  /* a file that carries a model: that model, then what the file adds */
+  std::optional<SavedFile> saved;
+  if(xpp_saved_file_name(file)){
+    saved=xpp_saved_read(file);
+    if(!saved)return;
   }
-  std::pair<std::string,std::string> where=xpp_files_split_path(model);
-  const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
-                                         xpp_files_split_path(file).second);
-  switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
-  case 's':
-    if(!xpp_session_save(nullptr,-1))return;
-    break;
-  case 'd':
-    break;
-  default:
+  const bool same=saved&&saved->model.files==xpp::model().files;
+  if(same&&!saved->session){ /* only the diagram, into this model */
+    xpp_saved_restore(*saved);
     return;
   }
+  if(!same){
+    const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
+                                           xpp_files_split_path(file).second);
+    switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
+    case 's':
+      if(!xpp_session_save(nullptr,-1))return;
+      break;
+    case 'd':
+      break;
+    default:
+      return;
+    }
+  }
   /* loaded from its own folder, as a double-click starts it: the folder
-     the page's files are (xpp_files.h) */
-  xpp::session().model_request=xpp::ModelRequest{where.first,where.second,{program_name(),where.second},false,session};
+     the page's files are (xpp_files.h); a saved model from the folder of
+     the file it is saved in, which its outputs go to */
+  xpp::ModelRequest req;
+  if(saved){
+    req.dir=xpp_files_split_path(saved->path).first;
+    req.file=saved->manifest.model_name;
+    req.command_line={program_name()};
+    for(std::string &a : xpp_saved_args(*saved))req.command_line.push_back(std::move(a));
+    req.saved=saved->model;
+    req.restore=std::move(saved);
+  }else{
+    const std::pair<std::string,std::string> where=xpp_files_split_path(file);
+    req.dir=where.first;
+    req.file=where.second;
+    req.command_line={program_name(),where.second};
+  }
+  xpp::session().model_request=std::move(req);
 }
 
 void xpp_model_reload(void)
@@ -100,7 +119,9 @@ void xpp_model_reload(void)
      by its name this time */
   std::vector<std::string> command_line=m.command_line;
   if(!xpp::session().got_file)command_line={program_name(),m.this_file};
-  xpp::session().model_request=xpp::ModelRequest{m.load_dir,m.this_file,std::move(command_line),true,{}};
+  xpp::ModelRequest req{m.load_dir,m.this_file,std::move(command_line),true,std::nullopt,std::nullopt};
+  if(!m.saved_in.empty())req.saved=xpp::SavedModel{m.saved_in,m.files};
+  xpp::session().model_request=std::move(req);
 }
 
 namespace xpp {
@@ -189,7 +210,7 @@ bool load_requested(const ModelRequest &req)
     return false;
   }
   auto back=[&before](){ if(!before.empty())xpp_files_change_dir(before.c_str()); };
-  if(!model_file_ok(req.file)){
+  if(!req.saved&&!model_file_ok(req.file)){
     back();
     err_msg(xpp::format("Cannot open {}",req.file).c_str());
     return false;
@@ -199,7 +220,7 @@ bool load_requested(const ModelRequest &req)
   std::vector<char *> argv;
   for(std::string &a : args)argv.push_back(a.data());
   argv.push_back(nullptr);
-  if(std::optional<Diagnostic> failed=load_model(static_cast<int>(args.size()),argv.data(),0)){
+  if(std::optional<Diagnostic> failed=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr)){
     back();
     err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.file,failed->text(),before_file).c_str());
     return false;

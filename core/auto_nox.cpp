@@ -3,6 +3,7 @@
 #include "autox.h"
 #include "snapx.h"
 #include "xpp_session.h"
+#include "model_switch.h"
 #include "integrate.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -2562,12 +2563,13 @@ void save_auto()
   if(!file_selector("Save diagram",filename,"*.autox"))return;
   if(xpp::snapx::has_extension(filename,".auto"))filename+='x'; /* the old name, the new file */
   filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
-  std::optional<std::string> bytes=xpp::autox::file_bytes();
-  if(!bytes){
+  if(diagram_count()<=1){
     /* leave no file without a diagram (nor replace one with it) */
     auto_err("Empty diagram -- nothing to save");
     return;
   }
+  std::optional<std::string> bytes=xpp::autox::file_bytes();
+  if(!bytes)return; /* an error message said why */
   /* written beside filename and renamed over it once whole */
   xpp::Writer w=open_writer_asking(filename.c_str(),true);
   if(!w)return;
@@ -2646,13 +2648,17 @@ void make_q_file(FILE *fp)
 
 void load_auto()
 {
-  if(diagram_count()>1){
-    if(reset_auto()==0)return;
-  }
-
   std::string filename=xpp_session_file_name(xpp::autox::extension);
   if(!file_selector("Load diagram",filename,"*.autox *.auto"))return;
-  xpp::autox::load_file(filename);
+  /* an .autox carries its model: opened as File > Open model opens it,
+     its diagram into that model (the same one: only the diagram, in
+     place of the one there) */
+  if(xpp_saved_file_name(filename)){
+    xpp_model_open(filename.c_str());
+    return;
+  }
+  if(diagram_count()>1&&reset_auto()==0)return;
+  xpp::autox::import_file(filename);
 }
 
 std::string auto_solutions_file()

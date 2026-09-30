@@ -402,10 +402,22 @@ void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
    exactly like the C API's "abandoned without commit" guarantee. Both
    are opened either from a path (owning) or attach()ed to a FILE* the
    caller keeps owning. */
+/* a line reader over text instead of a file (LineReader::of_text); NULL
+   when it cannot be made */
+XppLineReader *line_reader_of_text(std::string text) noexcept;
+
 class LineReader {
 public:
     LineReader() = default;
     explicit LineReader(const char *path) noexcept : r_(xpp_line_reader_open(path)) {}
+    /* text's lines, as a file of those bytes gives them (a model's saved
+       file, model_files.h) */
+    static LineReader of_text(std::string text) noexcept
+    {
+        LineReader l;
+        l.r_ = line_reader_of_text(std::move(text));
+        return l;
+    }
     static LineReader attach(FILE *fp) noexcept
     {
         LineReader l;

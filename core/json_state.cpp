@@ -132,14 +132,6 @@ void send_state(void)
         BUF_LIT(&b, ",\"session\":{\"file\":");
         buf_str(&b, saved.file.c_str());
         BUF_LIT(&b, "}");
-    } else if (!saved.set.empty()) {
-        BUF_LIT(&b, ",\"session\":{\"set\":");
-        buf_str(&b, saved.set.c_str());
-        if (!saved.auto_file.empty()) {
-            BUF_LIT(&b, ",\"auto\":");
-            buf_str(&b, saved.auto_file.c_str());
-        }
-        BUF_LIT(&b, "}");
     }
     BUF_LIT(&b, "}");
     send_buf(&b);

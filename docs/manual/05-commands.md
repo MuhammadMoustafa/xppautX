@@ -148,7 +148,8 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **t(U)torial**: Steps through a series of short tips ("Did you know you
   can...") one at a time; Next for another, Done to stop.
 - **open (M)odel**: Asks for a `.ode` or `.odex` file (or a `.snapx`
-  session file, which opens that session: **opeN session** below), then
+  session file, which opens that session: **opeN session** below; or an
+  `.autox` AUTO file, which opens its model with its diagram), then
   whether to save this session first (**Save first** writes a session
   file, **Don't save**; Escape keeps the current model), and loads it in
   place of the current model: its data,
@@ -161,18 +162,19 @@ This brings up a menu with several options. Type `Esc` to abort.
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session**: Asks for a file name and writes one session file,
-  `name.snapx`, to continue later exactly where you are: the model's path
-  and fingerprint, the values and numerics (**Write set**'s file), every
+  `name.snapx`, to continue later exactly where you are: the model itself
+  (its `.ode` and every file it read), the values and numerics (**Write set**'s file), every
   plot window with its axes, variables and zoom, the text, arrows and
-  frozen curves, AUTO's diagram and settings (AUTO's **Save diagram**
-  file, `.autox`) and view, and the data table (NumPy's `.npz`). The earlier runs a
+  frozen curves, AUTO's diagram and settings (as AUTO's **Save diagram**
+  file, `.autox`, has them) and view, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this
-  session first (as **open (M)odel**), loads its model and restores the
-  session as it was saved. A model edited since warns and keeps what
-  still fits by name, as **r(E)load** does (AUTO's diagram only when the
-  variables and parameters are the same). See
+  session first (as **open (M)odel**; not when the model open is the one
+  saved in it), loads the model saved in it, from the file alone however
+  the `.ode` has changed since, and restores the session as it was saved.
+  A session file without its model (saved before this version) is
+  refused with an error. See
   [session files](01-introduction.md#starting-it).
 
 ### (P)arameters

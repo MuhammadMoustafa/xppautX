@@ -22,6 +22,7 @@
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
+#include "model_files.h"
 #include "xpp_log.h"
 
 #include "expr.h"
@@ -262,7 +263,7 @@ int read_eqn()
 {
   std::string wild="*.ode",string;
   get_a_filename(string,wild);
-  xpp::UniqueFile fptr=xpp::open_read(string.c_str());
+  xpp::UniqueFile fptr=xpp::open_model_file(string);
   if(!fptr)
    {
     xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);
@@ -1527,7 +1528,6 @@ private:
 
 void build_model(Parsed p)
 {
-  xpp::model().source_files=p.files;
   Builder(p).run();
 }
 

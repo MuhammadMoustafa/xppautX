@@ -170,6 +170,4 @@ std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text,
     return points;
 }
 
-bool is_zip(std::string_view bytes) { return bytes.starts_with(std::string_view("PK\x03\x04", 4)); }
-
 } // namespace xpp::autox

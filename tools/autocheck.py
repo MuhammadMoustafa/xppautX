@@ -24,12 +24,14 @@ eigenvalues are its own (a run's first point is not computed unless it
 restarts from a label of the same kind: auto_stability.h); sessions checks that concurrent servers
 keep their AUTO files apart; session is the "cmd":"session" save/load of
 docs/protocol.md (issue #11, W57): one session file, name.snapx, a long
-AUTO run is picked back up from, and the older .set and .auto pair still
-loading alone; autox is AUTO's own file (W92, docs/protocol.md "AUTO
-files"): File/Save diagram's .autox loaded in a new server gives the same
-diagram exactly and continues from a grabbed point, an XPPAUT .auto is
-imported and saved as .autox, and an edited .ode warns or, with other
-names, is refused; script plays
+AUTO run is picked back up from, carrying its model (W103): opened where
+no .ode is, its saved model loads, a file table with it, and a file
+without its model is refused; autox is AUTO's own file (W92, docs/protocol.md
+"AUTO files"): File/Save diagram's .autox loaded in a new server gives the
+same diagram exactly and continues from a grabbed point, keeping the data
+of the same model open, an XPPAUT .auto is imported and saved as .autox,
+and with the .ode edited or gone, or another model open, the .autox's own
+saved model loads with its diagram (W103); script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
 tools/models/longnames.ode (200-character names: no length limit, W76)
@@ -534,13 +536,26 @@ def save_diagram(s, name, written=None):
 
 
 def load_diagram(s, path):
-    """File/Load diagram of path (answering a reset's question yes): the events"""
+    """File/Load diagram of path (answering a reset's question yes, a model
+    switch's "save first?" don't): the events"""
     s.send(cmd='key', win='auto', key='f')
     evs, e = s.answer_asks(is_idle, {'menu': lambda e: {'key': 'l'},
                                      'file': lambda e: {'ok': 1, 'file': path},
                                      'string': lambda e: {'ok': 1, 'value': path},
-                                     'choice': lambda e: {'key': 'y'}})
+                                     'choice': lambda e: {'key': 'd' if e.get('keys') == 'sd' else 'y'}})
     return evs
+
+
+def open_file(s, path):
+    """{"cmd":"open"} of path, a model switch's "save first?" answered don't: the events"""
+    s.send(cmd='open', file=path)
+    evs, e = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    return evs
+
+
+def hello_title(evs):
+    h = [e for e in evs if e.get('ev') == 'hello']
+    return h[-1].get('title', '') if h else None
 
 
 def lecar_diagram(s):
@@ -862,8 +877,8 @@ def section_session():
     check('session save reports the session file', sess == {'file': 's1.snapx'}, str(sess))
     snap_path = os.path.join(s.run, 's1.snapx')
     members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
-    check('session save writes s1.snapx with the .set and .autox files in it',
-          'model.set' in members and 'model.autox' in members, str(members))
+    check('session save writes s1.snapx with the model, the .set and AUTO\'s files in it',
+          'model/lecar.ode' in members and 'model.set' in members and 'auto/diagram.csv' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
     # a NEW server, in a new directory, with only the session file copied in
@@ -871,14 +886,11 @@ def section_session():
     s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
     s2.collect(is_idle)
     if os.path.exists(snap_path): shutil.copy(snap_path, s2.run)
-    # and the older pair of files: its .set and an XPPAUT .auto alone still load
+    # and a server of another model, with no lecar.ode in its folder
     home3 = tempfile.mkdtemp(prefix='xpphome')
-    s3 = Server(args.server, LECAR, env={'HOME': home3}, verbose=args.v)
+    s3 = Server(args.server, HEAVY, env={'HOME': home3}, verbose=args.v)
     s3.collect(is_idle)
-    if members:
-        with open(os.path.join(s3.run, 'old.set'), 'wb') as out:
-            out.write(zipfile.ZipFile(snap_path).read('model.set'))
-        shutil.copy(OLD_AUTO, os.path.join(s3.run, 'old.auto'))
+    if os.path.exists(snap_path): shutil.copy(snap_path, s3.run)
     s.close()
     shutil.rmtree(home1, ignore_errors=True)
 
@@ -910,15 +922,68 @@ def section_session():
     s2.close()
     shutil.rmtree(home2, ignore_errors=True)
 
-    s3.send(cmd='session', op='load', name='old')
-    evs, e = s3.collect(is_idle, timeout=20 * SLOW)
-    st = [x for x in evs if x.get('ev') == 'state']
-    old = st[-1] if st else None
-    check("an older session's .set and .auto alone still load into the model",
-          old is not None and old.get('session') == {'set': 'old.set', 'auto': 'old.auto'}
-          and dict(old['pars']) == pars1 and any(is_point(e) for e in evs), str(old and old.get('session')))
+    # no lecar.ode where it opens: the saved model loads, with the session
+    evs = open_session(s3, 's1')
+    st = last_state(evs)
+    check('session load where no .ode is: the saved lecar loads, its title names the session file',
+          'lecar.ode (saved in s1.snapx)' in (hello_title(evs) or ''), str(hello_title(evs)))
+    check('session load where no .ode is: the parameters and the diagram are the saved ones',
+          st is not None and dict(st['pars']) == pars1 and any(is_point(e) for e in evs), str(st and st['pars']))
+    check('session load writes nothing beside the file', sorted(os.listdir(s3.run)) == ['heavy.ode', 's1.snapx'],
+          str(os.listdir(s3.run)))
+    # a session file without its model: refused, the model open stays
+    import zipfile as zf
+    if os.path.exists(os.path.join(s3.run, 's1.snapx')):
+        z = zf.ZipFile(os.path.join(s3.run, 's1.snapx'))
+        with zf.ZipFile(os.path.join(s3.run, 'nomodel.snapx'), 'w') as out:
+            for n in z.namelist():
+                if not n.startswith('model/'):
+                    out.writestr(n, z.read(n))
+    evs = open_session(s3, 'nomodel')
+    st2 = last_state(evs)
+    check('session load of a file without its model: an error says so, nothing changes',
+          'model is missing' in messages(evs) and hello_title(evs) is None and st2 is not None
+          and dict(st2['pars']) == pars1, messages(evs)[:300])
     s3.close()
     shutil.rmtree(home3, ignore_errors=True)
+
+    # a model with a file table (named by its whole path): the table goes
+    # with it and comes back, from the session file alone
+    import math
+    folder = tempfile.mkdtemp(prefix='xpptab')
+    table = os.path.join(folder, 'w.tab').replace(os.sep, '/')
+    with open(table, 'w') as f:
+        f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
+    tab_ode = os.path.join(folder, 'tab.ode')
+    with open(tab_ode, 'w') as f:
+        f.write(chr(10).join(['table w ' + table, 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total=4', 'done', '']))
+    s4 = Server(args.server, tab_ode, verbose=args.v)
+    s4.collect(is_idle)
+    s4.send(cmd='session', op='save', name='tab')
+    s4.collect(is_idle, timeout=20 * SLOW)
+    tab_snap = os.path.join(s4.run, 'tab.snapx')
+    names = zf.ZipFile(tab_snap).namelist() if os.path.exists(tab_snap) else []
+    check('session save of a model with a file table carries the table',
+          'model/tab.ode' in names and 'model/' + table in names, str(names))
+    shutil.rmtree(folder, ignore_errors=True)
+    s5 = Server(args.server, LECAR, verbose=args.v)
+    s5.collect(is_idle)
+    if names: shutil.copy(tab_snap, s5.run)
+    s4.close()
+    evs = open_session(s5, 'tab')
+    s5.send(cmd='key', key='i')
+    evs2, ask = s5.collect(is_ask)
+    s5.send(cmd='answer', id=ask['id'], key='g')
+    s5.collect(is_idle, timeout=30 * SLOW)
+    s5.send(cmd='browser', op='write', what='table', format='csv', name='tab.csv')
+    s5.collect(is_idle)
+    csv_path = os.path.join(s5.run, 'tab.csv')
+    rows = [l.strip() for l in open(csv_path) if l.strip() and not l.startswith('#')] if os.path.exists(csv_path) else []
+    x_end = float(rows[-1].split(',')[1]) if len(rows) > 1 else None
+    check('and the table model loads from it alone, integrating through its table (w(1.5) = 2.5)',
+          'tab.ode (saved in tab.snapx)' in (hello_title(evs) or '') and x_end is not None
+          and abs(x_end - 2.5 * (1 - math.exp(-4))) < 1e-3, '%s %s' % (hello_title(evs), rows[-1:]))
+    s5.close()
 
 
 # ---- autox: AUTO's own file, name.autox (W92, docs/protocol.md "AUTO files") ----
@@ -946,11 +1011,11 @@ def section_autox():
     dg1 = Diagram().apply(evs).pts
     # an old name asked for: the .autox beside it
     got = save_diagram(s, 'd1.auto', 'd1.autox')
-    check('autox: Save diagram writes d1.autox, a zip of the files listed',
-          list(got) == ['autox.txt', 'settings.txt', 'diagram.csv', 'solutions.s'], str(list(got)))
-    check('autox: autox.txt is the manifest of lecar.ode',
-          got.get('autox.txt', '').startswith('xppautX autox 1\nmodel ') and '\nname lecar.ode\n' in got['autox.txt']
-          and re.search(r'\nsha256 [0-9a-f]{64}\n', got['autox.txt']) is not None, got.get('autox.txt', '')[:300])
+    check('autox: Save diagram writes d1.autox, a zip of the files listed, the model in it',
+          list(got) == ['autox.txt', 'model/lecar.ode', 'settings.txt', 'diagram.csv', 'solutions.s'], str(list(got)))
+    check('autox: autox.txt is the manifest of lecar.ode, which is in it byte for byte',
+          got.get('autox.txt', '') == 'xppautX autox 1\nname lecar.ode\n'
+          and got.get('model/lecar.ode') == open(LECAR).read(), got.get('autox.txt', '')[:300])
     check('autox: settings.txt has the numerics, the parameters and the axes',
           all(re.search(r'(^|\n)%s ' % k, got.get('settings.txt', '')) for k in ('ntst', 'ds', 'pars', 'plot', 'xmin')),
           got.get('settings.txt', '')[:300])
@@ -969,11 +1034,21 @@ def section_autox():
     evs = run_menu(s, 'p')
     check('autox: Start/Periodic with nothing integrated refuses, and the server lives',
           'Integrate first' in messages(evs) and s.alive(), messages(evs)[:200])
+    # some data: the same model open keeps it, only the diagram loads
+    s.send(cmd='key', key='i')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key='g')
+    evs, _ = s.collect(is_idle, timeout=30 * SLOW)
+    rows_before = last_state(evs)['rows'] if last_state(evs) else None
     evs = load_diagram(s, d1)
     dg2 = Diagram().apply(evs).pts
     check('autox: Load diagram in a new server gives the same diagram, exactly',
           dg1 and dg2 == dg1 and 'left as they were' not in messages(evs), '%d vs %d points, first difference %s' % (
               len(dg2), len(dg1), next(((a, b) for a, b in zip(dg2, dg1) if a != b), None)))
+    st = last_state(evs)
+    check('autox: the same model open: nothing asked, no model loaded, its data kept',
+          hello_title(evs) is None and not any(is_ask(e) and e['kind'] == 'choice' for e in evs)
+          and rows_before and st and st['rows'] == rows_before, '%s rows before, %s after' % (rows_before, st and st['rows']))
     # the periodic branch's last label (its end point): extending it restarts
     # from the orbit in the restored solutions.s
     last = max((p['lab'] for p in dg2 if p['lab']), default=0)
@@ -1013,10 +1088,11 @@ def section_autox():
           '%d vs %d points; %s' % (len(dg4.pts), len(dg3), messages(evs)[:200]))
     s.close()
 
-    # the .ode edited since: the same names warn and load; other names are refused
+    # the .ode edited (the same names, or phi renamed) and loaded: the
+    # .autox's own model loads, from it, with its diagram exactly
     with open(LECAR) as f:
         text = f.read()
-    for edit, what in (('# edited since\n' + text, 'same'), (re.sub(r'\bphi\b', 'phi2', text), 'renamed')):
+    for edit, what in (('# edited since\n' + text, 'a comment added'), (re.sub(r'\bphi\b', 'phi2', text), 'phi renamed')):
         folder = tempfile.mkdtemp(prefix='xppode', dir=scratch)
         ode = os.path.join(folder, 'lecar.ode')
         with open(ode, 'w') as f:
@@ -1024,13 +1100,37 @@ def section_autox():
         s = server(ode)
         evs = load_diagram(s, d1)
         pts = Diagram().apply(evs).pts
-        if what == 'same':
-            check('autox: an edited .ode with the same names: a warning says so, and the diagram loads',
-                  'changed since' in messages(evs) and pts == dg1, messages(evs)[:300])
-        else:
-            check("autox: an .ode whose names changed: the diagram is refused, an error says why",
-                  'not this model' in messages(evs) and not any(is_point(e) for e in evs), messages(evs)[:300])
+        st = last_state(evs)
+        check('autox: the .ode edited (%s): Load diagram loads the saved model, its diagram exactly' % what,
+              'lecar.ode (saved in d1.autox)' in (hello_title(evs) or '') and pts == dg1
+              and st is not None and 'PHI' in [n.upper() for n, v in st['pars']], '%s; %s' % (hello_title(evs), messages(evs)[:300]))
         s.close()
+
+    # another model open, `open` of the .autox (where no lecar.ode is): its model and diagram
+    s = server(HEAVY)
+    shutil.copy(d1, s.run)
+    evs = open_file(s, 'd1.autox')
+    pts = Diagram().apply(evs).pts
+    check('autox: open of an .autox with another model open loads its saved model and diagram',
+          'lecar.ode (saved in d1.autox)' in (hello_title(evs) or '') and pts == dg1, '%s; %d points' % (hello_title(evs), len(pts)))
+    check('autox: nothing is written beside it', sorted(os.listdir(s.run)) == ['d1.autox', 'heavy.ode'], str(os.listdir(s.run)))
+    # a file without its model: an error, nothing changes
+    import zipfile
+    z = zipfile.ZipFile(d1)
+    with zipfile.ZipFile(os.path.join(s.run, 'nomodel.autox'), 'w') as out:
+        for n in z.namelist():
+            if not n.startswith('model/'):
+                out.writestr(n, z.read(n))
+    evs = open_file(s, 'nomodel.autox')
+    check('autox: an .autox without its model is refused, an error says the model is missing',
+          'model is missing' in messages(evs) and hello_title(evs) is None, messages(evs)[:300])
+    # a binary file opened as a model: refused, its bytes never shown
+    with open(os.path.join(s.run, 'bin.ode'), 'wb') as out:
+        out.write(b'x\'=-x\n\x00\x01\x02\xff\n')
+    evs = open_file(s, 'bin.ode')
+    check('autox: a binary file opened as a model is refused, its bytes never shown',
+          'not a model' in messages(evs) and hello_title(evs) is None and '\x00' not in messages(evs), messages(evs)[:300])
+    s.close()
     for h in homes + [scratch]:
         shutil.rmtree(h, ignore_errors=True)
 

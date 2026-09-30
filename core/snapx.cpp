@@ -1,6 +1,5 @@
 /* The session file's pure part: see snapx.h. */
 #include "snapx.h"
-#include "xpp_sha256.h"
 #include "xpp_io.h"
 
 #include <cctype>
@@ -28,30 +27,6 @@ void add_line(std::string &o, std::string_view key, std::string_view value)
     o += '\n';
 }
 
-std::string joined(const std::vector<std::string> &names)
-{
-    std::string o;
-    for (const std::string &n : names) {
-        if (!o.empty()) o += ' ';
-        o += n;
-    }
-    return o;
-}
-
-std::vector<std::string> words(std::string_view s)
-{
-    std::vector<std::string> w;
-    std::size_t i = 0;
-    while (i < s.size()) {
-        while (i < s.size() && s[i] == ' ') i++;
-        const std::size_t j = s.find(' ', i);
-        const std::size_t e = j == std::string_view::npos ? s.size() : j;
-        if (e > i) w.emplace_back(s.substr(i, e - i));
-        i = e;
-    }
-    return w;
-}
-
 } // namespace
 
 std::string manifest_text(const Manifest &m, std::string_view kind)
@@ -60,13 +35,8 @@ std::string manifest_text(const Manifest &m, std::string_view kind)
     o += first_line(kind);
     o += std::to_string(m.version);
     o += '\n';
-    add_line(o, "model", m.model);
     add_line(o, "name", m.model_name);
-    add_line(o, "sha256", m.sha256);
-    add_line(o, "node", std::to_string(m.node));
-    add_line(o, "markov", std::to_string(m.nmarkov));
-    add_line(o, "vars", joined(m.vars));
-    add_line(o, "pars", joined(m.pars));
+    if (!m.anifile.empty()) add_line(o, "anifile", m.anifile);
     if (kind == session_kind) add_line(o, "data", m.data ? "1" : "0");
     return o;
 }
@@ -91,15 +61,8 @@ std::optional<Manifest> parse_manifest(std::string_view text, std::string_view k
         const std::size_t sp = line.find(' ');
         const std::string_view key = line.substr(0, sp);
         const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
-        if (key == "model") m.model = value;
-        else if (key == "name") m.model_name = value;
-        else if (key == "sha256") m.sha256 = value;
-        else if (key == "node") {
-            if (!xpp::parse_int(value, m.node)) return std::nullopt;
-        } else if (key == "markov") {
-            if (!xpp::parse_int(value, m.nmarkov)) return std::nullopt;
-        } else if (key == "vars") m.vars = words(value);
-        else if (key == "pars") m.pars = words(value);
+        if (key == "name") m.model_name = value;
+        else if (key == "anifile") m.anifile = value;
         else if (key == "data") m.data = value == "1";
         /* a key a later writer adds is left for it */
     }
@@ -107,15 +70,23 @@ std::optional<Manifest> parse_manifest(std::string_view text, std::string_view k
     return m;
 }
 
-std::string fingerprint(std::span<const std::string> files)
+void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFile> files)
 {
-    Sha256 h;
-    for (const std::string &f : files) {
-        const std::string length = std::to_string(f.size()) + '\n';
-        h.update(length.data(), length.size());
-        h.update(f.data(), f.size());
+    for (const ModelFile &f : files) entries.push_back({std::string(model_folder) + f.name, f.bytes});
+}
+
+std::optional<std::vector<ModelFile>> model_members(const std::vector<zip::Entry> &entries, std::string_view model_name)
+{
+    std::vector<ModelFile> files;
+    bool own = false;
+    for (const zip::Entry &e : entries) {
+        if (!e.name.starts_with(model_folder)) continue;
+        std::string name = e.name.substr(model_folder.size());
+        own = own || name == model_name;
+        files.push_back({std::move(name), e.bytes});
     }
-    return h.hex();
+    if (!own || model_name.empty()) return std::nullopt;
+    return files;
 }
 
 bool has_extension(std::string_view path, std::string_view ext)

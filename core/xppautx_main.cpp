@@ -23,9 +23,11 @@
                                     a built-in script (json_silent.cpp) of
                                     the protocol's commands, played like
                                     --script with its events going nowhere
-     xppautX name.snapx             a session file (xpp_session.h) in any
-                                    mode but -silent: its model, loaded and
-                                    restored as the session was saved
+     xppautX name.snapx             a session file or an AUTO file (.autox,
+                                    xpp_session.h) in any mode but -silent:
+                                    the model saved in it, loaded from its
+                                    saved files, then the session or the
+                                    diagram as it was saved
 
    usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
@@ -59,7 +61,6 @@
 #include "xpp_window.h"
 #include "xpp_win32.h"
 #include "odex.h"
-#include "snapx.h"
 #include "xpp_session.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,8 +103,9 @@ static const char *const usage_tail =
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
     "  -silent          (an xppaut option) a headless run that writes output.dat\n"
-    "A session file (name.snapx, File/saVe session) in place of file.ode opens its\n"
-    "model and restores the session as it was saved.\n"
+    "A session file (name.snapx, File/saVe session) or an AUTO file (name.autox,\n"
+    "AUTO's File/Save diagram) in place of file.ode opens the model saved in it,\n"
+    "then the session or the diagram as it was saved.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n";
@@ -157,29 +159,35 @@ static void run_session(void)
         if (home && *home) xpp_files_change_dir(home);
     }
 #endif
-    /* a session file on the command line: its model is loaded, from its
-       own folder as File > Open model loads one, and the session restored */
-    std::string snapx, model_name;
-    for (int i = 1; i < session_argc; i++) {
-        if (!xpp::snapx::is_session_file(session_argv[i])) continue;
-        snapx = xpp_files_absolute(session_argv[i]);
-        const std::string model = xpp_session_model(snapx);
-        if (model.empty()) { /* the error message said why */
-            xpp_log(XPP_LOG_ERROR, "xppautX: cannot open the session %s\n", snapx.c_str());
+    /* a file that carries a model on the command line (W103: an AUTO
+       file or a session file): its saved model is loaded, from the file's
+       own folder as File > Open model loads one, then what the file adds */
+    std::optional<SavedFile> saved;
+    std::vector<std::string> args;
+    std::vector<char *> argv;
+    args.assign(session_argv, session_argv + session_argc);
+    for (size_t i = 1; i < args.size(); i++) {
+        if (!xpp_saved_file_name(args[i])) continue;
+        saved = xpp_saved_read(args[i]);
+        if (!saved) { /* the error message said why */
+            xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s\n", args[i].c_str());
             exit(1);
         }
-        const std::pair<std::string, std::string> where = xpp_files_split_path(model);
-        if (!where.first.empty()) xpp_files_change_dir(where.first.c_str());
-        model_name = where.second;
-        session_argv[i] = model_name.data();
+        xpp_files_change_dir(xpp_files_split_path(saved->path).first.c_str());
+        const std::vector<std::string> model = xpp_saved_args(*saved);
+        args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
+        args.insert(args.begin() + static_cast<std::ptrdiff_t>(i), model.begin(), model.end());
         break;
     }
-    if (std::optional<xpp::Diagnostic> failed = xpp::load_model(session_argc, session_argv, 0)) {
+    for (std::string &a : args) argv.push_back(a.data());
+    argv.push_back(nullptr);
+    if (std::optional<xpp::Diagnostic> failed =
+            xpp::load_model(static_cast<int>(args.size()), argv.data(), 0, saved ? &saved->model : nullptr)) {
         json_ui_load_error(*failed);
         exit(1);
     }
     json_ui_start_model();
-    if (!snapx.empty()) xpp_session_restore(snapx);
+    if (saved) xpp_saved_restore(*saved);
     json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || xpp::session().run_immediately == 1) {
@@ -247,8 +255,8 @@ int main(int argc, char **argv)
     }
     if (batch) {
         for (i = 1; i < argc; i++)
-            if (xpp::snapx::is_session_file(argv[i])) {
-                xpp_log(XPP_LOG_ERROR, "xppautX: a session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
+            if (xpp_saved_file_name(argv[i])) {
+                xpp_log(XPP_LOG_ERROR, "xppautX: an AUTO or session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
                 return 2;
             }
         return json_ui_silent(argc, argv);

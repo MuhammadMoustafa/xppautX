@@ -1,9 +1,10 @@
-/* Save session and Open session: see xpp_session.h. The session file's
-   pure part (the members' names, the manifest, the fingerprint) is
+/* Save session and Open session, and the one reader and writer of the
+   files that carry a model (.snapx, .autox): see xpp_session.h. Their
+   pure part (the members' names, the manifest, the model's members) is
    snapx.cpp; this file writes and reads the members, each through the
-   module that owns its format: the set file (lunch-new.cpp), AUTO's file
-   (autox_io.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp). The
-   writers and readers of a set file's lines take a FILE *, so those
+   module that owns its format: the set file (lunch-new.cpp), AUTO's
+   members (autox_io.cpp), NPZ (data_formats.cpp), the zip (xpp_zip.cpp).
+   The writers and readers of a set file's lines take a FILE *, so those
    members pass through a scratch folder (xpp::TempDir). */
 #include "xpp_session.h"
 #include "snapx.h"
@@ -37,12 +38,6 @@ constexpr int reading = 1, writing = 0;
 
 /* the data table's size above which Save session asks to leave it out */
 constexpr std::uint64_t large_data = 50ull * 1024 * 1024;
-
-std::string model_path()
-{
-    const xpp::Model &m = xpp::model();
-    return xpp_files_absolute(m.this_file, m.load_dir);
-}
 
 /* what Save session offers */
 std::string default_name() { return xpp_session_file_name(xpp::snapx::extension); }
@@ -404,72 +399,74 @@ bool read_marks(FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &
 
 /* ---- the whole file ---- */
 
-/* the members of the zip at path by name; nothing (an error message) when
-   it cannot be read or is not a zip */
-std::optional<std::map<std::string, std::string>> members(const std::string &path)
-{
-    std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_msg(xpp::format("Cannot open {}", path).c_str());
-        return std::nullopt;
-    }
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(bytes);
-    if (!entries) {
-        err_msg(xpp::format("{} is not a session file (not a zip)", path).c_str());
-        return std::nullopt;
-    }
-    std::map<std::string, std::string> m;
-    for (xpp::zip::Entry &e : *entries) m[e.name] = std::move(e.bytes);
-    return m;
-}
-
-std::optional<xpp::snapx::Manifest> manifest_of(const std::map<std::string, std::string> &m, const std::string &path)
-{
-    const auto it = m.find(xpp::snapx::manifest_member);
-    std::optional<xpp::snapx::Manifest> man;
-    if (it != m.end()) man = xpp::snapx::parse_manifest(it->second);
-    if (!man) err_msg(xpp::format("{} is not a session file of this version", path).c_str());
-    return man;
-}
-
-/* the bytes of member name, or nullptr when the session file has none */
+/* the bytes of member name, or nullptr when the file has none */
 const std::string *member(const std::map<std::string, std::string> &m, const char *name)
 {
     if (!m.contains(name)) return nullptr;
     return &m.at(name);
 }
 
-/* the older session: <base>.set and, when there is one, <base>.auto, into
-   this model */
-int load_set_and_auto(const std::string &base)
+/* session file f (its model the current one) restored: the values,
+   AUTO's diagram, the windows and what they show */
+bool restore_session(const SavedFile &f)
 {
-    std::string set_name = base + ".set";
-    {
-        xpp::UniqueFile fp = xpp::open_read(set_name.c_str());
-        if (!fp) {
-            err_msg("Cannot open file");
-            return 0;
-        }
-        if (!read_lunch(fp.get())) return 0;
+    const std::map<std::string, std::string> &mem = f.members;
+    xpp::Session &s = xpp::session();
+    xpp::TempDir tmp;
+    if (tmp.path().empty()) {
+        err_msg("Open session: no scratch folder");
+        return false;
     }
-    SavedSession &saved = xpp::session().saved_session;
-    saved = SavedSession{};
-    saved.set = set_name;
 
-    std::string auto_name = base + ".auto";
-    xpp::UniqueFile fp = xpp::open_read(auto_name.c_str());
-    if (fp) {
-        if (diagram_count() > 1) yes_reset_auto(); /* as load_auto does, without its confirmation ask */
-        if (!xpp::session().auto_state.bifur.exist) do_auto_win(); /* the diagram needs a window to draw into */
-        if (import_auto_file(fp.get()) != 1) {
-            err_msg("Bad AUTO file");
-            return 0;
-        }
-        fp.reset();
-        if (xpp::session().auto_state.bifur.exist) redraw_diagram(); /* load_auto leaves this to the caller */
-        saved.auto_file = auto_name;
+    /* the values and numerics (and the active window's graphics) */
+    if (const std::string *set = member(mem, xpp::snapx::set_member)) {
+        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [](FILE *fp) { return read_lunch(fp) != 0; }))
+            xpp_session_warn("Open session: its parameters and numerics could not be read");
     }
-    return 1;
+
+    /* AUTO's diagram and settings */
+    bool diagram = false;
+    if (mem.contains(std::string(xpp::snapx::auto_folder) + xpp::autox::diagram_member)) {
+        diagram = xpp::autox::restore_members(mem, xpp::snapx::auto_folder, f.path);
+        if (!diagram) xpp_session_warn("Open session: AUTO's diagram could not be read");
+    }
+
+    /* the windows, then what they show */
+    std::map<int, int> slot = {{0, 0}};
+    WindowsRead rest;
+    if (const std::string *w = member(mem, xpp::snapx::windows_member)) {
+        if (!read_as_file(tmp, xpp::snapx::windows_member, *w, [&](FILE *fp) { return read_windows(fp, slot, rest); }))
+            xpp_session_warn("Open session: its windows could not be read");
+    }
+    if (diagram) {
+        s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count());
+        s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
+        s.auto_view.zoom = rest.auto_view.zoom;
+        s.auto_view.axes_seen = false;
+    }
+    s.browser.added_columns = std::move(rest.added);
+    if (const std::string *d = member(mem, xpp::snapx::data_member)) {
+        xpp::DataTable t;
+        if (!xpp::npz_table(*d, t) || (t.rows() > 0 && put_stored_data(t) == 0)) xpp_session_warn("Open session: its data could not be read");
+        else s.numerics.last_seed = t.seed;
+    }
+    if (const std::string *mk = member(mem, xpp::snapx::marks_member)) {
+        xpp::DataTable frozen;
+        if (const std::string *fz = member(mem, xpp::snapx::frozen_member)) xpp::npz_table(*fz, frozen);
+        read_as_file(tmp, xpp::snapx::marks_member, *mk, [&](FILE *fp) { return read_marks(fp, slot, frozen); });
+    }
+
+    /* every window drawn as it now is, the active one last */
+    const int active = s.plot_windows.active;
+    for (int i = 0; i < MAXPOP; i++)
+        if (s.plot_windows.graph[i].Use && i != active) {
+            make_active(i, 1);
+            redraw_the_graph();
+        }
+    make_active(active, 1);
+    redraw_the_graph();
+    s.saved_session = SavedSession{f.path};
+    return true;
 }
 
 } // namespace
@@ -482,7 +479,7 @@ int xpp_session_save(const char *name_arg, int data)
     const xpp::Model &m = xpp::model();
     xpp::Session &s = xpp::session();
 
-    xpp::snapx::Manifest man = xpp_session_manifest();
+    xpp::snapx::Manifest man;
     man.data = s.data_store.rows > 0 && data != 0;
     const std::uint64_t data_bytes = static_cast<std::uint64_t>(s.data_store.rows) * static_cast<std::uint64_t>(m.neq + 1) * 8;
     if (man.data && data < 0 && data_bytes > large_data) {
@@ -499,13 +496,13 @@ int xpp_session_save(const char *name_arg, int data)
         }
     }
 
+    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(man, xpp::snapx::session_kind);
+    if (!entries) return 0;
     xpp::TempDir tmp;
     if (tmp.path().empty()) {
         err_msg("Save session: no scratch folder");
         return 0;
     }
-    std::vector<xpp::zip::Entry> entries;
-    entries.push_back({xpp::snapx::manifest_member, xpp::snapx::manifest_text(man)});
     redraw_params(); /* as File/Write set does, before write_lunch */
     std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [](FILE *fp) {
         write_lunch(fp);
@@ -515,32 +512,25 @@ int xpp_session_save(const char *name_arg, int data)
         err_msg("Save session: cannot write the set file");
         return 0;
     }
-    entries.push_back({xpp::snapx::set_member, std::move(*set)});
-    if (diagram_count() > 1) { /* a diagram exists */
-        std::optional<std::string> a = xpp::autox::file_bytes();
-        if (!a) {
-            err_msg("Save session: cannot write AUTO's diagram");
-            return 0;
-        }
-        entries.push_back({xpp::snapx::autox_member, std::move(*a)});
-    }
+    entries->push_back({xpp::snapx::set_member, std::move(*set)});
+    if (diagram_count() > 1) xpp::autox::add_members(*entries, xpp::snapx::auto_folder); /* a diagram exists */
     std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, write_windows);
     std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, write_marks);
     if (!windows || !marks) {
         err_msg("Save session: cannot write the windows");
         return 0;
     }
-    entries.push_back({xpp::snapx::windows_member, std::move(*windows)});
-    entries.push_back({xpp::snapx::marks_member, std::move(*marks)});
-    if (std::optional<std::string> frozen = frozen_npz()) entries.push_back({xpp::snapx::frozen_member, std::move(*frozen)});
-    if (man.data) entries.push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table())});
+    entries->push_back({xpp::snapx::windows_member, std::move(*windows)});
+    entries->push_back({xpp::snapx::marks_member, std::move(*marks)});
+    if (std::optional<std::string> frozen = frozen_npz()) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
+    if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table())});
 
     xpp::Writer w = xpp::Writer::binary(file.c_str());
-    if (!w || !w.write(xpp::zip::make_zip(entries)) || !w.commit()) {
+    if (!w || !w.write(xpp::zip::make_zip(*entries)) || !w.commit()) {
         err_msg(xpp::format("Cannot write {}", file).c_str());
         return 0;
     }
-    s.saved_session = SavedSession{file, "", ""};
+    s.saved_session = SavedSession{file};
     return 1;
 }
 
@@ -548,26 +538,85 @@ int xpp_session_load(const char *name_arg)
 {
     std::string name;
     if (!name_or_ask("Open session", "*.snapx", name_arg, name)) return 0;
-    std::string file;
-    if (xpp::snapx::is_session_file(name)) file = name;
-    else if (xpp_files_exists(xpp::snapx::session_file_name(name).c_str())) file = xpp::snapx::session_file_name(name);
-    else return load_set_and_auto(name);
-    xpp_model_open(file.c_str());
+    xpp_model_open(xpp::snapx::session_file_name(name).c_str());
     return 1;
 }
 
-std::string xpp_session_fingerprint()
+bool xpp_saved_file_name(std::string_view path)
+{
+    return xpp::snapx::is_session_file(path) || xpp::snapx::has_extension(path, xpp::autox::extension);
+}
+
+std::optional<SavedFile> xpp_saved_read(const std::string &path)
+{
+    SavedFile f;
+    f.path = xpp_files_absolute(path);
+    f.session = xpp::snapx::is_session_file(path);
+    const std::string name = xpp_files_split_path(path).second;
+    std::string bytes;
+    if (!xpp::read_bytes(f.path.c_str(), bytes)) {
+        err_msg(xpp::format("Cannot open {}", path).c_str());
+        return std::nullopt;
+    }
+    const char *what = f.session ? "a session file (.snapx)" : "an AUTO file (.autox)";
+    std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(bytes);
+    if (!entries) {
+        err_msg(xpp::format("{} is not {}: it is not a zip", name, what).c_str());
+        return std::nullopt;
+    }
+    const char *manifest = f.session ? xpp::snapx::manifest_member : xpp::autox::manifest_member;
+    for (const xpp::zip::Entry &e : *entries) f.members[e.name] = e.bytes;
+    std::optional<xpp::snapx::Manifest> man;
+    if (f.members.contains(manifest))
+        man = xpp::snapx::parse_manifest(f.members[manifest], f.session ? xpp::snapx::session_kind : xpp::autox::kind);
+    if (!man) {
+        err_msg(xpp::format("{} is not {} of this version: its {} is missing or not one", name, what, manifest).c_str());
+        return std::nullopt;
+    }
+    f.manifest = std::move(*man);
+    std::optional<std::vector<xpp::ModelFile>> files = xpp::snapx::model_members(*entries, f.manifest.model_name);
+    if (!files) {
+        err_msg(xpp::format("{} cannot be opened: its model is missing ({}{})", name, xpp::snapx::model_folder,
+                            f.manifest.model_name)
+                    .c_str());
+        return std::nullopt;
+    }
+    f.model = xpp::SavedModel{f.path, std::move(*files)};
+    return f;
+}
+
+std::vector<std::string> xpp_saved_args(const SavedFile &f)
+{
+    std::vector<std::string> args{f.manifest.model_name};
+    if (!f.manifest.anifile.empty()) args.insert(args.end(), {"-anifile", f.manifest.anifile});
+    return args;
+}
+
+std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(xpp::snapx::Manifest man, std::string_view kind)
 {
     const xpp::Model &m = xpp::model();
-    std::vector<std::string> contents;
-    for (const std::string &f : m.source_files.empty() ? std::vector<std::string>{m.this_file} : m.source_files) {
-        std::string bytes;
-        const std::string path = xpp_files_absolute(f, m.load_dir);
-        if (!xpp::read_bytes(path.c_str(), bytes))
-            xpp::log(XPP_LOG_WARN, "Session: cannot read {} for the model's fingerprint\n", path);
-        contents.push_back(std::move(bytes));
+    const xpp::Session &s = xpp::session();
+    auto has = [&m](const std::string &name) {
+        return std::any_of(m.files.begin(), m.files.end(), [&name](const xpp::ModelFile &f) { return f.name == name; });
+    };
+    if (!has(m.this_file)) {
+        err_msg(xpp::format("{} was not read from a file: it cannot be saved with the model", m.this_file).c_str());
+        return std::nullopt;
     }
-    return xpp::snapx::fingerprint(contents);
+    man.model_name = m.this_file;
+    man.anifile = s.animation.options.use_file && has(s.animation.options.file) ? s.animation.options.file : std::string();
+    std::vector<xpp::zip::Entry> entries;
+    const char *manifest = kind == xpp::snapx::session_kind ? xpp::snapx::manifest_member : xpp::autox::manifest_member;
+    entries.push_back({manifest, xpp::snapx::manifest_text(man, kind)});
+    xpp::snapx::add_model_members(entries, m.files);
+    return entries;
+}
+
+bool xpp_saved_restore(const SavedFile &f)
+{
+    if (f.session) return restore_session(f);
+    if (diagram_count() > 1) yes_reset_auto(); /* the diagram before goes, with AUTO's files */
+    return xpp::autox::restore_members(f.members, "", f.path);
 }
 
 std::string xpp_session_file_name(std::string_view ext)
@@ -578,135 +627,8 @@ std::string xpp_session_file_name(std::string_view ext)
     return base + std::string(ext);
 }
 
-xpp::snapx::Manifest xpp_session_manifest()
-{
-    const xpp::Model &m = xpp::model();
-    xpp::snapx::Manifest man;
-    man.model = model_path();
-    man.model_name = xpp_files_split_path(m.this_file).second;
-    man.sha256 = xpp_session_fingerprint();
-    man.node = m.node;
-    man.nmarkov = m.nmarkov;
-    man.vars.assign(m.uvar_names.begin(), m.uvar_names.begin() + m.neq);
-    man.pars.assign(m.upar_names.begin(), m.upar_names.begin() + m.nupar);
-    return man;
-}
-
-bool xpp_session_same_names(const xpp::snapx::Manifest &man)
-{
-    const xpp::Model &m = xpp::model();
-    return man.node == m.node && man.nmarkov == m.nmarkov && std::ssize(man.vars) == m.neq && std::ssize(man.pars) == m.nupar &&
-           std::equal(man.vars.begin(), man.vars.end(), m.uvar_names.begin()) &&
-           std::equal(man.pars.begin(), man.pars.end(), m.upar_names.begin());
-}
-
 void xpp_session_warn(const std::string &text)
 {
     xpp::log(XPP_LOG_WARN, "{}\n", text);
     bottom_msg(0, text.c_str());
-}
-
-std::string xpp_session_model(const std::string &snapx)
-{
-    std::optional<std::map<std::string, std::string>> m = members(snapx);
-    if (!m) return {};
-    std::optional<xpp::snapx::Manifest> man = manifest_of(*m, snapx);
-    if (!man) return {};
-    const std::string beside = xpp_files_absolute(
-        xpp_files_split_path(snapx).first.empty() ? man->model_name : xpp_files_split_path(snapx).first + "/" + man->model_name);
-    for (const std::string &p : {beside, man->model})
-        if (!p.empty() && xpp_files_exists(p.c_str()) && !xpp_files_is_dir(p.c_str())) return p;
-    err_msg(xpp::format("Cannot find {}'s model {}, beside it or at {}", snapx, man->model_name, man->model).c_str());
-    return {};
-}
-
-bool xpp_session_restore(const std::string &snapx)
-{
-    std::optional<std::map<std::string, std::string>> mem = members(snapx);
-    if (!mem) return false;
-    std::optional<xpp::snapx::Manifest> man = manifest_of(*mem, snapx);
-    if (!man) return false;
-    const xpp::Model &m = xpp::model();
-    xpp::Session &s = xpp::session();
-    xpp::TempDir tmp;
-    if (tmp.path().empty()) {
-        err_msg("Open session: no scratch folder");
-        return false;
-    }
-
-    const bool same_names = xpp_session_same_names(*man);
-    if (xpp_session_fingerprint() != man->sha256)
-        xpp_session_warn(xpp::format("{} has changed since {} was saved: {}", m.this_file, xpp_files_split_path(snapx).second,
-                         same_names ? "its names are the same, and everything is restored"
-                                    : "what still fits is restored by name"));
-
-    /* the values and numerics (and the active window's graphics) */
-    if (const std::string *set = member(*mem, xpp::snapx::set_member)) {
-        bool ok;
-        if (same_names) ok = read_as_file(tmp, xpp::snapx::set_member, *set, [](FILE *fp) { return read_lunch(fp) != 0; });
-        else {
-            xpp::KeptValues kept;
-            ok = read_as_file(tmp, xpp::snapx::set_member, *set, [&](FILE *fp) {
-                return read_set_by_name(fp, man->vars, man->node, man->nmarkov, man->pars, kept);
-            });
-            if (ok) xpp::restore_values(kept);
-        }
-        if (!ok) xpp_session_warn("Open session: its parameters and numerics could not be read");
-    }
-
-    /* AUTO's diagram and settings, which name everything by its index
-       (an .autox, or the .auto a session file before W92 held) */
-    bool diagram = false;
-    const std::string *autox = member(*mem, xpp::snapx::autox_member);
-    const std::string *old_auto = member(*mem, xpp::snapx::old_auto_member);
-    if (autox || old_auto) {
-        if (!same_names) xpp_session_warn("Open session: AUTO's diagram is left out, the model's variables or parameters have changed");
-        else if (autox) {
-            /* the session's own manifest has said whether the model changed */
-            diagram = xpp::autox::load_bytes(*autox, snapx, false);
-            if (!diagram) xpp_session_warn("Open session: AUTO's diagram could not be read");
-        } else {
-            if (!s.auto_state.bifur.exist) do_auto_win(); /* the diagram needs a window to draw into */
-            diagram = read_as_file(tmp, xpp::snapx::old_auto_member, *old_auto, [](FILE *fp) { return import_auto_file(fp) == 1; });
-            if (!diagram) xpp_session_warn("Open session: AUTO's diagram could not be read");
-            if (s.auto_state.bifur.exist) redraw_diagram();
-        }
-    }
-
-    /* the windows, then what they show */
-    std::map<int, int> slot = {{0, 0}};
-    WindowsRead rest;
-    if (const std::string *w = member(*mem, xpp::snapx::windows_member)) {
-        if (!read_as_file(tmp, xpp::snapx::windows_member, *w, [&](FILE *fp) { return read_windows(fp, slot, rest); }))
-            xpp_session_warn("Open session: its windows could not be read");
-    }
-    if (diagram) {
-        s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count());
-        s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
-        s.auto_view.zoom = rest.auto_view.zoom;
-        s.auto_view.axes_seen = false;
-    }
-    if (same_names) s.browser.added_columns = std::move(rest.added);
-    if (const std::string *d = member(*mem, xpp::snapx::data_member)) {
-        xpp::DataTable t;
-        if (!xpp::npz_table(*d, t) || (t.rows() > 0 && put_stored_data(t) == 0)) xpp_session_warn("Open session: its data could not be read");
-        else s.numerics.last_seed = t.seed;
-    }
-    if (const std::string *mk = member(*mem, xpp::snapx::marks_member)) {
-        xpp::DataTable frozen;
-        if (const std::string *f = member(*mem, xpp::snapx::frozen_member)) xpp::npz_table(*f, frozen);
-        read_as_file(tmp, xpp::snapx::marks_member, *mk, [&](FILE *fp) { return read_marks(fp, slot, frozen); });
-    }
-
-    /* every window drawn as it now is, the active one last */
-    const int active = s.plot_windows.active;
-    for (int i = 0; i < MAXPOP; i++)
-        if (s.plot_windows.graph[i].Use && i != active) {
-            make_active(i, 1);
-            redraw_the_graph();
-        }
-    make_active(active, 1);
-    redraw_the_graph();
-    s.saved_session = SavedSession{snapx, "", ""};
-    return true;
 }

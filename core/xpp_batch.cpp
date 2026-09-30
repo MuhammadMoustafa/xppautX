@@ -3,6 +3,7 @@
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
 #include "model.h"
+#include "model_files.h"
 #include "session.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
@@ -285,7 +286,7 @@ static void load_and_set_up(int argc, char **argv, int batch)
     create_plot_list();
 }
 
-std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch)
+std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch, const SavedModel *saved)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
@@ -296,12 +297,17 @@ std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch)
     try {
         xpp::model().command_line.assign(argv, argv + argc);
         xpp::model().load_dir = xpp_files_working_dir();
+        if (saved) {
+            xpp::model().saved_in = saved->in;
+            xpp::model().files = saved->files;
+        }
         load_and_set_up(argc, argv, batch);
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
         batch_options = batch_before;
         return std::move(failed.diagnostic);
     }
+    xpp::model().saved_copies.reset(); /* the load's readers are done with them */
     load.commit();
     return std::nullopt;
 }
@@ -315,7 +321,7 @@ void xpp::model_failed(Diagnostic d)
 {
     if (!xpp::Load::running()) exit(1);
     if (d.line > 0 && d.source.empty() && !d.file.empty()) {
-        xpp::LineReader lines(d.file.c_str());
+        xpp::LineReader lines = xpp::model_file_lines(d.file);
         int n = 0;
         while (std::optional<std::string_view> line = lines.next())
             if (++n == d.line) {

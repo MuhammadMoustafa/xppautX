@@ -99,7 +99,8 @@ leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
 
-**Double-clicking a .ode file** (or a `.snapx` session file, below)
+**Double-clicking a .ode file** (or a `.snapx` session file or an
+`.autox` AUTO file, below)
 opens it the same way, once xppautX is registered as its opener: run
 the matching script in `tools/associate/`
 once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
@@ -117,7 +118,7 @@ first; starting the app on its own shows the Open dialog.
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
-session file) and asks first: the current model's data and AUTO diagram
+session file or an `.autox` AUTO file, below) and asks first: the current model's data and AUTO diagram
 go, so it offers **Save first** (a session file, as File/saVe session
 writes it) or **Don't save**; Escape keeps the current model. The new model is loaded from its own folder,
 which becomes the folder the page's files are in, and every window of
@@ -132,27 +133,30 @@ why, and the model before goes on as it was.
 
 **Continuing where you stopped: session files.** File/saVe session (`F
 V`) writes everything you would need to pick up tomorrow into one file,
-`name.snapx`: the model's path and a fingerprint of its `.ode` and
-the files it includes, the
+`name.snapx`: the model itself (its `.ode`, and every file it read: the
+files it includes, its tables, its options file), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
 and frozen curves, AUTO's diagram, settings and view, and the data
 table. File/opeN session (`F N`), a double-click on the file, or
-`xppautX name.snapx` loads its model (looked for beside the `.snapx`
-first, then where it was when saved) and restores it all as it was
-saved; AUTO can grab a point of the restored diagram and go on. If the
-`.ode` or a file it includes has been edited since, a warning says so and what still fits is
-kept by name, as Reload does: a parameter or variable the file no
-longer has is left out, and the diagram too when the model's variables
-or parameters changed. The earlier runs a window shows until Erase are
+`xppautX name.snapx` loads the model saved in it, from the file alone
+(the `.ode` may have changed since, or be gone: the saved one is the one
+loaded, and the title says so, `lecar.ode (saved in lecar.snapx)`), and
+restores it all as it was saved; AUTO can grab a point of the restored
+diagram and go on. The file's folder becomes the working folder, where
+what you save goes; nothing is written beside it. When the model open is
+the same one, byte for byte, nothing is asked. A session file without
+its model (one saved before this version) is refused with an error. The
+earlier runs a window shows until Erase are
 not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
 whether to leave it out (Go computes it again). A `.snapx` is a zip of
-ordinary files: renamed to `.zip`, its `model.set` is a set file
-(File/Read set), its `model.autox` AUTO's own file (AUTO's File/Load
-diagram) and its `data.npz` reads in NumPy (`numpy.load`). A `.set` file
-on its own keeps working as it always has, and an XPPAUT `.auto` file
-loads as an import.
+ordinary files: renamed to `.zip`, its `model/` folder holds the model's
+files, its `model.set` is a set file (File/Read set) and its `data.npz`
+reads in NumPy (`numpy.load`). A `.set` file on its own keeps working as
+it always has. AUTO's own file, `.autox` (AUTO's File/Save diagram),
+carries its model the same way and opens the same way, with its diagram;
+an XPPAUT `.auto` file loads into the model open as an import.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself

@@ -2,26 +2,32 @@
 #define XPP_AUTOX_H
 /* AUTO's own file, name.autox (W92, docs/protocol.md "AUTO files"): AUTO's
    work alone, without a whole session, as a zip (xpp_zip.h) of ordinary
-   files: the manifest (the model's path, fingerprint and names, snapx.h's
-   Manifest), AUTO's settings, the diagram at full precision and AUTO's
-   solution file (the orbits a grab restarts from). The AUTO window's File/
-   Save diagram writes one, its Load diagram reads one (or imports an
-   XPPAUT .auto), and a session file (snapx.h) holds one as its
-   model.autox.
+   files: the manifest (snapx.h's Manifest), the model it is a diagram of,
+   every file of it (W103: snapx.h's model members, model/<name>), AUTO's
+   settings, the diagram at full precision and AUTO's solution file (the
+   orbits a grab restarts from). The AUTO window's File/Save diagram
+   writes one; opening one (File > Open model, the command line, AUTO's
+   Load diagram) loads its model and then the diagram (xpp_session.h's
+   reader, the one both files that carry a model share). A session file
+   (snapx.h) holds AUTO's members too, in its folder auto/.
 
    The first part is pure (autox.cpp: the members' names and the text of
    settings.txt and diagram.csv, no I/O, unit tested by
-   tests/test_autox.cpp); the second writes and reads the file for this
-   session (autox_io.cpp), the one reader and writer every caller shares.
+   tests/test_autox.cpp); the second gathers AUTO's state of this session
+   into the members and puts it back (autox_io.cpp), and imports an
+   XPPAUT .auto (AUTO's Load diagram).
    C++ only. */
 #include <deque>
+#include <map>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "auto_settings.h"
 #include "diagram.h"
+#include "xpp_zip.h"
 
 namespace xpp::autox {
 
@@ -29,7 +35,8 @@ inline constexpr std::string_view extension = ".autox";
 /* the manifest's first line, "xppautX autox 1" (snapx::manifest_text) */
 inline constexpr std::string_view kind = "autox";
 
-/* the members, in the order an .autox holds them */
+/* the members, in the order an .autox holds them: the manifest, the
+   model's (snapx.h's model_folder), then AUTO's */
 inline constexpr const char *manifest_member = "autox.txt";   /* snapx.h's Manifest, of kind autox */
 inline constexpr const char *settings_member = "settings.txt"; /* settings_text below */
 inline constexpr const char *diagram_member = "diagram.csv";   /* diagram_csv below */
@@ -59,30 +66,29 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
    diagram of n variables or a row does not read */
 std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n);
 
-/* bytes are a zip, which an .autox is (an XPPAUT .auto is text) */
-bool is_zip(std::string_view bytes);
-
 /* ---- this session's (autox_io.cpp) ---- */
 
-/* AUTO's work in this session as an .autox's bytes; nothing when the
-   diagram is empty (or AUTO's solution file cannot be read, which an
-   error message says) */
+/* AUTO's work in this session as an .autox's bytes, its model included;
+   nothing when the diagram is empty (or AUTO's solution file cannot be
+   read, which an error message says) */
 std::optional<std::string> file_bytes();
 
-/* the .autox bytes (named name in messages) restored into this session:
-   AUTO's settings, the diagram and its solution file, with the AUTO
-   window opened and the diagram drawn. A file of another model (other
-   variables or parameters) is refused; a model edited since (its
-   fingerprint) is warned about when warn_changed. False with an error
-   message when nothing was restored. */
-bool load_bytes(std::string_view bytes, const std::string &name, bool warn_changed);
+/* AUTO's members (settings, diagram, solutions) of this session after
+   entries', each named prefix and its name (a session file's "auto/") */
+void add_members(std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
 
-/* AUTO's File/Load diagram without its dialog: path read, an .autox
-   (load_bytes, warning of an edited model) or an XPPAUT .auto (imported, its
-   diagram to the 6 digits it prints). The diagram before is replaced but
+/* AUTO's members of a file (named name in messages; prefix as
+   add_members') restored into this session, whose model the file's is:
+   AUTO's settings, the diagram and its solution file, with the AUTO window
+   opened and the diagram drawn. False with an error message when nothing
+   was restored. */
+bool restore_members(const std::map<std::string, std::string> &members, std::string_view prefix, const std::string &name);
+
+/* AUTO's File/Load diagram of an XPPAUT .auto, path: imported, its
+   diagram to the 6 digits it prints. The diagram before is replaced but
    not reset: the caller asks for that. False with an error message when
-   nothing was read. */
-bool load_file(const std::string &path);
+   nothing was read. (An .autox is opened as a model is: xpp_model_open.) */
+bool import_file(const std::string &path);
 
 } // namespace xpp::autox
 

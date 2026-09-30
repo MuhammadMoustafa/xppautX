@@ -1,9 +1,11 @@
-/* AUTO's file, .autox (autox.h, W92): its settings and diagram read back
-   bit for bit, a file of another shape is refused, and in a session the
-   whole file (settings, diagram, solutions) written and restored gives
-   the same AUTO state; an XPPAUT .auto is imported (tools/models/
-   lecar_diagram.auto, lecar's diagram as XPPAUT wrote it) and saved again
-   as an .autox that restores exactly what was imported. */
+/* AUTO's file, .autox (autox.h, W92, W103): its settings and diagram
+   read back bit for bit, a file of another shape is refused, and in a
+   session the whole file (the model, settings, diagram, solutions)
+   written and restored gives the same AUTO state, in the same model or
+   with its saved model loaded from it (the .ode on the disk edited); a
+   file without its model is refused; an XPPAUT .auto is imported
+   (tools/models/lecar_diagram.auto, lecar's diagram as XPPAUT wrote it)
+   and its AUTO members restore exactly what was imported. */
 #include "xpptest.h"
 #include "autox.h"
 #include "snapx.h"
@@ -16,11 +18,14 @@
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_zip.h"
+#include "xpp_session.h"
+#include "model_files.h"
 
 #include <cmath>
 #include <cstring>
 #include <deque>
 #include <limits>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -164,7 +169,15 @@ std::string file_text(const std::string &path)
     return s;
 }
 
-/* the whole file for this session: written, the state changed, restored */
+bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
+{
+    std::string arg0 = "test_autox", arg1 = ode;
+    char *argv[] = {arg0.data(), arg1.data(), nullptr};
+    return !xpp::load_model(2, argv, 1, saved);
+}
+
+/* the whole file for this session: written with its model, the state
+   changed, restored into the same model */
 void check_session_round_trip(const xpp::TempDir &tmp)
 {
     xpp::Session &s = xpp::session();
@@ -188,11 +201,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(bytes.has_value());
     if (!bytes) return;
     const std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(*bytes);
-    CHECK(entries && entries->size() == 4 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == "settings.txt" &&
-          (*entries)[2].name == "diagram.csv" && (*entries)[3].name == "solutions.s");
+    const std::string model_member = "model/" + xpp::model().this_file;
+    CHECK(entries && entries->size() == 5 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
+          (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s");
     const std::optional<xpp::snapx::Manifest> man =
         entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind) : std::nullopt;
-    CHECK(man && man->node == n && man->model_name == "t.ode" && man->sha256.size() == 64);
+    CHECK(man && man->model_name == xpp::model().this_file);
+    CHECK(entries && (*entries)[1].bytes == file_text(xpp::model().this_file)); /* the model itself */
     CHECK(entries && !xpp::snapx::parse_manifest((*entries)[0].bytes)); /* not a session file's */
 
     /* everything changed, then the file restored */
@@ -202,7 +217,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     s.auto_state.bifur.rl1 = 7;
     const std::string path = tmp.file("t.autox");
     CHECK(write_file(path, *bytes));
-    CHECK(xpp::autox::load_file(path));
+    std::optional<SavedFile> f = xpp_saved_read(path);
+    CHECK(f && !f->session && f->model.files == xpp::model().files);
+    CHECK(f && xpp_saved_restore(*f));
     CHECK(same_diagram(s.diagram.points, pts));
     bool pointers = true;
     for (int i = 0; i < diagram_count(); i++)
@@ -213,18 +230,29 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     const AutoSettingsSet after = auto_settings_now();
     CHECK(xpp::autox::settings_text(after) == xpp::autox::settings_text(before));
 
-    /* a file that is not one */
+    /* another model loaded, the .ode on the disk edited: the file's own
+       model loads from it, with the diagram */
+    CHECK(write_file(xpp::model().this_file, "par a=1\nq'=-a*q\ndone\n"));
+    CHECK(load(tmp.file("u.ode")));
+    CHECK(f && load(f->manifest.model_name, &f->model) && xpp_saved_restore(*f));
+    CHECK(xpp::model().node == 2 && xpp::model().saved_in == path && same_diagram(xpp::session().diagram.points, pts));
+
+    /* a file without its model, or that is not a zip, is refused */
+    std::vector<xpp::zip::Entry> no_model = *entries;
+    no_model.erase(no_model.begin() + 1);
+    CHECK(write_file(path, xpp::zip::make_zip(no_model)));
+    CHECK(!xpp_saved_read(path));
     CHECK(write_file(path, "PK\x03\x04 not really"));
-    CHECK(!xpp::autox::load_file(path));
+    CHECK(!xpp_saved_read(path));
 }
 
-/* an XPPAUT .auto imported, then saved as .autox and restored: the same */
+/* an XPPAUT .auto imported, then its AUTO members restored: the same */
 void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 {
     xpp::Session &s = xpp::session();
     const std::string path = tmp.file("lecar.auto");
     CHECK(write_file(path, auto_text));
-    CHECK(xpp::autox::load_file(path));
+    CHECK(xpp::autox::import_file(path));
     CHECK(diagram_count() > 50);
     /* its first point, as the file prints it */
     const DIAGRAM *d = diagram_first();
@@ -235,20 +263,19 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::deque<DiagramPoint> imported = s.diagram.points;
     const std::string solutions = file_text(auto_solutions_file());
 
-    const std::optional<std::string> bytes = xpp::autox::file_bytes();
-    CHECK(bytes.has_value());
-    if (!bytes) return;
+    std::vector<xpp::zip::Entry> entries;
+    xpp::autox::add_members(entries, "auto/");
+    std::map<std::string, std::string> members;
+    for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
+    CHECK(members.size() == 3 && members.contains("auto/diagram.csv"));
     start_diagram(xpp::model().node);
-    CHECK(xpp::autox::load_bytes(*bytes, "lecar.autox", true));
+    CHECK(xpp::autox::restore_members(members, "auto/", "lecar.snapx"));
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(auto_solutions_file()) == solutions);
-}
 
-bool load(const std::string &ode)
-{
-    std::string arg0 = "test_autox", arg1 = ode;
-    char *argv[] = {arg0.data(), arg1.data(), nullptr};
-    return xpp_load_model(2, argv, 1) == 1;
+    /* an .autox is not imported as an XPPAUT .auto */
+    CHECK(write_file(path, xpp::zip::make_zip(entries)));
+    CHECK(!xpp::autox::import_file(path));
 }
 
 } // namespace
@@ -257,7 +284,7 @@ int main(void)
 {
     check_settings_text();
     check_diagram_csv();
-    CHECK(xpp::autox::is_zip(std::string_view("PK\x03\x04", 4)) && !xpp::autox::is_zip("8 0 1 2"));
+    CHECK(xpp::zip::is_zip(std::string_view("PK\x03\x04", 4)) && !xpp::zip::is_zip("8 0 1 2"));
 
     std::string lecar_auto;
     CHECK(xpp::read_bytes("tools/models/lecar_diagram.auto", lecar_auto));
@@ -267,16 +294,9 @@ int main(void)
 
     const std::string ode = tmp.file("t.ode");
     CHECK(write_file(ode, "par a=1,b=2\nx'=-a*x+y\ny'=b*x-y\ninit x=1\ndone\n"));
+    CHECK(write_file(tmp.file("u.ode"), "par a=1,b=2\nx'=-a*x+z\nz'=b*x-z\ninit x=1\ndone\n"));
     CHECK(load(ode));
     check_session_round_trip(tmp);
-
-    /* a model with other variables refuses it */
-    const std::optional<std::string> bytes = xpp::autox::file_bytes();
-    const std::string other = tmp.file("u.ode");
-    CHECK(write_file(other, "par a=1,b=2\nx'=-a*x+z\nz'=b*x-z\ninit x=1\ndone\n"));
-    CHECK(load(other));
-    CHECK(bytes && !xpp::autox::load_bytes(*bytes, "t.autox", true));
-    CHECK(diagram_count() <= 1);
 
     CHECK(load("examples/ode/lecar.ode"));
     check_import(lecar_auto, tmp);

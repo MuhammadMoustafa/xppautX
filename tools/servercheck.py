@@ -3432,10 +3432,12 @@ check_silent_commands()
 
 
 def check_session_file():
-    """W57: Save session writes one name.snapx (a zip of the files listed in
-    core/snapx.h); a new server that opens it shows the same state, plots,
-    marks, AUTO view and diagram, and AUTO continues from the restored
-    diagram; a changed .ode warns and keeps what still fits by name"""
+    """W57, W103: Save session writes one name.snapx (a zip of the files
+    listed in core/snapx.h, the model's own included); a new server that
+    opens it shows the same state, plots, marks, AUTO view and diagram, and
+    AUTO continues from the restored diagram; with the .ode on the disk
+    edited, the saved model is the one loaded; a session file without its
+    model, or a zip opened as a model, is refused and nothing changes"""
     import zipfile
     allev = []
     last = lambda name, **m: next((e for e in reversed(allev) if e.get('ev') == name
@@ -3482,21 +3484,17 @@ def check_session_file():
         diagram1 = rebuild_diagram(allev, [])
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
-        check('session save: s1.snapx is a zip of the files listed',
-              names == ['session.txt', 'model.set', 'model.autox', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
+        check('session save: s1.snapx is a zip of the files listed, the model in it',
+              names == ['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
+                        'auto/solutions.s', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
             check('session save: model.set is a set file of lecar, session.txt names it',
                   z.read('model.set').startswith(b'## Set file for lecar.ode')
-                  and b'\nname lecar.ode' in z.read('session.txt'), str(z.read('session.txt')[:200]))
-            if 'model.autox' in names:
-                import io
-                a = zipfile.ZipFile(io.BytesIO(z.read('model.autox')))
-                check("session save: model.autox is AUTO's own file (W92), of lecar",
-                      a.namelist() == ['autox.txt', 'settings.txt', 'diagram.csv', 'solutions.s']
-                      and a.read('autox.txt').startswith(b'xppautX autox 1\n') and b'\nname lecar.ode\n' in a.read('autox.txt'),
-                      str(a.namelist()))
+                  and b'\nname lecar.ode\n' in z.read('session.txt'), str(z.read('session.txt')[:200]))
+            with open(os.path.join(r, 'lecar.ode'), 'rb') as f:
+                check('session save: model/lecar.ode is the model, byte for byte', z.read('model/lecar.ode') == f.read())
             shutil.copy(snap, keep)
         answered(snd, col, (), cmd='session', op='save', name='s2.snapx', data=False)
         s2 = os.path.join(r, 's2.snapx')
@@ -3505,41 +3503,49 @@ def check_session_file():
     finally:
         stop_server(p, r, snd)
 
-    def open_snapx(ode_text=None):
+    def open_snapx(ode_text=None, name='s1.snapx'):
         """a new server in a new folder with s1.snapx beside its lecar.ode (ode_text: an edited one)"""
         p, r, snd, col, _ = launch_server()
         col(is_idle)
-        shutil.copy(os.path.join(keep, 's1.snapx'), r)
+        shutil.copy(os.path.join(keep, 's1.snapx'), os.path.join(r, name))
         if ode_text is not None:
             with open(os.path.join(r, 'lecar.ode'), 'w') as f:
                 f.write(ode_text)
+            answered(snd, col, (), cmd='reload')
         answered(snd, col, (), **SUBSCRIBE)
         del allev[:]
-        answered(snd, col, ('d',), cmd='open', file='s1.snapx')
+        answered(snd, col, ('d',), cmd='open', file=name)
         answered(snd, col, (), **SUBSCRIBE)
         return p, r, snd, col
 
-    p, r, snd, col = open_snapx()
-    try:
+    def restored_as_saved(tag):
         st2 = no_t(last('state'))
         drop = lambda s: {k: v for k, v in (s or {}).items() if k != 'session'}
-        check('open session: the state is the saved one', st2 and drop(st1) == drop(st2),
+        check('%s: the state is the saved one' % tag, st2 and drop(st1) == drop(st2),
               str([k for k in drop(st1) if drop(st1).get(k) != drop(st2).get(k)]))
-        check('open session: state.session names the file opened',
+        check('%s: state.session names the file opened' % tag,
               st2 and st2.get('session', {}).get('file', '').endswith('s1.snapx'), str(st2 and st2.get('session')))
         for k in saved:
-            check('open session: the %s event is the saved one' % k, saved[k] == no_t(last(k)),
+            check('%s: the %s event is the saved one' % (tag, k), saved[k] == no_t(last(k)),
                   '%s\n    %s' % (str(saved[k])[:300], str(no_t(last(k)))[:300]))
+        diagram2 = rebuild_diagram(allev, [])
+        # the diagram keeps every point at full precision (W92): the same points exactly
+        check("%s: the diagram is the saved one, exactly" % tag,
+              diagram1 and diagram1 == diagram2,
+              '%d vs %d points, first difference %s' % (len(diagram1), len(diagram2),
+                                                          next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
+        return diagram2
+
+    # the same model open (the same bytes): nothing asked, the session loads
+    p, r, snd, col = open_snapx()
+    try:
+        check('open session of the model open: nothing is asked', not any(e.get('ev') == 'ask' for e in allev),
+              str([e for e in allev if e.get('ev') == 'ask'][:1]))
+        diagram2 = restored_as_saved('open session')
         m2 = [no_t(last('marks', win=w)) for w in (1, 2)]
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
               [strip(m) for m in marks1] == [strip(m) for m in m2], str(m2)[:300])
-        diagram2 = rebuild_diagram(allev, [])
-        # model.autox keeps every point at full precision (W92): the same points exactly
-        check("open session: the diagram is the saved one, exactly",
-              diagram1 and diagram1 == diagram2,
-              '%d vs %d points, first difference %s' % (len(diagram1), len(diagram2),
-                                                          next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
         answered(snd, col, (), cmd='auto', op='grab', type='HB', index=1)
         evs = key(snd, col, 'r', 'p', win='auto')
         more = rebuild_diagram(allev, [])
@@ -3549,20 +3555,37 @@ def check_session_file():
     finally:
         stop_server(p, r, snd)
 
-    # the .ode edited since: the parameter phi renamed; iapp keeps the saved value
+    # the .ode on the disk edited (phi renamed) and loaded: the session's own
+    # saved model is loaded, not the disk's, and everything is as saved
     with open(args.ode) as f:
         text = f.read()
     p, r, snd, col = open_snapx(re.sub(r'\bphi\b', 'phi2', text))
     try:
-        st3 = last('state')
+        hello = last('hello')
+        check('open session with the .ode edited: the saved model loads, the title names it',
+              hello is not None and 'lecar.ode (saved in s1.snapx)' in hello.get('title', ''), str(hello and hello.get('title')))
+        restored_as_saved('open session with the .ode edited')
+        with open(os.path.join(r, 'lecar.ode')) as f:
+            check('open session with the .ode edited: the .ode on the disk is left as it was, nothing written beside it',
+                  'phi2' in f.read() and sorted(os.listdir(r)) == ['lecar.ode', 's1.snapx'], str(os.listdir(r)))
+        # a zip opened as a model: refused, its bytes never shown, nothing changes
+        shutil.copy(os.path.join(r, 's1.snapx'), os.path.join(r, 'zip.ode'))
+        del allev[:]
+        answered(snd, col, ('d',), cmd='open', file='zip.ode')
         msgs = ' '.join(str(e.get('bottom', '')) + str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
-        check('open session of a changed .ode: a warning says so', 'changed since' in msgs, msgs[:300])
-        pars = dict(st3['pars']) if st3 else {}
-        check('open session of a changed .ode: the values are kept by name',
-              pars and dict(st1['pars']).get('iapp') == pars.get('iapp') and 'phi' not in pars
-              and dict(st3['ics']) == dict(st1['ics']), str(st3 and (st3['pars'], st3['ics'])))
-        check('open session of a changed .ode: the diagram is left out, said so',
-              'left out' in msgs and not rebuild_diagram(allev, []), msgs[:300])
+        check('a zip opened as a model is refused, its bytes never shown',
+              'not a model' in msgs and 'PK' not in msgs and not last('hello'), msgs[:300])
+        # a session file without its model: refused, nothing changes
+        z = zipfile.ZipFile(os.path.join(r, 's1.snapx'))
+        with zipfile.ZipFile(os.path.join(r, 'nomodel.snapx'), 'w') as out:
+            for n in z.namelist():
+                if not n.startswith('model/'):
+                    out.writestr(n, z.read(n))
+        del allev[:]
+        answered(snd, col, ('d',), cmd='open', file='nomodel.snapx')
+        msgs = ' '.join(str(e.get('bottom', '')) + str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
+        check('a session file without its model is refused, an error says the model is missing',
+              'model is missing' in msgs and not last('hello') and not any(e.get('ev') == 'ask' for e in allev), msgs[:300])
     finally:
         stop_server(p, r, snd)
         shutil.rmtree(keep, ignore_errors=True)

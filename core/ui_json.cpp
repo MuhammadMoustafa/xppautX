@@ -752,7 +752,7 @@ void json_ui_hello(void)
 {
     Buf b;
     int i;
-    const std::string &file = xpp::model().this_file;
+    const std::string file = xpp::model_title();
     const std::string title_text =
         file.size() < 60
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)

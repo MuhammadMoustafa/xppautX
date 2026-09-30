@@ -164,6 +164,8 @@ std::string make_zip(const std::vector<Entry> &entries)
     return std::move(s.bytes);
 }
 
+bool is_zip(std::string_view bytes) { return bytes.starts_with(std::string_view("PK\x03\x04", 4)); }
+
 std::optional<std::vector<Entry>> read_zip(std::string_view zip)
 {
     mz_zip_archive z;

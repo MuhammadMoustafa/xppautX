@@ -1,0 +1,73 @@
+/* A model's own files: see model_files.h. */
+#include "model_files.h"
+#include "model.h"
+#include "xpp_files.h"
+#include "xpp_io.h"
+#include "xpp_zip.h"
+
+#include <algorithm>
+#include <memory>
+#include <string>
+
+namespace xpp {
+
+namespace {
+
+/* the index of the model's file name in m.files, or -1 */
+long file_index(const Model &m, const std::string &name)
+{
+    const auto it = std::find_if(m.files.begin(), m.files.end(), [&name](const ModelFile &f) { return f.name == name; });
+    return it == m.files.end() ? -1 : it - m.files.begin();
+}
+
+} // namespace
+
+bool read_model_file(const std::string &name, std::string &bytes)
+{
+    bytes.clear();
+    Model &m = model();
+    const long i = file_index(m, name);
+    if (!m.saved_in.empty()) {
+        if (i < 0) return false;
+        bytes = m.files[static_cast<size_t>(i)].bytes;
+        return true;
+    }
+    if (!read_bytes(name.c_str(), bytes)) return false;
+    if (i < 0) m.files.push_back({name, bytes});
+    return true;
+}
+
+UniqueFile open_model_file(const std::string &name)
+{
+    Model &m = model();
+    std::string bytes;
+    if (!read_model_file(name, bytes)) return UniqueFile();
+    if (m.saved_in.empty()) return open_read(name.c_str());
+    if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
+    if (m.saved_copies->path().empty()) return UniqueFile();
+    const std::string copy = m.saved_copies->file(std::to_string(file_index(m, name)));
+    Writer w = Writer::binary(copy.c_str());
+    if (!w || !w.write(bytes) || !w.commit()) return UniqueFile();
+    return open_read(copy.c_str());
+}
+
+LineReader model_file_lines(const std::string &name)
+{
+    std::string bytes;
+    if (!read_model_file(name, bytes)) return LineReader();
+    return LineReader::of_text(std::move(bytes));
+}
+
+bool is_model_text(std::string_view bytes)
+{
+    return !zip::is_zip(bytes) && bytes.find('\0') == std::string_view::npos;
+}
+
+std::string model_title()
+{
+    const Model &m = model();
+    if (m.saved_in.empty()) return m.this_file;
+    return m.this_file + " (saved in " + xpp_files_split_path(m.saved_in).second + ")";
+}
+
+} // namespace xpp

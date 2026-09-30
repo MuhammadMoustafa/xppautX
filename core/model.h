@@ -33,12 +33,16 @@
 #include "simplenet.h"
 #include "xpp_current.h"
 #include "odex.h"
+#include "model_files.h"
 
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace xpp {
+
+class TempDir; /* xpp_files.h */
 
 struct Model {
   /* ---- counts and kinds (form_ode.cpp's parser sets them) ---- */
@@ -253,11 +257,18 @@ struct Model {
   std::string options_file;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
-  /* the files the parser read: this_file, then every file it included
-     (#include, include "...", -include), as it named them (relative to
-     load_dir); a session file's fingerprint covers them all
-     (xpp_session_fingerprint). Empty for an old-style model. */
-  std::vector<std::string> source_files;
+  /* the model's own files as its load read them (model_files.h):
+     this_file first, then each file included, each file table, the
+     options file and -anifile's animation, in the order read; an AUTO
+     file and a session file save them all (xpp_session.h) */
+  std::vector<ModelFile> files;
+  /* the .autox or .snapx the model was loaded from (an absolute path),
+     whose saved copies are its files; empty for a model read from the
+     disk */
+  std::string saved_in;
+  /* during a load of a saved model, the scratch folder of the copies a
+     reader of a FILE * reads (model_files.cpp) */
+  std::shared_ptr<TempDir> saved_copies;
   /* the command line it was loaded with (argv, the program's name first):
      File > Reload loads it again (model_switch.h) */
   std::vector<std::string> command_line;
