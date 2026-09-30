@@ -144,8 +144,8 @@ table. File/opeN session (`F N`), a double-click on the file, or
 loaded, and the title says so, `lecar.ode (saved in lecar.snapx)`), and
 restores it all as it was saved; AUTO can grab a point of the restored
 diagram and go on. The file's folder becomes the working folder, where
-what you save goes; nothing is written beside it. When the model open is
-the same one, byte for byte, nothing is asked. A session file without
+what you save goes; nothing is written beside it. Opening one asks first
+whether to save the session open, since it takes its place. A session file without
 its model (one saved before this version) is refused with an error. The
 earlier runs a window shows until Erase are
 not saved (the data table is the last run's), nor are Sing pts'

@@ -170,8 +170,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this
-  session first (as **open (M)odel**; not when the model open is the one
-  saved in it), loads the model saved in it, from the file alone however
+  session first (as **open (M)odel**), loads the model saved in it, from the file alone however
   the `.ode` has changed since, and restores the session as it was saved.
   A session file without its model (saved before this version) is
   refused with an error. See
