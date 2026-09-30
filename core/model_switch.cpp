@@ -75,7 +75,10 @@ void xpp_model_open(const char *path)
     xpp_saved_restore(*saved);
     return;
   }
-  if(!same){
+  /* everything below replaces this session (a .snapx of this very model
+     too: its values, data and diagram take the place of these), so it
+     asks first, as File > Open does (W103 review) */
+  {
     const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
                                            xpp_files_split_path(file).second);
     switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
