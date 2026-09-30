@@ -72,12 +72,12 @@ int main(void)
     xpp::model().nupar = 1;
     xpp::session().auto_state.npar = 1;
     xpp::session().auto_state.par[0] = 0;
-    out = auto_screen_col("   PAR(0)     ");
+    out = auto_screen_col(xpp::session(), "   PAR(0)     ");
     CHECK_STR(out.c_str(), "applied_stim~ ");
-    out = auto_screen_col("   MAX U(1)   ");
+    out = auto_screen_col(xpp::session(), "   MAX U(1)   ");
     CHECK_STR(out.c_str(), "MAX MEMBRANE~ ");
     xpp::model().uvar_names[0] = "v";
-    out = auto_screen_col("     U(1)     ");
+    out = auto_screen_col(xpp::session(), "     U(1)     ");
     CHECK_STR(out.c_str(), "      v       "); /* a short name is centred as before */
 
     /* find_user_name finds a 200-character parameter, blanks and all */

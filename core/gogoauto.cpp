@@ -10,28 +10,32 @@
 
 namespace {
 /* AUTO's fort.3 (its restart data: read, or written from scratch), fort.7
-   and fort.9 for one run, opened where open_auto put them; AUTO reads and
-   writes them through auto_c.h's fp3/fp7/fp9. Closed on every way out of
-   the run (Windows cannot rename or delete an open file, which
-   close_auto does next), the globals cleared first. */
+   and fort.9 for one run, opened where open_auto put them, and the
+   Session whose run it is: AUTO reads and writes them through its
+   AutoLib (auto_state.h), which the run's iap_type points at. Closed on
+   every way out of the run (Windows cannot rename or delete an open
+   file, which close_auto does next), the pointers cleared first. */
 struct RunUnits {
+  AutoLib &lib;
   xpp::UniqueFile u3,u7,u9;
-  explicit RunUnits(bool restart)
-    : u3(xpp_files_open_stream(auto_fort_path(3),restart?"r":"w+")),
+  RunUnits(xpp::Session &s, bool restart)
+    : lib(s.auto_lib),
+      u3(xpp_files_open_stream(auto_fort_path(3),restart?"r":"w+")),
       u7(xpp_files_open_stream(auto_fort_path(7),"w")),
       u9(xpp_files_open_stream(auto_fort_path(9),"w"))
   {
-    xpp::session().auto_lib.fp3=u3.get();
-    xpp::session().auto_lib.fp7=u7.get();
-    xpp::session().auto_lib.fp9=u9.get();
+    lib.session=&s;
+    lib.fp3=u3.get();
+    lib.fp7=u7.get();
+    lib.fp9=u9.get();
   }
-  ~RunUnits() { xpp::session().auto_lib.fp3=xpp::session().auto_lib.fp7=xpp::session().auto_lib.fp9=nullptr; }
+  ~RunUnits() { lib.fp3=lib.fp7=lib.fp9=nullptr; lib.session=nullptr; }
   RunUnits(const RunUnits &)=delete;
   RunUnits &operator=(const RunUnits &)=delete;
 };
 } // namespace
 
-extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been set */
+int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has been set */
 {
   std::array<integer,NPARX2> icp;
   std::array<doublereal,NPARX2> par;
@@ -42,10 +46,11 @@ extern "C" int go_go_auto() /* this is the entry  at this point, xAuto has been 
   iap_type iap;
   rap_type rap;
   function_list list;
-  RunUnits units(xpp::session().auto_state.run.irs>0);
+  RunUnits units(s,s.auto_state.run.irs>0);
 
   /* Initialization : */
 
+  iap.lib = &s.auto_lib;
   iap.mynode = mynode();
   iap.numnodes = numnodes();
 

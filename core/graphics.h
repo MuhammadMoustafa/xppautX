@@ -6,8 +6,6 @@ extern "C" {
 
 extern const int TextAngle;
 
-void get_scale(double *x1, double *y1, double *x2, double *y2);
-void set_scale(double x1, double y1, double x2, double y2);
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p);
 
 #ifdef __cplusplus
@@ -39,6 +37,9 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
+/* the world coordinates of the session s's drawing */
+void get_scale(const xpp::Session &s, double *x1, double *y1, double *x2, double *y2);
+void set_scale(xpp::Session &s, double x1, double y1, double x2, double y2);
 void set_linestyle(xpp::Session &s, int ls);
 void change_current_linestyle(xpp::Session &s, int newstyle, int *old);
 void eq_symb(xpp::Session &s, double *x, int type);

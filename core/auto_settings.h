@@ -43,18 +43,22 @@ const char *auto_settings_num_label(int i);
 typedef void (*AutoSettingsEmit)(const char *line, size_t len);
 void auto_settings_init(AutoSettingsEmit emit);
 
-/* {"cmd":"data"} with or without "autosettings": sent at the next update
-   whatever it holds */
-void auto_settings_subscribe(int on);
-
-/* send the event if the settings changed since the one sent last */
-void auto_settings_update(void);
-
 #ifdef __cplusplus
 }
 
 #include <array>
 #include <string>
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* {"cmd":"data"} with or without "autosettings": sent (s's) at once, and
+   then at each update, whatever it holds */
+void auto_settings_subscribe(const xpp::Session &s, int on);
+
+/* send s's event if the settings changed since the one sent last */
+void auto_settings_update(const xpp::Session &s);
 
 /* One `auto` `set`: what it changes, each part only when given (a
    default-constructed set gives nothing). A name left empty keeps what is
@@ -80,10 +84,10 @@ struct AutoSettingsSet {
    axes and the Mark values, names empty where there is none (the event's
    null). What the event sends and an .autox's settings.txt saves (autox.h);
    applied with auto_settings_apply, it gives the settings back. */
-AutoSettingsSet auto_settings_now();
+AutoSettingsSet auto_settings_now(const xpp::Session &s);
 /* view `view`'s axes alone (W50, AutoState::views; it must be one), as the
    axes keys and `view`: applied, they give the view its axes back */
-AutoSettingsSet auto_settings_view(int view);
+AutoSettingsSet auto_settings_view(const xpp::Session &s, int view);
 
 /* 1 when a value of field i is AUTO's (an integer where the field is one,
    in the field's range); why names the field and its range otherwise.
@@ -94,6 +98,6 @@ int auto_settings_num_ok(int i, double v, std::string &why);
    applied, -1 with why (a sentence naming the bad value) when not. Axes
    (plot type, names, ranges, fit) draw the diagram again when AUTO's
    window is open, as the AutoPlot form does. Nothing is thrown. */
-int auto_settings_apply(const AutoSettingsSet &s, std::string &why);
+int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string &why);
 #endif
 #endif

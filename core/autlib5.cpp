@@ -66,7 +66,7 @@ struct {
 /* Subroutine */ int 
 fnho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const doublereal *uold, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp)
 {
-  xpp::Session &s=xpp::session();
+  xpp::Session &s=*iap->lib->session;
   /* System generated locals */
   integer dfdu_dim1, dfdp_dim1;
 
@@ -394,7 +394,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   if (blhom_1.istart != 3) {
     /*        *Projection boundary conditions for the homoclinic orbit */
     /*        *NSTAB boundary conditions at t=0 */
-    prjcti(bound.data(), xequib1.data(), icp, par, -1, 1, 1, &ndm);
+    prjcti(iap, bound.data(), xequib1.data(), icp, par, -1, 1, 1, &ndm);
     for (i = 0; i < blhom_1.nstab; ++i) {
       for (k = 0; k < ndm; ++k) {
 	fb[-1 + jb] += (u0[k] - xequib1[k]) * bound[i + k * (iap->ndm)];
@@ -404,7 +404,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     /*        *NUNSTAB boundary conditions at t=1 */
     if (blhom_1.nrev == 0) {
-      prjcti(bound.data(), xequib2.data(), icp, par, 1, 2, 1, &
+      prjcti(iap, bound.data(), xequib2.data(), icp, par, 1, 2, 1, &
 	     ndm);
       for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
 	for (k = 0; k < ndm; ++k) {
@@ -435,13 +435,13 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
      */
     if (blhom_1.nfixed > 0) {
       if (ieig == 0) {
-	eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &
+	eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &
 	      ndm);
 	ieig = 1;
       }
       for (i = 0; i < blhom_1.nfixed; ++i) {
 	if (blhmp_1.ifixed[i] > 10 && ineig == 0) {
-	  eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
+	  eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	  ineig = 1;
 	}
 	fb[-1 + jb] = psiho(iap, blhmp_1.ifixed[i], rr.data(), ri.data(), vr.data(),vt.data(), icp, par);
@@ -451,7 +451,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
      */
     if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
-      func(ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
+      func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -459,7 +459,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (blhom_1.iequib == -2) {
-	func(ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2);
+	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2);
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
 	  ++jb;
@@ -470,7 +470,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	     inic*/
     if (blhom_1.iequib == 2) {
       if (ineig == 0) {
-	eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
+	eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	ineig = 1;
       }
       fb[-1 + jb] = rr[blhom_1.nstab];
@@ -480,7 +480,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     if (blhom_1.itwist == 1) {
       /*           *-orthogonal to the unstable directions of A  at t=0 
        */
-      prjcti(bound.data(), xequib1.data(), icp, par, 1, 1, 2, &ndm);
+      prjcti(iap, bound.data(), xequib1.data(), icp, par, 1, 1, 2, &ndm);
       for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -490,7 +490,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	++jb;
       }
       /*           *-orthogonal to the stable directions of A  at t=1 */
-      prjcti(bound.data(), xequib2.data(), icp, par, -1, 2, 2, &ndm);
+      prjcti(iap, bound.data(), xequib2.data(), icp, par, -1, 2, 2, &ndm);
       for (i = 0; i < blhom_1.nstab; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
@@ -516,7 +516,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     kp = ip;
     /*        *Explicit boundary conditions for homoclinic orbit at t=0 */
-    eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &ndm);
+    eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &ndm);
     ieig = 1;
     if (blhom_1.nunstab > 1) {
       dum = 0.;
@@ -544,7 +544,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *Projection boundary conditions for the homoclinic orbit at 
 t=1 */
     if (ineig == 0) {
-      eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib2.data(), icp, par, &ndm);
+      eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib2.data(), icp, par, &ndm);
       ineig = 1;
     }
     for (i = 0; i < blhom_1.nunstab; ++i) {
@@ -560,7 +560,7 @@ t=1 */
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
  */
     if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
-      func(ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
+      func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -568,7 +568,7 @@ t=1 */
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (blhom_1.iequib == -2) {
-	func(ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2)
+	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2)
 	  ;
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
@@ -581,7 +581,7 @@ t=1 */
   /*      write(9,*) NBCN,NBC */
   /* *user defined extra boundary conditions */
   if (bcnn_1.nbcn > 0) {
-    bcnd(ndim, par, icp, bcnn_1.nbcn, u0, u1, ijc, fj.data(), dbc);
+    bcnd(*iap->lib->session, ndim, par, icp, bcnn_1.nbcn, u0, u1, ijc, fj.data(), dbc);
     for (k = 0; k < bcnn_1.nbcn; ++k) {
       fb[-1 + jb] = fj[k];
       /*            write(9,*),fb(jb),par(30) */
@@ -783,9 +783,9 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   nuzr = iap->nuzr;
   ndm = ndim;
   blhma_1.compzero = HMACHHO;
-  blhom_1.nunstab=xpp::session().auto_state.run.nunstab;
-  blhom_1.nstab=xpp::session().auto_state.run.nstab;
-  blhom_1.iequib=xpp::session().auto_state.run.iequib;
+  blhom_1.nunstab=iap->lib->session->auto_state.run.nunstab;
+  blhom_1.nstab=iap->lib->session->auto_state.run.nstab;
+  blhom_1.iequib=iap->lib->session->auto_state.run.iequib;
   blhom_1.itwist=0;
   blhom_1.istart=2;
   blhom_1.nrev=0;
@@ -862,7 +862,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
       nbc = ndm * (blhom_1.iequib + 1) + blhom_1.nunstab + 1;
     }
     if (blhom_1.iequib == 2) {
-      xpp::print(xpp::session().auto_lib.fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
+      xpp::print(iap->lib->fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
     }
     if (blhom_1.iequib < 0) {
       nbc -= ndm * (blhom_1.iequib * 3 + 2);
@@ -1095,7 +1095,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   /* Initialize parameters */
 
-  stpnt(ndm, *t, u, par);
+  stpnt(*iap->lib->session, ndm, *t, u, par);
 
   /* Initialize solution and additional parameters */
 
@@ -1128,8 +1128,8 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   for (i = 0; i < ndm; ++i) {
     xequib[i] = par[i + 11];
   }
-  eighi(1, 1, rr.data(), ri.data(), vt.data(), xequib.data(), icp, par, &ndm);
-  eighi(1, 2, rr.data(), ri.data(), vr.data(), xequib.data(), icp, par, &ndm);
+  eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib.data(), icp, par, &ndm);
+  eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib.data(), icp, par, &ndm);
 
   /* Set up artificial parameters at the left-hand end point of orbit */
 
@@ -1159,9 +1159,9 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
       * par[-1 + kp] * par[kp] * exp(rr[blhom_1.nstab] * *t * par[10]);
   }
   for (i = 0; i < ndm; ++i) {
-    xpp::print(xpp::session().auto_lib.fp9,"stpho {:20.10f}\n",u[i]);	
+    xpp::print(iap->lib->fp9,"stpho {:20.10f}\n",u[i]);	
   }
-  xpp::print(xpp::session().auto_lib.fp9,"\n");	
+  xpp::print(iap->lib->fp9,"\n");	
 
 /* Artificial parameters at the right-hand end point of the orbit */
 /* omega_i=<x(1)-x_o,w_i^*> */
@@ -1207,38 +1207,38 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   for (i = 0; i < ndm; ++i) {
     bleig_1.xequib[i] = par[i + 11];
   }
-  eighi(1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
+  eighi(iap, 1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
-    xpp::print(xpp::session().auto_lib.fp9,"EIGENVALUES\n");	
+    xpp::print(iap->lib->fp9,"EIGENVALUES\n");	
     for (j = 0; j < ndm; ++j) {
-      xpp::print(xpp::session().auto_lib.fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
+      xpp::print(iap->lib->fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
     }
   }
   if (blhom_1.itwist == 1) {
-    eighi(1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
+    eighi(iap, 1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
 	  bleig_1.xequib.data(), icp, par, &ndm);
     bleig_1.ineig = 1;
     orient = psiho(iap, 0, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), 
 		   bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
-	xpp::print(xpp::session().auto_lib.fp9," Non-orientable, ({:20.10f})\n",orient);	
+	xpp::print(iap->lib->fp9," Non-orientable, ({:20.10f})\n",orient);	
       } else {
-	xpp::print(xpp::session().auto_lib.fp9," Orientable ({:20.10f})\n",orient);	
+	xpp::print(iap->lib->fp9," Orientable ({:20.10f})\n",orient);	
       }
     }
   }
 
   for (i = 0; i < blhom_1.npsi; ++i) {
     if (blhmp_1.ipsi[i] > 10 && bleig_1.ineig == 0) {
-      eighi(1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
+      eighi(iap, 1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
 	    bleig_1.xequib.data(), icp, par, &ndm);
       bleig_1.ineig = 1;
     }
     par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.vt.data(), icp, par);
     if (iid >= 3) {
-      xpp::print(xpp::session().auto_lib.fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
+      xpp::print(iap->lib->fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
 
     }
   }
@@ -1288,8 +1288,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
   ndm = iap->ndm;
 
-  func(ndm, blhmu_1.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
-  func(ndm, blhmu_1.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, blhmu_1.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, blhmu_1.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
 
   ret_val = 0.;
 
@@ -1490,21 +1490,21 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-eighi(integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
+eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm)
 {
 
   std::vector<doublereal> dfdp((*ndm)*NPARX);
   std::vector<doublereal> dfdu((*ndm)*(*ndm));
   std::vector<doublereal> zz((*ndm)*(*ndm));
 
-  eigho(&isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
+  eigho(iap, &isign, &itrans, rr, ri, vret, xequib, icp, par, ndm, dfdu.data(), dfdp.data(), zz.data());
 
   return 0;
 } /* eighi */
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
+eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz)
 {
   /* System generated locals */
   integer dfdu_dim1, zz_dim1;
@@ -1555,7 +1555,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
     
   ifail = 0;
 
-  func(*ndm, xequib, icp, par, 1, f.data(), dfdu, 
+  func(*iap->lib->session, *ndm, xequib, icp, par, 1, f.data(), dfdu, 
        dfdp);
 
   if (*itrans == 1) {
@@ -1576,7 +1576,7 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
      iv1.data(), fv1.data(), &ifail);
 
   if (ifail != 0) {
-    xpp::print(xpp::session().auto_lib.fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
+    xpp::print(iap->lib->fp9,"EISPACK EIGENVALUE ROUTINE FAILED !\n");	
   }
 
   for (j = 0; j < *ndm; ++j) {
@@ -1666,20 +1666,20 @@ eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublerea
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-prjcti(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
+prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm)
 {
   
   std::vector<doublereal> dfdp((*ndm)*NPARX);
   std::vector<doublereal> dfdu((*ndm)*(*ndm));
   
-  prjctn(bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());
+  prjctn(iap, bound, xequib, icp, par, &imfd, &is, &itrans, ndm, dfdu.data(), dfdp.data());
   
   return 0;
 } /* prjcti */
 
 /*     ---------- ------ */
 /* Subroutine */ int 
-prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp)
+prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp)
 {
   /* System generated locals */
   integer dfdu_dim1;
@@ -1727,7 +1727,7 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
   bound -= ((*ndm)+1);
   dfdu_dim1 = *ndm;
   
-  func(*ndm, xequib, icp, par, 1, fdum.data(), dfdu, dfdp);
+  func(*iap->lib->session, *ndm, xequib, icp, par, 1, fdum.data(), dfdu, dfdp);
 
   /* Compute transpose of A if ITRANS=1 */
   if (*itrans == 1) {
@@ -1826,7 +1826,7 @@ prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *pa
   }
 
   if (mcond > 0) {
-    ge(mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
+    ge(iap->lib->fp9, mcond, *ndm, dum1.data(), mcond, *ndm, d.data(), *ndm,
        dum2.data(), &det);
   }
 

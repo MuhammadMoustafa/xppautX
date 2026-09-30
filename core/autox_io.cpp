@@ -43,13 +43,13 @@ void add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::s
     if (!xpp::read_bytes(solutions_path.c_str(), solutions))
         xpp::log(XPP_LOG_WARN, "AUTO's solutions {} cannot be read: the diagram is saved without its orbits\n", solutions_path);
     const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
-    entries.push_back({named(prefix, settings_member), settings_text(auto_settings_now())});
+    entries.push_back({named(prefix, settings_member), settings_text(auto_settings_now(s))});
     entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, vars)});
     entries.push_back({named(prefix, solutions_member), std::move(solutions)});
     SavedViews views;
     views.active = s.auto_state.active_view;
     for (std::size_t k = 0; k < s.auto_state.views.size(); k++) {
-        const AutoSettingsSet a = auto_settings_view(static_cast<int>(k));
+        const AutoSettingsSet a = auto_settings_view(s, static_cast<int>(k));
         views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
@@ -72,7 +72,7 @@ void restore_views(xpp::Session &s, const SavedViews &saved, const std::string &
         a.par2 = v.par2;
         a.view = static_cast<int>(k);
         std::string why;
-        if (auto_settings_apply(a, why) != 0)
+        if (auto_settings_apply(s, a, why) != 0)
             xpp_session_warn(xpp::format("{}: view {} of the diagram keeps the axes it had: {}", file_name(name), k + 1, why));
         /* the ranges as they were, even the ones a form refuses (a Fit of
            a flat quantity leaves its axis a point) */
@@ -88,10 +88,9 @@ void restore_views(xpp::Session &s, const SavedViews &saved, const std::string &
 
 } // namespace
 
-std::optional<std::string> file_bytes()
+std::optional<std::string> file_bytes(const Session &s)
 {
-    const xpp::Session &s = xpp::session(); /* AUTO's File menu: an entry point */
-    if (diagram_count() <= 1) return std::nullopt; /* an empty diagram */
+    if (diagram_count(s.diagram) <= 1) return std::nullopt; /* an empty diagram */
     std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, xpp::snapx::Manifest{}, kind);
     if (!entries) return std::nullopt;
     add_members(s, *entries, "");
@@ -118,9 +117,9 @@ bool restore_members(Session &s, const std::map<std::string, std::string> &membe
         return false;
     }
 
-    if (!s.auto_state.bifur.exist) do_auto_win(); /* the diagram needs a window to draw into */
+    if (!s.auto_state.bifur.exist) do_auto_win(s); /* the diagram needs a window to draw into */
     std::string why;
-    if (auto_settings_apply(*settings, why) != 0)
+    if (auto_settings_apply(s, *settings, why) != 0)
         xpp_session_warn(xpp::format("{}: AUTO's settings are left as they were: {}", file_name(name), why));
     auto_data_forget(); /* the strip described the diagram this one replaces */
     diagram_restore(s, std::move(*points));
@@ -130,13 +129,12 @@ bool restore_members(Session &s, const std::map<std::string, std::string> &membe
     if (!w || !w.write(solutions ? *solutions : std::string()) || !w.commit())
         xpp_session_warn(xpp::format("{}: AUTO's solutions could not be written to {}: a grab cannot restart from them",
                                      file_name(name), solutions_path));
-    if (s.auto_state.bifur.exist) redraw_diagram();
+    if (s.auto_state.bifur.exist) redraw_diagram(s);
     return true;
 }
 
-bool import_file(const std::string &path)
+bool import_file(Session &s, const std::string &path)
 {
-    const xpp::Session &s = xpp::session(); /* AUTO's File menu: an entry point */
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
         err_msg(xpp::format("Cannot open {}", path).c_str());
@@ -151,13 +149,13 @@ bool import_file(const std::string &path)
         err_msg(xpp::format("Cannot open {}", path).c_str());
         return false;
     }
-    if (!s.auto_state.bifur.exist) do_auto_win();
-    if (import_auto_file(fp.get()) != 1) {
+    if (!s.auto_state.bifur.exist) do_auto_win(s);
+    if (import_auto_file(s, fp.get()) != 1) {
         err_msg(xpp::format("{} holds no AUTO diagram", path).c_str());
         return false;
     }
     fp.reset();
-    if (s.auto_state.bifur.exist) redraw_diagram();
+    if (s.auto_state.bifur.exist) redraw_diagram(s);
     return true;
 }
 

@@ -34,9 +34,9 @@ std::string csv_field(const char *s)
 
 /* the model parameter name of the diagram point's active parameter icp
    (AUTO's own parameter index, d->icp1/icp2), or "" */
-const char *par_name(int icp)
+const char *par_name(const xpp::Session &s, int icp)
 {
-    const char *p = auto_par_name(icp);
+    const char *p = auto_par_name(s, icp);
     return p ? p : "";
 }
 
@@ -73,8 +73,8 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         double par2 = d->icp2 < s.auto_state.npar ? d->par[d->icp2] : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
         w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
-                point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(d->icp1)),
-                xpp::number(par1), csv_field(par_name(d->icp2)), xpp::number(par2), xpp::number(d->per));
+                point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(s, d->icp1)),
+                xpp::number(par1), csv_field(par_name(s, d->icp2)), xpp::number(par2), xpp::number(d->per));
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->uhi[i]));
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");

@@ -59,8 +59,6 @@ typedef struct AutoStopAt {
    points. Pure */
 int auto_stop_why(const AutoStopAt *at);
 
-/* the branch ended at `at`: record why and write it in AUTO's Output */
-void auto_stop_branch_end(const AutoStopAt *at);
 
 /* a run starts, or AUTO's window is new: no reason until a branch ends */
 void auto_stop_clear(void);
@@ -82,5 +80,12 @@ const char *auto_stop_key(int why);
 
 #ifdef __cplusplus
 }
+
+namespace xpp {
+struct Session; /* session.h */
+}
+/* the branch ended at `at` in the session s's run: record why (its
+   parameter by the name s gives it) and write it in AUTO's Output */
+void auto_stop_branch_end(const xpp::Session &s, const AutoStopAt *at);
 #endif
 #endif

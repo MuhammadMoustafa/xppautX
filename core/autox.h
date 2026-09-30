@@ -99,10 +99,10 @@ std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text,
 
 /* ---- this session's (autox_io.cpp) ---- */
 
-/* AUTO's work in this session as an .autox's bytes, its model included;
+/* AUTO's work in the session s as an .autox's bytes, its model included;
    nothing when the diagram is empty (or AUTO's solution file cannot be
    read, which an error message says) */
-std::optional<std::string> file_bytes();
+std::optional<std::string> file_bytes(const Session &s);
 
 /* AUTO's members (settings, diagram, solutions, views) of the session s
    after entries', each named prefix and its name (a session file's "auto/") */
@@ -115,11 +115,12 @@ void add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::s
    was restored. */
 bool restore_members(Session &s, const std::map<std::string, std::string> &members, std::string_view prefix, const std::string &name);
 
-/* AUTO's File/Load diagram of an XPPAUT .auto, path: imported, its
+/* AUTO's File/Load diagram of an XPPAUT .auto, path: imported into the
+   session s, its
    diagram to the 6 digits it prints. The diagram before is replaced but
    not reset: the caller asks for that. False with an error message when
    nothing was read. (An .autox is opened as a model is: xpp_model_open.) */
-bool import_file(const std::string &path);
+bool import_file(Session &s, const std::string &path);
 
 } // namespace xpp::autox
 

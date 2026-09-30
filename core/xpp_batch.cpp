@@ -273,7 +273,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     set_init_guess(s);
     update_all_ffts(s);
 #ifdef AUTO
-    init_auto_win();
+    init_auto_win(s);
 #endif
     if (disc(m.this_file)) s.numerics.method = 0;
     program.version_major = static_cast<float>(cstringmaj);

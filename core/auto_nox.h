@@ -74,163 +74,168 @@ typedef struct {
   int plot,var,icp1,icp2;
   double xmin,ymin,xmax,ymax;
 }  AUTOAX;
+#ifdef __cplusplus
+}
 
-void colset(int type);
-void pscolset2(int flag2);
+namespace xpp {
+struct Session; /* session.h */
+}
+#endif
+
+void colset(xpp::Session &s, int type);
+void pscolset2(xpp::Session &s, int flag2);
 void colset2(int flag2);
-void draw_export_axes(void);
-void draw_bif_axes(void);
-int IXVal(double x);
-int IYVal(double y);
-int chk_auto_bnds(int ix, int iy);
-void close_auto(int flag);
-void open_auto(int flag);
+void draw_export_axes(xpp::Session &s);
+void draw_bif_axes(xpp::Session &s);
+int IXVal(const xpp::Session &s, double x);
+int IYVal(const xpp::Session &s, double y);
+int chk_auto_bnds(const xpp::Session &s, int ix, int iy);
+void close_auto(xpp::Session &s, int flag);
+void open_auto(xpp::Session &s, int flag);
 /* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
    another unit: gogoauto.cpp opens them for a run */
 const char *auto_fort_path(int unit);
-void do_auto(int iold, int isave, int itp);
-void set_auto(void);
+void do_auto(xpp::Session &s, int iold, int isave, int itp);
+void set_auto(xpp::Session &s);
 /* AUTO's index of the period among its parameters (PAR(10), named T) */
 #define AUTO_PERIOD_INDEX 10
 /* the model's name of AUTO's parameter index k (AutoPar[k]), NULL when k
    is not one of AUTO's NAutoPar parameters: the one lookup the forms,
    the settings event, the CSV export and the branch-end text share */
-const char *auto_par_name(int k);
+const char *auto_par_name(const xpp::Session &s, int k);
 #define AUTO_COL_W 14
-void auto_per_par(void);
-void auto_params(void);
-void auto_num_par(void);
-void auto_plot_par(void);
-void auto_fit(void);
-void auto_default(void);
+void auto_per_par(xpp::Session &s);
+void auto_params(xpp::Session &s);
+void auto_num_par(xpp::Session &s);
+void auto_plot_par(xpp::Session &s);
+void auto_fit(xpp::Session &s);
+void auto_default(xpp::Session &s);
 /* the diagram's views (W50, AutoState::views). New view: one more, a copy
    of the active one's axes, made active. Close view k: 0 when it is the
    last one (it stays) or there is no view k. Activate view k: the one the
    Axes menu, zoom, the exports and a run's parameters then use; 0 when
    there is no view k. Each draws the diagram again when AUTO's window is
    open. */
-void auto_new_view(void);
-int auto_close_view(int k);
-int auto_activate_view(int k);
-void auto_zoom_in(int i1, int j1, int i2, int j2);
-void auto_zoom_out(int i1, int j1, int i2, int j2);
+void auto_new_view(xpp::Session &s);
+int auto_close_view(xpp::Session &s, int k);
+int auto_activate_view(xpp::Session &s, int k);
+void auto_zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2);
+void auto_zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
-void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
-void auto_line(double x1i, double y1i, double x2i, double y2i);
+void add_ps_point(xpp::Session &s, double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
+void auto_line(xpp::Session &s, double x1i, double y1i, double x2i, double y2i);
 /* who the next add_point() is: AUTO's branch, point and type, its entry in
    the diagram list (DIAGRAM.index) and the label its run started from */
 void auto_point_id(int ibr, int ntot, int itp, int node, int from);
 /* the label the running continuation started from, once: for its first point */
 int auto_run_from_take(void);
-void add_point(double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
+void add_point(xpp::Session &s, double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
 /* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
    EP, MX), two blanks for any other */
 const char *auto_bif_sym(int itp);
-void info_header(int flag2, int icp1, int icp2);
-void new_info(int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2);
-void traverse_out(DIAGRAM *d, int *ix, int *iy, int dodraw);
-void do_auto_win(void);
-void load_last_plot(int flag);
-void keep_last_plot(int flag);
-void init_auto_win(void);
-int yes_reset_auto(void);
-int reset_auto(void);
-void auto_grab(void);
+void info_header(xpp::Session &s, int flag2, int icp1, int icp2);
+void new_info(xpp::Session &s, int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2);
+void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
+void do_auto_win(xpp::Session &s);
+void load_last_plot(xpp::Session &s, int flag);
+void keep_last_plot(xpp::Session &s, int flag);
+void init_auto_win(xpp::Session &s);
+int yes_reset_auto(xpp::Session &s);
+int reset_auto(xpp::Session &s);
+void auto_grab(xpp::Session &s);
 
-void auto_start_diff_ss(void);
-void auto_start_at_bvp(void);
-void auto_start_at_per(void);
-void find_best_homo_shift(int n);
-void get_start_period(double *p);
-void get_start_orbit(double *u, double t, double p, int n);
-void get_shifted_orbit(double *u, double t, double p, int n);
-void auto_new_ss(void);
-void auto_new_discrete(void);
-void auto_extend_ss(void);
-void auto_start_choice(void);
-void torus_choice(void);
-void per_doub_choice(void);
-void periodic_choice(void);
-void hopf_choice(void);
-void auto_new_per(void);
-void auto_start_at_homoclinic(void);
-int get_homo_info(int flg,int *nun,int *nst,double *ul, double *ur);
-void auto_extend_homoclinic(void);
-void auto_extend_bvp(void);
-void auto_switch_per(void);
-void auto_switch_bvp(void);
-void auto_switch_ss(void);
-void auto_2p_limit(int ips);
-void auto_twopar_double(void);
-void auto_torus(void);
-void auto_2p_branch(int ips);
-void auto_branch_choice(int ibr, int ips);
-void auto_homo_choice(int itp);
-void auto_2p_fixper(void);
-void auto_2p_hopf(void);
-void auto_period_double(void);
-void auto_run(void);
-void load_auto_orbit(void);
+void auto_start_diff_ss(xpp::Session &s);
+void auto_start_at_bvp(xpp::Session &s);
+void auto_start_at_per(xpp::Session &s);
+void find_best_homo_shift(xpp::Session &s, int n);
+void get_start_period(xpp::Session &s, double *p);
+void get_start_orbit(xpp::Session &s, double *u, double t, double p, int n);
+void get_shifted_orbit(xpp::Session &s, double *u, double t, double p, int n);
+void auto_new_ss(xpp::Session &s);
+void auto_new_discrete(xpp::Session &s);
+void auto_extend_ss(xpp::Session &s);
+void auto_start_choice(xpp::Session &s);
+void torus_choice(xpp::Session &s);
+void per_doub_choice(xpp::Session &s);
+void periodic_choice(xpp::Session &s);
+void hopf_choice(xpp::Session &s);
+void auto_new_per(xpp::Session &s);
+void auto_start_at_homoclinic(xpp::Session &s);
+int get_homo_info(xpp::Session &s, int flg,int *nun,int *nst,double *ul, double *ur);
+void auto_extend_homoclinic(xpp::Session &s);
+void auto_extend_bvp(xpp::Session &s);
+void auto_switch_per(xpp::Session &s);
+void auto_switch_bvp(xpp::Session &s);
+void auto_switch_ss(xpp::Session &s);
+void auto_2p_limit(xpp::Session &s, int ips);
+void auto_twopar_double(xpp::Session &s);
+void auto_torus(xpp::Session &s);
+void auto_2p_branch(xpp::Session &s, int ips);
+void auto_branch_choice(xpp::Session &s, int ibr, int ips);
+void auto_homo_choice(xpp::Session &s, int itp);
+void auto_2p_fixper(xpp::Session &s);
+void auto_2p_hopf(xpp::Session &s);
+void auto_period_double(xpp::Session &s);
+void auto_run(xpp::Session &s);
+void load_auto_orbit(xpp::Session &s);
 /* File/Save diagram and Load diagram: an .autox (autox.h), or an XPPAUT
    .auto imported */
-void save_auto(void);
-void load_auto(void);
+void save_auto(xpp::Session &s);
+void load_auto(xpp::Session &s);
 /* the parts of an XPPAUT .auto file, read (import_auto_file reads them
    all) */
-void load_auto_numerics(FILE *fp);
-void load_auto_graph(FILE *fp);
-int import_auto_file(FILE *fp);
+void load_auto_numerics(xpp::Session &s, FILE *fp);
+void load_auto_graph(xpp::Session &s, FILE *fp);
+int import_auto_file(xpp::Session &s, FILE *fp);
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp);
 void get_a_row(double *u, double *t, int n, FILE *fp);
-void auto_file(void);
-int check_plot_type(int flag2,int icp1, int icp2);
+void auto_file(xpp::Session &s);
+int check_plot_type(const xpp::Session &s, int flag2,int icp1, int icp2);
 
 /* grabbing and marking points on the diagram (from auto_x11.c) */
-void traverse_diagram(void);
+void traverse_diagram(xpp::Session &s);
 /* the scriptable grabs: the same outcome as an interactive grab ending
    with Return on that point (docs/protocol.md "Grab by point"). 1 on
    success, 0 (nothing changed) when there is no such point. */
-int auto_grab_label(int lab);
-int auto_grab_type_index(const char *type, int index);
+int auto_grab_label(xpp::Session &s, int lab);
+int auto_grab_type_index(xpp::Session &s, const char *type, int index);
 /* asks which kind of special point: its symbol (auto_bif_sym's), or NULL */
 const char *query_special(const char *title);
 void MarkAuto(int x, int y);
-void clear_msg(void);
-void auto_update_view(float xlo, float xhi, float ylo, float yhi);
-void auto_motion_xy(int i, int j);
+void clear_msg(xpp::Session &s);
+void auto_update_view(xpp::Session &s, float xlo, float xhi, float ylo, float yhi);
+void auto_motion_xy(xpp::Session &s, int i, int j);
 /* a click on the diagram at (x, y) in its axis quantities: shown, and kept
    as the point AUTO's File/sElect 2par pt uses in a two-parameter plot */
-void auto_point_xy(double x, double y);
+void auto_point_xy(xpp::Session &s, double x, double y);
 
-void DLINE(double a, double b, double c, double d);
-void find_point(int ibr, int pt);
-void auto_set_mark(int i);
-void do_auto_range(void);
+void DLINE(xpp::Session &s, double a, double b, double c, double d);
+void find_point(xpp::Session &s, int ibr, int pt);
+void auto_set_mark(xpp::Session &s, int i);
+void do_auto_range(xpp::Session &s);
 
 #ifdef __cplusplus
-}
-
 #include <string>
 #include "xpp_error.h"
 
 /* orbit lab of the solution file into the data (a labelled point's, when
    a grab or a diagram point asks for it); what failed otherwise, for the
    command to show */
-xpp::Result<> load_auto_orbitx(int ibr,int flag, int lab, double per);
+xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, double per);
 /* the .auto's copy of the solution file, written beside this model's */
 xpp::Result<> make_q_file(FILE *fp);
 
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */
-void auto_get_info(int *n, std::string &pname);
+void auto_get_info(xpp::Session &s, int *n, std::string &pname);
 /* AUTO's printed column heading col in the user's own names (screen
    only), AUTO_COL_W wide */
-std::string auto_screen_col(const std::string &col);
+std::string auto_screen_col(const xpp::Session &s, const std::string &col);
 /* AUTO's index of parameter or period name s (10 for the period, T),
    -1 when it is not one of AUTO's parameters */
-int auto_name_to_index(std::string_view s);
+int auto_name_to_index(const xpp::Session &s, std::string_view name);
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */
@@ -238,6 +243,6 @@ std::string auto_solutions_file();
 
 /* view ax's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */
-void get_auto_str(const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
+void get_auto_str(const xpp::Session &s, const AUTOAX &ax, std::string &xlabel, std::string &ylabel);
 #endif
 #endif

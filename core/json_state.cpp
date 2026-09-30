@@ -322,7 +322,7 @@ void data_command(xpp::Session &s, const char *line)
     ani_data_subscribe(ani);
     auto_data_subscribe(autoinfo);
     auto_view_subscribe(autoinfo);
-    auto_settings_subscribe(autosettings);
+    auto_settings_subscribe(s, autosettings);
     numerics_settings_subscribe(s, numerics);
 }
 

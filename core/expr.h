@@ -109,8 +109,7 @@ int get_param_index(const xpp::Session &s, std::string_view name);
 int get_val(const xpp::Session &s, std::string_view name, double *value);
 int set_val(xpp::Session &s, std::string_view name, double value);
 int add_var(xpp::Session &s, std::string_view name, double value);
-/* the same in the current Session: entry points (W47d5-6) */
-int get_param_index(std::string_view name);
+/* the same in the current Session: entry points (W47d6) */
 int get_val(std::string_view name, double *value);
 int set_val(std::string_view name, double value);
 

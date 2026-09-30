@@ -368,7 +368,7 @@ void auto_command(xpp::Session &s, const char *line);
 void auto_view_subscribe(int on);
 void auto_view_update(xpp::Session &s);
 void auto_key(xpp::Session &s, int ch);
-void auto_redraw_for_client(const xpp::Session &s);
+void auto_redraw_for_client(xpp::Session &s);
 void j_auto_make_window(const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);

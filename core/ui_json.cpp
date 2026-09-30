@@ -651,7 +651,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
     diag_flush(*s, 1);
     auto_data_update(1);
     auto_view_update(*s);
-    auto_settings_update();
+    auto_settings_update(*s);
     numerics_settings_update(*s);
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have

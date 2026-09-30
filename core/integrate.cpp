@@ -760,7 +760,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
 
  if(s.integrator.range.movie)reset_film();
  if(flag==2){
-   auto_get_info(&nit,parn);
+   auto_get_info(s, &nit,parn);
    nit2=0;
  }
  for(j=0;j<=nit2;j++){
@@ -817,7 +817,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      }
    }  /* normal range stuff   */ 
    else {  /* auto range stuff */
-     auto_set_mark(i);
+     auto_set_mark(s, i);
      get_ic(s,2,x);
      get_val(s,parn,&temp);
      bob=xpp::format("{:.230}={:.16g}",parn,temp);

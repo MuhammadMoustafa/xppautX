@@ -65,14 +65,14 @@ int main()
     CHECK(st.why == AUTO_STOP_NONE && std::strcmp(st.text, "") == 0);
     at = inside();
     at.par = 2.25;
-    auto_stop_branch_end(&at);
+    auto_stop_branch_end(xpp::session(), &at);
     auto_stop_last(&st);
     CHECK(st.why == AUTO_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
     CHECK_STR(st.key, "parmax");
     CHECK_STR(st.text, "parameter iapp reached Par Max (2)");
     at.ipar = 10;
     at.par = -0.5;
-    auto_stop_branch_end(&at);
+    auto_stop_branch_end(xpp::session(), &at);
     auto_stop_last(&st);
     CHECK_STR(st.text, "the period T reached Par Min (0)");
 
@@ -81,18 +81,18 @@ int main()
     at.noconv = 1;
     at.br = -2; /* AUTO's sign is stability, not part of the number */
     auto_stop_noconv(AUTO_STOP_NOCONV_MIN, -1e-5, 0.0001);
-    auto_stop_branch_end(&at);
+    auto_stop_branch_end(xpp::session(), &at);
     auto_stop_last(&st);
     CHECK(st.why == AUTO_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
     CHECK_STR(st.text, "no convergence even at the smallest step (Dsmin 0.0001)");
-    auto_stop_branch_end(&at);
+    auto_stop_branch_end(xpp::session(), &at);
     auto_stop_last(&st);
     CHECK(st.why == AUTO_STOP_NOCONV && std::isnan(st.value));
     CHECK_STR(st.text, "no convergence");
     at = inside();
     at.nmx = 7;
-    auto_stop_branch_end(&at);
+    auto_stop_branch_end(xpp::session(), &at);
     auto_stop_last(&st);
     CHECK_STR(st.text, "the branch reached Max points (NMX 7)");
 

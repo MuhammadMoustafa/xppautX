@@ -53,10 +53,10 @@ int main()
     std::array<doublereal, 4> a{1, 2, 2, 4};
     std::array<doublereal, 2> u{}, f{1, 1};
     doublereal det = 0;
-    CHECK(has(failure([&] { ge(2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
+    CHECK(has(failure([&] { ge(nullptr, 2, 2, a.data(), 1, 2, u.data(), 2, f.data(), &det); }), "division by zero"));
     std::array<doublereal, 4> b{2, 0, 0, 4};
     f = {2, 4};
-    CHECK(failure([&] { ge(2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
+    CHECK(failure([&] { ge(nullptr, 2, 2, b.data(), 1, 2, u.data(), 2, f.data(), &det); }).empty());
     CHECK(u[0] == 1 && u[1] == 1);
 
     /* dhhpr, dhhap: Householder arguments out of range */

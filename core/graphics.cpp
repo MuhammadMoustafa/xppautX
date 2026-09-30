@@ -49,18 +49,16 @@ static int XDMax,YDMax;
 /* text is never turned (my_ps.cpp's rotation stays for it) */
 const int TextAngle=0;
 
-void get_scale(double *x1, double *y1, double *x2, double *y2)
+void get_scale(const xpp::Session &s, double *x1, double *y1, double *x2, double *y2)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   *x1=s.drawing.x_min;
   *y1=s.drawing.y_min;
   *x2=s.drawing.x_max;
   *y2=s.drawing.y_max;
 }
 
-void set_scale(double x1, double y1, double x2, double y2)
+void set_scale(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   s.drawing.x_min=x1;
   s.drawing.y_min=y1;
   s.drawing.x_max=x2;

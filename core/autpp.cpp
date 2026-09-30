@@ -1,6 +1,7 @@
 #include <array>
 #include <stdlib.h>
-#include "auto_f2c.h" 
+#include "auto_f2c.h"
+#include "auto_c.h" /* func, stpnt, bcnd */
 #include "session.h"
 #include "odesol2.h"
 #include "auto_nox.h"
@@ -14,39 +15,37 @@
 /*    Hooks to xpp RHS     */
 
 
-/* AUTO calls these through auto_c.h's "problem defined functions"
-   prototypes; give them C linkage so the callers (autlib3.cpp,
-   autlib5.cpp) find the unmangled symbol regardless of which
-   translation unit's (differently const-qualified) prototype is in
-   scope where each is called from. */
-extern "C" int func(integer ndim, double *u, integer *icp, double *par, integer ijac, double *f, double *dfdu, double *dfdp)
+/* The problem defined functions that run the model (auto_c.h's C++
+   section): AUTO calls them with the Session whose run it is. */
+int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
    std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the NJMP steps' */
-   for(i=0;i<xpp::session().auto_state.npar;i++){
-     xpp::session().parser.constants[xpp::session().auto_state.par_index[i]]=par[i];
+   /* the right-hand side and the Jacobian only read the point */
+   double *x=const_cast<double *>(u);
+   for(i=0;i<s.auto_state.npar;i++){
+     s.parser.constants[s.auto_state.par_index[i]]=par[i];
      
    }
-   evaluate_derived();
-   if(auto r=redo_all_fun_tables();!r)xpp::auto_fail(r.error().what);
-   xpp::session().integrator.rhs(0.0,u,f,ndim);
+   evaluate_derived(s);
+   if(auto r=redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+   s.integrator.rhs(0.0,x,f,ndim);
    if(ijac==1){
-     getjactrans(xpp::session(),u,y.data(),yp.data(),xp.data(),xpp::session().numerics.newt_err,dfdu,ndim);
+     getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.newt_err,dfdu,ndim);
    }
-   if(xpp::session().numerics.method>0||xpp::session().numerics.njmp==1)return 0;
-   for(i=1;i<xpp::session().numerics.njmp;i++){
+   if(s.numerics.method>0||s.numerics.njmp==1)return 0;
+   for(i=1;i<s.numerics.njmp;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
-     xpp::session().integrator.rhs(0.0,zz.data(),f,ndim);
+     s.integrator.rhs(0.0,zz.data(),f,ndim);
    }
 
    return 0;
 
 } /* func_ */
 
-extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
+int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal *par)
 {
-  xpp::Session &s=xpp::session();
   int i;
 
   double p;
@@ -60,12 +59,12 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
     return 0;
   }
 
-  get_start_period(&p);
+  get_start_period(s,&p);
   par[10]=p;
-  if(s.auto_state.homo_flag!=1)get_start_orbit(u,t,p,ndim);
+  if(s.auto_state.homo_flag!=1)get_start_orbit(s,u,t,p,ndim);
   if(s.auto_state.homo_flag==1){
 
-    get_shifted_orbit(u,t,p,ndim);
+    get_shifted_orbit(s,u,t,p,ndim);
     for(i=0;i<ndim;i++){
       par[11+i]=s.auto_state.homo_l[i];
 
@@ -83,18 +82,19 @@ extern "C" int stpnt(integer ndim, doublereal t, doublereal *u, doublereal *par)
 
 } /* stpnt_ */
 
-/* Subroutine */ extern "C" int bcnd(integer ndim, double *par, integer *icp, integer nbc, double *u0, double *u1, integer ijac, double *fb, double *dbc)
+/* Subroutine */ int bcnd(xpp::Session &s, integer ndim, const double *par, const integer *icp, integer nbc, const double *u0, const double *u1, integer ijac, double *fb, double *dbc)
 {
  int i;
 /* Hooks to the XPP bc parser!! */
 
- for(i=0;i<xpp::session().auto_state.npar;i++){
-     xpp::session().parser.constants[xpp::session().auto_state.par_index[i]]=par[i];
+ for(i=0;i<s.auto_state.npar;i++){
+     s.parser.constants[s.auto_state.par_index[i]]=par[i];
  }
 
- evaluate_derived();
- if(auto r=redo_all_fun_tables();!r)xpp::auto_fail(r.error().what);
- do_bc(xpp::session(),u0,0.0,u1,1.0,fb,nbc);
+ evaluate_derived(s);
+ if(auto r=redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+ /* the boundary conditions only read the two ends */
+ do_bc(s,const_cast<double *>(u0),0.0,const_cast<double *>(u1),1.0,fb,nbc);
 
     return 0;
 } /* bcnd_ */

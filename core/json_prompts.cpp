@@ -48,7 +48,7 @@ int ask_wait(Buf *b, int id)
     BUF_LIT(b, "}");
     diag_flush(s, 1);
     auto_data_update(1);
-    auto_settings_update();
+    auto_settings_update(s);
     json_flush();
     if (session.script_mode) {
         try {

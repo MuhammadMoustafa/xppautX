@@ -111,7 +111,16 @@ typedef struct {
   long *nrtn;
 } AutoGlobalRotations;
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
 struct AutoLib {
+  /* the Session whose run this is, from go_go_auto until the run ends:
+     how the translated routines, which reach this through their
+     iap_type's lib, and the model's callbacks they call (autpp.cpp) reach
+     the model and its settings */
+  xpp::Session *session=nullptr;
   /* the fort.3/7/8/9 files open during a run */
   FILE *fp3=nullptr,*fp7=nullptr,*fp8=nullptr,*fp9=nullptr;
   int fp8_is_open=0;

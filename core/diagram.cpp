@@ -74,36 +74,36 @@ void edit_diagram(const xpp::Session &s, DIAGRAM *d, int ibr, int ntot, int itp,
 }
 } // namespace
 
-int diagram_count(void)
+int diagram_count(const AutoDiagram &diagram)
 {
-  return static_cast<int>(xpp::session().diagram.points.size());
+  return static_cast<int>(diagram.points.size());
 }
 
-DIAGRAM *diagram_point(int index)
+DIAGRAM *diagram_point(AutoDiagram &diagram, int index)
 {
-  if(index<0||index>=diagram_count())return NULL;
-  return &xpp::session().diagram.points[index].d;
+  if(index<0||index>=diagram_count(diagram))return NULL;
+  return &diagram.points[index].d;
 }
 
-DIAGRAM *diagram_first(void)
+DIAGRAM *diagram_first(AutoDiagram &diagram)
 {
-  return diagram_point(0);
+  return diagram_point(diagram,0);
 }
 
-DIAGRAM *diagram_next(const DIAGRAM *d)
+DIAGRAM *diagram_next(AutoDiagram &diagram, const DIAGRAM *d)
 {
-  return diagram_point(d->index+1);
+  return diagram_point(diagram,d->index+1);
 }
 
-DIAGRAM *diagram_prev(const DIAGRAM *d)
+DIAGRAM *diagram_prev(AutoDiagram &diagram, const DIAGRAM *d)
 {
-  return diagram_point(d->index-1);
+  return diagram_point(diagram,d->index-1);
 }
 
 void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
 {
   if(points.empty()){
-    start_diagram(s.model().node);
+    start_diagram(s,s.model().node);
     return;
   }
   s.diagram.points=std::move(points);
@@ -120,67 +120,59 @@ void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points)
   s.auto_state.diag_flag=1;
 }
 
-void start_diagram(int n)
+void start_diagram(xpp::Session &s, int n)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   s.diagram.points.clear();
   new_point(s.diagram,n);
   s.auto_state.diag_flag=0;
 }
 
-void edit_start(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
+void edit_start(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
-  edit_diagram(s,diagram_first(),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
+  edit_diagram(s,diagram_first(s.diagram),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
 	       par,per,n,icp1,icp2,icp3,icp4,s.auto_state.two_param,evr,evi,s.auto_state.blrtn.torper);
 }
 
   
-void add_diagram(int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
+void add_diagram(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  DIAGRAM *dnew=new_point(s.diagram,n);
  edit_diagram(s,dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
 	      icp1,icp2,icp3,icp4,flag2,evr,evi,s.auto_state.blrtn.torper);
 }
 
-DIAGRAM *last_diagram(void)
+DIAGRAM *last_diagram(AutoDiagram &diagram)
 {
-  return diagram_point(diagram_count()-1);
+  return diagram_point(diagram,diagram_count(diagram)-1);
 }
 
-void set_last_diagram_from(int from)
+const DIAGRAM *diagram_of_label(const xpp::Session &s, int lab)
 {
-  last_diagram()->from=from;
-}
-
-const DIAGRAM *diagram_of_label(int lab)
-{
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   if(lab<=0||s.auto_state.diag_flag==0)return NULL; /* DiagFlag 0: the first point is not filled in yet */
   for(const DiagramPoint &p:s.diagram.points)
     if(p.d.lab==lab)return &p.d;
   return NULL;
 }
 
-int diagram_has(int index,int ibr,int ntot)
+int diagram_has(const AutoDiagram &diagram, int index,int ibr,int ntot)
 {
-  const DIAGRAM *d=diagram_point(index);
+  if(index<0||index>=diagram_count(diagram))return 0;
+  const DIAGRAM *d=&diagram.points[index].d;
   return d!=NULL&&d->ibr==ibr&&abs(d->ntot)==abs(ntot);
 }
 
-void kill_diagrams()
+void kill_diagrams(xpp::Session &s)
 {
-  start_diagram(xpp::model().node);
+  start_diagram(s,s.model().node);
 }
 
-void redraw_diagram()
+void redraw_diagram(xpp::Session &s)
 {
   DIAGRAM *d;
   int type,flag=0;
-  draw_bif_axes();
-  d=diagram_first();
-  if(diagram_next(d)==NULL)return;
+  draw_bif_axes(s);
+  d=diagram_first(s.diagram);
+  if(diagram_next(s.diagram,d)==NULL)return;
   auto_data_hold(1); /* plotting again leaves the strip and circle as they were */
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
@@ -188,9 +180,9 @@ void redraw_diagram()
     if(d->ntot==1)flag=0;
     else flag=1;
     auto_point_id(d->ibr,d->ntot,d->itp,d->index,d->from);
-    add_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
+    add_point(s,d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->icp3,d->icp4,d->flag2,d->evr,d->evi);
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
   auto_data_hold(0);
@@ -202,11 +194,11 @@ namespace {
    `name` as the default; opened only when there are points to write, so
    an empty diagram leaves an existing file alone. Empty when cancelled,
    or when it cannot be written (err_msg says so). */
-xpp::Writer diagram_file(const char *title, const char *name)
+xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *name)
 {
   std::string filename=name;
   if(!file_selector(title,filename,"*.dat"))return xpp::Writer();
-  if(diagram_count()<2)return xpp::Writer();
+  if(diagram_count(s.diagram)<2)return xpp::Writer();
   xpp::Writer w(filename.c_str());
   if(!w)err_msg("Can't open file");
   return w;
@@ -223,9 +215,9 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
   if(!file_selector(title,filename,wild))return;
   if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color)))
     return;
-  draw_export_axes();
-  d=diagram_first();
-  if(diagram_next(d)==NULL)return;
+  draw_export_axes(s);
+  d=diagram_first(s.diagram);
+  if(diagram_next(s.diagram,d)==NULL)return;
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     if (type < 0)
@@ -234,9 +226,9 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
     }
     if(d->ntot==1)flag=0;
     else flag=1;
-    add_ps_point(d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
+    add_ps_point(s,d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
 	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
   end(s);
@@ -245,9 +237,8 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
 
 } // namespace
 
-void write_info_out()
+void write_info_out(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type,i;
   /*int flag=0
@@ -255,9 +246,9 @@ void write_info_out()
   int icp1,icp2;
   double *par;
   double par1,par2=0,*uhigh,*ulow,per;
-  xpp::Writer w=diagram_file("Write all info","allinfo.dat");
+  xpp::Writer w=diagram_file(s,"Write all info","allinfo.dat");
   if(!w)return;
-  d=diagram_first();
+  d=diagram_first(s.diagram);
  while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -288,16 +279,15 @@ void write_info_out()
       line+='\n';
       w.print("{}",line);
     }
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
   w.commit();
 
 }
 
-extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
+void load_browser_with_branch(xpp::Session &s, int ibr,int pts,int pte)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
    DIAGRAM *d;
    int i,j,pt;
   int icp1;
@@ -312,8 +302,8 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
     last=i;
   }
   nrows=last-first+1;
-   d=diagram_first();
-  if(diagram_next(d)==NULL)return;
+   d=diagram_first(s.diagram);
+  if(diagram_next(s.diagram,d)==NULL)return;
   j=0;
  while(1){
     pt=abs(d->ntot);
@@ -328,23 +318,23 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
 	s.data_store.col[i+1][j]=u0[i];
       j++;
     }
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
         
  }
  s.data_store.rows=nrows;
  refresh_browser(s,nrows);
 }
-void write_init_data_file()
+void write_init_data_file(xpp::Session &s)
 {
   DIAGRAM *d;
   int i;
   int icp1;
   double *par;
   double par1,*u0;
-  xpp::Writer w=diagram_file("Write init data file","initdata.dat");
+  xpp::Writer w=diagram_file(s,"Write init data file","initdata.dat");
   if(!w)return;
-  d=diagram_first();
+  d=diagram_first(s.diagram);
  while(1){
     icp1=d->icp1;
     par=d->par;
@@ -354,29 +344,28 @@ void write_init_data_file()
 
     {
       std::string line=xpp::format("{:g} ",par1);
-      for(i=0;i<xpp::model().node;i++)
+      for(i=0;i<s.model().node;i++)
         line+=xpp::format("{:g} ",u0[i]);
       line+='\n';
       w.print("{}",line);
     }
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
   w.commit();
 
 }
 
-void write_pts()
+void write_pts(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type;
   int icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
-  xpp::Writer w=diagram_file("Write points","diagram.dat");
+  xpp::Writer w=diagram_file(s,"Write points","diagram.dat");
   if(!w)return;
-  d=diagram_first();
+  d=diagram_first(s.diagram);
   while(1){
     type=get_bif_type(d->ibr,d->ntot,d->lab);
     
@@ -395,12 +384,12 @@ void write_pts()
     /* now we have to check is the diagram parameters correspond to the 
        current view 
     */
-    if(check_plot_type(d->flag2,icp1,icp2)==1){
+    if(check_plot_type(s,d->flag2,icp1,icp2)==1){
       auto_xy_plot(&s.auto_state.axes(),&x,&y1,&y2,par1,par2,per,uhigh,ulow,ubar,a);
       w.print("{:g} {:g} {:g} {} {} {}\n",
 	      x,y1,y2,type,abs(d->ibr),d->flag2);
     }
-      d=diagram_next(d);
+      d=diagram_next(s.diagram,d);
       if(d==NULL)break;
   }
   w.commit();
@@ -410,24 +399,22 @@ void write_pts()
    function through the image_format.h registry in place of the former
    post_auto/svg_auto pair, same "auto.ps"/"auto.svg" default name and
    "*.ps"/"*.svg" filter as before */
-void export_auto_picture(int fmt)
+void export_auto_picture(xpp::Session &s, int fmt)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   const xpp::ImageFormat &f=xpp::image_formats[fmt];
   std::string name=xpp::format("auto.{}",f.extension);
   std::string wild=xpp::format("*.{}",f.extension);
   export_diagram(s,f.name,name.c_str(),wild.c_str(),f.begin,f.end);
 }
 
-void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
+void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, double *yhi)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   DIAGRAM *d;
   int type;
   
   double x,y1,y2,par1,par2=0.0;
-  d=diagram_first();
-  if(diagram_next(d)==NULL)return;
+  d=diagram_first(s.diagram);
+  if(diagram_next(s.diagram,d)==NULL)return;
   *xlo=1.e16;
   *ylo=*xlo;
   *xhi=-*xlo;
@@ -445,12 +432,12 @@ void bound_diagram(double *xlo, double *xhi, double *ylo, double *yhi)
     if(x>*xhi)*xhi=x;
     if(y2<*ylo)*ylo=y2;
     if(y1>*yhi)*yhi=y1;
-    d=diagram_next(d);
+    d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
 }
 
-int load_diagram(FILE *fp, int node)
+int load_diagram(xpp::Session &s, FILE *fp, int node)
 {
   std::array<double,NAUTO> u0,uhi,ulo,ubar,evr,evi;
   std::array<double,8> par;
@@ -475,13 +462,13 @@ int load_diagram(FILE *fp, int node)
 			      || !tr.read(evr[i]) || !tr.read(evi[i])) break;
     if (i<node) break;
     if(flag==0){
-      edit_start(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
+      edit_start(s,ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
 		 icp1,icp2,icp3,icp4,evr.data(),evi.data());
       flag=1;
-      xpp::session().auto_state.diag_flag=1;
+      s.auto_state.diag_flag=1;
     }
     else
-      add_diagram(ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
+      add_diagram(s,ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
 		  icp1,icp2,icp3,icp4,flag2,evr.data(),evi.data());
     if(index>=n)break;
   }

@@ -38,12 +38,12 @@ and after changing parameters and constants
 void evaluate_derived(xpp::Session &s)
 {
   std::array<double, MAXPAR> &constants = s.parser.constants;
-  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(d.form.data());
+  for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(s, d.form.data());
 }
 
 void evaluate_derived()
 {
-  evaluate_derived(xpp::session()); /* an entry point: the integrator, AUTO, the front end (W47d4-6) */
+  evaluate_derived(xpp::session()); /* an entry point: the front end (W47d6) */
 }
 
 /* this adds a derived quantity  */

@@ -8,6 +8,8 @@
 extern "C" {
 #endif
 
+struct AutoLib; /* auto_state.h */
+
 #define NPARX (36) /*get rid of*/
 #define NBIFX (20)
 #define KREDO (1)  /*get rid of*/
@@ -65,6 +67,9 @@ typedef struct {
      They have to do with the old parallel version. */
   /* 38 */ integer mynode;
   /* 39 */ integer numnodes;
+  /* xppautX: the run's own state (auto_state.h), and through it the
+     Session the run belongs to; go_go_auto sets it before init */
+  struct AutoLib *lib;
 } iap_type;
 
 typedef struct {
@@ -190,14 +195,14 @@ int ordr(iap_type *iap, rap_type *rap, integer *n, doublereal *tm, integer *n1, 
 int intwts(iap_type *iap, rap_type *rap, integer *n, doublereal *z__, doublereal *x, doublereal *wts);
 int eqdf(iap_type *iap, rap_type *rap, integer *ntst, integer *ndim, integer *ncol, doublereal *dtm, integer *ndxloc, doublereal *ups, doublereal *eqf, integer *iper);
 int eig(iap_type *iap, integer *ndim, integer *m1a, doublereal *a, doublecomplex *ev, integer *ier);
-int nlvc(integer n, integer m, integer k, doublereal *a, doublereal *u);
+int nlvc(FILE *fp9, integer n, integer m, integer k, doublereal *a, doublereal *u);
 int nrmlz(integer *ndim, doublereal *v);
 doublereal pi(doublereal r__);
-int ge(integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det);
+int ge(FILE *fp9, integer n, integer m1a, doublereal *a, integer nrhs, integer ndxloc, doublereal *u, integer m1f, doublereal *f, doublereal *det);
 int newlab(iap_type *iap, rap_type *rap);
 int findlb(iap_type *iap, const rap_type *rap, integer irs, integer *nfpr, logical *found);
 int readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par);
-int skip3(integer *nskip, logical *eof3);
+int skip3(FILE *fp3, integer *nskip, logical *eof3);
 doublereal rinpr(iap_type *iap, const integer *ndim1, const integer *ndxloc, doublereal *ups, doublereal *vps, doublereal *dtm, doublereal *thu);
 doublereal rnrmsq(iap_type *iap, integer *ndim1, integer *ndxloc, doublereal *ups, doublereal *dtm, doublereal *thu);
 doublereal rintg(iap_type *iap, integer *ndxloc, integer ic, doublereal *ups, doublereal *dtm);
@@ -233,18 +238,18 @@ int faft(doublereal *ff, doublereal *fa, integer *ntst, integer *nrow, integer *
 int partition(integer *n, integer *kwt, integer *m);
 integer mypart(integer *iam, integer *np);
 int setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, integer *ncol, integer *nbc, integer *nint, integer *ncb, integer *nrc, integer *nra, integer *nca, integer *iam, integer *kwt, logical *ipar, FUNI_TYPE((*funi)), BCNI_TYPE((*bcni)), ICNI_TYPE((*icni)), integer *ndxloc, iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *rds, doublereal *fa, doublereal *fc, doublereal *rlcur, doublereal *rlold, doublereal *rldot, doublereal *ups, doublereal *uoldps, doublereal *udotps, doublereal *upoldp, doublereal *dups, doublereal *dtm, doublereal *thl, doublereal *thu, doublereal *p0, doublereal *p1);
-int brbd(doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf);
+int brbd(FILE *fp9, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc, doublereal *p0, doublereal *p1, integer *ifst, integer *idb, integer *nllv, doublereal *det, integer *nov, integer *na, integer *nbc, integer *nra, integer *nca, integer *ncb, integer *nrc, integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *faa, doublereal *ca1, doublereal *s1, doublereal *s2, integer *icf11, integer *ipr, integer *icf1, integer *icf2, integer *irf, integer *icf);
 int setzero(doublereal *fa, doublereal *fc, integer *na, integer *nra, integer *nrc);
 int conrhs(integer *nov, integer *na, integer *nra, integer *nca, doublereal *a, integer *nbc, integer *nrc, doublereal *c, doublereal *fa, doublereal *fc, integer *irf, integer *icf, integer *iam);
 int copycp(integer *iam, integer *kwt, integer *na, integer *nov, integer *nra, integer *nca, doublereal *a, integer *ncb, doublereal *b, integer *nrc, doublereal *c, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, integer *irf);
 int cpyrhs(integer *na, integer *nov, integer *nra, doublereal *faa, doublereal *fa, integer *irf);
 int reduce(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *bb, doublereal *cc, doublereal *dd, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *s1, doublereal *s2, doublereal *ca1, integer *icf1, integer *icf2, integer *icf11, integer *ipr, integer *nbc);
 int redrhs(integer *iam, integer *kwt, logical *par, doublereal *a1, doublereal *a2, doublereal *cc, doublereal *faa, doublereal *fc, integer *na, integer *nov, integer *ncb, integer *nrc, doublereal *ca1, integer *icf1, integer *icf2, integer *icf11, integer *ipr, integer *nbc);
-int dimrge(integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb);
+int dimrge(FILE *fp9, integer *iam, integer *kwt, logical *par, doublereal *e, doublereal *cc, doublereal *d, doublereal *fc, integer *ifst, integer *na, integer *nrc, integer *nov, integer *ncb, integer *idb, integer *nllv, doublereal *fcc, doublereal *p0, doublereal *p1, doublereal *det, doublereal *s, doublereal *a2, doublereal *faa, doublereal *bb);
 int bcksub(integer *iam, integer *kwt, logical *par, doublereal *s1, doublereal *s2, doublereal *a2, doublereal *bb, doublereal *faa, doublereal *fc, doublereal *fcc, doublereal *sol1, doublereal *sol2, doublereal *sol3, integer *na, integer *nov, integer *ncb, integer *icf2);
 int infpar(integer *iam, logical *par, doublereal *a, doublereal *b, doublereal *fa, doublereal *sol1, doublereal *sol2, doublereal *fc, integer *na, integer *nov, integer *nra, integer *nca, integer *ncb, integer *irf, integer *icf);
 int rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc);
-int print1(integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
+int print1(FILE *fp9, integer *nov, integer *na, integer *nra, integer *nca, integer *ncb, integer *nrc, doublereal *a, doublereal *b, doublereal *c, doublereal *d, doublereal *fa, doublereal *fc);
 integer mynode(void);
 integer numnodes(void);
 int csend(void);
@@ -319,7 +324,7 @@ BCNI_TYPE(bcni);
 ICNI_TYPE(icni);
 int fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u, const integer *icp, doublereal *par, integer ijac, doublereal *f, doublereal *dfdu, doublereal *dfdp);
 /* autlib4.c */
-int flowkm(integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev);
+int flowkm(FILE *fp9, integer *ndim, doublereal *c0, doublereal *c1, integer *iid, doublereal *rwork, doublecomplex *ev);
 int dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublereal *beta, doublereal *v);
 int dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublereal *v, integer *job, doublereal *a, integer *lda);
 /* autlib5.c */
@@ -335,10 +340,10 @@ int stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer 
 int stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t);
 PVLI_TYPE_BVP(pvlsho);
 doublereal psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublereal *v, doublereal *vt, const integer *icp, doublereal *par);
-int eighi(integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm);
-int eigho(integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz);
-int prjcti(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm);
-int prjctn(doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp);
+int eighi(const iap_type *iap, integer isign, integer itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm);
+int eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doublereal *ri, doublereal *vret, doublereal *xequib, const integer *icp, doublereal *par, integer *ndm, doublereal *dfdu, doublereal *dfdp, doublereal *zz);
+int prjcti(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer imfd, integer is, integer itrans, integer *ndm);
+int prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer *icp, doublereal *par, integer *imfd, integer *is, integer *itrans, integer *ndm, doublereal *dfdu, doublereal *dfdp);
 /* eispack.c */
 int rg(integer nm, integer n, doublereal *a, doublereal *wr, doublereal *wi, integer matz, doublereal *z__, integer *iv1, doublereal *fv1, integer *ierr);
 int hqr(integer *nm, integer *n, integer *low, integer *igh, doublereal *h__, doublereal *wr, doublereal *wi, integer *ierr);
@@ -378,15 +383,8 @@ int orthes(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, d
 int ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, doublereal *ort, doublereal *z__);
 
 
-/* problem defined functions*/
-int func(integer ndim, const doublereal *u, const integer *icp, 
-	 const doublereal *par, integer ijac, 
-	 doublereal *f, doublereal *dfdu, doublereal *dfdp);
-int stpnt(integer ndim, doublereal t, 
-	  doublereal *u, doublereal *par);
-int bcnd(integer ndim, const doublereal *par, const integer *icp, integer nbc, 
-	 const doublereal *u0, const doublereal *u1, integer ijac,
-	 doublereal *f, doublereal *dbc);
+/* problem defined functions (func, stpnt and bcnd, which run the
+   model, are in the C++ section below) */
 int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint, 
 	 const doublereal *u, const doublereal *uold, const doublereal *udot, 
 	 const doublereal *upold, integer ijac,
@@ -410,6 +408,20 @@ int set_function_pointers(const iap_type,function_list *);
 }
 
 #include <vector>
+namespace xpp {
+struct Session; /* session.h */
+}
+/* the problem defined functions that run the model (autpp.cpp): its
+   right-hand side and Jacobian, the starting point and the boundary
+   conditions, in the Session s whose run this is (iap->lib->session) */
+int func(xpp::Session &s, integer ndim, const doublereal *u, const integer *icp,
+	 const doublereal *par, integer ijac,
+	 doublereal *f, doublereal *dfdu, doublereal *dfdp);
+int stpnt(xpp::Session &s, integer ndim, doublereal t,
+	  doublereal *u, doublereal *par);
+int bcnd(xpp::Session &s, integer ndim, const doublereal *par, const integer *icp, integer nbc,
+	 const doublereal *u0, const doublereal *u1, integer ijac,
+	 doublereal *f, doublereal *dbc);
 /* autlib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
    thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz);

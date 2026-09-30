@@ -431,7 +431,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
             xpp_session_warn("Open session: its windows could not be read");
     }
     if (diagram) {
-        s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count());
+        s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count(s.diagram));
         s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
     }
     s.browser.added_columns = std::move(rest.added);
@@ -502,7 +502,7 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
         return 0;
     }
     entries->push_back({xpp::snapx::set_member, std::move(*set)});
-    if (diagram_count() > 1) xpp::autox::add_members(s, *entries, xpp::snapx::auto_folder); /* a diagram exists */
+    if (diagram_count(s.diagram) > 1) xpp::autox::add_members(s, *entries, xpp::snapx::auto_folder); /* a diagram exists */
     std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, [&s](FILE *fp) { return write_windows(s, fp); });
     std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, [&s](FILE *fp) { return write_marks(s, fp); });
     if (!windows || !marks) {
@@ -603,7 +603,7 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
 {
     if (f.session) return restore_session(s, f);
-    if (diagram_count() > 1) yes_reset_auto(); /* the diagram before goes, with AUTO's files */
+    if (diagram_count(s.diagram) > 1) yes_reset_auto(s); /* the diagram before goes, with AUTO's files */
     return xpp::autox::restore_members(s, f.members, "", f.path);
 }
 

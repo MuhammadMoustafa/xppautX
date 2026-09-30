@@ -345,7 +345,7 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FS: file_inf(s); break;
   case M_FA:
 #ifdef AUTO
-    do_auto_win();
+    do_auto_win(s);
 #endif
     break;
   case M_FC: q_calc(); break;
@@ -480,7 +480,7 @@ void commander(xpp::Session &s, int ch)
     case 'a':
       flash(3);
 #ifdef AUTO
-      do_auto_win();
+      do_auto_win(s);
 #endif
       flash(3);
       break;

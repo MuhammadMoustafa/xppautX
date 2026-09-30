@@ -135,7 +135,7 @@ void setubv_make_aa_bb_cc(const setubv_parallel_arglist *larg)
   /*      Partition the mesh intervals */
   /*jj will be replaced with loop_start and loop_end*/
   for (jj = larg->loop_start; jj < larg->loop_end; ++jj) {
-    if (xpp::session().auto_lib.setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
+    if (larg->iap->lib->setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg->dtm[j];
@@ -408,7 +408,7 @@ void setubv_make_fa(const setubv_parallel_arglist &larg) {
   std::vector<doublereal> prm(NPARX);
 
   for (jj = 0; jj < larg.na; ++jj) {
-    if (xpp::session().auto_lib.setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
+    if (larg.iap->lib->setubv_stop && xpp_job_cancelled()) break; /* xppautX: cancel */
     j = jj;
     jp1 = j + 1;
     dt = larg.dtm[j];

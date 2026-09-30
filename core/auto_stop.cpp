@@ -27,10 +27,10 @@ double last_value = NAN, last_limit = NAN;
 std::string last_text;
 
 /* the continuation parameter as the text names it */
-std::string par_name(long ipar)
+std::string par_name(const xpp::Session &s, long ipar)
 {
     if (ipar == AUTO_PERIOD_INDEX) return "the period T";
-    const char *name = ipar >= 0 && ipar < xpp::session().auto_state.npar ? auto_par_name(static_cast<int>(ipar)) : nullptr;
+    const char *name = ipar >= 0 && ipar < s.auto_state.npar ? auto_par_name(s, static_cast<int>(ipar)) : nullptr;
     return name ? std::string("parameter ") + name : std::string("the parameter");
 }
 
@@ -38,16 +38,16 @@ std::string par_name(long ipar)
 std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : std::string("?"); }
 
 /* the reason in words, and what reached which limit */
-std::string describe(int why, const AutoStopAt &at, double &value, double &limit)
+std::string describe(const xpp::Session &s, int why, const AutoStopAt &at, double &value, double &limit)
 {
     value = limit = NAN;
     switch (why) {
     case AUTO_STOP_PAR_MIN:
         value = at.par, limit = at.rl0;
-        return par_name(at.ipar) + " reached Par Min (" + num(at.rl0) + ")";
+        return par_name(s, at.ipar) + " reached Par Min (" + num(at.rl0) + ")";
     case AUTO_STOP_PAR_MAX:
         value = at.par, limit = at.rl1;
-        return par_name(at.ipar) + " reached Par Max (" + num(at.rl1) + ")";
+        return par_name(s, at.ipar) + " reached Par Max (" + num(at.rl1) + ")";
     case AUTO_STOP_NORM_MIN:
         value = at.norm, limit = at.a0;
         return "the norm reached Norm Min (" + num(at.a0) + ")";
@@ -61,7 +61,7 @@ std::string describe(int why, const AutoStopAt &at, double &value, double &limit
         return "by the user (Stop)";
     case AUTO_STOP_MARK:
         value = at.par;
-        return par_name(at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
+        return par_name(s, at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
     case AUTO_STOP_NOCONV_FIXED:
         value = noconv_ds;
         return "no convergence with a fixed step size (IADS 0)";
@@ -105,25 +105,6 @@ int auto_stop_why(const AutoStopAt *at)
     return AUTO_STOP_USER; /* byeauto's iflag without a cancel: an X11-style abort */
 }
 
-void auto_stop_branch_end(const AutoStopAt *at)
-{
-    try {
-        const int why = auto_stop_why(at);
-        double value, limit;
-        std::string text = describe(why, *at, value, limit);
-        last_why = why;
-        last_br = std::labs(at->br);
-        last_pt = std::labs(at->pt);
-        last_value = value;
-        last_limit = limit;
-        last_text = std::move(text);
-        xpp_log_auto("Branch %ld stopped at point %ld: %s\n", last_br, last_pt, last_text.c_str());
-    } catch (...) {
-        last_why = AUTO_STOP_NONE;
-    }
-    noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
-}
-
 void auto_stop_clear(void)
 {
     last_why = AUTO_STOP_NONE;
@@ -145,3 +126,23 @@ void auto_stop_last(AutoStopInfo *out)
 const char *auto_stop_key(int why) { return why >= 0 && why < AUTO_STOP_N ? keys[why] : nullptr; }
 
 } // extern "C"
+
+void auto_stop_branch_end(const xpp::Session &s, const AutoStopAt *at)
+{
+    try {
+        const int why = auto_stop_why(at);
+        double value, limit;
+        std::string text = describe(s, why, *at, value, limit);
+        last_why = why;
+        last_br = std::labs(at->br);
+        last_pt = std::labs(at->pt);
+        last_value = value;
+        last_limit = limit;
+        last_text = std::move(text);
+        xpp_log_auto("Branch %ld stopped at point %ld: %s\n", last_br, last_pt, last_text.c_str());
+    } catch (...) {
+        last_why = AUTO_STOP_NONE;
+    }
+    noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
+}
+

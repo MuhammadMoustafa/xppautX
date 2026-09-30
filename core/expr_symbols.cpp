@@ -653,12 +653,7 @@ int set_val(xpp::Session &s, std::string_view name, double value)
 }
 
 /* the lookups above in the current Session: entry points for the
-   integrator, AUTO and the front end (W47d5-6) */
-int get_param_index(std::string_view name)
-{
-  return get_param_index(xpp::session(),name);
-}
-
+   front end (W47d6) */
 int get_val(std::string_view name, double *value)
 {
   return get_val(xpp::session(),name,value);
