@@ -758,10 +758,15 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   what a load produces belongs to `xpp::Model` (core/model.h, from W46c),
   what a run changes to `xpp::Session`, passed as `Model&`/`Session&`
   (W47a-d in docs/roadmap.md took the ~500 globals there in stages; 21
-  process-wide ones are left). Until W47d, `xpp::model()` and
+  process-wide ones are left). Until W47d6, `xpp::model()` and
   `xpp::session()` (inline: the right-hand side reads them every step;
   a hot loop takes `xpp::Model &m=xpp::model()` once) are the current
-  ones. A load (`xpp::Load` in xpp_load_model, core/session.h) builds a
+  ones. Since W47d1 a command's Session is chosen once, by ui_json.cpp's
+  handle_line, and passed down (`run(Session&, line)`, `commander`,
+  `run_the_commands`); a Session knows its Model (`s.model()`). New code
+  takes `Session&`/`Model&` from its caller; only the entry points the
+  W47d stages have not reached yet (docs/roadmap.md W47d2-6) read the
+  current ones, once, at their top. A load (`xpp::Load` in xpp_load_model, core/session.h) builds a
   fresh Model and Session and keeps them only when it finishes: a parse
   error's `xpp_model_failed` throws `xpp::LoadFailed`, and the Model and
   Session before are current again, untouched (W47c). A value nothing writes after initialization is
