@@ -190,8 +190,7 @@ xpp::Result<> one_step_int(double *y, double t0, double t1, int *istart)
   if(solver.traits().discrete){
     int nit=fabs(t0-t1);
     dt=dt/fabs(dt);
-    solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
-    return {};
+    return solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
   }
   int nit=static_cast<int>((t1-t0)/dt);
   r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.dt=dt,.steps=nit});
