@@ -154,12 +154,14 @@ export interface RunsEvent {
 }
 
 /** AUTO's diagram display (docs/protocol.md "Display state"): the branches before `earlier`
-    are those computed before Clear, `show`n or not, and the zoom shown */
+    are those computed before Clear, `show`n or not, the active view and each view's zoom (W50) */
 export interface AutoViewEvent {
   ev: 'autoview';
   earlier: number;
   show?: number;
-  zoom?: {x: [number, number] | null; y: [number, number] | null};
+  active?: number;
+  /** one per view; a `zoom` absent while a change of the page's is on its way (session.ts) */
+  views?: {zoom?: {x: [number, number] | null; y: [number, number] | null}}[];
 }
 
 /** every plot window and the active one */

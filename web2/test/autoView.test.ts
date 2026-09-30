@@ -7,7 +7,7 @@ import {axesNames, boundText, spinStep, typedRange, yNeeds} from '../src/plot/ax
 import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/autoStatus';
 import {buildDiagramModel, labelShape, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
 import {placeLabels} from '../src/plot/labelPlace';
-import {branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
+import {activeView, branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
 import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
 import {menuRows} from '../src/ui/menuLayout';
@@ -24,37 +24,37 @@ const periodic: DiagramRun[] = [
   {br: 2, pt: 1, ty: 4, d: 3, c: 28, lw: 1, new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
     lab: [[2, 3, 'LP']]},
 ];
-const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', op: 'add', from, runs});
+const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
 
 function opened(): AppState {
   const s = ev(initialState, {ev: 'window', op: 'create', win: 101, w: 687, h: 352});
-  return ev(s, {ev: 'diagram', op: 'axes', ...axes});
+  return ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
 }
 
 test('a run: its clock, what it computed, its last label, how it ended', () => {
   let s = act(opened(), {type: 'run', op: 'start', at: 1000});
   const flags = {asking: false, stopping: false};
-  let st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 1500, {...flags, asking: true});
+  let st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 1500, {...flags, asking: true});
   assert.equal(st.phase, 'starting');
   s = act(s, {type: 'run', op: 'clock', at: 2000});
   s = ev(s, add(0, steady));
-  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags);
+  st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, flags);
   assert.equal(st.phase, 'running');
   assert.equal(st.text, 'Running: steady states');
   assert.deepEqual([st.branch, st.point, st.points, st.label, st.elapsed], [1, 5, 5, 'HB 2 (Hopf) at point 4', 500]);
-  assert.equal(runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, {...flags, stopping: true}).text, 'Stopping…');
+  assert.equal(runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, {...flags, stopping: true}).text, 'Stopping…');
   s = act(s, {type: 'run', op: 'end', at: 4000});
-  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 9999, flags);
+  st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.elapsed], ['done', 'Done: steady states', 2000]);
   /* the next run counts only its own points; a `stopped` event makes it "Stopped" */
   s = act(s, {type: 'run', op: 'start', at: 5000});
   s = ev(s, add(5, periodic));
   s = ev(s, {ev: 'stopped', at: {what: 'auto', branch: 2, point: 3}});
   s = act(s, {type: 'run', op: 'end', at: 6000});
-  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 9999, flags);
+  st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 9999, flags);
   assert.deepEqual([st.phase, st.text, st.points, st.branch, st.label], ['stopped', 'Stopped: periodic orbits', 3, 2,
     'LP 3 (Fold (limit point)) at point 3']);
-  assert.equal(runStatus(null, s.diagram.points, s.diagram.labels, 0, flags).text, 'Idle');
+  assert.equal(runStatus(null, activeView(s.diagram).points, activeView(s.diagram).labels, 0, flags).text, 'Idle');
 });
 
 test('T23: an ended run says why its last branch ended, from autoinfo stop', () => {
@@ -65,20 +65,20 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
   assert.deepEqual(s.diagram.stop, stop);
   const flags = {asking: false, stopping: false};
   /* while it runs, the reason of a branch before is not the run's end */
-  let st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 1500, flags, s.diagram.stop);
+  let st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 1500, flags, s.diagram.stop);
   assert.equal(st.text, 'Running: steady states');
   s = act(s, {type: 'run', op: 'end', at: 2000});
-  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags, s.diagram.stop);
+  st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, flags, s.diagram.stop);
   assert.deepEqual([st.phase, st.text, st.detail, st.why], ['done', 'Stopped: parameter iapp reached Par Max (0.3)',
     'steady states', 'parmax']);
-  assert.equal(stopPoint(s.diagram.run, s.diagram.points, s.diagram.stop), 4);
+  assert.equal(stopPoint(s.diagram.run, activeView(s.diagram).points, s.diagram.stop), 4);
   /* a reason that names no point of this run (an older one) is not shown */
-  st = runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 2500, flags, {...stop, br: 3});
+  st = runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 2500, flags, {...stop, br: 3});
   assert.equal(st.text, 'Done: steady states');
   /* a run that computed nothing has no reason either */
   s = act(s, {type: 'run', op: 'start', at: 3000});
   s = act(s, {type: 'run', op: 'end', at: 3500});
-  assert.equal(runStatus(s.diagram.run, s.diagram.points, s.diagram.labels, 4000, flags, s.diagram.stop).text, 'Done');
+  assert.equal(runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 4000, flags, s.diagram.stop).text, 'Done');
   /* the line the core writes in Output is AUTO's */
   assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'auto');
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
@@ -117,18 +117,18 @@ test('Clear hides the branches so far; new ones draw alone; the key shows them a
   let s = ev(opened(), add(0, steady));
   s = act(s, {type: 'clear'});
   assert.equal(earlierCount(s.diagram), 5);
-  assert.equal(branchesBefore(s.diagram.points, 5), 1);
+  assert.equal(branchesBefore(activeView(s.diagram).points, 5), 1);
   s = ev(s, add(5, periodic));
-  const hidden = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes, earlierCount(s.diagram));
+  const hidden = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes, earlierCount(s.diagram));
   assert.ok(hidden.curves.every(c => c.branch === 2));
   assert.deepEqual(hidden.labels.map(l => l.sym), ['LP']);
   /* the periodic branch still starts at its Hopf point, which is hidden with its branch */
   assert.equal(hidden.hopf.length, 1);
-  const all = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes, 0);
+  const all = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes, 0);
   assert.ok(all.curves.some(c => c.branch === 1));
   /* a redraw in other quantities keeps them hidden (the core's Clear count survives the blank between
      the clear and the redraw); a diagram emptied (Reset diagram) has none left: the core says so */
-  s = ev(s, {ev: 'diagram', op: 'reset', keep: 0, ...axes});
+  s = ev(s, {ev: 'diagram', view: 0, op: 'reset', keep: 0, ...axes});
   s = ev(s, {ev: 'idle'});
   assert.equal(s.diagram.earlier, 5);
   s = ev(s, {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}});

@@ -30,7 +30,7 @@ export function installTestHook(session: Session): void {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
     if (actions.length > KEEP) actions.shift();
     if (a.type === 'event' && a.ev.ev === 'diagram') {
-      if (a.ev.op === 'reset' && !a.ev.keep) diagramEvents = [];
+      if (a.ev.op === 'reset' && !a.ev.keep && !a.ev.view) diagramEvents = [];
       diagramEvents.push(a.ev);
     } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.win === 101 && a.ev.op === 'destroy') diagramEvents = [];
     if (a.type === 'sent') {
@@ -51,8 +51,9 @@ export function installTestHook(session: Session): void {
     sent: () => sent.slice(),
     /** window `win`'s chart (the active window's by default) */
     plot: (win?: number) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
-    /** the AUTO diagram's chart: its curves, label marks and ranges (null while AUTO is not shown) */
-    diagram: () => diagramChart()?.info() ?? null,
+    /** view `view` of the AUTO diagram's chart (the active view's by default): its curves, label
+        marks and ranges (null while AUTO is not shown) */
+    diagram: (view?: number) => diagramChart(view ?? session.store.getState().diagram.active)?.info() ?? null,
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),
     send: (cmd: {cmd: string}) => session.send(cmd),

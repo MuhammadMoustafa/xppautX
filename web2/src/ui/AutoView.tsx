@@ -33,6 +33,15 @@
    branch, point, kind, label and values. AUTO's own hotkeys (A, N, G, R, D,
    C, U, P, F, as on its X11 window) work while the focus is in the view.
 
+   W50: the one diagram has any number of views (store/diagram.ts), side by
+   side and wrapping to a new row when narrow, each with its own axes, zoom,
+   key and axis names, a title and a close button while there are two or
+   more (the last one stays); a press in one makes it the active view (the
+   core's: AUTO's Axes menu, its zoom and a run go by it; the menu's New
+   view adds one with its axes). Every view marks the point under the mouse
+   and a grab's cursor: a point's index is the same in all of them, so a
+   grab takes a point from any view.
+
    T11b: the core's asks on the diagram are answered here. Grab is a mode of
    the diagram: the arrow keys, [ ], Page Up and Down, Home and End move its
    cursor from point to point, Tab and Shift+Tab from label to label, Enter
@@ -56,8 +65,9 @@ import type {Ranges} from '../plot/viewmath';
 import {HELP} from '../help/links';
 import type {AutoOp, Session} from '../session';
 import {pendingFields} from '../store/autoSettings';
-import {AUTO_WIN as WIN, pointCount, type DiagramHover} from '../store/diagram';
-import {branchesBefore, earlierCount} from '../store/diagram';
+import {activeView, AUTO_WIN as WIN, EMPTY_VIEW, pointCount, type DiagramHover, type DiagramView} from '../store/diagram';
+import {branchesBefore} from '../store/diagram';
+import type {AppState} from '../store/state';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
 import {AutoSettingsDialog, type AutoSettingsDialogKind} from './AutoSettings';
 import {AutoInfo} from './AutoInfo';
@@ -75,6 +85,7 @@ const BUTTONS: [string, AutoOp][] = [
 ];
 /** the view's own words for a button, over the core's hint */
 const TITLES: Partial<Record<AutoOp, string>> = {
+  axes: "The active view's axes: what they plot, zoom, Fit, and New view (another view of the diagram)",
   clear: 'Hide the branches computed so far: new runs draw alone (the key shows them again)',
   param: 'The parameters AUTO can continue in',
   numerics: "AUTO's numerical settings: mesh, steps, limits, tolerances",
@@ -88,11 +99,15 @@ const PENDING_OF: Record<AutoSettingsDialogKind, (field: string) => boolean> = {
 
 const KEYS_HELP = 'Arrow keys pan, plus and minus zoom, 0 resets, Control Z undoes a zoom, square brackets and Page Up '
   + 'or Down step through the points of a branch, braces change the branch, less than and greater than go from '
-  + 'label to label, Escape clears the readout. The letters of the buttons run them.';
+  + 'label to label, Escape clears the readout. The letters of the buttons run them. A click in a view makes it '
+  + "the active one, which AUTO's Axes menu changes.";
 
 function setHover(session: Session, hover: DiagramHover | null): void {
   session.store.dispatch({type: 'diagram', action: {type: 'hover', hover}});
 }
+
+/** view k of the store's diagram (an empty one for a view that has just gone) */
+const viewOf = (s: AppState, k: number): DiagramView => s.diagram.views[k] ?? EMPTY_VIEW;
 
 const GRAB_PX = 48; /* how far from a point a click or a tap still takes it */
 
@@ -102,17 +117,18 @@ function activePick(session: Session) {
   return p && !p.waiting && p.win === WIN ? p : null;
 }
 
-/** the diagram's pointer events: the plot modes' (Axes/Zoom, Axes/Scroll),
-    and a grab's, where a release takes the nearest point */
-function autoSink(session: Session, chart: () => DiagramChart | null, model: () => DiagramModel): PickSink {
+/** a view's pointer events: the plot modes' (Axes/Zoom, Axes/Scroll: the active view's), and a
+    grab's, where a release takes the nearest point (in any view: a point's index is the same in all) */
+function autoSink(session: Session, active: () => boolean, chart: () => DiagramChart | null, model: () => DiagramModel): PickSink {
   const picks = pickSink(session, WIN, chart);
   const grabbing = () => session.store.getState().diagram.grabbing;
+  const mode = () => (active() ? picks.mode() : null);
   return {
-    mode: () => picks.mode() ?? (grabbing() ? 'point' : null),
-    press(at) { if (picks.mode()) picks.press(at); },
-    drag(at) { if (picks.mode()) picks.drag(at); },
+    mode: () => mode() ?? (grabbing() ? 'point' : null),
+    press(at) { if (mode()) picks.press(at); },
+    drag(at) { if (mode()) picks.drag(at); },
     release(at) {
-      if (picks.mode()) {
+      if (mode()) {
         picks.release(at);
         return;
       }
@@ -122,7 +138,7 @@ function autoSink(session: Session, chart: () => DiagramChart | null, model: () 
       const point = hit ? model().curves[hit.curve]?.idx[hit.index] : undefined;
       if (point !== undefined) session.grabPoint(point, true);
     },
-    hover(at) { if (picks.mode()) picks.hover(at); },
+    hover(at) { if (mode()) picks.hover(at); },
   };
 }
 
@@ -169,44 +185,36 @@ function legendOf(m: DiagramModel): {text: string; color: number; dashed: boolea
   return [...seen.values()];
 }
 
-function AutoPanel({dark}: {dark: boolean}) {
+/** what a view plots, in words */
+const whatOf = (v: DiagramView) => (v.axes ? `${v.axes.ylabel} against ${v.axes.xlabel}` : '');
+
+/** one view of the diagram (W50): its title (its axes, and a close button while it is not the only
+    one), its key and view tools, its chart and axis names. A click in it makes it the active view. */
+function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const session = useSession();
-  const points = useStore(s => s.diagram.points);
-  const labels = useStore(s => s.diagram.labels);
-  const axes = useStore(s => s.diagram.axes);
-  const viewport = useStore(s => s.diagram.viewport);
+  const points = useStore(s => viewOf(s, view).points);
+  const labels = useStore(s => viewOf(s, view).labels);
+  const axes = useStore(s => viewOf(s, view).axes);
+  const viewport = useStore(s => viewOf(s, view).viewport);
+  const active = useStore(s => s.diagram.active === view);
+  const views = useStore(s => s.diagram.views.length);
   const hover = useStore(s => s.diagram.hover);
   const busy = useStore(s => s.computing);
-  const layer = useStore(s => s.hello?.windows?.auto);
-  /* a button that opens the page's own form works during a run too (its edits wait); the others
-     by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
-  const mayKey = useMayKey();
-  const off = (op: AutoOp) => !SETTINGS_DIALOG[op] && !mayKey('auto', op);
   const grabbing = useStore(s => s.diagram.grabbing);
   const info = useStore(s => s.diagram.info);
-  const stored = useStore(s => (s.diagram.axes?.plot === 4 ? s.diagram.stored : null));
-  const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
-  const earlier = useStore(s => earlierCount(s.diagram));
-  const run = useStore(s => s.diagram.run);
-  const stop = useStore(s => s.diagram.stop);
+  const stored = useStore(s => (viewOf(s, view).axes?.plot === 4 ? s.diagram.stored : null));
+  const pick = useStore(s => (s.diagram.active === view && s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
+  const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
-  const pending = pendingFields(useStore(s => s.autoSettings));
-  /* a button: its form (T22), else its command */
-  const act = (op: AutoOp) => {
-    const kind = SETTINGS_DIALOG[op];
-    if (kind) setSettingsOpen(kind);
-    else session.autoOp(op);
-  };
   /* the chart's area moved (a resize, a new model): the axis names follow */
   const [, setArea] = useState(0);
-  const settingsInput = useRef<HTMLInputElement>(null);
-  const panel = useRef<HTMLElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<DiagramChart | null>(null);
   /** the curve the readout's point was last found on (a point can be on two) */
   const hint = useRef(-1);
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   const hidden = showEarlier ? 0 : earlier;
   const model = useMemo(() => buildDiagramModel(points, labels, axes, hidden), [points, labels, axes, hidden]);
@@ -218,28 +226,28 @@ function AutoPanel({dark}: {dark: boolean}) {
   const hoverVertex = (curve: number, index: number) => {
     const c = modelRef.current.curves[curve];
     if (!c || index < 0 || index >= c.idx.length) return;
-    const point = c.idx[index], p = session.store.getState().diagram.points;
+    const point = c.idx[index], p = viewOf(session.store.getState(), view).points;
     hint.current = curve;
-    setHover(session, {point, low: c.which === 'y2' && p.y2[point] !== p.y[point]});
+    setHover(session, {point, low: c.which === 'y2' && p.y2[point] !== p.y[point], view});
   };
 
   useEffect(() => {
     const c = new DiagramChart(host.current!, {
-      onViewport: viewport => session.setDiagramViewport(viewport),
+      onViewport: v => session.setDiagramViewport(view, v),
     });
     let detach = () => {};
     c.onArea = area => {
       detach();
       const off = attachGestures(c, area, {hover: hoverVertex, leave: () => setHover(session, null)},
-        autoSink(session, () => chart.current, () => modelRef.current));
-      /* a click (not a box) on a two-parameter diagram stores the point for AUTO's File/sElect 2par pt */
+        autoSink(session, () => activeRef.current, () => chart.current, () => modelRef.current));
+      /* a click (not a box) on a two-parameter view stores the point for AUTO's File/sElect 2par pt */
       let down: {x: number; y: number} | null = null;
       const onDown = (e: MouseEvent) => { down = e.button === 0 && !e.shiftKey ? {x: e.clientX, y: e.clientY} : null; };
       const onClick = (e: MouseEvent) => {
         const st = session.store.getState(), at = down;
         down = null;
         if (!at || Math.hypot(e.clientX - at.x, e.clientY - at.y) > 4) return;
-        if (st.diagram.axes?.plot !== 4 || st.diagram.grabbing || st.pick || st.ask || st.busy) return;
+        if (viewOf(st, view).axes?.plot !== 4 || st.diagram.grabbing || st.pick || st.ask || st.busy) return;
         const r = area.getBoundingClientRect();
         const d = toData(c.ranges(), {fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height});
         session.autoPoint(d.x, d.y);
@@ -253,7 +261,7 @@ function AutoPanel({dark}: {dark: boolean}) {
       };
     };
     chart.current = c;
-    setDiagramChart(c);
+    setDiagramChart(view, c);
     const ro = new ResizeObserver(() => {
       if (host.current?.clientWidth) c.resize();
       setArea(n => n + 1);
@@ -262,13 +270,13 @@ function AutoPanel({dark}: {dark: boolean}) {
     return () => {
       ro.disconnect();
       detach();
-      setDiagramChart(null);
+      setDiagramChart(view, null, c);
       c.destroy();
     };
-  }, [session]);
+  }, [session, view]);
 
   useEffect(() => {
-    chart.current!.set(model, core, session.store.getState().diagram.viewport, dark);
+    chart.current!.set(model, core, viewOf(session.store.getState(), view).viewport, dark);
     setArea(n => n + 1);
   }, [model, core, dark]);
 
@@ -276,21 +284,21 @@ function AutoPanel({dark}: {dark: boolean}) {
     chart.current!.applyViewport(viewport);
   }, [viewport]);
 
-  /* the focus moves in when the panel appears, so AUTO's keys work at once */
+  /* the focus moves into the active view when the panel appears, so AUTO's keys work at once */
   useEffect(() => {
-    if (!session.store.getState().ask) host.current?.focus({preventScroll: true});
+    if (activeRef.current && !session.store.getState().ask) host.current?.focus({preventScroll: true});
   }, []);
 
-  /* a grab or a plot mode takes the focus, so its keys work at once (A3) */
+  /* a grab or a plot mode takes the focus to the active view, so its keys work at once (A3) */
   useEffect(() => {
-    if (grabbing || pick) host.current?.focus({preventScroll: true});
-  }, [grabbing, pick?.ask]);
+    if (active && (grabbing || pick)) host.current?.focus({preventScroll: true});
+  }, [grabbing, pick?.ask, active]);
 
   /* the readout follows the grab's cursor */
   useEffect(() => {
-    if (grabbing && info && info.point >= 0 && info.point < pointCount(points)) {
+    if (active && grabbing && info && info.point >= 0 && info.point < pointCount(points)) {
       hint.current = -1;
-      setHover(session, {point: info.point, low: false});
+      setHover(session, {point: info.point, low: false, view});
     }
   }, [grabbing, info]);
 
@@ -306,16 +314,17 @@ function AutoPanel({dark}: {dark: boolean}) {
       }
       return true;
     }
-    const to = grabStep(e.key, e.shiftKey, st.diagram.info?.point ?? -1, pointCount(st.diagram.points), st.diagram.labels);
+    const v = viewOf(st, view);
+    const to = grabStep(e.key, e.shiftKey, st.diagram.info?.point ?? -1, pointCount(v.points), v.labels);
     if (to === null) return false;
     if (ask) session.grabPoint(to);
     return true; /* a step while the last one is answered is dropped: the cursor is the core's */
   };
 
-  /* a plot mode's keys (Axes/Zoom's box, Axes/Scroll's drag), as on the plot */
+  /* a plot mode's keys (Axes/Zoom's box, Axes/Scroll's drag), as on the plot: the active view's */
   const pickKeyDown = (e: KeyboardEvent): boolean => {
     const c = chart.current, p = activePick(session);
-    if (!c || !p || e.ctrlKey || e.metaKey || e.altKey) return false;
+    if (!c || !p || !activeRef.current || e.ctrlKey || e.metaKey || e.altKey) return false;
     const r = pickKey(p, e.key, e.shiftKey);
     if (!r) return false;
     if ('pick' in r) session.movePick(r.pick);
@@ -339,14 +348,14 @@ function AutoPanel({dark}: {dark: boolean}) {
     }
     if (!c || e.altKey) return;
     const h = session.store.getState().diagram.hover;
-    const at = h ? vertexOf(m, h.point, h.low, hint.current) : null;
+    const at = h ? vertexOf(m, h.point, h.low, h.view === view ? hint.current : -1) : null;
     if ((e.key === '<' || e.key === '>') && !e.ctrlKey && !e.metaKey) {
       const next = stepLabel(labels, h ? h.point : -1, e.key === '>' ? 1 : -1);
       if (next === null) return;
       e.preventDefault();
       e.stopPropagation();
       hint.current = -1;
-      setHover(session, {point: next, low: false});
+      setHover(session, {point: next, low: false, view});
       return;
     }
     const key = e.ctrlKey || e.metaKey ? '' : e.key;
@@ -359,6 +368,180 @@ function AutoPanel({dark}: {dark: boolean}) {
     else if (r.hover) hoverVertex(r.hover.curve, r.hover.index);
     else setHover(session, null);
   };
+
+  /* a press anywhere in the view makes it the active one (not while the core asks: a grab takes
+     its point from any view, a plot mode is the active view's) */
+  const onPress = () => {
+    const st = session.store.getState();
+    if (!st.ask && !st.pick) session.activateView(view);
+  };
+
+  const at = hover ? vertexOf(model, hover.point, hover.low, hover.view === view ? hint.current : -1) : null;
+  const marker = at && chart.current ? chart.current.position(at.curve, at.index) : null;
+  /* the grab's cursor: the point in this view's own data (the same index everywhere); the core's
+     place for it in the active view when the data do not have it */
+  const cursorAt = !grabbing || !info ? null
+    : info.point >= 0 && info.point < pointCount(points) ? {x: points.x[info.point], y: points.y[info.point]}
+      : active ? {x: info.x ?? NaN, y: info.y ?? NaN} : null;
+  const cursor = cursorAt && Number.isFinite(cursorAt.x) && Number.isFinite(cursorAt.y) && chart.current
+    ? chart.current.place(cursorAt.x, cursorAt.y) : null;
+  const storedAt = stored && chart.current ? chart.current.place(stored.x, stored.y) : null;
+  const zoomed = viewport.x !== null || viewport.y !== null;
+  const empty = !model.curves.length;
+  const what = whatOf({axes, points, labels, viewport});
+  const label = empty ? `AUTO diagram${views > 1 ? `, view ${view + 1}` : ''}, no branches yet`
+    : `AUTO diagram of ${what}${views > 1 ? ` (view ${view + 1})` : ''}: `
+      + `${new Set(model.curves.map(c => c.branch)).size} branches, ${pointCount(points)} points, ${labels.length} labelled points`;
+  const nEarlier = earlier ? branchesBefore(points, earlier) : 0;
+
+  const area = chart.current?.areaBox() ?? null;
+  const axisButton = (which: AxisName, text: string) => (
+    <button class={`auto-axis-name auto-axis-${which}`} aria-haspopup="dialog" aria-expanded={axisOpen === which}
+      data-axis={which} title={`Change the ${which === 'x' ? 'horizontal' : 'vertical'} axis: what it plots and its range`}
+      onKeyDown={e => e.stopPropagation()}
+      onClick={() => setAxisOpen(axisOpen === which ? null : which)}
+      style={which === 'x'
+        ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
+        : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
+      {text || (which === 'x' ? 'x axis' : 'y axis')}
+    </button>
+  );
+  const closeAxis = () => {
+    const which = axisOpen;
+    setAxisOpen(null);
+    host.current?.querySelector<HTMLElement>(`.auto-axis-name[data-axis="${which}"]`)?.focus();
+  };
+
+  return (
+    <section class={'auto-pane' + (active ? ' active' : '')} data-view={view} aria-current={active ? 'true' : undefined}
+      aria-label={`View ${view + 1}${what ? `: ${what}` : ''}${active ? ' (active)' : ''}`} onPointerDownCapture={onPress}
+      onFocusCapture={onPress}>
+      <header class="plot-bar auto-pane-bar">
+        {views > 1 && (
+          <h3 class="auto-pane-title" title={active ? 'The active view: AUTO\'s Axes menu changes it' : 'Click to make it the active view'}>
+            {what || `View ${view + 1}`}
+          </h3>
+        )}
+        <ul class="auto-legend" aria-label="Key">
+          {legendOf(model).map(l => (
+            <li key={`${l.text}/${l.color}`}>
+              <span class={'auto-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
+                style={{borderColor: paletteColor(l.color, dark)}} />
+              {l.text}
+            </li>
+          ))}
+          {labelTypes(model.labels).map(sym => {
+            const shape = labelShape(sym);
+            return (
+              <li key={sym} class="auto-legend-label" data-sym={sym} data-shape={shape} title={symbolHelp(sym)}>
+                <span class={`auto-label-mark auto-label-mark-${shape}`} aria-hidden="true">{LABEL_GLYPH[shape]}</span>
+                <b>{sym}</b> {symbolName(sym)}
+              </li>
+            );
+          })}
+          {earlier > 0 && (
+            <li>
+              <button class={'small auto-earlier' + (showEarlier ? ' active' : '')} aria-pressed={showEarlier}
+                title={showEarlier ? 'Hide the branches computed before Clear' : 'Show the branches computed before Clear'}
+                onClick={() => session.setShowEarlier(!showEarlier)}>
+                Earlier branches ({nEarlier})
+              </button>
+            </li>
+          )}
+        </ul>
+        <div class="plot-tools">
+          <button disabled={!zoomed} onClick={() => chart.current!.reset()}
+            title="Back to AUTO's axes (double click, or 0 on the diagram)">Reset view</button>
+          <button disabled={empty} onClick={() => chart.current!.fit()}
+            title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
+            Fit
+          </button>
+          {views > 1 && (
+            <button class="auto-pane-close" aria-label={`Close view ${view + 1}`}
+              title="Close this view of the diagram (the diagram stays, and so do the other views)"
+              onClick={() => session.closeView(view)}>×</button>
+          )}
+        </div>
+      </header>
+      <div class={'plot-host auto-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
+        ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
+        aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
+          : pick ? 'pick-instruction auto-keys-help' : 'auto-keys-help'}>
+        {!empty && (
+          <FitButton onClick={() => chart.current!.fit()}
+            title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)" />
+        )}
+        {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
+        {cursor && <span class="auto-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
+        {storedAt && (
+          <span class="auto-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
+            title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
+        )}
+        {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
+        {area && axes && axisButton('x', axes.xlabel)}
+        {area && axes && axisButton('y', axes.ylabel)}
+        {empty && (
+          <div class="plot-empty auto-empty">
+            <p>{busy ? 'AUTO is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>
+          </div>
+        )}
+      </div>
+      {axisOpen && <AutoAxisDialog key={axisOpen} axis={axisOpen} view={view} onClose={closeAxis} />}
+    </section>
+  );
+}
+
+/** what the readout says: the point under the mouse, in the view it is on */
+function Readout() {
+  const hover = useStore(s => s.diagram.hover);
+  const v = useStore(s => viewOf(s, s.diagram.hover?.view ?? s.diagram.active));
+  const activePoints = useStore(s => activeView(s.diagram).points);
+  const run = useStore(s => s.diagram.run);
+  const stop = useStore(s => s.diagram.stop);
+  const stopAt = stopPoint(run, activePoints, stop);
+  const said = hover && hover.point < pointCount(v.points)
+    ? describePoint(v.points, v.labels, v.axes, hover.point, stopAt >= 0 && stop && !run?.active ? {point: stopAt, text: stop.text} : null)
+    : null;
+  return (
+    <footer class="readout auto-readout" role="status" aria-live="polite">
+      {said ? (
+        <span>
+          <b>{said.head}</b> · {said.kind}
+          {said.label && <> · <b class="auto-label">{said.label}</b></>}
+          {said.values.map(v => <span key={v}> · {v}</span>)}
+        </span>
+      ) : (
+        <span class="muted">
+          <span class="hint-mouse">Drag to zoom · wheel zooms · Shift+drag pans · double click resets · &lt; &gt; step through the labels</span>
+          <span class="hint-touch">Pinch zooms · drag pans · tap a point to read it</span>
+        </span>
+      )}
+    </footer>
+  );
+}
+
+function AutoPanel({dark}: {dark: boolean}) {
+  const session = useSession();
+  const layer = useStore(s => s.hello?.windows?.auto);
+  /* a button that opens the page's own form works during a run too (its edits wait); the others
+     by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
+  const mayKey = useMayKey();
+  const off = (op: AutoOp) => !SETTINGS_DIALOG[op] && !mayKey('auto', op);
+  const grabbing = useStore(s => s.diagram.grabbing);
+  const stored = useStore(s => s.diagram.stored);
+  const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
+  const views = useStore(s => s.diagram.views.length);
+  const what = useStore(s => whatOf(activeView(s.diagram)));
+  const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
+  const pending = pendingFields(useStore(s => s.autoSettings));
+  /* a button: its form (T22), else its command */
+  const act = (op: AutoOp) => {
+    const kind = SETTINGS_DIALOG[op];
+    if (kind) setSettingsOpen(kind);
+    else session.autoOp(op);
+  };
+  const settingsInput = useRef<HTMLInputElement>(null);
+  const panel = useRef<HTMLElement>(null);
 
   /* keys anywhere in the panel: AUTO's hotkeys (not from a control), Escape hides it */
   const onPanelKey = (e: KeyboardEvent) => {
@@ -383,47 +566,12 @@ function AutoPanel({dark}: {dark: boolean}) {
     }
   };
 
-  const at = hover ? vertexOf(model, hover.point, hover.low, hint.current) : null;
-  const marker = at && chart.current ? chart.current.position(at.curve, at.index) : null;
-  const cursor = grabbing && info && info.x !== null && info.y !== null && chart.current
-    ? chart.current.place(info.x, info.y) : null;
-  const storedAt = stored && chart.current ? chart.current.place(stored.x, stored.y) : null;
-  const zoomed = viewport.x !== null || viewport.y !== null;
-  const empty = !model.curves.length;
-  const stopAt = stopPoint(run, points, stop);
-  const said = hover && hover.point < points.x.length
-    ? describePoint(points, labels, axes, hover.point, stopAt >= 0 && stop && !run?.active ? {point: stopAt, text: stop.text} : null)
-    : null;
-  const what = axes ? `${axes.ylabel} against ${axes.xlabel}` : '';
-  const label = empty ? 'AUTO diagram, no branches yet'
-    : `AUTO diagram of ${what}: ${new Set(model.curves.map(c => c.branch)).size} branches, ${points.x.length} points, `
-      + `${labels.length} labelled points`;
-
-  const area = chart.current?.areaBox() ?? null;
-  const axisButton = (which: AxisName, text: string) => (
-    <button class={`auto-axis-name auto-axis-${which}`} aria-haspopup="dialog" aria-expanded={axisOpen === which}
-      data-axis={which} title={`Change the ${which === 'x' ? 'horizontal' : 'vertical'} axis: what it plots and its range`}
-      onKeyDown={e => e.stopPropagation()}
-      onClick={() => setAxisOpen(axisOpen === which ? null : which)}
-      style={which === 'x'
-        ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
-        : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
-      {text || (which === 'x' ? 'x axis' : 'y axis')}
-    </button>
-  );
-  const closeAxis = () => {
-    const which = axisOpen;
-    setAxisOpen(null);
-    host.current?.querySelector<HTMLElement>(`.auto-axis-name[data-axis="${which}"]`)?.focus();
-  };
-  const nEarlier = earlier ? branchesBefore(points, earlier) : 0;
-
   return (
     <section id="auto-panel" ref={panel} class="auto-panel" aria-label="AUTO" onKeyDown={onPanelKey}>
       <div class="auto-header">
         <button class="auto-back" onClick={() => session.showAuto(false)}
           title="Hide the AUTO view (AUTO stays open; Show AUTO brings it back)">Back</button>
-        <h2>AUTO <span class="muted auto-what">{what}</span></h2>
+        <h2>AUTO <span class="muted auto-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
         <HelpButton target={HELP.autoView} label="AUTO" />
         <button class="auto-close" onClick={() => session.closeAuto()}
           title="Done with AUTO: close its window (a running continuation is stopped first; File/Auto opens it again)">
@@ -455,82 +603,11 @@ function AutoPanel({dark}: {dark: boolean}) {
       <div class="auto-view">
         {grabbing && <GrabBar />}
         {pick && <PickBar pick={pick} />}
-        <header class="plot-bar">
-          <ul class="auto-legend" aria-label="Key">
-            {legendOf(model).map(l => (
-              <li key={`${l.text}/${l.color}`}>
-                <span class={'auto-swatch' + (l.dashed ? ' dashed' : '')} aria-hidden="true"
-                  style={{borderColor: paletteColor(l.color, dark)}} />
-                {l.text}
-              </li>
-            ))}
-            {labelTypes(model.labels).map(sym => {
-              const shape = labelShape(sym);
-              return (
-                <li key={sym} class="auto-legend-label" data-sym={sym} data-shape={shape} title={symbolHelp(sym)}>
-                  <span class={`auto-label-mark auto-label-mark-${shape}`} aria-hidden="true">{LABEL_GLYPH[shape]}</span>
-                  <b>{sym}</b> {symbolName(sym)}
-                </li>
-              );
-            })}
-            {earlier > 0 && (
-              <li>
-                <button class={'small auto-earlier' + (showEarlier ? ' active' : '')} aria-pressed={showEarlier}
-                  title={showEarlier ? 'Hide the branches computed before Clear' : 'Show the branches computed before Clear'}
-                  onClick={() => session.setShowEarlier(!showEarlier)}>
-                  Earlier branches ({nEarlier})
-                </button>
-              </li>
-            )}
-          </ul>
-          <div class="plot-tools">
-            <button disabled={!zoomed} onClick={() => chart.current!.reset()}
-              title="Back to AUTO's axes (double click, or 0 on the diagram)">Reset view</button>
-            <button disabled={empty} onClick={() => chart.current!.fit()}
-              title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)">
-              Fit
-            </button>
-          </div>
-        </header>
-        <div class={'plot-host auto-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
-          ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
-          aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
-            : pick ? 'pick-instruction auto-keys-help' : 'auto-keys-help'}>
-          {!empty && (
-            <FitButton onClick={() => chart.current!.fit()}
-              title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)" />
-          )}
-          {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
-          {cursor && <span class="auto-cursor" aria-hidden="true" style={{left: `${cursor.left}px`, top: `${cursor.top}px`}} />}
-          {storedAt && (
-            <span class="auto-stored" style={{left: `${storedAt.left}px`, top: `${storedAt.top}px`}}
-              title={`Stored point: ${fmt(stored!.x)}, ${fmt(stored!.y)}`} />
-          )}
-          {pick && chart.current && <PickOverlay pick={pick} chart={chart.current} />}
-          {area && axes && axisButton('x', axes.xlabel)}
-          {area && axes && axisButton('y', axes.ylabel)}
-          {empty && (
-            <div class="plot-empty auto-empty">
-              <p>{busy ? 'AUTO is running…' : 'No branches yet: Run starts a continuation from the current point.'}</p>
-            </div>
-          )}
+        <div class="auto-views" data-views={views}>
+          {Array.from({length: views}, (_, k) => <DiagramPane key={k} view={k} dark={dark} />)}
         </div>
-        <footer class="readout auto-readout" role="status" aria-live="polite">
-          {said ? (
-            <span>
-              <b>{said.head}</b> · {said.kind}
-              {said.label && <> · <b class="auto-label">{said.label}</b></>}
-              {said.values.map(v => <span key={v}> · {v}</span>)}
-            </span>
-          ) : (
-            <span class="muted">
-              <span class="hint-mouse">Drag to zoom · wheel zooms · Shift+drag pans · double click resets · &lt; &gt; step through the labels</span>
-              <span class="hint-touch">Pinch zooms · drag pans · tap a point to read it</span>
-            </span>
-          )}
-        </footer>
+        <Readout />
       </div>
-      {axisOpen && <AutoAxisDialog key={axisOpen} axis={axisOpen} onClose={closeAxis} />}
       {settingsOpen && <AutoSettingsDialog kind={settingsOpen} onClose={() => setSettingsOpen(null)} />}
       <AutoInfo />
       <AutoOutput />

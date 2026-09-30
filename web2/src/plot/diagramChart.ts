@@ -367,13 +367,15 @@ export class DiagramChart {
   }
 }
 
-/* the one diagram chart, for the test hook */
-let current: DiagramChart | null = null;
+/* each view's diagram chart (W50), for the test hook */
+const charts = new Map<number, DiagramChart>();
 
-export function setDiagramChart(c: DiagramChart | null): void {
-  current = c;
+/** view `view`'s chart is `c`; null: `was` (the chart that view had) is gone */
+export function setDiagramChart(view: number, c: DiagramChart | null, was: DiagramChart | null = null): void {
+  if (c) charts.set(view, c);
+  else if (charts.get(view) === was) charts.delete(view);
 }
 
-export function diagramChart(): DiagramChart | null {
-  return current;
+export function diagramChart(view: number): DiagramChart | null {
+  return charts.get(view) ?? null;
 }

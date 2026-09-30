@@ -7,7 +7,7 @@ import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} fro
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
 } from '../src/plot/diagramModel';
-import {initialDiagram, pointCount, type DiagramRun, type DiagramState} from '../src/store/diagram';
+import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
@@ -31,11 +31,11 @@ const periodic: DiagramRun[] = [
     y2: [-0.2, -0.23, -0.26]},
   {br: 2, pt: 4, ty: 3, d: 2, c: 26, lw: 1, x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'LP']]},
 ];
-const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', op: 'add', from, runs});
+const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
 
 function opened(): AppState {
   let s = ev(initialState, {ev: 'window', op: 'create', win: 101, w: 687, h: 352, title: "It's AUTO man!"});
-  s = ev(s, {ev: 'diagram', op: 'axes', ...axes});
+  s = ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
   return s;
 }
 
@@ -47,14 +47,14 @@ test('window 101 opens the view, empty, with the axes the core drew', () => {
   const s = opened();
   assert.equal(s.diagram.open, true);
   assert.equal(s.diagram.shown, true);
-  assert.equal(pointCount(s.diagram.points), 0);
-  assert.equal(s.diagram.axes?.xlabel, 'iapp');
-  assert.equal(s.diagram.axes?.plot, 2);
+  assert.equal(pointCount(activeView(s.diagram).points), 0);
+  assert.equal(activeView(s.diagram).axes?.xlabel, 'iapp');
+  assert.equal(activeView(s.diagram).axes?.plot, 2);
 });
 
 test('add puts every point of every run in place, in order, labels included', () => {
   const s = ev(opened(), add(0, steady));
-  const p = s.diagram.points;
+  const p = activeView(s.diagram).points;
   assert.equal(pointCount(p), 9);
   assert.deepEqual(p.pt, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   assert.deepEqual(p.ty, [2, 1, 1, 1, 2, 2, 2, 1, 1]);
@@ -62,7 +62,7 @@ test('add puts every point of every run in place, in order, labels included', ()
   assert.deepEqual(p.c, [0, 20, 20, 20, 0, 0, 0, 20, 20]);
   assert.deepEqual(p.y2, p.y, 'no y2 in the event: y2 is y');
   assert.equal(p.x[5], 0.3);
-  assert.deepEqual(s.diagram.labels, [{point: 0, lab: 1, sym: 'EP'}, {point: 4, lab: 2, sym: 'HB'},
+  assert.deepEqual(activeView(s.diagram).labels, [{point: 0, lab: 1, sym: 'EP'}, {point: 4, lab: 2, sym: 'HB'},
     {point: 6, lab: 3, sym: 'HB'}, {point: 8, lab: 4, sym: 'EP'}]);
   assert.equal(s.diagram.events, 2);
 });
@@ -70,7 +70,7 @@ test('add puts every point of every run in place, in order, labels included', ()
 test('a later add continues from what is held; y2 and null values are kept', () => {
   let s = ev(opened(), add(0, steady));
   s = ev(s, add(9, [{...periodic[0], y: [null, -0.17, -0.14]}]));
-  const p = s.diagram.points;
+  const p = activeView(s.diagram).points;
   assert.equal(pointCount(p), 12);
   assert.ok(Number.isNaN(p.y[9]), 'null is NaN');
   assert.deepEqual(p.y2.slice(9), [-0.2, -0.23, -0.26]);
@@ -81,35 +81,35 @@ test('a later add continues from what is held; y2 and null values are kept', () 
 test('an add from before the end replaces what follows; reset keeps the first k points', () => {
   let s = lecar();
   s = ev(s, add(4, [{br: 1, pt: 5, ty: 2, d: 1, c: 0, lw: 1, x: [0.9], y: [0.9]}]));
-  assert.equal(pointCount(s.diagram.points), 5);
-  assert.deepEqual(s.diagram.labels.map(l => l.point), [0], 'labels past the replaced point go');
+  assert.equal(pointCount(activeView(s.diagram).points), 5);
+  assert.deepEqual(activeView(s.diagram).labels.map(l => l.point), [0], 'labels past the replaced point go');
   s = lecar();
-  s = ev(s, {ev: 'diagram', op: 'reset', keep: 3, ...axes, ymax: 0.5});
-  assert.equal(pointCount(s.diagram.points), 3);
-  assert.deepEqual(s.diagram.labels.map(l => l.lab), [1]);
-  assert.equal(s.diagram.axes?.ymax, 0.5);
-  s = ev(s, {ev: 'diagram', op: 'reset', keep: 0, ...axes});
-  assert.equal(pointCount(s.diagram.points), 0);
-  assert.equal(s.diagram.labels.length, 0);
+  s = ev(s, {ev: 'diagram', view: 0, op: 'reset', keep: 3, ...axes, ymax: 0.5});
+  assert.equal(pointCount(activeView(s.diagram).points), 3);
+  assert.deepEqual(activeView(s.diagram).labels.map(l => l.lab), [1]);
+  assert.equal(activeView(s.diagram).axes?.ymax, 0.5);
+  s = ev(s, {ev: 'diagram', view: 0, op: 'reset', keep: 0, ...axes});
+  assert.equal(pointCount(activeView(s.diagram).points), 0);
+  assert.equal(activeView(s.diagram).labels.length, 0);
 });
 
 test('an add that does not follow on marks the data out of step, until it is sent again', () => {
   let s = ev(opened(), add(0, steady));
   s = ev(s, add(20, periodic));
   assert.equal(s.diagram.outOfStep, true);
-  assert.equal(pointCount(s.diagram.points), 9, 'nothing applied');
-  s = ev(s, {ev: 'diagram', op: 'reset', keep: 0, ...axes});
+  assert.equal(pointCount(activeView(s.diagram).points), 9, 'nothing applied');
+  s = ev(s, {ev: 'diagram', view: 0, op: 'reset', keep: 0, ...axes});
   s = ev(s, add(0, steady));
   assert.equal(s.diagram.outOfStep, false);
 });
 
 test('a second create is a resize: the data stay; destroy empties the view', () => {
   let s = ev(lecar(), {ev: 'window', op: 'create', win: 101, w: 800, h: 400});
-  assert.equal(pointCount(s.diagram.points), 14);
+  assert.equal(pointCount(activeView(s.diagram).points), 14);
   s = ev(s, {ev: 'window', op: 'destroy', win: 101});
   assert.equal(s.diagram.open, false);
-  assert.equal(pointCount(s.diagram.points), 0);
-  assert.equal(s.diagram.axes, null);
+  assert.equal(pointCount(activeView(s.diagram).points), 0);
+  assert.equal(activeView(s.diagram).axes, null);
 });
 
 test('state.auto opens the view for a page that connected later; its absence closes it', () => {
@@ -117,7 +117,7 @@ test('state.auto opens the view for a page that connected later; its absence clo
     view: {win: 1, left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0}, auto});
   let s = ev(initialState, state({x0: 70, y0: 26, wid: 603, hgt: 300, xmin: 0, xmax: 1, ymin: 0, ymax: 1}));
   assert.equal(s.diagram.open, true);
-  assert.equal(s.diagram.axes, null, 'the data come with the redraw the session asks for');
+  assert.equal(activeView(s.diagram).axes, null, 'the data come with the redraw the session asks for');
   s = ev(s, state());
   assert.equal(s.diagram.open, false);
 });
@@ -127,21 +127,21 @@ test('Back hides the panel, AUTO stays open', () => {
   s = reduce(s, {type: 'diagram', action: {type: 'show', shown: false}});
   assert.equal(s.diagram.shown, false);
   assert.equal(s.diagram.open, true);
-  assert.equal(pointCount(s.diagram.points), 14);
+  assert.equal(pointCount(activeView(s.diagram).points), 14);
 });
 
 test('zoom, no history (GitHub #110): the core moving its axes goes back to them', () => {
   const zoom = {x: {min: 0.2, max: 0.3}, y: {min: -0.3, max: 0}};
-  let s = reduce(lecar(), {type: 'diagram', action: {type: 'viewport', viewport: zoom}});
-  assert.deepEqual(s.diagram.viewport, zoom);
-  s = ev(s, {ev: 'diagram', op: 'axes', ...axes});
-  assert.deepEqual(s.diagram.viewport, zoom, 'the same axes again (reDraw): the zoom stays');
-  s = ev(s, {ev: 'diagram', op: 'axes', ...axes, xmax: 0.6});
-  assert.deepEqual(s.diagram.viewport, {x: null, y: null});
+  let s = reduce(lecar(), {type: 'diagram', action: {type: 'viewport', view: 0, viewport: zoom}});
+  assert.deepEqual(activeView(s.diagram).viewport, zoom);
+  s = ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
+  assert.deepEqual(activeView(s.diagram).viewport, zoom, 'the same axes again (reDraw): the zoom stays');
+  s = ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes, xmax: 0.6});
+  assert.deepEqual(activeView(s.diagram).viewport, {x: null, y: null});
 });
 
 test('one curve per branch and stability run, each line starting where the run before ended', () => {
-  const d = lecar().diagram, m = buildDiagramModel(d.points, d.labels, d.axes);
+  const d = activeView(lecar().diagram), m = buildDiagramModel(d.points, d.labels, d.axes);
   const steadyCurves = m.curves.filter(c => c.branch === 1);
   assert.deepEqual(steadyCurves.map(c => [c.type, Array.from(c.idx)]), [
     [2, [0]], [1, [0, 1, 2, 3]], [2, [3, 4, 5, 6]], [1, [6, 7, 8]]]);
@@ -159,7 +159,7 @@ test('one curve per branch and stability run, each line starting where the run b
 });
 
 test('a periodic branch starts at the Hopf point it bifurcates from, max and min alike', () => {
-  const d = lecar().diagram, m = buildDiagramModel(d.points, d.labels, d.axes);
+  const d = activeView(lecar().diagram), m = buildDiagramModel(d.points, d.labels, d.axes);
   assert.deepEqual(m.hopf, [{point: 9, from: 4}]);
   const [max, min] = m.curves.filter(c => c.branch === 2 && c.type === 4);
   for (const c of [max, min]) {
@@ -174,21 +174,21 @@ test('a periodic branch starts at the Hopf point it bifurcates from, max and min
 test('no Hopf join when no Hopf label lies at the branch start', () => {
   const far: DiagramRun[] = [{...periodic[0], x: [0.1, 0.11, 0.12]}];
   let s = ev(ev(opened(), add(0, steady)), add(9, far));
-  let m = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes);
+  let m = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes);
   assert.deepEqual(m.hopf, []);
   assert.equal(m.curves.find(c => c.branch === 2)?.idx[0], 9);
   /* at the Hopf parameter but its orbit nowhere near the Hopf value */
   const off: DiagramRun[] = [{...periodic[0], y: [0.3, 0.31, 0.32], y2: [0.2, 0.19, 0.18]}];
   s = ev(ev(opened(), add(0, steady)), add(9, off));
-  m = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes);
+  m = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes);
   assert.deepEqual(m.hopf, []);
   /* the nearer of two Hopf points */
-  const d = lecar().diagram;
+  const d = activeView(lecar().diagram);
   assert.equal(hopfOf(d.points, d.labels, 9, {x: 10, y: 10}), 4);
 });
 
 test('the point under the pointer: the nearest, a labelled one among equals', () => {
-  const d = lecar().diagram, m = buildDiagramModel(d.points, d.labels, d.axes);
+  const d = activeView(lecar().diagram), m = buildDiagramModel(d.points, d.labels, d.axes);
   const f = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, width: 700, height: 900};
   const px = (x: number) => (x - f.xmin) * 1000, py = (y: number) => (f.ymax - y) * 1000;
   /* the Hopf point is drawn three times (branch 1, and the start of both periodic lines) and branch 2's first point lies 0.1 px away */
@@ -204,7 +204,7 @@ test('the point under the pointer: the nearest, a labelled one among equals', ()
 });
 
 test('stepping from label to label, and the readout of a point', () => {
-  const d: DiagramState = lecar().diagram;
+  const d = activeView(lecar().diagram);
   assert.equal(stepLabel(d.labels, -1, 1), 0);
   assert.equal(stepLabel(d.labels, 0, 1), 4);
   assert.equal(stepLabel(d.labels, 13, 1), 0, 'wraps');
@@ -264,7 +264,7 @@ test('a grab ask on the diagram is the view\'s grab until the command ends, and 
 });
 
 test('grab keys: points one by one (the ends wrap to the first), ten, the ends, labels by Tab', () => {
-  const d = lecar().diagram, n = pointCount(d.points); /* 14 points, labels at 0, 4, 6, 8, 13 */
+  const d = activeView(lecar().diagram), n = pointCount(d.points); /* 14 points, labels at 0, 4, 6, 8, 13 */
   assert.equal(grabStep('ArrowRight', false, 3, n, d.labels), 4);
   assert.equal(grabStep(']', false, n - 1, n, d.labels), 0);
   assert.equal(grabStep('ArrowLeft', false, 0, n, d.labels), 0);
@@ -285,13 +285,13 @@ test('grab keys: points one by one (the ends wrap to the first), ten, the ends, 
 test('a periodic branch whose run says it started from the Hopf label joins that label, wherever it lies', () => {
   const tagged: DiagramRun[] = [{...periodic[0], from: 3, x: [0.44, 0.43, 0.42]}, periodic[1]];
   const s = ev(ev(opened(), add(0, steady)), add(9, tagged));
-  assert.deepEqual(s.diagram.points.fr.slice(8, 12), [0, 3, 0, 0], 'on the run\'s first point only');
-  const m = buildDiagramModel(s.diagram.points, s.diagram.labels, s.diagram.axes);
+  assert.deepEqual(activeView(s.diagram).points.fr.slice(8, 12), [0, 3, 0, 0], 'on the run\'s first point only');
+  const m = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes);
   assert.deepEqual(m.hopf, [{point: 9, from: 6}], 'label 3, the second Hopf point, not the nearer first');
   /* a run from a label that is not a Hopf point is not joined, even where one lies */
   const fromEp: DiagramRun[] = [{...periodic[0], from: 1}];
   const t = ev(ev(opened(), add(0, steady)), add(9, fromEp));
-  assert.deepEqual(buildDiagramModel(t.diagram.points, t.diagram.labels, t.diagram.axes).hopf, []);
+  assert.deepEqual(buildDiagramModel(activeView(t.diagram).points, activeView(t.diagram).labels, activeView(t.diagram).axes).hopf, []);
 });
 
 test('the strip in words and the circle: inside is stable, the eigenvalues listed', () => {
@@ -341,7 +341,7 @@ test("a first point's circle, all zeros, is not computed: no points, no zeros li
 /* T30: the corner Fit (and the AUTO tools' own Fit) fits the view to the
    branches shown, client-side; the earlier ones Clear hid never widen it. */
 test('fitRanges: every plotted point lies in range, with a small margin', () => {
-  const d = lecar().diagram, m = buildDiagramModel(d.points, d.labels, d.axes);
+  const d = activeView(lecar().diagram), m = buildDiagramModel(d.points, d.labels, d.axes);
   const r = fitRanges(m);
   let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
   for (const c of m.curves) {
@@ -357,7 +357,7 @@ test('fitRanges: every plotted point lies in range, with a small margin', () => 
 });
 
 test('fitRanges: earlier branches Clear hid do not widen the fit', () => {
-  const d = lecar().diagram;
+  const d = activeView(lecar().diagram);
   const shown = buildDiagramModel(d.points, d.labels, d.axes); /* Earlier branches on: everything */
   const hidden = buildDiagramModel(d.points, d.labels, d.axes, 9); /* Clear at point 9: the steady branch hidden */
   const all = fitRanges(shown), justPeriodic = fitRanges(hidden);
@@ -367,22 +367,47 @@ test('fitRanges: earlier branches Clear hid do not widen the fit', () => {
 });
 
 test('fitRanges: no branches yet is [0, 1], not NaN or an inverted range', () => {
-  const r = fitRanges(buildDiagramModel(opened().diagram.points, [], null));
+  const r = fitRanges(buildDiagramModel(activeView(opened().diagram).points, [], null));
   assert.deepEqual(r, {x: {min: 0, max: 1}, y: {min: 0, max: 1}});
 });
 
-test('autoview (W65): the branches Clear hid, whether they are shown and the zoom are the core\'s', () => {
+test("autoview (W65): the branches Clear hid, whether they are shown and the zoom are the core's", () => {
   let s = lecar();
-  const n = s.diagram.points.x.length;
-  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: 1, zoom: {x: [0, 1], y: null}} as never});
+  const n = activeView(s.diagram).points.x.length;
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: 1, active: 0, views: [{zoom: {x: [0, 1], y: null}}]} as never});
   assert.equal(s.diagram.earlier, n);
   assert.equal(s.diagram.showEarlier, true);
-  assert.deepEqual(s.diagram.viewport, {x: {min: 0, max: 1}, y: null});
-  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: undefined, zoom: undefined} as never});
-  assert.equal(s.diagram.showEarlier, true, 'without show and zoom (a change of the user\'s on its way) they stay');
-  assert.deepEqual(s.diagram.viewport, {x: {min: 0, max: 1}, y: null});
-  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: 0, show: 0, zoom: {x: null, y: null}} as never});
+  assert.deepEqual(activeView(s.diagram).viewport, {x: {min: 0, max: 1}, y: null});
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: n, show: undefined, active: 0, views: [{}]} as never});
+  assert.equal(s.diagram.showEarlier, true, "without show and zoom (a change of the user's on its way) they stay");
+  assert.deepEqual(activeView(s.diagram).viewport, {x: {min: 0, max: 1}, y: null});
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: 0, show: 0, active: 0, views: [{zoom: {x: null, y: null}}]} as never});
   assert.equal(s.diagram.earlier, 0);
   assert.equal(s.diagram.showEarlier, false);
-  assert.deepEqual(s.diagram.viewport, {x: null, y: null});
+  assert.deepEqual(activeView(s.diagram).viewport, {x: null, y: null});
+});
+
+test("views (W50): each view its own axes, points and zoom; `views` resizes; the active one is the core's", () => {
+  let s = lecar();
+  const one = activeView(s.diagram);
+  s = ev(s, {ev: 'diagram', op: 'views', n: 2});
+  assert.equal(s.diagram.views.length, 2);
+  assert.equal(s.diagram.views[0], one, 'view 0 untouched');
+  assert.equal(pointCount(s.diagram.views[1].points), 0, 'a new view starts empty');
+  s = ev(s, {ev: 'diagram', view: 1, op: 'reset', keep: 0, ...axes, plot: 1, ylabel: 'Norm'});
+  s = ev(s, {ev: 'diagram', view: 1, op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, d: 1, c: 20, lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
+  assert.equal(s.diagram.views[1].axes?.ylabel, 'Norm');
+  assert.equal(pointCount(s.diagram.views[1].points), 2);
+  assert.equal(s.diagram.views[0], one, "another view's events leave view 0 alone");
+  s = reduce(s, {type: 'event', ev: {ev: 'autoview', earlier: 0, show: 0, active: 1,
+    views: [{zoom: {x: null, y: null}}, {zoom: {x: [0, 0.5], y: null}}]} as never});
+  assert.equal(s.diagram.active, 1);
+  assert.equal(activeView(s.diagram), s.diagram.views[1]);
+  assert.deepEqual(s.diagram.views[1].viewport, {x: {min: 0, max: 0.5}, y: null});
+  assert.deepEqual(s.diagram.views[0].viewport, {x: null, y: null});
+  s = reduce(s, {type: 'diagram', action: {type: 'activate', view: 0}});
+  assert.equal(s.diagram.active, 0, 'a click makes a view active at once');
+  s = ev(s, {ev: 'diagram', op: 'views', n: 1});
+  assert.equal(s.diagram.views.length, 1);
+  assert.equal(s.diagram.views[0], one);
 });

@@ -48,6 +48,40 @@
   min-height: 0;
 }
 .auto-host { min-height: 10rem; }
+/* W50: the views of the diagram side by side, wrapping to a new row when
+   narrow; with two or more, each is framed and the active one (AUTO's Axes
+   menu changes it) framed in the accent */
+.auto-views {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+.auto-pane {
+  flex: 1 1 24rem;
+  display: flex;
+  flex-direction: column;
+  min-width: min(100%, 18rem);
+  min-height: 14rem;
+}
+.auto-views:not([data-views="1"]) { padding: var(--space-2); }
+.auto-views:not([data-views="1"]) .auto-pane { border: 1px solid var(--border); border-radius: var(--radius); }
+.auto-views:not([data-views="1"]) .auto-pane.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.auto-pane-title {
+  margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auto-pane:not(.active) .auto-pane-title { font-weight: 400; color: var(--fg-muted); }
+.auto-pane-close { min-width: 2rem; font-size: var(--text-md); line-height: 1; }
 .auto-legend {
   display: flex;
   flex-wrap: wrap;

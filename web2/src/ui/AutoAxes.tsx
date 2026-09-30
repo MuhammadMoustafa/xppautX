@@ -12,7 +12,7 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {axesNames, boundText, PLOT_TYPES, spinStep, typedRange, yNeeds} from '../plot/axisDialog';
 import {HELP} from '../help/links';
 import {pendingFields, shownSettings} from '../store/autoSettings';
-import type {Range} from '../store/plots';
+import type {Range, Viewport} from '../store/plots';
 import {fieldError, NUMBER} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
@@ -20,10 +20,13 @@ import {HelpButton} from './HelpButton';
 
 export type AxisName = 'x' | 'y';
 
-export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => void}) {
+const WHOLE: Viewport = {x: null, y: null};
+
+/** the axis dialog of view `view` of the diagram (W50: opened from that view, which is the active one) */
+export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: number; onClose: () => void}) {
   const session = useSession();
-  const axes = useStore(s => s.diagram.axes);
-  const viewport = useStore(s => s.diagram.viewport);
+  const axes = useStore(s => s.diagram.views[view]?.axes ?? null);
+  const viewport = useStore(s => s.diagram.views[view]?.viewport ?? WHOLE);
   const busy = useStore(s => s.busy);
   const settingsState = useStore(s => s.autoSettings);
   const settings = shownSettings(settingsState), pending = pendingFields(settingsState);
@@ -56,10 +59,10 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
   const apply = (lo: string, hi: string) => {
     const r = typedRange(lo, hi);
     if (!r) return;
-    const v = {...session.store.getState().diagram.viewport, [axis]: r};
+    const v = {...(session.store.getState().diagram.views[view]?.viewport ?? WHOLE), [axis]: r};
     if (!v.x && axes) v.x = {min: axes.xmin, max: axes.xmax};
     if (!v.y && axes) v.y = {min: axes.ymin, max: axes.ymax};
-    session.setDiagramViewport(v);
+    session.setDiagramViewport(view, v);
   };
   const r = typedRange(minText, maxText);
   const numbers = fieldError(NUMBER, minText) === null && fieldError(NUMBER, maxText) === null; /* else each box says so */
@@ -72,7 +75,7 @@ export function AutoAxisDialog({axis, onClose}: {axis: AxisName; onClose: () => 
   /* the new quantities, then a Fit: the diagram's ranges follow what it plots */
   const change = (c: {plot?: number; var?: string; par1?: string; par2?: string}) => {
     if (!settings) return;
-    session.autoSettings({axes: {...c, fit: true}});
+    session.autoSettings({axes: {...c, fit: true, view}});
   };
   const waiting = ['plot', 'var', 'par1', 'par2'].some(k => pending.has(`axes.${k}`));
   const select = (label: string, value: string, options: {value: string; text: string}[], on: (v: string) => void,

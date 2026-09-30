@@ -7,6 +7,7 @@
    circle (unless the run restarts from a label of the same kind) says so
    instead of listing zeros. */
 import {circlePoints, infoRows, stabComputed, stabilitySummary} from '../plot/autoInfo';
+import {activeView} from '../store/diagram';
 import {useStore} from './context';
 
 const R = 2; /* the circle's view box: -2..2, as XPP's */
@@ -44,7 +45,7 @@ function StabilityCircle() {
 export function AutoInfo() {
   const info = useStore(s => s.diagram.info);
   const stab = useStore(s => s.diagram.stab);
-  const axes = useStore(s => s.diagram.axes);
+  const axes = useStore(s => activeView(s.diagram).axes);
   if (!info && !stab) return null;
   return (
     <aside class="auto-info" aria-label="Point information">

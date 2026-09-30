@@ -131,7 +131,8 @@ export interface AutoSettings {
 export interface AutoSettingsPatch {
   numerics?: Partial<Record<NumKey, number>>;
   pars?: string[];
-  axes?: Partial<AutoAxesSettings> & {fit?: boolean};
+  /** `view`: the view of the diagram whose axes these are (W50; the active one without it) */
+  axes?: Partial<AutoAxesSettings> & {fit?: boolean; view?: number};
   marks?: [string, number][];
 }
 
@@ -183,7 +184,7 @@ export function reduceAutoSettings(s: AutoSettingsState, a: AutoSettingsAction):
 function apply(base: AutoSettings, p: AutoSettingsPatch | null): AutoSettings {
   if (!p) return base;
   const pars = p.pars ? base.pars.map((n, i) => (p.pars![i] ? p.pars![i] : n)) : base.pars;
-  const {fit: _fit, ...axes} = p.axes ?? {};
+  const {fit: _fit, view: _view, ...axes} = p.axes ?? {};
   return {
     numerics: {...base.numerics, ...p.numerics},
     pars,
@@ -202,7 +203,7 @@ export function pendingFields(s: AutoSettingsState): Set<string> {
   const out = new Set<string>();
   for (const {patch: p} of s.inflight) {
     for (const k of Object.keys(p.numerics ?? {})) out.add(`numerics.${k}`);
-    for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit') out.add(`axes.${k}`);
+    for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit' && k !== 'view') out.add(`axes.${k}`);
     if (p.pars) out.add('pars');
     if (p.marks) out.add('marks');
   }

@@ -14,14 +14,15 @@
    as they arrive. */
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {formatElapsed, runStatus} from '../plot/autoStatus';
+import {activeView} from '../store/diagram';
 import {useSession, useStore} from './context';
 import {connectionText} from './StatusBar';
 
 export function AutoStatus() {
   const session = useSession();
   const run = useStore(s => s.diagram.run);
-  const points = useStore(s => s.diagram.points);
-  const labels = useStore(s => s.diagram.labels);
+  const points = useStore(s => activeView(s.diagram).points);
+  const labels = useStore(s => activeView(s.diagram).labels);
   const stop = useStore(s => s.diagram.stop);
   const asking = useStore(s => !!s.ask);
   const stopping = useStore(s => s.stopping);

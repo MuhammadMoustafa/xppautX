@@ -14,7 +14,7 @@ import type {Transport} from './protocol/transport';
 import {kindOf, mayStart, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
 import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
-import {AUTO_WIN} from './store/diagram';
+import {activeView, AUTO_WIN} from './store/diagram';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
@@ -42,6 +42,9 @@ interface DisplayPatch {
   runs?: boolean;
   show?: boolean;
 }
+
+/** the display key of view k of the AUTO diagram: 0, -1, -2 ... (the plot windows are 1 up) */
+const autoKey = (view: number): number => -view;
 
 const rangesOf = (v: Viewport): DisplayPatch => ({
   x: v.x ? [v.x.min, v.x.max] : null,
@@ -231,7 +234,7 @@ export class Session {
      at the idle, the page's own catch-up like the held changes below */
   private checkDiagram(ev: XppEvent): void {
     const {diagram: d, busy} = this.store.getState();
-    if (!d.open || (d.axes && !d.outOfStep)) {
+    if (!d.open || (d.views.every(v => v.axes) && !d.outOfStep)) {
       this.diagramAsked = false;
       return;
     }
@@ -346,7 +349,7 @@ export class Session {
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
     /* the Start menu of a Run answered: its clock starts now */
-    const {run, points} = this.store.getState().diagram;
+    const {run} = this.store.getState().diagram, {points} = activeView(this.store.getState().diagram);
     if (run?.active && ask.kind === 'menu' && points.x.length === run.first)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'clock', at: Date.now()}});
     this.send({cmd: 'answer', id: ask.id, ...fields});
@@ -438,7 +441,11 @@ export class Session {
     if (!this.displayGuard.size) return ev;
     if (ev.ev === 'plots')
       return {...ev, windows: ev.windows.map(w => (this.displayGuard.has(w.win) ? {...w, zoom: undefined, runs: undefined} : w))};
-    if (ev.ev === 'autoview' && this.displayGuard.has(0)) return {...ev, show: undefined, zoom: undefined};
+    if (ev.ev === 'autoview') {
+      const views = ev.views?.map((v, k) => (this.displayGuard.has(autoKey(k)) ? {} : v));
+      const guarded = [...this.displayGuard].some(k => k <= 0);
+      return {...ev, views, show: guarded ? undefined : ev.show};
+    }
     return ev;
   }
 
@@ -455,7 +462,7 @@ export class Session {
     if (first.done) return;
     const [win, patch] = first.value;
     this.displayHeld.delete(win);
-    this.send(win === 0 ? {cmd: 'auto', op: 'display', ...patch} : {cmd: 'display', win, ...patch});
+    this.send(win <= 0 ? {cmd: 'auto', op: 'display', view: -win, ...patch} : {cmd: 'display', win, ...patch});
     this.displayGuard.add(win);
     this.displayIdles = this.idlesOwed;
   }
@@ -466,10 +473,24 @@ export class Session {
     this.display(win, rangesOf(viewport));
   }
 
-  /** the AUTO diagram's zoom changed */
-  setDiagramViewport(viewport: Viewport): void {
-    this.store.dispatch({type: 'diagram', action: {type: 'viewport', viewport}});
-    this.display(0, rangesOf(viewport));
+  /** the zoom of view `view` of the AUTO diagram changed */
+  setDiagramViewport(view: number, viewport: Viewport): void {
+    this.store.dispatch({type: 'diagram', action: {type: 'viewport', view, viewport}});
+    this.display(autoKey(view), rangesOf(viewport));
+  }
+
+  /** a view of the AUTO diagram clicked: the active one (W50), whose axes AUTO's Axes menu,
+      zoom and a run go by */
+  activateView(view: number): void {
+    const d = this.store.getState().diagram;
+    if (view === d.active || view >= d.views.length) return;
+    this.store.dispatch({type: 'diagram', action: {type: 'activate', view}});
+    this.send({cmd: 'auto', op: 'view', active: view});
+  }
+
+  /** a view of the AUTO diagram closed (the last one stays: the core refuses it) */
+  closeView(view: number): void {
+    this.send({cmd: 'auto', op: 'view', close: view});
   }
 
   /** the legend's "previous runs" toggle of window `win` */
@@ -481,7 +502,7 @@ export class Session {
   /** AUTO's "Earlier branches" toggle */
   setShowEarlier(show: boolean): void {
     this.store.dispatch({type: 'diagram', action: {type: 'showEarlier', show}});
-    this.display(0, {show});
+    this.display(autoKey(this.store.getState().diagram.active), {show});
   }
 
   /* ---- Use this view (docs/ui-v2.md T9) ---- */
@@ -644,7 +665,7 @@ export class Session {
      labelled point), File/Import orbit loads it, so the main plot shows the
      limit cycle (docs/ui-v2.md T21); AUTO keeps no orbit for other points */
   private importOrbit(point: number): void {
-    const {points, labels} = this.store.getState().diagram;
+    const {points, labels} = activeView(this.store.getState().diagram);
     const ty = points.ty[point];
     if ((ty !== 3 && ty !== 4) || points.f2[point]) return;
     if (!labels.some(l => l.point === point)) {

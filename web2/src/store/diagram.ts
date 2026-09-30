@@ -10,14 +10,18 @@
    T11b adds the `autoinfo` event (the info strip and the stability circle
    as data), the grab (the core's `grab` ask, answered from the view) and
    the point a click stored in a two-parameter diagram (`auto point`).
+   W50: the one diagram has any number of views, each its own axes, points
+   and zoom (`views`, the core's active one `active`); every view holds the
+   same points in the same order, so a point index (the hover, the grab,
+   Clear's `earlier`) is the same in all of them.
    Pure: no DOM, no I/O. */
 import type {AutoViewEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
-/** `diagram` `axes` (and `reset`): the core's view of the diagram */
 /** the AUTO diagram's window number in the protocol */
 export const AUTO_WIN = 101;
 
+/** `diagram` `axes` (and `reset`): the core's axes of a view of the diagram */
 export interface DiagramAxes {
   xmin: number; xmax: number; ymin: number; ymax: number;
   /** where the core draws it in window 101's pixels (for answers in pixels) */
@@ -47,9 +51,11 @@ export interface DiagramRun {
 }
 
 export type DiagramEvent =
-  | ({ev: 'diagram'; op: 'axes'} & DiagramAxes)
-  | ({ev: 'diagram'; op: 'reset'; keep: number} & DiagramAxes)
-  | {ev: 'diagram'; op: 'add'; from: number; runs: DiagramRun[]};
+  | ({ev: 'diagram'; op: 'axes'; view: number} & DiagramAxes)
+  | ({ev: 'diagram'; op: 'reset'; view: number; keep: number} & DiagramAxes)
+  | {ev: 'diagram'; op: 'add'; view: number; from: number; runs: DiagramRun[]}
+  /** the diagram has `n` views now (W50) */
+  | {ev: 'diagram'; op: 'views'; n: number};
 
 /** the points, one column per field, point i across them (NaN for null) */
 export interface DiagramPoints {
@@ -142,6 +148,17 @@ export interface DiagramHover {
   point: number;
   /** the second value (y2) rather than y */
   low: boolean;
+  /** the view the pointer is on (every view marks the point: the same index in each) */
+  view: number;
+}
+
+/** one view of the diagram (W50): its points at its own axes, and the user's zoom of them */
+export interface DiagramView {
+  axes: DiagramAxes | null;
+  points: DiagramPoints;
+  /** in point order */
+  labels: DiagramLabel[];
+  viewport: Viewport;
 }
 
 export interface DiagramState {
@@ -149,15 +166,15 @@ export interface DiagramState {
   open: boolean;
   /** its panel is on screen (Back hides it, the core's window stays) */
   shown: boolean;
-  axes: DiagramAxes | null;
-  points: DiagramPoints;
-  /** in point order */
-  labels: DiagramLabel[];
+  /** the views of the one diagram (W50, docs/protocol.md "Views of the diagram"), at least one: each
+      holds the same points in the same order, so a point's index is the same in every view */
+  views: DiagramView[];
+  /** the core's active view: the one AUTO's Axes menu, zoom, the exports and a run go by */
+  active: number;
   /** `diagram` events applied (tests wait on it) */
   events: number;
   /** an `add` did not follow on from what is held: the data must be sent again (session.ts asks) */
   outOfStep: boolean;
-  viewport: Viewport;
   hover: DiagramHover | null;
   /** the info strip and the stability circle (`autoinfo`) */
   info: AutoInfo | null;
@@ -200,9 +217,16 @@ function noPoints(): DiagramPoints {
 
 const HOME: Viewport = {x: null, y: null};
 
+function emptyView(): DiagramView {
+  return {axes: null, points: noPoints(), labels: [], viewport: HOME};
+}
+
+/** a view with nothing yet (a selector's answer for a view that has just gone) */
+export const EMPTY_VIEW: DiagramView = emptyView();
+
 export const initialDiagram: DiagramState = {
-  open: false, shown: false, axes: null, points: noPoints(), labels: [], events: 0, outOfStep: false,
-  viewport: HOME, hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
+  open: false, shown: false, views: [emptyView()], active: 0, events: 0, outOfStep: false,
+  hover: null, info: null, stab: null, stop: null, infoEvents: 0, grabbing: false, stored: null,
   run: null, earlier: 0, showEarlier: false,
 };
 
@@ -212,7 +236,7 @@ export type DiagramAction =
   /** a `state` event: `auto` present while AUTO is open */
   | {type: 'core'; open: boolean}
   | {type: 'show'; shown: boolean}
-  | {type: 'viewport'; viewport: Viewport}
+  | {type: 'viewport'; view: number; viewport: Viewport}
   | {type: 'hover'; hover: DiagramHover | null}
   | {type: 'info'; ev: AutoInfoEvent}
   /** the core's grab: its ask came (on), or its command ended */
@@ -224,12 +248,20 @@ export type DiagramAction =
   /** Clear: what is drawn now becomes the earlier branches (until the core's `autoview` says) */
   | {type: 'clear'}
   /** the core's display of the diagram (W65): the branches Clear hid, whether they are shown, the
-      zoom; `show` and `zoom` are absent while a change of the user's is on its way (session.ts) */
+      active view and each view's zoom; `show` and a view's `zoom` are absent while a change of the
+      user's is on its way (session.ts) */
   | {type: 'autoview'; ev: AutoViewEvent}
-  | {type: 'showEarlier'; show: boolean};
+  | {type: 'showEarlier'; show: boolean}
+  /** a view clicked: the active one at once (the core's `autoview` says so too) */
+  | {type: 'activate'; view: number};
 
 export function pointCount(p: DiagramPoints): number {
   return p.x.length;
+}
+
+/** the active view (the first while the core has not said) */
+export function activeView(s: Pick<DiagramState, 'views' | 'active'>): DiagramView {
+  return s.views[s.active] ?? s.views[0];
 }
 
 const num = (v: number | null | undefined) => (v === null || v === undefined ? NaN : v);
@@ -279,36 +311,62 @@ function sameRanges(a: DiagramAxes | null, b: DiagramAxes): boolean {
   return !!a && a.xmin === b.xmin && a.xmax === b.xmax && a.ymin === b.ymin && a.ymax === b.ymax;
 }
 
-/** the core drew the diagram at other axes (Axes, Fit, a zoom or scroll of
-    its own): what it shows now is what the user asked for, so the view
-    goes back to it */
-function withAxes(s: DiagramState, ev: DiagramAxes): DiagramState {
-  const axes = axesOf(ev);
-  const moved = s.axes && !sameRanges(s.axes, axes) && (s.viewport.x !== null || s.viewport.y !== null);
-  return moved ? setViewport({...s, axes}, HOME) : {...s, axes};
+function setViewport(v: DiagramView, viewport: Viewport): DiagramView {
+  if (JSON.stringify(viewport) === JSON.stringify(v.viewport)) return v;
+  return {...v, viewport};
 }
 
-function setViewport(s: DiagramState, viewport: Viewport): DiagramState {
-  if (JSON.stringify(viewport) === JSON.stringify(s.viewport)) return s;
-  return {...s, viewport};
+/** the core drew the view at other axes (Axes, Fit, a zoom or scroll of
+    its own): what it shows now is what the user asked for, so the zoom
+    goes back to it */
+function withAxes(v: DiagramView, ev: DiagramAxes): DiagramView {
+  const axes = axesOf(ev);
+  const moved = v.axes && !sameRanges(v.axes, axes) && (v.viewport.x !== null || v.viewport.y !== null);
+  return moved ? setViewport({...v, axes}, HOME) : {...v, axes};
+}
+
+/** `views` with view k replaced by what `f` makes of it (a view the core names before its `views`
+    event made, with empty ones up to it) */
+function withView(views: DiagramView[], k: number, f: (v: DiagramView) => DiagramView): DiagramView[] {
+  const out = views.slice();
+  while (out.length <= k) out.push(emptyView());
+  out[k] = f(out[k]);
+  return out;
+}
+
+/** `n` views: the ones after the first n go, new ones start empty */
+function resized(views: DiagramView[], n: number): DiagramView[] {
+  const out = views.slice(0, Math.max(1, n));
+  while (out.length < n) out.push(emptyView());
+  return out;
 }
 
 function onEvent(s: DiagramState, ev: DiagramEvent): DiagramState {
   const events = s.events + 1;
+  if (ev.op === 'views') {
+    const views = resized(s.views, ev.n);
+    const active = Math.min(s.active, views.length - 1);
+    const hover = s.hover && s.hover.view < views.length ? s.hover : null;
+    return {...s, views, active, hover, events};
+  }
+  const k = Math.max(0, ev.view);
+  const held = s.views[k]?.points;
   switch (ev.op) {
     case 'axes':
-      return {...withAxes(s, ev), events};
+      return {...s, views: withView(s.views, k, v => withAxes(v, ev)), events};
     case 'reset': {
       const keep = Math.max(0, ev.keep || 0);
-      const points = truncate(s.points, keep);
-      const hover = s.hover && s.hover.point < keep ? s.hover : null;
-      return {...withAxes(s, ev), points, labels: s.labels.filter(l => l.point < keep), hover, outOfStep: false, events};
+      const views = withView(s.views, k, v => ({
+        ...withAxes(v, ev), points: truncate(v.points, keep), labels: v.labels.filter(l => l.point < keep),
+      }));
+      const hover = s.hover && (s.hover.view !== k || s.hover.point < keep) ? s.hover : null;
+      return {...s, views, hover, outOfStep: false, events};
     }
     case 'add': {
-      if (ev.from > pointCount(s.points)) return {...s, outOfStep: true, events};
-      const {points, labels} = add(s.points, s.labels, ev.from, ev.runs);
-      const hover = s.hover && s.hover.point < ev.from ? s.hover : null;
-      return {...s, points, labels, hover, events, outOfStep: ev.from === 0 ? false : s.outOfStep};
+      if (ev.from > (held ? pointCount(held) : 0)) return {...s, outOfStep: true, events};
+      const views = withView(s.views, k, v => ({...v, ...add(v.points, v.labels, ev.from, ev.runs)}));
+      const hover = s.hover && (s.hover.view !== k || s.hover.point < ev.from) ? s.hover : null;
+      return {...s, views, hover, events, outOfStep: ev.from === 0 ? false : s.outOfStep};
     }
     default:
       return s;
@@ -321,7 +379,8 @@ function opened(s: DiagramState): DiagramState {
 }
 
 function closed(s: DiagramState): DiagramState {
-  return s.open || s.axes || pointCount(s.points) ? {...initialDiagram, events: s.events, infoEvents: s.infoEvents} : s;
+  return s.open || s.views.length > 1 || s.views[0].axes || pointCount(s.views[0].points)
+    ? {...initialDiagram, events: s.events, infoEvents: s.infoEvents} : s;
 }
 
 export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
@@ -334,11 +393,15 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
       return a.open === s.open ? s : a.open ? opened(s) : closed(s);
     case 'show':
       return a.shown === s.shown || !s.open ? s : {...s, shown: a.shown};
-    case 'viewport':
-      return setViewport(s, a.viewport);
+    case 'viewport': {
+      const v = s.views[a.view];
+      if (!v) return s;
+      const w = setViewport(v, a.viewport);
+      return w === v ? s : {...s, views: withView(s.views, a.view, () => w)};
+    }
     case 'hover': {
       const h = a.hover, o = s.hover;
-      if (h === o || (h && o && h.point === o.point && h.low === o.low)) return s;
+      if (h === o || (h && o && h.point === o.point && h.low === o.low && h.view === o.view)) return s;
       return {...s, hover: h};
     }
     case 'info':
@@ -353,19 +416,27 @@ export function reduceDiagram(s: DiagramState, a: DiagramAction): DiagramState {
     case 'runStopped':
       return s.run?.active ? {...s, run: {...s.run, stopped: true}} : s;
     case 'clear':
-      return {...s, earlier: pointCount(s.points), showEarlier: false, hover: null};
+      return {...s, earlier: pointCount(activeView(s).points), showEarlier: false, hover: null};
     case 'autoview': {
-      const t = {...s, earlier: a.ev.earlier, hover: a.ev.earlier === s.earlier ? s.hover : null};
-      const shown = a.ev.show === undefined ? t : {...t, showEarlier: a.ev.show !== 0};
-      return a.ev.zoom ? setViewport(shown, viewportOf(a.ev.zoom)) : shown;
+      let t: DiagramState = {...s, earlier: a.ev.earlier, hover: a.ev.earlier === s.earlier ? s.hover : null};
+      if (a.ev.show !== undefined) t = {...t, showEarlier: a.ev.show !== 0};
+      const zooms = a.ev.views ?? [];
+      let views = zooms.length > t.views.length ? resized(t.views, zooms.length) : t.views;
+      zooms.forEach((z, k) => {
+        if (z.zoom) views = withView(views, k, v => setViewport(v, viewportOf(z.zoom!)));
+      });
+      const active = a.ev.active !== undefined && a.ev.active < views.length ? a.ev.active : t.active;
+      return {...t, views, active};
     }
     case 'showEarlier':
       return a.show === s.showEarlier ? s : {...s, showEarlier: a.show};
+    case 'activate':
+      return a.view === s.active || a.view < 0 || a.view >= s.views.length ? s : {...s, active: a.view};
   }
 }
 
 function onRun(s: DiagramState, op: 'start' | 'clock' | 'end', at: number): DiagramState {
-  if (op === 'start') return {...s, run: {active: true, started: at, ended: null, first: pointCount(s.points), stopped: false}};
+  if (op === 'start') return {...s, run: {active: true, started: at, ended: null, first: pointCount(activeView(s).points), stopped: false}};
   if (!s.run?.active) return s;
   if (op === 'clock') return {...s, run: {...s.run, started: at}};
   return {...s, run: {...s.run, active: false, ended: at}};
@@ -378,8 +449,8 @@ export function diagramSettled(s: DiagramState): DiagramState {
 }
 
 /** the points Clear hid, and whether they are shown */
-export function earlierCount(s: Pick<DiagramState, 'earlier' | 'points'>): number {
-  return Math.min(s.earlier, pointCount(s.points));
+export function earlierCount(s: Pick<DiagramState, 'earlier' | 'views' | 'active'>): number {
+  return Math.min(s.earlier, pointCount(activeView(s).points));
 }
 
 /** the number of branches among the first `n` points */
@@ -390,6 +461,6 @@ export function branchesBefore(p: DiagramPoints, n: number): number {
 }
 
 /** the label of point `i`, if it has one */
-export function labelAt(s: Pick<DiagramState, 'labels'>, i: number): DiagramLabel | undefined {
+export function labelAt(s: Pick<DiagramView, 'labels'>, i: number): DiagramLabel | undefined {
   return s.labels.find(l => l.point === i);
 }

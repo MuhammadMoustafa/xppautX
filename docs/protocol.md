@@ -77,7 +77,7 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own) and whether its earlier runs are drawn. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
 | `redraw` | | Redraw the active plot window, and the AUTO diagram when AUTO is open (for a client that reconnects). |
 | `state` | | Send `state` now. |
-| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`x`, `y`, `show`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` the zoom, `show` whether the branches hidden by Clear are drawn; `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
+| `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/saVe session and File/opeN session, keys `v` and `n` of the File menu. Without `name`, asks for one (`ask` kind `file`, wildcard `*.snapx`). `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
 | `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode* *.autox *.snapx`). A file that is not there fails at once (`message` `error`, nothing asked); so does a session file (`.snapx`) or an AUTO file (`.autox`) that cannot be read or has no model in it ("Session files" below). Then asks `choice` with `keys` `sd`: `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. A session file or an AUTO file loads the model saved in it, from its saved files and never the disk's (however the `.ode` there has changed, or when there is none), then restores the session or loads the diagram; when the model open is that one (the same files, byte for byte), an AUTO file's diagram goes into it with nothing asked, the data kept and no model loaded, while a session file still asks (it replaces this session's values, data and diagram) and then loads the model again with its session. The model is loaded from its own folder (a saved model from the folder of its file), which becomes the working directory (the page's files, "Files" below: outputs go there, and nothing is written beside a session or AUTO file), with a command line of the file alone (and `-anifile` with its saved animation when it was loaded with one). `hello`'s `title` names a saved model's file and the one it is saved in, `lecar.ode (saved in lecar.autox)`. A file that is not a model's text (a zip, another binary file) is refused, as a model that does not load (below), its bytes never shown. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does but without asking: the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
@@ -388,13 +388,13 @@ model's start in every mode, before the script.
 |---|---|---|
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
-| `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
+| `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
-| `autoview` | `earlier`, `show`, `zoom` | AUTO's hidden branches and zoom, for a client that asked for `autoinfo`; see "Display state". |
+| `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
 | `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
@@ -456,15 +456,41 @@ A point is one `add_point()` of `core/auto_nox.c`, in the quantities the
 axes plot (`auto_xy_plot`: the parameter against the maximum, norm,
 period, ... of the Axes setting), in the order it was plotted.
 
-- `{"ev":"diagram","op":"axes", xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
+**Views of the diagram** (W50). The one diagram has any number of views
+(at least one), each with its own axes (plot type, variable, parameters,
+ranges) and zoom: I-V beside I-gca in two-parameter work. Every `diagram`
+event names its `view` (0, 1, ...) and applies to that view's points and
+axes; a client keeps one list per view. Every view holds one entry per
+point of the diagram, in the same order, so a point's index is the same
+in every view (the grab, `info.point`, Clear's `earlier`): a point a view
+does not plot (a one-parameter point in a two-parameter view, a
+two-parameter point in another) comes with `d` 0 and `x`, `y` `null`. One
+view is the active one (`autoview`'s `active`): the Axes menu (the AutoPlot
+form, zoom, Fit, Scroll, last 1 and 2 par, Default), the exports, the info
+strip and a Run go by its axes (its parameters are the ones a run
+continues in), and a grab's point by its data.
+
+- `{"ev":"diagram","op":"views","n":N}`: the diagram has N views now; the
+  client drops its lists after the first N, or adds empty ones up to N.
+  It comes before the events of a new view, and after a view is closed
+  (the views after it move down one: the events that follow send their
+  lists again).
+- `{"cmd":"auto","op":"view","new":1}` adds a view with the active one's
+  axes and makes it active (the Axes menu's "new (V)iew", key `v`, does the
+  same); `{"cmd":"auto","op":"view","close":k}` closes view k (an error
+  message when there is no view k, or it is the last one: one always
+  stays); `{"cmd":"auto","op":"view","active":k}` makes view k the active
+  one. They are views (kind `v`), done during a run too.
+
+- `{"ev":"diagram","op":"axes","view":v, xmin, xmax, ymin, ymax, x0, y0, wid, hgt, plot, xlabel, ylabel}`:
   the diagram was drawn again at these axes (`plot` is `Auto.plot`: 0 hi,
   1 norm, 2 hi and lo, 3 period, 4 two parameters, 10 frequency, 11
   average); the points are unchanged. Pixel `x0 + wid*(x-xmin)/(xmax-xmin)`,
   `y0 + hgt - hgt*(y-ymin)/(ymax-ymin)` of window 101 is (x, y) in the
   core's pixels (what a pixel answer to a `grab` or `rubber` ask means).
-- `{"ev":"diagram","op":"reset","keep":k, ...the axes fields}`: drop every
-  point after the first `k` (all of them for 0), then the axes as above.
-- `{"ev":"diagram","op":"add","from":n,"runs":[...]}`: points `n`, `n+1`, ...
+- `{"ev":"diagram","op":"reset","view":v,"keep":k, ...the axes fields}`: drop every
+  point of view v after the first `k` (all of them for 0), then the axes as above.
+- `{"ev":"diagram","op":"add","view":v,"from":n,"runs":[...]}`: points `n`, `n+1`, ... of view v
   (`n` is the number of points the client holds) in runs of points that
   share their branch, kind and style and whose numbers count up by one:
 
@@ -516,11 +542,11 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 | field | meaning |
 |---|---|
 | `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
-| `info.point` | its index in the `diagram` data (the points the client holds), -1 when they do not have it (after Clear, or a load not drawn yet) |
+| `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
 | `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
-| `info.x`, `y`, `y2` | where the diagram plots the point, in the quantities of the Axes setting |
+| `info.x`, `y`, `y2` | where the active view plots the point, in the quantities of its axes (another view's are its own `diagram` data's point `info.point`) |
 | `stab` | what the circle shows: the point AUTO computed last, or the grab's cursor; `null` before any |
 | `stab.periodic` | 1: `circle` holds the Floquet multipliers of a periodic orbit; 0: e^λ of each eigenvalue λ of a steady state (XPP keeps them so: inside the unit circle is stable) |
 | `stab.circle` | `[re,im]` per variable, the values themselves (the X11 circle clamps them to ±1.95). All `[0,0]`: not computed. Always a stored diagram point's own values, while AUTO runs and while grabbing alike (core/auto_stability.h). AUTO computes them from a run's second point on, so a run's first point, and a run that stops there, has none, unless the run restarts from a label of the same kind (a steady state from a steady label, a periodic orbit from a periodic one, one parameter): that first point is the label's solution and carries the label's values. A periodic run from a Hopf point, a two-parameter run and a period doubling's branch switch start with none; a two-parameter curve of periodic orbits (a limit point's, a period doubling's, a torus') has none at all, AUTO computing no multipliers along it. (XPPAUT stores the last values computed with every point, so its first points carry those of another point.) |
@@ -568,6 +594,7 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | `axes.var` | the variable the y axis plots (Y-axis) |
 | `axes.par1`, `par2` | Main Parm and Secnd Parm, two of `pars` (`null` if none) |
 | `axes.xmin` .. `ymax` | the diagram's axes |
+| `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (one of `pars`) or the period `T` reaches `value` AUTO labels the point (UZ) |
 
 Numbers are doubles in their shortest exact form, the whole-number fields
@@ -578,7 +605,9 @@ any of the four members above, each part only when given: `numerics` any
 of its fields, `pars` the first N of AUTO's parameters (an empty name keeps
 one), `axes` any of `plot`, `var`, `par1`, `par2` (names among `pars`,
 after this set's own `pars`), the four ranges, and `"fit":true` for
-Axes/Fit afterwards, `marks` the whole list (0 to 9 pairs; `[]` for none).
+Axes/Fit afterwards, and `"view":k` for view k's axes (the active one's
+without it; setting a view's axes makes it the active one), `marks` the
+whole list (0 to 9 pairs; `[]` for none).
 The core checks every value first and sets all or nothing: a whole number
 where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
 1; Ncol 2 to 7; IID 0 to 5; IAD and IADS at least 0; SuppBP 0 or 1; Ds not
@@ -862,8 +891,8 @@ is a zip of ordinary files, in this order:
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, its options file, `-anifile`'s animation; byte for byte |
 | `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics): the original XPPAUT reads it |
-| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision and its orbits), when there is a diagram |
-| `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's view (`autoview`), the browser's added columns; set-file lines, a value and its name |
+| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision, its orbits and the views of it), when there is a diagram |
+| `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
@@ -873,8 +902,8 @@ saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is
 not saved in it is a file that is not there. Then it restores the
 members: `state`, `plots`, `marks` (but Sing pts' equilibrium symbols),
-`autoview` and the diagram are as they were at the save, the diagram
-exactly (every digit). The earlier runs a window keeps until Erase are
+`autoview` and the diagram in each of its views are as they were at the
+save, the diagram exactly (every digit). The earlier runs a window keeps until Erase are
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
 `message` `error` says what is missing) and nothing changes. The command
@@ -903,11 +932,15 @@ order:
 | `settings.txt` | AUTO's settings, one `key value` line each, with the keys of `auto` `set` ("AUTO's settings as data" above): every Numerics key (`ntst` ... `suppbp`), `pars` and AUTO's parameters' names, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax`, and one `mark NAME VALUE` line per Mark value; `-` stands for no name |
 | `diagram.csv` | the diagram, a header row of names and one row per point in the order stored: `calc`, `ibr` (branch), `ntot` (point, negative when stable), `itp` (type), `lab` (label), `nfpar`, `icp1`..`icp4`, `flag2`, `from` (the label its run started from), `norm`, `per`, `torper`, `par1`..`par20` (AUTO's parameters' values), then for each variable x `u0.x`, `uhi.x`, `ulo.x`, `ubar.x`, and last `evr1`, `evi1` ... `evrN`, `eviN` (the eigenvalues or Floquet multipliers, zeros when not computed) |
 | `solutions.s` | AUTO's solution file (`fort.8`) as AUTO wrote it: the solutions at the labelled points, which a grab restarts from |
+| `views.txt` | the views of the diagram (W50, "Views of the diagram" above), one line each in order, `view PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY` (the axes as `settings.txt` names them, each zoom `LO:HI` or `-` for the whole axis), then `active K`; restored exactly, ranges included |
 
 Every number is the shortest text that reads back as the same double, so
 a diagram saved and loaded is the same bit for bit, and continues from a
 grabbed point as the one saved would. A file without its model is
-refused, as a session file is. A setting the model no longer takes
+refused, as a session file is; one without `settings.txt`, `diagram.csv`
+or `views.txt` (every file saved before W50 lacks the last) loads no
+diagram, and an error names the member (`d1.autox: its views.txt cannot
+be read`; in a session file, `auto/views.txt`). A setting the model no longer takes
 leaves AUTO's settings as they were, which a `message` `bottom` says. An
 XPPAUT `.auto` file still loads into the model open, as an import (after
 asking whether to destroy the diagram there is): its settings, its
@@ -961,13 +994,16 @@ Window/Zoom, Fit, Xi vs t) drop the zoom. The `display` command sets them:
 is left as it is).
 
 **`autoview`** (with `autoinfo`): `{"ev":"autoview","earlier":n,"show":0,
-"zoom":{"x":null,"y":null}}`, sent at the end of a command when it
-changed, and at once after `data`. `earlier`: the diagram's points before
-this index are the branches computed before Clear (the AUTO window's key
-`c` sets it to the points so far; a diagram of fewer points, File/Reset
-diagram, lowers it, closing AUTO clears it); `show` 1: they are drawn; `zoom`
-as above for the diagram, dropped by other axes. `{"cmd":"auto","op":"display",
-"show":true,"x":[...],"y":null}` sets `show` and the zoom.
+"active":0,"views":[{"zoom":{"x":null,"y":null}},...]}`, sent at the end of
+a command when it changed, and at once after `data`. `earlier`: the
+diagram's points before this index are the branches computed before Clear
+(the AUTO window's key `c` sets it to the points so far, in every view; a
+diagram of fewer points, File/Reset diagram, lowers it, closing AUTO clears
+it); `show` 1: they are drawn; `active` the active view; `views` one entry
+per view of the diagram (W50), its `zoom` as above, dropped by other axes
+of that view (closing AUTO drops every view's zoom; the views stay).
+`{"cmd":"auto","op":"display","view":1,"show":true,"x":[...],"y":null}`
+sets `show` and view 1's zoom (the active view's without `view`).
 
 ### Asks
 

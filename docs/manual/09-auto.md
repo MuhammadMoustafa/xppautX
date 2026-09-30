@@ -52,6 +52,8 @@ back). It has:
   next to the diagram, for Axes' choices (Hi, Norm, Hi-lo, Period, Two
   par, Frequency, Average and their ranges) below — usable during a run,
   applied when idle;
+- any number of **views** of the one diagram (see "Views of the diagram"
+  below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
   "Stopped: parameter iapp reached Par Max (0.5)" (see "Why a branch
   stopped" below), and AUTO's Output gets the same as a line for every
@@ -170,6 +172,30 @@ This is the other parameter for two-parameter continuations.
 The plotting dimensions of the diagram.
 
 Once you press `OK` the axes will be redrawn and labeled. For the present model, set `Xmin=-.5, Ymin=-1.5, Xmax=.5, Ymax=1.0.`
+
+## Views of the diagram
+
+There is one bifurcation diagram, but you can look at it through any
+number of views at once, each with its own axes: the voltage against the
+current beside the two-parameter curve of current against a conductance,
+say, while you follow a limit point in two parameters. Axes' **new (V)iew**
+(key `v`) opens another view with the axes of the one you are in; change
+its axes as usual. The views sit side by side and wrap to a new row when
+the window is narrow; each has a title saying what it plots and, while
+there are two or more, a × that closes it (the last one always stays;
+closing a view never touches the diagram).
+
+A click in a view makes it the **active** one, framed in the accent
+colour: Axes and its zoom, Fit and Scroll change the active view, the
+exports (Postscript, SVG, Write pts, All info) draw it, the info strip
+names its variable, and Run continues in its parameters (Main Parm, and
+2nd Parm for a two-parameter run). Every view gets the points of a run as
+they come, and every view shows the grab's cursor and the point under
+the mouse, so you can grab a point in whichever view shows it best.
+
+The views are saved with the session (File/saVe session) and in AUTO's
+own file (File/Save diagram), each with its axes and zoom, and come back
+as they were when you open it.
 
 ## Numerical parameters
 
@@ -400,9 +426,9 @@ If the grabbed point is a special one and is a periodic orbit, this loads the or
 Writes the diagram to `name.autox`, AUTO's own file, to pick up later
 without saving a whole session: every point at full precision (its
 values, label, type and eigenvalues or Floquet multipliers), AUTO's
-settings (Numerics, Parameter, Axes and the Mark values), the orbits of
-the labelled points, and the model itself (its `.ode` and every file it
-read). It is a zip of ordinary files: renamed to `.zip`, its
+settings (Numerics, Parameter, Axes and the Mark values), the views of
+the diagram, the orbits of the labelled points, and the model itself (its
+`.ode` and every file it read). It is a zip of ordinary files: renamed to `.zip`, its
 `diagram.csv` opens in any spreadsheet or `pandas.read_csv` (the file's
 members are listed in docs/protocol.md "AUTO files"). A session file
 (File/saVe session) carries the same members.
