@@ -420,13 +420,15 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const missing = missingFile(ev.error, state.files.run);
         const action: ToastAction | undefined = missing ? {kind: 'addFile', name: missing, run: state.files.run} : undefined;
         const files = {...state.files, runFailed: true};
-        const withLog = addToast(addLog({...state, bottom: ev.error, files}, {kind: 'error', text: ev.error}), 'error',
-          ev.error, action);
-        /* a rejected `set`/`slide`: shown as that field's error too (A11), not only the toast; a
-           rejected `auto` `set` in the AUTO forms */
+        /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the AUTO
+           form's: the field or form shows it where it was typed and takes the focus back (WF-001),
+           so it opens no error dialog (W104 review) -- it is still in Messages */
+        const values = reduceValues(state.values, {type: 'error', text: ev.error});
         const autoSettings = /^AUTO settings: /.test(ev.error)
           ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
-        return {...withLog, values: reduceValues(withLog.values, {type: 'error', text: ev.error}), autoSettings};
+        const logged = addLog({...state, bottom: ev.error, files, values, autoSettings}, {kind: 'error', text: ev.error});
+        const claimed = values !== state.values || autoSettings !== state.autoSettings;
+        return claimed ? logged : addToast(logged, 'error', ev.error, action);
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       if (ev.box !== undefined) return {...state, box: ev.box};

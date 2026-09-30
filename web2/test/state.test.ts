@@ -133,7 +133,10 @@ test('a set that the core rejects lands on its value field, not only the toast (
   s = ev(s, {ev: 'idle'});
   s = ev(s, {ev: 'message', error: 'bad formula'});
   assert.equal(s.values.errors['par:iapp'], 'bad formula');
-  assert.deepEqual(s.toasts.map(t => t.text), ['integration failed', 'bad formula'], 'still a non-modal toast too (A11)');
+  /* the field shows it and takes the focus back (WF-001): no error dialog for it, only for the
+     computation's error (W104 review); both are in Messages */
+  assert.deepEqual(s.toasts.map(t => t.text), ['integration failed']);
+  assert.deepEqual(s.log.filter(l => l.kind === 'error').map(l => l.text), ['integration failed', 'bad formula']);
   /* its own idle ends it */
   s = ev(s, {ev: 'idle'});
   assert.deepEqual(s.values.inflight, []);
