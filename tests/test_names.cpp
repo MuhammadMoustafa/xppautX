@@ -50,8 +50,8 @@ int main(void)
     CHECK(calc(q1000 + "-" + p200, &ok) == 1.0 && ok);
 
     /* a long variable gets its primed name X' too */
-    CHECK(add_var(v200.c_str(), 0.0) == 0);
-    CHECK(add_var((v200 + "'").c_str(), 0.0) == 0);
+    CHECK(add_var(xpp::session(), v200.c_str(), 0.0) == 0);
+    CHECK(add_var(xpp::session(), (v200 + "'").c_str(), 0.0) == 0);
 
     /* "name:formula" hands back the name whole */
     CHECK(has_eq(p200 + ":2*3", name, &where) == 1);

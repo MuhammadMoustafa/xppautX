@@ -11,6 +11,7 @@
 #include "lunch-new.h"
 #include "integrate.h"
 #include "expr.h"
+#include "getvar.h"
 #include "xpp_ui.h"
 
 #include <string>
@@ -117,7 +118,7 @@ int do_transpose(xpp::Session &s)
                            XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(6,1,"Transpose Data",n,values,kinds);
  if(status!=0){
-   find_variable(values[0].c_str(),&i);
+   find_variable(s,values[0].c_str(),&i);
    if(i>-1)
      my_trans.col0=i+1;
    else
@@ -159,7 +160,7 @@ int create_transpose(xpp::Session &s)
     }
   }
   
-  new_browse_dat(data,my_trans.ncol);
+  new_browse_dat(s,data,my_trans.ncol);
    my_trans.here=1;
    return 1;
 }
@@ -173,17 +174,17 @@ void alloc_h_stuff(xpp::Session &s)
 void data_back(xpp::Session &s)
 {
  s.histogram.four_here=0;
- new_browse_dat(s.data_store.col,s.data_store.rows);
+ new_browse_dat(s,s.data_store.col,s.data_store.rows);
 }
 
-void adj_back()
+void adj_back(xpp::Session &s)
 {
- if(ADJ_HERE)new_browse_dat(my_adj,adj_len);
+ if(ADJ_HERE)new_browse_dat(s,my_adj,adj_len);
 }
 
-void h_back()
+void h_back(xpp::Session &s)
 {
- if(H_HERE)new_browse_dat(my_h,h_len);
+ if(H_HERE)new_browse_dat(s,my_h,h_len);
 }
 /*  Here is how to do the range over adjoints and h functions
     unfortunately, h functions are always computed even if you dont want them 
@@ -213,13 +214,13 @@ static const char *const key="nmaohpr";
    new_h_fun(s,0);
    break;
  case 'a':
-   adj_back();
+   adj_back(s);
    break;
  case 'o':
    data_back(s);
    break;
  case 'h':
-   h_back();
+   h_back(s);
    break;
  case 'p':
    adjoint_parameters();
@@ -263,7 +264,7 @@ void new_h_fun(xpp::Session &s, int silent)
    h_columns.make(s.data_store,n,h_len,s.model().neq);
    if(make_h(s,s.data_store.col,my_adj,my_h,h_len,s.numerics.delta_t*s.numerics.njmp,s.model().node,silent )){
      H_HERE=1;
-     h_back();
+     h_back(s);
    }
  ping();
   
@@ -294,7 +295,7 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
    for(i=0;i<s.model().node ;i++){
      std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
      new_string_of(name.c_str(),coup_string[i],XPP_FIELD_EXPRESSION);
-     if(add_expr(coup_string[i].c_str(),coup_fun[i].data(),&j)){
+     if(add_expr(s,coup_string[i].c_str(),coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
        goto bye;
      }
@@ -309,15 +310,15 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
          k2=k+j;
        if(k2>=nt)k2=k2-nt+1;
        for(i=0;i<node;i++){
-	 set_ivar(i+1,static_cast<double>(orb[i+1][k]));
-         set_ivar(i+n0+1,static_cast<double>(orb[i+1][k2]));
+	 setvar(s,i+1,static_cast<double>(orb[i+1][k]));
+         setvar(s,i+n0+1,static_cast<double>(orb[i+1][k2]));
        }
        z=0.0;
-       update_based_on_current(); 
+       update_based_on_current(s); 
 
        for(i=0;i<node;i++){
 	
-	 z=evaluate(coup_fun[i].data());
+	 z=evaluate(s,coup_fun[i].data());
 	
 	 sum=sum+static_cast<float>(z)*adj[i+1][k];
        }
@@ -355,7 +356,7 @@ void new_adjoint(xpp::Session &s)
  auto done=adjoint(s,s.data_store.col,my_adj,adj_len,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,s.model().node );
  if(done){
    ADJ_HERE=1;;
- adj_back();
+ adj_back(s);
  }
  else xpp::show_error(done.error());
  ping();
@@ -557,7 +558,7 @@ void do_liapunov(xpp::Session &s)
     s.data_store.col[1][i]=my_liap[1][i];
   }
   s.data_store.rows=LIAP_I;
-  refresh_browser(s.data_store.rows);
+  refresh_browser(s,s.data_store.rows);
   LIAP_FLAG=0;
   for(auto &c : my_liap)c.clear();
 }

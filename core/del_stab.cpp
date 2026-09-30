@@ -24,9 +24,8 @@
    a delay differential equation. 
 */
 
-xpp::Result<> do_delay_sing(double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
+xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, int *ierr, float *stabinfo)
 {
-      xpp::Session &s=xpp::session();
       double rr[2];
 
  double colnorm=0,colmax,colsum;
@@ -98,7 +97,7 @@ xpp::Result<> do_delay_sing(double *x, double eps, double err, double big, int m
  }
  sign=plot_args(coef.data(),s.delay.list.data(),n,s.delay.ndelay,s.delay.grid,colnorm,colnorm);
 
- okroot=find_positive_root(coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
+ okroot=find_positive_root(s,coef.data(),s.delay.list.data(),n,s.delay.ndelay,colnorm,err,eps,big,maxit,rr);
  if(okroot>0){
    ev[0]=rr[0];
    ev[1]=rr[1];
@@ -227,7 +226,7 @@ void make_z(COMPLEX *z, double *delay, int n, int m, double *coef, COMPLEX lambd
   }
 }
 
-int find_positive_root(double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
+int find_positive_root(xpp::Session &s, double *coef, double *delay, int n, int m, double rad, double err, double eps, double big, int maxit, double *rr)
 {
   COMPLEX lambda,lambdap;
   COMPLEX det,detp;
@@ -236,8 +235,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
 
   int k;
 
-    lambda.r=xpp::session().delay.alpha_max;
-    lambda.i=xpp::session().delay.omega_max;
+    lambda.r=s.delay.alpha_max;
+    lambda.i=s.delay.omega_max;
 
    std::vector<COMPLEX> z(static_cast<size_t>(n)*n);
 
@@ -250,8 +249,8 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
     r=c_abs(det);
     if(r<err){ /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      xpp::session().delay.alpha_max=lambda.r;
-      xpp::session().delay.omega_max=lambda.i;
+      s.delay.alpha_max=lambda.r;
+      s.delay.omega_max=lambda.i;
       return 1;
     }
     xl=lambda.r;
@@ -293,10 +292,10 @@ int find_positive_root(double *coef, double *delay, int n, int m, double rad, do
     if(r<err)
     { /* within the tolerance */
       process_root(lambda.r,lambda.i);
-      xpp::session().delay.alpha_max=lambda.r;
-      xpp::session().delay.omega_max=lambda.i;
-      rr[0]=xpp::session().delay.alpha_max;
-      rr[1]=xpp::session().delay.omega_max;
+      s.delay.alpha_max=lambda.r;
+      s.delay.omega_max=lambda.i;
+      rr[0]=s.delay.alpha_max;
+      rr[1]=s.delay.omega_max;
       return 1;
     }
     if(r>big){

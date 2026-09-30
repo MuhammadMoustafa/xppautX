@@ -93,7 +93,7 @@ void do_axes(xpp::Session &s)
 {
     const std::string s1(ind_to_sym(s.plot_windows.current->xv[0]));
     const std::string s2(ind_to_sym(s.plot_windows.current->yv[0]));
-    set_linestyle(0);
+    set_linestyle(s,0);
     if(program.interactive){  re_title(s);
     SmallGr();
     }
@@ -137,7 +137,7 @@ void Frame_3d(xpp::Session &s)
  
   scale3d(s,x4,y4,z4,&x3,&y3,&z3);
   scale3d(s,x5,y5,z5,&x6,&y6,&z6);
-  set_linestyle(-2);
+  set_linestyle(s,-2);
   line3d(s,-1.,-1.,-1.,1.,-1.,-1.);
   line3d(s,1.,-1.,-1.,1.,1.,-1.);
   line3d(s,1.,1.,-1.,-1.,1.,-1.);
@@ -160,7 +160,7 @@ void Frame_3d(xpp::Session &s)
   
 
     
-  set_linestyle(-1);
+  set_linestyle(s,-1);
   
   if(s.plot_windows.current->zorgflag)line_3d(s,x0,y0,z4,x0,y0,z5);
   if(s.plot_windows.current->yorgflag)line_3d(s,x0,y4,z0,x0,y5,z0);
@@ -209,14 +209,14 @@ void Box_axis(xpp::Session &s, double x_min, double x_max, double y_min, double 
   ytic=make_tics(y_min,y_max);
   xtic=make_tics(x_min,x_max);
  scale_to_screen(s,static_cast<float>(s.plot_windows.current->xorg),static_cast<float>(s.plot_windows.current->yorg),&yaxis_x,&xaxis_y);
-  set_linestyle(-1);
+  set_linestyle(s,-1);
   if(s.plot_windows.current->xorgflag&&flag)
     if(xaxis_y>=ybot&&xaxis_y<=ytop)
       line(s,xleft,xaxis_y,xright,xaxis_y);
   if(s.plot_windows.current->yorgflag&&flag)
     if(yaxis_x>=xleft&&yaxis_x<=xright)
       line(s,yaxis_x,ybot,yaxis_x,ytop);
- set_linestyle(-2);
+ set_linestyle(s,-2);
   s.drawing.doing_box_axes=1;
   line(s,xleft,ybot,xright,ybot);
   line(s,xright,ybot,xright,ytop);
@@ -226,7 +226,7 @@ void Box_axis(xpp::Session &s, double x_min, double x_max, double y_min, double 
   draw_ytics(s,sy,ytic*floor(y_min/ytic),ytic,ytic*ceil(y_max/ytic));
   draw_xtics(s,sx,xtic*floor(x_min/xtic),xtic,xtic*ceil(x_max/xtic));
   s.drawing.text_justify=0;
-  set_linestyle(0);
+  set_linestyle(s,0);
   
   s.drawing.doing_axes=0;
 }

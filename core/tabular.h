@@ -34,8 +34,6 @@ extern "C" {
 /* tabular.c */
 double lookupxy(double x, int n, double *xv, double *yv);
 double tab_interp(double xlo, double h, double x, double *y, int n, int i);
-double lookup(double x, int index);
-int get_lookup_len(int i);
 
 
 #ifdef __cplusplus
@@ -44,12 +42,18 @@ int get_lookup_len(int i);
 #include "xpp_error.h"
 
 /* Tables return why they failed; the command (or the model load) shows it. */
-/* the function tables again, after a parameter changed: the first
-   failure, the others still done */
-xpp::Result<> redo_all_fun_tables(void);
 namespace xpp {
 struct Session; /* session.h */
 }
+
+int get_lookup_len(xpp::Session &s, int i);
+/* the Session s's function tables again, after a parameter changed: the
+   first failure, the others still done; without s, the current Session's
+   (an entry point, W47d5-6) */
+xpp::Result<> redo_all_fun_tables(xpp::Session &s);
+xpp::Result<> redo_all_fun_tables(void);
+/* table index's value at x in the Session s (the evaluator's TABTYPE) */
+double lookup(const xpp::Session &s, double x, int index);
 xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y);
 /* the session s's tables: @ autoeval= for each, View, Numerics' tables
    menu (i: 0 view, 1 edit) and which table it picks, -1 for none */

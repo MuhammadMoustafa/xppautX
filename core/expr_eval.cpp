@@ -26,8 +26,9 @@ constexpr double CurrentIndex=0;
    follows here goes on from where that left it, as it always has. The
    built-in function tables (fun1, fun2) never evaluate a program, so
    their calls need no write-back. */
-double eval_rpn(const int *equat, ParserState &p)
+double eval_rpn(const int *equat, xpp::Session &s)
 {
+  ParserState &p=s.parser;
    int i,it,in,j;
    const int *tmpeq;
   int is;
@@ -81,7 +82,7 @@ double eval_rpn(const int *equat, ParserState &p)
      temy=pop();
      temz=pop();
      save();
-     temx=xpp::expr::do_delay_shift(temx,temy,temz);
+     temx=xpp::expr::do_delay_shift(s,temx,temy,temz);
      restore();
      push(temx);
      break;
@@ -98,7 +99,7 @@ double eval_rpn(const int *equat, ParserState &p)
 		    temx=pop();
 		    temy=pop();
                    save();
-                   temx=xpp::expr::do_delay(temx,temy);
+                   temx=xpp::expr::do_delay(s,temx,temy);
                    restore();
                    push(temx);
 		   break;
@@ -107,7 +108,7 @@ double eval_rpn(const int *equat, ParserState &p)
                  temx=pop();
                  temy=pop();
                  save();
-                 temx=xpp::expr::do_shift(temx,temy);
+                 temx=xpp::expr::do_shift(s,temx,temy);
                  restore();
                  push(temx);
                  break;
@@ -128,7 +129,7 @@ double eval_rpn(const int *equat, ParserState &p)
 		  tmpeq=equat;
 		  constants[xpp::expr::SUM_INDEX]=static_cast<double>(is);
 		  save();
-		  sum+=eval_rpn(tmpeq,p);
+		  sum+=eval_rpn(tmpeq,s);
 		  restore();
 		}
 	      }
@@ -177,21 +178,21 @@ double eval_rpn(const int *equat, ParserState &p)
     case VECTYPE:
              temx=pop();
              save();
-             temx=vector_value(temx,in);
+             temx=vector_value(s,temx,in);
              restore();
              push(temx);
              break;
      case NETTYPE:
              temx=pop();
              save();
-             temx=network_value(temx,in);
+             temx=network_value(s,temx,in);
              restore();
              push(temx);
              break;
      case TABTYPE:
              temx=pop();
              save();
-             temx=lookup(temx,in);
+             temx=lookup(s,temx,in);
              restore();
              push(temx);
              break;
@@ -201,7 +202,7 @@ double eval_rpn(const int *equat, ParserState &p)
             push(st.args[st.nargs-1-in]); break;
      case KERTYPE:
              save();
-             temx=ker_val(in);
+             temx=ker_val(s,in);
              restore();
              push(temx);
              break;
@@ -225,7 +226,7 @@ double eval_rpn(const int *equat, ParserState &p)
 	    st.nargs++;
             }
             save();
-            temx=eval_rpn(xpp::model().ufun_programs[in].data(),p);
+            temx=eval_rpn(s.model().ufun_programs[in].data(),s);
             restore();
             push(temx);
 break;
@@ -241,10 +242,15 @@ break;
 
 }
 
-double evaluate(const int *program)
+double evaluate(xpp::Session &s, const int *program)
 {
-  ParserState &p=xpp::session().parser;
+  ParserState &p=s.parser;
   p.stack.nargs=0;
   p.stack.top=0;
-  return(eval_rpn(program,p));
+  return(eval_rpn(program,s));
+}
+
+double evaluate(const int *program)
+{
+  return evaluate(xpp::session(),program);
 }

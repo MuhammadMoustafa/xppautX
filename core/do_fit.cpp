@@ -92,9 +92,9 @@ xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, do
   }
   if(s.delay.flag){
    /* restart initial data */
-   if(auto d=do_init_delay(s.numerics.delay); !d)return std::unexpected(d.error());
+   if(auto d=do_init_delay(s,s.numerics.delay); !d)return std::unexpected(d.error());
   }
-evaluate_derived();
+evaluate_derived(s);
   s.integrator.solver->begin(&istart);
 /*   This gets the values at the desired points  */
   for(i=0;i<nvars;i++){
@@ -142,9 +142,9 @@ evaluate_derived();
     }
     if(s.delay.flag){
    /* restart initial data */
-   if(auto d=do_init_delay(s.numerics.delay); !d)return std::unexpected(d.error());
+   if(auto d=do_init_delay(s,s.numerics.delay); !d)return std::unexpected(d.error());
   }
-    evaluate_derived();
+    evaluate_derived(s);
     s.integrator.solver->begin(&istart);
    /* now loop through all the points */
     for(k=1;k<npts;k++){
@@ -163,7 +163,7 @@ evaluate_derived();
     }
     /* Now return the parameter to its old value */
     if(ip<0)s.parser.constants[-ip]=par;
-    evaluate_derived();
+    evaluate_derived(s);
     s.integrator.solver->finish();
 
   }
@@ -182,7 +182,7 @@ xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int
   if(!solver.traits().fixed_step){
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.tout=t1,.hguess=&dt});
     if(!r)return r;
-    stor_delay(y);
+    stor_delay(s,y);
     return {};
   }
   if(solver.traits().discrete){
@@ -230,16 +230,16 @@ void test_fit(xpp::Session &s)
  }
  fin.nvars=nvars;
  nvars=0;
- parse_varlist(fin.varlist, fin.ivar.data(), &nvars);
+ parse_varlist(s,fin.varlist, fin.ivar.data(), &nvars);
 
  if(fin.nvars!=nvars){
    err_msg(" # columns != # fitted variables");
    return;
  }
  npars=0;
- parse_parlist(fin.parlist1,fin.ipar.data(),&npars);
+ parse_parlist(s,fin.parlist1,fin.ipar.data(),&npars);
 
- parse_parlist(fin.parlist2,fin.ipar.data(),&npars);
+ parse_parlist(s,fin.parlist2,fin.ipar.data(),&npars);
 
  if(npars<=0){
    err_msg(" No parameters!");
@@ -586,30 +586,30 @@ void parse_collist(std::string_view collist, int *icols, int *n)
   *n=i;
 }
 
-void parse_varlist(std::string_view varlist, int *ivars, int *n)
+void parse_varlist(const xpp::Session &s, std::string_view varlist, int *ivars, int *n)
 {
   xpp::Tokens tokens(varlist);
   int v,i=0;
   for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
-    find_variable(*item,&v);
+    find_variable(s,*item,&v);
     if(v<=0)return;
     ivars[i++]=v-1;
   }
   *n=i;
 }
 
-void parse_parlist(std::string_view parlist, int *ipars, int *n)
+void parse_parlist(const xpp::Session &s, std::string_view parlist, int *ipars, int *n)
 {
   xpp::Tokens tokens(parlist);
   int v,i=0;
   for(std::optional<std::string_view> item;(item=tokens.next(" ,"));){
-    find_variable(*item,&v);
+    find_variable(s,*item,&v);
     if(v>0){
       ipars[i+*n]=v-1;
       i++;
     }
     else {
-      v=get_param_index(*item);
+      v=get_param_index(s,*item);
       if(v<=0)return;
       ipars[i+*n]=-v;
       i++;

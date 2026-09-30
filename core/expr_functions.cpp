@@ -176,11 +176,9 @@ const std::array<Fun2,23> fun2={
           FANCY DELAY HERE                   *-------------------------<<<
 *********************************************/
 
-/* the evaluator's built-ins read the current Session: entry points of
-   the right-hand side (W47d4) */
-double do_shift(double shift, double variable)
+double do_shift(const xpp::Session &s, double shift, double variable)
 {
-  const ParserState &p=xpp::session().parser;
+  const ParserState &p=s.parser;
   int it, in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
 
@@ -211,9 +209,8 @@ double do_ishift(double shift, double variable)
 
 }
 
-double do_delay_shift(double delay, double shift, double variable)
+double do_delay_shift(xpp::Session &s, double delay, double shift, double variable)
 {
- const xpp::Session &s=xpp::session();
  int in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
   if(i<0) return(0.0);
@@ -224,29 +221,27 @@ double do_delay_shift(double delay, double shift, double variable)
 
   if(s.delay.stab_flag>0){
     if(s.delay.flag&&delay>0.0)
-      return(get_delay(in-1,delay));
+      return(get_delay(s,in-1,delay));
     return(s.parser.variables[in]);
   }
 
-  return(delay_stab_eval(delay,in));
+  return(delay_stab_eval(s,delay,in));
 
 }
-double do_delay(double delay, double i)
+double do_delay(xpp::Session &s, double delay, double i)
 {
-  const xpp::Session &s=xpp::session();
-
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
     variable = (static_cast<int>(i)) % MAXTYPE;
 
   if(s.delay.stab_flag>0){
     if(s.delay.flag&&delay>0.0) {
-      return(get_delay(variable-1,delay));
+      return(get_delay(s,variable-1,delay));
     }
     return(s.parser.variables[variable]);
   }
 
-  return(delay_stab_eval(delay,static_cast<int>(variable)));
+  return(delay_stab_eval(s,delay,static_cast<int>(variable)));
 
 }
 

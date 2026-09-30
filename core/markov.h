@@ -7,8 +7,6 @@
 extern "C" {
 #endif
 
-void  make_gill_nu(double *nu, int n, int m, double *v);
-void  one_gill_step(int meth, int nrxn, int *rxn, double *v);
 
 #ifdef __cplusplus
 }
@@ -23,6 +21,9 @@ void  one_gill_step(int meth, int nrxn, int *rxn, double *v);
 namespace xpp {
 struct Session; /* session.h */
 }
+
+void  make_gill_nu(xpp::Session &s, double *nu, int n, int m, double *v);
+void  one_gill_step(const xpp::Session &s, int meth, int nrxn, int *rxn, double *v);
 
 /* the Markov variables, the Wiener parameters and stocHast (markov.cpp),
    in the Session s: a load's, or the run's */

@@ -418,10 +418,10 @@ void add_boundary(xpp::Model &m, std::string_view formula)
   m.bc_defined=BVP_N;
 }
 
-void add_flag(const std::string &cond, int sign, const std::vector<FlagEvent> &events)
+void add_flag(xpp::Session &s, const std::string &cond, int sign, const std::vector<FlagEvent> &events)
 {
   xpp::log(XPP_LOG_DEBUG, " GLOBAL: sign ={} condition = {} \n",sign,cond);
-  if(add_global(cond.c_str(),sign,events)){
+  if(add_global(s,cond.c_str(),sign,events)){
     xpp_log(XPP_LOG_WARN, "Bad global !! \n");
     xpp_model_failed();
   }
@@ -504,7 +504,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	xpp_log(XPP_LOG_WARN, "Bad global !! \n");
 	xpp_model_failed();
       }
-      add_flag(condition,sign,events);
+      add_flag(s,condition,sign,events);
       if(ConvertStyle){
 	xpp::print(convertf,"global {} {{{}}} {}\n",sign,condition,formula);
       }
@@ -874,7 +874,7 @@ void finish_model(xpp::Session &s)
   }
   if(m.nmarkov>0)
     compile_all_markov(s);
-  if(compile_flags()==1){
+  if(compile_flags(s)==1){
     xpp_log(XPP_LOG_ERROR, " Error in compiling a flag \n");
     xpp_model_failed();
   }
@@ -1059,7 +1059,7 @@ public:
     xpp::Load::at(m_.this_file);
     if(compile_derived(s_)==1)
       xpp_model_failed();
-    if(compile_svars()==1)
+    if(compile_svars(s_)==1)
       xpp_model_failed();
     evaluate_derived(s_);
     xpp_log(XPP_LOG_INFO, " All formulas are valid!!\n");
@@ -1217,7 +1217,7 @@ private:
     case Statement::Kind::Event: {
       std::vector<FlagEvent> events;
       for(const Binding &b : s.bindings)events.push_back({b.name,text(b.value)});
-      add_flag(text(s.expr),s.count,events);
+      add_flag(s_,text(s.expr),s.count,events);
       break;
     }
     case Statement::Kind::Ode:
@@ -1231,13 +1231,13 @@ private:
       vnames_.push_back(std::move(name));
       break;
     }
-    case Statement::Kind::Vector: add_vectorizer_name(s.name.c_str(),s.text.c_str()); break;
+    case Statement::Kind::Vector: add_vectorizer_name(s_,s.name.c_str(),s.text.c_str()); break;
     case Statement::Kind::Network:
-      add_special_name(s.name.c_str(),s.text.data());
+      add_special_name(s_,s.name.c_str(),s.text.data());
       c_resync(s.text);
       break;
     case Statement::Kind::Solv:
-      if(add_svar(s.name.c_str(),text(s.expr).c_str())==1)
+      if(add_svar(s_,s.name.c_str(),text(s.expr).c_str())==1)
 	xpp_model_failed();
       break;
     case Statement::Kind::Aux:
@@ -1315,7 +1315,7 @@ private:
     }
     for(size_t i=0;i<anames_.size();i++)
       aux_names[i]=anames_[i];
-    add_svar_names();
+    add_svar_names(s);
     IN_VARS=nvar;
     Naux=static_cast<int>(anames_.size());
     m.neq=nvar+m.nmarkov+Naux;
@@ -1422,7 +1422,7 @@ private:
     }
     case Statement::Kind::Dae: {
       const std::string rhs=text(s.expr,true);
-      if(add_aeqn(rhs.c_str())==1)
+      if(add_aeqn(s_,rhs.c_str())==1)
 	xpp_model_failed();
       xpp::log(XPP_LOG_INFO, " DAE eqn: {}=0 \n",rhs);
       break;
@@ -1442,7 +1442,7 @@ private:
       }
       break;
     case Statement::Kind::Vector: {
-      const int ok=add_vectorizer(s.name.c_str(),s.text.data());
+      const int ok=add_vectorizer(s_,s.name.c_str(),s.text.data());
       c_resync(s.text);
       if(ok==0){
 	xpp::log(XPP_LOG_ERROR, " Illegal vector  {} \n",s.text);
@@ -1451,7 +1451,7 @@ private:
       break;
     }
     case Statement::Kind::Network: {
-      const int ok=add_spec_fun(s.name.c_str(),s.text.data());
+      const int ok=add_spec_fun(s_,s.name.c_str(),s.text.data());
       c_resync(s.text);
       if(ok==0){
 	xpp::log(XPP_LOG_ERROR, " Illegal special function {} \n",s.text);

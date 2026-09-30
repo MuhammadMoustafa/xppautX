@@ -119,10 +119,11 @@ inline double number_from_halves(int first, int second)
   return std::bit_cast<double>(std::array<int,2>{first,second});
 }
 
-/* ENDDELAY, ENDDELSHFT, ENDSHIFT and ENDISHIFT (expr_functions.cpp) */
-double do_delay(double delay, double i);
-double do_delay_shift(double delay, double shift, double variable);
-double do_shift(double shift, double variable);
+/* ENDDELAY, ENDDELSHFT, ENDSHIFT and ENDISHIFT (expr_functions.cpp), in
+   the Session s the evaluator runs in */
+double do_delay(xpp::Session &s, double delay, double i);
+double do_delay_shift(xpp::Session &s, double delay, double shift, double variable);
+double do_shift(const xpp::Session &s, double shift, double variable);
 double do_ishift(double shift, double variable);
 
 }

@@ -217,12 +217,6 @@ extern "C" {
 #define M_UC 410
 
 
-void do_stochast(void);
-void get_pmap_pars(void);
-void set_col_par(void);
-void make_adj(void);
-void new_lookup(void);
-void froz_cline_stuff(void);
 void edit_xpprc();
 void do_tutorial();
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
@@ -251,6 +245,14 @@ void commander(xpp::Session &s, int ch);
    values and options, its plot settings on the current window; it
    becomes the set in use (Session::this_internset) */
 void use_intern_set(xpp::Session &s, int j);
+/* the menus the nUmerics menu opens (commands.cpp): stocHast, Poincare
+   map, colorize, adjoint, lookup tables; and the Freeze cline menu */
+void do_stochast(xpp::Session &s);
+void get_pmap_pars(xpp::Session &s);
+void set_col_par(xpp::Session &s);
+void make_adj(xpp::Session &s);
+void new_lookup(xpp::Session &s);
+void froz_cline_stuff(xpp::Session &s);
 #endif
 #endif
 

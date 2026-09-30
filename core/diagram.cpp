@@ -333,7 +333,7 @@ extern "C" void load_browser_with_branch(int ibr,int pts,int pte)
         
  }
  s.data_store.rows=nrows;
- refresh_browser(nrows);
+ refresh_browser(s,nrows);
 }
 void write_init_data_file()
 {

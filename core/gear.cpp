@@ -137,11 +137,11 @@ if(!s.numerics.par_fol)
   }
   if((real==0.0)&&(imag!=0.0))im++;
  }     /* eigenvalue count */
- if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(x,1);
+ if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(s,x,1);
  else
  {
-   if((rp+cp)!=0)eq_symb(x,0);
-   else eq_symb(x,3);
+   if((rp+cp)!=0)eq_symb(s,x,0);
+   else eq_symb(s,x,3);
  }
  
  *stabinfo=static_cast<float>(cp+rp)+static_cast<float>(cn+rn)/1000.0;
@@ -173,12 +173,12 @@ if(!s.numerics.par_fol)
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
-     change_current_linestyle(s.manifolds.unstable_color,&oldcol);
+     change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
      pr_evec(s,x,b,n,pr,eval[2*pose],1);
       s.numerics.delta_t=fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
-     change_current_linestyle(oldcol,&dummy);
+     change_current_linestyle(s,oldcol,&dummy);
 
      }
      else
@@ -190,12 +190,12 @@ if(!s.numerics.par_fol)
      get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
      if(*ierr==0)
      {
-        change_current_linestyle(s.manifolds.stable_color,&oldcol);
+        change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
 	pr_evec(s,x,b,n,pr,eval[2*nege],-1);
       s.numerics.delta_t=-fabs(s.numerics.delta_t);
       failure.keep(shoot(s,bp,x,b,1));
       failure.keep(shoot(s,bp,x,b,-1));
-        change_current_linestyle(oldcol,&dummy);
+        change_current_linestyle(s,oldcol,&dummy);
      }
      else
        failure.keep({"equilibrium","Failed to compute eigenvector"});
@@ -224,12 +224,12 @@ if(!s.numerics.par_fol)
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s.manifolds.unstable_color,&oldcol);
+	       change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigpos,1);
 	       s.numerics.delta_t=fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
-	       change_current_linestyle(oldcol,&dummy);
+	       change_current_linestyle(s,oldcol,&dummy);
 	       
 	     }
 	   else
@@ -242,12 +242,12 @@ if(!s.numerics.par_fol)
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
-	       change_current_linestyle(s.manifolds.stable_color,&oldcol);
+	       change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
 	       pr_evec(s,x,b,n,pr,bigneg,-1);
 	       s.numerics.delta_t=-fabs(s.numerics.delta_t);
 	       failure.keep(shoot(s,bp,x,b,1));
 	       failure.keep(shoot(s,bp,x,b,-1));
-	       change_current_linestyle(oldcol,&dummy);
+	       change_current_linestyle(s,oldcol,&dummy);
 	     }
 	   else
 	     failure.keep({"equilibrium","Failed to compute eigenvector"});
@@ -278,7 +278,7 @@ int i,k,type;
        usual_integrate_stuff(s,x);
        {
          xpp::Writer w(xpp::format("UM{}.dat",k).c_str());
-         if(w){ write_mybrowser_data(w); w.commit(); }
+         if(w){ write_mybrowser_data(s,w); w.commit(); }
        }
     }
     if(type<0){
@@ -287,7 +287,7 @@ int i,k,type;
        usual_integrate_stuff(s,x);
        {
          xpp::Writer w(xpp::format("SM{}.dat",k).c_str());
-         if(w){ write_mybrowser_data(w); w.commit(); }
+         if(w){ write_mybrowser_data(s,w); w.commit(); }
        }
 
     }
@@ -309,16 +309,16 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     
     type=ShootType[k];
     if(type>0){
-       change_current_linestyle(s.manifolds.unstable_color,&oldcol);
+       change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x));
-       change_current_linestyle(oldcol,&dummy);
+       change_current_linestyle(s,oldcol,&dummy);
     }
     if(type<0){
-      change_current_linestyle(s.manifolds.stable_color,&oldcol);
+      change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
        failure.keep(shoot_easy(s,x));
-       change_current_linestyle(oldcol,&dummy);
+       change_current_linestyle(s,oldcol,&dummy);
     }
   }
   s.numerics.delta_t=olddt;
@@ -415,11 +415,11 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
     }
   }
  }     /* eigenvalue count */
- if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(x,1);
+ if(((rp+cp)!=0)&&((rn+cn)!=0))eq_symb(s,x,1);
  else
  {
-   if((rp+cp)!=0)eq_symb(x,0);
-   else eq_symb(x,3);
+   if((rp+cp)!=0)eq_symb(s,x,0);
+   else eq_symb(s,x,3);
  }
 
  /* Lets change Work back to transposed oldwork */
@@ -690,7 +690,7 @@ int gear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin,
   if(s.model().nflags==0)
     return(ggear(s, n,t, tout,y, hmin, hmax,eps,
 	  mf,error,kflag,jstart,work,iwork));
-  return(one_flag_step_gear(n,t, tout,y, hmin, 
+  return(one_flag_step_gear(s,n,t, tout,y, hmin, 
 		   hmax,eps,mf,error,kflag,jstart,work,iwork));
 }
 

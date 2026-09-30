@@ -170,10 +170,10 @@ def main():
         check_handler(f'commander {menu}', top_cases(inner), strings.get(keys, []))
 
     nums = strip((ROOT / 'core/numerics.cpp').read_text(encoding='utf-8'))
-    start = nums.index('void  get_num_par(char ch)')
+    start = nums.index('void  get_num_par(xpp::Session &s, char ch)')
     inner = block(nums, nums.index('switch(ch)', start))
     check_handler('get_num_par', top_cases(inner), strings.get('num_menu_keys', []))
-    quick = re.search(r'quick_num\(int com\)\s*\{\s*static const char \*const key="([^"]*)"', nums)
+    quick = re.search(r'quick_num\(xpp::Session &s, int com\)\s*\{\s*static const char \*const key="([^"]*)"', nums)
     if quick:
         for ch in quick.group(1):
             if ord(ch) not in strings.get('num_menu_keys', []):

@@ -82,12 +82,12 @@ int two_d_hist(xpp::Session &s, int col1,int col2,int ndat,int n1,int n2,double 
 
 void four_back(xpp::Session &s)
 {
- if(s.histogram.four_here)new_browse_dat(s.histogram.four(),s.histogram.four_len);
+ if(s.histogram.four_here)new_browse_dat(s,s.histogram.four(),s.histogram.four_len);
 }
 
 void hist_back(xpp::Session &s)
 {
- if(s.histogram.hist_here)new_browse_dat(s.histogram.hist(),s.histogram.hist_len);
+ if(s.histogram.hist_here)new_browse_dat(s,s.histogram.hist(),s.histogram.hist_len);
 }
 
 void new_four(xpp::Session &s, int nmodes, int col)
@@ -171,9 +171,8 @@ int twod_hist(xpp::Session &s)
   return(1);
 
 }  
-int new_2d_hist()
+int new_2d_hist(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
 
   if((s.model().neq<2)||(s.data_store.rows<3)){
     err_msg("Need more data and at least 3 columns");
@@ -296,9 +295,8 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
   return {};
 }
 
-void column_mean()
+void column_mean(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  int i;
  double sum,sum2,ss;
  double mean,sdev;
@@ -331,13 +329,12 @@ int get_col_info(const xpp::Session &s, int *col, const char *prompt)
  return(1);
 }
 
-void compute_power()
+void compute_power(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int i;
   double sv,c;
   float *datx,*daty,ptot=0;
-  compute_fourier();
+  compute_fourier(s);
   if((s.model().neq<2)||(s.data_store.rows<=1))return;
   datx=get_data_col(s,1);
   daty=get_data_col(s,2);
@@ -512,9 +509,8 @@ void just_sd(xpp::Session &s, int flag)
   hist_back(s);
   ping();
 }
-void compute_sd()
+void compute_sd(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
   
   if(get_col_info(s,&s.histogram.spec_col,"Variable ")==0)return;
@@ -549,9 +545,8 @@ void just_fourier(xpp::Session &s, int flag)
      }
 }
   
-void compute_fourier()
+void compute_fourier(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int nmodes=10;
   if(s.model().neq<2){
     err_msg("Need at least three data columns");
@@ -567,9 +562,8 @@ void compute_fourier()
   }
 }
 
-void compute_correl()
+void compute_correl(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int lag;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0],dta;
   dta=total/static_cast<float>((s.data_store.rows-1));
@@ -591,9 +585,8 @@ void compute_correl()
   xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
 	   s.histogram.info.xhi,s.histogram.info.col,s.histogram.info.col2,s.histogram.info.cond.c_str(),2+s.histogram.info.fftc));
 }
-void compute_stacor()
+void compute_stacor(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float("Low ",&s.histogram.info.xlo);
   new_float("Hi ",&s.histogram.info.xhi);
@@ -632,9 +625,8 @@ void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
   }
 }
 
-void compute_hist()
+void compute_hist(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   
   new_int("Number of bins ",&s.histogram.info.nbins);
   new_float("Low ",&s.histogram.info.xlo);

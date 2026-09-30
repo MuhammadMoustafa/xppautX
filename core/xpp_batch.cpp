@@ -270,8 +270,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     do_vis_env(s);
     set_all_vals(s);
     init_alloc_info(s);
-    set_init_guess();
-    update_all_ffts();
+    set_init_guess(s);
+    update_all_ffts(s);
 #ifdef AUTO
     init_auto_win();
 #endif
@@ -280,7 +280,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     program.version_minor = static_cast<float>(cstringmin);
     do_meth(s);
     set_delay(s);
-    s.integrator.rhs = my_rhs;
+    s.integrator.rhs = {my_rhs, &s};
     init_fit_info();
     strip_saveqn(m);
     create_plot_list(s);

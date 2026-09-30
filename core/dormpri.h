@@ -297,18 +297,17 @@ dopri5 returns the following values
 */
 
 
-#include "my_rhs.h"
+#include "my_rhs.h" /* xpp::Session */
 #include <limits.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* C++ only: the right-hand side is the Session's (W47d4) */
 
-typedef void (*FcnEqDiff)(unsigned n, double x, double *y, double *f);
+typedef void (*FcnEqDiff)(xpp::Session &s, unsigned n, double x, double *y, double *f);
 typedef void (*SolTrait)(long nr, double xold, double x, double* y, unsigned n, int* irtrn);
 
 
 extern int dop853
- (unsigned n,      /* dimension of the system <= UINT_MAX-1*/
+ (xpp::Session &s, /* the Session whose right-hand side fcn computes */
+  unsigned n,      /* dimension of the system <= UINT_MAX-1*/
   FcnEqDiff fcn,   /* function computing the value of f(x,y) */
   double x,        /* initial x-value */
   double* y,       /* initial values for y */
@@ -338,7 +337,8 @@ extern int dop853
 
 
 extern int dopri5
- (unsigned n,      /* dimension of the system <= UINT_MAX-1*/
+ (xpp::Session &s, /* the Session whose right-hand side fcn computes */
+  unsigned n,      /* dimension of the system <= UINT_MAX-1*/
   FcnEqDiff fcn,   /* function computing the value of f(x,y) */
   double x,        /* initial x-value */
   double* y,       /* initial values for y */
@@ -368,9 +368,9 @@ extern int dopri5
 
 
 
-void dprhs(unsigned n, double t, double *y, double *f);
-int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
-int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
+void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f);
+int dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
+int dormprin(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
 
 
 
@@ -390,6 +390,4 @@ int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol,
 
 
 
-#ifdef __cplusplus
-}
-#endif
+

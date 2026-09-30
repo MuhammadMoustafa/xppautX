@@ -47,18 +47,18 @@
 #define PGROW2 -0.2
 #define PSHRNK2 -0.25
 #define ERRCON2 1.89e-4
-void jacobn(double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
+void jacobn(xpp::Session &s, double x, double *y, double *dfdx, double *dermat, double eps, double *work, int n)
 {
  int i,j;
  double r;
  double *yval,*ynew,ytemp;
  yval=work;
  ynew=work+n;
- xpp::session().integrator.rhs(x,y,yval,n);
+ s.integrator.rhs(x,y,yval,n);
 
  r=eps*MAX(eps,fabs(x));
 
- xpp::session().integrator.rhs(x+r,y,ynew,n);
+ s.integrator.rhs(x+r,y,ynew,n);
  for(i=0;i<n;i++){
    dfdx[i]=(ynew[i]-yval[i])/r;
 
@@ -68,7 +68,7 @@ void jacobn(double x, double *y, double *dfdx, double *dermat, double eps, doubl
     ytemp=y[i];
     r=eps*MAX(eps,fabs(ytemp));
     y[i]=ytemp+r;
-    xpp::session().integrator.rhs(x,y,ynew,n);
+    s.integrator.rhs(x,y,ynew,n);
     for(j=0;j<n;j++)
     {
     dermat[j*n+i]=(ynew[j]-yval[j])/r;
@@ -78,16 +78,16 @@ void jacobn(double x, double *y, double *dfdx, double *dermat, double eps, doubl
   }
 }
 
-int adaptive(double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
+int adaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
-  if(xpp::model().nflags==0)
-    return(gadaptive(ystart,nvar,xs,x2,eps,
+  if(s.model().nflags==0)
+    return(gadaptive(s,ystart,nvar,xs,x2,eps,
 		     hguess,hmin,work,ier,epjac,iflag,jstart));
-  return(one_flag_step_adap(ystart,nvar,xs,x2,eps,hguess,
+  return(one_flag_step_adap(s,ystart,nvar,xs,x2,eps,hguess,
 			    hmin,work,ier,epjac,iflag,jstart));
 }
    
-int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
+int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart)
 {
   double h1=*hguess;
   int nstp,i;
@@ -100,11 +100,11 @@ int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, doubl
   work2=dydx+nvar;
   x=x1;
   h=SIGN(h1,x2-x1);
-  set_wieners(xpp::session(),*hguess,ystart,x1);
+  set_wieners(s,*hguess,ystart,x1);
   *ier=0;
   for (i=0;i<nvar;i++) y[i]=ystart[i];
   for(nstp=1;nstp<=MAXSTP;nstp++){
-    xpp::session().integrator.rhs(x,y,dydx,nvar);
+    s.integrator.rhs(x,y,dydx,nvar);
     for(i=0;i<nvar;i++)
       if(iflag==xpp::method::STIFF)
 	yscal[i]=MAX(1,fabs(y[i]));
@@ -112,9 +112,9 @@ int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, doubl
 	yscal[i]=fabs(y[i])+fabs(dydx[i]*h)+TINY; 
     if ((x+h-x2)*(x+h-x1) > 0.0) h=x2-x;
     if(iflag==xpp::method::STIFF)
-      stiff(y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
+      stiff(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
     else
-      rkqs(y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
+      rkqs(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 
     if(*ier>0)return -1;
     if ((x-x2)*(x2-x1) >= 0.0) 
       {
@@ -138,7 +138,7 @@ int gadaptive(double *ystart, int nvar, double *xs, double x2, double eps, doubl
 
 /*  Need work size of 2n^2+12n  */
 /*  This will integrate a maximum of htry and actually do hmin  */
-int stiff(double y[], double dydx[], int n, double *x, double htry, double eps, double yscal[], double *hdid, double *hnext, double *work, double epjac, int *ier)
+int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double htry, double eps, double yscal[], double *hdid, double *hnext, double *work, double epjac, int *ier)
 {
 
 	int i,j,jtry,indx[700];
@@ -163,7 +163,7 @@ int stiff(double y[], double dydx[], int n, double *x, double htry, double eps, 
 		ysav[i]=y[i];
 		dysav[i]=dydx[i];
 	}
-	jacobn(xsav,ysav,dfdx,dfdy,epjac,work2,n);
+	jacobn(s,xsav,ysav,dfdx,dfdy,epjac,work2,n);
 	h=htry;
 	for (jtry=1;jtry<=MAXTRY;jtry++) {
 		for (i=0;i<n;i++) {
@@ -183,14 +183,14 @@ int stiff(double y[], double dydx[], int n, double *x, double htry, double eps, 
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A21*g1[i];
 		*x=xsav+A2X*h;
-		xpp::session().integrator.rhs(*x,y,dydx,n);
+		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g2[i]=dydx[i]+h*C2X*dfdx[i]+C21*g1[i]/h;
 		sgesl(a,n,n,indx,g2);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A31*g1[i]+A32*g2[i];
 		*x=xsav+A3X*h;
-		xpp::session().integrator.rhs(*x,y,dydx,n);
+		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g3[i]=dydx[i]+h*C3X*dfdx[i]+(C31*g1[i]+C32*g2[i])/h;
 		sgesl(a,n,n,indx,g3);
@@ -227,7 +227,7 @@ int stiff(double y[], double dydx[], int n, double *x, double htry, double eps, 
 	
 }
 
-int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
+int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry, double eps, double *yscal, double *hdid, double *hnext, double *work, int *ier)
 {
   int i;
   double errmax,h,htemp,xnew,*yerr,*ytemp;
@@ -238,7 +238,7 @@ int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, dou
   h=htry;
   *ier=0;
   for (;;) {
-    rkck(y,dydx,n,*x,h,ytemp,yerr,work2);
+    rkck(s,y,dydx,n,*x,h,ytemp,yerr,work2);
     errmax=0.0;
     for (i=0;i<n;i++) errmax=MAX(errmax,fabs(yerr[i]/yscal[i]));
     errmax /= eps;
@@ -264,7 +264,7 @@ int rkqs(double *y, double *dydx, int n, double *x, double htry, double eps, dou
 }
 
 /* This takes one step of Cash-Karp RK method */
-void rkck(double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
+void rkck(xpp::Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
 {
   int i;
   static double a2=0.2,a3=0.3,a4=0.6,a5=1.0,a6=0.875,b21=0.2,
@@ -285,20 +285,20 @@ void rkck(double *y, double *dydx, int n, double x, double h, double *yout, doub
   ytemp=ak6+n;
   for (i=0;i<n;i++)
 		ytemp[i]=y[i]+b21*h*dydx[i];
-	xpp::session().integrator.rhs(x+a2*h,ytemp,ak2,n);
+	s.integrator.rhs(x+a2*h,ytemp,ak2,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b31*dydx[i]+b32*ak2[i]);
-	xpp::session().integrator.rhs(x+a3*h,ytemp,ak3,n);
+	s.integrator.rhs(x+a3*h,ytemp,ak3,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b41*dydx[i]+b42*ak2[i]+b43*ak3[i]);
-	xpp::session().integrator.rhs(x+a4*h,ytemp,ak4,n);
+	s.integrator.rhs(x+a4*h,ytemp,ak4,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b51*dydx[i]+b52*ak2[i]+b53*ak3[i]+b54*ak4[i]);
-	xpp::session().integrator.rhs(x+a5*h,ytemp,ak5,n);
+	s.integrator.rhs(x+a5*h,ytemp,ak5,n);
 	for (i=0;i<n;i++)
 		ytemp[i]=y[i]+h*(b61*dydx[i]+b62*ak2[i]+b63*ak3[i]+
 				 b64*ak4[i]+b65*ak5[i]);
-	xpp::session().integrator.rhs(x+a6*h,ytemp,ak6,n);
+	s.integrator.rhs(x+a6*h,ytemp,ak6,n);
 	for (i=0;i<n;i++)
 		yout[i]=y[i]+h*(c1*dydx[i]+c3*ak3[i]+c4*ak4[i]+c6*ak6[i]);
 	for (i=0;i<n;i++)

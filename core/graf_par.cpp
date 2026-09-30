@@ -841,9 +841,9 @@ void draw_freeze_key(xpp::Session &s)
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==s.plot_windows.draw_win&&!s.frozen_curves.curve[i].key.empty()){
-      set_linestyle(abs(s.frozen_curves.curve[i].color));
+      set_linestyle(s,abs(s.frozen_curves.curve[i].color));
       line(s,ix,y0,ix2,y0);
-      set_linestyle(0);
+      set_linestyle(s,0);
       put_text(s,ix2+s.drawing.h_char,y0,s.frozen_curves.curve[i].key.c_str());
       y0+=dy;
     }
@@ -992,11 +992,11 @@ void draw_freeze(xpp::Session &s, XppWinId w)
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
       if(type==0)marks_data_frozen(s.plot_windows,w,i); /* the curve as data */
       if(s.frozen_curves.curve[i].color<0){
-	set_linestyle(-s.frozen_curves.curve[i].color);
+	set_linestyle(s,-s.frozen_curves.curve[i].color);
 	lt=1;
       }
       else
-	set_linestyle(s.frozen_curves.curve[i].color);
+	set_linestyle(s,s.frozen_curves.curve[i].color);
       xv=s.frozen_curves.curve[i].xv;
       yv=s.frozen_curves.curve[i].yv;
       zv=s.frozen_curves.curve[i].zv;
@@ -1040,7 +1040,7 @@ void draw_bd(xpp::Session &s, XppWinId w)
 {
  if(w!=my_bd.w)return;
  for(const BifCurve &c:my_bd.curves){
-   set_linestyle(c.color);
+   set_linestyle(s,c.color);
    const int len=static_cast<int>(c.x.size());
    float xpl=c.x[0],ypl=c.y[0];
    for(int j=0;j<len;j++){

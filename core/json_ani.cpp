@@ -105,7 +105,7 @@ void ani_go(xpp::Session &s)
     while (!stop) {
         int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
-        set_fix_rhs(static_cast<double>(ss[0][row]), y);
+        set_fix_rhs(s,static_cast<double>(ss[0][row]), y);
         xpp_ui.ani_clear();
         render_ani(s);
         xpp_ui.ani_show();

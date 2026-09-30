@@ -41,7 +41,7 @@ std::vector<double> make_work(int size)
 
 /* a method that advances a number of steps of dt (odesol2.cpp's,
    volterra2.cpp's): a negative flag is a failure */
-using StepFn = int (*)(double *y, double *t, double dt, int nt, int neq, int *start, double *work);
+using StepFn = int (*)(Session &s, double *y, double *t, double dt, int nt, int neq, int *start, double *work);
 
 class FixedStep final : public Solver {
 public:
@@ -49,7 +49,7 @@ public:
     : Solver(info,s), step_(step), work_(make_work(work)) {}
   SolverResult advance(const SolverStep &s) override
   {
-    int kflag=step_(s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
+    int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
     switch(kflag){
     case -1: return failed("Singular Jacobian");
     case -2: return failed("Too many iterates");
@@ -98,7 +98,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    adaptive(s.y,s.neq,s.t,s.tout,num.toler,s.hguess,num.hmin,work_.data(),&kflag,
+    adaptive(session_,s.y,s.neq,s.t,s.tout,num.toler,s.hguess,num.hmin,work_.data(),&kflag,
              num.newt_err,info().id,s.start);
     switch(kflag){
     case 0: return {};
@@ -121,8 +121,8 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    cvode(s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
-    if(kflag<0)return failed(cvode_error_text(kflag));
+    cvode(session_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
+    if(kflag<0)return failed(cvode_error_text(session_,kflag));
     return {};
   }
   void finish() override { end_cv(); }
@@ -136,7 +136,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    dp(s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().id==method::DP83,&kflag,
+    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().id==method::DP83,&kflag,
        work_.data());
     switch(kflag){
     case -1: return failed("Input is not consistent");
@@ -158,7 +158,7 @@ public:
   SolverResult advance(const SolverStep &s) override
   {
     int kflag=0;
-    rb23(s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
+    rb23(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);
     if(kflag<0)return failed("Step size too small");
     return {};
   }

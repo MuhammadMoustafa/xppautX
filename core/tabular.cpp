@@ -113,7 +113,7 @@ void view_table(xpp::Session &s, int index)
     s.data_store.col[0][i]=xlo+i*dx;
     s.data_store.col[1][i]=y[i];
   }
-  refresh_browser(len);
+  refresh_browser(s,len);
 }
 
 void new_lookup_com(xpp::Session &s, int i)
@@ -192,9 +192,8 @@ double tab_interp(double xlo, double h, double x, double *y, int n, int i)
   tt=(x-xlo)/h-i;
   return d+tt*(c+tt*(b + tt*a));
 }
-double lookup(double x, int index)
+double lookup(const xpp::Session &s, double x, int index)
 {
-  xpp::Session &s=xpp::session();
   double xlo=s.tables[index].xlo,xhi=s.tables[index].xhi,dx=s.tables[index].dx;
   double *y;
   double x1,y1,y2;
@@ -236,9 +235,8 @@ void init_table(xpp::Session &s)
   }
 }
 
-xpp::Result<> redo_all_fun_tables()
+xpp::Result<> redo_all_fun_tables(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   int i;
   xpp::FirstError first;
   for(i=0;i<s.ntable;i++){
@@ -246,8 +244,13 @@ xpp::Result<> redo_all_fun_tables()
       first.keep(eval_fun_table(s,s.tables[i].n,s.tables[i].xlo,
 		     s.tables[i].xhi,s.tables[i].filename.c_str(),s.tables[i].y));
   }
-  update_all_ffts();
+  update_all_ffts(s);
   return first.result();
+}
+
+xpp::Result<> redo_all_fun_tables()
+{
+  return redo_all_fun_tables(xpp::session());
 }
 
 xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y)
@@ -387,9 +390,9 @@ xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int m
   return {};
 }
    
-int get_lookup_len(int i)
+int get_lookup_len(xpp::Session &s, int i)
 {
-  return xpp::session().tables[i].n;
+  return s.tables[i].n;
 }
 
 /*   network stuff  

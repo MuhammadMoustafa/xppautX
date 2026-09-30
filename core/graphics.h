@@ -8,10 +8,7 @@ extern const int TextAngle;
 
 void get_scale(double *x1, double *y1, double *x2, double *y2);
 void set_scale(double x1, double y1, double x2, double y2);
-void change_current_linestyle(int newstyle, int *old);
-void set_linestyle(int ls);
 int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1p, float *y1p, float *z1p, float *x2p, float *y2p, float *z2p);
-void eq_symb(double *x, int type);
 
 #ifdef __cplusplus
 }
@@ -41,6 +38,10 @@ struct DrawingState {
 namespace xpp {
 struct Session; /* session.h */
 }
+
+void set_linestyle(xpp::Session &s, int ls);
+void change_current_linestyle(xpp::Session &s, int newstyle, int *old);
+void eq_symb(xpp::Session &s, double *x, int type);
 
 /* The drawing into the session s's active plot window, or into the
    picture file begun (s.plot_file): its scale and drawing area, the

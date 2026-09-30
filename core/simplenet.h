@@ -4,19 +4,7 @@
 extern "C" {
 #endif
 
-double net_interp(double x, int i);
-double network_value(double x, int i);
-double vector_value(double x, int i);
-int get_vector_info(char *str, const char *name, int *root, int *length, int *il, int *ir);
-int add_spec_fun(const char *name, char *rhs);
-void add_special_name(const char *name, char *rhs);
-int add_vectorizer(const char *name, char *rhs);
-void add_vectorizer_name(const char *name, const char *rhs);
 int is_network(char *s);
-void eval_all_nets(void);
-void evaluate_network(int ind);
-void update_all_ffts(void);
-void update_fft(int ind);
 void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *ffti, double *dr, double *di);
 
 
@@ -26,6 +14,26 @@ void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *f
 #include <array>
 #include <string>
 #include <vector>
+
+
+namespace xpp {
+struct Session; /* session.h */
+}
+/* vector(var,length,e|z|p,e|z|p) in str: its first variable (ses's),
+   length and ends' kinds */
+int get_vector_info(const xpp::Session &ses, char *str, const char *name, int *root, int *length, int *il, int *ir);
+
+double net_interp(xpp::Session &s, double x, int i);
+int add_vectorizer(xpp::Session &s, const char *name, char *rhs);
+void add_vectorizer_name(xpp::Session &s, const char *name, const char *rhs);
+double vector_value(xpp::Session &s, double x, int i);
+double network_value(xpp::Session &s, double x, int i);
+int add_spec_fun(xpp::Session &s, const char *name, char *rhs);
+void add_special_name(xpp::Session &s, const char *name, char *rhs);
+void eval_all_nets(xpp::Session &s);
+void evaluate_network(xpp::Session &s, int ind);
+void update_all_ffts(xpp::Session &s);
+void update_fft(xpp::Session &s, int ind);
 
 #define MAXVEC 100
 

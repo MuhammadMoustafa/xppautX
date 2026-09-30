@@ -90,13 +90,25 @@ struct RangeVars {
   int rtype;
 };
 
+/* the right-hand side the solvers step, rhs(t, y, ydot, neq): a function
+   of the Session it is bound to (the load binds my_rhs to its Session), so
+   that a solver reaches the Model and Session through the IntegratorState
+   that holds it, never through a global (W47d4) */
+struct RightHandSide {
+  int (*function)(xpp::Session &s, double t, double *y, double *ydot, int neq) = nullptr;
+  xpp::Session *session = nullptr;
+  int operator()(double t, double *y, double *ydot, int neq) const
+  {
+    return function(*session,t,y,ydot,neq);
+  }
+};
+
 /* the integrator's state, a Session's (session.h) */
 struct IntegratorState {
   /* the method's solver, with its work memory (xpp::start_solver) */
   std::unique_ptr<xpp::Solver> solver;
-  /* the right-hand side the solvers step (my_rhs, or AUTO's and the
-     adjoint's own while they run) */
-  int (*rhs)(double t, double *y, double *ydot, int neq) = nullptr;
+  /* the right-hand side the solvers step: my_rhs of this Session */
+  RightHandSide rhs;
   /* Initialconds/Range's settings */
   RangeVars range{};
   /* a range integration is running (pp_shoot's shooting reads it) */

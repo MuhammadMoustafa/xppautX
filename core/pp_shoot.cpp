@@ -53,16 +53,16 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
  int n0=s.model().prime_start;
  int i;
 
- SETVAR(0,t0);
- SETVAR(n0,t1);
+ setvar(s,0,t0);
+ setvar(s,n0,t1);
 
  for(i=0;i<n;i++){
-   SETVAR(i+1,y__0[i]);
-   SETVAR(i+n0+1,y__1[i]);
+   setvar(s,i+1,y__0[i]);
+   setvar(s,i+n0+1,y__1[i]);
  }
-  for(i=n;i<n+s.model().fix_var;i++)SETVAR(i+1,evaluate(s.model().programs[i].data()));
+  for(i=n;i<n+s.model().fix_var;i++)setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
  
-  for(i=0;i<n;i++)f[i]=evaluate(s.bcs[i].com.data());
+  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com.data());
 }
 
 void compile_bvp(xpp::Session &s)
@@ -77,7 +77,7 @@ void compile_bvp(xpp::Session &s)
  s.numerics.bvp_flag=0;
  for(i=0;i<s.model().node;i++){
 
-   if(add_expr(s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
+   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
      err_msg(xpp::format("Bad syntax on {} th BC",i+1).c_str());
      return;
    }
@@ -139,7 +139,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
  int npar,i,j,ierr;
  int side,cycle,icol,color;
 
- if(set_up_sh_range()==0)return;
+ if(set_up_sh_range(s)==0)return;
  swap_color(s,&color,0);
  parhi=shoot_range.phigh;
  parlo=shoot_range.plow;
@@ -154,7 +154,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
  for(i=0;i<=npar;i++)
    {
      temp=parlo+dpar*static_cast<double>(i);
-     set_val(shoot_range.item,temp);
+     set_val(s,shoot_range.item,temp);
      bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp).c_str());
      if(shoot_range.movie==1)
        clr_scrn(s);
@@ -165,7 +165,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      if(ierr<0){ 
        bad_shoot(ierr);
 
-       refresh_browser(s.data_store.rows);
+       refresh_browser(s,s.data_store.rows);
        swap_color(s,&color,1);
        return;
      }
@@ -179,7 +179,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      if(shoot_range.movie==1)xpp_ui.film_clip();
      ping();
    }
-  refresh_browser(s.data_store.rows);
+  refresh_browser(s,s.data_store.rows);
   auto_freeze_it(s);     
  swap_color(s,&color,1);
 
@@ -199,14 +199,14 @@ int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *is
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_NAME_IN(1),XPP_FIELD_NUMBER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,1,"Periodic BCs",n,values,kinds);
  if(status!=0){
-               i=find_user_name(PARAM,values[0].c_str());
+               i=find_user_name(s.model(),PARAM,values[0].c_str());
 	       if(i>-1)
 		 *ipar=i;
 	       else {
 		 err_msg("No such parameter");
 		 return(0);
 	       }
-	       i=find_user_name(IC,values[1].c_str());
+	       i=find_user_name(s.model(),IC,values[1].c_str());
 	       if(i>-1)
 		 *ivar=i;
 	       else {
@@ -253,7 +253,7 @@ void find_bvp_com(xpp::Session &s, int com)
    pflag=set_up_periodic(s,&ipar,&ivar,&sect,&ishow);
    if(pflag==0)goto bye;
    iper=1;
-   get_val(s.model().upar_names[ipar],&oldpar);
+   get_val(s,s.model().upar_names[ipar],&oldpar);
    break;
         
  case 2: 
@@ -280,13 +280,13 @@ void find_bvp_com(xpp::Session &s, int com)
  }
  const xpp::Result<> last=last_shot(s,1);
  s.numerics.inflag=1;
- refresh_browser(s.data_store.rows);
+ refresh_browser(s,s.data_store.rows);
  auto_freeze_it(s);
  ping();
  if(!last)xpp::show_error(last.error());
 }
 else 
- if(iper)set_val(s.model().upar_names[ipar],oldpar);
+ if(iper)set_val(s,s.model().upar_names[ipar],oldpar);
  }
   
 bye:  s.numerics.trans=oldtrans;
@@ -303,7 +303,7 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
  s.data_store.current_time=s.numerics.t0;
  if(flag){
   s.data_store.col[0][0]=static_cast<float>(s.numerics.t0);
-  extra(x,s.numerics.t0,s.model().node,s.model().neq);
+  extra(s,x,s.numerics.t0,s.model().node,s.model().neq);
   for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
   s.data_store.rows=1;
 
@@ -312,7 +312,7 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
    .transform([](int){});
 }
 
-int set_up_sh_range()
+int set_up_sh_range(xpp::Session &s)
 {
 static const char *n[]={"*2Range over","Steps","Start","End",
 		     "Cycle color(Y/N)",
@@ -333,7 +333,7 @@ static const char *n[]={"*2Range over","Steps","Start","End",
  status=do_string_box_of(7,1,"Range Shoot",n,values,kinds);
  if(status!=0){
    shoot_range.item=values[0];
-   i=find_user_name(PARAM,shoot_range.item);
+   i=find_user_name(s.model(),PARAM,shoot_range.item);
    if(i<0){
         err_msg("No such parameter");
        return(0);
@@ -378,7 +378,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
 
  for(i=0;i<n;i++)
    y0[i]=y[i];
- if(iper)  get_val(s.model().upar_names[ipar],&y0[n]);
+ if(iper)  get_val(s,s.model().upar_names[ipar],&y0[n]);
 
  while(1){
    esc=my_abort();
@@ -392,7 +392,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
          
   t=t0;
  istart=1;
- if(iper)set_val(s.model().upar_names[ipar],y0[n]);
+ if(iper)set_val(s,s.model().upar_names[ipar],y0[n]);
 
  {
    const xpp::Result<> run=ode_int(s,y,&t,&istart,ishow);
@@ -414,7 +414,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  if(error<err){
    for(i=0;i<n;i++)y[i]=y0[i]; /*   Good values .... */
   if(iper){ 
-    set_val(s.model().upar_names[ipar],y0[n]);
+    set_val(s,s.model().upar_names[ipar],y0[n]);
     redraw_params();
   }
    
@@ -441,7 +441,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
      y0[j]=y0[j]+dev;
   
      if(j==n)
-         set_val(s.model().upar_names[ipar],y0[j]);
+         set_val(s,s.model().upar_names[ipar],y0[j]);
        
      t=t0;
      istart=1;

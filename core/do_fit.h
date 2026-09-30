@@ -40,8 +40,8 @@ xpp::Result<> mrqcof(xpp::Session &s, double *t0, double *y0, double *y, double 
 /* the fit's lists, blank- or comma-separated: the data columns, the
    fitted variables and (appended at ipars[*n]) the parameters */
 void parse_collist(std::string_view collist, int *icols, int *n);
-void parse_varlist(std::string_view varlist, int *ivars, int *n);
-void parse_parlist(std::string_view parlist, int *ipars, int *n);
+void parse_varlist(const xpp::Session &s, std::string_view varlist, int *ivars, int *n);
+void parse_parlist(const xpp::Session &s, std::string_view parlist, int *ipars, int *n);
 #endif
 #endif
 

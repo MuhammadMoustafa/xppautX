@@ -7,91 +7,91 @@
 #include "form_ode.h"
 #include "model.h"
 
-void extra(double *y__y, double t, int nod, int neq)
+void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int fix=m.fix_var,nmark=m.nmarkov;
   int i;
   if(nod>=neq)return;
-  SETVAR(0,t);
+  setvar(s,0,t);
   for(i=0;i<nod;i++)
-  SETVAR(i+1,y__y[i]);
-  for(i=nod+fix;i<nod+fix+nmark;i++)SETVAR(i+1,y__y[i-fix]);
+  setvar(s,i+1,y__y[i]);
+  for(i=nod+fix;i<nod+fix+nmark;i++)setvar(s,i+1,y__y[i-fix]);
   for(i=nod;i<nod+fix;i++)
-  SETVAR(i+1,evaluate(m.programs[i].data()));
+  setvar(s,i+1,evaluate(s,m.programs[i].data()));
   /* I dont think this is generally needed  */
 
   for(i=nod+nmark;i<neq;i++)
-  y__y[i]=evaluate(m.programs[i+fix-nmark].data());
+  y__y[i]=evaluate(s,m.programs[i+fix-nmark].data());
 }
 
-void set_fix_rhs(double t, double *y)
+void set_fix_rhs(xpp::Session &s, double t, double *y)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int node=m.node,fix=m.fix_var;
   int i;
-  SETVAR(0,t);
+  setvar(s,0,t);
   for(i=0;i<node;i++)
-    SETVAR(i+1,y[i]);
+    setvar(s,i+1,y[i]);
   for(i=0;i<m.nmarkov;i++)
-    SETVAR(i+1+node+fix,y[i+node]);
+    setvar(s,i+1+node+fix,y[i+node]);
   for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(m.programs[i].data()));
-  eval_all_nets();
+    setvar(s,i+1,evaluate(s,m.programs[i].data()));
+  eval_all_nets(s);
 }
 
-int my_rhs(double t, double *y, double *ydot, int neq)
+int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int node=m.node,fix=m.fix_var;
   int i;
-  SETVAR(0,t);
+  setvar(s,0,t);
   for(i=0;i<node;i++)
-  SETVAR(i+1,y[i]);
+  setvar(s,i+1,y[i]);
 
   for(i=node;i<node+fix;i++){
-  SETVAR(i+1,evaluate(m.programs[i].data()));
+  setvar(s,i+1,evaluate(s,m.programs[i].data()));
   }
-eval_all_nets();
+eval_all_nets(s);
     
-    do_daes();
+    do_daes(s);
  for(i=0;i<node;i++)
   {
-    ydot[i]=evaluate(m.programs[i].data());
+    ydot[i]=evaluate(s,m.programs[i].data());
   }
  if(neq>node)vec_rhs(t,y,ydot,neq);
 	
  return(1);
 }
 
-void update_based_on_current()
+void update_based_on_current(xpp::Session &s)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int node=m.node,fix=m.fix_var;
   int i;
    for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(m.programs[i].data()));
+    setvar(s,i+1,evaluate(s,m.programs[i].data()));
     
-  eval_all_nets();
+  eval_all_nets(s);
 }
 
-void fix_only()
+void fix_only(xpp::Session &s)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int node=m.node,fix=m.fix_var;
    int i;
   for(i=node;i<node+fix;i++)
-    SETVAR(i+1,evaluate(m.programs[i].data()));
+    setvar(s,i+1,evaluate(s,m.programs[i].data()));
 
 }
 
-void rhs_only(double *y,double *ydot)
+void rhs_only(xpp::Session &s, double *ydot)
 {
-  xpp::Model &m=xpp::model();
+  const xpp::Model &m=s.model();
   const int node=m.node;
   int i;
   for(i=0;i<node;i++){
-    ydot[i]=evaluate(m.programs[i].data());
+    ydot[i]=evaluate(s,m.programs[i].data());
   }
 }
  

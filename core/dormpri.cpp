@@ -22,18 +22,18 @@ static double    *yy1, *k1, *k2, *k3, *k4, *k5, *k6, *k7, *k8, *k9, *k10,*ysti;
 static double    *rcont1, *rcont2, *rcont3, *rcont4;
 static double    *rcont5, *rcont6, *rcont7, *rcont8;
 
-void dprhs(unsigned n, double t, double *y, double *f)
+void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
 {
- my_rhs(t,y,f,n);
+ my_rhs(s,t,y,f,n);
 
 }
 
-int dp(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
+int dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
  int err=0;
- if(xpp::model().nflags==0)
-   return(dormprin(istart,y,t,n,tout,tol,atol,flag,kflag,work));
- err=one_flag_step_dp(istart,y,t,n,tout,tol,atol,flag,kflag,work);
+ if(s.model().nflags==0)
+   return(dormprin(s,istart,y,t,n,tout,tol,atol,flag,kflag,work));
+ err=one_flag_step_dp(s,istart,y,t,n,tout,tol,atol,flag,kflag,work);
  if(err==1)*kflag=-9;
  return 1;
 }
@@ -45,19 +45,19 @@ int dp(int *istart, double *y, double *t, int n, double tout, double *tol, doubl
   istart=1 for first time
   istart=0 for continuation
 */
-int dormprin(int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
+int dormprin(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
   double hg=0.0;
   if(*istart==0)hg=hout;
   *istart=0;
   switch(flag){
   case 0:
-    *kflag=dopri5(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
+    *kflag=dopri5(s,n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
            0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
            *t=tout;
     return 1;
   case 1:
-     *kflag=dop853(n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
+     *kflag=dop853(s,n,dprhs,*t,y,tout,tol,atol,0,nullptr,0,0.0,
            0.0,0.0,0.0,0.0,0.0,hg,0,0,1,0,NULL,0,work);
            *t=tout;
      return 1;
@@ -77,7 +77,7 @@ static double max_d (double a, double b)
 
 } /* max_d */
 
-static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
+static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
 	      double hmax, double* atoler, double* rtoler, int itoler)
 {
@@ -119,7 +119,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
     yy1[i] = y[i] + h * f0[i];
-  fcn (n, x+h, yy1, f1);
+  fcn (s, n, x+h, yy1, f1);
 
   /* estimate the second derivative of the solution */
   der2 = 0.0;
@@ -152,7 +152,7 @@ static double hinit (unsigned n, FcnEqDiff fcn, double x, double* y,
 } /* hinit */
 
 /* core integrator */
-static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
+static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 		   double hmax, double h, double* rtoler, double* atoler,
 		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
@@ -366,11 +366,11 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   last  = 0;
   hlamb = 0.0;
   iasti = 0;
-  fcn (n, x, y, k1);
+  fcn (s, n, x, y, k1);
   hmax = fabs (hmax);
   iord = 8;
   if (h == 0.0)
-    h = hinit (n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
+    h = hinit (s, n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
   nfcn += 2;
   reject = 0;
   xold = x;
@@ -418,44 +418,44 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
     /* the twelve stages */
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * a21 * k1[i];
-    fcn (n, x+c2*h, yy1, k2);
+    fcn (s, n, x+c2*h, yy1, k2);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a31*k1[i] + a32*k2[i]);
-    fcn (n, x+c3*h, yy1, k3);
+    fcn (s, n, x+c3*h, yy1, k3);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a41*k1[i] + a43*k3[i]);
-    fcn (n, x+c4*h, yy1, k4);
+    fcn (s, n, x+c4*h, yy1, k4);
     for (i = 0; i <n; i++)
       yy1[i] = y[i] + h * (a51*k1[i] + a53*k3[i] + a54*k4[i]);
-    fcn (n, x+c5*h, yy1, k5);
+    fcn (s, n, x+c5*h, yy1, k5);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a61*k1[i] + a64*k4[i] + a65*k5[i]);
-    fcn (n, x+c6*h, yy1, k6);
+    fcn (s, n, x+c6*h, yy1, k6);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a71*k1[i] + a74*k4[i] + a75*k5[i] + a76*k6[i]);
-    fcn (n, x+c7*h, yy1, k7);
+    fcn (s, n, x+c7*h, yy1, k7);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a81*k1[i] + a84*k4[i] + a85*k5[i] + a86*k6[i] +
 			  a87*k7[i]);
-    fcn (n, x+c8*h, yy1, k8);
+    fcn (s, n, x+c8*h, yy1, k8);
     for (i = 0; i <n; i++)
       yy1[i] = y[i] + h * (a91*k1[i] + a94*k4[i] + a95*k5[i] + a96*k6[i] +
 			  a97*k7[i] + a98*k8[i]);
-    fcn (n, x+c9*h, yy1, k9);
+    fcn (s, n, x+c9*h, yy1, k9);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a101*k1[i] + a104*k4[i] + a105*k5[i] + a106*k6[i] +
 			  a107*k7[i] + a108*k8[i] + a109*k9[i]);
-    fcn (n, x+c10*h, yy1, k10);
+    fcn (s, n, x+c10*h, yy1, k10);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a111*k1[i] + a114*k4[i] + a115*k5[i] + a116*k6[i] +
 			  a117*k7[i] + a118*k8[i] + a119*k9[i] + a1110*k10[i]);
-    fcn (n, x+c11*h, yy1, k2);
+    fcn (s, n, x+c11*h, yy1, k2);
     xph = x + h;
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a121*k1[i] + a124*k4[i] + a125*k5[i] + a126*k6[i] +
 			  a127*k7[i] + a128*k8[i] + a129*k9[i] +
 			  a1210*k10[i] + a1211*k2[i]);
-    fcn (n, xph, yy1, k3);
+    fcn (s, n, xph, yy1, k3);
     nfcn += 11;
     for (i = 0; i < n; i++)
     {
@@ -510,7 +510,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
       facold = max_d (err, 1.0E-4);
       naccpt++;
-      fcn (n, xph, k5, k4);
+      fcn (s, n, xph, k5, k4);
       nfcn++;
       
       /* stiffness detection */
@@ -593,17 +593,17 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 	  yy1[i] = y[i] + h * (a141*k1[i] + a147*k7[i] + a148*k8[i] +
 			      a149*k9[i] + a1410*k10[i] + a1411*k2[i] +
 			      a1412*k3[i] + a1413*k4[i]);
-	fcn (n, x+c14*h, yy1, k10);
+	fcn (s, n, x+c14*h, yy1, k10);
 	for (i = 0; i < n; i++)
 	  yy1[i] = y[i] + h * (a151*k1[i] + a156*k6[i] + a157*k7[i] + a158*k8[i] +
 			      a1511*k2[i] + a1512*k3[i] + a1513*k4[i] +
 			      a1514*k10[i]);
-	fcn (n, x+c15*h, yy1, k2);
+	fcn (s, n, x+c15*h, yy1, k2);
 	for (i = 0; i < n; i++)
 	  yy1[i] = y[i] + h * (a161*k1[i] + a166*k6[i] + a167*k7[i] + a168*k8[i] +
 			      a169*k9[i] + a1613*k4[i] + a1614*k10[i] +
 			      a1615*k2[i]);
-	fcn (n, x+c16*h, yy1, k3);
+	fcn (s, n, x+c16*h, yy1, k3);
 	nfcn += 3;
 
 	/* final preparation */
@@ -683,7 +683,7 @@ static int dopcor (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
 /* front-end */
 int dop853
- (unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
+ (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
   double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work)
@@ -837,14 +837,14 @@ int dop853
   k9 = k8+n;
   k10 = k9+n;
 
-    idid = dopcor (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
+    idid = dopcor (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
     return idid;
 
 } /* dop853 */
 
 /************    dopri5  ***************************/
-static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
+static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y,
 	      double posneg, double* f0, double* f1, double* yy1, int iord,
 	      double hmax, double* atoler, double* rtoler, int itoler)
 {
@@ -886,7 +886,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
     yy1[i] = y[i] + h * f0[i];
-  fcn (n, x+h, yy1, f1);
+  fcn (s, n, x+h, yy1, f1);
 
   /* estimate the second derivative of the solution */
   der2 = 0.0;
@@ -919,7 +919,7 @@ static double hinit5 (unsigned n, FcnEqDiff fcn, double x, double* y,
 } /* hinit */
 
 /* core integrator */
-static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
+static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 		   double hmax, double h, double* rtoler, double* atoler,
 		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
@@ -969,11 +969,11 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
   last  = 0;
   hlamb = 0.0;
   iasti = 0;
-  fcn (n, x, y, k1);
+  fcn (s, n, x, y, k1);
   hmax = fabs (hmax);
   iord = 5;
   if (h == 0.0)
-    h = hinit5 (n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
+    h = hinit5 (s, n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
   nfcn += 2;
   reject = 0;
   xold = x;
@@ -1020,23 +1020,23 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
     /* the first 6 stages */
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * a21 * k1[i];
-    fcn (n, x+c2*h, yy1, k2);
+    fcn (s, n, x+c2*h, yy1, k2);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a31*k1[i] + a32*k2[i]);
-    fcn (n, x+c3*h, yy1, k3);
+    fcn (s, n, x+c3*h, yy1, k3);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a41*k1[i] + a42*k2[i] + a43*k3[i]);
-    fcn (n, x+c4*h, yy1, k4);
+    fcn (s, n, x+c4*h, yy1, k4);
     for (i = 0; i <n; i++)
       yy1[i] = y[i] + h * (a51*k1[i] + a52*k2[i] + a53*k3[i] + a54*k4[i]);
-    fcn (n, x+c5*h, yy1, k5);
+    fcn (s, n, x+c5*h, yy1, k5);
     for (i = 0; i < n; i++)
       ysti[i] = y[i] + h * (a61*k1[i] + a62*k2[i] + a63*k3[i] + a64*k4[i] + a65*k5[i]);
     xph = x + h;
-    fcn (n, xph, ysti, k6);
+    fcn (s, n, xph, ysti, k6);
     for (i = 0; i < n; i++)
       yy1[i] = y[i] + h * (a71*k1[i] + a73*k3[i] + a74*k4[i] + a75*k5[i] + a76*k6[i]);
-    fcn (n, xph, yy1, k2);
+    fcn (s, n, xph, yy1, k2);
     if (iout == 2)
     {
       if (nrds == n)
@@ -1204,7 +1204,7 @@ static int dopcor5 (unsigned n, FcnEqDiff fcn, double x, double* y, double xend,
 
 /* front-end */
 int dopri5
- (unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
+ (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double* y, double xend, double* rtoler,
   double* atoler, int itoler, SolTrait solout, int iout, double uround,
   double safe, double fac1, double fac2, double beta, double hmax, double h,
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work)
@@ -1351,7 +1351,7 @@ int dopri5
   k6 = k5+n;
   ysti = k6+n;
 
-    idid = dopcor5 (n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
+    idid = dopcor5 (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
 		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
 
     return idid;

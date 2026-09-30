@@ -198,9 +198,9 @@ void redraw_froz_cline(xpp::Session &s, int flag)
         waitasec(flag);
         clr_scrn(s);
       }
-      set_linestyle(col1);
+      set_linestyle(s,col1);
       restor_null(s,z.xn.data(),z.nmx,1);
-      set_linestyle(col2);
+      set_linestyle(s,col2);
       restor_null(s,z.yn.data(),z.nmy,2);
       phase_data_frozen(s.plot_windows,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
       if(flag>0)
@@ -355,11 +355,11 @@ void do_range_clines(xpp::Session &s)
     null_storage(s,course);
 
     WHICH_CRV=null_ix;
-    set_linestyle(col1);
+    set_linestyle(s,col1);
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
 
     WHICH_CRV=null_iy;
-    set_linestyle(col2);
+    set_linestyle(s,col2);
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
     add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
   }
@@ -377,7 +377,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
     for(int j=0;j<=n;j++){
       y[iny]=v0+dv*j;
       s.integrator.rhs(0.0,y,ydot,s.model().node);
-      extra(y,0.0,s.model().node,s.model().neq);
+      extra(s,y,0.0,s.model().node,s.model().neq);
       scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
       const double amp=hypot(dxp,dyp);
       if(amp>*mdf)*mdf=amp;
@@ -408,7 +408,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
     for(int j=0;j<=grid;j++){
       y[iny]=v0+dv*j;
       s.integrator.rhs(0.0,y.data(),ydot.data(),s.model().node);
-      extra(y.data(),0.0,s.model().node,s.model().neq);
+      extra(s,y.data(),0.0,s.model().node,s.model().neq);
       if(s.plot_windows.current->ColorFlag||s.nullclines.df_flag==2){
         v1[0]=0.0;
         v2[0]=0.0;
@@ -595,7 +595,7 @@ void dfield_of_window(xpp::Session &s, xpp::Writer *dump)
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
-  if(!dump)set_linestyle(s.plot_windows.current->color[0]);
+  if(!dump)set_linestyle(s,s.plot_windows.current->color[0]);
   dfield_grid(s,grid,u0,v0,du,dv,dz,inx,iny,dump);
 }
 
@@ -652,7 +652,7 @@ void direct_field_com(xpp::Session &s, int c)
   const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
-  set_linestyle(s.plot_windows.current->color[0]);
+  set_linestyle(s,s.plot_windows.current->color[0]);
   if(c!=1){
     s.nullclines.df_flag=1;
     if(c==3){
@@ -712,9 +712,9 @@ void restore_nullclines(xpp::Session &s)
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   if(s.numerics.null_here==0)return;
   if(s.plot_windows.current->xv[0]==null_ix&&s.plot_windows.current->yv[0]==null_iy&&s.plot_windows.current->ThreeDFlag==0){
-    set_linestyle(col1);
+    set_linestyle(s,col1);
     restor_null(s,x_null.data(),num_x_n,1);
-    set_linestyle(col2);
+    set_linestyle(s,col2);
     restor_null(s,y_null.data(),num_y_n,2);
     phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
   }
@@ -745,7 +745,7 @@ void new_clines_com(xpp::Session &s, int c)
     s.plot_windows.current->Nullrestore=0;
     return;
   case 4:
-    froz_cline_stuff();
+    froz_cline_stuff(s);
     return;
   case 5:
     save_the_nullclines(s);
@@ -765,12 +765,12 @@ void new_clines_com(xpp::Session &s, int c)
   null_storage(s,course);
 
   WHICH_CRV=null_ix;
-  set_linestyle(col1);
+  set_linestyle(s,col1);
   new_nullcline(s,course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
   ping();
 
   WHICH_CRV=null_iy;
-  set_linestyle(col2);
+  set_linestyle(s,col2);
   new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
   ping();
   phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);

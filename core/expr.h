@@ -28,13 +28,10 @@ extern "C" {
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
 
-/* network index's name in the current Session's symbol table (with
-   vectorizer set, vectorizer index's): an entry point (W47d4-6) of the
-   Session version below */
-int add_net_name(int index, const char *name, int vectorizer);
 /* a 2-D table (not supported): 1 */
 int add_2d_table(const char *name, const char *file);
-/* variable i's value (0 past the model's variables) */
+/* variable i's value (0 past the model's variables) in the current
+   Session: entry points (W47d5-6) of getvar.h's setvar/getvar */
 void set_ivar(int i, double value);
 double get_ivar(int i);
 /* name without blanks, in upper case, into dest (never longer than name) */
@@ -47,7 +44,8 @@ int add_expr(const char *expr, int *command, int *length);
    it; 1 (with a WARN when report is set) when it is not a number */
 int do_num(const char *source, char *num, double *value, int *ind, int report);
 
-/* program's value (expr_eval.cpp) */
+/* program's value (expr_eval.cpp) in the current Session: an entry point
+   (W47d5-6) of the Session version below */
 double evaluate(const int *program);
 
 #ifdef __cplusplus
@@ -93,6 +91,9 @@ int add_ufun_new(xpp::Session &s, int index, const char *rhs, std::span<const st
    *length is the program's length, ENDEXP included; 0 when it compiled,
    1 (said why) when it did not (expr_compile.cpp) */
 int add_expr(xpp::Session &s, const char *expr, int *command, int *length);
+/* program's value, run on s's stacks: the right-hand side, every step
+   (expr_eval.cpp) */
+double evaluate(xpp::Session &s, const int *program);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
 /* name (as converted makes it) is a built-in symbol, the symbol table's
@@ -108,13 +109,10 @@ int get_param_index(const xpp::Session &s, std::string_view name);
 int get_val(const xpp::Session &s, std::string_view name, double *value);
 int set_val(xpp::Session &s, std::string_view name, double value);
 int add_var(xpp::Session &s, std::string_view name, double value);
-/* the same in the current Session: entry points (W47d4-6) */
-int get_var_index(std::string_view name);
-int find_lookup(std::string_view name);
+/* the same in the current Session: entry points (W47d5-6) */
 int get_param_index(std::string_view name);
 int get_val(std::string_view name, double *value);
 int set_val(std::string_view name, double value);
-int add_var(std::string_view name, double value);
 
 /* a name the symbol table knows: its length, what it compiles to (com,
    an instruction of expr_program.h), its number of arguments and its

@@ -102,9 +102,8 @@ void get_draw_area_flag(xpp::Session &s, int flag)
  set_normal_scale(s);
 }
 
-void change_current_linestyle(int newstyle, int *old)
+void change_current_linestyle(xpp::Session &s, int newstyle, int *old)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  *old=s.plot_windows.current->color[0];
   s.plot_windows.current->color[0]=newstyle;
 }
@@ -216,9 +215,8 @@ void init_svg(xpp::Session &s)
   s.drawing.d_top=s.drawing.v_char*5/2+1;
 }
 
-void set_linestyle(int ls)
+void set_linestyle(xpp::Session &s, int ls)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_linetype(s,ls);
   else xpp_ui.draw_linestyle(ls);
@@ -989,9 +987,8 @@ C4:
   return(iflag);
 }
 
-void eq_symb(double *x, int type)
+void eq_symb(xpp::Session &s, double *x, int type)
 {
-  xpp::Session &s=xpp::session();
 
   float dx=6.0*static_cast<float>(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*SYMSIZE;
   float dy=6.0*static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*SYMSIZE;

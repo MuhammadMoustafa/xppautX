@@ -336,7 +336,7 @@ if(s.plot_settings.my_ylo>=s.plot_settings.my_yhi){
  chk_delay(s); /* check for delay allocation */
  alloc_h_stuff(s);
 
- alloc_v_memory();  /* allocate stuff for volterra equations */
+ alloc_v_memory(s);  /* allocate stuff for volterra equations */
  xpp::start_solver(s);
  set_initial_values(s); /* the initial values given as formulas */
  arr_ic_start(s); /* take care of all predefined array ics */

@@ -110,7 +110,7 @@ void draw_marker(xpp::Session &s, double xd, double yd, double size, int type)
 void draw_grob(xpp::Session &s, int i)
 {
     const float xs = s.grobs[i].xs, ys = s.grobs[i].ys, xe = s.grobs[i].xe, ye = s.grobs[i].ye;
-    set_linestyle(s.grobs[i].color);
+    set_linestyle(s,s.grobs[i].color);
     if (s.grobs[i].type == POINTER) line_abs(s,xs, ys, xe, ye);
     if (s.grobs[i].type == ARROW || s.grobs[i].type == POINTER) arrow_head(s,xs, ys, xe, ye, s.grobs[i].size);
     if (s.grobs[i].type >= MARKER) draw_marker(s,xs, ys, s.grobs[i].size, s.grobs[i].type - 2);

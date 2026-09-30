@@ -8,7 +8,6 @@ extern "C" {
 
 void dump_shoot_range(FILE *fp, int f);
 void bad_shoot(int iret);
-int set_up_sh_range(void);
 
 #ifdef __cplusplus
 }
@@ -21,6 +20,9 @@ int set_up_sh_range(void);
 namespace xpp {
 struct Session; /* session.h */
 }
+
+/* Range shoot's settings asked for: 0 when cancelled */
+int set_up_sh_range(xpp::Session &s);
 
 void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, double *f, int n);
 void compile_bvp(xpp::Session &s);

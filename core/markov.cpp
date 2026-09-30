@@ -8,6 +8,7 @@
 #include "integrate.h"
 #include "do_fit.h"
 #include "my_rhs.h"
+#include "getvar.h"
 
 #include <stdlib.h> 
 #include "adj2.h"
@@ -209,7 +210,7 @@ int compile_markov(xpp::Session &s, int index, int j, int k)
   int com[256];
   expr=s.model().markov[index].trans[l0].c_str();
 
-  if(add_expr(expr,com,&leng))
+  if(add_expr(s,expr,com,&leng))
     return -1;
   /* zero-padded by two, like the xpp_malloc block it replaces */
   s.model().markov[index].command[l0].assign(com, com+leng);
@@ -223,16 +224,16 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
   int i;
   double yp[MAXODE];
   if(s.model().nmarkov==0)return;
-  set_ivar(0,t);
-  for(i=0;i<s.model().node;i++)set_ivar(i+1,x[i]);
-  for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)set_ivar(i+1,x[i-s.model().fix_var]);
+  setvar(s,0,t);
+  for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
+  for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
   for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-  set_ivar(i+1,evaluate(s.model().programs[i].data()));
+  setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
   for(i=0;i<s.model().nmarkov;i++)
     yp[i]=new_state(s,x[s.model().node+i],i,dt);
   for(i=0;i<s.model().nmarkov;i++){
     x[s.model().node+i]=yp[i];
-    set_ivar(i+s.model().node+s.model().fix_var+1,yp[i]);
+    setvar(s,i+s.model().node+s.model().fix_var+1,yp[i]);
   }
 }
 
@@ -257,7 +258,7 @@ double new_state(xpp::Session &s, double old, int index, double dt)
    if(type==0){
      for(i=0;i<ns;i++){
        if(i!=row){
-	 prob=evaluate(chain.command[rns+i].data())*dt;
+	 prob=evaluate(s,chain.command[rns+i].data())*dt;
 	 sum=sum+prob;
 	 if(coin<=sum){
 	   return(st[i]);
@@ -280,7 +281,7 @@ double new_state(xpp::Session &s, double old, int index, double dt)
   return(old);
 }
 
-void make_gill_nu(double *nu,int n,int m,double *v)
+void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
 {
   /* nu[j+m*i] = nu_{i,j} i=1,n-1 -- assume first eqn is tr'=tr+z(0)
      i species j reaction
@@ -288,14 +289,14 @@ void make_gill_nu(double *nu,int n,int m,double *v)
    */
   int ir,iy;
 
-  std::vector<double> y_buf(n, 0.0), yold_buf(n, 0.0), yp_buf(n, 0.0);
-  double *y=y_buf.data(), *yp=yp_buf.data(), *yold=yold_buf.data();
+  std::vector<double> yold_buf(n, 0.0), yp_buf(n, 0.0);
+  double *yp=yp_buf.data(), *yold=yold_buf.data();
   for(ir=0;ir<m;ir++)
     v[ir+1]=0;
-  rhs_only(y,yold);
+  rhs_only(s,yold);
   for(ir=0;ir<m;ir++){
     v[ir+1]=1;
-    rhs_only(y,yp);
+    rhs_only(s,yp);
     for(iy=0;iy<n;iy++){
       nu[ir+m*iy]=yp[iy];
       xpp_log(XPP_LOG_DEBUG, "ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);
@@ -304,7 +305,7 @@ void make_gill_nu(double *nu,int n,int m,double *v)
   }
 }
 
-void one_gill_step(int meth,int nrxn,int *rxn,double *v)
+void one_gill_step(const xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
 {
   double rate=0,test;
   double r[1000];
@@ -315,7 +316,7 @@ void one_gill_step(int meth,int nrxn,int *rxn,double *v)
   case 0: /* std gillespie method */
     for(i=0;i<nrxn;i++){
       v[i+1]=0.0;
-      r[i]=get_ivar(rxn[i]);
+      r[i]=getvar(s,rxn[i]);
       rate+=r[i];
     }
     if(rate<=0.0)return;
@@ -363,16 +364,16 @@ void do_stochast_com(xpp::Session &s, int i)
     s.stochastic.flag=0;
     break;
   case 'h':
-    compute_hist();
+    compute_hist(s);
     break;
   case 'o':
     hist_back(s);
     break;
   case 'f':
-    compute_fourier(); 
+    compute_fourier(s); 
     break;
   case 'p':
-    compute_power();
+    compute_power(s);
     break;
   case 'i':
     test_fit(s);
@@ -380,22 +381,22 @@ void do_stochast_com(xpp::Session &s, int i)
     redraw_ics();
     break;
   case 's':
-    column_mean();
+    column_mean(s);
     break;
   case 'l':
     do_liapunov(s);
     break;
   case 'a':
-     compute_stacor();
+     compute_stacor(s);
      break;
   case 'x':
-    compute_correl();
+    compute_correl(s);
     break;
   case 'e':
-    compute_sd();
+    compute_sd(s);
     break;
   case '2':
-    new_2d_hist();
+    new_2d_hist(s);
     break;
   }
   
@@ -405,7 +406,7 @@ void do_stochast_com(xpp::Session &s, int i)
 static void stats_back(xpp::Session &s, float **stats)
 {
   if(s.stochastic.here){
-    new_browse_dat(stats,s.stochastic.len);
+    new_browse_dat(s,stats,s.stochastic.len);
     s.data_store.rows=s.stochastic.len;
   }
 }

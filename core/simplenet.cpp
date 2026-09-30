@@ -158,89 +158,89 @@ special ydot=import(...) ran a compiled library's function: refused
 #define IMPORT  50 /* refused: a compiled library (W55) */
 
 namespace {
-bool gilparse(std::string_view s, std::vector<int> &ind);
+bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &ind);
 
 /* table t's values, NULL for none (-1) */
-double *table_values(int t)
+double *table_values(xpp::Session &s, int t)
 {
-  return t<0 ? nullptr : xpp::session().tables[t].y;
+  return t<0 ? nullptr : s.tables[t].y;
 }
 } // namespace
 
-double net_interp(double x, int i)
+double net_interp(xpp::Session &s, double x, int i)
 {
   int jlo=static_cast<int>(x);
   double *y;
-  int n=xpp::model().networks[i].n;
+  int n=s.model().networks[i].n;
   double dx=x-static_cast<double>(jlo);
-  y=&xpp::session().parser.variables[xpp::model().networks[i].root];
+  y=&s.parser.variables[s.model().networks[i].root];
   if(jlo<0 || jlo>(n-1))return 0.0; /* out of range */
   return (1-dx)*y[jlo]+dx*y[jlo+1];
 
 }
 
-int add_vectorizer(const char *name,char *rhs)
+int add_vectorizer(xpp::Session &s, const char *name,char *rhs)
 {
   int i,ivar,il,ir;
   int ind;
   int len;
   int flag;
 
-  for(i=0;i<xpp::model().nvector;i++)
-       if(xpp::model().vectors[i].name==name)break;
+  for(i=0;i<s.model().nvector;i++)
+       if(s.model().vectors[i].name==name)break;
 
   ind=i;
-  flag=get_vector_info(rhs,name,&ivar,&len,&il,&ir);
+  flag=get_vector_info(s,rhs,name,&ivar,&len,&il,&ir);
 
   if(flag==0)return 0;
   
-    xpp::model().vectors[ind].root=ivar;
-    xpp::model().vectors[ind].length=len;
-    xpp::model().vectors[ind].il=il;
-    xpp::model().vectors[ind].ir=ir;
+    s.model().vectors[ind].root=ivar;
+    s.model().vectors[ind].length=len;
+    s.model().vectors[ind].il=il;
+    s.model().vectors[ind].ir=ir;
     xpp_log(XPP_LOG_INFO, "adding vector %s based on variable %d of length %d ends %d %d\n",
 	   name,ivar,len,il,ir);
  
   return 1;
 
 }  
-void add_vectorizer_name(const char *name, const char *rhs)
+void add_vectorizer_name(xpp::Session &s, const char *name, const char *rhs)
 {
-  if(xpp::model().nvector>=MAXVEC){
+  if(s.model().nvector>=MAXVEC){
     xpp_log(XPP_LOG_ERROR, "Too many vectors \n");
     xpp_model_failed();
   }
-  xpp::model().vectors[xpp::model().nvector].name=name;
-  if(add_net_name(xpp::model().nvector,name,1))
+  s.model().vectors[s.model().nvector].name=name;
+  if(add_net_name(s,s.model().nvector,name,1))
     xpp_model_failed();
-  xpp::model().nvector++;
+  s.model().nvector++;
 
 }
-double vector_value(double x, int i)
+double vector_value(xpp::Session &s, double x, int i)
 {
-  int il=xpp::model().vectors[i].il,ir=xpp::model().vectors[i].ir,n=xpp::model().vectors[i].length,k=static_cast<int>(x);
-  int root=xpp::model().vectors[i].root;
-  if((k>=0)&&(k<n))  return xpp::session().parser.variables[root+k];
-  if(il==PERIODIC)return xpp::session().parser.variables[root+((k+n)%n)];
+  int il=s.model().vectors[i].il,ir=s.model().vectors[i].ir,n=s.model().vectors[i].length,k=static_cast<int>(x);
+  int root=s.model().vectors[i].root;
+  if((k>=0)&&(k<n))  return s.parser.variables[root+k];
+  if(il==PERIODIC)return s.parser.variables[root+((k+n)%n)];
   if(k<0){
     if(il==ZERO)return 0.0;
-    return xpp::session().parser.variables[root-k-1];
+    return s.parser.variables[root-k-1];
   }
   if(k>=n){
     if(ir==ZERO)return 0.0;
-    return xpp::session().parser.variables[2*n-k-1+root];
+    return s.parser.variables[2*n-k-1+root];
   }
   return 0.0;
 
 }  
-double network_value(double x, int i)
+double network_value(xpp::Session &s, double x, int i)
 {
   int j=static_cast<int>(x);
-  if(xpp::model().networks[i].type==INTERP){
-    return net_interp(x,i);
+  if(s.model().networks[i].type==INTERP){
+    return net_interp(s,x,i);
   }
-  if(j>=0&&j<xpp::model().networks[i].n)
-    return xpp::session().networks[i].values[j];
+  if(j>=0&&j<s.model().networks[i].n)
+    return s.networks[i].values[j];
   return 0.0;
 }
 
@@ -261,35 +261,35 @@ int next_positive_int(xpp::Tokens &args, const char *sep)
 /* what a name argument must be */
 enum class NameKind { table, variable };
 
-/* a table's or a variable's name (into s): its index */
-int next_index(xpp::Tokens &args, const char *net, const char *sep, std::string &s, NameKind kind)
+/* a table's or a variable's name in s (into name): its index */
+int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const char *sep, std::string &name, NameKind kind)
 {
-  s=args.text(sep);
+  name=args.text(sep);
   if(kind==NameKind::table){
-    int i=find_lookup(s.c_str());
+    int i=find_lookup(s,name);
     if(i<0)xpp_log(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-                   net,s.c_str());
+                   net,name.c_str());
     return i;
   }
-  int i=get_var_index(s.c_str());
+  int i=get_var_index(s,name);
   if(i<0)xpp_log(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-                 net,s.c_str());
+                 net,name.c_str());
   return i;
 }
 
 /* the last arguments root,root2,f of the networks that apply a function
-   (fconv, fsparse, fmmult): f(root,root2) compiled into xpp::model().networks[ind].f;
+   (fconv, fsparse, fmmult): f(root,root2) compiled into the Model's networks[ind].f;
    false after an error */
-bool next_pair_function(xpp::Tokens &args, const char *net, int ind, int &ivar, int &ivar2, std::string &fname)
+bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int ind, int &ivar, int &ivar2, std::string &fname)
 {
   std::string rootname,root2name;
-  ivar=next_index(args,net,",",rootname,NameKind::variable);
+  ivar=next_index(s,args,net,",",rootname,NameKind::variable);
   if(ivar<0)return false;
-  ivar2=next_index(args,net,",",root2name,NameKind::variable);
+  ivar2=next_index(s,args,net,",",root2name,NameKind::variable);
   if(ivar2<0)return false;
   fname=args.text(")");
   int elen;
-  if(add_expr(xpp::format("{}({},{})",fname,rootname,root2name).c_str(),xpp::model().networks[ind].f.data(),&elen)){
+  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name).c_str(),s.model().networks[ind].f.data(),&elen)){
     xpp_log(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
     return false;
   }
@@ -297,9 +297,8 @@ bool next_pair_function(xpp::Tokens &args, const char *net, int ind, int &ivar, 
 }
 } // namespace
 
-int add_spec_fun(const char *name, char *rhs)
+int add_spec_fun(xpp::Session &s, const char *name, char *rhs)
 {
-  xpp::Session &s=xpp::session();
   int i,ind;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
@@ -310,10 +309,10 @@ int add_spec_fun(const char *name, char *rhs)
   type=is_network(rhs);
     if(type==0)return 0;
   xpp_log(XPP_LOG_DEBUG, "type=%d \n",type);
-  for(i=0;i<xpp::model().nnetwork;i++)
-    if(xpp::model().networks[i].name==name)break;
+  for(i=0;i<s.model().nnetwork;i++)
+    if(s.model().networks[i].name==name)break;
   ind=i;
-  if(ind>=xpp::model().nnetwork){
+  if(ind>=s.model().nnetwork){
     xpp_log(XPP_LOG_ERROR, " No such name %s ?? \n",name);
     return 0;
   }
@@ -335,16 +334,16 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
     
@@ -357,22 +356,22 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(args,name,",",indname,NameKind::table);
+    iind=next_index(s,args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].index_table=iind;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].index_table=iind;
 
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     return 1;   
@@ -392,17 +391,17 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(s,args,name,ind,ivar,ivar2,fname))return 0;
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    xpp::model().networks[ind].root2=xpp::model().networks[ind].f[1];
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s %s(var[%d],var[%d]) \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1;   
@@ -414,23 +413,23 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(args,name,",",indname,NameKind::table);
+    iind=next_index(s,args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
-    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(s,args,name,ind,ivar,ivar2,fname))return 0;
 
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].index_table=iind;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].index_table=iind;
 
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    xpp::model().networks[ind].root2=xpp::model().networks[ind].f[1];
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Sparse %s len=%d x %d using %s %s(var[%d],var[%d]) and %s\n",
 	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2,indname.c_str() );
     return 1;   
@@ -449,9 +448,9 @@ int add_spec_fun(const char *name, char *rhs)
     ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
    
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
-    ntab=get_lookup_len(iwgt);
+    ntab=get_lookup_len(s,iwgt);
     if(type==FFTCONP&&ntab<ntot){
      xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,ntot);
      return 0;
@@ -460,7 +459,7 @@ int add_spec_fun(const char *name, char *rhs)
      xpp_log(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,2*ntot);
      return 0;
     }
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     if(ntype==FFTCON0)
       ncon=2*ntot;
@@ -470,14 +469,14 @@ int add_spec_fun(const char *name, char *rhs)
     s.networks[ind].ffti.assign(ncon+2,0.0);
     s.networks[ind].dr.assign(ncon+2,0.0);
     s.networks[ind].di.assign(ncon+2,0.0);
-    xpp::model().networks[ind].iwgt=iwgt;
+    s.model().networks[ind].iwgt=iwgt;
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
-    update_fft(ind);
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
+    update_fft(s,ind);
 
     xpp_log(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
@@ -490,19 +489,19 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     s.networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].weight_table=iwgt;
 
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ncon;
-    xpp::model().networks[ind].ncon=ntot;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ncon;
+    s.model().networks[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added mmult %s len=%d x %d using %s var[%d]\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     return 1;   
@@ -514,18 +513,18 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    if(!next_pair_function(args,name,ind,ivar,ivar2,fname))return 0;
+    if(!next_pair_function(s,args,name,ind,ivar,ivar2,fname))return 0;
     s.networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].weight_table=iwgt;
 
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=xpp::model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
-    xpp::model().networks[ind].root2=xpp::model().networks[ind].f[1];
-    xpp::model().networks[ind].n=ncon;
-    xpp::model().networks[ind].ncon=ntot;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=s.model().networks[ind].f[0]; /* this is strange - I am adding the compiled names */
+    s.model().networks[ind].root2=s.model().networks[ind].f[1];
+    s.model().networks[ind].n=ncon;
+    s.model().networks[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added fmmult %s len=%d x %d using %s %s(var[%d],var[%d])\n",
 	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1; 
@@ -554,14 +553,14 @@ int add_spec_fun(const char *name, char *rhs)
 	     name,ncon);
       return 0;
     }
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     s.networks[ind].values.assign(6,0.0);
-    xpp::model().networks[ind].type=FINDEXT;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
-    xpp::model().networks[ind].iwgt=ntype;
+    s.model().networks[ind].type=FINDEXT;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
+    s.model().networks[ind].iwgt=ntype;
     xpp_log(XPP_LOG_INFO, " Added findextr %s: type=%d len=%d  skip= %d using var[%d] \n",
 	   name,ntype,ntot,ncon,ivar);
     return 1; 
@@ -573,19 +572,19 @@ int add_spec_fun(const char *name, char *rhs)
     args.next("(");
     str=args.text(",");
     ivar=atoi(str.c_str());
-    xpp::model().networks[ind].type=INTERP;
-    xpp::model().networks[ind].iwgt=ivar;
+    s.model().networks[ind].type=INTERP;
+    s.model().networks[ind].iwgt=ivar;
     str=args.text(",");
     ivar=atoi(str.c_str());
     if(ivar<1){
       xpp_log(XPP_LOG_ERROR, "Need more than 1 entry for interpolate\n");
       return 0;
     }
-    xpp::model().networks[ind].n=ivar; /* # entries in array */
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    s.model().networks[ind].n=ivar; /* # entries in array */
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
-    xpp::model().networks[ind].root=ivar;
-    xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,xpp::model().networks[ind].n,rootname.c_str()); 
+    s.model().networks[ind].root=ivar;
+    xpp_log(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,s.model().networks[ind].n,rootname.c_str()); 
     return 1;
 
    case IMPORT:
@@ -599,25 +598,25 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
-    itau=next_index(args,name,",",tauname,NameKind::table);
+    itau=next_index(s,args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     s.networks[ind].values.assign((ncon+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].taud_table=itau;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].taud_table=itau;
 
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ncon;
-    xpp::model().networks[ind].ncon=ntot;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ncon;
+    s.model().networks[ind].ncon=ntot;
     xpp_log(XPP_LOG_INFO, " Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
-    xpp::model().ndelays=1;
+    s.model().ndelays=1;
     return 1;   
     break;
     return 0;
@@ -628,29 +627,29 @@ int add_spec_fun(const char *name, char *rhs)
     if(ntot<=0)return 0;
     ncon=next_positive_int(args,",");
     if(ncon<=0)return 0;
-    iwgt=next_index(args,name,",",wgtname,NameKind::table);
+    iwgt=next_index(s,args,name,",",wgtname,NameKind::table);
     if(iwgt<0)return 0;
 
-    iind=next_index(args,name,",",indname,NameKind::table);
+    iind=next_index(s,args,name,",",indname,NameKind::table);
     if(iind<0)return 0;
 
-    itau=next_index(args,name,",",tauname,NameKind::table);
+    itau=next_index(s,args,name,",",tauname,NameKind::table);
     if(itau<0)return 0;
 
-    ivar=next_index(args,name,")",rootname,NameKind::variable);
+    ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
  
     s.networks[ind].values.assign((ntot+1),0.0);
-    xpp::model().networks[ind].weight_table=iwgt;
-    xpp::model().networks[ind].index_table=iind;
-    xpp::model().networks[ind].taud_table=itau;
-    xpp::model().networks[ind].type=ntype;
-    xpp::model().networks[ind].root=ivar;
-    xpp::model().networks[ind].n=ntot;
-    xpp::model().networks[ind].ncon=ncon;
+    s.model().networks[ind].weight_table=iwgt;
+    s.model().networks[ind].index_table=iind;
+    s.model().networks[ind].taud_table=itau;
+    s.model().networks[ind].type=ntype;
+    s.model().networks[ind].root=ivar;
+    s.model().networks[ind].n=ntot;
+    s.model().networks[ind].ncon=ncon;
     xpp_log(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
-    xpp::model().ndelays=1;
+    s.model().ndelays=1;
     return 1;   
     break;
 
@@ -673,18 +672,18 @@ int add_spec_fun(const char *name, char *rhs)
     str=args.text(",");
     ivar=atoi(str.c_str());
     str=args.text(")");
-    xpp::model().networks[ind].type=GILLTYPE;
+    s.model().networks[ind].type=GILLTYPE;
     if(ivar>0){
       xpp_log(XPP_LOG_WARN, " Tau leaping not implemented yet. Changing to 0\n");
       ivar=0;
     }
-    xpp::model().networks[ind].iwgt=ivar;
-    if(gilparse(str,xpp::model().networks[ind].gcom)==0)
+    s.model().networks[ind].iwgt=ivar;
+    if(gilparse(s,str,s.model().networks[ind].gcom)==0)
       return 0;
-    ivar2=static_cast<int>(xpp::model().networks[ind].gcom.size());
-    xpp::model().networks[ind].root=ivar2;
-    xpp::model().networks[ind].n=ivar2+1;
-    xpp::model().networks[ind].ncon=-1;
+    ivar2=static_cast<int>(s.model().networks[ind].gcom.size());
+    s.model().networks[ind].root=ivar2;
+    s.model().networks[ind].n=ivar2+1;
+    s.model().networks[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
     s.networks[ind].values.assign(ivar2+2,0.0);
     xpp_log(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
@@ -693,16 +692,16 @@ int add_spec_fun(const char *name, char *rhs)
   }
   return 0;
 }
-void add_special_name(const char *name, char *rhs)
+void add_special_name(xpp::Session &s, const char *name, char *rhs)
 {
   if(is_network(rhs)){
     xpp_log(XPP_LOG_DEBUG, " netrhs = |%s| \n",rhs);
-    if(xpp::model().nnetwork>=MAXNET){
+    if(s.model().nnetwork>=MAXNET){
       return;
     }
-    xpp::model().networks[xpp::model().nnetwork].name=name;
-    add_net_name(xpp::model().nnetwork,name,0);
-    xpp::model().nnetwork++;
+    s.model().networks[s.model().nnetwork].name=name;
+    add_net_name(s,s.model().nnetwork,name,0);
+    s.model().nnetwork++;
   }
   else
     xpp_log(XPP_LOG_WARN, " No such special type ...\n");
@@ -729,19 +728,19 @@ int is_network(char *s)
   return 0;
 }
 
-void eval_all_nets()
+void eval_all_nets(xpp::Session &s)
 {
   int i;
-  for(i=0;i<xpp::model().nnetwork;i++)
-    evaluate_network(i);
+  for(i=0;i<s.model().nnetwork;i++)
+    evaluate_network(s,i);
 }
 
-void evaluate_network(int ind)
+void evaluate_network(xpp::Session &s, int ind)
 {
    /* every network on every step: the definition, values and variables once */
-   Network &net=xpp::model().networks[ind];
-   NetworkValues &nv=xpp::session().networks[ind];
-   double *const variables=xpp::session().parser.variables.data();
+   Network &net=s.model().networks[ind];
+   NetworkValues &nv=s.networks[ind];
+   double *const variables=s.parser.variables.data();
    int i,j,k,ij;
    int imin,imax;
    double ymin,ymax;
@@ -753,8 +752,8 @@ void evaluate_network(int ind)
    int ncon=net.ncon;
    double *w,*y,*cc,*values,*tau;
    int twon=2*n,root=net.root,root2=net.root2;
-   cc=table_values(net.index_table);
-   w=table_values(net.weight_table);
+   cc=table_values(s,net.index_table);
+   w=table_values(s,net.weight_table);
    values=nv.values.data();
    switch(net.type){
    case FINDEXT:
@@ -799,11 +798,11 @@ void evaluate_network(int ind)
      break;
    case GILLTYPE:
      if(net.ncon==-1&&net.iwgt>0&&!nv.gill_ready){
-       nv.gill_nu.assign(static_cast<size_t>(net.root)*xpp::model().node,0.0);
-       make_gill_nu(nv.gill_nu.data(),xpp::model().node,net.root,nv.values.data());
+       nv.gill_nu.assign(static_cast<size_t>(net.root)*s.model().node,0.0);
+       make_gill_nu(s,nv.gill_nu.data(),s.model().node,net.root,nv.values.data());
        nv.gill_ready=true;
      }
-     one_gill_step(net.iwgt,net.root,net.gcom.data(),nv.values.data());
+     one_gill_step(s,net.iwgt,net.root,net.gcom.data(),nv.values.data());
      break;
    case CONVE:
      y=&variables[root];
@@ -853,7 +852,7 @@ void evaluate_network(int ind)
     break;
 
    case DEL_MUL:
-     tau=table_values(net.taud_table);
+     tau=table_values(s,net.taud_table);
      in0=net.root;
      for(j=0;j<n;j++){
        sum=0.0;
@@ -861,7 +860,7 @@ void evaluate_network(int ind)
          ij=j*ncon+i;
 	 /* root indexes variables[], where t comes first; get_delay counts
 	    from the first state variable, as the parser's delay() does */
-	 sum+=(w[ij]*get_delay(i+in0-1,tau[ij]));
+	 sum+=(w[ij]*get_delay(s,i+in0-1,tau[ij]));
        }
        values[j]=sum;
      }
@@ -878,7 +877,7 @@ void evaluate_network(int ind)
      }
      break;
    case DEL_SPAR:
-     tau=table_values(net.taud_table);
+     tau=table_values(s,net.taud_table);
      in0=net.root;
       for(i=0;i<n;i++){
        sum=0.0;
@@ -886,7 +885,7 @@ void evaluate_network(int ind)
 	 ij=i*ncon+j;
 	 k=static_cast<int>(cc[ij]);
          if(k>=0)
-	   sum+=(w[ij]*get_delay(k+in0-1,tau[ij])); /* as in DEL_MUL */
+	   sum+=(w[ij]*get_delay(s,k+in0-1,tau[ij])); /* as in DEL_MUL */
        }
        values[i]=sum;
      }  
@@ -918,7 +917,7 @@ void evaluate_network(int ind)
 	   if(k>=n)k=abs(twon-2-k);
            f[0]=root2+k;
 
-	   z=evaluate(f);
+	   z=evaluate(s,f);
 	   sum+=(w[j+ncon]*z);
 	 }
        }
@@ -936,7 +935,7 @@ void evaluate_network(int ind)
 	 if(k<n&&k>=0){
 	
 	   f[0]=root2+k;
-	   z=evaluate(f);
+	   z=evaluate(s,f);
 	   sum+=(w[j+ncon]*z);
 	 }
        }
@@ -952,7 +951,7 @@ void evaluate_network(int ind)
        for(j=-ncon;j<=ncon;j++){
 	 k=((twon+i+j)%n);
 	 f[0]=root2+k;
-	 z=evaluate(f);
+	 z=evaluate(s,f);
 	 sum+=(w[j+ncon]*z);
        }
        values[i]=sum;
@@ -969,7 +968,7 @@ void evaluate_network(int ind)
 	 k=static_cast<int>(cc[ij]);
          if(k>=0){
 	   f[0]=root2+k;
-	   z=evaluate(f);
+	   z=evaluate(s,f);
 	   sum+=(w[ij]*z);
 	 }
        }
@@ -989,7 +988,7 @@ void evaluate_network(int ind)
 
          f[0]=root2+i;
          
-	 z=evaluate(f);
+	 z=evaluate(s,f);
 
 	 sum+=(w[ij]*z);
        }
@@ -1000,19 +999,19 @@ void evaluate_network(int ind)
    }
 }
 
-void update_all_ffts()
+void update_all_ffts(xpp::Session &s)
 {
   int i;
 
-  for(i=0;i<xpp::model().nnetwork;i++)
-    if(xpp::model().networks[i].type==FFTCON0||xpp::model().networks[i].type==FFTCONP)
-      update_fft(i);
+  for(i=0;i<s.model().nnetwork;i++)
+    if(s.model().networks[i].type==FFTCON0||s.model().networks[i].type==FFTCONP)
+      update_fft(s,i);
 }
 /*
  the weight table is the same centred kernel a matching conv/conv0
  network reads (w[j+k] for lag j, k the table's centre), but with no
  extra unused or out-of-range entry: its length is exactly n (FFTCONP,
- n=xpp::model().networks[ind].n) or 2n (FFTCON0, n=2*xpp::model().networks[ind].n), n2=n/2 its centre
+ n=the network's n) or 2n (FFTCON0, n=2 times its n), n2=n/2 its centre
  (the direct sum's own ncon, w[j+n2] its weight at lag j). Circular
  convolution by FFT needs the kernel negated in lag and reordered into
  the FFT's own bin order (fftr[i] is the kernel's value at circular lag
@@ -1024,17 +1023,17 @@ void update_all_ffts()
  ranges meet without a shared or skipped index (n-1-n2 = n2-1); for n
  odd they are a plain reflection about the centre (n-1-n2 = n2).
 */
-void update_fft(int ind)
+void update_fft(xpp::Session &s, int ind)
 {
-  double *w=table_values(xpp::model().networks[ind].weight_table);
-  double *fftr=xpp::session().networks[ind].fftr.data();
-  double *ffti=xpp::session().networks[ind].ffti.data();
-  int type=xpp::model().networks[ind].type;
+  double *w=table_values(s,s.model().networks[ind].weight_table);
+  double *fftr=s.networks[ind].fftr.data();
+  double *ffti=s.networks[ind].ffti.data();
+  int type=s.model().networks[ind].type;
   int n;
   if(type==FFTCONP)
-    n=xpp::model().networks[ind].n;
+    n=s.model().networks[ind].n;
   else if(type==FFTCON0)
-    n=2*xpp::model().networks[ind].n;
+    n=2*s.model().networks[ind].n;
   else
     return;
   int n2=n/2;
@@ -1127,20 +1126,20 @@ bool g_namelist(std::string_view s, std::string &root, int &flag, int &i1, int &
 
 /* the reactions a gillespie chain lists, "x,y{1-3},...", as variable
    indices into ind */
-bool gilparse(std::string_view s, std::vector<int> &ind)
+bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &ind)
 {
   /* markov.cpp's one_gill_step holds a rate per reaction in r[1000] */
   const size_t max_reactions = 1000;
-  xpp::log(XPP_LOG_DEBUG, "s=|{}|", s);
+  xpp::log(XPP_LOG_DEBUG, "s=|{}|", list);
   ind.clear();
   size_t start = 0;
   for (;;) {
-    size_t comma = s.find(',', start);
-    std::string_view piece = s.substr(start, comma == std::string_view::npos ? std::string_view::npos : comma - start);
+    size_t comma = list.find(',', start);
+    std::string_view piece = list.substr(start, comma == std::string_view::npos ? std::string_view::npos : comma - start);
     std::string b;
     int f, i1 = 0, i2 = 0;
     if (!g_namelist(piece, b, f, i1, i2)) {
-      xpp::log(XPP_LOG_WARN, "Bad gillespie list {}\n", s);
+      xpp::log(XPP_LOG_WARN, "Bad gillespie list {}\n", list);
       return false;
     }
     std::vector<std::string> names;
@@ -1153,13 +1152,13 @@ bool gilparse(std::string_view s, std::vector<int> &ind)
         names.push_back(xpp::format("{}{}", b, id));
     }
     for (const std::string &bn : names) {
-      int iv = get_var_index(bn.c_str());
+      int iv = get_var_index(s,bn);
       if (iv < 0) {
         xpp::log(XPP_LOG_ERROR, "No such name {}\n", bn);
         return false;
       }
       if (ind.size() >= max_reactions) {
-        xpp::log(XPP_LOG_ERROR, "Too many reactions in {} (at most {})\n", s, max_reactions);
+        xpp::log(XPP_LOG_ERROR, "Too many reactions in {} (at most {})\n", list, max_reactions);
         return false;
       }
       ind.push_back(iv);
@@ -1173,7 +1172,7 @@ bool gilparse(std::string_view s, std::vector<int> &ind)
 
 /* vector(var,length,e|z|p,e|z|p) (spaces removed from str first): the
    first variable, the length and the two ends' kinds */
-int get_vector_info(char *str, const char *name,int *root, int *length, int *il, int *ir)
+int get_vector_info(const xpp::Session &ses, char *str, const char *name,int *root, int *length, int *il, int *ir)
 {
   de_space(str);
   std::string_view s(str);
@@ -1181,7 +1180,7 @@ int get_vector_info(char *str, const char *name,int *root, int *length, int *il,
   i=i==std::string_view::npos?s.size():i+1;
   size_t comma=s.find(',',i);
   std::string temp(s.substr(i,comma==std::string_view::npos?std::string_view::npos:comma-i));
-  int ivar=get_var_index(temp.c_str());
+  int ivar=get_var_index(ses,temp);
   if(ivar<0||comma==std::string_view::npos){
     xpp::log(XPP_LOG_ERROR, " In vector {} , {} is not valid variable\n",
 	     name,temp);

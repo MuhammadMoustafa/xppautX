@@ -22,16 +22,16 @@ static int cv_iopt[OPT_SIZE];
 static void *cvode_mem;
 static N_Vector ycv;
 static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata);
-void start_cv(double *y, double t, int n, double tout, double *atol, double *rtol)
+void start_cv(xpp::Session &s, double *y, double t, int n, double tout, double *atol, double *rtol)
 {
  int i;
 
  ycv=N_VNew(n,NULL);
  for(i=0;i<n;i++)ycv->data[i]=y[i];
  cvode_mem=CVodeMalloc(n, cvf, t, ycv, BDF, NEWTON, SS, rtol, atol,
-                          NULL, FALSE, cv_iopt, cv_ropt, NULL);
- if(xpp::session().numerics.cv_bandflag==1)
-   CVBand(cvode_mem,xpp::session().numerics.cv_bandupper,xpp::session().numerics.cv_bandlower,NULL,NULL);
+                          &s, FALSE, cv_iopt, cv_ropt, NULL);
+ if(s.numerics.cv_bandflag==1)
+   CVBand(cvode_mem,s.numerics.cv_bandupper,s.numerics.cv_bandlower,NULL,NULL);
  else
    CVDense(cvode_mem, NULL, NULL); 
     
@@ -43,51 +43,52 @@ void end_cv()
   CVodeFree(cvode_mem);
 }
  
+/* CVODE's right-hand side: fdata is the Session start_cv gave it */
 static void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
 {
-  my_rhs(t,y->data,ydot->data,n);
+  my_rhs(*static_cast<xpp::Session *>(fdata),t,y->data,ydot->data,n);
   
 }
 
-std::string cvode_error_text(int kflag)
+std::string cvode_error_text(const xpp::Session &s, int kflag)
 {
-  std::string s;
+  std::string text;
   switch(kflag){
   case 0: break;
-  case -1: s = "No memory allocated";
+  case -1: text = "No memory allocated";
     break;
-  case -2: s = "Bad input to CVode";
+  case -2: text = "Bad input to CVode";
     break;
-  case -3: s = "Too much work -- try smaller DT";
+  case -3: text = "Too much work -- try smaller DT";
     break;
-  case -4: s = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
-	xpp::session().numerics.toler*cv_ropt[ROPT_TOLSF], xpp::session().numerics.atoler*cv_ropt[ROPT_TOLSF]);
+  case -4: text = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
+	s.numerics.toler*cv_ropt[ROPT_TOLSF], s.numerics.atoler*cv_ropt[ROPT_TOLSF]);
     break;
-  case -5: s = "Error test failure too frequent ??";
+  case -5: text = "Error test failure too frequent ??";
     break;
-  case -6: s = "Converg. failure -- oh well!";
+  case -6: text = "Converg. failure -- oh well!";
     break;
-  case -7: s = "Setup failed for linsolver in CVODE ???";
+  case -7: text = "Setup failed for linsolver in CVODE ???";
     break;
-  case -8: s = "Singular matrix encountered. Hmmm?";
+  case -8: text = "Singular matrix encountered. Hmmm?";
     break;
-  case -9: s = "Flags error...";
+  case -9: text = "Flags error...";
     break;
   }
-  return s;
+  return text;
 }
 
-int cvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int cvode(xpp::Session &s, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
  int err=0;
- if(xpp::model().nflags==0)
-   return(ccvode(command,y,t,n,tout,kflag,atol,rtol));
- err=one_flag_step_cvode(command,y,t,n,tout,kflag,atol,rtol);
+ if(s.model().nflags==0)
+   return(ccvode(s,command,y,t,n,tout,kflag,atol,rtol));
+ err=one_flag_step_cvode(s,command,y,t,n,tout,kflag,atol,rtol);
  if(err==1)*kflag=-9;
  return 1;
 }
 /* rtol is like our TOLER and atol is something else ?? */
-int ccvode(int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int ccvode(xpp::Session &s, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
   int i,flag;
   *kflag=0;
@@ -96,7 +97,7 @@ int ccvode(int *command, double *y, double *t, int n, double tout, int *kflag, d
     return(1);
   }
   if(*command==1){
-    start_cv(y,*t,n,tout,atol,rtol);
+    start_cv(s,y,*t,n,tout,atol,rtol);
     flag=CVode(cvode_mem, tout, ycv, t, NORMAL);
     if(flag != SUCCESS){
      

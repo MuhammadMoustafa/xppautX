@@ -52,15 +52,15 @@ std::array<KernelState,MAXKER> kstate;
 }
 
 
-double ker_val(int in)
+double ker_val(xpp::Session &s, int in)
 {
  if(KnFlag)return(kstate[in].k_n);
  return(kstate[in].k_n1);
 }
 
-void alloc_v_memory()  /* allocate stuff for volterra equations */
+void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
   int i,len;
   /* add_expr's program, as long as any other formula's (MAXEXPLEN) */
   std::vector<int> formula(MAXEXPLEN);
@@ -72,15 +72,15 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
   };
 
 /* First parse the kernels   since these were deferred */
-  for(i=0;i<xpp::model().nkernel;i++){
+  for(i=0;i<s.model().nkernel;i++){
      kstate[i].k_n=0.0;
-     if(add_expr(kernels[i].expr.c_str(),formula.data(),&len)){
+     if(add_expr(s,kernels[i].expr.c_str(),formula.data(),&len)){
        xpp::log(XPP_LOG_ERROR, "Illegal kernel {}={}\n",kernels[i].name,kernels[i].expr);
        xpp_model_failed(); /* fatal error ... */
      }
      kernels[i].formula=program(len);
      if(kernels[i].flag==CONV){
-       if(add_expr(kernels[i].kerexpr.c_str(),formula.data(),&len)){
+       if(add_expr(s,kernels[i].kerexpr.c_str(),formula.data(),&len)){
 	 xpp::log(XPP_LOG_ERROR, "Illegal convolution {}={}\n",
 		kernels[i].name,kernels[i].kerexpr);
 	 xpp_model_failed(); /* fatal error ... */
@@ -88,62 +88,62 @@ void alloc_v_memory()  /* allocate stuff for volterra equations */
        kernels[i].kerform=program(len);
      }
    }
-  allocate_volterra(xpp::session().numerics.max_points,0);
+  allocate_volterra(s,s.numerics.max_points,0);
 }
 
-void allocate_volterra(int npts, int flag)
+void allocate_volterra(xpp::Session &s, int npts, int flag)
 {
   int i;
-  int ntot=xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;
+  int ntot=s.model().node+s.model().fix_var+s.model().nmarkov;
   npts=abs(npts);
-  xpp::session().numerics.max_points=npts;
+  s.numerics.max_points=npts;
   /* now allocate the memory   */
-  if(xpp::model().nkernel==0)return;
+  if(s.model().nkernel==0)return;
   /* flag==1 (a new grid) used to free the old blocks first; assigning the
      vectors again replaces them either way, so flag no longer matters */
   for(i=0;i<ntot;i++)
-    Memory[i].assign(xpp::session().numerics.max_points,0.0);
+    Memory[i].assign(s.numerics.max_points,0.0);
 
   CurrentPoint=0;
   KnFlag=1;
-  alloc_kernels(flag);
+  alloc_kernels(s,flag);
 }
 
-void re_evaluate_kernels()
+void re_evaluate_kernels(xpp::Session &s)
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
-  int i,j,n=xpp::session().numerics.max_points;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  int i,j,n=s.numerics.max_points;
 
-  if(xpp::session().numerics.auto_evaluate==0)return;
-  for(i=0;i<xpp::model().nkernel;i++){
+  if(s.numerics.auto_evaluate==0)return;
+  for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
-	SETVAR(0,xpp::session().numerics.t0+xpp::session().numerics.delta_t*j);
-	kstate[i].cnv[j]=evaluate(kernels[i].kerform.data());
+	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
+	kstate[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }  
   }
 }
 
-void alloc_kernels(int flag)
+void alloc_kernels(xpp::Session &s, int flag)
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
-  int i,n=xpp::session().numerics.max_points;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
+  int i,n=s.numerics.max_points;
   int j;
   double mu;
-  for(i=0;i<xpp::model().nkernel;i++){
+  for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
       kstate[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
-	SETVAR(0,xpp::session().numerics.t0+xpp::session().numerics.delta_t*j);
-	kstate[i].cnv[j]=evaluate(kernels[i].kerform.data());
+	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
+	kstate[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }
     /* Do the alpha functions here later  */
    if(kernels[i].mu>0.0){
      mu=kernels[i].mu;
      kstate[i].al.assign(n+1,0.0);
-     for(j=0;j<=n;j++)kstate[i].al[j]=alpbetjn(mu,xpp::session().numerics.delta_t,j);
+     for(j=0;j<=n;j++)kstate[i].al[j]=alpbetjn(mu,s.numerics.delta_t,j);
    }
   }
 }
@@ -161,42 +161,42 @@ void alloc_kernels(int flag)
        K(t,t',u,u') someday...
 ***/
 
-void init_sums(double t0, int n, double dt, int i0, int iend, int ishift)
+void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, int ishift)
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
    double t=t0+n*dt,tp=t0+i0*dt;
    double sum[MAXODE],al,alpbet,mu;
-   int nvar=xpp::model().fix_var+xpp::model().node+xpp::model().nmarkov;
+   int nvar=s.model().fix_var+s.model().node+s.model().nmarkov;
    int l,ioff,ker,i;
-   SETVAR(0,t);
-   SETVAR(xpp::model().prime_start,tp);
-   for(l=0;l<nvar;l++)SETVAR(l+1,Memory[l][ishift]);
-   for(ker=0;ker<xpp::model().nkernel;ker++){
+   setvar(s,0,t);
+   setvar(s,s.model().prime_start,tp);
+   for(l=0;l<nvar;l++)setvar(s,l+1,Memory[l][ishift]);
+   for(ker=0;ker<s.model().nkernel;ker++){
      kstate[ker].k_n1=kstate[ker].k_n;
      mu=kernels[ker].mu;
      if(mu==0.0)al=.5*dt;
      else al=alpha1n(mu,dt,t,tp);
-     sum[ker]=al*evaluate(kernels[ker].formula.data());
+     sum[ker]=al*evaluate(s,kernels[ker].formula.data());
      if(kernels[ker].flag==CONV)
        sum[ker]=sum[ker]*kstate[ker].cnv[n-i0];
      
    }
    for(i=1;i<=iend;i++){
-     ioff=(ishift+i)%xpp::session().numerics.max_points;
+     ioff=(ishift+i)%s.numerics.max_points;
      tp+=dt;
-     SETVAR(xpp::model().prime_start,tp);
-     for(l=0;l<nvar;l++)SETVAR(l+1,Memory[l][ioff]);
-     for(ker=0;ker<xpp::model().nkernel;ker++){
+     setvar(s,s.model().prime_start,tp);
+     for(l=0;l<nvar;l++)setvar(s,l+1,Memory[l][ioff]);
+     for(ker=0;ker<s.model().nkernel;ker++){
        mu=kernels[ker].mu;
        if(mu==0.0)alpbet=dt;
        else alpbet=kstate[ker].al[n-i0-i];
        if(kernels[ker].flag==CONV)
-	 sum[ker]+=(alpbet*evaluate(kernels[ker].formula.data())
+	 sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data())
 		    *kstate[ker].cnv[n-i0-i]);
-       else sum[ker]+=(alpbet*evaluate(kernels[ker].formula.data()));
+       else sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data()));
      }
    }
-   for(ker=0;ker<xpp::model().nkernel;ker++){
+   for(ker=0;ker<s.model().nkernel;ker++){
      kstate[ker].sum=sum[ker];
      
    }
@@ -233,29 +233,29 @@ double betnn(double mu, double dt, double t0, double t)
  return(.5*pow(dt,m1)/m1);
 }
 
-void get_kn(double *y, double t)  /* uses the guessed value y to update Kn  */
+void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
   int i;
 
-  SETVAR(0,t);
-  SETVAR(xpp::model().prime_start,t);
-  for(i=0;i<xpp::model().node;i++)
-    SETVAR(i+1,y[i]);
-  for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-    SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
-  for(i=0;i<xpp::model().nkernel;i++){
+  setvar(s,0,t);
+  setvar(s,s.model().prime_start,t);
+  for(i=0;i<s.model().node;i++)
+    setvar(s,i+1,y[i]);
+  for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
+    setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
+  for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV)
       kstate[i].k_n=kstate[i].sum+
-	kstate[i].betnn*evaluate(kernels[i].formula.data())*kstate[i].cnv[0];
+	kstate[i].betnn*evaluate(s,kernels[i].formula.data())*kstate[i].cnv[0];
     else 
-      kstate[i].k_n=kstate[i].sum+kstate[i].betnn*evaluate(kernels[i].formula.data());
+      kstate[i].k_n=kstate[i].sum+kstate[i].betnn*evaluate(s,kernels[i].formula.data());
   }
 }
      
-int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
+int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, int *istart, double *work)
 {
-  std::array<KERNEL,MAXKER> &kernels=xpp::model().kernels;
+  std::array<KERNEL,MAXKER> &kernels=s.model().kernels;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
   double z,mu,bet;
   int i,j;
@@ -270,7 +270,7 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
   if(*istart==1){
     CurrentPoint=0;
     KnFlag=1;
-    for(i=0;i<xpp::model().nkernel;i++){              /* zero the integrals              */
+    for(i=0;i<s.model().nkernel;i++){              /* zero the integrals              */
       kstate[i].k_n=0.0;
       kstate[i].k_n1=0.0;
       mu=kernels[i].mu;                 /*  compute bet_nn                 */
@@ -278,22 +278,22 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
       else bet=betnn(mu,dt,*t,*t);
       kstate[i].betnn=bet;
     }
-    SETVAR(0,*t);
-    SETVAR(xpp::model().prime_start,*t);
-    for(i=0;i<xpp::model().node;i++)
-      if(!xpp::model().eq_type[i])SETVAR(i+1,y[i]);  /* assign initial data             */
-    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-      SETVAR(i+1,evaluate(xpp::model().programs[i].data())); /* set fixed variables  for pass 1 */
-    for(i=0;i<xpp::model().node;i++)
-      if(xpp::model().eq_type[i]){  
-	z=evaluate(xpp::model().programs[i].data());           /* reset IC for integral eqns      */
-	SETVAR(i+1,z);
+    setvar(s,0,*t);
+    setvar(s,s.model().prime_start,*t);
+    for(i=0;i<s.model().node;i++)
+      if(!s.model().eq_type[i])setvar(s,i+1,y[i]);  /* assign initial data             */
+    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
+      setvar(s,i+1,evaluate(s,s.model().programs[i].data())); /* set fixed variables  for pass 1 */
+    for(i=0;i<s.model().node;i++)
+      if(s.model().eq_type[i]){  
+	z=evaluate(s,s.model().programs[i].data());           /* reset IC for integral eqns      */
+	setvar(s,i+1,z);
 	y[i]=z;    
       }
-    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)       /* pass 2 for fixed variables      */   
-      SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
-    for(i=0;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)
-      Memory[i][0]=get_ivar(i+1);        /* save everything                 */
+    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)       /* pass 2 for fixed variables      */   
+      setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
+    for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
+      Memory[i][0]=getvar(s,i+1);        /* save everything                 */
     CurrentPoint=1;
     *istart=0;
   }
@@ -301,90 +301,90 @@ int volterra(double *y, double *t, double dt, int nt, int neq, int *istart, doub
   for(i=0;i<nt;i++)                      /* the real computation            */
     {
       *t=*t+dt;
-      set_wieners(xpp::session(),dt,y,*t);
-      if((j=volt_step(y,*t,dt,neq,yg,yp,yp2,ytemp,errvec,jac))!=0)
+      set_wieners(s,dt,y,*t);
+      if((j=volt_step(s,y,*t,dt,neq,yg,yp,yp2,ytemp,errvec,jac))!=0)
 	return(j);
-      stor_delay(y); 
+      stor_delay(s,y); 
     }
  return(0);
 }
 
-int volt_step(double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
+int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac)
 {
  int i0,iend,ishift,i,iter=0,info,ipivot[MAXODE1],j,ind;
- int n1=xpp::model().node+1;
+ int n1=s.model().node+1;
  double dt2=.5*dt,err;
  double del,yold,fac,delinv;
- i0=MAX(0,CurrentPoint-xpp::session().numerics.max_points);
- iend=MIN(CurrentPoint-1,xpp::session().numerics.max_points-1);
- ishift=i0%xpp::session().numerics.max_points;
- init_sums(xpp::session().numerics.t0,CurrentPoint,dt,i0,iend,ishift); /*  initialize all the sums */
+ i0=MAX(0,CurrentPoint-s.numerics.max_points);
+ iend=MIN(CurrentPoint-1,s.numerics.max_points-1);
+ ishift=i0%s.numerics.max_points;
+ init_sums(s,s.numerics.t0,CurrentPoint,dt,i0,iend,ishift); /*  initialize all the sums */
  KnFlag=0;
  for(i=0;i<neq;i++){
-   SETVAR(i+1,y[i]);
+   setvar(s,i+1,y[i]);
    yg[i]=y[i];
  }
- for(i=xpp::model().node;i<xpp::model().node+xpp::model().nmarkov;i++)
-   SETVAR(i+1+xpp::model().fix_var,y[i]);
- SETVAR(0,t-dt);
- for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-   SETVAR(i+1,evaluate(xpp::model().programs[i].data()));
- for(i=0;i<xpp::model().node;i++){
-   if(!xpp::model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(xpp::model().programs[i].data());
+ for(i=s.model().node;i<s.model().node+s.model().nmarkov;i++)
+   setvar(s,i+1+s.model().fix_var,y[i]);
+ setvar(s,0,t-dt);
+ for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
+   setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
+ for(i=0;i<s.model().node;i++){
+   if(!s.model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(s,s.model().programs[i].data());
    else yp2[i]=0.0;
  }
  KnFlag=1;
  while(1){
-   get_kn(yg,t);
-    for(i=xpp::model().node;i<xpp::model().node+xpp::model().fix_var;i++)
-     SETVAR(i+1,evaluate(xpp::model().programs[i].data())); 
-   for(i=0;i<xpp::model().node;i++){
-     yp[i]=evaluate(xpp::model().programs[i].data());
-     if(xpp::model().eq_type[i])errvec[i]=-yg[i]+yp[i];
+   get_kn(s,yg,t);
+    for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
+     setvar(s,i+1,evaluate(s,s.model().programs[i].data())); 
+   for(i=0;i<s.model().node;i++){
+     yp[i]=evaluate(s,s.model().programs[i].data());
+     if(s.model().eq_type[i])errvec[i]=-yg[i]+yp[i];
      else errvec[i]=-yg[i]+dt2*yp[i]+yp2[i];
    }
    /*   Compute Jacobian     */
-   for(i=0;i<xpp::model().node;i++){
-     del=xpp::session().numerics.newt_err*MAX(xpp::session().numerics.newt_err,fabs(yg[i]));
+   for(i=0;i<s.model().node;i++){
+     del=s.numerics.newt_err*MAX(s.numerics.newt_err,fabs(yg[i]));
      yold=yg[i];
      yg[i]+=del;
      delinv=1./del;
-     get_kn(yg,t);
-      for(j=xpp::model().node;j<xpp::model().node+xpp::model().fix_var;j++)
-       SETVAR(j+1,evaluate(xpp::model().programs[j].data()));  
-     for(j=0;j<xpp::model().node;j++){
+     get_kn(s,yg,t);
+      for(j=s.model().node;j<s.model().node+s.model().fix_var;j++)
+       setvar(s,j+1,evaluate(s,s.model().programs[j].data()));  
+     for(j=0;j<s.model().node;j++){
        fac=delinv;
-       if(!xpp::model().eq_type[j])fac*=dt2;
-       jac[j*xpp::model().node+i]=(evaluate(xpp::model().programs[j].data())-yp[j])*fac;
+       if(!s.model().eq_type[j])fac*=dt2;
+       jac[j*s.model().node+i]=(evaluate(s,s.model().programs[j].data())-yp[j])*fac;
      }
      yg[i]=yold;
    }
    
-   for(i=0;i<xpp::model().node;i++)
+   for(i=0;i<s.model().node;i++)
      jac[n1*i]-=1.0;
-   sgefa(jac,xpp::model().node,xpp::model().node,ipivot,&info);
+   sgefa(jac,s.model().node,s.model().node,ipivot,&info);
    if(info!=-1)
      {
 	 
        return(-1); /* Jacobian is singular   */
      }
    err=0.0;
-   sgesl(jac,xpp::model().node,xpp::model().node,ipivot,errvec);
-   for(i=0;i<xpp::model().node;i++){
+   sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
+   for(i=0;i<s.model().node;i++){
 	err=MAX(fabs(errvec[i]),err);
 	yg[i]-=errvec[i];
       }
-   if(err<xpp::session().numerics.eul_tol) break;
+   if(err<s.numerics.eul_tol) break;
    iter++;
-   if(iter>xpp::session().numerics.max_eul_iter)return(-2);  /* too many iterates   */
+   if(iter>s.numerics.max_eul_iter)return(-2);  /* too many iterates   */
    
  }
  /* We have a good point; lets save it    */
- get_kn(yg,t);
- for(i=0;i<xpp::model().node;i++)y[i]=yg[i];
- ind=CurrentPoint%xpp::session().numerics.max_points;
- for(i=0;i<xpp::model().node+xpp::model().fix_var+xpp::model().nmarkov;i++)
-   Memory[i][ind]=GETVAR(i+1);
+ get_kn(s,yg,t);
+ for(i=0;i<s.model().node;i++)y[i]=yg[i];
+ ind=CurrentPoint%s.numerics.max_points;
+ for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
+   Memory[i][ind]=getvar(s,i+1);
  CurrentPoint++;
 
  return(0);

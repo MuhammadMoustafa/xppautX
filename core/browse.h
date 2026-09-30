@@ -20,21 +20,25 @@ typedef struct {
     int istart,iend;
 } BROWSER;
 
-float **get_browser_data(void);
 void waitasec(int msec);
-void data_get_mybrowser(int row);
 void chk_seq(const char *f, int *seq, double *a1, double *a2);
 void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b);
 void find_value(int col, double val, int *row, BROWSER b);
-void new_browse_dat(float **new_dat, int dat_len);
-void refresh_browser(int length);
-void reset_browser(void);
 void data_first(BROWSER *b);
 void data_last(BROWSER *b);
 
 #ifdef __cplusplus
 }
 
+
+
+
+void refresh_browser(xpp::Session &s, int length);
+void reset_browser(xpp::Session &s);
+void new_browse_dat(xpp::Session &s, float **new_dat, int dat_len);
+float **get_browser_data(xpp::Session &s);
+
+void data_get_mybrowser(xpp::Session &s, int row);
 
 void data_restore(xpp::Session &s, BROWSER *b);
 
@@ -47,7 +51,7 @@ xpp::Writer open_writer_asking(const char *fil, bool binary = false);
 /* the stored rows First..Last as XPP's .dat (data_formats.h), only the
    columns of a batch run's "only" list (plotlist) when it has one: the
    batch run's output.dat and the files written beside it */
-void write_mybrowser_data(xpp::Writer &w);
+void write_mybrowser_data(xpp::Session &s, xpp::Writer &w);
 
 /* Save data (the browser's Write, docs/protocol.md): what is "table" (the
    rows First..Last of every column), "output" (those rows of the model's

@@ -29,17 +29,17 @@
 #include <algorithm>
 #include <span>
 
-float **get_browser_data()
+float **get_browser_data(xpp::Session &s)
 {
-  return xpp::session().browser.view.data;
+  return s.browser.view.data;
 }
 
 /* show another data set in the browser: its columns from new_dat[1] on,
    dat_len rows (the adjoint, the Fourier modes, a histogram, ...) */
-void new_browse_dat(float **new_dat, int dat_len)
+void new_browse_dat(xpp::Session &s, float **new_dat, int dat_len)
 {
-  xpp::session().browser.view.data=new_dat;
-  refresh_browser(dat_len);
+  s.browser.view.data=new_dat;
+  refresh_browser(s,dat_len);
 }
 
 float *get_data_col(const xpp::Session &s, int c)
@@ -101,9 +101,9 @@ std::vector<int> output_columns(const BROWSER &b)
 
 } // namespace
 
-void write_mybrowser_data(xpp::Writer &w)
+void write_mybrowser_data(xpp::Session &s, xpp::Writer &w)
 {
-  const BROWSER &b=xpp::session().browser.view;
+  const BROWSER &b=s.browser.view;
   xpp::data_format_named("dat")->write(browser_table(b,output_columns(b)),w);
 }
 
@@ -138,7 +138,7 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
     std::copy(t.columns[k].begin(),t.columns[k].begin()+rows,s.data_store.col[col]);
   }
   s.data_store.rows=rows;
-  refresh_browser(rows);
+  refresh_browser(s,rows);
   return rows;
 }
 
@@ -168,9 +168,8 @@ void find_variable(const xpp::Session &s, std::string_view name, int *col)
   }
  }
 
-void  refresh_browser(int length)
+void  refresh_browser(xpp::Session &s, int length)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
  s.browser.view.dataflag=1;
  s.browser.view.maxrow=length;
  s.browser.view.iend=length;
@@ -190,9 +189,8 @@ void  refresh_browser(int length)
  xpp_ui.data_changed(length);
 }
 
-void reset_browser()
+void reset_browser(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   s.browser.view.maxrow=0;
   s.browser.view.dataflag=0;
 }
@@ -268,9 +266,8 @@ void data_get(xpp::Session &s, BROWSER *b)
  redraw_ics();
 }
 
-extern "C" void data_get_mybrowser(int row)
+void data_get_mybrowser(xpp::Session &s, int row)
 {
-  xpp::Session &s=xpp::session(); /* an entry point: the integrator (W47d4) */
   s.browser.view.row0=row;
   data_get(s,&s.browser.view);
 }
@@ -613,7 +610,7 @@ void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string
  const int len=static_cast<int>(std::min<std::size_t>(t.rows(),static_cast<std::size_t>(s.data_store.max_rows)));
  for(std::size_t k=0;k<t.columns.size()&&k<static_cast<std::size_t>(b->maxcol);k++)
    std::copy(t.columns[k].begin(),t.columns[k].begin()+len,b->data[k]);
- refresh_browser(len);
+ refresh_browser(s,len);
  s.data_store.rows=len;
 }
 

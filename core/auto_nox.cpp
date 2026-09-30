@@ -218,28 +218,28 @@ void pscolset2(int flag2)
 {
    switch(flag2){
   case LPE2:
-    set_linestyle(LPE_color-19);
+    set_linestyle(xpp::session(),LPE_color-19);
     break;
   case LPP2:
-    set_linestyle(LPP_color);
+    set_linestyle(xpp::session(),LPP_color);
     break;
   case HB2:
-    set_linestyle(HB_color-19);
+    set_linestyle(xpp::session(),HB_color-19);
     break;
   case TR2:
-    set_linestyle(TR_color-19);
+    set_linestyle(xpp::session(),TR_color-19);
     break;
   case BR2:
-    set_linestyle(BR_color-19);
+    set_linestyle(xpp::session(),BR_color-19);
     break;
   case PD2:
-    set_linestyle(PD_color-19);
+    set_linestyle(xpp::session(),PD_color-19);
     break;
   case FP2:
-     set_linestyle(FP_color-19);
+     set_linestyle(xpp::session(),FP_color-19);
     break;
   default:
-    set_linestyle(0);
+    set_linestyle(xpp::session(),0);
   }
 
 }
@@ -1106,11 +1106,11 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
 
     if(s.plot_export.color){
-      set_linestyle(1);
+      set_linestyle(s,1);
       if(flag2>0)pscolset2(flag2);
     }
     else 
-      set_linestyle(8);
+      set_linestyle(s,8);
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
   case CUEQ:
@@ -1118,7 +1118,7 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     if(s.auto_state.axes().plot!=P_P)
-      {if(s.plot_export.color) set_linestyle(0);else set_linestyle(4);}
+      {if(s.plot_export.color) set_linestyle(s,0);else set_linestyle(s,4);}
     else
       {
 	pscolset2(flag2);
@@ -1128,9 +1128,9 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     break;
   case UPER:
     if(s.plot_export.color) 
-      set_linestyle(9); 
+      set_linestyle(s,9); 
     else 
-      set_linestyle(0);
+      set_linestyle(s,0);
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=UPT;
@@ -1139,9 +1139,9 @@ void add_ps_point(double *par, double per, double *uhigh, double *ulow, double *
     break;
   case SPER:
     if(s.plot_export.color)
-      set_linestyle(7);
+      set_linestyle(s,7);
     else
-      set_linestyle(0);
+      set_linestyle(s,0);
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
     s.drawing.point_type=SPT;
@@ -2051,7 +2051,7 @@ void auto_start_at_bvp()
 {
   xpp::Session &s=xpp::session();
   int opn=NO_OPEN_3,cls=OVERWRITE;
- compile_bvp(xpp::session());
+ compile_bvp(s);
   if(s.numerics.bvp_flag==0)
     return; 
   s.auto_state.type_of_calc=BV1;
@@ -2586,12 +2586,12 @@ void load_auto_orbit()
       s.data_store.col[j+1][i]=u[j];
       x[j]=u[j];
     }
-    extra(x,static_cast<double>(s.data_store.col[0][i]),nstor,xpp::model().neq);
+    extra(s,x,static_cast<double>(s.data_store.col[0][i]),nstor,xpp::model().neq);
     for(j=nstor;j<xpp::model().neq;j++)
       s.data_store.col[j+1][i]=static_cast<float>(x[j]);
   }
   s.data_store.rows=nrow;
-  refresh_browser(nrow);
+  refresh_browser(s,nrow);
   /* insert auxiliary stuff here */
   if(load_all_labeled_orbits==2)clr_all_scrns();
   drw_all_scrns();

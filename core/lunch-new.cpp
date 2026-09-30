@@ -125,7 +125,7 @@ int read_set(xpp::Session &s, FILE *fp, bool ask)
   io_numerics(s,f,fp);
   if(s.numerics.method==xpp::method::VOLTERRA){
     io_int(&temp,fp,f," ");
-    allocate_volterra(temp,1);
+    allocate_volterra(s,temp,1);
     s.integrator.my_start=1;
   }
   chk_delay(s);
@@ -317,7 +317,7 @@ void io_parameter_file(xpp::Session &s, const char *fn,int flag)
     }
     io_parameters(m,flag,fp.get());
     fp.reset();
-    redo_stuff();
+    redo_stuff(s);
     return;
   }
   xpp::Writer w=open_writer_asking(fn);

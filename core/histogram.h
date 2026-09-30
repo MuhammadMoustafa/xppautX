@@ -7,18 +7,9 @@ extern "C" {
 #endif
 
 
-/* histogram.c */
-int new_2d_hist(void);
-void column_mean(void);
-void compute_power(void);
 int spectrum(float *data, int nr, int win, int w_type, float *pow);
 int cross_spectrum(float *data, float *data2, int nr, int win, int w_type, float *pow, int type);
-void compute_sd(void);
-void compute_fourier(void);
-void compute_correl(void);
-void compute_stacor(void);
 void mycor2(float *x, float *y, int n, int nbins, float *z, int flag);
-void compute_hist(void);
 void fftxcorr(float *data1, float *data2, int length, int nlag, float *cr, int flag);
 void fft(float *data, float *ct, float *st, int nmodes, int length);
 
@@ -57,6 +48,15 @@ struct HistogramState {
 namespace xpp {
 struct Session; /* session.h */
 }
+
+void column_mean(xpp::Session &s);
+void compute_correl(xpp::Session &s);
+void compute_fourier(xpp::Session &s);
+void compute_hist(xpp::Session &s);
+void compute_power(xpp::Session &s);
+void compute_sd(xpp::Session &s);
+void compute_stacor(xpp::Session &s);
+int new_2d_hist(xpp::Session &s);
 
 /* a histogram or correlation of the session s's stored data; the error of
    a condition that did not compile (it was ignored, the rest is done), for

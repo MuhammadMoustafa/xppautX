@@ -23,20 +23,19 @@ std::vector<double> DelayWork;
 static int LatestDelay;
 static int MaxDelay;
 
-double delay_stab_eval(double delay, int var)  /* this returns appropriate values for delay jacobian */
+double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
-  xpp::Session &s=xpp::session();
   int i;
 
   if(s.delay.stab_flag==0) /* search for all delays  */
     {
       for(i=0;i<s.delay.ndelay;i++){
 	if(delay==s.delay.list[i])
-	  return(GETVAR(var));
+	  return(getvar(s,var));
       }
       s.delay.list[s.delay.ndelay]=delay;
       s.delay.ndelay++;
-      return(GETVAR(var));
+      return(getvar(s,var));
     }
  /*  now we must determine the value to return  */
  /*  del_stab_flag =-1 */    
@@ -48,34 +47,34 @@ double delay_stab_eval(double delay, int var)  /* this returns appropriate value
    return s.delay.variable_shift[0][var-1];
 }
 
-int alloc_delay(double big)
+int alloc_delay(xpp::Session &s, double big)
 {
  int n;
 
- n=static_cast<int>(big/fabs(xpp::session().numerics.delta_t))+1;
+ n=static_cast<int>(big/fabs(s.numerics.delta_t))+1;
 
  MaxDelay=n;
  LatestDelay=1;
- xpp::session().delay.flag=0;
- DelayWork.assign(n*(xpp::model().node ),0.0);
- xpp::session().delay.flag=1;
- xpp::session().delay.ndelay=0;
- xpp::session().delay.which=-1;
- xpp::session().delay.stab_flag=1;
+ s.delay.flag=0;
+ DelayWork.assign(n*(s.model().node ),0.0);
+ s.delay.flag=1;
+ s.delay.ndelay=0;
+ s.delay.which=-1;
+ s.delay.stab_flag=1;
  return(1);
 }
 
-void free_delay()
+void free_delay(xpp::Session &s)
 {
- if(xpp::session().delay.flag)DelayWork=std::vector<double>();
- xpp::session().delay.flag=0;
+ if(s.delay.flag)DelayWork=std::vector<double>();
+ s.delay.flag=0;
 }
 
-void stor_delay(double *y)
+void stor_delay(xpp::Session &s, double *y)
 {
  int i,in;
- int nodes=xpp::model().node;
- if(xpp::session().delay.flag==0)return;
+ int nodes=s.model().node;
+ if(s.delay.flag==0)return;
  --LatestDelay;
  if(LatestDelay<0)LatestDelay+=MaxDelay;
  in=LatestDelay*(nodes );
@@ -113,20 +112,20 @@ void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
 }
 
 /* this is like get_delay but uses cubic interpolation */
-double get_delay(int in, double tau)
+double get_delay(xpp::Session &s, int in, double tau)
 {
- double x=tau/fabs(xpp::session().numerics.delta_t);
- double dd=fabs(xpp::session().numerics.delta_t);
+ double x=tau/fabs(s.numerics.delta_t);
+ double dd=fabs(s.numerics.delta_t);
  double y,ya[4],xa[4],dy;
  int n1=static_cast<int>(x);
  int n2=n1+1;
- int nodes=xpp::model().node;
+ int nodes=s.model().node;
  int n0=n1;
  int n3=n2+1;
  int i0,i1,i2,i3;
 
- if(tau<0.0||tau>xpp::session().numerics.delay){
-			stop_integration(xpp::session(),{"delay","Delay negative or too large"});
+ if(tau<0.0||tau>s.numerics.delay){
+			stop_integration(s,{"delay","Delay negative or too large"});
 			return(0.0);
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */
@@ -154,9 +153,8 @@ double get_delay(int in, double tau)
  }
 
 /*  Handling of the initial data  */
-xpp::Result<> do_init_delay(double big)
+xpp::Result<> do_init_delay(xpp::Session &s, double big)
 {
- xpp::Session &s=xpp::session();
  double t=s.numerics.t0,old_t,y[MAXODE];
  int i,nt,j;
  int len;
@@ -164,31 +162,31 @@ xpp::Result<> do_init_delay(double big)
  /* del_form's per-node formula buffers are RAII now (std::vector), so
     every return path below frees them automatically -- no more manual
     xpp_free loops paired to each early-exit. */
- std::vector<std::vector<int>> del_form(xpp::model().node, std::vector<int>(200, 0));
+ std::vector<std::vector<int>> del_form(s.model().node, std::vector<int>(200, 0));
  nt=static_cast<int>(big/fabs(s.numerics.delta_t));
- s.parser.ncon=xpp::model().ncon_start;
- s.parser.nsym=xpp::model().nsym_start;
- for(i=0;i<(xpp::model().node );i++){
-	 if(add_expr(s.delay_string[i].c_str(),del_form[i].data(),&len)){
-		 s.parser.ncon=xpp::model().ncon_start;
-		s.parser.nsym=xpp::model().nsym_start;
+ s.parser.ncon=s.model().ncon_start;
+ s.parser.nsym=s.model().nsym_start;
+ for(i=0;i<(s.model().node );i++){
+	 if(add_expr(s,s.delay_string[i].c_str(),del_form[i].data(),&len)){
+		 s.parser.ncon=s.model().ncon_start;
+		s.parser.nsym=s.model().nsym_start;
 		return xpp::fail("delay","Illegal delay expression");
 		}
 	 }        /*  Okay all formulas are cool... */
   LatestDelay=1;
 
-  get_val("t",&old_t);
+  get_val(s,"t",&old_t);
 
   for(i=nt;i>=0;i--){
 	t=s.numerics.t0-fabs(s.numerics.delta_t)*i;
-	set_val("t",t);
-	for(j=0;j<(xpp::model().node );j++)
-		y[j]=evaluate(del_form[j].data());
-	stor_delay(y);
+	set_val(s,"t",t);
+	for(j=0;j<(s.model().node );j++)
+		y[j]=evaluate(s,del_form[j].data());
+	stor_delay(s,y);
   }
-   s.parser.ncon=xpp::model().ncon_start;
-   s.parser.nsym=xpp::model().nsym_start;
-  set_val("t",old_t);
+   s.parser.ncon=s.model().ncon_start;
+   s.parser.nsym=s.model().nsym_start;
+  set_val(s,"t",old_t);
    return {};
  }
 

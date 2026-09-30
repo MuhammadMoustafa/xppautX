@@ -7,8 +7,6 @@ extern "C" {
 #endif
 
 void dump_transpose_info(FILE *fp, int f);
-void adj_back(void);
-void h_back(void);
 void adjoint_parameters(void);
 void alloc_liap(int n);
 void norm_vec(double *v, double *mu, int n);
@@ -24,6 +22,9 @@ void norm_vec(double *v, double *mu, int n);
 namespace xpp {
 struct Session; /* session.h */
 }
+
+void adj_back(xpp::Session &s);
+void h_back(xpp::Session &s);
 
 void init_trans(xpp::Session &s);
 int do_transpose(xpp::Session &s);

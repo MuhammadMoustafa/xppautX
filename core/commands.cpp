@@ -377,20 +377,18 @@ static void find_bvp(xpp::Session &s) { menu_run(s, &menu_bvp, 1); }
 /* the ones the Numerics menu (numerics.cpp), the nullclines' (nullcline.cpp)
    and the front end open: entry points of their own, in the current session
    until those modules pass theirs (W47d) */
-void froz_cline_stuff(void) { menu_run(xpp::session(), &menu_freeze_cline, 0); }
-void do_stochast(void) { menu_run(xpp::session(), &menu_stochastic, 0); }
-void set_col_par(void) { menu_run(xpp::session(), &menu_color_code, 0); }
-void make_adj(void) { menu_run(xpp::session(), &menu_adjoint, 0); }
+void froz_cline_stuff(xpp::Session &s) { menu_run(s, &menu_freeze_cline, 0); }
+void do_stochast(xpp::Session &s) { menu_run(s, &menu_stochastic, 0); }
+void set_col_par(xpp::Session &s) { menu_run(s, &menu_color_code, 0); }
+void make_adj(xpp::Session &s) { menu_run(s, &menu_adjoint, 0); }
 
-void get_pmap_pars(void)
+void get_pmap_pars(xpp::Session &s)
 {
-  xpp::Session &s = xpp::session();
   menu_run(s, &menu_poincare, s.numerics.poimap);
 }
 
-void new_lookup(void)
+void new_lookup(xpp::Session &s)
 {
-  xpp::Session &s = xpp::session();
   if (s.ntable == 0) return;
   menu_run(s, &menu_lookup, 1);
 }

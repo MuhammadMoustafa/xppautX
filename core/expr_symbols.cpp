@@ -392,11 +392,6 @@ int add_net_name(xpp::Session &s, int index, const char *name, int vectorizer)
   return(0);
 }
 
-int add_net_name(int index, const char *name, int vectorizer)
-{
-  return add_net_name(xpp::session(),index,name,vectorizer); /* an entry point (W47d4) */
-}
-
 /* ADD LOOKUP TABLE   */
 
 int add_2d_table(const char *name, const char *file)
@@ -658,17 +653,7 @@ int set_val(xpp::Session &s, std::string_view name, double value)
 }
 
 /* the lookups above in the current Session: entry points for the
-   integrator, AUTO and the front end (W47d4-6) */
-int get_var_index(std::string_view name)
-{
-  return get_var_index(xpp::session(),name);
-}
-
-int find_lookup(std::string_view name)
-{
-  return find_lookup(xpp::session(),name);
-}
-
+   integrator, AUTO and the front end (W47d5-6) */
 int get_param_index(std::string_view name)
 {
   return get_param_index(xpp::session(),name);
@@ -684,16 +669,12 @@ int set_val(std::string_view name, double value)
   return set_val(xpp::session(),name,value);
 }
 
-int add_var(std::string_view name, double value)
-{
-  return add_var(xpp::session(),name,value);
-}
-
 void set_ivar(int i, double value)
 {
- SETVAR(i,value);
+  setvar(xpp::session(),i,value);
 }
 
 double get_ivar(int i)
-{       	 return(GETVAR(i));
+{
+  return getvar(xpp::session(),i);
 }

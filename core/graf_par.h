@@ -36,12 +36,14 @@ void check_val(double *x1, double *x2, double *xb, double *xd);
 void pretty(double *x1, double *x2);
 void change_cmap_com(int i);
 void init_bd(void);
-void dump_ps( int i);
 
 #ifdef __cplusplus
 }
 
 #include <string>
+
+void dump_ps(xpp::Session &s, int i);
+
 namespace xpp { struct DataTable; /* data_formats.h */ struct Session; /* session.h */ }
 /* The plot windows' commands and views, on the session s: its active
    plot window (plot_windows.current) and the window drawn in (draw_win) */

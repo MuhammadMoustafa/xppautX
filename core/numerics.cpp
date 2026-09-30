@@ -70,7 +70,7 @@ void dt_changed(xpp::Session &s)
   if(s.model().nkernel>0){
     s.numerics.inflag=0;
     s.integrator.my_start=1;
-    alloc_kernels(1);
+    alloc_kernels(s,1);
   }
 }
 
@@ -87,7 +87,7 @@ void  get_num_par(xpp::Session &s, char ch)
   int tmp;
    switch(ch){
                case 'a':
-                       make_adj();
+                       make_adj(s);
 		       break;
 
 		case 't': flash(0);
@@ -189,7 +189,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			 tmp=s.numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
 			 new_int("AutoEval(1=yes) :",&s.numerics.auto_evaluate);
-			 allocate_volterra(tmp,1);
+			 allocate_volterra(s,tmp,1);
 		       }
 			 
 		       if(traits.banded)
@@ -217,16 +217,16 @@ void  get_num_par(xpp::Session &s, char ch)
 		case 'c': flash(10);
 			 /* color */
 			 if(color_table.enabled==0)break;
-			  set_col_par();
+			  set_col_par(s);
 			flash(10);
 			break;
 		    case 'h': flash(11);
-		          do_stochast();
+		          do_stochast(s);
 		          flash(11);
 		          break;      
 		case 'p': flash(12);
 			 /*Poincare map */
-		        get_pmap_pars();
+		        get_pmap_pars(s);
 			flash(12);
 			break;
 		case 'u': flash(13);
@@ -236,7 +236,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			break;
 		case 'k': flash(14);
 			 /*lookup table */
-                        new_lookup();
+                        new_lookup(s);
 			flash(14);
 			break;
 		case 27: 
@@ -251,21 +251,21 @@ void  get_num_par(xpp::Session &s, char ch)
 void chk_delay(xpp::Session &s)
 {
   if(s.numerics.delay>0.0) {
-			  free_delay();
-			  if(alloc_delay(s.numerics.delay)){
+			  free_delay(s);
+			  if(alloc_delay(s,s.numerics.delay)){
 			    s.numerics.inflag=0; /*  Make sure no last ics allowed */
 			  }
 			}
 			  else 
-			    free_delay();
+			    free_delay(s);
 }
 
 void set_delay(xpp::Session &s)
 {
  if(s.model().ndelays==0)return;
  if(s.numerics.delay>0.0){
-   free_delay();
-   if(alloc_delay(s.numerics.delay)){
+   free_delay(s);
+   if(alloc_delay(s,s.numerics.delay)){
      s.numerics.inflag=0;
    }
  }
@@ -290,13 +290,13 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   s.data_store.current_time=0;
   s.numerics.tend=period;
   s.numerics.poimap=0; /* turn off poincare map */
-  reset_browser();
+  reset_browser(s);
 
   usual_integrate_stuff(s,x);
   {
     xpp::Writer w(xpp::format("orbit.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w);
+      write_mybrowser_data(s,w);
       w.commit();
     }
     else{
@@ -310,7 +310,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   {
     xpp::Writer w(xpp::format("adjoint.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w);
+      write_mybrowser_data(s,w);
       w.commit();
       data_back(s);
     }
@@ -319,13 +319,13 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   {
     xpp::Writer w(xpp::format("hfun.{}.dat",name).c_str());
     if(w){
-      write_mybrowser_data(w);
+      write_mybrowser_data(s,w);
       w.commit();
       data_back(s);
     }
   }
 
-  reset_browser();
+  reset_browser(s);
 
   s.numerics.trans=ot;
   s.numerics.poimap=opm;
@@ -358,7 +358,7 @@ void get_pmap_pars_com(xpp::Session &s, int l)
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,1,"Poincare map",n,values,kinds);
  if(status!=0){
-              find_variable(values[0].c_str(),&i1);
+              find_variable(s,values[0].c_str(),&i1);
 	      if(i1<0) { s.numerics.poimap=0;
                          err_msg("No such section");
 			 return;
@@ -396,7 +396,7 @@ void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,doub
     }
   else
     {
-      find_variable(via,&ivar);
+      find_variable(s,via,&ivar);
       if(ivar>=0){
 	s.plot_windows.current->ColorValue=ivar;
 	s.plot_windows.current->ColorFlag=2;
@@ -428,7 +428,7 @@ void set_col_par_com(xpp::Session &s, int i)
     if(s.plot_windows.current->ColorFlag==2){
       std::string name=ind_to_sym(s.plot_windows.current->ColorValue);
       new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
-      find_variable(name.c_str(),&ivar);
+      find_variable(s,name.c_str(),&ivar);
 
       if(ivar>=0)
 	s.plot_windows.current->ColorValue=ivar;

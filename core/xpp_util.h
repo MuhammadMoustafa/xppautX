@@ -13,13 +13,10 @@ extern "C" {
 
 void de_space(char *s);
 int do_calc(const char *temp, double *z);
-double calculate(const char *expr, int *ok);
-void man_ic(void);
 int to_float(const char *s, double *z);
 
 int find_par_or_var(const char *name, int *type, int *index);
 const char *eq_stability(int cp, int rp, int im);
-void redo_stuff(void);
 
 
 /* atexit hook: removes the Session's AUTO scratch folder (auto_state.h) if it is set, and
@@ -29,10 +26,19 @@ void xpp_cleanup_auto_dir(void);
 #ifdef __cplusplus
 }
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
+void man_ic(xpp::Session &s);
+void redo_stuff(xpp::Session &s);
 /* the value of the formula expr in the Session s (*ok 0, said why, when it
-   does not compile); calculate above is this in the current Session, an
-   entry point (W47d4-6) */
+   does not compile) */
 double calculate(xpp::Session &s, const char *expr, int *ok);
+/* temp ("name:formula" sets name, or a formula) worked out in the Session
+   s into *z; do_calc above is this in the current Session, an entry
+   point (W47d6) */
+int do_calc(xpp::Session &s, const char *temp, double *z);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the

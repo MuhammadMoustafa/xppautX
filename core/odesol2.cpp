@@ -27,18 +27,18 @@ namespace {
    them (flags.cpp's one_flag_step_*). discrete, euler, mod_euler and
    rung_kut differ only in these two. */
 template <class Plain, class Flagged>
-int fixed_steps(double *y, int nt, Plain plain, Flagged flagged)
+int fixed_steps(xpp::Session &s, double *y, int nt, Plain plain, Flagged flagged)
 {
-  if(xpp::model().nflags==0){
+  if(s.model().nflags==0){
     for(int i=0;i<nt;i++){
       plain();
-      stor_delay(y);
+      stor_delay(s,y);
     }
     return(0);
   }
   for(int i=0;i<nt;i++){
     flagged();
-    stor_delay(y);
+    stor_delay(s,y);
   }
   return(0);
 }
@@ -46,38 +46,38 @@ int fixed_steps(double *y, int nt, Plain plain, Flagged flagged)
 
 /* my first symplectic integrator */
 
-int symplect3(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int symplect3(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i;
- if(xpp::model().nflags==0){ 
+ if(s.model().nflags==0){ 
    for(i=0;i<nt;i++)
      {
-       one_step_symp(y,dt,work,neq,tim);
+       one_step_symp(s,y,dt,work,neq,tim);
        
      }
-   stor_delay(y);
+   stor_delay(s,y);
     return(0);
  }
   for(i=0;i<nt;i++)
       {
-	one_flag_step_symp(y,dt,work,neq,tim,istart);
-	stor_delay(y);
+	one_flag_step_symp(s,y,dt,work,neq,tim,istart);
+	stor_delay(s,y);
       }
     return(0);
 }
 
 /*   DISCRETE    */
 
-int discrete(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int discrete(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-  return fixed_steps(y,nt,
-    [&]{ one_step_discrete(y,dt,work,neq,tim); },
-    [&]{ one_flag_step_discrete(y,dt,work,neq,tim,istart); });
+  return fixed_steps(s,y,nt,
+    [&]{ one_step_discrete(s,y,dt,work,neq,tim); },
+    [&]{ one_flag_step_discrete(s,y,dt,work,neq,tim,istart); });
 }
 
 /* Backward Euler  */
 
-int bak_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int bak_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  int i,j;
   double *jac,*yg,*yp,*yp2,*ytemp,*errvec;
@@ -87,50 +87,50 @@ int bak_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, d
   errvec=ytemp+neq;
   yp2=errvec+neq;
   jac=yp2+neq;
-  if(xpp::model().nflags==0){
+  if(s.model().nflags==0){
     for(i=0;i<nt;i++)
       {
 	
-	if((j=one_bak_step(y,tim,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
+	if((j=one_bak_step(s,y,tim,dt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
 	  return(j);
-	stor_delay(y);
+	stor_delay(s,y);
       }
     return(0);
   }
  for(i=0;i<nt;i++)
       {
 	
-	if((j=one_flag_step_backeul(y,tim,dt,neq,yg,yp,yp2,
+	if((j=one_flag_step_backeul(s,y,tim,dt,neq,yg,yp,yp2,
 				    ytemp,errvec,jac,istart))!=0)
 	  return(j);
-	stor_delay(y);
+	stor_delay(s,y);
       }
     return(0);
 }
 
-int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
+int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart)
 {
   int i;
   double err=0.0,err1=0.0;
   
   int iter=0,info,ipivot[MAXODE1];
-  int ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper,mt=ml+mr+1;
-  set_wieners(xpp::session(),dt,y,*t);
+  int ml=s.numerics.cv_bandlower,mr=s.numerics.cv_bandupper,mt=ml+mr+1;
+  set_wieners(s,dt,y,*t);
   *t=*t+dt;
-  xpp::session().integrator.rhs(*t,y,yp2,neq);
+  s.integrator.rhs(*t,y,yp2,neq);
   for(i=0;i<neq;i++)yg[i]=y[i];
   while(1)
     {
       err1=0.0;
       err=0.0;
-      xpp::session().integrator.rhs(*t,yg,yp,neq);
+      s.integrator.rhs(*t,yg,yp,neq);
       for(i=0;i<neq;i++){
 	errvec[i]=yg[i]-.5*dt*(yp[i]+yp2[i])-y[i];
 	err1+=fabs(errvec[i]);
 	ytemp[i]=yg[i];
       }
-      get_the_jac(*t,yg,yp,ytemp,jac,neq,xpp::session().numerics.newt_err,-.5*dt);
-      if(xpp::session().numerics.cv_bandflag){
+      get_the_jac(s,*t,yg,yp,ytemp,jac,neq,s.numerics.newt_err,-.5*dt);
+      if(s.numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
 	bandfac(jac,ml,mr,neq);
@@ -150,118 +150,118 @@ int one_bak_step(double *y, double *t, double dt, int neq, double *yg, double *y
 	err+=fabs(errvec[i]);
 	yg[i]-=errvec[i];
       }
-      if(err<xpp::session().numerics.eul_tol||err1<xpp::session().numerics.eul_tol){
+      if(err<s.numerics.eul_tol||err1<s.numerics.eul_tol){
 	for(i=0;i<neq;i++)y[i]=yg[i];
 	return(0);
       }
       iter++;
-      if(iter>xpp::session().numerics.max_eul_iter)return(-2);
+      if(iter>s.numerics.max_eul_iter)return(-2);
     }
 }
 
-void one_step_discrete(double *y, double dt, double *yp, int neq, double *t)
+void one_step_discrete(xpp::Session &s, double *y, double dt, double *yp, int neq, double *t)
 {
   int j;
-   set_wieners(xpp::session(),dt,y,*t);
-     xpp::session().integrator.rhs(*t,y,yp,neq);
+   set_wieners(s,dt,y,*t);
+     s.integrator.rhs(*t,y,yp,neq);
      *t=*t+dt;
      for(j=0;j<neq;j++){y[j]=yp[j];
      }
 
 }
 
-void one_step_symp(double *y, double h, double *f, int n, double *t)
+void one_step_symp(xpp::Session &s, double *y, double h, double *f, int n, double *t)
 {
-  int s,j;
-  for(s=0;s<3;s++){
+  int k,j;
+  for(k=0;k<3;k++){
     for(j=0;j<n;j+=2)
-      y[j]+=(h*symp_b[s]*y[j+1]);
-    xpp::session().integrator.rhs(*t,y,f,n);
+      y[j]+=(h*symp_b[k]*y[j+1]);
+    s.integrator.rhs(*t,y,f,n);
     for(j=0;j<n;j+=2)
-      y[j+1]+=(h*symp_B[s]*f[j+1]);
+      y[j+1]+=(h*symp_B[k]*f[j+1]);
   }
   *t+=h;
 }
 
-void one_step_euler(double *y, double dt, double *yp, int neq, double *t)
+void one_step_euler(xpp::Session &s, double *y, double dt, double *yp, int neq, double *t)
 {
    
  int j;
 
-   set_wieners(xpp::session(),dt,y,*t);
-   xpp::session().integrator.rhs(*t,y,yp,neq);
+   set_wieners(s,dt,y,*t);
+   s.integrator.rhs(*t,y,yp,neq);
    *t+=dt;
    for(j=0;j<neq;j++)y[j]=y[j]+dt*yp[j];
 }
 
-void one_step_rk4(double *y, double dt, double *yval[3], int neq, double *tim)
+void one_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], int neq, double *tim)
 {
  int i;
  double t=*tim,t1,t2;
- set_wieners(xpp::session(),dt,y,t);
- xpp::session().integrator.rhs(t,y,yval[1],neq);
+ set_wieners(s,dt,y,t);
+ s.integrator.rhs(t,y,yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=y[i]+dt*yval[1][i]/6.00;
      yval[2][i]=y[i]+dt*yval[1][i]*0.5;
   }
   t1=t+.5*dt;
-  xpp::session().integrator.rhs(t1,yval[2],yval[1],neq);
+  s.integrator.rhs(t1,yval[2],yval[1],neq);
   for(i=0;i<neq;i++)
     {
       yval[0][i]=yval[0][i]+dt*yval[1][i]/3.00;
       yval[2][i]=y[i]+.5*dt*yval[1][i];
     }
- xpp::session().integrator.rhs(t1,yval[2],yval[1],neq);
+ s.integrator.rhs(t1,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)
    {
      yval[0][i]=yval[0][i]+dt*yval[1][i]/3.000;
      yval[2][i]=y[i]+dt*yval[1][i];
    }
  t2=t+dt;
- xpp::session().integrator.rhs(t2,yval[2],yval[1],neq);
+ s.integrator.rhs(t2,yval[2],yval[1],neq);
  for(i=0;i<neq;i++)y[i]=yval[0][i]+dt*yval[1][i]/6.00;
  *tim=t2;
 }
 
-void one_step_heun(double *y, double dt, double *yval[2], int neq, double *tim)
+void one_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], int neq, double *tim)
 {
  int i;
  double t=*tim,t1;
-  set_wieners(xpp::session(),dt,y,*tim);
-  xpp::session().integrator.rhs(t,y,yval[0],neq);
+  set_wieners(s,dt,y,*tim);
+  s.integrator.rhs(t,y,yval[0],neq);
   for(i=0;i<neq;i++)yval[0][i]=dt*yval[0][i]+y[i];
   t1=t+dt;
-  xpp::session().integrator.rhs(t1,yval[0],yval[1],neq);
+  s.integrator.rhs(t1,yval[0],yval[1],neq);
   for(i=0;i<neq;i++)y[i]=.5*(y[i]+yval[0][i]+dt*yval[1][i]);
   *tim=t1;
 }
 
 /*  Euler  */
 
-int euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
-  return fixed_steps(y,nt,
-    [&]{ one_step_euler(y,dt,work,neq,tim); },
-    [&]{ one_flag_step_euler(y,dt,work,neq,tim,istart); });
+  return fixed_steps(s,y,nt,
+    [&]{ one_step_euler(s,y,dt,work,neq,tim); },
+    [&]{ one_flag_step_euler(s,y,dt,work,neq,tim,istart); });
 }
 
 /* Modified Euler  */
 
-int mod_euler(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int mod_euler(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[2];
 
  yval[0]=work;
  yval[1]=work+neq;
- return fixed_steps(y,nt,
-   [&]{ one_step_heun(y,dt,yval,neq,tim); },
-   [&]{ one_flag_step_heun(y,dt,yval,neq,tim,istart); });
+ return fixed_steps(s,y,nt,
+   [&]{ one_step_heun(s,y,dt,yval,neq,tim); },
+   [&]{ one_flag_step_heun(s,y,dt,yval,neq,tim,istart); });
 }
 
 /*  Runge Kutta    */
 
-int rung_kut(double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
+int rung_kut(xpp::Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work)
 {
  double *yval[3];
 
@@ -269,14 +269,14 @@ int rung_kut(double *y, double *tim, double dt, int nt, int neq, int *istart, do
  yval[1]=work+neq;
  yval[2]=work+neq+neq;
 
- return fixed_steps(y,nt,
-   [&]{ one_step_rk4(y,dt,yval,neq,tim); },
-   [&]{ one_flag_step_rk4(y,dt,yval,neq,tim,istart); });
+ return fixed_steps(s,y,nt,
+   [&]{ one_step_rk4(s,y,dt,yval,neq,tim); },
+   [&]{ one_flag_step_rk4(s,y,dt,yval,neq,tim,istart); });
 }
 
 /*   ABM   */
 
-int adams(double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work)
+int adams(xpp::Session &s, double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work)
 {
   int istart=*ist,i,istpst,k,ik,n;
   int irk;
@@ -300,13 +300,13 @@ int adams(double *y, double *tim, double dt, int nstep, int neq, int *ist, doubl
 n20:
 
  x0=xst;
- xpp::session().integrator.rhs(x0,y,y_p[3],neq);
+ s.integrator.rhs(x0,y,y_p[3],neq);
  for(k=1;k<4;k++)
  {
-  rung_kut(y,&x0,dt,1,neq,&irk,work1);
-  stor_delay(y);
+  rung_kut(s,y,&x0,dt,1,neq,&irk,work1);
+  stor_delay(s,y);
   for(i=0;i<neq;i++)y_s[3-k][i]=y[i];
-  xpp::session().integrator.rhs(x0,y,y_p[3-k],neq);
+  s.integrator.rhs(x0,y,y_p[3-k],neq);
  }
  istpst=3;
  if(istpst<=nstep) goto n400;
@@ -335,9 +335,9 @@ n400:
 
   if(istpst==nstep) goto n450;
   for(n=istpst+1;n<nstep+1;n++) {
-    set_wieners(xpp::session(),dt,y,x0);
-   abmpc(y,&x0,dt,neq);
-   stor_delay(y);
+    set_wieners(s,dt,y,x0);
+   abmpc(s,y,&x0,dt,neq);
+   stor_delay(s,y);
  }
 
 n450:
@@ -351,7 +351,7 @@ n1000:
  return(0);
 }
 
-int abmpc(double *y, double *t, double dt, int neq)
+int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq)
 {
  double x1,x0=*t;
  int i,k;
@@ -365,7 +365,7 @@ int abmpc(double *y, double *t, double dt, int neq)
  for(i=0;i<neq;i++)
  for(k=3;k>0;k--)y_p[k][i]=y_p[k-1][i];
  x1=x0+dt;
- xpp::session().integrator.rhs(x1,ypred,y_p[0],neq);
+ s.integrator.rhs(x1,ypred,y_p[0],neq);
 
  for(i=0;i<neq;i++)
  {
@@ -374,7 +374,7 @@ int abmpc(double *y, double *t, double dt, int neq)
   y[i]=y[i]+dt*ypred[i];
  }
    *t=x1;
- xpp::session().integrator.rhs(x1,y,y_p[0],neq);
+ s.integrator.rhs(x1,y,y_p[0],neq);
  
  return(1);
  
@@ -382,25 +382,24 @@ int abmpc(double *y, double *t, double dt, int neq)
 
 /* this is rosen  - rosenbock step 
     This uses banded routines as well */
-int rb23(double *y,double *tstart,double tfinal,
+int rb23(xpp::Session &s, double *y,double *tstart,double tfinal,
  int *istart,int n,double *work,int *ierr)
 {
 int out =-1;
- if(xpp::model().nflags==0)
+ if(s.model().nflags==0)
  {
-   out = rosen(y,tstart,tfinal,istart,n,work,ierr);
+   out = rosen(s,y,tstart,tfinal,istart,n,work,ierr);
  }
  else
  {
-   out = one_flag_step_rosen(y,tstart,tfinal,istart,n,work,ierr);
+   out = one_flag_step_rosen(s,y,tstart,tfinal,istart,n,work,ierr);
  }
  return(out);
 }
  
-int rosen(double *y,double *tstart,double tfinal,
+int rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
- xpp::Session &s=xpp::session();
  static double htry;
  double epsjac=s.numerics.newt_err;
  double eps=1e-15,hmin,hmax;
@@ -444,7 +443,7 @@ int *istart,int n,double *work,int *ierr)
        absh = fabs(h);
        done = 1;
      }
-     get_the_jac(t,y,f0,ypnew,dfdy,n,epsjac,1.0);
+     get_the_jac(s,t,y,f0,ypnew,dfdy,n,epsjac,1.0);
      tdel = (t + tdir*MIN(sqrteps*MAX(fabs(t),fabs(t+h)),absh)) - t;
      s.integrator.rhs(t+tdel,y,f1,n);
      for(i=0;i<n;i++)
@@ -532,20 +531,20 @@ int *istart,int n,double *work,int *ierr)
 }
 
  /* this assumes that yp is already computed */
-void get_the_jac(double t,double *y,double *yp,
+void get_the_jac(xpp::Session &s, double t,double *y,double *yp,
 	    double *ypnew,double *dfdy,int neq,double eps,double scal)
 {
   int i,j;
   double yold,del,dsy;
-  if(xpp::session().numerics.cv_bandflag)
-    get_band_jac(dfdy,y,t,ypnew,yp,neq,eps,scal);
+  if(s.numerics.cv_bandflag)
+    get_band_jac(s,dfdy,y,t,ypnew,yp,neq,eps,scal);
   else {
     for(i=0;i<neq;i++){
       del=eps*MAX(eps,fabs(y[i]));
       dsy=scal/del;
       yold=y[i];
       y[i]=y[i]+del;
-      xpp::session().integrator.rhs(t,y,ypnew,neq);
+      s.integrator.rhs(t,y,ypnew,neq);
       for(j=0;j<neq;j++)
 	dfdy[j*neq+i]=dsy*(ypnew[j]-yp[j]);
       y[i]=yold;
@@ -553,9 +552,9 @@ void get_the_jac(double t,double *y,double *yp,
   }
 }
 
-void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
+void get_band_jac(xpp::Session &s, double *a, double *y, double t, double *ypnew, double *ypold, int n, double eps, double scal)
 {
-  int ml=xpp::session().numerics.cv_bandlower,mr=xpp::session().numerics.cv_bandupper;
+  int ml=s.numerics.cv_bandlower,mr=s.numerics.cv_bandupper;
   int i,j,k,n1=n-1,mt=ml+mr+1;
   double yhat;
   double dy;
@@ -567,7 +566,7 @@ void get_band_jac(double *a, double *y, double t, double *ypnew, double *ypold, 
     dy=eps*(eps+fabs(yhat));
     dsy=scal/dy;
     y[i] += dy;
-    xpp::session().integrator.rhs(t,y,ypnew,n);
+    s.integrator.rhs(t,y,ypnew,n);
     for(j=-ml;j<=mr;j++){
       k=i-j;
       if(k<0||k>n1)continue;

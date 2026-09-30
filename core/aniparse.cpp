@@ -913,11 +913,11 @@ void set_to_init_data(xpp::Session &s)
     redraw_ics();
 }
 
-void set_from_init_data(const xpp::Session &s)
+void set_from_init_data(xpp::Session &s)
 {
     std::array<double, MAXODE> y;
     for (int i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = s.last_ic[i];
-    set_fix_rhs(s.numerics.t0, y.data());
+    set_fix_rhs(s,s.numerics.t0, y.data());
 }
 
 void ani_disk_warn(xpp::Session &s)
@@ -1121,7 +1121,7 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
     set_val("mouse_vx", ami.vx);
     set_val("mouse_vy", ami.vy);
     do_grab_tasks(1);
-    fix_only();
+    fix_only(s);
     ani_frame(s,0);
 }
 
@@ -1181,7 +1181,7 @@ void ani_flip1(xpp::Session &s, int n)
     const double t = static_cast<double>(ss[0][row]);
     std::array<double, MAXODE> y;
     for (int i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = static_cast<double>(ss[i + 1][row]);
-    set_fix_rhs(t, y.data());
+    set_fix_rhs(s,t, y.data());
 
     render_ani(s);
     xpp_ui.ani_show();

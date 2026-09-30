@@ -148,7 +148,7 @@ int find_user_name(const xpp::Model &m, int type, std::string_view oname)
 	return(-1);
  }
 
-int do_calc(const char *temp, double *z)
+int do_calc(xpp::Session &s, const char *temp, double *z)
 {
  std::string val; /* the name before ':' */
  int ok; 
@@ -161,34 +161,39 @@ int do_calc(const char *temp, double *z)
  if(has_eq(temp,val,&i))
  {
 
-  newz=calculate(&temp[i],&ok);  /*  calculate quantity  */
+  newz=calculate(s,&temp[i],&ok);  /*  calculate quantity  */
  
   if(ok==0)return(-1);
-  i=find_user_name(PARAM,val);
+  i=find_user_name(s.model(),PARAM,val);
   if(i>-1){
-    set_val(val,newz); /* a parameter set to value  */
+    set_val(s,val,newz); /* a parameter set to value  */
     *z=newz;
     redraw_params();
   }
   else {
-    i=find_user_name(IC,val);
+    i=find_user_name(s.model(),IC,val);
     if(i<0){
       err_msg("No such name!");
       return(-1);
     }
-    set_val(val,newz);
+    set_val(s,val,newz);
 
-    xpp::session().last_ic[i]=newz; /* do_calc: an entry point, the dialogs and the integrator (W47d4, W47d6) */
+    s.last_ic[i]=newz;
     *z=newz;
     redraw_ics();
   }
     return(0);
 }
 	    
-  newz=calculate(temp,&ok);
+  newz=calculate(s,temp,&ok);
   if(ok==0)return(-1);
  *z=newz;
  return(1);
+}
+
+int do_calc(const char *temp, double *z)
+{
+  return do_calc(xpp::session(),temp,z); /* an entry point: the dialogs (W47d6) */
 }
 
 int has_eq(std::string_view z, std::string &name, int *where)
@@ -199,11 +204,6 @@ int has_eq(std::string_view z, std::string &name, int *where)
   *where=static_cast<int>(i)+1;
   return(1);
  }
-
- double calculate(const char *expr, int *ok)
-{
-  return calculate(xpp::session(),expr,ok);
-}
 
 double calculate(xpp::Session &s, const char *expr, int *ok)
 {
@@ -276,19 +276,18 @@ std::string batch_plot_name(const xpp::Session &s, int i)
             :xpp::format("{:.100}{:.100}_{:04d}.{:.10}",file,set,i,format);
 }
 
-void dump_ps(int i)
+void dump_ps(xpp::Session &s, int i)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   const std::string filename=batch_plot_name(s,i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
    if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)))
      fmt->restore(s);
 }
 
-void   redo_stuff()
+void   redo_stuff(xpp::Session &s)
     {
       evaluate_derived();
-   re_evaluate_kernels();
+   re_evaluate_kernels(s);
 	  xpp::ok_or_show(redo_all_fun_tables());
         evaluate_derived();
 }
@@ -417,7 +416,7 @@ void new_parameter(xpp::Session &s)
   while(1){
     name.clear();
     done=new_string_of("Parameter:",name,XPP_FIELD_NAME_IN(2));
-    if(name.empty()||done==0){redo_stuff(); return;}
+    if(name.empty()||done==0){redo_stuff(s); return;}
     if(strncasecmp(name.data(),"DEFAULT",7  )==0){
       set_default_params(s);
       continue;
@@ -434,7 +433,7 @@ void new_parameter(xpp::Session &s)
 	  xpp_ui.param_box_redraw(index);
 	}
         if(done==-1){
-         redo_stuff();
+         redo_stuff(s);
 	  return;
 	}
       }
@@ -451,7 +450,7 @@ void   set_default_params(xpp::Session &s)
  }
  
  redraw_params();
- re_evaluate_kernels();
+ re_evaluate_kernels(s);
  xpp::ok_or_show(redo_all_fun_tables()); 
  }
 
@@ -480,9 +479,8 @@ int to_float(const char *s, double *z)
   return(0);
 }
 
-void man_ic()
+void man_ic(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int done,index=0;
   double z;
   while(1){
@@ -528,11 +526,11 @@ int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
 void box_values_loaded(xpp::Session &s, int type)
 {
   if(type==PARAMBOX){
-    re_evaluate_kernels();
+    re_evaluate_kernels(s);
     xpp::ok_or_show(redo_all_fun_tables());
   }
   if(type==DELAYBOX){
-   xpp::ok_or_show(do_init_delay(s.numerics.delay));
+   xpp::ok_or_show(do_init_delay(s,s.numerics.delay));
   }
 }
 
