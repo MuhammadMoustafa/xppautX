@@ -9,12 +9,6 @@ extern "C" {
 
 
 
-void do_comline(int argc, char **argv);
-int if_needed_select_sets(void);
-/* after a load, in every mode: the files the command line names
-   (-setfile, -parfile, -icfile) and its -readset/-with options */
-void load_command_line_values(void);
-int parse_it(const char *com);
 
 /* the command line's switches: -include (loadincludefile), -qsets/-qpars/
    -qics (querysets, querypars, queryics), -dryrun and -newseed (the
@@ -30,5 +24,20 @@ extern int querysets,querypars,queryics,dryrun,newseed;
 #include <vector>
 /* -include's files, in order (form_ode.cpp parses them with the model) */
 extern std::vector<std::string> include_files;
+
+namespace xpp {
+struct Model;   /* model.h */
+struct Session; /* session.h */
+}
+/* the command line read into the loading Session s (its switches, the
+   model's file into its Model's this_file), one argument of it */
+void do_comline(xpp::Session &s, int argc, char **argv);
+int parse_it(xpp::Session &s, const char *com);
+/* the internal sets of m the command line picked (-internset, -uset,
+   -rset) into batch_options */
+int if_needed_select_sets(const xpp::Model &m);
+/* after a load, in every mode: the files the command line names
+   (-setfile, -parfile, -icfile) and its -readset/-with options, into s */
+void load_command_line_values(xpp::Session &s);
 #endif
 #endif

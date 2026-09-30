@@ -16,18 +16,18 @@
 /* This compiles all of the formulae
 It is called only once during the session
 */
-int compile_derived()
+int compile_derived(xpp::Session &s)
 {
   std::array<int, 256> f;
   int n;
-  for (xpp::Model::DerivedQuantity &d : xpp::model().derived) {
-    if (add_expr(d.rhs.c_str(), f.data(), &n) == 1) {
+  for (xpp::Model::DerivedQuantity &d : s.model().derived) {
+    if (add_expr(s, d.rhs.c_str(), f.data(), &n) == 1) {
       xpp::log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
       return 1;
     }
     d.form.assign(f.begin(), f.begin() + n);
   }
-  evaluate_derived();
+  evaluate_derived(s);
   return 0;
 }
 
@@ -35,17 +35,20 @@ int compile_derived()
 called before any integration or numerical computation
 and after changing parameters and constants
 */
-void evaluate_derived()
+void evaluate_derived(xpp::Session &s)
 {
-  xpp::Session &s = xpp::session(); /* an entry point: the integrator, AUTO, the parser (W47d3-5) */
   std::array<double, MAXPAR> &constants = s.parser.constants;
   for (xpp::Model::DerivedQuantity &d : s.model().derived) constants[d.index] = evaluate(d.form.data());
 }
 
-/* this adds a derived quantity  */
-int add_derived(const char *name, const char *rhs)
+void evaluate_derived()
 {
-  xpp::Session &s = xpp::session(); /* an entry point: the parser (W47d3) */
+  evaluate_derived(xpp::session()); /* an entry point: the integrator, AUTO, the front end (W47d4-6) */
+}
+
+/* this adds a derived quantity  */
+int add_derived(xpp::Session &s, const char *name, const char *rhs)
+{
   xpp::Model::DerivedQuantity d;
   d.rhs = rhs;
   /* this is the constant to which it addresses */
@@ -53,5 +56,5 @@ int add_derived(const char *name, const char *rhs)
   /* add the name to the recognized symbols */
   xpp::log(XPP_LOG_INFO, " derived constant[{}] is {} = {}\n", s.parser.ncon, name, rhs);
   s.model().derived.push_back(std::move(d));
-  return add_con(name, 0.0);
+  return add_con(s, name, 0.0);
 }

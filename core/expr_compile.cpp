@@ -13,12 +13,14 @@
 #include <string>
 #include <vector>
 
-using xpp::expr::symbols;
 using xpp::expr::is_ucon;
 using xpp::expr::is_uvar;
 using xpp::expr::is_ufun;
 
 namespace {
+
+/* the symbol table (ParserState::symbols) the compiler reads */
+using Symbols=std::array<ExprSymbol,MAX_SYMBS>;
 
 int unary_sym(int token);
 int binary_sym(int token);
@@ -46,9 +48,8 @@ void show_where(const char *string, int index)
   xpp::log(XPP_LOG_WARN, "{}\n{}\n",string,junk);
 }
 
-int function_sym(int token) /* functions should have ( after them  */
+int function_sym(const Symbols &my_symb, int token) /* functions should have ( after them  */
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
   int com=my_symb[token].com;
   int i1=com/MAXTYPE;
 
@@ -77,9 +78,8 @@ int binary_sym(int token)
   return(0);
 }
 
-int pure_number(int token)
+int pure_number(const Symbols &my_symb, int token)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
   int com=my_symb[token].com;
   int i1=com/MAXTYPE;
 /* !! */  if(token==NUMTOK||isvar(i1)||iscnst(i1)||isker(i1)||i1==USTACKTYPE||token==INDX)
@@ -87,9 +87,8 @@ int pure_number(int token)
   return(0);
 }
 
-int gives_number(int token)
+int gives_number(const Symbols &my_symb, int token)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
   int com=my_symb[token].com;
   int i1=com/MAXTYPE;
   if(token==INDX)return(1);
@@ -103,9 +102,8 @@ int gives_number(int token)
   return(0);
 }
 
-int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
+int check_syntax(const Symbols &my_symb, int oldtoken, int newtoken)  /* 1 is BAD!   */
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
   int com2=my_symb[newtoken].com;
 
 /* if the first symbol or (  or binary symbol then must be unary symbol or 
@@ -115,14 +113,14 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
   if(unary_sym(oldtoken)||oldtoken==COMMA||oldtoken==STARTTOK
      ||oldtoken==LPAREN||binary_sym(oldtoken))
    {
-     if(unary_sym(newtoken)||gives_number(newtoken)||newtoken==LPAREN)return(0);
+     if(unary_sym(newtoken)||gives_number(my_symb,newtoken)||newtoken==LPAREN)return(0);
      return(1);
    }
 
 /* if this is a regular function, then better have ( 
 */
  
- if(function_sym(oldtoken)){
+ if(function_sym(my_symb,oldtoken)){
    if(newtoken==LPAREN)return(0);
    return(1);
  }
@@ -131,7 +129,7 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
    have binary symbol or "then" or "else" as next symbol
 */
    
- if(pure_number(oldtoken)){
+ if(pure_number(my_symb,oldtoken)){
    if(binary_sym(newtoken)||newtoken==RPAREN
       ||newtoken==COMMA||newtoken==ENDTOK)
      return(0);
@@ -156,21 +154,20 @@ int check_syntax(int oldtoken, int newtoken)  /* 1 is BAD!   */
 *    PARSER                   *
 ******************************/
 
-void tokeninfo(int tok)
+void tokeninfo(const Symbols &my_symb, int tok)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
  xpp::log(XPP_LOG_DEBUG, " {} {} {} {} {} \n",
 	my_symb[tok].name,my_symb[tok].len,my_symb[tok].com,
         my_symb[tok].arg,my_symb[tok].pri);
 }
 
-void find_tok(const char *source, int *index, int *tok)
+void find_tok(const ParserState &p, const char *source, int *index, int *tok)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
+  const Symbols &my_symb=p.symbols;
  int i=*index,maxlen=0,symlen;
  int k,j,my_tok,match;
- my_tok=xpp::session().parser.nsym;
- for(k=0;k<xpp::session().parser.nsym;k++)
+ my_tok=p.nsym;
+ for(k=0;k<p.nsym;k++)
  {
   symlen=my_symb[k].len;
   if(symlen<=maxlen)continue;
@@ -194,7 +191,7 @@ void find_tok(const char *source, int *index, int *tok)
    *tok=my_tok;
 }
 
-int make_toks(const char *dest, int *my_token)
+int make_toks(const ParserState &p, const char *dest, int *my_token)
 {
  std::array<char,40> num{}; /* do_num writes the number's start */
  double value;
@@ -204,16 +201,16 @@ int make_toks(const char *dest, int *my_token)
  while(dest[index]!='\0')
   {
    lastindex=index;
-   find_tok(dest,&index,&token);
+   find_tok(p,dest,&index,&token);
    if((token==MINUS)&&
    ((old_tok==STARTTOK)||(old_tok==COMMA)||(old_tok==LPAREN)))
   token=NEGATE;
   if(token==LPAREN)++nparen;
   if(token==RPAREN)--nparen;
   
-  if(token==xpp::session().parser.nsym)
+  if(token==p.nsym)
     {
-      if(do_num(dest,num.data(),&value,&index)){
+      if(do_num(dest,num.data(),&value,&index,p.errout)){
 	show_where(dest,index);
 	return(1);
       }
@@ -222,7 +219,7 @@ int make_toks(const char *dest, int *my_token)
       my_token[tok_in++]=NUMTOK;
       my_token[tok_in++]=halves[0];
       my_token[tok_in++]=halves[1];
-      if(check_syntax(old_tok,NUMTOK)==1){
+      if(check_syntax(p.symbols,old_tok,NUMTOK)==1){
 	 xpp_log(XPP_LOG_WARN, "Illegal syntax \n");
 	 show_where(dest,lastindex);
 	 return(1);
@@ -234,11 +231,11 @@ int make_toks(const char *dest, int *my_token)
    else
      {
        my_token[tok_in++]=token;
-       if(check_syntax(old_tok,token)==1){
+       if(check_syntax(p.symbols,old_tok,token)==1){
 	 xpp_log(XPP_LOG_WARN, "Illegal syntax (Ref:%d %d) \n",old_tok,token);
 	 show_where(dest,lastindex);
-         tokeninfo(old_tok);
-         tokeninfo(token);
+         tokeninfo(p.symbols,old_tok);
+         tokeninfo(p.symbols,token);
 	 return(1);
        }
 
@@ -247,23 +244,24 @@ int make_toks(const char *dest, int *my_token)
  }
 
 my_token[tok_in++]=ENDTOK;
-if(check_syntax(old_tok,ENDTOK)==1){
+if(check_syntax(p.symbols,old_tok,ENDTOK)==1){
   xpp_log(XPP_LOG_WARN, "Premature end of expression \n");
   show_where(dest,lastindex);
   return(1);
 }
 if(nparen!=0)
 {
- if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " parentheses don't match\n");
+ if(p.errout)xpp_log(XPP_LOG_WARN, " parentheses don't match\n");
  return(1);
 }
 return(0);
 
 }
 
-int alg_to_rpn(int *toklist, int *command)
+int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 {
-  std::array<ExprSymbol,MAX_SYMBS> &my_symb=symbols();
+  Symbols &my_symb=s.parser.symbols;
+  xpp::Model &m=s.model();
   int tokstak[500],comptr=0,tokptr=0,lstptr=0,temp;
   int ncomma=0;
   int loopstk[100];
@@ -287,7 +285,7 @@ int alg_to_rpn(int *toklist, int *command)
 	   {
 	    /* ram -- is this right? not sure I understand what was happening here */
 	    my_symb[LASTTOK].com=COM(SVARTYPE,temp%MAXTYPE); /* create a temporary sybol */
-            xpp::model().ndelays++;
+            m.ndelays++;
            toklist[lstptr+1]=LASTTOK;
 	  	
 	    my_symb[LASTTOK].pri=10;
@@ -309,7 +307,7 @@ int alg_to_rpn(int *toklist, int *command)
 	   {
 	    /* ram -- same issue */
 	    my_symb[LASTTOK].com=COM(SVARTYPE, temp%MAXTYPE); /* create a temporary sybol */
-            xpp::model().ndelays++;
+            m.ndelays++;
            toklist[lstptr+1]=LASTTOK;
 	  	
 	    my_symb[LASTTOK].pri=10;
@@ -401,7 +399,7 @@ int alg_to_rpn(int *toklist, int *command)
            {
             command[comptr]=my_symb[oldtok].com;
 	    /* an .odex model divides as IEEE does (docs/odex.md) */
-	    if(command[comptr]==COM(FUN2TYPE,3)&&xpp::model().ieee_division)
+	    if(command[comptr]==COM(FUN2TYPE,3)&&m.ieee_division)
 	      command[comptr]=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
 	    if((my_symb[oldtok].arg==2)&&
 	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
@@ -501,16 +499,16 @@ int alg_to_rpn(int *toklist, int *command)
 
 /* ADD_EXPR   */
 
-int add_expr(const char *expr, int *command, int *length)
+int add_expr(xpp::Session &s, const char *expr, int *command, int *length)
 {
  int err,i;
  std::string dest=converted(expr);
  /* make_toks writes a token per character at most, three for a number
     (its token and the double's two ints), the end, and slack */
  std::vector<int> my_token(3*dest.size()+8);
- err=make_toks(dest.c_str(),my_token.data());
+ err=make_toks(s.parser,dest.c_str(),my_token.data());
  if(err!=0)return(1);
- err = alg_to_rpn(my_token.data(),command);
+ err = alg_to_rpn(s,my_token.data(),command);
  if(err!=0)return(1);
   i=0;
    while(command[i]!=ENDEXP)i++;
@@ -518,7 +516,12 @@ int add_expr(const char *expr, int *command, int *length)
    return(0);
 }
 
-int do_num(const char *source, char *num, double *value, int *ind)
+int add_expr(const char *expr, int *command, int *length)
+{
+  return add_expr(xpp::session(),expr,command,length); /* an entry point (W47d4-6) */
+}
+
+int do_num(const char *source, char *num, double *value, int *ind, int report)
 {
  int i=*ind,error=0;
  int ndec=0,nexp=0,ndig=0;
@@ -564,7 +567,7 @@ err:
   num[n]='\0';
   if(error==0)*value=atof(text.c_str());
   else
-  if(xpp::session().parser.errout)xpp::log(XPP_LOG_WARN, " illegal expression: {}\n",text);
+  if(report)xpp::log(XPP_LOG_WARN, " illegal expression: {}\n",text);
   *ind=i;
   return(error);
 }

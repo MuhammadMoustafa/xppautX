@@ -43,7 +43,7 @@ XppBatchOptions batch_options;
 
 /* ---- moved from main.c (appended by tools/move_funcs.py) --------------- */
 
-void check_for_quiet(int argc, char **argv)
+void check_for_quiet(xpp::Session &s, int argc, char **argv)
 {
 	/*First scan, check for any QUIET option set...*/
 	int i = 0;
@@ -59,13 +59,13 @@ void check_for_quiet(int argc, char **argv)
 	{
  	       if (strcmp(argv[i],"-quiet")==0)
 	       {
-	       	       set_option("QUIET",argv[i+1],1,NULL);
+	       	       set_option(s,"QUIET",argv[i+1],1,NULL);
 		       quiet_specified_once=1;
      		       i++;
 	       }
 	       else if (strcmp(argv[i],"-logfile")==0)
 	       {
-		       set_option("LOGFILE",argv[i+1],1,NULL);
+		       set_option(s,"LOGFILE",argv[i+1],1,NULL);
 		       logfile_specified_once = 1;
      		       i++;
 	       }
@@ -83,16 +83,15 @@ void check_for_quiet(int argc, char **argv)
 	}
 }
 
-void do_vis_env()
+void do_vis_env(xpp::Session &s)
 {
   check_for_xpprc();
-  set_internopts_xpprc_and_comline();
+  set_internopts_xpprc_and_comline(s);
   
 }
 
-void xpp_reset_options(void)
+void xpp_reset_options(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   s.not_already_set.BIG_FONT_NAME=1;
   s.not_already_set.SMALL_FONT_NAME=1;
   s.not_already_set.IXPLT=1;
@@ -246,44 +245,45 @@ void xpp_reset_options(void)
 
 /* everything both the batch run and an interactive front end do: options,
    the ODE file, numerics set-up. batch forces XPPBatch. */
-static void load_and_set_up(int argc, char **argv, int batch)
+static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
 {
-    xpp_reset_options();
+    xpp::Model &m = s.model();
+    xpp_reset_options(s);
     program.interactive = 0;
     batch_options.out_file = "output.dat";
-    xpp::session().plot_export.format = "ps";
-    check_for_quiet(argc, argv);
-    do_comline(argc, argv);
+    s.plot_export.format = "ps";
+    check_for_quiet(s, argc, argv);
+    do_comline(s, argc, argv);
     if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */
 
-    load_eqn();
+    load_eqn(s);
     /* the log settings of the model before (@ logfile, @ quiet) go, now
        that this one has parsed; its own options below set them again */
     xpp_log_new_model();
     /* the boundary conditions in use start as the model's */
-    xpp::session().bcs = xpp::model().bcs;
+    s.bcs = m.bcs;
 
-    OptionsSet mask = xpp::session().not_already_set;
-    set_internopts(&mask);
+    OptionsSet mask = s.not_already_set;
+    set_internopts(s, &mask);
 
     init_alloc_info();
-    do_vis_env();
-    set_all_vals();
+    do_vis_env(s);
+    set_all_vals(s);
     init_alloc_info();
     set_init_guess();
     update_all_ffts();
 #ifdef AUTO
     init_auto_win();
 #endif
-    if (disc(xpp::model().this_file)) xpp::session().numerics.method = 0;
+    if (disc(m.this_file)) s.numerics.method = 0;
     program.version_major = static_cast<float>(cstringmaj);
     program.version_minor = static_cast<float>(cstringmin);
     do_meth();
     set_delay();
-    xpp::session().integrator.rhs = my_rhs;
+    s.integrator.rhs = my_rhs;
     init_fit_info();
-    strip_saveqn();
-    create_plot_list();
+    strip_saveqn(m);
+    create_plot_list(s);
 }
 
 std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch, const SavedModel *saved)
@@ -294,20 +294,21 @@ std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch,
     /* the process-wide settings a load writes, put back when it fails */
     const XppProgram program_before = program;
     const XppBatchOptions batch_before = batch_options;
+    xpp::Model &m = load.model();
     try {
-        xpp::model().command_line.assign(argv, argv + argc);
-        xpp::model().load_dir = xpp_files_working_dir();
+        m.command_line.assign(argv, argv + argc);
+        m.load_dir = xpp_files_working_dir();
         if (saved) {
-            xpp::model().saved_in = saved->in;
-            xpp::model().files = saved->files;
+            m.saved_in = saved->in;
+            m.files = saved->files;
         }
-        load_and_set_up(argc, argv, batch);
+        load_and_set_up(load.session(), argc, argv, batch);
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
         batch_options = batch_before;
         return std::move(failed.diagnostic);
     }
-    xpp::model().saved_copies.reset(); /* the load's readers are done with them */
+    m.saved_copies.reset(); /* the load's readers are done with them */
     load.commit();
     return std::nullopt;
 }
@@ -339,12 +340,14 @@ void xpp_model_failed(void)
 
 void xpp_batch_start(void)
 {
-    xpp::Session &s = xpp::session(); /* the loaded model's: an entry point (W47d3) */
+    /* the model just loaded: the current Session, an entry point (-silent's
+       script and the unit tests call this after xpp_load_model) */
+    xpp::Session &s = xpp::session();
     xpp_build_colormap();
     init_browser(s);
     init_all_graph(s);
-    if_needed_select_sets();
-    load_command_line_values();
+    if_needed_select_sets(s.model());
+    load_command_line_values(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);
 }

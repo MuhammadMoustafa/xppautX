@@ -176,8 +176,11 @@ const std::array<Fun2,23> fun2={
           FANCY DELAY HERE                   *-------------------------<<<
 *********************************************/
 
+/* the evaluator's built-ins read the current Session: entry points of
+   the right-hand side (W47d4) */
 double do_shift(double shift, double variable)
 {
+  const ParserState &p=xpp::session().parser;
   int it, in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
 
@@ -186,16 +189,16 @@ double do_shift(double shift, double variable)
    in = (i % MAXTYPE) + ish;
   switch(it){
   case CONTYPE:
-	if(in>xpp::session().parser.ncon)
+	if(in>p.ncon)
 	  return 0.0;
 	else
-	  return xpp::session().parser.constants[in];
+	  return p.constants[in];
 	break;
   case VARTYPE:
 	if(in>MAXODE)
 	  return 0.0;
 	else
-	  return xpp::session().parser.variables[in];
+	  return p.variables[in];
   default:
     xpp_log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
     return 0.0;
@@ -210,6 +213,7 @@ double do_ishift(double shift, double variable)
 
 double do_delay_shift(double delay, double shift, double variable)
 {
+ const xpp::Session &s=xpp::session();
  int in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
   if(i<0) return(0.0);
@@ -218,10 +222,10 @@ double do_delay_shift(double delay, double shift, double variable)
   if(in>MAXODE)
     return 0.0;
 
-  if(xpp::session().delay.stab_flag>0){
-    if(xpp::session().delay.flag&&delay>0.0)
+  if(s.delay.stab_flag>0){
+    if(s.delay.flag&&delay>0.0)
       return(get_delay(in-1,delay));
-    return(xpp::session().parser.variables[in]);
+    return(s.parser.variables[in]);
   }
 
   return(delay_stab_eval(delay,in));
@@ -229,16 +233,17 @@ double do_delay_shift(double delay, double shift, double variable)
 }
 double do_delay(double delay, double i)
 {
+  const xpp::Session &s=xpp::session();
 
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
     variable = (static_cast<int>(i)) % MAXTYPE;
 
-  if(xpp::session().delay.stab_flag>0){
-    if(xpp::session().delay.flag&&delay>0.0) {
+  if(s.delay.stab_flag>0){
+    if(s.delay.flag&&delay>0.0) {
       return(get_delay(variable-1,delay));
     }
-    return(xpp::session().parser.variables[variable]);
+    return(s.parser.variables[variable]);
   }
 
   return(delay_stab_eval(delay,static_cast<int>(variable)));

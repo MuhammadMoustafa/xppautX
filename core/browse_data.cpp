@@ -144,13 +144,17 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
 
 void find_variable(std::string_view name, int *col)
 {
-  const xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  find_variable(xpp::session(),name,col);
+}
+
+void find_variable(const xpp::Session &s, std::string_view name, int *col)
+{
  *col=-1;
   if(xpp::equal_ignoring_case("T",name)){
    *col=0;
     return;
    }
-  *col=find_user_name(2,name);
+  *col=find_user_name(s.model(),2,name);
   if(*col>-1){
     *col=*col+1;
     return;

@@ -323,9 +323,7 @@ private:
      upper case whatever a model's case */
   static bool reads_as_builtin(const std::string &upper)
   {
-    const std::array<ExprSymbol, MAX_SYMBS> &symbols = xpp::session().parser.symbols;
-    for (int i = 0; i < STDSYM; i++)
-      if (symbols[i].name == upper) return true;
+    if (is_builtin_symbol(upper)) return true;
     static constexpr auto more = std::to_array<std::string_view>({"PI", "T", "MOUSE_X", "MOUSE_Y", "MOUSE_VX", "MOUSE_VY"});
     for (std::string_view m : more)
       if (m == upper) return true;
@@ -796,16 +794,16 @@ Parsed ready(const Parsed &p)
   return Loader(p).run();
 }
 
-int load(const std::string &path)
+int load(xpp::Session &s, const std::string &path)
 {
   try {
-    build_model(ready(parse_file(path)));
+    build_model(s, ready(parse_file(path)));
   } catch (const Error &e) {
     xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
     xpp::model_failed(e);
   }
   /* the model's source: the .odex file's own lines */
-  std::vector<std::string> &source = xpp::model().source;
+  std::vector<std::string> &source = s.model().source;
   source.clear();
   xpp::LineReader lr = xpp::model_file_lines(path);
   while (std::optional<std::string_view> line = lr.next()) source.push_back(std::string(*line) + "\n");

@@ -62,9 +62,11 @@ struct VAR_INFO {
 
 /* where a model's lines come from: the file, its name and its index in
    Parsed::files, how many lines were read from it and the line the last
-   logical line (read_a_line) began at */
+   logical line (read_a_line) began at; and where they are kept, the
+   loading Model's source (save_line) */
 struct LineSource {
   FILE *fp=nullptr;
+  std::vector<std::string> *source=nullptr;
   std::string file;
   int index=0;
   int lines=0;
@@ -218,11 +220,10 @@ bool read_raw_line(LineSource &src, std::string &line)
   return false;
 }
 
-/* keeps one line of the model's source in Model::source, up to a NUL
-   (the front ends read it as text) */
-void save_line(const std::string &line)
+/* keeps one line of the model's source in source (Model::source), up
+   to a NUL (the front ends read it as text) */
+void save_line(std::vector<std::string> &source, const std::string &line)
 {
-  std::vector<std::string> &source=xpp::model().source;
   if (source.size()>=MAXLINES) {
     xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
     xpp_model_failed();
@@ -242,7 +243,7 @@ bool read_a_line(LineSource &src, std::string &s)
   while(more){
     std::string temp;
     in_file=read_raw_line(src,temp)&&in_file;
-    save_line(temp);
+    save_line(*src.source,temp);
     size_t hat=temp.find('\\');
     more=hat!=std::string::npos;
     if(more)temp.resize(hat);
@@ -335,13 +336,10 @@ int formula_or_number(const char *expr,double *z)
 {
   std::array<char,40> num{}; /* do_num's 40 bytes */
   int flag,i=0;
-  int olderr=xpp::session().parser.errout;
-  xpp::session().parser.errout=0;
   *z=0.0; /* initial it to 0 */
   const std::string form=converted(expr);
-  flag=do_num(form.c_str(),num.data(),z,&i);
+  flag=do_num(form.c_str(),num.data(),z,&i,0); /* a formula is no error here */
   if(i<static_cast<int>(form.size()))flag=1;
-  xpp::session().parser.errout=olderr;
   if(flag==0)
     return 0; /* 0 is a number */
   return 1; /* 1 is a formula */
@@ -882,6 +880,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			IN_INCLUDED_FILE++;
 			LineSource inc_src;
 			inc_src.fp=fnew.get();
+			inc_src.source=src.source;
 			inc_src.file=inc;
 			inc_src.index=static_cast<int>(p.files.size());
 			p.files.push_back(inc);
@@ -911,6 +910,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        IN_INCLUDED_FILE++;
        LineSource inc_src;
        inc_src.fp=fnew.get();
+       inc_src.source=src.source;
        inc_src.file=newfile;
        inc_src.index=static_cast<int>(p.files.size());
        p.files.push_back(newfile);
@@ -1307,22 +1307,24 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
   }
 }
 
-int get_eqn(FILE *fptr)
+int get_eqn(xpp::Session &s, FILE *fptr)
 {
+  xpp::Model &m=s.model();
   LineSource src;
   src.fp=fptr;
-  src.file=xpp::model().this_file;
+  src.file=m.this_file;
+  src.source=&m.source;
   std::string first;
-  xpp::model().source.clear();
+  m.source.clear();
   bool in_file=read_raw_line(src,first);
   src.line=1;
-  save_line(first);
+  save_line(m.source,first);
   const int neq=atoi(first.c_str());
   if(neq>0){ /* an old-style model: each line built as it is read */
-    build_old_style(neq,fptr,[&src](std::string &line){
+    build_old_style(s,neq,fptr,[&src](std::string &line){
       read_raw_line(src,line);
       if(line.empty())return false;
-      save_line(line);
+      save_line(*src.source,line);
       xpp::Load::at(src.file,src.lines);
       return true;
     });
@@ -1331,6 +1333,6 @@ int get_eqn(FILE *fptr)
   Parsed p;
   p.files.push_back(src.file);
   if(do_new_parser(src,first,0,!in_file,p)<0)xpp_model_failed();
-  build_model(std::move(p));
+  build_model(s,std::move(p));
   return 1;
 }

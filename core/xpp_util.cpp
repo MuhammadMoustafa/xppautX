@@ -129,7 +129,11 @@ void de_space(char *s)
 
 int find_user_name(int type, std::string_view oname)
 {
-  const xpp::Model &m=xpp::model(); /* an entry point (W47d) */
+  return find_user_name(xpp::model(),type,oname);
+}
+
+int find_user_name(const xpp::Model &m, int type, std::string_view oname)
+{
  std::string name; /* oname without blanks, of any length */
  int i=-1;
  for(char ch : oname)
@@ -198,10 +202,14 @@ int has_eq(std::string_view z, std::string &name, int *where)
 
  double calculate(const char *expr, int *ok)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
+  return calculate(xpp::session(),expr,ok);
+}
+
+double calculate(xpp::Session &s, const char *expr, int *ok)
+{
   int com[400],i;
   double z=0.0;
-    if(add_expr(expr,com,&i)){
+    if(add_expr(s,expr,com,&i)){
      err_msg("Illegal formula ..");
      *ok=0;
       goto bye;
@@ -507,7 +515,7 @@ int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
     set_val(s.model().upar_names[i],*z);
     return 1;
   case BCBOX:
-    set_bc_formula(i,text);
+    set_bc_formula(s,i,text);
     return 0;
   case DELAYBOX:
     s.delay_string[i]=text;
@@ -614,7 +622,7 @@ const char *eq_stability(int cp, int rp, int im)
 void do_txt_action(xpp::Session &s, const char *action)
 {
  get_graph(s);
- extract_action(action);
+ extract_action(s,action);
  ping();
   chk_delay();
   redraw_params();

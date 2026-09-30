@@ -27,20 +27,21 @@ int main(void)
     double z = 0;
     int ok, where = 0;
 
-    init_rpn();
+    xpp::Session &s = xpp::session();
+    init_rpn(s);
 
     /* the parser keeps the whole name: before, it cut every name to 10
        characters, so two names that began alike were one symbol */
-    CHECK(add_con("stimulus_amplitude_first", 1.5) == 0);
-    CHECK(add_con("stimulus_amplitude_second", 2.5) == 0);
+    CHECK(add_con(s, "stimulus_amplitude_first", 1.5) == 0);
+    CHECK(add_con(s, "stimulus_amplitude_second", 2.5) == 0);
     CHECK(get_val("stimulus_amplitude_first", &z) && z == 1.5);
     CHECK(get_val("STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
     CHECK(calc("stimulus_amplitude_second-stimulus_amplitude_first", &ok) == 1.0 && ok);
 
     /* no length limit: 200 and 1000 characters are names like any other */
-    CHECK(add_con(p200.c_str(), 3.0) == 0);
+    CHECK(add_con(s, p200.c_str(), 3.0) == 0);
     CHECK(get_val(p200, &z) && z == 3.0);
-    CHECK(add_con(q1000.c_str(), 4.0) == 0);
+    CHECK(add_con(s, q1000.c_str(), 4.0) == 0);
     CHECK(get_val(q1000, &z) && z == 4.0);
     /* a longer name does not find the name it starts with, nor a shorter */
     CHECK(!get_val(p200 + "x", &z));

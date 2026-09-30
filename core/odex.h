@@ -31,6 +31,10 @@
 #include <utility>
 #include <vector>
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
 namespace xpp::odex {
 
 /* a place in a model: which of Parsed::files, the line and the column
@@ -247,20 +251,20 @@ Parsed ready(const Parsed &p);
 
 /* path names an .odex model (its extension, any case) */
 bool is_odex(std::string_view path);
-/* the .odex model at path into the current Model and Session, as get_eqn
+/* the .odex model at path into the loading Session s, as get_eqn
    reads an .ode's (ode_read.h): parse_file, ready, then build_model: 1;
    a problem is logged (file, line, column) and the load fails
    (xpp::model_failed, with the problem as its diagnostic) */
-int load(const std::string &path);
+int load(xpp::Session &s, const std::string &path);
 
 /* --convert's question about a name .odex reserves: the question and a
    suggested answer; the answer ("" takes the suggestion), or nullopt
    when nobody can answer (no terminal) */
 using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
-/* the loaded .ode model (the current Model) as .odex text, from what the
+/* the .ode model loaded in s as .odex text, from what the
    .ode parser understood (odex_convert.cpp); auto_answer takes every
    suggested name. Throws Error. */
-std::string convert_model(bool auto_answer, const Ask &ask);
+std::string convert_model(xpp::Session &s, bool auto_answer, const Ask &ask);
 /* xppautX --convert [--auto] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1

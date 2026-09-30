@@ -7,10 +7,6 @@
 extern "C" {
 #endif
 
-/* the .ode model fptr reads into the current Model (xpp::model().this_file
-   its path): read, then built; 1 (a model that does not load fails the
-   load, xpp_model_failed) */
-int get_eqn(FILE *fptr);
 /* the first character of s2 found in s1 from i0 on: its index in s2, *i1
    where it is; -1 when there is none */
 int find_char(const char *s1, const char *s2, int i0, int *i1);
@@ -21,6 +17,15 @@ int find_char(const char *s1, const char *s2, int i0, int *i1);
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the .ode model fptr reads into the loading Session s's Model (its
+   this_file the path): read, then built; 1 (a model that does not load
+   fails the load, xpp_model_failed) */
+int get_eqn(xpp::Session &s, FILE *fptr);
 
 /* the name=value items of a par, init, number or wiener line as the
    reader splits them (get_next2, take_apart): each name, its value's

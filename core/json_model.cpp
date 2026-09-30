@@ -72,7 +72,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     ani_zero(s);
     set_extra_graphs(s);
     set_colorization_stuff(s);
-    load_command_line_values();
+    load_command_line_values(s);
     default_window(s);
     if (kept) xpp::restore_values(s, *kept);
     send_hello(s);

@@ -135,7 +135,7 @@ int read_set(xpp::Session &s, FILE *fp, bool ask)
     dump_transpose_info(fp,f);
     dump_h_stuff(fp,f);
     dump_aplot(s,fp,f);
-    dump_torus(fp,f);
+    dump_torus(s,fp,f);
     dump_range(fp,f);
   }
   return 1;
@@ -212,7 +212,7 @@ void write_lunch(xpp::Session &s, FILE *fp)
     dump_transpose_info(fp,f);
    dump_h_stuff(fp,f);
    dump_aplot(s,fp,f);
-   dump_torus(fp,f);
+   dump_torus(s,fp,f);
    dump_range(fp,f);
    dump_eqn(s,fp);
 }
@@ -295,9 +295,9 @@ io_double(&s.integrator.last_time,fp,f,"Last Time");
 io_int(&s.integrator.my_start,fp,f,"s.integrator.my_start");
 io_int(&s.numerics.inflag,fp,f,"INFLAG");
 }
-void io_parameter_file(const char *fn,int flag)
+void io_parameter_file(xpp::Session &s, const char *fn,int flag)
 {
-  xpp::Model &m=xpp::model(); /* an entry point: -parfile (W47d3) */
+  xpp::Model &m=s.model();
   /* fn is a plain file name; a filename an interactive caller must still
      pick goes through save_parameter_file/load_parameter_file below,
      which ask for it first */
@@ -336,9 +336,8 @@ void io_parameter_file(const char *fn,int flag)
    Markov chains are not in this file, in XPPAUT or here: docs/manual
    16-quick-reference.md); io_parameter_file's write shares its writer
    and overwrite-ask (open_writer_asking), the read its TokenReader */
-void io_ic_file(const char *fn,int flag)
+void io_ic_file(xpp::Session &s, const char *fn,int flag)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   int n=s.model().node;
   if(flag==READEM){
     xpp::TokenReader tr(fn);
@@ -375,13 +374,14 @@ namespace {
    extension), given skips the ask; io is io_parameter_file or
    io_ic_file, flag READEM or WRITEM */
 void named_value_file(std::string name, const char *title, const char *ext,
-                       void (*io)(const char *, int), int flag)
+                       void (*io)(xpp::Session &, const char *, int), int flag)
 {
+  xpp::Session &s=xpp::session(); /* an entry point: the values panel (W47d6) */
   if(name.empty()){
-    name=xpp::model().this_file+ext;
+    name=s.model().this_file+ext;
     if(!file_selector(title,name,xpp::format("*{}",ext).c_str()))return;
   }
-  io(name.c_str(),flag);
+  io(s,name.c_str(),flag);
 }
 
 } // namespace
@@ -471,7 +471,7 @@ void io_exprs(xpp::Session &s, int f, FILE *fp)
  for(i=0;i<s.model().node;i++){
    std::string formula=s.bcs[i].string.data();
    io_string(formula,fp,f);
-   if(f==READEM)set_bc_formula(i,formula);
+   if(f==READEM)set_bc_formula(s,i,formula);
  }
  io_heading(f,fp,"# Old ICs");
  for(i=0;i<s.model().node+s.model().nmarkov;i++)io_double(&s.last_ic[i],fp,f,s.model().uvar_names[i]);

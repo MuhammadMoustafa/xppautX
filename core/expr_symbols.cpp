@@ -1,6 +1,6 @@
 /* The expression engine's symbol table (expr.h): the names a formula may
    use, what each compiles to, and the parameters' and variables' values
-   by name. The table is the current Session's (ParserState::symbols):
+   by name. The table is a Session's (ParserState::symbols):
    its first STDSYM entries are the built-ins below, then come the
    model's names as the load adds them. */
 #include "expr_internal.h"
@@ -24,7 +24,6 @@
 # define M_PI	3.14159265358979323846264338327950288
 #endif
 
-using xpp::expr::symbols;
 using xpp::expr::is_ucon;
 using xpp::expr::is_uvar;
 using xpp::expr::is_lookup;
@@ -142,10 +141,21 @@ constexpr Builtin builtins[]=
 };
 static_assert(std::size(builtins)==STDSYM,"STDSYM is the number of built-in symbols");
 
+}
+
+bool is_builtin_symbol(std::string_view name)
+{
+  for(const Builtin &b : builtins)
+    if(name==b.name)return true;
+  return false;
+}
+
+namespace {
+
 /* 1 (with an INFO) when name is already a symbol */
-int duplicate_name(std::string_view junk);
+int duplicate_name(const ParserState &p, std::string_view junk);
 /* name's symbol index in *index (-1 when none) */
-void find_name(std::string_view string, int *index);
+void find_name(const ParserState &p, std::string_view string, int *index);
 
 }
 
@@ -172,50 +182,50 @@ ParserState::ParserState()
 *************************************************************/
 
 /* INIT_RPN    */
-void init_rpn()
+void init_rpn(xpp::Session &s)
 {
 
-    xpp::session().parser.errout = 1;
-    xpp::session().parser.ncon = 0;
-    xpp::model().nfun = 0;
-    xpp::model().nvar = 0;
-    xpp::model().nkernel=0;
+    s.parser.errout = 1;
+    s.parser.ncon = 0;
+    s.model().nfun = 0;
+    s.model().nvar = 0;
+    s.model().nkernel=0;
 
-    xpp::session().numerics.max_points=4000;
-    xpp::session().parser.nsym = STDSYM;
-    add_con("PI", M_PI);
+    s.numerics.max_points=4000;
+    s.parser.nsym = STDSYM;
+    add_con(s,"PI", M_PI);
 
     /* I', the constant SUM sets: xpp::expr::SUM_INDEX */
-        add_con("I'",0.0);
+        add_con(s,"I'",0.0);
     /*   This is going to be for interacting with the
          animator */
-        add_con("mouse_x",0.0);
-        add_con("mouse_y",0.0);
-        add_con("mouse_vx",0.0);
-        add_con("mouse_vy",0.0);
+        add_con(s,"mouse_x",0.0);
+        add_con(s,"mouse_y",0.0);
+        add_con(s,"mouse_vx",0.0);
+        add_con(s,"mouse_vy",0.0);
 
     /* end animator stuff */
 
-    init_table();
+    init_table(s);
     if (newseed==1) {
-      xpp::session().numerics.rand_seed=static_cast<int>(time(0));
-      xpp::log(XPP_LOG_INFO,"-newseed: seed {}\n",xpp::session().numerics.rand_seed);
+      s.numerics.rand_seed=static_cast<int>(time(0));
+      xpp::log(XPP_LOG_INFO,"-newseed: seed {}\n",s.numerics.rand_seed);
     }
-    nsrand48(xpp::session().numerics.rand_seed);
+    nsrand48(s.numerics.rand_seed);
 }
 
 namespace {
 
-int duplicate_name(std::string_view junk)
+int duplicate_name(const ParserState &p, std::string_view junk)
 {
   int i;
-  find_name(junk,&i);
+  find_name(p,junk,&i);
   if(i>=0){
     /* INFO, not WARN: a plain "name=expr" followed by "aux name=name" (a
        common, intentional pattern -- lecar.ode does exactly this for ica)
        hits this every time and is not a mistake the user needs to act on;
        WARN would make --verbose-off runs noisy for a routine model shape. */
-    if(xpp::session().parser.errout)xpp::log(XPP_LOG_INFO, "{} is a duplicate name\n",junk);
+    if(p.errout)xpp::log(XPP_LOG_INFO, "{} is a duplicate name\n",junk);
     return(1);
   }
   return(0);
@@ -248,7 +258,7 @@ namespace {
    any length), priority, number of arguments, what it compiles to.
    Returns 1 (and says why) when name is empty. The table's count (nsym)
    is the caller's to raise. */
-int set_symbol(std::string_view name, int pri, int arg, int com)
+int set_symbol(ParserState &p, std::string_view name, int pri, int arg, int com)
 {
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
@@ -256,7 +266,7 @@ int set_symbol(std::string_view name, int pri, int arg, int com)
     xpp_log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
-  ExprSymbol &s=symbols()[xpp::session().parser.nsym];
+  ExprSymbol &s=p.symbols[p.nsym];
   s.name=std::move(string);
   s.len=len;
   s.pri=pri;
@@ -270,29 +280,28 @@ int set_symbol(std::string_view name, int pri, int arg, int com)
 namespace {
 
 /*  ADD_CONSTANT: the name of the last constant added */
-int add_constant(const char *junk)
+int add_constant(ParserState &p, const char *junk)
 {
- ParserState &p=xpp::session().parser;
- if(duplicate_name(junk)==1)return(1);
+ if(duplicate_name(p,junk)==1)return(1);
  if(p.ncon>=MAXPAR)
  {
   if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
- if(set_symbol(junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
+ if(set_symbol(p,junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
  p.nsym++;
  return(0);
 }
 
 }
 
-int get_var_index(std::string_view name)
+int get_var_index(const xpp::Session &s, std::string_view name)
 {
 
   int type,com;
-  find_name(name,&type);
+  find_name(s.parser,name,&type);
   if(type<0)return -1;
-  com=symbols()[type].com;
+  com=s.parser.symbols[type].com;
   if(is_uvar(com))
   {
       return(com%MAXTYPE);
@@ -302,9 +311,9 @@ int get_var_index(std::string_view name)
 
 /*   ADD_CON      */
 
-int add_con(const char *name, double value)
+int add_con(xpp::Session &s, const char *name, double value)
 {
- ParserState &p=xpp::session().parser;
+ ParserState &p=s.parser;
  if(p.ncon>=MAXPAR)
  {
   if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
@@ -312,14 +321,14 @@ int add_con(const char *name, double value)
  }
  p.constants[p.ncon]=value;
  p.ncon++;
- return(add_constant(name));
+ return(add_constant(p,name));
 }
 
-int add_kernel(const char *name, double mu, const char *expr)
+int add_kernel(xpp::Session &s, const char *name, double mu, const char *expr)
 {
-  xpp::Model &m=xpp::model();
+  xpp::Model &m=s.model();
   int in=-1;
-  if(duplicate_name(name)==1)return(1);
+  if(duplicate_name(s.parser,name)==1)return(1);
   if(m.nkernel==MAXKER){
     xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
@@ -328,7 +337,7 @@ int add_kernel(const char *name, double mu, const char *expr)
     xpp_log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
-  if(set_symbol(name,10,0,COM(KERTYPE,m.nkernel)))return 1;
+  if(set_symbol(s.parser,name,10,0,COM(KERTYPE,m.nkernel)))return 1;
   KERNEL &k=m.kernels[m.nkernel];
   k.mu=mu;
   k.flag=0;
@@ -350,37 +359,42 @@ int add_kernel(const char *name, double mu, const char *expr)
     k.expr=text;
   }
   k.name=name;
-  xpp::session().parser.nsym++;
+  s.parser.nsym++;
   m.nkernel++;
   return(0);
 }
 
 /*  ADD_VAR          */
 
-int add_var(std::string_view junk, double value)
+int add_var(xpp::Session &s, std::string_view junk, double value)
 {
- ParserState &p=xpp::session().parser;
- xpp::Model &m=xpp::model();
- if(duplicate_name(junk)==1)return(1);
+ ParserState &p=s.parser;
+ xpp::Model &m=s.model();
+ if(duplicate_name(p,junk)==1)return(1);
  if(m.nvar>=MAXODE1)
  {
   if(p.errout)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
- if(set_symbol(junk,10,0,COM(VARTYPE,m.nvar)))return 1;
+ if(set_symbol(p,junk,10,0,COM(VARTYPE,m.nvar)))return 1;
  p.nsym++;
  p.variables[m.nvar]=value;
  m.nvar++;
  return(0);
 }
 
-int add_net_name(int index, const char *name, int vectorizer)
+int add_net_name(xpp::Session &s, int index, const char *name, int vectorizer)
 {
   xpp_log(XPP_LOG_INFO, " Adding %s %s %d \n",vectorizer?"vectorizer":"net",name,index);
-  if(duplicate_name(name)==1)return(1);
-  if(set_symbol(name,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
-  xpp::session().parser.nsym++;
+  if(duplicate_name(s.parser,name)==1)return(1);
+  if(set_symbol(s.parser,name,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
+  s.parser.nsym++;
   return(0);
+}
+
+int add_net_name(int index, const char *name, int vectorizer)
+{
+  return add_net_name(xpp::session(),index,name,vectorizer); /* an entry point (W47d4) */
 }
 
 /* ADD LOOKUP TABLE   */
@@ -391,44 +405,44 @@ int add_2d_table(const char *name, const char *file)
  return(1);
 }
 
-xpp::Result<> add_file_table(int index, const char *file)
+xpp::Result<> add_file_table(xpp::Session &s, int index, const char *file)
 {
   /* the name's printable characters */
   std::string file2;
   for(const char *p=file;*p;p++)
     if(*p>31&&*p<127)
       file2+=*p;
-  auto loaded=load_table(file2.c_str(),index,1);
-  if(!loaded&&xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  auto loaded=load_table(s,file2.c_str(),index,1);
+  if(!loaded&&s.parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
   return loaded;
 }
 
-int add_table_name(int index, const char *name)
+int add_table_name(xpp::Session &s, int index, const char *name)
 {
-     if(duplicate_name(name)==1)return(1);
-     if(set_symbol(name,10,1,COM(TABTYPE, index)))return 1;
-     set_table_name(name,index);
-     xpp::session().parser.nsym++;
+     if(duplicate_name(s.parser,name)==1)return(1);
+     if(set_symbol(s.parser,name,10,1,COM(TABTYPE, index)))return 1;
+     set_table_name(s,name,index);
+     s.parser.nsym++;
      return(0);
    }
 /* ADD LOOKUP TABLE   */
 
-xpp::Result<> add_form_table(int index, int nn, double xlo, double xhi, const char *formula)
+xpp::Result<> add_form_table(xpp::Session &s, int index, int nn, double xlo, double xhi, const char *formula)
 {
 
-  auto made=create_fun_table(nn,xlo,xhi,formula,index);
-  if(!made&&xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  auto made=create_fun_table(s,nn,xlo,xhi,formula,index);
+  if(!made&&s.parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
   return made;
 }
 
 namespace {
 
 /* the symbols ARG1..ARGnarg back to their own names */
-void set_old_arg_names(int narg)
+void set_old_arg_names(ParserState &p, int narg)
 {
   int i;
   for(i=0;i<narg;i++){
-    ExprSymbol &s=symbols()[FIRST_ARG+i];
+    ExprSymbol &s=p.symbols[FIRST_ARG+i];
     s.name=xpp::format("ARG{}",i+1);
     s.len=static_cast<int>(s.name.size());
   }
@@ -436,11 +450,11 @@ void set_old_arg_names(int narg)
 
 /* the symbols ARG1..ARGn stand for user function index's own argument
    names (xpp::Model ufun_args), until set_old_arg_names puts them back */
-void set_ufun_arg_names(int index)
+void set_ufun_arg_names(xpp::Session &session, int index)
 {
-  const std::vector<std::string> &args=xpp::model().ufun_args[index];
+  const std::vector<std::string> &args=session.model().ufun_args[index];
   for(size_t i=0;i<args.size();i++){
-    ExprSymbol &s=symbols()[FIRST_ARG+i];
+    ExprSymbol &s=session.parser.symbols[FIRST_ARG+i];
     s.name=args[i];
     s.len=static_cast<int>(s.name.size());
  }
@@ -450,18 +464,18 @@ void set_ufun_arg_names(int index)
 
 /* NEW ADD_FUN for new form_ode code  */
 
-int add_ufun_name(const char *name, int index, int narg)
+int add_ufun_name(xpp::Session &s, const char *name, int index, int narg)
 {
- if(duplicate_name(name)==1)return(1);
+ if(duplicate_name(s.parser,name)==1)return(1);
  if(index>=MAXUFUN)
  {
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
   xpp_log(XPP_LOG_INFO, " Added user fun %s \n",name);
-  if(set_symbol(name,10,narg,COM(UFUNTYPE, index)))return 1;
-  xpp::session().parser.nsym++;
-  xpp::model().ufun_names[index]=name;
+  if(set_symbol(s.parser,name,10,narg,COM(UFUNTYPE, index)))return 1;
+  s.parser.nsym++;
+  s.model().ufun_names[index]=name;
   return (0);
 }
 
@@ -477,16 +491,16 @@ void fixup_endfun(int *u, int l, int narg)
 }
 
 /* user function index's definition becomes def (Model::ufun_defs) */
-void set_ufun_def(int index, std::string_view def)
+void set_ufun_def(xpp::Model &m, int index, std::string_view def)
 {
-  xpp::model().ufun_defs[index]=def;
+  m.ufun_defs[index]=def;
 }
 
 }
 
-int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
+int add_ufun_new(xpp::Session &s, int index, const char *rhs, std::span<const std::string> args)
 {
-  xpp::Model &m=xpp::model();
+  xpp::Model &m=s.model();
   int end;
   int narg=static_cast<int>(args.size());
    if(narg>MAXARG){
@@ -495,50 +509,50 @@ int add_ufun_new(int index, const char *rhs, std::span<const std::string> args)
   }
   /* add_expr compiles into it in place: MAXEXPLEN commands */
   m.ufun_programs[index].assign(MAXEXPLEN,0);
-  set_ufun_def(index,"");
+  set_ufun_def(m,index,"");
   m.ufun_args[index].assign(args.begin(),args.end());
-  set_ufun_arg_names(index);
-  if(add_expr(rhs,m.ufun_programs[index].data(),&end)==0)
+  set_ufun_arg_names(s,index);
+  if(add_expr(s,rhs,m.ufun_programs[index].data(),&end)==0)
     {
       fixup_endfun(m.ufun_programs[index].data(),end,narg);
-      set_ufun_def(index,rhs);
+      set_ufun_def(m,index,rhs);
       m.narg_fun[index]=narg;
-      set_old_arg_names(narg);
+      set_old_arg_names(s.parser,narg);
       return(0);
     }
 
-  set_old_arg_names(narg);
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+  set_old_arg_names(s.parser,narg);
+  if(s.parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
   return(1);
 }
 
 /* ADD_UFUN   */
 
-int add_ufun(const char *junk, const char *expr, int narg)
+int add_ufun(xpp::Session &s, const char *junk, const char *expr, int narg)
 {
- xpp::Model &m=xpp::model();
+ xpp::Model &m=s.model();
  int i;
  int end;
 
- if(duplicate_name(junk)==1)return(1);
+ if(duplicate_name(s.parser,junk)==1)return(1);
  if(m.nfun>=MAXUFUN)
  {
-  if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
  std::vector<int> &program=m.ufun_programs[m.nfun];
  program.assign(MAXEXPLEN,0);
- set_ufun_def(m.nfun,"");
+ set_ufun_def(m,m.nfun,"");
 
- if(add_expr(expr,program.data(),&end)==0)
+ if(add_expr(s,expr,program.data(),&end)==0)
  {
-  set_symbol(junk,10,narg,COM(UFUNTYPE, m.nfun));
-  xpp::session().parser.nsym++;
+  set_symbol(s.parser,junk,10,narg,COM(UFUNTYPE, m.nfun));
+  s.parser.nsym++;
   fixup_endfun(program.data(),end,narg);
   /* the definition without its last character */
   std::string_view def(expr);
   if(!def.empty())def.remove_suffix(1);
-  set_ufun_def(m.nfun,def);
+  set_ufun_def(m,m.nfun,def);
   m.ufun_names[m.nfun]=junk;
   m.narg_fun[m.nfun]=narg;
   std::vector<std::string> &arg_names=m.ufun_args[m.nfun];
@@ -547,16 +561,16 @@ int add_ufun(const char *junk, const char *expr, int narg)
   m.nfun++;
   return(0);
  }
-       if(xpp::session().parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+       if(s.parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
        return(1);
 }
 
-int find_lookup(std::string_view name)
+int find_lookup(const xpp::Session &s, std::string_view name)
 {
  int index,com;
- find_name(name,&index);
+ find_name(s.parser,name,&index);
   if(index==-1)return(-1);
-  com=symbols()[index].com;
+  com=s.parser.symbols[index].com;
   if(is_lookup(com))return(com%MAXTYPE);
   return(-1);
 }
@@ -565,10 +579,10 @@ namespace {
 
 /* FIND_NAME    */
 
-void find_name(std::string_view string, int *index)
+void find_name(const ParserState &p, std::string_view string, int *index)
 {
-  const std::array<ExprSymbol,MAX_SYMBS> &table=symbols();
-  const int nsym=xpp::session().parser.nsym;
+  const std::array<ExprSymbol,MAX_SYMBS> &table=p.symbols;
+  const int nsym=p.nsym;
   int i;
   std::string junk=converted(string);
   int len=static_cast<int>(junk.size());
@@ -584,12 +598,12 @@ void find_name(std::string_view string, int *index)
 
 }
 
-int get_param_index(std::string_view name)
+int get_param_index(const xpp::Session &s, std::string_view name)
 {
  int type,com;
-  find_name(name,&type);
+  find_name(s.parser,name,&type);
   if(type<0)return(-1);
-  com=symbols()[type].com;
+  com=s.parser.symbols[type].com;
   if(is_ucon(com))
   {
       return(com % MAXTYPE);
@@ -600,21 +614,21 @@ int get_param_index(std::string_view name)
 
 /* GET_VAL   */
 
-int get_val(std::string_view name, double *value)
+int get_val(const xpp::Session &s, std::string_view name, double *value)
 {
   int type,com;
   *value=0.0;
-  find_name(name,&type);
+  find_name(s.parser,name,&type);
   if(type<0)return(0);
-  com=symbols()[type].com;
+  com=s.parser.symbols[type].com;
   if(is_ucon(com))
   {
-   *value=xpp::session().parser.constants[com % MAXTYPE];
+   *value=s.parser.constants[com % MAXTYPE];
    return(1);
   }
   if(is_uvar(com))
   {
-      *value=xpp::session().parser.variables[com % MAXTYPE];
+      *value=s.parser.variables[com % MAXTYPE];
    return(1);
   }
   return(0);
@@ -622,25 +636,57 @@ int get_val(std::string_view name, double *value)
 
 /* SET_VAL         */
 
-int set_val(std::string_view name, double value)
+int set_val(xpp::Session &s, std::string_view name, double value)
 {
   int type,com;
-  find_name(name,&type);
+  find_name(s.parser,name,&type);
   if(type<0)return(0);
-  com=symbols()[type].com;
+  com=s.parser.symbols[type].com;
   if(is_ucon(com))
   {
-         xpp::session().parser.constants[com % MAXTYPE]=value;
+         s.parser.constants[com % MAXTYPE]=value;
 
     return(1);
   }
   if(is_uvar(com))
   {
 
-      xpp::session().parser.variables[com % MAXTYPE]=value;
+      s.parser.variables[com % MAXTYPE]=value;
     return(1);
   }
   return(0);
+}
+
+/* the lookups above in the current Session: entry points for the
+   integrator, AUTO and the front end (W47d4-6) */
+int get_var_index(std::string_view name)
+{
+  return get_var_index(xpp::session(),name);
+}
+
+int find_lookup(std::string_view name)
+{
+  return find_lookup(xpp::session(),name);
+}
+
+int get_param_index(std::string_view name)
+{
+  return get_param_index(xpp::session(),name);
+}
+
+int get_val(std::string_view name, double *value)
+{
+  return get_val(xpp::session(),name,value);
+}
+
+int set_val(std::string_view name, double value)
+{
+  return set_val(xpp::session(),name,value);
+}
+
+int add_var(std::string_view name, double value)
+{
+  return add_var(xpp::session(),name,value);
 }
 
 void set_ivar(int i, double value)

@@ -16,6 +16,7 @@ Load::Load()
   if(previous_session)fresh->auto_state.dir=previous_session->auto_state.dir;
   detail::current_slot<Model>()=model.release();
   detail::current_slot<Session>()=fresh;
+  session_=fresh;
   detail::current_slot<Load>()=this;
 }
 

@@ -194,9 +194,11 @@ struct LoadFailed {
   Diagnostic diagnostic;
 };
 
-/* A load in progress: while it lives the current Model and Session are
-   fresh ones, which the parser and the load's set-up fill (the core is
-   single-threaded: nothing else sees them meanwhile); commit() keeps them
+/* A load in progress: it builds a fresh Model and Session, which the
+   parser and the load's set-up are handed (session(), model()) and fill;
+   while it lives they are the current ones too, for the entry points the
+   later stages of W47d have not reached (the core is single-threaded:
+   nothing else sees them meanwhile); commit() keeps them
    and drops the ones before, and a load that never commits (it failed:
    LoadFailed) puts the ones before back, untouched. The fresh Session
    keeps the process's AUTO scratch folder. Model and Session memory is
@@ -209,6 +211,11 @@ public:
   Load(const Load &)=delete;
   Load &operator=(const Load &)=delete;
   void commit();
+  /* the fresh Model and Session the load fills: the readers and the
+     load's set-up are handed these (W47d3) rather than reading the
+     current ones */
+  Session &session() noexcept { return *session_; }
+  Model &model() noexcept { return session_->model(); }
   /* a Load is in progress */
   static bool running() noexcept { return detail::current_slot<Load>()!=nullptr; }
   /* The load is at line (and column) of file: the model's readers and
@@ -222,6 +229,7 @@ public:
 private:
   Model *previous_model;
   Session *previous_session;
+  Session *session_;
   bool committed=false;
   Diagnostic where;
   LogCapture messages;

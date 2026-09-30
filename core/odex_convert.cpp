@@ -187,9 +187,10 @@ struct Symbols {
   const std::string *find(int com) const { return by_com.count(com) ? &by_com.at(com) : nullptr; }
 };
 
-[[noreturn]] void refuse(std::string msg)
+/* the conversion of the model at file stops: why */
+[[noreturn]] void refuse_in(const std::string &file, std::string msg)
 {
-  throw error_at(xpp::model().this_file, Pos{}, std::move(msg));
+  throw error_at(file, Pos{}, std::move(msg));
 }
 
 Expr name_expr(std::string text, bool primed = false)
@@ -220,24 +221,10 @@ Expr op_expr(Expr::Kind kind, std::string text, std::vector<Expr> args)
   return e;
 }
 
-/* the text a program was compiled from, compiled again: a formula the
-   Model keeps only as text (a derived parameter's, a boundary
-   condition's, a function table's) */
-std::vector<int> compiled(const std::string &text)
-{
-  std::vector<int> prog(MAXEXPLEN, 0);
-  int len = 0;
-  if (add_expr(text.c_str(), prog.data(), &len)) refuse(xpp::format("the formula {} does not compile", text));
-  prog.resize(len);
-  xpp::session().parser.ncon = xpp::model().ncon_start;
-  xpp::session().parser.nsym = xpp::model().nsym_start;
-  return prog;
-}
-
 class Converter {
 public:
-  Converter(bool auto_answer, const Ask &ask)
-      : m_(xpp::model()), s_(xpp::session()), spell_(m_.source), sym_(s_.parser), auto_(auto_answer), ask_(ask)
+  Converter(xpp::Session &s, bool auto_answer, const Ask &ask)
+      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), auto_(auto_answer), ask_(ask)
   {
   }
 
@@ -272,6 +259,23 @@ public:
   }
 
 private:
+  /* the conversion stops: why */
+  [[noreturn]] void refuse(std::string msg) const { refuse_in(m_.this_file, std::move(msg)); }
+
+  /* the text a program was compiled from, compiled again: a formula the
+     Model keeps only as text (a derived parameter's, a boundary
+     condition's, a function table's) */
+  std::vector<int> compiled(const std::string &text) const
+  {
+    std::vector<int> prog(MAXEXPLEN, 0);
+    int len = 0;
+    if (add_expr(s_, text.c_str(), prog.data(), &len)) refuse(xpp::format("the formula {} does not compile", text));
+    prog.resize(len);
+    s_.parser.ncon = m_.ncon_start;
+    s_.parser.nsym = m_.nsym_start;
+    return prog;
+  }
+
   void steady_constants()
   {
     /* the constants that keep their value through a run: every one but
@@ -282,7 +286,7 @@ private:
     for (int j = 0; j < m_.nflags; j++)
       for (int e = 0; e < m_.flags[j].nevents; e++)
         if (m_.flags[j].type[e] == 1) {
-          const int c = get_param_index(xpp::upper_case(m_.flags[j].lhsname[e]));
+          const int c = get_param_index(s_, xpp::upper_case(m_.flags[j].lhsname[e]));
           if (c >= 0) moving.insert(c);
         }
     for (const auto &[com, n] : sym_.by_com) {
@@ -491,6 +495,8 @@ private:
   /* the expressions a program part leaves, each with where its own
      instructions start */
   struct Stack {
+    explicit Stack(const std::string &model_file) : file(model_file) {}
+    const std::string &file; /* the model's, for refuse_in */
     std::vector<Expr> e;
     std::vector<const int *> at;
     void push(Expr x, const int *from)
@@ -501,7 +507,7 @@ private:
     /* the top, its start in *from */
     Expr pop(const int **from = nullptr)
     {
-      if (e.empty()) refuse("a program reads more than its stack holds");
+      if (e.empty()) refuse_in(file, "a program reads more than its stack holds");
       Expr x = std::move(e.back());
       if (from) *from = at.back();
       e.pop_back();
@@ -512,7 +518,7 @@ private:
 
   std::vector<Expr> walk(const int *p, const int *end, int fun) const
   {
-    Stack st;
+    Stack st(m_.this_file);
     while (p < end) {
       const int *here = p;
       const int i = *p++;
@@ -893,7 +899,7 @@ private:
   std::string initial(const Statement &s)
   {
     const std::string upper = xpp::upper_case(s.bindings[0].name);
-    const int i = find_user_name(ICBOX, upper);
+    const int i = find_user_name(m_, ICBOX, upper);
     if (i < 0) refuse(xpp::format("{}(0): no such variable", s.bindings[0].name));
     const double z = m_.default_ic[i];
     char *end = nullptr;
@@ -912,7 +918,7 @@ private:
     std::string out;
     for (const Binding &b : s.bindings) {
       const std::string upper = xpp::upper_case(b.name);
-      const int i = find_user_name(ICBOX, upper);
+      const int i = find_user_name(m_, ICBOX, upper);
       if (m_.ndelays > 0 && i >= 0 && i < m_.node)
         out += "history " + name(upper) + " = " + text(compiled(b.value.text)) + "\n";
     }
@@ -931,7 +937,7 @@ private:
       std::vector<int> values;
       for (; e < all.size() && all[e].group == all[i].group; e++) {
         const std::string upper = xpp::upper_case(all[e].var);
-        if (find_user_name(ICBOX, upper) < 0) continue;
+        if (find_user_name(m_, ICBOX, upper) < 0) continue;
         texts.push_back("init " + name(upper) + " = " + text(compiled(all[e].formula)) + "\n");
         values.push_back(all[e].j);
       }
@@ -987,7 +993,7 @@ private:
   std::string setting_name(const std::string &key) const
   {
     const std::string upper = xpp::upper_case(key);
-    if (find_user_name(ICBOX, upper) >= 0 || find_user_name(PARAMBOX, upper) >= 0) return name(upper);
+    if (find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0) return name(upper);
     return key;
   }
 
@@ -999,7 +1005,7 @@ private:
     if (!value.empty() && end && *end == '\0') return print_number(z);
     if (is_name(value)) {
       const std::string upper = xpp::upper_case(value);
-      return find_user_name(ICBOX, upper) >= 0 || find_user_name(PARAMBOX, upper) >= 0 ? name(upper) : value;
+      return find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0 ? name(upper) : value;
     }
     pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", key, value,
                                   print_number(std::atof(value.c_str()))));
@@ -1050,7 +1056,7 @@ private:
       std::string a = trimmed(arg);
       if (is_name(a) && !is_reserved(xpp::lower_case(a))) {
         const std::string upper = xpp::upper_case(a);
-        a = (find_user_name(ICBOX, upper) >= 0 || find_lookup(upper) >= 0 || get_var_index(upper) >= 0) ? name(upper)
+        a = (find_user_name(m_, ICBOX, upper) >= 0 || find_lookup(s_, upper) >= 0 || get_var_index(s_, upper) >= 0) ? name(upper)
                                                                                                       : xpp::lower_case(a);
       }
       out += (n++ ? ", " : "") + a;
@@ -1139,7 +1145,7 @@ private:
         if (!is_word_char(k) && k != '.' && k != '-' && k != '/' && k != '\\' && k != ':') ok = false;
       if (ok) {
         const std::string upper = xpp::upper_case(value);
-        return find_user_name(ICBOX, upper) >= 0 || find_user_name(PARAMBOX, upper) >= 0 ? name(upper) : value;
+        return find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0 ? name(upper) : value;
       }
     }
     const std::string cut = print_number(std::atof(value.c_str()));
@@ -1222,9 +1228,9 @@ std::string odex_name(const std::string &ode)
   return ode + ".odex";
 }
 
-std::string convert_model(bool auto_answer, const Ask &ask)
+std::string convert_model(xpp::Session &s, bool auto_answer, const Ask &ask)
 {
-  return Converter(auto_answer, ask).run();
+  return Converter(s, auto_answer, ask).run();
 }
 
 namespace {
@@ -1280,9 +1286,9 @@ std::vector<int> normalized(const std::vector<int> &prog)
   return out;
 }
 
-Fingerprint fingerprint()
+Fingerprint fingerprint(const xpp::Session &s)
 {
-  const xpp::Model &m = xpp::model();
+  const xpp::Model &m = s.model();
   Fingerprint f;
   for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun, m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
     f.values.push_back(c);
@@ -1297,7 +1303,7 @@ Fingerprint fingerprint()
   for (int i = 0; i < m.nmarkov; i++)
     for (const std::vector<int> &c : m.markov[i].command) f.programs.push_back(normalized(c));
   for (int i = 0; i < m.nupar; i++) f.values.push_back(m.default_val[i]);
-  for (int i = 0; i < m.node + m.nmarkov; i++) f.values.push_back(xpp::session().last_ic[i]);
+  for (int i = 0; i < m.node + m.nmarkov; i++) f.values.push_back(s.last_ic[i]);
   return f;
 }
 
@@ -1319,8 +1325,10 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   std::string text;
   Fingerprint before;
   try {
-    text = convert_model(auto_answer, ask);
-    before = fingerprint();
+    /* the model just loaded: the current Session, read once per load */
+    xpp::Session &s = xpp::session();
+    text = convert_model(s, auto_answer, ask);
+    before = fingerprint(s);
   } catch (const Error &e) {
     xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.cause);
     return 1;
@@ -1344,7 +1352,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     xpp::log(XPP_LOG_ERROR, "{} was written but does not load: a bug in --convert\n", out);
     return 1;
   }
-  if (!(fingerprint() == before)) {
+  if (!(fingerprint(xpp::session()) == before)) {
     xpp::log(XPP_LOG_ERROR, "{} was written but does not compile to what {} did: a bug in --convert\n", out, ode);
     return 1;
   }

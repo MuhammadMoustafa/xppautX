@@ -74,7 +74,9 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &table);
 /* the data column of variable s: 0 for T, i+1 for variable i, a browser
    column added by data_add_col (by name, case ignored, below), -1 for
    none */
-void find_variable(std::string_view s, int *col);
+void find_variable(const xpp::Session &s, std::string_view name, int *col);
+/* the same in the current Session: an entry point (W47d4-6) */
+void find_variable(std::string_view name, int *col);
 
 /* column j's name as the browser shows it: "T", a model variable's
    (xpp::model().uvar_names), or (j>xpp::model().neq) an added column's

@@ -28,12 +28,6 @@
 
 namespace xpp::expr {
 
-/* the current Session's symbol table */
-inline std::array<ExprSymbol, MAX_SYMBS> &symbols()
-{
-  return xpp::session().parser.symbols;
-}
-
 /* what an instruction (a symbol's com) is: a user function, a parameter,
    a variable, a lookup table */
 inline bool is_ufun(int com) { return com / MAXTYPE == UFUNTYPE; }

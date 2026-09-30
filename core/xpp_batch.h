@@ -4,16 +4,6 @@
 extern "C" {
 #endif
 
-/* Reset the "which options were explicitly set" table. Called at the start
-   of a load (xpp_load_model). */
-void xpp_reset_options(void);
-
-/* Command-line scan for -quiet / -logfile (they must win over .xpprc) */
-void check_for_quiet(int argc, char **argv);
-
-/* .xpprc, environment and command-line option processing */
-void do_vis_env(void);
-
 /* After xpp_load_model with no interface (-silent, a unit test): the
    browser, the graphs and the colours set up, and the command line's
    files and internal sets taken in (-setfile, -parfile, -icfile,
@@ -44,6 +34,18 @@ int xpp_load_model(int argc, char **argv, int batch);
 #include <optional>
 #include <string>
 #include <vector>
+
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The start of a load (xpp_load_model), in the Session it builds: the
+   "which options were explicitly set" table reset; the command line's
+   -quiet and -logfile (they must win over .xpprc); .xpprc's and the
+   command line's options */
+void xpp_reset_options(xpp::Session &s);
+void check_for_quiet(xpp::Session &s, int argc, char **argv);
+void do_vis_env(xpp::Session &s);
 
 namespace xpp {
 /* xpp_load_model, saying why a load fails: nothing when the model loaded

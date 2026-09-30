@@ -10,8 +10,6 @@ extern "C" {
 
 
 
-void io_parameter_file(const char *fn, int flag);
-void io_ic_file(const char *fn, int flag);
 
 
 #ifdef __cplusplus
@@ -30,6 +28,10 @@ void io_int(int *i, FILE *fp, int f, std::string_view ss);
 void io_double(double *z, FILE *fp, int f, std::string_view ss);
 /* one line of a set file into s, whole (f READEM), or s written as one */
 void io_string(std::string &s, FILE *fp, int f);
+/* the parameters or the initial conditions of s read from (flag READEM)
+   or written to the file fn (-parfile, -icfile, the values panel) */
+void io_parameter_file(xpp::Session &s, const char *fn, int flag);
+void io_ic_file(xpp::Session &s, const char *fn, int flag);
 /* the values panel's Save/Load of .par and .ic (docs/protocol.md
    "values"), through io_parameter_file/io_ic_file: name empty asks for
    one like Save data does, given skips the ask */

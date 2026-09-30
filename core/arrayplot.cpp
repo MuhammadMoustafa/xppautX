@@ -134,9 +134,9 @@ void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
  
 }
 
-void init_my_aplot(void)
+void init_my_aplot(xpp::Session &s)
 {
- APLOT *ap=&xpp::session().array_plot.plot;
+ APLOT *ap=&s.array_plot.plot;
  ap->height=400;
  ap->width=400;
  ap->zmin=0.0;

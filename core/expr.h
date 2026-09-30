@@ -28,20 +28,10 @@ extern "C" {
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
 
-/* starts a load: the symbol table back to the built-ins, no parameters,
-   variables, user functions or kernels, and the random generator seeded */
-void init_rpn(void);
-/* the symbol table's entries, each returning 0 when the name was added
-   and 1 (said why) when it was not: a parameter of value, a kernel of
-   mu and formula expr ("kerexpr#expr" is a convolution), network index's
-   name (with vectorizer set, vectorizer index's), table index's name, user function name (index, narg
-   arguments; add_ufun also compiles expr) */
-int add_con(const char *name, double value);
-int add_kernel(const char *name, double mu, const char *expr);
+/* network index's name in the current Session's symbol table (with
+   vectorizer set, vectorizer index's): an entry point (W47d4-6) of the
+   Session version below */
 int add_net_name(int index, const char *name, int vectorizer);
-int add_table_name(int index, const char *name);
-int add_ufun_name(const char *name, int index, int narg);
-int add_ufun(const char *junk, const char *expr, int narg);
 /* a 2-D table (not supported): 1 */
 int add_2d_table(const char *name, const char *file);
 /* variable i's value (0 past the model's variables) */
@@ -50,14 +40,12 @@ double get_ivar(int i);
 /* name without blanks, in upper case, into dest (never longer than name) */
 void convert(const char *source, char *dest);
 
-/* compiles expr into command, at most MAXEXPLEN ints ending in ENDEXP;
-   *length is the program's length, ENDEXP included; 0 when it compiled,
-   1 (said why) when it did not (expr_compile.cpp) */
+/* add_expr below in the current Session: an entry point (W47d4-6) */
 int add_expr(const char *expr, int *command, int *length);
 /* the number at source[*ind] (the parser's grammar): its text into num
    (at most 39 characters and a NUL), its value into *value, *ind past
-   it; 1 (with a WARN) when it is not a number */
-int do_num(const char *source, char *num, double *value, int *ind);
+   it; 1 (with a WARN when report is set) when it is not a number */
+int do_num(const char *source, char *num, double *value, int *ind, int report);
 
 /* program's value (expr_eval.cpp) */
 double evaluate(const int *program);
@@ -71,18 +59,56 @@ double evaluate(const int *program);
 #include <string_view>
 #include "xpp_error.h"
 
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* The symbol table and the compiler are the Session s's (its ParserState
+   and its Model's names and programs): a load passes the Session it
+   builds (W47d3). The versions without s further down read the current
+   Session once, entry points for the callers that have none yet
+   (W47d4-6). */
+
+/* starts a load: the symbol table back to the built-ins, no parameters,
+   variables, user functions or kernels, and the random generator seeded */
+void init_rpn(xpp::Session &s);
+/* the symbol table's entries, each returning 0 when the name was added
+   and 1 (said why) when it was not: a parameter of value, a kernel of
+   mu and formula expr ("kerexpr#expr" is a convolution), network index's
+   name (with vectorizer set, vectorizer index's), table index's name, user function name (index, narg
+   arguments; add_ufun also compiles expr) */
+int add_con(xpp::Session &s, const char *name, double value);
+int add_kernel(xpp::Session &s, const char *name, double mu, const char *expr);
+int add_net_name(xpp::Session &s, int index, const char *name, int vectorizer);
+int add_table_name(xpp::Session &s, int index, const char *name);
+int add_ufun_name(xpp::Session &s, const char *name, int index, int narg);
+int add_ufun(xpp::Session &s, const char *junk, const char *expr, int narg);
 /* table index filled from a file, or from formula at nn points in
    [xlo,xhi]: what failed otherwise (the loader shows it) */
-xpp::Result<> add_file_table(int index, const char *file);
-xpp::Result<> add_form_table(int index, int nn, double xlo, double xhi, const char *formula);
+xpp::Result<> add_file_table(xpp::Session &s, int index, const char *file);
+xpp::Result<> add_form_table(xpp::Session &s, int index, int nn, double xlo, double xhi, const char *formula);
 /* user function index with the arguments args and the formula rhs */
-int add_ufun_new(int index, const char *rhs, std::span<const std::string> args);
+int add_ufun_new(xpp::Session &s, int index, const char *rhs, std::span<const std::string> args);
+/* compiles expr into command, at most MAXEXPLEN ints ending in ENDEXP;
+   *length is the program's length, ENDEXP included; 0 when it compiled,
+   1 (said why) when it did not (expr_compile.cpp) */
+int add_expr(xpp::Session &s, const char *expr, int *command, int *length);
 /* name as the symbol table keeps it: blanks removed, upper case */
 std::string converted(std::string_view name);
+/* name (as converted makes it) is a built-in symbol, the symbol table's
+   first STDSYM, the same in every Session */
+bool is_builtin_symbol(std::string_view name);
 /* the symbol table by name (as converted makes it, of any length): a
    variable's, a lookup table's or a parameter's index (-1 when name is
    not one); a parameter's or variable's value got or set (1 when name is
    one); add_var adds a variable (0 when it did) */
+int get_var_index(const xpp::Session &s, std::string_view name);
+int find_lookup(const xpp::Session &s, std::string_view name);
+int get_param_index(const xpp::Session &s, std::string_view name);
+int get_val(const xpp::Session &s, std::string_view name, double *value);
+int set_val(xpp::Session &s, std::string_view name, double value);
+int add_var(xpp::Session &s, std::string_view name, double value);
+/* the same in the current Session: entry points (W47d4-6) */
 int get_var_index(std::string_view name);
 int find_lookup(std::string_view name);
 int get_param_index(std::string_view name);

@@ -29,6 +29,10 @@ void xpp_cleanup_auto_dir(void);
 #ifdef __cplusplus
 }
 
+/* the value of the formula expr in the Session s (*ok 0, said why, when it
+   does not compile); calculate above is this in the current Session, an
+   entry point (W47d4-6) */
+double calculate(xpp::Session &s, const char *expr, int *ok);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the
@@ -92,6 +96,8 @@ std::string ind_to_sym(int ind);
    blanks ignored and case not, -1 when there is none */
 #define PARAMBOX 1
 #define ICBOX 2
+int find_user_name(const xpp::Model &m, int type, std::string_view oname);
+/* the same in the current Model: an entry point (W47d4-6) */
 int find_user_name(int type, std::string_view oname);
 
 /* f() on the active plot window of s, or under Simulplot on each open one

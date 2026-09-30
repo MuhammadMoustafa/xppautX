@@ -96,9 +96,9 @@ void set_auto_eval_flags(xpp::Session &s, int f)
   for(i=0;i<MAX_TAB;i++) 
     s.tables[i].autoeval=f;
 }
-void set_table_name(const char *name, int index)
+void set_table_name(xpp::Session &s, const char *name, int index)
 {
-  xpp::session().tables[index].name=name;
+  s.tables[index].name=name;
 }
 
 void view_table(xpp::Session &s, int index)
@@ -132,7 +132,7 @@ void new_lookup_com(xpp::Session &s, int i)
      std::string file=s.tables[index].filename;
      status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
-     if(xpp::ok_or_show(load_table(file.c_str(),index,0)))s.tables[index].filename=file;
+     if(xpp::ok_or_show(load_table(s,file.c_str(),index,0)))s.tables[index].filename=file;
 
    }
    if(s.tables[index].flag==2){
@@ -146,7 +146,7 @@ void new_lookup_com(xpp::Session &s, int i)
        new_float("Xlo: ",&xlo);
        new_float("Xhi: ",&xhi);
        new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
-       xpp::ok_or_show(create_fun_table(npts,xlo,xhi,newform.c_str(),index));
+       xpp::ok_or_show(create_fun_table(s,npts,xlo,xhi,newform.c_str(),index));
 
    }
 
@@ -226,9 +226,8 @@ double lookup(double x, int index)
   return(0.0);
 }
 
-void init_table()
+void init_table(xpp::Session &s)
 {
-  xpp::Session &s=xpp::session();
   int i;
   for(i=0;i<MAX_TAB;i++) {
     s.tables[i].flag=0;
@@ -258,7 +257,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, con
   double dx;
   double oldt;
   int command[200],ncold=s.parser.ncon,nsym=s.parser.nsym;
-  if(add_expr(formula,command,&i)){
+  if(add_expr(s,formula,command,&i)){
     s.parser.ncon=ncold;
     s.parser.nsym=nsym;
     return xpp::fail("table","Illegal formula...");
@@ -275,9 +274,8 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, con
   return {};
 }
 
-xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *formula, int index)
+xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, const char *formula, int index)
 {
-  xpp::Session &s=xpp::session();
   int length=npts;
 
    if(s.tables[index].flag==1){
@@ -301,9 +299,8 @@ xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *for
   return {};
 }
 
-xpp::Result<> load_table(const char *filename, int index, int model_file)
+xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int model_file)
 {
-  xpp::Session &s=xpp::session();
   int i;
   int length;
   double xlo,xhi;

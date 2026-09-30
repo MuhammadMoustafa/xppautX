@@ -32,11 +32,9 @@ extern "C" {
 
 
 /* tabular.c */
-void set_table_name(const char *name, int index);
 double lookupxy(double x, int n, double *xv, double *yv);
 double tab_interp(double xlo, double h, double x, double *y, int n, int i);
 double lookup(double x, int index);
-void init_table(void);
 int get_lookup_len(int i);
 
 
@@ -59,11 +57,15 @@ void set_auto_eval_flags(xpp::Session &s, int f);
 void view_table(xpp::Session &s, int index);
 void new_lookup_com(xpp::Session &s, int i);
 int select_table(const xpp::Session &s);
-xpp::Result<> create_fun_table(int npts, double xlo, double xhi, const char *formula, int index);
+/* the session s's table index is called name; every table back to none
+   (a load's start) */
+void set_table_name(xpp::Session &s, const char *name, int index);
+void init_table(xpp::Session &s);
+xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, const char *formula, int index);
 /* table index read from the file filename (quoted or not): one of the
    model's own files (model_file, model_files.h: a file table of the
    model) or a file the user picked (Numerics' table file) */
-xpp::Result<> load_table(const char *filename, int index, int model_file);
+xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int model_file);
 #endif
 #endif
 

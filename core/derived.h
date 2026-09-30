@@ -4,13 +4,21 @@
 extern "C" {
 #endif
 
-
-int compile_derived(void);
+/* every derived quantity worked out again, in the current Session: an
+   entry point (W47d4-6) of the version below */
 void evaluate_derived(void);
-int add_derived(const char *name, const char *rhs);
 
- 
 #ifdef __cplusplus
 }
+
+namespace xpp {
+struct Session; /* session.h */
+}
+/* the derived quantities of the Session s: every one compiled (1 when
+   one does not; the load, once), worked out again (after a parameter
+   changed), one added (name = rhs) */
+int compile_derived(xpp::Session &s);
+void evaluate_derived(xpp::Session &s);
+int add_derived(xpp::Session &s, const char *name, const char *rhs);
 #endif
 #endif

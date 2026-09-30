@@ -191,7 +191,7 @@ void use_intern_set(xpp::Session &s, int j)
     return;
   }
   get_graph(s);
-  extract_internset(j);
+  extract_internset(s, j);
   chk_delay();
   redraw_params();
   redraw_ics();
@@ -201,16 +201,16 @@ void use_intern_set(xpp::Session &s, int j)
 
 /* File/cOpy set line (W67): the current values as a `set` line for the
    .ode, shown for confirmation, then sent to the page's clipboard */
-static void copy_set_line(void)
+static void copy_set_line(xpp::Session &s)
 {
-  std::string name = intern_set_default_name();
+  std::string name = intern_set_default_name(s.model());
   if (!new_string("Name of the set", name)) return;
-  std::string problem = intern_set_name_problem(name);
+  std::string problem = intern_set_name_problem(s.model(), name);
   if (!problem.empty()) {
     err_msg(problem.c_str());
     return;
   }
-  std::string line = intern_set_line(name);
+  std::string line = intern_set_line(s, name);
   std::string question = xpp::format("Copy this line to paste into the .ode, then reload:\n{}", line);
   if (TwoChoice("Copy", "Cancel", question.c_str(), "cn") != 'c') return;
   copy_text("set", line.c_str());
@@ -357,7 +357,7 @@ static void do_file_com(xpp::Session &s, int com)
     if (yes_no_box()) bye_bye();
     break;
   case M_FL: clone_ode(s); break;
-  case M_FO: copy_set_line(); break;
+  case M_FO: copy_set_line(s); break;
   }
 }
 
@@ -495,7 +495,7 @@ void commander(xpp::Session &s, int ch)
       flash(7);
       break;
     case 'l': clone_ode(s); break;
-    case 'o': copy_set_line(); break;
+    case 'o': copy_set_line(s); break;
     case 'm': xpp_model_open(s, nullptr); break;
     case 'e': xpp_model_reload(s); break;
     case 'v': xpp_session_save(s, nullptr, -1); break;

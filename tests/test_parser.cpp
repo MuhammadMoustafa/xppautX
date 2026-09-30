@@ -5,8 +5,9 @@
 #include "xpptest.h"
 #include <math.h>
 #include "expr.h"
+#include "session.h"
 
-static double calc(char *expr, int *ok)
+static double calc(const char *expr, int *ok)
 {
     int command[256], length = 0;
     char buf[256];
@@ -24,7 +25,7 @@ static int close_to(double a, double b)
 int main(void)
 {
     int ok;
-    init_rpn();
+    init_rpn(xpp::session());
 
     CHECK(close_to(calc("1+2", &ok), 3.0) && ok);
     CHECK(close_to(calc("2*3+4", &ok), 10.0) && ok);

@@ -550,7 +550,7 @@ int main(void)
     std::string text, err;
     CHECK(xpp_load_model(2, argv, 1) == 1);
     try {
-      text = xpp::odex::convert_model(true, xpp::odex::Ask());
+      text = xpp::odex::convert_model(xpp::session(), true, xpp::odex::Ask());
     } catch (const Error &e) {
       err = e.text();
     }
@@ -596,7 +596,7 @@ int main(void)
     std::string err;
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
     try {
-      xpp::odex::convert_model(true, xpp::odex::Ask());
+      xpp::odex::convert_model(xpp::session(), true, xpp::odex::Ask());
     } catch (const Error &e) {
       err = e.cause;
     }

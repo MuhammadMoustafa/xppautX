@@ -6,15 +6,6 @@
 
 
 #ifdef __cplusplus
-extern "C" {
-#endif
-
-void init_my_aplot(void);
-
-
-#ifdef __cplusplus
-}
-
 #include <string>
 #include <string_view>
 
@@ -32,6 +23,9 @@ struct APLOT {
 namespace xpp {
 struct Session; /* session.h */
 }
+
+/* the array plot of the loading Session s at its defaults (a load) */
+void init_my_aplot(xpp::Session &s);
 
 /* The array plot of the session s: its range saving's movie closed,
    Plotvars' columns shown, Array range saving's settings, Fit, the range

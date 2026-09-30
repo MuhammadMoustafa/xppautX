@@ -155,11 +155,11 @@ constexpr VOCAB my_cmd[NCMD]=
   {"-debug",6}
  };
 
-void do_comline(int argc, char **argv)
+void do_comline(xpp::Session &s, int argc, char **argv)
 { 
  int i,k;
 
- xpp::session().got_file=0;
+ s.got_file=0;
  setfilename.clear();
  parfilename.clear();
  icfilename.clear();
@@ -175,7 +175,7 @@ void do_comline(int argc, char **argv)
  readsetfile.clear();
  externaloptionsstring.clear();
  for(i=1;i<argc;i++){
-   k=parse_it(argv[i]);
+   k=parse_it(s,argv[i]);
    if(k==1){
      setfilename=argv[i+1];
      i++;
@@ -184,12 +184,12 @@ void do_comline(int argc, char **argv)
    }
    if(k==2){
      /* -smallfont: the X11 font, accepted and not kept */
-     if (xpp::session().not_already_set.SMALL_FONT_NAME){xpp::session().not_already_set.SMALL_FONT_NAME=0;};
+     if (s.not_already_set.SMALL_FONT_NAME){s.not_already_set.SMALL_FONT_NAME=0;};
      i++;
    }
    if(k==3){
      /* -bigfont: the X11 font, accepted and not kept */
-     if (xpp::session().not_already_set.BIG_FONT_NAME){xpp::session().not_already_set.BIG_FONT_NAME=0;};
+     if (s.not_already_set.BIG_FONT_NAME){s.not_already_set.BIG_FONT_NAME=0;};
      i++;
    } 
    if(k==4){
@@ -214,7 +214,7 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option("FORECOLOR",argv[i+1],1,NULL);
+     set_option(s,"FORECOLOR",argv[i+1],1,NULL);
      i++;
      
    }
@@ -224,22 +224,22 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option("BACKCOLOR",argv[i+1],1,NULL);
+     set_option(s,"BACKCOLOR",argv[i+1],1,NULL);
      i++;
    }
    if(k==9){
-     set_option("BACKIMAGE",argv[i+1],1,NULL);
+     set_option(s,"BACKIMAGE",argv[i+1],1,NULL);
      i++;
    }
    if(k==10){
-     set_option("GRADS",argv[i+1],1,NULL);
+     set_option(s,"GRADS",argv[i+1],1,NULL);
      i++;
    }
    if(k==11){
-     set_option("WIDTH",argv[i+1],1,NULL);
+     set_option(s,"WIDTH",argv[i+1],1,NULL);
      i++;
    }if(k==12){
-     set_option("HEIGHT",argv[i+1],1,NULL);
+     set_option(s,"HEIGHT",argv[i+1],1,NULL);
      i++;
    }if(k==13){
      if (strlen(argv[i+1]) != 6)
@@ -247,7 +247,7 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option("MWCOLOR",argv[i+1],1,NULL);
+     set_option(s,"MWCOLOR",argv[i+1],1,NULL);
      i++;
    }if(k==14){
      if (strlen(argv[i+1]) != 6)
@@ -255,11 +255,11 @@ void do_comline(int argc, char **argv)
        xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
-     set_option("DWCOLOR",argv[i+1],1,NULL);
+     set_option(s,"DWCOLOR",argv[i+1],1,NULL);
      i++;
    }
    if(k==15){
-     set_option("BELL",argv[i+1],1,NULL);
+     set_option(s,"BELL",argv[i+1],1,NULL);
      i++;
    }
    if(k==16){
@@ -283,16 +283,16 @@ void do_comline(int argc, char **argv)
      loadincludefile=1;
    } 
    if(k==20){
-     set_option("QUIET",argv[i+1],1,NULL);
+     set_option(s,"QUIET",argv[i+1],1,NULL);
      i++;
    }
    if(k==21){
-     set_option("LOGFILE",argv[i+1],1,NULL);
+     set_option(s,"LOGFILE",argv[i+1],1,NULL);
      i++;
    }
    if(k==22){
-     xpp::session().animation.options.file=argv[i+1];
-     xpp::session().animation.options.use_file=1;
+     s.animation.options.file=argv[i+1];
+     s.animation.options.use_file=1;
      i++;
    }
    if(k==23){
@@ -300,20 +300,20 @@ void do_comline(int argc, char **argv)
      exit(0);
    }
    if(k==24){
-     set_option("PLOTFMT",argv[i+1],1,NULL);
+     set_option(s,"PLOTFMT",argv[i+1],1,NULL);
      i++;
    }
    if(k==25){
-     xpp::session().integrator.suppress_out=1;
+     s.integrator.suppress_out=1;
      
    }
    if(k==26){
-     set_option("DFDRAW",argv[i+1],1,NULL);
+     set_option(s,"DFDRAW",argv[i+1],1,NULL);
      i++;
    } 
    if(k==27){
     
-     set_option("NCDRAW",argv[i+1],1,NULL);
+     set_option(s,"NCDRAW",argv[i+1],1,NULL);
      i++;
    }
    if(k==28){ /* -readset */
@@ -336,7 +336,7 @@ void do_comline(int argc, char **argv)
  }
 }
 
-static int if_needed_load_ext_options()
+static int if_needed_load_ext_options(xpp::Session &s)
 {
   if(externaloptionsflag==0)
     return 1;
@@ -349,20 +349,20 @@ static int if_needed_load_ext_options()
     }
     std::string myopts(lr.next().value_or(std::string_view()));
     xpp::log(XPP_LOG_DEBUG, "Got this string: {{{}}}\n",myopts);
-    extract_action(("$ "+myopts).c_str());
+    extract_action(s,("$ "+myopts).c_str());
     return 1;
   }
 
   if(externaloptionsflag==2){
-    extract_action(("$ "+externaloptionsstring).c_str());
+    extract_action(s,("$ "+externaloptionsstring).c_str());
     return 1;
   }
   return 0;
 }
-int if_needed_select_sets()
+int if_needed_select_sets(const xpp::Model &m)
 {
 	if(!select_intern_sets){return 1;}
-	const std::vector<xpp::Model::InternalSet> &sets=xpp::model().intern_sets;
+	const std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
 	std::vector<int> &use=batch_options.intern_set_use;
 	int &used=batch_options.intern_sets_used;
 	use.assign(sets.size(),1);
@@ -393,7 +393,7 @@ int if_needed_select_sets()
 	return 1;
 }
 
-static int if_needed_load_set()
+static int if_needed_load_set(xpp::Session &s)
 {
   if(!loadsetfile)
   {
@@ -405,11 +405,11 @@ static int if_needed_load_set()
     xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
     return 0;
   }
-  read_lunch(xpp::session(),fp.get());
+  read_lunch(s,fp.get());
   return 1;
 }
 
-static int if_needed_load_par()
+static int if_needed_load_par(xpp::Session &s)
 {
 
   if(!loadparfile)
@@ -417,11 +417,11 @@ static int if_needed_load_par()
     return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",parfilename);
-  io_parameter_file(parfilename.c_str(),1);
+  io_parameter_file(s,parfilename.c_str(),1);
   return 1;
 }
 
-static int if_needed_load_ic()
+static int if_needed_load_ic(xpp::Session &s)
 {
   
   if(!loadicfile)
@@ -429,17 +429,17 @@ static int if_needed_load_ic()
   	return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",icfilename);
-  io_ic_file(icfilename.c_str(),1);
+  io_ic_file(s,icfilename.c_str(),1);
   return(1);
 }
 
-void load_command_line_values()
+void load_command_line_values(xpp::Session &s)
 {
-  for(int (*load)() : {if_needed_load_set,if_needed_load_par,if_needed_load_ic,if_needed_load_ext_options})
-    load();
+  for(int (*load)(xpp::Session &) : {if_needed_load_set,if_needed_load_par,if_needed_load_ic,if_needed_load_ext_options})
+    load(s);
 }
 
-int parse_it(const char *com)
+int parse_it(xpp::Session &s, const char *com)
 {
   int j;
   for(j=0;j<NCMD;j++)
@@ -453,7 +453,7 @@ int parse_it(const char *com)
   if(j<NCMD){
     switch(j){
     case MKPLOT:
-      xpp::session().integrator.make_plot_flag=1;
+      s.integrator.make_plot_flag=1;
       break;
     case SILENT:
       batch_options.enabled=1;
@@ -477,7 +477,7 @@ int parse_it(const char *com)
       xpp_log(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
       break;
     case RUNNOW:
-      xpp::session().run_immediately=1;
+      s.run_immediately=1;
       break;
     case SETFILE:
       return 1;
@@ -563,7 +563,7 @@ int parse_it(const char *com)
     }
   }
   else {
-    if(com[0]=='-'||xpp::session().got_file==1){ 
+    if(com[0]=='-'||s.got_file==1){ 
      xpp_log(XPP_LOG_WARN, "Problem reading option %s\n",com);
      xpp_log(XPP_LOG_WARN, "\nUsage: xppaut filename [options ...]\n\n");
      xpp_log(XPP_LOG_WARN, "Options:\n");
@@ -619,8 +619,8 @@ int parse_it(const char *com)
      exit(0);
     }
     else {
-      xpp::model().this_file=com;
-      xpp::session().got_file=1;
+      s.model().this_file=com;
+      s.got_file=1;
     }
   }
   return 0;
