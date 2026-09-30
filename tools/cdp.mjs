@@ -94,6 +94,16 @@ export function installPerfObserver(cdp) {
   return cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: PERF_SCRIPT});
 }
 
+/* Wait for a process to exit (W105). Resolves when process.exitCode is not null. */
+async function waitForExit(proc, timeoutMs = 5000) {
+  return new Promise(resolve => {
+    if (proc.exitCode !== null) { resolve(); return; }
+    const done = () => { proc.off('exit', done); clearTimeout(timer); resolve(); };
+    proc.on('exit', done);
+    const timer = setTimeout(() => resolve(), timeoutMs);
+  });
+}
+
 export async function startBrowser(browser, profile) {
   const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',
@@ -122,7 +132,7 @@ export async function startBrowser(browser, profile) {
   }
   const cdp = new Cdp(page.webSocketDebuggerUrl);
   await cdp.open();
-  return {proc, cdp};
+  return {proc, cdp, waitForExit: () => waitForExit(proc)};
 }
 
 /* xppautX in browser mode (--browser, not its desktop window) in `dir` with `args` (the model and its options);

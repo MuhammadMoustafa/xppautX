@@ -4322,6 +4322,29 @@ async function session(ode, fn, expected = []) {
   }
 }
 
+/* Remove stale Chrome profiles older than an hour (W105) */
+function cleanStaleProfiles() {
+  const tmpDir = os.tmpdir();
+  const now = Date.now();
+  const oneHourMs = 60 * 60 * 1000;
+  try {
+    for (const entry of fs.readdirSync(tmpDir, {withFileTypes: true})) {
+      if (!entry.isDirectory() || !entry.name.startsWith('xppweb2-profile-')) continue;
+      try {
+        const fullPath = path.join(tmpDir, entry.name);
+        const stats = fs.statSync(fullPath);
+        if (now - stats.mtimeMs > oneHourMs) {
+          fs.rmSync(fullPath, {recursive: true, force: true});
+        }
+      } catch (e) {
+        /* ignore: profile may be in use or already removed */
+      }
+    }
+  } catch (e) {
+    /* ignore: tmpdir may not exist or not readable */
+  }
+}
+
 async function main() {
   const browser = findBrowser(opt.browser);
   if (!browser) {
@@ -4329,6 +4352,9 @@ async function main() {
     process.exit(0);
   }
   if (!fs.existsSync(bin)) throw new Error(`no ${bin}: build xppautX first`);
+
+  cleanStaleProfiles();
+
   const want = outputDat(), wantLive = outputDat(LIVE);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-profile-'));
   const b = await startBrowser(browser, profile);
@@ -4382,8 +4408,20 @@ async function main() {
     if (run('loaderror')) await loadErrorCheck();
   } finally {
     b.proc.kill();
-    await sleep(500);
-    fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5});
+    await b.waitForExit();
+    await sleep(100);
+    /* Remove profile with retries (W105): after closing, wait for the Chrome
+       process to exit, then remove the profile with retries to handle Windows
+       file locking delays */
+    let removed = false;
+    for (let retry = 0; retry < 10 && !removed; retry++) {
+      try {
+        fs.rmSync(profile, {recursive: true, force: true});
+        removed = true;
+      } catch (e) {
+        if (retry < 9) await sleep(50);
+      }
+    }
   }
   console.log(`web2 checks: ${failures ? `${failures} failed` : 'all passed'}`
     + (flaky ? `, ${flaky} FLAKY (passed only after a section rerun)` : ''));
