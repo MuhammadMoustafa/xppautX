@@ -17,7 +17,7 @@
    event (the key, the answer, the command: what the page lights) and
    waits its display pace, and after the step's idle the step's pace, a
    view step's shorter, each divided by the speed. Play from a step runs
-   the steps before it with no pace and no press. The timer is the
+   the steps before it with no pace (their presses 0 ms). The timer is the
    command loop's and a question's wait (player_wait_ms, player_fire):
    the core stays single-threaded, and reads the client's lines while it
    waits. */
@@ -175,10 +175,10 @@ void schedule(Next what, Clock::duration after)
     player.left = after;
 }
 
-/* {"ev":"press",...}: what the step presses next, before it is sent */
+/* {"ev":"press",...}: what the step presses next, before it is sent (a
+   running step's asks are the player's: the page answers none of them) */
 void send_press(const char *what, size_t index, Clock::duration ms)
 {
-    if (fast()) return;
     Buf b;
     buf_format(&b, "{{\"ev\":\"press\",\"step\":{:d},\"what\":\"{}\",\"index\":{:d},\"ms\":{:d}}}", player.running, what,
                index, std::chrono::duration_cast<std::chrono::milliseconds>(ms).count());

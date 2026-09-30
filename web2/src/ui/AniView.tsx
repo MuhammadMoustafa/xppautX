@@ -137,7 +137,7 @@ export function AniView() {
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />
         {!exists && <button onClick={() => session.openAni()} disabled={!may({cmd: 'key', key: 'v'})}>Open</button>}
-        <button onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
+        <button data-button="ani:file" onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
           Load…
         </button>
       </div>
@@ -165,7 +165,7 @@ export function AniView() {
           aria-label="First frame">⏮</button>
         <button onClick={() => session.aniStep(-1)} disabled={!canStep || busy} title="One frame back (Left arrow)"
           aria-label="One frame back">◀</button>
-        <button class="primary ani-play" onClick={playPause} disabled={!canStep || busy}
+        <button class="primary ani-play" data-button="ani:go" onClick={playPause} disabled={!canStep || busy}
           title="Play or pause (Space)" aria-pressed={playing}>
           {playing ? 'Pause' : 'Play'}
         </button>
@@ -180,7 +180,7 @@ export function AniView() {
             {speeds.map(ms => <option key={ms} value={String(ms)}>{ms} ms</option>)}
           </select>
         </label>
-        <button onClick={() => session.aniGrab()} disabled={!canStep || !mayKey('ani', 'grab')} aria-pressed={grab}
+        <button data-button="ani:grab" onClick={() => session.aniGrab()} disabled={!canStep || !mayKey('ani', 'grab')} aria-pressed={grab}
           title="Drag the animation's grab points with the pointer">Grab</button>
       </div>
     </section>

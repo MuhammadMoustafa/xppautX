@@ -25,6 +25,9 @@ export function installTestHook(session: Session): void {
   /* every kinescope frame the page showed, in order (null: none), so a test
      sees a playback's steps however fast they pass (W94: a poll can miss one) */
   const kinescopeShown: (number | null)[] = [];
+  /* the player's press events as they came (W59b), so a test sees every
+     step's highlight however fast the core plays */
+  const presses: unknown[] = [];
   const dispatch = session.store.dispatch;
   session.store.dispatch = (a: Action) => {
     actions.push(a.type === 'event' ? `event:${a.ev.ev}` : a.type);
@@ -33,6 +36,10 @@ export function installTestHook(session: Session): void {
       if (a.ev.op === 'reset' && !a.ev.keep && !a.ev.view) diagramEvents = [];
       diagramEvents.push(a.ev);
     } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.win === 101 && a.ev.op === 'destroy') diagramEvents = [];
+    if (a.type === 'event' && a.ev.ev === 'press') {
+      presses.push({step: a.ev.step, what: a.ev.what, index: a.ev.index});
+      if (presses.length > KEEP) presses.shift();
+    }
     if (a.type === 'sent') {
       sent.push(a.cmd);
       if (sent.length > KEEP) sent.shift();
@@ -61,6 +68,8 @@ export function installTestHook(session: Session): void {
     ani: () => aniDrawInfo(),
     /** the kinescope frames shown, each change in order (null: none shown) */
     kinescopeShown: () => kinescopeShown.slice(),
+    /** the player's press events received, oldest first: {step, what, index} */
+    presses: () => presses.slice(),
     /** Stop: a client-only action, nothing to send (session.ts kinescopeStop) */
     kinescopeStop: () => session.kinescopeStop(),
   };

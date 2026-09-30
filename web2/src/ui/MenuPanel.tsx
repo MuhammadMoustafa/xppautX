@@ -5,6 +5,7 @@
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {menuHelp} from '../help/links';
+import {litMenuKey} from '../store/player';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 
@@ -15,6 +16,8 @@ export function MenuPanel() {
   const menus = useStore(s => s.hello?.menus);
   const which = useStore(s => s.core?.menu ?? 0);
   const open = useStore(s => s.drawerOpen);
+  /* a recording's step presses this key now (W59b) */
+  const lit = useStore(s => litMenuKey(s.player));
   /* the menu opens during a run too; an item whose kind waits for it is disabled (W95) */
   const may = useMay();
   const nav = useRef<HTMLElement>(null);
@@ -47,7 +50,7 @@ export function MenuPanel() {
             const off = !may({cmd: 'key', key: keys[i]});
             return (
               <li key={`${name}${i}`}>
-                <button class="menu-item" title={off ? BUSY_TITLE : hints[i]} aria-keyshortcuts={keys[i]} disabled={off}
+                <button class={'menu-item' + (lit !== null && lit === keys[i] ? ' lit' : '')} title={off ? BUSY_TITLE : hints[i]} aria-keyshortcuts={keys[i]} disabled={off}
                   onClick={() => { close(); session.key(keys[i]); }}>
                   <kbd aria-hidden="true">{keys[i]?.toUpperCase()}</kbd>
                   <span>{item}</span>

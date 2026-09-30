@@ -93,7 +93,7 @@ function EquilibriumView() {
           title={busy ? BUSY_TITLE : 'Sing pts / Go: find the equilibrium closest to the current initial conditions'}>
           Find equilibrium
         </button>
-        <button onClick={() => session.importEquilibrium()} disabled={!eq || !mayKey('equilibrium', 'import')}
+        <button data-button="equilibrium:import" onClick={() => session.importEquilibrium()} disabled={!eq || !mayKey('equilibrium', 'import')}
           title="Make this equilibrium the initial conditions">
           Import
         </button>

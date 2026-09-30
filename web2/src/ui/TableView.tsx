@@ -187,7 +187,7 @@ export function TableView() {
       <div class="table-tools">
         {BUTTONS.map(([label, op, hint]) => {
           const off = !mayKey('browser', op);
-          return <button key={op} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.browserOp(op)}>{label}</button>;
+          return <button key={op} data-button={`browser:${op}`} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.browserOp(op)}>{label}</button>;
         })}
       </div>
       <p class="table-info" role="status">

@@ -67,7 +67,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -3188,6 +3188,83 @@ async function recordCheck(dir) {
     && lines[at + 3] === '{"step":"Initialconds → Go","button":"Integrate","keys":["i","g"]}', JSON.stringify(lines.slice(at, at + 5)));
 }
 
+/* W59b: the player (docs/mockups/record-play.html's player screen). A
+   recording made on the page (a note, Integrate, Erase) opens in the player
+   from the title bar: the caption, the step list with its note, the
+   controls; played at 4x to its end, the core pressed each step's keys (the
+   button for Integrate) and the page answered none of the step's
+   questions; a step's note edited and saved goes into the .recx; a changed
+   recording shows the banner, which Dismiss hides. State only, never
+   pixels. */
+async function playerCheck(dir) {
+  await desktopMetrics();
+  await cdp.eval(`document.querySelector('.title-bar .record-toggle').click()`);
+  await until(`s.core.recording && !s.busy`, 'recording');
+  await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea');
+    t.value = 'The cell fires once.'; t.dispatchEvent(new Event('input', {bubbles: true})); t.dispatchEvent(new FocusEvent('blur')); })()`);
+  await until(`s.core.recording.note === 'The cell fires once.' && !s.busy`, 'note');
+  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  await until(`s.core.recording.steps === 1 && !s.busy`, 'integrated', 20000);
+  await key('e');
+  await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
+  await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
+  await until(`s.ask && s.ask.kind === 'file'`, 'file ask');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play'})`);
+  await until(`!s.core.recording && !s.busy`, 'stopped');
+  check('player: the title bar offers Play a recording', await cdp.eval(`!!document.querySelector('.title-bar .play-open')`));
+  await cdp.eval(`document.querySelector('.title-bar .play-open').click()`);
+  check('player: Play a recording asks for the .recx', await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask'),
+    JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play.recx'})`);
+  await until(`s.ask && s.ask.kind === 'choice'`, 'save first?');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
+  check('player: the recording opens: its steps with their notes, paused at step 0, intact',
+    await until(`s.player.open && s.player.steps.length === 2 && s.core.player && s.core.player.step === 0 && !s.core.player.playing && !s.busy`, 'player', 20000)
+    && await S(`s.player.steps[0].note === 'The cell fires once.' && s.player.intact`), JSON.stringify(await S('s.player.steps')));
+  check('player: the caption above the plot, the controls, the step list; no changed banner',
+    await cdp.eval(`(() => { const c = document.querySelector('.player-caption');
+      return !!c && /Press Play/.test(c.textContent) && !!document.querySelector('.player-stage .plots')
+        && document.querySelectorAll('.player-segs i').length === 2 && document.querySelectorAll('.player-segs i.view').length === 1
+        && document.querySelectorAll('.player-step').length === 2 && /The cell fires once/.test(document.querySelector('.player-step').textContent)
+        && !document.querySelector('.player-changed'); })()`));
+  const sentBefore = await cdp.eval(`__xpp.sent().length`);
+  await cdp.eval(`[...document.querySelectorAll('.player-speed button')].find(b => b.textContent === '4x').click()`);
+  await until(`s.core.player.speed === 4 && !s.busy`, '4x');
+  await cdp.eval(`document.querySelector('.player-play').click()`);
+  check('player: Play plays to the end (4x)', await until(`s.core.player.step === 2 && s.core.player.running === -1 && !s.busy`, 'played', 30000),
+    JSON.stringify(await S('s.core.player')));
+  const presses = await cdp.eval(`__xpp.presses()`);
+  check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase)',
+    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'key', index: 0}, {step: 0, what: 'key', index: 1}, {step: 1, what: 'key', index: 0}]),
+    JSON.stringify(presses));
+  check('player: the page answered none of the step\'s questions (the player did)',
+    await cdp.eval(`__xpp.sent().slice(${sentBefore}).every(c => c.cmd === 'play')`), JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentBefore})`)));
+  check('player: at the end the caption shows the last step, Play offers Play again',
+    await cdp.eval(`/Step 2: Erase/.test(document.querySelector('.player-caption').textContent) && /Play again/.test(document.querySelector('.player-play').textContent)`));
+  await cdp.eval(`document.querySelectorAll('.player-step')[1].click()`);
+  check('player: a step clicked opens its note editor', await until(`s.player.selected === 1 && !!document.querySelector('.player-editor textarea')`, 'editor'));
+  await cdp.eval(`(() => { const t = document.querySelector('.player-editor textarea');
+    t.value = 'Clear the screen.'; t.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`[...document.querySelectorAll('.player-editor button')].find(b => b.textContent === 'Save note').click()`);
+  check('player: Save note writes it into the .recx, above its step, the recording still intact',
+    await until(`s.player.steps[1].note === 'Clear the screen.' && s.player.intact && !s.busy`, 'saved'),
+    JSON.stringify(await S('s.player.steps[1]')) + JSON.stringify(await cdp.eval(`__xpp.sent().slice(-3)`)) + JSON.stringify(await S('s.log.slice(-3)')));
+  const text = fs.readFileSync(path.join(dir, 'play.recx'), 'utf8');
+  check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Erase"/.test(text), text.slice(text.indexOf('@steps')));
+  /* a changed copy: the banner, and Dismiss */
+  fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('"keys":["e"]', '"keys":["e"] '));
+  await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
+  await until(`s.ask && s.ask.kind === 'choice'`, 'save first? (2)');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
+  check('player: a changed recording opens with the banner "changed after it was made"',
+    await until(`s.player.open && !s.player.intact && !s.busy && !!document.querySelector('.player-changed')`, 'changed', 20000)
+    && /changed after it was made/.test(await cdp.eval(`document.querySelector('.player-changed').textContent`)));
+  await cdp.eval(`document.querySelector('.player-changed button').click()`);
+  check('player: Dismiss hides the banner', await until(`s.player.dismissed && !document.querySelector('.player-changed')`, 'dismissed'));
+  await cdp.eval(`document.querySelector('.player-close').click()`);
+  check('player: Close leaves the player; the plot stays', await until(`!s.player.open && !document.querySelector('.player') && !!document.querySelector('.plots') && !s.busy`, 'closed'));
+}
+
 async function keysCheck() {
   await desktopMetrics();
   check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -4896,6 +4973,7 @@ async function main() {
     if (run('autoviews')) await session(ODE, autoViews);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('record')) await session(ODE, recordCheck);
+    if (run('player')) await session(ODE, playerCheck);
     if (run('lostf')) await session(ODE, lostF);
     if (run('lostf')) await session(HEAVY_ODE, lostFRunning);
     if (run('busy')) await session(LIVE, busyAuto);

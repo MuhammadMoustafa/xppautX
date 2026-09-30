@@ -4014,8 +4014,8 @@ def check_player():
         snd(cmd='play', op='from', step=8, play=0)
         evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == 8
                      and e['player']['running'] == -1 and not e['player']['fast'], timeout=120 * SLOW)
-        check('play from: the steps before it run with no press, then it waits',
-              _ is not None and not any(e.get('ev') == 'press' for e in evs), '')
+        check('play from: the steps before it run with no pace, then it waits',
+              _ is not None and all(e['ms'] == 0 for e in evs if e.get('ev') == 'press'), '')
         col(is_idle, timeout=10 * SLOW)
 
         # a recording that is not one

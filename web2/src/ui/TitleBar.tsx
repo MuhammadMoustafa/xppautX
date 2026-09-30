@@ -45,6 +45,7 @@ export function TitleBar() {
   const busy = !may({cmd: 'key', key: 'i'}); /* Integrate is a computation (W95) */
   const recording = useStore(s => !!s.core?.recording);
   const mayRecord = may({cmd: 'record', op: 'start'});
+  const mayPlay = may({cmd: 'play', op: 'open'});
   const setTheme = () => {
     const t = NEXT_THEME[theme];
     saveTheme(t);
@@ -59,8 +60,12 @@ export function TitleBar() {
       <span class="spacer" />
       {/* aria-disabled, not disabled: a disabled button loses the focus, and the
           letters typed next (XPP's keys, which a focused button passes on) with it */}
-      <button class="primary" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', 'i', 'g'); }}
+      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', 'i', 'g'); }}
         title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
+      {!recording && (
+        <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}
+          title={mayPlay ? 'Play a recording (.recx): its model, then its steps (File/plaY recording)' : BUSY_TITLE}>Play a recording…</button>
+      )}
       {!recording && (
         <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
           title={mayRecord ? 'Record the steps you take to a .recx file (File/recorD)' : BUSY_TITLE}>Record</button>

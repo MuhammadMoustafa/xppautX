@@ -46,6 +46,7 @@ export function useMay(): (cmd: Command) => boolean {
   useStore(s => s.ask);
   useStore(s => s.hello);
   useStore(s => s.core?.menu);
+  useStore(s => s.player.running);
   return cmd => session.may(cmd);
 }
 

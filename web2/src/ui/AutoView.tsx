@@ -585,7 +585,7 @@ function AutoPanel({dark}: {dark: boolean}) {
           const waits = !!kind && [...pending].some(PENDING_OF[kind]);
           return (
             <button key={op} disabled={off(op)} aria-keyshortcuts={k.toUpperCase()}
-              class={waits ? 'auto-pending' : undefined} data-op={op}
+              class={waits ? 'auto-pending' : undefined} data-op={op} data-button={`auto:${op}`}
               title={off(op) ? BUSY_TITLE
                 : (TITLES[op] ?? layer?.hints[layer.ids.indexOf(op)] ?? text) + (waits ? ' (changes wait for the run to end)' : '')}
               onClick={() => act(op)}>{text}</button>

@@ -8,7 +8,8 @@
    rubber and drag asks are plot modes (PlotView.tsx); other kinds say they
    are not offered yet and offer Cancel (A13, docs/ui-v2.md). */
 import type {ComponentChildren} from 'preact';
-import {useLayoutEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
+import {answerFill, litAskKey} from '../store/player';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
@@ -233,10 +234,84 @@ export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, aut
   return !(ask.kind === 'file' && nativeFileDialog());
 }
 
+/* the texts typed so far of `full`, over `ms` (the press's pace, W59b):
+   all of it at 70%, then `done` (OK lights) */
+function useTyping(full: string[] | null, ms: number, token: number): {typed: string[]; done: boolean} {
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    setT(0);
+    if (!full) return;
+    const start = performance.now(), span = Math.max(ms * 0.7, 1);
+    const id = setInterval(() => {
+      const f = (performance.now() - start) / span;
+      setT(f);
+      if (f >= 1.2) clearInterval(id);
+    }, 40);
+    return () => clearInterval(id);
+  }, [token]);
+  if (!full) return {typed: [], done: false};
+  const total = full.reduce((n, s) => n + s.length, 0);
+  let left = Math.round(Math.min(1, t) * total);
+  const typed = full.map(s => {
+    const k = Math.min(s.length, left);
+    left -= k;
+    return s.slice(0, k);
+  });
+  return {typed, done: t >= 1};
+}
+
+/* a question a recording's step asks (W59b): shown, never answered here;
+   the player's answer is filled in as the core's press says, then OK lights */
+function PlayedAsk({ask}: {ask: AskEvent}) {
+  const key = useStore(s => litAskKey(s.player));
+  const fill = useStore(s => answerFill(s.player));
+  const press = useStore(s => s.player.press);
+  const token = useStore(s => s.player.presses);
+  const {typed, done} = useTyping(fill, press?.ms ?? 0, token);
+  const title = ask.title || ask.name || 'XPP';
+  const items = ask.kind === 'menu' ? ask.items ?? [] : ask.kind === 'choice' ? ask.choices ?? [] : [];
+  const keys = ask.keys ?? '';
+  const names = ask.kind === 'string' ? [ask.name ?? ''] : ask.kind === 'form' ? ask.names ?? [] : ask.kind === 'file' ? ['File'] : [];
+  const shownValues = ask.kind === 'string' ? [ask.value ?? ''] : ask.kind === 'form' ? ask.values ?? [] : [''];
+  return (
+    <div class="dialog played-ask" role="dialog" aria-label={`${title} (answered by the recording)`} data-ask={ask.kind}>
+      <div class="dialog-title-row"><h2>{title}</h2></div>
+      {ask.question && <p>{ask.question}</p>}
+      {items.length > 0 && (
+        <ul class="menu-list" role="menu">
+          {items.map((item, i) => (
+            <li key={i} role="none">
+              <span role="menuitem" class={'menu-item' + (key && keys[i]?.toLowerCase() === key.toLowerCase() ? ' lit' : '')}>
+                <kbd aria-hidden="true">{keys[i]?.toUpperCase()}</kbd><span>{item}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {names.length > 0 && (
+        <div class="form-grid">
+          {names.map((n, i) => (
+            <label key={i}>
+              <span>{n}</span>
+              <span class={'played-value' + (fill && !done ? ' typing' : '')}>{fill ? typed[i] ?? '' : shownValues[i] ?? ''}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {!items.length && !names.length && <p class="muted">Answered from the recording.</p>}
+      <div class="dialog-actions">
+        <span class={'played-ok' + (done ? ' lit' : '')}>{(ask.ok as string) || 'OK'}</span>
+      </div>
+    </div>
+  );
+}
+
 export function AskDialog() {
   const ask = useStore(s => s.ask);
   const pick = useStore(s => s.pick);
   const auto = useStore(s => s.diagram.open);
+  const played = useStore(s => s.player.running >= 0);
+  if (ask && played && ask.kind !== 'pixels' && ask.kind !== 'alert') return <PlayedAsk key={ask.id} ask={ask} />;
   if (!ask || !askIsModal(ask, pick, auto)) return null;
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />

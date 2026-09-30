@@ -20,6 +20,7 @@ import {
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
+import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {
   initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
@@ -140,6 +141,8 @@ export interface AppState {
   kinescope: KinescopeState;
   /** the Help view (W12b): open/closed, the chapter and anchor shown, the search query */
   help: HelpState;
+  /** a recording in the player (W59b), see store/player.ts */
+  player: PlayerState;
 }
 
 export type Action =
@@ -174,7 +177,8 @@ export type Action =
   | {type: 'aplot'; action: AplotAction}
   | {type: 'ani'; action: AniAction}
   | {type: 'kinescope'; action: KinescopeAction}
-  | {type: 'help'; action: HelpAction};
+  | {type: 'help'; action: HelpAction}
+  | {type: 'player'; action: PlayerAction};
 
 export const initialState: AppState = {
   connected: false,
@@ -214,6 +218,7 @@ export const initialState: AppState = {
   ani: initialAni,
   kinescope: initialKinescope,
   help: initialHelp,
+  player: initialPlayer,
 };
 
 /* lines kept (T27: one entry per line, so a long AUTO run's table in Output) */
@@ -322,6 +327,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const diagram = reduceDiagram(state.diagram, {type: 'core', open: !!(ev as {auto?: unknown}).auto});
       return {
         ...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
+        player: reducePlayer(state.player, {type: 'core', player: ev.player}),
         values: state.values.defaults ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
       };
     }
@@ -447,6 +453,10 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
     case 'help':
       return {...state, help: reduceHelp(state.help, {type: 'open', target: {chapter: ev.chapter, anchor: ev.anchor}})};
+    case 'player':
+      return {...state, player: reducePlayer(state.player, {type: 'player', ev})};
+    case 'press':
+      return {...state, player: reducePlayer(state.player, {type: 'press', ev})};
     case 'log': {
       const next = addLogText(state, ev.text);
       /* a warning (the core logs nothing else at its default level): the status bar flashes, no dialog */
@@ -532,5 +542,7 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, kinescope: reduceKinescope(state.kinescope, action.action)};
     case 'help':
       return {...state, help: reduceHelp(state.help, action.action)};
+    case 'player':
+      return {...state, player: reducePlayer(state.player, action.action)};
   }
 }

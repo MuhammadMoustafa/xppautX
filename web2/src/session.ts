@@ -173,6 +173,13 @@ export class Session {
       this.onFilm(ev);
     } else if (ev.ev === 'ask') {
       this.keyWaiting = false;
+      if (this.store.getState().player.running >= 0 && ev.kind !== 'pixels') {
+        /* a recording's step runs: the player answers its questions, the
+           page only shows them (docs/protocol.md "Playing a recording") */
+        if (ev.kind === 'alert') this.store.dispatch({type: 'toast', kind: 'info', text: ev.message ?? ''});
+        this.checkDiagram(ev);
+        return;
+      }
       if (this.plan.length && ev.kind !== 'pixels' && ev.kind !== 'alert') {
         this.continuePlan(ev);
         this.checkDiagram(ev);
@@ -273,8 +280,11 @@ export class Session {
       (a held zoom sent at an idle) disables nothing: the core runs what
       comes after it in turn. */
   may(cmd: Command): boolean {
-    const {hello, core, computing, ask} = this.store.getState();
-    return mayStart(kindOf(hello, core?.menu ?? 0, cmd), computing, ask !== null);
+    const {hello, core, computing, ask, player} = this.store.getState();
+    const kind = kindOf(hello, core?.menu ?? 0, cmd);
+    /* a recording's step runs: only what steers the player or a view (W59b) */
+    if (player.running >= 0) return kind === 'control' || kind === 'view';
+    return mayStart(kind, computing, ask !== null);
   }
 
   /** whether item `id` of window `win`'s key layer may go out now (may) */
@@ -873,6 +883,38 @@ export class Session {
   /** the note shown above the next step (the recording bar's note box) */
   recordNote(text: string): void {
     this.send({cmd: 'record', op: 'note', text});
+  }
+
+  /* ---- the player (W59b, docs/protocol.md "Playing a recording") ---- */
+
+  /** File/plaY recording, the title bar's Play a recording: the core asks for the .recx */
+  playOpen(): void {
+    this.send({cmd: 'play', op: 'open'});
+  }
+
+  /** Play, Pause, Step: at once, even while a step runs */
+  play(op: 'start' | 'pause' | 'step'): void {
+    this.send({cmd: 'play', op});
+  }
+
+  /** the speed the paces are divided by (0.5, 1, 2, 4) */
+  playSpeed(speed: number): void {
+    this.send({cmd: 'play', op: 'speed', speed});
+  }
+
+  /** Restart (step 0, paused) and Play from here (the steps before it at once, then playing) */
+  playFrom(step: number, play: boolean): void {
+    this.send({cmd: 'play', op: 'from', step, play: play ? 1 : 0});
+  }
+
+  /** a step's note, written into the .recx (the fingerprint stays valid) */
+  playNote(step: number, text: string): void {
+    this.send({cmd: 'play', op: 'note', step, text});
+  }
+
+  /** leaves the player; the model stays */
+  playClose(): void {
+    this.send({cmd: 'play', op: 'close'});
   }
 
   /** an `@ button` of the ODE file */

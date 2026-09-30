@@ -1,0 +1,202 @@
+/* The player (W59b, docs/mockups/record-play.html's player screen, docs/
+   protocol.md "Playing a recording"): while the core plays a recording,
+   the step's note as a large caption above the plot, the keys it presses
+   as keycaps in a box at the top of the plot (lit one by one, as the
+   core's `press` events say, each before the core sends it), the controls
+   (Play/Pause, Step, Restart, the speed, one progress segment per step, a
+   view step's half as wide), the step list with each note (click a step:
+   edit its note and Save it into the .recx, or Play from here) and the
+   banner of a recording changed after it was made. The core keeps the
+   pace; the page only shows what it is told. */
+import {useEffect, useState} from 'preact/hooks';
+import {caption, keycaps, litButton, segments} from '../store/player';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {Plots} from './Plots';
+
+const SPEEDS = [0.5, 1, 2, 4];
+
+function ChangedBanner() {
+  const session = useSession();
+  const show = useStore(s => !s.player.intact && !s.player.dismissed);
+  if (!show) return null;
+  return (
+    <div class="banner warn player-changed" role="alert">
+      <span><b>This recording was changed after it was made.</b> A step or an embedded file no longer matches its
+        fingerprint. It still plays, but it may not show what really happened.</span>
+      <button class="small" onClick={() => session.store.dispatch({type: 'player', action: {type: 'dismiss'}})}>Dismiss</button>
+    </div>
+  );
+}
+
+function Caption() {
+  const {text, note} = useStore(s => caption(s.player));
+  return <div class={'player-caption' + (note ? '' : ' empty')} aria-live="polite">{text}</div>;
+}
+
+/* the keycaps at the top of the plot: what the running step presses */
+function KeysBox() {
+  const shown = useStore(s => keycaps(s.player));
+  if (!shown) return null;
+  return (
+    <div class="player-keys" role="status" aria-label="What the step presses">
+      <span class="player-keys-label">{shown.label}</span>
+      {shown.caps.map((c, i) => (
+        <span key={i} class={'keycap' + (c.down ? ' down' : '') + (c.ahead ? ' ahead' : '') + (c.text.length > 2 ? ' wide' : '')}>
+          {c.text}
+        </span>
+      ))}
+      {shown.answering && <span class="player-keys-label">then the answers</span>}
+    </div>
+  );
+}
+
+/* the control the step clicks, lit where it is on the page (data-button) */
+function ButtonLight() {
+  const id = useStore(s => litButton(s.player));
+  useEffect(() => {
+    if (!id) return;
+    const el = document.querySelector<HTMLElement>(`[data-button="${CSS.escape(id)}"]`);
+    el?.classList.add('lit');
+    return () => el?.classList.remove('lit');
+  }, [id]);
+  return null;
+}
+
+function Controls() {
+  const session = useSession();
+  const may = useMay();
+  const steps = useStore(s => s.player.steps);
+  const cp = useStore(s => s.core?.player);
+  const progress = useStore(s => s.progress);
+  const n = steps.length, next = cp?.step ?? 0, running = cp?.running ?? -1, playing = !!cp?.playing;
+  const ended = next >= n && running < 0;
+  const mayRestart = may({cmd: 'play', op: 'from'});
+  const segs = segments(useStore(s => s.player), next);
+  const frac = progress && progress.of > 0 ? Math.min(1, progress.n / progress.of) : 0.5;
+  const at = running >= 0 ? running : Math.min(next, n) - 1;
+  const play = () => {
+    if (ended) {
+      if (mayRestart) session.playFrom(0, true);
+    } else session.play(playing ? 'pause' : 'start');
+  };
+  return (
+    <section class="player-controls" aria-label="Player controls">
+      <div class="player-buttons">
+        <button class="primary player-play" onClick={play} aria-disabled={ended && !mayRestart}>
+          {playing ? '❚❚ Pause' : ended ? '▶ Play again' : '▶ Play'}
+        </button>
+        <button class="player-step-button" onClick={() => session.play('step')} disabled={ended} title="Play one step, then pause">
+          Step &#9197;
+        </button>
+        <button class="player-restart" aria-label="Restart" aria-disabled={!mayRestart}
+          title={mayRestart ? 'Back to the start, paused' : BUSY_TITLE} onClick={() => { if (mayRestart) session.playFrom(0, false); }}>
+          &#8634;
+        </button>
+      </div>
+      <div class="player-speed seg" role="group" aria-label="Speed">
+        <span class="muted">Speed</span>
+        {SPEEDS.map(x => (
+          <button key={x} class="small" aria-pressed={cp?.speed === x} onClick={() => session.playSpeed(x)}>{x}x</button>
+        ))}
+      </div>
+      <div class="player-progress">
+        <div class="player-segs" role="progressbar" aria-valuemin={0} aria-valuemax={n} aria-valuenow={Math.min(next, n)}
+          aria-label="Steps played">
+          {segs.map((g, i) => (
+            <i key={i} class={(g.view ? 'view ' : '') + (g.done ? 'done' : g.now ? 'now' : '')} title={g.title}
+              style={g.now ? {'--p': `${Math.round(frac * 100)}%`} : undefined} />
+          ))}
+        </div>
+        <div class="player-progress-text">
+          <span>Step {Math.max(at + 1, 0)} of {n}</span>
+          <span>{at >= 0 && steps[at] ? steps[at].step : 'not started'}</span>
+        </div>
+      </div>
+      <button class="small player-close" disabled={running >= 0} onClick={() => session.playClose()}
+        title="Leave the player; the model stays">Close</button>
+    </section>
+  );
+}
+
+function NoteEditor({step}: {step: number}) {
+  const session = useSession();
+  const may = useMay();
+  const st = useStore(s => s.player.steps[step]);
+  const file = useStore(s => s.player.file);
+  /* one editor a step (StepList keys it by the step): its text starts as the note */
+  const [text, setText] = useState(st?.note ?? '');
+  if (!st) return null;
+  const mayWrite = may({cmd: 'play', op: 'note'});
+  const name = file.split(/[\\/]/).pop();
+  return (
+    <div class="player-editor">
+      <label>
+        <b>Step {step + 1}: {st.step}</b>
+        <span class="muted">Note shown above this step. It is not part of the fingerprint.</span>
+        <textarea rows={2} value={text} onInput={e => setText((e.target as HTMLTextAreaElement).value)} />
+      </label>
+      <div class="player-editor-row">
+        <button class="primary small" aria-disabled={!mayWrite} title={mayWrite ? `Write the note into ${name}` : BUSY_TITLE}
+          onClick={() => {
+            if (mayWrite) session.playNote(step, text.trim());
+          }}>Save note</button>
+        <button class="small" aria-disabled={!mayWrite} title={mayWrite ? 'Run the steps before it at once, then play from it' : BUSY_TITLE}
+          onClick={() => { if (mayWrite) session.playFrom(step, true); }}>Play from here</button>
+      </div>
+      <span class="player-hint muted" aria-live="polite">
+        {st.note === text.trim() && st.note !== '' ? `Saved in ${name}; the fingerprint is unchanged.` : ''}
+      </span>
+    </div>
+  );
+}
+
+function StepList() {
+  const session = useSession();
+  const steps = useStore(s => s.player.steps);
+  const selected = useStore(s => s.player.selected);
+  const cp = useStore(s => s.core?.player);
+  const next = cp?.step ?? 0, running = cp?.running ?? -1;
+  const select = (step: number) => session.store.dispatch({type: 'player', action: {type: 'select', step}});
+  return (
+    <aside class="player-steps" aria-label="Steps">
+      <h2 class="player-steps-title">Steps ({steps.length})</h2>
+      <ol>
+        {steps.map((s, i) => (
+          <li key={i}>
+            <button class={'player-step' + (i === selected ? ' sel' : '') + (i === running ? ' cur' : '') + (i < next && i !== running ? ' done' : '')}
+              aria-current={i === running ? 'step' : undefined} onClick={() => select(i)}>
+              {s.note && <span class="player-step-note">{`“${s.note}”`}</span>}
+              <span class="player-step-label">
+                <span class="n">{i + 1}</span><b>{s.step}</b>
+                {s.view && <span class="tag">view</span>}
+                {s.button && <span class="tag">button</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+      {selected >= 0 && <NoteEditor key={selected} step={selected} />}
+    </aside>
+  );
+}
+
+/** the plots, and around them the player while a recording is open in it */
+export function PlayerStage({dark}: {dark: boolean}) {
+  const open = useStore(s => s.player.open);
+  if (!open) return <Plots dark={dark} />;
+  return (
+    <div class="player">
+      <div class="player-main">
+        <ChangedBanner />
+        <Caption />
+        <div class="player-stage">
+          <KeysBox />
+          <Plots dark={dark} />
+        </div>
+        <Controls />
+      </div>
+      <StepList />
+      <ButtonLight />
+    </div>
+  );
+}

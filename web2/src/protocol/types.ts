@@ -57,6 +57,42 @@ export interface StateEvent {
   session?: {file?: string; set?: string; auto?: string};
   /** while the core records the steps (W59a): how many so far, and the note waiting for the next one */
   recording?: {steps: number; note: string};
+  /** while a recording is open in the player (W59b): the next step, the one running (-1: none),
+      whether it plays, its speed, running with no pace to a `from` step, the fingerprint matching */
+  player?: {step: number; running: number; playing: boolean; speed: number; fast: boolean; intact: boolean};
+}
+
+/** a recorded step, as the player event lists it (docs/protocol.md "Recordings") */
+export interface PlayerStep {
+  note: string;
+  step: string;
+  keys?: string[];
+  button?: string;
+  win?: string;
+  cmd?: Record<string, unknown>;
+  answers?: unknown[];
+  view?: boolean;
+  abort?: {what: string; [k: string]: unknown};
+  during?: {key: string; at: {what: string; [k: string]: unknown}}[];
+  files?: number[];
+}
+
+/** a recording opened in the player (W59b) */
+export interface PlayerEvent {
+  ev: 'player';
+  file: string;
+  model: string;
+  intact: boolean;
+  steps: PlayerStep[];
+}
+
+/** what the player sends next, `ms` before it sends it (W59b) */
+export interface PressEvent {
+  ev: 'press';
+  step: number;
+  what: 'key' | 'answer' | 'cmd' | 'alert';
+  index: number;
+  ms: number;
 }
 
 /** One curve of the active plot window: storage columns (0 is T) and XPP's style. */
@@ -458,6 +494,8 @@ export type XppEvent =
   | AniStateEvent
   | AniFrameEvent
   | FilmEvent
+  | PlayerEvent
+  | PressEvent
   | {ev: 'idle'}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'erase' | 'redraw'; win: number}

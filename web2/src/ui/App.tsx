@@ -12,7 +12,7 @@ import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
 import {Messages} from './Messages';
-import {Plots} from './Plots';
+import {PlayerStage} from './Player';
 import {RecordBar} from './RecordBar';
 import {StatusBar} from './StatusBar';
 import {TableView} from './TableView';
@@ -87,7 +87,7 @@ function Shell() {
         <Banner />
         <RecordBar />
         <AutoShow />
-        <Plots dark={dark} />
+        <PlayerStage dark={dark} />
         <SliderStrip />
         <Messages />
       </main>

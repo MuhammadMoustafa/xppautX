@@ -174,7 +174,7 @@ export function AplotView() {
       <div class="aplot-tools">
         {BUTTONS.map(([label2, op, hint]) => {
           const off = !mayKey('aplot', op);
-          return <button key={op} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.aplotOp(op)}>{label2}</button>;
+          return <button key={op} data-button={`aplot:${op}`} title={off ? BUSY_TITLE : hint} disabled={off} onClick={() => session.aplotOp(op)}>{label2}</button>;
         })}
       </div>
       <p class="aplot-info" role="status">
