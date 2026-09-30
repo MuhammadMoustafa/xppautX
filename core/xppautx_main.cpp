@@ -206,7 +206,7 @@ int main(int argc, char **argv)
     for (i = k = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
             /* the release tag (v1.2.0); the VS Code extension compares it with the latest release */
-            printf("xppautX %s\n", XPPAUTX_VERSION);
+            printf("xppautX %s\n", xpp_version_string());
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
