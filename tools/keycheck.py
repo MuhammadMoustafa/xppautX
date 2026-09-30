@@ -14,8 +14,8 @@ XppMenu's `keys`. This fails when
   - a key string repeats a letter, or an XppMenu's item count differs from
     its key count;
   - a window's key layer (menu_auto_window ... menu_equilibrium_window) has
-    a different number of keys than its enum in menus.h, or the page's copy
-    of its keys (web2/src/protocol/windowKeys.ts) differs from the menu's.
+    a different number of keys than its enum in menus.h (the page has no
+    copy of them: hello.windows sends them, W95).
 
 Usage: python3 tools/keycheck.py   (exit 1 on a failure; no options)
 """
@@ -148,26 +148,17 @@ def main():
     layers = {'AutoWindowKey': 'menu_auto_window', 'BrowserWindowKey': 'menu_browser_window',
               'AniWindowKey': 'menu_ani_window', 'AplotWindowKey': 'menu_aplot_window',
               'EquilibriumWindowKey': 'menu_equilibrium_window'}
-    sizes = {m.group(1): int(m.group(2)) for m in re.finditer(
-        r'const XppMenu (\w+)\s*=\s*\{\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*(\d+)', menus)}
+    # a menu's size: its XPP_MENU's key string (the compiler checks one
+    # key and one kind per item, W95), or a braced initializer's count
+    sizes = {m.group(1): len(m.group(2)) for m in re.finditer(
+        r'const XppMenu (\w+)\s*=\s*XPP_MENU\(\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*\w+\s*,\s*"([^"]*)"', menus)}
+    sizes.update({m.group(1): int(m.group(2)) for m in re.finditer(
+        r'const XppMenu (\w+)\s*=\s*\{\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*(\d+)', menus)})
     for enum, menu in layers.items():
         m = re.search(r'enum ' + enum + r'\s*\{([^}]*)\}', header)
         count = len(m.group(1).split(',')) if m else -1
         if count != sizes.get(menu):
             errors.append(f'menus.h: enum {enum} has {count} keys, {menu} has {sizes.get(menu)}')
-
-    # the page's copy of the windows' keys (web2/src/protocol/windowKeys.ts) is the menu's
-    keys_of = {m.group(1): m.group(3) for m in re.finditer(
-        r'const XppMenu (\w+)\s*=\s*\{\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*(\d+)\s*,\s*[\w_]+\s*,\s*"([^"]*)"', menus)}
-    page = (ROOT / 'web2/src/protocol/windowKeys.ts').read_text(encoding='utf-8')
-    for const, menu in (('AUTO_KEYS', 'menu_auto_window'), ('BROWSER_KEYS', 'menu_browser_window'),
-                        ('ANI_KEYS', 'menu_ani_window'), ('APLOT_KEYS', 'menu_aplot_window'),
-                        ('EQUILIBRIUM_KEYS', 'menu_equilibrium_window')):
-        m = re.search(r'export const ' + const + r' = \{([^}]*)\}', page)
-        got = sorted(re.findall(r"'(.)'", m.group(1))) if m else None
-        want = sorted(keys_of.get(menu, ''))
-        if got != want:
-            errors.append(f'windowKeys.ts: {const} has keys {got}, {menu} has {want}')
 
     cmds = strip((ROOT / 'core/commands.cpp').read_text(encoding='utf-8'))
     start = cmds.index('void commander(int ch)')

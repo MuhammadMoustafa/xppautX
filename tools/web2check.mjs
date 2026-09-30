@@ -2729,14 +2729,14 @@ async function busyKeys() {
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['w', 'v', 'x', 'r', 'e', 'f'].every(k => !item(k).disabled),
+      viewItems: ['w', 'v', 'x', 'r', 'e', 'f', 'n', 'd', 'k', 'g'].every(k => !item(k).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts, Parameters...) and Save are disabled',
     running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.save
-    && ['i', 'c', 'n', 'd', 's', 'b', 'p', 'g'].every(k => ui.off.includes(k)), JSON.stringify(ui));
-  check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File), New window and Stop stay enabled',
+    && ['i', 'c', 'a', 's', 'b', 'p'].every(k => ui.off.includes(k)), JSON.stringify(ui));
+  check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* a view clicked during the run is sent, and the core runs it after the run (the menu it
      opens is answered then): New window makes window 2 once the run has stopped */
