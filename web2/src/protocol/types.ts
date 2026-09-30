@@ -44,7 +44,8 @@ export interface StateEvent {
   ev: 'state';
   pars: [string, number][];
   ics: [string, number][];
-  bcs: [string, string][];
+  /** the model's own boundary conditions; absent when it defines none */
+  bcs?: [string, string][];
   delays?: [string, string][];
   /** the current state, one value per `ics` entry: where the last run ended
       (what Initialconds/Last starts from); absent before any run */

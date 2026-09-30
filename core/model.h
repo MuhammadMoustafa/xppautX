@@ -92,6 +92,10 @@ struct Model {
   /* the boundary conditions, one per ODE, as the model gives them (the
      ones in use are the Session's) */
   std::array<BoundaryCondition,MAXODE> bcs;
+  /* how many of them the model itself wrote (b / bndry / boundary lines); the
+     rest are the default 0, and with none the model solves no boundary value
+     problem: the state event then sends no bcs */
+  int bc_defined=0;
 
   /* a fixed variable's name and formula as typed (lunch-new.cpp writes
      them), fix_var of them */

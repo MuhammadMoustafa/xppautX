@@ -3568,6 +3568,25 @@ def check_session_file():
         shutil.rmtree(keep, ignore_errors=True)
 
 
+def check_model_bcs():
+    """W99: the state event's `bcs` are the model's own boundary conditions;
+    a model with no b/bndry lines sends none (the core's default 0 ones are not
+    the model's), one with them sends its own."""
+    for ode, want in (('examples/ode/amari.ode', 0), ('examples/ode/dumbbvp.ode', 2), ('examples/ode/vdp.ode', 2)):
+        p, r, snd, col, _ = launch_server(ode=ode)
+        snd(cmd='state')
+        evs, e = col(lambda e: e.get('ev') == 'idle')
+        st = [x for x in evs if x.get('ev') == 'state']
+        n = len(st[-1].get('bcs', [])) if st else -1
+        check('bcs: %s sends %d boundary conditions' % (os.path.basename(ode), want), n == want, str(n))
+        if want:
+            check('bcs: %s formulas are its own' % os.path.basename(ode),
+                  all(len(b) == 2 and b[1] not in ('', '0') for b in st[-1]['bcs']), str(st[-1]['bcs']))
+        stop_server(p, r, snd)
+
+
+check_model_bcs()
+
 check_open_reload()
 check_display_state()
 check_session_file()

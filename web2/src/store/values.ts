@@ -168,3 +168,14 @@ export function setCommand(sets: ValueSet[]): Command | null {
 export function sixSig(n: number): string {
   return Number.isFinite(n) ? String(Number(n.toPrecision(6))) : String(n);
 }
+
+/* the Values panel's folding (W99): a section that starts folded (the model's boundary
+   conditions) is remembered by "+id" when the person opened it, any other by "id" when
+   they folded it */
+export const foldKey = (id: string, startFolded = false): string => (startFolded ? '+' + id : id);
+export const isFolded = (stored: readonly string[], id: string, startFolded = false): boolean =>
+  stored.includes(foldKey(id, startFolded)) !== startFolded;
+
+/* the boundary-conditions section shows only for a model that defines some: the core sends
+   `bcs` only then (docs/protocol.md) */
+export const showsBcSection = (bcs: readonly unknown[] | undefined): boolean => (bcs?.length ?? 0) > 0;

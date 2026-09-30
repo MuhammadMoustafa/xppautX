@@ -3,7 +3,7 @@
    browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {fieldKey, initialValues, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
+import {fieldKey, initialValues, isFolded, showsBcSection, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
 
 const edit = (e: Partial<ValueSet> & Pick<ValueSet, 'kind' | 'text'>): ValueSet =>
   ({name: undefined, index: undefined, ...e});
@@ -70,4 +70,14 @@ test('sixSig shows six significant digits', () => {
   assert.equal(sixSig(1 / 3), '0.333333');
   assert.equal(sixSig(123456789), '123457000');
   assert.equal(sixSig(NaN), 'NaN');
+});
+
+test('the boundary-conditions section is absent without model BCs, present and folded with them (W99)', () => {
+  assert.equal(showsBcSection(undefined), false);
+  assert.equal(showsBcSection([]), false, 'amari.ode: the core sends none');
+  assert.equal(showsBcSection([['0=', 'x-y']]), true);
+  assert.equal(isFolded([], 'bc', true), true, 'starts folded');
+  assert.equal(isFolded(['+bc'], 'bc', true), false, 'opened by the person');
+  assert.equal(isFolded([], 'delay'), false, 'a section that starts open');
+  assert.equal(isFolded(['delay'], 'delay'), true);
 });

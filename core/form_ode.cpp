@@ -412,6 +412,7 @@ void add_boundary(std::string_view formula)
   set_bc(BVP_N,formula);
   xpp_log(XPP_LOG_DEBUG, "|%s| |%s| \n",xpp::model().bcs[BVP_N].name.data(),xpp::model().bcs[BVP_N].string.data());
   BVP_N++;
+  xpp::model().bc_defined=BVP_N;
 }
 
 void add_flag(const std::string &cond, int sign, const std::vector<FlagEvent> &events)

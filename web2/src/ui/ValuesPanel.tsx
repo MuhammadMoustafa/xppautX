@@ -22,7 +22,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, sentText, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, foldKey, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
@@ -45,14 +45,17 @@ function readFolded(): string[] {
   }
 }
 
-function useFolded(id: string): [boolean, () => void] {
-  const [folded, setFolded] = useState(() => readFolded().includes(id));
+/* a section that starts folded (startFolded) is remembered by what the person opened:
+   its entry is "+id", the others' is "id" for folded */
+function useFolded(id: string, startFolded = false): [boolean, () => void] {
+  const key = foldKey(id, startFolded);
+  const [folded, setFolded] = useState(() => isFolded(readFolded(), id, startFolded));
   const toggle = () => {
     const next = !folded;
     setFolded(next);
     try {
-      const all = readFolded().filter(x => x !== id);
-      localStorage.setItem(FOLD_KEY, JSON.stringify(next ? [...all, id] : all));
+      const all = readFolded().filter(x => x !== key);
+      localStorage.setItem(FOLD_KEY, JSON.stringify(next !== startFolded ? [...all, key] : all));
     } catch {
       /* no storage: it lasts this page */
     }
@@ -60,10 +63,11 @@ function useFolded(id: string): [boolean, () => void] {
   return [folded, toggle];
 }
 
-function Section({id, title, hint, tools, children}: {
-  id: string; title: string; hint?: string; tools?: ComponentChildren; children: ComponentChildren;
+function Section({id, title, hint, tools, startFolded, children}: {
+  id: string; title: string; hint?: string; tools?: ComponentChildren; startFolded?: boolean;
+  children: ComponentChildren;
 }) {
-  const [folded, toggle] = useFolded(id);
+  const [folded, toggle] = useFolded(id, startFolded);
   const bodyId = `values-sec-${id}`;
   return (
     <section class={'value-group' + (folded ? ' folded' : '')} aria-label={title} data-section={id}>
@@ -234,12 +238,13 @@ function StateSection() {
   );
 }
 
-function IndexedSection({id, title, kind, entries, hint}: {
+function IndexedSection({id, title, kind, entries, hint, startFolded}: {
   id: string; title: string; kind: 'bc' | 'delay'; entries: [string, string][]; hint: string;
+  startFolded?: boolean;
 }) {
   if (!entries.length) return null;
   return (
-    <Section id={id} title={title}>
+    <Section id={id} title={title} startFolded={startFolded}>
       <div class="value-list">
         {entries.map(([, value], i) => (
           <ValueField key={i} kind={kind} label={`${title} ${i + 1}`} index={i} hint={hint} spec={EXPRESSION}
@@ -322,6 +327,7 @@ export function ValuesPanel() {
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
+  const modelBcs = showsBcSection(bcs) ? bcs : [];
   const delays = useStore(s => s.core?.delays ?? []);
   const panel = useRef<HTMLElement>(null);
   const close = () => session.store.dispatch({type: 'valuesPanel', open: false});
@@ -354,8 +360,8 @@ export function ValuesPanel() {
         <UserButtonsBlock />
         <Parameters />
         <StateSection />
-        <IndexedSection id="bc" title="Boundary conditions" kind="bc" entries={bcs}
-          hint="An expression that is zero at the boundary" />
+        <IndexedSection id="bc" title="Boundary conditions" kind="bc" entries={modelBcs}
+          hint="An expression that is zero at the boundary" startFolded />
         <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
           hint="An expression in t for t < 0" />
         <NumericsSection />

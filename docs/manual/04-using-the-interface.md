@@ -137,7 +137,9 @@ beside the plot (a sheet on a phone):
 - **Buttons the ODE file defines** (`@ but=name:keys`) appear above the
   sliders.
 - **Boundary conditions** and **Delay initial data** are collapsed
-  sections; delays appear only for delay equations.
+  sections; boundary conditions appear only when the ODE file defines
+  them (`b` or `bndry` lines, `boundary` in `.odex`), and delays only for
+  delay equations.
 - **Numerics** holds the main numerical parameters of the Numerics menu
   ([Numerical parameters](06-numerical-parameters.md)): Total, Start
   time, Transient, Dt, the nullcline mesh, the equilibrium (Sing pt)

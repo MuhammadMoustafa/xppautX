@@ -89,7 +89,7 @@ void send_state(void)
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, ",\"bcs\":[");
-    for (i = 0; i < xpp::model().node; i++) {
+    for (i = 0; xpp::model().bc_defined > 0 && i < xpp::model().node; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, s.bcs[i].name.data());

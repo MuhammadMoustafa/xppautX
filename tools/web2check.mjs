@@ -1379,6 +1379,22 @@ const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'key' && c
    check_view3d has the same two-cycle wait); the plot never draws with
    three.js, just a canvas (plot/render3d.ts) from the projection
    (plot/project3d.ts). */
+/* W99: the Values panel's boundary-conditions section is there only for a model that defines
+   boundary conditions, and starts collapsed */
+const bcSection = (want) => async () => {
+  await sleep(300);
+  const sec = await cdp.eval(`(() => { const e = document.querySelector('[data-section="bc"]');
+    return e ? {folded: e.classList.contains('folded'), fields: e.querySelectorAll('.value-field').length} : null; })()`);
+  const n = await S('(s.core.bcs || []).length');
+  if (want) {
+    check('a model with b lines shows the boundary-conditions section, collapsed, with its own conditions',
+      !!sec && sec.folded && sec.fields === want && n === want, JSON.stringify([sec, n]));
+  } else {
+    check('a model with no boundary conditions has no boundary-conditions section', sec === null && n === 0,
+      JSON.stringify([sec, n]));
+  }
+};
+
 async function threePlot() {
   check('the store holds the 3D window: three, its box, and its own angles seeded from the core\'s',
     await until("w.info && w.info.three === 1 && w.view3d && w.info.box && w.info.box.xmax === 20", '3D window', 20000));
@@ -4741,6 +4757,8 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
+    if (run('values')) await session(path.join(top, 'examples/ode/amari.ode'), bcSection(0));
+    if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.ode'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'Bad formula']);
     if (run('errordialog')) await warningFlashCheck();
