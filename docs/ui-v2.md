@@ -516,9 +516,8 @@ Target: WCAG 2.2 AA. Rules:
   toggled, never mounted/unmounted) so a run starting or ending never
   resizes the bar or shifts the plot above it or the message/rows beside
   it (W83, GitHub #132).
-- **A11 Notifications, not modal alerts**: errors and the core's alerts are
-  toasts that do not take the focus or stop the run; errors stay until
-  dismissed, information for six seconds; all of them also go to Messages.
+- **A11 Errors in a dialog, the rest quiet** (W104, GitHub #153): an error opens one centred dialog with OK (Enter/Escape; several before OK are lines of one dialog; it waits while an ask is on screen; "Add file…" lives in it); a warning (a core log line) flashes the status bar; the core's alerts are
+  toasts that do not take the focus or stop the run, for six seconds; all of them also go to Messages.
 - **A12 No undo** (maintainer, 2026-09-27, decision 2, GitHub #110):
   zoom and pan have no history any more -- Reset view and Fit are the way
   back; parameter and IC edits have no undo either -- Reset (one field,

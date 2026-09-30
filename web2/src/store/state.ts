@@ -68,7 +68,7 @@ export interface ToastAction {
   run: RunRecord | null;
 }
 
-/** a non-blocking notification (errors, the core's alerts) */
+/** a notification: an error waits in the error dialog (ErrorDialog.tsx) until OK, the core's alerts are toasts */
 export interface Toast {
   id: number;
   kind: 'error' | 'info';
@@ -110,6 +110,8 @@ export interface AppState {
   hover: Hover | null;
   log: LogEntry[];
   toasts: Toast[];
+  /** counts the log lines (the core's warnings) that arrived: the status bar flashes when it changes */
+  flash: number;
   nextToast: number;
   theme: Theme;
   /** the command menu, a drawer on narrow screens */
@@ -157,6 +159,7 @@ export type Action =
   | {type: 'hover'; hover: Hover | null}
   /** the plot mode's crosshair or corner moved */
   | {type: 'pick'; pick: PickState | null}
+  | {type: 'dismissErrors'}
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
@@ -195,6 +198,7 @@ export const initialState: AppState = {
   hover: null,
   log: [],
   toasts: [],
+  flash: 0,
   nextToast: 1,
   theme: 'system',
   drawerOpen: false,
@@ -441,8 +445,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'event', ev: ev as unknown as DiagramEvent})};
     case 'help':
       return {...state, help: reduceHelp(state.help, {type: 'open', target: {chapter: ev.chapter, anchor: ev.anchor}})};
-    case 'log':
-      return addLogText(state, ev.text);
+    case 'log': {
+      const next = addLogText(state, ev.text);
+      /* a warning (the core logs nothing else at its default level): the status bar flashes, no dialog */
+      return next.log[next.log.length - 1]?.kind === 'log' && /\S/.test(ev.text) ? {...next, flash: next.flash + 1} : next;
+    }
     case 'error':
       return {...state, loadError: ev};
     case 'exit':
@@ -491,6 +498,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, pick: action.pick};
     case 'toast':
       return addToast(state, action.kind, action.text);
+    case 'dismissErrors':
+      return {...state, toasts: state.toasts.filter(t => t.kind !== 'error')};
     case 'dismiss':
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
     case 'drawer':

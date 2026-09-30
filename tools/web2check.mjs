@@ -200,6 +200,11 @@ async function key(k, modifiers = 0) {
   }
   await sleep(30);
 }
+/* an error's dialog (ErrorDialog.tsx) covers the page until OK: close it so a later click reaches its control */
+async function closeErrors() {
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
+  await until(`!document.querySelector('.error-dialog')`, 'the error dialog closed');
+}
 const mouse = (type, x, y, extra = {}) => cdp.send('Input.dispatchMouseEvent', {type, x, y, ...extra});
 async function click(x, y) {
   await mouse('mouseMoved', x, y);
@@ -1977,9 +1982,9 @@ async function autoView(dir) {
   await until(`s.bottom === 'Bad formula'`, 'bottom message');
   check("T26: the core's last message shows in the AUTO strip",
     (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === 'Bad formula');
-  /* an error toast stays until dismissed (Toasts.tsx): clear every one so none sits over a
-     later control (it floats above the AUTO view too, T26's dialog-backdrop note) */
-  await cdp.eval(`document.querySelectorAll('.toast .icon').forEach(b => b.click())`);
+  /* an error opens the error dialog (ErrorDialog.tsx) until OK: close it so it does not sit over a
+     later control (it is above the AUTO view too, T26's dialog-backdrop note) */
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
   await until(`!s.toasts.length`, 'toasts dismissed');
 
   /* a dialog the view opens is on top of it, not behind (Numerics' form, T22: the page's own on the autosettings data) */
@@ -3177,12 +3182,14 @@ async function runsCheck(dir) {
   await pickFiles('#values-load-par', [badPar]);
   check('runs: a par file with the wrong count is refused with the core\'s own message',
     await until("s.bottom && /Incompatible parameters/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
+  await closeErrors();
 
   const badIc = path.join(dir, 'bad.ic');
   fs.writeFileSync(badIc, '-0.1\n');
   await pickFiles('#values-load-ic', [badIc]);
   check('runs: an ic file with too few values is refused with the core\'s own message',
     await until("s.bottom && /Expected 2 initial conditions/.test(s.bottom)", 'bad ic message'), await S('s.bottom'));
+  await closeErrors();
 
   /* a slider: its default range is [0, 2v]; a drag sends its values as
      sets (W106), and the release leaves its final value in the core */
@@ -4222,6 +4229,53 @@ async function loadErrorCheck() {
   }
 }
 
+/* W104: an error is one dialog with OK (Enter or Escape close it), kept in Messages; a warning
+   flashes the status bar and opens no dialog */
+async function errorDialogCheck() {
+  const bad = () => cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
+  const dialog = () => cdp.eval(`(() => { const d = document.querySelector('.error-dialog');
+    return d && {n: d.querySelectorAll('[data-error]').length, text: d.innerText, count: document.querySelectorAll('.error-dialog').length}; })()`);
+  await bad();
+  check("error dialog: a refused value opens the dialog with the core's text",
+    await until(`document.querySelector('.error-dialog [data-error]')`, 'dialog') && /Bad formula/.test((await dialog()).text),
+    JSON.stringify(await dialog()));
+  check('error dialog: focus is on OK', await cdp.eval(`document.activeElement && document.activeElement.hasAttribute('data-error-ok')`));
+  await bad();
+  await until(`s.log.filter(l => l.kind === 'error' && l.text === 'Bad formula').length >= 2`, 'second error');
+  const two = await dialog();
+  check('error dialog: two errors before OK are one dialog listing both',
+    two.count === 1 && two.n >= 2 && (two.text.match(/Bad formula/g) || []).length >= 2, JSON.stringify(two));
+  await key('Enter');
+  check('error dialog: Enter closes it, nothing left',
+    await until(`!document.querySelector('.error-dialog') && !s.toasts.some(t => t.kind === 'error')`, 'closed'));
+  check('error dialog: the errors stay in the Messages list',
+    (await S(`s.log.filter(l => l.kind === 'error' && l.text === 'Bad formula').length`)) >= 2);
+  await bad();
+  await until(`document.querySelector('.error-dialog')`, 'dialog again');
+  await key('Escape');
+  check('error dialog: Escape closes it too', await until(`!document.querySelector('.error-dialog')`, 'closed by Escape'));
+  check('error dialog: the session is usable after it (idle, no ask)', await until('!s.busy && !s.ask', 'idle'));
+}
+
+async function warningFlashCheck() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-warn-'));
+  fs.copyFileSync(ODE, path.join(dir, path.basename(ODE)));
+  /* -white is an option the core no longer has: it logs a WARN (comline.cpp) */
+  const server = await startServer(bin, dir, [path.basename(ODE), '-white']);
+  try {
+    await cdp.eval('window.__left = true').catch(() => {});
+    await cdp.send('Page.navigate', {url: server.url});
+    await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
+    check('warning: the status bar flashes (state), and no dialog opens',
+      await until('s.flash > 0', 'flash') && !(await cdp.eval(`!!document.querySelector('.error-dialog')`))
+      && !(await S(`s.toasts.length`)), JSON.stringify(await S('[s.flash, s.log.slice(-3)]')));
+  } finally {
+    await stopServer(server);
+    await sleep(300);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 async function sessionAttempt(ode, fn, expected) {
   const rec = record = [];
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
@@ -4395,6 +4449,8 @@ async function main() {
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
     if (run('help')) await session(ODE, helpCheck);
+    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'Bad formula']);
+    if (run('errordialog')) await warningFlashCheck();
     if (run('loaderror')) await loadErrorCheck();
   } finally {
     b.proc.kill();

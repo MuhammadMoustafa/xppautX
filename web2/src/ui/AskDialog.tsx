@@ -224,14 +224,20 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   );
 }
 
+/** whether an ask is on screen as the modal dialog (not answered at once, not a plot mode, not the
+    AUTO view's grab, not the desktop's own file dialog) */
+export function askIsModal(ask: AskEvent | null, pick: {ask: number} | null, autoOpen: boolean): boolean {
+  if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return false;
+  if (pick && pick.ask === ask.id) return false;
+  if (ask.kind === 'grab' && autoOpen) return false;
+  return !(ask.kind === 'file' && nativeFileDialog());
+}
+
 export function AskDialog() {
   const ask = useStore(s => s.ask);
   const pick = useStore(s => s.pick);
   const auto = useStore(s => s.diagram.open);
-  if (!ask || ask.kind === 'pixels' || ask.kind === 'alert') return null;
-  if (pick && pick.ask === ask.id) return null; /* a plot mode (PlotView.tsx, AutoView.tsx) */
-  if (ask.kind === 'grab' && auto) return null; /* the AUTO view's grab (AutoView.tsx) */
-  if (ask.kind === 'file' && nativeFileDialog()) return null; /* the desktop window's own dialog (session.ts) */
+  if (!ask || !askIsModal(ask, pick, auto)) return null;
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />

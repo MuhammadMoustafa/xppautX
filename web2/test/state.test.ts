@@ -215,3 +215,20 @@ test('a model that does not load: the error event is kept, with the exit after i
   assert.equal(s.exited, 1);
   assert.deepEqual(s.loadError, e, 'the exit keeps the error');
 });
+
+test('errors wait in one error dialog until OK; a warning flashes the status, no dialog (W104)', () => {
+  let s = ev(initialState, {ev: 'message', error: 'Empty diagram -- nothing to save'});
+  const errors = (x: AppState) => x.toasts.filter(t => t.kind === 'error').map(t => t.text);
+  assert.deepEqual(errors(s), ['Empty diagram -- nothing to save']);
+  s = ev(s, {ev: 'message', error: 'bad formula'});
+  assert.deepEqual(errors(s), ['Empty diagram -- nothing to save', 'bad formula'], 'two errors, one dialog');
+  assert.deepEqual(s.log.filter(l => l.kind === 'error').length, 2, 'both stay in Messages');
+  s = reduce(s, {type: 'dismissErrors'});
+  assert.deepEqual(errors(s), []);
+  assert.equal(s.log.filter(l => l.kind === 'error').length, 2, 'OK leaves Messages alone');
+  const w = ev(s, {ev: 'log', text: 'Warning: something odd\n'});
+  assert.equal(w.flash, s.flash + 1);
+  assert.deepEqual(errors(w), []);
+  assert.equal(ev(s, {ev: 'message', bottom: 'Working'}).flash, s.flash, 'progress does not flash');
+  assert.equal(ev(s, {ev: 'log', text: '  1    1  EP    1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
+});

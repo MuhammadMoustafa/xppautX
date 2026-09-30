@@ -18,6 +18,7 @@ import {TableView} from './TableView';
 import {TextViews} from './TextViews';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
+import {ErrorDialog} from './ErrorDialog';
 import {Toasts} from './Toasts';
 import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
@@ -97,6 +98,7 @@ function Shell() {
       <StatusBar />
       <Toasts />
       <AskDialog />
+      <ErrorDialog />
     </div>
   );
 }

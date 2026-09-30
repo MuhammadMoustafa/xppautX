@@ -1,6 +1,6 @@
-/* Non-blocking notifications: the core's errors and alerts. They stay until
-   dismissed (errors) or for a few seconds (the rest); none takes the focus.
-   An error about a file the core could not open offers "Add file…", which
+/* Non-blocking notifications: the core's alerts and other information, for a
+   few seconds; none takes the focus. Errors are the error dialog's
+   (ErrorDialog.tsx), which uses AddFile below: an error about a file the core could not open offers "Add file…", which
    copies the file picked into the model's folder under that name and runs
    the command again (docs/ui-v2.md section 4). */
 import {useEffect, useRef} from 'preact/hooks';
@@ -10,7 +10,7 @@ import {useSession, useStore} from './context';
 
 const INFO_MS = 6000;
 
-function AddFile({toast}: {toast: Toast}) {
+export function AddFile({toast}: {toast: Toast}) {
   const session = useSession();
   const input = useRef<HTMLInputElement>(null);
   const add = (files: File[] | null) => {
@@ -44,12 +44,11 @@ function Item({toast}: {toast: Toast}) {
   const session = useSession();
   const dismiss = () => session.store.dispatch({type: 'dismiss', id: toast.id});
   useEffect(() => {
-    if (toast.kind === 'error') return;
     const t = setTimeout(dismiss, INFO_MS);
     return () => clearTimeout(t);
   }, [toast.id]);
   return (
-    <li class={`toast ${toast.kind}`} role={toast.kind === 'error' ? 'alert' : 'status'}>
+    <li class={`toast ${toast.kind}`} role="status">
       <span>{toast.text}{toast.action && !toast.text.includes(toast.action.name) && <> ({toast.action.name})</>}</span>
       {toast.action?.kind === 'addFile' && <AddFile toast={toast} />}
       <button class="icon" onClick={dismiss} aria-label="Dismiss">×</button>
@@ -61,7 +60,7 @@ export function Toasts() {
   const toasts = useStore(s => s.toasts);
   return (
     <ul class="toasts" aria-label="Notifications">
-      {toasts.map(t => <Item key={t.id} toast={t} />)}
+      {toasts.filter(t => t.kind !== 'error').map(t => <Item key={t.id} toast={t} />)}
     </ul>
   );
 }

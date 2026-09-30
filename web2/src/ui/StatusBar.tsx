@@ -19,11 +19,14 @@ export function StatusBar() {
   const asking = useStore(s => s.ask !== null);
   const progress = useStore(s => s.progress);
   const bottom = useStore(s => s.bottom);
+  const flash = useStore(s => s.flash);
   const rows = useStore(s => s.core?.rows ?? 0);
   const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
-    <footer class="status-bar">
+    <footer class="status-bar" data-flash={flash}>
+      {/* a new warning: a second's flash, the key restarting the animation (theme.css .status-flash) */}
+      {flash > 0 && <span key={flash} class="status-flash" aria-hidden="true" />}
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
       <span class="status-message">{bottom}</span>

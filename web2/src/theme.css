@@ -537,6 +537,10 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   min-width: 0;
   height: 2rem; /* W83: fixed, from its own line height, independent of what it shows */
 }
+.status-bar { position: relative; }
+.status-flash { position: absolute; inset: 0; pointer-events: none; background: var(--warn); opacity: 0; animation: status-flash 1.2s ease-out; }
+@keyframes status-flash { from { opacity: 0.45; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .status-flash { animation-duration: 0.01s; } }
 .status-message { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--fg-muted); }
 .status-dot.up { background: var(--ok); }
@@ -759,6 +763,10 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 }
 .toast span { flex: 1; padding-top: var(--space-1); }
 .toast.error { border-left-color: var(--danger); }
+/* the error dialog (ErrorDialog.tsx): above the panels, like an ask's */
+.error-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-2); }
+.error-list li { display: flex; align-items: flex-start; gap: var(--space-2); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--danger); }
+.dialog h2.error-title { color: var(--danger); }
 
 /* ---- dialogs ---- */
 .dialog-backdrop {
