@@ -59,6 +59,7 @@ struct DeferredLine {
     std::string line;
     unsigned long seq;
     bool refused; /* classify() refused it during a computation */
+    bool applied; /* a set applied when it was taken: the command only ends */
 };
 
 struct ProtocolSession {
@@ -78,10 +79,21 @@ extern ProtocolSession session;
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
 int handle_async(const char *line);   /* commands that make sense at any moment */
 int control_line(const char *line);   /* a control line taken by a checkpoint */
+/* A setting (W106: a command of the setting kind, not a key) taken while
+   a job runs, by a checkpoint or a question's wait. Once the job has begun
+   computing it is kept for after the job, as a command of its own
+   (defer_line): it applies then, with its error if it is not valid, state
+   and idle, before any other command; the computation runs on with the
+   values it started with. A `set` taken before any computation (a
+   question still open, the animation's Go) applies at once, and still ends
+   with its own state and idle after the job, so a client counts one idle
+   per setting whenever it sends one. */
+void take_setting(const char *line);
 int during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
 /* keep the line read last (read_line) for after the running command;
-   refused: during_run() refused it (the command loop answers it so) */
-void defer_line(const char *line, bool refused);
+   refused: during_run() refused it (the command loop answers it so);
+   applied: a set control_line() applied already (the loop only ends it) */
+void defer_line(const char *line, bool refused, bool applied = false);
 char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
@@ -271,9 +283,6 @@ void auto_view_subscribe(int on);
 void auto_view_update(void);
 void auto_key(int ch);
 void auto_redraw_for_client(void);
-int is_auto_set(const char *line);
-void defer_auto_set(const char *line);
-void apply_deferred_sets(void);
 void j_auto_make_window(const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);

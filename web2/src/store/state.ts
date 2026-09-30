@@ -3,7 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
-import type {AskEvent, Command, HelloEvent, LoadErrorEvent, StateEvent, View, XppEvent} from '../protocol/types';
+import type {AskEvent, Command, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
 import {isWindowKey} from '../protocol/kinds';
 import {
   coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
@@ -128,6 +128,8 @@ export interface AppState {
   diagram: DiagramState;
   /** AUTO's Numerics, parameters, axes and Mark values (T22), see store/autoSettings.ts */
   autoSettings: AutoSettingsState;
+  /** the main numerics (the `numerics` event, W106), shown in the values panel */
+  numerics: NumericsField[] | null;
   /** the array plot (T12): its latest event, colour map and panel state, see store/aplot.ts */
   aplot: AplotState;
   /** the animation (T13): its window, player state and last frame, see store/ani.ts */
@@ -203,6 +205,7 @@ export const initialState: AppState = {
   files: initialFiles,
   diagram: initialDiagram,
   autoSettings: initialAutoSettings,
+  numerics: null,
   aplot: initialAplot,
   ani: initialAni,
   kinescope: initialKinescope,
@@ -303,9 +306,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello': {
       /* a (re)connection: the defaults come with the next state; the model's sliders start the list */
-      const values = reduceValues({...state.values, defaults: null}, {type: 'presetSliders', defs: ev.sliders ?? []});
-      /* a set sent before gets no idle now; the edits not yet sent still go out */
-      return {...state, hello: ev, title: ev.title, values, autoSettings: {...state.autoSettings, sent: null}};
+      const values = reduceValues(reduceValues({...state.values, defaults: null}, {type: 'settled'}),
+        {type: 'presetSliders', defs: ev.sliders ?? []});
+      /* a set sent before gets no idle now */
+      return {...state, hello: ev, title: ev.title, values, numerics: null,
+        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};
     }
     case 'state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
@@ -374,7 +379,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         progress: null,
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
         diagram: diagramSettled(state.diagram),
-        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'settled'}),
+        values: reduceValues(state.values, {type: 'idle'}),
+        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'idle'}),
       };
     case 'ani':
       return {...state, ani: reduceAni(state.ani, ev.op === 'frame' ? {type: 'frame', ev} : {type: 'state', ev})};
@@ -396,6 +402,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, diagram: reduceDiagram(state.diagram, {type: 'info', ev: ev as unknown as AutoInfoEvent})};
     case 'autosettings':
       return {...state, autoSettings: reduceAutoSettings(state.autoSettings, {type: 'event', ev: ev as unknown as AutoSettings})};
+    case 'numerics':
+      return {...state, numerics: ev.fields};
     case 'progress':
       return {...state, progress: ev.of > 0 ? {n: ev.n, of: ev.of} : null};
     case 'computing':

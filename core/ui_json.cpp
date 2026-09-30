@@ -37,6 +37,7 @@
 #include "ani_data.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "numerics_settings.h"
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,14 +93,17 @@ int handle_async(const char *line)
      for good), and what only reads or steers a view: state, browser with
      from, ani pause/fast/slow/speed;
    - kept for its turn (XPP_INBOX_NORMAL): an answer (the computation's own
-     questions), and every other command of the view kind (W95: data, a
-     zoom, a window picked, a menu that only shows): it runs after the
-     computation's idle;
+     questions), every other command of the view kind (W95: data, a zoom,
+     a window picked, a menu that only shows) and of the setting kind
+     (W106: set, values, auto set, a Numerics item's key, whose dialog
+     opens then): it runs after the computation's idle, in arrival order
+     with the rest, so the run in progress never sees a setting and each
+     line's idle comes in the order the client sent it;
    - refused (XPP_INBOX_REFUSE), with one log line: a command of the data
-     or computation kind (a key that computes or saves, a set, a file
-     written): never run, it gets an error message, state and idle when
-     the core takes it, after the computation. A client that enables its
-     actions by kind, as the page does (W95), never sends one. */
+     or computation kind (a key that computes or saves, a file written):
+     never run, it gets an error message, state and idle when the core
+     takes it, after the computation. A client that enables its actions by
+     kind, as the page does (W95), never sends one. */
 int during_run(const char *line)
 {
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
@@ -116,16 +120,16 @@ int during_run(const char *line)
         return XPP_INBOX_CONTROL;
     }
     const char kind = line_kind(line);
-    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL) return XPP_INBOX_NORMAL;
+    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return XPP_INBOX_NORMAL;
     xpp_log(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
             o.empty() ? "" : " ", o.c_str());
     return XPP_INBOX_REFUSE;
 }
 
-void defer_line(const char *line, bool refused)
+void defer_line(const char *line, bool refused, bool applied)
 {
     try {
-        session.deferred.push_back({line, read_line_seq(), refused});
+        session.deferred.push_back({line, read_line_seq(), refused, applied});
     } catch (...) {
         xpp_out_of_memory("keeping a command");
     }
@@ -177,9 +181,16 @@ int classify(const char *line, unsigned long seq)
 
 } // namespace
 
+void take_setting(const char *line)
+{
+    const bool now = !xpp_job_computed() && is_cmd(line, "set");
+    if (now) apply_set(line);
+    defer_line(line, false, now);
+}
+
 /* a control line taken by a checkpoint: every kind classify() puts there
    is acted on, none dropped. Returns ESC for abort, the code of a key,
-   ANI_PAUSE for the animation's Pause, 64 otherwise. */
+   ANI_PAUSE for the animation's Pause, 64 otherwise. A setting: take_setting(). */
 int control_line(const char *line)
 {
     std::string k;
@@ -189,8 +200,8 @@ int control_line(const char *line)
         get_string(line, "key", k, 32);
         return key_code(k.c_str());
     }
-    if (is_cmd(line, "set")) {
-        apply_set(line);
+    if (line_kind(line) == XPP_KIND_SETTING) {
+        take_setting(line);
         return 64;
     }
     if (is_cmd(line, "ani")) {
@@ -447,7 +458,7 @@ struct CommandInfo {
     void (*run)(const char *line);
 };
 
-constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
+constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
 
 const CommandInfo commands[] = {
     {"key", nullptr, 0, key_command},
@@ -476,16 +487,18 @@ const CommandInfo commands[] = {
     {"browser", "load", D, browser_command},
     {"browser", "postprocess", X, browser_command},
     {"browser", nullptr, V, browser_command}, /* with from: the block shown */
-    {"auto", "set", D, auto_command},
+    {"auto", "set", S, auto_command},
     {"auto", "grab", D, auto_command},
     {"auto", nullptr, V, auto_command}, /* display, point, close */
     {"file", "put", D, file_command},
     {"file", nullptr, V, file_command}, /* list, get */
-    {"set", nullptr, D, apply_set},
-    {"default", nullptr, D, default_command},
-    {"slide", nullptr, D, slide_command},
+    {"set", nullptr, S, apply_set},
+    {"default", nullptr, S, default_command},
+    {"slide", nullptr, S, slide_command},
     {"action", nullptr, D, action_command},
-    {"values", nullptr, D, values_command},
+    {"values", "write", D, values_command},
+    {"values", "query", D, values_command},
+    {"values", nullptr, S, values_command}, /* read, internset: values set */
     {"session", nullptr, D, session_command},
     {"dfield", nullptr, D, write_command},
     {"open", nullptr, D,
@@ -553,11 +566,14 @@ namespace {
 
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
    number: an abort cancels it from the reader thread. A line refused
-   during a computation (during_run) only says so, and ends as any does. */
-void handle_line(const char *line, unsigned long seq, bool refused)
+   during a computation (during_run) only says so, and ends as any does;
+   a set applied already, under a job that computed nothing
+   (control_line), only ends. */
+void handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp_job_begin(seq);
-    if (refused) {
+    if (applied) {
+    } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);
         j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
@@ -571,7 +587,6 @@ void handle_line(const char *line, unsigned long seq, bool refused)
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
     if (std::optional<xpp::ModelRequest> req = xpp::take_model_request()) switch_model(*req);
-    apply_deferred_sets();
     aplot_update();
     browser_update();
     plot_data_update();
@@ -582,6 +597,7 @@ void handle_line(const char *line, unsigned long seq, bool refused)
     auto_data_update(1);
     auto_view_update();
     auto_settings_update();
+    numerics_settings_update();
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */
@@ -626,11 +642,12 @@ void json_ui_loop(void)
             }
             next.seq = read_line_seq();
             next.refused = read_line_refused();
+            next.applied = false;
         }
         /* an abort did its work when it arrived (classify()): it is no
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
-        if (!is_cmd(next.line.c_str(), "abort")) handle_line(next.line.c_str(), next.seq, next.refused);
+        if (!is_cmd(next.line.c_str(), "abort")) handle_line(next.line.c_str(), next.seq, next.refused, next.applied);
         else if (session.script_mode) script_next();
     }
 }
@@ -681,6 +698,7 @@ void install(bool silent)
     ani_data_init(data_emit);
     auto_data_init(data_emit, diag_point_of_node);
     auto_settings_init(data_emit);
+    numerics_settings_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_job_set_compute_hook(send_computing);
     XppUi ui = json_ui;
@@ -739,7 +757,7 @@ void json_ui_hello(void)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, xpp::model().this_file);

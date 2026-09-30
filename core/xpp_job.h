@@ -46,6 +46,12 @@ void xpp_job_compute_end(void);
 /* 1 while a computation runs. Any thread; the protocol's classifier asks it. */
 int xpp_job_computing(void);
 
+/* 1 when the running job has begun a computation, running or done (a
+   Flow's next trajectory, a range's next run): a setting taken now waits
+   for the job's end (docs/protocol.md "Commands during a command"). Main
+   thread. */
+int xpp_job_computed(void);
+
 /* hook() is called once per job, when its first computation begins (a job
    whose computations come one after another, a Flow's trajectories, calls
    it once): the front end tells its client that the job computes until

@@ -474,6 +474,20 @@ export type XppEvent =
   /* AUTO's info strip and stability circle (store/diagram.ts AutoInfoEvent) */
   | {ev: 'autoinfo'; [k: string]: unknown}
   /* AUTO's settings (store/autoSettings.ts AutoSettings) */
-  | {ev: 'autosettings'; [k: string]: unknown};
+  | {ev: 'autosettings'; [k: string]: unknown}
+  /** the main numerics (docs/protocol.md "The numerics as data") */
+  | {ev: 'numerics'; fields: NumericsField[]};
+
+/** one field of the `numerics` event: `key` names it in `set` kind `num`;
+    `value` the method's number when `choices` (its names) are given;
+    `unused` when the current method does not use it */
+export interface NumericsField {
+  key: string;
+  label: string;
+  value: number | null;
+  integer?: boolean;
+  unused?: boolean;
+  choices?: string[];
+}
 
 export type Command = {cmd: string; [k: string]: unknown};

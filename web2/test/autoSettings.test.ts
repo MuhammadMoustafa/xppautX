@@ -1,11 +1,11 @@
 /* AUTO's settings as data (docs/ui-v2.md T22, store/autoSettings.ts): the
-   event into the store, edits pending while the core computes and merged
-   into one set, what the forms show, the core's rules checked in the page,
+   event into the store, edits sent at once (settings, W106) and shown
+   until their set's idle, what the forms show, the core's rules checked in the page,
    and the settings file (version 1 files still load). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  mergePatch, NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
+  NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
   shownSettings, type AutoSettings,
 } from '../src/store/autoSettings';
 import {initialState, reduce, type AppState} from '../src/store/state';
@@ -21,39 +21,42 @@ const settings: AutoSettings = {
   marks: [],
 };
 
-test('the event is the store; an edit while busy waits, merged, and shows as pending', () => {
+test('the event is the store; an edit sent during a run shows until its own idle', () => {
   let s = ev(initialState, {ev: 'autosettings', ...settings});
   assert.deepEqual(s.autoSettings.core, {ev: 'autosettings', ...settings});
-  s = act(s, {type: 'queue', patch: {numerics: {nmx: 20}}});
-  s = act(s, {type: 'queue', patch: {numerics: {npr: 5}, axes: {plot: 1, fit: true}}});
-  s = act(s, {type: 'queue', patch: {numerics: {nmx: 25}}});
-  assert.deepEqual(s.autoSettings.queued, {numerics: {nmx: 25, npr: 5}, axes: {plot: 1, fit: true}});
+  /* sent during a computation: one idle (the run's) ahead of each set's own */
+  s = act(s, {type: 'sent', patch: {numerics: {nmx: 20}}, ahead: 1});
+  s = act(s, {type: 'sent', patch: {numerics: {npr: 5}, axes: {plot: 1, fit: true}}, ahead: 2});
+  s = act(s, {type: 'sent', patch: {numerics: {nmx: 25}}, ahead: 3});
   const shown = shownSettings(s.autoSettings)!;
   assert.deepEqual([shown.numerics.nmx, shown.numerics.npr, shown.numerics.ntst, shown.axes.plot], [25, 5, 15, 1]);
   assert.ok(!('fit' in shown.axes));
   assert.deepEqual([...pendingFields(s.autoSettings)].sort(), ['axes.plot', 'numerics.nmx', 'numerics.npr']);
-  /* the queue goes out as one set; its idle ends the pending, the event has the core's values */
-  s = act(s, {type: 'sent', patch: s.autoSettings.queued});
-  assert.equal(s.autoSettings.queued, null);
-  assert.deepEqual(setCommand(s.autoSettings.sent!), {cmd: 'auto', op: 'set', numerics: {nmx: 25, npr: 5},
-    axes: {plot: 1, fit: true}});
+  assert.deepEqual(setCommand({numerics: {nmx: 25}}), {cmd: 'auto', op: 'set', numerics: {nmx: 25}});
+  /* the run's idle, then each set's own: the event has the core's values */
+  s = ev(s, {ev: 'idle'});
+  assert.equal(shownSettings(s.autoSettings)!.numerics.nmx, 25, 'still shown after the run ends');
+  s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, nmx: 20}});
+  s = ev(s, {ev: 'idle'});
+  s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, nmx: 20, npr: 5}});
+  s = ev(s, {ev: 'idle'});
   s = ev(s, {ev: 'autosettings', ...settings, numerics: {...settings.numerics, nmx: 25, npr: 5}});
   s = ev(s, {ev: 'idle'});
-  assert.equal(s.autoSettings.sent, null);
+  assert.deepEqual(s.autoSettings.inflight, []);
   assert.equal(pendingFields(s.autoSettings).size, 0);
   assert.equal(shownSettings(s.autoSettings)!.numerics.nmx, 25);
 });
 
 test("a refused set: the core's error is the forms', until the next edit", () => {
   let s = ev(initialState, {ev: 'autosettings', ...settings});
-  s = act(s, {type: 'sent', patch: {numerics: {ncol: 9}}});
+  s = act(s, {type: 'sent', patch: {numerics: {ncol: 9}}, ahead: 0});
   s = ev(s, {ev: 'message', error: 'AUTO settings: Ncol must be a whole number from 2 to 7'});
   s = ev(s, {ev: 'idle'});
   assert.match(s.autoSettings.error!, /Ncol/);
   assert.equal(shownSettings(s.autoSettings)!.numerics.ncol, 4);
-  s = act(s, {type: 'queue', patch: {numerics: {ncol: 5}}});
+  s = act(s, {type: 'sent', patch: {numerics: {ncol: 5}}, ahead: 1});
   assert.equal(s.autoSettings.error, null);
-  /* an error with no set of the forms' waiting is not theirs */
+  /* an error with no set of the forms' running is not theirs */
   s = ev(s, {ev: 'message', error: 'AUTO settings: nope'});
   assert.equal(s.autoSettings.error, null);
 });
@@ -84,7 +87,6 @@ test("the core's rules, in the page", () => {
     assert.ok(f.help.length > 40, f.key);
   }
   assert.equal(NUM_FIELDS.find(f => f.key === 'nmx')!.name, 'Max points (NMX)');
-  assert.deepEqual(mergePatch({pars: ['a']}, {marks: [['a', 1]]}), {pars: ['a'], marks: [['a', 1]]});
 });
 
 test('a settings file (an external tool, or one saved before W66 dropped Save settings) reads back as one set; version 1 files load', () => {

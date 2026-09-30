@@ -224,12 +224,12 @@ def check_hello_kinds():
     bad = [w for w in ('main', 'file', 'num')
            if len(menus.get(w + '_kinds', '')) != len(menus.get(w + '_keys', ''))
            or len(menus.get(w + '_kinds', '')) != len(menus.get(w, []))
-           or set(menus.get(w + '_kinds', '')) - set('cvdx')]
+           or set(menus.get(w + '_kinds', '')) - set('cvsdx')]
     check('W95: hello gives each item of the main, File and Numerics menus a kind', not bad, str(bad))
     wins = hello.get('windows', {})
     badw = [w for w, l in wins.items()
             if not (len(l.get('kinds', '')) == len(l.get('keys', '')) == len(l.get('ids', [])) == len(l.get('items', [])))
-            or set(l.get('kinds', '')) - set('cvdx')]
+            or set(l.get('kinds', '')) - set('cvsdx')]
     check('W95: hello gives the key layers of auto, browser, ani, aplot and equilibrium, a kind and a name per key',
           sorted(wins) == ['ani', 'aplot', 'auto', 'browser', 'equilibrium'] and not badw, str(sorted(wins)) + str(badw))
     cmds = hello.get('commands', [])
@@ -240,11 +240,17 @@ def check_hello_kinds():
     documented = set(re.findall(r'^\| `(\w+)` \|', section, re.M)) - {'key'}
     missing = sorted(d for d in documented if not any(c == d for c, _ in kinds))
     check('W95: hello gives every documented command but key a kind', not missing and cmds
-          and all(k in 'cvdx' for k in kinds.values()), str(missing))
-    want = {('display', None): 'v', ('set', None): 'd', ('values', None): 'd', ('abort', None): 'c',
-            ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 'd', ('userbut', None): 'x'}
-    check('W95: kinds as decided: display a view, set/values/Save data, abort control, a user button a computation',
+          and all(k in 'cvsdx' for k in kinds.values()), str(missing))
+    want = {('display', None): 'v', ('set', None): 's', ('values', None): 's', ('values', 'write'): 'd',
+            ('abort', None): 'c', ('browser', 'write'): 'd', ('browser', None): 'v', ('auto', 'set'): 's',
+            ('auto', 'grab'): 'd', ('userbut', None): 'x'}
+    check('W95, W106: kinds as decided: display a view, set/values/auto set settings, Save data and Grab data, '
+          'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
+    num = dict(zip(menus.get('num_keys', ''), menus.get('num_kinds', '')))
+    check('W106: the Numerics items that ask a value are settings (Total, Dt, Method, dElay), Parameters too',
+          all(num.get(k) == 's' for k in 'tdme') and num.get('') == 'v'
+          and dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', ''))).get('p') == 's', str(num))
     main = dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', '')))
     check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Write set is data, File/Quit control',
           main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
@@ -2403,13 +2409,15 @@ def check_autosettings():
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
-        # a set sent while a question is open is kept for the command's end, not dropped
+        # a set sent while a question is open is kept for after the command, not dropped: a
+        # command of its own then (W106), with its own idle
         ask = ask_of(cmd='key', win='auto', key='n')
         snda(cmd='auto', op='set', numerics={'nmx': 77})
         evs = cancel(ask)
-        st5 = settings_of(evs)
-        check('auto set during a question: applied when the command ends', st5 and st5['numerics']['nmx'] == 77,
-              str(st5)[:200])
+        st5a = settings_of(evs)
+        st5 = settings_of(cola(is_idle)[0])
+        check('auto set during a question: applied after the command, with its own idle',
+              st5a is None and st5 and st5['numerics']['nmx'] == 77, str(st5)[:200])
 
         # a set changes the next run: Nmax 12 against the default on the other server
         evs, st6, errs = auto_set(numerics={'nmx': 12}, pars=[p0, p1], axes={'plot': 2, 'var': 'V', 'par1': p0}, marks=[])
@@ -2832,7 +2840,6 @@ def check_refused_during_run():
     log = []
     p, r, snd, col, _ = launch_server(log=log)
     is_ask = lambda e: e.get('ev') == 'ask'
-    iapp = lambda st: st and dict(st['pars']).get('iapp')
     try:
         col(is_idle)
         snd(cmd='key', key='u')
@@ -2853,7 +2860,6 @@ def check_refused_during_run():
               [e.get('ev') for e in evs].count('computing') == 1, str([e.get('ev') for e in evs]))
         snd(cmd='key', key='s')  # Sing pts: a computation
         snd(cmd='key', key='c')  # Continue: a computation
-        snd(cmd='set', kind='par', name='iapp', value=0.3)  # data
         snd(cmd='display', win=1, x=[0, 50])  # a view: kept for after the run
         snd(cmd='browser', **{'from': 0, 'count': 1})  # only reads: answered during the run
         evs, rows = col(lambda e: e.get('ev') == 'browser')
@@ -2864,30 +2870,26 @@ def check_refused_during_run():
         check('W68: during a run, a browser request is answered at once and the run goes on until the Abort (stopped)',
               prog is not None and rows is not None and not during and stopped, str([x.get('ev') for x in evs])[-200:])
         after = []
-        for _ in range(4):  # the three refused lines, then the display, each with its own idle
+        for _ in range(3):  # the two refused lines, then the display, each with its own idle
             more, _ = col(is_idle)
             after.append(more)
-        refused = [[x.get('error', '') for x in m if x.get('ev') == 'message'] for m in after[:3]]
+        refused = [[x.get('error', '') for x in m if x.get('ev') == 'message'] for m in after[:2]]
         check('W95: a computation or data command sent during a run is refused after it: an error, state and idle each',
               all(len(m) == 1 and 'Not while a computation runs' in m[0] for m in refused)
               and not any(is_ask(x) for m in after for x in m), str(refused))
-        st = [x for m in after for x in m if is_state(x)]
-        check('W95: the refused set left the parameter unchanged', st and iapp(st[-1]) == 0.05,
-              str(st and iapp(st[-1])))
         snd(cmd='data', events=['plots'])
         evs, _ = col(is_idle)
         plots = [x for x in evs if x.get('ev') == 'plots']
         w1 = plots and next((w for w in plots[-1]['windows'] if w['win'] == 1), None)
         check('W95: a view command sent during a run runs after it (display: the zoom shown)',
-              not any(x.get('ev') == 'message' for x in after[3]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
+              not any(x.get('ev') == 'message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
-        want = ['refused during a computation: key s', 'refused during a computation: key c',
-                'refused during a computation: set']
+        want = ['refused during a computation: key s', 'refused during a computation: key c']
         deadline = time.monotonic() + 5 * SLOW
         while not all(w in log for w in want) and time.monotonic() < deadline:
             time.sleep(0.05)
         check('W95: each refused line is logged once ("refused during a computation: key s"), the view none',
-              all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 3,
+              all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 2,
               str([l for l in log if 'refused' in l]))
         snd(cmd='key', key='u')
         col(is_idle)
@@ -2903,6 +2905,113 @@ def check_refused_during_run():
 
 
 check_refused_during_run()
+
+
+# W106 (GitHub #155, docs/protocol.md "Commands during a command"): a setting
+# sent during a computation (a parameter, a numerics field) is taken at once
+# and kept for after it: the run in progress keeps the values it started
+# with (its rows are those of a run with the old values, stopped at the same
+# row: a --script with the stop armed there, not a race), and each setting
+# then applies as a command of its own (state and idle), before anything
+# else: the state after shows it, and the next run uses it. A bad numerics
+# value is an error message after the run, naming the field. The numerics
+# as data: `data` `numerics` sends them, and `set` kind `num` sets one.
+def check_settings_during_run():
+    p, r, snd, col, _ = launch_server()
+    is_prog = lambda e: e.get('ev') == 'progress'
+    num = lambda evs: next((dict((f['key'], f['value']) for f in e['fields'])
+                            for e in reversed(evs) if e.get('ev') == 'numerics'), None)
+    iapp = lambda evs: next((dict(e['pars']).get('iapp') for e in reversed(evs) if is_state(e)), None)
+    try:
+        col(is_idle)
+        snd(cmd='data', events=['numerics'])
+        evs, _ = col(is_idle)
+        n0 = num(evs)
+        fields = next((e['fields'] for e in evs if e.get('ev') == 'numerics'), [])
+        meth = next((f for f in fields if f['key'] == 'method'), {})
+        check('W106: data numerics sends the numerics: total, dt, method (by number, with its choices)',
+              n0 is not None and n0.get('total') == 30 and n0.get('dt') == 0.05
+              and meth.get('choices', [None] * 4)[meth.get('value', 0)] == 'Runge-Kutta'
+              and next((f for f in fields if f['key'] == 'nout'), {}).get('integer') is True, str(n0))
+        snd(cmd='set', kind='num', name='total', value=1e7)
+        evs, _ = col(is_idle)
+        check('W106: set kind num sets a numerics field (total), the numerics event says so',
+              (num(evs) or {}).get('total') == 1e7, str(num(evs)))
+        snd(cmd='set', kind='num', name='dt', text='0')
+        evs, _ = col(is_idle)
+        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W106: a bad numerics value is an error naming the field, nothing changes',
+              errs == ['Numerics: Dt must be a number other than 0'] and num(evs) is None, str(errs))
+        snd(cmd='set', kind='num', name='method', text='cvode')
+        evs, _ = col(is_idle)
+        m = num(evs)
+        snd(cmd='set', kind='num', name='method', value=3)
+        evs, _ = col(is_idle)
+        check('W106: set num method takes a name (any case) or a number',
+              m and m.get('method') == 10 and (num(evs) or {}).get('method') == 3, str(m))
+        snd(cmd='key', key='i')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], key='g')
+        evs, prog = col(is_prog, timeout=30 * SLOW)
+        snd(cmd='set', kind='par', name='iapp', value=0.3)
+        snd(cmd='set', kind='num', name='total', value=50)
+        snd(cmd='set', kind='num', name='nout', value=0)  # bad: its error comes after the run
+        snd(cmd='state')
+        snd(cmd='browser', **{'from': 0, 'count': 1})  # control, behind the sets: they were taken
+        evs, _ = col(lambda e: e.get('ev') == 'browser')
+        during = [e for e in evs if e.get('ev') in ('idle', 'message')]
+        check('W106: settings sent during a run get no idle or error while it runs; state still shows the '
+              'values it runs with', prog is not None and not during and iapp(evs) == 0.05,
+              str([e.get('ev') for e in evs]))
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        stopped = [e for e in evs if e.get('ev') == 'stopped']
+        rows = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
+        check('W106: the run went on with Total 1e7 until the Abort (stopped), the settings not applied yet',
+              stopped and rows > 1 and iapp(evs) == 0.05 and num(evs) is None, str(stopped))
+        after = []
+        for _ in range(3):
+            more, _ = col(is_idle)
+            after.append(more)
+        errs = [[e.get('error') for e in m if e.get('ev') == 'message'] for m in after]
+        check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
+              iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total') == 50
+              and errs == [[], [], ['Numerics: nOutput must be a whole number of at least 1']], str(errs))
+        snd(cmd='browser', **{'from': rows - 1, 'count': 1})
+        evs, br = col(lambda e: e.get('ev') == 'browser')
+        col(is_idle)
+        live = br and br['data']
+        code, out, err = run_script([
+            {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 1e7},
+            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
+            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
+            {'cmd': 'browser', 'from': rows - 1, 'count': 1}])
+        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
+        check('W106: the rows the run stored are those of a run with the old values (the settings did not '
+              'reach it)', code == 0 and live and live == ref, '%s vs %s (%s)' % (live, ref, err[-200:]))
+        snd(cmd='key', key='i')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], key='g')
+        evs, _ = col(is_idle, timeout=60 * SLOW)
+        rows2 = next((e['rows'] for e in reversed(evs) if is_state(e)), 0)
+        snd(cmd='browser', **{'from': rows2 - 1, 'count': 1})
+        evs, br = col(lambda e: e.get('ev') == 'browser')
+        col(is_idle)
+        code, out, err = run_script([
+            {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
+            {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 50},
+            {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
+            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'browser', 'from': 1000, 'count': 1}])
+        ref = next((e['data'] for e in map(json.loads, out.splitlines()) if e.get('ev') == 'browser'), None)
+        check('W106: the next run uses them (Total 50: 1001 rows, iapp 0.3: the rows of a run set so)',
+              rows2 == 1001 and br and br['data'] == ref, '%d rows, %s vs %s' % (rows2, br and br['data'], ref))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_settings_during_run()
 
 
 # W95: a command sent right behind one that asks, before the client saw the

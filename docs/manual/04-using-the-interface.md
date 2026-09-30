@@ -107,14 +107,13 @@ beside the plot (a sheet on a phone):
   **← Use current state** sends the same keys, `i` then `l`: it copies Now
   into Initial and runs (a button sends its key's command; there is no
   copy-without-running).
-- A value becomes **pending** when you leave the field (Tab, Enter or a
-  click elsewhere), marked on the field (dashed) — it changes nothing
-  yet. Every pending edit (a field, a slider, Default, a reset, a loaded
-  `.par`/`.ic` file) is held, the latest per field, until the next
-  command that computes (`Go` and the integrate buttons, `Continue`,
-  `Sing pts`, `Nullclines`, `Dir field`, AUTO's `Run`, ...) sends them all
-  together and runs with them, so a computation always uses exactly what
-  the panel shows. There is no `Ok`/`Cancel` for the whole box, as in the
+- A value is set when you leave the field (Tab, Enter or a click
+  elsewhere): the field shows it, and the next computation uses it. The
+  values are *settings*: you can edit them while a computation runs too,
+  and the edit is taken at once but applied when that computation ends —
+  the run in progress keeps the values it started with, the next one
+  uses yours. There is nothing pending to send: the value shown is the
+  value. There is no `Ok`/`Cancel` for the whole box, as in the
   X11 windows; `Escape` puts back the value that was there. Each changed
   field has a reset button whose tooltip shows the ODE file's value, and
   there is no undo: reset (one field, or **Reset all**) is the way back.
@@ -124,19 +123,28 @@ beside the plot (a sheet on a phone):
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
 - **Reset all** puts back the values from the ODE file, as the X11
-  Parameter window's Default button did, pending like any other edit.
+  Parameter window's Default button did.
 - **The checkboxes** next to the variables pick what **x vs t**,
   **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
 - **Sliders** sit under the plot, any number of them (the X11 main
   window had three), including the ones an ODE file sets with `@ s1=...`;
   each is added or edited with a dialog (searchable variable, min, max,
   step/precision), not the small binding window upstream describes.
-  Dragging one changes the value, pending like any other edit: nothing
-  runs until the next command that computes.
+  Dragging one changes the value as it moves (during a run too, for the
+  next run); nothing runs until you run it.
 - **Buttons the ODE file defines** (`@ but=name:keys`) appear above the
   sliders.
 - **Boundary conditions** and **Delay initial data** are collapsed
   sections; delays appear only for delay equations.
+- **Numerics** holds the main numerical parameters of the Numerics menu
+  ([Numerical parameters](06-numerical-parameters.md)): Total, Start
+  time, Transient, Dt, the nullcline mesh, the equilibrium (Sing pt)
+  controls, nOutput, Bounds, the Method (a list) and its tolerances and
+  step limits, the maximal delay (delay equations only) and the boundary
+  value controls. A field the current method does not use is greyed. They
+  are settings like the others: editable during a run, for the next one.
+  A value the program does not take is refused on the field with its
+  reason (`Dt must be a number other than 0`).
 - **Data** opens the Data tab ([The Data Browser](07-data-browser.md)),
   **Equations** lists the equations (the X11 equation-listing window).
 
@@ -253,13 +261,14 @@ point, ready to Grab and continue).
 While a computation runs (an integration, a range, Sing pts, a
 boundary value problem, an AUTO run), the status bar says what
 (`Running Go… Esc stops`). What you can do meanwhile depends on what an
-action is; every button and menu item has one of four kinds:
+action is; every button and menu item has one of five kinds:
 
 | Kind | Examples | During a computation |
 |---|---|---|
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
-| Data | Save and Load of values, Write set and Read set, every file written, Save session, AUTO's Save and Load diagram, Parameters, the numerics | disabled |
+| Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Get par set, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
+| Data | Save and Load of values' files, Write set and Read set, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
 A disabled control says so in its tooltip ("Not while a computation
@@ -271,11 +280,11 @@ is busy for a moment otherwise (catching up with a zoom or a window you
 picked): a click then is carried out in its turn, never lost. While the
 program asks you something, only answering or cancelling that question
 applies. Typing ahead into menus still works: I then G typed quickly
-integrates, because the G answers the menu the I opens. The values
-panel's fields and sliders stay usable during a run: an edit waits,
-marked, and is applied with the next command that computes, never to
-the run in progress; so do AUTO's Parameter, Numerics and Mark values
-forms.
+integrates, because the G answers the menu the I opens. Settings stay
+usable during a run: an edit is sent at once and shown as the value,
+and it applies when the run ends, never to the run in progress; so do
+AUTO's Parameter, Numerics and Mark values forms (for the next AUTO
+run).
 
 ## Saving pictures and files
 

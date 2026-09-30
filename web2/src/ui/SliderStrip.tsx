@@ -3,19 +3,18 @@
    slider"), each compact: the variable's name, a range track with its low
    and high end shown as small muted labels, the current value as a
    box (Field.tsx: a number; ArrowUp/ArrowDown step by the slider's own step), a small edit
-   icon (opens SliderDialog.tsx prefilled) and a remove button. A drag never
-   sends anything: it only updates the page's pending edit for the field
-   (session.ts slide, GitHub #117), sent in one `set` with everything else
-   pending, right before the next command that computes. Typing or spinning
-   the value box does not become pending on every keystroke or step: it
-   waits ~400ms after the last one, or commits at once on blur/Enter, so a
-   fast run of edits becomes one pending edit. They lay out as a responsive
+   icon (opens SliderDialog.tsx prefilled) and a remove button. A drag
+   sends each value as a `set` (session.ts slide), a setting (W106): during
+   a computation the core applies it when that ends. Typing or spinning the
+   value box does not send on every keystroke or step: it waits ~400ms
+   after the last one, or commits at once on blur/Enter, so a fast run of
+   edits becomes one. They lay out as a responsive
    grid (theme.css .slider-strip): 3 per row at 1280px, 2 on tablets, 1 on
    phones. */
 import {useMemo, useRef, useState} from 'preact/hooks';
 import {fromPosition, RANGE_STEPS, sliderRange, sliderStep, toPosition, type SliderDef} from '../store/sliders';
 import {NUMBER} from '../store/fieldKinds';
-import {fieldKey, sixSig} from '../store/values';
+import {fieldKey, sentText, sixSig} from '../store/values';
 import {Field} from './Field';
 import {SliderDialog} from './SliderDialog';
 import {useSession, useStore} from './context';
@@ -28,14 +27,14 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
   const session = useSession();
   const pars = useStore(s => s.core?.pars);
   const ics = useStore(s => s.core?.ics);
-  const pending = useStore(s => s.values.pending);
+  const inflight = useStore(s => s.values.inflight);
   const names = useMemo(() => [...(pars ?? []), ...(ics ?? [])].map(([n]) => n), [pars, ics]);
   const match = names.find(n => n.toLowerCase() === def.name.toLowerCase()) ?? '';
   const kind: 'par' | 'ic' = pars?.some(([n]) => n.toLowerCase() === match.toLowerCase()) ? 'par' : 'ic';
   const core = match ? [...(pars ?? []), ...(ics ?? [])].find(([n]) => n.toLowerCase() === match.toLowerCase())?.[1] : undefined;
-  /* a not-yet-sent edit shows as the value (GitHub #117) */
-  const waiting = match ? pending.find(q => q.name !== undefined && fieldKey(q.kind, q.name) === fieldKey(kind, match)) : undefined;
-  const value = waiting ? Number(waiting.text) : core;
+  /* an edit sent whose set has not ended shows as the value (W106) */
+  const sent = match ? sentText(inflight, fieldKey(kind, match)) : null;
+  const value = sent !== null ? Number(sent) : core;
   const range = sliderRange(def);
   const step = sliderStep(def);
   /* the value box: the value a focused, untouched box keeps, updated after each commit */
@@ -61,14 +60,14 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
   const label = def.name || `Slider ${index + 1}`;
   const id = (part: string) => `slider-${part}-${def.id}`;
   return (
-    <div class={'slider-card' + (waiting ? ' queued' : '')} data-slider={def.id}>
+    <div class="slider-card" data-slider={def.id}>
       <div class="slider-card-head">
         <span class="slider-card-name" title={label}>{label}</span>
         <label class="visually-hidden" htmlFor={id('val')}>{label}: value</label>
         <Field id={id('val')} class="slider-card-value" spec={NUMBER} disabled={!match}
           step={step ?? null} min={range ? Math.min(range.lo, range.hi) : undefined}
           max={range ? Math.max(range.lo, range.hi) : undefined}
-          title="The value: type it, or step it with the arrow keys (pending after a short pause, or at once on Enter/blur)"
+          title="The value: type it, or step it with the arrow keys (sent after a short pause, or at once on Enter/blur)"
           value={value !== undefined ? sixSig(value) : ''} editValue={core !== undefined ? String(core) : ''}
           commitAfter={VALUE_DEBOUNCE_MS} onCommit={commitValue}
           onFocus={() => { focusValue.current = core !== undefined ? String(core) : null; }} />

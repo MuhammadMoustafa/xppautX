@@ -500,8 +500,8 @@ Target: WCAG 2.2 AA. Rules:
   own (decision 2026-09-23): a view's close (×) means "done with it", and
   stops a running job first, while Stop keeps the view and its partial
   result (an AUTO branch ending on its EP, to grab and continue). While
-  a computation runs only control and view actions start (W68, W95,
-  GitHub #116, #144): each action's kind comes from the core in `hello`
+  a computation runs only control, view and setting actions start (W68,
+  W95, W106, GitHub #116, #144, #155): each action's kind comes from the core in `hello`
   (protocol/kinds.ts; docs/protocol.md "Action kinds"), and the core's
   `computing` event, until the command's idle, says a computation runs;
   data and computation buttons and menu items are disabled then, their
@@ -591,9 +591,9 @@ Target: WCAG 2.2 AA. Rules:
   `tools/web2check.mjs` (`auto`): Numerics, Parameter and Mark values are
   the page's forms on the data (nothing asked of the core), the axis
   dialog's plot type goes out as a set with a Fit, Save and Load settings
-  on the data; during a periodic run Nmax 15 waits pending (the store's
-  queue, the button dashed, nothing sent), goes out as one set at the run's
-  idle, and the run after stops at 15 points; (`busy`) the settings'
+  on the data; during a periodic run Nmax 15 goes out at once as one set
+  (a setting, W106: the store's inflight, the button dashed), the core
+  applies it at the run's end, and the run after stops at 15 points; (`busy`) the settings'
   buttons stay enabled during an integration.
   Live: the store and the plot grow over several appends of a 20 001-row
   run and end equal to `output.dat`. Long runs (tools/models/million.ode,

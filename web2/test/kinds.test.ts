@@ -25,13 +25,20 @@ test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(null, 0, {cmd: 'display'}), null);
 });
 
-test('W95: while a computation runs only control and view actions start; an open question takes only control', () => {
+test('W95, W106: while a computation runs only control, view and setting actions start; an open question takes control and settings', () => {
   for (const cmd of [{cmd: 'abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', win: 1}, {cmd: 'click', win: 2},
-    {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1}])
+    {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1},
+    {cmd: 'set', kind: 'par'}, {cmd: 'set', kind: 'num'}, {cmd: 'auto', op: 'set'}, {cmd: 'key', key: 'p'},
+    {cmd: 'key', win: 'auto', key: 'n'}, {cmd: 'values', op: 'read'}])
     assert.ok(may(cmd, true), JSON.stringify(cmd));
-  for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'key', key: 'p'}, {cmd: 'set', kind: 'par'}, {cmd: 'values', op: 'write'},
+  for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'values', op: 'write'}, {cmd: 'auto', op: 'grab'},
     {cmd: 'browser', op: 'write'}, {cmd: 'key', win: 'auto', key: 'r'}, {cmd: 'key', win: 'ani', key: 'a'}, {cmd: 'unknown'}])
     assert.ok(!may(cmd, true), JSON.stringify(cmd));
+  /* the Numerics menu's items that ask a value are settings: their dialog opens when the run ends */
+  assert.equal(kindOf(HELLO, 2, {cmd: 'key', key: 't'}), 'setting');
+  assert.ok(may({cmd: 'key', key: 't'}, true, false, 2));
+  assert.ok(!may({cmd: 'key', key: 'h'}, true, false, 2), 'stocHast: data');
+  assert.ok(may({cmd: 'set', kind: 'par'}, true, true), 'a setting goes while a question is open too');
   /* not computing (the page's own catch-up only, or idle): everything starts */
   for (const cmd of [{cmd: 'key', key: 'i'}, {cmd: 'values', op: 'write'}, {cmd: 'set', kind: 'par'}])
     assert.ok(may(cmd, false), JSON.stringify(cmd));

@@ -11,7 +11,9 @@ namespace {
 constexpr bool kinds_valid(const char *k)
 {
     for (; *k; k++)
-        if (*k != XPP_KIND_CONTROL && *k != XPP_KIND_VIEW && *k != XPP_KIND_DATA && *k != XPP_KIND_COMPUTE) return false;
+        if (*k != XPP_KIND_CONTROL && *k != XPP_KIND_VIEW && *k != XPP_KIND_SETTING && *k != XPP_KIND_DATA
+            && *k != XPP_KIND_COMPUTE)
+            return false;
     return true;
 }
 
@@ -384,11 +386,14 @@ const char *const file_menu_keys="pwracshqtglxuomevn";
    their disabled items greyed": Nullcline, Dir.field, Kinescope and Graphic
    stuff are views, stocHast and Averaging data; Initialconds, Sing pts and
    Bndryval, whose items all compute, computations); nUmerics and File only
-   switch the main menu, Esc switches it back */
+   switch the main menu, Esc switches it back. Parameters, File/Get par set
+   and the Numerics items that ask for a value (Total ... dElay, Poincare
+   map, rUelle plot, bndVal) are settings (W106): pressed during a
+   computation, their dialog opens when it ends */
 namespace {
-constexpr char main_kinds[] = "xxvvvdvvvvdvvvxvvvvx";
-constexpr char num_kinds[] = "ddddddddddvddddddv";
-constexpr char file_kinds[] = "vddvvdvcddddvvdddd";
+constexpr char main_kinds[] = "xxvvvdvvvvsvvvxvvvvx";
+constexpr char num_kinds[] = "ssssssssssvdssdsdv";
+constexpr char file_kinds[] = "vddvvdvcdsddvvdddd";
 static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
 static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
 static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds), "one kind per File menu item");
@@ -476,7 +481,7 @@ const XppMenu menu_equilibria = XPP_MENU("equilibria", "Equilibria", sing_items,
 const XppMenu menu_view = XPP_MENU("view", "Axes", view_items, "23at", "vvvv", view_hint, M_V2);
 const XppMenu menu_bvp = XPP_MENU("bvp", "Bndry Value Prob", bvp_items, "rnsp", "xxxx", bvp_hint, M_BR);
 const XppMenu menu_stochastic = XPP_MENU("stochastic", "Stochastic", stoch_items, "ncdmvhofpislaxe2", "dxdddxdxxxxxxxxx", stoch_hint, M_UHN);
-const XppMenu menu_poincare = XPP_MENU("poincare", "Poincare map", map_items, "nsmp", "dddd", map_hint, M_UPN);
+const XppMenu menu_poincare = XPP_MENU("poincare", "Poincare map", map_items, "nsmp", "ssss", map_hint, M_UPN);
 const XppMenu menu_color_code = XPP_MENU("color_code", "Color code", color_items, "nva", "vvv", color_hint, M_UCN);
 const XppMenu menu_adjoint = XPP_MENU("adjoint", "Adjoint", adj_items, "nmaohpr", "xxddddx", adj_hint, M_UAN);
 const XppMenu menu_lookup = XPP_MENU("lookup", "Tables", tab_items, "ev", "dv", tab_hint, M_UKE);
@@ -487,7 +492,7 @@ static const char *const save_what_hint[]={"The stored rows from First to Last, 
   "The current plot's curves and frozen curves, one row per point: curve,x,y (and z in 3D)"};
 const XppMenu menu_save_what = XPP_MENU("save_what", "Save data", save_what_items, "tp", "dd", save_what_hint, -1);
 /* sets METHOD directly */
-const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y", "ddddddddddddddd", meth_hint, -1);
+const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqsc582y", "sssssssssssssss", meth_hint, -1);
 
 
 /* ---- the windows' key layers (menus.h) ---- */
@@ -508,7 +513,7 @@ char xpp_menu_kind(const XppMenu *m, int ch)
 
 static const char *auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
   "(U)sr period","(C)lear","re(D)raw","(F)ile"};
-const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "dvdxddvvx", auto_hint, -1);
+const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "svsxdsvvx", auto_hint, -1);
 
 static const char *browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
   "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};
@@ -566,7 +571,7 @@ static const char *auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z
 const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12frads", "vvvvvvvvvvvvvv", aaxes_hint, -1);
 
 static const char *auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
-const XppMenu menu_auto_mark = XPP_MENU("auto", "Mark values: how many?", auto_mark_items, "0123456789", "dddddddddd", no_hint, -1);
+const XppMenu menu_auto_mark = XPP_MENU("auto", "Mark values: how many?", auto_mark_items, "0123456789", "ssssssssss", no_hint, -1);
 
 static const char *auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
 const XppMenu menu_auto_start = XPP_MENU("auto", "Start", auto_start_items, "spbhe", "xxxxx", arun_hint, -1);

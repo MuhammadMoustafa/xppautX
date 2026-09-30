@@ -32,10 +32,14 @@ extern const char *const file_menu_keys;
    a computation runs (docs/protocol.md "Action kinds"). A control action
    (Abort, Quit, an answer) always goes; a view action only changes what is
    shown and goes during a computation too (the core runs it after the
-   computation); a data action (saving, loading, a value or setting) and a
-   computation (anything that starts one) are refused during one. */
+   computation); a setting (W106: a parameter, an initial or boundary
+   condition, a delay, the numerics, AUTO's forms) goes during a computation
+   too and is applied when it ends, never to the run in progress; a data
+   action (saving, loading) and a computation (anything that starts one)
+   are refused during one. */
 #define XPP_KIND_CONTROL 'c'
 #define XPP_KIND_VIEW 'v'
+#define XPP_KIND_SETTING 's'
 #define XPP_KIND_DATA 'd'
 #define XPP_KIND_COMPUTE 'x'
 

@@ -9,7 +9,7 @@
    curves and labels drawn, the Hopf join, the readout by mouse and keys,
    zoom and Fit, the sheet on a phone, Close),
    the values panel (docs/ui-v2.md T3, GitHub #117: edit a parameter, a
-   slider by keyboard, pending edits flushed before Go, Tab reachability,
+   slider by keyboard, edits sent at once (W106), Tab reachability,
    the panel as a right column), the data
    table (docs/ui-v2.md T10: scroll and keyboard navigation to row 500
    against output.dat, Get, CSV export, Tab reachability), keyboard-
@@ -339,8 +339,8 @@ async function desktop(want) {
     legendBox.x + legendBox.w / 2, legendBox.y + legendBox.h / 2);
 }
 
-/* the values panel (docs/ui-v2.md T3, GitHub #117): parameters, a slider,
-   pending edits flushed before a computation, layout */
+/* the values panel (docs/ui-v2.md T3, GitHub #155): parameters, a slider,
+   edits sent at once (settings, W106), layout */
 async function values() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
   await sleep(150);
@@ -349,29 +349,32 @@ async function values() {
   check('at 1400px wide the values panel is a right column',
     box.width > 200 && box.right >= box.winWidth - 2 && box.top < 100, JSON.stringify(box));
 
-  /* edit a parameter: it stays pending (GitHub #117), nothing sent, until
-     the next command that computes flushes it as one `set` */
+  /* edit a parameter: a setting (W106), sent at once as one `set` when committed */
   const field = await cdp.eval(`(() => { const l = [...document.querySelectorAll('.value-field .value-name')]
     .find(e => e.textContent.toLowerCase() === 'iapp'); return l ? l.closest('.value-field').querySelector('input').id : null; })()`);
   check('the iapp field is in the panel', !!field, String(field));
   const before = await S(`(s.core.pars.find(p => p[0].toLowerCase() === 'iapp') || [])[1]`);
   const sent0 = await S('__xpp.sent().length');
+  const iappIs = v => `Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - ${v}) < 1e-9`;
   /* two round trips, not one: Preact's state update from 'input' must be flushed (a render) before blur reads it */
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
     el.value = '0.2'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await sleep(80);
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
-  await until(`s.values.pending.length === 1`, 'iapp pending');
-  check('editing a parameter becomes pending: nothing is sent and the core value is unchanged',
-    (await S('__xpp.sent().length')) === sent0
-    && Math.abs((await S(`(s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1]`)) - before) < 1e-9,
-    JSON.stringify(await S('[s.values.pending, s.core.pars]')));
-  check('the pending field is marked (dashed, "queued")',
-    await cdp.eval(`document.getElementById(${JSON.stringify(field)}).closest('.value-field').classList.contains('queued')`));
+  check('editing a parameter sends it at once, one set, and the core applies it (W106)',
+    await until(`!s.busy && ${iappIs(0.2)} && !s.values.inflight.length`, 'iapp set'),
+    JSON.stringify(await S(`[__xpp.sent().slice(${sent0}), s.values.inflight, s.core.pars]`)));
+  const set0 = (await S(`__xpp.sent().slice(${sent0})`)).filter(c => c.cmd === 'set');
+  check('the edit went out as exactly one set with its value',
+    set0.length === 1 && set0[0].text === '0.2' && set0[0].kind === 'par', JSON.stringify(set0));
+  check('no "pending" banner or dashed field: the value shown is the value',
+    !(await cdp.eval(`!!document.querySelector('.values-queued, .value-field.queued')`))
+    && (await cdp.eval(`document.getElementById(${JSON.stringify(field)}).value`)) === '0.2');
 
   /* text typed into a box whose focus event the browser never delivered (CI's Linux Chrome, a
      window without the OS focus) stays as typed: only a committed draft is dropped (W35d) */
   await sleep(100);
+  const preNoFocus = await S('__xpp.sent().length');
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.value = '0.25'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await sleep(150);
@@ -380,13 +383,13 @@ async function values() {
     return {value: el.value, focused: document.activeElement === el, active: document.activeElement?.id || document.activeElement?.tagName,
       message: msg ? msg.textContent : null}; })()`);
   check('text typed without a focus event stays in the box, uncommitted',
-    noFocus.value === '0.25' && (await S('s.values.pending')).length === 1,
-    JSON.stringify([noFocus, await S('[s.values.pending, s.values.errors, s.busy, __xpp.sent().slice(-2)]')]));
+    noFocus.value === '0.25' && (await S('__xpp.sent().length')) === preNoFocus,
+    JSON.stringify([noFocus, await S('[s.values.inflight, s.values.errors, s.busy, __xpp.sent().slice(-2)]')]));
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); })()`);
   await sleep(150);
 
-  /* a pending edit becomes pending on commit only (Enter/Tab/blur), never per keystroke */
+  /* an edit is sent on commit only (Enter/Tab/blur), never per keystroke */
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
   await sleep(100);
   const preType = await S('__xpp.sent().length');
@@ -397,15 +400,13 @@ async function values() {
   }
   const whileTyping = await S(`__xpp.sent().slice(${preType})`);
   check('typing into a field sends nothing while it types', whileTyping.length === 0, JSON.stringify(whileTyping));
-  const typed = await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
-    return {focused: document.activeElement === el, value: el.value}; })()`);
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
-  await until(`s.values.pending.length === 1 && s.values.pending[0].text === '0.35'`, "the blur's pending edit");
-  check('blurring after typing becomes exactly one pending edit, still sending nothing',
-    (await S('__xpp.sent().length')) === preType,
-    JSON.stringify([typed, await S('[s.busy, s.values.pending]')]));
+  await until(`!s.busy && ${iappIs(0.35)}`, "the blur's set");
+  const typedSent = (await S(`__xpp.sent().slice(${preType})`)).filter(c => c.cmd === 'set');
+  check('blurring after typing sends exactly one set, with the last text',
+    typedSent.length === 1 && typedSent[0].text === '0.35', JSON.stringify(typedSent));
 
-  /* Go flushes every pending edit as one `set`, then runs: so the computation uses what the panel shows */
+  /* Go sends no set of its own: the core has the value already, and the run uses it */
   const preGo = await S('__xpp.sent().length');
   const n0go = await S('s.seriesCount');
   await key('i');
@@ -413,22 +414,18 @@ async function values() {
   await key('g');
   await until(`s.seriesCount > ${n0go} && !s.busy`, 'Go integrated');
   const goSent = await S(`__xpp.sent().slice(${preGo})`);
-  const setSent = goSent.filter(c => c.cmd === 'set');
-  check('Go sends exactly one set with the latest pending value, then the run',
-    setSent.length === 1 && setSent[0].text === '0.35' && !('rerun' in setSent[0]),
-    JSON.stringify(goSent));
-  check('the pending edit is gone once it is flushed', (await S('s.values.pending')).length === 0);
-  check('the core applied it: iapp is 0.35', Math.abs((await S(`(s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1]`)) - 0.35) < 1e-9);
+  check('Go sends the run only: no set rides along with it (W106)',
+    !goSent.some(c => c.cmd === 'set') && (await S(iappIs(0.35))), JSON.stringify(goSent));
 
-  /* there is no undo (GitHub #110): Reset puts a field's model-file value back, pending like any edit */
+  /* there is no undo (GitHub #110): Reset puts a field's model-file value back, sent at once */
   check('there is no Undo button in the panel', !(await cdp.eval(`[...document.querySelectorAll('.values-header button')].some(b => b.textContent === 'Undo')`)));
+  const preReset = await S('__xpp.sent().length');
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).closest('.value-field').querySelector('.value-reset').click()`);
-  await until('s.values.pending.length === 1', 'reset pending');
-  check('Reset makes the model file\'s value pending, still sending nothing',
-    Math.abs((await S(`(s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1]`)) - 0.35) < 1e-9
-    && (await S('s.values.pending[0].text')) === String(before),
-    JSON.stringify(await S('s.values.pending')));
-  /* clicking the plot (view-only, no compute) sends nothing: the reset edit is still only pending */
+  check('Reset sends the model file\'s value at once, and the core has it',
+    await until(`!s.busy && ${iappIs(before)}`, 'reset applied')
+    && (await S(`__xpp.sent().slice(${preReset})`)).filter(c => c.cmd === 'set').length === 1,
+    JSON.stringify(await S(`__xpp.sent().slice(${preReset})`)));
+  /* clicking the plot (view-only, no compute) sends nothing */
   const plotCorner = await cdp.eval(`(() => { const r = document.querySelector('.plot-host').getBoundingClientRect();
     return {x: r.left + 6, y: r.top + 6}; })()`);
   const preClick = await S('__xpp.sent().length');
@@ -436,11 +433,6 @@ async function values() {
   await mouse('mouseReleased', plotCorner.x, plotCorner.y, {button: 'left', buttons: 0, clickCount: 1});
   await sleep(200);
   check('a click on the plot host sends nothing: it is view-only', (await S('__xpp.sent().length')) === preClick);
-  /* Go flushes the reset, back to the model file's value */
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (reset)');
-  await key('g');
-  await until(`!s.busy && Math.abs((s.core.pars.find(p => p[0].toLowerCase() === "iapp") || [])[1] - ${before}) < 1e-9`, 'reset flushed');
 
 
   /* T20: Add slider opens a dialog; search narrows the list, picking iapp
@@ -482,22 +474,25 @@ async function values() {
   await cdp.eval(`${okBtn()}.click()`);
   await until(`(() => { const d = s.values.sliders.find(x => x.id === ${sid}); return d && d.hi === '0.2'; })()`, 'edited');
 
-  /* a slider moved by the keyboard: arrow keys on the range track become a
-     pending edit (GitHub #117), nothing sent, no new series until Go */
+  /* a slider moved by the keyboard: arrow keys on the range track send
+     each value as a set (W106), and nothing runs: no new series until Go */
   const preSlide = await S('__xpp.sent().length');
   await cdp.eval(`document.getElementById('slider-range-${sid}').focus()`);
   await key('ArrowRight');
   await key('ArrowRight');
-  await until('s.values.pending.length === 1', 'slider pending');
-  check('a slider moved by the keyboard sends nothing: it is a pending edit',
-    (await S('__xpp.sent().length')) === preSlide && (await S('s.seriesCount')) === n0,
-    JSON.stringify(await S('[s.values.pending, s.seriesCount]')));
+  await until(`!s.busy && !s.values.inflight.length && __xpp.sent().length > ${preSlide}`, 'slider sent');
+  const slid = await S(`__xpp.sent().slice(${preSlide})`);
+  check('a slider moved by the keyboard sends its values as sets, and runs nothing',
+    slid.length >= 1 && slid.every(c => c.cmd === 'set') && (await S('s.seriesCount')) === n0,
+    JSON.stringify([slid, await S('s.seriesCount')]));
+  const slidTo = Number(slid[slid.length - 1].text);
+  check('the core has the slider\'s last value', await S(iappIs(slidTo)), String(slidTo));
   /* the keys go to the plot: on the focused range track a letter is not a hotkey */
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
   await key('g');
-  check('Go flushes the slider\'s pending edit as one set, then integrates: a new series arrives',
+  check('Go integrates with it: a new series arrives',
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'slide series'),
     JSON.stringify(await S('[s.seriesCount, w.series && w.series.rows]')));
   await cdp.eval(`document.querySelector('[data-slider="${sid}"] .slider-card-remove').click()`);
@@ -2596,7 +2591,7 @@ async function autoStopRace() {
   await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`);
   await until('s.diagram.viewport.y === null', 'view reset');
 
-  /* T22: an edit made mid-run waits, pending, and applies once the run ends */
+  /* T22, W106: an edit made mid-run is a setting: sent at once, the core applies it once the run ends */
   const sentPre = await cdp.eval('__xpp.sent().length');
   await autoButton('N');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics during run');
@@ -2604,11 +2599,12 @@ async function autoStopRace() {
     i.value = '15'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await cdp.eval(`document.querySelector('.auto-settings-dialog .dialog-actions .primary').click()`);
   const setsSent = () => cdp.eval(`__xpp.sent().slice(${sentPre}).filter(c => c.cmd === 'auto' && c.op === 'set')`);
-  check('T22: Numerics during a run: Nmax 15 waits, pending (the button dashed, the store\'s queue), nothing sent',
-    going && await S(`s.busy && s.autoSettings.queued && s.autoSettings.queued.numerics.nmx === 15
+  check('W106: Numerics during a run: Nmax 15 is sent at once (one set), shown, the core\'s still 2000 (the run keeps it)',
+    going && await S(`s.busy && s.autoSettings.inflight.length === 1 && s.autoSettings.inflight[0].patch.numerics.nmx === 15
       && s.autoSettings.core.numerics.nmx === 2000`)
     && await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)
-    && (await setsSent()).length === 0, JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
+    && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}]),
+    JSON.stringify([going, await S('[s.busy, s.autoSettings]'), await setsSent()]));
 
   /* T25: a connection the browser opened and sent nothing on yet (a
      preconnect) held xppautX's one request thread for 30 s, and the Stop
@@ -2632,8 +2628,8 @@ async function autoStopRace() {
   check('T25: Stop ends a running AUTO computation, with an idle connection open to xppautX, on an EP label',
     runningAtStop && stopBtn && stopped && (await DS('d.labels.length')) > labsPre && lastLab === 'EP',
     JSON.stringify([runningAtStop, stopBtn, stopped, tookStop, labsPre, lastLab]));
-  check('T22: at the run\'s idle the edit goes out, one set, and applies: the core\'s Nmax is 15, nothing pending',
-    await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.queued && !s.autoSettings.sent`,
+  check('W106: once the run ends the set applies: the core\'s Nmax is 15, nothing in flight, no second set',
+    await until(`!s.busy && s.autoSettings.core.numerics.nmx === 15 && !s.autoSettings.inflight.length`,
       'applied at idle', 60000 * SLOW)
     && JSON.stringify(await setsSent()) === JSON.stringify([{cmd: 'auto', op: 'set', numerics: {nmx: 15}}])
     && !(await cdp.eval(`document.querySelector('.auto-tools button[data-op=numerics]').classList.contains('auto-pending')`)),
@@ -2733,9 +2729,9 @@ async function busyKeys() {
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
-    + 'and data (Initialconds, Sing pts, Parameters...) and Save are disabled',
+    + 'and data (Initialconds, Sing pts...) and Save are disabled, Parameters (a setting, W106) is not',
     running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.save
-    && ['i', 'c', 'a', 's', 'b', 'p'].every(k => ui.off.includes(k)), JSON.stringify(ui));
+    && ['i', 'c', 'a', 's', 'b'].every(k => ui.off.includes(k)) && !ui.off.includes('p'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* a view clicked during the run is sent, and the core runs it after the run (the menu it
@@ -2757,22 +2753,41 @@ async function busyKeys() {
   for (let k = 1; k <= 5; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.1), track.y, {button: 'left'});
   await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
   const dragged = await cdp.eval(`__xpp.sent().slice(${sent0})`);
-  const pending = await S(`s.values.pending.length === 1 && s.values.pending[0].name === 'iapp'
-    && document.querySelector('[data-slider="${sid}"]').classList.contains('queued')`);
+  const draggedTo = dragged.length ? Number(dragged[dragged.length - 1].text) : null;
+  const shownDrag = await S(`s.values.inflight.some(f => f.set.name === 'iapp')
+    && !document.querySelector('[data-slider="${sid}"]').classList.contains('queued') && !document.querySelector('.values-queued')`);
+  /* W106: a parameter field and a Numerics field are settings too: editable during the run, sent at once */
+  await editField('par', 'phi', '0.4');
+  await editField('num', 'Ncline mesh', '50');
+  const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
   const stillBusy = await S('s.busy');
-  check('busy keys: computation keys typed during a run (I, S, C) send nothing, and a slider moved then sends nothing, its edit pending',
-    typed.length === 0 && dragged.length === 0 && pending && stillBusy, JSON.stringify({typed, dragged, pending, stillBusy}));
+  check('busy keys: computation keys typed during a run (I, S, C) send nothing',
+    typed.length === 0 && stillBusy, JSON.stringify({typed, stillBusy}));
+  check('W106: during the run a slider, a parameter field and a Numerics field send their edits at once (sets), '
+    + 'shown as the values, with no pending mark',
+    dragged.length >= 1 && dragged.every(c => c.cmd === 'set' && c.name === 'iapp') && shownDrag
+    && JSON.stringify(edited) === JSON.stringify([{cmd: 'set', kind: 'par', name: 'phi', text: '0.4'},
+      {cmd: 'set', kind: 'num', name: 'nmesh', text: '50'}])
+    && await cdp.eval(`${fieldOf('par', 'phi')}.querySelector('input').value === '0.4'
+      && ${fieldOf('num', 'Ncline mesh')}.querySelector('input').value === '50'`) && stillBusy,
+    JSON.stringify({dragged, edited, shownDrag, stillBusy}));
+  const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
   await key('Escape');
   const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
   /* (the New window's own menu, answered by its key once the core runs it after the run, is no typed key) */
-  const out = await cdp.eval(`__xpp.sent().slice(${sent0}).map(c => c.cmd).filter(c => c !== 'answer')`);
+  const out = await cdp.eval(`__xpp.sent().slice(${sent0}).map(c => c.cmd).filter(c => c !== 'answer' && c !== 'set')`);
   const cancelled = await cdp.eval(`__xpp.actions().slice(${n0}).includes('event:stopped')`);
-  const iapp0 = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
-  check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the parameter is unchanged',
-    stopped && cancelled && out.length === 0 && Math.abs(iapp0 - 0.05) < 1e-9 && (await S('s.values.pending.length')) === 1,
-    JSON.stringify({stopped, cancelled, out, iapp0}));
+  check('busy keys: Escape during a run stops it (stopped) and sends nothing else; the run kept its values (the state '
+    + 'during it had the parameters it started with)',
+    stopped && cancelled && out.length === 0 && JSON.parse(runPars).find(p => p[0] === 'iapp')[1] === 0.05,
+    JSON.stringify({stopped, cancelled, out, runPars}));
+  check('W106: after the run the core has the edits made during it (state and numerics)',
+    await until(`!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9
+      && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'nmesh').value === 50`,
+    'settings applied after the run', 10000),
+    JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
   /* the New window clicked during the run ran after it: its menu answered by the click's own key */
   check('W95: the view clicked during the run ran after it: window 2 exists',
     await until('!s.busy && !s.ask && s.plots.windows.length === 2', 'new window after the run', 10000),
@@ -2780,8 +2795,7 @@ async function busyKeys() {
   await cdp.eval(`[...document.querySelectorAll('.plot-tab')].find(b => b.id === 'plot-tab-1').click()`);
   await until('!s.busy && s.plots.active === 1', 'window 1 again');
   /* the wedge case: keys work after the run (Total back to 20: 401 rows), and the next
-     command that computes takes the slider's pending edit */
-  const draggedTo = await S('s.values.pending.length ? Number(s.values.pending[0].text) : null');
+     run uses the slider's edit */
   await focusPlot();
   await key('u');
   await until('!s.busy && s.core.menu === 2', 'numerics menu after the run');
@@ -2797,8 +2811,8 @@ async function busyKeys() {
   await key('g');
   check('busy keys: after the run I then G typed at once integrate, with the slider\'s edit applied',
     await until(`s.seriesCount > ${n1} && w.series.rows === 401 && !s.busy`, 'I G after the run', 30000)
-    && await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9 && s.values.pending.length === 0`),
-    JSON.stringify(await S('[s.busy, s.ask, w.series && w.series.rows, s.values.pending]')));
+    && await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9 && s.values.inflight.length === 0`),
+    JSON.stringify(await S('[s.busy, s.ask, w.series && w.series.rows, s.values.inflight]')));
 }
 
 /* W83 (GitHub #132): the status bar reserves a fixed-width slot for the
@@ -3102,29 +3116,18 @@ async function runsCheck(dir) {
     && JSON.stringify(await S('s.core.ics.map(p => p[1])')) === JSON.stringify(nowBefore),
     JSON.stringify([await S('s.core.ics'), nowBefore]));
 
-  /* a parameter's reset (GitHub #117): the edit is pending, marked, and
-     changes nothing until Go flushes it; the model-value marking follows
-     the core's own value */
+  /* a parameter's edit and reset (W106): sent at once, the core applies
+     it; the model-value marking follows the core's own value */
   await editField('par', 'phi', '0.5');
-  await until('s.values.pending.length === 1', 'phi pending');
-  check('runs: the edited field is marked pending, the core value unchanged',
-    (await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('queued')`))
-    && Math.abs((await S('s.core.pars.find(p => p[0] === "phi")[1]')) - 0.333) < 1e-12);
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (phi)');
-  await key('g');
-  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "phi")[1] - 0.5) < 1e-12', 'phi flushed');
+  check('runs: an edited parameter is sent at once, the core has it, no pending mark',
+    await until('!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "phi")[1] - 0.5) < 1e-12', 'phi set')
+    && !(await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('queued')`)),
+    JSON.stringify(await S('[s.values.inflight, s.core.pars]')));
   const reset = `${fieldOf('par', 'phi')}.querySelector('.value-reset')`;
   check('runs: a changed parameter is marked, its reset names the default',
     await cdp.eval(`${fieldOf('par', 'phi')}.classList.contains('changed') && ${reset}.title === 'default: 0.333'`),
     await cdp.eval(`${reset}.title`));
   await cdp.eval(`${reset}.click()`);
-  await until('s.values.pending.length === 1', 'phi reset pending');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (phi reset)');
-  await key('g');
   check('runs: reset restores the model value', await until('!s.busy && s.core.pars.find(p => p[0] === "phi")[1] === 0.333', 'reset'));
 
   /* Save, then Load a changed copy (W66 review, #114): both go through
@@ -3133,7 +3136,7 @@ async function runsCheck(dir) {
      above) offers it as a download; Load uploads the picked file with
      the files API (session.ts loadValues, the same PUT any other upload
      uses) and sends `values` `read` -- applied at once, like File/Read
-     set, not staged as a pending edit, so no Go is needed. */
+     set, so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
      catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
   const sentSave = await cdp.eval('__xpp.sent().length');
@@ -3181,8 +3184,8 @@ async function runsCheck(dir) {
   check('runs: an ic file with too few values is refused with the core\'s own message',
     await until("s.bottom && /Expected 2 initial conditions/.test(s.bottom)", 'bad ic message'), await S('s.bottom'));
 
-  /* a slider: its default range is [0, 2v]; a drag sends nothing (GitHub
-     #117), only becomes pending, and the release leaves its final value */
+  /* a slider: its default range is [0, 2v]; a drag sends its values as
+     sets (W106), and the release leaves its final value in the core */
   const iapp = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
   const sid = await addSlider('iapp');
   const sdef = await S(`s.values.sliders.find(d => d.id === ${sid})`);
@@ -3192,23 +3195,26 @@ async function runsCheck(dir) {
   const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
   const sent1 = await cdp.eval('__xpp.sent().length');
+  const nSlide = await S('s.seriesCount');
   await mouse('mousePressed', track.x + track.w * 0.5, track.y, {button: 'left', clickCount: 1});
   for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.5 + k * 0.04), track.y, {button: 'left'});
   await mouse('mouseReleased', track.x + track.w * 0.9, track.y, {button: 'left', clickCount: 1});
-  await until('s.values.pending.length === 1', 'drag settles');
-  await sleep(300);
+  await until(`!s.busy && !s.values.inflight.length && __xpp.sent().length > ${sent1}`, 'drag settles');
   const out = await cdp.eval(`__xpp.sent().slice(${sent1})`);
-  const pendingVal = await S('Number(s.values.pending[0].text)');
-  check('runs: a slider drag sends nothing while dragging, only a pending edit at its final value',
-    out.length === 0 && Math.abs(pendingVal - 0.9 * 2 * iapp) < 2 * iapp * 0.05 && !(await S('s.busy')),
-    JSON.stringify({out, pendingVal}));
+  const draggedTo = Number(out[out.length - 1].text);
+  check('runs: a slider drag sends its values as sets, runs nothing, and the core has its final value',
+    out.every(c => c.cmd === 'set') && Math.abs(draggedTo - 0.9 * 2 * iapp) < 2 * iapp * 0.05
+    && (await S('s.seriesCount')) === nSlide && (await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`)),
+    JSON.stringify({out, draggedTo}));
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'Initialconds menu (slider)');
+  const preGo = await cdp.eval('__xpp.sent().length');
   await goRun();
   const final = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
-  check('runs: Go flushes the slider\'s pending edit as one set, then the run',
-    Math.abs(final - pendingVal) < 1e-9, JSON.stringify({final, pendingVal}));
+  check('runs: Go runs with the slider\'s value, no set of its own',
+    Math.abs(final - draggedTo) < 1e-9 && !(await cdp.eval(`__xpp.sent().slice(${preGo}).some(c => c.cmd === 'set')`)),
+    JSON.stringify({final, draggedTo}));
 
   /* folding a section is remembered by the viewer */
   await cdp.eval(`document.querySelector('[data-section="par"] .value-fold').click()`);
@@ -3363,23 +3369,28 @@ async function valuesLive() {
   await until("s.ask && s.ask.kind === 'menu'", 'menu');
   await key('g');
   await until('s.busy && w.series && w.series.rows > 100', 'running');
-  /* five edits of a parameter while the run goes (GitHub #117): they wait,
-     marked, the same as when idle -- nothing goes out, not even once the
-     run ends, until a fresh command that computes flushes them */
-  for (const v of ['0.051', '0.052', '0.053', '0.054', '0.055']) await editField('par', 'iapp', v);
-  const pendingDuring = await S('JSON.stringify(s.values.pending)');
-  const marked = await cdp.eval(`${fieldOf('par', 'iapp')}.classList.contains('queued')`);
-  const wasBusy = await S('s.busy');
+  /* five edits of a parameter while the run goes (W106, GitHub #155): each
+     is a setting, sent at once and shown as the value; the run keeps the
+     value it started with (the core's state during it), and the core has
+     the last edit once the run ends */
   const sent0 = await cdp.eval('__xpp.sent().length');
+  for (const v of ['0.051', '0.052', '0.053', '0.054', '0.055']) await editField('par', 'iapp', v);
+  const sentDuring = await cdp.eval(`__xpp.sent().slice(${sent0})`);
+  const shownDuring = await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').value`);
+  const coreDuring = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  const wasBusy = await S('s.busy');
+  const noMark = !(await cdp.eval(`${fieldOf('par', 'iapp')}.classList.contains('queued') || !!document.querySelector('.values-queued')`));
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
   await sleep(500);
   await cdp.eval('window.__sampling = false; window.__nowObserver.disconnect(); true');
-  const afterRun = await cdp.eval(`__xpp.sent().slice(${sent0})`);
-  check('values: five edits while busy wait (the latest, marked) and stay pending once the run ends',
-    wasBusy && pendingDuring === JSON.stringify([{kind: 'par', name: 'iapp', text: '0.055'}]) && marked
-    && afterRun.length === 0 && (await S('s.values.pending.length')) === 1
-    && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - 0.05) < 1e-9,
-    JSON.stringify({wasBusy, pendingDuring, marked, afterRun}));
+  check('values: five edits while busy are sent at once (five sets), the field shows the last, no pending mark',
+    wasBusy && sentDuring.length === 5 && sentDuring.every(c => c.cmd === 'set' && c.name === 'iapp')
+    && sentDuring[4].text === '0.055' && shownDuring === '0.055' && noMark,
+    JSON.stringify({wasBusy, sentDuring, shownDuring, noMark}));
+  check('values: the run kept the value it started with; the core has the last edit once it ends',
+    Math.abs(coreDuring - 0.05) < 1e-9 && await until(`!s.busy && !s.values.inflight.length
+      && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.055) < 1e-9`, 'edits applied after the run', 10000),
+    JSON.stringify({coreDuring, now: await S('[s.values.inflight, s.core.pars]')}));
   const icSeen = await cdp.eval('[...new Set(__icSeen)]');
   const nowSeen = await cdp.eval('[...new Set(__nowSeen)]');
   check('values: the IC fields and the ICs do not change during a run',
@@ -3391,21 +3402,9 @@ async function valuesLive() {
     await S(`s.core.now && s.core.now.every((v, i) => Math.abs(v - ${JSON.stringify(last)}[i]) < 1e-6)`),
     JSON.stringify([await S('s.core.now'), last]));
 
-  /* Go flushes the pending edit left from the run above as one set, then integrates */
-  const sentFlush = await cdp.eval('__xpp.sent().length');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu (flush pending)');
-  await goRun();
-  await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.055) < 1e-9`, 'pending flushed', 60000);
-  const flushSent = await cdp.eval(`__xpp.sent().slice(${sentFlush}).filter(c => c.cmd === 'set')`);
-  check('values: the next Go sends the pending edit as one set with no rerun field, then runs',
-    flushSent.length === 1 && flushSent[0].text === '0.055' && !('rerun' in flushSent[0]), JSON.stringify(flushSent));
-
-  /* a slider dragged while a run goes: nothing goes out during or after it, only a pending edit.
-     Whether the run is still going when the drag ends depends on the machine's speed (W58), so
-     that is reported, not checked: a slider sends nothing busy or idle (GitHub #117), and the
-     outcome checked is the same either way */
+  /* a slider dragged while a run goes: its values go out at once (sets), and the core has the
+     last one once the run ends. Whether the run is still going when the drag ends depends on
+     the machine's speed (W58), so that is reported, not checked: the outcome is the same */
   const sid = await addSlider('iapp');
   await focusPlot();
   await key('i');
@@ -3418,20 +3417,14 @@ async function valuesLive() {
   await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
   for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.05), track.y, {button: 'left'});
   await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
-  const during = await cdp.eval(`__xpp.sent().slice(${sent1}).length`);
   const busyThen = await S('s.busy');
-  const shown = await S(`s.values.pending.length === 1 && document.querySelector('[data-slider="${sid}"]').classList.contains('queued')`);
-  await until('!s.busy && w.series.rows === 20001', 'the run under the drag', 60000);
-  await sleep(300);
+  await until('!s.busy && w.series.rows === 20001 && !s.values.inflight.length', 'the run under the drag', 60000);
   const out = await cdp.eval(`__xpp.sent().slice(${sent1})`);
-  check('values: a slider dragged during a run sends nothing during it or after it ends, only a pending edit',
-    during === 0 && shown && out.length === 0 && (await S('s.values.pending.length')) === 1,
-    JSON.stringify({busyThen, during, shown, out}));
-  const draggedTo = await S('Number(s.values.pending[0].text)');
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu (flush slider)');
-  await goRun();
-  await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`, 'slider flushed', 60000);
+  const draggedTo = out.length ? Number(out[out.length - 1].text) : null;
+  check('values: a slider dragged during a run sends its values as sets at once; the core has the last after the run',
+    out.length >= 1 && out.every(c => c.cmd === 'set')
+    && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - draggedTo) < 1e-9,
+    JSON.stringify({busyThen, out}));
 
 
   /* T35d: a parameter box takes a number or %formula only, and refuses outright, while typed, a
@@ -3461,7 +3454,9 @@ async function valuesLive() {
   check('T35d: a refused paste ("abc" appended at once) lands none of it: the box reads 0.05, unmarked, and names the offender',
     box.value === '0.05' && box.invalid === null
     && box.message === 'Pasted "abc" is not a number or formula ("a" at character 1)', JSON.stringify(box));
-  check('T35d: a refused keystroke/paste sends nothing', (await cdp.eval('__xpp.sent().length')) === sent2,
+  const onlyEdit = () => cdp.eval(`(() => { const l = __xpp.sent().slice(${sent2});
+    return l.length === 1 && l[0].cmd === 'set' && l[0].text === '0.05'; })()`);
+  check('T35d: a refused keystroke/paste sends nothing (the one set is the 0.05 committed between them)', await onlyEdit(),
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent2})`)));
 
   /* half-typed and left ("1e-" is on the way to a number while typed, so no message while it is
@@ -3472,42 +3467,31 @@ async function valuesLive() {
   box = await fieldState('par', 'iapp');
   check('T35d: "1e-" left half-typed is marked, kept, and says what is missing',
     box.value === '1e-' && box.invalid === 'true' && box.message === '"1e-" needs an exponent\'s digits', JSON.stringify(box));
-  check('T35d: a half-typed number is never sent', (await cdp.eval('__xpp.sent().length')) === sent2);
+  check('T35d: a half-typed number is never sent', await onlyEdit());
 
   /* Escape belongs to the field: it drops the half-typed text, wherever the focus went */
   await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
   await key('Escape');
   await sleep(80);
   let dropped = await fieldState('par', 'iapp');
-  /* the value it goes back to is the field's pending edit (0.05, typed above and not sent yet:
-     GitHub #117), not the core's older one */
-  const pendingIapp = await S(`(s.values.pending.find(p => p.name === 'iapp') || {}).text ?? null`);
-  check('T35d: Escape drops the half-typed text: the box shows its pending value again, unmarked',
-    dropped.invalid === null && pendingIapp === '0.05' && close6(Number(dropped.value), 0.05),
-    JSON.stringify({dropped, pendingIapp, iapp0}));
+  /* the value it goes back to is the one committed above (0.05: sent at once, W106), which the core has */
+  const coreIapp = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
+  check('T35d: Escape drops the half-typed text: the box shows the value again, unmarked',
+    dropped.invalid === null && close6(coreIapp, 0.05) && close6(Number(dropped.value), 0.05),
+    JSON.stringify({dropped, coreIapp, iapp0}));
 
   /* WF-001: a %formula the box takes (its own rules say nothing against it) can still be one the
      core refuses (an unknown symbol): the box keeps showing what was sent, marked, with the
      core's own message, while it is still waiting and after it is refused -- never reverted to
      the old value behind the user's back. Escape then drops it, back to what the core has.
-     GitHub #117: the edit is only pending until Go flushes it, so the core's refusal (and any
-     later run) can only arrive after that. */
+     W106: the edit is sent at once, so the refusal comes at once too. */
   await editField('par', 'iapp', '%0.02');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu (%0.02)');
-  await goRun();
   await until('Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.02) < 1e-12', 'iapp = %0.02', 60000);
   await until('!s.busy', 'idle after %0.02', 60000);
   const sent3 = await cdp.eval('__xpp.sent().length');
   await cdp.eval(`(() => { const el = ${fieldOf('par', 'iapp')}.querySelector('input');
     el.focus(); el.value = '%bogus_symbol_zzz'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await key('Enter');
-  await until('s.values.pending.length === 1', 'bogus formula pending');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu (bogus formula)');
-  await goRun();
   const refused = await until(`s.values.errors['par:iapp']`, 'the core refuses %bogus_symbol_zzz', 60000);
   box = await fieldState('par', 'iapp');
   check('WF-001: a formula the core refuses keeps its draft, marked, with the core\'s message, and takes the focus back',
@@ -3525,14 +3509,10 @@ async function valuesLive() {
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent3})`)));
   await until('!s.busy', 'idle after the refusal', 60000);
 
-  /* a %formula the core takes is pending, then sent as typed and evaluated once Go flushes it */
-  await editField('par', 'iapp', '%0.01*6');
+  /* a %formula the core takes is sent as typed, at once, and the core evaluates it */
   const sent4 = await cdp.eval('__xpp.sent().length');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu (%0.01*6)');
-  await goRun();
-  check('a %formula in a parameter box is pending, then sent as typed and the core evaluates it',
+  await editField('par', 'iapp', '%0.01*6');
+  check('a %formula in a parameter box is sent as typed and the core evaluates it',
     await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
     && (await cdp.eval(`__xpp.sent().slice(${sent4})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent4})`)));
@@ -4370,8 +4350,8 @@ async function main() {
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
-      /* before values(): its edits and slider end up flushed by a Go
-         (docs/protocol.md `set`, GitHub #117), so the stored data would no
+      /* before values(): its edits and slider change the values, and a
+         Go runs with them (docs/protocol.md `set`), so the stored data would no
          longer match the pristine `want` computed from the ODE file's own
          defaults */
       await dataTable(want, dir);

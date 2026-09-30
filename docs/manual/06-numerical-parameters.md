@@ -2,6 +2,8 @@
 
 When you click on the `nUmerics` command in the main menu, a new list appears. This is the numerics menu and allows you to set all of the numerical parameters as well as some post-processing. Some of these may not yet be implemented. Press `Esc` or click on the ` exit` to get the main menu back.
 
+The main ones (Total, Start time, tRansient, Dt, the nullcline mesh, the Sing pt controls, nOutput, Bounds, Method and its tolerances, dElay, bndVal) are also fields of the values panel's **Numerics** section, where you edit them like a parameter. They are settings: changed during a computation (in the panel, or with a menu item, whose dialog then opens when the computation ends), they apply to the next run, never to the one in progress.
+
 The items on this menu are:
 
 ### (T)otal

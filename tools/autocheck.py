@@ -439,6 +439,11 @@ def section_abort():
     if gap is None:
         s.close()
         return
+    # W106: AUTO's settings sent during its run (a setting) are kept for
+    # after it, each a command of its own then; the data subscription (a
+    # view) runs after them
+    s.send(cmd='auto', op='set', numerics={'nmx': 1500})
+    s.send(cmd='data', events=['autoinfo', 'autosettings'])
     # a point takes a few Newton steps: land the Abort inside one of them
     time.sleep(0.25)
     t = s.send(cmd='abort')
@@ -447,6 +452,12 @@ def section_abort():
     check('Abort stops a periodic run (reaches idle)', e is not None,
           'abort->idle %.2f s (a point takes %.2f s)' % (took, gap))
     perf('abort stops a periodic run -> idle', '%.2f s (a point takes %.2f s)' % (took, gap))
+    set_evs, _ = s.collect(is_idle, timeout=10 * SLOW)
+    data_evs, _ = s.collect(is_idle, timeout=10 * SLOW)
+    errs = [x.get('error') for x in evs + set_evs if x.get('ev') == 'message' and 'error' in x]
+    st = [x for x in data_evs if x.get('ev') == 'autosettings']
+    check('W106: AUTO settings sent during its run: no error, applied after it with their own idle',
+          not errs and st and st[-1]['numerics']['nmx'] == 1500, '%s %s' % (errs, st and st[-1]['numerics']))
 
     # the run ends on an end point (EP, not MX: no convergence), which is
     # where it can be continued from

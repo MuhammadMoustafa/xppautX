@@ -81,16 +81,15 @@ int ask_wait(Buf *b, int id)
             const char *ok = js_find(answer.c_str(), "ok");
             return ok == NULL || js_num(ok, 0) != 0;
         }
-        /* AUTO's settings sent while a question is open are the page's
-           own forms, not an answer: they apply when the command is done
-           (docs/protocol.md "AUTO's settings as data") */
-        if (!session.script_mode && is_auto_set(line)) {
-            defer_auto_set(line);
-            continue;
-        }
         /* for a script this line was supposed to answer this ask, and
            nothing after it can line up */
         if (session.script_mode) script_fail("does not answer the open question", line, script_ask.c_str());
+        /* a setting (W106): at once before the command computes, else
+           after it (take_setting) */
+        if (!session.script_mode && !is_cmd(line, "key") && line_kind(line) == XPP_KIND_SETTING) {
+            take_setting(line);
+            continue;
+        }
         /* anything else was sent before the client saw the question (a
            click right behind the command that asks): kept for after the
            command, never lost (W95) */

@@ -429,12 +429,6 @@ void j_auto_scroll_window(void)
 
 /* ---- AUTO's settings as data (auto_settings.h) ---- */
 
-int is_auto_set(const char *line)
-{
-    std::string o;
-    return is_cmd(line, "auto") && get_string(line, "op", o, 8) && o == "set";
-}
-
 namespace {
 
 /* the "numerics", "pars", "axes" and "marks" of {"cmd":"auto","op":"set",...}
@@ -508,32 +502,7 @@ void auto_set_command(const char *line)
         j_err_msg(xpp::format("AUTO settings: {}", why).c_str());
 }
 
-/* the settings a question's wait put aside, applied at the command's end */
-std::vector<std::string> deferred_sets;
-
 } // namespace
-
-void defer_auto_set(const char *line)
-{
-    try {
-        deferred_sets.emplace_back(line);
-    } catch (...) {
-        xpp_out_of_memory("keeping AUTO's settings");
-    }
-}
-
-void apply_deferred_sets(void)
-{
-    try {
-        for (size_t i = 0; i < deferred_sets.size(); i++) {
-            std::string line = deferred_sets[i]; /* a copy: setting one may defer another */
-            auto_set_command(line.c_str());
-        }
-        deferred_sets.clear();
-    } catch (...) {
-        xpp_out_of_memory("applying AUTO's settings");
-    }
-}
 
 /* {"cmd":"auto","op":...}: what the AUTO window's keys (menu_auto_window)
    do not say: a grab by label or by type and index, the settings, a click

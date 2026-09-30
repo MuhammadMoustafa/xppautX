@@ -1,14 +1,17 @@
 /* Parameters, initial conditions, boundary conditions and delays
    (docs/protocol.md `set`, `slide`, `default`; docs/ui-v2.md T3,
-   GitHub #117): the values themselves stay in AppState.core (the `state`
-   event), sent by the core. This slice is only what the page adds: the
-   edits not yet sent (sliders, value fields, Default/Reset: the latest
-   per field, shown as pending until session.ts sends them all in one
-   `set` right before the next command that computes, so every
-   computation uses what the panel shows -- nothing is sent on a plain
-   edit, busy or idle), which field an edit is attributed to (so a
-   `message` `error` can be shown on that field, not as a modal, A11/A14),
-   the model's defaults and the sliders under the plot (store/sliders.ts).
+   GitHub #155): the values themselves stay in AppState.core (the `state`
+   event), sent by the core. They are settings (W106): an edit (a slider,
+   a value field, Default/Reset, a numerics field) goes to the core at
+   once as a `set`, busy or idle, and during a computation the core keeps
+   it for when that ends (the run in progress keeps the values it started
+   with). This slice is only what the page adds: the edits sent whose
+   `set` has not ended yet (`inflight`: each field shows its latest one
+   as its value until the core's own state takes over after that set's
+   idle -- no "pending" state, the value shown is the value), which of
+   them a `message` `error` belongs to (the one whose command runs, so it
+   is shown on that field, not as a modal, A11/A14), the model's defaults
+   and the sliders under the plot (store/sliders.ts).
    Save and Load of a section's .par/.ic go through the core (W66, then
    the W66 review): both are the `values` command (session.ts
    saveValues/loadValues), Save's write delivered like any other file the
@@ -20,10 +23,10 @@
 import type {Command} from '../protocol/types';
 import {presetSliders, type SliderDef} from './sliders';
 
-export type ValueKind = 'par' | 'ic' | 'bc' | 'delay';
+export type ValueKind = 'par' | 'ic' | 'bc' | 'delay' | 'num';
 
-/** an edit not yet sent, or a value to send: `name` for par/ic, `index`
-    for bc/delay (docs/protocol.md `set`) */
+/** a value to send: `name` for par/ic and a numerics field's key (num),
+    `index` for bc/delay (docs/protocol.md `set`) */
 export interface ValueSet {
   kind: ValueKind;
   name?: string;
@@ -31,14 +34,19 @@ export interface ValueSet {
   text: string;
 }
 
+/** an edit sent as its own `set`, until that command's idle: `ahead` is
+    how many other commands' idles come first (0: its own command is the
+    one running or the next) */
+export interface InFlight {
+  set: ValueSet;
+  ahead: number;
+}
+
 export interface ValuesState {
-  /** field id -> the error the core sent for it, until the next edit on it or a clean idle */
+  /** field id -> the error the core sent for it, until the next edit on it */
   errors: Record<string, string>;
-  /** the field id the next `message` `error` is attributed to (the edit
-      most recently flushed, until its `idle`) */
-  attributing: string | null;
-  /** edits not yet sent: the latest per field, in the order last changed */
-  pending: ValueSet[];
+  /** the edits sent whose `set` has not ended, in the order sent */
+  inflight: InFlight[];
   /** the model file's values by field key (hello.defaults, else the first state) */
   defaults: Record<string, number> | null;
   /** the sliders under the plot, and the id the next one gets */
@@ -47,7 +55,7 @@ export interface ValuesState {
 }
 
 export const initialValues: ValuesState = {
-  errors: {}, attributing: null, pending: [], defaults: null, sliders: [], nextSlider: 1,
+  errors: {}, inflight: [], defaults: null, sliders: [], nextSlider: 1,
 };
 
 /** a field's identity as a store key: names fold case, as the core matches them (docs/protocol.md `set`) */
@@ -63,18 +71,20 @@ function omit(o: Record<string, string>, key: string): Record<string, string> {
 }
 
 export type ValuesAction =
-  /** a field's edit: kept pending (not sent) until the next flush */
-  | {type: 'edit'; set: ValueSet}
+  /** a field's edit, sent as its own `set`, `ahead` idles before its own */
+  | {type: 'sent'; set: ValueSet; ahead: number}
+  /** a command ended: the set whose command it was is done, the others one idle closer */
+  | {type: 'idle'}
+  /** a `message` `error`: the running set's field's, when a set runs */
   | {type: 'error'; text: string}
   /** Escape dropped a draft that carried the core's refusal for `field` (WF-001, ui/Field.tsx
       onDropError): the box goes back to what the core has, so its error is forgotten too,
       without sending anything */
   | {type: 'clearError'; field: string}
+  /** a new connection: nothing sent is waited for any more */
   | {type: 'settled'}
-  /** the Default or Reset button: pending edits from the ODE file's values, not itself undoable */
+  /** the Default or Reset button: the section's errors go (its edits are sent as any) */
   | {type: 'defaulted'; kind: ValueKind}
-  /** the pending edits went out as one `set`, attributed to `field` when exactly one was sent */
-  | {type: 'flushed'; field: string | null}
   /** the model's values: from hello.defaults, or (`ifUnset`) the first state's */
   | {type: 'defaults'; pars: [string, number][]; ics: [string, number][]; ifUnset?: boolean}
   /** the model's `@ s1=..` presets, on a (re)connection: the list starts with them when it is empty */
@@ -87,18 +97,22 @@ export type ValuesAction =
 
 export function reduceValues(state: ValuesState, action: ValuesAction): ValuesState {
   switch (action.type) {
-    case 'edit': {
-      const field = setKey(action.set);
-      return {...state, errors: omit(state.errors, field), pending: queueSet(state.pending, action.set)};
+    case 'sent':
+      return {...state, errors: omit(state.errors, setKey(action.set)),
+        inflight: [...state.inflight, {set: action.set, ahead: action.ahead}]};
+    case 'idle':
+      return state.inflight.length
+        ? {...state, inflight: state.inflight.filter(f => f.ahead > 0).map(f => ({...f, ahead: f.ahead - 1}))} : state;
+    case 'error': {
+      const running = state.inflight.find(f => f.ahead === 0);
+      return running ? {...state, errors: {...state.errors, [setKey(running.set)]: action.text}} : state;
     }
-    case 'error':
-      return state.attributing ? {...state, errors: {...state.errors, [state.attributing]: action.text}} : state;
     case 'clearError': {
       const errors = omit(state.errors, action.field);
       return errors === state.errors ? state : {...state, errors};
     }
     case 'settled':
-      return state.attributing ? {...state, attributing: null} : state;
+      return state.inflight.length ? {...state, inflight: []} : state;
     case 'defaulted': {
       const prefix = `${action.kind}:`;
       const keys = Object.keys(state.errors).filter(k => k.startsWith(prefix));
@@ -107,9 +121,6 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       for (const k of keys) delete errors[k];
       return {...state, errors};
     }
-    case 'flushed':
-      return state.pending.length || state.attributing !== action.field
-        ? {...state, pending: [], attributing: action.field} : state;
     case 'defaults': {
       if (action.ifUnset && state.defaults) return state;
       const defaults: Record<string, number> = {};
@@ -136,27 +147,18 @@ function setKey(s: ValueSet): string {
   return fieldKey(s.kind, s.index ?? s.name!);
 }
 
-/** `queue` with `s`: an earlier value of the same field is dropped (only the latest goes out) */
-export function queueSet(queue: ValueSet[], s: ValueSet): ValueSet[] {
-  const key = setKey(s);
-  return [...queue.filter(q => setKey(q) !== key), s];
-}
-
-/** the text of field `key`'s edit still waiting to be sent, or null */
-export function pendingText(queue: ValueSet[], key: string): string | null {
-  return queue.find(q => setKey(q) === key)?.text ?? null;
-}
-
-/** whether field `key` has an edit still waiting to be sent */
-export function isPending(queue: ValueSet[], key: string): boolean {
-  return queue.some(q => setKey(q) === key);
+/** the text of field `key`'s latest edit whose `set` has not ended, or
+    null: what the field shows until the core's state takes over */
+export function sentText(inflight: InFlight[], key: string): string | null {
+  for (let i = inflight.length - 1; i >= 0; i--) if (setKey(inflight[i].set) === key) return inflight[i].set.text;
+  return null;
 }
 
 function setMembers(s: ValueSet): Record<string, unknown> {
   return s.index !== undefined ? {kind: s.kind, index: s.index, text: s.text} : {kind: s.kind, name: s.name, text: s.text};
 }
 
-/** the one command that sends every pending edit (docs/protocol.md `set`: one value, or `values`) */
+/** the one command that sends these values (docs/protocol.md `set`: one value, or `values`) */
 export function setCommand(sets: ValueSet[]): Command | null {
   if (!sets.length) return null;
   return sets.length === 1 ? {cmd: 'set', ...setMembers(sets[0])} : {cmd: 'set', values: sets.map(setMembers)};

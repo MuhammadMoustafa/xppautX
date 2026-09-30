@@ -57,6 +57,24 @@ void quick_num(int com)
     get_num_par(key[com]);
 }
 
+const char *method_refusal(int m)
+{
+  if(m==method::VOLTERRA&&xpp::model().nkernel==0)return "Volterra only for integral eqns";
+  if(m==method::SYMPLECT&&(xpp::model().node%2)!=0)return "Symplectic is only for even dimensions";
+  return nullptr;
+}
+
+void dt_changed()
+{
+  xpp::Session &s=xpp::session();
+  chk_delay();
+  if(xpp::model().nkernel>0){
+    s.numerics.inflag=0;
+    s.integrator.my_start=1;
+    alloc_kernels(1);
+  }
+}
+
 void set_total(double total)
 {
   int n;
@@ -101,19 +119,7 @@ void  get_num_par(char ch)
 		         temp=s.numerics.delta_t;
 			 new_float("Delta t :",&s.numerics.delta_t);
 		         if(s.numerics.delta_t==0.0)s.numerics.delta_t=temp;
-		         if(s.numerics.delay>0.0) {
-			  free_delay();
-			  if(alloc_delay(s.numerics.delay)){
-			    s.numerics.inflag=0; /*  Make sure no last ics allowed */
-			  }
-			}
-			  else 
-			    free_delay();
-		       if(xpp::model().nkernel>0){
-			 s.numerics.inflag=0;
-			 s.integrator.my_start=1;
-			 alloc_kernels(1);
-		       }
+		         dt_changed();
 			flash(3);
 			break;
 		case 'n': flash(4);
@@ -158,8 +164,8 @@ void  get_num_par(char ch)
 		case 'm': flash(8);
 			 /* method */
 			 get_method();
-			 if(s.numerics.method==method::VOLTERRA&&xpp::model().nkernel==0){
-			   err_msg("Volterra only for integral eqns");
+			 if(const char *why=method_refusal(s.numerics.method)){
+			   err_msg(why);
 			   s.numerics.method=method::ADAMS;
 			 }
 		       if(xpp::model().nkernel>0)s.numerics.method=method::VOLTERRA;
@@ -196,12 +202,6 @@ void  get_num_par(char ch)
 			     new_int("Upper band:",&s.numerics.cv_bandupper);
 			   }
 			 }
-		       if(s.numerics.method==method::SYMPLECT){
-			 if((xpp::model().node%2)!=0){
-			   err_msg("Symplectic is only for even dimensions");
-			   s.numerics.method=method::ADAMS;
-			 }
-		       }
 		       }
 			flash(8);
 			break;
@@ -212,15 +212,8 @@ void  get_num_par(char ch)
                         new_float("real guess :", &s.delay.alpha_max);
 			   new_float("imag guess :", &s.delay.omega_max); 
 		        new_int("DelayGrid :",&s.delay.grid);
-		        if(s.numerics.delay>0.0) {
-			  free_delay();
-			  if(alloc_delay(s.numerics.delay)){
-			    s.numerics.inflag=0; /*  Make sure no last ics allowed */
-			  }
-			}
-			  else 
-			    free_delay();
-			  
+		        chk_delay();
+
 			flash(9);
 			break;
 		case 'c': flash(10);

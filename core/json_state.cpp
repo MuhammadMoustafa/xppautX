@@ -23,6 +23,7 @@
 #include "ani_data.h"
 #include "auto_data.h"
 #include "auto_settings.h"
+#include "numerics_settings.h"
 #include "lunch-new.h"
 #include "histogram.h"
 #include "menus.h"
@@ -297,7 +298,7 @@ void plotvars_command(const char *line)
     plot_checked_vars(get_int(line, "how", 0), isck.data(), n);
 }
 
-/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings"],"enc":"f32"}:
+/* {"cmd":"data","events":["series","plots","nullclines","dfield","marks","ani","autoinfo","autosettings","numerics"],"enc":"f32"}:
    the data events the client wants from now on (an empty list stops them);
    each is sent at the end of this command, which is what a client that
    (re)connects needs. hello.features lists the names known here. "enc":"f32"
@@ -307,7 +308,8 @@ void data_command(const char *line)
 {
     const char *arr = js_find(line, "events");
     std::string name, enc;
-    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0, f32;
+    int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
+        numerics = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name, 32)) continue;
         if (name == "series") series = 1;
@@ -318,6 +320,7 @@ void data_command(const char *line)
         else if (name == "ani") ani = 1;
         else if (name == "autoinfo") autoinfo = 1;
         else if (name == "autosettings") autosettings = 1;
+        else if (name == "numerics") numerics = 1;
     }
     f32 = get_string(line, "enc", enc, 8) && enc == "f32";
     plot_data_subscribe(series, plots, f32);
@@ -327,6 +330,7 @@ void data_command(const char *line)
     auto_data_subscribe(autoinfo);
     auto_view_subscribe(autoinfo);
     auto_settings_subscribe(autosettings);
+    numerics_settings_subscribe(numerics);
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -359,10 +363,12 @@ void j_state_dirty_is(int, const char *) { state_dirty = 1; }
 
 namespace {
 
-/* one value of a "set": {"kind":"par|ic|bc|delay","name":...,"value":number
+/* one value of a "set": {"kind":"par|ic|bc|delay|num","name":...,"value":number
    or "text":...}. Text is what the user would type in the X11 box: a number
-   or %formula for parameters and ICs, an expression for BCs and delays.
-   0 when set (or nothing to set), -1 on a formula that does not evaluate. */
+   or %formula for parameters and ICs, an expression for BCs and delays; for
+   the numerics (num, W106) a number, or a method's name, the field named by
+   its key (numerics_settings.h). 0 when set (or nothing to set), -1 on a
+   formula that does not evaluate or a numerics value refused. */
 int apply_value(const char *line)
 {
     std::string kind, name, text;
@@ -375,7 +381,12 @@ int apply_value(const char *line)
     else if (kind == "ic") type = 2;    /* ICBOX */
     else if (kind == "delay") type = 3; /* DELAYBOX */
     else if (kind == "bc") type = 4;    /* BCBOX */
-    else return 0;
+    else if (kind == "num") {
+        std::string why;
+        if (numerics_settings_set(name, text, why) == 0) return 0;
+        j_err_msg(xpp::format("Numerics: {}", why).c_str());
+        return -1;
+    } else return 0;
     n = type == 1 ? xpp::model().nupar : type == 2 ? xpp::model().node + xpp::model().nmarkov : xpp::model().node;
     /* BC names are not unique ("0="): those come by index */
     index = get_int(line, "index", -1);
@@ -399,9 +410,9 @@ int apply_value(const char *line)
 } // namespace
 
 /* {"cmd":"set", one value's members (apply_value), or "values":[{...}...]
-   to set several in one command. Never runs anything
-   itself (W69): the page holds every edit and sends them in one `set`
-   right before the next command that computes. */
+   to set several in one command. Never runs anything itself (W69). A
+   setting (W106): sent during a computation it applies when that ends,
+   never to the run in progress (ui_json.cpp control_line). */
 void apply_set(const char *line)
 {
     const char *values = js_find(line, "values");

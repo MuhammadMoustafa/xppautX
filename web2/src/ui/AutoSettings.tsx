@@ -1,9 +1,10 @@
 /* AUTO's settings in the page's own forms (docs/ui-v2.md T22): Numerics,
    AUTO's parameters (Parameter) and Mark values, from the `autosettings`
    data (store/autoSettings.ts). They open at any time, during a run too:
-   what OK changes goes to the core at once when it is idle, and otherwise
-   waits, marked pending, until the running command ends (a continuation
-   already running keeps what it started with). The core checks every value
+   they are settings (W106), and what OK changes goes to the core at once;
+   during a run the core applies it when the run ends, to the next one (a
+   continuation already running keeps what it started with; the dashed
+   fields are the ones not applied yet). The core checks every value
    again and says why it refuses one (a notification, and the dialog's
    error when it is open). Follows the app's dialog pattern (AskDialog.tsx,
    SliderDialog.tsx): modal, focus in, Tab cycles and selects a field's
@@ -73,16 +74,16 @@ function Modal({title, id, kind, onClose, children}: {
 
 /** what the dialog says about when its changes apply, and the core's last refusal */
 function Status({pending}: {pending: boolean}) {
-  const busy = useStore(s => s.busy);
+  const computing = useStore(s => s.computing);
   const error = useStore(s => s.autoSettings.error);
   return (
     <>
-      {busy && (
+      {computing && (
         <p class="auto-settings-note muted" role="status">
-          AUTO is busy: changes apply when the current run ends{pending ? ' (the dashed ones wait already)' : ''}.
+          A run is in progress: changes apply to the next run{pending ? ' (the dashed ones are sent already)' : ''}.
         </p>
       )}
-      {!busy && pending && <p class="auto-settings-note muted" role="status">Dashed fields are being applied.</p>}
+      {!computing && pending && <p class="auto-settings-note muted" role="status">Dashed fields are being applied.</p>}
       {error && <p class="field-error" role="alert">{error}</p>}
     </>
   );
@@ -136,7 +137,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
               const f = fieldOf(k), queued = pending.has(`numerics.${k}`);
               return (
                 <label key={k} class={queued ? 'queued' : undefined}
-                  title={queued ? `${f.help} (Sent when the running command ends.)` : f.help}>
+                  title={queued ? `${f.help} (Applied when the running command ends.)` : f.help}>
                   <span>{f.name}</span>
                   <Field spec={numSpec(k)} check={t => numError(k, t)} value={texts[k]} data-field={k}
                     id={`auto-num-${k}`} data-queued={queued ? '1' : undefined} error={pairMessages[k] ?? null}

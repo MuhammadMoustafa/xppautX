@@ -1,10 +1,11 @@
 /* AUTO's settings as data (docs/ui-v2.md T22, docs/protocol.md "AUTO's
    settings as data"): the Numerics, AUTO's parameters, the axes and the
    Mark values, from the `autosettings` event, edited in the page's own
-   forms at any time. An edit made while the core computes waits here
-   (`queued`, shown as pending) and goes out in one `auto` `set` when the
-   command ends; one sent is `sent` until that set's idle, when the event
-   has brought the core's values (or a `message` `error` said why not).
+   forms at any time. They are settings (W106): an edit goes out at once
+   as an `auto` `set`, during a run too, when the core keeps it for the
+   run's end (the run in progress keeps what it started with). Each one
+   sent is `inflight` until that set's own idle, when the event has
+   brought the core's values (or a `message` `error` said why not).
    Also the settings file (Save/Load settings, T21), now written from and
    read into these data. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
@@ -134,51 +135,46 @@ export interface AutoSettingsPatch {
   marks?: [string, number][];
 }
 
+/** a set sent, until its own idle: `ahead` other commands' idles come first */
+export interface AutoSettingsInFlight {
+  patch: AutoSettingsPatch;
+  ahead: number;
+}
+
 export interface AutoSettingsState {
   /** the core's, from the last event */
   core: AutoSettings | null;
-  /** edits made while the core computed, sent when it is done */
-  queued: AutoSettingsPatch | null;
-  /** the set sent, until its idle */
-  sent: AutoSettingsPatch | null;
+  /** the sets sent whose command has not ended, in the order sent */
+  inflight: AutoSettingsInFlight[];
   /** why the core refused the last set */
   error: string | null;
 }
 
-export const initialAutoSettings: AutoSettingsState = {core: null, queued: null, sent: null, error: null};
+export const initialAutoSettings: AutoSettingsState = {core: null, inflight: [], error: null};
 
 export type AutoSettingsAction =
   | {type: 'event'; ev: AutoSettings}
-  | {type: 'queue'; patch: AutoSettingsPatch}
-  /** the queued edits (or `patch`) went out in one set */
-  | {type: 'sent'; patch: AutoSettingsPatch}
-  /** a command ended: the set sent has been applied or refused */
-  | {type: 'settled'}
+  /** `patch` went out as one set, `ahead` idles before its own */
+  | {type: 'sent'; patch: AutoSettingsPatch; ahead: number}
+  /** a command ended: the set whose command it was has been applied or refused */
+  | {type: 'idle'}
+  /** a new connection: nothing sent is waited for any more */
+  | {type: 'reset'}
   | {type: 'error'; text: string};
-
-/** b over a: the later edit of a field wins, the lists whole */
-export function mergePatch(a: AutoSettingsPatch | null, b: AutoSettingsPatch): AutoSettingsPatch {
-  if (!a) return b;
-  const out: AutoSettingsPatch = {...a};
-  if (b.numerics) out.numerics = {...a.numerics, ...b.numerics};
-  if (b.pars) out.pars = b.pars;
-  if (b.axes) out.axes = {...a.axes, ...b.axes, fit: !!(a.axes?.fit || b.axes.fit)};
-  if (b.marks) out.marks = b.marks;
-  return out;
-}
 
 export function reduceAutoSettings(s: AutoSettingsState, a: AutoSettingsAction): AutoSettingsState {
   switch (a.type) {
     case 'event':
       return {...s, core: a.ev};
-    case 'queue':
-      return {...s, queued: mergePatch(s.queued, a.patch), error: null};
     case 'sent':
-      return {...s, sent: a.patch, queued: null, error: null};
-    case 'settled':
-      return s.sent ? {...s, sent: null} : s;
+      return {...s, inflight: [...s.inflight, {patch: a.patch, ahead: a.ahead}], error: null};
+    case 'idle':
+      return s.inflight.length
+        ? {...s, inflight: s.inflight.filter(f => f.ahead > 0).map(f => ({...f, ahead: f.ahead - 1}))} : s;
+    case 'reset':
+      return s.inflight.length ? {...s, inflight: []} : s;
     case 'error':
-      return s.sent ? {...s, error: a.text} : s;
+      return s.inflight.some(f => f.ahead === 0) ? {...s, error: a.text} : s;
     default:
       return s;
   }
@@ -196,16 +192,15 @@ function apply(base: AutoSettings, p: AutoSettingsPatch | null): AutoSettings {
   };
 }
 
-/** what the forms show: the core's settings with the edits not yet applied over them */
+/** what the forms show: the core's settings with the edits sent and not yet applied over them */
 export function shownSettings(s: AutoSettingsState): AutoSettings | null {
-  return s.core ? apply(apply(s.core, s.sent), s.queued) : null;
+  return s.core ? s.inflight.reduce((base, f) => apply(base, f.patch), s.core) : null;
 }
 
-/** the fields an edit waits on ("numerics.nmx", "axes.plot", "pars", "marks") */
+/** the fields an edit sent is not yet applied to ("numerics.nmx", "axes.plot", "pars", "marks") */
 export function pendingFields(s: AutoSettingsState): Set<string> {
   const out = new Set<string>();
-  for (const p of [s.sent, s.queued]) {
-    if (!p) continue;
+  for (const {patch: p} of s.inflight) {
     for (const k of Object.keys(p.numerics ?? {})) out.add(`numerics.${k}`);
     for (const k of Object.keys(p.axes ?? {})) if (k !== 'fit') out.add(`axes.${k}`);
     if (p.pars) out.add('pars');

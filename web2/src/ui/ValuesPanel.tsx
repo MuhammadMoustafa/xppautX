@@ -1,15 +1,16 @@
-/* The values panel (docs/ui-v2.md T3, GitHub #18, #117): parameters, the
+/* The values panel (docs/ui-v2.md T3, GitHub #18, #155): parameters, the
    state (each variable's initial condition beside where the last run is
-   now), boundary conditions, delay initial data, and the model's user
-   buttons. A right column from 80rem, a section under the plot from
-   48rem, a full-screen sheet with a Back button below that (R6). The
-   sliders are under the plot (SliderStrip.tsx).
+   now), boundary conditions, delay initial data, the numerics (W106), and
+   the model's user buttons. A right column from 80rem, a section under
+   the plot from 48rem, a full-screen sheet with a Back button below that
+   (R6). The sliders are under the plot (SliderStrip.tsx).
 
-   An edit never sends anything: it stays pending, the latest per field,
-   marked on the field, until session.key or autoOp('run') flushes every
-   pending edit as one `set` right before the next command that computes
-   (GitHub #117), so every computation uses what the panel shows. A
-   rejected value comes back as a `message` `error`, shown on its field
+   Every field is a setting (W106): an edit goes to the core at once as a
+   `set`, during a computation too, when the core applies it as that
+   computation ends (the run in progress keeps the values it started with,
+   the next one uses the new ones). The field shows what was sent: the
+   value shown is the value, nothing is pending. A rejected value comes
+   back as a `message` `error`, shown on its field
    (A11); a text the field does not take (Field.tsx: a number or
    %formula, an expression for BCs and delays) is marked and never sent
    (T31). Each parameter and IC has a reset to the model file's value
@@ -20,8 +21,9 @@ import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
-import {EXPRESSION, FORMULA, FORMULA_HINT, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, pendingText, sixSig, type ValueKind} from '../store/values';
+import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
+import {fieldKey, sentText, sixSig, type ValueKind} from '../store/values';
+import type {NumericsField} from '../protocol/types';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
@@ -92,17 +94,13 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
   const session = useSession();
   const field = fieldKey(kind, index ?? name!);
   const error = useStore(s => s.values.errors[field]);
-  /* an edit still pending (not yet sent) or just flushed and awaiting the
-     core's reply (values.attributing): the field's draft stays put until
-     both clear with no error, so a formula the core refuses keeps
-     showing it (WF-001), and a value typed but not yet flushed is never
-     overwritten by the core's own (stale) value (GitHub #117) */
-  /* a pending edit is what the field shows (a dropped draft goes back to it, not to the
-     core's older value) until it is sent and the core's own takes over */
-  const pending = useStore(s => pendingText(s.values.pending, field));
-  const queued = pending !== null;
-  const attributing = useStore(s => s.values.attributing === field);
-  const settling = queued || attributing;
+  /* an edit sent whose `set` has not ended (during a computation, until
+     the computation ends and the set with it) is what the field shows,
+     and its draft stays put until then, so a formula the core refuses
+     keeps showing it (WF-001) and the core's state during a run (the
+     values that run started with) never overwrites what was typed */
+  const sent = useStore(s => sentText(s.values.inflight, field));
+  const settling = sent !== null;
   const def = useStore(s => (kind === 'par' || kind === 'ic' ? s.values.defaults?.[field] ?? null : null));
   const id = `value-${field}`.replace(/[^\w-]/g, '_');
   /* Field sends only a text it takes that differs from where this focus
@@ -112,14 +110,14 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
     if (index !== undefined) session.setValueByIndex(kind as 'bc' | 'delay', index, text);
     else session.setValue(kind as 'par' | 'ic', name!, text);
   };
-  const changed = def !== null && Number(full) !== def;
-  const title = queued ? 'Pending: sent before the next command that computes' : def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
+  const changed = def !== null && Number(sent ?? full) !== def;
+  const title = def !== null ? `${hint}; default: ${sixSig(def)}` : hint;
   return (
-    <div class={'value-field' + (queued ? ' queued' : '') + (changed ? ' changed' : '')}>
+    <div class={'value-field' + (changed ? ' changed' : '')}>
       <label htmlFor={id} class="value-name" title={label}>{label}</label>
-      <Field id={id} spec={spec} value={pending ?? display} editValue={pending ?? full} onCommit={commit} error={error ?? null}
+      <Field id={id} spec={spec} value={sent ?? display} editValue={sent ?? full} onCommit={commit} error={error ?? null}
         settling={settling} onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
-        title={title} data-queued={queued ? '1' : undefined} />
+        title={title} />
       {extra}
       {def !== null && name !== undefined && (
         <button class="value-reset icon" title={`default: ${sixSig(def)}`} disabled={!changed}
@@ -252,6 +250,55 @@ function IndexedSection({id, title, kind, entries, hint}: {
   );
 }
 
+/** a numerics field (W106): a number box, or the method's choices; the
+    core checks the value and its error shows on the field */
+function NumericField({f}: {f: NumericsField}) {
+  const session = useSession();
+  const field = fieldKey('num', f.key);
+  const error = useStore(s => s.values.errors[field]);
+  const sent = useStore(s => sentText(s.values.inflight, field));
+  const id = `value-${field}`.replace(/[^\w-]/g, '_');
+  const title = f.unused ? `${f.label}: not used by this method` : f.label;
+  if (f.choices) {
+    const value = sent ?? String(f.value ?? 0);
+    return (
+      <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
+        <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+        <select id={id} value={value} title={title} aria-invalid={error ? true : undefined}
+          onChange={e => session.setNumeric(f.key, (e.target as HTMLSelectElement).value)}>
+          {f.choices.map((c, i) => <option key={c} value={String(i)}>{c}</option>)}
+        </select>
+        {error && <span class="field-error" role="alert">{error}</span>}
+      </div>
+    );
+  }
+  const shown = f.value === null ? '' : String(f.value);
+  const spec: FieldSpec = f.integer ? {kind: 'integer'} : NUMBER;
+  return (
+    <div class={'value-field value-num' + (f.unused ? ' unused' : '')} data-num={f.key}>
+      <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
+      <Field id={id} spec={spec} value={sent ?? (f.value === null ? '' : sixSig(f.value))} editValue={sent ?? shown}
+        onCommit={text => session.setNumeric(f.key, text)} error={error ?? null} settling={sent !== null}
+        onDropError={() => session.store.dispatch({type: 'values', action: {type: 'clearError', field}})}
+        title={title} />
+    </div>
+  );
+}
+
+/** the main numerics (W106, docs/protocol.md "The numerics as data"): the
+    Numerics menu's values, editable during a run like the parameters */
+function NumericsSection() {
+  const fields = useStore(s => s.numerics);
+  if (!fields?.length) return null;
+  return (
+    <Section id="num" title="Numerics" hint="Changes apply to the next run: a run in progress keeps its own.">
+      <div class="value-list">
+        {fields.map(f => <NumericField key={f.key} f={f} />)}
+      </div>
+    </Section>
+  );
+}
+
 function UserButtonsBlock() {
   const session = useSession();
   const busy = !useMay()({cmd: 'userbut'});
@@ -274,7 +321,6 @@ function UserButtonsBlock() {
 export function ValuesPanel() {
   const session = useSession();
   const open = useStore(s => s.valuesOpen);
-  const queued = useStore(s => s.values.pending.length);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const delays = useStore(s => s.core?.delays ?? []);
   const panel = useRef<HTMLElement>(null);
@@ -304,11 +350,6 @@ export function ValuesPanel() {
         <button class="values-back" onClick={close}>Back</button>
         <h2>Values</h2>
       </div>
-      {queued > 0 && (
-        <p class="values-queued" role="status">
-          {queued === 1 ? '1 change is pending' : `${queued} changes are pending`}: sent before the next command that computes.
-        </p>
-      )}
       <div class="values-body">
         <UserButtonsBlock />
         <Parameters />
@@ -317,6 +358,7 @@ export function ValuesPanel() {
           hint="An expression that is zero at the boundary" />
         <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
           hint="An expression in t for t < 0" />
+        <NumericsSection />
       </div>
     </section>
   );

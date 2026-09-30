@@ -21,6 +21,11 @@ void set_col_par_com(int i);
    settings, then a fresh solver (xpp::start_solver) */
 void do_meth(void);
 void set_total(double total);
+/* why method m cannot integrate this model (Volterra without integral
+   equations, Symplectic with an odd dimension), NULL when it can */
+const char *method_refusal(int m);
+/* what a new delta_t needs: the delays' and the integrals' memory again */
+void dt_changed(void);
 void user_set_color_par(int flag,const char *via,double lo,double hi);
 void compute_one_period(double period,double *x, const char *name);
 

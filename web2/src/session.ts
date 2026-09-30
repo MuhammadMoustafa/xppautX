@@ -66,10 +66,6 @@ export class Session {
      command's idle must not end the wait (W20: I then G typed on a busy page went out as G) */
   private idlesOwed = 0;
   private keyIdlesAhead = 0;
-  /** the idles still owed to commands sent before the last flushed `set`
-      (null: no set awaits its reply): only the set's own idle ends the
-      attribution of an error to its field, never an earlier command's */
-  private setIdlesAhead: number | null = null;
   /** a planned dialogue (T21: the axis dialog, AUTO settings save and load):
       the asks its commands open are answered by these steps in order, until
       the commands' idles */
@@ -158,14 +154,13 @@ export class Session {
       this.displayIdles = 0;
       this.keyWaiting = false; /* a new connection: nothing is waiting any more */
       this.idlesOwed = this.keyIdlesAhead = 0;
-      this.settleValues();
       this.typeahead = [];
       /* the plots as data (docs/protocol.md): asked for on every (re)connection,
          which also makes the server send the windows, their series, nullclines,
          direction fields and marks; values
          as base64 float32, which a long run needs (a server that does not know
          enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings']
+      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings', 'numerics']
         .filter(name => ev.features?.includes(name));
       if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
     } else if (ev.ev === 'copy') {
@@ -200,10 +195,6 @@ export class Session {
       }
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
-      if (this.setIdlesAhead !== null) {
-        if (this.setIdlesAhead > 0) this.setIdlesAhead--;
-        else this.settleValues();
-      }
       /* an earlier command's idle: the key still waits for its own */
       const earlier = this.keyWaiting && this.keyIdlesAhead > 0;
       if (earlier) this.keyIdlesAhead--;
@@ -219,7 +210,6 @@ export class Session {
       const next = this.afterIdle;
       this.afterIdle = null;
       if (next) this.send(next);
-      else this.flushAutoSettings();
       this.flushRotate3d();
       if (this.displayIdles > 0 && --this.displayIdles === 0) this.displayGuard = new Set(this.displayHeld.keys());
       this.flushDisplay();
@@ -295,25 +285,23 @@ export class Session {
 
   /** the one place commands go out. What may not start now (may) is
       discarded here, at the source: its control is disabled anyway, and the
-      core would refuse it (docs/protocol.md "Commands during a command") */
-  send(cmd: Command): void {
-    if (!this.may(cmd)) return;
+      core would refuse it (docs/protocol.md "Commands during a command").
+      False when it did not go. */
+  send(cmd: Command): boolean {
+    if (!this.may(cmd)) return false;
     if (cmd.cmd !== 'answer' && !noIdle(cmd)) this.idlesOwed++;
     this.store.dispatch({type: 'sent', cmd});
     this.transport.send(cmd);
+    return true;
   }
 
-  /** an XPP hotkey, as typed in the X11 main window: every key a menu
-      sends may start a computation (Go, Continue, Sing pts, Nullclines,
-      Dir field, ...), so the pending values go first (GitHub #117),
-      whatever it turns out to be -- a view-only key still just sets them
-      a little early, never wrongly */
+  /** an XPP hotkey, as typed in the X11 main window (the values edited
+      went to the core when they were edited, W106) */
   key(key: string): void {
-    if (!this.may({cmd: 'key', key})) { /* W68: the pending values stay pending too */
+    if (!this.may({cmd: 'key', key})) { /* W68 */
       this.pendingKeys = [];
       return;
     }
-    this.flushValues();
     this.keyWaiting = true;
     this.keyIdlesAhead = this.idlesOwed;
     this.send({cmd: 'key', key});
@@ -606,7 +594,6 @@ export class Session {
       return;
     }
     if (op === 'run') {
-      this.flushValues();
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'start', at: Date.now()}});
     }
     this.send(this.layerKey('auto', op));
@@ -668,29 +655,15 @@ export class Session {
   }
 
   /** AUTO's settings edited in the page's forms (T22, store/autoSettings.ts):
-      one `auto` `set` at once when the core is idle, else kept (merged with
-      the edits before) until the running command ends, shown as pending */
+      one `auto` `set` at once, busy or idle -- a setting (W106): during a
+      run the core applies it when the run ends, to the next one */
   autoSettings(patch: AutoSettingsPatch): void {
-    const st = this.store.getState();
-    if (st.busy || st.autoSettings.sent) {
-      this.store.dispatch({type: 'autoSettings', action: {type: 'queue', patch}});
-      return;
-    }
-    this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch}});
-    this.send(autoSetCommand(patch));
+    const ahead = this.idlesOwed;
+    if (this.send(autoSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
   }
 
-  /** the settings edited while a command ran, in one set, when the core is idle again */
-  private flushAutoSettings(): void {
-    const st = this.store.getState(), queued = st.autoSettings.queued;
-    if (!queued || st.busy || st.autoSettings.sent) return;
-    this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch: queued}});
-    this.send(autoSetCommand(queued));
-  }
-
-  /** a saved settings file set as AUTO's settings (pending while the core
-      computes); null when done, else what is wrong with the file (also a
-      notification) */
+  /** a saved settings file set as AUTO's settings; null when done, else
+      what is wrong with the file (also a notification) */
   loadAutoSettings(text: string): string | null {
     const {patch, error} = parseSettings(text);
     if (!patch) {
@@ -744,33 +717,17 @@ export class Session {
   }
 
   /* ---- values panel (docs/ui-v2.md T3, docs/protocol.md `set`/`slide`/`default`/`userbut`,
-     GitHub #117): every edit (a field, a slider, Default/Reset, a loaded .par/.ic) stays pending
-     in the page, the latest per field, until session.key or autoOp('run') flushes them all as one
-     `set` right before the next command that computes -- nothing is sent on a plain edit, busy or
-     idle (GitHub #110 dropped Undo with it: Reset is the way back). ---- */
+     GitHub #155): every edit (a field, a slider, Reset, a numerics field) is a setting (W106) and
+     goes to the core at once as a `set`, busy or idle; during a computation the core applies it
+     when that ends, never to the run in progress. The field shows it meanwhile (store/values.ts
+     inflight): the value shown is the value. No undo (GitHub #110): Reset is the way back. ---- */
 
-  /** an edit: kept pending, not sent, until the next flush */
-  private edit(set: ValueSet): void {
-    this.store.dispatch({type: 'values', action: {type: 'edit', set}});
-  }
-
-  /** every pending edit, in one `set`, right before a command that
-      computes; attributed to the one field sent when there is exactly
-      one, for a `message` `error` to land on (A11) */
-  private flushValues(): void {
-    const {pending} = this.store.getState().values;
-    if (!pending.length) return;
-    const field = pending.length === 1 ? fieldKey(pending[0].kind, pending[0].index ?? pending[0].name!) : null;
-    this.store.dispatch({type: 'values', action: {type: 'flushed', field}});
-    this.setIdlesAhead = this.idlesOwed;
-    this.send(setCommand(pending)!);
-  }
-
-  /** the flushed set's own idle came (or the connection is new): its field no
-      longer takes the errors that arrive */
-  private settleValues(): void {
-    this.setIdlesAhead = null;
-    this.store.dispatch({type: 'values', action: {type: 'settled'}});
+  /** edits, in one `set`: shown on their fields until its idle, which also
+      ends the attribution of an error to them (A11) */
+  private edit(...sets: ValueSet[]): void {
+    const cmd = setCommand(sets), ahead = this.idlesOwed;
+    if (!cmd || !this.send(cmd)) return;
+    for (const set of sets) this.store.dispatch({type: 'values', action: {type: 'sent', set, ahead}});
   }
 
   /** a parameter or initial condition box left with a new value */
@@ -783,7 +740,7 @@ export class Session {
     this.edit({kind, index, text});
   }
 
-  /** a slider moved: kept pending like any other edit (GitHub #117) */
+  /** a slider moved: sent like any other edit (W106) */
   slide(kind: 'par' | 'ic', name: string, value: number): void {
     this.edit({kind, name, text: String(value)});
   }
@@ -799,14 +756,22 @@ export class Session {
     if (d !== null) this.setValue(kind, name, String(d));
   }
 
-  /** Reset all: every parameter or IC of `kind` back to the model file's value, pending like any edit */
+  /** Reset all: every parameter or IC of `kind` back to the model file's value, in one `set` */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
     const list = (kind === 'par' ? this.store.getState().core?.pars : this.store.getState().core?.ics) ?? [];
+    const sets: ValueSet[] = [];
     for (const [name] of list) {
       const d = this.defaultOf(kind, name);
-      if (d !== null) this.edit({kind, name, text: String(d)});
+      if (d !== null) sets.push({kind, name, text: String(d)});
     }
+    this.edit(...sets);
+  }
+
+  /** a numerics field (the values panel's Numerics, W106): `key` as the
+      `numerics` event names it, the method by its number */
+  setNumeric(key: string, text: string): void {
+    this.edit({kind: 'num', name: key, text});
   }
 
   /** "Use current state": Initialconds/Last (`i` `l`), the ICs from where the last run ended */

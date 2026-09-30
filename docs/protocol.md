@@ -60,18 +60,18 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
-| `set` | `kind` (`par`, `ic`, `bc`, `delay`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). A formula that does not evaluate gives `message` `error`. Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. The values panel holds every edit (sliders, value fields, Default/Reset, a loaded .par/.ic file) as pending in the page and sends them together in one `set`, right before the next command that computes, so a computation always uses what the panel shows; a client that only wants to change a value sends `set` alone, as before. |
-| `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). |
-| `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69: the values panel holds a slider's edits pending like any other and sends them in the next `set`). |
+| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
+| `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. |
+| `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69; web2 sends a slider's values as `set`). A setting, as `set` is. |
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
 | `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `-silent` does after its run. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window; one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window; one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
 | `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `-silent`'s `-dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
 | `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `-silent`'s `-equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
-| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
+| `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"); `numerics`: the main numerics ("The numerics as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
 | `click` | `win` | The user selected plot window `win`. |
 | `display` | `win`; `x`, `y` (`[low, high]` or `null`), `runs` (bool) | What the page displays of plot window `win` (W65, "Display state" below): the zoom shown on each axis given (`null`: the window's own) and whether its earlier runs are drawn. A view (see "Action kinds"): sent during a computation it runs after it (the page holds its changes for the idle anyway, to send only the last). A range whose low is not below its high, or a window that does not exist, is a `message` `error` and nothing changes. The values come back in `plots`. |
@@ -97,7 +97,8 @@ Every action has a kind (W95), defined once in the core and sent in
 |---|---|---|---|
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
-| data | `d` | saves, loads, values and settings: Save/Load values, Write/Read set, every file written, a session, AUTO's diagram files and settings, a `set` | refused |
+| setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `slide`, `default`, `values` `read`/`internset`, the Parameters key, the Numerics menu's items that ask a value, File/Get par set), AUTO's Parameter, Numerics and Mark values (`auto` `set`, the AUTO window's keys `p`, `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
+| data | `d` | saves and loads: Save/Load values' files, Write/Read set, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
 - `hello.menus` has `main_kinds`, `file_kinds` and `num_kinds`, one letter
@@ -105,7 +106,8 @@ Every action has a kind (W95), defined once in the core and sent in
   opens a pop-up menu has the least restrictive kind among that menu's
   items, so a menu opens when any of its items could run (Nullcline,
   Dir.field, Kinescope and Graphic stuff are views, run once a
-  computation ends; stocHast and Averaging data); every
+  computation ends; stocHast and Averaging data; the Numerics items that
+  ask a value settings, their dialog opening once the computation ends); every
   pop-up menu's items have their kinds in core/menus.cpp too (checked when
   it compiles), for the core itself.
 - `hello.windows` is the windows' key layers ("Window keys" below), by
@@ -123,6 +125,8 @@ The core says when the running command begins computing: `computing`
 (once per command, before its first `progress`; its `idle` ends it). A
 client disables data and computation actions from then until that
 `idle`, and nothing merely because a command it sent itself is running.
+Settings stay enabled throughout: an edit is sent at once, and the core
+applies it when it can (below).
 
 ## Window keys
 
@@ -197,13 +201,26 @@ in the input.
     the stop keys (`key` `Escape`; `/`, which ends a range or a shooting
     for good), and what only reads or steers a view: `state`, `browser`
     with `from`, `ani` `pause`/`fast`/`slow`/`speed`;
+  - taken at once, at the computation's next check, and kept for after
+    it: a setting (W106: `set`, `slide`, `default`, `values`
+    `read`/`internset`, `auto` `set`; "Action kinds"). The computation
+    runs on with the values it started with (the right-hand side, the
+    integrator and AUTO read nothing the setting changed); `state` sent
+    meanwhile still shows those. When the running command ends (its
+    `idle`), each setting taken runs as a command of its own, in the
+    order sent and before any other line: it applies then (an invalid
+    one gets its `message` `error` then, as a refused command's), with
+    its own `state` and `idle`. So every setting has one `idle`, sent
+    during a computation or not, and the next computation uses it; a
+    session saved after the run holds it;
   - kept for their turn, run after the computation's `idle` with their
     own `state` and `idle`: an `answer` (the computation's own
-    questions) and every other command of the view kind (`data`, a
+    questions), every other command of the view kind (`data`, a
     `display`, a `click`, a menu key that only shows, such as Window/zoom
-    or a window's Axes: its menu opens then);
+    or a window's Axes: its menu opens then), and a key of the setting
+    kind (a Numerics item: its dialog opens then);
   - refused: a command of the data or computation kind (a key that
-    computes or saves, a `set`, a file written, AUTO's `set`), with one
+    computes or saves, a file written, AUTO's Grab), with one
     log line when it arrives (`refused during a computation: key s`); it
     never runs, and after the computation it gets a `message` `error`
     ("Not while a computation runs: key was refused"), `state` and `idle`
@@ -211,9 +228,9 @@ in the input.
     W95 every such line, views included, was dropped with no reply.) A
     client that enables its actions by kind, as web2 does, sends none: it
     disables data and computation actions from `computing` to the
-    command's `idle`, holds value edits until the next command that
-    computes, and sends Escape as `abort`; a script is read one line at a
-    time after each `idle`, so every step of it starts from idle.
+    command's `idle`, sends its settings at once, and sends Escape as
+    `abort`; a script is read one line at a time after each `idle`, so
+    every step of it starts from idle.
 
   Once the computation is stopping (an `abort` or Escape cancelled it), a
   line that arrives is for after it: it is taken as below, so a command
@@ -223,16 +240,22 @@ in the input.
   with a `win`, which waits its turn), `set`, `state`, `browser`
   with `from` and `ani` `pause`/`fast`/`slow`/`speed` are *control* lines
   (the animation's Go acts on them between frames: Escape or Pause stops
-  it, a `set` changes a parameter under it). A control line the job does
-  not get to runs after it as an ordinary command.
+  it, a `set` changes a parameter under it, and still has its own
+  `state` and `idle` after the job). A control line the job does not get
+  to runs after it as an ordinary command. A `set` a job takes after its
+  computation began (a Flow's next trajectory, a range's next run) waits
+  for the job's end, as during the computation.
 - Every other command sent during a job, outside a computation, is queued
   and runs, in order, after the job's `idle` (with its own `state` and
   `idle`). A command a prompt reads that does not answer it (sent before
   the client saw the question: a click right behind the command that
   asks) is kept the same way, for after the command that asked (W95; it
-  used to be dropped); an `auto` `set` sent then is applied when that
-  command ends. Not in a script, where the line after an ask is its
-  answer and anything else fails the script.
+  used to be dropped). A setting a prompt reads applies at once when the
+  command has not computed yet (a value edited while the Initialconds menu
+  is open counts for the run its Go starts), else after the command, and
+  has its own `state` and `idle` after the command either way. Not in a
+  script, where the line after an ask is its answer and anything else
+  fails the script.
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
@@ -363,11 +386,12 @@ model's start in every mode, before the script.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`), ... | The AUTO diagram as data; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
+| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
 | `autoview` | `earlier`, `show`, `zoom` | AUTO's hidden branches and zoom, for a client that asked for `autoinfo`; see "Display state". |
@@ -568,12 +592,53 @@ quantities, as the AutoPlot form's OK does. The forms stay: `set` is a
 second way to the same fields (Numerics, `param`, Axes, `usr`), and each
 shows what the other wrote.
 
-`set` is an ordinary command: sent while AUTO (or anything) runs, it waits
-for that job and applies after its `idle` (a continuation already running
-keeps the settings it started with). `tools/servercheck.py` checks that the
+`set` is a setting (W106): sent while AUTO (or anything) computes, the
+core takes it at once and applies it after that job's `idle`, as a command
+of its own (a continuation already running keeps the settings it started
+with; the next run uses the new ones). `tools/servercheck.py` checks that the
 event is what the forms show, that a form's OK and a `set` show in it,
 that bad values are refused whole, and that Nmax set to 12 stops the next
 run at 12 points.
+
+### The numerics as data
+
+The main numerics, the Numerics menu's values (W106), as data for a client
+with fields of its own (web2's values panel). **`numerics`** is sent to a
+client that asked with `{"cmd":"data","events":["numerics"]}` at the end of
+that command, and then at the end of any command that changed them.
+core/numerics_settings.cpp keeps it.
+
+```
+{"ev":"numerics","fields":[
+  {"key":"total","label":"Total","value":30},
+  {"key":"dt","label":"Dt","value":0.05},
+  {"key":"nout","label":"nOutput","value":1,"integer":true},
+  {"key":"method","label":"Method","value":3,"integer":true,
+   "choices":["Discrete","Euler","Mod. Euler","Runge-Kutta",...]},
+  {"key":"tol","label":"Tolerance","value":0.001,"unused":true}, ...]}
+```
+
+The fields, in the menu's order: `total` (below 0: integrate for ever, as
+the menu's), `t0`, `trans`, `dt`, `nmesh` (Ncline ctrl), `newt_iter`,
+`newt_tol`, `jac_eps` (sIng pt ctrl), `nout`, `bound`, `method` (its number,
+`choices` its names by number), `tol`, `dtmin`, `dtmax`, `atol`, `eul_tol`,
+`eul_iter` (the method's own), `delay` (only for a model with delays),
+`bvp_maxit`, `bvp_tol`, `bvp_eps` (bndVal). `integer` marks a whole-number
+field; `unused` one the current method does not use.
+
+**`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one
+field. The core checks the value first and changes nothing on a bad one,
+with a `message` `error` naming the field (`Numerics: nOutput must be a
+whole number of at least 1`): a number; `dt` not 0; the tolerances,
+`bound`, `newt_tol`, `jac_eps` above 0; `delay` at least 0; the whole-number
+fields at least 1; `method` a name of `choices` (any case) or its number, one
+the model can use (Volterra only for integral equations, and only it then;
+Symplectic only for an even dimension). Then it applies the numerics as
+leaving the Numerics menu does (the delays' and integrals' memory for a new
+`dt` or `delay`, a fresh solver; a method that picks its own steps stores
+every output time, NOUT 1). The menu stays: `set` is a second way to the
+same fields. A setting ("Commands during a command"): sent during a run it
+applies when the run ends.
 
 ### The plot as data
 

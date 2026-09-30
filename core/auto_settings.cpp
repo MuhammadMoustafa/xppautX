@@ -15,6 +15,7 @@
 #include "model.h"
 #include "session.h"
 #include "auto_settings.h"
+#include "data_event.h"
 #include "browse.h"
 #include "diagram.h"
 #include "expr.h"
@@ -191,13 +192,13 @@ std::string event_text()
     return o;
 }
 
-AutoSettingsEmit emit_line;
-bool subscribed;
-std::string sent;
-bool sent_valid;
-
 /* the model has settings: init_auto_win() skipped a model too big for AUTO */
 bool have_settings() { return xpp::model().node <= NAUTO; }
+
+/* the event, none for a model with no settings */
+std::string event_if_any() { return have_settings() ? event_text() : std::string(); }
+
+xpp::ChangedEvent event{event_if_any, "sending AUTO's settings"};
 
 bool num_ok(int i, double v, std::string &why)
 {
@@ -393,27 +394,11 @@ const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num
 
 const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].label : nullptr; }
 
-void auto_settings_init(AutoSettingsEmit emit) { emit_line = emit; }
+void auto_settings_init(AutoSettingsEmit emit) { event.init(emit); }
 
-void auto_settings_subscribe(int on)
-{
-    subscribed = on != 0;
-    sent_valid = false;
-    auto_settings_update();
-}
+void auto_settings_subscribe(int on) { event.subscribe(on != 0); }
 
-void auto_settings_update(void)
-{
-    if (!emit_line || !subscribed || !have_settings()) return;
-    try {
-        std::string text = event_text();
-        if (sent_valid && text == sent) return;
-        emit_line(text.c_str(), text.size());
-        sent = std::move(text);
-        sent_valid = true;
-    } catch (...) {
-    }
-}
+void auto_settings_update(void) { event.update(); }
 
 } // extern "C"
 

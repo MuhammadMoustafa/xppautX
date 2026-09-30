@@ -125,17 +125,26 @@ test('the plot keys pan, zoom, reset and step through points', () => {
   assert.equal(plotKey('i', ctx), null, 'letters are XPP hotkeys');
 });
 
-test('a set that the core rejects lands on the attributed value field, not only the toast (T3)', () => {
-  let s = reduce(initialState, {type: 'values', action: {type: 'flushed', field: 'par:iapp'}});
+test('a set that the core rejects lands on its value field, not only the toast (T3)', () => {
+  let s = reduce(initialState, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'iapp', text: '%x'}, ahead: 1}});
+  /* a computation's error, before the set's own command: not the field's */
+  s = ev(s, {ev: 'message', error: 'integration failed'});
+  assert.deepEqual(s.values.errors, {});
+  s = ev(s, {ev: 'idle'});
   s = ev(s, {ev: 'message', error: 'bad formula'});
   assert.equal(s.values.errors['par:iapp'], 'bad formula');
-  assert.deepEqual(s.toasts.map(t => t.text), ['bad formula'], 'still a non-modal toast too (A11)');
-  /* an idle alone does not end the attribution: an earlier command's idle may
-     arrive after the flush; the session settles it at the set's own idle */
+  assert.deepEqual(s.toasts.map(t => t.text), ['integration failed', 'bad formula'], 'still a non-modal toast too (A11)');
+  /* its own idle ends it */
   s = ev(s, {ev: 'idle'});
-  assert.equal(s.values.attributing, 'par:iapp');
-  s = reduce(s, {type: 'values', action: {type: 'settled'}});
-  assert.equal(s.values.attributing, null);
+  assert.deepEqual(s.values.inflight, []);
+});
+
+test('the numerics event is the store (W106); a new hello forgets it', () => {
+  const fields = [{key: 'total', label: 'Total', value: 20}, {key: 'method', label: 'Method', value: 3, choices: ['a', 'b', 'c', 'd']}];
+  let s = ev(initialState, {ev: 'numerics', fields});
+  assert.deepEqual(s.numerics, fields);
+  s = ev(s, {ev: 'hello', protocol: 2, title: 't', menus: {}});
+  assert.equal(s.numerics, null);
 });
 
 test('the values panel is a sheet the store tracks for narrow screens', () => {
