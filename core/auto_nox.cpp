@@ -938,6 +938,11 @@ void auto_fit()
 {
   double xlo=xpp::session().auto_state.axes().xmin,xhi=xpp::session().auto_state.axes().xmax,ylo=xpp::session().auto_state.axes().ymin,yhi=xpp::session().auto_state.axes().ymax;
   bound_diagram(&xlo,&xhi,&ylo,&yhi);
+  /* a flat quantity (a steady branch's period, all 0) is widened as the
+     plot window's Fit does: an empty range divides by zero in IXVal/IYVal */
+  double mid,span;
+  check_val(&xlo,&xhi,&mid,&span);
+  check_val(&ylo,&yhi,&mid,&span);
   xpp::session().auto_state.axes().xmin=xlo;
   xpp::session().auto_state.axes().xmax=xhi;
   xpp::session().auto_state.axes().ymin=ylo;
