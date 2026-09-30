@@ -35,6 +35,28 @@ def is_state(e):
     return e.get('ev') == 'state'
 
 
+def drain_stderr(proc, sink=None):
+    """Reads a server's stderr on a thread, each line to sink(line) when
+    given. With XPP_CHECK_STDERR (a directory; tools/asancheck.sh sets it)
+    every line also goes to DIR/server-PID.log: gcc's UBSan, built beside
+    ASan, ignores log_path and reports only on stderr, which asancheck
+    reads back from there."""
+    keep = os.environ.get('XPP_CHECK_STDERR')
+
+    def run():
+        out = open(os.path.join(keep, 'server-%d.log' % proc.pid), 'a', errors='replace') if keep else None
+        for line in proc.stderr:
+            if out:
+                out.write(line)
+                out.flush()
+            if sink:
+                sink(line)
+        if out:
+            out.close()
+
+    threading.Thread(target=run, daemon=True).start()
+
+
 class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE):
         self.verbose = verbose
@@ -50,7 +72,7 @@ class Server:
         self.events = queue.Queue()
         self.sent_at = {}
         threading.Thread(target=self._read, daemon=True).start()
-        threading.Thread(target=lambda: [None for _ in self.proc.stderr], daemon=True).start()
+        drain_stderr(self.proc)
 
     def auto_dirs(self):
         """AUTO's scratch directories of this process (xpp_files_make_temp_dir)"""

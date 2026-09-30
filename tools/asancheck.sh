@@ -88,6 +88,15 @@ rpath=$reports
 command -v cygpath > /dev/null 2>&1 && rpath=$(cygpath -m "$reports")
 export ASAN_OPTIONS="detect_leaks=$leaks:abort_on_error=1:log_path='$rpath/asan'"
 export UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1:log_path='$rpath/ubsan'"
+# gcc's UBSan, built beside ASan, ignores log_path and reports on stderr
+# only: the python checks keep each server's stderr here
+# (tools/xppclient.py drain_stderr), and a report found in one is copied
+# into $reports below
+stderrs=$top/$bdir/stderr
+rm -rf "$stderrs" && mkdir -p "$stderrs" || exit 1
+XPP_CHECK_STDERR=$stderrs
+command -v cygpath > /dev/null 2>&1 && XPP_CHECK_STDERR=$(cygpath -m "$stderrs")
+export XPP_CHECK_STDERR
 if [ $leaks -eq 1 ]; then
   export LSAN_OPTIONS="suppressions=$top/tools/lsan.supp:print_suppressions=0"
 fi
@@ -203,6 +212,10 @@ if [ -n "$want" ]; then
   done
 fi
 
+for f in "$stderrs"/*; do
+  [ -e "$f" ] || continue
+  grep -qE 'runtime error:|ERROR: (Address|Leak)Sanitizer' "$f" && cp "$f" "$reports/stderr-$(basename "$f")"
+done
 n=$(ls "$reports" | wc -l)
 if [ "$n" -ne 0 ]; then
   for f in "$reports"/*; do

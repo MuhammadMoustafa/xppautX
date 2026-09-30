@@ -8,6 +8,8 @@ string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from xppclient import drain_stderr
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -92,8 +94,7 @@ def launch_server(extra_env=None, ode=None, log=None):
                 events.put({'ev': 'bad'})
 
     threading.Thread(target=reader, daemon=True).start()
-    threading.Thread(target=lambda: [log is not None and log.append(l.rstrip('\n')) for l in proc.stderr],
-                     daemon=True).start()
+    drain_stderr(proc, (lambda l: log.append(l.rstrip('\n'))) if log is not None else None)
 
     def send(**cmd):
         if args.v:
