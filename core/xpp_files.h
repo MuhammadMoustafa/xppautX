@@ -170,6 +170,16 @@ std::string xpp_files_make_temp_dir();
    names them): a file the core itself keeps there, never the user's */
 bool xpp_files_is_scratch(std::string_view path);
 
+/* While set, a file outside the scratch folders that the core opens for
+   reading with xpp_files_open_stream (so xpp_io.h's readers too) is the
+   server's: server(path, &copy) is true with copy the file to open in its
+   place, false for a file it does not hold, which is then not there:
+   nothing is read from the disk. xpp_files_exists(path) is true for a
+   file server(path, nullptr) holds, else asks the disk (a file about to
+   be written). A recording's replay serves the files its steps read
+   (W59b, json_player.cpp). The core thread's alone; nullptr stops it. */
+void xpp_files_serve_reads(bool (*server)(const char *path, std::string *copy));
+
 /* a folder's entry: its name, and whether it is a folder itself (a link
    followed) */
 struct XppDirEntry {

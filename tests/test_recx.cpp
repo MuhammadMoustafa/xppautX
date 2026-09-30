@@ -6,6 +6,7 @@
 #include "recx.h"
 #include "xpp_sha256.h"
 
+#include <optional>
 #include <string>
 
 namespace {
@@ -55,5 +56,32 @@ int main()
     xpp::recx::add_file(r, {"lecar.ode", "x'=-2*x\n"}); /* read again, changed: a second section */
     CHECK(r.files.size() == 2);
     CHECK(!xpp::recx::text(r).ends_with(fp));
+
+    /* read back: the same recording, intact; a note edited keeps it so,
+       and the text written again with it keeps what the file said */
+    std::string error;
+    r = sample();
+    xpp::recx::add_file(r, {"lecar.autox", std::string("PK\x03\x04\0binary\xff", 12)}); /* a zip: @binary */
+    const std::string file = xpp::recx::text(r);
+    CHECK(file.find("\n@binary lecar.autox\nUEsDBABiaW5hcnn/\n@end\n") != std::string::npos);
+    std::optional<xpp::recx::Read> back = xpp::recx::read(file, error);
+    CHECK(back && back->intact);
+    CHECK(back->rec.files.size() == 2 && back->rec.files[1].bytes == r.files[1].bytes);
+    CHECK_STR(back->rec.files[0].bytes.c_str(), "x'=-x\n@end\n@@ twice\n@ total=10\ndone\n");
+    CHECK(back->rec.steps.size() == 2);
+    CHECK_STR(back->rec.steps[0].note.c_str(), "First run.\n\nIt settles.");
+    CHECK_STR(xpp::recx::text(back->rec).c_str(), file.c_str());
+    std::string edited = file;
+    edited.replace(edited.find("# It settles."), 13, "# It fires and settles.");
+    back = xpp::recx::read(edited, error);
+    CHECK(back && back->intact);
+    edited.replace(edited.find("[\"e\"]"), 5, "[\"x\"]");
+    back = xpp::recx::read(edited, error);
+    CHECK(back && !back->intact); /* a step changed: it still reads */
+    back->rec.steps[0].note = "Saved again.";
+    CHECK(!xpp::recx::read(xpp::recx::text(back->rec), error)->intact); /* saving a note does not mend it */
+    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@file a.ode\nx'=1\n", error));
+    CHECK_STR(error.c_str(), "line 3: the section of a.ode has no @end");
+    CHECK(!xpp::recx::read("not one\n", error));
     TEST_REPORT("test_recx");
 }

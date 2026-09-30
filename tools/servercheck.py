@@ -3755,8 +3755,8 @@ def read_recx(text):
                 files[name], body = body, None
             else:
                 body.append(l[1:] if l.startswith('@@') else l)
-        elif l.startswith('@file '):
-            name, body = l[6:], []
+        elif l.startswith('@file ') or l.startswith('@binary '):
+            name, body = l.split(' ', 1)[1], []
             hashed.append(l)
         elif l == '@steps':
             in_steps = True
@@ -3868,8 +3868,9 @@ def check_recording():
             run(cmd='answer', id=ask['id'], file='menu')
         _, files, steps, written, got = read_recx(open(os.path.join(r, 'menu.recx'), encoding='utf-8').read()
                                                   if os.path.exists(os.path.join(r, 'menu.recx')) else '')
-        check('File/recorD: the steps between, and not the File menu opened to stop',
-              [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'}},
+        check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
+              [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'},
+                                         'files': [1]},
                                         {'step': 'Erase', 'keys': ['e'], 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
         check('record: a file the session read while recording is embedded after the model',
@@ -3881,7 +3882,218 @@ def check_recording():
         stop_server(p, r, snd)
 
 
+def check_player():
+    """W59b: a recording played back: its model from the file, each step
+    run as recorded (a menu's key, a dialog's answer, a setting, an Abort at
+    its row), a press event before each input, the same data as the
+    session that was recorded; a note saved keeps the fingerprint, and a
+    changed step warns and still plays"""
+    p, r, snd, col, _ = launch_server()
+    is_ask = lambda e: e.get('ev') == 'ask'
+
+    def run(**cmd):
+        snd(**cmd)
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        return evs
+
+    def asked(**cmd):
+        snd(**cmd)
+        return col(is_ask)[1]
+
+    def write(name):
+        run(cmd='browser', op='write', what='output', format='dat', name=name, replace=1)
+
+    def open_player(name):
+        """play open, answering the question about this model's session"""
+        snd(cmd='play', op='open', file=name)
+        evs, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='d')
+            evs, _ = col(is_idle, timeout=30 * SLOW)
+        return next((e for e in evs if e.get('ev') == 'player'), None), evs
+
+    def play_to_end(n):
+        """play start, at 8x, until the player's last step ended: the events"""
+        run(cmd='play', op='speed', speed=8)
+        snd(cmd='play', op='start')
+        got = []
+        deadline = time.time() + 120 * SLOW
+        while time.time() < deadline:
+            evs, st = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == n
+                          and e['player']['running'] == -1, timeout=60 * SLOW)
+            got += evs
+            if st:
+                break
+        got += col(is_idle, timeout=10 * SLOW)[0]
+        return got
+
+    def get(name):
+        snd(cmd='file', op='get', name=name)
+        evs, ev = col(lambda e: e.get('ev') == 'file')
+        col(is_idle)
+        return base64.b64decode(ev['data']) if ev and ev.get('ok') else None
+
+    try:
+        col(is_idle)
+        run(cmd='record', op='start')
+        run(cmd='record', op='note', text='The cell fires once and settles.')
+        ask = asked(cmd='key', key='i')
+        run(cmd='answer', id=ask['id'], key='g')
+        write('run1.dat')
+        run(cmd='set', kind='par', name='iapp', value=0.08)
+        ask = asked(cmd='key', key='i')
+        run(cmd='answer', id=ask['id'], key='g')
+        write('run2.dat')
+        run(cmd='key', key='u')
+        ask = asked(cmd='key', key='t')
+        run(cmd='answer', id=ask['id'], value='1e7')
+        run(cmd='key', key='Escape')
+        ask = asked(cmd='key', key='i')
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        snd(cmd='abort')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        stopped = [e['at'] for e in evs if e.get('ev') == 'stopped']
+        write('run3.dat')
+        run(cmd='record', op='stop', name='play')
+        path = os.path.join(r, 'play.recx')
+        text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
+        _, _, steps, _, _ = read_recx(text)
+        orig = {n: open(os.path.join(r, n), 'rb').read() for n in ('run1.dat', 'run2.dat', 'run3.dat')
+                if os.path.exists(os.path.join(r, n))}
+        check('player: the session recorded (10 steps, an abort at its row)',
+              len(steps) == 10 and len(orig) == 3 and stopped and stopped[0]['what'] == 'integrate',
+              '%d steps, %s' % (len(steps), stopped))
+
+        pl, evs = open_player(path)
+        st = last_state(evs)
+        check('play open: the player event with the steps and their notes, the file intact',
+              pl and pl.get('intact') is True and len(pl.get('steps', [])) == 10
+              and pl['steps'][0].get('note') == 'The cell fires once and settles.'
+              and pl['steps'][0].get('keys') == ['i', 'g'], str(pl)[:300])
+        check('play open: state.player at step 0, paused, 1x',
+              st and st.get('player') == {'step': 0, 'running': -1, 'playing': False, 'speed': 1, 'fast': False,
+                                          'intact': True}, str(st and st.get('player')))
+        os.remove(os.path.join(r, 'run1.dat'))  # nothing may read the disk's copies
+        evs = play_to_end(10)
+        presses = [(e['step'], e['what'], e['index']) for e in evs if e.get('ev') == 'press']
+        first = [e.get('ev') for e in evs if e.get('ev') in ('press', 'ask')][:3]
+        check('play: a press before every input (key i, the menu asks, key g; the answers; the commands)',
+              presses[:2] == [(0, 'key', 0), (0, 'key', 1)] and first == ['press', 'ask', 'press']
+              and (2, 'cmd', 0) in presses and (6, 'answer', 0) in presses, str(presses[:12]))
+        again = [e['at'] for e in evs if e.get('ev') == 'stopped']
+        check('play: the recorded Abort stops the replayed run at its row', again == stopped, '%s %s' % (again, stopped))
+        errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+        check('play: no error on the way', not errors, str(errors))
+        for n in ('run1.dat', 'run2.dat', 'run3.dat'):
+            check('play: the replay gives the same data (%s)' % n, get(n) == orig.get(n) and orig.get(n),
+                  'differs' if n in orig else 'missing')
+        check('play: the replay wrote in its own folder, not beside the recording',
+              not os.path.exists(os.path.join(r, 'run1.dat')), str(sorted(os.listdir(r))))
+
+        # a note saved keeps the fingerprint
+        evs = run(cmd='play', op='note', step=3, text='Now the drive current is raised.')
+        pl = next((e for e in evs if e.get('ev') == 'player'), None)
+        _, _, steps2, w2, g2 = read_recx(open(path, encoding='utf-8').read())
+        check('play note: written above its step in the file, which stays intact',
+              pl and pl['steps'][3].get('note') == 'Now the drive current is raised.' and pl.get('intact') is True
+              and steps2[3][1] == 'Now the drive current is raised.' and w2 == g2, str(steps2[3:4]))
+
+        # a changed step: a warning (intact false) and it still plays
+        changed = text.replace('"value": 0.08', '"value": 0.09')
+        open(os.path.join(r, 'changed.recx'), 'w', encoding='utf-8').write(changed)
+        pl, evs = open_player(os.path.join(r, 'changed.recx'))
+        check('play open: a changed step makes the file not intact', pl and pl.get('intact') is False and changed != text,
+              str(pl and pl.get('intact')))
+        evs = play_to_end(10)
+        check('play: a changed recording still plays to its end',
+              (last_state(evs) or {}).get('player', {}).get('step') == 10, '')
+        check('play: its changed step ran as it now reads (other data)', get('run2.dat') not in (None, orig.get('run2.dat')), '')
+
+        # play from a step: the steps before run with no pace or press
+        snd(cmd='play', op='from', step=8, play=0)
+        evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == 8
+                     and e['player']['running'] == -1 and not e['player']['fast'], timeout=120 * SLOW)
+        check('play from: the steps before it run with no press, then it waits',
+              _ is not None and not any(e.get('ev') == 'press' for e in evs), '')
+        col(is_idle, timeout=10 * SLOW)
+
+        # a recording that is not one
+        open(os.path.join(r, 'bad.recx'), 'w').write('hello\n')
+        evs = run(cmd='play', op='open', file=os.path.join(r, 'bad.recx'))
+        check('play open: a file that is not a recording is an error',
+              any(e.get('ev') == 'message' and 'not a recording' in e.get('error', '') for e in evs), '')
+    finally:
+        stop_server(p, r, snd)
+
+
+def check_player_ani():
+    """W59b: Escape during the animation's Go, a key the running job reads
+    itself, is recorded with the frame it came at, and the replay stops the
+    Go at that frame; the .ani the session read is played from the
+    recording"""
+    p, r, snd, col, _ = launch_server()
+    shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gui_test.ani'), r)
+    frames = lambda evs: [e['pos'] for e in evs if e.get('ev') == 'ani' and e.get('op') == 'frame']
+
+    def run(**cmd):
+        snd(**cmd)
+        got = []
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            snd(cmd='answer', id=e['id'], ok=0)
+
+    try:
+        col(is_idle)
+        run(cmd='data', events=['ani'])
+        run(cmd='record', op='start')
+        snd(cmd='key', key='i')
+        ask = col(lambda e: e.get('ev') == 'ask')[1]
+        run(cmd='answer', id=ask['id'], key='g')
+        snd(cmd='key', key='v')
+        ask = col(lambda e: e.get('ev') == 'ask')[1]
+        run(cmd='answer', id=ask['id'], key='t')
+        snd(cmd='key', win='ani', key='f')
+        ask = col(lambda e: e.get('ev') == 'ask')[1]
+        run(cmd='answer', id=ask['id'], file='gui_test.ani')
+        run(cmd='ani', op='speed', ms=20)
+        snd(cmd='key', win='ani', key='g')
+        went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
+        snd(cmd='key', key='Escape')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
+        last = frames(went + evs)[-1:]
+        run(cmd='record', op='stop', name='ani')
+        text = open(os.path.join(r, 'ani.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(r, 'ani.recx')) else ''
+        _, files, steps, _, _ = read_recx(text)
+        check('player: Escape during the animation\'s Go is recorded with its frame; the .ani is embedded',
+              last and 0 < last[0] < 600 and 'gui_test.ani' in files
+              and any(x.get('during', [{}])[0].get('at', {}).get('what') == 'ani' for x, _ in steps),
+              '%s %s' % (last, [x for x, _ in steps][-2:]))
+        os.remove(os.path.join(r, 'gui_test.ani'))  # the replay reads the recording's copy
+        snd(cmd='play', op='open', file=os.path.join(r, 'ani.recx'))
+        evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
+        if ask and ask.get('ev') == 'ask':
+            snd(cmd='answer', id=ask['id'], key='d')
+            col(is_idle, timeout=30 * SLOW)
+        run(cmd='data', events=['ani'])
+        run(cmd='play', op='speed', speed=8)
+        snd(cmd='play', op='start')
+        evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == len(steps)
+                     and e['player']['running'] == -1, timeout=120 * SLOW)
+        errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+        check('play: the replayed Escape stops the Go at the recorded frame, the .ani from the recording',
+              last and frames(evs)[-1:] == last and not errors, '%s vs %s %s' % (frames(evs)[-1:], last, errors))
+        col(is_idle, timeout=10 * SLOW)
+    finally:
+        stop_server(p, r, snd)
+
+
 check_recording()
+check_player()
+check_player_ani()
 
 check_open_reload()
 check_display_state()

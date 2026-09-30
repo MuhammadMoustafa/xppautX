@@ -2,6 +2,8 @@
 #include "model_switch.h"
 #include "session.h"
 #include "model.h"
+#include "recx.h"
+#include "snapx.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -56,10 +58,15 @@ void xpp_model_open(xpp::Session &s, const char *path)
   if(file.empty()){
     file=xpp_files_working_dir();
     if(file.empty()||file.back()!='/')file+='/';
-    if(!file_selector("Open model",file,"*.ode* *.autox *.snapx"))return;
+    if(!file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
   }
   if(!model_file_ok(file)){
     err_msg(xpp::format("Cannot open {}",file).c_str());
+    return;
+  }
+  /* a recording: its model, in the player (W59b) */
+  if(xpp::snapx::has_extension(file,xpp::recx::extension)){
+    play_recording(file.c_str());
     return;
   }
   /* a file that carries a model: that model, then what the file adds */
@@ -76,19 +83,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
   /* everything below replaces this session (a .snapx of this very model
      too: its values, data and diagram take the place of these), so it
      asks first, as File > Open does (W103 review) */
-  {
-    const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
-                                           xpp_files_split_path(file).second);
-    switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
-    case 's':
-      if(!xpp_session_save(s,nullptr,-1))return;
-      break;
-    case 'd':
-      break;
-    default:
-      return;
-    }
-  }
+  if(!xpp_model_may_leave(s,file))return;
   /* loaded from its own folder, as a double-click starts it: the folder
      the page's files are (xpp_files.h); a saved model from the folder of
      the file it is saved in, which its outputs go to */
@@ -102,11 +97,23 @@ void xpp_model_open(xpp::Session &s, const char *path)
     req.restore=std::move(saved);
   }else{
     const std::pair<std::string,std::string> where=xpp_files_split_path(file);
-    req.dir=where.first;
-    req.file=where.second;
-    req.command_line={program_name(s.model()),where.second};
+    req=xpp::open_request(s,where.first,where.second);
   }
   s.model_request=std::move(req);
+}
+
+bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
+{
+  const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
+                                         xpp_files_split_path(file).second);
+  switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
+  case 's':
+    return xpp_session_save(s,nullptr,-1);
+  case 'd':
+    return true;
+  default:
+    return false;
+  }
 }
 
 void xpp_model_reload(xpp::Session &s)
@@ -126,6 +133,15 @@ void xpp_model_reload(xpp::Session &s)
 }
 
 namespace xpp {
+
+ModelRequest open_request(const Session &s, std::string dir, std::string file)
+{
+  ModelRequest req;
+  req.command_line={program_name(s.model()),file};
+  req.dir=std::move(dir);
+  req.file=std::move(file);
+  return req;
+}
 
 std::optional<ModelRequest> take_model_request(Session &s)
 {

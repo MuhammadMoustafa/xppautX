@@ -52,7 +52,7 @@ const char *const file_menu[]={
 "FILE","Prt src","Write set","Read set",
 "Auto","Calculator","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
-"cOpy set line","open Model","rEload","saVe session","opeN session","recorD"};
+"cOpy set line","open Model","rEload","saVe session","opeN session","recorD","plaY recording"};
 
 /* hints for the main menus */
 const char *const main_hint[]=
@@ -97,7 +97,8 @@ const char *const file_hint[]={
 "Read the model's file again, keeping the values",
 "Save everything to one session file (.snapx) to continue later",
 "Open a session file: its model, values, windows, data and diagram",
-"Record the steps you take to a .recx file; again to stop and save it"
+"Record the steps you take to a .recx file; again to stop and save it",
+"Play a recording (.recx): its model, then its steps as they were taken"
 };
 
 
@@ -383,7 +384,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwracshqtglxuomevnd";
+const char *const file_menu_keys="pwracshqtglxuomevndy";
 
 /* their kinds (menus.h): an item that opens a pop-up menu takes the least
    restrictive kind of that menu's items (the maintainer's "menus open, only
@@ -397,7 +398,7 @@ const char *const file_menu_keys="pwracshqtglxuomevnd";
 namespace {
 constexpr char main_kinds[] = "xxvvvdvvvvsvvvxvvvvx";
 constexpr char num_kinds[] = "ssssssssssvdssdsdv";
-constexpr char file_kinds[] = "vddvvdvcdsddvvddddd";
+constexpr char file_kinds[] = "vddvvdvcdsddvvdddddd";
 static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
 static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
 static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds), "one kind per File menu item");

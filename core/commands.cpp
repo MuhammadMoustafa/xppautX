@@ -501,6 +501,7 @@ void commander(xpp::Session &s, int ch)
     case 'v': xpp_session_save(s, nullptr, -1); break;
     case 'n': xpp_session_load(s, nullptr); break;
     case 'd': record_toggle(); break;
+    case 'y': play_recording(nullptr); break;
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }

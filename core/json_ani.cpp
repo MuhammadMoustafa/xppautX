@@ -79,7 +79,7 @@ int ani_wait(xpp::Session &s, int ms)
         char *line;
         long left;
         int r;
-        if (xpp_job_cancelled()) return 1;
+        if (xpp_job_cancelled() || xpp_job_take_key() == ESC) return 1; /* a replayed Escape (xpp_job.h) */
         gettimeofday(&now, NULL);
         left = ms - ((now.tv_sec - start.tv_sec) * 1000 + (now.tv_usec - start.tv_usec) / 1000);
         line = read_line(XPP_INBOX_CONTROL, left > 0 ? static_cast<int>(left) : 0);
@@ -119,6 +119,7 @@ void ani_go(xpp::Session &s)
             }
         }
         frame++;
+        xpp_job_frame_shown(frame);
         stop = ani_wait(s, s.animation.speed * (s.animation.mpeg.aviflag == 1 || s.animation.mpeg.flag > 0 ? 6 : 1));
         s.animation.vcr.pos += s.animation.vcr.inc;
         if (s.animation.vcr.pos >= s.browser.view.maxrow) {

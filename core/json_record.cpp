@@ -46,6 +46,8 @@ struct StepTaken {
     std::string cmd;                  /* a command other than a key, whole */
     std::vector<std::string> keys;    /* the key, then the keys that answered a menu or a choice */
     std::vector<std::string> answers; /* every other answer: a value, a form's values, an object, null for a cancel */
+    std::vector<size_t> files;        /* the file sections it read, in order */
+    std::vector<std::string> during;  /* the keys the job read itself, each {"key":K,"at":AT} */
     bool view = false;                /* only changes what is shown */
     bool file_menu = false;           /* the key that opens the File menu */
 };
@@ -75,7 +77,7 @@ std::string json_str(std::string_view s)
 bool is_step(const char *line)
 {
     static constexpr std::string_view none[] = {"state", "data", "equations", "redraw", "file", "answer", "abort", "quit",
-                                                "record"};
+                                                "record", "play"};
     std::string c;
     if (!get_string(line, "cmd", c, 16)) return false;
     for (std::string_view n : none)
@@ -135,6 +137,10 @@ std::string step_line(const StepTaken &t, const std::string &abort)
     for (const std::string &k : t.keys) keys.push_back(json_str(k));
     array("keys", keys);
     array("answers", t.answers);
+    std::vector<std::string> files;
+    for (size_t f : t.files) files.push_back(xpp::format("{}", f));
+    array("files", files);
+    array("during", t.during);
     if (t.view) j += ",\"view\":true";
     if (!abort.empty()) j += ",\"abort\":" + abort;
     return j + "}";
@@ -148,7 +154,9 @@ void add_model_files(const xpp::Model &m)
 }
 
 /* xpp_files_observe_reads' observer: a file the core opened for reading,
-   embedded when it is text and the user's (not in a scratch folder) */
+   embedded when it is the user's (not in a scratch folder: text as it
+   is, any other file, an .autox or a .snapx, as base64), and named by
+   the step that read it */
 void file_read(const char *path)
 {
     if (!recorder.rec || recorder.reading || xpp_files_is_scratch(path)) return;
@@ -157,7 +165,9 @@ void file_read(const char *path)
         recorder.reading = true;
         const bool read = xpp::read_bytes(path, bytes);
         recorder.reading = false;
-        if (read && xpp::is_model_text(bytes)) recx::add_file(*recorder.rec, {path, std::move(bytes)});
+        if (!read) return;
+        const size_t section = recx::add_file(*recorder.rec, {path, std::move(bytes)});
+        if (recorder.step.open) recorder.step.files.push_back(section);
     } catch (const std::bad_alloc &) {
         xpp_out_of_memory("recording a file");
     }
@@ -297,6 +307,19 @@ void record_menu_pick(const XppMenu *m, int ch)
     if (!recorder.rec || !t.open || i < 0) return;
     t.label += " → " + xpp_menu_label(m->items[i]);
     if (m->kinds) t.view = m->kinds[i] == XPP_KIND_VIEW;
+}
+
+void record_key_read(const std::string &key)
+{
+    StepTaken &t = recorder.step;
+    if (!recorder.rec || !t.open) return;
+    Buf b;
+    BUF_LIT(&b, "{\"key\":");
+    buf_str(&b, key);
+    BUF_LIT(&b, ",\"at\":");
+    buf_stopped_at(&b);
+    BUF_LIT(&b, "}");
+    t.during.push_back(std::move(b.s));
 }
 
 void record_setting(const char *line)

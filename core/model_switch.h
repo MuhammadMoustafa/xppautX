@@ -30,8 +30,13 @@ struct Session; /* session.h */
    its diagram or session; when the model open is that one (the same
    files, byte for byte) nothing is asked: an AUTO file's diagram goes
    into it, keeping its data, and a session file loads it again with the
-   session. */
+   session. A recording (.recx) opens in the player (play_recording,
+   W59b). */
 void xpp_model_open(xpp::Session &s, const char *path);
+/* before file replaces the model of s: asks whether to save its session
+   first (xpp_session_save); false when the user cancels, or the save
+   fails */
+bool xpp_model_may_leave(xpp::Session &s, const std::string &file);
 /* File > Reload (key e) and {"cmd":"reload"}: the model's file again, with
    the command line it was loaded with (a saved model's from its saved
    files); the parameters, initial data and numerics keep their values by
@@ -53,6 +58,11 @@ struct ModelRequest {
      model is loaded (xpp_saved_restore) */
   std::optional<SavedFile> restore;
 };
+
+/* a request for the model file `file`, loaded in the folder dir as a
+   double-click starts it (the command line: the program's name, then the
+   file), in place of the model of s */
+ModelRequest open_request(const Session &s, std::string dir, std::string file);
 
 /* the request the last command in s made, taken: nullopt when it made none */
 std::optional<ModelRequest> take_model_request(Session &s);

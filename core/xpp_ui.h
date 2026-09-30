@@ -152,6 +152,7 @@ void q_calc(void);
 void open_help(const char *chapter, const char *anchor);
 void copy_text(const char *what, const char *text);
 void record_toggle(void);
+void play_recording(const char *path);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -351,6 +352,10 @@ typedef struct XppUi {
     /* File/recorD: start recording the session's steps, or stop and save
        the recording (W59a, json_record.cpp) */
     void (*record_toggle)(void);
+    /* File/plaY recording, or Open model of a .recx: the recording's model
+       loaded from it, ready to play its steps (NULL: ask for the file;
+       W59b, json_player.cpp) */
+    void (*play_recording)(const char *path);
 
     /* program is quitting */
     void (*exit_program)(void);

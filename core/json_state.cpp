@@ -134,6 +134,7 @@ void send_state(xpp::Session &s)
         BUF_LIT(&b, "}");
     }
     buf_recording(&b);
+    buf_player(&b);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }

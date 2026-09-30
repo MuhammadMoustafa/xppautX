@@ -12,6 +12,7 @@
 #include "xpp_win32.h"
 #include "mykeydef.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -229,6 +230,75 @@ const char *skip_value(const char *p)
         if (depth == 0 && (*p == ',' || *p == '}' || *p == ']')) return p;
     } while (*p);
     return p;
+}
+
+namespace {
+
+/* one JSON value at p, strictly (RFC 8259, nesting at most 64 deep): past
+   it, or NULL when it is not one */
+const char *valid_value(const char *p, int depth)
+{
+    p = skip_ws(p);
+    if (depth > 64) return nullptr;
+    if (*p == '{' || *p == '[') {
+        const char close = *p == '{' ? '}' : ']';
+        p = skip_ws(p + 1);
+        if (*p == close) return p + 1;
+        for (;;) {
+            if (close == '}') {
+                if (*p != '"' || !(p = valid_value(p, depth + 1))) return nullptr;
+                p = skip_ws(p);
+                if (*p++ != ':') return nullptr;
+            }
+            if (!(p = valid_value(p, depth + 1))) return nullptr;
+            p = skip_ws(p);
+            if (*p == close) return p + 1;
+            if (*p++ != ',') return nullptr;
+            p = skip_ws(p);
+        }
+    }
+    if (*p == '"') {
+        for (p++; *p != '"'; p++) {
+            if (static_cast<unsigned char>(*p) < 0x20) return nullptr; /* the end, or a raw control character */
+            if (*p == '\\') {
+                p++;
+                if (*p == 'u') {
+                    for (int i = 1; i <= 4; i++)
+                        if (!std::isxdigit(static_cast<unsigned char>(p[i]))) return nullptr;
+                    p += 4;
+                } else if (!*p || !std::strchr("\"\\/bfnrt", *p)) {
+                    return nullptr;
+                }
+            }
+        }
+        return p + 1;
+    }
+    for (const char *word : {"true", "false", "null"})
+        if (std::strncmp(p, word, std::strlen(word)) == 0) return p + std::strlen(word);
+    const char *start = p;
+    if (*p == '-') p++;
+    if (*p == '0') p++;
+    else if (*p >= '1' && *p <= '9')
+        while (*p >= '0' && *p <= '9') p++;
+    else return nullptr;
+    if (*p == '.') {
+        if (!(*++p >= '0' && *p <= '9')) return nullptr;
+        while (*p >= '0' && *p <= '9') p++;
+    }
+    if (*p == 'e' || *p == 'E') {
+        if (*++p == '+' || *p == '-') p++;
+        if (!(*p >= '0' && *p <= '9')) return nullptr;
+        while (*p >= '0' && *p <= '9') p++;
+    }
+    return p > start ? p : nullptr;
+}
+
+} // namespace
+
+bool js_valid(const char *text)
+{
+    const char *end = valid_value(text, 0);
+    return end && *skip_ws(end) == '\0';
 }
 
 /* value of member key in the object at obj, or NULL */

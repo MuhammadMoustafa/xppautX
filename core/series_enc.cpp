@@ -2,6 +2,7 @@
    (series_enc.h). Pure: no core state, no I/O. */
 #include "series_enc.h"
 #include "json_number.h"
+#include "xpp_io.h"
 
 #include <array>
 #include <cstdint>
@@ -11,8 +12,6 @@
 #include <string_view>
 
 namespace {
-
-constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /* the float's 4 bytes, least significant first */
 std::array<unsigned char, 4> le_bytes(float f)
@@ -29,30 +28,10 @@ void base64(const float *v, int n, std::string &s)
     const std::size_t bytes = 4 * static_cast<std::size_t>(n);
     s.reserve(s.size() + 2 + (bytes + 2) / 3 * 4);
     s += '"';
-    std::array<unsigned char, 3> q{};
-    int nq = 0;
-    for (int i = 0; i < n; i++) {
-        for (unsigned char c : le_bytes(v[i])) {
-            q[nq++] = c;
-            if (nq == 3) {
-                s += B64[q[0] >> 2];
-                s += B64[(q[0] & 3) << 4 | q[1] >> 4];
-                s += B64[(q[1] & 15) << 2 | q[2] >> 6];
-                s += B64[q[2] & 63];
-                nq = 0;
-            }
-        }
-    }
-    if (nq == 1) {
-        s += B64[q[0] >> 2];
-        s += B64[(q[0] & 3) << 4];
-        s += "==";
-    } else if (nq == 2) {
-        s += B64[q[0] >> 2];
-        s += B64[(q[0] & 3) << 4 | q[1] >> 4];
-        s += B64[(q[1] & 15) << 2];
-        s += '=';
-    }
+    xpp::Base64Encoder e(s);
+    for (int i = 0; i < n; i++)
+        for (unsigned char c : le_bytes(v[i])) e.push(c);
+    e.finish();
     s += '"';
 }
 

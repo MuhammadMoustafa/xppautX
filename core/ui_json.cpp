@@ -79,7 +79,7 @@ int handle_async(xpp::Session &s, const char *line)
         browser_rows(s, line);
         return 1;
     }
-    return 0;
+    return play_async(line) ? 1 : 0;
 }
 
 /* What a running computation (xpp_job_computing(): an integration, a
@@ -111,6 +111,8 @@ int during_run(const char *line)
     get_string(line, "cmd", c, 16);
     if (c == "abort" || c == "quit" || c == "state") return XPP_INBOX_CONTROL;
     if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (c == "play" && get_string(line, "op", o, 16) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
+        return XPP_INBOX_CONTROL;
     if (c == "answer") return XPP_INBOX_NORMAL;
     if (c == "key" && !js_find(line, "win")) {
         get_string(line, "key", o, 16);
@@ -202,7 +204,13 @@ int control_line(xpp::Session &s, const char *line)
     if (is_cmd(line, "abort")) return ESC;
     if (is_cmd(line, "key")) {
         get_string(line, "key", k, 32);
-        return key_code(k.c_str());
+        const int code = key_code(k.c_str());
+        /* what the job does with it a recording keeps, to hand it the key
+           at the same point in a replay: / ends a range; Escape stops the
+           animation's Go (during a computation it cancels the job: the
+           step's abort) */
+        if (code == '/' || (code == ESC && xpp_job_progress().what == XPP_JOB_ANI)) record_key_read(k);
+        return code;
     }
     if (line_kind(line) == XPP_KIND_SETTING) {
         take_setting(s, line);
@@ -229,6 +237,8 @@ void buf_stopped_at(Buf *b)
         BUF_LIT(b, "}");
     } else if (p.what == XPP_JOB_AUTO) {
         buf_format(b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
+    } else if (p.what == XPP_JOB_ANI) {
+        buf_format(b, "{{\"what\":\"ani\",\"frame\":{:d}}}", p.frame);
     } else {
         BUF_LIT(b, "{\"what\":\"other\"}");
     }
@@ -251,35 +261,49 @@ void send_stopped(void)
 /* A recorded interruption (docs/protocol.md "Scripts"): the line after the
    one a script is about to run is {"cmd":"abort","at":AT}. That line is
    dropped, and the job of the line about to run (the running job, for an
-   answer) cancels itself at AT (xpp_job_stop_at_rows/point). stop_line and
+   answer) cancels itself at AT (arm_recorded_stop). stop_line and
    stop_at say what was armed, for script_stop_missed(). */
 int stop_line;
-constexpr size_t STOP_AT_MAX = 399;
-std::string stop_at; /* cut to STOP_AT_MAX */
+std::string stop_at; /* recorded_at's */
 
 void script_arm_stop(void)
 {
     int no = 0;
-    const char *next = xpp_inbox_script_peek(&no), *at, *end;
-    std::string what;
+    const char *next = xpp_inbox_script_peek(&no), *at;
     if (!next || !is_cmd(next, "abort") || !(at = js_find(next, "at")) || *at != '{') return;
-    end = skip_value(at);
-    try {
-        stop_at.assign(at, std::min(static_cast<size_t>(end - at), STOP_AT_MAX));
-    } catch (...) {
-        xpp_out_of_memory("reading a script");
-    }
+    stop_at = recorded_at(at);
     stop_line = no;
+    arm_recorded_stop(at, 0);
+    xpp_inbox_script_skip();
+}
+
+} // namespace
+
+std::string recorded_at(const char *at)
+{
+    constexpr size_t max = 399; /* an error message's, not a file's */
+    try {
+        return std::string(js_raw(at).substr(0, max));
+    } catch (...) {
+        xpp_out_of_memory("reading a recorded interruption");
+    }
+}
+
+bool arm_recorded_stop(const char *at, int key)
+{
+    std::string what;
     get_string(at, "what", what, 16);
     if (what == "integrate")
         xpp_job_stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
     else if (what == "auto")
         xpp_job_stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
-    /* an interruption of anything else cannot be placed: the job runs on */
-    xpp_inbox_script_skip();
+    else if (what == "ani")
+        xpp_job_stop_at_frame(get_int(at, "frame", -1));
+    else
+        return false; /* an interruption of anything else cannot be placed: the job runs on */
+    xpp_job_stop_with_key(key);
+    return true;
 }
-
-} // namespace
 
 /* the script's next line to the core (docs/protocol.md "Scripts"), and
    the interruption recorded after it */
@@ -402,6 +426,7 @@ XppUi make_json_ui(void)
     u.open_help = j_open_help;
     u.copy_text = j_copy_text;
     u.record_toggle = j_record_toggle;
+    u.play_recording = j_play_recording;
     u.exit_program = j_exit_program;
     return u;
 }
@@ -523,6 +548,12 @@ const CommandInfo commands[] = {
     {"reload", nullptr, D, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
     {"record", "note", C, record_command},
     {"record", nullptr, D, record_command}, /* start, stop */
+    {"play", "start", C, play_command},
+    {"play", "pause", C, play_command},
+    {"play", "step", C, play_command},
+    {"play", "speed", C, play_command},
+    {"play", "close", C, play_command},
+    {"play", nullptr, D, play_command}, /* open, from, note */
     {"equilibrium", nullptr, X, write_command},
     {"userbut", nullptr, X,
      [](xpp::Session &s, const char *line) {
@@ -597,6 +628,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
         j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
+        player_begin(line);
         record_begin(line);
         e->run(*s, line);
     } else {
@@ -605,7 +637,11 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
-    if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) s = &switch_model(*s, *req);
+    if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) {
+        xpp::Session *before = s;
+        s = &switch_model(*s, *req);
+        player_model_switched(s != before);
+    }
     aplot_update(*s);
     browser_update(*s);
     plot_data_update(*s);
@@ -622,7 +658,9 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
        stopped where the recorded session did */
     if (xpp_job_cancelled()) send_stopped();
     if (session.script_mode && xpp_job_stop_armed()) script_stop_missed();
+    else if (xpp_job_stop_armed()) player_stop_missed();
     record_end(*s, xpp_job_cancelled());
+    player_step_end();
     /* the command is finished; the client may send the next one */
     xpp_job_end();
     send_state(*s);
@@ -654,7 +692,12 @@ void json_ui_loop(void)
             next = std::move(session.deferred.front());
             session.deferred.pop_front();
         } else {
-            char *line = read_line(XPP_INBOX_ARRIVAL, -1);
+            /* a recording playing acts when its time comes (json_player.cpp) */
+            char *line = read_line(XPP_INBOX_ARRIVAL, player_wait_ms());
+            if (!line) {
+                player_fire();
+                continue;
+            }
             try {
                 next.line = line;
             } catch (...) {

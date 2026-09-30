@@ -89,6 +89,7 @@ static void hl_movie_save(const char *, int) {}
 static void hl_open_help(const char *, const char *) {}
 static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
 static void hl_record_toggle(void) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
+static void hl_play_recording(const char *) { xpp_log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -207,6 +208,7 @@ XppUi xpp_ui = {
     .open_help = hl_open_help,
     .copy_text = hl_copy_text,
     .record_toggle = hl_record_toggle,
+    .play_recording = hl_play_recording,
     .exit_program = hl_exit_program,
 };
 
@@ -279,6 +281,7 @@ int my_abort(void)
 {
     int ch;
     if (xpp_job_cancelled()) return 27;
+    if (int key = xpp_job_take_key()) return key; /* a replayed / (xpp_job.h) */
     if (!xpp_job_poll_due()) return 64;
     ch = xpp_ui.check_abort();
     if (ch == 27) xpp_job_cancel_current();
@@ -361,6 +364,7 @@ void q_calc(void) { xpp_ui.q_calc(); }
 void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
 void copy_text(const char *what, const char *text) { xpp_ui.copy_text(what, text); }
 void record_toggle(void) { xpp_ui.record_toggle(); }
+void play_recording(const char *path) { xpp_ui.play_recording(path); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
    was a thin wrapper around xpp_log() at INFO (the banner, "All formulas

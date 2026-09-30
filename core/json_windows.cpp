@@ -19,6 +19,7 @@
 #include "marks_data.h"
 #include "series_enc.h"
 #include "image_format.h"
+#include <algorithm>
 #include <array>
 #include <stdio.h>
 #include <string.h>
@@ -297,8 +298,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 {
     Buf b;
     std::vector<unsigned char> rgb;
-    size_t k = 0;
-    int q[4], nq = 0, id = ask_begin(&b, "pixels");
+    int id = ask_begin(&b, "pixels");
     if (film >= 0) buf_format(&b, ",\"film\":{:d}", film);
     else buf_format(&b, ",\"win\":{:d}", win);
     if (!ask_wait(&b, id)) return rgb;
@@ -308,23 +308,17 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
     if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return rgb;
     size_t n = static_cast<size_t>(*w) * static_cast<size_t>(*h) * 3;
     try {
+        std::string bytes;
+        bytes.reserve(n + 2);
+        xpp::Base64Decoder d(bytes);
+        for (v++; *v && *v != '"' && bytes.size() < n; v++)
+            if (!d.feed(*v)) break;
+        d.finish();
+        rgb.assign(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(std::min(n, bytes.size())));
         rgb.resize(n);
     } catch (...) {
         xpp_out_of_memory("taking a picture");
     }
-    for (v++; *v && *v != '"' && k < n; v++) {
-        int d = xpp::base64_value(static_cast<unsigned char>(*v));
-        if (d < 0) continue;
-        q[nq++] = d;
-        if (nq == 4) {
-            rgb[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
-            if (k < n) rgb[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
-            if (k < n) rgb[k++] = static_cast<unsigned char>(q[2] << 6 | q[3]);
-            nq = 0;
-        }
-    }
-    if (nq >= 2 && k < n) rgb[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
-    if (nq >= 3 && k < n) rgb[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
     return rgb;
 }
 

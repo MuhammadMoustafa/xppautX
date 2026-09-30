@@ -32,10 +32,20 @@ unsigned long load_upto() { return cancel_upto.load(std::memory_order_acquire); 
 /* where the job got to (xpp_job_progress), and the armed stop */
 XppJobProgress progress;
 
-enum class Stop { none, rows, point };
+enum class Stop { none, rows, point, frame };
 Stop stop = Stop::none;
-long stop_rows;
-int stop_branch, stop_point;
+long stop_count; /* the rows, the point or the frame it stops at */
+int stop_branch;
+int stop_key;    /* the key the armed stop hands the job; 0: it cancels it */
+int reached_key; /* a reached stop's key, not taken yet */
+
+/* the armed stop is reached: the job is cancelled, or handed its key */
+void stop_reached()
+{
+    stop = Stop::none;
+    if (stop_key) reached_key = stop_key;
+    else xpp_job_cancel_current();
+}
 
 } // namespace
 
@@ -59,6 +69,7 @@ void xpp_job_end(void)
 {
     if (depth == 0 || --depth > 0) return;
     stop = Stop::none;
+    reached_key = 0;
     running.store(false, std::memory_order_release);
 }
 
@@ -67,10 +78,7 @@ void xpp_job_rows_stored(long rows, double t)
     progress.what = XPP_JOB_INTEGRATE;
     progress.rows = rows;
     progress.t = t;
-    if (stop == Stop::rows && rows == stop_rows) {
-        stop = Stop::none;
-        xpp_job_cancel_current();
-    }
+    if (stop == Stop::rows && rows == stop_count) stop_reached();
 }
 
 void xpp_job_point_stored(int branch, int point)
@@ -78,25 +86,48 @@ void xpp_job_point_stored(int branch, int point)
     progress.what = XPP_JOB_AUTO;
     progress.branch = branch;
     progress.point = point;
-    if (stop == Stop::point && branch == stop_branch && point + 1 == stop_point) {
-        stop = Stop::none;
-        xpp_job_cancel_current();
-    }
+    if (stop == Stop::point && branch == stop_branch && point + 1 == stop_count) stop_reached();
+}
+
+void xpp_job_frame_shown(int frame)
+{
+    progress.what = XPP_JOB_ANI;
+    progress.frame = frame;
+    if (stop == Stop::frame && frame == stop_count) stop_reached();
 }
 
 XppJobProgress xpp_job_progress(void) { return progress; }
 
-void xpp_job_stop_at_rows(long rows)
+namespace {
+
+/* a stop of that kind at count armed, cancelling (xpp_job_stop_with_key
+   may give it a key after) */
+void arm(Stop kind, long count)
 {
-    stop = Stop::rows;
-    stop_rows = rows;
+    stop = kind;
+    stop_count = count;
+    stop_key = 0;
 }
+
+} // namespace
+
+void xpp_job_stop_at_rows(long rows) { arm(Stop::rows, rows); }
 
 void xpp_job_stop_at_point(int branch, int point)
 {
-    stop = Stop::point;
+    arm(Stop::point, point);
     stop_branch = branch;
-    stop_point = point;
+}
+
+void xpp_job_stop_at_frame(int frame) { arm(Stop::frame, frame); }
+
+void xpp_job_stop_with_key(int key) { stop_key = key; }
+
+int xpp_job_take_key(void)
+{
+    const int k = reached_key;
+    reached_key = 0;
+    return k;
 }
 
 int xpp_job_stop_armed(void) { return stop != Stop::none; }

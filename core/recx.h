@@ -12,8 +12,12 @@
      @file <name>
      <the file's lines>
      @end
-     ...                      (the model's files, then every other text
-                               file the session read)
+     @binary <name>
+     <the file's bytes in base64, 76 digits a line>
+     @end
+     ...                      (the model's files, then every other file
+                               the session read: text as @file, any
+                               other (an .autox, a .snapx) as @binary)
      @steps
      # <the note shown above the next step, any number of # lines>
      {"step":"Initialconds → Go","keys":["i","g"]}
@@ -29,8 +33,10 @@
    blank lines between sections, the # notes and the fingerprint line are
    not in it, so a note edited afterwards keeps it, and a step or a file
    changed does not. This header is the format's pure part (recx.cpp, no
-   I/O; tests/test_recx.cpp); what goes into one is json_record.cpp's.
+   I/O; tests/test_recx.cpp); what goes into one is json_record.cpp's,
+   and its replay json_player.cpp's.
    C++ only. */
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -55,15 +61,33 @@ struct Recording {
     std::string recorded; /* when it began: 2026-09-30T10:14:02Z */
     std::vector<ModelFile> files;
     std::vector<Step> steps;
+    /* the fingerprint a read file ends with (empty when it has none);
+       empty for a recording being made, whose text() computes it */
+    std::string fingerprint;
 };
 
 /* file into r's files, unless one of that name with those bytes is there
    already: a file read again with other bytes (a model edited and
-   reloaded) is another section, after the first */
-void add_file(Recording &r, ModelFile file);
+   reloaded) is another section, after the first. The section's index. */
+size_t add_file(Recording &r, ModelFile file);
 
-/* r as its file's text, the fingerprint last */
+/* r as its file's text, the fingerprint last: r.fingerprint when it has
+   one (a read recording whose notes were edited keeps what it said),
+   else the fingerprint of what r holds */
 std::string text(const Recording &r);
+
+/* a recording's file read back */
+struct Read {
+    Recording rec;
+    /* the fingerprint matches the files and the steps: nothing but the
+       notes was changed after the recording was made */
+    bool intact = false;
+};
+
+/* the text of a .recx file: nullopt, with the reason in error, when it
+   is not one (its first line, a section without its @end, no @steps,
+   a @binary section that is not base64) */
+std::optional<Read> read(std::string_view text, std::string &error);
 
 /* the fingerprint of the lines it covers (above), each without its "\n" */
 std::string fingerprint(const std::vector<std::string> &hashed);

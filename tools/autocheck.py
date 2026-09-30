@@ -41,7 +41,7 @@ the same commands and the recorded {"cmd":"abort","at":...} stops them at
 the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
-import argparse, json, os, shutil, subprocess, sys, tempfile, time
+import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import SLOW, Server, is_idle, is_ask, is_state
 
@@ -51,7 +51,7 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'sessiondata', 'autox', 'script', 'replay', 'names', 'scratch', 'errors'])
+                                                'sessions', 'session', 'sessiondata', 'autox', 'script', 'replay', 'play', 'names', 'scratch', 'errors'])
 args = ap.parse_args()
 if args.list:
     print(' '.join(ap.get_default('sections')))
@@ -1792,6 +1792,82 @@ def section_sessiondata():
               again is not None and again['rows'] == rows, str(again and again['rows']))
         s2.close()
         shutil.rmtree(home2, ignore_errors=True)
+
+
+def play_recording(s, path):
+    """play open path (the model switch's "save first?" answered don't),
+    then play it at 8x to the end of its last step: the player event and
+    the events"""
+    s.send(cmd='play', op='open', file=path)
+    evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}}, timeout=60 * SLOW)
+    pl = next((e for e in evs if e.get('ev') == 'player'), None)
+    if pl is None:
+        return None, evs
+    n = len(pl['steps'])
+    s.send(cmd='play', op='speed', speed=8)
+    s.collect(is_idle)
+    s.send(cmd='play', op='start')
+    more, _ = s.collect(lambda e: is_state(e) and (e.get('player') or {}).get('step') == n
+                        and e['player']['running'] == -1, timeout=300 * SLOW)
+    return pl, evs + more + s.collect(is_idle)[0]
+
+
+def file_bytes(s, name):
+    """the model folder's file name, through the file command (the player's
+    folder is its own)"""
+    s.send(cmd='file', op='get', name=name)
+    _, ev = s.collect(lambda e: e.get('ev') == 'file')
+    s.collect(is_idle)
+    return base64.b64decode(ev['data']) if ev and ev.get('ok') else None
+
+
+def section_play():
+    """W59b: a recording played back computes what the session recorded:
+    (a) lecar's "hopf" set, its fixed point, an AUTO steady run: the same
+    diagram; (b) a range ended with / (a key the running job reads itself,
+    recorded with where it was): the same rows"""
+    s = Server(args.server, LECAR, verbose=args.v)
+    s.collect(is_idle)
+    s.send(cmd='record', op='start')
+    s.collect(is_idle)
+    dg = Diagram().apply(hopf_steady(s))
+    dg.apply(run_any(s, 's'))
+    s.send(cmd='record', op='stop', name='auto')
+    s.collect(is_idle)
+    orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in dg.pts]
+    pl, evs = play_recording(s, os.path.join(s.run, 'auto.recx'))
+    again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts]
+    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    check('play: the AUTO steady run replayed gives the same diagram', pl and len(orig) > 5 and again == orig and not errors,
+          '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
+    s.close()
+
+    s = Server(args.server, HEAVY, verbose=args.v)
+    s.collect(is_idle)
+    s.send(cmd='record', op='start')
+    s.collect(is_idle)
+    s.send(cmd='key', key='i')
+    _, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key='r')
+    _, e = s.answer_asks(lambda e: e.get('ev') == 'computing',
+                         {'form': lambda e: {'values': e['values']}, 'choice': lambda e: {'key': 'n'}}, timeout=30 * SLOW)
+    s.collect(lambda e: e.get('ev') == 'progress' and e.get('n', 0) >= 200, timeout=60 * SLOW)
+    s.send(cmd='key', key='/')
+    s.collect(is_idle, timeout=120 * SLOW)
+    s.send(cmd='record', op='stop', name='range')
+    s.collect(is_idle)
+    text = open(os.path.join(s.run, 'range.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(s.run, 'range.recx')) else ''
+    check('play: a / during a range is recorded in its step, with where the job was',
+          '"during":[{"key":"/","at":{"what":"integrate","rows":' in text, text[text.find('@steps'):][:400])
+    # the replay's range ends where the recorded one did: had the / not
+    # come there (the stop is armed at its row), the step would say so,
+    # or run all 20 of heavy.ode's runs
+    t0 = time.monotonic()
+    pl, evs = play_recording(s, os.path.join(s.run, 'range.recx'))
+    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    check('play: the replayed / ends the range at the recorded row', pl and not errors
+          and (last_state(evs) or {}).get('player', {}).get('step') == 1, '%s, %.1f s' % (errors, time.monotonic() - t0))
+    s.close()
 
 
 for name in args.sections:

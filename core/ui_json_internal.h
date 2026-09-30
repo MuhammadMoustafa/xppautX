@@ -110,6 +110,15 @@ char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_js
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
+/* A recorded interruption's `at` (the stopped event's: docs/protocol.md
+   "Scripts") armed for the running job, or the next one to begin: it
+   cancels itself there, or, with a key code, is handed that key (a key
+   the job read itself, xpp_job.h). False for an `at` that cannot be
+   placed (what "other"): nothing is armed. The script's abort lines and
+   a recording's replayed steps (json_player.cpp) both arm through this. */
+bool arm_recorded_stop(const char *at, int key);
+/* the `at` object's text, for a message saying it was never reached */
+std::string recorded_at(const char *at);
 /* where the running job was when it was cancelled, the stopped event's
    `at` object (docs/protocol.md "stopped"), into b */
 void buf_stopped_at(Buf *b);
@@ -126,6 +135,9 @@ void j_record_toggle(void); /* File/recorD: start, or stop and save */
 void record_begin(const char *line);
 /* an ask of kind (ask_begin's) answered with the line answer; ok: not cancelled */
 void record_answer(const char *kind, const char *answer, bool ok);
+/* a key the running job read itself (control_line: / ending a range,
+   Escape stopping the animation's Go), with where the job was */
+void record_key_read(const std::string &key);
 /* the menu m's item of key ch picked (j_menu_choose): the step's label */
 void record_menu_pick(const struct XppMenu *m, int ch);
 /* a setting a running command took and applied at once (take_setting): a
@@ -136,6 +148,33 @@ void record_setting(const char *line);
 void record_end(xpp::Session &s, bool cancelled);
 /* state's "recording" member while recording */
 void buf_recording(Buf *b);
+
+/* ---- json_player.cpp: playing a recording (W59b) ---- */
+
+/* {"cmd":"play","op":"open"|"from"|"note"|"close"|...} */
+void play_command(xpp::Session &s, const char *line);
+/* play start, pause, step, speed: at any moment (handle_async); false
+   for any other line */
+bool play_async(const char *line);
+void j_play_recording(const char *path); /* File/plaY recording, Open model of a .recx */
+/* the ms until the player acts (the command loop's and a question's wait
+   for input), -1 when it waits for nothing; player_fire acts when its
+   time has come (after such a wait ran out) */
+int player_wait_ms(void);
+void player_fire(void);
+/* handle_line is about to run line: the step the player pushed begins */
+void player_begin(const char *line);
+/* an ask of kind (ask_begin's) was sent, the user's: the player's step
+   answers it with the recording's next key or answer */
+void player_asked(const char *kind);
+/* the step's job ends with its recorded interruption still armed */
+void player_stop_missed(void);
+/* the command ends (handle_line, before its state): the player's step ends */
+void player_step_end(void);
+/* a command's model request was carried out: loaded, or it failed */
+void player_model_switched(bool loaded);
+/* state's "player" member while a recording is open in the player */
+void buf_player(Buf *b);
 
 /* ---- json_silent.cpp ---- */
 
@@ -190,6 +229,9 @@ const char *js_find(const char *obj, const char *key);
 /* the JSON text of the value at v (its whitespace after it left out;
    empty for NULL) */
 std::string_view js_raw(const char *v);
+/* text is one JSON value, strictly (RFC 8259), with nothing after it but
+   whitespace: what a file holds before it goes into an event */
+bool js_valid(const char *text);
 /* the object at obj as JSON text without its members named in drop */
 std::string js_object_without(const char *obj, std::initializer_list<std::string_view> drop);
 /* the JSON string at v into out, cut to max - 1 bytes (a short keyword's

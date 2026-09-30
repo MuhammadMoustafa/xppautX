@@ -59,11 +59,17 @@ int ask_wait(Buf *b, int id)
     }
     send_buf(b);
     /* a script's next line is its answer to this ask (json_io.cpp read_line()'s
-       "Which queue" comment, and docs/protocol.md "Scripts") */
+       "Which queue" comment, and docs/protocol.md "Scripts"); a recording
+       playing gives its own, when its time comes (json_player.cpp) */
     if (session.script_mode) script_next();
+    else if (ask_user) player_asked(ask_kind);
     for (;;) {
-        char *line = read_line(XPP_INBOX_ANY, -1);
+        char *line = read_line(XPP_INBOX_ANY, player_wait_ms());
         int lid;
+        if (!line) {
+            player_fire();
+            continue;
+        }
         if (handle_async(s, line)) {
             flush_pending();
             out_flush();

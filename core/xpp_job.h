@@ -96,23 +96,29 @@ int xpp_job_poll_due(void);
 
    Computations report their progress as they store results: an integration
    every row it puts in storage (integrate.c), AUTO every point it adds to
-   the diagram (autevd.c addbif). When a job ends cancelled, the front end
+   the diagram (autevd.c addbif), the animation's Go every frame it shows
+   (json_ani.cpp). When a job ends cancelled, the front end
    reads the last report to say where it stopped (docs/protocol.md,
    "stopped"). A script replaying the session arms the same point before
    the job runs, and the job cancels itself exactly there: the stored rows,
-   or the diagram, come out as in the recorded session.
+   or the diagram, come out as in the recorded session. A key the job read
+   itself (/ ending a range, Escape stopping the animation's Go) is
+   replayed the same way: the armed stop hands the job that key
+   (xpp_job_take_key) instead of cancelling it.
 
    The progress is reset when a job begins. Main thread only. */
 
 #define XPP_JOB_OTHER 0     /* nothing reported: no integration, no AUTO */
 #define XPP_JOB_INTEGRATE 1 /* rows, t */
 #define XPP_JOB_AUTO 2      /* branch, point */
+#define XPP_JOB_ANI 3       /* frame */
 
 typedef struct {
     int what;          /* XPP_JOB_OTHER, _INTEGRATE or _AUTO: the last report */
     long rows;         /* rows in storage */
     double t;          /* the time of the last row stored */
     int branch, point; /* the last point AUTO stored */
+    int frame;         /* the animation's frames shown */
 } XppJobProgress;
 
 /* An integration has `rows` rows in storage, the last one at time t: a
@@ -126,6 +132,10 @@ void xpp_job_rows_stored(long rows, double t);
    how every cancelled AUTO run ends (autlib1.c stplae, stplbv). */
 void xpp_job_point_stored(int branch, int point);
 
+/* The animation's Go has shown `frame` frames (from 1). A stop at frame F
+   is reached when frame F has been shown. */
+void xpp_job_frame_shown(int frame);
+
 /* the running (or, between jobs, the last) job's progress */
 XppJobProgress xpp_job_progress(void);
 
@@ -135,6 +145,13 @@ XppJobProgress xpp_job_progress(void);
    new arm replaces the old one; the outermost xpp_job_end() disarms. */
 void xpp_job_stop_at_rows(long rows);
 void xpp_job_stop_at_point(int branch, int point);
+void xpp_job_stop_at_frame(int frame);
+/* the stop just armed hands the job the key `key` (a key code) when it
+   is reached, instead of cancelling it */
+void xpp_job_stop_with_key(int key);
+/* the key a reached stop hands the job, taken (0 when none): the
+   checkpoints (my_abort, the animation's wait) take it before any input */
+int xpp_job_take_key(void);
 
 /* 1 while a stop is armed and not reached yet */
 int xpp_job_stop_armed(void);

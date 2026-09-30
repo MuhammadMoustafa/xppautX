@@ -179,8 +179,9 @@ This brings up a menu with several options. Type `Esc` to abort.
   again (or **Stop** on the red recording bar the page shows, or
   **Record** in the title bar to start) to stop, and it asks for a file
   name and writes one plain text file, `name.recx`, next to the model: the
-  model itself and every text file the session read while recording (a
-  set, a parameter file, a table), then the steps. A step is everything
+  model itself and every file the session read while recording (a set, a
+  parameter file, a table, an animation; an AUTO file or a session file
+  you opened, written as base64 text), then the steps. A step is everything
   one command does until XPP is ready again: **Initialconds** then **Go**
   is one step, with the keys you pressed, a dialog's answers are part of
   the step that asked, a menu you left with `Esc` is a step too, and a run
@@ -192,7 +193,34 @@ This brings up a menu with several options. Type `Esc` to abort.
   step. The file ends with a fingerprint of the embedded files and the
   steps (not the notes): editing a note keeps it, changing a step or a file
   does not. A recording holds no data: playing it back computes everything
-  again.
+  again. A key a running command reads itself (`/` ending a range, `Esc`
+  stopping the animation's **Go**) is recorded with where it came.
+- **pla(Y) recording**: Asks for a `.recx` file (or use **Play a
+  recording** in the title bar, or **open (M)odel** on a `.recx`), then
+  whether to save this session first, and loads the recording's model
+  from the recording itself. Its steps then play back exactly as they were
+  taken, nothing fixed or skipped: before each step the note written for
+  it shows as a large caption above the plot, the keys it pressed light up
+  one by one in a box at the top of the plot (with the menu item lit in
+  the menu panel, a button lit when the step was a click, a dialog's
+  answers filled in before its **OK**), then the step runs. Only
+  computing takes time: after each step the player waits a moment to
+  let you see it (less for a zoom or a pan), then goes on. The controls
+  below the plot: **Play**/**Pause**, **Step** (one step, then pause),
+  **Restart**, and the speed (0.5x, 1x, 2x, 4x); the progress shows a
+  segment per step (a half one for a view step). The step list at the
+  right shows every step with its note; click one to write or change its
+  note and **Save note** (it goes into the `.recx`; the fingerprint stays
+  valid, as notes are not part of it) or **Play from here** (the steps
+  before it run at once, then it plays). The files a step read come from
+  the recording, never from the disk, and the replay writes its output in
+  a scratch folder of its own, so it never touches your files and plays
+  the same every time. A recording changed after it was made (a step or a
+  file that no longer matches the fingerprint) shows the banner "This
+  recording was changed after it was made" and still plays. A step that
+  goes where the recording does not (it asks a question the recording
+  does not answer) stops the player with an error; the question is then
+  yours to answer.
 
 ### (P)arameters
 

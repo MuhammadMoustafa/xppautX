@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -187,31 +188,6 @@ bool json_string(const char *v, std::string &out)
     return xpp::json_decode_string(v, out, static_cast<size_t>(-1), /*strict=*/true);
 }
 
-/* ---- base64 ----------------------------------------------------------------------- */
-
-constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-void base64_append(std::string &s, const unsigned char *p, size_t n)
-{
-    size_t i = 0;
-    for (; i + 3 <= n; i += 3) {
-        s += B64[p[i] >> 2];
-        s += B64[(p[i] & 3) << 4 | p[i + 1] >> 4];
-        s += B64[(p[i + 1] & 15) << 2 | p[i + 2] >> 6];
-        s += B64[p[i + 2] & 63];
-    }
-    if (n - i == 1) {
-        s += B64[p[i] >> 2];
-        s += B64[(p[i] & 3) << 4];
-        s += "==";
-    } else if (n - i == 2) {
-        s += B64[p[i] >> 2];
-        s += B64[(p[i] & 3) << 4 | p[i + 1] >> 4];
-        s += B64[(p[i + 1] & 15) << 2];
-        s += '=';
-    }
-}
-
 /* put_base64's answer when the data is not a base64 string */
 const int NOT_BASE64 = -1;
 
@@ -219,34 +195,18 @@ const int NOT_BASE64 = -1;
 int put_base64(XppFilePut *put, const char *v)
 {
     if (!v || *v != '"') return NOT_BASE64;
-    std::array<unsigned char, 3 * 1024> out;
-    size_t k = 0;
-    int q[4], nq = 0, pad = 0;
+    std::string out;
+    xpp::Base64Decoder d(out);
     for (v++; *v != '"'; v++) {
-        if (!*v) return NOT_BASE64;
-        if (*v == '=') {
-            pad++;
-            continue;
-        }
-        int d = xpp::base64_value(static_cast<unsigned char>(*v));
-        if (d < 0 || pad) return NOT_BASE64;
-        q[nq++] = d;
-        if (nq == 4) {
-            out[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
-            out[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
-            out[k++] = static_cast<unsigned char>(q[2] << 6 | q[3]);
-            nq = 0;
-            if (k == out.size()) {
-                int st = xpp_files_put_write(put, out.data(), k);
-                if (st != XPP_FILES_OK) return st;
-                k = 0;
-            }
+        if (!*v || !d.feed(*v)) return NOT_BASE64;
+        if (out.size() >= 3 * 1024) {
+            int st = xpp_files_put_write(put, out.data(), out.size());
+            if (st != XPP_FILES_OK) return st;
+            out.clear();
         }
     }
-    if (nq == 1 || pad > 2) return NOT_BASE64;
-    if (nq >= 2) out[k++] = static_cast<unsigned char>(q[0] << 2 | q[1] >> 4);
-    if (nq == 3) out[k++] = static_cast<unsigned char>(q[1] << 4 | q[2] >> 2);
-    return k ? xpp_files_put_write(put, out.data(), k) : XPP_FILES_OK;
+    if (!d.finish()) return NOT_BASE64;
+    return out.empty() ? XPP_FILES_OK : xpp_files_put_write(put, out.data(), out.size());
 }
 
 /* ---- the listing ------------------------------------------------------------------ */
@@ -368,8 +328,7 @@ std::string command(const char *op, const char *name_json, const char *data_json
     xpp::Sha256 c;
     c.update(buf.data(), got);
     s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\",\"data\":\"", size, c.hex());
-    s.reserve(s.size() + (got + 2) / 3 * 4 + 4);
-    base64_append(s, buf.data(), got);
+    xpp::base64_append(s, std::string_view(reinterpret_cast<const char *>(buf.data()), got));
     s += "\"}";
     return s;
 }
@@ -541,17 +500,38 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
 
 namespace {
 
-/* xpp_files_observe_reads()'s observer (the core thread's) */
+/* xpp_files_observe_reads()'s observer and xpp_files_serve_reads()'s
+   server (the core thread's) */
 void (*read_observer)(const char *path);
+bool (*read_server)(const char *path, std::string *copy);
+
+/* a read the server has a say in */
+bool served_read(const char *path) { return read_server && path && !xpp_files_is_scratch(path); }
 
 } // namespace
 
 void xpp_files_observe_reads(void (*observer)(const char *path)) { read_observer = observer; }
 
+void xpp_files_serve_reads(bool (*server)(const char *path, std::string *copy)) { read_server = server; }
+
 FILE *xpp_files_open_stream(const char *path, const char *mode)
 {
-    FILE *f = path ? std::fopen(path, mode) : nullptr;
-    if (f && read_observer && mode[0] == 'r' && !std::strchr(mode, '+')) read_observer(path);
+    const bool reading = mode[0] == 'r' && !std::strchr(mode, '+');
+    std::string copy;
+    const char *name = path;
+    if (reading && served_read(path)) {
+        try {
+            if (!read_server(path, &copy)) {
+                errno = ENOENT;
+                return nullptr;
+            }
+        } catch (const std::bad_alloc &) {
+            xpp_out_of_memory("serving a file");
+        }
+        name = copy.c_str();
+    }
+    FILE *f = name ? std::fopen(name, mode) : nullptr;
+    if (f && read_observer && reading) read_observer(path);
     return f;
 }
 
@@ -578,6 +558,7 @@ FILE *xpp_files_create_new(const char *path, int binary)
 int xpp_files_exists(const char *path)
 {
     Stat st;
+    if (served_read(path) && read_server(path, nullptr)) return 1;
     return path && stat_follow(path, &st) == 0;
 }
 

@@ -669,4 +669,77 @@ int base64_value(int c) noexcept
     return -1;
 }
 
+namespace {
+constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+}
+
+void Base64Encoder::push(unsigned char byte)
+{
+    q_[n_++] = byte;
+    if (n_ < 3) return;
+    out_ += B64[q_[0] >> 2];
+    out_ += B64[(q_[0] & 3) << 4 | q_[1] >> 4];
+    out_ += B64[(q_[1] & 15) << 2 | q_[2] >> 6];
+    out_ += B64[q_[2] & 63];
+    n_ = 0;
+}
+
+void Base64Encoder::finish()
+{
+    if (n_ == 1) {
+        out_ += B64[q_[0] >> 2];
+        out_ += B64[(q_[0] & 3) << 4];
+        out_ += "==";
+    } else if (n_ == 2) {
+        out_ += B64[q_[0] >> 2];
+        out_ += B64[(q_[0] & 3) << 4 | q_[1] >> 4];
+        out_ += B64[(q_[1] & 15) << 2];
+        out_ += '=';
+    }
+    n_ = 0;
+}
+
+bool Base64Decoder::feed(char c)
+{
+    if (c == '=') {
+        pad_++;
+        return true;
+    }
+    const int d = base64_value(static_cast<unsigned char>(c));
+    if (d < 0 || pad_) return false;
+    q_[n_++] = d;
+    if (n_ == 4) {
+        out_ += static_cast<char>(q_[0] << 2 | q_[1] >> 4);
+        out_ += static_cast<char>(q_[1] << 4 | q_[2] >> 2);
+        out_ += static_cast<char>(q_[2] << 6 | q_[3]);
+        n_ = 0;
+    }
+    return true;
+}
+
+bool Base64Decoder::finish()
+{
+    if (n_ == 1 || pad_ > 2) return false;
+    if (n_ >= 2) out_ += static_cast<char>(q_[0] << 2 | q_[1] >> 4);
+    if (n_ == 3) out_ += static_cast<char>(q_[1] << 4 | q_[2] >> 2);
+    n_ = 0;
+    return true;
+}
+
+void base64_append(std::string &out, std::string_view bytes)
+{
+    out.reserve(out.size() + (bytes.size() + 2) / 3 * 4);
+    Base64Encoder e(out);
+    for (char c : bytes) e.push(static_cast<unsigned char>(c));
+    e.finish();
+}
+
+bool base64_decode_append(std::string &out, std::string_view text)
+{
+    Base64Decoder d(out);
+    for (char c : text)
+        if (!d.feed(c)) return false;
+    return d.finish();
+}
+
 } // namespace xpp
