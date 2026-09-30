@@ -71,7 +71,7 @@ ViewData &view_data(int v)
 
 /* the list the grab and the info strip's point index go by: the active
    view's (every view holds the same points in the same order) */
-ViewData &active_data() { return view_data(xpp::session().auto_state.active_view); }
+ViewData &active_data(const xpp::Session &s) { return view_data(s.auto_state.active_view); }
 
 } // namespace
 
@@ -102,11 +102,10 @@ void diag_end_replay(ViewData &d, int k)
 
 } // namespace
 
-void j_auto_diagram(int view, const XppDiagPoint *p)
+void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
 {
     ViewData &d = view_data(view);
     if (!p) {
-        const xpp::Session &s = xpp::session();
         const AUTOAX &a = s.auto_state.views[static_cast<std::size_t>(view)].axes;
         d.ax.xmin = a.xmin;
         d.ax.xmax = a.xmax;
@@ -220,7 +219,7 @@ void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
    (auto_data.h); the latest when a redraw of other axes left two */
 int diag_point_of_node(int node)
 {
-    const ViewData &d = active_data();
+    const ViewData &d = active_data(client()); /* auto_data.cpp asks with no Session */
     for (int i = d.client - 1; i >= 0; i--)
         if (d.dg[static_cast<std::size_t>(i)].node == node) return i;
     return -1;
@@ -229,14 +228,14 @@ int diag_point_of_node(int node)
 namespace {
 
 /* the client's point i of the active view, NULL when it has none */
-const XppDiagPoint *diag_client_point(int i)
+const XppDiagPoint *diag_client_point(const xpp::Session &s, int i)
 {
-    const ViewData &d = active_data();
+    const ViewData &d = active_data(s);
     return i >= 0 && i < d.client ? &d.dg[static_cast<std::size_t>(i)] : nullptr;
 }
 
 /* the number of points each view holds (Clear: the branches so far are the earlier ones) */
-int diag_points_held(void) { return active_data().n; }
+int diag_points_held(const xpp::Session &s) { return active_data(s).n; }
 
 /* b continues a's run */
 int diag_joins(const XppDiagPoint *a, const XppDiagPoint *b)
@@ -401,9 +400,8 @@ void auto_redraw_for_client(xpp::Session &s)
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
-void j_auto_make_window(const char *wname, const char *)
+void j_auto_make_window(xpp::Session &s, const char *wname, const char *)
 {
-    xpp::Session &s = xpp::session();
     s.auto_state.bifur.hgt = 20 * text_metrics.big_height;
     s.auto_state.bifur.wid = 67 * text_metrics.big_width;
     s.auto_state.bifur.x0 = 10 * text_metrics.small_width;
@@ -424,10 +422,10 @@ int j_auto_check_abort(int *iflag)
     }
     return 0;
 }
-int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
+int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
     std::array<int, 4> v;
-    if (!mouse_ask(WIN_AUTO, "rubber", flag, v)) return 0;
+    if (!mouse_ask(s, WIN_AUTO, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
@@ -440,7 +438,7 @@ int grab_key_after;
 
 } // namespace
 
-int j_auto_grab_event(int *x, int *y)
+int j_auto_grab_event(xpp::Session &s, int *x, int *y)
 {
     Buf b;
     std::string k;
@@ -460,25 +458,24 @@ int j_auto_grab_event(int *x, int *y)
        until reDraw), is ignored, and so is its key */
     if ((jp = js_find(ask_answer(), "point")) != NULL) {
         double i = js_num(jp, -1);
-        const XppDiagPoint *p = i >= 0 && i < INT_MAX ? diag_client_point(static_cast<int>(i)) : NULL;
-        *x = p && diagram_has(xpp::session().diagram, p->node, p->ibr, p->pt) ? p->node : -1;
+        const XppDiagPoint *p = i >= 0 && i < INT_MAX ? diag_client_point(s, static_cast<int>(i)) : NULL;
+        *x = p && diagram_has(s.diagram, p->node, p->ibr, p->pt) ? p->node : -1;
         if (*x >= 0 && get_string(ask_answer(), "key", k, 32)) grab_key_after = key_code(k.c_str());
         return XPP_AUTO_NODE;
     }
     if (get_string(ask_answer(), "key", k, 32)) return key_code(k.c_str());
-    answer_point(WIN_AUTO, 0, x, y);
+    answer_point(s, WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
-void j_auto_show_hint(void) { send_simple("message", "auto", xpp::session().auto_state.bifur.hinttxt.c_str()); }
+void j_auto_show_hint(xpp::Session &s) { send_simple("message", "auto", s.auto_state.bifur.hinttxt.c_str()); }
 
 /* AUTO Axes/Scroll: drag the diagram (auto_x11.c x11_auto_scroll_window) */
-void j_auto_scroll_window(void)
+void j_auto_scroll_window(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i, j, t, i0 = 0, j0 = 0, state = 0;
     float xlo = s.auto_state.axes().xmin, ylo = s.auto_state.axes().ymin, xhi = s.auto_state.axes().xmax, yhi = s.auto_state.axes().ymax, dx = 0, dy = 0;
     send_simple("message", "auto", "Drag the diagram to scroll it; any key ends");
-    while ((t = ask_drag(WIN_AUTO, &i, &j)) != 0) {
+    while ((t = ask_drag(s, WIN_AUTO, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             i0 = i;
             j0 = j;
@@ -671,7 +668,7 @@ void auto_key(xpp::Session &s, int ch)
     case AK_USR: auto_per_par(s); break;
     case AK_CLEAR:
         /* the branches so far are the earlier ones, hidden until shown again */
-        s.auto_view.earlier = diag_points_held();
+        s.auto_view.earlier = diag_points_held(s);
         s.auto_view.show_earlier = false;
         draw_bif_axes(s);
         break;

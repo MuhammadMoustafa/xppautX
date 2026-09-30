@@ -30,7 +30,7 @@ bool load(const std::string &file, const xpp::SavedModel *saved = nullptr)
 {
     std::string arg0 = "test_snapx", arg1 = file;
     char *argv[] = {arg0.data(), arg1.data(), nullptr};
-    return !xpp::load_model(2, argv, 1, saved);
+    return xpp::load_model(2, argv, 1, saved).has_value();
 }
 
 void check_manifest()
@@ -91,12 +91,12 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(write_file("w.tab", "3\n0\n2\n0\n10\n40\n"));
     CHECK(write_file("main.ode", "#include inc.ode\ntable w w.tab\nx'=-a*x+w(1)\ninit x=1\ndone\n"));
     CHECK(load("main.ode"));
-    const std::vector<xpp::ModelFile> files = xpp::model().files;
+    const std::vector<xpp::ModelFile> files = xpp::client_session().model().files;
     CHECK(files.size() >= 3 && files[0].name == "main.ode" && files[1].name == "inc.ode" && files[2].name == "w.tab");
-    CHECK(xpp::model().saved_in.empty() && xpp::model().nupar == 1);
+    CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
 
     /* written as a session file's first members, read back whole */
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
+    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");
@@ -109,17 +109,17 @@ void check_saved_model(const xpp::TempDir &tmp)
     /* the files on the disk gone: the saved model loads from the file */
     for (const char *name : {"main.ode", "inc.ode", "w.tab"}) CHECK(xpp_files_remove(name) == 0);
     CHECK(load("main.ode", &f->model));
-    CHECK(xpp::model().saved_in == path && xpp::model().files == files && xpp::model().nupar == 1);
-    CHECK(xpp::model().upar_names[0] == "a" || xpp::model().upar_names[0] == "A");
-    CHECK(xpp::model_title() == "main.ode (saved in s.snapx)");
+    CHECK(xpp::client_session().model().saved_in == path && xpp::client_session().model().files == files && xpp::client_session().model().nupar == 1);
+    CHECK(xpp::client_session().model().upar_names[0] == "a" || xpp::client_session().model().upar_names[0] == "A");
+    CHECK(xpp::model_title(xpp::client_session().model()) == "main.ode (saved in s.snapx)");
     std::string bytes;
-    CHECK(xpp::read_model_file("w.tab", bytes) && bytes == files[2].bytes);
-    CHECK(!xpp::read_model_file("other.tab", bytes)); /* not saved: not there */
+    CHECK(xpp::read_model_file(xpp::client_session().model(), "w.tab", bytes) && bytes == files[2].bytes);
+    CHECK(!xpp::read_model_file(xpp::client_session().model(), "other.tab", bytes)); /* not saved: not there */
 
     /* the same bytes on the disk, edited: the saved model still loads as saved */
     CHECK(write_file("main.ode", "par a=5,b=1\nx'=-a*x\ninit x=1\ndone\n"));
     CHECK(load("main.ode", &f->model));
-    CHECK(xpp::model().nupar == 1 && xpp::model().files == files);
+    CHECK(xpp::client_session().model().nupar == 1 && xpp::client_session().model().files == files);
 
     /* a file without its model is refused, as is one that is no zip */
     std::vector<xpp::zip::Entry> no_model{(*entries)[0]};
@@ -133,7 +133,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(!load("zip.ode"));
     CHECK(write_file("bin.ode", std::string_view("x'=-x\n\0\1\2", 9)));
     CHECK(!load("bin.ode"));
-    CHECK(xpp::model().saved_in == path); /* the model before is still loaded */
+    CHECK(xpp::client_session().model().saved_in == path); /* the model before is still loaded */
     CHECK(xpp::is_model_text("x'=-x\n") && !xpp::is_model_text(std::string_view("a\0b", 3)));
 }
 

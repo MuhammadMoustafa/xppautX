@@ -82,9 +82,11 @@ static void start_auto_dir(void)
        kill, Ctrl+C, the watchdog's _exit) go at the next start: cleaning up
        in a signal handler or from another thread is neither safe nor needed */
     xpp_files_cleanup_stale_temp_dirs();
-    std::string &dir = xpp::session().auto_state.dir;
+    std::string &dir = xpp::client_session().auto_state.dir;
     dir = xpp_files_make_temp_dir();
-    if (!dir.empty()) atexit(xpp_cleanup_auto_dir);
+    /* at exit the folder is the session list's client's: every load hands
+       it on to the Session it makes (session.cpp) */
+    if (!dir.empty()) atexit([] { xpp_cleanup_auto_dir(xpp::client_session()); });
 }
 
 /* the desktop window's Help > About: the same text hello sends the page
@@ -194,19 +196,21 @@ static void run_session(void)
     }
     for (std::string &a : args) argv.push_back(a.data());
     argv.push_back(nullptr);
-    if (std::optional<xpp::Diagnostic> failed =
-            xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
-                            saved ? &saved->model : recording ? &recording->saved : nullptr)) {
-        json_ui_load_error(*failed);
+    const xpp::Loaded loaded = xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
+                                               saved ? &saved->model : recording ? &recording->saved : nullptr);
+    if (!loaded) {
+        json_ui_load_error(loaded.error());
         exit(1);
     }
-    /* the session the load made: the program's from here (a protocol
+    /* the session the load made, the program's until the redraw (a protocol
        command chooses its own, ui_json.cpp handle_line) */
-    xpp::Session &s = xpp::session();
-    json_ui_start_model(s);
-    if (saved) xpp_saved_restore(s, *saved);
-    if (recording) json_ui_play_launched(s, recording->saved.in); /* loaded by the redraw below */
-    json_ui_handle("{\"cmd\":\"redraw\"}");
+    xpp::Session &loaded_session = **loaded;
+    json_ui_start_model(loaded_session);
+    if (saved) xpp_saved_restore(loaded_session, *saved);
+    if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the redraw below */
+    /* the redraw loads a recording's model in the place of this one: the
+       session from here is the one it ends in */
+    xpp::Session &s = json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || s.run_immediately == 1) {
         if (program.tutorial == 1) do_tutorial();

@@ -652,24 +652,3 @@ int set_val(xpp::Session &s, std::string_view name, double value)
   return(0);
 }
 
-/* the lookups above in the current Session: entry points for the
-   front end (W47d6) */
-int get_val(std::string_view name, double *value)
-{
-  return get_val(xpp::session(),name,value);
-}
-
-int set_val(std::string_view name, double value)
-{
-  return set_val(xpp::session(),name,value);
-}
-
-void set_ivar(int i, double value)
-{
-  setvar(xpp::session(),i,value);
-}
-
-double get_ivar(int i)
-{
-  return getvar(xpp::session(),i);
-}

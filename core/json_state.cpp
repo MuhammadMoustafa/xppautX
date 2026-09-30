@@ -58,10 +58,10 @@ void send_state(xpp::Session &s)
     int i;
     double z;
     state_dirty = 0;
-    evaluate_derived();
+    evaluate_derived(s);
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
     for (i = 0; i < m.nupar; i++) {
-        get_val(m.upar_names[i], &z);
+        get_val(s,m.upar_names[i], &z);
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, m.upar_names[i]);
@@ -144,7 +144,7 @@ void j_state_dirty(void) { state_dirty = 1; }
 void send_state_if_dirty(void)
 {
     /* at a flush (json_io.cpp), from anywhere: the current session */
-    if (state_dirty) send_state(xpp::session());
+    if (state_dirty) send_state(client());
 }
 
 /* ---- data browser ---------------------------------------------------------------
@@ -176,7 +176,7 @@ void send_browser(const xpp::Session &s)
                s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
-        buf_str(&b, browse_column_name(j));
+        buf_str(&b, browse_column_name(s,j));
     }
     buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
     last = s.browser.view.dataflag ? br_from + br_count : br_from;
@@ -436,7 +436,7 @@ void slide_command(xpp::Session &s, const char *line)
     std::string name;
     int type, index;
     get_string(line, "name", name);
-    if (find_par_or_var(name.c_str(), &type, &index)) {
+    if (find_par_or_var(s.model(), name.c_str(), &type, &index)) {
         set_par_or_var(s, name.c_str(), type, index, get_num(line, "value", 0));
         state_dirty = 1;
     }
@@ -474,12 +474,12 @@ void values_command(xpp::Session &s, const char *line)
         return;
     }
     if (o == "write") {
-        if (kind == "par") save_parameter_file(name);
-        else save_ic_file(name);
+        if (kind == "par") save_parameter_file(s, name);
+        else save_ic_file(s, name);
         state_dirty = 1;
     } else if (o == "read") {
-        if (kind == "par") load_parameter_file(name);
-        else load_ic_file(name);
+        if (kind == "par") load_parameter_file(s, name);
+        else load_ic_file(s, name);
         state_dirty = 1;
     }
 }
@@ -488,7 +488,7 @@ void values_command(xpp::Session &s, const char *line)
    the start of a run (storage starting again) the state, so a client shows
    the initial conditions the run starts from (Initialconds/Last changed
    them) while it runs, not after */
-void j_rows_stored(int nrows)
+void j_rows_stored(xpp::Session &s, int nrows)
 {
     static int last = INT_MAX;
     if (nrows <= last) {
@@ -496,7 +496,7 @@ void j_rows_stored(int nrows)
         json_flush();
     }
     last = nrows;
-    plot_data_rows_stored(xpp::session(), nrows); /* an XppUi callback: an entry point (W47d6) */
+    plot_data_rows_stored(s, nrows);
 }
 
 /* ---- equilibria, source ------------------------------------------------------ */
@@ -516,9 +516,9 @@ void state_forget(void)
     browser_dirty = 1;
 }
 
-void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
+void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
 {
-    const xpp::Model &m = xpp::model(); /* an XppUi entry point */
+    const xpp::Model &m = s.model();
     Buf b;
     int i;
     redraw_ics();
@@ -558,10 +558,10 @@ void equilibrium_key(xpp::Session &s, int ch)
     if (xpp_menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(s, last_eq, last_eq_n);
 }
 
-void j_make_txtview(void)
+void j_make_txtview(xpp::Session &s)
 {
     Buf b;
-    const xpp::Model &m = xpp::model(); /* an XppUi entry point */
+    const xpp::Model &m = s.model();
     BUF_LIT(&b, "{\"ev\":\"source\",\"lines\":");
     buf_str_array(&b, m.source);
     /* comments; one with an action runs it when picked ({"cmd":"action"}) */

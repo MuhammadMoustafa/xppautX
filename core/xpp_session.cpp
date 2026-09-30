@@ -40,17 +40,17 @@ constexpr int reading = 1, writing = 0;
 constexpr std::uint64_t large_data = 50ull * 1024 * 1024;
 
 /* what Save session offers */
-std::string default_name() { return xpp_session_file_name(xpp::snapx::extension); }
+std::string default_name(const xpp::Model &m) { return xpp_session_file_name(m, xpp::snapx::extension); }
 
 /* name, or when it is NULL/empty the one the user picks with title
    (wild the files listed); false on a cancel */
-bool name_or_ask(const char *title, const char *wild, const char *name, std::string &out)
+bool name_or_ask(const xpp::Model &m, const char *title, const char *wild, const char *name, std::string &out)
 {
     if (name != nullptr && name[0] != 0) {
         out = name;
         return true;
     }
-    std::string file = default_name();
+    std::string file = default_name(m);
     ping();
     if (!file_selector(title, file, wild)) return false;
     out = file;
@@ -116,7 +116,7 @@ bool write_windows(xpp::Session &s, FILE *fp)
         io_int(&i, fp, writing, "window");
         io_int(&g.nvars, fp, writing, "curves");
         for (int j = 0; j < g.nvars; j++) {
-            std::string x = ind_to_sym(g.xv[j]), y = ind_to_sym(g.yv[j]), z = ind_to_sym(g.zv[j]);
+            std::string x = ind_to_sym(s,g.xv[j]), y = ind_to_sym(s,g.yv[j]), z = ind_to_sym(s,g.zv[j]);
             io_string(x, fp, writing);
             io_string(y, fp, writing);
             io_string(z, fp, writing);
@@ -143,15 +143,15 @@ bool write_windows(xpp::Session &s, FILE *fp)
 
 /* g's curves by their variables' names: a name this model no longer has
    drops its curve */
-void curves_by_name(const xpp::Model &m, GRAPH &g, const std::vector<std::string> &names)
+void curves_by_name(const xpp::Session &s, GRAPH &g, const std::vector<std::string> &names)
 {
     const int nvars = std::min(g.nvars, static_cast<int>(names.size() / 3));
     int n = 0;
     for (int j = 0; j < nvars; j++) {
         int x, y, z;
-        find_variable(names[3 * j], &x);
-        find_variable(names[3 * j + 1], &y);
-        find_variable(names[3 * j + 2], &z);
+        find_variable(s,names[3 * j], &x);
+        find_variable(s,names[3 * j + 1], &y);
+        find_variable(s,names[3 * j + 2], &z);
         if (x < 0 || y < 0) continue;
         g.xv[n] = x;
         g.yv[n] = y;
@@ -162,7 +162,7 @@ void curves_by_name(const xpp::Model &m, GRAPH &g, const std::vector<std::string
     }
     if (n == 0) { /* none left: the first variable against time */
         g.xv[0] = 0;
-        g.yv[0] = m.neq > 0 ? 1 : 0;
+        g.yv[0] = s.model().neq > 0 ? 1 : 0;
         n = 1;
     }
     g.nvars = n;
@@ -199,7 +199,7 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
         int i = 0;
         if (saved != 0) {
             make_active(s, 0, 1);
-            create_a_pop();
+            create_a_pop(s);
             i = s.plot_windows.active;
         }
         GRAPH scratch = s.plot_windows.graph[0];
@@ -209,7 +209,7 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
         xpp::PlotDisplay &d = made ? s.plot_display[i] : scratch_display;
         read_graph(fp, g);
         g.nvars = nvars;
-        curves_by_name(s.model(), g, names);
+        curves_by_name(s, g, names);
         g.xlabel = std::move(xlabel);
         g.ylabel = std::move(ylabel);
         g.zlabel = std::move(zlabel);
@@ -399,7 +399,7 @@ const std::string *member(const std::map<std::string, std::string> &m, const cha
     return &m.at(name);
 }
 
-/* session file f (its model the current one) restored: the values,
+/* session file f (its model s's) restored: the values,
    AUTO's diagram, the windows and what they show */
 bool restore_session(xpp::Session &s, const SavedFile &f)
 {
@@ -451,10 +451,10 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
     for (int i = 0; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use && i != active) {
             make_active(s, i, 1);
-            redraw_the_graph();
+            redraw_the_graph(s);
         }
     make_active(s, active, 1);
-    redraw_the_graph();
+    redraw_the_graph(s);
     s.saved_session = SavedSession{f.path};
     return true;
 }
@@ -464,7 +464,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
 int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
 {
     std::string name;
-    if (!name_or_ask("Save session", "*.snapx", name_arg, name)) return 0;
+    if (!name_or_ask(s.model(), "Save session", "*.snapx", name_arg, name)) return 0;
     const std::string file = xpp::snapx::session_file_name(name);
     const xpp::Model &m = s.model();
 
@@ -526,7 +526,7 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
 int xpp_session_load(xpp::Session &s, const char *name_arg)
 {
     std::string name;
-    if (!name_or_ask("Open session", "*.snapx", name_arg, name)) return 0;
+    if (!name_or_ask(s.model(), "Open session", "*.snapx", name_arg, name)) return 0;
     xpp_model_open(s, xpp::snapx::session_file_name(name).c_str());
     return 1;
 }
@@ -607,9 +607,9 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
     return xpp::autox::restore_members(s, f.members, "", f.path);
 }
 
-std::string xpp_session_file_name(std::string_view ext)
+std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext)
 {
-    std::string base = xpp_files_split_path(xpp::model().this_file).second;
+    std::string base = xpp_files_split_path(m.this_file).second;
     const std::size_t dot = base.rfind('.');
     if (dot != std::string::npos && dot > 0) base.resize(dot);
     return base + std::string(ext);

@@ -223,7 +223,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
             o += "{\"col\":";
             add_int(o, r.cols[k]);
             o += ",\"name\":";
-            xpp::json_append_string(o, ind_to_sym(r.cols[k]));
+            xpp::json_append_string(o, ind_to_sym(s,r.cols[k]));
             o += ",\"data\":";
             xpp_series_append(o, r.data[k].data(), r.rows, series_f32);
             o += '}';
@@ -360,7 +360,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
         o += "{\"col\":";
         add_int(o, cols[k]);
         o += ",\"name\":";
-        xpp::json_append_string(o, ind_to_sym(cols[k]));
+        xpp::json_append_string(o, ind_to_sym(s,cols[k]));
         o += ",\"data\":";
         add_values(o, s.browser.view, cols[k], 0, rows);
         o += '}';
@@ -432,9 +432,9 @@ void series_update(xpp::Session &s)
 
 /* "W vs V" (or "z vs y vs x" in 3D): what the window plots, as axes2.c's
    make_title() names the active one */
-std::string title(const GRAPH &g)
+std::string title(const xpp::Session &s, const GRAPH &g)
 {
-    const std::string x = ind_to_sym(g.xv[0]), y = ind_to_sym(g.yv[0]), z = ind_to_sym(g.zv[0]);
+    const std::string x = ind_to_sym(s,g.xv[0]), y = ind_to_sym(s,g.yv[0]), z = ind_to_sym(s,g.zv[0]);
     return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
 }
 
@@ -478,7 +478,7 @@ std::string plots_event(xpp::Session &s)
         o += "{\"win\":";
         add_int(o, static_cast<long>(g.w));
         o += ",\"title\":";
-        xpp::json_append_string(o, title(g).c_str());
+        xpp::json_append_string(o, title(s, g).c_str());
         o += ",\"three\":";
         add_int(o, g.ThreeDFlag);
         xpp::json::json_append_field(o, "xlo", g.xlo);

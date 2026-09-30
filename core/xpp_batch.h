@@ -4,23 +4,10 @@
 extern "C" {
 #endif
 
-/* After xpp_load_model with no interface (-silent, a unit test): the
-   browser, the graphs and the colours set up, and the command line's
-   files and internal sets taken in (-setfile, -parfile, -icfile,
-   -readset/-with, -internset/-uset/-rset). What -silent then runs is
-   its built-in script (json_silent.cpp). */
-void xpp_batch_start(void);
-
-/* the shared start: options, the ODE file, numerics set-up; batch forces
-   batch mode. 1 when the model loaded (its Model and Session are the
-   current ones), 0 when it failed (the ones before stay current): the
-   caller exits with status 1 when there is nothing to go on with. */
-int xpp_load_model(int argc, char **argv, int batch);
-
 /* the model cannot be loaded (a parse or compile error, already logged):
    xpp::model_failed, at the place the load is (xpp::Load::diagnostic):
    during a load, the load fails (xpp::LoadFailed, caught by
-   xpp_load_model); otherwise the program exits with status 1. In browser
+   xpp::load_model); otherwise the program exits with status 1. In browser
    and window mode the page stays open on the log until it is closed
    (xpp_http's at_exit). */
 [[noreturn]] void xpp_model_failed(void);
@@ -31,7 +18,7 @@ int xpp_load_model(int argc, char **argv, int batch);
 #include "diagnostic.h"
 #include "model_files.h"
 
-#include <optional>
+#include <expected>
 #include <string>
 #include <vector>
 
@@ -39,7 +26,14 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
-/* The start of a load (xpp_load_model), in the Session it builds: the
+/* After a load with no interface (-silent, a unit test): s's browser,
+   graphs and colours set up, and the command line's files and internal
+   sets taken in (-setfile, -parfile, -icfile, -readset/-with,
+   -internset/-uset/-rset). What -silent then runs is its built-in
+   script (json_silent.cpp). */
+void xpp_batch_start(xpp::Session &s);
+
+/* The start of a load (xpp::load_model), in the Session it builds: the
    "which options were explicitly set" table reset; the command line's
    -quiet and -logfile (they must win over .xpprc); .xpprc's and the
    command line's options */
@@ -48,12 +42,18 @@ void check_for_quiet(xpp::Session &s, int argc, char **argv);
 void do_vis_env(xpp::Session &s);
 
 namespace xpp {
-/* xpp_load_model, saying why a load fails: nothing when the model loaded
-   (its Model and Session are the current ones), else what is wrong and
-   where (the ones before stay current). saved: a model saved in an AUTO
-   or session file, whose files the load reads instead of the disk's
+/* what a load gives: the Session it loaded (its Model the Session's),
+   or what is wrong and where */
+using Loaded = std::expected<Session *, Diagnostic>;
+/* The shared start of every mode (the program, -silent, --convert,
+   File > Open model, a unit test): options, the ODE file, numerics
+   set-up; batch forces batch mode. The Session loaded (the client's in
+   the session list from now on, session.h), else what is wrong and where
+   (the one before stays; the caller exits with status 1 when there is
+   nothing to go on with). saved: a model saved in an
+   AUTO or session file, whose files the load reads instead of the disk's
    (model_files.h); argv names its first file. */
-std::optional<Diagnostic> load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr);
+Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr);
 /* the model cannot be loaded, for the reason d (already logged): during a
    load, the load fails (LoadFailed with d, the line d.line of d.file
    added as it is written); otherwise the program exits with status 1 */

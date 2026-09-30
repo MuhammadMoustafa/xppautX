@@ -50,7 +50,7 @@ std::string tree(const Expr &e)
 /* text alone, as the formula of "x' =" on the line before it */
 Expr expression(const char *text)
 {
-  Parsed p = xpp::odex::parse(std::string("x' =\n") + text, "e.odex");
+  Parsed p = xpp::odex::parse(xpp::client_session().model(), std::string("x' =\n") + text, "e.odex");
   if (p.statements.size() != 1) throw xpp::odex::error_at("e.odex", xpp::odex::Pos{0, 2, 1}, "not one expression");
   return p.statements[0].expr;
 }
@@ -68,7 +68,7 @@ std::string parsed(const char *text)
 std::string model_error(const char *text)
 {
   try {
-    xpp::odex::parse(text, "m.odex");
+    xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
   } catch (const Error &e) {
     return std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
   }
@@ -94,7 +94,7 @@ std::string lowered(const char *text)
   using xpp::odex::engine_text;
   using K = Statement::Kind;
   try {
-    const Parsed p = xpp::odex::ready(xpp::odex::parse(text, "m.odex"));
+    const Parsed p = xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "m.odex"));
     std::string out;
     auto add = [&out](const std::string &line) { out += (out.empty() ? "" : "|") + line; };
     for (const Statement &s : p.statements) {
@@ -169,7 +169,7 @@ int load_text(const char *text, const char *ext = "odex")
   fclose(fp);
   char arg0[] = "test_odex";
   char *argv[] = {arg0, path.data(), nullptr};
-  return xpp_load_model(2, argv, 1);
+  return xpp::load_model(2, argv, 1).has_value();
 }
 
 /* the model text's fixed variables and derived quantities as the builder
@@ -178,7 +178,7 @@ std::string quantities(const char *text, const char *ext = "odex")
 {
   if (load_text(text, ext) != 1) return "does not load";
   std::string out;
-  for (const Statement &s : xpp::model().statements) {
+  for (const Statement &s : xpp::client_session().model().statements) {
     if (s.kind == Statement::Kind::Fixed) out += (out.empty() ? "" : "|") + s.name + ":fixed";
     if (s.kind == Statement::Kind::Derived)
       for (const xpp::odex::Binding &b : s.bindings) out += (out.empty() ? "" : "|") + b.name + ":derived";
@@ -191,7 +191,7 @@ std::string quantities(const char *text, const char *ext = "odex")
 double constant(const char *name)
 {
   double v = -12345;
-  get_val(xpp::upper_case(name), &v);
+  get_val(xpp::client_session(), xpp::upper_case(name), &v);
   return v;
 }
 
@@ -305,7 +305,7 @@ int main(void)
     Parsed p;
     std::string err;
     try {
-      p = xpp::odex::parse(text, "m.odex");
+      p = xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
     } catch (const Error &e) {
       err = e.text();
     }
@@ -461,7 +461,7 @@ int main(void)
   /* arrays (docs/odex.md "Arrays", W80): a trailing range on a
      statement, its index named, both ends included, by a positive step */
   {
-    Parsed p = xpp::odex::parse("x[j]' = -x[j] + x[j-1]  for j in 1..n\naux s[j] = x[j]^2  for j in 1..n by 2\n",
+    Parsed p = xpp::odex::parse(xpp::client_session().model(), "x[j]' = -x[j] + x[j-1]  for j in 1..n\naux s[j] = x[j]^2  for j in 1..n by 2\n",
                                 "m.odex");
     CHECK(p.statements.size() == 2);
     if (p.statements.size() == 2) {
@@ -538,8 +538,8 @@ int main(void)
   CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
   {
     /* worked out again when a parameter changes, as .ode's ! is */
-    set_val("A", 5);
-    evaluate_derived();
+    set_val(xpp::client_session(), "A", 5);
+    evaluate_derived(xpp::client_session());
     CHECK(constant("d") == 15);
   }
 
@@ -548,9 +548,9 @@ int main(void)
     char arg0[] = "test_odex", model[] = "tools/models/odex_quirks.ode";
     char *argv[] = {arg0, model, nullptr};
     std::string text, err;
-    CHECK(xpp_load_model(2, argv, 1) == 1);
+    CHECK(xpp::load_model(2, argv, 1).has_value());
     try {
-      text = xpp::odex::convert_model(xpp::session(), true, xpp::odex::Ask());
+      text = xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
     } catch (const Error &e) {
       err = e.text();
     }
@@ -582,7 +582,7 @@ int main(void)
     /* what the converted text reads back as */
     std::string back;
     try {
-      xpp::odex::ready(xpp::odex::parse(text, "odex_quirks.odex"));
+      xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "odex_quirks.odex"));
     } catch (const Error &e) {
       back = e.text();
     }
@@ -596,7 +596,7 @@ int main(void)
     std::string err;
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
     try {
-      xpp::odex::convert_model(xpp::session(), true, xpp::odex::Ask());
+      xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
     } catch (const Error &e) {
       err = e.cause;
     }
@@ -609,10 +609,10 @@ int main(void)
   {
     char arg0[] = "test_odex", model[] = "tools/models/near_test.odex";
     char *argv[] = {arg0, model, nullptr};
-    CHECK(xpp_load_model(2, argv, 1) == 1);
-    xpp_batch_start();
-    run_the_commands(xpp::session(), M_IG);
-    const DataStore &d = xpp::session().data_store;
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    xpp_batch_start(xpp::client_session());
+    run_the_commands(xpp::client_session(), M_IG);
+    const DataStore &d = xpp::client_session().data_store;
     CHECK(d.rows > 0);
     if (d.rows > 0) {
       /* t=0's row: t, x, then the auxes in order */

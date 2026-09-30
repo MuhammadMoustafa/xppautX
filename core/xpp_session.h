@@ -80,9 +80,9 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
    false, with an error message, when it could not be read */
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
-/* the model's file name without .ode/.odex, and ext (".snapx", ".autox"):
-   the name Save session and AUTO's Save diagram offer */
-std::string xpp_session_file_name(std::string_view ext);
+/* m's file name without .ode/.odex, and ext (".snapx", ".autox"): the
+   name Save session and AUTO's Save diagram offer */
+std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext);
 
 /* a note on restoring a file, in the log and on the status line */
 void xpp_session_warn(const std::string &text);

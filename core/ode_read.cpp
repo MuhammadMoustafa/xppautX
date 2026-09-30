@@ -62,11 +62,11 @@ struct VAR_INFO {
 
 /* where a model's lines come from: the file, its name and its index in
    Parsed::files, how many lines were read from it and the line the last
-   logical line (read_a_line) began at; and where they are kept, the
-   loading Model's source (save_line) */
+   logical line (read_a_line) began at; and the loading Model, whose
+   files an include reads and whose source keeps the lines (save_line) */
 struct LineSource {
   FILE *fp=nullptr;
-  std::vector<std::string> *source=nullptr;
+  xpp::Model *model=nullptr;
   std::string file;
   int index=0;
   int lines=0;
@@ -243,7 +243,7 @@ bool read_a_line(LineSource &src, std::string &s)
   while(more){
     std::string temp;
     in_file=read_raw_line(src,temp)&&in_file;
-    save_line(*src.source,temp);
+    save_line(src.model->source,temp);
     size_t hat=temp.find('\\');
     more=hat!=std::string::npos;
     if(more)temp.resize(hat);
@@ -871,7 +871,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 		loadincludefile=0;/*Only do this once*/
 		for (const std::string &inc : include_files)
 		{
-			xpp::UniqueFile fnew=xpp::open_model_file(inc);
+			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
       			if(!fnew){
          		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
 			  xpp_model_failed();
@@ -880,7 +880,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			IN_INCLUDED_FILE++;
 			LineSource inc_src;
 			inc_src.fp=fnew.get();
-			inc_src.source=src.source;
+			inc_src.model=src.model;
 			inc_src.file=inc;
 			inc_src.index=static_cast<int>(p.files.size());
 			p.files.push_back(inc);
@@ -901,7 +901,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 	    }
     }
     if(if_include_file(old,newfile)){
-      xpp::UniqueFile fnew=xpp::open_model_file(newfile);
+      xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
       if(!fnew){
          xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
          continue;
@@ -910,7 +910,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        IN_INCLUDED_FILE++;
        LineSource inc_src;
        inc_src.fp=fnew.get();
-       inc_src.source=src.source;
+       inc_src.model=src.model;
        inc_src.file=newfile;
        inc_src.index=static_cast<int>(p.files.size());
        p.files.push_back(newfile);
@@ -1313,7 +1313,7 @@ int get_eqn(xpp::Session &s, FILE *fptr)
   LineSource src;
   src.fp=fptr;
   src.file=m.this_file;
-  src.source=&m.source;
+  src.model=&m;
   std::string first;
   m.source.clear();
   bool in_file=read_raw_line(src,first);
@@ -1324,7 +1324,7 @@ int get_eqn(xpp::Session &s, FILE *fptr)
     build_old_style(s,neq,fptr,[&src](std::string &line){
       read_raw_line(src,line);
       if(line.empty())return false;
-      save_line(*src.source,line);
+      save_line(src.model->source,line);
       xpp::Load::at(src.file,src.lines);
       return true;
     });

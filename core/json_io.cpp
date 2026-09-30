@@ -109,9 +109,9 @@ void open_protocol_stdout(void)
 }
 
 /* what is pending goes out before any other event: the AUTO diagram's
-   points (json_auto.cpp); before every event, from anywhere: the current
-   session's */
-void flush_pending(void) { diag_flush(xpp::session(), 0); }
+   points (json_auto.cpp); before every event, from anywhere: the
+   client's session's */
+void flush_pending(void) { diag_flush(client(), 0); }
 
 /* one complete event line */
 void send_buf(Buf *b)

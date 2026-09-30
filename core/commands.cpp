@@ -129,30 +129,31 @@ void edit_xpprc(void)
 
 int help_menu;
 
-void do_movie_com(XppKinescope &k, int c)
+void do_movie_com(xpp::Session &s, int c)
 {
+  XppKinescope &k = s.kinescope;
   std::string base;
   switch (c) {
   case 0:
-    if (xpp_ui.film_clip() == 0)
+    if (xpp_ui.film_clip(s) == 0)
       respond_box("Okay", "Out of film!");
     break;
-  case 1: reset_film(); break;
-  case 2: xpp_ui.movie_play_back(); break;
+  case 1: reset_film(s); break;
+  case 2: xpp_ui.movie_play_back(s); break;
   case 3:
     new_int("Number of cycles", &k.cycles);
     new_int("Msec between frames", &k.frame_ms);
     if (k.frame_ms < 0) k.frame_ms = 0;
     if (k.cycles <= 0) return;
-    xpp_ui.movie_auto_play();
+    xpp_ui.movie_auto_play(s);
     break;
   case 4:
     base = "frame";
     new_string_of("Base file name", base, XPP_FIELD_FILE);
     if (!base.empty())
-      xpp_ui.movie_save(base.c_str(), 2);
+      xpp_ui.movie_save(s,base.c_str(), 2);
     break;
-  case 5: xpp_ui.movie_make_anigif(); break;
+  case 5: xpp_ui.movie_make_anigif(s); break;
   case 6: break;
   }
 }
@@ -248,7 +249,7 @@ void run_the_commands(xpp::Session &s, int com)
     if ((com - M_DD) == 1)
       return;
     create_new_cline(s);
-    xpp_ui.redraw_graph();
+    xpp_ui.redraw_graph(s);
     return;
   }
   if (com >= M_WW && com <= M_WS) {
@@ -260,7 +261,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_KC && com <= M_KM) {
-    do_movie_com(s.kinescope, com - M_KC);
+    do_movie_com(s, com - M_KC);
     return;
   }
   if (com >= M_GA && com <= M_GC) {
@@ -285,12 +286,12 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com == M_R) {
-    drw_all_scrns();
+    drw_all_scrns(s);
     plot_data_picture(s, 1); /* a data client draws the current data again */
     return;
   }
   if (com == M_EE) {
-    clr_all_scrns();
+    clr_all_scrns(s);
     plot_data_picture(s, 0); /* and blanks its picture */
     s.nullclines.df_flag = 0;
     return;
@@ -340,7 +341,7 @@ static void do_file_com(xpp::Session &s, int com)
   switch (com) {
   case M_FT: do_transpose(s); break;
   case M_FG: get_intern_set(s); break;
-  case M_FP: make_txtview(); break;
+  case M_FP: make_txtview(s); break;
   case M_FW: do_lunch(s, 0); break;
   case M_FS: file_inf(s); break;
   case M_FA:
@@ -348,7 +349,7 @@ static void do_file_com(xpp::Session &s, int com)
     do_auto_win(s);
 #endif
     break;
-  case M_FC: q_calc(); break;
+  case M_FC: q_calc(s); break;
   case M_FR: do_lunch(s, 1); break;
   case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
@@ -375,8 +376,7 @@ static void change_view(xpp::Session &s) { menu_run(s, &menu_view, 0); }
 static void find_bvp(xpp::Session &s) { menu_run(s, &menu_bvp, 1); }
 
 /* the ones the Numerics menu (numerics.cpp), the nullclines' (nullcline.cpp)
-   and the front end open: entry points of their own, in the current session
-   until those modules pass theirs (W47d) */
+   and the front end open, in the Session they pass */
 void froz_cline_stuff(xpp::Session &s) { menu_run(s, &menu_freeze_cline, 0); }
 void do_stochast(xpp::Session &s) { menu_run(s, &menu_stochastic, 0); }
 void set_col_par(xpp::Session &s) { menu_run(s, &menu_color_code, 0); }
@@ -474,7 +474,7 @@ void commander(xpp::Session &s, int ch)
     switch (ch) {
     case 't': do_transpose(s); break;
     case 'g': get_intern_set(s); break;
-    case 'p': flash(0); make_txtview(); flash(0); break;
+    case 'p': flash(0); make_txtview(s); flash(0); break;
     case 'w': flash(1); do_lunch(s, 0); flash(1); break;
     case 's': flash(2); file_inf(s); flash(2); break;
     case 'a':
@@ -484,7 +484,7 @@ void commander(xpp::Session &s, int ch)
 #endif
       flash(3);
       break;
-    case 'c': flash(4); q_calc(); flash(4); break;
+    case 'c': flash(4); q_calc(s); flash(4); break;
     case 'r': flash(5); do_lunch(s, 1); flash(5); break;
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
@@ -498,8 +498,8 @@ void commander(xpp::Session &s, int ch)
     case 'e': xpp_model_reload(s); break;
     case 'v': xpp_session_save(s, nullptr, -1); break;
     case 'n': xpp_session_load(s, nullptr); break;
-    case 'd': record_toggle(); break;
-    case 'y': play_recording(nullptr); break;
+    case 'd': record_toggle(s); break;
+    case 'y': play_recording(s,nullptr); break;
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }

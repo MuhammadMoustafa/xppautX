@@ -75,7 +75,7 @@ double zmax,zmin;
  scale_aplot(s,&s.array_plot.plot,&zmax,&zmin);
   s.array_plot.plot.zmin=zmin;
   s.array_plot.plot.zmax=zmax;
-  xpp_ui.aplot_redraw();
+  xpp_ui.aplot_redraw(s);
 
 }
 void optimize_aplot(xpp::Session &s, int *plist)
@@ -87,7 +87,7 @@ void optimize_aplot(xpp::Session &s, int *plist)
   int nrows=s.browser.view.maxrow;
   int ncol=i1+1-i0;
   if(ncol<2||nrows<2)return;
-  make_my_aplot("Array!");
+  make_my_aplot(s,"Array!");
 
   s.array_plot.plot.index0=i0+1;
   s.array_plot.plot.name=s.model().uvar_names[i0];
@@ -103,8 +103,8 @@ void optimize_aplot(xpp::Session &s, int *plist)
   s.array_plot.plot.zmin=zmin;
   s.array_plot.plot.zmax=zmax;
   s.array_plot.plot.plotdef=1;
-  xpp_ui.aplot_reset_axes();
-  xpp_ui.aplot_redraw();
+  xpp_ui.aplot_reset_axes(s);
+  xpp_ui.aplot_redraw(s);
 }
 
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
@@ -252,7 +252,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
                            XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
  status=do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
  if(status!=0){
-   find_variable(values[0].c_str(),&i);
+   find_variable(s,values[0].c_str(),&i);
    if(i>-1){
      ap->index0=i;
      ap->name=values[0];
@@ -278,7 +278,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
     ap->ncskip=atoi(values[8].c_str());
     if(ap->ncskip<1)
       ap->ncskip=1;
-    xpp_ui.aplot_reset_axes();
+    xpp_ui.aplot_reset_axes(s);
  }
    return 1;
 }

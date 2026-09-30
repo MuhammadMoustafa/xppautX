@@ -22,10 +22,9 @@ long file_index(const Model &m, const std::string &name)
 
 } // namespace
 
-bool read_model_file(const std::string &name, std::string &bytes)
+bool read_model_file(Model &m, const std::string &name, std::string &bytes)
 {
     bytes.clear();
-    Model &m = model();
     const long i = file_index(m, name);
     if (!m.saved_in.empty()) {
         if (i < 0) return false;
@@ -37,11 +36,10 @@ bool read_model_file(const std::string &name, std::string &bytes)
     return true;
 }
 
-UniqueFile open_model_file(const std::string &name)
+UniqueFile open_model_file(Model &m, const std::string &name)
 {
-    Model &m = model();
     std::string bytes;
-    if (!read_model_file(name, bytes)) return UniqueFile();
+    if (!read_model_file(m, name, bytes)) return UniqueFile();
     if (m.saved_in.empty()) return open_read(name.c_str());
     if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
     if (m.saved_copies->path().empty()) return UniqueFile();
@@ -51,10 +49,10 @@ UniqueFile open_model_file(const std::string &name)
     return open_read(copy.c_str());
 }
 
-LineReader model_file_lines(const std::string &name)
+LineReader model_file_lines(Model &m, const std::string &name)
 {
     std::string bytes;
-    if (!read_model_file(name, bytes)) return LineReader();
+    if (!read_model_file(m, name, bytes)) return LineReader();
     return LineReader::of_text(std::move(bytes));
 }
 
@@ -63,9 +61,8 @@ bool is_model_text(std::string_view bytes)
     return !zip::is_zip(bytes) && bytes.find('\0') == std::string_view::npos;
 }
 
-std::string model_title()
+std::string model_title(const Model &m)
 {
-    const Model &m = model();
     if (m.saved_in.empty()) return m.this_file;
     return m.this_file + " (saved in " + xpp_files_split_path(m.saved_in).second + ")";
 }

@@ -22,13 +22,13 @@ int main(void)
 {
     char arg0[] = "test_stochast_liap", arg1[] = "tools/models/stoch_liap.ode";
     char *argv[] = {arg0, arg1, NULL};
-    xpp_load_model(2, argv, 1);
-    xpp_batch_start();
-    run_the_commands(xpp::session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    xpp_batch_start(xpp::client_session());
+    run_the_commands(xpp::client_session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
 
-    CHECK(xpp::session().data_store.rows > 100);
+    CHECK(xpp::client_session().data_store.rows > 100);
 
-    auto liap = hrw_liapunov(xpp::session(), xpp::session().numerics.newt_err);
+    auto liap = hrw_liapunov(xpp::client_session(), xpp::client_session().numerics.newt_err);
     CHECK(liap.has_value());
     CHECK(liap && std::fabs(*liap - (-0.7)) < 1e-3);
 

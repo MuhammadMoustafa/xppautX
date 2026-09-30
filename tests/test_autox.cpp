@@ -196,15 +196,15 @@ bool load(const std::string &ode, const xpp::SavedModel *saved = nullptr)
 {
     std::string arg0 = "test_autox", arg1 = ode;
     char *argv[] = {arg0.data(), arg1.data(), nullptr};
-    return !xpp::load_model(2, argv, 1, saved);
+    return xpp::load_model(2, argv, 1, saved).has_value();
 }
 
 /* the whole file for this session: written with its model, the state
    changed, restored into the same model */
 void check_session_round_trip(const xpp::TempDir &tmp)
 {
-    xpp::Session &s = xpp::session();
-    const int n = xpp::model().node;
+    xpp::Session &s = xpp::client_session();
+    const int n = xpp::client_session().model().node;
     CHECK(n == 2);
     std::deque<DiagramPoint> pts = points_of(9, n);
     for (DiagramPoint &p : pts) { /* parameters this model's AUTO has */
@@ -212,36 +212,36 @@ void check_session_round_trip(const xpp::TempDir &tmp)
         p.d.icp2 = 1;
     }
     diagram_restore(s, pts);
-    CHECK(diagram_count(xpp::session().diagram) == 9 && diagram_point(xpp::session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
+    CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     const std::string solutions = "   1   1   4   1   2   0   1   3 ...\r\n0.0 1 2\n";
     CHECK(write_file(auto_solutions_file(), solutions));
     s.auto_state.bifur.ds = 0.1 + 0.2;
     s.auto_state.bifur.dsmax = 0.5;
     s.auto_state.bifur.rl1 = 1.0 / 3.0;
-    const AutoSettingsSet before = auto_settings_now(xpp::session());
+    const AutoSettingsSet before = auto_settings_now(xpp::client_session());
     /* a second view (W50), the norm, a zoom of its own; the first active */
-    auto_new_view(xpp::session());
+    auto_new_view(xpp::client_session());
     s.auto_state.views[1].axes.plot = 1;
     s.auto_state.views[1].axes.ymax = 5;
     s.auto_state.views[1].zoom.y = {true, 0.5, 1.5};
     s.auto_state.active_view = 0;
 
-    const std::optional<std::string> bytes = xpp::autox::file_bytes(xpp::session());
+    const std::optional<std::string> bytes = xpp::autox::file_bytes(xpp::client_session());
     CHECK(bytes.has_value());
     if (!bytes) return;
     const std::optional<std::vector<xpp::zip::Entry>> entries = xpp::zip::read_zip(*bytes);
-    const std::string model_member = "model/" + xpp::model().this_file;
+    const std::string model_member = "model/" + xpp::client_session().model().this_file;
     CHECK(entries && entries->size() == 6 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
           (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s" &&
           (*entries)[5].name == "views.txt");
     const std::optional<xpp::snapx::Manifest> man =
         entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind) : std::nullopt;
-    CHECK(man && man->model_name == xpp::model().this_file);
-    CHECK(entries && (*entries)[1].bytes == file_text(xpp::model().this_file)); /* the model itself */
+    CHECK(man && man->model_name == xpp::client_session().model().this_file);
+    CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file)); /* the model itself */
     CHECK(entries && !xpp::snapx::parse_manifest((*entries)[0].bytes)); /* not a session file's */
 
     /* everything changed, then the file restored */
-    start_diagram(xpp::session(), n);
+    start_diagram(xpp::client_session(), n);
     CHECK(write_file(auto_solutions_file(), "other"));
     s.auto_state.bifur.ds = 0.05;
     s.auto_state.bifur.rl1 = 7;
@@ -249,16 +249,16 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     const std::string path = tmp.file("t.autox");
     CHECK(write_file(path, *bytes));
     std::optional<SavedFile> f = xpp_saved_read(path);
-    CHECK(f && !f->session && f->model.files == xpp::model().files);
-    CHECK(f && xpp_saved_restore(xpp::session(), *f));
+    CHECK(f && !f->session && f->model.files == xpp::client_session().model().files);
+    CHECK(f && xpp_saved_restore(xpp::client_session(), *f));
     CHECK(same_diagram(s.diagram.points, pts));
     bool pointers = true;
-    for (int i = 0; i < diagram_count(xpp::session().diagram); i++)
-        pointers = pointers && diagram_point(xpp::session().diagram, i)->index == i && diagram_point(xpp::session().diagram, i)->evi == s.diagram.points[i].evi.data();
+    for (int i = 0; i < diagram_count(xpp::client_session().diagram); i++)
+        pointers = pointers && diagram_point(xpp::client_session().diagram, i)->index == i && diagram_point(xpp::client_session().diagram, i)->evi == s.diagram.points[i].evi.data();
     CHECK(pointers);
     CHECK(file_text(auto_solutions_file()) == solutions);
     CHECK(same_bits(s.auto_state.bifur.ds, 0.1 + 0.2) && same_bits(s.auto_state.bifur.rl1, 1.0 / 3.0));
-    const AutoSettingsSet after = auto_settings_now(xpp::session());
+    const AutoSettingsSet after = auto_settings_now(xpp::client_session());
     CHECK(xpp::autox::settings_text(after) == xpp::autox::settings_text(before));
     CHECK(s.auto_state.views.size() == 2 && s.auto_state.active_view == 0 && s.auto_state.views[1].axes.plot == 1 &&
           s.auto_state.views[1].axes.ymax == 5 && (s.auto_state.views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
@@ -266,10 +266,10 @@ void check_session_round_trip(const xpp::TempDir &tmp)
 
     /* another model loaded, the .ode on the disk edited: the file's own
        model loads from it, with the diagram */
-    CHECK(write_file(xpp::model().this_file, "par a=1\nq'=-a*q\ndone\n"));
+    CHECK(write_file(xpp::client_session().model().this_file, "par a=1\nq'=-a*q\ndone\n"));
     CHECK(load(tmp.file("u.ode")));
-    CHECK(f && load(f->manifest.model_name, &f->model) && xpp_saved_restore(xpp::session(), *f));
-    CHECK(xpp::model().node == 2 && xpp::model().saved_in == path && same_diagram(xpp::session().diagram.points, pts));
+    CHECK(f && load(f->manifest.model_name, &f->model) && xpp_saved_restore(xpp::client_session(), *f));
+    CHECK(xpp::client_session().model().node == 2 && xpp::client_session().model().saved_in == path && same_diagram(xpp::client_session().diagram.points, pts));
 
     /* a file without its model, or that is not a zip, is refused */
     std::vector<xpp::zip::Entry> no_model = *entries;
@@ -283,13 +283,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
 /* an XPPAUT .auto imported, then its AUTO members restored: the same */
 void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 {
-    xpp::Session &s = xpp::session();
+    xpp::Session &s = xpp::client_session();
     const std::string path = tmp.file("lecar.auto");
     CHECK(write_file(path, auto_text));
-    CHECK(xpp::autox::import_file(xpp::session(), path));
-    CHECK(diagram_count(xpp::session().diagram) > 50);
+    CHECK(xpp::autox::import_file(xpp::client_session(), path));
+    CHECK(diagram_count(xpp::client_session().diagram) > 50);
     /* its first point, as the file prints it */
-    const DIAGRAM *d = diagram_first(xpp::session().diagram);
+    const DIAGRAM *d = diagram_first(xpp::client_session().diagram);
     CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && d->par[0] == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
@@ -298,18 +298,18 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::string solutions = file_text(auto_solutions_file());
 
     std::vector<xpp::zip::Entry> entries;
-    xpp::autox::add_members(xpp::session(), entries, "auto/");
+    xpp::autox::add_members(xpp::client_session(), entries, "auto/");
     std::map<std::string, std::string> members;
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
     CHECK(members.size() == 4 && members.contains("auto/diagram.csv") && members.contains("auto/views.txt"));
-    start_diagram(xpp::session(), xpp::model().node);
-    CHECK(xpp::autox::restore_members(xpp::session(), members, "auto/", "lecar.snapx"));
+    start_diagram(xpp::client_session(), xpp::client_session().model().node);
+    CHECK(xpp::autox::restore_members(xpp::client_session(), members, "auto/", "lecar.snapx"));
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(auto_solutions_file()) == solutions);
 
     /* an .autox is not imported as an XPPAUT .auto */
     CHECK(write_file(path, xpp::zip::make_zip(entries)));
-    CHECK(!xpp::autox::import_file(xpp::session(), path));
+    CHECK(!xpp::autox::import_file(xpp::client_session(), path));
 }
 
 } // namespace
@@ -325,7 +325,7 @@ int main(void)
     CHECK(xpp::read_bytes("tools/models/lecar_diagram.auto", lecar_auto));
     xpp::TempDir tmp;
     CHECK(!tmp.path().empty());
-    xpp::session().auto_state.dir = tmp.path(); /* AUTO's files there, not in HOME */
+    xpp::client_session().auto_state.dir = tmp.path(); /* AUTO's files there, not in HOME */
 
     const std::string ode = tmp.file("t.ode");
     CHECK(write_file(ode, "par a=1,b=2\nx'=-a*x+y\ny'=b*x-y\ninit x=1\ndone\n"));

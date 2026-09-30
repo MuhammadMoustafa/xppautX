@@ -14,13 +14,12 @@
    A Session runs one Model, the one its load built: model() reaches it,
    so a function that takes a Session& needs no Model& beside it.
 
-   The current Session is chosen once where work starts (W47d,
-   docs/roadmap.md: a protocol command in ui_json.cpp's handle_line, the
-   start of the program, a load) and passed down from there as
-   `xpp::Session &s`; xpp::session() and xpp::model() are for the entry
-   points the stages of W47d have not reached yet. A hot loop takes the
-   Session once. A load builds a new Model and Session together (Load,
-   below) and keeps them only when it succeeds. */
+   A Session is chosen once where work starts (W47d, docs/roadmap.md: a
+   protocol command in ui_json.cpp's handle_line, the start of the
+   program, a load) and passed down from there as `xpp::Session &s`;
+   nothing reads a current one. The one global that holds Sessions is the
+   session list (client_session, below). A load builds a new Model and
+   Session together (Load, below) and keeps them only when it succeeds. */
 #include "model.h"
 #include "storage.h"
 #include "many_pops.h"
@@ -59,8 +58,6 @@ namespace xpp {
 struct Session {
   /* a Session of the Model m (Load) */
   explicit Session(Model &m) noexcept : model_(&m) {}
-  /* the first one, made on first use before any load: of the first Model */
-  Session() : Session(detail::current<Model>()) {}
   Session(const Session &)=delete;
   Session &operator=(const Session &)=delete;
 
@@ -181,11 +178,18 @@ private:
   Model *model_;
 };
 
-/* the current Session (xpp_current.h) */
-inline Session &session()
-{
-  return detail::current<Session>();
-}
+/* The session list, the only global that holds a Session (CLAUDE.md "No
+   global state"): one Session per client. The process serves one client
+   (the page or the desktop window, --server's stdin, -silent's script, a
+   unit test), so the list holds one, its client's: the first made on
+   first use (of an empty Model, before any load), then each load's (Load,
+   below). It is read only where a Session is chosen, and passed down
+   from there: a protocol command (ui_json.cpp's handle_line) and the
+   front end's own asks and checkpoints, which core code reaches through
+   the XppUi seam with no Session (ui_json.cpp's client()), and the
+   program's start and exit (xppautx_main.cpp). tools/sessioncheck.sh
+   fails a read anywhere else in core/. */
+Session &client_session();
 
 /* what xpp_model_failed throws while a Load is in progress: the model
    cannot be loaded (a parse or compile error, already logged), what is
@@ -196,9 +200,9 @@ struct LoadFailed {
 
 /* A load in progress: it builds a fresh Model and Session, which the
    parser and the load's set-up are handed (session(), model()) and fill;
-   while it lives they are the current ones too, for the entry points the
-   later stages of W47d have not reached (the core is single-threaded:
-   nothing else sees them meanwhile); commit() keeps them
+   while it lives they are the client's in the session list too, for the
+   front end's asks during the load (the core is single-threaded: nothing
+   else sees them meanwhile); commit() keeps them
    and drops the ones before, and a load that never commits (it failed:
    LoadFailed) puts the ones before back, untouched. The fresh Session
    keeps the process's AUTO scratch folder. Model and Session memory is
@@ -212,12 +216,15 @@ public:
   Load &operator=(const Load &)=delete;
   void commit();
   /* the fresh Model and Session the load fills: the readers and the
-     load's set-up are handed these (W47d3) rather than reading the
-     current ones */
+     load's set-up are handed these (W47d3) */
   Session &session() noexcept { return *session_; }
   Model &model() noexcept { return session_->model(); }
   /* a Load is in progress */
-  static bool running() noexcept { return detail::current_slot<Load>()!=nullptr; }
+  static bool running() noexcept;
+  /* d.source, when empty, the line d.line of d.file as the model of the
+     Load in progress reads it (model_files.h); nothing when no Load is in
+     progress */
+  static void add_source(Diagnostic &d);
   /* The load is at line (and column) of file: the model's readers and
      builder say where they are, so that a problem is reported there;
      line 0, the model as a whole. The messages logged before are no

@@ -11,6 +11,8 @@
 #   - no more direct fopen/remove/rename/mkdir/... than tests/files.baseline
 #     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
+#   - no current Session or Model read outside the session list's owners
+#     (tools/sessioncheck.sh, W47d6)
 #   - no extern whose type differs from its definition (make ltocheck)
 #   - no function or file-scope datum nothing reaches (tools/deadcode.sh;
 #     Linux: elsewhere it says so and passes)
@@ -72,6 +74,10 @@ if ! sh tools/filecheck.sh --check; then
 fi
 if ! sh tools/literalcheck.sh; then
   echo "LITERAL CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/sessioncheck.sh; then
+  echo "SESSION CHECK FAILED"
   exit 1
 fi
 # make ltocheck's own sub-make, invoked via $(MAKE), shares the jobserver

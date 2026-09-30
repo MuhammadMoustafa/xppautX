@@ -15,10 +15,11 @@
 
    The Session a command runs in is chosen once, by handle_line, and passed
    down: a command's function takes it (xpp::Session &s) and reaches the
-   Model through s.model(). The j_ functions are the XppUi table's: core
-   code calls them with no Session, so each reads the current one once
-   (xpp::session()), as do an ask and a checkpoint, until the stages of
-   W47d (docs/roadmap.md) pass the Session through the XppUi seam too. */
+   Model through s.model(). The j_ functions are the XppUi table's: the
+   ones that act on a Session's windows or data take it from the core code
+   that calls them; the front end's own operations that core code reaches
+   with no Session (an ask, a checkpoint) take the client's (client(),
+   below). */
 #ifndef XPP_UI_JSON_INTERNAL_H
 #define XPP_UI_JSON_INTERNAL_H
 
@@ -88,6 +89,16 @@ struct ProtocolSession {
 };
 extern ProtocolSession session;
 
+/* The Session of the client this front end serves (the session list's,
+   session.h client_session). A command's functions and the XppUi
+   callbacks take their Session from their caller (handle_line chooses it
+   once per command); this is for what core code reaches through the seam
+   with no Session at all, the front end's own: an ask (ask_wait), a
+   checkpoint (j_check_abort), the pending AUTO points before an event
+   (flush_pending), the state when it is dirty (send_state_if_dirty), and
+   auto_data.cpp's point lookup (diag_point_of_node). */
+xpp::Session &client();
+
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
 int handle_async(xpp::Session &s, const char *line);   /* commands that make sense at any moment */
 int control_line(xpp::Session &s, const char *line);   /* a control line taken by a checkpoint */
@@ -129,7 +140,7 @@ void send_hello(xpp::Session &s);
 
 /* {"cmd":"record","op":"start"|"stop"|"note",...} */
 void record_command(xpp::Session &s, const char *line);
-void j_record_toggle(void); /* File/recorD: start, or stop and save */
+void j_record_toggle(xpp::Session &s); /* File/recorD: start, or stop and save */
 /* a command handle_line is about to run: a step begins, when recording
    and the command is one (not a request of the client's own) */
 void record_begin(const char *line);
@@ -156,7 +167,7 @@ void play_command(xpp::Session &s, const char *line);
 /* play start, pause, step, speed: at any moment (handle_async); false
    for any other line */
 bool play_async(const char *line);
-void j_play_recording(const char *path); /* File/plaY recording, Open model of a .recx */
+void j_play_recording(xpp::Session &s, const char *path); /* File/plaY recording, Open model of a .recx */
 /* the ms until the player acts (the command loop's and a question's wait
    for input), -1 when it waits for nothing; player_fire acts when its
    time has come (after such a wait ran out) */
@@ -256,10 +267,10 @@ int key_code(const char *k);
 int ask_begin(Buf *b, const char *kind);
 int ask_wait(Buf *b, int id);
 const char *ask_answer(void); /* the answer ask_wait() took */
-void answer_point(unsigned long win, int k, int *x, int *y);
+void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
 /* the answer's points into v, x and y by turns (v.size() / 2 of them) */
-int mouse_ask(unsigned long win, const char *kind, int flag, std::span<int> v);
-int ask_drag(unsigned long win, int *x, int *y);
+int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v);
+int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 
 void j_err_msg(const char *msg);
 void j_ping(void);
@@ -276,8 +287,8 @@ int j_checklist(const char *title, const char *const *names, int *flags, int n);
 int j_string_box(int row, int col, const char *title, const char *const *names, std::span<std::string> values,
                  const int *kinds);
 int j_file_selector(const char *title, std::string &file, const char *wild);
-int j_get_mouse_xy(int *x, int *y);
-int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag);
+int j_get_mouse_xy(xpp::Session &s, int *x, int *y);
+int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_menu_choose(const struct XppMenu *m, int def);
 void j_show_menu(int which);
 void j_open_help(const char *chapter, const char *anchor);
@@ -285,7 +296,7 @@ void j_copy_text(const char *what, const char *text);
 int j_check_abort(void);
 int j_progress_begin(void);
 void j_progress(int nit, int icount, int cwidth);
-void j_q_calc(void);
+void j_q_calc(xpp::Session &s);
 
 /* ---- json_state.cpp ---- */
 
@@ -299,13 +310,13 @@ void browser_command(xpp::Session &s, const char *line);
 void browser_key(xpp::Session &s, int ch, const char *line);
 void browser_update(const xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
-void j_rows_stored(int nrows);
+void j_rows_stored(xpp::Session &s, int nrows);
 void plotvars_command(xpp::Session &s, const char *line);
 void data_command(xpp::Session &s, const char *line);
 void send_equations(const xpp::Session &s);
-void j_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
+void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 void equilibrium_key(xpp::Session &s, int ch);
-void j_make_txtview(void);
+void j_make_txtview(xpp::Session &s);
 void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);
 void default_command(xpp::Session &s, const char *line);
@@ -322,41 +333,41 @@ void select_graph(xpp::Session &s, int i);
 void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void display_command(xpp::Session &s, const char *line);
-void j_get_draw_size(unsigned int *w, unsigned int *h);
-void j_blank_draw_window(void);
-void j_redraw_all(void);
+void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h);
+void j_blank_draw_window(xpp::Session &s);
+void j_redraw_all(xpp::Session &s);
 void redraw_graph(xpp::Session &s);
-void j_redraw_graph(void);
-void j_redraw_screens(void);
-void j_clear_screens(void);
-void j_reset_graphics(void);
-void j_activate_graph(int i, int flag);
-void j_create_plot_window(void);
-void j_destroy_plot_window(void);
-void j_kill_plot_windows(void);
-void j_cput_text(void);
-void j_draw_freeze(void);
-void j_scroll_window(void);
+void j_redraw_graph(xpp::Session &s);
+void j_redraw_screens(xpp::Session &s);
+void j_clear_screens(xpp::Session &s);
+void j_reset_graphics(xpp::Session &s);
+void j_activate_graph(xpp::Session &s, int i, int flag);
+void j_create_plot_window(xpp::Session &s);
+void j_destroy_plot_window(xpp::Session &s);
+void j_kill_plot_windows(xpp::Session &s);
+void j_cput_text(xpp::Session &s);
+void j_draw_freeze(xpp::Session &s);
+void j_scroll_window(xpp::Session &s);
 void j_new_colormap(int type);
 
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
 int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h);
 void web_safe_colors(std::span<unsigned char> rgb); /* at most 256 colours, for the GIF writer */
 
-int j_film_clip(void);
-void j_reset_film(void);
-void j_movie_play_back(void);
-void j_movie_auto_play(void);
-void j_movie_save(const char *basename, int fmat);
-void j_movie_make_anigif(void);
+int j_film_clip(xpp::Session &s);
+void j_reset_film(xpp::Session &s);
+void j_movie_play_back(xpp::Session &s);
+void j_movie_auto_play(xpp::Session &s);
+void j_movie_save(xpp::Session &s, const char *basename, int fmat);
+void j_movie_make_anigif(xpp::Session &s);
 
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
 void aplot_command(xpp::Session &s, const char *line);
 void aplot_key(xpp::Session &s, int ch);
-void j_aplot_make(const char *name);
-void j_aplot_redraw(void);
-void j_aplot_draw_one(const char *tag);
+void j_aplot_make(xpp::Session &s, const char *name);
+void j_aplot_redraw(xpp::Session &s);
+void j_aplot_draw_one(xpp::Session &s, const char *tag);
 
 /* ---- json_auto.cpp ---- */
 
@@ -369,13 +380,13 @@ void auto_view_subscribe(int on);
 void auto_view_update(xpp::Session &s);
 void auto_key(xpp::Session &s, int ch);
 void auto_redraw_for_client(xpp::Session &s);
-void j_auto_make_window(const char *wname, const char *iname);
+void j_auto_make_window(xpp::Session &s, const char *wname, const char *iname);
 int j_auto_check_abort(int *iflag);
-int j_auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag);
-int j_auto_grab_event(int *x, int *y);
-void j_auto_show_hint(void);
-void j_auto_scroll_window(void);
-void j_auto_diagram(int view, const XppDiagPoint *p);
+int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
+int j_auto_grab_event(xpp::Session &s, int *x, int *y);
+void j_auto_show_hint(xpp::Session &s);
+void j_auto_scroll_window(xpp::Session &s);
+void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 void j_auto_refresh(void);
 
 /* ---- json_model.cpp ---- */
@@ -390,8 +401,8 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req);
 int ani_speed_op(xpp::Session &s, const char *o, const char *line);
 void ani_command(xpp::Session &s, const char *line);
 void ani_key(xpp::Session &s, int ch);
-void j_ani_slider(void);
-void j_new_vcr(void);
+void j_ani_slider(xpp::Session &s);
+void j_new_vcr(xpp::Session &s);
 void j_ani_show(void);
 
 } // namespace xpp::json

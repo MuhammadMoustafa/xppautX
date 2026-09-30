@@ -35,7 +35,7 @@ int main()
 {
     /* ge writes its pivots to fort.9 */
     FILE *fp9 = std::tmpfile();
-    xpp::session().auto_lib.fp9 = fp9;
+    xpp::client_session().auto_lib.fp9 = fp9;
 
     /* chdim: more free parameters than AUTO's arrays hold */
     iap_type iap{};
@@ -85,7 +85,7 @@ int main()
         failure([&] { dgemm("N", "N", &m, &nn, &kk, &one, a.data(), &ld, b.data(), &ld, &zero, c.data(), &ld, 1, 1); });
     CHECK(has(blas, "DGEMM") && has(blas, "parameter number 3"));
 
-    xpp::session().auto_lib.fp9 = nullptr;
+    xpp::client_session().auto_lib.fp9 = nullptr;
     std::fclose(fp9);
     TEST_REPORT("auto_errors");
 }

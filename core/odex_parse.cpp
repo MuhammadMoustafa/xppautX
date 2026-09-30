@@ -229,8 +229,8 @@ constexpr int max_include_depth = 16;
 
 class Parser {
 public:
-  Parser(Parsed &out, int file, std::string_view src, int depth)
-      : out_(out), file_(file), src_(src), depth_(depth)
+  Parser(xpp::Model &model, Parsed &out, int file, std::string_view src, int depth)
+      : model_(model), out_(out), file_(file), src_(src), depth_(depth)
   {
     toks_ = Lexer(src, file, out.files[file]).run();
   }
@@ -812,9 +812,9 @@ private:
     bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
     std::string path = (slash == std::string::npos || absolute) ? name : here.substr(0, slash + 1) + name;
     std::string text;
-    if (!xpp::read_model_file(path, text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
+    if (!xpp::read_model_file(model_, path, text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
     out_.files.push_back(path);
-    Parser(out_, static_cast<int>(out_.files.size()) - 1, text, depth_ + 1).model();
+    Parser(model_, out_, static_cast<int>(out_.files.size()) - 1, text, depth_ + 1).model();
   }
 
   /* ---- expressions, low precedence to high (docs/odex.md) ---- */
@@ -1037,6 +1037,7 @@ private:
     return false;
   }
 
+  xpp::Model &model_;
   Parsed &out_;
   int file_;
   std::string_view src_;
@@ -1063,19 +1064,19 @@ bool is_name(std::string_view name)
   return true;
 }
 
-Parsed parse(std::string_view text, const std::string &file)
+Parsed parse(xpp::Model &m, std::string_view text, const std::string &file)
 {
   Parsed out;
   out.files.push_back(file);
-  Parser(out, 0, text, 0).model();
+  Parser(m, out, 0, text, 0).model();
   return out;
 }
 
-Parsed parse_file(const std::string &path)
+Parsed parse_file(xpp::Model &m, const std::string &path)
 {
   std::string text;
-  if (!xpp::read_model_file(path, text)) throw error_at(path, Pos{}, "cannot read the file");
-  return parse(text, path);
+  if (!xpp::read_model_file(m, path, text)) throw error_at(path, Pos{}, "cannot read the file");
+  return parse(m, text, path);
 }
 
 }

@@ -33,6 +33,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+struct Model;   /* model.h */
 }
 
 namespace xpp::odex {
@@ -231,10 +232,10 @@ struct Parsed {
 };
 
 /* text, the contents of file, parsed; an include is read relative to
-   file's folder. Throws Error. */
-Parsed parse(std::string_view text, const std::string &file);
-/* parse, the text read from path first */
-Parsed parse_file(const std::string &path);
+   file's folder, as one of m's files (model_files.h). Throws Error. */
+Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
+/* parse, the text read from path (one of m's files) first */
+Parsed parse_file(xpp::Model &m, const std::string &path);
 
 /* the words .odex reserves (docs/odex.md "Reserved words"): a name may
    never be one */

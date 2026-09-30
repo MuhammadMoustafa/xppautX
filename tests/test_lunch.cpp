@@ -4,7 +4,7 @@
    in a different order shifts every value after it, which a user only
    notices as a restored session that behaves differently.
 
-   The model is loaded the way xppautX -silent loads it (xpp_load_model),
+   The model is loaded the way xppautX -silent loads it (xpp::load_model),
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "session.h"
@@ -39,7 +39,7 @@ static char *body(const char *path)
 static void save(const char *path)
 {
     FILE *fp = fopen(path, "w");
-    write_lunch(xpp::session(),fp);
+    write_lunch(xpp::client_session(),fp);
     fclose(fp);
 }
 
@@ -52,32 +52,32 @@ int main(void)
     FILE *fp;
     char *sa, *sb;
 
-    xpp_load_model(2, argv, 1);
-    init_browser(xpp::session());
-    init_all_graph(xpp::session());
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    init_browser(xpp::client_session());
+    init_all_graph(xpp::client_session());
 
-    get_val("iapp", &iapp);
-    v0 = xpp::session().last_ic[0];
-    tend = xpp::session().numerics.tend;
-    dt = xpp::session().numerics.delta_t;
+    get_val(xpp::client_session(), "iapp", &iapp);
+    v0 = xpp::client_session().last_ic[0];
+    tend = xpp::client_session().numerics.tend;
+    dt = xpp::client_session().numerics.delta_t;
     save(a);
 
-    set_val("iapp", iapp + 1);
-    xpp::session().last_ic[0] = v0 + 1;
-    xpp::session().numerics.tend = tend * 2;
-    xpp::session().numerics.delta_t = dt / 2;
+    set_val(xpp::client_session(), "iapp", iapp + 1);
+    xpp::client_session().last_ic[0] = v0 + 1;
+    xpp::client_session().numerics.tend = tend * 2;
+    xpp::client_session().numerics.delta_t = dt / 2;
 
     fp = fopen(a, "r");
     CHECK(fp != NULL);
     if (!fp) TEST_REPORT("lunch round trip");
-    CHECK(read_lunch(xpp::session(),fp) == 1);
+    CHECK(read_lunch(xpp::client_session(),fp) == 1);
     fclose(fp);
 
-    get_val("iapp", &x);
+    get_val(xpp::client_session(), "iapp", &x);
     CHECK(x == iapp);
-    CHECK(xpp::session().last_ic[0] == v0);
-    CHECK(xpp::session().numerics.tend == tend);
-    CHECK(xpp::session().numerics.delta_t == dt);
+    CHECK(xpp::client_session().last_ic[0] == v0);
+    CHECK(xpp::client_session().numerics.tend == tend);
+    CHECK(xpp::client_session().numerics.delta_t == dt);
 
     save(b);
     sa = body(a);

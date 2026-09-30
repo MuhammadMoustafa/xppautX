@@ -156,7 +156,7 @@ if(!s.numerics.par_fol)
 	   work[i*n+j]=temp;
 	 }
      } 
- create_eq_box(cp,cn,rp,rn,im,x,eval,n);
+ create_eq_box(s,cp,cn,rp,rn,im,x,eval,n);
  if(((rp==1)||(rn==1))&&(n>1))
  {
  ch='n';

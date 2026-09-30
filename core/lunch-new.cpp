@@ -70,7 +70,7 @@ void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
 {
   double z;
   for(int i=0;i<s.model().nupar;i++){
-    get_val(s.model().upar_names[i],&z);
+    get_val(s,s.model().upar_names[i],&z);
     xpp::print(fp,"{}{}={:.16g}   ",prefix,s.model().upar_names[i],z);
     if(i%4==3) xpp::print(fp,"\n");
   }
@@ -175,7 +175,7 @@ void do_info(const xpp::Session &s, FILE *fp)
 	 s.numerics.delta_t,s.numerics.t0,s.numerics.trans,s.numerics.tend,s.numerics.bound,s.numerics.delay,s.numerics.max_points);
   xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
 	 s.numerics.evec_err,s.numerics.newt_err,s.numerics.hmin,s.numerics.hmax,s.numerics.toler);
-  const std::string &poivar=ind_to_sym(s.numerics.poivar);
+  const std::string &poivar=ind_to_sym(s,s.numerics.poivar);
   xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
         s.numerics.poimap,poivar,s.numerics.poipln,s.numerics.poisgn);
 
@@ -315,7 +315,7 @@ void io_parameter_file(xpp::Session &s, const char *fn,int flag)
       err_msg("Incompatible parameters");
       return;
     }
-    io_parameters(m,flag,fp.get());
+    io_parameters(s,flag,fp.get());
     fp.reset();
     redo_stuff(s);
     return;
@@ -324,7 +324,7 @@ void io_parameter_file(xpp::Session &s, const char *fn,int flag)
   if(!w)return;
   FILE *fp=w.file();
   io_int(&m.nupar,fp,flag,"Number params");
-  io_parameters(m,flag,fp);
+  io_parameters(s,flag,fp);
   time_t ttt=time(0);
   xpp::print(fp,"\n\nFile:{}\n{}",m.this_file,ctime(&ttt));
   w.commit();
@@ -369,14 +369,13 @@ void io_ic_file(xpp::Session &s, const char *fn,int flag)
 namespace {
 
 /* the values panel's Save/Load of .par and .ic (docs/protocol.md
-   "values"), shared by the four entry points below: name empty asks for
+   "values"), shared by the four functions below: name empty asks for
    one like Save data does (title/wild picking the dialog and the
    extension), given skips the ask; io is io_parameter_file or
    io_ic_file, flag READEM or WRITEM */
-void named_value_file(std::string name, const char *title, const char *ext,
+void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext,
                        void (*io)(xpp::Session &, const char *, int), int flag)
 {
-  xpp::Session &s=xpp::session(); /* an entry point: the values panel (W47d6) */
   if(name.empty()){
     name=s.model().this_file+ext;
     if(!file_selector(title,name,xpp::format("*{}",ext).c_str()))return;
@@ -386,24 +385,24 @@ void named_value_file(std::string name, const char *title, const char *ext,
 
 } // namespace
 
-void save_parameter_file(std::string name)
+void save_parameter_file(xpp::Session &s, std::string name)
 {
-  named_value_file(std::move(name),"Save Parameters",".par",io_parameter_file,WRITEM);
+  named_value_file(s,std::move(name),"Save Parameters",".par",io_parameter_file,WRITEM);
 }
 
-void save_ic_file(std::string name)
+void save_ic_file(xpp::Session &s, std::string name)
 {
-  named_value_file(std::move(name),"Save Initial Conditions",".ic",io_ic_file,WRITEM);
+  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",io_ic_file,WRITEM);
 }
 
-void load_parameter_file(std::string name)
+void load_parameter_file(xpp::Session &s, std::string name)
 {
-  named_value_file(std::move(name),"Load Parameters",".par",io_parameter_file,READEM);
+  named_value_file(s,std::move(name),"Load Parameters",".par",io_parameter_file,READEM);
 }
 
-void load_ic_file(std::string name)
+void load_ic_file(xpp::Session &s, std::string name)
 {
-  named_value_file(std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
+  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
 }
 
 void write_values_query(const xpp::Session &s, const char *name, bool sets, bool pars, bool ics)
@@ -432,18 +431,19 @@ void write_values_query(const xpp::Session &s, const char *name, bool sets, bool
   w.commit();
 }
 
-void io_parameters(const xpp::Model &m, int f, FILE *fp)
+void io_parameters(xpp::Session &s, int f, FILE *fp)
 {
+ const xpp::Model &m=s.model();
  int i;
  double z;
  for(i=0;i<m.nupar;i++){
   if(f!=READEM){
-    get_val(m.upar_names[i],&z);
+    get_val(s,m.upar_names[i],&z);
     io_double(&z,fp,f,m.upar_names[i]);
   }
   else {
     io_double(&z,fp,f," ");
-    set_val(m.upar_names[i],z);
+    set_val(s,m.upar_names[i],z);
 
     }
   }
@@ -480,12 +480,12 @@ void io_exprs(xpp::Session &s, int f, FILE *fp)
  io_heading(f,fp,"# Parameters");
  for(i=0;i<s.model().nupar;i++){
   if(f!=READEM){
-    get_val(s.model().upar_names[i],&z);
+    get_val(s,s.model().upar_names[i],&z);
     io_double(&z,fp,f,s.model().upar_names[i]);
   }
   else {
     io_double(&z,fp,f," ");
-    set_val(s.model().upar_names[i],z);
+    set_val(s,s.model().upar_names[i],z);
   }
 }
 
@@ -553,7 +553,7 @@ static void io_graph_of(int f, FILE *fp, GRAPH &g)
 void io_graph(xpp::Session &s, int f, FILE *fp)
 {
   io_graph_of(f,fp,*s.plot_windows.current);
-  if(f==READEM&&program.interactive)xpp_ui.redraw_graph();
+  if(f==READEM&&program.interactive)xpp_ui.redraw_graph(s);
 }
 
 void write_graph(FILE *fp, GRAPH &g)

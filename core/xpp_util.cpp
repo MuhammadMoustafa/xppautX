@@ -50,7 +50,7 @@ void make_active(xpp::Session &s, int i, int flag)
 {
     s.plot_windows.active = i;
     s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
-    xpp_ui.activate_graph(i, flag);
+    xpp_ui.activate_graph(s,i, flag);
 }
 
 int graph_of(const xpp::Session &s, XppWinId w)
@@ -62,7 +62,7 @@ int graph_of(const xpp::Session &s, XppWinId w)
 
 void clr_scrn(xpp::Session &s)
 {
-    xpp_ui.blank_draw_window();
+    xpp_ui.blank_draw_window(s);
     do_axes(s);
 }
 
@@ -70,9 +70,9 @@ void clr_scrn(xpp::Session &s)
 
 /* new_parameter, set_default_params, clone_ode: from init_conds.c */
 
-std::string ind_to_sym(int ind)
+std::string ind_to_sym(const xpp::Session &s, int ind)
 {
- return browse_column_name(ind);
+ return browse_column_name(s,ind);
 }
 
 void  get_max(const xpp::Session &s, int index, double *vmin, double *vmax)
@@ -125,11 +125,6 @@ void de_space(char *s)
     }
   }
   s[j]=0;
-}
-
-int find_user_name(int type, std::string_view oname)
-{
-  return find_user_name(xpp::model(),type,oname);
 }
 
 int find_user_name(const xpp::Model &m, int type, std::string_view oname)
@@ -191,10 +186,6 @@ int do_calc(xpp::Session &s, const char *temp, double *z)
  return(1);
 }
 
-int do_calc(const char *temp, double *z)
-{
-  return do_calc(xpp::session(),temp,z); /* an entry point: the dialogs (W47d6) */
-}
 
 int has_eq(std::string_view z, std::string &name, int *where)
 {
@@ -214,7 +205,7 @@ double calculate(xpp::Session &s, const char *expr, int *ok)
      *ok=0;
       goto bye;
    }
-  z=evaluate(com);
+  z=evaluate(s,com);
  *ok=1;
 bye:
   s.parser.ncon=s.model().ncon_start;
@@ -286,10 +277,10 @@ void dump_ps(xpp::Session &s, int i)
 
 void   redo_stuff(xpp::Session &s)
     {
-      evaluate_derived();
+      evaluate_derived(s);
    re_evaluate_kernels(s);
-	  xpp::ok_or_show(redo_all_fun_tables());
-        evaluate_derived();
+	  xpp::ok_or_show(redo_all_fun_tables(s));
+        evaluate_derived(s);
 }
 
 void user_fun_info(const xpp::Model &m, FILE *fp)
@@ -320,7 +311,7 @@ void ps_restore(xpp::Session &s)
  ps_do_color(s.plot_file,0); 
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
- xpp_ui.draw_freeze();
+ xpp_ui.draw_freeze(s);
  }
  ps_end(s);
 }
@@ -334,7 +325,7 @@ void svg_restore(xpp::Session &s)
  do_axes(s);
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
- xpp_ui.draw_freeze();
+ xpp_ui.draw_freeze(s);
  }
   do_batch_nclines(s);
   do_batch_dfield(s); 
@@ -398,7 +389,7 @@ void clone_ode(xpp::Session &s)
 	fp.print("\npar ");
         j=0;
       }
-      get_val(s.model().upar_names[i],&z);
+      get_val(s,s.model().upar_names[i],&z);
       fp.print("{}={:g} ",s.model().upar_names[i],z);
       j++;
     }
@@ -423,12 +414,12 @@ void new_parameter(xpp::Session &s)
     }
 
     else {
-      index=find_user_name(PARAMBOX,name.data());
+      index=find_user_name(s.model(),PARAMBOX,name.data());
       if(index>=0){
-	get_val(s.model().upar_names[index],&z);
-	done=new_float(xpp::format("{} :",name.data()).c_str(),&z);
+	get_val(s,s.model().upar_names[index],&z);
+	done=new_float(s,xpp::format("{} :",name.data()).c_str(),&z);
 	if(done==0){
-	  set_val(s.model().upar_names[index],z);
+	  set_val(s,s.model().upar_names[index],z);
 	  xpp_ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
 	  xpp_ui.param_box_redraw(index);
 	}
@@ -445,13 +436,13 @@ void   set_default_params(xpp::Session &s)
  {
 
  for(int i=0;i<s.model().nupar;i++){
-   set_val(s.model().upar_names[i],s.model().default_val[i]);
+   set_val(s,s.model().upar_names[i],s.model().default_val[i]);
    xpp_ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
  }
  
  redraw_params();
  re_evaluate_kernels(s);
- xpp::ok_or_show(redo_all_fun_tables()); 
+ xpp::ok_or_show(redo_all_fun_tables(s));
  }
 
 /* ---- the values behind the IC, parameter, BC and delay boxes and the
@@ -465,17 +456,17 @@ void   set_default_ics(xpp::Session &s)
    redraw_ics();
 }
 
-int to_float(const char *s, double *z)
+int to_float(xpp::Session &s, const char *text, double *z)
 {
   int flag;
   *z=0.0;
-  if(s[0]=='%')
+  if(text[0]=='%')
     {
-      flag=do_calc(&s[1],z);
+      flag=do_calc(s,&text[1],z);
       if(flag==-1)return -1;
       return 0;
     }
-  *z=atof(s);
+  *z=atof(text);
   return(0);
 }
 
@@ -485,7 +476,7 @@ void man_ic(xpp::Session &s)
   double z;
   while(1){
     z=s.last_ic[index];
-    done=new_float(xpp::format("{} :",s.model().uvar_names[index]).c_str(),&z);
+    done=new_float(s,xpp::format("{} :",s.model().uvar_names[index]).c_str(),&z);
     if(done==0){
       s.last_ic[index]=z;
       xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
@@ -505,12 +496,12 @@ int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
   *z=0.0;
   switch(type){
   case ICBOX:
-    if(to_float(text,z)==-1)return -1;
+    if(to_float(s,text,z)==-1)return -1;
     s.last_ic[i]=*z;
     return 1;
   case PARAMBOX:
-    if(to_float(text,z)==-1)return -1;
-    set_val(s.model().upar_names[i],*z);
+    if(to_float(s,text,z)==-1)return -1;
+    set_val(s,s.model().upar_names[i],*z);
     return 1;
   case BCBOX:
     set_bc_formula(s,i,text);
@@ -527,7 +518,7 @@ void box_values_loaded(xpp::Session &s, int type)
 {
   if(type==PARAMBOX){
     re_evaluate_kernels(s);
-    xpp::ok_or_show(redo_all_fun_tables());
+    xpp::ok_or_show(redo_all_fun_tables(s));
   }
   if(type==DELAYBOX){
    xpp::ok_or_show(do_init_delay(s,s.numerics.delay));
@@ -557,11 +548,11 @@ void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 
 /* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
    neither */
-int find_par_or_var(const char *name,int *type,int *index)
+int find_par_or_var(const xpp::Model &m, const char *name,int *type,int *index)
 {
-  int status=find_user_name(PARAMBOX,name);
+  int status=find_user_name(m,PARAMBOX,name);
   if(status==-1){
-    status=find_user_name(ICBOX,name);
+    status=find_user_name(m,ICBOX,name);
     if(status==-1)return 0;
     *type=ICBOX;
   }
@@ -572,7 +563,7 @@ int find_par_or_var(const char *name,int *type,int *index)
 
 void set_par_or_var(xpp::Session &s, const char *name,int type,int index,double val)
 {
-  set_val(name,val);
+  set_val(s,name,val);
   if(type==ICBOX)
     s.last_ic[index]=val;
 }
@@ -630,9 +621,9 @@ void do_txt_action(xpp::Session &s, const char *action)
 
 /* ---- AUTO's private scratch directory (session.h: AutoState::dir),
    made by xpp_files_make_temp_dir ---- */
-void xpp_cleanup_auto_dir(void)
+void xpp_cleanup_auto_dir(xpp::Session &s)
 {
-  std::string &dir=xpp::session().auto_state.dir; /* an entry point: at exit */
+  std::string &dir=s.auto_state.dir;
   if (!dir.empty()) {
     xpp_files_remove_temp_dir(dir.c_str());
     dir.clear();

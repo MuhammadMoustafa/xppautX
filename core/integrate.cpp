@@ -72,7 +72,7 @@
 static void row_stored(xpp::Session &s)
 {
   xpp_job_rows_stored(s.data_store.rows, s.data_store.col[0][s.data_store.rows-1]);
-  rows_stored(s.data_store.rows);
+  rows_stored(s,s.data_store.rows);
 }
 /* the state x of the Session's solver work copied into u from v (its node ODEs) */
 static void mswtch(const xpp::Session &s, double *u, const double *v)
@@ -276,7 +276,7 @@ void cont_integ(xpp::Session &s)
   tetemp=s.numerics.tend;
   wipe_rep(s.browser);
   data_back(s);
-  if(new_float("Continue until:",&tetemp)==-1)return;
+  if(new_float(s,"Continue until:",&tetemp)==-1)return;
   x=&s.data_store.current[0];
   tetemp=fabs(tetemp);
   if(fabs(s.data_store.current_time)>=tetemp)return;
@@ -453,15 +453,15 @@ void monte_carlo(xpp::Session &s)
   new_int("Append(1/0",&append);
   new_int("Shoot (1/0)",&ishoot);
   new_int("# Guesses:",&fixptguess.n);
-  new_float("Tolerance:",&fixptguess.tol);
+  new_float(s,"Tolerance:",&fixptguess.tol);
   while(1){
     z=fixptguess.xlo[i];
-    done=new_float(xpp::format("{}_lo :",s.model().uvar_names[i]).c_str(),&z);
+    done=new_float(s,xpp::format("{}_lo :",s.model().uvar_names[i]).c_str(),&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
     z=fixptguess.xhi[i];
-    done=new_float(xpp::format("{}_hi :",s.model().uvar_names[i]).c_str(),&z);
+    done=new_float(s,xpp::format("{}_hi :",s.model().uvar_names[i]).c_str(),&z);
     if(done==0)
       fixptguess.xhi[i]=z;
     if(done==-1)break;
@@ -557,14 +557,15 @@ using TakeFrame = std::function<bool()>;
 using ShowProgress = std::function<void(const std::string &)>;
 
 /* a range command's movie (Range's, Range Equilibria's): the frames its
-   sweep takes go into the kinescope until it is out of film, which the
+   sweep takes go into s's kinescope until it is out of film, which the
    command says once the sweep has ended */
 class RangeFilm {
 public:
+  explicit RangeFilm(xpp::Session &s) : s_(s) {}
   TakeFrame taker()
   {
     return [this]{
-      if(xpp_ui.film_clip()!=0)return true;
+      if(xpp_ui.film_clip(s_)!=0)return true;
       out_=true;
       return false;
     };
@@ -575,6 +576,7 @@ public:
   }
   void report() const { if(out_)err_msg("Out of film"); }
 private:
+  xpp::Session &s_;
   bool out_=false;
 };
 
@@ -609,11 +611,11 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
    eq_range.movie=1;
    s.numerics.shoot=0;
  }
- if(eq_range.movie)reset_film();
+ if(eq_range.movie)reset_film(s);
  for(i=0;i<=npar;i++)
    {
      if(eq_range.movie)
-       clear_draw_window();
+       clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
       set_val(s,eq_range.item,temp);
       s.numerics.par_fol=1;
@@ -656,7 +658,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
 void do_eq_range(xpp::Session &s, double *x)
 {
  if(set_up_eq_range(s)==0)return;
- RangeFilm film;
+ RangeFilm film(s);
  const xpp::Result<> r=eq_range_sweep(s,x,film.taker(),film.progress());
  film.report();
  if(!r)xpp::show_error(r.error());
@@ -758,7 +760,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  
  }
 
- if(s.integrator.range.movie)reset_film();
+ if(s.integrator.range.movie)reset_film(s);
  if(flag==2){
    auto_get_info(s, &nit,parn);
    nit2=0;
@@ -766,7 +768,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
  for(j=0;j<=nit2;j++){
  for(i=0;i<=nit;i++)
   {
-    if(s.integrator.range.movie)clear_draw_window();
+    if(s.integrator.range.movie)clear_draw_window(s);
    if(cycle)s.plot_windows.current->color[0]=icol+1;
    icol++;
    if(icol==10)icol=0;
@@ -857,7 +859,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
  do_this_liaprun(s,i,p);  /* sends parameter and index back */
  if(s.data_store.rows>2)auto_freeze_it(s);
  if(s.array_plot.range==1)
-   draw_one_array_plot(bob.c_str());
+   draw_one_array_plot(s,bob.c_str());
  
  if(res==1||s.stochastic.flag)
    {
@@ -902,7 +904,7 @@ int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 par
  if(flag==1){
    if(set_up_range2(s)==0)return -1;
  }
- RangeFilm film;
+ RangeFilm film(s);
  const xpp::Result<int> r=range_sweep(s,x,flag,film.taker(),film.progress());
  film.report();
  if(!r){
@@ -966,7 +968,7 @@ void find_equilib_com(xpp::Session &s, int com)
 	 /* get mouse click x,y  */
          get_ic(s,1,x);
 	 MessageBox("Click on guess");
-	 if(GetMouseXY(&im,&jm)){
+	 if(GetMouseXY(s,&im,&jm)){
 	   scale_to_real(s,im,jm,&xm,&ym);
 	   x[iv]=static_cast<double>(xm);
 	   x[jv]=static_cast<double>(ym);
@@ -1088,7 +1090,7 @@ void do_init_data(xpp::Session &s, int com)
     if(com==M_IM){
         get_ic(s,1,x);
 	MessageBox("Click on initial data");
-	if(GetMouseXY(&im,&jm)){
+	if(GetMouseXY(s,&im,&jm)){
 	  scale_to_real(s,im,jm,&xm,&ym);
 	  im=s.plot_windows.current->xv[0]-1;
 	  jm=s.plot_windows.current->yv[0]-1;
@@ -1114,7 +1116,7 @@ void do_init_data(xpp::Session &s, int com)
 	MessageBox("Click on initial data -- ESC to quit");
 	while(1){
           get_ic(s,1,x);
-	  badmouse=GetMouseXY(&im,&jm);
+	  badmouse=GetMouseXY(s,&im,&jm);
 	  if(badmouse==0)break;
 	  scale_to_real(s,im,jm,&xm,&ym);
 	  im=s.plot_windows.current->xv[0]-1;

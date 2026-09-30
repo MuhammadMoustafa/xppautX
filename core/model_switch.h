@@ -5,7 +5,7 @@
    leaves a request in the Session; the front end carries it out once the
    command has returned, when nothing of the Session before is in use
    (ui_json.cpp handle_line, json_model.cpp): load_requested builds the new
-   Model and Session through xpp_load_model, and a load that fails leaves
+   Model and Session through xpp::load_model, and a load that fails leaves
    the ones before current, untouched, and says so. */
 
 #ifdef __cplusplus

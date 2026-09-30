@@ -663,7 +663,7 @@ private:
       return std::nullopt;
     }
     prog.push_back(ENDEXP);
-    return evaluate(prog.data());
+    return evaluate(s_,prog.data());
   }
 
   /* a leaf's value: a number, or a constant of the model's */
@@ -1320,13 +1320,13 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   /* the .ode built with .odex's derived quantities, as its .odex will be:
      the check compares like with like (the numbers are the same) */
   const OdeAsOdex as_odex;
-  if (!xpp_load_model(2, argv.data(), 1)) return 1;
+  const xpp::Loaded loaded = xpp::load_model(2, argv.data(), 1);
+  if (!loaded) return 1;
   const std::string out = odex_name(ode);
   std::string text;
   Fingerprint before;
   try {
-    /* the model just loaded: the current Session, read once per load */
-    xpp::Session &s = xpp::session();
+    xpp::Session &s = **loaded;
     text = convert_model(s, auto_answer, ask);
     before = fingerprint(s);
   } catch (const Error &e) {
@@ -1348,11 +1348,12 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   /* exact by construction, and checked: the .odex builds what the .ode did */
   model = out;
   argv[1] = model.data();
-  if (!xpp_load_model(2, argv.data(), 1)) {
+  const xpp::Loaded reloaded = xpp::load_model(2, argv.data(), 1);
+  if (!reloaded) {
     xpp::log(XPP_LOG_ERROR, "{} was written but does not load: a bug in --convert\n", out);
     return 1;
   }
-  if (!(fingerprint(xpp::session()) == before)) {
+  if (!(fingerprint(**reloaded) == before)) {
     xpp::log(XPP_LOG_ERROR, "{} was written but does not compile to what {} did: a bug in --convert\n", out, ode);
     return 1;
   }

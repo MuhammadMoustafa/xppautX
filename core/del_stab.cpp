@@ -109,7 +109,7 @@ if(i==0&&okroot==1&&s.delay.alpha_max>0)
 
  /* no eigenvalue list: a delay equation has infinitely many; the
     counts say which way the dominant root lies */
- create_eq_box(abs(i),2,0,0,0,x,NULL,n);
+ create_eq_box(s,abs(i),2,0,0,0,x,NULL,n);
  /* DING; */
  s.delay.stab_flag=1;
  if(okroot==1)*stabinfo=s.delay.alpha_max;

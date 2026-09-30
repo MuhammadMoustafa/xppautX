@@ -32,13 +32,13 @@ void io_string(std::string &s, FILE *fp, int f);
    or written to the file fn (-parfile, -icfile, the values panel) */
 void io_parameter_file(xpp::Session &s, const char *fn, int flag);
 void io_ic_file(xpp::Session &s, const char *fn, int flag);
-/* the values panel's Save/Load of .par and .ic (docs/protocol.md
+/* the values panel's Save/Load of s's .par and .ic (docs/protocol.md
    "values"), through io_parameter_file/io_ic_file: name empty asks for
    one like Save data does, given skips the ask */
-void save_parameter_file(std::string name);
-void save_ic_file(std::string name);
-void load_parameter_file(std::string name);
-void load_ic_file(std::string name);
+void save_parameter_file(xpp::Session &s, std::string name);
+void save_ic_file(xpp::Session &s, std::string name);
+void load_parameter_file(xpp::Session &s, std::string name);
+void load_ic_file(xpp::Session &s, std::string name);
 /* the model's internal sets (name, whether -silent runs it, what it
    sets), its parameters' values in the file and its initial conditions,
    those asked for, each under its # heading, into name (-silent's
@@ -58,7 +58,7 @@ void write_lunch(xpp::Session &s, FILE *fp);
 void do_lunch(xpp::Session &s, int f);
 void dump_eqn(const xpp::Session &s, FILE *fp);
 void io_numerics(xpp::Session &s, int f, FILE *fp);
-void io_parameters(const xpp::Model &m, int f, FILE *fp);
+void io_parameters(xpp::Session &s, int f, FILE *fp);
 void io_exprs(xpp::Session &s, int f, FILE *fp);
 void io_graph(xpp::Session &s, int f, FILE *fp);
 

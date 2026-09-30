@@ -23,6 +23,8 @@
 
 namespace xpp {
 
+struct Model; /* model.h */
+
 /* a file of a model: its name, as the model reads it, and its bytes */
 struct ModelFile {
     std::string name;
@@ -37,27 +39,27 @@ struct SavedModel {
     std::vector<ModelFile> files;
 };
 
-/* the model's file name, whole, into bytes: false (bytes empty) when
+/* m's file name, whole, into bytes: false (bytes empty) when
    there is none */
-bool read_model_file(const std::string &name, std::string &bytes);
+bool read_model_file(Model &m, const std::string &name, std::string &bytes);
 
-/* the model's file name opened for reading, as open_read opens a file,
+/* m's file name opened for reading, as open_read opens a file,
    for a reader that takes a FILE *: empty when there is none. During a
    load only: a saved file is read from a copy of it in a scratch folder
    the load removes when it ends. */
-UniqueFile open_model_file(const std::string &name);
+UniqueFile open_model_file(Model &m, const std::string &name);
 
-/* the model's file name, a line at a time (LineReader): empty when there
+/* m's file name, a line at a time (LineReader): empty when there
    is none */
-LineReader model_file_lines(const std::string &name);
+LineReader model_file_lines(Model &m, const std::string &name);
 
 /* bytes can be a model's text: not a zip (an .autox or .snapx is opened
    as what it is, by its name) nor any other binary file (a NUL byte) */
 bool is_model_text(std::string_view bytes);
 
-/* the model as a title names it: its file, and the file it is saved in
+/* m as a title names it: its file, and the file it is saved in
    ("lecar.ode (saved in lecar.autox)") */
-std::string model_title();
+std::string model_title(const Model &m);
 
 } // namespace xpp
 

@@ -48,10 +48,8 @@ struct Session; /* session.h */
 
 int get_lookup_len(xpp::Session &s, int i);
 /* the Session s's function tables again, after a parameter changed: the
-   first failure, the others still done; without s, the current Session's
-   (an entry point, W47d5-6) */
+   first failure, the others still done */
 xpp::Result<> redo_all_fun_tables(xpp::Session &s);
-xpp::Result<> redo_all_fun_tables(void);
 /* table index's value at x in the Session s (the evaluator's TABTYPE) */
 double lookup(const xpp::Session &s, double x, int index);
 xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y);

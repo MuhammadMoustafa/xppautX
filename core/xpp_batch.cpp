@@ -286,7 +286,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     create_plot_list(s);
 }
 
-std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch, const SavedModel *saved)
+xpp::Loaded xpp::load_model(int argc, char **argv, int batch, const SavedModel *saved)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
@@ -306,30 +306,17 @@ std::optional<xpp::Diagnostic> xpp::load_model(int argc, char **argv, int batch,
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
         batch_options = batch_before;
-        return std::move(failed.diagnostic);
+        return std::unexpected(std::move(failed.diagnostic));
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     load.commit();
-    return std::nullopt;
-}
-
-int xpp_load_model(int argc, char **argv, int batch)
-{
-    return !xpp::load_model(argc, argv, batch);
+    return &load.session();
 }
 
 void xpp::model_failed(Diagnostic d)
 {
     if (!xpp::Load::running()) exit(1);
-    if (d.line > 0 && d.source.empty() && !d.file.empty()) {
-        xpp::LineReader lines = xpp::model_file_lines(d.file);
-        int n = 0;
-        while (std::optional<std::string_view> line = lines.next())
-            if (++n == d.line) {
-                d.source = *line;
-                break;
-            }
-    }
+    xpp::Load::add_source(d);
     throw xpp::LoadFailed{std::move(d)};
 }
 
@@ -338,11 +325,8 @@ void xpp_model_failed(void)
     xpp::model_failed(xpp::Load::running() ? xpp::Load::diagnostic() : xpp::Diagnostic());
 }
 
-void xpp_batch_start(void)
+void xpp_batch_start(xpp::Session &s)
 {
-    /* the model just loaded: the current Session, an entry point (-silent's
-       script and the unit tests call this after xpp_load_model) */
-    xpp::Session &s = xpp::session();
     xpp_build_colormap();
     init_browser(s);
     init_all_graph(s);

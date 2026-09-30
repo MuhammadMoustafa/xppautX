@@ -4,10 +4,6 @@
 extern "C" {
 #endif
 
-/* every derived quantity worked out again, in the current Session: an
-   entry point (W47d4-6) of the version below */
-void evaluate_derived(void);
-
 #ifdef __cplusplus
 }
 

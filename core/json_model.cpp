@@ -62,7 +62,7 @@ void init_main_graph(xpp::Session &s)
    animation */
 void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {
-    xpp_window_set_model(xpp::model_title().c_str());
+    xpp_window_set_model(xpp::model_title(s.model()).c_str());
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
     s.drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
@@ -77,7 +77,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     if (kept) xpp::restore_values(s, *kept);
     send_hello(s);
     if (s.animation.options.use_file) {
-        new_vcr();
+        new_vcr(s);
         get_ani_file(s,s.animation.options.file.c_str());
     }
 }

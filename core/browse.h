@@ -81,13 +81,11 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &table);
    column added by data_add_col (by name, case ignored, below), -1 for
    none */
 void find_variable(const xpp::Session &s, std::string_view name, int *col);
-/* the same in the current Session: an entry point (W47d4-6) */
-void find_variable(std::string_view name, int *col);
 
-/* column j's name as the browser shows it: "T", a model variable's
-   (xpp::model().uvar_names), or (j>xpp::model().neq) an added column's
+/* column j's name as s's browser shows it: "T", a model variable's
+   (Model::uvar_names), or (j>Model::neq) an added column's
    (BrowserState::added_columns below); "" past the last one */
-std::string browse_column_name(int j);
+std::string browse_column_name(const xpp::Session &s, int j);
 
 /* col_index's rows 0..nrows-1: formula compiled and evaluated fresh over
    them (add_expr's constants roll back to the Model's own end right
@@ -114,7 +112,7 @@ struct BrowserState {
   int replaced=0,replaced_col=0;
   std::vector<float> old_column;
   /* data_add_col's columns, in the order added, at data_store columns
-     xpp::model().neq+1, +2, ...: the Session's own data, not the
+     Model::neq+1, +2, ...: the Session's own data, not the
      Model's (docs/roadmap.md W77 -- the Model stays as the load left
      it). A fresh load clears this with the rest of the Session; a fresh
      run recomputes every one of them over its own rows

@@ -44,7 +44,7 @@ std::string script_ask; /* the open question (cut to SCRIPT_ASK_MAX), for script
    answer says ok (or has no ok member), 0 when cancelled. */
 int ask_wait(Buf *b, int id)
 {
-    xpp::Session &s = xpp::session(); /* an ask is an entry point: core code asks */
+    xpp::Session &s = client(); /* core code asks with no Session: the client's */
     BUF_LIT(b, "}");
     diag_flush(s, 1);
     auto_data_update(1);
@@ -351,9 +351,8 @@ int data_to_pixel(double v, double v0, double v1, int p0, int p1)
    ask in window win: pixels, or data coordinates xd,yd (xd2,yd2) converted
    with the window's current axes to the pixels that map back to them, so
    the command goes on exactly as for a click there (docs/protocol.md) */
-void answer_point(unsigned long win, int k, int *x, int *y)
+void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y)
 {
-    xpp::Session &s=xpp::session();
     static constexpr std::array<const char *, 2> px = {"x", "x2"}, py = {"y", "y2"}, dx = {"xd", "xd2"}, dy = {"yd", "yd2"};
     const char *jx = js_find(answer.c_str(), dx[k]), *jy = js_find(answer.c_str(), dy[k]);
     if (!jx || !jy) {
@@ -369,29 +368,29 @@ void answer_point(unsigned long win, int k, int *x, int *y)
     }
 }
 
-int mouse_ask(unsigned long win, const char *kind, int flag, std::span<int> v)
+int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v)
 {
     Buf b;
     int id = ask_begin(&b, kind);
     buf_format(&b, ",\"win\":{:d},\"flag\":{:d}", win, flag);
     if (!ask_wait(&b, id)) return 0;
-    for (size_t i = 0; i < v.size() / 2; i++) answer_point(win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
+    for (size_t i = 0; i < v.size() / 2; i++) answer_point(s, win, static_cast<int>(i), &v[2 * i], &v[2 * i + 1]);
     return 1;
 }
 
-int j_get_mouse_xy(int *x, int *y)
+int j_get_mouse_xy(xpp::Session &s, int *x, int *y)
 {
     std::array<int, 2> v;
-    if (!mouse_ask(xpp::session().plot_windows.draw_win, "mouse", 0, v)) return 0;
+    if (!mouse_ask(s, s.plot_windows.draw_win, "mouse", 0, v)) return 0;
     *x = v[0];
     *y = v[1];
     return 1;
 }
 
-int j_rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
+int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
     std::array<int, 4> v;
-    if (!mouse_ask(xpp::session().plot_windows.draw_win, "rubber", flag, v)) return 0;
+    if (!mouse_ask(s, s.plot_windows.draw_win, "rubber", flag, v)) return 0;
     *i1 = v[0]; *j1 = v[1]; *i2 = v[2]; *j2 = v[3];
     return 1;
 }
@@ -456,25 +455,25 @@ void j_copy_text(const char *what, const char *text)
 
 /* one pointer event of a drag in window win: 1 down, 2 move, 3 up; 0 when
    a key or Cancel ends the drag */
-int ask_drag(unsigned long win, int *x, int *y)
+int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)
 {
     Buf b;
     std::string what;
     int id = ask_begin(&b, "drag");
     buf_format(&b, ",\"win\":{:d}", win);
     if (!ask_wait(&b, id) || !get_string(answer.c_str(), "what", what, 8)) return 0;
-    answer_point(win, 0, x, y);
+    answer_point(s, win, 0, x, y);
     return what == "down" ? 1 : what == "move" ? 2 : what == "up" ? 3 : 0;
 }
 
-void j_q_calc(void)
+void j_q_calc(xpp::Session &s)
 {
     std::string expr;
     double z;
     std::string result = "Formula:";
     /* the X11 calculator shows the answer in its window: here in the prompt */
     while (new_string_of(result.c_str(), expr, XPP_FIELD_EXPRESSION)) {
-        if (do_calc(expr.c_str(), &z) != -1) {
+        if (do_calc(s, expr.c_str(), &z) != -1) {
             result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
             send_simple("message", "calc", result.c_str());
         }
@@ -502,7 +501,7 @@ int j_check_abort(void)
             defer_line(line, take == XPP_INBOX_REFUSE);
             continue;
         }
-        int r = control_line(xpp::session(), line);
+        int r = control_line(client(), line);
         if (r != 64 && r != ANI_PAUSE) return r;
     }
     return 64;

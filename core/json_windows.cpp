@@ -56,9 +56,8 @@ void windows_init(void)
 /* the main plot window, for hello */
 void send_main_window(const char *title) { send_window("create", 1, win_w[0], win_h[0], title); }
 
-void j_get_draw_size(unsigned int *w, unsigned int *h)
+void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
-    const xpp::Session &s = xpp::session();
     int i = graph_of(s, s.plot_windows.draw_win);
     *w = win_w[i];
     *h = win_h[i];
@@ -81,11 +80,10 @@ void blank_draw_window(const xpp::Session &s)
 
 } // namespace
 
-void j_blank_draw_window(void) { blank_draw_window(xpp::session()); }
+void j_blank_draw_window(xpp::Session &s) { blank_draw_window(s); }
 
-void j_redraw_all(void)
+void j_redraw_all(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     redraw_dfield(s);
     restore(s, 0, s.browser.view.maxrow);
     draw_label(s, s.plot_windows.draw_win);
@@ -104,19 +102,17 @@ void redraw_graph(xpp::Session &s)
     if (s.plot_windows.current->Nullrestore) restore_nullclines(s);
 }
 
-void j_redraw_graph(void) { redraw_graph(xpp::session()); }
+void j_redraw_graph(xpp::Session &s) { redraw_graph(s); }
 
-void j_redraw_screens(void) { for_each_shown_window(xpp::session(), 1, j_redraw_all); }
+void j_redraw_screens(xpp::Session &s) { for_each_shown_window(s, 1, [&s] { j_redraw_all(s); }); }
 
-void j_clear_screens(void)
+void j_clear_screens(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     for_each_shown_window(s, 1, [&s] { clr_scrn(s); });
 }
 
-void j_reset_graphics(void)
+void j_reset_graphics(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     blank_draw_window(s);
     do_axes(s);
 }
@@ -140,16 +136,14 @@ void select_graph(xpp::Session &s, int i)
     send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i], NULL);
 }
 
-void j_activate_graph(int i, int flag)
+void j_activate_graph(xpp::Session &s, int i, int flag)
 {
-    xpp::Session &s = xpp::session();
     s.plot_windows.draw_win = s.plot_windows.graph[i].w;
     get_draw_area_flag(s,flag);
 }
 
-void j_create_plot_window(void)
+void j_create_plot_window(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i;
     for (i = 1; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use == 0) break;
@@ -178,9 +172,8 @@ void destroy_graph(xpp::Session &s, int i)
 
 } // namespace
 
-void j_destroy_plot_window(void)
+void j_destroy_plot_window(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i;
     if (s.plot_windows.draw_win == s.plot_windows.graph[0].w) {
         j_respond_box("Okay", "Can't destroy big window!");
@@ -192,9 +185,8 @@ void j_destroy_plot_window(void)
     destroy_graph(s, i);
 }
 
-void j_kill_plot_windows(void)
+void j_kill_plot_windows(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i;
     select_graph(s, 0);
     for (i = 1; i < MAXPOP; i++)
@@ -202,27 +194,25 @@ void j_kill_plot_windows(void)
     s.plot_windows.count = 1;
 }
 
-void j_cput_text(void)
+void j_cput_text(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session(); /* an XppUi callback: an entry point (W47d6) */
     std::string string;
     int x, y, size = 2;
     if (new_string("Text: ", string) == 0) return;
-    if (string[0] == '%') string = fill_in_text(std::string_view(string).substr(1));
+    if (string[0] == '%') string = fill_in_text(s, std::string_view(string).substr(1));
     new_int("Size 0-4 :", &size);
     if (size > 4) size = 4;
     if (size < 0) size = 0;
     j_message_box("Place text with mouse");
-    if (j_get_mouse_xy(&x, &y)) {
-        const std::string text = fill_in_text(string);
+    if (j_get_mouse_xy(s, &x, &y)) {
+        const std::string text = fill_in_text(s, string);
         marks_data_label(s.plot_windows, s.plot_windows.draw_win, add_label(s, string.c_str(), x, y, size, 0), text.c_str());
     }
     j_kill_message_box();
 }
 
-void j_draw_freeze(void)
+void j_draw_freeze(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     draw_freeze(s, s.plot_windows.draw_win);
 }
 
@@ -253,14 +243,13 @@ void display_command(xpp::Session &s, const char *line)
 }
 
 /* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */
-void j_scroll_window(void)
+void j_scroll_window(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     int i, j, t, state = 0;
     float x, y, x0 = 0, y0 = 0, dx = 0, dy = 0;
     float xlo = s.plot_windows.current->xlo, ylo = s.plot_windows.current->ylo, xhi = s.plot_windows.current->xhi, yhi = s.plot_windows.current->yhi;
     send_simple("message", "box", "Drag the plot to scroll it; any key ends");
-    while ((t = ask_drag(s.plot_windows.draw_win, &i, &j)) != 0) {
+    while ((t = ask_drag(s, s.plot_windows.draw_win, &i, &j)) != 0) {
         if (t == 1 && state == 0) {
             scale_to_real(s,i, j, &x0, &y0);
             state = 1;
@@ -374,18 +363,16 @@ void send_film(const xpp::Session &s, const char *what)
 
 } // namespace
 
-int j_film_clip(void)
+int j_film_clip(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     if (s.kinescope.frames >= MAXFILM) return 0;
     s.kinescope.frames++;
     send_film(s, "capture");
     return 1;
 }
 
-void j_reset_film(void)
+void j_reset_film(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     s.kinescope.frames = 0;
     send_film(s, "reset");
 }
@@ -394,22 +381,21 @@ namespace {
 
 /* Playback (play) and Autoplay (autoplay) of the frames the client holds,
    when there are any */
-void play_film(const char *how)
+void play_film(const xpp::Session &s, const char *how)
 {
-    const xpp::Session &s = xpp::session();
     if (s.kinescope.frames) send_film(s, how);
 }
 
 } // namespace
 
-void j_movie_play_back(void) { play_film("play"); }
+void j_movie_play_back(xpp::Session &s) { play_film(s, "play"); }
 
-void j_movie_auto_play(void) { play_film("autoplay"); }
+void j_movie_auto_play(xpp::Session &s) { play_film(s, "autoplay"); }
 
-void j_movie_save(const char *basename, int fmat)
+void j_movie_save(xpp::Session &s, const char *basename, int fmat)
 {
     int w, h;
-    for (int i = 0; i < xpp::session().kinescope.frames; i++) {
+    for (int i = 0; i < s.kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
         std::string file = xpp::format("{}_{}.{}", basename, i,
@@ -419,9 +405,9 @@ void j_movie_save(const char *basename, int fmat)
     }
 }
 
-void j_movie_make_anigif(void)
+void j_movie_make_anigif(xpp::Session &s)
 {
-    const XppKinescope &k = xpp::session().kinescope;
+    const XppKinescope &k = s.kinescope;
     int w, h, w0 = 0, h0 = 0;
     if (k.frames == 0) return;
     xpp::Writer out = xpp::Writer::binary(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str());
@@ -541,9 +527,9 @@ void aplot_update(xpp::Session &s)
     aplot_dirty = 0;
 }
 
-void j_aplot_make(const char *name)
+void j_aplot_make(xpp::Session &s, const char *name)
 {
-    APLOT &ap = xpp::session().array_plot.plot;
+    APLOT &ap = s.array_plot.plot;
     if (ap.alive) return;
     ap.alive = 1;
     ap.plotw = ap.width - 30 - 10 * text_metrics.small_width;
@@ -551,7 +537,7 @@ void j_aplot_make(const char *name)
     send_window("create", WIN_APLOT, ap.plotw, ap.ploth, name);
 }
 
-void j_aplot_redraw(void) { send_aplot(xpp::session(), NULL); }
+void j_aplot_redraw(xpp::Session &s) { send_aplot(s, NULL); }
 
 namespace {
 
@@ -588,9 +574,8 @@ void aplot_gif(ArrayPlotState &a, const char *file, int still)
 
 } // namespace
 
-void j_aplot_draw_one(const char *tag)
+void j_aplot_draw_one(xpp::Session &s, const char *tag)
 {
-    xpp::Session &s = xpp::session();
     send_aplot(s, s.array_plot.tag ? tag : NULL);
     aplot_gif(s.array_plot, xpp::format("{}.{}.{}", s.array_plot.range_stem, s.array_plot.range_count,
                           xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(), s.array_plot.still);

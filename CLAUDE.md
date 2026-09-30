@@ -96,7 +96,7 @@ differing line. They guard the conversion of the output code's fprintf
 calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
-scripts' executable bit, stdoutcheck, formatcheck, literalcheck, the LTO
+scripts' executable bit, stdoutcheck, formatcheck, literalcheck, sessioncheck, the LTO
 type check, the dead-code checks, the global state check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every
@@ -355,6 +355,11 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   field, a headless default, a dispatcher, and a `j_` function in the
   `core/json_*.cpp` file of its responsibility (declared in
   `core/ui_json_internal.h`) with its entry in ui_json.cpp's `make_json_ui`.
+  A call that acts on a Session's windows or data takes the caller's
+  `xpp::Session &` as its first parameter, field and dispatcher alike
+  (W47d6: `redraw_the_graph(s)`, `new_float(s, ...)`); the front end's own
+  operations core code reaches with no Session (an ask, a checkpoint)
+  take its client's, `xpp::json::client()`.
 - State is grouped into structs, each defined by the module that owns it
   (W7c). What a run changes is a member of `xpp::Session`
   (core/session.h, W47c): `data_store` (storage.h, W32d: the stored
@@ -367,9 +372,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `diagram_first`/`_next`/`_prev`), the browser, the kinescope, the
   numerics and plot settings, the parser's working state, `sliders` and
   `not_already_set`, the tables, the boundary conditions in use, and the
-  drawing, label, array plot and animator state; reach them through
-  `xpp::session()` (a function that uses the Session often takes
-  `xpp::Session &s` once). What stays process-wide is a global of its
+  drawing, label, array plot and animator state; a function takes the
+  `xpp::Session &s` (or the part it uses) from its caller, never a
+  current one ("No global state" below). What stays process-wide is a global of its
   owner: `program` (xpp_globals.h: interactive, version, tutorial),
   `batch_options` (xpp_batch.h), `log_settings` (xpp_log.h),
   `color_table` (colormap.h), `text_metrics` (xpp_ui.h), the command-line
@@ -386,7 +391,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
-- `core/xpp_batch.cpp` holds `xpp_load_model()`, the start every mode
+- `core/xpp_batch.cpp` holds `xpp::load_model()`, the start every mode
   shares, and `xpp_batch_start()`, the set-up with no interface (-silent,
   a unit test); what -silent runs is `core/json_silent.cpp`'s built-in
   script, played through the JSON front end (W56).
@@ -728,7 +733,7 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   (std::bad_alloc included) or uses only non-throwing code, and C
   callbacks called from C++ are assumed not to throw. The core itself is
   all C++, so an exception may pass through its `extern "C"` functions:
-  `xpp::LoadFailed` does, from the parser to xpp_load_model (W47c).
+  `xpp::LoadFailed` does, from the parser to xpp::load_model (W47c).
 - Use C++ where it clarifies: RAII (std::vector, std::string,
   std::unique_ptr) for allocations the task touches, std::atomic,
   std::chrono, anonymous namespaces for file-local state. No behaviour
@@ -758,18 +763,28 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   what a load produces belongs to `xpp::Model` (core/model.h, from W46c),
   what a run changes to `xpp::Session`, passed as `Model&`/`Session&`
   (W47a-d in docs/roadmap.md took the ~500 globals there in stages; 21
-  process-wide ones are left). Until W47d6, `xpp::model()` and
-  `xpp::session()` (inline: the right-hand side reads them every step;
-  a hot loop takes `xpp::Model &m=xpp::model()` once) are the current
-  ones. Since W47d1 a command's Session is chosen once, by ui_json.cpp's
-  handle_line, and passed down (`run(Session&, line)`, `commander`,
-  `run_the_commands`); a Session knows its Model (`s.model()`). New code
-  takes `Session&`/`Model&` from its caller; only the entry points the
-  W47d stages have not reached yet (docs/roadmap.md W47d2-6) read the
-  current ones, once, at their top. A load (`xpp::Load` in xpp_load_model, core/session.h) builds a
+  process-wide ones are left). There is no current Model or Session to
+  read (W47d6 retired `xpp::model()` and `xpp::session()`): a function
+  takes `Session&` (or `const Model&`, or the part it uses) from its
+  caller, and a Session knows its Model (`s.model()`). The one global
+  that holds Sessions is the session list (`xpp::client_session()`,
+  core/session.h: one Session per client, and the process serves one),
+  read only where a Session is chosen and passed down from there: a
+  protocol command (ui_json.cpp's handle_line, `run(Session&, line)`,
+  `commander`, `run_the_commands`), the program's start and exit
+  (xppautx_main.cpp), and the JSON front end's own asks and checkpoints,
+  which core code reaches through the XppUi seam with no Session
+  (`xpp::json::client()`, ui_json_internal.h). A load gives the Session
+  it made (`xpp::load_model` returns it, `xpp::Loaded`); the program's
+  start, -silent, --convert and File > Open model take it from there.
+  `tools/sessioncheck.sh` (sourcecheck) fails a read of the list or of
+  client() outside those owners, and any `xpp::session()`/`xpp::model()`.
+  A hot loop gets the Session once where the run starts (the solvers
+  through their Solver or IntegratorState, AUTO's routines through
+  `iap->lib`). A load (`xpp::Load` in xpp::load_model, core/session.h) builds a
   fresh Model and Session and keeps them only when it finishes: a parse
   error's `xpp_model_failed` throws `xpp::LoadFailed`, and the Model and
-  Session before are current again, untouched (W47c). A value nothing writes after initialization is
+  Session before are the client's again, untouched (W47c). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
   `tools/globalcheck.sh` (sourcecheck) fails a file whose external
   mutable data symbols grow past `tests/globals.baseline`.

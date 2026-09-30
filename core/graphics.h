@@ -13,8 +13,11 @@ int clip3d(float x1, float y1, float z1, float x2, float y2, float z2, float *x1
 
 #include <string>
 #include <string_view>
-/* text with each \{expr} replaced by the expression's value */
-std::string fill_in_text(std::string_view old);
+namespace xpp {
+struct Session; /* session.h */
+}
+/* text with each \{expr} replaced by the expression's value in s */
+std::string fill_in_text(xpp::Session &s, std::string_view old);
 
 /* the drawing state (graphics.cpp, axes2.cpp), a Session's (session.h):
    the drawing area in device units, its tick and character sizes, its

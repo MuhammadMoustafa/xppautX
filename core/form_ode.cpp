@@ -263,7 +263,7 @@ int read_eqn(xpp::Session &s)
 {
   std::string wild="*.ode",string;
   get_a_filename(string,wild);
-  xpp::UniqueFile fptr=xpp::open_model_file(string);
+  xpp::UniqueFile fptr=xpp::open_model_file(s.model(),string);
   if(!fptr)
    {
     xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);

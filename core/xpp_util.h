@@ -12,16 +12,8 @@ extern "C" {
 /* xpp_util.c: pure helpers relocated out of X11 files */
 
 void de_space(char *s);
-int do_calc(const char *temp, double *z);
-int to_float(const char *s, double *z);
 
-int find_par_or_var(const char *name, int *type, int *index);
 const char *eq_stability(int cp, int rp, int im);
-
-
-/* atexit hook: removes the Session's AUTO scratch folder (auto_state.h) if it is set, and
-   clears it. Registered by xppautx_main.c, not the X11 front end. */
-void xpp_cleanup_auto_dir(void);
 
 #ifdef __cplusplus
 }
@@ -30,15 +22,23 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
+/* at exit (xppautx_main.cpp's atexit hook): removes s's AUTO scratch
+   folder (auto_state.h) if it is set, and clears it */
+void xpp_cleanup_auto_dir(xpp::Session &s);
 void man_ic(xpp::Session &s);
 void redo_stuff(xpp::Session &s);
 /* the value of the formula expr in the Session s (*ok 0, said why, when it
    does not compile) */
 double calculate(xpp::Session &s, const char *expr, int *ok);
 /* temp ("name:formula" sets name, or a formula) worked out in the Session
-   s into *z; do_calc above is this in the current Session, an entry
-   point (W47d6) */
+   s into *z */
 int do_calc(xpp::Session &s, const char *temp, double *z);
+/* text, a number or %formula (worked out in s), into *z: -1 when the
+   formula does not compile */
+int to_float(xpp::Session &s, const char *text, double *z);
+/* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
+   m, *index its index; 0 if neither */
+int find_par_or_var(const xpp::Model &m, const char *name, int *type, int *index);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the
@@ -96,15 +96,13 @@ int has_eq(std::string_view z, std::string &name, int *where);
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
    browser column data_add_col added; browse_column_name (browse.h) owns
    the naming, this is just its name for a plotted column */
-std::string ind_to_sym(int ind);
+std::string ind_to_sym(const xpp::Session &s, int ind);
 
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */
 #define PARAMBOX 1
 #define ICBOX 2
 int find_user_name(const xpp::Model &m, int type, std::string_view oname);
-/* the same in the current Model: an entry point (W47d4-6) */
-int find_user_name(int type, std::string_view oname);
 
 /* f() on the active plot window of s, or under Simulplot on each open one
    in turn (made active with make_active(s, i, flag)), the active one made

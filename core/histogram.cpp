@@ -1,5 +1,6 @@
 #include "histogram.h"
 #include "session.h"
+#include "getvar.h"
 #include "model.h"
 #include "storage.h"
 
@@ -180,8 +181,8 @@ int new_2d_hist(xpp::Session &s)
   }
   if(get_col_info(s,&s.histogram.info.col,"Variable 1 ")==0)return(-1);  
   new_int("Number of bins ",&s.histogram.info.nbins);
-  new_float("Low ",&s.histogram.info.xlo);
-  new_float("Hi ",&s.histogram.info.xhi);
+  new_float(s,"Low ",&s.histogram.info.xlo);
+  new_float(s,"Hi ",&s.histogram.info.xhi);
   if(s.histogram.info.nbins<2){
     err_msg("At least 2 bins\n");
     return(0);
@@ -193,8 +194,8 @@ int new_2d_hist(xpp::Session &s)
   
   if(get_col_info(s,&s.histogram.info.col2,"Variable 2 ")==0)return(-1);  
   new_int("Number of bins ",&s.histogram.info.nbins2);
-  new_float("Low ",&s.histogram.info.ylo);
-  new_float("Hi ",&s.histogram.info.yhi);
+  new_float(s,"Low ",&s.histogram.info.ylo);
+  new_float(s,"Hi ",&s.histogram.info.yhi);
 
 if(s.histogram.info.nbins2<2){
     err_msg("At least 2 bins\n");
@@ -236,7 +237,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     if(strlen(condition)==0)cond=0;
     else
       {
-	if(add_expr(condition,command,&i)){
+	if(add_expr(s,condition,command,&i)){
 	  condition_error=xpp::fail("histogram","Bad condition. Ignoring...");
 	}
 	else {
@@ -247,10 +248,10 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
       {
 	flag=1;
 	if(cond){
-	  for(j=0;j<s.model().node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
+	  for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
 	  for(j=0;j<s.model().nmarkov;j++)
-	    set_ivar(j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
-	  z=evaluate(command);
+	    setvar(s,j+s.model().node+1+s.model().fix_var,static_cast<double>(s.data_store.col[j+s.model().node+1][i]));
+	  z=evaluate(s,command);
 	  if(fabs(z)>0.0)flag=1;
 	  else flag=0;
 	}
@@ -321,7 +322,7 @@ int get_col_info(const xpp::Session &s, int *col, const char *prompt)
 {
  std::string variable=*col==0?"t":s.model().uvar_names[*col-1];
  new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
- find_variable(variable.c_str(),col);
+ find_variable(s,variable.c_str(),col);
  if(*col<0){
    err_msg("No such variable...");
    return(0);
@@ -588,8 +589,8 @@ void compute_correl(xpp::Session &s)
 void compute_stacor(xpp::Session &s)
 {
   new_int("Number of bins ",&s.histogram.info.nbins);
-  new_float("Low ",&s.histogram.info.xlo);
-  new_float("Hi ",&s.histogram.info.xhi);
+  new_float(s,"Low ",&s.histogram.info.xlo);
+  new_float(s,"Hi ",&s.histogram.info.xhi);
   if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
    xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,
 	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),1));
@@ -629,8 +630,8 @@ void compute_hist(xpp::Session &s)
 {
   
   new_int("Number of bins ",&s.histogram.info.nbins);
-  new_float("Low ",&s.histogram.info.xlo);
-  new_float("Hi ",&s.histogram.info.xhi);
+  new_float(s,"Low ",&s.histogram.info.xlo);
+  new_float(s,"Hi ",&s.histogram.info.xhi);
   if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
   new_string_of("Condition ",s.histogram.info.cond,XPP_FIELD_EXPRESSION);
   xpp::ok_or_show(new_hist(s,s.histogram.info.nbins,s.histogram.info.xlo,

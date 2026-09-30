@@ -198,7 +198,7 @@ void start(xpp::Session &s)
 /* name.recx (asked for when name is empty, as the other File saves are),
    and the recording ends; a cancelled question keeps it going.
    from_menu: File/recorD, whose opening of the File menu is no step. */
-void stop(const std::string &name, bool from_menu)
+void stop(const xpp::Session &s, const std::string &name, bool from_menu)
 {
     if (!recorder.rec) {
         j_err_msg("Not recording");
@@ -212,7 +212,7 @@ void stop(const std::string &name, bool from_menu)
     }
     std::string file = name;
     if (file.empty()) {
-        file = xpp_session_file_name(recx::extension);
+        file = xpp_session_file_name(s.model(),recx::extension);
         ping();
         if (!file_selector("Save recording", file, "*.recx") || file.empty()) return;
     }
@@ -240,7 +240,7 @@ void record_command(xpp::Session &s, const char *line)
         start(s);
     } else if (o == "stop") {
         get_string(line, "name", text);
-        stop(text, false);
+        stop(s, text, false);
     } else if (o == "note") {
         if (!recorder.rec) {
             j_err_msg("Not recording: a note goes with a recording's next step");
@@ -253,10 +253,10 @@ void record_command(xpp::Session &s, const char *line)
     }
 }
 
-void j_record_toggle(void)
+void j_record_toggle(xpp::Session &s)
 {
-    if (recorder.rec) stop("", true);
-    else start(xpp::session()); /* an XppUi callback: an entry point */
+    if (recorder.rec) stop(s, "", true);
+    else start(s);
 }
 
 void record_begin(const char *line)

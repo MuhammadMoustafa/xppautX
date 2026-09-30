@@ -11,8 +11,12 @@ struct XppKinescope {
     int frame_ms = 50;  /* milliseconds between frames */
 };
 
-/* the Kinescope menu's item c on the kinescope k (commands.cpp) */
-void do_movie_com(XppKinescope &k, int c);
+namespace xpp {
+struct Session; /* session.h */
+}
+
+/* the Kinescope menu's item c on s's kinescope (commands.cpp) */
+void do_movie_com(xpp::Session &s, int c);
 #endif
 #endif
 

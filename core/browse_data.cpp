@@ -11,6 +11,7 @@
 #include <vector>
 #include "model.h"
 #include "session.h"
+#include "getvar.h"
 #include "xpp_util.h"
 #include "storage.h"
 #include "form_ode.h"
@@ -52,9 +53,8 @@ void waitasec(int msec)
   std::this_thread::sleep_for(std::chrono::milliseconds(msec));
 }
 
-std::string browse_column_name(int j)
+std::string browse_column_name(const xpp::Session &s, int j)
 {
-  xpp::Session &s=xpp::session(); /* an entry point (W47d) */
   if(j==0)return "T";
   const xpp::Model &m=s.model();
   if(j>0&&j<=m.neq)return m.uvar_names[j-1];
@@ -69,11 +69,11 @@ std::string browse_column_name(int j)
 namespace {
 
 /* the rows First..Last of b's columns cols */
-xpp::DataTable browser_table(const BROWSER &b, std::span<const int> cols)
+xpp::DataTable browser_table(const xpp::Session &s, const BROWSER &b, std::span<const int> cols)
 {
   xpp::DataTable t;
   for(int j : cols){
-    t.names.push_back(browse_column_name(j));
+    t.names.push_back(browse_column_name(s,j));
     const float *c=b.data[j];
     if(b.iend>b.istart)t.columns.emplace_back(c+b.istart,c+b.iend);
     else t.columns.emplace_back();
@@ -104,7 +104,7 @@ std::vector<int> output_columns(const BROWSER &b)
 void write_mybrowser_data(xpp::Session &s, xpp::Writer &w)
 {
   const BROWSER &b=s.browser.view;
-  xpp::data_format_named("dat")->write(browser_table(b,output_columns(b)),w);
+  xpp::data_format_named("dat")->write(browser_table(s,b,output_columns(b)),w);
 }
 
 xpp::DataTable stored_data_table(const xpp::Session &s)
@@ -112,7 +112,7 @@ xpp::DataTable stored_data_table(const xpp::Session &s)
   const int ncol=s.model().neq+1;
   xpp::DataTable t;
   for(int j=0;j<ncol;j++){
-    t.names.push_back(browse_column_name(j));
+    t.names.push_back(browse_column_name(s,j));
     const float *c=s.data_store.col[j];
     t.columns.emplace_back(c,c+s.data_store.rows);
   }
@@ -133,18 +133,13 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
   }
   for(std::size_t k=0;k<t.columns.size();k++){
     int col;
-    find_variable(xpp::data_column_name(t,k),&col);
+    find_variable(s,xpp::data_column_name(t,k),&col);
     if(col<0||col>neq||t.columns[k].size()<static_cast<std::size_t>(rows))continue;
     std::copy(t.columns[k].begin(),t.columns[k].begin()+rows,s.data_store.col[col]);
   }
   s.data_store.rows=rows;
   refresh_browser(s,rows);
   return rows;
-}
-
-void find_variable(std::string_view name, int *col)
-{
-  find_variable(xpp::session(),name,col);
 }
 
 void find_variable(const xpp::Session &s, std::string_view name, int *col)
@@ -250,18 +245,18 @@ void  wipe_rep(BrowserState &b)
 void data_get(xpp::Session &s, BROWSER *b)
 {
  int i,in=b->row0;
- set_ivar(0,static_cast<double>(s.data_store.col[0][in]));
+ setvar(s,0,static_cast<double>(s.data_store.col[0][in]));
  for(i=0;i<s.model().node;i++)
  {
   s.last_ic[i]=static_cast<double>(s.data_store.col[i+1][in]);
-  set_ivar(i+1,s.last_ic[i]);
+  setvar(s,i+1,s.last_ic[i]);
  } 
  for(i=0;i<s.model().nmarkov;i++){
    s.last_ic[i+s.model().node]=static_cast<double>(s.data_store.col[i+s.model().node+1][in]);
-   set_ivar(i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
+   setvar(s,i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
  }
  for(i=s.model().node+s.model().nmarkov;i<s.model().neq;i++)
-   set_val(s.model().uvar_names[i],s.data_store.col[i+1][in]);
+   set_val(s,s.model().uvar_names[i],s.data_store.col[i+1][in]);
 
  redraw_ics();
 }
@@ -315,14 +310,14 @@ bool compute_added_column(xpp::Session &s, const std::string &formula, int col_i
 {
   int com[4000],i,j;
   const xpp::Model &m=s.model();
-  if(add_expr(formula.c_str(),com,&i)){
+  if(add_expr(s,formula.c_str(),com,&i)){
     err_msg("Bad Formula .... ");
     return false;
   }
   for(i=0;i<nrows;i++){
-    for(j=0;j<m.node+1;j++)set_ivar(j,static_cast<double>(s.data_store.col[j][i]));
-    for(j=m.node;j<m.neq;j++)set_val(m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
-    s.data_store.col[col_index][i]=static_cast<float>(evaluate(com));
+    for(j=0;j<m.node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
+    for(j=m.node;j<m.neq;j++)set_val(s,m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
+    s.data_store.col[col_index][i]=static_cast<float>(evaluate(s,com));
   }
   /* add_expr may have added constants to the parser's working symbol
      table (ParserState::ncon/nsym, session.h): roll it back to the
@@ -391,7 +386,7 @@ while(i<static_cast<int>(strlen(form))){
  if(form[i]=='&'){ intflag=1; form[i]=' ';}
  if(form[i]=='@'){
    form[i]=' ';
-   find_variable(form,&dif_var);
+   find_variable(s,form,&dif_var);
    if(dif_var<0){
      err_msg("No such variable");
      return;
@@ -417,7 +412,7 @@ if(dif_var<0)
 /*  first compile formula ... */
 
  if(dif_var<0&&seq==0){
-   if(add_expr(form,com,&i)){
+   if(add_expr(s,form,com,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
      err_msg("Illegal formula...");
@@ -426,7 +421,7 @@ if(dif_var<0)
  }
 /* next check to see if column is known ... */
 
- find_variable(var,&i);
+ find_variable(s,var,&i);
  if(i<0){
    err_msg("No such column...");
    s.parser.ncon=s.model().ncon_start;
@@ -447,15 +442,15 @@ if(dif_var<0)
      {
        if(seq==0)
 	 {
-	   for(j=0;j<s.model().node+1;j++)set_ivar(j,static_cast<double>(dat[j][i]));
-	   for(j=s.model().node;j<s.model().neq;j++)set_val(s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(dat[j][i]));
+	   for(j=s.model().node;j<s.model().neq;j++)set_val(s,s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
-	       sum+=static_cast<float>(evaluate(com));
+	       sum+=static_cast<float>(evaluate(s,com));
 	       dat[s.browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.browser.replaced_col][i]=static_cast<float>(evaluate(com));
+	     dat[s.browser.replaced_col][i]=static_cast<float>(evaluate(s,com));
 	 }
        else 
 	 {
@@ -554,7 +549,7 @@ void data_table(const xpp::Session &s, BROWSER *b)
  if(status==0)return;
  xlo=atof(value[1].c_str());
  xhi=atof(value[2].c_str());
- find_variable(value[0].c_str(),&col);
+ find_variable(s,value[0].c_str(),&col);
   if(col>=0)
    make_d_table(xlo,xhi,col,value[3].c_str(),*b);
 }
@@ -576,7 +571,7 @@ void data_find(const xpp::Session &s, BROWSER *b)
 
  if(status==0)return;
  val=atof(value[1].c_str());
- find_variable(value[0].c_str(),&col);
+ find_variable(s,value[0].c_str(),&col);
  if(col>=0)find_value(col,val,&row,*b);
  if(row>=0){
 	    b->row0=row;
@@ -660,7 +655,7 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
  }
- xpp::DataTable t=plot?plot_curves_table(s):browser_table(*b,what=="output"?output_columns(*b):all_columns(*b));
+ xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(*b):all_columns(*b));
  t.seed=s.numerics.last_seed;
  xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;

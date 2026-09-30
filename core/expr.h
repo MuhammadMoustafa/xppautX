@@ -30,23 +30,13 @@ extern "C" {
 
 /* a 2-D table (not supported): 1 */
 int add_2d_table(const char *name, const char *file);
-/* variable i's value (0 past the model's variables) in the current
-   Session: entry points (W47d5-6) of getvar.h's setvar/getvar */
-void set_ivar(int i, double value);
-double get_ivar(int i);
 /* name without blanks, in upper case, into dest (never longer than name) */
 void convert(const char *source, char *dest);
 
-/* add_expr below in the current Session: an entry point (W47d4-6) */
-int add_expr(const char *expr, int *command, int *length);
 /* the number at source[*ind] (the parser's grammar): its text into num
    (at most 39 characters and a NUL), its value into *value, *ind past
    it; 1 (with a WARN when report is set) when it is not a number */
 int do_num(const char *source, char *num, double *value, int *ind, int report);
-
-/* program's value (expr_eval.cpp) in the current Session: an entry point
-   (W47d5-6) of the Session version below */
-double evaluate(const int *program);
 
 #ifdef __cplusplus
 }
@@ -63,9 +53,7 @@ struct Session; /* session.h */
 
 /* The symbol table and the compiler are the Session s's (its ParserState
    and its Model's names and programs): a load passes the Session it
-   builds (W47d3). The versions without s further down read the current
-   Session once, entry points for the callers that have none yet
-   (W47d4-6). */
+   builds (W47d3), a command or a run the one it runs in. */
 
 /* starts a load: the symbol table back to the built-ins, no parameters,
    variables, user functions or kernels, and the random generator seeded */
@@ -109,9 +97,6 @@ int get_param_index(const xpp::Session &s, std::string_view name);
 int get_val(const xpp::Session &s, std::string_view name, double *value);
 int set_val(xpp::Session &s, std::string_view name, double value);
 int add_var(xpp::Session &s, std::string_view name, double value);
-/* the same in the current Session: entry points (W47d6) */
-int get_val(std::string_view name, double *value);
-int set_val(std::string_view name, double value);
 
 /* a name the symbol table knows: its length, what it compiles to (com,
    an instruction of expr_program.h), its number of arguments and its

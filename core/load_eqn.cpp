@@ -62,7 +62,7 @@ namespace {
 std::vector<std::string> interopt;
 
 /* how many of the model's options set_internopts has applied: each call
-   applies those the parser added since the call before (xpp_load_model's,
+   applies those the parser added since the call before (xpp::load_model's,
    after the parse, applies them all; set_all_vals' own finds none new) */
 std::size_t options_applied=0;
 
@@ -166,7 +166,7 @@ void load_eqn(xpp::Session &s)
  if(s.got_file==1&&std==0)
  {
    std::string bytes;
-   const bool read=xpp::read_model_file(this_file,bytes);
+   const bool read=xpp::read_model_file(s.model(),this_file,bytes);
    if(read&&!xpp::is_model_text(bytes))
    {
      xpp::log(XPP_LOG_ERROR, "{} is not a model: {}\n",this_file,
@@ -187,7 +187,7 @@ void load_eqn(xpp::Session &s)
  }
  if(s.got_file==1)
  {
-   xpp::UniqueFile fptr=std==1?xpp::open_read(this_file.c_str()):xpp::open_model_file(this_file);
+   xpp::UniqueFile fptr=std==1?xpp::open_read(this_file.c_str()):xpp::open_model_file(s.model(),this_file);
    if(fptr)
    {
      if(std==1)this_file="console";
@@ -287,7 +287,7 @@ void set_all_vals(xpp::Session &s)
  /* internal options go here  */
  set_internopts(s,NULL);
 
- if(xpp::UniqueFile fp=xpp::open_model_file(s.model().options_file))
+ if(xpp::UniqueFile fp=xpp::open_model_file(s.model(),s.model().options_file))
   read_defaults(s,fp.get());
 
  init_range(s);

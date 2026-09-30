@@ -223,7 +223,7 @@ static const char *const key="nmaohpr";
    h_back(s);
    break;
  case 'p':
-   adjoint_parameters();
+   adjoint_parameters(s);
    break;
  case 'r':
    s.integrator.adj_range=1;
@@ -232,10 +232,10 @@ static const char *const key="nmaohpr";
  }
 }
 
-void adjoint_parameters()
+void adjoint_parameters(xpp::Session &s)
 {
   new_int("Maximum iterates :",&ADJ_MAXIT);
-  new_float("Adjoint error tolerance :",&ADJ_ERR);
+  new_float(s,"Adjoint error tolerance :",&ADJ_ERR);
 }
 
 void new_h_fun(xpp::Session &s, int silent)

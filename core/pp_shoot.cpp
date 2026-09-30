@@ -150,7 +150,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
  s.data_store.rows=0;
  icol=0;
  if(shoot_range.movie==1)
-   reset_film();
+   reset_film(s);
  for(i=0;i<=npar;i++)
    {
      temp=parlo+dpar*static_cast<double>(i);
@@ -176,7 +176,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      set_cycle(s,cycle,&icol);
      get_ic(s,0,ystart);
      if(const xpp::Result<> r=last_shot(s,0);!r)xpp::show_error(r.error());
-     if(shoot_range.movie==1)xpp_ui.film_clip();
+     if(shoot_range.movie==1)xpp_ui.film_clip(s);
      ping();
    }
   refresh_browser(s,s.data_store.rows);
@@ -276,7 +276,7 @@ void find_bvp_com(xpp::Session &s, int com)
  get_ic(s,0,ystart);  
  redraw_ics();
  if(ishow){
-   reset_graphics();
+   reset_graphics(s);
  }
  const xpp::Result<> last=last_shot(s,1);
  s.numerics.inflag=1;

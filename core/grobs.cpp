@@ -158,7 +158,7 @@ void draw_label(xpp::Session &s, XppWinId w)
         if (s.labels[i].use == 1 && s.labels[i].w == w) {
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
-            const std::string text = fill_in_text(s.labels[i].s);
+            const std::string text = fill_in_text(s, s.labels[i].s);
             marks_data_label(s.plot_windows,w, i, text.c_str());
             fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
         }
@@ -254,13 +254,13 @@ void add_marker(xpp::Session &s)
     float xs, ys;
     if (get_marker_info() == 0) return;
     MessageBox("Position");
-    const int flag = GetMouseXY(&i1, &j1);
+    const int flag = GetMouseXY(s,&i1, &j1);
     KillMessageBox();
     FlushDisplay();
     if (flag == 0) return;
     scale_to_real(s,i1, j1, &xs, &ys);
     add_grob(s,xs, ys, 0.0f, 0.0f, markinfo.size, markinfo.type, markinfo.color);
-    redraw_all();
+    redraw_all(s);
 }
 
 /* markers at every skip-th row of the window's first curve */
@@ -277,7 +277,7 @@ static void add_markers_at(xpp::Session &s, int number, int start, int skip, dou
         }
         add_grob(s,xs, ys, 0.0f, 0.0f, size, type, color);
     }
-    redraw_all();
+    redraw_all(s);
 }
 
 void add_markers(xpp::Session &s)
@@ -291,10 +291,10 @@ void add_pntarr(xpp::Session &s, int type)
     double size = .1;
     int i1, j1, i2, j2, color = 0;
     float xe, ye, xs, ys;
-    if (new_float("Size: ", &size)) return;
+    if (new_float(s,"Size: ", &size)) return;
     if (new_int("Color: ", &color)) return;
     MessageBox("Choose start/end");
-    const int flag = rubber_band(&i1, &j1, &i2, &j2, 1);
+    const int flag = rubber_band(s,&i1, &j1, &i2, &j2, 1);
     KillMessageBox();
     FlushDisplay();
     if (flag) {
@@ -302,7 +302,7 @@ void add_pntarr(xpp::Session &s, int type)
         scale_to_real(s,i2, j2, &xe, &ye);
         if (i1 == i2 && j1 == j2) return;
         add_grob(s,xs, ys, xe, ye, size, type, color);
-        redraw_all();
+        redraw_all(s);
     }
 }
 
@@ -316,7 +316,7 @@ void edit_object_com(xpp::Session &s, int com)
     float dist = 1e20f, dd;
 
     MessageBox("Choose Object");
-    flag = GetMouseXY(&i, &j);
+    flag = GetMouseXY(s,&i, &j);
     KillMessageBox();
     FlushDisplay();
     if (!flag) return;
@@ -348,7 +348,7 @@ void edit_object_com(xpp::Session &s, int com)
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", s.labels[ilab].s).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Click on new position");
-                flag = GetMouseXY(&i, &j);
+                flag = GetMouseXY(s,&i, &j);
                 KillMessageBox();
                 FlushDisplay();
                 if (flag) {
@@ -356,7 +356,7 @@ void edit_object_com(xpp::Session &s, int com)
                     s.labels[ilab].x = x;
                     s.labels[ilab].y = y;
                     clr_scrn(s);
-                    redraw_all();
+                    redraw_all(s);
                 }
             }
             break;
@@ -370,7 +370,7 @@ void edit_object_com(xpp::Session &s, int com)
                 if (s.labels[ilab].size > 4) s.labels[ilab].size = 4;
                 if (s.labels[ilab].size < 0) s.labels[ilab].size = 0;
                 clr_scrn(s);
-                redraw_all();
+                redraw_all(s);
             }
             break;
         case 2:
@@ -379,7 +379,7 @@ void edit_object_com(xpp::Session &s, int com)
                 s.labels[ilab].w = 0;
                 s.labels[ilab].use = 0;
                 clr_scrn(s);
-                redraw_all();
+                redraw_all(s);
             }
             break;
         }
@@ -390,7 +390,7 @@ void edit_object_com(xpp::Session &s, int com)
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 MessageBox("Reposition");
-                flag = GetMouseXY(&i, &j);
+                flag = GetMouseXY(s,&i, &j);
                 KillMessageBox();
                 FlushDisplay();
                 if (flag) {
@@ -400,7 +400,7 @@ void edit_object_com(xpp::Session &s, int com)
                     s.grobs[ilab].xs = x;
                     s.grobs[ilab].ys = y;
                     clr_scrn(s);
-                    redraw_all();
+                    redraw_all(s);
                 }
             }
             break;
@@ -408,10 +408,10 @@ void edit_object_com(xpp::Session &s, int com)
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
             if (ans == 'y') {
                 if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
-                new_float("Size ", &s.grobs[ilab].size);
+                new_float(s,"Size ", &s.grobs[ilab].size);
                 new_int("Color :", &s.grobs[ilab].color);
                 clr_scrn(s);
-                redraw_all();
+                redraw_all(s);
             }
             break;
         case 2:
@@ -420,7 +420,7 @@ void edit_object_com(xpp::Session &s, int com)
                 s.grobs[ilab].w = 0;
                 s.grobs[ilab].use = 0;
                 clr_scrn(s);
-                redraw_all();
+                redraw_all(s);
             }
             break;
         }
@@ -431,7 +431,7 @@ void do_gr_objs_com(xpp::Session &s, int com)
 {
     switch (com) {
     case 0:
-        cput_text();
+        cput_text(s);
         break;
     case 1:
         add_pntarr(s,ARROW);
@@ -448,7 +448,7 @@ void do_gr_objs_com(xpp::Session &s, int com)
     case 5:
         destroy_labels_and_grobs(s,s.plot_windows.draw_win);
         clr_scrn(s);
-        redraw_all();
+        redraw_all(s);
         break;
     }
 }
@@ -457,16 +457,16 @@ void do_windows_com(xpp::Session &s, int c)
 {
     switch (c) {
     case 0:
-        create_a_pop();
+        create_a_pop(s);
         break;
     case 1:
-        if (yes_no_box()) kill_all_pops();
+        if (yes_no_box()) kill_all_pops(s);
         break;
     case 3:
         xpp_ui.lower_plot_window();
         break;
     case 2:
-        destroy_a_pop();
+        destroy_a_pop(s);
         break;
     case 5:
         set_restore(s,0);

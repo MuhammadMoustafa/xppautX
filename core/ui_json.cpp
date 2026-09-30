@@ -53,6 +53,8 @@ namespace xpp::json {
 
 ProtocolSession session;
 
+xpp::Session &client() { return xpp::client_session(); }
+
 /* exit 1 for a script that hit an error or an unmatched ask
    (docs/protocol.md "Scripts"), else as always, 0 */
 void quit_session(void) { exit(session.script_mode && session.script_error ? 1 : 0); }
@@ -376,7 +378,7 @@ XppUi make_json_ui(void)
     u.redraw_graph = j_redraw_graph;
     u.redraw_screens = j_redraw_screens;
     u.clear_screens = j_clear_screens;
-    u.clear_draw_window = [] { clr_scrn(xpp::session()); }; /* an XppUi callback: an entry point (W47d6) */
+    u.clear_draw_window = [](xpp::Session &s) { clr_scrn(s); };
     u.reset_graphics = j_reset_graphics;
     u.data_changed = j_browser_changed;
     u.rows_stored = j_rows_stored;
@@ -614,13 +616,15 @@ namespace {
    number: an abort cancels it from the reader thread. A line refused
    during a computation (during_run) only says so, and ends as any does;
    a set applied already, under a job that computed nothing
-   (control_line), only ends. */
-void handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
+   (control_line), only ends. The Session the command ended in: the one
+   it ran in, or the model's it loaded in that one's place. */
+xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp_job_begin(seq);
-    /* the session this command runs in: chosen here, once, and passed down
-       (W47d); only a model loaded in its place below replaces it */
-    xpp::Session *s = &xpp::session();
+    /* the session this command runs in, the client's in the session list
+       (session.h): chosen here, once, and passed down (W47d); only a model
+       loaded in its place below replaces it */
+    xpp::Session *s = &xpp::client_session();
     if (applied) {
     } else if (refused) {
         std::string c;
@@ -669,6 +673,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
        "Scripts"); this also releases the very first script line, since
        xppautx_main.c's startup "redraw" ends here too */
     if (session.script_mode) script_next();
+    return *s;
 }
 
 } // namespace
@@ -679,7 +684,7 @@ void handle_line(const char *line, unsigned long seq, bool refused, bool applied
 
 using namespace xpp::json;
 
-void json_ui_handle(const char *line) { handle_line(line, 0, false); }
+xpp::Session &json_ui_handle(const char *line) { return handle_line(line, 0, false); }
 
 void json_ui_loop(void)
 {
@@ -783,10 +788,12 @@ int json_ui_silent(int argc, char **argv)
 {
     /* the model loads as with no interface at all: a model that does not
        load exits 1, its reason logged */
-    if (!xpp_load_model(argc, argv, 1)) exit(1);
-    xpp_batch_start();
+    const xpp::Loaded loaded = xpp::load_model(argc, argv, 1);
+    if (!loaded) exit(1);
+    xpp::Session &s = **loaded;
+    xpp_batch_start(s);
     session.script_mode = 1;
-    xpp_inbox_start_generated(silent_script(xpp::session())); /* the session the load made */
+    xpp_inbox_start_generated(silent_script(s));
     install(true);
     script_next(); /* its first line */
     json_ui_loop(); /* exits when the script ends */
@@ -817,7 +824,7 @@ void send_hello(xpp::Session &s)
     const xpp::Model &m = s.model();
     Buf b;
     int i;
-    const std::string file = xpp::model_title();
+    const std::string file = xpp::model_title(m);
     const std::string title_text =
         file.size() < 60
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)

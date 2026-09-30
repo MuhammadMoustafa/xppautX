@@ -37,8 +37,8 @@ std::string make_title(const xpp::Session &s)
 {
   const auto *g=s.plot_windows.current;
   if(g->grtype>=5)
-    return xpp::format("{} vs {} vs {}",ind_to_sym(g->zv[0]),ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
-  return xpp::format("{} vs {}",ind_to_sym(g->yv[0]),ind_to_sym(g->xv[0]));
+    return xpp::format("{} vs {} vs {}",ind_to_sym(s,g->zv[0]),ind_to_sym(s,g->yv[0]),ind_to_sym(s,g->xv[0]));
+  return xpp::format("{} vs {}",ind_to_sym(s,g->yv[0]),ind_to_sym(s,g->xv[0]));
 }
 
 double dbl_raise(double x, int y)
@@ -91,8 +91,8 @@ void re_title(xpp::Session &s)
 
 void do_axes(xpp::Session &s)
 {
-    const std::string s1(ind_to_sym(s.plot_windows.current->xv[0]));
-    const std::string s2(ind_to_sym(s.plot_windows.current->yv[0]));
+    const std::string s1(ind_to_sym(s,s.plot_windows.current->xv[0]));
+    const std::string s2(ind_to_sym(s,s.plot_windows.current->yv[0]));
     set_linestyle(s,0);
     if(program.interactive){  re_title(s);
     SmallGr();

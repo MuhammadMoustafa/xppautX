@@ -85,12 +85,12 @@ void change_view_com(xpp::Session &s, int com)
 {
  
  if(com==2){
-   make_my_aplot("Array!");
+   make_my_aplot(s,"Array!");
    editaplot(s,&s.array_plot.plot);
    return;
  }
  if(com==3){
-   new_vcr();
+   new_vcr(s);
    return;
  }
 
@@ -98,7 +98,7 @@ void change_view_com(xpp::Session &s, int com)
  if(s.plot_windows.current->grtype<5)get_2d_view(s,CurrentCurve);
  else get_3d_view(s,CurrentCurve);
  check_flags(s);
- redraw_the_graph();
+ redraw_the_graph(s);
 } 
 
 void check_flags(xpp::Session &s)
@@ -117,8 +117,8 @@ void get_2d_view(xpp::Session &s, int ind)
  std::array<std::string, 8> values;
  int  status,i; 
  int i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind];
- values[0] = ind_to_sym(i1);
- values[1] = ind_to_sym(i2);
+ values[0] = ind_to_sym(s,i1);
+ values[1] = ind_to_sym(s,i2);
  values[2] = xpp::format("{:g}", s.plot_windows.current->xmin);
  values[3] = xpp::format("{:g}", s.plot_windows.current->ymin);
  values[4] = xpp::format("{:g}", s.plot_windows.current->xmax);
@@ -130,10 +130,10 @@ void get_2d_view(xpp::Session &s, int ind)
  status=do_string_box_of(4,2,"2D View",n,values,kinds);
  if(status!=0){
 		/*  get variable names  */
-             find_variable(values[0].c_str(),&i);
+             find_variable(s,values[0].c_str(),&i);
               if(i>-1)
 		s.plot_windows.current->xv[ind]=i;
-	     find_variable(values[1].c_str(),&i);
+	     find_variable(s,values[1].c_str(),&i);
               if(i>-1)
 		s.plot_windows.current->yv[ind]=i;
 
@@ -177,7 +177,7 @@ void axes_opts(xpp::Session &s)
    s.plot_windows.current->yorgflag=atoi(values[4].c_str());
    s.plot_windows.current->zorgflag=atoi(values[5].c_str());
    s.plot_file.ps_font_size=atoi(values[6].c_str());
-   redraw_the_graph();
+   redraw_the_graph(s);
  }
    
 }
@@ -190,9 +190,9 @@ void get_3d_view(xpp::Session &s, int ind)
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
  std::array<std::string, 16> values;
  int  status,i,i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind],i3=s.plot_windows.current->zv[ind];
- values[0] = ind_to_sym(i1);
- values[1] = ind_to_sym(i2);
- values[2] = ind_to_sym(i3);
+ values[0] = ind_to_sym(s,i1);
+ values[1] = ind_to_sym(s,i2);
+ values[2] = ind_to_sym(s,i3);
  values[3] = xpp::format("{:g}", s.plot_windows.current->xmin);
  values[5] = xpp::format("{:g}", s.plot_windows.current->ymin);
  values[7] = xpp::format("{:g}", s.plot_windows.current->zmin);
@@ -214,13 +214,13 @@ void get_3d_view(xpp::Session &s, int ind)
  status=do_string_box_of(6,3,"3D View",n,values,kinds);
  if(status!=0){
 		/*  get variable names  */
-              find_variable(values[0].c_str(),&i);
+              find_variable(s,values[0].c_str(),&i);
  	      if(i>-1)
 		s.plot_windows.current->xv[ind]=i;
-              find_variable(values[1].c_str(),&i);
+              find_variable(s,values[1].c_str(),&i);
               if(i>-1)
 		s.plot_windows.current->yv[ind]=i;
-              find_variable(values[2].c_str(),&i);
+              find_variable(s,values[2].c_str(),&i);
   		if(i>-1)
 		  s.plot_windows.current->zv[ind]=i;
 	      s.plot_windows.current->xlabel=values[13];
@@ -331,7 +331,7 @@ void default_window(xpp::Session &s)
 	      check_windows(s);
 	}
 	
-	redraw_the_graph();
+	redraw_the_graph(s);
              
 }
 
@@ -397,7 +397,7 @@ void fit_window(xpp::Session &s)
       s.plot_windows.current->yhi=s.plot_windows.current->ymax;
       check_windows(s);
     }
-  redraw_the_graph();
+  redraw_the_graph(s);
 }
 
 void user_window(xpp::Session &s)
@@ -425,16 +425,16 @@ void user_window(xpp::Session &s)
 	      }
 	      check_windows(s);
              }
- redraw_the_graph();
+ redraw_the_graph(s);
 }
 
 void xi_vs_t(xpp::Session &s) /*  a short cut   */
 {
  int i=s.plot_windows.current->yv[0];
 
- std::string value=ind_to_sym(i);
+ std::string value=ind_to_sym(s,i);
  new_string_of("Plot vs t: ",value,XPP_FIELD_NAME_IN(0));
- find_variable(value.c_str(),&i);
+ find_variable(s,value.c_str(),&i);
  
  if(i>-1){
    s.plot_windows.current->yv[0]=i;
@@ -458,7 +458,7 @@ void xi_vs_t(xpp::Session &s) /*  a short cut   */
     check_windows(s);
     check_flags(s);
    set_normal_scale(s);
-    redraw_the_graph();
+    redraw_the_graph(s);
  }
 }
 
@@ -466,15 +466,15 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
 {
   int i;
   double thetaold=s.plot_windows.current->Theta,phiold=s.plot_windows.current->Phi;
-  reset_film();
+  reset_film(s);
   for(i=0;i<=nclip;i++){
    
     if(angle==0)
       make_rot(s,start+i*increment,phiold);
     else
       make_rot(s,thetaold,start+i*increment);
-    redraw_the_graph();
-    xpp_ui.film_clip();
+    redraw_the_graph(s);
+    xpp_ui.film_clip(s);
   }
   s.plot_windows.current->Theta=thetaold;
   s.plot_windows.current->Phi=phiold;
@@ -530,7 +530,7 @@ void get_3d_par_com(xpp::Session &s)
 	       
                 make_rot(s,s.plot_windows.current->Theta,s.plot_windows.current->Phi);   
 	    /*  Redraw the picture   */	
-	       redraw_the_graph();
+	       redraw_the_graph(s);
          
 	     }
 	     
@@ -550,7 +550,7 @@ void update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
 	      }
 	      check_windows(s);
             
- redraw_the_graph();
+ redraw_the_graph(s);
 
 }
     
@@ -561,18 +561,18 @@ void window_zoom_com(xpp::Session &s, int c)
 	    case 0:user_window(s); break;
 	    case 1:
 	    
-	    	if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
+	    	if(rubber_band(s,&i1,&j1,&i2,&j2,RUBBOX)==0)break;
 		     zoom_in(s,i1,j1,i2,j2);
 		 
 		     break;
-       	    case 2: if(rubber_band(&i1,&j1,&i2,&j2,RUBBOX)==0)break;
+       	    case 2: if(rubber_band(s,&i1,&j1,&i2,&j2,RUBBOX)==0)break;
 		     zoom_out(s,i1,j1,i2,j2);
 		     break;
  	    case 3: fit_window(s);
 		      break; 
 	    case 4: default_window(s);
 		      break;
-            case 5: scroll_window();
+            case 5: scroll_window(s);
                       break;
             }
  set_normal_scale(s);
@@ -615,7 +615,7 @@ void zoom_in(xpp::Session &s, int i1, int j1, int i2, int j2)
 	      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 	      }
 	      check_windows(s);
-              redraw_the_graph();
+              redraw_the_graph(s);
 	      draw_help(); 
 }
 
@@ -667,7 +667,7 @@ void zoom_out(xpp::Session &s, int i1, int j1, int i2, int j2)
 		      s.plot_windows.current->ymax=s.plot_windows.current->yhi;
 		      }
 	      check_windows(s);
-              redraw_the_graph();
+              redraw_the_graph(s);
               draw_help(); 
 }
 
@@ -708,22 +708,22 @@ int alter_curve(xpp::Session &s, const char *title, int in_it, int n)
  std::array<std::string, 5> values;
  int status,i;
  int i1=s.plot_windows.current->xv[in_it],i2=s.plot_windows.current->yv[in_it],i3=s.plot_windows.current->zv[in_it];
- values[0] = ind_to_sym(i1);
- values[1] = ind_to_sym(i2);
- values[2] = ind_to_sym(i3);
+ values[0] = ind_to_sym(s,i1);
+ values[1] = ind_to_sym(s,i2);
+ values[2] = ind_to_sym(s,i3);
  values[3] = xpp::format("{:d}", s.plot_windows.current->color[in_it]);
  values[4] = xpp::format("{:d}", s.plot_windows.current->line[in_it]);
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
                            XPP_FIELD_NAME_IN(4),XPP_FIELD_INTEGER};
  status=do_string_box_of(5,1,title,nn,values,kinds);
  if(status!=0){
-		    find_variable(values[0].c_str(),&i);
+		    find_variable(s,values[0].c_str(),&i);
  	      if(i>-1)
 		s.plot_windows.current->xv[n]=i;
-              find_variable(values[1].c_str(),&i);
+              find_variable(s,values[1].c_str(),&i);
               if(i>-1)
 		s.plot_windows.current->yv[n]=i;
-              find_variable(values[2].c_str(),&i);
+              find_variable(s,values[2].c_str(),&i);
   		if(i>-1)
 		  s.plot_windows.current->zv[n]=i;
 
@@ -859,7 +859,7 @@ void key_frz_com(xpp::Session &s, int c)
     break;
   case 1:
     MessageBox("Position with mouse");
-    if(GetMouseXY(&x,&y)){
+    if(GetMouseXY(s,&x,&y)){
       set_key(s,x,y);
       draw_freeze_key(s);
     }
@@ -1233,7 +1233,7 @@ void add_a_curve_com(xpp::Session &s, int c)
    break;
  }
  check_flags(s);
- redraw_the_graph();
+ redraw_the_graph(s);
    
 }
 

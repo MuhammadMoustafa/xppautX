@@ -18,6 +18,9 @@ static void hl_void(void) {}
 static void hl_str(const char *) {}
 static void hl_int(int) {}
 static void hl_bottom_msg(int, const char *) {}
+static void hl_s(xpp::Session &) {}
+static void hl_s_int(xpp::Session &, int) {}
+static void hl_s_str(xpp::Session &, const char *) {}
 static int hl_new_string(const char *, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
 static int hl_two_choice(const char *, const char *, const char *, const char *, const char *)
@@ -36,34 +39,34 @@ static int hl_menu_choose(const struct XppMenu *, int)
 {
     return 0;
 }
-static int hl_get_mouse_xy(int *, int *) { return 0; }
+static int hl_get_mouse_xy(xpp::Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return 64; }
 static void hl_progress(int, int, int) {}
-static void hl_activate_graph(int, int) {}
-static void hl_get_draw_size(unsigned int *w, unsigned int *h)
+static void hl_activate_graph(xpp::Session &, int, int) {}
+static void hl_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
-    const GRAPH *g = xpp::session().plot_windows.current; /* an XppUi default: an entry point (W47d6) */
+    const GRAPH *g = s.plot_windows.current;
     *w = g && g->x11Wid > 0 ? static_cast<unsigned int>(g->x11Wid) : 640;
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
 static void hl_put_text(int, int, const char *) {}
-static int hl_film_clip(void) { return 1; }
+static int hl_film_clip(xpp::Session &) { return 1; }
 static void hl_draw_point(int, int) {}
 static void hl_draw_line(int, int, int, int) {}
 static void hl_draw_frect(int, int, int, int) {}
 static void hl_draw_special_text(int, int, const char *, int) {}
-static void hl_auto_make_window(const char *, const char *) {}
+static void hl_auto_make_window(xpp::Session &, const char *, const char *) {}
 static void hl_auto_circle(int, int, int) {}
-static void hl_auto_diagram(int, const XppDiagPoint *) {}
+static void hl_auto_diagram(xpp::Session &, int, const XppDiagPoint *) {}
 static void hl_auto_draw_info(const char *, int, int) {}
-static int hl_auto_grab_event(int *, int *) { return 27; }
+static int hl_auto_grab_event(xpp::Session &, int *, int *) { return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
-static int hl_auto_rubber(int *, int *, int *, int *, int)
+static int hl_auto_rubber(xpp::Session &, int *, int *, int *, int *, int)
 {
     return 0;
 }
-static void hl_show_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
+static void hl_show_eq_box(xpp::Session &, int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
     int i;
@@ -85,11 +88,11 @@ static int hl_checklist(const char *, const char *const *, int *, int)
 {
     return 0;
 }
-static void hl_movie_save(const char *, int) {}
+static void hl_movie_save(xpp::Session &, const char *, int) {}
 static void hl_open_help(const char *, const char *) {}
 static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
-static void hl_record_toggle(void) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
-static void hl_play_recording(const char *) { xpp_log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
+static void hl_record_toggle(xpp::Session &) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
+static void hl_play_recording(xpp::Session &, const char *) { xpp_log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -124,38 +127,38 @@ XppUi xpp_ui = {
     .ic_box_set = hl_param_box_set,
     .ic_box_redraw = hl_int,
     .redraw_ics = hl_void,
-    .redraw_all = hl_void,
+    .redraw_all = hl_s,
     .redraw_bcs = hl_void,
     .redraw_delays = hl_void,
-    .redraw_graph = hl_void,
-    .redraw_screens = hl_void,
-    .clear_screens = hl_void,
-    .clear_draw_window = hl_void,
-    .reset_graphics = hl_void,
+    .redraw_graph = hl_s,
+    .redraw_screens = hl_s,
+    .clear_screens = hl_s,
+    .clear_draw_window = hl_s,
+    .reset_graphics = hl_s,
     .data_changed = hl_int,
-    .rows_stored = hl_int,
+    .rows_stored = hl_s_int,
     .browser_redraw = hl_int,
     .activate_graph = hl_activate_graph,
-    .create_plot_window = hl_void,
-    .destroy_plot_window = hl_void,
-    .kill_plot_windows = hl_void,
+    .create_plot_window = hl_s,
+    .destroy_plot_window = hl_s,
+    .kill_plot_windows = hl_s,
     .lower_plot_window = hl_void,
     .gr_col = hl_void,
     .base_col = hl_void,
-    .cput_text = hl_void,
+    .cput_text = hl_s,
     .get_draw_size = hl_get_draw_size,
-    .draw_freeze = hl_void,
-    .blank_draw_window = hl_void,
+    .draw_freeze = hl_s,
+    .blank_draw_window = hl_s,
     .small_base = hl_void,
     .small_gr = hl_void,
     .film_clip = hl_film_clip,
-    .reset_film = hl_void,
-    .movie_play_back = hl_void,
-    .movie_auto_play = hl_void,
+    .reset_film = hl_s,
+    .movie_play_back = hl_s,
+    .movie_auto_play = hl_s,
     .movie_save = hl_movie_save,
-    .movie_make_anigif = hl_void,
+    .movie_make_anigif = hl_s,
     .rubber_band = hl_auto_rubber,
-    .scroll_window = hl_void,
+    .scroll_window = hl_s,
     .new_colormap = hl_int,
     .draw_point = hl_draw_point,
     .draw_line = hl_draw_line,
@@ -165,10 +168,10 @@ XppUi xpp_ui = {
     .draw_special_text = hl_draw_special_text,
     .draw_linestyle = hl_int,
     .set_color = hl_int,
-    .aplot_make = hl_str,
-    .aplot_redraw = hl_void,
-    .aplot_reset_axes = hl_void,
-    .aplot_draw_one = hl_str,
+    .aplot_make = hl_s_str,
+    .aplot_redraw = hl_s,
+    .aplot_reset_axes = hl_s,
+    .aplot_draw_one = hl_s_str,
     .auto_make_window = hl_auto_make_window,
     .auto_line = hl_draw_line,
     .auto_text = hl_put_text,
@@ -185,12 +188,12 @@ XppUi xpp_ui = {
     .auto_refresh = hl_void,
     .auto_check_abort = hl_auto_check_abort,
     .auto_rubber = hl_auto_rubber,
-    .auto_scroll_window = hl_void,
+    .auto_scroll_window = hl_s,
     .auto_grab_event = hl_auto_grab_event,
-    .auto_show_hint = hl_void,
+    .auto_show_hint = hl_s,
     .auto_grab_end = hl_int,
     .auto_diagram = hl_auto_diagram,
-    .new_vcr = hl_void,
+    .new_vcr = hl_s,
     .ani_clear = hl_void,
     .ani_show = hl_void,
     .ani_color = hl_int,
@@ -200,11 +203,11 @@ XppUi xpp_ui = {
     .ani_rect = hl_ani_box,
     .ani_arc = hl_ani_box,
     .ani_text = hl_put_text,
-    .ani_slider = hl_void,
+    .ani_slider = hl_s,
     .init_txtview = hl_void,
     .show_eq_box = hl_show_eq_box,
-    .make_txtview = hl_void,
-    .q_calc = hl_void,
+    .make_txtview = hl_s,
+    .q_calc = hl_s,
     .open_help = hl_open_help,
     .copy_text = hl_copy_text,
     .record_toggle = hl_record_toggle,
@@ -271,7 +274,7 @@ int get_dialog_of(const char *wname, const char *name, std::string &value, const
 {
     return xpp_ui.dialog(wname, name, value, ok, cancel, kind);
 }
-int GetMouseXY(int *x, int *y) { return xpp_ui.get_mouse_xy(x, y); }
+int GetMouseXY(xpp::Session &s, int *x, int *y) { return xpp_ui.get_mouse_xy(s, x, y); }
 void flash(int num) { xpp_ui.menu_flash(num); }
 int menu_choose(const struct XppMenu *m, int def) { return xpp_ui.menu_choose(m, def); }
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
@@ -289,27 +292,27 @@ int my_abort(void)
 }
 int get_command_width(void) { return xpp_ui.progress_begin(); }
 void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
-void rows_stored(int nrows) { xpp_ui.rows_stored(nrows); }
+void rows_stored(xpp::Session &s, int nrows) { xpp_ui.rows_stored(s, nrows); }
 void FlushDisplay(void) { xpp_ui.flush(); }
 void redraw_params(void) { xpp_ui.redraw_params(); }
 void redraw_ics(void) { xpp_ui.redraw_ics(); }
-void redraw_all(void) { xpp_ui.redraw_all(); }
-void drw_all_scrns(void) { xpp_ui.redraw_screens(); }
-void clr_all_scrns(void) { xpp_ui.clear_screens(); }
-void clear_draw_window(void) { xpp_ui.clear_draw_window(); }
-void reset_graphics(void) { xpp_ui.reset_graphics(); }
-void create_a_pop(void) { xpp_ui.create_plot_window(); }
-void destroy_a_pop(void) { xpp_ui.destroy_plot_window(); }
-void kill_all_pops(void) { xpp_ui.kill_plot_windows(); }
+void redraw_all(xpp::Session &s) { xpp_ui.redraw_all(s); }
+void drw_all_scrns(xpp::Session &s) { xpp_ui.redraw_screens(s); }
+void clr_all_scrns(xpp::Session &s) { xpp_ui.clear_screens(s); }
+void clear_draw_window(xpp::Session &s) { xpp_ui.clear_draw_window(s); }
+void reset_graphics(xpp::Session &s) { xpp_ui.reset_graphics(s); }
+void create_a_pop(xpp::Session &s) { xpp_ui.create_plot_window(s); }
+void destroy_a_pop(xpp::Session &s) { xpp_ui.destroy_plot_window(s); }
+void kill_all_pops(xpp::Session &s) { xpp_ui.kill_plot_windows(s); }
 void GrCol(void) { xpp_ui.gr_col(); }
 void BaseCol(void) { xpp_ui.base_col(); }
-void cput_text(void) { xpp_ui.cput_text(); }
+void cput_text(xpp::Session &s) { xpp_ui.cput_text(s); }
 void SmallBase(void) { xpp_ui.small_base(); }
 void SmallGr(void) { xpp_ui.small_gr(); }
-void reset_film(void) { xpp_ui.reset_film(); }
+void reset_film(xpp::Session &s) { xpp_ui.reset_film(s); }
 void set_color(int col) { xpp_ui.set_color(col); }
-void draw_one_array_plot(const char *bob) { xpp_ui.aplot_draw_one(bob); }
-void make_auto(const char *wname, const char *iname) { xpp_ui.auto_make_window(wname, iname); }
+void draw_one_array_plot(xpp::Session &s, const char *bob) { xpp_ui.aplot_draw_one(s, bob); }
+void make_auto(xpp::Session &s, const char *wname, const char *iname) { xpp_ui.auto_make_window(s, wname, iname); }
 void ALINE(int a, int b, int c, int d) { xpp_ui.auto_line(a, b, c, d); }
 void ATEXT(int a, int b, const char *c) { xpp_ui.auto_text(a, b, c); }
 void Circle(int x, int y, int r) { xpp_ui.auto_circle(x, y, r); }
@@ -336,35 +339,35 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
     if (*iflag == 1) xpp_job_cancel_current();
     return r;
 }
-int auto_rubber(int *i1, int *j1, int *i2, int *j2, int flag)
+int auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    return xpp_ui.auto_rubber(i1, j1, i2, j2, flag);
+    return xpp_ui.auto_rubber(s, i1, j1, i2, j2, flag);
 }
-void auto_scroll_window(void) { xpp_ui.auto_scroll_window(); }
-void auto_diagram(int view, const XppDiagPoint *p) { xpp_ui.auto_diagram(view, p); }
+void auto_scroll_window(xpp::Session &s) { xpp_ui.auto_scroll_window(s); }
+void auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p) { xpp_ui.auto_diagram(s, view, p); }
 void init_txtview(void) { xpp_ui.init_txtview(); }
-void create_eq_box(int cp, int cm, int rp, int rm, int im, double *y,
+void create_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)
 {
-    xpp_ui.show_eq_box(cp, cm, rp, rm, im, y, ev, n);
+    xpp_ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
 }
 void bye_bye(void) { xpp_ui.exit_program(); }
 void draw_help(void) { xpp_ui.redraw_menu(); }
-int rubber_band(int *i1, int *j1, int *i2, int *j2, int flag)
+int rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    return xpp_ui.rubber_band(i1, j1, i2, j2, flag);
+    return xpp_ui.rubber_band(s, i1, j1, i2, j2, flag);
 }
-void scroll_window(void) { xpp_ui.scroll_window(); }
+void scroll_window(xpp::Session &s) { xpp_ui.scroll_window(s); }
 void NewColormap(int type) { xpp_ui.new_colormap(type); }
-void make_my_aplot(const char *name) { xpp_ui.aplot_make(name); }
-void new_vcr(void) { xpp_ui.new_vcr(); }
-void redraw_the_graph(void) { xpp_ui.redraw_graph(); }
-void make_txtview(void) { xpp_ui.make_txtview(); }
-void q_calc(void) { xpp_ui.q_calc(); }
+void make_my_aplot(xpp::Session &s, const char *name) { xpp_ui.aplot_make(s, name); }
+void new_vcr(xpp::Session &s) { xpp_ui.new_vcr(s); }
+void redraw_the_graph(xpp::Session &s) { xpp_ui.redraw_graph(s); }
+void make_txtview(xpp::Session &s) { xpp_ui.make_txtview(s); }
+void q_calc(xpp::Session &s) { xpp_ui.q_calc(s); }
 void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
 void copy_text(const char *what, const char *text) { xpp_ui.copy_text(what, text); }
-void record_toggle(void) { xpp_ui.record_toggle(); }
-void play_recording(const char *path) { xpp_ui.play_recording(path); }
+void record_toggle(xpp::Session &s) { xpp_ui.record_toggle(s); }
+void play_recording(xpp::Session &s, const char *path) { xpp_ui.play_recording(s, path); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
    was a thin wrapper around xpp_log() at INFO (the banner, "All formulas
@@ -383,14 +386,14 @@ int new_int(const char *name, int *value)
     return 0;
 }
 
-int new_float(const char *name, double *value)
+int new_float(xpp::Session &s, const char *name, double *value)
 {
     std::string tvalue = xpp::format("{:.16g}", *value);
     if (new_string_of(name, tvalue, XPP_FIELD_FORMULA) == 0 || tvalue.empty()) return -1;
 
     if (tvalue[0] == '%') {
         double newz;
-        if (do_calc(tvalue.c_str() + 1, &newz) != -1) *value = newz;
+        if (do_calc(s, tvalue.c_str() + 1, &newz) != -1) *value = newz;
         return 0;
     }
     *value = atof(tvalue.c_str());

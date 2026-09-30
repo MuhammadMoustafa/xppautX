@@ -1,48 +1,88 @@
-/* A load's swap of the current Model and Session (session.h). */
+/* The session list and a load's swap of its client's Model and Session
+   (session.h). */
 #include "session.h"
+#include "model_files.h"
 
 #include <memory>
 
 namespace xpp {
 
+namespace {
+
+/* the session list's one client: its Model and Session (session.h
+   client_session), and the Load in progress */
+struct Client {
+  Model *model=nullptr;
+  Session *session=nullptr;
+};
+constinit Client client;
+constinit Load *loading=nullptr;
+
+}
+
+Session &client_session()
+{
+  if(!client.session)[[unlikely]]{
+    client.model=new Model();
+    client.session=new Session(*client.model);
+  }
+  return *client.session;
+}
+
 Load::Load()
-  : previous_model(detail::current_slot<Model>()),
-    previous_session(detail::current_slot<Session>())
+  : previous_model(client.model),
+    previous_session(client.session)
 {
   std::unique_ptr<Model> model=std::make_unique<Model>();
   Session *fresh=new Session(*model);
   /* the process's AUTO scratch folder (xppautx_main.cpp makes it before
      the first load) stays the same across loads */
   if(previous_session)fresh->auto_state.dir=previous_session->auto_state.dir;
-  detail::current_slot<Model>()=model.release();
-  detail::current_slot<Session>()=fresh;
+  client.model=model.release();
+  client.session=fresh;
   session_=fresh;
-  detail::current_slot<Load>()=this;
+  loading=this;
 }
 
 Load::~Load()
 {
-  detail::current_slot<Load>()=nullptr;
+  loading=nullptr;
   if(committed)return;
-  delete detail::current_slot<Model>();
-  delete detail::current_slot<Session>();
-  detail::current_slot<Model>()=previous_model;
-  detail::current_slot<Session>()=previous_session;
+  delete client.model;
+  delete client.session;
+  client.model=previous_model;
+  client.session=previous_session;
+}
+
+bool Load::running() noexcept
+{
+  return loading!=nullptr;
+}
+
+void Load::add_source(Diagnostic &d)
+{
+  if(!loading||d.line<=0||!d.source.empty()||d.file.empty())return;
+  LineReader lines=model_file_lines(loading->model(),d.file);
+  int n=0;
+  while(std::optional<std::string_view> line=lines.next())
+    if(++n==d.line){
+      d.source=*line;
+      break;
+    }
 }
 
 void Load::at(std::string_view file, int line, int col)
 {
-  Load *load=detail::current_slot<Load>();
-  if(!load)return;
-  load->where.file=file;
-  load->where.line=line;
-  load->where.col=col;
-  load->messages.clear();
+  if(!loading)return;
+  loading->where.file=file;
+  loading->where.line=line;
+  loading->where.col=col;
+  loading->messages.clear();
 }
 
 Diagnostic Load::diagnostic()
 {
-  const Load &load=*detail::current_slot<Load>();
+  const Load &load=*loading;
   Diagnostic d=load.where;
   /* the messages without the blank lines around them, each line without
      the blanks at its end (a caret line keeps those in front) */

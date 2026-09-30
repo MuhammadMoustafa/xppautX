@@ -1,5 +1,6 @@
 #include "tabular.h"
 #include "session.h"
+#include "getvar.h"
 #include "storage.h"
 #include "xpp_files.h"
 #include "load_eqn.h"
@@ -143,8 +144,8 @@ void new_lookup_com(xpp::Session &s, int i)
        std::string newform=s.tables[index].filename;
        new_int("Auto-evaluate? (1/0)",&s.tables[index].autoeval);
        new_int("NPts: ",&npts);
-       new_float("Xlo: ",&xlo);
-       new_float("Xhi: ",&xhi);
+       new_float(s,"Xlo: ",&xlo);
+       new_float(s,"Xhi: ",&xhi);
        new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
        xpp::ok_or_show(create_fun_table(s,npts,xlo,xhi,newform.c_str(),index));
 
@@ -248,11 +249,6 @@ xpp::Result<> redo_all_fun_tables(xpp::Session &s)
   return first.result();
 }
 
-xpp::Result<> redo_all_fun_tables()
-{
-  return redo_all_fun_tables(xpp::session());
-}
-
 xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y)
 {
   int i;
@@ -265,13 +261,13 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, con
     s.parser.nsym=nsym;
     return xpp::fail("table","Illegal formula...");
   }
-  oldt=get_ivar(0);
+  oldt=getvar(s,0);
   dx=(xhi-xlo)/(static_cast<double>(n-1));
   for(i=0;i<n;i++){
-    set_ivar(0,dx*i+xlo);
-    y[i]=evaluate(command);
+    setvar(s,0,dx*i+xlo);
+    y[i]=evaluate(s,command);
   }
-  set_ivar(0,oldt);
+  setvar(s,0,oldt);
   s.parser.ncon=ncold;
   s.parser.nsym=nsym;
   return {};
@@ -323,7 +319,7 @@ xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int m
     return xpp::fail("table","Not a file table...");
   }
 
-  xpp::LineReader reader=model_file?xpp::model_file_lines(filename2):xpp::LineReader(filename2.c_str());
+  xpp::LineReader reader=model_file?xpp::model_file_lines(s.model(),filename2):xpp::LineReader(filename2.c_str());
   if(!reader){
     xpp_files_refresh_cur_dir();
     return xpp::fail("table",xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp_files_cur_dir()));

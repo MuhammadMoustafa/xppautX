@@ -26,7 +26,7 @@ namespace {
 double column_mean(int col, int n)
 {
     double s = 0;
-    for (int i = 0; i < n; i++) s += xpp::session().data_store.col[col][i];
+    for (int i = 0; i < n; i++) s += xpp::client_session().data_store.col[col][i];
     return s / n;
 }
 
@@ -34,7 +34,7 @@ double column_var(int col, int n, double mean)
 {
     double s = 0;
     for (int i = 0; i < n; i++) {
-        double d = xpp::session().data_store.col[col][i] - mean;
+        double d = xpp::client_session().data_store.col[col][i] - mean;
         s += d * d;
     }
     return s / n;
@@ -46,17 +46,17 @@ int main(void)
 {
     char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.ode";
     char *argv[] = {arg0, arg1, NULL};
-    xpp_load_model(2, argv, 1);
-    xpp_batch_start();
-    run_the_commands(xpp::session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
+    CHECK(xpp::load_model(2, argv, 1).has_value());
+    xpp_batch_start(xpp::client_session());
+    run_the_commands(xpp::client_session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
 
-    int n = xpp::session().data_store.rows;
+    int n = xpp::client_session().data_store.rows;
     CHECK(n > 3900); /* total=4000, dt=1: ~4001 rows */
 
     int rcol = -1, ncol = -1, wcol = -1;
-    find_variable("rsamp", &rcol);
-    find_variable("nsamp", &ncol);
-    find_variable("wsamp", &wcol);
+    find_variable(xpp::client_session(), "rsamp", &rcol);
+    find_variable(xpp::client_session(), "nsamp", &ncol);
+    find_variable(xpp::client_session(), "wsamp", &wcol);
     CHECK(rcol > 0 && ncol > 0 && wcol > 0);
 
     /* ran(1): uniform on [0,1), mean 0.5, var 1/12 */
@@ -79,14 +79,14 @@ int main(void)
 
     /* 1D histogram of ran(1) over [0,1) in 10 bins: each bin's count is a
        binomial(n, 0.1) draw; check against 5 std of that. */
-    new_hist(xpp::session(),10, 0.0, 1.0, rcol, 0, "", 0);
-    CHECK(xpp::session().histogram.hist_here == 1);
+    new_hist(xpp::client_session(),10, 0.0, 1.0, rcol, 0, "", 0);
+    CHECK(xpp::client_session().histogram.hist_here == 1);
     double expect = static_cast<double>(n) / 10.0;
     double binsd = std::sqrt(static_cast<double>(n) * 0.1 * 0.9);
     double total1d = 0;
     for (int i = 0; i < 10; i++) {
-        CHECK(std::fabs(xpp::session().histogram.hist()[1][i] - expect) < 5.0 * binsd);
-        total1d += xpp::session().histogram.hist()[1][i];
+        CHECK(std::fabs(xpp::client_session().histogram.hist()[1][i] - expect) < 5.0 * binsd);
+        total1d += xpp::client_session().histogram.hist()[1][i];
     }
     CHECK(std::fabs(total1d - n) < 1.0); /* every sample is in [0,1) */
 
@@ -97,13 +97,13 @@ int main(void)
        new_hist's truncating (int) cast never lands two different lags in
        the same bin; restricted to |lag|<=50 to stay well under MAXSTOR so
        no pair is dropped. */
-    new_hist(xpp::session(),100, -50.0, 50.0, 0, 0, "", 1);
-    CHECK(xpp::session().histogram.hist_here == 1);
-    CHECK(xpp::session().histogram.hist()[1][50] == static_cast<float>(n)); /* lag 0: n self-pairs */
-    CHECK(xpp::session().histogram.hist()[1][60] == static_cast<float>(n - 10)); /* lag 10 */
-    CHECK(xpp::session().histogram.hist()[1][40] == static_cast<float>(n - 10)); /* lag -10 */
+    new_hist(xpp::client_session(),100, -50.0, 50.0, 0, 0, "", 1);
+    CHECK(xpp::client_session().histogram.hist_here == 1);
+    CHECK(xpp::client_session().histogram.hist()[1][50] == static_cast<float>(n)); /* lag 0: n self-pairs */
+    CHECK(xpp::client_session().histogram.hist()[1][60] == static_cast<float>(n - 10)); /* lag 10 */
+    CHECK(xpp::client_session().histogram.hist()[1][40] == static_cast<float>(n - 10)); /* lag -10 */
     double stacor_total = 0;
-    for (int i = 0; i <= 100; i++) stacor_total += xpp::session().histogram.hist()[1][i];
+    for (int i = 0; i <= 100; i++) stacor_total += xpp::client_session().histogram.hist()[1][i];
     double expect_total = 101.0 * n;
     for (int k = 1; k <= 50; k++) expect_total -= 2.0 * k;
     CHECK(std::fabs(stacor_total - expect_total) < 1.0);
@@ -113,24 +113,24 @@ int main(void)
        mass than the row in its tail. twod_hist() is new_2d_hist() without
        its dialog: it reads hist_inf and bins all n stored rows. */
     const int n1 = 5, n2 = 5;
-    xpp::session().histogram.info.col = rcol;
-    xpp::session().histogram.info.col2 = ncol;
-    xpp::session().histogram.info.nbins = n1;
-    xpp::session().histogram.info.nbins2 = n2;
-    xpp::session().histogram.info.xlo = 0.0;
-    xpp::session().histogram.info.xhi = 1.0;
-    xpp::session().histogram.info.ylo = -10.0;
-    xpp::session().histogram.info.yhi = 14.0;
-    CHECK(twod_hist(xpp::session()) == 1);
-    CHECK(xpp::session().histogram.hist_here == 2);
+    xpp::client_session().histogram.info.col = rcol;
+    xpp::client_session().histogram.info.col2 = ncol;
+    xpp::client_session().histogram.info.nbins = n1;
+    xpp::client_session().histogram.info.nbins2 = n2;
+    xpp::client_session().histogram.info.xlo = 0.0;
+    xpp::client_session().histogram.info.xhi = 1.0;
+    xpp::client_session().histogram.info.ylo = -10.0;
+    xpp::client_session().histogram.info.yhi = 14.0;
+    CHECK(twod_hist(xpp::client_session()) == 1);
+    CHECK(xpp::client_session().histogram.hist_here == 2);
     double mid_row = 0, tail_row = 0;
     for (int i = 0; i < n1; i++) {
-        mid_row += xpp::session().histogram.hist()[2][i + 2 * n1];  /* y in [-1.6, 3.2): straddles mean 2 */
-        tail_row += xpp::session().histogram.hist()[2][i + 0 * n1]; /* y in [-10,-5.2): far tail */
+        mid_row += xpp::client_session().histogram.hist()[2][i + 2 * n1];  /* y in [-1.6, 3.2): straddles mean 2 */
+        tail_row += xpp::client_session().histogram.hist()[2][i + 0 * n1]; /* y in [-10,-5.2): far tail */
     }
     CHECK(mid_row > tail_row);
     double sum2d = 0;
-    for (int k = 0; k < n1 * n2; k++) sum2d += xpp::session().histogram.hist()[2][k];
+    for (int k = 0; k < n1 * n2; k++) sum2d += xpp::client_session().histogram.hist()[2][k];
     CHECK(sum2d > 0.95 && sum2d <= 1.0001); /* nearly all mass inside the box */
 
     TEST_REPORT("stochast rng/histogram/stacor");

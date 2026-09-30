@@ -516,10 +516,6 @@ int add_expr(xpp::Session &s, const char *expr, int *command, int *length)
    return(0);
 }
 
-int add_expr(const char *expr, int *command, int *length)
-{
-  return add_expr(xpp::session(),expr,command,length); /* an entry point (W47d4-6) */
-}
 
 int do_num(const char *source, char *num, double *value, int *ind, int report)
 {

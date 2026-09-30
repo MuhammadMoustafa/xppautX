@@ -250,7 +250,3 @@ double evaluate(xpp::Session &s, const int *program)
   return(eval_rpn(program,s));
 }
 
-double evaluate(const int *program)
-{
-  return evaluate(xpp::session(),program);
-}

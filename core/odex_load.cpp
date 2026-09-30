@@ -797,7 +797,7 @@ Parsed ready(const Parsed &p)
 int load(xpp::Session &s, const std::string &path)
 {
   try {
-    build_model(s, ready(parse_file(path)));
+    build_model(s, ready(parse_file(s.model(), path)));
   } catch (const Error &e) {
     xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
     xpp::model_failed(e);
@@ -805,7 +805,7 @@ int load(xpp::Session &s, const std::string &path)
   /* the model's source: the .odex file's own lines */
   std::vector<std::string> &source = s.model().source;
   source.clear();
-  xpp::LineReader lr = xpp::model_file_lines(path);
+  xpp::LineReader lr = xpp::model_file_lines(s.model(),path);
   while (std::optional<std::string_view> line = lr.next()) source.push_back(std::string(*line) + "\n");
   return 1;
 }

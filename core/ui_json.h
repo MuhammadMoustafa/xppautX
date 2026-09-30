@@ -10,7 +10,6 @@ extern "C" {
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(void);        /* protocol on the current stdout */
-void json_ui_handle(const char *line);
 void json_ui_loop(void);           /* read and run commands until EOF */
 /* {"cmd":"open","file":path} into the inbox, as if the page had sent it:
    the desktop window's File > Open model, from the window's thread */
@@ -42,7 +41,12 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
-/* the model of s just loaded (xpp_load_model): the front end's set-up,
+/* the command line run at once, as if the client had sent it; the
+   Session it ended in: the client's, or the one a model it loaded (a
+   recording's, the player) put in its place */
+xpp::Session &json_ui_handle(const char *line);
+
+/* the model of s just loaded (xpp::load_model): the front end's set-up,
    then hello, the main window and state (json_model.cpp) */
 void json_ui_start_model(xpp::Session &s);
 

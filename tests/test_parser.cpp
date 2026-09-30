@@ -12,9 +12,9 @@ static double calc(const char *expr, int *ok)
     int command[256], length = 0;
     char buf[256];
     sprintf(buf, "%s", expr); /* add_expr writes into what it is given */
-    *ok = (add_expr(buf, command, &length) == 0);
+    *ok = (add_expr(xpp::client_session(), buf, command, &length) == 0);
     if (!*ok) return 0.0;
-    return evaluate(command);
+    return evaluate(xpp::client_session(), command);
 }
 
 static int close_to(double a, double b)
@@ -25,7 +25,7 @@ static int close_to(double a, double b)
 int main(void)
 {
     int ok;
-    init_rpn(xpp::session());
+    init_rpn(xpp::client_session());
 
     CHECK(close_to(calc("1+2", &ok), 3.0) && ok);
     CHECK(close_to(calc("2*3+4", &ok), 10.0) && ok);

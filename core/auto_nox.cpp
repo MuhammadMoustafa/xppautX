@@ -381,7 +381,7 @@ void draw_bif_axes(xpp::Session &s)
  ATEXT((x0+x1)/2,y1+text_metrics.small_height+2,l.x.c_str());
  ATEXT(10*text_metrics.small_width,text_metrics.small_height,l.y.c_str());
  /* the data of the diagram starts again too, in every view */
- for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)auto_diagram(v,NULL);
+ for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)auto_diagram(s,v,NULL);
  refreshdisplay();
 }
 
@@ -827,7 +827,7 @@ void auto_plot_par(xpp::Session &s)
   if(ch==key[10])s.auto_state.axes().plot=10;
   if(ch==key[11])s.auto_state.axes().plot=11;
   if(ch==key[5]){
-    if(auto_rubber(&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
+    if(auto_rubber(s,&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
       auto_zoom_in(s, ii1,ji1,ii2,ji2);
       redraw_diagram(s);
     }
@@ -835,7 +835,7 @@ void auto_plot_par(xpp::Session &s)
   }
   
   if(ch==key[6]){
-    if(auto_rubber(&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
+    if(auto_rubber(s,&ii1,&ji1,&ii2,&ji2,RUBBOX)!=0){
       auto_zoom_out(s, ii1,ji1,ii2,ji2);
      
       redraw_diagram(s);
@@ -868,7 +868,7 @@ void auto_plot_par(xpp::Session &s)
     return;
   }
   if(ch==key[13]){
-    auto_scroll_window();
+    auto_scroll_window(s);
     redraw_diagram(s);
     return;
   }
@@ -876,7 +876,7 @@ void auto_plot_par(xpp::Session &s)
     auto_new_view(s);
     return;
   }
-  values[0] = ind_to_sym(i1);
+  values[0] = ind_to_sym(s,i1);
   values[1] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]];
   values[2] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]];
   values[3] = xpp::format("{:g}", s.auto_state.axes().xmin);
@@ -1274,7 +1274,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, double *p
   }
   if((flag2==0&&ax.plot==P_P)||(flag2>0&&ax.plot!=P_P)){
     dp.x=dp.y1=dp.y2=std::numeric_limits<double>::quiet_NaN();
-    auto_diagram(v,&dp);
+    auto_diagram(s,v,&dp);
     return;
   }
   if(flag2>0) /* a two-parameter point in a two-parameter view */
@@ -1335,7 +1335,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, double *p
     s.auto_state.bifur.lastx=x;
     s.auto_state.bifur.lasty=y1;
   }
-  auto_diagram(v,&dp);
+  auto_diagram(s,v,&dp);
 }
 
 } // namespace
@@ -1483,7 +1483,7 @@ void do_auto_win(xpp::Session &s)
       err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO).c_str());
       return;
     }
-    make_auto("It's AUTO man!","AUTO");
+    make_auto(s,"It's AUTO man!","AUTO");
     s.auto_state.bifur.exist=1;
     
   }
@@ -2556,14 +2556,14 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   s.data_store.rows=nrow;
   refresh_browser(s,nrow);
   /* insert auxiliary stuff here */
-  if(load_all_labeled_orbits==2)clr_all_scrns();
-  drw_all_scrns();
+  if(load_all_labeled_orbits==2)clr_all_scrns(s);
+  drw_all_scrns(s);
   return {};
 }
 
 void save_auto(xpp::Session &s)
 {
-  std::string filename=xpp_session_file_name(xpp::autox::extension);
+  std::string filename=xpp_session_file_name(s.model(),xpp::autox::extension);
   if(!file_selector("Save diagram",filename,"*.autox"))return;
   if(xpp::snapx::has_extension(filename,".auto"))filename+='x'; /* the old name, the new file */
   filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
@@ -2651,7 +2651,7 @@ xpp::Result<> make_q_file(FILE *fp)
 
 void load_auto(xpp::Session &s)
 {
-  std::string filename=xpp_session_file_name(xpp::autox::extension);
+  std::string filename=xpp_session_file_name(s.model(),xpp::autox::extension);
   if(!file_selector("Load diagram",filename,"*.autox *.auto"))return;
   /* an .autox carries its model: opened as File > Open model opens it,
      its diagram into that model (the same one: only the diagram, in
@@ -2946,7 +2946,7 @@ void traverse_diagram(xpp::Session &s)
   traverse_out(s, d,&ix,&iy,1);
   
   while(done==0){
-    kp=xpp_ui.auto_grab_event(&xm,&ym);
+    kp=xpp_ui.auto_grab_event(s,&xm,&ym);
     if(kp==XPP_AUTO_NODE)
     {
       /* a point of the diagram by its entry: the cursor goes there */
@@ -3067,7 +3067,7 @@ void traverse_diagram(xpp::Session &s)
        else
        {
          s.auto_state.bifur.hinttxt=xpp::format("  Higher {} not found",nsymb);
-	 xpp_ui.auto_show_hint();
+	 xpp_ui.auto_show_hint(s);
 	 d=dold;
        }
        CUR_DIAGRAM=d;
@@ -3091,7 +3091,7 @@ void traverse_diagram(xpp::Session &s)
        else
        {
          s.auto_state.bifur.hinttxt=xpp::format("  Lower {} not found",nsymb);
-	 xpp_ui.auto_show_hint();
+	 xpp_ui.auto_show_hint(s);
 	 d=dold;
        }
        CUR_DIAGRAM=d;
@@ -3277,7 +3277,7 @@ void MarkAuto(int x, int y)
 void clear_msg(xpp::Session &s)
 {
   s.auto_state.bifur.hinttxt.clear();
-  xpp_ui.auto_show_hint();
+  xpp_ui.auto_show_hint(s);
 }
 
 void auto_update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
@@ -3303,5 +3303,5 @@ void auto_point_xy(xpp::Session &s, double x,double y)
 {
     s.auto_state.bifur.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautopoint(s, x,y);
-    xpp_ui.auto_show_hint();
+    xpp_ui.auto_show_hint(s);
 }

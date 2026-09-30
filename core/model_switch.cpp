@@ -46,7 +46,7 @@ std::string poincare_name(const xpp::Model &m, int i)
 /* the model's own ICs (the ODEs and Markov variables): not an aux quantity */
 int ic_index(const xpp::Model &m, const std::string &name)
 {
-  int i=find_user_name(ICBOX,name);
+  int i=find_user_name(m,ICBOX,name);
   return i<m.node+m.nmarkov?i:-1;
 }
 
@@ -66,7 +66,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
   }
   /* a recording: its model, in the player (W59b) */
   if(xpp::snapx::has_extension(file,xpp::recx::extension)){
-    play_recording(file.c_str());
+    play_recording(s,file.c_str());
     return;
   }
   /* a file that carries a model: that model, then what the file adds */
@@ -156,7 +156,7 @@ KeptValues keep_values(const Session &s)
   KeptValues kept;
   for(int i=0;i<m.nupar;i++){
     double z=0;
-    get_val(m.upar_names[i],&z);
+    get_val(s,m.upar_names[i],&z);
     kept.pars.emplace_back(m.upar_names[i],z);
   }
   for(int i=0;i<m.node+m.nmarkov;i++)
@@ -189,7 +189,7 @@ void restore_values(Session &s, const KeptValues &kept)
   int poi=-1;
   if(kept.poivar=="T")poi=0;
   else if(!kept.poivar.empty()){
-    const int i=find_user_name(ICBOX,kept.poivar);
+    const int i=find_user_name(m,ICBOX,kept.poivar);
     if(i>=0)poi=i+1;
   }
   if(poi<0){
@@ -205,7 +205,7 @@ void restore_values(Session &s, const KeptValues &kept)
   set_delay(s);
 
   for(const std::pair<std::string,double> &p : kept.pars)
-    if(find_user_name(PARAMBOX,p.first)>=0)set_val(p.first,p.second);
+    if(find_user_name(m,PARAMBOX,p.first)>=0)set_val(s,p.first,p.second);
   box_values_loaded(s,PARAMBOX);
   for(const std::pair<std::string,double> &v : kept.ics){
     const int i=ic_index(m,v.first);
@@ -235,13 +235,13 @@ Session *load_requested(const Session &now, const ModelRequest &req)
   std::vector<char *> argv;
   for(std::string &a : args)argv.push_back(a.data());
   argv.push_back(nullptr);
-  if(std::optional<Diagnostic> failed=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr)){
+  Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr);
+  if(!loaded){
     back();
-    err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.file,failed->text(),before_file).c_str());
+    err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.file,loaded.error().text(),before_file).c_str());
     return nullptr;
   }
-  /* the load made its Session current: the one place a switch picks it up */
-  return &session();
+  return *loaded;
 }
 
 }

@@ -92,7 +92,7 @@ void  get_num_par(xpp::Session &s, char ch)
 
 		case 't': flash(0);
 			 /* total */
-			 new_float("total :",&s.numerics.tend);
+			 new_float(s,"total :",&s.numerics.tend);
 			  s.numerics.forever=0;
 			  if(s.numerics.tend<0)
 			  {
@@ -104,18 +104,18 @@ void  get_num_par(xpp::Session &s, char ch)
 			break;
 		case 's': flash(1);
 			 /* start */
-			 new_float("start time :",&s.numerics.t0);
+			 new_float(s,"start time :",&s.numerics.t0);
 			flash(1);
 			break;
 		case 'r': flash(2);
 			 /* transient */
-			 new_float("transient :",&s.numerics.trans);
+			 new_float(s,"transient :",&s.numerics.trans);
 			flash(2);
 			break;
 		case 'd': flash(3);
 			 /* DT */
 		         temp=s.numerics.delta_t;
-			 new_float("Delta t :",&s.numerics.delta_t);
+			 new_float(s,"Delta t :",&s.numerics.delta_t);
 		         if(s.numerics.delta_t==0.0)s.numerics.delta_t=temp;
 		         dt_changed(s);
 			flash(3);
@@ -131,18 +131,18 @@ void  get_num_par(xpp::Session &s, char ch)
 		        
 		         new_int("Maximum iterates :",&s.numerics.bvp_maxit);
 		         check_pos(&s.numerics.bvp_maxit);
-		         new_float("Tolerance :",&s.numerics.bvp_tol);
-		         new_float("Epsilon :",&s.numerics.bvp_eps);
+		         new_float(s,"Tolerance :",&s.numerics.bvp_tol);
+		         new_float(s,"Epsilon :",&s.numerics.bvp_eps);
 		         reset_bvp(s);
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
 			 new_int("Maximum iterates :",&s.numerics.evec_iter);
 			 check_pos(&s.numerics.evec_iter);
-			 new_float("Newton tolerance :",&s.numerics.evec_err);
-			 new_float("Jacobian epsilon :",&s.numerics.newt_err);
+			 new_float(s,"Newton tolerance :",&s.numerics.evec_err);
+			 new_float(s,"Jacobian epsilon :",&s.numerics.newt_err);
 		       if(s.model().nflags>0)
-			 new_float("SMIN :",&s.numerics.stol);
+			 new_float(s,"SMIN :",&s.numerics.stol);
 		       
 			flash(5);
 			break;
@@ -155,7 +155,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			break;
 		case 'b': flash(7);
 			 /* bounds */
-			new_float("Bounds :",&s.numerics.bound); s.numerics.bound=fabs(s.numerics.bound);
+			new_float(s,"Bounds :",&s.numerics.bound); s.numerics.bound=fabs(s.numerics.bound);
 
 			flash(7);
 			break;
@@ -171,18 +171,18 @@ void  get_num_par(xpp::Session &s, char ch)
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
 			if(traits.step_tolerance)
 		{
-		 new_float("Tolerance :",&s.numerics.toler);
-		 new_float("minimum step :",&s.numerics.hmin);
-		 new_float("maximum step :",&s.numerics.hmax);
+		 new_float(s,"Tolerance :",&s.numerics.toler);
+		 new_float(s,"minimum step :",&s.numerics.hmin);
+		 new_float(s,"maximum step :",&s.numerics.hmax);
 		}
 			if(traits.rel_abs_tolerance)
 			  {
-			    new_float("Relative tol:",&s.numerics.toler);
-			    new_float("Abs. Toler:",&s.numerics.atoler);
+			    new_float(s,"Relative tol:",&s.numerics.toler);
+			    new_float(s,"Abs. Toler:",&s.numerics.atoler);
 			  }
 
 		       if(traits.newton){
-			 new_float("Tolerance :",&s.numerics.eul_tol);
+			 new_float(s,"Tolerance :",&s.numerics.eul_tol);
 			 new_int("MaxIter :",&s.numerics.max_eul_iter);
 		       }
 		       if(s.numerics.method==method::VOLTERRA){
@@ -206,9 +206,9 @@ void  get_num_par(xpp::Session &s, char ch)
 		case 'e': flash(9);
 			 /* delay */
                         if(s.model().ndelays==0)break;
-			new_float("Maximal delay :",&s.numerics.delay);
-                        new_float("real guess :", &s.delay.alpha_max);
-			   new_float("imag guess :", &s.delay.omega_max); 
+			new_float(s,"Maximal delay :",&s.numerics.delay);
+                        new_float(s,"real guess :", &s.delay.alpha_max);
+			   new_float(s,"imag guess :", &s.delay.omega_max); 
 		        new_int("DelayGrid :",&s.delay.grid);
 		        chk_delay(s);
 
@@ -351,7 +351,7 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 
  if(s.numerics.poimap==0)return;
 
- values[0] = ind_to_sym(i1);
+ values[0] = ind_to_sym(s,i1);
  values[1] = xpp::format("{:.16g}", s.numerics.poipln);
  values[2] = xpp::format("{}", s.numerics.poisgn);
  values[3] = yn[s.numerics.sos];
@@ -426,7 +426,7 @@ void set_col_par_com(xpp::Session &s, int i)
     return;
     }
     if(s.plot_windows.current->ColorFlag==2){
-      std::string name=ind_to_sym(s.plot_windows.current->ColorValue);
+      std::string name=ind_to_sym(s,s.plot_windows.current->ColorValue);
       new_string_of("Color via:",name,XPP_FIELD_NAME_IN(0));
       find_variable(s,name.c_str(),&ivar);
 
@@ -447,8 +447,8 @@ void set_col_par_com(xpp::Session &s, int i)
     {
      temp[0]=s.plot_windows.current->min_scale;
      temp[1]=s.plot_windows.current->min_scale+s.plot_windows.current->color_scale;
-     new_float("Min :",&temp[0]);
-     new_float("Max :",&temp[1]);
+     new_float(s,"Min :",&temp[0]);
+     new_float(s,"Max :",&temp[1]);
      if(temp[1]>temp[0]&&((s.plot_windows.current->ColorFlag==2)
      ||(s.plot_windows.current->ColorFlag==1&&temp[0]>=0.0)))
      {

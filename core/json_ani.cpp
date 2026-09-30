@@ -43,7 +43,7 @@ void send_ani_slider(const xpp::Session &s)
 
 } // namespace
 
-void j_ani_slider(void) { send_ani_slider(xpp::session()); }
+void j_ani_slider(xpp::Session &s) { send_ani_slider(s); }
 
 namespace {
 /* the step of ani fast and slow */
@@ -202,9 +202,8 @@ void ani_key(xpp::Session &s, int ch)
     send_ani_slider(s);
 }
 
-void j_new_vcr(void)
+void j_new_vcr(xpp::Session &s)
 {
-    xpp::Session &s = xpp::session();
     /* already open: say so (a client that reconnected has not seen it made) */
     if (s.animation.vcr.iexist == 1) {
         send_ani_slider(s);

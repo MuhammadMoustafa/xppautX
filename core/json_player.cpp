@@ -521,9 +521,9 @@ bool play_async(const char *line)
     return true;
 }
 
-void j_play_recording(const char *path)
+void j_play_recording(xpp::Session &s, const char *path)
 {
-    open_recording(xpp::session(), path); /* an XppUi callback: an entry point */
+    open_recording(s, path);
 }
 
 } // namespace xpp::json

@@ -3,10 +3,11 @@
 /* xpp::Model: what loading a model produces (CLAUDE.md "No global state";
    docs/roadmap.md W46c, the start of W47b). C++ only.
 
-   For now the current Model is reached through xpp::model(); W47d passes
-   it explicitly. A load (xpp_batch.cpp's xpp_load_model) builds a new one
-   with a new Session through xpp::Load (session.h) and keeps them only
-   when the load succeeds.
+   A Model is passed to what reads it (a const Model&), or reached through
+   the Session that runs it (Session::model(), session.h); there is no
+   current one to read (W47d). A load (xpp_batch.cpp's xpp::load_model)
+   builds a new one with a new Session through xpp::Load (session.h) and
+   keeps them only when the load succeeds.
 
    A Model is what the .ode file defines, and a load is the only thing
    that should write it; what a person changes while working (parameter
@@ -31,7 +32,6 @@
 #include "volterra.h"
 #include "tabular.h"
 #include "simplenet.h"
-#include "xpp_current.h"
 #include "odex.h"
 #include "model_files.h"
 
@@ -276,12 +276,6 @@ struct Model {
      relative paths name files of */
   std::string load_dir;
 };
-
-/* the current Model (xpp_current.h) */
-inline Model &model()
-{
-  return detail::current<Model>();
-}
 
 
 }

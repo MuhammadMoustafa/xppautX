@@ -4,6 +4,7 @@
    phase_data.cpp. */
 #include "nullcline.h"
 #include "session.h"
+#include "getvar.h"
 #include "xpp_util.h"
 #include "xpp_log.h"
 #include "odesol2.h"
@@ -339,9 +340,9 @@ void do_range_clines(xpp::Session &s)
   const double dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
   if(dz<=0.0)return;
   double zold;
-  get_val(ncrange.rv.c_str(),&zold);
+  get_val(s,ncrange.rv.c_str(),&zold);
 
-  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)set_ivar(i+1+s.model().fix_var,s.last_ic[i]);
+  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows.current->xmin);
   const float xmax=static_cast<float>(s.plot_windows.current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows.current->ymax);
@@ -351,7 +352,7 @@ void do_range_clines(xpp::Session &s)
 
   for(int i=0;i<=ncrange.nstep;i++){
     const double z=static_cast<double>(i)*dz+ncrange.xlo;
-    set_val(ncrange.rv.c_str(),z);
+    set_val(s,ncrange.rv.c_str(),z);
     null_storage(s,course);
 
     WHICH_CRV=null_ix;
@@ -363,7 +364,7 @@ void do_range_clines(xpp::Session &s)
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
     add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
   }
-  set_val(ncrange.rv.c_str(),zold);
+  set_val(s,ncrange.rv.c_str(),zold);
   phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
   note_frozen(s);
 }
@@ -755,7 +756,7 @@ void new_clines_com(xpp::Session &s, int c)
   default:
     return;
   }
-  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)set_ivar(i+1+s.model().fix_var,s.last_ic[i]);
+  for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows.current->xmin);
   const float xmax=static_cast<float>(s.plot_windows.current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows.current->ymax);

@@ -76,7 +76,7 @@ void get_draw_area_flag(xpp::Session &s, int flag)
   unsigned int w,h;
   if(flag==1)
     {
-      xpp_ui.get_draw_size(&w,&h);
+      xpp_ui.get_draw_size(s,&w,&h);
       s.plot_windows.current->x11Wid=w;
       s.plot_windows.current->x11Hgt=h;
     }
@@ -292,7 +292,7 @@ void set_extra_graphs(xpp::Session &s)
   }
   if(program.interactive){
   for(i=1;i<s.plot_settings.npltv;i++){
-    create_a_pop();
+    create_a_pop(s);
     s.plot_windows.graph[i].xv[0]=s.plot_settings.ix_plt[i+1];
     s.plot_windows.graph[i].yv[0]=s.plot_settings.iy_plt[i+1];
     s.plot_windows.graph[i].zv[0]=s.plot_settings.iz_plt[i+1]; /* irrelevant probably */
@@ -335,7 +335,7 @@ void reset_graph(xpp::Session &s)
     s.plot_windows.current->grtype=s.plot_settings.axes;
     check_windows(s);
     set_normal_scale(s);
-    xpp_ui.redraw_graph();
+    xpp_ui.redraw_graph(s);
 }
 
 void get_graph(xpp::Session &s)
@@ -734,7 +734,7 @@ void text_abs(xpp::Session &s, float x, float y, const char *text)
 /* old with each \{expr} replaced by the expression's value (%g), ? for
    one that does not evaluate (the rest up to the next } then joins the
    expression), and a ? ending an unclosed one */
-std::string fill_in_text(std::string_view old)
+std::string fill_in_text(xpp::Session &s, std::string_view old)
 {
   std::string out;
   const size_t l=old.size();
@@ -749,7 +749,7 @@ std::string fill_in_text(std::string_view old)
         const char c2=i<l?old[i]:'\0';
         if(c2=='}'){
           double z;
-          if(do_calc(name.c_str(),&z)!=-1){
+          if(do_calc(s,name.c_str(),&z)!=-1){
             out+=xpp::format("{:g}",z);
             break;
           }
@@ -777,7 +777,7 @@ void fancy_text_abs(xpp::Session &s, float x, float y, const char *old, int size
 {
   int xp,yp;
   scale_to_screen(s,x,y,&xp,&yp);
-  const std::string text=fill_in_text(old);
+  const std::string text=fill_in_text(s,old);
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_special_text(s,xp,yp,text.c_str(),size);
   else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);

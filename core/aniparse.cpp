@@ -23,6 +23,7 @@
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
+#include "getvar.h"
 #include "ode_read.h"
 #include "aniparse.h"
 #include "ani_data.h"
@@ -180,11 +181,11 @@ double ani_lastx, ani_lasty;
 std::vector<AniCom> my_ani;
 
 void set_ani_font_stuff(int size, int font, int color);
-void eval_ani_color(int j);
-void eval_ani_com(int j);
+void eval_ani_color(xpp::Session &s, int j);
+void eval_ani_com(xpp::Session &s, int j);
 void free_ani(xpp::Session &s);
-void do_grab_tasks(int which);
-void draw_grab_points(const xpp::Session &s);
+void do_grab_tasks(xpp::Session &s, int which);
+void draw_grab_points(xpp::Session &s);
 
 /*************************  NEW ANIMaTION STUFF ***********************/
 
@@ -373,11 +374,11 @@ std::string read_ani_line(xpp::LineReader &fp, bool &eof)
 }
 
 /* an expression compiled for evaluate(); false when it does not parse */
-bool compile_expr(const char *x, std::vector<int> &c)
+bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
 {
     std::array<int, 300> com;
     int n;
-    if (add_expr(x, com.data(), &n) == 1) return false;
+    if (add_expr(s,x, com.data(), &n) == 1) return false;
     c.assign(com.begin(), com.begin() + n);
     return true;
 }
@@ -408,27 +409,27 @@ int chk_ani_color(std::string &s, int *index)
 /* the colour argument of a drawing command: a named colour ($RED) is kept
    as minus its palette index, anything else is compiled as an expression
    whose value (0..1) picks a colour of the colour map */
-int add_ani_color(AniCom &a, std::string &col)
+int add_ani_color(xpp::Session &s, AniCom &a, std::string &col)
 {
     int index;
     if (chk_ani_color(col, &index) == 1) {
         a.col.assign(1, -index);
         return 0;
     }
-    return compile_expr(col.c_str(), a.col) ? 0 : -1;
+    return compile_expr(s, col.c_str(), a.col) ? 0 : -1;
 }
 
 /*  the commands  */
 
-int add_ani_rline(AniCom &a, const std::string &x1, const std::string &y1, std::string &col, const std::string &thick)
+int add_ani_rline(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, std::string &col, const std::string &thick)
 {
     /* a named colour is -index like every other command's (it was +index,
        which read the index as a compiled expression) */
-    if (add_ani_color(a, col) < 0) return -1;
+    if (add_ani_color(s, a, col) < 0) return -1;
     a.zthick = std::atoi(thick.c_str());
     if (a.zthick < 0) a.zthick = 0;
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
     return 0;
 }
 
@@ -455,18 +456,18 @@ void roll_comet(AniCom &a, double xn, double yn, int col)
     c.col[n - 1] = col;
 }
 
-int add_ani_comet(AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2, std::string &col,
+int add_ani_comet(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2, std::string &col,
                   const std::string &thick)
 {
-    if (add_ani_color(a, col) < 0) return -1;
+    if (add_ani_color(s, a, col) < 0) return -1;
     a.zthick = std::atoi(thick.c_str());
     const int n = std::atoi(x2.c_str());
     if (n <= 0) {
         xpp::log(XPP_LOG_WARN, "4th argument of comet must be positive integer!\n");
         return (-1);
     }
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
     a.c.n = n;
     a.c.x.assign(n, 0.0);
     a.c.y.assign(n, 0.0);
@@ -476,50 +477,50 @@ int add_ani_comet(AniCom &a, const std::string &x1, const std::string &y1, const
 }
 
 /* line, and the boxes of rect, frect, ellip and fellip */
-int add_ani_line(AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2,
+int add_ani_line(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2,
                  const std::string &y2, std::string &col, const std::string &thick)
 {
-    if (add_ani_color(a, col) < 0) return -1;
+    if (add_ani_color(s, a, col) < 0) return -1;
     a.zthick = std::atoi(thick.c_str());
     if (a.zthick < 0) a.zthick = 0;
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
-    if (!compile_expr(x2.c_str(), a.x2)) return -1;
-    if (!compile_expr(y2.c_str(), a.y2)) return -1;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
+    if (!compile_expr(s, x2.c_str(), a.x2)) return -1;
+    if (!compile_expr(s, y2.c_str(), a.y2)) return -1;
     return 0;
 }
 
-int add_ani_null(AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2,
+int add_ani_null(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2,
                  const std::string &y2, std::string &col, const std::string &who)
 {
-    if (add_ani_color(a, col) < 0) return -1;
-    if (!compile_expr(who.c_str(), a.who)) return -1;
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
-    if (!compile_expr(x2.c_str(), a.x2)) return -1;
-    if (!compile_expr(y2.c_str(), a.y2)) return -1;
+    if (add_ani_color(s, a, col) < 0) return -1;
+    if (!compile_expr(s, who.c_str(), a.who)) return -1;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
+    if (!compile_expr(s, x2.c_str(), a.x2)) return -1;
+    if (!compile_expr(s, y2.c_str(), a.y2)) return -1;
     return 0;
 }
 
-int add_ani_circle(AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2, std::string &col,
+int add_ani_circle(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, const std::string &x2, std::string &col,
                    const std::string &thick)
 {
-    if (add_ani_color(a, col) < 0) return -1;
+    if (add_ani_color(s, a, col) < 0) return -1;
     a.zthick = std::atoi(thick.c_str());
     if (a.zthick < 0) a.zthick = 0;
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
-    if (!compile_expr(x2.c_str(), a.x2)) return -1;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
+    if (!compile_expr(s, x2.c_str(), a.x2)) return -1;
     return 0;
 }
 
-/* text x;y;s, and vtext's value v (x2) after s */
-int add_ani_text(AniCom &a, const std::string &x1, const std::string &y1, const std::string *x2, const std::string &s)
+/* text x;y;text, and vtext's value v (x2) after the text */
+int add_ani_text(xpp::Session &s, AniCom &a, const std::string &x1, const std::string &y1, const std::string *x2, const std::string &text)
 {
-    if (!compile_expr(x1.c_str(), a.x1)) return -1;
-    if (!compile_expr(y1.c_str(), a.y1)) return -1;
-    if (x2 && !compile_expr(x2->c_str(), a.x2)) return -1;
-    a.text = s;
+    if (!compile_expr(s, x1.c_str(), a.x1)) return -1;
+    if (!compile_expr(s, y1.c_str(), a.y1)) return -1;
+    if (x2 && !compile_expr(s, x2->c_str(), a.x2)) return -1;
+    a.text = text;
     return 0;
 }
 
@@ -566,30 +567,30 @@ int add_ani_com(xpp::Session &s, int type, const std::string &x1, std::string &y
     switch (type) {
     case AXNULL:
     case AYNULL:
-        err = add_ani_null(a, x1, y1, x2, y2, col, thick);
+        err = add_ani_null(s, a, x1, y1, x2, y2, col, thick);
         break;
     case COMET:
-        err = add_ani_comet(a, x1, y1, x2, col, thick);
+        err = add_ani_comet(s, a, x1, y1, x2, col, thick);
         break;
     case LINE:
     case RECT:
     case FRECT:
     case ELLIP:
     case FELLIP:
-        err = add_ani_line(a, x1, y1, x2, y2, col, thick);
+        err = add_ani_line(s, a, x1, y1, x2, y2, col, thick);
         break;
     case RLINE:
-        err = add_ani_rline(a, x1, y1, col, thick);
+        err = add_ani_rline(s, a, x1, y1, col, thick);
         break;
     case CIRC:
     case FCIRC:
-        err = add_ani_circle(a, x1, y1, x2, col, thick);
+        err = add_ani_circle(s, a, x1, y1, x2, col, thick);
         break;
     case TEXT:
-        err = add_ani_text(a, x1, y1, nullptr, y2);
+        err = add_ani_text(s, a, x1, y1, nullptr, y2);
         break;
     case VTEXT:
-        err = add_ani_text(a, x1, y1, &x2, y2);
+        err = add_ani_text(s, a, x1, y1, &x2, y2);
         break;
     case SETTEXT:
         err = add_ani_settext(a, x1, y1, col);
@@ -627,7 +628,7 @@ void free_ani(xpp::Session &s)
 
 /*************************  GRABBER CODE *****************************/
 
-int add_grab_task(const std::string &lhs, const std::string &rhs, AniGrab &g, int which)
+int add_grab_task(xpp::Session &s, const std::string &lhs, const std::string &rhs, AniGrab &g, int which)
 {
     if (which != 1 && which != 2) return (-1);
     GrabTask &task = which == 1 ? g.start : g.end;
@@ -638,7 +639,7 @@ int add_grab_task(const std::string &lhs, const std::string &rhs, AniGrab &g, in
     if (static_cast<int>(task.events.size()) >= MAX_GEVENTS) return (-1); /* too many events */
     GrabEvent e;
     e.lhs = lhs;
-    if (!compile_expr(rhs.c_str(), e.rhs)) {
+    if (!compile_expr(s, rhs.c_str(), e.rhs)) {
         xpp::log(XPP_LOG_WARN, "Bad right-hand side for grab event {}\n", rhs);
         return (-1);
     }
@@ -646,13 +647,13 @@ int add_grab_task(const std::string &lhs, const std::string &rhs, AniGrab &g, in
     return (1);
 }
 
-int ani_grab_tasks(const std::string &line, AniGrab &g, int which)
+int ani_grab_tasks(xpp::Session &s, const std::string &line, AniGrab &g, int which)
 {
     std::string form, lhs;
     for (const char c : line) {
         if (c == '{' || c == ' ') continue;
         if (c == ';' || c == '}') {
-            if (add_grab_task(lhs, form, g, which) < 0) return (-1);
+            if (add_grab_task(s, lhs, form, g, which) < 0) return (-1);
             form.clear();
             continue;
         }
@@ -667,7 +668,7 @@ int ani_grab_tasks(const std::string &line, AniGrab &g, int which)
 }
 
 /* grab x;y;tol, then its start and end tasks on the next two lines */
-int add_grab_command(const std::string &xs, const std::string &ys, const std::string &ts, xpp::LineReader &fp)
+int add_grab_command(xpp::Session &s, const std::string &xs, const std::string &ys, const std::string &ts, xpp::LineReader &fp)
 {
     bool eof = false;
     const std::string start = read_ani_line(fp, eof);
@@ -681,16 +682,16 @@ int add_grab_command(const std::string &xs, const std::string &ys, const std::st
     double z = std::atof(ts.c_str());
     if (z <= 0.0) z = .02;
     g.tol = z;
-    if (!compile_expr(xs.c_str(), g.x)) {
+    if (!compile_expr(s, xs.c_str(), g.x)) {
         xpp::log(XPP_LOG_WARN, "Bad grab x {} \n", xs);
         return (-1);
     }
-    if (!compile_expr(ys.c_str(), g.y)) {
+    if (!compile_expr(s, ys.c_str(), g.y)) {
         xpp::log(XPP_LOG_WARN, "Bad grab y {} \n", ys);
         return (-1);
     }
-    if (ani_grab_tasks(start, g, 1) < 0) return (-1);
-    if (ani_grab_tasks(end, g, 2) == (-1)) return (-1);
+    if (ani_grab_tasks(s, start, g, 1) < 0) return (-1);
+    if (ani_grab_tasks(s, end, g, 2) == (-1)) return (-1);
     ani_grab.push_back(std::move(g));
     return (1);
 }
@@ -717,13 +718,13 @@ int search_for_grab(double x, double y)
     return (imin);
 }
 
-void do_grab_tasks(int which) /* which=1 for start, 2 for end */
+void do_grab_tasks(xpp::Session &s, int which) /* which=1 for start, 2 for end */
 {
     const int i = who_was_grabbed;
     if (i < 0 || i >= static_cast<int>(ani_grab.size())) return; /*  no legal grab point */
     if (which != 1 && which != 2) return;
     for (GrabEvent &e : (which == 1 ? ani_grab[i].start : ani_grab[i].end).events)
-        set_val(e.lhs.c_str(), evaluate(e.rhs.data()));
+        set_val(s,e.lhs.c_str(), evaluate(s,e.rhs.data()));
 }
 
 /* a command is known by its first two letters */
@@ -773,7 +774,7 @@ int parse_ani_string(xpp::Session &s, std::string &text, xpp::LineReader &fp)
     switch (type) {
     case GRAB:
         if (!read_args(tokens, {{&x1, ";", false}, {&x2, ";", false}, {&x3, ";", false}})) return -1;
-        return add_grab_command(x1, x2, x3, fp);
+        return add_grab_command(s, x1, x2, x3, fp);
     case AXNULL:
     case AYNULL:
         ok = read_args(tokens, {{&x1, ";", false},
@@ -880,7 +881,7 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
    model_files.h), one picked in the animation window a file of the disk */
 xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_file)
 {
-    xpp::LineReader fp = model_file ? xpp::model_file_lines(filename) : xpp::LineReader(filename);
+    xpp::LineReader fp = model_file ? xpp::model_file_lines(s.model(),filename) : xpp::LineReader(filename);
     if (!fp) {
         return xpp::fail("animation", "Couldn't open ani-file");
     }
@@ -908,8 +909,8 @@ void ani_frame(xpp::Session &s, int task)
 void set_to_init_data(xpp::Session &s)
 {
     int i;
-    for (i = 0; i < s.model().node; i++) s.last_ic[i] = get_ivar(i + 1);
-    for (i = s.model().node + s.model().fix_var; i < s.model().node + s.model().fix_var + s.model().nmarkov; i++) s.last_ic[i - s.model().fix_var] = get_ivar(i + 1);
+    for (i = 0; i < s.model().node; i++) s.last_ic[i] = getvar(s,i + 1);
+    for (i = s.model().node + s.model().fix_var; i < s.model().node + s.model().fix_var + s.model().nmarkov; i++) s.last_ic[i - s.model().fix_var] = getvar(s,i + 1);
     redraw_ics();
 }
 
@@ -931,22 +932,22 @@ void ani_disk_warn(xpp::Session &s)
     }
 }
 
-void eval_ani_color(int j)
+void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = my_ani[j];
     if (a.col[0] > 0) {
-        double z = evaluate(a.col.data());
+        double z = evaluate(s,a.col.data());
         if (z > 1) z = 1.0;
         if (z < 0) z = 0.0;
         a.zcol = z;
     }
 }
 
-void eval_ani_com(int j)
+void eval_ani_com(xpp::Session &s, int j)
 {
     AniCom &a = my_ani[j];
-    a.zx1 = evaluate(a.x1.data());
-    a.zy1 = evaluate(a.y1.data());
+    a.zx1 = evaluate(s,a.x1.data());
+    a.zy1 = evaluate(s,a.y1.data());
 
     switch (a.type) {
     case LINE:
@@ -956,19 +957,19 @@ void eval_ani_com(int j)
     case FELLIP:
     case AXNULL:
     case AYNULL:
-        a.zx2 = evaluate(a.x2.data());
-        a.zy2 = evaluate(a.y2.data());
+        a.zx2 = evaluate(s,a.x2.data());
+        a.zy2 = evaluate(s,a.y2.data());
         break;
     case CIRC:
     case FCIRC:
-        a.zrad = evaluate(a.x2.data());
+        a.zrad = evaluate(s,a.x2.data());
         break;
     case VTEXT:
-        a.zval = evaluate(a.x2.data());
+        a.zval = evaluate(s,a.x2.data());
         break;
     }
 
-    if (a.type == AXNULL || a.type == AYNULL) a.zval = evaluate(a.who.data());
+    if (a.type == AXNULL || a.type == AYNULL) a.zval = evaluate(s,a.who.data());
 }
 
 void set_ani_font_stuff(int size, int font, int color) { pen_font(size, font, color); }
@@ -1087,12 +1088,12 @@ void draw_ani_vtext(const xpp::Session &s, int j)
 }
 
 /* Draw little black x's where the grab points are */
-void draw_grab_points(const xpp::Session &s)
+void draw_grab_points(xpp::Session &s)
 {
     pen_color(0);
     for (AniGrab &g : ani_grab) {
-        const double xc = evaluate(g.x.data());
-        const double yc = evaluate(g.y.data());
+        const double xc = evaluate(s,g.x.data());
+        const double yc = evaluate(s,g.y.data());
         g.zx = xc;
         g.zy = yc;
         const double z = g.tol;
@@ -1116,11 +1117,11 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
     if (dt == 0.0) dt = 10000000000;
     ami.vx = (ami.x - ami.ox) / dt;
     ami.vy = (ami.y - ami.oy) / dt;
-    set_val("mouse_x", ami.x);
-    set_val("mouse_y", ami.y);
-    set_val("mouse_vx", ami.vx);
-    set_val("mouse_vy", ami.vy);
-    do_grab_tasks(1);
+    set_val(s,"mouse_x", ami.x);
+    set_val(s,"mouse_y", ami.y);
+    set_val(s,"mouse_vx", ami.vx);
+    set_val(s,"mouse_vy", ami.vy);
+    do_grab_tasks(s, 1);
     fix_only(s);
     ani_frame(s,0);
 }
@@ -1232,7 +1233,7 @@ void reset_comets(void)
 
 void render_ani(xpp::Session &s)
 {
-    xpp_ui.ani_slider();
+    xpp_ui.ani_slider(s);
     pen.color = 0; /* ani_clear gave the frame a black pen */
     ani_data_begin();
     for (int i = 0; i < s.animation.ncom; i++) {
@@ -1240,8 +1241,8 @@ void render_ani(xpp::Session &s)
         const int flag = my_ani[i].flag;
         if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
             type == ELLIP || type == FELLIP || type == COMET || type == AXNULL || type == AYNULL)
-            eval_ani_color(i);
-        if (type != SETTEXT && flag == TRANSIENT) eval_ani_com(i);
+            eval_ani_color(s, i);
+        if (type != SETTEXT && flag == TRANSIENT) eval_ani_com(s, i);
         switch (type) {
         case AXNULL:
         case AYNULL:
@@ -1280,7 +1281,7 @@ void render_ani(xpp::Session &s)
         AniDataFrame f;
         f.pos = s.animation.vcr.pos;
         f.rows = s.browser.view.maxrow;
-        f.t = get_ivar(0);
+        f.t = getvar(s,0);
         f.speed = s.animation.speed;
         f.skip = s.animation.vcr.inc;
         f.xlo = ani_xlo;
@@ -1299,10 +1300,10 @@ void set_ani_perm(xpp::Session &s)
     for (int i = 0; i < s.animation.ncom; i++) {
         const int type = my_ani[i].type;
         if (my_ani[i].flag == PERMANENT) {
-            if (my_ani[i].type != SETTEXT) eval_ani_com(i);
+            if (my_ani[i].type != SETTEXT) eval_ani_com(s, i);
             if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
                 type == ELLIP || type == FELLIP)
-                eval_ani_color(i);
+                eval_ani_color(s, i);
         }
     }
 }
@@ -1339,7 +1340,7 @@ void ani_reset(xpp::Session &s)
 {
     s.animation.vcr.pos = 0;
     reset_comets();
-    xpp_ui.ani_slider();
+    xpp_ui.ani_slider(s);
     ani_flip1(s,0);
 }
 
@@ -1354,7 +1355,7 @@ void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy)
     }
     if (flag == 0) { /* This is BUTTON RELEASE  */
         if (who_was_grabbed < 0) return;
-        do_grab_tasks(2);
+        do_grab_tasks(s, 2);
         set_to_init_data(s);
         s.animation.grab_flag = 0;
         redraw_params();
