@@ -4018,6 +4018,15 @@ def check_player():
               _ is not None and all(e['ms'] == 0 for e in evs if e.get('ev') == 'press'), '')
         col(is_idle, timeout=10 * SLOW)
 
+        # W59c: a recording on the command line starts in the player, no question asked
+        done = subprocess.run([os.path.abspath(args.server), '--server', path], cwd=r, input='',
+                              capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        evs = [json.loads(l) for l in done.stdout.splitlines() if l.strip().startswith('{')]
+        pl = next((e for e in evs if e.get('ev') == 'player'), None)
+        check('command line: xppautX name.recx opens the recording in the player, asking nothing',
+              pl is not None and len(pl.get('steps', [])) == 10 and not any(e.get('ev') == 'ask' for e in evs),
+              done.stderr[-300:])
+
         # a recording that is not one
         open(os.path.join(r, 'bad.recx'), 'w').write('hello\n')
         evs = run(cmd='play', op='open', file=os.path.join(r, 'bad.recx'))
