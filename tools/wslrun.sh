@@ -35,41 +35,20 @@ if [ ! -d "$dst/.git" ]; then
   mkdir -p "$dst" && git init -q "$dst" || exit 2
 fi
 
-# Clean up stale clones whose checkout no longer exists (W105).
-# The live set is the main checkout's folder name plus basenames of
-# 'git worktree list --porcelain' of the main checkout.
-cache_dir="$HOME/.cache/xppautx-verify"
-if [ -d "$cache_dir" ]; then
-  main_dir=$(git -C "$src" rev-parse --git-common-dir)
-  main_checkout=$(basename "$(cd "$main_dir/.." 2>/dev/null && pwd)" 2>/dev/null || echo "")
-  live_worktrees="$main_checkout"
-  while IFS= read -r line; do
-    if [ "${line#worktree }" != "$line" ]; then
-      worktree_path="${line#worktree }"
-      live_worktrees="$live_worktrees $(basename "$worktree_path")"
-    fi
-  done << EOF
-$(git -C "$src" worktree list --porcelain 2>/dev/null || true)
-EOF
-
+# Clean up stale clones whose checkout no longer exists (W105): the live
+# set is every worktree `git worktree list` names (the main checkout
+# first), by folder name. Nothing is removed when that list cannot be
+# read, and never the clone this run uses.
+live=$(git -C "$src" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | sed 's#.*[/\]##')
+if [ -n "$live" ]; then
   removed=""
-  for clone_dir in "$cache_dir"/*; do
-    [ -d "$clone_dir" ] || continue
-    clone_name=$(basename "$clone_dir")
-    is_live=0
-    for live in $live_worktrees; do
-      if [ "$clone_name" = "$live" ]; then
-        is_live=1
-        break
-      fi
-    done
-    if [ $is_live -eq 0 ] && [ -d "$clone_dir/.git" ]; then
-      rm -rf "$clone_dir" && removed="$removed $clone_name" || true
-    fi
+  for clone in "$HOME/.cache/xppautx-verify"/*/; do
+    name=$(basename "$clone")
+    [ "$HOME/.cache/xppautx-verify/$name" = "$dst" ] && continue
+    printf '%s\n' "$live" | grep -qxF "$name" && continue
+    [ -d "$clone.git" ] && rm -rf -- "${clone%/}" && removed="$removed $name"
   done
-  if [ -n "$removed" ]; then
-    echo "wslrun: removed stale clones:$removed"
-  fi
+  [ -n "$removed" ] && echo "wslrun: removed the clones of checkouts that are gone:$removed"
 fi
 
 git -C "$dst" fetch -q "$src" HEAD || exit 2
