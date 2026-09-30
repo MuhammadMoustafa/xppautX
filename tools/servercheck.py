@@ -3536,11 +3536,13 @@ def check_session_file():
                                                           next(((a, b) for a, b in zip(diagram1, diagram2) if a != b), None)))
         return diagram2
 
-    # the same model open (the same bytes): nothing asked, the session loads
+    # the same model open (the same bytes): the session it replaces may be
+    # saved first, as File > Open asks (W103 review), then the session loads
     p, r, snd, col = open_snapx()
     try:
-        check('open session of the model open: nothing is asked', not any(e.get('ev') == 'ask' for e in allev),
-              str([e for e in allev if e.get('ev') == 'ask'][:1]))
+        asks = [e for e in allev if e.get('ev') == 'ask']
+        check('open session of the model open: asks once whether to save this session first',
+              len(asks) == 1 and asks[0].get('kind') == 'choice' and asks[0].get('keys') == 'sd', str(asks[:2]))
         diagram2 = restored_as_saved('open session')
         m2 = [no_t(last('marks', win=w)) for w in (1, 2)]
         strip = lambda m: m and dict(m, equilibria=[])
