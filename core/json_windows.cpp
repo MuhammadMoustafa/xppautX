@@ -65,13 +65,13 @@ namespace {
 /* a blanked plot window no longer shows its nullclines, direction field
    and flows (phase_data.h), nor its marks (marks_data.h), until they are
    drawn again */
-void blank_draw_window(const xpp::Session &s)
+void blank_draw_window(xpp::Session &s)
 {
     int i;
     for (i = 0; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use && s.plot_windows.graph[i].w == s.plot_windows.draw_win) {
-            phase_data_cleared(i);
-            marks_data_cleared(i);
+            phase_data_cleared(s, i);
+            marks_data_cleared(s, i);
         }
 }
 
@@ -203,7 +203,7 @@ void j_cput_text(xpp::Session &s)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(s, &x, &y)) {
         const std::string text = fill_in_text(s, string);
-        marks_data_label(s.plot_windows, s.plot_windows.draw_win, add_label(s, string, x, y, size, 0), text);
+        marks_data_label(s, s.plot_windows.draw_win, add_label(s, string, x, y, size, 0), text);
     }
     j_kill_message_box();
 }

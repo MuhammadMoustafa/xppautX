@@ -1814,7 +1814,7 @@ void plot_one_graph(xpp::Session &s, float *xv,float *xvold,int node,int neq,dou
  if(s.plot_windows.current->ColorFlag)
    comp_color(s,xv,xvold,s.model().node,static_cast<float>(ddt));
  do_plot(s,oldxpl,oldypl,oldzpl,xpl,ypl,zpl);
- phase_data_flow_step(s.plot_windows,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows.current->color); /* Dir.field/flow's Flow as data */
+ phase_data_flow_step(s,NPlots,oldxpl,oldypl,xpl,ypl,s.plot_windows.current->color); /* Dir.field/flow's Flow as data */
 }
 void restore(xpp::Session &s, int i1, int i2)
 {

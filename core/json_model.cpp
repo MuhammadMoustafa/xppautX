@@ -107,10 +107,10 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     for (unsigned long w : shown) send_window("destroy", w, 0, 0);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < MAXPOP; i++) {
-        phase_data_cleared(i);
-        marks_data_cleared(i);
+        phase_data_cleared(s, i);
+        marks_data_cleared(s, i);
     }
-    ani_data_forget();
+    ani_data_forget(s);
     auto_data_forget(s);
     diag_forget();
     plot_data_changed();

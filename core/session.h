@@ -46,6 +46,9 @@
 #include "arrayplot.h"
 #include "aniparse.h"
 #include "userbut.h"
+#include "phase_data.h"
+#include "marks_data.h"
+#include "ani_data.h"
 #include "xpp_error.h"
 #include "xpp_log.h"
 #include "model_switch.h"
@@ -80,6 +83,11 @@ struct Session {
   Mov3d movie_3d;
   /* what the page displays of each window: earlier runs, zoom (display_state.h) */
   std::array<PlotDisplay,MAXPOP> plot_display;
+  /* what each window shows besides its curves since it was last blanked:
+     nullclines, direction field and flows (phase_data.cpp), equilibria,
+     labels, objects and frozen curves (marks_data.cpp) */
+  PhaseShown phase_shown;
+  MarksShown marks_shown;
   /* AUTO's hidden branches and zoom */
   AutoView auto_view;
   /* how plots are written to files (graf_par.cpp) */
@@ -123,6 +131,11 @@ struct Session {
   /* the options a source has set (model_options.h): the command line
      sets its own first, and the model's may not override them */
   OptionsSet options_set;
+  /* how many of the model's options set_internopts (load_eqn.cpp) has
+     applied: each call applies those the parser added since the call
+     before (xpp::load_model's, after the parse, applies them all;
+     set_all_vals' own finds none new) */
+  std::size_t options_applied=0;
   /* the last equilibrium the equilibrium window showed, for its Import
      (json_state.cpp) */
   std::vector<double> last_equilibrium;
@@ -197,6 +210,8 @@ struct Session {
   /* the array plot (arrayplot.cpp) and the animator (aniparse.cpp) */
   ArrayPlotState array_plot;
   AnimationState animation;
+  /* the animation's frames as the events' text (ani_data.cpp) */
+  AniShown ani_shown;
   /* the model's buttons (@ button=name:keys; userbut.cpp) */
   int nuserbut=0;
   std::array<USERBUT,USERBUTMAX> userbut{};

@@ -154,13 +154,13 @@ void draw_label(xpp::Session &s, XppWinId w)
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
             const std::string text = fill_in_text(s, s.labels[i].s);
-            marks_data_label(s.plot_windows,w, i, text);
+            marks_data_label(s,w, i, text);
             fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
         }
     }
     for (int i = 0; i < MAXGROB; i++) {
         if (s.grobs[i].use == 1 && s.grobs[i].w == w) {
-            marks_data_grob(s.plot_windows,w, i);
+            marks_data_grob(s,w, i);
             draw_grob(s,i);
         }
     }

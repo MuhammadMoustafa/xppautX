@@ -1,9 +1,15 @@
 #ifndef MARKS_DATA_H
 #define MARKS_DATA_H
 
+#include <array>
+#include <cstring>
+#include <map>
+#include <string>
 #include <string_view>
+#include <vector>
 #include "xpp_types.h"
 #include "many_pops.h"
+#include "struct.h" /* MAXFRZ */
 
 namespace xpp {
 struct Session; /* session.h */
@@ -29,6 +35,32 @@ struct Session; /* session.h */
 
    marks_data.cpp; nothing escapes it. */
 
+/* What each plot window was drawn since it was last blanked: a Session's
+   (Session::marks_shown), which marks_data.cpp fills; what the client got
+   of it is marks_data.cpp's own, the client's. */
+struct MarksShown {
+    struct Equilibrium {
+        double x, y;
+        int symbol; /* eq_symb's: 0 box, 1 triangle, 3 circle */
+        bool operator==(const Equilibrium &o) const
+        {
+            return std::memcmp(&x, &o.x, sizeof x) == 0 && std::memcmp(&y, &o.y, sizeof y) == 0 && symbol == o.symbol;
+        }
+    };
+    struct Record {
+        std::vector<Equilibrium> eqs;
+        std::map<int, std::string> labels;    /* lb[] slot -> the text drawn */
+        std::vector<bool> grobs;              /* grob[] slots drawn */
+        std::map<int, unsigned long> frozen;  /* frozen_curves.curve[] slot -> its generation */
+    };
+    std::array<Record, MAXPOP> windows;
+    /* each frozen_curves.curve[] slot's generation, bumped when a curve is
+       made in it (marks_data_frozen_new): a record keeps the generation it
+       drew, so a new curve in the slot is not the one drawn */
+    std::array<unsigned long, MAXFRZ> generation{};
+    unsigned long generations = 0;
+};
+
 typedef void (*MarksDataEmit)(std::string_view line);
 
 /* the front end that sends the events; nothing is recorded before this */
@@ -39,28 +71,28 @@ void marks_data_init(MarksDataEmit emit);
 void marks_data_subscribe(int on, int f32);
 
 /* plot window pop was blanked: it shows none of its marks any more */
-void marks_data_cleared(int pop);
+void marks_data_cleared(Session &s, int pop);
 
 /* the end of a command on s: the events of every window whose marks
    changed */
-void marks_data_update(const Session &s);
+void marks_data_update(Session &s);
 
-/* the active window of the plot windows pw marks an equilibrium at (x, y)
+/* the active plot window of s marks an equilibrium at (x, y)
    (plot coordinates) with eq_symb's symbol: 0 box (unstable), 1 triangle
    (saddle), 3 circle (stable) */
-void marks_data_equilibrium(const XppPlotWindows &pw, double x, double y, int symbol);
+void marks_data_equilibrium(Session &s, double x, double y, int symbol);
 
-/* window w of pw shows label lb[slot] as `text` (its \{expr} filled in) */
-void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, std::string_view text);
+/* plot window w of s shows label lb[slot] as `text` (its \{expr} filled in) */
+void marks_data_label(Session &s, XppWinId w, int slot, std::string_view text);
 
-/* window w of pw shows graphic object grob[slot] */
-void marks_data_grob(const XppPlotWindows &pw, XppWinId w, int slot);
+/* plot window w of s shows graphic object grob[slot] */
+void marks_data_grob(Session &s, XppWinId w, int slot);
 
-/* window w of pw shows frozen curve frozen_curves.curve[slot]; frozen_new:
+/* plot window w of s shows frozen curve frozen_curves.curve[slot]; frozen_new:
    s's curve was just made (a new curve, even in a slot used before), in the
    window it names */
-void marks_data_frozen(const XppPlotWindows &pw, XppWinId w, int slot);
-void marks_data_frozen_new(const Session &s, int slot);
+void marks_data_frozen(Session &s, XppWinId w, int slot);
+void marks_data_frozen_new(Session &s, int slot);
 
 } // namespace xpp
 #endif

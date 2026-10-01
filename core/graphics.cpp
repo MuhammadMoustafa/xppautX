@@ -1010,7 +1010,7 @@ void eq_symb(xpp::Session &s, double *x, int type)
   }
   draw_symbol(s,static_cast<float>(x[ix]),static_cast<float>(x[iy]),SYMSIZE,type);
   point_abs(s,static_cast<float>(x[ix]),static_cast<float>(x[iy]));
-  if(ix>=0&&iy>=0)marks_data_equilibrium(s.plot_windows,x[ix],x[iy],type); /* the mark as data */
+  if(ix>=0&&iy>=0)marks_data_equilibrium(s,x[ix],x[iy],type); /* the mark as data */
  
 }
 

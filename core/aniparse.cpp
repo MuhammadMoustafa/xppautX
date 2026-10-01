@@ -220,7 +220,7 @@ void put_line(xpp::Session &s, double x1, double y1, double x2, double y2)
     ani_xyscale(s,x1, y1, &i1, &j1);
     ani_xyscale(s,x2, y2, &i2, &j2);
     ui.ani_line(i1, j1, i2, j2);
-    ani_data_line(unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick);
+    ani_data_line(s, unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick);
 }
 
 /* a rectangle with corners (x1,y1) and (x2,y2), in either order */
@@ -234,7 +234,7 @@ void put_rect(xpp::Session &s, double x1, double y1, double x2, double y2, int f
     if (i1 > i2) i1 = i2;
     if (j1 > j2) j1 = j2;
     ui.ani_rect(i1, j1, w, h, fill);
-    ani_data_rect(unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick, fill);
+    ani_data_rect(s, unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick, fill);
 }
 
 /* a circle of radius r: in pixels the mean of the radius scaled along x and along y */
@@ -245,7 +245,7 @@ void put_circle(xpp::Session &s, double x, double y, double r, int fill)
     ani_radscale(s,r, &i2, &j2);
     ir = (i2 + j2) / 2;
     ui.ani_arc(i1 - ir, j1 - ir, 2 * ir, 2 * ir, fill);
-    ani_data_circle(unit_x(s, x), unit_y(s, y), r / (s.animation.xhi - s.animation.xlo), r / (s.animation.yhi - s.animation.ylo), s.animation.pen.color, s.animation.pen.thick,
+    ani_data_circle(s, unit_x(s, x), unit_y(s, y), r / (s.animation.xhi - s.animation.xlo), r / (s.animation.yhi - s.animation.ylo), s.animation.pen.color, s.animation.pen.thick,
                     fill);
 }
 
@@ -255,7 +255,7 @@ void put_ellipse(xpp::Session &s, double x, double y, double rx, double ry, int 
     ani_xyscale(s,x, y, &i1, &j1);
     ani_rad2scale(s,rx, ry, &i2, &j2);
     ui.ani_arc(i1 - i2, j1 - j2, 2 * i2, 2 * j2, fill);
-    ani_data_ellipse(unit_x(s, x), unit_y(s, y), rx / (s.animation.xhi - s.animation.xlo), ry / (s.animation.yhi - s.animation.ylo), s.animation.pen.color,
+    ani_data_ellipse(s, unit_x(s, x), unit_y(s, y), rx / (s.animation.xhi - s.animation.xlo), ry / (s.animation.yhi - s.animation.ylo), s.animation.pen.color,
                      s.animation.pen.thick, fill);
 }
 
@@ -265,7 +265,7 @@ void put_dot(xpp::Session &s, double x, double y, int r)
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
     ui.ani_arc(i - r, j - r, 2 * r, 2 * r, 1);
-    ani_data_dot(unit_x(s, x), unit_y(s, y), r, s.animation.pen.color);
+    ani_data_dot(s, unit_x(s, x), unit_y(s, y), r, s.animation.pen.color);
 }
 
 /* text from its baseline's left end */
@@ -274,7 +274,7 @@ void put_text(xpp::Session &s, double x, double y, const char *str)
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
     ui.ani_text(i, j, str);
-    ani_data_text(unit_x(s, x), unit_y(s, y), str, s.animation.pen.color, s.animation.pen.size, s.animation.pen.font);
+    ani_data_text(s, unit_x(s, x), unit_y(s, y), str, s.animation.pen.color, s.animation.pen.size, s.animation.pen.font);
 }
 
 } // namespace
@@ -820,7 +820,7 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
     }
     if (s.animation.ncom > 0) free_ani(s);
     /* a new animation: its frames start again, nothing of the old one shows */
-    ani_data_forget();
+    ani_data_forget(s);
     if (load_ani_file(s,fp) == 0) {
         return xpp::fail("animation", xpp::format("Bad ani-file at line {}", s.animation.lineno));
     }
@@ -1168,7 +1168,7 @@ void render_ani(xpp::Session &s)
 {
     ui.ani_slider(s);
     s.animation.pen.color = 0; /* ani_clear gave the frame a black s.animation.pen */
-    ani_data_begin();
+    ani_data_begin(s);
     for (int i = 0; i < s.animation.ncom; i++) {
         const int type = s.animation.commands[i].type;
         const int flag = s.animation.commands[i].flag;
@@ -1223,7 +1223,7 @@ void render_ani(xpp::Session &s)
         f.yhi = s.animation.yhi;
         f.w = s.animation.vcr.wid;
         f.h = s.animation.vcr.hgt;
-        ani_data_end(&f);
+        ani_data_end(s, &f);
     }
 }
 

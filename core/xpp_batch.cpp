@@ -85,8 +85,7 @@ void check_for_quiet(xpp::Session &s, int argc, char **argv)
 
 void do_vis_env(xpp::Session &s)
 {
-  check_for_xpprc();
-  set_internopts_xpprc_and_comline(s);
+  set_internopts_xpprc_and_comline(s, check_for_xpprc());
   
 }
 

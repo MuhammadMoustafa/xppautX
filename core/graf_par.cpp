@@ -961,7 +961,7 @@ void draw_freeze(xpp::Session &s, XppWinId w)
   float *xv,*yv,*zv;
   for(i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==1&&s.frozen_curves.curve[i].w==w&&s.frozen_curves.curve[i].type==type){
-      if(type==0)marks_data_frozen(s.plot_windows,w,i); /* the curve as data */
+      if(type==0)marks_data_frozen(s,w,i); /* the curve as data */
       if(s.frozen_curves.curve[i].color<0){
 	set_linestyle(s,-s.frozen_curves.curve[i].color);
 	lt=1;

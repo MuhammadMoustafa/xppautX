@@ -2,6 +2,7 @@
 #include <array>
 #include <cctype>
 #include <cstdio>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -55,16 +56,6 @@ namespace xpp {
 
 
 namespace {
-
-/* the @ option lines of .xpprc, each whole, until
-   set_internopts_xpprc_and_comline applies them (the model's own are
-   xpp::Model's options) */
-std::vector<std::string> interopt;
-
-/* how many of the model's options set_internopts has applied: each call
-   applies those the parser added since the call before (xpp::load_model's,
-   after the parse, applies them all; set_all_vals' own finds none new) */
-std::size_t options_applied=0;
 
 /* line appended to options, unless they already hold MAXOPT */
 template <class Line>
@@ -123,7 +114,7 @@ void load_eqn(xpp::Session &s)
 {
  int okay=0;
  int std=0;
- options_applied=0;
+ s.options_applied=0;
  for(int i=0;i<MAXODE;i++)
  {
   s.itor[i]=0;
@@ -389,19 +380,19 @@ std::vector<std::pair<std::string, std::string>> option_items(std::string_view l
 void set_internopts(xpp::Session &s, const OptionsSet *mask)
 {
   const std::vector<xpp::Model::OptionLine> &options=s.model().options;
-  if(options_applied>=options.size())return;
-  for(;options_applied<options.size();options_applied++){
+  if(s.options_applied>=options.size())return;
+  for(;s.options_applied<options.size();s.options_applied++){
     /* a value an option refuses is reported at its line */
-    const xpp::Place &at=options[options_applied].where;
+    const xpp::Place &at=options[s.options_applied].where;
     xpp::Load::at(at.file.empty()?s.model().this_file:at.file,at.line,at.col);
-    each_option(options[options_applied].text," ,"," ,\n\r",[&s,mask](const std::string &name,const std::string &value){
+    each_option(options[s.options_applied].text," ,"," ,\n\r",[&s,mask](const std::string &name,const std::string &value){
       set_option(s,name,value,0,mask);
     });
   }
   xpp::Load::at(s.model().this_file);
 }
 
-void set_internopts_xpprc_and_comline(xpp::Session &s)
+void set_internopts_xpprc_and_comline(xpp::Session &s, std::span<const std::string> interopt)
 {
   if(interopt.empty())return;
   /* QUIET and LOGFILE first */
@@ -427,27 +418,20 @@ void set_internopts_xpprc_and_comline(xpp::Session &s)
       set_option(s,name,value,0,&mask);
     });
 
-  /*
-  We leave a fresh start for options specified in the ODE file.
-  */
-  interopt.clear();
 }
 
-void check_for_xpprc()
+std::vector<std::string> check_for_xpprc()
 {
+  std::vector<std::string> interopt;
   const char *home=getenv("HOME");
-  if(home==NULL)return;
+  if(home==NULL)return interopt;
   xpp::LineReader lr((std::string(home)+"/.xpprc").c_str());
-  if(!lr)return;
+  if(!lr)return interopt;
   while(std::optional<std::string_view> line=lr.next()){
     if(!line->empty()&&(*line)[0]=='@')
-      stor_internopts(*line);
+      store_option(interopt,std::string(*line),*line);
   }
-}
-
-void stor_internopts(std::string_view s1)
-{
-  store_option(interopt,std::string(s1),s1);
+  return interopt;
 }
 
 int add_model_option(xpp::Model &m, std::string_view s1)

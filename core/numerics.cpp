@@ -302,9 +302,9 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 {
  static const char *const mkey="nsmp";
  char ch;
- static const char *n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
+ static const char *const n[]={"*0Variable","Section","Direction (+1,-1,0)","Stop on sect(y/n)"};
  std::array<std::string, 4> values;
- static const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  int status;
  int i1=s.numerics.poivar;
 

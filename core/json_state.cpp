@@ -307,7 +307,7 @@ void data_command(xpp::Session &s, const char *line)
     plot_data_subscribe(series, plots, f32);
     phase_data_subscribe(nullclines, dfield, f32);
     marks_data_subscribe(marks, f32);
-    ani_data_subscribe(ani);
+    ani_data_subscribe(s, ani);
     auto_data_subscribe(autoinfo);
     auto_view_subscribe(autoinfo);
     auto_settings_subscribe(s, autosettings);

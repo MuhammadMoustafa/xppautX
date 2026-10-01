@@ -1,7 +1,9 @@
 #ifndef PHASE_DATA_H
 #define PHASE_DATA_H
 
+#include <array>
 #include <string_view>
+#include <vector>
 #include "many_pops.h"
 
 namespace xpp {
@@ -29,6 +31,49 @@ struct Session; /* session.h */
 
    phase_data.cpp; nothing escapes it. */
 
+/* What each plot window shows of these, recorded since it was last blanked:
+   a Session's (Session::phase_shown), which phase_data.cpp fills; what the
+   client got of it is phase_data.cpp's own, the client's. */
+struct PhaseShown {
+    /* nullcline segments, 4 values each */
+    struct Clines {
+        std::vector<float> x, y;
+    };
+    struct Nullclines {
+        int ix = 0, iy = 0, xcolor = 0, ycolor = 0;
+        Clines now;
+        std::vector<Clines> frozen;
+    };
+    /* one curve's trajectories of Flow */
+    struct FlowCurve {
+        int color = 0;
+        std::vector<float> x, y; /* the trajectories one after the other, NaN between two */
+        /* thinning: the last point kept, and the last one seen when it was not kept */
+        float kx = 0, ky = 0, px = 0, py = 0;
+        bool pending = false;
+    };
+    struct Field {
+        int n = 0, scaled = 0, color = 0;
+        double du = 0, dv = 0;
+        std::vector<float> grid;  /* x, y, ux, uy per arrow */
+        std::vector<float> speed; /* one per arrow */
+        std::vector<FlowCurve> flows; /* one per curve of the window */
+    };
+    struct Window {
+        Nullclines nc;
+        Field df;
+        /* every change of nc, of df, bumps its generation: an update looks
+           at a record again only when its generation moved */
+        unsigned long nc_generation = 0, df_generation = 0;
+        unsigned long trajectory = 0; /* the flow trajectory its last point was from */
+    };
+    std::array<Window, MAXPOP> windows;
+    /* Flow is drawing (phase_data_flow_start to _stop), and the number of
+       the trajectory it draws */
+    bool flowing = false;
+    unsigned long trajectory = 0;
+};
+
 typedef void (*PhaseDataEmit)(std::string_view line);
 
 /* the front end that sends the events; nothing is recorded before this, so
@@ -40,42 +85,42 @@ void phase_data_init(PhaseDataEmit emit);
 void phase_data_subscribe(int nullclines, int dfield, int f32);
 
 /* plot window pop was blanked: it shows none of this any more */
-void phase_data_cleared(int pop);
+void phase_data_cleared(Session &s, int pop);
 
 /* Flow: flow_start before the trajectories, flow_next before each one,
    flow_stop after; in between the integrator reports each segment it draws
    with phase_data_flow_step (below) */
-void phase_data_flow_start(void);
-void phase_data_flow_next(void);
-void phase_data_flow_stop(void);
+void phase_data_flow_start(Session &s);
+void phase_data_flow_next(Session &s);
+void phase_data_flow_stop(Session &s);
 
 /* the end of a command on s: the events of every window whose record
    changed */
-void phase_data_update(const Session &s);
+void phase_data_update(Session &s);
 
-/* The recorders below record into the active window of the plot windows pw
-   (a Session's plot_windows), the one drawn in. */
+/* The recorders below record into s.phase_shown's record of the active
+   plot window of s, the one drawn in. */
 
 /* that window now shows these nullclines (nx and ny segments of 4 floats,
    of the variables ix and iy, 1-based) in these colour indices */
-void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
+void phase_data_nullclines(Session &s, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
                            int xcolor, int ycolor);
 
 /* its frozen nullclines: begin (none), then each set drawn */
-void phase_data_frozen_begin(const XppPlotWindows &pw);
-void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny);
+void phase_data_frozen_begin(Session &s);
+void phase_data_frozen(Session &s, const float *xn, int nx, const float *yn, int ny);
 
 /* its direction field: begin with the grid (n points a side, spacing du,
    dv in plot units), then each arrow at (x, y) with the vector field's
    components (fx, fy) there. scaled: 1 every arrow has one length (Scaled
    Dir.Fld), 0 the length follows the speed (Direct field) */
-void phase_data_dfield_begin(const XppPlotWindows &pw, int n, double du, double dv, int scaled, int color);
-void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, double fy);
+void phase_data_dfield_begin(Session &s, int n, double du, double dv, int scaled, int color);
+void phase_data_arrow(Session &s, double x, double y, double fx, double fy);
 
 /* between flow_start and flow_stop, each segment of Flow the integrator
    draws (a no-op otherwise): ncurves segments from (ox[i], oy[i]) to
    (x[i], y[i]) in colour color[i] */
-void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox, const float *oy, const float *x,
+void phase_data_flow_step(Session &s, int ncurves, const float *ox, const float *oy, const float *x,
                           const float *y, const int *color);
 
 } // namespace xpp

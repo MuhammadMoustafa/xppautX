@@ -565,7 +565,7 @@ void data_table(const xpp::Session &s, BROWSER *b)
 {
  int status;
 
- static const char *name[]={"Variable","Xlo","Xhi","File"};
+ static const char *const name[]={"Variable","Xlo","Xhi","File"};
  std::array<std::string, 4> value;
 
  double xlo=0,xhi=1;
@@ -588,7 +588,7 @@ void data_find(const xpp::Session &s, BROWSER *b)
 {
  int status;
 
- static const char *name[]={"*0Variable","Value"};
+ static const char *const name[]={"*0Variable","Value"};
  std::array<std::string, 2> value;
  int col,row=-1;
 

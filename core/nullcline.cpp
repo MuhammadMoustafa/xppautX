@@ -65,11 +65,11 @@ void for_each_frozen(xpp::Session &s, F &&f)
    its axes, as redraw_froz_cline draws them */
 void note_frozen(xpp::Session &s)
 {
-  phase_data_frozen_begin(s.plot_windows);
+  phase_data_frozen_begin(s);
   if(!s.nullcline_state.frozen_started)return;
   for_each_frozen(s,[&](FrozenCline &z){
     if(s.plot_windows.current->xv[0]==z.n_ix&&s.plot_windows.current->yv[0]==z.n_iy&&s.plot_windows.current->ThreeDFlag==0)
-      phase_data_frozen(s.plot_windows,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
+      phase_data_frozen(s,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
   });
 }
 
@@ -165,7 +165,7 @@ void redraw_froz_cline(xpp::Session &s, int flag)
 {
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   if(!s.nullcline_state.frozen_started)return;
-  phase_data_frozen_begin(s.plot_windows);
+  phase_data_frozen_begin(s);
   for_each_frozen(s,[&](FrozenCline &z){
     if(s.plot_windows.current->xv[0]==z.n_ix&&s.plot_windows.current->yv[0]==z.n_iy
        &&s.plot_windows.current->ThreeDFlag==0){
@@ -177,7 +177,7 @@ void redraw_froz_cline(xpp::Session &s, int flag)
       restor_null(s,z.xn.data(),z.nmx,1);
       set_linestyle(s,col2);
       restor_null(s,z.yn.data(),z.nmy,2);
-      phase_data_frozen(s.plot_windows,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
+      phase_data_frozen(s,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
       if(flag>0)
         FlushDisplay();
     }
@@ -339,7 +339,7 @@ void do_range_clines(xpp::Session &s)
     add_froz_cline(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.null_ix,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_iy);
   }
   xpp::set_val(s,s.nullcline_state.range.rv.c_str(),zold);
-  phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
+  phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
   note_frozen(s);
 }
 
@@ -373,7 +373,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   xpp::get_ic(s,2,y.data());
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
-    phase_data_dfield_begin(s.plot_windows,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
+    phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
   if (s.plot_file.plt_fmt_flag==SVGFMT){
     s.nullclines.doing_dfield=1;
     svg_write(s.plot_file,"<g>");
@@ -394,7 +394,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
         if(!suppress)xpp::comp_color(s,v1.data(),v2.data(),s.model().node,1.0);
       }
       if(s.nullclines.df_flag==1||s.nullclines.df_flag==4){
-        if(!suppress)phase_data_arrow(s.plot_windows,y[inx],y[iny],ydot[inx],ydot[iny]);
+        if(!suppress)phase_data_arrow(s,y[inx],y[iny],ydot[inx],ydot[iny]);
         scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
         if(s.nullcline_state.dfield_type==1){
           ydot[inx]/=mdf;
@@ -644,7 +644,7 @@ void direct_field_com(xpp::Session &s, int c)
   s.numerics.storflag=0;
 
   s.integrator.suppress_bounds=1;
-  phase_data_flow_start();
+  phase_data_flow_start(s);
   std::array<double,MAXODE> y;
   xpp::FirstError failure; /* a trajectory's, shown once the flow is drawn */
   for(int k=0;k<2;k++){
@@ -655,12 +655,12 @@ void direct_field_com(xpp::Session &s, int c)
         y[iny]=v0+dv*j;
         double t=0.0;
         int start=1;
-        phase_data_flow_next();
+        phase_data_flow_next(s);
         failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start));
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }
-  phase_data_flow_stop();
+  phase_data_flow_stop(s);
   s.integrator.suppress_bounds=0;
   s.numerics.delta_t=dtold;
   if (s.plot_file.plt_fmt_flag==SVGFMT){
@@ -691,7 +691,7 @@ void restore_nullclines(xpp::Session &s)
     restor_null(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,1);
     set_linestyle(s,col2);
     restor_null(s,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,2);
-    phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
+    phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
   }
   redraw_froz_cline(s,0);
 }
@@ -748,7 +748,7 @@ void new_clines_com(xpp::Session &s, int c)
   set_linestyle(s,col2);
   new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
   ping();
-  phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
+  phase_data_nullclines(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
 }
 
 } // namespace xpp

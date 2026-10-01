@@ -33,10 +33,6 @@ namespace xpp {
 
 namespace {
 
-PlotDataEmit emit_line;
-bool series_on, plots_on, series_f32;
-unsigned long data_version; /* counts data changes */
-
 /* what a window's series shows: equal signatures, the same event */
 struct SeriesSig : xpp::PlotCurves {
     unsigned long win, version;
@@ -53,10 +49,23 @@ struct Sent {
     std::vector<int> cols;
     int held = 0;
 };
-Sent sent[MAXPOP];
 
-int rows_seen;     /* storage rows when last seen: fewer next time means it started again */
-int appended = -1; /* the graph index that got appends in this command */
+/* The protocol client's: the events it subscribed to and what it was sent
+   of them. It outlives a load (a Session's earlier runs and zoom are the
+   Session's plot_display), so the data's version it is told never
+   repeats while it is connected. */
+struct PlotClient {
+    PlotDataEmit emit_line = nullptr;
+    bool series_on = false, plots_on = false, series_f32 = false;
+    unsigned long data_version = 0; /* counts data changes */
+    std::array<Sent, MAXPOP> sent;
+    int rows_seen = 0;     /* storage rows when last seen: fewer next time means it started again */
+    int appended = -1;     /* the graph index that got appends in this command */
+    double last_append = 0; /* when the last append went (xpp::every) */
+    std::string plots_sent;
+    bool plots_valid = false;
+};
+PlotClient client;
 
 /* the least time between two appends of a live run: about one a display
    frame (60 Hz), so the page extends the curve at every frame it draws
@@ -65,16 +74,13 @@ int appended = -1; /* the graph index that got appends in this command */
    cost the core a little more framing, not more data. */
 constexpr double append_every = 1.0 / 60;
 
-std::string plots_sent;
-bool plots_valid;
-
 /* ---- JSON text ---- */
 
 void add_int(std::string &o, long v) { o += std::to_string(v); }
 
 void emit(const std::string &s)
 {
-    if (emit_line) emit_line(s);
+    if (client.emit_line) client.emit_line(s);
 }
 
 /* ---- series ---- */
@@ -103,7 +109,7 @@ SeriesSig series_sig(const xpp::Session &s, int pop)
     SeriesSig sig{};
     const GRAPH &g = s.plot_windows.graph[pop];
     sig.win = static_cast<unsigned long>(g.w);
-    sig.version = data_version;
+    sig.version = client.data_version;
     sig.rows = s.browser.view.maxrow;
     sig.PlotCurves::operator=(curves_of(g));
     return sig;
@@ -123,7 +129,7 @@ bool same_plot(const SeriesSig &a, const SeriesSig &b)
 /* rows [from, to) of storage column col as a JSON value */
 void add_values(std::string &o, const BROWSER &view, int col, int from, int to)
 {
-    xpp_series_append(o, view.data[col] + from, to - from, series_f32);
+    xpp_series_append(o, view.data[col] + from, to - from, client.series_f32);
 }
 
 void add_curves(std::string &o, const xpp::PlotCurves &s)
@@ -214,7 +220,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
     add_int(o, static_cast<long>(drop));
     o += ",\"keep\":";
     add_int(o, keep);
-    if (series_f32) o += ",\"enc\":\"f32\"";
+    if (client.series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"add\":[";
     for (std::size_t i = d.runs.size() - added; i < d.runs.size(); i++) {
         const xpp::PlotRun &r = d.runs[i];
@@ -233,7 +239,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
             o += ",\"name\":";
             xpp::json_append_string(o, xpp::ind_to_sym(s,r.cols[k]));
             o += ",\"data\":";
-            xpp_series_append(o, r.data[k].data(), r.rows, series_f32);
+            xpp_series_append(o, r.data[k].data(), r.rows, client.series_f32);
             o += '}';
         }
         o += "]}";
@@ -348,7 +354,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
 {
     const GRAPH &g = s.plot_windows.graph[pop];
     const std::vector<int> cols = used_columns(sig, s.browser.view.maxcol);
-    runs_on_full(s, pop, sig, cols, rows, !sent[pop].valid);
+    runs_on_full(s, pop, sig, cols, rows, !client.sent[pop].valid);
     std::string o = "{\"ev\":\"series\",\"win\":";
     add_int(o, static_cast<long>(sig.win));
     o += ",\"rows\":";
@@ -357,7 +363,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     add_int(o, static_cast<long>(sig.version));
     o += ",\"three\":";
     add_int(o, sig.three);
-    if (series_f32) o += ",\"enc\":\"f32\"";
+    if (client.series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"xlabel\":";
     xpp::json_append_string(o, g.xlabel);
     o += ",\"ylabel\":";
@@ -379,19 +385,19 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     }
     o += "]}";
     emit(o);
-    Sent &w = sent[pop];
+    Sent &w = client.sent[pop];
     w.valid = true;
     w.sig = sig;
     w.cols = cols;
     w.held = rows;
-    rows_seen = rows;
+    client.rows_seen = rows;
 }
 
 /* rows [from, rows) of window pop's columns as an append: the client keeps
    its rows before `from` and adds these */
 void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows)
 {
-    Sent &w = sent[pop];
+    Sent &w = client.sent[pop];
     runs_on_append(s, pop, from, rows);
     std::string o = "{\"ev\":\"series\",\"op\":\"append\",\"win\":";
     add_int(o, static_cast<long>(win));
@@ -399,7 +405,7 @@ void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows
     add_int(o, from);
     o += ",\"rows\":";
     add_int(o, rows);
-    if (series_f32) o += ",\"enc\":\"f32\"";
+    if (client.series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"columns\":[";
     for (std::size_t k = 0; k < w.cols.size(); k++) {
         if (k) o += ',';
@@ -418,7 +424,7 @@ void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows
    window and curves as its last full series, the same columns */
 bool appends_continue(xpp::Session &s, int pop, const SeriesSig &sig)
 {
-    const Sent &w = sent[pop];
+    const Sent &w = client.sent[pop];
     return w.valid && same_plot(sig, w.sig) && disp(s, pop).has_cur && disp(s, pop).cur.cols == w.cols;
 }
 
@@ -427,12 +433,12 @@ void series_append(xpp::Session &s, int rows)
 {
     const int pop = s.plot_windows.active;
     const SeriesSig sig = series_sig(s, pop);
-    appended = pop;
+    client.appended = pop;
     if (!appends_continue(s, pop, sig)) {
         send_series(s, pop, sig, rows); /* other columns: the whole series, as far as it goes */
         return;
     }
-    if (rows > sent[pop].held) send_append(s, pop, sig.win, sent[pop].held, rows);
+    if (rows > client.sent[pop].held) send_append(s, pop, sig.win, client.sent[pop].held, rows);
 }
 
 /* the end of a command that appended to window pop: the rows stored since the
@@ -441,7 +447,7 @@ void series_append(xpp::Session &s, int rows)
    and the current run's copy (runs_on_append's) is complete as it is. */
 void series_end(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
 {
-    Sent &w = sent[pop];
+    Sent &w = client.sent[pop];
     if (rows > w.held) send_append(s, pop, sig.win, w.held, rows);
     xpp::PlotDisplay &d = disp(s, pop);
     d.live = false; /* the run ends here; an append cleared any erase */
@@ -455,7 +461,7 @@ void series_end(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     o += '}';
     emit(o);
     w.sig = sig;
-    rows_seen = rows;
+    client.rows_seen = rows;
 }
 
 /* the series of every window that changed, the active one first, and
@@ -466,20 +472,20 @@ void series_update(xpp::Session &s)
     for (int k = 0; k < MAXPOP; k++) {
         const int pop = k == 0 ? s.plot_windows.active : (k == s.plot_windows.active ? 0 : k);
         if (!s.plot_windows.graph[pop].Use) {
-            sent[pop].valid = false; /* a window made again later starts afresh */
+            client.sent[pop].valid = false; /* a window made again later starts afresh */
             runs_forget(s, pop);
             continue;
         }
         const SeriesSig sig = series_sig(s, pop);
         const int rows = s.browser.view.dataflag ? sig.rows : 0;
-        if (appended == pop && appends_continue(s, pop, sig) && rows >= sent[pop].held) {
+        if (client.appended == pop && appends_continue(s, pop, sig) && rows >= client.sent[pop].held) {
             series_end(s, pop, sig, rows);
             continue;
         }
-        if (appended != pop && sent[pop].valid && same(sig, sent[pop].sig)) continue;
+        if (client.appended != pop && client.sent[pop].valid && same(sig, client.sent[pop].sig)) continue;
         send_series(s, pop, sig, rows);
     }
-    appended = -1;
+    client.appended = -1;
 }
 
 /* ---- plots ---- */
@@ -577,34 +583,34 @@ std::string plots_event(xpp::Session &s)
 void plots_update(xpp::Session &s)
 {
     std::string o = plots_event(s);
-    if (plots_valid && o == plots_sent) return;
+    if (client.plots_valid && o == client.plots_sent) return;
     emit(o);
-    plots_sent.swap(o);
-    plots_valid = true;
+    client.plots_sent.swap(o);
+    client.plots_valid = true;
 }
 
 } // namespace
 
 /* ---- the API: no exception leaves it (out of memory drops the event) ---- */
 
-void plot_data_init(PlotDataEmit emit) { emit_line = emit; }
+void plot_data_init(PlotDataEmit emit) { client.emit_line = emit; }
 
 void plot_data_subscribe(int series, int plots, int f32)
 {
-    series_on = series != 0;
-    plots_on = plots != 0;
-    series_f32 = f32 != 0;
-    for (Sent &w : sent) w.valid = false; /* the next update sends */
-    plots_valid = false;
-    appended = -1;
+    client.series_on = series != 0;
+    client.plots_on = plots != 0;
+    client.series_f32 = f32 != 0;
+    for (Sent &w : client.sent) w.valid = false; /* the next update sends */
+    client.plots_valid = false;
+    client.appended = -1;
 }
 
-void plot_data_changed(void) { data_version++; }
+void plot_data_changed(void) { client.data_version++; }
 
 /* the windows a command draws on: all of ActiveWinList under Simulplot, else the active one */
 void plot_data_picture(xpp::Session &s, int redraw)
 {
-    if (!series_on) return;
+    if (!client.series_on) return;
     const XppPlotWindows &w = s.plot_windows;
     const int n = w.simul ? w.count : 1;
     try {
@@ -631,16 +637,15 @@ void plot_data_picture(xpp::Session &s, int redraw)
 /* the encoding the client asked for in its last "data" command (docs/ui-v2.md
    T12, "reuse series_enc"): other events that carry value arrays outside the
    subscription list (aplot) still honour it. */
-int plot_data_want_f32(void) { return series_f32; }
+int plot_data_want_f32(void) { return client.series_f32; }
 
 void plot_data_rows_stored(xpp::Session &s, int nrows)
 {
-    static double last;
-    if (!series_on) return;
-    if (nrows <= rows_seen) /* storage started again from its first row */
-        for (Sent &w : sent) w.held = 0;
-    rows_seen = nrows;
-    if (!xpp::every(last, append_every)) return;
+    if (!client.series_on) return;
+    if (nrows <= client.rows_seen) /* storage started again from its first row */
+        for (Sent &w : client.sent) w.held = 0;
+    client.rows_seen = nrows;
+    if (!xpp::every(client.last_append, append_every)) return;
     try {
         series_append(s, nrows);
     } catch (const std::bad_alloc &) {
@@ -651,8 +656,8 @@ void plot_data_rows_stored(xpp::Session &s, int nrows)
 void plot_data_update(xpp::Session &s)
 {
     try {
-        if (plots_on) plots_update(s);
-        if (series_on) series_update(s);
+        if (client.plots_on) plots_update(s);
+        if (client.series_on) series_update(s);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("sending the plots");
     }

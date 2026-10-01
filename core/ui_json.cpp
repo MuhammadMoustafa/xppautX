@@ -700,7 +700,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     plot_data_update(*s);
     phase_data_update(*s);
     marks_data_update(*s);
-    ani_data_update();
+    ani_data_update(*s);
     diag_flush(*s, 1);
     auto_data_update(*s, 1);
     auto_view_update(*s);
