@@ -100,6 +100,9 @@ extern ProtocolSession session;
 xpp::Session &client();
 
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
+/* {"cmd":"quit","ask":true} (W59d): the desktop window's Quit and close
+   box; a plain quit exits at once (scripts, --server's clients) */
+bool quit_asks(const char *line);
 int handle_async(xpp::Session &s, const char *line);   /* commands that make sense at any moment */
 int control_line(xpp::Session &s, const char *line);   /* a control line taken by a checkpoint */
 /* A setting (W106: a command of the setting kind, not a key) taken while
@@ -141,6 +144,8 @@ void send_hello(xpp::Session &s);
 /* {"cmd":"record","op":"start"|"stop"|"note",...} */
 void record_command(xpp::Session &s, const char *line);
 void j_record_toggle(xpp::Session &s); /* File/recorD: start, or stop and save */
+bool j_recording(void);                /* a recording is in progress */
+bool j_save_recording(xpp::Session &s); /* Quit's Save: the recording saved (its name asked) and ended */
 /* a command handle_line is about to run: a step begins, when recording
    and the command is one (not a request of the client's own) */
 void record_begin(const char *line);
@@ -168,6 +173,8 @@ void play_command(xpp::Session &s, const char *line);
    for any other line */
 bool play_async(const char *line);
 void j_play_recording(xpp::Session &s, const char *path); /* File/plaY recording, Open model of a .recx */
+/* a recording playing pauses (a quit's question is the user's to answer) */
+void player_hold(void);
 /* the ms until the player acts (the command loop's and a question's wait
    for input), -1 when it waits for nothing; player_fire acts when its
    time has come (after such a wait ran out) */

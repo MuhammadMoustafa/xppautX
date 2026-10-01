@@ -1,6 +1,8 @@
 #ifndef XPP_MODEL_SWITCH_H
 #define XPP_MODEL_SWITCH_H
-/* File > Open model and File > Reload (W61): another model, or the same
+/* File > Open model and File > Reload (W61), and File > Quit's question
+   (W59d): every way of leaving a session asks the one question,
+   xpp_session_may_leave. Open model and Reload: another model, or the same
    file again, loaded in this process. The command asks what it needs and
    leaves a request in the Session; the front end carries it out once the
    command has returned, when nothing of the Session before is in use
@@ -33,11 +35,23 @@ struct Session; /* session.h */
    session. A recording (.recx) opens in the player (play_recording,
    W59b). */
 void xpp_model_open(xpp::Session &s, const char *path);
-/* before file replaces the model of s: asks whether to save its session
-   first (xpp_session_save); false when the user cancels, or the save
-   fails */
+/* The one question before the session s goes (W59d): question, answered
+   Save session (key s), Don't save (d) or Cancel (Esc). Save saves the
+   session first (xpp_session_save, its file asked), and with_recording
+   the recording in progress too (save_recording, its name asked, as its
+   stop asks). True when the session may go: false when the user cancels,
+   or a save is cancelled or fails. */
+bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording);
+/* before file replaces the model of s: xpp_session_may_leave, the question
+   naming file */
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file);
-/* File > Reload (key e) and {"cmd":"reload"}: the model's file again, with
+/* File > Quit (F Q), and the protocol's quit that asks (the desktop
+   window's File > Quit and its close box): "Quit xppautX? Save this
+   session first?", then exits (bye_bye) unless cancelled; a recording in
+   progress is saved with the session */
+void xpp_quit(xpp::Session &s);
+/* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
+   does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
    files); the parameters, initial data and numerics keep their values by
    name (restore_values) */
@@ -63,6 +77,10 @@ struct ModelRequest {
    double-click starts it (the command line: the program's name, then the
    file), in place of the model of s */
 ModelRequest open_request(const Session &s, std::string dir, std::string file);
+/* a request for the model saved in f (a session or AUTO file, a
+   recording's snapshot), loaded in the folder dir with the command line
+   it was saved with, in place of the model of s; then what f adds */
+ModelRequest saved_request(const Session &s, std::string dir, SavedFile f);
 
 /* the request the last command in s made, taken: nullopt when it made none */
 std::optional<ModelRequest> take_model_request(Session &s);

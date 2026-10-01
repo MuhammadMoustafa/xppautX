@@ -70,6 +70,7 @@ struct Player {
     bool open = false;
     std::string path; /* the .recx, absolute */
     recx::Recording rec;
+    std::optional<SavedFile> snapshot; /* rec's: the session the replay starts from (W59d) */
     bool intact = true;
     std::vector<PlayStep> steps;
     std::unique_ptr<xpp::TempDir> work;   /* the replay's working folder */
@@ -98,6 +99,14 @@ struct Player {
 Player player;
 
 /* ---- reading a recording ---- */
+
+/* the session a recording at path begins from, its snapshot (W59d):
+   nothing, with an error message, when it is not one */
+std::optional<SavedFile> snapshot_of(const std::string &path, const recx::Recording &rec)
+{
+    return xpp_saved_parse(path, xpp::format("The @snapshot of {}", xpp_files_split_path(path).second), rec.snapshot,
+                           SavedKind::snapshot);
+}
 
 /* the strings of the array at arr */
 std::vector<std::string> strings_of(const char *arr)
@@ -346,8 +355,9 @@ void close_player()
 }
 
 /* the recording's model loads (handle_line, once this command returned),
-   in a fresh scratch folder: from step 0, running with no pace to step
-   `from`, then playing when `play` */
+   in a fresh scratch folder, as its snapshot has it, the session restored
+   as it was when the recording began (W59d): from step 0, running with no
+   pace to step `from`, then playing when `play` */
 void load(xpp::Session &s, int from, bool play)
 {
     std::unique_ptr<xpp::TempDir> before = std::move(player.work);
@@ -357,7 +367,7 @@ void load(xpp::Session &s, int from, bool play)
         player.work = std::move(before);
         return;
     }
-    s.model_request = xpp::open_request(s, player.work->path(), player.rec.model);
+    s.model_request = xpp::saved_request(s, player.work->path(), *player.snapshot);
     player.loading = true;
     player.fast_to = from;
     player.play_after_load = play || from > 0;
@@ -421,9 +431,13 @@ void open_recording(xpp::Session &s, const char *path, bool ask = true)
             j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error).c_str());
             return;
         }
+    const std::string where = xpp_files_absolute(file);
+    std::optional<SavedFile> snapshot = snapshot_of(where, got->rec);
+    if (!snapshot) return;
     if (ask && !xpp_model_may_leave(s, file)) return;
     close_player();
-    player.path = xpp_files_absolute(file);
+    player.path = where;
+    player.snapshot = std::move(snapshot);
     player.rec = std::move(got->rec);
     player.intact = got->intact;
     player.steps = std::move(steps);
@@ -511,6 +525,11 @@ void play_command(xpp::Session &s, const char *line)
     }
 }
 
+void player_hold(void)
+{
+    if (player.open) control("pause", nullptr);
+}
+
 bool play_async(const char *line)
 {
     if (!is_cmd(line, "play")) return false;
@@ -537,12 +556,15 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
         return std::nullopt;
     }
     std::optional<xpp::recx::Read> got = xpp::recx::read(bytes, error);
-    if (!got || got->rec.model.empty() || got->rec.files.empty()) {
+    if (!got || got->rec.model.empty()) {
         xpp_log(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s\n", path.c_str(),
                 got ? "it names no model" : error.c_str());
         return std::nullopt;
     }
-    return RecordingLaunch{xpp::SavedModel{xpp_files_absolute(path), got->rec.files}, got->rec.model};
+    /* the model of its snapshot, which the player loads (W59d) */
+    std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp_files_absolute(path), got->rec);
+    if (!snapshot) return std::nullopt; /* the error said why */
+    return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name};
 }
 
 void json_ui_play_launched(xpp::Session &s, const std::string &path)

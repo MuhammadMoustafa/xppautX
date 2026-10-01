@@ -69,10 +69,13 @@ void script_fail(const char *what, const char *line, const char *ask)
     exit(1);
 }
 
-/* commands that make sense at any moment, even while a prompt is open */
+bool quit_asks(const char *line) { return is_cmd(line, "quit") && get_int(line, "ask", 0) != 0; }
+
+/* commands that make sense at any moment, even while a prompt is open (a
+   quit that asks is a command of its own, in the dispatch table) */
 int handle_async(xpp::Session &s, const char *line)
 {
-    if (is_cmd(line, "quit")) quit_session();
+    if (is_cmd(line, "quit") && !quit_asks(line)) quit_session();
     if (is_cmd(line, "state")) {
         send_state(s);
         return 1;
@@ -171,6 +174,12 @@ int classify(const char *line, unsigned long seq)
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
     if (!get_string(line, "cmd", c, 16))
         return xpp_job_computing() && !xpp_job_stopping() ? during_run(line) : XPP_INBOX_NORMAL;
+    /* a quit that asks (W59d) stops a computation, then asks as a command
+       of its own, in its turn */
+    if (c == "quit" && get_int(line, "ask", 0) != 0) {
+        if (xpp_job_computing() && !xpp_job_stopping()) xpp_job_cancel(seq);
+        return XPP_INBOX_NORMAL;
+    }
     if (c == "abort" || c == "quit") {
         xpp_job_cancel(seq);
         return XPP_INBOX_CONTROL;
@@ -429,6 +438,8 @@ XppUi make_json_ui(void)
     u.copy_text = j_copy_text;
     u.record_toggle = j_record_toggle;
     u.play_recording = j_play_recording;
+    u.recording = j_recording;
+    u.save_recording = j_save_recording;
     u.exit_program = j_exit_program;
     return u;
 }
@@ -509,7 +520,14 @@ const CommandInfo commands[] = {
          if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
      }},
     {"abort", nullptr, C, [](xpp::Session &, const char *) {}},
-    {"quit", nullptr, C, [](xpp::Session &, const char *) { quit_session(); }},
+    {"quit", nullptr, C,
+     [](xpp::Session &s, const char *line) {
+         if (!quit_asks(line)) quit_session();
+         /* the user's quit (W59d): File/Quit's question; a recording
+            playing waits, the question being the user's */
+         player_hold();
+         xpp_quit(s);
+     }},
     {"state", nullptr, V, [](xpp::Session &s, const char *) { send_state(s); }},
     {"data", nullptr, V, data_command},
     {"equations", nullptr, V, [](xpp::Session &s, const char *) { send_equations(s); }},

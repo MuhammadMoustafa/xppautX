@@ -112,6 +112,7 @@ struct State {
     std::mutex mu;
     webview_t view = nullptr;  /* while the window is up */
     bool core_closing = false; /* the core's exit closes it (no quit to send) */
+    bool core_exiting = false; /* the core is exiting: a close box closes the window */
     std::string model;         /* the title's file name */
     std::string about;         /* Help > About's text */
     std::string error_msg;     /* why the window failed to open (W35e) */
@@ -141,6 +142,22 @@ void set_title_cb(webview_t w, void *)
 }
 
 void terminate_cb(webview_t w, void *) { webview_terminate(w); }
+
+/* The close box and File > Quit (W59d): while the core serves the session,
+   the protocol's quit that asks, "Quit xppautX? Save this session first?"
+   in the page, and the window stays; the core's exit after its bye closes
+   it (on_exit). True when it asked; false once the core is exiting (an
+   error left the window open on its log), when the window closes. */
+[[maybe_unused]] bool quit_asking()
+{
+    {
+        std::lock_guard<std::mutex> lk(st->mu);
+        if (st->core_closing || st->core_exiting) return false;
+    }
+    static constexpr std::string_view quit = "{\"cmd\":\"quit\",\"ask\":true}";
+    host->inbox_push(quit.data(), quit.size());
+    return true;
+}
 
 /* Help > Manual (chapter NULL: where Help was left, as F1) and Help >
    Keyboard shortcuts: web2's hook (web2/src/desktop.ts) */
@@ -184,6 +201,7 @@ void window_closed(webview_t w)
 void on_exit()
 {
     std::unique_lock<std::mutex> lk(st->mu);
+    st->core_exiting = true;
     if (st->view == nullptr) {
         lk.unlock();
         host->http_release();
@@ -335,7 +353,7 @@ LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         switch (LOWORD(wp)) {
         case ID_OPEN: open_model(hwnd); return 0;
         case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); return 0;
-        case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0;
+        case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; /* as the close box */
         case ID_MANUAL: if (w) open_help(w, nullptr); return 0;
         case ID_KEYS: if (w) open_help(w, KEYS_CHAPTER); return 0;
         case ID_ABOUT:
@@ -344,6 +362,7 @@ LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         default: break;
         }
     }
+    if (msg == WM_CLOSE && quit_asking()) return 0;
     return CallWindowProcW(webview_proc, hwnd, msg, wp, lp);
 }
 
@@ -623,7 +642,7 @@ void on_menu(GtkMenuItem *, gpointer id_ptr)
     switch (GPOINTER_TO_INT(id_ptr)) {
     case ID_OPEN: open_model(win); break;
     case ID_RELOAD: host->inbox_push(RELOAD.data(), RELOAD.size()); break;
-    case ID_QUIT: gtk_window_close(win); break;
+    case ID_QUIT: gtk_window_close(win); break; /* as the close box: delete_event */
     case ID_MANUAL: open_help(w, nullptr); break;
     case ID_KEYS: open_help(w, KEYS_CHAPTER); break;
     case ID_ABOUT: {
@@ -679,6 +698,9 @@ void set_window_icon(GtkWindow *win)
 #endif
 }
 
+/* the close box, and File > Quit: the question first (quit_asking) */
+gboolean on_delete(GtkWidget *, GdkEvent *, gpointer) { return quit_asking() ? TRUE : FALSE; }
+
 /* The library puts its web view straight into the window: move it into a
    box under a menu bar. */
 void add_menus(webview_t w)
@@ -686,6 +708,7 @@ void add_menus(webview_t w)
     GtkWidget *win = static_cast<GtkWidget *>(webview_get_window(w));
     GtkWidget *view = static_cast<GtkWidget *>(webview_get_native_handle(w, WEBVIEW_NATIVE_HANDLE_KIND_UI_WIDGET));
     if (!win || !view) return;
+    g_signal_connect(win, "delete-event", G_CALLBACK(on_delete), nullptr);
     set_window_icon(GTK_WINDOW(win));
     GtkWidget *bar = gtk_menu_bar_new(), *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *file = top_menu(bar, "_File"), *help = top_menu(bar, "_Help");

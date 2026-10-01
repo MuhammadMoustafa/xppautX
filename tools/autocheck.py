@@ -1869,6 +1869,30 @@ def section_play():
           and (last_state(evs) or {}).get('player', {}).get('step') == 1, '%s, %.1f s' % (errors, time.monotonic() - t0))
     s.close()
 
+    # (c) W59d: a recording begun after the diagram was computed starts from
+    # the session as it was (its snapshot: the values, the diagram): the
+    # Hopf point it grabs is there, and its periodic branch comes out the same
+    s = Server(args.server, LECAR, verbose=args.v)
+    s.collect(is_idle)
+    dg = Diagram().apply(hopf_steady(s))
+    dg.apply(run_any(s, 's'))
+    steady = len(dg.pts)
+    s.send(cmd='record', op='start')
+    s.collect(is_idle)
+    grab_hopf(s)
+    new = dg.apply(run_any(s, 'p', timeout=300 * SLOW)).pts[steady:]
+    s.send(cmd='record', op='stop', name='later')
+    s.collect(is_idle)
+    branches = {p['br'] for p in new}
+    orig = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in new]
+    pl, evs = play_recording(s, os.path.join(s.run, 'later.recx'))
+    again = [(p['br'], p['pt'], p['x'], p['y'], p['lab']) for p in Diagram().apply(evs).pts if p['br'] in branches]
+    errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
+    check('play: a recording begun after the steady run starts from its diagram: the periodic branch replayed is the same',
+          pl and len(pl['steps']) == 2 and len(orig) > 5 and again == orig and not errors,
+          '%s steps, %d vs %d points, %s' % (pl and len(pl['steps']), len(orig), len(again), errors))
+    s.close()
+
 
 for name in args.sections:
     globals()['section_' + name]()

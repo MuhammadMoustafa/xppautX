@@ -42,6 +42,11 @@ struct Session; /* session.h */
    event's "session" member. Both work on the session s. */
 int xpp_session_save(xpp::Session &s, const char *name, int data);
 int xpp_session_load(xpp::Session &s, const char *name);
+/* the session file of s as it would be saved without the data table, as
+   its bytes: a recording's snapshot (W59d, recx.h), made asking nothing;
+   nothing, with an error message, when it cannot be made (a model not
+   read from files) */
+std::optional<std::string> xpp_session_snapshot(xpp::Session &s);
 
 /* the session file last saved or opened; a Session's (session.h) */
 struct SavedSession {
@@ -55,6 +60,7 @@ struct SavedSession {
 struct SavedFile {
     std::string path;              /* absolute */
     bool session = false;          /* a .snapx, else an .autox */
+    bool snapshot = false;         /* a recording's snapshot (recx.h): restored as a session, but no session file */
     xpp::snapx::Manifest manifest;
     std::map<std::string, std::string> members; /* every member, by its name */
     xpp::SavedModel model;         /* the model's files, saved in path */
@@ -67,6 +73,12 @@ bool xpp_saved_file_name(std::string_view path);
    nothing, with an error message, when it cannot be read, is not a zip,
    has no manifest of its kind or has no model */
 std::optional<SavedFile> xpp_saved_read(const std::string &path);
+/* what a file that carries a model holds */
+enum class SavedKind { autox, session, snapshot };
+/* bytes, a file of kind kind, read as xpp_saved_read reads one: path is
+   where it is (absolute; for a snapshot the recording's), name what an
+   error message calls it */
+std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::string &name, std::string_view bytes, SavedKind kind);
 /* the command line's arguments that load f's model: its file, and
    -anifile's animation when it was loaded with one */
 std::vector<std::string> xpp_saved_args(const SavedFile &f);

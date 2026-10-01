@@ -121,7 +121,16 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
 - **(H)elp**: Opens this manual, at this chapter.
-- **(Q)uit**: This exits XPP first asking if you are sure.
+- **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
+  question every way of leaving a session asks (the desktop window's
+  File > Quit and its close box too; **open (M)odel** and **r(E)load**
+  ask it in their own words): **Save session** (`S`) writes a session file
+  first, as **sa(V)e session** does, then quits; **Don't save** (`D`)
+  quits; **Cancel** (`Esc`) keeps working. A recording in progress is saved
+  with the session (its name is asked as **Stop** asks it). Quitting
+  while something computes stops it first, then asks. In the browser,
+  closing the tab does not end xppautX (the browser asks whether to leave
+  the page): File/Quit is the way to end it there.
 - **(T)ranspose** : This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
 - t1  x11  x21  x31 ... xm1      t2  x12  x22  x32 ... xm2     ...     tn  x1n  x2n  x3n ... xmn
 - and transpose some subset of it. You are prompted for 6 items. They are the name of the first column you want to index, the number of columns (`ncols` and amount you want to skip across columns, ` colskip` (so that `colskip = 2` would be every other column. You must also provide the starting row `j1`, the number of rows, ` nrows` and the row skip, `rowskip.` the The storage array is temporarily replaced by a new array that has `M=ncols` rows and `nrows+1` columns (since the data is transposed, the rows and columns are as well; confusing ain’t it). The form of the array is:
@@ -151,7 +160,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   session file, which opens that session: **opeN session** below; or an
   `.autox` AUTO file, which opens its model with its diagram; or a `.recx`
   recording, which opens in the player), then
-  whether to save this session first (**Save first** writes a session
+  whether to save this session first (**Save session** writes a session
   file, **Don't save**; Escape keeps the current model), and loads it in
   place of the current model: its data,
   diagram and windows go, and the new model starts as a double-click would
@@ -159,7 +168,8 @@ This brings up a menu with several options. Type `Esc` to abort.
   nothing: an error says so and the current model goes on (see
   [Opening another model](01-introduction.md#starting-it)).
 - **r(E)load**: Reads the model's file again (edit it in your editor, then
-  Reload). Parameters, initial data and numerics keep their values by name;
+  Reload), after asking whether to save this session first, as **open
+  (M)odel** does (its data and diagram go). Parameters, initial data and numerics keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session**: Asks for a file name and writes one session file,
@@ -180,7 +190,10 @@ This brings up a menu with several options. Type `Esc` to abort.
   again (or **Stop** on the red recording bar the page shows, or
   **Record** in the title bar to start) to stop, and it asks for a file
   name and writes one plain text file, `name.recx`, next to the model: the
-  model itself and every file the session read while recording (a set, a
+  session as it was when you pressed Record (what **sa(V)e session**
+  writes, without the data table: the values, numerics, windows and AUTO's
+  diagram, so a recording begun in the middle of your work plays back
+  from exactly there), the model itself and every file the session read while recording (a set, a
   parameter file, a table, an animation; an AUTO file or a session file
   you opened, written as base64 text), then the steps. A step is everything
   one command does until XPP is ready again: **Initialconds** then **Go**
@@ -198,8 +211,9 @@ This brings up a menu with several options. Type `Esc` to abort.
   stopping the animation's **Go**) is recorded with where it came.
 - **pla(Y) recording**: Asks for a `.recx` file (or use **Play a
   recording** in the title bar, or **open (M)odel** on a `.recx`), then
-  whether to save this session first, and loads the recording's model
-  from the recording itself. Its steps then play back exactly as they were
+  whether to save this session first, and loads the session the
+  recording began from (its model, values, windows and diagram, from the
+  recording itself; a file without it is refused with an error). Its steps then play back exactly as they were
   taken, nothing fixed or skipped: before each step the note written for
   it shows as a large caption above the plot, the keys it pressed light up
   one by one in a box at the top of the plot (with the menu item lit in

@@ -93,6 +93,8 @@ static void hl_open_help(const char *, const char *) {}
 static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
 static void hl_record_toggle(xpp::Session &) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
 static void hl_play_recording(xpp::Session &, const char *) { xpp_log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
+static bool hl_recording(void) { return false; }
+static bool hl_save_recording(xpp::Session &) { return true; }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
@@ -212,6 +214,8 @@ XppUi xpp_ui = {
     .copy_text = hl_copy_text,
     .record_toggle = hl_record_toggle,
     .play_recording = hl_play_recording,
+    .recording = hl_recording,
+    .save_recording = hl_save_recording,
     .exit_program = hl_exit_program,
 };
 
@@ -368,6 +372,8 @@ void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapt
 void copy_text(const char *what, const char *text) { xpp_ui.copy_text(what, text); }
 void record_toggle(xpp::Session &s) { xpp_ui.record_toggle(s); }
 void play_recording(xpp::Session &s, const char *path) { xpp_ui.play_recording(s, path); }
+bool recording_in_progress(void) { return xpp_ui.recording(); }
+bool save_recording(xpp::Session &s) { return xpp_ui.save_recording(s); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
    was a thin wrapper around xpp_log() at INFO (the banner, "All formulas

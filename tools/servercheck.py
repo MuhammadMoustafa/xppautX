@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, glob, hashlib, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue
+import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import drain_stderr
 
@@ -2796,7 +2796,7 @@ if alive:
     send2(cmd='key', key='q')
     evs, ask = collect2(lambda e: e.get('ev') == 'ask')
     if ask:
-        send2(cmd='answer', id=ask['id'], key='y')
+        send2(cmd='answer', id=ask['id'], key='d')
     try:
         proc2.wait(timeout=5 * SLOW)
         check('bad-HOME server: File/Quit exits', True)
@@ -3191,7 +3191,14 @@ def check_open_reload():
         with open(other, 'w') as f:
             f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total=5, dt=0.05\ndone\n')
         snd(cmd='reload')
-        evs, _ = col(is_idle)
+        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
+        check('reload asks first, as Open model does (W59d): Save session s, Don\'t save d',
+              ask and ask.get('kind') == 'choice' and ask.get('keys') == 'sd'
+              and ask.get('choices') == ['Save session', "Don't save"] and 'Reload other.ode?' in ask.get('question', ''),
+              str(ask))
+        if ask and ask.get('ev') == 'ask':
+            snd(cmd='answer', id=ask['id'], key='d')
+            evs, _ = col(is_idle)
         st = last_state(evs)
         hello = next((e for e in evs if e.get('ev') == 'hello'), None)
         check('reload: a new hello, the file\'s own defaults', hello is not None
@@ -3208,6 +3215,9 @@ def check_open_reload():
         snd(cmd='key', key='Escape')
         col(is_idle)
         snd(cmd='reload')
+        _, ask = col(lambda e: e.get('ev') == 'ask')
+        if ask:
+            snd(cmd='answer', id=ask['id'], key='d')
         col(is_idle)
         integrate()
         check('reload keeps the numerics: Total 10 gives 201 rows', len(rows_of('other_t10.csv')) == 202, '')
@@ -3524,7 +3534,7 @@ def check_session_file():
         if ode_text is not None:
             with open(os.path.join(r, 'lecar.ode'), 'w') as f:
                 f.write(ode_text)
-            answered(snd, col, (), cmd='reload')
+            answered(snd, col, ('d',), cmd='reload')
         answered(snd, col, (), **SUBSCRIBE)
         del allev[:]
         answered(snd, col, ('d',), cmd='open', file=name)
@@ -3752,11 +3762,16 @@ def read_recx(text):
         if body is not None:
             hashed.append(l)
             if l == '@end':
-                files[name], body = body, None
+                if name is not None:
+                    files[name] = body
+                body = None
             else:
                 body.append(l[1:] if l.startswith('@@') else l)
         elif l.startswith('@file ') or l.startswith('@binary '):
             name, body = l.split(' ', 1)[1], []
+            hashed.append(l)
+        elif l == '@snapshot':  # the session it began from (W59d): recx_snapshot reads it
+            name, body = None, []
             hashed.append(l)
         elif l == '@steps':
             in_steps = True
@@ -3770,6 +3785,157 @@ def read_recx(text):
             note = []
     got = hashlib.sha256(''.join(h + '\n' for h in hashed).encode('utf-8')).hexdigest()
     return header, files, steps, written, got
+
+
+def check_quit():
+    """W59d: every way of leaving asks one question: File/Quit (F Q) and the
+    quit that asks ({"cmd":"quit","ask":true}: the desktop window's File >
+    Quit and close box): Save session (s), Don't save (d), Cancel; s saves
+    the session (and a recording in progress) then exits, d exits, a cancel
+    keeps the session; a quit during a computation stops it, then asks. The
+    plain quit (scripts, --server's clients) exits at once, asking nothing."""
+    is_ask = lambda e: e.get('ev') == 'ask'
+    question = 'Quit xppautX? Save this session first?'
+
+    def asked(snd, col, **cmd):
+        snd(**cmd)
+        return col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+
+    def ended(p, col):
+        """the events up to the exit, and whether it said bye and exited 0"""
+        evs, bye = col(lambda e: e.get('ev') == 'bye', timeout=30 * SLOW)
+        try:
+            p.wait(timeout=10 * SLOW)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            return evs, False
+        return evs, bye is not None and p.returncode == 0
+
+    def done(p, r, snd):
+        if p.poll() is None:
+            stop_server(p, r, snd)
+        shutil.rmtree(r, ignore_errors=True)
+
+    # F Q asks; Esc (a cancel) keeps the session
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='key', key='f')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='q')
+        check('File/Quit asks one question: Save session (s), Don\'t save (d), Cancel',
+              ask and is_ask(ask) and ask.get('kind') == 'choice' and ask.get('question') == question
+              and ask.get('choices') == ['Save session', "Don't save"] and ask.get('keys') == 'sd', str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        snd(cmd='state')
+        evs, _ = col(is_idle)
+        check('quit: Cancel (Esc) keeps xppautX running', last_state(evs) is not None and p.poll() is None, '')
+        # a question open when the window's quit comes is cancelled; the quit then asks its own
+        _, ask = asked(snd, col, cmd='key', key='i')
+        snd(cmd='quit', ask=True)
+        evs, ask2 = col(is_ask, timeout=30 * SLOW)
+        check('quit with ask while a menu is open: the menu is cancelled (its idle), then the question of the quit',
+              ask and is_ask(ask) and ask.get('kind') == 'menu' and any(is_idle(e) for e in evs)
+              and ask2 and ask2.get('question') == question, str(ask2))
+        if ask2:
+            snd(cmd='answer', id=ask2['id'], ok=0)
+        col(is_idle)
+        # the window's quit asks the same; d exits, saving nothing
+        _, ask = asked(snd, col, cmd='quit', ask=True)
+        check('quit with ask (the window\'s Quit and close box) asks the same question',
+              ask and is_ask(ask) and ask.get('question') == question and ask.get('keys') == 'sd', str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='d')
+        _, ok = ended(p, col)
+        check('quit: Don\'t save (d) exits (bye, status 0), writing nothing', ok and os.listdir(r) == [os.path.basename(args.ode)],
+              str(os.listdir(r)))
+    finally:
+        done(p, r, snd)
+
+    # s saves the session, and the recording in progress with it, then exits
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='record', op='start')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='i')
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='g')
+            col(is_idle, timeout=30 * SLOW)
+        _, ask = asked(snd, col, cmd='quit', ask=True)
+        check('quit while recording: the question says the recording is saved with the session',
+              ask and is_ask(ask) and ask.get('question') == 'Quit xppautX? Save this session, and the recording in progress, first?',
+              str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='s')
+        _, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+        check('quit: Save session asks the session file\'s name, as Save session does',
+              ask and is_ask(ask) and ask.get('kind') == 'file' and ask.get('wild') == '*.snapx', str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], file='left')
+        _, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+        check('quit: then the recording\'s name, as its stop asks', ask and is_ask(ask) and ask.get('wild') == '*.recx', str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], file='left')
+        _, ok = ended(p, col)
+        snap, rec = os.path.join(r, 'left.snapx'), os.path.join(r, 'left.recx')
+        text = open(rec, encoding='utf-8').read() if os.path.exists(rec) else ''
+        _, _, steps, written, got = read_recx(text)
+        check('quit: Save session (s) saves the session and the recording, then exits',
+              ok and os.path.exists(snap) and 'session.txt' in zipfile.ZipFile(snap).namelist()
+              and [x.get('keys') for x, _ in steps] == [['i', 'g']] and written == got, str(sorted(os.listdir(r))))
+    finally:
+        done(p, r, snd)
+
+    # a quit that asks during a computation stops it, then asks
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='key', key='u')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='t')
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], value='1e7')
+            col(is_idle)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='i')
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+        snd(cmd='quit', ask=True)
+        evs, ask = col(is_ask, timeout=30 * SLOW)
+        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'idle', 'ask')]
+        check('quit during a run: the run stops first (stopped, idle), then the question',
+              kinds[:3] == ['stopped', 'idle', 'ask'] and ask and ask.get('question') == question, str(kinds))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        # the plain quit: at once, nothing asked
+        snd(cmd='quit')
+        try:
+            p.wait(timeout=10 * SLOW)
+        except subprocess.TimeoutExpired:
+            pass
+        evs, _ = col(lambda e: False, timeout=1)
+        check('the plain quit (scripts, --server) exits at once, asking nothing',
+              p.poll() == 0 and not any(is_ask(e) for e in evs), str(p.poll()))
+    finally:
+        done(p, r, snd)
+
+
+def recx_snapshot(text):
+    """the session a .recx begins from (its @snapshot section, W59d): the
+    .snapx's members {name: bytes}, or None when it has none"""
+    lines = text.split('\n')
+    if '@snapshot' not in lines:
+        return None
+    i = lines.index('@snapshot') + 1
+    digits = ''.join(lines[i:lines.index('@end', i)])
+    z = zipfile.ZipFile(io.BytesIO(base64.b64decode(digits)))
+    return {n: z.read(n) for n in z.namelist()}
 
 
 def check_recording():
@@ -3935,6 +4101,11 @@ def check_player():
 
     try:
         col(is_idle)
+        # W59d: the recording begins partway through the session, after a
+        # parameter changed and a run: the replay starts from that state
+        run(cmd='set', kind='par', name='phi', value=0.06)
+        ask = asked(cmd='key', key='i')
+        run(cmd='answer', id=ask['id'], key='g')
         run(cmd='record', op='start')
         run(cmd='record', op='note', text='The cell fires once and settles.')
         ask = asked(cmd='key', key='i')
@@ -3964,6 +4135,19 @@ def check_player():
         check('player: the session recorded (10 steps, an abort at its row)',
               len(steps) == 10 and len(orig) == 3 and stopped and stopped[0]['what'] == 'integrate',
               '%d steps, %s' % (len(steps), stopped))
+        snap = recx_snapshot(text) or {}
+        check('record: the recording begins with the session as it was (@snapshot: a .snapx without the data table)',
+              'session.txt' in snap and 'model/lecar.ode' in snap and 'model.set' in snap and 'data.npz' not in snap,
+              str(sorted(snap)))
+        # no fallback: a recording without its snapshot is refused
+        lines = text.split('\n')
+        at = lines.index('@snapshot') if '@snapshot' in lines else 0
+        cut = '\n'.join(lines[:at] + lines[lines.index('@end', at) + 1:]) if at else text
+        open(os.path.join(r, 'nosnap.recx'), 'w', encoding='utf-8').write(cut)
+        evs = run(cmd='play', op='open', file=os.path.join(r, 'nosnap.recx'))
+        check('play open: a recording without its @snapshot is an error, nothing asked',
+              any(e.get('ev') == 'message' and 'no @snapshot section' in e.get('error', '') for e in evs)
+              and not any(is_ask(e) for e in evs), str([e for e in evs if e.get('ev') == 'message']))
 
         pl, evs = open_player(path)
         st = last_state(evs)
@@ -3986,8 +4170,8 @@ def check_player():
         errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
         check('play: no error on the way', not errors, str(errors))
         for n in ('run1.dat', 'run2.dat', 'run3.dat'):
-            check('play: the replay gives the same data (%s)' % n, get(n) == orig.get(n) and orig.get(n),
-                  'differs' if n in orig else 'missing')
+            check('play: the replay, from the session\'s state at Record (phi 0.06), gives the same data (%s)' % n,
+                  get(n) == orig.get(n) and orig.get(n), 'differs' if n in orig else 'missing')
         check('play: the replay wrote in its own folder, not beside the recording',
               not os.path.exists(os.path.join(r, 'run1.dat')), str(sorted(os.listdir(r))))
 
@@ -4100,6 +4284,7 @@ def check_player_ani():
         stop_server(p, r, snd)
 
 
+check_quit()
 check_recording()
 check_player()
 check_player_ani()
@@ -4113,7 +4298,7 @@ send(cmd='key', key='f')
 send(cmd='key', key='q')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 if ask:
-    send(cmd='answer', id=ask['id'], key='y')
+    send(cmd='answer', id=ask['id'], key='d')
 try:
     proc.wait(timeout=5 * SLOW)
     check('File/Quit exits', True)

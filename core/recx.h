@@ -9,6 +9,10 @@
      model: <the model's file, as it names it>
      recorded: <when the recording began, UTC>
 
+     @snapshot
+     <the session file's bytes (.snapx) in base64, 76 digits a line>
+     @end
+
      @file <name>
      <the file's lines>
      @end
@@ -26,9 +30,13 @@
      fingerprint: <SHA-256 of the files and the steps, never the notes>
 
    A line of a file that is "@end" or starts with "@@" is written with one
-   more "@" in front (a reader takes it off). The fingerprint is the
+   more "@" in front (a reader takes it off). The @snapshot section (W59d)
+   is the session as it was when Record was pressed: what Save session
+   writes (xpp_session.h), without the data table, which the replay
+   computes again; the player starts from it, and a file without it is
+   not a recording. The fingerprint is the
    SHA-256 (xpp_sha256.h), as 64 lowercase hex digits, of every line of
-   the @file sections (their "@file" and "@end" lines included) and every
+   the sections (their first and "@end" lines included) and every
    step line, in the file's order, each followed by "\n": the header, the
    blank lines between sections, the # notes and the fingerprint line are
    not in it, so a note edited afterwards keeps it, and a step or a file
@@ -59,6 +67,9 @@ struct Recording {
     std::string program;  /* "xppautX 8.1" (xpp_version_string) */
     std::string model;    /* the model's file, as it names itself (Model::this_file) */
     std::string recorded; /* when it began: 2026-09-30T10:14:02Z */
+    /* the session when the recording began: a .snapx's bytes, without
+       the data table (xpp_session_snapshot) */
+    std::string snapshot;
     std::vector<ModelFile> files;
     std::vector<Step> steps;
     /* the fingerprint a read file ends with (empty when it has none);
@@ -85,8 +96,8 @@ struct Read {
 };
 
 /* the text of a .recx file: nullopt, with the reason in error, when it
-   is not one (its first line, a section without its @end, no @steps,
-   a @binary section that is not base64) */
+   is not one (its first line, no @snapshot, a section without its @end,
+   no @steps, a @binary or @snapshot section that is not base64) */
 std::optional<Read> read(std::string_view text, std::string &error);
 
 /* the fingerprint of the lines it covers (above), each without its "\n" */

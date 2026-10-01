@@ -331,6 +331,12 @@ typedef struct XppUi {
        loaded from it, ready to play its steps (NULL: ask for the file;
        W59b, json_player.cpp) */
     void (*play_recording)(xpp::Session &s, const char *path);
+    /* a recording is in progress: Quit offers to save it with the
+       session (W59d) */
+    bool (*recording)(void);
+    /* the recording in progress saved (its name asked, as its stop asks)
+       and ended: false on a cancel or a failure (W59d) */
+    bool (*save_recording)(xpp::Session &s);
 
     /* program is quitting */
     void (*exit_program)(void);
@@ -370,6 +376,8 @@ void make_txtview(xpp::Session &s);
 void q_calc(xpp::Session &s);
 void record_toggle(xpp::Session &s);
 void play_recording(xpp::Session &s, const char *path);
+bool recording_in_progress(void);
+bool save_recording(xpp::Session &s);
 
 /* new_float: a number, or %formula worked out in s (0 on OK, -1 on
    cancel or an empty answer) */

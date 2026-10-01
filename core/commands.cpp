@@ -354,9 +354,7 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
-  case M_FQ:
-    if (yes_no_box()) bye_bye();
-    break;
+  case M_FQ: xpp_quit(s); break;
   case M_FL: clone_ode(s); break;
   case M_FO: copy_set_line(s); break;
   }
@@ -489,7 +487,7 @@ void commander(xpp::Session &s, int ch)
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);
-      if (yes_no_box()) bye_bye();
+      xpp_quit(s);
       flash(7);
       break;
     case 'l': clone_ode(s); break;

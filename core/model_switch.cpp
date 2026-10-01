@@ -89,12 +89,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
      the file it is saved in, which its outputs go to */
   xpp::ModelRequest req;
   if(saved){
-    req.dir=xpp_files_split_path(saved->path).first;
-    req.file=saved->manifest.model_name;
-    req.command_line={program_name(s.model())};
-    for(std::string &a : xpp_saved_args(*saved))req.command_line.push_back(std::move(a));
-    req.saved=saved->model;
-    req.restore=std::move(saved);
+    req=xpp::saved_request(s,xpp_files_split_path(saved->path).first,std::move(*saved));
   }else{
     const std::pair<std::string,std::string> where=xpp_files_split_path(file);
     req=xpp::open_request(s,where.first,where.second);
@@ -102,18 +97,30 @@ void xpp_model_open(xpp::Session &s, const char *path)
   s.model_request=std::move(req);
 }
 
-bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
+bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording)
 {
-  const std::string question=xpp::format("Open {}? This model's data and diagram go. Save its session first?",
-                                         xpp_files_split_path(file).second);
-  switch(TwoChoice("Save first","Don't save",question.c_str(),"sd")){
+  switch(TwoChoice("Save session","Don't save",question.c_str(),"sd")){
   case 's':
-    return xpp_session_save(s,nullptr,-1);
+    return xpp_session_save(s,nullptr,-1)&&(!with_recording||save_recording(s));
   case 'd':
     return true;
   default:
     return false;
   }
+}
+
+bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
+{
+  return xpp_session_may_leave(s,xpp::format("Open {}? This model's data and diagram go. Save its session first?",
+                                             xpp_files_split_path(file).second),false);
+}
+
+void xpp_quit(xpp::Session &s)
+{
+  const bool recording=recording_in_progress();
+  const char *question=recording?"Quit xppautX? Save this session, and the recording in progress, first?"
+                                :"Quit xppautX? Save this session first?";
+  if(xpp_session_may_leave(s,question,recording))bye_bye();
 }
 
 void xpp_model_reload(xpp::Session &s)
@@ -123,6 +130,9 @@ void xpp_model_reload(xpp::Session &s)
     err_msg("This model was not read from a file: there is nothing to reload");
     return;
   }
+  const std::string question=xpp::format("Reload {}? Its values are kept by name; this model's data and diagram go. Save its session first?",
+                                         xpp_files_split_path(m.this_file).second);
+  if(!xpp_session_may_leave(s,question,false))return;
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
   std::vector<std::string> command_line=m.command_line;
@@ -140,6 +150,18 @@ ModelRequest open_request(const Session &s, std::string dir, std::string file)
   req.command_line={program_name(s.model()),file};
   req.dir=std::move(dir);
   req.file=std::move(file);
+  return req;
+}
+
+ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)
+{
+  ModelRequest req;
+  req.dir=std::move(dir);
+  req.file=f.manifest.model_name;
+  req.command_line={program_name(s.model())};
+  for(std::string &a : xpp_saved_args(f))req.command_line.push_back(std::move(a));
+  req.saved=f.model;
+  req.restore=std::move(f);
   return req;
 }
 

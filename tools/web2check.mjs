@@ -3186,6 +3186,23 @@ async function recordCheck(dir) {
     lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.ode') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
     && lines[at + 3] === '{"step":"Initialconds → Go","button":"Integrate","keys":["i","g"]}', JSON.stringify(lines.slice(at, at + 5)));
+  check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
+    lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.ode'));
+
+  /* W59d: File/Quit (F Q) asks one question, as the window's close box does:
+     Save session (S), Don't save (D), Cancel; Escape keeps the session */
+  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await key('f');
+  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await key('q');
+  check('quit: File/Quit asks "Quit xppautX? Save this session first?", Save session (S), Don\'t save (D), Cancel',
+    await until(`s.ask && s.ask.kind === 'choice' && s.ask.question === 'Quit xppautX? Save this session first?'`, 'quit ask')
+    && await cdp.eval(`(() => { const b = [...document.querySelectorAll('.dialog button')].map(e => e.textContent.trim());
+      return b.includes('SSave session') && b.includes("DDon't save") && b.includes('Cancel'); })()`),
+    JSON.stringify(await S('s.ask')));
+  await key('Escape');
+  check('quit: Escape cancels: the dialog goes and the session stays',
+    await until('!s.ask && !s.busy', 'quit cancelled') && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'answer' && c.ok === 0)`));
 }
 
 /* W59b: the player (docs/mockups/record-play.html's player screen). A

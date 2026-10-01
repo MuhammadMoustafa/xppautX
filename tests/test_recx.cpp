@@ -17,6 +17,7 @@ xpp::recx::Recording sample()
     r.program = "xppautX dev";
     r.model = "lecar.ode";
     r.recorded = "2026-09-30T10:14:02Z";
+    r.snapshot = std::string("PK\x05\x06", 4); /* the session, a zip (W59d) */
     xpp::recx::add_file(r, {"lecar.ode", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"});
     xpp::recx::add_file(r, {"lecar.ode", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"}); /* the same: once */
     r.steps.push_back({"First run.\n\nIt settles.", R"({"step":"Initialconds → Go","keys":["i","g"]})"});
@@ -37,10 +38,10 @@ int main()
 {
     xpp::recx::Recording r = sample();
     CHECK(r.files.size() == 1);
-    const std::string hashed = "@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
+    const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
                                "{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n{\"step\":\"Erase\",\"keys\":[\"e\"]}\n";
     const std::string want = "xppautx-recording 1\nprogram: xppautX dev\nmodel: lecar.ode\nrecorded: 2026-09-30T10:14:02Z\n\n"
-                             "@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
+                             "@snapshot\nUEsFBg==\n@end\n\n@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
                              "# First run.\n#\n# It settles.\n{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n"
                              "{\"step\":\"Erase\",\"keys\":[\"e\"]}\n\nfingerprint: "
                              + sha(hashed) + "\n";
@@ -69,6 +70,7 @@ int main()
     CHECK(back->rec.files.size() == 2 && back->rec.files[1].bytes == r.files[1].bytes);
     CHECK_STR(back->rec.files[0].bytes.c_str(), "x'=-x\n@end\n@@ twice\n@ total=10\ndone\n");
     CHECK(back->rec.steps.size() == 2);
+    CHECK(back->rec.snapshot == r.snapshot);
     CHECK_STR(back->rec.steps[0].note.c_str(), "First run.\n\nIt settles.");
     CHECK_STR(xpp::recx::text(back->rec).c_str(), file.c_str());
     std::string edited = file;
@@ -80,8 +82,13 @@ int main()
     CHECK(back && !back->intact); /* a step changed: it still reads */
     back->rec.steps[0].note = "Saved again.";
     CHECK(!xpp::recx::read(xpp::recx::text(back->rec), error)->intact); /* saving a note does not mend it */
-    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@file a.ode\nx'=1\n", error));
-    CHECK_STR(error.c_str(), "line 3: the section of a.ode has no @end");
+    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@snapshot\nUEsFBg==\n@end\n@file a.ode\nx'=1\n", error));
+    CHECK_STR(error.c_str(), "line 6: the section of a.ode has no @end");
+    /* no fallback: a file without the session it began from is not a recording */
+    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@file a.ode\nx'=1\n@end\n@steps\n", error));
+    CHECK_STR(error.c_str(), "line 3: no @snapshot section before the files: a recording begins with the session's state");
+    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@steps\n", error));
+    CHECK_STR(error.c_str(), "line 3: no @snapshot section: a recording begins with the session's state");
     CHECK(!xpp::recx::read("not one\n", error));
     TEST_REPORT("test_recx");
 }

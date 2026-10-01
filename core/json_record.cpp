@@ -185,10 +185,17 @@ void start(xpp::Session &s)
         j_err_msg("Already recording: File/recorD again stops and saves the recording");
         return;
     }
+    /* the session as it is now, what the replay starts from (W59d) */
+    std::optional<std::string> snapshot = xpp_session_snapshot(s);
+    if (!snapshot) {
+        j_err_msg("Cannot record: the session's state could not be saved to begin the recording with");
+        return;
+    }
     recx::Recording r;
     r.program = xpp::format("xppautX {}", xpp_version_string());
     r.model = s.model().this_file;
     r.recorded = now_utc();
+    r.snapshot = std::move(*snapshot);
     recorder = Recorder{};
     recorder.rec = std::move(r);
     add_model_files(s.model());
@@ -196,13 +203,14 @@ void start(xpp::Session &s)
 }
 
 /* name.recx (asked for when name is empty, as the other File saves are),
-   and the recording ends; a cancelled question keeps it going.
-   from_menu: File/recorD, whose opening of the File menu is no step. */
-void stop(const xpp::Session &s, const std::string &name, bool from_menu)
+   and the recording ends; a cancelled question keeps it going (false).
+   from_menu: File/recorD or File/Quit, whose opening of the File menu is
+   no step. */
+bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
 {
     if (!recorder.rec) {
         j_err_msg("Not recording");
-        return;
+        return false;
     }
     recorder.step.open = false; /* this command is no step */
     std::vector<recx::Step> &steps = recorder.rec->steps;
@@ -214,20 +222,21 @@ void stop(const xpp::Session &s, const std::string &name, bool from_menu)
     if (file.empty()) {
         file = xpp_session_file_name(s.model(),recx::extension);
         ping();
-        if (!file_selector("Save recording", file, "*.recx") || file.empty()) return;
+        if (!file_selector("Save recording", file, "*.recx") || file.empty()) return false;
     }
     file = xpp::snapx::with_extension(file, recx::extension);
     xpp::Writer w = open_writer_asking(file.c_str());
-    if (!w) return;
+    if (!w) return false;
     if (!w.write(recx::text(*recorder.rec)) || !w.commit()) {
         j_err_msg(xpp::format("Cannot write {}", file).c_str());
-        return;
+        return false;
     }
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
     bottom_msg(0, done.c_str());
     xpp_files_observe_reads(nullptr);
     recorder = Recorder{};
+    return true;
 }
 
 } // namespace
@@ -257,6 +266,15 @@ void j_record_toggle(xpp::Session &s)
 {
     if (recorder.rec) stop(s, "", true);
     else start(s);
+}
+
+bool j_recording(void) { return recorder.rec.has_value(); }
+
+bool j_save_recording(xpp::Session &s)
+{
+    /* File/Quit's step is open (the q of the File menu): it and the File
+       menu opened for it are no steps; a quit from the window has none */
+    return stop(s, "", recorder.step.open);
 }
 
 void record_begin(const char *line)

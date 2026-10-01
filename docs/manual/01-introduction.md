@@ -58,8 +58,9 @@ model… and Reload, the page's File/open Model and File/rEload, below;
 Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
 commit, compiler, protocol version and license) — except on macOS, which
 has no menu bar of its own yet (untested there beyond CI). The model's
-own menus stay inside the page. Closing the window quits xppautX, as the
-page's File/Quit does; after an error that stops the model, the window
+own menus stay inside the page. Closing the window, or its File > Quit,
+asks first, as the page's File/Quit does ("Quit xppautX? Save this
+session first?": Save session, Don't save, Cancel); after an error that stops the model, the window
 stays open on the page's Messages until you close it (a model that does
 not load shows its problem's line at the top of the page).
 
@@ -98,7 +99,8 @@ To try the window by hand: start `xppautX examples/ode/lecar.ode`; the
 window opens with the xppautX icon and title; Help > Manual and Help >
 Keyboard shortcuts open the Help view in the page, Help > About shows
 the version box; File > Open model… loads the model you choose in the
-same window, after asking; File > Quit, or closing the window, ends xppautX and
+same window, after asking; File > Quit, or closing the window, asks
+whether to save the session first, then ends xppautX and
 leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
@@ -123,11 +125,13 @@ first; starting the app on its own shows the Open dialog.
 at a time. File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
 session file, an `.autox` AUTO file or a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
-go, so it offers **Save first** (a session file, as File/saVe session
-writes it) or **Don't save**; Escape keeps the current model. The new model is loaded from its own folder,
+go, so it offers **Save session** (a session file, as File/saVe session
+writes it) or **Don't save**; Escape keeps the current model (the
+question every way of leaving a session asks, File/Quit's too). The new model is loaded from its own folder,
 which becomes the folder the page's files are in, and every window of
 the model before closes. File/rEload (`F E`, File > Reload) reads the
-model's own file again, with the command line it was started with: edit
+model's own file again, with the command line it was started with,
+after the same question: edit
 the `.ode` in your editor, then Reload. Its parameters, initial data
 and numerics keep the values you gave them, by name; a parameter or
 variable the file no longer has is left out, and one it adds comes with

@@ -259,7 +259,7 @@ post({'cmd': 'key', 'key': 'f'})
 post({'cmd': 'key', 'key': 'q'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
 if ask:
-    post({'cmd': 'answer', 'id': ask['id'], 'key': 'y'})
+    post({'cmd': 'answer', 'id': ask['id'], 'key': 'd'})
 _, ex = collect(lambda e: e['ev'] == 'exit')
 check('File/Quit ends with an exit event', ex is not None and ex['code'] == 0, str(ex))
 try:
@@ -384,7 +384,7 @@ if os.name == 'nt':
         post({'cmd': 'key', 'key': 'q'}, token)
         _, ask = collect(lambda e: e['ev'] == 'ask')
         if ask:
-            post({'cmd': 'answer', 'id': ask['id'], 'key': 'y'}, token)
+            post({'cmd': 'answer', 'id': ask['id'], 'key': 'd'}, token)
     if _winapi.WaitForSingleObject(hproc, 10000) != 0:
         _winapi.TerminateProcess(hproc, 1)
         check('T27: ... and it exits', False)

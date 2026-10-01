@@ -79,15 +79,15 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 | `state` | | Send `state` now. |
 | `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/saVe session and File/opeN session, keys `v` and `n` of the File menu. Without `name`, asks for one (`ask` kind `file`, wildcard `*.snapx`). `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
-| `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode* *.autox *.snapx`). A file that is not there fails at once (`message` `error`, nothing asked); so does a session file (`.snapx`) or an AUTO file (`.autox`) that cannot be read or has no model in it ("Session files" below). Then asks `choice` with `keys` `sd`: `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. A session file or an AUTO file loads the model saved in it, from its saved files and never the disk's (however the `.ode` there has changed, or when there is none), then restores the session or loads the diagram; when the model open is that one (the same files, byte for byte), an AUTO file's diagram goes into it with nothing asked, the data kept and no model loaded, while a session file still asks (it replaces this session's values, data and diagram) and then loads the model again with its session. The model is loaded from its own folder (a saved model from the folder of its file), which becomes the working directory (the page's files, "Files" below: outputs go there, and nothing is written beside a session or AUTO file), with a command line of the file alone (and `-anifile` with its saved animation when it was loaded with one). `hello`'s `title` names a saved model's file and the one it is saved in, `lecar.ode (saved in lecar.autox)`. A file that is not a model's text (a zip, another binary file) is refused, as a model that does not load (below), its bytes never shown. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
-| `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does but without asking: the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
-| `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one (an error when one runs); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
+| `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode* *.autox *.snapx`). A file that is not there fails at once (`message` `error`, nothing asked); so does a session file (`.snapx`) or an AUTO file (`.autox`) that cannot be read or has no model in it ("Session files" below). Then asks `choice` with `keys` `sd` (`Open NAME? This model's data and diagram go. Save its session first?`, Save session or Don't save, the question every way of leaving a session asks, W59d): `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. A session file or an AUTO file loads the model saved in it, from its saved files and never the disk's (however the `.ode` there has changed, or when there is none), then restores the session or loads the diagram; when the model open is that one (the same files, byte for byte), an AUTO file's diagram goes into it with nothing asked, the data kept and no model loaded, while a session file still asks (it replaces this session's values, data and diagram) and then loads the model again with its session. The model is loaded from its own folder (a saved model from the folder of its file), which becomes the working directory (the page's files, "Files" below: outputs go there, and nothing is written beside a session or AUTO file), with a command line of the file alone (and `-anifile` with its saved animation when it was loaded with one). `hello`'s `title` names a saved model's file and the one it is saved in, `lecar.ode (saved in lecar.autox)`. A file that is not a model's text (a zip, another binary file) is refused, as a model that does not load (below), its bytes never shown. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
+| `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
+| `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one, with the session as it is now (its `@snapshot`, W59d; an error when one runs, or when the model was not read from files); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
 | `play` | `op`: `open` (`file`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, paused at step 0; File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
 | `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
-| `quit` | | Exit, at once even during a computation. |
+| `quit` | `ask` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--script`, `-silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop window's File > Quit and its close box send it. It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. |
 
 ## Action kinds
 
@@ -187,14 +187,16 @@ Input is read on its own thread, so lines keep arriving while the core
 computes. Every command runs as a *job*, numbered by the position of its line
 in the input.
 
-- `abort` and `quit` act the moment they arrive: they cancel the running job
+- `abort` and `quit` (but a `quit` with `ask`, below) act the moment they arrive: they cancel the running job
   and every job whose line came before theirs, even one still waiting its
   turn, and the computation stops at its next check (every integration step;
   AUTO between continuation points). So an `abort` sent right behind a
   command stops that command, however late the core gets to it, while a
   command sent after the `abort` runs normally. An answer to a prompt sent
   after an `abort` counts as the user's last word: the rest of that command
-  is not cancelled. `quit` then exits.
+  is not cancelled. `quit` then exits. A `quit` with `ask` (W59d) cancels
+  only a running computation, and waits its turn as an ordinary command:
+  it asks, and exits only when the user says so.
 - While a *computation* runs (an integration, a range of them, Sing pts, a
   boundary value problem, an AUTO run: what Escape stops; the `computing`
   event says it began), the server judges each line the moment it arrives
@@ -365,6 +367,10 @@ program: xppautX 8.1
 model: lecar.ode
 recorded: 2026-09-30T10:14:02Z
 
+@snapshot
+UEsDBBQAAAAAA...(the session file, base64)
+@end
+
 @file lecar.ode
 par iapp=0.1
 ...
@@ -382,6 +388,15 @@ fingerprint: 5f0c...(64 hex digits)
 
 - The header: the format, the program (`--version`'s), the model's file
   as it names itself, and when the recording began (UTC).
+- `@snapshot` ... `@end` (W59d): the session as it was when the
+  recording began, what Save session writes to a `.snapx` ("Session
+  files": the model, the values, the numerics, the windows and what they
+  show, AUTO's diagram) but without the data table, which the replay
+  computes again; its bytes in base64, 76 digits a line, as a `@binary`
+  section. It is the state at that moment, not the history before it: a
+  recording begun partway through a session replays from there. Every
+  recording has one: a file without it is not a recording (opening it is
+  an `error` message, nothing else changes).
 - `@file NAME` ... `@end`, one section per file: the model's files first
   (its `.ode` or `.odex` and every file its load read, as a session file
   saves them), then every other text file the session read while
@@ -435,7 +450,8 @@ fingerprint: 5f0c...(64 hex digits)
   not counted). The header, blank lines, the notes and the fingerprint
   line itself are not in it: editing a note keeps the fingerprint, and a
   changed step or embedded file does not match it any more. A `@binary`
-  section's lines are in it as they are written.
+  section's lines, and the `@snapshot` section's, are in it as they are
+  written.
 
 Idle time is not recorded, and nothing is read from any older format:
 there is none. `tools/servercheck.py` (`check_recording`) reads a file
@@ -446,10 +462,12 @@ back. `play` and `record` are not steps either.
 File/plaY recording (key `y` of the File menu), Open model of a `.recx`,
 or `{"cmd":"play","op":"open","file":...}` opens a recording in the
 player (W59b, core/json_player.cpp): it asks, as Open model does, whether
-to save this model's session first, then loads the recording's model from
-the recording, the file the header's `model:` names (its first section of
-that name); the `player` event lists the steps, and `state.player` says
-where the player is. A recording that does not read (not one, a section
+to save this model's session first, then loads the session the recording
+began from, its `@snapshot` (W59d): its model, from the files saved there,
+then everything as it was when Record was pressed, as Open model of a
+`.snapx` restores it (the data table excepted: the steps compute it). The
+`player` event lists the steps, and `state.player` says where the player
+is. A recording that does not read (not one, no `@snapshot`, a section
 with no `@end`, no `@steps`, a step that is not a JSON object with `keys`
 or a `cmd`) is an `error` message and nothing changes. One whose
 fingerprint does not match plays all the same: `player`'s `intact` is
@@ -478,9 +496,10 @@ says so). The model's own load reads the recording's first section of
 each name. The replay runs in a scratch folder of its own (its outputs go
 there; `file` lists and fetches them), so a play writes nothing beside
 the recording and plays the same the second time. The replay starts from
-the model as loaded: a recording begun later in a session replays from
-the model's start; a recorded Open model of a file the recording does not
-hold, or a folder this machine lacks, stops there.
+the snapshot, so a recording begun later in a session (a parameter
+changed, a run, a diagram computed before Record) replays exactly; a
+recorded Open model of a file the recording does not hold, or a folder
+this machine lacks, stops there. `play` `from` loads the snapshot again.
 
 Pace: only computation takes time. Before each input the player sends
 `press` (what it is about to send, `ms` before it sends it): a step's

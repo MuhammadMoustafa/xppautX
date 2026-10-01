@@ -44,9 +44,17 @@ std::string_view unescaped(std::string_view line)
     return line;
 }
 
-constexpr std::string_view file_start = "@file ", binary_start = "@binary ", end_line = "@end",
-                           steps_line = "@steps", fingerprint_start = "fingerprint: ";
+constexpr std::string_view file_start = "@file ", binary_start = "@binary ", snapshot_line = "@snapshot",
+                           end_line = "@end", steps_line = "@steps", fingerprint_start = "fingerprint: ";
 constexpr size_t base64_width = 76;
+
+/* bytes in base64, 76 digits a line, into out */
+void base64_lines(std::string_view bytes, std::vector<std::string> &out)
+{
+    std::string digits;
+    base64_append(digits, bytes);
+    for (size_t i = 0; i < digits.size(); i += base64_width) out.push_back(digits.substr(i, base64_width));
+}
 
 /* a file's section, its first and "@end" lines included, as lines */
 void section_lines(const ModelFile &f, std::vector<std::string> &out)
@@ -56,9 +64,7 @@ void section_lines(const ModelFile &f, std::vector<std::string> &out)
         for (std::string_view line : lines_of(f.bytes)) out.push_back(escaped(line));
     } else {
         out.push_back(std::string(binary_start) + f.name);
-        std::string digits;
-        base64_append(digits, f.bytes);
-        for (size_t i = 0; i < digits.size(); i += base64_width) out.push_back(digits.substr(i, base64_width));
+        base64_lines(f.bytes, out);
     }
     out.emplace_back(end_line);
 }
@@ -95,6 +101,11 @@ std::string text(const Recording &r)
     add("program: " + r.program);
     add("model: " + r.model);
     add("recorded: " + r.recorded);
+    add("");
+    hashed.emplace_back(snapshot_line);
+    base64_lines(r.snapshot, hashed);
+    hashed.emplace_back(end_line);
+    for (const std::string &line : hashed) add(line);
     for (const ModelFile &f : r.files) {
         add("");
         const size_t first = hashed.size();
@@ -131,13 +142,17 @@ std::optional<Read> read(std::string_view text, std::string &error)
         else if (l.starts_with("model: ")) r.model = l.substr(7);
         else if (l.starts_with("recorded: ")) r.recorded = l.substr(10);
     }
+    bool snapshot = false;
     for (; i < lines.size() && lines[i] != steps_line; i++) {
         const std::string_view l = lines[i];
         if (l.empty()) continue;
-        const bool binary = l.starts_with(binary_start);
-        if (!binary && !l.starts_with(file_start)) return fail(xpp::format("\"{}\" where a @file or @binary section or @steps was due", l));
+        const bool is_snapshot = l == snapshot_line && !snapshot;
+        const bool binary = is_snapshot || l.starts_with(binary_start);
+        if (!binary && !l.starts_with(file_start))
+            return fail(xpp::format("\"{}\" where a @snapshot, @file or @binary section or @steps was due", l));
+        if (!snapshot && !is_snapshot) return fail(xpp::format("no {} section before the files: a recording begins with the session's state", snapshot_line));
         ModelFile f;
-        f.name = l.substr(binary ? binary_start.size() : file_start.size());
+        f.name = is_snapshot ? std::string("the snapshot") : std::string(l.substr(binary ? binary_start.size() : file_start.size()));
         hashed.emplace_back(l);
         const size_t first = i;
         std::string digits;
@@ -159,9 +174,15 @@ std::optional<Read> read(std::string_view text, std::string &error)
             i = first;
             return fail(xpp::format("the section of {} is not base64", f.name));
         }
-        r.files.push_back(std::move(f));
+        if (is_snapshot) {
+            r.snapshot = std::move(f.bytes);
+            snapshot = true;
+        } else {
+            r.files.push_back(std::move(f));
+        }
     }
     if (i == lines.size()) return fail(xpp::format("no {} line", steps_line));
+    if (!snapshot) return fail(xpp::format("no {} section: a recording begins with the session's state", snapshot_line));
     std::string note;
     bool noted = false;
     for (i++; i < lines.size(); i++) {
