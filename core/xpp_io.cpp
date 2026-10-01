@@ -248,6 +248,13 @@ std::optional<std::string_view> LineReader::next()
     return std::string_view(r.line);
 }
 
+std::string LineReader::line(int n)
+{
+    for (int i = 1; std::optional<std::string_view> l = next(); i++)
+        if (i == n) return std::string(*l);
+    return {};
+}
+
 /* ---- TokenReader ----------------------------------------------------- */
 
 void TokenReader::Free::operator()(State *s) const noexcept { delete s; }

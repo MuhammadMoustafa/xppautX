@@ -2,7 +2,7 @@
    it succeeds (session.h's xpp::Load, W47c): a model that does not parse
    leaves the ones before current and untouched, where the program used to
    exit, and a good load after it still works. A load that fails says why
-   and where (xpp::load_model's xpp::Diagnostic, W63c). */
+   and where (xpp::load_model's xpp::Error, W63c). */
 #include "xpptest.h"
 #include "session.h"
 #include "model.h"
@@ -19,6 +19,14 @@ int main(void)
     char bad[] = "tools/models/malformed_unbalanced.ode";
     char *argv_good[] = {arg0, good, NULL};
     char *argv_bad[] = {arg0, bad, NULL};
+
+    /* an error's one rendering (xpp_error.h, W140): file:line:col: what,
+       leaving out what is not known */
+    CHECK(xpp::Error({"w", "bad", {"m.ode", 3, 7}}).text() == "m.ode:3:7: bad");
+    CHECK(xpp::Error({"w", "bad", {"m.ode", 3}}).text() == "m.ode:3: bad");
+    CHECK(xpp::Error({"w", "bad", {"m.ode"}}).text() == "m.ode: bad");
+    CHECK(xpp::Error({"w", "bad", {"", 5}}).text() == "line 5: bad");
+    CHECK(xpp::Error({"w", "bad"}).text() == "bad");
 
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
     xpp::Model *model = &xpp::client_session().model();
@@ -38,11 +46,11 @@ int main(void)
     xpp::Loaded d = xpp::load_model(2, argv_bad, 1);
     CHECK(!d.has_value());
     if (!d) {
-        CHECK_STR(d.error().file.c_str(), bad);
-        CHECK(d.error().line == 4);
-        CHECK(d.error().col == 0);
-        CHECK_STR(d.error().source.c_str(), "f(x)=sin(x");
-        CHECK(d.error().cause.find("Function F messed up") != std::string::npos);
+        CHECK_STR(d.error().place.file.c_str(), bad);
+        CHECK(d.error().place.line == 4);
+        CHECK(d.error().place.col == 0);
+        CHECK_STR(d.error().place.source.c_str(), "f(x)=sin(x");
+        CHECK(d.error().what.find("Function F messed up") != std::string::npos);
         CHECK(d.error().text().starts_with(std::string(bad) + ":4: "));
     }
 
@@ -57,10 +65,10 @@ int main(void)
     d = xpp::load_model(2, argv_odex, 1);
     CHECK(!d.has_value());
     if (!d) {
-        CHECK_STR(d.error().file.c_str(), odex);
-        CHECK(d.error().line == 2 || d.error().line == 3);
-        CHECK(d.error().col > 0);
-        CHECK(!d.error().cause.empty());
+        CHECK_STR(d.error().place.file.c_str(), odex);
+        CHECK(d.error().place.line == 2 || d.error().place.line == 3);
+        CHECK(d.error().place.col > 0);
+        CHECK(!d.error().what.empty());
     }
 
     CHECK(xpp::load_model(2, argv_good, 1).has_value());

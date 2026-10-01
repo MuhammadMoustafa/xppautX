@@ -866,6 +866,10 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .error-list { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-2); }
 .error-list li { display: flex; align-items: flex-start; gap: var(--space-2); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--danger); }
 .dialog h2.error-title { color: var(--danger); }
+/* an error's place under its text, and its line as written (ErrorSource.tsx) */
+.error-item { flex: 1; min-width: 0; display: grid; gap: var(--space-1); }
+.error-place { color: var(--fg-muted); font-size: var(--text-sm); }
+.error-item .load-error-source { margin: 0; color: var(--fg); white-space: pre; overflow-x: auto; }
 
 /* ---- dialogs ---- */
 .dialog-backdrop {

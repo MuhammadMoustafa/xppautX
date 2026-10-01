@@ -407,7 +407,9 @@ static int if_needed_load_set(xpp::Session &s)
   }
   if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
   {
-    xpp::log(XPP_LOG_ERROR, "{}, {}\n",setfilename,r.error().what);
+    xpp::Error e=r.error();
+    e.place.file=setfilename;
+    xpp::log(XPP_LOG_ERROR, "{}\n",e.text());
     return 0;
   }
   return 1;

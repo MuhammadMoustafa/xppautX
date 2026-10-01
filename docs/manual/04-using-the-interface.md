@@ -72,7 +72,11 @@ well as in the terminal ("The log", below); a problem it reports (an
 illegal formula, a value out of bounds, a file it cannot read) shows as a
 dialog with an OK button (Enter or Escape closes it; errors that arrive
 together are lines of one dialog; each also stays in Messages), while a
-warning only flashes the status bar. One status message is shown at a
+warning only flashes the status bar. An error about a line of a file
+(a parameter file, a set file, a model you open from the File menu)
+names the file and the line under its text in the dialog, with the line
+as you wrote it, and reads `file:line: what went wrong` in Messages and
+in the terminal alike. One status message is shown at a
 time; starting the next command clears it. If the model cannot be loaded
 at all, the program keeps serving the page so you can read what it
 printed, and the top of the page says where the problem is: the file

@@ -139,8 +139,8 @@ private:
   {
     try {
       f();
-    } catch (Diagnostic &e) {
-      if (a.group) e.cause += xpp::format(" (where {} = {})", a.index, a.value);
+    } catch (Error &e) {
+      if (a.group) e.what += xpp::format(" (where {} = {})", a.index, a.value);
       throw;
     }
   }
@@ -797,8 +797,7 @@ int load(xpp::Session &s, const std::string &path)
 {
   try {
     build_model(s, ready(parse_file(s.model(), path)));
-  } catch (const Diagnostic &e) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
+  } catch (const Error &e) {
     xpp::model_failed(e);
   }
   /* the model's source: the .odex file's own lines */

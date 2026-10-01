@@ -1328,8 +1328,8 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     xpp::Session &s = **loaded;
     text = convert_model(s, auto_answer, ask);
     before = fingerprint(s);
-  } catch (const Diagnostic &e) {
-    xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.cause);
+  } catch (const Error &e) {
+    xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.what);
     return 1;
   }
   if (xpp::files::exists(out.c_str()) && !auto_answer) {

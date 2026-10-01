@@ -40,10 +40,12 @@ formula that does not compile, a name given twice, a value an `@` option
 refuses: a colour outside 0-10, an unknown variable, a word where a
 number goes, ... at the option's line, W119), the server sends one
 `error` event instead of `hello` and exits with status 1 (W63c). The log
-(stderr, the page's `log` event) says what it always said; the event is
-the same as values:
+(stderr, the page's `log` event) says it once, at its place
+(`file:line:col: what`, "Errors" below), after the warnings the load
+logged about the lines before it, each at its own line; the event is
+the same as values ("Errors"):
 
-    {"ev":"error","file":"bad.ode","line":3,"col":0,"cause":"Premature end of expression\n-X+A*\n    ^\nERROR compiling X'","source":"x'=-x+a*"}
+    {"ev":"error","error":"Premature end of expression\n-X+A*\n    ^\nERROR compiling X'","file":"bad.ode","line":3,"col":0,"source":"x'=-x+a*"}
 
 - `file`: the file the problem is in, as the server was given it, or the
   file the model includes (`#include`) when the problem is there.
@@ -51,15 +53,47 @@ the same as values:
   has its line (a statement continued with `\` is at the line it starts
   at) and column 0; an .odex one has both. A problem of the whole model
   (no equations, too many boundary conditions) has line 0.
-- `cause`: what is wrong, the error and warning lines logged about that
+- `error`: what is wrong, the error and warning lines logged about that
   line, joined with `\n` (a formula and a caret under where it stops
   making sense are two of them).
 - `source`: line `line` of `file` as written ("" when `line` is 0).
 
 In browser and window mode the server keeps serving after the exit, so
-the page gets the event (and `exit` after it) whenever it connects. The
-core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
-`xpp::load_model` (core/xpp_batch.h) returns for a load that fails.
+the page gets the event (and `exit` after it) whenever it connects.
+`xpp::load_model` (core/xpp_batch.h) returns the `xpp::Error` of a load
+that fails.
+
+### Errors
+
+Every error is one value, `xpp::Error` (core/xpp_error.h, W140): what
+failed and where, the place being the file, its line and column from 1
+(0 when not known) and that line as written. It is reported one way
+(`show_error`, core/xpp_ui.h; a load's by `load_model`), rendered one
+way as text for the console, the log and `-silent` (`Error::text()`:
+`file:line:col: what`, leaving out what is not known, `line N: what`
+with no file), and sent as one shape: the `error` event (a model that
+does not load, above) and a `message` with `error` carry the same five
+fields, always all of them:
+
+    {"ev":"message","error":"it is for 3 parameters, the model has 12","file":"bad.par","line":1,"col":0,"source":"3   Number params"}
+
+- `error`: what failed, as the user reads it (one line or several).
+- `file`: the file it is in or about, as the command was given it (a
+  name in the model's folder, or a path); "" when none.
+- `line`, `col`: where in it, from 1; 0 when not known. A `file` with
+  `line` 0 is one the command could not read (File/Read set, a parameter
+  or IC file, a table, AUTO's files, a session or recording, W118): web2
+  offers to add it to the model's folder under its own name and run the
+  command again.
+- `source`: line `line` of `file` as written, when it could be read;
+  "" otherwise.
+
+web2 shows `file`, `line` (and `col`) under the error's text in the
+error dialog, with `source` and a caret under `col` when there is one,
+and writes the error in Messages and the status line as the console
+does (`file:line: what`). Errors that do not come from a file yet (a
+command's argument, a computation) have no place until W140b gives them
+theirs; `tools/errorcheck.py` counts them.
 
 ## Commands (client to server)
 
@@ -608,7 +642,7 @@ model's start in every mode, before the script.
 | `help` | `chapter`, `anchor` (optional) | File/Help: open the manual at this chapter (and anchor). |
 | `copy` | `what`, `text` | File/cOpy set line (key `o`): text for the page to put on the clipboard (`what` is `set`: a `set <name> {par=value,...,var=value,...}` line, every parameter and initial condition as they are now, numbers printed to read back exactly). The core first asks the set's name (a `string` ask, pre-filled with the first free `set1`, `set2`, ...; refused with an `error` message if not a name the parser reads or already a set of the model), then a `choice` ask that shows the line (`Copy` `c` / `Cancel` `n`); both answers are recorded like any other. The page shows the line as well, so it can be copied by hand when the clipboard is refused. |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
-| `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file` | Status text. `box` with empty text removes a hint box. `file` (W118): the error is about a file the command could not read (File/Read set, a parameter or IC file, a table, AUTO's files, a session or recording), by its name in the model's folder; web2 offers to add it and run the command again. |
+| `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file`, `line`, `col`, `source` | Status text. `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
 | `computing` | | The running command began computing (once per command, before its first `progress`); until its `idle` the server refuses data and computation commands ("Action kinds", "Commands during a command"). A page that connects meanwhile gets it again. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
@@ -620,7 +654,7 @@ model's start in every mode, before the script.
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
 | `bye` | | The program is exiting normally: sent by every quit (a plain `quit`, during a computation or not, and the question's outcomes) before the exit, so browser mode's `exit` event says `code` 0. A crash or an error exit sends none (`exit` `code` 1). |
-| `error` | `file`, `line`, `col`, `cause`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
+| `error` | `error`, `file`, `line`, `col`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
 

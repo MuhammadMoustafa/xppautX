@@ -22,6 +22,21 @@ FILE *sink()
     return log_settings.file != nullptr && log_settings.file != stdout ? log_settings.file : stderr;
 }
 
+/* exit() while a LogCapture keeps messages (a command-line mistake or
+   running out of memory during a load) unwinds no stack: what it keeps
+   is written here, as it is, so that no message is lost (the latest
+   made's: a load's) */
+struct WriteKeptAtExit {
+    WriteKeptAtExit() = default;
+    WriteKeptAtExit(const WriteKeptAtExit &) = delete;
+    WriteKeptAtExit &operator=(const WriteKeptAtExit &) = delete;
+    ~WriteKeptAtExit()
+    {
+        if (capture != nullptr) capture->write(capture->text());
+    }
+};
+const WriteKeptAtExit write_kept_at_exit;
+
 /* a log file of its own is closed (never stdout or stderr) */
 void close_log_file()
 {
@@ -65,7 +80,21 @@ LogCapture::LogCapture() : outer_(capture)
     capture = this;
 }
 
-LogCapture::~LogCapture() { capture = outer_; }
+LogCapture::~LogCapture()
+{
+    write(text_);
+    capture = outer_;
+}
+
+void LogCapture::write(std::string_view text) noexcept
+{
+    if (!text.empty() && log_enabled(XPP_LOG_WARN)) {
+        FILE *out = sink();
+        std::fwrite(text.data(), 1, text.size(), out);
+        fflush(out);
+    }
+    text_.clear();
+}
 
 void LogCapture::keep(const char *message) noexcept
 {
@@ -80,7 +109,7 @@ void log_vprintf(XppLogLevel level, const char *fmt, va_list ap)
 {
     FILE *out = sink();
     if (capture != nullptr && level <= XPP_LOG_WARN) {
-        /* the message once as text, for the capture and the log */
+        /* the message as text, for the capture to keep */
         va_list again;
         va_copy(again, ap);
         const int n = std::vsnprintf(nullptr, 0, fmt, again);
@@ -94,9 +123,6 @@ void log_vprintf(XppLogLevel level, const char *fmt, va_list ap)
         }
         std::vsnprintf(message.data(), message.size() + 1, fmt, ap);
         capture->keep(message.c_str());
-        if (!log_enabled(level)) return;
-        std::fputs(message.c_str(), out);
-        fflush(out);
         return;
     }
     if (!log_enabled(level)) return;

@@ -276,10 +276,10 @@ int main(void)
         CHECK(&xpp::client_session() == s);
         if (l) continue;
         const std::string value(std::string_view(bad).substr(std::string_view(bad).find('=') + 1));
-        CHECK(l.error().file == bad_ode);
-        CHECK(l.error().line == 6);
-        CHECK(l.error().cause.find(value) != std::string::npos);
-        if (l.error().line != 6 || l.error().cause.find(value) == std::string::npos)
+        CHECK(l.error().place.file == bad_ode);
+        CHECK(l.error().place.line == 6);
+        CHECK(l.error().what.find(value) != std::string::npos);
+        if (l.error().place.line != 6 || l.error().what.find(value) == std::string::npos)
             printf("  %s: %s\n", bad, l.error().text().c_str());
     }
     CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\n@ ync=12\n"));
@@ -291,10 +291,10 @@ int main(void)
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == s);
         if (!l) {
-            CHECK(l.error().file == bad_odex);
-            CHECK(l.error().line == 3);
-            CHECK(l.error().cause.find("ync=12") != std::string::npos);
-            if (l.error().line != 3) printf("  odex: %s\n", l.error().text().c_str());
+            CHECK(l.error().place.file == bad_odex);
+            CHECK(l.error().place.line == 3);
+            CHECK(l.error().what.find("ync=12") != std::string::npos);
+            if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
     }
     CHECK(xpp::client_session().model().this_file == plain_ode);

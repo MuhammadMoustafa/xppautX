@@ -360,6 +360,9 @@ public:
     LineReader &operator=(LineReader &&o) noexcept = default;
     explicit operator bool() const noexcept { return state_ != nullptr; }
     std::optional<std::string_view> next();
+    /* the line n lines on (n from 1: the next one), the lines before it
+       read; "" when there are fewer (an error's source line, xpp_error.h) */
+    std::string line(int n);
     /* what a reader reads, and Free, which deletes it where it is
        complete (xpp_io.cpp) */
     struct State;

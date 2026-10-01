@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "diagnostic.h"
+#include "xpp_error.h"
 #include "model_files.h"
 #include "snapx.h"
 #include "xpp_zip.h"
@@ -96,7 +96,7 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
    f.name, and as its cause the member and the line: "its windows.set,
    line 12: ..."). A session file's set file is read into s (the load's
    session, which a failed check throws away); nothing else is changed. */
-std::optional<xpp::Diagnostic> xpp_saved_check(xpp::Session &s, const SavedFile &f);
+std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);
 /* what f adds to its model into the session s, whose model is f's
    (loaded from it, or the same files): AUTO's diagram, or the session;
    false, with an error message, when it could not be read or put in

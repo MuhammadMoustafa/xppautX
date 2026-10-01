@@ -46,7 +46,7 @@
 #include "arrayplot.h"
 #include "aniparse.h"
 #include "userbut.h"
-#include "diagnostic.h"
+#include "xpp_error.h"
 #include "xpp_log.h"
 #include "model_switch.h"
 #include "display_state.h"
@@ -226,10 +226,9 @@ private:
 Session &client_session();
 
 /* what model_failed throws while a Load is in progress: the model
-   cannot be loaded (a parse or compile error, already logged), what is
-   wrong and where */
+   cannot be loaded (a parse or compile error), what is wrong and where */
 struct LoadFailed {
-  Diagnostic diagnostic;
+  Error error;
 };
 
 /* A load in progress: it builds a fresh Model and Session, which the
@@ -255,29 +254,39 @@ public:
   Model &model() noexcept { return session_->model(); }
   /* a Load is in progress */
   static bool running() noexcept;
-  /* d.source, when empty, the line d.line of d.file as the model of the
-     Load in progress reads it (model_files.h); nothing when no Load is in
-     progress */
-  static void add_source(Diagnostic &d);
+  /* e.place.source, when empty, the line e.place.line of e.place.file as
+     the model of the Load in progress reads it (model_files.h); nothing
+     when no Load is in progress */
+  static void add_source(Error &e);
   /* The load is at line (and column) of file: the model's readers and
      builder say where they are, so that a problem is reported there;
-     line 0, the model as a whole. The messages logged before are no
-     longer about it. Nothing when no Load is in progress. */
+     line 0, the model as a whole. The ERROR and WARN messages logged
+     while a Load is in progress are kept (LogCapture) and written with
+     the place they are about (Error::text()) once the load moves on from
+     it (here), commits or ends; the ones about the place a load fails at
+     are its error's what, written once by load_model. Nothing when no
+     Load is in progress. */
   static void at(std::string_view file, int line=0, int col=0);
   /* what went wrong where the load is (a Load is in progress): the place
-     at() gave, and as the cause the ERROR and WARN messages logged since */
-  static Diagnostic diagnostic();
-  /* where the load is (at()'s place, no cause); empty when no Load is in
-     progress */
-  static Diagnostic place();
+     at() gave, and as what failed the ERROR and WARN messages logged
+     since (no longer kept to be written) */
+  static Error error();
+  /* where the load is (at()'s place); empty when no Load is in progress */
+  static Place place();
 private:
+  /* the messages kept since at(), without the blank lines around them,
+     each line without the blanks at its end (a caret line keeps those in
+     front) */
+  std::string kept() const;
+  /* the messages kept, written at the place they are about */
+  void write_kept();
   /* the client's before the load (none at the first), until commit();
      the Session declared last, so that it goes before its Model */
   std::unique_ptr<Model> previous_model;
   std::unique_ptr<Session> previous_session;
   Session *session_;
   bool committed=false;
-  Diagnostic where;
+  Place where;
   LogCapture messages;
 };
 

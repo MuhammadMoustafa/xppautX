@@ -11,6 +11,8 @@
 #   - no more direct fopen/remove/rename/mkdir/... than tests/files.baseline
 #     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
+#   - no more errors reported with no place (file, line) than
+#     tests/errors.baseline allows (tools/errorcheck.py, W140)
 #   - no extern "C" but where C calls across (tools/externcheck.sh, W109)
 #   - no current Session or Model read outside the session list's owners
 #     (tools/sessioncheck.sh, W47d6)
@@ -75,6 +77,12 @@ if ! sh tools/filecheck.sh --check; then
   echo "FILE CHECK FAILED"
   exit 1
 fi
+if ! python3 tools/errorcheck.py --check > build/errorcheck.out 2>&1; then
+  tail -40 build/errorcheck.out
+  echo "ERROR PLACE CHECK FAILED"
+  exit 1
+fi
+tail -1 build/errorcheck.out
 if ! sh tools/literalcheck.sh; then
   echo "LITERAL CHECK FAILED"
   exit 1

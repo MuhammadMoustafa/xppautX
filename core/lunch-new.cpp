@@ -207,9 +207,9 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_parameters(s,fp,"");
 }
 
-std::string SetLineError::text() const
+xpp::Error SetLineError::error(std::string_view where, std::string_view file) const
 {
-  return xpp::format("line {}: {}",line,cause);
+  return xpp::Error{std::string(where),cause,xpp::Place{std::string(file),line}};
 }
 
 xpp::Result<> read_lunch(xpp::Session &s, FILE *fp, bool redraw)
@@ -217,7 +217,7 @@ xpp::Result<> read_lunch(xpp::Session &s, FILE *fp, bool redraw)
   try{
     read_set(s,fp);
   }catch(const SetLineError &e){
-    return xpp::fail("set file",e.text());
+    return std::unexpected(e.error("set file",""));
   }
   if(redraw&&program.interactive){
     ui.redraw_bcs();
@@ -264,8 +264,11 @@ void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
       err_reading(filename,"Cannot open file");
       return;
     }
-    if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
-      err_msg(xpp::format("{}, {}",xpp::files::split_path(filename).second,r.error().what));
+    if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r){
+      xpp::Error e=r.error();
+      e.place.file=filename;
+      show_error(e);
+    }
     return;
   }
   if(!file_selector("Save SET File",filename,"*.set"))return;
@@ -350,7 +353,7 @@ void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
         throw SetLineError{1,xpp::format("it is for {} parameters, the model has {}",np,m.nupar)};
       io_parameters(s,flag,fp.get());
     }catch(const SetLineError &e){
-      err_msg(xpp::format("{}, {}",xpp::files::split_path(fn).second,e.text()));
+      show_error(e.error("parameter file",fn));
       return;
     }
     fp.reset();

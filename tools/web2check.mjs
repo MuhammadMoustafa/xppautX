@@ -3699,7 +3699,7 @@ async function runsCheck(dir) {
   fs.writeFileSync(badPar, '3   Number params\n1\n2\n3\n');
   await pickFiles('#values-load-par', [badPar]);
   check('runs: a par file with the wrong count is refused with the core\'s own message',
-    await until("s.bottom && /bad.par, line 1: it is for 3 parameters, the model has 12/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
+    await until("s.bottom && /bad.par:1: it is for 3 parameters, the model has 12/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
   await closeErrors();
 
   const badIc = path.join(dir, 'bad.ic');
@@ -4735,7 +4735,7 @@ async function loadErrorCheck() {
     const e = await S('s.loadError');
     check('load error: its file, line, line as written and cause',
       !!e && e.file === 'bad.ode' && e.line === 3 && e.col === 0 && e.source === "x'=-x+a*"
-        && e.cause.includes("ERROR compiling X'"), JSON.stringify(e));
+        && e.error.includes("ERROR compiling X'"), JSON.stringify(e));
     check('load error: no hello', await S('s.hello === null'));
     const text = await cdp.eval("(document.querySelector('.load-error') || {}).innerText || ''");
     check('load error: the page shows the place, the line and the cause',
@@ -4749,7 +4749,7 @@ async function loadErrorCheck() {
 
 /* W104: an error is one dialog with OK (Enter or Escape close it), kept in Messages; a warning
    flashes the status bar and opens no dialog */
-async function errorDialogCheck() {
+async function errorDialogCheck(dir) {
   const bad = () => cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
   const dialog = () => cdp.eval(`(() => { const d = document.querySelector('.error-dialog');
     return d && {n: d.querySelectorAll('[data-error]').length, text: d.innerText, count: document.querySelectorAll('.error-dialog').length}; })()`);
@@ -4773,6 +4773,23 @@ async function errorDialogCheck() {
   await key('Escape');
   check('error dialog: Escape closes it too', await until(`!document.querySelector('.error-dialog')`, 'closed by Escape'));
   check('error dialog: the session is usable after it (idle, no ask)', await until('!s.busy && !s.ask', 'idle'));
+
+  /* W140: an error the core places shows its file and line, and the line as written */
+  fs.writeFileSync(path.join(dir, 'w140bad.par'), '3   Number params' + String.fromCharCode(10) + '1' + String.fromCharCode(10));
+  await cdp.eval(`__xpp.send({cmd: 'values', op: 'read', kind: 'par', name: 'w140bad.par'})`);
+  await until(`document.querySelector('.error-dialog [data-error-place]')`, 'a placed error');
+  const placed = await S(`s.toasts.filter(t => t.kind === 'error').pop()`);
+  check('error dialog: a placed error keeps its file, line and line as written (W140)',
+    !!placed && placed.place && placed.place.file === 'w140bad.par' && placed.place.line === 1
+      && placed.place.source === '3   Number params' && !placed.action, JSON.stringify(placed));
+  const shown = await cdp.eval(`(() => { const d = document.querySelector('.error-dialog');
+    return d && {place: (d.querySelector('[data-error-place]') || {}).innerText, source: (d.querySelector('[data-error-source]') || {}).innerText}; })()`);
+  check('error dialog: it shows the file and line, and the line as written (W140)',
+    !!shown && /w140bad\.par, line 1/.test(shown.place || '') && (shown.source || '').includes('3   Number params'), JSON.stringify(shown));
+  check('error dialog: Messages read file:line: what (W140)',
+    (await S(`__xpp.log().filter(l => l.kind === 'error').pop().text`)) === 'w140bad.par:1: it is for 3 parameters, the model has 12');
+  await key('Enter');
+  await until(`!document.querySelector('.error-dialog')`, 'closed');
 }
 
 async function warningFlashCheck() {
@@ -5163,20 +5180,21 @@ async function main() {
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
-    if (run('files')) await session(ODE, files, ['Cannot open file']);
+    if (run('files')) await session(ODE, files, ['gone.set: Cannot open file']);
     if (run('native')) await session(ODE, nativeFiles);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
-    if (run('runs')) await session(ODE, runsCheck, ['bad.par, line 1: it is for 3 parameters, the model has 12', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
+    if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.ode'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.ode'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
-    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'Bad formula']);
+    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'Bad formula',
+      'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('loaderror')) await loadErrorCheck();
   } finally {

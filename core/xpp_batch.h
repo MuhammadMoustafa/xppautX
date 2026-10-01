@@ -1,7 +1,7 @@
 #ifndef XPP_BATCH_H
 #define XPP_BATCH_H
 
-#include "diagnostic.h"
+#include "xpp_error.h"
 #include "model_files.h"
 
 #include <expected>
@@ -14,9 +14,9 @@ namespace xpp {
 
 struct Session; /* session.h */
 
-/* the model cannot be loaded (a parse or compile error, already logged):
-   model_failed(Diagnostic), at the place the load is
-   (Load::diagnostic): during a load, the load fails (LoadFailed, caught
+/* the model cannot be loaded (a parse or compile error, logged while the
+   load is at its place): model_failed(Load::error()), at the place the
+   load is: during a load, the load fails (LoadFailed, caught
    by load_model); otherwise the program exits with status 1. In browser
    and window mode the page stays open on the log until it is closed
    (xpp_http's at_exit). */
@@ -38,7 +38,7 @@ void do_vis_env(Session &s);
 
 /* what a load gives: the Session it loaded (its Model the Session's),
    or what is wrong and where */
-using Loaded = std::expected<Session *, Diagnostic>;
+using Loaded = std::expected<Session *, Error>;
 /* The shared start of every mode (the program, -silent, --convert,
    File > Open model, a unit test): options, the ODE file, numerics
    set-up; batch forces batch mode. The Session loaded (the client's in
@@ -49,13 +49,15 @@ using Loaded = std::expected<Session *, Diagnostic>;
    (model_files.h); argv names its first file. check, when given, reads
    what such a file adds against the loaded Session before the load keeps
    it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
-   as a model that does not load does. */
+   as a model that does not load does. What is wrong is written to the
+   log here (Error::text()), once. */
 Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr,
-                  const std::function<std::optional<Diagnostic>(Session &)> &check = {});
-/* the model cannot be loaded, for the reason d (already logged): during a
-   load, the load fails (LoadFailed with d, the line d.line of d.file
-   added as it is written); otherwise the program exits with status 1 */
-[[noreturn]] void model_failed(Diagnostic d);
+                  const std::function<std::optional<Error>(Session &)> &check = {});
+/* the model cannot be loaded, for the reason e: during a load, the load
+   fails (LoadFailed with e, the line e.place.line of e.place.file added
+   as it is written; load_model writes it); otherwise e is written and the
+   program exits with status 1 */
+[[noreturn]] void model_failed(Error e);
 
 /* How a run without an interface goes and where its output lands: the
    command line (-silent, -outfile, -equil, -iset) and the ODE file's

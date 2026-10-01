@@ -851,19 +851,10 @@ int json_ui_silent(int argc, char **argv)
     return 0;
 }
 
-void json_ui_load_error(const xpp::Diagnostic &d)
+void json_ui_load_error(const xpp::Error &e)
 {
     /* a script whose model does not load fails, as an error message does */
-    if (session.script_mode) session.script_error = 1;
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"error\",\"file\":");
-    buf_str(&b, d.file);
-    buf_format(&b, ",\"line\":{:d},\"col\":{:d},\"cause\":", d.line, d.col);
-    buf_str(&b, d.cause);
-    BUF_LIT(&b, ",\"source\":");
-    buf_str(&b, d.source);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    xpp::json::send_error("error", e);
 }
 
 } // namespace xpp

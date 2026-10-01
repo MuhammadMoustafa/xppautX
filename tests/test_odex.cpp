@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-using xpp::Diagnostic;
+using xpp::Error;
 using xpp::odex::Expr;
 using xpp::odex::Parsed;
 using xpp::odex::Statement;
@@ -59,8 +59,8 @@ std::string parsed(const char *text)
 {
   try {
     return tree(expression(text));
-  } catch (const Diagnostic &e) {
-    return "error " + std::to_string(e.line - 1) + ":" + std::to_string(e.col) + " " + e.cause;
+  } catch (const Error &e) {
+    return "error " + std::to_string(e.place.line - 1) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
 }
 
@@ -69,8 +69,8 @@ std::string model_error(const char *text)
 {
   try {
     xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
-  } catch (const Diagnostic &e) {
-    return std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
+  } catch (const Error &e) {
+    return std::to_string(e.place.line) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
   return "";
 }
@@ -152,8 +152,8 @@ std::string lowered(const char *text)
       }
     }
     return out;
-  } catch (const Diagnostic &e) {
-    return "error " + std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
+  } catch (const Error &e) {
+    return "error " + std::to_string(e.place.line) + ":" + std::to_string(e.place.col) + " " + e.what;
   }
 }
 
@@ -305,7 +305,7 @@ int main(void)
     std::string err;
     try {
       p = xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
-    } catch (const Diagnostic &e) {
+    } catch (const Error &e) {
       err = e.text();
     }
     CHECK_STR(err.c_str(), "");
@@ -550,7 +550,7 @@ int main(void)
     CHECK(xpp::load_model(2, argv, 1).has_value());
     try {
       text = xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Diagnostic &e) {
+    } catch (const Error &e) {
       err = e.text();
     }
     CHECK_STR(err.c_str(), "");
@@ -581,7 +581,7 @@ int main(void)
     std::string back;
     try {
       xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "odex_quirks.odex"));
-    } catch (const Diagnostic &e) {
+    } catch (const Error &e) {
       back = e.text();
     }
     CHECK_STR(back.c_str(), "");
@@ -595,8 +595,8 @@ int main(void)
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
     try {
       xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Diagnostic &e) {
-      err = e.cause;
+    } catch (const Error &e) {
+      err = e.what;
     }
     CHECK(starts(err, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
   }

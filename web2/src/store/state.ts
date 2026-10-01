@@ -4,6 +4,7 @@
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
+import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
 import {isWindowKey} from '../protocol/kinds';
 import {
   coreMoved, initialPlots, onAppend, onDfield, onEnd, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
@@ -70,6 +71,8 @@ export interface Toast {
   kind: 'error' | 'info';
   text: string;
   action?: ToastAction;
+  /** an error's place, when the core named one (protocol/errors.ts): the dialog shows it */
+  place?: ErrorPlace;
 }
 
 export interface AppState {
@@ -242,8 +245,8 @@ function addLogText(state: AppState, text: string): AppState {
   return {...state, log: appendLog(state.log, lines.map(line => ({kind: classifyLogText(line), text: line})), joined)};
 }
 
-function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction): AppState {
-  const toast: Toast = action ? {id: state.nextToast, kind, text, action} : {id: state.nextToast, kind, text};
+function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction, place?: ErrorPlace): AppState {
+  const toast: Toast = {id: state.nextToast, kind, text, ...(action ? {action} : {}), ...(place ? {place} : {})};
   const toasts = [...state.toasts, toast].slice(-TOASTS_KEEP);
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
@@ -436,8 +439,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, title: ev.text};
     case 'message':
       if (ev.error !== undefined) {
-        /* a file the command could not read (the core names it): the notification offers to add it */
-        const action: ToastAction | undefined = ev.file !== undefined ? {kind: 'addFile', name: ev.file, run: state.files.run} : undefined;
+        /* a file the command could not read (the core names it, with no line): the notification offers to add it */
+        const unread = unreadFile(ev);
+        const action: ToastAction | undefined = unread ? {kind: 'addFile', name: unread, run: state.files.run} : undefined;
+        /* Messages and the status line read as the console does (file:line: what), the dialog shows the place apart */
+        const text = errorText(ev);
         const files = {...state.files, runFailed: true};
         /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the AUTO
            form's: the field or form shows it where it was typed and takes the focus back (WF-001),
@@ -445,9 +451,9 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const values = reduceValues(state.values, {type: 'error', text: ev.error});
         const autoSettings = /^AUTO settings: /.test(ev.error)
           ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
-        const logged = addLog({...state, bottom: ev.error, files, values, autoSettings}, {kind: 'error', text: ev.error});
+        const logged = addLog({...state, bottom: text, files, values, autoSettings}, {kind: 'error', text});
         const claimed = values !== state.values || autoSettings !== state.autoSettings;
-        return claimed ? logged : addToast(logged, 'error', ev.error, action);
+        return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev));
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
       if (ev.box !== undefined) return {...state, box: ev.box};

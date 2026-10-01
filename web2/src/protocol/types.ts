@@ -336,11 +336,21 @@ export interface AskEvent {
   [k: string]: unknown;
 }
 
-export interface MessageEvent {
+/** What every error event carries (docs/protocol.md "Errors", W140): what
+    failed, and where: the file ("" when none), its line and column from 1
+    (0 when not known) and the line as written ("" when not read). A file
+    with line 0 is one the command could not read. */
+export interface ErrorFields {
+  error: string;
+  file: string;
+  line: number;
+  col: number;
+  source: string;
+}
+
+/** an error (`error` with its place, ErrorFields), or a status line, an alert, ... */
+export interface MessageEvent extends Partial<ErrorFields> {
   ev: 'message';
-  error?: string;
-  /** with `error`: the file the command could not read, by its name in the model's folder */
-  file?: string;
   bottom?: string;
   box?: string;
   auto?: string;
@@ -496,16 +506,10 @@ export interface FilmEvent {
 }
 
 /** A model that does not load (docs/protocol.md "A model that does not
-    load"), sent instead of hello: the file the problem is in, its line and
-    column from 1 (0 when not known), what is wrong (one or more lines) and
-    the line as written */
-export interface LoadErrorEvent {
+    load"), sent instead of hello: what is wrong (one or more lines) and
+    where (ErrorFields) */
+export interface LoadErrorEvent extends ErrorFields {
   ev: 'error';
-  file: string;
-  line: number;
-  col: number;
-  cause: string;
-  source: string;
 }
 
 export type XppEvent =

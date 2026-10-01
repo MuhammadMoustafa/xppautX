@@ -448,7 +448,7 @@ std::optional<std::string> member_read(const xpp::TempDir &tmp, const SavedFile 
     try {
         why = read(fp.get());
     } catch (const xpp::SetLineError &e) {
-        why = e.text();
+        why = e.error("session", "").text();
     }
     if (why) return xpp::format("its {}, {}", name, *why);
     return std::nullopt;
@@ -487,7 +487,7 @@ std::optional<std::string> read_session(xpp::Session &s, const SavedFile &f, boo
     if (!apply) s.plot_windows.current = &s.plot_windows.graph[0];
     if (std::optional<std::string> why = member_read(tmp, f, xpp::snapx::set_member, [&](FILE *fp) -> std::optional<std::string> {
             const xpp::Result<> r = xpp::read_lunch(s, fp, apply);
-            if (!r) return r.error().what;
+            if (!r) return r.error().text();
             return std::nullopt;
         }))
         return why;
@@ -769,17 +769,14 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
     return entries;
 }
 
-std::optional<xpp::Diagnostic> xpp_saved_check(xpp::Session &s, const SavedFile &f)
+std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f)
 {
     std::optional<std::string> why;
     if (f.session) why = read_session(s, f, false);
     else if (std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(s, f.members, ""); !read)
         why = read.error();
     if (!why) return std::nullopt;
-    xpp::Diagnostic d;
-    d.file = f.name;
-    d.cause = std::move(*why);
-    return d;
+    return xpp::Error{"saved file", std::move(*why), xpp::Place{f.name}};
 }
 
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)

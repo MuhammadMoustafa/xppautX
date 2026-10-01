@@ -2,8 +2,10 @@
    (session.h). */
 #include "session.h"
 #include "model_files.h"
+#include "xpp_mem.h"
 
 #include <memory>
+#include <new>
 #include <utility>
 
 namespace xpp {
@@ -63,6 +65,7 @@ Load::Load()
 
 Load::~Load()
 {
+  write_kept(); /* what a failed load's error did not take */
   loading=nullptr;
   if(committed)return;
   /* the failed Session, then its Model, give way to the ones before */
@@ -76,50 +79,58 @@ bool Load::running() noexcept
   return loading!=nullptr;
 }
 
-void Load::add_source(Diagnostic &d)
+void Load::add_source(Error &e)
 {
-  if(!loading||d.line<=0||!d.source.empty()||d.file.empty())return;
-  LineReader lines=model_file_lines(loading->model(),d.file);
-  int n=0;
-  while(std::optional<std::string_view> line=lines.next())
-    if(++n==d.line){
-      d.source=*line;
-      break;
-    }
+  Place &p=e.place;
+  if(!loading||p.line<=0||!p.source.empty()||p.file.empty())return;
+  p.source=model_file_lines(loading->model(),p.file).line(p.line);
 }
 
 void Load::at(std::string_view file, int line, int col)
 {
   if(!loading)return;
-  loading->where.file=file;
-  loading->where.line=line;
-  loading->where.col=col;
-  loading->messages.clear();
+  loading->write_kept();
+  loading->where=Place{std::string(file),line,col};
 }
 
-Diagnostic Load::place()
+Place Load::place()
 {
-  return loading?loading->where:Diagnostic();
+  return loading?loading->where:Place();
 }
 
-Diagnostic Load::diagnostic()
+std::string Load::kept() const
 {
-  const Load &load=*loading;
-  Diagnostic d=load.where;
-  /* the messages without the blank lines around them, each line without
-     the blanks at its end (a caret line keeps those in front) */
-  std::string_view text=load.messages.text();
+  std::string out;
+  std::string_view text=messages.text();
   while(!text.empty()){
     const size_t eol=text.find('\n');
     std::string_view line=text.substr(0,eol);
     text=eol==std::string_view::npos?std::string_view():text.substr(eol+1);
     while(!line.empty()&&(line.back()==' '||line.back()=='\r'||line.back()=='\t'))line.remove_suffix(1);
     if(line.empty())continue;
-    if(!d.cause.empty())d.cause+='\n';
-    d.cause+=line;
+    if(!out.empty())out+='\n';
+    out+=line;
   }
-  if(d.cause.empty())d.cause="the model does not load";
-  return d;
+  return out;
+}
+
+void Load::write_kept()
+{
+  try{
+    const std::string what=kept();
+    messages.write(what.empty()?std::string():Error{"load",what,where}.text()+'\n');
+  }catch(const std::bad_alloc &){
+    out_of_memory("a load's messages");
+  }
+}
+
+Error Load::error()
+{
+  Load &load=*loading;
+  Error e{"load",load.kept(),load.where};
+  load.messages.clear();
+  if(e.what.empty())e.what="the model does not load";
+  return e;
 }
 
 void Load::commit()

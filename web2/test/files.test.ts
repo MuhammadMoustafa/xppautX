@@ -76,6 +76,8 @@ test('an error about a file the command could not read gets "Add file…"', () =
   s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file', file: 'gone.set'}});
   const t = s.toasts[s.toasts.length - 1];
   assert.equal(t.action?.name, 'gone.set');
+  s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file', file: '/home/u/models/gone.set', line: 0, col: 0, source: ''}});
+  assert.equal(s.toasts[s.toasts.length - 1].action?.name, 'gone.set', 'a path offers its file under its own name');
   assert.deepEqual(t.action?.run?.answers.map(a => a.fields.file), ['gone.set']);
   assert.ok(s.files.runFailed);
   s = reduce(s, {type: 'sent', cmd: {cmd: 'key', key: 'i'}});

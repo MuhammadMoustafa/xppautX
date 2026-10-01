@@ -104,10 +104,12 @@ void log_set_auto_echo(bool on);
 bool log_parse_arg(std::string_view arg);
 
 /* While one lives, the ERROR and WARN messages logged on the thread that
-   made it are also kept here, as well as written as ever: a load's
-   diagnostic (session.h, xpp::Load) takes what was logged about the line
-   that failed as its cause. The latest made keeps them; the one before
-   again once it goes. */
+   made it are kept here instead of written: a load (session.h,
+   xpp::Load) writes them with the place in the model they are about
+   (write), or takes those about the line that failed as its error's
+   what. The latest made keeps them; the one before again once it goes.
+   What it still keeps when it goes, or when the program exits, is
+   written as it is. */
 class LogCapture {
 public:
     LogCapture();
@@ -117,6 +119,9 @@ public:
     /* what was kept since it was made or last cleared */
     const std::string &text() const noexcept { return text_; }
     void clear() noexcept { text_.clear(); }
+    /* text (what was kept, as its owner renders it) written where the
+       log goes, and what was kept forgotten */
+    void write(std::string_view text) noexcept;
     /* an ERROR or WARN message logged (log_vprintf) */
     void keep(const char *message) noexcept;
 

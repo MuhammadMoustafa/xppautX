@@ -139,9 +139,10 @@ check_logging()
 def check_load_error():
     """A model that does not load (W63c, docs/protocol.md "A model that does
     not load"): the server sends one `error` event, in place of hello, with
-    the file, line, column and cause, and the line as written, then exits 1;
-    the log reads as it did. A problem in an included file is at its line
-    in that file."""
+    the file, line, column and what is wrong (`error`), and the line as
+    written, then exits 1; the log reads as it did, its first line at the
+    place (file:line: what, W140). A problem in an included file is at its
+    line in that file, in the event and the log alike."""
     bad_dir = tempfile.mkdtemp(prefix='xppbadload')
     try:
         def load(ode):
@@ -160,7 +161,7 @@ def check_load_error():
               '%r %r' % (p.returncode, [v.get('ev') for v in evs]))
         check('load error: the event names the file, the line and what is wrong',
               e.get('file') == 'bad.ode' and e.get('line') == 3 and e.get('col') == 0
-              and "ERROR compiling X'" in e.get('cause', '') and e.get('source') == "x'=-x+a*", str(e))
+              and "ERROR compiling X'" in e.get('error', '') and e.get('source') == "x'=-x+a*", str(e))
         check('load error: the log reads as before', "ERROR compiling X'" in p.stderr
               and 'Premature end of expression' in p.stderr, repr(p.stderr[-300:]))
 
@@ -174,13 +175,28 @@ def check_load_error():
               p.returncode == 1 and e.get('file') == 'inc.ode' and e.get('line') == 2
               and e.get('source') == "y'=-y+(b", str(e))
 
+        # W140: an option an included file refuses names that file and line,
+        # in the event and in the log (written once, at its place)
+        with open(os.path.join(bad_dir, 'opts.inc'), 'w') as f:
+            f.write("@ total=abc\n")
+        with open(os.path.join(bad_dir, 'withopts.ode'), 'w') as f:
+            f.write("par a=1\nx'=-a*x\n#include opts.inc\ninit x=1\ndone\n")
+        p, evs = load('withopts.ode')
+        e = next((v for v in evs if v.get('ev') == 'error'), {})
+        check("load error: an included file's refused option is at its file and line (W140)",
+              p.returncode == 1 and e.get('file') == 'opts.inc' and e.get('line') == 1
+              and e.get('source') == '@ total=abc' and e.get('error') == '@ total=abc: not a number', str(e))
+        check('load error: the log names the file and line, once (W140)',
+              p.stderr.count('opts.inc:1: @ total=abc: not a number') == 1
+              and p.stderr.count('not a number') == 1, repr(p.stderr[-300:]))
+
         with open(os.path.join(bad_dir, 'bad.odex'), 'w') as f:
             f.write("par a = 1\nx' = -x + * a\n")
         p, evs = load('bad.odex')
         e = next((v for v in evs if v.get('ev') == 'error'), {})
         check('load error: an .odex problem has its line and column',
               p.returncode == 1 and e.get('file') == 'bad.odex' and e.get('line') == 2 and e.get('col', 0) > 0
-              and e.get('source') == "x' = -x + * a" and e.get('cause'), str(e))
+              and e.get('source') == "x' = -x + * a" and e.get('error'), str(e))
 
         # a value an option refuses (W119): the load stops at the option's line
         for name, text, src in (('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", '@ ync=12'),
@@ -192,7 +208,7 @@ def check_load_error():
             e = next((v for v in evs if v.get('ev') == 'error'), {})
             check('load error: a value an option refuses stops the load at its line (%s)' % name,
                   p.returncode == 1 and e.get('file') == name and e.get('line') == 4
-                  and src.replace(' ', '').split('@')[1] in e.get('cause', '').replace(' ', '')
+                  and src.replace(' ', '').split('@')[1] in e.get('error', '').replace(' ', '')
                   and e.get('source') == src, str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
@@ -1566,6 +1582,41 @@ def check_ic_file_markov():
 
 
 check_ic_file_markov()
+
+
+def check_error_places():
+    """Every error event carries what failed and where (docs/protocol.md
+    "Errors", W140): a values file with a line that does not read names
+    the file, the line and the line as written; a file that cannot be read
+    names the file with line 0 (the page offers to add it)."""
+    pe, re_, snde, cole, _ = launch_server()
+    try:
+        cole(is_idle)
+        with open(os.path.join(re_, 'w140bad.par'), 'w') as f:
+            f.write('3   Number params\n1\n2\n3\n')
+        snde(cmd='values', op='read', kind='par', name='w140bad.par')
+        evs, _ = cole(is_idle, timeout=30 * SLOW)
+        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        check('an error event: a values file at its line names the file, the line and the line as written (W140)',
+              os.path.basename(m.get('file', '')) == 'w140bad.par' and m.get('line') == 1 and m.get('col') == 0
+              and m.get('source') == '3   Number params' and 'parameters' in m.get('error', ''), str(m))
+        snde(cmd='values', op='read', kind='par', name='w140gone.par')
+        evs, _ = cole(is_idle, timeout=30 * SLOW)
+        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        check('an error event: a file that cannot be read is named with line 0 (W140)',
+              os.path.basename(m.get('file', '')) == 'w140gone.par' and m.get('line') == 0
+              and m.get('source') == '' and m.get('error'), str(m))
+        snde(cmd='nosuchcommand')
+        evs, _ = cole(is_idle, timeout=30 * SLOW)
+        m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
+        check('an error event: an error with no place has every field, empty (W140)',
+              m.get('file') == '' and m.get('line') == 0 and m.get('col') == 0 and m.get('source') == ''
+              and 'nosuchcommand' in m.get('error', ''), str(m))
+    finally:
+        stop_server(pe, re_, snde)
+
+
+check_error_places()
 
 
 # Nullclines, direction fields and flows as data (docs/protocol.md "The

@@ -413,7 +413,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
     }
     std::string bytes, error;
     if (!xpp::read_bytes(file.c_str(), bytes)) {
-        j_err_msg(xpp::format("Cannot open {}", file), file);
+        xpp::err_reading(file, xpp::format("Cannot open {}", file));
         return;
     }
     std::optional<recx::Read> got = recx::read(bytes, error);

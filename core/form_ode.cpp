@@ -1063,9 +1063,9 @@ private:
   }
 
   /* where a statement's binding is, for an error */
-  xpp::Diagnostic where(const xpp::odex::Pos &pos) const
+  xpp::Place where(const xpp::odex::Pos &pos) const
   {
-    return xpp::odex::error_at(file(pos),pos,"");
+    return xpp::Place{file(pos),pos.line,pos.col};
   }
 
   /* the load is at statement s: a problem there is reported at it */
@@ -1542,10 +1542,7 @@ void set_initial_values(xpp::Session &s)
     int ok=0;
     const double z=calculate(s,init.formula,&ok);
     if(!ok){
-      xpp::Diagnostic d=init.where;
-      d.cause=xpp::format("the initial value of {} does not evaluate",init.name);
-      xpp::log(XPP_LOG_ERROR, "{} {}\n",init.where.text(),d.cause);
-      xpp::model_failed(std::move(d));
+      xpp::model_failed(xpp::Error{"model",xpp::format("the initial value of {} does not evaluate",init.name),init.where});
     }
     const int i=find_user_name(m,ICBOX,init.name);
     s.last_ic[i]=z;

@@ -82,10 +82,13 @@ typedef struct XppDiagPoint {
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
+/* an error with no place yet (W140b gives the callers theirs): show_error
+   of an Error with msg as its what */
 void err_msg(std::string_view msg);
-/* an error about `path`, a file the command could not read: the page
-   offers to add it to the model's folder (docs/protocol.md `message`) */
-void err_reading(std::string_view path, std::string_view msg);
+/* an error about `path`, a file the command could not read (line 0: the
+   page offers to add it to the model's folder, docs/protocol.md
+   "Errors"), or at its line */
+void err_reading(std::string_view path, std::string_view msg, int line = 0);
 void ping(void);
 void bottom_msg(int line, std::string_view msg);
 void MessageBox(std::string_view m);
@@ -146,8 +149,9 @@ extern XppTextMetrics text_metrics;
 
 typedef struct XppUi {
     /* messages */
-    /* file: the file the command could not read, "" for an error about none */
-    void (*err_msg)(std::string_view msg, std::string_view file);
+    /* an error, shown with where it is (xpp_error.h; the headless
+       default logs its text()) */
+    void (*err_msg)(const Error &e);
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg);
     void (*message_box)(std::string_view msg);
@@ -401,9 +405,10 @@ int get_dialog(std::string_view wname, std::string_view name, std::string &value
 int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
                   std::string_view cancel, int kind);
 
-/* the command layer's side of Error (xpp_error.h): shows what a
-   computation it ran returned, as err_msg does (logging where at DEBUG);
-   an empty `what` shows nothing (the computation said it already) */
+/* the one way an error is shown (xpp_error.h): what a computation the
+   command ran returned, or what the command found wrong itself, with its
+   place (logging where at DEBUG); an empty `what` shows nothing (the
+   computation said it already) */
 void show_error(const Error &e);
 /* whether r succeeded, its error shown when it did not */
 template <class T> bool ok_or_show(const Result<T> &r)

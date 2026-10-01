@@ -275,13 +275,15 @@ Session *load_requested(const Session &now, const ModelRequest &req)
   argv.push_back(nullptr);
   /* what an AUTO or session file adds is read before the load keeps its
      model: a member missing or that does not read fails the open */
-  std::function<std::optional<Diagnostic>(Session &)> check;
+  std::function<std::optional<Error>(Session &)> check;
   if(req.restore)check=[&req](Session &fresh){ return xpp_saved_check(fresh,*req.restore); };
   Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr,check);
   if(!loaded){
     back();
-    xpp::err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.restore?req.restore->name:req.file,
-                        loaded.error().text(),before_file).c_str());
+    /* at the place the load failed at */
+    const Error &e=loaded.error();
+    show_error(Error{"open",xpp::format("{} could not be loaded ({}); {} is still loaded",
+                                        req.restore?req.restore->name:req.file,e.what,before_file),e.place});
     return nullptr;
   }
   return *loaded;

@@ -51,7 +51,7 @@ static std::string read_error(const char *path, const std::string &text)
     if (!fp) return "cannot read " + std::string(path);
     const xpp::Result<> r = xpp::read_lunch(xpp::client_session(), fp, false);
     fclose(fp);
-    return r ? std::string() : r.error().what;
+    return r ? std::string() : r.error().text(); /* "line N: what" */
 }
 
 static void save(const char *path)

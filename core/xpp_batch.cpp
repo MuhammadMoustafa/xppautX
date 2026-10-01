@@ -131,8 +131,13 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     create_plot_list(s);
 }
 
-Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
-                  const std::function<std::optional<Diagnostic>(Session &)> &check)
+namespace {
+
+/* load_model's work: the Session loaded, else what is wrong and where.
+   The Load ends here, before its error is written: the messages it kept
+   are written first */
+Loaded load_in(int argc, char **argv, int batch, const SavedModel *saved,
+               const std::function<std::optional<Error>(Session &)> &check)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
@@ -150,27 +155,41 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
         }
         load_and_set_up(load.session(), argc, argv, batch);
         if (check)
-            if (std::optional<Diagnostic> wrong = check(load.session())) throw xpp::LoadFailed{std::move(*wrong)};
+            if (std::optional<Error> wrong = check(load.session())) throw xpp::LoadFailed{std::move(*wrong)};
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
         batch_options = batch_before;
-        return std::unexpected(std::move(failed.diagnostic));
+        return std::unexpected(std::move(failed.error));
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     load.commit();
     return &load.session();
 }
 
-void model_failed(Diagnostic d)
+} // namespace
+
+Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
+                  const std::function<std::optional<Error>(Session &)> &check)
 {
-    if (!xpp::Load::running()) exit(1);
-    xpp::Load::add_source(d);
-    throw xpp::LoadFailed{std::move(d)};
+    Loaded loaded = load_in(argc, argv, batch, saved, check);
+    /* the one place a model that does not load is written to the log */
+    if (!loaded) xpp::log(XPP_LOG_ERROR, "{}\n", loaded.error().text());
+    return loaded;
+}
+
+void model_failed(Error e)
+{
+    if (!xpp::Load::running()) {
+        if (!e.what.empty()) xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
+        exit(1);
+    }
+    xpp::Load::add_source(e);
+    throw xpp::LoadFailed{std::move(e)};
 }
 
 void model_failed()
 {
-    xpp::model_failed(xpp::Load::running() ? xpp::Load::diagnostic() : xpp::Diagnostic());
+    xpp::model_failed(xpp::Load::running() ? xpp::Load::error() : xpp::Error());
 }
 
 void batch_start(xpp::Session &s)

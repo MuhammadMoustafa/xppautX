@@ -3,7 +3,7 @@
 
 #include <optional>
 #include <string>
-#include "diagnostic.h"
+#include "xpp_error.h"
 #include "model_files.h"
 
 namespace xpp {
@@ -44,7 +44,7 @@ void json_ui_start_model(Session &s);
 
 /* the model did not load: why and where, as the `error` event (in place
    of hello; docs/protocol.md "A model that does not load") */
-void json_ui_load_error(const Diagnostic &d);
+void json_ui_load_error(const Error &e);
 
 /* A recording (.recx) given on the command line or opened by the OS
    (W59c): json_ui_recording_launch reads it and returns the model it

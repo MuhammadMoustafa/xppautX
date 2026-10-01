@@ -124,23 +124,25 @@ int ask_begin(Buf *b, const char *kind)
     return ask_id;
 }
 
-void j_err_msg(std::string_view msg, std::string_view file)
+void send_error(const char *ev, const xpp::Error &e)
 {
     /* a script that provokes an error fails the run (docs/protocol.md) */
     if (session.script_mode) session.script_error = 1;
-    if (file.empty()) {
-        send_simple("message", "error", msg);
-        return;
-    }
-    /* the file the command could not read, by its name in the model's folder */
+    const xpp::Place &p = e.place;
     Buf b;
-    BUF_LIT(&b, "{\"ev\":\"message\",\"error\":");
-    buf_str(&b, msg);
+    buf_format(&b, "{{\"ev\":\"{}\",\"error\":", ev);
+    buf_str(&b, e.what);
     BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, xpp::files::split_path(file).second);
+    buf_str(&b, p.file);
+    buf_format(&b, ",\"line\":{:d},\"col\":{:d},\"source\":", p.line, p.col);
+    buf_str(&b, p.source);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }
+
+void j_err_msg(const xpp::Error &e) { send_error("message", e); }
+
+void j_err_msg(std::string_view msg) { j_err_msg(xpp::Error{{}, std::string(msg)}); }
 
 void j_ping(void) { send_simple("ping"); }
 

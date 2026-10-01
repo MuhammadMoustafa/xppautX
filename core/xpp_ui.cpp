@@ -3,6 +3,7 @@
 #include "xpp_ui.h"
 #include "session.h"
 #include "xpp_job.h"
+#include "xpp_io.h"
 #include "xpp_log.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -15,7 +16,7 @@ namespace xpp {
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(std::string_view msg, std::string_view) { log(XPP_LOG_ERROR, "{}\n", msg); }
+static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
@@ -237,13 +238,22 @@ void set_ui(const XppUi *table)
 
 /* ---- dispatchers with the historical names ---------------------------- */
 
-void err_msg(std::string_view msg) { ui.err_msg(msg, {}); }
-void err_reading(std::string_view path, std::string_view msg) { ui.err_msg(msg, path); }
+void err_msg(std::string_view msg) { show_error(Error{{}, std::string(msg)}); }
+void err_reading(std::string_view path, std::string_view msg, int line)
+{
+    show_error(Error{"reading", std::string(msg), Place{std::string(path), line}});
+}
 
 void show_error(const Error &e)
 {
-    xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
-    if (!e.what.empty()) ui.err_msg(e.what, e.file);
+    if (e.place.line > 0 && e.place.source.empty() && !e.place.file.empty()) {
+        /* the line as written, when the file reads */
+        Error with_source = e;
+        with_source.place.source = LineReader(e.place.file).line(e.place.line);
+        if (!with_source.place.source.empty()) return show_error(with_source);
+    }
+    if (!e.where.empty()) xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
+    if (!e.what.empty()) ui.err_msg(e);
 }
 void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg) { ui.bottom_msg(line, msg); }

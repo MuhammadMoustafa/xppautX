@@ -22,8 +22,9 @@ struct Model;   /* model.h */
 struct SetLineError {
   int line;
   std::string cause;
-  /* "line N: cause" */
-  std::string text() const;
+  /* as an Error of the reader where, at its line of file ("" when the
+     caller adds it) */
+  Error error(std::string_view where, std::string_view file) const;
 };
 
 /* a number of a set file (f READEM: the number its line starts with, the

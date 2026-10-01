@@ -302,7 +302,14 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
 int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v);
 int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 
-void j_err_msg(std::string_view msg, std::string_view file = {});
+/* an error as an event: `ev` ("message", or "error" for a model that does
+   not load) with its what and its place, the fields every error event
+   carries (docs/protocol.md "Errors") */
+void send_error(const char *ev, const xpp::Error &e);
+/* the XppUi err_msg: e as a `message` event */
+void j_err_msg(const xpp::Error &e);
+/* the front end's own error about a command, with no place */
+void j_err_msg(std::string_view msg);
 void j_ping(void);
 void j_bottom_msg(int line, std::string_view msg);
 void j_message_box(std::string_view msg);

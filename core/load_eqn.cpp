@@ -382,7 +382,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
   if(options_applied>=options.size())return;
   for(;options_applied<options.size();options_applied++){
     /* a value an option refuses is reported at its line */
-    const xpp::Diagnostic &at=options[options_applied].where;
+    const xpp::Place &at=options[options_applied].where;
     xpp::Load::at(at.file.empty()?s.model().this_file:at.file,at.line,at.col);
     each_option(options[options_applied].text," ,"," ,\n\r",[&s,mask](const std::string &name,const std::string &value){
       set_option(s,name,value,0,mask);

@@ -6,12 +6,16 @@
    on it (the command that failed has ended), so nothing is blocked. While an
    ask is on screen the dialog waits (renders nothing, keeps its errors): the
    ask is the core's question and keeps the focus; the dialog opens when the
-   ask closes. A file the core could not open offers "Add file…" here. */
+   ask closes. A file the core could not open offers "Add file…" here. An
+   error the core places (W140) shows its file and line under its text, and
+   the line as written when the core read it. */
 import {useRef} from 'preact/hooks';
 import {useSession, useStore} from './context';
 import {useDialogFocus} from './dialogFocus';
 import {askIsModal} from './AskDialog';
 import {AddFile} from './Toasts';
+import {ErrorSource} from './ErrorSource';
+import {placeWords} from '../protocol/errors';
 
 export function ErrorDialog() {
   const session = useSession();
@@ -41,7 +45,11 @@ export function ErrorDialog() {
         <ul class="error-list">
           {errors.map(t => (
             <li key={t.id} data-error>
-              <span>{t.text}{t.action && !t.text.includes(t.action.name) && <> ({t.action.name})</>}</span>
+              <div class="error-item">
+                <span>{t.text}</span>
+                {t.place && <div class="error-place" data-error-place>{placeWords(t.place)}</div>}
+                {t.place?.source && <ErrorSource p={t.place} />}
+              </div>
               {t.action?.kind === 'addFile' && <AddFile toast={t} />}
             </li>
           ))}

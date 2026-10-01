@@ -212,13 +212,27 @@ test('zoomAbout keeps the point under the pointer', () => {
 });
 
 test('a model that does not load: the error event is kept, with the exit after it (W63c)', () => {
-  const e = {ev: 'error', file: 'bad.ode', line: 3, col: 0, cause: "ERROR compiling X'", source: "x'=-x+a*"};
+  const e = {ev: 'error', error: "ERROR compiling X'", file: 'bad.ode', line: 3, col: 0, source: "x'=-x+a*"};
   let s = ev(initialState, e);
   assert.deepEqual(s.loadError, e);
   assert.equal(s.hello, null);
   s = ev(s, {ev: 'exit', code: 1});
   assert.equal(s.exited, 1);
   assert.deepEqual(s.loadError, e, 'the exit keeps the error');
+});
+
+test('an error the core places: Messages and the status read file:line: what, the dialog keeps the place (W140)', () => {
+  const placed = {ev: 'message', error: '@ total=abc: not a number', file: 'opts.inc', line: 1, col: 0, source: '@ total=abc'};
+  let s = ev(READY, placed);
+  const t = s.toasts[s.toasts.length - 1];
+  assert.equal(t.text, '@ total=abc: not a number');
+  assert.deepEqual(t.place, {file: 'opts.inc', line: 1, col: 0, source: '@ total=abc'});
+  assert.equal(t.action, undefined, 'a file read at a line is not one to add');
+  assert.equal(s.bottom, 'opts.inc:1: @ total=abc: not a number');
+  assert.equal(logEntries(s.log).filter(l => l.kind === 'error').pop()?.text, 'opts.inc:1: @ total=abc: not a number');
+  s = ev(s, {ev: 'message', error: 'no place', file: '', line: 0, col: 0, source: ''});
+  assert.equal(s.toasts[s.toasts.length - 1].place, undefined, 'no file and no line: no place');
+  assert.equal(s.bottom, 'no place');
 });
 
 test('errors wait in one error dialog until OK; a warning flashes the status, no dialog (W104)', () => {

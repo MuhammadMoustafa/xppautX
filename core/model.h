@@ -28,7 +28,7 @@
    each at its own offset), and an index past what the model uses reads
    an empty name. */
 #include "xpplim.h"
-#include "diagnostic.h"
+#include "xpp_error.h"
 #include "volterra.h"
 #include "tabular.h"
 #include "simplenet.h"
@@ -187,7 +187,7 @@ struct Model {
      set_initial_values); where its init is, for an error (no cause) */
   struct InitialValue {
     std::string name, formula;
-    Diagnostic where;
+    Place where;
   };
   std::vector<InitialValue> initial_values;
   /* a statement is a map, x(t+1)=... (disc: the method is discrete) */
@@ -200,7 +200,7 @@ struct Model {
      Session's) */
   struct OptionLine {
     std::string text;
-    Diagnostic where;
+    Place where;
   };
   std::vector<OptionLine> options;
 
