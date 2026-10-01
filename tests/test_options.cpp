@@ -5,7 +5,7 @@
    before); and every option a .set file holds comes back from one, those
    it does not hold left as they were; a value an option refuses stops the
    load at its line, in an .ode or an .odex, and the model before stays; an
-   options file (an option line) is refused, @ lines of an #include apply.
+   options file (an option line) is refused, @ lines of an include file apply.
 
    make test runs this from the top of the tree. */
 #include "xpptest.h"
@@ -317,16 +317,16 @@ int main(void)
         if (l.error().line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
     }
 
-    /* the settings go in @ lines of an #include file, which apply */
+    /* the settings go in @ lines of an include file (an .odex's include),
+       which apply */
     {
-        const char inc_file[] = "build/test_options_inc.inc";
+        const char inc_file[] = "build/test_options_inc.incx";
         CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n"));
-        CHECK(write_file(bad_ode, std::string(model_text) + "#include test_options_inc.inc\ndone\n"));
-        xpp::Session *t = load(bad_ode);
+        CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\ninclude \"test_options_inc.incx\"\n"));
+        xpp::Session *t = load(bad_odex);
         CHECK(t != nullptr);
         if (t) {
             int index = 0;
-            printf("  inc: total=%s dt=%s\n",value_of(*t, *xpp::find_option("TOTAL", index)).c_str(), value_of(*t, *xpp::find_option("DT", index)).c_str());
             CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
             CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
         }

@@ -400,7 +400,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
    is refused rather than silently ignored */
 [[noreturn]] void refuse_options_file(const std::string &name)
 {
-  xpp::log(XPP_LOG_ERROR, "the options file <{}> is not supported: write its settings as @ lines, in the model or in an #include file\n",name);
+  xpp::log(XPP_LOG_ERROR, "the options file <{}> is not supported: write its settings as @ lines, in the model or in an included file\n",name);
   model_failed();
 }
 
