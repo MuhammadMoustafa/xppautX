@@ -799,10 +799,12 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
         xpp::command_error("open", xpp::format("{} is not {}: its {} is missing", name, what, manifest));
         return std::nullopt;
     }
-    std::expected<xpp::snapx::Manifest, std::string> man =
-        xpp::snapx::parse_manifest(f.members[manifest], f.session ? xpp::snapx::session_kind : xpp::autox::kind);
+    xpp::Result<xpp::snapx::Manifest> man = xpp::snapx::parse_manifest(
+        xpp::format("{}/{}", name, manifest), f.members[manifest], f.session ? xpp::snapx::session_kind : xpp::autox::kind);
     if (!man) {
-        xpp::command_error("open", xpp::format("{} is not {} of this version: its {}: {}", name, what, manifest, man.error()));
+        xpp::Error e = std::move(man.error());
+        e.what = xpp::format("not {} of this version: {}", what, e.what);
+        xpp::show_error(e);
         return std::nullopt;
     }
     f.manifest = std::move(*man);

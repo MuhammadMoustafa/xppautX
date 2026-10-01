@@ -43,7 +43,7 @@ void check_manifest()
     const std::string text = manifest_text(m);
     CHECK(text.starts_with("xppautX session 1\n"));
     CHECK(text.find("\nname my models/lecar.ode\n") != std::string::npos);
-    const std::expected<Manifest, std::string> back = parse_manifest(text);
+    const auto back = parse_manifest("s/session.txt", text);
     CHECK(back.has_value() && *back == m);
 
     /* no animation, no data; CRLF line ends read the same */
@@ -54,19 +54,20 @@ void check_manifest()
         if (c == '\n') crlf += '\r';
         crlf += c;
     }
-    const std::expected<Manifest, std::string> eb = parse_manifest(crlf);
+    const auto eb = parse_manifest("s/session.txt", crlf);
     CHECK(eb.has_value() && *eb == e && eb->anifile.empty() && !eb->data);
 
     /* a key it does not have, another file or a later version is refused,
        saying what is wrong */
-    const std::expected<Manifest, std::string> later = parse_manifest(text + "future thing\n");
-    CHECK(!later && later.error().find("line 5") != std::string::npos && later.error().find("future thing") != std::string::npos);
-    CHECK(!parse_manifest("xppautX session 1\nname x.ode\ndata 2\n").has_value()); /* data is 0 or 1 */
-    CHECK(!parse_manifest("xppautX session 1\ndata 0\n").has_value());           /* no model */
-    CHECK(!parse_manifest("# Set file\n").has_value());
-    CHECK(!parse_manifest("").has_value());
-    CHECK(!parse_manifest("xppautX session 2\n").has_value());
-    CHECK(!parse_manifest(manifest_text(m), "autox").has_value());
+    const auto later = parse_manifest("s/session.txt", text + "future thing\n");
+    CHECK(!later && later.error().place.file == "s/session.txt" && later.error().place.line == 5 && later.error().place.source == "future thing");
+    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\nname x.ode\ndata 2\n").has_value()); /* data is 0 or 1 */
+    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\ndata 0\n").has_value());           /* no model */
+    CHECK(!parse_manifest("s/session.txt", "xppautX session 1\nname a.ode\nname b.ode\n").has_value()); /* a key twice */
+    CHECK(!parse_manifest("s/session.txt", "# Set file\n").has_value());
+    CHECK(!parse_manifest("s/session.txt", "").has_value());
+    CHECK(!parse_manifest("s/session.txt", "xppautX session 2\n").has_value());
+    CHECK(!parse_manifest("s/session.txt", manifest_text(m), "autox").has_value());
 
     /* the model's members: model/<name>, in order; the model's own needed */
     std::vector<xpp::zip::Entry> entries{{"session.txt", text}};

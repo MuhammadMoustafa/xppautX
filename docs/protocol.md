@@ -1250,8 +1250,8 @@ save, the diagram exactly (every digit). The earlier runs a window keeps until E
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
 `message` `error` says what is missing) and nothing changes. So is one
-whose manifest has a line it does not write (`its session.txt: its line 5
-is not one it has: "later 1"`), and (W116) one with a member it always
+whose manifest has a line it does not write, or a key twice (`s1.snapx/session.txt:5:
+not a session file (.snapx) of this version: not a line it has`), and (W116) one with a member it always
 writes missing (`model.set`, `windows.set`, `marks.set`, `random.txt`, which must also load as a generator state; `data.npz` when
 `data` is 1, and only then; AUTO's four when one is there; the points of
 every frozen curve `marks.set` lists) or one whose member does not read: a

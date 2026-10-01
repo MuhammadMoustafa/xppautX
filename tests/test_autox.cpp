@@ -248,12 +248,11 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(entries && entries->size() == 6 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
           (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s" &&
           (*entries)[5].name == "views.txt");
-    const std::expected<xpp::snapx::Manifest, std::string> man =
-        entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind)
-                : std::expected<xpp::snapx::Manifest, std::string>(std::unexpected(std::string("no entries")));
-    CHECK(man && man->model_name == xpp::client_session().model().this_file);
+    const xpp::Result<xpp::snapx::Manifest> man =
+        xpp::snapx::parse_manifest("a/autox.txt", entries ? (*entries)[0].bytes : std::string(), xpp::autox::kind);
+    CHECK(entries && man && man->model_name == xpp::client_session().model().this_file);
     CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file)); /* the model itself */
-    CHECK(entries && !xpp::snapx::parse_manifest((*entries)[0].bytes)); /* not a session file's */
+    CHECK(entries && !xpp::snapx::parse_manifest("a/autox.txt", (*entries)[0].bytes)); /* not a session file's */
 
     /* everything changed, then the file restored */
     start_diagram(xpp::client_session(), n);

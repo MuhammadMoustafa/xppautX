@@ -42,42 +42,38 @@ std::string manifest_text(const Manifest &m, std::string_view kind)
     return o;
 }
 
-std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::string_view kind)
+xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text, std::string_view kind)
 {
-    Manifest m;
-    const std::string head = first_line(kind);
-    int number = 0;
-    bool named = false;
-    /* the keys given so far: each at most once */
-    std::set<std::string_view> given;
-    while (!text.empty()) {
-        const std::size_t nl = text.find('\n');
-        std::string_view line = text.substr(0, nl);
-        text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
-        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
-        if (++number == 1) {
-            if (!line.starts_with(head) || !xpp::parse_int(line.substr(head.size()), m.version) || m.version != 1)
-                return std::unexpected(xpp::format("it does not begin \"{}1\"", head));
-            continue;
+    return xpp::read_lines("session", std::move(file), text, [kind](xpp::Lines &l) {
+        Manifest m;
+        const std::string head = first_line(kind);
+        if (l.at_end()) l.fail("it is empty");
+        const std::string_view first = l.next();
+        if (!first.starts_with(head) || !xpp::parse_int(first.substr(head.size()), m.version) || m.version != 1)
+            l.fail(xpp::format("it does not begin \"{}1\"", head));
+        /* the keys given so far: each at most once */
+        std::set<std::string, std::less<>> given;
+        bool named = false;
+        while (!l.at_end()) {
+            const std::string_view line = l.next();
+            if (line.empty()) continue;
+            const std::size_t sp = line.find(' ');
+            const std::string_view key = line.substr(0, sp);
+            const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
+            if (!given.emplace(key).second) l.fail(xpp::format("{} a second time", key));
+            if (key == "name") {
+                m.model_name = value;
+                named = true;
+            } else if (key == "anifile")
+                m.anifile = value;
+            else if (key == "data" && kind == session_kind && (value == "0" || value == "1"))
+                m.data = value == "1";
+            else
+                l.fail("not a line it has");
         }
-        if (line.empty()) continue;
-        const std::size_t sp = line.find(' ');
-        const std::string_view key = line.substr(0, sp);
-        const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
-        if (!given.insert(key).second) return std::unexpected(xpp::format("its line {} gives {} a second time: \"{}\"", number, key, line));
-        if (key == "name") {
-            m.model_name = value;
-            named = true;
-        } else if (key == "anifile")
-            m.anifile = value;
-        else if (key == "data" && kind == session_kind && (value == "0" || value == "1"))
-            m.data = value == "1";
-        else
-            return std::unexpected(xpp::format("its line {} is not one it has: \"{}\"", number, line));
-    }
-    if (number == 0) return std::unexpected(std::string("it is empty"));
-    if (!named || m.model_name.empty()) return std::unexpected(std::string("it names no model"));
-    return m;
+        if (!named || m.model_name.empty()) l.fail("it names no model");
+        return m;
+    });
 }
 
 void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFile> files)

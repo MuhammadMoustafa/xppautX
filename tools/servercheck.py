@@ -4234,7 +4234,7 @@ def check_session_file():
             ('lastset', lambda m: m.__setitem__('model.set', text_lines('model.set', set_high, '1e999  BVP range high')),
              ('lastset.snapx/model.set:%d:' % set_high, '"1e999  BVP range high" is not a number')),
             ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
-             'is not one it has: "later 1"'),
+             ('latermanifest.snapx/session.txt:%d:' % (manifest_lines + 1), 'not a line it has')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied
             ('zeronout', lambda m: m.__setitem__('model.set', text_lines('model.set', set_nout, '0   nout')),
              ('zeronout.snapx/model.set:%d:' % set_nout, 'nOutput must be a whole number of at least 1')),
@@ -4258,7 +4258,7 @@ def check_session_file():
             ('markcolor', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n2\n999\n1\n0\n0\n1\n1\n0\n0\n'),
              ('markcolor.snapx/marks.set:5:', '999 is not a colour (0 to 10)')),
             ('twonames', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'name lecar.ode\n'),
-             'its line %d gives name a second time: "name lecar.ode"' % (manifest_lines + 1)),
+             ('twonames.snapx/session.txt:%d:' % (manifest_lines + 1), 'name a second time')),
         ]
         if 'data.npz' in members:
             damages.append(('nodata', lambda m: m.pop('data.npz'), 'its data.npz is missing'))

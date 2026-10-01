@@ -1161,7 +1161,7 @@ def section_autox():
             ('lastviews.autox', lambda m: m.__setitem__('views.txt', m['views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
              'lastviews.autox/views.txt:%d: "x" is not a whole number' % (members['views.txt'].rstrip(b'\n').count(b'\n') + 1)),
             ('latermanifest.autox', lambda m: m.__setitem__('autox.txt', m['autox.txt'] + b'later 1\n'),
-             'is not one it has: "later 1"')):
+             'latermanifest.autox/autox.txt:%d: ' % (members['autox.txt'].count(b'\n') + 1))):
         damaged = dict(members)
         change(damaged)
         with zipfile.ZipFile(os.path.join(s.run, name), 'w') as out:

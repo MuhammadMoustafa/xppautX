@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "model_files.h"
+#include "xpp_error.h"
 #include "xpp_zip.h"
 
 namespace xpp::snapx {
@@ -54,11 +55,11 @@ struct Manifest {
 /* the manifest of a file of this kind: "xppautX <kind> 1" first, and the
    data line only in a session file's */
 std::string manifest_text(const Manifest &m, std::string_view kind = session_kind);
-/* text's manifest, or what is wrong with it: not one of this kind
-   (another format's first line, a later version, a count that is not a
-   number), a key manifest_text does not write or one given twice (a line
-   number from 1), a data line other than 0 or 1, no name */
-std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::string_view kind = session_kind);
+/* text, the manifest member file (its errors' place), read whole: not
+   one of this kind (another format's first line, a later version), a key
+   manifest_text does not write or one given twice, a data line other than
+   0 or 1, no name: the error at its line (xpp::read_lines) */
+xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text, std::string_view kind = session_kind);
 
 /* files as members of the folder model_folder, in their order, after entries' */
 void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFile> files);

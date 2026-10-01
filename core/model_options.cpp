@@ -76,6 +76,7 @@ int variable_of(const Session &s, const OptionValue &v)
 const char *color_into(int &member, const OptionValue &v)
 {
   int i = 0;
+  static_assert(LAST_PLOT_COLOR == 10, "the message below names the last colour");
   if (whole_in(v, i) || i < 0 || i > LAST_PLOT_COLOR) return "not a colour from 0 to 10";
   if (v.apply) member = i;
   return nullptr;
