@@ -20,7 +20,7 @@ namespace {
    its dense output (the step size it ends with is the Session's:
    IntegratorState::dp_hout, the next call's first guess) */
 struct DpRun {
-  long nfcn=0, nstep=0, naccpt=0, nrejct=0;
+  long nstep=0, naccpt=0, nrejct=0;
   double xold=0, xout=0;
   unsigned nrds=0, *indir=nullptr;
   double *yy1=nullptr, *k1=nullptr, *k2=nullptr, *k3=nullptr, *k4=nullptr, *k5=nullptr, *k6=nullptr,
@@ -379,7 +379,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   iord = 8;
   if (h == 0.0)
     h = hinit (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
-  r.nfcn += 2;
   reject = 0;
   r.xold = x;
   
@@ -464,7 +463,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 			  a127*r.k7[i] + a128*r.k8[i] + a129*r.k9[i] +
 			  a1210*r.k10[i] + a1211*r.k2[i]);
     fcn (s, n, xph, r.yy1, r.k3);
-    r.nfcn += 11;
     for (i = 0; i < n; i++)
     {
       r.k4[i] = b1*r.k1[i] + b6*r.k6[i] + b7*r.k7[i] + b8*r.k8[i] + b9*r.k9[i] +
@@ -519,7 +517,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       facold = max_d (err, 1.0E-4);
       r.naccpt++;
       fcn (s, n, xph, r.k5, r.k4);
-      r.nfcn++;
       
       /* stiffness detection */
       if (!(r.naccpt % nstiff) || (iasti > 0))
@@ -612,7 +609,6 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 			      a169*r.k9[i] + a1613*r.k4[i] + a1614*r.k10[i] +
 			      a1615*r.k2[i]);
 	fcn (s, n, x+c16*h, r.yy1, r.k3);
-	r.nfcn += 3;
 
 	/* final preparation */
 	if (r.nrds == n)
@@ -705,7 +701,7 @@ int dop853
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  r.nfcn = r.nstep = r.naccpt = r.nrejct = arret = 0;
+  r.nstep = r.naccpt = r.nrejct = arret = 0;
   r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = r.rcont6 = r.rcont7 = r.rcont8 = NULL;
   r.indir = NULL;
 
@@ -983,7 +979,6 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   iord = 5;
   if (h == 0.0)
     h = hinit5 (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
-  r.nfcn += 2;
   reject = 0;
   r.xold = x;
   if (iout)
@@ -1066,7 +1061,6 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     }
     for (i = 0; i < n; i++)
       r.k4[i] = h * (e1*r.k1[i] + e3*r.k3[i] + e4*r.k4[i] + e5*r.k5[i] + e6*r.k6[i] + e7*r.k2[i]);
-    r.nfcn += 6;
 
     /* error estimation */
     err = 0.0;
@@ -1227,7 +1221,7 @@ int dopri5
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  r.nfcn = r.nstep = r.naccpt = r.nrejct = arret = 0;
+  r.nstep = r.naccpt = r.nrejct = arret = 0;
   r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = NULL;
   r.indir = NULL;
 
