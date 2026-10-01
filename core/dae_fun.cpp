@@ -115,7 +115,7 @@ int compile_svars(xpp::Session &s)
  
 }
 
-void reset_dae(xpp::Session &s)
+void reset_dae()
 {
   dae_work.status=1;
 }

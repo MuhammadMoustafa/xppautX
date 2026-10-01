@@ -3471,6 +3471,116 @@ def check_silent_commands():
 check_silent_commands()
 
 
+def check_session_random():
+    """W123: a session file holds the random generator's state (random.txt):
+    Go on a stochastic model, save, open in a new server and Continue gives
+    the rows Continue gives without the save; a file without the member or
+    with one that is no generator state is refused naming it; a recording's
+    snapshot holds it, and its replay writes the same rows"""
+    import zipfile
+    ode = 'tools/models/stoch_rng.ode'
+    is_ask = lambda e: e.get('ev') == 'ask'
+
+    def mk():
+        p, r, snd, col, _ = launch_server(ode=ode)
+        col(is_idle)
+
+        def run(**cmd):
+            snd(**cmd)
+            evs = []
+            while True:
+                got, e = col(lambda e: is_ask(e) or is_idle(e), timeout=60 * SLOW)
+                evs += got
+                if e is None or is_idle(e):
+                    return evs
+                snd(cmd='answer', id=e['id'], key='d' if e.get('keys') == 'sd' else 'g')
+
+        return p, r, snd, col, run
+
+    def write(run, name):
+        run(cmd='browser', op='write', what='output', format='dat', name=name, replace=1)
+
+    def read(r, name):
+        path = os.path.join(r, name)
+        return open(path, 'rb').read() if os.path.exists(path) else None
+
+    keep = tempfile.mkdtemp(prefix='xpprandom')
+    p, r, snd, col, run = mk()
+    try:
+        # a recording of a Go and a Continue after an earlier Go: its snapshot
+        # holds the generator and the next Go's seed
+        run(cmd='key', key='i')
+        run(cmd='record', op='start')
+        run(cmd='key', key='i')
+        run(cmd='key', key='c')
+        write(run, 'rec.dat')
+        run(cmd='record', op='stop', name='rr')
+        rec = read(r, 'rec.dat')
+        text = open(os.path.join(r, 'rr.recx'), encoding='utf-8').read()
+        shutil.copy(os.path.join(r, 'rr.recx'), keep)
+        snap = recx_snapshot(text) or {}
+        check('random: a recording snapshot holds random.txt', 'random.txt' in snap, str(sorted(snap)))
+        run(cmd='key', key='i')
+        run(cmd='session', op='save', name='r1')
+        run(cmd='key', key='c')
+        write(run, 'a.dat')
+        a = read(r, 'a.dat')
+        z = zipfile.ZipFile(os.path.join(r, 'r1.snapx'))
+        check('random: a session file lists random.txt', 'random.txt' in z.namelist(), str(z.namelist()))
+        members = {n: z.read(n) for n in z.namelist()}
+        shutil.copy(os.path.join(r, 'r1.snapx'), keep)
+    finally:
+        stop_server(p, r, snd)
+
+    p, r, snd, col, run = mk()
+    try:
+        shutil.copy(os.path.join(keep, 'r1.snapx'), r)
+        run(cmd='open', file='r1.snapx')
+        run(cmd='key', key='c')
+        write(run, 'b.dat')
+        b = read(r, 'b.dat')
+        check('random: save, open, Continue gives the rows of Continue without the save',
+              a is not None and a == b, '%s vs %s bytes' % (len(a or b''), len(b or b'')))
+        for name, change, expect in (('norandom', lambda m: m.pop('random.txt'), 'its random.txt is missing'),
+                                     ('noseed', lambda m: m.__setitem__('random.txt', m['random.txt'].split(b'\n', 1)[1]),
+                                      'its random.txt does not begin'),
+                                     ('badrandom', lambda m: m.__setitem__('random.txt', b'seed 5\nwiener 0\nnot a state'),
+                                      'its random.txt is not a random generator')):
+            damaged = dict(members)
+            change(damaged)
+            with zipfile.ZipFile(os.path.join(r, name + '.snapx'), 'w') as out:
+                for n, bts in damaged.items():
+                    out.writestr(n, bts)
+            evs = run(cmd='open', file=name + '.snapx')
+            msgs = ' '.join(str(e.get('error', '')) for e in evs if e.get('ev') == 'message')
+            check('random: %s.snapx is refused, the error names the member' % name, expect in msgs, msgs[:300])
+    finally:
+        stop_server(p, r, snd)
+
+    p, r, snd, col, run = mk()
+    try:
+        shutil.copy(os.path.join(keep, 'rr.recx'), r)
+        snd(cmd='play', op='open', file='rr.recx')
+        evs, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='d')
+            col(is_idle, timeout=30 * SLOW)
+        run(cmd='play', op='speed', speed=8)
+        snd(cmd='play', op='start')
+        got, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == 3
+                     and e['player']['running'] == -1, timeout=60 * SLOW)
+        got += col(is_idle, timeout=10 * SLOW)[0]
+        snd(cmd='file', op='get', name='rec.dat')
+        _, ev = col(lambda e: e.get('ev') == 'file')
+        col(is_idle)
+        again = base64.b64decode(ev['data']) if ev and ev.get('ok') else None
+        check('random: the recording replays the rows it wrote', rec is not None and again == rec,
+              '%s vs %s bytes' % (len(rec or b''), len(again or b'')))
+    finally:
+        stop_server(p, r, snd)
+        shutil.rmtree(keep, ignore_errors=True)
+
+
 def check_session_file():
     """W57, W103: Save session writes one name.snapx (a zip of the files
     listed in core/snapx.h, the model's own included); a new server that
@@ -3532,7 +3642,7 @@ def check_session_file():
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
               names == ['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz'],
+                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt'],
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
@@ -4433,6 +4543,7 @@ check_open_reload()
 check_display_state()
 check_auto_views()
 check_session_file()
+check_session_random()
 
 send(cmd='key', key='f')
 send(cmd='key', key='q')

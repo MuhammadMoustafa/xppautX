@@ -1096,6 +1096,7 @@ is a zip of ordinary files, in this order:
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
+| `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state (the Mersenne Twister's, and the normal deviate it holds over); opening restores it, so a stochastic model goes on from the same numbers |
 
 Opening one (`open`, `session` `load`, the command line) loads the model
 saved in it, from those saved files alone: an edit to the `.ode` since,
@@ -1109,7 +1110,7 @@ session file saved before W103), or without its manifest, is refused (a
 `message` `error` says what is missing) and nothing changes. So is one
 whose manifest has a line it does not write (`its session.txt: its line 5
 is not one it has: "later 1"`), and (W116) one with a member it always
-writes missing (`model.set`, `windows.set`, `marks.set`; `data.npz` when
+writes missing (`model.set`, `windows.set`, `marks.set`, `random.txt`, which must also load as a generator state; `data.npz` when
 `data` is 1, and only then; AUTO's four when one is there; the points of
 every frozen curve `marks.set` lists) or one whose member does not read: a
 line missing or not a number, a variable, a window or a slot it does not

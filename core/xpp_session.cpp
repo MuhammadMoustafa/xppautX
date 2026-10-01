@@ -23,6 +23,7 @@
 #include "data_formats.h"
 #include "browse.h"
 #include "graf_par.h"
+#include "xpp_math.h"
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -533,6 +534,45 @@ std::optional<std::string> read_session(xpp::Session &s, const SavedFile &f, boo
         }
     }
 
+    /* the random numbers' state, one member in three parts: "seed N" (the
+       next Go's), "wiener v..." (the Wiener parameters' current values, one
+       per wiener of the model) and the generator's text; all or an error.
+       A check only proves it reads, leaving the generator as it was */
+    const auto rnd = mem.find(xpp::snapx::random_member);
+    if (rnd == mem.end()) return xpp::format("its {} is missing", xpp::snapx::random_member);
+    {
+        const std::string &text = rnd->second;
+        const std::size_t nl1 = text.find('\n');
+        const std::size_t nl2 = nl1 == std::string::npos ? nl1 : text.find('\n', nl1 + 1);
+        int seed = 0;
+        if (nl2 == std::string::npos || !text.starts_with("seed ")
+            || !xpp::parse_int(std::string_view(text).substr(5, nl1 - 5), seed))
+            return xpp::format("its {} does not begin \"seed <number>\", then a wiener line", xpp::snapx::random_member);
+        std::vector<double> wieners;
+        std::string_view wl = std::string_view(text).substr(nl1 + 1, nl2 - nl1 - 1);
+        if (!wl.starts_with("wiener")) return xpp::format("its {} has no wiener line", xpp::snapx::random_member);
+        wl.remove_prefix(6);
+        while (!wl.empty()) {
+            wl.remove_prefix(1); /* the space before each value */
+            const std::size_t sp = wl.find(' ');
+            double v = 0;
+            if (!xpp::parse_number(wl.substr(0, sp), v)) return xpp::format("its {}'s wiener line has a value that is not a number", xpp::snapx::random_member);
+            wieners.push_back(v);
+            wl = sp == std::string_view::npos ? std::string_view() : wl.substr(sp);
+        }
+        xpp::Model &m = s.model();
+        if (static_cast<int>(wieners.size()) != m.nwiener)
+            return xpp::format("its {} has {} wiener values, the model {}", xpp::snapx::random_member, wieners.size(), m.nwiener);
+        const std::string before = xpp::rand_state_save();
+        if (!xpp::rand_state_load(text.substr(nl2 + 1)))
+            return xpp::format("its {} is not a random generator's state", xpp::snapx::random_member);
+        if (apply) {
+            s.numerics.rand_seed = seed;
+            for (int i = 0; i < m.nwiener; i++) s.parser.constants[m.wiener[i]] = wieners[i];
+        } else
+            xpp::rand_state_load(before);
+    }
+
     /* the marks, the frozen curves' points from frozen.npz */
     xpp::DataTable frozen;
     if (const auto fz = mem.find(xpp::snapx::frozen_member); fz != mem.end() && !xpp::npz_table(fz->second, frozen))
@@ -555,6 +595,15 @@ std::optional<std::string> read_session(xpp::Session &s, const SavedFile &f, boo
     redraw_the_graph(s);
     if (!f.snapshot) s.saved_session = SavedSession{f.path};
     return std::nullopt;
+}
+
+/* random.txt's text: the next Go's seed, the Wiener parameters' values, the generator */
+std::string random_text(xpp::Session &s)
+{
+    std::string w = "wiener";
+    const xpp::Model &m = s.model();
+    for (int i = 0; i < m.nwiener; i++) w += ' ' + xpp::number(s.parser.constants[m.wiener[i]]);
+    return xpp::format("seed {}\n{}\n{}", s.numerics.rand_seed, w, xpp::rand_state_save());
 }
 
 /* the session file of s, as its bytes: the data table in when data;
@@ -592,6 +641,7 @@ std::optional<std::string> session_bytes(xpp::Session &s, bool data)
     entries->push_back({xpp::snapx::marks_member, std::move(*marks)});
     if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
     if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table(s))});
+    entries->push_back({xpp::snapx::random_member, random_text(s)});
     return xpp::zip::make_zip(*entries);
 }
 

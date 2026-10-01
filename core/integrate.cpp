@@ -1024,7 +1024,7 @@ void do_init_data(xpp::Session &s, int com)
   x=&s.data_store.current[0];
   s.integrator.range_flag=0;
   s.integrator.step_error.reset();
-  reset_dae(s);
+  reset_dae();
   if(s.numerics.fft||s.numerics.hist)return;
 
   if(com==M_ID){      /* dont want to wipe out everything! */
@@ -1212,7 +1212,7 @@ void run_now(xpp::Session &s)
  x=&s.data_store.current[0];
  s.integrator.range_flag=0;
  s.integrator.step_error.reset();
- reset_dae(s);
+ reset_dae();
  s.data_store.current_time=s.numerics.t0;
  get_ic(s,2,x); 
   s.numerics.storflag=1;
@@ -1510,7 +1510,7 @@ std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 {
   xpp::Error e=std::move(*s.integrator.step_error);
   s.integrator.step_error.reset();
-  reset_dae(s);
+  reset_dae();
   return std::unexpected(std::move(e));
 }
 }
