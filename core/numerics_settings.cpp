@@ -1,103 +1,72 @@
-/* The main numerics as data: the "numerics" event and `set` kind `num`'s
-   checks and writes (numerics_settings.h, docs/protocol.md "The numerics
-   as data"). The same fields the Numerics menu's items write
-   (numerics.cpp get_num_par), each value checked first, then applied as
-   leaving the menu does (do_meth). */
+/* The main numerics as data: the "numerics" event, `set` kind `num`'s
+   checks and writes and the Numerics menu's questions
+   (numerics_settings.h, docs/protocol.md "The numerics as data"). The
+   fields are the option table's numerics rows (model_options.h); each
+   value is checked first, then applied as leaving the menu does
+   (do_meth). */
 #include <algorithm>
 #include <cmath>
 #include <climits>
+#include <ranges>
 #include <string>
 #include <string_view>
 
 #include "numerics_settings.h"
 #include "data_event.h"
 #include "model.h"
+#include "model_options.h"
 #include "numerics.h"
 #include "pp_shoot.h"
 #include "session.h"
 #include "solver.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
+#include "xpp_ui.h"
 
 namespace xpp {
 
 namespace {
 
-enum class Rule { any, nonzero, positive, nonnegative, whole_positive, method };
-
-/* which methods use a field (xpp::SolverTraits), so a front end can say
-   the others do not */
-enum class Use { always, step_or_rel, step, rel, newton, delays };
-
-struct Field {
-    const char *key;
-    const char *label;
-    Rule rule;
-    Use use;
-    double NumericsSettings::*real; /* the member, one of the two */
-    int NumericsSettings::*whole;
-};
-
-
-/* in the Numerics menu's order; total's sign says "forever", as the menu's */
-constexpr Field fields[] = {
-    {"total", "Total", Rule::any, Use::always, &NumericsSettings::tend, nullptr},
-    {"t0", "Start time", Rule::any, Use::always, &NumericsSettings::t0, nullptr},
-    {"trans", "Transient", Rule::any, Use::always, &NumericsSettings::trans, nullptr},
-    {"dt", "Dt", Rule::nonzero, Use::always, &NumericsSettings::delta_t, nullptr},
-    {"nmesh", "Ncline mesh", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::nmesh},
-    {"newt_iter", "Sing pt: maximum iterates", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::evec_iter},
-    {"newt_tol", "Sing pt: Newton tolerance", Rule::positive, Use::always, &NumericsSettings::evec_err, nullptr},
-    {"jac_eps", "Sing pt: Jacobian epsilon", Rule::positive, Use::always, &NumericsSettings::newt_err, nullptr},
-    {"nout", "nOutput", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::njmp},
-    {"bound", "Bounds", Rule::positive, Use::always, &NumericsSettings::bound, nullptr},
-    {"method", "Method", Rule::method, Use::always, nullptr, &NumericsSettings::method},
-    {"tol", "Tolerance", Rule::positive, Use::step_or_rel, &NumericsSettings::toler, nullptr},
-    {"dtmin", "Minimum step", Rule::positive, Use::step, &NumericsSettings::hmin, nullptr},
-    {"dtmax", "Maximum step", Rule::positive, Use::step, &NumericsSettings::hmax, nullptr},
-    {"atol", "Abs. tolerance", Rule::positive, Use::rel, &NumericsSettings::atoler, nullptr},
-    {"eul_tol", "Newton tolerance", Rule::positive, Use::newton, &NumericsSettings::eul_tol, nullptr},
-    {"eul_iter", "Newton iterations", Rule::whole_positive, Use::newton, nullptr, &NumericsSettings::max_eul_iter},
-    {"delay", "Maximal delay", Rule::nonnegative, Use::delays, &NumericsSettings::delay, nullptr},
-    {"bvp_maxit", "BVP maximum iterates", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::bvp_maxit},
-    {"bvp_tol", "BVP tolerance", Rule::positive, Use::always, &NumericsSettings::bvp_tol, nullptr},
-    {"bvp_eps", "BVP epsilon", Rule::positive, Use::always, &NumericsSettings::bvp_eps, nullptr},
-};
+/* the numerics settings: the option table's rows with a key, in the
+   Numerics menu's order */
+auto fields()
+{
+    return option_rows() | std::views::filter([](const OptionRow &r) { return !r.key.empty(); });
+}
 
 /* whether the session's method (and model) uses field f */
-bool used(const xpp::Session &s, const Field &f)
+bool used(const xpp::Session &s, const OptionRow &f)
 {
     const xpp::SolverTraits &t = xpp::solver_info(s.numerics.method).traits;
     switch (f.use) {
-    case Use::always: return true;
-    case Use::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
-    case Use::step: return t.step_tolerance;
-    case Use::rel: return t.rel_abs_tolerance;
-    case Use::newton: return t.newton;
-    case Use::delays: return s.model().ndelays > 0;
+    case OptionUse::always: return true;
+    case OptionUse::step_or_rel: return t.step_tolerance || t.rel_abs_tolerance;
+    case OptionUse::step: return t.step_tolerance;
+    case OptionUse::rel: return t.rel_abs_tolerance;
+    case OptionUse::newton: return t.newton;
+    case OptionUse::delays: return s.model().ndelays > 0;
     }
     return true;
 }
 
-const Field *field_of(std::string_view key)
-{
-    const auto it = std::ranges::find_if(fields, [key](const Field &f) { return key == f.key; });
-    return it == std::ranges::end(fields) ? nullptr : &*it;
-}
+/* total's sign says "forever", as the menu's */
+bool is_total(const OptionRow &f) { return f.key == "total"; }
 
-double value_of(const NumericsSettings &n, const Field &f)
+double value_of(const xpp::Session &s, const OptionRow &f)
 {
-    if (f.real == &NumericsSettings::tend && n.forever) return -n.tend;
-    return f.real ? n.*f.real : n.*f.whole;
+    if (is_total(f) && s.numerics.forever) return -s.numerics.tend;
+    /* the accessors name the member; reading it changes nothing */
+    xpp::Session &member_of = const_cast<xpp::Session &>(s);
+    return f.real ? f.real(member_of) : f.whole(member_of);
 }
 
 std::string event_text(const xpp::Session &s)
 {
     std::string o = "{\"ev\":\"numerics\",\"fields\":[";
     bool first = true;
-    for (const Field &f : fields) {
-        if (f.use == Use::delays && !used(s, f)) continue; /* no delays: no field */
-        const double v = value_of(s.numerics, f);
+    for (const OptionRow &f : fields()) {
+        if (f.use == OptionUse::delays && !used(s, f)) continue; /* no delays: no field */
+        const double v = value_of(s, f);
         o += xpp::format("{}{{\"key\":\"{}\",\"label\":", first ? "" : ",", f.key);
         first = false;
         xpp::json_append_string(o, f.label);
@@ -105,7 +74,7 @@ std::string event_text(const xpp::Session &s)
         o += std::isfinite(v) ? xpp::number(v) : std::string("null");
         if (f.whole) o += ",\"integer\":true";
         if (!used(s, f)) o += ",\"unused\":true";
-        if (f.rule == Rule::method) {
+        if (f.rule == OptionRule::method) {
             o += ",\"choices\":[";
             bool c1 = true;
             for (const xpp::SolverInfo &m : xpp::solvers()) {
@@ -136,9 +105,9 @@ int method_of(std::string_view text)
 
 /* the value of text for field f of a model m's numerics, checked; false
    with why */
-bool check(const xpp::Model &m_of, const Field &f, std::string_view text, double &v, std::string &why)
+bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, double &v, std::string &why)
 {
-    if (f.rule == Rule::method) {
+    if (f.rule == OptionRule::method) {
         const int m = method_of(text);
         if (m < 0) {
             why = xpp::format("{}: no method {}", f.label, text);
@@ -160,24 +129,24 @@ bool check(const xpp::Model &m_of, const Field &f, std::string_view text, double
         return false;
     }
     switch (f.rule) {
-    case Rule::nonzero:
+    case OptionRule::nonzero:
         if (v != 0) return true;
         why = xpp::format("{} must be a number other than 0", f.label);
         return false;
-    case Rule::positive:
+    case OptionRule::positive:
         if (v > 0) return true;
         why = xpp::format("{} must be a number above 0", f.label);
         return false;
-    case Rule::nonnegative:
+    case OptionRule::nonnegative:
         if (v >= 0) return true;
         why = xpp::format("{} must be a number of at least 0", f.label);
         return false;
-    case Rule::whole_positive:
+    case OptionRule::whole_positive:
         if (v == std::floor(v) && v >= 1 && v <= INT_MAX) return true;
         why = xpp::format("{} must be a whole number of at least 1", f.label);
         return false;
-    case Rule::any:
-    case Rule::method:
+    case OptionRule::any:
+    case OptionRule::method:
         break;
     }
     return true;
@@ -188,31 +157,51 @@ bool check(const xpp::Model &m_of, const Field &f, std::string_view text, double
 int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
 {
     try {
-        const Field *f = field_of(key);
+        const OptionRow *f = numerics_option(key);
         double v = 0;
-        if (!f || (f->use == Use::delays && !used(s, *f))) {
+        if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
             why = xpp::format("no numerics setting {}", key);
             return -1;
         }
         if (!check(s.model(), *f, text, v, why)) return -1;
         NumericsSettings &n = s.numerics;
-        if (f->real == &NumericsSettings::tend) { /* the menu's Total: below 0 for ever */
+        if (is_total(*f)) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;
             n.tend = std::fabs(v);
         } else if (f->real) {
-            n.*f->real = v;
+            f->real(s) = v;
         } else {
-            n.*f->whole = static_cast<int>(v);
+            f->whole(s) = static_cast<int>(v);
         }
-        /* what the menu does after each of these */
-        if (f->real == &NumericsSettings::delta_t) dt_changed(s);
-        else if (f->real == &NumericsSettings::delay) chk_delay(s);
-        else if (f->real == &NumericsSettings::bvp_tol || f->real == &NumericsSettings::bvp_eps || f->whole == &NumericsSettings::bvp_maxit) reset_bvp(s);
+        /* what changing these needs */
+        if (key == "dt") dt_changed(s);
+        else if (key == "delay") chk_delay(s);
+        else if (key.starts_with("bvp_")) reset_bvp(s);
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("setting the numerics");
     }
+}
+
+bool numerics_settings_ask(xpp::Session &s, std::string_view key)
+{
+    const OptionRow *f = numerics_option(key);
+    if (!f) return false;
+    const std::string prompt = xpp::format("{} :", f->label);
+    std::string text;
+    if (f->whole) {
+        text = xpp::format("{}", f->whole(s));
+        if (new_string_of(prompt.c_str(), text, XPP_FIELD_INTEGER) == 0 || text.empty()) return false;
+    } else {
+        double v = value_of(s, *f);
+        if (new_float(s, prompt.c_str(), &v) != 0) return false;
+        text = xpp::number(v);
+    }
+    std::string why;
+    if (numerics_settings_set(s, key, text, why) == 0) return true;
+    err_msg(why.c_str());
+    return false;
 }
 
 void numerics_settings_init(NumericsSettingsEmit emit) { event.init(emit); }

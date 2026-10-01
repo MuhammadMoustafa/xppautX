@@ -178,6 +178,19 @@ def check_load_error():
         check('load error: an .odex problem has its line and column',
               p.returncode == 1 and e.get('file') == 'bad.odex' and e.get('line') == 2 and e.get('col', 0) > 0
               and e.get('source') == "x' = -x + * a" and e.get('cause'), str(e))
+
+        # a value an option refuses (W119): the load stops at the option's line
+        for name, text, src in (('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", '@ ync=12'),
+                                ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", '@ dt=2*3'),
+                                ('badopt.odex', "par a = 1\nx' = -x\n@ total = 5\n@ ync = 12\n", '@ ync = 12')):
+            with open(os.path.join(bad_dir, name), 'w') as f:
+                f.write(text)
+            p, evs = load(name)
+            e = next((v for v in evs if v.get('ev') == 'error'), {})
+            check('load error: a value an option refuses stops the load at its line (%s)' % name,
+                  p.returncode == 1 and e.get('file') == name and e.get('line') == 4
+                  and src.replace(' ', '').split('@')[1] in e.get('cause', '').replace(' ', '')
+                  and e.get('source') == src, str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
 
@@ -3248,6 +3261,8 @@ def check_open_reload():
             f.write('par a=1\ninit x=0.5\nx\'=-a*x\n@ total=5, dt=0.05\ndone\n')
         with open(os.path.join(r, 'broken.ode'), 'w') as f:
             f.write('par a=1\nx\'=-a*y+\ndone\n')
+        with open(os.path.join(r, 'badoption.ode'), 'w') as f:
+            f.write('par a=1\nx\'=-a*x\n@ ync=12\ndone\n')
 
         def rows_of(name):
             """the stored data as written by the browser (csv), comments dropped"""
@@ -3357,6 +3372,12 @@ def check_open_reload():
               str(errs)[:200])
         check('a broken model: the model before is still loaded, its values untouched',
               last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(last_state(evs))[:200])
+        evs = open_model('badoption.ode')
+        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('a refused option value: an error naming the file, line and value, the model before kept (W119)',
+              errs and 'badoption.ode' in errs[-1]['error'] and 'ync=12' in errs[-1]['error']
+              and not [e for e in evs if e.get('ev') == 'hello']
+              and last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(errs)[:300])
         evs = open_model('missing.ode')
         check('a missing model: an error, nothing asked',
               [e for e in evs if e.get('ev') == 'message' and 'missing.ode' in e.get('error', '')]

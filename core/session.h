@@ -115,9 +115,9 @@ struct Session {
   /* the parameter sliders the model sets up (@ s1=name, slo1=, shi1=,
      likewise 2 and 3) */
   std::array<XppSlider,XPP_NSLIDERS> sliders;
-  /* 1 while an option may still be set: the command line and .xpprc set
-     theirs first, and the model's may not override them */
-  OptionsSet not_already_set{};
+  /* the options a source has set (model_options.h): the command line
+     sets its own first, and the model's may not override them */
+  OptionsSet options_set;
   /* -runnow or @ runnow=1: integrate once the front end is up */
   int run_immediately=0;
   /* the command line named a model file */
@@ -237,6 +237,9 @@ public:
   /* what went wrong where the load is (a Load is in progress): the place
      at() gave, and as the cause the ERROR and WARN messages logged since */
   static Diagnostic diagnostic();
+  /* where the load is (at()'s place, no cause); empty when no Load is in
+     progress */
+  static Diagnostic place();
 private:
   /* the client's before the load (none at the first), until commit();
      the Session declared last, so that it goes before its Model */

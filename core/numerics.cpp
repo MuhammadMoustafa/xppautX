@@ -26,6 +26,8 @@
 #include "expr.h"
 #include "model.h"
 #include "solver.h"
+#include "numerics_settings.h"
+#include "xpp_io.h"
 
 namespace xpp {
 
@@ -44,11 +46,6 @@ void chk_volterra(xpp::Session &s)
 {
   if (s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
 }
-
-void  check_pos(int *j)
-{
-  if(*j<=0)*j=1;
- }
 
 void quick_num(xpp::Session &s, int com)
 {
@@ -83,110 +80,79 @@ void set_total(xpp::Session &s, double total)
 
 void  get_num_par(xpp::Session &s, char ch)
 {
-  double temp;
-  int tmp;
    switch(ch){
                case 'a':
                        make_adj(s);
 		       break;
 
 		case 't': flash(0);
-			 /* total */
-			 new_float(s,"total :",&s.numerics.tend);
-			  s.numerics.forever=0;
-			  if(s.numerics.tend<0)
-			  {
-			    s.numerics.forever=1;
-			    s.numerics.tend=-s.numerics.tend;
-                          }
-
+			 numerics_settings_ask(s,"total");
 			flash(0);
 			break;
 		case 's': flash(1);
-			 /* start */
-			 new_float(s,"start time :",&s.numerics.t0);
+			 numerics_settings_ask(s,"t0");
 			flash(1);
 			break;
 		case 'r': flash(2);
-			 /* transient */
-			 new_float(s,"transient :",&s.numerics.trans);
+			 numerics_settings_ask(s,"trans");
 			flash(2);
 			break;
 		case 'd': flash(3);
-			 /* DT */
-		         temp=s.numerics.delta_t;
-			 new_float(s,"Delta t :",&s.numerics.delta_t);
-		         if(s.numerics.delta_t==0.0)s.numerics.delta_t=temp;
-		         dt_changed(s);
+			 numerics_settings_ask(s,"dt");
 			flash(3);
 			break;
 		case 'n': flash(4);
-			 /* ncline */
-			 new_int("ncline mesh :",&s.numerics.nmesh);
-                          check_pos(&s.numerics.nmesh);
-
+			 numerics_settings_ask(s,"nmesh");
 			flash(4);
 			break;
 		case 'v':
-		        
-		         new_int("Maximum iterates :",&s.numerics.bvp_maxit);
-		         check_pos(&s.numerics.bvp_maxit);
-		         new_float(s,"Tolerance :",&s.numerics.bvp_tol);
-		         new_float(s,"Epsilon :",&s.numerics.bvp_eps);
-		         reset_bvp(s);
+		         numerics_settings_ask(s,"bvp_maxit");
+		         numerics_settings_ask(s,"bvp_tol");
+		         numerics_settings_ask(s,"bvp_eps");
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
-			 new_int("Maximum iterates :",&s.numerics.evec_iter);
-			 check_pos(&s.numerics.evec_iter);
-			 new_float(s,"Newton tolerance :",&s.numerics.evec_err);
-			 new_float(s,"Jacobian epsilon :",&s.numerics.newt_err);
+			 numerics_settings_ask(s,"newt_iter");
+			 numerics_settings_ask(s,"newt_tol");
+			 numerics_settings_ask(s,"jac_eps");
 		       if(s.model().nflags>0)
 			 new_float(s,"SMIN :",&s.numerics.stol);
 		       
 			flash(5);
 			break;
 		case 'o': flash(6);
-			 /* noutput */
-			new_int("n_out :",&s.numerics.njmp);
-			 check_pos(&s.numerics.njmp);
-
+			 numerics_settings_ask(s,"nout");
 			flash(6);
 			break;
 		case 'b': flash(7);
-			 /* bounds */
-			new_float(s,"Bounds :",&s.numerics.bound); s.numerics.bound=fabs(s.numerics.bound);
-
+			 numerics_settings_ask(s,"bound");
 			flash(7);
 			break;
 		case 'm': flash(8);
-			 /* method */
-			 get_method(s);
-			 if(const char *why=method_refusal(s.model(),s.numerics.method)){
-			   err_msg(why);
-			   s.numerics.method=method::ADAMS;
-			 }
-		       if(s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
 		       {
+			 /* the method picked, refused as `set num` refuses it */
+			 std::string why;
+			 if(numerics_settings_set(s,"method",xpp::format("{}",chosen_method(s)),why)!=0){
+			   err_msg(why.c_str());
+			   flash(8);
+			   break;
+			 }
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
-			if(traits.step_tolerance)
-		{
-		 new_float(s,"Tolerance :",&s.numerics.toler);
-		 new_float(s,"minimum step :",&s.numerics.hmin);
-		 new_float(s,"maximum step :",&s.numerics.hmax);
-		}
-			if(traits.rel_abs_tolerance)
-			  {
-			    new_float(s,"Relative tol:",&s.numerics.toler);
-			    new_float(s,"Abs. Toler:",&s.numerics.atoler);
-			  }
-
+			if(traits.step_tolerance){
+			  numerics_settings_ask(s,"tol");
+			  numerics_settings_ask(s,"dtmin");
+			  numerics_settings_ask(s,"dtmax");
+			}
+			if(traits.rel_abs_tolerance){
+			  numerics_settings_ask(s,"tol");
+			  numerics_settings_ask(s,"atol");
+			}
 		       if(traits.newton){
-			 new_float(s,"Tolerance :",&s.numerics.eul_tol);
-			 new_int("MaxIter :",&s.numerics.max_eul_iter);
+			 numerics_settings_ask(s,"eul_tol");
+			 numerics_settings_ask(s,"eul_iter");
 		       }
 		       if(s.numerics.method==method::VOLTERRA){
-			 tmp=s.numerics.max_points;
+			 int tmp=s.numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
 			 new_int("AutoEval(1=yes) :",&s.numerics.auto_evaluate);
 			 allocate_volterra(s,tmp,1);
@@ -206,7 +172,7 @@ void  get_num_par(xpp::Session &s, char ch)
 		case 'e': flash(9);
 			 /* delay */
                         if(s.model().ndelays==0)break;
-			new_float(s,"Maximal delay :",&s.numerics.delay);
+			numerics_settings_ask(s,"delay");
                         new_float(s,"real guess :", &s.delay.alpha_max);
 			   new_float(s,"imag guess :", &s.delay.omega_max); 
 		        new_int("DelayGrid :",&s.delay.grid);
@@ -372,14 +338,13 @@ void get_pmap_pars_com(xpp::Session &s, int l)
 
 }
 
-void get_method(xpp::Session &s)
+int chosen_method(const xpp::Session &s)
 {
- char ch;
- int i;
- ch = static_cast<char>(menu_choose(&menu_method,s.numerics.method));
- for(i=0;i<menu_method.n;i++)
- if(ch==menu_method.keys[i])s.numerics.method=i;
- }
+ const char ch = static_cast<char>(menu_choose(&menu_method,s.numerics.method));
+ for(int i=0;i<menu_method.n;i++)
+   if(ch==menu_method.keys[i])return i;
+ return s.numerics.method;
+}
 
 void user_set_color_par(xpp::Session &s, int flag,const char *via,double lo,double hi)
 {

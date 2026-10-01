@@ -36,7 +36,9 @@ A client that draws sends `data` next (see "The plot as data").
 ### A model that does not load
 
 When the model does not load (a line the reader does not understand, a
-formula that does not compile, a name given twice), the server sends one
+formula that does not compile, a name given twice, a value an `@` option
+refuses: a colour outside 0-10, an unknown variable, a word where a
+number goes, ... at the option's line, W119), the server sends one
 `error` event instead of `hello` and exits with status 1 (W63c). The log
 (stderr, the page's `log` event) says what it always said; the event is
 the same as values:
@@ -911,8 +913,11 @@ the model can use (Volterra only for integral equations, and only it then;
 Symplectic only for an even dimension). Then it applies the numerics as
 leaving the Numerics menu does (the delays' and integrals' memory for a new
 `dt` or `delay`, a fresh solver; a method that picks its own steps stores
-every output time, NOUT 1). The menu stays: `set` is a second way to the
-same fields. A setting ("Commands during a command"): sent during a run it
+every output time, NOUT 1). The Numerics menu asks for the same fields
+with the same checks (W119): a value it refuses shows the same error and
+keeps the value before. The fields are the numerics rows of the model's
+option table (core/model_options.cpp), which also gives their `@` names
+and defaults. A setting ("Commands during a command"): sent during a run it
 applies when the run ends.
 
 ### The plot as data

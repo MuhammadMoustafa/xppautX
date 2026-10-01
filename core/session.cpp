@@ -97,6 +97,11 @@ void Load::at(std::string_view file, int line, int col)
   loading->messages.clear();
 }
 
+Diagnostic Load::place()
+{
+  return loading?loading->where:Diagnostic();
+}
+
 Diagnostic Load::diagnostic()
 {
   const Load &load=*loading;

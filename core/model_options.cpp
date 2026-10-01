@@ -1,0 +1,795 @@
+/* The model's options as one table (model_options.h, W119). */
+#include <algorithm>
+#include <cctype>
+#include <climits>
+#include <cmath>
+#include <string>
+#include <string_view>
+
+#include "model_options.h"
+#include "browse.h"
+#include "colormap.h"
+#include "graphics.h"
+#include "session.h"
+#include "solver.h"
+#include "tabular.h"
+#include "userbut.h"
+#include "xpp_batch.h"
+#include "xpp_error.h"
+#include "xpp_ui.h"
+#include "xpp_globals.h"
+#include "xpp_io.h"
+#include "xpp_log.h"
+#include "xpp_math.h"
+
+namespace xpp {
+
+namespace {
+
+/* the plot's colours are 0 (black) to 10, the last of the colour table's
+   named ones (colormap.h) */
+constexpr int last_color = 10;
+
+/* the method letters of "@ meth=": the Numerics menu's keys, in
+   method::Id order */
+constexpr std::string_view method_keys = "demragvbqsc582y";
+
+/* a 3D box side's default: wide enough for most models' variables */
+constexpr double box_side = 12;
+
+/* the value as a number (into x): why it is not one, nullptr when it is */
+const char *number_in(const OptionValue &v, double &x)
+{
+  return parse_number(v.text, x) ? nullptr : "not a number";
+}
+
+/* the value as a whole number in int's range (into i) */
+const char *whole_in(const OptionValue &v, int &i)
+{
+  double x = 0;
+  if (!parse_number(v.text, x) || x != std::floor(x) || x < INT_MIN || x > INT_MAX) return "not a whole number";
+  i = static_cast<int>(x);
+  return nullptr;
+}
+
+/* the variable v names (0 the time), -1 for none */
+int variable_of(const Session &s, const OptionValue &v)
+{
+  int i = -1;
+  find_variable(s, v.text, &i);
+  return i;
+}
+
+const char *color_into(int &member, const OptionValue &v)
+{
+  int i = 0;
+  if (whole_in(v, i) || i < 0 || i > last_color) return "not a colour from 0 to 10";
+  member = i;
+  return nullptr;
+}
+
+const char *variable_into(const Session &s, int &member, const OptionValue &v)
+{
+  const int i = variable_of(s, v);
+  if (i < 0) return "no such variable";
+  member = i;
+  return nullptr;
+}
+
+/* yes (y..., Y...: 1) or no (n..., N...: 0) into member */
+const char *yes_no_into(int &member, const OptionValue &v)
+{
+  switch (v.text[0]) {
+  case 'y': case 'Y': member = 1; return nullptr;
+  case 'n': case 'N': member = 0; return nullptr;
+  default: return "not yes or no";
+  }
+}
+
+constexpr OptionRow rows[] = {
+  /* ---- the numerics the Numerics menu and `set num` edit, in the menu's
+     order; total's sign there says "forever" ---- */
+  {.name = "TOTAL", .flag = Option::TOTAL,
+   .real = [](Session &s) -> double & { return s.numerics.tend; },
+   /* twenty time units, XPPAUT's */
+   .reset = [](Session &s) { s.numerics.tend = 20; },
+   .key = "total", .label = "Total"},
+  {.name = "T0", .flag = Option::T0,
+   .real = [](Session &s) -> double & { return s.numerics.t0; },
+   /* time starts at 0 */
+   .reset = [](Session &s) { s.numerics.t0 = 0; },
+   .key = "t0", .label = "Start time"},
+  {.name = "TRANS", .flag = Option::TRANS,
+   .real = [](Session &s) -> double & { return s.numerics.trans; },
+   /* no transient: store from the start */
+   .reset = [](Session &s) { s.numerics.trans = 0; },
+   .key = "trans", .label = "Transient"},
+  {.name = "DT", .flag = Option::DT,
+   .real = [](Session &s) -> double & { return s.numerics.delta_t; },
+   /* twenty steps per time unit, XPPAUT's */
+   .reset = [](Session &s) { s.numerics.delta_t = .05; },
+   .key = "dt", .label = "Dt", .rule = OptionRule::nonzero},
+  {.name = "NMESH", .flag = Option::NMESH,
+   .whole = [](Session &s) -> int & { return s.numerics.nmesh; },
+   /* a 40 by 40 grid: smooth nullclines, quickly */
+   .reset = [](Session &s) { s.numerics.nmesh = 40; },
+   .key = "nmesh", .label = "Ncline mesh", .rule = OptionRule::whole_positive},
+  {.name = "NEWT_ITER", .flag = Option::NEWT_ITER,
+   .whole = [](Session &s) -> int & { return s.numerics.evec_iter; },
+   /* Newton's method converges in far fewer or not at all */
+   .reset = [](Session &s) { s.numerics.evec_iter = 100; },
+   .key = "newt_iter", .label = "Sing pt: maximum iterates", .rule = OptionRule::whole_positive},
+  {.name = "NEWT_TOL", .flag = Option::NEWT_TOL,
+   .real = [](Session &s) -> double & { return s.numerics.evec_err; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.evec_err = .001; },
+   .key = "newt_tol", .label = "Sing pt: Newton tolerance", .rule = OptionRule::positive},
+  {.name = "JAC_EPS", .flag = Option::JAC_EPS,
+   .real = [](Session &s) -> double & { return s.numerics.newt_err; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.newt_err = .001; },
+   .key = "jac_eps", .label = "Sing pt: Jacobian epsilon", .rule = OptionRule::positive},
+  {.name = "NOUT", .alias = "NJMP", .flag = Option::NOUT,
+   .whole = [](Session &s) -> int & { return s.numerics.njmp; },
+   /* every step stored */
+   .reset = [](Session &s) { s.numerics.njmp = 1; },
+   .key = "nout", .label = "nOutput", .rule = OptionRule::whole_positive},
+  {.name = "BOUND", .flag = Option::BOUND,
+   .real = [](Session &s) -> double & { return s.numerics.bound; },
+   /* XPPAUT's: past it a solution is taken to blow up */
+   .reset = [](Session &s) { s.numerics.bound = 100; },
+   .key = "bound", .label = "Bounds", .rule = OptionRule::positive},
+  {.name = "METH", .flag = Option::METH,
+   .whole = [](Session &s) -> int & { return s.numerics.method; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const std::size_t i = method_keys.find(static_cast<char>(std::tolower(static_cast<unsigned char>(v.text[0]))));
+     if (v.text[0] == 0 || i == std::string_view::npos) return "no method with that letter";
+     s.numerics.method = static_cast<int>(i);
+     return nullptr;
+   },
+   /* Runge-Kutta: fixed steps, accurate enough for most models */
+   .reset = [](Session &s) { s.numerics.method = method::RK4; },
+   .key = "method", .label = "Method", .rule = OptionRule::method},
+  {.name = "TOL", .flag = Option::TOL,
+   .real = [](Session &s) -> double & { return s.numerics.toler; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.toler = .001; },
+   .key = "tol", .label = "Tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel},
+  {.name = "DTMIN", .flag = Option::DTMIN,
+   .real = [](Session &s) -> double & { return s.numerics.hmin; },
+   /* as small as an adaptive method may need */
+   .reset = [](Session &s) { s.numerics.hmin = 1e-12; },
+   .key = "dtmin", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::step},
+  {.name = "DTMAX", .flag = Option::DTMAX,
+   .real = [](Session &s) -> double & { return s.numerics.hmax; },
+   /* one time unit */
+   .reset = [](Session &s) { s.numerics.hmax = 1; },
+   .key = "dtmax", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step},
+  {.name = "ATOL", .flag = Option::ATOL,
+   .real = [](Session &s) -> double & { return s.numerics.atoler; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.atoler = .001; },
+   .key = "atol", .label = "Abs. tolerance", .rule = OptionRule::positive, .use = OptionUse::rel},
+  {.real = [](Session &s) -> double & { return s.numerics.eul_tol; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.eul_tol = 1e-7; },
+   .key = "eul_tol", .label = "Newton tolerance", .rule = OptionRule::positive, .use = OptionUse::newton},
+  {.whole = [](Session &s) -> int & { return s.numerics.max_eul_iter; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.max_eul_iter = 10; },
+   .key = "eul_iter", .label = "Newton iterations", .rule = OptionRule::whole_positive, .use = OptionUse::newton},
+  {.name = "DELAY", .flag = Option::DELAY,
+   .real = [](Session &s) -> double & { return s.numerics.delay; },
+   /* no delays kept */
+   .reset = [](Session &s) { s.numerics.delay = 0; },
+   .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .use = OptionUse::delays},
+  {.whole = [](Session &s) -> int & { return s.numerics.bvp_maxit; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.bvp_maxit = 20; },
+   .key = "bvp_maxit", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive},
+  {.real = [](Session &s) -> double & { return s.numerics.bvp_tol; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.bvp_tol = 1e-5; },
+   .key = "bvp_tol", .label = "BVP tolerance", .rule = OptionRule::positive},
+  {.real = [](Session &s) -> double & { return s.numerics.bvp_eps; },
+   /* XPPAUT's */
+   .reset = [](Session &s) { s.numerics.bvp_eps = 1e-5; },
+   .key = "bvp_eps", .label = "BVP epsilon", .rule = OptionRule::positive},
+
+  /* ---- the other numerics ---- */
+  {.name = "VMAXPTS", .flag = Option::VMAXPTS,
+   .whole = [](Session &s) -> int & { return s.numerics.max_points; }},
+  {.name = "MAXSTOR", .flag = Option::MAXSTOR,
+   .whole = [](Session &s) -> int & { return s.data_store.max_rows; },
+   /* rows the data store starts with: a run of 5000 steps (it grows) */
+   .reset = [](Session &s) { s.data_store.max_rows = 5000; }},
+  {.name = "TOR_PER", .flag = Option::TOR_PER,
+   .real = [](Session &s) -> double & { return s.numerics.tor_period; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = number_in(v, s.numerics.tor_period)) return why;
+     s.numerics.torus = 1;
+     return nullptr;
+   }},
+  {.name = "FOLD",
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const int i = variable_of(s, v);
+     if (i < 1) return "no such variable";
+     s.itor[i - 1] = 1;
+     s.numerics.torus = 1;
+     return nullptr;
+   }},
+  {.name = "BANDUP", .flag = Option::BANDUP,
+   .whole = [](Session &s) -> int & { return s.numerics.cv_bandupper; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = whole_in(v, s.numerics.cv_bandupper)) return why;
+     s.numerics.cv_bandflag = 1;
+     return nullptr;
+   }},
+  {.name = "BANDLO", .flag = Option::BANDLO,
+   .whole = [](Session &s) -> int & { return s.numerics.cv_bandlower; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = whole_in(v, s.numerics.cv_bandlower)) return why;
+     s.numerics.cv_bandflag = 1;
+     return nullptr;
+   }},
+  {.name = "POIMAP", .flag = Option::POIMAP,
+   .whole = [](Session &s) -> int & { return s.numerics.poimap; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     switch (v.text[0]) {
+     case 's': case 'S': s.numerics.poimap = 1; return nullptr;
+     case 'm': case 'M': s.numerics.poimap = 2; return nullptr;
+     case 'p': case 'P': s.numerics.poimap = 3; return nullptr;
+     default: return "not section, max or period";
+     }
+   },
+   /* no Poincare map */
+   .reset = [](Session &s) { s.numerics.poimap = 0; }},
+  {.name = "POIVAR", .flag = Option::POIVAR,
+   .whole = [](Session &s) -> int & { return s.numerics.poivar; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.numerics.poivar, v);
+   },
+   /* the first variable */
+   .reset = [](Session &s) { s.numerics.poivar = 1; }},
+  {.name = "POISGN", .flag = Option::POISGN,
+   .whole = [](Session &s) -> int & { return s.numerics.poisgn; },
+   /* crossings upwards */
+   .reset = [](Session &s) { s.numerics.poisgn = 1; }},
+  {.name = "POISTOP", .flag = Option::POISTOP,
+   .whole = [](Session &s) -> int & { return s.numerics.sos; },
+   /* a section does not stop the run */
+   .reset = [](Session &s) { s.numerics.sos = 0; }},
+  {.name = "POIPLN", .flag = Option::POIPLN,
+   .real = [](Session &s) -> double & { return s.numerics.poipln; },
+   /* the section at 0 */
+   .reset = [](Session &s) { s.numerics.poipln = 0; }},
+  {.name = "SEED", .flag = Option::SEED,
+   .whole = [](Session &s) -> int & { return s.numerics.rand_seed; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     int i = 0;
+     if (whole_in(v, i) || i < 0) return "not a seed (a whole number of at least 0)";
+     s.numerics.rand_seed = i;
+     nsrand48(s.numerics.rand_seed);
+     return nullptr;
+   }},
+  {.name = "STOCH", .flag = Option::STOCH,
+   .whole = [](Session &s) -> int & { return s.stochastic.flag; }},
+  {.name = "AUTOEVAL", .flag = Option::AUTOEVAL,
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     int f = 0;
+     if (const char *why = whole_in(v, f)) return why;
+     set_auto_eval_flags(s, f);
+     return nullptr;
+   }},
+
+  /* ---- the plot: the defaults of xp..zp before nplot's, which copies
+     them, and of xlo..yhi before xmin..zmax's ---- */
+  {.name = "XP", .flag = Option::XP,
+   .whole = [](Session &s) -> int & { return s.plot_settings.ixplt; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.ixplt, v);
+   },
+   /* the time */
+   .reset = [](Session &s) { s.plot_settings.ixplt = 0; }},
+  {.name = "YP", .flag = Option::YP,
+   .whole = [](Session &s) -> int & { return s.plot_settings.iyplt; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.iyplt, v);
+   },
+   /* the first variable */
+   .reset = [](Session &s) { s.plot_settings.iyplt = 1; }},
+  {.name = "ZP", .flag = Option::ZP,
+   .whole = [](Session &s) -> int & { return s.plot_settings.izplt; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.izplt, v);
+   },
+   /* the first variable */
+   .reset = [](Session &s) { s.plot_settings.izplt = 1; }},
+  {.name = "NPLOT", .flag = Option::NPLOT,
+   .whole = [](Session &s) -> int & { return s.plot_settings.npltv; },
+   /* one curve, every extra one (xp2=, ...) starting as the main one in
+     the default window */
+   .reset = [](Session &s) {
+     PlotSettings &p = s.plot_settings;
+     p.npltv = 1;
+     for (int i = 0; i < 10; i++) {
+       p.ix_plt[i] = p.ixplt;
+       p.iy_plt[i] = p.iyplt;
+       p.iz_plt[i] = p.izplt;
+       p.x_lo[i] = 0;
+       p.y_lo[i] = -1;
+       p.x_hi[i] = 20;
+       p.y_hi[i] = 1;
+     }
+   }},
+  {.name = "XP", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.ix_plt[v.index], v);
+   }},
+  {.name = "YP", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.iy_plt[v.index], v);
+   }},
+  {.name = "ZP", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.plot_settings.iz_plt[v.index], v);
+   }},
+  {.name = "XLO", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return number_in(v, s.plot_settings.x_lo[v.index]);
+   }},
+  {.name = "XHI", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return number_in(v, s.plot_settings.x_hi[v.index]);
+   }},
+  {.name = "YLO", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return number_in(v, s.plot_settings.y_lo[v.index]);
+   }},
+  {.name = "YHI", .first_digit = '2', .last_digit = '8',
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return number_in(v, s.plot_settings.y_hi[v.index]);
+   }},
+  {.name = "SIMPLOT",
+   .parse = [](Session &s, const OptionValue &) -> const char * {
+     s.plot_windows.simul = 1;
+     return nullptr;
+   }},
+  {.name = "MULTIWIN",
+   .parse = [](Session &s, const OptionValue &) -> const char * {
+     s.plot_settings.multi_win = 1;
+     return nullptr;
+   }},
+  {.name = "AXES", .flag = Option::AXES,
+   .whole = [](Session &s) -> int & { return s.plot_settings.axes; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     switch (v.text[0]) {
+     case '2': s.plot_settings.axes = 0; return nullptr;
+     case '3': s.plot_settings.axes = 5; return nullptr;
+     default: return "not 2 or 3";
+     }
+   },
+   /* a 2D plot */
+   .reset = [](Session &s) { s.plot_settings.axes = 0; }},
+  /* the 2D window; each default is the 3D box's too, which then keeps it */
+  {.name = "XLO", .flag = Option::XLO,
+   .real = [](Session &s) -> double & { return s.plot_settings.my_xlo; },
+   /* the default total's span, 0 to 20 */
+   .reset = [](Session &s) {
+     s.plot_settings.my_xlo = s.plot_settings.x_3d[0] = 0;
+     s.options_set.mark(Option::XMIN);
+   }},
+  {.name = "XHI", .flag = Option::XHI,
+   .real = [](Session &s) -> double & { return s.plot_settings.my_xhi; },
+   .reset = [](Session &s) {
+     s.plot_settings.my_xhi = s.plot_settings.x_3d[1] = 20;
+     s.options_set.mark(Option::XMAX);
+   }},
+  {.name = "YLO", .flag = Option::YLO,
+   .real = [](Session &s) -> double & { return s.plot_settings.my_ylo; },
+   /* -1 to 1 */
+   .reset = [](Session &s) {
+     s.plot_settings.my_ylo = s.plot_settings.y_3d[0] = -1;
+     s.options_set.mark(Option::YMIN);
+   }},
+  {.name = "YHI", .flag = Option::YHI,
+   .real = [](Session &s) -> double & { return s.plot_settings.my_yhi; },
+   .reset = [](Session &s) {
+     s.plot_settings.my_yhi = s.plot_settings.y_3d[1] = 1;
+     s.options_set.mark(Option::YMAX);
+   }},
+  /* the 3D box; xmin and ymin set the 2D window's low end too, unless
+     something set that */
+  {.name = "XMIN", .flag = Option::XMIN,
+   .real = [](Session &s) -> double & { return s.plot_settings.x_3d[0]; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = number_in(v, s.plot_settings.x_3d[0])) return why;
+     if (v.source.claim(s, Option::XLO)) s.plot_settings.my_xlo = s.plot_settings.x_3d[0];
+     return nullptr;
+   },
+   .reset = [](Session &s) {
+     s.plot_settings.x_3d[0] = -box_side;
+     s.options_set.mark(Option::XLO);
+   }},
+  {.name = "XMAX", .flag = Option::XMAX,
+   .real = [](Session &s) -> double & { return s.plot_settings.x_3d[1]; },
+   .reset = [](Session &s) {
+     s.plot_settings.x_3d[1] = box_side;
+     s.options_set.mark(Option::XHI);
+   }},
+  {.name = "YMIN", .flag = Option::YMIN,
+   .real = [](Session &s) -> double & { return s.plot_settings.y_3d[0]; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = number_in(v, s.plot_settings.y_3d[0])) return why;
+     if (v.source.claim(s, Option::YLO)) s.plot_settings.my_ylo = s.plot_settings.y_3d[0];
+     return nullptr;
+   },
+   .reset = [](Session &s) {
+     s.plot_settings.y_3d[0] = -box_side;
+     s.options_set.mark(Option::YLO);
+   }},
+  {.name = "YMAX", .flag = Option::YMAX,
+   .real = [](Session &s) -> double & { return s.plot_settings.y_3d[1]; },
+   .reset = [](Session &s) {
+     s.plot_settings.y_3d[1] = box_side;
+     s.options_set.mark(Option::YHI);
+   }},
+  {.name = "ZMIN", .flag = Option::ZMIN,
+   .real = [](Session &s) -> double & { return s.plot_settings.z_3d[0]; },
+   .reset = [](Session &s) { s.plot_settings.z_3d[0] = -box_side; }},
+  {.name = "ZMAX", .flag = Option::ZMAX,
+   .real = [](Session &s) -> double & { return s.plot_settings.z_3d[1]; },
+   .reset = [](Session &s) { s.plot_settings.z_3d[1] = box_side; }},
+  {.name = "PHI", .flag = Option::PHI,
+   .real = [](Session &s) -> double & { return s.drawing.phi0; }},
+  {.name = "THETA", .flag = Option::THETA,
+   .real = [](Session &s) -> double & { return s.drawing.theta0; }},
+  {.name = "LT", .flag = Option::LT,
+   .whole = [](Session &s) -> int & { return s.plot_settings.start_line_type; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     int i = 0;
+     if (whole_in(v, i) || i >= 2 || i <= -6) return "not a line type from -5 to 1";
+     s.plot_settings.start_line_type = i;
+     reset_all_line_type(s);
+     return nullptr;
+   }},
+  {.name = "YNC", .flag = Option::YNC,
+   .whole = [](Session &s) -> int & { return s.nullclines.y_null_color; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return color_into(s.nullclines.y_null_color, v);
+   }},
+  {.name = "XNC", .flag = Option::XNC,
+   .whole = [](Session &s) -> int & { return s.nullclines.x_null_color; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return color_into(s.nullclines.x_null_color, v);
+   }},
+  {.name = "SMC", .flag = Option::SMC,
+   .whole = [](Session &s) -> int & { return s.manifolds.stable_color; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return color_into(s.manifolds.stable_color, v);
+   }},
+  {.name = "UMC", .flag = Option::UMC,
+   .whole = [](Session &s) -> int & { return s.manifolds.unstable_color; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return color_into(s.manifolds.unstable_color, v);
+   }},
+  {.name = "COLORMAP", .flag = Option::COLORMAP,
+   .whole = [](Session &) -> int & { return custom_color; },
+   .parse = [](Session &, const OptionValue &v) -> const char * {
+     int i = 0;
+     if (whole_in(v, i) || i < 0 || i >= 7) return "not a colour map from 0 to 6";
+     custom_color = i;
+     return nullptr;
+   }},
+  {.name = "PLOTFMT", .flag = Option::PLOTFMT,
+   .text = [](Session &s) -> std::string & { return s.plot_export.format; }},
+  {.name = "PS_FONT", .flag = Option::PS_FONT,
+   .text = [](Session &s) -> std::string & { return s.plot_file.ps_font; }},
+  {.name = "PS_LW", .flag = Option::PS_LW,
+   .real = [](Session &s) -> double & { return s.plot_file.ps_lw; }},
+  {.name = "PS_FSIZE", .flag = Option::PS_FSIZE,
+   .whole = [](Session &s) -> int & { return s.plot_file.ps_font_size; }},
+  {.name = "PS_COLOR", .flag = Option::PS_COLOR,
+   .whole = [](Session &s) -> int & { return s.plot_file.ps_color_flag; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (const char *why = whole_in(v, s.plot_file.ps_color_flag)) return why;
+     s.plot_export.color = s.plot_file.ps_color_flag;
+     return nullptr;
+   }},
+  {.name = "DFGRID", .flag = Option::DFGRID,
+   .whole = [](Session &s) -> int & { return s.nullclines.df_grid; }},
+  {.name = "DFDRAW", .flag = Option::DFDRAW,
+   .whole = [](Session &s) -> int & { return s.nullclines.df_batch; }},
+  {.name = "NCDRAW", .flag = Option::NCDRAW,
+   .whole = [](Session &s) -> int & { return s.nullclines.nc_batch; }},
+  {.name = "COLORVIA", .flag = Option::COLORVIA,
+   .text = [](Session &s) -> std::string & { return s.nullclines.color_via; }},
+  {.name = "COLORIZE", .flag = Option::COLORIZE,
+   .whole = [](Session &s) -> int & { return s.nullclines.colorize_flag; }},
+  {.name = "COLORLO", .flag = Option::COLORLO,
+   .real = [](Session &s) -> double & { return s.nullclines.color_via_lo; }},
+  {.name = "COLORHI", .flag = Option::COLORHI,
+   .real = [](Session &s) -> double & { return s.nullclines.color_via_hi; }},
+  /* the parameter sliders */
+  {.name = "S1", .flag = Option::S1,
+   .text = [](Session &s) -> std::string & { return s.sliders[0].var; }},
+  {.name = "S2", .flag = Option::S2,
+   .text = [](Session &s) -> std::string & { return s.sliders[1].var; }},
+  {.name = "S3", .flag = Option::S3,
+   .text = [](Session &s) -> std::string & { return s.sliders[2].var; }},
+  {.name = "SLO1", .flag = Option::SLO1,
+   .real = [](Session &s) -> double & { return s.sliders[0].lo; }},
+  {.name = "SLO2", .flag = Option::SLO2,
+   .real = [](Session &s) -> double & { return s.sliders[1].lo; }},
+  {.name = "SLO3", .flag = Option::SLO3,
+   .real = [](Session &s) -> double & { return s.sliders[2].lo; }},
+  {.name = "SHI1", .flag = Option::SHI1,
+   .real = [](Session &s) -> double & { return s.sliders[0].hi; }},
+  {.name = "SHI2", .flag = Option::SHI2,
+   .real = [](Session &s) -> double & { return s.sliders[1].hi; }},
+  {.name = "SHI3", .flag = Option::SHI3,
+   .real = [](Session &s) -> double & { return s.sliders[2].hi; }},
+
+  /* ---- the range integration and a batch run ---- */
+  {.name = "RANGEOVER", .flag = Option::RANGEOVER,
+   .text = [](Session &s) -> std::string & { return s.integrator.range.item; },
+   /* the first variable */
+   .reset = [](Session &s) { s.integrator.range.item = s.model().uvar_names[0]; }},
+  {.name = "RANGESTEP", .flag = Option::RANGESTEP,
+   .whole = [](Session &s) -> int & { return s.integrator.range.steps; },
+   /* twenty runs */
+   .reset = [](Session &s) { s.integrator.range.steps = 20; }},
+  {.name = "RANGELOW", .flag = Option::RANGELOW,
+   .real = [](Session &s) -> double & { return s.integrator.range.plow; },
+   /* 0 to 1 */
+   .reset = [](Session &s) { s.integrator.range.plow = s.integrator.range.plow2 = 0; }},
+  {.name = "RANGEHIGH", .flag = Option::RANGEHIGH,
+   .real = [](Session &s) -> double & { return s.integrator.range.phigh; },
+   .reset = [](Session &s) { s.integrator.range.phigh = s.integrator.range.phigh2 = 1; }},
+  {.name = "RANGERESET", .flag = Option::RANGERESET,
+   .whole = [](Session &s) -> int & { return s.integrator.range.reset; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return yes_no_into(s.integrator.range.reset, v);
+   },
+   /* each run starts from the initial data */
+   .reset = [](Session &s) { s.integrator.range.reset = 1; }},
+  {.name = "RANGEOLDIC", .flag = Option::RANGEOLDIC,
+   .whole = [](Session &s) -> int & { return s.integrator.range.oldic; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return yes_no_into(s.integrator.range.oldic, v);
+   },
+   /* the same initial data for each run */
+   .reset = [](Session &s) { s.integrator.range.oldic = 1; }},
+  {.name = "RANGE", .flag = Option::RANGE,
+   .whole = [](Session &) -> int & { return batch_options.range; }},
+  {.name = "OUTPUT", .flag = Option::OUTPUT,
+   .text = [](Session &) -> std::string & { return batch_options.out_file; }},
+  {.name = "RUNNOW", .flag = Option::RUNNOW,
+   .whole = [](Session &s) -> int & { return s.run_immediately; }},
+  {.name = "TUTORIAL", .flag = Option::TUTORIAL,
+   .whole = [](Session &) -> int & { return program.tutorial; },
+   .zero_or_one = true},
+
+  /* ---- AUTO ---- */
+  {.name = "NTST", .flag = Option::NTST,
+   .whole = [](Session &s) -> int & { return s.auto_state.options.ntst; }},
+  {.name = "NMAX", .flag = Option::NMAX,
+   .whole = [](Session &s) -> int & { return s.auto_state.options.nmx; }},
+  {.name = "NPR", .flag = Option::NPR,
+   .whole = [](Session &s) -> int & { return s.auto_state.options.npr; }},
+  {.name = "NCOL", .flag = Option::NCOL,
+   .whole = [](Session &s) -> int & { return s.auto_state.options.ncol; }},
+  {.name = "DSMIN", .flag = Option::DSMIN,
+   .real = [](Session &s) -> double & { return s.auto_state.options.dsmin; }},
+  {.name = "DSMAX", .flag = Option::DSMAX,
+   .real = [](Session &s) -> double & { return s.auto_state.options.dsmax; }},
+  {.name = "DS", .flag = Option::DS,
+   .real = [](Session &s) -> double & { return s.auto_state.options.ds; }},
+  {.name = "PARMIN", .flag = Option::PARMIN,
+   .real = [](Session &s) -> double & { return s.auto_state.options.rl0; }},
+  {.name = "PARMAX", .flag = Option::PARMAX,
+   .real = [](Session &s) -> double & { return s.auto_state.options.rl1; }},
+  {.name = "NORMMIN", .flag = Option::NORMMIN,
+   .real = [](Session &s) -> double & { return s.auto_state.options.a0; }},
+  {.name = "NORMMAX", .flag = Option::NORMMAX,
+   .real = [](Session &s) -> double & { return s.auto_state.options.a1; }},
+  {.name = "EPSL", .flag = Option::EPSL,
+   .real = [](Session &s) -> double & { return s.auto_state.options.epsl; }},
+  {.name = "EPSU", .flag = Option::EPSU,
+   .real = [](Session &s) -> double & { return s.auto_state.options.epsu; }},
+  {.name = "EPSS", .flag = Option::EPSS,
+   .real = [](Session &s) -> double & { return s.auto_state.options.epss; }},
+  {.name = "AUTOXMAX", .flag = Option::AUTOXMAX,
+   .real = [](Session &s) -> double & { return s.auto_state.options.xmax; }},
+  {.name = "AUTOYMAX", .flag = Option::AUTOYMAX,
+   .real = [](Session &s) -> double & { return s.auto_state.options.ymax; }},
+  {.name = "AUTOXMIN", .flag = Option::AUTOXMIN,
+   .real = [](Session &s) -> double & { return s.auto_state.options.xmin; }},
+  {.name = "AUTOYMIN", .flag = Option::AUTOYMIN,
+   .real = [](Session &s) -> double & { return s.auto_state.options.ymin; }},
+  {.name = "AUTOVAR", .flag = Option::AUTOVAR,
+   .whole = [](Session &s) -> int & { return s.auto_state.options.var; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const int i = variable_of(s, v);
+     if (i < 1) return "no such variable";
+     s.auto_state.options.var = i - 1;
+     return nullptr;
+   }},
+  {.name = "SEC", .flag = Option::SEC,
+   .whole = [](Session &s) -> int & { return s.auto_state.stable_eq_color; }},
+  {.name = "UEC", .flag = Option::UEC,
+   .whole = [](Session &s) -> int & { return s.auto_state.unstable_eq_color; }},
+  {.name = "SPC", .flag = Option::SPC,
+   .whole = [](Session &s) -> int & { return s.auto_state.stable_po_color; }},
+  {.name = "UPC", .flag = Option::UPC,
+   .whole = [](Session &s) -> int & { return s.auto_state.unstable_po_color; }},
+
+  /* ---- the histogram and the spectrum a batch run writes ---- */
+  {.name = "POSTPROCESS", .flag = Option::POSTPROCESS,
+   .whole = [](Session &s) -> int & { return s.histogram.post_process; }},
+  {.name = "HISTLO", .flag = Option::HISTLO,
+   .real = [](Session &s) -> double & { return s.histogram.info.xlo; }},
+  {.name = "HISTHI", .flag = Option::HISTHI,
+   .real = [](Session &s) -> double & { return s.histogram.info.xhi; }},
+  {.name = "HISTBINS", .flag = Option::HISTBINS,
+   .whole = [](Session &s) -> int & { return s.histogram.info.nbins; }},
+  {.name = "HISTCOL", .flag = Option::HISTCOL,
+   .whole = [](Session &s) -> int & { return s.histogram.info.col; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.histogram.info.col, v);
+   }},
+  {.name = "HISTLO2", .flag = Option::HISTLO2,
+   .real = [](Session &s) -> double & { return s.histogram.info.ylo; }},
+  {.name = "HISTHI2", .flag = Option::HISTHI2,
+   .real = [](Session &s) -> double & { return s.histogram.info.yhi; }},
+  {.name = "HISTBINS2", .flag = Option::HISTBINS2,
+   .whole = [](Session &s) -> int & { return s.histogram.info.nbins2; }},
+  {.name = "HISTCOL2", .flag = Option::HISTCOL2,
+   .whole = [](Session &s) -> int & { return s.histogram.info.col2; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.histogram.info.col2, v);
+   }},
+  {.name = "SPECCOL", .flag = Option::SPECCOL,
+   .whole = [](Session &s) -> int & { return s.histogram.spec_col; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.histogram.spec_col, v);
+   }},
+  {.name = "SPECCOL2", .flag = Option::SPECCOL2,
+   .whole = [](Session &s) -> int & { return s.histogram.spec_col2; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     return variable_into(s, s.histogram.spec_col2, v);
+   }},
+  {.name = "SPECWIDTH", .flag = Option::SPECWIDTH,
+   .whole = [](Session &s) -> int & { return s.histogram.spec_wid; }},
+  {.name = "SPECWIN", .flag = Option::SPECWIN,
+   .whole = [](Session &s) -> int & { return s.histogram.spec_win; }},
+
+  /* ---- the log, the user's buttons ---- */
+  {.name = "QUIET",
+   .parse = [](Session &, const OptionValue &v) -> const char * {
+     if (!log_settings.quiet_from_command_line) log_settings.verbose = v.text[0] == '0';
+     return nullptr;
+   },
+   .zero_or_one = true},
+  {.name = "LOGFILE",
+   .parse = [](Session &, const OptionValue &v) -> const char * {
+     if (!log_settings.file_from_command_line) log_open_file(v.text);
+     return nullptr;
+   }},
+  {.name = "BUT",
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     add_user_button(s, v.text);
+     return nullptr;
+   }},
+  /* the X11 window's bell, fonts, colours, image, size and paper: still
+     accepted (old .ode and .xpprc files set them), no longer kept */
+  {.name = "BELL", .zero_or_one = true},
+  {.name = "BIGFONT", .alias = "BIG"},
+  {.name = "SMALLFONT", .alias = "SMALL"},
+  {.name = "FORECOLOR"},
+  {.name = "BACKCOLOR"},
+  {.name = "MWCOLOR"},
+  {.name = "DWCOLOR"},
+  {.name = "GRADS", .zero_or_one = true},
+  {.name = "BACKIMAGE"},
+  {.name = "WIDTH"},
+  {.name = "HEIGHT"},
+  {.name = "BACK"},
+};
+
+/* the length of row's name that name starts with (and the digit after a
+   numbered one), 0 when it does not */
+std::size_t match_length(const OptionRow &row, std::string_view n, std::string_view upper, int &index)
+{
+  if (n.empty() || !upper.starts_with(n)) return 0;
+  if (!row.first_digit) return n.size();
+  if (upper.size() <= n.size()) return 0;
+  const char d = upper[n.size()];
+  if (d < row.first_digit || d > row.last_digit) return 0;
+  index = d - '0';
+  return n.size() + 1;
+}
+
+} // namespace
+
+bool OptionSource::may(const Session &s, Option o) const
+{
+  return force || !s.options_set.has(o) || (mask && !mask->has(o));
+}
+
+bool OptionSource::claim(Session &s, Option o) const
+{
+  if (!may(s, o)) return false;
+  s.options_set.mark(o);
+  return true;
+}
+
+std::span<const OptionRow> option_rows() { return rows; }
+
+const OptionRow *find_option(std::string_view upper_name, int &index)
+{
+  const OptionRow *best = nullptr;
+  std::size_t best_length = 0;
+  for (const OptionRow &row : rows)
+    for (std::string_view n : {row.name, row.alias}) {
+      int i = 0;
+      const std::size_t length = match_length(row, n, upper_name, i);
+      if (length > best_length) {
+        best = &row;
+        best_length = length;
+        index = i;
+      }
+    }
+  return best;
+}
+
+const OptionRow *numerics_option(std::string_view key)
+{
+  const auto it = std::ranges::find_if(rows, [key](const OptionRow &r) { return !r.key.empty() && r.key == key; });
+  return it == std::ranges::end(rows) ? nullptr : &*it;
+}
+
+void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask)
+{
+  const std::string upper = upper_case(std::string(name));
+  /* the value as the C conversions (atoi, atof) read it */
+  const std::string text(value);
+  int index = 0;
+  const OptionRow *row = find_option(upper, index);
+  if (!row) {
+    xpp::log(XPP_LOG_WARN, "Option {} not recognized\n", upper);
+    return;
+  }
+  const OptionSource source{force, mask};
+  const OptionValue v{text.c_str(), index, source};
+  const char *why = nullptr;
+  if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
+  else if (row->flag != Option::none && !source.may(s, row->flag)) return;
+  else if (row->parse) why = row->parse(s, v);
+  else if (row->real) why = number_in(v, row->real(s));
+  else if (row->whole) why = whole_in(v, row->whole(s));
+  else if (row->text) row->text(s) = text;
+  if (why) {
+    /* the load stops, at the option's line; outside a load (an internal
+       set) the error is shown and nothing else changes */
+    const Error e{"options", xpp::format("@ {}={}: {}", name, text, why)};
+    if (Load::running()) {
+      xpp::log(XPP_LOG_ERROR, "{}\n", e.what);
+      model_failed();
+    }
+    show_error(e);
+    return;
+  }
+  if (row->flag != Option::none) s.options_set.mark(row->flag);
+}
+
+void set_option_defaults(Session &s)
+{
+  for (const OptionRow &row : rows) {
+    if (!row.reset || (row.flag != Option::none && s.options_set.has(row.flag))) continue;
+    row.reset(s);
+    if (row.flag != Option::none) s.options_set.mark(row.flag);
+  }
+}
+
+} // namespace xpp

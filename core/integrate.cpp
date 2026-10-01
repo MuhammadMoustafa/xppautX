@@ -179,40 +179,9 @@ void init_range(xpp::Session &s)
  s.integrator.range.type=0;
  s.integrator.range.rtype=0;
  s.integrator.range.index=s.integrator.range.index2=0;
- if (s.not_already_set.RANGESTEP)
- {
- 	s.integrator.range.steps=20;
-	s.not_already_set.RANGESTEP=0;
- }
  s.integrator.range.steps2=20;
- if (s.not_already_set.RANGELOW)
- {
- 	s.integrator.range.plow=s.integrator.range.plow2=0.0;
-	s.not_already_set.RANGELOW=0;
- }
- 
- if (s.not_already_set.RANGEHIGH)
- {
- 	s.integrator.range.phigh=s.integrator.range.phigh2=1.0;
- 	s.not_already_set.RANGEHIGH=0;
- }
- if (s.not_already_set.RANGERESET)
- {
- 	s.integrator.range.reset=1;
- 	s.not_already_set.RANGERESET=0;
- }
- if (s.not_already_set.RANGEOLDIC)
- {
- 	s.integrator.range.oldic=1;
- 	s.not_already_set.RANGEOLDIC=0;
- }
  s.integrator.range.cycle=0;
  s.integrator.range.movie=0;
- if (s.not_already_set.RANGEOVER)
- {
- 	s.integrator.range.item=s.model().uvar_names[0];
-	s.not_already_set.RANGEOVER=0;
- }
  s.integrator.range.item2=s.model().uvar_names[0];
  init_shoot_range(s.model().upar_names[0]); 
  init_monte_carlo(s);

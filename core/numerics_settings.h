@@ -14,10 +14,11 @@ struct Session; /* session.h */
    Start time, tRansient, Dt, Ncline mesh, Sing pt ctrl, nOutput, Bounds,
    Method and its tolerances, dElay, bndVal), sent as the "numerics" event
    and set by `set` with kind `num`, so a front end edits them in fields of
-   its own. The menu stays (the keyboard, scripts); this is a second path
-   that writes the same fields of the Session's NumericsSettings, after
-   checking the value: a bad one changes nothing and says why.
-   numerics_settings.cpp; nothing escapes it. */
+   its own. The menu (the keyboard, scripts) asks through the same
+   checks (numerics_settings_ask): a bad value changes nothing and says
+   why, whichever way it came. The fields are the option table's
+   numerics rows (model_options.h). numerics_settings.cpp; nothing
+   escapes it. */
 
 /* the event: {"ev":"numerics","fields":[...]} with the values now */
 typedef void (*NumericsSettingsEmit)(const char *line, size_t len);
@@ -35,6 +36,12 @@ void numerics_settings_update(const Session &s);
    when set, -1 with why (a sentence naming the field) when not. Nothing
    is thrown. */
 int numerics_settings_set(Session &s, std::string_view key, std::string_view text, std::string &why);
+
+/* the Numerics menu's question for s's field `key` (not method, which the
+   menu picks from its list): its label, the value now, and the answer
+   set as numerics_settings_set sets it, a refusal shown with err_msg.
+   True when set; false when cancelled or refused. */
+bool numerics_settings_ask(Session &s, std::string_view key);
 
 } // namespace xpp
 #endif

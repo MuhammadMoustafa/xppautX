@@ -15,6 +15,6 @@ number nn=5
 v[1..3]'=-v[j]+[j]
 aux sq[1..3]=v[j]^2
 global 1 x-1 {y=y/x;z=0}
-@ total=2*3, dt=.1
+@ total=6, dt=.1
 done
 anything here is kept as a comment

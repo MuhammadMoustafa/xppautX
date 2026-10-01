@@ -186,12 +186,10 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    }
    if(k==2){
      /* -smallfont: the X11 font, accepted and not kept */
-     if (s.not_already_set.SMALL_FONT_NAME){s.not_already_set.SMALL_FONT_NAME=0;};
      i++;
    }
    if(k==3){
      /* -bigfont: the X11 font, accepted and not kept */
-     if (s.not_already_set.BIG_FONT_NAME){s.not_already_set.BIG_FONT_NAME=0;};
      i++;
    } 
    if(k==4){

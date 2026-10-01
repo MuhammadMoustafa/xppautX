@@ -1006,7 +1006,7 @@ void send_hello(xpp::Session &s)
     /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
     BUF_LIT(&b, "],\"sliders\":[");
     {
-        int set[3] = {!s.not_already_set.SLIDER1, !s.not_already_set.SLIDER2, !s.not_already_set.SLIDER3};
+        const bool set[3] = {s.options_set.has(xpp::Option::S1), s.options_set.has(xpp::Option::S2), s.options_set.has(xpp::Option::S3)};
         int k = 0;
         for (i = 0; i < XPP_NSLIDERS; i++) {
             if (!set[i]) continue;

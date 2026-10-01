@@ -6,7 +6,6 @@ namespace xpp {
 struct Session; /* session.h */
 struct Model; /* model.h */
 
-void check_pos(int *j);
 
 void chk_volterra(Session &s);
 void quick_num(Session &s, int com);
@@ -22,7 +21,8 @@ void set_delay(Session &s);
 void ruelle(Session &s);
 void compute_one_period(Session &s, double period,double *x, const char *name);
 void get_pmap_pars_com(Session &s, int l);
-void get_method(Session &s);
+/* the method picked from the Method menu (the one in use when none) */
+int chosen_method(const Session &s);
 void user_set_color_par(Session &s, int flag,const char *via,double lo,double hi);
 void set_col_par_com(Session &s, int i);
 /* applies numerics.method (Volterra when the model has integrals): its

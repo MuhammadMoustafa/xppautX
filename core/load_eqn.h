@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "xpplim.h"
+#include "model_options.h"
 
 #include <array>
 #include <optional>
@@ -36,169 +37,6 @@ namespace xpp {
 struct Model;   /* model.h */
 struct Session; /* session.h */
 
-/*
-Options are set accroding to an order of precedence
-
-command line < mfile < .xpprc < default.opt
-
-Add any options here that you might want to track.
-*/
-struct OptionsSet {
-   int BIG_FONT_NAME;
-   int SMALL_FONT_NAME;
-   int IXPLT;
-   int IYPLT;
-   int IZPLT;
-   int AXES;
-   int NMESH;
-   int METHOD;
-   int TIMEPLOT;
-   int MAXSTOR;
-   int TEND;
-   int DT;
-   int T0;
-   int TRANS;
-   int BOUND;
-   int TOLER;
-   int DELAY;
-   int XLO;
-   int XHI;
-   int YLO;
-   int YHI;  
-   int UserBlack;
-   int UserWhite;
-   int UserMainWinColor;
-   int UserDrawWinColor;
-   int UserGradients;
-   int UserBGBitmap;
-   int UserMinWidth;
-   int UserMinHeight;
-   int YNullColor;
-   int XNullColor;
-   int StableManifoldColor;
-   int UnstableManifoldColor;
-   int START_LINE_TYPE;
-   int RandSeed;
-   int PaperWhite;
-   int COLORMAP;
-   int NPLOT;
-   int XP;
-   int YP;
-   int ZP;
-   int NOUT;
-   int VMAXPTS;
-   int TOR_PER;
-   int JAC_EPS;
-   int NEWT_TOL;
-   int NEWT_ITER;
-   int FOLD;
-   int DTMIN;
-   int DTMAX;
-   int BANDUP;
-   int BANDLO;
-   int PHI;
-   int THETA;
-   int XMIN;
-   int XMAX;
-   int YMIN;
-   int YMAX;
-   int ZMIN;
-   int ZMAX;
-   int POIVAR;
-   int OUTPUT;
-   int POISGN;  
-   int POIEXT;
-   int POISTOP;
-   int STOCH;
-   int POIPLN;
-   int POIMAP;
-   int RANGEOVER;
-   int RANGESTEP;
-   int RANGELOW;
-   int RANGEHIGH;
-   int RANGERESET;
-   int RANGEOLDIC;
-   int RANGE;
-   int NTST;
-   int NMAX;
-   int NPR;
-   int NCOL;
-   int DSMIN;
-   int DSMAX;
-   int DS;
-   int PARMAX;
-   int NORMMIN;
-   int NORMMAX;
-   int EPSL;
-   int EPSU;
-   int EPSS;
-   int RUNNOW;
-   int SEC;
-   int UEC;
-   int SPC;
-   int UPC;
-   int AUTOEVAL;
-   int AUTOXMAX;
-   int AUTOYMAX;
-   int AUTOXMIN;
-   int AUTOYMIN;
-   int AUTOVAR;
-   int PS_FONT;
-   int PS_LW;   
-   int PS_FSIZE;
-   int PS_COLOR;
-   int FOREVER;
-   int BVP_TOL;
-   int BVP_EPS;
-   int BVP_MAXIT;
-   int BVP_FLAG;
-   int SOS;
-   int FFT;
-   int HIST;
-   int PltFmtFlag;
-   int ATOLER;
-   int MaxEulIter;
-   int EulTol;
-   int EVEC_ITER;
-   int EVEC_ERR;
-   int NEWT_ERR;
-   int NULL_HERE;
-   int TUTORIAL;
-   int SLIDER1;
-   int SLIDER2;
-   int SLIDER3;
-   int SLIDER1LO;
-   int SLIDER2LO;
-   int SLIDER3LO;
-   int SLIDER1HI;
-   int SLIDER2HI;
-   int SLIDER3HI;
-  int POSTPROCESS;
-  int HISTCOL;
-  int HISTLO;
-  int HISTHI;
-  int HISTBINS;
-  int SPECCOL;
-  int SPECCOL2;
-  int SPECWIDTH;
-  int SPECWIN;
-  int PLOTFORMAT;
-  int DFGRID;
-  int DFBATCH;
-  int NCBATCH;
-  int COLORVIA;
-  int COLORIZE;
-  int COLORLO;
-  int COLORHI;
-  int HISTCOL2;
-  int HISTLO2;
-  int HISTHI2;
-  int HISTBINS2;
-
-  };
-
-void fil_flt(FILE *fpt, double *val);
-void fil_int(FILE *fpt, int *val);
 
 /* s2 starts with s1 */
 int msc(std::string_view s1, std::string_view s2);
@@ -207,7 +45,7 @@ void check_for_xpprc();
 void stor_internopts(std::string_view s1);
 
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
-   likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
+   likewise 2 and 3); options_set has Option::S1.. once slider n was set. */
 struct XppSlider {
     std::string var;           /* the parameter it moves */
     double lo = 0.0, hi = 1.0; /* its range */
@@ -295,21 +133,18 @@ std::vector<std::pair<std::string, std::string>> option_items(std::string_view l
 /* the model's file (Model::this_file) read into s: an .ode, an .odex, or
    one typed in when there is none */
 void load_eqn(Session &s);
-/* the settings the model and its options file leave unset, then the
-   storage, the solver and the initial values the model gives */
+/* the defaults of the options no source set (set_option_defaults), then
+   the storage, the solver and the initial values the model gives */
 void set_all_vals(Session &s);
-/* the options file's settings, those still unset */
-void read_defaults(Session &s, FILE *fp);
 /* an @ line of the model (form_ode.cpp's parser) kept in m's options,
    which set_internopts applies; -1 (logged, not kept) when it sets
    dll_lib or dll_fun */
 int add_model_option(Model &m, std::string_view s1);
-/* the model's options not yet applied, then .xpprc's and the command
-   line's; option name set to s2 (force: even when set already, mask:
-   which may be set again) */
-void set_internopts(Session &s, OptionsSet *mask);
+/* the model's options not yet applied (mask: the options unset before
+   the model's, which its lines may set again), then .xpprc's and the
+   command line's, each through set_option (model_options.h) */
+void set_internopts(Session &s, const OptionsSet *mask);
 void set_internopts_xpprc_and_comline(Session &s);
-void set_option(Session &s, std::string_view name, std::string_view s2, int force, OptionsSet *mask);
 /* the torus settings read from or written to a set file (lunch-new.cpp) */
 void dump_torus(Session &s, FILE *fp, int f);
 /* the model's internal sets: one added (set name {does}), one's

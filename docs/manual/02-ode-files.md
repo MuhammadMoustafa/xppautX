@@ -578,7 +578,7 @@ The format for changing the options is:
 
     @ name1=value1, name2=value2, ...
 
-where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). The first four options *can only be set outside the program.* They are:
+where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value the option cannot take (a word where a number goes, a colour outside 0 to 10, a variable the model does not have, ...) stops the load with an error at its line, and the model loaded before stays. The first four options *can only be set outside the program.* They are:
 
 - MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. If you want to perform very long integrations change this to some large number.
 

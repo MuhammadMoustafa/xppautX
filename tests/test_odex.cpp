@@ -574,9 +574,8 @@ int main(void)
     CHECK(has("v[j]' = -v[j]+j for j in 1..3"));
     CHECK(has("aux sq[j] = v[j]^2 for j in 1..3"));
     CHECK(has("event 1 x-1, y = y/(if x then x else 2.23e-15), z = 0"));
-    CHECK(has("@ total=2, dt=.1"));
+    CHECK(has("@ total=6, dt=.1"));
     CHECK(has("# anything here is kept as a comment"));
-    CHECK(text.find("# @ total=2*3 in the .ode: XPP reads the number at its front, 2") != std::string::npos);
     CHECK(text.find("the .ode's lines 8") != std::string::npos); /* gk spelled Gk */
     /* what the converted text reads back as */
     std::string back;

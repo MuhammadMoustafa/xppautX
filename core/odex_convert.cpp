@@ -1118,9 +1118,9 @@ private:
   {
     std::string out;
     const bool map = disc(m_.this_file) != 0;
-    for (const std::string &line : m_.options) {
+    for (const xpp::Model::OptionLine &line : m_.options) {
       std::string items;
-      for (const auto &[key, value] : option_items(line, false)) {
+      for (const auto &[key, value] : option_items(line.text, false)) {
         if (map && xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth")) continue;
         items += (items.empty() ? "" : ", ") + key + "=" + option_value(key, value);
       }

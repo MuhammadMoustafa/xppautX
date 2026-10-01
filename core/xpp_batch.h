@@ -29,11 +29,10 @@ struct Session; /* session.h */
    script (json_silent.cpp). */
 void batch_start(Session &s);
 
-/* The start of a load (load_model), in the Session it builds: the
-   "which options were explicitly set" table reset; the command line's
-   -quiet and -logfile (they must win over .xpprc); .xpprc's and the
-   command line's options */
-void reset_options(Session &s);
+/* The start of a load (load_model), in the Session it builds (its
+   options_set empty: no option set yet): the command line's -quiet and
+   -logfile (they must win over .xpprc); .xpprc's and the command line's
+   options */
 void check_for_quiet(Session &s, int argc, char **argv);
 void do_vis_env(Session &s);
 

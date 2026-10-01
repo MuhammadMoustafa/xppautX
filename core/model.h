@@ -172,10 +172,15 @@ struct Model {
     Diagnostic where;
   };
   std::vector<InitialValue> initial_values;
-  /* its @ lines, each whole, as read: load_eqn.cpp's set_internopts
-     sets the numerics and plot settings from them (their current values
-     are the Session's) */
-  std::vector<std::string> options;
+  /* its @ lines, each whole, as read, and where (no cause), for a value
+     an option refuses: load_eqn.cpp's set_internopts sets the numerics
+     and plot settings from them (their current values are the
+     Session's) */
+  struct OptionLine {
+    std::string text;
+    Diagnostic where;
+  };
+  std::vector<OptionLine> options;
 
   /* ---- delays, integral equations, Markov chains, networks ---- */
   /* the delay terms the parser compiled (delay(), a delayed network) */
