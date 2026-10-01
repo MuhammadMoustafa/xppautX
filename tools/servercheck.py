@@ -2237,6 +2237,10 @@ def check_autoinfo():
               [(e['info'], e['stab']) for e in infos(evs)] == [(None, None)], str(infos(evs)))
         evs = lecar_to_auto(snda, cola)
         diag_a = rebuild_diagram(evs, [])
+        runs = [r for e in evs if e.get('ev') == 'diagram' and e.get('op') == 'add' for r in e['runs']]
+        check('W118: every diagram run says whether it is stable and periodic, as its ty (1..4) is',
+              runs and all(r.get('stable') == (r['ty'] in (1, 3)) and r.get('periodic') == (r['ty'] in (3, 4))
+                           for r in runs), str([(r['ty'], r.get('stable'), r.get('periodic')) for r in runs])[:300])
         got = infos(evs)
         stab = got[-1]['stab'] if got else None
         last = diag_a[-1] if diag_a else None
@@ -2255,6 +2259,9 @@ def check_autoinfo():
         check("autoinfo: Grab sends the strip of the point under the cursor (the first), the diagram data's point",
               info is not None and info['point'] == 0 and info['br'] == 1 and info['pt'] == 1
               and strip_matches(info, diag_a) is None, info and strip_matches(info, diag_a) or str(got))
+        check('W118: the strip says whether its point is stable and periodic, as its type is',
+              info is not None and info.get('stable') == (info['type'] in (1, 3))
+              and info.get('periodic') == (info['type'] in (3, 4)), str(info))
         snda(cmd='answer', id=ask['id'], key='Tab')
         evs, ask = cola(lambda e: e.get('ev') == 'ask')
         got = infos(evs)

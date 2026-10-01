@@ -95,10 +95,6 @@
 
 #define FR_P 10  /* freq vs par   */
 #define AV_P 11 /* ubar vs par */
-#define SPER 3
-#define UPER 4
-#define CSEQ 1
-#define CUEQ 2
 
 namespace xpp {
 
@@ -197,16 +193,16 @@ static AUTOAX Old2p;
 void colset(xpp::Session &s, int type )
 {
   switch(type) {
-  case CSEQ:
+  case STABLE_EQ:
     autocol(s.auto_state.stable_eq_color);
     break;
- case CUEQ:
+ case UNSTABLE_EQ:
     autocol(s.auto_state.unstable_eq_color);
     break;
- case SPER:
+ case STABLE_PERIODIC:
     autocol(s.auto_state.stable_po_color);
     break;
- case UPER:
+ case UNSTABLE_PERIODIC:
     autocol(s.auto_state.unstable_po_color);
     break;
   }
@@ -1092,10 +1088,10 @@ void add_ps_point(xpp::Session &s, double *par, double per, double *uhigh, doubl
   }
 
   if((flag2>0)&&(s.auto_state.axes().plot==P_P))
-   type1=CSEQ;
+   type1=STABLE_EQ;
   switch(type1){
  
-  case CSEQ:
+  case STABLE_EQ:
     if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
@@ -1108,7 +1104,7 @@ void add_ps_point(xpp::Session &s, double *par, double per, double *uhigh, doubl
       set_linestyle(s,8);
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
-  case CUEQ:
+  case UNSTABLE_EQ:
     if(s.auto_state.axes().plot==PE_P||s.auto_state.axes().plot==FR_P)break;
     if(icp1!=s.auto_state.axes().icp1)break;
     if(flag2>0&&s.auto_state.axes().icp2!=icp2)break;
@@ -1121,7 +1117,7 @@ void add_ps_point(xpp::Session &s, double *par, double per, double *uhigh, doubl
       }
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.auto_state.bifur.lastx),static_cast<float>(s.auto_state.bifur.lasty));
     break;
-  case UPER:
+  case UNSTABLE_PERIODIC:
     if(s.plot_export.color) 
       set_linestyle(s,9); 
     else 
@@ -1132,7 +1128,7 @@ void add_ps_point(xpp::Session &s, double *par, double per, double *uhigh, doubl
     point_abs(s,static_cast<float>(x),static_cast<float>(y1));
     point_abs(s,static_cast<float>(x),static_cast<float>(y2));
     break;
-  case SPER:
+  case STABLE_PERIODIC:
     if(s.plot_export.color)
       set_linestyle(s,7);
     else
@@ -1209,10 +1205,10 @@ static int auto_point_color(xpp::Session &s, int type,int flag2)
   default: return 0;
   }
   switch(type){
-  case CSEQ: return s.auto_state.stable_eq_color;
-  case CUEQ: return s.auto_state.unstable_eq_color;
-  case SPER: return s.auto_state.stable_po_color;
-  case UPER: return s.auto_state.unstable_po_color;
+  case STABLE_EQ: return s.auto_state.stable_eq_color;
+  case UNSTABLE_EQ: return s.auto_state.unstable_eq_color;
+  case STABLE_PERIODIC: return s.auto_state.stable_po_color;
+  case UNSTABLE_PERIODIC: return s.auto_state.unstable_po_color;
   }
   return 0;
 }
@@ -1262,7 +1258,7 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, double *p
   dp.flag2=flag2;
   dp.newseg=(flg==0);
   dp.color=auto_point_color(s, type,flag2);
-  dp.lw=(type==CSEQ||flag2>0)?2:1;
+  dp.lw=(type==STABLE_EQ||flag2>0)?2:1;
   dp.x=x;
   dp.y1=y1;
   dp.y2=y2;
@@ -1282,32 +1278,32 @@ void view_point(xpp::Session &s, int v, const AUTOAX &ax, bool active, double *p
     return;
   }
   if(flag2>0) /* a two-parameter point in a two-parameter view */
-    type1=CSEQ;
+    type1=STABLE_EQ;
   switch(type1){
-  case CSEQ:
-  case CUEQ:
+  case STABLE_EQ:
+  case UNSTABLE_EQ:
     if(ax.plot==PE_P||ax.plot==FR_P)break;
     if(icp1!=ax.icp1)break;
     if(flag2>0&&ax.icp2!=icp2)break;
     dp.draw=1;
     if(active){
-      LineWidth(type1==CSEQ?2:1);
+      LineWidth(type1==STABLE_EQ?2:1);
       colset(s, type);
       if(flag2>0)colset2(flag2);
       auto_line(s, x,y1,s.auto_state.bifur.lastx,s.auto_state.bifur.lasty);
       autobw();
     }
     break;
-  case UPER:
-  case SPER:
+  case UNSTABLE_PERIODIC:
+  case STABLE_PERIODIC:
     if(icp1!=ax.icp1)break;
     if(flag2>0&&ax.icp2!=icp2)break;
-    dp.draw=type1==SPER?2:3;
+    dp.draw=type1==STABLE_PERIODIC?2:3;
     if(active){
       LineWidth(1);
       colset(s, type);
       if(flag2>0)colset2(flag2);
-      if(type1==SPER){
+      if(type1==STABLE_PERIODIC){
         if(chk_auto_bnds(s, ix,iy1))FillCircle(ix,iy1,3);
         if(chk_auto_bnds(s, ix,iy2))FillCircle(ix,iy2,3);
       }
@@ -1352,7 +1348,7 @@ void add_point(xpp::Session &s, double *par, double per, double *uhigh, double *
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
     view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,par,per,uhigh,
                ulow,ubar,a,type,flg,lab,icp1,icp2,flag2);
-  show_stab(s, evr,evi,s.model().node,type==SPER||type==UPER);
+  show_stab(s, evr,evi,s.model().node,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
   refreshdisplay();
 }
 

@@ -1890,8 +1890,8 @@ function rebuildDiagram(events, view = 0) {
       labels = labels.filter(l => l.point < e.from);
       for (const r of e.runs) {
         for (const [i, lab, sym] of r.lab || []) labels.push({point: pts.length + i, lab, sym});
-        r.x.forEach((x, i) => pts.push({x, y: r.y[i], y2: (r.y2 || r.y)[i], br: r.br, pt: r.pt + i, ty: r.ty, d: r.d,
-          c: r.c, lw: r.lw, f2: r.f2 || 0, nw: i === 0 && r.new ? 1 : 0, fr: i === 0 && r.from ? r.from : 0}));
+        r.x.forEach((x, i) => pts.push({x, y: r.y[i], y2: (r.y2 || r.y)[i], br: r.br, pt: r.pt + i, ty: r.ty,
+          st: r.stable ? 1 : 0, pe: r.periodic ? 1 : 0, d: r.d, c: r.c, lw: r.lw, f2: r.f2 || 0, nw: i === 0 && r.new ? 1 : 0, fr: i === 0 && r.from ? r.from : 0}));
       }
     }
   }
@@ -2181,7 +2181,7 @@ async function autoView(dir) {
   let bad = want.pts.length === got.x.length ? null : `${got.x.length} points held, ${want.pts.length} sent`;
   const same = (a, b) => (a === null ? b === null : a === b); /* NaN arrives as null through JSON */
   for (let i = 0; i < want.pts.length && !bad; i++) {
-    for (const f of ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw'])
+    for (const f of ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw'])
       if (!same(want.pts[i][f], got[f][i])) bad = `point ${i} ${f}: ${got[f][i]} vs ${want.pts[i][f]}`;
   }
   const labels = await DS('d.labels');

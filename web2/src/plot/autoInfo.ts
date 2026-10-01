@@ -5,7 +5,6 @@ import type {AutoInfo, AutoStab, DiagramAxes} from '../store/diagram';
 import {axesNames} from './axisDialog';
 import {fmt, symbolName} from './diagramModel';
 
-const TYPES = ['', 'Stable steady state', 'Unstable steady state', 'Stable periodic orbit', 'Unstable periodic orbit'];
 /* Axes' plot types whose y axis is the point's Norm or period (axisDialog.ts PLOT_TYPES) */
 const PLOT_NORM = 1, PLOT_PERIOD = 3;
 
@@ -20,7 +19,7 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
   const rows: [string, string][] = [
     ['Branch', String(info.br)],
     ['Point', String(info.pt)],
-    ['Type', TYPES[info.type] ?? ''],
+    ['Type', `${info.stable ? 'Stable' : 'Unstable'} ${info.periodic ? 'periodic orbit' : 'steady state'}`],
   ];
   if (info.sym || info.lab)
     rows.push(['Label', `${info.sym ? info.sym + ' ' : ''}${info.lab}${symbolName(info.sym) ? ` (${symbolName(info.sym)})` : ''}`]);
@@ -33,7 +32,7 @@ export function infoRows(info: AutoInfo, axes: DiagramAxes | null): [string, str
   const parRow = (p: {name: string; value: number | null}): [string, string] => [p.name, n(p.value)];
   const varRow: [string, string] = [info.var, n(info.u)];
   const normRow: [string, string] = ['Norm', n(info.norm)];
-  const periodRow: [string, string] | null = info.type === 3 || info.type === 4 ? ['Period', n(info.per)] : null;
+  const periodRow: [string, string] | null = info.periodic ? ['Period', n(info.per)] : null;
 
   /* the y axis's quantity: the plotted variable, the second parameter, Norm or the period */
   const plot = axes?.plot;

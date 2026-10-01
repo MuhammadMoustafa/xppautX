@@ -18,11 +18,11 @@ const act = (s: AppState, action: object) => reduce(s, {type: 'diagram', action:
 const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 2,
   xlabel: 'iapp', ylabel: 'V'};
 const steady: DiagramRun[] = [
-  {br: 1, pt: 1, ty: 2, d: 1, c: 0, lw: 1, new: 1, x: [0.05, 0.1, 0.2], y: [-0.44, -0.4, -0.3], lab: [[0, 1, 'EP']]},
-  {br: 1, pt: 4, ty: 2, d: 1, c: 0, lw: 1, x: [0.26, 0.3], y: [-0.2, -0.1], lab: [[0, 2, 'HB']]},
+  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 0, lw: 1, new: 1, x: [0.05, 0.1, 0.2], y: [-0.44, -0.4, -0.3], lab: [[0, 1, 'EP']]},
+  {br: 1, pt: 4, ty: 2, stable: false, periodic: false, d: 1, c: 0, lw: 1, x: [0.26, 0.3], y: [-0.2, -0.1], lab: [[0, 2, 'HB']]},
 ];
 const periodic: DiagramRun[] = [
-  {br: 2, pt: 1, ty: 4, d: 3, c: 28, lw: 1, new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
+  {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: 28, lw: 1, new: 1, x: [0.26, 0.25, 0.24], y: [-0.2, -0.1, 0], y2: [-0.2, -0.3, -0.4],
     lab: [[2, 3, 'LP']]},
 ];
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
@@ -109,7 +109,7 @@ test('T29: one shape per label type, not a cross for every one; unknown codes an
 });
 
 test('the kind of a point and the elapsed time in words', () => {
-  assert.deepEqual([kindOfPoint(1, 0), kindOfPoint(4, 0), kindOfPoint(2, 3)],
+  assert.deepEqual([kindOfPoint(false, 0), kindOfPoint(true, 0), kindOfPoint(false, 3)],
     ['steady states', 'periodic orbits', 'two-parameter curve']);
   assert.deepEqual([formatElapsed(420), formatElapsed(12400), formatElapsed(125000)], ['0.4 s', '12 s', '2:05']);
 });

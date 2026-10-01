@@ -39,6 +39,9 @@ export interface DiagramRun {
   br: number;
   pt: number;
   ty: number;
+  /** what the core says ty is: stable or not, a periodic orbit or a steady state */
+  stable: boolean;
+  periodic: boolean;
   d: number;
   c: number;
   lw: number;
@@ -67,8 +70,12 @@ export interface DiagramPoints {
   y2: number[];
   br: number[];
   pt: number[];
-  /** 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic */
+  /** 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (the core's) */
   ty: number[];
+  /** 1: stable, 0: unstable (the run's `stable`) */
+  st: number[];
+  /** 1: a periodic orbit, 0: a steady state (the run's `periodic`) */
+  pe: number[];
   /** 0 not drawn (the next line starts there), 1 a line back, 2 filled circles, 3 open circles */
   d: number[];
   /** palette colour (0 the foreground, 20..29 red..purple) */
@@ -88,8 +95,10 @@ export interface AutoInfo {
   point: number;
   br: number;
   pt: number;
-  /** as a run's `ty` */
+  /** as a run's `ty`, `stable` and `periodic` */
   type: number;
+  stable: boolean;
+  periodic: boolean;
   /** EP, LP, HB, ... or empty */
   sym: string;
   lab: number;
@@ -211,10 +220,10 @@ export interface AutoRun {
   stopped: boolean;
 }
 
-export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
+export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
 
 function noPoints(): DiagramPoints {
-  return {x: [], y: [], y2: [], br: [], pt: [], ty: [], d: [], c: [], lw: [], f2: [], nw: [], fr: []};
+  return {x: [], y: [], y2: [], br: [], pt: [], ty: [], st: [], pe: [], d: [], c: [], lw: [], f2: [], nw: [], fr: []};
 }
 
 const HOME: Viewport = {x: null, y: null};
@@ -292,6 +301,8 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
       out.br.push(r.br);
       out.pt.push(r.pt + i);
       out.ty.push(r.ty);
+      out.st.push(r.stable ? 1 : 0);
+      out.pe.push(r.periodic ? 1 : 0);
       out.d.push(r.d);
       out.c.push(r.c);
       out.lw.push(r.lw);

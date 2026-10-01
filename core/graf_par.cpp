@@ -33,10 +33,6 @@ namespace xpp {
 
 /*Default is now color*/
 
-#define SPER 3
-#define UPER 4
-#define UEQ 2
-
 #define lsSEQ 0
 #define lsUEQ 1
 #define lsSPER 8
@@ -1066,9 +1062,9 @@ void add_bd_crv(const float *x, const float *y, int len, int type)
   c.x.assign(x,x+len);
   c.y.assign(y,y+len);
   int i=lsSEQ;
-  if(type==UPER)i=lsUPER;
-  if(type==SPER)i=lsSPER;
-  if(type==UEQ)i=lsUEQ;
+  if(type==UNSTABLE_PERIODIC)i=lsUPER;
+  if(type==STABLE_PERIODIC)i=lsSPER;
+  if(type==UNSTABLE_EQ)i=lsUEQ;
   c.color=i;
   my_bd.curves.push_back(std::move(c));
 }
@@ -1098,7 +1094,7 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
     else {
       add_bd_crv(x.data(),ylo.data(),len,oldtype);
       ncrv++;
-      if(oldtype==UPER||oldtype==SPER){
+      if(oldtype==UNSTABLE_PERIODIC||oldtype==STABLE_PERIODIC){
         add_bd_crv(x.data(),yhi.data(),len,oldtype);
         ncrv++;
       }
@@ -1115,7 +1111,7 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
   if(len>1){
     add_bd_crv(x.data(),ylo.data(),len,oldtype);
     ncrv++;
-    if(oldtype==UPER||oldtype==SPER){
+    if(oldtype==UNSTABLE_PERIODIC||oldtype==STABLE_PERIODIC){
       add_bd_crv(x.data(),yhi.data(),len,oldtype);
       ncrv++;
     }

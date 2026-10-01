@@ -40,14 +40,9 @@ const char *par_name(const xpp::Session &s, int icp)
     return p ? p : "";
 }
 
-/* get_bif_type's SEQ/UEQ/SPER/UPER (autevd.cpp; also a run's "ty" in
-   docs/protocol.md's `info`): 1/2 a steady state's eigenvalues, 3/4 a
-   periodic orbit's Floquet multipliers; odd stable, even unstable */
 /* AUTO's ibr and ntot without their sign (auto_f2c.h's abs macro rules
    out std::abs here) */
 int unsigned_of(int v) { return v < 0 ? -v : v; }
-bool point_is_periodic(int type) { return type == 3 || type == 4; }
-bool point_is_stable(int type) { return type == 1 || type == 3; }
 
 } // namespace
 
@@ -73,7 +68,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         double par2 = d->icp2 < s.auto_state.npar ? d->par[d->icp2] : par1;
         /* AUTO signs ibr and ntot by stability, which has its own column */
         w.print("{},{},{},{},{},{},{},{},{},{},{}", unsigned_of(d->ibr), unsigned_of(d->ntot), csv_field(sym), d->lab,
-                point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(s, d->icp1)),
+                xpp::point_is_stable(type) ? "stable" : "unstable", d->flag2, csv_field(par_name(s, d->icp1)),
                 xpp::number(par1), csv_field(par_name(s, d->icp2)), xpp::number(par2), xpp::number(d->per));
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->uhi[i]));
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->ulo[i]));
@@ -92,7 +87,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
     for (const DiagramPoint &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p.d;
         int type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
-        const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
+        const char *kind = xpp::point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < s.model().node; i++)
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);

@@ -27,7 +27,7 @@ export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
 
 export interface DiagramCurve {
   branch: number;
-  /** the store's ty: 1 stable steady state, 2 unstable steady, 3 stable periodic, 4 unstable periodic */
+  /** the store's ty: 1 stable steady state, 2 unstable steady, 3 stable periodic, 4 unstable periodic (the core's) */
   type: number;
   f2: number;
   kind: CurveKind;
@@ -113,7 +113,7 @@ function extent(values: number[]): number {
 
 function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', hopf: number): DiagramCurve {
   const kind = kindOf(p, s), ty = p.ty[s];
-  const stable = kind === 'two-parameter' || ty === 1 || ty === 3;
+  const stable = kind === 'two-parameter' || p.st[s] === 1;
   const col = which === 'y' ? p.y : p.y2;
   const xs = new Float64Array(verts.length), ys = new Float64Array(verts.length), idx = new Int32Array(verts.length);
   verts.forEach((v, k) => {
@@ -297,7 +297,6 @@ export function grabStep(key: string, shift: boolean, from: number, n: number, l
 
 /* ---- the readout ---- */
 
-const TYPES = ['', 'stable steady state', 'unstable steady state', 'stable periodic orbit', 'unstable periodic orbit'];
 const CURVES = ['', 'limit point', 'limit point of periodic orbits', 'Hopf', 'torus', 'branch point', 'period doubling',
   'fixed period'];
 /** AUTO's label types in words (T23), in the key's order */
@@ -325,7 +324,8 @@ export function fmt(v: number): string {
 
 /** what a point is, in words: its kind */
 export function pointKind(p: DiagramPoints, i: number): string {
-  return p.f2[i] ? `${CURVES[p.f2[i]] || 'two-parameter'} curve` : TYPES[p.ty[i]] || '';
+  return p.f2[i] ? `${CURVES[p.f2[i]] || 'two-parameter'} curve`
+    : `${p.st[i] ? 'stable' : 'unstable'} ${p.pe[i] ? 'periodic orbit' : 'steady state'}`;
 }
 
 export function symbolName(sym: string): string {

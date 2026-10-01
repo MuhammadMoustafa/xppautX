@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "auto_data.h"
+#include "diagram.h"
 #include "xpp_io.h"
 #include "json_number.h"
 #include "auto_stop.h"
@@ -65,7 +66,9 @@ void add_info(std::string &o)
     o += "{\"point\":";
     o += std::to_string(point_of_node ? point_of_node(v.node) : -1);
     o += ",\"br\":" + std::to_string(std::abs(v.ibr)) + ",\"pt\":" + std::to_string(std::abs(v.pt));
-    o += ",\"type\":" + std::to_string(v.type) + ",\"sym\":";
+    o += ",\"type\":" + std::to_string(v.type);
+    o += xpp::point_is_stable(v.type) ? ",\"stable\":true" : ",\"stable\":false";
+    o += xpp::point_is_periodic(v.type) ? ",\"periodic\":true,\"sym\":" : ",\"periodic\":false,\"sym\":";
     xpp::json_append_string(o, info.sym.c_str());
     o += ",\"lab\":" + std::to_string(v.lab);
     if (v.flag2) o += ",\"f2\":" + std::to_string(v.flag2);

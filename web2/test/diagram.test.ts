@@ -19,18 +19,18 @@ const line = (n: number, x0: number, dx: number, y0: number, dy: number) =>
 
 /* a steady-state branch like lecar's: an end point, stable, unstable between two Hopf points, stable */
 const steady: DiagramRun[] = [
-  {br: 1, pt: 1, ty: 2, d: 1, c: 0, lw: 1, new: 1, x: [0.05], y: [-0.44], lab: [[0, 1, 'EP']]},
-  {br: 1, pt: 2, ty: 1, d: 1, c: 20, lw: 2, x: line(3, 0.07, 0.05, -0.41, 0.05).map(p => p[0]),
+  {br: 1, pt: 1, ty: 2, stable: false, periodic: false, d: 1, c: 0, lw: 1, new: 1, x: [0.05], y: [-0.44], lab: [[0, 1, 'EP']]},
+  {br: 1, pt: 2, ty: 1, stable: true, periodic: false, d: 1, c: 20, lw: 2, x: line(3, 0.07, 0.05, -0.41, 0.05).map(p => p[0]),
     y: line(3, 0.07, 0.05, -0.41, 0.05).map(p => p[1])},
-  {br: 1, pt: 5, ty: 2, d: 1, c: 0, lw: 1, x: [0.26, 0.3, 0.45], y: [-0.2, -0.1, 0.06],
+  {br: 1, pt: 5, ty: 2, stable: false, periodic: false, d: 1, c: 0, lw: 1, x: [0.26, 0.3, 0.45], y: [-0.2, -0.1, 0.06],
     lab: [[0, 2, 'HB'], [2, 3, 'HB']]},
-  {br: 1, pt: 8, ty: 1, d: 1, c: 20, lw: 2, x: [0.47, 0.5], y: [0.07, 0.08], lab: [[1, 4, 'EP']]},
+  {br: 1, pt: 8, ty: 1, stable: true, periodic: false, d: 1, c: 20, lw: 2, x: [0.47, 0.5], y: [0.07, 0.08], lab: [[1, 4, 'EP']]},
 ];
 /* the periodic branch from the first Hopf point: unstable, then stable, max and min */
 const periodic: DiagramRun[] = [
-  {br: 2, pt: 1, ty: 4, d: 3, c: 28, lw: 1, new: 1, x: [0.2601, 0.259, 0.255], y: [-0.2, -0.17, -0.14],
+  {br: 2, pt: 1, ty: 4, stable: false, periodic: true, d: 3, c: 28, lw: 1, new: 1, x: [0.2601, 0.259, 0.255], y: [-0.2, -0.17, -0.14],
     y2: [-0.2, -0.23, -0.26]},
-  {br: 2, pt: 4, ty: 3, d: 2, c: 26, lw: 1, x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'LP']]},
+  {br: 2, pt: 4, ty: 3, stable: true, periodic: true, d: 2, c: 26, lw: 1, x: [0.25, 0.24], y: [-0.1, -0.05], y2: [-0.3, -0.35], lab: [[1, 5, 'LP']]},
 ];
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
 
@@ -81,7 +81,7 @@ test('a later add continues from what is held; y2 and null values are kept', () 
 
 test('an add from before the end replaces what follows; reset keeps the first k points', () => {
   let s = lecar();
-  s = ev(s, add(4, [{br: 1, pt: 5, ty: 2, d: 1, c: 0, lw: 1, x: [0.9], y: [0.9]}]));
+  s = ev(s, add(4, [{br: 1, pt: 5, ty: 2, stable: false, periodic: false, d: 1, c: 0, lw: 1, x: [0.9], y: [0.9]}]));
   assert.equal(pointCount(activeView(s.diagram).points), 5);
   assert.deepEqual(activeView(s.diagram).labels.map(l => l.point), [0], 'labels past the replaced point go');
   s = lecar();
@@ -228,7 +228,7 @@ test('stepping from label to label, and the readout of a point', () => {
 
 /* ---- T11b: autoinfo, the grab, the label a branch started from ---- */
 
-const hbInfo = {point: 4, br: 1, pt: 5, type: 2, sym: 'HB', lab: 2, par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
+const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, periodic: false, sym: 'HB', lab: 2, par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
   norm: 0.29, var: 'V', u: -0.2, per: 14.4, x: 0.26, y: -0.2, y2: -0.2};
 const hbStab = {periodic: 0, circle: [[0.9, 0.42], [0.9, -0.42]], eig: [[6e-5, 0.435], [6e-5, -0.435]]};
 
@@ -317,7 +317,7 @@ test('infoRows orders the axes first, then Norm and the period, then the remaini
   assert.deepEqual(infoRows(hbInfo as never, axes).slice(4),
     [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['phi', '0.2']]);
   /* a periodic orbit: the period is not an axis either, so it comes before the remaining parameter */
-  assert.deepEqual(infoRows({...hbInfo, type: 4} as never, axes).slice(4),
+  assert.deepEqual(infoRows({...hbInfo, type: 4, periodic: true} as never, axes).slice(4),
     [['iapp', '0.26'], ['V', '-0.2'], ['Norm', '0.29'], ['Period', '14.4'], ['phi', '0.2']]);
   /* a Norm y axis (axes.plot 1): Norm is the axis, the variable falls back with the remaining parameter */
   assert.deepEqual(infoRows(hbInfo as never, {...axes, plot: 1}).slice(4),
@@ -396,7 +396,7 @@ test("views (W50): each view its own axes, points and zoom; `views` resizes; the
   assert.equal(s.diagram.views[0], one, 'view 0 untouched');
   assert.equal(pointCount(s.diagram.views[1].points), 0, 'a new view starts empty');
   s = ev(s, {ev: 'diagram', view: 1, op: 'reset', keep: 0, ...axes, plot: 1, ylabel: 'Norm'});
-  s = ev(s, {ev: 'diagram', view: 1, op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, d: 1, c: 20, lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
+  s = ev(s, {ev: 'diagram', view: 1, op: 'add', from: 0, runs: [{br: 1, pt: 1, ty: 1, stable: true, periodic: false, d: 1, c: 20, lw: 2, x: [0.1, 0.2], y: [1, 2]}]});
   assert.equal(s.diagram.views[1].axes?.ylabel, 'Norm');
   assert.equal(pointCount(s.diagram.views[1].points), 2);
   assert.equal(s.diagram.views[0], one, "another view's events leave view 0 alone");

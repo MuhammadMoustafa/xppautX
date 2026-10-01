@@ -174,6 +174,7 @@ void diag_run(Buf *b, const std::vector<XppDiagPoint> &dg, int i, int j)
     int k, two = 0, nlab = 0;
     buf_format(b, "{{\"br\":{:d},\"pt\":{:d},\"ty\":{:d},\"d\":{:d},\"c\":{:d},\"lw\":{:d}", std::abs(p->ibr), std::abs(p->pt), p->type,
                p->draw, p->color, p->lw);
+    buf_format(b, ",\"stable\":{},\"periodic\":{}", xpp::point_is_stable(p->type), xpp::point_is_periodic(p->type));
     if (p->flag2) buf_format(b, ",\"f2\":{:d}", p->flag2);
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);

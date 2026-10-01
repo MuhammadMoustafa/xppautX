@@ -31,9 +31,9 @@ export interface RunStatus {
   elapsed: number | null;
 }
 
-export function kindOfPoint(ty: number, f2: number): string {
+export function kindOfPoint(periodic: boolean, f2: number): string {
   if (f2) return 'two-parameter curve';
-  return ty === 3 || ty === 4 ? 'periodic orbits' : ty === 1 || ty === 2 ? 'steady states' : '';
+  return periodic ? 'periodic orbits' : 'steady states';
 }
 
 /** "0.4 s", "12 s", "2:05" */
@@ -59,7 +59,7 @@ export function runStatus(run: AutoRun | null, p: DiagramPoints, labels: Diagram
   if (!run) return {phase: 'idle', text: 'Idle', ...none, kind: '', branch: null, point: null, points: 0, label: null, elapsed: null};
   const n = p.x.length, first = Math.min(run.first, n), last = n - 1;
   const added = n - first;
-  const kind = added > 0 ? kindOfPoint(p.ty[last], p.f2[last]) : '';
+  const kind = added > 0 ? kindOfPoint(p.pe[last] === 1, p.f2[last]) : '';
   const lab = [...labels].reverse().find(l => l.point >= first && l.point < n);
   const name = lab ? symbolName(lab.sym) : '';
   const label = lab ? `${lab.sym || 'Label'} ${lab.lab}${name ? ` (${name})` : ''} at point ${p.pt[lab.point]}` : null;

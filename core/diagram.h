@@ -24,6 +24,15 @@ struct AutoDiagram {
 
 namespace xpp {
 struct Session; /* session.h */
+
+/* A diagram point's type (get_bif_type, autevd.cpp, from the signs AUTO
+   gives its branch and point numbers; a run's `ty` in docs/protocol.md's
+   `diagram`, `type` in `autoinfo`): a steady state, judged by its
+   eigenvalues, or a periodic orbit, by its Floquet multipliers; stable
+   or not. The events carry stable and periodic flags beside it. */
+enum DiagramPointType : int { STABLE_EQ = 1, UNSTABLE_EQ = 2, STABLE_PERIODIC = 3, UNSTABLE_PERIODIC = 4 };
+constexpr bool point_is_stable(int type) { return type == STABLE_EQ || type == STABLE_PERIODIC; }
+constexpr bool point_is_periodic(int type) { return type == STABLE_PERIODIC || type == UNSTABLE_PERIODIC; }
 }
 
 /* The session s's diagram: a list of points in the order they were
