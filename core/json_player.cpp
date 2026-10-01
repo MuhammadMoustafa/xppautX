@@ -406,6 +406,7 @@ void load(xpp::Session &s, int from, bool play)
         return;
     }
     s.model_request = xpp::saved_request(s, player.work->path(), *player.snapshot);
+    s.model_request->home = xpp::files::split_path(player.path).first; /* dialogs stay in the recording's folder */
     player.loading = true;
     player.fast_to = from;
     player.play_after_load = play || from > 0;
@@ -445,8 +446,6 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
     }
     std::string file(path);
     if (file.empty()) {
-        file = xpp::files::working_dir();
-        if (!file.empty() && file.back() != '/') file += '/';
         if (!file_selector("Play recording", file, "*.recx") || file.empty()) return;
     }
     std::vector<PlayStep> steps;

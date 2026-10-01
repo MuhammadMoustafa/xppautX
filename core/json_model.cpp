@@ -8,6 +8,7 @@
 #include "model_switch.h"
 #include "session.h"
 #include "model.h"
+#include "xpp_files.h"
 #include "xpp_globals.h"
 #include "xpp_session.h"
 #include "xpp_util.h"
@@ -104,6 +105,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     if (!loaded) return before; /* the model before goes on */
     /* before is gone: the new model's session from here on */
     xpp::Session &s = *loaded;
+    s.file_dialogs.home = req.home.empty() ? xpp::files::working_dir() : req.home;
     for (unsigned long w : shown) send_window("destroy", w, 0, 0);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < MAXPOP; i++) {

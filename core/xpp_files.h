@@ -194,6 +194,10 @@ std::pair<std::string, std::string> split_path(std::string_view path);
    else under the folder dir ("" the working directory) */
 std::string absolute(std::string_view path, std::string_view dir = {});
 
+/* the folder name names inside the folder dir ("..": its parent), or ""
+   when it is not a folder; the process's current folder is not touched */
+std::string folder_in(std::string_view dir, std::string_view name);
+
 } // namespace xpp::files
 
 namespace xpp {

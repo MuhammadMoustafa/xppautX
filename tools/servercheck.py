@@ -2601,6 +2601,68 @@ def check_autoinfo():
 check_autoinfo()
 
 
+# W151: a file dialog starts in the model's folder, never in AUTO's scratch
+# folder: the ask's `dir` (the process's current folder) after an AUTO run
+def check_dialog_folder_after_auto():
+    p, r, snd, col, _ = launch_server(NO_THROTTLE)
+    try:
+        col(is_idle)
+        want = os.path.realpath(r)
+
+        def ask_dir(keys):
+            for k in keys:
+                snd(cmd='key', key=k)
+            evs, ask = col(lambda e: e.get('ev') == 'ask' and e.get('kind') == 'file', timeout=30 * SLOW)
+            d = None
+            if ask:
+                d = ask.get('dir')
+                snd(cmd='answer', id=ask['id'], file='')
+                col(is_idle, timeout=30 * SLOW)
+            return ask, d
+        ask, d = ask_dir(['f', 'y'])
+        check('W151: a file ask before AUTO starts in the model folder',
+              ask and d and os.path.realpath(d) == want, str(d))
+        lecar_to_auto(snd, col)
+        scratch = auto_scratch(p)
+        ask, d = ask_dir(['f', 'y'])
+        check('W151: a file ask after an AUTO run still starts in the model folder, not in AUTO scratch folder',
+              ask and scratch and d and os.path.realpath(d) == want and
+              not any(os.path.realpath(d).startswith(os.path.realpath(x)) for x in scratch), str(d) + ' ' + str(scratch))
+        # a replay runs in a scratch folder of its own: its dialogs still start in the model's
+        snd(cmd='record', op='start')
+        col(is_idle, timeout=30 * SLOW)
+        snd(cmd='record', op='note', text='note')
+        col(is_idle, timeout=30 * SLOW)
+        snd(cmd='record', op='stop', name='dlg')
+        col(is_idle, timeout=30 * SLOW)
+        snd(cmd='play', op='open', file='dlg.recx')
+        evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
+        if ask and ask.get('ev') == 'ask':
+            snd(cmd='answer', id=ask['id'], key='d')
+            col(is_idle, timeout=30 * SLOW)
+        ask, d = ask_dir(['f', 'y'])
+        scratch = auto_scratch(p)
+        check('W151: a file ask in a replayed recording starts in the folder of the recording, not in the replay scratch folder',
+              ask and scratch and d and os.path.realpath(d) == want and
+              not any(os.path.realpath(d).startswith(os.path.realpath(x)) for x in scratch), str(d) + ' ' + str(scratch))
+        # a later dialog of one kind starts where the last of its kind was answered
+        sub = os.path.join(r, 'sub')
+        os.mkdir(sub)
+        snd(cmd='key', key='f')
+        snd(cmd='key', key='y')
+        _, ask = col(lambda e: e.get('ev') == 'ask' and e.get('kind') == 'file', timeout=30 * SLOW)
+        snd(cmd='answer', id=ask['id'], file=os.path.join(sub, 'x.recx'))
+        col(is_idle, timeout=30 * SLOW)
+        ask, d = ask_dir(['f', 'y'])
+        check('W151: a file dialog starts in the folder of the file of its kind last chosen',
+              ask and d and os.path.realpath(d) == os.path.realpath(sub), str(d))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_dialog_folder_after_auto()
+
+
 # AUTO's settings as data (docs/protocol.md "AUTO's settings as data", T22):
 # the autosettings event holds what the AUTO forms show, and `auto` `set`
 # writes the same fields, checked, all or nothing.

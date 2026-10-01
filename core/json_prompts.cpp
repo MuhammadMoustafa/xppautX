@@ -317,16 +317,24 @@ int j_string_box(int, int, std::string_view title, const char *const *names, std
     return form(title, names, values, kinds, XPP_FIELD_TEXT);
 }
 
-/* the file selector lists the directory like the X11 one; an answer with
-   "cd" changes directory (as X11 does, for good) and asks again. "mode"
-   says whether the command reads the file or writes it, so a client can
-   show an open or a save dialog (docs/ui-v2.md section 4). */
+/* the file selector lists a folder; an answer with "cd" goes into a folder
+   of it (or ".." out) and asks again. The folder it starts in is the one of
+   the file of this kind (the pattern) last chosen, else the model's folder
+   (Session::file_dialogs); the process's current folder is neither, and a
+   cd of the page changes only the folder listed. "mode" says whether the
+   command reads the file or writes it, so a client can show an open or a
+   save dialog (docs/ui-v2.md section 4). */
 int j_file_selector(std::string_view title, std::string &file, std::string_view wild)
 {
     constexpr size_t PATTERN_MAX = 255, CD_MAX = 1024;
+    xpp::Session &s = client();
     std::string pattern(wild), cd;
     if (pattern.size() > PATTERN_MAX) pattern.resize(PATTERN_MAX);
-    if (xpp::files::cur_dir().empty()) xpp::files::refresh_cur_dir();
+    const auto last = s.file_dialogs.last.find(pattern);
+    std::string dir = last != s.file_dialogs.last.end() ? last->second
+                      : !s.file_dialogs.home.empty()   ? s.file_dialogs.home
+                                                       : xpp::files::working_dir();
+    bool entered = false;
     for (;;) {
         Buf b;
         std::vector<std::string> dirs, files;
@@ -340,7 +348,6 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         BUF_LIT(&b, ",\"wild\":");
         buf_str(&b, pattern.c_str());
         BUF_LIT(&b, ",\"dir\":");
-        const std::string dir = xpp::files::cur_dir();
         buf_str(&b, std::string_view(dir));
         if (xpp::files::list_matching(pattern, dir, dirs, files)) {
             BUF_LIT(&b, ",\"dirs\":");
@@ -351,12 +358,24 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         if (!ask_wait(&b, id)) return 0;
         if (get_string(answer.c_str(), "wild", cd, CD_MAX) && !cd.empty()) pattern = cd.substr(0, PATTERN_MAX);
         if (get_string(answer.c_str(), "cd", cd, CD_MAX) && !cd.empty()) {
-            xpp::files::change_dir(cd);
+            const std::string into = xpp::files::folder_in(dir, cd);
+            if (into.empty()) xpp::log(XPP_LOG_WARN, "Can't go to directory {}\n", cd);
+            else {
+                dir = into;
+                entered = true;
+            }
             continue;
         }
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
         get_string(answer.c_str(), "file", file); /* a name in the folder or a full path, whole (W88) */
-        return !file.empty();
+        if (file.empty()) return 0;
+        /* a name in a folder the page went into is a path in it; one in the
+           folder it started in stays as answered (a replay's own scratch
+           folder is where its relative names go) */
+        if (entered) file = xpp::files::absolute(file, dir);
+        const std::string folder = xpp::files::split_path(xpp::files::absolute(file, dir)).first;
+        if (!folder.empty()) s.file_dialogs.last[pattern] = folder;
+        return 1;
     }
 }
 

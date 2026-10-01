@@ -50,6 +50,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ### Fixed
 
 - Playing a recording shows its caption, keys, controls and step list over the AUTO view and the other full views, and lights AUTO's buttons (W150, #202)
+- A file dialog opened after playing a recording (or an AUTO run) started in a scratch folder under the temp folder; it now starts in the folder of the file of its kind last opened or saved, else the model's folder (W151, #203)
 - A session or set file with an output stride or step of 0 loaded, and the next run divided by zero; every numerics value from a file, an `@` line or the Numerics dialog is now checked by the same rule, so `@ nout=0` stops the load too ([finding 25](docs/xppaut-findings.md#25-an-output-stride-of-0-divides-by-zero)) (W145, #197)
 - A browser column you added and saved with the session is back when the session is opened (W145, #197)
 - A session file refuses, at its line: more added columns than the model has room for, an added column's formula that does not compile, a damaged random generator state, a mark of a type or colour that does not exist, and a manifest key given twice (W145, #197)

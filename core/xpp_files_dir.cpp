@@ -282,6 +282,18 @@ std::string absolute(std::string_view path, std::string_view dir)
     return base.append(path);
 }
 
+std::string folder_in(std::string_view dir, std::string_view name)
+{
+    std::string_view base = dir;
+    if (name == "..") {
+        while (base.size() > 1 && (base.back() == '/' || base.back() == '\\'))base.remove_suffix(1);
+        const std::string parent = split_path(base).first;
+        return parent.empty() ? std::string(base) : parent;
+    }
+    std::string into = absolute(name, dir);
+    return is_dir(into) ? into : std::string();
+}
+
 std::string cur_dir() { return cur_dir_str; }
 
 bool refresh_cur_dir()

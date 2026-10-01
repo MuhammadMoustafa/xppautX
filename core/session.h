@@ -57,6 +57,7 @@
 #include "xpp_session.h"
 
 #include <array>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -93,6 +94,15 @@ struct Session {
   AutoView auto_view;
   /* how plots are written to files (graf_par.cpp) */
   XppPlotExport plot_export;
+
+  /* where a file dialog starts (json_prompts.cpp, W151): the folder of the
+     file of its kind (its wild pattern) last opened or saved, else `home`,
+     the model's own folder -- never the process's current folder, which a
+     replay moves into its scratch folder and AUTO's files are not named by */
+  struct FileDialogs {
+    std::string home;
+    std::map<std::string,std::string> last;
+  } file_dialogs;
 
   /* the integrator's state (integrate.cpp) */
   IntegratorState integrator;

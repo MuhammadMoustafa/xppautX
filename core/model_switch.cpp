@@ -57,8 +57,6 @@ void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    file=xpp::files::working_dir();
-    if(file.empty()||file.back()!='/')file+='/';
     if(!xpp::file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
   }
   if(!model_file_ok(file)){

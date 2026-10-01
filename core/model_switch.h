@@ -83,6 +83,10 @@ struct ModelRequest {
   /* Open of an AUTO or session file: what it adds, restored once its
      model is loaded (xpp_saved_restore) */
   std::optional<SavedFile> restore;
+  /* the folder file dialogs start in once it is loaded ("" the folder it
+     loads in): a replay loads in a scratch folder and shows its
+     recording's */
+  std::string home;
 };
 
 /* a request for the model file `file`, loaded in the folder dir as a
