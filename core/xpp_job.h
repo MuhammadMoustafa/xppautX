@@ -158,8 +158,9 @@ bool stop_armed();
 namespace xpp {
 
 /* true when at least `seconds` have passed since `last` (then `last`
-   becomes now; start it at 0): the rate limit of polls and flushes in
-   long loops. XPP_NO_THROTTLE set in the environment makes it always
+   becomes now; start it at 0), on a steady clock: the rate limit of polls
+   and flushes in long loops. The checkpoints right after a stored row
+   (job::report_rows) share one reading of the clock (xpp_job.cpp). XPP_NO_THROTTLE set in the environment makes it always
    true: every throttled flush then happens, so a check sees each state a
    long loop passes through whatever the machine's speed
    (tools/servercheck.py's autoinfo checks) */

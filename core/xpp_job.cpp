@@ -40,6 +40,23 @@ int stop_key;    /* the key the armed stop hands the job; 0: it cancels it */
 int reached_key; /* a reached stop's key, not taken yet */
 
 /* the armed stop is reached: the job is cancelled, or handed its key */
+/* The throttles' clock reading (every(), below), shared by one stored
+   row: an integration step passes up to this many throttled checkpoints
+   right after it stores its row (its live append, plot_data.cpp; its
+   progress and its abort poll, xpp_ui.cpp), microseconds apart, so the
+   first of them reads the clock and the others take that reading. A
+   checkpoint the step does not pass leaves its use to the next every()
+   call, which is then at most one step late. */
+constexpr int step_throttles = 3;
+int step_uses;   /* every() calls left that take step_now (report_rows sets it) */
+double step_now; /* the first of them reads it */
+
+double clock_now()
+{
+    using seconds_d = std::chrono::duration<double>;
+    return seconds_d(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 void stop_reached()
 {
     stop = Stop::none;
@@ -86,6 +103,7 @@ void end()
 
 void report_rows(long rows, double t)
 {
+    step_uses = step_throttles;
     reported.what = Reported::rows;
     reported.rows = rows;
     reported.t = t;
@@ -192,9 +210,15 @@ bool every(double &last, double seconds)
 {
     static const bool always = std::getenv("XPP_NO_THROTTLE") != nullptr; /* a check's hook (xpp_job.h) */
     if (always) return true;
-    using seconds_d = std::chrono::duration<double>;
-    const double now = seconds_d(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - last < seconds && now >= last) return false; /* a clock set back also passes */
+    double now;
+    if (step_uses > 0) {
+        if (step_uses == step_throttles) step_now = clock_now();
+        step_uses--;
+        now = step_now;
+    } else {
+        now = clock_now();
+    }
+    if (now - last < seconds) return false;
     last = now;
     return true;
 }
