@@ -8,7 +8,7 @@
 Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
 """
-import json, os, queue, shutil, subprocess, tempfile, threading, time
+import base64, copy, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
 
 # XPP_CHECK_SLOW=F multiplies every wait by F, for a server under a slow
 # tool (tools/valgrindcheck.sh: memcheck runs it some 30 times slower)
@@ -57,6 +57,64 @@ def drain_stderr(proc, sink=None):
     threading.Thread(target=run, daemon=True).start()
 
 
+def series_values(col, enc):
+    """a series column's data as Python floats, float32-rounded (NaN for
+    null), whatever the encoding"""
+    d = col['data']
+    if enc == 'f32':
+        raw = base64.b64decode(d)
+        return list(struct.unpack('<%df' % (len(raw) // 4), raw))
+    return [float('nan') if v is None else struct.unpack('<f', struct.pack('<f', v))[0] for v in d]
+
+
+def decoded_series(ev):
+    """a full series event with its columns' data as floats (series_values), no `enc`"""
+    h = dict(ev, columns=[dict(c, data=series_values(c, ev.get('enc'))) for c in ev['columns']])
+    h.pop('enc', None)
+    return h
+
+
+class SeriesMirror:
+    """What a client holds of each plot window's series (docs/protocol.md
+    "The plot as data"): the last full `series` and the appends after it. A
+    live run ends with an `end` instead of the whole series again; feed()
+    gives that event the whole series as `held`, with a full series' fields
+    (its columns' data as floats, no `enc`), so a check reads a run's series
+    the same way whichever way it came (whole_series)."""
+
+    def __init__(self):
+        self.held = {}
+
+    def feed(self, ev):
+        if ev.get('ev') != 'series':
+            return
+        op, win = ev.get('op'), ev.get('win')
+        if op is None:
+            self.held[win] = decoded_series(ev)
+            return
+        h = self.held.get(win)
+        if h is None:
+            return
+        if op == 'append':
+            have = {c['col']: c for c in h['columns']}
+            for c in ev['columns']:
+                if c['col'] in have:
+                    have[c['col']]['data'] = have[c['col']]['data'][:ev['from']] + series_values(c, ev.get('enc'))
+            h['rows'] = ev['rows']
+        elif op == 'end' and h['rows'] == ev['rows']:
+            h['version'] = ev['version']
+            ev['held'] = copy.deepcopy(h)
+
+
+def whole_series(evs, win=None):
+    """the whole series that arrived in evs, in order: each full `series`
+    event, and each live run's end as the series the client then holds
+    (SeriesMirror), all with their data as floats (decoded_series); only
+    window win's when given"""
+    return [e['held'] if 'held' in e else decoded_series(e) for e in evs if e.get('ev') == 'series' and e.get('op') in (None, 'end')
+            and (win is None or e.get('win') == win)]
+
+
 class Server:
     def __init__(self, binary, ode, env=None, verbose=False, stdin=subprocess.PIPE):
         self.verbose = verbose
@@ -70,6 +128,7 @@ class Server:
                                      stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                      text=True, bufsize=1, env=full)
         self.events = queue.Queue()
+        self.series = SeriesMirror()
         self.sent_at = {}
         threading.Thread(target=self._read, daemon=True).start()
         drain_stderr(self.proc)
@@ -87,6 +146,7 @@ class Server:
             except ValueError:
                 ev = {'ev': 'bad', 'line': line[:300]}
             ev['_t'] = time.monotonic()
+            self.series.feed(ev)
             self.events.put(ev)
         self.events.put({'ev': 'eof', '_t': time.monotonic()})
 

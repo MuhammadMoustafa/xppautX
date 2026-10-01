@@ -167,6 +167,17 @@ export interface SeriesAppendEvent {
   columns: {col: number; data: SeriesData}[];
 }
 
+/** the end of a command that appended to window `win`: the client holds
+    all `rows` rows of its series already (the appends delivered them), and
+    the data's version is `version` (docs/protocol.md "Live runs") */
+export interface SeriesEndEvent {
+  ev: 'series';
+  op: 'end';
+  win: number;
+  rows: number;
+  version: number;
+}
+
 /** one plot window as `plots` describes it */
 export interface PlotWindowInfo {
   win: number;
@@ -501,6 +512,7 @@ export type XppEvent =
   | StateEvent
   | SeriesEvent
   | SeriesAppendEvent
+  | SeriesEndEvent
   | PlotsEvent
   | RunsEvent
   | AutoViewEvent

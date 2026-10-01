@@ -75,6 +75,11 @@ export function appendRows(s: PlotSeries, ev: SeriesAppendEvent): PlotSeries | n
   return {...s, rows, columns, buffers};
 }
 
+/** `s` as the end of a live run leaves it: the same rows, the data's `version` */
+export function endSeries(s: PlotSeries, version: number): PlotSeries {
+  return s.version === version ? s : {...s, version};
+}
+
 export function columnName(s: PlotSeries, col: number): string {
   return s.names.get(col) ?? (col === 0 ? 'T' : `#${col}`);
 }

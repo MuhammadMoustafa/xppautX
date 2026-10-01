@@ -48,7 +48,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SLOW, Server, is_idle, is_ask, is_state
+from xppclient import SLOW, Server, is_idle, is_ask, is_state, whole_series
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -1856,7 +1856,7 @@ def section_memory():
 
 def series_of(evs, win=1):
     """the last full series event of window win (the curves' rows), or None"""
-    full = [e for e in evs if e.get('ev') == 'series' and e.get('win') == win and 'op' not in e]
+    full = whole_series(evs, win)
     return full[-1] if full else None
 
 

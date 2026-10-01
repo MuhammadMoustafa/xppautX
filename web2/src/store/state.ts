@@ -6,7 +6,7 @@ import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
 import {isWindowKey} from '../protocol/kinds';
 import {
-  coreMoved, initialPlots, onAppend, onDfield, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
+  coreMoved, initialPlots, onAppend, onDfield, onEnd, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
   rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
   type Viewport,
 } from './plots';
@@ -103,7 +103,7 @@ export interface AppState {
   title: string;
   /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
   plots: PlotsState;
-  /** how many full series events arrived: tests wait on it */
+  /** how many whole series arrived (a full series event, or the end of a live run): tests wait on it */
   seriesCount: number;
   /** how many appends (rows of a running integration) went into a series */
   seriesAppends: number;
@@ -351,6 +351,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         if (!plots) return state; /* not ours to continue: the full series follows */
         const hover = state.hover && (!shown || state.hover.row < ev.from) ? state.hover : null;
         return {...state, plots, seriesAppends: state.seriesAppends + 1, hover};
+      }
+      if (ev.op === 'end') {
+        /* the run's rows are all here: a whole series, as a full one would be */
+        const plots = onEnd(state.plots, ev);
+        return plots ? {...state, plots, seriesCount: state.seriesCount + 1} : state;
       }
       return {
         ...state, plots: onSeries(state.plots, ev), seriesCount: state.seriesCount + 1,

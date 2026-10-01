@@ -114,3 +114,15 @@ test('the reducer applies appends, keeps the zoom, and counts them', () => {
   assert.equal(s.hover, null, 'rows from 0 on were replaced');
   assert.equal(ev(READY, append(0, 2)), READY, 'nothing to append to');
 });
+
+test('the end of a live run: the rows the appends gave, its version, counted as a whole series', () => {
+  let s = ev(READY, {...full, version: 1});
+  s = ev(s, append(0, 3));
+  const held = shown(s).series!;
+  s = ev(s, {ev: 'series', op: 'end', win: 1, rows: 3, version: 2});
+  assert.equal(s.seriesCount, 2);
+  assert.equal(shown(s).series!.version, 2);
+  assert.equal(shown(s).series!.columns.get(1), held.columns.get(1), 'the same data, not a copy');
+  const later = ev(s, {ev: 'series', op: 'end', win: 1, rows: 5, version: 3});
+  assert.equal(later, s, 'an end that does not match the rows held changes nothing');
+});

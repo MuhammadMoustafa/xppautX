@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import drain_stderr
+from xppclient import SeriesMirror, drain_stderr, whole_series
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -84,11 +84,14 @@ def launch_server(extra_env=None, ode=None, log=None):
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', bufsize=1, env=env)
     events = queue.Queue()
+    mirror = SeriesMirror()
 
     def reader():
         for l in proc.stdout:
             try:
-                events.put(json.loads(l, parse_constant=_reject_non_finite))
+                ev = json.loads(l, parse_constant=_reject_non_finite)
+                mirror.feed(ev)
+                events.put(ev)
             except ValueError:
                 print('BAD LINE: %r' % l[:300])
                 events.put({'ev': 'bad'})
@@ -370,7 +373,7 @@ def series_matches_output_dat(ser, ode=None):
     return None
 
 
-ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]  # the full series, after any appends
+ser = whole_series(evs)  # the whole series: a full one, or a live run's appends and end
 check('integration sends the series: the curve V against W, 601 rows',
       len(ser) == 1 and ser[0]['rows'] == 601 and ser[0]['curves'][0]['x'] == 1 and ser[0]['curves'][0]['y'] == 2
       and [c['name'] for c in ser[0]['columns']] == ['T', 'V', 'W'], str(ser)[:300])
@@ -568,7 +571,7 @@ collect(is_idle)
 send(cmd='slide', name='iapp', value=0.07, rerun=1)
 evs, _ = collect(is_idle, timeout=30 * SLOW)
 st = last_state(evs)
-ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+ser = whole_series(evs)
 check('slide sets the parameter, no run any more (the rerun flag is gone, W69)',
       st is not None and dict(st['pars'])['iapp'] == 0.07 and not ser,
       str(st and st['pars']) + str(ser)[:200])
@@ -576,7 +579,7 @@ send(cmd='key', key='i')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='g')
 evs, _ = collect(is_idle, timeout=30 * SLOW)
-ser = [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+ser = whole_series(evs)
 check('a later Go runs with the slid value (a new series of 601 rows)',
       ser and ser[-1]['rows'] == 601, str(ser)[:200])
 send(cmd='data', events=[])
@@ -1115,32 +1118,28 @@ def live_run(send, collect, key='i', answer=None):
 
 
 def check_appends(what, ser, first_from, enc=None):
-    """appends then one full series; returns the full series' columns as floats"""
+    """appends, then the end (docs/protocol.md "Live runs"); returns the whole
+    series the client then holds (SeriesMirror), its columns as floats"""
     apps = [e for e in ser if e.get('op') == 'append']
-    full = [e for e in ser if 'op' not in e]
-    check('%s: several appends before the full series' % what, len(apps) >= 3, '%d appends' % len(apps))
-    check('%s: one full series, and nothing after it' % what,
-          len(full) == 1 and ser and ser[-1] is full[0], str([(e.get('op'), e.get('rows')) for e in ser])[:300])
-    if not apps or not full:
+    ends = [e for e in ser if e.get('op') == 'end']
+    check('%s: several appends before the end' % what, len(apps) >= 3, '%d appends' % len(apps))
+    check('%s: one end, nothing after it, and no full series' % what,
+          len(ends) == 1 and ser and ser[-1] is ends[0] and len(apps) + 1 == len(ser),
+          str([(e.get('op'), e.get('rows')) for e in ser])[:300])
+    if not apps or not ends:
         return None
     froms = [e['from'] for e in apps]
     contiguous = froms[0] == first_from and all(apps[i]['from'] == apps[i - 1]['rows'] for i in range(1, len(apps)))
     sizes = all(len(values(c, enc)) == e['rows'] - e['from'] for e in apps for c in e['columns'])
     check('%s: the appends go from row %d on, contiguous' % (what, first_from), contiguous and sizes,
           str([(e['from'], e['rows']) for e in apps])[:300])
-    check('%s: in the encoding asked for' % what, all(e.get('enc') == enc for e in ser),
-          str([e.get('enc') for e in ser]))
-    final = {c['col']: values(c, enc) for c in full[0]['columns']}
-    cols_ok = all([c['col'] for c in e['columns']] == list(final) for e in apps)
-    held = {c: final[c][:first_from] for c in final}
-    for e in apps:
-        for c in e['columns']:
-            held[c['col']] = held[c['col']][:e['from']] + values(c, enc)
-    n = apps[-1]['rows']
-    check('%s: the appended rows are the final series\' rows (%d of %d)' % (what, n, full[0]['rows']),
-          cols_ok and all(same_floats(held[c], final[c][:n]) for c in final) and n <= full[0]['rows'],
-          str([c['col'] for c in apps[0]['columns']]) + ' vs ' + str(list(final)))
-    return final
+    check('%s: in the encoding asked for' % what, all(e.get('enc') == enc for e in apps),
+          str([e.get('enc') for e in apps]))
+    held = ends[0].get('held')
+    check('%s: the end has the rows the appends gave, and the data version' % what,
+          held is not None and ends[0]['rows'] == apps[-1]['rows'] == held['rows'] and isinstance(ends[0].get('version'), int)
+          and all(len(c['data']) == held['rows'] for c in held['columns']), str(ends[0]))
+    return {c['col']: c['data'] for c in held['columns']} if held else None
 
 
 def check_live_series():
@@ -1151,9 +1150,9 @@ def check_live_series():
         collect3(is_idle)
         ser = live_run(send3, collect3)
         final = check_appends('live run', ser, 0)
-        full = [e for e in ser if 'op' not in e]
+        full = whole_series(ser)
         if full:
-            check('live run: the full series has the 20 001 rows of output.dat',
+            check('live run: the whole series (appends, end) has the 20 001 rows of output.dat',
                   full[0]['rows'] == 20001 and series_matches_output_dat(full[0], LIVE) is None,
                   str(full[0]['rows']) + ' ' + str(series_matches_output_dat(full[0], LIVE)))
         ser = live_run(send3, collect3)
@@ -1314,7 +1313,7 @@ def check_plot_windows():
         return collect4(is_idle, timeout=30 * SLOW)[0]
 
     plots = lambda evs: [e for e in evs if e.get('ev') == 'plots']
-    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    full = whole_series
     wins = lambda p: [w['win'] for w in p['windows']]
     try:
         evs, _ = collect4(is_idle)
@@ -1328,7 +1327,7 @@ def check_plot_windows():
               and w1.get('three') == 0 and w1.get('xlo') == -0.6 and w1.get('yhi') == 1.2
               and w1.get('curves') and w1['curves'][0]['x'] == 1 and 'theta' in w1 and 'zmax' in w1.get('box', {}),
               str(pl)[:400])
-        check('plots comes before the series', evs.index(pl[0]) < evs.index(full(evs)[0]) if pl and full(evs) else False)
+        check('plots comes before the series', evs.index(pl[0]) < [e.get('ev') for e in evs].index('series') if pl and full(evs) else False)
         command('i', {'key': 'g'})
         evs = command('m', {'key': 'c'})
         pl, ser = plots(evs), full(evs)
@@ -1353,7 +1352,7 @@ def check_plot_windows():
         apps = [e for e in ser if e.get('op') == 'append']
         check('a run appends to the active window only', len(apps) >= 3 and all(e['win'] == 1 for e in apps),
               str([(e['win'], e.get('op')) for e in ser])[:300])
-        check('... and ends with a full series for each window, the active one first',
+        check('... and ends with the whole series of each window, the active one first (its end, then the full series of window 2)',
               [e['win'] for e in full(evs)] == [1, 2] and all(e['rows'] == 20001 for e in full(evs)),
               str([(e['win'], e['rows']) for e in full(evs)]))
         after({'cmd': 'click', 'win': 2})
@@ -1437,7 +1436,7 @@ def check_values_protocol():
                 return got
             sndv(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
-    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    full = whole_series
     pics = lambda evs: [(e['ev'], e['win']) for e in evs if e.get('ev') in ('erase', 'redraw')]
     par = lambda st, n: next(v for k, v in st['pars'] if k.lower() == n)
     ic = lambda st, n: next(v for k, v in st['ics'] if k.lower() == n)
@@ -1906,7 +1905,7 @@ def check_marks():
         curve = of(evs, 'plots')[0]['windows'][0]['curves'][0]
 
         evs = command('i', keys('g'))
-        ser = of(evs, 'series')
+        ser = whole_series(evs)
         v = last_state(evs)['view']
         px = (v['xhi'] - v['xlo']) / abs(v['right'] - v['left']) * 1.5
         py = (v['yhi'] - v['ylo']) / abs(v['bottom'] - v['top']) * 1.5
@@ -1942,7 +1941,7 @@ def check_marks():
         f = m['frozen'] if m else []
         check('Graphic stuff/Freeze: a frozen curve equal to the series at freeze time, its key and colour',
               len(f) == 1 and f[0]['key'] == 'first run' and f[0]['name'] == 'frz1' and f[0]['color'] == 4
-              and f[0]['line'] == 1 and f[0]['x'] == cols.get(curve['x']) and f[0]['y'] == cols.get(curve['y'])
+              and f[0]['line'] == 1 and values({'data': f[0]['x']}, None) == cols.get(curve['x']) and values({'data': f[0]['y']}, None) == cols.get(curve['y'])
               and len(f[0]['x']) > 2, str(m)[:300])
 
         got = command('s', lambda e, n: {'key': 'g' if n == 0 else 'n'})
@@ -2840,7 +2839,7 @@ def check_seed_per_run():
                 return got
             snd(cmd='answer', id=e['id'], **(pending.pop(0) if pending else {'ok': 0}))
 
-    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    full = whole_series
     try:
         col(is_idle)
         snd(cmd='data', events=['series'])
@@ -3421,7 +3420,7 @@ def check_display_state():
     runs_of = lambda evs: [e for e in evs if e.get('ev') == 'runs']
     added = lambda evs: [x for e in runs_of(evs) for x in e['add']]
     win1 = lambda evs: [w for e in evs if e.get('ev') == 'plots' for w in e['windows'] if w['win'] == 1]
-    full = lambda evs: [e for e in evs if e.get('ev') == 'series' and 'op' not in e]
+    full = whole_series
     try:
         col(is_idle)
         evs = after(cmd='data', events=['series', 'plots'])
@@ -3437,7 +3436,7 @@ def check_display_state():
         cols1 = {c['col']: c['data'] for c in first['columns']}
         check('display: a second run keeps the first as an earlier run (one runs event, its data)',
               len(got) == 1 and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
-              and {c['col']: c['data'] for c in got[0]['columns']} == cols1
+              and {c['col']: values(c, None) for c in got[0]['columns']} == cols1
               and all(e['erased'] == 0 and not e['clear'] and e['drop'] == 0 for e in runs_of(evs)), str(runs_of(evs))[:300])
         evs = after(cmd='data', events=['series', 'plots'])
         check('display: asking for the data again sends the earlier runs whole, once',

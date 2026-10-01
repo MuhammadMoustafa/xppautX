@@ -590,7 +590,7 @@ model's start in every mode, before the script.
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
 | `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
-| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
+| `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
 | `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
@@ -1118,12 +1118,22 @@ A new integration starts again from row 0, so its first append has `from`
 appends of one command are contiguous: each `from` is the previous
 `rows`. When the window's curves change during a command (so the columns
 would not be the last full series'), the server sends a full `series` of
-the rows stored so far instead and appends after it. The command still
-ends with the full `series` (always after appends, else when something
-changed), before its `state` and `idle`, and no append follows it; its
-first rows are what the appends delivered. The other windows get only
-their full `series`, after the active one's. A client that did not ask for
-`series` gets neither.
+the rows stored so far instead and appends after it. A command that
+appended ends, before its `state` and `idle`, with the rows stored since
+the last append (one more append) and then
+
+```
+{"ev":"series","op":"end","win":1,"rows":20001,"version":7}
+```
+
+instead of the whole series again (a million rows are tens of MB): the
+client's series is then whole, `rows` rows (what the appends delivered),
+and `version` is its data's version, as a full `series` would carry. No
+append follows it. When the window's curves changed after its appends,
+the command ends with the full `series` instead. A command without
+appends ends with the full `series` of a window whose data changed. The
+other windows get only their full `series`, after the active one's. A
+client that did not ask for `series` gets none of these.
 
 The appends come from the integrator itself (`rows_stored()` in
 core/xpp_ui.h, called for every stored row; `plot_data_rows_stored` in
@@ -1237,7 +1247,7 @@ on its way.
 **`runs`** (with `series`): a window's earlier runs. A full series with
 other curves (Xi vs t, Viewaxes, ...) forgets them; a full series of other
 data (its `version`) keeps the current run as an earlier one, unless the
-current one grew by appends in this command (the full series ends that run)
+current one grew by appends in this command (the `end` closes that run)
 or was erased; an append that starts again before the rows the client holds
 (a new run under way, the next run of a range) keeps the current run first.
 Erase forgets them and hides the current run (`erased` 1) until its next

@@ -376,22 +376,14 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     rows_seen = rows;
 }
 
-/* during a run: the active window's rows stored since what the client holds */
-void series_append(xpp::Session &s, int rows)
+/* rows [from, rows) of window pop's columns as an append: the client keeps
+   its rows before `from` and adds these */
+void send_append(xpp::Session &s, int pop, unsigned long win, int from, int rows)
 {
-    const int pop = s.plot_windows.active;
-    const SeriesSig sig = series_sig(s, pop);
     Sent &w = sent[pop];
-    appended = pop;
-    if (!w.valid || !same_plot(sig, w.sig) || !disp(s, pop).has_cur || disp(s, pop).cur.cols != w.cols) {
-        send_series(s, pop, sig, rows); /* other columns: the whole series, as far as it goes */
-        return;
-    }
-    const int from = w.held;
-    if (rows <= from) return;
     runs_on_append(s, pop, from, rows);
     std::string o = "{\"ev\":\"series\",\"op\":\"append\",\"win\":";
-    add_int(o, static_cast<long>(sig.win));
+    add_int(o, static_cast<long>(win));
     o += ",\"from\":";
     add_int(o, from);
     o += ",\"rows\":";
@@ -411,8 +403,53 @@ void series_append(xpp::Session &s, int rows)
     w.held = rows;
 }
 
+/* whether window pop's appends go on from what the client holds: the same
+   window and curves as its last full series, the same columns */
+bool appends_continue(xpp::Session &s, int pop, const SeriesSig &sig)
+{
+    const Sent &w = sent[pop];
+    return w.valid && same_plot(sig, w.sig) && disp(s, pop).has_cur && disp(s, pop).cur.cols == w.cols;
+}
+
+/* during a run: the active window's rows stored since what the client holds */
+void series_append(xpp::Session &s, int rows)
+{
+    const int pop = s.plot_windows.active;
+    const SeriesSig sig = series_sig(s, pop);
+    appended = pop;
+    if (!appends_continue(s, pop, sig)) {
+        send_series(s, pop, sig, rows); /* other columns: the whole series, as far as it goes */
+        return;
+    }
+    if (rows > sent[pop].held) send_append(s, pop, sig.win, sent[pop].held, rows);
+}
+
+/* the end of a command that appended to window pop: the rows stored since the
+   last append, then `end` with the data's version. The client holds the whole
+   series already, so it is not sent again (a million rows are tens of MB),
+   and the current run's copy (runs_on_append's) is complete as it is. */
+void series_end(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
+{
+    Sent &w = sent[pop];
+    if (rows > w.held) send_append(s, pop, sig.win, w.held, rows);
+    xpp::PlotDisplay &d = disp(s, pop);
+    d.live = false; /* the run ends here; an append cleared any erase */
+    d.cur_version = sig.version;
+    std::string o = "{\"ev\":\"series\",\"op\":\"end\",\"win\":";
+    add_int(o, static_cast<long>(sig.win));
+    o += ",\"rows\":";
+    add_int(o, rows);
+    o += ",\"version\":";
+    add_int(o, static_cast<long>(sig.version));
+    o += '}';
+    emit(o);
+    w.sig = sig;
+    rows_seen = rows;
+}
+
 /* the series of every window that changed, the active one first, and
-   always the one that got appends */
+   always the one that got appends: its end, or its whole series when what
+   it shows changed */
 void series_update(xpp::Session &s)
 {
     for (int k = 0; k < MAXPOP; k++) {
@@ -423,8 +460,13 @@ void series_update(xpp::Session &s)
             continue;
         }
         const SeriesSig sig = series_sig(s, pop);
+        const int rows = s.browser.view.dataflag ? sig.rows : 0;
+        if (appended == pop && appends_continue(s, pop, sig) && rows >= sent[pop].held) {
+            series_end(s, pop, sig, rows);
+            continue;
+        }
         if (appended != pop && sent[pop].valid && same(sig, sent[pop].sig)) continue;
-        send_series(s, pop, sig, s.browser.view.dataflag ? sig.rows : 0);
+        send_series(s, pop, sig, rows);
     }
     appended = -1;
 }

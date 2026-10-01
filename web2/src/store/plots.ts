@@ -8,11 +8,11 @@
    confirm it. A window's nullclines, direction field and flows (T7) and
    its marks (T8) come from their own events and are kept beside its
    series. Pure: no DOM, no I/O. */
-import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, RunsEvent, SeriesAppendEvent, SeriesEvent} from '../protocol/types';
+import type {DfieldEvent, MarksEvent, NullclinesEvent, PlotsEvent, PlotWindowInfo, RunsEvent, SeriesAppendEvent, SeriesEndEvent, SeriesEvent} from '../protocol/types';
 import {marksFromEvent, type Marks} from './marks';
 import {dfieldFromEvent, nullclinesFromEvent, type Dfield, type Nullclines} from './phase';
 import {emptyHistory, onRuns, type RunHistory} from './runs';
-import {appendRows, seriesFromEvent, type PlotSeries} from './series';
+import {appendRows, endSeries, seriesFromEvent, type PlotSeries} from './series';
 
 export interface Range {
   min: number;
@@ -169,6 +169,14 @@ export function onAppend(p: PlotsState, ev: SeriesAppendEvent): PlotsState | nul
   const series = w?.series && appendRows(w.series, ev);
   if (!w || !series) return null;
   return update(p, ev.win, x => ({...x, series}));
+}
+
+/** null when the end does not match the window's series (its rows): the
+    appends before it did not continue it */
+export function onEnd(p: PlotsState, ev: SeriesEndEvent): PlotsState | null {
+  const w = windowOf(p, ev.win);
+  if (!w?.series || w.series.rows !== ev.rows) return null;
+  return update(p, ev.win, x => ({...x, series: endSeries(x.series!, ev.version)}));
 }
 
 export function select(p: PlotsState, win: number): PlotsState {
