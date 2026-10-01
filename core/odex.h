@@ -227,6 +227,8 @@ struct Parsed {
   std::vector<Statement> statements;
   bool ieee_division = false;
   bool derived = false;
+  /* while an .ode is read: the includes it is inside, 0 in its own lines */
+  int included = 0;
 };
 
 /* text, the contents of file, parsed; an include is read relative to

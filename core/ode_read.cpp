@@ -51,8 +51,6 @@ namespace xpp {
 
 namespace {
 
-/* the files being included: more than 0 inside one */
-int IN_INCLUDED_FILE=0;
 
 /* one line of a model as parse_a_string splits it: its kind (newpars.h),
    the text left and right of its '=' and a function's argument names */
@@ -268,9 +266,9 @@ bool if_include_file(const std::string &old, std::string &nf)
   return true;
 }
 
-bool if_end_include(std::string_view old)
+bool if_end_include(const Parsed &p, std::string_view old)
 {
-  if (IN_INCLUDED_FILE>0)
+  if (p.included>0)
   {
   	if(old.starts_with("#done"))return true;
   	if(old.starts_with("done"))return true;
@@ -879,7 +877,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			  model_failed();
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
-			IN_INCLUDED_FILE++;
+			p.included++;
 			LineSource inc_src;
 			inc_src.fp=fnew.get();
 			inc_src.model=src.model;
@@ -893,12 +891,12 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      old=first; /* pass the first line ....  */
      start=1;
    }
-   if (IN_INCLUDED_FILE > 0)
+   if (p.included > 0)
     {
-	    if (if_end_include(old) || at_end)
+	    if (if_end_include(p,old) || at_end)
 	    {
 	    	xpp::log(XPP_LOG_INFO, "Completed include of file {}\n",first);
-	    	IN_INCLUDED_FILE--;
+	    	p.included--;
 	    	return 1;
 	    }
     }
@@ -909,7 +907,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
          continue;
        }
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
-       IN_INCLUDED_FILE++;
+       p.included++;
        LineSource inc_src;
        inc_src.fp=fnew.get();
        inc_src.model=src.model;
@@ -918,7 +916,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        p.files.push_back(newfile);
        do_new_parser(inc_src,newfile,1,false,p);
        fnew.reset();
-       if (IN_INCLUDED_FILE <= 0)
+       if (p.included <= 0)
              continue;
     }
 

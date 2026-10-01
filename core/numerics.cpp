@@ -208,7 +208,7 @@ void  get_num_par(xpp::Session &s, char ch)
 		case 27: 
 		       do_meth(s);
 		      s.numerics.tend=fabs(s.numerics.tend);
-			show_main_menu(MAIN_MENU);
+			show_main_menu(s,MAIN_MENU);
 			break;
 
 		}  /* End num switch */

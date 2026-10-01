@@ -123,6 +123,9 @@ struct Session {
   /* the options a source has set (model_options.h): the command line
      sets its own first, and the model's may not override them */
   OptionsSet options_set;
+  /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU or
+     NUM_MENU (commands.cpp show_main_menu) */
+  int help_menu=0;
   /* -runnow or @ runnow=1: integrate once the front end is up */
   int run_immediately=0;
   /* the command line named a model file */

@@ -66,10 +66,10 @@ static void menu_run(xpp::Session &s, const XppMenu *m, int def)
 
 /* ---- the three main-window menus ------------------------------------ */
 
-void show_main_menu(int which)
+void show_main_menu(xpp::Session &s, int which)
 {
   ui.show_menu(which);
-  help_menu = which;
+  s.help_menu = which;
 }
 
 /* ---- things the File menu runs without a pop-up ---------------------- */
@@ -128,8 +128,6 @@ void edit_xpprc(void)
 #endif
 
 /* ---- commands that were in X11 files -------------------------------- */
-
-int help_menu;
 
 void do_movie_com(xpp::Session &s, int c)
 {
@@ -440,7 +438,7 @@ static void add_a_curve(xpp::Session &s)
 
 void commander(xpp::Session &s, int ch)
 {
-  switch (help_menu) {
+  switch (s.help_menu) {
   case MAIN_MENU:
     switch (ch) {
     case 'i': flash(0); ini_data_menu(s); flash(0); break;
@@ -451,8 +449,8 @@ void commander(xpp::Session &s, int ch)
     case 'a': flash(5); do_torus(s); flash(5); break;
     case 'k': flash(6); do_movie(s); flash(6); break;
     case 'g': flash(7); flash(7); add_a_curve(s); break;
-    case 'u': flash(8); flash(8); show_main_menu(NUM_MENU); break;
-    case 'f': flash(9); flash(9); show_main_menu(FILE_MENU); break;
+    case 'u': flash(8); flash(8); show_main_menu(s,NUM_MENU); break;
+    case 'f': flash(9); flash(9); show_main_menu(s,FILE_MENU); break;
     case 'p': flash(10); run_the_commands(s, M_P); flash(10); break;
     case 'e': flash(11); run_the_commands(s, M_EE); flash(11); break;
     case 'm': do_windows(s); flash(12); break;
@@ -503,7 +501,7 @@ void commander(xpp::Session &s, int ch)
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }
-    show_main_menu(MAIN_MENU);
+    show_main_menu(s,MAIN_MENU);
     break;
   }
 }

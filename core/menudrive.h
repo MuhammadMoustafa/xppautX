@@ -207,10 +207,7 @@ void edit_xpprc();
 void do_tutorial();
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
    the one its keys go to */
-void show_main_menu(int which);
-/* which menu the main window's keys go to: MAIN_MENU, FILE_MENU, NUM_MENU
-   (commands.cpp) */
-extern int help_menu;
+void show_main_menu(Session &s, int which);
 
 /* The command layer's entry points take the Session a command runs in
    (ui_json.cpp's handle_line chooses it, W47d). */
