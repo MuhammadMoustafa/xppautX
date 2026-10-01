@@ -408,7 +408,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
 - `core/xpp_batch.cpp` holds `xpp::load_model()`, the start every mode
-  shares, and `xpp_batch_start()`, the set-up with no interface (-silent,
+  shares, and `xpp::batch_start()`, the set-up with no interface (-silent,
   a unit test); what -silent runs is `core/json_silent.cpp`'s built-in
   script, played through the JSON front end (W56).
 - `core/ui_json.cpp` + `core/xppautx_main.cpp` (`SERVER_SOURCES`) are the JSON
@@ -833,7 +833,7 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   through their Solver or IntegratorState, AUTO's routines through
   `iap->lib`). A load (`xpp::Load` in xpp::load_model, core/session.h) builds a
   fresh Model and Session and keeps them only when it finishes: a parse
-  error's `xpp_model_failed` throws `xpp::LoadFailed`, and the Model and
+  error's `xpp::model_failed` throws `xpp::LoadFailed`, and the Model and
   Session before are the client's again, untouched (W47c). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
   `tools/globalcheck.sh` (sourcecheck) fails a file whose external
