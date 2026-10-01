@@ -66,7 +66,7 @@ void start_model(xpp::Session &s, const xpp::KeptValues *kept)
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
     s.drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */
-    xpp_build_colormap();
+    xpp_build_colormap(s.colormap);
     init_main_graph(s);
     init_browser(s);
     ani_zero(s);

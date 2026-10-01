@@ -52,8 +52,8 @@ struct SetubvStop {
 FILE *fort8(AutoLib &lib)
 {
   if(!lib.fp8){
-    lib.fp8.reset(xpp::files::open_stream(xpp::auto_fort_path(8),"w"));
-    if(!lib.fp8)xpp::auto_fail(xpp::format("Could not open {:.200}", xpp::auto_fort_path(8)));
+    lib.fp8.reset(xpp::files::open_stream(xpp::auto_fort_path(*lib.session,8),"w"));
+    if(!lib.fp8)xpp::auto_fail(xpp::format("Could not open {:.200}", xpp::auto_fort_path(*lib.session,8)));
   }
   return lib.fp8.get();
 }

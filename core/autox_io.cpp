@@ -39,7 +39,7 @@ std::string named(std::string_view prefix, const char *name) { return std::strin
 bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
 {
     const xpp::Model &m = s.model();
-    const std::string solutions_path = auto_solutions_file();
+    const std::string solutions_path = auto_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path.c_str(), solutions)) {
         err_msg(xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
@@ -128,7 +128,7 @@ std::optional<std::string> restore_members(Session &s, Members m, const std::str
     auto_data_forget(); /* the strip described the diagram this one replaces */
     diagram_restore(s, std::move(m.points));
     restore_views(s, m.views, name);
-    const std::string solutions_path = auto_solutions_file();
+    const std::string solutions_path = auto_solutions_file(s);
     xpp::Writer w = xpp::Writer::binary(solutions_path.c_str());
     const bool written = w && w.write(m.solutions) && w.commit();
     if (s.auto_state.bifur.exist) redraw_diagram(s);

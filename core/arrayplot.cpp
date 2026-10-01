@@ -49,7 +49,7 @@
 
 void set_up_aplot_range(xpp::Session &s)
 { 
-  static const char *n[]={"Basename","Still(1/0)","Tag(0/1)"};
+  static const char *const n[]={"Basename","Still(1/0)","Tag(0/1)"};
   std::array<std::string, 3> values;
   int status;
   double *x;
@@ -159,7 +159,7 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
 {
   double tlo,thi;
   int status,errflag;
-  static const char *n[]={"Filename","Top label","Side label","Bottom label", 
+  static const char *const n[]={"Filename","Top label","Side label","Bottom label", 
 	       "Render(-1,0,1,2)"};
    std::array<std::string, 5> values;
   int nrows=s.browser.view.maxrow;

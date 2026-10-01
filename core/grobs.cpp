@@ -209,7 +209,7 @@ int select_marker_type(int *type)
 
 int get_marker_info(void)
 {
-    static const char *n[] = {"*5Type", "*4Color", "Size"};
+    static const char *const n[] = {"*5Type", "*4Color", "Size"};
     std::array<std::string, 3> values;
     values[0] = xpp::format("{:d}", markinfo.type);
     values[1] = xpp::format("{:d}", markinfo.color);
@@ -227,7 +227,7 @@ int get_marker_info(void)
 
 int get_markers_info(void)
 {
-    static const char *n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
+    static const char *const n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
     std::array<std::string, 6> values;
     values[0] = xpp::format("{:d}", markinfo.type);
     values[1] = xpp::format("{:d}", markinfo.color);

@@ -456,49 +456,49 @@ char main_menu_kind(int which, int ch)
 }
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */
-static const char *ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
+static const char *const ic_items[]={"(R)ange","(2)par range","(L)ast","(O)ld","(G)o",
   "(M)ouse","(S)hift","(N)ew","s(H)oot","(F)ile","form(U)la","m(I)ce",
   "DAE guess","(B)ackward"};
-static const char *null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
+static const char *const null_items[]={"(N)ew","(R)estore","(A)uto","(M)anual",
   "(F)reeze","(S)ave"};
-static const char *frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
-static const char *dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
+static const char *const frzcline_items[]={"(F)reeze","(D)elete all","(R)ange","(A)nimate"};
+static const char *const dfield_items[]={"(D)irect Field","(F)low","(N)o dir. fld.",
   "(C)olorize","(S)caled Dir.Fld"};
-static const char *window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
+static const char *const window_items[]={"(W)indow","(Z)oom In","Zoom (O)ut","(F)it",
   "(D)efault","(S)croll"};
-static const char *torus_items[]={"(A)ll","(N)one","(C)hoose"};
+static const char *const torus_items[]={"(A)ll","(N)one","(C)hoose"};
 /* (X)tra is defined but not shown: the menu has 6 entries */
-static const char *kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
+static const char *const kin_items[]={"(C)apture","(R)eset","(P)layback","(A)utoplay",
   "(S)ave","(M)ake AniGif"};
-static const char *curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
+static const char *const curve_items[]={"(A)dd curve","(D)elete last","(R)emove all",
   "(E)dit curve","(P)ostscript","S(V)G","(F)reeze","a(X)es opts",
   "exp(O)rt data","(C)olormap"};
-static const char *freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+static const char *const freeze_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)n freeze"};
-static const char *freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
+static const char *const freeze_off_items[]={"(F)reeze","(D)elete","(E)dit","(R)emove all",
   "(K)ey","(B)if.Diag","(C)lr. BD","(O)ff freeze"};
-static const char *key_items[]={"(N)o key","(K)ey"};
-static const char *cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
+static const char *const key_items[]={"(N)o key","(K)ey"};
+static const char *const cmap_items[]={"(N)ormal","(P)eriodic","(H)ot","(C)ool",
   "(B)lue-red","(G)ray","c(U)behelix"};
-static const char *windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
+static const char *const windows_items[]={"(C)reate","(K)ill all","(D)estroy","(B)ottom",
   "(A)uto","(M)anual","(S)imPlot On"};
-static const char *windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
+static const char *const windows_simoff_items[]={"(C)reate","(K)ill all","(D)estroy",
   "(B)ottom","(A)uto","(M)anual","(S)imPlot Off"};
-static const char *text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
+static const char *const text_items[]={"(T)ext","(A)rrow","(P)ointer","(M)arker",
   "(E)dit","(D)elete all","marker(S)"};
-static const char *text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
-static const char *sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
-static const char *view_items[]={"2D","3D","Array","Toon"};
-static const char *bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
-static const char *stoch_items[]={"New seed","Compute","Data","Mean","Variance",
+static const char *const text_edit_items[]={"(M)ove","(C)hange","(D)elete"};
+static const char *const sing_items[]={"(G)o","(M)ouse","(R)ange","monte(C)ar"};
+static const char *const view_items[]={"2D","3D","Array","Toon"};
+static const char *const bvp_items[]={"(R)ange","(N)o show","(S)how","(P)eriodic"};
+static const char *const stoch_items[]={"New seed","Compute","Data","Mean","Variance",
   "Histogram","Old hist","Fourier","Power","fIt data","Stat","Liapunov",
   "stAutocor","Xcorrel etc","spEc.dns","2D-hist"};
-static const char *map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
-static const char *color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
-static const char *adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
+static const char *const map_items[]={"(N)one","(S)ection","(M)ax/min","(P)eriod"};
+static const char *const color_items[]={"(N)o color","(V)elocity","(A)nother quantity"};
+static const char *const adj_items[]={"(N)ew adj","(M)ake H","(A)djoint","(O)rbit",
   "(H)fun","(P)arameters","(R)ange"};
-static const char *tab_items[]={"(E)dit","(V)iew"};
-static const char *meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
+static const char *const tab_items[]={"(E)dit","(V)iew"};
+static const char *const meth_items[]={"(D)iscrete","(E)uler","(M)od. Euler",
   "(R)unge-Kutta","(A)dams","(G)ear","(V)olterra","(B)ackEul",
   "(Q)ualst.RK4","(S)tiff","(C)Vode","DoPri(5)","DoPri(8)3",
   "Rosen(2)3","sYmplectic"};
@@ -558,11 +558,11 @@ char menu_kind(const XppMenu *m, int ch)
 
 /* (F)ile opens AUTO's File menu: a view, as a menu opener takes its items'
    least restrictive kind (its Toggle redraw), so it opens once a run ends */
-static const char *auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
+static const char *const auto_window_items[]={"(P)arameter","(A)xes","(N)umerics","(R)un","(G)rab",
   "(U)sr period","(C)lear","re(D)raw","(F)ile"};
 const XppMenu menu_auto_window = XPP_MENU("auto_window", "AUTO", auto_window_items, "panrgucdf", "svsxdsvvv", auto_hint, -1);
 
-static const char *browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
+static const char *const browser_window_items[]={"(F)ind","(G)et","(R)eplace","(U)nreplace","(T)able","(H)ome: first",
   "(E)nd: last","re(S)tore","(A)dd column","(D)elete column","(L)oad","(W)rite"};
 static const char *const browser_window_hint[]={"Find a value in a column","Make the selected row the initial conditions",
   "Replace a column's values","Undo the last replace","View a table","The first row to keep","The last row to keep",
@@ -570,18 +570,18 @@ static const char *const browser_window_hint[]={"Find a value in a column","Make
   "Save the data or the plot to a file"};
 const XppMenu menu_browser_window = XPP_MENU("browser_window", "Data browser", browser_window_items, "fgruthesadlw", "vdddvddddddd", browser_window_hint, -1);
 
-static const char *ani_window_items[]={"(F)ile","(G)o","(R)eset","(S)kip","(M)peg","(O)n the fly","gr(A)b"};
+static const char *const ani_window_items[]={"(F)ile","(G)o","(R)eset","(S)kip","(M)peg","(O)n the fly","gr(A)b"};
 static const char *const ani_window_hint[]={"Load an animation file","Play the animation","Back to the first frame",
   "Frames skipped between two shown","Save the frames as files","Toggle drawing while integrating",
   "Grab a point of the picture"};
 const XppMenu menu_ani_window = XPP_MENU("ani_window", "Animation", ani_window_items, "fgrsmoa", "vvvvdvd", ani_window_hint, -1);
 
-static const char *aplot_window_items[]={"re(D)raw","(E)dit","(F)it","(R)ange","(P)rint","(G)IF"};
+static const char *const aplot_window_items[]={"re(D)raw","(E)dit","(F)it","(R)ange","(P)rint","(G)IF"};
 static const char *const aplot_window_hint[]={"Redraw the array plot","Edit its settings","Fit the range to the data",
   "Draw a range of parameter values","Write PostScript","Write a GIF"};
 const XppMenu menu_aplot_window = XPP_MENU("aplot_window", "Array plot", aplot_window_items, "defrpg", "vvvxdd", aplot_window_hint, -1);
 
-static const char *equilibrium_window_items[]={"(I)mport"};
+static const char *const equilibrium_window_items[]={"(I)mport"};
 static const char *const equilibrium_window_hint[]={"Make the equilibrium the initial conditions"};
 const XppMenu menu_equilibrium_window = XPP_MENU("equilibrium_window", "Equilibrium", equilibrium_window_items, "i", "d", equilibrium_window_hint, -1);
 
@@ -613,29 +613,29 @@ const XppWindowLayer *window_layer(std::string_view win)
    name the page has always been sent. Nothing about them is dynamic but the
    default item, which the caller passes to menu_choose, and the Special
    menu's title (menu_auto_special copied with its own). */
-static const char *auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
+static const char *const auto_plot_items[]={"Hi","Norm","hI-lo","Period","Two par","(Z)oom in","Zoom (O)ut",
   "last 1 par", "last 2 par","Fit","fRequency","Average","Default","Scroll","new (V)iew"};
 const XppMenu menu_auto_plot_type = XPP_MENU("auto", "Plot Type", auto_plot_items, "hniptzo12fradsv", "vvvvvvvvvvvvvvv", aaxes_hint, -1);
 
-static const char *auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
+static const char *const auto_mark_items[]={"0","1","2","3","4","5","6","7","8","9"};
 const XppMenu menu_auto_mark = XPP_MENU("auto", "Mark values: how many?", auto_mark_items, "0123456789", "ssssssssss", no_hint, -1);
 
-static const char *auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
+static const char *const auto_start_items[]={"Steady state","Periodic","Bdry Value","Homoclinic","hEteroclinic"};
 const XppMenu menu_auto_start = XPP_MENU("auto", "Start", auto_start_items, "spbhe", "xxxxx", arun_hint, -1);
 
-static const char *auto_torus_items[]={"Two Param","Fixed period","Extend"};
+static const char *const auto_torus_items[]={"Two Param","Fixed period","Extend"};
 const XppMenu menu_auto_torus = XPP_MENU("auto", "Torus", auto_torus_items, "tfe", "xxx", no_hint, -1);
 
-static const char *auto_per_doub_items[]={"Doubling","Two Param","Fixed period","Extend"};
+static const char *const auto_per_doub_items[]={"Doubling","Two Param","Fixed period","Extend"};
 const XppMenu menu_auto_per_doub = XPP_MENU("auto", "Per. Doub.", auto_per_doub_items, "dtfe", "xxxx", no_hint, -1);
 
-static const char *auto_periodic_items[]={"Extend","Fixed Period"};
+static const char *const auto_periodic_items[]={"Extend","Fixed Period"};
 const XppMenu menu_auto_periodic = XPP_MENU("auto", "Periodic ", auto_periodic_items, "ef", "xx", no_hint, -1);
 
-static const char *auto_hopf_items[]={"Periodic","Extend","New Point","Two Param"};
+static const char *const auto_hopf_items[]={"Periodic","Extend","New Point","Two Param"};
 const XppMenu menu_auto_hopf = XPP_MENU("auto", "Hopf Pt", auto_hopf_items, "pent", "xxxx", no_hint, -1);
 
-static const char *auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
+static const char *const auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
 const XppMenu menu_auto_branch = XPP_MENU("auto", "Branch Pt", auto_branch_items, "sent", "xxxx", no_hint, -1);
 
 /* the File menu's own 15 hints plus the CSV export and the settings file (W118) */
@@ -658,12 +658,12 @@ static const char *const auto_file_hint[]={
 "Write the diagram, and its eigenvalues/multipliers, as CSV",
 "Save AUTO's settings alone to a file (.autoset)",
 "Set AUTO's settings from a saved file (.autoset)"};
-static const char *auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
+static const char *const auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
   "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
   "draw laBled","lOad branch","eXport CSV","save settinGs","settings From file"};
 const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxgf", "ddddddddddvxdxdddd", auto_file_hint, -1);
 
-static const char *auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
+static const char *const auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);
 
 } // namespace xpp

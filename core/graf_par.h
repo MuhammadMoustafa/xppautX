@@ -34,7 +34,7 @@ typedef struct {
 
 void check_val(double *x1, double *x2, double *xb, double *xd);
 void pretty(double *x1, double *x2);
-void change_cmap_com(int i);
+void change_cmap_com(Session &s, int i);
 void init_bd(void);
 
 void dump_ps(Session &s, int i);

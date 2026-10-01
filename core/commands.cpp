@@ -275,7 +275,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com >= M_GCN && com <= M_GCU) {
-    change_cmap_com(com - M_GCN);
+    change_cmap_com(s,com - M_GCN);
     redraw_dfield(s);
     return;
   }

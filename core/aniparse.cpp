@@ -1132,7 +1132,7 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
 
 void ani_create_mpeg(xpp::Session &s)
 {
-    static const char *n[] = {"PPM 0/1", "Basename", "AniGif(0/1)"};
+    static const char *const n[] = {"PPM 0/1", "Basename", "AniGif(0/1)"};
     std::array<std::string, 3> values;
     s.animation.mpeg.flag = 0;
     values[0] = xpp::format("{:d}", s.animation.mpeg.flag);

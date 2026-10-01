@@ -88,7 +88,7 @@ void close_auto(Session &s, int flag);
 void open_auto(Session &s, int flag);
 /* the path of AUTO's fort.<unit> (3, 7, 8 or 9) open_auto set, "" for
    another unit: gogoauto.cpp opens them for a run */
-const char *auto_fort_path(int unit);
+const char *auto_fort_path(const Session &s, int unit);
 void do_auto(Session &s, int iold, int isave, int itp);
 void set_auto(Session &s);
 /* AUTO's index of the period among its parameters (PAR(10), named T) */
@@ -118,19 +118,24 @@ void auto_zoom_out(Session &s, int i1, int j1, int i2, int j2);
 /* where view ax plots a point: x, and y1 and y2 (the maximum and minimum,
    or y1 twice) */
 void auto_xy_plot(const AUTOAX *ax, double *x, double *y1, double *y2, double par1, double par2, double per, double *uhigh, double *ulow, double *ubar, double a);
-void add_ps_point(Session &s, double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2, double *evr, double *evi);
+/* the stored point d into the PostScript or SVG picture being written
+   (type its get_bif_type, flag 0 for a branch's first point) */
+void add_ps_point(Session &s, const DIAGRAM &d, int type, int flag);
 void auto_line(Session &s, double x1i, double y1i, double x2i, double y2i);
-/* who the next add_point() is: AUTO's branch, point and type, its entry in
-   the diagram list (DIAGRAM.index) and the label its run started from */
-void auto_point_id(int ibr, int ntot, int itp, int node, int from);
 /* the label the running continuation started from, once: for its first point */
-int auto_run_from_take(void);
-void add_point(Session &s, double *par, double per, double *uhigh, double *ulow, double *ubar, double a, int type, int flag, int lab, int npar, int icp1, int icp2, int flag2,int icp3, int icp4, double *evr, double *evi);
+int auto_run_from_take(Session &s);
+/* the stored point d (its branch, point and type, its entry in the
+   diagram list, the label its run started from, its stability) plotted in
+   every view: the diagram's data and the active view's drawing. par the
+   parameters it was computed at (AUTO's own during a run, d's stored ones
+   in a redraw), type its get_bif_type, flag 0 for a branch's first point */
+void add_point(Session &s, const DIAGRAM &d, const double *par, int type, int flag);
 /* the two-letter symbol of AUTO's point type itp (BP, LP, HB, UZ, PD, TR,
    EP, MX), two blanks for any other */
 const char *auto_bif_sym(int itp);
 void info_header(Session &s, int flag2, int icp1, int icp2);
-void new_info(Session &s, int ibr, int pt, const char *ty, int lab, double *par, double norm, double u0, double per, int flag2, int icp1, int icp2);
+/* the info strip's line for the stored point d */
+void new_info(Session &s, const DIAGRAM &d);
 void traverse_out(Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw);
 void do_auto_win(Session &s);
 void load_last_plot(Session &s, int flag);
@@ -215,7 +220,7 @@ void do_auto_range(Session &s);
    command to show */
 Result<> load_auto_orbitx(Session &s, int ibr,int flag, int lab, double per);
 /* the .auto's copy of the solution file, written beside this model's */
-Result<> make_q_file(FILE *fp);
+Result<> make_q_file(const Session &s, FILE *fp);
 
 /* the number of points of the marked stretch of the diagram (*n) and its
    first parameter's name (pname); both unchanged when none is marked */
@@ -229,7 +234,7 @@ int auto_name_to_index(const Session &s, std::string_view name);
 
 /* AUTO's solution file (fort.8 after a run, the orbits of the labelled
    points a grab restarts from): <HOME or the model's folder>/<model>.s */
-std::string auto_solutions_file();
+std::string auto_solutions_file(const Session &s);
 
 /* view ax's axis labels as the axes show them: a name, name_bar or
    "Frequency" each (json_auto.cpp's diagram events) */

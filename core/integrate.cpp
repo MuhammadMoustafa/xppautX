@@ -189,7 +189,7 @@ void init_range(xpp::Session &s)
 
 int set_up_eq_range(xpp::Session &s)
 {
-static const char *n[]={"*2Range over","Steps","Start","End",
+static const char *const n[]={"*2Range over","Steps","Start","End",
 		     "Shoot (Y/N)",
 		  "Stability col","Movie (Y/N)","Monte Carlo (Y/N)"};
  std::array<std::string, 8> values;
@@ -288,7 +288,7 @@ int range_item2(xpp::Session &s)
 
 int set_up_range(xpp::Session &s)
 {
- static const char *n[]={"*3Range over","Steps","Start","End",
+ static const char *const n[]={"*3Range over","Steps","Start","End",
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
  std::array<std::string, 8> values;
@@ -334,7 +334,7 @@ int set_up_range(xpp::Session &s)
 
 int set_up_range2(xpp::Session &s)
 {
- static const char *n[]={"*3Vary1","Start1","End1",
+ static const char *const n[]={"*3Vary1","Start1","End1",
                    "*3Vary2","Start2","End2","Steps",
 		     "Reset storage (Y/N)",
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)",

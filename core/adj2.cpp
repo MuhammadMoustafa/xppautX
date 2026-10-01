@@ -90,7 +90,7 @@ void dump_transpose_info(FILE *fp, int f)
 int do_transpose(xpp::Session &s)
 {
  int i,status;
- static const char *n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
+ static const char *const n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  std::array<std::string, 6> values;
  values[0] = my_trans.firstcol;
  values[1] = xpp::format("{:d}", my_trans.ncol);

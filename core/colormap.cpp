@@ -28,8 +28,6 @@ namespace xpp {
 
 #define COL_TOTAL 150
 
-int custom_color = 0;
-
 /* 16-bit RGB per colour index, same scale X11 uses */
 unsigned short cmap_rgb[XPP_MAX_COLORS][3];
 XppColorTable color_table;
@@ -147,7 +145,7 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
 
 /* Fill cmap_rgb and color_table's first/last/count. This is the
    device-independent half of what MakeColormap() in color.c used to do. */
-void xpp_build_colormap(void)
+void xpp_build_colormap(int type)
 {
     int i;
     int r[256], g[256], b[256];
@@ -187,7 +185,7 @@ void xpp_build_colormap(void)
         cmap_rgb[i][2] <<= 8;
     }
 
-    make_cmaps(r, g, b, color_table.count + 1, custom_color);
+    make_cmaps(r, g, b, color_table.count + 1, type);
     for (i = color_table.first; i <= color_table.last; i++) {
         cmap_rgb[i][0] = r[i - color_table.first];
         cmap_rgb[i][1] = g[i - color_table.first];

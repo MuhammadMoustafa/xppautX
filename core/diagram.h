@@ -49,8 +49,12 @@ xpp::DIAGRAM *diagram_first(AutoDiagram &diagram);
 /* the point after / before d, or NULL at the end / the start */
 xpp::DIAGRAM *diagram_next(AutoDiagram &diagram, const xpp::DIAGRAM *d);
 xpp::DIAGRAM *diagram_prev(AutoDiagram &diagram, const xpp::DIAGRAM *d);
-void edit_start(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,double *evr, double *evi);
-void add_diagram(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3,int icp4,int flag2, double *evr, double *evi);
+/* p, a point of AUTO's run or of a file being read (its arrays n long),
+   into the diagram: edit_start fills the first point in place with the
+   run's flag2 (two_param), add_diagram appends it with p's; the kind of
+   calculation and the torus period are the run's (s) */
+void edit_start(xpp::Session &s, const xpp::DIAGRAM &p, int n);
+void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p, int n);
 void kill_diagrams(xpp::Session &s);
 /* the entry add_diagram or edit_start made last */
 xpp::DIAGRAM *last_diagram(AutoDiagram &diagram);

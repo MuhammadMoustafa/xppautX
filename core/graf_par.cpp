@@ -110,7 +110,7 @@ void check_flags(xpp::Session &s)
 
 void get_2d_view(xpp::Session &s, int ind)
 {
- static const char *n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
+ static const char *const n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
 		   "Xmax", "Ymax", "Xlabel","Ylabel"};
  std::array<std::string, 8> values;
  int  status,i; 
@@ -152,7 +152,7 @@ void get_2d_view(xpp::Session &s, int ind)
 
 void axes_opts(xpp::Session &s)
 {
-  static const char *n[]={"X-origin","Y-origin","Z-origin",
+  static const char *const n[]={"X-origin","Y-origin","Z-origin",
 		   "X-org(1=on)","Y-org(1=on)","Z-org(1=on",
 		    "PSFontSize"};
   std::array<std::string, 7> values;
@@ -182,7 +182,7 @@ void axes_opts(xpp::Session &s)
 
 void get_3d_view(xpp::Session &s, int ind)
 {
- static const char *n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
+ static const char *const n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
 		   "Xmin", "Xmax", "Ymin",
 		   "Ymax", "Zmin","Zmax",
 		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
@@ -400,7 +400,7 @@ void fit_window(xpp::Session &s)
 
 void user_window(xpp::Session &s)
 {
- static const char *n[]={"X Lo","X Hi","Y Lo","Y Hi"};
+ static const char *const n[]={"X Lo","X Hi","Y Lo","Y Hi"};
  std::array<std::string, 4> values;
  int status;
  values[0] = xpp::format("{:g}", s.plot_windows.current->xlo);
@@ -481,7 +481,7 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
 void get_3d_par_com(xpp::Session &s)
 {
 
- static const char *n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
+ static const char *const n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
                    "Vary (theta/phi)","Start angle", "Increment",
 		   "Number increments"};
  std::array<std::string, 10> values;
@@ -702,7 +702,7 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
 
 int alter_curve(xpp::Session &s, std::string_view title, int in_it, int n)
 {
- static const char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
+ static const char *const nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  std::array<std::string, 5> values;
  int status,i;
  int i1=s.plot_windows.current->xv[in_it],i2=s.plot_windows.current->yv[in_it],i3=s.plot_windows.current->zv[in_it];
@@ -780,10 +780,10 @@ void export_plot_picture(xpp::Session &s, int fmt)
  }
 }
 
-void change_cmap_com(int i)
+void change_cmap_com(xpp::Session &s, int i)
 {
-      NewColormap(i);
-
+  s.colormap=i;
+  NewColormap(i);
 }
 
 void freeze_com(xpp::Session &s, int c)
@@ -966,7 +966,7 @@ bool restore_frozen_curve(xpp::Session &s, int i, XppWinId w, int type, int colo
 
 void edit_frz_crv(xpp::Session &s, int i)
 {
- static const char *nn[]={"*4Color","Key","Name"};
+ static const char *const nn[]={"*4Color","Key","Name"};
  std::array<std::string, 3> values;
  int status;
  values[0] = xpp::format("{:d}", s.frozen_curves.curve[i].color);

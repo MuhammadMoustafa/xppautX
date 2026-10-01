@@ -122,6 +122,9 @@ struct Session {
   int run_immediately=0;
   /* the command line named a model file */
   int got_file=0;
+  /* the colour scale's type (colormap.h's make_cmaps: @ colormap, the
+     Colormap menu); 0 the default, so a model without @ colormap gets it */
+  int colormap=0;
 
   /* what each network computed last and its work space (simplenet.cpp;
      their definitions are Model::networks) */

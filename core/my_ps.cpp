@@ -372,7 +372,7 @@ void ps_text(xpp::Session &s, int x, int y, const char *str)
 
 int ps_ask_params(xpp::Session &s)
 {
-  static const char *nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
+  static const char *const nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
   std::array<std::string,5> values;
   values[0]=xpp::format("{:d}",s.plot_export.color);
   values[1]=xpp::format("{:d}",s.drawing.ps_port);

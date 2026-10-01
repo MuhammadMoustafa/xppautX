@@ -40,6 +40,14 @@ struct AutoDiagramView {
   std::array<double,4> zoom_axes{};
 };
 
+/* the diagram's marked stretch (the S and E keys in the Grab loop): the
+   branch and point numbers of its start and end */
+struct AutoDiagramMark {
+  int state=0;        /* 0 nothing, 1 start marked, 2 start and end */
+  int start_branch=0,end_branch=0;
+  int start_point=0,end_point=0;
+};
+
 struct AutoState {
   /* the AUTO window and its settings */
   xpp::BIFUR bifur{};
@@ -97,6 +105,37 @@ struct AutoState {
      HOME, as upstream (-silent); xppautX sets a private one per session
      so concurrent sessions never share AUTO files (xppautx_main.cpp) */
   std::string dir;
+  /* <model>.ode under dir (the .b/.d/.s files are it plus their
+     extension), and AUTO's unit files there (open_auto): fort.3 the
+     restart data, fort.7 the branches, fort.8 the solutions, fort.9 the
+     diagnostics */
+  std::string file;
+  std::string fort3,fort7,fort8,fort9;
+  /* the label the running continuation started from (Auto.irs), for its
+     first point: do_auto sets it, addbif takes it (auto_run_from_take) */
+  int run_from=0;
+  /* do_auto's own follow-up runs (restart_label) are one run: its depth */
+  int depth=0;
+  /* the point the Grab loop is on, which a run starts from */
+  xpp::GRABPT grabpt{};
+  /* the diagram's marked stretch (the S and E keys in the Grab loop) */
+  AutoDiagramMark diagram_mark;
+  /* AUTO's File menu Redraw toggle: only reported */
+  int redraw=1;
+  /* the File menu's "Draw labeled" toggle: 0 off, 1 traversing the
+     diagram draws each labelled point's orbit, 2 clearing the screens
+     first */
+  int load_all_labeled_orbits=0;
+  /* the two-parameter point the Grab loop picked (storeautopoint), for
+     setautopoint to give the model's parameters */
+  double from_auto_x=0,from_auto_y=0;
+  int from_auto_flag=0;
+  /* the time shift that best lines a homoclinic orbit up with the one
+     before (find_best_homo_shift) */
+  double homo_shift=0.0;
+  /* the axes a one-parameter and a two-parameter plot had last
+     (keep_last_plot, load_last_plot) */
+  xpp::AUTOAX old1p{},old2p{};
 };
 
 /* AUTO's work arrays (autlib1's allocate_global_memory owns their

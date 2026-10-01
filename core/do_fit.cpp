@@ -544,7 +544,7 @@ sigma  weights on nvars
 
 int get_fit_params()
 {
-  static const char *n[]={"File", "Fitvar","Params","Tolerance","Npts",
+  static const char *const n[]={"File", "Fitvar","Params","Tolerance","Npts",
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
   std::array<std::string, 10> values;

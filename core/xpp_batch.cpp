@@ -176,7 +176,7 @@ void model_failed()
 
 void batch_start(xpp::Session &s)
 {
-    xpp_build_colormap();
+    xpp_build_colormap(s.colormap);
     init_browser(s);
     init_all_graph(s);
     if_needed_select_sets(s.model());

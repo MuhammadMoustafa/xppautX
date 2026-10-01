@@ -20,9 +20,9 @@ struct RunUnits {
   xpp::UniqueFile u3,u7,u9;
   RunUnits(xpp::Session &s, bool restart)
     : lib(s.auto_lib),
-      u3(xpp::files::open_stream(xpp::auto_fort_path(3),restart?"r":"w+")),
-      u7(xpp::files::open_stream(xpp::auto_fort_path(7),"w")),
-      u9(xpp::files::open_stream(xpp::auto_fort_path(9),"w"))
+      u3(xpp::files::open_stream(xpp::auto_fort_path(s,3),restart?"r":"w+")),
+      u7(xpp::files::open_stream(xpp::auto_fort_path(s,7),"w")),
+      u9(xpp::files::open_stream(xpp::auto_fort_path(s,9),"w"))
   {
     lib.session=&s;
     lib.fp3=u3.get();

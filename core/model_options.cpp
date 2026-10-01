@@ -474,11 +474,11 @@ constexpr OptionRow rows[] = {
      return color_into(s.manifolds.unstable_color, v);
    }},
   {.name = "COLORMAP", .flag = Option::COLORMAP,
-   .whole = [](Session &) -> int & { return custom_color; },
-   .parse = [](Session &, const OptionValue &v) -> const char * {
+   .whole = [](Session &s) -> int & { return s.colormap; },
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
      int i = 0;
      if (whole_in(v, i) || i < 0 || i >= 7) return "not a colour map from 0 to 6";
-     custom_color = i;
+     s.colormap = i;
      return nullptr;
    }},
   {.name = "PLOTFMT", .flag = Option::PLOTFMT,

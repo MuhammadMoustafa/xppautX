@@ -1,6 +1,7 @@
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
+#include <algorithm>
 #include <array>
 #include <deque>
 #include <vector>
@@ -40,37 +41,38 @@ xpp::DIAGRAM *new_point(AutoDiagram &dg, int n)
   return &p.d;
 }
 
-/* point d set to a point of AUTO's run (s: the run's kind of calculation) */
-void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi, double tp)
+/* point d set to p, a point of AUTO's run, with flag2 (s: the run's
+   kind of calculation and torus period) */
+void edit_diagram(const xpp::Session &s, xpp::DIAGRAM *d, const xpp::DIAGRAM &p, int n, int flag2)
 {
   int i;
   d->calc=s.auto_state.type_of_calc;
-  d->ibr=ibr;
-  d->ntot=ntot;
-  d->itp=itp;
-  d->lab=lab;
-  d->nfpar=nfpar;
-  d->norm=a;
+  d->ibr=p.ibr;
+  d->ntot=p.ntot;
+  d->itp=p.itp;
+  d->lab=p.lab;
+  d->nfpar=p.nfpar;
+  d->norm=p.norm;
   for(i=0;i<8;i++){
-    d->par[i]=par[i];
+    d->par[i]=p.par[i];
   }
 
-  d->per=per;
+  d->per=p.per;
  
-  d->icp1=icp1;
-  d->icp2=icp2;
-  d->icp3=icp3;
-  d->icp4=icp4;
+  d->icp1=p.icp1;
+  d->icp2=p.icp2;
+  d->icp3=p.icp3;
+  d->icp4=p.icp4;
   d->flag2=flag2;
   for(i=0;i<n;i++){
-    d->ulo[i]=ulo[i];
-    d->uhi[i]=uhi[i];
-    d->ubar[i]=ubar[i];
-    d->u0[i]=u0[i];
-    d->evr[i]=evr[i];
-    d->evi[i]=evi[i];
+    d->ulo[i]=p.ulo[i];
+    d->uhi[i]=p.uhi[i];
+    d->ubar[i]=p.ubar[i];
+    d->u0[i]=p.u0[i];
+    d->evr[i]=p.evr[i];
+    d->evi[i]=p.evi[i];
    }
-  d->torper=tp;
+  d->torper=s.auto_state.blrtn.torper;
 }
 } // namespace
 
@@ -127,18 +129,15 @@ void start_diagram(xpp::Session &s, int n)
   s.auto_state.diag_flag=0;
 }
 
-void edit_start(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, double *evr, double *evi)
+void edit_start(xpp::Session &s, const xpp::DIAGRAM &p, int n)
 {
-  edit_diagram(s,diagram_first(s.diagram),ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,
-	       par,per,n,icp1,icp2,icp3,icp4,s.auto_state.two_param,evr,evi,s.auto_state.blrtn.torper);
+  edit_diagram(s,diagram_first(s.diagram),p,n,s.auto_state.two_param);
 }
 
-  
-void add_diagram(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4, int flag2, double *evr, double *evi)
+void add_diagram(xpp::Session &s, const xpp::DIAGRAM &p, int n)
 {
- xpp::DIAGRAM *dnew=new_point(s.diagram,n);
- edit_diagram(s,dnew,ibr,ntot,itp,lab,nfpar,a,uhi,ulo,u0,ubar,par,per,n,
-	      icp1,icp2,icp3,icp4,flag2,evr,evi,s.auto_state.blrtn.torper);
+  xpp::DIAGRAM *dnew=new_point(s.diagram,n);
+  edit_diagram(s,dnew,p,n,p.flag2);
 }
 
 xpp::DIAGRAM *last_diagram(AutoDiagram &diagram)
@@ -179,9 +178,7 @@ void redraw_diagram(xpp::Session &s)
  
     if(d->ntot==1)flag=0;
     else flag=1;
-    xpp::auto_point_id(d->ibr,d->ntot,d->itp,d->index,d->from);
-    add_point(s,d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
-	      d->lab,d->nfpar,d->icp1,d->icp2,d->icp3,d->icp4,d->flag2,d->evr,d->evi);
+    add_point(s,*d,d->par,type,flag);
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
@@ -226,8 +223,7 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
     }
     if(d->ntot==1)flag=0;
     else flag=1;
-    add_ps_point(s,d->par,d->per,d->uhi,d->ulo,d->ubar,d->norm,type,flag,
-	      d->lab,d->nfpar,d->icp1,d->icp2,d->flag2,d->evr,d->evi);
+    add_ps_point(s,*d,type,flag);
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
@@ -461,15 +457,33 @@ int load_diagram(xpp::Session &s, FILE *fp, int node)
     for(i=0;i<node;i++) if (!tr.read(u0[i]) || !tr.read(uhi[i]) || !tr.read(ulo[i]) || !tr.read(ubar[i])
 			      || !tr.read(evr[i]) || !tr.read(evi[i])) break;
     if (i<node) break;
+    xpp::DIAGRAM p{};
+    p.ibr=ibr;
+    p.ntot=ntot;
+    p.itp=itp;
+    p.lab=lab;
+    p.nfpar=nfpar;
+    p.norm=norm;
+    p.uhi=uhi.data();
+    p.ulo=ulo.data();
+    p.u0=u0.data();
+    p.ubar=ubar.data();
+    p.evr=evr.data();
+    p.evi=evi.data();
+    std::copy(par.begin(),par.end(),p.par);
+    p.per=per;
+    p.icp1=icp1;
+    p.icp2=icp2;
+    p.icp3=icp3;
+    p.icp4=icp4;
+    p.flag2=flag2;
     if(flag==0){
-      edit_start(s,ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
-		 icp1,icp2,icp3,icp4,evr.data(),evi.data());
+      edit_start(s,p,node);
       flag=1;
       s.auto_state.diag_flag=1;
     }
     else
-      add_diagram(s,ibr,ntot,itp,lab,nfpar,norm,uhi.data(),ulo.data(),u0.data(),ubar.data(),par.data(),per,node,
-		  icp1,icp2,icp3,icp4,flag2,evr.data(),evi.data());
+      add_diagram(s,p,node);
     if(index>=n)break;
   }
   return(1);

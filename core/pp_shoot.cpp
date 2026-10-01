@@ -189,10 +189,10 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
 
 int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *ishow)
 {
- static const char *n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
+ static const char *const n[]={"Freq. Par.","*1Sect. Var","Section","Show(Y/N)"};
  std::array<std::string, 4> values;
  int status,i;
- static const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  values[0] = s.model().upar_names[*ipar];
  values[1] = s.model().uvar_names[*ivar];
  values[2] = xpp::format("{:g}", *sect);
@@ -316,7 +316,7 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
 
 int set_up_sh_range(xpp::Session &s)
 {
-static const char *n[]={"*2Range over","Steps","Start","End",
+static const char *const n[]={"*2Range over","Steps","Start","End",
 		     "Cycle color(Y/N)",
 		       "Side(0/1)", "Movie(Y/N)" };
  std::array<std::string, 7> values;

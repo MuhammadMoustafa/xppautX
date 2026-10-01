@@ -242,7 +242,7 @@ typedef struct XppUi {
     int (*rubber_band)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
     void (*scroll_window)(Session &s);
 
-    /* colormap changed (custom_color) */
+    /* colormap changed (Session::colormap) */
     void (*new_colormap)(int type);
 
     /* raw drawing primitives used by graphics.c when the plot format is

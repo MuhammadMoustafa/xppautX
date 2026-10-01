@@ -68,5 +68,19 @@ int main(void)
     CHECK(xpp::client_session().model().this_file == file);
     CHECK(xpp::client_session().numerics.tend != 123.0);
 
+    /* a model's @ colormap is its own Session's (W120): the next model
+       loaded without one gets the default scale */
+    const char cmap[] = "build/test_load_cmap.ode";
+    {
+        xpp::Writer w(cmap);
+        CHECK(w && w.write("x'=-x\n@ colormap=3\ndone\n") && w.commit());
+    }
+    char cmap_arg[] = "build/test_load_cmap.ode";
+    char *argv_cmap[] = {arg0, cmap_arg, NULL};
+    CHECK(xpp::load_model(2, argv_cmap, 1).has_value());
+    CHECK(xpp::client_session().colormap == 3);
+    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(xpp::client_session().colormap == 0);
+
     TEST_REPORT("load: build, then swap");
 }

@@ -270,8 +270,7 @@ void j_scroll_window(xpp::Session &s)
 
 void j_new_colormap(int type)
 {
-    custom_color = type;
-    xpp_build_colormap();
+    xpp_build_colormap(type);
 }
 
 /* ---- pixels -------------------------------------------------------------------

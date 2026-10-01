@@ -323,7 +323,7 @@ void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi,
 
 void do_range_clines(xpp::Session &s)
 {
-  static const char *n[]={"*2Range parameter","Steps","Low","High"};
+  static const char *const n[]={"*2Range parameter","Steps","Low","High"};
   std::array<std::string, 4> values;
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   const int course=s.numerics.nmesh;
