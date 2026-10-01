@@ -40,5 +40,5 @@ qa/
 /assets/drafts/
 
 # upstream XPPAUT sources kept locally for reading and citing (docs/xppaut-findings.md):
-# xppaut-8.0 is git archive c021b51, xppaut-github-9068d8a the Ermentrout/xppaut master zip (2016)
+# xppaut-8.0 (the 8.0 source xppautX was forked from) and xppaut-master (XPPAUT's GitHub master)
 /reference/

@@ -26,7 +26,7 @@ The sections below give the details.
 | Numerics change only on purpose | examples md5s, goldencheck, odexcheck |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58) | review |
 | Agents stop only their own processes, by PID, never by name | review |
-| A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence and the lines in XPPAUT's own source, never our refactored code: XPPAUT 8.0 (the untouched import, commit c021b51; locally `reference/xppaut-8.0`) as hyperlinks to that commit's lines on GitHub (`https://github.com/MuhammadMoustafa/xppautX/blob/c021b51/<file>#L<a>-L<b>`), and whether Ermentrout/xppaut's GitHub master (9068d8a, 2016; `reference/xppaut-github-9068d8a`) has it too, linked the same way (maintainer, 2026-10-01) | review |
+| A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence and the lines in XPPAUT's own source, never our refactored code, as relative links into the local, git-ignored copies `reference/xppaut-8.0` (the 8.0 source xppautX was forked from, `git archive c021b51`) and `reference/xppaut-master` (XPPAUT's GitHub master), e.g. `[load_eqn.c:1544](../reference/xppaut-8.0/load_eqn.c#L1544)` (maintainer, 2026-10-01) | review |
 
 ## Build (from Windows this repo builds only under WSL)
 
