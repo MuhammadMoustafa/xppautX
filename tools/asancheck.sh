@@ -71,7 +71,7 @@ mkdir -p build || exit 1
 if [ $skip_build -eq 1 ] || ! has_phase build; then
   echo "asan build skipped (--skip-build or --only without build): using $bdir as-is"
 else
-  if ! "$make" -j8 BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
+  if ! "$make" -j"${XPP_JOBS:-4}" BUILDDIR="$bdir" ASAN=1 "$@" asan-link > "$log-build.log" 2>&1; then
     grep -E ' error:' "$log-build.log" | head -20
     echo "ASAN BUILD FAILED"
     exit 1
