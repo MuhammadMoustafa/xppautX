@@ -391,7 +391,7 @@ the same way.
 
 - **XPPAUT 8.0:** integrate [integrate.c:1912-1914](../reference/xppaut-8.0/integrate.c#L1912-L1914) ([master 1884-1886](../reference/xppaut-master/integrate.c#L1884-L1886)) (the division), the .set read [lunch-new.c:342](../reference/xppaut-8.0/lunch-new.c#L342) ([master 342](../reference/xppaut-master/lunch-new.c#L342)), the @ lines [load_eqn.c:1483-1497](../reference/xppaut-8.0/load_eqn.c#L1483-L1497) ([master 1482-1496](../reference/xppaut-master/load_eqn.c#L1482-L1496)), the dialog's check [numerics.c:118-122](../reference/xppaut-8.0/numerics.c#L118-L122), [numerics.c:230-231](../reference/xppaut-8.0/numerics.c#L230-L231) ([master 227-228](../reference/xppaut-master/numerics.c#L227-L228)).
 - **Evidence:** the code review of 2026-10-01 (docs/code-review-2026-10-01.md): a saved session whose model.set had `0 nout` loaded, and Initialconds/Go exited on SIGFPE.
-- **xppautX:** every source of a numerics value checks it by model_options' one table of rules (`@` lines since W119/W121, the dialog, and the .set reader at W145).
+- **xppautX:** every source of a numerics value checks it by one rule of model_options' table (`rule_problem`): the Numerics dialog, the `@` lines (which until W145 checked only that the value was a number) and the .set reader (W145).
 - **Card:** W145 (#197).
 
 ## Known and kept

@@ -100,7 +100,7 @@ unit-test count difference is recorded without treating it as a failure.
 
 ## Reproduction and evidence
 
-The reusable probe is `tools/review_session_probes.py`. From a built repository:
+The reusable probe was `tools/review_session_probes.py`; W145 (#197) moved its cases into servercheck and autocheck and deleted it. From a built repository:
 
 ```bash
 python3 tools/review_session_probes.py ./xppautX
