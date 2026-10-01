@@ -228,6 +228,7 @@ issue; the card here is the one kept up to date.
 | W141 | #193 | The hidden state W120 left (named in tests/globals_internal.baseline): the data modules' records (plot_data, phase_data, marks_data, ani_data) into the Session, the random engine into the Session, load_eqn's options_applied/interopt, const dialog labels (numerics, browse_data) | none | done |
 | W142 | #194 | Browser checks download into a folder of their own (maintainer, 2026-10-01: 226 test files in ~/Downloads): cdp.mjs sets one download folder per run under build/ when it starts the browser, emptied first and removed after, never 'default'; download checks read it there; a full web2check adds nothing to ~/Downloads | none | done |
 | W143 | #195 | Every XPPAUT bug and limit we fixed, in docs/xppaut-findings.md with linked source lines (maintainer, 2026-10-01): citations as relative links into reference/xppaut-8.0 and reference/xppaut-master (local, git-ignored), no upstream commit details; a round check of the roadmap, git history, front-end-gaps and issues for every XPPAUT bug, wrong result or arbitrary limit xppautX fixed, each verified in 8.0's source | none | done |
+| W144 | #196 | Remove --script (maintainer, 2026-10-01): a recording (.recx) is the one replay format; one player; checks move to --server or a .recx; lecar_auto.jsonl becomes a .recx example; headless replay of a .recx to be decided | none | blocked (decision) |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
