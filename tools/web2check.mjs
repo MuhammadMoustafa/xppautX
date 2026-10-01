@@ -2952,7 +2952,10 @@ async function busyAuto() {
   await focusPlot();
   await key('i');
   await key('g');
-  const busy = await until('s.busy && !s.ask && s.core && (s.progress || w.series)', 'integration running', 5000);
+  /* s.computing, not just s.busy: the controls are disabled by the core's
+     `computing` event (W95), which comes a moment after the command starts;
+     reading them on s.busy alone raced it (macos-ui, 2026-10-01) */
+  const busy = await until('s.busy && s.computing && !s.ask && s.core && (s.progress || w.series)', 'integration running', 5000);
   const run = await cdp.eval(`(() => { const b = document.querySelector('.auto-tools button[aria-keyshortcuts=R]');
     return {disabled: b.disabled, title: b.title}; })()`);
   const menu = await cdp.eval(`(() => { const b = document.querySelector('.menu-panel .menu-item'); return b && [b.disabled, b.title]; })()`);
