@@ -18,8 +18,8 @@
    after Axes and File/Load, so there is no reDraw); Clear is the view's:
    the branches so far become "earlier branches", hidden until their key
    entry shows them. A click on an axis name opens its dialog
-   (ui/AutoAxes.tsx). Save settings and Load settings keep AUTO's settings
-   in a file (store/autoSettings.ts).
+   (ui/AutoAxes.tsx). Load settings runs the core's File > settings From
+   file (its own .autoset, which File > save settinGs writes: W118).
 
    T22: Parameter, Numerics and Mark values are the page's own forms on the
    `autosettings` data (ui/AutoSettings.tsx), and so is what the axis dialog
