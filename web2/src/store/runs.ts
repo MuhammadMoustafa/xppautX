@@ -13,7 +13,7 @@
      until the core says otherwise (its next run, or Redraw). */
 import type {RunsEvent} from '../protocol/types';
 import {decode} from '../protocol/decode';
-import type {PlotSeries} from './series';
+import {columnStats, type PlotSeries} from './series';
 
 export interface RunHistory {
   /** earlier runs, oldest first */
@@ -34,6 +34,7 @@ function runSeries(win: number, r: RunsEvent['add'][number]): PlotSeries {
   return {
     win, rows: r.rows, three: r.three !== 0, labels: {x: '', y: '', z: ''}, curves: r.curves, shift: r.shift,
     columns, names, buffers: new Map(columns), version: null,
+    stats: new Map([...columns].map(([c, a]) => [c, columnStats(a, 0, a.length)])),
   };
 }
 

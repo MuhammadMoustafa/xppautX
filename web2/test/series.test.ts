@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {decode, valueCount} from '../src/protocol/decode';
 import type {SeriesAppendEvent, SeriesEvent} from '../src/protocol/types';
-import {appendRows, seriesFromEvent} from '../src/store/series';
+import {appendRows, columnStats, seriesFromEvent} from '../src/store/series';
 import {activeWindow} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
@@ -125,4 +125,15 @@ test('the end of a live run: the rows the appends gave, its version, counted as 
   assert.equal(shown(s).series!.columns.get(1), held.columns.get(1), 'the same data, not a copy');
   const later = ev(s, {ev: 'series', op: 'end', win: 1, rows: 5, version: 3});
   assert.equal(later, s, 'an end that does not match the rows held changes nothing');
+});
+
+test('a column\'s range and order are kept up by appends, as a scan of the whole column gives them', () => {
+  let s = seriesFromEvent(full);
+  for (const [from, n] of [[2, 3], [5, 4], [9, 2]]) s = appendRows(s, append(from, n))!;
+  for (const [col, a] of s.columns) assert.deepEqual(s.stats.get(col), columnStats(a, 0, a.length), `column ${col}`);
+  assert.equal(s.stats.get(0)!.increasing, true);
+  const back = appendRows(s, {...append(11, 1), columns: append(11, 1).columns.map(c => ({...c, data: [-5]}))})!;
+  assert.deepEqual([back.stats.get(1)!.min, back.stats.get(0)!.increasing], [-5, false], 'a value going back');
+  const again = appendRows(back, append(0, 2))!;
+  assert.deepEqual(again.stats.get(1), {min: 10, max: 11, increasing: true}, 'a run that starts again: its own rows only');
 });

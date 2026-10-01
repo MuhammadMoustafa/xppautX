@@ -24,8 +24,33 @@ export interface PlotSeries {
   names: Map<number, string>;
   /** the arrays behind `columns`, at least `rows` long: appends fill them in place */
   buffers: Map<number, Float32Array>;
+  /** each column's range and order (columnStats), kept up as appends arrive */
+  stats: Map<number, ColumnStats>;
   /** the core's data version (null from a server that sends none): store/runs.ts */
   version: number | null;
+}
+
+/** what the plot needs of a column (plot/model.ts): its least and greatest
+    values, NaN left out (min > max for none), and whether it never
+    decreases (a time plot's x; a NaN after the first value says no). An
+    append extends them over its own rows only, so a live run's plot does
+    not scan its whole columns at every append. */
+export interface ColumnStats {
+  min: number;
+  max: number;
+  increasing: boolean;
+}
+
+/** `before` (the stats of a[0..from)) extended over a[from..to) */
+export function columnStats(a: Float32Array, from: number, to: number, before?: ColumnStats): ColumnStats {
+  let min = before?.min ?? Infinity, max = before?.max ?? -Infinity, increasing = before?.increasing ?? true;
+  for (let i = from; i < to; i++) {
+    const v = a[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+    if (i > 0 && !(v >= a[i - 1])) increasing = false;
+  }
+  return {min, max, increasing};
 }
 
 export function seriesFromEvent(ev: SeriesEvent): PlotSeries {
@@ -45,6 +70,7 @@ export function seriesFromEvent(ev: SeriesEvent): PlotSeries {
     columns,
     names,
     buffers: new Map(columns),
+    stats: new Map([...columns].map(([c, a]) => [c, columnStats(a, 0, a.length)])),
     version: ev.version ?? null,
   };
 }
@@ -59,6 +85,7 @@ export function appendRows(s: PlotSeries, ev: SeriesAppendEvent): PlotSeries | n
   if (ev.win !== s.win || !(from >= 0 && from <= s.rows) || ev.columns.length !== s.columns.size) return null;
   if (!ev.columns.every(c => s.buffers.has(c.col) && valueCount(c.data) === rows - from)) return null;
   const columns = new Map<number, Float32Array>(), buffers = new Map<number, Float32Array>();
+  const stats = new Map<number, ColumnStats>();
   for (const c of ev.columns) {
     let buf = s.buffers.get(c.col)!;
     if (from < s.rows || rows > buf.length) {
@@ -71,8 +98,11 @@ export function appendRows(s: PlotSeries, ev: SeriesAppendEvent): PlotSeries | n
     decodeInto(c.data, buf, from);
     buffers.set(c.col, buf);
     columns.set(c.col, buf.subarray(0, rows));
+    /* rows after the ones held: their own; a run that starts again: all of them (from 0, few) */
+    const before = from === s.rows ? s.stats.get(c.col) : undefined;
+    stats.set(c.col, before ? columnStats(buf, from, rows, before) : columnStats(buf, 0, rows));
   }
-  return {...s, rows, columns, buffers};
+  return {...s, rows, columns, buffers, stats};
 }
 
 /** `s` as the end of a live run leaves it: the same rows, the data's `version` */

@@ -1,7 +1,8 @@
 /* From the store's series to what the plot draws: one x/y pair of arrays per
    curve, and whether the curves share one increasing x (a time plot, uPlot's
    aligned mode 1) or not (a phase plane, uPlot's xy mode 2). Pure. */
-import {columnName, curveLabel, type PlotSeries} from '../store/series';
+import {columnName, columnStats, curveLabel, type ColumnStats, type PlotSeries} from '../store/series';
+import type {Range} from '../store/plots';
 
 export interface CurveData {
   label: string;
@@ -24,13 +25,29 @@ export interface PlotModel {
   yLabel: string;
   /** the time column, row by row, for the hover readout (null when not sent) */
   t: Float32Array | null;
+  /** the least and greatest x and y the curves plot (null: none), for the chart's own axes */
+  xRange: Range | null;
+  yRange: Range | null;
 }
+
 
 const EMPTY = new Float32Array(0);
 
-function increasing(a: Float32Array): boolean {
-  for (let i = 1; i < a.length; i++) if (!(a[i] >= a[i - 1])) return false;
-  return true;
+/** the stats of what a curve plots: the column's own (kept up by the store, no scan) when the
+    curve plots it whole, else its rows scanned */
+function statsOf(s: PlotSeries, col: number, plotted: Float32Array): ColumnStats {
+  const own = s.stats.get(col);
+  return own && plotted.length === s.columns.get(col)?.length ? own : columnStats(plotted, 0, plotted.length);
+}
+
+/** the range of `stats` together, null for none */
+function rangeOf(stats: ColumnStats[]): Range | null {
+  let min = Infinity, max = -Infinity;
+  for (const t of stats) {
+    if (t.min < min) min = t.min;
+    if (t.max > max) max = t.max;
+  }
+  return min <= max ? {min, max} : null;
 }
 
 /** `erased`: the window's curves, with no points (Erase, until the next run or Redraw) */
@@ -54,8 +71,12 @@ export function buildModel(s: PlotSeries, erased = false): PlotModel {
   });
   const first = s.curves[0];
   const shared = !!first && start === 0 && s.curves.every(c => c.x === first.x);
-  const mode = shared && curves.length > 0 && increasing(erased ? (s.columns.get(first.x) ?? EMPTY) : curves[0].xs) ? 1 : 2;
+  const xStats = s.curves.map((c, i) => statsOf(s, c.x, curves[i].xs));
+  const firstX = erased && first ? (s.columns.get(first.x) ?? EMPTY) : null;
+  const mode = shared && curves.length > 0
+    && (firstX ? statsOf(s, first.x, firstX) : xStats[0]).increasing ? 1 : 2;
   const xLabel = s.labels.x || (first ? columnName(s, first.x) : '');
   const yLabel = s.labels.y || (s.curves.length === 1 && first ? columnName(s, first.y) : '');
-  return {mode, curves, xLabel, yLabel, t: s.columns.get(0) ?? null};
+  return {mode, curves, xLabel, yLabel, t: s.columns.get(0) ?? null,
+    xRange: rangeOf(xStats), yRange: rangeOf(s.curves.map((c, i) => statsOf(s, c.y, curves[i].ys)))};
 }

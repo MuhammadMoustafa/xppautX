@@ -68,15 +68,10 @@ interface CurveTraces {
 /** a scale's range function that keeps the range it is given (W85) */
 const asGiven: uPlot.Range.Function = (_u, min, max) => [min ?? 0, max ?? 1];
 
-function extent(arrays: Float32Array[]): Range | null {
-  let min = Infinity, max = -Infinity;
-  for (const a of arrays)
-    for (let i = 0; i < a.length; i++) {
-      const v = a[i];
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-  if (!(min <= max)) return null;
+/** the axis range the chart gives values from `r.min` to `r.max` (the model's ranges) */
+function padded(r: Range | null): Range | null {
+  if (!r) return null;
+  const {min, max} = r;
   if (min === max) return {min: min - 1, max: max + 1};
   const pad = (max - min) * 0.05;
   return {min: min - pad, max: max + pad};
@@ -141,8 +136,8 @@ export class Chart {
     this.model = model;
     this.dark = dark;
     this.base = {
-      x: view?.x ?? extent(model.curves.map(c => c.xs)) ?? {min: 0, max: 1},
-      y: view?.y ?? extent(model.curves.map(c => c.ys)) ?? {min: 0, max: 1},
+      x: view?.x ?? padded(model.xRange) ?? {min: 0, max: 1},
+      y: view?.y ?? padded(model.yRange) ?? {min: 0, max: 1},
     };
     if (rebuild) this.create();
     else this.u!.setData(this.data(), false); /* new rows (an append): the same chart, new paths */
