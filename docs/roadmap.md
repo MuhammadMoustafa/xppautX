@@ -207,7 +207,7 @@ issue; the card here is the one kept up to date.
 | W120 | #171 | Code review: hidden file-scope state into its owners (about 150 internal-linkage globals; custom_color leaks across loads; AUTO point identity through statics; globalcheck counts local symbols; baseline lines get reasons) | none | ready |
 | W121 | #172 | Code review: named constants and one helper per job (ESC/KEY_NONE/intervals/ports/extensions/versions, message helpers, no per-call string caps, one JSON escaper (log mojibake), one CSV quoter, text helpers, one listing, one built-in list; xpp_files returns results, json renders) | none | ready |
 | W122 | #173 | Code review: performance (full resend after a live run, name lookups per state/row, encode copies, event writes, clock reads per step, shadow copies, web2 O(n) per event) measured before and after | none | ready |
-| W123 | #174 | Code review quick wins: four empty extern "C" blocks, rand_state_save/load (save in .snapx or delete), reset_dae's unused s | none | review (its extern "C" part went to W109e) |
+| W123 | #174 | Code review quick wins: four empty extern "C" blocks, rand_state_save/load (save in .snapx or delete), reset_dae's unused s | none | done |
 | W124 | #176 | A page's command lost on the way to the core (found by W116, 2026-10-01: 'Failed to fetch', once, then 14 FLAKY): find the cause (xpp_http.cpp closing an idle keep-alive socket as a POST goes out?), fix at the root, web2check fails on any lost command | none | done |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
