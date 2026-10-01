@@ -165,8 +165,9 @@ for m in c_export c_dll c_import; do
   status=$?
   kill $watchdog 2>/dev/null
   wait $watchdog 2>/dev/null
-  if [ $status -ne 0 ] && [ $status -lt 128 ] && grep -q 'compiled functions are not supported' "$tmp/$m.out" &&
-    grep -q 'Error in parsing\|Illegal special function' "$tmp/$m.out"; then
+  # one error, at its line (W140b): "c_dll.ode:2: dll_lib: compiled functions ..."
+  if [ $status -ne 0 ] && [ $status -lt 128 ] &&
+    grep -q "^$m\.ode:[0-9][0-9]*: .*compiled functions are not supported" "$tmp/$m.out"; then
     pass "$m: a model using compiled functions does not load, and says why"
   else
     bad "$m: a model using compiled functions does not load, and says why (status $status): $(head -c 300 "$tmp/$m.out")"
