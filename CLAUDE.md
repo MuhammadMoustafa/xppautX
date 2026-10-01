@@ -24,6 +24,7 @@ The sections below give the details.
 | A memory or thread error is fixed, never suppressed | asancheck (with UBSan), tsancheck |
 | Builds with 0 warnings on WSL gcc 15, UCRT gcc 16 and clang | `WERROR=1` builds (UCRT and clang64 on each merged tip: gcc 16 alone flags a discarded `std::expected`, clang alone a namespace self-alias) |
 | Numerics change only on purpose | examples md5s, goldencheck, odexcheck |
+| What is ours and what is XPPAUT's is recorded as it changes, so it never needs a review from the beginning (maintainer, 2026-10-01): a card that changes what a user meets adds its line under Unreleased in CHANGELOG.md (W149), one that changes what an XPPAUT user meets (new, changed, removed, a limit lifted) updates its row in docs/xppautx-vs-xppaut.md (W148), one that fixes a bug of XPPAUT's own adds its entry to docs/xppaut-findings.md (below); each with its card | review (at merge) |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58) | review |
 | Agents stop only their own processes, by PID, never by name | review |
 | A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence and the lines in XPPAUT's own source, never our refactored code, as relative links into the local, git-ignored copies `reference/xppaut-8.0` (the 8.0 source xppautX was forked from, `git archive c021b51`) and `reference/xppaut-master` (XPPAUT's GitHub master), e.g. `[load_eqn.c:1544](../reference/xppaut-8.0/load_eqn.c#L1544)` (maintainer, 2026-10-01) | review |
