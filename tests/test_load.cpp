@@ -100,5 +100,21 @@ int main(void)
     CHECK(xpp::client_session().model().is_a_map == 0);
     CHECK(xpp::client_session().numerics.method == method);
 
+    /* the nullclines, frozen or not, are the Session's: the next model
+       loaded has none of them */
+    {
+        xpp::NullclineState &nc = xpp::client_session().nullcline_state;
+        nc.frozen_started = true;
+        nc.frozen.emplace_back();
+        nc.frozen.back().nmx = 1;
+        nc.frozen.back().xn.assign(4, 0.5f);
+        nc.x_null.assign(4, 0.5f);
+        nc.num_x_n = 1;
+    }
+    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(!xpp::client_session().nullcline_state.frozen_started);
+    CHECK(xpp::client_session().nullcline_state.frozen.empty());
+    CHECK(xpp::client_session().nullcline_state.num_x_n == 0);
+
     TEST_REPORT("load: build, then swap");
 }

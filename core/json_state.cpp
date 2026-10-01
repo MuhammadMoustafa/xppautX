@@ -40,11 +40,6 @@
 /* the core's own globals and functions that have no header of their own */
 namespace xpp::json {
 
-namespace {
-
-int state_dirty;
-
-} // namespace
 
 /* ---- state ------------------------------------------------------------------ */
 
@@ -53,7 +48,7 @@ void send_state(xpp::Session &s)
     const xpp::Model &m = s.model();
     Buf b;
     int i;
-    state_dirty = 0;
+    session.state_dirty = 0;
     evaluate_derived(s);
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
     for (i = 0; i < m.nupar; i++) {
@@ -134,12 +129,12 @@ void send_state(xpp::Session &s)
     send_buf(&b);
 }
 
-void j_state_dirty(void) { state_dirty = 1; }
+void j_state_dirty(void) { session.state_dirty = 1; }
 
 void send_state_if_dirty(void)
 {
     /* at a flush (json_io.cpp), from anywhere: the current session */
-    if (state_dirty) send_state(client());
+    if (session.state_dirty) send_state(client());
 }
 
 /* ---- data browser ---------------------------------------------------------------
@@ -149,8 +144,6 @@ void send_state_if_dirty(void)
 
 namespace {
 
-int br_from, br_count, br_col = 1, br_ncol = 1;
-int browser_dirty;
 
 void buf_float(Buf *b, double z, int digits)
 {
@@ -162,26 +155,26 @@ void send_browser(const xpp::Session &s)
 {
     Buf b;
     int i, j, last, maxcol = s.browser.view.maxcol;
-    browser_dirty = 0;
-    if (br_from > s.browser.view.maxrow - 1) br_from = s.browser.view.maxrow > 0 ? s.browser.view.maxrow - 1 : 0;
-    if (br_from < 0) br_from = 0;
-    if (br_col > maxcol - 1) br_col = maxcol - 1;
-    if (br_col < 1) br_col = 1;
+    session.browser_dirty = 0;
+    if (session.br_from > s.browser.view.maxrow - 1) session.br_from = s.browser.view.maxrow > 0 ? s.browser.view.maxrow - 1 : 0;
+    if (session.br_from < 0) session.br_from = 0;
+    if (session.br_col > maxcol - 1) session.br_col = maxcol - 1;
+    if (session.br_col < 1) session.br_col = 1;
     buf_format(&b, "{{\"ev\":\"browser\",\"rows\":{:d},\"row0\":{:d},\"start\":{:d},\"end\":{:d},\"cols\":[\"T\"",
                s.browser.view.dataflag ? s.browser.view.maxrow : 0, s.browser.view.row0, s.browser.view.istart, s.browser.view.iend);
     for (j = 1; j < maxcol; j++) {
         BUF_LIT(&b, ",");
         buf_str(&b, browse_column_name(s,j));
     }
-    buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", br_from, br_col);
-    last = s.browser.view.dataflag ? br_from + br_count : br_from;
+    buf_format(&b, "],\"from\":{:d},\"col\":{:d},\"data\":[", session.br_from, session.br_col);
+    last = s.browser.view.dataflag ? session.br_from + session.br_count : session.br_from;
     if (last > s.browser.view.maxrow) last = s.browser.view.maxrow;
-    for (i = br_from; i < last; i++) {
-        if (i > br_from) BUF_LIT(&b, ",");
+    for (i = session.br_from; i < last; i++) {
+        if (i > session.br_from) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         /* 9 significant digits read back as exactly the stored floats (as series) */
         buf_float(&b, s.browser.view.data[0][i], 9);
-        for (j = br_col; j < br_col + br_ncol && j < maxcol; j++) {
+        for (j = session.br_col; j < session.br_col + session.br_ncol && j < maxcol; j++) {
             BUF_LIT(&b, ",");
             buf_float(&b, s.browser.view.data[j][i], 9);
         }
@@ -197,20 +190,20 @@ void send_browser(const xpp::Session &s)
    block the client can see; answered at once, even during a prompt */
 void browser_rows(const xpp::Session &s, const char *line)
 {
-    br_from = get_int(line, "from", 0);
-    br_count = get_int(line, "count", 100);
-    br_col = get_int(line, "col", 1);
-    br_ncol = get_int(line, "ncol", 20);
-    if (br_count > BROWSER_MAX_ROWS) br_count = BROWSER_MAX_ROWS;
-    if (br_ncol > BROWSER_MAX_COLS) br_ncol = BROWSER_MAX_COLS;
+    session.br_from = get_int(line, "from", 0);
+    session.br_count = get_int(line, "count", 100);
+    session.br_col = get_int(line, "col", 1);
+    session.br_ncol = get_int(line, "ncol", 20);
+    if (session.br_count > BROWSER_MAX_ROWS) session.br_count = BROWSER_MAX_ROWS;
+    if (session.br_ncol > BROWSER_MAX_COLS) session.br_ncol = BROWSER_MAX_COLS;
     send_browser(s);
 }
 
 void j_browser_changed(int)
 {
     plot_data_changed();
-    state_dirty = 1;
-    browser_dirty = 1;
+    session.state_dirty = 1;
+    session.browser_dirty = 1;
     aplot_changed(); /* X11 redraws an auto-redrawn array plot on expose */
 }
 
@@ -229,7 +222,7 @@ void browser_command(xpp::Session &s, const char *line)
     else if (o == "write") data_write(s, &s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
     else if (o == "postprocess") post_process_stuff(s);
     else j_err_msg(xpp::format("Unknown browser op {}", o));
-    browser_dirty = 1;
+    session.browser_dirty = 1;
 }
 
 /* a key of the data browser window (menu_browser_window), on the selected
@@ -252,13 +245,13 @@ void browser_key(xpp::Session &s, int ch, const char *line)
     case BK_LOAD: data_read(s, &s.browser.view, "", ""); break;
     case BK_WRITE: data_write(s, &s.browser.view, "", "", ""); break;
     }
-    browser_dirty = 1;
+    session.browser_dirty = 1;
 }
 
 /* the block the client sees, when the data changed */
 void browser_update(const xpp::Session &s)
 {
-    if (browser_dirty && br_count) send_browser(s);
+    if (session.browser_dirty && session.br_count) send_browser(s);
 }
 
 /* the ICs box's xvst (0) and pp (1) buttons: {"cmd":"plotvars","how":0,"names":[...]} */
@@ -345,8 +338,8 @@ void send_equations(const xpp::Session &s)
     BUF_LIT(&b, "]}");
     send_buf(&b);
 }
-void j_state_dirty_i(int) { state_dirty = 1; }
-void j_state_dirty_is(int, const char *) { state_dirty = 1; }
+void j_state_dirty_i(int) { session.state_dirty = 1; }
+void j_state_dirty_is(int, const char *) { session.state_dirty = 1; }
 
 /* ---- values ---------------------------------------------------------------- */
 
@@ -408,7 +401,7 @@ int apply_value(xpp::Session &s, const char *line)
         j_err_msg(xpp::format("set: the model has no {} {}", kind, name));
         return -1;
     }
-    state_dirty = 1;
+    session.state_dirty = 1;
     if (box_set_value(s, type, index, text, &z) == -1) {
         j_err_msg("Bad formula");
         return -1;
@@ -459,7 +452,7 @@ void slide_command(xpp::Session &s, const char *line)
         j_err_msg(xpp::format("slide {}: its value is not a number", name));
     else {
         set_par_or_var(s, name, type, index, value);
-        state_dirty = 1;
+        session.state_dirty = 1;
     }
 }
 
@@ -482,7 +475,7 @@ void values_command(xpp::Session &s, const char *line)
             if (sets[i].name == name) j = static_cast<int>(i);
         if (j < 0) j_err_msg(xpp::format("No internal set {}", name));
         else use_intern_set(s, j);
-        state_dirty = 1;
+        session.state_dirty = 1;
         return;
     }
     if (o == "query") {
@@ -497,11 +490,11 @@ void values_command(xpp::Session &s, const char *line)
     if (o == "write") {
         if (kind == "par") save_parameter_file(s, name);
         else save_ic_file(s, name);
-        state_dirty = 1;
+        session.state_dirty = 1;
     } else if (o == "read") {
         if (kind == "par") load_parameter_file(s, name);
         else load_ic_file(s, name);
-        state_dirty = 1;
+        session.state_dirty = 1;
     }
 }
 
@@ -511,9 +504,9 @@ void values_command(xpp::Session &s, const char *line)
    them) while it runs, not after */
 void j_rows_stored(xpp::Session &s, int nrows)
 {
-    static int last = INT_MAX;
+    int &last = session.rows_seen;
     if (nrows <= last) {
-        state_dirty = 1;
+        session.state_dirty = 1;
         json_flush();
     }
     last = nrows;
@@ -522,19 +515,11 @@ void j_rows_stored(xpp::Session &s, int nrows)
 
 /* ---- equilibria, source ------------------------------------------------------ */
 
-namespace {
-
-/* the last equilibrium shown, for its Import button */
-double last_eq[MAXODE];
-int last_eq_n;
-
-} // namespace
 
 void state_forget(void)
 {
-    last_eq_n = 0;
-    state_dirty = 1;
-    browser_dirty = 1;
+    session.state_dirty = 1;
+    session.browser_dirty = 1;
 }
 
 void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n)
@@ -543,8 +528,7 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
     Buf b;
     int i;
     redraw_ics();
-    for (i = 0; i < n && i < MAXODE; i++) last_eq[i] = y[i];
-    last_eq_n = n < MAXODE ? n : MAXODE;
+    s.last_equilibrium.assign(y, y + (n < MAXODE ? n : MAXODE));
     buf_format(&b, "{{\"ev\":\"equilibrium\",\"type\":\"{}\",\"cplus\":{:d},\"cminus\":{:d},"
                "\"im\":{:d},\"rplus\":{:d},\"rminus\":{:d},\"values\":[",
                eq_stability(cp, rp, im), cp, cm, im, rp, rm);
@@ -576,7 +560,8 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
 /* a key of the equilibrium window (menu_equilibrium_window): Import */
 void equilibrium_key(xpp::Session &s, int ch)
 {
-    if (menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(s, last_eq, last_eq_n);
+    if (menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && !s.last_equilibrium.empty())
+        eq_import(s, s.last_equilibrium.data(), static_cast<int>(s.last_equilibrium.size()));
 }
 
 void j_make_txtview(xpp::Session &s)

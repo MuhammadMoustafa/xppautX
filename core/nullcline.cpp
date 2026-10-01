@@ -1,5 +1,5 @@
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
-   pair of nullclines, the s.nullcline_state.frozen ones, and the direction field's grid, drawn
+   pair of nullclines, the frozen ones, and the direction field's grid, drawn
    through graphics.cpp's primitives and recorded for the front end by
    phase_data.cpp. */
 #include "nullcline.h"
@@ -50,7 +50,7 @@ struct Pt {
 };
 
 
-/* Walks the s.nullcline_state.frozen nullclines up to the first empty one (the original
+/* Walks the frozen nullclines up to the first empty one (the original
    linked list's end marker, also where one with no points stops it). */
 template <class F>
 void for_each_frozen(xpp::Session &s, F &&f)
@@ -61,7 +61,7 @@ void for_each_frozen(xpp::Session &s, F &&f)
   }
 }
 
-/* the s.nullcline_state.frozen nullclines the current window shows (phase_data.h): those of
+/* the frozen nullclines the current window shows (phase_data.h): those of
    its axes, as redraw_froz_cline draws them */
 void note_frozen(xpp::Session &s)
 {

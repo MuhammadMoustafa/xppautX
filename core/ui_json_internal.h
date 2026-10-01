@@ -34,6 +34,7 @@
 #include "display_state.h"
 #include <stddef.h>
 #include <atomic>
+#include <climits>
 #include <deque>
 #include <functional>
 #include <initializer_list>
@@ -93,6 +94,13 @@ struct ProtocolSession {
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
+    /* json_state.cpp's: the state and browser events are due, the block
+       of the browser the client asked for (its first row, rows, first
+       column and columns), and the rows a run had stored when it reported
+       last (a run that starts again reports fewer) */
+    int state_dirty = 0, browser_dirty = 0;
+    int br_from = 0, br_count = 0, br_col = 1, br_ncol = 1;
+    int rows_seen = INT_MAX;
 };
 extern ProtocolSession session;
 
