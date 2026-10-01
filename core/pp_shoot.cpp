@@ -314,7 +314,7 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
 		       "Side(0/1)", "Movie(Y/N)" };
  std::array<std::string, 7> values;
  int status,i;
- static  const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  values[0] = s.shoot_range.item;
  values[1] = xpp::format("{}", s.shoot_range.steps);
  values[2] = xpp::format("{:g}", s.shoot_range.plow);

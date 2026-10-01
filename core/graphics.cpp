@@ -47,7 +47,6 @@ namespace xpp {
 
 */
 
-static int XDMax,YDMax;
 /* text is never turned (my_ps.cpp's rotation stays for it) */
 const int TextAngle=0;
 
@@ -75,6 +74,7 @@ void get_draw_area(xpp::Session &s)
 }
 void get_draw_area_flag(xpp::Session &s, int flag)
 {
+  int XDMax,YDMax; /* the device's size */
   unsigned int w,h;
   if(flag==1)
     {
@@ -172,6 +172,7 @@ void init_x11(xpp::Session &s)
 
 void init_ps(xpp::Session &s)
 {
+  int XDMax,YDMax; /* the device's size */
   if(!s.drawing.ps_port){
  XDMax=7200;
  YDMax=5040;
@@ -203,6 +204,7 @@ void init_ps(xpp::Session &s)
 
 void init_svg(xpp::Session &s)
 {
+  int XDMax,YDMax; /* the device's size */
   XDMax=640;
   YDMax=400;
   s.drawing.v_tic=9;
@@ -1016,7 +1018,7 @@ void draw_symbol(xpp::Session &s, float x, float y, float size, int my_symb)
 {
  float dx=static_cast<float>(s.plot_windows.current->xhi-s.plot_windows.current->xlo)*size;
  float dy=static_cast<float>(s.plot_windows.current->yhi-s.plot_windows.current->ylo)*size;
- static int sym_dir[4][48] = {
+ static const int sym_dir[4][48] = {
  /*          box              */
     {0, -6, -6,1, 12,  0,1,  0, 12,1,-12,  0,
     1,  0,-12,3,  0,  0,3,  0,  0,3,  0,  0,

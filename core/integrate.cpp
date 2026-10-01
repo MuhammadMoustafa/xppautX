@@ -146,7 +146,7 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
 		  "Stability col","Movie (Y/N)","Monte Carlo (Y/N)"};
  std::array<std::string, 8> values;
  int status,i;
- static  const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  values[0] = s.integrator.eq_range.item;
  values[1] = xpp::format("{}", s.integrator.eq_range.steps);
  values[2] = xpp::format("{:.16g}", s.integrator.eq_range.plow);
@@ -245,7 +245,7 @@ int set_up_range(xpp::Session &s)
 		     "Use old ic's (Y/N)","Cycle color (Y/N)","Movie(Y/N)"};
  std::array<std::string, 8> values;
  int status;
- static  const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  if(!program.interactive){ /* no dialog: the range the options set */
    if(range_item(s)==0)return 0;
    s.integrator.range_flag=1;
@@ -293,7 +293,7 @@ int set_up_range2(xpp::Session &s)
                       "Crv(1) Array(2)","Steps2"};
  std::array<std::string, 13> values;
  int status;
- static  const char *yn[]={"N","Y"};
+ static const char *const yn[]={"N","Y"};
  if(!program.interactive){
    return(range_item(s));
  }

@@ -269,7 +269,7 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
 void rkck(xpp::Session &s, double *y, double *dydx, int n, double x, double h, double *yout, double *yerr, double *work)
 {
   int i;
-  static double a2=0.2,a3=0.3,a4=0.6,a5=1.0,a6=0.875,b21=0.2,
+  static constexpr double a2=0.2,a3=0.3,a4=0.6,a5=1.0,a6=0.875,b21=0.2,
 		b31=3.0/40.0,b32=9.0/40.0,b41=0.3,b42 = -0.9,b43=1.2,
 		b51 = -11.0/54.0, b52=2.5,b53 = -70.0/27.0,b54=35.0/27.0,
 		b61=1631.0/55296.0,b62=175.0/512.0,b63=575.0/13824.0,
