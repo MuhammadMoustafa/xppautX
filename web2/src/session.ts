@@ -85,7 +85,10 @@ export class Session {
   private dragQueue: Record<string, unknown>[] = [];
   private dragEnded = false;
   /** a file ask for writing answered: the file to hand to the browser once the command is done */
-  private pendingSave: {name: string; handle: SaveHandle | null} | null = null;
+  /* a file the core writes, offered at its command's idle: `ahead` counts the
+     idles of the commands sent before it, which come first (W95's click right
+     behind a redraw delivered it at the redraw's idle, before it was written) */
+  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number} | null = null;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
@@ -217,8 +220,11 @@ export class Session {
       this.dragEnded = false;
       if (this.replayIdles > 0 && --this.replayIdles === 0) this.replayAnswers = [];
       const save = this.pendingSave;
-      this.pendingSave = null;
-      if (save && !this.store.getState().files.runFailed) void this.deliver(save.name, save.handle);
+      if (save && save.ahead > 0) save.ahead--;
+      else {
+        this.pendingSave = null;
+        if (save && !this.store.getState().files.runFailed) void this.deliver(save.name, save.handle);
+      }
       const next = this.afterIdle;
       this.afterIdle = null;
       if (next) this.send(next);
@@ -865,7 +871,7 @@ export class Session {
     const file = this.store.getState().hello?.file ?? '';
     const base = file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
     const name = `${base}.${kind}`;
-    this.pendingSave = {name, handle: null};
+    this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
     this.send({cmd: 'values', op: 'write', kind, name});
   }
 
@@ -1003,7 +1009,7 @@ export class Session {
       it as a download -- the same `pendingSave`/`deliver` path a `file`
       ask's Write uses (W66: the page itself builds no file). */
   writeDataFile(what: 'table' | 'plot', format: string, name: string): void {
-    this.pendingSave = {name, handle: null};
+    this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
     this.send({cmd: 'browser', op: 'write', what, format, name});
   }
 
@@ -1161,7 +1167,7 @@ export class Session {
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
     if (!this.may({cmd: 'key', key: 'k'}) || !this.store.getState().kinescope.frames.length) return;
-    this.pendingSave = {name: 'anim.gif', handle: null};
+    this.pendingSave = {name: 'anim.gif', handle: null, ahead: this.idlesOwed};
     this.kinescopeMenu('m');
   }
 
@@ -1324,7 +1330,8 @@ export class Session {
       the model's folder, then, at the command's idle, the page copies it to
       `handle` (showSaveFilePicker's) or offers it as a download */
   saveFile(ask: AskEvent, name: string, handle: SaveHandle | null): void {
-    this.pendingSave = {name, handle};
+    /* the ask belongs to the command running now: its idle is the next one */
+    this.pendingSave = {name, handle, ahead: 0};
     this.answer(ask, {file: name});
   }
 
