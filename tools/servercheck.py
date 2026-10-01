@@ -1747,11 +1747,12 @@ def check_load_all_or_nothing():
 
     def set_file():
         """the set file the session saves now (its model.set), without
-        its first line (the time)"""
+        its first line (the time); CR LF read as LF, since Windows writes
+        it in text mode"""
         written.append('now%d' % len(written))
         answered((), cmd='session', op='save', name=written[-1], data=False)
         with zipfile.ZipFile(os.path.join(r, written[-1] + '.snapx')) as z:
-            return z.read('model.set').decode().split('\n', 1)[1]
+            return z.read('model.set').decode().replace('\r\n', '\n').split('\n', 1)[1]
 
     def read_set(name):
         """File > Import XPPAUT set of name"""
