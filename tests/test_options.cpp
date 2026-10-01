@@ -351,13 +351,14 @@ int main(void)
     /* an include file that cannot be read stops the load: the #include
        line's own (the model's file and line), and the -include flag's */
     {
+        const xpp::Session *before = &xpp::client_session();
         CHECK(write_file(bad_ode, std::string(model_text) + "#include nosuch.inc\ndone\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
         char *argv[] = {arg0, file, nullptr};
         const xpp::Loaded l = xpp::load_model(2, argv, 1);
         CHECK(!l.has_value());
-        CHECK(&xpp::client_session() == s);
+        CHECK(&xpp::client_session() == before);
         if (!l) {
             CHECK(l.error().file == bad_ode);
             CHECK(l.error().line == 5);
@@ -370,7 +371,7 @@ int main(void)
         char *argv2[] = {arg0, file, flag, missing, nullptr};
         const xpp::Loaded f = xpp::load_model(4, argv2, 1);
         CHECK(!f.has_value());
-        CHECK(&xpp::client_session() == s);
+        CHECK(&xpp::client_session() == before);
         if (!f) {
             CHECK(f.error().file == "nosuch.inc");
             CHECK(f.error().cause.find("-include") != std::string::npos);
