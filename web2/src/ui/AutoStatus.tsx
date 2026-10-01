@@ -12,9 +12,10 @@
    stopped), with the dot to match. The Output panel shows AUTO's console
    table and messages (the `log` lines store/state.ts classifies as AUTO's)
    as they arrive. */
-import {useEffect, useRef, useState} from 'preact/hooks';
+import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {formatElapsed, runStatus} from '../plot/autoStatus';
 import {activeView} from '../store/diagram';
+import {logEntries} from '../store/log';
 import {useSession, useStore} from './context';
 import {connectionText} from './StatusBar';
 
@@ -67,20 +68,23 @@ export function AutoStatus() {
 
 export function AutoOutput() {
   const log = useStore(s => s.log);
-  const lines = log.filter(l => l.kind === 'auto');
   const list = useRef<HTMLPreElement>(null);
   const [open, setOpen] = useState(false);
+  const count = log.counts.auto;
+  /* the lines only while the panel is open: a long run's table is thousands of them */
+  const text = useMemo(() => (open ? logEntries(log).filter(l => l.kind === 'auto').map(l => l.text.replace(/\n$/, '')).join('\n') : ''),
+    [open, log]);
   /* the newest line in view, as a console */
   useEffect(() => {
     const el = list.current;
     if (open && el) el.scrollTop = el.scrollHeight;
-  }, [lines.length, open]);
+  }, [count, open]);
   return (
     <details class="auto-output" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>
-      <summary>Output ({lines.length})</summary>
-      {lines.length ? (
+      <summary>Output ({count})</summary>
+      {count ? (
         <pre ref={list} class="auto-output-text" tabIndex={0} aria-label="AUTO's output">
-          {lines.map(l => l.text.replace(/\n$/, '')).join('\n')}
+          {text}
         </pre>
       ) : <p class="muted">AUTO has printed nothing yet: its table appears here while it runs.</p>}
     </details>

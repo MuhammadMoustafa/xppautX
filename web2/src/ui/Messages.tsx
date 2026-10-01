@@ -8,6 +8,7 @@
    needs to be read by a test or survive a reload. */
 import {useMemo, useState} from 'preact/hooks';
 import type {LogEntry} from '../store/state';
+import {logEntries} from '../store/log';
 import {TEXT} from '../store/fieldKinds';
 import {useStore} from './context';
 import {Field} from './Field';
@@ -22,13 +23,10 @@ export function Messages() {
   const [search, setSearch] = useState('');
   /* the list is drawn only while open, and its newest SHOWN_MAX lines: the log keeps thousands (T27) */
   const [open, setOpen] = useState(false);
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {error: 0, auto: 0, log: 0, info: 0};
-    for (const l of log) c[l.kind]++;
-    return c;
-  }, [log]);
+  const counts = log.counts;
   const needle = search.trim().toLowerCase();
-  const matching = open ? log.filter(l => (filter === 'all' || l.kind === filter) && (!needle || l.text.toLowerCase().includes(needle))) : [];
+  const matching = useMemo(() => (open ? logEntries(log).filter(l =>
+    (filter === 'all' || l.kind === filter) && (!needle || l.text.toLowerCase().includes(needle))) : []), [open, log, filter, needle]);
   const shown = matching.slice(-SHOWN_MAX);
   return (
     <details class="messages" open={open} onToggle={e => setOpen((e.target as HTMLDetailsElement).open)}>

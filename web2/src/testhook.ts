@@ -12,6 +12,7 @@ import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
+import {logEntries} from './store/log';
 import {autoWindow} from './store/diagram';
 
 const KEEP = 200;
@@ -55,6 +56,8 @@ export function installTestHook(session: Session): void {
   };
   (window as unknown as {__xpp: unknown}).__xpp = {
     state: () => session.store.getState(),
+    /** the log's entries, oldest first (the store keeps them in chunks: store/log.ts) */
+    log: () => logEntries(session.store.getState().log),
     actions: () => actions.slice(),
     sent: () => sent.slice(),
     /** window `win`'s chart (the active window's by default) */

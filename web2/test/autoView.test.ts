@@ -12,6 +12,7 @@ import {classifyLogText, reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
 import {menuRows} from '../src/ui/menuLayout';
+import {logEntries} from '../src/store/log';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const act = (s: AppState, action: object) => reduce(s, {type: 'diagram', action: action as never});
@@ -85,11 +86,11 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
   let t = ev(READY, {ev: 'log', text: 'Branch 1 stopped at point 5: pa'});
   t = ev(t, {ev: 'log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
-  assert.deepEqual(t.log.map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
+  assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
     ['log', 'nvar=2\n']]);
   t = ev(READY, {ev: 'log', text: 'Branch 1 st'});
   t = ev(t, {ev: 'log', text: 'opped at point 5: by the user (Stop)\n'});
-  assert.deepEqual(t.log.map(l => l.kind), ['auto']);
+  assert.deepEqual(logEntries(t.log).map(l => l.kind), ['auto']);
 });
 
 test('T23: the key lists the label types the diagram has, spelled out', () => {

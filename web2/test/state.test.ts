@@ -9,6 +9,7 @@ import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
 import {busyText, classifyLogText, initialState, LEAVE_ASK, noIdle, reduce, type AppState} from '../src/store/state';
 import {HELLO, READY} from './hello';
+import {logEntries} from '../src/store/log';
 
 const phase: SeriesEvent = {
   ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
@@ -137,7 +138,7 @@ test('a set that the core rejects lands on its value field, not only the toast (
   /* the field shows it and takes the focus back (WF-001): no error dialog for it, only for the
      computation's error (W104 review); both are in Messages */
   assert.deepEqual(s.toasts.map(t => t.text), ['integration failed']);
-  assert.deepEqual(s.log.filter(l => l.kind === 'error').map(l => l.text), ['integration failed', 'bad formula']);
+  assert.deepEqual(logEntries(s.log).filter(l => l.kind === 'error').map(l => l.text), ['integration failed', 'bad formula']);
   /* its own idle ends it */
   s = ev(s, {ev: 'idle'});
   assert.deepEqual(s.values.inflight, []);
@@ -189,9 +190,9 @@ test('classifyLogText tells AUTO\'s console table apart from the rest of the log
 
 test('a log event is classified when it is added (Messages: AUTO output distinguishable)', () => {
   const s = ev(READY, {ev: 'log', text: '  BR    PT  TY LAB \n'});
-  assert.equal(s.log[0].kind, 'auto');
+  assert.equal(logEntries(s.log)[0].kind, 'auto');
   const s2 = ev(READY, {ev: 'log', text: 'nvar=2 naux=4\n'});
-  assert.equal(s2.log[0].kind, 'log');
+  assert.equal(logEntries(s2.log)[0].kind, 'log');
 });
 
 test('T27: the rows NPr prints (no type) are AUTO\'s, and a chunk of several lines is classified line by line', () => {
@@ -201,7 +202,7 @@ test('T27: the rows NPr prints (no type) are AUTO\'s, and a chunk of several lin
     + '   1    19  HB   4  2.624638E-01  2.891081E-01\n   1    2';
   let s = ev(READY, {ev: 'log', text: chunk});
   s = ev(s, {ev: 'log', text: '0       5  2.725202E-01  2.911251E-01\nAll formulas are valid!!\n'});
-  assert.deepEqual(s.log.map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
+  assert.deepEqual(logEntries(s.log).map(l => [l.kind, l.text.trim().slice(0, 12)]), [['log', 'nvar=2 naux='], ['auto', '1     5     '],
     ['auto', '1    10     '], ['auto', '1    19  HB '], ['auto', '1    20     '], ['log', 'All formulas']]);
 });
 
@@ -226,10 +227,10 @@ test('errors wait in one error dialog until OK; a warning flashes the status, no
   assert.deepEqual(errors(s), ['Empty diagram -- nothing to save']);
   s = ev(s, {ev: 'message', error: 'bad formula'});
   assert.deepEqual(errors(s), ['Empty diagram -- nothing to save', 'bad formula'], 'two errors, one dialog');
-  assert.deepEqual(s.log.filter(l => l.kind === 'error').length, 2, 'both stay in Messages');
+  assert.deepEqual(logEntries(s.log).filter(l => l.kind === 'error').length, 2, 'both stay in Messages');
   s = reduce(s, {type: 'dismissErrors'});
   assert.deepEqual(errors(s), []);
-  assert.equal(s.log.filter(l => l.kind === 'error').length, 2, 'OK leaves Messages alone');
+  assert.equal(logEntries(s.log).filter(l => l.kind === 'error').length, 2, 'OK leaves Messages alone');
   const w = ev(s, {ev: 'log', text: 'Warning: something odd\n'});
   assert.equal(w.flash, s.flash + 1);
   assert.deepEqual(errors(w), []);

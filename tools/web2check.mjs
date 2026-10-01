@@ -716,7 +716,7 @@ async function textViews() {
     await until(`s.text.equilibrium && /STABLE|UNSTABLE|NEUTRAL/.test(s.text.equilibrium.type)
       && s.text.equilibrium.values.length === 2 && !s.busy`, 'equilibrium', 20000),
     JSON.stringify(await S(`({equilibrium: s.text.equilibrium, busy: s.busy, ask: s.ask,
-      sent: __xpp.sent().slice(-4), log: s.log.slice(-6)})`)));
+      sent: __xpp.sent().slice(-4), log: __xpp.log().slice(-6)})`)));
   const eq = await S('s.text.equilibrium');
   if (!eq) return;   /* reported above; the checks below need it */
   check('the view shows the type and the values (six significant digits)',
@@ -2192,7 +2192,7 @@ async function autoView(dir) {
 
   /* T27: AUTO's table in the Output panel: a row per label, the plain ones NPr prints (no type) too,
      each line of the core's log classified alone however its chunks arrived */
-  const outRows = await cdp.eval(`__xpp.state().log.filter(l => l.kind === 'auto')
+  const outRows = await cdp.eval(`__xpp.log().filter(l => l.kind === 'auto')
     .map(l => /^\\s*-?\\d+\\s+-?\\d+\\s+(\\S\\S)?\\s+(-?\\d+)\\s/.exec(l.text)).filter(m => m).map(m => (m[1] || '') + m[2])`);
   const labelRows = labels.map(l => l.sym + l.lab);
   check(`T27: the Output panel has AUTO's row for each of the ${labels.length} labels, the ${labels.filter(l => !l.sym).length} plain ones (NPr's) too`,
@@ -3273,7 +3273,7 @@ async function playerCheck(dir) {
   await cdp.eval(`[...document.querySelectorAll('.player-editor button')].find(b => b.textContent === 'Save note').click()`);
   check('player: Save note writes it into the .recx, above its step, the recording still intact',
     await until(`s.player.steps[1].note === 'Clear the screen.' && s.player.intact && !s.busy`, 'saved'),
-    JSON.stringify(await S('s.player.steps[1]')) + JSON.stringify(await cdp.eval(`__xpp.sent().slice(-3)`)) + JSON.stringify(await S('s.log.slice(-3)')));
+    JSON.stringify(await S('s.player.steps[1]')) + JSON.stringify(await cdp.eval(`__xpp.sent().slice(-3)`)) + JSON.stringify(await S('__xpp.log().slice(-3)')));
   const text = fs.readFileSync(path.join(dir, 'play.recx'), 'utf8');
   check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Erase"/.test(text), text.slice(text.indexOf('@steps')));
   /* a changed copy: the banner, and Dismiss */
@@ -4756,7 +4756,7 @@ async function errorDialogCheck() {
     JSON.stringify(await dialog()));
   check('error dialog: focus is on OK', await cdp.eval(`document.activeElement && document.activeElement.hasAttribute('data-error-ok')`));
   await bad();
-  await until(`s.log.filter(l => l.kind === 'error' && l.text === 'Bad formula').length >= 2`, 'second error');
+  await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'Bad formula').length >= 2`, 'second error');
   const two = await dialog();
   check('error dialog: two errors before OK are one dialog listing both',
     two.count === 1 && two.n >= 2 && (two.text.match(/Bad formula/g) || []).length >= 2, JSON.stringify(two));
@@ -4764,7 +4764,7 @@ async function errorDialogCheck() {
   check('error dialog: Enter closes it, nothing left',
     await until(`!document.querySelector('.error-dialog') && !s.toasts.some(t => t.kind === 'error')`, 'closed'));
   check('error dialog: the errors stay in the Messages list',
-    (await S(`s.log.filter(l => l.kind === 'error' && l.text === 'Bad formula').length`)) >= 2);
+    (await S(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'Bad formula').length`)) >= 2);
   await bad();
   await until(`document.querySelector('.error-dialog')`, 'dialog again');
   await key('Escape');
@@ -4783,7 +4783,7 @@ async function warningFlashCheck() {
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
     check('warning: the status bar flashes (state), and no dialog opens',
       await until('s.flash > 0', 'flash') && !(await cdp.eval(`!!document.querySelector('.error-dialog')`))
-      && !(await S(`s.toasts.length`)), JSON.stringify(await S('[s.flash, s.log.slice(-3)]')));
+      && !(await S(`s.toasts.length`)), JSON.stringify(await S('[s.flash, __xpp.log().slice(-3)]')));
   } finally {
     await stopServer(server);
     await sleep(300);
@@ -4804,7 +4804,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
     await fn(dir);
-    const errors = (await S('s.log.filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
+    const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
   } catch (e) {
     if (e && typeof e === 'object') e.recorded = rec; /* what ran before it threw (thrown()) */
@@ -4849,7 +4849,7 @@ function thrown(ode, e, what) {
 const LOST_COMMAND = /^The command \S+ (did not reach xppautX|was refused)/;
 async function lostCommands(expected) {
   try {
-    return (await S('s.log.filter(l => l.kind === "error").map(l => l.text)'))
+    return (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)'))
       .filter(e => LOST_COMMAND.test(e) && !expected.includes(e));
   } catch {
     return []; /* no page to ask (it crashed): the attempt's own failure says so */

@@ -18,6 +18,7 @@ import {
   diagramSettled, initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
 import {initialTable, reduceTable, type TableAction, type TableState} from './table';
+import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
@@ -38,13 +39,7 @@ export interface Hover {
   t: number | null;
 }
 
-/** 'auto' is a best-effort guess (classifyLogText, below): the protocol does
-    not tag xpp_log_auto's lines apart from any other stderr text, so this is
-    only ever as good as the patterns AUTO's own console table prints. */
-export interface LogEntry {
-  kind: 'log' | 'error' | 'info' | 'auto';
-  text: string;
-}
+export type {LogEntry} from './log';
 
 /** distinguishes AUTO's console output from the rest of the core's log
     (docs/ui-v2.md T16, Messages: "the core's log and AUTO output are
@@ -109,7 +104,7 @@ export interface AppState {
   seriesAppends: number;
   /** the point read out on the active window's plot */
   hover: Hover | null;
-  log: LogEntry[];
+  log: Log;
   toasts: Toast[];
   /** counts the log lines (the core's warnings) that arrived: the status bar flashes when it changes */
   flash: number;
@@ -202,7 +197,7 @@ export const initialState: AppState = {
   seriesCount: 0,
   seriesAppends: 0,
   hover: null,
-  log: [],
+  log: emptyLog,
   toasts: [],
   flash: 0,
   nextToast: 1,
@@ -223,13 +218,10 @@ export const initialState: AppState = {
   player: initialPlayer,
 };
 
-/* lines kept (T27: one entry per line, so a long AUTO run's table in Output) */
-const LOG_KEEP = 5000, TOASTS_KEEP = 4;
+const TOASTS_KEEP = 4;
 
 function addLog(state: AppState, entry: LogEntry): AppState {
-  const log = state.log.length >= LOG_KEEP ? state.log.slice(1 - LOG_KEEP) : state.log.slice();
-  log.push(entry);
-  return {...state, log};
+  return {...state, log: appendLog(state.log, [entry])};
 }
 
 /* printed text as it arrives, one entry per line: the core's stderr comes
@@ -238,18 +230,16 @@ function addLog(state: AppState, entry: LogEntry): AppState {
    line is classified whole ("Branch 1 stopped at point 5: pa" + "rameter
    ..." is one AUTO line, T23) and alone (a row among other lines, T27) */
 function addLogText(state: AppState, text: string): AppState {
-  let log = state.log;
-  let rest = text;
-  const prev = log[log.length - 1];
+  let rest = text, joined: LogEntry | undefined;
+  const prev = lastEntry(state.log);
   if (prev && (prev.kind === 'log' || prev.kind === 'auto') && !prev.text.endsWith('\n')) {
-    const nl = rest.indexOf('\n'), head = nl < 0 ? rest : rest.slice(0, nl + 1), joined = prev.text + head;
-    const kind = prev.kind === 'auto' || classifyLogText(joined) === 'auto' ? 'auto' : 'log';
-    log = [...log.slice(0, -1), {kind, text: joined}];
+    const nl = rest.indexOf('\n'), head = nl < 0 ? rest : rest.slice(0, nl + 1), text = prev.text + head;
+    joined = {kind: prev.kind === 'auto' || classifyLogText(text) === 'auto' ? 'auto' : 'log', text};
     rest = rest.slice(head.length);
   }
   const lines = rest.match(/[^\n]*\n|[^\n]+$/g) ?? [];
-  if (lines.length) log = [...log, ...lines.map(line => ({kind: classifyLogText(line), text: line}))].slice(-LOG_KEEP);
-  return log === state.log ? state : {...state, log};
+  if (!joined && !lines.length) return state;
+  return {...state, log: appendLog(state.log, lines.map(line => ({kind: classifyLogText(line), text: line})), joined)};
 }
 
 function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction): AppState {
@@ -483,7 +473,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     case 'log': {
       const next = addLogText(state, ev.text);
       /* a warning (the core logs nothing else at its default level): the status bar flashes, no dialog */
-      return next.log[next.log.length - 1]?.kind === 'log' && /\S/.test(ev.text) ? {...next, flash: next.flash + 1} : next;
+      return lastEntry(next.log)?.kind === 'log' && /\S/.test(ev.text) ? {...next, flash: next.flash + 1} : next;
     }
     case 'error':
       return {...state, loadError: ev};
