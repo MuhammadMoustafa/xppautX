@@ -301,6 +301,12 @@ def leave_session(ode=None):
     return p, pt, tk, c
 
 
+def close_stream(c):
+    """the page's stream goes away: its response holds the socket, so both close"""
+    c.stream.close()
+    c.close()
+
+
 def leave_post(pt, tk):
     c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
     c.request('POST', '/leave?t=' + tk, body='')
@@ -325,7 +331,7 @@ if sess:
     check('W108: /leave needs the token', leave_post(pt, 'wrong') == 403)
     time.sleep(0.5)
     check('W108: a wrong-token leave does not end the program', p.poll() is None)
-    c.close()  # the page's pagehide: the stream closes, then the beacon
+    close_stream(c)  # the page's pagehide: the stream closes, then the beacon
     t0 = time.time()
     check('W108: the leave beacon is accepted', leave_post(pt, tk) == 204)
     try:
@@ -347,8 +353,7 @@ if sess:
     c2.request('GET', '/events?t=' + tk)
     c2.stream = c2.getresponse()
     c2.stream.readline()
-    c.close()  # the old page's stream closes, then its beacon
-    c.stream.close()
+    close_stream(c)  # the old page's stream closes, then its beacon
     check('W108: a reload leave beacon is accepted', leave_post(pt, tk) == 204)
     time.sleep(3.5)  # past the 2 s wait (a lower bound only: waiting longer cannot change the outcome)
     check('W108: the same process still answers after a reload inside the wait', p.poll() is None and answers(pt, tk))
@@ -396,7 +401,7 @@ sess = leave_session('longrun.ode')
 check('W112: a process starts for the quit-during-a-run check', sess is not None)
 if sess:
     p, pt, tk, c = sess
-    c.close()
+    close_stream(c)
     c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
@@ -426,7 +431,7 @@ sess = leave_session('malformed_unbalanced.ode')
 check('W112: a process with a model that does not load starts', sess is not None)
 if sess:
     p, pt, tk, c = sess
-    c.close()
+    close_stream(c)
     c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
     c.request('GET', '/events?t=' + tk)
     c.sk = c.sock
