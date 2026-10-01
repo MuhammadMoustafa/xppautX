@@ -147,6 +147,7 @@ function outputDat(ode = ODE) {
 /* ---- page helpers --------------------------------------------------------- */
 
 let cdp;
+let downloads; /* shared downloads folder for all sections (set by main) */
 /* in page expressions: `s` is the store's state, `w` its active plot window
    (store/plots.ts: series, viewport) */
 const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
@@ -4305,12 +4306,9 @@ async function files(dir) {
   /* a headless browser shows no picker: the page takes its fallbacks, the
      <input type=file> and the download, which a test can drive */
   await cdp.eval('window.showOpenFilePicker = undefined; window.showSaveFilePicker = undefined; true');
-  const downloads = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-dl-'));
   const up = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-up-'));
-  let canDownload = true;
-  await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
-    .catch(() => cdp.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads}))
-    .catch(() => { canDownload = false; });
+  /* downloads folder is shared and set by startBrowser; downloads is a global */
+  const canDownload = true;
   try {
     const iapp0 = await par('iapp');
 
@@ -4430,8 +4428,6 @@ async function files(dir) {
     check('... and the page asked for the new model\'s plot data, as on a reconnection',
       await S("__xpp.sent().slice(-3).some(c => c.cmd === 'data')"), JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   } finally {
-    await cdp.send('Browser.setDownloadBehavior', {behavior: 'default'}).catch(() => {});
-    fs.rmSync(downloads, {recursive: true, force: true, maxRetries: 5});
     fs.rmSync(up, {recursive: true, force: true, maxRetries: 5});
   }
 }
@@ -5152,6 +5148,7 @@ async function main() {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-profile-'));
   const b = await startBrowser(browser, profile);
   cdp = b.cdp;
+  downloads = b.downloads;
   try {
     await cdp.send('Page.enable');
     await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
@@ -5232,6 +5229,7 @@ async function main() {
     b.proc.kill();
     await b.waitForExit();
     await sleep(100);
+    await b.cleanup();
     /* Remove profile with retries (W105): after closing, wait for the Chrome
        process to exit, then remove the profile with retries to handle Windows
        file locking delays */

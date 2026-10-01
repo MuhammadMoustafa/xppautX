@@ -117,7 +117,40 @@ async function waitForExit(proc, timeoutMs = 5000) {
   });
 }
 
+/* Set up downloads folder for this run: build/web2check-downloads/<pid>.
+   Removes stale sibling folders whose pid is not running. */
+function setupDownloadsFolder() {
+  const base = path.join(process.cwd(), 'build', 'web2check-downloads');
+  if (!fs.existsSync(base)) fs.mkdirSync(base, {recursive: true});
+
+  /* Remove stale folders (pids not running) */
+  const entries = fs.readdirSync(base, {withFileTypes: true});
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const pid = Number(entry.name);
+    if (!Number.isNaN(pid)) {
+      try {
+        process.kill(pid, 0); /* check if process exists without sending signal */
+      } catch (e) {
+        /* process does not exist, remove the folder */
+        try {
+          fs.rmSync(path.join(base, entry.name), {recursive: true, force: true, maxRetries: 5});
+        } catch (rmErr) {
+          /* best effort, ignore if removal fails */
+        }
+      }
+    }
+  }
+
+  /* Create folder for this run */
+  const downloads = path.join(base, String(process.pid));
+  fs.mkdirSync(downloads, {recursive: true});
+  return downloads;
+}
+
 export async function startBrowser(browser, profile) {
+  const downloads = setupDownloadsFolder();
+
   const proc = spawn(browser, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
     '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--mute-audio',
     '--force-device-scale-factor=1', '--font-render-hinting=none', '--disable-lcd-text',
@@ -145,7 +178,21 @@ export async function startBrowser(browser, profile) {
   }
   const cdp = new Cdp(page.webSocketDebuggerUrl);
   await cdp.open();
-  return {proc, cdp, waitForExit: () => waitForExit(proc)};
+
+  /* Set download behavior once at browser start, for all sections */
+  await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
+    .catch(() => cdp.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads}))
+    .catch(() => undefined);
+
+  const cleanup = async () => {
+    try {
+      fs.rmSync(downloads, {recursive: true, force: true, maxRetries: 5});
+    } catch (e) {
+      /* best effort, ignore if removal fails */
+    }
+  };
+
+  return {proc, cdp, downloads, waitForExit: () => waitForExit(proc), cleanup};
 }
 
 /* xppautX in browser mode (--browser, not its desktop window) in `dir` with `args` (the model and its options);
