@@ -3596,8 +3596,11 @@ def check_dae_fold():
     the run keeps the rows to t=0.45 (dt .05: 10 rows) and says once, as an
     error, that there is no solution past the last time solved. dae.ode, a
     DAE with no fold, runs to its end (total 20, dt .05: 401 rows)."""
-    def run(ode):
-        code, out, err = run_script([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}], ode=ode)
+    GO = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
+    SING = [{'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}]
+
+    def run(ode, lines=GO):
+        code, out, err = run_script(lines, ode=ode)
         evs = [json.loads(l) for l in out.splitlines() if l.strip()]
         errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
         return code, errs, (last_state(evs) or {}).get('rows'), err
@@ -3613,6 +3616,28 @@ def check_dae_fold():
     check('dae.ode, a DAE without a fold, runs to its end with no error',
           code == 0 and rows == 401 and not errs, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
 
+    # The branch is the run's alone (DaeRun): Sing pts after it solves the
+    # algebraic equations without one, as before W127, both after the run
+    # that stopped at the fold and after one that ended on the branch
+    # (total .3, before the fold). dae_ex3's equilibrium, w=0 and v=0, is on
+    # the middle branch, which Newton from the run's v (the outer branch)
+    # does not reach, before W127 or since: "Could not converge to root",
+    # and no DAE error of the search's own.
+    code, errs, rows, err = run('examples/ode/dae_ex3.ode', GO + SING)
+    check('Sing pts right after the run stopped at the fold: as before W127',
+          rows == 10 and len(errs) == 2 and 'fold' in errs[0] and errs[1] == 'Could not converge to root', str(errs))
+    short_dir = tempfile.mkdtemp(prefix='xppdae')
+    try:
+        short = os.path.join(short_dir, 'dae_ex3.ode')
+        with open('examples/ode/dae_ex3.ode') as f:
+            text = f.read().replace('METH=qualrk', 'METH=qualrk,TOTAL=.3')
+        with open(short, 'w') as f:
+            f.write(text)
+        code, errs, rows, err = run(short, GO + SING)
+        check('Sing pts after a run that ended on its branch: as before W127',
+              rows == 7 and errs == ['Could not converge to root'], 'rows %s, %s' % (rows, errs))
+    finally:
+        shutil.rmtree(short_dir, ignore_errors=True)
 
 check_dae_fold()
 

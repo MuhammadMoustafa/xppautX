@@ -15,17 +15,39 @@ struct Session; /* session.h */
    (session.h): its work memory, how the last solve went, and each
    variable's last solution (xpp::Model has the definitions), the next
    solve's first guess */
+/* the branch of solutions one run of the integrator follows (W127): the
+   sign of the algebraic equations' Jacobian at the run's last solution (0
+   before its first Newton step), which a solution on the same branch
+   keeps (a change is a fold), and the time of that solution, where a run
+   that can go no further ends */
+struct DaeRunBranch {
+  int jac_sign = 0;
+  std::optional<double> last_t;
+};
+
 struct DaeState {
   std::vector<double> work;
   std::vector<int> iwork;
   int status = 0;
   std::array<double, MAXDAE> svar_last{};
-  /* since the integration started: the sign of the algebraic equations'
-     Jacobian at the last solution (0 before the first Newton step), which
-     a solution on the same branch keeps (W127: a sign change is a fold), and
-     the time of the last solution, where a run that can go no further ends */
-  int jac_sign = 0;
-  std::optional<double> last_t;
+  /* the branch the run in progress follows; none outside a run (DaeRun) */
+  std::optional<DaeRunBranch> run;
+};
+
+/* One run of the integrator (integrate()): while it lives, solve_dae
+   follows the branch of the run's first solution, from step to step.
+   Every other solve (Sing pts, nullclines, a direction field, AUTO, the
+   next run) starts without a branch, so no operation inherits another's.
+   A run inside a run (none today) keeps the outer one's branch. */
+class DaeRun {
+public:
+  explicit DaeRun(Session &s);
+  ~DaeRun();
+  DaeRun(const DaeRun &) = delete;
+  DaeRun &operator=(const DaeRun &) = delete;
+private:
+  Session &s_;
+  bool outer_;
 };
 
 /* solve_dae's result: solved, or why not (the run stops there) */

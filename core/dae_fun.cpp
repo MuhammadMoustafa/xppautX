@@ -103,12 +103,20 @@ int compile_svars(xpp::Session &s)
  
 }
 
-/* the solver starts afresh: no failure, and no branch followed yet */
+/* the solver starts afresh: no failure */
 void reset_dae(xpp::Session &s)
 {
   s.dae.status=DAE_SOLVED;
-  s.dae.jac_sign=0;
-  s.dae.last_t.reset();
+}
+
+DaeRun::DaeRun(xpp::Session &s) : s_(s), outer_(!s.dae.run)
+{
+  if(outer_)s_.dae.run.emplace();
+}
+
+DaeRun::~DaeRun()
+{
+  if(outer_)s_.dae.run.reset();
 }
 void set_init_guess(xpp::Session &s)
 {
@@ -135,8 +143,8 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
   case DAE_OUT_OF_BOUNDS: why="the Newton update went out of bounds"; break;
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;
   }
-  if(s.dae.last_t)
-    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae.last_t,why)};
+  if(s.dae.run&&s.dae.run->last_t)
+    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae.run->last_t,why)};
   return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s,0),why)};
 }
 }
@@ -180,7 +188,8 @@ void do_daes(xpp::Session &s)
    continuous branch keeps; a sign change means Newton crossed where the
    Jacobian is singular, a fold, past which this branch has no solution
    (W127: Newton would otherwise wander to another branch, and a loose
-   tolerance accept it). The first solve of a run sets the sign. */
+   tolerance accept it). The first solve of a run sets the sign; a solve
+   outside a run (DaeRun) follows no branch. */
 int solve_dae(xpp::Session &s)
 {
   xpp::Model &m=s.model();
@@ -190,6 +199,7 @@ int solve_dae(xpp::Session &s)
   double tol=s.numerics.evec_err,eps=s.numerics.newt_err;
   int maxit=s.numerics.evec_iter,iter=0;
   int sign=0; /* the sign of the last Jacobian factored, 0 before one */
+  DaeRunBranch *run=s.dae.run?&*s.dae.run:nullptr; /* none outside a run */
   double *y,*ynew,*f,*fnew,*jac,*errvec;
   n=m.nsvar;
   if(m.nsvar==0)return DAE_SOLVED;
@@ -212,8 +222,10 @@ int solve_dae(xpp::Session &s)
       errvec[i]=f[i];
     }
     if(err<tol){ /* the equations hold */
-      if(sign!=0)s.dae.jac_sign=sign;
-      s.dae.last_t=getvar(s,0);
+      if(run){
+	if(sign!=0)run->jac_sign=sign;
+	run->last_t=getvar(s,0);
+      }
       for(i=0;i<n;i++){
 	setvar(s,m.svars[i].index,y[i]);
 	s.dae.svar_last[i]=y[i];
@@ -244,7 +256,7 @@ int solve_dae(xpp::Session &s)
       return DAE_SINGULAR;
     }
     sign=xpp::sgefa_det_sign(jac,n,n,s.dae.iwork.data());
-    if(s.dae.jac_sign!=0&&sign!=s.dae.jac_sign){
+    if(run&&run->jac_sign!=0&&sign!=run->jac_sign){
       /* Newton has crossed where the Jacobian is singular: no solution
 	 near the last one continues its branch */
       for(i=0;i<n;i++)

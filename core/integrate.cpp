@@ -1437,6 +1437,7 @@ std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
+  const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
 
  float xv[MAXODE+1],xvold[MAXODE+1];
