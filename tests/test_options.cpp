@@ -4,7 +4,8 @@
    option of the Session its default again (nothing leaks from the model
    before); and every option a .set file holds comes back from one, those
    it does not hold left as they were; a value an option refuses stops the
-   load at its line, in an .ode or an .odex, and the model before stays.
+   load at its line, in an .ode or an .odex, and the model before stays; an
+   options file (an option line) is refused, @ lines of an #include apply.
 
    make test runs this from the top of the tree. */
 #include "xpptest.h"
@@ -297,6 +298,39 @@ int main(void)
         }
     }
     CHECK(xpp::client_session().model().this_file == plain_ode);
+
+    /* XPPAUT's options file is not supported: an option line stops the load
+       at its line, saying to write @ lines; the model before stays */
+    for (const char *word : {"option", "options"}) {
+        CHECK(write_file(bad_ode, std::string(model_text) + word + " foo.opt\ndone\n"));
+        char arg0[] = "test_options";
+        char file[] = "build/test_options_bad.ode";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        CHECK(!l.has_value());
+        CHECK(&xpp::client_session() == s);
+        if (l) continue;
+        CHECK(l.error().file == bad_ode);
+        CHECK(l.error().line == 5);
+        CHECK(l.error().cause.find("foo.opt") != std::string::npos);
+        CHECK(l.error().cause.find("@ lines") != std::string::npos);
+        if (l.error().line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
+    }
+
+    /* the settings go in @ lines of an #include file, which apply */
+    {
+        const char inc_file[] = "build/test_options_inc.inc";
+        CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n"));
+        CHECK(write_file(bad_ode, std::string(model_text) + "#include test_options_inc.inc\ndone\n"));
+        xpp::Session *t = load(bad_ode);
+        CHECK(t != nullptr);
+        if (t) {
+            int index = 0;
+            CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
+            CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
+        }
+        remove(inc_file);
+    }
 
     remove(bad_ode);
     remove(bad_odex);

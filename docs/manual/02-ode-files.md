@@ -199,11 +199,7 @@ ODE files consist of ascii readable text which XPP uses to describe the program 
 
 The typical ODE file contains some or all of the above types of lines. Continuous variables, auxiliary quantities, and Markov variables are all plottable quantities in XPP. That is, once you have solved your equation, you can plot or view any of the continuous and Markov variables or the auxiliary quantities.
 
-XPP uses a bunch of defaults when it is started up by looking for a file called “default.opt.” If it cannot find it, it uses internal options. Alternatively, you can tell XPP the name of the options file you want to use. The description of these files is below. The format for such a statement is:
-
-    option <filename>
-
-which loads the options file specified in `<filename>`. You will probably not want to use this very much as you can now specify all of the parameters in the options file within your ODE file by using the “@” symbol.
+XPP has no options file: set the options with `@` lines, in the ODE file or in a file it includes (below). An `option <filename>` line, as XPPAUT's ODE files could have, is refused at load, with its line.
 
 XPP lets you include files in the ODE file so that for example, you can create a library of functions which your XPP ode file can call. Here is an example of two files, the first is called `test.ode` and the second is called `test.inc`:
 
@@ -572,7 +568,7 @@ and this will be expanded in the expected fashion.
 
 This is relevant only if you are using XPP in silent model. The `only` declaration will save to the output only the variables specified by this command.
 
-XPP has many many internal parameters that you can set from within the program and four parameters that can only be set before it is run. Most of these internal parameters can be set from the “Options” files described above and whose format is at the end of this document. However, it is often useful to put the options right into the ODE file. *NOTE: Any options defined in the ODE file override all others such as the onres in the OPTIONS file.* In addition, there are several options not available in the options file. These options are used by the “silent” integrator to produce a file for output when running without X.
+XPP has many many internal parameters that you can set from within the program and four parameters that can only be set before it is run. Most of these internal parameters can be set with `@` lines. However, it is often useful to put the options right into the ODE file. In addition, there are several options that only `@` lines can set. These options are used by the “silent” integrator to produce a file for output when running without X.
 
 The format for changing the options is:
 

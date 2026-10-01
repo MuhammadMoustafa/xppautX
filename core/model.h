@@ -282,9 +282,6 @@ struct Model {
     std::string name,does;
   };
   std::vector<InternalSet> intern_sets;
-  /* the options file (the model's "options" line, else default.opt) that
-     set_all_vals reads */
-  std::string options_file;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
   /* the model's own files as its load read them (model_files.h):

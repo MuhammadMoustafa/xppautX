@@ -191,7 +191,7 @@ Compiled functions (`export`, `special ...=import(...)` and the options `dll_lib
 ## The options list
 
 The format for changing the options, either as `@` lines in an ODE file
-or in an [options file](14-options-file.md), is:
+or in a file it includes, is:
 
     @ name1=value1, name2=value2, ...
 
@@ -429,7 +429,7 @@ accepts and ignores them: `-xorfix`, `-allwin`, `-white`, `-bigfont
 **Flags that still work**, because they are about the model, the batch
 run or the files, not the X11 windows:
 
-- **-silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `-outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in either the [options file](14-options-file.md) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
+- **-silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `-outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
 - **-convert**: Converts the old-style parser format to the new style, writing `<file>.new`.
 - **-setfile *filename***: loads the named `.set` file after loading up the ODE file.
 - **-newseed**: uses the machine time to re-seed the random number generator.

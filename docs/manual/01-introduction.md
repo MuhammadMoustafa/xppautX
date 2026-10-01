@@ -146,7 +146,7 @@ why, and the model before goes on as it was.
 **Continuing where you stopped: session files.** File/saVe session (`F
 V`) writes everything you would need to pick up tomorrow into one file,
 `name.snapx`: the model itself (its `.ode`, and every file it read: the
-files it includes, its tables, its options file), the
+files it includes, its tables), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers
 and frozen curves, AUTO's diagram, settings and view, and the data

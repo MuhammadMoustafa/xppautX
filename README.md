@@ -121,7 +121,7 @@ browser and checks its state (docs/ui-v2.md).
 | `docs/` | `manual/` (the current manual, Markdown), `upstream/` (the original TeX/PDF/HTML manual, historical reference), man page, upstream `HISTORY` and `README`. |
 | `examples/` | `ode/` example models, `canonical/`, `tstauto/` AUTO tests. |
 | `build/legacy/` | The upstream Makefile variants, kept for reference. |
-| `tools/` | `animsvgwww`, `default.opt`. |
+| `tools/` | `animsvgwww`. |
 | `contrib/` | The CUDA experiment and the XppBetty Java GUI jars from upstream. |
 
 ## Installing a release

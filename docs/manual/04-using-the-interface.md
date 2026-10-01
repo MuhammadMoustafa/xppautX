@@ -36,7 +36,7 @@ xppautX also has two front-end-free modes, for scripting and automated
 checks rather than interactive use:
 
 - **`xppautX model.ode -silent`**: no interface at all; loads the model,
-  does whatever the ODE file's `@` options, an options file, or further
+  does whatever the ODE file's `@` options or further
   command-line flags
   ([Quick reference](16-quick-reference.md#command-line-arguments)) tell
   it to (typically: integrate) and writes `output.dat`, then exits. It

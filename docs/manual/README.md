@@ -33,7 +33,7 @@ dialogs straight to the sections below.
 10. [Creating Animations](10-animations.md) — the DASL scripting language and the Animation tab
 12. [Some comments on the numerical methods](12-numerical-methods-notes.md)
 13. [Colors](13-colors.md) — the curve colour indices and their web2 palette
-14. [The options file](14-options-file.md) — `option <filename>`, the `.opt` format
+14. [The options file](14-options-file.md) — dropped; use `@` lines
 16. [Quick reference](16-quick-reference.md) — ODE file format cheat sheet, built-in functions, the full options list, command line arguments
 
 ## Menus and dialogs → sections

@@ -366,7 +366,6 @@ void begin_model(xpp::Session &s)
   s.model().bc_defined=0;
   m.nupar=0;
   m.nwiener=0;
-  m.options_file="default.opt";
   add_var(s,"t",0.0);
 }
 
@@ -396,10 +395,13 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
   if(wiener)xpp::add_wiener(s,s.parser.ncon-1);
 }
 
-void add_options_file(xpp::Model &m, const std::string &name)
+/* XPPAUT's options file (an "option <file>" line, else default.opt) never
+   took effect there (docs/xppaut-findings.md 4), so a model that names one
+   is refused rather than silently ignored */
+[[noreturn]] void refuse_options_file(const std::string &name)
 {
-  m.options_file=name;
-  xpp::log(XPP_LOG_INFO, " Loading new options file:<{}>\n",name);
+  xpp::log(XPP_LOG_ERROR, "the options file <{}> is not supported: write its settings as @ lines, in the model or in an #include file\n",name);
+  model_failed();
 }
 
 void add_boundary(xpp::Model &m, std::string_view formula)
@@ -517,10 +519,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       xpp::log_printf(XPP_LOG_DEBUG, "\n");
       break;
     case 'c':
-      add_options_file(m,tokens.text(" \n"));
-      if(ConvertStyle)
-	xpp::print(s.parser.convert.file(),"option {}\n",m.options_file);
-      break;
+      refuse_options_file(tokens.text(" \n"));
     case 'f':iflg=0;
       xpp::log_printf(XPP_LOG_INFO, "\nFixed variables:\n");
       goto vrs;
@@ -1197,7 +1196,7 @@ private:
       for(const Binding &b : s.bindings)add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
       xpp::log_printf(XPP_LOG_DEBUG, "\n");
       break;
-    case Statement::Kind::OptionFile: add_options_file(m,s.text); break;
+    case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: add_intern_set(m,s.name,s.text); break;
     case Statement::Kind::Boundary: add_boundary(m,text(s.expr)); break;
     case Statement::Kind::Event: {

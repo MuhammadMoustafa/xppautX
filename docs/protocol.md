@@ -1150,7 +1150,7 @@ is a zip of ordinary files, in this order:
 | Member | What it holds |
 |---|---|
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
-| `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, its options file, `-anifile`'s animation; byte for byte |
+| `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `-anifile`'s animation; byte for byte |
 | `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics): the original XPPAUT reads it |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision, its orbits and the views of it), when there is a diagram |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |

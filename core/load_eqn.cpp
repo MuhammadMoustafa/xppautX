@@ -207,13 +207,6 @@ void set_all_vals(xpp::Session &s)
  /* internal options go here  */
  set_internopts(s,NULL);
 
- /* the options file (its "option" line, else default.opt) is kept with
-    the model's files, as a session saves them; its values were never
-    applied, here or in XPPAUT, whose defaults above had already taken
-    their places */
- std::string options_text;
- xpp::read_model_file(s.model(),s.model().options_file,options_text);
-
  xpp::init_range(s);
  xpp::init_trans(s);
  init_my_aplot(s);
