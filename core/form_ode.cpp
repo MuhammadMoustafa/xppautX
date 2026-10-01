@@ -62,8 +62,6 @@ int N_plist;
 /* the boundary conditions' count */
 static int BVP_N;
 
-#define cstringmaj MYSTR1
-#define cstringmin MYSTR2
 
 int ConvertStyle=0;
 FILE *convertf;
@@ -882,8 +880,8 @@ void finish_model(xpp::Session &s)
   for(i=m.node+m.nmarkov;i<m.neq;i++)add_var(s,uvar_names[i],0.0);
   m.ncon_start=s.parser.ncon;
   m.nsym_start=s.parser.nsym;
-  program.version_major=static_cast<float>(cstringmaj);
-  program.version_minor=static_cast<float>(cstringmin);
+  program.version_major=static_cast<float>(MYSTR1);
+  program.version_minor=static_cast<float>(MYSTR2);
   xpp::log_printf(XPP_LOG_INFO, "Used %d constants and %d symbols \n",s.parser.ncon,s.parser.nsym);
   xpp::log_printf(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
 }

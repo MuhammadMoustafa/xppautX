@@ -36,8 +36,6 @@
 
 XppBatchOptions batch_options;
 
-#define cstringmaj MYSTR1
-#define cstringmin MYSTR2
 
 /* nullcline.c / integrate.c batch helpers without a header prototype */
 
@@ -276,8 +274,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     init_auto_win(s);
 #endif
     if (disc(m.this_file)) s.numerics.method = 0;
-    program.version_major = static_cast<float>(cstringmaj);
-    program.version_minor = static_cast<float>(cstringmin);
+    program.version_major = static_cast<float>(MYSTR1);
+    program.version_minor = static_cast<float>(MYSTR2);
     xpp::do_meth(s);
     xpp::set_delay(s);
     s.integrator.rhs = {my_rhs, &s};

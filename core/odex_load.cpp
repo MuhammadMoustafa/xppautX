@@ -105,8 +105,7 @@ struct Scope {
    comment the model shows, only and a set */
 bool takes_range(Statement::Kind k)
 {
-  using K = Statement::Kind;
-  return k != K::Options && k != K::Comment && k != K::Only && k != K::Set;
+  return k != Statement::Kind::Options && k != Statement::Kind::Comment && k != Statement::Kind::Only && k != Statement::Kind::Set;
 }
 
 class Loader {
@@ -140,7 +139,7 @@ private:
   {
     try {
       f();
-    } catch (Error &e) {
+    } catch (Diagnostic &e) {
       if (a.group) e.cause += xpp::format(" (where {} = {})", a.index, a.value);
       throw;
     }
@@ -798,7 +797,7 @@ int load(xpp::Session &s, const std::string &path)
 {
   try {
     build_model(s, ready(parse_file(s.model(), path)));
-  } catch (const Error &e) {
+  } catch (const Diagnostic &e) {
     xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
     xpp::model_failed(e);
   }

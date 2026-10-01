@@ -2,7 +2,7 @@
    each Solver wraps its method's routine (odesol2.cpp, gear.cpp,
    stiff.cpp, dormpri.cpp, cv2.cpp, volterra2.cpp), owns the work memory
    it steps with and translates the routine's own flag into a
-   SolverResult. */
+   Result<>. */
 #include "solver.h"
 
 #include <array>
@@ -47,7 +47,7 @@ class FixedStep final : public Solver {
 public:
   FixedStep(const SolverInfo &info, Session &s, StepFn step, int work)
     : Solver(info,s), step_(step), work_(make_work(work)) {}
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     int kflag=step_(session_,s.y,s.t,s.dt,s.steps,s.neq,s.start,work_.data());
     switch(kflag){
@@ -68,7 +68,7 @@ public:
   Gear(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(gear_work(n))) {}
   /* Gear starts afresh from 0 and continues from its order */
   void begin(int *start) override { if(*start==1)*start=0; }
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
     std::array<double,MAXODE> error{};
@@ -94,7 +94,7 @@ private:
 class Adaptive final : public Solver {
 public:
   Adaptive(const SolverInfo &info, Session &s, int work) : Solver(info,s), work_(make_work(work)) {}
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
@@ -117,7 +117,7 @@ private:
 class Cvode final : public Solver {
 public:
   Cvode(const SolverInfo &info, Session &s) : Solver(info,s) {}
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
@@ -132,7 +132,7 @@ public:
 class DormandPrince final : public Solver {
 public:
   DormandPrince(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(standard_work(n))) {}
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
@@ -155,7 +155,7 @@ private:
 class Rosenbrock final : public Solver {
 public:
   Rosenbrock(const SolverInfo &info, Session &s, int n) : Solver(info,s), work_(make_work(rosenbrock_work(n))) {}
-  SolverResult advance(const SolverStep &s) override
+  Result<> advance(const SolverStep &s) override
   {
     int kflag=0;
     rb23(session_,s.y,s.t,s.tout,s.start,s.neq,work_.data(),&kflag);

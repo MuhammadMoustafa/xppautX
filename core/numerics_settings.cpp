@@ -38,31 +38,30 @@ struct Field {
     int NumericsSettings::*whole;
 };
 
-using N = NumericsSettings;
 
 /* in the Numerics menu's order; total's sign says "forever", as the menu's */
 constexpr Field fields[] = {
-    {"total", "Total", Rule::any, Use::always, &N::tend, nullptr},
-    {"t0", "Start time", Rule::any, Use::always, &N::t0, nullptr},
-    {"trans", "Transient", Rule::any, Use::always, &N::trans, nullptr},
-    {"dt", "Dt", Rule::nonzero, Use::always, &N::delta_t, nullptr},
-    {"nmesh", "Ncline mesh", Rule::whole_positive, Use::always, nullptr, &N::nmesh},
-    {"newt_iter", "Sing pt: maximum iterates", Rule::whole_positive, Use::always, nullptr, &N::evec_iter},
-    {"newt_tol", "Sing pt: Newton tolerance", Rule::positive, Use::always, &N::evec_err, nullptr},
-    {"jac_eps", "Sing pt: Jacobian epsilon", Rule::positive, Use::always, &N::newt_err, nullptr},
-    {"nout", "nOutput", Rule::whole_positive, Use::always, nullptr, &N::njmp},
-    {"bound", "Bounds", Rule::positive, Use::always, &N::bound, nullptr},
-    {"method", "Method", Rule::method, Use::always, nullptr, &N::method},
-    {"tol", "Tolerance", Rule::positive, Use::step_or_rel, &N::toler, nullptr},
-    {"dtmin", "Minimum step", Rule::positive, Use::step, &N::hmin, nullptr},
-    {"dtmax", "Maximum step", Rule::positive, Use::step, &N::hmax, nullptr},
-    {"atol", "Abs. tolerance", Rule::positive, Use::rel, &N::atoler, nullptr},
-    {"eul_tol", "Newton tolerance", Rule::positive, Use::newton, &N::eul_tol, nullptr},
-    {"eul_iter", "Newton iterations", Rule::whole_positive, Use::newton, nullptr, &N::max_eul_iter},
-    {"delay", "Maximal delay", Rule::nonnegative, Use::delays, &N::delay, nullptr},
-    {"bvp_maxit", "BVP maximum iterates", Rule::whole_positive, Use::always, nullptr, &N::bvp_maxit},
-    {"bvp_tol", "BVP tolerance", Rule::positive, Use::always, &N::bvp_tol, nullptr},
-    {"bvp_eps", "BVP epsilon", Rule::positive, Use::always, &N::bvp_eps, nullptr},
+    {"total", "Total", Rule::any, Use::always, &NumericsSettings::tend, nullptr},
+    {"t0", "Start time", Rule::any, Use::always, &NumericsSettings::t0, nullptr},
+    {"trans", "Transient", Rule::any, Use::always, &NumericsSettings::trans, nullptr},
+    {"dt", "Dt", Rule::nonzero, Use::always, &NumericsSettings::delta_t, nullptr},
+    {"nmesh", "Ncline mesh", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::nmesh},
+    {"newt_iter", "Sing pt: maximum iterates", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::evec_iter},
+    {"newt_tol", "Sing pt: Newton tolerance", Rule::positive, Use::always, &NumericsSettings::evec_err, nullptr},
+    {"jac_eps", "Sing pt: Jacobian epsilon", Rule::positive, Use::always, &NumericsSettings::newt_err, nullptr},
+    {"nout", "nOutput", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::njmp},
+    {"bound", "Bounds", Rule::positive, Use::always, &NumericsSettings::bound, nullptr},
+    {"method", "Method", Rule::method, Use::always, nullptr, &NumericsSettings::method},
+    {"tol", "Tolerance", Rule::positive, Use::step_or_rel, &NumericsSettings::toler, nullptr},
+    {"dtmin", "Minimum step", Rule::positive, Use::step, &NumericsSettings::hmin, nullptr},
+    {"dtmax", "Maximum step", Rule::positive, Use::step, &NumericsSettings::hmax, nullptr},
+    {"atol", "Abs. tolerance", Rule::positive, Use::rel, &NumericsSettings::atoler, nullptr},
+    {"eul_tol", "Newton tolerance", Rule::positive, Use::newton, &NumericsSettings::eul_tol, nullptr},
+    {"eul_iter", "Newton iterations", Rule::whole_positive, Use::newton, nullptr, &NumericsSettings::max_eul_iter},
+    {"delay", "Maximal delay", Rule::nonnegative, Use::delays, &NumericsSettings::delay, nullptr},
+    {"bvp_maxit", "BVP maximum iterates", Rule::whole_positive, Use::always, nullptr, &NumericsSettings::bvp_maxit},
+    {"bvp_tol", "BVP tolerance", Rule::positive, Use::always, &NumericsSettings::bvp_tol, nullptr},
+    {"bvp_eps", "BVP epsilon", Rule::positive, Use::always, &NumericsSettings::bvp_eps, nullptr},
 };
 
 /* whether the session's method (and model) uses field f */
@@ -88,7 +87,7 @@ const Field *field_of(std::string_view key)
 
 double value_of(const NumericsSettings &n, const Field &f)
 {
-    if (f.real == &N::tend && n.forever) return -n.tend;
+    if (f.real == &NumericsSettings::tend && n.forever) return -n.tend;
     return f.real ? n.*f.real : n.*f.whole;
 }
 
@@ -197,7 +196,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
         }
         if (!check(s.model(), *f, text, v, why)) return -1;
         NumericsSettings &n = s.numerics;
-        if (f->real == &N::tend) { /* the menu's Total: below 0 for ever */
+        if (f->real == &NumericsSettings::tend) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;
             n.tend = std::fabs(v);
         } else if (f->real) {
@@ -206,9 +205,9 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             n.*f->whole = static_cast<int>(v);
         }
         /* what the menu does after each of these */
-        if (f->real == &N::delta_t) dt_changed(s);
-        else if (f->real == &N::delay) chk_delay(s);
-        else if (f->real == &N::bvp_tol || f->real == &N::bvp_eps || f->whole == &N::bvp_maxit) reset_bvp(s);
+        if (f->real == &NumericsSettings::delta_t) dt_changed(s);
+        else if (f->real == &NumericsSettings::delay) chk_delay(s);
+        else if (f->real == &NumericsSettings::bvp_tol || f->real == &NumericsSettings::bvp_eps || f->whole == &NumericsSettings::bvp_maxit) reset_bvp(s);
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {

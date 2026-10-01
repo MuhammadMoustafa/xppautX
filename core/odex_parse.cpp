@@ -2,7 +2,7 @@
    model's text to its statements. The tokenizer never strips white space
    first (a word ends where a word ends, whatever the spacing); comments,
    '#' to the end of the line and nested / * ... * / blocks, go with the
-   white space. Every problem is an Error at a line and column; nothing is
+   white space. Every problem is a Diagnostic at a line and column; nothing is
    dropped, cut or skipped. */
 #include "odex.h"
 #include "xpp_io.h"

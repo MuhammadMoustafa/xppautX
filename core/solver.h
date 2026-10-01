@@ -4,7 +4,7 @@
    explicit registry table (solver.cpp) by the number the model's METHOD
    option, the numerics menu and .set files use. A Solver owns its work
    memory (made when it starts, freed with it), and every method's advance
-   returns one SolverResult (an xpp::Result, xpp_error.h) in place of its
+   returns one Result<> (an xpp::Result, xpp_error.h) in place of its
    own kflag dialect. C++ only.
    AUTO's own integrators are not here. */
 
@@ -59,7 +59,6 @@ struct SolverStep {
 /* how an advance went: on a failure, the method's name and why it
    failed, for the user (an empty `what`: nothing to say, the routine
    said it already) */
-using SolverResult = Result<>;
 
 class Solver;
 struct Session; /* session.h */
@@ -87,7 +86,7 @@ public:
   /* an integration begins from *start (1: afresh); a method whose own
      convention differs translates it */
   virtual void begin([[maybe_unused]] int *start) {}
-  virtual SolverResult advance(const SolverStep &step) = 0;
+  virtual Result<> advance(const SolverStep &step) = 0;
   /* an integration that went through has ended */
   virtual void finish() {}
 
@@ -96,7 +95,7 @@ protected:
   Session &session_;
 
   /* a failed advance of this method */
-  SolverResult failed(std::string what) const { return fail(info_.name, std::move(what)); }
+  Result<> failed(std::string what) const { return fail(info_.name, std::move(what)); }
 
 private:
   const SolverInfo &info_;

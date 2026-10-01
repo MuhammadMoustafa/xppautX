@@ -200,6 +200,17 @@ see two implementations of the same algorithm written differently
 eigen() vs. autlib1.cpp's eig()): those were found by hand for the W30
 audit note, not by this script.
 
+`tools/aliascheck.sh` (W113; sourcecheck runs it with `--check`, a
+second; `tools/aliascheck.py` does the work) enforces one name per thing
+(maintainer, 2026-10-01): it fails, in core/ and tests/, a second name for
+one of our own names -- `using X = <our type>;`, `namespace a = b;`, a
+`typedef` of our type, `using xpp::name;` inside namespace xpp, a
+`#define` that only renames an identifier -- unless it is in the
+allowlist inside the script, each entry with its reason. Aliases of std::
+types, new function-pointer types, typedefs of builtins and
+`typedef struct {...} name;` definitions need no entry; the platform
+shims and vendored CVODE/AUTO names are entries. Use the real name.
+
 `make ltocheck` (run by tools/sourcecheck.sh, which verify.sh runs) links xppautX with LTO into build/lto
 and fails on `-Wlto-type-mismatch`: an extern whose type or array bound
 differs from its definition, which a normal build cannot see.

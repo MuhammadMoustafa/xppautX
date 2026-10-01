@@ -3,7 +3,7 @@
 /* xpp::Diagnostic: a problem found in a model, as a value (W63c). C++
    only. A load that fails says why with one (xpp::load_model and
    xpp::model_failed, xpp_batch.h; xpp::LoadFailed, session.h), the .odex
-   reader's problems are ones (odex::Error, odex.h), and the JSON front
+   reader's problems are ones (odex::error_at, odex.h), and the JSON front
    end sends one as the `error` event (docs/protocol.md). */
 #include <string>
 

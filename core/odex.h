@@ -8,7 +8,7 @@
    - ode_read.cpp: the .ode reader, an .ode file's lines to statements,
      every quirk of .ode's kept (its formulas .ode text, Expr::Kind::Text);
    - odex_parse.cpp: the tokenizer and the grammar, .odex text to
-     statements (parse), every problem an Error at a line and column;
+     statements (parse), every problem a Diagnostic at a line and column;
      odex_load.cpp, the .odex reader, checks them (every name declared
      once, read where it may be, called with its arguments) and readies
      them for the builder (ready);
@@ -46,13 +46,11 @@ struct Pos {
   int col = 0;
 };
 
-/* a problem found in a model: where, and what (the load's own
-   diagnostic, diagnostic.h) */
-using Error = xpp::Diagnostic;
-/* the problem cause at pos of file */
-inline Error error_at(std::string file, Pos pos, std::string cause)
+/* the problem cause at pos of file, as the load's own diagnostic
+   (xpp::Diagnostic, diagnostic.h): where, and what */
+inline Diagnostic error_at(std::string file, Pos pos, std::string cause)
 {
-  return Error{std::move(file), pos.line, pos.col, std::move(cause), {}};
+  return Diagnostic{std::move(file), pos.line, pos.col, std::move(cause), {}};
 }
 
 /* an expression */
@@ -232,7 +230,7 @@ struct Parsed {
 };
 
 /* text, the contents of file, parsed; an include is read relative to
-   file's folder, as one of m's files (model_files.h). Throws Error. */
+   file's folder, as one of m's files (model_files.h). Throws Diagnostic. */
 Parsed parse(xpp::Model &m, std::string_view text, const std::string &file);
 /* parse, the text read from path (one of m's files) first */
 Parsed parse_file(xpp::Model &m, const std::string &path);
@@ -247,7 +245,7 @@ bool is_name(std::string_view name);
    and readied for the builder: a block function made the one expression
    its returns make, near's tol filled in, wiener's names given their
    value, an @ line's, a set's, a network's and a comment's text the
-   Model's own, ieee_division set. Throws Error. */
+   Model's own, ieee_division set. Throws Diagnostic. */
 Parsed ready(const Parsed &p);
 
 /* path names an .odex model (its extension, any case) */
@@ -264,7 +262,7 @@ int load(xpp::Session &s, const std::string &path);
 using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
 /* the .ode model loaded in s as .odex text, from what the
    .ode parser understood (odex_convert.cpp); auto_answer takes every
-   suggested name. Throws Error. */
+   suggested name. Throws Diagnostic. */
 std::string convert_model(xpp::Session &s, bool auto_answer, const Ask &ask);
 /* xppautX --convert [--auto] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to

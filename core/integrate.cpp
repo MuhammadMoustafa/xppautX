@@ -1496,7 +1496,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
    step.tout=*t+tend*dt/fabs(dt);
    step.hguess=&dt;
  }
- xpp::SolverResult r=solver.advance(step);
+ xpp::Result<> r=solver.advance(step);
  mswtch(s,y,s.solver_work.xpv.x);
  if(!r){
    ping();
@@ -1593,7 +1593,7 @@ if(program.interactive) cwidth=get_command_width();
 	       return(1);
 	     }
 	     mswtch(s,s.solver_work.xpv.x,x);
-	     xpp::SolverResult r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
+	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
 						 .tout=tout,.hguess=&hguess});
 	     mswtch(s,x,s.solver_work.xpv.x);
 	     stor_delay(s,x);
@@ -1611,7 +1611,7 @@ if(program.interactive) cwidth=get_command_width();
 	   else{
 	     /* nout steps of dt */
 	     mswtch(s,s.solver_work.xpv.x,x);
-	     xpp::SolverResult r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
+	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
 						 .dt=dt,.steps=nout});
 	     mswtch(s,x,s.solver_work.xpv.x);
 	     if(!r){

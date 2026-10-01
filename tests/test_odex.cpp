@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-using xpp::odex::Error;
+using xpp::Diagnostic;
 using xpp::odex::Expr;
 using xpp::odex::Parsed;
 using xpp::odex::Statement;
@@ -59,7 +59,7 @@ std::string parsed(const char *text)
 {
   try {
     return tree(expression(text));
-  } catch (const Error &e) {
+  } catch (const Diagnostic &e) {
     return "error " + std::to_string(e.line - 1) + ":" + std::to_string(e.col) + " " + e.cause;
   }
 }
@@ -69,7 +69,7 @@ std::string model_error(const char *text)
 {
   try {
     xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
-  } catch (const Error &e) {
+  } catch (const Diagnostic &e) {
     return std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
   }
   return "";
@@ -92,47 +92,46 @@ std::string reprinted(const char *text)
 std::string lowered(const char *text)
 {
   using xpp::odex::engine_text;
-  using K = Statement::Kind;
   try {
     const Parsed p = xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "m.odex"));
     std::string out;
     auto add = [&out](const std::string &line) { out += (out.empty() ? "" : "|") + line; };
     for (const Statement &s : p.statements) {
       switch (s.kind) {
-      case K::Comment: add("\" " + s.text); break;
-      case K::Options: add(s.text); break;
-      case K::Par:
-      case K::Const:
+      case Statement::Kind::Comment: add("\" " + s.text); break;
+      case Statement::Kind::Options: add(s.text); break;
+      case Statement::Kind::Par:
+      case Statement::Kind::Const:
         for (const xpp::odex::Binding &b : s.bindings)
-          add((s.kind == K::Par ? "par " : "const ") + b.name + "=" + engine_text(b.value));
+          add((s.kind == Statement::Kind::Par ? "par " : "const ") + b.name + "=" + engine_text(b.value));
         break;
-      case K::Wiener:
+      case Statement::Kind::Wiener:
         for (const std::string &n : s.names) add("wiener " + n);
         break;
-      case K::Network: add("special " + s.name + "=" + s.text); break;
-      case K::History:
+      case Statement::Kind::Network: add("special " + s.name + "=" + s.text); break;
+      case Statement::Kind::History:
         for (const xpp::odex::Binding &b : s.bindings) add(b.name + "(0)=" + engine_text(b.value));
         break;
-      case K::Aux:
-      case K::Derived:
+      case Statement::Kind::Aux:
+      case Statement::Kind::Derived:
         for (const xpp::odex::Binding &b : s.bindings)
-          add((s.kind == K::Aux ? "aux " : "!") + b.name + "=" + engine_text(b.value));
+          add((s.kind == Statement::Kind::Aux ? "aux " : "!") + b.name + "=" + engine_text(b.value));
         break;
-      case K::Ode: add(s.name + "'=" + engine_text(s.expr)); break;
-      case K::Volterra: add("volt " + s.name + "=" + engine_text(s.expr)); break;
-      case K::Fixed: add(s.name + "=" + engine_text(s.expr)); break;
-      case K::Fun: {
+      case Statement::Kind::Ode: add(s.name + "'=" + engine_text(s.expr)); break;
+      case Statement::Kind::Volterra: add("volt " + s.name + "=" + engine_text(s.expr)); break;
+      case Statement::Kind::Fixed: add(s.name + "=" + engine_text(s.expr)); break;
+      case Statement::Kind::Fun: {
         std::string line = s.name + "(";
         for (size_t i = 0; i < s.names.size(); i++) line += (i ? "," : "") + s.names[i];
         add(line + ")=" + engine_text(s.expr));
         break;
       }
-      case K::Set: add("set " + s.name + " {" + s.text + "}"); break;
-      case K::Table:
+      case Statement::Kind::Set: add("set " + s.name + " {" + s.text + "}"); break;
+      case Statement::Kind::Table:
         add("table " + s.name + " % " + std::to_string(s.count) + " " + xpp::odex::print_number(s.lo) + " " +
             xpp::odex::print_number(s.hi) + " " + engine_text(s.expr));
         break;
-      case K::Markov: {
+      case Statement::Kind::Markov: {
         add("markov " + s.name + " " + std::to_string(s.count));
         for (int r = 0; r < s.count; r++) {
           std::string row;
@@ -141,19 +140,19 @@ std::string lowered(const char *text)
         }
         break;
       }
-      case K::Event: {
+      case Statement::Kind::Event: {
         std::string line = "global " + std::to_string(s.count) + " {" + engine_text(s.expr) + "} {";
         for (size_t i = 0; i < s.bindings.size(); i++)
           line += (i ? ";" : "") + s.bindings[i].name + "=" + engine_text(s.bindings[i].value);
         add(line + "}");
         break;
       }
-      case K::Boundary: add("bdry " + engine_text(s.expr)); break;
+      case Statement::Kind::Boundary: add("bdry " + engine_text(s.expr)); break;
       default: break;
       }
     }
     return out;
-  } catch (const Error &e) {
+  } catch (const Diagnostic &e) {
     return "error " + std::to_string(e.line) + ":" + std::to_string(e.col) + " " + e.cause;
   }
 }
@@ -306,7 +305,7 @@ int main(void)
     std::string err;
     try {
       p = xpp::odex::parse(xpp::client_session().model(), text, "m.odex");
-    } catch (const Error &e) {
+    } catch (const Diagnostic &e) {
       err = e.text();
     }
     CHECK_STR(err.c_str(), "");
@@ -551,7 +550,7 @@ int main(void)
     CHECK(xpp::load_model(2, argv, 1).has_value());
     try {
       text = xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Error &e) {
+    } catch (const Diagnostic &e) {
       err = e.text();
     }
     CHECK_STR(err.c_str(), "");
@@ -583,7 +582,7 @@ int main(void)
     std::string back;
     try {
       xpp::odex::ready(xpp::odex::parse(xpp::client_session().model(), text, "odex_quirks.odex"));
-    } catch (const Error &e) {
+    } catch (const Diagnostic &e) {
       back = e.text();
     }
     CHECK_STR(back.c_str(), "");
@@ -597,7 +596,7 @@ int main(void)
     CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
     try {
       xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Error &e) {
+    } catch (const Diagnostic &e) {
       err = e.cause;
     }
     CHECK(starts(err, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));

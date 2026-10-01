@@ -180,7 +180,7 @@ xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int
   int neq=s.model().node;
   double dt=s.numerics.delta_t;
   double t=t0;
-  xpp::SolverResult r;
+  xpp::Result<> r;
   if(!solver.traits().fixed_step){
     r=solver.advance({.y=y,.t=&t,.neq=neq,.start=istart,.tout=t1,.hguess=&dt});
     if(!r)return r;

@@ -817,22 +817,21 @@ private:
 
   std::string statement_line(const Statement &s)
   {
-    using K = Statement::Kind;
     const int node = m_.node, fix = m_.fix_var;
     switch (s.kind) {
-    case K::Ode:
-    case K::Map:
-    case K::Volterra: {
+    case Statement::Kind::Ode:
+    case Statement::Kind::Map:
+    case Statement::Kind::Volterra: {
       const int k = nvar_++;
       const std::string x = name(xpp::upper_case(s.name));
-      if (s.kind == K::Volterra) return x + "(t) = " + text(m_.programs[k]) + "\n";
+      if (s.kind == Statement::Kind::Volterra) return x + "(t) = " + text(m_.programs[k]) + "\n";
       return x + "' = " + text(m_.programs[k]) + "\n";
     }
-    case K::Fixed: {
+    case Statement::Kind::Fixed: {
       const int k = nfix_++;
       return name(xpp::upper_case(s.name)) + " = " + text(m_.programs[node + k]) + "\n";
     }
-    case K::Aux: {
+    case Statement::Kind::Aux: {
       std::string out;
       for (size_t b = 0; b < s.bindings.size(); b++) {
         const int k = naux_++;
@@ -840,13 +839,13 @@ private:
       }
       return out;
     }
-    case K::Fun: {
+    case Statement::Kind::Fun: {
       const int f = nfun_++;
       std::string out = "fun " + name(m_.ufun_names[f]) + "(";
       for (int i = 0; i < m_.narg_fun[f]; i++) out += (i ? ", " : "") + arg_name(f, i);
       return out + ") = " + text(m_.ufun_programs[f], f) + "\n";
     }
-    case K::Derived: {
+    case Statement::Kind::Derived: {
       /* d = expr: the .odex's builder finds it reads only parameters,
          consts and pure functions, as this builder did (docs/odex.md
          question 9) */
@@ -862,34 +861,34 @@ private:
       }
       return out;
     }
-    case K::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
-    case K::Solv: {
+    case Statement::Kind::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
+    case Statement::Kind::Solv: {
       const Model::AlgebraicVariable &a = m_.svars[nsol_++];
       return "solv " + name(xpp::upper_case(trimmed(a.name))) + " = " + text(a.form) + "\n";
     }
-    case K::InitNumbers: return s.text.empty() ? items(s) : initial(s);
-    case K::History: return history(s);
-    case K::Par:
-    case K::Const:
-    case K::Wiener: return items(s);
-    case K::Table: return table(s);
-    case K::Network: return network(s);
-    case K::Markov: return markov();
-    case K::Only: {
+    case Statement::Kind::InitNumbers: return s.text.empty() ? items(s) : initial(s);
+    case Statement::Kind::History: return history(s);
+    case Statement::Kind::Par:
+    case Statement::Kind::Const:
+    case Statement::Kind::Wiener: return items(s);
+    case Statement::Kind::Table: return table(s);
+    case Statement::Kind::Network: return network(s);
+    case Statement::Kind::Markov: return markov();
+    case Statement::Kind::Only: {
       std::string out = "only ";
       int n = 0;
       for (const std::string &w : s.names) out += (n++ ? ", " : "") + name(xpp::upper_case(w));
       return out + "\n";
     }
-    case K::Vector: refuse("a vector statement has no .odex form yet");
-    case K::Group: refuse("a group statement has no .odex form yet");
-    case K::Set: return set_statement();
-    case K::Boundary: {
+    case Statement::Kind::Vector: refuse("a vector statement has no .odex form yet");
+    case Statement::Kind::Group: refuse("a group statement has no .odex form yet");
+    case Statement::Kind::Set: return set_statement();
+    case Statement::Kind::Boundary: {
       const Model::BoundaryCondition &bc = m_.bcs[nbc_++];
       return "boundary " + text(compiled(std::string(bc.string.data()))) + "\n";
     }
-    case K::Event: return event();
-    case K::OptionFile: refuse("the options statement (a file of options) has no .odex form yet");
+    case Statement::Kind::Event: return event();
+    case Statement::Kind::OptionFile: refuse("the options statement (a file of options) has no .odex form yet");
     default: return std::string();
     }
   }
@@ -1329,7 +1328,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     xpp::Session &s = **loaded;
     text = convert_model(s, auto_answer, ask);
     before = fingerprint(s);
-  } catch (const Error &e) {
+  } catch (const Diagnostic &e) {
     xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.cause);
     return 1;
   }
