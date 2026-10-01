@@ -8,7 +8,7 @@
    edit its note and Save it into the .recx, or Play from here) and the
    banner of a recording changed after it was made. The core keeps the
    pace; the page only shows what it is told. */
-import {useEffect, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
 import {caption, keycaps, litButton, segments} from '../store/player';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Plots} from './Plots';
@@ -53,12 +53,14 @@ function KeysBox() {
 /* the control the step clicks, lit where it is on the page (data-button) */
 function ButtonLight() {
   const id = useStore(s => litButton(s.player));
+  /* AUTO's buttons exist only while its view shows: look again when it opens */
+  const autoShown = useStore(s => s.diagram.open && s.diagram.shown);
   useEffect(() => {
     if (!id) return;
     const el = document.querySelector<HTMLElement>(`[data-button="${CSS.escape(id)}"]`);
     el?.classList.add('lit');
     return () => el?.classList.remove('lit');
-  }, [id]);
+  }, [id, autoShown]);
   return null;
 }
 
@@ -180,22 +182,65 @@ function StepList() {
   );
 }
 
-/** the plots, and around them the player while a recording is open in it */
+/* a full view covers the plots: the AUTO view, the data table, the text
+   views, the animation, the array plot (each a fixed sheet or panel over
+   the page) */
+function useCovered(): boolean {
+  return useStore(s => (s.diagram.open && s.diagram.shown) || s.table.open || s.text.open || s.ani.open || s.aplot.open);
+}
+
+/* the player while a view covers the plots: a dock over the view's bottom
+   edge (the views leave its height free, theme.css) with the caption, the
+   keycaps, the controls and the step list */
+function Dock() {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const set = () => root.style.setProperty('--player-dock-h', `${el.offsetHeight}px`);
+    root.classList.add('player-docked');
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.classList.remove('player-docked');
+      root.style.removeProperty('--player-dock-h');
+    };
+  }, []);
+  return (
+    <div class="player-dock" ref={ref}>
+      <Caption />
+      <KeysBox />
+      <Controls />
+      <details class="player-dock-steps">
+        <summary>Steps</summary>
+        <StepList />
+      </details>
+    </div>
+  );
+}
+
+/** the plots, and around them the player while a recording is open in it;
+ *  a view over the plots gets the same player as a dock (the plots stay
+ *  mounted in the same place, so they keep their state) */
 export function PlayerStage({dark}: {dark: boolean}) {
   const open = useStore(s => s.player.open);
+  const covered = useCovered();
   if (!open) return <Plots dark={dark} />;
   return (
     <div class="player">
       <div class="player-main">
         <ChangedBanner />
-        <Caption />
+        {covered ? null : <Caption />}
         <div class="player-stage">
-          <KeysBox />
+          {covered ? null : <KeysBox />}
           <Plots dark={dark} />
         </div>
-        <Controls />
+        {covered ? null : <Controls />}
       </div>
-      <StepList />
+      {covered ? <Dock /> : <StepList />}
       <ButtonLight />
     </div>
   );

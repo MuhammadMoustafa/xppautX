@@ -4889,6 +4889,13 @@ def check_player():
         check('play: a press before every input (key i, the menu asks, key g; the answers; the commands)',
               presses[:2] == [(0, 'key', 0), (0, 'key', 1)] and first == ['press', 'ask', 'press']
               and (2, 'cmd', 0) in presses and (6, 'answer', 0) in presses, str(presses[:12]))
+        # W150: 1x is slower (core/json_player.cpp PACE_SLOWDOWN 1.5): the first press of step 0 (700 ms + the note's
+        # reading time, 35 ms a character, at most 3 s), played at 8x
+        note0 = 'The cell fires once and settles.'
+        want0 = (700 + min(3000, 35 * len(note0))) * 1.5 / 8
+        ms0 = next((e['ms'] for e in evs if e.get('ev') == 'press' and e['step'] == 0 and e['index'] == 0), None)
+        check('play: the first press of a step is paced 1.5 times the old pace (%.1f ms at 8x)' % want0,
+              ms0 is not None and abs(ms0 - want0) <= 2, str(ms0))
         again = [e['at'] for e in evs if e.get('ev') == 'stopped']
         check('play: the recorded Abort stops the replayed run at its row', again == stopped, '%s %s' % (again, stopped))
         errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]

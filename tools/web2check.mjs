@@ -3290,6 +3290,20 @@ async function playerCheck(dir) {
     && /changed after it was made/.test(await cdp.eval(`document.querySelector('.player-changed').textContent`)));
   await cdp.eval(`document.querySelector('.player-changed button').click()`);
   check('player: Dismiss hides the banner', await until(`s.player.dismissed && !document.querySelector('.player-changed')`, 'dismissed'));
+  /* W150: a view over the plots (AUTO) still has the player: caption, controls, step list in a dock; Close AUTO takes it back */
+  await key('f');
+  await until('!s.busy', 'file menu (player)');
+  await key('a');
+  await until('s.diagram.open && s.diagram.shown && !s.busy', 'auto open (player)', 20000);
+  check('player: over the AUTO view the caption, controls and step list are still on the page (a dock), one set of each',
+    await cdp.eval(`(() => { const d = document.querySelector('.player-dock');
+      return !!d && !!document.querySelector('.auto-panel') && d.querySelectorAll('.player-controls').length === 1
+        && document.querySelectorAll('.player-controls').length === 1 && !!d.querySelector('.player-caption')
+        && d.querySelectorAll('.player-step').length === 2 && !!d.querySelector('.player-play')
+        && document.documentElement.classList.contains('player-docked'); })()`));
+  await cdp.eval(`document.querySelector('.auto-close').click()`);
+  check('player: with AUTO closed the player is back around the plots (no dock)',
+    await until(`!s.diagram.open && !document.querySelector('.player-dock') && !!document.querySelector('.player-stage .plots') && !!document.querySelector('.player-controls') && !s.busy`, 'dock gone', 20000));
   await cdp.eval(`document.querySelector('.player-close').click()`);
   check('player: Close leaves the player; the plot stays', await until(`!s.player.open && !document.querySelector('.player') && !!document.querySelector('.plots') && !s.busy`, 'closed'));
 }

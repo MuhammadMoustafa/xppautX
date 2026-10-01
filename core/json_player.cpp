@@ -186,11 +186,18 @@ xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<Play
 
 /* ---- the pace ---- */
 
-/* ms at 1x, divided by the speed; none while running to Play from here */
+/* every pace below is scaled by this: the maintainer found 1x a little too
+   fast (2026-10-01), so the old 1x is now about 0.67x; the speeds stay
+   0.5, 1, 2, 4 */
+constexpr double PACE_SLOWDOWN = 1.5;
+
+/* ms at the old 1x, times PACE_SLOWDOWN, divided by the speed; none while
+   running to Play from here */
 Clock::duration pace(double ms)
 {
     if (player.next < player.fast_to) return Clock::duration::zero();
-    return std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double, std::milli>(ms / player.speed));
+    return std::chrono::duration_cast<Clock::duration>(
+        std::chrono::duration<double, std::milli>(ms * PACE_SLOWDOWN / player.speed));
 }
 
 bool fast() { return player.next < player.fast_to; }

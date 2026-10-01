@@ -573,6 +573,18 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .menu-item.lit, button.lit, .played-ok.lit { background: var(--lit) !important; color: var(--lit-fg); box-shadow: 0 0 0 2px var(--warn); animation: lit-pulse 0.6s ease-out; }
 .menu-item.lit kbd { background: var(--warn); color: var(--surface); border-color: var(--warn); }
 @keyframes lit-pulse { from { box-shadow: 0 0 0 0.5rem transparent; } to { box-shadow: 0 0 0 2px var(--warn); } }
+/* the player over a full view (Player.tsx Dock): above the views (z 155-160),
+   which leave its height free through --player-dock-h */
+.player-dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 170; max-height: 50vh; overflow: auto;
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  background: var(--surface); border-top: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.player-dock .player-caption { font-size: var(--text-md); min-height: 0; }
+.player-dock .player-keys { position: static; transform: none; align-self: flex-start; }
+.player-dock-steps .player-steps { max-height: 30vh; }
+html.player-docked .auto-panel, html.player-docked .table-panel, html.player-docked .text-panel,
+html.player-docked .ani-panel, html.player-docked .aplot-panel { bottom: var(--player-dock-h, 0); }
 .played-ask { position: fixed; left: 50%; top: 45%; transform: translate(-50%, -50%); z-index: 40; width: min(24rem, 92vw); border-color: var(--warn); }
 .played-ask .menu-item { display: flex; gap: var(--space-3); padding: var(--space-1) var(--space-2); border-radius: 0.375rem; }
 .played-value { min-height: var(--target); border: 1px solid var(--field-border); border-radius: 0.375rem; padding: 0.35rem var(--space-2); font: var(--text-sm) var(--mono); overflow-wrap: anywhere; }

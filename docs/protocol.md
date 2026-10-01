@@ -612,9 +612,11 @@ Pace: only computation takes time. Before each input the player sends
 `press` (what it is about to send, `ms` before it sends it): a step's
 first input 700 ms plus the note's reading time (35 ms a character, at
 most 3 s), a menu's key 600, a dialog's answer 900 plus 40 a character
-of it (at most 2500), a message 1200; a view step's a third. After a
+of it (at most 2500), a message 1200; a view step's a third. Each of
+these is then scaled by 1.5 (`PACE_SLOWDOWN`: 1x was a little too fast, maintainer 2026-10-01), so
+the first input of a step at 1x is 1050 ms plus 1.5 times the reading time. After a
 step's `idle` it waits 800 ms (a view step 250) before the next, never
-merging or skipping one. Each is divided by `speed`. `pause` stops the
+merging or skipping one. The result is divided by `speed`. `pause` stops the
 clock (the wait keeps what is left), `step` runs one step, `from` N runs
 the steps before N with no wait (their `press` events 0 ms), then pauses
 (or plays on).
