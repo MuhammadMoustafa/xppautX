@@ -167,6 +167,14 @@ struct Computation {
     Computation(const Computation &) = delete;
     Computation &operator=(const Computation &) = delete;
 };
+/* a job the program gives itself (xpp_job_begin(0): no command line) as a
+   scope, ended however the scope is left (an AUTO run, an integration) */
+struct Job {
+    Job() { xpp_job_begin(0); }
+    ~Job() { xpp_job_end(); }
+    Job(const Job &) = delete;
+    Job &operator=(const Job &) = delete;
+};
 } // namespace xpp
 #endif
 #endif

@@ -412,11 +412,7 @@ void close_auto(xpp::Session &s, int flg) /* labels compatible with A2K  */
      renaming/removing an open file, which is likely why this was never
      turned on upstream -- it was dead code there, not a deliberate
      no-op. */
-  if(s.auto_lib.fp8_is_open){
-      xpp::UniqueFile{s.auto_lib.fp8}.reset(); /* autlib1.cpp's xpp::files::open_stream, closed */
-      s.auto_lib.fp8=NULL;
-      s.auto_lib.fp8_is_open=0;
-  }
+  s.auto_lib.fp8.reset();
   if(flg==0) {/*Overwrite*/
     xpp::files::move(fort7.c_str(),(this_auto_file+".b").c_str());
     xpp::files::move(fort9.c_str(),(this_auto_file+".d").c_str());
@@ -430,7 +426,6 @@ void close_auto(xpp::Session &s, int flg) /* labels compatible with A2K  */
 
     xpp::files::remove(fort8.c_str());
 
-    s.auto_lib.fp8_is_open=0;
     xpp::files::remove(fort7.c_str());
     xpp::files::remove(fort9.c_str());
     xpp::files::remove(fort3.c_str());
@@ -530,7 +525,16 @@ static void stability_run_start(xpp::Session &s)
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
-static int auto_depth; /* do_auto's own follow-up runs (RestartLabel) are one run */
+namespace {
+int auto_depth; /* do_auto's own follow-up runs (RestartLabel) are one run */
+/* one do_auto call's depth, however it ends */
+struct AutoDepth {
+  AutoDepth() { if(auto_depth++==0)auto_stop_clear(); } /* xppautX: T23: why this run's branches end */
+  ~AutoDepth() { auto_depth--; }
+  AutoDepth(const AutoDepth &)=delete;
+  AutoDepth &operator=(const AutoDepth &)=delete;
+};
+}
 
 void do_auto(xpp::Session &s, int iold, int isave, int itp)
 {
@@ -542,30 +546,31 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
 		*/
  
     open_auto(s, iold); /* this copies the relevant files .s  to fort.3 */
-    if(auto_depth++==0)auto_stop_clear(); /* xppautX: T23: why this run's branches end */
-    xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-    run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
-    stability_run_start(s); /* what its first point's stability is (auto_stability.h) */
+    const AutoDepth depth;
     std::string failed; /* why the run failed (xpp::AutoFailed), empty if it did not */
     {
-        xpp::Computation computing; /* what Abort stops (xpp_job.h) */
-        std::array<double, 8> before{}; /* AutoPar's size */
-        for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
-        try {
-            go_go_auto(s); /* this complets the initialization and calls the
-                              main routines
-                           */
-        } catch (const xpp::AutoFailed &e) {
-            /* W63a: what the numerics used to exit() on ends the run
-               instead, as a cancel does (auto_state.h) */
-            failed = e.what;
-        }
-        auto_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
+      const xpp::Job job; /* Abort cancels it (xpp_job.h) */
+      run_from=s.auto_state.bifur.irs>0?s.auto_state.bifur.irs:0; /* the diagram's data say where the run started */
+      stability_run_start(s); /* what its first point's stability is (auto_stability.h) */
+      {
+          xpp::Computation computing; /* what Abort stops (xpp_job.h) */
+          std::array<double, 8> before{}; /* AutoPar's size */
+          for (int i = 0; i < s.auto_state.npar; i++) before[i] = s.parser.constants[s.auto_state.par_index[i]];
+          try {
+              go_go_auto(s); /* this complets the initialization and calls the
+                                main routines
+                             */
+          } catch (const xpp::AutoFailed &e) {
+              /* W63a: what the numerics used to exit() on ends the run
+                 instead, as a cancel does (auto_state.h) */
+              failed = e.what;
+          }
+          auto_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
+      }
+      run_from=0;
+      if(xpp_job_cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+      if(!failed.empty())s.auto_lib.restart_flag=0;
     }
-    run_from=0;
-    if(xpp_job_cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
-    if(!failed.empty())s.auto_lib.restart_flag=0;
-    xpp_job_end();
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 
     close_auto(s, isave); /* this copies fort.8 to the .s file and other 
                           irrelevant stuff 
@@ -582,7 +587,6 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
       do_auto(s, iold,isave, s.auto_state.bifur.itp);
       
     }
-    auto_depth--;
      ping();
       redraw_params();
 }

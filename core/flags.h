@@ -7,6 +7,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+struct CvodeRun; /* cv2.h */
 }
 
 int compile_flags(xpp::Session &s);
@@ -19,7 +20,7 @@ int one_flag_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], in
 int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);
 int one_flag_step_rosen(xpp::Session &s, double *y, double *tstart, double tfinal, int *istart, int n, double *work, int *ierr);
 int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work);
-int one_flag_step_cvode(xpp::Session &s, int *command,double *y,double *t,int n,double tout,int *kflag,double *atol,double *rtol);
+int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command,double *y,double *t,int n,double tout,int *kflag,double *atol,double *rtol);
 int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double tout, double eps, double *hguess, double hmin, double *work, int *ier, double epjac, int iflag, int *jstart);
 int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int neq, double *yg, double *yp, double *yp2, double *ytemp, double *errvec, double *jac, int *istart);
 

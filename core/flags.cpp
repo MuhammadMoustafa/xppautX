@@ -619,7 +619,7 @@ int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, 
 }
 
 #ifdef CVODE_YES
-int one_flag_step_cvode(xpp::Session &s, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
+int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
     double yold[MAXODE],told;
   int i,hit,neq=n;
@@ -629,13 +629,13 @@ int one_flag_step_cvode(xpp::Session &s, int *command, double *y, double *t, int
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    xpp::ccvode(s,command,y,t,n,tout,kflag,atol,rtol);
+    xpp::ccvode(s,run,command,y,t,n,tout,kflag,atol,rtol);
     if(*kflag<0) break;
     if((hit=one_flag_step(s,yold,y,command,told,t,neq,&frac))==0)
       break;
     /* Its a hit !! */
     nstep++;
-   xpp::end_cv();
+   xpp::end_cv(run);
     *command=1; /* for cvode always reset  */
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){

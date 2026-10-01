@@ -121,11 +121,16 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    cvode(session_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
-    if(kflag<0)return failed(cvode_error_text(session_,kflag));
+    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
+    if(kflag<0)return failed(cvode_error_text(session_,run_,kflag));
     return {};
   }
-  void finish() override { end_cv(); }
+  void finish() override { end_cv(run_); }
+private:
+  /* CVODE's memory: an integration that stops without finish() (a step
+     error, the Poincare map's) leaves it here, for the next start or
+     this solver's end to free */
+  CvodeRun run_;
 };
 
 /* dormpri.cpp's Dormand-Prince 5 and 8(3) */

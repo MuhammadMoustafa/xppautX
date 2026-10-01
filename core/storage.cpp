@@ -73,7 +73,13 @@ float **LentColumns::make(const DataStore &store, int n, int len, int last)
   }
   table_.fill(nullptr);
   for(int c=0;c<n;c++)table_[c]=own_[c].data();
-  store.lend_columns(table_.data(),n,last);
+  last_=last;
+  return view(store);
+}
+
+float **LentColumns::view(const DataStore &store)
+{
+  store.lend_columns(table_.data(),static_cast<int>(own_.size()),last_);
   return table_.data();
 }
 
@@ -81,6 +87,7 @@ void LentColumns::release()
 {
   own_.clear();
   table_.fill(nullptr);
+  last_=-1;
 }
 
 } // namespace xpp

@@ -69,17 +69,21 @@ private:
    then the store's columns n..last lent after them (lend_columns), in one
    table of column pointers the data browser shows (new_browse_dat). The
    table's address never changes; its own columns are freed by release()
-   or the next make(). */
+   or the next make(). The store's columns move when it grows (a run that
+   fills it), so a data set shown again takes them afresh (view). */
 class LentColumns {
 public:
   /* n zeroed columns of len floats, store's n..last after them; the
      table */
   float **make(const DataStore &store, int n, int len, int last);
+  /* the table to show again, with the store's columns as they are now */
+  float **view(const DataStore &store);
   void release();
   float **table() noexcept { return table_.data(); }
 private:
   std::vector<std::vector<float>> own_;
   std::array<float *, MAXODE + 1> table_{};
+  int last_ = -1; /* the last of the store's columns lent */
 };
 
 } // namespace xpp

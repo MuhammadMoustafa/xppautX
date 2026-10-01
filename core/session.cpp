@@ -4,43 +4,60 @@
 #include "model_files.h"
 
 #include <memory>
+#include <utility>
 
 namespace xpp {
 
 namespace {
 
-/* the session list's one client: its Model and Session (session.h
-   client_session), and the Load in progress */
+/* the session list's one client: its Model and the Session that runs it
+   (session.h client_session), the Session declared last so that it goes
+   before the Model it points to */
 struct Client {
-  Model *model=nullptr;
-  Session *session=nullptr;
+  std::unique_ptr<Model> model;
+  std::unique_ptr<Session> session;
 };
-constinit Client client;
+
+/* The session list, kept for the program's life: never destroyed, as a
+   union member is not. exit() comes from inside a command (Quit) whose
+   Session is still in use, and what the process holds then is the
+   system's to reclaim (CLAUDE.md "Memory"). */
+union SessionList {
+  Client entry; /* its one entry */
+  constexpr SessionList() : entry{} {}
+  ~SessionList() {}
+  SessionList(const SessionList &)=delete;
+  SessionList &operator=(const SessionList &)=delete;
+};
+constinit SessionList sessions;
+/* the Load in progress */
 constinit Load *loading=nullptr;
 
 }
 
 Session &client_session()
 {
-  if(!client.session)[[unlikely]]{
-    client.model=new Model();
-    client.session=new Session(*client.model);
+  Client &c=sessions.entry;
+  if(!c.session)[[unlikely]]{
+    c.model=std::make_unique<Model>();
+    c.session=std::make_unique<Session>(*c.model);
   }
-  return *client.session;
+  return *c.session;
 }
 
 Load::Load()
-  : previous_model(client.model),
-    previous_session(client.session)
 {
+  /* made before anything changes hands: an allocation that fails leaves
+     the client as it was */
   std::unique_ptr<Model> model=std::make_unique<Model>();
-  Session *fresh=new Session(*model);
+  std::unique_ptr<Session> fresh=std::make_unique<Session>(*model);
+  Client &c=sessions.entry;
   /* the process's AUTO scratch folder (xppautx_main.cpp makes it before
      the first load) stays the same across loads */
-  if(previous_session)fresh->auto_state.dir=previous_session->auto_state.dir;
-  client.model=model.release();
-  client.session=fresh;
-  session_=fresh;
+  if(c.session)fresh->auto_state.dir=c.session->auto_state.dir;
+  session_=fresh.get();
+  previous_session=std::exchange(c.session,std::move(fresh));
+  previous_model=std::exchange(c.model,std::move(model));
   loading=this;
 }
 
@@ -48,10 +65,10 @@ Load::~Load()
 {
   loading=nullptr;
   if(committed)return;
-  delete client.model;
-  delete client.session;
-  client.model=previous_model;
-  client.session=previous_session;
+  /* the failed Session, then its Model, give way to the ones before */
+  Client &c=sessions.entry;
+  c.session=std::move(previous_session);
+  c.model=std::move(previous_model);
 }
 
 bool Load::running() noexcept
@@ -103,10 +120,8 @@ Diagnostic Load::diagnostic()
 void Load::commit()
 {
   committed=true;
-  delete previous_model;
-  delete previous_session;
-  previous_model=nullptr;
-  previous_session=nullptr;
+  previous_session.reset(); /* before the Model it points to */
+  previous_model.reset();
 }
 
 }

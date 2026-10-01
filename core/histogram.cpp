@@ -85,12 +85,12 @@ int two_d_hist(xpp::Session &s, int col1,int col2,int ndat,int n1,int n2,double 
 
 void four_back(xpp::Session &s)
 {
- if(s.histogram.four_here)new_browse_dat(s,s.histogram.four(),s.histogram.four_len);
+ if(s.histogram.four_here)new_browse_dat(s,s.histogram.four_columns.view(s.data_store),s.histogram.four_len);
 }
 
 void hist_back(xpp::Session &s)
 {
- if(s.histogram.hist_here)new_browse_dat(s,s.histogram.hist(),s.histogram.hist_len);
+ if(s.histogram.hist_here)new_browse_dat(s,s.histogram.hist_columns.view(s.data_store),s.histogram.hist_len);
 }
 
 void new_four(xpp::Session &s, int nmodes, int col)

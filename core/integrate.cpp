@@ -1249,9 +1249,10 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
       s.data_store.rows=1;
     }
  
-  xpp_job_begin(0); /* Abort cancels it (xpp_job.h) */
-  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
-  xpp_job_end();
+  const xpp::Result<int> r=[&]{
+    const xpp::Job job; /* Abort cancels it (xpp_job.h) */
+    return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+  }();
   
   ping();
   s.numerics.inflag=1;

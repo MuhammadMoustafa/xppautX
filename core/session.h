@@ -33,6 +33,7 @@
 #include "expr.h"
 #include "delay_handle.h"
 #include "histogram.h"
+#include "adj2.h"
 #include "markov.h"
 #include "nullcline.h"
 #include "gear.h"
@@ -49,6 +50,7 @@
 #include "xpp_session.h"
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -145,6 +147,8 @@ struct Session {
   DelayState delay;
   /* the histogram and spectrum settings and results (histogram.cpp) */
   HistogramState histogram;
+  /* the adjoint, its H function and the transposed data (adj2.cpp) */
+  AdjointState adjoint;
   /* stocHast's many-runs state (markov.cpp) */
   StochasticState stochastic;
   /* the nullclines', direction field's and orbit colouring's settings
@@ -234,8 +238,10 @@ public:
      at() gave, and as the cause the ERROR and WARN messages logged since */
   static Diagnostic diagnostic();
 private:
-  Model *previous_model;
-  Session *previous_session;
+  /* the client's before the load (none at the first), until commit();
+     the Session declared last, so that it goes before its Model */
+  std::unique_ptr<Model> previous_model;
+  std::unique_ptr<Session> previous_session;
   Session *session_;
   bool committed=false;
   Diagnostic where;

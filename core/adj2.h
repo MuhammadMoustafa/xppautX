@@ -4,11 +4,27 @@
 #include <cstdio>
 #include <span>
 
+#include "storage.h"
 #include "xpp_error.h"
 
 namespace xpp {
 
 struct Session; /* session.h */
+
+/* adj2.cpp's derived data sets, a Session's (session.h): the adjoint, its
+   H function and the transposed data, each its own columns with the
+   stored ones lent beside them (storage.h's LentColumns), whether it
+   exists and how many rows it has; shown in the browser in the stored
+   data's place (adj_back, h_back, create_transpose). A load's new Session
+   starts with none, so nothing of the Session before is shown again. */
+struct AdjointState {
+  LentColumns adjoint, h_function, transposed;
+  int adjoint_rows = 0, h_rows = 0;
+  bool adjoint_here = false, h_here = false, transposed_here = false;
+  /* the H function has its odd and even parts too (more than two
+     equations) */
+  bool h_odd_even = false;
+};
 
 void dump_transpose_info(FILE *fp, int f);
 void alloc_liap(int n);

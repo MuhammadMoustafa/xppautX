@@ -5,8 +5,13 @@ travels as data, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
-session, sessiondata, script, replay, names, scratch, errors (default: all; tools/verify.sh
-runs them all).
+session, sessiondata, script, replay, names, scratch, errors, memory (default: all;
+tools/verify.sh runs them all).
+memory (W117) shows the adjoint, its H function and a histogram again
+after a run grew the store and after a load (they borrow the stored
+columns), and runs CVODE twice into a step error and into the Poincare
+map's "Cannot zero RHS"; asancheck's build sees a freed column read or
+CVODE's memory leaked.
 errors (W63a) runs AUTO into what its numerics used to exit() on (Ncol 8,
 Ntst 0): an error message, the session goes on, and the next run computes
 the same points as before.
@@ -51,7 +56,8 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'sessiondata', 'autox', 'script', 'replay', 'play', 'names', 'scratch', 'errors'])
+                                                'sessions', 'session', 'sessiondata', 'autox', 'script', 'replay', 'play', 'names', 'scratch', 'errors',
+                                                'memory'])
 args = ap.parse_args()
 if args.list:
     print(' '.join(ap.get_default('sections')))
@@ -1716,6 +1722,114 @@ def section_errors():
               not errors_of(evs) and [p['y'] for p in again] == [p['y'] for p in good],
               '%d points vs %d, errors %s' % (len(again), len(good), errors_of(evs)))
     s.close()
+
+
+# ---- memory: borrowed columns, CVODE's memory on a failed run (W117) ----
+
+BORROWED = os.path.join(here, 'models', 'borrowed.ode')
+CVODE_STOP = os.path.join(here, 'models', 'cvode_stop.ode')
+CVODE_POINCARE = os.path.join(here, 'models', 'cvode_poincare.ode')
+
+
+def integrate(s):
+    """Initialconds/Go: the events to idle"""
+    s.send(cmd='key', key='i')
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key='g')
+    more, _ = s.collect(is_idle, timeout=60 * SLOW)
+    return evs + more
+
+
+def numerics_menu(s, key, item, replies=None):
+    """nUmerics, then its item key, whose menu is answered with item (and
+    any further asks by replies, kind -> answer); Escape: the events"""
+    s.send(cmd='key', key='u')
+    s.collect(is_idle)
+    s.send(cmd='key', key=key)
+    evs, ask = s.collect(is_ask)
+    s.send(cmd='answer', id=ask['id'], key=item)
+    more, e = s.answer_asks(is_idle, replies or {}, timeout=60 * SLOW)
+    s.send(cmd='key', key='Escape')
+    s.collect(is_idle)
+    return evs + more
+
+
+def browser_block(s, rows):
+    """the data browser's first rows, every column"""
+    s.send(cmd='browser', **{'from': 0, 'count': rows, 'col': 1, 'ncol': 500})
+    evs, br = s.collect(lambda e: e.get('ev') == 'browser')
+    s.collect(is_idle)
+    return br
+
+
+def lent_columns_match(s, what, menu, item, first):
+    """what (shown by nUmerics/menu's item) shows the stored columns from
+    first on beside its own: they are the store's as it is now, read back
+    from the store itself (the browser's Data)"""
+    numerics_menu(s, menu, item)
+    shown = browser_block(s, 2000)
+    numerics_menu(s, 'h', 'd')  # stocHast/Data: the stored data back
+    stored = browser_block(s, 2000)
+    n = shown['rows'] if shown else 0
+    lent = [row[first:] for row in shown['data'][:n]] if shown else []
+    store = [row[first:] for row in stored['data'][:n]] if stored else []
+    check('memory: %s shown again after a run grew the store shows the stored columns as they are now' % what,
+          n > 1 and len(lent) == n and lent == store,
+          '%d rows; first rows %s vs %s' % (n, lent[:2], store[:2]))
+
+
+def section_memory():
+    """The derived data sets (the adjoint, its H function, a histogram)
+    show the stored columns beside their own; shown again from their menus
+    after a longer run grew (and so moved) the store, they show it as it
+    is now, and after a load nothing of the session before (W117). CVODE
+    stopped by a step error, or by the Poincare map's 'Cannot zero RHS',
+    leaves no memory behind for the next run to drop (asancheck's
+    LeakSanitizer sees that; here, the runs go on)."""
+    s = Server(args.server, BORROWED, verbose=args.v)
+    s.collect(is_idle)
+    integrate(s)  # one period, 601 rows
+    evs = numerics_menu(s, 'a', 'n')  # Averaging/New adjoint
+    check('memory: the adjoint of the limit cycle is computed', not errors_of(evs), str(errors_of(evs)))
+    evs = numerics_menu(s, 'a', 'm', {'string': lambda e: {'ok': 1, 'value': '0'}})  # Make H
+    check('memory: its H function is computed', not errors_of(evs), str(errors_of(evs)))
+    s.send(cmd='browser', op='postprocess')  # the model's histogram
+    s.collect(is_idle)
+    # another orbit, from elsewhere, long enough to grow the store
+    # (maxstor 1000) twice
+    s.send(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 0.5},
+                              {'kind': 'num', 'name': 'total', 'value': 30}])
+    s.collect(is_idle)
+    evs = integrate(s)
+    st = [e for e in evs if e.get('ev') == 'state']
+    check('memory: the longer run stores more rows than maxstor', st and st[-1].get('rows', 0) > 2000,
+          str(st and st[-1].get('rows')))
+    # the stored columns each shows, from: the adjoint's node+1 = 3, the H
+    # function's 4 (its own: phase, H, odd and even parts), the
+    # histogram's 2 (a browser row is the columns in order, T first)
+    lent_columns_match(s, 'the adjoint', 'a', 'a', 3)
+    lent_columns_match(s, 'the H function', 'a', 'h', 4)
+    lent_columns_match(s, 'the histogram', 'h', 'o', 2)
+    # a load: a new session, with no adjoint or H function to show
+    s.send(cmd='reload')
+    s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
+    for what, item in (('adjoint', 'a'), ('H function', 'h')):
+        numerics_menu(s, 'a', item)
+        br = browser_block(s, 10)
+        check('memory: after a load, the %s menu item shows nothing of the session before' % what,
+              br is not None and br['rows'] == 0, str(br and br['rows']))
+    check('memory: the session is still up', s.alive())
+    s.close()
+
+    for model, why in ((CVODE_STOP, 'a delay longer than the maximal one'),
+                       (CVODE_POINCARE, "the Poincare map's Cannot zero RHS")):
+        s = Server(args.server, model, verbose=args.v)
+        s.collect(is_idle)
+        first = errors_of(integrate(s))
+        second = errors_of(integrate(s))
+        check('memory: CVODE stopped by %s: each run says so, the session goes on' % why,
+              len(first) == 1 and second == first and s.alive(), '%s then %s' % (first, second))
+        s.close()
 
 
 # ---- sessiondata: a session's stored rows come back in the main window's plot ----

@@ -11,6 +11,7 @@
 #include "auto_nox.h"
 #include "display_state.h"
 #include "xAuto.h"
+#include "xpp_io.h"
 
 #include <array>
 #include <cstddef>
@@ -121,9 +122,11 @@ struct AutoLib {
      iap_type's lib, and the model's callbacks they call (autpp.cpp) reach
      the model and its settings */
   xpp::Session *session=nullptr;
-  /* the fort.3/7/8/9 files open during a run */
-  FILE *fp3=nullptr,*fp7=nullptr,*fp8=nullptr,*fp9=nullptr;
-  int fp8_is_open=0;
+  /* the fort.3/7/9 files open during a run (gogoauto.cpp's RunUnits) */
+  FILE *fp3=nullptr,*fp7=nullptr,*fp9=nullptr;
+  /* fort.8, opened when a run writes its first label (autlib1.cpp) and
+     closed by close_auto, or with the Session when a run never got there */
+  xpp::UniqueFile fp8;
   AutoGlobalScratch scratch{};
   AutoGlobalRotations rotations{};
   /* 1 while stepbv solves a Newton step (autlib1.cpp). A cancelled job

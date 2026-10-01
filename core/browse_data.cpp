@@ -138,6 +138,9 @@ int put_stored_data(xpp::Session &s, const xpp::DataTable &t)
     std::copy(t.columns[k].begin(),t.columns[k].begin()+rows,s.data_store.col[col]);
   }
   s.data_store.rows=rows;
+  /* the store's own columns, which may just have grown (moved): not a
+     derived data set shown before, whose lent columns would be stale */
+  s.browser.view.data=s.data_store.col;
   refresh_browser(s,rows);
   return rows;
 }

@@ -44,6 +44,19 @@ struct SetubvStop {
   SetubvStop(const SetubvStop &) = delete;
   SetubvStop &operator=(const SetubvStop &) = delete;
 };
+
+/* fort.8, opened when the run writes its first label (wrtsp8, wrtbv8) and
+   kept open for the rest of it (close_auto closes it). One that cannot be
+   opened fails the run instead of exit(1), a server must outlive a bad
+   HOME; a later run tries again. */
+FILE *fort8(AutoLib &lib)
+{
+  if(!lib.fp8){
+    lib.fp8.reset(xpp::files::open_stream(auto_fort_path(8),"w"));
+    if(!lib.fp8)xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));
+  }
+  return lib.fp8.get();
+}
 } // namespace
 
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz)
@@ -2877,15 +2890,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   integer nrowpr, ibr;
   integer nar, itp, isw;
 
-  if(s.auto_lib.fp8_is_open==0){
-    s.auto_lib.fp8 = xpp::files::open_stream(auto_fort_path(8),"w");
-    if(s.auto_lib.fp8 == NULL) {
-      /* Fail the run instead of exit(1): a server must outlive a bad HOME.
-	 fp8_is_open stays 0 so a later run retries the open. */
-      xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));
-    }
-    s.auto_lib.fp8_is_open=1;
-  }
+  FILE *const fp8=fort8(s.auto_lib);
 
   /* Write restart information on singular points, plotting points, etc., */
   /* on unit 8. */
@@ -2914,34 +2919,34 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   }
 
   mtot = ntot % 10000;
-  xpp::print(s.auto_lib.fp8,"{:5}",ibr);
-  xpp::print(s.auto_lib.fp8,"{:5}",mtot);
-  xpp::print(s.auto_lib.fp8,"{:5}",itp);
-  xpp::print(s.auto_lib.fp8,"{:5}",(*lab));
-  xpp::print(s.auto_lib.fp8,"{:5}",nfpr);
-  xpp::print(s.auto_lib.fp8,"{:5}",isw);
-  xpp::print(s.auto_lib.fp8,"{:5}",ntpl);
-  xpp::print(s.auto_lib.fp8,"{:5}",nar);
-  xpp::print(s.auto_lib.fp8,"{:5}",nrowpr);
-  xpp::print(s.auto_lib.fp8,"{:5}",0);
-  xpp::print(s.auto_lib.fp8,"{:5}",0);
-  xpp::print(s.auto_lib.fp8,"{:5}\n",NPARX);
-  xpp::print(s.auto_lib.fp8,"    {:19.10E}",t);
+  xpp::print(fp8,"{:5}",ibr);
+  xpp::print(fp8,"{:5}",mtot);
+  xpp::print(fp8,"{:5}",itp);
+  xpp::print(fp8,"{:5}",(*lab));
+  xpp::print(fp8,"{:5}",nfpr);
+  xpp::print(fp8,"{:5}",isw);
+  xpp::print(fp8,"{:5}",ntpl);
+  xpp::print(fp8,"{:5}",nar);
+  xpp::print(fp8,"{:5}",nrowpr);
+  xpp::print(fp8,"{:5}",0);
+  xpp::print(fp8,"{:5}",0);
+  xpp::print(fp8,"{:5}\n",NPARX);
+  xpp::print(fp8,"    {:19.10E}",t);
   for (i = 0; i < ndim; ++i) {
     if((i>0)&&((i+1)%7==0))
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",u[i]);
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",u[i]);
   }
-  xpp::print(s.auto_lib.fp8,"\n");
+  xpp::print(fp8,"\n");
   for (i = 0; i < NPARX; ++i) {
     if(i==0)
-      xpp::print(s.auto_lib.fp8,"    ");
+      xpp::print(fp8,"    ");
     if((i>0)&&(i%7==0))
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",par[i]);
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",par[i]);
   }
-  xpp::print(s.auto_lib.fp8,"\n");    
-  fflush(s.auto_lib.fp8);
+  xpp::print(fp8,"\n");    
+  fflush(fp8);
 
   return 0;
 } /* wrtsp8_ */
@@ -6650,14 +6655,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   doublereal rn;
   integer nrowpr, lab, ibr, nar, nrd, itp, isw;
 
-  if(s.auto_lib.fp8_is_open==0) {
-    s.auto_lib.fp8 = xpp::files::open_stream(auto_fort_path(8),"w");
-    if(s.auto_lib.fp8 == NULL) {
-      /* as in wrtsp8() */
-      xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));
-    }
-    s.auto_lib.fp8_is_open=1;
-  }
+  FILE *const fp8=fort8(s.auto_lib);
 
   /* Writes plotting and restart data on unit 8, viz.: */
   /* (1) data identifying the corresponding point on unit 7, */
@@ -6728,18 +6726,18 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   }
 
   mtot = ntot % 10000;
-  xpp::print(s.auto_lib.fp8,"{:5}",ibr);
-  xpp::print(s.auto_lib.fp8,"{:5}",mtot);
-  xpp::print(s.auto_lib.fp8,"{:5}",itp);
-  xpp::print(s.auto_lib.fp8,"{:5}",lab);
-  xpp::print(s.auto_lib.fp8,"{:5}",nfpr);
-  xpp::print(s.auto_lib.fp8,"{:5}",isw);
-  xpp::print(s.auto_lib.fp8,"{:5}",ntpl);
-  xpp::print(s.auto_lib.fp8,"{:5}",nar);
-  xpp::print(s.auto_lib.fp8,"{:5}",nrowpr);
-  xpp::print(s.auto_lib.fp8,"{:5}",ntst);
-  xpp::print(s.auto_lib.fp8,"{:5}",ncol);
-  xpp::print(s.auto_lib.fp8,"{:5}\n",NPARX);
+  xpp::print(fp8,"{:5}",ibr);
+  xpp::print(fp8,"{:5}",mtot);
+  xpp::print(fp8,"{:5}",itp);
+  xpp::print(fp8,"{:5}",lab);
+  xpp::print(fp8,"{:5}",nfpr);
+  xpp::print(fp8,"{:5}",isw);
+  xpp::print(fp8,"{:5}",ntpl);
+  xpp::print(fp8,"{:5}",nar);
+  xpp::print(fp8,"{:5}",nrowpr);
+  xpp::print(fp8,"{:5}",ntst);
+  xpp::print(fp8,"{:5}",ncol);
+  xpp::print(fp8,"{:5}\n",NPARX);
 
 /* Write the entire solution on unit 8 : */
 
@@ -6749,72 +6747,72 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
       k1 = i * ndim;
       k2 = (i + 1) * ndim;
       t = tm[j] + i * rn * dtm[j];
-      xpp::print(s.auto_lib.fp8,"    {:19.10E}",t);
+      xpp::print(fp8,"    {:19.10E}",t);
       for (k = k1; k < k2; ++k) {
 	if((k+1-k1)%7==0)
-	  xpp::print(s.auto_lib.fp8,"\n    ");
-	xpp::print(s.auto_lib.fp8,"{:19.10E}",ARRAY2D(ups, j, k));
+	  xpp::print(fp8,"\n    ");
+	xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, j, k));
       }
-      xpp::print(s.auto_lib.fp8,"\n");	 
+      xpp::print(fp8,"\n");	 
 
     }
   }
-  xpp::print(s.auto_lib.fp8,"    {:19.10E}",tm[ntst]);
+  xpp::print(fp8,"    {:19.10E}",tm[ntst]);
   for (i = 0; i < ndim; ++i) {
     if((i+1)%7==0)
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",ARRAY2D(ups, ntst, i));
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",ARRAY2D(ups, ntst, i));
   }
-  xpp::print(s.auto_lib.fp8,"\n");  
+  xpp::print(fp8,"\n");  
 
 /* Write the free parameter indices: */
   for (i = 0; i < nfpr; ++i) {
-    xpp::print(s.auto_lib.fp8,"{:5}",icp[i]);
+    xpp::print(fp8,"{:5}",icp[i]);
   }
-  xpp::print(s.auto_lib.fp8,"\n");  
+  xpp::print(fp8,"\n");  
 
 /* Write the direction of the branch: */
-  xpp::print(s.auto_lib.fp8,"    ");
+  xpp::print(fp8,"    ");
   for (i = 0; i < nfpr; ++i) {
     if((i>0)&&((i)%7==0))
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",rldot[i]);
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",rldot[i]);
   }
-  xpp::print(s.auto_lib.fp8,"\n");  
+  xpp::print(fp8,"\n");  
 
   for (j = 0; j < ntst; ++j) {
     for (i = 0; i < ncol; ++i) {
       k1 = i * ndim;
       k2 = (i + 1)* ndim;
 
-      xpp::print(s.auto_lib.fp8,"    ");
+      xpp::print(fp8,"    ");
       for (k = k1; k < k2; ++k) {
 	if((k!=k1)&&((k-k1)%7==0))
-	  xpp::print(s.auto_lib.fp8,"\n    ");
-	xpp::print(s.auto_lib.fp8,"{:19.10E}",ARRAY2D(udotps, j, k));
+	  xpp::print(fp8,"\n    ");
+	xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, j, k));
       }
-      xpp::print(s.auto_lib.fp8,"\n");
+      xpp::print(fp8,"\n");
     }
   }
-  xpp::print(s.auto_lib.fp8,"    ");
+  xpp::print(fp8,"    ");
 
   for (k = 0; k < ndim; ++k) {
     if((k!=0)&&(k%7==0))
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",ARRAY2D(udotps, ntst, k));
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",ARRAY2D(udotps, ntst, k));
   }
-  xpp::print(s.auto_lib.fp8,"\n");
+  xpp::print(fp8,"\n");
 
 /* Write the parameter values. */
 
-  xpp::print(s.auto_lib.fp8,"    ");
+  xpp::print(fp8,"    ");
   for (i = 0; i < NPARX; ++i) {
     if((i>0)&&(i%7==0))
-      xpp::print(s.auto_lib.fp8,"\n    ");
-    xpp::print(s.auto_lib.fp8,"{:19.10E}",par[i]);
+      xpp::print(fp8,"\n    ");
+    xpp::print(fp8,"{:19.10E}",par[i]);
   }
-  xpp::print(s.auto_lib.fp8,"\n");
-  fflush(s.auto_lib.fp8);
+  xpp::print(fp8,"\n");
+  fflush(fp8);
   return 0;
 } /* wrtbv8_ */
 

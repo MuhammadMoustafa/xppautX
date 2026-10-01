@@ -39,17 +39,12 @@ namespace xpp {
 #define READEM 1
 
 namespace {
-int adj_len;
-/* the derived data sets this file shows in the browser (storage.h) */
-LentColumns adj_columns, h_columns, trans_columns;
-float **const my_adj=adj_columns.table();
-float **const my_h=h_columns.table();
 /* the maximal Liapunov exponent over a range: the parameter, the exponent */
 std::array<std::vector<float>, 2> my_liap;
 }
 
 struct {
-  int here,col0,ncol,colskip;
+  int col0,ncol,colskip;
   int row0,nrow,rowskip; 
   std::string firstcol;
 } my_trans;
@@ -59,7 +54,7 @@ int LIAP_FLAG=0;
 int LIAP_I;
 constexpr double ADJ_EPS=1.e-8;
 double ADJ_ERR=1.e-3;
-int ADJ_MAXIT=20,ADJ_HERE=0,H_HERE=0,h_len,HODD_EV=0;
+int ADJ_MAXIT=20;
 }
 namespace {
 /* each equation's coupling for the H function: its formula and the
@@ -72,7 +67,6 @@ std::vector<std::string> coup_string;
 
 void init_trans(xpp::Session &s)
 {
-  my_trans.here=0;
   my_trans.firstcol=s.model().uvar_names[0];
   my_trans.ncol=2;
   my_trans.nrow=1;
@@ -110,10 +104,10 @@ int do_transpose(xpp::Session &s)
  values[3] = xpp::format("{:d}", my_trans.row0);
  values[4] = xpp::format("{:d}", my_trans.nrow);
  values[5] = xpp::format("{:d}", my_trans.rowskip);
- if(my_trans.here){
-   
-   trans_columns.release();
-   my_trans.here=0;
+ AdjointState &a=s.adjoint;
+ if(a.transposed_here){
+   a.transposed.release();
+   a.transposed_here=false;
    data_back(s);
  }
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
@@ -146,7 +140,7 @@ int create_transpose(xpp::Session &s)
 {
   int i,j;
   int inrow,incol;
-  float **data=trans_columns.make(s.data_store,my_trans.nrow+1,my_trans.ncol,s.model().neq);
+  float **data=s.adjoint.transposed.make(s.data_store,my_trans.nrow+1,my_trans.ncol,s.model().neq);
   for(j=0;j<my_trans.ncol;j++)
     data[0][j]=j+1;
 
@@ -163,7 +157,7 @@ int create_transpose(xpp::Session &s)
   }
   
   new_browse_dat(s,data,my_trans.ncol);
-   my_trans.here=1;
+   s.adjoint.transposed_here=true;
    return 1;
 }
 
@@ -181,12 +175,14 @@ void data_back(xpp::Session &s)
 
 void adj_back(xpp::Session &s)
 {
- if(ADJ_HERE)new_browse_dat(s,my_adj,adj_len);
+ AdjointState &a=s.adjoint;
+ if(a.adjoint_here)new_browse_dat(s,a.adjoint.view(s.data_store),a.adjoint_rows);
 }
 
 void h_back(xpp::Session &s)
 {
- if(H_HERE)new_browse_dat(s,my_h,h_len);
+ AdjointState &a=s.adjoint;
+ if(a.h_here)new_browse_dat(s,a.h_function.view(s.data_store),a.h_rows);
 }
 /*  Here is how to do the range over adjoints and h functions
     unfortunately, h functions are always computed even if you dont want them 
@@ -244,28 +240,29 @@ void new_h_fun(xpp::Session &s, int silent)
 {
 
  int n=2;
- if(!ADJ_HERE){
+ AdjointState &a=s.adjoint;
+ if(!a.adjoint_here){
    err_msg("Must compute adjoint first!");
    return;
  }
-  if(s.data_store.rows!=adj_len){
+  if(s.data_store.rows!=a.adjoint_rows){
      err_msg("incompatible data and adjoint");
      return;
    }
- if(H_HERE){
-   h_columns.release();
-   H_HERE=0;
-   HODD_EV=0;
+ if(a.h_here){
+   a.h_function.release();
+   a.h_here=false;
+   a.h_odd_even=false;
  }
    if(s.model().neq>2){
-     HODD_EV=1;
+     a.h_odd_even=true;
      n=4;
    }
-   h_len=s.data_store.rows;
+   a.h_rows=s.data_store.rows;
    data_back(s); 
-   h_columns.make(s.data_store,n,h_len,s.model().neq);
-   if(make_h(s,s.data_store.col,my_adj,my_h,h_len,s.numerics.delta_t*s.numerics.njmp,s.model().node,silent )){
-     H_HERE=1;
+   float **h=a.h_function.make(s.data_store,n,a.h_rows,s.model().neq);
+   if(make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,s.numerics.delta_t*s.numerics.njmp,s.model().node,silent )){
+     a.h_here=true;
      h_back(s);
    }
  ping();
@@ -326,14 +323,14 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
        }
 	
      }
-     my_h[0][j]=orb[0][j];
-     my_h[1][j]=sum/static_cast<double>(nt);
+     h[0][j]=orb[0][j];
+     h[1][j]=sum/static_cast<double>(nt);
    }
-   if(HODD_EV){
+   if(s.adjoint.h_odd_even){
      for(k=0;k<nt;k++){
        k2=nt-k-1;
-       my_h[2][k]=.5*(my_h[1][k]-my_h[1][k2]);
-       my_h[3][k]=.5*(my_h[1][k]+my_h[1][k2]);
+       h[2][k]=.5*(h[1][k]-h[1][k2]);
+       h[3][k]=.5*(h[1][k]+h[1][k2]);
      }
    }
    rval=1;
@@ -348,16 +345,17 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
 void new_adjoint(xpp::Session &s)
 {
  int n=s.model().node +1;
- if(ADJ_HERE){
+ AdjointState &a=s.adjoint;
+ if(a.adjoint_here){
    data_back(s);
-   adj_columns.release();
-   ADJ_HERE=0;
+   a.adjoint.release();
+   a.adjoint_here=false;
  }
- adj_len=s.data_store.rows;
- adj_columns.make(s.data_store,n,adj_len,s.model().neq);
- auto done=adjoint(s,s.data_store.col,my_adj,adj_len,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,s.model().node );
+ a.adjoint_rows=s.data_store.rows;
+ float **adj=a.adjoint.make(s.data_store,n,a.adjoint_rows,s.model().neq);
+ auto done=adjoint(s,s.data_store.col,adj,a.adjoint_rows,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,s.model().node );
  if(done){
-   ADJ_HERE=1;;
+   a.adjoint_here=true;
  adj_back(s);
  }
  else xpp::show_error(done.error());
