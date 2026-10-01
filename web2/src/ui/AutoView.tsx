@@ -569,7 +569,7 @@ function AutoPanel({dark}: {dark: boolean}) {
     <section id="auto-panel" ref={panel} class="auto-panel" aria-label="AUTO" onKeyDown={onPanelKey}>
       <div class="auto-header">
         <button class="auto-back" onClick={() => session.showAuto(false)}
-          title="Hide the AUTO view (AUTO stays open; Show AUTO brings it back)">Back</button>
+          title="AUTO stays open, with its diagram and a running continuation; Show AUTO brings it back">Hide AUTO</button>
         <h2>AUTO <span class="muted auto-what">{views > 1 ? `${views} views, the active one ${what}` : what}</span></h2>
         <HelpButton target={HELP.autoView} label="AUTO" />
         <button class="auto-close" onClick={() => session.closeAuto()}

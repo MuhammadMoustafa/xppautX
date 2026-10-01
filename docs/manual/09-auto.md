@@ -10,7 +10,7 @@ Click on the `File Auto` menu item to bring up AUTO.
 
 **In web2**, AUTO opens as its own view (`ui/AutoView.tsx`), a full-screen
 sheet at every width, over the main menu, the plot and the main status bar
-(Back, or Escape, hides it and shows the page again; "Show AUTO" brings it
+(Hide AUTO, or Escape, hides it and shows the page again; "Show AUTO" brings it
 back). It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch

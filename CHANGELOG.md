@@ -27,6 +27,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- The AUTO view's Back button is now labelled Hide AUTO, with its tooltip explaining that AUTO stays open and Show AUTO brings it back (W152, #204)
 - The player's 1x is slower: every pace is 1.5 times what it was; the speeds stay 0.5x, 1x, 2x, 4x (W150, #202)
 - A session's `model.set` no longer carries the model's equations at its end (the session holds the model itself); sessions saved before this are refused (W145, #197)
 - Our own files (`.set`, `.par`, `.ic`, `.snapx`, `.autox`, AUTO's settings) load all or nothing: a bad value stops the load with the file, line and value, and nothing is applied; XPPAUT guessed ([finding 21](docs/xppaut-findings.md#21-set-par-and-ic-files-read-by-guessing)) (W125, #177)
