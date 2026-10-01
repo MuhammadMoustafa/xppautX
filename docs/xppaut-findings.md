@@ -48,6 +48,7 @@ evidence. The index gives one line each.
 | 22 | Analysis | adjoint, H function and histogram tables point into storage that moves | W117 |
 | 23 | Networks | `fftcon` reads one value past its weight table | W38 |
 | 24 | Export | an export with no library copies uninitialised memory into the model | d5eebae |
+| 25 | Numerics | an output stride of 0 from a .set file or an `@ nout` line divides by zero on the next run | W145 |
 
 ## 1. Model options
 
@@ -375,6 +376,20 @@ allocated with `malloc` and never written, into the model's variables.
 - **Evidence:** getfrefm.ode and testdll.ode gave a different output.dat from one CI run to the next on Windows (the heap's contents), zeros on Linux's fresh pages.
 - **xppautX:** the buffers were zeroed and copied back only when the function ran; the whole compiled-function feature was later removed (W55).
 - **Card:** d5eebae, W55 (96a4608).
+
+## 25. An output stride of 0 divides by zero
+
+`nout` (NJMP, every how many steps a point is stored) is checked only by
+the Numerics dialog, whose `check_pos` turns 0 or less into 1. A .set file
+(`io_int`) and an `@ nout=`/`@ njmp=` line (`atoi`) set it unchecked, and
+`integrate` divides the step count by it: 0 is SIGFPE on the next Go.
+`DeltaT` 0 reaches the line before, a floating division by zero, unchecked
+the same way.
+
+- **XPPAUT 8.0:** integrate [integrate.c:1912-1914](../reference/xppaut-8.0/integrate.c#L1912-L1914) ([master 1884-1886](../reference/xppaut-master/integrate.c#L1884-L1886)) (the division), the .set read [lunch-new.c:342](../reference/xppaut-8.0/lunch-new.c#L342) ([master 342](../reference/xppaut-master/lunch-new.c#L342)), the @ lines [load_eqn.c:1483-1497](../reference/xppaut-8.0/load_eqn.c#L1483-L1497) ([master 1482-1496](../reference/xppaut-master/load_eqn.c#L1482-L1496)), the dialog's check [numerics.c:118-122](../reference/xppaut-8.0/numerics.c#L118-L122), [numerics.c:230-231](../reference/xppaut-8.0/numerics.c#L230-L231) ([master 227-228](../reference/xppaut-master/numerics.c#L227-L228)).
+- **Evidence:** the code review of 2026-10-01 (docs/code-review-2026-10-01.md): a saved session whose model.set had `0 nout` loaded, and Initialconds/Go exited on SIGFPE.
+- **xppautX:** every source of a numerics value checks it by model_options' one table of rules (`@` lines since W119/W121, the dialog, and the .set reader at W145).
+- **Card:** W145 (#197).
 
 ## Known and kept
 
