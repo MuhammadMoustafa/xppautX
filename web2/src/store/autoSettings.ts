@@ -236,7 +236,7 @@ export function pendingFields(s: AutoSettingsState): Set<string> {
   return out;
 }
 
-export function setCommand(p: AutoSettingsPatch): Command {
+export function autoSettingsSetCommand(p: AutoSettingsPatch): Command {
   return {cmd: 'auto', op: 'set', ...p};
 }
 

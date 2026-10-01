@@ -105,7 +105,7 @@ export function lineWidth(width: number, scale: number): number {
 /** XPP's five text sizes, px (web/xpp-client.js TEXT_SIZES) */
 const TEXT_SIZES = [8, 10, 12, 14, 18];
 
-export function textPx(size: number, scale: number): number {
+export function scaledTextPx(size: number, scale: number): number {
   return TEXT_SIZES[Math.max(0, Math.min(4, Math.round(size)))] * scale;
 }
 

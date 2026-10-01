@@ -11,7 +11,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {kindOf, mainKey, mayStart, menuKey, menuName, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
+import {kindOf, mainKey, mayStart, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoWindow} from './store/diagram';
@@ -25,8 +25,8 @@ import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
 import type {TextTab} from './store/text';
-import {fieldKey, setCommand, type ValueSet} from './store/values';
-import {setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
+import {fieldKey, valueSetCommand, type ValueSet} from './store/values';
+import {autoSettingsSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -324,7 +324,7 @@ export class Session {
   /** the command of item `id` of window `win`'s key layer, as hello names it */
   private layerKey(win: LayerWindow, id: string, extra: Record<string, unknown> = {}): Command {
     /* every layer key is sent by the window's button: `button` names it for a recording */
-    return layerCommand(this.store.getState().hello, win, id, {button: id, ...extra});
+    return windowCommand(this.store.getState().hello, win, id, {button: id, ...extra});
   }
 
   /** the one place commands go out. What may not start now (may) is
@@ -760,7 +760,7 @@ export class Session {
       run the core applies it when the run ends, to the next one */
   autoSettings(patch: AutoSettingsPatch): void {
     const ahead = this.idlesOwed;
-    if (this.send(autoSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
+    if (this.send(autoSettingsSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
   }
 
   /** AUTO's File > settings From file (core/auto_nox.cpp auto_file): the core asks for
@@ -824,7 +824,7 @@ export class Session {
   /** edits, in one `set`: shown on their fields until its idle, which also
       ends the attribution of an error to them (A11) */
   private edit(...sets: ValueSet[]): void {
-    const cmd = setCommand(sets), ahead = this.idlesOwed;
+    const cmd = valueSetCommand(sets), ahead = this.idlesOwed;
     if (!cmd || !this.send(cmd)) return;
     for (const set of sets) this.store.dispatch({type: 'values', action: {type: 'sent', set, ahead}});
   }

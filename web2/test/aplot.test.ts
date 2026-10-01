@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {AplotEvent} from '../src/protocol/types';
-import {columnName, initialAplot, reduceAplot, timeAt, valueAt} from '../src/store/aplot';
+import {aplotColumnName, initialAplot, reduceAplot, timeAt, valueAt} from '../src/store/aplot';
 
 const ev = (over: Partial<AplotEvent> = {}): AplotEvent => ({
   ev: 'aplot', title: 'u0..3', nx: 4, ny: 3,
@@ -75,12 +75,12 @@ test('timeAt is tlo for a single-row grid (no division by zero)', () => {
   assert.equal(timeAt(ev({ny: 1, tlo: 5, thi: 5}), 0), 5);
 });
 
-test('columnName reads the title\'s low bound plus the column position', () => {
-  assert.equal(columnName(ev({title: 'u0..3'}), 0), 'u0');
-  assert.equal(columnName(ev({title: 'u0..3'}), 3), 'u3');
-  assert.equal(columnName(ev({title: 'V-2..5'}), 1), 'V-1');
+test('aplotColumnName reads the title\'s low bound plus the column position', () => {
+  assert.equal(aplotColumnName(ev({title: 'u0..3'}), 0), 'u0');
+  assert.equal(aplotColumnName(ev({title: 'u0..3'}), 3), 'u3');
+  assert.equal(aplotColumnName(ev({title: 'V-2..5'}), 1), 'V-1');
 });
 
-test('columnName is empty when the title does not parse as root+range', () => {
-  assert.equal(columnName(ev({title: 'Array!'}), 0), '');
+test('aplotColumnName is empty when the title does not parse as root+range', () => {
+  assert.equal(aplotColumnName(ev({title: 'Array!'}), 0), '');
 });

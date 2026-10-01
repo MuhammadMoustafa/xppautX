@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  aspectOf, circleRadius, decodePrims, fitBox, fromCanvas, lineWidth, penScale, textOf, textPx, toCanvas,
+  aspectOf, circleRadius, decodePrims, fitBox, fromCanvas, lineWidth, penScale, textOf, scaledTextPx, toCanvas,
 } from '../src/ani/frame';
 import type {AniFrameEvent, AniStateEvent} from '../src/protocol/types';
 import {initialAni, reduceAni, stepTarget} from '../src/store/ani';
@@ -103,8 +103,8 @@ test('pixel sizes follow the picture\'s area, within a half and four times; widt
   assert.equal(penScale({x: 0, y: 0, w: 100, h: 100}, 0, 0), 1);
   assert.equal(lineWidth(0, 1), 1);
   assert.equal(lineWidth(3, 2), 6);
-  assert.equal(textPx(3, 1), 14);
-  assert.equal(textPx(9, 1), 18);
+  assert.equal(scaledTextPx(3, 1), 14);
+  assert.equal(scaledTextPx(9, 1), 18);
 });
 
 test('text drops the .ani\'s trailing blanks; the symbol font is Greek', () => {

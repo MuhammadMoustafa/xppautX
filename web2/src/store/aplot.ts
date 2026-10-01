@@ -88,7 +88,7 @@ export function timeAt(ev: AplotEvent, row: number): number {
     the same approximation the core's own label uses (unit stride; a custom
     column skip, ColSkip > 1, is not reflected in the title either). Empty
     when the title does not parse that way. */
-export function columnName(ev: AplotEvent, col: number): string {
+export function aplotColumnName(ev: AplotEvent, col: number): string {
   const m = /^(.*?)(-?\d+)\.\.(-?\d+)$/.exec(ev.title);
   return m ? `${m[1]}${Number(m[2]) + col}` : '';
 }

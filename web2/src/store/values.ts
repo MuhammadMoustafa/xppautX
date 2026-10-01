@@ -161,7 +161,7 @@ function setMembers(s: ValueSet): Record<string, unknown> {
 }
 
 /** the one command that sends these values (docs/protocol.md `set`: one value, or `values`) */
-export function setCommand(sets: ValueSet[]): Command | null {
+export function valueSetCommand(sets: ValueSet[]): Command | null {
   if (!sets.length) return null;
   return sets.length === 1 ? {cmd: 'set', ...setMembers(sets[0])} : {cmd: 'set', values: sets.map(setMembers)};
 }

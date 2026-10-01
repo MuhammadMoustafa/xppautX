@@ -2,7 +2,7 @@
    computation runs, by the kinds hello carries (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {isWindowKey, kindOf, layerKey, mayStart, windowKey} from '../src/protocol/kinds';
+import {isWindowKey, kindOf, layerKey, mayStart, windowCommand} from '../src/protocol/kinds';
 import type {Command} from '../src/protocol/types';
 import {initialState, reduce, type AppState} from '../src/store/state';
 import {HELLO} from './hello';
@@ -53,7 +53,7 @@ test('W95: the windows\' keys come from hello, not a copy in the page', () => {
   assert.equal(layerKey(HELLO, 'ani', 'grab'), 'a');
   assert.equal(layerKey(HELLO, 'aplot', 'nothing'), '');
   assert.equal(layerKey(null, 'auto', 'run'), '');
-  assert.deepEqual(windowKey(HELLO, 'auto', 'file', {row: 3}), {cmd: 'key', win: 'auto', key: 'f', row: 3});
+  assert.deepEqual(windowCommand(HELLO, 'auto', 'file', {row: 3}), {cmd: 'key', win: 'auto', key: 'f', row: 3});
   assert.ok(isWindowKey(HELLO, {cmd: 'key', win: 'ani', key: 'g'}, 'ani', 'go'));
   assert.ok(!isWindowKey(HELLO, {cmd: 'key', win: 'ani', key: 'g'}, 'auto', 'grab'));
 });

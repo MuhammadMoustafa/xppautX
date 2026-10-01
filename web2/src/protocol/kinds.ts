@@ -80,7 +80,7 @@ export function layerKey(hello: HelloEvent | null, win: LayerWindow, id: string)
 }
 
 /** the command of item `id` of window `win`'s layer */
-export function windowKey(hello: HelloEvent | null, win: LayerWindow, id: string,
+export function windowCommand(hello: HelloEvent | null, win: LayerWindow, id: string,
   extra: Record<string, unknown> = {}): {cmd: 'key'; win: string; key: string; [k: string]: unknown} {
   return {cmd: 'key', win, key: layerKey(hello, win, id), ...extra};
 }

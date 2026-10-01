@@ -6,7 +6,7 @@ import {curveColor} from '../plot/colors';
 import type {AniColor} from '../protocol/types';
 import type {AniFrame} from '../store/ani';
 import {
-  aspectOf, circleRadius, fitBox, lineWidth, penScale, textOf, textPx, toCanvas, type Box,
+  aspectOf, circleRadius, fitBox, lineWidth, penScale, textOf, scaledTextPx, toCanvas, type Box,
 } from './frame';
 
 export interface AniDrawInfo {
@@ -108,7 +108,7 @@ export function drawAniFrame(canvas: HTMLCanvasElement, cw: number, ch: number, 
       }
       case 'text': {
         const [x, y] = toCanvas(box, p.u, p.v);
-        g.font = `${textPx(p.size, s)}px Inter, system-ui, sans-serif`;
+        g.font = `${scaledTextPx(p.size, s)}px Inter, system-ui, sans-serif`;
         g.fillText(textOf(p), x, y);
         break;
       }

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """One thing, one name (W113, maintainer 2026-10-01). Fails a second name
-for one of our own names in core/ and tests/: `using X = <type>;`,
+for one of our own names in core/, tests/ and web2/src: `using X = <type>;`,
 `namespace a = b;`, `typedef <type> X;`, `using xpp::name;` inside
-namespace xpp, and a #define that only renames an identifier. Comments
-and string literals are stripped first. Allowed without an entry: an
-alias of a std:: type, a function-pointer type (a new type, not a second
-name), `typedef struct/enum/union {...} name;` (a definition), and a
-typedef of a builtin type. Anything else is in ALLOW below, each entry
-with its reason: use the real name rather than add an entry.
+namespace xpp, a #define that only renames an identifier, and in TypeScript,
+renamed imports (`import {x as y}`) and duplicate exported function/const names
+across files. Comments and string literals are stripped first. Allowed without
+an entry: an alias of a std:: type, a function-pointer type (a new type, not a
+second name), `typedef struct/enum/union {...} name;` (a definition), a
+typedef of a builtin type, and in TypeScript, namespace imports
+(`import * as x`). Anything else is in ALLOW below, each entry with its reason:
+use the real name rather than add an entry.
 Usage: tools/aliascheck.py [--check]   (exit 1 on a finding)"""
 import re, sys, glob, os
 
@@ -83,11 +85,77 @@ def check(path):
             elif ns: ns.pop()
     return bad
 
+def check_typescript(path):
+    """Check TypeScript files for renamed imports (import {x as y}), which
+    violate the one-name rule. Also check for duplicate exported function/const
+    names across files (detected by collecting all exports and flagging duplicates)."""
+    bad = []
+    base = os.path.basename(path)
+    text = open(path, encoding="utf-8", errors="replace", newline="").read()
+
+    for no, line in enumerate(text.split("\n"), 1):
+        # Check for renamed imports: import {x as y} or import {x as y, ...}
+        # Allow namespace imports: import * as x (third-party imports are OK)
+        m = re.search(r'import\s+\{([^}]*)\}\s+from', line)
+        if m:
+            imports = m.group(1)
+            # Skip if it's a namespace import (import * as x) - those are allowed
+            if 'as' in imports and 'import *' not in line:
+                # Look for specific renamed imports
+                for item in imports.split(','):
+                    item = item.strip()
+                    if ' as ' in item:
+                        parts = item.split(' as ')
+                        if len(parts) == 2:
+                            original = parts[0].strip()
+                            alias = parts[1].strip()
+                            # Skip type imports (prefixed with type)
+                            if not original.startswith('type '):
+                                if (base, alias) not in ALLOW:
+                                    bad.append(f"{path}:{no}: {alias}: renamed import of {original}")
+
+    return bad
+
+def collect_exports():
+    """Collect all exported function and const names in web2/src to detect duplicates."""
+    files = sorted(glob.glob("web2/src/**/*.ts", recursive=True))
+    exports = {}  # name -> [list of (filepath, lineno, basename)]
+
+    for path in files:
+        base = os.path.basename(path)
+        text = open(path, encoding="utf-8", errors="replace", newline="").read()
+        for no, line in enumerate(text.split("\n"), 1):
+            # Match: export function name(...) or export const name =
+            # But skip type/interface exports
+            m = re.search(r'^export\s+(?:function|const)\s+(\w+)[\s(=]', line)
+            if m:
+                name = m.group(1)
+                if name not in exports:
+                    exports[name] = []
+                exports[name].append((path, no, base))
+
+    return exports
+
 def main():
     files = sorted(glob.glob("core/*.cpp") + glob.glob("core/*.h") + glob.glob("tests/*.cpp") + glob.glob("tests/*.h"))
     bad = [b for f in files if "third_party" not in f for b in check(f)]
+
+    # Check TypeScript files in web2/src
+    ts_files = sorted(glob.glob("web2/src/**/*.ts", recursive=True))
+    for f in ts_files:
+        bad.extend(check_typescript(f))
+
+    # Check for duplicate exported names in web2/src
+    exports = collect_exports()
+    for name, locations in exports.items():
+        if len(locations) > 1:
+            for path, lineno, base in locations:
+                if (base, name) not in ALLOW:
+                    bad.append(f"{path}:{lineno}: {name}: duplicate exported function/const name (also in {len(locations)-1} other file(s))")
+
+    total_files = len(files) + len(ts_files)
     for b in bad: print(b)
-    print(f"aliascheck: {len(bad)} second name(s) in {len(files)} files")
+    print(f"aliascheck: {len(bad)} second name(s) in {total_files} files")
     return 1 if bad and "--check" in sys.argv else 0
 
 sys.exit(main())

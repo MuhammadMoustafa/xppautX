@@ -110,11 +110,11 @@ export function endSeries(s: PlotSeries, version: number): PlotSeries {
   return s.version === version ? s : {...s, version};
 }
 
-export function columnName(s: PlotSeries, col: number): string {
+export function seriesColumnName(s: PlotSeries, col: number): string {
   return s.names.get(col) ?? (col === 0 ? 'T' : `#${col}`);
 }
 
 /** "W vs V": what a curve plots, as XPP titles a window */
 export function curveLabel(s: PlotSeries, c: Curve): string {
-  return `${columnName(s, c.y)} vs ${columnName(s, c.x)}`;
+  return `${seriesColumnName(s, c.y)} vs ${seriesColumnName(s, c.x)}`;
 }

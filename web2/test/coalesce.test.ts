@@ -2,13 +2,13 @@
    value or several; the model's defaults by field. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {initialValues, reduceValues, setCommand} from '../src/store/values';
+import {initialValues, reduceValues, valueSetCommand} from '../src/store/values';
 
 test('values go out as one set: one value plain, several in values[]', () => {
-  assert.equal(setCommand([]), null);
-  assert.deepEqual(setCommand([{kind: 'par', name: 'iapp', text: '0.1'}]),
+  assert.equal(valueSetCommand([]), null);
+  assert.deepEqual(valueSetCommand([{kind: 'par', name: 'iapp', text: '0.1'}]),
     {cmd: 'set', kind: 'par', name: 'iapp', text: '0.1'});
-  assert.deepEqual(setCommand([{kind: 'par', name: 'iapp', text: '0.1'}, {kind: 'bc', index: 1, text: 'w'}]), {
+  assert.deepEqual(valueSetCommand([{kind: 'par', name: 'iapp', text: '0.1'}, {kind: 'bc', index: 1, text: 'w'}]), {
     cmd: 'set', values: [{kind: 'par', name: 'iapp', text: '0.1'}, {kind: 'bc', index: 1, text: 'w'}],
   });
 });

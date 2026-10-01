@@ -15,13 +15,13 @@
    same `scroll` op the classic page's mouse drag uses
    (plot/aplotScroll.ts). Hover (mouse or a finger held) names the cell
    under the pointer: its variable (from the title, store/aplot.ts
-   columnName), its row's approximate time and its value. */
+   aplotColumnName), its row's approximate time and its value. */
 import {useEffect, useRef} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {cellColor, legendStops} from '../plot/aplotColors';
 import {dragScroll, wheelScroll} from '../plot/aplotScroll';
 import type {AplotColorMap} from '../store/aplot';
-import {columnName, timeAt, valueAt} from '../store/aplot';
+import {aplotColumnName, timeAt, valueAt} from '../store/aplot';
 import type {AplotOp} from '../session';
 import {BUSY_TITLE, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
@@ -155,7 +155,7 @@ export function AplotView() {
   };
 
   const stops = legendStops(colorMap);
-  const label = ev && hover ? columnName(ev, hover.col) : '';
+  const label = ev && hover ? aplotColumnName(ev, hover.col) : '';
 
   return (
     <section id="aplot-panel" ref={panel} class={'aplot-panel' + (open ? ' open' : '')} aria-label="Array plot">
