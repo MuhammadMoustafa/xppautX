@@ -2097,7 +2097,10 @@ async function autoView(dir) {
       + `· last label EP \\d+ \\(End point\\) at point \\d+ · [\\d.:]+ s?`).test(await autoStatus())
     && await cdp.eval(`document.querySelector('[data-testid=auto-status]').dataset.why`) === stop.why,
     JSON.stringify([stop, await autoStatus()]));
-  const out = await cdp.eval(`(() => { const d = document.querySelector('.auto-output'); d.open = true;
+  /* the panel builds its text once open (W122: a long run's table is thousands of lines) */
+  await cdp.eval(`document.querySelector('.auto-output').open = true`);
+  await until(`!!(document.querySelector('.auto-output pre') || {}).textContent`, 'Output open');
+  const out = await cdp.eval(`(() => { const d = document.querySelector('.auto-output');
     return {sum: d.querySelector('summary').textContent, text: d.querySelector('pre') && d.querySelector('pre').textContent}; })()`);
   check("T21: the Output panel shows AUTO's table", /^Output \(\d+\)$/.test(out.sum) && out.sum !== 'Output (0)'
     && /BR\s+PT\s+TY/.test(out.text || ''), JSON.stringify(out).slice(0, 300));
