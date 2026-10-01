@@ -58,8 +58,10 @@ typedef SOCKET sock_t;
 #include <fcntl.h>
 #include <fstream>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <signal.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <sys/time.h>
 #include <unistd.h>
 typedef int sock_t;
@@ -167,9 +169,39 @@ bool send_all(sock_t s, std::string_view data)
     return true;
 }
 
+/* an event as one Server-Sent Event: its frame and the line in one gathered
+   write (no copy of the line, and a small event goes out in one packet) */
 bool send_event(sock_t s, std::string_view line)
 {
-    return send_all(s, "data: ") && send_all(s, line) && send_all(s, "\n\n");
+    std::array<std::string_view, 3> part = {"data: ", line, "\n\n"};
+    std::size_t k = 0;
+    while (k < part.size()) {
+#ifdef _WIN32
+        std::array<WSABUF, 3> buf;
+        DWORD n = 0, sent = 0;
+        for (std::size_t i = k; i < part.size(); i++, n++) {
+            buf[n].buf = const_cast<char *>(part[i].data()); /* WSABUF's own type: WSASend only reads it */
+            buf[n].len = static_cast<ULONG>(part[i].size());
+        }
+        if (WSASend(s, buf.data(), n, &sent, 0, nullptr, nullptr) != 0 || sent == 0) return false;
+        std::size_t r = sent;
+#else
+        std::array<iovec, 3> buf;
+        msghdr m{};
+        for (std::size_t i = k; i < part.size(); i++, m.msg_iovlen++) {
+            buf[m.msg_iovlen].iov_base = const_cast<char *>(part[i].data()); /* iovec's own type: sendmsg only reads it */
+            buf[m.msg_iovlen].iov_len = part[i].size();
+        }
+        m.msg_iov = buf.data();
+        const ssize_t sent = sendmsg(s, &m, MSG_NOSIGNAL);
+        if (sent <= 0) return false;
+        std::size_t r = static_cast<std::size_t>(sent);
+#endif
+        /* a partial write: on from where it stopped */
+        while (k < part.size() && r >= part[k].size()) r -= part[k++].size();
+        if (k < part.size()) part[k].remove_prefix(r);
+    }
+    return true;
 }
 
 /* Closing the page used to leave the program running with its port held and
@@ -432,6 +464,10 @@ std::optional<std::string_view> query_value(std::string_view target, std::string
 void open_events(sock_t s)
 {
     static constexpr std::string_view head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
+    /* the events are many and mostly small: each goes out at once, not held
+       back for the next (Nagle's algorithm) */
+    const int one = 1;
+    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char *>(&one), sizeof one);
     pthread_mutex_lock(&lock);
     bool ok = send_all(s, head);
     if (ok && !srv.log_text.empty()) ok = send_event(s, log_event(srv.log_text));
