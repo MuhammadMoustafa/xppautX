@@ -337,7 +337,7 @@ int main(void)
     {
         const char inc_file[] = "build/test_options_inc.inc";
         CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n#done\n"));
-        CHECK(write_file(bad_ode, std::string(model_text) + "#include test_options_inc.inc\ndone\n"));
+        CHECK(write_file(bad_ode, std::string(model_text) + "#include build/test_options_inc.inc\ndone\n"));
         xpp::Session *t = load(bad_ode);
         CHECK(t != nullptr);
         if (t) {
