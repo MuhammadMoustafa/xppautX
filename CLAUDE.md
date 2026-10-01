@@ -380,6 +380,9 @@ difficulty) implements one card in the worktree its brief names:
   says the file holds none of its lines; the reviewer checks the file is
   empty of finished work before a merge, a push, and each report to the
   maintainer.
+- Before the final report, squash work-in-progress and debug commits
+  ("wip", "w", "dbg") into commits whose messages say what and why
+  (Conventions' commit messages): the branch is merged as it stands.
 - Final report: at most 15 lines: what changed, gate results as counts,
   anything unfinished or doubtful.
 
