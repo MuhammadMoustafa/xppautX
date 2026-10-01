@@ -37,6 +37,8 @@ void save_batch_shoot(Session &s);
    umc=) */
 struct ManifoldShots {
   std::array<std::array<double, MAXODE>, 8> ic{};
+  /* each one's kind: stable or unstable (pr_evec's type) */
+  std::array<int, 8> type{};
   int ic_flag = 0, count = 0;
   int stable_color = 8, unstable_color = 5;
 };

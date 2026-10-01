@@ -43,7 +43,6 @@ void init_main_graph(xpp::Session &s)
         s.grobs[i].w = 0;
         s.grobs[i].use = 0;
     }
-    init_bd();
     for (i = 0; i < MAXFRZ; i++) s.frozen_curves.curve[i].use = 0;
     for (i = 0; i < MAXPOP; i++) s.plot_windows.graph[i].Use = 0;
     s.plot_windows.open[0] = 0;

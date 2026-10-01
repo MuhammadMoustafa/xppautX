@@ -4,6 +4,7 @@
 #include "xpplim.h"
 #include "xpp_types.h"
 #include "struct.h" /* CURVE, MAXFRZ */
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,16 +27,42 @@ struct Session; /* session.h */
 extern const char *const color_names[];
 extern const int colorline[];
 
+/* an imported bifurcation diagram's curve (Freeze > Bif.Diag) */
+struct BifCurve {
+  std::vector<float> x,y;
+  int color=0;
+};
+
 /* The frozen curves of every plot window (Graphic stuff > Freeze) */
 typedef struct {
     CURVE curve[MAXFRZ]; /* .use: the slot holds one; .w: its window */
     int auto_freeze;     /* freeze the curve after every integration */
+    /* their points: curve[i].xv/yv/zv point into points[i][0..2] (CURVE,
+       struct.h, holds plain pointers) */
+    std::array<std::array<std::vector<float>,3>,MAXFRZ> points;
+    /* the key (Freeze > Key): where, and whether it is drawn */
+    double key_x, key_y;
+    int key_flag;
+    /* an imported bifurcation diagram's curves (at most MAXBIFCRV) and
+       its window */
+    struct {
+      std::vector<BifCurve> curves;
+      XppWinId w;
+    } bif_diagram;
 } XppFrozenCurves;
+
+/* 3D Params' movie */
+struct Mov3d {
+  std::string angle="theta"; /* theta or phi, at most 19 characters */
+  std::string yes="N";       /* at most 2 */
+  double start=45;
+  double incr=45;
+  int nclip=7;
+};
 
 void check_val(double *x1, double *x2, double *xb, double *xd);
 void pretty(double *x1, double *x2);
 void change_cmap_com(Session &s, int i);
-void init_bd(void);
 
 void dump_ps(Session &s, int i);
 

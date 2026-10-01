@@ -40,13 +40,6 @@ namespace xpp {
 #define IC 2
 
 
-namespace {
-struct {
-  std::string item;
-  int steps,side,cycle,movie;
-  double plow,phigh;
-} shoot_range;
-}  // namespace
 
 /*   more general mixed boundary types   */
 
@@ -92,25 +85,25 @@ void reset_bvp(xpp::Session &s)
  s.numerics.bvp_flag=1;
 } 
 
-void init_shoot_range(std::string_view s)
+void init_shoot_range(xpp::Session &s, std::string_view item)
 {
- shoot_range.item=s;
- shoot_range.phigh=1.0;
- shoot_range.plow=0.0;
- shoot_range.side=0;
- shoot_range.cycle=0;
- shoot_range.steps=10;
- shoot_range.movie=0;
+ s.shoot_range.item=item;
+ s.shoot_range.phigh=1.0;
+ s.shoot_range.plow=0.0;
+ s.shoot_range.side=0;
+ s.shoot_range.cycle=0;
+ s.shoot_range.steps=10;
+ s.shoot_range.movie=0;
 }
   
-void dump_shoot_range(FILE *fp, int f)
+void dump_shoot_range(xpp::Session &s, FILE *fp, int f)
 {
-  io_string(shoot_range.item,fp,f);
-  io_int(&shoot_range.side,fp,f,"BVP side");
-  io_int(&shoot_range.cycle,fp,f,"color cycle flag 1=on");
-  io_int(&shoot_range.steps,fp,f,"BVP range steps");
-  io_double(&shoot_range.plow,fp,f,"BVP range low");
-  io_double(&shoot_range.phigh,fp,f,"BVP range high");
+  io_string(s.shoot_range.item,fp,f);
+  io_int(&s.shoot_range.side,fp,f,"BVP side");
+  io_int(&s.shoot_range.cycle,fp,f,"color cycle flag 1=on");
+  io_int(&s.shoot_range.steps,fp,f,"BVP range steps");
+  io_double(&s.shoot_range.plow,fp,f,"BVP range low");
+  io_double(&s.shoot_range.phigh,fp,f,"BVP range high");
 
 }
 
@@ -143,22 +136,22 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
 
  if(set_up_sh_range(s)==0)return;
  swap_color(s,&color,0);
- parhi=shoot_range.phigh;
- parlo=shoot_range.plow;
- npar=shoot_range.steps;
+ parhi=s.shoot_range.phigh;
+ parlo=s.shoot_range.plow;
+ npar=s.shoot_range.steps;
  dpar=(parhi-parlo)/static_cast<double>(npar);
- side=shoot_range.side;
- cycle=shoot_range.cycle;
+ side=s.shoot_range.side;
+ cycle=s.shoot_range.cycle;
  s.data_store.rows=0;
  icol=0;
- if(shoot_range.movie==1)
+ if(s.shoot_range.movie==1)
    reset_film(s);
  for(i=0;i<=npar;i++)
    {
      temp=parlo+dpar*static_cast<double>(i);
-     set_val(s,shoot_range.item,temp);
-     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp));
-     if(shoot_range.movie==1)
+     set_val(s,s.shoot_range.item,temp);
+     bottom_msg(2,xpp::format("{}={:.16g}",s.shoot_range.item,temp));
+     if(s.shoot_range.movie==1)
        clr_scrn(s);
      
      xpp::ok_or_show(bvshoot(s,ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,s.model().node,0,
@@ -178,7 +171,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      set_cycle(s,cycle,&icol);
      get_ic(s,0,ystart);
      if(const xpp::Result<> r=last_shot(s,0);!r)xpp::show_error(r.error());
-     if(shoot_range.movie==1)ui.film_clip(s);
+     if(s.shoot_range.movie==1)ui.film_clip(s);
      ping();
    }
   refresh_browser(s,s.data_store.rows);
@@ -322,35 +315,35 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
  std::array<std::string, 7> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- values[0] = shoot_range.item;
- values[1] = xpp::format("{}", shoot_range.steps);
- values[2] = xpp::format("{:g}", shoot_range.plow);
- values[3] = xpp::format("{:g}", shoot_range.phigh);
- values[4] = yn[shoot_range.cycle];
- values[5] = xpp::format("{}", shoot_range.side);
- values[6] = yn[shoot_range.movie];
+ values[0] = s.shoot_range.item;
+ values[1] = xpp::format("{}", s.shoot_range.steps);
+ values[2] = xpp::format("{:g}", s.shoot_range.plow);
+ values[3] = xpp::format("{:g}", s.shoot_range.phigh);
+ values[4] = yn[s.shoot_range.cycle];
+ values[5] = xpp::format("{}", s.shoot_range.side);
+ values[6] = yn[s.shoot_range.movie];
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(7,1,"Range Shoot",n,values,kinds);
  if(status!=0){
-   shoot_range.item=values[0];
-   i=find_user_name(s.model(),PARAM,shoot_range.item);
+   s.shoot_range.item=values[0];
+   i=find_user_name(s.model(),PARAM,s.shoot_range.item);
    if(i<0){
         err_msg("No such parameter");
        return(0);
      }
    
-   shoot_range.steps=atoi(values[1].c_str());
-   if(shoot_range.steps<=0)shoot_range.steps=10;
-   shoot_range.plow=atof(values[2].c_str());
-   shoot_range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')shoot_range.cycle=1;
-   else shoot_range.cycle=0;
- if(values[6][0]=='Y'||values[6][0]=='y')shoot_range.movie=1;
-   else shoot_range.movie=0;
+   s.shoot_range.steps=atoi(values[1].c_str());
+   if(s.shoot_range.steps<=0)s.shoot_range.steps=10;
+   s.shoot_range.plow=atof(values[2].c_str());
+   s.shoot_range.phigh=atof(values[3].c_str());
+   if(values[4][0]=='Y'||values[4][0]=='y')s.shoot_range.cycle=1;
+   else s.shoot_range.cycle=0;
+ if(values[6][0]=='Y'||values[6][0]=='y')s.shoot_range.movie=1;
+   else s.shoot_range.movie=0;
 
-   shoot_range.side=atoi(values[5].c_str());
+   s.shoot_range.side=atoi(values[5].c_str());
 
  return(1);
  }

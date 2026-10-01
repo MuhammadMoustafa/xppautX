@@ -39,6 +39,7 @@
 #include "markov.h"
 #include "nullcline.h"
 #include "gear.h"
+#include "pp_shoot.h"
 #include "graphics.h"
 #include "my_ps.h"
 #include "grobs.h"
@@ -75,6 +76,8 @@ struct Session {
   XppPlotWindows plot_windows{};
   /* the frozen curves of every window (graf_par.cpp) */
   XppFrozenCurves frozen_curves{};
+  /* 3D Params' movie settings (graf_par.cpp) */
+  Mov3d movie_3d;
   /* what the page displays of each window: earlier runs, zoom (display_state.h) */
   std::array<PlotDisplay,MAXPOP> plot_display;
   /* AUTO's hidden branches and zoom */
@@ -171,6 +174,10 @@ struct Session {
   DaeState dae;
   /* the nullclines and direction field computed, and the frozen ones */
   NullclineState nullcline_state;
+  /* BVP's Range settings (pp_shoot.cpp) */
+  ShootRange shoot_range;
+  /* Text,etc's marker settings (grobs.cpp) */
+  MarkInfo marker;
   /* Sing pts' shooting (gear.cpp) */
   ManifoldShots manifolds;
 

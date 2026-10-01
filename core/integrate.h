@@ -121,6 +121,17 @@ struct EquilibriumRange {
   double plow = 0, phigh = 0;
 };
 
+/* each global flag's state during a run (xpp::Model has its definition):
+   the condition's value at the step before and this one, where in the
+   step it crossed (tstar, 0..1), whether it did (hit, the pass it did in)
+   and the events' values (flags.cpp) */
+struct FlagState {
+  double f0 = 0.0, f1 = 0.0;
+  double tstar = 0.0;
+  std::array<double, Model::max_events> vrhs{};
+  int hit = 0;
+};
+
 /* the integrator's state, a Session's (session.h) */
 struct IntegratorState {
   /* the method's solver, with its work memory (xpp::start_solver) */
@@ -154,6 +165,10 @@ struct IntegratorState {
   /* the step Dormand-Prince's last advance ended with, its next one's
      first guess (dormpri.cpp dormprin) */
   double dp_hout = 0;
+  /* the global flags' states (flags.cpp) */
+  std::array<FlagState, MAXFLAG> flags{};
+  /* Gear's pivots of the Jacobian it factored last (gear.cpp ggear) */
+  std::array<int, MAXODE> gear_pivot{};
   /* the array initial values in use */
   ArrayIcs array_ics;
   /* Sing pts' Monte Carlo search and Range */

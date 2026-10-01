@@ -15,6 +15,15 @@ struct Session; /* session.h */
 #define MAXLAB 50
 #define MAXGROB 400
 
+/* Text,etc's marker settings: the last ones the Marker and Markers
+   dialogs gave (type, colour, size; the Markers' number, first row and
+   skip) */
+struct MarkInfo {
+    int type = 2, color = 0;
+    int number = 1, start = 0, skip = 1;
+    double size = 1.0;
+};
+
 typedef struct {
   float xs,ys,xe,ye;
   double size;
@@ -24,8 +33,8 @@ typedef struct {
 } GROB;
 
 int select_marker_type(int *type);
-int get_marker_info(void);
-int get_markers_info(void);
+int get_marker_info(Session &s);
+int get_markers_info(Session &s);
 
 /* The labels and graphic objects of the session s (Text,etc). */
 /* a label at pixel (x, y) of the current window; its slot in s.labels, -1

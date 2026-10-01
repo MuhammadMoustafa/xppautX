@@ -5,11 +5,20 @@
 #include <string_view>
 #include "xpp_error.h"
 
+#include <string>
+
 namespace xpp {
+
+/* BVP's Range settings (pp_shoot.cpp) */
+struct ShootRange {
+  std::string item;
+  int steps = 0, side = 0, cycle = 0, movie = 0;
+  double plow = 0, phigh = 0;
+};
 
 struct Session; /* session.h */
 
-void dump_shoot_range(FILE *fp, int f);
+void dump_shoot_range(Session &s, FILE *fp, int f);
 void bad_shoot(int iret);
 
 /* Range shoot's settings asked for: 0 when cancelled */
@@ -31,7 +40,7 @@ Result<> last_shot(Session &s, int flag);
 Result<> bvshoot(Session &s, double *y, double *yend, double err, double eps, int maxit, int *iret, int n, int ishow, int iper, int ipar, int ivar, double sect);
 
 /* Range shoot's settings, over parameter s */
-void init_shoot_range(std::string_view s);
+void init_shoot_range(Session &s, std::string_view item);
 
 } // namespace xpp
 #endif

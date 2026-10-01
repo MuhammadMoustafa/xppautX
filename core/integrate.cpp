@@ -115,7 +115,7 @@ void dump_range(xpp::Session &s, FILE *fp, int f)
   io_double(&s.integrator.range.plow2,fp,f,"Par2 low");
   io_double(&s.integrator.range.phigh,fp,f,"Par1 high");
   io_double(&s.integrator.range.phigh2,fp,f,"Par2 high");
-  dump_shoot_range(fp,f);
+  dump_shoot_range(s,fp,f);
   if(f==READEM)s.integrator.range.steps2=s.integrator.range.steps;
 }
 void init_range(xpp::Session &s)
@@ -135,7 +135,7 @@ void init_range(xpp::Session &s)
  s.integrator.range.cycle=0;
  s.integrator.range.movie=0;
  s.integrator.range.item2=s.model().uvar_names[0];
- init_shoot_range(s.model().upar_names[0]); 
+ init_shoot_range(s,s.model().upar_names[0]); 
  init_monte_carlo(s);
 }
 

@@ -92,19 +92,6 @@ type =3 halt
 /* the most events a flag has */
 constexpr int MAX_EVENTS=xpp::Model::max_events;
 
-namespace {
-/* each flag's state during a run (xpp::Model has its definition): the
-   condition's value at the step before and this one, where in the step
-   it crossed (tstar, 0..1), whether it did (hit, the pass it did in) and
-   the events' values */
-struct FlagState {
-  double f0=0.0,f1=0.0;
-  double tstar=0.0;
-  std::array<double,MAX_EVENTS> vrhs{};
-  int hit=0;
-};
-std::array<FlagState,MAXFLAG> fstate;
-}
 
 
 int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &events)
@@ -256,8 +243,8 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 
   if(s.model().nflags==0)return(0);
   for(i=0;i<s.model().nflags;i++){
-    fstate[i].tstar=2.0;
-    fstate[i].hit=0;
+    s.integrator.flags[i].tstar=2.0;
+    s.integrator.flags[i].hit=0;
   }
   /* If this is the first call, then need f1  */
   if(*istart==1){  
@@ -270,40 +257,40 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
   }
   for(i=0;i<s.model().nflags;i++){
     sign=flags[i].sign;
-    fstate[i].f0=fstate[i].f1;
-    f0=fstate[i].f0;
+    s.integrator.flags[i].f0=s.integrator.flags[i].f1;
+    f0=s.integrator.flags[i].f0;
     for(j=0;j<neq;j++)
       setvar(s,j+1,ynew[j]);
     setvar(s,0,*tnew);
     f1=xpp::evaluate(s,flags[i].comcond.data());
-    fstate[i].f1=f1;
+    s.integrator.flags[i].f1=f1;
     tol=fabs(f1-f0);
     switch(sign){
     case 1: 
       if((((f0<0.0)&&(f1>0.0))||((f0<0.0)&&(f1>0.0)))&&tol>tolmin){
-	fstate[i].hit=ncycle+1;
-	fstate[i].tstar=f0/(f0-f1);
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=f0/(f0-f1);
       }
       break;
     case -1:
       if(f0>0.0&&f1<=0.0&&tol>tolmin){
-	fstate[i].hit=ncycle+1;
-	fstate[i].tstar=f0/(f0-f1);
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=f0/(f0-f1);
       }
       break;
     case 0:
       if(fabs(f1)<MY_DBL_EPS){
-	fstate[i].hit=ncycle+1;
-	fstate[i].tstar=told;
+	s.integrator.flags[i].hit=ncycle+1;
+	s.integrator.flags[i].tstar=told;
       }
       break;
     }
     if(flags[i].nointerp==1)
       {
-	fstate[i].tstar=1.0;
+	s.integrator.flags[i].tstar=1.0;
       }
     
-      if(smin>fstate[i].tstar)smin=fstate[i].tstar;
+      if(smin>s.integrator.flags[i].tstar)smin=s.integrator.flags[i].tstar;
 
   } /* run through flags */
  
@@ -318,39 +305,39 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     setvar(s,i+1,ynew[i]);
   }
   for(i=0;i<s.model().nflags;i++)
-    fstate[i].f0=xpp::evaluate(s,flags[i].comcond.data());
+    s.integrator.flags[i].f0=xpp::evaluate(s,flags[i].comcond.data());
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
     for(i=0;i<s.model().nflags;i++){
       nevents=flags[i].nevents;
-      if(fstate[i].hit==ncycle&&fstate[i].tstar<=smin){
+      if(s.integrator.flags[i].hit==ncycle&&s.integrator.flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  fstate[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j].data());
+	  s.integrator.flags[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j].data());
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==0)
-	        setvar(s,in+1,fstate[i].vrhs[j]);
+	        setvar(s,in+1,s.integrator.flags[i].vrhs[j]);
 	 
 	}
       }
     }
     for(i=0;i<s.model().nflags;i++){
       nevents=flags[i].nevents;
-      if(fstate[i].hit==ncycle&&fstate[i].tstar<=smin){
+      if(s.integrator.flags[i].hit==ncycle&&s.integrator.flags[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
 	  
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==0){
-	     ynew[in]=fstate[i].vrhs[j];
+	     ynew[in]=s.integrator.flags[i].vrhs[j];
 	     /* setvar(s,in+1,ynew[in]); if this screws up */
 	  }
 	  else {
 	    if(flags[i].type[j]==1)
-	      xpp::set_val(s,s.model().upar_names[in],fstate[i].vrhs[j]);
+	      xpp::set_val(s,s.model().upar_names[in],s.integrator.flags[i].vrhs[j]);
 	    else{
 
-	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
-	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))xpp::send_halt(s);
+	      if((flags[i].type[j]==2)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
+	      if((flags[i].type[j]==3)&&(s.integrator.flags[i].vrhs[j]>0))xpp::send_halt(s);
 	    }
 	  }
 
@@ -366,31 +353,31 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       ynew[i]=getvar(s,i+1); /* if this screws up */
     }
     for(i=0;i<s.model().nflags;i++){
-      fstate[i].f1=xpp::evaluate(s,flags[i].comcond.data());
-      if(fstate[i].hit>0)continue; /* already hit so dont do anything */
-      f1=fstate[i].f1;
+      s.integrator.flags[i].f1=xpp::evaluate(s,flags[i].comcond.data());
+      if(s.integrator.flags[i].hit>0)continue; /* already hit so dont do anything */
+      f1=s.integrator.flags[i].f1;
       sign=flags[i].sign;
-      f0=fstate[i].f0;
+      f0=s.integrator.flags[i].f0;
       tol=fabs(f1-f0);
       switch(sign){
       case 1:
 	if(f0<=0.0&&f1>=0.0&&tol>tolmin){
-	  fstate[i].tstar=smin;
-	  fstate[i].hit=ncycle+1;
+	  s.integrator.flags[i].tstar=smin;
+	  s.integrator.flags[i].hit=ncycle+1;
 	  newhit=1;
 	}
 	break;
       case -1:
 	if(f0>=0.0&&f1<=0.0&&tol>tolmin){
-	  fstate[i].tstar=smin;
-	  fstate[i].hit=ncycle+1;
+	  s.integrator.flags[i].tstar=smin;
+	  s.integrator.flags[i].hit=ncycle+1;
 	  newhit=1;
 	}
 	break; 
       case 0:
 	if(f0*f1<=0&&(f1!=0||f0!=0)&&tol>tolmin){
-	  fstate[i].tstar=smin;
-	  fstate[i].hit=ncycle+1;
+	  s.integrator.flags[i].tstar=smin;
+	  s.integrator.flags[i].hit=ncycle+1;
 	  newhit=1;
 	}
       }

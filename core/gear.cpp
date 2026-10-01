@@ -23,8 +23,6 @@
 namespace xpp {
 #define DING ping()
 
-static int ShootType[8];
-static int gear_pivot[MAXODE];
 
 constexpr double pertst[7][2][3]={{{2,3,1},{2,12,1}},
                         {{4.5,6,1},{12,24,1}},
@@ -273,7 +271,7 @@ int i,k,type;
     for(i=0;i<s.model().node;i++)
       x[i]=s.manifolds.ic[k][i];
 
-    type=ShootType[k];
+    type=s.manifolds.type[k];
     if(type>0){
 
        s.numerics.delta_t=fabs(s.numerics.delta_t);
@@ -309,7 +307,7 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
     for(i=0;i<s.model().node;i++)
       x[i]=s.manifolds.ic[k][i];
     
-    type=ShootType[k];
+    type=s.manifolds.type[k];
     if(type>0){
        change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
        s.numerics.delta_t=fabs(s.numerics.delta_t);
@@ -477,9 +475,9 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
  if(s.manifolds.count<7){
    for(i=0;i<n;i++){
      s.manifolds.ic[s.manifolds.count][i]=x[i]+d*ev[i];
-     ShootType[s.manifolds.count]=type;
+     s.manifolds.type[s.manifolds.count]=type;
      s.manifolds.ic[s.manifolds.count+1][i]=x[i]-d*ev[i];
-     ShootType[s.manifolds.count+1]=type;
+     s.manifolds.type[s.manifolds.count+1]=type;
    }
    s.manifolds.count+=2;
  }
@@ -916,7 +914,7 @@ L330:
       }
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
-      xpp::sgefa(dermat,n,n,gear_pivot,&info);
+      xpp::sgefa(dermat,n,n,s.integrator.gear_pivot.data(),&info);
       if(info==-1)j1=1;
       else j1=-1;
       if(j1<0)goto L520;
@@ -925,7 +923,7 @@ L460:
 
       for(i=0;i<n;i++)save12[i]=ytable[1][i]-save11[i]*h;
       for(i=0;i<n;i++)save9[i]=save12[i];
-      xpp::sgesl(dermat,n,n,gear_pivot,save9);
+      xpp::sgesl(dermat,n,n,s.integrator.gear_pivot.data(),save9);
       nt=n;
       for(i=0;i<n;i++)
       {

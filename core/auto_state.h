@@ -80,6 +80,9 @@ struct AutoState {
      and whether a homoclinic run is on */
   std::array<double,100> homo_l{},homo_r{};
   int homo_flag=0;
+  /* which of them the equilibrium window's Import saves next: 0 the
+     left, 1 the right (xpp_util.cpp eq_import) */
+  int homo_side=0;
   /* a periodic run starts from a new period (autpp.cpp's stpnt) */
   int new_period_flag=0;
   /* a two-parameter run */

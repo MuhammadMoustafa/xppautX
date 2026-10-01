@@ -40,38 +40,11 @@ namespace xpp {
 
 namespace {
 
-/* 3D Params' movie */
-struct Mov3d {
-  std::string angle; /* theta or phi, at most 19 characters */
-  std::string yes;   /* at most 2 */
-  double start;
-  double incr;
-  int nclip;
-};
-Mov3d mov3d = { "theta","N",45,45,7};
-
-/* an imported bifurcation diagram's curves (Freeze > Bif.Diag) */
-struct BifCurve {
-  std::vector<float> x,y;
-  int color;
-};
-struct {
-  std::vector<BifCurve> curves; /* at most MAXBIFCRV */
-  XppWinId w;
-} my_bd;
-
-/* the frozen curves' points: frozen_curves.curve[i].xv/yv/zv point into
-   frozen_points[i][0..2] (CURVE, struct.h, holds plain pointers) */
-std::array<std::array<std::vector<float>,3>,MAXFRZ> frozen_points;
-
 void draw_bd(xpp::Session &s, XppWinId w);
-void free_bd(void);
 void frz_bd(xpp::Session &s);
 
 } // namespace
 
-static double FreezeKeyX,FreezeKeyY;
-static int FreezeKeyFlag;
 constexpr int CurrentCurve=0;
 
 const int colorline[]={0,20,21,22,23,24,25,26,27,28,29,0};
@@ -496,11 +469,11 @@ void get_3d_par_com(xpp::Session &s)
  values[2] = xpp::format("{:g}", s.plot_windows.current->ZView);
  values[3] = xpp::format("{:g}", s.plot_windows.current->Theta);
  values[4] = xpp::format("{:g}", s.plot_windows.current->Phi);
- values[5] = mov3d.yes;
- values[6] = mov3d.angle;
- values[7] = xpp::format("{:g}", mov3d.start);
- values[8] = xpp::format("{:g}", mov3d.incr);
- values[9] = xpp::format("{:d}", mov3d.nclip);
+ values[5] = s.movie_3d.yes;
+ values[6] = s.movie_3d.angle;
+ values[7] = xpp::format("{:g}", s.movie_3d.start);
+ values[8] = xpp::format("{:g}", s.movie_3d.incr);
+ values[9] = xpp::format("{:d}", s.movie_3d.nclip);
  
  static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
@@ -512,16 +485,16 @@ void get_3d_par_com(xpp::Session &s)
 	      s.plot_windows.current->Theta=atof(values[3].c_str());
 	      s.plot_windows.current->Phi=atof(values[4].c_str());
              if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      mov3d.yes=values[5].substr(0,2);
-	      mov3d.angle=values[6].substr(0,19);
+	      s.movie_3d.yes=values[5].substr(0,2);
+	      s.movie_3d.angle=values[6].substr(0,19);
               start=atof(values[7].c_str());
 	      increment=atof(values[8].c_str());
 	      nclip=atoi(values[9].c_str());
-	      mov3d.start=start;
-	      mov3d.incr=increment;
-	      mov3d.nclip=nclip;
+	      s.movie_3d.start=start;
+	      s.movie_3d.incr=increment;
+	      s.movie_3d.nclip=nclip;
 	      angle=0;
-              if(mov3d.angle[0]=='p'||mov3d.angle[0]=='P')
+              if(s.movie_3d.angle[0]=='p'||s.movie_3d.angle[0]=='P')
 		angle=1;
 	      movie_rot(s,start,increment,nclip,angle);
 	     }
@@ -808,7 +781,7 @@ void freeze_com(xpp::Session &s, int c)
    frz_bd(s);
    break;
  case 6:
-   free_bd();
+   s.frozen_curves.bif_diagram.curves.clear();
    break;
  case 7:
    s.frozen_curves.auto_freeze=1-s.frozen_curves.auto_freeze;
@@ -821,9 +794,9 @@ void set_key(xpp::Session &s, int x, int y)
 {
   float xp,yp;
   scale_to_real(s,x,y,&xp,&yp);
-  FreezeKeyX=xp;
-  FreezeKeyY=yp;
-  FreezeKeyFlag=1;
+  s.frozen_curves.key_x=xp;
+  s.frozen_curves.key_y=yp;
+  s.frozen_curves.key_flag=1;
 }
 
 void draw_freeze_key(xpp::Session &s)
@@ -832,9 +805,9 @@ void draw_freeze_key(xpp::Session &s)
   int i,y0;
   int ix2;
   int dy=2*s.drawing.h_char;
-  if(FreezeKeyFlag==SCRNFMT)return;
+  if(s.frozen_curves.key_flag==SCRNFMT)return;
   if(s.plot_file.plt_fmt_flag==PSFMT)dy=-dy;
-  scale_to_screen(s,static_cast<float>(FreezeKeyX),static_cast<float>(FreezeKeyY),&ix,&iy);
+  scale_to_screen(s,static_cast<float>(s.frozen_curves.key_x),static_cast<float>(s.frozen_curves.key_y),&ix,&iy);
   ix2=ix+4*s.drawing.h_char;
   y0=iy;
   for(i=0;i<MAXFRZ;i++){
@@ -853,7 +826,7 @@ void key_frz_com(xpp::Session &s, int c)
   int x,y;
   switch(c){
   case 0:
-    FreezeKeyFlag=0;
+    s.frozen_curves.key_flag=0;
     break;
   case 1:
     MessageBox("Position with mouse");
@@ -871,7 +844,7 @@ void delete_frz_crv(xpp::Session &s, int i)
   s.frozen_curves.curve[i].use=0;
   s.frozen_curves.curve[i].name.clear();
   s.frozen_curves.curve[i].key.clear();
-  for(std::vector<float> &v:frozen_points[i])
+  for(std::vector<float> &v:s.frozen_curves.points[i])
     std::vector<float>().swap(v);
   s.frozen_curves.curve[i].xv=nullptr;
   s.frozen_curves.curve[i].yv=nullptr;
@@ -909,7 +882,7 @@ namespace {
 void fill_frozen_curve(xpp::Session &s, int i, std::vector<float> x, std::vector<float> y, std::vector<float> z, int type, XppWinId w)
 {
   CURVE &c=s.frozen_curves.curve[i];
-  std::array<std::vector<float>,3> &pts=frozen_points[i];
+  std::array<std::vector<float>,3> &pts=s.frozen_curves.points[i];
   pts[0]=std::move(x);
   pts[1]=std::move(y);
   if(type>0)pts[2]=std::move(z);
@@ -1036,8 +1009,8 @@ namespace {
 
 void draw_bd(xpp::Session &s, XppWinId w)
 {
- if(w!=my_bd.w)return;
- for(const BifCurve &c:my_bd.curves){
+ if(w!=s.frozen_curves.bif_diagram.w)return;
+ for(const BifCurve &c:s.frozen_curves.bif_diagram.curves){
    set_linestyle(s,c.color);
    const int len=static_cast<int>(c.x.size());
    float xpl=c.x[0],ypl=c.y[0];
@@ -1050,14 +1023,9 @@ void draw_bd(xpp::Session &s, XppWinId w)
  }
 }
 
-void free_bd()
+void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int type)
 {
-  my_bd.curves.clear();
-}
-
-void add_bd_crv(const float *x, const float *y, int len, int type)
-{
-  if(static_cast<int>(my_bd.curves.size())>=MAXBIFCRV)return;
+  if(static_cast<int>(s.frozen_curves.bif_diagram.curves.size())>=MAXBIFCRV)return;
   BifCurve c;
   c.x.assign(x,x+len);
   c.y.assign(y,y+len);
@@ -1066,7 +1034,7 @@ void add_bd_crv(const float *x, const float *y, int len, int type)
   if(type==STABLE_PERIODIC)i=lsSPER;
   if(type==UNSTABLE_EQ)i=lsUEQ;
   c.color=i;
-  my_bd.curves.push_back(std::move(c));
+  s.frozen_curves.bif_diagram.curves.push_back(std::move(c));
 }
 
 /* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
@@ -1080,7 +1048,7 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
   if(!(fp.read(x[len])&&fp.read(ylo[len])&&fp.read(yhi[len])&&fp.read(oldtype)&&fp.read(oldbr)&&fp.read(f2)))
     return;
   len++;
-  free_bd();
+  s.frozen_curves.bif_diagram.curves.clear();
   for(;;){
     if(static_cast<int>(x.size())<=len){
       x.resize(len+1);
@@ -1092,10 +1060,10 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
     if(type==oldtype&&br==oldbr)
       len++;
     else {
-      add_bd_crv(x.data(),ylo.data(),len,oldtype);
+      add_bd_crv(s,x.data(),ylo.data(),len,oldtype);
       ncrv++;
       if(oldtype==UNSTABLE_PERIODIC||oldtype==STABLE_PERIODIC){
-        add_bd_crv(x.data(),yhi.data(),len,oldtype);
+        add_bd_crv(s,x.data(),yhi.data(),len,oldtype);
         ncrv++;
       }
       if(oldbr==br)len--;
@@ -1109,15 +1077,15 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
   }
   /*  save this last one */
   if(len>1){
-    add_bd_crv(x.data(),ylo.data(),len,oldtype);
+    add_bd_crv(s,x.data(),ylo.data(),len,oldtype);
     ncrv++;
     if(oldtype==UNSTABLE_PERIODIC||oldtype==STABLE_PERIODIC){
-      add_bd_crv(x.data(),yhi.data(),len,oldtype);
+      add_bd_crv(s,x.data(),yhi.data(),len,oldtype);
       ncrv++;
     }
   }
   xpp::log(XPP_LOG_INFO, " got {} bifurcation curves\n",ncrv);
-  my_bd.w=s.plot_windows.draw_win;
+  s.frozen_curves.bif_diagram.w=s.plot_windows.draw_win;
 }
 
 void frz_bd(xpp::Session &s)
@@ -1134,11 +1102,6 @@ void frz_bd(xpp::Session &s)
 }
 
 } // namespace
-
-void init_bd()
-{
-  free_bd();
-}
 
 int get_frz_index(xpp::Session &s, XppWinId w)
 {

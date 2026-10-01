@@ -26,13 +26,6 @@ const int MARKER = 2; /* markers start at 2; there are several of them */
 const double WDMARK = .001;
 const double HTMARK = .0016;
 
-struct MarkInfo {
-    int type, color;
-    int number, start, skip;
-    double size;
-};
-
-MarkInfo markinfo = {2, 0, 1, 0, 1, 1.0};
 
 } // namespace
 
@@ -207,44 +200,44 @@ int select_marker_type(int *type)
     return 1;
 }
 
-int get_marker_info(void)
+int get_marker_info(xpp::Session &s)
 {
     static const char *const n[] = {"*5Type", "*4Color", "Size"};
     std::array<std::string, 3> values;
-    values[0] = xpp::format("{:d}", markinfo.type);
-    values[1] = xpp::format("{:d}", markinfo.color);
-    values[2] = xpp::format("{:g}", markinfo.size);
+    values[0] = xpp::format("{:d}", s.marker.type);
+    values[1] = xpp::format("{:d}", s.marker.color);
+    values[2] = xpp::format("{:g}", s.marker.size);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER};
     const int status = do_string_box_of(3, 1, "Add Marker", n, values, kinds);
     if (status != 0) {
-        markinfo.type = std::atoi(values[0].c_str());
-        markinfo.size = std::atof(values[2].c_str());
-        markinfo.color = std::atoi(values[1].c_str());
+        s.marker.type = std::atoi(values[0].c_str());
+        s.marker.size = std::atof(values[2].c_str());
+        s.marker.color = std::atoi(values[1].c_str());
         return 1;
     }
     return 0;
 }
 
-int get_markers_info(void)
+int get_markers_info(xpp::Session &s)
 {
     static const char *const n[] = {"*5Type", "*4Color", "Size", "Number", "Row1", "Skip"};
     std::array<std::string, 6> values;
-    values[0] = xpp::format("{:d}", markinfo.type);
-    values[1] = xpp::format("{:d}", markinfo.color);
-    values[2] = xpp::format("{:g}", markinfo.size);
-    values[3] = xpp::format("{:d}", markinfo.number);
-    values[4] = xpp::format("{:d}", markinfo.start);
-    values[5] = xpp::format("{:d}", markinfo.skip);
+    values[0] = xpp::format("{:d}", s.marker.type);
+    values[1] = xpp::format("{:d}", s.marker.color);
+    values[2] = xpp::format("{:g}", s.marker.size);
+    values[3] = xpp::format("{:d}", s.marker.number);
+    values[4] = xpp::format("{:d}", s.marker.start);
+    values[5] = xpp::format("{:d}", s.marker.skip);
     static const int kinds[] = {XPP_FIELD_NAME_IN(5), XPP_FIELD_NAME_IN(4), XPP_FIELD_NUMBER,
                                 XPP_FIELD_INTEGER, XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
     const int status = do_string_box_of(6, 1, "Add Markers", n, values, kinds);
     if (status != 0) {
-        markinfo.type = std::atoi(values[0].c_str());
-        markinfo.size = std::atof(values[2].c_str());
-        markinfo.color = std::atoi(values[1].c_str());
-        markinfo.number = std::atoi(values[3].c_str());
-        markinfo.start = std::atoi(values[4].c_str());
-        markinfo.skip = std::atoi(values[5].c_str());
+        s.marker.type = std::atoi(values[0].c_str());
+        s.marker.size = std::atof(values[2].c_str());
+        s.marker.color = std::atoi(values[1].c_str());
+        s.marker.number = std::atoi(values[3].c_str());
+        s.marker.start = std::atoi(values[4].c_str());
+        s.marker.skip = std::atoi(values[5].c_str());
         return 1;
     }
     return 0;
@@ -254,14 +247,14 @@ void add_marker(xpp::Session &s)
 {
     int i1, j1;
     float xs, ys;
-    if (get_marker_info() == 0) return;
+    if (get_marker_info(s) == 0) return;
     MessageBox("Position");
     const int flag = GetMouseXY(s,&i1, &j1);
     KillMessageBox();
     FlushDisplay();
     if (flag == 0) return;
     scale_to_real(s,i1, j1, &xs, &ys);
-    add_grob(s,xs, ys, 0.0f, 0.0f, markinfo.size, markinfo.type, markinfo.color);
+    add_grob(s,xs, ys, 0.0f, 0.0f, s.marker.size, s.marker.type, s.marker.color);
     redraw_all(s);
 }
 
@@ -284,8 +277,8 @@ static void add_markers_at(xpp::Session &s, int number, int start, int skip, dou
 
 void add_markers(xpp::Session &s)
 {
-    if (get_markers_info() == 0) return;
-    add_markers_at(s,markinfo.number, markinfo.start, markinfo.skip, markinfo.size, markinfo.type, markinfo.color);
+    if (get_markers_info(s) == 0) return;
+    add_markers_at(s,s.marker.number, s.marker.start, s.marker.skip, s.marker.size, s.marker.type, s.marker.color);
 }
 
 void add_pntarr(xpp::Session &s, int type)

@@ -573,8 +573,6 @@ void set_par_or_var(xpp::Session &s, std::string_view name,int type,int index,do
 
 /* ---- the equilibrium window's Import button and its label (logic from
    eig_list.c) ---- */
-/* which of the left/right equilibria eq_import saves next */
-static int sparity=0;
 
 /* make equilibrium y (n values) the initial data; for small systems it is
    also saved alternately as the left/right equilibrium for homoclinics */
@@ -585,17 +583,17 @@ void eq_import(xpp::Session &s, double *y,int n)
     s.last_ic[i]=y[i];
 
   if(n<20){
-    if(sparity==0){
+    if(s.auto_state.homo_side==0){
       for(i=0;i<n;i++)
 	s.auto_state.homo_l[i]=y[i];
       xpp::log_printf(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
-    if(sparity==1){
+    if(s.auto_state.homo_side==1){
       for(i=0;i<n;i++)
 	s.auto_state.homo_r[i]=y[i];
       xpp::log_printf(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
-    sparity=1-sparity;
+    s.auto_state.homo_side=1-s.auto_state.homo_side;
   }
    redraw_ics();
 }
