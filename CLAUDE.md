@@ -14,6 +14,7 @@ The sections below give the details.
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck, sessioncheck; review for internal-linkage statics (W120) |
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
+| Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a model's bad option value stops the load with its line, in .ode and .odex alike (2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
 | No dead code | deadcode.sh, deadcheck.py |
@@ -837,6 +838,18 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   platform file). Where two copies exist, merging them into the owner is
   part of any task that touches one. The source checks enforce what they
   can (alloccheck, stdoutcheck, formatcheck, literalcheck).
+  Unify the operation, not only its calls (maintainer, 2026-10-01): W11,
+  W32b and the W33 sweeps put every file open, line/token read and safe
+  write into xpp_io/xpp_files, and filecheck counts the raw calls; but
+  "load one of our files" was never one operation: .set (lunch-new's
+  io_int, one function for reading and writing by a flag), .snapx,
+  .autox, .autoset and .recx each read and applied values in their own
+  loop, so a bad line left the lines before it applied, five copies of
+  the same bug that no check could see. A card that unifies something
+  names the operation at the level a user meets it ("load a file of
+  ours: all or nothing"), lists every place that performs it, and says
+  what proves they all go through the one owner; a check that counts
+  calls proves the calls only.
 
 - No global state (maintainer, 2026-09-27): global variables are avoided.
   A new piece of state goes into its owner's struct, never a new global;
