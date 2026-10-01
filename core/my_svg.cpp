@@ -232,11 +232,6 @@ constexpr std::string_view svg_head = R"svg(<!-- Uncomment following when using 
                  }
 )svg";
 
-xpp::Writer svg_writer;
-char svg_line_type;
-int cur_rgb[3];
-bool doing_svg_color = false;
-bool do_marker = false;
 
 /* The text-anchor of TextJustify. */
 const char *svg_anchor(const xpp::Session &s)
@@ -249,14 +244,14 @@ const char *svg_anchor(const xpp::Session &s)
 }
 
 /* The style attribute of a coloured stroke (and fill) in cur_rgb. */
-std::string svg_stroke()
+std::string svg_stroke(const PlotFileState &pf)
 {
-  return xpp::format("stroke:rgb({},{},{});",cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+  return xpp::format("stroke:rgb({},{},{});",pf.svg_rgb[0],pf.svg_rgb[1],pf.svg_rgb[2]);
 }
 
-std::string svg_stroke_fill()
+std::string svg_stroke_fill(const PlotFileState &pf)
 {
-  return xpp::format("stroke:rgb({0},{1},{2}); fill:rgb({0},{1},{2})",cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+  return xpp::format("stroke:rgb({0},{1},{2}); fill:rgb({0},{1},{2})",pf.svg_rgb[0],pf.svg_rgb[1],pf.svg_rgb[2]);
 }
 
 } // namespace
@@ -268,11 +263,11 @@ xpp::Result<> svg_init(xpp::Session &s, const char *filename, int /*color*/)
   s.plot_file.last_ps_x=-10000;
   s.plot_file.last_ps_y=-10000;
 
-  svg_writer=xpp::Writer(filename);
-  if(!svg_writer)return xpp::fail("SVG export","Cannot open file ");
-  s.plot_file.svgfile=svg_writer.file();
+  s.plot_file.writer=xpp::Writer(filename);
+  if(!s.plot_file.writer)return xpp::fail("SVG export","Cannot open file ");
+  s.plot_file.svgfile=s.plot_file.writer.file();
   s.plot_file.plt_fmt_flag=SVGFMT;
-  svg_writer.print("{}",svg_head);
+  s.plot_file.writer.print("{}",svg_head);
 
   if(const char *home=std::getenv("HOME")){
     /* copied in whole lines; a trailing newline is put back on each one,
@@ -282,50 +277,50 @@ xpp::Result<> svg_init(xpp::Session &s, const char *filename, int /*color*/)
     if(lr){
       xpp::log(XPP_LOG_INFO, "Styling svg image according to {}\n",css);
       while(auto line=lr.next())
-        svg_writer.print("{}\n",*line);
+        s.plot_file.writer.print("{}\n",*line);
     }
   }
-  svg_writer.print("           ]]>\n      </style>\n\n");
+  s.plot_file.writer.print("           ]]>\n      </style>\n\n");
   return {};
 }
 
-void svg_write(const char *str)
+void svg_write(PlotFileState &pf, const char *str)
 {
-  svg_writer.print("{}\n",str);
+  pf.writer.print("{}\n",str);
 }
 
-void svg_do_color(const PlotFileState &pf, int color)
+void svg_do_color(PlotFileState &pf, int color)
 {
   if(pf.plt_fmt_flag==SCRNFMT)return;
   if(pf.plt_fmt_flag==PSFMT)return;
   if(pf.ps_color_flag==0)return;
-  get_svg_color(color,&cur_rgb[0],&cur_rgb[1],&cur_rgb[2]);
-  doing_svg_color=true;
+  get_svg_color(color,&pf.svg_rgb[0],&pf.svg_rgb[1],&pf.svg_rgb[2]);
+  pf.svg_color=true;
 }
 
 void svg_end(xpp::Session &s)
 {
-  svg_write("</svg>");
-  svg_writer.commit();
+  svg_write(s.plot_file,"</svg>");
+  s.plot_file.writer.commit();
   s.plot_file.svgfile=NULL;
   s.plot_file.plt_fmt_flag=SCRNFMT;
-  doing_svg_color=false;
+  s.plot_file.svg_color=false;
   if(program.interactive)init_x11(s);
 }
 
-void svg_bead(xpp::Session &, int /*x*/, int /*y*/)
+void svg_bead(xpp::Session &s, int /*x*/, int /*y*/)
 {
-  do_marker=true;
+  s.plot_file.svg_marker=true;
 }
 
-void svg_frect(xpp::Session &, int x, int y, int w, int h)
+void svg_frect(xpp::Session &s, int x, int y, int w, int h)
 {
-  if (doing_svg_color)
-    svg_writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{5},{6});fill:rgb({4},{5},{6});\"/>",
-              x,y,w,h,cur_rgb[0],cur_rgb[1],cur_rgb[2]);
+  if (s.plot_file.svg_color)
+    s.plot_file.writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{5},{6});fill:rgb({4},{5},{6});\"/>",
+              x,y,w,h,s.plot_file.svg_rgb[0],s.plot_file.svg_rgb[1],s.plot_file.svg_rgb[2]);
   else {
-    const int gray = static_cast<int>(0.299*cur_rgb[0] + 0.587*cur_rgb[1] + 0.114*cur_rgb[2]);
-    svg_writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{4},{4});fill:rgb({4},{4},{4});\"/>",
+    const int gray = static_cast<int>(0.299*s.plot_file.svg_rgb[0] + 0.587*s.plot_file.svg_rgb[1] + 0.114*s.plot_file.svg_rgb[2]);
+    s.plot_file.writer.print("      <rect x=\"{0}\" y=\"{1}\" width=\"{2}\" height=\"{3}\" style=\"stroke:rgb({4},{4},{4});fill:rgb({4},{4},{4});\"/>",
               x,y,w,h,gray);
   }
 }
@@ -333,39 +328,39 @@ void svg_frect(xpp::Session &, int x, int y, int w, int h)
 void svg_line(xpp::Session &s, int xp1, int yp1, int xp2, int yp2)
 {
   /* the line's class: the axes, the box axes, a direction-field arrow
-     or a curve of line type svg_line_type */
+     or a curve of line type s.plot_file.svg_line_type */
   std::string cls;
   if (s.drawing.doing_axes)
     cls = s.drawing.doing_box_axes ? "xppboxaxes" : "xppaxes";
   else if (s.nullclines.doing_dfield)
     cls = "xppdfield";
   else
-    cls = xpp::format("xppline{}",svg_line_type);
-  const std::string style = doing_svg_color ? " style=\""+svg_stroke()+"\"/>" : " />";
+    cls = xpp::format("xppline{}",s.plot_file.svg_line_type);
+  const std::string style = s.plot_file.svg_color ? " style=\""+svg_stroke(s.plot_file)+"\"/>" : " />";
   /* a direction-field arrow with its bead is a group */
-  const bool arrow = !s.drawing.doing_axes && s.nullclines.doing_dfield && do_marker;
+  const bool arrow = !s.drawing.doing_axes && s.nullclines.doing_dfield && s.plot_file.svg_marker;
   if (arrow)
-    svg_writer.print("<g>\n");
-  svg_writer.print("      <line class=\"{}\"  x1=\"{}\"  y1=\"{}\" x2=\"{}\"   y2=\"{}\"{}\n",cls,xp1,yp1,xp2,yp2,style);
+    s.plot_file.writer.print("<g>\n");
+  s.plot_file.writer.print("      <line class=\"{}\"  x1=\"{}\"  y1=\"{}\" x2=\"{}\"   y2=\"{}\"{}\n",cls,xp1,yp1,xp2,yp2,style);
   if (arrow) {
-    if (doing_svg_color)
-      svg_writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",xp2,yp2,svg_stroke_fill());
+    if (s.plot_file.svg_color)
+      s.plot_file.writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",xp2,yp2,svg_stroke_fill(s.plot_file));
     else
-      svg_writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" />\n",xp2,yp2);
-    svg_writer.print("</g>\n");
+      s.plot_file.writer.print("      <use xlink:href = \"#xppbead\" x=\"{}\" y=\"{}\" />\n",xp2,yp2);
+    s.plot_file.writer.print("</g>\n");
   }
 
   s.plot_file.last_ps_x=xp2;
   s.plot_file.last_ps_y=yp2;
 
-  doing_svg_color=false;
-  do_marker=false;
+  s.plot_file.svg_color=false;
+  s.plot_file.svg_marker=false;
 }
 
 void svg_linetype(xpp::Session &s, int linetype)
 {
   constexpr std::string_view line = "ba0123456789c";
-  svg_line_type=line[(linetype%11)+2];
+  s.plot_file.svg_line_type=line[(linetype%11)+2];
   s.plot_file.ps_lines=0;
 }
 
@@ -378,9 +373,9 @@ void svg_point(xpp::Session &s, int x, int y)
     number = -1;
   if(s.drawing.point_radius>0)number=7;
 
-  if (doing_svg_color)
-    svg_writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",
-              point[number+1],x,y,svg_stroke_fill());
+  if (s.plot_file.svg_color)
+    s.plot_file.writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"{}\"/>\n",
+              point[number+1],x,y,svg_stroke_fill(s.plot_file));
   else {
     const char *col = "000000", *fill = "#000000";
     if (number==7) {
@@ -390,34 +385,34 @@ void svg_point(xpp::Session &s, int x, int y)
       col = "0000FF";
       fill = "none";
     }
-    svg_writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"stroke:#{}; fill:{}\"/>\n",
+    s.plot_file.writer.print("      <use xlink:href = \"#xpppoint{}\" x=\"{}\" y=\"{}\" style=\"stroke:#{}; fill:{}\"/>\n",
               point[number+1],x,y,col,fill);
   }
 
   s.plot_file.ps_lines=0;
-  doing_svg_color=false;
+  s.plot_file.svg_color=false;
 }
 
 void special_put_text_svg(xpp::Session &s, int x, int y, const char *str, int size)
 {
-  svg_writer.print("\n      <text class=\"xpptext{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",size,svg_anchor(s),x,y);
-  svg_writer.print("      >{}</text>\n",str);
+  s.plot_file.writer.print("\n      <text class=\"xpptext{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",size,svg_anchor(s),x,y);
+  s.plot_file.writer.print("      >{}</text>\n",str);
 }
 
 void svg_text(xpp::Session &s, int x, int y, const char *str)
 {
-  svg_writer.print("\n      <text class=\"{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",
+  s.plot_file.writer.print("\n      <text class=\"{}\" text-anchor=\"{}\" x=\"{}\"  y=\"{}\"\n",
             s.drawing.doing_axes ? "xppaxestext" : "xpptext",svg_anchor(s),x,y);
-  svg_writer.print("      >{}</text>\n",str);
+  s.plot_file.writer.print("      >{}</text>\n",str);
 }
 
-void svg_y_axis_label(int x, int y, const char *label)
+void svg_y_axis_label(PlotFileState &pf, int x, int y, const char *label)
 {
-  svg_writer.print("\n      <text class=\"xppyaxislabelv\" text-anchor=\"middle\" x=\"0\"  y=\"0\"\n");
-  svg_writer.print("      transform=\"rotate(-90,75,180) translate(75,180)\"\n");
-  svg_writer.print("      >{}</text>\n",label);
-  svg_writer.print("\n      <text class=\"xppyaxislabelh\" text-anchor=\"end\" x=\"{}\"  y=\"{}\"\n",x,y);
-  svg_writer.print("      >{}</text>\n",label);
+  pf.writer.print("\n      <text class=\"xppyaxislabelv\" text-anchor=\"middle\" x=\"0\"  y=\"0\"\n");
+  pf.writer.print("      transform=\"rotate(-90,75,180) translate(75,180)\"\n");
+  pf.writer.print("      >{}</text>\n",label);
+  pf.writer.print("\n      <text class=\"xppyaxislabelh\" text-anchor=\"end\" x=\"{}\"  y=\"{}\"\n",x,y);
+  pf.writer.print("      >{}</text>\n",label);
 }
 
 } // namespace xpp

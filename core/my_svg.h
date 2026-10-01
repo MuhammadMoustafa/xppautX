@@ -9,16 +9,16 @@ namespace xpp {
 struct Session; /* session.h */
 
 /* my_svg.cpp */
-void svg_write(const char *str);
+void svg_write(PlotFileState &pf, const char *str);
 /* the y axis' label, rotated along the axis and level at (x, y) */
-void svg_y_axis_label(int x, int y, const char *label);
+void svg_y_axis_label(PlotFileState &pf, int x, int y, const char *label);
 
 /* The SVG picture of the session s (image_format.h's row): svg_init opens
    filename, or the error when it cannot be written; the primitives
    graphics.cpp calls while it is drawn; svg_end closes it */
 Result<> svg_init(Session &s, const char *filename, int color);
 void svg_end(Session &s);
-void svg_do_color(const PlotFileState &pf, int color);
+void svg_do_color(PlotFileState &pf, int color);
 void svg_bead(Session &s, int x, int y);
 void svg_frect(Session &s, int x, int y, int w, int h);
 void svg_line(Session &s, int xp1, int yp1, int xp2, int yp2);

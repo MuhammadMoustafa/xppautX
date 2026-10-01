@@ -257,7 +257,7 @@ void draw_ytics(xpp::Session &s, const char *s1, double start, double incr, doub
    scale_to_screen(s,static_cast<float>(x_min),static_cast<float>(y_max),&xt,&yt);
    if(s.drawing.d_top<s.drawing.d_bottom)sign=-1;
    if (s.plot_file.plt_fmt_flag==SVGFMT)
-     svg_y_axis_label(s.drawing.d_left-s.drawing.h_char,yt+2*sign*s.drawing.v_char,s1);
+     svg_y_axis_label(s.plot_file,s.drawing.d_left-s.drawing.h_char,yt+2*sign*s.drawing.v_char,s1);
    else
      put_text(s,s.drawing.d_left-s.drawing.h_char,yt+2*sign*s.drawing.v_char,s1);
 

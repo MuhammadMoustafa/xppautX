@@ -4,14 +4,11 @@
 #include <stdio.h>
 #include <string>
 #include "xpp_error.h"
+#include "xpp_io.h"
 
 namespace xpp {
 struct Session; /* session.h */
 
-void ps_stroke(void);
-void ps_write(const char *str);
-void ps_abs(int x, int y);
-void ps_rel(int x, int y);
 
 /* a picture file's state (my_ps.cpp, my_svg.cpp, shared with
    graphics.cpp), a Session's (session.h): which format is being written
@@ -25,6 +22,14 @@ struct PlotFileState {
   double ps_lw = 5;
   std::string ps_font = "Times-Roman";
   FILE *svgfile = nullptr;
+  /* the PostScript or SVG picture being written (ps_init or svg_init to
+     ps_end or svg_end) */
+  Writer writer;
+  /* SVG's: the line type, the colour (svg_do_color's), whether it draws
+     in colour and whether its next line is a marker's */
+  char svg_line_type = 0;
+  int svg_rgb[3] = {};
+  bool svg_color = false, svg_marker = false;
 };
 
 /* The PostScript picture of the session s (image_format.h's row): ps_init
@@ -33,7 +38,13 @@ struct PlotFileState {
    closes it */
 Result<> ps_init(Session &s, const char *filename, int color);
 void ps_end(Session &s);
-void ps_do_color(const PlotFileState &pf, int color);
+void ps_do_color(PlotFileState &pf, int color);
+/* the PostScript being written: a stroke, a line of it, a move to (x, y)
+   and by (x, y) */
+void ps_stroke(PlotFileState &pf);
+void ps_write(PlotFileState &pf, const char *str);
+void ps_abs(PlotFileState &pf, int x, int y);
+void ps_rel(PlotFileState &pf, int x, int y);
 void ps_bead(Session &s, int x, int y);
 void ps_frect(Session &s, int x, int y, int w, int h);
 void ps_line(Session &s, int xp1, int yp1, int xp2, int yp2);

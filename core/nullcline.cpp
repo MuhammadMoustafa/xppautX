@@ -138,7 +138,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
 void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
   if (s.plot_file.plt_fmt_flag==SVGFMT)
-    svg_write("<g>");
+    svg_write(s.plot_file,"<g>");
   for(int i=0;i<n;i++){
     const int i4=4*i;
     line_abs(s,v[i4],v[i4+1],v[i4+2],v[i4+3]);
@@ -158,7 +158,7 @@ void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x an
     }
   }
   if (s.plot_file.plt_fmt_flag==SVGFMT)
-    svg_write("</g>");
+    svg_write(s.plot_file,"</g>");
 }
 
 void redraw_froz_cline(xpp::Session &s, int flag)
@@ -376,7 +376,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
     phase_data_dfield_begin(s.plot_windows,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
   if (s.plot_file.plt_fmt_flag==SVGFMT){
     s.nullclines.doing_dfield=1;
-    svg_write("<g>");
+    svg_write(s.plot_file,"<g>");
   }
   for(int i=0;i<=grid;i++){
     y[inx]=u0+du*i;
@@ -422,7 +422,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   }
   if (s.plot_file.plt_fmt_flag==SVGFMT){
     s.nullclines.doing_dfield=0;
-    svg_write("</g>");
+    svg_write(s.plot_file,"</g>");
   }
 }
 
@@ -665,7 +665,7 @@ void direct_field_com(xpp::Session &s, int c)
   s.numerics.delta_t=dtold;
   if (s.plot_file.plt_fmt_flag==SVGFMT){
     s.nullclines.doing_dfield=0;
-    svg_write("</g>");
+    svg_write(s.plot_file,"</g>");
   }
   if(const xpp::Result<> r=failure.result();!r)xpp::show_error(r.error());
 }

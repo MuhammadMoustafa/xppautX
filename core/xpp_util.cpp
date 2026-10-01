@@ -302,7 +302,7 @@ void ps_restore(xpp::Session &s)
   if(program.interactive){
  redraw_dfield(s);
  ps_do_color(s.plot_file,0);
- if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke();}
+ if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke(s.plot_file);}
   }
 
   xpp::restore(s,0,s.browser.view.maxrow);  
