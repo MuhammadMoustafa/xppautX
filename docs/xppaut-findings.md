@@ -19,6 +19,9 @@ or absent there). Code that is in 8.0 only because our own refactoring put it
 there is not a finding and is not listed. Line numbers were checked against
 the files when each entry was written (W143).
 
+What else differs from XPPAUT, beyond bugs, is
+[xppautx-vs-xppaut.md](xppautx-vs-xppaut.md).
+
 The entries are sections, not table rows: most need a paragraph of
 evidence. The index gives one line each.
 
