@@ -2,6 +2,29 @@
 
 Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
 
+## Code quality
+
+The rules every change keeps (maintainer's decisions), each with what
+enforces it; "review" means no check can, so the reviewer reads for it.
+The sections below give the details.
+
+| Rule | Enforced by |
+|---|---|
+| Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions) | dupcheck (textual copies); review (the same algorithm in other words) |
+| One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
+| No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck, sessioncheck; review for internal-linkage statics (W120) |
+| No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
+| No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
+| Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
+| No dead code | deadcode.sh, deadcheck.py |
+| Safe C++: RAII, std containers, `xpp::format`/`xpp::log`, the I/O readers and writers, `static_cast` | unsafecheck, alloccheck, formatcheck, literalcheck, filecheck, stdoutcheck |
+| C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
+| A memory or thread error is fixed, never suppressed | asancheck (with UBSan), tsancheck |
+| Builds with 0 warnings on WSL gcc 15, UCRT gcc 16 and clang | `WERROR=1` builds (UCRT and clang64 on each merged tip: gcc 16 alone flags a discarded `std::expected`, clang alone a namespace self-alias) |
+| Numerics change only on purpose | examples md5s, goldencheck, odexcheck |
+| Tests check data, never pixels, and never pass or fail on machine speed (W58) | review |
+| Agents stop only their own processes, by PID, never by name | review |
+
 ## Build (from Windows this repo builds only under WSL)
 
 Nothing builds or checks in WSL over /mnt/c (maintainer, 2026-09-28):
