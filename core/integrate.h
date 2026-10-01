@@ -148,6 +148,9 @@ struct IntegratorState {
   int adj_range = 0;
   /* a global flag's event asked the integration to stop (send_halt) */
   int stop_flag = 0;
+  /* the step Rosenbrock's last advance ended with, its next one's first
+     (odesol2.cpp rosen) */
+  double rosen_htry = 0;
   /* the array initial values in use */
   ArrayIcs array_ics;
   /* Sing pts' Monte Carlo search and Range */

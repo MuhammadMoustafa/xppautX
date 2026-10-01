@@ -96,9 +96,9 @@ std::vector<int> all_columns(const BROWSER &b)
 namespace {
 
 /* the columns a batch run writes: the "only" list, else every column */
-std::vector<int> output_columns(const BROWSER &b)
+std::vector<int> output_columns(const xpp::Session &s, const BROWSER &b)
 {
-  return xpp::N_plist>0?std::vector<int>(xpp::plotlist,xpp::plotlist+xpp::N_plist):all_columns(b);
+  return !s.plot_list.empty()?s.plot_list:all_columns(b);
 }
 
 } // namespace
@@ -106,7 +106,7 @@ std::vector<int> output_columns(const BROWSER &b)
 void write_mybrowser_data(xpp::Session &s, xpp::Writer &w)
 {
   const BROWSER &b=s.browser.view;
-  xpp::data_format_named("dat")->write(browser_table(s,b,output_columns(b)),w);
+  xpp::data_format_named("dat")->write(browser_table(s,b,output_columns(s,b)),w);
 }
 
 xpp::DataTable stored_data_table(const xpp::Session &s)
@@ -685,7 +685,7 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
- xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(*b):all_columns(*b));
+ xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(s,*b):all_columns(*b));
  t.seed=s.numerics.last_seed;
  xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;

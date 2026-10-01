@@ -23,18 +23,7 @@
 
 namespace xpp {
 
-static int spec_type=0;
-/* type =0 for PSD
-   type =1 for crossspectrum
-   type =2 for coherence
 
-*/
-
-namespace {
-/* the plot list post_process_stuff sets when the model has none of its own
-   (plotlist is form_ode.cpp's pointer) */
-std::array<int, 10> post_process_plotlist{};
-}
 
 
 
@@ -118,10 +107,7 @@ void post_process_stuff(xpp::Session &s)
 {
 
   if(s.histogram.post_process==0)return;
-    if(N_plist<1)plotlist=post_process_plotlist.data();
-    N_plist=2;
-    plotlist[0]=0;
-    plotlist[1]=1;
+    s.plot_list.assign({0,1});
     if(s.histogram.post_process==7){ /* two-d histogram stuff */
       twod_hist(s);
       return;
@@ -496,7 +482,7 @@ void just_sd(xpp::Session &s, int flag)
 {
  int length,j;
   float total=s.data_store.col[0][s.data_store.rows-1]-s.data_store.col[0][0];
-  spec_type=flag;
+  s.histogram.spec_type=flag;
   if(s.histogram.hist_here){
     data_back(s);
     s.histogram.hist_columns.release();
@@ -507,23 +493,23 @@ void just_sd(xpp::Session &s, int flag)
   s.histogram.hist_columns.make(s.data_store,2,length,s.model().neq);
   s.histogram.hist_here=1;
   for(j=0;j<s.histogram.hist_len;j++)s.histogram.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/s.histogram.spec_wid)/total;
-  if(spec_type==0)
+  if(s.histogram.spec_type==0)
     spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1]);
   else
-    cross_spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),std::span(s.data_store.col[s.histogram.spec_col2],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],spec_type);
+    cross_spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),std::span(s.data_store.col[s.histogram.spec_col2],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],s.histogram.spec_type);
   hist_back(s);
   ping();
 }
 void compute_sd(xpp::Session &s)
 {
-  new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&spec_type);
+  new_int("(0) PSDx, (1) PSDxy, (2) COHxy:",&s.histogram.spec_type);
   
   if(get_col_info(s,&s.histogram.spec_col,"Variable ")==0)return;
-  if(spec_type>0)
+  if(s.histogram.spec_type>0)
       if(get_col_info(s,&s.histogram.spec_col2,"Variable 2 ")==0)return;
   new_int("Window length ",&s.histogram.spec_wid);
   new_int("0:sqr 1:par 2:ham 3:bart 4:han ",&s.histogram.spec_win);
-  just_sd(s,spec_type);
+  just_sd(s,s.histogram.spec_type);
 }
  
 void just_fourier(xpp::Session &s, int flag)

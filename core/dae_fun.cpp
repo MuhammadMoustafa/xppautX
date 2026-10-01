@@ -23,18 +23,6 @@ namespace xpp {
 
 /*    will have more stuff someday */
 
-typedef struct {
-  std::vector<double> work;
-  std::vector<int> iwork;
-  int status;
-} DAEWORK;
-static DAEWORK dae_work;
-
-namespace {
-/* each algebraic variable's last solution (xpp::Model has the
-   definitions): the next solve's first guess */
-std::array<double,MAXDAE> svar_last{};
-}
 
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
@@ -115,21 +103,21 @@ int compile_svars(xpp::Session &s)
  
 }
 
-void reset_dae()
+void reset_dae(xpp::Session &s)
 {
-  dae_work.status=1;
+  s.dae.status=1;
 }
 void set_init_guess(xpp::Session &s)
 {
   xpp::Model &m=s.model();
   int i;
   double z;
-    dae_work.status=1;
+    s.dae.status=1;
   if(m.nsvar==0)return;
   for(i=0;i<m.nsvar;i++){
    z=evaluate(s,m.svars[i].form.data());
     setvar(s,m.svars[i].index,z);
-    svar_last[i]=z;
+    s.dae.svar_last[i]=z;
   }
 }
 namespace {
@@ -149,9 +137,9 @@ void init_dae_work(xpp::Session &s)
 {
   xpp::Model &m=s.model();
 
-  dae_work.work.assign(m.nsvar*m.nsvar+10*m.nsvar, 0.0);
-  dae_work.iwork.assign(m.nsvar, 0);
-  dae_work.status=1;
+  s.dae.work.assign(m.nsvar*m.nsvar+10*m.nsvar, 0.0);
+  s.dae.iwork.assign(m.nsvar, 0);
+  s.dae.status=1;
 }
 
 void get_dae_fun(xpp::Session &s, double *y, double *f)
@@ -171,7 +159,7 @@ void do_daes(xpp::Session &s)
 {
   int ans;
   ans=solve_dae(s);
-  dae_work.status=ans;
+  s.dae.status=ans;
   if(ans==1||ans==2)return; /* accepts a no change error! */
   /* the integration stops after this step and returns it */
   if(!s.integrator.step_error)
@@ -191,15 +179,15 @@ int solve_dae(xpp::Session &s)
   double *y,*ynew,*f,*fnew,*jac,*errvec;
   n=m.nsvar;
   if(m.nsvar==0)return 1;
-  if(dae_work.status<0)return dae_work.status; /* accepts no change error */
-  y=dae_work.work.data();
+  if(s.dae.status<0)return s.dae.status; /* accepts no change error */
+  y=s.dae.work.data();
   f=y+m.nsvar;
   fnew=f+m.nsvar;
   ynew=fnew+m.nsvar;
   errvec=ynew+m.nsvar;
   jac=errvec+m.nsvar;
   for(i=0;i<n;i++){ /* copy current value as initial guess */
-    y[i]=svar_last[i];
+    y[i]=s.dae.svar_last[i];
     ynew[i]=y[i]; /* keep old guess */
   }
   while(1){
@@ -212,7 +200,7 @@ int solve_dae(xpp::Session &s)
     if(err<tol){ /* success */
       for(i=0;i<n;i++){
 	setvar(s,m.svars[i].index,y[i]);
-	svar_last[i]=y[i];
+	s.dae.svar_last[i]=y[i];
       }
       return 1; 
     }
@@ -228,13 +216,13 @@ int solve_dae(xpp::Session &s)
 	jac[j*n+i]=(fnew[j]-f[j])/del;
       y[i]=yold;
     }
-    xpp::sgefa(jac,n,n,dae_work.iwork.data(),&info);
+    xpp::sgefa(jac,n,n,s.dae.iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,ynew[i]);
       return -1; /* singular jacobian */
     }
-    xpp::sgesl(jac,n,n,dae_work.iwork.data(),errvec); /* get x=J^(-1) f */
+    xpp::sgesl(jac,n,n,s.dae.iwork.data(),errvec); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];
@@ -242,21 +230,21 @@ int solve_dae(xpp::Session &s)
     } 
     if(err>(n*s.numerics.bound)){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,svar_last[i]);
+	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
       return(-3); /* getting too big */
     }
     if(err<tol) /* not much change */
       {
 	for(i=0;i<n;i++){
 	  setvar(s,m.svars[i].index,y[i]);
-	  svar_last[i]=y[i];
+	  s.dae.svar_last[i]=y[i];
 	}
 	return 2;
       }
     iter++;
     if(iter>maxit){
       for(i=0;i<n;i++)
-	setvar(s,m.svars[i].index,svar_last[i]);
+	setvar(s,m.svars[i].index,s.dae.svar_last[i]);
       return(-2); /* too many iterates */
     }
   }
@@ -272,7 +260,7 @@ void get_new_guesses(xpp::Session &s)
   double z;
   if(m.nsvar<1)return;
   for(i=0;i<m.nsvar;i++){
-    z=svar_last[i];
+    z=s.dae.svar_last[i];
     const std::string name=xpp::format("Initial {}({:g}):",
       m.svars[i].name,z);
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
@@ -282,7 +270,7 @@ void get_new_guesses(xpp::Session &s)
     }
     z=evaluate(s,m.svars[i].form.data());
     setvar(s,m.svars[i].index,z);
-    svar_last[i]=z;
+    s.dae.svar_last[i]=z;
   }
 }
 

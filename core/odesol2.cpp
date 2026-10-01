@@ -18,7 +18,23 @@ namespace xpp {
 
 constexpr double coefp[]={ 6.875/3.00,-7.375/3.00,4.625/3.00,-.375},
        coefc[]={ .375,2.375/3.00,-.625/3.00,0.125/3.00 };
-static double *y_s[4],*y_p[4],*ypred;
+namespace {
+/* Adams-Bashforth-Moulton's parts of its work: the four last right-hand
+   sides (y_p), the four start-up states (y_s) and the prediction */
+struct AbmWork {
+  double *y_s[4],*y_p[4],*ypred;
+  AbmWork(double *work, int neq)
+  {
+    for(int i=0;i<4;i++){
+      y_p[i]=work+(4+i)*neq;
+      y_s[i]=work+(8+i)*neq;
+    }
+    ypred=work+3*neq;
+  }
+};
+
+int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w);
+}
 
 constexpr double symp_b[]={7/24.,.75,-1./24};
 constexpr double symp_B[]={2/3.,-2./3.,1.0};
@@ -285,16 +301,9 @@ int adams(xpp::Session &s, double *y, double *tim, double dt, int nstep, int neq
   double *work1;
   double x0=*tim,xst=*tim;
   work1=work;
+ const AbmWork w(work,neq);
  if(istart==1)
- {
-   for(i=0;i<4;i++)
-  {
-   y_p[i]=work+(4+i)*neq;
-   y_s[i]=work+(8+i)*neq;
-  }
- ypred=work+3*neq;
  goto n20;
- }
  if(istart>1) goto n350;
  istpst=0;
  goto n400;
@@ -302,18 +311,18 @@ int adams(xpp::Session &s, double *y, double *tim, double dt, int nstep, int neq
 n20:
 
  x0=xst;
- s.integrator.rhs(x0,y,y_p[3],neq);
+ s.integrator.rhs(x0,y,w.y_p[3],neq);
  for(k=1;k<4;k++)
  {
   rung_kut(s,y,&x0,dt,1,neq,&irk,work1);
   stor_delay(s,y);
-  for(i=0;i<neq;i++)y_s[3-k][i]=y[i];
-  s.integrator.rhs(x0,y,y_p[3-k],neq);
+  for(i=0;i<neq;i++)w.y_s[3-k][i]=y[i];
+  s.integrator.rhs(x0,y,w.y_p[3-k],neq);
  }
  istpst=3;
  if(istpst<=nstep) goto n400;
   ik=4-nstep;
-  for(i=0;i<neq;i++)y[i]=y_s[ik-1][i];
+  for(i=0;i<neq;i++)y[i]=w.y_s[ik-1][i];
   xst=xst+nstep*dt;
   istart=ik;
   goto n1000;
@@ -322,13 +331,13 @@ n350:
 
   ik=istart-nstep;
   if(ik<=1)goto n370;
-  for(i=0;i<neq;i++)y[i]=y_s[ik-1][i];
+  for(i=0;i<neq;i++)y[i]=w.y_s[ik-1][i];
   xst=xst+nstep*dt;
   istart=ik;
   goto n1000;
 
 n370:
-  for(i=0;i<neq;i++)y[i]=y_s[0][i];
+  for(i=0;i<neq;i++)y[i]=w.y_s[0][i];
   if(ik==1){x0=xst+dt*nstep; goto n450; }
 
   istpst=istart-1;
@@ -338,7 +347,7 @@ n400:
   if(istpst==nstep) goto n450;
   for(n=istpst+1;n<nstep+1;n++) {
     set_wieners(s,dt,y,x0);
-   abmpc(s,y,&x0,dt,neq);
+   abmpc(s,y,&x0,dt,neq,w);
    stor_delay(s,y);
  }
 
@@ -353,34 +362,36 @@ n1000:
  return(0);
 }
 
-int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq)
+namespace {
+int abmpc(xpp::Session &s, double *y, double *t, double dt, int neq, const AbmWork &w)
 {
  double x1,x0=*t;
  int i,k;
  for(i=0;i<neq;i++)
  {
-  ypred[i]=0;
-  for(k=0;k<4;k++)ypred[i]=ypred[i]+coefp[k]*y_p[k][i];
-  ypred[i]=y[i]+dt*ypred[i];
+  w.ypred[i]=0;
+  for(k=0;k<4;k++)w.ypred[i]=w.ypred[i]+coefp[k]*w.y_p[k][i];
+  w.ypred[i]=y[i]+dt*w.ypred[i];
  }
 
  for(i=0;i<neq;i++)
- for(k=3;k>0;k--)y_p[k][i]=y_p[k-1][i];
+ for(k=3;k>0;k--)w.y_p[k][i]=w.y_p[k-1][i];
  x1=x0+dt;
- s.integrator.rhs(x1,ypred,y_p[0],neq);
+ s.integrator.rhs(x1,w.ypred,w.y_p[0],neq);
 
  for(i=0;i<neq;i++)
  {
-  ypred[i]=0;
-  for(k=0;k<4;k++)ypred[i]=ypred[i]+coefc[k]*y_p[k][i];
-  y[i]=y[i]+dt*ypred[i];
+  w.ypred[i]=0;
+  for(k=0;k<4;k++)w.ypred[i]=w.ypred[i]+coefc[k]*w.y_p[k][i];
+  y[i]=y[i]+dt*w.ypred[i];
  }
    *t=x1;
- s.integrator.rhs(x1,y,y_p[0],neq);
+ s.integrator.rhs(x1,y,w.y_p[0],neq);
  
  return(1);
  
 }
+} // namespace
 
 /* this is rosen  - rosenbock step 
     This uses banded routines as well */
@@ -402,7 +413,7 @@ int out =-1;
 int rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
- static double htry;
+ double &htry=s.integrator.rosen_htry; /* the step the last call ended with */
  double epsjac=s.numerics.newt_err;
  double eps=1e-15,hmin,hmax;
  double tdir=1,t0=*tstart,t=t0;

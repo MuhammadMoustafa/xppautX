@@ -70,7 +70,7 @@ static int markov_named(xpp::Session &s, const char *name)
     model_failed();
   }
   if(ConvertStyle)
-    xpp::print(convertf,"markov {} {}\n", name, s.model().markov[index].nstates);
+    xpp::print(s.parser.convert.file(),"markov {} {}\n", name, s.model().markov[index].nstates);
   return index;
 }
 
@@ -113,7 +113,7 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
    if(ConvertStyle){
      /* LineReader strips the terminator fgets used to keep; restore it
         so the converted file's line breaks match exactly. */
-     xpp::print(convertf,"{}\n",line);
+     xpp::print(s.parser.convert.file(),"{}\n",line);
    }
    istart=0;
      for(j=0;j<nstates;j++){

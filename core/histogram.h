@@ -41,6 +41,9 @@ struct HistogramState {
   float **four() noexcept { return four_columns.table(); }
   int hist_here=0, four_here=0, hist_len=0, four_len=0;
   int spec_col=1, spec_wid=512, spec_win=2, spec_col2=1;
+  /* the spectrum computed: 0 the power spectral density, 1 the cross
+     spectrum, 2 the coherence */
+  int spec_type=0;
   int post_process=0;
 };
 

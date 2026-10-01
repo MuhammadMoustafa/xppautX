@@ -32,6 +32,8 @@
 #include "load_eqn.h"
 #include "expr.h"
 #include "delay_handle.h"
+#include "dae_fun.h"
+#include "do_fit.h"
 #include "histogram.h"
 #include "adj2.h"
 #include "markov.h"
@@ -157,6 +159,14 @@ struct Session {
   /* the nullclines', direction field's and orbit colouring's settings
      (nullcline.cpp) */
   NullclineSettings nullclines;
+  /* the columns a batch run writes, the "only" statement's or
+     post-processing's (form_ode.cpp's create_plot_list, histogram.cpp);
+     none: every column */
+  std::vector<int> plot_list;
+  /* Data's Fit settings (do_fit.cpp) */
+  FitInfo fit;
+  /* the algebraic variables' solver (dae_fun.cpp) */
+  DaeState dae;
   /* the nullclines and direction field computed, and the frozen ones */
   NullclineState nullcline_state;
   /* Sing pts' shooting (gear.cpp) */

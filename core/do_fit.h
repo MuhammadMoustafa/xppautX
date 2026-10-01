@@ -5,16 +5,27 @@
 #include "xpp_error.h"
 #include "xpplim.h"
 
-/* FITINFO is internal to do_fit.cpp (the only file that uses it); it is
-   not declared here. */
+#include <array>
+#include <string>
 
 namespace xpp {
 
 struct Session; /* session.h */
 
-void init_fit_info();
-void print_fit_info();
-int get_fit_params();
+/* Data's Fit settings (do_fit.cpp), a Session's (session.h): the data
+   file, the variables and their columns, the parameters to fit, the
+   dimension, points, iterations and tolerances */
+struct FitInfo {
+  std::string file;
+  std::string varlist, collist;
+  std::string parlist1, parlist2;
+  int dim = 0, npars = 0, nvars = 0, npts = 0, maxiter = 20;
+  std::array<int, 50> icols{}, ipar{}, ivar{};
+  double tol = .001, eps = 1e-5;
+};
+
+void print_fit_info(const Session &s);
+int get_fit_params(Session &s);
 
 void test_fit(Session &s);
 

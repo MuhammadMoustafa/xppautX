@@ -190,6 +190,8 @@ struct Model {
     Diagnostic where;
   };
   std::vector<InitialValue> initial_values;
+  /* a statement is a map, x(t+1)=... (disc: the method is discrete) */
+  int is_a_map=0;
   /* its array initial values, x[j1..j2](0)=formula (extract_ic_data) */
   ArrayIcs array_ics;
   /* its @ lines, each whole, as read, and where (no cause), for a value

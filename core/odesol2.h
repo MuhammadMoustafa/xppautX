@@ -18,7 +18,6 @@ int euler(Session &s, double *y, double *tim, double dt, int nt, int neq, int *i
 int mod_euler(Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
 int rung_kut(Session &s, double *y, double *tim, double dt, int nt, int neq, int *istart, double *work);
 int adams(Session &s, double *y, double *tim, double dt, int nstep, int neq, int *ist, double *work);
-int abmpc(Session &s, double *y, double *t, double dt, int neq);
 int rb23(Session &s, double *y, double *tstart, double tfinal, int *istart, int n, double *work, int *ierr);
 int rosen(Session &s, double *y, double *tstart, double tfinal, int *istart, int n, double *work, int *ierr);
 void get_the_jac(Session &s, double t, double *y, double *yp, double *ypnew, double *dfdy, int neq, double eps, double scal);

@@ -27,6 +27,7 @@
 #include <string>
 #include <string_view>
 #include "xpp_error.h"
+#include "xpp_io.h"
 
 /* the built-in symbols, the symbol table's first entries (expr_symbols.cpp) */
 #define STDSYM 96
@@ -130,6 +131,17 @@ struct ParserState {
   int errout = 0;
   std::array<ExprSymbol, MAX_SYMBS> symbols;
   ExprStack stack;
+  /* -convert's rewrite of the old-style file being read (form_ode.cpp,
+     markov.cpp), open while it is read */
+  Writer convert;
+  /* the Model builder's count of variables read (in_vars), the named
+     auxiliary variables (naux of aux_names) and the fixed variables'
+     names (form_ode.cpp) */
+  struct {
+    int in_vars = 0, naux = 0;
+    std::array<std::string, MAXODE> aux_names;
+    std::array<std::string, MAXODE1> fixname;
+  } build;
 };
 
 } // namespace xpp

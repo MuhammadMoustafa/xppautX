@@ -82,5 +82,23 @@ int main(void)
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().colormap == 0);
 
+    /* a map is its own Model's: the next model loaded is not taken for
+       one (its method is not made discrete) */
+    const int method = xpp::client_session().numerics.method;
+    CHECK(method != 0);
+    const char map[] = "build/test_load_map.ode";
+    {
+        xpp::Writer w(map);
+        CHECK(w && w.write("x(t+1)=x/2\ninit x=1\ndone\n") && w.commit());
+    }
+    char map_arg[] = "build/test_load_map.ode";
+    char *argv_map[] = {arg0, map_arg, NULL};
+    CHECK(xpp::load_model(2, argv_map, 1).has_value());
+    CHECK(xpp::client_session().model().is_a_map == 1);
+    CHECK(xpp::client_session().numerics.method == 0);
+    CHECK(xpp::load_model(2, argv_good, 1).has_value());
+    CHECK(xpp::client_session().model().is_a_map == 0);
+    CHECK(xpp::client_session().numerics.method == method);
+
     TEST_REPORT("load: build, then swap");
 }

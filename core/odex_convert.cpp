@@ -1117,7 +1117,7 @@ private:
   std::string options()
   {
     std::string out;
-    const bool map = disc(m_.this_file) != 0;
+    const bool map = disc(m_) != 0;
     for (const xpp::Model::OptionLine &line : m_.options) {
       std::string items;
       for (const auto &[key, value] : option_items(line.text, false)) {

@@ -238,7 +238,7 @@ void restore_values(Session &s, const KeptValues &kept)
     n.poipln=loaded.poipln;
     n.sos=loaded.sos;
   }else n.poivar=poi;
-  if(disc(m.this_file))n.method=0;
+  if(disc(m))n.method=0;
   do_meth(s); /* starts the method's solver too */
   set_delay(s);
 

@@ -29,34 +29,7 @@ namespace xpp {
  
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
-namespace {
-struct FITINFO {
-  std::string file;
-  std::string varlist, collist;
-  std::string parlist1, parlist2;
-  int dim = 0, npars = 0, nvars = 0, npts = 0, maxiter = 0;
-  std::array<int, 50> icols{}, ipar{}, ivar{};
-  double tol = 0.0, eps = 0.0;
-};
 
-FITINFO fin;
-}  // namespace
-
-void init_fit_info()
-{
-  fin.tol=.001;
-  fin.eps=1e-5;
-  fin.dim=0;
-  fin.npars=0;
-  fin.nvars=0;
-  fin.varlist.clear();
-  fin.collist.clear();
-  fin.parlist1.clear();
-  fin.parlist2.clear();
-  fin.npts=0;
-  fin.maxiter=20;
-  fin.file.clear();
-}
 
 xpp::Result<> get_fit_info(xpp::Session &s, double *y, double *a, double *t0, double eps, double *yfit, double **yderv, int npts, int npars, int nvars, int *ivar, int *ipar)
 /*  
@@ -204,84 +177,84 @@ xpp::Result<> one_step_int(xpp::Session &s, double *y, double t0, double t1, int
   return {};
 } 
 
-void print_fit_info()
+void print_fit_info(const xpp::Session &s)
 {
   int i;
   xpp::log(XPP_LOG_INFO, "dim={} maxiter={} npts={} file={} tol={:g} eps={:g}\n",
-	 fin.dim,fin.maxiter,fin.npts,fin.file.c_str(),fin.tol,fin.eps);
+	 s.fit.dim,s.fit.maxiter,s.fit.npts,s.fit.file.c_str(),s.fit.tol,s.fit.eps);
 
-  for(i=0;i<fin.nvars;i++)
+  for(i=0;i<s.fit.nvars;i++)
     xpp::log(XPP_LOG_INFO, " variable {} to col {} \n",
-	   fin.ivar[i],fin.icols[i]);
-  for(i=0;i<fin.npars;i++)
-    xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,fin.ipar[i]);
+	   s.fit.ivar[i],s.fit.icols[i]);
+  for(i=0;i<s.fit.npars;i++)
+    xpp::log(XPP_LOG_INFO, " P[{}]={} \n",i,s.fit.ipar[i]);
 }
 
 void test_fit(xpp::Session &s)
 {
  std::array<double, 1000> a{}, y0{};
  int nvars,npars,i;
- fin.nvars=0;
- fin.npars=0;
- if(get_fit_params()==0)return;
- parse_collist(fin.collist,fin.icols.data(),&nvars);
+ s.fit.nvars=0;
+ s.fit.npars=0;
+ if(get_fit_params(s)==0)return;
+ parse_collist(s.fit.collist,s.fit.icols.data(),&nvars);
  
  if(nvars<=0){
    err_msg("No columns...");
    return;
  }
- fin.nvars=nvars;
+ s.fit.nvars=nvars;
  nvars=0;
- parse_varlist(s,fin.varlist, fin.ivar.data(), &nvars);
+ parse_varlist(s,s.fit.varlist, s.fit.ivar.data(), &nvars);
 
- if(fin.nvars!=nvars){
+ if(s.fit.nvars!=nvars){
    err_msg(" # columns != # fitted variables");
    return;
  }
  npars=0;
- parse_parlist(s,fin.parlist1,fin.ipar.data(),&npars);
+ parse_parlist(s,s.fit.parlist1,s.fit.ipar.data(),&npars);
 
- parse_parlist(s,fin.parlist2,fin.ipar.data(),&npars);
+ parse_parlist(s,s.fit.parlist2,s.fit.ipar.data(),&npars);
 
  if(npars<=0){
    err_msg(" No parameters!");
    return;
  }
- fin.npars=npars;
+ s.fit.npars=npars;
  for(i=0;i<npars;i++)
-   if(fin.ipar[i]>=0)
+   if(s.fit.ipar[i]>=0)
      {
-       if(fin.ipar[i]>=s.model().node){
+       if(s.fit.ipar[i]>=s.model().node){
 	 err_msg(" Cant vary auxiliary/markov variables! ");
 	 return;
        }
      }
  for(i=0;i<nvars;i++){
-   if(fin.icols[i]<2){
+   if(s.fit.icols[i]<2){
      err_msg(" Illegal column must be >= 2");
      return;
    }
-   if(fin.ivar[i]<0||fin.ivar[i]>=s.model().node){
+   if(s.fit.ivar[i]<0||s.fit.ivar[i]>=s.model().node){
      err_msg(" Fit only to variables! ");
      return;
    }
  }
- std::vector<double> yfit_v(static_cast<size_t>(fin.npts)*fin.nvars);
+ std::vector<double> yfit_v(static_cast<size_t>(s.fit.npts)*s.fit.nvars);
   double *yfit=yfit_v.data();
   for(i=0;i<s.model().node;i++)
     y0[i]=s.last_ic[i];
-  for(i=0;i<fin.npars;i++){
-    if(fin.ipar[i]<0)
-      a[i]=s.parser.constants[-fin.ipar[i]];
+  for(i=0;i<s.fit.npars;i++){
+    if(s.fit.ipar[i]<0)
+      a[i]=s.parser.constants[-s.fit.ipar[i]];
     else
-      a[i]=s.last_ic[fin.ipar[i]];
+      a[i]=s.last_ic[s.fit.ipar[i]];
   }
 
- print_fit_info();
+ print_fit_info(s);
  xpp::log(XPP_LOG_INFO, " Running the fit...\n");
- auto ok=run_fit(s,fin.file.c_str(), fin.npts,fin.npars,fin.nvars,fin.maxiter,fin.dim,
-         fin.eps,fin.tol,
-	 fin.ipar.data(),fin.ivar.data(),fin.icols.data(),
+ auto ok=run_fit(s,s.fit.file.c_str(), s.fit.npts,s.fit.npars,s.fit.nvars,s.fit.maxiter,s.fit.dim,
+         s.fit.eps,s.fit.tol,
+	 s.fit.ipar.data(),s.fit.ivar.data(),s.fit.icols.data(),
 	 y0.data(),a.data(),yfit);
 
    if(!ok){
@@ -294,10 +267,10 @@ void test_fit(xpp::Session &s)
  /* get the latest par values ...  */
  
  for(i=0;i<npars;i++){
-   if(fin.ipar[i]<0)
-     s.parser.constants[-fin.ipar[i]]=a[i];
+   if(s.fit.ipar[i]<0)
+     s.parser.constants[-s.fit.ipar[i]]=a[i];
    else
-     s.last_ic[fin.ipar[i]]=a[i];
+     s.last_ic[s.fit.ipar[i]]=a[i];
  }
 
 }
@@ -542,36 +515,36 @@ sigma  weights on nvars
        return {};
      }
 
-int get_fit_params()
+int get_fit_params(xpp::Session &s)
 {
   static const char *const n[]={"File", "Fitvar","Params","Tolerance","Npts",
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
   std::array<std::string, 10> values;
-  values[0] = fin.file;
-  values[1] = fin.varlist;
-  values[2] = fin.parlist1;
-  values[3] = xpp::format("{:g}", fin.tol);
-  values[4] = xpp::format("{}", fin.npts);
-  values[5] = xpp::format("{}", fin.dim);
-  values[6] = fin.collist;
-  values[7] = fin.parlist2;
-  values[8] = xpp::format("{:g}", fin.eps);
-  values[9] = xpp::format("{}", fin.maxiter);
+  values[0] = s.fit.file;
+  values[1] = s.fit.varlist;
+  values[2] = s.fit.parlist1;
+  values[3] = xpp::format("{:g}", s.fit.tol);
+  values[4] = xpp::format("{}", s.fit.npts);
+  values[5] = xpp::format("{}", s.fit.dim);
+  values[6] = s.fit.collist;
+  values[7] = s.fit.parlist2;
+  values[8] = xpp::format("{:g}", s.fit.eps);
+  values[9] = xpp::format("{}", s.fit.maxiter);
   static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
   status=do_string_box_of(5,2,"Fit",n,values,kinds);
   if(status!=0){
-    fin.tol=atof(values[3].c_str());
-    fin.npts=atoi(values[4].c_str());
-    fin.dim=atoi(values[5].c_str());
-    fin.eps=atof(values[8].c_str());
-    fin.maxiter=atoi(values[9].c_str());
-    fin.file=values[0];
-    fin.varlist=values[1];
-    fin.parlist1=values[2];
-    fin.collist=values[6];
-    fin.parlist2=values[7];
+    s.fit.tol=atof(values[3].c_str());
+    s.fit.npts=atoi(values[4].c_str());
+    s.fit.dim=atoi(values[5].c_str());
+    s.fit.eps=atof(values[8].c_str());
+    s.fit.maxiter=atoi(values[9].c_str());
+    s.fit.file=values[0];
+    s.fit.varlist=values[1];
+    s.fit.parlist1=values[2];
+    s.fit.collist=values[6];
+    s.fit.parlist2=values[7];
      return(1);
   }
   return(0);

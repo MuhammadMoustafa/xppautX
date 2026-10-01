@@ -121,13 +121,12 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
 #ifdef AUTO
     init_auto_win(s);
 #endif
-    if (disc(m.this_file)) s.numerics.method = 0;
+    if (disc(m)) s.numerics.method = 0;
     program.version_major = static_cast<float>(MYSTR1);
     program.version_minor = static_cast<float>(MYSTR2);
     xpp::do_meth(s);
     xpp::set_delay(s);
     s.integrator.rhs = {my_rhs, &s};
-    xpp::init_fit_info();
     strip_saveqn(m);
     create_plot_list(s);
 }
