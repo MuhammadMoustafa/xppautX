@@ -6,6 +6,8 @@
 
 #include "auto_stability.h"
 
+namespace xpp {
+
 namespace {
 
 /* one point's values, re and im */
@@ -40,7 +42,7 @@ constexpr int ITP_PD = 7;
 
 } // namespace
 
-extern "C" void auto_stability_computed(int br, int pt, int n, const double *values, int kind)
+void auto_stability_computed(int br, int pt, int n, const double *values, int kind)
 {
     try {
         computed.br = std::abs(br);
@@ -63,7 +65,7 @@ extern "C" void auto_stability_computed(int br, int pt, int n, const double *val
     }
 }
 
-extern "C" int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, const double *evr,
+int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, const double *evr,
                                         const double *evi)
 {
     forget(computed);
@@ -84,7 +86,7 @@ extern "C" int auto_stability_run_start(int run, int isw, int label, int label_i
     return has_first ? 1 : 0;
 }
 
-extern "C" int auto_stability_for(int br, int pt, int n, double *evr, double *evi)
+int auto_stability_for(int br, int pt, int n, double *evr, double *evi)
 {
     if (computed.pt != 0 && computed.br == std::abs(br) && computed.pt == std::abs(pt)) {
         copy_out(computed, n, evr, evi);
@@ -97,3 +99,5 @@ extern "C" int auto_stability_for(int br, int pt, int n, double *evr, double *ev
     copy_out(Values{}, n, evr, evi);
     return 0;
 }
+
+} // namespace xpp

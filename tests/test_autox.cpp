@@ -59,7 +59,7 @@ bool same_vector(const std::vector<double> &a, const std::vector<double> &b)
 /* two points the same, every field bit for bit */
 bool same_point(const DiagramPoint &a, const DiagramPoint &b)
 {
-    const DIAGRAM &x = a.d, &y = b.d;
+    const xpp::DIAGRAM &x = a.d, &y = b.d;
     if (x.calc != y.calc || x.ibr != y.ibr || x.ntot != y.ntot || x.itp != y.itp || x.lab != y.lab || x.nfpar != y.nfpar ||
         x.icp1 != y.icp1 || x.icp2 != y.icp2 || x.icp3 != y.icp3 || x.icp4 != y.icp4 || x.flag2 != y.flag2 || x.from != y.from)
         return false;
@@ -85,7 +85,7 @@ std::deque<DiagramPoint> points_of(int k, int n)
     std::size_t v = 0;
     for (int p = 0; p < k; p++) {
         DiagramPoint &q = pts.emplace_back();
-        DIAGRAM &d = q.d;
+        xpp::DIAGRAM &d = q.d;
         d.ibr = 1 + p / 4;
         d.ntot = (p % 5) - 2;
         d.itp = p % 9;
@@ -112,8 +112,8 @@ std::deque<DiagramPoint> points_of(int k, int n)
 
 void check_settings_text()
 {
-    AutoSettingsSet s;
-    for (int i = 0; i < AUTO_NUM_N; i++) s.num[i] = awk(i) * (i + 1);
+    xpp::AutoSettingsSet s;
+    for (int i = 0; i < xpp::AUTO_NUM_N; i++) s.num[i] = awk(i) * (i + 1);
     s.npars = 3;
     s.pars = {"iapp", "", "phi"};
     s.plot = 11;
@@ -124,11 +124,11 @@ void check_settings_text()
     s.nmarks = 2;
     s.mark_name = {"T", "phi"};
     s.mark_value = {awk(4), awk(5)};
-    const std::optional<AutoSettingsSet> r = xpp::autox::parse_settings(xpp::autox::settings_text(s));
+    const std::optional<xpp::AutoSettingsSet> r = xpp::autox::parse_settings(xpp::autox::settings_text(s));
     CHECK(r.has_value());
     if (!r) return;
     bool num = true;
-    for (int i = 0; i < AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
+    for (int i = 0; i < xpp::AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
     CHECK(num);
     CHECK(r->npars == 3 && r->pars[0] == "iapp" && r->pars[1].empty() && r->pars[2] == "phi");
     CHECK(r->has_plot && r->plot == 11 && r->var == "v" && r->par1 == "iapp" && r->par2.empty());
@@ -218,13 +218,13 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     diagram_restore(s, pts);
     CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     const std::string solutions = "   1   1   4   1   2   0   1   3 ...\r\n0.0 1 2\n";
-    CHECK(write_file(auto_solutions_file(), solutions));
+    CHECK(write_file(xpp::auto_solutions_file(), solutions));
     s.auto_state.bifur.ds = 0.1 + 0.2;
     s.auto_state.bifur.dsmax = 0.5;
     s.auto_state.bifur.rl1 = 1.0 / 3.0;
-    const AutoSettingsSet before = auto_settings_now(xpp::client_session());
+    const xpp::AutoSettingsSet before = xpp::auto_settings_now(xpp::client_session());
     /* a second view (W50), the norm, a zoom of its own; the first active */
-    auto_new_view(xpp::client_session());
+    xpp::auto_new_view(xpp::client_session());
     s.auto_state.views[1].axes.plot = 1;
     s.auto_state.views[1].axes.ymax = 5;
     s.auto_state.views[1].zoom.y = {true, 0.5, 1.5};
@@ -247,7 +247,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
 
     /* everything changed, then the file restored */
     start_diagram(xpp::client_session(), n);
-    CHECK(write_file(auto_solutions_file(), "other"));
+    CHECK(write_file(xpp::auto_solutions_file(), "other"));
     s.auto_state.bifur.ds = 0.05;
     s.auto_state.bifur.rl1 = 7;
     s.auto_state.views.resize(1);
@@ -261,9 +261,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     for (int i = 0; i < diagram_count(xpp::client_session().diagram); i++)
         pointers = pointers && diagram_point(xpp::client_session().diagram, i)->index == i && diagram_point(xpp::client_session().diagram, i)->evi == s.diagram.points[i].evi.data();
     CHECK(pointers);
-    CHECK(file_text(auto_solutions_file()) == solutions);
+    CHECK(file_text(xpp::auto_solutions_file()) == solutions);
     CHECK(same_bits(s.auto_state.bifur.ds, 0.1 + 0.2) && same_bits(s.auto_state.bifur.rl1, 1.0 / 3.0));
-    const AutoSettingsSet after = auto_settings_now(xpp::client_session());
+    const xpp::AutoSettingsSet after = xpp::auto_settings_now(xpp::client_session());
     CHECK(xpp::autox::settings_text(after) == xpp::autox::settings_text(before));
     CHECK(s.auto_state.views.size() == 2 && s.auto_state.active_view == 0 && s.auto_state.views[1].axes.plot == 1 &&
           s.auto_state.views[1].axes.ymax == 5 && (s.auto_state.views[1].zoom.y == xpp::AxisRange{true, 0.5, 1.5}) &&
@@ -294,13 +294,13 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     CHECK(xpp::autox::import_file(xpp::client_session(), path));
     CHECK(diagram_count(xpp::client_session().diagram) > 50);
     /* its first point, as the file prints it */
-    const DIAGRAM *d = diagram_first(xpp::client_session().diagram);
+    const xpp::DIAGRAM *d = diagram_first(xpp::client_session().diagram);
     CHECK(d && d->ibr == 1 && d->ntot == 1 && d->itp == 9 && d->lab == 1 && d->par[0] == 0.05 && d->u0[0] == -0.144 &&
           d->u0[1] == 0.03);
     CHECK(s.auto_state.bifur.ntst == 15 && s.auto_state.bifur.nmx == 2000 && s.auto_state.bifur.dsmin == 1e-05);
-    CHECK(file_text(auto_solutions_file()).size() > 100); /* the .s part */
+    CHECK(file_text(xpp::auto_solutions_file()).size() > 100); /* the .s part */
     const std::deque<DiagramPoint> imported = s.diagram.points;
-    const std::string solutions = file_text(auto_solutions_file());
+    const std::string solutions = file_text(xpp::auto_solutions_file());
 
     std::vector<xpp::zip::Entry> entries;
     CHECK(xpp::autox::add_members(xpp::client_session(), entries, "auto/"));
@@ -316,7 +316,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::expected<xpp::autox::Members, std::string> none = xpp::autox::members_read(xpp::client_session(), cut, "auto/");
     CHECK(!none && none.error() == "its auto/solutions.s is missing");
     CHECK(same_diagram(s.diagram.points, imported));
-    CHECK(file_text(auto_solutions_file()) == solutions);
+    CHECK(file_text(xpp::auto_solutions_file()) == solutions);
 
     /* an .autox is not imported as an XPPAUT .auto */
     CHECK(write_file(path, xpp::zip::make_zip(entries)));

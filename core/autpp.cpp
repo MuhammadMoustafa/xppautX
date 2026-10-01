@@ -101,7 +101,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 
 /* AUTO's user routines that xppautX does not supply: stubs, with
    auto_c.h's prototypes (which AUTO calls them through) */
-/* Subroutine */ extern "C" int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
+/* Subroutine */ int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint,
 	 const doublereal *u, const doublereal *uold, const doublereal *udot,
 	 const doublereal *upold, integer ijac,
 	 doublereal *fi, doublereal *dint)
@@ -109,7 +109,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
     return 0;
 } /* icnd_ */
 
-/* Subroutine */ extern "C" int fopt(integer ndim, const doublereal *u, const integer *icp,
+/* Subroutine */ int fopt(integer ndim, const doublereal *u, const integer *icp,
 	 const doublereal *par, integer ijac,
 	 doublereal *fs, doublereal *dfdu, doublereal *dfdp)
 {
@@ -120,7 +120,7 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
 /*  Not sure what to do here; I think  do nothing  since IEQUIB is always
     -2 
 */
-extern "C" int pvls (integer ndim, const doublereal *u,
+int pvls (integer ndim, const doublereal *u,
           doublereal *par)
 {
   return 0;

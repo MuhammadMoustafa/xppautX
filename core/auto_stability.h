@@ -1,8 +1,5 @@
 #ifndef AUTO_STABILITY_H
 #define AUTO_STABILITY_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* The one source of truth for the stability values of AUTO's points
    (issue #27, W15): the eigenvalues of a steady state, the Floquet
@@ -24,15 +21,17 @@ extern "C" {
    .auto files did); the page says so (web2 autoInfo.ts). XPPAUT itself stores the
    previous point's values there.
 
-   auto_stability.cpp; C++ with a C API, nothing escapes it. */
+   auto_stability.cpp; nothing escapes it. */
+
+namespace xpp {
 
 /* what a point or a run continues */
-typedef enum {
+enum AutoStabilityKind {
     AUTO_STABILITY_NONE = 0, /* no label: a run from initial data */
     AUTO_STABILITY_STEADY,   /* a steady state (or a map's fixed point): eigenvalues */
     AUTO_STABILITY_PERIODIC, /* a periodic orbit: Floquet multipliers */
     AUTO_STABILITY_OTHER     /* a two-parameter curve, a boundary value problem, ... */
-} AutoStabilityKind;
+};
 
 /* AUTO computed the stability of point pt of branch br (either sign):
    n values, values[2k] + i values[2k+1] (AUTO's doublecomplex array).
@@ -56,7 +55,5 @@ int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, 
    same-kind restart), else 0 and zeros: not computed */
 int auto_stability_for(int br, int pt, int n, double *evr, double *evi);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp
 #endif

@@ -9,9 +9,6 @@
 
 #include <stdlib.h>
 #include <math.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef long int integer;
 typedef float real;
@@ -39,9 +36,6 @@ double z_abs(const doublecomplex *z);
 void z_exp(doublecomplex *r, const doublecomplex *z);
 void z_log(doublecomplex *r, const doublecomplex *z);
 
-#ifdef __cplusplus
-}
-
 /* f2c's abs/fabs/min/max macros, as functions (W33c): the macros broke
    every C++ standard header included after this one. Same types (the
    usual arithmetic conversions of the macros' ?:) and the same results,
@@ -67,5 +61,4 @@ constexpr auto max(A a, B b) noexcept
   return a >= b ? a : b;
 }
 } // namespace f2c
-#endif
 #endif

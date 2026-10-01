@@ -42,7 +42,7 @@ void load_model()
 bool ok(int field, double v)
 {
     std::string why;
-    return auto_settings_num_ok(field, v, why) != 0;
+    return xpp::auto_settings_num_ok(field, v, why) != 0;
 }
 
 } // namespace
@@ -53,80 +53,80 @@ int main()
     std::string why;
     load_model();
 
-    CHECK(ok(AUTO_NUM_NCOL, 2) && ok(AUTO_NUM_NCOL, 7));
-    CHECK(!ok(AUTO_NUM_NCOL, 1) && !ok(AUTO_NUM_NCOL, 8));
-    CHECK(!ok(AUTO_NUM_NTST, 0) && !ok(AUTO_NUM_NTST, 2.5) && ok(AUTO_NUM_NTST, 50));
-    CHECK(!ok(AUTO_NUM_DS, 0) && ok(AUTO_NUM_DS, -0.01));
-    CHECK(!ok(AUTO_NUM_EPSL, 0) && ok(AUTO_NUM_EPSL, 1e-7));
-    CHECK(ok(AUTO_NUM_RL0, -1e6) && !ok(AUTO_NUM_RL0, HUGE_VAL));
-    CHECK(ok(AUTO_NUM_MXBF, -5) && ok(AUTO_NUM_SUPPBP, 1) && !ok(AUTO_NUM_SUPPBP, 2));
-    CHECK(!ok(AUTO_NUM_NMX, 3e9)); /* no int holds it */
-    auto_settings_num_ok(AUTO_NUM_NCOL, 9, num_why);
+    CHECK(ok(xpp::AUTO_NUM_NCOL, 2) && ok(xpp::AUTO_NUM_NCOL, 7));
+    CHECK(!ok(xpp::AUTO_NUM_NCOL, 1) && !ok(xpp::AUTO_NUM_NCOL, 8));
+    CHECK(!ok(xpp::AUTO_NUM_NTST, 0) && !ok(xpp::AUTO_NUM_NTST, 2.5) && ok(xpp::AUTO_NUM_NTST, 50));
+    CHECK(!ok(xpp::AUTO_NUM_DS, 0) && ok(xpp::AUTO_NUM_DS, -0.01));
+    CHECK(!ok(xpp::AUTO_NUM_EPSL, 0) && ok(xpp::AUTO_NUM_EPSL, 1e-7));
+    CHECK(ok(xpp::AUTO_NUM_RL0, -1e6) && !ok(xpp::AUTO_NUM_RL0, HUGE_VAL));
+    CHECK(ok(xpp::AUTO_NUM_MXBF, -5) && ok(xpp::AUTO_NUM_SUPPBP, 1) && !ok(xpp::AUTO_NUM_SUPPBP, 2));
+    CHECK(!ok(xpp::AUTO_NUM_NMX, 3e9)); /* no int holds it */
+    xpp::auto_settings_num_ok(xpp::AUTO_NUM_NCOL, 9, num_why);
     CHECK_STR(num_why.c_str(), "Ncol must be a whole number from 2 to 7");
-    CHECK_STR(auto_settings_num_key(AUTO_NUM_RL0), "rl0");
-    CHECK_STR(auto_settings_num_label(AUTO_NUM_RL0), "Par Min");
-    CHECK(auto_settings_num_key(AUTO_NUM_N) == nullptr);
+    CHECK_STR(xpp::auto_settings_num_key(xpp::AUTO_NUM_RL0), "rl0");
+    CHECK_STR(xpp::auto_settings_num_label(xpp::AUTO_NUM_RL0), "Par Min");
+    CHECK(xpp::auto_settings_num_key(xpp::AUTO_NUM_N) == nullptr);
 
     /* all or nothing: one bad value keeps the good one out */
-    AutoSettingsSet s;
-    s.has_num[AUTO_NUM_NMX] = 1;
-    s.num[AUTO_NUM_NMX] = 30;
-    s.has_num[AUTO_NUM_NCOL] = 1;
-    s.num[AUTO_NUM_NCOL] = 9;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.nmx == 200 && xpp::client_session().auto_state.bifur.ncol == 4);
-    s.num[AUTO_NUM_NCOL] = 5;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nmx == 30 && xpp::client_session().auto_state.bifur.ncol == 5);
+    xpp::AutoSettingsSet s;
+    s.has_num[xpp::AUTO_NUM_NMX] = 1;
+    s.num[xpp::AUTO_NUM_NMX] = 30;
+    s.has_num[xpp::AUTO_NUM_NCOL] = 1;
+    s.num[xpp::AUTO_NUM_NCOL] = 9;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.nmx == 200 && xpp::client_session().auto_state.bifur.ncol == 4);
+    s.num[xpp::AUTO_NUM_NCOL] = 5;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nmx == 30 && xpp::client_session().auto_state.bifur.ncol == 5);
 
     /* pairs in order, only checked when one of them is given */
-    s = AutoSettingsSet{};
-    s.has_num[AUTO_NUM_RL1] = 1;
-    s.num[AUTO_NUM_RL1] = -1;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.rl1 == 2);
+    s = xpp::AutoSettingsSet{};
+    s.has_num[xpp::AUTO_NUM_RL1] = 1;
+    s.num[xpp::AUTO_NUM_RL1] = -1;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.rl1 == 2);
     CHECK_STR(why.c_str(), "Par Min must be below Par Max");
 
     /* Dsmin <= |Ds| <= Dsmax, checked when one of the three is given (T23) */
     xpp::client_session().auto_state.bifur.ds = 0.02;
-    s = AutoSettingsSet{};
-    s.has_num[AUTO_NUM_DS] = 1;
-    s.num[AUTO_NUM_DS] = -0.6;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.ds == 0.02);
+    s = xpp::AutoSettingsSet{};
+    s.has_num[xpp::AUTO_NUM_DS] = 1;
+    s.num[xpp::AUTO_NUM_DS] = -0.6;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.ds == 0.02);
     CHECK_STR(why.c_str(), "Ds must be from Dsmin to Dsmax in size (its sign is the direction)");
-    s.num[AUTO_NUM_DS] = -0.5;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.ds == -0.5);
-    s = AutoSettingsSet{};
-    s.has_num[AUTO_NUM_DSMIN] = 1;
-    s.num[AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.dsmin == 0.001);
+    s.num[xpp::AUTO_NUM_DS] = -0.5;
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.ds == -0.5);
+    s = xpp::AutoSettingsSet{};
+    s.has_num[xpp::AUTO_NUM_DSMIN] = 1;
+    s.num[xpp::AUTO_NUM_DSMIN] = 0.6; /* above |Ds| and Dsmax */
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.bifur.dsmin == 0.001);
 
     /* axes: names among AUTO's parameters, ranges in order */
-    s = AutoSettingsSet{};
+    s = xpp::AutoSettingsSet{};
     s.par1 = "GCA";
     s.var = "w";
     s.has_plot = 1;
     s.plot = 1;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.axes().icp1 == 1 && xpp::client_session().auto_state.axes().var == 1 && xpp::client_session().auto_state.axes().plot == 1);
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.axes().icp1 == 1 && xpp::client_session().auto_state.axes().var == 1 && xpp::client_session().auto_state.axes().plot == 1);
     s.par1 = "nosuch";
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().icp1 == 1);
-    s = AutoSettingsSet{};
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().icp1 == 1);
+    s = xpp::AutoSettingsSet{};
     s.has_plot = 1;
     s.plot = 5;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().plot == 1);
-    s = AutoSettingsSet{};
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().plot == 1);
+    s = xpp::AutoSettingsSet{};
     s.has_range[2] = 1;
     s.range[2] = 3; /* ymin above ymax */
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().ymin == -1);
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.axes().ymin == -1);
 
     /* Mark values: a parameter of AUTO's or T, into AUTO's user points */
-    s = AutoSettingsSet{};
+    s = xpp::AutoSettingsSet{};
     s.nmarks = 2;
     s.mark_name[0] = "phi";
     s.mark_value[0] = 0.5;
     s.mark_name[1] = "t";
     s.mark_value[1] = 20;
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nper == 2 && xpp::client_session().auto_state.nuzr == 2);
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == 0 && xpp::client_session().auto_state.bifur.nper == 2 && xpp::client_session().auto_state.nuzr == 2);
     CHECK(xpp::client_session().auto_state.uzr_par[0] == 2 && xpp::client_session().auto_state.uzr_period[0] == 0.5 && xpp::client_session().auto_state.uzr_par[1] == 10 && xpp::client_session().auto_state.uzr_period[1] == 20);
     s.mark_name[1] = "v"; /* a variable is no user point */
-    CHECK(auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.uzr_par[1] == 10);
+    CHECK(xpp::auto_settings_apply(xpp::client_session(), s, why) == -1 && xpp::client_session().auto_state.uzr_par[1] == 10);
 
     TEST_REPORT("auto_settings");
 }

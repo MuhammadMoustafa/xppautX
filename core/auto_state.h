@@ -34,7 +34,7 @@ struct AutoOptions {
    shows (its zoom, W65; a zoom belongs to the axes it was made at, other
    ones drop it) */
 struct AutoDiagramView {
-  AUTOAX axes{};
+  xpp::AUTOAX axes{};
   xpp::Zoom zoom;
   bool zoom_seen=false; /* zoom_axes holds the axes the zoom was made at */
   std::array<double,4> zoom_axes{};
@@ -42,17 +42,17 @@ struct AutoDiagramView {
 
 struct AutoState {
   /* the AUTO window and its settings */
-  BIFUR bifur{};
+  xpp::BIFUR bifur{};
   /* the views of the one diagram (W50), at least one, each plotting it at
      its own axes. The active one is the Axes menu's and its zoom's, the
      exports', the info strip's and a run's: its icp1 and icp2 are the
      parameters a run continues in. */
   std::vector<AutoDiagramView> views=std::vector<AutoDiagramView>(1);
   int active_view=0;
-  AUTOAX &axes() { return views[static_cast<std::size_t>(active_view)].axes; }
-  const AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
+  xpp::AUTOAX &axes() { return views[static_cast<std::size_t>(active_view)].axes; }
+  const xpp::AUTOAX &axes() const { return views[static_cast<std::size_t>(active_view)].axes; }
   /* the advanced numerics */
-  ADVAUTO advanced{};
+  xpp::ADVAUTO advanced{};
   /* the parameters AUTO continues: the first npar of par, model
      parameter indices, and their constants[] indices (par_index) */
   int npar=8;
@@ -80,7 +80,7 @@ struct AutoState {
      records */
   int type_of_calc=0;
   /* the torus period a two-parameter torus run starts from */
-  ROTCHK blrtn{};
+  xpp::ROTCHK blrtn{};
   /* the colours of stable and unstable equilibria and periodic orbits
      (@ sec=, uec=, spc=, upc=) */
   int stable_eq_color=20,unstable_eq_color=0;

@@ -23,6 +23,8 @@
 #include "form_ode.h"
 #include "xpp_mem.h"
 
+namespace xpp {
+
 namespace {
 
 constexpr int PARAM_BOX = 1; /* find_user_name's parameters */
@@ -398,15 +400,11 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
 
 } // namespace
 
-extern "C" {
-
 const char *auto_settings_num_key(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].key : nullptr; }
 
 const char *auto_settings_num_label(int i) { return i >= 0 && i < AUTO_NUM_N ? num_fields[i].label : nullptr; }
 
 void auto_settings_init(AutoSettingsEmit emit) { event.init(emit); }
-
-} // extern "C"
 
 void auto_settings_subscribe(const xpp::Session &s, int on) { event.subscribe(on != 0, s); }
 
@@ -461,3 +459,5 @@ int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string
     }
     return -1;
 }
+
+} // namespace xpp

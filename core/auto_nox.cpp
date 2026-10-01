@@ -100,6 +100,8 @@
 #define CSEQ 1
 #define CUEQ 2
 
+namespace xpp {
+
 /* the label the running continuation started from (Auto.irs), for its
    first point: do_auto sets it, addbif takes it (auto_run_from_take) */
 static int run_from;
@@ -136,8 +138,6 @@ constexpr int FP_color=25;
 
 static int load_all_labeled_orbits=0;
 
-
-int go_go_auto(xpp::Session &s); /* gogoauto.cpp: AUTO's run, in no header */
 
 static GRABPT grabpt;
 
@@ -3309,3 +3309,5 @@ void auto_point_xy(xpp::Session &s, double x,double y)
     storeautopoint(s, x,y);
     xpp_ui.auto_show_hint(s);
 }
+
+} // namespace xpp

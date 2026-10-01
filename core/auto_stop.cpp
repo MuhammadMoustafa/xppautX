@@ -9,6 +9,8 @@
 #include "auto_stop.h"
 #include "xpp_log.h"
 
+namespace xpp {
+
 namespace {
 
 const char *const keys[AUTO_STOP_N] = {
@@ -83,8 +85,6 @@ std::string describe(const xpp::Session &s, int why, const AutoStopAt &at, doubl
 
 } // namespace
 
-extern "C" {
-
 void auto_stop_noconv(int why, double ds, double dsmin)
 {
     noconv_why = why >= AUTO_STOP_NOCONV && why < AUTO_STOP_N ? why : AUTO_STOP_NOCONV;
@@ -125,9 +125,7 @@ void auto_stop_last(AutoStopInfo *out)
 
 const char *auto_stop_key(int why) { return why >= 0 && why < AUTO_STOP_N ? keys[why] : nullptr; }
 
-} // extern "C"
-
-void auto_stop_branch_end(const xpp::Session &s, const AutoStopAt *at)
+void auto_stop_branch_end(const Session &s, const AutoStopAt *at)
 {
     try {
         const int why = auto_stop_why(at);
@@ -146,3 +144,5 @@ void auto_stop_branch_end(const xpp::Session &s, const AutoStopAt *at)
     noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
 }
 
+
+} // namespace xpp

@@ -1,10 +1,9 @@
 #ifndef AUTO_SETTINGS_H
 #define AUTO_SETTINGS_H
 #include <stddef.h>
+#include <array>
+#include <string>
 #include "xpplim.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* AUTO's settings as data (docs/ui-v2.md T22, docs/protocol.md "AUTO's
    settings as data"): what the AUTO window's Numerics, Parameter, Axes
@@ -17,7 +16,11 @@ extern "C" {
    the user points' copies), after checking every value: a set with one
    bad value changes nothing.
 
-   auto_settings.cpp; C++ with a C API, nothing escapes it. */
+   auto_settings.cpp; nothing escapes it. */
+
+namespace xpp {
+
+struct Session; /* session.h */
 
 /* the Numerics form's fields, in its order (auto_num_par) */
 enum {
@@ -43,26 +46,16 @@ const char *auto_settings_num_label(int i);
 typedef void (*AutoSettingsEmit)(const char *line, size_t len);
 void auto_settings_init(AutoSettingsEmit emit);
 
-#ifdef __cplusplus
-}
-
-#include <array>
-#include <string>
-
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* {"cmd":"data"} with or without "autosettings": sent (s's) at once, and
    then at each update, whatever it holds */
-void auto_settings_subscribe(const xpp::Session &s, int on);
+void auto_settings_subscribe(const Session &s, int on);
 
 /* send s's event if the settings changed since the one sent last */
-void auto_settings_update(const xpp::Session &s);
+void auto_settings_update(const Session &s);
 
 /* One `auto` `set`: what it changes, each part only when given (a
    default-constructed set gives nothing). A name left empty keeps what is
-   there. C++: filled by json_auto.cpp, read by auto_settings.cpp. */
+   there. Filled by json_auto.cpp, read by auto_settings.cpp. */
 struct AutoSettingsSet {
     std::array<int, AUTO_NUM_N> has_num{};
     std::array<double, AUTO_NUM_N> num{};
@@ -84,10 +77,10 @@ struct AutoSettingsSet {
    axes and the Mark values, names empty where there is none (the event's
    null). What the event sends and an .autox's settings.txt saves (autox.h);
    applied with auto_settings_apply, it gives the settings back. */
-AutoSettingsSet auto_settings_now(const xpp::Session &s);
+AutoSettingsSet auto_settings_now(const Session &s);
 /* view `view`'s axes alone (W50, AutoState::views; it must be one), as the
    axes keys and `view`: applied, they give the view its axes back */
-AutoSettingsSet auto_settings_view(const xpp::Session &s, int view);
+AutoSettingsSet auto_settings_view(const Session &s, int view);
 
 /* 1 when a value of field i is AUTO's (an integer where the field is one,
    in the field's range); why names the field and its range otherwise.
@@ -98,6 +91,7 @@ int auto_settings_num_ok(int i, double v, std::string &why);
    applied, -1 with why (a sentence naming the bad value) when not. Axes
    (plot type, names, ranges, fit) draw the diagram again when AUTO's
    window is open, as the AutoPlot form does. Nothing is thrown. */
-int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string &why);
-#endif
+int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why);
+
+} // namespace xpp
 #endif

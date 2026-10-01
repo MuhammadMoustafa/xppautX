@@ -10,6 +10,8 @@
 #include "auto_stability.h"
 #include "xpp_job.h"
 
+namespace xpp {
+
 #define SPER 3
 #define UPER 4
 #define SEQ 1
@@ -123,3 +125,5 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   xpp_job_point_stored(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 
+
+} // namespace xpp

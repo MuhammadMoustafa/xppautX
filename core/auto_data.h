@@ -1,9 +1,6 @@
 #ifndef AUTO_DATA_H
 #define AUTO_DATA_H
 #include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* AUTO's info strip and stability circle as data, for a front end that
    draws them itself: the "autoinfo" event (docs/protocol.md "The AUTO
@@ -31,7 +28,9 @@ extern "C" {
    last. Nothing is recorded before auto_data_init(), so a program without
    such a front end (xppaut) pays nothing.
 
-   auto_data.cpp; C++ with a C API, nothing escapes it. */
+   auto_data.cpp; nothing escapes it. */
+
+namespace xpp {
 
 typedef void (*AutoDataEmit)(const char *line, size_t len);
 
@@ -50,7 +49,7 @@ void auto_data_forget(void);
 
 /* the point the info strip shows; names are the model's, whole. p2name is
    NULL for a one-parameter point (the strip shows a blank name and 0) */
-typedef struct AutoDataInfo {
+struct AutoDataInfo {
     int ibr, pt;     /* AUTO's branch and point number, signed as AUTO has them */
     int itp, lab;    /* AUTO's point type and label */
     int type;        /* 1 stable steady state, 2 unstable, 3 stable periodic, 4 unstable periodic */
@@ -64,7 +63,7 @@ typedef struct AutoDataInfo {
     double u;
     double per;
     double x, y, y2; /* where the diagram plots it (auto_xy_plot) */
-} AutoDataInfo;
+};
 
 void auto_data_info(const AutoDataInfo *info);
 
@@ -82,7 +81,5 @@ void auto_data_update(int final);
    auto_data_stab ignored until the last on 0. Nests. */
 void auto_data_hold(int on);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp
 #endif

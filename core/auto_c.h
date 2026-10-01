@@ -3,10 +3,8 @@
 /* AUTO's own API between its files (autlib1-5, eispack, conpar2,
    setubv2) and the AUTO front end (gogoauto, auto_nox, autevd). */
 #include <stdio.h>
+#include <vector>
 #include "auto_f2c.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 struct AutoLib; /* auto_state.h */
 
@@ -384,7 +382,7 @@ int ortran(integer *nm, integer *n, integer *low, integer *igh, doublereal *a, d
 
 
 /* problem defined functions (func, stpnt and bcnd, which run the
-   model, are in the C++ section below) */
+   model, are below) */
 int icnd(integer ndim, const doublereal *par, const integer *icp, integer nint, 
 	 const doublereal *u, const doublereal *uold, const doublereal *udot, 
 	 const doublereal *upold, integer ijac,
@@ -404,10 +402,6 @@ int setubv(integer ndim, integer ips, integer na, integer ncol, integer nbc, int
 /* gogoauto.cpp */
 int set_function_pointers(const iap_type,function_list *);
 
-#ifdef __cplusplus
-}
-
-#include <vector>
 namespace xpp {
 struct Session; /* session.h */
 }
@@ -422,8 +416,10 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t,
 int bcnd(xpp::Session &s, integer ndim, const doublereal *par, const integer *icp, integer nbc,
 	 const doublereal *u0, const doublereal *u1, integer ijac,
 	 doublereal *f, doublereal *dbc);
+/* gogoauto.cpp: AUTO's run in the Session s, from the settings do_auto
+   (auto_nox.cpp) put in xAuto */
+int go_go_auto(xpp::Session &s);
 /* autlib1.cpp: fills thu (ndim*8 entries, each 1.) that thu_vec owns;
    thu_vec.data() is what the AE/BVP solves take as their doublereal *thu */
 int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *thl, std::vector<doublereal> &thu_vec, integer *iuz, doublereal *vuz);
-#endif
 #endif

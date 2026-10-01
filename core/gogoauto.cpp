@@ -5,7 +5,7 @@
 #include "xpp_log.h"
 #include "session.h"
 #include "autevd.h" /* xAuto (its own extern) */
-#include "auto_nox.h" /* auto_fort_path() */
+#include "auto_nox.h" /* xpp::auto_fort_path() */
 
 
 namespace {
@@ -20,9 +20,9 @@ struct RunUnits {
   xpp::UniqueFile u3,u7,u9;
   RunUnits(xpp::Session &s, bool restart)
     : lib(s.auto_lib),
-      u3(xpp::files::open_stream(auto_fort_path(3),restart?"r":"w+")),
-      u7(xpp::files::open_stream(auto_fort_path(7),"w")),
-      u9(xpp::files::open_stream(auto_fort_path(9),"w"))
+      u3(xpp::files::open_stream(xpp::auto_fort_path(3),restart?"r":"w+")),
+      u7(xpp::files::open_stream(xpp::auto_fort_path(7),"w")),
+      u9(xpp::files::open_stream(xpp::auto_fort_path(9),"w"))
   {
     lib.session=&s;
     lib.fp3=u3.get();

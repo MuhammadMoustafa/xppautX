@@ -18,6 +18,8 @@
 #include "auto_stop.h"
 #include "xpp_job.h"
 
+namespace xpp {
+
 namespace {
 
 AutoDataEmit emit_line;
@@ -154,26 +156,26 @@ std::string event()
 
 } // namespace
 
-extern "C" void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of)
+void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of)
 {
     emit_line = emit;
     point_of_node = point_of;
     enabled = true;
 }
 
-extern "C" void auto_data_subscribe(int on)
+void auto_data_subscribe(int on)
 {
     subscribed = on != 0;
     sent_valid = false;
 }
 
-extern "C" void auto_data_forget(void)
+void auto_data_forget(void)
 {
     has_info = has_stab = false;
     auto_stop_clear();
 }
 
-extern "C" void auto_data_info(const AutoDataInfo *v)
+void auto_data_info(const AutoDataInfo *v)
 {
     if (!enabled || !v || held > 0) return;
     try {
@@ -190,7 +192,7 @@ extern "C" void auto_data_info(const AutoDataInfo *v)
     }
 }
 
-extern "C" void auto_data_stab(const double *evr, const double *evi, int n, int periodic)
+void auto_data_stab(const double *evr, const double *evi, int n, int periodic)
 {
     if (!enabled || held > 0) return;
     try {
@@ -203,12 +205,12 @@ extern "C" void auto_data_stab(const double *evr, const double *evi, int n, int 
     }
 }
 
-extern "C" void auto_data_hold(int on)
+void auto_data_hold(int on)
 {
     held += on ? 1 : (held > 0 ? -1 : 0);
 }
 
-extern "C" void auto_data_update(int final)
+void auto_data_update(int final)
 {
     static double last;
     if (!enabled || !subscribed || !emit_line) return;
@@ -223,3 +225,5 @@ extern "C" void auto_data_update(int final)
         xpp::out_of_memory("sending AUTO's info strip");
     }
 }
+
+} // namespace xpp

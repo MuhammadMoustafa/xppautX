@@ -32,19 +32,6 @@ core/cvode.h 1|vendored CVODE: W34 (#72) decides
 core/dense.h 1|vendored CVODE: W34 (#72) decides
 core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
 core/vector.h 1|vendored CVODE: W34 (#72) decides
-core/autevd.h 1|W109d: AUTO
-core/auto_c.h 1|W109d
-core/auto_data.h 1|W109d
-core/auto_f2c.h 1|W109d
-core/auto_nox.h 1|W109d
-core/auto_settings.h 1|W109d
-core/auto_stability.h 1|W109d
-core/auto_stop.h 1|W109d
-core/auto_data.cpp 7|W109d
-core/auto_settings.cpp 1|W109d
-core/auto_stability.cpp 3|W109d
-core/auto_stop.cpp 1|W109d
-core/autpp.cpp 3|W109d
 core/ani_data.h 1|W109e: the drawing, the data modules, the UI seam and the commands
 core/aniparse.h 1|W109e
 core/array_print.h 1|W109e

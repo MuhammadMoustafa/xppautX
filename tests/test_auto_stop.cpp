@@ -14,9 +14,9 @@
 namespace {
 
 /* a point inside every limit: nothing ends the branch but what a test sets */
-AutoStopAt inside()
+xpp::AutoStopAt inside()
 {
-    AutoStopAt at{};
+    xpp::AutoStopAt at{};
     at.br = 1;
     at.pt = 7;
     at.ipar = 0;
@@ -36,71 +36,71 @@ int main()
     xpp::client_session().auto_state.npar = 1;
     xpp::client_session().auto_state.par[0] = 0;
 
-    AutoStopAt at = inside();
+    xpp::AutoStopAt at = inside();
     at.par = 2.5;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_PAR_MAX);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_PAR_MAX);
     at.par = -1;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_PAR_MIN);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_PAR_MIN);
     at = inside();
     at.norm = 11;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_NORM_MAX);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_NORM_MAX);
     at.norm = -1; /* AUTO's measure may be a variable's value */
-    CHECK(auto_stop_why(&at) == AUTO_STOP_NORM_MIN);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_NORM_MIN);
     at = inside();
     at.pt = 100;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_NPTS);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_NPTS);
     at.par = 3; /* a limit is named before the point count */
-    CHECK(auto_stop_why(&at) == AUTO_STOP_PAR_MAX);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_PAR_MAX);
     at.mark = 1;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_MARK);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_MARK);
     at.noconv = 1;
-    CHECK(auto_stop_why(&at) == AUTO_STOP_NOCONV); /* no NOTE said how */
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_NOCONV); /* no NOTE said how */
     at.user = 1; /* the user's Stop first */
-    CHECK(auto_stop_why(&at) == AUTO_STOP_USER);
+    CHECK(xpp::auto_stop_why(&at) == xpp::AUTO_STOP_USER);
 
     /* the words, and the record the autoinfo event sends */
-    AutoStopInfo st;
-    auto_stop_clear();
-    auto_stop_last(&st);
-    CHECK(st.why == AUTO_STOP_NONE && std::strcmp(st.text, "") == 0);
+    xpp::AutoStopInfo st;
+    xpp::auto_stop_clear();
+    xpp::auto_stop_last(&st);
+    CHECK(st.why == xpp::AUTO_STOP_NONE && std::strcmp(st.text, "") == 0);
     at = inside();
     at.par = 2.25;
-    auto_stop_branch_end(xpp::client_session(), &at);
-    auto_stop_last(&st);
-    CHECK(st.why == AUTO_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(&st);
+    CHECK(st.why == xpp::AUTO_STOP_PAR_MAX && st.br == 1 && st.pt == 7 && st.value == 2.25 && st.limit == 2);
     CHECK_STR(st.key, "parmax");
     CHECK_STR(st.text, "parameter iapp reached Par Max (2)");
     at.ipar = 10;
     at.par = -0.5;
-    auto_stop_branch_end(xpp::client_session(), &at);
-    auto_stop_last(&st);
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(&st);
     CHECK_STR(st.text, "the period T reached Par Min (0)");
 
     /* a NOTE says how the solver failed; it counts for the next end only */
     at = inside();
     at.noconv = 1;
     at.br = -2; /* AUTO's sign is stability, not part of the number */
-    auto_stop_noconv(AUTO_STOP_NOCONV_MIN, -1e-5, 0.0001);
-    auto_stop_branch_end(xpp::client_session(), &at);
-    auto_stop_last(&st);
-    CHECK(st.why == AUTO_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
+    xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_MIN, -1e-5, 0.0001);
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(&st);
+    CHECK(st.why == xpp::AUTO_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
     CHECK_STR(st.text, "no convergence even at the smallest step (Dsmin 0.0001)");
-    auto_stop_branch_end(xpp::client_session(), &at);
-    auto_stop_last(&st);
-    CHECK(st.why == AUTO_STOP_NOCONV && std::isnan(st.value));
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(&st);
+    CHECK(st.why == xpp::AUTO_STOP_NOCONV && std::isnan(st.value));
     CHECK_STR(st.text, "no convergence");
     at = inside();
     at.nmx = 7;
-    auto_stop_branch_end(xpp::client_session(), &at);
-    auto_stop_last(&st);
+    xpp::auto_stop_branch_end(xpp::client_session(), &at);
+    xpp::auto_stop_last(&st);
     CHECK_STR(st.text, "the branch reached Max points (NMX 7)");
 
-    CHECK_STR(auto_stop_key(AUTO_STOP_NOCONV_SWITCH_FIXED), "noconv-switch-fixed");
-    CHECK(auto_stop_key(AUTO_STOP_N) == nullptr);
-    auto_stop_clear();
-    auto_stop_last(&st);
-    CHECK(st.why == AUTO_STOP_NONE);
+    CHECK_STR(xpp::auto_stop_key(xpp::AUTO_STOP_NOCONV_SWITCH_FIXED), "noconv-switch-fixed");
+    CHECK(xpp::auto_stop_key(xpp::AUTO_STOP_N) == nullptr);
+    xpp::auto_stop_clear();
+    xpp::auto_stop_last(&st);
+    CHECK(st.why == xpp::AUTO_STOP_NONE);
 
     TEST_REPORT("auto_stop");
 }

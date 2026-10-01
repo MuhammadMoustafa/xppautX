@@ -10,7 +10,7 @@
 
 /* a diagram point and the arrays its DIAGRAM entry points at */
 struct DiagramPoint {
-  DIAGRAM d{};
+  xpp::DIAGRAM d{};
   std::vector<double> uhi,ulo,u0,ubar,evr,evi;
 };
 
@@ -34,19 +34,19 @@ void start_diagram(xpp::Session &s, int n);
 /* how many points (1 for an empty diagram, 0 before start_diagram) */
 int diagram_count(const AutoDiagram &diagram);
 /* the point of that index, or NULL */
-DIAGRAM *diagram_point(AutoDiagram &diagram, int index);
+xpp::DIAGRAM *diagram_point(AutoDiagram &diagram, int index);
 /* the first point, or NULL before start_diagram */
-DIAGRAM *diagram_first(AutoDiagram &diagram);
+xpp::DIAGRAM *diagram_first(AutoDiagram &diagram);
 /* the point after / before d, or NULL at the end / the start */
-DIAGRAM *diagram_next(AutoDiagram &diagram, const DIAGRAM *d);
-DIAGRAM *diagram_prev(AutoDiagram &diagram, const DIAGRAM *d);
+xpp::DIAGRAM *diagram_next(AutoDiagram &diagram, const xpp::DIAGRAM *d);
+xpp::DIAGRAM *diagram_prev(AutoDiagram &diagram, const xpp::DIAGRAM *d);
 void edit_start(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3, int icp4,double *evr, double *evi);
 void add_diagram(xpp::Session &s, int ibr, int ntot, int itp, int lab, int nfpar, double a, double *uhi, double *ulo, double *u0, double *ubar, double *par, double per, int n, int icp1, int icp2, int icp3,int icp4,int flag2, double *evr, double *evi);
 void kill_diagrams(xpp::Session &s);
 /* the entry add_diagram or edit_start made last */
-DIAGRAM *last_diagram(AutoDiagram &diagram);
+xpp::DIAGRAM *last_diagram(AutoDiagram &diagram);
 /* the stored point labelled lab (the first, as AUTO reads its .s file), or NULL */
-const DIAGRAM *diagram_of_label(const xpp::Session &s, int lab);
+const xpp::DIAGRAM *diagram_of_label(const xpp::Session &s, int lab);
 /* entry `index` of the diagram list is AUTO's point ntot of branch ibr (either sign of ntot) */
 int diagram_has(const AutoDiagram &diagram, int index, int ibr, int ntot);
 void redraw_diagram(xpp::Session &s);

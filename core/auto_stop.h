@@ -1,8 +1,5 @@
 #ifndef AUTO_STOP_H
 #define AUTO_STOP_H
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* Why AUTO ended a branch (docs/ui-v2.md T23, docs/protocol.md "The AUTO
    diagram as data", `autoinfo` `stop`): a parameter or norm limit, the
@@ -18,9 +15,13 @@ extern "C" {
    last one is what the `autoinfo` event's "stop" holds until the next run
    starts or AUTO's window is new.
 
-   auto_stop.cpp; C++ with a C API, nothing escapes it. */
+   auto_stop.cpp; nothing escapes it. */
 
-typedef enum {
+namespace xpp {
+
+struct Session; /* session.h */
+
+enum AutoStopWhy {
     AUTO_STOP_NONE = 0,
     AUTO_STOP_PAR_MIN,     /* the parameter below Par Min (RL0) */
     AUTO_STOP_PAR_MAX,     /* the parameter above Par Max (RL1) */
@@ -35,7 +36,7 @@ typedef enum {
     AUTO_STOP_NOCONV_SWITCH_FIXED, /* ... switching branches, fixed step */
     AUTO_STOP_NOCONV_SWITCH_MIN,   /* ... switching branches, smallest step */
     AUTO_STOP_N
-} AutoStopWhy;
+};
 
 /* a "No convergence" NOTE: which one (an AUTO_STOP_NOCONV_*), the step
    size then and Dsmin; the branch end that follows says "no convergence"
@@ -43,7 +44,7 @@ typedef enum {
 void auto_stop_noconv(int why, double ds, double dsmin);
 
 /* the point at which stplae/stplbv end a branch, and what they saw */
-typedef struct AutoStopAt {
+struct AutoStopAt {
     long br, pt;      /* AUTO's branch and point number (ibr, ntot) */
     long ipar;        /* AUTO's index of the continuation parameter, icp[0] */
     double par, norm; /* its value and the norm AUTO checks (amp) */
@@ -52,7 +53,7 @@ typedef struct AutoStopAt {
     int noconv; /* the solver gave up (istop 1, no cancel): AUTO labels it MX */
     int mark;   /* istop -1: a Mark value set to stop */
     int user;   /* stopped by the user (byeauto's iflag, a cancel) */
-} AutoStopAt;
+};
 
 /* why a branch ending at `at` ended; the first of: the user, no
    convergence, a Mark value, Par Min, Par Max, Norm Min, Norm Max, Max
@@ -65,27 +66,22 @@ void auto_stop_clear(void);
 
 /* the last branch end, for the autoinfo event; why is AUTO_STOP_NONE when
    there is none. key and text stay valid until the next branch end or clear */
-typedef struct AutoStopInfo {
+struct AutoStopInfo {
     int why;
     const char *key;  /* "parmax", "noconv-min", ... (docs/protocol.md) */
     const char *text; /* "parameter iapp reached Par Max (0.45)" */
     long br, pt;
     double value; /* what reached the limit (NAN when nothing did) */
     double limit; /* the limit (NAN when there is none) */
-} AutoStopInfo;
+};
 void auto_stop_last(AutoStopInfo *out);
 
 /* the key of an AutoStopWhy ("parmax", ...), or NULL out of range */
 const char *auto_stop_key(int why);
 
-#ifdef __cplusplus
-}
-
-namespace xpp {
-struct Session; /* session.h */
-}
 /* the branch ended at `at` in the session s's run: record why (its
    parameter by the name s gives it) and write it in AUTO's Output */
-void auto_stop_branch_end(const xpp::Session &s, const AutoStopAt *at);
-#endif
+void auto_stop_branch_end(const Session &s, const AutoStopAt *at);
+
+} // namespace xpp
 #endif

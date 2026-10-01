@@ -65,9 +65,9 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
        place), not a sentinel before one: write_info_out/write_pts start
        the same way */
     for (const DiagramPoint &p : s.diagram.points) {
-        const DIAGRAM *d = &p.d;
-        int type = get_bif_type(d->ibr, d->ntot, d->lab);
-        const char *sym = auto_bif_sym(d->itp);
+        const xpp::DIAGRAM *d = &p.d;
+        int type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
+        const char *sym = xpp::auto_bif_sym(d->itp);
         while (*sym == ' ') sym++;
         double par1 = d->par[d->icp1];
         double par2 = d->icp2 < s.auto_state.npar ? d->par[d->icp2] : par1;
@@ -90,8 +90,8 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
     if (!w) return xpp::fail("CSV export", "Can't open file");
     w.print("branch,point,index,re,im,kind\n");
     for (const DiagramPoint &p : s.diagram.points) {
-        const DIAGRAM *d = &p.d;
-        int type = get_bif_type(d->ibr, d->ntot, d->lab);
+        const xpp::DIAGRAM *d = &p.d;
+        int type = xpp::get_bif_type(d->ibr, d->ntot, d->lab);
         const char *kind = point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < s.model().node; i++)
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
