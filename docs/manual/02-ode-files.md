@@ -221,7 +221,7 @@ The contents of `test.inc` will be included into the ODE file as if you had writ
     par a=.25
     done
 
-In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). A file that cannot be read stops the load, with the model's file and the `#include` line.
+In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). The file is looked for in the folder of the file that holds the line (the model's, or an included file's for a nested include), unless the name is an absolute path; the `-include` flag's name is relative to the working folder. A file that cannot be read stops the load, with the model's file and the `#include` line.
 
 **NOTES:** (1) At the end of every include file you have to have the statement `#done` (2) include files can include other files.
 

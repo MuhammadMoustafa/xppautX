@@ -806,11 +806,7 @@ private:
     if (t.kind != Token::Kind::String) fail(t.pos, xpp::format("expected the file's name in quotes, found {}", describe(t)));
     std::string name = take().text;
     if (depth_ >= max_include_depth) fail(t.pos, xpp::format("too many includes inside each other at {}", name));
-    /* relative to the including file's folder */
-    const std::string &here = out_.files[file_];
-    size_t slash = here.find_last_of("/\\");
-    bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
-    std::string path = (slash == std::string::npos || absolute) ? name : here.substr(0, slash + 1) + name;
+    const std::string path = xpp::include_path(out_.files[file_], name);
     std::string text;
     if (!xpp::read_model_file(model_, path, text)) fail(t.pos, xpp::format("cannot read the included file {}", path));
     out_.files.push_back(path);

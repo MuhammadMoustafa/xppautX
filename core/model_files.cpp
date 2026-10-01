@@ -11,6 +11,13 @@
 
 namespace xpp {
 
+std::string include_path(const std::string &including, const std::string &name)
+{
+    const size_t slash = including.find_last_of("/\\");
+    const bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
+    return (slash == std::string::npos || absolute) ? name : including.substr(0, slash + 1) + name;
+}
+
 namespace {
 
 /* the index of the model's file name in m.files, or -1 */

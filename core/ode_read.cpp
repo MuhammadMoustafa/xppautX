@@ -904,6 +904,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 	    }
     }
     if(if_include_file(old,newfile)){
+      /* relative to the folder of the file this line is in */
+      newfile=xpp::include_path(src.file,newfile);
       xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
       if(!fnew){
          xpp::Diagnostic d;
