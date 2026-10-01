@@ -333,6 +333,50 @@ int main(void)
         remove(inc_file);
     }
 
+    /* an .ode's #include opts.inc (the name as written, #done last) applies */
+    {
+        const char inc_file[] = "build/test_options_inc.inc";
+        CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n#done\n"));
+        CHECK(write_file(bad_ode, std::string(model_text) + "#include test_options_inc.inc\ndone\n"));
+        xpp::Session *t = load(bad_ode);
+        CHECK(t != nullptr);
+        if (t) {
+            int index = 0;
+            CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
+            CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
+        }
+        remove(inc_file);
+    }
+
+    /* an include file that cannot be read stops the load: the #include
+       line's own (the model's file and line), and the -include flag's */
+    {
+        CHECK(write_file(bad_ode, std::string(model_text) + "#include nosuch.inc\ndone\n"));
+        char arg0[] = "test_options";
+        char file[] = "build/test_options_bad.ode";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        CHECK(!l.has_value());
+        CHECK(&xpp::client_session() == s);
+        if (!l) {
+            CHECK(l.error().file == bad_ode);
+            CHECK(l.error().line == 5);
+            CHECK(l.error().cause.find("nosuch.inc") != std::string::npos);
+            if (l.error().line != 5) printf("  include: %s\n", l.error().text().c_str());
+        }
+        CHECK(write_file(bad_ode, std::string(model_text) + "done\n"));
+        char flag[] = "-include";
+        char missing[] = "nosuch.inc";
+        char *argv2[] = {arg0, file, flag, missing, nullptr};
+        const xpp::Loaded f = xpp::load_model(4, argv2, 1);
+        CHECK(!f.has_value());
+        CHECK(&xpp::client_session() == s);
+        if (!f) {
+            CHECK(f.error().file == "nosuch.inc");
+            CHECK(f.error().cause.find("-include") != std::string::npos);
+        }
+    }
+
     remove(bad_ode);
     remove(bad_odex);
     remove(plain_ode);

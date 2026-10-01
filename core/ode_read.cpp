@@ -873,8 +873,11 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 		{
 			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
       			if(!fnew){
-         		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
-			  model_failed();
+         		  xpp::Diagnostic d;
+			  d.file=inc;
+			  d.cause=xpp::format("cannot open the include file {} (named by the -include flag)",inc);
+			  xpp::log(XPP_LOG_ERROR, "{}\n",d.cause);
+			  model_failed(std::move(d));
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			p.included++;
@@ -903,8 +906,13 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
     if(if_include_file(old,newfile)){
       xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
       if(!fnew){
-         xpp::log(XPP_LOG_WARN, "Cant open include file <{}>\n",newfile);
-         continue;
+         xpp::Diagnostic d;
+         d.file=src.file;
+         d.line=src.line;
+         d.cause=xpp::format("cannot open the include file {}",newfile);
+         d.source=old;
+         xpp::log(XPP_LOG_ERROR, "{}:{}: {}\n",d.file,d.line,d.cause);
+         model_failed(std::move(d));
        }
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        p.included++;

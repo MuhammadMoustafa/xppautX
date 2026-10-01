@@ -120,7 +120,7 @@ ODE files consist of ascii readable text which XPP uses to describe the program 
 
     # comment line - name of file, etc   
     ...
-    #include <filename>
+    #include filename
     ... 
     options <filename>
     ...
@@ -199,7 +199,7 @@ ODE files consist of ascii readable text which XPP uses to describe the program 
 
 The typical ODE file contains some or all of the above types of lines. Continuous variables, auxiliary quantities, and Markov variables are all plottable quantities in XPP. That is, once you have solved your equation, you can plot or view any of the continuous and Markov variables or the auxiliary quantities.
 
-XPP has no options file: set the options with `@` lines, in the ODE file or in a file it includes (below). An `option <filename>` line, as XPPAUT's ODE files could have, is refused at load, with its line.
+XPP has no options file: set the options with `@` lines, in the ODE file or in a file it includes with `#include opts.inc` (below). An `option <filename>` line, as XPPAUT's ODE files could have, is refused at load, with its line.
 
 XPP lets you include files in the ODE file so that for example, you can create a library of functions which your XPP ode file can call. Here is an example of two files, the first is called `test.ode` and the second is called `test.inc`:
 
@@ -220,6 +220,8 @@ The contents of `test.inc` will be included into the ODE file as if you had writ
     x'=f(x)
     par a=.25
     done
+
+In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). A file that cannot be read stops the load, with the model's file and the `#include` line.
 
 **NOTES:** (1) At the end of every include file you have to have the statement `#done` (2) include files can include other files.
 
