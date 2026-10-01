@@ -311,17 +311,43 @@ void data_add_col(xpp::Session &s, BROWSER *b)
   }
 }
 
+namespace {
+
+/* the parser's values set to one stored row, for a formula computed row by
+   row: T and the ODEs by index, the Markov variables and the aux
+   quantities through their names, looked up once for all the rows */
+class RowValues {
+public:
+  explicit RowValues(xpp::Session &s) : s_(s)
+  {
+    const xpp::Model &m=s.model();
+    for(int j=m.node;j<m.neq;j++)slots_.push_back(xpp::value_slot(s,m.uvar_names[j]));
+  }
+  void set(float *const *data, int row)
+  {
+    const int node=s_.model().node;
+    for(int j=0;j<node+1;j++)setvar(s_,j,static_cast<double>(data[j][row]));
+    for(std::size_t k=0;k<slots_.size();k++)
+      if(slots_[k])*slots_[k]=static_cast<double>(data[node+1+static_cast<int>(k)][row]);
+  }
+private:
+  xpp::Session &s_;
+  std::vector<double *> slots_;
+};
+
+}
+
 bool compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
 {
-  int com[4000],i,j;
+  int com[4000],i;
   const xpp::Model &m=s.model();
   if(xpp::add_expr(s,formula,com,&i)){
     err_msg("Bad Formula .... ");
     return false;
   }
+  RowValues row(s);
   for(i=0;i<nrows;i++){
-    for(j=0;j<m.node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
-    for(j=m.node;j<m.neq;j++)xpp::set_val(s,m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
+    row.set(s.data_store.col,i);
     s.data_store.col[col_index][i]=static_cast<float>(xpp::evaluate(s,com));
   }
   /* add_expr may have added constants to the parser's working symbol
@@ -371,7 +397,7 @@ void chk_seq(std::string_view s,int *seq, double *a1, double *a2)
 
 void replace_column(xpp::Session &s, const char *var, char *form, float **dat, int n)
 {
- int com[200],i,j;
+ int com[200],i;
  int intflag=0;
  int dif_var=-1;
  int seq=0;
@@ -439,6 +465,7 @@ if(dif_var<0)
  wipe_rep(s.browser);
  s.browser.old_column.assign(n,0.0f);
  s.browser.replaced=1;
+ RowValues row(s);
  for(i=0;i<n;i++)
  {
    s.browser.old_column[i]=dat[s.browser.replaced_col][i];
@@ -446,8 +473,7 @@ if(dif_var<0)
      {
        if(seq==0)
 	 {
-	   for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(dat[j][i]));
-	   for(j=s.model().node;j<s.model().neq;j++)xpp::set_val(s,s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   row.set(dat,i);
 	   if(intflag)
 	     {
 	       sum+=static_cast<float>(xpp::evaluate(s,com));

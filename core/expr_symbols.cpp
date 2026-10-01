@@ -603,49 +603,42 @@ int get_param_index(const xpp::Session &s, std::string_view name)
     return(-1);
 }
 
+namespace {
+
+/* where name's value lives in p, a parameter's or a variable's (nullptr
+   when name is neither): const as p is */
+template <class Parser>
+auto slot_in(Parser &p, std::string_view name) -> decltype(&p.constants[0])
+{
+  int type;
+  find_name(p,name,&type);
+  if(type<0)return nullptr;
+  const int com=p.symbols[type].com;
+  if(is_ucon(com))return &p.constants[com % MAXTYPE];
+  if(is_uvar(com))return &p.variables[com % MAXTYPE];
+  return nullptr;
+}
+
+}
+
+double *value_slot(Session &s, std::string_view name) { return slot_in(s.parser,name); }
+
 /* GET_VAL   */
 
 int get_val(const xpp::Session &s, std::string_view name, double *value)
 {
-  int type,com;
-  *value=0.0;
-  find_name(s.parser,name,&type);
-  if(type<0)return(0);
-  com=s.parser.symbols[type].com;
-  if(is_ucon(com))
-  {
-   *value=s.parser.constants[com % MAXTYPE];
-   return(1);
-  }
-  if(is_uvar(com))
-  {
-      *value=s.parser.variables[com % MAXTYPE];
-   return(1);
-  }
-  return(0);
+  const double *v=slot_in(s.parser,name);
+  *value=v?*v:0.0;
+  return v!=nullptr;
 }
 
 /* SET_VAL         */
 
 int set_val(xpp::Session &s, std::string_view name, double value)
 {
-  int type,com;
-  find_name(s.parser,name,&type);
-  if(type<0)return(0);
-  com=s.parser.symbols[type].com;
-  if(is_ucon(com))
-  {
-         s.parser.constants[com % MAXTYPE]=value;
-
-    return(1);
-  }
-  if(is_uvar(com))
-  {
-
-      s.parser.variables[com % MAXTYPE]=value;
-    return(1);
-  }
-  return(0);
+  double *v=slot_in(s.parser,name);
+  if(v)*v=value;
+  return v!=nullptr;
 }
 
 } // namespace xpp

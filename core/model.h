@@ -213,6 +213,9 @@ struct Model {
   std::array<std::string, MAXODE> uvar_names;
   /* the parameters' names (NUPAR of them) */
   std::array<std::string, MAXPAR> upar_names;
+  /* each parameter's place in the parser's constants (what its name finds
+     there: the state event reads every parameter, without the lookups) */
+  std::array<int, MAXPAR> upar_con{};
   /* the user functions' names (NFUN of them) */
   std::array<std::string, MAXUFUN> ufun_names;
   /* each user function's argument names (narg_fun[i] of them) */

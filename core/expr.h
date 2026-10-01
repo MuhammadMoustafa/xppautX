@@ -88,6 +88,9 @@ int find_lookup(const Session &s, std::string_view name);
 int get_param_index(const Session &s, std::string_view name);
 int get_val(const Session &s, std::string_view name, double *value);
 int set_val(Session &s, std::string_view name, double value);
+/* where a parameter's or variable's value lives (nullptr when name is not
+   one): a loop that sets or reads it row after row looks it up once */
+double *value_slot(Session &s, std::string_view name);
 int add_var(Session &s, std::string_view name, double value);
 
 /* a name the symbol table knows: its length, what it compiles to (com,

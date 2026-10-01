@@ -53,17 +53,15 @@ void send_state(xpp::Session &s)
     const xpp::Model &m = s.model();
     Buf b;
     int i;
-    double z;
     state_dirty = 0;
     evaluate_derived(s);
     BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
     for (i = 0; i < m.nupar; i++) {
-        get_val(s,m.upar_names[i], &z);
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
         buf_str(&b, m.upar_names[i]);
         BUF_LIT(&b, ",");
-        buf_num(&b, z, 16);
+        buf_num(&b, s.parser.constants[m.upar_con[i]], 16);
         BUF_LIT(&b, "]");
     }
     BUF_LIT(&b, "],\"ics\":[");

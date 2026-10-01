@@ -394,6 +394,7 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
     model_failed();
   }
   m.default_val[m.nupar]=value;
+  m.upar_con[m.nupar]=s.parser.ncon-1; /* add_con's */
   m.upar_names[m.nupar++]=name;
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
 }
