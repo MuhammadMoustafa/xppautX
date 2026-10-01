@@ -14,6 +14,15 @@ on:
         required: false
         default: ''
 
+# A newer push to a branch cancels that branch's run still going (maintainer,
+# 2026-10-01: three pushes minutes apart ran three full runs): the newest
+# run checks the tip, which holds every commit the cancelled ones had. A
+# push and a workflow_dispatch are in different groups, so a dispatch of a
+# few jobs never cancels a push's full run, nor the other way round.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Each platform runs the same behaviour checks against its own build
 # (build, unit tests, protocol, web, command-line modes, AUTO, every
 # example, the browser checks); the checks about the source, the same
