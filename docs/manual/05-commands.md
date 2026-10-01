@@ -127,8 +127,10 @@ This brings up a menu with several options. Type `Esc` to abort.
   ask it in their own words): **Save session** (`S`) writes a session file
   first, as **sa(V)e session** does, then quits; **Don't save** (`D`)
   quits; **Cancel** (`Esc`) keeps working. A recording in progress is saved
-  with the session (its name is asked as **Stop** asks it). Quitting
-  while something computes stops it first, then asks. In the browser,
+  with the session (its name is asked as **Stop** asks it). The desktop
+  window's close box asks while something computes without stopping it
+  (Cancel leaves the run going; Save session stops it, then saves). In
+  the browser,
   closing the tab does not end xppautX (the browser asks whether to leave
   the page): File/Quit is the way to end it there.
 - **(T)ranspose** : This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:

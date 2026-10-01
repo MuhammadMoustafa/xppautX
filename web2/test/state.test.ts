@@ -7,7 +7,8 @@ import {plotKey} from '../src/plot/plotKeys';
 import {zoomAbout} from '../src/plot/viewmath';
 import type {SeriesEvent} from '../src/protocol/types';
 import {activeWindow} from '../src/store/plots';
-import {busyText, classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
+import {busyText, classifyLogText, initialState, LEAVE_ASK, noIdle, reduce, type AppState} from '../src/store/state';
+import {HELLO} from './hello';
 
 const phase: SeriesEvent = {
   ev: 'series', win: 1, rows: 3, three: 0, xlabel: '', ylabel: '', zlabel: '',
@@ -234,4 +235,25 @@ test('errors wait in one error dialog until OK; a warning flashes the status, no
   assert.deepEqual(errors(w), []);
   assert.equal(ev(s, {ev: 'message', bottom: 'Working'}).flash, s.flash, 'progress does not flash');
   assert.equal(ev(s, {ev: 'log', text: '  1    1  EP    1   0.5E+00   0.1E+00   0.2E+00\n'}).flash, s.flash, 'AUTO output does not flash');
+});
+
+test("the page's leave question (W110): worded by hello, kept over the run's idle, replaced by a core question", () => {
+  const quit = {question: 'Quit xppautX? Save this session first?',
+    recording: 'Quit xppautX? Save this session, and the recording in progress, first?',
+    choices: ['Save session', "Don't save"], keys: 'sd'};
+  assert.equal(reduce(initialState, {type: 'leave', open: true}).ask, null, 'no hello, no question');
+  let s = ev(initialState, {...HELLO, quit});
+  s = reduce(ev(s, {ev: 'computing'}), {type: 'leave', open: true});
+  assert.deepEqual(s.ask && [s.ask.id, s.ask.kind, s.ask.question, s.ask.choices, s.ask.keys],
+    [LEAVE_ASK, 'choice', quit.question, quit.choices, 'sd']);
+  assert.equal(s.computing, true, 'the run goes on');
+  s = ev(s, {ev: 'idle'});
+  assert.equal(s.ask?.id, LEAVE_ASK, 'the run ending leaves it open');
+  assert.equal(reduce(s, {type: 'leave', open: false}).ask, null);
+  assert.equal(ev(s, {ev: 'ask', id: 7, kind: 'file'}).ask?.id, 7, "a question of the core's replaces it");
+  const rec = ev(s, {ev: 'state', pars: [], ics: [], recording: {steps: 1, note: ''}});
+  assert.equal(reduce(rec, {type: 'leave', open: true}).ask?.question, quit.recording, 'naming the recording in progress');
+  assert.equal(noIdle({cmd: 'quit'}), true, 'the plain quit has no idle');
+  assert.equal(noIdle({cmd: 'quit', save: true}), false, 'the quit that saves is a command of its own');
+  assert.equal(noIdle({cmd: 'quit', ask: true}), false);
 });

@@ -178,7 +178,9 @@ export type Action =
   | {type: 'ani'; action: AniAction}
   | {type: 'kinescope'; action: KinescopeAction}
   | {type: 'help'; action: HelpAction}
-  | {type: 'player'; action: PlayerAction};
+  | {type: 'player'; action: PlayerAction}
+  /** the page's own leave question (LEAVE_ASK) opened or closed */
+  | {type: 'leave'; open: boolean};
 
 export const initialState: AppState = {
   connected: false,
@@ -258,7 +260,8 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
 
-/* commands with no idle of their own (abort) or none at all (quit); a
+/* commands with no idle of their own (abort) or none at all (the plain
+   quit; one that asks or saves is a command of its own); a
    `browser` request with `from` is answered at once too (docs/protocol.md:
    "answered at once with browser, even during a prompt"), so the table's
    paging (store/table.ts planRequest) never leaves the status bar stuck
@@ -266,7 +269,24 @@ function addToast(state: AppState, kind: Toast['kind'], text: string, action?: T
 const NO_IDLE = new Set(['abort', 'quit']);
 /** whether a command ends without an idle of its own (a control line) */
 export function noIdle(cmd: Command): boolean {
+  if (cmd.cmd === 'quit') return !cmd.ask && !cmd.save;
   return NO_IDLE.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd);
+}
+
+/** The id of the page's own leave question (W110): File > Quit's, worded
+    by hello's `quit`, asked by the page when the desktop window's close
+    box or Quit comes while a command runs (session.ts quitAsked), the run
+    going on; never sent to the core, answered in session.ts. An ask like
+    the core's, so it is modal as they are; the core's idle leaves it open,
+    a question of the core's replaces it. */
+export const LEAVE_ASK = -1;
+
+/** the leave question, as the core would ask it now (null: hello has no `quit`) */
+function leaveAsk(state: AppState): AskEvent | null {
+  const q = state.hello?.quit;
+  if (!q) return null;
+  return {ev: 'ask', id: LEAVE_ASK, kind: 'choice', title: '', question: state.core?.recording ? q.recording : q.question,
+    choices: q.choices, keys: q.keys};
 }
 
 /** the status while busy: what runs, when no question is open (W68: every
@@ -385,7 +405,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
     }
     case 'idle':
       return {
-        ...state, busy: false, computing: false, running: null, stopping: false, ask: null, pick: null, box: '',
+        ...state, busy: false, computing: false, running: null, stopping: false, pick: null, box: '',
+        ask: state.ask?.id === LEAVE_ASK ? state.ask : null,
         progress: null,
         ani: reduceAni(state.ani, {type: 'playing', playing: false}),
         diagram: diagramSettled(state.diagram),
@@ -496,6 +517,11 @@ export function reduce(state: AppState, action: Action): AppState {
     }
     case 'aborting':
       return state.busy ? {...state, stopping: true} : state;
+    case 'leave': {
+      if (!action.open) return state.ask?.id === LEAVE_ASK ? {...state, ask: null} : state;
+      const ask = leaveAsk(state);
+      return ask ? {...state, ask} : state;
+    }
     case 'viewport':
       return withPlots(state, setViewport(state.plots, action.win ?? state.plots.active, action.viewport));
     case 'rotate3d':

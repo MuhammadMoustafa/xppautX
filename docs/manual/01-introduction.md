@@ -56,11 +56,15 @@ Linux). Its menu
 bar holds what belongs to the app rather than the model: **File** (Open
 model… and Reload, the page's File/open Model and File/rEload, below;
 Quit) and **Help** (Manual, Keyboard shortcuts, About: version,
-commit, compiler, protocol version and license) — except on macOS, which
-has no menu bar of its own yet (untested there beyond CI). The model's
-own menus stay inside the page. Closing the window, or its File > Quit,
-asks first, as the page's File/Quit does ("Quit xppautX? Save this
-session first?": Save session, Don't save, Cancel); after an error that stops the model, the window
+commit, compiler, protocol version and license) — except on macOS, whose menu bar
+holds only Quit xppautX (Cmd+Q) yet (untested there beyond CI). The model's
+own menus stay inside the page. Closing the window, or its File > Quit
+(on macOS also Cmd+Q), asks first, as the page's File/Quit does ("Quit
+xppautX? Save this session first?": Save session, Don't save, Cancel).
+It asks without stopping what is computing: the run goes on under the
+question, and Cancel leaves it running; Save session stops it, saves and
+quits; Don't save quits at once, even from a computation that does not
+respond. After an error that stops the model, the window
 stays open on the page's Messages until you close it (a model that does
 not load shows its problem's line at the top of the page).
 

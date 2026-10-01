@@ -3793,7 +3793,10 @@ def check_quit():
     Quit and close box): Save session (s), Don't save (d), Cancel; s saves
     the session (and a recording in progress) then exits, d exits, a cancel
     keeps the session; a quit during a computation stops it, then asks. The
-    plain quit (scripts, --server's clients) exits at once, asking nothing."""
+    plain quit (scripts, --server's clients) exits at once, asking nothing.
+    W110: hello carries the question, which the page asks itself during a
+    run; its Save session is {"cmd":"quit","save":true} (the run stops, the
+    session is saved, the exit), its Don't save the plain quit."""
     is_ask = lambda e: e.get('ev') == 'ask'
     question = 'Quit xppautX? Save this session first?'
 
@@ -3819,13 +3822,20 @@ def check_quit():
     # F Q asks; Esc (a cancel) keeps the session
     p, r, snd, col, _ = launch_server()
     try:
-        col(is_idle)
+        evs, _ = col(is_idle)
+        hello = next((e for e in evs if e.get('ev') == 'hello'), {})
         snd(cmd='key', key='f')
         col(is_idle)
         _, ask = asked(snd, col, cmd='key', key='q')
         check('File/Quit asks one question: Save session (s), Don\'t save (d), Cancel',
               ask and is_ask(ask) and ask.get('kind') == 'choice' and ask.get('question') == question
               and ask.get('choices') == ['Save session', "Don't save"] and ask.get('keys') == 'sd', str(ask))
+        quit = hello.get('quit') or {}
+        check('hello carries File/Quit\'s question as the core asks it (W110: the page asks the same during a run)',
+              ask and quit.get('question') == ask.get('question') and quit.get('choices') == ask.get('choices')
+              and quit.get('keys') == ask.get('keys')
+              and quit.get('recording') == 'Quit xppautX? Save this session, and the recording in progress, first?',
+              str(quit))
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], ok=0)
         col(is_idle)
@@ -3922,6 +3932,67 @@ def check_quit():
         evs, _ = col(lambda e: False, timeout=1)
         check('the plain quit (scripts, --server) exits at once, asking nothing',
               p.poll() == 0 and not any(is_ask(e) for e in evs), str(p.poll()))
+    finally:
+        done(p, r, snd)
+
+    def long_run(snd, col):
+        """an integration that goes on for minutes, going"""
+        snd(cmd='key', key='u')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='t')
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], value='1e7')
+            col(is_idle)
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        _, ask = asked(snd, col, cmd='key', key='i')
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='g')
+        col(lambda e: e.get('ev') == 'progress', timeout=30 * SLOW)
+
+    # W110: the page asked during a run and was answered Save session: the
+    # run stops, the session is saved (its file asked), then the exit
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        long_run(snd, col)
+        snd(cmd='quit', save=True)
+        evs, ask = col(is_ask, timeout=30 * SLOW)
+        kinds = [e.get('ev') for e in evs if e.get('ev') in ('stopped', 'idle', 'ask')]
+        check('quit with save (the page\'s Save session) during a run: the run stops, then the session file is asked, '
+              'no question before it', kinds[:3] == ['stopped', 'idle', 'ask'] and ask and ask.get('kind') == 'file'
+              and ask.get('wild') == '*.snapx', str(kinds) + ' ' + str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], file='kept')
+        _, ok = ended(p, col)
+        snap = os.path.join(r, 'kept.snapx')
+        check('quit with save: the session saved, then the exit (bye, status 0)',
+              ok and os.path.exists(snap) and 'session.txt' in zipfile.ZipFile(snap).namelist(), str(sorted(os.listdir(r))))
+    finally:
+        done(p, r, snd)
+
+    # a cancelled save keeps the session (its run already stopped); the
+    # page's Don't save is the plain quit, which ends a run at once
+    p, r, snd, col, _ = launch_server()
+    try:
+        col(is_idle)
+        snd(cmd='quit', save=True)
+        _, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        snd(cmd='state')
+        evs, _ = col(is_idle)
+        check('quit with save: a cancelled save keeps xppautX running', ask and is_ask(ask) and ask.get('kind') == 'file'
+              and last_state(evs) is not None and p.poll() is None, str(ask))
+        long_run(snd, col)
+        snd(cmd='quit')
+        try:
+            p.wait(timeout=10 * SLOW)
+        except subprocess.TimeoutExpired:
+            pass
+        check('the plain quit during a run (the page\'s Don\'t save) exits at once, asking nothing, saving nothing',
+              p.poll() == 0 and os.listdir(r) == [os.path.basename(args.ode)], str(p.poll()) + ' ' + str(os.listdir(r)))
     finally:
         done(p, r, snd)
 

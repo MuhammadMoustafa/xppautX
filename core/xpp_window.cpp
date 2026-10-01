@@ -143,20 +143,37 @@ void set_title_cb(webview_t w, void *)
 
 void terminate_cb(webview_t w, void *) { webview_terminate(w); }
 
-/* The close box and File > Quit (W59d): while the core serves the session,
-   the protocol's quit that asks, "Quit xppautX? Save this session first?"
-   in the page, and the window stays; the core's exit after its bye closes
-   it (on_exit). True when it asked; false once the core is exiting (an
-   error left the window open on its log), when the window closes. */
+/* The close box and File > Quit (W59d, W110), on the UI thread: while the
+   core serves the session, the page's leave question (web2's __xppQuit,
+   web2/src/desktop.ts), and the window stays. The page asks it itself
+   while a command runs, the run going on (its Don't save closes the
+   window: __xppCloseWindow, below), and else sends the protocol's quit
+   that asks, which the core asks as File > Quit does; the core's exit
+   after its bye closes the window (on_exit). A page without the hook (it
+   did not load) closes the window: the plain quit (window_closed). True
+   when it asked; false once the core is exiting (an error left the window
+   open on its log), when the window closes. */
 [[maybe_unused]] bool quit_asking()
 {
+    webview_t w;
     {
         std::lock_guard<std::mutex> lk(st->mu);
-        if (st->core_closing || st->core_exiting) return false;
+        if (st->core_closing || st->core_exiting || !st->view) return false;
+        w = st->view;
     }
-    static constexpr std::string_view quit = "{\"cmd\":\"quit\",\"ask\":true}";
-    host->inbox_push(quit.data(), quit.size());
+    webview_eval(w, "window.__xppQuit ? window.__xppQuit() : window.__xppCloseWindow()");
     return true;
+}
+
+/* __xppCloseWindow (W110): the leave question's Don't save in the window,
+   which closes as before W59d: window_closed sends the plain quit, which
+   ends even a computation that never reaches a checkpoint (EXIT_GRACE).
+   On the UI thread; called from the library: nothing may throw. */
+void close_window_cb(const char *id, const char *, void *arg)
+{
+    webview_t w = static_cast<webview_t>(arg);
+    webview_return(w, id, 0, "null");
+    webview_terminate(w);
 }
 
 /* Help > Manual (chapter NULL: where Help was left, as F1) and Help >
@@ -411,9 +428,6 @@ void place_window(webview_t w)
 
 #elif defined(__APPLE__)
 
-/* macOS: no menu bar of ours yet, and the icon comes with the .app bundle
-   (W13b) */
-void add_menus(webview_t) {}
 /* the library centres the window, and Cocoa keeps a window on its screen */
 void place_window(webview_t) {}
 
@@ -426,6 +440,69 @@ template <typename R = id, typename... A> R msg(id self, const char *sel, A... a
 }
 id cls(const char *name) { return reinterpret_cast<id>(objc_getClass(name)); }
 id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8String:", s.c_str()); }
+
+/* ---- leaving (W110) -----------------------------------------------------
+   The window's close box and Cmd+Q (the app menu's Quit, the Dock's)
+   answer "not yet" and go through the leave question (quit_asking), as
+   WM_CLOSE and GTK's delete-event do: -windowShouldClose: on the library's
+   window delegate (WebviewNSWindowDelegate) and
+   -applicationShouldTerminate: on its application delegate
+   (WebviewAppDelegate), both added to the library's classes once it has
+   made them (in xpp_webview_create). The core's own exit after its bye
+   stops the run loop (webview_terminate), which asks neither. On the main
+   thread, from the run loop. Not tested: written without a Mac (CI's
+   macos-core). */
+constexpr unsigned long TERMINATE_CANCEL = 0; /* NSTerminateCancel */
+
+/* -windowShouldClose: (called from Cocoa: nothing may throw) */
+BOOL window_should_close(id, SEL, id) { return quit_asking() ? static_cast<BOOL>(NO) : static_cast<BOOL>(YES); }
+
+/* -applicationShouldTerminate: never terminates the application itself
+   (its exit() would run the core's atexit handlers on the window's
+   thread): asked, or once the core is exiting, the window closes, as its
+   close box would, and window_closed ends the process */
+unsigned long application_should_terminate(id, SEL, id)
+{
+    if (!quit_asking()) {
+        webview_t w;
+        {
+            std::lock_guard<std::mutex> lk(st->mu);
+            w = st->view;
+        }
+        if (w) webview_terminate(w);
+    }
+    return TERMINATE_CANCEL;
+}
+
+/* the method on the library's class name (a no-op when it has none) */
+void add_method(const char *name, const char *sel, IMP imp, const char *types)
+{
+    Class c = objc_lookUpClass(name);
+    if (c) class_replaceMethod(c, sel_registerName(sel), imp, types);
+}
+
+/* The app menu: Quit xppautX (Cmd+Q), which sends -terminate: to the
+   application, and with it the delegates' methods above. No menus of
+   ours yet beyond it, and the icon comes with the .app bundle (W13b). */
+void add_menus(webview_t)
+{
+    add_method("WebviewNSWindowDelegate", "windowShouldClose:", reinterpret_cast<IMP>(window_should_close), "c@:@");
+    add_method("WebviewAppDelegate", "applicationShouldTerminate:", reinterpret_cast<IMP>(application_should_terminate),
+               "Q@:@");
+    id pool = msg(cls("NSAutoreleasePool"), "new");
+    id bar = msg(msg(cls("NSMenu"), "alloc"), "init");
+    id app_item = msg(msg(cls("NSMenuItem"), "alloc"), "init");
+    id app_menu = msg(msg(cls("NSMenu"), "alloc"), "init");
+    id quit = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:", ns_string("Quit xppautX"),
+                  sel_registerName("terminate:"), ns_string("q"));
+    if (bar && app_item && app_menu && quit) {
+        msg<void>(app_menu, "addItem:", quit);
+        msg<void>(app_item, "setSubmenu:", app_menu);
+        msg<void>(bar, "addItem:", app_item);
+        msg<void>(msg(cls("NSApplication"), "sharedApplication"), "setMainMenu:", bar);
+    }
+    msg<void>(pool, "drain");
+}
 
 /* NSOpenPanel, NSSavePanel, application-modal on the main thread (not
    tested: written without a Mac). An open panel has no type menu of its
@@ -818,6 +895,7 @@ webview_t open_view()
     place_window(w);
     /* before the page loads, so it is there from its first script */
     if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
+    webview_bind(w, "__xppCloseWindow", close_window_cb, w);
     /* the token stays out of sight: the web view has no address bar */
     webview_navigate(w, host->http_url());
     return w;

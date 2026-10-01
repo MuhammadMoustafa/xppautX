@@ -75,9 +75,10 @@ int ask_wait(Buf *b, int id)
             out_flush();
             continue;
         }
-        /* the window's Quit or close box (W59d): this question is
-           cancelled, and the quit asks its own once the command is done */
-        if (quit_asks(line)) {
+        /* the window's Quit or close box (W59d), or the page's Save
+           session (W110): this question is cancelled, and the quit runs
+           once the command is done */
+        if (quit_waits(line)) {
             defer_line(line, false);
             if (ask_user) record_answer(ask_kind, "{}", false);
             return 0;

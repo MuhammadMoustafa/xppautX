@@ -11,6 +11,10 @@ export interface HelloEvent {
   file: string;
   /** Help > About's text (core/xpp_about.h), the desktop window's own box too; absent from an older server */
   about?: string;
+  /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
+      (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
+      answers and their keys; absent from an older server */
+  quit?: {question: string; recording: string; choices: string[]; keys: string};
   menus: {
     main: string[]; main_keys: string; main_hints: string[];
     file: string[]; file_keys: string; file_hints: string[];

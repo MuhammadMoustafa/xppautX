@@ -67,7 +67,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
@@ -112,6 +112,8 @@ let failures = 0, flaky = 0;
    first attempt but passed on the rerun can be reported FLAKY rather than
    silently as a pass, and one that fails twice still fails (W40). */
 let record = null;
+/* the xppautX the section running drives (sessionAttempt), for a check that it exited */
+let sessionServer = null;
 function check(name, ok, detail = '') {
   if (record) { record.push({name, ok, detail}); return; }
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : '  ' + detail}`);
@@ -3282,6 +3284,108 @@ async function playerCheck(dir) {
   check('player: Close leaves the player; the plot stays', await until(`!s.player.open && !document.querySelector('.player') && !!document.querySelector('.plots') && !s.busy`, 'closed'));
 }
 
+/* W110: the desktop window's close box and File > Quit (which call the
+   page's __xppQuit: core/xpp_window.cpp; called here as they do) ask File >
+   Quit's question without stopping a computation: while the core is idle
+   it asks, as F Q does; while a run goes on the page asks it itself (its
+   LEAVE_ASK, -1), the run's rows still growing; Cancel leaves the run
+   alone; Don't save quits (the plain quit in a browser, which has no window
+   to close) and the program exits. State only, never pixels. */
+const QUIT_Q = 'Quit xppautX? Save this session first?';
+
+/** an integration that goes on for minutes (lecar to t = 1e7), going */
+async function longRun() {
+  await until('!s.busy && !s.ask && s.core.menu === 0', 'main menu');
+  await cdp.eval(`__xpp.send({cmd: 'key', key: 'u'})`);
+  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await cdp.eval(`__xpp.send({cmd: 'key', key: 't'})`);
+  await until(`s.ask && s.ask.kind === 'string'`, 'total');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '1e7'})`);
+  await until('!s.busy && !s.ask && s.core.menu === 2', 'total set');
+  await cdp.eval(`__xpp.send({cmd: 'key', key: 'Escape'})`);
+  await until('!s.busy && s.core.menu === 0', 'main menu again');
+  await cdp.eval(`__xpp.send({cmd: 'key', key: 'i'})`);
+  await until(`s.ask && s.ask.kind === 'menu'`, 'initialconds');
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'g'})`);
+  return until('s.computing && s.seriesAppends > 2', 'the run going', 30000 * SLOW);
+}
+
+/** whether the section's xppautX exited within ms */
+async function exited(ms = 10000) {
+  const t0 = Date.now();
+  while (sessionServer.proc.exitCode === null && Date.now() - t0 < ms * SLOW) await sleep(50);
+  return sessionServer.proc.exitCode === 0;
+}
+
+const appends = () => S('s.seriesAppends');
+
+async function leaveCheck() {
+  await until('!s.busy && !s.ask', 'idle');
+  await cdp.eval('__xppQuit()');
+  check('leave: idle, the window\'s Quit is the core\'s question, as F Q asks it',
+    await until(`s.ask && s.ask.id > 0 && s.ask.kind === 'choice' && s.ask.question === '${QUIT_Q}'`, 'core quit ask')
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && c.ask === true)`), JSON.stringify(await S('s.ask')));
+  await key('Escape');
+  check('leave: idle, Escape cancels it and the session stays', await until('!s.ask && !s.busy', 'cancelled')
+    && sessionServer.proc.exitCode === null);
+
+  check('leave: a long integration is going', await longRun(), JSON.stringify(await S('[s.busy, s.computing, s.seriesAppends]')));
+  const sent0 = await cdp.eval('__xpp.sent().length');
+  await cdp.eval('__xppQuit()');
+  check('leave: during the run the page asks the same question itself, Save session (S), Don\'t save (D), Cancel',
+    await until(`s.ask && s.ask.id === -1 && s.ask.question === '${QUIT_Q}'`, 'page quit ask')
+    && await cdp.eval(`(() => { const b = [...document.querySelectorAll('.dialog button')].map(e => e.textContent.trim());
+      return b.includes('SSave session') && b.includes("DDon't save") && b.includes('Cancel'); })()`),
+    JSON.stringify(await S('s.ask')));
+  const a0 = await appends();
+  check('leave: the run goes on under the question, its rows still growing, nothing sent',
+    await until(`s.seriesAppends > ${a0} + 2 && s.computing && s.ask && s.ask.id === -1`, 'rows grow', 20000 * SLOW)
+    && (await cdp.eval(`__xpp.sent().length`)) === sent0, JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent0})`)));
+  await key('Escape');
+  const a1 = await appends();
+  check('leave: Cancel (Escape) closes it, the run untouched (still computing, rows growing, no abort sent)',
+    await until(`!s.ask && s.computing && s.seriesAppends > ${a1} + 2`, 'run goes on', 20000 * SLOW)
+    && (await cdp.eval(`__xpp.sent().length`)) === sent0, JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent0})`)));
+  await cdp.eval('__xppQuit()');
+  await until(`s.ask && s.ask.id === -1`, 'asked again');
+  await key('d');
+  /* in the window Don't save closes it, which sends the plain quit (and
+     ends the process even when the core does not: core/xpp_window.cpp
+     window_closed); a browser has no window, so the page sends the plain
+     quit itself. The core exits at once, mid-run, without a bye: browser
+     mode then keeps serving the page's log (xpp_http.cpp at_exit) until
+     the page goes, which the window's close does */
+  check('leave: Don\'t save during the run sends the plain quit, and the core exits at once',
+    await until('s.exited !== null && !s.ask', 'core exit', 10000 * SLOW)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && !c.ask && !c.save)`),
+    JSON.stringify(await cdp.eval(`__xpp.sent().slice(-2)`)) + JSON.stringify(await S(`[s.ask, s.computing, s.exited]`)));
+}
+
+/* Save session during a run, with a recording in progress: the question
+   says so; the run stops, the session and then the recording are saved
+   (their names asked), and xppautX exits */
+async function leaveSaveCheck(dir) {
+  await until('!s.busy && !s.ask', 'idle');
+  await cdp.eval(`__xpp.send({cmd: 'record', op: 'start'})`);
+  await until('s.core.recording && !s.busy', 'recording');
+  check('leave save: a long integration is going', await longRun());
+  await cdp.eval('__xppQuit()');
+  check('leave save: the page\'s question names the recording in progress',
+    await until(`s.ask && s.ask.id === -1 && s.ask.question === 'Quit xppautX? Save this session, and the recording in progress, first?'`,
+      'page quit ask'), JSON.stringify(await S('s.ask')));
+  await key('s');
+  check('leave save: Save session sends the quit that saves; the run stops and the session file is asked',
+    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.snapx' && !s.computing`, 'session file', 30000 * SLOW)
+    && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'quit' && c.save === true)`), JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
+  check('leave save: then the recording\'s name',
+    await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recording file', 30000 * SLOW), JSON.stringify(await S('s.ask')));
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'left'})`);
+  check('leave save: both saved, then xppautX exits',
+    await exited() && fs.existsSync(path.join(dir, 'left.snapx')) && fs.existsSync(path.join(dir, 'left.recx')),
+    JSON.stringify(fs.readdirSync(dir)));
+}
+
 async function keysCheck() {
   await desktopMetrics();
   check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -4685,7 +4789,7 @@ async function sessionAttempt(ode, fn, expected) {
   const rec = record = [];
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
-  const server = await startServer(bin, dir, [path.basename(ode)]);
+  const server = sessionServer = await startServer(bin, dir, [path.basename(ode)]);
   try {
     /* the new page, connected and idle, before `fn`: a check run between the navigation and the
        new document's first state read the last page's store, and a key typed then was lost (W20) */
@@ -4991,6 +5095,8 @@ async function main() {
     if (run('keys')) await session(ODE, keysCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
+    if (run('leave')) await session(ODE, leaveCheck);
+    if (run('leave')) await session(ODE, leaveSaveCheck);
     if (run('lostf')) await session(ODE, lostF);
     if (run('lostf')) await session(HEAVY_ODE, lostFRunning);
     if (run('busy')) await session(LIVE, busyAuto);

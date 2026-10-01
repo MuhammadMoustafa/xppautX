@@ -97,9 +97,13 @@ void xpp_model_open(xpp::Session &s, const char *path)
   s.model_request=std::move(req);
 }
 
-bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording)
+namespace {
+
+/* the leave question answered key (LEAVE_KEYS's, 0 a cancel): whether the
+   session may go */
+bool leave_as(xpp::Session &s, int key, bool with_recording)
 {
-  switch(TwoChoice("Save session","Don't save",question.c_str(),"sd")){
+  switch(key){
   case 's':
     return xpp_session_save(s,nullptr,-1)&&(!with_recording||save_recording(s));
   case 'd':
@@ -109,18 +113,23 @@ bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool wi
   }
 }
 
+} // namespace
+
+bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording)
+{
+  return leave_as(s,TwoChoice(xpp::LEAVE_SAVE,xpp::LEAVE_DONT_SAVE,question.c_str(),xpp::LEAVE_KEYS),with_recording);
+}
+
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
 {
   return xpp_session_may_leave(s,xpp::format("Open {}? This model's data and diagram go. Save its session first?",
                                              xpp::files::split_path(file).second),false);
 }
 
-void xpp_quit(xpp::Session &s)
+void xpp_quit(xpp::Session &s, bool saving)
 {
   const bool recording=recording_in_progress();
-  const char *question=recording?"Quit xppautX? Save this session, and the recording in progress, first?"
-                                :"Quit xppautX? Save this session first?";
-  if(xpp_session_may_leave(s,question,recording))bye_bye();
+  if(saving?leave_as(s,'s',recording):xpp_session_may_leave(s,xpp::quit_question(recording),recording))bye_bye();
 }
 
 void xpp_model_reload(xpp::Session &s)
@@ -151,6 +160,12 @@ ModelRequest open_request(const Session &s, std::string dir, std::string file)
   req.dir=std::move(dir);
   req.file=std::move(file);
   return req;
+}
+
+const char *quit_question(bool recording)
+{
+  return recording?"Quit xppautX? Save this session, and the recording in progress, first?"
+                  :"Quit xppautX? Save this session first?";
 }
 
 ModelRequest saved_request(const Session &s, std::string dir, SavedFile f)

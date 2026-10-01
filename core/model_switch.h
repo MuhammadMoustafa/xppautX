@@ -46,10 +46,13 @@ bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool wi
    naming file */
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file);
 /* File > Quit (F Q), and the protocol's quit that asks (the desktop
-   window's File > Quit and its close box): "Quit xppautX? Save this
-   session first?", then exits (bye_bye) unless cancelled; a recording in
-   progress is saved with the session */
-void xpp_quit(xpp::Session &s);
+   window's File > Quit and its close box while the core is idle):
+   xpp::quit_question, then exits (bye_bye) unless cancelled; a recording
+   in progress is saved with the session. saving: the question was asked
+   already, by the page, and answered Save session (W110: the page asks
+   while a computation runs, {"cmd":"quit","save":true}); a save cancelled
+   or failing keeps the session. */
+void xpp_quit(xpp::Session &s, bool saving = false);
 /* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
    does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
@@ -58,6 +61,17 @@ void xpp_quit(xpp::Session &s);
 void xpp_model_reload(xpp::Session &s);
 
 namespace xpp {
+
+/* The leave question's answers and their keys (W59d), and Quit's
+   wording: the one source of the core's question (xpp_session_may_leave,
+   xpp_quit) and of the page's own, which hello's `quit` carries (W110:
+   the page asks it while a computation runs, docs/protocol.md "quit") */
+inline constexpr const char *LEAVE_SAVE = "Save session";
+inline constexpr const char *LEAVE_DONT_SAVE = "Don't save";
+inline constexpr const char *LEAVE_KEYS = "sd";
+/* "Quit xppautX? Save this session first?", naming the recording in
+   progress when recording */
+const char *quit_question(bool recording);
 
 /* what a command asked to load: file with the command line command_line
    (the program's name first), in the folder dir ("" the working one) */

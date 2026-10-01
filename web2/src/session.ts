@@ -19,7 +19,8 @@ import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
 import {createStore, type Store} from './store/store';
-import {initialState, noIdle, reduce, type Action, type AppState} from './store/state';
+import {initialState, LEAVE_ASK, noIdle, reduce, type Action, type AppState} from './store/state';
+import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
@@ -370,6 +371,10 @@ export class Session {
   }
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
+    if (ask.id === LEAVE_ASK) {
+      this.leaveAnswered(fields);
+      return;
+    }
     /* the Start menu of a Run answered: its clock starts now */
     const {run} = this.store.getState().diagram, {points} = activeView(this.store.getState().diagram);
     if (run?.active && ask.kind === 'menu' && points.x.length === run.first)
@@ -379,6 +384,30 @@ export class Session {
 
   cancel(ask: AskEvent): void {
     this.answer(ask, {ok: 0});
+  }
+
+  /** The desktop window's close box or File > Quit (desktop.ts __xppQuit,
+      W110): File > Quit's question. While a command runs (and asks
+      nothing), the page asks it itself, the run going on (LEAVE_ASK): the
+      core could ask only once the run had stopped, and a misclick then
+      Cancel would have lost it. Otherwise the core asks it, as F Q does
+      (`quit` with `ask`; a question of the core's open is cancelled
+      first). */
+  quitAsked(): void {
+    const {hello, ask, busy, computing} = this.store.getState();
+    if (ask?.id === LEAVE_ASK) return;
+    if (hello?.quit && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
+    else this.send({cmd: 'quit', ask: true});
+  }
+
+  /* the page's leave question answered: Save session stops the run, saves
+     the session (and the recording in progress) and quits, all in the core
+     (`quit` with `save`); Don't save quits at once (the plain quit: the
+     window closes, docs/protocol.md "quit"); Cancel changes nothing */
+  private leaveAnswered(fields: Record<string, unknown>): void {
+    this.store.dispatch({type: 'leave', open: false});
+    if (fields.key === 's') this.send({cmd: 'quit', save: true});
+    else if (fields.key === 'd' && !closeDesktopWindow()) this.send({cmd: 'quit'});
   }
 
   /* ---- plot modes: mouse, rubber and drag asks (plot/pick.ts, docs/ui-v2.md T4) ---- */

@@ -448,18 +448,31 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   thread (untested); there a file Finder opens in xppautX.app comes as an
   open-documents Apple Event, which xpp_window.cpp handles (W91: the
   launch's is the model, `xpp_window_launch_document`, a later one opens
-  as File > Open model; CI's macos-core checks it with `open -a`). Closing the window (its x, or the menu bar's Quit; W59d) pushes
-  `{"cmd":"quit","ask":true}` into the inbox: the core stops a running
-  computation, then asks "Save this session first?" (the one leave
-  question, model_switch.cpp's `xpp_session_may_leave`, as F Q does) and
-  the window stays open until the core says bye; a plain
-  `{"cmd":"quit"}` (scripts, --server clients) quits at once. macOS has
-  no close interception yet: its x quits at once. Then `xpp_http_release()`; the core's
+  as File > Open model; CI's macos-core checks it with `open -a`). Closing the window (its x, or the menu bar's Quit; on macOS also
+  Cmd+Q and the Dock's Quit, through `windowShouldClose:` and
+  `applicationShouldTerminate:` added to webview's delegate classes; W59d,
+  W110) never stops a computation: the window calls the page's
+  `__xppQuit` (web2/src/desktop.ts, through webview_eval, as Help does),
+  and the window stays. While the core is idle the page sends
+  `{"cmd":"quit","ask":true}` and the core asks "Save this session
+  first?" (the one leave question, model_switch.cpp's
+  `xpp_session_may_leave`, as F Q does); while a command runs the page
+  asks the same question itself (its wording, answers and keys from
+  hello's `quit`, model_switch.h's `xpp::quit_question` and `LEAVE_*`: one
+  source), the run going on: Cancel leaves it alone, Save session sends
+  `{"cmd":"quit","save":true}` (the run stops, the session and a recording
+  in progress are saved, then bye), Don't save calls the window's bound
+  `__xppCloseWindow`, which closes it as below. A plain `{"cmd":"quit"}`
+  (scripts, --server clients) quits at once. When the window closes
+  (Don't save, a page without the hook, or the core already exiting) it
+  pushes the plain quit and calls `xpp_http_release()`, and ends the
+  process after EXIT_GRACE even if a computation never reaches a
+  checkpoint; the core's
   exit closes the window after a bye, and after an error leaves it open
   on the log until it is closed (xpp_http's at_exit waits for that, or
   Ctrl+C). If the web view cannot start (no WebView2 runtime, no
   display) xppautX logs it and falls back to browser mode. Its menu bar
-  (Win32 menu; GTK 3 menu bar on Linux; none yet on macOS): File > Open
+  (Win32 menu; GTK 3 menu bar on Linux; on macOS only the app menu's Quit xppautX, Cmd+Q): File > Open
   model and Reload (W61: loaded in this process, core/model_switch.cpp,
   once the command has returned; a failed load keeps the model before;
   Open model picks the file in the OS dialog below), Quit; a `file` ask

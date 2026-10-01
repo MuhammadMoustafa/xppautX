@@ -10,6 +10,7 @@
 import type {ComponentChildren} from 'preact';
 import {useEffect, useLayoutEffect, useRef, useState} from 'preact/hooks';
 import {answerFill, litAskKey} from '../store/player';
+import {LEAVE_ASK} from '../store/state';
 import {askHelp} from '../help/links';
 import {fieldSpec, selectOptions} from '../protocol/lists';
 import {fieldsValid, specOfKind, TEXT, type FieldSpec} from '../store/fieldKinds';
@@ -311,7 +312,9 @@ export function AskDialog() {
   const pick = useStore(s => s.pick);
   const auto = useStore(s => s.diagram.open);
   const played = useStore(s => s.player.running >= 0);
-  if (ask && played && ask.kind !== 'pixels' && ask.kind !== 'alert') return <PlayedAsk key={ask.id} ask={ask} />;
+  /* the page's own leave question is the user's, even while a recording plays */
+  if (ask && played && ask.id !== LEAVE_ASK && ask.kind !== 'pixels' && ask.kind !== 'alert')
+    return <PlayedAsk key={ask.id} ask={ask} />;
   if (!ask || !askIsModal(ask, pick, auto)) return null;
   const body = ask.kind === 'menu' || ask.kind === 'choice' ? <MenuAsk ask={ask} />
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />

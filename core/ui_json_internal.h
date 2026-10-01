@@ -100,9 +100,11 @@ extern ProtocolSession session;
 xpp::Session &client();
 
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
-/* {"cmd":"quit","ask":true} (W59d): the desktop window's Quit and close
-   box; a plain quit exits at once (scripts, --server's clients) */
-bool quit_asks(const char *line);
+/* {"cmd":"quit","ask":true} (W59d: File > Quit's question) or
+   {"cmd":"quit","save":true} (its Save session, answered in the page,
+   W110): a command of its own, in its turn; a plain quit exits at once
+   (scripts, --server's clients, the page's Don't save) */
+bool quit_waits(const char *line);
 int handle_async(xpp::Session &s, const char *line);   /* commands that make sense at any moment */
 int control_line(xpp::Session &s, const char *line);   /* a control line taken by a checkpoint */
 /* A setting (W106: a command of the setting kind, not a key) taken while
