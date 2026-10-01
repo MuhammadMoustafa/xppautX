@@ -120,6 +120,12 @@ export class Chart {
       of a live run) copies it instead of stroking the runs again (W82: a
       run of a million rows cost the frame about a second to stroke) */
   private runsLayer: {canvas: HTMLCanvasElement; frame: PixelFrame; dark: boolean; runs: PlotModel[]; drawn: number} | null = null;
+  /** the nullclines, the direction field and the flows drawn once into a
+      canvas of the chart's size, for the frame, theme, data and hidden
+      layers they were drawn for: every other draw (each append of a live
+      run) copies it instead of tracing them again, as runsLayer does */
+  private phaseLayer: {canvas: HTMLCanvasElement; frame: PixelFrame; dark: boolean; nullclines: Nullclines | null;
+    dfield: Dfield | null; hidden: string; drawn: Map<LayerKey, number>} | null = null;
   private layerDrawn = new Map<LayerKey | MarkKey, number>();
   /** called with the plotting area each time uPlot makes a new one */
   onArea: (area: HTMLElement) => void = () => {};
@@ -334,12 +340,33 @@ export class Chart {
     this.drawRuns(u);
     this.drawFrozen(u);
     if (!this.layers.length) return;
-    const ctx = u.ctx, f = this.frame(u), r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield;
+    const f = this.frame(u), {width, height} = u.ctx.canvas;
+    const hidden = [...this.hiddenLayers].sort().join();
+    let layer = this.phaseLayer;
+    if (!layer || layer.nullclines !== this.nullclines || layer.dfield !== this.dfield || layer.dark !== this.dark
+      || layer.hidden !== hidden || layer.canvas.width !== width || layer.canvas.height !== height
+      || !sameFrame(layer.frame, f)) {
+      const canvas = layer?.canvas ?? document.createElement('canvas');
+      canvas.width = width; /* also clears it */
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      layer = this.phaseLayer = {canvas, frame: f, dark: this.dark, nullclines: this.nullclines, dfield: this.dfield,
+        hidden, drawn: this.strokePhase(u, f, ctx)};
+    }
+    for (const [key, n] of layer.drawn) this.layerDrawn.set(key, (this.layerDrawn.get(key) ?? 0) + n);
+    u.ctx.drawImage(layer.canvas, 0, 0);
+  }
+
+  /** the nullclines, the direction field and the flows into `ctx`, clipped to the plotting area;
+      what each layer drew */
+  private strokePhase(u: uPlot, f: PixelFrame, ctx: CanvasRenderingContext2D): Map<LayerKey, number> {
+    const r = uPlot.pxRatio, nc = this.nullclines, df = this.dfield, drawn = new Map<LayerKey, number>();
     const stroke = (key: LayerKey, color: number, width: number, dash: number[], trace: (p: Path2D) => number) => {
       if (this.hiddenLayers.has(key)) return;
       const p = new Path2D();
       const n = trace(p);
-      this.layerDrawn.set(key, (this.layerDrawn.get(key) ?? 0) + n);
+      drawn.set(key, (drawn.get(key) ?? 0) + n);
       ctx.strokeStyle = curveColor(color, this.dark);
       ctx.lineWidth = width * r;
       ctx.setLineDash(dash.map(d => d * r));
@@ -373,6 +400,7 @@ export class Chart {
       stroke('ynull', nc.yColor, 2, [], p => traceSegments(nc.y, f, p));
     }
     ctx.restore();
+    return drawn;
   }
 
   /** the plotting area as the clip of `ctx` (the chart's own unless another
@@ -631,6 +659,7 @@ export class Chart {
     if (this.traceTimer !== null) clearTimeout(this.traceTimer);
     this.traceTimer = null;
     this.runsLayer = null;
+    this.phaseLayer = null;
     this.u?.destroy();
     this.u = null;
   }
