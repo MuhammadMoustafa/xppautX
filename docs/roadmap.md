@@ -212,6 +212,7 @@ issue; the card here is the one kept up to date.
 | W125 | #177 | One read pipeline for our own files (maintainer, 2026-10-01: Read set keeps values read before a bad line): parse the whole file, check every line and value, then apply in one step or nothing; .set/.par/.ic, .snapx members, .autox, .autoset, .recx all through it | none | ready |
 | W126 | #178 | Which DAE result is right (maintainer, 2026-10-01): dae.ode, dae_ex3.ode, exdaebvp.ode before W119 (= XPPAUT, its options ignored) vs after, against independent Python solutions (scipy stiff solve_ivp with the constraint solved in the rhs, a plain fixed-step loop with Newton, other DAE libraries if available); the verdict into docs/xppaut-findings.md | none | done |
 | W127 | #179 | A DAE run stops at a fold instead of stepping over it (found by W126, 2026-10-01: dae_ex3's fold at t=0.4507; with W119's loose model tolerance it ran on spuriously to 3.65): accept a step only when the constraint holds and its Jacobian is not singular or changing sign, else stop with 'no solution past t=...' | W119 | blocked |
+| W128 | #180 | Review every unification at the level of the operation (maintainer, 2026-10-01: file I/O was unified by its calls, not 'load a file of ours'): for each unification card, the operation as a user meets it, every place performing it, whether all go through the owner with the same behaviour; each gap a card | none | in-progress |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
