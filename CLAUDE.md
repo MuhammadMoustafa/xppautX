@@ -155,7 +155,10 @@ and commit `web2/dist` with the source. Tests read `window.__xpp`
 `diagramEvents()`), never pixels. `tools/cdp.mjs` is web2check.mjs's
 headless-browser driver; web2check.mjs runs from Git Bash, where Node and
 Chrome are (not WSL), and builds nothing: it drives `./xppautX[.exe]`
-(`--bin` to point elsewhere).
+(`--bin` to point elsewhere). Its browser downloads into
+build/web2check-downloads/<pid> (W142: set once when cdp.mjs starts the
+browser, removed when it closes, a dead run's folder removed by the next),
+never the user's Downloads.
 A section a check fails in is rerun once (macos-ui, the slowest runner,
 failed a different check nearly every time, always passing on a rerun,
 W40): still failing is a FAIL, passing on the rerun is FLAKY (counted at
@@ -232,7 +235,9 @@ second; `tools/aliascheck.py` does the work) enforces one name per thing
 one of our own names -- `using X = <our type>;`, `namespace a = b;`, a
 `typedef` of our type, `using xpp::name;` inside namespace xpp, a
 `#define` that only renames an identifier -- unless it is in the
-allowlist inside the script, each entry with its reason. Aliases of std::
+allowlist inside the script, each entry with its reason; since W138 it
+also fails, in web2/src, a renamed import (`import {a as b}`) and two
+exported functions or consts of one name. Aliases of std::
 types, new function-pointer types, typedefs of builtins and
 `typedef struct {...} name;` definitions need no entry; the platform
 shims and vendored CVODE/AUTO names are entries. Use the real name.
