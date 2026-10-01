@@ -21,6 +21,12 @@ for arg in "$@"; do
   esac
 done
 BASELINE=c281851de59ffd03b2a46428619a0c8f
+# the behaviour checks are python: without it the gate would pass having
+# run only part of itself, so it refuses to start (review 2026-10-01, W146)
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "verify.sh: python3 is required (servercheck, autocheck, goldencheck, manualcheck)"
+  exit 2
+fi
 # one verify.sh at a time on this machine, whatever the checkout (W84):
 # runs side by side over WSL's /mnt/c each took 40+ minutes instead of
 # ~12, so a second run waits for the first (flock, where there is one;
@@ -91,49 +97,47 @@ fi
 if [ $source_checks -eq 1 ] && ! sh tools/sourcecheck.sh; then
   exit 1
 fi
-if command -v python3 >/dev/null; then
-  if python3 tools/servercheck.py > build/servercheck.log 2>&1; then
-    echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
-  else
-    grep -v '^PASS' build/servercheck.log
-    echo "SERVER CHECK FAILED"
-    exit 1
-  fi
-  if python3 tools/webcheck.py > build/webcheck.log 2>&1; then
-    echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
-  else
-    grep -v '^PASS' build/webcheck.log
-    echo "WEB CHECK FAILED"
-    exit 1
-  fi
-  if sh tools/modecheck.sh > build/modecheck.log 2>&1; then
-    echo "command-line modes ok: $(grep -c '^PASS' build/modecheck.log) checks"
-  else
-    grep -v '^PASS' build/modecheck.log
-    echo "MODE CHECK FAILED"
-    exit 1
-  fi
-  if sh tools/associatecheck.sh > build/associatecheck.log 2>&1; then
-    tail -1 build/associatecheck.log
-  else
-    cat build/associatecheck.log
-    echo "ASSOCIATE CHECK FAILED"
-    exit 1
-  fi
-  if python3 tools/autocheck.py > build/autocheck.log 2>&1; then
-    echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
-  else
-    grep -v '^PASS' build/autocheck.log
-    echo "AUTO CHECK FAILED"
-    exit 1
-  fi
-  if python3 tools/goldencheck.py > build/goldencheck.log 2>&1; then
-    echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
-  else
-    grep -v '^PASS' build/goldencheck.log
-    echo "GOLDEN CHECK FAILED"
-    exit 1
-  fi
+if python3 tools/servercheck.py > build/servercheck.log 2>&1; then
+  echo "server protocol ok: $(grep -c '^PASS' build/servercheck.log) checks"
+else
+  grep -v '^PASS' build/servercheck.log
+  echo "SERVER CHECK FAILED"
+  exit 1
+fi
+if python3 tools/webcheck.py > build/webcheck.log 2>&1; then
+  echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
+else
+  grep -v '^PASS' build/webcheck.log
+  echo "WEB CHECK FAILED"
+  exit 1
+fi
+if sh tools/modecheck.sh > build/modecheck.log 2>&1; then
+  echo "command-line modes ok: $(grep -c '^PASS' build/modecheck.log) checks"
+else
+  grep -v '^PASS' build/modecheck.log
+  echo "MODE CHECK FAILED"
+  exit 1
+fi
+if sh tools/associatecheck.sh > build/associatecheck.log 2>&1; then
+  tail -1 build/associatecheck.log
+else
+  cat build/associatecheck.log
+  echo "ASSOCIATE CHECK FAILED"
+  exit 1
+fi
+if python3 tools/autocheck.py > build/autocheck.log 2>&1; then
+  echo "auto checks ok: $(grep -c '^PASS' build/autocheck.log) checks"
+else
+  grep -v '^PASS' build/autocheck.log
+  echo "AUTO CHECK FAILED"
+  exit 1
+fi
+if python3 tools/goldencheck.py > build/goldencheck.log 2>&1; then
+  echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
+else
+  grep -v '^PASS' build/goldencheck.log
+  echo "GOLDEN CHECK FAILED"
+  exit 1
 fi
 # every example's output against tests/examples.md5: the numerics
 if tools/examples_check.sh > build/examples.log 2>&1; then
@@ -153,14 +157,12 @@ else
 fi
 # every whole model the manual shows still loads, and every command-line
 # option it names is real (W81)
-if command -v python3 >/dev/null; then
-  if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then
-    tail -1 build/manualcheck.log
-  else
-    cat build/manualcheck.log
-    echo "MANUAL CHECK FAILED"
-    exit 1
-  fi
+if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then
+  tail -1 build/manualcheck.log
+else
+  cat build/manualcheck.log
+  echo "MANUAL CHECK FAILED"
+  exit 1
 fi
 # the conversion of the core to C++ (CLAUDE.md, "C and C++")
 echo "C++: $(( $(ls core/*.cpp 2>/dev/null | wc -l) )) / $(( $(ls core/*.c core/*.cpp 2>/dev/null | wc -l) )) sources"

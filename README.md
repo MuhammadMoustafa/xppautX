@@ -37,8 +37,8 @@ its own behavioural regression test (`tools/web2check.mjs`).
 
 ## Plan
 
-1. **Modern build.** One Makefile (later CMake), warning-clean C99, CI on
-   Linux and macOS. *(Makefile and CI done; warnings pending)*
+1. **Modern build.** One Makefile, C++23 (every core source since W27),
+   CI on Linux, Windows and macOS. *(done: 0 warnings, built with `WERROR=1`)*
 2. **Split numerics from UI.** *(done)* Every call from the numerics into the
    front end goes through the `XppUi` callback table in `core/xpp_ui.h`.
    The historical function names (`err_msg`, `new_int`, `redraw_params`,
@@ -46,28 +46,28 @@ its own behavioural regression test (`tools/web2check.mjs`).
    messages, decline prompts and draw nothing; `core/ui_json.cpp` installs
    the browser front end's table.
 3. **New front end.** Menus and hotkeys come from the menu tables in
-   `core/menus.c` and are dispatched through the same `M_*` switch, so
+   `core/menus.cpp` and are dispatched through the same `M_*` switch, so
    behaviour stays identical. Targets: a webview inside the
    [XPP-ODE VS Code extension](https://github.com/MuhammadMoustafa/XPP-ODE-Extension)
    and, optionally, a standalone desktop shell. Steps:
    1. *(done)* Command layer in core: `commander`, `run_the_commands` and
-      every pop-up menu live in `core/commands.c`; the menus are `XppMenu`
-      data in `core/menus.c`, shown through `xpp_ui.menu_choose`.
-   2. *(done)* Every command handler is core code: `graf_par.c`,
-      `torus.c`, `edit_rhs.c` and `core/grobs.c` (labels, arrows, markers,
+      every pop-up menu live in `core/commands.cpp`; the menus are `XppMenu`
+      data in `core/menus.cpp`, shown through `xpp_ui.menu_choose`.
+   2. *(done)* Every command handler is core code: `graf_par.cpp`,
+      `torus.cpp`, `edit_rhs.cpp` and `core/grobs.cpp` (labels, arrows, markers,
       plot-window commands) left the front-end set, and the rest moved into
-      `commands.c`/`xpp_util.c`. What a front end still provides are
+      `commands.cpp`/`xpp_util.cpp`. What a front end still provides are
       interaction primitives (menus, prompts, string/edit boxes, checklist,
       rubber band, scroll, mouse position), window management (plot windows,
       kinescope frames) and three whole dialogs (source viewer, calculator,
       text placement).
    2.5 *(done)* Logic out of the remaining front-end windows: the data
-      browser's commands (`browse_data.c`), the IC/parameter box values
-      and sliders (`xpp_util.c`), the animation language and its drawing
-      geometry (`aniparse.c`, drawing through `xpp_ui.ani_*`), array plot
-      settings and printing (`arrayplot.c`), AUTO diagram grabbing
-      (`auto_nox.c`), the GIF encoder (`scrngif.c`), user buttons
-      (`userbut.c`) and the equilibrium import.
+      browser's commands (`browse_data.cpp`), the IC/parameter box values
+      and sliders (`xpp_util.cpp`), the animation language and its drawing
+      geometry (`aniparse.cpp`, drawing through `xpp_ui.ani_*`), array plot
+      settings and printing (`arrayplot.cpp`), AUTO diagram grabbing
+      (`auto_nox.cpp`), the GIF encoder (`scrngif.cpp`), user buttons
+      (`userbut.cpp`) and the equilibrium import.
    3. *(done)* A protocol front end: `core/ui_json.cpp` is an `XppUi` table
       that speaks line-delimited JSON (data, state and prompts out; keys,
       answers and parameter edits in) and `make server` builds
@@ -117,7 +117,7 @@ browser and checks its state (docs/ui-v2.md).
 
 | Path | Contents |
 |---|---|
-| `core/` | All C sources and headers. |
+| `core/` | All C++ sources and headers. |
 | `docs/` | `manual/` (the current manual, Markdown), `upstream/` (the original TeX/PDF/HTML manual, historical reference), man page, upstream `HISTORY` and `README`. |
 | `examples/` | `ode/` example models, `canonical/`, `tstauto/` AUTO tests. |
 | `build/legacy/` | The upstream Makefile variants, kept for reference. |

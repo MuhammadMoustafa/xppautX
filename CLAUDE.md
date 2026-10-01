@@ -28,7 +28,7 @@ The sections below give the details.
 | Agents stop only their own processes, by PID, never by name | review |
 | A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence and the lines in XPPAUT's own source, never our refactored code, as relative links into the local, git-ignored copies `reference/xppaut-8.0` (the 8.0 source xppautX was forked from, `git archive c021b51`) and `reference/xppaut-master` (XPPAUT's GitHub master), e.g. `[load_eqn.c:1544](../reference/xppaut-8.0/load_eqn.c#L1544)` (maintainer, 2026-10-01) | review |
 
-## Build (from Windows this repo builds only under WSL)
+## Build (Linux builds and checks run under WSL; the Windows builds are native)
 
 Nothing builds or checks in WSL over /mnt/c (maintainer, 2026-09-28):
 WSL reads the Windows disk through 9P, several times slower, and runs
@@ -43,8 +43,9 @@ checkout (the main one or a worktree):
 Windows-side tools (the MSYS2 builds, web2, web2check against
 xppautX.exe) run from Git Bash on the checkout itself, as below.
 
-Full check after any change (build xppautX, smoke-test checksum,
-print the metrics), run by the reviewer on a wave's merged tip:
+The reviewer's full check (build xppautX, smoke-test checksum, print
+the metrics), once on a wave's merged tip; agents never run it (their
+tier is below):
 
     tools/wslrun.sh tools/verify.sh
 
