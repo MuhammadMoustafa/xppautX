@@ -427,7 +427,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 - `core/commands.cpp` is the command layer (phase 3): `commander` (keys),
   `run_the_commands` (`M_*` ids), and every pop-up menu. Menus are
   `XppMenu` data in `core/menus.cpp`; front ends show them via
-  `xpp_ui.menu_choose` and switch the main menu via `xpp_ui.show_menu`.
+  `xpp::ui.menu_choose` and switch the main menu via `xpp::ui.show_menu`.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
 - `core/xpp_batch.cpp` holds `xpp::load_model()`, the start every mode
