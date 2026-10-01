@@ -408,7 +408,6 @@ void j_movie_make_anigif(xpp::Session &s)
     if (k.frames == 0) return;
     xpp::Writer out = xpp::Writer::binary(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str());
     if (!out) return;
-    set_global_map(1);
     for (int i = 0; i < k.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) break;
@@ -424,7 +423,6 @@ void j_movie_make_anigif(xpp::Session &s)
     }
     end_ani_gif(out.file());
     out.commit();
-    set_global_map(0);
 }
 
 /* ---- array plot ------------------------------------------------------------------

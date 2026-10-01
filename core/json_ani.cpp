@@ -97,7 +97,6 @@ void ani_go(xpp::Session &s)
     set_ani_perm(s);
     if (s.animation.mpeg.aviflag == 1) {
         gif = xpp::Writer::binary("anim.gif");
-        set_global_map(1);
     }
     while (!stop) {
         int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
@@ -129,7 +128,6 @@ void ani_go(xpp::Session &s)
     if (gif) {
         end_ani_gif(gif.file());
         gif.commit();
-        set_global_map(0);
     }
     send_ani_slider(s);
 }

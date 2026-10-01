@@ -36,32 +36,34 @@ struct GIFCOL {
   unsigned char r,g,b;
 };
 
-unsigned int debugFlag;
-int UseGlobalMap=0;
-int GifFrameDelay=5,GifFrameLoop=1000;
-int chainlen = 0, maxchainlen = 0, nodecount = 0, lookuptypes = 0;
-short need = 8;
-GifTree *empty[256], GifRoot = {LOOKUP, 0, 0, empty, nullptr, nullptr},
-        *topNode, *baseNode, **nodeArray, **lastArray;
+/* a frame's colour map: its colours, then white */
+struct ColourMap {
+  std::array<GIFCOL,256> col;
+};
 
-std::array<GIFCOL,256> gifcol;
-std::array<GIFCOL,256> gifGcol;
-int NGlobalColors=0;
+/* a frame's delay (hundredths of a second) and an animated GIF's repeats */
+constexpr int GifFrameDelay=5,GifFrameLoop=1000;
 
-void ClearTree(int cc, GifTree *root);
-unsigned char *AddCodeToBuffer(int code, short n, unsigned char *buf);
+/* one GifEncode call's code tree and bit packing: the tree's root and its
+   empty table, the nodes and lookup tables it allocates from, and the
+   bits the output byte still needs */
+struct Lzw {
+  short need=8;
+  GifTree *empty[256]={};
+  GifTree root={LOOKUP,0,0,empty,nullptr,nullptr};
+  GifTree *topNode=nullptr,*baseNode=nullptr,**nodeArray=nullptr,**lastArray=nullptr;
+  Lzw()=default;
+  Lzw(const Lzw &)=delete;
+  Lzw &operator=(const Lzw &)=delete;
+};
 
-int ppmtopix(unsigned char r,unsigned char g, unsigned char b,int *n)
+void ClearTree(Lzw &z, int cc, GifTree *root);
+unsigned char *AddCodeToBuffer(Lzw &z, int code, short n, unsigned char *buf);
+
+int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int *n)
 {
+  std::array<GIFCOL,256> &gifcol=m.col;
   int i,nc=*n;
-  if(UseGlobalMap==1){
-    for(i=0;i<NGlobalColors;i++){
-    if(r==gifGcol[i].r&&g==gifGcol[i].g&&b==gifGcol[i].b)
-      return i;
-    }
-
-    return -1;
-  }
   for(i=0;i<nc;i++)
     if(r==gifcol[i].r&&g==gifcol[i].g&&b==gifcol[i].b)
       return i;
@@ -77,35 +79,16 @@ int ppmtopix(unsigned char r,unsigned char g, unsigned char b,int *n)
   return nc-1;
 }
 
-void local_to_global()
+int make_local_map(ColourMap &m, unsigned char *pixels,const unsigned char *ppm,int h, int w)
 {
-  gifcol=gifGcol;
-}
-
-int use_global_map(unsigned char *pixels,const unsigned char *ppm,int h, int w)
-{
-  int k=0,l=0,nc;
-  for(int i=0;i<h;i++){
-    for(int j=0;j<w;j++){
-      const int pix=ppmtopix(ppm[k],ppm[k+1],ppm[k+2],&nc);
-      if(pix<0)return(0);
-      pixels[l]=pix;
-      k+=3;
-      l++;
-    }
-  }
-  return(1);
-}
-
-int make_local_map(unsigned char *pixels,const unsigned char *ppm,int h, int w)
-{
+  std::array<GIFCOL,256> &gifcol=m.col;
   int k=0,l=0;
   int ncol=0;
   for(int i=0;i<h;i++){
     for(int j=0;j<w;j++){
       const unsigned char r=ppm[k],g=ppm[k+1],b=ppm[k+2];
       k+=3;
-      int pix=ppmtopix(r,g,b,&ncol);
+      int pix=ppmtopix(m,r,g,b,&ncol);
       if(pix<0)pix=255;
       pixels[l]=pix;
       l++;
@@ -121,8 +104,9 @@ int make_local_map(unsigned char *pixels,const unsigned char *ppm,int h, int w)
 }
 
 /* the logical screen: its size and the colour map (256 colours) */
-void put_screen(std::vector<unsigned char> &out, int cols, int rows, unsigned char flags)
+void put_screen(const ColourMap &m, std::vector<unsigned char> &out, int cols, int rows, unsigned char flags)
 {
+  const std::array<GIFCOL,256> &gifcol=m.col;
   const std::array<unsigned char,7> head={
     static_cast<unsigned char>(0xff & cols),static_cast<unsigned char>((0xff00 & cols)/0x100),
     static_cast<unsigned char>(0xff & rows),static_cast<unsigned char>((0xff00 & rows)/0x100),
@@ -150,16 +134,17 @@ void GifLoop(FILE *fout, unsigned int repeats)
   fputc(0x00, fout); /* terminator */
 }
 
-void write_global_header(int cols,int rows, FILE *dst)
+void write_global_header(const ColourMap &m, int cols,int rows, FILE *dst)
 {
   std::vector<unsigned char> out={'G','I','F','8','9','a'};
-  put_screen(out,cols,rows,0x87);
+  put_screen(m,out,cols,rows,0x87);
   fwrite(out.data(),out.size(),1,dst);
   GifLoop(dst,GifFrameLoop);
 }
 
-void write_local_header(int cols,int rows, FILE *fout,int colflag,int delay)
+void write_local_header(const ColourMap &m, int cols,int rows, FILE *fout,int colflag,int delay)
 {
+  const std::array<GIFCOL,256> &gifcol=m.col;
   fputc(0x21, fout);
   fputc(0xF9, fout);
   fputc(0x04, fout);
@@ -187,18 +172,13 @@ void write_local_header(int cols,int rows, FILE *fout,int colflag,int delay)
 
 int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 {
-  GifTree *first = &GifRoot, *newNode, *curNode;
+  Lzw z;
+  GifTree *first = &z.root, *newNode, *curNode;
   unsigned char  *end;
-  int     cc, eoi, next, tel=0;
+  int     cc, eoi, next;
   short   cLength;
 
   unsigned char    *pos, *buffer;
-
-  empty[0] = NULL;
-  need = 8;
-
-  nodeArray = empty;
-  memmove(++nodeArray, empty, 255*sizeof(GifTree **));
   std::vector<unsigned char> block(BUFLEN+1); /* buffer[-1] is a block's length */
   buffer = block.data()+1;
 
@@ -215,12 +195,12 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
   std::vector<GifTree> nodes(4094);
   std::vector<GifTree *> arrays(256*noOfArrays);
-  topNode = baseNode = nodes.data();
-  nodeArray = first->node = arrays.data();
-  lastArray = nodeArray + ( 256*noOfArrays - cc);
-  ClearTree(cc, first);
+  z.topNode = z.baseNode = nodes.data();
+  z.nodeArray = first->node = arrays.data();
+  z.lastArray = z.nodeArray + ( 256*noOfArrays - cc);
+  ClearTree(z, cc, first);
 
-  pos = AddCodeToBuffer(cc, cLength,pos);
+  pos = AddCodeToBuffer(z, cc, cLength,pos);
 
   end = pixels+siz;
   curNode = first;
@@ -228,9 +208,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 
     if ( curNode->node[*pixels] != NULL ) {
       curNode = curNode->node[*pixels];
-      tel++;
       pixels++;
-      chainlen++;
       continue;
     } else if ( curNode->typ == SEARCH ) {
       newNode = curNode->nxt;
@@ -239,9 +217,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
 	newNode = newNode->alt;
       }
       if (newNode->ix == *pixels ) {
-	tel++;
 	pixels++;
-	chainlen++;
 	curNode = newNode;
 	continue;
       }
@@ -253,7 +229,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
  * a SEARCH node, and if we still have room, it will be converted to a
  * LOOKUP node.
 */
-  newNode = ++topNode;
+  newNode = ++z.topNode;
   switch (curNode->typ ) {
    case LOOKUP:
      newNode->nxt = NULL;
@@ -261,13 +237,12 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
      curNode->node[*pixels] = newNode;
    break;
    case SEARCH:
-     if ( nodeArray != lastArray ) {
-       nodeArray += cc;
-       curNode->node = nodeArray;
+     if ( z.nodeArray != z.lastArray ) {
+       z.nodeArray += cc;
+       curNode->node = z.nodeArray;
        curNode->typ = LOOKUP;
        curNode->node[*pixels] = newNode;
        curNode->node[(curNode->nxt)->ix] = curNode->nxt;
-       lookuptypes++;
        newNode->nxt = NULL;
        newNode->alt = NULL,
        curNode->nxt = NULL;
@@ -286,20 +261,12 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
   newNode->code = next;
   newNode->ix = *pixels;
   newNode->typ = TERMIN;
-  newNode->node = empty;
-  nodecount++;
+  newNode->node = z.empty;
 /*
 * End of node creation
 * ******************************************************
 */
-  if (debugFlag) {
-    if (curNode == newNode) xpp::log_printf(XPP_LOG_WARN, "Wrong choice of node\n");
-    if ( curNode->typ == LOOKUP && curNode->node[*pixels] != newNode ) xpp::log_printf(XPP_LOG_WARN, "Wrong pixel coding\n");
-    if ( curNode->typ == TERMIN ) xpp::log_printf(XPP_LOG_WARN, "Wrong Type coding; pixel# = %d; nodecount = %d\n", tel, nodecount);
-  }
-    pos = AddCodeToBuffer(curNode->code, cLength, pos);
-    if ( chainlen > maxchainlen ) maxchainlen = chainlen;
-    chainlen = 0;
+    pos = AddCodeToBuffer(z, curNode->code, cLength, pos);
     if(pos-buffer>BLOKLEN) {
       buffer[-1] = BLOKLEN;
       fwrite(buffer-1, 1, BLOKLEN+1, fout);
@@ -315,8 +282,8 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
     next++;
 
     if(next == 0xfff) {
-      ClearTree(cc,first);
-      pos = AddCodeToBuffer(cc, cLength, pos);
+      ClearTree(z,cc,first);
+      pos = AddCodeToBuffer(z, cc, cLength, pos);
       if(pos-buffer>BLOKLEN) {
 	buffer[-1] = BLOKLEN;
 	fwrite(buffer-1, 1, BLOKLEN+1, fout);
@@ -331,7 +298,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
     }
   }
 
-  pos = AddCodeToBuffer(curNode->code, cLength, pos);
+  pos = AddCodeToBuffer(z, curNode->code, cLength, pos);
   if(pos-buffer>BLOKLEN-3) {
     buffer[-1] = BLOKLEN-3;
     fwrite(buffer-1, 1, BLOKLEN-2, fout);
@@ -342,48 +309,42 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
     buffer[4] = buffer[BLOKLEN+1];
     pos -= BLOKLEN-3;
   }
-  pos = AddCodeToBuffer(eoi, cLength, pos);
-  pos = AddCodeToBuffer(0x0, -1, pos);
+  pos = AddCodeToBuffer(z, eoi, cLength, pos);
+  pos = AddCodeToBuffer(z, 0x0, -1, pos);
   buffer[-1] = pos-buffer;
-   pos = AddCodeToBuffer(0x0,8,pos);
+   pos = AddCodeToBuffer(z, 0x0,8,pos);
 
   fwrite(buffer-1, pos-buffer+1, 1, fout);
-  first->node = empty; /* arrays goes with this call */
-  if (debugFlag) xpp::log_printf(XPP_LOG_DEBUG, "pixel count = %d; nodeCount = %d lookup nodes = %d\n", tel, nodecount, lookuptypes);
   return 1;
 
 }
 
-void ClearTree(int cc, GifTree *root)
+void ClearTree(Lzw &z, int cc, GifTree *root)
 {
   int i;
   GifTree *newNode, **xx;
 
-  if (debugFlag>1) xpp::log_printf(XPP_LOG_DEBUG, "Clear Tree  cc= %d\n", cc);
-  if (debugFlag>1) xpp::log_printf(XPP_LOG_DEBUG, "nodeCount = %d lookup nodes = %d\n", nodecount, lookuptypes);
-  maxchainlen=0; lookuptypes = 1;
-  nodecount = 0;
-  nodeArray = root->node;
-  xx= nodeArray;
+  z.nodeArray = root->node;
+  xx= z.nodeArray;
   for (i = 0; i < noOfArrays; i++ ) {
-    memmove (xx, empty, 256*sizeof(GifTree **));
+    memmove (xx, z.empty, 256*sizeof(GifTree **));
     xx += 256;
   }
-  topNode = baseNode;
+  z.topNode = z.baseNode;
   for(i=0; i<cc; i++) {
-    root->node[i] = newNode = ++topNode;
+    root->node[i] = newNode = ++z.topNode;
     newNode->nxt = NULL;
     newNode->alt = NULL;
     newNode->code = i;
     newNode->ix = i;
     newNode->typ = TERMIN;
-    newNode->node = empty;
-    nodecount++;
+    newNode->node = z.empty;
   }
 }
 
-unsigned char *AddCodeToBuffer(int code, short n, unsigned char *buf)
+unsigned char *AddCodeToBuffer(Lzw &z, int code, short n, unsigned char *buf)
 {
+  short &need=z.need;
   int    mask;
 
   if(n<0) {
@@ -412,11 +373,11 @@ unsigned char *AddCodeToBuffer(int code, short n, unsigned char *buf)
   return buf;
 }
 
-void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
+void make_gif(const ColourMap &m, unsigned char *pixels,int cols,int rows,FILE *dst)
 {
   const int depth=8;
   std::vector<unsigned char> out={'G','I','F','8','7','a'};
-  put_screen(out,cols,rows,static_cast<unsigned char>(0xf0 | (0x7&(depth-1))));
+  put_screen(m,out,cols,rows,static_cast<unsigned char>(0xf0 | (0x7&(depth-1))));
   const std::array<unsigned char,10> image={
     0x2c,0x00,0x00,0x00,0x00,
     static_cast<unsigned char>(0xff & cols),static_cast<unsigned char>((0xff00 & cols)/0x100),
@@ -433,15 +394,6 @@ void make_gif(unsigned char *pixels,int cols,int rows,FILE *dst)
 
 } // namespace
 
-void set_global_map(int flag)
-{
-  if(NGlobalColors==0){  /* Cant use it if it aint there */
-    UseGlobalMap=0;
-    return;
-  }
-  UseGlobalMap=flag;
-}
-
 void end_ani_gif(FILE *fp)
 {
   fputc(';',fp);
@@ -453,74 +405,22 @@ void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
 {
  std::vector<unsigned char> pix(static_cast<size_t>(h)*w);
  unsigned char *pixels=pix.data();
- int ncol=0;
-
- int ok;
+ ColourMap m;
  switch(task){
- case GET_GLOBAL_CMAP:
-   ncol=make_local_map(pixels,ppm,h,w);
-   gifGcol=gifcol;
-   NGlobalColors=ncol;
-   break;
- case MAKE_ONE_GIF: /* don't need global map! */
-   make_local_map(pixels,ppm,h,w);
-   make_gif(pixels,w,h,fp);
+ case MAKE_ONE_GIF:
+   make_local_map(m,pixels,ppm,h,w);
+   make_gif(m,pixels,w,h,fp);
    break;
  case FIRST_ANI_GIF:
-   if(UseGlobalMap)
-     {
-       ok=use_global_map(pixels,ppm,h,w);
-       if(ok==1)
-	 {
-	   local_to_global();
-	   write_global_header(w,h,fp);
-	   write_local_header(w,h,fp,0,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	 }
-       else /* first map cant be encoded */
-	 {
-           UseGlobalMap=0;
-	   local_to_global();
-	   write_global_header(w,h,fp);  /* write global header */
-	   make_local_map(pixels,ppm,h,w);
-	   write_local_header(w,h,fp,1,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	   UseGlobalMap=1;
-
-	 }
-     }
-   else
-     {
-        make_local_map(pixels,ppm,h,w);
-	write_global_header(w,h,fp);
-	write_local_header(w,h,fp,0,GifFrameDelay);
-	GifEncode(fp,pixels,8,w*h);
-     }
-    break;
+   make_local_map(m,pixels,ppm,h,w);
+   write_global_header(m,w,h,fp);
+   write_local_header(m,w,h,fp,0,GifFrameDelay);
+   GifEncode(fp,pixels,8,w*h);
+   break;
  case NEXT_ANI_GIF:
-   if(UseGlobalMap)
-     {
-       ok=use_global_map(pixels,ppm,h,w);
-       if(ok==1)
-	 {
-	   write_local_header(w,h,fp,0,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	 }
-       else
-	 {
-	   UseGlobalMap=0;
-	   make_local_map(pixels,ppm,h,w);
-	   write_local_header(w,h,fp,1,GifFrameDelay);
-	   GifEncode(fp,pixels,8,w*h);
-	   UseGlobalMap=1;
-	 }
-     }
-   else
-     {
-       make_local_map(pixels,ppm,h,w);
-       write_local_header(w,h,fp,1,GifFrameDelay);
-       GifEncode(fp,pixels,8,w*h);
-     }
+   make_local_map(m,pixels,ppm,h,w);
+   write_local_header(m,w,h,fp,1,GifFrameDelay);
+   GifEncode(fp,pixels,8,w*h);
    break;
  }
 }
