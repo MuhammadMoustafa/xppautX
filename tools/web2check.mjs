@@ -2004,11 +2004,11 @@ async function autoView(dir) {
   /* T26: a core error also sets the main status bar's `bottom` (StatusBar.tsx); with the main
      status bar hidden behind the AUTO view, its strip carries it instead. A bad %formula (not an
      `auto` command, so it does not disturb the `sent()` checks below) fails in
-     json_state.cpp apply_value: "Bad formula" */
+     json_state.cpp read_value: "set par iapp: Illegal formula .." */
   await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
-  await until(`s.bottom === 'Bad formula'`, 'bottom message');
+  await until(`s.bottom === 'set par iapp: Illegal formula ..'`, 'bottom message');
   check("T26: the core's last message shows in the AUTO strip",
-    (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === 'Bad formula');
+    (await cdp.eval(`document.querySelector('.auto-message')?.textContent`)) === 'set par iapp: Illegal formula ..');
   /* an error opens the error dialog (ErrorDialog.tsx) until OK: close it so it does not sit over a
      later control (it is above the AUTO view too, T26's dialog-backdrop note) */
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
@@ -4051,6 +4051,37 @@ async function valuesLive() {
     await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.06) < 1e-12', 'iapp = %0.01*6', 60000)
     && (await cdp.eval(`__xpp.sent().slice(${sent4})`)).some(c => c.cmd === 'set' && c.text === '%0.01*6'),
     JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sent4})`)));
+
+  /* W131: a set of several values is all or nothing, and its error shows on the field it
+     belongs to (the core names it), not on the first value's */
+  await until('!s.busy', 'idle before the mixed set', 60000);
+  const parOf = n => S(`s.core.pars.find(p => p[0] === ${JSON.stringify(n)})[1]`);
+  const iapp5 = await parOf('iapp'), gca5 = await parOf('gca');
+  await cdp.eval(`__xpp.send({cmd: 'set', values: [{kind: 'par', name: 'iapp', text: '0.21'},
+    {kind: 'par', name: 'gca', text: '%bogus_symbol_zzz'}, {kind: 'par', name: 'phi', text: '0.4'}]})`);
+  await until('!s.busy', 'idle after the mixed set', 60000);
+  check('W131: a set with one bad value applies none of the three',
+    close6(await parOf('iapp'), iapp5) && close6(await parOf('gca'), gca5) && close6(await parOf('phi'), 0.333),
+    JSON.stringify([await parOf('iapp'), await parOf('gca'), await parOf('phi')]));
+  /* the page's own edit path: the error lands on its field */
+  await editField('par', 'gca', '%bogus_symbol_zzz');
+  const refusedGca = await until(`s.values.errors['par:gca']`, 'the core refuses a formula for gca', 60000);
+  check('W131: a refusal shows on its own field, the core naming it, and on no other',
+    !!refusedGca && /gca/.test(await S(`s.values.errors['par:gca']`)) && Object.keys(await S('s.values.errors')).join() === 'par:gca',
+    JSON.stringify(await S('s.values.errors')));
+  await key('Escape');
+  await sleep(80);
+
+  /* Reset all sends the core's default command, once, and no set */
+  await editField('par', 'iapp', '0.3');
+  await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.3) < 1e-12`, 'iapp = 0.3', 60000);
+  const preAll = await cdp.eval('__xpp.sent().length');
+  await cdp.eval(`[...document.querySelectorAll('[data-section="par"] button')].find(b => b.textContent.trim() === 'Reset all').click()`);
+  await until('!s.busy && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.05) < 1e-12', 'Reset all applied', 60000);
+  const allSent = await cdp.eval(`__xpp.sent().slice(${preAll})`);
+  check('W131: Reset all sends one default command for the parameters and no set',
+    allSent.filter(c => c.cmd === 'default' && c.kind === 'par').length === 1 && !allSent.some(c => c.cmd === 'set'),
+    JSON.stringify(allSent));
 }
 
 /* tools/models/live.ode: 20 001 rows in about two seconds */
@@ -4755,19 +4786,19 @@ async function errorDialogCheck(dir) {
     return d && {n: d.querySelectorAll('[data-error]').length, text: d.innerText, count: document.querySelectorAll('.error-dialog').length}; })()`);
   await bad();
   check("error dialog: a refused value opens the dialog with the core's text",
-    await until(`document.querySelector('.error-dialog [data-error]')`, 'dialog') && /Bad formula/.test((await dialog()).text),
+    await until(`document.querySelector('.error-dialog [data-error]')`, 'dialog') && /set par iapp: Illegal formula ../.test((await dialog()).text),
     JSON.stringify(await dialog()));
   check('error dialog: focus is on OK', await cdp.eval(`document.activeElement && document.activeElement.hasAttribute('data-error-ok')`));
   await bad();
-  await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'Bad formula').length >= 2`, 'second error');
+  await until(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'set par iapp: Illegal formula ..').length >= 2`, 'second error');
   const two = await dialog();
   check('error dialog: two errors before OK are one dialog listing both',
-    two.count === 1 && two.n >= 2 && (two.text.match(/Bad formula/g) || []).length >= 2, JSON.stringify(two));
+    two.count === 1 && two.n >= 2 && (two.text.match(/set par iapp: Illegal formula ../g) || []).length >= 2, JSON.stringify(two));
   await key('Enter');
   check('error dialog: Enter closes it, nothing left',
     await until(`!document.querySelector('.error-dialog') && !s.toasts.some(t => t.kind === 'error')`, 'closed'));
   check('error dialog: the errors stay in the Messages list',
-    (await S(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'Bad formula').length`)) >= 2);
+    (await S(`__xpp.log().filter(l => l.kind === 'error' && l.text === 'set par iapp: Illegal formula ..').length`)) >= 2);
   await bad();
   await until(`document.querySelector('.error-dialog')`, 'dialog again');
   await key('Escape');
@@ -5057,7 +5088,7 @@ async function layoutCheck(dir) {
   await desktopMetrics();
   await sleep(100);
   await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
-  await until(`s.bottom === 'Bad formula'`, 'bottom message');
+  await until(`s.bottom === 'set par iapp: Illegal formula ..'`, 'bottom message');
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
   await until(`!s.toasts.length`, 'toasts dismissed');
   check('layout: the message strip is the topmost element at its left end (nothing over it)',
@@ -5161,7 +5192,7 @@ async function main() {
       await windows();
       await textViews();
     });
-    if (run('layout')) await session(ODE, layoutCheck, ['Illegal formula ..', 'Bad formula']);
+    if (run('layout')) await session(ODE, layoutCheck, ['set par iapp: Illegal formula ..']);
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
@@ -5188,12 +5219,12 @@ async function main() {
     if (run('kinescope')) await session(ODE, kinescope);
     if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
-       .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
-    if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);
+       .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
+    if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.ode'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.ode'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
-    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'Bad formula',
+    if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('loaderror')) await loadErrorCheck();

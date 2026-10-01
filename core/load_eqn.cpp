@@ -339,25 +339,22 @@ void extract_internset(xpp::Session &s, int j)
 
 void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view value_text)
 {
-  int i;
   const std::string name=converted(name1);
-  /* the value as atof reads it */
   const std::string value(value_text);
-
-  i=find_user_name(s.model(),ICBOX,name);
-  if(i>-1){
-    s.last_ic[i]=atof(value.c_str());
-  }
-  else {
-    i=find_user_name(s.model(),PARAMBOX,name);
-    if(i>-1){
-      set_val(s,name,atof(value.c_str()));
+  const int ic=find_user_name(s.model(),ICBOX,name);
+  const int par=ic>-1?-1:find_user_name(s.model(),PARAMBOX,name);
+  if(ic>-1||par>-1){
+    /* a variable or parameter takes a number, all of it (parse_number) */
+    double number=0.0;
+    if(!parse_number(trim_blanks(value),number)){
+      xpp::show_error(xpp::Error{"set",xpp::format("{}: \"{}\" is not a number",name,value),{},""});
+      return;
     }
-    else {
-      set_option(s,name,value,1,NULL);
-   }
+    if(ic>-1)s.last_ic[ic]=number;
+    else set_val(s,name,number);
   }
- xpp::do_meth(s);
+  else set_option(s,name,value,1,NULL);
+  xpp::do_meth(s);
 }
 /*  ODE options stuff  here !!   */
 

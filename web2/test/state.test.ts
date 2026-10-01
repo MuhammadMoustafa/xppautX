@@ -144,6 +144,14 @@ test('a set that the core rejects lands on its value field, not only the toast (
   assert.deepEqual(s.values.inflight, []);
 });
 
+test('a refusal that names its field lands there, not on the first value of the set (W131)', () => {
+  let s = reduce(READY, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'a', text: '1'}, ahead: 0}});
+  s = reduce(s, {type: 'values', action: {type: 'sent', set: {kind: 'par', name: 'B', text: '%bad('}, ahead: 0}});
+  s = ev(s, {ev: 'message', error: 'set par B: Illegal formula ..', field: 'par:b'});
+  assert.deepEqual(Object.keys(s.values.errors), ['par:b']);
+  assert.equal(s.values.errors['par:b'], 'set par B: Illegal formula ..');
+});
+
 test('the numerics event is the store (W106); a new hello forgets it', () => {
   const fields = [{key: 'total', label: 'Total', value: 20}, {key: 'method', label: 'Method', value: 3, choices: ['a', 'b', 'c', 'd']}];
   let s = ev(READY, {ev: 'numerics', fields});

@@ -339,13 +339,16 @@ export interface AskEvent {
 /** What every error event carries (docs/protocol.md "Errors", W140): what
     failed, and where: the file ("" when none), its line and column from 1
     (0 when not known) and the line as written ("" when not read). A file
-    with line 0 is one the command could not read. */
+    with line 0 is one the command could not read. `field` is the value field
+    the error belongs to (`par:gca`, as fieldKey writes it), "" when none: a
+    `set` of several values says which one it refused. */
 export interface ErrorFields {
   error: string;
   file: string;
   line: number;
   col: number;
   source: string;
+  field: string;
 }
 
 /** an error (`error` with its place, ErrorFields), or a status line, an alert, ... */

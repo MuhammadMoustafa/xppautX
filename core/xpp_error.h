@@ -45,6 +45,11 @@ struct Error {
      which the page offers to add to the model's folder (docs/protocol.md
      "Errors") */
   Place place{};
+  /* the value field the error belongs to, as a client keys it (`par:gca`,
+     `ic:v`, `num:dt`; `bc:0` by index), "" when it is not about one: a
+     `set` of several values says which one it refused (docs/protocol.md
+     "Errors") */
+  std::string field{};
 
   /* "file:line:col: what", leaving out what is not known ("line N: what"
      with no file) */

@@ -75,8 +75,9 @@ export type ValuesAction =
   | {type: 'sent'; set: ValueSet; ahead: number}
   /** a command ended: the set whose command it was is done, the others one idle closer */
   | {type: 'idle'}
-  /** a `message` `error`: the running set's field's, when a set runs */
-  | {type: 'error'; text: string}
+  /** a `message` `error`: its `field` (the core says which value of a `set` it refused), else the
+      running set's, when a set runs */
+  | {type: 'error'; text: string; field?: string}
   /** Escape dropped a draft that carried the core's refusal for `field` (WF-001, ui/Field.tsx
       onDropError): the box goes back to what the core has, so its error is forgotten too,
       without sending anything */
@@ -105,7 +106,9 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
         ? {...state, inflight: state.inflight.filter(f => f.ahead > 0).map(f => ({...f, ahead: f.ahead - 1}))} : state;
     case 'error': {
       const running = state.inflight.find(f => f.ahead === 0);
-      return running ? {...state, errors: {...state.errors, [setKey(running.set)]: action.text}} : state;
+      if (!running) return state;
+      const key = action.field || setKey(running.set);
+      return {...state, errors: {...state.errors, [key]: action.text}};
     }
     case 'clearError': {
       const errors = omit(state.errors, action.field);

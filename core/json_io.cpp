@@ -8,6 +8,7 @@
 #include "xpp_mem.h"
 #include "xpp_http.h"
 #include "xpp_inbox.h"
+#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_win32.h"
 #include "mykeydef.h"
@@ -439,13 +440,13 @@ int is_cmd(const char *line, const char *name)
     return get_string(line, "cmd", c, 32) && c == name;
 }
 
-/* a JSON number at v into *out; 0 for anything else (a string, null, true) */
+/* a JSON number at v into *out; 0 for anything else (a string, null, true,
+   or a token that is not all one number: xpp::parse_number's rule, W131) */
 int js_number(const char *v, double *out)
 {
-    char *end;
     if (!v || !(*v == '-' || (*v >= '0' && *v <= '9'))) return 0;
-    *out = strtod(v, &end);
-    return end != v;
+    const char *end = v + strcspn(v, ",}] \t\r\n");
+    return xpp::parse_number(std::string_view(v, static_cast<size_t>(end - v)), *out);
 }
 
 /* key names as the client sends them (DOM KeyboardEvent.key or X keysym

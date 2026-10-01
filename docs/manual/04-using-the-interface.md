@@ -132,7 +132,14 @@ beside the plot (a sheet on a phone):
   else (letters in a parameter box) is refused, not sent: see "What a box
   accepts", below.
 - **Reset all** puts back the values from the ODE file, as the X11
-  Parameter window's Default button did.
+  Parameter window's Default button did: it sends the core's `default`
+  command, which redoes the tables once, and the values change together.
+- The core reads a number in a box, a script's answer or a `set` the same
+  way everywhere: all of the text must be one number (or a `%formula`),
+  so `1O0` (a letter O) or `5x` is refused, with an error naming the
+  field, and nothing changes. A `set` of several values is all or
+  nothing: if one is refused none is applied, and the error shows on
+  that value's field.
 - **The checkboxes** next to the variables pick what **x vs t**,
   **Phase** and **Array** plot, like `xvst`, `pp` and `arry` in X11.
 - **Sliders** sit under the plot, any number of them (the X11 main

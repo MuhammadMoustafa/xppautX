@@ -136,6 +136,8 @@ void send_error(const char *ev, const xpp::Error &e)
     buf_str(&b, p.file);
     buf_format(&b, ",\"line\":{:d},\"col\":{:d},\"source\":", p.line, p.col);
     buf_str(&b, p.source);
+    BUF_LIT(&b, ",\"field\":");
+    buf_str(&b, e.field);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }

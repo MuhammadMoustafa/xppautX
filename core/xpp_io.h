@@ -111,6 +111,16 @@ inline bool equal_ignoring_case(std::string_view a, std::string_view b)
   return true;
 }
 
+/* text without the blanks (space, tab, CR, LF) around it: a typed value
+   is read after this, so " 5 " is 5 and "5 x" is still refused */
+inline std::string_view trim_blanks(std::string_view text)
+{
+  const std::string_view blanks=" \t\r\n";
+  const size_t b=text.find_first_not_of(blanks);
+  if(b==std::string_view::npos)return {};
+  return text.substr(b,text.find_last_not_of(blanks)-b+1);
+}
+
 /* text, all of it, as a decimal number (strtod's grammar in the C locale:
    inf and nan too, no hexadecimal, no leading space); false when the text
    is not one number or is out of double's range (a subnormal is in it). Not std::from_chars:

@@ -154,6 +154,17 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
 
 } // namespace
 
+int numerics_settings_check(const xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
+{
+    const OptionRow *f = numerics_option(key);
+    double v = 0;
+    if (!f || (f->use == OptionUse::delays && !used(s, *f))) {
+        why = xpp::format("no numerics setting {}", key);
+        return -1;
+    }
+    return check(s.model(), *f, text, v, why) ? 0 : -1;
+}
+
 int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
 {
     try {

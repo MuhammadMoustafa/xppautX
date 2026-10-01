@@ -345,85 +345,128 @@ void j_state_dirty_is(int, const char *) { session.state_dirty = 1; }
 
 namespace {
 
+/* one value of a "set", checked and not yet applied */
+struct SetValue {
+    int type = 0;  /* PARAMBOX, ICBOX, DELAYBOX, BCBOX as in xpp_util.h's list below; 0 for a numerics field */
+    int index = -1;
+    std::string kind, name, text, field; /* field: as the page keys it */
+};
+
+/* a refusal of the value of field `field`: the field is how the page keys
+   it (kind:name lower-cased, or kind:index) */
+std::unexpected<xpp::Error> refuse(const std::string &field, std::string what)
+{
+    xpp::Error e{"set", std::move(what), {}, field};
+    return std::unexpected<xpp::Error>(std::move(e));
+}
+
+std::string field_key(const std::string &kind, const std::string &name, int index)
+{
+    std::string n = index >= 0 ? std::to_string(index) : name;
+    if (index < 0)
+        for (char &c : n)
+            if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return kind + ":" + n;
+}
+
 /* one value of a "set": {"kind":"par|ic|bc|delay|num","name":...,"value":number
    or "text":...}. Text is what the user would type in the X11 box: a number
    or %formula for parameters and ICs, an expression for BCs and delays; for
    the numerics (num, W106) a number, or a method's name, the field named by
-   its key (numerics_settings.h). 0 when set, -1 (with the protocol's
-   error) on a kind or name the model does not have, no value (a number)
-   or text, a formula that does not evaluate or a numerics value refused. */
-int apply_value(xpp::Session &s, const char *line)
+   its key (numerics_settings.h). Checks it all and changes nothing: the
+   value, or the error (naming the field) of a kind or name the model does
+   not have, no value (a number) or text, a text that is not one number (or a
+   formula that does not compile) for a parameter or IC, or a numerics value
+   refused (W131). */
+xpp::Result<SetValue> read_value(xpp::Session &s, const char *line)
 {
     const xpp::Model &m = s.model();
-    std::string kind, name, text;
+    SetValue v;
     double z;
-    int type, i, n, index = -1;
-    get_string(line, "kind", kind);
-    get_string(line, "name", name);
-    if (kind == "par") type = 1;        /* PARAMBOX */
-    else if (kind == "ic") type = 2;    /* ICBOX */
-    else if (kind == "delay") type = 3; /* DELAYBOX */
-    else if (kind == "bc") type = 4;    /* BCBOX */
-    else if (kind != "num") {
-        j_err_msg(xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", kind));
-        return -1;
-    } else type = 0;
-    if (!get_string(line, "text", text)) {
-        if (!js_number(js_find(line, "value"), &z)) {
-            j_err_msg(xpp::format("set {} {}: its value is not a number (or its text missing)", kind, name));
-            return -1;
-        }
-        text = xpp::format("{:.16g}", z);
+    int n;
+    get_string(line, "kind", v.kind);
+    get_string(line, "name", v.name);
+    const char *at = js_find(line, "index");
+    double k = -1;
+    /* the field as the client keys it: by the index it sent, else the name */
+    const bool by_index = at && js_number(at, &k) && k >= 0 && k == static_cast<int>(k);
+    const std::string field = field_key(v.kind, v.name, by_index ? static_cast<int>(k) : -1);
+    v.field = field;
+    if (v.kind == "par") v.type = 1;        /* PARAMBOX */
+    else if (v.kind == "ic") v.type = 2;    /* ICBOX */
+    else if (v.kind == "delay") v.type = 3; /* DELAYBOX */
+    else if (v.kind == "bc") v.type = 4;    /* BCBOX */
+    else if (v.kind != "num") return refuse("", xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", v.kind));
+    else v.type = 0;
+    if (!get_string(line, "text", v.text)) {
+        if (!js_number(js_find(line, "value"), &z))
+            return refuse(field, xpp::format("set {} {}: its value is not a number (or its text missing)", v.kind, v.name));
+        v.text = xpp::format("{:.16g}", z);
     }
-    if (type == 0) {
+    if (v.type == 0) {
         std::string why;
-        if (numerics_settings_set(s, name, text, why) == 0) return 0;
-        j_err_msg(xpp::format("Numerics: {}", why));
-        return -1;
+        if (xpp::numerics_settings_check(s, v.name, v.text, why) == 0) return v;
+        return refuse(field, xpp::format("Numerics: {}", why));
     }
-    n = type == 1 ? m.nupar : type == 2 ? m.node + m.nmarkov : m.node;
+    n = v.type == 1 ? m.nupar : v.type == 2 ? m.node + m.nmarkov : m.node;
     /* BC names are not unique ("0="): those come by index */
-    if (const char *at = js_find(line, "index")) {
-        double k;
-        if (!js_number(at, &k) || !(k >= 0 && k < n) || k != static_cast<int>(k)) {
-            j_err_msg(xpp::format("set {}: its index is not one of 0 to {}", kind, n - 1));
-            return -1;
-        }
-        index = static_cast<int>(k);
+    if (at) {
+        if (!by_index || !(k < n))
+            return refuse(field, xpp::format("set {}: its index is not one of 0 to {}", v.kind, n - 1));
+        v.index = static_cast<int>(k);
     }
-    for (i = 0; index < 0 && i < n; i++) {
-        const char *bc = type == 4 ? s.bcs[i].name.data() : nullptr;
-        if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
-                      : xpp::equal_ignoring_case(type == 1 ? m.upar_names[i] : m.uvar_names[i], name))
-            index = i;
+    for (int i = 0; v.index < 0 && i < n; i++) {
+        const char *bc = v.type == 4 ? s.bcs[i].name.data() : nullptr;
+        if (v.type == 4 ? bc && xpp::equal_ignoring_case(bc, v.name)
+                        : xpp::equal_ignoring_case(v.type == 1 ? m.upar_names[i] : m.uvar_names[i], v.name))
+            v.index = i;
     }
-    if (index < 0) {
-        j_err_msg(xpp::format("set: the model has no {} {}", kind, name));
-        return -1;
+    if (v.index < 0) return refuse(field, xpp::format("set: the model has no {} {}", v.kind, v.name));
+    if (v.type <= 2) {
+        const xpp::Result<double> r = typed_number(s, v.text, field);
+        if (!r) return refuse(field, xpp::format("set {} {}: {}", v.kind, v.name, r.error().what));
     }
-    session.state_dirty = 1;
-    if (box_set_value(s, type, index, text, &z) == -1) {
-        j_err_msg("Bad formula");
-        return -1;
-    }
-    box_values_loaded(s, type);
-    return 0;
+    return v;
 }
 
 } // namespace
 
-/* {"cmd":"set", one value's members (apply_value), or "values":[{...}...]
-   to set several in one command. Never runs anything itself (W69). A
-   setting (W106): sent during a computation it applies when that ends,
-   never to the run in progress (ui_json.cpp control_line). */
+/* {"cmd":"set", one value's members (read_value), or "values":[{...}...]
+   to set several in one command: every value is checked, then all are
+   applied, or none, a refusal naming the field it is about (W131). Never
+   runs anything itself (W69). A setting (W106): sent during a computation
+   it applies when that ends, never to the run in progress (ui_json.cpp
+   control_line). */
 void apply_set(xpp::Session &s, const char *line)
 {
     const char *values = js_find(line, "values");
-    int i;
-    if (values)
-        for (i = 0; js_elem(values, i); i++) apply_value(s, js_elem(values, i));
-    else
-        apply_value(s, line);
+    std::vector<SetValue> list;
+    session.state_dirty = 1;
+    if (values) {
+        for (int i = 0; js_elem(values, i); i++) {
+            const xpp::Result<SetValue> v = read_value(s, js_elem(values, i));
+            if (!v) return j_err_msg(v.error());
+            list.push_back(*v);
+        }
+    } else {
+        const xpp::Result<SetValue> v = read_value(s, line);
+        if (!v) return j_err_msg(v.error());
+        list.push_back(*v);
+    }
+    bool loaded[5] = {};
+    for (const SetValue &v : list) {
+        if (v.type == 0) {
+            std::string why;
+            if (xpp::numerics_settings_set(s, v.name, v.text, why) != 0)
+                return j_err_msg(xpp::Error{"set", xpp::format("Numerics: {}", why), {}, v.field});
+            continue;
+        }
+        const xpp::Result<void> r = box_set_value(s, v.type, v.index, v.text, v.field);
+        if (!r) return j_err_msg(r.error());
+        loaded[v.type] = true;
+    }
+    for (int type = 1; type <= 4; type++)
+        if (loaded[type]) box_values_loaded(s, type);
 }
 
 /* {"cmd":"default","kind":"par|ic"}: the model file's values */

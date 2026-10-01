@@ -5,6 +5,7 @@
 #include "session.h"
 #include "ode_read.h"
 #include "xpp_util.h"
+#include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_files.h"
 #include "xpp_ui.h"
@@ -198,22 +199,52 @@ int has_eq(std::string_view z, std::string &name, int *where)
   return(1);
  }
 
-double calculate(xpp::Session &s, std::string_view expr, int *ok)
+Result<double> evaluate_formula(xpp::Session &s, std::string_view expr)
 {
   int com[400],i;
   double z=0.0;
-    if(add_expr(s,expr,com,&i)){
-     err_msg("Illegal formula ..");
-     *ok=0;
-      goto bye;
-   }
-  z=evaluate(s,com);
- *ok=1;
-bye:
+  const bool bad=add_expr(s,expr,com,&i)!=0;
+  if(!bad)z=evaluate(s,com);
   s.parser.ncon=s.model().ncon_start;
   s.parser.nsym=s.model().nsym_start;
-  return(z);
- }
+  if(bad)return std::unexpected(Error{"formula","Illegal formula ..",{},""});
+  return z;
+}
+
+double calculate(xpp::Session &s, std::string_view expr, int *ok)
+{
+  const Result<double> r=evaluate_formula(s,expr);
+  *ok=ok_or_show(r)?1:0;
+  return r.value_or(0.0);
+}
+
+/* a typed value refused: what, and the field it was typed in */
+static std::unexpected<Error> refused_value(std::string what,std::string_view field)
+{
+  return std::unexpected(Error{"value",std::move(what),{},std::string(field)});
+}
+
+Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string_view field)
+{
+  const std::string_view text=trim_blanks(typed);
+  if(text.starts_with('%')){
+    std::string_view formula=text.substr(1);
+    if(formula.empty())return 0.0; /* as do_calc takes it */
+    std::string name;
+    int i;
+    if(has_eq(formula,name,&i)){
+      if(find_user_name(s.model(),PARAM,name)<0&&find_user_name(s.model(),IC,name)<0)
+        return refused_value("No such name!",field);
+      formula=formula.substr(static_cast<size_t>(i));
+    }
+    Result<double> r=evaluate_formula(s,formula);
+    if(!r)r.error().field=field;
+    return r;
+  }
+  double v;
+  if(!parse_number(text,v))return refused_value(xpp::format("\"{}\" is not a number",text),field);
+  return v;
+}
 
 void set_active_windows(xpp::Session &s)
 {
@@ -459,20 +490,6 @@ void   set_default_ics(xpp::Session &s)
    redraw_ics();
 }
 
-int to_float(xpp::Session &s, std::string_view text, double *z)
-{
-  int flag;
-  *z=0.0;
-  if(text.starts_with('%'))
-    {
-      flag=do_calc(s,text.substr(1),z);
-      if(flag==-1)return -1;
-      return 0;
-    }
-  *z=atof(std::string(text).c_str());
-  return(0);
-}
-
 void man_ic(xpp::Session &s)
 {
   int done,index=0;
@@ -491,29 +508,42 @@ void man_ic(xpp::Session &s)
   }
 }
 
-/* store the text s typed for entry i of a box of the given type. Numbers
-   (ICs, parameters) come back in *z and the result is 1; BCs and delays are
-   strings (0); -1 when a %formula does not evaluate. */
-int box_set_value(xpp::Session &s, int type,int i,std::string_view text,double *z)
+/* the value typed for a number box: checked whole by typed_number, then a
+   "%name:formula" also sets its name (do_calc), whose value the box takes */
+static Result<double> box_number(xpp::Session &s,std::string_view text,std::string_view field)
 {
-  *z=0.0;
+  const Result<double> r=typed_number(s,text,field);
+  if(!r)return r;
+  const std::string_view t=trim_blanks(text);
+  double z=*r;
+  if(t.starts_with('%')&&do_calc(s,t.substr(1),&z)==-1)return std::unexpected(Error{"formula","",{},std::string(field)});
+  return z;
+}
+
+/* store the text typed for entry i of a box of the given type: a number
+   (ICs, parameters: a plain number or %formula, nothing else) or, for BCs
+   and delays, a string. A refusal changes nothing and is returned, not shown. */
+Result<void> box_set_value(xpp::Session &s, int type,int i,std::string_view text,std::string_view field)
+{
   switch(type){
-  case ICBOX:
-    if(to_float(s,text,z)==-1)return -1;
+  case ICBOX:{
+    const Result<double> z=box_number(s,text,field);
+    if(!z)return std::unexpected(z.error());
     s.last_ic[i]=*z;
-    return 1;
-  case PARAMBOX:
-    if(to_float(s,text,z)==-1)return -1;
+    break;}
+  case PARAMBOX:{
+    const Result<double> z=box_number(s,text,field);
+    if(!z)return std::unexpected(z.error());
     set_val(s,s.model().upar_names[i],*z);
-    return 1;
+    break;}
   case BCBOX:
     set_bc_formula(s,i,text);
-    return 0;
+    break;
   case DELAYBOX:
     s.delay_string[i]=text;
-    return 0;
+    break;
   }
-  return 0;
+  return {};
 }
 
 /* every entry of a box was just stored: recompute what depends on them */

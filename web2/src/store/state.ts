@@ -448,7 +448,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the AUTO
            form's: the field or form shows it where it was typed and takes the focus back (WF-001),
            so it opens no error dialog (W104 review) -- it is still in Messages */
-        const values = reduceValues(state.values, {type: 'error', text: ev.error});
+        const values = reduceValues(state.values, {type: 'error', text: ev.error, field: ev.field});
         const autoSettings = /^AUTO settings: /.test(ev.error)
           ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
         const logged = addLog({...state, bottom: text, files, values, autoSettings}, {kind: 'error', text});

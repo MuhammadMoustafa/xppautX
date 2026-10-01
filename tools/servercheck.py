@@ -1498,6 +1498,49 @@ def check_values_protocol():
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '%nosuch+'}], rerun=1)
         check('set values[] with a bad formula: an error, and no run',
               any(e.get('ev') == 'message' and 'error' in e for e in evs) and not full(evs), str(evs)[:300])
+        # W131: one number rule (all of the text), a set applies all or nothing,
+        # its error names the field, and default is the core's own command
+        errs = lambda evs: [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        st1 = last_state(after(cmd='state'))
+        evs = after(cmd='set', kind='par', name='iapp', text='abc')
+        st = last_state(evs)
+        check('set par with text that is not a number: refused naming the field, nothing changes',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'par:iapp' and 'abc' in errs(evs)[0]['error']
+              and st and par(st, 'iapp') == par(st1, 'iapp'), str(errs(evs)) + str(st and st['pars'][:3]))
+        evs = after(cmd='set', kind='par', name='iapp', text='1O0')
+        check('set par 1O0 (a letter O): refused, nothing changes', len(errs(evs)) == 1
+              and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
+        evs = after(cmd='slide', name='iapp', value='5x')
+        check('slide with a value that is not all a number: refused, nothing changes', len(errs(evs)) == 1
+              and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
+                                       {'kind': 'ic', 'name': 'v', 'text': '%bad('},
+                                       {'kind': 'par', 'name': 'gca', 'text': '1.1'}])
+        st = last_state(evs)
+        check('a set of three with the second bad: one error naming ic v, nothing applied',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'ic:v' and st
+              and par(st, 'iapp') == par(st1, 'iapp') and par(st, 'gca') == par(st1, 'gca') and ic(st, 'v') == ic(st1, 'v'),
+              str(errs(evs)) + str(st and st['pars'][:3]))
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
+                                       {'kind': 'num', 'name': 'total', 'text': '1O0'}])
+        check('a set with a bad numerics value applies none of it, its error names num:total',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:total'
+              and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
+        keys('u')
+        evs = keys('t', {'value': '1O0'})
+        check('an answer to a number ask that is not a number is refused, naming the question',
+              len(errs(evs)) == 1 and 'Total' in errs(evs)[0]['error'] and '1O0' in errs(evs)[0]['error'], str(errs(evs)))
+        keys('Escape')  # back to the main menu
+        evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': ' 0.31 '},
+                                       {'kind': 'ic', 'name': 'v', 'text': '-0.2'}])
+        st = last_state(evs)
+        check('a good set of two (blanks around a number allowed) applies both, no error', not errs(evs) and st
+              and abs(par(st, 'iapp') - 0.31) < 1e-12 and abs(ic(st, 'v') + 0.2) < 1e-12, str(errs(evs)) + str(st and st['pars'][:3]))
+        evs = after(cmd='default', kind='par')
+        st = last_state(evs)
+        check('default par after edits: every parameter back to the model file value, no error',
+              not errs(evs) and st and [v for _, v in st['pars']] == d['pars'], str(errs(evs)) + str(st and st['pars'][:3]))
+        after(cmd='set', kind='ic', name='v', value=-0.2)
         before = last_state(after(cmd='state'))
         evs = after(cmd='set', kind='ic', **{'from': 'last'})
         st = last_state(evs)

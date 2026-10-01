@@ -24,7 +24,7 @@ core/json_ani.cpp 1
 core/json_auto.cpp 11
 core/json_player.cpp 16
 core/json_record.cpp 6
-core/json_state.cpp 13
+core/json_state.cpp 7
 core/json_windows.cpp 6
 core/load_eqn.cpp 2
 core/lunch-new.cpp 2
@@ -50,5 +50,5 @@ core/xpp_io.cpp 6
 core/xpp_math.cpp 1
 core/xpp_mem.cpp 2
 core/xpp_session.cpp 10
-core/xpp_util.cpp 3
+core/xpp_util.cpp 2
 core/xppautx_main.cpp 4

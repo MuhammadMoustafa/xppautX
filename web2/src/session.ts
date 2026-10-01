@@ -855,16 +855,11 @@ export class Session {
     if (d !== null) this.setValue(kind, name, String(d));
   }
 
-  /** Reset all: every parameter or IC of `kind` back to the model file's value, in one `set` */
+  /** Reset all: the core's `default` command, every parameter or IC of `kind` back to the model
+      file's value (the core redoes the tables once) */
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
-    const list = (kind === 'par' ? this.store.getState().core?.pars : this.store.getState().core?.ics) ?? [];
-    const sets: ValueSet[] = [];
-    for (const [name] of list) {
-      const d = this.defaultOf(kind, name);
-      if (d !== null) sets.push({kind, name, text: String(d)});
-    }
-    this.edit(...sets);
+    this.send({cmd: 'default', kind});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the

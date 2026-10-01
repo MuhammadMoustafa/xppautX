@@ -4,7 +4,7 @@
 import type {ErrorFields} from './types';
 
 /** where an error is: its file, line, column and the line as written */
-export type ErrorPlace = Omit<ErrorFields, 'error'>;
+export type ErrorPlace = Omit<ErrorFields, 'error' | 'field'>;
 
 /** the place of an error event, or nothing when it names none */
 export function errorPlace(e: Partial<ErrorFields>): ErrorPlace | undefined {

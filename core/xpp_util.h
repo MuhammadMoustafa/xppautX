@@ -5,6 +5,7 @@
 #include "xpp_types.h"
 #include "many_pops.h"
 #include "session.h"
+#include "xpp_error.h"
 
 #include <string>
 #include <string_view>
@@ -34,9 +35,16 @@ double calculate(Session &s, std::string_view expr, int *ok);
 /* temp ("name:formula" sets name, or a formula) worked out in the Session
    s into *z */
 int do_calc(Session &s, std::string_view temp, double *z);
-/* text, a number or %formula (worked out in s), into *z: -1 when the
-   formula does not compile */
-int to_float(Session &s, std::string_view text, double *z);
+/* the formula expr worked out in s, or why it does not compile; shows
+   nothing and changes nothing (calculate shows the error) */
+Result<double> evaluate_formula(Session &s, std::string_view expr);
+/* what was typed in a number field: a plain number (xpp::parse_number's
+   rule, blanks around it allowed) or %formula (worked out in s; "%name:
+   formula" must name a parameter or an IC), else the error, which
+   carries `field`, the field it was typed in (Error::field). Nothing is
+   shown or set: the one reading of a typed number (W131), which new_float,
+   the `set` command and every box go through. */
+Result<double> typed_number(Session &s, std::string_view typed, std::string_view field = {});
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
@@ -54,7 +62,9 @@ void get_max(const Session &s, int index, double *vmin, double *vmax);
 void new_parameter(Session &s);
 void set_default_params(Session &s);
 void set_default_ics(Session &s);
-int box_set_value(Session &s, int type, int i, std::string_view text, double *z);
+/* store the text typed for entry i of the box `type`; the refusal, shown by
+   no one, changes nothing (typed_number) */
+Result<void> box_set_value(Session &s, int type, int i, std::string_view text, std::string_view field = {});
 void box_values_loaded(Session &s, int type);
 void set_par_or_var(Session &s, std::string_view name, int type, int index, double val);
 void eq_import(Session &s, double *y, int n);

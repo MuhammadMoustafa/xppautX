@@ -398,11 +398,28 @@ bool save_recording(Session &s) { return ui.save_recording(s); }
    same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
    real error uses err_msg()/xpp::log_printf(..., XPP_LOG_ERROR/WARN) instead. */
 
+/* the question's name as a sentence's subject: "Total :" is Total */
+static std::string field_name(std::string_view name)
+{
+    std::string_view n = trim_blanks(name);
+    while (n.ends_with(':')) n = trim_blanks(n.substr(0, n.size() - 1));
+    return std::string(n);
+}
+
+/* a typed number a field refuses: the answer is not taken, its name and the text said */
+static int refused_answer(std::string_view name, std::string_view what, std::string_view typed)
+{
+    show_error(Error{"answer", xpp::format("{}: \"{}\" is not {}", field_name(name), trim_blanks(typed), what), {}, ""});
+    return -1;
+}
+
 int new_int(std::string_view name, int *value)
 {
     std::string svalue = xpp::format("{}", *value);
     if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || svalue.empty()) return -1;
-    *value = atoi(svalue.c_str());
+    int v;
+    if (!parse_int(trim_blanks(svalue), v)) return refused_answer(name, "a whole number", svalue);
+    *value = v;
     return 0;
 }
 
@@ -411,13 +428,15 @@ int new_float(Session &s, std::string_view name, double *value)
     std::string tvalue = xpp::format("{:.16g}", *value);
     if (new_string_of(name, tvalue, XPP_FIELD_FORMULA) == 0 || tvalue.empty()) return -1;
 
-    if (tvalue[0] == '%') {
+    const std::string_view typed = trim_blanks(tvalue);
+    if (typed.starts_with('%')) {
         double newz;
-        if (xpp::do_calc(s, tvalue.c_str() + 1, &newz) != -1) *value = newz;
+        if (xpp::do_calc(s, typed.substr(1), &newz) != -1) *value = newz;
         return 0;
     }
-    *value = atof(tvalue.c_str());
-
+    double v;
+    if (!parse_number(typed, v)) return refused_answer(name, "a number", tvalue);
+    *value = v;
     return 0;
 }
 
