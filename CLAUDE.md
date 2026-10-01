@@ -17,6 +17,7 @@ The sections below give the details.
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
+| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | review, then errorcheck (W140) |
 | No dead code | deadcode.sh, deadcheck.py |
 | Safe C++: RAII, std containers, `xpp::format`/`xpp::log`, the I/O readers and writers, `static_cast` | unsafecheck, alloccheck, formatcheck, literalcheck, filecheck, stdoutcheck |
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
