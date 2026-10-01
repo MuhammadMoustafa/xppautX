@@ -352,13 +352,10 @@ values[6] = xpp::format("{}", s.integrator.range.steps);
 
 void init_monte_carlo(xpp::Session &s)
 {
-  int i;
   s.integrator.fixptguess.tol=.001;
   s.integrator.fixptguess.n=100;
-  for(i=0;i<s.model().node;i++){
-    s.integrator.fixptguess.xlo[i]=-10;
-    s.integrator.fixptguess.xhi[i]=10;
-  }
+  s.integrator.fixptguess.xlo.assign(s.model().node,-10);
+  s.integrator.fixptguess.xhi.assign(s.model().node,10);
   s.integrator.fixptlist.flag=0;
   s.integrator.fixptlist.n=0;
 }
@@ -402,6 +399,9 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     s.integrator.fixptlist.n=0;
 
   if(s.integrator.fixptlist.flag==0){
+    s.integrator.fixptlist.x.resize(MAXFP);
+    s.integrator.fixptlist.er.resize(MAXFP);
+    s.integrator.fixptlist.em.resize(MAXFP);
     for(i=0;i<MAXFP;i++){
       s.integrator.fixptlist.x[i].assign(s.model().node,0.0);
       s.integrator.fixptlist.er[i].assign(s.model().node,0.0);

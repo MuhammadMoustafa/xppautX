@@ -87,6 +87,7 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
   if(s.model().nkernel==0)return;
   /* flag==1 (a new grid) used to free the old blocks first; assigning the
      vectors again replaces them either way, so flag no longer matters */
+  if(static_cast<int>(s.volterra.memory.size())<ntot)s.volterra.memory.resize(ntot);
   for(i=0;i<ntot;i++)
     s.volterra.memory[i].assign(s.numerics.max_points,0.0);
 

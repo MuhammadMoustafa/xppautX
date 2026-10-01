@@ -139,8 +139,8 @@ struct ParserState {
      names (form_ode.cpp) */
   struct {
     int in_vars = 0, naux = 0;
-    std::array<std::string, MAXODE> aux_names;
-    std::array<std::string, MAXODE1> fixname;
+    std::vector<std::string> aux_names; /* MAXODE (begin_model) */
+    std::vector<std::string> fixname;   /* MAXODE1 (compiler) */
   } build;
 };
 

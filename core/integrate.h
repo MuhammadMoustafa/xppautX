@@ -105,14 +105,14 @@ struct RightHandSide {
 constexpr int MAXFP = 400;
 struct FixedPointList {
   int n = 0, flag = 0;
-  std::array<std::vector<double>, MAXFP> x, er, em;
+  std::vector<std::vector<double>> x, er, em; /* MAXFP each, once flag is 1 */
 };
 /* the Monte Carlo search's settings: the number of guesses, the tolerance
    two points are one within, and each variable's range */
 struct FixedPointGuess {
   int n = 0;
   double tol = 0;
-  double xlo[MAXODE], xhi[MAXODE];
+  std::vector<double> xlo, xhi; /* NODE each (init_monte_carlo) */
 };
 /* Sing pts' Range settings */
 struct EquilibriumRange {
@@ -166,14 +166,14 @@ struct IntegratorState {
      first guess (dormpri.cpp dormprin) */
   double dp_hout = 0;
   /* the global flags' states (flags.cpp) */
-  std::array<FlagState, MAXFLAG> flags{};
+  std::vector<FlagState> flags; /* the model's nflags (compile_flags) */
   /* Gear's pivots of the Jacobian it factored last (gear.cpp ggear) */
-  std::array<int, MAXODE> gear_pivot{};
+  std::vector<int> gear_pivot;
   /* the array initial values in use */
   ArrayIcs array_ics;
   /* Sing pts' Monte Carlo search and Range */
   FixedPointList fixptlist;
-  FixedPointGuess fixptguess{};
+  FixedPointGuess fixptguess;
   EquilibriumRange eq_range;
 };
 

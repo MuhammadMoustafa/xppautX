@@ -914,6 +914,7 @@ L330:
       }
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
+      if(static_cast<int>(s.integrator.gear_pivot.size())<n)s.integrator.gear_pivot.resize(n);
       xpp::sgefa(dermat,n,n,s.integrator.gear_pivot.data(),&info);
       if(info==-1)j1=1;
       else j1=-1;

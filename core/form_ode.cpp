@@ -361,6 +361,7 @@ void begin_model(xpp::Session &s)
   init_rpn(s);
   s.parser.build.in_vars=0;
   s.parser.build.naux=0;
+  s.parser.build.aux_names.assign(MAXODE,std::string());
   m.node=0;
   s.model().bc_defined=0;
   m.nupar=0;
@@ -435,7 +436,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
   int len; /* a program's length, from add_expr */
   std::string name,formula,condition;
   /* the fixed variables' names, for a converted file */
-  std::array<std::string,MAXODE1> &fixname=s.parser.build.fixname;
+  std::vector<std::string> &fixname=s.parser.build.fixname;
+  if(fixname.empty())fixname.resize(MAXODE1);
   int nlin,i;
   done=1;
   if(bob[0]=='@'){

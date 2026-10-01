@@ -170,6 +170,7 @@ int compile_flags(xpp::Session &s)
   int j;
   int i,index;
   if(s.model().nflags==0)return(0);
+  s.integrator.flags.assign(s.model().nflags,xpp::FlagState{});
   for(j=0;j<s.model().nflags;j++){
     if(!compile(s,flags[j].cond,flags[j].comcond)){
       xpp::log(XPP_LOG_WARN, "Illegal global condition:  {}\n",flags[j].cond);

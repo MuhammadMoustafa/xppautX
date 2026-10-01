@@ -40,7 +40,7 @@ struct KernelState {
 struct VolterraState {
   std::array<KernelState,MAXKER> kernels;
   int current_point=0, kn_flag=0;
-  std::array<std::vector<double>,MAXODE> memory;
+  std::vector<std::vector<double>> memory; /* allocate_volterra's variables */
 };
 
 }
