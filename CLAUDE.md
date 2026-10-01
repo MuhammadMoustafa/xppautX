@@ -17,7 +17,7 @@ The sections below give the details.
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
-| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140a; W140b takes its baseline to 0), review |
+| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140: none without a place, outside its allowlist), review |
 | No dead code | deadcode.sh, deadcheck.py |
 | Safe C++: RAII, std containers, `xpp::format`/`xpp::log`, the I/O readers and writers, `static_cast` | unsafecheck, alloccheck, formatcheck, literalcheck, filecheck, stdoutcheck |
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
@@ -601,10 +601,14 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `fail`/`fail_reading`, `err_reading` and `model_failed` take it. While a
   model loads, its ERROR/WARN lines are held and printed with their place,
   and a failed load is printed once, by `load_model`.
-  `tools/errorcheck.py` (sourcecheck) counts per file the errors made or
-  reported with no place (err_msg, an ERROR log line, `fail` without a
-  Place) against `tests/errors.baseline` and fails on growth (`--update`
-  after a drop).
+  `tools/errorcheck.py` (sourcecheck) fails an error made or reported with
+  no place (err_msg, an ERROR log line, `fail` without a Place or with an
+  empty one) unless its `ALLOWED` list names it with its reason (a result
+  shown through err_msg until W133, out of memory, CVODE's argument
+  checks); tests/errors.baseline is empty since W140b. A command's error is
+  `command_error(cmd, what)` at `command_place()` (xpp_ui.h: in a --script
+  or a .recx Play, the step's file and line), a model line's
+  `model_place(m, name)` (model_files.h).
   AUTO's table goes through `xpp::log_auto()` (`xpp::log_auto_printf`
   for printf's formats): INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
