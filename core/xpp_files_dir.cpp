@@ -1,6 +1,6 @@
 /* Folder operations: see xpp_files.h. Split out of xpp_files.cpp (W46b,
    folded in from the old core/read_dir.cpp) once the merged file grew
-   past about 900 lines: xpp_files_is_dir, xpp_files_dir_writable, the
+   past about 900 lines: is_dir, dir_writable, the
    scratch folders AUTO runs in, the folder listing, the Unix-style
    wildcard match and the file selector's current folder. */
 #include "xpp_files.h"
@@ -24,26 +24,26 @@
 #include <sys/stat.h>
 #include <unistd.h> /* getcwd, chdir (MinGW's unistd.h provides both) */
 
-using namespace xpp::files;
+namespace xpp::files {
 
-int xpp_files_is_dir(const char *path)
+bool is_dir(std::string_view path)
 {
     Stat st;
-    return path && stat_follow(path, &st) == 0 && S_ISDIR(st.st_mode);
+    return stat_follow(std::string(path).c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 }
 
-int xpp_files_dir_writable(const char *dir)
+bool dir_writable(std::string_view dir)
 {
-    if (dir == nullptr || dir[0] == 0) return 0;
+    if (dir.empty()) return false;
     try {
         std::string probe = xpp::format("{}/.xppautx_homecheck", dir);
         xpp::UniqueFile fp(std::fopen(probe.c_str(), "w"));
-        if (!fp) return 0;
+        if (!fp) return false;
         fp.reset();
         std::remove(probe.c_str());
-        return 1;
+        return true;
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("probing a folder");
+        xpp::out_of_memory("probing a folder");
     }
 }
 
@@ -67,7 +67,7 @@ bool scratch_dir_pid(std::string_view name, long long *pid)
 
 } // namespace
 
-std::string xpp_files_make_temp_dir()
+std::string make_temp_dir()
 {
     try {
         std::string base = temp_base();
@@ -78,26 +78,28 @@ std::string xpp_files_make_temp_dir()
             if (errno != EEXIST) break;
         }
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("making the scratch folder");
+        xpp::out_of_memory("making the scratch folder");
     }
     return {};
 }
 
-bool xpp_files_is_scratch(std::string_view path)
+bool is_scratch(std::string_view path)
 {
     try {
         const std::string prefix = xpp::format("{}{}xppautoX-{}-", temp_base(), SEP, own_pid());
         return path.starts_with(prefix);
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("naming the scratch folder");
+        xpp::out_of_memory("naming the scratch folder");
     }
 }
 
-void xpp_files_remove_temp_dir(const char *dir)
+void remove_temp_dir(std::string_view dir_view)
 {
-    if (dir == nullptr) return;
+    if (dir_view.empty()) return;
+    std::string dir;
     try {
-        if (DIR *d = opendir(dir)) {
+        dir = dir_view;
+        if (DIR *d = opendir(dir.c_str())) {
             while (struct dirent *e = readdir(d)) {
                 if (std::strcmp(e->d_name, ".") == 0 || std::strcmp(e->d_name, "..") == 0) continue;
                 std::remove(xpp::format("{}{}{}", dir, SEP, static_cast<const char *>(e->d_name)).c_str());
@@ -105,12 +107,12 @@ void xpp_files_remove_temp_dir(const char *dir)
             closedir(d);
         }
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("removing the scratch folder");
+        xpp::out_of_memory("removing the scratch folder");
     }
-    remove_dir(dir);
+    remove_dir(dir.c_str());
 }
 
-void xpp_files_cleanup_stale_temp_dirs(void)
+void cleanup_stale_temp_dirs()
 {
     try {
         std::string base = temp_base();
@@ -124,20 +126,25 @@ void xpp_files_cleanup_stale_temp_dirs(void)
             Stat st;
             if (stat_follow(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) continue;
             if (!process_gone(pid)) continue; /* still running, or cannot tell: leave it alone */
-            xpp_files_remove_temp_dir(path.c_str());
+            remove_temp_dir(path);
         }
         closedir(d);
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("sweeping old scratch folders");
+        xpp::out_of_memory("sweeping old scratch folders");
     }
 }
 
 /* ---- the folder listing ---------------------------------------------------------- */
 
-bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out)
+bool list_dir(std::string_view dir, std::vector<DirEntry> &out)
 {
     out.clear();
-    DIR *d = opendir(dir);
+    DIR *d;
+    try {
+        d = opendir(std::string(dir).c_str());
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("listing a folder");
+    }
     if (d == nullptr) return false;
     try {
         while (struct dirent *e = readdir(d)) {
@@ -147,7 +154,7 @@ bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out)
             out.push_back({e->d_name, folder});
         }
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("listing a folder");
+        xpp::out_of_memory("listing a folder");
     }
     closedir(d);
     return true;
@@ -206,19 +213,20 @@ int star(const char *string, const char *pattern)
 
 } // namespace
 
-bool xpp_files_list_matching(const char *wild, const char *direct,
-                             std::vector<std::string> &dirs, std::vector<std::string> &files)
+bool list_matching(std::string_view wild_view, std::string_view direct, std::vector<std::string> &dirs,
+                   std::vector<std::string> &files)
 {
     dirs.clear();
     files.clear();
-    std::vector<XppDirEntry> entries;
-    if (!xpp_files_list_dir(direct, entries)) {
+    std::vector<DirEntry> entries;
+    if (!list_dir(direct, entries)) {
         xpp::log(XPP_LOG_WARN, " {} is not a directory \n", direct);
         return false;
     }
-    for (XppDirEntry &e : entries) {
+    const std::string wild(wild_view);
+    for (DirEntry &e : entries) {
         if (e.folder) dirs.push_back(std::move(e.name));
-        else if (wild_match(e.name.c_str(), wild)) files.push_back(std::move(e.name));
+        else if (wild_match(e.name.c_str(), wild.c_str())) files.push_back(std::move(e.name));
     }
     std::sort(dirs.begin(), dirs.end());
     std::sort(files.begin(), files.end());
@@ -231,7 +239,7 @@ namespace {
 std::string cur_dir_str;
 }
 
-std::string xpp_files_working_dir()
+std::string working_dir()
 {
     std::vector<char> buf(1024);
     for (;;) {
@@ -241,23 +249,23 @@ std::string xpp_files_working_dir()
     }
 }
 
-std::pair<std::string, std::string> xpp_files_split_path(const std::string &path)
+std::pair<std::string, std::string> split_path(std::string_view path)
 {
 #ifdef _WIN32
     const size_t sep = path.find_last_of("/\\");
 #else
     const size_t sep = path.find_last_of('/');
 #endif
-    if (sep == std::string::npos) return {std::string(), path};
+    if (sep == std::string_view::npos) return {std::string(), std::string(path)};
     /* "/x" (and on Windows "C:\x"): the root itself */
     size_t keep = sep == 0 ? 1 : sep;
 #ifdef _WIN32
     if (sep == 2 && path[1] == ':') keep = 3;
 #endif
-    return {path.substr(0, keep), path.substr(sep + 1)};
+    return {std::string(path.substr(0, keep)), std::string(path.substr(sep + 1))};
 }
 
-std::string xpp_files_absolute(const std::string &path, const std::string &dir)
+std::string absolute(std::string_view path, std::string_view dir)
 {
 #ifdef _WIN32
     const auto sep = [](char c) { return c == '/' || c == '\\'; };
@@ -268,35 +276,33 @@ std::string xpp_files_absolute(const std::string &path, const std::string &dir)
     const auto sep = [](char c) { return c == '/'; };
     const bool absolute = !path.empty() && path[0] == '/';
 #endif
-    if (absolute || path.empty()) return path;
-    std::string base = dir.empty() ? xpp_files_working_dir() : dir;
+    if (absolute || path.empty()) return std::string(path);
+    std::string base = dir.empty() ? working_dir() : std::string(dir);
     if (!base.empty() && !sep(base.back())) base += '/';
-    return base + path;
+    return base.append(path);
 }
 
-const char *xpp_files_cur_dir(void) { return cur_dir_str.c_str(); }
+std::string cur_dir() { return cur_dir_str; }
 
-int xpp_files_refresh_cur_dir(void)
+bool refresh_cur_dir()
 {
-    std::string cwd = xpp_files_working_dir();
+    std::string cwd = working_dir();
     if (cwd.empty()) {
         xpp::log(XPP_LOG_WARN, "Can't get current directory\n");
         cur_dir_str.clear();
-        return 0;
+        return false;
     }
     cur_dir_str = std::move(cwd);
-    return 1;
+    return true;
 }
 
-int xpp_files_change_dir(const char *path)
+int change_dir(std::string_view path)
 {
-    if (path == nullptr) {
-        cur_dir_str.clear();
-        return 0;
-    }
-    if (chdir(path) == -1) {
+    if (chdir(std::string(path).c_str()) == -1) {
         xpp::log(XPP_LOG_WARN, "Can't go to directory {}\n", path);
         return 1;
     }
-    return xpp_files_refresh_cur_dir() != 0 ? 0 : 1;
+    return refresh_cur_dir() ? 0 : 1;
 }
+
+} // namespace xpp::files

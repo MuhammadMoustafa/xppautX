@@ -1,21 +1,21 @@
-/* core/xpp_io.h's implementation: the file half (line reader, token
-   reader, writer) and xpp::format/xpp::vformat. No exception crosses
-   into C (CLAUDE.md, "C and C++"). */
+/* core/xpp_io.h's implementation: the file handles (LineReader,
+   TokenReader, Writer) and xpp::format/xpp::vformat. Nothing here throws:
+   a failed allocation is xpp::out_of_memory's. */
 #include "xpp_io.h"
 #include "xpp_files.h"
 #include "xpp_log.h"
+#include "xpp_mem.h"
 
 #include <iterator>
 #include <cctype>
 #include <cerrno>
 #include <cmath>
-#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
 #include <cstring>
 #include <memory>
-#include <mutex>
+#include <new>
 #include <string>
 #include <utility>
 
@@ -29,23 +29,26 @@
    The file half: line reader, token reader, writer (issue: W11 step 3,
    W7b). See xpp_io.h for the contract. */
 
-/* fp is the stream read; owned holds it too when the reader opened it
-   itself (and closes it with the reader), and is empty when attached;
-   without fp, the lines are text's, from pos on (xpp::line_reader_of_text) */
-struct XppLineReader {
-    std::FILE *fp = nullptr;
+/* A reader reads the stream of: owned when it opened the file itself
+   (closed with the reader), attached when it was handed one; with
+   neither, the lines are text's, from pos on (LineReader::of_text) */
+struct xpp::LineReader::State {
     xpp::UniqueFile owned;
+    std::FILE *attached = nullptr;
     std::string line;
     std::string text;
     size_t pos = 0;
+    std::FILE *fp() const noexcept { return owned ? owned.get() : attached; }
 };
 
-struct XppTokenReader {
-    std::FILE *fp = nullptr;
+struct xpp::TokenReader::State {
     xpp::UniqueFile owned;
+    std::FILE *attached = nullptr;
+    std::FILE *fp() const noexcept { return owned ? owned.get() : attached; }
 };
 
-struct XppWriter {
+/* the temp file being written, and the file it replaces at commit */
+struct xpp::Writer::State {
     xpp::UniqueFile fp;
     std::string tmp, target;
 };
@@ -73,6 +76,18 @@ bool read_line(std::FILE *fp, std::string &line)
     return true;
 }
 
+/* the next line of r's text, as read_line reads a file's */
+bool text_line(xpp::LineReader::State &r)
+{
+    if (r.pos >= r.text.size()) return false;
+    size_t nl = r.text.find('\n', r.pos);
+    if (nl == std::string::npos) nl = r.text.size();
+    r.line.assign(r.text, r.pos, nl - r.pos);
+    r.pos = nl + 1;
+    if (!r.line.empty() && r.line.back() == '\r') r.line.pop_back();
+    return true;
+}
+
 /* ---- tokens --------------------------------------------------------- */
 
 /* Skips leading whitespace, then collects the run of non-whitespace
@@ -96,6 +111,25 @@ bool read_token(std::FILE *fp, std::string &tok)
     return true;
 }
 
+/* the next token of fp converted by strto (strtod, strtof, or strtol in
+   base 10): false at the end of the file or when it does not start with
+   a number */
+template <class T, class Convert>
+bool read_number(std::FILE *fp, T &out, Convert strto)
+{
+    std::string tok;
+    try {
+        if (!fp || !read_token(fp, tok)) return false;
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("reading a number");
+    }
+    char *end = nullptr;
+    const auto v = strto(tok.c_str(), &end);
+    if (end == tok.c_str()) return false;
+    out = static_cast<T>(v);
+    return true;
+}
+
 /* ---- writer's temp file ---------------------------------------------- */
 
 std::atomic<unsigned> writer_serial{0};
@@ -109,313 +143,233 @@ long long writer_pid()
 #endif
 }
 
-/* path split at the last slash (either kind: a checkout may build on
-   either platform); dir is empty for a bare file name (today's model
-   files: always relative to the working directory). */
-void split_path(const std::string &path, std::string &dir, std::string &base)
+/* A handle's new state (Ptr: the handle's std::unique_ptr<State, Free>),
+   over the file path, opened here (closed with the reader), or over the
+   stream fp the caller keeps; nullptr when path cannot be opened, fp is
+   none, or there is no memory */
+template <class Ptr>
+Ptr new_state() noexcept
 {
-    size_t pos = path.find_last_of("/\\");
-    if (pos == std::string::npos) {
-        dir.clear();
-        base = path;
-    } else {
-        dir = path.substr(0, pos);
-        base = path.substr(pos + 1);
+    try {
+        return Ptr(new typename Ptr::element_type);
+    } catch (const std::bad_alloc &) {
+        return nullptr;
     }
+}
+
+template <class Ptr>
+Ptr opened_state(std::string_view path) noexcept
+{
+    xpp::UniqueFile fp(xpp::files::open_stream(path, "r"));
+    if (!fp) return nullptr;
+    Ptr st = new_state<Ptr>();
+    if (st) st->owned = std::move(fp);
+    return st;
+}
+
+template <class Ptr>
+Ptr attached_state(std::FILE *fp) noexcept
+{
+    if (!fp) return nullptr;
+    Ptr st = new_state<Ptr>();
+    if (st) st->attached = fp;
+    return st;
+}
+
+template <class Ptr>
+Ptr writer_open(std::string_view path, bool binary)
+{
+    if (path.empty()) {
+        xpp::log(XPP_LOG_ERROR, "Writer: no destination path given\n");
+        return nullptr;
+    }
+    try {
+        Ptr w = new_state<Ptr>();
+        if (!w) throw std::bad_alloc();
+        w->target = path;
+        const auto [dir, base] = xpp::files::split_path(path);
+        /* exclusive: a name some other run left behind is skipped */
+        for (int tries = 0; tries < 100 && !w->fp; tries++) {
+            w->tmp = std::format("{}{}.{}.tmp-{}-{}", dir, dir.empty() ? "" : "/", base, writer_pid(),
+                                 writer_serial.fetch_add(1, std::memory_order_relaxed));
+            w->fp.reset(xpp::files::create_new(w->tmp, binary));
+            if (!w->fp && errno != EEXIST) break;
+        }
+        if (!w->fp) {
+            xpp::log(XPP_LOG_ERROR, "Writer: cannot create a temp file for {}\n", path);
+            return nullptr;
+        }
+        return w;
+    } catch (...) {
+        xpp::log_printf(XPP_LOG_ERROR, "out of memory opening %.*s for writing\n", static_cast<int>(path.size()),
+                        path.data());
+        return nullptr;
+    }
+}
+
+/* the temp file closed and removed (Windows cannot remove an open file) */
+template <class Ptr>
+void writer_discard(Ptr w)
+{
+    w->fp.reset();
+    xpp::files::remove(w->tmp);
 }
 
 } // namespace
 
-XppLineReader *xpp_line_reader_open(const char *path)
+namespace xpp {
+
+/* ---- LineReader ------------------------------------------------------ */
+
+void LineReader::Free::operator()(State *s) const noexcept { delete s; }
+
+LineReader::LineReader(std::string_view path) noexcept : state_(opened_state<decltype(state_)>(path)) {}
+
+LineReader LineReader::of_text(std::string text) noexcept
 {
-    xpp::UniqueFile fp(xpp_files_open_stream(path, "r"));
-    if (!fp) return nullptr;
-    try {
-        XppLineReader *r = new XppLineReader;
-        r->fp = fp.get();
-        r->owned = std::move(fp);
-        return r;
-    } catch (const std::bad_alloc &) {
-        return nullptr;
-    }
+    LineReader l;
+    l.state_ = new_state<decltype(l.state_)>();
+    if (l.state_) l.state_->text = std::move(text);
+    return l;
 }
 
-XppLineReader *xpp_line_reader_attach(FILE *fp)
+LineReader LineReader::attach(FILE *fp) noexcept
 {
-    if (!fp) return nullptr;
-    try {
-        XppLineReader *r = new XppLineReader;
-        r->fp = fp;
-        return r;
-    } catch (const std::bad_alloc &) {
-        return nullptr;
-    }
+    LineReader l;
+    l.state_ = attached_state<decltype(l.state_)>(fp);
+    return l;
 }
 
-XppLineReader *xpp::line_reader_of_text(std::string text) noexcept
+std::optional<std::string_view> LineReader::next()
 {
-    try {
-        XppLineReader *r = new XppLineReader;
-        r->text = std::move(text);
-        return r;
-    } catch (const std::bad_alloc &) {
-        return nullptr;
-    }
+    if (!state_) return std::nullopt;
+    State &r = *state_;
+    if (!(r.fp() ? read_line(r.fp(), r.line) : text_line(r))) return std::nullopt;
+    return std::string_view(r.line);
 }
 
-namespace {
+/* ---- TokenReader ----------------------------------------------------- */
 
-/* the next line of r's text, as read_line reads a file's */
-bool text_line(XppLineReader &r)
+void TokenReader::Free::operator()(State *s) const noexcept { delete s; }
+
+TokenReader::TokenReader(std::string_view path) noexcept : state_(opened_state<decltype(state_)>(path)) {}
+
+TokenReader TokenReader::attach(FILE *fp) noexcept
 {
-    if (r.pos >= r.text.size()) return false;
-    size_t nl = r.text.find('\n', r.pos);
-    if (nl == std::string::npos) nl = r.text.size();
-    r.line.assign(r.text, r.pos, nl - r.pos);
-    r.pos = nl + 1;
-    if (!r.line.empty() && r.line.back() == '\r') r.line.pop_back();
-    return true;
+    TokenReader t;
+    t.state_ = attached_state<decltype(t.state_)>(fp);
+    return t;
 }
 
-} // namespace
-
-const char *xpp_line_reader_next(XppLineReader *r, size_t *len)
+bool TokenReader::read(double &x) noexcept
 {
-    if (!r || !(r->fp ? read_line(r->fp, r->line) : text_line(*r))) {
-        if (len) *len = 0;
-        return nullptr;
-    }
-    if (len) *len = r->line.size();
-    return r->line.c_str();
-}
-
-void xpp_line_reader_close(XppLineReader *r) { delete r; }
-
-XppTokenReader *xpp_token_reader_open(const char *path)
-{
-    xpp::UniqueFile fp(xpp_files_open_stream(path, "r"));
-    if (!fp) return nullptr;
-    try {
-        XppTokenReader *r = new XppTokenReader;
-        r->fp = fp.get();
-        r->owned = std::move(fp);
-        return r;
-    } catch (const std::bad_alloc &) {
-        return nullptr;
-    }
-}
-
-XppTokenReader *xpp_token_reader_attach(FILE *fp)
-{
-    if (!fp) return nullptr;
-    try {
-        XppTokenReader *r = new XppTokenReader;
-        r->fp = fp;
-        return r;
-    } catch (const std::bad_alloc &) {
-        return nullptr;
-    }
-}
-
-int xpp_token_reader_double(XppTokenReader *r, double *out)
-{
-    std::string tok;
-    if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
-    char *end = nullptr;
-    double v = std::strtod(tok.c_str(), &end);
-    if (end == tok.c_str()) return 0;
-    *out = v;
-    return 1;
+    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtod(s, e); });
 }
 
 /* strtof, not (float)strtod: fscanf "%f"/"%g" rounds the decimal
    straight to float, and rounding through double first can differ. */
-int xpp_token_reader_float(XppTokenReader *r, float *out)
+bool TokenReader::read(float &x) noexcept
 {
-    std::string tok;
-    if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
-    char *end = nullptr;
-    float v = std::strtof(tok.c_str(), &end);
-    if (end == tok.c_str()) return 0;
-    *out = v;
-    return 1;
+    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtof(s, e); });
 }
 
-int xpp_token_reader_int(XppTokenReader *r, int *out)
+bool TokenReader::read(int &x) noexcept
 {
-    std::string tok;
-    if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
-    char *end = nullptr;
-    long v = std::strtol(tok.c_str(), &end, 10);
-    if (end == tok.c_str()) return 0;
-    *out = static_cast<int>(v);
-    return 1;
+    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtol(s, e, 10); });
 }
 
 /* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
    fscanf pushes it back, so a field that follows with no space between
    (AUTO's "%5ld" columns) is the next read's. */
-int xpp_token_reader_long(XppTokenReader *r, long *out)
+bool TokenReader::read(long &x) noexcept
 {
-    if (!r || !r->fp) return 0;
+    std::FILE *fp = state_ ? state_->fp() : nullptr;
+    if (!fp) return false;
     std::string num;
     int c;
     do {
-        c = std::fgetc(r->fp);
+        c = std::fgetc(fp);
     } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
-    if (c == '+' || c == '-') {
-        num.push_back(static_cast<char>(c));
-        c = std::fgetc(r->fp);
-    }
-    while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
-        num.push_back(static_cast<char>(c));
-        c = std::fgetc(r->fp);
-    }
-    if (c != EOF) std::ungetc(c, r->fp);
-    if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return 0;
-    *out = std::strtol(num.c_str(), nullptr, 10);
-    return 1;
-}
-
-int xpp_token_reader_skip_line(XppTokenReader *r)
-{
-    if (!r || !r->fp) return 0;
-    int c;
-    while ((c = std::fgetc(r->fp)) != EOF)
-        if (c == '\n') return 1;
-    return 0;
-}
-
-namespace {
-
-/* xpp_token_reader_string's own truncating copy (never overflows buf,
-   NUL-terminates, warns once if the token does not fit): the general
-   xpp_strlcpy this used to call was retired at W48 once nothing in core
-   called it directly any more, but this one caller still needs the same
-   safe, non-overflowing copy fscanf "%s" itself never was. */
-void copy_token(char *buf, size_t bufsize, const std::string &tok)
-{
-    size_t n = tok.size() < bufsize - 1 ? tok.size() : bufsize - 1;
-    if (n > 0) std::memcpy(buf, tok.data(), n);
-    buf[n] = '\0';
-    if (tok.size() >= bufsize) {
-        static std::mutex m;
-        static bool warned = false;
-        std::lock_guard<std::mutex> lock(m);
-        if (!warned) {
-            warned = true;
-            xpp::log(XPP_LOG_WARN, "xpp_token_reader_string: wanted {} bytes, buffer is {}: truncated\n",
-                     tok.size() + 1, bufsize);
-        }
-    }
-}
-
-} // namespace
-
-int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize)
-{
-    std::string tok;
-    if (!r || !r->fp || !read_token(r->fp, tok)) return 0;
-    if (bufsize > 0) copy_token(buf, bufsize, tok);
-    return 1;
-}
-
-void xpp_token_reader_close(XppTokenReader *r) { delete r; }
-
-namespace {
-
-XppWriter *writer_open(const char *path, int how)
-{
-    if (!path || !*path) {
-        xpp_log(XPP_LOG_ERROR, "xpp_writer_open: no destination path given\n");
-        return nullptr;
-    }
     try {
-        std::unique_ptr<XppWriter> w = std::make_unique<XppWriter>();
-        w->target = path;
-        if (how == XPP_WRITE_APPEND) {
-            w->fp.reset(xpp_files_open_stream(path, "a"));
-            if (!w->fp) {
-                xpp::log(XPP_LOG_ERROR, "xpp_writer_open: cannot open {} to append to it\n", path);
-                return nullptr;
-            }
-            return w.release();
+        if (c == '+' || c == '-') {
+            num.push_back(static_cast<char>(c));
+            c = std::fgetc(fp);
         }
-        std::string dir, base;
-        split_path(path, dir, base);
-        /* exclusive: a name some other run left behind is skipped */
-        for (int tries = 0; tries < 100 && !w->fp; tries++) {
-            w->tmp = std::format("{}{}.{}.tmp-{}-{}", dir, dir.empty() ? "" : "/", base, writer_pid(),
-                                 writer_serial.fetch_add(1, std::memory_order_relaxed));
-            w->fp.reset(xpp_files_create_new(w->tmp.c_str(), how == XPP_WRITE_BINARY));
-            if (!w->fp && errno != EEXIST) break;
+        while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
+            num.push_back(static_cast<char>(c));
+            c = std::fgetc(fp);
         }
-        if (!w->fp) {
-            xpp::log(XPP_LOG_ERROR, "xpp_writer_open: cannot create a temp file for {}\n", path);
-            return nullptr;
-        }
-        return w.release();
-    } catch (...) {
-        xpp::log(XPP_LOG_ERROR, "out of memory opening {} for writing\n", path);
-        return nullptr;
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("reading a number");
     }
+    if (c != EOF) std::ungetc(c, fp);
+    if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
+    x = std::strtol(num.c_str(), nullptr, 10);
+    return true;
 }
 
-/* the temp file closed and removed (Windows cannot remove an open file);
-   an append's own file only closed */
-void writer_discard(XppWriter *w)
+bool TokenReader::skip_line() noexcept
 {
-    w->fp.reset();
-    if (!w->tmp.empty()) xpp_files_remove(w->tmp.c_str());
-    delete w;
+    std::FILE *fp = state_ ? state_->fp() : nullptr;
+    if (!fp) return false;
+    int c;
+    while ((c = std::fgetc(fp)) != EOF)
+        if (c == '\n') return true;
+    return false;
 }
 
-} // namespace
+/* ---- Writer ----------------------------------------------------------- */
 
-XppWriter *xpp_writer_open(const char *path) { return writer_open(path, XPP_WRITE_TEXT); }
+void Writer::Free::operator()(State *s) const noexcept { delete s; }
 
-XppWriter *xpp_writer_open_as(const char *path, int how) { return writer_open(path, how); }
+Writer::~Writer() { abort(); }
 
-FILE *xpp_writer_file(XppWriter *w) { return w ? w->fp.get() : nullptr; }
-
-int xpp_writer_printf(XppWriter *w, const char *fmt, ...)
+Writer &Writer::operator=(Writer &&o) noexcept
 {
-    if (!w || !w->fp) return -1;
-    va_list ap;
-    va_start(ap, fmt);
-    int r = std::vfprintf(w->fp.get(), fmt, ap);
-    va_end(ap);
-    if (r < 0) xpp_log(XPP_LOG_ERROR, "xpp_writer_printf: write failed for %s\n", w->target.c_str());
-    return r;
+    if (this != &o) {
+        abort();
+        state_ = std::move(o.state_);
+    }
+    return *this;
 }
 
-int xpp_writer_commit(XppWriter *w)
+Writer::Writer(std::string_view path) noexcept : state_(writer_open<decltype(state_)>(path, false)) {}
+
+Writer Writer::binary(std::string_view path) noexcept
 {
-    if (!w) return -1;
+    Writer w;
+    w.state_ = writer_open<decltype(w.state_)>(path, true);
+    return w;
+}
+
+FILE *Writer::file() const noexcept { return state_ ? state_->fp.get() : nullptr; }
+
+bool Writer::commit() noexcept
+{
+    if (!state_) return false;
+    decltype(state_) w = std::move(state_);
     int closed = std::fclose(w->fp.release()); /* its result: a write that failed at the flush */
     if (closed != 0) {
-        xpp_log(XPP_LOG_ERROR, "xpp_writer_commit: write failed for %s\n", w->target.c_str());
-        writer_discard(w);
-        return -1;
+        xpp::log(XPP_LOG_ERROR, "Writer: write failed for {}\n", w->target);
+        writer_discard(std::move(w));
+        return false;
     }
-    if (!w->tmp.empty() && xpp_files_replace_file(w->tmp.c_str(), w->target.c_str()) != 0) {
-        xpp_log(XPP_LOG_ERROR, "xpp_writer_commit: cannot replace %s\n", w->target.c_str());
-        writer_discard(w);
-        return -1;
+    if (files::replace_file(w->tmp, w->target) != 0) {
+        xpp::log(XPP_LOG_ERROR, "Writer: cannot replace {}\n", w->target);
+        writer_discard(std::move(w));
+        return false;
     }
-    delete w;
-    return 0;
+    return true;
 }
 
-void xpp_writer_abort(XppWriter *w)
+void Writer::abort() noexcept
 {
-    if (w) writer_discard(w);
+    if (state_) writer_discard(std::move(state_));
 }
 
-namespace xpp {
 void format_failed(const char *file, int line) noexcept
 {
-    xpp_log(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
+    xpp::log_printf(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
     std::exit(1);
 }
 

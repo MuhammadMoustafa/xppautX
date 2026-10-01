@@ -44,7 +44,7 @@ public:
             sent_ = std::move(text);
             sent_valid_ = true;
         } catch (const std::bad_alloc &) {
-            xpp_out_of_memory(what_);
+            xpp::out_of_memory(what_);
         }
     }
 

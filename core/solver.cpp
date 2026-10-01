@@ -17,7 +17,7 @@
 #include "session.h"
 #include "stiff.h"
 #include "volterra2.h"
-#include "xpp_mem.h" /* xpp_out_of_memory */
+#include "xpp_mem.h" /* xpp::out_of_memory */
 
 namespace xpp {
 namespace {
@@ -34,7 +34,7 @@ std::vector<double> make_work(int size)
   try {
     return std::vector<double>(size,0.0);
   } catch (const std::bad_alloc &) {
-    xpp_out_of_memory("the solver's work space");
+    xpp::out_of_memory("the solver's work space");
   }
   return {};
 }

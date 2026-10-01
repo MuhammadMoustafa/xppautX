@@ -407,33 +407,33 @@ int chk_auto_bnds(const xpp::Session &s, int ix,int iy)
 void close_auto(xpp::Session &s, int flg) /* labels compatible with A2K  */
 {
   /* Close fp8 before the renames below: Windows refuses rename()/remove()
-     on a file that is still open (see xpp_files_move), which left
+     on a file that is still open (see xpp::files::move), which left
      fort.8 behind next to <model>.s with the handle leaked. Linux allows
      renaming/removing an open file, which is likely why this was never
      turned on upstream -- it was dead code there, not a deliberate
      no-op. */
   if(s.auto_lib.fp8_is_open){
-      xpp::UniqueFile{s.auto_lib.fp8}.reset(); /* autlib1.cpp's xpp_files_open_stream, closed */
+      xpp::UniqueFile{s.auto_lib.fp8}.reset(); /* autlib1.cpp's xpp::files::open_stream, closed */
       s.auto_lib.fp8=NULL;
       s.auto_lib.fp8_is_open=0;
   }
   if(flg==0) {/*Overwrite*/
-    xpp_files_move(fort7.c_str(),(this_auto_file+".b").c_str());
-    xpp_files_move(fort9.c_str(),(this_auto_file+".d").c_str());
-    xpp_files_move(fort8.c_str(),(this_auto_file+".s").c_str());
+    xpp::files::move(fort7.c_str(),(this_auto_file+".b").c_str());
+    xpp::files::move(fort9.c_str(),(this_auto_file+".d").c_str());
+    xpp::files::move(fort8.c_str(),(this_auto_file+".s").c_str());
   }
   else {/*APPEND*/
-    xpp_files_prepend(fort7.c_str(),(this_auto_file+".b").c_str());
-    xpp_files_prepend(fort9.c_str(),(this_auto_file+".d").c_str());
-    xpp_files_prepend(fort8.c_str(),(this_auto_file+".s").c_str());
+    xpp::files::prepend(fort7.c_str(),(this_auto_file+".b").c_str());
+    xpp::files::prepend(fort9.c_str(),(this_auto_file+".d").c_str());
+    xpp::files::prepend(fort8.c_str(),(this_auto_file+".s").c_str());
   }
 
-    xpp_files_remove(fort8.c_str());
+    xpp::files::remove(fort8.c_str());
 
     s.auto_lib.fp8_is_open=0;
-    xpp_files_remove(fort7.c_str());
-    xpp_files_remove(fort9.c_str());
-    xpp_files_remove(fort3.c_str());
+    xpp::files::remove(fort7.c_str());
+    xpp::files::remove(fort9.c_str());
+    xpp::files::remove(fort3.c_str());
 
 }
 
@@ -449,7 +449,7 @@ static const char *auto_home_dir(xpp::Session &s, char *dname)
     return s.auto_state.dir.c_str();
 
   home = getenv("HOME");
-  if (home == NULL || !xpp_files_dir_writable(home))
+  if (home == NULL || !xpp::files::dir_writable(home))
     home = dname;
   return home;
 }
@@ -483,7 +483,7 @@ void open_auto(xpp::Session &s, int flg) /* compatible with new auto */
   fort9=xpp::format("{}/fort.9",HOME);
 
   if(flg==1){
-    xpp_files_copy((this_auto_file+".s").c_str(),fort3.c_str());
+    xpp::files::copy((this_auto_file+".s").c_str(),fort3.c_str());
   }
 
 }
@@ -576,7 +576,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
     }
     
     if(s.auto_state.restart_label!=0){
-      xpp_log_auto("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
+      xpp::log_auto_printf("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
       s.auto_state.bifur.irs=s.auto_state.restart_label;
       s.auto_state.restart_label=0;
       do_auto(s, iold,isave, s.auto_state.bifur.itp);
@@ -1653,9 +1653,9 @@ int yes_reset_auto(xpp::Session &s)
  kill_diagrams(s);
  FromAutoFlag=0;
     grabpt.flag=0;
-    xpp_files_remove((this_auto_file+".b").c_str());
-    xpp_files_remove((this_auto_file+".d").c_str());
-    xpp_files_remove((this_auto_file+".s").c_str());
+    xpp::files::remove((this_auto_file+".b").c_str());
+    xpp::files::remove((this_auto_file+".d").c_str());
+    xpp::files::remove((this_auto_file+".s").c_str());
     diagram_mark.state=0;
     return 1;
 }
@@ -1700,7 +1700,7 @@ void find_best_homo_shift(xpp::Session &s, int n)
     }
   }
   HOMO_SHIFT=tshift;
-  xpp_log_auto("shifting %g\n",HOMO_SHIFT);
+  xpp::log_auto_printf("shifting %g\n",HOMO_SHIFT);
 }
 void get_shifted_orbit(xpp::Session &s, double *u, double t, double p, int n)
 {
@@ -2534,7 +2534,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   nstor=ndim;
   if(ndim>s.model().node)nstor=s.model().node;
   if(flg==0){
-    xpp_log_auto("Could not find label %d in file %s \n",label,string.c_str());
+    xpp::log_auto_printf("Could not find label %d in file %s \n",label,string.c_str());
     return xpp::fail("AUTO","Cant find labeled pt");
   }
   x=&s.data_store.current[0];

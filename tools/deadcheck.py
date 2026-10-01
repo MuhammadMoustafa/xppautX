@@ -49,8 +49,6 @@ TESTS = ROOT / "tests"
 # "kind file name|reason": what stays although it reads as dead. Delete
 # rather than add an entry.
 ALLOW = """\
-written core/xpp_io.cpp XppLineReader.owned|owner API (xpp_io): holds the FILE an _open reader opened, closed by its destructor (RAII), never read
-written core/xpp_io.cpp XppTokenReader.owned|owner API (xpp_io): see XppLineReader.owned
 nodef core/xpp_http.cpp rand_s|the Windows C library's; its stdlib.h declares it only with _CRT_RAND_S
 """
 
@@ -629,7 +627,7 @@ CODE_LINE_RES = [re.compile(p) for p in [
     r"^(?:static\s+|extern\s+|const\s+)*(?:int|double|float|char|long|void|FILE|integer|doublereal|unsigned|short)\b[\w\s*,\[\]=.()+-]*[;{]\s*$",
     r"^#\s*(?:include|define|if|ifdef|ifndef|endif|else)\b",
     r"^case\s+[\w']+\s*:.*$",
-    r"^(?:printf|fprintf|plintf|sprintf|xpp_log)\s*\(",
+    r"^(?:printf|fprintf|plintf|sprintf|xpp_log|xpp::log_printf|xpp::log)\s*\(",
     r"^[A-Za-z_][\w.>-]*\s*\([^;]*\)\s*\{\s*$",                                   # a definition's head
     r"^[\w\s,()*]*\);\s*$",                                                        # a call's last line
 ]]

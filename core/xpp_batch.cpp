@@ -75,11 +75,11 @@ void check_for_quiet(xpp::Session &s, int argc, char **argv)
 	*/
 	if (quiet_specified_once == 1)
 	{
-		log_settings.quiet_from_command_line=1;
+		xpp::log_settings.quiet_from_command_line=1;
 	}
 	if (logfile_specified_once == 1)
 	{
-		log_settings.file_from_command_line=1;
+		xpp::log_settings.file_from_command_line=1;
 	}
 }
 
@@ -259,7 +259,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     load_eqn(s);
     /* the log settings of the model before (@ logfile, @ quiet) go, now
        that this one has parsed; its own options below set them again */
-    xpp_log_new_model();
+    xpp::log_new_model();
     /* the boundary conditions in use start as the model's */
     s.bcs = m.bcs;
 
@@ -297,7 +297,7 @@ xpp::Loaded xpp::load_model(int argc, char **argv, int batch, const SavedModel *
     xpp::Model &m = load.model();
     try {
         m.command_line.assign(argv, argv + argc);
-        m.load_dir = xpp_files_working_dir();
+        m.load_dir = xpp::files::working_dir();
         if (saved) {
             m.saved_in = saved->in;
             m.files = saved->files;

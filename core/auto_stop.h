@@ -14,7 +14,7 @@ extern "C" {
    records and reports.
 
    Each branch end writes a line in AUTO's Output ("Branch 1 stopped at
-   point 57: parameter iapp reached Par Max (0.45)", xpp_log_auto); the
+   point 57: parameter iapp reached Par Max (0.45)", xpp::log_auto_printf); the
    last one is what the `autoinfo` event's "stop" holds until the next run
    starts or AUTO's window is new.
 

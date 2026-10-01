@@ -493,7 +493,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   }
   for(i=0;i<n;i++){
     for(j=0;j<s.model().node;j++){ 
-      x[j]=ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
+      x[j]=xpp::ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
     }
     do_sing_info(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,er,em,&ierr);
     if(ierr==0){
@@ -696,16 +696,16 @@ namespace {
    same value and changes nothing there); apply it, log it and keep it
    as last_seed for the protocol's state and a saved data file's
    header/metadata, then draw a fresh rand_seed from a seed stream of
-   its own (xpp_next_seed) so an untouched field still gives fresh
+   its own (xpp::next_seed) so an untouched field still gives fresh
    noise next time (a first run's noise and every example md5 stay
    exactly what they were). */
 void seed_this_run(xpp::Session &s)
 {
   const int seed=s.numerics.rand_seed;
-  nsrand48(seed);
+  xpp::nsrand48(seed);
   s.numerics.last_seed=seed;
   xpp::log(XPP_LOG_INFO,"Go: seed {}\n",seed);
-  s.numerics.rand_seed=xpp_next_seed(seed);
+  s.numerics.rand_seed=xpp::next_seed(seed);
 }
 
 /* Range's sweep (flag 0 one parameter, 1 two, 2 AUTO's range over its

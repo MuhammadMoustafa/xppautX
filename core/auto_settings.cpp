@@ -417,7 +417,7 @@ AutoSettingsSet auto_settings_now(const xpp::Session &s)
     try {
         return settings_now(s);
     } catch (...) {
-        xpp_out_of_memory("reading AUTO's settings");
+        xpp::out_of_memory("reading AUTO's settings");
     }
 }
 
@@ -429,7 +429,7 @@ AutoSettingsSet auto_settings_view(const xpp::Session &s, int view)
         set.view = view;
         return set;
     } catch (...) {
-        xpp_out_of_memory("reading AUTO's settings");
+        xpp::out_of_memory("reading AUTO's settings");
     }
 }
 

@@ -64,8 +64,8 @@ void quit_session(void) { exit(session.script_mode && session.script_error ? 1 :
    nothing after it can line up. */
 void script_fail(const char *what, const char *line, const char *ask)
 {
-    xpp_log(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
-    if (ask && ask[0]) xpp_log(XPP_LOG_ERROR, "  open question: %s}\n", ask);
+    xpp::log_printf(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
+    if (ask && ask[0]) xpp::log_printf(XPP_LOG_ERROR, "  open question: %s}\n", ask);
     exit(1);
 }
 
@@ -129,7 +129,7 @@ int during_run(const char *line)
     }
     const char kind = line_kind(line);
     if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return XPP_INBOX_NORMAL;
-    xpp_log(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
+    xpp::log_printf(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
             o.empty() ? "" : " ", o.c_str());
     return XPP_INBOX_REFUSE;
 }
@@ -139,7 +139,7 @@ void defer_line(const char *line, bool refused, bool applied)
     try {
         session.deferred.push_back({line, read_line_seq(), refused, applied});
     } catch (...) {
-        xpp_out_of_memory("keeping a command");
+        xpp::out_of_memory("keeping a command");
     }
 }
 
@@ -296,7 +296,7 @@ std::string recorded_at(const char *at)
     try {
         return std::string(js_raw(at).substr(0, max));
     } catch (...) {
-        xpp_out_of_memory("reading a recorded interruption");
+        xpp::out_of_memory("reading a recorded interruption");
     }
 }
 
@@ -483,7 +483,8 @@ void file_command(xpp::Session &, const char *line)
 {
     std::string o;
     get_string(line, "op", o, 8);
-    xpp_files_command(o.c_str(), js_find(line, "name"), js_find(line, "data"), data_emit);
+    xpp::files::command(o, js_find(line, "name"), js_find(line, "data"),
+                        [](std::string_view event) { data_emit(event.data(), event.size()); });
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
@@ -724,7 +725,7 @@ void json_ui_loop(void)
             try {
                 next.line = line;
             } catch (...) {
-                xpp_out_of_memory("taking a command");
+                xpp::out_of_memory("taking a command");
             }
             next.seq = read_line_seq();
             next.refused = read_line_refused();
@@ -748,7 +749,7 @@ void json_ui_push_open(const char *path)
         BUF_LIT(&b, "}");
         xpp_inbox_push(b.s.data(), b.s.size());
     } catch (...) {
-        xpp_out_of_memory("opening a model");
+        xpp::out_of_memory("opening a model");
     }
 }
 
@@ -773,7 +774,7 @@ void install(bool silent)
            file (json_ui_set_script(), called before this) is read by the
            core thread itself instead, so no reader thread for it here */
         if (!session.script_mode && !xpp_inbox_start_stdin()) {
-            xpp_log(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
+            xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }
     }

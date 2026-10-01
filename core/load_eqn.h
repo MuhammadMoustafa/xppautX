@@ -248,7 +248,7 @@ struct NumericsSettings {
      seed a run actually used is last_seed, empty before any run, for the
      protocol's state and a saved data file's header/metadata. Once used,
      rand_seed is redrawn from a separate seed stream seeded by it
-     (xpp_next_seed), so an untouched field still gives fresh noise next
+     (xpp::next_seed), so an untouched field still gives fresh noise next
      time. */
   int rand_seed = 12345678;
   std::optional<int> last_seed;

@@ -64,7 +64,7 @@ ViewData &view_data(int v)
     try {
         if (static_cast<std::size_t>(v) >= views.size()) views.resize(static_cast<std::size_t>(v) + 1);
     } catch (...) {
-        xpp_out_of_memory("keeping the AUTO diagram");
+        xpp::out_of_memory("keeping the AUTO diagram");
     }
     return views[static_cast<std::size_t>(v)];
 }
@@ -133,7 +133,7 @@ void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p)
         try {
             d.dg.resize(d.dg.empty() ? 1024 : 2 * d.dg.size());
         } catch (...) {
-            xpp_out_of_memory("keeping the AUTO diagram");
+            xpp::out_of_memory("keeping the AUTO diagram");
         }
     }
     d.dg[static_cast<std::size_t>(d.n++)] = *p;
@@ -305,7 +305,7 @@ void diag_flush(const xpp::Session &s, int final)
         try {
             views.resize(static_cast<std::size_t>(n));
         } catch (...) {
-            xpp_out_of_memory("keeping the AUTO diagram");
+            xpp::out_of_memory("keeping the AUTO diagram");
         }
         client_views = n;
     }

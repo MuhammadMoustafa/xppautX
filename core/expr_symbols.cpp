@@ -211,7 +211,7 @@ void init_rpn(xpp::Session &s)
       s.numerics.rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"-newseed: seed {}\n",s.numerics.rand_seed);
     }
-    nsrand48(s.numerics.rand_seed);
+    xpp::nsrand48(s.numerics.rand_seed);
 }
 
 namespace {
@@ -263,7 +263,7 @@ int set_symbol(ParserState &p, std::string_view name, int pri, int arg, int com)
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
   if(len<1){
-    xpp_log(XPP_LOG_WARN, "Empty name - remove spaces\n");
+    xpp::log_printf(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
   ExprSymbol &s=p.symbols[p.nsym];
@@ -285,7 +285,7 @@ int add_constant(ParserState &p, const char *junk)
  if(duplicate_name(p,junk)==1)return(1);
  if(p.ncon>=MAXPAR)
  {
-  if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
@@ -316,7 +316,7 @@ int add_con(xpp::Session &s, const char *name, double value)
  ParserState &p=s.parser;
  if(p.ncon>=MAXPAR)
  {
-  if(p.errout)xpp_log(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  p.constants[p.ncon]=value;
@@ -330,11 +330,11 @@ int add_kernel(xpp::Session &s, const char *name, double mu, const char *expr)
   int in=-1;
   if(duplicate_name(s.parser,name)==1)return(1);
   if(m.nkernel==MAXKER){
-    xpp_log(XPP_LOG_WARN, "Too many kernels..\n");
+    xpp::log_printf(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
   }
   if(mu<0||mu>=1.0){
-    xpp_log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
+    xpp::log_printf(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
   if(set_symbol(s.parser,name,10,0,COM(KERTYPE,m.nkernel)))return 1;
@@ -345,7 +345,7 @@ int add_kernel(xpp::Session &s, const char *name, double mu, const char *expr)
   size_t hash=text.rfind('#');
   if(hash!=std::string_view::npos)in=static_cast<int>(hash);
   if(in==0||in==static_cast<int>(text.size())-1){
-    xpp_log(XPP_LOG_WARN, "Illegal use of convolution...\n");
+    xpp::log_printf(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
   if(in>0){
@@ -373,7 +373,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  if(duplicate_name(p,junk)==1)return(1);
  if(m.nvar>=MAXODE1)
  {
-  if(p.errout)xpp_log(XPP_LOG_WARN, "too many variables !!\n");
+  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(VARTYPE,m.nvar)))return 1;
@@ -385,7 +385,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
 
 int add_net_name(xpp::Session &s, int index, const char *name, int vectorizer)
 {
-  xpp_log(XPP_LOG_INFO, " Adding %s %s %d \n",vectorizer?"vectorizer":"net",name,index);
+  xpp::log_printf(XPP_LOG_INFO, " Adding %s %s %d \n",vectorizer?"vectorizer":"net",name,index);
   if(duplicate_name(s.parser,name)==1)return(1);
   if(set_symbol(s.parser,name,10,1,COM(vectorizer?VECTYPE:NETTYPE,index)))return 1;
   s.parser.nsym++;
@@ -396,7 +396,7 @@ int add_net_name(xpp::Session &s, int index, const char *name, int vectorizer)
 
 int add_2d_table(const char *name, const char *file)
 {
- xpp_log(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
+ xpp::log_printf(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
  return(1);
 }
 
@@ -408,7 +408,7 @@ xpp::Result<> add_file_table(xpp::Session &s, int index, const char *file)
     if(*p>31&&*p<127)
       file2+=*p;
   auto loaded=load_table(s,file2.c_str(),index,1);
-  if(!loaded&&s.parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  if(!loaded&&s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "Problem with creating table !!\n");
   return loaded;
 }
 
@@ -426,7 +426,7 @@ xpp::Result<> add_form_table(xpp::Session &s, int index, int nn, double xlo, dou
 {
 
   auto made=create_fun_table(s,nn,xlo,xhi,formula,index);
-  if(!made&&s.parser.errout)xpp_log(XPP_LOG_WARN, "Problem with creating table !!\n");
+  if(!made&&s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "Problem with creating table !!\n");
   return made;
 }
 
@@ -464,10 +464,10 @@ int add_ufun_name(xpp::Session &s, const char *name, int index, int narg)
  if(duplicate_name(s.parser,name)==1)return(1);
  if(index>=MAXUFUN)
  {
-  if(s.parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
-  xpp_log(XPP_LOG_INFO, " Added user fun %s \n",name);
+  xpp::log_printf(XPP_LOG_INFO, " Added user fun %s \n",name);
   if(set_symbol(s.parser,name,10,narg,COM(UFUNTYPE, index)))return 1;
   s.parser.nsym++;
   s.model().ufun_names[index]=name;
@@ -499,7 +499,7 @@ int add_ufun_new(xpp::Session &s, int index, const char *rhs, std::span<const st
   int end;
   int narg=static_cast<int>(args.size());
    if(narg>MAXARG){
-    xpp_log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
+    xpp::log_printf(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
   /* add_expr compiles into it in place: MAXEXPLEN commands */
@@ -517,7 +517,7 @@ int add_ufun_new(xpp::Session &s, int index, const char *rhs, std::span<const st
     }
 
   set_old_arg_names(s.parser,narg);
-  if(s.parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
   return(1);
 }
 
@@ -532,7 +532,7 @@ int add_ufun(xpp::Session &s, const char *junk, const char *expr, int narg)
  if(duplicate_name(s.parser,junk)==1)return(1);
  if(m.nfun>=MAXUFUN)
  {
-  if(s.parser.errout)xpp_log(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
  std::vector<int> &program=m.ufun_programs[m.nfun];
@@ -556,7 +556,7 @@ int add_ufun(xpp::Session &s, const char *junk, const char *expr, int narg)
   m.nfun++;
   return(0);
  }
-       if(s.parser.errout)xpp_log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+       if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
        return(1);
 }
 

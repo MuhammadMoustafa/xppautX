@@ -54,7 +54,7 @@ int ask_wait(Buf *b, int id)
         try {
             script_ask.assign(b->s, 0, SCRIPT_ASK_MAX);
         } catch (...) {
-            xpp_out_of_memory("asking");
+            xpp::out_of_memory("asking");
         }
     }
     send_buf(b);
@@ -89,7 +89,7 @@ int ask_wait(Buf *b, int id)
             try {
                 answer = line;
             } catch (...) {
-                xpp_out_of_memory("taking an answer");
+                xpp::out_of_memory("taking an answer");
             }
             /* an Abort sent before this answer no longer stops the command */
             if (ask_user) xpp_job_resume(read_line_seq());
@@ -302,7 +302,7 @@ int j_file_selector(const char *title, std::string &file, const char *wild)
     constexpr size_t PATTERN_MAX = 255, CD_MAX = 1024;
     std::string pattern(wild ? wild : ""), cd;
     if (pattern.size() > PATTERN_MAX) pattern.resize(PATTERN_MAX);
-    if (!xpp_files_cur_dir()[0]) xpp_files_refresh_cur_dir();
+    if (xpp::files::cur_dir().empty()) xpp::files::refresh_cur_dir();
     for (;;) {
         Buf b;
         std::vector<std::string> dirs, files;
@@ -310,26 +310,24 @@ int j_file_selector(const char *title, std::string &file, const char *wild)
         BUF_LIT(&b, ",\"title\":");
         buf_str(&b, title);
         BUF_LIT(&b, ",\"mode\":");
-        buf_str(&b, xpp_files_ask_mode(title));
+        buf_str(&b, xpp::files::ask_mode(title ? title : ""));
         BUF_LIT(&b, ",\"file\":");
         buf_str(&b, file.c_str());
         BUF_LIT(&b, ",\"wild\":");
         buf_str(&b, pattern.c_str());
         BUF_LIT(&b, ",\"dir\":");
-        buf_str(&b, xpp_files_cur_dir());
-        if (xpp_files_list_matching(pattern.c_str(), xpp_files_cur_dir(), dirs, files)) {
-            std::vector<const char *> dirv, filev;
-            for (const std::string &s : dirs) dirv.push_back(s.c_str());
-            for (const std::string &s : files) filev.push_back(s.c_str());
+        const std::string dir = xpp::files::cur_dir();
+        buf_str(&b, std::string_view(dir));
+        if (xpp::files::list_matching(pattern, dir, dirs, files)) {
             BUF_LIT(&b, ",\"dirs\":");
-            buf_str_array(&b, dirv.data(), static_cast<int>(dirv.size()));
+            buf_str_array(&b, dirs);
             BUF_LIT(&b, ",\"files\":");
-            buf_str_array(&b, filev.data(), static_cast<int>(filev.size()));
+            buf_str_array(&b, files);
         }
         if (!ask_wait(&b, id)) return 0;
         if (get_string(answer.c_str(), "wild", cd, CD_MAX) && !cd.empty()) pattern = cd.substr(0, PATTERN_MAX);
         if (get_string(answer.c_str(), "cd", cd, CD_MAX) && !cd.empty()) {
-            xpp_files_change_dir(cd.c_str());
+            xpp::files::change_dir(cd);
             continue;
         }
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */

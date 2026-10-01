@@ -1,11 +1,12 @@
 #ifndef XPP_FILES_H
 #define XPP_FILES_H
 
-#include <stddef.h>
-#include <stdio.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <cstddef>
+#include <cstdio>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 /* The model's folder as the page's workspace (xpp_files.cpp; docs/ui-v2.md
    section 4, docs/protocol.md "Files"). The browser's file dialogs cannot
@@ -16,14 +17,16 @@ extern "C" {
 
    Only base names in the working directory are reachable: no separators,
    no "..", no leading dot, no control or reserved characters, at most 255
-   bytes, not a Windows device name (xpp_files_name_ok). A name that is a
-   symbolic link, a folder or anything but a plain file is refused, so
-   nothing outside the folder is ever read or written through it. A write
-   goes to a hidden temporary file in the same folder first and is renamed
-   into place only when complete: a failed or cut upload leaves nothing.
+   bytes, not a Windows device name (name_ok). A name that is a symbolic
+   link, a folder or anything but a plain file is refused, so nothing
+   outside the folder is ever read or written through it. A write goes to
+   a hidden temporary file in the same folder first and is renamed into
+   place only when complete: a failed or cut upload leaves nothing.
 
    Thread-safe (the HTTP thread and the core thread both call it). This
-   header includes no core header, so xpp_http.cpp can use it. */
+   header includes no core header, so xpp_http.cpp can use it. C++ in
+   namespace xpp::files (W109a); a path a function only reads is a
+   std::string_view. */
 
 #define XPP_FILES_CAP (64ULL << 20) /* the largest upload, bytes */
 
@@ -35,34 +38,49 @@ extern "C" {
 #define XPP_FILES_TOO_LARGE 4 /* more than the cap */
 #define XPP_FILES_IO 5        /* the system refused, or the data was cut short */
 
-int xpp_files_name_ok(const char *name);
-const char *xpp_files_status_text(int status); /* in words, for an error */
+namespace xpp::files {
 
-/* opens a file for reading ("rb"); *size its length */
-int xpp_files_open(const char *name, FILE **fp, unsigned long long *size);
+bool name_ok(std::string_view name);
+const char *status_text(int status); /* in words, for an error */
+
+/* opens a file for reading ("rb"); size its length */
+int open(std::string_view name, FILE *&fp, unsigned long long &size);
 
 /* a write in steps: begin, write the bytes as they come (more than `cap`
    in all fails with XPP_FILES_TOO_LARGE), then commit, or abort. Commit
-   and abort end the XppFilePut whatever they return; after a failed
-   write, abort. Commit (below, C++) gives the size and SHA-256 of what
-   was written.
+   and abort end the Put whatever they return; after a failed write,
+   abort. Commit gives the size and SHA-256 of what was written (sha256,
+   64 hex digits).
    The write is xpp_io.h's writer (binary): the temp file beside the name
    and its rename are the same as every other replace's. */
-typedef struct XppFilePut XppFilePut;
-int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **put);
-int xpp_files_put_write(XppFilePut *put, const void *data, size_t n);
-void xpp_files_put_abort(XppFilePut *put);
+struct Put;
+int put_begin(std::string_view name, unsigned long long cap, Put *&put);
+int put_write(Put &put, std::string_view bytes);
+void put_abort(Put *put);
+int put_commit(Put *put, unsigned long long &size, std::string &sha256);
 
 /* "read" when a file selector with this title opens a file, "write" when
    it saves one (the `mode` of the `file` ask) */
-const char *xpp_files_ask_mode(const char *title);
+const char *ask_mode(std::string_view title);
 
 /* Atomically replaces `to` with `from` (POSIX rename(), which already
    replaces; xpp_replace_file on Windows, where rename() does not): 0 on
    success. The one place that knows the platform difference; core/xpp_io.cpp's
    writer (core/xpp_io.h) calls this for its own temp-then-rename commit
    instead of duplicating it. */
-int xpp_files_replace_file(const char *from, const char *to);
+int replace_file(std::string_view from, std::string_view to);
+
+/* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
+   files of the working directory whose names are reachable, sorted by
+   name; mtime in seconds since 1970 */
+std::string list_json();
+
+/* the protocol's {"cmd":"file","op":..,"name":..,"data":..}: op "list",
+   "get" or "put"; name_json and data_json point at the JSON values of
+   "name" and "data" in the command (nullptr when absent). Sends one `file`
+   event through emit. */
+void command(std::string_view op, const char *name_json, const char *data_json,
+             void (*emit)(std::string_view line));
 
 /* ---- the core's own files, by any path (W32b) -------------------------------
    The one place the core opens, copies, moves, deletes and probes files
@@ -71,7 +89,7 @@ int xpp_files_replace_file(const char *from, const char *to);
    outputs, AUTO's fort.* and diagram files, its scratch folder).
    tools/filecheck.sh counts every direct fopen/remove/rename/mkdir/...
    left elsewhere. Reading and writing go through xpp_io.h's handles
-   (xpp::Writer: write, binary, append, a replace only on commit;
+   (xpp::Writer: write, binary, a replace only on commit;
    xpp::LineReader, xpp::TokenReader and xpp::open_read for reading),
    which open their files here. */
 
@@ -79,12 +97,21 @@ int xpp_files_replace_file(const char *from, const char *to);
    fclose (AUTO's fort.3/7/8/9 during a run, the array plot's GIF movie,
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
-FILE *xpp_files_open_stream(const char *path, const char *mode);
-/* While set, observer(path) is called on every file xpp_files_open_stream
-   (so xpp_io.h's readers too) has just opened for reading only (a mode
-   "r" or "rb"): what a recording embeds (W59a, json_record.cpp). The core
-   thread's alone; NULL stops it. */
-void xpp_files_observe_reads(void (*observer)(const char *path));
+FILE *open_stream(std::string_view path, const char *mode);
+/* While set, observer(path) is called on every file open_stream (so
+   xpp_io.h's readers too) has just opened for reading only (a mode "r" or
+   "rb"): what a recording embeds (W59a, json_record.cpp). The core
+   thread's alone; nullptr stops it. */
+void observe_reads(void (*observer)(const std::string &path));
+/* While set, a file outside the scratch folders that the core opens for
+   reading with open_stream (so xpp_io.h's readers too) is the server's:
+   server(path, &copy) is true with copy the file to open in its place,
+   false for a file it does not hold, which is then not there: nothing is
+   read from the disk. exists(path) is true for a file server(path,
+   nullptr) holds, else asks the disk (a file about to be written). A
+   recording's replay serves the files its steps read (W59b,
+   json_player.cpp). The core thread's alone; nullptr stops it. */
+void serve_reads(bool (*server)(const std::string &path, std::string *copy));
 /* the descriptor a standard stream (stdout, stderr) writes through, given
    one (the null device) if it has none: the Windows exe is a GUI-subsystem
    program, and started with no console (Explorer, a shortcut,
@@ -92,122 +119,92 @@ void xpp_files_observe_reads(void (*observer)(const char *path));
    descriptor (_fileno -2), where a dup2 onto 1 and 2 never reaches them
    and all the core prints, AUTO's table included, was lost to the page
    (T27). -1 when it cannot be given one. */
-int xpp_files_stream_fd(FILE *f);
+int stream_fd(FILE *f);
 /* Creates path for writing, failing when it exists already (a link
    included, which is never followed): the temp files of a replace.
-   binary 0 is text mode ("w"), 1 binary ("wb"). NULL on failure. */
-FILE *xpp_files_create_new(const char *path, int binary);
-/* 1 when path names a file or a folder */
-int xpp_files_exists(const char *path);
-/* 1 when path names a folder (a link to one included) */
-int xpp_files_is_dir(const char *path);
-/* 1 when a file can be created in dir: probed by creating one and
-   removing it (a folder can exist without being writable) */
-int xpp_files_dir_writable(const char *dir);
+   binary false is text mode ("w"), true binary ("wb"). NULL on failure. */
+FILE *create_new(std::string_view path, bool binary);
+/* path names a file or a folder */
+bool exists(std::string_view path);
+/* path names a folder (a link to one included) */
+bool is_dir(std::string_view path);
+/* a file can be created in dir: probed by creating one and removing it (a
+   folder can exist without being writable); false for "" */
+bool dir_writable(std::string_view dir);
 /* the file selector's current folder (core/read_dir.cpp's old cur_dir,
-   folded in here, W46b): "" until refreshed. The pointer is valid until
-   the next call to xpp_files_refresh_cur_dir or xpp_files_change_dir. */
-const char *xpp_files_cur_dir(void);
-/* sets it from getcwd(): 1 on success; on failure a WARN and "" */
-int xpp_files_refresh_cur_dir(void);
-/* chdir(path), then refreshes the current folder; path NULL clears the
-   current folder without touching the process's own (form_ode.cpp's
-   console (c)d and json_prompts.cpp's file selector "cd" answer).
-   0 on success, 1 on failure (the chdir failed, a WARN, or the refresh
-   after it did) -- the historical change_directory()'s own convention. */
-int xpp_files_change_dir(const char *path);
+   folded in here, W46b): "" until refreshed */
+std::string cur_dir();
+/* sets it from getcwd(): true on success; on failure a WARN and "" */
+bool refresh_cur_dir();
+/* chdir(path), then refreshes the current folder. 0 on success, 1 on
+   failure (the chdir failed, a WARN, or the refresh after it did) -- the
+   historical change_directory()'s own convention. */
+int change_dir(std::string_view path);
 /* deletes the file path: 0 on success */
-int xpp_files_remove(const char *path);
+int remove(std::string_view path);
 /* to becomes a byte-for-byte copy of from, written beside it and renamed
    into place, so it is either the whole copy or left as it was; a WARN
    when from cannot be read or to written */
-void xpp_files_copy(const char *from, const char *to);
+void copy(std::string_view from, std::string_view to);
 /* to becomes from's bytes followed by its own, the same way (AUTO's run
    output put ahead of the diagram files it keeps: its "append"); a copy
    when to does not exist */
-void xpp_files_prepend(const char *from, const char *to);
+void prepend(std::string_view from, std::string_view to);
 /* from becomes to, replacing it; when the system refuses (Windows, a
    source still open elsewhere) a copy, then from is removed if it can be */
-void xpp_files_move(const char *from, const char *to);
-
-/* Removes every file directly in dir (no folders are expected there),
-   then dir itself. NULL does nothing. */
-void xpp_files_remove_temp_dir(const char *dir);
-/* issue #32: removes the scratch folders of runs that were killed before
-   they could remove their own (xpp_files_make_temp_dir's naming, whose
-   pid names no running process); called once at start */
-void xpp_files_cleanup_stale_temp_dirs(void);
-
-/* the protocol's {"cmd":"file","op":..,"name":..,"data":..}: op "list",
-   "get" or "put"; name_json and data_json point at the JSON values of
-   "name" and "data" in the command (NULL when absent). Sends one `file`
-   event through emit. */
-void xpp_files_command(const char *op, const char *name_json, const char *data_json,
-                       void (*emit)(const char *line, size_t n));
-
-#ifdef __cplusplus
-}
-
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
-
-/* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
-   files of the working directory whose names are reachable, sorted by
-   name; mtime in seconds since 1970 */
-std::string xpp_files_list_json();
-
-/* the put's commit (above): its size in *size, the SHA-256 of what was
-   written in sha256 (64 hex digits) */
-int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string &sha256);
+void move(std::string_view from, std::string_view to);
 
 /* AUTO's private scratch folder: "xppautoX-<pid>-<N>", mode 0700, under
    $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
    path, or empty on failure */
-std::string xpp_files_make_temp_dir();
+std::string make_temp_dir();
 /* path is in one of this process's scratch folders (as the path above
    names them): a file the core itself keeps there, never the user's */
-bool xpp_files_is_scratch(std::string_view path);
-
-/* While set, a file outside the scratch folders that the core opens for
-   reading with xpp_files_open_stream (so xpp_io.h's readers too) is the
-   server's: server(path, &copy) is true with copy the file to open in its
-   place, false for a file it does not hold, which is then not there:
-   nothing is read from the disk. xpp_files_exists(path) is true for a
-   file server(path, nullptr) holds, else asks the disk (a file about to
-   be written). A recording's replay serves the files its steps read
-   (W59b, json_player.cpp). The core thread's alone; nullptr stops it. */
-void xpp_files_serve_reads(bool (*server)(const char *path, std::string *copy));
+bool is_scratch(std::string_view path);
+/* Removes every file directly in dir (no folders are expected there),
+   then dir itself. "" does nothing. */
+void remove_temp_dir(std::string_view dir);
+/* issue #32: removes the scratch folders of runs that were killed before
+   they could remove their own (make_temp_dir's naming, whose pid names no
+   running process); called once at start */
+void cleanup_stale_temp_dirs();
 
 /* a folder's entry: its name, and whether it is a folder itself (a link
    followed) */
-struct XppDirEntry {
+struct DirEntry {
     std::string name;
     bool folder;
 };
 /* the entries of the folder dir ("." and ".." included, in the order the
    system gives them) into out; false (out empty) when dir cannot be read */
-bool xpp_files_list_dir(const char *dir, std::vector<XppDirEntry> &out);
+bool list_dir(std::string_view dir, std::vector<DirEntry> &out);
+/* the folders of direct and its files that match the Unix-style wildcard
+   wild (*, ?, [..]), each list sorted; false (dirs/files left empty, a
+   WARN) when direct cannot be read. core/read_dir.cpp's old list_folder,
+   folded in here (W46b). */
+bool list_matching(std::string_view wild, std::string_view direct, std::vector<std::string> &dirs,
+                   std::vector<std::string> &files);
 
 /* the working directory, whatever its length ("" when it cannot be had) */
-std::string xpp_files_working_dir();
+std::string working_dir();
 /* path's folder ("" when it names none: a bare name) and its last part,
    either separator ('/', or '\' too on Windows) */
-std::pair<std::string, std::string> xpp_files_split_path(const std::string &path);
+std::pair<std::string, std::string> split_path(std::string_view path);
 /* path itself when it is absolute ("/x", and on Windows "C:\x" or "\x"),
    else under the folder dir ("" the working directory) */
-std::string xpp_files_absolute(const std::string &path, const std::string &dir = std::string());
+std::string absolute(std::string_view path, std::string_view dir = {});
+
+} // namespace xpp::files
 
 namespace xpp {
-/* a scratch folder of its own (xpp_files_make_temp_dir), removed with the
+/* a scratch folder of its own (files::make_temp_dir), removed with the
    files in it when this goes; path() is empty when none could be made */
 class TempDir {
 public:
-    TempDir() : path_(xpp_files_make_temp_dir()) {}
+    TempDir() : path_(files::make_temp_dir()) {}
     ~TempDir()
     {
-        if (!path_.empty()) xpp_files_remove_temp_dir(path_.c_str());
+        if (!path_.empty()) files::remove_temp_dir(path_);
     }
     TempDir(const TempDir &) = delete;
     TempDir &operator=(const TempDir &) = delete;
@@ -218,11 +215,5 @@ private:
     std::string path_;
 };
 } // namespace xpp
-/* the folders of direct and its files that match the Unix-style wildcard
-   wild (*, ?, [..]), each list sorted; false (dirs/files left empty, a
-   WARN) when direct cannot be read. core/read_dir.cpp's old list_folder,
-   folded in here (W46b). */
-bool xpp_files_list_matching(const char *wild, const char *direct,
-                             std::vector<std::string> &dirs, std::vector<std::string> &files);
-#endif
+
 #endif

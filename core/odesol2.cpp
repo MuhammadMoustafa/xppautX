@@ -133,18 +133,18 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
       if(s.numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
-	bandfac(jac,ml,mr,neq);
-        bandsol(jac,errvec,ml,mr,neq);
+	xpp::bandfac(jac,ml,mr,neq);
+        xpp::bandsol(jac,errvec,ml,mr,neq);
       }
       else {
       for(i=0;i<neq;i++)jac[i*neq+i]+=1.0;
-      sgefa(jac,neq,neq,ipivot,&info);
+      xpp::sgefa(jac,neq,neq,ipivot,&info);
       if(info!=-1)
 	{
 	 
 	  return(-1);
 	}
-      sgesl(jac,neq,neq,ipivot,errvec);
+      xpp::sgesl(jac,neq,neq,ipivot,errvec);
       }
       for(i=0;i<neq;i++){
 	err+=fabs(errvec[i]);
@@ -457,15 +457,15 @@ int *istart,int n,double *work,int *ierr)
 	  for(i=0;i<n;i++)
 	 dfdy[i*mt+ml]+=1;
         
-	 bandfac(dfdy,ml,mr,n);
-	 bandsol(dfdy,k1,ml,mr,n);
+	 xpp::bandfac(dfdy,ml,mr,n);
+	 xpp::bandsol(dfdy,k1,ml,mr,n);
        }
        else{
 	  for(i=0;i<n;i++)
 	 dfdy[i*n+i]+=1;
 	
-	 sgefa(dfdy,n,n,ipivot,&info);
-	 sgesl(dfdy,n,n,ipivot,k1);
+	 xpp::sgefa(dfdy,n,n,ipivot,&info);
+	 xpp::sgesl(dfdy,n,n,ipivot,k1);
        }
        for(i=0;i<n;i++)
 	 ynew[i]=y[i]+.5*h*k1[i];
@@ -473,9 +473,9 @@ int *istart,int n,double *work,int *ierr)
        for(i=0;i<n;i++)
 	 k2[i]=f1[i]-k1[i];
        if(s.numerics.cv_bandflag)
-	 bandsol(dfdy,k2,ml,mr,n);
+	 xpp::bandsol(dfdy,k2,ml,mr,n);
        else
-	 sgesl(dfdy,n,n,ipivot,k2);
+	 xpp::sgesl(dfdy,n,n,ipivot,k2);
        for(i=0;i<n;i++){
 	 k2[i]=k2[i]+k1[i];
 	 ynew[i]=y[i]+h*k2[i];
@@ -485,9 +485,9 @@ int *istart,int n,double *work,int *ierr)
        for(i=0;i<n;i++)
 	 k3[i]=f2[i] - e32*(k2[i] - f1[i]) - 2*(k1[i] - f0[i]) + (h*d)*dfdt[i];
        if(s.numerics.cv_bandflag)
-	 bandsol(dfdy,k3,ml,mr,n);
+	 xpp::bandsol(dfdy,k3,ml,mr,n);
        else
-	 sgesl(dfdy,n,n,ipivot,k3);
+	 xpp::sgesl(dfdy,n,n,ipivot,k3);
        /*ninf=0;  This is not used anywhere?
        */
        err=0.0;

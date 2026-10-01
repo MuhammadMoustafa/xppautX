@@ -198,7 +198,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
      loadparfile=1;
    }
    if(k==5){
-    xpp_log(XPP_LOG_INFO, "%s",argv[i+1]);
+    xpp::log_printf(XPP_LOG_INFO, "%s",argv[i+1]);
      batch_options.out_file=argv[i+1];
      batch_options.user_out_file=argv[i+1];
      i++;
@@ -211,7 +211,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    if(k==7){
      if (strlen(argv[i+1]) != 6)
      {
-       xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
+       xpp::log_printf(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
      set_option(s,"FORECOLOR",argv[i+1],1,NULL);
@@ -221,7 +221,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    if(k==8){
      if (strlen(argv[i+1]) != 6)
      {
-       xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
+       xpp::log_printf(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
      set_option(s,"BACKCOLOR",argv[i+1],1,NULL);
@@ -244,7 +244,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    }if(k==13){
      if (strlen(argv[i+1]) != 6)
      {
-       xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
+       xpp::log_printf(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
      set_option(s,"MWCOLOR",argv[i+1],1,NULL);
@@ -252,7 +252,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    }if(k==14){
      if (strlen(argv[i+1]) != 6)
      {
-       xpp_log(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
+       xpp::log_printf(XPP_LOG_WARN, "Color must be given as hexadecimal string.\n");
 	exit(-1);
      }
      set_option(s,"DWCOLOR",argv[i+1],1,NULL);
@@ -330,7 +330,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    if(k==30){ /* -equil */
      batch_options.equilibria=atoi(argv[i+1]);
      i++;
-     xpp_log(XPP_LOG_INFO, " Batch equilibria %d \n",batch_options.equilibria);
+     xpp::log_printf(XPP_LOG_INFO, " Batch equilibria %d \n",batch_options.equilibria);
    }
 
  }
@@ -374,7 +374,7 @@ int if_needed_select_sets(const xpp::Model &m)
 		
 		if (is_set_name(sets2use,name))
 		{
-		xpp_log(XPP_LOG_INFO, "Internal set %s was included\n",name);
+		xpp::log_printf(XPP_LOG_INFO, "Internal set %s was included\n",name);
 			if (use[j]==0){used++;}
 			use[j]=1;
 			
@@ -382,13 +382,13 @@ int if_needed_select_sets(const xpp::Model &m)
 		
 		if (is_set_name(setsNOTuse,name))
 		{
-		xpp_log(XPP_LOG_INFO, "Internal set %s was excluded\n",name);
+		xpp::log_printf(XPP_LOG_INFO, "Internal set %s was excluded\n",name);
 			if (use[j]==1){used--;}
 			use[j]=0;
 		}
 	}
 	
-	xpp_log(XPP_LOG_INFO, "A total of %d internal sets will be used\n",used);
+	xpp::log_printf(XPP_LOG_INFO, "A total of %d internal sets will be used\n",used);
 	
 	return 1;
 }
@@ -467,14 +467,14 @@ int parse_it(xpp::Session &s, const char *com)
       /* -iconify: the X11 icon is gone; accepted and ignored */
       break;
     case NEWSEED:
-     xpp_log(XPP_LOG_INFO, "Random number seed changed\n");
+     xpp::log_printf(XPP_LOG_INFO, "Random number seed changed\n");
       newseed=1;
       break;  
     case ALLWIN:  /* X11 window options: accepted, nothing to do */
     case MSSTYLE:
       break;
     case PWHITE:
-      xpp_log(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
+      xpp::log_printf(XPP_LOG_WARN, "-white option is no longer part of this version. \n Sorry \n");
       break;
     case RUNNOW:
       s.run_immediately=1;
@@ -555,67 +555,67 @@ int parse_it(xpp::Session &s, const char *com)
       dryrun=1;
       break;
     case VERBOSEOPT:
-      xpp_log_set_threshold(XPP_LOG_INFO);
+      xpp::log_set_threshold(XPP_LOG_INFO);
       break;
     case DEBUGOPT:
-      xpp_log_set_threshold(XPP_LOG_DEBUG);
+      xpp::log_set_threshold(XPP_LOG_DEBUG);
       break;
     }
   }
   else {
     if(com[0]=='-'||s.got_file==1){ 
-     xpp_log(XPP_LOG_WARN, "Problem reading option %s\n",com);
-     xpp_log(XPP_LOG_WARN, "\nUsage: xppaut filename [options ...]\n\n");
-     xpp_log(XPP_LOG_WARN, "Options:\n");
-     xpp_log(XPP_LOG_WARN, "  -silent                Batch run without the interface and dump solutions to a file\n");
-     xpp_log(XPP_LOG_WARN, "  -xorfix                Work-around for exclusive Or with X on some monitors/graphics setups\n");
-     xpp_log(XPP_LOG_WARN, "  -convert               Convert old style ODE files (e.g. phaseplane) to new ODE style\n");
-     xpp_log(XPP_LOG_WARN, "  -newseed               Randomizes the random number generator which will often use the same seed\n");
-     xpp_log(XPP_LOG_WARN, "  -ee                    Emulates shortcuts of Evil Empire style (MS)\n");
-     xpp_log(XPP_LOG_WARN, "  -allwin                Brings XPP up with all the windows visible\n");
-     xpp_log(XPP_LOG_WARN, "  -white                 Uses white screen instead of black\n");
-     xpp_log(XPP_LOG_WARN, "  -setfile <filename>    Loads the set file before starting up\n");
-     xpp_log(XPP_LOG_WARN, "  -runnow                Runs ode file immediately upon startup (implied by -silent)\n");
-     xpp_log(XPP_LOG_WARN, "  -bigfont <font>        Use the big font whose filename is given\n");
-     xpp_log(XPP_LOG_WARN, "  -smallfont <font>      Use the small font whose filename is given\n");
-     xpp_log(XPP_LOG_WARN, "  -parfile <filename>    Load parameters from the named file\n");
-     xpp_log(XPP_LOG_WARN, "  -outfile <filename>    Send output to this file (default is output.dat)\n");
-     xpp_log(XPP_LOG_WARN, "  -icfile <filename>     Load initial conditions from the named file\n");
-     xpp_log(XPP_LOG_WARN, "  -forecolor <######>    Hexadecimal color (e.g. 000000) for foreground\n");
-     xpp_log(XPP_LOG_WARN, "  -backcolor <######>    Hexadecimal color (e.g. EDE9E3) for background\n");
-     xpp_log(XPP_LOG_WARN, "  -backimage <filename>  Name of bitmap file (.xbm) to load in background\n");
-     xpp_log(XPP_LOG_WARN, "  -mwcolor <######>      Hexadecimal color (e.g. 808080) for main window\n");
-     xpp_log(XPP_LOG_WARN, "  -dwcolor <######>      Hexadecimal color (e.g. FFFFFF) for drawing window\n");
-     xpp_log(XPP_LOG_WARN, "  -grads < 1 | 0 >       Color gradients will | won't be used\n"); 
-     xpp_log(XPP_LOG_WARN, "  -width N               Minimum width in pixels of main window\n");
-     xpp_log(XPP_LOG_WARN, "  -height N              Minimum height in pixels of main window\n");
-     xpp_log(XPP_LOG_WARN, "  -bell < 1 | 0 >        Events will | won't trigger system bell\n");
-     xpp_log(XPP_LOG_WARN, "  -internset < 1 | 0 >   Internal sets will | won't be run during batch run\n");
-     xpp_log(XPP_LOG_WARN, "  -uset <setname>        Named internal set will be run during batch run\n");
-     xpp_log(XPP_LOG_WARN, "  -rset <setname>        Named internal set will not be run during batch run\n");
-     xpp_log(XPP_LOG_WARN, "  -include <filename>    Named file will be included (see #include directive)\n");
-     xpp_log(XPP_LOG_WARN, "  -qsets                 Query internal sets (output saved to OUTFILE)\n");
-     xpp_log(XPP_LOG_WARN, "  -qpars                 Query parameters (output saved to OUTFILE)\n");
-     xpp_log(XPP_LOG_WARN, "  -qics                  Query initial conditions (output saved to OUTFILE)\n");
-     xpp_log(XPP_LOG_WARN, "  -quiet <1 |0>          Do not print *anything* out to console\n");
-     xpp_log(XPP_LOG_WARN, "  -logfile <filename>    Print console output to specified logfile \n");
-     xpp_log(XPP_LOG_WARN, "  -anifile <filename>    Load an animation code file (.ani) \n");
-     xpp_log(XPP_LOG_WARN, "  -plotfmt <svg|ps>       Set Batch plot format\n");
-     xpp_log(XPP_LOG_WARN, "  -mkplot                Do a plot in batch mode \n");
-     xpp_log(XPP_LOG_WARN, " -ncdraw 1|2               Draw nullclines in batch (1) to file (2) \n");
-     xpp_log(XPP_LOG_WARN, " -dfdraw 1-5       Draw dfields in batch (1-3) to file (4-5)  \n");
-     xpp_log(XPP_LOG_WARN, "  -version               Print XPPAUT version and exit \n");
-     xpp_log(XPP_LOG_WARN, "  -readset <filename>   Read in a set file like the internal sets\n");
-     xpp_log(XPP_LOG_WARN, "  -with string   String must be surrounded with quotes; anything that is in an internal set is valid\n");
-     xpp_log(XPP_LOG_WARN, "  -equil <0|1>    Write equilibria to equil.dat and if <1> manifolds um1.dat,...,sm2.dat\n");
-     xpp_log(XPP_LOG_WARN, "  -verbose               Show the startup banner, parser stats and other INFO logging\n");
-     xpp_log(XPP_LOG_WARN, "  -debug                 Show DEBUG logging too (see core/xpp_log.h)\n");
-     xpp_log(XPP_LOG_WARN, "\n");
+     xpp::log_printf(XPP_LOG_WARN, "Problem reading option %s\n",com);
+     xpp::log_printf(XPP_LOG_WARN, "\nUsage: xppaut filename [options ...]\n\n");
+     xpp::log_printf(XPP_LOG_WARN, "Options:\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -silent                Batch run without the interface and dump solutions to a file\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -xorfix                Work-around for exclusive Or with X on some monitors/graphics setups\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -convert               Convert old style ODE files (e.g. phaseplane) to new ODE style\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -newseed               Randomizes the random number generator which will often use the same seed\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -ee                    Emulates shortcuts of Evil Empire style (MS)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -allwin                Brings XPP up with all the windows visible\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -white                 Uses white screen instead of black\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -setfile <filename>    Loads the set file before starting up\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -runnow                Runs ode file immediately upon startup (implied by -silent)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -bigfont <font>        Use the big font whose filename is given\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -smallfont <font>      Use the small font whose filename is given\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -parfile <filename>    Load parameters from the named file\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -outfile <filename>    Send output to this file (default is output.dat)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -icfile <filename>     Load initial conditions from the named file\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -forecolor <######>    Hexadecimal color (e.g. 000000) for foreground\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -backcolor <######>    Hexadecimal color (e.g. EDE9E3) for background\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -backimage <filename>  Name of bitmap file (.xbm) to load in background\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -mwcolor <######>      Hexadecimal color (e.g. 808080) for main window\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -dwcolor <######>      Hexadecimal color (e.g. FFFFFF) for drawing window\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -grads < 1 | 0 >       Color gradients will | won't be used\n"); 
+     xpp::log_printf(XPP_LOG_WARN, "  -width N               Minimum width in pixels of main window\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -height N              Minimum height in pixels of main window\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -bell < 1 | 0 >        Events will | won't trigger system bell\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -internset < 1 | 0 >   Internal sets will | won't be run during batch run\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -uset <setname>        Named internal set will be run during batch run\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -rset <setname>        Named internal set will not be run during batch run\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -include <filename>    Named file will be included (see #include directive)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -qsets                 Query internal sets (output saved to OUTFILE)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -qpars                 Query parameters (output saved to OUTFILE)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -qics                  Query initial conditions (output saved to OUTFILE)\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -quiet <1 |0>          Do not print *anything* out to console\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -logfile <filename>    Print console output to specified logfile \n");
+     xpp::log_printf(XPP_LOG_WARN, "  -anifile <filename>    Load an animation code file (.ani) \n");
+     xpp::log_printf(XPP_LOG_WARN, "  -plotfmt <svg|ps>       Set Batch plot format\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -mkplot                Do a plot in batch mode \n");
+     xpp::log_printf(XPP_LOG_WARN, " -ncdraw 1|2               Draw nullclines in batch (1) to file (2) \n");
+     xpp::log_printf(XPP_LOG_WARN, " -dfdraw 1-5       Draw dfields in batch (1-3) to file (4-5)  \n");
+     xpp::log_printf(XPP_LOG_WARN, "  -version               Print XPPAUT version and exit \n");
+     xpp::log_printf(XPP_LOG_WARN, "  -readset <filename>   Read in a set file like the internal sets\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -with string   String must be surrounded with quotes; anything that is in an internal set is valid\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -equil <0|1>    Write equilibria to equil.dat and if <1> manifolds um1.dat,...,sm2.dat\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -verbose               Show the startup banner, parser stats and other INFO logging\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -debug                 Show DEBUG logging too (see core/xpp_log.h)\n");
+     xpp::log_printf(XPP_LOG_WARN, "\n");
 
-     xpp_log(XPP_LOG_WARN, "Environment variables:\n");
-     xpp_log(XPP_LOG_WARN, "  XPPEDITOR              Editor File > .Xpprc opens\n");
-     xpp_log(XPP_LOG_WARN, "  XPPSTART               Path to start looking for ODE files\n");
-     xpp_log(XPP_LOG_WARN, "\n");
+     xpp::log_printf(XPP_LOG_WARN, "Environment variables:\n");
+     xpp::log_printf(XPP_LOG_WARN, "  XPPEDITOR              Editor File > .Xpprc opens\n");
+     xpp::log_printf(XPP_LOG_WARN, "  XPPSTART               Path to start looking for ODE files\n");
+     xpp::log_printf(XPP_LOG_WARN, "\n");
      exit(0);
     }
     else {

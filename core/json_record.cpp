@@ -153,13 +153,13 @@ void add_model_files(const xpp::Model &m)
     for (const xpp::ModelFile &f : m.files) recx::add_file(*recorder.rec, f);
 }
 
-/* xpp_files_observe_reads' observer: a file the core opened for reading,
+/* xpp::files::observe_reads' observer: a file the core opened for reading,
    embedded when it is the user's (not in a scratch folder: text as it
    is, any other file, an .autox or a .snapx, as base64), and named by
    the step that read it */
-void file_read(const char *path)
+void file_read(const std::string &path)
 {
-    if (!recorder.rec || recorder.reading || xpp_files_is_scratch(path)) return;
+    if (!recorder.rec || recorder.reading || xpp::files::is_scratch(path)) return;
     try {
         std::string bytes;
         recorder.reading = true;
@@ -169,7 +169,7 @@ void file_read(const char *path)
         const size_t section = recx::add_file(*recorder.rec, {path, std::move(bytes)});
         if (recorder.step.open) recorder.step.files.push_back(section);
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("recording a file");
+        xpp::out_of_memory("recording a file");
     }
 }
 
@@ -199,7 +199,7 @@ void start(xpp::Session &s)
     recorder = Recorder{};
     recorder.rec = std::move(r);
     add_model_files(s.model());
-    xpp_files_observe_reads(file_read);
+    xpp::files::observe_reads(file_read);
 }
 
 /* name.recx (asked for when name is empty, as the other File saves are),
@@ -234,7 +234,7 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
     bottom_msg(0, done.c_str());
-    xpp_files_observe_reads(nullptr);
+    xpp::files::observe_reads(nullptr);
     recorder = Recorder{};
     return true;
 }

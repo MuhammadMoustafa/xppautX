@@ -13,7 +13,7 @@
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(const char *msg) { xpp_log(XPP_LOG_ERROR, "%s\n", msg); }
+static void hl_err_msg(const char *msg) { xpp::log_printf(XPP_LOG_ERROR, "%s\n", msg); }
 static void hl_void(void) {}
 static void hl_str(const char *) {}
 static void hl_int(int) {}
@@ -91,8 +91,8 @@ static int hl_checklist(const char *, const char *const *, int *, int)
 static void hl_movie_save(xpp::Session &, const char *, int) {}
 static void hl_open_help(const char *, const char *) {}
 static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
-static void hl_record_toggle(xpp::Session &) { xpp_log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
-static void hl_play_recording(xpp::Session &, const char *) { xpp_log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
+static void hl_record_toggle(xpp::Session &) { xpp::log_printf(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
+static void hl_play_recording(xpp::Session &, const char *) { xpp::log_printf(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
 static bool hl_save_recording(xpp::Session &) { return true; }
 static void hl_exit_program(void) { exit(1); }
@@ -376,13 +376,13 @@ bool recording_in_progress(void) { return xpp_ui.recording(); }
 bool save_recording(xpp::Session &s) { return xpp_ui.save_recording(s); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
-   was a thin wrapper around xpp_log() at INFO (the banner, "All formulas
+   was a thin wrapper around xpp::log_printf() at INFO (the banner, "All formulas
    are valid!!", parser statistics, duplicate-name notes) and was retired
-   at W25: call xpp_log(XPP_LOG_INFO, ...) / xpp::log(XPP_LOG_INFO, ...)
-   directly -- xpp_log_v() itself now honours log_settings.verbose (the
+   at W25: call xpp::log_printf(XPP_LOG_INFO, ...) / xpp::log(XPP_LOG_INFO, ...)
+   directly -- xpp::log_vprintf() itself now honours xpp::log_settings.verbose (the
    ODE file's own QUIET option, load_eqn.c) for INFO-level messages, the
    same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
-   real error uses err_msg()/xpp_log(..., XPP_LOG_ERROR/WARN) instead. */
+   real error uses err_msg()/xpp::log_printf(..., XPP_LOG_ERROR/WARN) instead. */
 
 int new_int(const char *name, int *value)
 {

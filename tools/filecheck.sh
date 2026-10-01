@@ -5,15 +5,15 @@
 # fopen, freopen, remove, rename, unlink, mkdir, rmdir, opendir and
 # tmpfile in core/*.cpp and core/*.h, comments and string literals
 # stripped first (tools/strip_comments.awk, as tools/formatcheck.sh does).
-# xpp_files.cpp and xpp_io.cpp (the modules that own them) and
+# xpp_files.cpp, xpp_files.h and xpp_io.cpp (the module that owns them) and
 # xpp_win32.cpp (the Windows API's file) are not counted. A member call
-# (x.remove(), p->rename()) or a longer name (xpp_files_remove) is not a
+# (x.remove(), p->rename()) or a longer name (xpp::files::remove) is not a
 # match; std::fopen and ::remove are.
 #
-# The replacements: xpp::Writer (write, binary, append; a replace only at
+# The replacements: xpp::Writer (write, binary; a replace only at
 # commit), xpp::LineReader/TokenReader and xpp::open_read for reading,
-# xpp_files_open_stream for a stream kept open across calls,
-# xpp_files_copy/prepend/move/remove/exists/dir_writable, and the
+# xpp::files::open_stream for a stream kept open across calls,
+# xpp::files::copy/prepend/move/remove/exists/dir_writable, and the
 # xpp_files temp folders.
 #
 # tests/files.baseline is the count per file this started from: the W33
@@ -43,12 +43,13 @@ trap 'rm -rf "$tmp"' EXIT
 
 for f in core/*.cpp core/*.h; do
   case "$f" in
-    core/xpp_files.cpp|core/xpp_files_*|core/xpp_io.cpp|core/xpp_win32.cpp) continue ;; # the owners
+    core/xpp_files.cpp|core/xpp_files.h|core/xpp_files_*|core/xpp_io.cpp|core/xpp_win32.cpp) continue ;; # the owners
   esac
   awk -f tools/strip_comments.awk "$f" | awk -v file="$f" '
     {
       line = " " $0
       gsub(/"([^"\\]|\\.)*"/, "\"\"", line)
+      gsub(/files::/, "files_", line) # xpp::files::remove( is the owner module, not ::remove(
       while (match(line, /[^A-Za-z0-9_.>](fopen|freopen|remove|rename|unlink|mkdir|rmdir|opendir|tmpfile)[ \t]*\(/)) {
         n++
         line = substr(line, RSTART + RLENGTH)

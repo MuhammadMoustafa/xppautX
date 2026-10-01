@@ -548,13 +548,13 @@ bool xpp_saved_file_name(std::string_view path)
 
 std::optional<SavedFile> xpp_saved_read(const std::string &path)
 {
-    const std::string abs = xpp_files_absolute(path);
+    const std::string abs = xpp::files::absolute(path);
     std::string bytes;
     if (!xpp::read_bytes(abs.c_str(), bytes)) {
         err_msg(xpp::format("Cannot open {}", path).c_str());
         return std::nullopt;
     }
-    return xpp_saved_parse(abs, xpp_files_split_path(path).second, bytes, xpp::snapx::is_session_file(path) ? SavedKind::session : SavedKind::autox);
+    return xpp_saved_parse(abs, xpp::files::split_path(path).second, bytes, xpp::snapx::is_session_file(path) ? SavedKind::session : SavedKind::autox);
 }
 
 std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::string &name, std::string_view bytes, SavedKind kind)
@@ -625,7 +625,7 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
 
 std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext)
 {
-    std::string base = xpp_files_split_path(m.this_file).second;
+    std::string base = xpp::files::split_path(m.this_file).second;
     const std::size_t dot = base.rfind('.');
     if (dot != std::string::npos && dot > 0) base.resize(dot);
     return base + std::string(ext);

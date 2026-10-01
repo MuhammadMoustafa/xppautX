@@ -45,7 +45,7 @@
 #define O_TEXT 0
 #endif
 
-struct XppFilePut {
+struct xpp::files::Put {
     xpp::Writer w; /* binary: the temp file beside name, renamed over it at commit */
     std::string name;
     unsigned long long cap = 0, bytes = 0;
@@ -56,12 +56,12 @@ namespace {
 
 /* ---- names ------------------------------------------------------------------ */
 
-bool device_name(const char *name)
+bool device_name(std::string_view name)
 {
     /* CON, NUL, COM1.txt ...: Windows opens the device whatever follows the dot */
     static const char *const devices[] = {"con", "prn", "aux", "nul", "conin$", "conout$"};
     std::string stem;
-    for (const char *p = name; *p && *p != '.'; p++) stem += static_cast<char>(std::tolower(static_cast<unsigned char>(*p)));
+    for (char c : name.substr(0, name.find('.'))) stem += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     while (!stem.empty() && stem.back() == ' ') stem.pop_back();
     for (const char *d : devices)
         if (stem == d) return true;
@@ -74,15 +74,15 @@ bool device_name(const char *name)
 /* is_link, stat_follow, make_dir, remove_dir, own_pid, temp_base,
    process_gone, SEP and the Stat type are xpp_files_internal.h, shared
    with xpp_files_dir.cpp. stat_name (lstat, not stat_follow: a link is
-   never followed here) and replace_file are this file's own. */
+   never followed here) and rename_over are this file's own. */
 using namespace xpp::files;
 
 #ifdef _WIN32
 int stat_name(const char *name, Stat *st) { return _stat64(name, st); }
-int replace_file(const char *from, const char *to) { return xpp_replace_file(from, to); }
+int rename_over(const char *from, const char *to) { return xpp_replace_file(from, to); }
 #else
 int stat_name(const char *name, Stat *st) { return lstat(name, st); }
-int replace_file(const char *from, const char *to) { return std::rename(from, to); }
+int rename_over(const char *from, const char *to) { return std::rename(from, to); }
 #endif
 
 /* what a name is on disk: NOT_FOUND, REFUSED (not a plain file) or OK */
@@ -93,13 +93,13 @@ int kind_of(const char *name, Stat *st)
     return S_ISREG(st->st_mode) ? XPP_FILES_OK : XPP_FILES_REFUSED;
 }
 
-int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long *size)
+int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
 {
     Stat st;
     int k = kind_of(name, &st);
     if (k != XPP_FILES_OK) return k;
     /* O_NOFOLLOW: a link made between the check and the open is not followed */
-    int fd = open(name, O_RDONLY | O_BINARY | O_NOFOLLOW | O_NONBLOCK);
+    int fd = ::open(name, O_RDONLY | O_BINARY | O_NOFOLLOW | O_NONBLOCK);
     if (fd < 0) return errno == ENOENT ? XPP_FILES_NOT_FOUND : errno == ELOOP ? XPP_FILES_REFUSED : XPP_FILES_IO;
 #ifndef _WIN32
     struct stat fst;
@@ -115,7 +115,7 @@ int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long *size)
         close(fd);
         return XPP_FILES_IO;
     }
-    *size = static_cast<unsigned long long>(st.st_size);
+    size = static_cast<unsigned long long>(st.st_size);
     return XPP_FILES_OK;
 }
 
@@ -134,7 +134,7 @@ bool file_sha(const char *name, std::string &out)
 {
     xpp::UniqueFile fp;
     unsigned long long size;
-    if (open_plain(name, fp, &size) != XPP_FILES_OK) return false;
+    if (open_plain(name, fp, size) != XPP_FILES_OK) return false;
     xpp::Sha256 c;
     std::vector<unsigned char> buf(1 << 16);
     size_t n;
@@ -169,7 +169,7 @@ bool cached(const std::string &name, unsigned long long size, long long mtime, s
    (xpp::json_encode_string/json_decode_string): json_io.cpp's protocol
    events and command objects share them, so a fix (UTF-8, surrogate
    pairs) lands in one place. This module keeps its own stricter rule for
-   a file name below (xpp_files_name_ok), and calls the shared decoder in
+   a file name below (xpp::files::name_ok), and calls the shared decoder in
    "strict" mode: false for a control character or an unpaired surrogate,
    which are not a name we take. */
 
@@ -192,7 +192,7 @@ bool json_string(const char *v, std::string &out)
 const int NOT_BASE64 = -1;
 
 /* the JSON string value v (base64, padded or not) into a put */
-int put_base64(XppFilePut *put, const char *v)
+int put_base64(xpp::files::Put &put, const char *v)
 {
     if (!v || *v != '"') return NOT_BASE64;
     std::string out;
@@ -200,13 +200,13 @@ int put_base64(XppFilePut *put, const char *v)
     for (v++; *v != '"'; v++) {
         if (!*v || !d.feed(*v)) return NOT_BASE64;
         if (out.size() >= 3 * 1024) {
-            int st = xpp_files_put_write(put, out.data(), out.size());
+            int st = xpp::files::put_write(put, out);
             if (st != XPP_FILES_OK) return st;
             out.clear();
         }
     }
     if (!d.finish()) return NOT_BASE64;
-    return out.empty() ? XPP_FILES_OK : xpp_files_put_write(put, out.data(), out.size());
+    return out.empty() ? XPP_FILES_OK : xpp::files::put_write(put, out);
 }
 
 /* ---- the listing ------------------------------------------------------------------ */
@@ -223,7 +223,7 @@ std::string listing()
     std::vector<Entry> files;
     if (DIR *d = opendir(".")) {
         while (struct dirent *e = readdir(d)) {
-            if (!xpp_files_name_ok(e->d_name)) continue; /* ".", "..", hidden, unreachable */
+            if (!xpp::files::name_ok(e->d_name)) continue; /* ".", "..", hidden, unreachable */
             Stat st;
             if (kind_of(e->d_name, &st) != XPP_FILES_OK) continue;
             Entry f{e->d_name, static_cast<unsigned long long>(st.st_size), static_cast<long long>(st.st_mtime), ""};
@@ -250,10 +250,10 @@ std::string listing()
 }
 
 /* the `file` event, with what follows its name */
-std::string file_event(const char *op, const std::string &name)
+std::string file_event(std::string_view op, const std::string &name)
 {
     std::string s = "{\"ev\":\"file\",\"op\":";
-    json_str(s, op);
+    json_str(s, std::string(op));
     if (!name.empty()) {
         s += ",\"name\":";
         json_str(s, name);
@@ -264,22 +264,22 @@ std::string file_event(const char *op, const std::string &name)
 void fail_event(std::string &s, int status)
 {
     s += ",\"ok\":0,\"error\":";
-    json_str(s, xpp_files_status_text(status));
+    json_str(s, xpp::files::status_text(status));
     s += '}';
 }
 
-std::string command(const char *op, const char *name_json, const char *data_json)
+std::string run_command(std::string_view op, const char *name_json, const char *data_json)
 {
     std::string name;
-    if (std::strcmp(op, "list") == 0) {
+    if (op == "list") {
         std::string s = file_event(op, name), l = listing();
         s += ",\"ok\":1,";
         s.append(l, 1, std::string::npos); /* {"files":[...]} without its brace */
         return s;
     }
-    bool named = json_string(name_json, name) && xpp_files_name_ok(name.c_str());
+    bool named = json_string(name_json, name) && xpp::files::name_ok(name);
     std::string s = file_event(op, name_json && named ? name : std::string());
-    if (std::strcmp(op, "get") != 0 && std::strcmp(op, "put") != 0) {
+    if (op != "get" && op != "put") {
         s += ",\"ok\":0,\"error\":\"unknown op\"}";
         return s;
     }
@@ -290,12 +290,12 @@ std::string command(const char *op, const char *name_json, const char *data_json
     std::string sha;
     unsigned long long size = 0;
     if (op[0] == 'p') {
-        XppFilePut *put;
-        int st = xpp_files_put_begin(name.c_str(), XPP_FILES_CAP, &put);
+        xpp::files::Put *put;
+        int st = xpp::files::put_begin(name, XPP_FILES_CAP, put);
         if (st == XPP_FILES_OK) {
-            st = put_base64(put, data_json);
-            if (st == XPP_FILES_OK) st = xpp_files_put_commit(put, &size, sha);
-            else xpp_files_put_abort(put);
+            st = put_base64(*put, data_json);
+            if (st == XPP_FILES_OK) st = xpp::files::put_commit(put, size, sha);
+            else xpp::files::put_abort(put);
         }
         if (st == NOT_BASE64) {
             s += ",\"ok\":0,\"error\":\"data is not a base64 string\"}";
@@ -309,7 +309,7 @@ std::string command(const char *op, const char *name_json, const char *data_json
         return s;
     }
     xpp::UniqueFile fp;
-    int st = open_plain(name.c_str(), fp, &size);
+    int st = open_plain(name.c_str(), fp, size);
     if (st == XPP_FILES_OK && size > XPP_FILES_CAP) {
         fp.reset();
         st = XPP_FILES_TOO_LARGE;
@@ -335,25 +335,31 @@ std::string command(const char *op, const char *name_json, const char *data_json
 
 } // namespace
 
-/* ---- the C API ------------------------------------------------------------------- */
+/* ---- the API --------------------------------------------------------------------- */
 
-int xpp_files_name_ok(const char *name)
+namespace xpp::files {
+
+bool name_ok(std::string_view name)
 {
-    if (!name || !name[0] || name[0] == '.' || name[0] == ' ') return 0;
-    size_t n = std::strlen(name);
-    if (n > 255 || std::strstr(name, "..")) return 0;
-    for (const char *p = name; *p; p++) {
-        unsigned char c = static_cast<unsigned char>(*p);
-        if (c < 0x20 || c == 0x7f || std::strchr("/\\:<>\"|?*", c)) return 0;
+    if (name.empty() || name[0] == '.' || name[0] == ' ') return false;
+    const size_t n = name.size();
+    if (n > 255 || name.find("..") != std::string_view::npos) return false;
+    constexpr std::string_view reserved = "/\\:<>\"|?*";
+    for (char ch : name) {
+        unsigned char c = static_cast<unsigned char>(ch);
+        if (c < 0x20 || c == 0x7f || reserved.find(ch) != std::string_view::npos) return false;
     }
     /* Windows drops a trailing dot or space, so "a.set." would be a.set */
-    if (name[n - 1] == '.' || name[n - 1] == ' ') return 0;
+    if (name[n - 1] == '.' || name[n - 1] == ' ') return false;
     return !device_name(name);
 }
 
-int xpp_files_replace_file(const char *from, const char *to) { return replace_file(from, to); }
+int replace_file(std::string_view from, std::string_view to)
+{
+    return rename_over(std::string(from).c_str(), std::string(to).c_str());
+}
 
-const char *xpp_files_status_text(int status)
+const char *status_text(int status)
 {
     switch (status) {
     case XPP_FILES_OK: return "ok";
@@ -365,74 +371,75 @@ const char *xpp_files_status_text(int status)
     }
 }
 
-std::string xpp_files_list_json()
+std::string list_json()
 {
     try {
         return listing();
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("listing the model's folder");
+        xpp::out_of_memory("listing the model's folder");
     }
 }
 
-int xpp_files_open(const char *name, FILE **fp, unsigned long long *size)
+int open(std::string_view name, FILE *&fp, unsigned long long &size)
 {
-    if (!xpp_files_name_ok(name)) return XPP_FILES_BAD_NAME;
+    if (!name_ok(name)) return XPP_FILES_BAD_NAME;
     xpp::UniqueFile f;
-    int st = open_plain(name, f, size);
-    *fp = f.release();
+    int st = open_plain(std::string(name).c_str(), f, size);
+    fp = f.release();
     return st;
 }
 
-int xpp_files_put_begin(const char *name, unsigned long long cap, XppFilePut **put)
+int put_begin(std::string_view name, unsigned long long cap, Put *&put)
 {
-    *put = nullptr;
-    if (!xpp_files_name_ok(name)) return XPP_FILES_BAD_NAME;
-    Stat st;
-    int k = kind_of(name, &st);
-    if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k;
+    put = nullptr;
+    if (!name_ok(name)) return XPP_FILES_BAD_NAME;
     try {
-        std::unique_ptr<XppFilePut> p = std::make_unique<XppFilePut>();
+        std::unique_ptr<Put> p = std::make_unique<Put>();
         p->name = name;
+        Stat st;
+        int k = kind_of(p->name.c_str(), &st);
+        if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k;
         p->cap = cap;
-        p->w = xpp::Writer::binary(name); /* hidden (a leading dot): neither listed nor reachable by name */
+        p->w = xpp::Writer::binary(p->name); /* hidden (a leading dot): neither listed nor reachable by name */
         if (!p->w) return XPP_FILES_IO;
-        *put = p.release();
+        put = p.release();
         return XPP_FILES_OK;
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("starting an upload");
+        xpp::out_of_memory("starting an upload");
     }
 }
 
-int xpp_files_put_write(XppFilePut *put, const void *data, size_t n)
+int put_write(Put &put, std::string_view bytes)
 {
-    if (n > put->cap - put->bytes) return XPP_FILES_TOO_LARGE;
-    if (n && std::fwrite(data, 1, n, put->w.file()) != n) return XPP_FILES_IO;
-    put->bytes += n;
-    put->sha.update(data, n);
+    const size_t n = bytes.size();
+    if (n > put.cap - put.bytes) return XPP_FILES_TOO_LARGE;
+    if (n && !put.w.write(bytes)) return XPP_FILES_IO;
+    put.bytes += n;
+    put.sha.update(bytes.data(), n);
     return XPP_FILES_OK;
 }
 
-void xpp_files_put_abort(XppFilePut *put) { delete put; /* its writer discards the temp file */ }
+void put_abort(Put *put) { delete put; /* its writer discards the temp file */ }
 
-int xpp_files_put_commit(XppFilePut *put, unsigned long long *size, std::string &sha256)
+int put_commit(Put *put, unsigned long long &size, std::string &sha256)
 {
-    std::unique_ptr<XppFilePut> p(put);
+    std::unique_ptr<Put> p(put);
     Stat st;
     int k = kind_of(p->name.c_str(), &st);
     if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k; /* became a link or a folder meanwhile */
     if (!p->w.commit()) return XPP_FILES_IO;
-    *size = p->bytes;
+    size = p->bytes;
     try {
         sha256 = p->sha.hex();
         if (stat_name(p->name.c_str(), &st) == 0 && static_cast<unsigned long long>(st.st_size) == p->bytes)
             remember(p->name, p->bytes, static_cast<long long>(st.st_mtime), sha256);
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("finishing an upload");
+        xpp::out_of_memory("finishing an upload");
     }
     return XPP_FILES_OK;
 }
 
-const char *xpp_files_ask_mode(const char *title)
+const char *ask_mode(std::string_view title)
 {
     /* the file selectors' titles (file_selector() callers): "Load SET
        File", "Read initial data", "Import Diagram", "Select an ODE file",
@@ -440,22 +447,22 @@ const char *xpp_files_ask_mode(const char *title)
        "GIF plot", "Clone ODE file", ... write one */
     static const char *const reads[] = {"load", "read", "import", "open", "select", "library"};
     std::string word; /* at most 15 letters: kept in the string itself, no allocation */
-    while (title && *title == ' ') title++;
-    for (const char *p = title; p && word.size() < 15 && std::isalpha(static_cast<unsigned char>(*p)); p++)
-        word += static_cast<char>(std::tolower(static_cast<unsigned char>(*p)));
+    const size_t from = title.find_first_not_of(' ');
+    title.remove_prefix(from == std::string_view::npos ? title.size() : from);
+    for (size_t i = 0; i < title.size() && word.size() < 15 && std::isalpha(static_cast<unsigned char>(title[i])); i++)
+        word += static_cast<char>(std::tolower(static_cast<unsigned char>(title[i])));
     for (const char *r : reads)
         if (word == r) return "read";
     return "write";
 }
 
-void xpp_files_command(const char *op, const char *name_json, const char *data_json,
-                       void (*emit)(const char *line, size_t n))
+void command(std::string_view op, const char *name_json, const char *data_json,
+             void (*emit)(std::string_view line))
 {
     try {
-        std::string s = command(op ? op : "", name_json, data_json);
-        emit(s.data(), s.size());
+        emit(run_command(op, name_json, data_json));
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("in a file command");
+        xpp::out_of_memory("in a file command");
     }
 }
 
@@ -500,42 +507,43 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
 
 namespace {
 
-/* xpp_files_observe_reads()'s observer and xpp_files_serve_reads()'s
-   server (the core thread's) */
-void (*read_observer)(const char *path);
-bool (*read_server)(const char *path, std::string *copy);
+/* observe_reads()'s observer and serve_reads()'s server (the core
+   thread's) */
+void (*read_observer)(const std::string &path);
+bool (*read_server)(const std::string &path, std::string *copy);
 
 /* a read the server has a say in */
-bool served_read(const char *path) { return read_server && path && !xpp_files_is_scratch(path); }
+bool served_read(std::string_view path) { return read_server && !xpp::files::is_scratch(path); }
 
 } // namespace
 
-void xpp_files_observe_reads(void (*observer)(const char *path)) { read_observer = observer; }
+void observe_reads(void (*observer)(const std::string &path)) { read_observer = observer; }
 
-void xpp_files_serve_reads(bool (*server)(const char *path, std::string *copy)) { read_server = server; }
+void serve_reads(bool (*server)(const std::string &path, std::string *copy)) { read_server = server; }
 
-FILE *xpp_files_open_stream(const char *path, const char *mode)
+FILE *open_stream(std::string_view path, const char *mode)
 {
     const bool reading = mode[0] == 'r' && !std::strchr(mode, '+');
-    std::string copy;
-    const char *name = path;
-    if (reading && served_read(path)) {
-        try {
-            if (!read_server(path, &copy)) {
+    std::string name, copy;
+    bool served = false;
+    try {
+        name = path;
+        if (reading && served_read(path)) {
+            if (!read_server(name, &copy)) {
                 errno = ENOENT;
                 return nullptr;
             }
-        } catch (const std::bad_alloc &) {
-            xpp_out_of_memory("serving a file");
+            served = true;
         }
-        name = copy.c_str();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("serving a file");
     }
-    FILE *f = name ? std::fopen(name, mode) : nullptr;
-    if (f && read_observer && reading) read_observer(path);
+    FILE *f = std::fopen(served ? copy.c_str() : name.c_str(), mode);
+    if (f && read_observer && reading) read_observer(name);
     return f;
 }
 
-int xpp_files_stream_fd(FILE *f)
+int stream_fd(FILE *f)
 {
 #ifdef _WIN32
     if (_fileno(f) < 0 && !std::freopen("NUL", "w", f)) return -1;
@@ -543,50 +551,58 @@ int xpp_files_stream_fd(FILE *f)
     return fileno(f);
 }
 
-FILE *xpp_files_create_new(const char *path, int binary)
+FILE *create_new(std::string_view path_view, bool binary)
 {
-    int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
+    const std::string path(path_view);
+    int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
     if (fd < 0) return nullptr;
     FILE *fp = fdopen(fd, binary ? "wb" : "w");
     if (!fp) {
         close(fd);
-        std::remove(path);
+        std::remove(path.c_str());
     }
     return fp;
 }
 
-int xpp_files_exists(const char *path)
+bool exists(std::string_view path_view)
 {
+    const std::string path(path_view);
     Stat st;
-    if (served_read(path) && read_server(path, nullptr)) return 1;
-    return path && stat_follow(path, &st) == 0;
+    if (served_read(path) && read_server(path, nullptr)) return true;
+    return stat_follow(path.c_str(), &st) == 0;
 }
 
-int xpp_files_remove(const char *path) { return std::remove(path); }
+int remove(std::string_view path) { return std::remove(std::string(path).c_str()); }
 
-void xpp_files_copy(const char *from, const char *to) { concat(from, xpp::UniqueFile(), to); }
-
-void xpp_files_prepend(const char *from, const char *to)
+void copy(std::string_view from, std::string_view to)
 {
-    xpp::UniqueFile own(std::fopen(to, "rb"));
+    concat(std::string(from).c_str(), xpp::UniqueFile(), std::string(to).c_str());
+}
+
+void prepend(std::string_view from_view, std::string_view to_view)
+{
+    const std::string from(from_view), to(to_view);
+    xpp::UniqueFile own(std::fopen(to.c_str(), "rb"));
     if (!own) {
-        xpp_files_copy(from, to);
+        copy(from, to);
         return;
     }
-    concat(from, std::move(own), to);
+    concat(from.c_str(), std::move(own), to.c_str());
 }
 
-void xpp_files_move(const char *from, const char *to)
+void move(std::string_view from_view, std::string_view to_view)
 {
+    const std::string from(from_view), to(to_view);
     /* POSIX rename() replaces an existing destination; on Windows it fails,
        so the old file was silently kept and the source left behind */
-    if (std::rename(from, to) == 0) return;
-    std::remove(to);
-    if (std::rename(from, to) == 0) return;
-    xpp_files_copy(from, to); /* the source may still be open: copy, then try to drop it */
-    std::remove(from);
+    if (std::rename(from.c_str(), to.c_str()) == 0) return;
+    std::remove(to.c_str());
+    if (std::rename(from.c_str(), to.c_str()) == 0) return;
+    copy(from, to); /* the source may still be open: copy, then try to drop it */
+    std::remove(from.c_str());
 }
 
-/* xpp_files_is_dir, xpp_files_dir_writable, xpp_files_make_temp_dir,
-   xpp_files_remove_temp_dir, xpp_files_cleanup_stale_temp_dirs and
-   xpp_files_list_dir are core/xpp_files_dir.cpp. */
+/* is_dir, dir_writable, make_temp_dir, remove_temp_dir,
+   cleanup_stale_temp_dirs and list_dir are core/xpp_files_dir.cpp. */
+
+} // namespace xpp::files

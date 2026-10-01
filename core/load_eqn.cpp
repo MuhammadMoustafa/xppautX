@@ -70,7 +70,7 @@ std::size_t options_applied=0;
 void store_option(std::vector<std::string> &options, const char *s1)
 {
   if(options.size()>=MAXOPT){
-   xpp_log(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
+   xpp::log_printf(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
     return;
   }
   options.emplace_back(s1);
@@ -154,9 +154,9 @@ void load_eqn(xpp::Session &s)
  }
  std::string &this_file=s.model().this_file;
  if(this_file=="/dev/stdin")std=1;
- if (s.got_file==1&&(std==0)&&xpp_files_is_dir(this_file.c_str()))
+ if (s.got_file==1&&(std==0)&&xpp::files::is_dir(this_file.c_str()))
  {
-   xpp_files_change_dir(this_file.c_str());
+   xpp::files::change_dir(this_file.c_str());
    make_eqn(s);
    return;
  }
@@ -198,8 +198,8 @@ void load_eqn(xpp::Session &s)
  while(okay==0)
  {
    const char *start=getenv("XPPSTART");
-   if (start!=NULL && xpp_files_is_dir(start))
-     xpp_files_change_dir(start);
+   if (start!=NULL && xpp::files::is_dir(start))
+     xpp::files::change_dir(start);
    okay=make_eqn(s);
  }
 }
@@ -400,7 +400,7 @@ void add_intern_set(xpp::Model &m, const char *name, const char *does)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   if(sets.size()>=MAX_INTERN_SET){
-   xpp_log(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
+   xpp::log_printf(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
 	   name,MAX_INTERN_SET);
     return;
   }
@@ -412,7 +412,7 @@ void add_intern_set(xpp::Model &m, const char *name, const char *does)
     bob+=*p==','?' ':*p;
   }
   sets.push_back({name,bob});
- xpp_log(XPP_LOG_INFO, " added %s doing %s \n",
+ xpp::log_printf(XPP_LOG_INFO, " added %s doing %s \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
 
@@ -594,26 +594,26 @@ void set_option(xpp::Session &s, const char *name, const char *s2, int force, Op
  if(msc("QUIET",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	xpp_log(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
+   	xpp::log_printf(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
 	xpp_model_failed(); /* a load fails, else the program ends */
    }
-   if (log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
+   if (xpp::log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
    {
-   	log_settings.verbose=(atoi(s2)==0);
+   	xpp::log_settings.verbose=(atoi(s2)==0);
    }
    return;
  }
  if(msc("LOGFILE",s1)){
-   if (log_settings.file_from_command_line==0) /*Will be 1 if -logfile was specified on the command line.*/
+   if (xpp::log_settings.file_from_command_line==0) /*Will be 1 if -logfile was specified on the command line.*/
    {
-      xpp_log_open_file(s2);
+      xpp::log_open_file(s2);
    }
    return;
  }
  if(msc("BELL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	xpp_log(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
+   	xpp::log_printf(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
 	xpp_model_failed(); /* a load fails, else the program ends */
    }
    return; /* X11's bell: checked, not kept */
@@ -672,7 +672,7 @@ void set_option(xpp::Session &s, const char *name, const char *s2, int force, Op
     {
 	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
-   		 xpp_log(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
+   		 xpp::log_printf(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
 		 xpp_model_failed(); /* a load fails, else the program ends */
 	    }
 	    s.not_already_set.UserGradients=0;
@@ -783,7 +783,7 @@ if(msc("UMC",s1)){
 	    i=atoi(s2);
 	    if(i>=0){
 	      s.numerics.rand_seed=i;
-	      nsrand48(s.numerics.rand_seed);  
+	      xpp::nsrand48(s.numerics.rand_seed);  
 	      s.not_already_set.RandSeed=0;
 	    }
      }
@@ -1613,7 +1613,7 @@ if(msc("PS_COLOR",s1)){
 if(msc("TUTORIAL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
-   	xpp_log(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
+   	xpp::log_printf(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
 	xpp_model_failed(); /* a load fails, else the program ends */
    }
    if ((s.not_already_set.TUTORIAL||force) || ((mask!=NULL)&&(mask->TUTORIAL==1)))
@@ -1879,7 +1879,7 @@ if(msc("SLO2",s1)){
        return;
      }
 
-xpp_log(XPP_LOG_WARN, "Option %s not recognized\n",s1);
+xpp::log_printf(XPP_LOG_WARN, "Option %s not recognized\n",s1);
   
 }
 

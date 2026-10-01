@@ -31,6 +31,8 @@
 #pragma GCC diagnostic pop
 #endif
 
+namespace xpp {
+
 /* ------------------------------------------------------------------ */
 /* Fourier transform                                                   */
 
@@ -48,8 +50,9 @@ using cplx = std::complex<double>;
 
 } // namespace
 
-void xpp_fft(size_t n, double *re, double *im, int sign, double factor)
+void fft(std::span<double> re, std::span<double> im, int sign, double factor)
 {
+    const size_t n = re.size();
     if (n == 0) return;
     try {
         std::vector<cplx> c(n);
@@ -66,13 +69,15 @@ void xpp_fft(size_t n, double *re, double *im, int sign, double factor)
     }
 }
 
-void xpp_fft_real(size_t n, const double *in, double *re, double *im, int sign, double factor)
+void fft_real(std::span<const double> in, std::span<double> re, std::span<double> im, int sign,
+              double factor)
 {
+    const size_t n = in.size();
     if (n == 0) return;
     try {
         std::vector<cplx> c(n / 2 + 1);
         pocketfft::r2c<double>({n}, {static_cast<ptrdiff_t>(sizeof(double))},
-                               {static_cast<ptrdiff_t>(sizeof(cplx))}, size_t{0}, sign < 0, in,
+                               {static_cast<ptrdiff_t>(sizeof(cplx))}, size_t{0}, sign < 0, in.data(),
                                c.data(), factor);
         for (size_t i = 0; i < c.size(); i++) {
             re[i] = c[i].real();
@@ -103,7 +108,7 @@ void nsrand48(int seed)
     have_spare = false;
 }
 
-int xpp_next_seed(int seed)
+int next_seed(int seed)
 {
     /* a generator of its own, seeded by seed and never touching the one
        above: a pure function, so the same run seed always picks the same
@@ -117,7 +122,7 @@ int xpp_next_seed(int seed)
     return static_cast<int>(stream() & 0x7fffffff);
 }
 
-double ndrand48(void)
+double ndrand48()
 {
     /* the top 53 bits, centred in their interval: (0,1), never 0 (the
        callers take its log) nor 1 */
@@ -169,16 +174,14 @@ double poidev(double xm)
     return em;
 }
 
-namespace xpp {
-
-std::string xpp_rand_state_save()
+std::string rand_state_save()
 {
     std::ostringstream os;
     os << engine << ' ' << (have_spare ? 1 : 0) << ' ' << std::setprecision(17) << spare;
     return os.str();
 }
 
-bool xpp_rand_state_load(const std::string &state)
+bool rand_state_load(const std::string &state)
 {
     std::istringstream is(state);
     std::mt19937_64 loaded;
@@ -191,8 +194,6 @@ bool xpp_rand_state_load(const std::string &state)
     spare = spare_value;
     return true;
 }
-
-} // namespace xpp
 
 /* ------------------------------------------------------------------ */
 /* Dense LU (LINPACK's sgefa/sgesl, row-major)                          */
@@ -332,7 +333,7 @@ void bandsol(double *a, double *b, int ml, int mr, int n)
 /* form) and hqr (shifted QR), column-major, 1-based loops as in the   */
 /* Fortran, with a fixed convergence tolerance                         */
 
-double xpp_sign(double a, double b)
+double sign(double a, double b)
 {
     if (b >= 0.0) return std::fabs(a);
     return -std::fabs(a);
@@ -357,7 +358,7 @@ void orthes(int n, int low, int igh, double *a, double *ort)
             ort[i - 1] = a[i - 1 + (m - 2) * n] / scale;
             h = h + ort[i - 1] * ort[i - 1];
         }
-        const double g = -xpp_sign(std::sqrt(h), ort[m - 1]);
+        const double g = -sign(std::sqrt(h), ort[m - 1]);
         h = h - ort[m - 1] * g;
         ort[m - 1] = ort[m - 1] - g;
         for (int j = m; j <= n; j++) {
@@ -469,7 +470,7 @@ l130:
             q = q / x;
             r = r / x;
         }
-        s = xpp_sign(std::sqrt(p * p + q * q + r * r), p);
+        s = sign(std::sqrt(p * p + q * q + r * r), p);
         if (k != m)
             h[k - 1 + (k - 2) * n] = -s * x;
         else if (l != m)
@@ -512,7 +513,7 @@ l280:
     zz = std::sqrt(std::fabs(q));
     x = x + t;
     if (q < 0.0) goto l320;
-    zz = p + xpp_sign(zz, p);
+    zz = p + sign(zz, p);
     ev[(na - 1) * 2] = x + zz;
     ev[(en - 1) * 2] = ev[(na - 1) * 2];
     if (zz != 0.0) ev[(en - 1) * 2] = x - w / zz;
@@ -533,7 +534,7 @@ l1000:
 
 } // namespace
 
-void xpp_eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
+void eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
 {
     orthes(n, 1, n, a, work);
     hqr(n, 1, n, a, ev, ierr);
@@ -542,12 +543,12 @@ void xpp_eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
 /* ------------------------------------------------------------------ */
 /* Special functions                                                   */
 
-double xpp_bessel_j(double n, double x)
+double bessel_j(double n, double x)
 {
     return jn(static_cast<int>(n), x);
 }
 
-double xpp_bessel_y(double n, double x)
+double bessel_y(double n, double x)
 {
     return yn(static_cast<int>(n), x);
 }
@@ -616,12 +617,14 @@ double bessel_i(double nn, double x, bool scaled)
 
 } // namespace
 
-double xpp_bessel_i(double n, double x)
+double bessel_i(double n, double x)
 {
     return bessel_i(n, x, false);
 }
 
-double xpp_bessel_i_scaled(double n, double x)
+double bessel_i_scaled(double n, double x)
 {
     return bessel_i(n, x, true);
 }
+
+} // namespace xpp

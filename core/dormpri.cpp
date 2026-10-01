@@ -13,7 +13,7 @@
 #include "model.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
-   stdout) are xpp_log WARNs: its Solver (solver.cpp) reports the failure
+   stdout) are xpp::log_printf WARNs: its Solver (solver.cpp) reports the failure
    itself; the stdout of --server is the protocol. */
 static long      nfcn, nstep, naccpt, nrejct;
 static double    hout, xold, xout;
@@ -114,7 +114,7 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
     h = sqrt (dny/dnf) * 0.01;
 
   h = min_d (h, hmax);
-  h = xpp_sign (h, posneg);
+  h = xpp::sign (h, posneg);
 
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
@@ -147,7 +147,7 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
     h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
-  return xpp_sign (h, posneg);
+  return xpp::sign (h, posneg);
 
 } /* hinit */
 
@@ -358,7 +358,7 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   expo1 = 1.0/8.0 - beta * 0.2;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = xpp_sign (1.0, xend-x);
+  posneg = xpp::sign (1.0, xend-x);
 
   /* initial preparations */
   atoli = atoler[0];
@@ -881,7 +881,7 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
     h = sqrt (dny/dnf) * 0.01;
 
   h = min_d (h, hmax);
-  h = xpp_sign (h, posneg);
+  h = xpp::sign (h, posneg);
 
   /* perform an explicit Euler step */
   for (i = 0; i < n; i++)
@@ -914,7 +914,7 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
     h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
-  return xpp_sign (h, posneg);
+  return xpp::sign (h, posneg);
 
 } /* hinit */
 
@@ -961,7 +961,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   expo1 = 0.2 - beta * 0.75;
   facc1 = 1.0 / fac1;
   facc2 = 1.0 / fac2;
-  posneg = xpp_sign (1.0, xend-x);
+  posneg = xpp::sign (1.0, xend-x);
 
   /* initial preparations */
   atoli = atoler[0];

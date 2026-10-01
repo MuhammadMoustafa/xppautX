@@ -39,7 +39,7 @@ void set_wieners(xpp::Session &s, double dt, double *x, double t)
   int i;
   update_markov(s,x,t,fabs(dt));
   for(i=0;i<s.model().nwiener;i++)
-    s.parser.constants[s.model().wiener[i]]=normal(0.00,1.00)/sqrt(fabs(dt));
+    s.parser.constants[s.model().wiener[i]]=xpp::normal(0.00,1.00)/sqrt(fabs(dt));
 }
 
 void add_markov(xpp::Session &s, int nstate, const char *name)
@@ -64,7 +64,7 @@ static int markov_named(xpp::Session &s, const char *name)
     }
   }
   if(index==-1){
-    xpp_log(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
+    xpp::log_printf(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
     xpp_model_failed();
   }
   if(ConvertStyle)
@@ -76,14 +76,14 @@ int build_markov(xpp::Session &s, std::span<const std::string> cells, const char
 {
  int index=markov_named(s,name);
  int nstates=s.model().markov[index].nstates;
- xpp_log(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
+ xpp::log_printf(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
  for(int i=0;i<nstates;i++){
    for(int j=0;j<nstates;j++){
      const std::string &expr=cells[static_cast<size_t>(i*nstates+j)];
-     xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
+     xpp::log_printf(XPP_LOG_INFO, "%s ",expr.c_str());
      add_markov_entry(s,index,i,j,expr.c_str());
    }
-   xpp_log(XPP_LOG_INFO, "\n");
+   xpp::log_printf(XPP_LOG_INFO, "\n");
  }
  return index;
 }
@@ -95,7 +95,7 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
  int i,j;
  int index=markov_named(s,name);
  int nstates=s.model().markov[index].nstates;
- xpp_log(XPP_LOG_INFO, " Building %s ...\n",name);
+ xpp::log_printf(XPP_LOG_INFO, " Building %s ...\n",name);
  {
    /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
       the caller keeps owning */
@@ -103,7 +103,7 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
    for(i=0;i<nstates;i++){
     auto line_view = reader.next();
     if(!line_view){
-      xpp_log(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
+      xpp::log_printf(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
       xpp_model_failed();
     }
     std::string line(*line_view);
@@ -116,10 +116,10 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
    istart=0;
      for(j=0;j<nstates;j++){
        std::string expr = markov_cell(line.c_str(),&istart);
-       xpp_log(XPP_LOG_INFO, "%s ",expr.c_str());
+       xpp::log_printf(XPP_LOG_INFO, "%s ",expr.c_str());
        add_markov_entry(s,index,i,j,expr.c_str());
      }
-   xpp_log(XPP_LOG_INFO, "\n");
+   xpp::log_printf(XPP_LOG_INFO, "\n");
    }
  }
  return index;
@@ -150,7 +150,7 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
   int n2=nstates*nstates;
   int j=s.model().nmarkov;
   if(j>=MAXMARK){
-    xpp_log(XPP_LOG_ERROR, "Too many Markov chains...\n");
+    xpp::log_printf(XPP_LOG_ERROR, "Too many Markov chains...\n");
     xpp_model_failed();
   }
 
@@ -194,7 +194,7 @@ void compile_all_markov(xpp::Session &s)
       for(k=0;k<ns;k++){
 	l0=ns*j+k;
 	if(compile_markov(s,index,j,k)==-1){
-	  xpp_log(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
+	  xpp::log_printf(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
 		 s.model().markov[index].name.c_str(), j,k,s.model().markov[index].trans[l0].c_str());
 	  xpp_model_failed();
 	}
@@ -240,7 +240,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
 double new_state(xpp::Session &s, double old, int index, double dt)
 {
   double prob,sum;
-  double coin=ndrand48();
+  double coin=xpp::ndrand48();
   int row=-1,rns;
   double *st;
   xpp::Model::MarkovChain &chain=s.model().markov[index];
@@ -299,7 +299,7 @@ void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
     rhs_only(s,yp);
     for(iy=0;iy<n;iy++){
       nu[ir+m*iy]=yp[iy];
-      xpp_log(XPP_LOG_DEBUG, "ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);
+      xpp::log_printf(XPP_LOG_DEBUG, "ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);
     }
     v[ir+1]=0;
   }
@@ -320,8 +320,8 @@ void one_gill_step(const xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
       rate+=r[i];
     }
     if(rate<=0.0)return;
-    v[0]=-log(ndrand48())/rate; /* next step */
-    test=rate*ndrand48();
+    v[0]=-log(xpp::ndrand48())/rate; /* next step */
+    test=rate*xpp::ndrand48();
     rate=r[0];
     for(i=0;i<nrxn;i++){
       if(test<rate){
@@ -348,7 +348,7 @@ void do_stochast_com(xpp::Session &s, int i)
   switch(ch){
   case 'n': 
     new_int("Seed:",&s.numerics.rand_seed);
-    nsrand48(s.numerics.rand_seed);
+    xpp::nsrand48(s.numerics.rand_seed);
     break;
   case 'd':
     data_back(s);

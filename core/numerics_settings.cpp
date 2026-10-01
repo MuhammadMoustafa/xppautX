@@ -210,7 +210,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
         do_meth(s);
         return 0;
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("setting the numerics");
+        xpp::out_of_memory("setting the numerics");
     }
 }
 

@@ -20,9 +20,9 @@ struct RunUnits {
   xpp::UniqueFile u3,u7,u9;
   RunUnits(xpp::Session &s, bool restart)
     : lib(s.auto_lib),
-      u3(xpp_files_open_stream(auto_fort_path(3),restart?"r":"w+")),
-      u7(xpp_files_open_stream(auto_fort_path(7),"w")),
-      u9(xpp_files_open_stream(auto_fort_path(9),"w"))
+      u3(xpp::files::open_stream(auto_fort_path(3),restart?"r":"w+")),
+      u7(xpp::files::open_stream(auto_fort_path(7),"w")),
+      u9(xpp::files::open_stream(auto_fort_path(9),"w"))
   {
     lib.session=&s;
     lib.fp3=u3.get();
@@ -65,7 +65,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
       findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
       if (! found) {
 	if (iap.mynode == 0) {
-	  xpp_log_auto("\nRestart label %4ld not found\n",iap.irs);
+	  xpp::log_auto_printf("\nRestart label %4ld not found\n",iap.irs);
 	}
 	return(0);/* bad return: units closes the files */
       }
@@ -479,9 +479,9 @@ int set_function_pointers(const iap_type iap,function_list *data) {
   } else {
     /*        ** Error in INIT. */
     
-      xpp_log_auto("\nInitialization Error CRASH!!\n");
+      xpp::log_auto_printf("\nInitialization Error CRASH!!\n");
    
-      xpp_log_auto("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
+      xpp::log_auto_printf("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
   }
   /* -----------------------------------------------------------------------*/
 

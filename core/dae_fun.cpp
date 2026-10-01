@@ -40,12 +40,12 @@ std::array<double,MAXDAE> svar_last{};
 int add_svar(xpp::Session &s, const char *name, const char *rhs)
 {
   if(s.model().nsvar>=MAXDAE){
-    xpp_log(XPP_LOG_ERROR, " Too many variables\n");
+    xpp::log_printf(XPP_LOG_ERROR, " Too many variables\n");
     return 1;
   }
   s.model().svars[s.model().nsvar].name=name;
   s.model().svars[s.model().nsvar].rhs=rhs;
-  xpp_log(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
+  xpp::log_printf(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
 	 s.model().nsvar,s.model().svars[s.model().nsvar].name.c_str(),s.model().svars[s.model().nsvar].rhs.c_str());
   s.model().nsvar++;
 return 0;
@@ -71,7 +71,7 @@ int add_aeqn(xpp::Session &s, const char *rhs)
 {
   xpp::Model &m=s.model();
   if(m.naeqn>=MAXDAE){
-    xpp_log(XPP_LOG_ERROR, " Too many equations\n");
+    xpp::log_printf(XPP_LOG_ERROR, " Too many equations\n");
     return 1;
   }
   m.aeqns[m.naeqn].rhs=rhs;
@@ -85,13 +85,13 @@ int compile_svars(xpp::Session &s)
   xpp::Model &m=s.model();
   int i,f[256],n;
   if(m.nsvar!=m.naeqn){
-    xpp_log(XPP_LOG_ERROR, " #DaeSolVar(%d) must equal #ALG_EQN(%d) ! \n",m.nsvar,m.naeqn);
+    xpp::log_printf(XPP_LOG_ERROR, " #DaeSolVar(%d) must equal #ALG_EQN(%d) ! \n",m.nsvar,m.naeqn);
     return 1;
   }
   
   for(i=0;i<m.naeqn;i++){
     if(add_expr(s,m.aeqns[i].rhs.c_str(),f,&n)==1){
-    xpp_log(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
+    xpp::log_printf(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
     return(1);
     }
     /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate(s,)
@@ -102,7 +102,7 @@ int compile_svars(xpp::Session &s)
 
    for(i=0;i<m.nsvar;i++){
     if(add_expr(s,m.svars[i].rhs.c_str(),f,&n)==1){
-    xpp_log(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
+    xpp::log_printf(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
     return(1);
     }
     m.svars[i].form.assign(f, f+n);
@@ -226,13 +226,13 @@ int solve_dae(xpp::Session &s)
 	jac[j*n+i]=(fnew[j]-f[j])/del;
       y[i]=yold;
     }
-    sgefa(jac,n,n,dae_work.iwork.data(),&info);
+    xpp::sgefa(jac,n,n,dae_work.iwork.data(),&info);
     if(info!=-1){
       for(i=0;i<n;i++)
 	setvar(s,m.svars[i].index,ynew[i]);
       return -1; /* singular jacobian */
     }
-    sgesl(jac,n,n,dae_work.iwork.data(),errvec); /* get x=J^(-1) f */
+    xpp::sgesl(jac,n,n,dae_work.iwork.data(),errvec); /* get x=J^(-1) f */
     err=0.0;
     for(i=0;i<n;i++){
       y[i]-=errvec[i];

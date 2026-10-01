@@ -49,7 +49,7 @@ double heaviside(double z)
 
 double rndom(double z)
 {
-  return(z*ndrand48());
+  return(z*xpp::ndrand48());
 }
 
 double signum(double z)
@@ -141,7 +141,7 @@ const std::array<Fun1,26> fun1={
   ::erf,
   ::erfc,
   ::hom_bcs,
-  ::poidev,
+  xpp::poidev,
   ::lgamma,  /* 25 */
 };
 
@@ -164,11 +164,11 @@ const std::array<Fun2,23> fun2={
   ::dge,
   ::dle,     /* 15 */
   ::dne,
-  ::normal,
-  ::xpp_bessel_j,
-  ::xpp_bessel_y,
-  ::xpp_bessel_i,  /* 20 */
-  ::xpp_bessel_i_scaled,
+  xpp::normal,
+  xpp::bessel_j,
+  xpp::bessel_y,
+  xpp::bessel_i,  /* 20 */
+  xpp::bessel_i_scaled,
   ::ieee_divide,   /* IEEE_DIVIDE */
 };
 
@@ -198,7 +198,7 @@ double do_shift(const xpp::Session &s, double shift, double variable)
 	else
 	  return p.variables[in];
   default:
-    xpp_log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
+    xpp::log_printf(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
     return 0.0;
   }
 }

@@ -6,8 +6,8 @@
 
 #include <cstdlib>
 
-void xpp_out_of_memory(const char *what)
+void xpp::out_of_memory(std::string_view what) noexcept
 {
-    xpp_log(XPP_LOG_ERROR, "out of memory %s\n", what);
+    xpp::log_printf(XPP_LOG_ERROR, "out of memory %.*s\n", static_cast<int>(what.size()), what.data());
     std::exit(1);
 }

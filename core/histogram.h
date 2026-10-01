@@ -11,7 +11,7 @@ int spectrum(float *data, int nr, int win, int w_type, float *pow);
 int cross_spectrum(float *data, float *data2, int nr, int win, int w_type, float *pow, int type);
 void mycor2(float *x, float *y, int n, int nbins, float *z, int flag);
 void fftxcorr(float *data1, float *data2, int length, int nlag, float *cr, int flag);
-void fft(float *data, float *ct, float *st, int nmodes, int length);
+void fourier_modes(float *data, float *ct, float *st, int nmodes, int length);
 
 
 #ifdef __cplusplus

@@ -457,13 +457,13 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
      for(i=0;i<ntot;i++)jac[j+i*ntot]=(fdev[i]-f[i])/dev;
  }
 
-  sgefa(jac,ntot,ntot,ipvt,&info);
+  xpp::sgefa(jac,ntot,ntot,ipvt,&info);
   if(info!=-1){
     *iret=-3;
     goto bye;
   }
   for(i=0;i<ntot;i++)fdev[i]=f[i];
-  sgesl(jac,ntot,ntot,ipvt,fdev);
+  xpp::sgesl(jac,ntot,ntot,ipvt,fdev);
   error=0.0;
   for(i=0;i<ntot;i++){
     y0[i]=y0[i]-fdev[i];

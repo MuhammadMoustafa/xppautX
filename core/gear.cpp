@@ -81,7 +81,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
    work[i*n+j]=temp;
   }
  }
- xpp_eigenvalues(n,work,eval,ework,ierr);
+ xpp::eigenvalues(n,work,eval,ework,ierr);
  if(*ierr!=0)
   return xpp::fail("equilibrium","Could not compute eigenvalues");
 /* succesfully computed evals now lets work with them */
@@ -95,7 +95,7 @@ if(!s.numerics.par_fol)
 
  if(ch=='y')
  {
-  xpp_log(XPP_LOG_INFO, "\n Eigenvalues:\n");
+  xpp::log_printf(XPP_LOG_INFO, "\n Eigenvalues:\n");
   pr=1;
 }
  for(i=0;i<n;i++)
@@ -104,7 +104,7 @@ if(!s.numerics.par_fol)
   imag=eval[2*i+1];
   if(pr==1)
   {
-   xpp_log(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
+   xpp::log_printf(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
 
   }
   if(s.numerics.method==0)real=real*real+imag*imag-1.00;
@@ -220,7 +220,7 @@ if(!s.numerics.par_fol)
 
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
-	   xpp_log(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
+	   xpp::log_printf(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
@@ -238,7 +238,7 @@ if(!s.numerics.par_fol)
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
 	 {
-	   xpp_log(XPP_LOG_INFO, "strong stable %g \n",bigneg);
+	   xpp::log_printf(XPP_LOG_INFO, "strong stable %g \n",bigneg);
 	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
@@ -372,7 +372,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
    work[i*n+j]=temp;
   }
  }
- xpp_eigenvalues(n,work,eval,ework,ierr);
+ xpp::eigenvalues(n,work,eval,ework,ierr);
  if(*ierr!=0)
  {
   return;
@@ -497,21 +497,21 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
     for(j=0;j<n;j++)
     anew[j*(1+n)]=anew[j*(1+n)]-eval-err*err*zz;
 
-    sgefa(anew,n,n,ipivot,ierr);
+    xpp::sgefa(anew,n,n,ipivot,ierr);
     if(*ierr!=-1) {
-      xpp_log(XPP_LOG_WARN, " Pivot failed\n");
+      xpp::log_printf(XPP_LOG_WARN, " Pivot failed\n");
       return;
     }
     for(j=0;j<n;j++)
     {
-     b[j]=1+.1*ndrand48();
+     b[j]=1+.1*xpp::ndrand48();
      bp[j]=b[j];
     }
      iter=0;
      *ierr=0;
      while(1)
      {
-      sgesl(anew,n,n,ipivot,b);
+      xpp::sgesl(anew,n,n,ipivot,b);
       temp=fabs(b[0]);
       jmax=0;
 
@@ -538,7 +538,7 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
       iter++;
       if(iter>maxit)
       {
-       xpp_log(XPP_LOG_WARN, " max iterates exceeded\n");
+       xpp::log_printf(XPP_LOG_WARN, " max iterates exceeded\n");
 
        *ierr=1;
        break;
@@ -645,14 +645,14 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
    }
  
   getjac(s,x,y,yp,xp,eps,dermat,n);
-  sgefa(dermat,n,n,ipivot,&info);
+  xpp::sgefa(dermat,n,n,ipivot,&info);
   if(info!=-1)
   {
    *ierr=1;
    return;
   }
   for(i=0;i<n;i++)dely[i]=y[i];
-  sgesl(dermat,n,n,ipivot,dely);
+  xpp::sgesl(dermat,n,n,ipivot,dely);
   r=0.0;
   for(i=0;i<n;i++)
   {
@@ -745,7 +745,7 @@ int ggear(xpp::Session &s, int n, double *t, double tout, double *y, double hmin
 
   }
   deltat=tout-*t;
-   if(*jstart==0)h=xpp_sign(hmin,deltat);
+   if(*jstart==0)h=xpp::sign(hmin,deltat);
   if(fabs(deltat)<hmin)
   {
     return(-1);
@@ -914,7 +914,7 @@ L330:
       }
       for(i=0;i<n;i++)dermat[n*i+i]+=1.0;
       iweval=-1;
-      sgefa(dermat,n,n,gear_pivot,&info);
+      xpp::sgefa(dermat,n,n,gear_pivot,&info);
       if(info==-1)j1=1;
       else j1=-1;
       if(j1<0)goto L520;
@@ -923,7 +923,7 @@ L460:
 
       for(i=0;i<n;i++)save12[i]=ytable[1][i]-save11[i]*h;
       for(i=0;i<n;i++)save9[i]=save12[i];
-      sgesl(dermat,n,n,gear_pivot,save9);
+      xpp::sgesl(dermat,n,n,gear_pivot,save9);
       nt=n;
       for(i=0;i<n;i++)
       {

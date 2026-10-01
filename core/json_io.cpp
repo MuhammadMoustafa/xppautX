@@ -34,7 +34,7 @@ void buf_add(Buf *b, const char *s, size_t n)
     try {
         b->s.append(s, n);
     } catch (...) {
-        xpp_out_of_memory("building an event");
+        xpp::out_of_memory("building an event");
     }
 }
 
@@ -372,7 +372,7 @@ bool js_string(const char *v, std::string &out, size_t max)
     try {
         return xpp::json_decode_string(v, out, max, /*strict=*/false);
     } catch (...) {
-        xpp_out_of_memory("reading a command");
+        xpp::out_of_memory("reading a command");
     }
 }
 

@@ -37,7 +37,7 @@
    Every xppaut option still applies; ours have to come first. --verbose
    and --debug raise the core/xpp_log.h threshold (default: warnings and
    errors only) so the banner, parser stats and integrator chatter show
-   on stderr too; xpp_log_parse_arg() also recognizes them
+   on stderr too; xpp::log_parse_arg() also recognizes them
    among xppaut's own options, so they work with -silent as well. */
 #include "model.h"
 #include "session.h"
@@ -81,9 +81,9 @@ static void start_auto_dir(void)
     /* issue #32: the folders of runs that ended without their atexit (a
        kill, Ctrl+C, the watchdog's _exit) go at the next start: cleaning up
        in a signal handler or from another thread is neither safe nor needed */
-    xpp_files_cleanup_stale_temp_dirs();
+    xpp::files::cleanup_stale_temp_dirs();
     std::string &dir = xpp::client_session().auto_state.dir;
-    dir = xpp_files_make_temp_dir();
+    dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */
     if (!dir.empty()) atexit([] { xpp_cleanup_auto_dir(xpp::client_session()); });
@@ -153,17 +153,17 @@ static void run_session(void)
     static std::string launch_name;
     static std::vector<char *> launch_argv;
     if (const char *doc = xpp_window_launch_document()) {
-        const std::pair<std::string, std::string> where = xpp_files_split_path(doc);
-        if (!where.first.empty()) xpp_files_change_dir(where.first.c_str());
+        const std::pair<std::string, std::string> where = xpp::files::split_path(doc);
+        if (!where.first.empty()) xpp::files::change_dir(where.first.c_str());
         launch_name = where.second;
         launch_argv.assign(session_argv, session_argv + session_argc);
         launch_argv.push_back(launch_name.data());
         launch_argv.push_back(nullptr);
         session_argc = static_cast<int>(launch_argv.size()) - 1;
         session_argv = launch_argv.data();
-    } else if (xpp_files_working_dir() == "/") {
+    } else if (xpp::files::working_dir() == "/") {
         const char *home = getenv("HOME");
-        if (home && *home) xpp_files_change_dir(home);
+        if (home && *home) xpp::files::change_dir(home);
     }
 #endif
     /* a file that carries a model on the command line (W103: an AUTO
@@ -178,17 +178,17 @@ static void run_session(void)
         if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
             recording = json_ui_recording_launch(args[i]);
             if (!recording) exit(1); /* the error said why */
-            xpp_files_change_dir(xpp_files_split_path(recording->saved.in).first.c_str());
+            xpp::files::change_dir(xpp::files::split_path(recording->saved.in).first.c_str());
             args[i] = recording->model;
             break;
         }
         if (!xpp_saved_file_name(args[i])) continue;
         saved = xpp_saved_read(args[i]);
         if (!saved) { /* the error message said why */
-            xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s\n", args[i].c_str());
+            xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open %s\n", args[i].c_str());
             exit(1);
         }
-        xpp_files_change_dir(xpp_files_split_path(saved->path).first.c_str());
+        xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
         const std::vector<std::string> model = xpp_saved_args(*saved);
         args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
         args.insert(args.begin() + static_cast<std::ptrdiff_t>(i), model.begin(), model.end());
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
         else if (strcmp(argv[i], "--convert") == 0) convert = 1;
         else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
-        else if (xpp_log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
+        else if (xpp::log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
 #ifdef __APPLE__
         /* the process serial number an older macOS gave an app Finder
            started, which xppaut's options would take for a bad one */
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
     /* --convert [--auto] model.ode: model.odex beside it (odex.h) */
     if (convert) {
         if (argc != 2) {
-            xpp_log(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
+            xpp::log_printf(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
             return 2;
         }
         return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
@@ -278,7 +278,7 @@ int main(int argc, char **argv)
     if (batch) {
         for (i = 1; i < argc; i++)
             if (xpp_saved_file_name(argv[i])) {
-                xpp_log(XPP_LOG_ERROR, "xppautX: an AUTO or session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
+                xpp::log_printf(XPP_LOG_ERROR, "xppautX: an AUTO or session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
                 return 2;
             }
         return json_ui_silent(argc, argv);
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
     if (mode == MODE_WINDOW && (!open_browser || !xpp_window_supported())) mode = MODE_BROWSER;
     start_auto_dir();
     if (script && !json_ui_set_script(script)) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
+        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
         return 1;
     }
     if (mode != MODE_SERVER) {
@@ -296,7 +296,7 @@ int main(int argc, char **argv)
         int flags = mode == MODE_BROWSER ? XPP_HTTP_SHOW | (open_browser ? XPP_HTTP_OPEN : 0) : 0;
         if (!xpp_http_start(port, flags)) return 1;
         /* the AUTO window's Output panel shows AUTO's table from the log */
-        xpp_log_set_auto_echo(1);
+        xpp::log_set_auto_echo(1);
     }
     session_argc = argc;
     session_argv = argv;

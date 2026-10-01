@@ -86,7 +86,7 @@ void check_manifest()
 void check_saved_model(const xpp::TempDir &tmp)
 {
     const std::string dir = tmp.path();
-    CHECK(xpp_files_change_dir(dir.c_str()) == 0);
+    CHECK(xpp::files::change_dir(dir.c_str()) == 0);
     CHECK(write_file("inc.ode", "par a=2\ndone\n"));
     CHECK(write_file("w.tab", "3\n0\n2\n0\n10\n40\n"));
     CHECK(write_file("main.ode", "#include inc.ode\ntable w w.tab\nx'=-a*x+w(1)\ninit x=1\ndone\n"));
@@ -107,7 +107,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp_saved_args(*f) == std::vector<std::string>{"main.ode"});
 
     /* the files on the disk gone: the saved model loads from the file */
-    for (const char *name : {"main.ode", "inc.ode", "w.tab"}) CHECK(xpp_files_remove(name) == 0);
+    for (const char *name : {"main.ode", "inc.ode", "w.tab"}) CHECK(xpp::files::remove(name) == 0);
     CHECK(load("main.ode", &f->model));
     CHECK(xpp::client_session().model().saved_in == path && xpp::client_session().model().files == files && xpp::client_session().model().nupar == 1);
     CHECK(xpp::client_session().model().upar_names[0] == "a" || xpp::client_session().model().upar_names[0] == "A");
@@ -142,12 +142,12 @@ void check_saved_model(const xpp::TempDir &tmp)
 int main(void)
 {
     check_manifest();
-    const std::string here = xpp_files_working_dir();
+    const std::string here = xpp::files::working_dir();
     {
         xpp::TempDir tmp;
         CHECK(!tmp.path().empty());
         check_saved_model(tmp);
-        xpp_files_change_dir(here.c_str());
+        xpp::files::change_dir(here.c_str());
     }
     TEST_REPORT("test_snapx");
 }

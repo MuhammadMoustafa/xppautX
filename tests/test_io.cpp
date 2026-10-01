@@ -2,11 +2,12 @@
    line reader, a token reader and a writer (W11 step 3, W7b). Checks
    xpp::format's std::format syntax, xpp::number's round-trip text, and
    the file half: long lines, no trailing newline, CRLF, an empty file, a
-   failed open, and a writer's commit vs. abandon (xpp_writer_abort/an
+   failed open, and a writer's commit vs. abandon (abort() or an
    uncommitted xpp::Writer leave the original file untouched). The C
    text-formatting API this used to also check (xpp_snprintf/xpp_strlcpy/
    xpp_strlcat, XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, XPP_FORMAT_TO_BUF) was
-   retired at W48: no core file called it any more. */
+   retired at W48, the C API under the handles at W109a: no core file
+   called either any more. */
 #include "xpptest.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
@@ -15,11 +16,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace {
 
-/* this run's private scratch folder (xpp_files_make_temp_dir, the core's own,
+/* this run's private scratch folder (xpp::files::make_temp_dir, the core's own,
    so two runs never share one), removed with what is left in it at exit.
    Not std::filesystem: the test binaries link libstdc++ dynamically, and
    on Windows CI an older libstdc++-6.dll ahead on PATH lacks its symbols,
@@ -29,7 +32,7 @@ struct ScratchDir {
     bool made;
     ScratchDir()
     {
-        path = xpp_files_make_temp_dir();
+        path = xpp::files::make_temp_dir();
         made = !path.empty();
         if (!made)
             path = ".";
@@ -38,7 +41,7 @@ struct ScratchDir {
        while this was being built ran after its destructor: ASan) */
     ~ScratchDir()
     {
-        if (made) xpp_files_remove_temp_dir(path.c_str());
+        if (made) xpp::files::remove_temp_dir(path.c_str());
     }
 };
 
@@ -73,7 +76,7 @@ void write_raw(const char *path, const char *data)
     }
 }
 
-/* the line end xpp_writer_open writes: text mode, as the fopen "w" it
+/* the line end a Writer writes: text mode, as the fopen "w" it
    replaced, so CR LF on Windows */
 #ifdef _WIN32
 #define TEXT_NL "\r\n"
@@ -111,19 +114,16 @@ int main(void)
     /* ---- the file half: line reader, token reader, writer (W11 step 3) */
 
     /* failed open: a path that cannot exist */
-    CHECK(xpp_line_reader_open("no/such/directory/file.txt") == NULL);
-    CHECK(xpp_token_reader_open("no/such/directory/file.txt") == NULL);
+    CHECK(!xpp::LineReader("no/such/directory/file.txt"));
+    CHECK(!xpp::TokenReader("no/such/directory/file.txt"));
 
     /* empty file: no lines at all */
     {
         TempFile tf("test_io_empty.tmp");
         write_raw(tf.c_str(), "");
-        XppLineReader *r = xpp_line_reader_open(tf.c_str());
-        CHECK(r != NULL);
-        size_t len = 999;
-        CHECK(xpp_line_reader_next(r, &len) == NULL);
-        CHECK(len == 0);
-        xpp_line_reader_close(r);
+        xpp::LineReader r(tf.c_str());
+        CHECK(static_cast<bool>(r));
+        CHECK(!r.next());
     }
 
     /* no trailing newline: the last, unterminated line still comes back
@@ -131,32 +131,25 @@ int main(void)
     {
         TempFile tf("test_io_notrail.tmp");
         write_raw(tf.c_str(), "first\nsecond");
-        XppLineReader *r = xpp_line_reader_open(tf.c_str());
-        CHECK(r != NULL);
-        size_t len;
-        const char *l1 = xpp_line_reader_next(r, &len);
-        CHECK(l1 != NULL);
-        CHECK_STR(l1, "first");
-        const char *l2 = xpp_line_reader_next(r, &len);
-        CHECK(l2 != NULL);
-        CHECK_STR(l2, "second");
-        CHECK(len == 6);
-        CHECK(xpp_line_reader_next(r, &len) == NULL);
-        xpp_line_reader_close(r);
+        xpp::LineReader r(tf.c_str());
+        CHECK(static_cast<bool>(r));
+        std::optional<std::string_view> l1 = r.next();
+        CHECK(l1 && *l1 == "first");
+        std::optional<std::string_view> l2 = r.next();
+        CHECK(l2 && *l2 == "second" && l2->size() == 6);
+        CHECK(!r.next());
     }
 
     /* CRLF tolerant: \r\n and a bare \n both end a line, no stray \r left */
     {
         TempFile tf("test_io_crlf.tmp");
         write_raw(tf.c_str(), "one\r\ntwo\nthree\r\n");
-        XppLineReader *r = xpp_line_reader_open(tf.c_str());
-        CHECK(r != NULL);
-        size_t len;
-        CHECK_STR(xpp_line_reader_next(r, &len), "one");
-        CHECK_STR(xpp_line_reader_next(r, &len), "two");
-        CHECK_STR(xpp_line_reader_next(r, &len), "three");
-        CHECK(xpp_line_reader_next(r, &len) == NULL);
-        xpp_line_reader_close(r);
+        xpp::LineReader r(tf.c_str());
+        CHECK(static_cast<bool>(r));
+        CHECK(r.next().value_or("") == "one");
+        CHECK(r.next().value_or("") == "two");
+        CHECK(r.next().value_or("") == "three");
+        CHECK(!r.next());
     }
 
     /* a long line (well past any fixed fgets buffer this replaces): comes
@@ -166,52 +159,46 @@ int main(void)
         std::string big(5000, 'x');
         std::string content = big + "\nshort\n";
         write_raw(tf.c_str(), content.c_str());
-        XppLineReader *r = xpp_line_reader_open(tf.c_str());
-        CHECK(r != NULL);
-        size_t len;
-        const char *l1 = xpp_line_reader_next(r, &len);
-        CHECK(l1 != NULL);
-        CHECK(len == big.size());
-        CHECK(big == l1);
-        CHECK_STR(xpp_line_reader_next(r, &len), "short");
-        xpp_line_reader_close(r);
+        xpp::LineReader r(tf.c_str());
+        CHECK(static_cast<bool>(r));
+        std::optional<std::string_view> l1 = r.next();
+        CHECK(l1 && *l1 == big);
+        CHECK(r.next().value_or("") == "short");
     }
 
     /* attach: reads through a FILE* the caller keeps open and owns --
-       xpp_line_reader_close must not close it */
+       closing the reader must not close it */
     {
         TempFile tf("test_io_attach.tmp");
         write_raw(tf.c_str(), "only line\n");
         FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
-        XppLineReader *r = xpp_line_reader_attach(fp);
-        size_t len;
-        CHECK_STR(xpp_line_reader_next(r, &len), "only line");
-        xpp_line_reader_close(r);
+        {
+            xpp::LineReader r = xpp::LineReader::attach(fp);
+            CHECK(r.next().value_or("") == "only line");
+        }
         CHECK(std::feof(fp) == 0 || std::fgetc(fp) == EOF); /* fp still usable */
         std::fclose(fp);
     }
 
-    /* token reader: fscanf "%lg"/"%d"/"%s" equivalents, whitespace
-       separated, strtod on the same token agreeing with the double read */
+    /* token reader: fscanf "%lg"/"%d" equivalents, whitespace separated,
+       strtod on the same token agreeing with the double read; a token
+       that is no number is no read */
     {
         TempFile tf("test_io_tok.tmp");
         write_raw(tf.c_str(), "  3.5 -7 hello   1e3\n");
-        XppTokenReader *r = xpp_token_reader_open(tf.c_str());
-        CHECK(r != NULL);
+        xpp::TokenReader r(tf.c_str());
+        CHECK(static_cast<bool>(r));
         double d;
         int i;
-        char s[16];
-        CHECK(xpp_token_reader_double(r, &d) == 1);
+        CHECK(r.read(d));
         CHECK(d == strtod("3.5", NULL));
-        CHECK(xpp_token_reader_int(r, &i) == 1);
+        CHECK(r.read(i));
         CHECK(i == -7);
-        CHECK(xpp_token_reader_string(r, s, sizeof s) == 1);
-        CHECK_STR(s, "hello");
-        CHECK(xpp_token_reader_double(r, &d) == 1);
+        CHECK(!r.read(d)); /* "hello" */
+        CHECK(r.read(d));
         CHECK(d == 1e3);
-        CHECK(xpp_token_reader_double(r, &d) == 0); /* end of file */
-        xpp_token_reader_close(r);
+        CHECK(!r.read(d)); /* end of file */
     }
 
     /* a float token reads as fscanf "%g" reads it (rounded straight to
@@ -222,12 +209,12 @@ int main(void)
         std::FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
         float a, b, sa, sb;
-        XppTokenReader *r = xpp_token_reader_attach(fp);
-        CHECK(xpp_token_reader_float(r, &a) == 1);
-        CHECK(xpp_token_reader_float(r, &b) == 1);
-        CHECK(xpp_token_reader_float(r, &sa) == 1);
+        xpp::TokenReader r = xpp::TokenReader::attach(fp);
+        CHECK(r.read(a));
+        CHECK(r.read(b));
+        CHECK(r.read(sa));
         CHECK(std::fgetc(fp) == '\n');
-        xpp_token_reader_close(r);
+        r.close();
         std::rewind(fp);
         CHECK(std::fscanf(fp, "%g %g", &sa, &sb) == 2);
         CHECK(a == sa && b == sb);
@@ -265,10 +252,10 @@ int main(void)
     /* the binary writer copies line ends as they are */
     {
         TempFile tf("test_io_write.tmp");
-        XppWriter *w = xpp_writer_open_as(tf.c_str(), XPP_WRITE_BINARY);
-        CHECK(w != NULL);
-        std::fputs("a\r\nb\n", xpp_writer_file(w));
-        CHECK(xpp_writer_commit(w) == 0);
+        xpp::Writer w = xpp::Writer::binary(tf.c_str());
+        CHECK(static_cast<bool>(w));
+        std::fputs("a\r\nb\n", w.file());
+        CHECK(w.commit());
         std::FILE *fp = std::fopen(tf.c_str(), "rb");
         char buf[16] = {0};
         CHECK(fp != NULL && std::fread(buf, 1, sizeof buf - 1, fp) == 5);
@@ -279,27 +266,27 @@ int main(void)
     /* writer: commit renames the temp file into place, byte for byte */
     {
         TempFile tf("test_io_write.tmp");
-        XppWriter *w = xpp_writer_open(tf.c_str());
-        CHECK(w != NULL);
-        xpp_writer_printf(w, "%d %s\n", 42, "answer");
-        CHECK(xpp_writer_commit(w) == 0);
+        xpp::Writer w(tf.c_str());
+        CHECK(static_cast<bool>(w));
+        w.print("{} {}\n", 42, "answer");
+        CHECK(w.commit());
         CHECK(read_raw(tf.c_str()) == "42 answer" TEXT_NL);
     }
 
-    /* writer: abandoned (xpp_writer_abort) leaves an existing file
-       completely untouched */
+    /* writer: abandoned (abort()) leaves an existing file completely
+       untouched */
     {
         TempFile tf("test_io_write.tmp");
         write_raw(tf.c_str(), "original\n");
-        XppWriter *w = xpp_writer_open(tf.c_str());
-        CHECK(w != NULL);
-        xpp_writer_printf(w, "clobber");
-        xpp_writer_abort(w);
+        xpp::Writer w(tf.c_str());
+        CHECK(static_cast<bool>(w));
+        w.print("clobber");
+        w.abort();
         CHECK(read_raw(tf.c_str()) == "original\n");
     }
 
     /* writer: failed open (no such directory) */
-    CHECK(xpp_writer_open("no/such/directory/file.txt") == NULL);
+    CHECK(!xpp::Writer("no/such/directory/file.txt"));
 
     /* the C++ RAII wrappers: LineReader over a long/CRLF file, and Writer
        whose destructor aborts (leaves the file untouched) when not
@@ -331,21 +318,14 @@ int main(void)
         CHECK(w2.commit());
         CHECK(read_raw(tf.c_str()) == "replaced" TEXT_NL);
 
-        /* print (type-checked), append (at the end of the file itself,
-           kept even without a commit), and the read handle (W32b) */
+        /* print (type-checked), xpp::print on a stream, and the read
+           handle (W32b) */
         xpp::Writer w3(tf.c_str());
         w3.print("{} {:.3f}\n", "x", 1.5);
-        CHECK(w3.commit());
-        {
-            xpp::Writer a = xpp::Writer::append(tf.c_str());
-            CHECK(static_cast<bool>(a));
-            a.print("{}\n", 7);
-        }
-        xpp::Writer a2 = xpp::Writer::append(tf.c_str());
-        xpp::print(a2.file(), "end\n");
+        xpp::print(w3.file(), "end\n");
         xpp::print(nullptr, "nowhere\n"); /* nothing written, no crash */
-        CHECK(a2.commit());
-        CHECK(read_raw(tf.c_str()) == "x 1.500" TEXT_NL "7" TEXT_NL "end" TEXT_NL);
+        CHECK(w3.commit());
+        CHECK(read_raw(tf.c_str()) == "x 1.500" TEXT_NL "end" TEXT_NL);
         xpp::UniqueFile rf = xpp::open_read(tf.c_str());
         CHECK(rf != nullptr && std::fgetc(rf.get()) == 'x');
         rf.reset();

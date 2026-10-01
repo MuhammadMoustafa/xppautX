@@ -1,123 +1,24 @@
 #ifndef XPP_IO_H
 #define XPP_IO_H
 
-/* core/xpp_io.cpp: the file half of the module (issue: W11 step 3, W7b).
-   The C text-formatting half this header used to declare --
-   xpp_snprintf/xpp_strlcpy/xpp_strlcat, XPP_SPRINTF/XPP_STRCPY/
-   XPP_STRCAT, for a C file's sprintf/strcpy/vsprintf into a fixed
-   buffer, which write with no length and silently overflow it -- was
-   retired at W48: every core file is C++, and the last caller of the
-   C++ counterpart it fed (xpp::format_to_buf) was gone too. New code
-   formats into a std::string with xpp::format below (xpp::number for a
-   double), or reads/writes through a fixed-size std::array/std::vector
-   directly. */
+/* core/xpp_io.cpp: text formatting (xpp::format, xpp::number) and the file
+   handles (xpp::LineReader, xpp::TokenReader, xpp::Writer; issue: W11
+   step 3, W7b). C++ in namespace xpp (W109a). The C text-formatting half
+   this header used to declare -- xpp_snprintf/xpp_strlcpy/xpp_strlcat,
+   XPP_SPRINTF/XPP_STRCPY/XPP_STRCAT, for a C file's sprintf/strcpy/
+   vsprintf into a fixed buffer, which write with no length and silently
+   overflow it -- was retired at W48, and the C API under the handles
+   (xpp_line_reader_*, xpp_token_reader_*, xpp_writer_*) at W109a, once
+   nothing but the handles called it. New code formats into a std::string
+   with xpp::format below (xpp::number for a double), or reads/writes
+   through a fixed-size std::array/std::vector directly.
 
-#include <stddef.h>
-#include <stdio.h>
-
-#include "xpp_files.h" /* the files the readers and writers open */
-
-/* ---------------------------------------------------------------------
-   A line reader and a token reader replace the fgets/fscanf/feof loops
-   that either cut a long line at a fixed buffer or (a bare "while
-   (!feof(fp))") read the last line twice; a writer replaces
-   fopen(path,"w")/fclose with a temp file renamed into place only on
-   commit. All three work two ways: opened from a path, they own the
-   FILE* (closed by xpp_*_close/commit/abort); attached to a FILE* the
-   caller already has, they read or write through it without owning it,
-   for a helper function that takes a plain FILE* from elsewhere and
-   must not close it. */
-
-/* ---- lines: any length, CR/LF tolerant --------------------------------
-   xpp_line_reader_next returns the next line without its terminator (a
-   bare \n, a \r\n, or a final line with none at all); NULL at real end of
-   file. No size limit: a line longer than any fixed buffer comes back
-   whole. The returned pointer is owned by the reader -- valid until the
-   next xpp_line_reader_next or xpp_line_reader_close, not by the caller. */
-typedef struct XppLineReader XppLineReader;
-XppLineReader *xpp_line_reader_open(const char *path);  /* fopen(path,"r"); NULL on failure */
-XppLineReader *xpp_line_reader_attach(FILE *fp);         /* wraps fp; never closes it */
-const char *xpp_line_reader_next(XppLineReader *r, size_t *len);
-void xpp_line_reader_close(XppLineReader *r);
-
-/* ---- whitespace-separated tokens: fscanf "%lg"/"%d"/"%s" equivalents --
-   Skips leading whitespace, then reads the run of non-whitespace
-   characters (the token) and converts it: strtod/strtol on that same
-   token, so xpp_token_reader_double(r,&x) and "strtod(token,0)" agree.
-   Returns 1 on success, 0 at end of file or on a token that does not
-   parse as the requested kind -- fscanf's own convention, so `if
-   (xpp_token_reader_double(r,&x) != 1) break;` reads exactly like the
-   `if (fscanf(fp,"%lg",&x) != 1) break;` it replaces. Every value in the
-   files this reads is whitespace/newline separated (never comma or other
-   punctuation), where a whitespace-delimited token is exactly what
-   fscanf's own float/int grammar would have consumed too.
-   xpp_token_reader_string copies the token into buf (never overflows
-   buf, truncates and warns once if the token does not fit) instead of
-   fscanf "%s"'s unbounded write. */
-typedef struct XppTokenReader XppTokenReader;
-XppTokenReader *xpp_token_reader_open(const char *path);
-XppTokenReader *xpp_token_reader_attach(FILE *fp);
-int xpp_token_reader_double(XppTokenReader *r, double *out);
-int xpp_token_reader_float(XppTokenReader *r, float *out);   /* "%f"/"%g" */
-int xpp_token_reader_int(XppTokenReader *r, int *out);
-int xpp_token_reader_string(XppTokenReader *r, char *buf, size_t bufsize);
-/* fscanf "%ld" exactly, not a whole token: leading whitespace, an optional
-   sign and the digits, and no more; what follows stays in the stream. For
-   integer columns printed flush against each other, like the "%5ld"
-   label lines of AUTO's fort.8/.s files, where "    2-1234" is 2 then
-   -1234 and a whitespace-delimited token would swallow both. 0 when no
-   digit follows (the sign, if any, consumed as fscanf consumes it). */
-int xpp_token_reader_long(XppTokenReader *r, long *out);
-/* The rest of the current line, its \n included (the "go to the end of the
-   line" after reading a line's leading fields): 1 when a \n ended it, 0
-   when end of file came first. */
-int xpp_token_reader_skip_line(XppTokenReader *r);
-void xpp_token_reader_close(XppTokenReader *r);
-
-/* ---- writer: temp file, renamed into place only on commit --------------
-   xpp_writer_open creates a hidden temp file next to `path` ("w" text
-   mode, like the fopen(path,"w") this replaces, so a Windows build still
-   writes CRLF line ends exactly as before; created exclusively, never through a
-   link: xpp_files_create_new) and logs an ERROR (xpp_log) itself,
-   returning NULL, if that fails -- most callers' own "cannot open file"
-   message already covers the case, this is for the rest. xpp_writer_file
-   is the FILE* to format into with ordinary fprintf, or xpp::print on
-   the C++ side; xpp_writer_printf is a convenience fprintf-alike over it.
-   xpp_writer_commit closes the temp file and renames it into place
-   (core/xpp_files.cpp's xpp_files_replace_file -- the one place that
-   knows POSIX rename() from Windows's xpp_replace_file, reused here
-   rather than duplicated); on failure it logs an ERROR, leaves the
-   original file untouched, and returns nonzero. xpp_writer_abort closes
-   and discards the temp file without touching `path` at all. Either one
-   frees w; abandoning a writer (never calling either) leaks the temp
-   file, so C code always pairs xpp_writer_open with one of them on every
-   path out of the function -- the C++ Writer wrapper below aborts
-   automatically in its destructor when not committed.
-
-   xpp_writer_open_as picks the kind: XPP_WRITE_TEXT is xpp_writer_open;
-   XPP_WRITE_BINARY the same in binary mode ("wb"), for a byte-for-byte
-   copy whose lines end as the source's do on every platform;
-   XPP_WRITE_APPEND writes at the end of `path` itself ("a"), no temp file:
-   commit and abort both close it, and what was written stays. */
-typedef struct XppWriter XppWriter;
-enum { XPP_WRITE_TEXT = 0, XPP_WRITE_BINARY = 1, XPP_WRITE_APPEND = 2 };
-XppWriter *xpp_writer_open(const char *path);
-XppWriter *xpp_writer_open_as(const char *path, int how);
-FILE *xpp_writer_file(XppWriter *w);
-int xpp_writer_printf(XppWriter *w, const char *fmt, ...)
-#if defined(__GNUC__)
-    __attribute__((format(printf, 2, 3)))
-#endif
-    ;
-int xpp_writer_commit(XppWriter *w);
-void xpp_writer_abort(XppWriter *w);
-
-#ifdef __cplusplus
-/* xpp::format takes a std::format_string, checked against the argument
+   xpp::format takes a std::format_string, checked against the argument
    types at compile time, no printf %-verb ever mismatching an argument.
    xpp::number is a double's shortest round-trip text (std::to_chars),
    for when "%g" would do but a guaranteed-reversible digit string is
    wanted. */
+
 #include <array>
 #include <cstddef>
 #include <cstdio>
@@ -127,6 +28,8 @@ void xpp_writer_abort(XppWriter *w);
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "xpp_files.h" /* the files the readers and writers open */
 
 #if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
 #include <format>
@@ -383,7 +286,7 @@ bool base64_decode_append(std::string &out, std::string_view text);
 
 /* A FILE * that closes itself: the read handle, for a helper that takes
    a plain FILE * (the .set, .auto and .ode readers), and for a stream the
-   core gets from an API that hands out a FILE * (xpp_files_open, fdopen,
+   core gets from an API that hands out a FILE * (xpp::files::open, fdopen,
    ...). */
 struct FileCloser {
     void operator()(FILE *fp) const noexcept
@@ -396,15 +299,15 @@ using UniqueFile = std::unique_ptr<FILE, FileCloser>;
 /* path opened for reading, text ("r") or binary ("rb"); empty (false)
    when it cannot be. Lines and numbers are read with LineReader and
    TokenReader below, which open their own. */
-inline UniqueFile open_read(const char *path) noexcept { return UniqueFile(xpp_files_open_stream(path, "r")); }
-inline UniqueFile open_read_binary(const char *path) noexcept
+inline UniqueFile open_read(std::string_view path) noexcept { return UniqueFile(xpp::files::open_stream(path, "r")); }
+inline UniqueFile open_read_binary(std::string_view path) noexcept
 {
-    return UniqueFile(xpp_files_open_stream(path, "rb"));
+    return UniqueFile(xpp::files::open_stream(path, "rb"));
 }
 
 /* path's whole contents, byte for byte, into out; false (out empty) when
    it cannot be opened or read. std::bad_alloc is the caller's to catch. */
-inline bool read_bytes(const char *path, std::string &out)
+inline bool read_bytes(std::string_view path, std::string &out)
 {
     out.clear();
     UniqueFile f = open_read_binary(path);
@@ -428,152 +331,121 @@ void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
 }
 #endif
 
-/* ---- RAII wrappers over the C file API above --------------------------
-   Thin move-only handles: a LineReader closes (if it opened the file
-   itself) when it goes out of scope; a Writer that is destroyed without
-   an explicit commit() aborts, leaving the original file untouched,
-   exactly like the C API's "abandoned without commit" guarantee. Both
-   are opened either from a path (owning) or attach()ed to a FILE* the
-   caller keeps owning. */
-/* a line reader over text instead of a file (LineReader::of_text); NULL
-   when it cannot be made */
-XppLineReader *line_reader_of_text(std::string text) noexcept;
+/* ---- the file handles ---------------------------------------------------
+   A line reader and a token reader replace the fgets/fscanf/feof loops
+   that either cut a long line at a fixed buffer or (a bare "while
+   (!feof(fp))") read the last line twice; a writer replaces
+   fopen(path,"w")/fclose with a temp file renamed into place only on
+   commit. Move-only handles, two ways each: opened from a path, they own
+   the FILE * (closed when the handle goes); attach()ed to a FILE * the
+   caller already has, they read through it without owning it, for a
+   helper that takes a plain FILE * from elsewhere and must not close it
+   (lunch-new.cpp's io_int/io_double, diagram.cpp's load_diagram). A
+   handle that could not be made is false. */
 
+/* Lines of any length, CR/LF tolerant: next() gives the next line without
+   its terminator (a bare \n, a \r\n, or a final line with none at all),
+   nullopt at the real end of the file. No size limit: a line longer than
+   any fixed buffer comes back whole. The view is the reader's, valid
+   until the next next() or until the reader is closed or destroyed. */
 class LineReader {
 public:
-    LineReader() = default;
-    explicit LineReader(const char *path) noexcept : r_(xpp_line_reader_open(path)) {}
+    LineReader() noexcept = default;
+    /* fopen(path, "r") through xpp::files::open_stream */
+    explicit LineReader(std::string_view path) noexcept;
     /* text's lines, as a file of those bytes gives them (a model's saved
        file, model_files.h) */
-    static LineReader of_text(std::string text) noexcept
-    {
-        LineReader l;
-        l.r_ = line_reader_of_text(std::move(text));
-        return l;
-    }
-    static LineReader attach(FILE *fp) noexcept
-    {
-        LineReader l;
-        l.r_ = xpp_line_reader_attach(fp);
-        return l;
-    }
-    ~LineReader() { close(); }
+    static LineReader of_text(std::string text) noexcept;
+    /* reads fp, never closes it */
+    static LineReader attach(FILE *fp) noexcept;
     LineReader(const LineReader &) = delete;
     LineReader &operator=(const LineReader &) = delete;
-    LineReader(LineReader &&o) noexcept : r_(o.r_) { o.r_ = nullptr; }
-    LineReader &operator=(LineReader &&o) noexcept
-    {
-        if (this != &o) {
-            close();
-            r_ = o.r_;
-            o.r_ = nullptr;
-        }
-        return *this;
-    }
-    explicit operator bool() const noexcept { return r_ != nullptr; }
-    /* nullopt at end of file; the view is valid until the next next() or
-       until this reader is destroyed/closed, same lifetime as the C API's
-       pointer. */
-    std::optional<std::string_view> next()
-    {
-        if (!r_) return std::nullopt;
-        size_t len;
-        const char *s = xpp_line_reader_next(r_, &len);
-        if (!s) return std::nullopt;
-        return std::string_view(s, len);
-    }
-    void close()
-    {
-        if (r_) {
-            xpp_line_reader_close(r_);
-            r_ = nullptr;
-        }
-    }
+    LineReader(LineReader &&o) noexcept = default;
+    LineReader &operator=(LineReader &&o) noexcept = default;
+    explicit operator bool() const noexcept { return state_ != nullptr; }
+    std::optional<std::string_view> next();
+    /* what a reader reads, and Free, which deletes it where it is
+       complete (xpp_io.cpp) */
+    struct State;
+    struct Free {
+        void operator()(State *s) const noexcept;
+    };
+
 private:
-    XppLineReader *r_ = nullptr;
+    std::unique_ptr<State, Free> state_;
 };
 
-/* The token reader, its conversion picked by the type read into:
-   read(double&) is fscanf "%lg" (also "%le"/"%lf"), read(float&) "%g",
-   read(int&) "%d" -- whole whitespace-delimited tokens -- and read(long&)
-   fscanf "%ld" field by field (xpp_token_reader_long). Each is true on
-   success, false where fscanf would not have returned 1. */
+/* Whitespace-separated tokens, the fscanf "%lg"/"%g"/"%d" equivalents, the
+   conversion picked by the type read into: read(double&) is fscanf "%lg"
+   (also "%le"/"%lf"), read(float&) "%g" (strtof, rounded straight to
+   float as fscanf does), read(int&) "%d": each skips leading whitespace,
+   then reads the run of non-whitespace characters (the token) and
+   converts it with strtod/strtof/strtol, so a value read here and
+   strtod(token) agree. Every value in the files this reads is
+   whitespace/newline separated (never comma or other punctuation), where
+   a whitespace-delimited token is exactly what fscanf's own grammar would
+   have consumed too. read(long&) is fscanf "%ld" exactly, not a whole
+   token: leading whitespace, an optional sign and the digits, and no
+   more; what follows stays in the stream. For integer columns printed
+   flush against each other, like the "%5ld" label lines of AUTO's
+   fort.8/.s files, where "    2-1234" is 2 then -1234 and a
+   whitespace-delimited token would swallow both. Each read is true on
+   success, false at the end of the file or where fscanf would not have
+   returned 1. skip_line() passes over the rest of the current line, its
+   \n included (the "go to the end of the line" after reading a line's
+   leading fields): true when a \n ended it, false when the end of the
+   file came first. */
 class TokenReader {
 public:
-    TokenReader() = default;
-    explicit TokenReader(const char *path) noexcept : r_(xpp_token_reader_open(path)) {}
-    static TokenReader attach(FILE *fp) noexcept
-    {
-        TokenReader t;
-        t.r_ = xpp_token_reader_attach(fp);
-        return t;
-    }
-    ~TokenReader() { close(); }
+    TokenReader() noexcept = default;
+    explicit TokenReader(std::string_view path) noexcept;
+    static TokenReader attach(FILE *fp) noexcept;
     TokenReader(const TokenReader &) = delete;
     TokenReader &operator=(const TokenReader &) = delete;
-    TokenReader(TokenReader &&o) noexcept : r_(o.r_) { o.r_ = nullptr; }
-    TokenReader &operator=(TokenReader &&o) noexcept
-    {
-        if (this != &o) {
-            close();
-            r_ = o.r_;
-            o.r_ = nullptr;
-        }
-        return *this;
-    }
-    explicit operator bool() const noexcept { return r_ != nullptr; }
-    bool read(double &x) noexcept { return r_ && xpp_token_reader_double(r_, &x) == 1; }
-    bool read(float &x) noexcept { return r_ && xpp_token_reader_float(r_, &x) == 1; }
-    bool read(int &x) noexcept { return r_ && xpp_token_reader_int(r_, &x) == 1; }
-    bool read(long &x) noexcept { return r_ && xpp_token_reader_long(r_, &x) == 1; }
-    bool skip_line() noexcept { return r_ && xpp_token_reader_skip_line(r_) == 1; }
-    void close()
-    {
-        if (r_) {
-            xpp_token_reader_close(r_);
-            r_ = nullptr;
-        }
-    }
+    TokenReader(TokenReader &&o) noexcept = default;
+    TokenReader &operator=(TokenReader &&o) noexcept = default;
+    explicit operator bool() const noexcept { return state_ != nullptr; }
+    bool read(double &x) noexcept;
+    bool read(float &x) noexcept;
+    bool read(int &x) noexcept;
+    bool read(long &x) noexcept;
+    bool skip_line() noexcept;
+    void close() noexcept { state_.reset(); }
+    struct State;
+    struct Free {
+        void operator()(State *s) const noexcept;
+    };
+
 private:
-    XppTokenReader *r_ = nullptr;
+    std::unique_ptr<State, Free> state_;
 };
 
-/* The write handle: Writer(path) replaces path with text, binary(path)
-   with bytes, both only at commit(); append(path) adds to its end. */
+/* The write handle. Writer(path) creates a hidden temp file next to path
+   ("w" text mode, like the fopen(path,"w") it replaces, so a Windows
+   build writes CRLF line ends exactly as before; created exclusively,
+   never through a link: xpp::files::create_new) and logs an ERROR itself
+   when that fails (most callers' own "cannot open file" message already
+   covers the case, this is for the rest). binary(path) is the same in
+   binary mode ("wb"), for a byte-for-byte copy whose lines end as the
+   source's do on every platform. file() is the FILE * to format into (print(), or
+   xpp::print on it); commit() closes the temp file and renames it into
+   place (xpp::files::replace_file, the one place that knows POSIX
+   rename() from Windows's), false (an ERROR logged, the original file
+   left untouched) on failure; abort() closes and discards the temp file
+   without touching path at all. Either one ends the Writer (a second is a
+   no-op); a Writer destroyed without either aborts. */
 class Writer {
 public:
-    Writer() = default;
-    explicit Writer(const char *path) noexcept : w_(xpp_writer_open(path)) {}
-    static Writer binary(const char *path) noexcept
-    {
-        Writer w;
-        w.w_ = xpp_writer_open_as(path, XPP_WRITE_BINARY);
-        return w;
-    }
-    static Writer append(const char *path) noexcept
-    {
-        Writer w;
-        w.w_ = xpp_writer_open_as(path, XPP_WRITE_APPEND);
-        return w;
-    }
-    ~Writer()
-    {
-        if (w_) xpp_writer_abort(w_);
-    }
+    Writer() noexcept = default;
+    explicit Writer(std::string_view path) noexcept;
+    static Writer binary(std::string_view path) noexcept;
+    ~Writer();
     Writer(const Writer &) = delete;
     Writer &operator=(const Writer &) = delete;
-    Writer(Writer &&o) noexcept : w_(o.w_) { o.w_ = nullptr; }
-    Writer &operator=(Writer &&o) noexcept
-    {
-        if (this != &o) {
-            if (w_) xpp_writer_abort(w_);
-            w_ = o.w_;
-            o.w_ = nullptr;
-        }
-        return *this;
-    }
-    explicit operator bool() const noexcept { return w_ != nullptr; }
-    FILE *file() const noexcept { return w_ ? xpp_writer_file(w_) : nullptr; }
+    Writer(Writer &&o) noexcept = default;
+    Writer &operator=(Writer &&o) noexcept;
+    explicit operator bool() const noexcept { return state_ != nullptr; }
+    FILE *file() const noexcept;
 #ifdef XPP_IO_HAVE_STD_FORMAT
     template <class... Args>
     void print(std::format_string<Args...> fmt, Args &&...args) noexcept
@@ -588,29 +460,17 @@ public:
         FILE *fp = file();
         return fp && std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size();
     }
-    /* Renames the temp file into place; false (the original file left
-       untouched) on failure. Either outcome ends this Writer -- a second
-       commit()/abort() is a no-op. */
-    bool commit()
-    {
-        if (!w_) return false;
-        XppWriter *w = w_;
-        w_ = nullptr;
-        return xpp_writer_commit(w) == 0;
-    }
-    void abort()
-    {
-        if (w_) {
-            xpp_writer_abort(w_);
-            w_ = nullptr;
-        }
-    }
+    bool commit() noexcept;
+    void abort() noexcept;
+    struct State;
+    struct Free {
+        void operator()(State *s) const noexcept;
+    };
+
 private:
-    XppWriter *w_ = nullptr;
+    std::unique_ptr<State, Free> state_;
 };
 
 } // namespace xpp
-
-#endif /* __cplusplus */
 
 #endif

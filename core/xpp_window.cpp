@@ -82,7 +82,7 @@ namespace {
 const XppWindowHost *host; /* the loader's, kept for the process's life */
 #else
 const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
-                                  xpp_inbox_push, json_ui_push_open, xpp_log};
+                                  xpp_inbox_push, json_ui_push_open, xpp::log_printf};
 const XppWindowHost *const host = &host_table;
 #endif
 

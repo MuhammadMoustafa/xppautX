@@ -207,7 +207,7 @@ struct Buf {
     std::string s;
 };
 
-/* a failed allocation ends the program (xpp_out_of_memory, xpp_mem.h):
+/* a failed allocation ends the program (xpp::out_of_memory, xpp_mem.h):
    no exception leaves the front end's functions, which the core calls as C */
 
 void buf_add(Buf *b, const char *s, size_t n);

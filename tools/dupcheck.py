@@ -73,12 +73,6 @@ core/lunch-new.cpp io_int|keep (W33e looked): a .set file's one-number line, rea
 core/lunch-new.cpp io_double|keep: see core/lunch-new.cpp io_int
 core/odesol2.cpp discrete|merged (W33a): the step loop they shared is odesol2.cpp's fixed_steps; what is left is each method naming its own two step functions
 core/odesol2.cpp euler|keep: see core/odesol2.cpp discrete
-core/xpp_io.cpp xpp_line_reader_open|keep: xpp_io.h's own two reader kinds (whole-line vs whitespace-token), open/attach pairs of the same shape by design (CLAUDE.md's Strings and I/O section); not a copy to merge
-core/xpp_io.cpp xpp_token_reader_open|keep: see core/xpp_io.cpp xpp_line_reader_open
-core/xpp_io.cpp xpp_line_reader_attach|keep: see core/xpp_io.cpp xpp_line_reader_open
-core/xpp_io.cpp xpp_token_reader_attach|keep: see core/xpp_io.cpp xpp_line_reader_open
-core/xpp_io.h close|keep: xpp::LineReader/TokenReader/Writer's RAII close()/abort() methods, same one-line "if open, release" shape by design; not a copy to merge
-core/xpp_io.h abort|keep: see core/xpp_io.h close
 
 core/autlib1.cpp *block*|vendored/numerical, keep: AUTO (Doedel), translated Fortran; its long repeated per-branch-type blocks are the algorithm's own structure
 core/autlib3.cpp *block*|vendored/numerical, keep: see core/autlib1.cpp *block*

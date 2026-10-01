@@ -77,7 +77,7 @@ int pick(int which)
    allocation ends the program, as xpp_mem's do. */
 [[noreturn]] void out_of_memory(const char *what)
 {
-    xpp_log(XPP_LOG_ERROR, "xppautX: out of memory %s\n", what);
+    xpp::log_printf(XPP_LOG_ERROR, "xppautX: out of memory %s\n", what);
     std::abort();
 }
 
@@ -300,7 +300,7 @@ int xpp_inbox_script_line(void) { return script_line; }
 
 int xpp_inbox_start_file(const char *path)
 {
-    script_fp.reset(xpp_files_open_stream(path, "rb"));
+    script_fp.reset(xpp::files::open_stream(path, "rb"));
     return script_fp != nullptr;
 }
 

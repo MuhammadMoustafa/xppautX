@@ -321,8 +321,8 @@ xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int m
 
   xpp::LineReader reader=model_file?xpp::model_file_lines(s.model(),filename2):xpp::LineReader(filename2.c_str());
   if(!reader){
-    xpp_files_refresh_cur_dir();
-    return xpp::fail("table",xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp_files_cur_dir()));
+    xpp::files::refresh_cur_dir();
+    return xpp::fail("table",xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp::files::cur_dir()));
   }
   auto next_line=[&reader]() -> std::optional<std::string> {
     auto line=reader.next();

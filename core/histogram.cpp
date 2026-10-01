@@ -107,7 +107,7 @@ void new_four(xpp::Session &s, int nmodes, int col)
  s.histogram.four_here=1;
 for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total; 
  bob=get_data_col(s,col);
-    fft(bob,s.histogram.four()[1],s.histogram.four()[2],nmodes,s.data_store.rows);
+    fourier_modes(bob,s.histogram.four()[1],s.histogram.four()[2],nmodes,s.data_store.rows);
  four_back(s);
   ping();
 }
@@ -394,7 +394,7 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
      kk=(j*shift+i+nr)%nr;
      d[i]=f[i]*data[kk];
    }
-   fft(d,ct,st,shift,win);
+   fourier_modes(d,ct,st,shift,win);
    for(i=0;i<shift;i++){
      x=ct[i]*ct[i]+st[i]*st[i];
      pow[i]=pow[i]+sqrt(x);
@@ -463,8 +463,8 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
      d[i]=f[i]*data[kk];
      d2[i]=f[i]*data2[kk];
    }
-   fft(d,ct,st,shift,win);
-   fft(d2,ct2,st2,shift,win);
+   fourier_modes(d,ct,st,shift,win);
+   fourier_modes(d2,ct2,st2,shift,win);
    for(i=0;i<shift;i++){
      pxyr[i]+=(ct[i]*ct2[i]+st[i]*st2[i]);
      pxym[i]+=(ct[i]*st2[i]-ct2[i]*st[i]);
@@ -663,15 +663,15 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
   }
 
    /* both transforms and the inverse divided by the length */
-   xpp_fft(length,re1,im1,1,1.0/length);
-   xpp_fft(length,re2,im2,1,1.0/length);
+   xpp::fft(re1_v,im1_v,1,1.0/length);
+   xpp::fft(re2_v,im2_v,1,1.0/length);
    for(i=0;i<length;i++){
      x=re1[i]*re2[i]+im1[i]*im2[i];
      y=im1[i]*re2[i]-im2[i]*re1[i];
      re1[i]=x;
      im1[i]=-y;
    }
-   xpp_fft(length,re1,im1,-1,1.0/length);
+   xpp::fft(re1_v,im1_v,-1,1.0/length);
    /* now lets order these
       I think!  */
    sum=0.0;
@@ -689,13 +689,13 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
 /* the Fourier modes 0..nmodes-1 of data[0..length-1]: ct[i] and st[i]
    are twice the real and imaginary parts of the transform
    (1/length) sum_j data[j] exp(+2 pi i j k/length), ct[0] once */
-void fft(float *data, float *ct, float *st, int nmodes, int length)
+void fourier_modes(float *data, float *ct, float *st, int nmodes, int length)
 {
   if(length<=0)return;
   std::vector<double> in(data,data+length);
   const int half=length/2+1;
   std::vector<double> re(half), im(half);
-  xpp_fft_real(length,in.data(),re.data(),im.data(),1,1.0/length);
+  xpp::fft_real(in,re,im,1,1.0/length);
   ct[0]=static_cast<float>(re[0]);
   st[0]=0.0;
   for(int i=1;i<nmodes;i++){

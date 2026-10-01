@@ -33,7 +33,7 @@ std::string program_name(const xpp::Model &m)
    for another file instead) */
 bool model_file_ok(const std::string &file)
 {
-  return !file.empty()&&xpp_files_exists(file.c_str())&&!xpp_files_is_dir(file.c_str());
+  return !file.empty()&&xpp::files::exists(file.c_str())&&!xpp::files::is_dir(file.c_str());
 }
 
 /* variable i's name, "T" for 0 (the Poincare section's numbering) */
@@ -56,7 +56,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    file=xpp_files_working_dir();
+    file=xpp::files::working_dir();
     if(file.empty()||file.back()!='/')file+='/';
     if(!file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
   }
@@ -89,9 +89,9 @@ void xpp_model_open(xpp::Session &s, const char *path)
      the file it is saved in, which its outputs go to */
   xpp::ModelRequest req;
   if(saved){
-    req=xpp::saved_request(s,xpp_files_split_path(saved->path).first,std::move(*saved));
+    req=xpp::saved_request(s,xpp::files::split_path(saved->path).first,std::move(*saved));
   }else{
-    const std::pair<std::string,std::string> where=xpp_files_split_path(file);
+    const std::pair<std::string,std::string> where=xpp::files::split_path(file);
     req=xpp::open_request(s,where.first,where.second);
   }
   s.model_request=std::move(req);
@@ -112,7 +112,7 @@ bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool wi
 bool xpp_model_may_leave(xpp::Session &s, const std::string &file)
 {
   return xpp_session_may_leave(s,xpp::format("Open {}? This model's data and diagram go. Save its session first?",
-                                             xpp_files_split_path(file).second),false);
+                                             xpp::files::split_path(file).second),false);
 }
 
 void xpp_quit(xpp::Session &s)
@@ -131,7 +131,7 @@ void xpp_model_reload(xpp::Session &s)
     return;
   }
   const std::string question=xpp::format("Reload {}? Its values are kept by name; this model's data and diagram go. Save its session first?",
-                                         xpp_files_split_path(m.this_file).second);
+                                         xpp::files::split_path(m.this_file).second);
   if(!xpp_session_may_leave(s,question,false))return;
   /* a model picked at the start (no file on the command line) is loaded
      by its name this time */
@@ -241,12 +241,12 @@ void restore_values(Session &s, const KeptValues &kept)
 
 Session *load_requested(const Session &now, const ModelRequest &req)
 {
-  const std::string before=xpp_files_working_dir(),before_file=now.model().this_file;
-  if(!req.dir.empty()&&xpp_files_change_dir(req.dir.c_str())!=0){
+  const std::string before=xpp::files::working_dir(),before_file=now.model().this_file;
+  if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0){
     err_msg(xpp::format("Cannot open the folder {}",req.dir).c_str());
     return nullptr;
   }
-  auto back=[&before](){ if(!before.empty())xpp_files_change_dir(before.c_str()); };
+  auto back=[&before](){ if(!before.empty())xpp::files::change_dir(before.c_str()); };
   if(!req.saved&&!model_file_ok(req.file)){
     back();
     err_msg(xpp::format("Cannot open {}",req.file).c_str());

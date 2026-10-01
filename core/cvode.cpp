@@ -713,7 +713,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
 
   cv_mem = static_cast<CVodeMem>(cvode_mem);
   if (cvode_mem == NULL) {
-    xpp_log(XPP_LOG_ERROR, MSG_CVODE_NO_MEM);
+    xpp::log_printf(XPP_LOG_ERROR, MSG_CVODE_NO_MEM);
     return(CVODE_NO_MEM);
   }
   
@@ -933,12 +933,12 @@ int CVodeDky(void *cvode_mem, real t, int k, N_Vector dky)
   /* Check all inputs for legality */
  
   if (cvode_mem == NULL) {
-    xpp_log(XPP_LOG_ERROR, MSG_DKY_NO_MEM);
+    xpp::log_printf(XPP_LOG_ERROR, MSG_DKY_NO_MEM);
     return(DKY_NO_MEM);
   }
 
   if (dky == NULL) {
-    xpp_log(XPP_LOG_ERROR, MSG_BAD_DKY);
+    xpp::log_printf(XPP_LOG_ERROR, MSG_BAD_DKY);
     return(BAD_DKY);
   }
 

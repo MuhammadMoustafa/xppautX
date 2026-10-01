@@ -43,7 +43,7 @@ extern "C" const unsigned long xpp_window_lib_len;
 namespace {
 
 const XppWindowHost host = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
-                            xpp_inbox_push, json_ui_push_open, xpp_log};
+                            xpp_inbox_push, json_ui_push_open, xpp::log_printf};
 XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;
 
@@ -98,7 +98,7 @@ void *open_library(std::string &err, bool from_memory)
     }
     /* the mapping keeps the library: neither the descriptor nor the file */
     close(fd);
-    if (!temp.empty()) xpp_files_remove(temp.c_str());
+    if (!temp.empty()) xpp::files::remove(temp.c_str());
     return lib;
 }
 
@@ -148,11 +148,11 @@ int xpp_window_run(void (*session)(void), const char *about)
         std::string err;
         loaded = load(err);
         if (!loaded) {
-            xpp_log(XPP_LOG_WARN, "%s", xpp_window_load_message(os_release(), err).c_str());
+            xpp::log_printf(XPP_LOG_WARN, "%s", xpp_window_load_message(os_release(), err).c_str());
             return 0;
         }
     } catch (const std::exception &e) {
-        xpp_log(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
+        xpp::log_printf(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
         return 0;
     }
     return api.run(session, about);

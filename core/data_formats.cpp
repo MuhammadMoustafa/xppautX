@@ -410,7 +410,7 @@ auto guarded(const char *what, A... args) noexcept
     try {
         return F(args...);
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory(what);
+        xpp::out_of_memory(what);
     }
 }
 

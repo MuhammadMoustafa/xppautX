@@ -23,13 +23,13 @@ struct ScratchDir {
     bool made;
     ScratchDir()
     {
-        path = xpp_files_make_temp_dir();
+        path = xpp::files::make_temp_dir();
         made = !path.empty();
         if (!made) path = ".";
     }
     ~ScratchDir()
     {
-        if (made) xpp_files_remove_temp_dir(path.c_str());
+        if (made) xpp::files::remove_temp_dir(path.c_str());
     }
 };
 

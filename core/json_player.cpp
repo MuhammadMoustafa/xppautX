@@ -7,7 +7,7 @@
    Nothing is fixed, skipped or changed: a step that asks what it does not
    answer, or ends with answers left, stops the player with an error.
 
-   The files a step read are served from the recording (xpp_files_serve_reads):
+   The files a step read are served from the recording (xpp::files::serve_reads):
    the sections the step names, never the disk; a file it does not hold is
    not there, and says so. The replay runs in a scratch folder of its own,
    so what it writes never touches the user's files and a second play
@@ -104,7 +104,7 @@ Player player;
    nothing, with an error message, when it is not one */
 std::optional<SavedFile> snapshot_of(const std::string &path, const recx::Recording &rec)
 {
-    return xpp_saved_parse(path, xpp::format("The @snapshot of {}", xpp_files_split_path(path).second), rec.snapshot,
+    return xpp_saved_parse(path, xpp::format("The @snapshot of {}", xpp::files::split_path(path).second), rec.snapshot,
                            SavedKind::snapshot);
 }
 
@@ -308,13 +308,13 @@ bool copy_of(size_t section, std::string &copy)
 bool names(size_t section, std::string_view path)
 {
     const std::string &name = player.rec.files[section].name;
-    return name == path || xpp_files_split_path(name).second == xpp_files_split_path(std::string(path)).second;
+    return name == path || xpp::files::split_path(name).second == xpp::files::split_path(path).second;
 }
 
-/* xpp_files_serve_reads' server: while the player's model loads, the
+/* xpp::files::serve_reads' server: while the player's model loads, the
    recording's first file of that name; while a step runs, the next of
    the sections it read that has that name (again the last, read again) */
-bool serve(const char *path, std::string *copy)
+bool serve(const std::string &path, std::string *copy)
 {
     std::optional<size_t> section;
     if (player.loading) {
@@ -348,7 +348,7 @@ bool serve(const char *path, std::string *copy)
 void close_player()
 {
     if (!player.open && !player.loading) return;
-    xpp_files_serve_reads(nullptr);
+    xpp::files::serve_reads(nullptr);
     std::unique_ptr<xpp::TempDir> work = std::move(player.work); /* the folder the model runs in */
     player = Player{};
     player.work = std::move(work);
@@ -374,7 +374,7 @@ void load(xpp::Session &s, int from, bool play)
     player.pause_at = !play;
     player.what = Next::none;
     player.running = -1;
-    xpp_files_serve_reads(serve); /* its model's files: the recording's */
+    xpp::files::serve_reads(serve); /* its model's files: the recording's */
 }
 
 /* {"ev":"player",...}: the recording, its steps and notes */
@@ -407,7 +407,7 @@ void open_recording(xpp::Session &s, const char *path, bool ask = true)
     }
     std::string file = path ? path : "";
     if (file.empty()) {
-        file = xpp_files_working_dir();
+        file = xpp::files::working_dir();
         if (!file.empty() && file.back() != '/') file += '/';
         if (!file_selector("Play recording", file, "*.recx") || file.empty()) return;
     }
@@ -431,7 +431,7 @@ void open_recording(xpp::Session &s, const char *path, bool ask = true)
             j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error).c_str());
             return;
         }
-    const std::string where = xpp_files_absolute(file);
+    const std::string where = xpp::files::absolute(file);
     std::optional<SavedFile> snapshot = snapshot_of(where, got->rec);
     if (!snapshot) return;
     if (ask && !xpp_model_may_leave(s, file)) return;
@@ -510,7 +510,7 @@ void play_command(xpp::Session &s, const char *line)
             return;
         }
         player.steps[static_cast<size_t>(i)].note = text;
-        bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp_files_split_path(player.path).second).c_str());
+        bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second).c_str());
         send_player();
     } else if (op == "close") {
         if (player.running >= 0) {
@@ -552,17 +552,17 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 {
     std::string bytes, error;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open %s\n", path.c_str());
+        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open %s\n", path.c_str());
         return std::nullopt;
     }
     std::optional<xpp::recx::Read> got = xpp::recx::read(bytes, error);
     if (!got || got->rec.model.empty()) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s\n", path.c_str(),
+        xpp::log_printf(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s\n", path.c_str(),
                 got ? "it names no model" : error.c_str());
         return std::nullopt;
     }
     /* the model of its snapshot, which the player loads (W59d) */
-    std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp_files_absolute(path), got->rec);
+    std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp::files::absolute(path), got->rec);
     if (!snapshot) return std::nullopt; /* the error said why */
     return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name};
 }
@@ -588,7 +588,7 @@ void player_fire(void)
         if (player.what == Next::begin) begin_step();
         else push_input();
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("playing a recording");
+        xpp::out_of_memory("playing a recording");
     }
 }
 
@@ -598,7 +598,7 @@ void player_begin(const char *line)
     player.in_command = true;
     player.off_script = false;
     player.pushed.clear();
-    xpp_files_serve_reads(serve); /* the files it reads: the recording's */
+    xpp::files::serve_reads(serve); /* the files it reads: the recording's */
 }
 
 void player_asked(const char *kind)
@@ -625,7 +625,7 @@ void player_asked(const char *kind)
                         std::min(2500.0, 900 + 40.0 * static_cast<double>(st.answers[i].size())));
         }
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("playing a recording");
+        xpp::out_of_memory("playing a recording");
     }
 }
 
@@ -641,7 +641,7 @@ void player_step_end(void)
 {
     if (!player.in_command) return;
     player.in_command = false;
-    xpp_files_serve_reads(nullptr);
+    xpp::files::serve_reads(nullptr);
     const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
     if (player.off_script) {
     } else if (player.what == Next::input) {
@@ -668,7 +668,7 @@ void player_model_switched(bool loaded)
 {
     if (player.loading) {
         player.loading = false;
-        xpp_files_serve_reads(nullptr);
+        xpp::files::serve_reads(nullptr);
         if (!loaded) {
             close_player();
             return;

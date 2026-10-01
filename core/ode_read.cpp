@@ -225,7 +225,7 @@ bool read_raw_line(LineSource &src, std::string &line)
 void save_line(std::vector<std::string> &source, const std::string &line)
 {
   if (source.size()>=MAXLINES) {
-    xpp_log(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
+    xpp::log_printf(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
     xpp_model_failed();
   }
   source.push_back(line.substr(0,line.find('\0')));
@@ -418,7 +418,7 @@ int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args
     type=find_char(s1,",)",i,&i1);
     if(type<0)break;
     if(static_cast<int>(args.size())>=MAXARG){
-      xpp_log(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
+      xpp::log_printf(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
       return 0;
     }
     args.emplace_back(s1+i,s1+i1);
@@ -726,7 +726,7 @@ void command(const VAR_INFO &v, std::vector<Statement> &out)
     const std::string events=tokens.text("\n");
     std::vector<FlagEvent> split;
     if(split_events(cond.c_str(),events.c_str(),split)){
-      xpp_log(XPP_LOG_WARN, "Bad global !! \n");
+      xpp::log_printf(XPP_LOG_WARN, "Bad global !! \n");
       xpp_model_failed();
     }
     s.expr=text_expr(cond);
@@ -1183,7 +1183,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
 	  *i1=0;
           *i2=0;
 	  newstr=old;
-          xpp_log(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
+          xpp::log_printf(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
       }
@@ -1200,7 +1200,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
 	  *i1=0;
           *i2=0;
 	  newstr=old;
-          xpp_log(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
+          xpp::log_printf(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
       }
@@ -1232,7 +1232,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
   }
   /* the subscript's text runs to its ']' */
   auto unterminated=[big](){
-    xpp_log(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
+    xpp::log_printf(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
     xpp_model_failed();
   };
   while(i<n){
@@ -1257,7 +1257,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
     }
     else if(ch=='['&&chp=='j'){
       if(flag==0){
-	xpp_log(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
+	xpp::log_printf(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
 	xpp_model_failed();
       }
       num.clear();

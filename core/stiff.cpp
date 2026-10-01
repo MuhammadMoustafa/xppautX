@@ -170,7 +170,7 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 			for (j=0;j<n;j++) a[i+n*j] = -dfdy[i+n*j];
 			a[i+n*i] += 1.0/(GAM*h);
 		}
-		sgefa(a,n,n,indx,&info);
+		xpp::sgefa(a,n,n,indx,&info);
 		if(info!=-1){
 		 
                   *ier=-1;
@@ -179,24 +179,24 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 
 		for (i=0;i<n;i++)
 			g1[i]=dysav[i]+h*C1X*dfdx[i];
-		sgesl(a,n,n,indx,g1);
+		xpp::sgesl(a,n,n,indx,g1);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A21*g1[i];
 		*x=xsav+A2X*h;
 		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g2[i]=dydx[i]+h*C2X*dfdx[i]+C21*g1[i]/h;
-		sgesl(a,n,n,indx,g2);
+		xpp::sgesl(a,n,n,indx,g2);
 		for (i=0;i<n;i++)
 			y[i]=ysav[i]+A31*g1[i]+A32*g2[i];
 		*x=xsav+A3X*h;
 		s.integrator.rhs(*x,y,dydx,n);
 		for (i=0;i<n;i++)
 			g3[i]=dydx[i]+h*C3X*dfdx[i]+(C31*g1[i]+C32*g2[i])/h;
-		sgesl(a,n,n,indx,g3);
+		xpp::sgesl(a,n,n,indx,g3);
 		for (i=0;i<n;i++)
 			g4[i]=dydx[i]+h*C4X*dfdx[i]+(C41*g1[i]+C42*g2[i]+C43*g3[i])/h;
-		sgesl(a,n,n,indx,g4);
+		xpp::sgesl(a,n,n,indx,g4);
 		for (i=0;i<n;i++) {
 			y[i]=ysav[i]+B1*g1[i]+B2*g2[i]+B3*g3[i]+B4*g4[i];
 			err[i]=E1*g1[i]+E2*g2[i]+E3*g3[i]+E4*g4[i];

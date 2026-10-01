@@ -209,7 +209,7 @@ namespace {
 /* 1 when fil does not exist yet or may be overwritten */
 bool may_write_file(const char *fil)
 {
- if(!xpp_files_exists(fil))return true;
+ if(!xpp::files::exists(fil))return true;
  return static_cast<char>(TwoChoice("Yes","No",
 		"File Exists! Overwrite?","yn"))=='y';
 }

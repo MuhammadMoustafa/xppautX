@@ -127,7 +127,7 @@ pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
    at_exit would wait on the lock this thread may hold. */
 [[noreturn]] void out_of_memory()
 {
-    xpp_log(XPP_LOG_ERROR, "xppautX: out of memory in the HTTP server\n");
+    xpp::log_printf(XPP_LOG_ERROR, "xppautX: out of memory in the HTTP server\n");
     std::fflush(nullptr);
     _exit(1);
 }
@@ -612,9 +612,9 @@ void get_file(sock_t s, const std::string &name)
 {
     FILE *raw = nullptr;
     unsigned long long size;
-    int st = xpp_files_open(name.c_str(), &raw, &size);
+    int st = xpp::files::open(name, raw, size);
     if (st != XPP_FILES_OK) {
-        reply_text(s, files_status(st), xpp_files_status_text(st));
+        reply_text(s, files_status(st), xpp::files::status_text(st));
         return;
     }
     xpp::UniqueFile fp(raw);
@@ -631,7 +631,7 @@ void get_file(sock_t s, const std::string &name)
    NAME only once all of it arrived (xpp_files.h) */
 void put_file(Request &q, const std::string &name)
 {
-    XppFilePut *put;
+    xpp::files::Put *put;
     unsigned long long left, size;
     std::string sha;
     if (!q.has_length) {
@@ -639,12 +639,12 @@ void put_file(Request &q, const std::string &name)
         return;
     }
     if (q.length > XPP_FILES_CAP) { /* refused before a byte of the body is read */
-        reply_text(q.s, "413 Payload Too Large", xpp_files_status_text(XPP_FILES_TOO_LARGE));
+        reply_text(q.s, "413 Payload Too Large", xpp::files::status_text(XPP_FILES_TOO_LARGE));
         return;
     }
-    int st = xpp_files_put_begin(name.c_str(), XPP_FILES_CAP, &put);
+    int st = xpp::files::put_begin(name, XPP_FILES_CAP, put);
     if (st != XPP_FILES_OK) {
-        reply_text(q.s, files_status(st), xpp_files_status_text(st));
+        reply_text(q.s, files_status(st), xpp::files::status_text(st));
         return;
     }
     if (std::optional<std::string> v = header(q, "expect"); v && *v == "100-continue")
@@ -652,28 +652,28 @@ void put_file(Request &q, const std::string &name)
     left = q.length;
     {
         size_t first = q.have < left ? q.have : static_cast<size_t>(left);
-        st = xpp_files_put_write(put, q.body0, first);
+        st = xpp::files::put_write(*put, {q.body0, first});
         left -= first;
     }
     std::vector<char> buf(CHUNK);
     while (st == XPP_FILES_OK && left > 0) {
         int r = take(q, buf.data(), static_cast<size_t>(left < CHUNK ? left : CHUNK));
         if (r <= 0) break; /* cut short, or the client stopped sending */
-        st = xpp_files_put_write(put, buf.data(), static_cast<size_t>(r));
+        st = xpp::files::put_write(*put, {buf.data(), static_cast<size_t>(r)});
         left -= static_cast<unsigned long long>(r);
     }
     if (st != XPP_FILES_OK || left > 0) {
-        xpp_files_put_abort(put);
-        if (st != XPP_FILES_OK) reply_text(q.s, files_status(st), xpp_files_status_text(st));
+        xpp::files::put_abort(put);
+        if (st != XPP_FILES_OK) reply_text(q.s, files_status(st), xpp::files::status_text(st));
         else reply_text(q.s, "400 Bad Request", "incomplete body");
         return;
     }
-    st = xpp_files_put_commit(put, &size, sha);
+    st = xpp::files::put_commit(put, size, sha);
     if (st != XPP_FILES_OK) {
-        reply_text(q.s, files_status(st), xpp_files_status_text(st));
+        reply_text(q.s, files_status(st), xpp::files::status_text(st));
         return;
     }
-    /* the name passed xpp_files_name_ok: no quote, backslash or control character */
+    /* the name passed xpp::files::name_ok: no quote, backslash or control character */
     reply(q.s, "200 OK", "application/json",
           xpp::format("{{\"name\":\"{}\",\"size\":{},\"sha256\":\"{}\"}}", name, size, sha));
 }
@@ -687,13 +687,13 @@ void serve_files(Request &q)
         return;
     }
     if (n == 6 || (n == 7 && q.target[6] == '/')) {
-        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp_files_list_json());
+        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp::files::list_json());
         else reply_text(q.s, "405 Method Not Allowed", "GET only");
         return;
     }
     std::optional<std::string> name = url_decode(std::string_view(q.target).substr(7, n - 7));
-    if (!name || !xpp_files_name_ok(name->c_str())) {
-        reply_text(q.s, files_status(XPP_FILES_BAD_NAME), xpp_files_status_text(XPP_FILES_BAD_NAME));
+    if (!name || !xpp::files::name_ok(name->c_str())) {
+        reply_text(q.s, files_status(XPP_FILES_BAD_NAME), xpp::files::status_text(XPP_FILES_BAD_NAME));
         return;
     }
     if (q.method == "GET") get_file(q.s, *name);
@@ -985,8 +985,8 @@ void start(int got, int flags)
 #endif
         no_inherit_fd(log_pipe[0]);
         no_inherit_fd(log_pipe[1]);
-        dup2(log_pipe[1], xpp_files_stream_fd(stdout));
-        dup2(log_pipe[1], xpp_files_stream_fd(stderr));
+        dup2(log_pipe[1], xpp::files::stream_fd(stdout));
+        dup2(log_pipe[1], xpp::files::stream_fd(stderr));
         setvbuf(stdout, nullptr, _IONBF, 0);
         setvbuf(stderr, nullptr, _IONBF, 0);
         pthread_create(&log_thread, nullptr, log_main, &log_pipe[0]);
@@ -1054,7 +1054,7 @@ int xpp_http_start(int port, int flags)
     int got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
-        xpp_log(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
+        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
         return 0;
     }
     try {

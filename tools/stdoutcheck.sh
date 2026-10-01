@@ -48,7 +48,7 @@ strip_comments() {
 tmp=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmp"' EXIT
 
-# plintf() was retired at W25 (folded into xpp_log()/xpp::log(),
+# plintf() was retired at W25 (folded into xpp::log()/xpp::log_printf(),
 # core/xpp_log.h): a new call must not creep back in. Matched the same
 # comment/string-stripped way as PATTERN above.
 PLINTF_PATTERN='(^|[^a-zA-Z_])plintf[ \t]*\('
@@ -90,7 +90,7 @@ if [ -s "$tmp/bad" ]; then
   exit 1
 fi
 if [ -s "$tmp/badplintf" ]; then
-  echo "stdoutcheck: plintf() was retired at W25 -- use xpp_log()/xpp::log() (core/xpp_log.h) instead"
+  echo "stdoutcheck: plintf() was retired at W25 -- use xpp::log()/xpp::log_printf() (core/xpp_log.h) instead"
   exit 1
 fi
 echo "stdoutcheck ok: no un-allowlisted direct stdout/stderr output in core/, no plintf()"

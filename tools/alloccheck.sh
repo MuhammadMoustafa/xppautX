@@ -2,7 +2,7 @@
 # The core never calls the C library's malloc, calloc, realloc, strdup or
 # free directly (W21, W48): those return NULL unchecked, where a C++
 # container (std::vector, std::string, std::unique_ptr, ...) fails loudly
-# through xpp_out_of_memory (core/xpp_mem.h) instead. Comments are
+# through xpp::out_of_memory (core/xpp_mem.h) instead. Comments are
 # stripped first (tools/strip_comments.awk), so dead code needs no entry.
 # tools/sourcecheck.sh runs this. Usage: tools/alloccheck.sh
 cd "$(dirname "$0")/.." || exit 1

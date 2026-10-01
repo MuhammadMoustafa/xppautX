@@ -117,13 +117,13 @@ std::string gzip(std::string_view bytes)
         Sink s;
         const int flags = static_cast<int>(tdefl_create_comp_flags_from_zip_params(MZ_DEFAULT_LEVEL, -MZ_DEFAULT_WINDOW_BITS,
                                                                                   MZ_DEFAULT_STRATEGY));
-        if (!tdefl_compress_mem_to_output(bytes.data(), bytes.size(), put_deflated, &s, flags)) xpp_out_of_memory("compressing");
+        if (!tdefl_compress_mem_to_output(bytes.data(), bytes.size(), put_deflated, &s, flags)) xpp::out_of_memory("compressing");
         o += s.bytes;
         put_le32(o, crc32_of(bytes));
         put_le32(o, static_cast<std::uint32_t>(bytes.size()));
         return o;
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("compressing");
+        xpp::out_of_memory("compressing");
     }
 }
 
@@ -135,7 +135,7 @@ std::optional<std::string> gunzip(std::string_view gz)
         bool oom = false;
         do {
             if (!gunzip_member(gz, pos, out, oom)) {
-                if (oom) xpp_out_of_memory("decompressing");
+                if (oom) xpp::out_of_memory("decompressing");
                 return std::nullopt;
             }
             /* what follows the last member: nothing, or zeros some tools pad with */
@@ -143,7 +143,7 @@ std::optional<std::string> gunzip(std::string_view gz)
         } while (pos < gz.size());
         return out;
     } catch (const std::bad_alloc &) {
-        xpp_out_of_memory("decompressing");
+        xpp::out_of_memory("decompressing");
     }
 }
 
@@ -160,7 +160,7 @@ std::string make_zip(const std::vector<Entry> &entries)
     ok = ok && mz_zip_writer_finalize_archive(&z);
     mz_zip_writer_end(&z);
     /* in memory, only an allocation can fail */
-    if (!ok || s.out_of_memory) xpp_out_of_memory("building a zip archive");
+    if (!ok || s.out_of_memory) xpp::out_of_memory("building a zip archive");
     return std::move(s.bytes);
 }
 
@@ -194,7 +194,7 @@ std::optional<std::vector<Entry>> read_zip(std::string_view zip)
         oom = true;
     }
     mz_zip_reader_end(&z);
-    if (oom) xpp_out_of_memory("reading a zip archive");
+    if (oom) xpp::out_of_memory("reading a zip archive");
     return out;
 }
 

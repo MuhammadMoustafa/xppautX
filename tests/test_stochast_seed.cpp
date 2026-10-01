@@ -13,14 +13,14 @@ int main(void)
 {
     double a[50], b[50], c[50];
 
-    nsrand48(42);
-    for (int i = 0; i < 50; i++) a[i] = ndrand48();
+    xpp::nsrand48(42);
+    for (int i = 0; i < 50; i++) a[i] = xpp::ndrand48();
 
-    nsrand48(42);
-    for (int i = 0; i < 50; i++) b[i] = ndrand48();
+    xpp::nsrand48(42);
+    for (int i = 0; i < 50; i++) b[i] = xpp::ndrand48();
 
-    nsrand48(43);
-    for (int i = 0; i < 50; i++) c[i] = ndrand48();
+    xpp::nsrand48(43);
+    for (int i = 0; i < 50; i++) c[i] = xpp::ndrand48();
 
     CHECK(std::memcmp(a, b, sizeof(a)) == 0); /* same seed: same run */
 

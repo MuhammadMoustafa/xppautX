@@ -362,14 +362,14 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    
    for(i=0;i<s.model().node;i++)
      jac[n1*i]-=1.0;
-   sgefa(jac,s.model().node,s.model().node,ipivot,&info);
+   xpp::sgefa(jac,s.model().node,s.model().node,ipivot,&info);
    if(info!=-1)
      {
 	 
        return(-1); /* Jacobian is singular   */
      }
    err=0.0;
-   sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
+   xpp::sgesl(jac,s.model().node,s.model().node,ipivot,errvec);
    for(i=0;i<s.model().node;i++){
 	err=MAX(fabs(errvec[i]),err);
 	yg[i]-=errvec[i];

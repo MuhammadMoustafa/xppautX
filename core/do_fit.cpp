@@ -463,12 +463,12 @@ sigma  weights on nvars
     covar[j+j*npars]=alpha[j+j*npars]*(1+(*alambda));
     oneda[j]=beta[j];
   }
-  sgefa(covar,npars,npars,ipivot,&ierr);
+  xpp::sgefa(covar,npars,npars,ipivot,&ierr);
     if(ierr!=-1){
       return xpp::fail("fit"," Singular matrix encountered...");
     }
   
-  sgesl(covar,npars,npars,ipivot,oneda);
+  xpp::sgesl(covar,npars,npars,ipivot,oneda);
   for(j=0;j<npars;j++){
     da[j]=oneda[j];
   }
@@ -478,7 +478,7 @@ sigma  weights on nvars
     for(j=0;j<npars;j++){
       for(k=0;k<npars;k++)oneda[k]=0.0;
       oneda[j]=1.0;
-      sgesl(alpha,npars,npars,ipivot,oneda);
+      xpp::sgesl(alpha,npars,npars,ipivot,oneda);
       for(k=0;k<npars;k++)covar[j+k*npars]=oneda[k];
     }
     return {};

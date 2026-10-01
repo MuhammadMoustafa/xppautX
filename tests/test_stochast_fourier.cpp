@@ -30,9 +30,6 @@
 #include <cstdlib>
 #include <vector>
 
-extern "C" {
-}
-
 static const double PI = 3.14159265358979323846;
 
 /* relative error, falling back to absolute when want is ~0 */
@@ -75,7 +72,7 @@ int main(void)
 
     /* --- Power spectrum/phase (p): magnitude sqrt(c^2+s^2) is the
        Parseval amplitude sqrt(A^2+B^2) regardless of the sign
-       convention fft() gives the sine term (just_fourier(1) is what
+       convention fourier_modes() gives the sine term (just_fourier(1) is what
        compute_power() calls after compute_fourier(), doing the same
        column). */
     {

@@ -28,7 +28,7 @@ namespace xpp::autox {
 namespace {
 
 /* the file name of path, for messages */
-std::string file_name(const std::string &path) { return xpp_files_split_path(path).second; }
+std::string file_name(const std::string &path) { return xpp::files::split_path(path).second; }
 
 /* member name of a file whose AUTO members are named prefix and theirs */
 std::string named(std::string_view prefix, const char *name) { return std::string(prefix) + name; }

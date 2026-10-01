@@ -130,12 +130,12 @@ int init(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal
   iads=s.auto_state.run.iads;
 
   if(dsmin < 0.0) {
-    xpp_log_auto("Warning : DSMIN less then 0.0, will use absolute value instead.");
+    xpp::log_auto_printf("Warning : DSMIN less then 0.0, will use absolute value instead.");
     dsmin = f2c::abs(dsmin);
   }
 
   if(dsmax < 0.0) {
-    xpp_log_auto("Warning : DSMAX less then 0.0, will use absolute value instead.");
+    xpp::log_auto_printf("Warning : DSMAX less then 0.0, will use absolute value instead.");
     dsmax = f2c::abs(dsmax);
   }
   nthl=s.auto_state.run.nthl;
@@ -575,7 +575,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       if (iap->mynode == 0) {
-	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp::log_auto_printf("\nGenerating starting data :\n Restart at EP label below :\n");
 	iap->lib->restart_flag=1;
       }
 
@@ -611,7 +611,7 @@ init1(iap_type *iap, rap_type *rap, integer *icp, doublereal *par)
       isp = 0;
       nmx = 5;
       if (iap->mynode == 0) {
-	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp::log_auto_printf("\nGenerating starting data :\n Restart at EP label below :\n");
 	iap->lib->restart_flag=1;
       }
 
@@ -641,7 +641,7 @@ rt */
       isw = -2;
       nmx = 5;
       if (iap->mynode == 0) {
-	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp::log_auto_printf("\nGenerating starting data :\n Restart at EP label below :\n");
 	iap->lib->restart_flag=1;
       }
 
@@ -673,7 +673,7 @@ rt */
       nmx = 5; 
       if (iap->mynode == 0) {
 	iap->lib->restart_flag=1;
-	xpp_log_auto("\nGenerating starting data :\n Restart at EP label below :\n");
+	xpp::log_auto_printf("\nGenerating starting data :\n Restart at EP label below :\n");
       }
 
     } else if ((f2c::abs(itp) / 10 == 5 || f2c::abs(itp) / 10 == 5) && ips == 4) {
@@ -2437,7 +2437,7 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   if (iap->mynode == 0) {
     if (iunit == 6) {
-      xpp_log_auto(" \n");
+      xpp::log_auto_printf(" \n");
     }
     if (iunit == 7) {
       xpp::print(iap->lib->fp7,"   0\n");
@@ -2506,12 +2506,12 @@ headng(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer iuni
 
   if (iap->mynode == 0) {
     if (iunit == 6) {
-      xpp_log_auto("  BR    PT  TY LAB ");
+      xpp::log_auto_printf("  BR    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
 	/* PAR(n)/U(n) as the user named them */
-	xpp_log_auto("%s",auto_screen_col(*iap->lib->session, col[i]).c_str());
+	xpp::log_auto_printf("%s",auto_screen_col(*iap->lib->session, col[i]).c_str());
       }
-      xpp_log_auto("\n");
+      xpp::log_auto_printf("\n");
     } else if (iunit == 7) {
       xpp::print(iap->lib->fp7,"   0    PT  TY LAB ");
       for (i = 0; i < *n1 + *n2 + 1; ++i) {
@@ -2779,13 +2779,13 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   mtot = *ntot % 10000;
   if (n2 == 0) {
     if (itp % 10 != 0) {
-      xpp_log_auto("%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
-      xpp_log_auto("%14.6E",par[icu[0]]);
-      xpp_log_auto("%14.6E",(*vaxis));
+      xpp::log_auto_printf("%4li%6li  %c%c%4li",(*ibr),mtot,atype[0],atype[1],*(lab));
+      xpp::log_auto_printf("%14.6E",par[icu[0]]);
+      xpp::log_auto_printf("%14.6E",(*vaxis));
       for (i = 1; i < n1; ++i) {
-	xpp_log_auto("%14.6E",par[icu[i]]);
+	xpp::log_auto_printf("%14.6E",par[icu[i]]);
       }
-      xpp_log_auto("\n");
+      xpp::log_auto_printf("\n");
     }
     xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
     xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
@@ -2804,13 +2804,13 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
   } else {
     if (n1 == 1) {
       if (itp % 10 != 0) {
-	xpp_log_auto("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
-	xpp_log_auto("%14.6E",par[icu[0]]);
-	xpp_log_auto("%14.6E",(*vaxis));
+	xpp::log_auto_printf("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
+	xpp::log_auto_printf("%14.6E",par[icu[0]]);
+	xpp::log_auto_printf("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
-	  xpp_log_auto("%14.6E",u[i]);
+	  xpp::log_auto_printf("%14.6E",u[i]);
 	}
-	xpp_log_auto("\n");
+	xpp::log_auto_printf("\n");
       }
       xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
@@ -2829,16 +2829,16 @@ wrline(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *icu
 
     } else {
       if (itp % 10 != 0) {
-	xpp_log_auto("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
-	xpp_log_auto("%14.6E",par[icu[0]]);
-	xpp_log_auto("%14.6E",(*vaxis));
+	xpp::log_auto_printf("%4li%6li  %c%c%4li",f2c::abs(*ibr),f2c::abs(mtot),atype[0],atype[1],*(lab));
+	xpp::log_auto_printf("%14.6E",par[icu[0]]);
+	xpp::log_auto_printf("%14.6E",(*vaxis));
 	for (i = 0; i < n2; ++i) {
-	  xpp_log_auto("%14.6E",u[i]);
+	  xpp::log_auto_printf("%14.6E",u[i]);
 	}
 	for (i = 1; i < n1; ++i) {
-	  xpp_log_auto("%14.6E",par[icu[i]]);
+	  xpp::log_auto_printf("%14.6E",par[icu[i]]);
 	}
-	xpp_log_auto("\n");
+	xpp::log_auto_printf("\n");
       }
       xpp::print(s.auto_lib.fp7,"{:4}{:6}{:4}{:4}",(*ibr),mtot,itp,(*lab));
       xpp::print(s.auto_lib.fp7,"{:14.5E}",par[icu[0]]);
@@ -2878,7 +2878,7 @@ wrtsp8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *lab
   integer nar, itp, isw;
 
   if(s.auto_lib.fp8_is_open==0){
-    s.auto_lib.fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
+    s.auto_lib.fp8 = xpp::files::open_stream(auto_fort_path(8),"w");
     if(s.auto_lib.fp8 == NULL) {
       /* Fail the run instead of exit(1): a server must outlive a bad HOME.
 	 fp8_is_open stays 0 so a later run retries the open. */
@@ -4260,7 +4260,7 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
   }
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
+    xpp::log_auto_printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -5611,7 +5611,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp_log_auto("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
+    xpp::log_auto_printf("Warning : NPARX too small for restart data :\n restart PAR(i) skipped for i > %3ld\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -6651,7 +6651,7 @@ wrtbv8(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   integer nrowpr, lab, ibr, nar, nrd, itp, isw;
 
   if(s.auto_lib.fp8_is_open==0) {
-    s.auto_lib.fp8 = xpp_files_open_stream(auto_fort_path(8),"w");
+    s.auto_lib.fp8 = xpp::files::open_stream(auto_fort_path(8),"w");
     if(s.auto_lib.fp8 == NULL) {
       /* as in wrtsp8() */
       xpp::auto_fail(xpp::format("Could not open {:.200}", auto_fort_path(8)));

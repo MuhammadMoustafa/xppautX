@@ -75,7 +75,7 @@ class Server:
         drain_stderr(self.proc)
 
     def auto_dirs(self):
-        """AUTO's scratch directories of this process (xpp_files_make_temp_dir)"""
+        """AUTO's scratch directories of this process (xpp::files::make_temp_dir)"""
         tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
         pre = 'xppautoX-%d-' % self.proc.pid
         return [os.path.join(tmp, d) for d in os.listdir(tmp) if d.startswith(pre)]

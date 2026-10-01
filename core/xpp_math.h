@@ -20,28 +20,30 @@
      rounded differently (std::complex's differs again between C++
      libraries).
 
-   Everything below is C (extern "C"): the parser's function table holds
-   some of these as plain function pointers. None of them throws. */
+   Everything below is C++ in namespace xpp (W109a; the parser's function
+   table holds some of these as plain function pointers). None of them
+   throws. */
 
-#include <stddef.h>
+#include <cstddef>
+#include <span>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace xpp {
 
 /* ---- Fourier transform (pocketfft, third_party/pocketfft) ----
 
-   xpp_fft: the discrete Fourier transform of n complex points, in place,
+   fft: the discrete Fourier transform of the n = re.size() complex points,
+   in place (im as long as re),
        X[k] = factor * sum_j x[j] exp(sign * 2 pi i j k / n),
    sign +1 or -1, the real parts in re[], the imaginary ones in im[].
    factor 1 leaves it unscaled; 1/n or 1/sqrt(n) normalise it.
 
-   xpp_fft_real: the same transform of n real points in[], of which only
-   X[0..n/2] are stored into re[] and im[] (n/2+1 each): the others are
-   their complex conjugates, X[n-k] = conj(X[k]). */
-void xpp_fft(size_t n, double *re, double *im, int sign, double factor);
-void xpp_fft_real(size_t n, const double *in, double *re, double *im, int sign,
-                  double factor);
+   fft_real: the same transform of the n = in.size() real points in[], of
+   which only X[0..n/2] are stored into re[] and im[] (n/2+1 each): the
+   others are their complex conjugates, X[n-k] = conj(X[k]). */
+void fft(std::span<double> re, std::span<double> im, int sign, double factor);
+void fft_real(std::span<const double> in, std::span<double> re, std::span<double> im, int sign,
+              double factor);
 
 /* ---- random numbers ----
 
@@ -54,16 +56,25 @@ void xpp_fft_real(size_t n, const double *in, double *re, double *im, int sign,
    Recipes' algorithm). The names are the historical ones the parser and
    the stochastic code use.
 
-   xpp_next_seed(seed) is a separate seed stream: a pure function of seed
+   next_seed(seed) is a separate seed stream: a pure function of seed
    (touches neither the generator above nor its spare deviate), used to
    pick the following run's seed once a run has used this one (W71's "a
    seed per run"), so an untouched Session still gets fresh noise every
    run while every run's own seed stays a small loggable int. */
 void nsrand48(int seed);
-double ndrand48(void);
+double ndrand48();
 double normal(double mean, double std);
 double poidev(double xm);
-int xpp_next_seed(int seed);
+int next_seed(int seed);
+
+/* the random generator's full state -- std::mt19937_64's state and
+   normal()'s spare deviate -- as opaque text (rand_state_save), and
+   restoring it (rand_state_load, false and leaving the generator
+   untouched if the text is not one this function wrote). Continuing a
+   session (W57's session file) after Open then draws exactly the numbers
+   it would have without stopping. */
+std::string rand_state_save();
+bool rand_state_load(const std::string &state);
 
 /* ---- linear algebra ----
 
@@ -76,49 +87,34 @@ int xpp_next_seed(int seed);
    sub- and mr super-diagonals, row i at a[i*(ml+mr+1)], its diagonal at
    a[i*(ml+mr+1)+ml]. bandfac returns 0, or -1-i when row i's pivot is 0.
 
-   xpp_eigenvalues: the eigenvalues of the n x n matrix a (overwritten),
+   eigenvalues: the eigenvalues of the n x n matrix a (overwritten),
    stored as pairs ev[2i] (real), ev[2i+1] (imaginary); work holds n
    doubles. *ierr is 0, or the index of an eigenvalue that did not converge
-   in 30 iterations. */
+   in 30 iterations.
+
+   Their matrices keep LINPACK's pointer and dimensions (a 2-D layout a
+   span would not describe); the solvers call them inside their steps. */
 void sgefa(double *a, int lda, int n, int *ipvt, int *info);
 void sgesl(double *a, int lda, int n, int *ipvt, double *b);
 int bandfac(double *a, int ml, int mr, int n);
 void bandsol(double *a, double *b, int ml, int mr, int n);
-void xpp_eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
+void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
 
 /* ---- small helpers ----
-   xpp_sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|). */
-double xpp_sign(double a, double b);
+   sign: Fortran's SIGN, |a| with the sign of b (b >= 0: +|a|). */
+double sign(double a, double b);
 
 /* ---- special functions (the parser's besselj, bessely, besseli,
    besselis) ----
-   The order n is truncated to an int. xpp_bessel_j/_y are the C library's
-   jn/yn; xpp_bessel_i is the modified Bessel function I_n(x) and
-   xpp_bessel_i_scaled exp(-|x|) I_n(x) (Numerical Recipes' polynomial
+   The order n is truncated to an int. bessel_j/_y are the C library's
+   jn/yn; bessel_i is the modified Bessel function I_n(x) and
+   bessel_i_scaled exp(-|x|) I_n(x) (Numerical Recipes' polynomial
    approximations and downward recurrence). */
-double xpp_bessel_j(double n, double x);
-double xpp_bessel_y(double n, double x);
-double xpp_bessel_i(double n, double x);
-double xpp_bessel_i_scaled(double n, double x);
-
-#ifdef __cplusplus
-}
-
-#include <string>
-
-namespace xpp {
-
-/* the random generator's full state -- std::mt19937_64's state and
-   normal()'s spare deviate -- as opaque text (xpp_rand_state_save), and
-   restoring it (xpp_rand_state_load, false and leaving the generator
-   untouched if the text is not one this function wrote). Continuing a
-   session (W57's session file) after Open then draws exactly the numbers
-   it would have without stopping. */
-std::string xpp_rand_state_save();
-bool xpp_rand_state_load(const std::string &state);
+double bessel_j(double n, double x);
+double bessel_y(double n, double x);
+double bessel_i(double n, double x);
+double bessel_i_scaled(double n, double x);
 
 } // namespace xpp
-
-#endif
 
 #endif

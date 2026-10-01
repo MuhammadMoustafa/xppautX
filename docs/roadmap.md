@@ -187,7 +187,13 @@ issue; the card here is the one kept up to date.
 | W106 | #155 | A fifth kind, setting (maintainer, 2026-09-29: "numerics is better to be settings"; "they will be used in the next run"): parameters, initial conditions, boundary conditions, delays, the numerics and AUTO's Parameter/Numerics/Mark values forms; an edit during a computation is not held (maintainer, 2026-09-29: "edits don't wait; they are applied and recorded, but they have no effect on the current run"): the page sends it at once and shows it as the current value (no "pending" banner, #117's holding removed); the core records it at once (state, a session or set saved later, a recording) and the running computation keeps the values it started with, the new ones applied when it ends, before any other command; a Numerics section in the Values panel (Total, dt, method, tolerances ...) editable during a run like parameters; the Numerics menu stays for the keyboard, its dialog opening when a run ends; W95's kinds table, hello, docs/protocol.md "Action kinds" and the manual updated. AUTO's Grab stays data (maintainer, 2026-09-29) | none | done |
 | W107 | #156 | About with the author's name and contact (maintainer, 2026-09-29): Help > About shows the author as Muhammad Ahmad (the name the maintainer publishes under), email muhammadmoustafa22@gmail.com, GitHub https://github.com/MuhammadMoustafa, LinkedIn https://www.linkedin.com/in/muhammad-ahmad-62743a125/ (no website while it is outdated), a link to the issue tracker to report a problem, beside what it shows now (version, commit, compiler, protocol, the XPPAUT credit to Bard Ermentrout, GPL v2); one text in the core, shown by the desktop window and, in browser mode, by the page's Help | none | done |
 | W108 | #160 | Browser mode ends 2 s after its tab closes (maintainer, 2026-09-30; about 12 s today, which looked like never): the page says it is leaving (pagehide beacon) and the core waits about 2 s for a reload; the heartbeat stays for a page gone without a word; the browser's own "Leave site?" before closing | none | done |
-| W109 | #161 | The core's API in C++ (maintainer, 2026-09-30): extern "C" kept only where C calls across (the window plugin's table, callbacks to C libraries), the rest C++ linkage in namespace xpp with C++ types at the boundary; CLAUDE.md's C and C++ section to the new rule; a source check on new extern "C"; in stages by module; speed measured before and after each stage (examples_check wall time, kuramot100.ode -silent, an AUTO run; 3 runs each, nothing else running): a stage that is slower beyond the noise is not merged, and if C++ costs speed the card stops (maintainer, 2026-09-30) | W47d6 | in-progress |
+| W109 | #161 | The core's API in C++ (maintainer, 2026-09-30): extern "C" kept only where C calls across (the window plugin's table, callbacks to C libraries), the rest C++ linkage in namespace xpp with C++ types at the boundary; CLAUDE.md's C and C++ section to the new rule; a source check on new extern "C"; in stages by module; speed measured before and after each stage (examples_check wall time, kuramot100.ode -silent, an AUTO run; 3 runs each, nothing else running): a stage that is slower beyond the noise is not merged, and if C++ costs speed the card stops (maintainer, 2026-09-30); the stages are W109a-W109f below, the plan in "W109: the core's API in C++, in stages" at the end | W47d6 | review |
+| W109a | #161 | Stage 1, the owner modules (xpp_io, xpp_files, xpp_log, xpp_math, xpp_mem) and their callers, with the staging plan, tools/externcheck.sh and CLAUDE.md's new rule: no extern "C" in their headers, their API in namespace xpp (`xpp::files::exists`, `xpp::log_printf`, `xpp::out_of_memory`, `xpp::fft`, ...) with std::string_view/std::span/references at the boundary; xpp_io's C API under the handles (`xpp_line_reader_*`, `xpp_token_reader_*`, `xpp_writer_*`) retired into LineReader/TokenReader/Writer. Done: headers with extern "C" 78 to 74 (of 125); externcheck allows 127 lines; speed: instruction counts the same (callgrind: kuramot100 shortened 7,115,206,679 vs 7,115,208,960; the AUTO script 23,001,123,785 vs 22,994,163,044), wall time decided by code layout (min/median s, master vs W109a, -g -O2: examples_check 19.08/19.21 vs 19.79/19.89, kuramot100 9.35/9.37 vs 10.18/10.20, AUTO 3.90/3.96 vs 3.95/4.00; with -falign-functions=64 W109a is the faster: "W109: the core's API in C++, in stages") | W47d6 | done |
+| W109b | #161 | Stage 2, the integrator, the solvers and CVODE, the hot path (adj2, band, cv2, cvband, cvdense, cvode, dae_fun, del_stab, delay_handle, dense, do_fit, gear, histogram, integrate, llnlmath, markov, numerics, numerics_settings, odesol2, pp_shoot, stiff, storage, vector, volterra2: 24 headers): C++ linkage in namespace xpp (CVODE's in its own), std::span for a pointer and a length where a caller has one, the solvers' fixed rhs signature and the step loops unchanged; timed as the plan says, instruction counts too | W109a | ready |
+| W109c | #161 | Stage 3, the parser and the load (comline, derived, expr, form_ode, load_eqn, lunch-new, ode_read, simplenet, tabular, xpp_batch, xpp_util: 11 headers): namespace xpp, std::string_view for the names and lines they read; expr.h's evaluator entry points keep their shape (the right-hand side calls them every step) | W109b | ready |
+| W109d | #161 | Stage 4, AUTO (autevd, auto_c, auto_data, auto_f2c, auto_nox, auto_settings, auto_stability, auto_stop: 8 headers, and the extern "C" definitions in auto_data, auto_settings, auto_stability, auto_stop and autpp.cpp): C++ linkage for the translated routines and their callback types (funi, stpnt, bcni, icni, fopi, pvli: their signatures stay), namespace xpp for the front end's | W109c | ready |
+| W109e | #161 | Stage 5, the drawing, the data modules, the UI seam and the commands (ani_data, aniparse, array_print, axes2, browse, colormap, graf_par, graphics, grobs, kbs, many_pops, marks_data, menudrive, menus, my_ps, my_svg, nullcline, phase_data, plot_data, scrngif, tutor, ui_json, userbut, xpp_ui: 24 headers, the data modules' extern "C" definitions and four empty extern "C" blocks in json_*.cpp): namespace xpp, std::string_view for the dialog API's text (W28's const char *), the data modules' emit callback a std::string_view | W109d | ready |
+| W109f | #161 | Stage 6, the threads and the window's edges, and the end (xpp_http, xpp_inbox, xpp_job, xpp_webview, xpp_win32, xpp_window: 6 headers; tests/test_job.c, the one C caller, becomes .cpp): namespace xpp; what stays extern "C" is externcheck's permanent list (xpp_window_plugin.h, the library's export and its tables; the generated C data of tools/embed.c and embed_bytes.c; rand_s), with no W109 entry left | W109e | ready |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
@@ -518,3 +524,100 @@ Each stage: its files' uses reduced to the entry points its callers in
 later stages still need, the counts before and after in the commit, no
 behaviour change (the md5s, goldencheck, servercheck, autocheck), and
 globalcheck not grown.
+
+## W109: the core's API in C++, in stages
+
+Every core source is C++ since W27, but at W109's start 78 of the 125
+core headers still declared a C API (`extern "C"` guards, W27's "the API
+stays C", kept while the files were converted), and 17 .cpp files had
+`extern "C"` definitions or blocks. The maintainer (2026-09-30): C++
+linkage, in namespace xpp, with C++ types at the boundary
+(std::string_view, std::span, references), keeping `extern "C"` only
+where C really calls across; a source check against new ones; in stages
+by module; each stage timed, and if C++ costs speed the card stops.
+
+What truly needs C linkage, and stays (tools/externcheck.sh's permanent
+entries):
+
+- `core/xpp_window_plugin.h`: libxppwindow.so's one export,
+  `xpp_window_plugin_init`, which the loader finds with dlsym by its C
+  name, and the tables it trades (XppWindowHost, XppWindowApi), the C ABI
+  across the shared library (W13e);
+- data the build generates as C and compiles with $(CC): tools/embed.c's
+  web_assets.c (`xpp_web_assets`, xpp_http.cpp) and tools/embed_bytes.c's
+  icon and window library (`xpp_icon_png`, `xpp_window_lib`,
+  xpp_window.cpp and xpp_window_loader.cpp);
+- `rand_s`, the Windows C library's, which stdlib.h declares only under
+  _CRT_RAND_S (xpp_http.cpp).
+
+Nothing else is called from C: CVODE (W27a), AUTO's translated routines
+and every callback handed to a library are compiled as C++, and the C
+libraries' own headers (webview, miniz, the OS) declare their callback
+types themselves. tests/test_job.c is the one C caller of a core header
+(xpp_job.h); W109f makes it .cpp.
+
+The stages, by module, in the order that keeps each one small and leaves
+the hot path to be timed alone:
+
+- W109a, the owner modules (I/O, files, logging, numerics, memory):
+  xpp_files, xpp_log, xpp_math, xpp_mem (xpp_io had no guard: its C API
+  under the handles is retired instead);
+- W109b, the integrator, the solvers and CVODE: 24 headers;
+- W109c, the parser and the load: 11;
+- W109d, AUTO: 8;
+- W109e, the drawing, the data modules, the UI seam and the commands: 24;
+- W109f, the threads and the window's edges, test_job.c to .cpp: 6
+  (xpp_window_plugin.h stays).
+
+What a stage does to a module: drop the guard (a header is C++ only, no
+`#ifdef __cplusplus`); put the declarations in namespace xpp (an owner's
+own namespace inside it where it has one, `xpp::files`); a function's
+module prefix becomes its namespace (`xpp_files_exists` is
+`xpp::files::exists`, `xpp_out_of_memory` `xpp::out_of_memory`,
+`xpp_fft` `xpp::fft`; the printf logger `xpp_log` is
+`xpp::log_printf`, beside the std::format `xpp::log`); text a function
+only reads is a std::string_view, a pointer and a length a std::span, an
+out-parameter a reference, a yes/no a bool; a C API with no caller but
+its own C++ wrapper goes (xpp_io's); the callers renamed; the module's
+lines in tools/externcheck.sh lowered or deleted (the check fails on a
+file whose count is below its entry, so the list follows the stages
+down). A name that is the C library's or a library's own keeps its C
+spelling, and a type every caller names (XppLogLevel, which the window
+library's C table names too) keeps its name.
+
+Speed (the maintainer's rule): each stage is timed before and after, the
+two binaries built the same way (WSL gcc 15, the Makefile's -g -O2) and
+alternated, 3 runs each with nothing else running: tools/examples_check.sh's
+wall time (JOBS=4), examples/ode/kuramot100.ode -silent, and
+examples/scripts/lecar_auto.jsonl (an AUTO continuation, about 4 s). W109a
+found that the wall time is decided by where the linker puts the code,
+not by the change:
+
+| build (W109a's timing), min / median (s) | examples_check | kuramot100 | lecar AUTO |
+|---|---|---|---|
+| master, -g -O2 | 19.08 / 19.21 | 9.35 / 9.37 | 3.90 / 3.96 |
+| this stage, -g -O2 | 19.79 / 19.89 | 10.18 / 10.20 | 3.95 / 4.00 |
+| master, -g -O2 -falign-functions=64 | 20.35 / 20.35 | 10.69 / 10.70 | 4.02 / 4.09 |
+| this stage (its first revision), -g -O2 -falign-functions=64 | 19.28 / 19.38 | 9.68 / 9.73 | 3.99 / 4.03 |
+
+(the -g -O2 rows: the last 3 of 4 alternated rounds, the first a warm-up;
+master alone before the stage, 3 runs: 19.14 / 19.29, 9.44 / 9.77,
+4.03 / 4.04; the stage's first revision, which still had the append
+Writer and the readers' out-of-line moves, 20.63 / 20.63, 10.73 / 10.80,
+4.06 / 4.10.) Both builds execute the same instructions: callgrind counts
+7,115,206,679 (master) and 7,115,208,960 (W109a) for kuramot100
+shortened to total=10, and 23,001,123,785 and 22,994,163,044 for the
+AUTO script. 70% of kuramot100's time is the expression interpreter
+(expr_eval.cpp's eval_rpn), 20% libm's sin; W109a did not touch either,
+but the files linked before the interpreter changed size, so it and
+what it calls sit elsewhere (its start moved by 0x480 bytes), and on this
+machine (AMD Ryzen 9 8945HX, Zen 4) that is worth 9% of kuramot100 one way
+or the other: built with every function on 64 bytes, master is the slow
+one and W109a the fast one, by as much. So a stage's wall time compares
+layouts as much as code; each stage also reports callgrind's instruction
+counts for kuramot100 (total=10) and the AUTO script, which do not
+depend on the layout, and a stage whose instruction counts grow beyond
+the noise is the one that costs speed. Pinning the interpreter's layout
+(so that an unrelated change cannot cost the shipped program 10%) is a
+question of its own, for the maintainer (the release build is LTO's, a
+layout again different).

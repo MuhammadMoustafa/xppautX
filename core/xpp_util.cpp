@@ -585,12 +585,12 @@ void eq_import(xpp::Session &s, double *y,int n)
     if(sparity==0){
       for(i=0;i<n;i++)
 	s.auto_state.homo_l[i]=y[i];
-      xpp_log(XPP_LOG_INFO, "Saved to left equilibrium\n");
+      xpp::log_printf(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     if(sparity==1){
       for(i=0;i<n;i++)
 	s.auto_state.homo_r[i]=y[i];
-      xpp_log(XPP_LOG_INFO, "Saved to right equilibrium\n");
+      xpp::log_printf(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
     sparity=1-sparity;
   }
@@ -620,12 +620,12 @@ void do_txt_action(xpp::Session &s, const char *action)
 }
 
 /* ---- AUTO's private scratch directory (session.h: AutoState::dir),
-   made by xpp_files_make_temp_dir ---- */
+   made by xpp::files::make_temp_dir ---- */
 void xpp_cleanup_auto_dir(xpp::Session &s)
 {
   std::string &dir=s.auto_state.dir;
   if (!dir.empty()) {
-    xpp_files_remove_temp_dir(dir.c_str());
+    xpp::files::remove_temp_dir(dir.c_str());
     dir.clear();
   }
 }
@@ -634,6 +634,6 @@ void xpp_renew_auto_dir(xpp::Session &s)
 {
   std::string &dir=s.auto_state.dir;
   if (dir.empty()) return; /* none was made: AUTO writes beside the model */
-  xpp_files_remove_temp_dir(dir.c_str());
-  dir=xpp_files_make_temp_dir();
+  xpp::files::remove_temp_dir(dir.c_str());
+  dir=xpp::files::make_temp_dir();
 }

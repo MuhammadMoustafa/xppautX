@@ -1333,7 +1333,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.cause);
     return 1;
   }
-  if (xpp_files_exists(out.c_str()) && !auto_answer) {
+  if (xpp::files::exists(out.c_str()) && !auto_answer) {
     std::optional<std::string> answer = ask ? ask(out + " exists; replace it (yes/no)", "no") : std::nullopt;
     if (!answer || (*answer != "yes" && *answer != "y")) {
       xpp::log(XPP_LOG_ERROR, "{} exists and was left as it is (--convert --auto replaces it)\n", out);

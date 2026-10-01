@@ -306,7 +306,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
         rgb.assign(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(std::min(n, bytes.size())));
         rgb.resize(n);
     } catch (...) {
-        xpp_out_of_memory("taking a picture");
+        xpp::out_of_memory("taking a picture");
     }
     return rgb;
 }
@@ -485,7 +485,7 @@ void send_aplot(xpp::Session &s, const char *tag)
     try {
         if (nx * ny > 0) vals.resize(static_cast<size_t>(nx * ny));
     } catch (...) {
-        xpp_out_of_memory("sending an array plot");
+        xpp::out_of_memory("sending an array plot");
     }
     /* -1 (cells) / NaN (values): past the stored rows or columns (left blank) */
     BUF_LIT(&b, ",\"cells\":[");
@@ -556,7 +556,7 @@ void aplot_gif(ArrayPlotState &a, const char *file, int still)
     } else if (a.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
-        if ((a.fp = xpp_files_open_stream(file, "wb")) == NULL) {
+        if ((a.fp = xpp::files::open_stream(file, "wb")) == NULL) {
             j_err_msg("Cannot open file ");
             return;
         }

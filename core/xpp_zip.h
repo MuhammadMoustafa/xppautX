@@ -6,7 +6,7 @@
    zip archives, built and read in memory. Writing the bytes to a file is
    xpp_io's (xpp::Writer::binary), reading them xpp::read_bytes. C++ only.
    None of these throws: a failed allocation ends the program through
-   xpp_out_of_memory (xpp_mem.h), like every other core allocation. */
+   xpp::out_of_memory (xpp_mem.h), like every other core allocation. */
 #include <optional>
 #include <string>
 #include <string_view>

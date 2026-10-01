@@ -50,7 +50,7 @@ struct DataFormat {
     bool (*read)(const char *path, DataTable &table);
 };
 /* The format functions never throw: a failed allocation ends the program
-   through xpp_out_of_memory (xpp_mem.h). */
+   through xpp::out_of_memory (xpp_mem.h). */
 
 /* every format, in the Save data menu's order */
 std::span<const DataFormat> data_formats();

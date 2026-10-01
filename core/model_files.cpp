@@ -64,7 +64,7 @@ bool is_model_text(std::string_view bytes)
 std::string model_title(const Model &m)
 {
     if (m.saved_in.empty()) return m.this_file;
-    return m.this_file + " (saved in " + xpp_files_split_path(m.saved_in).second + ")";
+    return m.this_file + " (saved in " + xpp::files::split_path(m.saved_in).second + ")";
 }
 
 } // namespace xpp

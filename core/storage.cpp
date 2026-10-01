@@ -1,7 +1,7 @@
 
 #include "storage.h"
 #include "session.h"
-#include "xpp_mem.h" /* xpp_out_of_memory */
+#include "xpp_mem.h" /* xpp::out_of_memory */
 #include <stdlib.h> 
 #include <stdio.h>
 #include <array>
@@ -20,7 +20,7 @@ void init_alloc_info(xpp::Session &s)
   try {
     w.state.assign(w.xpv.nvec+w.xpv.node,0.0);
   } catch (const std::bad_alloc &) {
-    xpp_out_of_memory("the state vector");
+    xpp::out_of_memory("the state vector");
   }
   w.xpv.x=w.state.data();
 }
@@ -67,7 +67,7 @@ float **LentColumns::make(const DataStore &store, int n, int len, int last)
   try {
     own_.assign(n,std::vector<float>(len,0.0f));
   } catch (const std::bad_alloc &) {
-    xpp_out_of_memory("a derived data set's columns");
+    xpp::out_of_memory("a derived data set's columns");
   }
   table_.fill(nullptr);
   for(int c=0;c<n;c++)table_[c]=own_[c].data();

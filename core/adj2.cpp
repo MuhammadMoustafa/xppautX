@@ -430,7 +430,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
   /* now we iterate to get a good adjoint using implicit Euler's method */
   ytemp=0.0;
  for(i=0;i<node;i++){
-	yold[i]=1.+.01*(ndrand48()-.5); /* random initial data */
+	yold[i]=1.+.01*(xpp::ndrand48()-.5); /* random initial data */
 	
 	ytemp+=fabs(yold[i]);
 	}
@@ -520,12 +520,12 @@ mat=work+node;
   for(j=0;j<node;j++)yold[j]=yold[j]+.5*dt*fold[j];
   for(i=0;i<n2;i++)mat[i]=-jac[i][k2]*dt*.5;
   for(i=0;i<node;i++)mat[i+i*node]=1.+mat[i+i*node];
-  sgefa(mat,node,node,ipvt,&info);
+  xpp::sgefa(mat,node,node,ipvt,&info);
 if(info!=-1){
   
   return xpp::fail("adjoint","Univertible Jacobian");
 }
-sgesl(mat,node,node,ipvt,yold);
+xpp::sgesl(mat,node,node,ipvt,yold);
 return {};
 }
 

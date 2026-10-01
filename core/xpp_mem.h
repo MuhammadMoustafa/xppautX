@@ -10,8 +10,9 @@
    exit a failed allocation always took.
 
    C++ code whose std::string or std::vector could not allocate (it caught
-   std::bad_alloc: no exception may reach its C callers, CLAUDE.md "C and
-   C++") ends the program the same way xpp_malloc used to: an ERROR
+   std::bad_alloc where no exception may pass: a callback a C library or
+   the system calls, CLAUDE.md "C and C++") ends the program the same way
+   xpp_malloc used to: an ERROR
    "out of memory <what>", then exit(1).
 
    The core never calls the C library's malloc/calloc/realloc/strdup/free
@@ -33,19 +34,12 @@
    make asan (build/asan, AddressSanitizer + UBSan) and tools/asancheck.sh
    check that nothing leaks. */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string_view>
 
-#if defined(__cplusplus)
-[[noreturn]]
-#elif defined(__GNUC__)
-__attribute__((noreturn))
-#endif
-void xpp_out_of_memory(const char *what);
-
-#ifdef __cplusplus
-}
-#endif
+namespace xpp {
+/* what says what was being built ("reading a command"): the ERROR is
+   "out of memory <what>". It allocates nothing itself. */
+[[noreturn]] void out_of_memory(std::string_view what) noexcept;
+} // namespace xpp
 
 #endif
