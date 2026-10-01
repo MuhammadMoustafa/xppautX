@@ -16,6 +16,7 @@ The sections below give the details.
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
+| Security is designed in wherever input crosses a trust boundary (maintainer, 2026-10-01): the HTTP server and its token (xpp_http.cpp: 127.0.0.1 only, every route checks the token in constant time), `/files` and the `file` command (xpp_files.cpp: base names only, no links, temp-then-rename), the page's bound calls (`__xppFileDialog`, `__xppCloseWindow`), anything that starts a process (`XPPEDITOR`), temp folders, and every reader of a file a user may have been sent (.ode, .odex, scripts, our session files): no path outside its folder, no unbounded allocation or recursion from a value in the input, no shell built from input. A card that touches one says in its report what it checked and what an attacker could still do | review; asancheck and valgrindcheck for memory errors |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
 | Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140: none without a place, outside its allowlist), review |
 | No dead code | deadcode.sh, deadcheck.py |
@@ -37,7 +38,7 @@ side by side there stalled. Commit, then run the build and every check
 from WSL's own copy with `tools/wslrun.sh`, from Git Bash in the
 checkout (the main one or a worktree):
 
-    tools/wslrun.sh make -j8 WERROR=1 xppautx test
+    tools/wslrun.sh make -j4 WERROR=1 xppautx test
     tools/wslrun.sh tools/odexcheck.sh
     tools/wslrun.sh python3 tools/servercheck.py
 
@@ -92,7 +93,7 @@ comment on what landed.
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
-    tools/wslrun.sh sh -c 'make -j8 xppautx && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat'
+    tools/wslrun.sh sh -c 'make -j4 xppautx && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat'
 
 Run it (opens its desktop window; `--browser` for the browser front end):
 
@@ -148,7 +149,7 @@ xppautX never needs Node: `web2/dist` is built from `web2/src` and
 committed. After editing `web2/src`, from Git Bash:
 
     cd web2 && npm ci && npm run build && npm run check && npm test && npm run typecheck
-    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/ucrt
+    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j4 xppautx BUILDDIR=build/ucrt
     node tools/web2check.mjs      # state-level browser checks against ./xppautX.exe
                                   # (--only desktop,files,live,million runs a part)
 
@@ -320,7 +321,7 @@ windows-core; its binary needs no MSYS2 DLL). Use it for the native
 build, from Git Bash, into build/ucrt (objects of another toolchain must
 not be mixed in):
 
-    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j8 xppautx BUILDDIR=build/ucrt
+    PATH=/c/msys64/ucrt64/bin:$PATH mingw32-make -j4 xppautx BUILDDIR=build/ucrt
     python3 tools/servercheck.py --server ./xppautX.exe
     python3 tools/webcheck.py --bin ./xppautX.exe
 
@@ -341,7 +342,7 @@ The Makefile knows clang (`CLANG`: gcc-only
 own directory, the binary at build/clang/xppautX.exe (dynamically linked:
 run it with clang64/bin on PATH):
 
-    PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j8 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
+    PATH=/c/msys64/clang64/bin:$PATH mingw32-make -j4 build/clang/xppautX.exe BUILDDIR=build/clang CC=clang CXX=clang++ WERROR=1
 
 Windows API code lives only in `core/xpp_win32.cpp` (windows.h macros clash
 with core names like `max`, `MessageBox`, `VARTYPE`). The exceptions
@@ -358,10 +359,25 @@ difficulty) implements one card in the worktree its brief names:
 
 - Work only there, with every path in this file adapted to it; commit on
   its branch and stop. Never merge, push, touch master, or write to GitHub.
-- Every core C file you change becomes C++ in the same task (`git mv
-  core/x.c core/x.cpp`, then "C and C++" below), however small the
-  change: a logging call, a rename, one line. No exemption for sweeps.
-  Report verify.sh's `C++: N / M` before and after.
+- Read "Code quality" at the top first: every rule there holds for your
+  change, and the rows enforced by "review" are what the reviewer reads
+  your diff for, since no check will catch them (no fallbacks, all or
+  nothing loads, named constants, errors with their file and line,
+  security). Every source is C++ already: a new core/*.c or tests/*.c
+  fails sourcecheck.
+- Security (maintainer, 2026-10-01): a card that touches a trust
+  boundary ("Code quality"'s security row: the HTTP server, its token,
+  `/files`, the `file` command, the page's bound calls, starting a
+  process, temp files, reading a file a user may have been sent) is
+  thought through as an attack, not only as a feature: what a hostile
+  page, file or name could make it do. Say in the report what you
+  checked; a weakness you found but did not fix is reported, never left
+  silent.
+- Docs move with the change: docs/protocol.md for the protocol,
+  docs/manual/ for the UI (then web2's `npm run build`), CHANGELOG.md,
+  docs/xppautx-vs-xppaut.md and docs/xppaut-findings.md as "Code
+  quality" says, docs/odex-quirks.md for a new .ode quirk (and name it in
+  the report: the reviewer posts it to the VS Code extension's issue).
 - One operation, one module ("Single source" under Conventions): before
   writing a helper, look for the module that owns that kind of operation
   and use or extend it there; never add a local copy. If the owning
@@ -369,7 +385,10 @@ difficulty) implements one card in the worktree its brief names:
   copying it.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
   sections>`; never run verify.sh, the full web2check or
-  tools/asancheck.sh.
+  tools/asancheck.sh. Commit before `tools/wslrun.sh` (it checks HEAD
+  and refuses uncommitted changes). The machine is a laptop that
+  overheats (maintainer, 2026-09-29): build with -j4, and never run two
+  heavy things side by side (a build, servercheck, autocheck, web2check).
 - Keep token use low: read the parts of files you need (grep, `sed -n`
   ranges), pipe check output through tail/grep, never paste full logs.
 - Leave no `until`/`while` sleep loops or background runs behind.
