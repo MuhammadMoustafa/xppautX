@@ -175,7 +175,7 @@ void play_command(xpp::Session &s, const char *line);
 /* play start, pause, step, speed: at any moment (handle_async); false
    for any other line */
 bool play_async(const char *line);
-void j_play_recording(xpp::Session &s, const char *path); /* File/plaY recording, Open model of a .recx */
+void j_play_recording(xpp::Session &s, std::string_view path); /* File/plaY recording, Open model of a .recx */
 /* a recording playing pauses (a quit's question is the user's to answer) */
 void player_hold(void);
 /* the ms until the player acts (the command loop's and a question's wait
@@ -234,8 +234,12 @@ void out_line(const char *s, size_t n);
 void out_flush(void);
 void flush_pending(void);
 void send_buf(Buf *b);
-void send_simple(const char *ev, const char *key, const char *text);
+void send_simple(const char *ev, const char *key = nullptr, std::string_view text = {});
 void json_flush(void);
+/* a data module's event line (plot_data, phase_data, marks_data, ani_data);
+   the (line, n) form is the emit of auto_data, auto_settings and
+   numerics_settings, whose callbacks still take a pointer and a length */
+void data_emit(std::string_view line);
 void data_emit(const char *line, size_t n);
 
 /* ---- json_io.cpp: input and the JSON reader ---- */
@@ -282,27 +286,29 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
 int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v);
 int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 
-void j_err_msg(const char *msg);
+void j_err_msg(std::string_view msg);
 void j_ping(void);
-void j_bottom_msg(int line, const char *msg);
-void j_message_box(const char *msg);
+void j_bottom_msg(int line, std::string_view msg);
+void j_message_box(std::string_view msg);
 void j_kill_message_box(void);
-void j_title_text(const char *s);
-int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int kind);
-int j_new_string(const char *name, std::string &value, int kind);
+void j_title_text(std::string_view s);
+int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
+             std::string_view cancel, int kind);
+int j_new_string(std::string_view name, std::string &value, int kind);
 int j_yes_no_box(void);
-int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title);
-void j_respond_box(const char *button, const char *message);
-int j_checklist(const char *title, const char *const *names, int *flags, int n);
-int j_string_box(int row, int col, const char *title, const char *const *names, std::span<std::string> values,
+int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
+                 std::string_view title);
+void j_respond_box(std::string_view button, std::string_view message);
+int j_checklist(std::string_view title, const char *const *names, int *flags, int n);
+int j_string_box(int row, int col, std::string_view title, const char *const *names, std::span<std::string> values,
                  const int *kinds);
-int j_file_selector(const char *title, std::string &file, const char *wild);
+int j_file_selector(std::string_view title, std::string &file, std::string_view wild);
 int j_get_mouse_xy(xpp::Session &s, int *x, int *y);
 int j_rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_menu_choose(const struct XppMenu *m, int def);
 void j_show_menu(int which);
-void j_open_help(const char *chapter, const char *anchor);
-void j_copy_text(const char *what, const char *text);
+void j_open_help(std::string_view chapter, std::string_view anchor);
+void j_copy_text(std::string_view what, std::string_view text);
 int j_check_abort(void);
 int j_progress_begin(void);
 void j_progress(int nit, int icount, int cwidth);
@@ -338,7 +344,7 @@ void state_forget(void); /* what the model before showed (its last equilibrium) 
 
 void windows_init(void);
 void send_main_window(const char *title);
-void send_window(const char *what, unsigned long id, int w, int h, const char *title);
+void send_window(const char *what, unsigned long id, int w, int h, std::string_view title = {});
 void select_graph(xpp::Session &s, int i);
 void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
@@ -368,16 +374,16 @@ int j_film_clip(xpp::Session &s);
 void j_reset_film(xpp::Session &s);
 void j_movie_play_back(xpp::Session &s);
 void j_movie_auto_play(xpp::Session &s);
-void j_movie_save(xpp::Session &s, const char *basename, int fmat);
+void j_movie_save(xpp::Session &s, std::string_view basename, int fmat);
 void j_movie_make_anigif(xpp::Session &s);
 
 void aplot_changed(void); /* the data behind an array plot changed */
 void aplot_update(xpp::Session &s); /* at a command's end */
 void aplot_command(xpp::Session &s, const char *line);
 void aplot_key(xpp::Session &s, int ch);
-void j_aplot_make(xpp::Session &s, const char *name);
+void j_aplot_make(xpp::Session &s, std::string_view name);
 void j_aplot_redraw(xpp::Session &s);
-void j_aplot_draw_one(xpp::Session &s, const char *tag);
+void j_aplot_draw_one(xpp::Session &s, std::string_view tag);
 
 /* ---- json_auto.cpp ---- */
 
@@ -390,7 +396,7 @@ void auto_view_subscribe(int on);
 void auto_view_update(xpp::Session &s);
 void auto_key(xpp::Session &s, int ch);
 void auto_redraw_for_client(xpp::Session &s);
-void j_auto_make_window(xpp::Session &s, const char *wname, const char *iname);
+void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_view iname);
 int j_auto_check_abort(int *iflag);
 int j_auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
 int j_auto_grab_event(xpp::Session &s, int *x, int *y);

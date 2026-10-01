@@ -52,7 +52,7 @@ void make_active(xpp::Session &s, int i, int flag)
 {
     s.plot_windows.active = i;
     s.plot_windows.current = &s.plot_windows.graph[s.plot_windows.active];
-    xpp_ui.activate_graph(s,i, flag);
+    ui.activate_graph(s,i, flag);
 }
 
 int graph_of(const xpp::Session &s, XppWinId w)
@@ -64,7 +64,7 @@ int graph_of(const xpp::Session &s, XppWinId w)
 
 void clr_scrn(xpp::Session &s)
 {
-    xpp_ui.blank_draw_window(s);
+    ui.blank_draw_window(s);
     do_axes(s);
 }
 
@@ -237,8 +237,6 @@ void check_windows(xpp::Session &s)
  check_val(&s.plot_windows.current->ylo,&s.plot_windows.current->yhi,&zip,&zap);
 } 
 
-} // namespace xpp
-
 /* graf_par.h's */
 void check_val(double *x1, double *x2, double *xb, double *xd)
 {
@@ -280,8 +278,6 @@ void dump_ps(xpp::Session &s, int i)
      fmt->restore(s);
 }
 
-namespace xpp {
-
 void   redo_stuff(xpp::Session &s)
     {
       evaluate_derived(s);
@@ -318,7 +314,7 @@ void ps_restore(xpp::Session &s)
  ps_do_color(s.plot_file,0); 
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
- xpp_ui.draw_freeze(s);
+ ui.draw_freeze(s);
  }
  ps_end(s);
 }
@@ -332,7 +328,7 @@ void svg_restore(xpp::Session &s)
  do_axes(s);
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
- xpp_ui.draw_freeze(s);
+ ui.draw_freeze(s);
  }
   do_batch_nclines(s);
   do_batch_dfield(s); 
@@ -424,11 +420,11 @@ void new_parameter(xpp::Session &s)
       index=find_user_name(s.model(),PARAMBOX,name.data());
       if(index>=0){
 	get_val(s,s.model().upar_names[index],&z);
-	done=new_float(s,xpp::format("{} :",name.data()).c_str(),&z);
+	done=new_float(s,xpp::format("{} :",name),&z);
 	if(done==0){
 	  set_val(s,s.model().upar_names[index],z);
-	  xpp_ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
-	  xpp_ui.param_box_redraw(index);
+	  ui.param_box_set(index,xpp::format("{:.16g}",z).c_str());
+	  ui.param_box_redraw(index);
 	}
         if(done==-1){
          redo_stuff(s);
@@ -444,7 +440,7 @@ void   set_default_params(xpp::Session &s)
 
  for(int i=0;i<s.model().nupar;i++){
    set_val(s,s.model().upar_names[i],s.model().default_val[i]);
-   xpp_ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
+   ui.param_box_set(i,xpp::format("{:.16g}",s.model().default_val[i]).c_str());
  }
  
  redraw_params();
@@ -483,11 +479,11 @@ void man_ic(xpp::Session &s)
   double z;
   while(1){
     z=s.last_ic[index];
-    done=new_float(s,xpp::format("{} :",s.model().uvar_names[index]).c_str(),&z);
+    done=new_float(s,xpp::format("{} :",s.model().uvar_names[index]),&z);
     if(done==0){
       s.last_ic[index]=z;
-      xpp_ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
-      xpp_ui.ic_box_redraw(index);
+      ui.ic_box_set(index,xpp::format("{:.16g}",z).c_str());
+      ui.ic_box_redraw(index);
       index++;
       if(index>=s.model().node+s.model().nmarkov)return;
     }

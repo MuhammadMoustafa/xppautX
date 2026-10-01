@@ -141,10 +141,10 @@ static char **session_argv;
 static void run_session(void)
 {
     /* a monospace font the client can match: small 7x13, big 9x15 */
-    text_metrics.small_width = 7; text_metrics.small_height = 13;
-    text_metrics.big_width = 9; text_metrics.big_height = 15;
+    xpp::text_metrics.small_width = 7; xpp::text_metrics.small_height = 13;
+    xpp::text_metrics.big_width = 9; xpp::text_metrics.big_height = 15;
 
-    json_ui_install();
+    xpp::json_ui_install();
 #ifdef __APPLE__
     /* a document Finder or `open` gave xppautX.app when it launched it (an
        Apple Event, not an argument: xpp_window.h) is the model, loaded from
@@ -171,13 +171,13 @@ static void run_session(void)
        file or a session file): its saved model is loaded, from the file's
        own folder as File > Open model loads one, then what the file adds */
     std::optional<SavedFile> saved;
-    std::optional<RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
+    std::optional<xpp::RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
     std::vector<std::string> args;
     std::vector<char *> argv;
     args.assign(session_argv, session_argv + session_argc);
     for (size_t i = 1; i < args.size(); i++) {
         if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
-            recording = json_ui_recording_launch(args[i]);
+            recording = xpp::json_ui_recording_launch(args[i]);
             if (!recording) exit(1); /* the error said why */
             xpp::files::change_dir(xpp::files::split_path(recording->saved.in).first.c_str());
             args[i] = recording->model;
@@ -214,15 +214,15 @@ static void run_session(void)
     if (recording) json_ui_play_launched(loaded_session, recording->saved.in); /* loaded by the redraw below */
     /* the redraw loads a recording's model in the place of this one: the
        session from here is the one it ends in */
-    xpp::Session &s = json_ui_handle("{\"cmd\":\"redraw\"}");
+    xpp::Session &s = xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
     /* -tutorial and -runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || s.run_immediately == 1) {
-        if (program.tutorial == 1) do_tutorial();
+        if (program.tutorial == 1) xpp::do_tutorial();
         if (s.run_immediately == 1) run_the_commands(s, 4);
         s.run_immediately = 0;
-        json_ui_handle("{\"cmd\":\"state\"}");
+        xpp::json_ui_handle("{\"cmd\":\"state\"}");
     }
-    json_ui_loop();
+    xpp::json_ui_loop();
 }
 
 int main(int argc, char **argv)
@@ -285,13 +285,13 @@ int main(int argc, char **argv)
                 xpp::log_printf(XPP_LOG_ERROR, "xppautX: an AUTO or session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
                 return 2;
             }
-        return json_ui_silent(argc, argv);
+        return xpp::json_ui_silent(argc, argv);
     }
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */
     if (mode == MODE_WINDOW && (!open_browser || !xpp_window_supported())) mode = MODE_BROWSER;
     start_auto_dir();
-    if (script && !json_ui_set_script(script)) {
+    if (script && !xpp::json_ui_set_script(script)) {
         xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
         return 1;
     }

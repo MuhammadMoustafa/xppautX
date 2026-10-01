@@ -298,7 +298,7 @@ int find_range_item(const xpp::Session &s, const std::string &item, int *type, i
  }
  i=find_user_name(s.model(),IC,item);
  if(i<=-1){
-   err_msg(xpp::format(" {} is not a parameter or variable !",item).c_str());
+   err_msg(xpp::format(" {} is not a parameter or variable !",item));
    return(0);
  }
  *type=IC;
@@ -453,12 +453,12 @@ void monte_carlo(xpp::Session &s)
   new_float(s,"Tolerance:",&fixptguess.tol);
   while(1){
     z=fixptguess.xlo[i];
-    done=new_float(s,xpp::format("{}_lo :",s.model().uvar_names[i]).c_str(),&z);
+    done=new_float(s,xpp::format("{}_lo :",s.model().uvar_names[i]),&z);
     if(done==0)
       fixptguess.xlo[i]=z;
     if(done==-1)break;
     z=fixptguess.xhi[i];
-    done=new_float(s,xpp::format("{}_hi :",s.model().uvar_names[i]).c_str(),&z);
+    done=new_float(s,xpp::format("{}_hi :",s.model().uvar_names[i]),&z);
     if(done==0)
       fixptguess.xhi[i]=z;
     if(done==-1)break;
@@ -562,14 +562,14 @@ public:
   TakeFrame taker()
   {
     return [this]{
-      if(xpp_ui.film_clip(s_)!=0)return true;
+      if(ui.film_clip(s_)!=0)return true;
       out_=true;
       return false;
     };
   }
   static ShowProgress progress()
   {
-    return [](const std::string &line){ bottom_msg(2,line.c_str()); };
+    return [](const std::string &line){ bottom_msg(2,line); };
   }
   void report() const { if(out_)err_msg("Out of film"); }
 private:
@@ -856,7 +856,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
  do_this_liaprun(s,i,p);  /* sends parameter and index back */
  if(s.data_store.rows>2)auto_freeze_it(s);
  if(s.array_plot.range==1)
-   draw_one_array_plot(s,bob.c_str());
+   draw_one_array_plot(s,bob);
  
  if(res==1||s.stochastic.flag)
    {
@@ -1150,7 +1150,7 @@ void do_init_data(xpp::Session &s, int com)
       break;
     }
     si=1;
-    new_int(xpp::format("Which? (1-{})",s.manifolds.count).c_str(),&si);
+    new_int(xpp::format("Which? (1-{})",s.manifolds.count),&si);
     si--;
     if(si<s.manifolds.count&&si>=0){
       for(i=0;i<s.model().node;i++)

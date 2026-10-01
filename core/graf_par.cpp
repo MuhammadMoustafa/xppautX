@@ -29,6 +29,8 @@
 #include "load_eqn.h"
 #include <libgen.h>
 
+namespace xpp {
+
 /*Default is now color*/
 
 #define SPER 3
@@ -474,7 +476,7 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
     else
       make_rot(s,thetaold,start+i*increment);
     redraw_the_graph(s);
-    xpp_ui.film_clip(s);
+    ui.film_clip(s);
   }
   s.plot_windows.current->Theta=thetaold;
   s.plot_windows.current->Phi=phiold;
@@ -702,7 +704,7 @@ void graph_all(xpp::Session &s, int *list, int n, int type)
 
 }
 
-int alter_curve(xpp::Session &s, const char *title, int in_it, int n)
+int alter_curve(xpp::Session &s, std::string_view title, int in_it, int n)
 {
  static const char *nn[]={"*0X-axis","*0Y-axis","*0Z-axis","*4Color","Line type"};
  std::array<std::string, 5> values;
@@ -742,9 +744,9 @@ void edit_curve(xpp::Session &s)
 {
  int crv=0;
  ping();
- new_int(xpp::format("Edit 0-{} :",s.plot_windows.current->nvars-1).c_str(),&crv);
+ new_int(xpp::format("Edit 0-{} :",s.plot_windows.current->nvars-1),&crv);
  if(crv>=0&&crv<s.plot_windows.current->nvars)
-   alter_curve(s,xpp::format("Edit curve {}",crv).c_str(),crv,crv);
+   alter_curve(s,xpp::format("Edit curve {}",crv),crv,crv);
 }
 
 void new_curve(xpp::Session &s)
@@ -775,7 +777,7 @@ void export_plot_picture(xpp::Session &s, int fmt)
    filename+=xpp::format(".{}",f.extension);
    title="Print svg";
  }
- if(!file_selector(title.c_str(),filename,xpp::format("*.{}",f.extension).c_str()))return;
+ if(!file_selector(title,filename,xpp::format("*.{}",f.extension)))return;
  if(xpp::ok_or_show(f.begin(s,filename.c_str(),s.plot_export.color))){
    f.restore(s);
    ping();
@@ -1237,3 +1239,4 @@ void add_a_curve_com(xpp::Session &s, int c)
    
 }
 
+} // namespace xpp

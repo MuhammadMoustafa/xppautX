@@ -1,21 +1,15 @@
 #ifndef _aniparse_h_
 #define _aniparse_h_
 
-
 #include "xpplim.h"
 #include "xpp_types.h"
 #include "load_eqn.h"
-#ifdef __cplusplus
 #include <string>
-extern "C" {
-#endif
 
+namespace xpp {
+struct Session; /* session.h */
 
 void reset_comets(void);
-
-
-#ifdef __cplusplus
-}
 
 /* The animator's options: the -anifile to load at the start, and whether
    the animation follows an integration as it runs */
@@ -51,25 +45,22 @@ struct AnimationState {
   MPEG_SAVE mpeg;
 };
 
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* The animation window of the session s: its buttons, the mouse, a frame
    drawn (render_ani), the model's animation file loaded (get_ani_file: 1
    when one was), and the frames shown while integrating (on_the_fly) */
-void update_ani_motion_stuff(xpp::Session &s, int x, int y);
-void ani_create_mpeg(xpp::Session &s);
-void ani_newskip(xpp::Session &s);
-void on_the_fly(xpp::Session &s, int task);
-void ani_view_created(xpp::Session &s);
-void ani_grab_start(xpp::Session &s);
-void ani_reset(xpp::Session &s);
-void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy);
-void ani_flip1(xpp::Session &s, int n);
-void ani_zero(xpp::Session &s);
-int get_ani_file(xpp::Session &s, const char *fname);
-void render_ani(xpp::Session &s);
-void set_ani_perm(xpp::Session &s);
-#endif
+void update_ani_motion_stuff(Session &s, int x, int y);
+void ani_create_mpeg(Session &s);
+void ani_newskip(Session &s);
+void on_the_fly(Session &s, int task);
+void ani_view_created(Session &s);
+void ani_grab_start(Session &s);
+void ani_reset(Session &s);
+void ani_grab_mouse(Session &s, int flag, int ix, int iy);
+void ani_flip1(Session &s, int n);
+void ani_zero(Session &s);
+int get_ani_file(Session &s, const char *fname);
+void render_ani(Session &s);
+void set_ani_perm(Session &s);
+
+} // namespace xpp
 #endif

@@ -9,6 +9,8 @@
 #include <cstring>
 #include <vector>
 
+namespace xpp {
+
 #define BLOKLEN 255
 #define BUFLEN 1000
 #define TERMIN 'T'
@@ -522,3 +524,5 @@ void gif_stuff_ppm(unsigned char *ppm,int w,int h,FILE *fp,int task)
    break;
  }
 }
+
+} // namespace xpp

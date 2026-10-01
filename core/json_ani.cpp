@@ -21,9 +21,6 @@
 #include "model.h"
 
 /* the core's own globals and functions that have no header of their own */
-extern "C" {
-}
-
 namespace xpp::json {
 
 /* ---- animation window ------------------------------------------------------------ */
@@ -106,9 +103,9 @@ void ani_go(xpp::Session &s)
         int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
         for (i = 0; i < s.model().node + s.model().nmarkov; i++) y[i] = ss[i + 1][row];
         set_fix_rhs(s,static_cast<double>(ss[0][row]), y);
-        xpp_ui.ani_clear();
+        ui.ani_clear();
         render_ani(s);
-        xpp_ui.ani_show();
+        ui.ani_show();
         if (ppm || gif) {
             std::vector<unsigned char> rgb = ask_pixels(WIN_ANI, -1, &w, &h);
             if (rgb.empty()) break;
@@ -175,10 +172,10 @@ void ani_command(xpp::Session &s, const char *line)
         if (s.animation.vcr.iexist) {
             s.animation.vcr.iexist = 0;
             s.animation.grab_flag = 0;
-            send_window("destroy", WIN_ANI, 0, 0, NULL);
+            send_window("destroy", WIN_ANI, 0, 0);
         }
     } else {
-        j_err_msg(xpp::format("Unknown ani op {}", o).c_str());
+        j_err_msg(xpp::format("Unknown ani op {}", o));
         return;
     }
     send_ani_slider(s);
@@ -187,7 +184,7 @@ void ani_command(xpp::Session &s, const char *line)
 /* a key of the animation window (menu_ani_window) */
 void ani_key(xpp::Session &s, int ch)
 {
-    switch (xpp_menu_index(&menu_ani_window, ch)) {
+    switch (menu_index(&menu_ani_window, ch)) {
     case NK_FILE:
         /* a new animation shows its first frame at once when there is data */
         if (get_ani_file(s,NULL) && s.browser.view.maxrow >= 2) ani_reset(s);

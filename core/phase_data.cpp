@@ -24,8 +24,7 @@
 #include "many_pops.h"
 #include "form_ode.h"
 
-extern "C" {
-}
+namespace xpp {
 
 namespace {
 
@@ -205,7 +204,7 @@ void send_nullclines(const xpp::Session &s, int pop, const Nullclines &nc)
         o += '}';
     }
     o += "]}";
-    emit_line(o.data(), o.size());
+    emit_line(o);
 }
 
 void send_dfield(const GRAPH &g, const Field &f)
@@ -237,7 +236,7 @@ void send_dfield(const GRAPH &g, const Field &f)
         o += '}';
     }
     o += "]}";
-    emit_line(o.data(), o.size());
+    emit_line(o);
 }
 
 void update(const xpp::Session &s)
@@ -264,11 +263,11 @@ void update(const xpp::Session &s)
 
 } // namespace
 
-/* ---- the C API: no exception leaves it (out of memory drops the record) ---- */
+/* ---- the API: no exception leaves it (out of memory drops the record) ---- */
 
-extern "C" void phase_data_init(PhaseDataEmit emit) { emit_line = emit; }
+void phase_data_init(PhaseDataEmit emit) { emit_line = emit; }
 
-extern "C" void phase_data_subscribe(int nullclines, int dfield, int f32)
+void phase_data_subscribe(int nullclines, int dfield, int f32)
 {
     nullclines_on = nullclines != 0;
     dfield_on = dfield != 0;
@@ -286,7 +285,7 @@ void phase_data_update(const xpp::Session &s)
     }
 }
 
-extern "C" void phase_data_cleared(int pop)
+void phase_data_cleared(int pop)
 {
     if (!emit_line || pop < 0 || pop >= MAXPOP) return;
     Window &w = windows[pop];
@@ -363,9 +362,9 @@ void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, d
     }
 }
 
-extern "C" void phase_data_flow_start(void) { flowing = emit_line != nullptr; }
+void phase_data_flow_start(void) { flowing = emit_line != nullptr; }
 
-extern "C" void phase_data_flow_next(void) { trajectory++; }
+void phase_data_flow_next(void) { trajectory++; }
 
 void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox, const float *oy, const float *x,
                           const float *y, const int *color)
@@ -392,7 +391,7 @@ void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox
     }
 }
 
-extern "C" void phase_data_flow_stop(void)
+void phase_data_flow_stop(void)
 {
     flowing = false;
     for (Window &w : windows)
@@ -402,3 +401,5 @@ extern "C" void phase_data_flow_stop(void)
                 xpp::out_of_memory("recording the flow");
             }
 }
+
+} // namespace xpp

@@ -357,7 +357,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 	}
 	if(flags[i].anypars){
 	  xpp::evaluate_derived(s);
-	  redraw_params();
+	  xpp::redraw_params();
 	}
       }
     }

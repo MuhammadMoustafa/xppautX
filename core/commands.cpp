@@ -48,10 +48,12 @@
 #include "expr.h"
 #include "model.h"
 
+namespace xpp {
+
 /* Pop up m and return the index of the chosen item, -1 if none. */
 static int menu_pick(const XppMenu *m, int def)
 {
-  return xpp_menu_index(m, menu_choose(m, def));
+  return menu_index(m, menu_choose(m, def));
 }
 
 /* Pop up m and run the command of the chosen item in the session s. */
@@ -66,7 +68,7 @@ static void menu_run(xpp::Session &s, const XppMenu *m, int def)
 
 void show_main_menu(int which)
 {
-  xpp_ui.show_menu(which);
+  ui.show_menu(which);
   help_menu = which;
 }
 
@@ -77,7 +79,7 @@ void do_tutorial(void)
   int tut = 0;
   xpp::log_printf(XPP_LOG_INFO, "Running tutorial!\n");
   while (1) {
-    char ans = static_cast<char>(xpp_ui.two_choice("Next", "Done", tutorial[tut], "nd",
+    char ans = static_cast<char>(ui.two_choice("Next", "Done", tutorial[tut], "nd",
                                        "Did you know you can..."));
     if (ans != 'n') /* 'd', or a front end that cannot ask */
       break;
@@ -135,25 +137,25 @@ void do_movie_com(xpp::Session &s, int c)
   std::string base;
   switch (c) {
   case 0:
-    if (xpp_ui.film_clip(s) == 0)
+    if (ui.film_clip(s) == 0)
       respond_box("Okay", "Out of film!");
     break;
   case 1: reset_film(s); break;
-  case 2: xpp_ui.movie_play_back(s); break;
+  case 2: ui.movie_play_back(s); break;
   case 3:
     new_int("Number of cycles", &k.cycles);
     new_int("Msec between frames", &k.frame_ms);
     if (k.frame_ms < 0) k.frame_ms = 0;
     if (k.cycles <= 0) return;
-    xpp_ui.movie_auto_play(s);
+    ui.movie_auto_play(s);
     break;
   case 4:
     base = "frame";
     new_string_of("Base file name", base, XPP_FIELD_FILE);
     if (!base.empty())
-      xpp_ui.movie_save(s,base.c_str(), 2);
+      ui.movie_save(s,base.c_str(), 2);
     break;
-  case 5: xpp_ui.movie_make_anigif(s); break;
+  case 5: ui.movie_make_anigif(s); break;
   case 6: break;
   }
 }
@@ -208,13 +210,13 @@ static void copy_set_line(xpp::Session &s)
   if (!new_string("Name of the set", name)) return;
   std::string problem = xpp::intern_set_name_problem(s.model(), name);
   if (!problem.empty()) {
-    err_msg(problem.c_str());
+    err_msg(problem);
     return;
   }
   std::string line = xpp::intern_set_line(s, name);
   std::string question = xpp::format("Copy this line to paste into the .ode, then reload:\n{}", line);
-  if (TwoChoice("Copy", "Cancel", question.c_str(), "cn") != 'c') return;
-  copy_text("set", line.c_str());
+  if (TwoChoice("Copy", "Cancel", question, "cn") != 'c') return;
+  copy_text("set", line);
 }
 
 /* ---- the command switch --------------------------------------------- */
@@ -249,7 +251,7 @@ void run_the_commands(xpp::Session &s, int com)
     if ((com - M_DD) == 1)
       return;
     create_new_cline(s);
-    xpp_ui.redraw_graph(s);
+    ui.redraw_graph(s);
     return;
   }
   if (com >= M_WW && com <= M_WS) {
@@ -497,7 +499,7 @@ void commander(xpp::Session &s, int ch)
     case 'v': xpp_session_save(s, nullptr, -1); break;
     case 'n': xpp_session_load(s, nullptr); break;
     case 'd': record_toggle(s); break;
-    case 'y': play_recording(s,nullptr); break;
+    case 'y': play_recording(s,""); break;
     case 'x': edit_xpprc(); break;
     case 'u': do_tutorial(); break;
     }
@@ -505,3 +507,5 @@ void commander(xpp::Session &s, int ch)
     break;
   }
 }
+
+} // namespace xpp

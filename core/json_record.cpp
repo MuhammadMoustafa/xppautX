@@ -110,14 +110,14 @@ std::string key_label(const std::string &k, int menu, const std::string &win)
 {
     const int ch = key_code(k.c_str());
     if (!win.empty()) {
-        const XppWindowLayer *l = xpp_window_layer(win.c_str());
-        const int i = l ? xpp_menu_index(l->menu, ch) : -1;
-        return i < 0 ? xpp::format("{} key {}", win, k) : xpp::format("{} → {}", l->menu->title, xpp_menu_label(l->menu->items[i]));
+        const XppWindowLayer *l = window_layer(win);
+        const int i = l ? menu_index(l->menu, ch) : -1;
+        return i < 0 ? xpp::format("{} key {}", win, k) : xpp::format("{} → {}", l->menu->title, menu_label(l->menu->items[i]));
     }
-    const char *item = xpp_main_menu_item(menu, ch);
+    const char *item = main_menu_item(menu, ch);
     if (!item) return "Key " + k;
-    const char *in = menu == FILE_MENU ? xpp_main_menu_item(MAIN_MENU, 'f') : menu == NUM_MENU ? xpp_main_menu_item(MAIN_MENU, 'u') : nullptr;
-    return in ? xpp_menu_label(in) + " → " + xpp_menu_label(item) : xpp_menu_label(item);
+    const char *in = menu == FILE_MENU ? main_menu_item(MAIN_MENU, 'f') : menu == NUM_MENU ? main_menu_item(MAIN_MENU, 'u') : nullptr;
+    return in ? menu_label(in) + " → " + menu_label(item) : menu_label(item);
 }
 
 /* the step's line, one JSON object */
@@ -228,12 +228,12 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     xpp::Writer w = open_writer_asking(file.c_str());
     if (!w) return false;
     if (!w.write(recx::text(*recorder.rec)) || !w.commit()) {
-        j_err_msg(xpp::format("Cannot write {}", file).c_str());
+        j_err_msg(xpp::format("Cannot write {}", file));
         return false;
     }
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
-    bottom_msg(0, done.c_str());
+    bottom_msg(0, done);
     xpp::files::observe_reads(nullptr);
     recorder = Recorder{};
     return true;
@@ -258,7 +258,7 @@ void record_command(xpp::Session &s, const char *line)
         get_string(line, "text", text);
         recorder.note = text;
     } else {
-        j_err_msg(xpp::format("Unknown record op {}", o).c_str());
+        j_err_msg(xpp::format("Unknown record op {}", o));
     }
 }
 
@@ -321,9 +321,9 @@ void record_answer(const char *kind, const char *answer, bool ok)
 void record_menu_pick(const XppMenu *m, int ch)
 {
     StepTaken &t = recorder.step;
-    const int i = xpp_menu_index(m, ch);
+    const int i = menu_index(m, ch);
     if (!recorder.rec || !t.open || i < 0) return;
-    t.label += " → " + xpp_menu_label(m->items[i]);
+    t.label += " → " + menu_label(m->items[i]);
     if (m->kinds) t.view = m->kinds[i] == XPP_KIND_VIEW;
 }
 

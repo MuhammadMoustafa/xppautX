@@ -197,10 +197,10 @@ namespace {
 xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *name)
 {
   std::string filename=name;
-  if(!file_selector(title,filename,"*.dat"))return xpp::Writer();
+  if(!xpp::file_selector(title,filename,"*.dat"))return xpp::Writer();
   if(diagram_count(s.diagram)<2)return xpp::Writer();
   xpp::Writer w(filename.c_str());
-  if(!w)err_msg("Can't open file");
+  if(!w)xpp::err_msg("Can't open file");
   return w;
 }
 
@@ -212,7 +212,7 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
   xpp::DIAGRAM *d;
   int type,flag=0;
   std::string filename=name;
-  if(!file_selector(title,filename,wild))return;
+  if(!xpp::file_selector(title,filename,wild))return;
   if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color)))
     return;
   draw_export_axes(s);

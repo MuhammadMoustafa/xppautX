@@ -2,19 +2,15 @@
 #define _nullcline_h_
 
 #include "xpplim.h"
+#include <string>
+#include <string_view>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+namespace xpp {
+struct Session; /* session.h */
 
 /* the nullclines (current, or frozen number who) as segments: 4 floats each */
 int get_nullcline_floats(float **v, int *n, int who, int type);
 
-#ifdef __cplusplus
-}
-
-#include <string>
 /* nullcline.cpp's settings, a Session's (session.h): a batch run's
    nullclines and direction field (@ ncdraw=, dfdraw=), the nullclines'
    colours, the direction field's grid and kind (df_flag), set while it
@@ -30,25 +26,22 @@ struct NullclineSettings {
   int colorize_flag = 0;
 };
 
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* The nullclines and the direction field of the session s's active plot
    window: its commands, and redrawn with it */
-void create_new_cline(xpp::Session &s);
-void froz_cline_stuff_com(xpp::Session &s, int i);
-void redraw_dfield(xpp::Session &s);
-void direct_field_com(xpp::Session &s, int c);
-void restore_nullclines(xpp::Session &s);
-void new_clines_com(xpp::Session &s, int c);
-void do_batch_nclines(xpp::Session &s);
-void do_batch_dfield(xpp::Session &s);
+void create_new_cline(Session &s);
+void froz_cline_stuff_com(Session &s, int i);
+void redraw_dfield(Session &s);
+void direct_field_com(Session &s, int c);
+void restore_nullclines(Session &s);
+void new_clines_com(Session &s, int c);
+void do_batch_nclines(Session &s);
+void do_batch_dfield(Session &s);
 /* the direction field the current window shows, one arrow a line (x y
    and the arrow's end), in PostScript's frame (-silent's dirfields.dat,
    the protocol's `dfield` `write`); an error message when it shows none */
-void write_dfield(xpp::Session &s, const char *name);
+void write_dfield(Session &s, std::string_view name);
 /* the orbits' colouring (@ colorize=, colorvia=) of s in use */
-void set_colorization_stuff(xpp::Session &s);
-#endif
+void set_colorization_stuff(Session &s);
+
+} // namespace xpp
 #endif

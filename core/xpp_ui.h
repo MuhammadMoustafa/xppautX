@@ -2,6 +2,15 @@
 #define XPP_UI_H
 
 #include "xpplim.h"
+#include <stdio.h>
+#include <span>
+#include <string>
+#include <string_view>
+#include "xpp_error.h"
+
+namespace xpp {
+struct Session; /* session.h */
+
 /*
  * The seam between the numerics and whatever front end is driving them.
  *
@@ -27,14 +36,6 @@
  *   check_abort returns a key code, 27 for escape, 64 when nothing happened.
  */
 
-#include <stdio.h>
-#ifdef __cplusplus
-#include <span>
-#include <string>
-#include "xpp_error.h"
-extern "C" {
-#endif
-
 struct XppMenu; /* menus.h */
 
 /* What a prompt's field takes (T31): new_string_of, get_dialog_of and
@@ -52,7 +53,7 @@ enum {
 };
 /* a name from list n: 0 T and the variables, 1 the ODE variables,
    2 the parameters, 3 both (ui_json.cpp hello) */
-#define XPP_FIELD_NAME_IN(n) (XPP_FIELD_NAME + (n))
+#define XPP_FIELD_NAME_IN(n) (xpp::XPP_FIELD_NAME + (n))
 
 #define XPP_AUTO_CLICK 1000
 /* auto_grab_event: move the cursor to AUTO's diagram entry x (DIAGRAM.index) */
@@ -81,16 +82,16 @@ typedef struct XppDiagPoint {
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
-void err_msg(const char *string);
+void err_msg(std::string_view msg);
 void ping(void);
-void bottom_msg(int line, const char *msg);
-void MessageBox(const char *m);
+void bottom_msg(int line, std::string_view msg);
+void MessageBox(std::string_view m);
 void KillMessageBox(void);
-void title_text(const char *s);
-int new_int(const char *name, int *value);
+void title_text(std::string_view s);
+int new_int(std::string_view name, int *value);
 int yes_no_box(void);
-int TwoChoice(const char *c1, const char *c2, const char *q, const char *key);
-void respond_box(const char *button, const char *message);
+int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
+void respond_box(std::string_view button, std::string_view message);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 int my_abort(void);
@@ -115,15 +116,15 @@ void autobw(void);
 void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);
-void draw_auto_info(const char *bob, int x, int y);
+void draw_auto_info(std::string_view bob, int x, int y);
 void refreshdisplay(void);
 int byeauto_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
 void draw_help(void);
 void NewColormap(int type);
-void open_help(const char *chapter, const char *anchor);
-void copy_text(const char *what, const char *text);
+void open_help(std::string_view chapter, std::string_view anchor);
+void copy_text(std::string_view what, std::string_view text);
 
 /* The front end's character cell in pixels, for laying out the AUTO and
    array plot windows and text in plots: a big and a small monospace font.
@@ -134,44 +135,38 @@ typedef struct {
 } XppTextMetrics;
 extern XppTextMetrics text_metrics;
 
-#ifdef __cplusplus
-}
-
-/* ---- C++: the table and the dialogs that edit text ---------------------
+/* ---- the table and the dialogs that edit text ---------------------------
    The text a user types comes back in a std::string, as long as the
    front end sends it (no dialog cuts it, W76), instead of in a
-   caller's fixed char array (W32c). C++ only: std::string cannot cross
-   an extern "C" boundary, and every caller is C++. */
-
-namespace xpp {
-struct Session; /* session.h */
-}
+   caller's fixed char array (W32c); the text a dialog only shows is a
+   std::string_view (W109e). */
 
 typedef struct XppUi {
     /* messages */
-    void (*err_msg)(const char *msg);
+    void (*err_msg)(std::string_view msg);
     void (*ping)(void);
-    void (*bottom_msg)(int line, const char *msg);
-    void (*message_box)(const char *msg);
+    void (*bottom_msg)(int line, std::string_view msg);
+    void (*message_box)(std::string_view msg);
     void (*kill_message_box)(void);
-    void (*title_text)(const char *s);
+    void (*title_text)(std::string_view s);
 
     /* prompts */
-    int (*new_string)(const char *name, std::string &value, int kind);
+    int (*new_string)(std::string_view name, std::string &value, int kind);
     int (*yes_no_box)(void);
-    int (*two_choice)(const char *c1, const char *c2, const char *q, const char *key, const char *title);
-    void (*respond_box)(const char *button, const char *message); /* alert with one button */
+    int (*two_choice)(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
+                      std::string_view title);
+    void (*respond_box)(std::string_view button, std::string_view message); /* alert with one button */
     /* toggle a set of flags (1/0) by name; flags are edited in place and
        restored on cancel. Returns 1 for done, 0 for cancel. */
-    int (*checklist)(const char *title, const char *const *names, int *flags, int n);
+    int (*checklist)(std::string_view title, const char *const *names, int *flags, int n);
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
-    int (*string_box)(int row, int col, const char *title, const char *const *names,
+    int (*string_box)(int row, int col, std::string_view title, const char *const *names,
                       std::span<std::string> values, const int *kinds);
-    int (*file_selector)(const char *title, std::string &file, const char *wild);
+    int (*file_selector)(std::string_view title, std::string &file, std::string_view wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
-    int (*dialog)(const char *title, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int kind);
-    int (*get_mouse_xy)(xpp::Session &s, int *x, int *y);
+    int (*dialog)(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
+                  std::string_view cancel, int kind);
+    int (*get_mouse_xy)(Session &s, int *x, int *y);
 
     /* menus. show_menu makes MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the
        main-window menu; core sets help_menu and dispatches keys itself
@@ -197,51 +192,51 @@ typedef struct XppUi {
     void (*ic_box_set)(int i, const char *s);
     void (*ic_box_redraw)(int i);
     void (*redraw_ics)(void);
-    void (*redraw_all)(xpp::Session &s);
+    void (*redraw_all)(Session &s);
     void (*redraw_bcs)(void);
     void (*redraw_delays)(void);
-    void (*redraw_graph)(xpp::Session &s);
-    void (*redraw_screens)(xpp::Session &s);   /* every plot window */
-    void (*clear_screens)(xpp::Session &s);
-    void (*clear_draw_window)(xpp::Session &s);
-    void (*reset_graphics)(xpp::Session &s);
+    void (*redraw_graph)(Session &s);
+    void (*redraw_screens)(Session &s);   /* every plot window */
+    void (*clear_screens)(Session &s);
+    void (*clear_draw_window)(Session &s);
+    void (*reset_graphics)(Session &s);
     void (*data_changed)(int length); /* browser storage grew/shrank */
     /* an integration stored row nrows-1: storage[.][0..nrows) is the run so
        far, before data_changed at its end. Called for every row: keep it
        cheap (a front end that shows the run as it grows rate-limits itself) */
-    void (*rows_stored)(xpp::Session &s, int nrows);
+    void (*rows_stored)(Session &s, int nrows);
     void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */
-    void (*activate_graph)(xpp::Session &s, int i, int flag); /* graph i became plot_windows.current */
-    void (*create_plot_window)(xpp::Session &s);
-    void (*destroy_plot_window)(xpp::Session &s); /* the active one; not the main window */
-    void (*kill_plot_windows)(xpp::Session &s);   /* all but the main window */
+    void (*activate_graph)(Session &s, int i, int flag); /* graph i became plot_windows.current */
+    void (*create_plot_window)(Session &s);
+    void (*destroy_plot_window)(Session &s); /* the active one; not the main window */
+    void (*kill_plot_windows)(Session &s);   /* all but the main window */
     void (*lower_plot_window)(void);   /* put the active one at the bottom */
     void (*gr_col)(void);   /* pen: graph colours (GrCol) */
     void (*base_col)(void); /* pen: window colours (BaseCol) */
     /* Text,etc (T)ext: ask for a label, place it with the mouse, draw it
        and add_label() it */
-    void (*cput_text)(xpp::Session &s);
-    void (*get_draw_size)(xpp::Session &s, unsigned int *w, unsigned int *h);
-    void (*draw_freeze)(xpp::Session &s); /* frozen curves */
-    void (*blank_draw_window)(xpp::Session &s);
+    void (*cput_text)(Session &s);
+    void (*get_draw_size)(Session &s, unsigned int *w, unsigned int *h);
+    void (*draw_freeze)(Session &s); /* frozen curves */
+    void (*blank_draw_window)(Session &s);
     void (*small_base)(void);  /* pen selection for small text */
     void (*small_gr)(void);
-    int (*film_clip)(xpp::Session &s); /* returns 0 when the movie buffer is full */
-    void (*reset_film)(xpp::Session &s);
+    int (*film_clip)(Session &s); /* returns 0 when the movie buffer is full */
+    void (*reset_film)(Session &s);
     /* kinescope: the captured frames live in the front end */
-    void (*movie_play_back)(xpp::Session &s);  /* step through frames with keys/mouse */
-    void (*movie_auto_play)(xpp::Session &s);  /* the kinescope's cycles, frame_ms apart */
-    void (*movie_save)(xpp::Session &s, const char *basename, int fmat); /* 1 ppm, 2 gif */
-    void (*movie_make_anigif)(xpp::Session &s);
+    void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */
+    void (*movie_auto_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
+    void (*movie_save)(Session &s, std::string_view basename, int fmat); /* 1 ppm, 2 gif */
+    void (*movie_make_anigif)(Session &s);
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the
        corners in pixels when the user drew a box (flag RUBBOX) or line
        (RUBLINE), 0 when cancelled. scroll_window lets the user drag the
        view until a key is pressed (calling update_view). */
-    int (*rubber_band)(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-    void (*scroll_window)(xpp::Session &s);
+    int (*rubber_band)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
+    void (*scroll_window)(Session &s);
 
     /* colormap changed (custom_color) */
     void (*new_colormap)(int type);
@@ -259,13 +254,13 @@ typedef struct XppUi {
     void (*set_color)(int col);
 
     /* array plot window (arrayplot.h: aplot) */
-    void (*aplot_make)(xpp::Session &s, const char *name); /* open the array plot window */
-    void (*aplot_redraw)(xpp::Session &s);
-    void (*aplot_reset_axes)(xpp::Session &s);  /* its title and z range labels */
-    void (*aplot_draw_one)(xpp::Session &s, const char *tag); /* redraw, tag and save a range frame */
+    void (*aplot_make)(Session &s, std::string_view name); /* open the array plot window */
+    void (*aplot_redraw)(Session &s);
+    void (*aplot_reset_axes)(Session &s);  /* its title and z range labels */
+    void (*aplot_draw_one)(Session &s, std::string_view tag); /* redraw, tag and save a range frame */
 
     /* AUTO bifurcation window */
-    void (*auto_make_window)(xpp::Session &s, const char *wname, const char *iname);
+    void (*auto_make_window)(Session &s, std::string_view wname, std::string_view iname);
     void (*auto_line)(int a, int b, int c, int d);
     void (*auto_text)(int a, int b, const char *c);
     void (*auto_circle)(int x, int y, int r);
@@ -277,26 +272,26 @@ typedef struct XppUi {
     void (*auto_clear_plot)(void);
     void (*auto_redraw_menus)(void);
     void (*auto_clear_info)(void);
-    void (*auto_draw_info)(const char *s, int x, int y);
+    void (*auto_draw_info)(std::string_view s, int x, int y);
     void (*auto_refresh)(void);
     int (*auto_check_abort)(int *iflag);
-    int (*auto_rubber)(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-    void (*auto_scroll_window)(xpp::Session &s);
+    int (*auto_rubber)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
+    void (*auto_scroll_window)(Session &s);
     /* Grab: wait for a key (returns its code, mykeydef.h), a click on
        the diagram (returns XPP_AUTO_CLICK with the pixel in x,y) or a
        point of the diagram by its entry (XPP_AUTO_NODE, DIAGRAM.index in x) */
-    int (*auto_grab_event)(xpp::Session &s, int *x, int *y);
-    void (*auto_show_hint)(xpp::Session &s); /* Auto.hinttxt changed */
+    int (*auto_grab_event)(Session &s, int *x, int *y);
+    void (*auto_show_hint)(Session &s); /* Auto.hinttxt changed */
     /* the grab is over: done=1 a point was taken (Enter), -1 cancelled (Esc) */
     void (*auto_grab_end)(int done);
     /* The diagram as data, beside the drawing, in view `view` (W50,
        AutoState::views): p is a point add_point() just plotted there, NULL
        that the view was cleared and its axes drawn again. */
-    void (*auto_diagram)(xpp::Session &s, int view, const XppDiagPoint *p);
+    void (*auto_diagram)(Session &s, int view, const XppDiagPoint *p);
 
     /* animation (toon) window. Frames are drawn off screen, vcr.wid by
        vcr.hgt pixels (aniparse.h), then ani_show puts one on screen. */
-    void (*new_vcr)(xpp::Session &s);
+    void (*new_vcr)(Session &s);
     void (*ani_clear)(void);    /* white frame, black pen */
     void (*ani_show)(void);
     void (*ani_color)(int icol); /* 0 black, else a colour index */
@@ -306,103 +301,103 @@ typedef struct XppUi {
     void (*ani_rect)(int x, int y, int w, int h, int fill);
     void (*ani_arc)(int x, int y, int w, int h, int fill); /* ellipse in box */
     void (*ani_text)(int x, int y, const char *s);
-    void (*ani_slider)(xpp::Session &s);    /* vcr.pos changed */
+    void (*ani_slider)(Session &s);    /* vcr.pos changed */
 
     /* misc front-end hooks called while loading an ODE file */
     void (*init_txtview)(void);
 
     /* equilibrium eigenvalue summary window; ev: the n eigenvalues as
        (re, im) pairs, or NULL when there is no list (a delay equation) */
-    void (*show_eq_box)(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y,
+    void (*show_eq_box)(Session &s, int cp, int cm, int rp, int rm, int im, double *y,
                         double *ev, int n);
 
     /* Whole dialogs a front end provides; the core has no logic in them
-       beyond what they call back (do_calc, the ODE source in xpp::Model).
+       beyond what they call back (do_calc, the ODE source in Model).
        Headless: they do nothing. */
-    void (*make_txtview)(xpp::Session &s); /* File/Prt src: source and active comments */
-    void (*q_calc)(xpp::Session &s);       /* File/Calculator: evaluate formulas */
-    void (*open_help)(const char *chapter, const char *anchor); /* File/Help: open the manual there */
+    void (*make_txtview)(Session &s); /* File/Prt src: source and active comments */
+    void (*q_calc)(Session &s);       /* File/Calculator: evaluate formulas */
+    void (*open_help)(std::string_view chapter, std::string_view anchor); /* File/Help: open the manual there */
     /* File/cOpy set line: text for the user's clipboard (what: "set") */
-    void (*copy_text)(const char *what, const char *text);
+    void (*copy_text)(std::string_view what, std::string_view text);
     /* File/recorD: start recording the session's steps, or stop and save
        the recording (W59a, json_record.cpp) */
-    void (*record_toggle)(xpp::Session &s);
+    void (*record_toggle)(Session &s);
     /* File/plaY recording, or Open model of a .recx: the recording's model
-       loaded from it, ready to play its steps (NULL: ask for the file;
+       loaded from it, ready to play its steps (an empty path: ask for the file;
        W59b, json_player.cpp) */
-    void (*play_recording)(xpp::Session &s, const char *path);
+    void (*play_recording)(Session &s, std::string_view path);
     /* a recording is in progress: Quit offers to save it with the
        session (W59d) */
     bool (*recording)(void);
     /* the recording in progress saved (its name asked, as its stop asks)
        and ended: false on a cancel or a failure (W59d) */
-    bool (*save_recording)(xpp::Session &s);
+    bool (*save_recording)(Session &s);
 
     /* program is quitting */
     void (*exit_program)(void);
 } XppUi;
 
 /* The active table. Never NULL; defaults to the headless implementation. */
-extern XppUi xpp_ui;
+extern XppUi ui;
 
-void xpp_set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
+void set_ui(const XppUi *ui); /* copies; missing entries keep defaults */
 
 /* the historical names of the calls that act on a Session's windows or
    data: the Session is the caller's, passed to the front end (W47d6) */
-int GetMouseXY(xpp::Session &s, int *x, int *y);
-void rows_stored(xpp::Session &s, int nrows);
-void redraw_all(xpp::Session &s);
-void drw_all_scrns(xpp::Session &s);
-void clr_all_scrns(xpp::Session &s);
-void clear_draw_window(xpp::Session &s);
-void reset_graphics(xpp::Session &s);
-void create_a_pop(xpp::Session &s);
-void destroy_a_pop(xpp::Session &s);
-void kill_all_pops(xpp::Session &s);
-void cput_text(xpp::Session &s);
-void reset_film(xpp::Session &s);
-void draw_one_array_plot(xpp::Session &s, const char *bob);
-void make_auto(xpp::Session &s, const char *wname, const char *iname);
-int auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-void auto_scroll_window(xpp::Session &s);
-void auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
-void create_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
-int rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
-void scroll_window(xpp::Session &s);
-void make_my_aplot(xpp::Session &s, const char *name);
-void new_vcr(xpp::Session &s);
-void redraw_the_graph(xpp::Session &s);
-void make_txtview(xpp::Session &s);
-void q_calc(xpp::Session &s);
-void record_toggle(xpp::Session &s);
-void play_recording(xpp::Session &s, const char *path);
+int GetMouseXY(Session &s, int *x, int *y);
+void rows_stored(Session &s, int nrows);
+void redraw_all(Session &s);
+void drw_all_scrns(Session &s);
+void clr_all_scrns(Session &s);
+void clear_draw_window(Session &s);
+void reset_graphics(Session &s);
+void create_a_pop(Session &s);
+void destroy_a_pop(Session &s);
+void kill_all_pops(Session &s);
+void cput_text(Session &s);
+void reset_film(Session &s);
+void draw_one_array_plot(Session &s, std::string_view bob);
+void make_auto(Session &s, std::string_view wname, std::string_view iname);
+int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
+void auto_scroll_window(Session &s);
+void auto_diagram(Session &s, int view, const XppDiagPoint *p);
+void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
+int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
+void scroll_window(Session &s);
+void make_my_aplot(Session &s, std::string_view name);
+void new_vcr(Session &s);
+void redraw_the_graph(Session &s);
+void make_txtview(Session &s);
+void q_calc(Session &s);
+void record_toggle(Session &s);
+void play_recording(Session &s, std::string_view path);
 bool recording_in_progress(void);
-bool save_recording(xpp::Session &s);
+bool save_recording(Session &s);
 
 /* new_float: a number, or %formula worked out in s (0 on OK, -1 on
    cancel or an empty answer) */
-int new_float(xpp::Session &s, const char *name, double *value);
+int new_float(Session &s, std::string_view name, double *value);
 
 /* new_string / new_string_of: one line of text (kind: XPP_FIELD_*), value
    the default shown and, on OK, what was typed. 0 on cancel. */
-int new_string(const char *name, std::string &value);
-int new_string_of(const char *name, std::string &value, int kind);
+int new_string(std::string_view name, std::string &value);
+int new_string_of(std::string_view name, std::string &value, int kind);
 /* a form of values.size() fields named names[i], each kinds[i]
    (XPP_FIELD_*; NULL all text), every value of any length; 0 on cancel */
-int do_string_box(int row, int col, const char *title, const char *const *names,
+int do_string_box(int row, int col, std::string_view title, const char *const *names,
                   std::span<std::string> values);
-int do_string_box_of(int row, int col, const char *title, const char *const *names,
+int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds);
 /* a file name (base name or path, what the user picked) matching wild;
    0 on cancel or an empty name */
-int file_selector(const char *title, std::string &file, const char *wild);
+int file_selector(std::string_view title, std::string &file, std::string_view wild);
 /* one-line entry of any length with named buttons; 0 on cancel */
-int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel);
-int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int kind);
+int get_dialog(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
+               std::string_view cancel);
+int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
+                  std::string_view cancel, int kind);
 
-namespace xpp {
-/* the command layer's side of xpp::Error (xpp_error.h): shows what a
+/* the command layer's side of Error (xpp_error.h): shows what a
    computation it ran returned, as err_msg does (logging where at DEBUG);
    an empty `what` shows nothing (the computation said it already) */
 void show_error(const Error &e);
@@ -412,7 +407,6 @@ template <class T> bool ok_or_show(const Result<T> &r)
   if (!r) show_error(r.error());
   return r.has_value();
 }
-}
 
-#endif
+} // namespace xpp
 #endif

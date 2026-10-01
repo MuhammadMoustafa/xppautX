@@ -122,7 +122,7 @@ void send_buf(Buf *b)
     b->s.clear();
 }
 
-void send_simple(const char *ev, const char *key, const char *text)
+void send_simple(const char *ev, const char *key, std::string_view text)
 {
     Buf b;
     buf_format(&b, "{{\"ev\":\"{}\"", ev);
@@ -142,12 +142,14 @@ void json_flush(void)
 }
 
 /* a plots or series event: after the pending drawing, like any event */
-void data_emit(const char *line, size_t n)
+void data_emit(std::string_view line)
 {
     flush_pending();
-    out_line(line, n);
+    out_line(line.data(), line.size());
     out_flush();
 }
+
+void data_emit(const char *line, size_t n) { data_emit(std::string_view(line, n)); }
 
 /* ---- input ------------------------------------------------------------- */
 

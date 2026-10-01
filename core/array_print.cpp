@@ -7,6 +7,8 @@
 #include "array_print.h"
 #include "xpp_io.h"
 
+namespace xpp {
+
 
 #define GREYSCALE -1
 #define REDBLUE  0
@@ -249,3 +251,5 @@ int array_print(const char *filename, const char *xtitle, const char *ytitle, co
   ps_close();
   return 0;
 }
+
+} // namespace xpp

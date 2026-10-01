@@ -1,10 +1,11 @@
 #ifndef PHASE_DATA_H
 #define PHASE_DATA_H
-#include <stddef.h>
+
+#include <string_view>
 #include "many_pops.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+namespace xpp {
+struct Session; /* session.h */
 
 /* What a phase plane shows besides its curves, as data for a front end that
    draws it itself (docs/protocol.md "The plot as data", docs/ui-v2.md
@@ -26,9 +27,9 @@ extern "C" {
    at the end of a command, one per window whose record changed since the
    one it last got.
 
-   phase_data.cpp; C++ with a C API, nothing escapes it. */
+   phase_data.cpp; nothing escapes it. */
 
-typedef void (*PhaseDataEmit)(const char *line, size_t len);
+typedef void (*PhaseDataEmit)(std::string_view line);
 
 /* the front end that sends the events; nothing is recorded before this, so
    a program without such a front end (xppaut) pays nothing */
@@ -37,7 +38,6 @@ void phase_data_init(PhaseDataEmit emit);
 /* {"cmd":"data"}: the events wanted from now on (each is sent for every
    window at the next update) and whether values go as base64 float32 */
 void phase_data_subscribe(int nullclines, int dfield, int f32);
-
 
 /* plot window pop was blanked: it shows none of this any more */
 void phase_data_cleared(int pop);
@@ -49,16 +49,9 @@ void phase_data_flow_start(void);
 void phase_data_flow_next(void);
 void phase_data_flow_stop(void);
 
-#ifdef __cplusplus
-}
-
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* the end of a command on s: the events of every window whose record
    changed */
-void phase_data_update(const xpp::Session &s);
+void phase_data_update(const Session &s);
 
 /* The recorders below record into the active window of the plot windows pw
    (a Session's plot_windows), the one drawn in. */
@@ -84,5 +77,6 @@ void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, d
    (x[i], y[i]) in colour color[i] */
 void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox, const float *oy, const float *x,
                           const float *y, const int *color);
-#endif
+
+} // namespace xpp
 #endif

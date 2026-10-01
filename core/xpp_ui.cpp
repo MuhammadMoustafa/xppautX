@@ -10,28 +10,30 @@
 #include <string.h>
 #include "xpp_util.h"
 
+namespace xpp {
+
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(const char *msg) { xpp::log_printf(XPP_LOG_ERROR, "%s\n", msg); }
+static void hl_err_msg(std::string_view msg) { log(XPP_LOG_ERROR, "{}\n", msg); }
 static void hl_void(void) {}
-static void hl_str(const char *) {}
+static void hl_str(std::string_view) {}
 static void hl_int(int) {}
-static void hl_bottom_msg(int, const char *) {}
-static void hl_s(xpp::Session &) {}
-static void hl_s_int(xpp::Session &, int) {}
-static void hl_s_str(xpp::Session &, const char *) {}
-static int hl_new_string(const char *, std::string &, int) { return 0; }
+static void hl_bottom_msg(int, std::string_view) {}
+static void hl_s(Session &) {}
+static void hl_s_int(Session &, int) {}
+static void hl_s_str(Session &, std::string_view) {}
+static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
-static int hl_two_choice(const char *, const char *, const char *, const char *, const char *)
+static int hl_two_choice(std::string_view, std::string_view, std::string_view, std::string_view, std::string_view)
 {
     return 0;
 }
-static int hl_string_box(int, int, const char *, const char *const *, std::span<std::string>, const int *)
+static int hl_string_box(int, int, std::string_view, const char *const *, std::span<std::string>, const int *)
 {
     return 0;
 }
-static int hl_file_selector(const char *, std::string &, const char *)
+static int hl_file_selector(std::string_view, std::string &, std::string_view)
 {
     return 0;
 }
@@ -39,11 +41,11 @@ static int hl_menu_choose(const struct XppMenu *, int)
 {
     return 0;
 }
-static int hl_get_mouse_xy(xpp::Session &, int *, int *) { return 0; }
+static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
 static int hl_check_abort(void) { return 64; }
 static void hl_progress(int, int, int) {}
-static void hl_activate_graph(xpp::Session &, int, int) {}
-static void hl_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
+static void hl_activate_graph(Session &, int, int) {}
+static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
 {
     /* whatever the graph last had, else a sensible canvas */
     const GRAPH *g = s.plot_windows.current;
@@ -51,22 +53,22 @@ static void hl_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h)
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
 static void hl_put_text(int, int, const char *) {}
-static int hl_film_clip(xpp::Session &) { return 1; }
+static int hl_film_clip(Session &) { return 1; }
 static void hl_draw_point(int, int) {}
 static void hl_draw_line(int, int, int, int) {}
 static void hl_draw_frect(int, int, int, int) {}
 static void hl_draw_special_text(int, int, const char *, int) {}
-static void hl_auto_make_window(xpp::Session &, const char *, const char *) {}
+static void hl_auto_make_window(Session &, std::string_view, std::string_view) {}
 static void hl_auto_circle(int, int, int) {}
-static void hl_auto_diagram(xpp::Session &, int, const XppDiagPoint *) {}
-static void hl_auto_draw_info(const char *, int, int) {}
-static int hl_auto_grab_event(xpp::Session &, int *, int *) { return 27; }
+static void hl_auto_diagram(Session &, int, const XppDiagPoint *) {}
+static void hl_auto_draw_info(std::string_view, int, int) {}
+static int hl_auto_grab_event(Session &, int *, int *) { return 27; }
 static int hl_auto_check_abort(int *iflag) { *iflag = 0; return 0; }
-static int hl_auto_rubber(xpp::Session &, int *, int *, int *, int *, int)
+static int hl_auto_rubber(Session &, int *, int *, int *, int *, int)
 {
     return 0;
 }
-static void hl_show_eq_box(xpp::Session &, int cp, int cm, int rp, int rm, int im, double *y,
+static void hl_show_eq_box(Session &, int cp, int cm, int rp, int rm, int im, double *y,
                            double *ev, int n)
 {
     int i;
@@ -76,30 +78,30 @@ static void hl_show_eq_box(xpp::Session &, int cp, int cm, int rp, int rm, int i
         else xpp::log(XPP_LOG_DEBUG, "  y[{}]={:.8g}\n", i, y[i]);
     }
 }
-static int hl_dialog(const char *, const char *, std::string &, const char *, const char *, int)
+static int hl_dialog(std::string_view, std::string_view, std::string &, std::string_view, std::string_view, int)
 {
     return 0;
 }
 static void hl_ani_font(int, int, int) {}
 static void hl_ani_box(int, int, int, int, int) {}
 static void hl_param_box_set(int, const char *) {}
-static void hl_respond_box(const char *, const char *message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
-static int hl_checklist(const char *, const char *const *, int *, int)
+static void hl_respond_box(std::string_view, std::string_view message) { xpp::log(XPP_LOG_WARN, "{}\n", message); }
+static int hl_checklist(std::string_view, const char *const *, int *, int)
 {
     return 0;
 }
-static void hl_movie_save(xpp::Session &, const char *, int) {}
-static void hl_open_help(const char *, const char *) {}
-static void hl_copy_text(const char *, const char *text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
-static void hl_record_toggle(xpp::Session &) { xpp::log_printf(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
-static void hl_play_recording(xpp::Session &, const char *) { xpp::log_printf(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
+static void hl_movie_save(Session &, std::string_view, int) {}
+static void hl_open_help(std::string_view, std::string_view) {}
+static void hl_copy_text(std::string_view, std::string_view text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
+static void hl_record_toggle(Session &) { xpp::log_printf(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
+static void hl_play_recording(Session &, std::string_view) { xpp::log_printf(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
-static bool hl_save_recording(xpp::Session &) { return true; }
+static bool hl_save_recording(Session &) { return true; }
 static void hl_exit_program(void) { exit(1); }
 
 XppTextMetrics text_metrics;
 
-XppUi xpp_ui = {
+XppUi ui = {
     .err_msg = hl_err_msg,
     .ping = hl_void,
     .bottom_msg = hl_bottom_msg,
@@ -219,68 +221,69 @@ XppUi xpp_ui = {
     .exit_program = hl_exit_program,
 };
 
-void xpp_set_ui(const XppUi *ui)
+void set_ui(const XppUi *table)
 {
-    /* every non-NULL entry of *ui replaces the current one; NULL keeps the
+    /* every non-NULL entry of *table replaces the current one; NULL keeps the
        default. Done field by field via the pointer table trick below. */
-    XppUi d = xpp_ui;
-    const void *const *src = reinterpret_cast<const void *const *>(ui);
+    XppUi d = ui;
+    const void *const *src = reinterpret_cast<const void *const *>(table);
     const void **dst = reinterpret_cast<const void **>(&d);
     size_t n = sizeof(XppUi) / sizeof(void *);
     size_t i;
     for (i = 0; i < n; i++)
         if (src[i]) dst[i] = src[i];
-    xpp_ui = d;
+    ui = d;
 }
 
 /* ---- dispatchers with the historical names ---------------------------- */
 
-void err_msg(const char *string) { xpp_ui.err_msg(string); }
+void err_msg(std::string_view msg) { ui.err_msg(msg); }
 
-void xpp::show_error(const Error &e)
+void show_error(const Error &e)
 {
     xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
-    if (!e.what.empty()) err_msg(e.what.c_str());
+    if (!e.what.empty()) err_msg(e.what);
 }
-void ping(void) { xpp_ui.ping(); }
-void bottom_msg(int line, const char *msg) { xpp_ui.bottom_msg(line, msg); }
-void MessageBox(const char *m) { xpp_ui.message_box(m); }
-void KillMessageBox(void) { xpp_ui.kill_message_box(); }
-void title_text(const char *s) { xpp_ui.title_text(s); }
-int new_string(const char *name, std::string &value) { return xpp_ui.new_string(name, value, XPP_FIELD_TEXT); }
-int new_string_of(const char *name, std::string &value, int kind) { return xpp_ui.new_string(name, value, kind); }
-int yes_no_box(void) { return xpp_ui.yes_no_box(); }
-int TwoChoice(const char *c1, const char *c2, const char *q, const char *key)
+void ping(void) { ui.ping(); }
+void bottom_msg(int line, std::string_view msg) { ui.bottom_msg(line, msg); }
+void MessageBox(std::string_view m) { ui.message_box(m); }
+void KillMessageBox(void) { ui.kill_message_box(); }
+void title_text(std::string_view s) { ui.title_text(s); }
+int new_string(std::string_view name, std::string &value) { return ui.new_string(name, value, XPP_FIELD_TEXT); }
+int new_string_of(std::string_view name, std::string &value, int kind) { return ui.new_string(name, value, kind); }
+int yes_no_box(void) { return ui.yes_no_box(); }
+int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key)
 {
-    return xpp_ui.two_choice(c1, c2, q, key, NULL);
+    return ui.two_choice(c1, c2, q, key, "");
 }
-void respond_box(const char *button, const char *message) { xpp_ui.respond_box(button, message); }
-int do_string_box(int row, int col, const char *title, const char *const *names,
+void respond_box(std::string_view button, std::string_view message) { ui.respond_box(button, message); }
+int do_string_box(int row, int col, std::string_view title, const char *const *names,
                   std::span<std::string> values)
 {
-    return xpp_ui.string_box(row, col, title, names, values, NULL);
+    return ui.string_box(row, col, title, names, values, NULL);
 }
-int do_string_box_of(int row, int col, const char *title, const char *const *names,
+int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds)
 {
-    return xpp_ui.string_box(row, col, title, names, values, kinds);
+    return ui.string_box(row, col, title, names, values, kinds);
 }
-int file_selector(const char *title, std::string &file, const char *wild)
+int file_selector(std::string_view title, std::string &file, std::string_view wild)
 {
-    return xpp_ui.file_selector(title, file, wild);
+    return ui.file_selector(title, file, wild);
 }
-int get_dialog(const char *wname, const char *name, std::string &value, const char *ok, const char *cancel)
+int get_dialog(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
+               std::string_view cancel)
 {
-    return xpp_ui.dialog(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
+    return ui.dialog(wname, name, value, ok, cancel, XPP_FIELD_TEXT);
 }
-int get_dialog_of(const char *wname, const char *name, std::string &value, const char *ok,
-                  const char *cancel, int kind)
+int get_dialog_of(std::string_view wname, std::string_view name, std::string &value, std::string_view ok,
+                  std::string_view cancel, int kind)
 {
-    return xpp_ui.dialog(wname, name, value, ok, cancel, kind);
+    return ui.dialog(wname, name, value, ok, cancel, kind);
 }
-int GetMouseXY(xpp::Session &s, int *x, int *y) { return xpp_ui.get_mouse_xy(s, x, y); }
-void flash(int num) { xpp_ui.menu_flash(num); }
-int menu_choose(const struct XppMenu *m, int def) { return xpp_ui.menu_choose(m, def); }
+int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
+void flash(int num) { ui.menu_flash(num); }
+int menu_choose(const struct XppMenu *m, int def) { return ui.menu_choose(m, def); }
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
    cancelled, else the front end's own poll at most every 50 ms; its Escape
    (or Abort button) cancels the job, so later checks need no poll */
@@ -290,46 +293,46 @@ int my_abort(void)
     if (xpp_job_cancelled()) return 27;
     if (int key = xpp_job_take_key()) return key; /* a replayed / (xpp_job.h) */
     if (!xpp_job_poll_due()) return 64;
-    ch = xpp_ui.check_abort();
+    ch = ui.check_abort();
     if (ch == 27) xpp_job_cancel_current();
     return ch;
 }
-int get_command_width(void) { return xpp_ui.progress_begin(); }
-void plot_command(int nit, int icount, int cwidth) { xpp_ui.progress(nit, icount, cwidth); }
-void rows_stored(xpp::Session &s, int nrows) { xpp_ui.rows_stored(s, nrows); }
-void FlushDisplay(void) { xpp_ui.flush(); }
-void redraw_params(void) { xpp_ui.redraw_params(); }
-void redraw_ics(void) { xpp_ui.redraw_ics(); }
-void redraw_all(xpp::Session &s) { xpp_ui.redraw_all(s); }
-void drw_all_scrns(xpp::Session &s) { xpp_ui.redraw_screens(s); }
-void clr_all_scrns(xpp::Session &s) { xpp_ui.clear_screens(s); }
-void clear_draw_window(xpp::Session &s) { xpp_ui.clear_draw_window(s); }
-void reset_graphics(xpp::Session &s) { xpp_ui.reset_graphics(s); }
-void create_a_pop(xpp::Session &s) { xpp_ui.create_plot_window(s); }
-void destroy_a_pop(xpp::Session &s) { xpp_ui.destroy_plot_window(s); }
-void kill_all_pops(xpp::Session &s) { xpp_ui.kill_plot_windows(s); }
-void GrCol(void) { xpp_ui.gr_col(); }
-void BaseCol(void) { xpp_ui.base_col(); }
-void cput_text(xpp::Session &s) { xpp_ui.cput_text(s); }
-void SmallBase(void) { xpp_ui.small_base(); }
-void SmallGr(void) { xpp_ui.small_gr(); }
-void reset_film(xpp::Session &s) { xpp_ui.reset_film(s); }
-void set_color(int col) { xpp_ui.set_color(col); }
-void draw_one_array_plot(xpp::Session &s, const char *bob) { xpp_ui.aplot_draw_one(s, bob); }
-void make_auto(xpp::Session &s, const char *wname, const char *iname) { xpp_ui.auto_make_window(s, wname, iname); }
-void ALINE(int a, int b, int c, int d) { xpp_ui.auto_line(a, b, c, d); }
-void ATEXT(int a, int b, const char *c) { xpp_ui.auto_text(a, b, c); }
-void Circle(int x, int y, int r) { xpp_ui.auto_circle(x, y, r); }
-void FillCircle(int x, int y, int r) { xpp_ui.auto_fill_circle(x, y, r); }
-void XORCross(int x, int y) { xpp_ui.auto_xor_cross(x, y); }
-void LineWidth(int wid) { xpp_ui.auto_line_width(wid); }
-void autocol(int col) { xpp_ui.auto_col(col); }
-void autobw(void) { xpp_ui.auto_bw(); }
-void clear_auto_plot(void) { xpp_ui.auto_clear_plot(); }
-void redraw_auto_menus(void) { xpp_ui.auto_redraw_menus(); }
-void clear_auto_info(void) { xpp_ui.auto_clear_info(); }
-void draw_auto_info(const char *bob, int x, int y) { xpp_ui.auto_draw_info(bob, x, y); }
-void refreshdisplay(void) { xpp_ui.auto_refresh(); }
+int get_command_width(void) { return ui.progress_begin(); }
+void plot_command(int nit, int icount, int cwidth) { ui.progress(nit, icount, cwidth); }
+void rows_stored(Session &s, int nrows) { ui.rows_stored(s, nrows); }
+void FlushDisplay(void) { ui.flush(); }
+void redraw_params(void) { ui.redraw_params(); }
+void redraw_ics(void) { ui.redraw_ics(); }
+void redraw_all(Session &s) { ui.redraw_all(s); }
+void drw_all_scrns(Session &s) { ui.redraw_screens(s); }
+void clr_all_scrns(Session &s) { ui.clear_screens(s); }
+void clear_draw_window(Session &s) { ui.clear_draw_window(s); }
+void reset_graphics(Session &s) { ui.reset_graphics(s); }
+void create_a_pop(Session &s) { ui.create_plot_window(s); }
+void destroy_a_pop(Session &s) { ui.destroy_plot_window(s); }
+void kill_all_pops(Session &s) { ui.kill_plot_windows(s); }
+void GrCol(void) { ui.gr_col(); }
+void BaseCol(void) { ui.base_col(); }
+void cput_text(Session &s) { ui.cput_text(s); }
+void SmallBase(void) { ui.small_base(); }
+void SmallGr(void) { ui.small_gr(); }
+void reset_film(Session &s) { ui.reset_film(s); }
+void set_color(int col) { ui.set_color(col); }
+void draw_one_array_plot(Session &s, std::string_view bob) { ui.aplot_draw_one(s, bob); }
+void make_auto(Session &s, std::string_view wname, std::string_view iname) { ui.auto_make_window(s, wname, iname); }
+void ALINE(int a, int b, int c, int d) { ui.auto_line(a, b, c, d); }
+void ATEXT(int a, int b, const char *c) { ui.auto_text(a, b, c); }
+void Circle(int x, int y, int r) { ui.auto_circle(x, y, r); }
+void FillCircle(int x, int y, int r) { ui.auto_fill_circle(x, y, r); }
+void XORCross(int x, int y) { ui.auto_xor_cross(x, y); }
+void LineWidth(int wid) { ui.auto_line_width(wid); }
+void autocol(int col) { ui.auto_col(col); }
+void autobw(void) { ui.auto_bw(); }
+void clear_auto_plot(void) { ui.auto_clear_plot(); }
+void redraw_auto_menus(void) { ui.auto_redraw_menus(); }
+void clear_auto_info(void) { ui.auto_clear_info(); }
+void draw_auto_info(std::string_view bob, int x, int y) { ui.auto_draw_info(bob, x, y); }
+void refreshdisplay(void) { ui.auto_refresh(); }
 int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 {
     int r;
@@ -339,41 +342,41 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
         return 0;
     }
     if (!xpp_job_poll_due()) return 0;
-    r = xpp_ui.auto_check_abort(iflag);
+    r = ui.auto_check_abort(iflag);
     if (*iflag == 1) xpp_job_cancel_current();
     return r;
 }
-int auto_rubber(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
+int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    return xpp_ui.auto_rubber(s, i1, j1, i2, j2, flag);
+    return ui.auto_rubber(s, i1, j1, i2, j2, flag);
 }
-void auto_scroll_window(xpp::Session &s) { xpp_ui.auto_scroll_window(s); }
-void auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p) { xpp_ui.auto_diagram(s, view, p); }
-void init_txtview(void) { xpp_ui.init_txtview(); }
-void create_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, double *y,
+void auto_scroll_window(Session &s) { ui.auto_scroll_window(s); }
+void auto_diagram(Session &s, int view, const XppDiagPoint *p) { ui.auto_diagram(s, view, p); }
+void init_txtview(void) { ui.init_txtview(); }
+void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y,
                    double *ev, int n)
 {
-    xpp_ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
+    ui.show_eq_box(s, cp, cm, rp, rm, im, y, ev, n);
 }
-void bye_bye(void) { xpp_ui.exit_program(); }
-void draw_help(void) { xpp_ui.redraw_menu(); }
-int rubber_band(xpp::Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
+void bye_bye(void) { ui.exit_program(); }
+void draw_help(void) { ui.redraw_menu(); }
+int rubber_band(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)
 {
-    return xpp_ui.rubber_band(s, i1, j1, i2, j2, flag);
+    return ui.rubber_band(s, i1, j1, i2, j2, flag);
 }
-void scroll_window(xpp::Session &s) { xpp_ui.scroll_window(s); }
-void NewColormap(int type) { xpp_ui.new_colormap(type); }
-void make_my_aplot(xpp::Session &s, const char *name) { xpp_ui.aplot_make(s, name); }
-void new_vcr(xpp::Session &s) { xpp_ui.new_vcr(s); }
-void redraw_the_graph(xpp::Session &s) { xpp_ui.redraw_graph(s); }
-void make_txtview(xpp::Session &s) { xpp_ui.make_txtview(s); }
-void q_calc(xpp::Session &s) { xpp_ui.q_calc(s); }
-void open_help(const char *chapter, const char *anchor) { xpp_ui.open_help(chapter, anchor); }
-void copy_text(const char *what, const char *text) { xpp_ui.copy_text(what, text); }
-void record_toggle(xpp::Session &s) { xpp_ui.record_toggle(s); }
-void play_recording(xpp::Session &s, const char *path) { xpp_ui.play_recording(s, path); }
-bool recording_in_progress(void) { return xpp_ui.recording(); }
-bool save_recording(xpp::Session &s) { return xpp_ui.save_recording(s); }
+void scroll_window(Session &s) { ui.scroll_window(s); }
+void NewColormap(int type) { ui.new_colormap(type); }
+void make_my_aplot(Session &s, std::string_view name) { ui.aplot_make(s, name); }
+void new_vcr(Session &s) { ui.new_vcr(s); }
+void redraw_the_graph(Session &s) { ui.redraw_graph(s); }
+void make_txtview(Session &s) { ui.make_txtview(s); }
+void q_calc(Session &s) { ui.q_calc(s); }
+void open_help(std::string_view chapter, std::string_view anchor) { ui.open_help(chapter, anchor); }
+void copy_text(std::string_view what, std::string_view text) { ui.copy_text(what, text); }
+void record_toggle(Session &s) { ui.record_toggle(s); }
+void play_recording(Session &s, std::string_view path) { ui.play_recording(s, path); }
+bool recording_in_progress(void) { return ui.recording(); }
+bool save_recording(Session &s) { return ui.save_recording(s); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
    was a thin wrapper around xpp::log_printf() at INFO (the banner, "All formulas
@@ -384,7 +387,7 @@ bool save_recording(xpp::Session &s) { return xpp_ui.save_recording(s); }
    same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
    real error uses err_msg()/xpp::log_printf(..., XPP_LOG_ERROR/WARN) instead. */
 
-int new_int(const char *name, int *value)
+int new_int(std::string_view name, int *value)
 {
     std::string svalue = xpp::format("{}", *value);
     if (new_string_of(name, svalue, XPP_FIELD_INTEGER) == 0 || svalue.empty()) return -1;
@@ -392,7 +395,7 @@ int new_int(const char *name, int *value)
     return 0;
 }
 
-int new_float(xpp::Session &s, const char *name, double *value)
+int new_float(Session &s, std::string_view name, double *value)
 {
     std::string tvalue = xpp::format("{:.16g}", *value);
     if (new_string_of(name, tvalue, XPP_FIELD_FORMULA) == 0 || tvalue.empty()) return -1;
@@ -406,3 +409,5 @@ int new_float(xpp::Session &s, const char *name, double *value)
 
     return 0;
 }
+
+} // namespace xpp

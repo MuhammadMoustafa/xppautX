@@ -1,9 +1,8 @@
 #ifndef _menudrive_h_
 #define _menudrive_h_
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+namespace xpp {
+struct Session; /* session.h */
 
 #define M_IR 0
 #define M_I2 1
@@ -22,7 +21,6 @@ extern "C" {
 
 #define MAX_M_I 13 
 
-
 #define M_C  20
 
 #define M_NN 31
@@ -35,7 +33,6 @@ extern "C" {
 #define M_NFD 38
 #define M_NFR 39
 #define M_NFA 40
-
 
 #define M_SG 50
 #define M_SM 51
@@ -59,15 +56,12 @@ extern "C" {
 #define M_AN 81
 #define M_AC 82
 
-
 #define M_KC 90
 #define M_KR 91
 #define M_KP 92
 #define M_KA 93
 #define M_KS 94
 #define M_KM 95
-
-
 
 #define M_GA 100
 #define M_GD 101
@@ -98,8 +92,6 @@ extern "C" {
 #define M_GCG 135
 #define M_GCU 136
 
-
-
 #define M_P 140
 
 #define M_EE 141
@@ -109,8 +101,6 @@ extern "C" {
 #define M_X 143
 
 #define M_3 144
-
-
 
 #define M_MC 150
 #define M_MK 151
@@ -141,7 +131,6 @@ extern "C" {
 #define M_BP 193
 #define M_BH 194
 
-
 #define M_FP 200
 #define M_FW 201
 #define M_FR 202
@@ -152,8 +141,6 @@ extern "C" {
 #define M_FQ 208
 #define M_FT 209
 #define M_FG 211
-
-
 
 #define M_FX 216
 #define M_FU 217
@@ -216,7 +203,6 @@ extern "C" {
 #define M_UE 409
 #define M_UC 410
 
-
 void edit_xpprc();
 void do_tutorial();
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
@@ -226,38 +212,24 @@ void show_main_menu(int which);
    (commands.cpp) */
 extern int help_menu;
 
-
-
-#ifdef __cplusplus
-}
-
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* The command layer's entry points take the Session a command runs in
    (ui_json.cpp's handle_line chooses it, W47d). */
 /* the M_* command com */
-void run_the_commands(xpp::Session &s, int com);
+void run_the_commands(Session &s, int com);
 /* the main window's key ch, in the menu it shows (show_main_menu) */
-void commander(xpp::Session &s, int ch);
+void commander(Session &s, int ch);
 /* File/Get par set's work on the model's internal set j (0-based): its
    values and options, its plot settings on the current window; it
    becomes the set in use (Session::this_internset) */
-void use_intern_set(xpp::Session &s, int j);
+void use_intern_set(Session &s, int j);
 /* the menus the nUmerics menu opens (commands.cpp): stocHast, Poincare
    map, colorize, adjoint, lookup tables; and the Freeze cline menu */
-void do_stochast(xpp::Session &s);
-void get_pmap_pars(xpp::Session &s);
-void set_col_par(xpp::Session &s);
-void make_adj(xpp::Session &s);
-void new_lookup(xpp::Session &s);
-void froz_cline_stuff(xpp::Session &s);
+void do_stochast(Session &s);
+void get_pmap_pars(Session &s);
+void set_col_par(Session &s);
+void make_adj(Session &s);
+void new_lookup(Session &s);
+void froz_cline_stuff(Session &s);
+
+} // namespace xpp
 #endif
-#endif
-
-
-
-
-
-

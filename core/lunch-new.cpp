@@ -220,11 +220,11 @@ xpp::Result<> read_lunch(xpp::Session &s, FILE *fp, bool redraw)
     return xpp::fail("set file",e.text());
   }
   if(redraw&&program.interactive){
-    xpp_ui.redraw_bcs();
+    ui.redraw_bcs();
     redraw_ics();
-    xpp_ui.redraw_delays();
+    ui.redraw_delays();
     redraw_params();
-    xpp_ui.redraw_graph(s);
+    ui.redraw_graph(s);
   }
   return {};
 }
@@ -265,7 +265,7 @@ void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
       return;
     }
     if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
-      err_msg(xpp::format("{}, {}",xpp::files::split_path(filename).second,r.error().what).c_str());
+      err_msg(xpp::format("{}, {}",xpp::files::split_path(filename).second,r.error().what));
     return;
   }
   if(!file_selector("Save SET File",filename,"*.set"))return;
@@ -350,7 +350,7 @@ void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
         throw SetLineError{1,xpp::format("it is for {} parameters, the model has {}",np,m.nupar)};
       io_parameters(s,flag,fp.get());
     }catch(const SetLineError &e){
-      err_msg(xpp::format("{}, {}",xpp::files::split_path(fn).second,e.text()).c_str());
+      err_msg(xpp::format("{}, {}",xpp::files::split_path(fn).second,e.text()));
       return;
     }
     fp.reset();
@@ -392,7 +392,7 @@ void io_ic_file(xpp::Session &s, std::string_view fn,int flag)
     /* one number more is one too many */
     double extra;
     if(n>0 && tr.read(extra))
-      err_msg(xpp::format("Found more than {} initial conditions in {}.",n,fn).c_str());
+      err_msg(xpp::format("Found more than {} initial conditions in {}.",n,fn));
     return;
   }
   xpp::Writer w=open_writer_asking(std::string(fn).c_str());
@@ -415,7 +415,7 @@ void named_value_file(xpp::Session &s, std::string name, const char *title, cons
 {
   if(name.empty()){
     name=s.model().this_file+ext;
-    if(!file_selector(title,name,xpp::format("*{}",ext).c_str()))return;
+    if(!file_selector(title,name,xpp::format("*{}",ext)))return;
   }
   io(s,name,flag);
 }

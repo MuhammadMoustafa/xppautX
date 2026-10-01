@@ -5,6 +5,8 @@
 #include <math.h>
 #include <stdio.h>
 
+namespace xpp {
+
 #define C_NORM 0
 #define C_PERIODIC 1
 #define C_HOT 2
@@ -29,7 +31,7 @@
 int custom_color = 0;
 
 /* 16-bit RGB per colour index, same scale X11 uses */
-unsigned short xpp_cmap_rgb[XPP_MAX_COLORS][3];
+unsigned short cmap_rgb[XPP_MAX_COLORS][3];
 XppColorTable color_table;
 
 int rfun(double y, int per)
@@ -143,7 +145,7 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
     }
 }
 
-/* Fill xpp_cmap_rgb and color_table's first/last/count. This is the
+/* Fill cmap_rgb and color_table's first/last/count. This is the
    device-independent half of what MakeColormap() in color.c used to do. */
 void xpp_build_colormap(void)
 {
@@ -157,53 +159,55 @@ void xpp_build_colormap(void)
     color_table.last = color_table.first + color_table.count;
 
     for (i = 0; i < XPP_MAX_COLORS; i++)
-        xpp_cmap_rgb[i][0] = xpp_cmap_rgb[i][1] = xpp_cmap_rgb[i][2] = 0;
+        cmap_rgb[i][0] = cmap_rgb[i][1] = cmap_rgb[i][2] = 0;
 
     /* the ten named colours, 8-bit values shifted up to 16 bit */
-    xpp_cmap_rgb[RED][0] = 255;
-    xpp_cmap_rgb[BLUE][2] = 255;
-    xpp_cmap_rgb[GREEN][1] = 225;
-    xpp_cmap_rgb[YELLOWGREEN][0] = 200;
-    xpp_cmap_rgb[YELLOWGREEN][2] = 75;
-    xpp_cmap_rgb[YELLOWGREEN][1] = 235;
-    xpp_cmap_rgb[REDORANGE][0] = 240;
-    xpp_cmap_rgb[REDORANGE][1] = 100;
-    xpp_cmap_rgb[ORANGE][0] = 255;
-    xpp_cmap_rgb[ORANGE][1] = 165;
-    xpp_cmap_rgb[YELLOWORANGE][0] = 255;
-    xpp_cmap_rgb[YELLOWORANGE][1] = 205;
-    xpp_cmap_rgb[YELLOW][0] = 200;
-    xpp_cmap_rgb[YELLOW][1] = 200;
-    xpp_cmap_rgb[BLUEGREEN][2] = 200;
-    xpp_cmap_rgb[BLUEGREEN][1] = 200;
-    xpp_cmap_rgb[PURPLE][0] = 160;
-    xpp_cmap_rgb[PURPLE][1] = 32;
-    xpp_cmap_rgb[PURPLE][2] = 240;
+    cmap_rgb[RED][0] = 255;
+    cmap_rgb[BLUE][2] = 255;
+    cmap_rgb[GREEN][1] = 225;
+    cmap_rgb[YELLOWGREEN][0] = 200;
+    cmap_rgb[YELLOWGREEN][2] = 75;
+    cmap_rgb[YELLOWGREEN][1] = 235;
+    cmap_rgb[REDORANGE][0] = 240;
+    cmap_rgb[REDORANGE][1] = 100;
+    cmap_rgb[ORANGE][0] = 255;
+    cmap_rgb[ORANGE][1] = 165;
+    cmap_rgb[YELLOWORANGE][0] = 255;
+    cmap_rgb[YELLOWORANGE][1] = 205;
+    cmap_rgb[YELLOW][0] = 200;
+    cmap_rgb[YELLOW][1] = 200;
+    cmap_rgb[BLUEGREEN][2] = 200;
+    cmap_rgb[BLUEGREEN][1] = 200;
+    cmap_rgb[PURPLE][0] = 160;
+    cmap_rgb[PURPLE][1] = 32;
+    cmap_rgb[PURPLE][2] = 240;
     for (i = 20; i < 30; i++) {
-        xpp_cmap_rgb[i][0] <<= 8;
-        xpp_cmap_rgb[i][1] <<= 8;
-        xpp_cmap_rgb[i][2] <<= 8;
+        cmap_rgb[i][0] <<= 8;
+        cmap_rgb[i][1] <<= 8;
+        cmap_rgb[i][2] <<= 8;
     }
 
     make_cmaps(r, g, b, color_table.count + 1, custom_color);
     for (i = color_table.first; i <= color_table.last; i++) {
-        xpp_cmap_rgb[i][0] = r[i - color_table.first];
-        xpp_cmap_rgb[i][1] = g[i - color_table.first];
-        xpp_cmap_rgb[i][2] = b[i - color_table.first];
+        cmap_rgb[i][0] = r[i - color_table.first];
+        cmap_rgb[i][1] = g[i - color_table.first];
+        cmap_rgb[i][2] = b[i - color_table.first];
     }
 }
 
 void get_ps_color(int i, float *r, float *g, float *b)
 {
     float z = 1. / (65535);
-    *r = z * static_cast<float>(xpp_cmap_rgb[i][0]);
-    *g = z * static_cast<float>(xpp_cmap_rgb[i][1]);
-    *b = z * static_cast<float>(xpp_cmap_rgb[i][2]);
+    *r = z * static_cast<float>(cmap_rgb[i][0]);
+    *g = z * static_cast<float>(cmap_rgb[i][1]);
+    *b = z * static_cast<float>(cmap_rgb[i][2]);
 }
 
 void get_svg_color(int i, int *r, int *g, int *b)
 {
-    *r = xpp_cmap_rgb[i][0] / 255;
-    *g = xpp_cmap_rgb[i][1] / 255;
-    *b = xpp_cmap_rgb[i][2] / 255;
+    *r = cmap_rgb[i][0] / 255;
+    *g = cmap_rgb[i][1] / 255;
+    *b = cmap_rgb[i][2] / 255;
 }
+
+} // namespace xpp

@@ -1,9 +1,9 @@
 #ifndef ANI_DATA_H
 #define ANI_DATA_H
-#include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+#include <string_view>
+
+namespace xpp {
 
 /* The animation as data: the "ani" "frame" event (docs/protocol.md "The
    animation as data", docs/ui-v2.md event 10), for a front end that draws
@@ -21,9 +21,9 @@ extern "C" {
    frames come faster than 25 a second (Go, Fly) the latest one waits for
    the next that may go, and for the end of the command at the latest.
 
-   ani_data.cpp; C++ with a C API, nothing escapes it. */
+   ani_data.cpp; nothing escapes it. */
 
-typedef void (*AniDataEmit)(const char *line, size_t len);
+typedef void (*AniDataEmit)(std::string_view line);
 
 /* the front end that sends the events; nothing is recorded before this */
 void ani_data_init(AniDataEmit emit);
@@ -49,7 +49,7 @@ void ani_data_ellipse(double u, double v, double ru, double rv, int color, int t
 /* a filled circle of r pixels */
 void ani_data_dot(double u, double v, int r, int color);
 /* text from its baseline's left end; size 0..4, font 0 roman, 1 symbol */
-void ani_data_text(double u, double v, const char *s, int color, int size, int font);
+void ani_data_text(double u, double v, std::string_view s, int color, int size, int font);
 
 typedef struct {
     int pos, rows;      /* the stored row drawn (vcr.pos), of how many */
@@ -61,7 +61,5 @@ typedef struct {
 
 void ani_data_end(const AniDataFrame *f);
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp
 #endif

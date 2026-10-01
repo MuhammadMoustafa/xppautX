@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 
+namespace xpp {
+
 namespace {
 
 /* every letter a kind (menus.h XPP_KIND_*) */
@@ -407,7 +409,7 @@ const char *const main_menu_kinds = main_kinds;
 const char *const num_menu_kinds = num_kinds;
 const char *const file_menu_kinds = file_kinds;
 
-const char *xpp_main_menu_item(int which, int ch)
+const char *main_menu_item(int which, int ch)
 {
     const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
     const char *const *items = which == FILE_MENU ? file_menu : which == NUM_MENU ? num_menu : main_menu;
@@ -415,7 +417,7 @@ const char *xpp_main_menu_item(int which, int ch)
     return at ? items[at - keys + 1] : nullptr; /* [0] is the title */
 }
 
-std::string xpp_menu_label(std::string_view item)
+std::string menu_label(std::string_view item)
 {
     std::string out;
     for (char c : item)
@@ -423,7 +425,7 @@ std::string xpp_menu_label(std::string_view item)
     return out;
 }
 
-char xpp_main_menu_kind(int which, int ch)
+char main_menu_kind(int which, int ch)
 {
     const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
     const char *kinds = which == FILE_MENU ? file_kinds : which == NUM_MENU ? num_kinds : main_kinds;
@@ -518,7 +520,7 @@ const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqs
 
 /* ---- the windows' key layers (menus.h) ---- */
 
-int xpp_menu_index(const XppMenu *m, int ch)
+int menu_index(const XppMenu *m, int ch)
 {
   for (int i = 0; i < m->n; i++)
     if (ch == m->keys[i])
@@ -526,9 +528,9 @@ int xpp_menu_index(const XppMenu *m, int ch)
   return -1;
 }
 
-char xpp_menu_kind(const XppMenu *m, int ch)
+char menu_kind(const XppMenu *m, int ch)
 {
-  int i = xpp_menu_index(m, ch);
+  int i = menu_index(m, ch);
   return i >= 0 && m->kinds ? m->kinds[i] : 0;
 }
 
@@ -573,14 +575,14 @@ static_assert(sizeof(auto_window_ids) / sizeof(auto_window_ids[0]) == sizeof(aut
               && sizeof(aplot_window_ids) == sizeof(aplot_window_items)
               && sizeof(equilibrium_window_ids) == sizeof(equilibrium_window_items), "one name per item");
 
-const XppWindowLayer xpp_window_layers[XPP_WINDOW_LAYERS]={{"auto",&menu_auto_window,auto_window_ids},
+const XppWindowLayer window_layers[XPP_WINDOW_LAYERS]={{"auto",&menu_auto_window,auto_window_ids},
   {"browser",&menu_browser_window,browser_window_ids},{"ani",&menu_ani_window,ani_window_ids},
   {"aplot",&menu_aplot_window,aplot_window_ids},{"equilibrium",&menu_equilibrium_window,equilibrium_window_ids}};
 
-const XppWindowLayer *xpp_window_layer(const char *win)
+const XppWindowLayer *window_layer(std::string_view win)
 {
-  for (const XppWindowLayer &l : xpp_window_layers)
-    if (std::strcmp(l.win, win) == 0)
+  for (const XppWindowLayer &l : window_layers)
+    if (win == l.win)
       return &l;
   return nullptr;
 }
@@ -639,3 +641,5 @@ const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvr
 
 static const char *auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);
+
+} // namespace xpp

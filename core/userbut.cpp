@@ -5,13 +5,15 @@
 #include <string>
 #include "kbs.h"
 
+namespace xpp {
+
 
 
 
 namespace {
 
 /* Split "name:keys" into its two parts. */
-void get_button_info(const std::string &s, std::string &bname, std::string &sc)
+void get_button_info(std::string_view s, std::string &bname, std::string &sc)
 {
   bname.clear();
   sc.clear();
@@ -39,10 +41,10 @@ int find_kbs(const std::string &sc)
 
 } // namespace
 
-void add_user_button(xpp::Session &s, const char *spec)
+void add_user_button(xpp::Session &s, std::string_view spec)
 {
   if (s.nuserbut >= USERBUTMAX) return;
-  if (spec == nullptr || spec[0] == '\0') return;
+  if (spec.empty()) return;
   std::string bname, sc;
   get_button_info(spec, bname, sc);
   if (bname.empty() || sc.empty()) return;
@@ -61,3 +63,5 @@ void add_user_button(xpp::Session &s, const char *spec)
            s.userbut[s.nuserbut].com);
   s.nuserbut++;
 }
+
+} // namespace xpp

@@ -13,6 +13,8 @@
 #include "xpp_io.h"
 #include "colormap.h"
 
+namespace xpp {
+
 namespace {
 
 AniDataEmit emit_line;
@@ -52,8 +54,8 @@ void add_color(std::string &o, int icol)
         o += '0';
         return;
     }
-    o += xpp::format("\"#{:02x}{:02x}{:02x}\"", xpp_cmap_rgb[icol][0] >> 8, xpp_cmap_rgb[icol][1] >> 8,
-                     xpp_cmap_rgb[icol][2] >> 8);
+    o += xpp::format("\"#{:02x}{:02x}{:02x}\"", cmap_rgb[icol][0] >> 8, cmap_rgb[icol][1] >> 8,
+                     cmap_rgb[icol][2] >> 8);
 }
 
 /* ["kind", ... */
@@ -87,7 +89,7 @@ void color(int icol)
 void send_frame()
 {
     if (!emit_line || frame.empty()) return;
-    emit_line(frame.data(), frame.size());
+    emit_line(frame);
     unsent = false;
     last_sent = std::chrono::steady_clock::now();
     sent_once = true;
@@ -95,29 +97,29 @@ void send_frame()
 
 } // namespace
 
-extern "C" void ani_data_init(AniDataEmit emit) { emit_line = emit; }
+void ani_data_init(AniDataEmit emit) { emit_line = emit; }
 
-extern "C" void ani_data_subscribe(int on)
+void ani_data_subscribe(int on)
 {
     subscribed = on != 0;
     unsent = subscribed && !frame.empty();
 }
 
-extern "C" void ani_data_update(void)
+void ani_data_update(void)
 {
     if (subscribed && unsent) send_frame();
 }
 
-extern "C" void ani_data_forget(void)
+void ani_data_forget(void)
 {
     frame.clear();
     prims.clear();
     unsent = false;
 }
 
-extern "C" void ani_data_begin(void) { prims.clear(); }
+void ani_data_begin(void) { prims.clear(); }
 
-extern "C" void ani_data_line(double u1, double v1, double u2, double v2, int c, int thick)
+void ani_data_line(double u1, double v1, double u2, double v2, int c, int thick)
 {
     if (!emit_line) return;
     open_prim("line");
@@ -144,22 +146,22 @@ static void box_prim(const char *kind, double a, double b, double c, double d, i
     prims += ']';
 }
 
-extern "C" void ani_data_rect(double u1, double v1, double u2, double v2, int c, int thick, int fill)
+void ani_data_rect(double u1, double v1, double u2, double v2, int c, int thick, int fill)
 {
     box_prim("rect", u1, v1, u2, v2, c, thick, fill);
 }
 
-extern "C" void ani_data_circle(double u, double v, double ru, double rv, int c, int thick, int fill)
+void ani_data_circle(double u, double v, double ru, double rv, int c, int thick, int fill)
 {
     box_prim("circle", u, v, ru, rv, c, thick, fill);
 }
 
-extern "C" void ani_data_ellipse(double u, double v, double ru, double rv, int c, int thick, int fill)
+void ani_data_ellipse(double u, double v, double ru, double rv, int c, int thick, int fill)
 {
     box_prim("ellipse", u, v, ru, rv, c, thick, fill);
 }
 
-extern "C" void ani_data_dot(double u, double v, int r, int c)
+void ani_data_dot(double u, double v, int r, int c)
 {
     if (!emit_line) return;
     open_prim("dot");
@@ -170,7 +172,7 @@ extern "C" void ani_data_dot(double u, double v, int r, int c)
     prims += ']';
 }
 
-extern "C" void ani_data_text(double u, double v, const char *s, int c, int size, int font)
+void ani_data_text(double u, double v, std::string_view s, int c, int size, int font)
 {
     if (!emit_line) return;
     open_prim("text");
@@ -184,7 +186,7 @@ extern "C" void ani_data_text(double u, double v, const char *s, int c, int size
     prims += ']';
 }
 
-extern "C" void ani_data_end(const AniDataFrame *f)
+void ani_data_end(const AniDataFrame *f)
 {
     if (!emit_line) return;
     std::string &o = frame;
@@ -218,3 +220,5 @@ extern "C" void ani_data_end(const AniDataFrame *f)
     unsent = true;
     if (subscribed && (!sent_once || std::chrono::steady_clock::now() - last_sent >= MIN_GAP)) send_frame();
 }
+
+} // namespace xpp

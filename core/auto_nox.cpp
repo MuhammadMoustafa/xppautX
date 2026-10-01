@@ -577,7 +577,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
 		       */
     if(!failed.empty()){
       xpp::log_auto("AUTO stopped: {}\n",failed); /* the AUTO window's Output */
-      err_msg(("AUTO stopped: "+failed).c_str());
+      err_msg(("AUTO stopped: "+failed));
     }
     
     if(s.auto_state.restart_label!=0){
@@ -1394,7 +1394,7 @@ void info_header(xpp::Session &s, int flag2, int icp1, int icp2)
 	  p1name,
 	  p2name,
 	  vname);
-  draw_auto_info(bob.c_str(),10,text_metrics.small_height+1);
+  draw_auto_info(bob,10,text_metrics.small_height+1);
 
 }
 
@@ -1407,7 +1407,7 @@ void new_info(xpp::Session &s, int ibr, int pt, const char *ty, int lab, double 
   if(icp2<s.auto_state.npar)p2=par[icp2];
   std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  ibr,pt,ty,lab,p1,p2,norm,u0,per);
-  draw_auto_info(bob.c_str(),10,2*text_metrics.small_height+2);
+  draw_auto_info(bob,10,2*text_metrics.small_height+2);
   refreshdisplay();
 }
 
@@ -1484,7 +1484,7 @@ void do_auto_win(xpp::Session &s)
 {
   if(s.auto_state.bifur.exist==0){
     if(s.model().node>NAUTO){
-      err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO).c_str());
+      err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO));
       return;
     }
     make_auto(s,"It's AUTO man!","AUTO");
@@ -2583,7 +2583,7 @@ void save_auto(xpp::Session &s)
   if(!w)return;
   if(!w.write(*bytes)){
     w.abort();
-    err_msg(xpp::format("Cannot write {}",filename).c_str());
+    err_msg(xpp::format("Cannot write {}",filename));
     return;
   }
   w.commit();
@@ -2930,7 +2930,7 @@ const char *query_special(const char *title)
 	menu.title=title;
 	int ch=static_cast<char>(menu_choose(&menu,1));
 	redraw_auto_menus();
-	int i=ch!=0?xpp_menu_index(&menu,ch):-1;
+	int i=ch!=0?menu_index(&menu,ch):-1;
 	return i>=0?menu.items[i]:NULL;
 }
 
@@ -2950,7 +2950,7 @@ void traverse_diagram(xpp::Session &s)
   traverse_out(s, d,&ix,&iy,1);
   
   while(done==0){
-    kp=xpp_ui.auto_grab_event(s,&xm,&ym);
+    kp=ui.auto_grab_event(s,&xm,&ym);
     if(kp==XPP_AUTO_NODE)
     {
       /* a point of the diagram by its entry: the cursor goes there */
@@ -3071,7 +3071,7 @@ void traverse_diagram(xpp::Session &s)
        else
        {
          s.auto_state.bifur.hinttxt=xpp::format("  Higher {} not found",nsymb);
-	 xpp_ui.auto_show_hint(s);
+	 ui.auto_show_hint(s);
 	 d=dold;
        }
        CUR_DIAGRAM=d;
@@ -3095,7 +3095,7 @@ void traverse_diagram(xpp::Session &s)
        else
        {
          s.auto_state.bifur.hinttxt=xpp::format("  Lower {} not found",nsymb);
-	 xpp_ui.auto_show_hint(s);
+	 ui.auto_show_hint(s);
 	 d=dold;
        }
        CUR_DIAGRAM=d;
@@ -3177,11 +3177,11 @@ void traverse_diagram(xpp::Session &s)
 	depending on the order of window expose events.  Best not
 	to do the XORCross function at all.*/
 	DONT_XORCross = 1;
-	xpp_ui.auto_grab_end(1);
+	ui.auto_grab_end(1);
 	break;
       case ESC:
 	done=-1;
-	xpp_ui.auto_grab_end(-1);
+	ui.auto_grab_end(-1);
 	break;
       }
     }
@@ -3281,7 +3281,7 @@ void MarkAuto(int x, int y)
 void clear_msg(xpp::Session &s)
 {
   s.auto_state.bifur.hinttxt.clear();
-  xpp_ui.auto_show_hint(s);
+  ui.auto_show_hint(s);
 }
 
 void auto_update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
@@ -3307,7 +3307,7 @@ void auto_point_xy(xpp::Session &s, double x,double y)
 {
     s.auto_state.bifur.hinttxt=xpp::format("x={:g},y={:g}",x,y);
     storeautopoint(s, x,y);
-    xpp_ui.auto_show_hint(s);
+    ui.auto_show_hint(s);
 }
 
 } // namespace xpp

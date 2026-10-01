@@ -105,7 +105,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     if (!loaded) return before; /* the model before goes on */
     /* before is gone: the new model's session from here on */
     xpp::Session &s = *loaded;
-    for (unsigned long w : shown) send_window("destroy", w, 0, 0, NULL);
+    for (unsigned long w : shown) send_window("destroy", w, 0, 0);
     /* what the data modules and this front end recorded of the model before */
     for (int i = 0; i < MAXPOP; i++) {
         phase_data_cleared(i);
@@ -131,4 +131,6 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
 
 } // namespace xpp::json
 
-void json_ui_start_model(xpp::Session &s) { xpp::json::start_model(s, nullptr); }
+namespace xpp {
+void json_ui_start_model(Session &s) { json::start_model(s, nullptr); }
+} // namespace xpp

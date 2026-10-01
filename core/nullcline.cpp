@@ -32,6 +32,8 @@
 #include "form_ode.h"
 #include "model.h"
 
+namespace xpp {
+
 #define MAX_NULL 10000
 
 
@@ -607,7 +609,7 @@ void redraw_dfield(xpp::Session &s)
   if(dfield_shown(s))dfield_of_window(s,nullptr);
 }
 
-void write_dfield(xpp::Session &s, const char *name)
+void write_dfield(xpp::Session &s, std::string_view name)
 {
   if(!dfield_shown(s)){
     err_msg("No direction field in this window");
@@ -776,3 +778,5 @@ void new_clines_com(xpp::Session &s, int c)
   ping();
   phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
 }
+
+} // namespace xpp

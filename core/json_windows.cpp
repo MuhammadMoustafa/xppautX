@@ -31,9 +31,6 @@
 #include "load_eqn.h"
 
 /* the core's own globals and functions that have no header of their own */
-extern "C" {
-}
-
 namespace xpp::json {
 
 namespace {
@@ -117,12 +114,12 @@ void j_reset_graphics(xpp::Session &s)
     do_axes(s);
 }
 
-void send_window(const char *what, unsigned long id, int w, int h, const char *title)
+void send_window(const char *what, unsigned long id, int w, int h, std::string_view title)
 {
     Buf b;
     buf_format(&b, "{{\"ev\":\"window\",\"op\":\"{}\",\"win\":{:d},\"w\":{:d},\"h\":{:d},\"title\":",
                what, id, w, h);
-    buf_str(&b, title ? title : "");
+    buf_str(&b, title);
     BUF_LIT(&b, "}");
     send_buf(&b);
 }
@@ -133,7 +130,7 @@ void select_graph(xpp::Session &s, int i)
     s.plot_windows.current = &s.plot_windows.graph[i];
     s.plot_windows.draw_win = s.plot_windows.graph[i].w;
     get_draw_area(s);
-    send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i], NULL);
+    send_window("select", s.plot_windows.draw_win, win_w[i], win_h[i]);
 }
 
 void j_activate_graph(xpp::Session &s, int i, int flag)
@@ -166,7 +163,7 @@ void destroy_graph(xpp::Session &s, int i)
 {
     s.plot_windows.graph[i].Use = 0;
     destroy_labels_and_grobs(s, s.plot_windows.graph[i].w);
-    send_window("destroy", s.plot_windows.graph[i].w, 0, 0, NULL);
+    send_window("destroy", s.plot_windows.graph[i].w, 0, 0);
     s.plot_windows.count--;
 }
 
@@ -206,7 +203,7 @@ void j_cput_text(xpp::Session &s)
     j_message_box("Place text with mouse");
     if (j_get_mouse_xy(s, &x, &y)) {
         const std::string text = fill_in_text(s, string);
-        marks_data_label(s.plot_windows, s.plot_windows.draw_win, add_label(s, string.c_str(), x, y, size, 0), text.c_str());
+        marks_data_label(s.plot_windows, s.plot_windows.draw_win, add_label(s, string, x, y, size, 0), text);
     }
     j_kill_message_box();
 }
@@ -392,7 +389,7 @@ void j_movie_play_back(xpp::Session &s) { play_film(s, "play"); }
 
 void j_movie_auto_play(xpp::Session &s) { play_film(s, "autoplay"); }
 
-void j_movie_save(xpp::Session &s, const char *basename, int fmat)
+void j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
 {
     int w, h;
     for (int i = 0; i < s.kinescope.frames; i++) {
@@ -527,7 +524,7 @@ void aplot_update(xpp::Session &s)
     aplot_dirty = 0;
 }
 
-void j_aplot_make(xpp::Session &s, const char *name)
+void j_aplot_make(xpp::Session &s, std::string_view name)
 {
     APLOT &ap = s.array_plot.plot;
     if (ap.alive) return;
@@ -574,9 +571,10 @@ void aplot_gif(ArrayPlotState &a, const char *file, int still)
 
 } // namespace
 
-void j_aplot_draw_one(xpp::Session &s, const char *tag)
+void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 {
-    send_aplot(s, s.array_plot.tag ? tag : NULL);
+    const std::string shown(tag); /* send_aplot's tag: NUL-terminated, or none */
+    send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
     aplot_gif(s.array_plot, xpp::format("{}.{}.{}", s.array_plot.range_stem, s.array_plot.range_count,
                           xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(), s.array_plot.still);
     s.array_plot.range_count++;
@@ -589,7 +587,7 @@ void aplot_command(xpp::Session &s, const char *line)
     std::string o;
     get_string(line, "op", o, 16);
     if (o != "scroll" && o != "close") {
-        j_err_msg(xpp::format("Unknown aplot op {}", o).c_str());
+        j_err_msg(xpp::format("Unknown aplot op {}", o));
         return;
     }
     if (!s.array_plot.plot.alive) return;
@@ -600,7 +598,7 @@ void aplot_command(xpp::Session &s, const char *line)
         send_aplot(s, NULL);
     } else if (o == "close") {
         s.array_plot.plot.alive = 0;
-        send_window("destroy", WIN_APLOT, 0, 0, NULL);
+        send_window("destroy", WIN_APLOT, 0, 0);
     }
 }
 
@@ -608,7 +606,7 @@ void aplot_command(xpp::Session &s, const char *line)
 void aplot_key(xpp::Session &s, int ch)
 {
     if (!s.array_plot.plot.alive) return;
-    switch (xpp_menu_index(&menu_aplot_window, ch)) {
+    switch (menu_index(&menu_aplot_window, ch)) {
     case PK_REDRAW: send_aplot(s, NULL); break;
     case PK_EDIT:
         editaplot(s, &s.array_plot.plot);
@@ -620,7 +618,7 @@ void aplot_key(xpp::Session &s, int ch)
     case PK_GIF: {
         const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
         std::string file = xpp::format("{}.{}", s.model().this_file, ext);
-        if (file_selector("GIF plot", file, xpp::format("*.{}", ext).c_str())) aplot_gif(s.array_plot, file.c_str(), 1);
+        if (file_selector("GIF plot", file, xpp::format("*.{}", ext))) aplot_gif(s.array_plot, file.c_str(), 1);
         break;
     }
     }

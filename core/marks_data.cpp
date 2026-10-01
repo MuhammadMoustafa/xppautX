@@ -26,6 +26,8 @@
 #include "many_pops.h"
 #include "graf_par.h"
 
+namespace xpp {
+
 namespace {
 
 MarksDataEmit emit_line;
@@ -233,7 +235,7 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
         o += '}';
     }
     o += "]}";
-    emit_line(o.data(), o.size());
+    emit_line(o);
 }
 
 /* the window's record as it stands, each slot read from where it is kept */
@@ -277,11 +279,11 @@ void update(const xpp::Session &s)
 
 } // namespace
 
-/* ---- the C API: no exception leaves it (out of memory drops the record) ---- */
+/* ---- the API: no exception leaves it (out of memory drops the record) ---- */
 
-extern "C" void marks_data_init(MarksDataEmit emit) { emit_line = emit; }
+void marks_data_init(MarksDataEmit emit) { emit_line = emit; }
 
-extern "C" void marks_data_subscribe(int on, int f32)
+void marks_data_subscribe(int on, int f32)
 {
     marks_on = on != 0;
     values_f32 = f32 != 0;
@@ -298,7 +300,7 @@ void marks_data_update(const xpp::Session &s)
     }
 }
 
-extern "C" void marks_data_cleared(int pop)
+void marks_data_cleared(int pop)
 {
     if (!emit_line || pop < 0 || pop >= MAXPOP) return;
     windows[pop].rec = Record();
@@ -318,12 +320,12 @@ void marks_data_equilibrium(const XppPlotWindows &pw, double x, double y, int sy
     }
 }
 
-void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, const char *text)
+void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, std::string_view text)
 {
     Record *r = record_of(pw, w);
     if (!r || slot < 0 || slot >= MAXLAB) return;
     try {
-        r->labels[slot] = text ? text : "";
+        r->labels[slot] = text;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording a label");
     }
@@ -358,3 +360,5 @@ void marks_data_frozen_new(const xpp::Session &s, int slot)
     generation[slot] = ++generations;
     marks_data_frozen(s.plot_windows, s.frozen_curves.curve[slot].w, slot);
 }
+
+} // namespace xpp

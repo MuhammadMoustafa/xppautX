@@ -1,11 +1,12 @@
 #ifndef MARKS_DATA_H
 #define MARKS_DATA_H
-#include <stddef.h>
+
+#include <string_view>
 #include "xpp_types.h"
 #include "many_pops.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+namespace xpp {
+struct Session; /* session.h */
 
 /* What a plot window shows on top of its curves, as data for a front end
    that draws it itself: the "marks" event (docs/protocol.md "The plot as
@@ -26,9 +27,9 @@ extern "C" {
    subscribed, at the end of a command, one per window whose content
    changed since the one it last got.
 
-   marks_data.cpp; C++ with a C API, nothing escapes it. */
+   marks_data.cpp; nothing escapes it. */
 
-typedef void (*MarksDataEmit)(const char *line, size_t len);
+typedef void (*MarksDataEmit)(std::string_view line);
 
 /* the front end that sends the events; nothing is recorded before this */
 void marks_data_init(MarksDataEmit emit);
@@ -37,20 +38,12 @@ void marks_data_init(MarksDataEmit emit);
    window at the next update) and whether values go as base64 float32 */
 void marks_data_subscribe(int on, int f32);
 
-
 /* plot window pop was blanked: it shows none of its marks any more */
 void marks_data_cleared(int pop);
 
-#ifdef __cplusplus
-}
-
-namespace xpp {
-struct Session; /* session.h */
-}
-
 /* the end of a command on s: the events of every window whose marks
    changed */
-void marks_data_update(const xpp::Session &s);
+void marks_data_update(const Session &s);
 
 /* the active window of the plot windows pw marks an equilibrium at (x, y)
    (plot coordinates) with eq_symb's symbol: 0 box (unstable), 1 triangle
@@ -58,7 +51,7 @@ void marks_data_update(const xpp::Session &s);
 void marks_data_equilibrium(const XppPlotWindows &pw, double x, double y, int symbol);
 
 /* window w of pw shows label lb[slot] as `text` (its \{expr} filled in) */
-void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, const char *text);
+void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, std::string_view text);
 
 /* window w of pw shows graphic object grob[slot] */
 void marks_data_grob(const XppPlotWindows &pw, XppWinId w, int slot);
@@ -67,6 +60,7 @@ void marks_data_grob(const XppPlotWindows &pw, XppWinId w, int slot);
    s's curve was just made (a new curve, even in a slot used before), in the
    window it names */
 void marks_data_frozen(const XppPlotWindows &pw, XppWinId w, int slot);
-void marks_data_frozen_new(const xpp::Session &s, int slot);
-#endif
+void marks_data_frozen_new(const Session &s, int slot);
+
+} // namespace xpp
 #endif

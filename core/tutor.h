@@ -1,9 +1,7 @@
 #ifndef _tutor_h_
 #define _tutor_h_
-#ifdef __cplusplus
-extern "C" {
-#endif
 
+namespace xpp {
 
 /*
 When adding items try to keep to the format of using a strong _verb_ to 
@@ -23,8 +21,5 @@ static const char *const tutorial[N_TUTORIAL]={"use captital letters on buttons 
      "edit files using your favorite text editor by setting the environment variable XPPEDITOR on your computer.",
      "have XPP open to a default starting directory by setting the environment variable XPPSTART on your computer."};
 
-#ifdef __cplusplus
-}
+} // namespace xpp
 #endif
-#endif
-

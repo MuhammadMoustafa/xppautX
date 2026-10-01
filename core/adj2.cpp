@@ -282,7 +282,7 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
  if(silent==0){
    for(i=0;i<s.model().node ;i++){
      std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
-     new_string_of(name.c_str(),coup_string[i],XPP_FIELD_EXPRESSION);
+     new_string_of(name,coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(s,coup_string[i],coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
        goto bye;
@@ -535,7 +535,7 @@ void do_liapunov(xpp::Session &s)
   new_int("Range over parameters?(0/1)",&LIAP_FLAG);
   if(LIAP_FLAG!=1){
     auto z=hrw_liapunov(s,s.numerics.newt_err);
-    if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z).c_str());
+    if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z));
     else xpp::show_error(z.error());
     return;
   }

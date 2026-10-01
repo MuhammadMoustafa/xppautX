@@ -20,6 +20,8 @@
 #include <string_view>
 #include "xpp_globals.h"
 
+namespace xpp {
+
 #define RIGHT 2
 #define CENTER 1
 #define POINT_TYPES 8
@@ -417,3 +419,5 @@ void svg_y_axis_label(int x, int y, const char *label)
   svg_writer.print("\n      <text class=\"xppyaxislabelh\" text-anchor=\"end\" x=\"{}\"  y=\"{}\"\n",x,y);
   svg_writer.print("      >{}</text>\n",label);
 }
+
+} // namespace xpp

@@ -64,7 +64,7 @@ void quit_session(void) { exit(session.script_mode && session.script_error ? 1 :
    at_exit) knows the exit was meant; a script's error stays exit 1 without it */
 void quit_command(void)
 {
-    if (!(session.script_mode && session.script_error)) send_simple("bye", NULL, NULL);
+    if (!(session.script_mode && session.script_error)) send_simple("bye");
     quit_session();
 }
 
@@ -348,7 +348,7 @@ void script_stop_missed(void)
 
 void j_exit_program(void)
 {
-    send_simple("bye", NULL, NULL);
+    send_simple("bye");
     exit(0);
 }
 
@@ -357,7 +357,7 @@ void j_int(int) {}
 
 /* the running command's first computation began (xpp_job.h): the client
    disables what it may not do until the command's idle */
-void send_computing(void) { send_simple("computing", NULL, NULL); }
+void send_computing(void) { send_simple("computing"); }
 
 /* the JSON front end's table: assignments, so C++17 needs no designated
    initializers; fields not set stay null, as in the C initializer */
@@ -468,7 +468,7 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
     else if (win == "ani") ani_key(s, ch);
     else if (win == "aplot") aplot_key(s, ch);
     else if (win == "equilibrium") equilibrium_key(s, ch);
-    else j_err_msg(xpp::format("No key layer for the window {}", win).c_str());
+    else j_err_msg(xpp::format("No key layer for the window {}", win));
 }
 
 void key_command(xpp::Session &s, const char *line)
@@ -496,7 +496,7 @@ void file_command(xpp::Session &, const char *line)
     std::string o;
     get_string(line, "op", o, 8);
     xpp::files::command(o, js_find(line, "name"), js_find(line, "data"),
-                        [](std::string_view event) { data_emit(event.data(), event.size()); });
+                        [](std::string_view event) { data_emit(event); });
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
@@ -506,7 +506,7 @@ void write_command(xpp::Session &s, const char *line)
     get_string(line, "op", o, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
-    else if (is_cmd(line, "dfield")) write_dfield(s,name.c_str());
+    else if (is_cmd(line, "dfield")) write_dfield(s,name);
     else write_equilibrium(s,name.c_str(), get_int(line, "shoot", 0));
 }
 
@@ -637,9 +637,9 @@ char line_kind(const char *line)
     std::string k, win; /* a key: its menu item's kind */
     get_string(line, "key", k, 16);
     const int ch = key_code(k.c_str());
-    if (!get_string(line, "win", win, 16)) return xpp_main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
-    const XppWindowLayer *l = xpp_window_layer(win.c_str());
-    return l ? xpp_menu_kind(l->menu, ch) : 0;
+    if (!get_string(line, "win", win, 16)) return main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
+    const XppWindowLayer *l = window_layer(win);
+    return l ? menu_kind(l->menu, ch) : 0;
 }
 
 namespace {
@@ -661,7 +661,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);
-        j_err_msg(xpp::format("Not while a computation runs: {} was refused", c).c_str());
+        j_err_msg(xpp::format("Not while a computation runs: {} was refused", c));
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
         player_begin(line);
@@ -669,7 +669,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         e->run(*s, line);
     } else {
         std::string c;
-        if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c).c_str());
+        if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c));
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
@@ -700,7 +700,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* the command is finished; the client may send the next one */
     xpp_job_end();
     send_state(*s);
-    send_simple("idle", NULL, NULL);
+    send_simple("idle");
     /* a script's next line is the next command (docs/protocol.md
        "Scripts"); this also releases the very first script line, since
        xppautx_main.c's startup "redraw" ends here too */
@@ -712,9 +712,11 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
 
 } // namespace xpp::json
 
-/* ---- the C API (ui_json.h) ---- */
+/* ---- ui_json.h ---- */
 
-using namespace xpp::json;
+namespace xpp {
+
+using namespace json;
 
 xpp::Session &json_ui_handle(const char *line) { return handle_line(line, 0, false); }
 
@@ -803,13 +805,13 @@ void install(bool silent)
     xpp_job_set_compute_hook(send_computing);
     XppUi ui = json_ui;
     if (silent) {
-        /* NULL keeps the headless entry (xpp_set_ui) */
+        /* NULL keeps the headless entry (set_ui) */
         ui.err_msg = nullptr;
         ui.respond_box = nullptr;
         ui.show_eq_box = nullptr;
         ui.copy_text = nullptr;
     }
-    xpp_set_ui(&ui);
+    set_ui(&ui);
 }
 
 } // namespace
@@ -846,6 +848,8 @@ void json_ui_load_error(const xpp::Diagnostic &d)
     BUF_LIT(&b, "}");
     send_buf(&b);
 }
+
+} // namespace xpp
 
 namespace xpp::json {
 
@@ -907,11 +911,11 @@ void send_hello(xpp::Session &s)
     BUF_LIT(&b, ",\"num_kinds\":");
     buf_str(&b, num_menu_kinds);
     BUF_LIT(&b, "}");
-    /* the windows' key layers (menus.h xpp_window_layers) and the other
+    /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */
     BUF_LIT(&b, ",\"windows\":{");
     for (i = 0; i < XPP_WINDOW_LAYERS; i++) {
-        const XppWindowLayer &l = xpp_window_layers[i];
+        const XppWindowLayer &l = window_layers[i];
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, l.win);
         BUF_LIT(&b, ":{\"items\":");

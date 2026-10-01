@@ -14,6 +14,8 @@
 #include "xpp_io.h"
 #include "load_eqn.h"
 
+namespace xpp {
+
 #define MAXPERPLOT 10
 #define DEGTORAD .0174532
 #define EP1 1.000001
@@ -76,7 +78,7 @@ void get_draw_area_flag(xpp::Session &s, int flag)
   unsigned int w,h;
   if(flag==1)
     {
-      xpp_ui.get_draw_size(s,&w,&h);
+      ui.get_draw_size(s,&w,&h);
       s.plot_windows.current->x11Wid=w;
       s.plot_windows.current->x11Hgt=h;
     }
@@ -131,14 +133,14 @@ void point(xpp::Session &s, int x, int y)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_point(s,x,y);
-  else xpp_ui.draw_point(x,y);
+  else ui.draw_point(x,y);
 }
 
 void line(xpp::Session &s, int x1, int y1, int x2, int y2)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_line(s,x1,y1,x2,y2);
-  else xpp_ui.draw_line(x1,y1,x2,y2);
+  else ui.draw_line(x1,y1,x2,y2);
 }
 /* draw a little filled circle */
 
@@ -146,21 +148,21 @@ void bead(xpp::Session &s, int x1, int y1)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_bead(s,x1,y1);
-  else xpp_ui.draw_bead(x1,y1);
+  else ui.draw_bead(x1,y1);
 }
 
 void frect(xpp::Session &s, int x1, int y1, int w, int h)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_frect(s,x1,y1,w,h);
-  else xpp_ui.draw_frect(x1,y1,w,h);
+  else ui.draw_frect(x1,y1,w,h);
 }
 
 void put_text(xpp::Session &s, int x, int y, const char *str)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_text(s,x,y,str);
-  else xpp_ui.draw_text(x,y,str);
+  else ui.draw_text(x,y,str);
 }
 
 void init_x11(xpp::Session &s)
@@ -217,7 +219,7 @@ void set_linestyle(xpp::Session &s, int ls)
 {
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_linetype(s,ls);
-  else xpp_ui.draw_linestyle(ls);
+  else ui.draw_linestyle(ls);
 }
 
 void scale_dxdy(const xpp::Session &s, float x, float y, double *i, double *j)
@@ -335,7 +337,7 @@ void reset_graph(xpp::Session &s)
     s.plot_windows.current->grtype=s.plot_settings.axes;
     xpp::check_windows(s);
     set_normal_scale(s);
-    xpp_ui.redraw_graph(s);
+    ui.redraw_graph(s);
 }
 
 void get_graph(xpp::Session &s)
@@ -780,7 +782,7 @@ void fancy_text_abs(xpp::Session &s, float x, float y, const char *old, int size
   const std::string text=fill_in_text(s,old);
   int f=active_image_format(s);
   if(f>=0)xpp::image_formats[f].draw_special_text(s,xp,yp,text.c_str(),size);
-  else xpp_ui.draw_special_text(xp,yp,text.c_str(),size);
+  else ui.draw_special_text(xp,yp,text.c_str(),size);
     
 }
 
@@ -1055,3 +1057,4 @@ void draw_symbol(xpp::Session &s, float x, float y, float size, int my_symb)
 
 }
 
+} // namespace xpp

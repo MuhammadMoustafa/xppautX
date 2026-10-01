@@ -21,9 +21,6 @@
 #include <math.h>
 
 /* the core's own globals and functions that have no header of their own */
-extern "C" {
-}
-
 namespace xpp::json {
 
 namespace {
@@ -127,23 +124,23 @@ int ask_begin(Buf *b, const char *kind)
     return ask_id;
 }
 
-void j_err_msg(const char *msg)
+void j_err_msg(std::string_view msg)
 {
     /* a script that provokes an error fails the run (docs/protocol.md) */
     if (session.script_mode) session.script_error = 1;
     send_simple("message", "error", msg);
 }
 
-void j_ping(void) { send_simple("ping", NULL, NULL); }
+void j_ping(void) { send_simple("ping"); }
 
-void j_bottom_msg(int, const char *msg)
+void j_bottom_msg(int, std::string_view msg)
 {
     send_simple("message", "bottom", msg);
 }
 
-void j_message_box(const char *msg) { send_simple("message", "box", msg); }
+void j_message_box(std::string_view msg) { send_simple("message", "box", msg); }
 void j_kill_message_box(void) { send_simple("message", "box", ""); }
-void j_title_text(const char *s) { send_simple("title", "text", s); }
+void j_title_text(std::string_view s) { send_simple("title", "text", s); }
 
 namespace {
 
@@ -168,7 +165,8 @@ void buf_kinds(Buf *b, const int *kinds, int all, int n)
 
 } // namespace
 
-int j_dialog(const char *title, const char *name, std::string &value, const char *ok, const char *cancel, int kind)
+int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
+             std::string_view cancel, int kind)
 {
     Buf b;
     int id = ask_begin(&b, "string");
@@ -177,7 +175,7 @@ int j_dialog(const char *title, const char *name, std::string &value, const char
     BUF_LIT(&b, ",\"name\":");
     buf_str(&b, name);
     BUF_LIT(&b, ",\"value\":");
-    buf_str(&b, value.c_str());
+    buf_str(&b, value);
     BUF_LIT(&b, ",\"ok\":");
     buf_str(&b, ok);
     BUF_LIT(&b, ",\"cancel\":");
@@ -188,7 +186,7 @@ int j_dialog(const char *title, const char *name, std::string &value, const char
     return 1;
 }
 
-int j_new_string(const char *name, std::string &value, int kind)
+int j_new_string(std::string_view name, std::string &value, int kind)
 {
     return j_dialog("", name, value, "Ok", "Cancel", kind);
 }
@@ -204,13 +202,14 @@ int j_yes_no_box(void)
     return k[0] == 'y';
 }
 
-int j_two_choice(const char *c1, const char *c2, const char *q, const char *key, const char *title)
+int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
+                 std::string_view title)
 {
     Buf b;
     std::string k;
     int id = ask_begin(&b, "choice");
     BUF_LIT(&b, ",\"title\":");
-    buf_str(&b, title ? title : "");
+    buf_str(&b, title);
     BUF_LIT(&b, ",\"question\":");
     buf_str(&b, q);
     BUF_LIT(&b, ",\"choices\":[");
@@ -224,7 +223,7 @@ int j_two_choice(const char *c1, const char *c2, const char *q, const char *key,
     return static_cast<unsigned char>(k[0]);
 }
 
-void j_respond_box(const char *button, const char *message)
+void j_respond_box(std::string_view button, std::string_view message)
 {
     Buf b;
     int id = ask_begin(&b, "alert");
@@ -235,7 +234,7 @@ void j_respond_box(const char *button, const char *message)
     ask_wait(&b, id);
 }
 
-int j_checklist(const char *title, const char *const *names, int *flags, int n)
+int j_checklist(std::string_view title, const char *const *names, int *flags, int n)
 {
     Buf b;
     int i, id = ask_begin(&b, "checklist");
@@ -262,7 +261,7 @@ namespace {
 
 /* string_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
-int form(const char *title, const char *const *names, std::span<std::string> values, const int *kinds, int all)
+int form(std::string_view title, const char *const *names, std::span<std::string> values, const int *kinds, int all)
 {
     Buf b;
     const int n = static_cast<int>(values.size());
@@ -288,7 +287,7 @@ int form(const char *title, const char *const *names, std::span<std::string> val
 
 } // namespace
 
-int j_string_box(int, int, const char *title, const char *const *names, std::span<std::string> values,
+int j_string_box(int, int, std::string_view title, const char *const *names, std::span<std::string> values,
                  const int *kinds)
 {
     return form(title, names, values, kinds, XPP_FIELD_TEXT);
@@ -298,10 +297,10 @@ int j_string_box(int, int, const char *title, const char *const *names, std::spa
    "cd" changes directory (as X11 does, for good) and asks again. "mode"
    says whether the command reads the file or writes it, so a client can
    show an open or a save dialog (docs/ui-v2.md section 4). */
-int j_file_selector(const char *title, std::string &file, const char *wild)
+int j_file_selector(std::string_view title, std::string &file, std::string_view wild)
 {
     constexpr size_t PATTERN_MAX = 255, CD_MAX = 1024;
-    std::string pattern(wild ? wild : ""), cd;
+    std::string pattern(wild), cd;
     if (pattern.size() > PATTERN_MAX) pattern.resize(PATTERN_MAX);
     if (xpp::files::cur_dir().empty()) xpp::files::refresh_cur_dir();
     for (;;) {
@@ -311,7 +310,7 @@ int j_file_selector(const char *title, std::string &file, const char *wild)
         BUF_LIT(&b, ",\"title\":");
         buf_str(&b, title);
         BUF_LIT(&b, ",\"mode\":");
-        buf_str(&b, xpp::files::ask_mode(title ? title : ""));
+        buf_str(&b, xpp::files::ask_mode(title));
         BUF_LIT(&b, ",\"file\":");
         buf_str(&b, file.c_str());
         BUF_LIT(&b, ",\"wild\":");
@@ -434,12 +433,12 @@ void j_show_menu(int which)
     send_buf(&b);
 }
 
-void j_open_help(const char *chapter, const char *anchor)
+void j_open_help(std::string_view chapter, std::string_view anchor)
 {
     Buf b;
     BUF_LIT(&b, "{\"ev\":\"help\",\"chapter\":");
     buf_str(&b, chapter);
-    if (anchor && *anchor) {
+    if (!anchor.empty()) {
         BUF_LIT(&b, ",\"anchor\":");
         buf_str(&b, anchor);
     }
@@ -448,7 +447,7 @@ void j_open_help(const char *chapter, const char *anchor)
 }
 
 /* text for the page's clipboard */
-void j_copy_text(const char *what, const char *text)
+void j_copy_text(std::string_view what, std::string_view text)
 {
     Buf b;
     BUF_LIT(&b, "{\"ev\":\"copy\",\"what\":");
@@ -478,7 +477,7 @@ void j_q_calc(xpp::Session &s)
     double z;
     std::string result = "Formula:";
     /* the X11 calculator shows the answer in its window: here in the prompt */
-    while (new_string_of(result.c_str(), expr, XPP_FIELD_EXPRESSION)) {
+    while (new_string_of(result, expr, XPP_FIELD_EXPRESSION)) {
         if (do_calc(s, expr, &z) != -1) {
             result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
             send_simple("message", "calc", result.c_str());

@@ -32,38 +32,6 @@ core/cvode.h 1|vendored CVODE: W34 (#72) decides
 core/dense.h 1|vendored CVODE: W34 (#72) decides
 core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
 core/vector.h 1|vendored CVODE: W34 (#72) decides
-core/ani_data.h 1|W109e: the drawing, the data modules, the UI seam and the commands
-core/aniparse.h 1|W109e
-core/array_print.h 1|W109e
-core/axes2.h 1|W109e
-core/browse.h 1|W109e
-core/colormap.h 1|W109e
-core/graf_par.h 1|W109e
-core/graphics.h 1|W109e
-core/grobs.h 1|W109e
-core/kbs.h 1|W109e
-core/many_pops.h 1|W109e
-core/marks_data.h 1|W109e
-core/menudrive.h 1|W109e
-core/menus.h 1|W109e
-core/my_ps.h 1|W109e
-core/my_svg.h 1|W109e
-core/nullcline.h 1|W109e
-core/phase_data.h 1|W109e
-core/plot_data.h 1|W109e
-core/scrngif.h 1|W109e
-core/tutor.h 1|W109e
-core/ui_json.h 1|W109e
-core/userbut.h 1|W109e
-core/xpp_ui.h 1|W109e
-core/ani_data.cpp 12|W109e
-core/marks_data.cpp 3|W109e
-core/phase_data.cpp 7|W109e
-core/plot_data.cpp 5|W109e
-core/json_ani.cpp 1|W109e: an empty extern \"C\" block
-core/json_prompts.cpp 1|W109e: an empty extern \"C\" block
-core/json_state.cpp 1|W109e: an empty extern \"C\" block
-core/json_windows.cpp 1|W109e: an empty extern \"C\" block
 core/xpp_http.h 1|W109f: the threads and the window's edges (tests/test_job.c, C, calls xpp_job.h)
 core/xpp_inbox.h 1|W109f
 core/xpp_job.h 1|W109f

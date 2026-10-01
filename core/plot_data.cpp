@@ -29,8 +29,7 @@
 #include "xpp_job.h"
 #include "browse.h"
 
-extern "C" {
-}
+namespace xpp {
 
 namespace {
 
@@ -75,7 +74,7 @@ void add_int(std::string &o, long v) { o += std::to_string(v); }
 
 void emit(const std::string &s)
 {
-    if (emit_line) emit_line(s.data(), s.size());
+    if (emit_line) emit_line(s);
 }
 
 /* ---- series ---- */
@@ -533,11 +532,11 @@ void plots_update(xpp::Session &s)
 
 } // namespace
 
-/* ---- the C API: no exception leaves it (out of memory drops the event) ---- */
+/* ---- the API: no exception leaves it (out of memory drops the event) ---- */
 
-extern "C" void plot_data_init(PlotDataEmit emit) { emit_line = emit; }
+void plot_data_init(PlotDataEmit emit) { emit_line = emit; }
 
-extern "C" void plot_data_subscribe(int series, int plots, int f32)
+void plot_data_subscribe(int series, int plots, int f32)
 {
     series_on = series != 0;
     plots_on = plots != 0;
@@ -547,7 +546,7 @@ extern "C" void plot_data_subscribe(int series, int plots, int f32)
     appended = -1;
 }
 
-extern "C" void plot_data_changed(void) { data_version++; }
+void plot_data_changed(void) { data_version++; }
 
 /* the windows a command draws on: all of ActiveWinList under Simulplot, else the active one */
 void plot_data_picture(xpp::Session &s, int redraw)
@@ -579,7 +578,7 @@ void plot_data_picture(xpp::Session &s, int redraw)
 /* the encoding the client asked for in its last "data" command (docs/ui-v2.md
    T12, "reuse series_enc"): other events that carry value arrays outside the
    subscription list (aplot) still honour it. */
-extern "C" int plot_data_want_f32(void) { return series_f32; }
+int plot_data_want_f32(void) { return series_f32; }
 
 void plot_data_rows_stored(xpp::Session &s, int nrows)
 {
@@ -605,3 +604,5 @@ void plot_data_update(xpp::Session &s)
         xpp::out_of_memory("sending the plots");
     }
 }
+
+} // namespace xpp

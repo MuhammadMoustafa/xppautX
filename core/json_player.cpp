@@ -200,7 +200,7 @@ void send_press(const char *what, size_t index, Clock::duration ms)
 /* the step stops playing: an error, and the player pauses */
 void diverged(const std::string &why)
 {
-    j_err_msg(xpp::format("Step {} of the recording {}; the player stopped", player.running + 1, why).c_str());
+    j_err_msg(xpp::format("Step {} of the recording {}; the player stopped", player.running + 1, why));
     player.playing = false;
     player.step_once = false;
     player.fast_to = 0;
@@ -338,7 +338,7 @@ bool serve(const std::string &path, std::string *copy)
     }
     if (!copy) return true;
     if (!copy_of(*section, *copy)) {
-        j_err_msg(xpp::format("Cannot copy {} out of the recording", path).c_str());
+        j_err_msg(xpp::format("Cannot copy {} out of the recording", path));
         return false;
     }
     return true;
@@ -399,13 +399,13 @@ void send_player()
     send_buf(&b);
 }
 
-void open_recording(xpp::Session &s, const char *path, bool ask = true)
+void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
 {
     if (player.running >= 0) {
         j_err_msg("Not while a recording plays a step");
         return;
     }
-    std::string file = path ? path : "";
+    std::string file(path);
     if (file.empty()) {
         file = xpp::files::working_dir();
         if (!file.empty() && file.back() != '/') file += '/';
@@ -413,22 +413,22 @@ void open_recording(xpp::Session &s, const char *path, bool ask = true)
     }
     std::string bytes, error;
     if (!xpp::read_bytes(file.c_str(), bytes)) {
-        j_err_msg(xpp::format("Cannot open {}", file).c_str());
+        j_err_msg(xpp::format("Cannot open {}", file));
         return;
     }
     std::optional<recx::Read> got = recx::read(bytes, error);
     if (!got) {
-        j_err_msg(xpp::format("{} is not a recording: {}", file, error).c_str());
+        j_err_msg(xpp::format("{} is not a recording: {}", file, error));
         return;
     }
     if (got->rec.model.empty()) {
-        j_err_msg(xpp::format("{} names no model", file).c_str());
+        j_err_msg(xpp::format("{} names no model", file));
         return;
     }
     std::vector<PlayStep> steps(got->rec.steps.size());
     for (size_t i = 0; i < steps.size(); i++)
         if (!read_step(got->rec.steps[i], got->rec.files.size(), steps[i], error)) {
-            j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error).c_str());
+            j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error));
             return;
         }
     const std::string where = xpp::files::absolute(file);
@@ -480,7 +480,7 @@ void play_command(xpp::Session &s, const char *line)
     if (op == "open") {
         std::string file;
         get_string(line, "file", file);
-        open_recording(s, file.c_str());
+        open_recording(s, file);
     } else if (op == "from") {
         if (!player.open || player.running >= 0) {
             j_err_msg(player.open ? "Not while a step plays" : "No recording is open in the player");
@@ -506,11 +506,11 @@ void play_command(xpp::Session &s, const char *line)
         xpp::Writer w(player.path.c_str());
         if (!w || !w.write(recx::text(player.rec)) || !w.commit()) {
             note = was;
-            j_err_msg(xpp::format("Cannot write {}", player.path).c_str());
+            j_err_msg(xpp::format("Cannot write {}", player.path));
             return;
         }
         player.steps[static_cast<size_t>(i)].note = text;
-        bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second).c_str());
+        bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second));
         send_player();
     } else if (op == "close") {
         if (player.running >= 0) {
@@ -521,7 +521,7 @@ void play_command(xpp::Session &s, const char *line)
     } else if (op == "start" || op == "pause" || op == "step" || op == "speed") {
         control(op, line);
     } else {
-        j_err_msg(xpp::format("Unknown play op {}", op).c_str());
+        j_err_msg(xpp::format("Unknown play op {}", op));
     }
 }
 
@@ -540,14 +540,16 @@ bool play_async(const char *line)
     return true;
 }
 
-void j_play_recording(xpp::Session &s, const char *path)
+void j_play_recording(xpp::Session &s, std::string_view path)
 {
     open_recording(s, path);
 }
 
 } // namespace xpp::json
 
-/* the C++ API of ui_json.h (global) */
+/* ui_json.h's */
+namespace xpp {
+
 std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 {
     std::string bytes, error;
@@ -569,8 +571,10 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 
 void json_ui_play_launched(xpp::Session &s, const std::string &path)
 {
-    xpp::json::open_recording(s, path.c_str(), false);
+    json::open_recording(s, path, false);
 }
+
+} // namespace xpp
 
 namespace xpp::json {
 

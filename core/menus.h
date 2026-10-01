@@ -1,8 +1,10 @@
 #ifndef _menus_h_
 #define _menus_h_
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+#include <string>
+#include <string_view>
+
+namespace xpp {
 
 #define MAIN_MENU 0
 #define FILE_MENU 1
@@ -53,9 +55,9 @@ extern const char *const file_menu_kinds;
 
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */
-char xpp_main_menu_kind(int which, int ch);
+char main_menu_kind(int which, int ch);
 /* the item of main-window menu `which` that key ch picks, NULL for none */
-const char *xpp_main_menu_item(int which, int ch);
+const char *main_menu_item(int which, int ch);
 
 /* A pop-up menu as data. Core code asks the front end to show one with
    menu_choose() and gets back the chosen key. Item i usually runs
@@ -78,7 +80,7 @@ typedef struct XppMenu {
 
 /* The windows' own key layers (protocol: {"cmd":"key","win":...}), one XppMenu
    each, the keys defined here and nowhere else; the enums number the items in
-   the menus' order (xpp_menu_index gives the item a key picks). */
+   the menus' order (menu_index gives the item a key picks). */
 enum AutoWindowKey { AK_PARAM, AK_AXES, AK_NUMERICS, AK_RUN, AK_GRAB, AK_USR, AK_CLEAR, AK_REDRAW, AK_FILE };
 enum BrowserWindowKey { BK_FIND, BK_GET, BK_REPLACE, BK_UNREPLACE, BK_TABLE, BK_FIRST, BK_LAST, BK_RESTORE,
   BK_ADDCOL, BK_DELCOL, BK_LOAD, BK_WRITE };
@@ -87,9 +89,9 @@ enum AplotWindowKey { PK_REDRAW, PK_EDIT, PK_FIT, PK_RANGE, PK_PRINT, PK_GIF };
 enum EquilibriumWindowKey { EK_IMPORT };
 
 /* the index of the item of m that key ch picks, -1 for none */
-int xpp_menu_index(const XppMenu *m, int ch);
+int menu_index(const XppMenu *m, int ch);
 /* the kind of the item of m that key ch picks, 0 for none */
-char xpp_menu_kind(const XppMenu *m, int ch);
+char menu_kind(const XppMenu *m, int ch);
 
 /* A window's key layer: the protocol's `win` name, its menu, and the page's
    name for each item (hello.windows, docs/protocol.md "Window keys"). */
@@ -99,9 +101,9 @@ typedef struct XppWindowLayer {
   const char *const *ids;
 } XppWindowLayer;
 #define XPP_WINDOW_LAYERS 5
-extern const XppWindowLayer xpp_window_layers[XPP_WINDOW_LAYERS];
+extern const XppWindowLayer window_layers[XPP_WINDOW_LAYERS];
 /* the layer of window `win`, NULL for none */
-const XppWindowLayer *xpp_window_layer(const char *win);
+const XppWindowLayer *window_layer(std::string_view win);
 
 extern const XppMenu menu_auto_window, menu_browser_window, menu_ani_window, menu_aplot_window,
   menu_equilibrium_window;
@@ -118,16 +120,9 @@ extern const XppMenu menu_auto_plot_type, menu_auto_mark, menu_auto_start, menu_
   menu_auto_per_doub, menu_auto_periodic, menu_auto_hopf, menu_auto_branch, menu_auto_file,
   menu_auto_special;
 
-
-
-#ifdef __cplusplus
-}
-
-#include <string>
-#include <string_view>
-
 /* an item as a person reads it, its key's parentheses gone: "(G)o" is
    "Go" (a recording's step labels, W59a) */
-std::string xpp_menu_label(std::string_view item);
-#endif
+std::string menu_label(std::string_view item);
+
+} // namespace xpp
 #endif

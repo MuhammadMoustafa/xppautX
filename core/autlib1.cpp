@@ -2644,7 +2644,7 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
     }
     amp = sqrt(ss);
   }
-  byeauto_(&iflag);
+  xpp::byeauto_(&iflag);
   istop = iap->istop;
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
@@ -5163,7 +5163,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    { int iflag; byeauto_(&iflag); } /* xppautX: cancel */
+    { int iflag; xpp::byeauto_(&iflag); } /* xppautX: cancel */
     if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
@@ -6550,7 +6550,7 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
 
   /* here is another place for byeauto
    call with iflag  */
-  byeauto_(&iflag);
+  xpp::byeauto_(&iflag);
   istop = iap->istop;
   if (istop == 0 && xpp_job_cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */

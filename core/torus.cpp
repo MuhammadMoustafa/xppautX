@@ -14,7 +14,7 @@ void do_torus_com(xpp::Session &s, int c)
  if(c==0||c==2){
    new_float(s,"Period :",&s.numerics.tor_period);
    if(s.numerics.tor_period<=0.0){
-     err_msg("Choose positive period");
+     xpp::err_msg("Choose positive period");
      return;
    }
    if(c==0){
@@ -35,6 +35,6 @@ void choose_torus(xpp::Session &s)
  int i;
  std::array<const char *, MAXODE> names{};
  for(i=0;i<s.model().neq;i++)names[i]=s.model().uvar_names[i].c_str();
- xpp_ui.checklist("Fold which",names.data(),s.itor.data(),s.model().neq);
+ xpp::ui.checklist("Fold which",names.data(),s.itor.data(),s.model().neq);
  for(i=0;i<s.model().neq;i++)if(s.itor[i]==1)s.numerics.torus=1;
 }

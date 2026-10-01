@@ -56,8 +56,8 @@ void set_up_aplot_range(xpp::Session &s)
  values[0] = xpp::format("{:.24}", s.array_plot.range_stem);
  values[1] = xpp::format("{:d}", s.array_plot.still);
  values[2] = xpp::format("{:d}", s.array_plot.tag);
- static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(3,1,"Array range saving",n,values,kinds);
+ static const int kinds[]={xpp::XPP_FIELD_FILE,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
+ status=xpp::do_string_box_of(3,1,"Array range saving",n,values,kinds);
  if(status!=0){
    s.array_plot.range_stem=values[0];
    s.array_plot.still=atoi(values[1].c_str());
@@ -74,7 +74,7 @@ double zmax,zmin;
  scale_aplot(s,&s.array_plot.plot,&zmax,&zmin);
   s.array_plot.plot.zmin=zmin;
   s.array_plot.plot.zmax=zmax;
-  xpp_ui.aplot_redraw(s);
+  xpp::ui.aplot_redraw(s);
 
 }
 void optimize_aplot(xpp::Session &s, int *plist)
@@ -102,8 +102,8 @@ void optimize_aplot(xpp::Session &s, int *plist)
   s.array_plot.plot.zmin=zmin;
   s.array_plot.plot.zmax=zmax;
   s.array_plot.plot.plotdef=1;
-  xpp_ui.aplot_reset_axes(s);
-  xpp_ui.aplot_redraw(s);
+  xpp::ui.aplot_reset_axes(s);
+  xpp::ui.aplot_redraw(s);
 }
 
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin)
@@ -180,8 +180,8 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
   values[2] = xpp::format("{:.24}", ap->ytitle);
     values[3] = xpp::format("{:.24}", ap->bottom);
   values[4] = xpp::format("{:d}", ap->type);
-  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,1,"Print arrayplot",n,values,kinds);
+  static const int kinds[]={xpp::XPP_FIELD_FILE,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_INTEGER};
+  status=xpp::do_string_box_of(5,1,"Print arrayplot",n,values,kinds);
  if(status!=0){
    ap->filename=values[0];
    ap->xtitle=values[1];
@@ -189,12 +189,12 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
    ap->bottom=values[3];
    ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
-   errflag=array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
+   errflag=xpp::array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
 		       ap->nacross,
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,s.browser.view.maxcol,
 		      s.browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
-   if(errflag==-1)err_msg("Couldn't open file");
+   if(errflag==-1)xpp::err_msg("Couldn't open file");
  }
 }
 
@@ -242,9 +242,9 @@ int editaplot(xpp::Session &s, APLOT *ap)
  values[6] = xpp::format("{:g}", ap->zmax);
  values[7] = xpp::format("{:d}", s.array_plot.auto_redraw);
 values[8] = xpp::format("{:d}", ap->ncskip);
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,
-                           XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER};
- status=do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER,
+                           xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_NUMBER,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
+ status=xpp::do_string_box_of(9,1,"Edit arrayplot",n,values,kinds);
  if(status!=0){
    find_variable(s,values[0].c_str(),&i);
    if(i>-1){
@@ -253,7 +253,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
    }
    else
      {
-       err_msg("No such columns");
+       xpp::err_msg("No such columns");
        ap->plotdef=0;
        return 0;
      }
@@ -272,7 +272,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
     ap->ncskip=atoi(values[8].c_str());
     if(ap->ncskip<1)
       ap->ncskip=1;
-    xpp_ui.aplot_reset_axes(s);
+    xpp::ui.aplot_reset_axes(s);
  }
    return 1;
 }

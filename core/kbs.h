@@ -1,7 +1,6 @@
 #include "menudrive.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+namespace xpp {
 
 typedef struct {
   int com;
@@ -174,6 +173,4 @@ static const KBS kbs[400]={
 
 
   
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp

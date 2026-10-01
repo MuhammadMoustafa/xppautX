@@ -15,6 +15,8 @@
 #include <cstdlib>
 #include <cstring>
 
+namespace xpp {
+
 namespace {
 
 const int POINTER = 0;
@@ -35,7 +37,7 @@ MarkInfo markinfo = {2, 0, 1, 0, 1, 1.0};
 } // namespace
 
 
-int add_label(xpp::Session &s, const char *text, int x, int y, int size, int font)
+int add_label(xpp::Session &s, std::string_view text, int x, int y, int size, int font)
 {
     float xp, yp;
     scale_to_real(s,x, y, &xp, &yp);
@@ -159,7 +161,7 @@ void draw_label(xpp::Session &s, XppWinId w)
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
             const std::string text = fill_in_text(s, s.labels[i].s);
-            marks_data_label(s.plot_windows,w, i, text.c_str());
+            marks_data_label(s.plot_windows,w, i, text);
             fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
         }
     }
@@ -345,7 +347,7 @@ void edit_object_com(xpp::Session &s, int com)
     if (ilab >= 0 && type == 0) {
         switch (com) {
         case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", s.labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move {} ?", s.labels[ilab].s), "yn"));
             if (ans == 'y') {
                 MessageBox("Click on new position");
                 flag = GetMouseXY(s,&i, &j);
@@ -361,7 +363,7 @@ void edit_object_com(xpp::Session &s, int com)
             }
             break;
         case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", s.labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", s.labels[ilab].s), "yn"));
             if (ans == 'y') {
                 std::string text = s.labels[ilab].s;
                 new_string("Text: ", text);
@@ -374,7 +376,7 @@ void edit_object_com(xpp::Session &s, int com)
             }
             break;
         case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", s.labels[ilab].s).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", s.labels[ilab].s), "yn"));
             if (ans == 'y') {
                 s.labels[ilab].w = 0;
                 s.labels[ilab].use = 0;
@@ -387,7 +389,7 @@ void edit_object_com(xpp::Session &s, int com)
     if (ilab >= 0 && type == 1) {
         switch (com) {
         case 0:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Move graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
             if (ans == 'y') {
                 MessageBox("Reposition");
                 flag = GetMouseXY(s,&i, &j);
@@ -405,7 +407,7 @@ void edit_object_com(xpp::Session &s, int com)
             }
             break;
         case 1:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
             if (ans == 'y') {
                 if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
                 new_float(s,"Size ", &s.grobs[ilab].size);
@@ -415,7 +417,7 @@ void edit_object_com(xpp::Session &s, int com)
             }
             break;
         case 2:
-            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)).c_str(), "yn"));
+            ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete graphic at ({:f},{:f})", static_cast<double>(s.grobs[ilab].xs), static_cast<double>(s.grobs[ilab].ys)), "yn"));
             if (ans == 'y') {
                 s.grobs[ilab].w = 0;
                 s.grobs[ilab].use = 0;
@@ -463,7 +465,7 @@ void do_windows_com(xpp::Session &s, int c)
         if (yes_no_box()) kill_all_pops(s);
         break;
     case 3:
-        xpp_ui.lower_plot_window();
+        ui.lower_plot_window();
         break;
     case 2:
         destroy_a_pop(s);
@@ -491,3 +493,4 @@ void set_restore(xpp::Session &s, int flag)
     }
 }
 
+} // namespace xpp

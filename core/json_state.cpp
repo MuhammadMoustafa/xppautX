@@ -38,9 +38,6 @@
 #include <string>
 
 /* the core's own globals and functions that have no header of their own */
-extern "C" {
-}
-
 namespace xpp::json {
 
 namespace {
@@ -233,7 +230,7 @@ void browser_command(xpp::Session &s, const char *line)
     if (o == "load") data_read(s, &s.browser.view, format, name);
     else if (o == "write") data_write(s, &s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
     else if (o == "postprocess") post_process_stuff(s);
-    else j_err_msg(xpp::format("Unknown browser op {}", o).c_str());
+    else j_err_msg(xpp::format("Unknown browser op {}", o));
     browser_dirty = 1;
 }
 
@@ -243,7 +240,7 @@ void browser_key(xpp::Session &s, int ch, const char *line)
 {
     int row = get_int(line, "row", -1);
     if (row >= 0 && row < s.browser.view.maxrow) s.browser.view.row0 = row;
-    switch (xpp_menu_index(&menu_browser_window, ch)) {
+    switch (menu_index(&menu_browser_window, ch)) {
     case BK_FIND: data_find(s, &s.browser.view); break;
     case BK_GET: data_get(s, &s.browser.view); break;
     case BK_REPLACE: data_replace(s, &s.browser.view); break;
@@ -377,12 +374,12 @@ int apply_value(xpp::Session &s, const char *line)
     else if (kind == "delay") type = 3; /* DELAYBOX */
     else if (kind == "bc") type = 4;    /* BCBOX */
     else if (kind != "num") {
-        j_err_msg(xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", kind).c_str());
+        j_err_msg(xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", kind));
         return -1;
     } else type = 0;
     if (!get_string(line, "text", text)) {
         if (!js_number(js_find(line, "value"), &z)) {
-            j_err_msg(xpp::format("set {} {}: its value is not a number (or its text missing)", kind, name).c_str());
+            j_err_msg(xpp::format("set {} {}: its value is not a number (or its text missing)", kind, name));
             return -1;
         }
         text = xpp::format("{:.16g}", z);
@@ -390,7 +387,7 @@ int apply_value(xpp::Session &s, const char *line)
     if (type == 0) {
         std::string why;
         if (numerics_settings_set(s, name, text, why) == 0) return 0;
-        j_err_msg(xpp::format("Numerics: {}", why).c_str());
+        j_err_msg(xpp::format("Numerics: {}", why));
         return -1;
     }
     n = type == 1 ? m.nupar : type == 2 ? m.node + m.nmarkov : m.node;
@@ -398,7 +395,7 @@ int apply_value(xpp::Session &s, const char *line)
     if (const char *at = js_find(line, "index")) {
         double k;
         if (!js_number(at, &k) || !(k >= 0 && k < n) || k != static_cast<int>(k)) {
-            j_err_msg(xpp::format("set {}: its index is not one of 0 to {}", kind, n - 1).c_str());
+            j_err_msg(xpp::format("set {}: its index is not one of 0 to {}", kind, n - 1));
             return -1;
         }
         index = static_cast<int>(k);
@@ -410,7 +407,7 @@ int apply_value(xpp::Session &s, const char *line)
             index = i;
     }
     if (index < 0) {
-        j_err_msg(xpp::format("set: the model has no {} {}", kind, name).c_str());
+        j_err_msg(xpp::format("set: the model has no {} {}", kind, name));
         return -1;
     }
     state_dirty = 1;
@@ -445,7 +442,7 @@ void default_command(xpp::Session &s, const char *line)
     get_string(line, "kind", kind);
     if (kind == "par") set_default_params(s);
     else if (kind == "ic") set_default_ics(s);
-    else j_err_msg(xpp::format("default takes kind par or ic, not \"{}\"", kind).c_str());
+    else j_err_msg(xpp::format("default takes kind par or ic, not \"{}\"", kind));
 }
 
 /* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
@@ -459,9 +456,9 @@ void slide_command(xpp::Session &s, const char *line)
     double value;
     get_string(line, "name", name);
     if (!find_par_or_var(s.model(), name, &type, &index))
-        j_err_msg(xpp::format("slide: the model has no parameter or variable {}", name).c_str());
+        j_err_msg(xpp::format("slide: the model has no parameter or variable {}", name));
     else if (!js_number(js_find(line, "value"), &value))
-        j_err_msg(xpp::format("slide {}: its value is not a number", name).c_str());
+        j_err_msg(xpp::format("slide {}: its value is not a number", name));
     else {
         set_par_or_var(s, name, type, index, value);
         state_dirty = 1;
@@ -485,7 +482,7 @@ void values_command(xpp::Session &s, const char *line)
         int j = get_int(line, "index", -1);
         for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
             if (sets[i].name == name) j = static_cast<int>(i);
-        if (j < 0) j_err_msg(xpp::format("No internal set {}", name).c_str());
+        if (j < 0) j_err_msg(xpp::format("No internal set {}", name));
         else use_intern_set(s, j);
         state_dirty = 1;
         return;
@@ -496,7 +493,7 @@ void values_command(xpp::Session &s, const char *line)
         return;
     }
     if (kind != "par" && kind != "ic") {
-        j_err_msg(xpp::format("values writes or reads par or ic, not {}", kind).c_str());
+        j_err_msg(xpp::format("values writes or reads par or ic, not {}", kind));
         return;
     }
     if (o == "write") {
@@ -581,7 +578,7 @@ void j_show_eq_box(xpp::Session &s, int cp, int cm, int rp, int rm, int im, doub
 /* a key of the equilibrium window (menu_equilibrium_window): Import */
 void equilibrium_key(xpp::Session &s, int ch)
 {
-    if (xpp_menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(s, last_eq, last_eq_n);
+    if (menu_index(&menu_equilibrium_window, ch) == EK_IMPORT && last_eq_n) eq_import(s, last_eq, last_eq_n);
 }
 
 void j_make_txtview(xpp::Session &s)

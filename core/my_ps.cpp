@@ -16,6 +16,8 @@
 #include <string_view>
 #include "xpp_io.h"
 #include "xpp_globals.h"
+
+namespace xpp {
 #define MAXPSLINE 100
 
 #define PS_XOFF 50
@@ -387,3 +389,5 @@ int ps_ask_params(xpp::Session &s)
   ping();
   return 1;
 }
+
+} // namespace xpp

@@ -1,9 +1,9 @@
 #ifndef _many_pops_h
 #define _many_pops_h
+
 #include "grobs.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+namespace xpp {
 
 /* The plot windows: every window's graph settings, the active one, and
    the windows a command draws on (all open ones under Simulplot). */
@@ -17,8 +17,5 @@ typedef struct {
     XppWinId draw_win;     /* graph[active].w, the window drawn into */
 } XppPlotWindows;
 
-
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp
 #endif

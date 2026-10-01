@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <span>
 
+namespace xpp {
+
 float **get_browser_data(xpp::Session &s)
 {
   return s.browser.view.data;
@@ -184,7 +186,7 @@ void  refresh_browser(xpp::Session &s, int length)
    }
    s.browser.view.maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
  }
- xpp_ui.data_changed(length);
+ ui.data_changed(length);
 }
 
 void reset_browser(xpp::Session &s)
@@ -210,7 +212,7 @@ void init_browser(xpp::Session &s)
 namespace {
 
 /* 1 when fil does not exist yet or may be overwritten */
-bool may_write_file(const char *fil)
+bool may_write_file(std::string_view fil)
 {
  if(!xpp::files::exists(fil))return true;
  return static_cast<char>(TwoChoice("Yes","No",
@@ -223,7 +225,7 @@ namespace {
 
 /* fil opened for a write that replaces it at commit, whether or not it
    exists: an empty Writer when it cannot be written (err_msg says so) */
-xpp::Writer open_writer(const char *fil, bool binary)
+xpp::Writer open_writer(std::string_view fil, bool binary)
 {
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
  if(!w)err_msg("Cannot open file");
@@ -232,7 +234,7 @@ xpp::Writer open_writer(const char *fil, bool binary)
 
 } // namespace
 
-xpp::Writer open_writer_asking(const char *fil, bool binary)
+xpp::Writer open_writer_asking(std::string_view fil, bool binary)
 {
  if(!may_write_file(fil))return xpp::Writer();
  return open_writer(fil,binary);
@@ -305,7 +307,7 @@ void data_add_col(xpp::Session &s, BROWSER *b)
   if(status!=0){
     status=get_dialog_of("Add Column","Formula:",form,"Add it","Cancel",XPP_FIELD_EXPRESSION);
      if(status!=0)
-      add_stor_col(s,var.c_str(),form.c_str(),b);
+      add_stor_col(s,var,form,b);
   }
 }
 
@@ -331,7 +333,7 @@ bool compute_added_column(xpp::Session &s, const std::string &formula, int col_i
   return true;
 }
 
-int add_stor_col(xpp::Session &s, const char *name, const char *formula, BROWSER *b)
+int add_stor_col(xpp::Session &s, std::string_view name, const std::string &formula, BROWSER *b)
 {
   const xpp::Model &m=s.model();
 
@@ -348,16 +350,15 @@ int add_stor_col(xpp::Session &s, const char *name, const char *formula, BROWSER
   if(!compute_added_column(s,formula,col_index,b->maxrow))return(0);
   std::string col_name(name);
   xpp::to_upper(col_name.data());
-  s.browser.added_columns.push_back({std::move(col_name),std::string(formula)});
+  s.browser.added_columns.push_back({std::move(col_name),formula});
   b->maxcol=m.neq+1+static_cast<int>(s.browser.added_columns.size());
-  xpp_ui.browser_redraw(1);
+  ui.browser_redraw(1);
   return(1);
 }
 
 /* a:b (seq 1) or a;b (seq 2), split at the last ':' or ';' */
-void chk_seq(const char *f,int *seq, double *a1, double *a2)
+void chk_seq(std::string_view s,int *seq, double *a1, double *a2)
 {
-  const std::string_view s(f);
   *seq=0;
   *a1=0.0;
   *a2=0.0;
@@ -484,7 +485,7 @@ void unreplace_column(xpp::Session &s)
  
  }
 
-void make_d_table(double xlo, double xhi, int col, const char *filename, BROWSER b)
+void make_d_table(double xlo, double xhi, int col, std::string_view filename, BROWSER b)
 {
   int i,npts;
   xpp::Writer w=open_writer_asking(filename);
@@ -523,7 +524,7 @@ status=get_dialog_of("Replace","Variable:",var,"Ok","Cancel",XPP_FIELD_NAME_IN(0
 if(status!=0){
  status=get_dialog_of("Replace","Formula:",form,"Replace","Cancel",XPP_FIELD_EXPRESSION);
  if(status!=0)replace_column(s,var.data(),form.data(),b->data,b->maxrow);
- xpp_ui.browser_redraw(0);
+ ui.browser_redraw(0);
 }
 
  }
@@ -531,7 +532,7 @@ if(status!=0){
 void data_unreplace(xpp::Session &s)
 {
  unreplace_column(s);
- xpp_ui.browser_redraw(0);
+ ui.browser_redraw(0);
 }
 
 void data_table(const xpp::Session &s, BROWSER *b)
@@ -554,7 +555,7 @@ void data_table(const xpp::Session &s, BROWSER *b)
  xhi=atof(value[2].c_str());
  find_variable(s,value[0].c_str(),&col);
   if(col>=0)
-   make_d_table(xlo,xhi,col,value[3].c_str(),*b);
+   make_d_table(xlo,xhi,col,value[3],*b);
 }
 
 void data_find(const xpp::Session &s, BROWSER *b)
@@ -578,7 +579,7 @@ void data_find(const xpp::Session &s, BROWSER *b)
  if(col>=0)find_value(col,val,&row,*b);
  if(row>=0){
 	    b->row0=row;
-	    xpp_ui.browser_redraw(0);
+	    ui.browser_redraw(0);
 	   }
 
 }
@@ -587,7 +588,7 @@ void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string
 {
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format))){
-   err_msg(xpp::format("No data format {}",format).c_str());
+   err_msg(xpp::format("No data format {}",format));
    return;
  }
  std::string fil(name);
@@ -599,7 +600,7 @@ void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string
  if(!f||!f->read)f=xpp::data_format_named("dat"); /* any other name: XPP's own */
  xpp::DataTable t;
  if(!f->read(fil.c_str(),t)){
-   respond_box("Ok",xpp::format("Cannot read {} as {}",fil,f->title).c_str());
+   respond_box("Ok",xpp::format("Cannot read {} as {}",fil,f->title));
    return;
  }
  /*  The file's columns fill the stored ones in order: more columns than
@@ -643,12 +644,12 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
  }
  else if(what=="table"||what=="plot"||what=="output")plot=what=="plot";
  else {
-   err_msg(xpp::format("Save data writes the table, the output or the plot, not {}",what).c_str());
+   err_msg(xpp::format("Save data writes the table, the output or the plot, not {}",what));
    return;
  }
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format))){
-   err_msg(xpp::format("No data format {}",format).c_str());
+   err_msg(xpp::format("No data format {}",format));
    return;
  }
  if(!f&&!name.empty())f=xpp::data_format_of_file(name);
@@ -656,14 +657,14 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
  std::string fil(name);
  if(fil.empty()){
    fil=std::string(plot?"curves":"data")+f->extension;
-   if(!file_selector("Save data",fil,xpp::format("*{}",f->extension).c_str()))return;
+   if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
  xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(*b):all_columns(*b));
  t.seed=s.numerics.last_seed;
  xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
  if(!f->write(t,w)){
-   err_msg(xpp::format("Cannot write {}",fil).c_str());
+   err_msg(xpp::format("Cannot write {}",fil));
    return;
  }
  w.commit();
@@ -685,3 +686,4 @@ void  data_restore(xpp::Session &s, BROWSER *b)
 
   }
 
+} // namespace xpp

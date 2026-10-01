@@ -400,7 +400,7 @@ void auto_redraw_for_client(xpp::Session &s)
 
 /* ---- AUTO window --------------------------------------------------------------- */
 
-void j_auto_make_window(xpp::Session &s, const char *wname, const char *)
+void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_view)
 {
     s.auto_state.bifur.hgt = 20 * text_metrics.big_height;
     s.auto_state.bifur.wid = 67 * text_metrics.big_width;
@@ -575,7 +575,7 @@ void auto_set_command(xpp::Session &s, const char *line)
     AutoSettingsSet set;
     std::string why;
     if (!read_auto_set(line, set, why) || auto_settings_apply(s, set, why) != 0)
-        j_err_msg(xpp::format("AUTO settings: {}", why).c_str());
+        j_err_msg(xpp::format("AUTO settings: {}", why));
 }
 
 } // namespace
@@ -597,11 +597,11 @@ void auto_command(xpp::Session &s, const char *line)
         if (jl != NULL) {
             int lab = static_cast<int>(js_num(jl, 0));
             if (!auto_grab_label(s, lab))
-                j_err_msg(xpp::format("Grab: no point labelled {}", lab).c_str());
+                j_err_msg(xpp::format("Grab: no point labelled {}", lab));
         } else if (get_string(line, "type", type, 8) && js_find(line, "index") != NULL) {
             int idx = get_int(line, "index", 0);
             if (!auto_grab_type_index(s, type.c_str(), idx))
-                j_err_msg(xpp::format("Grab: no {} point number {}", type, idx).c_str());
+                j_err_msg(xpp::format("Grab: no {} point number {}", type, idx));
         } else j_err_msg("Grab: give a label, or a type and index");
     }
     else if (o == "set") auto_set_command(s, line);
@@ -612,7 +612,7 @@ void auto_command(xpp::Session &s, const char *line)
         xpp::AutoView &v = s.auto_view;
         const int k = get_int(line, "view", s.auto_state.active_view);
         if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
-            j_err_msg(xpp::format("auto display: no view {}", k).c_str());
+            j_err_msg(xpp::format("auto display: no view {}", k));
             return;
         }
         xpp::Zoom z = s.auto_state.views[static_cast<std::size_t>(k)].zoom;
@@ -630,11 +630,11 @@ void auto_command(xpp::Session &s, const char *line)
         if (js_find(line, "new")) auto_new_view(s);
         else if (js_find(line, "close")) {
             const int k = get_int(line, "close", -1);
-            if (k < 0 || k >= n) j_err_msg(xpp::format("auto view: no view {}", k).c_str());
+            if (k < 0 || k >= n) j_err_msg(xpp::format("auto view: no view {}", k));
             else if (!auto_close_view(s, k)) j_err_msg("auto view: the last view stays open");
         } else if (js_find(line, "active")) {
             const int k = get_int(line, "active", -1);
-            if (!auto_activate_view(s, k)) j_err_msg(xpp::format("auto view: no view {}", k).c_str());
+            if (!auto_activate_view(s, k)) j_err_msg(xpp::format("auto view: no view {}", k));
         } else j_err_msg("auto view: give new, close or active");
     }
     else if (o == "point") {
@@ -647,19 +647,19 @@ void auto_command(xpp::Session &s, const char *line)
     else if (o == "close") {
         if (!s.auto_state.bifur.exist) return;
         s.auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
-        send_window("destroy", WIN_AUTO, 0, 0, NULL);
+        send_window("destroy", WIN_AUTO, 0, 0);
         diag_forget();
         auto_data_forget();
         s.auto_view = xpp::AutoView();
         for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
     }
-    else j_err_msg(xpp::format("Unknown auto op {}", o).c_str());
+    else j_err_msg(xpp::format("Unknown auto op {}", o));
 }
 
 /* a key of the AUTO window (menu_auto_window) */
 void auto_key(xpp::Session &s, int ch)
 {
-    switch (xpp_menu_index(&menu_auto_window, ch)) {
+    switch (menu_index(&menu_auto_window, ch)) {
     case AK_PARAM: auto_params(s); break;
     case AK_AXES: auto_plot_par(s); break;
     case AK_NUMERICS: auto_num_par(s); break;

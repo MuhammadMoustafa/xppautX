@@ -17,6 +17,8 @@
 #include "xpp_globals.h"
 #include "xpp_io.h"
 
+namespace xpp {
+
 
 
 #define SIGNIF (0.01)		/* less than one hundredth of a tic mark */
@@ -86,7 +88,7 @@ void find_max_min_tic(double *tmin, double *tmax, double tic)
 
 void re_title(xpp::Session &s)
 {
-  title_text(make_title(s).c_str());
+  title_text(make_title(s));
 }
 
 void do_axes(xpp::Session &s)
@@ -289,3 +291,5 @@ void draw_xtics(xpp::Session &s, const char *s2, double start, double incr, doub
 }
 
 } // namespace
+
+} // namespace xpp

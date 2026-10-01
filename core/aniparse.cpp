@@ -41,6 +41,8 @@
 #include <libgen.h>
 #include "colormap.h"
 
+namespace xpp {
+
 #define LINE 0
 #define RLINE 1
 #define CIRC 2
@@ -262,20 +264,20 @@ double unit_y(double y) { return (y - ani_ylo) / (ani_yhi - ani_ylo); }
 
 void pen_color(int icol)
 {
-    xpp_ui.ani_color(icol);
+    ui.ani_color(icol);
     pen.color = icol;
 }
 
 void pen_thick(int t)
 {
     if (t < 0) t = 0;
-    xpp_ui.ani_thick(t);
+    ui.ani_thick(t);
     pen.thick = t;
 }
 
 void pen_font(int size, int font, int color)
 {
-    xpp_ui.ani_font(size, font, color);
+    ui.ani_font(size, font, color);
     pen.size = size;
     pen.font = font;
     pen.color = color;
@@ -286,7 +288,7 @@ void put_line(const xpp::Session &s, double x1, double y1, double x2, double y2)
     int i1, j1, i2, j2;
     ani_xyscale(s,x1, y1, &i1, &j1);
     ani_xyscale(s,x2, y2, &i2, &j2);
-    xpp_ui.ani_line(i1, j1, i2, j2);
+    ui.ani_line(i1, j1, i2, j2);
     ani_data_line(unit_x(x1), unit_y(y1), unit_x(x2), unit_y(y2), pen.color, pen.thick);
 }
 
@@ -300,7 +302,7 @@ void put_rect(const xpp::Session &s, double x1, double y1, double x2, double y2,
     w = abs(i2 - i1);
     if (i1 > i2) i1 = i2;
     if (j1 > j2) j1 = j2;
-    xpp_ui.ani_rect(i1, j1, w, h, fill);
+    ui.ani_rect(i1, j1, w, h, fill);
     ani_data_rect(unit_x(x1), unit_y(y1), unit_x(x2), unit_y(y2), pen.color, pen.thick, fill);
 }
 
@@ -311,7 +313,7 @@ void put_circle(const xpp::Session &s, double x, double y, double r, int fill)
     ani_xyscale(s,x, y, &i1, &j1);
     ani_radscale(s,r, &i2, &j2);
     ir = (i2 + j2) / 2;
-    xpp_ui.ani_arc(i1 - ir, j1 - ir, 2 * ir, 2 * ir, fill);
+    ui.ani_arc(i1 - ir, j1 - ir, 2 * ir, 2 * ir, fill);
     ani_data_circle(unit_x(x), unit_y(y), r / (ani_xhi - ani_xlo), r / (ani_yhi - ani_ylo), pen.color, pen.thick,
                     fill);
 }
@@ -321,7 +323,7 @@ void put_ellipse(const xpp::Session &s, double x, double y, double rx, double ry
     int i1, j1, i2, j2;
     ani_xyscale(s,x, y, &i1, &j1);
     ani_rad2scale(s,rx, ry, &i2, &j2);
-    xpp_ui.ani_arc(i1 - i2, j1 - j2, 2 * i2, 2 * j2, fill);
+    ui.ani_arc(i1 - i2, j1 - j2, 2 * i2, 2 * j2, fill);
     ani_data_ellipse(unit_x(x), unit_y(y), rx / (ani_xhi - ani_xlo), ry / (ani_yhi - ani_ylo), pen.color,
                      pen.thick, fill);
 }
@@ -331,7 +333,7 @@ void put_dot(const xpp::Session &s, double x, double y, int r)
 {
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
-    xpp_ui.ani_arc(i - r, j - r, 2 * r, 2 * r, 1);
+    ui.ani_arc(i - r, j - r, 2 * r, 2 * r, 1);
     ani_data_dot(unit_x(x), unit_y(y), r, pen.color);
 }
 
@@ -340,7 +342,7 @@ void put_text(const xpp::Session &s, double x, double y, const char *str)
 {
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
-    xpp_ui.ani_text(i, j, str);
+    ui.ani_text(i, j, str);
     ani_data_text(unit_x(x), unit_y(y), str, pen.color, pen.size, pen.font);
 }
 
@@ -896,14 +898,14 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
 
 void ani_frame(xpp::Session &s, int task)
 {
-    xpp_ui.ani_clear();
+    ui.ani_clear();
     if (task == 1) {
         set_ani_perm(s);
         reset_comets();
         return;
     }
     render_ani(s);
-    xpp_ui.ani_show();
+    ui.ani_show();
 }
 
 void set_to_init_data(xpp::Session &s)
@@ -927,7 +929,7 @@ void ani_disk_warn(xpp::Session &s)
     total = total / (1024 * 1024);
     if (total > 10) {
         const std::string q = xpp::format(" {} Mb disk space needed! Continue?", total);
-        const char ans = static_cast<char>(TwoChoice("YES", "NO", q.c_str(), "yn"));
+        const char ans = static_cast<char>(TwoChoice("YES", "NO", q, "yn"));
         if (ans != 'y') s.animation.mpeg.flag = 0;
     }
 }
@@ -1171,7 +1173,7 @@ void ani_flip1(xpp::Session &s, int n)
     if (s.animation.ncom == 0) return;
     if (s.browser.view.maxrow < 2) return;
     float **ss = s.browser.view.data;
-    xpp_ui.ani_clear();
+    ui.ani_clear();
     if (s.animation.vcr.pos == 0) set_ani_perm(s);
 
     s.animation.vcr.pos = s.animation.vcr.pos + n;
@@ -1185,7 +1187,7 @@ void ani_flip1(xpp::Session &s, int n)
     set_fix_rhs(s,t, y.data());
 
     render_ani(s);
-    xpp_ui.ani_show();
+    ui.ani_show();
 }
 
 void ani_zero(xpp::Session &s)
@@ -1233,7 +1235,7 @@ void reset_comets(void)
 
 void render_ani(xpp::Session &s)
 {
-    xpp_ui.ani_slider(s);
+    ui.ani_slider(s);
     pen.color = 0; /* ani_clear gave the frame a black pen */
     ani_data_begin();
     for (int i = 0; i < s.animation.ncom; i++) {
@@ -1340,7 +1342,7 @@ void ani_reset(xpp::Session &s)
 {
     s.animation.vcr.pos = 0;
     reset_comets();
-    xpp_ui.ani_slider(s);
+    ui.ani_slider(s);
     ani_flip1(s,0);
 }
 
@@ -1365,3 +1367,5 @@ void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy)
         }
     }
 }
+
+} // namespace xpp

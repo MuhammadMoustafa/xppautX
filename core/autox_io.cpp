@@ -139,21 +139,21 @@ bool import_file(Session &s, const std::string &path)
 {
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_msg(xpp::format("Cannot open {}", path).c_str());
+        err_msg(xpp::format("Cannot open {}", path));
         return false;
     }
     if (xpp::zip::is_zip(bytes)) {
-        err_msg(xpp::format("{} is not an XPPAUT .auto file (an AUTO file of xppautX is a .autox)", file_name(path)).c_str());
+        err_msg(xpp::format("{} is not an XPPAUT .auto file (an AUTO file of xppautX is a .autox)", file_name(path)));
         return false;
     }
     xpp::UniqueFile fp = xpp::open_read(path.c_str());
     if (!fp) {
-        err_msg(xpp::format("Cannot open {}", path).c_str());
+        err_msg(xpp::format("Cannot open {}", path));
         return false;
     }
     if (!s.auto_state.bifur.exist) do_auto_win(s);
     if (import_auto_file(s, fp.get()) != 1) {
-        err_msg(xpp::format("{} holds no AUTO diagram", path).c_str());
+        err_msg(xpp::format("{} holds no AUTO diagram", path));
         return false;
     }
     fp.reset();

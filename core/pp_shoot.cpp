@@ -80,7 +80,7 @@ void compile_bvp(xpp::Session &s)
  for(i=0;i<s.model().node;i++){
 
    if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
-     err_msg(xpp::format("Bad syntax on {} th BC",i+1).c_str());
+     err_msg(xpp::format("Bad syntax on {} th BC",i+1));
      return;
    }
  }
@@ -157,7 +157,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
    {
      temp=parlo+dpar*static_cast<double>(i);
      set_val(s,shoot_range.item,temp);
-     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp).c_str());
+     bottom_msg(2,xpp::format("{}={:.16g}",shoot_range.item,temp));
      if(shoot_range.movie==1)
        clr_scrn(s);
      
@@ -178,7 +178,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      set_cycle(s,cycle,&icol);
      get_ic(s,0,ystart);
      if(const xpp::Result<> r=last_shot(s,0);!r)xpp::show_error(r.error());
-     if(shoot_range.movie==1)xpp_ui.film_clip(s);
+     if(shoot_range.movie==1)ui.film_clip(s);
      ping();
    }
   refresh_browser(s,s.data_store.rows);
