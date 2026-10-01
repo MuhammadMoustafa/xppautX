@@ -74,7 +74,7 @@ export function reduceAni(state: AniState, action: AniAction): AniState {
     case 'frame': {
       const ev = action.ev;
       const frame: AniFrame = {
-        pos: ev.pos, rows: ev.rows, t: ev.t, dim: ev.dim, w: ev.w, h: ev.h, prims: decodePrims(ev.prims ?? []),
+        pos: ev.pos, rows: ev.rows, t: ev.t, dim: ev.dim, w: ev.w, h: ev.h, prims: decodePrims(ev.prims),
       };
       return {...state, frame, rows: ev.rows, speed: ev.speed, skip: ev.skip, loaded: true, frames: state.frames + 1};
     }

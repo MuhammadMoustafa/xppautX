@@ -6,8 +6,11 @@ stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the
 core's own log output. The implementation is `core/ui_json.cpp` and the
 `core/json_*.cpp` files it is split into (`core/ui_json_internal.h`);
 `tools/servercheck.py` is a working client, the browser page (`web2/`,
-served by `xppautX` itself) a full one. This is protocol 2: see "Removed in
-protocol 2" at the end for what protocol 1 had besides.
+served by `xppautX` itself) a full one. This is protocol 3 (W118: what core
+and page both know comes in `hello` and the events, below; the page checks
+the number and shows a mismatch as an error, since core and page ship
+together); see "Removed in protocol 2" at the end for what protocol 1 had
+besides.
 
 The core is single-threaded. A command runs to completion, then the server
 sends `state` and `idle`. While a command runs the server can stop and
@@ -19,10 +22,12 @@ once, and keeps any other command for after the one that asked. See
 
 ## Startup
 
-1. `hello`: protocol version (2), `about` (Help > About's text: version, commit, compiler, credit, the author's contact details and the issue tracker; core/xpp_about.cpp, the same string the desktop window's own About box shows), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
-   (`main`, `file`, `num` with `_keys`, `_hints` and `_kinds`), the
-   windows' key layers (`windows`) and the other commands' kinds
-   (`commands`): see "Action kinds".
+1. `hello`: protocol version (3), `about` (Help > About's text: version, commit, compiler, credit, the author's contact details and the issue tracker; core/xpp_about.cpp, the same string the desktop window's own About box shows), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
+   (`main`, `file`, `num` with `_keys`, `_hints`, `_kinds` and `_ids`, and
+   `names`), the windows' key layers (`windows`), every command's kind and
+   whether it is a step (`commands`): see "Action kinds"; the limits the
+   core keeps to (`limits`) and the windows' numbers (`window_ids`): see
+   "Shared limits and ids".
 2. `window` `create` for window 1, the main plot.
 3. `state`, then `idle`.
 
@@ -116,12 +121,35 @@ Every action has a kind (W95), defined once in the core and sent in
   `win`: {`items`, `keys`, `kinds`, `ids`, `hints`}, `ids` the page's name
   for each item (`run`, `grab`, `write`, `go`, ...). A client takes a
   window's keys from here; web2 has no copy of them.
-- `hello.commands` is every command but `key` (whose kind is its menu
-  item's), [{`cmd`, `op`, `kind`}...]: an entry with `op` is for that op,
-  the entry without for the command's other lines (`browser` with `from`
-  is a view, its `write` data). It is core/ui_json.cpp's command table,
-  the one handle_line dispatches from: every command of the table above
-  is in it.
+- `hello.menus` also has `names` (`["main","file","num"]`: each menu's
+  name, indexed by `state`'s `menu` number) and `main_ids`, `file_ids` and
+  `num_ids`, the page's name for each item, parallel to the keys
+  (`initialconds`, `window`, `makewindow`, `file`, `numerics` ...; File's
+  `readset`, `source` ...; Numerics' `exit` ...: core/menus.cpp). A client
+  looks a main-window key up by its id; web2 has no copy of the letters.
+- `hello.commands` is every command, [{`cmd`, `op`, `kind`, `step`}...]:
+  an entry with `op` is for that op, the entry without for the command's
+  other lines (`browser` with `from` is a view, its `write` data); `key`'s
+  `kind` is `""` (a key's is its menu item's). `step` says whether the
+  command is a step of the user's: what a recording records ("Recordings")
+  and what web2 runs again when the file it could not read has been added
+  (`message` `file`); the client's own requests (`state`, `data`,
+  `equations`, `redraw`, `file`, the browser's paging), answers and
+  aborts, and the recording's and player's own commands are not. It is
+  core/ui_json.cpp's command table, the one handle_line dispatches from:
+  every command of the table above is in it.
+
+### Shared limits and ids
+
+What a client must keep to, from the core that keeps to it (W118):
+
+- `hello.limits`: `upload`, the largest file the model's folder takes
+  (bytes, xpp_files.h XPP_FILES_CAP, 64 MB); `browser_rows` and
+  `browser_cols`, the most rows and columns one `browser` block request
+  gets (2000 and 500).
+- `hello.window_ids`: the window numbers of `window` events and asks:
+  plot windows are 1 to `plots` (21), the AUTO diagram `auto` (101), the
+  animation `ani` (104), the array plot `aplot` (105).
 
 The core says when the running command begins computing: `computing`
 (once per command, before its first `progress`; its `idle` ends it). A
@@ -555,7 +583,7 @@ model's start in every mode, before the script.
 | ev | fields | meaning |
 |---|---|---|
 | `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...], `sliders` [{`name`,`lo`,`hi`}...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `sliders` are the ones the ODE file sets (`@ s1=...`). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
-| `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows 1..10, AUTO 101, animation 104. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
+| `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
@@ -569,7 +597,7 @@ model's start in every mode, before the script.
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
-| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `-silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
+| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menus.names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `-silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
 | `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `play` `note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
@@ -578,7 +606,7 @@ model's start in every mode, before the script.
 | `help` | `chapter`, `anchor` (optional) | File/Help: open the manual at this chapter (and anchor). |
 | `copy` | `what`, `text` | File/cOpy set line (key `o`): text for the page to put on the clipboard (`what` is `set`: a `set <name> {par=value,...,var=value,...}` line, every parameter and initial condition as they are now, numbers printed to read back exactly). The core first asks the set's name (a `string` ask, pre-filled with the first free `set1`, `set2`, ...; refused with an `error` message if not a name the parser reads or already a set of the model), then a `choice` ask that shows the line (`Copy` `c` / `Cancel` `n`); both answers are recorded like any other. The page shows the line as well, so it can be copied by hand when the clipboard is refused. |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
-| `message` | one of `error`, `bottom`, `box`, `auto`, `calc` | Status text. `box` with empty text removes a hint box. |
+| `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file` | Status text. `box` with empty text removes a hint box. `file` (W118): the error is about a file the command could not read (File/Read set, a parameter or IC file, a table, AUTO's files, a session or recording), by its name in the model's folder; web2 offers to add it and run the command again. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
 | `computing` | | The running command began computing (once per command, before its first `progress`); until its `idle` the server refuses data and computation commands ("Action kinds", "Commands during a command"). A page that connects meanwhile gets it again. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
@@ -697,7 +725,8 @@ continues in), and a grab's point by its data.
 | run field | meaning |
 |---|---|
 | `br`, `pt` | branch, and the number of the run's first point (absolute values) |
-| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic |
+| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/diagram.h DiagramPointType) |
+| `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
 | `c`, `lw` | colour (the core's colour index: 0 the foreground, 20..29 red .. purple) and line width |
@@ -743,7 +772,7 @@ core/auto_stop.cpp, which autlib1.c tells where it ends a branch (T23).
 |---|---|
 | `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new AUTO window |
 | `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
-| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
+| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (`EP`, `LP`, `HB`, ... or empty), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes setting and its value, the period (AUTO's value for a steady state too: what the strip prints) |
 | `info.x`, `y`, `y2` | where the active view plots the point, in the quantities of its axes (another view's are its own `diagram` data's point `info.point`) |
@@ -783,7 +812,11 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
              "iad":3,"mxbf":5,"iid":2,"itmx":8,"itnw":7,"nwtn":3,"iads":1,"suppbp":0},
  "pars":["iapp","phi","v1","v2","v3","v4","gca","vk"],
  "axes":{"plot":2,"var":"V","par1":"iapp","par2":"phi","xmin":-0.2,"xmax":0.5,"ymin":-0.5,"ymax":0.4},
- "marks":[["iapp",0.25],["T",30]]}
+ "marks":[["iapp",0.25],["T",30]],
+ "rules":{"ntst":{"label":"Ntst","integer":true,"min":1,"message":"Ntst must be a whole number of at least 1"},
+          "ds":{"label":"Ds","nonzero":true,"message":"Ds must be a number other than 0"}, ...},
+ "pairs":[{"lo":"dsmin","hi":"dsmax","strict":false,"message":"Dsmin must be at most Dsmax"}, ...],
+ "step":{"key":"ds","lo":"dsmin","hi":"dsmax","message":"Ds must be from Dsmin to Dsmax in size (its sign is the direction)"}}
 ```
 
 | field | meaning |
@@ -796,6 +829,9 @@ has none, and gets no event). core/auto_settings.cpp keeps it.
 | `axes.xmin` .. `ymax` | the diagram's axes |
 | `axes` | all of it the active view's (see "Views of the diagram") |
 | `marks` | Mark values: `[name, value]` per user point, where the parameter `name` (one of `pars`) or the period `T` reaches `value` AUTO labels the point (UZ) |
+| `rules` | what each `numerics` value takes, by key (W118): `label` (the form's), `integer`, `positive`, `nonzero`, `min`, `max` (each only when it holds) and `message`, what a `set` of a value it does not take is refused with; the same table `set` checks with (core/auto_settings.cpp num_fields) |
+| `pairs` | the values that must be in order: `lo` below `hi` (`strict`) or at most it, and the refusal's `message` |
+| `step` | the first step `key` must be from `lo` to `hi` in size, whichever its sign, and the refusal's `message` |
 
 Numbers are doubles in their shortest exact form, the whole-number fields
 as integers; `null` when not finite.
@@ -815,8 +851,18 @@ where the form's field is one; Ntst, Nmax, NPr, ITMX, ITNW, NWTN at least
 Dsmin to Dsmax (T23; checked when one of the three is given), Par Min
 below Par Max, Norm Min below Norm Max, Xmin below Xmax, Ymin below Ymax;
 names of parameters and variables the model has. A refusal is a `message`
-`error` naming the value (`AUTO settings: Ncol must be a whole number from
-2 to 7`). Axes (and new parameters) draw an open diagram again in its new
+`error` naming the value: `AUTO settings: ` and the message the event's
+`rules`, `pairs` or `step` gives it (`AUTO settings: Ncol must be a whole
+number from 2 to 7`), so a client checks a form with the core's rules and
+says what the core would.
+
+AUTO's settings alone as a file (W118): the AUTO window's File menu has
+save settinGs (`g`) and settings From file (`f`), each asking for a file
+(`ask` kind `file`, wildcard `*.autoset`): one "key value" line per
+setting, the `.autox` member `settings.txt`'s text (core/autox.cpp
+settings_text, the one serialization of them; "AUTO files"). A file that
+is not every setting is refused whole (`message` `error`); a value AUTO
+does not take is refused as `set` refuses it. Axes (and new parameters) draw an open diagram again in its new
 quantities, as the AutoPlot form's OK does. The forms stay: `set` is a
 second way to the same fields (Numerics, `param`, Axes, `usr`), and each
 shows what the other wrote.

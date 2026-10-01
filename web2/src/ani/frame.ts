@@ -15,40 +15,40 @@ export type AniPrim =
   /** text from its baseline's left end; size 0..4, font 0 roman, 1 symbol (Greek) */
   | {kind: 'text'; u: number; v: number; text: string; color: AniColor; size: number; font: number};
 
-const finite = (...xs: unknown[]) => xs.every(x => typeof x === 'number' && Number.isFinite(x));
-const colorOk = (c: unknown): c is AniColor => typeof c === 'number' || (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c));
-
-/** the primitives of a frame event, in order; one the client cannot draw
-    (a coordinate that is NaN, an unknown kind) is left out */
-export function decodePrims(wire: readonly unknown[]): AniPrim[] {
+/** the primitives of a frame event, in order; one with a coordinate the
+    .ani's formula has no value for (null: NaN) is left out */
+export function decodePrims(wire: readonly AniPrimWire[]): AniPrim[] {
   const out: AniPrim[] = [];
-  for (const w of wire) {
-    if (!Array.isArray(w)) continue;
-    const p = w as unknown[] as AniPrimWire;
+  for (const p of wire) {
     switch (p[0]) {
-      case 'line':
-        if (finite(p[1], p[2], p[3], p[4]) && colorOk(p[5]))
-          out.push({kind: 'line', u1: p[1], v1: p[2], u2: p[3], v2: p[4], color: p[5], width: Number(p[6]) || 0});
+      case 'line': {
+        const [, u1, v1, u2, v2, color, width] = p;
+        if (u1 !== null && v1 !== null && u2 !== null && v2 !== null) out.push({kind: 'line', u1, v1, u2, v2, color, width});
         break;
-      case 'rect':
-        if (finite(p[1], p[2], p[3], p[4]) && colorOk(p[5]))
-          out.push({kind: 'rect', u1: p[1], v1: p[2], u2: p[3], v2: p[4], color: p[5], width: Number(p[6]) || 0,
-            fill: !!p[7]});
+      }
+      case 'rect': {
+        const [, u1, v1, u2, v2, color, width, fill] = p;
+        if (u1 !== null && v1 !== null && u2 !== null && v2 !== null)
+          out.push({kind: 'rect', u1, v1, u2, v2, color, width, fill: fill !== 0});
         break;
+      }
       case 'circle':
-      case 'ellipse':
-        if (finite(p[1], p[2], p[3], p[4]) && colorOk(p[5]))
-          out.push({kind: p[0], u: p[1], v: p[2], ru: Math.abs(p[3]), rv: Math.abs(p[4]), color: p[5],
-            width: Number(p[6]) || 0, fill: !!p[7]});
+      case 'ellipse': {
+        const [kind, u, v, ru, rv, color, width, fill] = p;
+        if (u !== null && v !== null && ru !== null && rv !== null)
+          out.push({kind, u, v, ru: Math.abs(ru), rv: Math.abs(rv), color, width, fill: fill !== 0});
         break;
-      case 'dot':
-        if (finite(p[1], p[2], p[3]) && colorOk(p[4])) out.push({kind: 'dot', u: p[1], v: p[2], r: p[3], color: p[4]});
+      }
+      case 'dot': {
+        const [, u, v, r, color] = p;
+        if (u !== null && v !== null) out.push({kind: 'dot', u, v, r, color});
         break;
-      case 'text':
-        if (finite(p[1], p[2]) && typeof p[3] === 'string' && colorOk(p[4]))
-          out.push({kind: 'text', u: p[1], v: p[2], text: p[3], color: p[4], size: Number(p[5]) || 0,
-            font: Number(p[6]) || 0});
+      }
+      case 'text': {
+        const [, u, v, text, color, size, font] = p;
+        if (u !== null && v !== null) out.push({kind: 'text', u, v, text, color, size, font});
         break;
+      }
     }
   }
   return out;

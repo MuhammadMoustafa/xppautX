@@ -71,10 +71,12 @@ back). It has:
   written in the window and in browser mode): the header, a row for every
   labelled point (the special ones and the plain ones Numerics' NPr prints
   every NPr points) and why the branch stopped, one line each;
-- Numerics as a dialog with Save/Load to a settings file, in place of the
-  X11 Numerics window: every field has a plain name with AUTO's short name
-  kept ("Max points (NMX)"), its help as a tooltip, and a message beside it
-  when its value is not one AUTO takes (OK waits until every value is);
+- Numerics as a dialog in place of the X11 Numerics window: every field
+  has a plain name with AUTO's short name kept ("Max points (NMX)"), its
+  help as a tooltip, and a message beside it when its value is not one
+  AUTO takes, worded as the core refuses it (OK waits until every value
+  is); Load settings beside the buttons reads a settings file (File >
+  settings From file, below);
 - **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
   points, Enter takes the point, Escape cancels, a click or tap takes the
   nearest point (see "Points and labels" below for what grabbing does);
@@ -227,8 +229,9 @@ core checks them again when they arrive:
 | Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | Skip branch points (SuppBP) | 1: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); 0: look for them | 0 or 1 |
 
-The settings file (Save/Load settings) keeps the core's form labels
-(`Nmax`, `Ntst`, ...). The original window had the following items:
+The settings file (File > save settinGs and settings From file, below)
+keeps every setting under the keys of the protocol (`nmx`, `ntst`, ...).
+The original window had the following items:
 
 ### Ntst
 
@@ -510,6 +513,21 @@ per diagram point.
 ### Export CSV
 
 Writes the whole stored diagram as two CSV files that `pandas.read_csv` and MATLAB's `readtable` read with no options (a header row of names, one row per point). The file named is the diagram itself: branch, point, type (`EP`, `HB`, `LP`, ...), label, stability, the point's curve kind, the active parameter(s) by name and value, the period, and every variable's max and min over the point (named), the same values `All info` writes. A second file, its name with `_eig` inserted before the extension, has the eigenvalues (a steady state) or Floquet multipliers (a periodic orbit) of every point, one row each, keyed by branch and point (`branch`, `point`, `index`, `re`, `im`, `kind`) rather than packed into a diagram row's cells. This is a new export beside `Write pts` and `All info`, not a replacement: the old whitespace files stay as they were.
+
+### save settinGs
+
+Writes AUTO's settings alone (the Numerics, the parameters, the axes and
+the Mark values) to a `.autoset` file: one `key value` line each, the same
+text an `.autox` keeps them in. A diagram is not saved with them (Save
+diagram keeps both).
+
+### settings From file
+
+Sets AUTO's settings from a `.autoset` file written by save settinGs (the
+AUTO view's Load settings does the same). A file that does not hold every
+setting is refused and nothing changes; so is a value AUTO does not take,
+with the message the Numerics dialog would show. While AUTO runs, the
+settings apply when it stops.
 
 ## Homoclinics and heteroclinics
 

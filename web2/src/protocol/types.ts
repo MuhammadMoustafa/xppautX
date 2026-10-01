@@ -276,13 +276,13 @@ export interface MarksEvent {
   win: number;
   enc?: 'f32';
   /** the symbol XPP draws for the stability: stable circle, unstable box, saddle triangle */
-  equilibria: {x: number; y: number; type: string; symbol: string}[];
+  equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
   /** XPP's text: backslash escapes switch the font (\1 symbol: Greek, \0 roman), \s \S \n
       subscript, superscript, normal; size 0-4 */
   text: {x: number; y: number; text: string; size: number; font: number}[];
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
   arrows: {kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: number}[];
-  markers: {x: number; y: number; shape: string; size: number; color: number}[];
+  markers: {x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: number}[];
   /** line 0: drawn as points */
   frozen: {key: string; name: string; color: number; line: number; x: SeriesData; y: SeriesData}[];
 }
@@ -441,11 +441,13 @@ export type AniColor = number | string;
 /** a frame's primitive as sent (docs/protocol.md "The animation as data"):
     unit coordinates u, v of the dimension box (y up), not clamped; widths
     and a dot's radius in pixels */
+/** a coordinate: null where the .ani's formula has no value (NaN) */
+type AniCoord = number | null;
 export type AniPrimWire =
-  | ['line', number, number, number, number, AniColor, number]
-  | ['rect' | 'circle' | 'ellipse', number, number, number, number, AniColor, number, number]
-  | ['dot', number, number, number, AniColor]
-  | ['text', number, number, string, AniColor, number, number];
+  | ['line', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number]
+  | ['rect' | 'circle' | 'ellipse', AniCoord, AniCoord, AniCoord, AniCoord, AniColor, number, number]
+  | ['dot', AniCoord, AniCoord, number, AniColor]
+  | ['text', AniCoord, AniCoord, string, AniColor, number, number];
 
 /** one frame of the animation, for a client that asked (`data` with `ani`) */
 export interface AniFrameEvent {

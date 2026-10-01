@@ -70,10 +70,6 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
   assert.deepEqual(Array.from(b.frozen[0].xs), Array.from(m.frozen[0].xs));
   assert.equal(markCount(m), 2 + 1 + 1 + 1 + 2);
   assert.equal(markCount(null), 0);
-  const odd = marksFromEvent({...MARKS, equilibria: [{x: 0, y: 0, type: 'what', symbol: '?'}],
-    markers: [{x: 0, y: 0, shape: 'star', size: 1, color: 0}]});
-  assert.equal(odd.equilibria[0].type, 'unstable');
-  assert.equal(odd.markers[0].shape, 'box');
 });
 
 test('the store keeps each window its marks; an empty event clears them', () => {

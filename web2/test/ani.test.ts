@@ -40,10 +40,8 @@ test('decodePrims reads every kind, in order, with its colour and style', () => 
   assert.deepEqual(p[0], {kind: 'text', u: 0.05, v: 0.928571, text: 'lecar  ', color: 9, size: 3, font: 0});
 });
 
-test('decodePrims leaves out what it cannot draw: NaN (null) coordinates, unknown kinds, bad colours', () => {
-  const p = decodePrims([
-    ['line', null, 0, 1, 1, 0, 0], ['blob', 0, 0], 'junk', ['dot', 0.5, 0.5, 2, 'red'], ['line', 0, 0, 1, 1, 2, 0],
-  ]);
+test('decodePrims leaves out what it cannot draw: NaN (null) coordinates', () => {
+  const p = decodePrims([['line', null, 0, 1, 1, 0, 0], ['dot', 0.5, null, 2, 1], ['line', 0, 0, 1, 1, 2, 0]]);
   assert.equal(p.length, 1);
   assert.equal(p[0].kind, 'line');
 });

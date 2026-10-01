@@ -7,7 +7,8 @@ import {decode} from '../protocol/decode';
 import type {MarksEvent} from '../protocol/types';
 import {parseRichText, type TextRun} from '../plot/richtext';
 
-export type Stability = 'stable' | 'unstable' | 'saddle';
+/** an equilibrium's stability, as the core names it (the `marks` event) */
+export type Stability = MarksEvent['equilibria'][number]['type'];
 
 export interface EquilibriumMark {
   x: number;
@@ -41,7 +42,8 @@ export interface ArrowMark {
   color: number;
 }
 
-export type MarkerShape = 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle';
+/** a marker's shape, as the core names it (core/marks_data.cpp MARKER_SHAPES) */
+export type MarkerShape = MarksEvent['markers'][number]['shape'];
 
 export interface MarkerMark {
   x: number;
@@ -68,20 +70,17 @@ export interface Marks {
   frozen: FrozenCurve[];
 }
 
-const STABILITY: Record<string, Stability> = {stable: 'stable', unstable: 'unstable', saddle: 'saddle'};
-const SHAPES: MarkerShape[] = ['box', 'diamond', 'triangle', 'plus', 'cross', 'circle'];
 
 export function marksFromEvent(ev: MarksEvent): Marks {
   return {
-    equilibria: ev.equilibria.map(e => ({x: e.x, y: e.y, type: STABILITY[e.type] ?? 'unstable'})),
+    equilibria: ev.equilibria.map(e => ({x: e.x, y: e.y, type: e.type})),
     text: ev.text.map(t => {
       const runs = parseRichText(t.text, t.font === 1);
       return {x: t.x, y: t.y, raw: t.text, runs, plain: runs.map(r => r.text).join(''), size: t.size};
     }),
     arrows: ev.arrows.map(a => ({pointer: a.kind === 'pointer', x1: a.x1, y1: a.y1, x2: a.x2, y2: a.y2, size: a.size,
       color: a.color})),
-    markers: ev.markers.map(m => ({x: m.x, y: m.y, shape: SHAPES.includes(m.shape as MarkerShape)
-      ? m.shape as MarkerShape : 'box', size: m.size, color: m.color})),
+    markers: ev.markers.map(m => ({x: m.x, y: m.y, shape: m.shape, size: m.size, color: m.color})),
     frozen: ev.frozen.map((f, i) => ({label: f.key || f.name || `Frozen ${i + 1}`, color: f.color, line: f.line !== 0,
       xs: decode(f.x), ys: decode(f.y)})),
   };
