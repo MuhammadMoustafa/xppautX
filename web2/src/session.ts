@@ -151,7 +151,10 @@ export class Session {
   }
 
   start(): void {
-    this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}));
+    /* a command the server refused or that never reached it is an error
+       as the core's own are (Messages, the error dialog): never lost (W116) */
+    this.transport.open(ev => this.receive(ev), open => this.store.dispatch({type: 'connection', open}),
+      error => this.store.dispatch({type: 'event', ev: {ev: 'message', error}}));
   }
 
   private receive(ev: XppEvent): void {

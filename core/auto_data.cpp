@@ -4,6 +4,8 @@
    auto_nox.c reports what the strip and the circle show as it draws them;
    the event is built from that record when the front end asks for an
    update and sent only when its text differs from the last one sent. */
+#include <new>
+#include "xpp_mem.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -183,8 +185,8 @@ extern "C" void auto_data_info(const AutoDataInfo *v)
         info.vname = v->vname ? v->vname : "";
         info.v.sym = info.v.p1name = info.v.p2name = info.v.vname = nullptr; /* the strings above hold them */
         has_info = true;
-    } catch (...) {
-        has_info = false;
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording AUTO's info strip");
     }
 }
 
@@ -196,8 +198,8 @@ extern "C" void auto_data_stab(const double *evr, const double *evi, int n, int 
         stab_im.assign(evi, evi + (n > 0 ? n : 0));
         stab_periodic = periodic != 0;
         has_stab = true;
-    } catch (...) {
-        has_stab = false;
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording a point's stability");
     }
 }
 
@@ -217,6 +219,7 @@ extern "C" void auto_data_update(int final)
         emit_line(e.data(), e.size());
         sent.swap(e);
         sent_valid = true;
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending AUTO's info strip");
     }
 }

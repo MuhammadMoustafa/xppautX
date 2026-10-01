@@ -5,6 +5,8 @@
 #include "model_files.h"
 
 #include <expected>
+#include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,8 +47,12 @@ using Loaded = std::expected<Session *, Diagnostic>;
    (the one before stays; the caller exits with status 1 when there is
    nothing to go on with). saved: a model saved in an
    AUTO or session file, whose files the load reads instead of the disk's
-   (model_files.h); argv names its first file. */
-Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr);
+   (model_files.h); argv names its first file. check, when given, reads
+   what such a file adds against the loaded Session before the load keeps
+   it (xpp_saved_check, xpp_session.h): what it finds wrong fails the load
+   as a model that does not load does. */
+Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr,
+                  const std::function<std::optional<Diagnostic>(Session &)> &check = {});
 /* the model cannot be loaded, for the reason d (already logged): during a
    load, the load fails (LoadFailed with d, the line d.line of d.file
    added as it is written); otherwise the program exits with status 1 */

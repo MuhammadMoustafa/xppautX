@@ -7,6 +7,8 @@
    the end of a command a window whose record differs from what the client
    got gets its event. Records are compared bit for bit (a flow's breaks are
    NaN), so drawing the same thing again sends nothing. */
+#include <new>
+#include "xpp_mem.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -279,7 +281,8 @@ void phase_data_update(const xpp::Session &s)
     if (!emit_line || (!nullclines_on && !dfield_on)) return;
     try {
         update(s);
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending the nullclines and direction fields");
     }
 }
 
@@ -305,8 +308,8 @@ void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, co
         nc.ycolor = ycolor;
         nc.now.x.assign(xn, xn + 4 * (nx > 0 ? nx : 0));
         nc.now.y.assign(yn, yn + 4 * (ny > 0 ? ny : 0));
-    } catch (...) {
-        w->nc = Nullclines();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording the nullclines");
     }
 }
 
@@ -324,7 +327,8 @@ void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const 
         c.x.assign(xn, xn + 4 * (nx > 0 ? nx : 0));
         c.y.assign(yn, yn + 4 * (ny > 0 ? ny : 0));
         w->nc.frozen.push_back(std::move(c));
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording the frozen nullclines");
     }
 }
 
@@ -354,9 +358,8 @@ void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, d
                             unit ? static_cast<float>(fy / s) : 0.0f};
         f.grid.insert(f.grid.end(), v, v + 4);
         f.speed.push_back(static_cast<float>(s));
-    } catch (...) {
-        w->df.grid.clear();
-        w->df.speed.clear();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording the direction field");
     }
 }
 
@@ -384,8 +387,8 @@ void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox
             if (first) flow_start_point(c, ox[i], oy[i]);
             flow_point(c, x[i], y[i], ex, ey);
         }
-    } catch (...) {
-        w->df.flows.clear();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording the flow");
     }
 }
 
@@ -395,6 +398,7 @@ extern "C" void phase_data_flow_stop(void)
     for (Window &w : windows)
         for (FlowCurve &c : w.df.flows) try {
                 flow_flush(c);
-            } catch (...) {
+            } catch (const std::bad_alloc &) {
+                xpp::out_of_memory("recording the flow");
             }
 }

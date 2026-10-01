@@ -3690,7 +3690,7 @@ async function runsCheck(dir) {
   fs.writeFileSync(badPar, '3   Number params\n1\n2\n3\n');
   await pickFiles('#values-load-par', [badPar]);
   check('runs: a par file with the wrong count is refused with the core\'s own message',
-    await until("s.bottom && /Incompatible parameters/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
+    await until("s.bottom && /bad.par, line 1: it is for 3 parameters, the model has 12/.test(s.bottom)", 'bad par message'), await S('s.bottom'));
   await closeErrors();
 
   const badIc = path.join(dir, 'bad.ic');
@@ -5112,7 +5112,7 @@ async function main() {
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
-    if (run('runs')) await session(ODE, runsCheck, ['Incompatible parameters', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
+    if (run('runs')) await session(ODE, runsCheck, ['bad.par, line 1: it is for 3 parameters, the model has 12', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp) and "Bad formula" (json_state.cpp apply_value) */
     if (run('values')) await session(LIVE, valuesLive, ['Illegal formula ..', 'Bad formula']);

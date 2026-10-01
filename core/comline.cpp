@@ -401,13 +401,17 @@ static int if_needed_load_set(xpp::Session &s)
   {
     return 1;
   }
-  xpp::UniqueFile fp=xpp::open_read(setfilename.c_str());
+  xpp::UniqueFile fp=xpp::open_read_binary(setfilename.c_str());
   if(!fp)
   {
     xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
     return 0;
   }
-  read_lunch(s,fp.get());
+  if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
+  {
+    xpp::log(XPP_LOG_ERROR, "{}, {}\n",setfilename,r.error().what);
+    return 0;
+  }
   return 1;
 }
 

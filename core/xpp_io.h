@@ -305,6 +305,13 @@ inline UniqueFile open_read_binary(std::string_view path) noexcept
     return UniqueFile(xpp::files::open_stream(path, "rb"));
 }
 
+/* the lines of fp before its position, the one it is in counting (a last
+   line without its newline too): the line a reader just read, for a
+   message saying where a file is wrong; the position is kept. Exact for a
+   file opened binary (open_read_binary: LineReader takes \r\n as well);
+   on Windows a text stream's position is not a byte count. */
+int lines_read(FILE *fp);
+
 /* path's whole contents, byte for byte, into out; false (out empty) when
    it cannot be opened or read. std::bad_alloc is the caller's to catch. */
 inline bool read_bytes(std::string_view path, std::string &out)

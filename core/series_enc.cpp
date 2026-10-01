@@ -1,6 +1,7 @@
 /* A column of the series event as JSON numbers or base64 float32
    (series_enc.h). Pure: no core state, no I/O. */
 #include "series_enc.h"
+#include "xpp_mem.h"
 #include "json_number.h"
 #include "xpp_io.h"
 
@@ -58,11 +59,8 @@ void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcep
         if (f32) base64(v, n, s);
         else numbers(v, n, s);
         out += s;
-    } catch (...) { /* std::bad_alloc */
-        try {
-            out += "[]";
-        } catch (...) {
-        }
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("encoding a series");
     }
 }
 

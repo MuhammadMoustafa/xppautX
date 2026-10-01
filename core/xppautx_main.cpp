@@ -66,6 +66,7 @@
 #include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
+#include <functional>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -196,8 +197,11 @@ static void run_session(void)
     }
     for (std::string &a : args) argv.push_back(a.data());
     argv.push_back(nullptr);
+    /* a saved file's members are read before the load keeps its model */
+    std::function<std::optional<xpp::Diagnostic>(xpp::Session &)> check;
+    if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
     const xpp::Loaded loaded = xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
-                                               saved ? &saved->model : recording ? &recording->saved : nullptr);
+                                               saved ? &saved->model : recording ? &recording->saved : nullptr, check);
     if (!loaded) {
         json_ui_load_error(loaded.error());
         exit(1);

@@ -13,6 +13,8 @@
 
    "plots" lists the windows themselves; it is compared as text with the
    last one sent. */
+#include <new>
+#include "xpp_mem.h"
 #include <cstdio>
 #include <array>
 #include <cstring>
@@ -569,7 +571,8 @@ void plot_data_picture(xpp::Session &s, int redraw)
                 emit_runs(s, pop, true, 0, 0);
             }
         }
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending the runs of the plot windows");
     }
 }
 
@@ -588,7 +591,8 @@ void plot_data_rows_stored(xpp::Session &s, int nrows)
     if (!xpp_every(&last, append_every)) return;
     try {
         series_append(s, nrows);
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending the rows a run stored");
     }
 }
 
@@ -597,6 +601,7 @@ void plot_data_update(xpp::Session &s)
     try {
         if (plots_on) plots_update(s);
         if (series_on) series_update(s);
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending the plots");
     }
 }

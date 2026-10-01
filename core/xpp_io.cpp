@@ -398,6 +398,22 @@ bool parse_number(std::string_view text, double &value)
     return true;
 }
 
+int lines_read(FILE *fp)
+{
+    const long pos = std::ftell(fp);
+    if (pos <= 0 || std::fseek(fp, 0, SEEK_SET) != 0) return 0;
+    int lines = 0, last = '\n';
+    for (long k = 0; k < pos; k++) {
+        const int c = std::fgetc(fp);
+        if (c == EOF) break;
+        if (c == '\n') lines++;
+        last = c;
+    }
+    if (last != '\n') lines++;
+    std::fseek(fp, pos, SEEK_SET);
+    return lines;
+}
+
 bool parse_int(std::string_view text, int &value)
 {
     int v = 0;

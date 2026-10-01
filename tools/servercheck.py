@@ -2948,6 +2948,33 @@ def check_settings_during_run():
         errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
         check('W106: a bad numerics value is an error naming the field, nothing changes',
               errs == ['Numerics: Dt must be a number other than 0'] and num(evs) is None, str(errs))
+        # W116: what set, slide and default cannot take is the protocol's
+        # error, the value left as it was (never a 0, never the ICs reset)
+        snd(cmd='state')
+        v_before = dict(next((e for e in reversed(col(is_idle)[0]) if is_state(e)), {'ics': []})['ics']).get('V')
+        for bad, expect in (
+                (dict(cmd='set', kind='par', name='iapp'), 'set par iapp: its value is not a number (or its text missing)'),
+                (dict(cmd='set', kind='par', name='iapp', value='0.2'),
+                 'set par iapp: its value is not a number (or its text missing)'),
+                (dict(cmd='set', kind='parm', name='iapp', value=0.2), 'set takes kind par, ic, delay, bc or num, not "parm"'),
+                (dict(cmd='set', kind='par', name='nosuch', value=0.2), 'set: the model has no par nosuch'),
+                (dict(cmd='set', kind='ic', index=7, value=0.2), 'set ic: its index is not one of 0 to 1'),
+                (dict(cmd='slide', name='nosuch', value=0.2), 'slide: the model has no parameter or variable nosuch'),
+                (dict(cmd='slide', name='iapp'), 'slide iapp: its value is not a number'),
+                (dict(cmd='default', kind='pars'), 'default takes kind par or ic, not "pars"')):
+            snd(cmd='set', kind='ic', name='v', value=0.25)
+            evs, _ = col(is_idle)
+            iapp0 = iapp(evs)
+            snd(**bad)
+            evs, _ = col(is_idle)
+            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            snd(cmd='state')
+            st = next((e for e in reversed(col(is_idle)[0]) if is_state(e)), None)
+            check('W116: %s is refused (%s), iapp and V as they were' % (json.dumps(bad), expect),
+                  errs == [expect] and st and dict(st['pars']).get('iapp') == iapp0 and dict(st['ics']).get('V') == 0.25,
+                  '%s; %s' % (errs, st and (dict(st['pars']).get('iapp'), dict(st['ics']).get('V'))))
+        snd(cmd='set', kind='ic', name='v', value=v_before)  # the ICs the checks after expect
+        col(is_idle)
         snd(cmd='set', kind='num', name='method', text='cvode')
         evs, _ = col(is_idle)
         m = num(evs)
@@ -3623,8 +3650,50 @@ def check_session_file():
         del allev[:]
         answered(snd, col, ('d',), cmd='open', file='noviews.snapx')
         msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
-        check('a session file without the views of its diagram: an error names auto/views.txt',
-              'auto/views.txt cannot be read' in msgs, msgs[:300])
+        check('a session file without the views of its diagram: an error names auto/views.txt, the session before stays',
+              'its auto/views.txt is missing' in msgs and not last('hello'), msgs[:300])
+        # W116: a member missing, cut short or with a line that does not
+        # read fails the open before its model is kept: the error names the
+        # member and the line, and the session before stays (no hello)
+        members = {n: z.read(n) for n in z.namelist()}
+
+        def text_lines(member, k, line):
+            """member's text with its line k (from 1) set to line"""
+            rows = members[member].decode().split('\n')
+            rows[k - 1] = line
+            return '\n'.join(rows).encode()
+
+        win_rows = members['windows.set'].decode().split('\n')
+        set_rows = members['model.set'].decode().split('\n')
+        damages = [
+            ('nowindows', lambda m: m.pop('windows.set'), 'its windows.set is missing'),
+            ('cutwindows', lambda m: m.__setitem__('windows.set', '\n'.join(win_rows[:10]).encode() + b'\n'),
+             'its windows.set, line 11: the file ends here'),
+            ('badset', lambda m: m.__setitem__('model.set', text_lines('model.set', 5, 'x' + set_rows[4][1:])),
+             'its model.set, line 5: "x'),
+            ('badname', lambda m: m.__setitem__('windows.set', text_lines('windows.set', 5, 'nosuch')),
+             'its windows.set, line 5: the model has no variable "nosuch"'),
+            ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
+             'is not one it has: "later 1"'),
+        ]
+        if 'data.npz' in members:
+            damages.append(('nodata', lambda m: m.pop('data.npz'), 'its data.npz is missing'))
+        for name, change, expect in damages:
+            damaged = dict(members)
+            change(damaged)
+            with zipfile.ZipFile(os.path.join(r, name + '.snapx'), 'w') as out:
+                for n, b in damaged.items():
+                    out.writestr(n, b)
+            del allev[:]
+            answered(snd, col, ('d',), cmd='open', file=name + '.snapx')
+            msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
+            check('W116: %s.snapx is refused, the error says where (%s), the session before stays' % (name, expect),
+                  expect in msgs and not last('hello'), msgs[:300])
+        snd(cmd='state')
+        st2 = no_t(next((e for e in reversed(col(is_idle)[0]) if is_state(e)), None))
+        check('W116: after the refused opens the session before stays: its state, s1.snapx its session',
+              st2 and st2.get('pars') == st1.get('pars') and st2.get('rows') == st1.get('rows')
+              and st2.get('session', {}).get('file', '').endswith('s1.snapx'), str(st2 and st2.get('session')))
     finally:
         stop_server(p, r, snd)
         shutil.rmtree(keep, ignore_errors=True)

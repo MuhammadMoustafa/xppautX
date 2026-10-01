@@ -9,6 +9,8 @@
    the record becomes the window's content, reading each slot still in use
    for this window; a window whose content differs from what the client
    got last gets its event. */
+#include <new>
+#include "xpp_mem.h"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -291,7 +293,8 @@ void marks_data_update(const xpp::Session &s)
     if (!emit_line || !marks_on || s.plot_windows.active < 0 || s.plot_windows.active >= MAXPOP) return;
     try {
         update(s);
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("sending the marks");
     }
 }
 
@@ -310,8 +313,8 @@ void marks_data_equilibrium(const XppPlotWindows &pw, double x, double y, int sy
         for (const Equilibrium &o : r.eqs)
             if (o == e) return; /* marked again: the same picture */
         if (r.eqs.size() < EQ_MAX) r.eqs.push_back(e);
-    } catch (...) {
-        r.eqs.clear();
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording an equilibrium");
     }
 }
 
@@ -321,8 +324,8 @@ void marks_data_label(const XppPlotWindows &pw, XppWinId w, int slot, const char
     if (!r || slot < 0 || slot >= MAXLAB) return;
     try {
         r->labels[slot] = text ? text : "";
-    } catch (...) {
-        r->labels.erase(slot);
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording a label");
     }
 }
 
@@ -333,7 +336,8 @@ void marks_data_grob(const XppPlotWindows &pw, XppWinId w, int slot)
     try {
         if (r->grobs.size() != MAXGROB) r->grobs.assign(MAXGROB, false);
         r->grobs[slot] = true;
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording an arrow or marker");
     }
 }
 
@@ -343,7 +347,8 @@ void marks_data_frozen(const XppPlotWindows &pw, XppWinId w, int slot)
     if (!r || slot < 0 || slot >= MAXFRZ) return;
     try {
         r->frozen[slot] = generation[slot];
-    } catch (...) {
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("recording a frozen curve");
     }
 }
 

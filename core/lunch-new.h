@@ -8,17 +8,36 @@
 #include <string_view>
 #include <vector>
 #include "struct.h" /* GRAPH */
+#include "xpp_error.h"
 
 namespace xpp {
 
 struct Session; /* session.h */
 struct Model;   /* model.h */
 
-/* a number of a set file (f READEM), or z written with its name ss */
+/* what a set file's readers (io_int, io_double, io_string, io_heading
+   reading) throw at a line they cannot read: the line (from 1) and what
+   is wrong with it. read_lunch, io_parameter_file and the readers of a
+   session's members (xpp_session.cpp) catch it and say so. */
+struct SetLineError {
+  int line;
+  std::string cause;
+  /* "line N: cause" */
+  std::string text() const;
+};
+
+/* a number of a set file (f READEM: the number its line starts with, the
+   name written after it ignored), or z written with its name ss; a line
+   missing or not starting with one throws SetLineError */
 void io_int(int *i, FILE *fp, int f, std::string_view ss);
 void io_double(double *z, FILE *fp, int f, std::string_view ss);
-/* one line of a set file into s, whole (f READEM), or s written as one */
+/* one line of a set file into s, whole (f READEM; SetLineError at the
+   end of the file), or s written as one */
 void io_string(std::string &s, FILE *fp, int f);
+/* a "# ..." heading: written (f WRITEM), or on reading a set file of
+   xppautX's (one that begins with "## Set file") skipped, a line that is
+   not one throwing SetLineError */
+void io_heading(int f, FILE *fp, const char *heading);
 /* the parameters or the initial conditions of s read from (flag READEM)
    or written to the file fn (-parfile, -icfile, the values panel) */
 void io_parameter_file(Session &s, std::string_view fn, int flag);
@@ -44,7 +63,11 @@ void write_values_query(const Session &s, std::string_view name, bool sets, bool
 void file_inf(Session &s);
 void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
-int read_lunch(Session &s, FILE *fp);
+/* s's settings read from the set file fp (File > Read set, -setfile, a
+   session's model.set), the front end shown them when redraw; the error
+   when it is not one of this model's or one of its lines cannot be read
+   (what comes before that line is read) */
+Result<> read_lunch(Session &s, FILE *fp, bool redraw);
 void write_lunch(Session &s, FILE *fp);
 void do_lunch(Session &s, int f);
 void dump_eqn(const Session &s, FILE *fp);

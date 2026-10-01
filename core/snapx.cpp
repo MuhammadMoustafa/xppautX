@@ -41,32 +41,38 @@ std::string manifest_text(const Manifest &m, std::string_view kind)
     return o;
 }
 
-std::optional<Manifest> parse_manifest(std::string_view text, std::string_view kind)
+std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::string_view kind)
 {
     Manifest m;
-    bool first = true;
     const std::string head = first_line(kind);
+    int number = 0;
+    bool named = false;
     while (!text.empty()) {
         const std::size_t nl = text.find('\n');
         std::string_view line = text.substr(0, nl);
         text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
         if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
-        if (first) {
+        if (++number == 1) {
             if (!line.starts_with(head) || !xpp::parse_int(line.substr(head.size()), m.version) || m.version != 1)
-                return std::nullopt;
-            first = false;
+                return std::unexpected(xpp::format("it does not begin \"{}1\"", head));
             continue;
         }
         if (line.empty()) continue;
         const std::size_t sp = line.find(' ');
         const std::string_view key = line.substr(0, sp);
         const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
-        if (key == "name") m.model_name = value;
-        else if (key == "anifile") m.anifile = value;
-        else if (key == "data") m.data = value == "1";
-        /* a key a later writer adds is left for it */
+        if (key == "name") {
+            m.model_name = value;
+            named = true;
+        } else if (key == "anifile")
+            m.anifile = value;
+        else if (key == "data" && kind == session_kind && (value == "0" || value == "1"))
+            m.data = value == "1";
+        else
+            return std::unexpected(xpp::format("its line {} is not one it has: \"{}\"", number, line));
     }
-    if (first) return std::nullopt;
+    if (number == 0) return std::unexpected(std::string("it is empty"));
+    if (!named || m.model_name.empty()) return std::unexpected(std::string("it names no model"));
     return m;
 }
 

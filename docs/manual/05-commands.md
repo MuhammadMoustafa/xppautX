@@ -185,8 +185,9 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this
   session first (as **open (M)odel**), loads the model saved in it, from the file alone however
   the `.ode` has changed since, and restores the session as it was saved.
-  A session file without its model (saved before this version) is
-  refused with an error. See
+  A session file without its model (saved before this version), or with
+  a part missing or damaged, is refused with an error naming the part and
+  its line, and the current session stays as it was. See
   [session files](01-introduction.md#starting-it).
 - **recor(D)**: Starts recording what you do, step by step; press it
   again (or **Stop** on the red recording bar the page shows, or

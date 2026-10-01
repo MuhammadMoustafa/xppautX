@@ -361,39 +361,59 @@ namespace {
    or "text":...}. Text is what the user would type in the X11 box: a number
    or %formula for parameters and ICs, an expression for BCs and delays; for
    the numerics (num, W106) a number, or a method's name, the field named by
-   its key (numerics_settings.h). 0 when set (or nothing to set), -1 on a
-   formula that does not evaluate or a numerics value refused. */
+   its key (numerics_settings.h). 0 when set, -1 (with the protocol's
+   error) on a kind or name the model does not have, no value (a number)
+   or text, a formula that does not evaluate or a numerics value refused. */
 int apply_value(xpp::Session &s, const char *line)
 {
     const xpp::Model &m = s.model();
     std::string kind, name, text;
     double z;
     int type, i, n, index = -1;
-    get_string(line, "kind", kind, 16);
+    get_string(line, "kind", kind);
     get_string(line, "name", name);
-    if (!get_string(line, "text", text)) text = xpp::format("{:.16g}", get_num(line, "value", 0));
     if (kind == "par") type = 1;        /* PARAMBOX */
     else if (kind == "ic") type = 2;    /* ICBOX */
     else if (kind == "delay") type = 3; /* DELAYBOX */
     else if (kind == "bc") type = 4;    /* BCBOX */
-    else if (kind == "num") {
+    else if (kind != "num") {
+        j_err_msg(xpp::format("set takes kind par, ic, delay, bc or num, not \"{}\"", kind).c_str());
+        return -1;
+    } else type = 0;
+    if (!get_string(line, "text", text)) {
+        if (!js_number(js_find(line, "value"), &z)) {
+            j_err_msg(xpp::format("set {} {}: its value is not a number (or its text missing)", kind, name).c_str());
+            return -1;
+        }
+        text = xpp::format("{:.16g}", z);
+    }
+    if (type == 0) {
         std::string why;
         if (numerics_settings_set(s, name, text, why) == 0) return 0;
         j_err_msg(xpp::format("Numerics: {}", why).c_str());
         return -1;
-    } else return 0;
+    }
     n = type == 1 ? m.nupar : type == 2 ? m.node + m.nmarkov : m.node;
     /* BC names are not unique ("0="): those come by index */
-    index = get_int(line, "index", -1);
-    if (index >= n) index = -1;
+    if (const char *at = js_find(line, "index")) {
+        double k;
+        if (!js_number(at, &k) || !(k >= 0 && k < n) || k != static_cast<int>(k)) {
+            j_err_msg(xpp::format("set {}: its index is not one of 0 to {}", kind, n - 1).c_str());
+            return -1;
+        }
+        index = static_cast<int>(k);
+    }
     for (i = 0; index < 0 && i < n; i++) {
         const char *bc = type == 4 ? s.bcs[i].name.data() : nullptr;
         if (type == 4 ? bc && xpp::equal_ignoring_case(bc, name)
                       : xpp::equal_ignoring_case(type == 1 ? m.upar_names[i] : m.uvar_names[i], name))
             index = i;
     }
+    if (index < 0) {
+        j_err_msg(xpp::format("set: the model has no {} {}", kind, name).c_str());
+        return -1;
+    }
     state_dirty = 1;
-    if (index < 0) return 0;
     if (box_set_value(s, type, index, text, &z) == -1) {
         j_err_msg("Bad formula");
         return -1;
@@ -422,9 +442,10 @@ void apply_set(xpp::Session &s, const char *line)
 void default_command(xpp::Session &s, const char *line)
 {
     std::string kind;
-    get_string(line, "kind", kind, 16);
+    get_string(line, "kind", kind);
     if (kind == "par") set_default_params(s);
-    else set_default_ics(s);
+    else if (kind == "ic") set_default_ics(s);
+    else j_err_msg(xpp::format("default takes kind par or ic, not \"{}\"", kind).c_str());
 }
 
 /* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
@@ -435,9 +456,14 @@ void slide_command(xpp::Session &s, const char *line)
 {
     std::string name;
     int type, index;
+    double value;
     get_string(line, "name", name);
-    if (find_par_or_var(s.model(), name, &type, &index)) {
-        set_par_or_var(s, name, type, index, get_num(line, "value", 0));
+    if (!find_par_or_var(s.model(), name, &type, &index))
+        j_err_msg(xpp::format("slide: the model has no parameter or variable {}", name).c_str());
+    else if (!js_number(js_find(line, "value"), &value))
+        j_err_msg(xpp::format("slide {}: its value is not a number", name).c_str());
+    else {
+        set_par_or_var(s, name, type, index, value);
         state_dirty = 1;
     }
 }

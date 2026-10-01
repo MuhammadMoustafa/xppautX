@@ -44,7 +44,6 @@
 */
 #include "lunch-new.h"
 
-#define READEM 1
 #include "browse.h"
 #include "integrate.h"
 
@@ -217,12 +216,7 @@ std::string get_root(std::string_view s, int *num)
 
 void dump_aplot(xpp::Session &s, FILE *fp, int f)
 {
-  if(f==READEM){
-    xpp::TokenReader r=xpp::TokenReader::attach(fp);
-    if(!r.skip_line())return;
-  }
-  else
-    xpp::print(fp,"# Array plot stuff\n");
+  xpp::io_heading(f,fp,"# Array plot stuff");
   xpp::io_string(s.array_plot.plot.name,fp,f);
   xpp::io_int(&s.array_plot.plot.nacross ,fp,f,"NCols");
   xpp::io_int(&s.array_plot.plot.nstart ,fp,f,"Row 1");

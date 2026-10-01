@@ -79,54 +79,71 @@ void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
   xpp::print(fp,"\n");
 }
 
-/* f==READEM&&set_type==1: skip one line (a "# ..." heading write_lunch
-   put there, read but discarded), of any length. */
-void skip_heading_line(FILE *fp)
-{
-  xpp::LineReader lr = xpp::LineReader::attach(fp);
-  lr.next();
-}
-
 /* the next whole line from fp (any length -- a line longer than a fixed
    buffer is not cut, leaving the rest of it to desync every read after
-   it), or nullopt at end of file */
-std::optional<std::string> next_line(FILE *fp)
+   it); at the end of the file SetLineError, the line that is missing
+   being what (a value's name, or "") */
+std::string next_line(FILE *fp, std::string_view what)
 {
   xpp::LineReader lr = xpp::LineReader::attach(fp);
   std::optional<std::string_view> line = lr.next();
-  if(!line) return std::nullopt;
+  if(!line){
+    std::string cause="the file ends here";
+    if(!what.empty())cause+=xpp::format(", before {}",what);
+    throw SetLineError{xpp::lines_read(fp)+1,std::move(cause)};
+  }
   return std::string(*line);
 }
 
-/* Reads a set file's settings from fp. ask: report a problem with
-   err_msg (File/Read set) rather than a WARN (read_lunch: a session, the
-   command line's -setfile). 1 when read. */
-int read_set(xpp::Session &s, FILE *fp, bool ask)
+/* a value's name as io_int and io_double write it after the value, for a
+   message: without the blanks around it */
+std::string_view value_name(std::string_view ss)
+{
+  while(!ss.empty()&&ss.front()==' ')ss.remove_prefix(1);
+  while(!ss.empty()&&ss.back()==' ')ss.remove_suffix(1);
+  return ss;
+}
+
+/* the number line starts with (what io_int and io_double write: the
+   number, then blanks and its name), through parse (xpp::parse_int or
+   xpp::parse_number); SetLineError when it does not start with one */
+template <class T>
+void line_number(FILE *fp, std::string_view ss, const char *kind, bool (*parse)(std::string_view, T &), T &value)
+{
+  const std::string_view name=value_name(ss);
+  const std::string line=next_line(fp,name);
+  std::string_view text=line;
+  while(!text.empty()&&(text.front()==' '||text.front()=='\t'))text.remove_prefix(1);
+  const std::string_view first=text.substr(0,text.find_first_of(" \t"));
+  if(!parse(first,value))
+    throw SetLineError{xpp::lines_read(fp),
+                       xpp::format("\"{}\" is not {}{}",line,kind,name.empty()?std::string():xpp::format(" ({})",name))};
+}
+
+/* Reads a set file's settings from fp (read_lunch); what is wrong (the
+   line, through SetLineError) when it is not one of s's model's */
+void read_set(xpp::Session &s, FILE *fp)
 {
   int f=READEM,ne,np,temp;
-  std::optional<std::string> first=next_line(fp);
-  if(!first){
-    if(ask) err_msg("Cannot read file");
-    else xpp::log(XPP_LOG_WARN, "Set file read failed\n");
-    return 0;
-  }
-  if(!first->empty() && (*first)[0]=='#'){
+  const std::string first=next_line(fp,"");
+  if(!first.empty() && first[0]=='#'){
     set_type=1;
-    io_int(&ne,fp,f," ");
+    io_int(&ne,fp,f,"Number of equations and auxiliaries");
   }
   else {
-    ne=atoi(first->c_str());
+    /* an XPPAUT set file: the number of equations first */
     set_type=0;
+    if(!xpp::parse_int(first.substr(0,first.find_first_of(" \t")),ne))
+      throw SetLineError{1,xpp::format("\"{}\" is neither \"## Set file\" nor the number of equations",first)};
   }
-  io_int(&np,fp,f," ");
-  if(ne!=s.model().neq||np!=s.model().nupar){
-    if(ask) err_msg("Incompatible parameters");
-    else xpp::log(XPP_LOG_WARN, "Set file has incompatible parameters\n");
-    return 0;
-  }
+  io_int(&np,fp,f,"Number of parameters");
+  if(ne!=s.model().neq||np!=s.model().nupar)
+    throw SetLineError{set_type==1?3:2,
+                       xpp::format("it is for {} equations and auxiliaries and {} parameters, the model has {} and {}",
+                                   ne,np,s.model().neq,s.model().nupar)};
   io_numerics(s,f,fp);
   if(s.numerics.method==xpp::method::VOLTERRA){
-    io_int(&temp,fp,f," ");
+    io_int(&temp,fp,f,"Max points for volterra");
     xpp::allocate_volterra(s,temp,1);
     s.integrator.my_start=1;
   }
@@ -140,7 +157,6 @@ int read_set(xpp::Session &s, FILE *fp, bool ask)
     dump_torus(s,fp,f);
     xpp::dump_range(s,fp,f);
   }
-  return 1;
 }
 
 } // namespace
@@ -191,9 +207,26 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_parameters(s,fp,"");
 }
 
-int read_lunch(xpp::Session &s, FILE *fp)
+std::string SetLineError::text() const
 {
-  return read_set(s,fp,false);
+  return xpp::format("line {}: {}",line,cause);
+}
+
+xpp::Result<> read_lunch(xpp::Session &s, FILE *fp, bool redraw)
+{
+  try{
+    read_set(s,fp);
+  }catch(const SetLineError &e){
+    return xpp::fail("set file",e.text());
+  }
+  if(redraw&&program.interactive){
+    xpp_ui.redraw_bcs();
+    redraw_ics();
+    xpp_ui.redraw_delays();
+    redraw_params();
+    xpp_ui.redraw_graph(s);
+  }
+  return {};
 }
 
 void write_lunch(xpp::Session &s, FILE *fp)
@@ -226,12 +259,13 @@ void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
   if(f==READEM){
     ping();
     if(!file_selector("Load SET File",filename,"*.set"))return;
-    xpp::UniqueFile fp=xpp::open_read(filename.c_str());
+    xpp::UniqueFile fp=xpp::open_read_binary(filename.c_str());
     if(!fp){
       err_msg("Cannot open file");
       return;
     }
-    read_set(s,fp.get(),true);
+    if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
+      err_msg(xpp::format("{}, {}",xpp::files::split_path(filename).second,r.error().what).c_str());
     return;
   }
   if(!file_selector("Save SET File",filename,"*.set"))return;
@@ -251,14 +285,12 @@ void dump_eqn(const xpp::Session &s, FILE *fp)
 void io_numerics(xpp::Session &s, int f, FILE *fp)
 {
 const char *pmap[]={"Poincare None","Poincare Section","Poincare Max","Period"};
-if(f==READEM&&set_type==1){
-  skip_heading_line(fp);
-}
-if(f!=READEM)
-  xpp::print(fp,"# Numerical stuff\n");
+io_heading(f,fp,"# Numerical stuff");
 io_int(&s.numerics.njmp,fp,f," nout");
 io_int(&s.numerics.nmesh,fp,f," nullcline mesh");
 io_int(&s.numerics.method,fp,f,xpp::solver_info(s.numerics.method).set_label);
+if(f==READEM&&(s.numerics.method<0||s.numerics.method>=static_cast<int>(xpp::solvers().size())))
+  throw SetLineError{xpp::lines_read(fp),xpp::format("{} is not a method's number",s.numerics.method)};
  if(f==READEM)xpp::do_meth(s);
 io_double(&s.numerics.tend,fp,f,"total");
 io_double(&s.numerics.delta_t,fp,f,"DeltaT");
@@ -287,6 +319,8 @@ io_double(&s.numerics.bvp_tol,fp,f,"Boundary value tolerance");
 io_double(&s.numerics.bvp_eps,fp,f,"Boundary value epsilon");
 io_int(&s.numerics.bvp_maxit,fp,f,"Boundary value iterates");
 io_int(&s.numerics.poimap,fp,f,pmap[s.numerics.poimap]);
+if(f==READEM&&(s.numerics.poimap<0||s.numerics.poimap>=static_cast<int>(std::size(pmap))))
+  throw SetLineError{xpp::lines_read(fp),xpp::format("{} is not a Poincare map's number",s.numerics.poimap)};
 
 io_int(&s.numerics.poivar,fp,f,"Poincare variable");
 io_int(&s.numerics.poisgn,fp,f,"Poincare sign");
@@ -304,20 +338,21 @@ void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
      pick goes through save_parameter_file/load_parameter_file below,
      which ask for it first */
   if(flag==READEM) {
-    xpp::UniqueFile fp=xpp::open_read(fn);
+    xpp::UniqueFile fp=xpp::open_read_binary(fn);
     if(!fp){
       err_msg("Cannot open file");
       return;
     }
-    int np;
-    io_int(&np,fp.get(),flag," ");
-    if(np!=m.nupar){
-      xpp::log(XPP_LOG_DEBUG, "{}\n",np);
-      xpp::log(XPP_LOG_DEBUG, "{}\n",m.nupar);
-      err_msg("Incompatible parameters");
+    try{
+      int np;
+      io_int(&np,fp.get(),flag,"Number params");
+      if(np!=m.nupar)
+        throw SetLineError{1,xpp::format("it is for {} parameters, the model has {}",np,m.nupar)};
+      io_parameters(s,flag,fp.get());
+    }catch(const SetLineError &e){
+      err_msg(xpp::format("{}, {}",xpp::files::split_path(fn).second,e.text()).c_str());
       return;
     }
-    io_parameters(s,flag,fp.get());
     fp.reset();
     redo_stuff(s);
     return;
@@ -452,12 +487,13 @@ void io_parameters(xpp::Session &s, int f, FILE *fp)
   if(f==READEM) redraw_params();
  }
 
-/* A "# ..." heading: skipped on reading a new-style set file, written
-   on writing one */
-static void io_heading(int f, FILE *fp, const char *heading)
+void io_heading(int f, FILE *fp, const char *heading)
 {
   if(f==READEM){
-    if(set_type==1)skip_heading_line(fp);
+    if(set_type!=1)return;
+    const std::string line=next_line(fp,heading);
+    if(!line.starts_with("#"))
+      throw SetLineError{xpp::lines_read(fp),xpp::format("\"{}\" is not the heading \"{}\"",line,heading)};
   }
   else
     xpp::print(fp,"{}\n",heading);
@@ -486,17 +522,10 @@ void io_exprs(xpp::Session &s, int f, FILE *fp)
     io_double(&z,fp,f,s.model().upar_names[i]);
   }
   else {
-    io_double(&z,fp,f," ");
+    io_double(&z,fp,f,s.model().upar_names[i]);
     set_val(s,s.model().upar_names[i],z);
   }
 }
-
- if(f==READEM&&program.interactive){
-   xpp_ui.redraw_bcs();
-   redraw_ics();
-   xpp_ui.redraw_delays();
-   redraw_params();
- }
 }
 
 static void io_graph_of(int f, FILE *fp, GRAPH &g)
@@ -555,7 +584,6 @@ static void io_graph_of(int f, FILE *fp, GRAPH &g)
 void io_graph(xpp::Session &s, int f, FILE *fp)
 {
   io_graph_of(f,fp,*s.plot_windows.current);
-  if(f==READEM&&program.interactive)xpp_ui.redraw_graph(s);
 }
 
 void write_graph(FILE *fp, GRAPH &g)
@@ -571,22 +599,16 @@ void read_graph(FILE *fp, GRAPH &g)
 
 void io_int(int *i, FILE *fp, int f, std::string_view ss)
 {
- if(f==READEM){
-   std::optional<std::string> bob=next_line(fp);
-   if(!bob){*i=0;return;}
-   *i=atoi(bob->c_str());
- }
+ if(f==READEM)
+   line_number(fp,ss,"a whole number",xpp::parse_int,*i);
  else
  xpp::print(fp,"{}   {}\n",*i,ss);
 }
 
 void io_double(double *z, FILE *fp, int f, std::string_view ss)
 {
- if(f==READEM){
-   std::optional<std::string> bob=next_line(fp);
-   if(!bob){*z=0.0;return;}
-   *z=atof(bob->c_str());
- }
+ if(f==READEM)
+   line_number(fp,ss,"a number",xpp::parse_number,*z);
  else
  xpp::print(fp,"{:.16g}  {}\n",*z,ss);
 }
@@ -594,9 +616,9 @@ void io_double(double *z, FILE *fp, int f, std::string_view ss)
 void io_string(std::string &s, FILE *fp, int f)
 {
  /* One line per string, read whole whatever its length (CR/LF tolerant),
-    so the lines after it stay in step; "" at the end of the file */
+    so the lines after it stay in step */
  if(f==READEM)
-   s=next_line(fp).value_or(std::string());
+   s=next_line(fp,"");
  else
    xpp::print(fp,"{}\n",s);
 }

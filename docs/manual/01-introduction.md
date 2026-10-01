@@ -158,7 +158,11 @@ restores it all as it was saved; AUTO can grab a point of the restored
 diagram and go on. The file's folder becomes the working folder, where
 what you save goes; nothing is written beside it. Opening one asks first
 whether to save the session open, since it takes its place. A session file without
-its model (one saved before this version) is refused with an error. The
+its model (one saved before this version) is refused with an error, and so
+is one with a part missing or damaged (a member cut short, a line that is
+not a number, a variable the model does not have): the error names the
+part and its line (`s1.snapx: its windows.set, line 12: ...`), and the
+session open stays exactly as it was, nothing of the file taken. The
 earlier runs a window shows until Erase are
 not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask

@@ -146,12 +146,7 @@ void init_ar_ic()
     
 void dump_range(xpp::Session &s, FILE *fp, int f)
 {
-  if(f==READEM){
-    auto reader=xpp::LineReader::attach(fp);
-    if(!reader.next())return;
-  }
-  else
-    xpp::print(fp,"# Range information\n");
+  io_heading(f,fp,"# Range information");
   io_string(eq_range.item,fp,f);
   io_int(&eq_range.col,fp,f,"eq-range stab col");
   io_int(&eq_range.shoot,fp,f,"shoot flag 1=on");

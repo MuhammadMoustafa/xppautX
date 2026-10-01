@@ -18,6 +18,7 @@
    XPPAUT .auto (AUTO's Load diagram).
    C++ only. */
 #include <deque>
+#include <expected>
 #include <map>
 #include <optional>
 #include <span>
@@ -56,7 +57,7 @@ inline constexpr const char *views_member = "views.txt";       /* views_text bel
    shortest text that reads back as the same double. */
 std::string settings_text(const AutoSettingsSet &s);
 /* text's settings, every one of them given; nothing when a line is not
-   one (a key it does not know is left for a later writer) */
+   one, a key is missing or one is not one of these */
 std::optional<AutoSettingsSet> parse_settings(std::string_view text);
 
 /* one of the AUTO window's views of the diagram (W50): its axes as the
@@ -100,20 +101,36 @@ std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text,
 /* ---- this session's (autox_io.cpp) ---- */
 
 /* AUTO's work in the session s as an .autox's bytes, its model included;
-   nothing when the diagram is empty (or AUTO's solution file cannot be
-   read, which an error message says) */
+   nothing when the diagram is empty or AUTO's solution file cannot be
+   read (an error message says so) */
 std::optional<std::string> file_bytes(const Session &s);
 
 /* AUTO's members (settings, diagram, solutions, views) of the session s
-   after entries', each named prefix and its name (a session file's "auto/") */
-void add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
+   after entries', each named prefix and its name (a session file's
+   "auto/"); false, with an error message, when AUTO's solution file
+   cannot be read (the orbits a grab restarts from) */
+bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
 
-/* AUTO's members of a file (named name in messages; prefix as
-   add_members') restored into the session s, whose model the file's is:
-   AUTO's settings, the diagram, its solution file and the views of it,
-   with the AUTO window opened and the diagram drawn. False with an error message when nothing
-   was restored. */
-bool restore_members(Session &s, const std::map<std::string, std::string> &members, std::string_view prefix, const std::string &name);
+/* AUTO's members of a file as members_read reads them, for
+   restore_members: the solution file's bytes are the members' own */
+struct Members {
+    AutoSettingsSet settings;
+    std::deque<DiagramPoint> points;
+    SavedViews views;
+    std::string_view solutions;
+};
+
+/* AUTO's members of a file (prefix as add_members') read for the session
+   s, whose model the file's is; what is wrong when one is missing or does
+   not read ("its auto/views.txt cannot be read") */
+std::expected<Members, std::string> members_read(const Session &s, const std::map<std::string, std::string> &members,
+                                                 std::string_view prefix);
+
+/* m restored into the session s (the file named name in messages): AUTO's
+   settings, the diagram, its solution file and the views of it, with the
+   AUTO window opened and the diagram drawn; what went wrong when the
+   solution file cannot be written (the caller says it) */
+std::optional<std::string> restore_members(Session &s, Members m, const std::string &name);
 
 /* AUTO's File/Load diagram of an XPPAUT .auto, path: imported into the
    session s, its

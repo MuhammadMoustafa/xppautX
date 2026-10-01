@@ -139,6 +139,10 @@ void check_settings_text()
           same_bits(r->mark_value[1], s.mark_value[1]));
     CHECK(!xpp::autox::parse_settings("ds not-a-number\n"));
     CHECK(!xpp::autox::parse_settings("plot 1.5\n"));
+    /* every key there, none it does not have */
+    const std::string text = xpp::autox::settings_text(s);
+    CHECK(!xpp::autox::parse_settings(text + "later 1\n"));
+    CHECK(!xpp::autox::parse_settings(text.substr(text.find('\n') + 1)));
 }
 
 /* views.txt (W50): the views read back bit for bit, a degenerate range
@@ -234,8 +238,9 @@ void check_session_round_trip(const xpp::TempDir &tmp)
     CHECK(entries && entries->size() == 6 && (*entries)[0].name == "autox.txt" && (*entries)[1].name == model_member &&
           (*entries)[2].name == "settings.txt" && (*entries)[3].name == "diagram.csv" && (*entries)[4].name == "solutions.s" &&
           (*entries)[5].name == "views.txt");
-    const std::optional<xpp::snapx::Manifest> man =
-        entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind) : std::nullopt;
+    const std::expected<xpp::snapx::Manifest, std::string> man =
+        entries ? xpp::snapx::parse_manifest((*entries)[0].bytes, xpp::autox::kind)
+                : std::expected<xpp::snapx::Manifest, std::string>(std::unexpected(std::string("no entries")));
     CHECK(man && man->model_name == xpp::client_session().model().this_file);
     CHECK(entries && (*entries)[1].bytes == file_text(xpp::client_session().model().this_file)); /* the model itself */
     CHECK(entries && !xpp::snapx::parse_manifest((*entries)[0].bytes)); /* not a session file's */
@@ -298,12 +303,18 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     const std::string solutions = file_text(auto_solutions_file());
 
     std::vector<xpp::zip::Entry> entries;
-    xpp::autox::add_members(xpp::client_session(), entries, "auto/");
+    CHECK(xpp::autox::add_members(xpp::client_session(), entries, "auto/"));
     std::map<std::string, std::string> members;
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
     CHECK(members.size() == 4 && members.contains("auto/diagram.csv") && members.contains("auto/views.txt"));
     start_diagram(xpp::client_session(), xpp::client_session().model().node);
-    CHECK(xpp::autox::restore_members(xpp::client_session(), members, "auto/", "lecar.snapx"));
+    std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(xpp::client_session(), members, "auto/");
+    CHECK(read && !xpp::autox::restore_members(xpp::client_session(), std::move(*read), "lecar.snapx"));
+    /* one missing: named */
+    std::map<std::string, std::string> cut = members;
+    cut.erase("auto/solutions.s");
+    const std::expected<xpp::autox::Members, std::string> none = xpp::autox::members_read(xpp::client_session(), cut, "auto/");
+    CHECK(!none && none.error() == "its auto/solutions.s is missing");
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(auto_solutions_file()) == solutions);
 

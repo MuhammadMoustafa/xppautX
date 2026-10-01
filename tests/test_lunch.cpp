@@ -4,6 +4,9 @@
    in a different order shifts every value after it, which a user only
    notices as a restored session that behaves differently.
 
+   A file cut short or with a line that is not a number is refused, the
+   line named (W116: no zeros for what is not there).
+
    The model is loaded the way xppautX -silent loads it (xpp::load_model),
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
@@ -17,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 
 /* the file without its first line, which carries the time it was written */
@@ -34,6 +38,20 @@ static char *body(const char *path)
     fclose(fp);
     nl = strchr(s, '\n');
     return nl ? static_cast<char *>(memmove(s, nl + 1, strlen(nl + 1) + 1)) : s;
+}
+
+/* read_lunch of text (written to path): the error, "" when it reads */
+static std::string read_error(const char *path, const std::string &text)
+{
+    FILE *fp = fopen(path, "wb");
+    if (!fp) return "cannot write " + std::string(path);
+    fwrite(text.data(), 1, text.size(), fp);
+    fclose(fp);
+    fp = fopen(path, "rb");
+    if (!fp) return "cannot read " + std::string(path);
+    const xpp::Result<> r = xpp::read_lunch(xpp::client_session(), fp, false);
+    fclose(fp);
+    return r ? std::string() : r.error().what;
 }
 
 static void save(const char *path)
@@ -70,7 +88,7 @@ int main(void)
     fp = fopen(a, "r");
     CHECK(fp != NULL);
     if (!fp) TEST_REPORT("lunch round trip");
-    CHECK(xpp::read_lunch(xpp::client_session(),fp) == 1);
+    CHECK(xpp::read_lunch(xpp::client_session(), fp, false).has_value());
     fclose(fp);
 
     xpp::get_val(xpp::client_session(), "iapp", &x);
@@ -84,6 +102,17 @@ int main(void)
     sb = body(b);
     CHECK(sa && sb && strlen(sa) > 100);
     CHECK(sa && sb && strcmp(sa, sb) == 0);
+    /* cut short after its fifth line; its fifth line not a number */
+    const std::string whole = std::string("## Set file\n") + (sa ? sa : "");
+    std::size_t fifth = 0; /* where the fifth line begins */
+    for (int k = 0; k < 4; k++) fifth = whole.find('\n', fifth) + 1;
+    const std::string cut = whole.substr(0, whole.find('\n', fifth) + 1);
+    const std::string short_error = read_error(b, cut);
+    CHECK(short_error.starts_with("line 6: the file ends here"));
+    std::string bad = whole;
+    bad.replace(fifth, 1, "x");
+    const std::string bad_error = read_error(b, bad);
+    CHECK(bad_error.starts_with("line 5: \"x") && bad_error.find("is not a whole number (nout)") != std::string::npos);
     free(sa);
     free(sb);
     remove(a);

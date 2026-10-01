@@ -1145,6 +1145,26 @@ def section_autox():
     evs = open_file(s, 'nomodel.autox')
     check('autox: an .autox without its model is refused, an error says the model is missing',
           'model is missing' in messages(evs) and hello_title(evs) is None, messages(evs)[:300])
+    # W116: a member missing or cut short fails the open before its model is
+    # kept: an error names it, and the model open stays (no hello)
+    members = {n: z.read(n) for n in z.namelist()}
+    rows_csv = members['diagram.csv'].decode().split('\n')
+    for name, change, expect in (
+            ('nosolutions.autox', lambda m: m.pop('solutions.s'), 'its solutions.s is missing'),
+            ('cutdiagram.autox', lambda m: m.__setitem__('diagram.csv', '\n'.join(rows_csv[:5])[:-7].encode()),
+             'its diagram.csv cannot be read'),
+            ('latersettings.autox', lambda m: m.__setitem__('settings.txt', m['settings.txt'] + b'later 1\n'),
+             'its settings.txt cannot be read'),
+            ('latermanifest.autox', lambda m: m.__setitem__('autox.txt', m['autox.txt'] + b'later 1\n'),
+             'is not one it has: "later 1"')):
+        damaged = dict(members)
+        change(damaged)
+        with zipfile.ZipFile(os.path.join(s.run, name), 'w') as out:
+            for n, b in damaged.items():
+                out.writestr(n, b)
+        evs = open_file(s, name)
+        check('autox: %s is refused before its model is kept (%s), the model open stays' % (name, expect),
+              expect in messages(evs) and hello_title(evs) is None and s.alive(), messages(evs)[:300])
     # a binary file opened as a model: refused, its bytes never shown
     with open(os.path.join(s.run, 'bin.ode'), 'wb') as out:
         out.write(b'x\'=-x\n\x00\x01\x02\xff\n')

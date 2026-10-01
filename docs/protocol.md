@@ -60,9 +60,9 @@ core's type for it is `xpp::Diagnostic` (core/diagnostic.h), which
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
-| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
-| `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. |
-| `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69; web2 sends a slider's values as `set`). A setting, as `set` is. |
+| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
+| `default` | `kind` (`par` or `ic`) | The Default button: values from the ODE file (`hello.defaults`); no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. Another `kind` is a `message` `error` and nothing changes. |
+| `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69; web2 sends a slider's values as `set`). A setting, as `set` is. A name the model does not have, or a `value` that is not a number, is a `message` `error` and nothing changes. |
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
@@ -1092,7 +1092,19 @@ members: `state`, `plots`, `marks` (but Sing pts' equilibrium symbols),
 save, the diagram exactly (every digit). The earlier runs a window keeps until Erase are
 not saved. A file without its model (`model/<name>` missing, as in every
 session file saved before W103), or without its manifest, is refused (a
-`message` `error` says what is missing) and nothing changes. The command
+`message` `error` says what is missing) and nothing changes. So is one
+whose manifest has a line it does not write (`its session.txt: its line 5
+is not one it has: "later 1"`), and (W116) one with a member it always
+writes missing (`model.set`, `windows.set`, `marks.set`; `data.npz` when
+`data` is 1, and only then; AUTO's four when one is there; the points of
+every frozen curve `marks.set` lists) or one whose member does not read: a
+line missing or not a number, a variable, a window or a slot it does not
+have. The members are read against the model's load before it is kept,
+so the session before stays exactly as it was, its model included; the
+error names the member and the line: `s1.snapx could not be loaded
+(s1.snapx: its windows.set, line 11: the file ends here); lecar.ode is
+still loaded` (at the start, the command line's file, the `error` event,
+then exit 1). The command
 line opens one too, `xppautX name.snapx` (every mode but `-silent`),
 from its own folder.
 
@@ -1129,10 +1141,15 @@ order:
 Every number is the shortest text that reads back as the same double, so
 a diagram saved and loaded is the same bit for bit, and continues from a
 grabbed point as the one saved would. A file without its model is
-refused, as a session file is; one without `settings.txt`, `diagram.csv`
-or `views.txt` (every file saved before W50 lacks the last) loads no
-diagram, and an error names the member (`d1.autox: its views.txt cannot
-be read`; in a session file, `auto/views.txt`). A setting the model no longer takes
+refused, as a session file is; so is one without `settings.txt`,
+`diagram.csv`, `solutions.s` or `views.txt` (every file saved before W50
+lacks the last), or with one that does not read (a key `settings.txt`
+does not have, or one missing; a row of `diagram.csv` cut short): an
+error names the member (`d1.autox: its views.txt is missing`, `its
+diagram.csv cannot be read`; in a session file, `auto/views.txt`), and
+nothing changes, the model open included (W116). Save diagram, and Save
+session with a diagram, are refused with an error when AUTO's solution
+file cannot be read (the orbits a grab restarts from). A setting the model no longer takes
 leaves AUTO's settings as they were, which a `message` `bottom` says. An
 XPPAUT `.auto` file still loads into the model open, as an import (after
 asking whether to destroy the diagram there is): its settings, its

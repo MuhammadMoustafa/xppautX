@@ -53,7 +53,6 @@ namespace xpp {
 
 #define DFNORMAL 1
 #define MAXOPT 1000
-#define READEM 1
 
 
 namespace {
@@ -129,12 +128,7 @@ std::string read_line(FILE *fp)
 void dump_torus(xpp::Session &s, FILE *fp, int f)
 {
   int i;
-  if(f==READEM){
-    xpp::LineReader lr = xpp::LineReader::attach(fp);
-    if(!lr.next())return;
-  }
-  else
-    std::fputs("# Torus information \n",fp);
+  io_heading(f,fp,"# Torus information ");
   io_int(&s.numerics.torus,fp,f," Torus flag 1=ON");
   io_double(&s.numerics.tor_period,fp,f,"Torus period");
   if(s.numerics.torus){

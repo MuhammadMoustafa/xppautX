@@ -286,7 +286,8 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     create_plot_list(s);
 }
 
-Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved)
+Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
+                  const std::function<std::optional<Diagnostic>(Session &)> &check)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
@@ -303,6 +304,8 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved)
             m.files = saved->files;
         }
         load_and_set_up(load.session(), argc, argv, batch);
+        if (check)
+            if (std::optional<Diagnostic> wrong = check(load.session())) throw xpp::LoadFailed{std::move(*wrong)};
     } catch (xpp::LoadFailed &failed) {
         program = program_before;
         batch_options = batch_before;

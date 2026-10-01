@@ -36,7 +36,6 @@
 
 namespace xpp {
 
-#define READEM 1
 
 namespace {
 /* the maximal Liapunov exponent over a range: the parameter, the exponent */
@@ -78,12 +77,7 @@ void init_trans(xpp::Session &s)
 
 void dump_transpose_info(FILE *fp, int f)
 {
-  if(f==READEM){
-    auto reader=xpp::LineReader::attach(fp);
-    if(!reader.next())return;
-  }
-  else
-    xpp::print(fp,"# Transpose variables etc\n");
+  io_heading(f,fp,"# Transpose variables etc");
   io_string(my_trans.firstcol,fp,f);
   io_int(&my_trans.ncol,fp,f,"n columns");
   io_int(&my_trans.nrow,fp,f,"n rows");
@@ -272,12 +266,7 @@ void new_h_fun(xpp::Session &s, int silent)
 void dump_h_stuff(xpp::Session &s, FILE *fp, int f)
 {
   int i;
-  if(f==READEM){
-    auto reader=xpp::LineReader::attach(fp);
-    if(!reader.next())return;
-  }
-  else
-    xpp::print(fp,"# Coupling stuff for H funs\n");
+  io_heading(f,fp,"# Coupling stuff for H funs");
  for(i=0;i<s.model().node ;i++)
    io_string(coup_string[i],fp,f);
 

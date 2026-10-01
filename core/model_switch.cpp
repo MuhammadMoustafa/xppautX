@@ -14,6 +14,7 @@
 #include "form_ode.h"
 #include "numerics.h"
 #include "storage.h"
+#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
@@ -272,10 +273,15 @@ Session *load_requested(const Session &now, const ModelRequest &req)
   std::vector<char *> argv;
   for(std::string &a : args)argv.push_back(a.data());
   argv.push_back(nullptr);
-  Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr);
+  /* what an AUTO or session file adds is read before the load keeps its
+     model: a member missing or that does not read fails the open */
+  std::function<std::optional<Diagnostic>(Session &)> check;
+  if(req.restore)check=[&req](Session &fresh){ return xpp_saved_check(fresh,*req.restore); };
+  Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr,check);
   if(!loaded){
     back();
-    err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.file,loaded.error().text(),before_file).c_str());
+    err_msg(xpp::format("{} could not be loaded ({}); {} is still loaded",req.restore?req.restore->name:req.file,
+                        loaded.error().text(),before_file).c_str());
     return nullptr;
   }
   return *loaded;

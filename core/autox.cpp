@@ -2,6 +2,7 @@
 #include "autox.h"
 #include "xpp_io.h"
 
+#include <algorithm>
 #include <array>
 #include <vector>
 
@@ -85,6 +86,7 @@ std::optional<AutoSettingsSet> parse_settings(std::string_view text)
     AutoSettingsSet s;
     s.npars = 0;
     s.nmarks = 0;
+    int names = 0; /* the pars, var, par1 and par2 lines read */
     for (std::string_view line : lines_of(text)) {
         std::vector<std::string_view> w = split(line, ' ');
         const std::string_view key = w[0];
@@ -92,6 +94,7 @@ std::optional<AutoSettingsSet> parse_settings(std::string_view text)
             if (w.size() - 1 > AUTO_SETTINGS_PARS) return std::nullopt;
             s.npars = static_cast<int>(w.size() - 1);
             for (int k = 0; k < s.npars; k++) s.pars[k] = name_of(w[k + 1]);
+            names++;
             continue;
         }
         if (key == "mark") {
@@ -106,22 +109,28 @@ std::optional<AutoSettingsSet> parse_settings(std::string_view text)
         if (key == "plot") {
             if (!xpp::parse_int(value, s.plot)) return std::nullopt;
             s.has_plot = 1;
-        } else if (key == "var") s.var = name_of(value);
-        else if (key == "par1") s.par1 = name_of(value);
-        else if (key == "par2") s.par2 = name_of(value);
-        else {
+        } else if (key == "var" || key == "par1" || key == "par2") {
+            (key == "var" ? s.var : key == "par1" ? s.par1 : s.par2) = name_of(value);
+            names++;
+        } else {
+            bool known = false;
             for (std::size_t i = 0; i < range_keys.size(); i++)
                 if (key == range_keys[i]) {
                     if (!xpp::parse_number(value, s.range[i])) return std::nullopt;
                     s.has_range[i] = 1;
+                    known = true;
                 }
             for (int i = 0; i < AUTO_NUM_N; i++)
                 if (key == auto_settings_num_key(i)) {
                     if (!xpp::parse_number(value, s.num[i])) return std::nullopt;
                     s.has_num[i] = 1;
+                    known = true;
                 }
+            if (!known) return std::nullopt;
         }
     }
+    const auto all = [](const auto &has) { return std::all_of(has.begin(), has.end(), [](int h) { return h != 0; }); };
+    if (names != 4 || !s.has_plot || !all(s.has_range) || !all(s.has_num)) return std::nullopt;
     return s;
 }
 

@@ -43,7 +43,7 @@ void check_manifest()
     const std::string text = manifest_text(m);
     CHECK(text.starts_with("xppautX session 1\n"));
     CHECK(text.find("\nname my models/lecar.ode\n") != std::string::npos);
-    const std::optional<Manifest> back = parse_manifest(text);
+    const std::expected<Manifest, std::string> back = parse_manifest(text);
     CHECK(back.has_value() && *back == m);
 
     /* no animation, no data; CRLF line ends read the same */
@@ -54,11 +54,15 @@ void check_manifest()
         if (c == '\n') crlf += '\r';
         crlf += c;
     }
-    const std::optional<Manifest> eb = parse_manifest(crlf);
+    const std::expected<Manifest, std::string> eb = parse_manifest(crlf);
     CHECK(eb.has_value() && *eb == e && eb->anifile.empty() && !eb->data);
 
-    /* a later key is skipped; another file or a later version is refused */
-    CHECK(parse_manifest(text + "future thing\n").has_value());
+    /* a key it does not have, another file or a later version is refused,
+       saying what is wrong */
+    const std::expected<Manifest, std::string> later = parse_manifest(text + "future thing\n");
+    CHECK(!later && later.error().find("line 5") != std::string::npos && later.error().find("future thing") != std::string::npos);
+    CHECK(!parse_manifest("xppautX session 1\nname x.ode\ndata 2\n").has_value()); /* data is 0 or 1 */
+    CHECK(!parse_manifest("xppautX session 1\ndata 0\n").has_value());           /* no model */
     CHECK(!parse_manifest("# Set file\n").has_value());
     CHECK(!parse_manifest("").has_value());
     CHECK(!parse_manifest("xppautX session 2\n").has_value());

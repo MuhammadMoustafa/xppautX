@@ -71,17 +71,6 @@ std::optional<std::string> written(const xpp::TempDir &tmp, const char *name, F 
     return bytes;
 }
 
-/* fn(FILE *) reading bytes, through the file name in tmp */
-template <class F>
-bool read_as_file(const xpp::TempDir &tmp, const char *name, const std::string &bytes, F fn)
-{
-    const std::string path = tmp.file(name);
-    xpp::Writer w = xpp::Writer::binary(path.c_str());
-    if (!w || !w.write(bytes) || !w.commit()) return false;
-    xpp::UniqueFile fp = xpp::open_read(path.c_str());
-    return fp && fn(fp.get());
-}
-
 void io_bool(int f, FILE *fp, bool &b, const char *name)
 {
     int i = b;
@@ -141,95 +130,119 @@ bool write_windows(xpp::Session &s, FILE *fp)
     return true;
 }
 
-/* g's curves by their variables' names: a name this model no longer has
-   drops its curve */
-void curves_by_name(const xpp::Session &s, GRAPH &g, const std::vector<std::string> &names)
+/* the column name names: the time, a variable, or one of the columns
+   added (windows.set's own, which the browser has only once it is
+   restored); nothing when the model has none of that name */
+std::optional<int> column_named(const xpp::Session &s, const std::vector<AddedColumn> &added, const std::string &name)
 {
-    const int nvars = std::min(g.nvars, static_cast<int>(names.size() / 3));
-    int n = 0;
-    for (int j = 0; j < nvars; j++) {
-        int x, y, z;
-        find_variable(s,names[3 * j], &x);
-        find_variable(s,names[3 * j + 1], &y);
-        find_variable(s,names[3 * j + 2], &z);
-        if (x < 0 || y < 0) continue;
-        g.xv[n] = x;
-        g.yv[n] = y;
-        g.zv[n] = z < 0 ? 0 : z;
-        g.line[n] = g.line[j];
-        g.color[n] = g.color[j];
-        n++;
-    }
-    if (n == 0) { /* none left: the first variable against time */
-        g.xv[0] = 0;
-        g.yv[0] = s.model().neq > 0 ? 1 : 0;
-        n = 1;
-    }
-    g.nvars = n;
+    int col;
+    find_variable(s, name, &col);
+    if (col >= 0) return col;
+    for (std::size_t k = 0; k < added.size(); k++)
+        if (xpp::equal_ignoring_case(added[k].name, name)) return s.model().neq + 1 + static_cast<int>(k);
+    return std::nullopt;
 }
 
-/* what read_windows restores beside the windows */
+/* a curve's variable as windows.set names it, and the line it is on */
+struct CurveName {
+    std::string name;
+    int line = 0;
+};
+
+/* what read_windows reads beside the windows */
 struct WindowsRead {
     xpp::AutoView auto_view;
     std::vector<AddedColumn> added;
 };
 
-/* the windows of windows.set made and set as saved, the saved active one
-   active; slot says which window each saved one became */
-bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
+/* what is wrong at the line of fp just read */
+[[noreturn]] void wrong_here(FILE *fp, std::string cause)
+{
+    throw xpp::SetLineError{xpp::lines_read(fp), std::move(cause)};
+}
+
+/* windows.set read: when make (restoring) the windows made and set as
+   saved, the saved active one active, slot saying which window each saved
+   one became; otherwise (xpp_saved_check) read into scratch, slot mapping
+   each saved one to itself. SetLineError at a line that does not read or
+   names what the model does not have. */
+void read_windows(xpp::Session &s, FILE *fp, bool make, std::map<int, int> &slot, WindowsRead &rest)
 {
     int count = 0, active = 0;
-    xpp::io_int(&count, fp, reading, "");
-    xpp::io_int(&active, fp, reading, "");
-    if (count < 1 || count > MAXPOP) return false;
+    xpp::io_int(&count, fp, reading, "windows");
+    if (count < 1 || count > MAXPOP) wrong_here(fp, xpp::format("{} windows: there are 1 to {}", count, MAXPOP));
+    xpp::io_int(&active, fp, reading, "active");
+    const int active_line = xpp::lines_read(fp);
+    std::vector<GRAPH> scratch(make ? 0 : static_cast<std::size_t>(count), s.plot_windows.graph[0]);
+    std::vector<xpp::PlotDisplay> scratch_display(scratch.size());
+    /* each window's curves, set by their names once the added columns are read */
+    std::vector<std::pair<GRAPH *, std::vector<CurveName>>> curves;
     for (int k = 0; k < count; k++) {
         int saved = 0, nvars = 0;
-        xpp::io_int(&saved, fp, reading, "");
-        xpp::io_int(&nvars, fp, reading, "");
-        if (saved < 0 || saved >= MAXPOP || nvars < 0 || nvars > MAXPERPLOT) return false;
-        std::vector<std::string> names(3 * static_cast<std::size_t>(nvars));
-        for (std::string &n : names) xpp::io_string(n, fp, reading);
+        xpp::io_int(&saved, fp, reading, "window");
+        if (saved < 0 || saved >= MAXPOP || slot.contains(saved))
+            wrong_here(fp, xpp::format("window {} is not one of 0 to {} listed once", saved, MAXPOP - 1));
+        xpp::io_int(&nvars, fp, reading, "curves");
+        if (nvars < 1 || nvars > MAXPERPLOT) wrong_here(fp, xpp::format("{} curves: a window has 1 to {}", nvars, MAXPERPLOT));
+        std::vector<CurveName> names(3 * static_cast<std::size_t>(nvars));
+        for (CurveName &n : names) {
+            xpp::io_string(n.name, fp, reading);
+            n.line = xpp::lines_read(fp);
+        }
         std::string xlabel, ylabel, zlabel;
         xpp::io_string(xlabel, fp, reading);
         xpp::io_string(ylabel, fp, reading);
         xpp::io_string(zlabel, fp, reading);
         /* the main window is there; another one is made as Makewindow/
-           Create makes it (a front end without windows makes none, and the
-           saved one is read and left) */
-        int i = 0;
-        if (saved != 0) {
+           Create makes it */
+        int i = make ? 0 : saved;
+        if (make && saved != 0) {
             xpp::make_active(s, 0, 1);
             create_a_pop(s);
             i = s.plot_windows.active;
+            if (i == 0) wrong_here(fp, xpp::format("window {} cannot be made", saved));
         }
-        GRAPH scratch = s.plot_windows.graph[0];
-        xpp::PlotDisplay scratch_display;
-        const bool made = saved == 0 || i != 0;
-        GRAPH &g = made ? s.plot_windows.graph[i] : scratch;
-        xpp::PlotDisplay &d = made ? s.plot_display[i] : scratch_display;
+        GRAPH &g = make ? s.plot_windows.graph[i] : scratch[static_cast<std::size_t>(k)];
+        xpp::PlotDisplay &d = make ? s.plot_display[i] : scratch_display[static_cast<std::size_t>(k)];
         xpp::read_graph(fp, g);
         g.nvars = nvars;
-        curves_by_name(s, g, names);
         g.xlabel = std::move(xlabel);
         g.ylabel = std::move(ylabel);
         g.zlabel = std::move(zlabel);
         io_zoom(reading, fp, d.zoom);
-        io_bool(reading, fp, d.show_runs, "");
+        io_bool(reading, fp, d.show_runs, "previous runs");
         d.axes_seen = false; /* the zoom is for the axes just read */
-        if (made) slot[saved] = i;
+        slot[saved] = i;
+        curves.emplace_back(&g, std::move(names));
     }
-    xpp::make_active(s, slot.contains(active) ? slot[active] : 0, 1);
-    xpp::io_int(&rest.auto_view.earlier, fp, reading, "");
-    io_bool(reading, fp, rest.auto_view.show_earlier, "");
+    if (!slot.contains(active))
+        throw xpp::SetLineError{active_line, xpp::format("the active window {} is not one of those listed", active)};
+    if (make) xpp::make_active(s, slot[active], 1);
+    xpp::io_int(&rest.auto_view.earlier, fp, reading, "AUTO: points before Clear");
+    io_bool(reading, fp, rest.auto_view.show_earlier, "AUTO: show them");
     int added = 0;
-    xpp::io_int(&added, fp, reading, "");
+    xpp::io_int(&added, fp, reading, "added columns");
+    if (added < 0) wrong_here(fp, xpp::format("{} added columns", added));
     for (int k = 0; k < added; k++) {
         AddedColumn c;
         xpp::io_string(c.name, fp, reading);
+        if (c.name.empty()) wrong_here(fp, "an added column without a name");
         xpp::io_string(c.formula, fp, reading);
-        if (!c.name.empty()) rest.added.push_back(std::move(c));
+        rest.added.push_back(std::move(c));
     }
-    return true;
+    for (auto &[g, names] : curves)
+        for (std::size_t j = 0; j < names.size() / 3; j++) {
+            std::array<int, 3> col{};
+            for (std::size_t a = 0; a < 3; a++) {
+                const CurveName &n = names[3 * j + a];
+                const std::optional<int> c = column_named(s, rest.added, n.name);
+                if (!c) throw xpp::SetLineError{n.line, xpp::format("the model has no variable \"{}\"", n.name)};
+                col[a] = *c;
+            }
+            g->xv[j] = col[0];
+            g->yv[j] = col[1];
+            g->zv[j] = col[2];
+        }
 }
 
 /* ---- marks.set and frozen.npz: labels, arrows and markers, frozen curves ---- */
@@ -316,135 +329,220 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
     return {};
 }
 
-XppWinId window_of(const xpp::Session &s, const std::map<int, int> &slot, int saved)
+/* the window the saved window number just read from fp became (slot,
+   read_windows'); SetLineError when windows.set has no such window */
+XppWinId window_of(const xpp::Session &s, const std::map<int, int> &slot, FILE *fp, int saved)
 {
     const auto it = slot.find(saved);
-    return s.plot_windows.graph[it == slot.end() ? 0 : it->second].w;
+    if (it == slot.end()) wrong_here(fp, xpp::format("windows.set has no window {}", saved));
+    return s.plot_windows.graph[it->second].w;
 }
 
-bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &frozen)
+/* a count of marks.set just read from fp: 0 to most */
+void count_in_range(FILE *fp, int n, int most, const char *what)
+{
+    if (n < 0 || n > most) wrong_here(fp, xpp::format("{} {}: there are 0 to {}", n, what, most));
+}
+
+/* marks.set read, its frozen curves' points from frozen (frozen.npz's):
+   put in place when apply, otherwise (xpp_saved_check) only read.
+   SetLineError at a line that does not read, names a window windows.set
+   does not have (slot, read_windows') or a frozen curve frozen.npz holds
+   no points of. */
+void read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &frozen, bool apply)
 {
     int n = 0;
-    xpp::io_int(&n, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "labels");
+    count_in_range(fp, n, MAXLAB, "labels");
     for (int k = 0; k < n; k++) {
         int win = 0, size = 0, font = 0;
         double x = 0, y = 0;
         std::string text;
-        xpp::io_int(&win, fp, reading, "");
-        xpp::io_double(&x, fp, reading, "");
-        xpp::io_double(&y, fp, reading, "");
-        xpp::io_int(&size, fp, reading, "");
-        xpp::io_int(&font, fp, reading, "");
+        xpp::io_int(&win, fp, reading, "window");
+        const XppWinId w = window_of(s, slot, fp, win);
+        xpp::io_double(&x, fp, reading, "x");
+        xpp::io_double(&y, fp, reading, "y");
+        xpp::io_int(&size, fp, reading, "size");
+        xpp::io_int(&font, fp, reading, "font");
         xpp::io_string(text, fp, reading);
-        for (LABEL &l : s.labels) {
-            if (l.use) continue;
-            l.use = 1;
-            l.w = window_of(s, slot, win);
-            l.x = static_cast<float>(x);
-            l.y = static_cast<float>(y);
-            l.size = size;
-            l.font = font;
-            l.s = std::move(text);
-            break;
-        }
+        if (!apply) continue;
+        LABEL &l = s.labels[k]; /* a restored session has none before */
+        l.use = 1;
+        l.w = w;
+        l.x = static_cast<float>(x);
+        l.y = static_cast<float>(y);
+        l.size = size;
+        l.font = font;
+        l.s = std::move(text);
     }
-    xpp::io_int(&n, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "arrows and markers");
+    count_in_range(fp, n, MAXGROB, "arrows and markers");
     for (int k = 0; k < n; k++) {
         int win = 0, type = 0, color = 0;
         double size = 0, xs = 0, ys = 0, xe = 0, ye = 0;
-        xpp::io_int(&win, fp, reading, "");
-        xpp::io_int(&type, fp, reading, "");
-        xpp::io_int(&color, fp, reading, "");
-        xpp::io_double(&size, fp, reading, "");
-        xpp::io_double(&xs, fp, reading, "");
-        xpp::io_double(&ys, fp, reading, "");
-        xpp::io_double(&xe, fp, reading, "");
-        xpp::io_double(&ye, fp, reading, "");
-        for (GROB &g : s.grobs) {
-            if (g.use) continue;
-            g = GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye),
-                     size, 1, window_of(s, slot, win), type, color};
-            break;
-        }
+        xpp::io_int(&win, fp, reading, "window");
+        const XppWinId w = window_of(s, slot, fp, win);
+        xpp::io_int(&type, fp, reading, "type");
+        xpp::io_int(&color, fp, reading, "color");
+        xpp::io_double(&size, fp, reading, "size");
+        xpp::io_double(&xs, fp, reading, "x start");
+        xpp::io_double(&ys, fp, reading, "y start");
+        xpp::io_double(&xe, fp, reading, "x end");
+        xpp::io_double(&ye, fp, reading, "y end");
+        if (apply)
+            s.grobs[k] = GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye),
+                              size, 1, w, type, color};
     }
-    xpp::io_int(&n, fp, reading, "");
-    xpp::io_int(&s.frozen_curves.auto_freeze, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "frozen curves");
+    count_in_range(fp, n, MAXFRZ, "frozen curves");
+    xpp::io_int(&s.frozen_curves.auto_freeze, fp, reading, "freeze each run");
+    std::array<bool, MAXFRZ> listed{};
     for (int k = 0; k < n; k++) {
         int i = 0, win = 0, type = 0, color = 0, len = 0;
         std::string key, name;
-        xpp::io_int(&i, fp, reading, "");
-        xpp::io_int(&win, fp, reading, "");
-        xpp::io_int(&type, fp, reading, "");
-        xpp::io_int(&color, fp, reading, "");
-        xpp::io_int(&len, fp, reading, "");
+        xpp::io_int(&i, fp, reading, "slot");
+        if (i < 0 || i >= MAXFRZ || listed[static_cast<std::size_t>(i)])
+            wrong_here(fp, xpp::format("frozen curve {} is not one of 0 to {} listed once", i, MAXFRZ - 1));
+        listed[static_cast<std::size_t>(i)] = true;
+        xpp::io_int(&win, fp, reading, "window");
+        const XppWinId w = window_of(s, slot, fp, win);
+        xpp::io_int(&type, fp, reading, "type");
+        xpp::io_int(&color, fp, reading, "color");
+        xpp::io_int(&len, fp, reading, "points");
+        const int len_line = xpp::lines_read(fp);
         xpp::io_string(key, fp, reading);
         xpp::io_string(name, fp, reading);
         const std::string array = xpp::format("curve{}_", i);
         std::vector<float> x = points_of(frozen, array + "0", len), y = points_of(frozen, array + "1", len),
                            z = type > 0 ? points_of(frozen, array + "2", len) : std::vector<float>();
-        if (len <= 0 || static_cast<int>(x.size()) != len ||
-            !restore_frozen_curve(s,i, window_of(s, slot, win), type, color, std::move(key), std::move(name), std::move(x),
-                                  std::move(y), std::move(z)))
-            xpp::log(XPP_LOG_WARN, "Open session: frozen curve {} left out\n", i + 1);
+        if (len <= 0 || static_cast<int>(x.size()) != len || static_cast<int>(y.size()) != len ||
+            (type > 0 && static_cast<int>(z.size()) != len))
+            throw xpp::SetLineError{len_line, xpp::format("frozen.npz holds no {} points of frozen curve {}", len, i)};
+        if (apply && !restore_frozen_curve(s, i, w, type, color, std::move(key), std::move(name), std::move(x), std::move(y),
+                                           std::move(z)))
+            throw xpp::SetLineError{len_line, xpp::format("frozen curve {} cannot be restored", i)};
     }
-    return true;
 }
 
 /* ---- the whole file ---- */
 
-/* the bytes of member name, or nullptr when the file has none */
-const std::string *member(const std::map<std::string, std::string> &m, const char *name)
+/* the member name of f read through read(fp) from a scratch copy in tmp
+   (read throws SetLineError at a line that does not read, or returns what
+   is wrong): what is wrong, the member and the line named ("its
+   windows.set, line 12: ...") */
+template <class F>
+std::optional<std::string> member_read(const xpp::TempDir &tmp, const SavedFile &f, const char *name, F read)
 {
-    if (!m.contains(name)) return nullptr;
-    return &m.at(name);
+    const auto it = f.members.find(name);
+    if (it == f.members.end()) return xpp::format("its {} is missing", name);
+    const std::string path = tmp.file(name);
+    {
+        xpp::Writer w = xpp::Writer::binary(path.c_str());
+        if (!w || !w.write(it->second) || !w.commit()) return xpp::format("its {} cannot be put in a scratch folder", name);
+    }
+    /* binary: the lines' numbers are exact (xpp::lines_read) */
+    xpp::UniqueFile fp = xpp::open_read_binary(path.c_str());
+    if (!fp) return xpp::format("its {} cannot be read back from a scratch folder", name);
+    std::optional<std::string> why;
+    try {
+        why = read(fp.get());
+    } catch (const xpp::SetLineError &e) {
+        why = e.text();
+    }
+    if (why) return xpp::format("its {}, {}", name, *why);
+    return std::nullopt;
 }
 
-/* session file f (its model s's) restored: the values,
-   AUTO's diagram, the windows and what they show */
-bool restore_session(xpp::Session &s, const SavedFile &f)
+/* what is wrong with t as the data table of s's model: its columns are
+   the stored ones (the time, then each variable), all as long */
+std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTable &t)
+{
+    const std::size_t ncol = static_cast<std::size_t>(s.model().neq) + 1;
+    if (t.columns.size() != ncol)
+        return xpp::format("its {} has {} columns, the model's data table {}", xpp::snapx::data_member, t.columns.size(), ncol);
+    for (std::size_t k = 0; k < ncol; k++) {
+        const std::string name = xpp::data_column_name(t, k), want = browse_column_name(s, static_cast<int>(k));
+        if (!xpp::equal_ignoring_case(name, want))
+            return xpp::format("its {}'s column {} is {}, not {}", xpp::snapx::data_member, k + 1, name, want);
+        if (t.columns[k].size() != t.rows())
+            return xpp::format("its {}'s column {} is not as long as its first", xpp::snapx::data_member, name);
+    }
+    return std::nullopt;
+}
+
+/* session file f read into s: when apply its model's session after the
+   front end's set-up, restored (the values, AUTO's diagram, the windows
+   and what they show); otherwise (xpp_saved_check) the session its
+   model's load made, before the load keeps it, only its set file read
+   into it. What is wrong when a member is missing or does not read. */
+std::optional<std::string> read_session(xpp::Session &s, const SavedFile &f, bool apply)
 {
     const std::map<std::string, std::string> &mem = f.members;
     xpp::TempDir tmp;
-    if (tmp.path().empty()) {
-        err_msg("Open session: no scratch folder");
-        return false;
-    }
+    if (tmp.path().empty()) return std::string("there is no scratch folder to read it in");
 
-    /* the values and numerics (and the active window's graphics) */
-    if (const std::string *set = member(mem, xpp::snapx::set_member)) {
-        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [&s](FILE *fp) { return xpp::read_lunch(s, fp) != 0; }))
-            xpp_session_warn("Open session: its parameters and numerics could not be read");
-    }
+    /* the values and numerics (and the active window's graphics: in the
+       load's session, which has no active window yet, the main one's) */
+    if (!apply) s.plot_windows.current = &s.plot_windows.graph[0];
+    if (std::optional<std::string> why = member_read(tmp, f, xpp::snapx::set_member, [&](FILE *fp) -> std::optional<std::string> {
+            const xpp::Result<> r = xpp::read_lunch(s, fp, apply);
+            if (!r) return r.error().what;
+            return std::nullopt;
+        }))
+        return why;
 
-    /* AUTO's diagram and settings */
-    bool diagram = false;
-    if (mem.contains(std::string(xpp::snapx::auto_folder) + xpp::autox::diagram_member)) {
-        diagram = xpp::autox::restore_members(s, mem, xpp::snapx::auto_folder, f.path);
-        if (!diagram) xpp_session_warn("Open session: AUTO's diagram could not be read");
+    /* AUTO's diagram and settings: all of AUTO's members, or none (no diagram) */
+    std::optional<xpp::autox::Members> diagram;
+    if (std::any_of(mem.begin(), mem.end(), [](const auto &m) { return m.first.starts_with(xpp::snapx::auto_folder); })) {
+        std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(s, mem, xpp::snapx::auto_folder);
+        if (!read) return read.error();
+        diagram = std::move(*read);
     }
+    if (apply && diagram)
+        if (std::optional<std::string> why = xpp::autox::restore_members(s, std::move(*diagram), f.name)) return why;
 
     /* the windows, then what they show */
-    std::map<int, int> slot = {{0, 0}};
+    std::map<int, int> slot;
     WindowsRead rest;
-    if (const std::string *w = member(mem, xpp::snapx::windows_member)) {
-        if (!read_as_file(tmp, xpp::snapx::windows_member, *w, [&](FILE *fp) { return read_windows(s, fp, slot, rest); }))
-            xpp_session_warn("Open session: its windows could not be read");
+    if (std::optional<std::string> why = member_read(tmp, f, xpp::snapx::windows_member, [&](FILE *fp) {
+            read_windows(s, fp, apply, slot, rest);
+            return std::optional<std::string>();
+        }))
+        return why;
+    if (apply) {
+        if (diagram) {
+            s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count(s.diagram));
+            s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
+        }
+        s.browser.added_columns = std::move(rest.added);
     }
-    if (diagram) {
-        s.auto_view.earlier = std::min(rest.auto_view.earlier, diagram_count(s.diagram));
-        s.auto_view.show_earlier = rest.auto_view.show_earlier && s.auto_view.earlier > 0;
-    }
-    s.browser.added_columns = std::move(rest.added);
-    if (const std::string *d = member(mem, xpp::snapx::data_member)) {
+
+    /* the data table: there when the manifest says so */
+    const auto data = mem.find(xpp::snapx::data_member);
+    if (f.manifest.data != (data != mem.end()))
+        return f.manifest.data ? xpp::format("its {} is missing", xpp::snapx::data_member)
+                               : xpp::format("it has a {} its {} does not list", xpp::snapx::data_member, xpp::snapx::manifest_member);
+    if (data != mem.end()) {
         xpp::DataTable t;
-        if (!xpp::npz_table(*d, t) || (t.rows() > 0 && put_stored_data(s, t) == 0)) xpp_session_warn("Open session: its data could not be read");
-        else s.numerics.last_seed = t.seed;
+        if (!xpp::npz_table(data->second, t)) return xpp::format("its {} is not an NPZ file", xpp::snapx::data_member);
+        if (std::optional<std::string> why = data_wrong(s, t)) return why;
+        if (apply) {
+            if (t.rows() > 0 && put_stored_data(s, t) == 0)
+                return xpp::format("its {} cannot be put in the data table", xpp::snapx::data_member);
+            s.numerics.last_seed = t.seed;
+        }
     }
-    if (const std::string *mk = member(mem, xpp::snapx::marks_member)) {
-        xpp::DataTable frozen;
-        if (const std::string *fz = member(mem, xpp::snapx::frozen_member)) xpp::npz_table(*fz, frozen);
-        read_as_file(tmp, xpp::snapx::marks_member, *mk, [&](FILE *fp) { return read_marks(s, fp, slot, frozen); });
-    }
+
+    /* the marks, the frozen curves' points from frozen.npz */
+    xpp::DataTable frozen;
+    if (const auto fz = mem.find(xpp::snapx::frozen_member); fz != mem.end() && !xpp::npz_table(fz->second, frozen))
+        return xpp::format("its {} is not an NPZ file", xpp::snapx::frozen_member);
+    if (std::optional<std::string> why = member_read(tmp, f, xpp::snapx::marks_member, [&](FILE *fp) {
+            read_marks(s, fp, slot, frozen, apply);
+            return std::optional<std::string>();
+        }))
+        return why;
+    if (!apply) return std::nullopt;
 
     /* every window drawn as it now is, the active one last */
     const int active = s.plot_windows.active;
@@ -456,7 +554,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
     xpp::make_active(s, active, 1);
     redraw_the_graph(s);
     if (!f.snapshot) s.saved_session = SavedSession{f.path};
-    return true;
+    return std::nullopt;
 }
 
 /* the session file of s, as its bytes: the data table in when data;
@@ -482,7 +580,8 @@ std::optional<std::string> session_bytes(xpp::Session &s, bool data)
         return std::nullopt;
     }
     entries->push_back({xpp::snapx::set_member, std::move(*set)});
-    if (diagram_count(s.diagram) > 1) xpp::autox::add_members(s, *entries, xpp::snapx::auto_folder); /* a diagram exists */
+    /* a diagram exists: without its orbits, the save is refused (the error said why) */
+    if (diagram_count(s.diagram) > 1 && !xpp::autox::add_members(s, *entries, xpp::snapx::auto_folder)) return std::nullopt;
     std::optional<std::string> windows = written(tmp, xpp::snapx::windows_member, [&s](FILE *fp) { return write_windows(s, fp); });
     std::optional<std::string> marks = written(tmp, xpp::snapx::marks_member, [&s](FILE *fp) { return write_marks(s, fp); });
     if (!windows || !marks) {
@@ -561,6 +660,7 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
 {
     SavedFile f;
     f.path = path;
+    f.name = name;
     f.session = kind != SavedKind::autox;
     f.snapshot = kind == SavedKind::snapshot;
     const char *what = f.snapshot ? "a session (.snapx)" : f.session ? "a session file (.snapx)" : "an AUTO file (.autox)";
@@ -571,11 +671,14 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
     }
     const char *manifest = f.session ? xpp::snapx::manifest_member : xpp::autox::manifest_member;
     for (const xpp::zip::Entry &e : *entries) f.members[e.name] = e.bytes;
-    std::optional<xpp::snapx::Manifest> man;
-    if (f.members.contains(manifest))
-        man = xpp::snapx::parse_manifest(f.members[manifest], f.session ? xpp::snapx::session_kind : xpp::autox::kind);
+    if (!f.members.contains(manifest)) {
+        err_msg(xpp::format("{} is not {}: its {} is missing", name, what, manifest).c_str());
+        return std::nullopt;
+    }
+    std::expected<xpp::snapx::Manifest, std::string> man =
+        xpp::snapx::parse_manifest(f.members[manifest], f.session ? xpp::snapx::session_kind : xpp::autox::kind);
     if (!man) {
-        err_msg(xpp::format("{} is not {} of this version: its {} is missing or not one", name, what, manifest).c_str());
+        err_msg(xpp::format("{} is not {} of this version: its {}: {}", name, what, manifest, man.error()).c_str());
         return std::nullopt;
     }
     f.manifest = std::move(*man);
@@ -616,11 +719,31 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
     return entries;
 }
 
+std::optional<xpp::Diagnostic> xpp_saved_check(xpp::Session &s, const SavedFile &f)
+{
+    std::optional<std::string> why;
+    if (f.session) why = read_session(s, f, false);
+    else if (std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(s, f.members, ""); !read)
+        why = read.error();
+    if (!why) return std::nullopt;
+    xpp::Diagnostic d;
+    d.file = f.name;
+    d.cause = std::move(*why);
+    return d;
+}
+
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
 {
-    if (f.session) return restore_session(s, f);
-    if (diagram_count(s.diagram) > 1) yes_reset_auto(s); /* the diagram before goes, with AUTO's files */
-    return xpp::autox::restore_members(s, f.members, "", f.path);
+    std::optional<std::string> why;
+    if (f.session) why = read_session(s, f, true);
+    else if (std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(s, f.members, ""); !read)
+        why = read.error();
+    else {
+        if (diagram_count(s.diagram) > 1) yes_reset_auto(s); /* the diagram before goes, with AUTO's files */
+        why = xpp::autox::restore_members(s, std::move(*read), f.name);
+    }
+    if (why) err_msg(xpp::format("{}: {}", f.name, *why).c_str());
+    return !why;
 }
 
 std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext)

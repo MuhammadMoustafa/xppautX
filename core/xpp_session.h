@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "diagnostic.h"
 #include "model_files.h"
 #include "snapx.h"
 #include "xpp_zip.h"
@@ -59,6 +60,7 @@ struct SavedSession {
    files and never the disk (model_files.h), then what the file adds. */
 struct SavedFile {
     std::string path;              /* absolute */
+    std::string name;              /* what a message calls it: its file name, or a recording's snapshot */
     bool session = false;          /* a .snapx, else an .autox */
     bool snapshot = false;         /* a recording's snapshot (recx.h): restored as a session, but no session file */
     xpp::snapx::Manifest manifest;
@@ -87,9 +89,19 @@ std::vector<std::string> xpp_saved_args(const SavedFile &f);
    files; nothing, with an error message, when the model was not read
    from files (a model typed in) */
 std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind);
+/* f's members read for the session s its model's load made, before the
+   load keeps it (xpp::load_model's check), or for the session open when
+   the model is the same (an AUTO file's diagram): a member missing or one
+   that does not read fails the open, and the session before stays as it
+   was. Nothing when f can be restored, otherwise what is wrong (its file
+   f.name, and as its cause the member and the line: "its windows.set,
+   line 12: ..."). A session file's set file is read into s (the load's
+   session, which a failed check throws away); nothing else is changed. */
+std::optional<xpp::Diagnostic> xpp_saved_check(xpp::Session &s, const SavedFile &f);
 /* what f adds to its model into the session s, whose model is f's
-   (loaded from it, or the same files): AUTO's diagram, or the session:
-   false, with an error message, when it could not be read */
+   (loaded from it, or the same files): AUTO's diagram, or the session;
+   false, with an error message, when it could not be read or put in
+   place (a file xpp_saved_check passed fails only on the disk) */
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
 /* m's file name without .ode/.odex, and ext (".snapx", ".autox"): the
