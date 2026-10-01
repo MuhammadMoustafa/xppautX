@@ -36,7 +36,7 @@ core/my_svg.cpp 1
 core/nullcline.cpp 3
 core/numerics.cpp 4
 core/numerics_settings.cpp 1
-core/ode_read.cpp 9
+core/ode_read.cpp 8
 core/odex_convert.cpp 6
 core/pp_shoot.cpp 10
 core/simplenet.cpp 19
