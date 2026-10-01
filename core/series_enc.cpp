@@ -54,11 +54,9 @@ void numbers(const float *v, int n, std::string &s)
 void xpp_series_append(std::string &out, const float *v, int n, int f32) noexcept
 {
     try {
-        std::string s;
         if (n < 0) n = 0;
-        if (f32) base64(v, n, s);
-        else numbers(v, n, s);
-        out += s;
+        if (f32) base64(v, n, out);
+        else numbers(v, n, out);
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("encoding a series");
     }
