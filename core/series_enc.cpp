@@ -5,34 +5,21 @@
 #include "json_number.h"
 #include "xpp_io.h"
 
-#include <array>
-#include <cstdint>
-#include <cstring>
+#include <bit>
 #include <new>
 #include <string>
 #include <string_view>
 
 namespace {
 
-/* the float's 4 bytes, least significant first */
-std::array<unsigned char, 4> le_bytes(float f)
-{
-    std::uint32_t u;
-    std::memcpy(&u, &f, sizeof u);
-    std::array<unsigned char, 4> out;
-    for (int i = 0; i < 4; i++) out[i] = static_cast<unsigned char>(u >> (8 * i));
-    return out;
-}
+/* the floats' bytes as they are in memory, which is the encoding's own
+   order (little-endian float32: every platform xppautX builds for) */
+static_assert(std::endian::native == std::endian::little, "series_enc: f32 columns are little-endian");
 
 void base64(const float *v, int n, std::string &s)
 {
-    const std::size_t bytes = 4 * static_cast<std::size_t>(n);
-    s.reserve(s.size() + 2 + (bytes + 2) / 3 * 4);
     s += '"';
-    xpp::Base64Encoder e(s);
-    for (int i = 0; i < n; i++)
-        for (unsigned char c : le_bytes(v[i])) e.push(c);
-    e.finish();
+    xpp::base64_append(s, std::string_view(reinterpret_cast<const char *>(v), sizeof(float) * static_cast<std::size_t>(n)));
     s += '"';
 }
 

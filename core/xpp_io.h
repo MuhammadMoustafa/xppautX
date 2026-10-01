@@ -251,24 +251,13 @@ bool json_decode_string(const char *v, std::string &out, size_t max, bool strict
    (json_windows.cpp) */
 int base64_value(int c) noexcept;
 
-/* Base64 (RFC 4648, padded): the one encoder and decoder. Base64Encoder
-   takes bytes one at a time (the series event's float32 columns,
-   series_enc.cpp) and appends their digits to `out`; finish() writes the
-   last group and its padding. Base64Decoder takes digits one at a time
+/* Base64 (RFC 4648, padded): the one encoder and decoder. base64_append
+   (below) encodes bytes all at once (the series event's float32 columns,
+   series_enc.cpp; a file's bytes, xpp_files.cpp). Base64Decoder takes digits one at a time
    ('=' padding too; any other character makes feed() false) and appends
    the bytes to `out` (the page's uploads, xpp_files.cpp, a recording's
    binary files, recx.cpp); finish() writes the last bytes, padded or not, and is false for a
    dangling digit or too much padding. */
-class Base64Encoder {
-public:
-    explicit Base64Encoder(std::string &out) : out_(out) {}
-    void push(unsigned char byte);
-    void finish();
-private:
-    std::string &out_;
-    std::array<unsigned char, 3> q_{};
-    int n_ = 0;
-};
 class Base64Decoder {
 public:
     explicit Base64Decoder(std::string &out) : out_(out) {}

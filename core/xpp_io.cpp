@@ -643,32 +643,6 @@ namespace {
 constexpr std::string_view B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 }
 
-void Base64Encoder::push(unsigned char byte)
-{
-    q_[n_++] = byte;
-    if (n_ < 3) return;
-    out_ += B64[q_[0] >> 2];
-    out_ += B64[(q_[0] & 3) << 4 | q_[1] >> 4];
-    out_ += B64[(q_[1] & 15) << 2 | q_[2] >> 6];
-    out_ += B64[q_[2] & 63];
-    n_ = 0;
-}
-
-void Base64Encoder::finish()
-{
-    if (n_ == 1) {
-        out_ += B64[q_[0] >> 2];
-        out_ += B64[(q_[0] & 3) << 4];
-        out_ += "==";
-    } else if (n_ == 2) {
-        out_ += B64[q_[0] >> 2];
-        out_ += B64[(q_[0] & 3) << 4 | q_[1] >> 4];
-        out_ += B64[(q_[1] & 15) << 2];
-        out_ += '=';
-    }
-    n_ = 0;
-}
-
 bool Base64Decoder::feed(char c)
 {
     if (c == '=') {
@@ -698,10 +672,32 @@ bool Base64Decoder::finish()
 
 void base64_append(std::string &out, std::string_view bytes)
 {
-    out.reserve(out.size() + (bytes.size() + 2) / 3 * 4);
-    Base64Encoder e(out);
-    for (char c : bytes) e.push(static_cast<unsigned char>(c));
-    e.finish();
+    const std::size_t n = bytes.size(), at = out.size();
+    /* the digits written in place: a group of three bytes, four digits */
+    out.resize(at + (n + 2) / 3 * 4);
+    char *o = out.data() + at;
+    const auto byte = [&](std::size_t i) { return static_cast<unsigned char>(bytes[i]); };
+    std::size_t i = 0;
+    for (; i + 3 <= n; i += 3) {
+        const unsigned a = byte(i), b = byte(i + 1), c = byte(i + 2);
+        *o++ = B64[a >> 2];
+        *o++ = B64[(a & 3) << 4 | b >> 4];
+        *o++ = B64[(b & 15) << 2 | c >> 6];
+        *o++ = B64[c & 63];
+    }
+    if (n - i == 1) {
+        const unsigned a = byte(i);
+        *o++ = B64[a >> 2];
+        *o++ = B64[(a & 3) << 4];
+        *o++ = '=';
+        *o++ = '=';
+    } else if (n - i == 2) {
+        const unsigned a = byte(i), b = byte(i + 1);
+        *o++ = B64[a >> 2];
+        *o++ = B64[(a & 3) << 4 | b >> 4];
+        *o++ = B64[(b & 15) << 2];
+        *o++ = '=';
+    }
 }
 
 bool base64_decode_append(std::string &out, std::string_view text)
