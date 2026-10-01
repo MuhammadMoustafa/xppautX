@@ -18,16 +18,6 @@ const char *const keys[AUTO_STOP_N] = {
     "noconv", "noconv-fixed", "noconv-min", "noconv-switch-fixed", "noconv-switch-min",
 };
 
-/* the last "No convergence" NOTE */
-int noconv_why = AUTO_STOP_NOCONV;
-double noconv_ds = NAN, noconv_dsmin = NAN;
-
-/* the last branch end */
-int last_why = AUTO_STOP_NONE;
-long last_br, last_pt;
-double last_value = NAN, last_limit = NAN;
-std::string last_text;
-
 /* the continuation parameter as the text names it */
 std::string par_name(const xpp::Session &s, long ipar)
 {
@@ -40,7 +30,7 @@ std::string par_name(const xpp::Session &s, long ipar)
 std::string num(double v) { return std::isfinite(v) ? xpp::format("{:g}", v) : std::string("?"); }
 
 /* the reason in words, and what reached which limit */
-std::string describe(const xpp::Session &s, int why, const AutoStopAt &at, double &value, double &limit)
+std::string describe(const xpp::Session &s, const AutoStop &st, int why, const AutoStopAt &at, double &value, double &limit)
 {
     value = limit = NAN;
     switch (why) {
@@ -65,17 +55,17 @@ std::string describe(const xpp::Session &s, int why, const AutoStopAt &at, doubl
         value = at.par;
         return par_name(s, at.ipar) + " reached a Mark value set to stop (" + num(at.par) + ")";
     case AUTO_STOP_NOCONV_FIXED:
-        value = noconv_ds;
+        value = st.noconv_ds;
         return "no convergence with a fixed step size (IADS 0)";
     case AUTO_STOP_NOCONV_MIN:
-        value = noconv_ds, limit = noconv_dsmin;
-        return "no convergence even at the smallest step (Dsmin " + num(noconv_dsmin) + ")";
+        value = st.noconv_ds, limit = st.noconv_dsmin;
+        return "no convergence even at the smallest step (Dsmin " + num(st.noconv_dsmin) + ")";
     case AUTO_STOP_NOCONV_SWITCH_FIXED:
-        value = noconv_ds;
+        value = st.noconv_ds;
         return "no convergence switching branches with a fixed step size (IADS 0)";
     case AUTO_STOP_NOCONV_SWITCH_MIN:
-        value = noconv_ds, limit = noconv_dsmin;
-        return "no convergence switching branches, even at the smallest step (Dsmin " + num(noconv_dsmin) + ")";
+        value = st.noconv_ds, limit = st.noconv_dsmin;
+        return "no convergence switching branches, even at the smallest step (Dsmin " + num(st.noconv_dsmin) + ")";
     case AUTO_STOP_NOCONV:
         return "no convergence";
     default:
@@ -85,17 +75,17 @@ std::string describe(const xpp::Session &s, int why, const AutoStopAt &at, doubl
 
 } // namespace
 
-void auto_stop_noconv(int why, double ds, double dsmin)
+void auto_stop_noconv(AutoStop &st, int why, double ds, double dsmin)
 {
-    noconv_why = why >= AUTO_STOP_NOCONV && why < AUTO_STOP_N ? why : AUTO_STOP_NOCONV;
-    noconv_ds = std::fabs(ds);
-    noconv_dsmin = dsmin;
+    st.noconv_why = why >= AUTO_STOP_NOCONV && why < AUTO_STOP_N ? why : AUTO_STOP_NOCONV;
+    st.noconv_ds = std::fabs(ds);
+    st.noconv_dsmin = dsmin;
 }
 
-int auto_stop_why(const AutoStopAt *at)
+int auto_stop_why(const AutoStop &st, const AutoStopAt *at)
 {
     if (at->user) return AUTO_STOP_USER;
-    if (at->noconv) return noconv_why;
+    if (at->noconv) return st.noconv_why;
     if (at->mark) return AUTO_STOP_MARK;
     if (at->par < at->rl0) return AUTO_STOP_PAR_MIN;
     if (at->par > at->rl1) return AUTO_STOP_PAR_MAX;
@@ -105,43 +95,44 @@ int auto_stop_why(const AutoStopAt *at)
     return AUTO_STOP_USER; /* byeauto's iflag without a cancel: an X11-style abort */
 }
 
-void auto_stop_clear(void)
+void auto_stop_clear(AutoStop &st)
 {
-    last_why = AUTO_STOP_NONE;
-    last_text.clear();
-    noconv_why = AUTO_STOP_NOCONV;
+    st.last_why = AUTO_STOP_NONE;
+    st.last_text.clear();
+    st.noconv_why = AUTO_STOP_NOCONV;
 }
 
-void auto_stop_last(AutoStopInfo *out)
+void auto_stop_last(const AutoStop &st, AutoStopInfo *out)
 {
-    out->why = last_why;
-    out->key = keys[last_why];
-    out->text = last_text.c_str();
-    out->br = last_br;
-    out->pt = last_pt;
-    out->value = last_value;
-    out->limit = last_limit;
+    out->why = st.last_why;
+    out->key = keys[st.last_why];
+    out->text = st.last_text.c_str();
+    out->br = st.last_br;
+    out->pt = st.last_pt;
+    out->value = st.last_value;
+    out->limit = st.last_limit;
 }
 
 const char *auto_stop_key(int why) { return why >= 0 && why < AUTO_STOP_N ? keys[why] : nullptr; }
 
-void auto_stop_branch_end(const Session &s, const AutoStopAt *at)
+void auto_stop_branch_end(Session &s, const AutoStopAt *at)
 {
+    AutoStop &st = s.auto_state.stop;
     try {
-        const int why = auto_stop_why(at);
+        const int why = auto_stop_why(st, at);
         double value, limit;
-        std::string text = describe(s, why, *at, value, limit);
-        last_why = why;
-        last_br = std::labs(at->br);
-        last_pt = std::labs(at->pt);
-        last_value = value;
-        last_limit = limit;
-        last_text = std::move(text);
-        xpp::log_auto_printf("Branch %ld stopped at point %ld: %s\n", last_br, last_pt, last_text.c_str());
+        std::string text = describe(s, st, why, *at, value, limit);
+        st.last_why = why;
+        st.last_br = std::labs(at->br);
+        st.last_pt = std::labs(at->pt);
+        st.last_value = value;
+        st.last_limit = limit;
+        st.last_text = std::move(text);
+        xpp::log_auto_printf("Branch %ld stopped at point %ld: %s\n", st.last_br, st.last_pt, st.last_text.c_str());
     } catch (...) {
-        last_why = AUTO_STOP_NONE;
+        st.last_why = AUTO_STOP_NONE;
     }
-    noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
+    st.noconv_why = AUTO_STOP_NOCONV; /* a NOTE says how the next one failed */
 }
 
 

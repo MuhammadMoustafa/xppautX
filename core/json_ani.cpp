@@ -122,7 +122,7 @@ void ani_go(xpp::Session &s)
         if (s.animation.vcr.pos >= s.browser.view.maxrow) {
             stop = 1;
             s.animation.vcr.pos = 0;
-            reset_comets();
+            reset_comets(s);
         }
     }
     s.animation.mpeg.flag = 0;

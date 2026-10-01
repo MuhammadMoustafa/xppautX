@@ -1423,7 +1423,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
-    xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
+    xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L5;
   }
 
@@ -1450,7 +1450,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   if (iap->mynode == 0) {
     xpp::print(s.auto_lib.fp9,"{:4}{:6} NOTE:No convergence using minimum step size\n",ibr,ntop);
   }
-  xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
+  xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
@@ -1783,7 +1783,7 @@ fnhbae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
     }
   }
   /* xppautX: the point's eigenvalues (auto_stability.h; eig computed ndm) */
-  xpp::auto_stability_computed(ibr,ntot+1,ndm,&ev[0].r,xpp::AUTO_STABILITY_STEADY);
+  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,ndm,&ev[0].r,xpp::AUTO_STABILITY_STEADY);
   /* Order the eigenvalues by real part. */
 
   for (i = 0; i < ndm - 1; ++i) {
@@ -2270,7 +2270,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
-    xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin); /* xppautX: T23 */
+    xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_SWITCH_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L5;
   }
 
@@ -2295,7 +2295,7 @@ swprc(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*f
   if (iap->mynode == 0) {
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence when switching branches with minimum step size\n",ibr,ntop);
   }
-  xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
+  xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_SWITCH_MIN, *rds, dsmin); /* xppautX: T23 */
  L5:
   rlcur[0] = rlold[0];
   par[icp[0]] = rlcur[0];
@@ -5257,7 +5257,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     xpp::print(iap->lib->fp9,"{:4}{:6} NOTE:No convergence with fixed step size\n",ibr,ntop);
   }
   if (iads == 0) {
-    xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
+    xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_FIXED, *rds, dsmin); /* xppautX: T23 */
     goto L13;
   }
 
@@ -5291,7 +5291,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     xpp::print(iap->lib->fp9,"{:4}{:6}, NOTE:No convergence using minimum step size\n",ibr,ntop);
 
   }
-  xpp::auto_stop_noconv(xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
+  xpp::auto_stop_noconv(iap->lib->session->auto_state.stop, xpp::AUTO_STOP_NOCONV_MIN, *rds, dsmin); /* xppautX: T23 */
  L13:
   for (i = 0; i < nfpr; ++i) {
     rlcur[i] = rlold[i];
@@ -6194,7 +6194,7 @@ fnspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, logical *chn
   flowkm(iap->lib->fp9, &ndim, p0, p1, &iid, wrk.data(), ev);
   /* Find the multiplier closest to z=1. */
   /* xppautX: the orbit's Floquet multipliers (auto_stability.h) */
-  xpp::auto_stability_computed(ibr,ntot+1,ndim,&ev[0].r,xpp::AUTO_STABILITY_PERIODIC);
+  xpp::auto_stability_computed(iap->lib->session->auto_state.stability,ibr,ntot+1,ndim,&ev[0].r,xpp::AUTO_STABILITY_PERIODIC);
   amin = RLARGE;
   for (j = 0; j < ndim; ++j) {
     doublecomplex tmp;

@@ -6,7 +6,8 @@
    settings (auto_settings.cpp) and the main numerics
    (numerics_settings.cpp). The front end gives the line's sink once
    (init); subscribe() says whether the client wants it and sends it at
-   once whatever it holds; update() sends it when its text changed. The
+   once whatever it holds (want(), at the next update); update() sends it
+   when its text changed. The
    event's text is built from Args (the Session it is about, W47d), which
    subscribe() and update() pass on. C++ only. */
 
@@ -28,12 +29,20 @@ public:
     constexpr ChangedEvent(Build build, const char *what) : build_(build), what_(what) {}
 
     void init(Emit emit) { emit_ = emit; }
+    /* init has given the line's sink: a front end sends the event */
+    bool ready() const { return emit_ != nullptr; }
     void subscribe(bool on, const Args &...args)
+    {
+        want(on);
+        update(args...);
+    }
+    /* subscribe's choice without the send: the next update sends it */
+    void want(bool on)
     {
         subscribed_ = on;
         sent_valid_ = false;
-        update(args...);
     }
+    bool subscribed() const { return subscribed_; }
     void update(const Args &...args)
     {
         if (!emit_ || !subscribed_) return;

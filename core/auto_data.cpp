@@ -18,28 +18,16 @@
 #include "json_number.h"
 #include "auto_stop.h"
 #include "xpp_job.h"
+#include "data_event.h"
+#include "session.h"
 
 namespace xpp {
 
 namespace {
 
-AutoDataEmit emit_line;
+/* the front end's map of AUTO's diagram entries to its data's indices,
+   given once with its sink (auto_data_init) */
 AutoDataPointOf point_of_node;
-bool enabled, subscribed;
-
-struct Info {
-    AutoDataInfo v{};
-    std::string sym, p1name, p2name, vname;
-    bool two = false;
-};
-
-bool has_info, has_stab, stab_periodic;
-Info info;
-std::vector<double> stab_re, stab_im;
-
-std::string sent;
-bool sent_valid;
-int held; /* auto_data_hold depth */
 
 /* ---- JSON text (as plot_data.cpp writes it) ---- */
 
@@ -60,7 +48,7 @@ std::string trimmed(const char *s)
     return a == std::string::npos ? std::string() : t.substr(a, b - a + 1);
 }
 
-void add_info(std::string &o)
+void add_info(std::string &o, const AutoDataShown &info)
 {
     const AutoDataInfo &v = info.v;
     o += "{\"point\":";
@@ -100,8 +88,10 @@ void add_info(std::string &o)
    log z: exact in its real part while e^lambda is not 0, its imaginary part
    the principal value (XPP keeps e^lambda only, so a frequency is known
    modulo 2 pi) */
-void add_stab(std::string &o)
+void add_stab(std::string &o, const AutoDataShown &sh)
 {
+    const std::vector<double> &stab_re = sh.stab_re, &stab_im = sh.stab_im;
+    const bool stab_periodic = sh.stab_periodic;
     const std::size_t n = stab_re.size();
     o += "{\"periodic\":";
     o += stab_periodic ? '1' : '0';
@@ -125,10 +115,10 @@ void add_stab(std::string &o)
 }
 
 /* why the run's last branch ended (auto_stop.h), or null */
-void add_stop(std::string &o)
+void add_stop(std::string &o, const AutoStop &stop)
 {
     AutoStopInfo st;
-    auto_stop_last(&st);
+    auto_stop_last(stop, &st);
     if (st.why == AUTO_STOP_NONE) {
         o += "null";
         return;
@@ -143,44 +133,50 @@ void add_stop(std::string &o)
     o += '}';
 }
 
-std::string event()
+std::string event_line(const Session &s)
 {
+    const AutoDataShown &sh = s.auto_state.shown;
     std::string o = "{\"ev\":\"autoinfo\",\"info\":";
-    if (has_info) add_info(o);
+    if (sh.has_info) add_info(o, sh);
     else o += "null";
     o += ",\"stab\":";
-    if (has_stab) add_stab(o);
+    if (sh.has_stab) add_stab(o, sh);
     else o += "null";
     o += ",\"stop\":";
-    add_stop(o);
+    add_stop(o, s.auto_state.stop);
     o += '}';
     return o;
 }
+
+/* the client's subscription and the line it was sent last: the front
+   end's, which outlives a load */
+xpp::ChangedEvent<Session> event{event_line, "sending AUTO's info strip"};
+/* the clock that paces the event during a run (xpp::every) */
+double last_update;
 
 } // namespace
 
 void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of)
 {
-    emit_line = emit;
+    event.init(emit);
     point_of_node = point_of;
-    enabled = true;
 }
 
 void auto_data_subscribe(int on)
 {
-    subscribed = on != 0;
-    sent_valid = false;
+    event.want(on != 0);
 }
 
-void auto_data_forget(void)
+void auto_data_forget(Session &s)
 {
-    has_info = has_stab = false;
-    auto_stop_clear();
+    s.auto_state.shown.has_info = s.auto_state.shown.has_stab = false;
+    auto_stop_clear(s.auto_state.stop);
 }
 
-void auto_data_info(const AutoDataInfo *v)
+void auto_data_info(Session &s, const AutoDataInfo *v)
 {
-    if (!enabled || !v || held > 0) return;
+    AutoDataShown &info = s.auto_state.shown;
+    if (!event.ready() || !v || info.held > 0) return;
     try {
         info.v = *v;
         info.sym = trimmed(v->sym);
@@ -189,44 +185,37 @@ void auto_data_info(const AutoDataInfo *v)
         info.p2name = info.two ? v->p2name : "";
         info.vname = v->vname ? v->vname : "";
         info.v.sym = info.v.p1name = info.v.p2name = info.v.vname = nullptr; /* the strings above hold them */
-        has_info = true;
+        info.has_info = true;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording AUTO's info strip");
     }
 }
 
-void auto_data_stab(const double *evr, const double *evi, int n, int periodic)
+void auto_data_stab(Session &s, const double *evr, const double *evi, int n, int periodic)
 {
-    if (!enabled || held > 0) return;
+    AutoDataShown &sh = s.auto_state.shown;
+    if (!event.ready() || sh.held > 0) return;
     try {
-        stab_re.assign(evr, evr + (n > 0 ? n : 0));
-        stab_im.assign(evi, evi + (n > 0 ? n : 0));
-        stab_periodic = periodic != 0;
-        has_stab = true;
+        sh.stab_re.assign(evr, evr + (n > 0 ? n : 0));
+        sh.stab_im.assign(evi, evi + (n > 0 ? n : 0));
+        sh.stab_periodic = periodic != 0;
+        sh.has_stab = true;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording a point's stability");
     }
 }
 
-void auto_data_hold(int on)
+void auto_data_hold(Session &s, int on)
 {
+    int &held = s.auto_state.shown.held;
     held += on ? 1 : (held > 0 ? -1 : 0);
 }
 
-void auto_data_update(int final)
+void auto_data_update(const Session &s, int final)
 {
-    static double last;
-    if (!enabled || !subscribed || !emit_line) return;
-    if (!final && !xpp::every(last, 0.1)) return;
-    try {
-        std::string e = event();
-        if (sent_valid && e == sent) return;
-        emit_line(e.data(), e.size());
-        sent.swap(e);
-        sent_valid = true;
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("sending AUTO's info strip");
-    }
+    if (!event.ready() || !event.subscribed()) return;
+    if (!final && !xpp::every(last_update, 0.1)) return;
+    event.update(s);
 }
 
 } // namespace xpp

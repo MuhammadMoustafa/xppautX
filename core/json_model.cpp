@@ -112,7 +112,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
         marks_data_cleared(i);
     }
     ani_data_forget();
-    auto_data_forget();
+    auto_data_forget(s);
     diag_forget();
     plot_data_changed();
     state_forget();

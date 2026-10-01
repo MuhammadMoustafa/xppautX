@@ -486,10 +486,10 @@ static void stability_run_start(xpp::Session &s)
 {
   const DIAGRAM *d=s.auto_state.bifur.irs>0?diagram_of_label(s,s.auto_state.bifur.irs):NULL;
   if(d==NULL){
-    auto_stability_run_start(run_stability_kind(s),s.auto_state.bifur.isw,AUTO_STABILITY_NONE,0,0,NULL,NULL);
+    auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,AUTO_STABILITY_NONE,0,0,NULL,NULL);
     return;
   }
-  auto_stability_run_start(run_stability_kind(s),s.auto_state.bifur.isw,point_stability_kind(d),d->itp,s.model().node,d->evr,d->evi);
+  auto_stability_run_start(s.auto_state.stability,run_stability_kind(s),s.auto_state.bifur.isw,point_stability_kind(d),d->itp,s.model().node,d->evr,d->evi);
 }
 
 /* MAIN Running routine  Assumes that Auto structure is set up */
@@ -497,7 +497,7 @@ namespace {
 /* one do_auto call's depth, however it ends */
 struct AutoDepth {
   int &depth;
-  explicit AutoDepth(xpp::Session &s) : depth(s.auto_state.depth) { if(depth++==0)auto_stop_clear(); } /* xppautX: T23: why this run's branches end */
+  explicit AutoDepth(xpp::Session &s) : depth(s.auto_state.depth) { if(depth++==0)auto_stop_clear(s.auto_state.stop); } /* xppautX: T23: why this run's branches end */
   ~AutoDepth() { depth--; }
   AutoDepth(const AutoDepth &)=delete;
   AutoDepth &operator=(const AutoDepth &)=delete;
@@ -1146,7 +1146,7 @@ int auto_run_from_take(xpp::Session &s)
    (auto_stability.h), whether AUTO is computing it or a grab is on it */
 static void show_stab(xpp::Session &s, const double *evr,const double *evi,int n,int periodic)
 {
-  auto_data_stab(evr,evi,n,periodic);
+  auto_data_stab(s,evr,evi,n,periodic);
 }
 
 /* the colour colset() and colset2() give a point */
@@ -1425,7 +1425,7 @@ void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)
          may flush the autoinfo event): a flush between them sent the new
          circle with the old point when a step took over 0.1 s (autocheck
          under valgrind, W21) */
-      auto_data_info(&ai);
+      auto_data_info(s,&ai);
       show_stab(s, evr,evi,s.model().node,ibr<0);
     }
     if(lab>0 && s.auto_state.load_all_labeled_orbits>0)
@@ -2634,7 +2634,7 @@ int import_auto_file(xpp::Session &s, FILE *fp)
   int status;
   load_auto_numerics(s, fp);
   load_auto_graph(s, fp);
-  auto_data_forget(); /* the strip described the diagram this one replaces */
+  auto_data_forget(s); /* the strip described the diagram this one replaces */
   status=load_diagram(s, fp,s.model().node);
   if(status!=1)return status;
   xpp::ok_or_show(make_q_file(s,fp));

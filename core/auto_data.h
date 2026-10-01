@@ -2,6 +2,9 @@
 #define AUTO_DATA_H
 #include <stddef.h>
 
+#include <string>
+#include <vector>
+
 /* AUTO's info strip and stability circle as data, for a front end that
    draws them itself: the "autoinfo" event (docs/protocol.md "The AUTO
    diagram as data", docs/ui-v2.md event 7).
@@ -32,6 +35,8 @@
 
 namespace xpp {
 
+struct Session; /* session.h */
+
 typedef void (*AutoDataEmit)(const char *line, size_t len);
 
 /* the index in the diagram data the client holds of AUTO's diagram entry
@@ -45,7 +50,7 @@ void auto_data_init(AutoDataEmit emit, AutoDataPointOf point_of);
 void auto_data_subscribe(int on);
 
 /* a new AUTO window, or none: nothing to show (no stop reason either) */
-void auto_data_forget(void);
+void auto_data_forget(Session &s);
 
 /* the point the info strip shows; names are the model's, whole. p2name is
    NULL for a one-parameter point (the strip shows a blank name and 0) */
@@ -65,21 +70,31 @@ struct AutoDataInfo {
     double x, y, y2; /* where the diagram plots it (auto_xy_plot) */
 };
 
-void auto_data_info(const AutoDataInfo *info);
+/* what the strip and the circle of a Session show (AutoState::shown) */
+struct AutoDataShown {
+    AutoDataInfo v{}; /* its names in the strings below */
+    std::string sym, p1name, p2name, vname;
+    bool two = false;
+    bool has_info = false, has_stab = false, stab_periodic = false;
+    std::vector<double> stab_re, stab_im;
+    int held = 0; /* auto_data_hold depth */
+};
+
+void auto_data_info(Session &s, const AutoDataInfo *info);
 
 /* the stability circle now shows these n values (evr + i evi); periodic:
    Floquet multipliers, else e^lambda of a steady state's eigenvalues */
-void auto_data_stab(const double *evr, const double *evi, int n, int periodic);
+void auto_data_stab(Session &s, const double *evr, const double *evi, int n, int periodic);
 
 /* send the event if it changed since the last one sent; final 0 (during a
    run) sends at most ten a second */
-void auto_data_update(int final);
+void auto_data_update(const Session &s, int final);
 
 /* on 1 ... on 0 around a redraw of the diagram (redraw_diagram): the
    strip and the circle keep what they show (a run's last point, a grab's
    point) while it plots every point again, auto_data_info and
    auto_data_stab ignored until the last on 0. Nests. */
-void auto_data_hold(int on);
+void auto_data_hold(Session &s, int on);
 
 } // namespace xpp
 #endif

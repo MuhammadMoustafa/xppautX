@@ -17,6 +17,9 @@
 
    auto_stop.cpp; nothing escapes it. */
 
+#include <cmath>
+#include <string>
+
 namespace xpp {
 
 struct Session; /* session.h */
@@ -38,10 +41,22 @@ enum AutoStopWhy {
     AUTO_STOP_N
 };
 
+/* what a Session's AUTO runs recorded (AutoState::stop) */
+struct AutoStop {
+    /* the last "No convergence" NOTE: which one, the step size then and Dsmin */
+    int noconv_why = AUTO_STOP_NOCONV;
+    double noconv_ds = NAN, noconv_dsmin = NAN;
+    /* the last branch end: why, where, what reached which limit, in words */
+    int last_why = AUTO_STOP_NONE;
+    long last_br = 0, last_pt = 0;
+    double last_value = NAN, last_limit = NAN;
+    std::string last_text;
+};
+
 /* a "No convergence" NOTE: which one (an AUTO_STOP_NOCONV_*), the step
    size then and Dsmin; the branch end that follows says "no convergence"
    in its words */
-void auto_stop_noconv(int why, double ds, double dsmin);
+void auto_stop_noconv(AutoStop &st, int why, double ds, double dsmin);
 
 /* the point at which stplae/stplbv end a branch, and what they saw */
 struct AutoStopAt {
@@ -57,12 +72,12 @@ struct AutoStopAt {
 
 /* why a branch ending at `at` ended; the first of: the user, no
    convergence, a Mark value, Par Min, Par Max, Norm Min, Norm Max, Max
-   points. Pure */
-int auto_stop_why(const AutoStopAt *at);
+   points; a solver that gave up, in the words of st's last NOTE. Pure */
+int auto_stop_why(const AutoStop &st, const AutoStopAt *at);
 
 
 /* a run starts, or AUTO's window is new: no reason until a branch ends */
-void auto_stop_clear(void);
+void auto_stop_clear(AutoStop &st);
 
 /* the last branch end, for the autoinfo event; why is AUTO_STOP_NONE when
    there is none. key and text stay valid until the next branch end or clear */
@@ -74,14 +89,14 @@ struct AutoStopInfo {
     double value; /* what reached the limit (NAN when nothing did) */
     double limit; /* the limit (NAN when there is none) */
 };
-void auto_stop_last(AutoStopInfo *out);
+void auto_stop_last(const AutoStop &st, AutoStopInfo *out);
 
 /* the key of an AutoStopWhy ("parmax", ...), or NULL out of range */
 const char *auto_stop_key(int why);
 
 /* the branch ended at `at` in the session s's run: record why (its
    parameter by the name s gives it) and write it in AUTO's Output */
-void auto_stop_branch_end(const Session &s, const AutoStopAt *at);
+void auto_stop_branch_end(Session &s, const AutoStopAt *at);
 
 } // namespace xpp
 #endif

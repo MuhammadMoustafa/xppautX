@@ -23,6 +23,8 @@
 
    auto_stability.cpp; nothing escapes it. */
 
+#include <vector>
+
 namespace xpp {
 
 /* what a point or a run continues */
@@ -38,7 +40,19 @@ enum AutoStabilityKind {
    kind AUTO_STABILITY_STEADY: eigenvalues lambda, kept as e^lambda (inside
    the unit circle is stable, as for multipliers); AUTO_STABILITY_PERIODIC:
    Floquet multipliers, kept as they are. */
-void auto_stability_computed(int br, int pt, int n, const double *values, int kind);
+/* what a Session's AUTO run computed and takes (AutoState::stability) */
+struct AutoStability {
+    /* one point's values, re and im */
+    struct Values {
+        int br = 0, pt = 0; /* the point (abs), 0: none */
+        std::vector<double> re, im;
+    };
+    Values computed; /* the last point AUTO checked */
+    Values first;    /* the running restart's first point (pt 1), when it has one */
+    bool has_first = false;
+};
+
+void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind);
 
 /* A run starts; nothing computed before it belongs to its points. run: the
    kind it continues; isw: AUTO's ISW (-1 switches branches); label: the
@@ -47,13 +61,13 @@ void auto_stability_computed(int br, int pt, int n, const double *values, int ki
    point takes them if the run continues the label's own solution: same
    kind, steady or periodic, and not a period doubling's switch (the
    doubled orbit's multipliers are not the label's). Returns 1 if it does. */
-int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, const double *evr,
+int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int label_itp, int n, const double *evr,
                              const double *evi);
 
 /* the n values of point pt of branch br (either sign) into evr/evi:
    1 if they are that point's (computed for it, or the first point of a
    same-kind restart), else 0 and zeros: not computed */
-int auto_stability_for(int br, int pt, int n, double *evr, double *evi);
+int auto_stability_for(const AutoStability &st, int br, int pt, int n, double *evr, double *evi);
 
 } // namespace xpp
 #endif

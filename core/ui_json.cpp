@@ -702,7 +702,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     marks_data_update(*s);
     ani_data_update();
     diag_flush(*s, 1);
-    auto_data_update(1);
+    auto_data_update(*s, 1);
     auto_view_update(*s);
     auto_settings_update(*s);
     numerics_settings_update(*s);

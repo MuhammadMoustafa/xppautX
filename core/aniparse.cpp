@@ -113,76 +113,13 @@ namespace xpp {
 
 namespace {
 
-/* a comet's last n positions, in the animation's coordinates, and their colours */
-struct Comet {
-    int n = 0;
-    std::vector<double> x, y;
-    std::vector<int> col;
-    int i = 0;
-};
-
-/* one command of the .ani file: its compiled expressions (add_expr's
-   tokens, each ending in ENDEXP) and their values in the current frame */
-struct AniCom {
-    Comet c;
-    int type = 0, flag = 0;
-    /* col[0] <= 0 is a named colour, -index; else the compiled expression */
-    std::vector<int> col{0};
-    std::vector<int> x1, y1, x2, y2, who;
-    std::string text; /* text and vtext's string */
-    double zcol = 0, zx1 = 0, zy1 = 0, zx2 = 0, zy2 = 0, zrad = 0, zval = 0;
-    int zthick = 0, tfont = 0, tsize = 0, tcolor = 0;
-};
-
-/**************  the Grabber ***************************/
-constexpr int MAX_GEVENTS = 20; /* maximum variables you can change per grabbable */
-constexpr int MAX_ANI_GRAB = 50; /* max grabbable objects  */
-
-/* tasks have the form {name1=formula1;name2=formula2;...} */
-struct GrabEvent {
-    std::string lhs;
-    std::vector<int> rhs;
-};
-
-struct GrabTask {
-    std::vector<GrabEvent> events; /* at most MAX_GEVENTS */
-    int runnow = 0;
-};
-
-struct AniGrab {
-    double zx = 0, zy = 0, tol = 0;
-    std::vector<int> x, y;
-    GrabTask start, end;
-};
-
-struct AniMotionInfo {
-    double x, y;
-    double ox, oy;
-    double t1, t2;
-    double vx, vy;
-};
-
-AniMotionInfo ami;
-
-std::vector<AniGrab> ani_grab;
-int show_grab_points = 0;
-int who_was_grabbed;
 
 /************************  end grabber **********************/
 
 constexpr int FIRSTCOLOR = 30;
 constexpr int on_the_fly_speed = 10;
 
-int aniflag;
-int LastAniColor;
-int ani_lineno; /* the .ani file's line being parsed */
-
-double ani_xlo = 0, ani_xhi = 1, ani_ylo = 0, ani_yhi = 1;
-double ani_lastx, ani_lasty;
-
-std::vector<AniCom> my_ani;
-
-void set_ani_font_stuff(int size, int font, int color);
+void set_ani_font_stuff(xpp::Session &s, int size, int font, int color);
 void eval_ani_color(xpp::Session &s, int j);
 void eval_ani_com(xpp::Session &s, int j);
 void free_ani(xpp::Session &s);
@@ -199,35 +136,35 @@ double get_current_time(void)
 
 /**************   DRAWING ROUTINES   *******************/
 
-void ani_rad2scale(const xpp::Session &s, double rx, double ry, int *ix, int *iy)
+void ani_rad2scale(xpp::Session &s, double rx, double ry, int *ix, int *iy)
 {
-    double dx = static_cast<double>(s.animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
     double r1 = rx * dx, r2 = ry * dy;
     *ix = static_cast<int>(r1);
     *iy = static_cast<int>(r2);
 }
 
-void ani_radscale(const xpp::Session &s, double rad, int *ix, int *iy)
+void ani_radscale(xpp::Session &s, double rad, int *ix, int *iy)
 {
-    double dx = static_cast<double>(s.animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (ani_yhi - ani_ylo);
+    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
     double r1 = rad * dx, r2 = rad * dy;
     *ix = static_cast<int>(r1);
     *iy = static_cast<int>(r2);
 }
 
-void ani_ij_to_xy(const xpp::Session &s, int ix, int iy, double *x, double *y)
+void ani_ij_to_xy(xpp::Session &s, int ix, int iy, double *x, double *y)
 {
-    double dx = (ani_xhi - ani_xlo) / static_cast<double>(s.animation.vcr.wid);
-    double dy = (ani_yhi - ani_ylo) / static_cast<double>(s.animation.vcr.hgt);
-    *x = ani_xlo + static_cast<double>(ix) * dx;
-    *y = ani_ylo + static_cast<double>(s.animation.vcr.hgt - iy) * dy;
+    double dx = (s.animation.xhi - s.animation.xlo) / static_cast<double>(s.animation.vcr.wid);
+    double dy = (s.animation.yhi - s.animation.ylo) / static_cast<double>(s.animation.vcr.hgt);
+    *x = s.animation.xlo + static_cast<double>(ix) * dx;
+    *y = s.animation.ylo + static_cast<double>(s.animation.vcr.hgt - iy) * dy;
 }
 
-void ani_xyscale(const xpp::Session &s, double x, double y, int *ix, int *iy)
+void ani_xyscale(xpp::Session &s, double x, double y, int *ix, int *iy)
 {
-    double dx = static_cast<double>(s.animation.vcr.wid) / (ani_xhi - ani_xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (ani_yhi - ani_ylo);
-    double xx = (x - ani_xlo) * dx;
-    double yy = s.animation.vcr.hgt - dy * (y - ani_ylo);
+    double dx = static_cast<double>(s.animation.vcr.wid) / (s.animation.xhi - s.animation.xlo), dy = static_cast<double>(s.animation.vcr.hgt) / (s.animation.yhi - s.animation.ylo);
+    double xx = (x - s.animation.xlo) * dx;
+    double yy = s.animation.vcr.hgt - dy * (y - s.animation.ylo);
     *ix = static_cast<int>(xx);
     *iy = static_cast<int>(yy);
     if (*ix < 0) *ix = 0;
@@ -245,55 +182,49 @@ void ani_xyscale(const xpp::Session &s, double x, double y, int *ix, int *iy)
    pixel callbacks, scaled to the vcr.wid x vcr.hgt window as XPP always
    has (ani_xyscale and friends: truncated to whole pixels, points clamped
    to the window), and to ani_data.h in unit coordinates, unclamped: u = 0
-   at xlo and 1 at xhi, v = 0 at ylo and 1 at yhi. The pen (colour, line
+   at xlo and 1 at xhi, v = 0 at ylo and 1 at yhi. The s.animation.pen (colour, line
    width, text font) is the one the callbacks keep between primitives, as
    an X11 graphics context does: the colour starts black each frame, the
    width and font carry over. */
 
 namespace {
 
-struct Pen {
-    int color = 0; /* palette index: 0 black, 20..29 the named colours, 30.. the colour map */
-    int thick = 0;
-    int size = 0, font = 0;
-};
-Pen pen;
 
-double unit_x(double x) { return (x - ani_xlo) / (ani_xhi - ani_xlo); }
-double unit_y(double y) { return (y - ani_ylo) / (ani_yhi - ani_ylo); }
+double unit_x(xpp::Session &s, double x) { return (x - s.animation.xlo) / (s.animation.xhi - s.animation.xlo); }
+double unit_y(xpp::Session &s, double y) { return (y - s.animation.ylo) / (s.animation.yhi - s.animation.ylo); }
 
-void pen_color(int icol)
+void pen_color(xpp::Session &s, int icol)
 {
     ui.ani_color(icol);
-    pen.color = icol;
+    s.animation.pen.color = icol;
 }
 
-void pen_thick(int t)
+void pen_thick(xpp::Session &s, int t)
 {
     if (t < 0) t = 0;
     ui.ani_thick(t);
-    pen.thick = t;
+    s.animation.pen.thick = t;
 }
 
-void pen_font(int size, int font, int color)
+void pen_font(xpp::Session &s, int size, int font, int color)
 {
     ui.ani_font(size, font, color);
-    pen.size = size;
-    pen.font = font;
-    pen.color = color;
+    s.animation.pen.size = size;
+    s.animation.pen.font = font;
+    s.animation.pen.color = color;
 }
 
-void put_line(const xpp::Session &s, double x1, double y1, double x2, double y2)
+void put_line(xpp::Session &s, double x1, double y1, double x2, double y2)
 {
     int i1, j1, i2, j2;
     ani_xyscale(s,x1, y1, &i1, &j1);
     ani_xyscale(s,x2, y2, &i2, &j2);
     ui.ani_line(i1, j1, i2, j2);
-    ani_data_line(unit_x(x1), unit_y(y1), unit_x(x2), unit_y(y2), pen.color, pen.thick);
+    ani_data_line(unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick);
 }
 
 /* a rectangle with corners (x1,y1) and (x2,y2), in either order */
-void put_rect(const xpp::Session &s, double x1, double y1, double x2, double y2, int fill)
+void put_rect(xpp::Session &s, double x1, double y1, double x2, double y2, int fill)
 {
     int i1, j1, i2, j2, h, w;
     ani_xyscale(s,x1, y1, &i1, &j1);
@@ -303,47 +234,47 @@ void put_rect(const xpp::Session &s, double x1, double y1, double x2, double y2,
     if (i1 > i2) i1 = i2;
     if (j1 > j2) j1 = j2;
     ui.ani_rect(i1, j1, w, h, fill);
-    ani_data_rect(unit_x(x1), unit_y(y1), unit_x(x2), unit_y(y2), pen.color, pen.thick, fill);
+    ani_data_rect(unit_x(s, x1), unit_y(s, y1), unit_x(s, x2), unit_y(s, y2), s.animation.pen.color, s.animation.pen.thick, fill);
 }
 
 /* a circle of radius r: in pixels the mean of the radius scaled along x and along y */
-void put_circle(const xpp::Session &s, double x, double y, double r, int fill)
+void put_circle(xpp::Session &s, double x, double y, double r, int fill)
 {
     int i1, j1, i2, j2, ir;
     ani_xyscale(s,x, y, &i1, &j1);
     ani_radscale(s,r, &i2, &j2);
     ir = (i2 + j2) / 2;
     ui.ani_arc(i1 - ir, j1 - ir, 2 * ir, 2 * ir, fill);
-    ani_data_circle(unit_x(x), unit_y(y), r / (ani_xhi - ani_xlo), r / (ani_yhi - ani_ylo), pen.color, pen.thick,
+    ani_data_circle(unit_x(s, x), unit_y(s, y), r / (s.animation.xhi - s.animation.xlo), r / (s.animation.yhi - s.animation.ylo), s.animation.pen.color, s.animation.pen.thick,
                     fill);
 }
 
-void put_ellipse(const xpp::Session &s, double x, double y, double rx, double ry, int fill)
+void put_ellipse(xpp::Session &s, double x, double y, double rx, double ry, int fill)
 {
     int i1, j1, i2, j2;
     ani_xyscale(s,x, y, &i1, &j1);
     ani_rad2scale(s,rx, ry, &i2, &j2);
     ui.ani_arc(i1 - i2, j1 - j2, 2 * i2, 2 * j2, fill);
-    ani_data_ellipse(unit_x(x), unit_y(y), rx / (ani_xhi - ani_xlo), ry / (ani_yhi - ani_ylo), pen.color,
-                     pen.thick, fill);
+    ani_data_ellipse(unit_x(s, x), unit_y(s, y), rx / (s.animation.xhi - s.animation.xlo), ry / (s.animation.yhi - s.animation.ylo), s.animation.pen.color,
+                     s.animation.pen.thick, fill);
 }
 
 /* a filled circle of r pixels (a comet's), whatever the window's size */
-void put_dot(const xpp::Session &s, double x, double y, int r)
+void put_dot(xpp::Session &s, double x, double y, int r)
 {
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
     ui.ani_arc(i - r, j - r, 2 * r, 2 * r, 1);
-    ani_data_dot(unit_x(x), unit_y(y), r, pen.color);
+    ani_data_dot(unit_x(s, x), unit_y(s, y), r, s.animation.pen.color);
 }
 
 /* text from its baseline's left end */
-void put_text(const xpp::Session &s, double x, double y, const char *str)
+void put_text(xpp::Session &s, double x, double y, const char *str)
 {
     int i, j;
     ani_xyscale(s,x, y, &i, &j);
     ui.ani_text(i, j, str);
-    ani_data_text(unit_x(x), unit_y(y), str, pen.color, pen.size, pen.font);
+    ani_data_text(unit_x(s, x), unit_y(s, y), str, s.animation.pen.color, s.animation.pen.size, s.animation.pen.font);
 }
 
 } // namespace
@@ -542,7 +473,7 @@ int add_ani_settext(AniCom &a, const std::string &x1, std::string &y1, std::stri
     return 0;
 }
 
-void set_ani_dimension(const std::string &x1, const std::string &y1, const std::string &x2, const std::string &y2)
+void set_ani_dimension(xpp::Session &s, const std::string &x1, const std::string &y1, const std::string &x2, const std::string &y2)
 {
     const double xx1 = std::atof(x1.c_str());
     const double xx2 = std::atof(x2.c_str());
@@ -550,10 +481,10 @@ void set_ani_dimension(const std::string &x1, const std::string &y1, const std::
     const double yy2 = std::atof(y2.c_str());
 
     if ((xx1 < xx2) && (yy1 < yy2)) {
-        ani_xlo = xx1;
-        ani_xhi = xx2;
-        ani_ylo = yy1;
-        ani_yhi = yy2;
+        s.animation.xlo = xx1;
+        s.animation.xhi = xx2;
+        s.animation.ylo = yy1;
+        s.animation.yhi = yy2;
     }
 }
 
@@ -565,7 +496,7 @@ int add_ani_com(xpp::Session &s, int type, const std::string &x1, std::string &y
         return 1;
     AniCom a;
     a.type = type;
-    a.flag = aniflag;
+    a.flag = s.animation.aniflag;
     switch (type) {
     case AXNULL:
     case AYNULL:
@@ -602,25 +533,25 @@ int add_ani_com(xpp::Session &s, int type, const std::string &x1, std::string &y
         free_ani(s);
         return -1;
     }
-    my_ani.push_back(std::move(a));
-    s.animation.ncom = static_cast<int>(my_ani.size());
+    s.animation.commands.push_back(std::move(a));
+    s.animation.ncom = static_cast<int>(s.animation.commands.size());
     return 1;
 }
 
 void init_ani_stuff(xpp::Session &s)
 {
-    ani_xlo = 0.0;
-    ani_ylo = 0.0;
-    ani_xhi = 1.0;
-    ani_yhi = 1.0;
-    aniflag = TRANSIENT;
-    my_ani.clear();
+    s.animation.xlo = 0.0;
+    s.animation.ylo = 0.0;
+    s.animation.xhi = 1.0;
+    s.animation.yhi = 1.0;
+    s.animation.aniflag = TRANSIENT;
+    s.animation.commands.clear();
     s.animation.ncom = 0;
-    ani_lastx = 0.0;
-    ani_lasty = 0.0;
+    s.animation.lastx = 0.0;
+    s.animation.lasty = 0.0;
     s.animation.vcr.pos = 0;
     s.animation.grab_flag = 0; /*********** GRABBER *******************/
-    ani_grab.clear();
+    s.animation.grabs.clear();
 }
 
 void free_ani(xpp::Session &s)
@@ -676,7 +607,7 @@ int add_grab_command(xpp::Session &s, const std::string &xs, const std::string &
     const std::string start = read_ani_line(fp, eof);
     const std::string end = read_ani_line(fp, eof);
 
-    if (static_cast<int>(ani_grab.size()) >= MAX_ANI_GRAB) {
+    if (static_cast<int>(s.animation.grabs.size()) >= MAX_ANI_GRAB) {
         xpp::log(XPP_LOG_WARN, "Too many grabbables! \n");
         return (-1);
     }
@@ -694,25 +625,25 @@ int add_grab_command(xpp::Session &s, const std::string &xs, const std::string &
     }
     if (ani_grab_tasks(s, start, g, 1) < 0) return (-1);
     if (ani_grab_tasks(s, end, g, 2) == (-1)) return (-1);
-    ani_grab.push_back(std::move(g));
+    s.animation.grabs.push_back(std::move(g));
     return (1);
 }
 
-int run_now_grab(void)
+int run_now_grab(xpp::Session &s)
 {
-    if (who_was_grabbed < 0 || who_was_grabbed >= static_cast<int>(ani_grab.size())) return (0);
-    return (ani_grab[who_was_grabbed].end.runnow);
+    if (s.animation.who_was_grabbed < 0 || s.animation.who_was_grabbed >= static_cast<int>(s.animation.grabs.size())) return (0);
+    return (s.animation.grabs[s.animation.who_was_grabbed].end.runnow);
 }
 
-int search_for_grab(double x, double y)
+int search_for_grab(xpp::Session &s, double x, double y)
 {
     double dmin = 100000000;
     int imin = -1;
-    for (int i = 0; i < static_cast<int>(ani_grab.size()); i++) {
-        const double u = ani_grab[i].zx;
-        const double v = ani_grab[i].zy;
+    for (int i = 0; i < static_cast<int>(s.animation.grabs.size()); i++) {
+        const double u = s.animation.grabs[i].zx;
+        const double v = s.animation.grabs[i].zy;
         const double d = std::sqrt((x - u) * (x - u) + (y - v) * (y - v));
-        if ((d < dmin) && (d < ani_grab[i].tol)) {
+        if ((d < dmin) && (d < s.animation.grabs[i].tol)) {
             dmin = d;
             imin = i;
         }
@@ -722,10 +653,10 @@ int search_for_grab(double x, double y)
 
 void do_grab_tasks(xpp::Session &s, int which) /* which=1 for start, 2 for end */
 {
-    const int i = who_was_grabbed;
-    if (i < 0 || i >= static_cast<int>(ani_grab.size())) return; /*  no legal grab point */
+    const int i = s.animation.who_was_grabbed;
+    if (i < 0 || i >= static_cast<int>(s.animation.grabs.size())) return; /*  no legal grab point */
     if (which != 1 && which != 2) return;
-    for (GrabEvent &e : (which == 1 ? ani_grab[i].start : ani_grab[i].end).events)
+    for (GrabEvent &e : (which == 1 ? s.animation.grabs[i].start : s.animation.grabs[i].end).events)
         xpp::set_val(s,e.lhs.c_str(), xpp::evaluate(s,e.rhs.data()));
 }
 
@@ -837,17 +768,17 @@ int parse_ani_string(xpp::Session &s, std::string &text, xpp::LineReader &fp)
 
     if (type == END) return 0;
     if (type == TRANSIENT) {
-        aniflag = TRANSIENT;
+        s.animation.aniflag = TRANSIENT;
         return 1;
     }
     if (type == COMNT) return 1;
     if (type == PERMANENT) {
-        aniflag = PERMANENT;
+        s.animation.aniflag = PERMANENT;
         return 1;
     }
 
     if (type == DIMENSION) {
-        set_ani_dimension(x1, x2, x3, x4);
+        set_ani_dimension(s, x1, x2, x3, x4);
         return 1;
     }
     return (add_ani_com(s,type, x1, x2, x3, x4, col, thick));
@@ -859,7 +790,7 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
     int jj1, jj2;
     int ans = 0, flag;
     bool eof = false;
-    ani_lineno = 1;
+    s.animation.lineno = 1;
     for (;;) {
         std::string old = read_ani_line(fp, eof);
         xpp::search_array(old.data(), expanded, &jj1, &jj2, &flag);
@@ -870,11 +801,11 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
 
         if (ans == 0 || eof) break;
         if (ans < 0) { /* error occurred !! */
-            xpp::log(XPP_LOG_DEBUG, " error at line {}\n", ani_lineno);
+            xpp::log(XPP_LOG_DEBUG, " error at line {}\n", s.animation.lineno);
             free_ani(s);
             return 0;
         }
-        ani_lineno++;
+        s.animation.lineno++;
     }
     return 1;
 }
@@ -891,7 +822,7 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
     /* a new animation: its frames start again, nothing of the old one shows */
     ani_data_forget();
     if (load_ani_file(s,fp) == 0) {
-        return xpp::fail("animation", xpp::format("Bad ani-file at line {}", ani_lineno));
+        return xpp::fail("animation", xpp::format("Bad ani-file at line {}", s.animation.lineno));
     }
     return {};
 }
@@ -901,7 +832,7 @@ void ani_frame(xpp::Session &s, int task)
     ui.ani_clear();
     if (task == 1) {
         set_ani_perm(s);
-        reset_comets();
+        reset_comets(s);
         return;
     }
     render_ani(s);
@@ -936,7 +867,7 @@ void ani_disk_warn(xpp::Session &s)
 
 void eval_ani_color(xpp::Session &s, int j)
 {
-    AniCom &a = my_ani[j];
+    AniCom &a = s.animation.commands[j];
     if (a.col[0] > 0) {
         double z = xpp::evaluate(s,a.col.data());
         if (z > 1) z = 1.0;
@@ -947,7 +878,7 @@ void eval_ani_color(xpp::Session &s, int j)
 
 void eval_ani_com(xpp::Session &s, int j)
 {
-    AniCom &a = my_ani[j];
+    AniCom &a = s.animation.commands[j];
     a.zx1 = xpp::evaluate(s,a.x1.data());
     a.zy1 = xpp::evaluate(s,a.y1.data());
 
@@ -974,40 +905,40 @@ void eval_ani_com(xpp::Session &s, int j)
     if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who.data());
 }
 
-void set_ani_font_stuff(int size, int font, int color) { pen_font(size, font, color); }
+void set_ani_font_stuff(xpp::Session &s, int size, int font, int color) { pen_font(s, size, font, color); }
 
-void set_ani_col(int j)
+void set_ani_col(xpp::Session &s, int j)
 {
-    const int c = my_ani[j].col[0];
+    const int c = s.animation.commands[j].col[0];
     int icol;
 
     if (c <= 0)
         icol = -c;
     else
-        icol = static_cast<int>(color_table.count * my_ani[j].zcol) + FIRSTCOLOR;
-    pen_color(icol);
-    LastAniColor = icol;
+        icol = static_cast<int>(color_table.count * s.animation.commands[j].zcol) + FIRSTCOLOR;
+    pen_color(s, icol);
+    s.animation.last_color = icol;
 }
 
 /* the comet keeps its last n positions (in the animation's coordinates)
    with their colours: filled circles of -thickness pixels, or lines */
-void draw_ani_comet(const xpp::Session &s, int j)
+void draw_ani_comet(xpp::Session &s, int j)
 {
-    AniCom &a = my_ani[j];
-    pen_thick(a.zthick);
-    set_ani_col(j);
-    roll_comet(a, a.zx1, a.zy1, LastAniColor);
+    AniCom &a = s.animation.commands[j];
+    pen_thick(s, a.zthick);
+    set_ani_col(s, j);
+    roll_comet(a, a.zx1, a.zy1, s.animation.last_color);
     const int nn = a.c.i;
     if (a.zthick < 0) {
         const int ir = -a.zthick;
         for (int k = 0; k < nn; k++) {
-            pen_color(a.c.col[k]);
+            pen_color(s, a.c.col[k]);
             put_dot(s,a.c.x[k], a.c.y[k], ir);
         }
     } else {
         if (nn > 2) {
             for (int k = 1; k < nn; k++) {
-                pen_color(a.c.col[k]);
+                pen_color(s, a.c.col[k]);
                 put_line(s,a.c.x[k - 1], a.c.y[k - 1], a.c.x[k], a.c.y[k]);
             }
         }
@@ -1016,16 +947,16 @@ void draw_ani_comet(const xpp::Session &s, int j)
 
 /* a nullcline of the phase plane, its box [x1,x2] x [y1,y2] mapped to the
    animation's [0,1] x [0,1] (as XPP always has, whatever `dimension` says) */
-void draw_ani_null(const xpp::Session &s, int j, int id)
+void draw_ani_null(xpp::Session &s, int j, int id)
 {
-    const AniCom &a = my_ani[j];
+    const AniCom &a = s.animation.commands[j];
     double xl = a.zx1, xh = a.zx2, yl = a.zy1, yh = a.zy2;
     float *v;
     int n;
     float dx = xh - xl, dy = yh - yl;
     if (dx == 0.0 || dy == 0.0) return;
 
-    set_ani_col(j);
+    set_ani_col(s, j);
     const int who = static_cast<int>(a.zval); /* the nullcline that you want  -1 is the default cline */
     if (get_nullcline_floats(&v, &n, who, id) == 1) return;
     for (int i = 0; i < n; i++) {
@@ -1038,34 +969,34 @@ void draw_ani_null(const xpp::Session &s, int j, int id)
     }
 }
 
-void draw_ani_line(const xpp::Session &s, int j)
+void draw_ani_line(xpp::Session &s, int j)
 {
-    const AniCom &a = my_ani[j];
+    const AniCom &a = s.animation.commands[j];
     double x1 = a.zx1, x2 = a.zx2, y1 = a.zy1, y2 = a.zy2;
-    pen_thick(a.zthick);
-    set_ani_col(j);
+    pen_thick(s, a.zthick);
+    set_ani_col(s, j);
     put_line(s,x1, y1, x2, y2);
-    ani_lastx = x2;
-    ani_lasty = y2;
+    s.animation.lastx = x2;
+    s.animation.lasty = y2;
 }
 
-void draw_ani_rline(const xpp::Session &s, int j)
+void draw_ani_rline(xpp::Session &s, int j)
 {
-    const AniCom &a = my_ani[j];
-    double x1 = ani_lastx + a.zx1, y1 = ani_lasty + a.zy1;
-    pen_thick(a.zthick);
-    set_ani_col(j);
-    put_line(s,ani_lastx, ani_lasty, x1, y1);
-    ani_lastx = x1;
-    ani_lasty = y1;
+    const AniCom &a = s.animation.commands[j];
+    double x1 = s.animation.lastx + a.zx1, y1 = s.animation.lasty + a.zy1;
+    pen_thick(s, a.zthick);
+    set_ani_col(s, j);
+    put_line(s,s.animation.lastx, s.animation.lasty, x1, y1);
+    s.animation.lastx = x1;
+    s.animation.lasty = y1;
 }
 
 /* rect, ellip and circle, outlined or filled (frect, fellip, fcircle) */
-void draw_ani_shape(const xpp::Session &s, int j)
+void draw_ani_shape(xpp::Session &s, int j)
 {
-    const AniCom &a = my_ani[j];
-    pen_thick(a.zthick);
-    set_ani_col(j);
+    const AniCom &a = s.animation.commands[j];
+    pen_thick(s, a.zthick);
+    set_ani_col(s, j);
     switch (a.type) {
     case RECT:
     case FRECT:
@@ -1082,18 +1013,18 @@ void draw_ani_shape(const xpp::Session &s, int j)
     }
 }
 
-void draw_ani_text(const xpp::Session &s, int j) { put_text(s,my_ani[j].zx1, my_ani[j].zy1, my_ani[j].text.c_str()); }
+void draw_ani_text(xpp::Session &s, int j) { put_text(s,s.animation.commands[j].zx1, s.animation.commands[j].zy1, s.animation.commands[j].text.c_str()); }
 
-void draw_ani_vtext(const xpp::Session &s, int j)
+void draw_ani_vtext(xpp::Session &s, int j)
 {
-    put_text(s,my_ani[j].zx1, my_ani[j].zy1, xpp::format("{}{:g}", my_ani[j].text, my_ani[j].zval).c_str());
+    put_text(s,s.animation.commands[j].zx1, s.animation.commands[j].zy1, xpp::format("{}{:g}", s.animation.commands[j].text, s.animation.commands[j].zval).c_str());
 }
 
 /* Draw little black x's where the grab points are */
 void draw_grab_points(xpp::Session &s)
 {
-    pen_color(0);
-    for (AniGrab &g : ani_grab) {
+    pen_color(s, 0);
+    for (AniGrab &g : s.animation.grabs) {
         const double xc = xpp::evaluate(s,g.x.data());
         const double yc = xpp::evaluate(s,g.y.data());
         g.zx = xc;
@@ -1102,7 +1033,7 @@ void draw_grab_points(xpp::Session &s)
         put_line(s,xc + z, yc + z, xc - z, yc - z);
         put_line(s,xc + z, yc - z, xc - z, yc + z);
     }
-    show_grab_points = 0;
+    s.animation.show_grab_points = 0;
 }
 
 } // namespace
@@ -1110,19 +1041,19 @@ void draw_grab_points(xpp::Session &s)
 void update_ani_motion_stuff(xpp::Session &s, int x, int y)
 {
     double dt;
-    ami.t2 = ami.t1;
-    ami.t1 = get_current_time();
-    ami.ox = ami.x;
-    ami.oy = ami.y;
-    ani_ij_to_xy(s,x, y, &ami.x, &ami.y);
-    dt = ami.t1 - ami.t2;
+    s.animation.motion.t2 = s.animation.motion.t1;
+    s.animation.motion.t1 = get_current_time();
+    s.animation.motion.ox = s.animation.motion.x;
+    s.animation.motion.oy = s.animation.motion.y;
+    ani_ij_to_xy(s,x, y, &s.animation.motion.x, &s.animation.motion.y);
+    dt = s.animation.motion.t1 - s.animation.motion.t2;
     if (dt == 0.0) dt = 10000000000;
-    ami.vx = (ami.x - ami.ox) / dt;
-    ami.vy = (ami.y - ami.oy) / dt;
-    xpp::set_val(s,"mouse_x", ami.x);
-    xpp::set_val(s,"mouse_y", ami.y);
-    xpp::set_val(s,"mouse_vx", ami.vx);
-    xpp::set_val(s,"mouse_vy", ami.vy);
+    s.animation.motion.vx = (s.animation.motion.x - s.animation.motion.ox) / dt;
+    s.animation.motion.vy = (s.animation.motion.y - s.animation.motion.oy) / dt;
+    xpp::set_val(s,"mouse_x", s.animation.motion.x);
+    xpp::set_val(s,"mouse_y", s.animation.motion.y);
+    xpp::set_val(s,"mouse_vx", s.animation.motion.vx);
+    xpp::set_val(s,"mouse_vy", s.animation.motion.vy);
     do_grab_tasks(s, 1);
     fix_only(s);
     ani_frame(s,0);
@@ -1198,7 +1129,7 @@ void ani_zero(xpp::Session &s)
     s.animation.vcr.pos = 0;
     s.animation.ncom = 0;
     s.animation.speed = 10;
-    aniflag = TRANSIENT;
+    s.animation.aniflag = TRANSIENT;
     s.animation.grab_flag = 0;
     if (s.animation.options.use_file)
         s.animation.vcr.file = s.animation.options.file;
@@ -1227,20 +1158,20 @@ int get_ani_file(xpp::Session &s, const char *fname)
     return 1;
 }
 
-void reset_comets(void)
+void reset_comets(xpp::Session &s)
 {
-    for (AniCom &a : my_ani)
+    for (AniCom &a : s.animation.commands)
         if (a.type == COMET) a.c.i = 0;
 }
 
 void render_ani(xpp::Session &s)
 {
     ui.ani_slider(s);
-    pen.color = 0; /* ani_clear gave the frame a black pen */
+    s.animation.pen.color = 0; /* ani_clear gave the frame a black s.animation.pen */
     ani_data_begin();
     for (int i = 0; i < s.animation.ncom; i++) {
-        const int type = my_ani[i].type;
-        const int flag = my_ani[i].flag;
+        const int type = s.animation.commands[i].type;
+        const int flag = s.animation.commands[i].flag;
         if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
             type == ELLIP || type == FELLIP || type == COMET || type == AXNULL || type == AYNULL)
             eval_ani_color(s, i);
@@ -1251,7 +1182,7 @@ void render_ani(xpp::Session &s)
             draw_ani_null(s,i, type - AXNULL);
             break;
         case SETTEXT:
-            set_ani_font_stuff(my_ani[i].tsize, my_ani[i].tfont, my_ani[i].tcolor);
+            set_ani_font_stuff(s, s.animation.commands[i].tsize, s.animation.commands[i].tfont, s.animation.commands[i].tcolor);
             break;
         case TEXT:
             draw_ani_text(s,i);
@@ -1278,7 +1209,7 @@ void render_ani(xpp::Session &s)
             break;
         }
     }
-    if (show_grab_points == 1) draw_grab_points(s);
+    if (s.animation.show_grab_points == 1) draw_grab_points(s);
     {
         AniDataFrame f;
         f.pos = s.animation.vcr.pos;
@@ -1286,10 +1217,10 @@ void render_ani(xpp::Session &s)
         f.t = getvar(s,0);
         f.speed = s.animation.speed;
         f.skip = s.animation.vcr.inc;
-        f.xlo = ani_xlo;
-        f.ylo = ani_ylo;
-        f.xhi = ani_xhi;
-        f.yhi = ani_yhi;
+        f.xlo = s.animation.xlo;
+        f.ylo = s.animation.ylo;
+        f.xhi = s.animation.xhi;
+        f.yhi = s.animation.yhi;
         f.w = s.animation.vcr.wid;
         f.h = s.animation.vcr.hgt;
         ani_data_end(&f);
@@ -1300,9 +1231,9 @@ void set_ani_perm(xpp::Session &s)
 {
     set_from_init_data(s);
     for (int i = 0; i < s.animation.ncom; i++) {
-        const int type = my_ani[i].type;
-        if (my_ani[i].flag == PERMANENT) {
-            if (my_ani[i].type != SETTEXT) eval_ani_com(s, i);
+        const int type = s.animation.commands[i].type;
+        if (s.animation.commands[i].flag == PERMANENT) {
+            if (s.animation.commands[i].type != SETTEXT) eval_ani_com(s, i);
             if (type == LINE || type == RLINE || type == RECT || type == FRECT || type == CIRC || type == FCIRC ||
                 type == ELLIP || type == FELLIP)
                 eval_ani_color(s, i);
@@ -1326,11 +1257,11 @@ void ani_view_created(xpp::Session &s)
 /* Grab: show the first frame with the grab points and wait for the mouse */
 void ani_grab_start(xpp::Session &s)
 {
-    if (ani_grab.empty()) return;
+    if (s.animation.grabs.empty()) return;
     if (s.animation.vcr.ok) {
         s.animation.vcr.pos = 0;
 
-        show_grab_points = 1;
+        s.animation.show_grab_points = 1;
         ani_frame(s,1);
         ani_frame(s,0);
         s.animation.grab_flag = 1;
@@ -1341,7 +1272,7 @@ void ani_grab_start(xpp::Session &s)
 void ani_reset(xpp::Session &s)
 {
     s.animation.vcr.pos = 0;
-    reset_comets();
+    reset_comets(s);
     ui.ani_slider(s);
     ani_flip1(s,0);
 }
@@ -1350,18 +1281,18 @@ void ani_reset(xpp::Session &s)
 void ani_grab_mouse(xpp::Session &s, int flag, int ix, int iy)
 {
     if (flag == 1) {
-        ami.t1 = get_current_time();
-        ani_ij_to_xy(s,ix, iy, &ami.x, &ami.y);
-        who_was_grabbed = search_for_grab(ami.x, ami.y);
-        if (who_was_grabbed < 0) xpp::log(XPP_LOG_INFO, "Nothing grabbed\n");
+        s.animation.motion.t1 = get_current_time();
+        ani_ij_to_xy(s,ix, iy, &s.animation.motion.x, &s.animation.motion.y);
+        s.animation.who_was_grabbed = search_for_grab(s, s.animation.motion.x, s.animation.motion.y);
+        if (s.animation.who_was_grabbed < 0) xpp::log(XPP_LOG_INFO, "Nothing grabbed\n");
     }
     if (flag == 0) { /* This is BUTTON RELEASE  */
-        if (who_was_grabbed < 0) return;
+        if (s.animation.who_was_grabbed < 0) return;
         do_grab_tasks(s, 2);
         set_to_init_data(s);
         s.animation.grab_flag = 0;
         redraw_params();
-        if (run_now_grab()) {
+        if (run_now_grab(s)) {
             xpp::run_now(s);
             s.animation.grab_flag = 0;
         }

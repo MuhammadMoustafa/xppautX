@@ -44,7 +44,7 @@ int ask_wait(Buf *b, int id)
     xpp::Session &s = client(); /* core code asks with no Session: the client's */
     BUF_LIT(b, "}");
     diag_flush(s, 1);
-    auto_data_update(1);
+    auto_data_update(s, 1);
     auto_settings_update(s);
     json_flush();
     if (session.script_mode) {

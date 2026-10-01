@@ -29,66 +29,67 @@ bool near(double a, double b) { return std::fabs(a - b) < 1e-12; }
 
 int main()
 {
+    xpp::AutoStability st;
     double r[N], i[N];
 
     /* a run from initial data: its first point is not computed */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr) == 0);
     r[0] = i[0] = 7;
-    CHECK(xpp::auto_stability_for(1, 1, N, r, i) == 0);
+    CHECK(xpp::auto_stability_for(st, 1, 1, N, r, i) == 0);
     CHECK(all_zero(r, i));
 
     /* a steady state's eigenvalues are kept as e^lambda, for their point only */
-    xpp::auto_stability_computed(1, 2, N, EIG, xpp::AUTO_STABILITY_STEADY);
-    CHECK(xpp::auto_stability_for(1, 2, N, r, i) == 1);
+    xpp::auto_stability_computed(st, 1, 2, N, EIG, xpp::AUTO_STABILITY_STEADY);
+    CHECK(xpp::auto_stability_for(st, 1, 2, N, r, i) == 1);
     CHECK(near(r[0], std::exp(-0.5) * std::cos(0.25)) && near(i[0], std::exp(-0.5) * std::sin(0.25)));
     CHECK(near(r[1], std::exp(-2.0)) && i[1] == 0);
-    CHECK(xpp::auto_stability_for(-1, -2, N, r, i) == 1); /* either sign: AUTO's stability flags */
-    CHECK(xpp::auto_stability_for(1, 3, N, r, i) == 0);   /* another point */
+    CHECK(xpp::auto_stability_for(st, -1, -2, N, r, i) == 1); /* either sign: AUTO's stability flags */
+    CHECK(xpp::auto_stability_for(st, 1, 3, N, r, i) == 0);   /* another point */
     CHECK(all_zero(r, i));
-    CHECK(xpp::auto_stability_for(2, 2, N, r, i) == 0);   /* another branch */
+    CHECK(xpp::auto_stability_for(st, 2, 2, N, r, i) == 0);   /* another branch */
     CHECK(all_zero(r, i));
 
     /* multipliers are kept as they are; more asked than computed: zeros */
-    xpp::auto_stability_computed(-2, 5, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
+    xpp::auto_stability_computed(st, -2, 5, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
     double r3[N + 1], i3[N + 1];
-    CHECK(xpp::auto_stability_for(-2, 5, N + 1, r3, i3) == 1);
+    CHECK(xpp::auto_stability_for(st, -2, 5, N + 1, r3, i3) == 1);
     CHECK(r3[0] == 1.0 && i3[0] == 0 && r3[1] == 0.3 && i3[1] == -0.4 && r3[2] == 0 && i3[2] == 0);
 
     /* a new run forgets what the last one computed */
-    xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
-    CHECK(xpp::auto_stability_for(-2, 5, N, r, i) == 0);
+    xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_NONE, 0, 0, nullptr, nullptr);
+    CHECK(xpp::auto_stability_for(st, -2, 5, N, r, i) == 0);
 
     /* a same-kind restart: the first point is the label's solution */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 1);
-    CHECK(xpp::auto_stability_for(1, 1, N, r, i) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_for(st, 1, 1, N, r, i) == 1);
     CHECK(r[0] == 0.9 && i[0] == 0.4 && r[1] == 0.9 && i[1] == -0.4);
-    CHECK(xpp::auto_stability_for(1, 2, N, r, i) == 0); /* only the first point */
-    xpp::auto_stability_computed(1, 2, N, EIG, xpp::AUTO_STABILITY_STEADY);
-    CHECK(xpp::auto_stability_for(1, 2, N, r, i) == 1 && near(r[1], std::exp(-2.0)));
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 1);
-    CHECK(xpp::auto_stability_for(-3, 1, N, r, i) == 1 && r[0] == 0.9);
+    CHECK(xpp::auto_stability_for(st, 1, 2, N, r, i) == 0); /* only the first point */
+    xpp::auto_stability_computed(st, 1, 2, N, EIG, xpp::AUTO_STABILITY_STEADY);
+    CHECK(xpp::auto_stability_for(st, 1, 2, N, r, i) == 1 && near(r[1], std::exp(-2.0)));
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_for(st, -3, 1, N, r, i) == 1 && r[0] == 0.9);
     /* a branch switch at a periodic branch point continues the same orbit */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 6, N, LAB_R, LAB_I) == 1);
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_STEADY, -1, xpp::AUTO_STABILITY_STEADY, 1, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 6, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, -1, xpp::AUTO_STABILITY_STEADY, 1, N, LAB_R, LAB_I) == 1);
 
     /* a change of kind: not computed */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 0);
-    CHECK(xpp::auto_stability_for(-2, 1, N, r, i) == 0 && all_zero(r, i)); /* periodic from a Hopf point */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_STEADY, 2, N, LAB_R, LAB_I) == 0);
-    CHECK(xpp::auto_stability_for(2, 1, N, r, i) == 0 && all_zero(r, i)); /* two parameters from a limit point */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_STEADY, 3, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_for(st, -2, 1, N, r, i) == 0 && all_zero(r, i)); /* periodic from a Hopf point */
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_STEADY, 2, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_for(st, 2, 1, N, r, i) == 0 && all_zero(r, i)); /* two parameters from a limit point */
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_STEADY, 1, xpp::AUTO_STABILITY_PERIODIC, 9, N, LAB_R, LAB_I) == 0);
     /* two-parameter to two-parameter, and boundary value problems, are not steady or periodic */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_OTHER, 9, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_OTHER, 2, xpp::AUTO_STABILITY_OTHER, 9, N, LAB_R, LAB_I) == 0);
     /* a period doubling's switch: the doubled orbit's multipliers are not the label's */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 0);
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, -27, N, LAB_R, LAB_I) == 0);
-    CHECK(xpp::auto_stability_for(-4, 1, N, r, i) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, -1, xpp::AUTO_STABILITY_PERIODIC, -27, N, LAB_R, LAB_I) == 0);
+    CHECK(xpp::auto_stability_for(st, -4, 1, N, r, i) == 0);
     /* but extending the orbit at a period doubling is the orbit itself */
-    CHECK(xpp::auto_stability_run_start(xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 1);
+    CHECK(xpp::auto_stability_run_start(st, xpp::AUTO_STABILITY_PERIODIC, 1, xpp::AUTO_STABILITY_PERIODIC, 7, N, LAB_R, LAB_I) == 1);
 
     /* what AUTO computes for the first point itself wins over the label's */
-    xpp::auto_stability_computed(1, 1, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
-    CHECK(xpp::auto_stability_for(1, 1, N, r, i) == 1 && r[1] == 0.3);
+    xpp::auto_stability_computed(st, 1, 1, N, MULT, xpp::AUTO_STABILITY_PERIODIC);
+    CHECK(xpp::auto_stability_for(st, 1, 1, N, r, i) == 1 && r[1] == 0.3);
 
     TEST_REPORT("auto_stability");
 }

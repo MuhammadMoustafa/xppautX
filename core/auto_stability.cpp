@@ -10,18 +10,10 @@ namespace xpp {
 
 namespace {
 
-/* one point's values, re and im */
-struct Values {
-    int br = 0, pt = 0; /* the point (abs), 0: none */
-    std::vector<double> re, im;
-};
 
-Values computed; /* the last point AUTO checked */
-Values first;    /* the running restart's first point (pt 1), when it has one */
-bool has_first;
 
 /* the n values v into evr/evi, zeros past what v holds */
-void copy_out(const Values &v, int n, double *evr, double *evi)
+void copy_out(const AutoStability::Values &v, int n, double *evr, double *evi)
 {
     for (int i = 0; i < n; i++) {
         bool in = static_cast<size_t>(i) < v.re.size();
@@ -30,7 +22,7 @@ void copy_out(const Values &v, int n, double *evr, double *evi)
     }
 }
 
-void forget(Values &v)
+void forget(AutoStability::Values &v)
 {
     v.br = v.pt = 0;
     v.re.clear();
@@ -42,8 +34,9 @@ constexpr int ITP_PD = 7;
 
 } // namespace
 
-void auto_stability_computed(int br, int pt, int n, const double *values, int kind)
+void auto_stability_computed(AutoStability &st, int br, int pt, int n, const double *values, int kind)
 {
+    AutoStability::Values &computed = st.computed;
     try {
         computed.br = std::abs(br);
         computed.pt = std::abs(pt);
@@ -65,10 +58,12 @@ void auto_stability_computed(int br, int pt, int n, const double *values, int ki
     }
 }
 
-int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, const double *evr,
+int auto_stability_run_start(AutoStability &st, int run, int isw, int label, int label_itp, int n, const double *evr,
                                         const double *evi)
 {
-    forget(computed);
+    AutoStability::Values &first = st.first;
+    bool &has_first = st.has_first;
+    forget(st.computed);
     forget(first);
     has_first = false;
     bool same = label != AUTO_STABILITY_NONE && label == run &&
@@ -86,8 +81,10 @@ int auto_stability_run_start(int run, int isw, int label, int label_itp, int n, 
     return has_first ? 1 : 0;
 }
 
-int auto_stability_for(int br, int pt, int n, double *evr, double *evi)
+int auto_stability_for(const AutoStability &st, int br, int pt, int n, double *evr, double *evi)
 {
+    const AutoStability::Values &computed = st.computed, &first = st.first;
+    const bool has_first = st.has_first;
     if (computed.pt != 0 && computed.br == std::abs(br) && computed.pt == std::abs(pt)) {
         copy_out(computed, n, evr, evi);
         return 1;
@@ -96,7 +93,7 @@ int auto_stability_for(int br, int pt, int n, double *evr, double *evi)
         copy_out(first, n, evr, evi);
         return 1;
     }
-    copy_out(Values{}, n, evr, evi);
+    copy_out(AutoStability::Values{}, n, evr, evi);
     return 0;
 }
 

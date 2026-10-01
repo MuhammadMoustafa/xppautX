@@ -322,7 +322,7 @@ void j_auto_refresh(void)
     static double last;
     if (xpp::every(last, 0.05)) {
         json_flush();
-        auto_data_update(0);
+        auto_data_update(client(), 0);
     }
 }
 
@@ -409,7 +409,7 @@ void j_auto_make_window(xpp::Session &s, std::string_view wname, std::string_vie
     s.auto_state.bifur.y0 = 2 * text_metrics.small_height;
     s.auto_state.bifur.hinttxt = "hint";
     diag_forget();      /* a new window has no data */
-    auto_data_forget(); /* nor an info strip or a stability circle */
+    auto_data_forget(s); /* nor an info strip or a stability circle */
     send_window("create", WIN_AUTO, s.auto_state.bifur.wid + 12 * text_metrics.small_width, s.auto_state.bifur.hgt + 4 * text_metrics.small_height, wname);
     draw_bif_axes(s);
 }
@@ -650,7 +650,7 @@ void auto_command(xpp::Session &s, const char *line)
         s.auto_state.bifur.exist = 0; /* auto_x11.c auto_kill; File/Auto opens it again */
         send_window("destroy", WIN_AUTO, 0, 0);
         diag_forget();
-        auto_data_forget();
+        auto_data_forget(s);
         s.auto_view = xpp::AutoView();
         for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
     }

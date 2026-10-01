@@ -9,6 +9,9 @@
    fort files open during a run and its work arrays). */
 #include <stdio.h>
 #include "auto_nox.h"
+#include "auto_data.h"
+#include "auto_stop.h"
+#include "auto_stability.h"
 #include "display_state.h"
 #include "xAuto.h"
 #include "xpp_io.h"
@@ -136,6 +139,12 @@ struct AutoState {
   /* the axes a one-parameter and a two-parameter plot had last
      (keep_last_plot, load_last_plot) */
   xpp::AUTOAX old1p{},old2p{};
+  /* why the runs' branches ended (auto_stop.h) */
+  xpp::AutoStop stop;
+  /* the stability values of the run's points (auto_stability.h) */
+  xpp::AutoStability stability;
+  /* what the info strip and the stability circle show (auto_data.h) */
+  xpp::AutoDataShown shown;
 };
 
 /* AUTO's work arrays (autlib1's allocate_global_memory owns their

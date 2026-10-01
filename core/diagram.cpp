@@ -172,7 +172,7 @@ void redraw_diagram(xpp::Session &s)
   draw_bif_axes(s);
   d=diagram_first(s.diagram);
   if(diagram_next(s.diagram,d)==NULL)return;
-  xpp::auto_data_hold(1); /* plotting again leaves the strip and circle as they were */
+  xpp::auto_data_hold(s,1); /* plotting again leaves the strip and circle as they were */
   while(1){
     type=xpp::get_bif_type(d->ibr,d->ntot,d->lab);
  
@@ -182,7 +182,7 @@ void redraw_diagram(xpp::Session &s)
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
-  xpp::auto_data_hold(0);
+  xpp::auto_data_hold(s,0);
 }
 
 namespace {

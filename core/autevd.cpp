@@ -96,7 +96,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   int type=get_bif_type(ibrs,ntots,lab);
   /* xppautX: the point's stability, or zeros: not computed (auto_stability.h) */
   std::vector<double> ev(2*static_cast<size_t>(n));
-  auto_stability_for(static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
+  auto_stability_for(s.auto_state.stability,static_cast<int>(ibrs),static_cast<int>(ntots),n,ev.data(),ev.data()+n);
 
   xpp::DIAGRAM p{};
   p.ibr=static_cast<int>(ibrs);
