@@ -3432,15 +3432,17 @@ def check_display_state():
         first = full(evs)[-1]
         check('display: the first run has nothing before it', not added(evs) and not any(e['erased'] for e in runs_of(evs)))
         evs = keys('i', {'key': 'g'})
-        got = added(evs)
         cols1 = {c['col']: c['data'] for c in first['columns']}
-        check('display: a second run keeps the first as an earlier run (one runs event, its data)',
-              len(got) == 1 and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
-              and {c['col']: values(c, None) for c in got[0]['columns']} == cols1
+        check('display: a second run keeps the first as an earlier run (one runs event: keep, the series the client'
+              ' holds, not its data again)',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['keep'] == 1 and not added(evs)
               and all(e['erased'] == 0 and not e['clear'] and e['drop'] == 0 for e in runs_of(evs)), str(runs_of(evs))[:300])
         evs = after(cmd='data', events=['series', 'plots'])
-        check('display: asking for the data again sends the earlier runs whole, once',
-              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and len(added(evs)) == 1, str(runs_of(evs))[:200])
+        got = added(evs)
+        check('display: asking for the data again sends the earlier runs whole, once: the data of the first run',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and len(got) == 1
+              and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
+              and {c['col']: values(c, None) for c in got[0]['columns']} == cols1, str(runs_of(evs))[:200])
         evs = keys('e')
         check('display: Erase forgets the earlier runs and hides the current one',
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 1

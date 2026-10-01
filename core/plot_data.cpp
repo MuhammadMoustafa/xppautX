@@ -185,18 +185,23 @@ std::vector<int> used_columns(const xpp::PlotCurves &s, int maxcol)
    - Erase forgets the runs and hides the current data until the next run
      or Redraw; Redraw shows the current data again, without the runs. */
 
-/* at most this many earlier runs per window, oldest dropped, and at most
-   this many rows in all of them, so memory stays bounded */
+/* at most this many earlier runs per window, the oldest dropped */
 constexpr std::size_t runs_keep = 50;
-constexpr long runs_max_rows = 4000000;
+/* and at most this many values (rows times columns, a float each) in the
+   earlier runs of all the windows together, so the core and the page each
+   hold at most 64 MB of them: a window keeping a run drops its own oldest
+   ones first, never its newest (the run just ended stays drawn) */
+constexpr long runs_max_values = 16000000;
 
 xpp::PlotDisplay &disp(xpp::Session &s, int pop) { return s.plot_display[pop]; }
 
 bool same_curves(const xpp::PlotCurves &a, const xpp::PlotCurves &b) { return a == b; }
 
 /* the runs event: the client drops its `drop` oldest runs (all of them when
-   `clear`), then adds the last `added` of ours; `erased` as now */
-void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size_t added)
+   `clear`), then with `keep` makes the series it holds now its newest run
+   (ours, the last one: the client has its data already), or adds the last
+   `added` of ours; `erased` as now */
+void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size_t added, bool keep = false)
 {
     const xpp::PlotDisplay &d = disp(s, pop);
     std::string o = "{\"ev\":\"runs\",\"win\":";
@@ -207,6 +212,8 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
     add_int(o, clear);
     o += ",\"drop\":";
     add_int(o, static_cast<long>(drop));
+    o += ",\"keep\":";
+    add_int(o, keep);
     if (series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"add\":[";
     for (std::size_t i = d.runs.size() - added; i < d.runs.size(); i++) {
@@ -235,26 +242,30 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
     emit(o);
 }
 
-/* `r` becomes the newest earlier run (within the limits); how many oldest
-   ones went, and whether it was kept */
+/* `r` becomes window pop's newest earlier run (within the limits); how many
+   oldest ones went, and whether it was kept */
 struct Kept {
     std::size_t drop = 0;
-    std::size_t added = 0;
+    bool kept = false;
 };
 
-Kept keep_run(xpp::PlotDisplay &d, xpp::PlotRun &&r)
+long run_values(const xpp::PlotRun &r) { return static_cast<long>(r.rows) * static_cast<long>(r.cols.size()); }
+
+Kept keep_run(xpp::Session &s, int pop, xpp::PlotRun &&r)
 {
     Kept k;
     if (r.rows <= 0) return k;
+    xpp::PlotDisplay &d = disp(s, pop);
     d.runs.push_back(std::move(r));
-    long rows = 0;
-    for (const xpp::PlotRun &x : d.runs) rows += x.rows;
+    long values = 0;
+    for (const xpp::PlotDisplay &w : s.plot_display)
+        for (const xpp::PlotRun &x : w.runs) values += run_values(x);
     std::size_t drop = d.runs.size() > runs_keep ? d.runs.size() - runs_keep : 0;
-    for (std::size_t i = 0; i < drop; i++) rows -= d.runs[i].rows;
-    while (drop + 1 < d.runs.size() && rows > runs_max_rows) rows -= d.runs[drop++].rows;
+    for (std::size_t i = 0; i < drop; i++) values -= run_values(d.runs[i]);
+    while (drop + 1 < d.runs.size() && values > runs_max_values) values -= run_values(d.runs[drop++]);
     d.runs.erase(d.runs.begin(), d.runs.begin() + static_cast<std::ptrdiff_t>(drop));
     k.drop = drop;
-    k.added = 1;
+    k.kept = true;
     return k;
 }
 
@@ -276,8 +287,8 @@ void runs_on_full(xpp::Session &s, int pop, const SeriesSig &sig, const std::vec
         d.erased = d.live = false;
         if (was) emit_runs(s, pop, false, 0, 0);
     } else if (sig.version != d.cur_version && d.cur.rows > 0) {
-        const Kept k = keep_run(d, std::move(d.cur));
-        emit_runs(s, pop, false, k.drop, k.added);
+        const Kept k = keep_run(s, pop, std::move(d.cur)); /* the series the client holds */
+        emit_runs(s, pop, false, k.drop, 0, k.kept);
     }
     d.has_cur = true;
     d.cur_version = sig.version;
@@ -302,19 +313,19 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
             if (from == 0) {
                 const std::vector<int> cols = d.cur.cols;
                 const xpp::PlotCurves curves = d.cur.curves;
-                k = keep_run(d, std::move(d.cur));
+                k = keep_run(s, pop, std::move(d.cur));
                 d.cur = xpp::PlotRun();
                 d.cur.curves = curves;
                 d.cur.cols = cols;
                 d.cur.data.assign(cols.size(), std::vector<float>());
             } else {
                 xpp::PlotRun r = d.cur;
-                k = keep_run(d, std::move(r));
+                k = keep_run(s, pop, std::move(r));
             }
         }
         d.erased = false;
         d.live = true;
-        emit_runs(s, pop, false, k.drop, k.added);
+        emit_runs(s, pop, false, k.drop, 0, k.kept); /* the client's series, as it holds it */
     } else if (!(d.live && !d.erased)) {
         const bool was = d.erased;
         d.erased = false;

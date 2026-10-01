@@ -136,7 +136,7 @@ export function onSeries(p: PlotsState, ev: SeriesEvent): PlotsState {
 /** the core's earlier runs of window `win` changed (Erase and Redraw included) */
 export function onWindowRuns(p: PlotsState, ev: RunsEvent): PlotsState {
   return update(p, ev.win, w => {
-    const history = onRuns(w.history, ev);
+    const history = onRuns(w.history, ev, w.series ?? null);
     return history === w.history ? w : {...w, history};
   });
 }
@@ -163,7 +163,7 @@ export function onMarks(p: PlotsState, ev: MarksEvent): PlotsState {
   return update(p, ev.win, w => ({...w, marks}));
 }
 
-/** null when the append does not continue the window's series (the full series that ends the command puts that right) */
+/** null when the append does not continue the window's series */
 export function onAppend(p: PlotsState, ev: SeriesAppendEvent): PlotsState | null {
   const w = windowOf(p, ev.win);
   const series = w?.series && appendRows(w.series, ev);

@@ -18,7 +18,7 @@ function run(v0: number, rows = 3): RunsEvent['add'][number] {
   };
 }
 const runs = (add: RunsEvent['add'], o: Partial<RunsEvent> = {}): RunsEvent =>
-  ({ev: 'runs', win: 1, erased: 0, clear: 0, drop: 0, add, ...o});
+  ({ev: 'runs', win: 1, erased: 0, clear: 0, drop: 0, keep: 0, add, ...o});
 const firstY = (s: AppState, i: number) => w1(s).history.runs[i].columns.get(2)![0];
 
 test('the core adds earlier runs, oldest first, with their columns and names', () => {
@@ -36,6 +36,23 @@ test('drop forgets the oldest runs, clear all of them', () => {
   assert.deepEqual(w1(s).history.runs.map((_, i) => firstY(s, i)), [20, 30]);
   s = ev(s, runs([], {clear: 1}));
   assert.equal(w1(s).history.runs.length, 0);
+});
+
+test('keep makes the series the window holds its newest run, without its data again', () => {
+  const series = {
+    ev: 'series', win: 1, rows: 2, three: 0, xlabel: 'V', ylabel: 'W', zlabel: '', version: 4,
+    curves: [{x: 0, y: 2, z: 0, color: 1, line: 1}], shift: [0, 0, 0],
+    columns: [{col: 0, name: 'T', data: [0, 1]}, {col: 2, name: 'W', data: [7, 8]}],
+  };
+  let s = ev(READY, runs([run(0)]));
+  s = ev(s, series);
+  const held = w1(s).series!;
+  s = ev(s, runs([], {drop: 1, keep: 1}));
+  const r = w1(s).history.runs;
+  assert.equal(r.length, 1);
+  assert.equal(r[0].columns.get(2), held.columns.get(2), 'the very same data');
+  assert.equal(r[0].rows, 2);
+  assert.equal(r[0].version, null);
 });
 
 test('erased is what the core says: Erase hides the current run, the next run or Redraw shows it', () => {

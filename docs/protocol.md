@@ -1250,12 +1250,15 @@ data (its `version`) keeps the current run as an earlier one, unless the
 current one grew by appends in this command (the `end` closes that run)
 or was erased; an append that starts again before the rows the client holds
 (a new run under way, the next run of a range) keeps the current run first.
-Erase forgets them and hides the current run (`erased` 1) until its next
-run or Redraw. At most 50 earlier runs and 4 million rows in all are kept,
-the oldest dropped.
+A run kept so is the series the client holds already, so the event says
+`keep` instead of sending its data again. Erase forgets them and hides the
+current run (`erased` 1) until its next run or Redraw. At most 50 earlier
+runs per window are kept, and 16 million values (rows times columns) in
+the earlier runs of all windows together: a window keeping a run drops its
+own oldest ones first, never its newest.
 
 ```
-{"ev":"runs","win":1,"erased":0,"clear":0,"drop":0,"enc":"f32","add":[
+{"ev":"runs","win":1,"erased":0,"clear":0,"drop":0,"keep":0,"enc":"f32","add":[
  {"rows":601,"three":0,"curves":[...],"shift":[0,0,0],
   "columns":[{"col":0,"name":"T","data":[...]},{"col":2,"name":"W","data":[...]}]}]}
 ```
@@ -1266,7 +1269,8 @@ the oldest dropped.
 | `erased` | 1: Erase blanked the window, the current series is not drawn |
 | `clear` | 1: forget every earlier run held first |
 | `drop` | forget this many of the oldest ones first |
-| `add` | runs to append, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `series`, of the columns the run's curves use |
+| `keep` | 1: then the window's series, as the client holds it, becomes the newest earlier run (a new run replaces it) |
+| `add` | runs to append after that, newest last: `rows`, `three`, `curves`, `shift` and `columns` (`col`, `name`, `data`) as in `series`, of the columns the run's curves use |
 
 Sent when it changes (not at all for a window with none), and whole (`clear`
 1 with all the runs) after `data` asks for `series` again.

@@ -212,6 +212,8 @@ export interface RunsEvent {
   erased: number;
   clear: number;
   drop: number;
+  /** 1: the window's series (as the client holds it) becomes its newest earlier run, before `add` */
+  keep: number;
   add: {
     rows: number;
     three: number;
