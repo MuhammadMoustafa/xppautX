@@ -151,6 +151,9 @@ struct IntegratorState {
   /* the step Rosenbrock's last advance ended with, its next one's first
      (odesol2.cpp rosen) */
   double rosen_htry = 0;
+  /* the step Dormand-Prince's last advance ended with, its next one's
+     first guess (dormpri.cpp dormprin) */
+  double dp_hout = 0;
   /* the array initial values in use */
   ArrayIcs array_ics;
   /* Sing pts' Monte Carlo search and Range */

@@ -15,12 +15,20 @@
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
    stdout) are xpp::log_printf WARNs: its Solver (solver.cpp) reports the failure
    itself; the stdout of --server is the protocol. */
-static long      nfcn, nstep, naccpt, nrejct;
-static double    hout, xold, xout;
-static unsigned  nrds, *indir;
-static double    *yy1, *k1, *k2, *k3, *k4, *k5, *k6, *k7, *k8, *k9, *k10,*ysti;
-static double    *rcont1, *rcont2, *rcont3, *rcont4;
-static double    *rcont5, *rcont6, *rcont7, *rcont8;
+namespace {
+/* one dop853 or dopri5 call's counts, its stages in the work memory and
+   its dense output (the step size it ends with is the Session's:
+   IntegratorState::dp_hout, the next call's first guess) */
+struct DpRun {
+  long nfcn=0, nstep=0, naccpt=0, nrejct=0;
+  double xold=0, xout=0;
+  unsigned nrds=0, *indir=nullptr;
+  double *yy1=nullptr, *k1=nullptr, *k2=nullptr, *k3=nullptr, *k4=nullptr, *k5=nullptr, *k6=nullptr,
+         *k7=nullptr, *k8=nullptr, *k9=nullptr, *k10=nullptr, *ysti=nullptr;
+  double *rcont1=nullptr, *rcont2=nullptr, *rcont3=nullptr, *rcont4=nullptr;
+  double *rcont5=nullptr, *rcont6=nullptr, *rcont7=nullptr, *rcont8=nullptr;
+};
+}
 
 void dprhs(xpp::Session &s, unsigned n, double t, double *y, double *f)
 {
@@ -48,7 +56,7 @@ int dp(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, d
 int dormprin(xpp::Session &s, int *istart, double *y, double *t, int n, double tout, double *tol, double *atol, int flag, int *kflag, double *work)
 {
   double hg=0.0;
-  if(*istart==0)hg=hout;
+  if(*istart==0)hg=s.integrator.dp_hout;
   *istart=0;
   switch(flag){
   case 0:
@@ -156,7 +164,7 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
 		   double hmax, double h, double* rtoler, double* atoler,
 		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
-		   double beta, double fac1, double fac2, unsigned* icont)
+		   double beta, double fac1, double fac2, unsigned* icont, DpRun &r)
 {
   double   facold, expo1, fac, facc1, facc2, fac11, posneg, xph;
   double   atoli, rtoli, hlamb, err, sk, hnew, ydiff, bspl;
@@ -366,21 +374,21 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   last  = 0;
   hlamb = 0.0;
   iasti = 0;
-  fcn (s, n, x, y, k1);
+  fcn (s, n, x, y, r.k1);
   hmax = fabs (hmax);
   iord = 8;
   if (h == 0.0)
-    h = hinit (s, n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
-  nfcn += 2;
+    h = hinit (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
+  r.nfcn += 2;
   reject = 0;
-  xold = x;
+  r.xold = x;
   
   if (iout)
   {
     irtrn = 1;
-    hout = 1.0;
-    xout = x;
-    solout (naccpt+1, xold, x, y, n, &irtrn); 
+    s.integrator.dp_hout = 1.0;
+    r.xout = x;
+    solout (r.naccpt+1, r.xold, x, y, n, &irtrn); 
     if (irtrn < 0)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
@@ -391,19 +399,19 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
   /* basic integration step */
   while (1)
   {
-    if (nstep > nmax)
+    if (r.nstep > nmax)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
-      xout = x;
-      hout = h;
+      r.xout = x;
+      s.integrator.dp_hout = h;
       return -2;
     }
 
     if (0.1 * fabs(h) <= fabs(x) * uround)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
-      xout = x;
-      hout = h;
+      r.xout = x;
+      s.integrator.dp_hout = h;
       return -3;
     }
 
@@ -413,55 +421,55 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       last = 1;
     }
 
-    nstep++;
+    r.nstep++;
 
     /* the twelve stages */
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * a21 * k1[i];
-    fcn (s, n, x+c2*h, yy1, k2);
+      r.yy1[i] = y[i] + h * a21 * r.k1[i];
+    fcn (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a31*k1[i] + a32*k2[i]);
-    fcn (s, n, x+c3*h, yy1, k3);
+      r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
+    fcn (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a41*k1[i] + a43*k3[i]);
-    fcn (s, n, x+c4*h, yy1, k4);
+      r.yy1[i] = y[i] + h * (a41*r.k1[i] + a43*r.k3[i]);
+    fcn (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
-      yy1[i] = y[i] + h * (a51*k1[i] + a53*k3[i] + a54*k4[i]);
-    fcn (s, n, x+c5*h, yy1, k5);
+      r.yy1[i] = y[i] + h * (a51*r.k1[i] + a53*r.k3[i] + a54*r.k4[i]);
+    fcn (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a61*k1[i] + a64*k4[i] + a65*k5[i]);
-    fcn (s, n, x+c6*h, yy1, k6);
+      r.yy1[i] = y[i] + h * (a61*r.k1[i] + a64*r.k4[i] + a65*r.k5[i]);
+    fcn (s, n, x+c6*h, r.yy1, r.k6);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a71*k1[i] + a74*k4[i] + a75*k5[i] + a76*k6[i]);
-    fcn (s, n, x+c7*h, yy1, k7);
+      r.yy1[i] = y[i] + h * (a71*r.k1[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
+    fcn (s, n, x+c7*h, r.yy1, r.k7);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a81*k1[i] + a84*k4[i] + a85*k5[i] + a86*k6[i] +
-			  a87*k7[i]);
-    fcn (s, n, x+c8*h, yy1, k8);
+      r.yy1[i] = y[i] + h * (a81*r.k1[i] + a84*r.k4[i] + a85*r.k5[i] + a86*r.k6[i] +
+			  a87*r.k7[i]);
+    fcn (s, n, x+c8*h, r.yy1, r.k8);
     for (i = 0; i <n; i++)
-      yy1[i] = y[i] + h * (a91*k1[i] + a94*k4[i] + a95*k5[i] + a96*k6[i] +
-			  a97*k7[i] + a98*k8[i]);
-    fcn (s, n, x+c9*h, yy1, k9);
+      r.yy1[i] = y[i] + h * (a91*r.k1[i] + a94*r.k4[i] + a95*r.k5[i] + a96*r.k6[i] +
+			  a97*r.k7[i] + a98*r.k8[i]);
+    fcn (s, n, x+c9*h, r.yy1, r.k9);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a101*k1[i] + a104*k4[i] + a105*k5[i] + a106*k6[i] +
-			  a107*k7[i] + a108*k8[i] + a109*k9[i]);
-    fcn (s, n, x+c10*h, yy1, k10);
+      r.yy1[i] = y[i] + h * (a101*r.k1[i] + a104*r.k4[i] + a105*r.k5[i] + a106*r.k6[i] +
+			  a107*r.k7[i] + a108*r.k8[i] + a109*r.k9[i]);
+    fcn (s, n, x+c10*h, r.yy1, r.k10);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a111*k1[i] + a114*k4[i] + a115*k5[i] + a116*k6[i] +
-			  a117*k7[i] + a118*k8[i] + a119*k9[i] + a1110*k10[i]);
-    fcn (s, n, x+c11*h, yy1, k2);
+      r.yy1[i] = y[i] + h * (a111*r.k1[i] + a114*r.k4[i] + a115*r.k5[i] + a116*r.k6[i] +
+			  a117*r.k7[i] + a118*r.k8[i] + a119*r.k9[i] + a1110*r.k10[i]);
+    fcn (s, n, x+c11*h, r.yy1, r.k2);
     xph = x + h;
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a121*k1[i] + a124*k4[i] + a125*k5[i] + a126*k6[i] +
-			  a127*k7[i] + a128*k8[i] + a129*k9[i] +
-			  a1210*k10[i] + a1211*k2[i]);
-    fcn (s, n, xph, yy1, k3);
-    nfcn += 11;
+      r.yy1[i] = y[i] + h * (a121*r.k1[i] + a124*r.k4[i] + a125*r.k5[i] + a126*r.k6[i] +
+			  a127*r.k7[i] + a128*r.k8[i] + a129*r.k9[i] +
+			  a1210*r.k10[i] + a1211*r.k2[i]);
+    fcn (s, n, xph, r.yy1, r.k3);
+    r.nfcn += 11;
     for (i = 0; i < n; i++)
     {
-      k4[i] = b1*k1[i] + b6*k6[i] + b7*k7[i] + b8*k8[i] + b9*k9[i] +
-	      b10*k10[i] + b11*k2[i] + b12*k3[i];
-      k5[i] = y[i] + h * k4[i];
+      r.k4[i] = b1*r.k1[i] + b6*r.k6[i] + b7*r.k7[i] + b8*r.k8[i] + b9*r.k9[i] +
+	      b10*r.k10[i] + b11*r.k2[i] + b12*r.k3[i];
+      r.k5[i] = y[i] + h * r.k4[i];
     }
      
     /* error estimation */
@@ -470,24 +478,24 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     if (!itoler)
       for (i = 0; i < n; i++)
       {
-	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(k5[i]));
-	erri = k4[i] - bhh1*k1[i] - bhh2*k9[i] - bhh3*k3[i];
+	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(r.k5[i]));
+	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
 	sqr = erri / sk;
 	err2 += sqr*sqr;
-	erri = er1*k1[i] + er6*k6[i] + er7*k7[i] + er8*k8[i] + er9*k9[i] +
-	       er10 * k10[i] + er11*k2[i] + er12*k3[i];
+	erri = er1*r.k1[i] + er6*r.k6[i] + er7*r.k7[i] + er8*r.k8[i] + er9*r.k9[i] +
+	       er10 * r.k10[i] + er11*r.k2[i] + er12*r.k3[i];
 	sqr = erri / sk;
 	err += sqr*sqr;
       }
     else
       for (i = 0; i < n; i++)
       {
-	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(k5[i]));
-	erri = k4[i] - bhh1*k1[i] - bhh2*k9[i] - bhh3*k3[i];
+	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(r.k5[i]));
+	erri = r.k4[i] - bhh1*r.k1[i] - bhh2*r.k9[i] - bhh3*r.k3[i];
 	sqr = erri / sk;
 	err2 += sqr*sqr;
-	erri = er1*k1[i] + er6*k6[i] + er7*k7[i] + er8*k8[i] + er9*k9[i] +
-	       er10 * k10[i] + er11*k2[i] + er12*k3[i];
+	erri = er1*r.k1[i] + er6*r.k6[i] + er7*r.k7[i] + er8*r.k8[i] + er9*r.k9[i] +
+	       er10 * r.k10[i] + er11*r.k2[i] + er12*r.k3[i];
 	sqr = erri / sk;
 	err += sqr*sqr;
       }
@@ -509,20 +517,20 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       /* step accepted */
 
       facold = max_d (err, 1.0E-4);
-      naccpt++;
-      fcn (s, n, xph, k5, k4);
-      nfcn++;
+      r.naccpt++;
+      fcn (s, n, xph, r.k5, r.k4);
+      r.nfcn++;
       
       /* stiffness detection */
-      if (!(naccpt % nstiff) || (iasti > 0))
+      if (!(r.naccpt % nstiff) || (iasti > 0))
       {
 	stnum = 0.0;
 	stden = 0.0;
 	for (i = 0; i < n; i++)
 	{
-	  sqr = k4[i] - k3[i];
+	  sqr = r.k4[i] - r.k3[i];
 	  stnum += sqr*sqr;
-	  sqr = k5[i] - yy1[i];
+	  sqr = r.k5[i] - r.yy1[i];
 	  stden += sqr*sqr;
 	}
 	if (stden > 0.0)
@@ -550,100 +558,100 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       if (iout == 2)
       {
 	/* save the first function evaluations */
-	if (nrds == n)
+	if (r.nrds == n)
 	  for (i = 0; i < n; i++)
 	  {
-	    rcont1[i] = y[i];
-	    ydiff = k5[i] - y[i];
-	    rcont2[i] = ydiff;
-	    bspl = h * k1[i] - ydiff;
-	    rcont3[i] = bspl;
-	    rcont4[i] = ydiff - h*k4[i] - bspl;
-	    rcont5[i] = d41*k1[i] + d46*k6[i] + d47*k7[i] + d48*k8[i] +
-			d49*k9[i] + d410*k10[i] + d411*k2[i] + d412*k3[i];
-	    rcont6[i] = d51*k1[i] + d56*k6[i] + d57*k7[i] + d58*k8[i] +
-			d59*k9[i] + d510*k10[i] + d511*k2[i] + d512*k3[i];
-	    rcont7[i] = d61*k1[i] + d66*k6[i] + d67*k7[i] + d68*k8[i] +
-			d69*k9[i] + d610*k10[i] + d611*k2[i] + d612*k3[i];
-	    rcont8[i] = d71*k1[i] + d76*k6[i] + d77*k7[i] + d78*k8[i] +
-			d79*k9[i] + d710*k10[i] + d711*k2[i] + d712*k3[i];
+	    r.rcont1[i] = y[i];
+	    ydiff = r.k5[i] - y[i];
+	    r.rcont2[i] = ydiff;
+	    bspl = h * r.k1[i] - ydiff;
+	    r.rcont3[i] = bspl;
+	    r.rcont4[i] = ydiff - h*r.k4[i] - bspl;
+	    r.rcont5[i] = d41*r.k1[i] + d46*r.k6[i] + d47*r.k7[i] + d48*r.k8[i] +
+			d49*r.k9[i] + d410*r.k10[i] + d411*r.k2[i] + d412*r.k3[i];
+	    r.rcont6[i] = d51*r.k1[i] + d56*r.k6[i] + d57*r.k7[i] + d58*r.k8[i] +
+			d59*r.k9[i] + d510*r.k10[i] + d511*r.k2[i] + d512*r.k3[i];
+	    r.rcont7[i] = d61*r.k1[i] + d66*r.k6[i] + d67*r.k7[i] + d68*r.k8[i] +
+			d69*r.k9[i] + d610*r.k10[i] + d611*r.k2[i] + d612*r.k3[i];
+	    r.rcont8[i] = d71*r.k1[i] + d76*r.k6[i] + d77*r.k7[i] + d78*r.k8[i] +
+			d79*r.k9[i] + d710*r.k10[i] + d711*r.k2[i] + d712*r.k3[i];
 	  }
 	else
-	  for (j = 0; j < nrds; j++)
+	  for (j = 0; j < r.nrds; j++)
 	  {
 	    i = icont[j];
-	    rcont1[j] = y[i];
-	    ydiff = k5[i] - y[i];
-	    rcont2[j] = ydiff;
-	    bspl = h * k1[i] - ydiff;
-	    rcont3[j] = bspl;
-	    rcont4[j] = ydiff - h*k4[i] - bspl;
-	    rcont5[j] = d41*k1[i] + d46*k6[i] + d47*k7[i] + d48*k8[i] +
-			d49*k9[i] + d410*k10[i] + d411*k2[i] + d412*k3[i];
-	    rcont6[j] = d51*k1[i] + d56*k6[i] + d57*k7[i] + d58*k8[i] +
-			d59*k9[i] + d510*k10[i] + d511*k2[i] + d512*k3[i];
-	    rcont7[j] = d61*k1[i] + d66*k6[i] + d67*k7[i] + d68*k8[i] +
-			d69*k9[i] + d610*k10[i] + d611*k2[i] + d612*k3[i];
-	    rcont8[j] = d71*k1[i] + d76*k6[i] + d77*k7[i] + d78*k8[i] +
-			d79*k9[i] + d710*k10[i] + d711*k2[i] + d712*k3[i];
+	    r.rcont1[j] = y[i];
+	    ydiff = r.k5[i] - y[i];
+	    r.rcont2[j] = ydiff;
+	    bspl = h * r.k1[i] - ydiff;
+	    r.rcont3[j] = bspl;
+	    r.rcont4[j] = ydiff - h*r.k4[i] - bspl;
+	    r.rcont5[j] = d41*r.k1[i] + d46*r.k6[i] + d47*r.k7[i] + d48*r.k8[i] +
+			d49*r.k9[i] + d410*r.k10[i] + d411*r.k2[i] + d412*r.k3[i];
+	    r.rcont6[j] = d51*r.k1[i] + d56*r.k6[i] + d57*r.k7[i] + d58*r.k8[i] +
+			d59*r.k9[i] + d510*r.k10[i] + d511*r.k2[i] + d512*r.k3[i];
+	    r.rcont7[j] = d61*r.k1[i] + d66*r.k6[i] + d67*r.k7[i] + d68*r.k8[i] +
+			d69*r.k9[i] + d610*r.k10[i] + d611*r.k2[i] + d612*r.k3[i];
+	    r.rcont8[j] = d71*r.k1[i] + d76*r.k6[i] + d77*r.k7[i] + d78*r.k8[i] +
+			d79*r.k9[i] + d710*r.k10[i] + d711*r.k2[i] + d712*r.k3[i];
 	  }
 
 	/* the next three function evaluations */
 	for (i = 0; i < n; i++)
-	  yy1[i] = y[i] + h * (a141*k1[i] + a147*k7[i] + a148*k8[i] +
-			      a149*k9[i] + a1410*k10[i] + a1411*k2[i] +
-			      a1412*k3[i] + a1413*k4[i]);
-	fcn (s, n, x+c14*h, yy1, k10);
+	  r.yy1[i] = y[i] + h * (a141*r.k1[i] + a147*r.k7[i] + a148*r.k8[i] +
+			      a149*r.k9[i] + a1410*r.k10[i] + a1411*r.k2[i] +
+			      a1412*r.k3[i] + a1413*r.k4[i]);
+	fcn (s, n, x+c14*h, r.yy1, r.k10);
 	for (i = 0; i < n; i++)
-	  yy1[i] = y[i] + h * (a151*k1[i] + a156*k6[i] + a157*k7[i] + a158*k8[i] +
-			      a1511*k2[i] + a1512*k3[i] + a1513*k4[i] +
-			      a1514*k10[i]);
-	fcn (s, n, x+c15*h, yy1, k2);
+	  r.yy1[i] = y[i] + h * (a151*r.k1[i] + a156*r.k6[i] + a157*r.k7[i] + a158*r.k8[i] +
+			      a1511*r.k2[i] + a1512*r.k3[i] + a1513*r.k4[i] +
+			      a1514*r.k10[i]);
+	fcn (s, n, x+c15*h, r.yy1, r.k2);
 	for (i = 0; i < n; i++)
-	  yy1[i] = y[i] + h * (a161*k1[i] + a166*k6[i] + a167*k7[i] + a168*k8[i] +
-			      a169*k9[i] + a1613*k4[i] + a1614*k10[i] +
-			      a1615*k2[i]);
-	fcn (s, n, x+c16*h, yy1, k3);
-	nfcn += 3;
+	  r.yy1[i] = y[i] + h * (a161*r.k1[i] + a166*r.k6[i] + a167*r.k7[i] + a168*r.k8[i] +
+			      a169*r.k9[i] + a1613*r.k4[i] + a1614*r.k10[i] +
+			      a1615*r.k2[i]);
+	fcn (s, n, x+c16*h, r.yy1, r.k3);
+	r.nfcn += 3;
 
 	/* final preparation */
-	if (nrds == n)
+	if (r.nrds == n)
 	  for (i = 0; i < n; i++)
 	  {
-	    rcont5[i] = h * (rcont5[i] + d413*k4[i] + d414*k10[i] +
-			     d415*k2[i] + d416*k3[i]);
-	    rcont6[i] = h * (rcont6[i] + d513*k4[i] + d514*k10[i] +
-			     d515*k2[i] + d516*k3[i]);
-	    rcont7[i] = h * (rcont7[i] + d613*k4[i] + d614*k10[i] +
-			     d615*k2[i] + d616*k3[i]);
-	    rcont8[i] = h * (rcont8[i] + d713*k4[i] + d714*k10[i] +
-			     d715*k2[i] + d716*k3[i]);
+	    r.rcont5[i] = h * (r.rcont5[i] + d413*r.k4[i] + d414*r.k10[i] +
+			     d415*r.k2[i] + d416*r.k3[i]);
+	    r.rcont6[i] = h * (r.rcont6[i] + d513*r.k4[i] + d514*r.k10[i] +
+			     d515*r.k2[i] + d516*r.k3[i]);
+	    r.rcont7[i] = h * (r.rcont7[i] + d613*r.k4[i] + d614*r.k10[i] +
+			     d615*r.k2[i] + d616*r.k3[i]);
+	    r.rcont8[i] = h * (r.rcont8[i] + d713*r.k4[i] + d714*r.k10[i] +
+			     d715*r.k2[i] + d716*r.k3[i]);
 	  }
         else
-	  for (j = 0; j < nrds; j++)
+	  for (j = 0; j < r.nrds; j++)
 	  {
 	    i = icont[j];
-	    rcont5[j] = h * (rcont5[j] + d413*k4[i] + d414*k10[i] +
-			     d415*k2[i] + d416*k3[i]);
-	    rcont6[j] = h * (rcont6[j] + d513*k4[i] + d514*k10[i] +
-			     d515*k2[i] + d516*k3[i]);
-	    rcont7[j] = h * (rcont7[j] + d613*k4[i] + d614*k10[i] +
-			     d615*k2[i] + d616*k3[i]);
-	    rcont8[j] = h * (rcont8[j] + d713*k4[i] + d714*k10[i] +
-			     d715*k2[i] + d716*k3[i]);
+	    r.rcont5[j] = h * (r.rcont5[j] + d413*r.k4[i] + d414*r.k10[i] +
+			     d415*r.k2[i] + d416*r.k3[i]);
+	    r.rcont6[j] = h * (r.rcont6[j] + d513*r.k4[i] + d514*r.k10[i] +
+			     d515*r.k2[i] + d516*r.k3[i]);
+	    r.rcont7[j] = h * (r.rcont7[j] + d613*r.k4[i] + d614*r.k10[i] +
+			     d615*r.k2[i] + d616*r.k3[i]);
+	    r.rcont8[j] = h * (r.rcont8[j] + d713*r.k4[i] + d714*r.k10[i] +
+			     d715*r.k2[i] + d716*r.k3[i]);
 	  }
       }
 
-      memcpy (k1, k4, n * sizeof(double)); 
-      memcpy (y, k5, n * sizeof(double));
-      xold = x;
+      memcpy (r.k1, r.k4, n * sizeof(double)); 
+      memcpy (y, r.k5, n * sizeof(double));
+      r.xold = x;
       x = xph;
 
       if (iout)
       {
-	hout = h;
-	xout = x;
-	solout (naccpt+1, xold, x, y, n, &irtrn);
+	s.integrator.dp_hout = h;
+	r.xout = x;
+	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
 	if (irtrn < 0)
 	{
 	  xpp::log(XPP_LOG_WARN, "Exit of dop853 at t = {:.16e}\n", x);
@@ -654,8 +662,8 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       /* normal exit */
       if (last)
       {
-	hout=hnew;
-	xout = x;
+	s.integrator.dp_hout=hnew;
+	r.xout = x;
 	return 1;
       }
 
@@ -671,8 +679,8 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
       /* step rejected */
       hnew = h / min_d (facc1, fac11/safe);
       reject = 1;
-      if (naccpt >= 1)
-	nrejct=nrejct + 1;
+      if (r.naccpt >= 1)
+	r.nrejct=r.nrejct + 1;
       last = 0;
     }
 
@@ -689,16 +697,17 @@ int dop853
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont,double *work)
 {
   int       arret, idid;
+  DpRun     r;
   unsigned  i;
-  /* indir (file-static, like rcont1..8 above) is only ever read back
+  /* indir (the run's, like rcont1..8) is only ever read back
      within this same call; RAII here still frees it on every return
      path without a manual xpp_free. */
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  nfcn = nstep = naccpt = nrejct = arret = 0;
-  rcont1 = rcont2 = rcont3 = rcont4 = rcont5 = rcont6 = rcont7 = rcont8 = NULL;
-  indir = NULL;
+  r.nfcn = r.nstep = r.naccpt = r.nrejct = arret = 0;
+  r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = r.rcont6 = r.rcont7 = r.rcont8 = NULL;
+  r.indir = NULL;
 
   /* n, the dimension of the system */
   if (n == UINT_MAX)
@@ -748,17 +757,17 @@ int dop853
   {
     
     /* is there enough memory to allocate rcont12345678&indir ? */
-    rcont1 = work;
-    rcont2 = rcont1+nrdens;
-    rcont3 = rcont2+nrdens;
-    rcont4 = rcont3+nrdens;
-    rcont5 = rcont4+nrdens;
-    rcont6 = rcont5+nrdens;
-    rcont7 = rcont6+nrdens;
-    rcont8 = rcont7+nrdens;
+    r.rcont1 = work;
+    r.rcont2 = r.rcont1+nrdens;
+    r.rcont3 = r.rcont2+nrdens;
+    r.rcont4 = r.rcont3+nrdens;
+    r.rcont5 = r.rcont4+nrdens;
+    r.rcont6 = r.rcont5+nrdens;
+    r.rcont7 = r.rcont6+nrdens;
+    r.rcont8 = r.rcont7+nrdens;
     if (nrdens < n) {
       indir_buf.assign(n, 0);
-      indir = indir_buf.data();
+      r.indir = indir_buf.data();
     }
 
     /* control of length of icont */
@@ -766,7 +775,7 @@ int dop853
     {
       if (icont)
 	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
-      nrds = n;
+      r.nrds = n;
     }
     else if (licont < nrdens)
     {
@@ -777,11 +786,11 @@ int dop853
     {
       if (iout < 2)
 	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
-      nrds = nrdens;
+      r.nrds = nrdens;
       for (i = 0; i < n; i++)
-	indir[i] = UINT_MAX;
+	r.indir[i] = UINT_MAX;
       for (i = 0; i < nrdens; i++)
-	indir[icont[i]] = i;
+	r.indir[icont[i]] = i;
     }
   }
 
@@ -825,20 +834,20 @@ int dop853
     hmax = xend - x;
 
   /* is there enough free memory for the method ? */
-  yy1 = work+8*nrdens;
-  k1 = yy1+n;
-  k2 = k1+n;
-  k3 = k2+n;
-  k4 = k3+n;
-  k5 = k4+n;
-  k6 = k5+n;
-  k7 = k6+n;
-  k8 = k7+n;
-  k9 = k8+n;
-  k10 = k9+n;
+  r.yy1 = work+8*nrdens;
+  r.k1 = r.yy1+n;
+  r.k2 = r.k1+n;
+  r.k3 = r.k2+n;
+  r.k4 = r.k3+n;
+  r.k5 = r.k4+n;
+  r.k6 = r.k5+n;
+  r.k7 = r.k6+n;
+  r.k8 = r.k7+n;
+  r.k9 = r.k8+n;
+  r.k10 = r.k9+n;
 
     idid = dopcor (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
-		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
+		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
     return idid;
 
 } /* dop853 */
@@ -923,7 +932,7 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
 		   double hmax, double h, double* rtoler, double* atoler,
 		   int itoler, SolTrait solout, int iout,
 		   long nmax, double uround, int meth, long nstiff, double safe,
-		   double beta, double fac1, double fac2, unsigned* icont)
+		   double beta, double fac1, double fac2, unsigned* icont, DpRun &r)
 {
   double   facold, expo1, fac, facc1, facc2, fac11, posneg, xph;
   double   atoli, rtoli, hlamb, err, sk, hnew, yd0, ydiff, bspl;
@@ -969,20 +978,20 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   last  = 0;
   hlamb = 0.0;
   iasti = 0;
-  fcn (s, n, x, y, k1);
+  fcn (s, n, x, y, r.k1);
   hmax = fabs (hmax);
   iord = 5;
   if (h == 0.0)
-    h = hinit5 (s, n, fcn, x, y, posneg, k1, k2, k3, iord, hmax, atoler, rtoler, itoler);
-  nfcn += 2;
+    h = hinit5 (s, n, fcn, x, y, posneg, r.k1, r.k2, r.k3, iord, hmax, atoler, rtoler, itoler);
+  r.nfcn += 2;
   reject = 0;
-  xold = x;
+  r.xold = x;
   if (iout)
   {
     irtrn = 1;
-    hout = h;
-    xout = x;
-    solout (naccpt+1, xold, x, y, n, &irtrn);
+    s.integrator.dp_hout = h;
+    r.xout = x;
+    solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
     if (irtrn < 0)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
@@ -993,19 +1002,19 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
   /* basic integration step */
   while (1)
   {
-    if (nstep > nmax)
+    if (r.nstep > nmax)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, more than nmax = {} are needed\n", x, nmax);
-      xout = x;
-      hout = h;
+      r.xout = x;
+      s.integrator.dp_hout = h;
       return -2;
     }
 
     if (0.1 * fabs(h) <= fabs(x) * uround)
     {
       xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}, step size too small h = {:.16e}\n", x, h);
-      xout = x;
-      hout = h;
+      r.xout = x;
+      s.integrator.dp_hout = h;
       return -3;
     }
 
@@ -1015,64 +1024,64 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       last = 1;
     }
 
-    nstep++;
+    r.nstep++;
 
     /* the first 6 stages */
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * a21 * k1[i];
-    fcn (s, n, x+c2*h, yy1, k2);
+      r.yy1[i] = y[i] + h * a21 * r.k1[i];
+    fcn (s, n, x+c2*h, r.yy1, r.k2);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a31*k1[i] + a32*k2[i]);
-    fcn (s, n, x+c3*h, yy1, k3);
+      r.yy1[i] = y[i] + h * (a31*r.k1[i] + a32*r.k2[i]);
+    fcn (s, n, x+c3*h, r.yy1, r.k3);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a41*k1[i] + a42*k2[i] + a43*k3[i]);
-    fcn (s, n, x+c4*h, yy1, k4);
+      r.yy1[i] = y[i] + h * (a41*r.k1[i] + a42*r.k2[i] + a43*r.k3[i]);
+    fcn (s, n, x+c4*h, r.yy1, r.k4);
     for (i = 0; i <n; i++)
-      yy1[i] = y[i] + h * (a51*k1[i] + a52*k2[i] + a53*k3[i] + a54*k4[i]);
-    fcn (s, n, x+c5*h, yy1, k5);
+      r.yy1[i] = y[i] + h * (a51*r.k1[i] + a52*r.k2[i] + a53*r.k3[i] + a54*r.k4[i]);
+    fcn (s, n, x+c5*h, r.yy1, r.k5);
     for (i = 0; i < n; i++)
-      ysti[i] = y[i] + h * (a61*k1[i] + a62*k2[i] + a63*k3[i] + a64*k4[i] + a65*k5[i]);
+      r.ysti[i] = y[i] + h * (a61*r.k1[i] + a62*r.k2[i] + a63*r.k3[i] + a64*r.k4[i] + a65*r.k5[i]);
     xph = x + h;
-    fcn (s, n, xph, ysti, k6);
+    fcn (s, n, xph, r.ysti, r.k6);
     for (i = 0; i < n; i++)
-      yy1[i] = y[i] + h * (a71*k1[i] + a73*k3[i] + a74*k4[i] + a75*k5[i] + a76*k6[i]);
-    fcn (s, n, xph, yy1, k2);
+      r.yy1[i] = y[i] + h * (a71*r.k1[i] + a73*r.k3[i] + a74*r.k4[i] + a75*r.k5[i] + a76*r.k6[i]);
+    fcn (s, n, xph, r.yy1, r.k2);
     if (iout == 2)
     {
-      if (nrds == n)
+      if (r.nrds == n)
       {
 	for (i = 0; i < n; i++)
 	{
-	  rcont5[i] = h * (d1*k1[i] + d3*k3[i] + d4*k4[i] + d5*k5[i] + d6*k6[i] + d7*k2[i]);
+	  r.rcont5[i] = h * (d1*r.k1[i] + d3*r.k3[i] + d4*r.k4[i] + d5*r.k5[i] + d6*r.k6[i] + d7*r.k2[i]);
 	}
       }
       else
       {
-	for (j = 0; j < nrds; j++)
+	for (j = 0; j < r.nrds; j++)
 	{
 	  i = icont[j];
-	  rcont5[j] = h * (d1*k1[i] + d3*k3[i] + d4*k4[i] + d5*k5[i] + d6*k6[i] + d7*k2[i]);
+	  r.rcont5[j] = h * (d1*r.k1[i] + d3*r.k3[i] + d4*r.k4[i] + d5*r.k5[i] + d6*r.k6[i] + d7*r.k2[i]);
 	}
       } 
     }
     for (i = 0; i < n; i++)
-      k4[i] = h * (e1*k1[i] + e3*k3[i] + e4*k4[i] + e5*k5[i] + e6*k6[i] + e7*k2[i]);
-    nfcn += 6;
+      r.k4[i] = h * (e1*r.k1[i] + e3*r.k3[i] + e4*r.k4[i] + e5*r.k5[i] + e6*r.k6[i] + e7*r.k2[i]);
+    r.nfcn += 6;
 
     /* error estimation */
     err = 0.0;
     if (!itoler)
       for (i = 0; i < n; i++)
       {
-	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(yy1[i]));
-	sqr = k4[i] / sk;
+	sk = atoli + rtoli * max_d (fabs(y[i]), fabs(r.yy1[i]));
+	sqr = r.k4[i] / sk;
 	err += sqr*sqr;
       }
     else
       for (i = 0; i < n; i++)
       {
-	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(yy1[i]));
-	sqr = k4[i] / sk;
+	sk = atoler[i] + rtoler[i] * max_d (fabs(y[i]), fabs(r.yy1[i]));
+	sqr = r.k4[i] / sk;
 	err += sqr*sqr;
       }
     err = sqrt (err / static_cast<double>(n));
@@ -1090,18 +1099,18 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       /* step accepted */
 
       facold = max_d (err, 1.0E-4);
-      naccpt++;
+      r.naccpt++;
 
       /* stiffness detection */
-      if (!(naccpt % nstiff) || (iasti > 0))
+      if (!(r.naccpt % nstiff) || (iasti > 0))
       {
 	stnum = 0.0;
 	stden = 0.0;
 	for (i = 0; i < n; i++)
 	{
-	  sqr = k2[i] - k6[i];
+	  sqr = r.k2[i] - r.k6[i];
 	  stnum += sqr*sqr;
-	  sqr = yy1[i] - ysti[i];
+	  sqr = r.yy1[i] - r.ysti[i];
 	  stden += sqr*sqr;
 	}
 	if (stden > 0.0)
@@ -1127,44 +1136,44 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
 
       if (iout == 2)
       {
-	if (nrds == n)
+	if (r.nrds == n)
 	{
 	  for (i = 0; i < n; i++)
 	  {
 	    yd0 = y[i];
-	    ydiff = yy1[i] - yd0;
-	    bspl = h * k1[i] - ydiff;
-	    rcont1[i] = y[i];
-	    rcont2[i] = ydiff;
-	    rcont3[i] = bspl;
-	    rcont4[i] = -h * k2[i] + ydiff - bspl;
+	    ydiff = r.yy1[i] - yd0;
+	    bspl = h * r.k1[i] - ydiff;
+	    r.rcont1[i] = y[i];
+	    r.rcont2[i] = ydiff;
+	    r.rcont3[i] = bspl;
+	    r.rcont4[i] = -h * r.k2[i] + ydiff - bspl;
 	  }
 	}
 	else
 	{
-	  for (j = 0; j < nrds; j++)
+	  for (j = 0; j < r.nrds; j++)
 	  {
 	    i = icont[j];
 	    yd0 = y[i];
-	    ydiff = yy1[i] - yd0;
-	    bspl = h * k1[i] - ydiff;
-	    rcont1[j] = y[i];
-	    rcont2[j] = ydiff;
-	    rcont3[j] = bspl;
-	    rcont4[j] = -h * k2[i] + ydiff - bspl;
+	    ydiff = r.yy1[i] - yd0;
+	    bspl = h * r.k1[i] - ydiff;
+	    r.rcont1[j] = y[i];
+	    r.rcont2[j] = ydiff;
+	    r.rcont3[j] = bspl;
+	    r.rcont4[j] = -h * r.k2[i] + ydiff - bspl;
 	  }
 	}
       }
-      memcpy (k1, k2, n * sizeof(double)); 
-      memcpy (y, yy1, n * sizeof(double));
-      xold = x;
+      memcpy (r.k1, r.k2, n * sizeof(double)); 
+      memcpy (y, r.yy1, n * sizeof(double));
+      r.xold = x;
       x = xph;
 
       if (iout)
       {
-	hout = h;
-	xout = x;
-	solout (naccpt+1, xold, x, y, n, &irtrn);
+	s.integrator.dp_hout = h;
+	r.xout = x;
+	solout (r.naccpt+1, r.xold, x, y, n, &irtrn);
 	if (irtrn < 0)
 	{
 	  xpp::log(XPP_LOG_WARN, "Exit of dopri5 at t = {:.16e}\n", x);
@@ -1175,8 +1184,8 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       /* normal exit */
       if (last)
       {
-	hout=hnew;
-	xout = x;
+	s.integrator.dp_hout=hnew;
+	r.xout = x;
 	return 1;
       }
 
@@ -1192,8 +1201,8 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
       /* step rejected */
       hnew = h / min_d (facc1, fac11/safe);
       reject = 1;
-      if (naccpt >= 1)
-	nrejct=nrejct + 1;
+      if (r.naccpt >= 1)
+	r.nrejct=r.nrejct + 1;
       last = 0;
     }
 
@@ -1210,16 +1219,17 @@ int dopri5
   long nmax, int meth, long nstiff, unsigned nrdens, unsigned* icont, unsigned licont, double *work)
 {
   int       arret, idid;
+  DpRun     r;
   unsigned  i;
-  /* indir (file-static, like rcont1..5 above) is only ever read back
+  /* indir (the run's, like rcont1..5) is only ever read back
      within this same call; RAII here still frees it on every return
      path without a manual xpp_free. */
   std::vector<unsigned> indir_buf;
 
   /* initialisations */
-  nfcn = nstep = naccpt = nrejct = arret = 0;
-  rcont1 = rcont2 = rcont3 = rcont4 = rcont5 = NULL;
-  indir = NULL;
+  r.nfcn = r.nstep = r.naccpt = r.nrejct = arret = 0;
+  r.rcont1 = r.rcont2 = r.rcont3 = r.rcont4 = r.rcont5 = NULL;
+  r.indir = NULL;
 
   /* n, the dimension of the system */
   if (n == UINT_MAX)
@@ -1268,14 +1278,14 @@ int dopri5
   else if (nrdens)
   {
     /* is there enough memory to allocate rcont12345&indir ? */
-    rcont1 = work;
-    rcont2 = rcont1+nrdens;
-    rcont3 = rcont2+nrdens;
-    rcont4 = rcont3+nrdens;
-    rcont5 = rcont4+nrdens;
+    r.rcont1 = work;
+    r.rcont2 = r.rcont1+nrdens;
+    r.rcont3 = r.rcont2+nrdens;
+    r.rcont4 = r.rcont3+nrdens;
+    r.rcont5 = r.rcont4+nrdens;
     if (nrdens < n) {
       indir_buf.assign(n, 0);
-      indir = indir_buf.data();
+      r.indir = indir_buf.data();
     }
 
     /* control of length of icont */
@@ -1283,7 +1293,7 @@ int dopri5
     {
       if (icont)
 	xpp::log(XPP_LOG_WARN, "Warning : when nrdens = n there is no need allocating memory for icont\n");
-      nrds = n;
+      r.nrds = n;
     }
     else if (licont < nrdens)
     {
@@ -1294,11 +1304,11 @@ int dopri5
     {
       if (iout < 2)
 	xpp::log(XPP_LOG_WARN, "Warning : put iout = 2 for dense output\n");
-      nrds = nrdens;
+      r.nrds = nrdens;
       for (i = 0; i < n; i++)
-	indir[i] = UINT_MAX;
+	r.indir[i] = UINT_MAX;
       for (i = 0; i < nrdens; i++)
-	indir[icont[i]] = i;
+	r.indir[icont[i]] = i;
     }
   }
 
@@ -1342,17 +1352,17 @@ int dopri5
     hmax = xend - x;
 
   /* is there enough free memory for the method ? */
-  yy1 = work+5*nrdens;
-  k1 = yy1+n;
-  k2 = k1+n;
-  k3 = k2+n;
-  k4 = k3+n;
-  k5 = k4+n;
-  k6 = k5+n;
-  ysti = k6+n;
+  r.yy1 = work+5*nrdens;
+  r.k1 = r.yy1+n;
+  r.k2 = r.k1+n;
+  r.k3 = r.k2+n;
+  r.k4 = r.k3+n;
+  r.k5 = r.k4+n;
+  r.k6 = r.k5+n;
+  r.ysti = r.k6+n;
 
     idid = dopcor5 (s, n, fcn, x, y, xend, hmax, h, rtoler, atoler, itoler,
-		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont);
+		   solout, iout, nmax, uround, meth, nstiff, safe, beta, fac1, fac2, icont, r);
 
     return idid;
 

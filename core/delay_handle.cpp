@@ -17,13 +17,6 @@
 
 namespace xpp {
 
-namespace {
-/* the stored history, NODE values per row, MaxDelay rows (a ring,
-   LatestDelay its newest row) */
-std::vector<double> DelayWork;
-}
-static int LatestDelay;
-static int MaxDelay;
 
 double delay_stab_eval(xpp::Session &s, double delay, int var)  /* this returns appropriate values for delay jacobian */
 {
@@ -55,10 +48,10 @@ int alloc_delay(xpp::Session &s, double big)
 
  n=static_cast<int>(big/fabs(s.numerics.delta_t))+1;
 
- MaxDelay=n;
- LatestDelay=1;
+ s.delay.rows=n;
+ s.delay.latest=1;
  s.delay.flag=0;
- DelayWork.assign(n*(s.model().node ),0.0);
+ s.delay.work.assign(n*(s.model().node ),0.0);
  s.delay.flag=1;
  s.delay.ndelay=0;
  s.delay.which=-1;
@@ -68,7 +61,7 @@ int alloc_delay(xpp::Session &s, double big)
 
 void free_delay(xpp::Session &s)
 {
- if(s.delay.flag)DelayWork=std::vector<double>();
+ if(s.delay.flag)s.delay.work=std::vector<double>();
  s.delay.flag=0;
 }
 
@@ -77,10 +70,10 @@ void stor_delay(xpp::Session &s, double *y)
  int i,in;
  int nodes=s.model().node;
  if(s.delay.flag==0)return;
- --LatestDelay;
- if(LatestDelay<0)LatestDelay+=MaxDelay;
- in=LatestDelay*(nodes );
- for(i=0;i<(nodes );i++)DelayWork[i+in]=y[i];
+ --s.delay.latest;
+ if(s.delay.latest<0)s.delay.latest+=s.delay.rows;
+ in=s.delay.latest*(nodes );
+ for(i=0;i<(nodes );i++)s.delay.work[i+in]=y[i];
 
 }
 
@@ -132,24 +125,24 @@ double get_delay(xpp::Session &s, int in, double tau)
 			return(0.0);
   			}
  if(tau==0.0) /* check fro zero delay and ignore the rest */
-   return DelayWork[in+nodes*(LatestDelay%MaxDelay)];
+   return s.delay.work[in+nodes*(s.delay.latest%s.delay.rows)];
   xa[1]=n1*dd;
   xa[0]=xa[1]-dd;
   xa[2]=xa[1]+dd;
   xa[3]=xa[2]+dd;
-  i1=(n1+LatestDelay)%MaxDelay;
-  i2=(n2+LatestDelay)%MaxDelay;
-  i0=(n0+LatestDelay)%MaxDelay;
-  i3=(n3+LatestDelay)%MaxDelay;
-  if(i1<0)i1+=MaxDelay;
-  if(i2<0)i2+=MaxDelay;
-  if(i3<0)i3+=MaxDelay;
-  if(i0<0)i0+=MaxDelay;
+  i1=(n1+s.delay.latest)%s.delay.rows;
+  i2=(n2+s.delay.latest)%s.delay.rows;
+  i0=(n0+s.delay.latest)%s.delay.rows;
+  i3=(n3+s.delay.latest)%s.delay.rows;
+  if(i1<0)i1+=s.delay.rows;
+  if(i2<0)i2+=s.delay.rows;
+  if(i3<0)i3+=s.delay.rows;
+  if(i0<0)i0+=s.delay.rows;
 
-  ya[1]=DelayWork[in+(nodes )*i1];
-  ya[2]=DelayWork[in+(nodes )*i2];
-   ya[0]=DelayWork[in+(nodes )*i0];
-  ya[3]=DelayWork[in+(nodes )*i3];
+  ya[1]=s.delay.work[in+(nodes )*i1];
+  ya[2]=s.delay.work[in+(nodes )*i2];
+   ya[0]=s.delay.work[in+(nodes )*i0];
+  ya[3]=s.delay.work[in+(nodes )*i3];
   polint(xa,ya,tau,y,dy);
   
   return(y);
@@ -176,7 +169,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 		return xpp::fail("delay","Illegal delay expression");
 		}
 	 }        /*  Okay all formulas are cool... */
-  LatestDelay=1;
+  s.delay.latest=1;
 
   get_val(s,"t",&old_t);
 

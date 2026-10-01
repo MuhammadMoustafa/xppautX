@@ -36,28 +36,12 @@ namespace xpp {
 */
 
 #define CONV 2
-static int CurrentPoint;
-static int KnFlag;
-/* the values of each variable at every grid point (allocate_volterra), one per variable, not per kernel */
-static std::array<std::vector<double>,MAXODE> Memory;
-
-namespace {
-/* each kernel's running values (xpp::Model has its definition): the
-   integral at this step and the step before (k_n, k_n1), the sum up to
-   the step before, bet_nn, and at every grid point the weights alpbetjn
-   (al) and the convolution's values (cnv) */
-struct KernelState {
-  double k_n1=0.0,k_n=0.0,sum=0.0,betnn=0.0;
-  std::vector<double> al,cnv;
-};
-std::array<KernelState,MAXKER> kstate;
-}
 
 
 double ker_val(xpp::Session &s, int in)
 {
- if(KnFlag)return(kstate[in].k_n);
- return(kstate[in].k_n1);
+ if(s.volterra.kn_flag)return(s.volterra.kernels[in].k_n);
+ return(s.volterra.kernels[in].k_n1);
 }
 
 void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations */
@@ -75,7 +59,7 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
 
 /* First parse the kernels   since these were deferred */
   for(i=0;i<s.model().nkernel;i++){
-     kstate[i].k_n=0.0;
+     s.volterra.kernels[i].k_n=0.0;
      if(add_expr(s,kernels[i].expr,formula.data(),&len)){
        xpp::log(XPP_LOG_ERROR, "Illegal kernel {}={}\n",kernels[i].name,kernels[i].expr);
        model_failed(); /* fatal error ... */
@@ -104,10 +88,10 @@ void allocate_volterra(xpp::Session &s, int npts, int flag)
   /* flag==1 (a new grid) used to free the old blocks first; assigning the
      vectors again replaces them either way, so flag no longer matters */
   for(i=0;i<ntot;i++)
-    Memory[i].assign(s.numerics.max_points,0.0);
+    s.volterra.memory[i].assign(s.numerics.max_points,0.0);
 
-  CurrentPoint=0;
-  KnFlag=1;
+  s.volterra.current_point=0;
+  s.volterra.kn_flag=1;
   alloc_kernels(s,flag);
 }
 
@@ -121,7 +105,7 @@ void re_evaluate_kernels(xpp::Session &s)
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
 	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
-	kstate[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
+	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }  
   }
@@ -135,17 +119,17 @@ void alloc_kernels(xpp::Session &s, int flag)
   double mu;
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
-      kstate[i].cnv.assign(n+1,0.0);
+      s.volterra.kernels[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
 	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
-	kstate[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
+	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }
     /* Do the alpha functions here later  */
    if(kernels[i].mu>0.0){
      mu=kernels[i].mu;
-     kstate[i].al.assign(n+1,0.0);
-     for(j=0;j<=n;j++)kstate[i].al[j]=alpbetjn(mu,s.numerics.delta_t,j);
+     s.volterra.kernels[i].al.assign(n+1,0.0);
+     for(j=0;j<=n;j++)s.volterra.kernels[i].al[j]=alpbetjn(mu,s.numerics.delta_t,j);
    }
   }
 }
@@ -172,34 +156,34 @@ void init_sums(xpp::Session &s, double t0, int n, double dt, int i0, int iend, i
    int l,ioff,ker,i;
    setvar(s,0,t);
    setvar(s,s.model().prime_start,tp);
-   for(l=0;l<nvar;l++)setvar(s,l+1,Memory[l][ishift]);
+   for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][ishift]);
    for(ker=0;ker<s.model().nkernel;ker++){
-     kstate[ker].k_n1=kstate[ker].k_n;
+     s.volterra.kernels[ker].k_n1=s.volterra.kernels[ker].k_n;
      mu=kernels[ker].mu;
      if(mu==0.0)al=.5*dt;
      else al=alpha1n(mu,dt,t,tp);
      sum[ker]=al*evaluate(s,kernels[ker].formula.data());
      if(kernels[ker].flag==CONV)
-       sum[ker]=sum[ker]*kstate[ker].cnv[n-i0];
+       sum[ker]=sum[ker]*s.volterra.kernels[ker].cnv[n-i0];
      
    }
    for(i=1;i<=iend;i++){
      ioff=(ishift+i)%s.numerics.max_points;
      tp+=dt;
      setvar(s,s.model().prime_start,tp);
-     for(l=0;l<nvar;l++)setvar(s,l+1,Memory[l][ioff]);
+     for(l=0;l<nvar;l++)setvar(s,l+1,s.volterra.memory[l][ioff]);
      for(ker=0;ker<s.model().nkernel;ker++){
        mu=kernels[ker].mu;
        if(mu==0.0)alpbet=dt;
-       else alpbet=kstate[ker].al[n-i0-i];
+       else alpbet=s.volterra.kernels[ker].al[n-i0-i];
        if(kernels[ker].flag==CONV)
 	 sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data())
-		    *kstate[ker].cnv[n-i0-i]);
+		    *s.volterra.kernels[ker].cnv[n-i0-i]);
        else sum[ker]+=(alpbet*evaluate(s,kernels[ker].formula.data()));
      }
    }
    for(ker=0;ker<s.model().nkernel;ker++){
-     kstate[ker].sum=sum[ker];
+     s.volterra.kernels[ker].sum=sum[ker];
      
    }
 }
@@ -248,10 +232,10 @@ void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y t
     setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV)
-      kstate[i].k_n=kstate[i].sum+
-	kstate[i].betnn*evaluate(s,kernels[i].formula.data())*kstate[i].cnv[0];
+      s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+
+	s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula.data())*s.volterra.kernels[i].cnv[0];
     else 
-      kstate[i].k_n=kstate[i].sum+kstate[i].betnn*evaluate(s,kernels[i].formula.data());
+      s.volterra.kernels[i].k_n=s.volterra.kernels[i].sum+s.volterra.kernels[i].betnn*evaluate(s,kernels[i].formula.data());
   }
 }
      
@@ -270,15 +254,15 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
 
                                          /*  Initialization of everything   */  
   if(*istart==1){
-    CurrentPoint=0;
-    KnFlag=1;
+    s.volterra.current_point=0;
+    s.volterra.kn_flag=1;
     for(i=0;i<s.model().nkernel;i++){              /* zero the integrals              */
-      kstate[i].k_n=0.0;
-      kstate[i].k_n1=0.0;
+      s.volterra.kernels[i].k_n=0.0;
+      s.volterra.kernels[i].k_n1=0.0;
       mu=kernels[i].mu;                 /*  compute bet_nn                 */
       if(mu==0.0)bet=.5*dt;
       else bet=betnn(mu,dt,*t,*t);
-      kstate[i].betnn=bet;
+      s.volterra.kernels[i].betnn=bet;
     }
     setvar(s,0,*t);
     setvar(s,s.model().prime_start,*t);
@@ -295,8 +279,8 @@ int volterra(xpp::Session &s, double *y, double *t, double dt, int nt, int neq, 
     for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)       /* pass 2 for fixed variables      */   
       setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
     for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
-      Memory[i][0]=getvar(s,i+1);        /* save everything                 */
-    CurrentPoint=1;
+      s.volterra.memory[i][0]=getvar(s,i+1);        /* save everything                 */
+    s.volterra.current_point=1;
     *istart=0;
   }
 
@@ -317,11 +301,11 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  int n1=s.model().node+1;
  double dt2=.5*dt,err;
  double del,yold,fac,delinv;
- i0=MAX(0,CurrentPoint-s.numerics.max_points);
- iend=MIN(CurrentPoint-1,s.numerics.max_points-1);
+ i0=MAX(0,s.volterra.current_point-s.numerics.max_points);
+ iend=MIN(s.volterra.current_point-1,s.numerics.max_points-1);
  ishift=i0%s.numerics.max_points;
- init_sums(s,s.numerics.t0,CurrentPoint,dt,i0,iend,ishift); /*  initialize all the sums */
- KnFlag=0;
+ init_sums(s,s.numerics.t0,s.volterra.current_point,dt,i0,iend,ishift); /*  initialize all the sums */
+ s.volterra.kn_flag=0;
  for(i=0;i<neq;i++){
    setvar(s,i+1,y[i]);
    yg[i]=y[i];
@@ -335,7 +319,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    if(!s.model().eq_type[i])yp2[i]=y[i]+dt2*evaluate(s,s.model().programs[i].data());
    else yp2[i]=0.0;
  }
- KnFlag=1;
+ s.volterra.kn_flag=1;
  while(1){
    get_kn(s,yg,t);
     for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
@@ -384,10 +368,10 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  /* We have a good point; lets save it    */
  get_kn(s,yg,t);
  for(i=0;i<s.model().node;i++)y[i]=yg[i];
- ind=CurrentPoint%s.numerics.max_points;
+ ind=s.volterra.current_point%s.numerics.max_points;
  for(i=0;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)
-   Memory[i][ind]=getvar(s,i+1);
- CurrentPoint++;
+   s.volterra.memory[i][ind]=getvar(s,i+1);
+ s.volterra.current_point++;
 
  return(0);
  

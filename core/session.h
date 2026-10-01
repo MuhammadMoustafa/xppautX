@@ -163,6 +163,8 @@ struct Session {
      post-processing's (form_ode.cpp's create_plot_list, histogram.cpp);
      none: every column */
   std::vector<int> plot_list;
+  /* the integral equations' running state (volterra2.cpp) */
+  VolterraState volterra;
   /* Data's Fit settings (do_fit.cpp) */
   FitInfo fit;
   /* the algebraic variables' solver (dae_fun.cpp) */

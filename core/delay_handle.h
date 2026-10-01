@@ -4,6 +4,7 @@
 
 #include <array>
 #include <span>
+#include <vector>
 #include "xpp_error.h"
 #include "xpplim.h"
 
@@ -35,6 +36,10 @@ struct DelayState {
   double alpha_max = 2, omega_max = 2;
   std::array<std::array<double, MAXODE>, 2> variable_shift{};
   std::array<double, MAXDELAY> list{};
+  /* the stored history, NODE values per row, `rows` rows (a ring,
+     `latest` its newest row) */
+  std::vector<double> work;
+  int latest = 0, rows = 0;
 };
 
 } // namespace xpp
