@@ -27,7 +27,7 @@ core/xpp_files_dir.cpp 1 the file selector's current folder (process-wide, like 
 core/xpp_http.cpp 16 W122 has the file: the HTTP server's threads, sockets and locks (process-wide)
 core/xpp_inbox.cpp 12 the input queues the reader threads fill (process-wide, thread-shared)
 core/xpp_io.cpp 1 the temp-file name counter (process-wide)
-core/xpp_job.cpp 19 W122 has the file: the job's atomics the reader threads set (process-wide)
+core/xpp_job.cpp 21 the job's state the reader threads set (atomics) and its pacing clocks, the one clock read a stored row's throttles share among them (W122): process-wide, one job at a time
 core/xpp_log.cpp 3 the log threshold, AUTO's echo and the per-thread capture (process-wide, CLAUDE.md)
 core/xpp_math.cpp 3 the random number engine and Box-Muller's spare: W120 follow-up (the stochastic runs' generator into the Session)
 core/xpp_window.cpp 2 the desktop window's web view and its thread (process-wide, one window)
