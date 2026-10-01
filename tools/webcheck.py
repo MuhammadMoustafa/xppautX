@@ -296,7 +296,8 @@ def leave_session(ode=None):
     pt, tk = int(mm.group(1)), mm.group(2)
     c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
     c.request('GET', '/events?t=' + tk)
-    c.getresponse().readline()  # the first event: the page is connected
+    c.stream = c.getresponse()  # kept: a response nobody holds is garbage collected and closes its socket
+    c.stream.readline()  # the first event: the page is connected
     return p, pt, tk, c
 
 
@@ -338,12 +339,18 @@ if sess:
 sess = leave_session()
 if sess:
     p, pt, tk, c = sess
-    c.close()
-    check('W108: a reload leave beacon is accepted', leave_post(pt, tk) == 204)
-    c2 = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)  # the reloaded page's stream
+    # The reloaded page's stream is up before the beacon: a stream open when the wait ends keeps the
+    # session however long it took to connect, so the outcome does not depend on speed (W115). Root
+    # cause of the old flake: the check dropped its response object, Python closed the socket at once,
+    # and the server's two back-to-back heartbeats could both still succeed on the dead stream.
+    c2 = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
     c2.request('GET', '/events?t=' + tk)
-    c2.getresponse().readline()
-    time.sleep(3.5)  # past the 2 s wait
+    c2.stream = c2.getresponse()
+    c2.stream.readline()
+    c.close()  # the old page's stream closes, then its beacon
+    c.stream.close()
+    check('W108: a reload leave beacon is accepted', leave_post(pt, tk) == 204)
+    time.sleep(3.5)  # past the 2 s wait (a lower bound only: waiting longer cannot change the outcome)
     check('W108: the same process still answers after a reload inside the wait', p.poll() is None and answers(pt, tk))
     c2.close()
     p.kill()
