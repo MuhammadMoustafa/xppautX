@@ -62,31 +62,40 @@ export type DiagramEvent =
   /** the diagram has `n` views now (W50) */
   | {ev: 'diagram'; op: 'views'; n: number};
 
-/** the points, one column per field, point i across them (NaN for null) */
+/** the points, one column per field, point i across them (NaN for null).
+    A run's `add`s put their points after the last ones in place, as
+    store/series.ts's appends do: each field is a view, as long as the
+    points, of a buffer with room to spare that grows by doubling, so a run
+    of n points costs O(n) copying in all, not O(n) per add. The points a
+    state holds never change: rows an older state can see are never
+    rewritten (an add that starts before the end, or a truncation, gets new
+    buffers). */
 export interface DiagramPoints {
-  x: number[];
-  y: number[];
+  x: Float64Array;
+  y: Float64Array;
   /** the second value (the minimum for hi and lo); y where the event had none */
-  y2: number[];
-  br: number[];
-  pt: number[];
+  y2: Float64Array;
+  br: Float64Array;
+  pt: Float64Array;
   /** 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (the core's) */
-  ty: number[];
+  ty: Float64Array;
   /** 1: stable, 0: unstable (the run's `stable`) */
-  st: number[];
+  st: Float64Array;
   /** 1: a periodic orbit, 0: a steady state (the run's `periodic`) */
-  pe: number[];
+  pe: Float64Array;
   /** 0 not drawn (the next line starts there), 1 a line back, 2 filled circles, 3 open circles */
-  d: number[];
+  d: Float64Array;
   /** palette colour (0 the foreground, 20..29 red..purple) */
-  c: number[];
-  lw: number[];
+  c: Float64Array;
+  lw: Float64Array;
   /** two-parameter curve kind, 0 for one parameter */
-  f2: number[];
+  f2: Float64Array;
   /** 1: no line back to the point before */
-  nw: number[];
+  nw: Float64Array;
   /** the label its run started from (a run's first point only), 0 otherwise */
-  fr: number[];
+  fr: Float64Array;
+  /** the buffers behind the fields, at least as long: adds after the last point fill them in place */
+  buffers: Record<PointField, Float64Array>;
 }
 
 /** `autoinfo` `info`: the point AUTO's info strip shows (the grab's cursor) */
@@ -221,9 +230,31 @@ export interface AutoRun {
 }
 
 export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw', 'fr'] as const;
+export type PointField = typeof FIELDS[number];
+
+/** points over `buffers`, the first `n` of them */
+function pointsOver(buffers: Record<PointField, Float64Array>, n: number): DiagramPoints {
+  const out = {buffers} as DiagramPoints;
+  for (const f of FIELDS) out[f] = buffers[f].subarray(0, n);
+  return out;
+}
+
+/** new buffers of `capacity` points, the first `keep` of `p`'s copied in */
+function newBuffers(p: DiagramPoints, keep: number, capacity: number): Record<PointField, Float64Array> {
+  const out = {} as Record<PointField, Float64Array>;
+  for (const f of FIELDS) {
+    out[f] = new Float64Array(capacity);
+    out[f].set(p[f].subarray(0, keep));
+  }
+  return out;
+}
+
+const MIN_CAPACITY = 256;
 
 function noPoints(): DiagramPoints {
-  return {x: [], y: [], y2: [], br: [], pt: [], ty: [], st: [], pe: [], d: [], c: [], lw: [], f2: [], nw: [], fr: []};
+  const empty = {} as Record<PointField, Float64Array>;
+  for (const f of FIELDS) empty[f] = new Float64Array(0);
+  return pointsOver(empty, 0);
 }
 
 const HOME: Viewport = {x: null, y: null};
@@ -277,42 +308,46 @@ export function activeView(s: Pick<DiagramState, 'views' | 'active'>): DiagramVi
 
 const num = (v: number | null | undefined) => (v === null || v === undefined ? NaN : v);
 
-/** the first `k` points */
+/** the first `k` points (in buffers of their own: an add after them must not write over points
+    the longer state shows) */
 function truncate(p: DiagramPoints, k: number): DiagramPoints {
   if (k >= pointCount(p)) return p;
-  const out = {} as DiagramPoints;
-  for (const f of FIELDS) out[f] = p[f].slice(0, k);
-  return out;
+  return pointsOver(newBuffers(p, k, k), k);
 }
 
 /** `ev`'s points put in place from `from` on (the caller checked from <= held) */
 function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: DiagramRun[]):
   {points: DiagramPoints; labels: DiagramLabel[]} {
-  const out = {} as DiagramPoints;
-  for (const f of FIELDS) out[f] = p[f].slice(0, from);
+  const total = from + runs.reduce((n, r) => n + r.x.length, 0), held = pointCount(p);
+  let b = p.buffers;
+  if (from < held || total > b.x.length)
+    /* no room, or points `p` shows would be written over: new buffers (a run that starts again
+       starts small, a growing one doubles) */
+    b = newBuffers(p, from, Math.max(MIN_CAPACITY, total, from < held ? 2 * total : 2 * b.x.length));
   const labs = labels.filter(l => l.point < from);
+  let k = from;
   for (const r of runs) {
-    const base = out.x.length;
-    for (let i = 0; i < r.x.length; i++) {
+    const base = k;
+    for (let i = 0; i < r.x.length; i++, k++) {
       const y = num(r.y[i]);
-      out.x.push(num(r.x[i]));
-      out.y.push(y);
-      out.y2.push(r.y2 ? num(r.y2[i]) : y);
-      out.br.push(r.br);
-      out.pt.push(r.pt + i);
-      out.ty.push(r.ty);
-      out.st.push(r.stable ? 1 : 0);
-      out.pe.push(r.periodic ? 1 : 0);
-      out.d.push(r.d);
-      out.c.push(r.c);
-      out.lw.push(r.lw);
-      out.f2.push(r.f2 ?? 0);
-      out.nw.push(i === 0 && r.new ? 1 : 0);
-      out.fr.push(i === 0 && r.from ? r.from : 0);
+      b.x[k] = num(r.x[i]);
+      b.y[k] = y;
+      b.y2[k] = r.y2 ? num(r.y2[i]) : y;
+      b.br[k] = r.br;
+      b.pt[k] = r.pt + i;
+      b.ty[k] = r.ty;
+      b.st[k] = r.stable ? 1 : 0;
+      b.pe[k] = r.periodic ? 1 : 0;
+      b.d[k] = r.d;
+      b.c[k] = r.c;
+      b.lw[k] = r.lw;
+      b.f2[k] = r.f2 ?? 0;
+      b.nw[k] = i === 0 && r.new ? 1 : 0;
+      b.fr[k] = i === 0 && r.from ? r.from : 0;
     }
     for (const [i, lab, sym] of r.lab ?? []) labs.push({point: base + i, lab, sym});
   }
-  return {points: out, labels: labs};
+  return {points: pointsOver(b, total), labels: labs};
 }
 
 function axesOf(ev: DiagramAxes): DiagramAxes {

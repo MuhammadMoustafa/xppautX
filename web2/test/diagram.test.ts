@@ -57,10 +57,10 @@ test('add puts every point of every run in place, in order, labels included', ()
   const s = ev(opened(), add(0, steady));
   const p = activeView(s.diagram).points;
   assert.equal(pointCount(p), 9);
-  assert.deepEqual(p.pt, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.deepEqual(p.ty, [2, 1, 1, 1, 2, 2, 2, 1, 1]);
-  assert.deepEqual(p.nw, [1, 0, 0, 0, 0, 0, 0, 0, 0]);
-  assert.deepEqual(p.c, [0, 20, 20, 20, 0, 0, 0, 20, 20]);
+  assert.deepEqual([...p.pt], [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual([...p.ty], [2, 1, 1, 1, 2, 2, 2, 1, 1]);
+  assert.deepEqual([...p.nw], [1, 0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.deepEqual([...p.c], [0, 20, 20, 20, 0, 0, 0, 20, 20]);
   assert.deepEqual(p.y2, p.y, 'no y2 in the event: y2 is y');
   assert.equal(p.x[5], 0.3);
   assert.deepEqual(activeView(s.diagram).labels, [{point: 0, lab: 1, sym: 'EP'}, {point: 4, lab: 2, sym: 'HB'},
@@ -74,9 +74,9 @@ test('a later add continues from what is held; y2 and null values are kept', () 
   const p = activeView(s.diagram).points;
   assert.equal(pointCount(p), 12);
   assert.ok(Number.isNaN(p.y[9]), 'null is NaN');
-  assert.deepEqual(p.y2.slice(9), [-0.2, -0.23, -0.26]);
-  assert.deepEqual(p.br.slice(8), [1, 2, 2, 2]);
-  assert.deepEqual(p.nw.slice(9), [1, 0, 0]);
+  assert.deepEqual([...p.y2.slice(9)], [-0.2, -0.23, -0.26]);
+  assert.deepEqual([...p.br.slice(8)], [1, 2, 2, 2]);
+  assert.deepEqual([...p.nw.slice(9)], [1, 0, 0]);
 });
 
 test('an add from before the end replaces what follows; reset keeps the first k points', () => {
@@ -286,7 +286,7 @@ test('grab keys: points one by one (the ends wrap to the first), ten, the ends, 
 test('a periodic branch whose run says it started from the Hopf label joins that label, wherever it lies', () => {
   const tagged: DiagramRun[] = [{...periodic[0], from: 3, x: [0.44, 0.43, 0.42]}, periodic[1]];
   const s = ev(ev(opened(), add(0, steady)), add(9, tagged));
-  assert.deepEqual(activeView(s.diagram).points.fr.slice(8, 12), [0, 3, 0, 0], 'on the run\'s first point only');
+  assert.deepEqual([...activeView(s.diagram).points.fr.slice(8, 12)], [0, 3, 0, 0], 'on the run\'s first point only');
   const m = buildDiagramModel(activeView(s.diagram).points, activeView(s.diagram).labels, activeView(s.diagram).axes);
   assert.deepEqual(m.hopf, [{point: 9, from: 6}], 'label 3, the second Hopf point, not the nearer first');
   /* a run from a label that is not a Hopf point is not joined, even where one lies */
@@ -411,4 +411,16 @@ test("views (W50): each view its own axes, points and zoom; `views` resizes; the
   s = ev(s, {ev: 'diagram', op: 'views', n: 1});
   assert.equal(s.diagram.views.length, 1);
   assert.equal(s.diagram.views[0], one);
+});
+
+test('adds after the last point fill the same buffers; an older state keeps its own points', () => {
+  let s = ev(opened(), add(0, steady));
+  const before = activeView(s.diagram).points;
+  s = ev(s, add(9, [{...periodic[0]}]));
+  const after = activeView(s.diagram).points;
+  assert.equal(after.buffers, before.buffers, 'in place: no copy');
+  assert.equal(pointCount(before), 9, 'the older state still holds 9');
+  const again = ev(s, add(5, [{...periodic[0]}]));
+  assert.notEqual(activeView(again.diagram).points.buffers, after.buffers, 'an add before the end gets new buffers');
+  assert.equal(after.br[10], 2, 'and leaves the points the state before shows as they were');
 });

@@ -2177,7 +2177,7 @@ async function autoView(dir) {
 
   /* the store is the events, exactly */
   const want = rebuildDiagram(await cdp.eval('__xpp.diagramEvents()'));
-  const got = await DS('d.points');
+  const got = await DS('Object.fromEntries(Object.keys(d.points).filter(k => k !== "buffers").map(k => [k, Array.from(d.points[k])]))');
   let bad = want.pts.length === got.x.length ? null : `${got.x.length} points held, ${want.pts.length} sent`;
   const same = (a, b) => (a === null ? b === null : a === b); /* NaN arrives as null through JSON */
   for (let i = 0; i < want.pts.length && !bad; i++) {
@@ -2185,7 +2185,7 @@ async function autoView(dir) {
       if (!same(want.pts[i][f], got[f][i])) bad = `point ${i} ${f}: ${got[f][i]} vs ${want.pts[i][f]}`;
   }
   const labels = await DS('d.labels');
-  const fr = await DS('d.points.fr');
+  const fr = await DS('Array.from(d.points.fr)');
   for (let i = 0; i < want.pts.length && !bad; i++) if (fr[i] !== want.pts[i].fr) bad = `point ${i} fr: ${fr[i]} vs ${want.pts[i].fr}`;
   check(`the store's diagram equals the diagram events (${want.pts.length} points, ${want.labels.length} labels)`,
     !bad && want.pts.length > 1000 && JSON.stringify(want.labels) === JSON.stringify(labels), bad || JSON.stringify(labels.slice(0, 5)));

@@ -102,9 +102,10 @@ export function hopfOf(p: DiagramPoints, labels: DiagramLabel[], s: number, span
   return best;
 }
 
-function extent(values: number[]): number {
+function extent(values: ArrayLike<number>): number {
   let min = Infinity, max = -Infinity;
-  for (const v of values) {
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
     if (v < min) min = v;
     if (v > max) max = v;
   }
