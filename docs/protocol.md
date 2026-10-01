@@ -602,6 +602,20 @@ stalled upload holds up no command, `abort` above all; two POSTs in flight at
 once may therefore reach the core in either order, and a client that needs
 its order sends the next one once the last was answered, as the page does.
 
+A client may number its commands (W124): `/cmd?t=TOKEN&p=PAGE&n=N`, `PAGE`
+its own id (1 to 64 letters, digits, `-` or `_`; the page uses 32 random hex
+digits, new on every load) and `N` 1, 2, ... in the order it sends them. A
+POST that failed with no answer (a connection the browser or the network
+dropped, before or after it got there) can then be sent again as it was:
+xppautX remembers the last number each id's commands reached the core with
+and answers a number not above it with 204 without running the command a
+second time. The page does that, after 0.1, 0.3, 1 and 3 seconds, and says
+the command did not reach xppautX only when all of these failed too; a
+status it got back (403, 413, 400) it never sends again. One of `p` and `n`
+without the other, or either malformed, is 400 "bad command number". A
+command without them (a script, `curl`) runs as it comes, each time it is
+sent.
+
 When the page goes away (web2's `pagehide`, browser mode only: the desktop
 window closes through its own path) it POSTs `/leave?t=TOKEN` with
 `navigator.sendBeacon` (204; 403 without the token). xppautX then waits about

@@ -8,16 +8,23 @@ import {HttpTransport, type Transport} from '../src/protocol/transport';
 import {Session} from '../src/session';
 import type {XppEvent} from '../src/protocol/types';
 
-/* fetch answering each POST with answer(n), n from 0; the bodies sent */
-function fakeFetch(answer: (n: number) => Promise<Response>): {started: string[]; restore: () => void} {
-  const started: string[] = [];
+/* fetch answering each POST with answer(n), n from 0; the bodies sent and their addresses */
+function fakeFetch(answer: (n: number) => Promise<Response>): {started: string[]; urls: string[]; restore: () => void} {
+  const started: string[] = [], urls: string[] = [];
   const real = globalThis.fetch;
-  globalThis.fetch = ((_url: string, init: {body: string}) => {
+  globalThis.fetch = ((url: string, init: {body: string}) => {
     started.push(init.body);
+    urls.push(url);
     return answer(started.length - 1);
   }) as unknown as typeof fetch;
-  return {started, restore: () => { globalThis.fetch = real; }};
+  return {started, urls, restore: () => { globalThis.fetch = real; }};
 }
+
+/* a POST's command number and page (W124) */
+const numbered = (url: string) => {
+  const q = new URLSearchParams(url.slice(url.indexOf('?')));
+  return {t: q.get('t'), p: q.get('p'), n: Number(q.get('n'))};
+};
 
 /* an EventSource that never connects: open() needs one, node has none */
 function fakeEventSource(): () => void {
@@ -36,7 +43,7 @@ test('each command is POSTed once the one before it was answered, in order', asy
   }));
   const es = fakeEventSource();
   try {
-    const t = new HttpTransport('?t=x', '/');
+    const t = new HttpTransport('?t=x', '/', []); /* no resend: the failure is said at once */
     const failed: string[] = [];
     t.open(() => {}, () => {}, text => failed.push(text));
     t.send({cmd: 'key', key: 'a'});
@@ -51,6 +58,52 @@ test('each command is POSTed once the one before it was answered, in order', asy
     await settle();
     assert.deepEqual(f.started.map(b => JSON.parse(b).cmd), ['key', 'answer', 'abort']);
     assert.deepEqual(failed, ['The command answer did not reach xppautX (refused)']);
+  } finally {
+    f.restore();
+    es();
+  }
+});
+
+test('W124: a POST that failed with no answer is sent again with the same number; each command has its own', async () => {
+  let tries = 0;
+  const f = fakeFetch(() => (tries++ === 1 ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(new Response(null))));
+  const es = fakeEventSource();
+  try {
+    const t = new HttpTransport('?t=x', '/', [0, 0]);
+    const failed: string[] = [];
+    t.open(() => {}, () => {}, text => failed.push(text));
+    t.send({cmd: 'key', key: 'a'});
+    t.send({cmd: 'answer', key: 'b'});
+    t.send({cmd: 'abort'});
+    for (let i = 0; i < 20; i++) await settle();
+    assert.deepEqual(f.started.map(b => JSON.parse(b).cmd), ['key', 'answer', 'answer', 'abort']);
+    const nums = f.urls.map(numbered);
+    assert.deepEqual(nums.map(u => u.n), [1, 2, 2, 3]);
+    assert.ok(nums.every(u => u.t === 'x' && u.p && u.p === nums[0].p), JSON.stringify(nums));
+    assert.deepEqual(failed, []);
+    const other = new HttpTransport('?t=x', '/', []);
+    other.send({cmd: 'key', key: 'a'});
+    for (let i = 0; i < 5; i++) await settle();
+    assert.notEqual(numbered(f.urls[4]).p, nums[0].p, 'another page has its own id');
+    assert.equal(numbered(f.urls[4]).n, 1);
+  } finally {
+    f.restore();
+    es();
+  }
+});
+
+test('W124: a command that fails every time is said once the resends are spent, and the next one goes on', async () => {
+  const f = fakeFetch(n => (n < 3 ? Promise.reject(new TypeError('Failed to fetch')) : Promise.resolve(new Response(null))));
+  const es = fakeEventSource();
+  try {
+    const t = new HttpTransport('?t=x', '/', [0, 0]);
+    const failed: string[] = [];
+    t.open(() => {}, () => {}, text => failed.push(text));
+    t.send({cmd: 'display'});
+    t.send({cmd: 'key', key: 'a'});
+    for (let i = 0; i < 20; i++) await settle();
+    assert.deepEqual(f.urls.map(u => numbered(u).n), [1, 1, 1, 2]);
+    assert.deepEqual(failed, ['The command display did not reach xppautX (Failed to fetch)']);
   } finally {
     f.restore();
     es();

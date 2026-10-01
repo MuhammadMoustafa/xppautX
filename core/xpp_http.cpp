@@ -94,6 +94,19 @@ struct WindowLine {
     std::string line; /* empty: a free slot */
 };
 
+/* The pages whose numbered commands are remembered (serve_cmd): one per
+   open tab or window, more than MAX_CLIENTS streams can hold, so a page is
+   only forgotten once it has long stopped sending. */
+constexpr int MAX_PAGES = 32;
+constexpr size_t PAGE_ID_MAX = 64; /* web2's ids are 32 hex digits */
+
+/* the last command a page numbered that reached the inbox */
+struct PageCommands {
+    std::string page;              /* its p=; empty: a free slot */
+    unsigned long long last = 0;   /* its n= */
+    unsigned long long used = 0;   /* Server::page_clock when it last sent: the oldest is forgotten first */
+};
+
 /* What the threads share, under `lock` unless said otherwise. Never
    destroyed: the connection, log and watchdog threads still run while
    exit() destroys statics (after at_exit), so it must outlive them. */
@@ -108,6 +121,8 @@ struct Server {
     std::string load_error; /* the error event of a model that did not load */
     std::array<WindowLine, MAX_WINDOWS> windows;
     std::string log_text; /* the last LOG_KEEP bytes printed */
+    std::array<PageCommands, MAX_PAGES> pages;
+    unsigned long long page_clock = 0;
 };
 Server &srv = *new Server;
 
@@ -407,6 +422,18 @@ bool token_ok(std::string_view target)
     return false;
 }
 
+/* the value of the query's first `key`=; nullopt when it has none */
+std::optional<std::string_view> query_value(std::string_view target, std::string_view key)
+{
+    for (size_t q = target.find('?'); q != std::string_view::npos; q = target.find('&', q + 1)) {
+        std::string_view v = target.substr(q + 1);
+        if (!v.starts_with(key) || v.substr(key.size(), 1) != "=") continue;
+        v.remove_prefix(key.size() + 1);
+        return v.substr(0, std::min(v.find('&'), v.size()));
+    }
+    return std::nullopt;
+}
+
 void open_events(sock_t s)
 {
     static constexpr std::string_view head = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n\r\n";
@@ -556,6 +583,48 @@ std::optional<std::string> url_decode(std::string_view s)
     return out;
 }
 
+/* A page numbers its commands (web2's HttpTransport, W124): p= its id and
+   n= 1, 2, ... in the order it sends them, one at a time. A POST that
+   failed without an answer (a connection the browser or the network lost)
+   may have arrived all the same, and the page sends it again: a number not
+   above the last one of this page that reached the inbox is answered as
+   before but not pushed twice. A command with neither (a script, curl) is
+   pushed as it comes. */
+enum class Numbered { no, yes, bad };
+constexpr size_t COMMAND_NUMBER_DIGITS = 18; /* fits an unsigned long long */
+
+Numbered command_number(std::string_view target, std::string_view &page, unsigned long long &n)
+{
+    std::optional<std::string_view> p = query_value(target, "p"), num = query_value(target, "n");
+    if (!p && !num) return Numbered::no;
+    if (!p || !num || p->empty() || p->size() > PAGE_ID_MAX || num->empty() || num->size() > COMMAND_NUMBER_DIGITS)
+        return Numbered::bad;
+    for (char c : *p)
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return Numbered::bad;
+    if (num->find_first_not_of("0123456789") != std::string_view::npos) return Numbered::bad;
+    page = *p;
+    n = std::strtoull(std::string(*num).c_str(), nullptr, 10);
+    return n > 0 ? Numbered::yes : Numbered::bad;
+}
+
+/* whether command n of `page` is new, remembering it if so (the lock is held) */
+bool first_arrival(std::string_view page, unsigned long long n)
+{
+    PageCommands *slot = nullptr;
+    for (PageCommands &p : srv.pages)
+        if (p.page == page) slot = &p;
+    if (!slot) { /* a free slot (used 0), else the page that sent least recently */
+        slot = &srv.pages[0];
+        for (PageCommands &p : srv.pages)
+            if (p.used < slot->used) slot = &p;
+        *slot = PageCommands{std::string(page), 0, 0};
+    }
+    slot->used = ++srv.page_clock;
+    if (n <= slot->last) return false;
+    slot->last = n;
+    return true;
+}
+
 /* POST /cmd: the whole body, then into the inbox */
 void serve_cmd(Request &q)
 {
@@ -566,6 +635,13 @@ void serve_cmd(Request &q)
     }
     if (n > CMD_MAX) {
         reply_text(q.s, "413 Payload Too Large", "command too long");
+        return;
+    }
+    std::string_view page;
+    unsigned long long number = 0;
+    const Numbered numbered = command_number(q.target, page, number);
+    if (numbered == Numbered::bad) {
+        reply_text(q.s, "400 Bad Request", "bad command number");
         return;
     }
     std::string body(static_cast<size_t>(n), '\0');
@@ -582,8 +658,10 @@ void serve_cmd(Request &q)
     }
     std::string_view cmd(body.c_str()); /* up to a NUL, as the C string it was */
     pthread_mutex_lock(&lock);
-    if (cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
-    if (srv.exit_event.empty()) push_command(cmd);
+    if (numbered == Numbered::no || first_arrival(page, number)) {
+        if (cmd.find("\"cmd\":\"answer\"") != std::string_view::npos) srv.sticky_ask.clear();
+        if (srv.exit_event.empty()) push_command(cmd);
+    }
     pthread_mutex_unlock(&lock);
     reply(q.s, "204 No Content", "text/plain", {});
 }
@@ -782,7 +860,8 @@ void drain(Request &q)
    pushed as soon as it has arrived; everything else is answered one at a
    time, as when a single thread answered them all (an upload, the event
    streams' registration). The page keeps its commands in order by sending
-   the next one once the last was answered (web2's HttpTransport). */
+   the next one once the last was answered (web2's HttpTransport), and
+   numbers them so that one sent again is not taken twice (serve_cmd). */
 void handle(sock_t s)
 {
     std::unique_ptr<Request> q = std::make_unique<Request>();

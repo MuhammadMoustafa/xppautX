@@ -255,6 +255,29 @@ if ask:
 idle.close()
 stall.close()
 
+# ---- W124: a page numbers its commands (p=, n=) and sends one again when its
+# POST failed with no answer; the server takes each number once
+def post_numbered(obj, page, n):
+    c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
+    c.request('POST', '/cmd?t=%s&p=%s&n=%s' % (token, page, n), body=json.dumps(obj))
+    return c.getresponse().status
+
+
+collect(lambda e: False, 0.5)  # what is still coming from the commands above
+sts = [post_numbered({'cmd': 'redraw'}, 'w124page', n) for n in (1, 1, 2, 1)]
+sts.append(post_numbered({'cmd': 'redraw'}, 'w124other', 1))  # another page counts on its own
+evs, _ = collect(lambda e: False, 3)
+idles = sum(1 for e in evs if e['ev'] == 'idle')
+check('W124: a numbered command sent again is answered (204) but taken once; another page counts on its own',
+      sts == [204] * 5 and idles == 3, '%s, %d idle' % (sts, idles))
+bad = [post_numbered({'cmd': 'redraw'}, p, n) for p, n in (('w124page', 'x'), ('w124page', '0'), ('bad%20id', 3), ('', 3))]
+c = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
+c.request('POST', '/cmd?t=%s&p=w124page' % token, body=json.dumps({'cmd': 'redraw'}))
+bad.append(c.getresponse().status)
+evs, _ = collect(lambda e: False, 1)
+check('W124: a bad or half command number is refused (400) and nothing runs',
+      bad == [400] * 5 and not any(e['ev'] == 'idle' for e in evs), '%s %s' % (bad, [e['ev'] for e in evs][:6]))
+
 post({'cmd': 'key', 'key': 'f'})
 post({'cmd': 'key', 'key': 'q'})
 _, ask = collect(lambda e: e['ev'] == 'ask')

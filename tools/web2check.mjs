@@ -69,10 +69,15 @@
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
      [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    A section a check fails in is rerun once; still failing is a FAIL,
-   passing on the rerun is FLAKY. XPP_CHECK_SLOW=N scales safety timeouts
+   passing on the rerun is FLAKY. A command the page said did not reach
+   the core (or was refused) is a FAIL in any attempt, never a flake (W124):
+   the page sends one again itself before it says so. XPP_CHECK_SLOW=N
+   scales safety timeouts
    for a slow runner (W40); it never scales a pass/fail budget (W58: draw
    times, long tasks and Stop latency are measured as perf: lines, never
-   failed).
+   failed). XPP_NETLOG=1 prints every /cmd POST the browser failed, with
+   its network error (CDP's Network domain: off by default, since it also
+   carries every event of the stream).
 
    Needs Node 22 or later and a browser, nothing else (tools/cdp.mjs). */
 import {spawnSync} from 'node:child_process';
@@ -4785,8 +4790,9 @@ async function warningFlashCheck() {
   }
 }
 
-async function sessionAttempt(ode, fn, expected) {
+async function sessionAttempt(ode, fn, expected, attempts) {
   const rec = record = [];
+  attempts.push(rec); /* its lost commands (rec.lost) count even if it throws */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
   const server = sessionServer = await startServer(bin, dir, [path.basename(ode)]);
@@ -4803,6 +4809,7 @@ async function sessionAttempt(ode, fn, expected) {
     if (e && typeof e === 'object') e.recorded = rec; /* what ran before it threw (thrown()) */
     throw e;
   } finally {
+    rec.lost = await lostCommands(expected);
     await stopServer(server);
     await sleep(300);
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
@@ -4835,10 +4842,40 @@ function thrown(ode, e, what) {
   if (rec.length) console.log(`    last check before it: ${rec[rec.length - 1].name}`);
 }
 
+/* W124: the page's own word that a command never reached the core (or was
+   refused): transport.ts sends a POST that failed with no answer again
+   before it says so, so this is a real loss, whatever made it */
+const LOST_COMMAND = /^The command \S+ (did not reach xppautX|was refused)/;
+async function lostCommands(expected) {
+  try {
+    return (await S('s.log.filter(l => l.kind === "error").map(l => l.text)'))
+      .filter(e => LOST_COMMAND.test(e) && !expected.includes(e));
+  } catch {
+    return []; /* no page to ask (it crashed): the attempt's own failure says so */
+  }
+}
+
+/* a lost command is a FAIL in whichever attempt it happened, the rerun
+   cannot make it a flake */
+function checkNoLostCommand(ode, attempts) {
+  const lost = attempts.flatMap(rec => rec.lost || []);
+  check(`${path.basename(ode)}: no command lost on the way to the core`, lost.length === 0, JSON.stringify(lost));
+}
+
 async function session(ode, fn, expected = []) {
+  const attempts = [];
+  try {
+    await sessionAttempts(ode, fn, expected, attempts);
+  } finally {
+    checkNoLostCommand(ode, attempts);
+  }
+}
+
+/* the section, and its rerun when a check failed: FLAKY or FAIL as above */
+async function sessionAttempts(ode, fn, expected, attempts) {
   let rec1;
   try {
-    rec1 = await sessionAttempt(ode, fn, expected);
+    rec1 = await sessionAttempt(ode, fn, expected, attempts);
   } catch (e) {
     record = null;
     thrown(ode, e, 'the first attempt');
@@ -4852,7 +4889,7 @@ async function session(ode, fn, expected = []) {
   console.log(`  (${path.basename(ode)}: ${firstFailedCount} check(s) failed; rerunning the section once)`);
   let rec2;
   try {
-    rec2 = await sessionAttempt(ode, fn, expected);
+    rec2 = await sessionAttempt(ode, fn, expected, attempts);
   } catch (e) {
     record = null;
     thrown(ode, e, 'the rerun');
@@ -5066,6 +5103,22 @@ async function main() {
   try {
     await cdp.send('Page.enable');
     await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
+    if (process.env.XPP_NETLOG) {
+      /* the renderer cancels a 204's empty body once it has the headers
+         (canceled: true), which loses nothing: only real failures print */
+      const sent = new Map(), t0 = Date.now(), before = cdp.onEvent;
+      cdp.onEvent = d => {
+        before(d);
+        const p = d.params;
+        if (d.method === 'Network.requestWillBeSent' && /\/cmd\?/.test(p.request.url))
+          sent.set(p.requestId, {body: p.request.postData, at: Date.now() - t0});
+        else if (d.method === 'Network.loadingFailed' && sent.has(p.requestId) && !p.canceled)
+          console.log(`netlog: POST /cmd ${sent.get(p.requestId).body} sent at ${sent.get(p.requestId).at} ms, `
+            + `failed at ${Date.now() - t0} ms: ${p.errorText}`);
+        if (d.method === 'Network.loadingFinished' || d.method === 'Network.loadingFailed') sent.delete(p.requestId);
+      };
+      await cdp.send('Network.enable');
+    }
     /* XPP_CPU_THROTTLE=N runs the page N times slower (Chrome's own CPU
        throttling), to reproduce a slow runner's timing here (W93) */
     if (Number(process.env.XPP_CPU_THROTTLE) > 1)
