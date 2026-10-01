@@ -79,15 +79,6 @@ bool is_space(char c)
   return isspace(static_cast<unsigned char>(c))!=0;
 }
 
-/* s without its leading and trailing white space */
-std::string trimmed(std::string_view s)
-{
-  size_t b=0,e=s.size();
-  while(b<e&&is_space(s[b]))b++;
-  while(e>b&&is_space(s[e-1]))e--;
-  return std::string(s.substr(b,e-b));
-}
-
 int atoi_of(std::string_view s)
 {
   return atoi(std::string(s).c_str());
@@ -105,11 +96,11 @@ std::string take_apart(std::string_view bob, double *value)
   size_t k=bob.find('=');
   if(k==std::string_view::npos){
     *value=0.0;
-    return trimmed(bob);
+    return std::string(xpp::trim_blanks(bob));
   }
   /* the number after the '=', whatever its length */
   *value=atof_of(bob.substr(k+1));
-  return trimmed(bob.substr(0,k));
+  return std::string(xpp::trim_blanks(bob.substr(0,k)));
 }
 
 /* old's first length characters, a final comma dropped */
@@ -193,7 +184,7 @@ std::vector<OdeItem> ode_items(std::string_view rhs)
     OdeItem item;
     item.name=take_apart(*tok,&item.value);
     size_t k=tok->find('=');
-    if(k!=std::string::npos)item.text=trimmed(std::string_view(*tok).substr(k+1));
+    if(k!=std::string::npos)item.text=std::string(xpp::trim_blanks(std::string_view(*tok).substr(k+1)));
     out.push_back(std::move(item));
   }
   return out;

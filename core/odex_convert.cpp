@@ -39,14 +39,6 @@ namespace xpp::odex {
 
 namespace {
 
-std::string trimmed(std::string_view s)
-{
-  size_t b = 0, e = s.size();
-  while (b < e && (s[b] == ' ' || s[b] == '\t' || s[b] == '\r' || s[b] == '\n')) b++;
-  while (e > b && (s[e - 1] == ' ' || s[e - 1] == '\t' || s[e - 1] == '\r' || s[e - 1] == '\n')) e--;
-  return std::string(s.substr(b, e - b));
-}
-
 /* the leading word of s */
 std::string leading_word(std::string_view s)
 {
@@ -64,7 +56,7 @@ public:
   explicit Spelling(const std::vector<std::string> &source)
   {
     for (const std::string &raw : source) {
-      std::string line = trimmed(raw);
+      std::string line = std::string(xpp::trim_blanks(raw));
       if (line.empty() || line[0] == '#' || line[0] == '"' || line[0] == '@' || line[0] == '%') continue;
       declarations(line);
       for (const std::string &w : words_of(line)) first_.emplace(xpp::upper_case(w), w);
@@ -72,7 +64,7 @@ public:
     int n = 0;
     for (const std::string &raw : source) {
       n++;
-      std::string line = trimmed(raw);
+      std::string line = std::string(xpp::trim_blanks(raw));
       if (line.empty() || line[0] == '#' || line[0] == '"') continue;
       for (const std::string &w : words_of(line)) {
         auto d = decl_.find(xpp::upper_case(w));
@@ -161,7 +153,7 @@ private:
     if (next == '(') {
       const size_t close = rest.find(')');
       if (close == std::string_view::npos) return;
-      const std::string inside = trimmed(rest.substr(1, close - 1));
+      const std::string inside = std::string(xpp::trim_blanks(rest.substr(1, close - 1)));
       const std::string upper = xpp::upper_case(inside);
       if (upper == "0") return; /* an initial value */
       declare(first);
@@ -800,7 +792,7 @@ private:
   {
     char *end = nullptr;
     const std::string &text = b.value.text;
-    const std::string t = trimmed(text);
+    const std::string t = std::string(xpp::trim_blanks(text));
     std::strtod(t.c_str(), &end);
     if (!t.empty() && end && *end == '\0') return print_number(b.value.value);
     pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", b.name,
@@ -864,7 +856,7 @@ private:
     case Statement::Kind::Dae: return "0 = " + text(m_.aeqns[ndae_++].form) + "\n";
     case Statement::Kind::Solv: {
       const Model::AlgebraicVariable &a = m_.svars[nsol_++];
-      return "solv " + name(xpp::upper_case(trimmed(a.name))) + " = " + text(a.form) + "\n";
+      return "solv " + name(xpp::upper_case(std::string(xpp::trim_blanks(a.name)))) + " = " + text(a.form) + "\n";
     }
     case Statement::Kind::InitNumbers: return s.text.empty() ? items(s) : initial(s);
     case Statement::Kind::History: return history(s);
@@ -902,7 +894,7 @@ private:
     if (i < 0) refuse(xpp::format("{}(0): no such variable", s.bindings[0].name));
     const double z = m_.default_ic[i];
     char *end = nullptr;
-    const std::string t = trimmed(s.text);
+    const std::string t = std::string(xpp::trim_blanks(s.text));
     std::strtod(t.c_str(), &end);
     if (t.empty() || !end || *end != '\0')
       pending_ += noted(xpp::format("{}(0)={} in the .ode: XPP starts {} at {} (the number at the formula's front; the "
@@ -1041,7 +1033,7 @@ private:
   /* a network: its kind and arguments as written, each name spelled */
   std::string network(const Statement &s)
   {
-    std::string rhs = trimmed(s.text);
+    std::string rhs = std::string(xpp::trim_blanks(s.text));
     const size_t open = rhs.find('(');
     const size_t close = rhs.rfind(')');
     if (open == std::string::npos || close == std::string::npos || close < open)
@@ -1052,7 +1044,7 @@ private:
     std::string arg;
     int n = 0;
     auto flush = [&]() {
-      std::string a = trimmed(arg);
+      std::string a = std::string(xpp::trim_blanks(arg));
       if (is_name(a) && !is_reserved(xpp::lower_case(a))) {
         const std::string upper = xpp::upper_case(a);
         a = (find_user_name(m_, ICBOX, upper) >= 0 || find_lookup(s_, upper) >= 0 || get_var_index(s_, upper) >= 0) ? name(upper)
@@ -1099,9 +1091,9 @@ private:
         std::string action;
         for (const auto &[key, value] : option_items(c.action, true))
           action += (action.empty() ? "" : ",") + setting_name(key) + "=" + value;
-        t = "{" + action + "} " + trimmed(t.starts_with("* ") ? t.substr(2) : t);
+        t = "{" + action + "} " + std::string(xpp::trim_blanks(t.starts_with("* ") ? t.substr(2) : t));
       }
-      t = trimmed(t);
+      t = std::string(xpp::trim_blanks(t));
       if (t.find('"') != std::string::npos) {
         for (char &ch : t)
           if (ch == '"') ch = '\'';
@@ -1180,7 +1172,7 @@ private:
         out += "# " + std::string(*line) + "\n";
         continue;
       }
-      std::string t = trimmed(*line);
+      std::string t = std::string(xpp::trim_blanks(*line));
       if (t.empty() || !(t[0] == 'd' || t[0] == 'D')) continue;
       /* the reader's done: a word starting with d, no = ' / ( after it */
       const std::string w = leading_word(t);

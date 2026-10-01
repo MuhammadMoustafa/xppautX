@@ -40,14 +40,6 @@ void add_pair(std::string &o, double re, double im)
     o += ']';
 }
 
-/* a name as the strip shows it, without the blanks auto_bif_sym pads with */
-std::string trimmed(const char *s)
-{
-    std::string t = s ? s : "";
-    const std::size_t a = t.find_first_not_of(' '), b = t.find_last_not_of(' ');
-    return a == std::string::npos ? std::string() : t.substr(a, b - a + 1);
-}
-
 void add_info(std::string &o, const AutoDataShown &info)
 {
     const AutoDataInfo &v = info.v;
@@ -179,7 +171,7 @@ void auto_data_info(Session &s, const AutoDataInfo *v)
     if (!event.ready() || !v || info.held > 0) return;
     try {
         info.v = *v;
-        info.sym = trimmed(v->sym);
+        info.sym = std::string(xpp::trim_blanks(v->sym));
         info.p1name = v->p1name ? v->p1name : "";
         info.two = v->p2name != nullptr;
         info.p2name = info.two ? v->p2name : "";

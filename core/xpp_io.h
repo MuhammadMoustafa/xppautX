@@ -111,11 +111,13 @@ inline bool equal_ignoring_case(std::string_view a, std::string_view b)
   return true;
 }
 
-/* text without the blanks (space, tab, CR, LF) around it: a typed value
-   is read after this, so " 5 " is 5 and "5 x" is still refused */
+/* text without the white space (isspace's: blank, tab, CR, LF, VT, FF) around
+   it: a typed value is read after this, so " 5 " is 5 and "5 x" is still
+   refused; the one trim of the core. A view into `text`: copy it before
+   `text` goes. */
 inline std::string_view trim_blanks(std::string_view text)
 {
-  const std::string_view blanks=" \t\r\n";
+  const std::string_view blanks=" \t\r\n\v\f";
   const size_t b=text.find_first_not_of(blanks);
   if(b==std::string_view::npos)return {};
   return text.substr(b,text.find_last_not_of(blanks)-b+1);
