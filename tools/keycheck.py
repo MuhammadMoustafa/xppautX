@@ -163,7 +163,7 @@ def main():
     cmds = strip((ROOT / 'core/commands.cpp').read_text(encoding='utf-8'))
     start = cmds.index('void commander(xpp::Session &s, int ch)')
     body = block(cmds, start)
-    outer = block(body, body.index('switch (help_menu)'))
+    outer = block(body, body.index('switch (s.help_menu)'))
     for menu, keys in (('MAIN_MENU', 'main_menu_keys'), ('FILE_MENU', 'file_menu_keys')):
         i = outer.index(f'case {menu}:')
         inner = block(outer, outer.index('switch (ch)', i))
