@@ -225,7 +225,7 @@ and F1 open it too.
 
 The core reads and writes files on its own machine, in its working directory
 (the model's folder), and many of XPP's files refer to others by relative
-name: `.set` files, `.autox` diagrams, `#include`d files, `table` files, data
+name: an imported `.set`, `.autox` diagrams, `#include`d files, `table` files, data
 files for the browser's Load, `-anifile`. The page runs on the same machine
 (127.0.0.1) but the browser never tells a page where a picked file lives.
 
@@ -243,7 +243,7 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 - **The working directory stays the workspace.** XPP keeps reading and
   writing there, so relative references resolve as they always have, and
   scripts, `-silent` and the VS Code extension see the same files.
-- **Open** (a `file` ask for reading: Read set, Load diagram, the browser's
+- **Open** (a `file` ask for reading: Import XPPAUT set, Load diagram, the browser's
   Load, `session load`): the page shows the browser's picker
   (`showOpenFilePicker` where available, else `<input type=file multiple>`).
   The picked files are uploaded into the working directory; the ask is
@@ -252,14 +252,14 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
   resolve. A file whose name exists with other content is not overwritten
   without a confirm (Replace, Keep both as `name-2.ext`, Cancel); one with
   the same content is not copied.
-- **Save** (a `file` ask for writing: Write set, Save diagram, the browser's
+- **Save** (a `file` ask for writing: Save session, Save diagram, the browser's
   Write, `session save`, Save info, PostScript/SVG): where the File System
   Access API exists (Chrome, Edge, the VS Code webview), the page shows
   `showSaveFilePicker` with the ask's name suggested; the core writes the
   file into the working directory under that base name, and the page copies
   it to the picked location. Elsewhere (Firefox, Safari) the page asks for
   the name, the core writes it, and the page offers it as a download. Either
-  way the working directory has the latest copy, so a later Read set by name
+  way the working directory has the latest copy, so a later Import by name
   finds it.
 - **Missing companions.** When the core reports it cannot open a file (an
   error naming it), the notification offers "Add file…", which uploads it
@@ -619,8 +619,8 @@ Target: WCAG 2.2 AA. Rules:
   temporary file. `tools/servercheck.py`: the ask's `mode`, `file` put, get
   and list, refused names and data. `tests/test_files.cpp`: SHA-256
   vectors, names, the cap, abort and replace, every selector title's mode.
-  `tools/web2check.mjs`: Write set lands in the folder and is downloaded
-  (the same bytes); Read set by upload restores the parameters; the same
+  `tools/web2check.mjs`: Save session lands in the folder and is downloaded
+  (the same bytes); Import XPPAUT set by upload restores the parameters; the same
   content is not copied again; the replace confirm (Cancel, Keep both as
   `name-2.set`); "Add file…" after a file the core could not open.
 - **Animation** (T13): `tools/servercheck.py`: with tools/gui_test.ani
@@ -653,7 +653,7 @@ servercheck.py with them). Every task keeps `tools/verify.sh`,
 | T2 (**done**) | Live plotting: `series` `append` during integrations (throttled), store appends in place, binary option for long runs | T1 | yes | a 20 000-row run grows on screen; servercheck: the appended rows equal the final series; a 10^6-row series renders and zooms (draw times printed as `perf:` lines, W58) |
 | T3 (**done**) | Values panel: parameters, ICs, BCs, delays, sliders (`@ s1=`), user buttons, Reset, `%formula`, edits pending until the next computation (GitHub #117), no undo (GitHub #110) | T1 | no | web2check: edit a parameter, see it pending; move a slider, nothing sent; Go sends one set with the latest values, then runs; keyboard and 44 px targets; right column at 80 rem, sheet on a phone |
 | T4 (**done**) | Prompts complete: `*n` selects, checklist, mouse/rubber/drag asks as plot modes; core accepts data coordinates `xd`,`yd` | T1 | small | servercheck: an answer in data coordinates; web2check: Viewaxes form with a variable select; Window/Zoom by a box drawn on the plot, by mouse and by keyboard |
-| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Write set lands in the model's folder and is offered to the browser; Read set by upload restores parameters |
+| T5 (**done**) | Files: `/files` endpoints (list, get, put; streaming bodies), `file` asks through the browser's dialogs, the confirm on replace, "Add file…" for missing companions, `file` commands for `--server` | T4 | yes | webcheck: traversal and dot names refused, 64 MB cap, token required; web2check: Save session lands in the model's folder and is offered to the browser; Import XPPAUT set by upload restores parameters |
 | T6 (**done**) | Plot windows: `plots` event, series per window, tabs, Makewindow create/kill/select | T2 | yes | servercheck: two windows, each with its curves; web2check: switch tabs, each keeps its zoom |
 | T7 (**done**) | Nullclines and direction fields as data (`nullclines`, `dfield`), drawn in uPlot's draw hook | T6 | yes | servercheck: segment counts equal the classic draw ops' lines for lecar; web2check: the store holds them, they toggle in the legend |
 | T8 (**done**) | Marks: Sing pts equilibria, Graphic stuff text/arrows/markers, frozen curves; Greek labels as Unicode | T6 | yes | servercheck: `marks` after Sing pts has the equilibrium's coordinates; web2check: marks listed in the store and the legend |

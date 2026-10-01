@@ -21,7 +21,7 @@ const PLAYER: PlayerEvent = {
     {note: '', step: 'Initialconds → Go', keys: ['i', 'g'], button: 'Integrate'},
     {note: '', step: 'Zoom window 1', cmd: {cmd: 'display', win: 1}, view: true},
     {note: '', step: 'AUTO → Run', win: 'auto', keys: ['r', 's'], button: 'run'},
-    {note: '', step: 'File → Read set', keys: ['r'], answers: [{file: 'x.set'}, null, ['a', 'b']]},
+    {note: '', step: 'File → Import XPPAUT set', keys: ['r'], answers: [{file: 'x.set'}, null, ['a', 'b']]},
   ],
 };
 

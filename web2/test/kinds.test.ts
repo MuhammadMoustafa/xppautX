@@ -13,7 +13,7 @@ const may = (cmd: Command, computing: boolean, asking = false, menu = 0) =>
 test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', key: 'i'}), 'computation');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', key: 'w'}), 'view');
-  assert.equal(kindOf(HELLO, 1, {cmd: 'key', key: 'w'}), 'data'); /* File/Write set */
+  assert.equal(kindOf(HELLO, 1, {cmd: 'key', key: 's'}), 'data'); /* File/Save info */
   assert.equal(kindOf(HELLO, 1, {cmd: 'key', key: 'q'}), 'control');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', key: 'Escape'}), 'control');
   assert.equal(kindOf(HELLO, 0, {cmd: 'key', win: 'auto', key: 'r'}), 'computation');

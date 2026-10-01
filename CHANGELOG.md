@@ -29,6 +29,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - The AUTO view's Back button is now labelled Hide AUTO, with its tooltip explaining that AUTO stays open and Show AUTO brings it back (W152, #204)
 - The player's 1x is slower: every pace is 1.5 times what it was; the speeds stay 0.5x, 1x, 2x, 4x (W150, #202)
+- File > Read set and `-setfile` are now File > Import XPPAUT set and an import of the `.set` file XPPAUT wrote (it must end with XPPAUT's equations, `RHS etc ...`); a `.set` xppautX or its session wrote is refused at its end (W147, #199)
 - A session's `model.set` no longer carries the model's equations at its end (the session holds the model itself); sessions saved before this are refused (W145, #197)
 - Our own files (`.set`, `.par`, `.ic`, `.snapx`, `.autox`, AUTO's settings) load all or nothing: a bad value stops the load with the file, line and value, and nothing is applied; XPPAUT guessed ([finding 21](docs/xppaut-findings.md#21-set-par-and-ic-files-read-by-guessing)) (W125, #177)
 - Editing a value is one operation: one strict number rule everywhere, a multi-value set applies all or none, with the error on its own field (W131, #183)
@@ -46,6 +47,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Removed
 
+- File > Write set (the `w` key): a `.set` is no longer a file xppautX saves; a session (`.snapx`) holds all it did, `.par` and `.ic` stay (W147, #199)
 - The options file: a model's `option` line is refused at load with the line named, and `default.opt` is never read; write the settings as `@` lines, as XPPAUT in effect already required ([finding 4](docs/xppaut-findings.md#4-model-options)) (W139, #191)
 
 ### Fixed

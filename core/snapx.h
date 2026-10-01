@@ -28,7 +28,7 @@ inline constexpr std::string_view extension = ".snapx";
 /* the members, in the order a session file holds them: the manifest,
    the model's (model_folder below), then these */
 inline constexpr const char *manifest_member = "session.txt"; /* Manifest below */
-inline constexpr const char *set_member = "model.set";        /* File/Write set's file */
+inline constexpr const char *set_member = "model.set";        /* the session's set file */
 inline constexpr std::string_view auto_folder = "auto/";       /* AUTO's members, as an .autox has them (autox.h) */
 inline constexpr const char *windows_member = "windows.set";  /* the plot windows and what they display */
 inline constexpr const char *marks_member = "marks.set";      /* labels, arrows and markers, frozen curves */

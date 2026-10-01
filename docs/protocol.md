@@ -81,7 +81,7 @@ fields, always all of them, and `field`:
 - `file`: the file it is in or about, as the command was given it (a
   name in the model's folder, or a path); "" when none.
 - `line`, `col`: where in it, from 1; 0 when not known. A `file` with
-  `line` 0 is one the command could not read (File/Read set, a parameter
+  `line` 0 is one the command could not read (File/Import XPPAUT set, a parameter
   or IC file, a table, AUTO's files, a session or recording, W118): web2
   offers to add it to the model's folder under its own name and run the
   command again.
@@ -120,7 +120,7 @@ Loading one of xppautX's own files is one operation (W125, core/xpp_io.h
 into a value and every line and value checked, then the value is applied
 in one step, or, at the first line that is wrong, nothing is applied and
 the error names the file, the line and the line as written. The same for
-a set file (`.set`: File/Read set, `-setfile`), a parameter file (`.par`)
+an XPPAUT set file (`.set`: File/Import XPPAUT set, `-setfile`), a parameter file (`.par`)
 and an initial-conditions file (`.ic`: `values` `read`, `-parfile`,
 `-icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
 files"), AUTO's file and its settings file (`.autox`, `.autoset`: "AUTO
@@ -146,7 +146,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
 | `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `-silent` does after its run. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
 | `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `-silent`'s `-dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
 | `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `-silent`'s `-equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
@@ -179,7 +179,7 @@ Every action has a kind (W95), defined once in the core and sent in
 | control | `c` | Abort, Quit, an answer | acted on |
 | view | `v` | only changes what is shown: a zoom, a window picked, the data subscription, a menu that shows, Help | kept, and run after the computation |
 | setting | `s` | a value the next computation uses (W106): a parameter, an initial or boundary condition, a delay, the numerics (`set`, `slide`, `default`, `values` `read`/`internset`, the Parameters key, the Numerics menu's items that ask a value, File/Get par set), AUTO's Parameter, Numerics and Mark values (`auto` `set`, the AUTO window's keys `p`, `n`, `u`) | taken at once, applied when the computation ends: the run in progress keeps the values it started with |
-| data | `d` | saves and loads: Save/Load values' files, Write/Read set, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
+| data | `d` | saves and loads: Save/Load values' files, Import XPPAUT set, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
 - `hello.menus` has `main_kinds`, `file_kinds` and `num_kinds`, one letter
@@ -1234,7 +1234,7 @@ is a zip of ordinary files, in this order:
 |---|---|
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `-anifile`'s animation; byte for byte |
-| `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics), ending at its last value (XPPAUT's set file has its model's equations after it, written for a reader; a session's has none, W145): the original XPPAUT reads it |
+| `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `-setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision, its orbits and the views of it), when there is a diagram |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
@@ -1469,8 +1469,8 @@ keys it was answered with, exactly as it was driven; `grab`/`label` is for
 a script that names the point instead (W56's -silent commands).
 
 **The file ask's mode.** `mode` says whether the command opens the file
-(`read`: Read set, Load diagram, the browser's Load, Import, ...) or saves
-one (`write`: Write set, Save diagram, PostScript, SVG, ...), so a client
+(`read`: Import XPPAUT set, Load diagram, the browser's Load, Import, ...) or saves
+one (`write`: Save session, Save diagram, PostScript, SVG, ...), so a client
 can show an open or a save dialog. The core decides by the selector's title
 (`xpp_files_ask_mode` in core/xpp_files.cpp: a title starting with Load,
 Read, Import, Open, Select or Library reads, anything else writes;

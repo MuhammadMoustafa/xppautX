@@ -405,7 +405,7 @@ static int if_needed_load_set(xpp::Session &s)
   {
     return 1;
   }
-  if(const xpp::Result<> r=load_set_file(s,setfilename,true);!r)
+  if(const xpp::Result<> r=import_xppaut_set(s,setfilename,true);!r)
   {
     xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
@@ -578,7 +578,7 @@ int parse_it(xpp::Session &s, std::string_view com)
      xpp::log_printf(XPP_LOG_WARN, "  -ee                    Emulates shortcuts of Evil Empire style (MS)\n");
      xpp::log_printf(XPP_LOG_WARN, "  -allwin                Brings XPP up with all the windows visible\n");
      xpp::log_printf(XPP_LOG_WARN, "  -white                 Uses white screen instead of black\n");
-     xpp::log_printf(XPP_LOG_WARN, "  -setfile <filename>    Loads the set file before starting up\n");
+     xpp::log_printf(XPP_LOG_WARN, "  -setfile <filename>    Imports an XPPAUT set file before starting up\n");
      xpp::log_printf(XPP_LOG_WARN, "  -runnow                Runs ode file immediately upon startup (implied by -silent)\n");
      xpp::log_printf(XPP_LOG_WARN, "  -bigfont <font>        Use the big font whose filename is given\n");
      xpp::log_printf(XPP_LOG_WARN, "  -smallfont <font>      Use the small font whose filename is given\n");

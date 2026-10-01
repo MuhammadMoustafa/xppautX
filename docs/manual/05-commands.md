@@ -115,8 +115,7 @@ This is so important that a section is devoted to it. See below.
 
 This brings up a menu with several options. Type `Esc` to abort.
 - **(P)rt src**: Brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
-- **(W)rite set**: This creates a file with all of the info about the current numerics, etc as well as all of the currently highlighted graphics window. It is readable by the user. It in some sense saves the current state of XPP and can be read in later.
-- **(R)ead set**: This reads a set that you have previously written. The files are very tightly connected to the current ODE file so you should not load a saved file from one equation for a different problem. A set file is read whole and checked before anything is taken from it: a line that is not one of this model's, or a value that does not read, is an error naming the file and the line, and nothing changes.
+- **(R) Import XPPAUT set**: This imports a `.set` file that XPPAUT wrote (xppautX no longer writes one: **sa(V)e session** holds everything a set file did and more). The file is very tightly connected to the ODE file it was written for, so you should not import one from a different problem. The file must end with the equations XPPAUT writes after its last value (`RHS etc ...`, not read); one without them, such as a session's `model.set`, is refused. A set file is read whole and checked before anything is taken from it: a line that is not one of this model's, or a value that does not read, is an error naming the file and the line, and nothing changes.
 - **(A)uto**: This brings up the AUTO window. See below for a description of this.
 - **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
@@ -176,7 +175,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session**: Asks for a file name and writes one session file,
   `name.snapx`, to continue later exactly where you are: the model itself
-  (its `.ode` and every file it read), the values and numerics (**Write set**'s file), every
+  (its `.ode` and every file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
   frozen curves, AUTO's diagram and settings (as AUTO's **Save diagram**
   file, `.autox`, has them) and view, and the data table (NumPy's `.npz`). The earlier runs a

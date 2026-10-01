@@ -34,8 +34,8 @@
    its draw times and long tasks (read through __xpp; W40), and both runs'
    frame pacing and series appends per second (W82), printed as perf:
    lines, never pass/fail (W58: performance is for CI, not the program).
-   Files (T5): Write set lands in the model's folder and is downloaded, Read
-   set by upload restores the parameters, a same-content upload is not
+   Files (T5): Save session lands in the model's folder and is downloaded,
+   Import XPPAUT set by upload restores the parameters, a same-content upload is not
    copied, a same-name one asks Replace / Keep both / Cancel, and "Add
    file…" adds a file the core could not open and runs the command again.
    Animation (T13): tools/gui_test.ani loaded by upload, its frames in the
@@ -3670,10 +3670,10 @@ async function runsCheck(dir) {
 
   /* Save, then Load a changed copy (W66 review, #114): both go through
      the core (docs/protocol.md "values"). Save writes into the model's
-     folder, the same `pendingSave`/`deliver` path as Write set (T5,
+     folder, the same `pendingSave`/`deliver` path as Save session (T5,
      above) offers it as a download; Load uploads the picked file with
      the files API (session.ts loadValues, the same PUT any other upload
-     uses) and sends `values` `read` -- applied at once, like File/Read
+     uses) and sends `values` `read` -- applied at once, like File/Import XPPAUT
      set, so no Go is needed. */
   /* W95 (#143): a click while the page is busy with a command of its own (a redraw here, as its
      catch-up after an idle is) goes out and runs in its turn: Save is sent right behind it */
@@ -4314,6 +4314,13 @@ async function waitFile(p, ms = 10000) {
   return null;
 }
 
+/** the .set XPPAUT wrote for an older lecar.ode (examples/ode/lecar.ode.set: iapp 0.09, equations after
+    the values), its count of equations and auxiliaries made the model's today */
+function xppautLecarSet() {
+  const text = fs.readFileSync(path.join(top, 'examples/ode/lecar.ode.set'), 'utf8');
+  return Buffer.from(text.replace('4   Number of equations', '6   Number of equations'));
+}
+
 async function files(dir) {
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
@@ -4326,37 +4333,42 @@ async function files(dir) {
   try {
     const iapp0 = await par('iapp');
 
-    /* File/Write set: the core writes into the model's folder, the page offers it */
-    check('File/Write set opens a save dialog (the ask says it writes)', await fileMenu('w', 'write'),
+    /* File/saVe session: the core writes into the model's folder, the page offers it */
+    check('File/saVe session opens a save dialog (the ask says it writes)', await fileMenu('v', 'write'),
       JSON.stringify(await S('s.ask')));
-    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.set';
+    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
       i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
     await sleep(50);
     await key('Enter');
-    check('the ask is answered with the name', (await lastAnswer())?.file === 't5.set', JSON.stringify(await lastAnswer()));
-    const offered = await until("s.files.offered && s.files.offered.name === 't5.set' && !s.busy", 'offered');
-    const saved = fs.existsSync(path.join(dir, 't5.set')) ? fs.readFileSync(path.join(dir, 't5.set')) : null;
-    check('Write set lands in the model\'s folder', saved && saved.length > 100, String(saved && saved.length));
+    check('the ask is answered with the name', (await lastAnswer())?.file === 't5.snapx', JSON.stringify(await lastAnswer()));
+    const offered = await until("s.files.offered && s.files.offered.name === 't5.snapx' && !s.busy", 'offered');
+    const saved = fs.existsSync(path.join(dir, 't5.snapx')) ? fs.readFileSync(path.join(dir, 't5.snapx')) : null;
+    check('Save session lands in the model\'s folder', saved && saved.length > 100, String(saved && saved.length));
     const off = await S('s.files.offered');
     check('... and is offered to the browser as a download, the same bytes',
       offered && saved && off.how === 'download' && off.size === saved.length && off.sha256 === sha256(saved), JSON.stringify(off));
     if (canDownload) {
-      const got = await waitFile(path.join(downloads, 't5.set'));
+      const got = await waitFile(path.join(downloads, 't5.snapx'));
       check('the browser downloaded it', got && saved && got.equals(saved), String(got && got.length));
     }
 
-    /* File/Read set by upload restores the parameters */
+    /* the .set XPPAUT wrote for lecar.ode (its equations after the values): iapp 0.09, the model's 0.05 */
+    const setBytes = xppautLecarSet();
+    const setIapp = 0.09;
+    check('the model\'s iapp is not the set\'s', Math.abs(iapp0 - setIapp) > 1e-3, String(iapp0));
+    fs.writeFileSync(path.join(up, 't5up.set'), setBytes);
+
+    /* File/Import XPPAUT set by upload brings in its parameters */
     check('a new parameter value', await setPar('iapp', 0.2));
-    fs.copyFileSync(path.join(dir, 't5.set'), path.join(up, 't5up.set'));
-    check('File/Read set opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
+    check('File/Import XPPAUT set opens an open dialog (the ask says it reads)', await fileMenu('r', 'read'),
       JSON.stringify(await S('s.ask')));
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
-    check('Read set by upload restores the parameters (the next state has the file\'s values)',
-      await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${iapp0}) < 1e-12`, 'read set'),
+    check('Import XPPAUT set by upload brings in the parameters (the next state has the file\'s values)',
+      await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${setIapp}) < 1e-12`, 'import set'),
       String(await par('iapp')));
     const copied = fs.existsSync(path.join(dir, 't5up.set')) && fs.readFileSync(path.join(dir, 't5up.set'));
     check('the picked file was copied into the model\'s folder and the ask answered with its name',
-      copied && copied.equals(saved) && (await lastAnswer())?.file === 't5up.set'
+      copied && copied.equals(setBytes) && (await lastAnswer())?.file === 't5up.set'
       && (await S('s.files.uploads[0].copied')) === true, JSON.stringify(await S('s.files.uploads')));
 
     /* the same content again: not copied, still answered */
@@ -4365,19 +4377,12 @@ async function files(dir) {
     await pickFiles('[data-file-input=open]', [path.join(up, 't5up.set')]);
     check('a file already there with the same content is not copied again',
       await until(`!s.ask && !s.busy && s.files.uploads.length === 1 && s.files.uploads[0].copied === false`, 'same')
-      && Math.abs(await par('iapp') - iapp0) < 1e-12, JSON.stringify(await S('s.files.uploads')));
+      && Math.abs(await par('iapp') - setIapp) < 1e-12, JSON.stringify(await S('s.files.uploads')));
 
     /* the same name with other content: the replace confirm */
-    await setPar('iapp', 0.123);
-    await fileMenu('w', 'write');
-    await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5b.set';
-      i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-    await sleep(50);
-    await key('Enter');
-    await until("s.files.offered && s.files.offered.name === 't5b.set' && !s.busy", 'offered t5b');
     fs.mkdirSync(path.join(up, 'other'));
     const other = path.join(up, 'other', 't5up.set');
-    fs.copyFileSync(path.join(dir, 't5b.set'), other);
+    fs.writeFileSync(other, setBytes.toString().replace('0.09  iapp', '0.123  iapp'));
     await setPar('iapp', 0.3);
     await fileMenu('r', 'read');
     await pickFiles('[data-file-input=open]', [other]);
@@ -4388,13 +4393,13 @@ async function files(dir) {
     await cdp.eval(`document.querySelector('[data-choice=cancel]').click()`);
     check('Cancel copies nothing and leaves the prompt open',
       await until(`!s.files.confirm && s.ask && s.ask.kind === 'file'`, 'cancel')
-      && fs.readFileSync(path.join(dir, 't5up.set')).equals(saved) && !fs.existsSync(path.join(dir, 't5up-2.set')));
+      && fs.readFileSync(path.join(dir, 't5up.set')).equals(setBytes) && !fs.existsSync(path.join(dir, 't5up-2.set')));
     await pickFiles('[data-file-input=open]', [other]);
     await until('s.files.confirm', 'confirm again');
     await cdp.eval(`document.querySelector('[data-choice=keep]').click()`);
     check('Keep both copies it as name-2.ext, keeps the old one, and reads the new one',
       await until(`!s.ask && !s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - 0.123) < 1e-12`, 'keep both')
-      && fs.readFileSync(path.join(dir, 't5up.set')).equals(saved)
+      && fs.readFileSync(path.join(dir, 't5up.set')).equals(setBytes)
       && fs.readFileSync(path.join(dir, 't5up-2.set')).equals(fs.readFileSync(other))
       && (await lastAnswer())?.file === 't5up-2.set', String(await par('iapp')));
 
@@ -4409,9 +4414,9 @@ async function files(dir) {
         'add file'), JSON.stringify(await S('s.toasts')));
     await pickFiles('[data-file-input=add]', [path.join(up, 't5up.set')]);
     check('Add file… copies it under that name and runs the command again',
-      await until(`!s.busy && !s.ask && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${iapp0}) < 1e-12
+      await until(`!s.busy && !s.ask && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - ${setIapp}) < 1e-12
         && !s.toasts.some(t => t.action)`, 'replayed')
-      && fs.existsSync(path.join(dir, 'gone.set')) && fs.readFileSync(path.join(dir, 'gone.set')).equals(saved),
+      && fs.existsSync(path.join(dir, 'gone.set')) && fs.readFileSync(path.join(dir, 'gone.set')).equals(setBytes),
       JSON.stringify([await par('iapp'), await S('s.toasts'), await cdp.eval('__xpp.sent().slice(-4)')]));
     check('no file dialog is left open', await S('!s.ask'));
 
@@ -4456,7 +4461,9 @@ async function nativeFiles(dir) {
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
   const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-native-'));
-  const far = path.join(elsewhere, 'w88 native.set');
+  const far = path.join(elsewhere, 'w88 native.snapx');
+  const farSet = path.join(elsewhere, 'w88 native.set');
+  fs.writeFileSync(farSet, xppautLecarSet()); /* XPPAUT's: iapp 0.09 */
   await cdp.eval(`(() => {
     window.__nativeAsked = []; window.__nativeReply = null; window.__fileDialogShown = false;
     window.__xppFileDialog = async o => {
@@ -4479,27 +4486,26 @@ async function nativeFiles(dir) {
   const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
   try {
     check('a new parameter value', await setPar('iapp', 0.21));
-    check('File/Write set in the window: the ask is answered from the native dialog', await fileKey('w', far));
+    check('File/saVe session in the window: the ask is answered from the native dialog', await fileKey('v', far));
     const w = await asked();
-    check('... asked for a save, filtered by *.set (wildExtensions), in the model\'s folder, the name offered',
-      w && w.mode === 'write' && w.wild === '*.set' && JSON.stringify(w.exts) === '[".set"]' && w.dir
-      && w.file.endsWith('.set') && !/[\\/]/.test(w.file), JSON.stringify(w));
+    check('... asked for a save, filtered by *.snapx (wildExtensions), in the model\'s folder, the name offered',
+      w && w.mode === 'write' && w.wild === '*.snapx' && JSON.stringify(w.exts) === '[".snapx"]' && w.dir
+      && w.file.endsWith('.snapx') && !/[\\/]/.test(w.file), JSON.stringify(w));
     check('... answered with the full path picked', (await lastAnswer())?.file === far, JSON.stringify(await lastAnswer()));
     const saved = await waitFile(far);
     check('... and the core wrote it there, nothing in the model\'s folder, nothing offered',
-      saved && saved.length > 100 && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.offered')),
+      saved && saved.length > 100 && !fs.existsSync(path.join(dir, 'w88 native.snapx')) && !(await S('s.files.offered')),
       String(saved && saved.length));
 
-    await setPar('iapp', 0.4);
-    check('File/Read set in the window: answered from the native dialog', await fileKey('r', far));
+    check('File/Import XPPAUT set in the window: answered from the native dialog', await fileKey('r', farSet));
     const r = await asked();
     check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
-    check('... the core read it where it is (the parameter it saved is back), nothing copied',
-      Math.abs(await par('iapp') - 0.21) < 1e-12 && (await lastAnswer())?.file === far
+    check('... the core read it where it is (its iapp is in), nothing copied',
+      Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastAnswer())?.file === farSet
       && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));
 
     check('Cancel in the native dialog cancels the ask', await fileKey('r', null)
-      && (await lastAnswer())?.ok === 0 && Math.abs(await par('iapp') - 0.21) < 1e-12, JSON.stringify(await lastAnswer()));
+      && (await lastAnswer())?.ok === 0 && Math.abs(await par('iapp') - 0.09) < 1e-12, JSON.stringify(await lastAnswer()));
     check('a dialog that cannot open: a notification, and the ask cancelled', await fileKey('r', 'reject')
       && (await lastAnswer())?.ok === 0
       && await until("s.toasts.some(t => t.kind === 'error' && /file dialog/.test(t.text))", 'toast'),

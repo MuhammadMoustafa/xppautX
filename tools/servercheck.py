@@ -290,10 +290,11 @@ def check_hello_kinds():
           all(num.get(k) == 's' for k in 'tdme') and num.get('') == 'v'
           and dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', ''))).get('p') == 's', str(num))
     main = dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', '')))
-    check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Write set is data, File/Quit control',
+    check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Save info is data, File/Quit control',
           main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
-          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('w') == 'd'
-          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('q') == 'c', str(main))
+          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('s') == 'd'
+          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('q') == 'c'
+          and 'w' not in menus.get('file_keys', ''), str(main))
 
 
 check_hello_kinds()
@@ -309,9 +310,9 @@ def check_hello_shared():
           menus.get('names') == ['main', 'file', 'num'] and not bad, str(menus.get('names')) + str(bad))
     ids = dict(zip(menus.get('main_ids', []), menus.get('main_keys', '')))
     fids = dict(zip(menus.get('file_ids', []), menus.get('file_keys', '')))
-    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Read set r)',
+    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import XPPAUT set r)',
           ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
-          and ids.get('numerics') == 'u' and fids.get('readset') == 'r', str(ids))
+          and ids.get('numerics') == 'u' and fids.get('importset') == 'r' and 'writeset' not in fids, str(ids))
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
           and hello.get('window_ids') == {'plots': 21, 'auto': 101, 'ani': 104, 'aplot': 105},
@@ -337,7 +338,7 @@ if ask is not None and ask.get('kind') == 'file':
 else:
     evs = []
 err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), None)
-check('W118: File/Read set of a file that is not there: the error names the file',
+check('W118: File/Import XPPAUT set of a file that is not there: the error names the file',
       err is not None and err.get('file') == 'w118-gone.set', str(err))
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
@@ -645,7 +646,7 @@ if ask:
 send(cmd='key', key='f')
 send(cmd='key', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check('File/Read set asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
+check('File/Import XPPAUT set asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
       and ask.get('mode') == 'read' and ask.get('wild') == '*.set', str(ask)[:200])
 if ask:
     send(cmd='answer', id=ask['id'], ok=0)
@@ -661,15 +662,12 @@ os.makedirs(far)
 far_set = os.path.join(far, 'w88 far.set')
 send(cmd='set', kind='par', name='iapp', value=0.33)
 collect(is_idle)
-send(cmd='key', key='f')
-send(cmd='key', key='w')
-evs, ask = collect(lambda e: e.get('ev') == 'ask')
-if ask:
-    send(cmd='answer', id=ask['id'], ok=1, file=far_set)
+send(cmd='session', op='save', name='w88', data=False)
 collect(is_idle)
-check('File/Write set to a full path elsewhere writes it there, the path whole',
-      ask is not None and ask.get('mode') == 'write' and os.path.exists(far_set)
-      and not os.path.exists(os.path.join(run, 'w88 far.set')), far_set)
+# the .set an XPPAUT writes is the session's model.set and its equations after it
+with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
+    with open(far_set, 'wb') as f:
+        f.write(z.read('model.set') + b'RHS etc ...\n')
 send(cmd='set', kind='par', name='iapp', value=0.77)
 collect(is_idle)
 send(cmd='key', key='f')
@@ -681,8 +679,9 @@ collect(is_idle)
 send(cmd='state')
 evs, st = collect(is_state)
 collect(is_idle)
-check('File/Read set from that full path reads it (the parameter it saved is back)',
-      ask is not None and st is not None and dict(st['pars'])['iapp'] == 0.33, str(st and dict(st['pars']).get('iapp')))
+check('File/Import XPPAUT set from a full path elsewhere reads it there, the path whole (the parameter it holds is back)',
+      ask is not None and ask.get('mode') == 'read' and st is not None and dict(st['pars'])['iapp'] == 0.33,
+      str(st and dict(st['pars']).get('iapp')))
 shutil.rmtree(elsewhere, ignore_errors=True)
 
 send(cmd='key', key='f')
@@ -1714,7 +1713,7 @@ check_error_places_of_each_kind()
 
 def check_load_all_or_nothing():
     """W125: loading one of our files is all or nothing. A set file (File >
-    Read set), a parameter file and an initial-conditions file (`values`
+    Import XPPAUT set), a parameter file and an initial-conditions file (`values`
     `read`) whose last value is bad, and an internal set (File > Get par
     set) whose last item is, are refused at that line, naming the file and
     the line as written, and the session is exactly as it was (its state,
@@ -1739,7 +1738,7 @@ def check_load_all_or_nothing():
 
     def state():
         st = last_state(answered((), cmd='state'))
-        return {k: v for k, v in st.items() if k != '_t'} if st else st
+        return {k: v for k, v in st.items() if k not in ('_t', 'session')} if st else st
 
     def errors(evs):
         return [e for e in evs if e.get('ev') == 'message' and e.get('error')]
@@ -1747,16 +1746,15 @@ def check_load_all_or_nothing():
     written = []
 
     def set_file():
-        """the set file the session writes now (File > Write set), without
+        """the set file the session saves now (its model.set), without
         its first line (the time)"""
-        written.append('now%d.set' % len(written))
-        answered((), cmd='key', key='f')
-        answered(({'file': written[-1]},), cmd='key', key='w')
-        with open(os.path.join(r, written[-1])) as f:
-            return f.read().split('\n', 1)[1]
+        written.append('now%d' % len(written))
+        answered((), cmd='session', op='save', name=written[-1], data=False)
+        with zipfile.ZipFile(os.path.join(r, written[-1] + '.snapx')) as z:
+            return z.read('model.set').decode().split('\n', 1)[1]
 
     def read_set(name):
-        """File > Read set of name"""
+        """File > Import XPPAUT set of name"""
         answered((), cmd='key', key='f')
         return answered(({'file': name},), cmd='key', key='r')
 
@@ -1766,7 +1764,7 @@ def check_load_all_or_nothing():
         st0, set0 = state(), set_file()
         rows = set0.split('\n')
         high = max(k for k in range(len(rows)) if rows[k].endswith('BVP range high')) + 2  # its line in the file
-        lines = ('## Set file\n' + set0).split('\n')
+        lines = ('## Set file\n' + set0 + 'RHS etc ...\n').split('\n')
         lines[high - 1] = '1e999  BVP range high'
         with open(os.path.join(r, 'bad.set'), 'w') as f:
             f.write('\n'.join(lines))
@@ -1776,7 +1774,7 @@ def check_load_all_or_nothing():
         with open(os.path.join(r, 'bad.ic'), 'w') as f:
             f.write('9\nnan?\n')
         for what, cmd, answers, file, line, source in (
-                ('a set file', None, 'bad.set', 'bad.set', high, '1e999  BVP range high'),
+                ('an XPPAUT set file', None, 'bad.set', 'bad.set', high, '1e999  BVP range high'),
                 ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
                 ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?'),
                 ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.ode', 6, None)):

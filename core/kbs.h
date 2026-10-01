@@ -96,7 +96,6 @@ static const KBS kbs[400]={
   {M_MM,"mm"},
   {M_MS,"ms"},
   {M_FP,"fp"},
-  {M_FW,"fw"},
   {M_FR,"fr"},
   {M_FA,"fa"},
   {M_FC,"fc"},

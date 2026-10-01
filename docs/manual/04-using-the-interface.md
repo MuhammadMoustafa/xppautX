@@ -73,7 +73,7 @@ illegal formula, a value out of bounds, a file it cannot read) shows as a
 dialog with an OK button (Enter or Escape closes it; errors that arrive
 together are lines of one dialog; each also stays in Messages), while a
 warning only flashes the status bar. An error about a line of a file
-(a parameter file, a set file, a model you open from the File menu)
+(a parameter file, an XPPAUT set file, a model you open from the File menu)
 names the file and the line under its text in the dialog, with the line
 as you wrote it, and reads `file:line: what went wrong` in Messages and
 in the terminal alike. One status message is shown at a
@@ -286,7 +286,7 @@ action is; every button and menu item has one of five kinds:
 | Control | Stop (Escape), Quit, answering a question | works |
 | View | zoom, pan, the legend, switching plot windows, New window, Window/zoom, Viewaxes, Xi vs t, Help, opening or closing a panel, a menu with anything in it that is a view (Nullcline, Dir.field, Kinescope, Graphic stuff) | works; one the program itself carries out (a menu item, New window) runs as soon as the computation ends |
 | Setting | the values panel's fields and sliders (parameters, initial and boundary conditions, delays, Numerics), Parameters, the Numerics menu's items, File/Get par set, AUTO's Parameter, Numerics and Mark values | works: taken at once, applied when the computation ends (the run in progress keeps its values); a menu item's dialog opens then |
-| Data | Save and Load of values' files, Write set and Read set, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
+| Data | Save and Load of values' files, Import XPPAUT set, every file written, Save session, AUTO's Save and Load diagram, AUTO's Grab | disabled |
 | Computation | Integrate and Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts (equilibria), Stochastic, a model's own buttons | disabled |
 
 A disabled control says so in its tooltip ("Not while a computation
@@ -306,23 +306,23 @@ run).
 
 ## Saving pictures and files
 
-Files (PostScript/SVG, GIF, `.dat`, `.set`, tables, kinescope frames) are
+Files (PostScript/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.
 
-- **Open** (Read set, Load diagram, the browser's Load, ...): the page
+- **Open** (Import XPPAUT set, Load diagram, the browser's Load, ...): the page
   shows a prompt whose "Choose file…" opens the browser's own file picker, showing
   the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in
   `#include`, tables and diagrams keep resolving as they always have. A
   name that already exists with different content asks to Replace, Keep
   both, or Cancel.
-- **Save** (Write set, Save diagram, PostScript/SVG, ...): where the
+- **Save** (Save session, Save diagram, PostScript/SVG, ...): where the
   browser supports it, a native Save dialog is offered with the name
   suggested; xppautX writes the file into the working directory and the
   page then offers (or directly saves) that same copy. Elsewhere the page
   offers the file as a download. Either way the working directory has
-  the latest copy, so a later Read by name finds it.
+  the latest copy, so a later Open by name finds it.
 - **Missing companions**: when xppautX reports it cannot open a file, the
   notification offers "Add file…", which uploads it under that name and
   repeats the command.

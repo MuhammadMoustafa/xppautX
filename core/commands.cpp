@@ -346,7 +346,6 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FT: xpp::do_transpose(s); break;
   case M_FG: get_intern_set(s); break;
   case M_FP: make_txtview(s); break;
-  case M_FW: xpp::do_lunch(s, 0); break;
   case M_FS: xpp::file_inf(s); break;
   case M_FA:
 #ifdef AUTO
@@ -354,7 +353,7 @@ static void do_file_com(xpp::Session &s, int com)
 #endif
     break;
   case M_FC: q_calc(s); break;
-  case M_FR: xpp::do_lunch(s, 1); break;
+  case M_FR: xpp::import_xppaut_set_command(s); break;
   case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
@@ -477,7 +476,6 @@ void commander(xpp::Session &s, int ch)
     case 't': xpp::do_transpose(s); break;
     case 'g': get_intern_set(s); break;
     case 'p': flash(0); make_txtview(s); flash(0); break;
-    case 'w': flash(1); xpp::do_lunch(s, 0); flash(1); break;
     case 's': flash(2); xpp::file_inf(s); flash(2); break;
     case 'a':
       flash(3);
@@ -487,7 +485,7 @@ void commander(xpp::Session &s, int ch)
       flash(3);
       break;
     case 'c': flash(4); q_calc(s); flash(4); break;
-    case 'r': flash(5); xpp::do_lunch(s, 1); flash(5); break;
+    case 'r': flash(5); xpp::import_xppaut_set_command(s); flash(5); break;
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);

@@ -173,9 +173,10 @@ not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
 whether to leave it out (Go computes it again). A `.snapx` is a zip of
 ordinary files: renamed to `.zip`, its `model/` folder holds the model's
-files, its `model.set` is a set file (File/Read set) and its `data.npz`
-reads in NumPy (`numpy.load`). A `.set` file on its own keeps working as
-it always has. AUTO's own file, `.autox` (AUTO's File/Save diagram),
+files, its `model.set` holds the values and numerics (the set format) and its
+`data.npz` reads in NumPy (`numpy.load`). A `.set` file is no longer a
+file xppautX saves or opens: the session holds what it held, and
+File/Import XPPAUT set reads the one XPPAUT wrote. AUTO's own file, `.autox` (AUTO's File/Save diagram),
 carries its model the same way and opens the same way, with its diagram;
 an XPPAUT `.auto` file loads into the model open as an import.
 
@@ -216,7 +217,7 @@ accepted for compatibility but have nothing left to affect.
 | `-noout` | Suppress writing rows to the output file |
 | `-parfile FILE` | Load parameter values from FILE before starting |
 | `-icfile FILE` | Load initial conditions from FILE before starting |
-| `-setfile FILE` | Load a set file before starting |
+| `-setfile FILE` | Import a set file XPPAUT wrote before starting |
 | `-readset FILE` | Load a set file the way an internal set is loaded |
 | `-with "STRING"` | Apply STRING as if it were an internal set |
 | `-internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |

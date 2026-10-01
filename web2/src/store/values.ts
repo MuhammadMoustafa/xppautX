@@ -16,7 +16,7 @@
    the W66 review): both are the `values` command (session.ts
    saveValues/loadValues), Save's write delivered like any other file the
    core writes (session.ts's `pendingSave`), Load's read applying at
-   once, like File/Read set -- not staged here as a pending edit, since
+   once, like File/Import XPPAUT set -- not staged here as a pending edit, since
    the page no longer parses the file itself. No undo (GitHub #110):
    Reset (one field, or every field of a section) is the way back,
    through the model's own values. Pure: no DOM, no I/O. */

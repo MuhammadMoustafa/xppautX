@@ -132,7 +132,6 @@ struct Session; /* session.h */
 #define M_BH 194
 
 #define M_FP 200
-#define M_FW 201
 #define M_FR 202
 #define M_FA 203
 #define M_FC 204

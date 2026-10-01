@@ -18,8 +18,8 @@ struct Session; /* session.h */
 /* Save session and Open session (W57, docs/protocol.md "Session files"):
    continuing where the user stopped, from one file, name.snapx -- a zip
    of ordinary files (snapx.h names them): the manifest, the model itself
-   (W103: every file it read, model/<name>), model.set (File/Write set's
-   file: values, numerics, the active window's graphics), AUTO's members
+   (W103: every file it read, model/<name>), model.set (the set format:
+   values, numerics, the active window's graphics), AUTO's members
    (auto/: the diagram, AUTO's settings and solutions, autox.h), windows.set
    (every plot window's axes, variables and zoom, AUTO's view), marks.set
    and frozen.npz (labels, arrows and markers, frozen curves) and data.npz
@@ -27,7 +27,7 @@ struct Session; /* session.h */
    keeps until Erase are not saved: the data table is the last run's.
 
    xpp_session_save writes name.snapx (.snapx added unless name has it;
-   NULL or empty asks for one, the way File/Write set does). data: 1 the
+   NULL or empty asks for one, the way Save data does). data: 1 the
    data table goes in, 0 it is left out, -1 it goes in unless it is above
    50 MB, when the user is asked whether to leave it out (Go computes it
    again).

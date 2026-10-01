@@ -220,6 +220,7 @@ int main(void)
         CHECK(fp != nullptr);
         if (!fp) TEST_REPORT("options");
         xpp::write_lunch(*s, fp);
+        fputs("RHS etc ...\n", fp); /* XPPAUT's set file ends with its equations */
         fclose(fp);
     }
     std::vector<std::string> written;
@@ -232,7 +233,7 @@ int main(void)
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    CHECK(xpp::load_set_file(*s, set_file, false).has_value());
+    CHECK(xpp::import_xppaut_set(*s, set_file, false).has_value());
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;

@@ -203,11 +203,10 @@ void check_setting(Lines &l, std::string_view key, double v)
   if(const char *no=rule_problem(row->rule,v))l.fail(xpp::format("{} {}",row->label,no));
 }
 
-/* the numerics into f (ours: with the absolute tolerance, else ten times
-   the tolerance), each checked as the Numerics menu checks it */
+/* the numerics into f, each checked as the Numerics menu checks it */
 void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
 {
-  if(f.ours)l.heading("# Numerical stuff");
+  l.heading("# Numerical stuff");
   f.njmp=l.whole("nout");
   check_setting(l,"nout",f.njmp);
   f.nmesh=l.whole("nullcline mesh");
@@ -228,11 +227,8 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
   check_setting(l,"dtmax",f.hmax);
   f.toler=l.real("Tolerance");
   check_setting(l,"tol",f.toler);
-  if(f.ours){
-    f.atoler=l.real("Abs. Tolerance");
-    check_setting(l,"atol",f.atoler);
-  }
-  else f.atoler=f.toler*10;
+  f.atoler=l.real("Abs. Tolerance");
+  check_setting(l,"atol",f.atoler);
   f.delay=l.real("Max Delay");
   check_setting(l,"delay",f.delay);
   f.evec_iter=l.whole("Eigenvector iterates");
@@ -271,9 +267,9 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
 void read_exprs(const xpp::Session &s, Lines &l, SetFile &f)
 {
   const xpp::Model &m=s.model();
-  if(f.ours)l.heading("# Delays");
+  l.heading("# Delays");
   for(int i=0;i<m.node;i++)f.delays.emplace_back(l.next(xpp::format("the delay of {}",m.uvar_names[i])));
-  if(f.ours)l.heading("# Bndry conds");
+  l.heading("# Bndry conds");
   for(int i=0;i<m.node;i++){
     const std::string_view bc=l.next(xpp::format("boundary condition {}",i+1));
     /* the room the session's boundary condition has, its NUL left out */
@@ -281,11 +277,11 @@ void read_exprs(const xpp::Session &s, Lines &l, SetFile &f)
     if(bc.size()>room)l.fail(xpp::format("a boundary condition of {} characters: at most {}",bc.size(),room));
     f.bcs.emplace_back(bc);
   }
-  if(f.ours)l.heading("# Old ICs");
+  l.heading("# Old ICs");
   for(int i=0;i<m.node+m.nmarkov;i++)f.last_ic.push_back(l.real(m.uvar_names[i]));
-  if(f.ours)l.heading("# Ending  ICs");
+  l.heading("# Ending  ICs");
   for(int i=0;i<m.node+m.nmarkov;i++)f.current.push_back(l.real(m.uvar_names[i]));
-  if(f.ours)l.heading("# Parameters");
+  l.heading("# Parameters");
   for(int i=0;i<m.nupar;i++)f.params.push_back(l.real(m.upar_names[i]));
 }
 
@@ -350,23 +346,16 @@ void read_more(const xpp::Session &s, Lines &l, SetFile &f)
 }
 
 /* the set file whose lines are l, for s; ReadFailed at a line that is
-   wrong. A session's (session) ends at its last value; a set file opened
-   by itself may be XPPAUT's, whose model's equations follow its last
-   value, after "RHS etc ...", written for a reader and not read. */
+   wrong. A session's (session: its model.set) ends at its last value;
+   XPPAUT's (an import) has its model's equations after it, "RHS etc ...",
+   written for a reader and not read, and is refused without them. */
 SetFile read_set(const xpp::Session &s, Lines &l, bool session)
 {
   const xpp::Model &m=s.model();
   SetFile f;
   const std::string_view first=l.next("## Set file");
-  int ne=0;
-  f.ours=first.starts_with("#");
-  if(f.ours){
-    if(!first.starts_with("## Set file"))l.fail(xpp::format("\"{}\" is not \"## Set file\"",first));
-    ne=l.whole("Number of equations and auxiliaries");
-  }
-  /* a set file of XPPAUT's: the number of equations first */
-  else if(!xpp::parse_int(first.substr(0,first.find_first_of(" \t")),ne))
-    l.fail(xpp::format("\"{}\" is neither \"## Set file\" nor the number of equations",first));
+  if(!first.starts_with("## Set file"))l.fail(xpp::format("\"{}\" is not \"## Set file\"",first));
+  const int ne=l.whole("Number of equations and auxiliaries");
   const int ne_line=l.line();
   const int np=l.whole("Number of parameters");
   if(ne!=m.neq||np!=m.nupar)
@@ -377,10 +366,7 @@ SetFile read_set(const xpp::Session &s, Lines &l, bool session)
   /* the active window's graphics; in a session's check, before the load
      has an active window, the main one's */
   f.graph=s.plot_windows.current?*s.plot_windows.current:s.plot_windows.graph[0];
-  read_graph(l,f.graph,f.ours);
-  /* XPPAUT's own set file (an import) ends with what it holds of the
-     graphics; the rest is its equations, written for a reader */
-  if(!f.ours)return f;
+  read_graph(l,f.graph);
   f.transpose=s.adjoint.transpose;
   f.aplot=s.array_plot.plot;
   f.eq_range=s.integrator.eq_range;
@@ -388,9 +374,9 @@ SetFile read_set(const xpp::Session &s, Lines &l, bool session)
   f.shoot_range=s.shoot_range;
   read_more(s,l,f);
   if(session)l.end();
-  else if(!l.at_end()){
-    const std::string_view rest=l.next();
-    if(rest!="RHS etc ...")l.fail(xpp::format("\"{}\" where the equations (\"RHS etc ...\") or the end were due",rest));
+  else{
+    const std::string_view rest=l.next("the equations (\"RHS etc ...\") XPPAUT's set file ends with");
+    if(rest!="RHS etc ...")l.fail(xpp::format("\"{}\" where the equations (\"RHS etc ...\") of XPPAUT's set file were due",rest));
   }
   return f;
 }
@@ -518,9 +504,9 @@ void write_graph(FILE *fp, const GRAPH &g)
   });
 }
 
-void read_graph(Lines &l, GRAPH &g, bool headed)
+void read_graph(Lines &l, GRAPH &g)
 {
-  if(headed)l.heading("# Graphics");
+  l.heading("# Graphics");
   graph_settings(g,[&l](auto &v,const char *name){
     if constexpr(std::is_same_v<std::decay_t<decltype(v)>,int>)v=l.whole(name);
     else v=l.real(name);
@@ -589,17 +575,15 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
   }
   for(int i=0;i<m.nupar;i++)set_val(s,m.upar_names[i],f.params[i]);
   copy_graph_settings(f.graph,*s.plot_windows.current);
-  if(f.ours){
-    s.adjoint.transpose=f.transpose;
-    for(int i=0;i<m.node;i++)s.adjoint.coup_string[i]=f.coupling[i];
-    s.array_plot.plot=f.aplot;
-    n.torus=f.torus;
-    n.tor_period=f.tor_period;
-    for(std::size_t i=0;i<f.itor.size();i++)s.itor[i]=f.itor[i];
-    s.integrator.eq_range=f.eq_range;
-    s.integrator.range=f.range;
-    s.shoot_range=f.shoot_range;
-  }
+  s.adjoint.transpose=f.transpose;
+  for(int i=0;i<m.node;i++)s.adjoint.coup_string[i]=f.coupling[i];
+  s.array_plot.plot=f.aplot;
+  n.torus=f.torus;
+  n.tor_period=f.tor_period;
+  for(std::size_t i=0;i<f.itor.size();i++)s.itor[i]=f.itor[i];
+  s.integrator.eq_range=f.eq_range;
+  s.integrator.range=f.range;
+  s.shoot_range=f.shoot_range;
   if(redraw&&program.interactive){
     ui.redraw_bcs();
     redraw_ics();
@@ -609,7 +593,7 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
   }
 }
 
-Result<> load_set_file(xpp::Session &s, std::string_view path, bool redraw)
+Result<> import_xppaut_set(xpp::Session &s, std::string_view path, bool redraw)
 {
   Result<SetFile> f=read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l,false); });
   if(!f)return std::unexpected(f.error());
@@ -676,22 +660,12 @@ void write_lunch(xpp::Session &s, FILE *fp)
   write_more(s,fp);
 }
 
-void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
+void import_xppaut_set_command(xpp::Session &s)
 {
   std::string filename=s.model().this_file+".set";
-
-  if(f==1){
-    ping();
-    if(!file_selector("Load SET File",filename,"*.set"))return;
-    if(const Result<> r=load_set_file(s,filename,true);!r)show_error(r.error());
-    return;
-  }
-  if(!file_selector("Save SET File",filename,"*.set"))return;
-  xpp::Writer w=open_writer_asking(filename.c_str());
-  if(!w)return;
-  redraw_params();
-  write_lunch(s,w.file());
-  w.commit();
+  ping();
+  if(!file_selector("Import XPPAUT set",filename,"*.set"))return;
+  if(const Result<> r=import_xppaut_set(s,filename,true);!r)show_error(r.error());
 }
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)

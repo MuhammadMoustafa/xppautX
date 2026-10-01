@@ -21,8 +21,8 @@ namespace xpp {
 struct Session; /* session.h */
 struct Model;   /* model.h */
 
-/* ---- The set format: a set file (.set), a parameter file (.par) and a
-   session's windows.set and marks.set are lines of it ----
+/* ---- The set format: a session's model.set, windows.set and marks.set,
+   a parameter file (.par) and XPPAUT's set file (an import) are lines of it ----
    Written here; read through xpp_io.h's Lines (whole(), real(), next(),
    heading()), the one way a file of ours is read (W125). */
 
@@ -34,25 +34,19 @@ void write_text(FILE *fp, std::string_view text);
 void write_heading(FILE *fp, std::string_view heading);
 
 /* one plot window's settings as a set file holds the active one's
-   (# Graphics); read into g, whose other fields stay (headed: after its
-   heading, which a set file of XPPAUT's has not) */
+   (# Graphics); read into g, whose other fields stay, after its heading */
 void write_graph(FILE *fp, const GRAPH &g);
-void read_graph(Lines &lines, GRAPH &g, bool headed);
+void read_graph(Lines &lines, GRAPH &g);
 /* those settings of from given to to, its other fields kept (a restored
    window, as made, takes the saved one's) */
 void copy_graph_settings(const GRAPH &from, GRAPH &to);
 
-/* What a set file holds, read whole (read_session_set, load_set_file)
+/* What a set file holds, read whole (read_session_set, import_xppaut_set)
    before anything is applied (apply_set_file): the numerics, the delays,
    the boundary conditions, the initial conditions and parameters, the
-   active window's graphics and, in a set file of xppautX's, Transpose,
-   the H functions' coupling, the array plot, the torus and the ranges.
-   A set file of
-   XPPAUT's (its first line the number of equations) has neither the
-   headings nor the parts after the graphics, nor an absolute tolerance
-   (ten times the tolerance). */
+   active window's graphics, Transpose, the H functions' coupling, the
+   array plot, the torus and the ranges. */
 struct SetFile {
-  bool ours = true; /* begins "## Set file" */
   int njmp = 0, nmesh = 0, method = 0;
   double tend = 0, delta_t = 0, t0 = 0, trans = 0, bound = 0, hmin = 0, hmax = 0, toler = 0, atoler = 0, delay = 0;
   int evec_iter = 0;
@@ -85,11 +79,12 @@ struct SetFile {
 Result<SetFile> read_session_set(const Session &s, std::string file, std::string_view text);
 /* f applied to s, in one step (the front end shown it when redraw) */
 void apply_set_file(Session &s, const SetFile &f, bool redraw);
-/* the set file at path read and applied (File > Read set, -setfile), or
-   the error, nothing applied; it may be XPPAUT's, its model's equations
-   after its last value ("RHS etc ...", not read) */
-Result<> load_set_file(Session &s, std::string_view path, bool redraw);
-/* s's settings as a set file (File > Write set, a session's model.set) */
+/* XPPAUT's set file at path read and applied (File > Import XPPAUT set,
+   -setfile), or the error, nothing applied: its model's equations follow
+   its last value ("RHS etc ...", not read), and a file without them (a
+   session's model.set, a file of ours) is refused at its end */
+Result<> import_xppaut_set(Session &s, std::string_view path, bool redraw);
+/* s's settings as a set file: a session's model.set, no equations after it */
 void write_lunch(Session &s, FILE *fp);
 
 /* a parameter file's values (the model m's parameters, in order) or an
@@ -117,13 +112,12 @@ void load_ic_file(Session &s, std::string name);
    -qsets/-qpars/-qics, the protocol's `values` `query`) */
 void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
-/* The session s's set files (File > Write set, Read set: do_lunch, f 1
-   to read and 0 to write), its info file (File > Save info); a
-   PostScript picture's parameters (ps_write_pars) */
+/* File > Import XPPAUT set (asks for the file), the session s's info file
+   (File > Save info); a PostScript picture's parameters (ps_write_pars) */
+void import_xppaut_set_command(Session &s);
 void file_inf(Session &s);
 void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
-void do_lunch(Session &s, int f);
 
 } // namespace xpp
 #endif

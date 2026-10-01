@@ -92,9 +92,9 @@ int main()
     CHECK(xpp::files::name_ok("console.txt")); /* only the device names themselves */
 
     /* the ask's mode, for every file selector title in the core */
-    const char *reads[] = {"Load SET File", "Load Auto", "Load data", "Load animation", "Load table",
+    const char *reads[] = {"Import XPPAUT set", "Load Auto", "Load data", "Load animation", "Load table",
                            "Read initial data", "Import Diagram", "Library:", "Select an ODE file", "Load session"};
-    const char *writes[] = {"Save SET File", "Save Auto", "Write data", "Write all info", "Write init data file",
+    const char *writes[] = {"Save Auto", "Write data", "Write all info", "Write init data file",
                             "Write points", "Postscript", "SVG", "Save As", "Print postscript", "Print svg",
                             "Export graph data", "Save info", "Save nullclines", "Clone ODE file", "GIF plot",
                             "Save session", "Export CSV"};

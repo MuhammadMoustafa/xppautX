@@ -1,6 +1,7 @@
-/* The .set file round trip: write_lunch() then load_set_file() must bring
-   back every parameter, initial condition and numerics setting, and
-   writing again must give the same file. A field that one side writes and
+/* The set format's round trip: write_lunch() (a session's model.set) with
+   XPPAUT's equations trailer after it, then import_xppaut_set() (File >
+   Import XPPAUT set) must bring back every parameter, initial condition
+   and numerics setting, and writing again must give the same file. A field that one side writes and
    the other reads in a different order shifts every value after it, which
    a user only notices as a restored session that behaves differently.
 
@@ -11,8 +12,8 @@
    set file it writes, the same), and its error names the file and that
    line. A numerics value the setting's rule refuses (0 nout, 0 DeltaT)
    is refused as a bad number is. A session's set file ends at its last
-   value; a set file opened by itself may be XPPAUT's, its model's
-   equations after "RHS etc ..." (not read). A parameter file's trailer
+   value; XPPAUT's, the import, has its model's equations after it, "RHS
+   etc ..." (not read), and is refused without them. A parameter file's trailer
    is "File:" and the model, then the time as ctime writes it.
 
    The model is loaded the way xppautX -silent loads it (xpp::load_model),
@@ -39,12 +40,18 @@ std::string bytes_of(const char *path)
     return xpp::read_bytes(path, b) ? b : std::string();
 }
 
-/* the file without its first line, which carries the time it was written */
+const std::string trailer = "RHS etc ...\n"; /* what XPPAUT's set file ends with */
+
+/* the file without its first line, which carries the time it was written,
+   and without the trailer */
 std::string body(const char *path)
 {
-    const std::string b = bytes_of(path);
+    std::string b = bytes_of(path);
+    std::erase(b, '\r'); /* a text file: CRLF on Windows */
     const std::size_t nl = b.find('\n');
-    return nl == std::string::npos ? b : b.substr(nl + 1);
+    if (nl != std::string::npos) b.erase(0, nl + 1);
+    if (b.ends_with(trailer)) b.erase(b.size() - trailer.size());
+    return b;
 }
 
 void put(const char *path, const std::string &text)
@@ -53,11 +60,11 @@ void put(const char *path, const std::string &text)
     CHECK(w && w.write(text) && w.commit());
 }
 
-/* load_set_file of text (written to path): the error, "" when it loads */
+/* import_xppaut_set of text (written to path): the error, "" when it loads */
 std::string read_error(const char *path, const std::string &text)
 {
     put(path, text);
-    const xpp::Result<> r = xpp::load_set_file(xpp::client_session(), path, false);
+    const xpp::Result<> r = xpp::import_xppaut_set(xpp::client_session(), path, false);
     return r ? std::string() : r.error().text(); /* "path:N: what" */
 }
 
@@ -65,6 +72,7 @@ void save(const char *path)
 {
     xpp::Writer w(path);
     xpp::write_lunch(xpp::client_session(), w.file());
+    w.print("{}", trailer);
     CHECK(w.commit());
 }
 
@@ -112,7 +120,7 @@ int main(void)
     s.numerics.tend = tend * 2;
     s.numerics.delta_t = dt / 2;
 
-    CHECK(xpp::load_set_file(s, a, false).has_value());
+    CHECK(xpp::import_xppaut_set(s, a, false).has_value());
 
     xpp::get_val(s, "iapp", &x);
     CHECK(x == iapp);
@@ -157,8 +165,11 @@ int main(void)
     CHECK(whole.find("RHS etc") == std::string::npos);
     const std::string extra = whole + "something else\n";
     CHECK(read_error(c, extra).starts_with(xpp::format("{}:{}: \"something else\"", c, bvp_high + 1)));
-    CHECK(read_error(c, whole + "RHS etc ...\ndV/dT=whatever\n").empty());
-    CHECK(xpp::load_set_file(s, b, false).has_value()); /* the session before that load again */
+    CHECK(read_error(c, whole + trailer + "dV/dT=whatever\n").empty());
+    /* a session's set file (no trailer) is not XPPAUT's: refused at its end */
+    const std::string no_trailer = read_error(c, whole);
+    CHECK(no_trailer.starts_with(xpp::format("{}:{}: the file ends here", c, bvp_high + 1)));
+    CHECK(xpp::import_xppaut_set(s, b, false).has_value()); /* the session before that load again */
     const xpp::Result<xpp::SetFile> session_set = xpp::read_session_set(s, c, whole + "RHS etc ...\n");
     CHECK(!session_set && session_set.error().place.line == bvp_high + 1);
     CHECK(xpp::read_session_set(s, c, whole).has_value());

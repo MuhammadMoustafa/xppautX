@@ -58,7 +58,7 @@ export interface RunAnswer {
 
 /** the running (or last) command as the user gave it */
 export interface RunRecord {
-  /** the main menu (state.menu) when it was sent: File/Read set is a key of the File menu */
+  /** the main menu (state.menu) when it was sent: File/Import XPPAUT set is a key of the File menu */
   menu: number;
   cmd: Command;
   answers: RunAnswer[];

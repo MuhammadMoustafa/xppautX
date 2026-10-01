@@ -490,7 +490,7 @@ private:
    written (an xpp::Error with its xpp::Place). read_lines below is that
    first half, the one way such a file is read. Every load of one of our
    files goes through it:
-     - a set file (.set: File > Read set, -setfile, a session's model.set)
+     - a set file (.set: File > Import XPPAUT set, -setfile, a session's model.set)
        and a parameter file (.par: -parfile, the values panel's Load):
        lunch-new.cpp's read_set and read_parameter_file;
      - an initial-conditions file (.ic: -icfile, Initialconds/File, the

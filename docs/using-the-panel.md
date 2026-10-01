@@ -70,7 +70,7 @@ initial conditions it can import into.
 
 ## Saving pictures and files
 
-Files (PostScript, GIF, `.dat`, `.set`, tables, kinescope frames) are written
+Files (PostScript, GIF, `.dat`, tables, kinescope frames) are written
 next to the ODE file, by the program, exactly as in X11. The browser never
 downloads anything.
 

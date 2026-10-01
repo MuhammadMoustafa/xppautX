@@ -441,8 +441,8 @@ int put_commit(Put *put, unsigned long long &size, std::string &sha256)
 
 const char *ask_mode(std::string_view title)
 {
-    /* the file selectors' titles (file_selector() callers): "Load SET
-       File", "Read initial data", "Import Diagram", "Select an ODE file",
+    /* the file selectors' titles (file_selector() callers): "Load Auto",
+       "Read initial data", "Import XPPAUT set", "Import Diagram", "Select an ODE file",
        "Library:" open a file; "Save ...", "Write ...", "Postscript",
        "GIF plot", "Clone ODE file", ... write one */
     static const char *const reads[] = {"load", "read", "import", "open", "select", "library"};

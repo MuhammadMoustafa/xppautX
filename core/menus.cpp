@@ -51,7 +51,7 @@ const char *const num_menu[]={"NUMERICS","Total","Start time","tRansient",
 "dElay","Color code","stocHast","Poincare map","rUelle plot",
 "looKup","bndVal","Averaging","[Esc]-exit"};
 const char *const file_menu[]={
-"FILE","Prt src","Write set","Read set",
+"FILE","Prt src","Import XPPAUT set",
 "Auto","Calculator","Save info",
 "Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
 "cOpy set line","open Model","rEload","saVe session","opeN session","recorD","plaY recording"};
@@ -82,8 +82,7 @@ const char *const main_hint[]=
 
 const char *const file_hint[]={
 "Display source and active comments",
-"Save information for restart",
-"Read information for restart",
+"Import a set file XPPAUT wrote (values, numerics, the active window)",
 "Run AUTO, the bifurcation package",
 "A little calculator -- press ESC to exit",
 "Save info about simulation in human readable format",
@@ -386,7 +385,7 @@ const char *const arun_hint[]={
 /* keys of the main-window menus; the numerics menu ends with Esc */
 const char *const main_menu_keys="icndwakgufpemtsvxr3b";
 const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pwracshqtglxuomevndy";
+const char *const file_menu_keys="pracshqtglxuomevndy";
 
 /* their kinds (menus.h): an item that opens a pop-up menu takes the least
    restrictive kind of that menu's items (the maintainer's "menus open, only
@@ -400,7 +399,7 @@ const char *const file_menu_keys="pwracshqtglxuomevndy";
 namespace {
 constexpr char main_kinds[] = "xxvvvdvvvvsvvvxvvvvx";
 constexpr char num_kinds[] = "ssssssssssvdssdsdv";
-constexpr char file_kinds[] = "vddvvdvcdsddvvdddddd";
+constexpr char file_kinds[] = "vdvvdvcdsddvvdddddd";
 static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
 static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
 static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds), "one kind per File menu item");
@@ -414,7 +413,7 @@ static_assert(MAIN_MENU == 0 && FILE_MENU == 1 && NUM_MENU == 2, "main_menu_name
 const char *const main_menu_ids[MAIN_ENTRIES] = {"initialconds", "continue", "nullcline", "dirfield", "window",
   "phasespace", "kinescope", "graphic", "numerics", "file", "parameters", "erase", "makewindow", "text", "singpts",
   "viewaxes", "xivst", "restore", "3dparams", "bndryval"};
-const char *const file_menu_ids[FILE_ENTRIES] = {"source", "writeset", "readset", "auto", "calculator", "saveinfo",
+const char *const file_menu_ids[FILE_ENTRIES] = {"source", "importset", "auto", "calculator", "saveinfo",
   "help", "quit", "transpose", "getparset", "clone", "xpprc", "tutorial", "copyset", "openmodel", "reload",
   "savesession", "opensession", "record", "play"};
 const char *const num_menu_ids[NUM_ENTRIES] = {"total", "start", "transient", "dt", "ncline", "singpt", "noutput",

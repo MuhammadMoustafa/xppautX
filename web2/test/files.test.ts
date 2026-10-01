@@ -46,7 +46,7 @@ test('an upload is copied, skipped or confirmed against the folder', () => {
   assert.equal(uploadPlan('a.set', 'bb', listing), 'confirm');
 });
 
-const fileAsk = (mode: 'read' | 'write'): AskEvent => ({ev: 'ask', id: 7, kind: 'file', title: 'Load SET File', mode});
+const fileAsk = (mode: 'read' | 'write'): AskEvent => ({ev: 'ask', id: 7, kind: 'file', title: 'Import XPPAUT set', mode});
 
 test('the run record: the command, the menu it ran in, and its answers', () => {
   let s = onSent(initialFiles, HELLO, {cmd: 'key', key: 'f'}, null, 0);
@@ -92,8 +92,8 @@ test('the picker filter comes from a pattern of the ask', () => {
 });
 
 test('the desktop window\'s own dialog (W88) is asked with the filter of wildExtensions, the folder and the name', () => {
-  assert.deepEqual(nativeFileRequest({title: 'Load SET File', mode: 'read', file: 'lecar.ode.set', wild: '*.set', dir: '/m/'}),
-    {mode: 'read', title: 'Load SET File', dir: '/m/', file: 'lecar.ode.set', wild: '*.set', exts: ['.set']});
+  assert.deepEqual(nativeFileRequest({title: 'Import XPPAUT set', mode: 'read', file: 'lecar.ode.set', wild: '*.set', dir: '/m/'}),
+    {mode: 'read', title: 'Import XPPAUT set', dir: '/m/', file: 'lecar.ode.set', wild: '*.set', exts: ['.set']});
   const save = nativeFileRequest({title: 'Save data', mode: 'write', file: 'data.dat', wild: '*.DAT *.tab', dir: 'C:\\m'});
   assert.equal(save.mode, 'write');
   assert.deepEqual(save.exts, ['.dat', '.tab']);

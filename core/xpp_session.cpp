@@ -209,7 +209,7 @@ WindowsRead read_windows(xpp::Session &s, xpp::Lines &l)
         w.ylabel = l.next("the y label");
         w.zlabel = l.next("the z label");
         w.graph = s.plot_windows.graph[0];
-        xpp::read_graph(l, w.graph, true);
+        xpp::read_graph(l, w.graph);
         w.zoom = read_zoom(l);
         w.show_runs = read_bool(l, "previous runs");
     }
@@ -693,7 +693,7 @@ std::optional<std::string> session_bytes(xpp::Session &s, bool data)
         xpp::command_error("save session", "Save session: no scratch folder");
         return std::nullopt;
     }
-    xpp::redraw_params(); /* as File/Write set does, before write_lunch */
+    xpp::redraw_params(); /* the values panel up to date, before write_lunch */
     std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [&s](FILE *fp) {
         xpp::write_lunch(s, fp);
         return true;
