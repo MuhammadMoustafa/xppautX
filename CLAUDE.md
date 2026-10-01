@@ -46,10 +46,15 @@ checks rebuild and relink the whole core and cannot see web2, and CI's
 `source` job runs them on every push); a failure is traced to its
 branch by verifying the branches alone. One verify.sh at a time (W84):
 the script takes a lock (`flock`, $TMPDIR/xppautx-verify.lock) and a
-second run waits for it. Every 5 merged tasks, and before any push: the full
-web2check, tools/asancheck.sh, and the Windows unit tests (`make test`
-with MinGW) and servercheck (CI also runs
-everything on each push). A new request that comes up while a task is
+second run waits for it. The Windows build (UCRT gcc 16, `WERROR=1`)
+also runs on each merged tip: its libstdc++ marks `std::expected`
+`[[nodiscard]]`, which WSL's gcc 15 does not. Pushes go in batches
+(maintainer, 2026-09-30): several merged cards, one push, never one per
+wave or card; the push's CI run (every platform: asancheck, the full
+web2check, the Windows and macOS builds and tests) is the full tier, so it
+is not run locally before a push as well, except when Actions minutes are
+short or for what CI cannot see; a CI failure is fixed and goes with the
+next batch. A new request that comes up while a task is
 running gets its own task card rather than growing the running one.
 Pushing closes issues: every GitHub issue whose card or task the pushed
 commits finish is closed right after the push, with a comment naming its
