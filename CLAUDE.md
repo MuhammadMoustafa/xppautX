@@ -12,7 +12,7 @@ The sections below give the details.
 |---|---|
 | Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions) | dupcheck (textual copies); review (the same algorithm in other words) |
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
-| No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck, sessioncheck; review for internal-linkage statics (W120) |
+| No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck (external and internal-linkage state, each baseline line with its reason, W120), sessioncheck |
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
@@ -755,11 +755,16 @@ lists each core object's external mutable data symbols -- nm's B
 .data.rel.ro, const data the loader relocates (a const table of
 pointers) -- and compares their count per file with the committed
 `tests/globals.baseline`, failing on growth and naming the file's
-symbols. A const global or one with internal linkage does not count.
-`--update` rewrites the baseline after a drop; plain
+symbols; since W120 it counts internal-linkage state too (nm's b and d: a
+file-scope static, an anonymous-namespace variable, a static local),
+against `tests/globals_internal.baseline`. Each baseline line is `FILE
+COUNT REASON`, the reason saying why the file keeps it or which card
+takes it, and a line without one fails. A const global does not count.
+`--update` rewrites the baselines after a drop; plain
 `tools/globalcheck.sh` builds build/obj and prints every symbol by file
 (`--builddir DIR` reads objects already built there). Linux only, like
-deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at W47c: 21.
+deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at W47c: 21; at W120: 16
+external, 615 internal at -O0 (461 of them vendored EISPACK).
 
 - The rule: a task that changes a core C file converts that file to .cpp
   as part of the task, whatever the change, sweeps included (logging
@@ -880,8 +885,9 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   error's `xpp::model_failed` throws `xpp::LoadFailed`, and the Model and
   Session before are the client's again, untouched (W47c). A value nothing writes after initialization is
   `const`/`constexpr`, and one file's own state has internal linkage.
-  `tools/globalcheck.sh` (sourcecheck) fails a file whose external
-  mutable data symbols grow past `tests/globals.baseline`.
+  `tools/globalcheck.sh` (sourcecheck) fails a file whose mutable data,
+  external or internal-linkage, grows past its baseline
+  (`tests/globals.baseline`, `tests/globals_internal.baseline`).
 
 - Upstream mergeability is no longer a goal (2026-09-23): refactor for
   single responsibility and clean code, numerics included. Numerical
