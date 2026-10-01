@@ -72,9 +72,11 @@ void buf_str_array(Buf *b, std::span<const std::string> v)
 
 void buf_num(Buf *b, double v, int sig)
 {
-    std::string t;
-    json_append_number(t, v, sig);
-    buf_add(b, t.data(), t.size());
+    try {
+        json_append_number(b->s, v, sig);
+    } catch (...) {
+        xpp::out_of_memory("building an event");
+    }
 }
 
 /* one event line to the client: stdout, or the page xppautX serves */

@@ -1,6 +1,8 @@
 /* The one JSON number writer (json_number.h). */
 #include "json_number.h"
 #include <array>
+#include <charconv>
+#include <system_error>
 #include <cstdio>
 #include <cstdlib>
 
@@ -14,9 +16,11 @@ void json_append_number(std::string &s, double v, int sig)
         s += "null";
         return;
     }
+    /* std::to_chars's general format with a precision is printf's "%.*g"
+       character for character, without its locale and format parsing */
     std::array<char, 32> t{};
-    const int k = std::snprintf(t.data(), t.size(), "%.*g", sig, v);
-    if (k > 0) s.append(t.data(), static_cast<std::size_t>(k));
+    const std::to_chars_result r = std::to_chars(t.data(), t.data() + t.size(), v, std::chars_format::general, sig);
+    if (r.ec == std::errc()) s.append(t.data(), r.ptr);
 }
 
 void json_append_number_shortest(std::string &s, double v)
