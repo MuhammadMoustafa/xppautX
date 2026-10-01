@@ -326,6 +326,8 @@ int main(void)
         CHECK(t != nullptr);
         if (t) {
             int index = 0;
+            printf("  inc: total=%s dt=%s
+", value_of(*t, *xpp::find_option("TOTAL", index)).c_str(), value_of(*t, *xpp::find_option("DT", index)).c_str());
             CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
             CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
         }
