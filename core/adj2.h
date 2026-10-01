@@ -2,7 +2,10 @@
 #define _adj2_h_
 
 #include <cstdio>
+#include <array>
 #include <span>
+#include <string>
+#include <vector>
 
 #include "storage.h"
 #include "xpp_error.h"
@@ -24,10 +27,28 @@ struct AdjointState {
   /* the H function has its odd and even parts too (more than two
      equations) */
   bool h_odd_even = false;
+  /* the adjoint's Newton tolerance and iterations */
+  double err = 1.e-3;
+  int maxit = 20;
+  /* each equation's coupling for the H function: its formula and the
+     formula compiled */
+  std::vector<std::array<int, 100>> coup_fun;
+  std::vector<std::string> coup_string;
+  /* Transpose's settings: the first column and its name, how many and
+     the skip; the first row, how many and the skip */
+  struct {
+    int col0 = 0, ncol = 0, colskip = 0;
+    int row0 = 0, nrow = 0, rowskip = 0;
+    std::string firstcol;
+  } transpose;
+  /* the maximal Liapunov exponent over a range: the parameter, the
+     exponent (liap_i points, while liap_flag) */
+  std::array<std::vector<float>, 2> liap;
+  int liap_flag = 0, liap_i = 0;
 };
 
-void dump_transpose_info(FILE *fp, int f);
-void alloc_liap(int n);
+void dump_transpose_info(Session &s, FILE *fp, int f);
+void alloc_liap(Session &s, int n);
 /* v scaled to unit length (unless it is 0), and its length mu */
 void norm_vec(std::span<double> v, double &mu);
 

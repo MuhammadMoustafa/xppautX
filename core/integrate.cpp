@@ -666,7 +666,7 @@ xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFra
 nit2=0;
 if(s.integrator.range.rtype==2)nit2=s.integrator.range.steps2; 
 if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
- alloc_liap(nit); /* make space */
+ alloc_liap(s,nit); /* make space */
  if(s.integrator.range.rtype>0){
  itype2=s.integrator.range.type2;
  ivar2=s.integrator.range.index2;

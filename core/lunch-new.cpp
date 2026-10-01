@@ -151,7 +151,7 @@ void read_set(xpp::Session &s, FILE *fp)
   io_exprs(s,f,fp);
   io_graph(s,f,fp);
   if(set_type==1){
-    xpp::dump_transpose_info(fp,f);
+    xpp::dump_transpose_info(s,fp,f);
     xpp::dump_h_stuff(s,fp,f);
     dump_aplot(s,fp,f);
     dump_torus(s,fp,f);
@@ -244,7 +244,7 @@ void write_lunch(xpp::Session &s, FILE *fp)
      }
    io_exprs(s,f,fp);
    io_graph(s,f,fp);
-    xpp::dump_transpose_info(fp,f);
+    xpp::dump_transpose_info(s,fp,f);
    xpp::dump_h_stuff(s,fp,f);
    dump_aplot(s,fp,f);
    dump_torus(s,fp,f);

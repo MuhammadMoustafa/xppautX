@@ -38,52 +38,31 @@ namespace xpp {
 
 
 namespace {
-/* the maximal Liapunov exponent over a range: the parameter, the exponent */
-std::array<std::vector<float>, 2> my_liap;
-}
-
-struct {
-  int col0,ncol,colskip;
-  int row0,nrow,rowskip; 
-  std::string firstcol;
-} my_trans;
-   
-namespace {
-int LIAP_FLAG=0;
-int LIAP_I;
 constexpr double ADJ_EPS=1.e-8;
-double ADJ_ERR=1.e-3;
-int ADJ_MAXIT=20;
-}
-namespace {
-/* each equation's coupling for the H function: its formula and the
-   formula compiled */
-std::vector<std::array<int, 100>> coup_fun;
-std::vector<std::string> coup_string;
 }
 
 /* extern Window main_win; */
 
 void init_trans(xpp::Session &s)
 {
-  my_trans.firstcol=s.model().uvar_names[0];
-  my_trans.ncol=2;
-  my_trans.nrow=1;
-  my_trans.rowskip=1;
-  my_trans.colskip=1;
-  my_trans.row0=1;
-  my_trans.col0=2;
+  s.adjoint.transpose.firstcol=s.model().uvar_names[0];
+  s.adjoint.transpose.ncol=2;
+  s.adjoint.transpose.nrow=1;
+  s.adjoint.transpose.rowskip=1;
+  s.adjoint.transpose.colskip=1;
+  s.adjoint.transpose.row0=1;
+  s.adjoint.transpose.col0=2;
 }
 
-void dump_transpose_info(FILE *fp, int f)
+void dump_transpose_info(xpp::Session &s, FILE *fp, int f)
 {
   io_heading(f,fp,"# Transpose variables etc");
-  io_string(my_trans.firstcol,fp,f);
-  io_int(&my_trans.ncol,fp,f,"n columns");
-  io_int(&my_trans.nrow,fp,f,"n rows");
-  io_int(&my_trans.rowskip,fp,f,"row skip");
-  io_int(&my_trans.colskip,fp,f,"col skip");
-  io_int(&my_trans.row0,fp,f,"row 0");
+  io_string(s.adjoint.transpose.firstcol,fp,f);
+  io_int(&s.adjoint.transpose.ncol,fp,f,"n columns");
+  io_int(&s.adjoint.transpose.nrow,fp,f,"n rows");
+  io_int(&s.adjoint.transpose.rowskip,fp,f,"row skip");
+  io_int(&s.adjoint.transpose.colskip,fp,f,"col skip");
+  io_int(&s.adjoint.transpose.row0,fp,f,"row 0");
 
 }
 
@@ -92,12 +71,12 @@ int do_transpose(xpp::Session &s)
  int i,status;
  static const char *const n[]={"*0Column 1","NCols","ColSkip","Row 1","NRows","RowSkip"};
  std::array<std::string, 6> values;
- values[0] = my_trans.firstcol;
- values[1] = xpp::format("{:d}", my_trans.ncol);
- values[2] = xpp::format("{:d}", my_trans.colskip);
- values[3] = xpp::format("{:d}", my_trans.row0);
- values[4] = xpp::format("{:d}", my_trans.nrow);
- values[5] = xpp::format("{:d}", my_trans.rowskip);
+ values[0] = s.adjoint.transpose.firstcol;
+ values[1] = xpp::format("{:d}", s.adjoint.transpose.ncol);
+ values[2] = xpp::format("{:d}", s.adjoint.transpose.colskip);
+ values[3] = xpp::format("{:d}", s.adjoint.transpose.row0);
+ values[4] = xpp::format("{:d}", s.adjoint.transpose.nrow);
+ values[5] = xpp::format("{:d}", s.adjoint.transpose.rowskip);
  AdjointState &a=s.adjoint;
  if(a.transposed_here){
    a.transposed.release();
@@ -110,20 +89,20 @@ int do_transpose(xpp::Session &s)
  if(status!=0){
    find_variable(s,values[0].c_str(),&i);
    if(i>-1)
-     my_trans.col0=i+1;
+     s.adjoint.transpose.col0=i+1;
    else
      {
        err_msg("No such columns");
        return 0;
      }
-   my_trans.firstcol=values[0];
+   s.adjoint.transpose.firstcol=values[0];
    i=atoi(values[4].c_str());
    if(i>=s.model().neq)i=s.model().neq-1;
-   my_trans.nrow=i;
-   my_trans.ncol=atoi(values[1].c_str());
-   my_trans.colskip=atoi(values[2].c_str());
-   my_trans.row0=atoi(values[3].c_str());
-   my_trans.rowskip=atoi(values[5].c_str());
+   s.adjoint.transpose.nrow=i;
+   s.adjoint.transpose.ncol=atoi(values[1].c_str());
+   s.adjoint.transpose.colskip=atoi(values[2].c_str());
+   s.adjoint.transpose.row0=atoi(values[3].c_str());
+   s.adjoint.transpose.rowskip=atoi(values[5].c_str());
    return (create_transpose(s));
  }
  return 0; 
@@ -134,31 +113,31 @@ int create_transpose(xpp::Session &s)
 {
   int i,j;
   int inrow,incol;
-  float **data=s.adjoint.transposed.make(s.data_store,my_trans.nrow+1,my_trans.ncol,s.model().neq);
-  for(j=0;j<my_trans.ncol;j++)
+  float **data=s.adjoint.transposed.make(s.data_store,s.adjoint.transpose.nrow+1,s.adjoint.transpose.ncol,s.model().neq);
+  for(j=0;j<s.adjoint.transpose.ncol;j++)
     data[0][j]=j+1;
 
-  for(i=0;i<my_trans.ncol;i++){
-    incol=my_trans.col0-1+i*my_trans.colskip;
+  for(i=0;i<s.adjoint.transpose.ncol;i++){
+    incol=s.adjoint.transpose.col0-1+i*s.adjoint.transpose.colskip;
     if(incol>s.model().neq)
       incol=s.model().neq;
-    for(j=0;j<my_trans.nrow;j++){
-      inrow=my_trans.row0+j*my_trans.rowskip;
+    for(j=0;j<s.adjoint.transpose.nrow;j++){
+      inrow=s.adjoint.transpose.row0+j*s.adjoint.transpose.rowskip;
       if(inrow>s.data_store.rows)
 	inrow=s.data_store.rows;
       data[j+1][i]=s.data_store.col[incol][inrow];
     }
   }
   
-  new_browse_dat(s,data,my_trans.ncol);
+  new_browse_dat(s,data,s.adjoint.transpose.ncol);
    s.adjoint.transposed_here=true;
    return 1;
 }
 
 void alloc_h_stuff(xpp::Session &s)
 {
- coup_fun.assign(s.model().node,{});
- coup_string.assign(s.model().node,"0");
+ s.adjoint.coup_fun.assign(s.model().node,{});
+ s.adjoint.coup_string.assign(s.model().node,"0");
 }
 
 void data_back(xpp::Session &s)
@@ -226,8 +205,8 @@ static const char *const key="nmaohpr";
 
 void adjoint_parameters(xpp::Session &s)
 {
-  new_int("Maximum iterates :",&ADJ_MAXIT);
-  new_float(s,"Adjoint error tolerance :",&ADJ_ERR);
+  new_int("Maximum iterates :",&s.adjoint.maxit);
+  new_float(s,"Adjoint error tolerance :",&s.adjoint.err);
 }
 
 void new_h_fun(xpp::Session &s, int silent)
@@ -268,7 +247,7 @@ void dump_h_stuff(xpp::Session &s, FILE *fp, int f)
   int i;
   io_heading(f,fp,"# Coupling stuff for H funs");
  for(i=0;i<s.model().node ;i++)
-   io_string(coup_string[i],fp,f);
+   io_string(s.adjoint.coup_string[i],fp,f);
 
 }
 
@@ -282,8 +261,8 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
  if(silent==0){
    for(i=0;i<s.model().node ;i++){
      std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
-     new_string_of(name,coup_string[i],XPP_FIELD_EXPRESSION);
-     if(add_expr(s,coup_string[i],coup_fun[i].data(),&j)){
+     new_string_of(name,s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
+     if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i].data(),&j)){
        err_msg("Illegal formula");
        goto bye;
      }
@@ -306,7 +285,7 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
 
        for(i=0;i<node;i++){
 	
-	 z=evaluate(s,coup_fun[i].data());
+	 z=evaluate(s,s.adjoint.coup_fun[i].data());
 	
 	 sum=sum+static_cast<float>(z)*adj[i+1][k];
        }
@@ -342,7 +321,7 @@ void new_adjoint(xpp::Session &s)
  }
  a.adjoint_rows=s.data_store.rows;
  float **adj=a.adjoint.make(s.data_store,n,a.adjoint_rows,s.model().neq);
- auto done=adjoint(s,s.data_store.col,adj,a.adjoint_rows,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,ADJ_ERR,ADJ_MAXIT,s.model().node );
+ auto done=adjoint(s,s.data_store.col,adj,a.adjoint_rows,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,s.adjoint.err,s.adjoint.maxit,s.model().node );
  if(done){
    a.adjoint_here=true;
  adj_back(s);
@@ -532,8 +511,8 @@ void do_liapunov(xpp::Session &s)
 {
   int i;
   double *x;
-  new_int("Range over parameters?(0/1)",&LIAP_FLAG);
-  if(LIAP_FLAG!=1){
+  new_int("Range over parameters?(0/1)",&s.adjoint.liap_flag);
+  if(s.adjoint.liap_flag!=1){
     auto z=hrw_liapunov(s,s.numerics.newt_err);
     if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z));
     else xpp::show_error(z.error());
@@ -542,30 +521,30 @@ void do_liapunov(xpp::Session &s)
   x=&s.data_store.current[0];
   do_range(s,x,0); 
   /* done the range */
-  for(i=0;i<LIAP_I;i++){
-    s.data_store.col[0][i]=my_liap[0][i];
-    s.data_store.col[1][i]=my_liap[1][i];
+  for(i=0;i<s.adjoint.liap_i;i++){
+    s.data_store.col[0][i]=s.adjoint.liap[0][i];
+    s.data_store.col[1][i]=s.adjoint.liap[1][i];
   }
-  s.data_store.rows=LIAP_I;
+  s.data_store.rows=s.adjoint.liap_i;
   refresh_browser(s,s.data_store.rows);
-  LIAP_FLAG=0;
-  for(auto &c : my_liap)c.clear();
+  s.adjoint.liap_flag=0;
+  for(auto &c : s.adjoint.liap)c.clear();
 }
 
-void alloc_liap(int n)
+void alloc_liap(xpp::Session &s, int n)
 {
-  if(LIAP_FLAG==0)return;
-  for(auto &c : my_liap)c.assign(n+1,0.0f);
-  LIAP_I=0;
+  if(s.adjoint.liap_flag==0)return;
+  for(auto &c : s.adjoint.liap)c.assign(n+1,0.0f);
+  s.adjoint.liap_i=0;
 }
 
 void do_this_liaprun(xpp::Session &s, int i,double p)
 {
- if(LIAP_FLAG==0)return;
- my_liap[0][i]=p;
+ if(s.adjoint.liap_flag==0)return;
+ s.adjoint.liap[0][i]=p;
  /* a sweep's step that fails is not shown: its point is 0 */
- my_liap[1][i]=static_cast<float>(hrw_liapunov(s,s.numerics.newt_err).value_or(0.0));
- LIAP_I++;
+ s.adjoint.liap[1][i]=static_cast<float>(hrw_liapunov(s,s.numerics.newt_err).value_or(0.0));
+ s.adjoint.liap_i++;
 }
 
 void norm_vec(std::span<double> v, double &mu)
