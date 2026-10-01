@@ -13,9 +13,7 @@ test('values go out as one set: one value plain, several in values[]', () => {
   });
 });
 
-test('defaults by field key; ifUnset keeps the first ones', () => {
-  let s = reduceValues(initialValues, {type: 'defaults', pars: [['Iapp', 0.2]], ics: [['V', -0.1]]});
+test('defaults by field key', () => {
+  const s = reduceValues(initialValues, {type: 'defaults', pars: [['Iapp', 0.2]], ics: [['V', -0.1]]});
   assert.deepEqual(s.defaults, {'par:iapp': 0.2, 'ic:v': -0.1});
-  s = reduceValues(s, {type: 'defaults', pars: [['iapp', 9]], ics: [], ifUnset: true});
-  assert.equal(s.defaults!['par:iapp'], 0.2);
 });

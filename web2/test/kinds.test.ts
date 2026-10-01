@@ -51,7 +51,7 @@ test('W95, W106: while a computation runs only control, view and setting actions
 test('W95: the windows\' keys come from hello, not a copy in the page', () => {
   assert.equal(layerKey(HELLO, 'auto', 'run'), 'r');
   assert.equal(layerKey(HELLO, 'ani', 'grab'), 'a');
-  assert.equal(layerKey(HELLO, 'aplot', 'fit'), '');
+  assert.equal(layerKey(HELLO, 'aplot', 'nothing'), '');
   assert.equal(layerKey(null, 'auto', 'run'), '');
   assert.deepEqual(windowKey(HELLO, 'auto', 'file', {row: 3}), {cmd: 'key', win: 'auto', key: 'f', row: 3});
   assert.ok(isWindowKey(HELLO, {cmd: 'key', win: 'ani', key: 'g'}, 'ani', 'go'));

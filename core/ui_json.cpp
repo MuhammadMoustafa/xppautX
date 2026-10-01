@@ -46,6 +46,7 @@
 #include <math.h>
 #include "load_eqn.h"
 #include "graf_par.h"
+#include "xpp_files.h"
 
 /* the core's own globals and functions that have no header of their own */
 
@@ -514,26 +515,34 @@ void write_command(xpp::Session &s, const char *line)
    what handle_line runs and of each command's kind (menus.h XPP_KIND_*,
    W95), which hello sends and during_run() judges by. An entry with an op
    is for lines with that "op"; the entry after it with none for the
-   command's other lines. A key's kind is its menu item's (0 here). */
+   command's other lines. A key's kind is its menu item's (0 here). A step
+   is the user's own action, what a recording records and the page keeps as
+   the command a missing file runs again (hello.commands' "step"); the rest
+   are the client's own requests (state, the data events, the browser's
+   paging, the model's folder), the answers and aborts that belong to the
+   step they come in, and the recording's and player's own. */
+constexpr bool STEP = true, NOT_STEP = false;
+
 struct CommandInfo {
     const char *cmd;
     const char *op;
     char kind;
+    bool step;
     void (*run)(xpp::Session &s, const char *line);
 };
 
 constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
 
 const CommandInfo commands[] = {
-    {"key", nullptr, 0, key_command},
-    {"answer", nullptr, C,
+    {"key", nullptr, 0, STEP, key_command},
+    {"answer", nullptr, C, NOT_STEP,
      [](xpp::Session &, const char *line) {
          /* reaching the main dispatch (rather than ask_wait) means no ask
             was pending for it (docs/protocol.md "Scripts") */
          if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
      }},
-    {"abort", nullptr, C, [](xpp::Session &, const char *) {}},
-    {"quit", nullptr, C,
+    {"abort", nullptr, C, NOT_STEP, [](xpp::Session &, const char *) {}},
+    {"quit", nullptr, C, NOT_STEP,
      [](xpp::Session &s, const char *line) {
          if (!quit_waits(line)) quit_command();
          /* the user's quit (W59d): File/Quit's question, or its Save
@@ -542,54 +551,54 @@ const CommandInfo commands[] = {
          player_hold();
          xpp_quit(s, get_int(line, "save", 0) != 0);
      }},
-    {"state", nullptr, V, [](xpp::Session &s, const char *) { send_state(s); }},
-    {"data", nullptr, V, data_command},
-    {"equations", nullptr, V, [](xpp::Session &s, const char *) { send_equations(s); }},
-    {"click", nullptr, V, click_command},
-    {"display", nullptr, V, display_command},
-    {"redraw", nullptr, V,
+    {"state", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_state(s); }},
+    {"data", nullptr, V, NOT_STEP, data_command},
+    {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
+    {"click", nullptr, V, STEP, click_command},
+    {"display", nullptr, V, STEP, display_command},
+    {"redraw", nullptr, V, NOT_STEP,
      [](xpp::Session &s, const char *) {
          redraw_graph(s);
          auto_redraw_for_client(s);
      }},
-    {"plotvars", nullptr, V, plotvars_command},
-    {"aplot", nullptr, V, aplot_command},
-    {"ani", nullptr, V, ani_command},
-    {"browser", "write", D, browser_command},
-    {"browser", "load", D, browser_command},
-    {"browser", "postprocess", X, browser_command},
-    {"browser", nullptr, V, browser_command}, /* with from: the block shown */
-    {"auto", "set", S, auto_command},
-    {"auto", "grab", D, auto_command},
-    {"auto", nullptr, V, auto_command}, /* display, point, close */
-    {"file", "put", D, file_command},
-    {"file", nullptr, V, file_command}, /* list, get */
-    {"set", nullptr, S, apply_set},
-    {"default", nullptr, S, default_command},
-    {"slide", nullptr, S, slide_command},
-    {"action", nullptr, D, action_command},
-    {"values", "write", D, values_command},
-    {"values", "query", D, values_command},
-    {"values", nullptr, S, values_command}, /* read, internset: values set */
-    {"session", nullptr, D, session_command},
-    {"dfield", nullptr, D, write_command},
-    {"open", nullptr, D,
+    {"plotvars", nullptr, V, STEP, plotvars_command},
+    {"aplot", nullptr, V, STEP, aplot_command},
+    {"ani", nullptr, V, STEP, ani_command},
+    {"browser", "write", D, STEP, browser_command},
+    {"browser", "load", D, STEP, browser_command},
+    {"browser", "postprocess", X, STEP, browser_command},
+    {"browser", nullptr, V, NOT_STEP, browser_command}, /* with from: the block shown */
+    {"auto", "set", S, STEP, auto_command},
+    {"auto", "grab", D, STEP, auto_command},
+    {"auto", nullptr, V, STEP, auto_command}, /* display, point, close */
+    {"file", "put", D, NOT_STEP, file_command},
+    {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
+    {"set", nullptr, S, STEP, apply_set},
+    {"default", nullptr, S, STEP, default_command},
+    {"slide", nullptr, S, STEP, slide_command},
+    {"action", nullptr, D, STEP, action_command},
+    {"values", "write", D, STEP, values_command},
+    {"values", "query", D, STEP, values_command},
+    {"values", nullptr, S, STEP, values_command}, /* read, internset: values set */
+    {"session", nullptr, D, STEP, session_command},
+    {"dfield", nullptr, D, STEP, write_command},
+    {"open", nullptr, D, STEP,
      [](xpp::Session &s, const char *line) {
          std::string file;
          get_string(line, "file", file);
          xpp_model_open(s, file.c_str());
      }},
-    {"reload", nullptr, D, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
-    {"record", "note", C, record_command},
-    {"record", nullptr, D, record_command}, /* start, stop */
-    {"play", "start", C, play_command},
-    {"play", "pause", C, play_command},
-    {"play", "step", C, play_command},
-    {"play", "speed", C, play_command},
-    {"play", "close", C, play_command},
-    {"play", nullptr, D, play_command}, /* open, from, note */
-    {"equilibrium", nullptr, X, write_command},
-    {"userbut", nullptr, X,
+    {"reload", nullptr, D, STEP, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
+    {"record", "note", C, NOT_STEP, record_command},
+    {"record", nullptr, D, NOT_STEP, record_command}, /* start, stop */
+    {"play", "start", C, NOT_STEP, play_command},
+    {"play", "pause", C, NOT_STEP, play_command},
+    {"play", "step", C, NOT_STEP, play_command},
+    {"play", "speed", C, NOT_STEP, play_command},
+    {"play", "close", C, NOT_STEP, play_command},
+    {"play", nullptr, D, NOT_STEP, play_command}, /* open, from, note */
+    {"equilibrium", nullptr, X, STEP, write_command},
+    {"userbut", nullptr, X, STEP,
      [](xpp::Session &s, const char *line) {
          int i = get_int(line, "index", -1);
          if (i >= 0 && i < s.nuserbut) run_the_commands(s, s.userbut[i].com);
@@ -613,7 +622,6 @@ void buf_commands(Buf *b)
     BUF_LIT(b, ",\"commands\":[");
     bool first = true;
     for (const CommandInfo &e : commands) {
-        if (!e.kind) continue;
         if (!first) BUF_LIT(b, ",");
         first = false;
         BUF_LIT(b, "{\"cmd\":");
@@ -622,12 +630,21 @@ void buf_commands(Buf *b)
             BUF_LIT(b, ",\"op\":");
             buf_str(b, e.op);
         }
-        buf_format(b, ",\"kind\":\"{}\"}}", e.kind);
+        /* a key's kind is its menu item's: "" here */
+        if (e.kind) buf_format(b, ",\"kind\":\"{}\"", e.kind);
+        else BUF_LIT(b, ",\"kind\":\"\"");
+        buf_format(b, ",\"step\":{}}}", e.step);
     }
     BUF_LIT(b, "]");
 }
 
 } // namespace
+
+bool line_is_step(const char *line)
+{
+    const CommandInfo *e = command_of(line);
+    return e && e->step;
+}
 
 char line_kind(const char *line)
 {
@@ -910,7 +927,23 @@ void send_hello(xpp::Session &s)
     buf_str(&b, file_menu_kinds);
     BUF_LIT(&b, ",\"num_kinds\":");
     buf_str(&b, num_menu_kinds);
+    /* the page's names: of each menu, by state's menu number, and of each
+       item, parallel to the keys (what the page looks a key up by) */
+    BUF_LIT(&b, ",\"names\":");
+    buf_str_array(&b, main_menu_names, 3);
+    BUF_LIT(&b, ",\"main_ids\":");
+    buf_str_array(&b, main_menu_ids, MAIN_ENTRIES);
+    BUF_LIT(&b, ",\"file_ids\":");
+    buf_str_array(&b, file_menu_ids, FILE_ENTRIES);
+    BUF_LIT(&b, ",\"num_ids\":");
+    buf_str_array(&b, num_menu_ids, NUM_ENTRIES);
     BUF_LIT(&b, "}");
+    /* the limits the page keeps to and the windows' numbers in `window`
+       events (plot windows are 1 to plots) */
+    buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
+               BROWSER_MAX_ROWS, BROWSER_MAX_COLS);
+    buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", MAXPOP, WIN_AUTO,
+               WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other
        commands' kinds: what the page enables while a computation runs */
     BUF_LIT(&b, ",\"windows\":{");

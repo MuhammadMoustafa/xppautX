@@ -203,8 +203,8 @@ void browser_rows(const xpp::Session &s, const char *line)
     br_count = get_int(line, "count", 100);
     br_col = get_int(line, "col", 1);
     br_ncol = get_int(line, "ncol", 20);
-    if (br_count > 2000) br_count = 2000;
-    if (br_ncol > 500) br_ncol = 500;
+    if (br_count > BROWSER_MAX_ROWS) br_count = BROWSER_MAX_ROWS;
+    if (br_ncol > BROWSER_MAX_COLS) br_ncol = BROWSER_MAX_COLS;
     send_browser(s);
 }
 

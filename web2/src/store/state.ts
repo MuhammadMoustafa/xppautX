@@ -13,7 +13,7 @@ import {
 import {initialAplot, reduceAplot, type AplotAction, type AplotState} from './aplot';
 import {initialAni, reduceAni, type AniAction, type AniState} from './ani';
 import {initialKinescope, reduceKinescope, snapshotWindow, type KinescopeAction, type KinescopeState} from './kinescope';
-import {initialFiles, missingFile, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
+import {initialFiles, onSent, reduceFiles, type FilesAction, type FilesState, type RunRecord} from './files';
 import {
   diagramSettled, initialDiagram, reduceDiagram, type AutoInfoEvent, type DiagramAction, type DiagramEvent, type DiagramState,
 } from './diagram';
@@ -225,8 +225,6 @@ export const initialState: AppState = {
 
 /* lines kept (T27: one entry per line, so a long AUTO run's table in Output) */
 const LOG_KEEP = 5000, TOASTS_KEEP = 4;
-/** the core's animation window (docs/protocol.md `window`) */
-const ANI_WINDOW = 104;
 
 function addLog(state: AppState, entry: LogEntry): AppState {
   const log = state.log.length >= LOG_KEEP ? state.log.slice(1 - LOG_KEEP) : state.log.slice();
@@ -281,7 +279,7 @@ export function noIdle(cmd: Command): boolean {
     a question of the core's replaces it. */
 export const LEAVE_ASK = -1;
 
-/** the leave question, as the core would ask it now (null: hello has no `quit`) */
+/** the leave question, as the core would ask it now (null before hello) */
 function leaveAsk(state: AppState): AskEvent | null {
   const q = state.hello?.quit;
   if (!q) return null;
@@ -319,24 +317,19 @@ function coreViewMoved(a: View | undefined, b: View): boolean {
   return !!a && a.win === b.win && (a.xlo !== b.xlo || a.xhi !== b.xhi || a.ylo !== b.ylo || a.yhi !== b.yhi);
 }
 
-/** the model file's values: hello.defaults by the state's names, or (an
-    older server) the values of the first state after the hello */
-function defaultsOf(hello: HelloEvent | null, st: StateEvent): ValuesAction {
-  const d = hello?.defaults;
-  const zip = (named: [string, number][], vals: number[] | undefined): [string, number][] =>
-    vals && vals.length === named.length ? named.map(([n], i) => [n, vals[i]]) : named;
-  return {type: 'defaults', pars: zip(st.pars, d?.pars), ics: zip(st.ics, d?.ics)};
+/** the model file's values: hello.defaults by the state's names (one per entry, in their order) */
+function defaultsOf(hello: HelloEvent, st: StateEvent): ValuesAction {
+  const zip = (named: [string, number][], vals: number[]): [string, number][] => named.map(([n], i) => [n, vals[i]]);
+  return {type: 'defaults', pars: zip(st.pars, hello.defaults.pars), ics: zip(st.ics, hello.defaults.ics)};
 }
 
-/** the array plot's window id (core/ui_json.cpp WIN_APLOT) */
-const WIN_APLOT = 105;
 
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello': {
       /* a (re)connection: the defaults come with the next state; the model's sliders start the list */
       const values = reduceValues(reduceValues({...state.values, defaults: null}, {type: 'settled'}),
-        {type: 'presetSliders', defs: ev.sliders ?? []});
+        {type: 'presetSliders', defs: ev.sliders});
       /* a set sent before gets no idle now */
       return {...state, hello: ev, title: ev.title, values, numerics: null,
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};
@@ -348,7 +341,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {
         ...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
         player: reducePlayer(state.player, {type: 'core', player: ev.player}),
-        values: state.values.defaults ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
+        values: state.values.defaults || !state.hello ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
       };
     }
     case 'series': {
@@ -374,13 +367,16 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return withPlots(state, onDfield(state.plots, ev));
     case 'marks':
       return withPlots(state, onMarks(state.plots, ev));
-    case 'window':
-      if (ev.win === 101 && ev.op !== 'select')
+    case 'window': {
+      /* the windows' numbers: hello.window_ids (no window comes before hello) */
+      const ids = state.hello?.window_ids;
+      if (!ids) return state;
+      if (ev.win === ids.auto && ev.op !== 'select')
         return {...state, diagram: reduceDiagram(state.diagram, {type: 'window', op: ev.op})};
-      if (ev.win === ANI_WINDOW && ev.op !== 'select')
+      if (ev.win === ids.ani && ev.op !== 'select')
         return {...state, ani: reduceAni(state.ani, {type: 'window', exists: ev.op === 'create'})};
       /* create selects the new window too; destroy waits for `plots` */
-      if (ev.win === WIN_APLOT) {
+      if (ev.win === ids.aplot) {
         if (ev.op === 'destroy') return {...state, aplot: reduceAplot(state.aplot, {type: 'window', open: false})};
         if (ev.op === 'create') {
           /* shown at once, like the classic page (web/xpp-client.js onArrayPlot) */
@@ -389,10 +385,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         }
         return state;
       }
-      return ev.op === 'select' && ev.win <= 10 ? withPlots(state, select(state.plots, ev.win)) : state;
+      return ev.op === 'select' && ev.win <= ids.plots ? withPlots(state, select(state.plots, ev.win)) : state;
+    }
     case 'ask': {
-      const auto = Number(ev.win) === 101 && state.diagram.open;
-      const mode = pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series, auto);
+      const ids = state.hello?.window_ids;
+      const auto = !!ids && Number(ev.win) === ids.auto && state.diagram.open;
+      const mode = ids ? pickModeOf(ev, state.core?.view, !!windowOf(state.plots, Number(ev.win))?.series, ids, auto) : null;
       const withAsk = {...state, ask: ev, pick: mode ? startPick(state.pick, ev, mode) : null};
       /* the AUTO diagram's asks (a grab, Axes/Zoom's box, Axes/Scroll's drag) are the AUTO view's: it is shown */
       if (auto && (mode || ev.kind === 'grab')) {
@@ -443,9 +441,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {...state, title: ev.text};
     case 'message':
       if (ev.error !== undefined) {
-        /* a file the command could not open: the notification offers to add it */
-        const missing = missingFile(ev.error, state.files.run);
-        const action: ToastAction | undefined = missing ? {kind: 'addFile', name: missing, run: state.files.run} : undefined;
+        /* a file the command could not read (the core names it): the notification offers to add it */
+        const action: ToastAction | undefined = ev.file !== undefined ? {kind: 'addFile', name: ev.file, run: state.files.run} : undefined;
         const files = {...state.files, runFailed: true};
         /* a rejected `set`/`slide` is that field's error (A11), a rejected `auto` `set` the AUTO
            form's: the field or form shows it where it was typed and takes the focus back (WF-001),
@@ -502,7 +499,7 @@ export function reduce(state: AppState, action: Action): AppState {
       /* a new connection is told again when the core computes (its computing event is kept) */
       return action.open === state.connected ? state : {...state, connected: action.open, computing: false};
     case 'sent': {
-      const files = onSent(state.files, action.cmd, state.ask, state.core?.menu ?? 0);
+      const files = onSent(state.files, state.hello, action.cmd, state.ask, state.core?.menu ?? 0);
       if (files !== state.files) state = {...state, files};
       if (action.cmd.cmd === 'answer') {
         /* a point or a box is done once answered; a drag is asked again until it ends */

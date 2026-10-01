@@ -5,7 +5,8 @@ import {decode, valueCount} from '../src/protocol/decode';
 import type {SeriesAppendEvent, SeriesEvent} from '../src/protocol/types';
 import {appendRows, seriesFromEvent} from '../src/store/series';
 import {activeWindow} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 /** base64 of little-endian float32, as the server's enc "f32" */
 function f32(values: number[]): string {
@@ -99,7 +100,7 @@ test('an append that does not continue the series is left for the full series', 
 });
 
 test('the reducer applies appends, keeps the zoom, and counts them', () => {
-  let s = ev(initialState, full);
+  let s = ev(READY, full);
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 1}, y: null}});
   s = reduce(s, {type: 'hover', hover: {curve: 0, row: 1, x: 11, y: 21, t: 1}});
   s = ev(s, append(2, 2));
@@ -111,5 +112,5 @@ test('the reducer applies appends, keeps the zoom, and counts them', () => {
   s = ev(s, append(0, 1));
   assert.equal(shown(s).series!.rows, 1);
   assert.equal(s.hover, null, 'rows from 0 on were replaced');
-  assert.equal(ev(initialState, append(0, 2)), initialState, 'nothing to append to');
+  assert.equal(ev(READY, append(0, 2)), READY, 'nothing to append to');
 });

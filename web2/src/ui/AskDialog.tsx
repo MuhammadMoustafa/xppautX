@@ -69,9 +69,9 @@ function FormAsk({ask}: {ask: AskEvent}) {
   const isString = ask.kind === 'string';
   const names = isString ? [ask.name ?? ''] : ask.names ?? [];
   const [values, setValues] = useState<string[]>(isString ? [ask.value ?? ''] : [...(ask.values ?? [])]);
-  /* what each typed field takes, as the core says (`kinds`; none: text); a list field picks, so takes its pick */
+  /* what each typed field takes, as the core says (`kinds`, one per field); a list field picks, so takes its pick */
   const specs = names.map((n, i): FieldSpec =>
-    (!isString && fieldSpec(n).list !== null ? TEXT : specOfKind(ask.kinds?.[i], lists)));
+    (!isString && fieldSpec(n).list !== null ? TEXT : specOfKind(ask.kinds![i], lists)));
   const valid = fieldsValid(specs, values);
   const submit = (e: Event) => {
     e.preventDefault();
@@ -190,6 +190,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   const session = useSession();
   const table = useStore(s => s.table);
   const core = useStore(s => s.core);
+  const hello = useStore(s => s.hello);
   const box = useRef<HTMLDivElement>(null);
   useDialogFocus(box, [ask.id]);
   const onKeyDown = (e: KeyboardEvent) => {
@@ -218,7 +219,7 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
         onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id="ask-title">{title}</h2>
-          <HelpButton target={askHelp({table, core}, ask.kind)} label={title} />
+          <HelpButton target={askHelp({table, core, hello}, ask.kind)} label={title} />
         </div>
         {children}
       </div>

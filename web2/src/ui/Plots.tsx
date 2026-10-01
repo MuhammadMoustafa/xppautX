@@ -8,7 +8,7 @@
 import {useEffect, useRef} from 'preact/hooks';
 import {PLOT_KEYS_HELP} from '../plot/plotKeys';
 import type {PlotWindow} from '../store/plots';
-import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {Plot3DView} from './Plot3DView';
 import {PlotView} from './PlotView';
 
@@ -25,8 +25,8 @@ function tabTitle(w: PlotWindow): string {
 function KinescopeBar() {
   const session = useSession();
   const {frames, playing, shown} = useStore(s => s.kinescope);
-  const may = useMay();
-  const busy = !may({cmd: 'key', key: 'k'}); /* the Kinescope menu's kind (W95) */
+  const mayMain = useMayMain();
+  const busy = !mayMain('kinescope'); /* the Kinescope menu's kind (W95) */
   return (
     <div class="kinescope-bar" role="group" aria-label="Kinescope">
       <button class="small" disabled={busy} onClick={() => session.kinescopeCapture()}
@@ -55,9 +55,10 @@ export function Plots({dark}: {dark: boolean}) {
   const windows = useStore(s => s.plots.windows);
   const active = useStore(s => s.plots.active);
   const may = useMay();
+  const mayMain = useMayMain();
   /* a tab pick is a view: it works during a run too, only an open question waits (W95) */
   const tabOff = !may({cmd: 'click', win: active});
-  const windowOff = !may({cmd: 'key', key: 'm'}); /* Makewindow */
+  const windowOff = !mayMain('makewindow'); /* Makewindow */
   const tabs = useRef<HTMLDivElement>(null);
   /* the tab a key picked: a pick while the core is busy is held for its idle
      (session.selectWindow); the tab the key picked gets the focus once it is

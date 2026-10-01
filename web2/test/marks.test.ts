@@ -10,7 +10,8 @@ import {parseRichText, plainText, symbolToUnicode} from '../src/plot/richtext';
 import type {MarksEvent} from '../src/protocol/types';
 import {markCount, marksFromEvent} from '../src/store/marks';
 import {windowOf} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('base64');
@@ -76,7 +77,7 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
 });
 
 test('the store keeps each window its marks; an empty event clears them', () => {
-  let s = ev(initialState, MARKS);
+  let s = ev(READY, MARKS);
   s = ev(s, {...MARKS, win: 2, equilibria: []});
   assert.equal(windowOf(s.plots, 1)?.marks?.equilibria.length, 2);
   assert.equal(windowOf(s.plots, 2)?.marks?.equilibria.length, 0);

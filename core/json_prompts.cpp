@@ -124,11 +124,22 @@ int ask_begin(Buf *b, const char *kind)
     return ask_id;
 }
 
-void j_err_msg(std::string_view msg)
+void j_err_msg(std::string_view msg, std::string_view file)
 {
     /* a script that provokes an error fails the run (docs/protocol.md) */
     if (session.script_mode) session.script_error = 1;
-    send_simple("message", "error", msg);
+    if (file.empty()) {
+        send_simple("message", "error", msg);
+        return;
+    }
+    /* the file the command could not read, by its name in the model's folder */
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"message\",\"error\":");
+    buf_str(&b, msg);
+    BUF_LIT(&b, ",\"file\":");
+    buf_str(&b, xpp::files::split_path(file).second);
+    BUF_LIT(&b, "}");
+    send_buf(&b);
 }
 
 void j_ping(void) { send_simple("ping"); }

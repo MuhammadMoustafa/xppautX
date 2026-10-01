@@ -261,7 +261,7 @@ void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
     if(!file_selector("Load SET File",filename,"*.set"))return;
     xpp::UniqueFile fp=xpp::open_read_binary(filename.c_str());
     if(!fp){
-      err_msg("Cannot open file");
+      err_reading(filename,"Cannot open file");
       return;
     }
     if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
@@ -340,7 +340,7 @@ void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
   if(flag==READEM) {
     xpp::UniqueFile fp=xpp::open_read_binary(fn);
     if(!fp){
-      err_msg("Cannot open file");
+      err_reading(fn,"Cannot open file");
       return;
     }
     try{
@@ -379,7 +379,7 @@ void io_ic_file(xpp::Session &s, std::string_view fn,int flag)
   if(flag==READEM){
     xpp::TokenReader tr(fn);
     if(!tr){
-      err_msg("Cannot open file");
+      err_reading(fn,"Cannot open file");
       return;
     }
     for(int i=0;i<n;i++){

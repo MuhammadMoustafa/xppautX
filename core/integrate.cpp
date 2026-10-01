@@ -1166,7 +1166,7 @@ void do_init_data(xpp::Session &s, int com)
     {
       xpp::TokenReader reader(icfile.c_str());
       if(!reader){
-        err_msg(" Cant open IC file");
+        err_reading(icfile," Cant open IC file");
         return;
       }
       for(i=0;i<s.model().node;i++)

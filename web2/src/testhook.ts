@@ -12,6 +12,7 @@ import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
 import type {Session} from './session';
 import type {Action} from './store/state';
+import {autoWindow} from './store/diagram';
 
 const KEEP = 200;
 
@@ -35,7 +36,7 @@ export function installTestHook(session: Session): void {
     if (a.type === 'event' && a.ev.ev === 'diagram') {
       if (a.ev.op === 'reset' && !a.ev.keep && !a.ev.view) diagramEvents = [];
       diagramEvents.push(a.ev);
-    } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.win === 101 && a.ev.op === 'destroy') diagramEvents = [];
+    } else if (a.type === 'event' && a.ev.ev === 'window' && a.ev.win === autoWindow(session.store.getState()) && a.ev.op === 'destroy') diagramEvents = [];
     if (a.type === 'event' && a.ev.ev === 'press') {
       presses.push({step: a.ev.step, what: a.ev.what, index: a.ev.index});
       if (presses.length > KEEP) presses.shift();

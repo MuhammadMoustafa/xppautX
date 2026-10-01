@@ -15,7 +15,7 @@ namespace xpp {
 
 /* ---- headless defaults ------------------------------------------------ */
 
-static void hl_err_msg(std::string_view msg) { log(XPP_LOG_ERROR, "{}\n", msg); }
+static void hl_err_msg(std::string_view msg, std::string_view) { log(XPP_LOG_ERROR, "{}\n", msg); }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
@@ -237,12 +237,13 @@ void set_ui(const XppUi *table)
 
 /* ---- dispatchers with the historical names ---------------------------- */
 
-void err_msg(std::string_view msg) { ui.err_msg(msg); }
+void err_msg(std::string_view msg) { ui.err_msg(msg, {}); }
+void err_reading(std::string_view path, std::string_view msg) { ui.err_msg(msg, path); }
 
 void show_error(const Error &e)
 {
     xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
-    if (!e.what.empty()) err_msg(e.what);
+    if (!e.what.empty()) ui.err_msg(e.what, e.file);
 }
 void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg) { ui.bottom_msg(line, msg); }

@@ -8,7 +8,8 @@
    (its first command and the answers to its prompts), so a command whose
    file was missing can run again once the file is added. Pure: no DOM, no
    I/O. */
-import type {AskEvent, Command} from '../protocol/types';
+import {isStep, menuKey, menuName, menuNumber} from '../protocol/kinds';
+import type {AskEvent, Command, HelloEvent} from '../protocol/types';
 
 /** one file of GET /files */
 export interface FolderFile {
@@ -57,7 +58,7 @@ export interface RunAnswer {
 
 /** the running (or last) command as the user gave it */
 export interface RunRecord {
-  /** the main menu (state.menu) when it was sent: File/Read set is `r` in menu 1 */
+  /** the main menu (state.menu) when it was sent: File/Read set is a key of the File menu */
   menu: number;
   cmd: Command;
   answers: RunAnswer[];
@@ -98,12 +99,10 @@ export function reduceFiles(state: FilesState, action: FilesAction): FilesState 
   }
 }
 
-/* commands that start something the user asked for (not an answer, a
-   query, a size or a data subscription): a new run record */
-const ROOT = new Set(['key', 'session', 'browser', 'auto', 'ani', 'aplot', 'plotvars', 'userbut', 'action']);
-
-/** a command was sent while `ask` was open and the main menu was `menu` */
-export function onSent(state: FilesState, cmd: Command, ask: AskEvent | null, menu: number): FilesState {
+/** a command was sent while `ask` was open and the main menu was `menu`: a step
+    of the user's (hello.commands' step: not an answer, a query or a data
+    subscription) starts a new run record */
+export function onSent(state: FilesState, hello: HelloEvent | null, cmd: Command, ask: AskEvent | null, menu: number): FilesState {
   if (cmd.cmd === 'answer') {
     if (!state.run || !ask) return state;
     const {cmd: _c, id: _i, ...fields} = cmd;
@@ -111,10 +110,12 @@ export function onSent(state: FilesState, cmd: Command, ask: AskEvent | null, me
     if (typeof ask.mode === 'string') answer.mode = ask.mode;
     return {...state, run: {...state.run, answers: [...state.run.answers, answer]}};
   }
-  if (!ROOT.has(cmd.cmd) || (cmd.cmd === 'browser' && 'from' in cmd)) return state;
+  if (!hello || !isStep(hello, cmd)) return state;
   const at = state.nextMenu ?? menu, key = cmd.cmd === 'key' && !cmd.win ? String(cmd.key) : '';
-  /* F and U in the main menu switch to the File and nUmerics menus (core/commands.c commander) */
-  const nextMenu = at === 0 && key === 'f' ? 1 : at === 0 && key === 'u' ? 2 : null;
+  /* File and nUmerics in the main menu switch to those menus (core/commands.cpp commander) */
+  const main = menuName(hello, at) === 'main';
+  const nextMenu = main && key === menuKey(hello, 'main', 'file') ? menuNumber(hello, 'file')
+    : main && key === menuKey(hello, 'main', 'numerics') ? menuNumber(hello, 'num') : null;
   return {...state, run: {menu: at, cmd, answers: []}, runFailed: false, nextMenu};
 }
 
@@ -164,31 +165,12 @@ export function uploadPlan(name: string, sha256: string, listing: FolderFile[]):
   return !there ? 'copy' : there.sha256 === sha256 ? 'same' : 'confirm';
 }
 
-/* ---- a file the core could not open ------------------------------------------------ */
-
-const CANNOT_OPEN = /(can'?t|cannot|could ?n'?o?t|unable to) (open|read|find)|not found/i;
-
-/** the file an error of the running command is about, or null: a name the
-    error text gives (<name>, "open name"), else, when the error says a file
-    could not be opened, the name the command's file ask for reading was
-    answered with */
-export function missingFile(error: string, run: RunRecord | null): string | null {
-  const named = /<([^<>]+)>/.exec(error) ?? /\bopen\s+(\S+\.\w+)/i.exec(error);
-  if (named) {
-    const n = baseName(named[1].trim());
-    if (safeName(n)) return n;
-  }
-  if (!CANNOT_OPEN.test(error) || !run) return null;
-  const read = [...run.answers].reverse().find(a => a.kind === 'file' && a.mode === 'read' && typeof a.fields.file === 'string');
-  const n = read ? baseName(read.fields.file as string) : '';
-  return n && safeName(n) ? n : null;
-}
-
 /** the keys that bring the main menu from `now` to `want` before a command
     runs again (the File and nUmerics menus go back to the main one after a
     command), or null when that cannot be done */
-export function menuKeys(now: number, want: number): string[] | null {
+export function menuKeys(hello: HelloEvent | null, now: number, want: number): string[] | null {
   if (now === want) return [];
-  if (now !== 0) return null;
-  return want === 1 ? ['f'] : want === 2 ? ['u'] : null;
+  if (menuName(hello, now) !== 'main') return null;
+  const to = menuName(hello, want);
+  return to === 'file' ? [menuKey(hello, 'main', 'file')] : to === 'num' ? [menuKey(hello, 'main', 'numerics')] : null;
 }

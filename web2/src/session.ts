@@ -11,10 +11,10 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {kindOf, mayStart, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
-import type {AskEvent, Command, FilmEvent, XppEvent} from './protocol/types';
+import {kindOf, mainKey, mayStart, menuKey, menuName, windowKey as layerCommand, type LayerWindow} from './protocol/kinds';
+import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
-import {activeView, AUTO_WIN} from './store/diagram';
+import {activeView, autoWindow} from './store/diagram';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
 } from './store/files';
@@ -62,6 +62,8 @@ export class Session {
   readonly store: Store<AppState, Action>;
   /** keys that answer the menus a key sequence opens ("i g": Initialconds, Go) */
   private pendingKeys: string[] = [];
+  /** the server's hello named another protocol than this page's (PROTOCOL): nothing it sends is read */
+  private otherProtocol = false;
   /** keys typed while a key command waits for its first answer (T21): the
       menu it opens takes the first, the others go out after its idle */
   private typeahead: string[] = [];
@@ -158,6 +160,15 @@ export class Session {
   }
 
   private receive(ev: XppEvent): void {
+    /* core and page ship together (the page is compiled into the program):
+       a page of another build is a shown error, never read as this one */
+    if (ev.ev === 'hello') this.otherProtocol = ev.protocol !== PROTOCOL;
+    if (this.otherProtocol) {
+      if (ev.ev === 'hello')
+        this.store.dispatch({type: 'event', ev: {ev: 'message', error: `This page speaks protocol ${PROTOCOL} and the program ${ev.protocol}: `
+          + 'open the page the program itself serves (reload it after an update).'}});
+      return;
+    }
     this.store.dispatch({type: 'event', ev: this.unguarded(ev)});
     if (ev.ev === 'hello') {
       this.displayHeld.clear();
@@ -166,14 +177,12 @@ export class Session {
       this.keyWaiting = false; /* a new connection: nothing is waiting any more */
       this.idlesOwed = this.keyIdlesAhead = 0;
       this.typeahead = [];
-      /* the plots as data (docs/protocol.md): asked for on every (re)connection,
-         which also makes the server send the windows, their series, nullclines,
-         direction fields and marks; values
-         as base64 float32, which a long run needs (a server that does not know
-         enc sends JSON numbers, which the store reads as well) */
-      const events = ['series', 'plots', 'nullclines', 'dfield', 'marks', 'ani', 'autoinfo', 'autosettings', 'numerics']
-        .filter(name => ev.features?.includes(name));
-      if (events.length) this.send({cmd: 'data', events, enc: 'f32'});
+      /* the plots as data (docs/protocol.md): every data event the server
+         speaks (hello.features), asked for on every (re)connection, which
+         also makes the server send the windows, their series, nullclines,
+         direction fields and marks; values as base64 float32, which a long
+         run needs */
+      this.send({cmd: 'data', events: ev.features, enc: 'f32'});
     } else if (ev.ev === 'copy') {
       void this.copyText(ev.text);
     } else if (ev.ev === 'film') {
@@ -297,6 +306,16 @@ export class Session {
     return mayStart(kind, computing, ask !== null);
   }
 
+  /** the key of main-menu item `id` (hello.menus.main_ids: initialconds, window, ...) */
+  mainKey(id: string): string {
+    return menuKey(this.store.getState().hello, 'main', id);
+  }
+
+  /** whether main-menu item `id` may go out now (may) */
+  mayMain(id: string): boolean {
+    return this.may(mainKey(this.store.getState().hello, id));
+  }
+
   /** whether item `id` of window `win`'s key layer may go out now (may) */
   mayKey(win: LayerWindow, id: string): boolean {
     return this.may(this.layerKey(win, id));
@@ -405,7 +424,7 @@ export class Session {
   quitAsked(): void {
     const {hello, ask, busy, computing} = this.store.getState();
     if (ask?.id === LEAVE_ASK) return;
-    if (hello?.quit && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
+    if (hello && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
     else this.send({cmd: 'quit', ask: true});
   }
 
@@ -486,12 +505,12 @@ export class Session {
 
   /** Makewindow/Create: a copy of the active window, which becomes active */
   newWindow(): void {
-    this.keys('m', 'c');
+    this.keys(this.mainKey('makewindow'), 'c');
   }
 
   /** Makewindow/Destroy: the active window (never window 1) */
   closeWindow(): void {
-    this.keys('m', 'd');
+    this.keys(this.mainKey('makewindow'), 'd');
   }
 
   /* ---- the display state (W65) ---- */
@@ -574,13 +593,13 @@ export class Session {
       to "the core's axes" (store/plots.ts coreMoved, from the `state`
       reducer), with no visible jump since they are now the same range. */
   useThisView(win: number, ranges: Ranges): void {
-    if (!this.may({cmd: 'key', key: 'w'})) return; /* W68 */
+    if (!this.mayMain('window')) return; /* W68 */
     const cmds: Command[] = [];
     if (this.store.getState().plots.active !== win) {
       this.store.dispatch({type: 'selectWindow', win});
       cmds.push({cmd: 'click', win});
     }
-    cmds.push({cmd: 'key', key: 'w'});
+    cmds.push(mainKey(this.store.getState().hello, 'window'));
     const {x, y} = ranges;
     this.runPlan(cmds, [
       ask => (ask.kind === 'menu' ? {key: 'w'} : null),
@@ -596,7 +615,7 @@ export class Session {
   fitView(): void {
     const p = this.store.getState().plots, w = windowOf(p, p.active);
     if (w && (w.viewport.x !== null || w.viewport.y !== null)) this.setViewport(w.win, HOME);
-    this.keys('w', 'f');
+    this.keys(this.mainKey('window'), 'f');
   }
 
   /* ---- 3D plots (docs/ui-v2.md T14) ---- */
@@ -798,7 +817,7 @@ export class Session {
     /* a grab or plot mode waiting on the diagram is cancelled with it: the ask would stay open behind
        the main window and swallow every key typed there (W100) */
     const {ask, pick, diagram} = this.store.getState();
-    if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === AUTO_WIN))) this.cancelPick();
+    if (!shown && diagram.shown && ask && (diagram.grabbing || (pick && pick.win === autoWindow(this.store.getState())))) this.cancelPick();
     this.store.dispatch({type: 'diagram', action: {type: 'show', shown}});
   }
 
@@ -862,7 +881,7 @@ export class Session {
 
   /** "Use current state": Initialconds/Last (`i` `l`), the ICs from where the last run ended */
   useCurrentState(): void {
-    this.keys('i', 'l');
+    this.keys(this.mainKey('initialconds'), 'l');
   }
 
   /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
@@ -893,8 +912,9 @@ export class Session {
       this.failed(`XPP cannot use a file named "${file.name}" in the model's folder. Rename it and pick it again.`);
       return;
     }
-    if (file.size > FILE_CAP) {
-      this.failed(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+    const big = this.tooBig(file);
+    if (big) {
+      this.failed(big);
       return;
     }
     try {
@@ -984,8 +1004,9 @@ export class Session {
       even during a job or a prompt (docs/protocol.md), so this never waits
       on `state.busy`. */
   fetchTableRows(visibleFrom: number, visibleCount: number): void {
-    const {page, pendingKey} = this.store.getState().table;
-    const req = planRequest(page, visibleFrom, visibleCount);
+    const {table: {page, pendingKey}, hello} = this.store.getState();
+    if (!hello) return;
+    const req = planRequest(page, visibleFrom, visibleCount, hello.limits);
     if (!req) return;
     const key = JSON.stringify(req);
     if (key === pendingKey) return;
@@ -1021,7 +1042,7 @@ export class Session {
   /** shows the panel, opening the core's animation window first (Viewaxes/Toon) when there is none */
   openAni(): void {
     this.store.dispatch({type: 'ani', action: {type: 'open', open: true}});
-    if (!this.store.getState().ani.exists) this.keys('v', 't');
+    if (!this.store.getState().ani.exists) this.keys(this.mainKey('viewaxes'), 't');
   }
 
   /** hides the panel; a playing animation stops */
@@ -1121,7 +1142,7 @@ export class Session {
   /** the core's Kinescope menu (keys k then the item's own mnemonic); a no-op
       while a computation runs, like the rest of the menu keys of its kind */
   private kinescopeMenu(item: string): void {
-    this.keys('k', item);
+    this.keys(this.mainKey('kinescope'), item);
   }
 
   kinescopeCapture(): void {
@@ -1169,7 +1190,7 @@ export class Session {
       the page only offers the result as a download, at the idle that
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
-    if (!this.may({cmd: 'key', key: 'k'}) || !this.store.getState().kinescope.frames.length) return;
+    if (!this.mayMain('kinescope') || !this.store.getState().kinescope.frames.length) return;
     this.pendingSave = {name: 'anim.gif', handle: null, ahead: this.idlesOwed};
     this.kinescopeMenu('m');
   }
@@ -1211,10 +1232,11 @@ export class Session {
          a plain key as one of its own items and must be left with Escape
          first (core/commands.c commander(), help_menu); 'p' runs Prt src
          and the core returns to the main menu on its own afterward. */
-      const menu = this.store.getState().core?.menu ?? 0;
-      if (menu === 2) this.key('Escape');
-      if (menu !== 1) this.key('f');
-      this.key('p');
+      const {hello, core} = this.store.getState();
+      const menu = menuName(hello, core?.menu ?? 0);
+      if (menu === 'num') this.key(menuKey(hello, 'num', 'exit'));
+      if (menu !== 'file') this.key(menuKey(hello, 'main', 'file'));
+      this.key(menuKey(hello, 'file', 'source'));
     }
     /* 'equilibrium' has no fetch of its own: it is the last Sing pts result
        the core sent (Sing pts/Go, session.findEquilibrium()) and stays
@@ -1235,7 +1257,7 @@ export class Session {
       only controls whether they are also printed to the log at INFO: the
       event carries them either way (protocol/types.ts EquilibriumEvent). */
   findEquilibrium(): void {
-    this.keys('s', 'g', 'n');
+    this.keys(this.mainKey('singpts'), 'g', 'n');
   }
 
   /** the equilibrium window's Import: the last equilibrium becomes the
@@ -1267,8 +1289,9 @@ export class Session {
           this.failed(`XPP cannot use a file named “${file.name}” in the model's folder. Rename it and pick it again.`);
           return false;
         }
-        if (file.size > FILE_CAP) {
-          this.failed(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+        const big = this.tooBig(file);
+        if (big) {
+          this.failed(big);
           return false;
         }
         const sha256 = await sha256Hex(file);
@@ -1352,13 +1375,22 @@ export class Session {
     }
   }
 
+  /** why `file` is too large for the model's folder (hello.limits.upload, the core's cap), or null */
+  private tooBig(file: File): string | null {
+    const cap = this.store.getState().hello?.limits.upload ?? 0;
+    return file.size > cap
+      ? `${file.name} is larger than ${Math.round(cap / (1024 * 1024))} MB, the most the model's folder takes from the page.`
+      : null;
+  }
+
   /** "Add file…" of a notification: `file` goes into the model's folder
       under the name the core could not open, and the command runs again */
   async addMissingFile(toastId: number, file: File): Promise<void> {
     const action = this.store.getState().toasts.find(t => t.id === toastId)?.action;
     if (!this.files || !action) return;
     try {
-      if (file.size > FILE_CAP) throw new Error(`${file.name} is larger than 64 MB, the most the model's folder takes from the page.`);
+      const big = this.tooBig(file);
+      if (big) throw new Error(big);
       await this.files.put(action.name, file);
     } catch (e) {
       this.failed(e instanceof Error ? e.message : String(e));
@@ -1366,7 +1398,7 @@ export class Session {
     }
     this.store.dispatch({type: 'dismiss', id: toastId});
     const {run} = action, state = this.store.getState();
-    const keys = run ? menuKeys(state.core?.menu ?? 0, run.menu) : null;
+    const keys = run ? menuKeys(state.hello, state.core?.menu ?? 0, run.menu) : null;
     if (!run || !keys || state.busy) {
       this.store.dispatch({type: 'toast', kind: 'info', text: `${action.name} is in the model's folder now. Run the command again.`});
       return;
@@ -1388,7 +1420,7 @@ export class Session {
     const {windowOpen} = this.store.getState().aplot;
     this.store.dispatch({type: 'aplot', action: {type: 'panel', open: true}});
     if (windowOpen) this.aplotOp('redraw');
-    else this.keys('v', 'a');
+    else this.keys(this.mainKey('viewaxes'), 'a');
   }
 
   closeAplot(): void {
@@ -1428,6 +1460,3 @@ export class Session {
     this.store.dispatch({type: 'aplot', action: {type: 'hover', hover}});
   }
 }
-
-/** the largest file the model's folder takes from the page (core/xpp_files.h XPP_FILES_CAP) */
-const FILE_CAP = 64 * 1024 * 1024;

@@ -8,12 +8,12 @@ import {menuHelp} from '../help/links';
 import {litMenuKey} from '../store/player';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
-
-const WHICH = ['main', 'file', 'num'] as const;
+import {menuName} from '../protocol/kinds';
 
 export function MenuPanel() {
   const session = useSession();
-  const menus = useStore(s => s.hello?.menus);
+  const hello = useStore(s => s.hello);
+  /* before the first state: the main menu */
   const which = useStore(s => s.core?.menu ?? 0);
   const open = useStore(s => s.drawerOpen);
   /* a recording's step presses this key now (W59b) */
@@ -36,14 +36,16 @@ export function MenuPanel() {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
-  const name = WHICH[which] ?? 'main';
-  const items = menus?.[name] ?? [], keys = menus?.[`${name}_keys`] ?? '', hints = menus?.[`${name}_hints`] ?? [];
+  const name = menuName(hello, which);
+  const menus = hello?.menus;
+  const items = menus && name ? menus[name] : [], keys = menus && name ? menus[`${name}_keys`] : '';
+  const hints = menus && name ? menus[`${name}_hints`] : [];
   return (
     <>
       <nav id="command-menu" ref={nav} class={'menu-panel' + (open ? ' open' : '')} aria-label="Commands">
         <div class="menu-title-row">
           <h2 class="menu-title">{name === 'main' ? 'Commands' : name === 'file' ? 'File' : 'Numerics'}</h2>
-          <HelpButton target={menuHelp(which)} label={name === 'main' ? 'the main commands' : name === 'file' ? 'the File menu' : 'Numerics'} />
+          <HelpButton target={menuHelp(name)} label={name === 'main' ? 'the main commands' : name === 'file' ? 'the File menu' : 'Numerics'} />
         </div>
         <ul>
           {items.map((item, i) => {

@@ -8,7 +8,8 @@ import {formatElapsed, kindOfPoint, runStatus, stopPoint} from '../src/plot/auto
 import {buildDiagramModel, labelShape, labelTypes, symbolHelp, symbolName} from '../src/plot/diagramModel';
 import {placeLabels} from '../src/plot/labelPlace';
 import {activeView, branchesBefore, earlierCount, type DiagramRun} from '../src/store/diagram';
-import {classifyLogText, initialState, reduce, type AppState} from '../src/store/state';
+import {classifyLogText, reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 import {isHotkeyTarget} from '../src/ui/hotkeys';
 import {menuRows} from '../src/ui/menuLayout';
 
@@ -27,7 +28,7 @@ const periodic: DiagramRun[] = [
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
 
 function opened(): AppState {
-  const s = ev(initialState, {ev: 'window', op: 'create', win: 101, w: 687, h: 352});
+  const s = ev(READY, {ev: 'window', op: 'create', win: 101, w: 687, h: 352});
   return ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
 }
 
@@ -82,11 +83,11 @@ test('T23: an ended run says why its last branch ended, from autoinfo stop', () 
   /* the line the core writes in Output is AUTO's */
   assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'auto');
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
-  let t = ev(initialState, {ev: 'log', text: 'Branch 1 stopped at point 5: pa'});
+  let t = ev(READY, {ev: 'log', text: 'Branch 1 stopped at point 5: pa'});
   t = ev(t, {ev: 'log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
   assert.deepEqual(t.log.map(l => [l.kind, l.text]), [['auto', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
     ['log', 'nvar=2\n']]);
-  t = ev(initialState, {ev: 'log', text: 'Branch 1 st'});
+  t = ev(READY, {ev: 'log', text: 'Branch 1 st'});
   t = ev(t, {ev: 'log', text: 'opped at point 5: by the user (Stop)\n'});
   assert.deepEqual(t.log.map(l => l.kind), ['auto']);
 });

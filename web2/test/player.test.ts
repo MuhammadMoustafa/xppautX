@@ -9,7 +9,8 @@ import {
   answerFill, answerTexts, caption, initialPlayer, keycaps, litAskKey, litButton, litMenuKey, reducePlayer, segments,
   type PlayerState,
 } from '../src/store/player';
-import {initialState, reduce} from '../src/store/state';
+import {reduce} from '../src/store/state';
+import {READY} from './hello';
 
 const PLAYER: PlayerEvent = {
   ev: 'player', file: '/tmp/lecar.recx', model: 'lecar.ode', intact: true,
@@ -97,7 +98,7 @@ test('the progress: a segment per step, a view step half, done and now', () => {
 });
 
 test('the app state: player and press events, state.player, the banner dismissed until another file', () => {
-  let s = reduce(initialState, {type: 'event', ev: {...PLAYER, intact: false}});
+  let s = reduce(READY, {type: 'event', ev: {...PLAYER, intact: false}});
   assert.equal(s.player.open, true);
   assert.equal(s.player.intact, false);
   s = reduce(s, {type: 'player', action: {type: 'dismiss'}});

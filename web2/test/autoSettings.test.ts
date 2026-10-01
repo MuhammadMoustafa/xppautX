@@ -8,7 +8,8 @@ import {
   NUM_FIELDS, numError, pairError, pairErrors, parseSettings, pendingFields, plainName, setCommand,
   shownSettings, type AutoSettings,
 } from '../src/store/autoSettings';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const act = (s: AppState, action: object) => reduce(s, {type: 'autoSettings', action: action as never});
@@ -22,7 +23,7 @@ const settings: AutoSettings = {
 };
 
 test('the event is the store; an edit sent during a run shows until its own idle', () => {
-  let s = ev(initialState, {ev: 'autosettings', ...settings});
+  let s = ev(READY, {ev: 'autosettings', ...settings});
   assert.deepEqual(s.autoSettings.core, {ev: 'autosettings', ...settings});
   /* sent during a computation: one idle (the run's) ahead of each set's own */
   s = act(s, {type: 'sent', patch: {numerics: {nmx: 20}}, ahead: 1});
@@ -48,7 +49,7 @@ test('the event is the store; an edit sent during a run shows until its own idle
 });
 
 test("a refused set: the core's error is the forms', until the next edit", () => {
-  let s = ev(initialState, {ev: 'autosettings', ...settings});
+  let s = ev(READY, {ev: 'autosettings', ...settings});
   s = act(s, {type: 'sent', patch: {numerics: {ncol: 9}}, ahead: 0});
   s = ev(s, {ev: 'message', error: 'AUTO settings: Ncol must be a whole number from 2 to 7'});
   s = ev(s, {ev: 'idle'});

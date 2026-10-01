@@ -7,7 +7,8 @@ import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type PathSink}
 import type {DfieldEvent, NullclinesEvent} from '../src/protocol/types';
 import {dfieldFromEvent, nullclinesFromEvent, trajectoryCount, type Dfield} from '../src/store/phase';
 import {windowOf} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 
@@ -42,7 +43,7 @@ test('nullclines: segments decoded from JSON or base64 float32 alike', () => {
 });
 
 test('the store keeps each window its own nullclines and field', () => {
-  let s = ev(initialState, NC);
+  let s = ev(READY, NC);
   s = ev(s, {...DF, win: 2});
   assert.equal(windowOf(s.plots, 1)?.nullclines?.x.length, 8);
   assert.equal(windowOf(s.plots, 1)?.dfield, null);

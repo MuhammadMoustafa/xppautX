@@ -8,7 +8,8 @@ import {test} from 'node:test';
 import type {PlotWindowInfo, SeriesEvent} from '../src/protocol/types';
 import {initialKinescope, reduceKinescope, snapshotWindow} from '../src/store/kinescope';
 import {blank, windowOf} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 
@@ -29,7 +30,7 @@ const film = (op: 'capture' | 'reset' | 'play' | 'autoplay', over: object = {}) 
   ({ev: 'film', op, count: 0, win: 1, cycles: 1, delay: 50, ...over});
 
 function oneCapturedFrame(v0: number): AppState {
-  let s = ev(initialState, plots(info(1)));
+  let s = ev(READY, plots(info(1)));
   s = ev(s, series(1, v0));
   return ev(s, film('capture', {count: 1}));
 }
@@ -83,7 +84,7 @@ test('`play` and `autoplay` note the timing; the frame shown is session.ts\'s cl
 });
 
 test('a capture for a window the store does not know is left out (nothing to snapshot)', () => {
-  const s = ev(initialState, film('capture', {win: 7, count: 1}));
+  const s = ev(READY, film('capture', {win: 7, count: 1}));
   assert.equal(s.kinescope.frames.length, 0);
 });
 

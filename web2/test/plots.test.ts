@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {PlotWindowInfo, SeriesEvent} from '../src/protocol/types';
 import {activeWindow, windowOf} from '../src/store/plots';
-import {initialState, reduce, type AppState} from '../src/store/state';
+import {reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const wins = (s: AppState) => s.plots.windows.map(w => w.win);
@@ -26,7 +27,7 @@ const plots = (active: number, ...w: PlotWindowInfo[]) => ({ev: 'plots', active,
 const zoom = {x: {min: 0, max: 1}, y: {min: 0, max: 2}};
 
 function twoWindows(): AppState {
-  let s = ev(initialState, plots(1, info(1, 'W vs V')));
+  let s = ev(READY, plots(1, info(1, 'W vs V')));
   s = ev(s, series(1, 1, 2));
   s = ev(s, plots(2, info(1, 'W vs V'), info(2, 'V vs T')));
   return ev(s, series(2, 0, 1));
@@ -91,7 +92,7 @@ test('the core selecting a window, or destroying one, moves the tabs', () => {
 });
 
 test('a series before any plots event makes its window (a server without plots)', () => {
-  const s = ev(initialState, series(1, 1, 2));
+  const s = ev(READY, series(1, 1, 2));
   assert.deepEqual(wins(s), [1]);
   assert.equal(activeWindow(s.plots)?.info, null);
 });

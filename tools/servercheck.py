@@ -202,13 +202,13 @@ evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
 check('hello', hello is not None and len(hello['menus']['main']) == 20)
-check('hello says protocol 2, and no draw ops or palette follow (removed in 2)',
-      hello is not None and hello.get('protocol') == 2 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
+check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
+      hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
 check('hello carries the About text: author, email, issues URL, version',
       hello is not None and all(t in hello.get('about', '') for t in
           ('Author: Muhammad Ahmad', 'muhammadmoustafa22@gmail.com',
-           'https://github.com/MuhammadMoustafa/xppautX/issues', 'Protocol 2', 'xppautX ')),
+           'https://github.com/MuhammadMoustafa/xppautX/issues', 'Protocol 3', 'xppautX ')),
       str(hello and hello.get('about')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
 check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1
@@ -265,6 +265,48 @@ def check_hello_kinds():
 
 
 check_hello_kinds()
+
+
+# W118: what core and page both know comes in hello, written once in the core
+def check_hello_shared():
+    menus = hello.get('menus', {})
+    bad = [w for w in ('main', 'file', 'num')
+           if len(menus.get(w + '_ids', [])) != len(menus.get(w + '_keys', ''))
+           or len(set(menus.get(w + '_ids', []))) != len(menus.get(w + '_ids', []))]
+    check('W118: hello names the menus by state\'s menu number and gives each item an id, one per key',
+          menus.get('names') == ['main', 'file', 'num'] and not bad, str(menus.get('names')) + str(bad))
+    ids = dict(zip(menus.get('main_ids', []), menus.get('main_keys', '')))
+    fids = dict(zip(menus.get('file_ids', []), menus.get('file_keys', '')))
+    check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Read set r)',
+          ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
+          and ids.get('numerics') == 'u' and fids.get('readset') == 'r', str(ids))
+    check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
+          hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
+          and hello.get('window_ids') == {'plots': 21, 'auto': 101, 'ani': 104, 'aplot': 105},
+          str(hello.get('limits')) + str(hello.get('window_ids')))
+    steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
+    check('W118: every command says whether it is a step: a key, set and a write are, state, data, an answer, '
+          'the browser\'s paging and the recording\'s own are not',
+          all(isinstance(v, bool) for v in steps.values()) and steps.get(('key', None)) is True
+          and steps.get(('set', None)) is True and steps.get(('browser', 'write')) is True
+          and not any(steps.get(k) for k in (('state', None), ('data', None), ('answer', None), ('browser', None),
+                                             ('record', None), ('play', None))), str(steps))
+
+
+check_hello_shared()
+# W118: an error about a file the command could not read names the file (the page offers to add it)
+send(cmd='key', key='f')
+collect(is_idle)
+send(cmd='key', key='r')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+if ask is not None and ask.get('kind') == 'file':
+    send(cmd='answer', id=ask['id'], file='w118-gone.set')
+    evs, _ = collect(is_idle)
+else:
+    evs = []
+err = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), None)
+check('W118: File/Read set of a file that is not there: the error names the file',
+      err is not None and err.get('file') == 'w118-gone.set', str(err))
 send(cmd='data', events=['series'])
 evs, _ = collect(is_idle)
 ser = [e for e in evs if e.get('ev') == 'series']

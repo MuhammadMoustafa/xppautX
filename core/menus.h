@@ -53,6 +53,17 @@ extern const char *const main_menu_kinds;
 extern const char *const num_menu_kinds;
 extern const char *const file_menu_kinds;
 
+/* the page's name for each main-window menu (hello.menus.names), indexed
+   by MAIN_MENU, FILE_MENU, NUM_MENU: `state`'s menu number names one */
+extern const char *const main_menu_names[3];
+/* the page's name for each item of the three main-window menus, parallel
+   to their keys (hello.menus.<name>_ids): the page looks a key up by it */
+extern const char *const main_menu_ids[MAIN_ENTRIES];
+extern const char *const file_menu_ids[FILE_ENTRIES];
+extern const char *const num_menu_ids[NUM_ENTRIES];
+/* the key of item `id` of main-window menu `which`, 0 for none */
+int main_menu_key(int which, std::string_view id);
+
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */
 char main_menu_kind(int which, int ch);

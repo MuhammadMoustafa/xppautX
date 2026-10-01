@@ -65,7 +65,7 @@ import type {Ranges} from '../plot/viewmath';
 import {HELP} from '../help/links';
 import type {AutoOp, Session} from '../session';
 import {pendingFields} from '../store/autoSettings';
-import {activeView, AUTO_WIN as WIN, EMPTY_VIEW, pointCount, type DiagramHover, type DiagramView} from '../store/diagram';
+import {activeView, autoWindow, EMPTY_VIEW, pointCount, type DiagramHover, type DiagramView} from '../store/diagram';
 import {branchesBefore} from '../store/diagram';
 import type {AppState} from '../store/state';
 import {AutoAxisDialog, type AxisName} from './AutoAxes';
@@ -114,13 +114,13 @@ const GRAB_PX = 48; /* how far from a point a click or a tap still takes it */
 /** the plot mode of an ask on the diagram, while it waits for the user */
 function activePick(session: Session) {
   const p = session.store.getState().pick;
-  return p && !p.waiting && p.win === WIN ? p : null;
+  return p && !p.waiting && p.win === autoWindow(session.store.getState()) ? p : null;
 }
 
 /** a view's pointer events: the plot modes' (Axes/Zoom, Axes/Scroll: the active view's), and a
     grab's, where a release takes the nearest point (in any view: a point's index is the same in all) */
 function autoSink(session: Session, active: () => boolean, chart: () => DiagramChart | null, model: () => DiagramModel): PickSink {
-  const picks = pickSink(session, WIN, chart);
+  const picks = pickSink(session, () => autoWindow(session.store.getState()), chart);
   const grabbing = () => session.store.getState().diagram.grabbing;
   const mode = () => (active() ? picks.mode() : null);
   return {
@@ -203,7 +203,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const grabbing = useStore(s => s.diagram.grabbing);
   const info = useStore(s => s.diagram.info);
   const stored = useStore(s => (viewOf(s, view).axes?.plot === 4 ? s.diagram.stored : null));
-  const pick = useStore(s => (s.diagram.active === view && s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
+  const pick = useStore(s => (s.diagram.active === view && s.pick?.win === autoWindow(s) && !s.pick.waiting ? s.pick : null));
   const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
@@ -522,14 +522,14 @@ function Readout() {
 
 function AutoPanel({dark}: {dark: boolean}) {
   const session = useSession();
-  const layer = useStore(s => s.hello?.windows?.auto);
+  const layer = useStore(s => s.hello?.windows.auto);
   /* a button that opens the page's own form works during a run too (its edits wait); the others
      by the kind of the key they send (W95: Axes and Clear are views, Run, Grab and File wait) */
   const mayKey = useMayKey();
   const off = (op: AutoOp) => !SETTINGS_DIALOG[op] && !mayKey('auto', op);
   const grabbing = useStore(s => s.diagram.grabbing);
   const stored = useStore(s => s.diagram.stored);
-  const pick = useStore(s => (s.pick?.win === WIN && !s.pick.waiting ? s.pick : null));
+  const pick = useStore(s => (s.pick?.win === autoWindow(s) && !s.pick.waiting ? s.pick : null));
   const views = useStore(s => s.diagram.views.length);
   const what = useStore(s => whatOf(activeView(s.diagram)));
   const [settingsOpen, setSettingsOpen] = useState<AutoSettingsDialogKind | null>(null);
@@ -555,7 +555,7 @@ function AutoPanel({dark}: {dark: boolean}) {
       session.showAuto(false);
       return;
     }
-    const layer = session.store.getState().hello?.windows?.auto;
+    const layer = session.store.getState().hello?.windows.auto;
     const i = layer && e.key.length === 1 ? layer.keys.indexOf(e.key.toLowerCase()) : -1;
     const op = BUTTONS.find(([, o]) => o === layer?.ids[i])?.[1];
     /* a letter typed on a button is AUTO's too (T21): the focus stays on a button after a click */

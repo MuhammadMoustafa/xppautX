@@ -24,7 +24,7 @@ import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, foldKey, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
-import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -207,7 +207,7 @@ function StateSection() {
   const session = useSession();
   const ics = useStore(s => s.core?.ics);
   const hasNow = useStore(s => !!s.core?.now);
-  const busy = !useMay()({cmd: 'key', key: 'i'}); /* Initialconds/Last: a computation (W95) */
+  const busy = !useMayMain()('initialconds'); /* Initialconds/Last: a computation (W95) */
   const now = useNow();
   if (!ics?.length) return null;
   return (

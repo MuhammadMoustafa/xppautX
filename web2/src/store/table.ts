@@ -1,7 +1,7 @@
 /* The data table (docs/ui-v2.md T10, docs/protocol.md `browser`): the core
    keeps one browser window (rows and, since we always ask for every
    column, every variable and aux too) and answers a
-   {"cmd":"browser","from":,"count":,"col":1,"ncol":500} request with that
+   {"cmd":"browser","from":,"count":,"col":1,"ncol":} request (ncol: hello.limits.browser_cols) with that
    block at once, even during a prompt or another command (a control line,
    never busy: state.ts's `sent` case knows not to toggle busy for it). This
    slice keeps the last block the core sent (`page`, docs/protocol.md's
@@ -65,24 +65,28 @@ export function reduceTable(state: TableState, action: TableAction): TableState 
 /* ---- paging: what to ask for so the visible rows are in `page` ---- */
 
 const ROW_BUFFER = 3; /* ask for 3x the visible window, like the classic browser: a small scroll needs nothing */
-export const MAX_COUNT = 2000; /* the core's own cap (core/ui_json.cpp browser_rows) */
-export const MAX_NCOL = 500; /* the core's own cap; comfortably more than a model has, so every column is always asked for */
+/** the most rows and columns one block request gets (hello.limits: the core's caps) */
+export interface TableLimits {
+  browser_rows: number;
+  browser_cols: number;
+}
 
 /** the request to send so rows [visibleFrom, visibleFrom+visibleCount) are
     cached, or null when `page` already covers them. Always asks for every
-    column (col 1, ncol 500): the core caps ncol at 500 regardless, and a
-    table that shows "every variable and aux" (T10) never needs to page
-    columns for an ordinary model. */
-export function planRequest(page: BrowserEvent | null, visibleFrom: number, visibleCount: number): BrowserRequest | null {
+    column the core gives at once (col 1, ncol its cap: comfortably more
+    than a model has), so a table that shows "every variable and aux" (T10)
+    never needs to page columns for an ordinary model. */
+export function planRequest(page: BrowserEvent | null, visibleFrom: number, visibleCount: number,
+  limits: TableLimits): BrowserRequest | null {
   const from = Math.max(0, visibleFrom);
   const to = from + Math.max(0, visibleCount);
   const have = !!page && page.col === 1 && page.from <= from && page.from + page.data.length >= to;
   if (have) return null;
   return {
     from: Math.max(0, from - Math.max(1, visibleCount)),
-    count: Math.min(MAX_COUNT, Math.max(1, visibleCount) * ROW_BUFFER),
+    count: Math.min(limits.browser_rows, Math.max(1, visibleCount) * ROW_BUFFER),
     col: 1,
-    ncol: MAX_NCOL,
+    ncol: limits.browser_cols,
   };
 }
 

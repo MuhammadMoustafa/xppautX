@@ -139,7 +139,7 @@ bool import_file(Session &s, const std::string &path)
 {
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_msg(xpp::format("Cannot open {}", path));
+        err_reading(path, xpp::format("Cannot open {}", path));
         return false;
     }
     if (xpp::zip::is_zip(bytes)) {
@@ -148,7 +148,7 @@ bool import_file(Session &s, const std::string &path)
     }
     xpp::UniqueFile fp = xpp::open_read(path.c_str());
     if (!fp) {
-        err_msg(xpp::format("Cannot open {}", path));
+        err_reading(path, xpp::format("Cannot open {}", path));
         return false;
     }
     if (!s.auto_state.bifur.exist) do_auto_win(s);

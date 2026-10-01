@@ -21,6 +21,9 @@ struct Error {
   std::string where;
   /* what failed, as the user reads it */
   std::string what;
+  /* the file it could not read ("" when none), which the page offers to
+     add to the model's folder (docs/protocol.md `message`) */
+  std::string file{};
 };
 
 /* a computation's value, or why it has none */
@@ -30,6 +33,12 @@ using Result = std::expected<T, Error>;
 inline std::unexpected<Error> fail(std::string where, std::string what)
 {
   return std::unexpected<Error>(Error{std::move(where), std::move(what)});
+}
+
+/* a failure to read `file` */
+inline std::unexpected<Error> fail_reading(std::string where, std::string what, std::string file)
+{
+  return std::unexpected<Error>(Error{std::move(where), std::move(what), std::move(file)});
 }
 
 /* A computation that goes on past a failure (a sweep's steps, a saddle's

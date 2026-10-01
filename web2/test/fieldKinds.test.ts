@@ -84,14 +84,13 @@ test('the protocol kinds as specs; an unknown or missing kind is text', () => {
   assert.deepEqual(specOfKind('expression'), {kind: 'expression'});
   assert.deepEqual(specOfKind('file'), {kind: 'file'});
   assert.deepEqual(specOfKind('text'), {kind: 'text'});
-  assert.deepEqual(specOfKind(undefined), {kind: 'text'});
-  assert.deepEqual(specOfKind('colour'), {kind: 'text'});
+  assert.throws(() => specOfKind('colour'), /does not know/);
   const par = specOfKind('name:2', lists);
   assert.equal(par.kind, 'name');
   ok(par, 'iapp', 'PHI');
   refused(par, 'V');
-  assert.deepEqual(specOfKind('name:9', lists), {kind: 'text'}, 'a list the page does not have: text');
-  assert.deepEqual(specOfKind('name:0', null), {kind: 'text'});
+  assert.throws(() => specOfKind('name:9', lists), /does not know/, 'a list the page does not have');
+  assert.deepEqual(specOfKind('name:0', [[]]), {kind: 'text'}, 'an empty list: typed');
 });
 
 test('a form is valid when every field is', () => {

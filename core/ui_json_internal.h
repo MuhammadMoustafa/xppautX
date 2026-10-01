@@ -64,6 +64,12 @@ namespace xpp::json {
 
 struct Buf; /* an event line being built (json_io.cpp, below) */
 
+/* the most rows and columns one `browser` block request gets (json_state.cpp
+   browser_rows): a page of the table, bounded so one event stays small;
+   hello.limits tells the page */
+constexpr int BROWSER_MAX_ROWS = 2000;
+constexpr int BROWSER_MAX_COLS = 500;
+
 /* ---- ui_json.cpp ---- */
 
 /* the session's mutable state that more than one file needs */
@@ -124,6 +130,7 @@ int during_run(const char *line);     /* what a running computation takes (ui_js
    applied: a set control_line() applied already (the loop only ends it) */
 void defer_line(const char *line, bool refused, bool applied = false);
 char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
+bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's command table) */
 /* a script line that does not fit the dialogue: stop at once */
 [[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
 void script_next(void); /* the script's next line, and an interruption after it */
@@ -286,7 +293,7 @@ void answer_point(xpp::Session &s, unsigned long win, int k, int *x, int *y);
 int mouse_ask(xpp::Session &s, unsigned long win, const char *kind, int flag, std::span<int> v);
 int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 
-void j_err_msg(std::string_view msg);
+void j_err_msg(std::string_view msg, std::string_view file = {});
 void j_ping(void);
 void j_bottom_msg(int line, std::string_view msg);
 void j_message_box(std::string_view msg);

@@ -23,7 +23,7 @@ import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
 import {HOME, windowOf} from '../store/plots';
-import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 
 type Axes = Pick<View, 'xlo' | 'xhi' | 'ylo' | 'yhi' | 'three'>;
 
@@ -54,14 +54,14 @@ function clearHover(session: Session): void {
 }
 
 /** the plot mode waiting for the user on window `win`, if any */
-function activePick(session: Session, win: number): PickState | null {
+function activePick(session: Session, win: number | null): PickState | null {
   const p = session.store.getState().pick;
   return p && !p.waiting && p.win === win ? p : null;
 }
 
 /** pointer events of a plot mode (plot/interactions.ts) as moves and answers
-    (the AUTO view's too, for window 101) */
-export function pickSink(session: Session, win: number, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
+    (the AUTO view's too, for its window) */
+export function pickSink(session: Session, win: () => number | null, chart: () => Pick<Chart, 'ranges'> | null): PickSink {
   const drag = (what: 'down' | 'move' | 'up', at: Frac) => {
     const c = chart();
     if (!c) return;
@@ -73,21 +73,21 @@ export function pickSink(session: Session, win: number, chart: () => Pick<Chart,
     if (c) session.confirmPick(p, c.ranges());
   };
   return {
-    mode: () => activePick(session, win)?.mode ?? null,
+    mode: () => activePick(session, win())?.mode ?? null,
     press(at) {
-      const p = activePick(session, win);
+      const p = activePick(session, win());
       if (!p) return;
       if (p.mode === 'drag') drag('down', at);
       session.movePick({...p, cursor: at, anchor: p.mode === 'box' || p.mode === 'line' ? at : null});
     },
     drag(at) {
-      const p = activePick(session, win);
+      const p = activePick(session, win());
       if (!p) return;
       if (p.mode === 'drag') drag('move', at);
       else session.movePick({...p, cursor: at});
     },
     release(at) {
-      const p = activePick(session, win);
+      const p = activePick(session, win());
       if (!p) return;
       if (p.mode === 'drag') {
         drag('up', at);
@@ -98,7 +98,7 @@ export function pickSink(session: Session, win: number, chart: () => Pick<Chart,
       confirm(q);
     },
     hover(at) {
-      const p = activePick(session, win);
+      const p = activePick(session, win());
       if (p && p.mode !== 'drag') session.movePick({...p, cursor: at});
     },
   };
@@ -192,7 +192,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const hover = useStore(s => (shown ? s.hover : null));
   const busy = useStore(s => s.computing);
   const may = useMay();
-  const windowOff = !may({cmd: 'key', key: 'w'}); /* Window/zoom: a view (W95) */
+  const mayMain = useMayMain();
+  const windowOff = !mayMain('window'); /* Window/zoom: a view (W95) */
   const csvOff = !may({cmd: 'browser', op: 'write'});
   const pick = useStore(s => (s.pick?.win === win ? s.pick : null));
   const picking = pick && !pick.waiting ? pick : null;
@@ -219,7 +220,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
       detach = attachGestures(c, area, {
         hover: (curve, index) => setHover(session, modelRef.current, curve, index),
         leave: () => clearHover(session),
-      }, pickSink(session, win, () => chart.current));
+      }, pickSink(session, () => win, () => chart.current));
     };
     chart.current = c;
     setChart(win, c);
@@ -389,7 +390,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
             {!busy && !erased && (
-              <button class="primary" onClick={() => session.buttonKeys('Integrate', 'i', 'g')}>Integrate (I, G)</button>
+              <button class="primary" onClick={() => session.buttonKeys('Integrate', session.mainKey('initialconds'), 'g')}>Integrate (I, G)</button>
             )}
           </div>
         )}

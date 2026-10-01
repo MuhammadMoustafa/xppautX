@@ -83,6 +83,9 @@ typedef struct XppDiagPoint {
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
 void err_msg(std::string_view msg);
+/* an error about `path`, a file the command could not read: the page
+   offers to add it to the model's folder (docs/protocol.md `message`) */
+void err_reading(std::string_view path, std::string_view msg);
 void ping(void);
 void bottom_msg(int line, std::string_view msg);
 void MessageBox(std::string_view m);
@@ -143,7 +146,8 @@ extern XppTextMetrics text_metrics;
 
 typedef struct XppUi {
     /* messages */
-    void (*err_msg)(std::string_view msg);
+    /* file: the file the command could not read, "" for an error about none */
+    void (*err_msg)(std::string_view msg, std::string_view file);
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg);
     void (*message_box)(std::string_view msg);

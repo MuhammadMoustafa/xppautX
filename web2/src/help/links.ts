@@ -4,6 +4,8 @@
    itself is kept by hand: extend both together when a dialog gets a
    section it did not have before. */
 import type {AppState} from '../store/state';
+import type {MenuName} from '../protocol/types';
+import {menuName} from '../protocol/kinds';
 
 export interface HelpTarget {
   chapter: string;
@@ -32,19 +34,19 @@ export const HELP = {
   autoSaving: {chapter: '09-auto', anchor: 'saving-diagrams'} as HelpTarget,
 } as const;
 
-/** the current main-menu context (MenuPanel.tsx's WHICH): main, file or num commands */
-export function menuHelp(which: number): HelpTarget {
-  return which === 1 ? HELP.fileMenu : which === 2 ? HELP.numericsMenu : HELP.mainMenu;
+/** the current main-menu context (MenuPanel.tsx): main, file or num commands */
+export function menuHelp(name: MenuName | null): HelpTarget {
+  return name === 'file' ? HELP.fileMenu : name === 'num' ? HELP.numericsMenu : HELP.mainMenu;
 }
 
 /** a core prompt (AskDialog.tsx): the Data tab's own ops, the Numerics
     submenu's fields, a file ask, or (the common case) a main-menu command;
     README's table groups all of these by area, not by each dialog's exact
     title, so this does the same instead of guessing a per-field anchor */
-export function askHelp(state: Pick<AppState, 'table' | 'core'>, kind: string): HelpTarget {
+export function askHelp(state: Pick<AppState, 'table' | 'core' | 'hello'>, kind: string): HelpTarget {
   if (kind === 'file') return HELP.files;
   if (state.table.open) return HELP.dataTab;
-  return menuHelp(state.core?.menu ?? 0);
+  return menuHelp(menuName(state.hello, state.core?.menu ?? 0));
 }
 
 /* a manual cross-reference's href, as marked (tools/manualBuild.mjs) leaves

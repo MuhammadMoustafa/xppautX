@@ -3,35 +3,50 @@
 
 import type {CommandKind, LayerWindow, WindowLayer} from './kinds';
 
+/** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
+    page ship together, so a hello with another is a shown error (session.ts) */
+export const PROTOCOL = 3;
+
+/** a main-window menu's name (hello.menus.names, by state's menu number) */
+export type MenuName = 'main' | 'file' | 'num';
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
-  features?: string[];
+  /** the data events the server sends, asked for at once (session.ts) */
+  features: string[];
   title: string;
   file: string;
-  /** Help > About's text (core/xpp_about.h), the desktop window's own box too; absent from an older server */
-  about?: string;
+  /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
+  about: string;
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
-      answers and their keys; absent from an older server */
-  quit?: {question: string; recording: string; choices: string[]; keys: string};
+      answers and their keys */
+  quit: {question: string; recording: string; choices: string[]; keys: string};
   menus: {
     main: string[]; main_keys: string; main_hints: string[];
     file: string[]; file_keys: string; file_hints: string[];
     num: string[]; num_keys: string; num_hints: string[];
-    /** each item's kind, one letter per key (protocol/kinds.ts); absent from an older server */
-    main_kinds?: string; file_kinds?: string; num_kinds?: string;
+    /** each item's kind, one letter per key (protocol/kinds.ts) */
+    main_kinds: string; file_kinds: string; num_kinds: string;
+    /** each menu's name, indexed by state's menu number (0 main, 1 File, 2 nUmerics) */
+    names: MenuName[];
+    /** the page's name for each item, parallel to the keys (protocol/kinds.ts menuKey) */
+    main_ids: string[]; file_ids: string[]; num_ids: string[];
   };
   /** the windows' key layers (protocol/kinds.ts) */
-  windows?: Partial<Record<LayerWindow, WindowLayer>>;
-  /** every command that is not a key, with its kind */
-  commands?: CommandKind[];
+  windows: Record<LayerWindow, WindowLayer>;
+  /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
+  commands: CommandKind[];
+  /** what the core takes: the largest upload (bytes), the most rows and columns of one browser block */
+  limits: {upload: number; browser_rows: number; browser_cols: number};
+  /** the windows' numbers in `window` events: plot windows are 1 to `plots` */
+  window_ids: {plots: number; auto: number; ani: number; aplot: number};
   lists: string[][];
   userbuttons: string[];
   sliders: {name: string; lo: number; hi: number}[];
-  /** the model file's own values, in the order of `state`'s pars and ics
-      (what `default` restores); absent from an older server */
-  defaults?: {pars: number[]; ics: number[]};
+  /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
+  defaults: {pars: number[]; ics: number[]};
 }
 
 export interface View {
@@ -288,7 +303,7 @@ export interface AskEvent {
   names?: string[];
   values?: string[];
   /** a `string` or `form` ask: what each field takes (`integer`, `number`, `formula`, `expression`,
-      `file`, `name:N`, `text`; none: text), store/fieldKinds.ts specOfKind */
+      `file`, `name:N`, `text`; one per field of every `string` and `form` ask), store/fieldKinds.ts specOfKind */
   kinds?: string[];
   message?: string;
   button?: string;
@@ -311,6 +326,8 @@ export interface AskEvent {
 export interface MessageEvent {
   ev: 'message';
   error?: string;
+  /** with `error`: the file the command could not read, by its name in the model's folder */
+  file?: string;
   bottom?: string;
   box?: string;
   auto?: string;

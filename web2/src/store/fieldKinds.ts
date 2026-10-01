@@ -237,20 +237,22 @@ export function fieldMessage(phrase: string): string {
 
 /** a protocol kind as a spec: `integer`, `number`, `formula` (a number or
     %formula), `expression`, `file`, `text`, `name:N` (a name from
-    `hello.lists[N]`); anything else (or none) is text, so an older core's
-    asks behave as they did */
-export function specOfKind(kind: string | undefined, lists?: readonly (readonly string[])[] | null): FieldSpec {
+    `hello.lists[N]`; typed when that list is empty: a model with no
+    parameters). Core and page ship together: a kind or list the page does
+    not know is a bug, thrown */
+export function specOfKind(kind: string, lists: readonly (readonly string[])[] = []): FieldSpec {
   switch (kind) {
+    case 'text': return {kind: 'text'};
     case 'integer': return {kind: 'integer'};
     case 'number': return {kind: 'number'};
     case 'formula': return {kind: 'number', formula: true};
     case 'expression': return {kind: 'expression'};
     case 'file': return {kind: 'file'};
   }
-  const m = /^name:(\d+)$/.exec(kind ?? '');
-  const names = m ? lists?.[Number(m[1])] : undefined;
-  if (names?.length) return {kind: 'name', names, what: NAME_LIST_WHAT[Number(m![1])]};
-  return {kind: 'text'};
+  const m = /^name:(\d+)$/.exec(kind);
+  const names = m ? lists[Number(m[1])] : undefined;
+  if (!m || !names) throw new Error(`a field kind this page does not know: ${kind}`);
+  return names.length ? {kind: 'name', names, what: NAME_LIST_WHAT[Number(m[1])]} : {kind: 'text'};
 }
 
 /** what a name from each of hello.lists is (docs/protocol.md "Asks", `form`) */

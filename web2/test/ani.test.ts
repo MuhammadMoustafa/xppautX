@@ -10,7 +10,7 @@ import {
 import type {AniFrameEvent, AniStateEvent} from '../src/protocol/types';
 import {initialAni, reduceAni, stepTarget} from '../src/store/ani';
 import {initialState, reduce} from '../src/store/state';
-import {HELLO} from './hello';
+import {HELLO, READY} from './hello';
 
 const near = (a: number, b: number, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} vs ${b}`);
 
@@ -136,7 +136,7 @@ test('a step goes from the frame shown, within the stored rows', () => {
 });
 
 test('app state: ani events and window 104 reach the slice; Go plays until its idle', () => {
-  let s = reduce(reduce(initialState, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window', op: 'create', win: 104, w: 280, h: 350}});
+  let s = reduce(reduce(READY, {type: 'event', ev: HELLO}), {type: 'event', ev: {ev: 'window', op: 'create', win: 104, w: 280, h: 350}});
   assert.ok(s.ani.exists && s.ani.open);
   assert.equal(s.plots, initialState.plots, 'not a plot window');
   s = reduce(s, {type: 'event', ev: frameEv({pos: 12})});

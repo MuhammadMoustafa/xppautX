@@ -113,7 +113,7 @@ kinds = [e['ev'] for e in evs]
 check('a new page gets hello, window and state', all(k in kinds for k in ('hello', 'window', 'state')),
       str(kinds[:8]))
 check('and no drawing ops or palette (protocol 2)', not any(k in ('draw', 'palette') for k in kinds), str(kinds[:8]))
-check('hello says protocol 2', any(e['ev'] == 'hello' and e.get('protocol') == 2 for e in evs))
+check('hello says protocol 3', any(e['ev'] == 'hello' and e.get('protocol') == 3 for e in evs))
 check('what xppaut printed reaches the page', any(e['ev'] == 'log' for e in evs))
 post({'cmd': 'key', 'key': 'i'})
 _, ask = collect(lambda e: e['ev'] == 'ask')

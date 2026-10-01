@@ -50,6 +50,13 @@ export function useMay(): (cmd: Command) => boolean {
   return cmd => session.may(cmd);
 }
 
+/** the same for item `id` of the main menu (Session.mayMain: initialconds, window, ...) */
+export function useMayMain(): (id: string) => boolean {
+  const session = useSession();
+  useMay();
+  return id => session.mayMain(id);
+}
+
 /** the same for item `id` of window `win`'s key layer (Session.mayKey) */
 export function useMayKey(): (win: LayerWindow, id: string) => boolean {
   const session = useSession();

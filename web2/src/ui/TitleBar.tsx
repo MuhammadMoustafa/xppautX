@@ -1,7 +1,7 @@
 /* The top bar: the menu drawer's button (narrow screens), the model, the
    most used command, the theme, and the panels' toggles. */
 import type {Theme} from '../store/state';
-import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {saveTheme} from './theme';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
@@ -42,7 +42,8 @@ export function TitleBar() {
   const aniOpen = useStore(s => s.ani.open);
   const helpOpen = useStore(s => s.help.open);
   const may = useMay();
-  const busy = !may({cmd: 'key', key: 'i'}); /* Integrate is a computation (W95) */
+  const mayMain = useMayMain();
+  const busy = !mayMain('initialconds'); /* Integrate is a computation (W95) */
   const recording = useStore(s => !!s.core?.recording);
   const mayRecord = may({cmd: 'record', op: 'start'});
   const mayPlay = may({cmd: 'play', op: 'open'});
@@ -60,7 +61,7 @@ export function TitleBar() {
       <span class="spacer" />
       {/* aria-disabled, not disabled: a disabled button loses the focus, and the
           letters typed next (XPP's keys, which a focused button passes on) with it */}
-      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', 'i', 'g'); }}
+      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', session.mainKey('initialconds'), 'g'); }}
         title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
       {!recording && (
         <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}

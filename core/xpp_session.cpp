@@ -700,7 +700,7 @@ std::optional<SavedFile> xpp_saved_read(const std::string &path)
     const std::string abs = xpp::files::absolute(path);
     std::string bytes;
     if (!xpp::read_bytes(abs.c_str(), bytes)) {
-        xpp::err_msg(xpp::format("Cannot open {}", path));
+        xpp::err_reading(path, xpp::format("Cannot open {}", path));
         return std::nullopt;
     }
     return xpp_saved_parse(abs, xpp::files::split_path(path).second, bytes, xpp::snapx::is_session_file(path) ? SavedKind::session : SavedKind::autox);

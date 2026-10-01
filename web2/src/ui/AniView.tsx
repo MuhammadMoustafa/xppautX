@@ -17,7 +17,7 @@ import {fromCanvas} from '../ani/frame';
 import {drawAniFrame, frameBox} from '../ani/render';
 import {HELP} from '../help/links';
 import {sixSig} from '../store/values';
-import {useMay, useMayKey, useSession, useStore} from './context';
+import {useMay, useMayMain, useMayKey, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {useDark} from './theme';
 
@@ -36,6 +36,7 @@ export function AniView() {
   const speed = useStore(s => s.ani.speed);
   const grab = useStore(s => s.ani.grab);
   const may = useMay(), mayKey = useMayKey();
+  const mayMain = useMayMain();
   /* the player is a view: it works during a run too (W95); Grab sets values (data) */
   const busy = !may({cmd: 'ani', op: 'seek'});
   const theme = useStore(s => s.theme);
@@ -136,7 +137,7 @@ export function AniView() {
         <button class="ani-back" onClick={close}>Back</button>
         <h2>Animation</h2>
         <HelpButton target={HELP.animation} label="the animation" />
-        {!exists && <button onClick={() => session.openAni()} disabled={!may({cmd: 'key', key: 'v'})}>Open</button>}
+        {!exists && <button onClick={() => session.openAni()} disabled={!mayMain('viewaxes')}>Open</button>}
         <button data-button="ani:file" onClick={() => session.aniLoad()} disabled={!mayKey('ani', 'file') || !exists} title="Load an animation (.ani) file">
           Load…
         </button>

@@ -62,7 +62,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
     if(!xpp::file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
   }
   if(!model_file_ok(file)){
-    xpp::err_msg(xpp::format("Cannot open {}",file));
+    xpp::err_reading(file,xpp::format("Cannot open {}",file));
     return;
   }
   /* a recording: its model, in the player (W59b) */

@@ -4,12 +4,12 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  answerName, baseName, initialFiles, keepBothName, matchesWild, menuKeys, missingFile, onSent, safeName, uploadPlan,
-  type RunRecord,
+  answerName, baseName, initialFiles, keepBothName, matchesWild, menuKeys, onSent, safeName, uploadPlan,
 } from '../src/store/files';
 import type {AskEvent} from '../src/protocol/types';
 import {nativeFileRequest, wildExtensions} from '../src/pickers';
-import {initialState, reduce} from '../src/store/state';
+import {HELLO, READY} from './hello';
+import {reduce} from '../src/store/state';
 
 test('safeName follows the core: base names only', () => {
   for (const ok of ['lecar.set', 'a b-2.ode', 'données.dat', 'x', 'console.txt', 'n'.repeat(255)]) assert.ok(safeName(ok), ok);
@@ -49,40 +49,31 @@ test('an upload is copied, skipped or confirmed against the folder', () => {
 const fileAsk = (mode: 'read' | 'write'): AskEvent => ({ev: 'ask', id: 7, kind: 'file', title: 'Load SET File', mode});
 
 test('the run record: the command, the menu it ran in, and its answers', () => {
-  let s = onSent(initialFiles, {cmd: 'key', key: 'f'}, null, 0);
+  let s = onSent(initialFiles, HELLO, {cmd: 'key', key: 'f'}, null, 0);
   assert.deepEqual(s.run, {menu: 0, cmd: {cmd: 'key', key: 'f'}, answers: []});
-  s = onSent(s, {cmd: 'key', key: 'r'}, null, 0); /* the core has not said menu 1 yet */
+  s = onSent(s, HELLO, {cmd: 'key', key: 'r'}, null, 0); /* the core has not said menu 1 yet */
   assert.equal(s.run!.menu, 1, 'F switched to the File menu');
-  s = onSent(s, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'), 1);
+  s = onSent(s, HELLO, {cmd: 'answer', id: 7, file: 'x.set'}, fileAsk('read'), 1);
   assert.deepEqual(s.run!.answers, [{kind: 'file', mode: 'read', fields: {file: 'x.set'}}]);
-  assert.equal(onSent(s, {cmd: 'state'}, null, 0), s, 'a query is no command of the user');
-  assert.equal(onSent(s, {cmd: 'browser', from: 0, count: 10}, null, 0), s, 'nor a table block');
-});
-
-test('missingFile names the file an error is about', () => {
-  const run: RunRecord = {menu: 1, cmd: {cmd: 'key', key: 'r'}, answers: [
-    {kind: 'file', mode: 'read', fields: {file: '/some/where/gone.set'}}]};
-  assert.equal(missingFile('Cannot open file', run), 'gone.set');
-  assert.equal(missingFile("Couldn't open file", run), 'gone.set');
-  assert.equal(missingFile('Incompatible parameters', run), null);
-  assert.equal(missingFile('Cannot open file', null), null);
-  assert.equal(missingFile('File<tab.tab> not found in /m', null), 'tab.tab');
-  const written: RunRecord = {...run, answers: [{kind: 'file', mode: 'write', fields: {file: 'out.set'}}]};
-  assert.equal(missingFile('Cannot open file', written), null, 'a file being written is not missing');
+  assert.equal(onSent(s, HELLO, {cmd: 'state'}, null, 0), s, 'a query is no command of the user');
+  assert.equal(onSent(s, HELLO, {cmd: 'browser', from: 0, count: 10}, null, 0), s, 'nor a table block');
+  assert.equal(onSent(s, null, {cmd: 'key', key: 'i'}, null, 0), s, 'nothing before hello');
 });
 
 test('menuKeys: F or U from the main menu, nothing when already there', () => {
-  assert.deepEqual(menuKeys(0, 1), ['f']);
-  assert.deepEqual(menuKeys(0, 2), ['u']);
-  assert.deepEqual(menuKeys(1, 1), []);
-  assert.equal(menuKeys(1, 0), null);
+  assert.deepEqual(menuKeys(HELLO, 0, 1), ['f']);
+  assert.deepEqual(menuKeys(HELLO, 0, 2), ['u']);
+  assert.deepEqual(menuKeys(HELLO, 1, 1), []);
+  assert.equal(menuKeys(HELLO, 1, 0), null);
 });
 
-test('an error of a command that read a file gets "Add file…"', () => {
-  let s = reduce(initialState, {type: 'sent', cmd: {cmd: 'key', key: 'r'}});
+test('an error about a file the command could not read gets "Add file…"', () => {
+  let s = reduce(READY, {type: 'sent', cmd: {cmd: 'key', key: 'r'}});
   s = reduce(s, {type: 'event', ev: fileAsk('read')});
   s = reduce(s, {type: 'sent', cmd: {cmd: 'answer', id: 7, file: 'gone.set'}});
   s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file'}});
+  assert.equal(s.toasts[s.toasts.length - 1].action, undefined, 'the core names no file: no offer');
+  s = reduce(s, {type: 'event', ev: {ev: 'message', error: 'Cannot open file', file: 'gone.set'}});
   const t = s.toasts[s.toasts.length - 1];
   assert.equal(t.action?.name, 'gone.set');
   assert.deepEqual(t.action?.run?.answers.map(a => a.fields.file), ['gone.set']);

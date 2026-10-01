@@ -9,6 +9,7 @@ import {
 } from '../src/plot/diagramModel';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
 import {initialState, reduce, type AppState} from '../src/store/state';
+import {READY} from './hello';
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const axes = {xmin: -0.2, xmax: 0.5, ymin: -0.5, ymax: 0.4, x0: 70, y0: 26, wid: 603, hgt: 300, plot: 2,
@@ -34,7 +35,7 @@ const periodic: DiagramRun[] = [
 const add = (from: number, runs: DiagramRun[]) => ({ev: 'diagram', view: 0, op: 'add', from, runs});
 
 function opened(): AppState {
-  let s = ev(initialState, {ev: 'window', op: 'create', win: 101, w: 687, h: 352, title: "It's AUTO man!"});
+  let s = ev(READY, {ev: 'window', op: 'create', win: 101, w: 687, h: 352, title: "It's AUTO man!"});
   s = ev(s, {ev: 'diagram', view: 0, op: 'axes', ...axes});
   return s;
 }
@@ -115,7 +116,7 @@ test('a second create is a resize: the data stay; destroy empties the view', () 
 test('state.auto opens the view for a page that connected later; its absence closes it', () => {
   const state = (auto?: object) => ({ev: 'state', pars: [], ics: [], bcs: [], rows: 0, menu: 0, win: 1,
     view: {win: 1, left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0}, auto});
-  let s = ev(initialState, state({x0: 70, y0: 26, wid: 603, hgt: 300, xmin: 0, xmax: 1, ymin: 0, ymax: 1}));
+  let s = ev(READY, state({x0: 70, y0: 26, wid: 603, hgt: 300, xmin: 0, xmax: 1, ymin: 0, ymax: 1}));
   assert.equal(s.diagram.open, true);
   assert.equal(activeView(s.diagram).axes, null, 'the data come with the redraw the session asks for');
   s = ev(s, state());

@@ -409,6 +409,28 @@ const char *const main_menu_kinds = main_kinds;
 const char *const num_menu_kinds = num_kinds;
 const char *const file_menu_kinds = file_kinds;
 
+const char *const main_menu_names[3] = {"main", "file", "num"};
+static_assert(MAIN_MENU == 0 && FILE_MENU == 1 && NUM_MENU == 2, "main_menu_names is indexed by the menu numbers");
+const char *const main_menu_ids[MAIN_ENTRIES] = {"initialconds", "continue", "nullcline", "dirfield", "window",
+  "phasespace", "kinescope", "graphic", "numerics", "file", "parameters", "erase", "makewindow", "text", "singpts",
+  "viewaxes", "xivst", "restore", "3dparams", "bndryval"};
+const char *const file_menu_ids[FILE_ENTRIES] = {"source", "writeset", "readset", "auto", "calculator", "saveinfo",
+  "help", "quit", "transpose", "getparset", "clone", "xpprc", "tutorial", "copyset", "openmodel", "reload",
+  "savesession", "opensession", "record", "play"};
+const char *const num_menu_ids[NUM_ENTRIES] = {"total", "start", "transient", "dt", "ncline", "singpt", "noutput",
+  "bounds", "method", "delay", "colorcode", "stochastic", "poincare", "ruelle", "lookup", "bndval", "averaging",
+  "exit"};
+
+int main_menu_key(int which, std::string_view id)
+{
+    const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
+    const char *const *ids = which == FILE_MENU ? file_menu_ids : which == NUM_MENU ? num_menu_ids : main_menu_ids;
+    const int n = which == FILE_MENU ? FILE_ENTRIES : which == NUM_MENU ? NUM_ENTRIES : MAIN_ENTRIES;
+    for (int i = 0; i < n; i++)
+        if (id == ids[i]) return static_cast<unsigned char>(keys[i]);
+    return 0;
+}
+
 const char *main_menu_item(int which, int ch)
 {
     const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;

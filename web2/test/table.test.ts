@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import type {BrowserEvent} from '../src/protocol/types';
 import {initialTable, planRequest, reduceTable, rowAt} from '../src/store/table';
+import {HELLO} from './hello';
 
 const page = (over: Partial<BrowserEvent> = {}): BrowserEvent => ({
   ev: 'browser', rows: 601, cols: ['T', 'V', 'W'], row0: 0, start: 0, end: 601, from: 0, col: 1,
@@ -16,29 +17,29 @@ const page = (over: Partial<BrowserEvent> = {}): BrowserEvent => ({
 
 test('planRequest asks for nothing already covered by the page', () => {
   const p = page({from: 0, data: [[0, -0.144, 0.03], [0.05, -0.1438, 0.0301], [0.1, -0.14, 0.031]]});
-  assert.equal(planRequest(p, 0, 2), null);
-  assert.equal(planRequest(p, 1, 2), null);
+  assert.equal(planRequest(p, 0, 2, HELLO.limits), null);
+  assert.equal(planRequest(p, 1, 2, HELLO.limits), null);
 });
 
 test('planRequest asks for a buffered block around what is missing', () => {
-  const req = planRequest(null, 500, 20);
+  const req = planRequest(null, 500, 20, HELLO.limits);
   assert.deepEqual(req, {from: 480, count: 60, col: 1, ncol: 500});
 });
 
 test('planRequest asks again when the page is for other columns (col !== 1)', () => {
   const p = page({col: 2, data: [[0, 0.03], [0.05, 0.0301]]});
-  const req = planRequest(p, 0, 2);
+  const req = planRequest(p, 0, 2, HELLO.limits);
   assert.ok(req && req.col === 1);
 });
 
 test('planRequest clamps from at 0 and count at the core\'s cap', () => {
-  const req = planRequest(null, 5, 3000);
+  const req = planRequest(null, 5, 3000, HELLO.limits);
   assert.equal(req!.from, 0);
   assert.equal(req!.count, 2000);
 });
 
 test('the request never grows below 0 rows even at the very start', () => {
-  const req = planRequest(null, 0, 1);
+  const req = planRequest(null, 0, 1, HELLO.limits);
   assert.equal(req!.from, 0);
   assert.ok(req!.count >= 1);
 });

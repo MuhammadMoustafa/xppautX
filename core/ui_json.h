@@ -11,7 +11,7 @@ struct Session; /* session.h */
 
 /* line-delimited JSON front end (ui_json.cpp, docs/protocol.md) */
 /* the protocol's version, in hello (and the desktop window's About) */
-#define JSON_UI_PROTOCOL 2
+#define JSON_UI_PROTOCOL 3
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(void);        /* protocol on the current stdout */

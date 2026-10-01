@@ -47,7 +47,7 @@ export interface ValuesState {
   errors: Record<string, string>;
   /** the edits sent whose `set` has not ended, in the order sent */
   inflight: InFlight[];
-  /** the model file's values by field key (hello.defaults, else the first state) */
+  /** the model file's values by field key (hello.defaults, by the first state's names) */
   defaults: Record<string, number> | null;
   /** the sliders under the plot, and the id the next one gets */
   sliders: SliderDef[];
@@ -85,8 +85,8 @@ export type ValuesAction =
   | {type: 'settled'}
   /** the Default or Reset button: the section's errors go (its edits are sent as any) */
   | {type: 'defaulted'; kind: ValueKind}
-  /** the model's values: from hello.defaults, or (`ifUnset`) the first state's */
-  | {type: 'defaults'; pars: [string, number][]; ics: [string, number][]; ifUnset?: boolean}
+  /** the model's values: hello.defaults by name */
+  | {type: 'defaults'; pars: [string, number][]; ics: [string, number][]}
   /** the model's `@ s1=..` presets, on a (re)connection: the list starts with them when it is empty */
   | {type: 'presetSliders'; defs: {name: string; lo: number; hi: number}[]}
   | {type: 'addSlider'}
@@ -122,7 +122,6 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       return {...state, errors};
     }
     case 'defaults': {
-      if (action.ifUnset && state.defaults) return state;
       const defaults: Record<string, number> = {};
       for (const [n, v] of action.pars) defaults[fieldKey('par', n)] = v;
       for (const [n, v] of action.ics) defaults[fieldKey('ic', n)] = v;

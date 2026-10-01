@@ -70,21 +70,6 @@ std::string json_str(std::string_view s)
     return std::move(b.s);
 }
 
-/* the commands that are no step of the user's: the client's own requests
-   (state, the data events, the browser's paging, the model's folder),
-   the answers and aborts that belong to the step they come in, and the
-   recording's own */
-bool is_step(const char *line)
-{
-    static constexpr std::string_view none[] = {"state", "data", "equations", "redraw", "file", "answer", "abort", "quit",
-                                                "record", "play"};
-    std::string c;
-    if (!get_string(line, "cmd", c, 16)) return false;
-    for (std::string_view n : none)
-        if (c == n) return false;
-    return !(c == "browser" && !js_find(line, "op"));
-}
-
 /* a command's label, for a person reading the file */
 std::string command_label(const char *line)
 {
@@ -279,7 +264,7 @@ bool j_save_recording(xpp::Session &s)
 
 void record_begin(const char *line)
 {
-    if (!recorder.rec || !is_step(line)) return;
+    if (!recorder.rec || !line_is_step(line)) return;
     StepTaken t;
     t.open = true;
     t.note = std::move(recorder.note);
@@ -293,7 +278,7 @@ void record_begin(const char *line)
         get_string(line, "button", t.button);
         const int menu = session.menu.load(std::memory_order_relaxed);
         t.label = key_label(k, menu, t.win);
-        t.file_menu = t.win.empty() && menu == MAIN_MENU && key_code(k.c_str()) == 'f';
+        t.file_menu = t.win.empty() && menu == MAIN_MENU && key_code(k.c_str()) == main_menu_key(MAIN_MENU, "file");
         t.keys.push_back(std::move(k));
     } else {
         t.label = command_label(line);

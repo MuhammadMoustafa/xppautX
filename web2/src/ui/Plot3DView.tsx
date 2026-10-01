@@ -13,7 +13,7 @@ import {buildModel3d} from '../plot/model3d';
 import {KEY_STEP, KEY_STEP_FINE, rotateByDrag, rotateByKey} from '../plot/project3d';
 import {setChart} from '../plot/registry';
 import {windowOf} from '../store/plots';
-import {useMay, useSession, useStore} from './context';
+import {useMayMain, useSession, useStore} from './context';
 import {FitButton} from './PlotView';
 
 interface Props {
@@ -44,7 +44,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
   const series = pw?.series ?? null;
   const view3d = pw?.view3d ?? null;
   const busy = useStore(s => s.computing);
-  const may = useMay();
+  const mayMain = useMayMain();
 
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -139,13 +139,13 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
         {!noCurves && (
-          <FitButton onClick={() => session.fitView()} disabled={!may({cmd: 'key', key: 'w'})} title="Fit the window's axes to the data (Window/Fit)" />
+          <FitButton onClick={() => session.fitView()} disabled={!mayMain('window')} title="Fit the window's axes to the data (Window/Fit)" />
         )}
         {noCurves && (
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
             {!busy && (
-              <button class="primary" onClick={() => session.buttonKeys('Integrate', 'i', 'g')}>Integrate (I, G)</button>
+              <button class="primary" onClick={() => session.buttonKeys('Integrate', session.mainKey('initialconds'), 'g')}>Integrate (I, G)</button>
             )}
           </div>
         )}

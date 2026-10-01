@@ -19,7 +19,7 @@ import {useFocusBackOnClose} from './focusBack';
 import type {Session} from '../session';
 import {sixSig} from '../store/values';
 import type {SourceLine, TextTab} from '../store/text';
-import {BUSY_TITLE, useMay, useMayKey, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useMayMain, useMayKey, useSession, useStore} from './context';
 import {FOCUSABLE} from './dialogFocus';
 
 
@@ -83,8 +83,9 @@ function stabilityClass(type: string): string {
 
 function EquilibriumView() {
   const session = useSession();
-  const may = useMay(), mayKey = useMayKey();
-  const busy = !may({cmd: 'key', key: 's'}); /* Sing pts: a computation (W95) */
+  const mayKey = useMayKey();
+  const mayMain = useMayMain();
+  const busy = !mayMain('singpts'); /* Sing pts: a computation (W95) */
   const eq = useStore(s => s.text.equilibrium);
   return (
     <div class="text-equilibrium">

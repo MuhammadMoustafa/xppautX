@@ -15,11 +15,13 @@
    same points in the same order, so a point index (the hover, the grab,
    Clear's `earlier`) is the same in all of them.
    Pure: no DOM, no I/O. */
-import type {AutoViewEvent} from '../protocol/types';
+import type {AutoViewEvent, HelloEvent} from '../protocol/types';
 import {viewportOf, type Viewport} from './plots';
 
-/** the AUTO diagram's window number in the protocol */
-export const AUTO_WIN = 101;
+/** the AUTO diagram's window number in the protocol (hello.window_ids.auto), null before hello */
+export function autoWindow(s: {hello: HelloEvent | null}): number | null {
+  return s.hello?.window_ids.auto ?? null;
+}
 
 /** `diagram` `axes` (and `reset`): the core's axes of a view of the diagram */
 export interface DiagramAxes {
