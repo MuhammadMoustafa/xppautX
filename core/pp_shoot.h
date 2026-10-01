@@ -18,7 +18,6 @@ struct ShootRange {
 
 struct Session; /* session.h */
 
-void dump_shoot_range(Session &s, FILE *fp, int f);
 void bad_shoot(int iret);
 
 /* Range shoot's settings asked for: 0 when cancelled */

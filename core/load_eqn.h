@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "xpplim.h"
 #include "model_options.h"
+#include "xpp_error.h"
 
 #include <array>
 #include <optional>
@@ -146,13 +147,15 @@ int add_model_option(Model &m, std::string_view s1);
 void set_internopts(Session &s, const OptionsSet *mask);
 void set_internopts_xpprc_and_comline(Session &s);
 /* the torus settings read from or written to a set file (lunch-new.cpp) */
-void dump_torus(Session &s, FILE *fp, int f);
 /* the model's internal sets: one added (set name {does}), one's
    "name=value ..." settings applied to s (extract_action for any such
    text, a comment's action), one setting */
 void add_intern_set(Model &m, std::string_view name, std::string_view does);
-void extract_action(Session &s, std::string_view ptr);
-void extract_internset(Session &s, int j);
+/* all or nothing: every item is checked first, and the first that cannot
+   be applied is the error, at where (the set's line in the model), with
+   nothing applied */
+Result<> extract_action(Session &s, std::string_view ptr, const Place &where);
+Result<> extract_internset(Session &s, int j);
 void do_intern_set(Session &s, std::string_view name1, std::string_view value);
 /* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of
    the model */

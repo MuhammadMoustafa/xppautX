@@ -47,7 +47,6 @@ struct AdjointState {
   int liap_flag = 0, liap_i = 0;
 };
 
-void dump_transpose_info(Session &s, FILE *fp, int f);
 void alloc_liap(Session &s, int n);
 /* v scaled to unit length (unless it is 0), and its length mu */
 void norm_vec(std::span<double> v, double &mu);
@@ -63,7 +62,6 @@ void alloc_h_stuff(Session &s);
 void data_back(Session &s);
 void make_adj_com(Session &s, int com);
 void new_h_fun(Session &s, int silent);
-void dump_h_stuff(Session &s, FILE *fp, int f);
 int make_h(Session &s, float **orb, float **adj, float **h, int nt, double dt, int node,int silent);
 void new_adjoint(Session &s);
 void do_liapunov(Session &s);

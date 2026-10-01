@@ -16,20 +16,6 @@ constexpr std::string_view no_name = "-";
 std::string name_text(const std::string &name) { return name.empty() ? std::string(no_name) : name; }
 std::string name_of(std::string_view text) { return text == no_name ? std::string() : std::string(text); }
 
-/* the lines of text, a CR before a newline dropped, blank lines left out */
-std::vector<std::string_view> lines_of(std::string_view text)
-{
-    std::vector<std::string_view> lines;
-    while (!text.empty()) {
-        const std::size_t nl = text.find('\n');
-        std::string_view line = text.substr(0, nl);
-        text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
-        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
-        if (!line.empty()) lines.push_back(line);
-    }
-    return lines;
-}
-
 /* s split at each sep (empty fields kept) */
 std::vector<std::string_view> split(std::string_view s, char sep)
 {
@@ -81,57 +67,78 @@ std::string settings_text(const AutoSettingsSet &s)
     return o;
 }
 
-std::optional<AutoSettingsSet> parse_settings(std::string_view text)
+Result<SettingsRead> parse_settings(std::string_view text, std::string file)
 {
-    AutoSettingsSet s;
-    s.npars = 0;
-    s.nmarks = 0;
-    int names = 0; /* the pars, var, par1 and par2 lines read */
-    for (std::string_view line : lines_of(text)) {
-        std::vector<std::string_view> w = split(line, ' ');
-        const std::string_view key = w[0];
-        if (key == "pars") {
-            if (w.size() - 1 > AUTO_SETTINGS_PARS) return std::nullopt;
-            s.npars = static_cast<int>(w.size() - 1);
-            for (int k = 0; k < s.npars; k++) s.pars[k] = name_of(w[k + 1]);
-            names++;
-            continue;
+    return read_lines("AUTO's settings", std::move(file), text, [](Lines &l) {
+        SettingsRead r;
+        AutoSettingsSet &s = r.set;
+        s.npars = 0;
+        s.nmarks = 0;
+        /* key's line, once */
+        const auto at = [&](std::string key) {
+            if (!r.lines.emplace(key, l.line()).second) l.fail(xpp::format("{} given twice", key));
+        };
+        const auto number = [&](std::string_view t, double &v) {
+            if (!xpp::parse_number(t, v)) l.fail(xpp::format("\"{}\" is not a number", t));
+        };
+        while (!l.at_end()) {
+            const std::string_view line = l.next();
+            if (line.empty()) continue;
+            const std::vector<std::string_view> w = split(line, ' ');
+            const std::string_view key = w[0];
+            if (key == "pars") {
+                at("pars");
+                if (w.size() - 1 > AUTO_SETTINGS_PARS) l.fail(xpp::format("{} parameters: AUTO has at most {}", w.size() - 1, AUTO_SETTINGS_PARS));
+                s.npars = static_cast<int>(w.size() - 1);
+                for (int k = 0; k < s.npars; k++) s.pars[k] = name_of(w[k + 1]);
+                continue;
+            }
+            if (key == "mark") {
+                if (s.nmarks >= AUTO_SETTINGS_MARKS) l.fail(xpp::format("more than {} Mark values", AUTO_SETTINGS_MARKS));
+                if (w.size() != 3) l.fail("not \"mark NAME VALUE\"");
+                at(xpp::format("mark{}", s.nmarks));
+                s.mark_name[s.nmarks] = name_of(w[1]);
+                number(w[2], s.mark_value[s.nmarks]);
+                s.nmarks++;
+                continue;
+            }
+            if (w.size() != 2) l.fail(xpp::format("not \"{} VALUE\"", key));
+            const std::string_view value = w[1];
+            if (key == "plot") {
+                at("plot");
+                if (!xpp::parse_int(value, s.plot)) l.fail(xpp::format("\"{}\" is not a whole number", value));
+                s.has_plot = 1;
+            } else if (key == "var" || key == "par1" || key == "par2") {
+                at(std::string(key));
+                (key == "var" ? s.var : key == "par1" ? s.par1 : s.par2) = name_of(value);
+            } else {
+                bool known = false;
+                for (std::size_t i = 0; i < range_keys.size(); i++)
+                    if (key == range_keys[i]) {
+                        at(range_keys[i]);
+                        number(value, s.range[i]);
+                        s.has_range[i] = 1;
+                        known = true;
+                    }
+                for (int i = 0; i < AUTO_NUM_N; i++)
+                    if (key == auto_settings_num_key(i)) {
+                        at(auto_settings_num_key(i));
+                        number(value, s.num[i]);
+                        s.has_num[i] = 1;
+                        known = true;
+                    }
+                if (!known) l.fail(xpp::format("{} is not one of AUTO's settings", key));
+            }
         }
-        if (key == "mark") {
-            if (w.size() != 3 || s.nmarks >= AUTO_SETTINGS_MARKS) return std::nullopt;
-            s.mark_name[s.nmarks] = name_of(w[1]);
-            if (!xpp::parse_number(w[2], s.mark_value[s.nmarks])) return std::nullopt;
-            s.nmarks++;
-            continue;
-        }
-        if (w.size() != 2) return std::nullopt;
-        const std::string_view value = w[1];
-        if (key == "plot") {
-            if (!xpp::parse_int(value, s.plot)) return std::nullopt;
-            s.has_plot = 1;
-        } else if (key == "var" || key == "par1" || key == "par2") {
-            (key == "var" ? s.var : key == "par1" ? s.par1 : s.par2) = name_of(value);
-            names++;
-        } else {
-            bool known = false;
-            for (std::size_t i = 0; i < range_keys.size(); i++)
-                if (key == range_keys[i]) {
-                    if (!xpp::parse_number(value, s.range[i])) return std::nullopt;
-                    s.has_range[i] = 1;
-                    known = true;
-                }
-            for (int i = 0; i < AUTO_NUM_N; i++)
-                if (key == auto_settings_num_key(i)) {
-                    if (!xpp::parse_number(value, s.num[i])) return std::nullopt;
-                    s.has_num[i] = 1;
-                    known = true;
-                }
-            if (!known) return std::nullopt;
-        }
-    }
-    const auto all = [](const auto &has) { return std::all_of(has.begin(), has.end(), [](int h) { return h != 0; }); };
-    if (names != 4 || !s.has_plot || !all(s.has_range) || !all(s.has_num)) return std::nullopt;
-    return s;
+        /* every key but the marks, which may be none, in settings_text's order */
+        std::vector<std::string> keys;
+        for (int i = 0; i < AUTO_NUM_N; i++) keys.emplace_back(auto_settings_num_key(i));
+        keys.insert(keys.end(), {"pars", "plot", "var", "par1", "par2"});
+        for (const char *k : range_keys) keys.emplace_back(k);
+        for (const std::string &k : keys)
+            if (!r.lines.contains(k)) l.fail(l.line() + 1, xpp::format("the file ends here, without its {} line", k));
+        return r;
+    });
 }
 
 std::string views_text(const SavedViews &v)
@@ -146,29 +153,42 @@ std::string views_text(const SavedViews &v)
     return o;
 }
 
-std::optional<SavedViews> parse_views(std::string_view text)
+Result<ViewsRead> parse_views(std::string_view text, std::string file)
 {
-    SavedViews v;
-    bool active = false;
-    for (std::string_view line : lines_of(text)) {
-        const std::vector<std::string_view> w = split(line, ' ');
-        if (w[0] == "active" && w.size() == 2) {
-            if (!xpp::parse_int(w[1], v.active)) return std::nullopt;
-            active = true;
-            continue;
+    return read_lines("AUTO's views", std::move(file), text, [](Lines &l) {
+        ViewsRead r;
+        SavedViews &v = r.views;
+        int active_line = 0;
+        while (!l.at_end()) {
+            const std::string_view line = l.next();
+            if (line.empty()) continue;
+            const std::vector<std::string_view> w = split(line, ' ');
+            if (w[0] == "active" && w.size() == 2) {
+                if (active_line) l.fail("a second active line");
+                if (!xpp::parse_int(w[1], v.active)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
+                active_line = l.line();
+                continue;
+            }
+            if (w[0] != "view" || w.size() != 11)
+                l.fail("not \"view PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY\" nor \"active K\"");
+            SavedView &s = v.views.emplace_back();
+            r.lines.push_back(l.line());
+            if (!xpp::parse_int(w[1], s.plot)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
+            s.var = name_of(w[2]);
+            s.par1 = name_of(w[3]);
+            s.par2 = name_of(w[4]);
+            for (std::size_t i = 0; i < s.range.size(); i++)
+                if (!xpp::parse_number(w[5 + i], s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[5 + i]));
+            for (std::size_t i = 0; i < 2; i++)
+                if (!parse_range(w[9 + i], i == 0 ? s.zoom.x : s.zoom.y))
+                    l.fail(xpp::format("\"{}\" is not a zoom (LO:HI, LO below HI, or -)", w[9 + i]));
         }
-        if (w[0] != "view" || w.size() != 11) return std::nullopt;
-        SavedView &s = v.views.emplace_back();
-        if (!xpp::parse_int(w[1], s.plot)) return std::nullopt;
-        s.var = name_of(w[2]);
-        s.par1 = name_of(w[3]);
-        s.par2 = name_of(w[4]);
-        for (std::size_t i = 0; i < s.range.size(); i++)
-            if (!xpp::parse_number(w[5 + i], s.range[i])) return std::nullopt;
-        if (!parse_range(w[9], s.zoom.x) || !parse_range(w[10], s.zoom.y)) return std::nullopt;
-    }
-    if (!active || v.views.empty() || v.active < 0 || v.active >= static_cast<int>(v.views.size())) return std::nullopt;
-    return v;
+        if (v.views.empty()) l.fail(l.line() + 1, "the file ends here, without a view");
+        if (!active_line) l.fail(l.line() + 1, "the file ends here, without its active line");
+        if (v.active < 0 || v.active >= static_cast<int>(v.views.size()))
+            l.fail(active_line, xpp::format("view {} is not one of the {} views", v.active, v.views.size()));
+        return r;
+    });
 }
 
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars)
@@ -196,39 +216,45 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
     return o;
 }
 
-std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n)
+Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file)
 {
-    if (n < 0) return std::nullopt;
-    const std::vector<std::string_view> lines = lines_of(text);
-    const std::size_t columns = lead_columns.size() + n_pars + 6 * static_cast<std::size_t>(n);
-    if (lines.empty()) return std::nullopt;
-    const std::vector<std::string_view> head = split(lines[0], ',');
-    if (head.size() != columns) return std::nullopt;
-    for (std::size_t i = 0; i < lead_columns.size(); i++)
-        if (head[i] != lead_columns[i]) return std::nullopt;
-    std::deque<DiagramPoint> points;
-    for (std::size_t r = 1; r < lines.size(); r++) {
-        const std::vector<std::string_view> f = split(lines[r], ',');
-        if (f.size() != columns) return std::nullopt;
-        DiagramPoint &p = points.emplace_back();
-        DIAGRAM &d = p.d;
-        int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from};
-        std::size_t c = 0;
-        for (int *v : ints)
-            if (!xpp::parse_int(f[c++], *v)) return std::nullopt;
-        for (double *v : {&d.norm, &d.per, &d.torper})
-            if (!xpp::parse_number(f[c++], *v)) return std::nullopt;
-        for (int i = 0; i < n_pars; i++)
-            if (!xpp::parse_number(f[c++], d.par[i])) return std::nullopt;
-        for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->assign(n, 0.0);
-        for (int i = 0; i < n; i++)
-            for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar})
-                if (!xpp::parse_number(f[c++], (*v)[i])) return std::nullopt;
-        for (int i = 0; i < n; i++)
-            for (std::vector<double> *v : {&p.evr, &p.evi})
-                if (!xpp::parse_number(f[c++], (*v)[i])) return std::nullopt;
-    }
-    return points;
+    return read_lines("AUTO's diagram", std::move(file), text, [n](Lines &l) {
+        const std::size_t columns = lead_columns.size() + n_pars + 6 * static_cast<std::size_t>(n < 0 ? 0 : n);
+        const std::vector<std::string_view> head = split(l.next("the header row"), ',');
+        if (head.size() != columns) l.fail(xpp::format("{} columns: a diagram of this model's {} variables has {}", head.size(), n, columns));
+        for (std::size_t i = 0; i < lead_columns.size(); i++)
+            if (head[i] != lead_columns[i]) l.fail(xpp::format("column {} is \"{}\", not \"{}\"", i + 1, head[i], lead_columns[i]));
+        std::deque<DiagramPoint> points;
+        while (!l.at_end()) {
+            const std::string_view line = l.next();
+            if (line.empty()) continue;
+            const std::vector<std::string_view> f = split(line, ',');
+            if (f.size() != columns) l.fail(xpp::format("{} fields, not {}", f.size(), columns));
+            DiagramPoint &p = points.emplace_back();
+            DIAGRAM &d = p.d;
+            int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from};
+            std::size_t c = 0;
+            const auto bad = [&](std::size_t k, const char *kind) {
+                l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
+            };
+            for (int *v : ints) {
+                if (!xpp::parse_int(f[c], *v)) bad(c, "a whole number");
+                c++;
+            }
+            const auto real = [&](double &v) {
+                if (!xpp::parse_number(f[c], v)) bad(c, "a number");
+                c++;
+            };
+            for (double *v : {&d.norm, &d.per, &d.torper}) real(*v);
+            for (int i = 0; i < n_pars; i++) real(d.par[i]);
+            for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar, &p.evr, &p.evi}) v->assign(static_cast<std::size_t>(n), 0.0);
+            for (int i = 0; i < n; i++)
+                for (std::vector<double> *v : {&p.u0, &p.uhi, &p.ulo, &p.ubar}) real((*v)[static_cast<std::size_t>(i)]);
+            for (int i = 0; i < n; i++)
+                for (std::vector<double> *v : {&p.evr, &p.evi}) real((*v)[static_cast<std::size_t>(i)]);
+        }
+        return points;
+    });
 }
 
 } // namespace xpp::autox

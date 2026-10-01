@@ -50,6 +50,7 @@
 #include <vector>
 
 #include "model_files.h"
+#include "xpp_error.h"
 
 namespace xpp::recx {
 
@@ -61,6 +62,7 @@ inline constexpr std::string_view format_line = "xppautx-recording 1";
 struct Step {
     std::string note;
     std::string line;
+    int at = 0; /* the line of the file it is on (a read recording's), for its errors */
 };
 
 struct Recording {
@@ -95,10 +97,12 @@ struct Read {
     bool intact = false;
 };
 
-/* the text of a .recx file: nullopt, with the reason in error, when it
-   is not one (its first line, no @snapshot, a section without its @end,
-   no @steps, a @binary or @snapshot section that is not base64) */
-std::optional<Read> read(std::string_view text, std::string &error);
+/* the text of a .recx file (named file, for its errors), read whole: the
+   error at the line that is wrong when it is not one (its first line, a
+   header line missing, given twice or not one of them, no @snapshot, a
+   section without its @end, no @steps, a @binary or @snapshot section
+   that is not base64, no fingerprint line, a line after it) */
+Result<Read> read(std::string_view text, std::string file);
 
 /* the fingerprint of the lines it covers (above), each without its "\n" */
 std::string fingerprint(const std::vector<std::string> &hashed);

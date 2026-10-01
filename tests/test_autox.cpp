@@ -124,9 +124,10 @@ void check_settings_text()
     s.nmarks = 2;
     s.mark_name = {"T", "phi"};
     s.mark_value = {awk(4), awk(5)};
-    const std::optional<xpp::AutoSettingsSet> r = xpp::autox::parse_settings(xpp::autox::settings_text(s));
-    CHECK(r.has_value());
-    if (!r) return;
+    const xpp::Result<xpp::autox::SettingsRead> read = xpp::autox::parse_settings(xpp::autox::settings_text(s), "settings.txt");
+    CHECK(read.has_value());
+    if (!read) return;
+    const xpp::AutoSettingsSet *r = &read->set;
     bool num = true;
     for (int i = 0; i < xpp::AUTO_NUM_N; i++) num = num && r->has_num[i] && same_bits(r->num[i], s.num[i]);
     CHECK(num);
@@ -137,12 +138,20 @@ void check_settings_text()
     CHECK(range);
     CHECK(r->nmarks == 2 && r->mark_name[0] == "T" && r->mark_name[1] == "phi" && same_bits(r->mark_value[0], s.mark_value[0]) &&
           same_bits(r->mark_value[1], s.mark_value[1]));
-    CHECK(!xpp::autox::parse_settings("ds not-a-number\n"));
-    CHECK(!xpp::autox::parse_settings("plot 1.5\n"));
-    /* every key there, none it does not have */
+    /* each refusal at its line, the line as written (W125) */
+    const auto error = [](const std::string &text) {
+        const xpp::Result<xpp::autox::SettingsRead> e = xpp::autox::parse_settings(text, "a.autoset");
+        return e ? std::string() : e.error().text() + " [" + e.error().place.source + "]";
+    };
+    CHECK(error("ds not-a-number\n") == "a.autoset:1: \"not-a-number\" is not a number [ds not-a-number]");
+    CHECK(error("plot 1.5\n") == "a.autoset:1: \"1.5\" is not a whole number [plot 1.5]");
+    /* every key there once, none it does not have */
     const std::string text = xpp::autox::settings_text(s);
-    CHECK(!xpp::autox::parse_settings(text + "later 1\n"));
-    CHECK(!xpp::autox::parse_settings(text.substr(text.find('\n') + 1)));
+    const int lines = static_cast<int>(xpp::split_lines(text).size());
+    CHECK(error(text + "later 1\n") == xpp::format("a.autoset:{}: later is not one of AUTO's settings [later 1]", lines + 1));
+    CHECK(error(text + "ntst 3\n") == xpp::format("a.autoset:{}: ntst given twice [ntst 3]", lines + 1));
+    CHECK(error(text.substr(text.find('\n') + 1)) == xpp::format("a.autoset:{}: the file ends here, without its ntst line []", lines));
+    CHECK(read->lines.at("ntst") == 1 && read->lines.at("mark1") == lines);
 }
 
 /* views.txt (W50): the views read back bit for bit, a degenerate range
@@ -157,14 +166,14 @@ void check_views_text()
     v.views.push_back({3, "", "iapp", "", {-0.2, 0.08, 0, 0}, z});
     v.active = 1;
     const std::string text = xpp::autox::views_text(v);
-    const std::optional<xpp::autox::SavedViews> r = xpp::autox::parse_views(text);
-    CHECK(r && *r == v);
+    const xpp::Result<xpp::autox::ViewsRead> r = xpp::autox::parse_views(text, "views.txt");
+    CHECK(r && r->views == v && r->lines == std::vector<int>({1, 2}));
     CHECK(text.ends_with("active 1\n"));
-    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\n"));                /* no active line */
-    CHECK(!xpp::autox::parse_views("active 0\n"));                                     /* no view */
-    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 1\n"));     /* no view 1 */
-    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 1:0 -\nactive 0\n"));   /* a zoom low above high */
-    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 -\nactive 0\n"));        /* a field short */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\n", "views.txt"));                /* no active line */
+    CHECK(!xpp::autox::parse_views("active 0\n", "views.txt"));                                     /* no view */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 - -\nactive 1\n", "views.txt"));     /* no view 1 */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 1 1:0 -\nactive 0\n", "views.txt"));   /* a zoom low above high */
+    CHECK(!xpp::autox::parse_views("view 2 v iapp phi 0 1 0 -\nactive 0\n", "views.txt"));        /* a field short */
 }
 
 void check_diagram_csv()
@@ -174,13 +183,14 @@ void check_diagram_csv()
     const std::string csv = xpp::autox::diagram_csv(pts, vars);
     CHECK(csv.starts_with("calc,ibr,ntot,itp,lab,nfpar,icp1,icp2,icp3,icp4,flag2,from,norm,per,torper,par1,"));
     CHECK(csv.find(",u0.long_name_of_a_variable,") != std::string::npos && csv.find(",evi3\n") != std::string::npos);
-    const std::optional<std::deque<DiagramPoint>> back = xpp::autox::parse_diagram_csv(csv, 3);
+    const xpp::Result<std::deque<DiagramPoint>> back = xpp::autox::parse_diagram_csv(csv, 3, "diagram.csv");
     CHECK(back && same_diagram(*back, pts)); /* bit for bit */
-    CHECK(!xpp::autox::parse_diagram_csv(csv, 2)); /* of another model */
-    CHECK(!xpp::autox::parse_diagram_csv("", 3));
+    CHECK(!xpp::autox::parse_diagram_csv(csv, 2, "diagram.csv")); /* of another model */
+    CHECK(!xpp::autox::parse_diagram_csv("", 3, "diagram.csv"));
     std::string bad = csv;
     bad.back() = ',';
-    CHECK(!xpp::autox::parse_diagram_csv(bad + "1\n", 3)); /* a row too long */
+    const xpp::Result<std::deque<DiagramPoint>> long_row = xpp::autox::parse_diagram_csv(bad + "1\n", 3, "diagram.csv");
+    CHECK(!long_row && long_row.error().place.line == static_cast<int>(pts.size()) + 1); /* a row too long, at its line */
 }
 
 bool write_file(const std::string &path, std::string_view bytes)
@@ -308,13 +318,40 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
     for (xpp::zip::Entry &e : entries) members[e.name] = std::move(e.bytes);
     CHECK(members.size() == 4 && members.contains("auto/diagram.csv") && members.contains("auto/views.txt"));
     start_diagram(xpp::client_session(), xpp::client_session().model().node);
-    std::expected<xpp::autox::Members, std::string> read = xpp::autox::members_read(xpp::client_session(), members, "auto/");
-    CHECK(read && !xpp::autox::restore_members(xpp::client_session(), std::move(*read), "lecar.snapx"));
+    xpp::Result<xpp::autox::Members> read = xpp::autox::members_read(xpp::client_session(), members, "auto/", "lecar.snapx");
+    CHECK(read && xpp::autox::restore_members(xpp::client_session(), std::move(*read)));
     /* one missing: named */
     std::map<std::string, std::string> cut = members;
     cut.erase("auto/solutions.s");
-    const std::expected<xpp::autox::Members, std::string> none = xpp::autox::members_read(xpp::client_session(), cut, "auto/");
-    CHECK(!none && none.error() == "its auto/solutions.s is missing");
+    const xpp::Result<xpp::autox::Members> none = xpp::autox::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
+    CHECK(!none && none.error().text() == "lecar.snapx: its auto/solutions.s is missing");
+    /* all or nothing (W125): a value on settings.txt's last line that does
+       not read, or a value AUTO refuses, is the error at its line, before
+       anything is restored */
+    const std::string settings = members["auto/settings.txt"];
+    /* text with the line of key given value instead */
+    const auto keyed = [](std::string text, const std::string &key, const std::string &value) {
+        const std::size_t at = text.find(key + " ");
+        return text.replace(at, text.find('\n', at) - at, key + " " + value);
+    };
+    const std::string last_bad = settings.substr(0, settings.rfind("ymax ")) + "ymax nope\n";
+    cut = members;
+    cut["auto/settings.txt"] = last_bad;
+    const xpp::Result<xpp::autox::Members> bad = xpp::autox::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
+    CHECK(!bad && bad.error().place.file == "lecar.snapx/auto/settings.txt" &&
+          bad.error().place.line == static_cast<int>(xpp::split_lines(last_bad).size()) && bad.error().place.source == "ymax nope");
+    cut["auto/settings.txt"] = keyed(settings, "ncol", "9");
+    const xpp::Result<xpp::autox::Members> refused = xpp::autox::members_read(xpp::client_session(), cut, "auto/", "lecar.snapx");
+    CHECK(!refused && refused.error().place.line == xpp::AUTO_NUM_NCOL + 1 && refused.error().place.source == "ncol 9");
+    /* an .autoset the same: the settings as they were */
+    const std::string before = xpp::autox::settings_text(xpp::auto_settings_now(s));
+    const std::string autoset = tmp.file("bad.autoset");
+    const std::string changed = keyed(before, "ntst", "7");
+    CHECK(write_file(autoset, changed.substr(0, changed.rfind("ymax ")) + "ymax 1e999\n"));
+    CHECK(!xpp::autox::load_settings_file(s, autoset));
+    CHECK(xpp::autox::settings_text(xpp::auto_settings_now(s)) == before);
+    CHECK(write_file(autoset, changed));
+    CHECK(xpp::autox::load_settings_file(s, autoset) && s.auto_state.bifur.ntst == 7);
     CHECK(same_diagram(s.diagram.points, imported));
     CHECK(file_text(xpp::auto_solutions_file(xpp::client_session())) == solutions);
 

@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SeriesMirror, drain_stderr, whole_series
+from xppclient import SeriesMirror, drain_stderr, placed, whole_series
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -1662,6 +1662,93 @@ def check_error_places():
 check_error_places()
 
 
+def check_load_all_or_nothing():
+    """W125: loading one of our files is all or nothing. A set file (File >
+    Read set), a parameter file and an initial-conditions file (`values`
+    `read`) whose last value is bad, and an internal set (File > Get par
+    set) whose last item is, are refused at that line, naming the file and
+    the line as written, and the session is exactly as it was (its state,
+    and the set file it writes)."""
+    model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.ode')
+    with open(model, 'w') as f:
+        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good {a=3,b=4}\nset bad {a=5,x=7,b=oops}\ndone\n")
+    p, r, snd, col, _ = launch_server(ode=model)
+
+    def answered(answers, **cmd):
+        """cmd, its asks answered in order (a str is a key, a dict the answer; then cancel), up to idle"""
+        snd(**cmd)
+        got, n = [], 0
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got += evs
+            if e is None or e['ev'] == 'idle':
+                return got
+            a = answers[n] if n < len(answers) else {'ok': 0}
+            n += 1
+            snd(cmd='answer', id=e['id'], **({'key': a} if isinstance(a, str) else a))
+
+    def state():
+        st = last_state(answered((), cmd='state'))
+        return {k: v for k, v in st.items() if k != '_t'} if st else st
+
+    def errors(evs):
+        return [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+
+    written = []
+
+    def set_file():
+        """the set file the session writes now (File > Write set), without
+        its first line (the time)"""
+        written.append('now%d.set' % len(written))
+        answered((), cmd='key', key='f')
+        answered(({'file': written[-1]},), cmd='key', key='w')
+        with open(os.path.join(r, written[-1])) as f:
+            return f.read().split('\n', 1)[1]
+
+    def read_set(name):
+        """File > Read set of name"""
+        answered((), cmd='key', key='f')
+        return answered(({'file': name},), cmd='key', key='r')
+
+    try:
+        col(is_idle)
+        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 1.5}, {'kind': 'ic', 'name': 'x', 'value': 0.25}])
+        st0, set0 = state(), set_file()
+        rows = set0.split('\n')
+        high = max(k for k in range(len(rows)) if rows[k].endswith('BVP range high')) + 2  # its line in the file
+        lines = ('## Set file\n' + set0).split('\n')
+        lines[high - 1] = '1e999  BVP range high'
+        with open(os.path.join(r, 'bad.set'), 'w') as f:
+            f.write('\n'.join(lines))
+        par = '2   Number params\n9  a\noops  b\n'
+        with open(os.path.join(r, 'bad.par'), 'w') as f:
+            f.write(par)
+        with open(os.path.join(r, 'bad.ic'), 'w') as f:
+            f.write('9\nnan?\n')
+        for what, cmd, answers, file, line, source in (
+                ('a set file', None, 'bad.set', 'bad.set', high, '1e999  BVP range high'),
+                ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
+                ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?'),
+                ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.ode', 6, None)):
+            errs = errors(read_set(answers) if cmd is None else answered(answers, **cmd))
+            e = errs[0] if len(errs) == 1 else {}
+            check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
+                  os.path.basename(e.get('file', '')) == file and e.get('line') == line
+                  and (source is None or e.get('source') == source)
+                  and (source is not None or 'b=oops: not a number' in e.get('error', '')), str(errs))
+            st, set1 = state(), set_file()
+            check('W125: after %s refused, the session is as it was (its state, its set file)' % what,
+                  st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
+        errs = errors(answered((), cmd='values', op='internset', name='good'))
+        st = state()
+        check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_load_all_or_nothing()
+
+
 # Nullclines, direction fields and flows as data (docs/protocol.md "The
 # plot as data", docs/ui-v2.md T7), in plot coordinates.
 def check_phase_data():
@@ -2613,9 +2700,25 @@ def check_autosettings():
         with open(set_path, 'w', encoding='utf-8') as f:
             f.write('nmx 5\n')
         evs, ask = auto_file_item('f', set_path)
-        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
-        check('W118: a file that is not every setting is refused, nothing changes',
-              len(errs) == 1 and 'not a file of AUTO' in errs[0] and settings_of(evs) is None, str(errs))
+        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W118: a file that is not every setting is refused at the line where its first missing one was due, nothing changes',
+              len(errs) == 1 and 'the file ends here, without its ntst line' in errs[0]['error']
+              and os.path.basename(errs[0].get('file', '')) == 'lecar.autoset' and errs[0].get('line') == 2
+              and settings_of(evs) is None, str(errs))
+        # W125: all or nothing: a changed value, then a value on the last line that does not read
+        lines = saved.replace('nmx 41\n', 'nmx 43\n').rstrip('\n').split('\n')
+        lines[-1] = lines[-1].split(' ')[0] + ' 1e999' if not lines[-1].startswith('mark') else 'mark x nope'
+        with open(set_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(lines) + '\n')
+        evs, ask = auto_file_item('f', set_path)
+        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W125: a .autoset with a bad value on its last line is refused at that line, the value before it unapplied',
+              len(errs) == 1 and errs[0].get('line') == len(lines) and errs[0].get('source') == lines[-1]
+              and settings_of(evs) is None, str(errs))
+        snda(cmd='data', events=['autosettings'])
+        now = settings_of(cola(is_idle)[0])
+        check('W125: after the refused .autoset the settings are as they were (Nmax 41, read back above, not 43)',
+              now is not None and back is not None and now['numerics'] == back['numerics'], str(now and now['numerics'].get('nmx')))
         shutil.rmtree(set_dir, ignore_errors=True)
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
@@ -3808,17 +3911,18 @@ def check_session_random():
               a is not None and a == b, '%s vs %s bytes' % (len(a or b''), len(b or b'')))
         for name, change, expect in (('norandom', lambda m: m.pop('random.txt'), 'its random.txt is missing'),
                                      ('noseed', lambda m: m.__setitem__('random.txt', m['random.txt'].split(b'\n', 1)[1]),
-                                      'its random.txt does not begin'),
+                                      ('noseed.snapx/random.txt:1:', 'not "seed <number>"')),
                                      ('badrandom', lambda m: m.__setitem__('random.txt', b'seed 5\nwiener 0\nnot a state'),
-                                      'its random.txt is not a random generator')):
+                                      ('badrandom.snapx/random.txt:3:', 'not a random generator'))):
             damaged = dict(members)
             change(damaged)
             with zipfile.ZipFile(os.path.join(r, name + '.snapx'), 'w') as out:
                 for n, bts in damaged.items():
                     out.writestr(n, bts)
             evs = run(cmd='open', file=name + '.snapx')
-            msgs = ' '.join(str(e.get('error', '')) for e in evs if e.get('ev') == 'message')
-            check('random: %s.snapx is refused, the error names the member' % name, expect in msgs, msgs[:300])
+            msgs = ' '.join(placed(e) for e in evs if e.get('ev') == 'message')
+            check('random: %s.snapx is refused, the error names the member' % name,
+                  all(x in msgs for x in (expect if isinstance(expect, tuple) else (expect,))), msgs[:300])
     finally:
         stop_server(p, r, snd)
 
@@ -4040,14 +4144,21 @@ def check_session_file():
 
         win_rows = members['windows.set'].decode().split('\n')
         set_rows = members['model.set'].decode().split('\n')
+        # the line of model.set's last value (the BVP range's high end)
+        set_high = next(k + 1 for k in reversed(range(len(set_rows))) if set_rows[k].rstrip('\r').endswith('BVP range high'))
         damages = [
             ('nowindows', lambda m: m.pop('windows.set'), 'its windows.set is missing'),
             ('cutwindows', lambda m: m.__setitem__('windows.set', '\n'.join(win_rows[:10]).encode() + b'\n'),
-             'its windows.set, line 11: the file ends here'),
+             ('cutwindows.snapx/windows.set:11:', 'the file ends here')),
             ('badset', lambda m: m.__setitem__('model.set', text_lines('model.set', 5, 'x' + set_rows[4][1:])),
-             'its model.set, line 5: "x'),
+             ('badset.snapx/model.set:5:', '"x')),
             ('badname', lambda m: m.__setitem__('windows.set', text_lines('windows.set', 5, 'nosuch')),
-             'its windows.set, line 5: the model has no variable "nosuch"'),
+             ('badname.snapx/windows.set:5:', 'the model has no variable "nosuch"')),
+            # W125: a bad value on a member's last line: refused at it, nothing applied
+            ('lastmarks', lambda m: m.__setitem__('marks.set', m['marks.set'].rstrip(b'\n') + b'\nmore\n'),
+             ('lastmarks.snapx/marks.set:%d:' % (len(members['marks.set'].decode().rstrip('\n').split('\n')) + 1), '"more" after the end')),
+            ('lastset', lambda m: m.__setitem__('model.set', text_lines('model.set', set_high, '1e999  BVP range high')),
+             ('lastset.snapx/model.set:%d:' % set_high, '"1e999  BVP range high" is not a number')),
             ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
              'is not one it has: "later 1"'),
         ]
@@ -4061,9 +4172,9 @@ def check_session_file():
                     out.writestr(n, b)
             del allev[:]
             answered(snd, col, ('d',), cmd='open', file=name + '.snapx')
-            msgs = ' '.join(str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
+            msgs = ' '.join(placed(e) for e in allev if e.get('ev') == 'message')
             check('W116: %s.snapx is refused, the error says where (%s), the session before stays' % (name, expect),
-                  expect in msgs and not last('hello'), msgs[:300])
+                  all(x in msgs for x in (expect if isinstance(expect, tuple) else (expect,))) and not last('hello'), msgs[:300])
         snd(cmd='state')
         st2 = no_t(next((e for e in reversed(col(is_idle)[0]) if is_state(e)), None))
         check('W116: after the refused opens the session before stays: its state, s1.snapx its session',
@@ -4731,6 +4842,21 @@ def check_player():
         evs = run(cmd='play', op='open', file=os.path.join(r, 'bad.recx'))
         check('play open: a file that is not a recording is an error',
               any(e.get('ev') == 'message' and 'not a recording' in e.get('error', '') for e in evs), '')
+
+        # W125: a recording whose last step does not read is refused at its line, before
+        # anything is played or loaded: the player as it was
+        rows = text.split('\n')
+        k = max(i for i, l in enumerate(rows) if l.startswith('{'))
+        rows[k] = 'not json'
+        open(os.path.join(r, 'laststep.recx'), 'w', encoding='utf-8').write('\n'.join(rows))
+        before = (last_state(run(cmd='state')) or {}).get('player')
+        evs = run(cmd='play', op='open', file=os.path.join(r, 'laststep.recx'))
+        m = next((e for e in evs if e.get('ev') == 'message' and e.get('error')), {})
+        check('W125: a recording whose last step does not read is refused at that line, the line as written',
+              os.path.basename(m.get('file', '')) == 'laststep.recx' and m.get('line') == k + 1
+              and m.get('source') == 'not json' and 'cannot be played' in m.get('error', ''), str(m))
+        check('W125: after the refused recording the player is as it was',
+              before is not None and (last_state(run(cmd='state')) or {}).get('player') == before, str(before))
     finally:
         stop_server(p, r, snd)
 

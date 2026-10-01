@@ -4,48 +4,106 @@
 
 #include <stdio.h>
 #include "form_ode.h"
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-#include "struct.h" /* GRAPH */
+#include "adj2.h"      /* AdjointState's transpose */
+#include "arrayplot.h" /* APLOT */
+#include "integrate.h" /* RangeVars, EquilibriumRange */
+#include "pp_shoot.h"  /* ShootRange */
+#include "struct.h"    /* GRAPH */
 #include "xpp_error.h"
+#include "xpp_io.h"    /* Lines */
 
 namespace xpp {
 
 struct Session; /* session.h */
 struct Model;   /* model.h */
 
-/* what a set file's readers (io_int, io_double, io_string, io_heading
-   reading) throw at a line they cannot read: the line (from 1) and what
-   is wrong with it. read_lunch, io_parameter_file and the readers of a
-   session's members (xpp_session.cpp) catch it and say so. */
-struct SetLineError {
-  int line;
-  std::string cause;
-  /* as an Error of the reader where, at its line of file ("" when the
-     caller adds it) */
-  Error error(std::string_view where, std::string_view file) const;
+/* ---- The set format: a set file (.set), a parameter file (.par) and a
+   session's windows.set and marks.set are lines of it ----
+   Written here; read through xpp_io.h's Lines (whole(), real(), next(),
+   heading()), the one way a file of ours is read (W125). */
+
+/* "value   name" (a whole number), "value  name" (a number, %.16g), a
+   line of text whole, a "# ..." heading */
+void write_whole(FILE *fp, int value, std::string_view name);
+void write_real(FILE *fp, double value, std::string_view name);
+void write_text(FILE *fp, std::string_view text);
+void write_heading(FILE *fp, std::string_view heading);
+
+/* one plot window's settings as a set file holds the active one's
+   (# Graphics); read into g, whose other fields stay (headed: after its
+   heading, which a set file of XPPAUT's has not) */
+void write_graph(FILE *fp, const GRAPH &g);
+void read_graph(Lines &lines, GRAPH &g, bool headed);
+/* those settings of from given to to, its other fields kept (a restored
+   window, as made, takes the saved one's) */
+void copy_graph_settings(const GRAPH &from, GRAPH &to);
+
+/* What a set file holds, read whole (read_set_file) before anything is
+   applied (apply_set_file): the numerics, the delays, the boundary
+   conditions, the initial conditions and parameters, the active window's
+   graphics and, in a set file of xppautX's, Transpose, the H functions'
+   coupling, the array plot, the torus and the ranges. A set file of
+   XPPAUT's (its first line the number of equations) has neither the
+   headings nor the parts after the graphics, nor an absolute tolerance
+   (ten times the tolerance). */
+struct SetFile {
+  bool ours = true; /* begins "## Set file" */
+  int njmp = 0, nmesh = 0, method = 0;
+  double tend = 0, delta_t = 0, t0 = 0, trans = 0, bound = 0, hmin = 0, hmax = 0, toler = 0, atoler = 0, delay = 0;
+  int evec_iter = 0;
+  double evec_err = 0, newt_err = 0, poipln = 0, bvp_tol = 0, bvp_eps = 0;
+  int bvp_maxit = 0, poimap = 0, poivar = 0, poisgn = 0, sos = 0, delay_flag = 0;
+  double current_time = 0, last_time = 0;
+  int my_start = 0, inflag = 0;
+  /* Max points for volterra, when the method is Volterra's */
+  std::optional<int> volterra_points;
+  std::vector<std::string> delays, bcs;
+  std::vector<double> last_ic, current, params;
+  GRAPH graph{};
+  /* xppautX's only (ours) */
+  decltype(AdjointState::transpose) transpose;
+  std::vector<std::string> coupling;
+  APLOT aplot{};
+  int torus = 0;
+  double tor_period = 0;
+  std::vector<int> itor;
+  EquilibriumRange eq_range;
+  RangeVars range{};
+  ShootRange shoot_range;
 };
 
-/* a number of a set file (f READEM: the number its line starts with, the
-   name written after it ignored), or z written with its name ss; a line
-   missing or not starting with one throws SetLineError */
-void io_int(int *i, FILE *fp, int f, std::string_view ss);
-void io_double(double *z, FILE *fp, int f, std::string_view ss);
-/* one line of a set file into s, whole (f READEM; SetLineError at the
-   end of the file), or s written as one */
-void io_string(std::string &s, FILE *fp, int f);
-/* a "# ..." heading: written (f WRITEM), or on reading a set file of
-   xppautX's (one that begins with "## Set file") skipped, a line that is
-   not one throwing SetLineError */
-void io_heading(int f, FILE *fp, const char *heading);
-/* the parameters or the initial conditions of s read from (flag READEM)
-   or written to the file fn (-parfile, -icfile, the values panel) */
-void io_parameter_file(Session &s, std::string_view fn, int flag);
-void io_ic_file(Session &s, std::string_view fn, int flag);
+/* text, the set file named file, read for the session s (its model; what
+   the file does not hold, the active window's other settings, are s's):
+   every line checked, or the error at the line that is wrong (not one of
+   this model's, a value that does not read or is out of range) */
+Result<SetFile> read_set_file(const Session &s, std::string file, std::string_view text);
+/* f applied to s, in one step (the front end shown it when redraw) */
+void apply_set_file(Session &s, const SetFile &f, bool redraw);
+/* the set file at path read and applied (File > Read set, -setfile), or
+   the error, nothing applied */
+Result<> load_set_file(Session &s, std::string_view path, bool redraw);
+/* s's settings as a set file (File > Write set, a session's model.set) */
+void write_lunch(Session &s, FILE *fp);
+
+/* a parameter file's values (the model m's parameters, in order) or an
+   initial-conditions file's (one per differential equation), read whole
+   from path; the error at the line that is wrong */
+Result<std::vector<double>> read_parameter_file(const Model &m, std::string_view path);
+Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
+/* the parameters or the initial conditions of s read whole from the file
+   fn and applied, or the error shown and nothing applied (-parfile,
+   -icfile, Initialconds/File, the values panel's Load); written to it */
+void load_parameter_file_named(Session &s, std::string_view fn);
+void load_ic_file_named(Session &s, std::string_view fn);
+void write_parameter_file(Session &s, std::string_view fn);
+void write_ic_file(const Session &s, std::string_view fn);
 /* the values panel's Save/Load of s's .par and .ic (docs/protocol.md
-   "values"), through io_parameter_file/io_ic_file: name empty asks for
-   one like Save data does, given skips the ask */
+   "values"): name empty asks for one like Save data does, given skips
+   the ask */
 void save_parameter_file(Session &s, std::string name);
 void save_ic_file(Session &s, std::string name);
 void load_parameter_file(Session &s, std::string name);
@@ -57,30 +115,13 @@ void load_ic_file(Session &s, std::string name);
 void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
 /* The session s's set files (File > Write set, Read set: do_lunch, f 1
-   to read and 0 to write), its info file (File > Save info) and their
-   parts: the numerics, the delays, BCs, ICs and parameters (io_exprs),
-   the active plot window (io_graph); a PostScript picture's parameters
-   (ps_write_pars) */
+   to read and 0 to write), its info file (File > Save info); a
+   PostScript picture's parameters (ps_write_pars) */
 void file_inf(Session &s);
 void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
-/* s's settings read from the set file fp (File > Read set, -setfile, a
-   session's model.set), the front end shown them when redraw; the error
-   when it is not one of this model's or one of its lines cannot be read
-   (what comes before that line is read) */
-Result<> read_lunch(Session &s, FILE *fp, bool redraw);
-void write_lunch(Session &s, FILE *fp);
 void do_lunch(Session &s, int f);
 void dump_eqn(const Session &s, FILE *fp);
-void io_numerics(Session &s, int f, FILE *fp);
-void io_parameters(Session &s, int f, FILE *fp);
-void io_exprs(Session &s, int f, FILE *fp);
-void io_graph(Session &s, int f, FILE *fp);
-
-/* A session file's pieces (xpp_session.cpp, W57), in a set file's lines:
-   one plot window's settings as io_graph writes the current one's */
-void write_graph(FILE *fp, GRAPH &g);
-void read_graph(FILE *fp, GRAPH &g);
 
 } // namespace xpp
 #endif

@@ -87,19 +87,11 @@ int main(void)
 
     /* a .set file line of a 1000-character name: read whole, and the next
        field is read from the next line */
-    /* an anonymous temp file: the Windows and WSL test runs of one
-       checkout may overlap, and a fixed name made them race */
-    FILE *fp = tmpfile();
-    CHECK(fp != NULL);
-    if (fp) {
-        std::string a, b;
-        fprintf(fp, "%s\nnext\n", q1000.c_str());
-        rewind(fp);
-        xpp::io_string(a, fp, 1);
-        xpp::io_string(b, fp, 1);
+    {
+        xpp::Lines l("set file", "names.set", q1000 + "\nnext\n");
+        const std::string a(l.next()), b(l.next());
         CHECK(a == q1000);
         CHECK_STR(b.c_str(), "next");
-        fclose(fp);
     }
 
     TEST_REPORT("long names");

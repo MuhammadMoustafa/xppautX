@@ -31,6 +31,20 @@ def is_ask(e):
     return e.get('ev') == 'ask'
 
 
+def placed(e):
+    """An error event's text as the core renders an error (xpp::Error::text,
+    docs/protocol.md "Errors"): "file:line:col: error", leaving out what is
+    not known; "" for an event with no error."""
+    if not e.get('error'):
+        return ''
+    t, line, col = e.get('file') or '', e.get('line') or 0, e.get('col') or 0
+    if line > 0:
+        t += (':' if t else 'line ') + str(line)
+        if col > 0:
+            t += ':' + str(col)
+    return (t + ': ' if t else '') + e['error']
+
+
 def is_state(e):
     return e.get('ev') == 'state'
 

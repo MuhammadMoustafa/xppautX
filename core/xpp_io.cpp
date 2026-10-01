@@ -405,20 +405,91 @@ bool parse_number(std::string_view text, double &value)
     return true;
 }
 
-int lines_read(FILE *fp)
+/* ---- Lines: a file of ours, read (W125) ---- */
+
+std::vector<std::string_view> split_lines(std::string_view text)
 {
-    const long pos = std::ftell(fp);
-    if (pos <= 0 || std::fseek(fp, 0, SEEK_SET) != 0) return 0;
-    int lines = 0, last = '\n';
-    for (long k = 0; k < pos; k++) {
-        const int c = std::fgetc(fp);
-        if (c == EOF) break;
-        if (c == '\n') lines++;
-        last = c;
+    std::vector<std::string_view> lines;
+    while (!text.empty()) {
+        const std::size_t nl = text.find('\n');
+        std::string_view l = text.substr(0, nl);
+        if (!l.empty() && l.back() == '\r') l.remove_suffix(1);
+        lines.push_back(l);
+        if (nl == std::string_view::npos) break;
+        text.remove_prefix(nl + 1);
     }
-    if (last != '\n') lines++;
-    std::fseek(fp, pos, SEEK_SET);
     return lines;
+}
+
+Place line_place(std::string file, std::string_view text, int n)
+{
+    const std::vector<std::string_view> lines = split_lines(text);
+    const std::string source = n >= 1 && static_cast<std::size_t>(n) <= lines.size() ? std::string(lines[static_cast<std::size_t>(n) - 1]) : std::string();
+    return Place{std::move(file), n, 0, source};
+}
+
+Lines::Lines(std::string where, std::string file, std::string_view text)
+    : where_(std::move(where)), file_(std::move(file)), text_(text), lines_(split_lines(text_))
+{
+}
+
+std::string_view Lines::text(int n) const noexcept
+{
+    return n >= 1 && static_cast<std::size_t>(n) <= lines_.size() ? lines_[static_cast<std::size_t>(n) - 1]
+                                                                    : std::string_view();
+}
+
+Error Lines::error(int n, std::string what) const
+{
+    return Error{where_, std::move(what), Place{file_, n, 0, std::string(text(n))}};
+}
+
+void Lines::fail(int n, std::string what) const { throw ReadFailed{error(n, std::move(what))}; }
+
+std::string_view Lines::next(std::string_view what)
+{
+    if (at_end()) {
+        std::string cause = "the file ends here";
+        what = trim_blanks(what);
+        if (!what.empty()) cause += xpp::format(", before {}", what);
+        fail(line() + 1, std::move(cause));
+    }
+    return lines_[next_++];
+}
+
+namespace {
+
+/* the next line's first word through parse (parse_int or parse_number),
+   kind naming what it must be */
+template <class T>
+T first_word(Lines &lines, std::string_view what, const char *kind, bool (*parse)(std::string_view, T &))
+{
+    const std::string_view line = lines.next(what);
+    const std::string_view text = trim_blanks(line);
+    T value{};
+    if (!parse(text.substr(0, text.find_first_of(" \t")), value)) {
+        const std::string_view name = trim_blanks(what);
+        lines.fail(xpp::format("\"{}\" is not {}{}", line, kind, name.empty() ? std::string() : xpp::format(" ({})", name)));
+    }
+    return value;
+}
+
+} // namespace
+
+int Lines::whole(std::string_view what) { return first_word(*this, what, "a whole number", parse_int); }
+
+double Lines::real(std::string_view what) { return first_word(*this, what, "a number", parse_number); }
+
+void Lines::heading(std::string_view heading)
+{
+    const std::string_view line = next(heading);
+    if (!line.starts_with("#")) fail(xpp::format("\"{}\" is not the heading \"{}\"", line, trim_blanks(heading)));
+}
+
+void Lines::end()
+{
+    while (!at_end())
+        if (!trim_blanks(next()).empty()) fail(xpp::format("\"{}\" after the end of what the file holds", text(line())));
 }
 
 bool parse_int(std::string_view text, int &value)

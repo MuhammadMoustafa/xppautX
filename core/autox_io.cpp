@@ -34,6 +34,19 @@ std::string file_name(const std::string &path) { return xpp::files::split_path(p
 /* member name of a file whose AUTO members are named prefix and theirs */
 std::string named(std::string_view prefix, const char *name) { return std::string(prefix) + name; }
 
+/* a saved view's axes as the settings that give view k them */
+AutoSettingsSet view_settings(const SavedView &v, int k)
+{
+    AutoSettingsSet a;
+    a.has_plot = 1;
+    a.plot = v.plot;
+    a.var = v.var;
+    a.par1 = v.par1;
+    a.par2 = v.par2;
+    a.view = k;
+    return a;
+}
+
 } // namespace
 
 bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
@@ -63,23 +76,16 @@ bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::s
 
 namespace {
 
-/* the views saved (W50) as this session's, each with its axes and zoom */
-void restore_views(xpp::Session &s, const SavedViews &saved, const std::string &name)
+/* the views saved (W50) as this session's, each with its axes and zoom
+   (members_read checked them) */
+void restore_views(xpp::Session &s, const SavedViews &saved)
 {
     s.auto_state.views.assign(saved.views.size(), AutoDiagramView{s.auto_state.axes(), {}, false, {}});
     s.auto_state.active_view = 0;
     for (std::size_t k = 0; k < saved.views.size(); k++) {
         const SavedView &v = saved.views[k];
-        AutoSettingsSet a;
-        a.has_plot = 1;
-        a.plot = v.plot;
-        a.var = v.var;
-        a.par1 = v.par1;
-        a.par2 = v.par2;
-        a.view = static_cast<int>(k);
         std::string why;
-        if (auto_settings_apply(s, a, why) != 0)
-            xpp_session_warn(xpp::format("{}: view {} of the diagram keeps the axes it had: {}", file_name(name), k + 1, why));
+        auto_settings_apply(s, view_settings(v, static_cast<int>(k)), why);
         /* the ranges as they were, even the ones a form refuses (a Fit of
            a flat quantity leaves its axis a point) */
         AUTOAX &ax = s.auto_state.views[k].axes;
@@ -102,38 +108,57 @@ std::optional<std::string> file_bytes(const Session &s)
     return xpp::zip::make_zip(*entries);
 }
 
-std::expected<Members, std::string> members_read(const Session &s, const std::map<std::string, std::string> &members,
-                                                 std::string_view prefix)
+Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
+                             const std::string &name)
 {
+    /* a member's file, for its errors: the file it is in and its own name */
+    const auto file = [&](const char *member) { return xpp::format("{}/{}", name, named(prefix, member)); };
     for (const char *member : {settings_member, diagram_member, solutions_member, views_member})
         if (!members.contains(named(prefix, member)))
-            return std::unexpected(xpp::format("its {} is missing", named(prefix, member)));
+            return xpp::fail("AUTO file", xpp::format("its {} is missing", named(prefix, member)), Place{name});
     const auto text = [&](const char *member) -> const std::string & { return members.at(named(prefix, member)); };
-    std::optional<AutoSettingsSet> settings = parse_settings(text(settings_member));
-    std::optional<std::deque<DiagramPoint>> points = parse_diagram_csv(text(diagram_member), s.model().node);
-    std::optional<SavedViews> views = parse_views(text(views_member));
-    if (!settings || !points || !views) {
-        const char *bad = !settings ? settings_member : !points ? diagram_member : views_member;
-        return std::unexpected(xpp::format("its {} cannot be read", named(prefix, bad)));
+    Result<SettingsRead> settings = parse_settings(text(settings_member), file(settings_member));
+    if (!settings) return std::unexpected(settings.error());
+    Result<std::deque<DiagramPoint>> points = parse_diagram_csv(text(diagram_member), s.model().node, file(diagram_member));
+    if (!points) return std::unexpected(points.error());
+    Result<ViewsRead> views = parse_views(text(views_member), file(views_member));
+    if (!views) return std::unexpected(views.error());
+    /* what AUTO accepts for this model: the settings, then each view's
+       axes with the settings' parameters */
+    const int nviews = static_cast<int>(views->views.views.size());
+    std::string why, key;
+    if (!auto_settings_check(s, settings->set, -1, why, key)) {
+        const auto at = settings->lines.find(key);
+        return xpp::fail("AUTO file", why,
+                         line_place(file(settings_member), text(settings_member), at == settings->lines.end() ? 0 : at->second));
     }
-    return Members{std::move(*settings), std::move(*points), std::move(*views), text(solutions_member)};
+    for (int k = 0; k < nviews; k++) {
+        AutoSettingsSet a = view_settings(views->views.views[static_cast<std::size_t>(k)], k);
+        a.npars = settings->set.npars;
+        a.pars = settings->set.pars;
+        if (!auto_settings_check(s, a, nviews, why, key))
+            return xpp::fail("AUTO file", why, line_place(file(views_member), text(views_member), views->lines[static_cast<std::size_t>(k)]));
+    }
+    return Members{std::move(settings->set), std::move(*points), std::move(views->views), text(solutions_member)};
 }
 
-std::optional<std::string> restore_members(Session &s, Members m, const std::string &name)
+Result<> restore_members(Session &s, Members m)
 {
-    if (!s.auto_state.bifur.exist) do_auto_win(s); /* the diagram needs a window to draw into */
-    std::string why;
-    if (auto_settings_apply(s, m.settings, why) != 0)
-        xpp_session_warn(xpp::format("{}: AUTO's settings are left as they were: {}", file_name(name), why));
-    auto_data_forget(s); /* the strip described the diagram this one replaces */
-    diagram_restore(s, std::move(m.points));
-    restore_views(s, m.views, name);
+    /* the solution file first: when it cannot be written, nothing is restored */
     const std::string solutions_path = auto_solutions_file(s);
     xpp::Writer w = xpp::Writer::binary(solutions_path.c_str());
-    const bool written = w && w.write(m.solutions) && w.commit();
+    if (!w || !w.write(m.solutions) || !w.commit())
+        return xpp::fail("AUTO file",
+                         xpp::format("AUTO's solutions could not be written to {}: a grab cannot restart from them", solutions_path),
+                         Place{solutions_path});
+    if (!s.auto_state.bifur.exist) do_auto_win(s); /* the diagram needs a window to draw into */
+    std::string why;
+    auto_settings_apply(s, m.settings, why); /* members_read checked it */
+    auto_data_forget(s); /* the strip described the diagram this one replaces */
+    diagram_restore(s, std::move(m.points));
+    restore_views(s, m.views);
     if (s.auto_state.bifur.exist) redraw_diagram(s);
-    if (!written) return xpp::format("AUTO's solutions could not be written to {}: a grab cannot restart from them", solutions_path);
-    return std::nullopt;
+    return {};
 }
 
 bool import_file(Session &s, const std::string &path)
@@ -178,19 +203,20 @@ bool load_settings_file(Session &s, const std::string &path)
 {
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_reading(path, xpp::format("Cannot open {}", path));
+        err_reading(path, "Cannot open file");
         return false;
     }
-    const std::optional<AutoSettingsSet> set = parse_settings(bytes);
+    Result<SettingsRead> set = parse_settings(bytes, path);
+    std::string why, key;
+    if (set && !auto_settings_check(s, set->set, -1, why, key)) {
+        const auto at = set->lines.find(key);
+        set = xpp::fail("AUTO's settings", why, line_place(path, bytes, at == set->lines.end() ? 0 : at->second));
+    }
     if (!set) {
-        err_msg(xpp::format("{} is not a file of AUTO's settings ({})", file_name(path), settings_extension));
+        show_error(set.error());
         return false;
     }
-    std::string why;
-    if (auto_settings_apply(s, *set, why) != 0) {
-        err_msg(xpp::format("AUTO settings: {}", why));
-        return false;
-    }
+    auto_settings_apply(s, set->set, why);
     return true;
 }
 

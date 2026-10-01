@@ -8,7 +8,6 @@
 #include "my_rhs.h"
 #include "browse.h"
 #include "do_fit.h"
-#include "lunch-new.h"
 #include "integrate.h"
 #include "expr.h"
 #include "getvar.h"
@@ -54,17 +53,6 @@ void init_trans(xpp::Session &s)
   s.adjoint.transpose.col0=2;
 }
 
-void dump_transpose_info(xpp::Session &s, FILE *fp, int f)
-{
-  io_heading(f,fp,"# Transpose variables etc");
-  io_string(s.adjoint.transpose.firstcol,fp,f);
-  io_int(&s.adjoint.transpose.ncol,fp,f,"n columns");
-  io_int(&s.adjoint.transpose.nrow,fp,f,"n rows");
-  io_int(&s.adjoint.transpose.rowskip,fp,f,"row skip");
-  io_int(&s.adjoint.transpose.colskip,fp,f,"col skip");
-  io_int(&s.adjoint.transpose.row0,fp,f,"row 0");
-
-}
 
 int do_transpose(xpp::Session &s)
 {
@@ -242,14 +230,6 @@ void new_h_fun(xpp::Session &s, int silent)
   
 }
 
-void dump_h_stuff(xpp::Session &s, FILE *fp, int f)
-{
-  int i;
-  io_heading(f,fp,"# Coupling stuff for H funs");
- for(i=0;i<s.model().node ;i++)
-   io_string(s.adjoint.coup_string[i],fp,f);
-
-}
 
 int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double dt, int node, int silent)
 {

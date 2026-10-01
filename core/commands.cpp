@@ -192,7 +192,11 @@ void use_intern_set(xpp::Session &s, int j)
     return;
   }
   get_graph(s);
-  xpp::extract_internset(s, j);
+  /* all of it or nothing (W125): a bad item is the error, at the set's line */
+  if (const xpp::Result<> r = xpp::extract_internset(s, j); !r) {
+    show_error(r.error());
+    return;
+  }
   xpp::chk_delay(s);
   redraw_params();
   redraw_ics();

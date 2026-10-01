@@ -52,6 +52,23 @@ const char *whole_in(const OptionValue &v, int &i)
   return nullptr;
 }
 
+/* the value as a number (whole number) into a member of the Session,
+   when it is one and the value is applied (v.apply) */
+const char *number_into(double &member, const OptionValue &v)
+{
+  double x = 0;
+  if (const char *why = number_in(v, x)) return why;
+  if (v.apply) member = x;
+  return nullptr;
+}
+const char *whole_into(int &member, const OptionValue &v)
+{
+  int i = 0;
+  if (const char *why = whole_in(v, i)) return why;
+  if (v.apply) member = i;
+  return nullptr;
+}
+
 /* the variable v names (0 the time), -1 for none */
 int variable_of(const Session &s, const OptionValue &v)
 {
@@ -64,7 +81,7 @@ const char *color_into(int &member, const OptionValue &v)
 {
   int i = 0;
   if (whole_in(v, i) || i < 0 || i > last_color) return "not a colour from 0 to 10";
-  member = i;
+  if (v.apply) member = i;
   return nullptr;
 }
 
@@ -72,7 +89,7 @@ const char *variable_into(const Session &s, int &member, const OptionValue &v)
 {
   const int i = variable_of(s, v);
   if (i < 0) return "no such variable";
-  member = i;
+  if (v.apply) member = i;
   return nullptr;
 }
 
@@ -80,8 +97,8 @@ const char *variable_into(const Session &s, int &member, const OptionValue &v)
 const char *yes_no_into(int &member, const OptionValue &v)
 {
   switch (v.text[0]) {
-  case 'y': case 'Y': member = 1; return nullptr;
-  case 'n': case 'N': member = 0; return nullptr;
+  case 'y': case 'Y': if (v.apply) member = 1; return nullptr;
+  case 'n': case 'N': if (v.apply) member = 0; return nullptr;
   default: return "not yes or no";
   }
 }
@@ -144,7 +161,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const std::size_t i = method_keys.find(static_cast<char>(std::tolower(static_cast<unsigned char>(v.text[0]))));
      if (v.text[0] == 0 || i == std::string_view::npos) return "no method with that letter";
-     s.numerics.method = static_cast<int>(i);
+     if (v.apply) s.numerics.method = static_cast<int>(i);
      return nullptr;
    },
    /* Runge-Kutta: fixed steps, accurate enough for most models */
@@ -206,14 +223,15 @@ constexpr OptionRow rows[] = {
   {.name = "TOR_PER", .flag = Option::TOR_PER,
    .real = [](Session &s) -> double & { return s.numerics.tor_period; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_in(v, s.numerics.tor_period)) return why;
-     s.numerics.torus = 1;
+     if (const char *why = number_into(s.numerics.tor_period, v)) return why;
+     if (v.apply) s.numerics.torus = 1;
      return nullptr;
    }},
   {.name = "FOLD",
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = variable_of(s, v);
      if (i < 1) return "no such variable";
+     if (!v.apply) return nullptr;
      s.itor[i - 1] = 1;
      s.numerics.torus = 1;
      return nullptr;
@@ -221,26 +239,29 @@ constexpr OptionRow rows[] = {
   {.name = "BANDUP", .flag = Option::BANDUP,
    .whole = [](Session &s) -> int & { return s.numerics.cv_bandupper; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = whole_in(v, s.numerics.cv_bandupper)) return why;
-     s.numerics.cv_bandflag = 1;
+     if (const char *why = whole_into(s.numerics.cv_bandupper, v)) return why;
+     if (v.apply) s.numerics.cv_bandflag = 1;
      return nullptr;
    }},
   {.name = "BANDLO", .flag = Option::BANDLO,
    .whole = [](Session &s) -> int & { return s.numerics.cv_bandlower; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = whole_in(v, s.numerics.cv_bandlower)) return why;
-     s.numerics.cv_bandflag = 1;
+     if (const char *why = whole_into(s.numerics.cv_bandlower, v)) return why;
+     if (v.apply) s.numerics.cv_bandflag = 1;
      return nullptr;
    }},
   {.name = "POIMAP", .flag = Option::POIMAP,
    .whole = [](Session &s) -> int & { return s.numerics.poimap; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
+     int map = 0;
      switch (v.text[0]) {
-     case 's': case 'S': s.numerics.poimap = 1; return nullptr;
-     case 'm': case 'M': s.numerics.poimap = 2; return nullptr;
-     case 'p': case 'P': s.numerics.poimap = 3; return nullptr;
+     case 's': case 'S': map = 1; break;
+     case 'm': case 'M': map = 2; break;
+     case 'p': case 'P': map = 3; break;
      default: return "not section, max or period";
      }
+     if (v.apply) s.numerics.poimap = map;
+     return nullptr;
    },
    /* no Poincare map */
    .reset = [](Session &s) { s.numerics.poimap = 0; }},
@@ -268,6 +289,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int i = 0;
      if (whole_in(v, i) || i < 0) return "not a seed (a whole number of at least 0)";
+     if (!v.apply) return nullptr;
      s.numerics.rand_seed = i;
      nsrand48(s.numerics.rand_seed);
      return nullptr;
@@ -278,7 +300,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int f = 0;
      if (const char *why = whole_in(v, f)) return why;
-     set_auto_eval_flags(s, f);
+     if (v.apply) set_auto_eval_flags(s, f);
      return nullptr;
    }},
 
@@ -336,38 +358,41 @@ constexpr OptionRow rows[] = {
    }},
   {.name = "XLO", .first_digit = '2', .last_digit = '8',
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_in(v, s.plot_settings.x_lo[v.index]);
+     return number_into(s.plot_settings.x_lo[v.index], v);
    }},
   {.name = "XHI", .first_digit = '2', .last_digit = '8',
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_in(v, s.plot_settings.x_hi[v.index]);
+     return number_into(s.plot_settings.x_hi[v.index], v);
    }},
   {.name = "YLO", .first_digit = '2', .last_digit = '8',
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_in(v, s.plot_settings.y_lo[v.index]);
+     return number_into(s.plot_settings.y_lo[v.index], v);
    }},
   {.name = "YHI", .first_digit = '2', .last_digit = '8',
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return number_in(v, s.plot_settings.y_hi[v.index]);
+     return number_into(s.plot_settings.y_hi[v.index], v);
    }},
   {.name = "SIMPLOT",
-   .parse = [](Session &s, const OptionValue &) -> const char * {
-     s.plot_windows.simul = 1;
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (v.apply) s.plot_windows.simul = 1;
      return nullptr;
    }},
   {.name = "MULTIWIN",
-   .parse = [](Session &s, const OptionValue &) -> const char * {
-     s.plot_settings.multi_win = 1;
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     if (v.apply) s.plot_settings.multi_win = 1;
      return nullptr;
    }},
   {.name = "AXES", .flag = Option::AXES,
    .whole = [](Session &s) -> int & { return s.plot_settings.axes; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
+     int axes = 0;
      switch (v.text[0]) {
-     case '2': s.plot_settings.axes = 0; return nullptr;
-     case '3': s.plot_settings.axes = 5; return nullptr;
+     case '2': axes = 0; break;
+     case '3': axes = 5; break;
      default: return "not 2 or 3";
      }
+     if (v.apply) s.plot_settings.axes = axes;
+     return nullptr;
    },
    /* a 2D plot */
    .reset = [](Session &s) { s.plot_settings.axes = 0; }},
@@ -403,8 +428,8 @@ constexpr OptionRow rows[] = {
   {.name = "XMIN", .flag = Option::XMIN,
    .real = [](Session &s) -> double & { return s.plot_settings.x_3d[0]; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_in(v, s.plot_settings.x_3d[0])) return why;
-     if (v.source.claim(s, Option::XLO)) s.plot_settings.my_xlo = s.plot_settings.x_3d[0];
+     if (const char *why = number_into(s.plot_settings.x_3d[0], v)) return why;
+     if (v.apply && v.source.claim(s, Option::XLO)) s.plot_settings.my_xlo = s.plot_settings.x_3d[0];
      return nullptr;
    },
    .reset = [](Session &s) {
@@ -420,8 +445,8 @@ constexpr OptionRow rows[] = {
   {.name = "YMIN", .flag = Option::YMIN,
    .real = [](Session &s) -> double & { return s.plot_settings.y_3d[0]; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_in(v, s.plot_settings.y_3d[0])) return why;
-     if (v.source.claim(s, Option::YLO)) s.plot_settings.my_ylo = s.plot_settings.y_3d[0];
+     if (const char *why = number_into(s.plot_settings.y_3d[0], v)) return why;
+     if (v.apply && v.source.claim(s, Option::YLO)) s.plot_settings.my_ylo = s.plot_settings.y_3d[0];
      return nullptr;
    },
    .reset = [](Session &s) {
@@ -449,6 +474,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int i = 0;
      if (whole_in(v, i) || i >= 2 || i <= -6) return "not a line type from -5 to 1";
+     if (!v.apply) return nullptr;
      s.plot_settings.start_line_type = i;
      reset_all_line_type(s);
      return nullptr;
@@ -478,7 +504,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int i = 0;
      if (whole_in(v, i) || i < 0 || i >= 7) return "not a colour map from 0 to 6";
-     s.colormap = i;
+     if (v.apply) s.colormap = i;
      return nullptr;
    }},
   {.name = "PLOTFMT", .flag = Option::PLOTFMT,
@@ -492,8 +518,8 @@ constexpr OptionRow rows[] = {
   {.name = "PS_COLOR", .flag = Option::PS_COLOR,
    .whole = [](Session &s) -> int & { return s.plot_file.ps_color_flag; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = whole_in(v, s.plot_file.ps_color_flag)) return why;
-     s.plot_export.color = s.plot_file.ps_color_flag;
+     if (const char *why = whole_into(s.plot_file.ps_color_flag, v)) return why;
+     if (v.apply) s.plot_export.color = s.plot_file.ps_color_flag;
      return nullptr;
    }},
   {.name = "DFGRID", .flag = Option::DFGRID,
@@ -612,7 +638,7 @@ constexpr OptionRow rows[] = {
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      const int i = variable_of(s, v);
      if (i < 1) return "no such variable";
-     s.auto_state.options.var = i - 1;
+     if (v.apply) s.auto_state.options.var = i - 1;
      return nullptr;
    }},
   {.name = "SEC", .flag = Option::SEC,
@@ -667,18 +693,18 @@ constexpr OptionRow rows[] = {
   /* ---- the log, the user's buttons ---- */
   {.name = "QUIET",
    .parse = [](Session &, const OptionValue &v) -> const char * {
-     if (!log_settings.quiet_from_command_line) log_settings.verbose = v.text[0] == '0';
+     if (v.apply && !log_settings.quiet_from_command_line) log_settings.verbose = v.text[0] == '0';
      return nullptr;
    },
    .zero_or_one = true},
   {.name = "LOGFILE",
    .parse = [](Session &, const OptionValue &v) -> const char * {
-     if (!log_settings.file_from_command_line) log_open_file(v.text);
+     if (v.apply && !log_settings.file_from_command_line) log_open_file(v.text);
      return nullptr;
    }},
   {.name = "BUT",
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     add_user_button(s, v.text);
+     if (v.apply) add_user_button(s, v.text);
      return nullptr;
    }},
   /* the X11 window's bell, fonts, colours, image, size and paper: still
@@ -749,38 +775,57 @@ const OptionRow *numerics_option(std::string_view key)
   return it == std::ranges::end(rows) ? nullptr : &*it;
 }
 
-void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask)
+namespace {
+
+/* what option_value says of a name no option has */
+constexpr const char *unknown_option = "not an option";
+
+/* option name set to value (apply), or only checked; why it is not one,
+   nullptr when it is (or another source set it, which set_option leaves) */
+const char *option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply)
 {
   const std::string upper = upper_case(std::string(name));
-  /* the value as the C conversions (atoi, atof) read it */
+  /* the value as a NUL-ended text */
   const std::string text(value);
   int index = 0;
   const OptionRow *row = find_option(upper, index);
-  if (!row) {
-    xpp::log(XPP_LOG_WARN, "Option {} not recognized\n", upper);
-    return;
-  }
+  if (!row) return unknown_option;
   const OptionSource source{force, mask};
-  const OptionValue v{text.c_str(), index, source};
+  const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
-  else if (row->flag != Option::none && !source.may(s, row->flag)) return;
+  else if (row->flag != Option::none && !source.may(s, row->flag)) return nullptr;
   else if (row->parse) why = row->parse(s, v);
-  else if (row->real) why = number_in(v, row->real(s));
-  else if (row->whole) why = whole_in(v, row->whole(s));
-  else if (row->text) row->text(s) = text;
-  if (why) {
-    /* the load stops, at the option's line; outside a load (an internal
-       set) the error is shown and nothing else changes */
-    const Error e{"options", xpp::format("@ {}={}: {}", name, text, why)};
-    if (Load::running()) {
-      xpp::log(XPP_LOG_ERROR, "{}\n", e.what);
-      model_failed();
-    }
-    show_error(e);
+  else if (row->real) why = number_into(row->real(s), v);
+  else if (row->whole) why = whole_into(row->whole(s), v);
+  else if (row->text && apply) row->text(s) = text;
+  if (!why && apply && row->flag != Option::none) s.options_set.mark(row->flag);
+  return why;
+}
+
+} // namespace
+
+const char *option_problem(Session &s, std::string_view name, std::string_view value)
+{
+  return option_value(s, name, value, true, nullptr, false);
+}
+
+void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask)
+{
+  const char *why = option_value(s, name, value, force, mask, true);
+  if (!why) return;
+  if (why == unknown_option) {
+    xpp::log(XPP_LOG_WARN, "Option {} not recognized\n", upper_case(std::string(name)));
     return;
   }
-  if (row->flag != Option::none) s.options_set.mark(row->flag);
+  /* the load stops, at the option's line; outside a load (an internal
+     set, checked first) the error is shown and nothing else changes */
+  const Error e{"options", xpp::format("@ {}={}: {}", name, value, why)};
+  if (Load::running()) {
+    xpp::log(XPP_LOG_ERROR, "{}\n", e.what);
+    model_failed();
+  }
+  show_error(e);
 }
 
 void set_option_defaults(Session &s)

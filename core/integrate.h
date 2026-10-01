@@ -32,7 +32,6 @@ void send_halt(Session &s);
    saddle, integrated into UMk.dat/SMk.dat (-silent's -equil 0/1, the
    protocol's `equilibrium` `write`) */
 void write_equilibrium(Session &s, const char *name, int shoot);
-void dump_range(Session &s, FILE *fp, int f);
 void init_range(Session &s);
 int set_up_eq_range(Session &s);
 void cont_integ(Session &s);

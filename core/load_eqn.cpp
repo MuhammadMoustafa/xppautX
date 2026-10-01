@@ -30,7 +30,6 @@
 #include "integrate.h"
 #include "adj2.h"
 #include "arrayplot.h"
-#include "lunch-new.h"
 #include "graphics.h"
 
 #include "userbut.h"
@@ -119,17 +118,6 @@ void each_option(std::string_view line, std::string_view first, std::string_view
 
 
 
-void dump_torus(xpp::Session &s, FILE *fp, int f)
-{
-  int i;
-  io_heading(f,fp,"# Torus information ");
-  io_int(&s.numerics.torus,fp,f," Torus flag 1=ON");
-  io_double(&s.numerics.tor_period,fp,f,"Torus period");
-  if(s.numerics.torus){
-    for(i=0;i<s.model().neq;i++)
-      io_int(&s.itor[i],fp,f,s.model().uvar_names[i]);
-  }
-}
 
 void load_eqn(xpp::Session &s)
 {
@@ -280,7 +268,7 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
       continue;
     bob+=c==','?' ':c;
   }
-  sets.push_back({std::string(name),bob});
+  sets.push_back({std::string(name),bob,xpp::Load::place()});
  xpp::log_printf(XPP_LOG_INFO, " added %s doing %s \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
@@ -325,31 +313,56 @@ std::string intern_set_line(const xpp::Session &s, std::string_view name)
   return line+"}";
 }
 
-void extract_action(xpp::Session &s, std::string_view ptr)
+namespace {
+
+/* why name=value cannot be applied (an initial condition or a parameter
+   whose value is not a number, an option that does not take it), "" when
+   it can */
+std::string intern_item_problem(xpp::Session &s, const std::string &name1, const std::string &value)
 {
+  const std::string name=converted(name1);
+  double z=0;
+  if(find_user_name(s.model(),ICBOX,name)>-1||find_user_name(s.model(),PARAMBOX,name)>-1)
+    return xpp::parse_number(xpp::trim_blanks(value),z)?std::string():"not a number";
+  const char *why=option_problem(s,name,value);
+  return why?why:"";
+}
+
+} // namespace
+
+xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where)
+{
+  /* every item checked before one is applied: a bad one leaves s as it was */
+  std::optional<xpp::Error> bad;
+  each_option(ptr," "," ,;\n",[&](const std::string &name,const std::string &value){
+    if(bad)return;
+    if(const std::string why=intern_item_problem(s,name,value);!why.empty())
+      bad=xpp::Error{"internal set",xpp::format("{}={}: {}",name,value,why),where};
+  });
+  if(bad)return std::unexpected(std::move(*bad));
   each_option(ptr," "," ,;\n",[&s](const std::string &name,const std::string &value){
     do_intern_set(s,name,value);
   });
+  return {};
 }
 
-void extract_internset(xpp::Session &s, int j)
+xpp::Result<> extract_internset(xpp::Session &s, int j)
 {
-  extract_action(s,s.model().intern_sets[j].does);
+  const xpp::Model::InternalSet &set=s.model().intern_sets[j];
+  return extract_action(s,set.does,set.place);
 }
 
 void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view value_text)
 {
   const std::string name=converted(name1);
   const std::string value(value_text);
+  /* extract_action checked it: a variable or parameter takes a number,
+     all of it (parse_number), anything else is an option */
+  double number=0.0;
   const int ic=find_user_name(s.model(),ICBOX,name);
   const int par=ic>-1?-1:find_user_name(s.model(),PARAMBOX,name);
   if(ic>-1||par>-1){
-    /* a variable or parameter takes a number, all of it (parse_number) */
-    double number=0.0;
-    if(!parse_number(trim_blanks(value),number)){
-      xpp::show_error(xpp::Error{"set",xpp::format("{}: \"{}\" is not a number",name,value),{},""});
-      return;
-    }
+    parse_number(trim_blanks(value),number);
     if(ic>-1)s.last_ic[ic]=number;
     else set_val(s,name,number);
   }

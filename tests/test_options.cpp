@@ -119,8 +119,8 @@ bool left_out(const xpp::OptionRow &r)
     return r.name.empty() || r.name == "LOGFILE" || r.name == "BUT";
 }
 
-/* the options a .set file holds (lunch-new.cpp io_numerics, dump_torus,
-   dump_range) */
+/* the options a .set file holds (lunch-new.cpp's set file: its numerics,
+   torus and ranges) */
 const std::set<std::string_view> in_set_file = {
     "TOTAL", "T0", "TRANS", "DT", "NMESH", "NEWT_ITER", "NEWT_TOL", "JAC_EPS",
     "NOUT", "BOUND", "METH", "TOL", "DTMIN", "DTMAX", "ATOL", "DELAY",
@@ -232,13 +232,7 @@ int main(void)
     }
     std::vector<std::string> changed;
     for (const xpp::OptionRow &r : rows) changed.push_back(value_of(*s, r));
-    {
-        FILE *fp = fopen(set_file, "r");
-        CHECK(fp != nullptr);
-        if (!fp) TEST_REPORT("options");
-        CHECK(xpp::read_lunch(*s, fp, false).has_value());
-        fclose(fp);
-    }
+    CHECK(xpp::load_set_file(*s, set_file, false).has_value());
     for (std::size_t k = 0; k < rows.size(); k++) {
         const xpp::OptionRow &r = rows[k];
         if (!in_session(*s, r)) continue;

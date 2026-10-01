@@ -80,6 +80,9 @@ struct OptionValue {
   const char *text;          /* as atof/atoi read it */
   int index;                 /* the digit after a numbered name (xp2: 2) */
   const OptionSource &source;
+  /* the value is applied; false: only checked, the Session left as it is
+     (option_problem), so a parser writes nothing then */
+  bool apply;
 };
 
 /* One option. Its names match as prefixes of the name given, upper case,
@@ -122,6 +125,11 @@ const OptionRow *numerics_option(std::string_view key);
 /* option name set to value (force: even when another source set it; mask:
    the options this source may set again) */
 void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask);
+
+/* why value is not one option name takes ("not an option", "not a
+   number", ...), nullptr when it is: the checks set_option makes, nothing
+   applied (an internal set checks every item before it applies one) */
+const char *option_problem(Session &s, std::string_view name, std::string_view value);
 
 /* each option no source set gets its default, in the table's order */
 void set_option_defaults(Session &s);

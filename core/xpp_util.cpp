@@ -23,7 +23,7 @@
 #include "tabular.h"
 #include "volterra2.h"
 #include "derived.h"
-#include "lunch-new.h"
+#include "form_ode.h"
 #include "delay_handle.h"
 #include "numerics.h"
 #include <array>
@@ -642,7 +642,10 @@ const char *eq_stability(int cp, int rp, int im)
 void do_txt_action(xpp::Session &s, std::string_view action)
 {
  get_graph(s);
- extract_action(s,action);
+ if(const xpp::Result<> r=extract_action(s,action,xpp::Place{s.model().this_file});!r){
+   show_error(r.error());
+   return;
+ }
  ping();
   xpp::chk_delay(s);
   redraw_params();

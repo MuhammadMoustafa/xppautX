@@ -2,7 +2,7 @@ core/adj2.cpp 9
 core/aniparse.cpp 2
 core/arrayplot.cpp 2
 core/auto_nox.cpp 20
-core/autox_io.cpp 6
+core/autox_io.cpp 4
 core/browse_data.cpp 13
 core/commands.cpp 6
 core/csv_export.cpp 4
@@ -19,15 +19,14 @@ core/form_ode.cpp 33
 core/gear.cpp 2
 core/graf_par.cpp 4
 core/histogram.cpp 11
-core/integrate.cpp 13
+core/integrate.cpp 12
 core/json_ani.cpp 1
 core/json_auto.cpp 11
-core/json_player.cpp 16
+core/json_player.cpp 11
 core/json_record.cpp 6
 core/json_state.cpp 7
 core/json_windows.cpp 6
 core/load_eqn.cpp 2
-core/lunch-new.cpp 2
 core/markov.cpp 4
 core/model_options.cpp 1
 core/model_switch.cpp 3

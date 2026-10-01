@@ -12,7 +12,6 @@ core/json_prompts.cpp 7 the JSON front end's ask in progress and its pacing cloc
 core/json_record.cpp 1 the session recording in progress (the protocol client's)
 core/json_windows.cpp 3 the JSON front end's array plot dirty flag and window size (the protocol client's, file-local per CLAUDE.md)
 core/load_eqn.cpp 2 W119 (model options) has the file: options_applied, interopt
-core/lunch-new.cpp 1 set_type: the kind of set file read_set is reading, for the io_ helpers during one read
 core/marks_data.cpp 6 W120 follow-up, with plot_data and phase_data after W122: the marks subscription and per-window records
 core/numerics.cpp 2 W119 has the file: Poincare map dialog labels to make const
 core/numerics_settings.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent); W119 has the file

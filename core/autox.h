@@ -29,6 +29,7 @@
 #include "auto_settings.h"
 #include "diagram.h"
 #include "display_state.h"
+#include "xpp_error.h"
 #include "xpp_zip.h"
 
 namespace xpp {
@@ -56,9 +57,17 @@ inline constexpr const char *views_member = "views.txt";       /* views_text bel
    VALUE" per Mark value. A name there is none of is "-". Numbers are the
    shortest text that reads back as the same double. */
 std::string settings_text(const AutoSettingsSet &s);
-/* text's settings, every one of them given; nothing when a line is not
-   one, a key is missing or one is not one of these */
-std::optional<AutoSettingsSet> parse_settings(std::string_view text);
+/* settings.txt read: the settings, and the line each key is on ("ntst",
+   "pars", "var", "xmax", "mark0", ...), for a check against a session
+   (auto_settings_check) to name the line of the value it refuses */
+struct SettingsRead {
+    AutoSettingsSet set;
+    std::map<std::string, int, std::less<>> lines;
+};
+/* text's settings (the file named file, for its errors), every one of
+   them given once; the error at the line that is not one of these, gives
+   a key twice or a value that does not read, or a key that is missing */
+Result<SettingsRead> parse_settings(std::string_view text, std::string file);
 
 /* one of the AUTO window's views of the diagram (W50): its axes as the
    `auto` `set` command's keys name them (plot, var, par1, par2 and the
@@ -81,9 +90,14 @@ struct SavedViews {
    XMAX YMIN YMAX ZOOMX ZOOMY" (names and numbers as settings_text's, a
    zoom LO:HI or "-" for none), then "active K" */
 std::string views_text(const SavedViews &v);
-/* text's views; nothing when a line is not one, there is no view or the
-   active one is not one of them */
-std::optional<SavedViews> parse_views(std::string_view text);
+/* views.txt read: the views, and the line each one is on */
+struct ViewsRead {
+    SavedViews views;
+    std::vector<int> lines;
+};
+/* text's views (the file named file); the error at the line that is not
+   one, or when there is no view or the active one is not one of them */
+Result<ViewsRead> parse_views(std::string_view text, std::string file);
 
 /* diagram.csv: a header row of names, then one row per point in the
    order stored, every field of DIAGRAM: calc, ibr, ntot, itp, lab, nfpar,
@@ -94,9 +108,9 @@ std::optional<SavedViews> parse_views(std::string_view text);
    settings_text's, so a point reads back bit for bit. */
 std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const std::string> vars);
 /* text's points, of n variables each, their arrays filled (the DIAGRAM
-   pointers and index are diagram_restore's); nothing when it is not a
-   diagram of n variables or a row does not read */
-std::optional<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n);
+   pointers and index are diagram_restore's), the file named file; the
+   error at the line that is not of a diagram of n variables */
+Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file);
 
 /* ---- this session's (autox_io.cpp) ---- */
 
@@ -120,17 +134,19 @@ struct Members {
     std::string_view solutions;
 };
 
-/* AUTO's members of a file (prefix as add_members') read for the session
-   s, whose model the file's is; what is wrong when one is missing or does
-   not read ("its auto/views.txt cannot be read") */
-std::expected<Members, std::string> members_read(const Session &s, const std::map<std::string, std::string> &members,
-                                                 std::string_view prefix);
+/* AUTO's members of the file named name (prefix as add_members') read
+   for the session s, whose model the file's is, each checked whole (the
+   settings and views against what AUTO accepts for this model): the error
+   at the member's line ("name/auto/settings.txt", its line) when one is
+   missing, does not read or holds a value AUTO refuses */
+Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
+                             const std::string &name);
 
-/* m restored into the session s (the file named name in messages): AUTO's
+/* m, as members_read checked it, restored into the session s: AUTO's
    settings, the diagram, its solution file and the views of it, with the
-   AUTO window opened and the diagram drawn; what went wrong when the
-   solution file cannot be written (the caller says it) */
-std::optional<std::string> restore_members(Session &s, Members m, const std::string &name);
+   AUTO window opened and the diagram drawn; the error, nothing restored,
+   when the solution file cannot be written */
+Result<> restore_members(Session &s, Members m);
 
 /* AUTO's File/Load diagram of an XPPAUT .auto, path: imported into the
    session s, its
@@ -146,8 +162,9 @@ inline constexpr std::string_view settings_extension = ".autoset";
 /* s's settings written to path (asking before replacing a file); false
    with an error message when not */
 bool save_settings_file(const Session &s, const std::string &path);
-/* path's settings applied to s; false with an error message when the file
-   cannot be read, is not a settings file or AUTO refuses a value */
+/* path's settings applied to s, all or nothing; false with the error
+   (the file, the line) shown when the file cannot be read, a line is not
+   one of a settings file or AUTO refuses a value */
 bool load_settings_file(Session &s, const std::string &path);
 
 } // namespace xpp::autox

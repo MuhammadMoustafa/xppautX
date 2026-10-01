@@ -164,6 +164,24 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     return true;
 }
 
+/* the recording at path read whole, every step checked (W125: before
+   anything is played or loaded) into steps, or the error at its line */
+xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<PlayStep> &steps)
+{
+    std::string bytes;
+    if (!xpp::read_bytes(path.c_str(), bytes)) return xpp::fail_reading("recording", "Cannot open file", path);
+    xpp::Result<recx::Read> got = recx::read(bytes, path);
+    if (!got) return got;
+    steps.assign(got->rec.steps.size(), PlayStep());
+    std::string error;
+    for (size_t i = 0; i < steps.size(); i++) {
+        const recx::Step &st = got->rec.steps[i];
+        if (!read_step(st, got->rec.files.size(), steps[i], error))
+            return xpp::fail("recording", xpp::format("step {} cannot be played: {}", i + 1, error), xpp::Place{path, st.at, 0, st.line});
+    }
+    return got;
+}
+
 /* ---- the pace ---- */
 
 /* ms at 1x, divided by the speed; none while running to Play from here */
@@ -411,26 +429,12 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
         if (!file.empty() && file.back() != '/') file += '/';
         if (!file_selector("Play recording", file, "*.recx") || file.empty()) return;
     }
-    std::string bytes, error;
-    if (!xpp::read_bytes(file.c_str(), bytes)) {
-        xpp::err_reading(file, xpp::format("Cannot open {}", file));
-        return;
-    }
-    std::optional<recx::Read> got = recx::read(bytes, error);
+    std::vector<PlayStep> steps;
+    xpp::Result<recx::Read> got = read_recording(file, steps);
     if (!got) {
-        j_err_msg(xpp::format("{} is not a recording: {}", file, error));
+        show_error(got.error());
         return;
     }
-    if (got->rec.model.empty()) {
-        j_err_msg(xpp::format("{} names no model", file));
-        return;
-    }
-    std::vector<PlayStep> steps(got->rec.steps.size());
-    for (size_t i = 0; i < steps.size(); i++)
-        if (!read_step(got->rec.steps[i], got->rec.files.size(), steps[i], error)) {
-            j_err_msg(xpp::format("{}: step {} cannot be played: {}", file, i + 1, error));
-            return;
-        }
     const std::string where = xpp::files::absolute(file);
     std::optional<SavedFile> snapshot = snapshot_of(where, got->rec);
     if (!snapshot) return;
@@ -552,15 +556,10 @@ namespace xpp {
 
 std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
 {
-    std::string bytes, error;
-    if (!xpp::read_bytes(path.c_str(), bytes)) {
-        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open %s\n", path.c_str());
-        return std::nullopt;
-    }
-    std::optional<xpp::recx::Read> got = xpp::recx::read(bytes, error);
-    if (!got || got->rec.model.empty()) {
-        xpp::log_printf(XPP_LOG_ERROR, "xppautX: %s is not a recording: %s\n", path.c_str(),
-                got ? "it names no model" : error.c_str());
+    std::vector<json::PlayStep> steps;
+    xpp::Result<xpp::recx::Read> got = json::read_recording(path, steps);
+    if (!got) {
+        xpp::log(XPP_LOG_ERROR, "{}\n", got.error().text());
         return std::nullopt;
     }
     /* the model of its snapshot, which the player loads (W59d) */

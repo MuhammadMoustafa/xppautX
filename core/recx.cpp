@@ -5,6 +5,7 @@
 #include "xpp_sha256.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -12,22 +13,6 @@
 namespace xpp::recx {
 
 namespace {
-
-/* the lines of bytes, each without its "\n" or "\r\n" (none for no bytes;
-   a last line without its "\n" is a line too) */
-std::vector<std::string_view> lines_of(std::string_view bytes)
-{
-    std::vector<std::string_view> out;
-    while (!bytes.empty()) {
-        const size_t nl = bytes.find('\n');
-        std::string_view line = bytes.substr(0, nl);
-        if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
-        out.push_back(line);
-        if (nl == std::string_view::npos) break;
-        bytes.remove_prefix(nl + 1);
-    }
-    return out;
-}
 
 /* a file's line as its section holds it: "@end" and a line starting with
    "@@" get one more "@", so that "@end" alone ends the section */
@@ -61,7 +46,7 @@ void section_lines(const ModelFile &f, std::vector<std::string> &out)
 {
     if (is_model_text(f.bytes)) {
         out.push_back(std::string(file_start) + f.name);
-        for (std::string_view line : lines_of(f.bytes)) out.push_back(escaped(line));
+        for (std::string_view line : split_lines(f.bytes)) out.push_back(escaped(line));
     } else {
         out.push_back(std::string(binary_start) + f.name);
         base64_lines(f.bytes, out);
@@ -115,7 +100,7 @@ std::string text(const Recording &r)
     add("");
     add(steps_line);
     for (const Step &s : r.steps) {
-        for (std::string_view line : lines_of(s.note)) add(line.empty() ? "#" : "# " + std::string(line));
+        for (std::string_view line : split_lines(s.note)) add(line.empty() ? "#" : "# " + std::string(line));
         add(s.line);
         hashed.push_back(s.line);
     }
@@ -124,90 +109,93 @@ std::string text(const Recording &r)
     return out;
 }
 
-std::optional<Read> read(std::string_view text, std::string &error)
+Result<Read> read(std::string_view text, std::string file)
 {
-    const std::vector<std::string_view> lines = lines_of(text);
-    Read got;
-    Recording &r = got.rec;
-    std::vector<std::string> hashed;
-    size_t i = 0;
-    auto fail = [&error, &i](std::string_view why) {
-        error = xpp::format("line {}: {}", i + 1, why);
-        return std::nullopt;
-    };
-    if (lines.empty() || lines[0] != format_line) return fail(xpp::format("not a recording (it does not begin \"{}\")", format_line));
-    for (i = 1; i < lines.size() && !lines[i].empty() && !lines[i].starts_with('@'); i++) {
-        const std::string_view l = lines[i];
-        if (l.starts_with("program: ")) r.program = l.substr(9);
-        else if (l.starts_with("model: ")) r.model = l.substr(7);
-        else if (l.starts_with("recorded: ")) r.recorded = l.substr(10);
-    }
-    bool snapshot = false;
-    for (; i < lines.size() && lines[i] != steps_line; i++) {
-        const std::string_view l = lines[i];
-        if (l.empty()) continue;
-        const bool is_snapshot = l == snapshot_line && !snapshot;
-        const bool binary = is_snapshot || l.starts_with(binary_start);
-        if (!binary && !l.starts_with(file_start))
-            return fail(xpp::format("\"{}\" where a @snapshot, @file or @binary section or @steps was due", l));
-        if (!snapshot && !is_snapshot) return fail(xpp::format("no {} section before the files: a recording begins with the session's state", snapshot_line));
-        ModelFile f;
-        f.name = is_snapshot ? std::string("the snapshot") : std::string(l.substr(binary ? binary_start.size() : file_start.size()));
-        hashed.emplace_back(l);
-        const size_t first = i;
-        std::string digits;
-        for (i++; i < lines.size() && lines[i] != end_line; i++) {
-            hashed.emplace_back(lines[i]);
-            if (binary) {
-                digits += lines[i];
+    return read_lines("recording", std::move(file), text, [](Lines &l) {
+        Read got;
+        Recording &r = got.rec;
+        std::vector<std::string> hashed;
+        if (l.next("its first line") != format_line) l.fail(xpp::format("not a recording (it does not begin \"{}\")", format_line));
+        /* the header: each of its lines once, up to the first blank one */
+        struct Key {
+            std::string_view start;
+            std::string *value;
+            bool given = false;
+        };
+        std::array<Key, 3> keys = {{{"program: ", &r.program}, {"model: ", &r.model}, {"recorded: ", &r.recorded}}};
+        for (std::string_view h = l.next("its header"); !h.empty(); h = l.next("its header")) {
+            const auto k = std::find_if(keys.begin(), keys.end(), [h](const Key &k) { return h.starts_with(k.start); });
+            if (k == keys.end()) l.fail(xpp::format("\"{}\" is not a header line (program:, model:, recorded:)", h));
+            if (k->given) l.fail(xpp::format("a second \"{}\" line", k->start.substr(0, k->start.size() - 1)));
+            k->given = true;
+            *k->value = h.substr(k->start.size());
+        }
+        for (const Key &k : keys)
+            if (!k.given) l.fail(xpp::format("the header has no \"{}\" line", k.start.substr(0, k.start.size() - 1)));
+        if (r.model.empty()) l.fail("the header names no model");
+        bool snapshot = false;
+        for (std::string_view h = l.next(steps_line); h != steps_line; h = l.next(steps_line)) {
+            if (h.empty()) continue;
+            const bool is_snapshot = h == snapshot_line && !snapshot;
+            const bool binary = is_snapshot || h.starts_with(binary_start);
+            if (!binary && !h.starts_with(file_start))
+                l.fail(xpp::format("\"{}\" where a @snapshot, @file or @binary section or @steps was due", h));
+            if (!snapshot && !is_snapshot)
+                l.fail(xpp::format("no {} section before the files: a recording begins with the session's state", snapshot_line));
+            ModelFile f;
+            f.name = is_snapshot ? std::string("the snapshot") : std::string(h.substr(binary ? binary_start.size() : file_start.size()));
+            hashed.emplace_back(h);
+            const int first = l.line();
+            std::string digits;
+            for (;;) {
+                if (l.at_end()) l.fail(first, xpp::format("the section of {} has no {}", f.name, end_line));
+                const std::string_view line = l.next();
+                if (line == end_line) break;
+                hashed.emplace_back(line);
+                if (binary) {
+                    digits += line;
+                } else {
+                    f.bytes += unescaped(line);
+                    f.bytes += '\n';
+                }
+            }
+            hashed.emplace_back(end_line);
+            if (binary && !base64_decode_append(f.bytes, digits)) l.fail(first, xpp::format("the section of {} is not base64", f.name));
+            if (is_snapshot) {
+                r.snapshot = std::move(f.bytes);
+                snapshot = true;
             } else {
-                f.bytes += unescaped(lines[i]);
-                f.bytes += '\n';
+                r.files.push_back(std::move(f));
             }
         }
-        if (i == lines.size()) {
-            i = first;
-            return fail(xpp::format("the section of {} has no {}", f.name, end_line));
+        if (!snapshot) l.fail(xpp::format("no {} section: a recording begins with the session's state", snapshot_line));
+        std::string note;
+        bool noted = false;
+        for (;;) {
+            const std::string_view h = l.next("its fingerprint");
+            if (h.empty()) continue;
+            if (h.starts_with(fingerprint_start)) {
+                if (noted) l.fail("the fingerprint after a note: a note is shown above the step after it");
+                r.fingerprint = h.substr(fingerprint_start.size());
+                break;
+            }
+            if (h.starts_with('#')) {
+                std::string_view n = h.substr(1);
+                if (n.starts_with(' ')) n.remove_prefix(1);
+                if (noted) note += '\n';
+                note += n;
+                noted = true;
+                continue;
+            }
+            r.steps.push_back({std::move(note), std::string(h), l.line()});
+            hashed.emplace_back(h);
+            note.clear();
+            noted = false;
         }
-        hashed.emplace_back(end_line);
-        if (binary && !base64_decode_append(f.bytes, digits)) {
-            i = first;
-            return fail(xpp::format("the section of {} is not base64", f.name));
-        }
-        if (is_snapshot) {
-            r.snapshot = std::move(f.bytes);
-            snapshot = true;
-        } else {
-            r.files.push_back(std::move(f));
-        }
-    }
-    if (i == lines.size()) return fail(xpp::format("no {} line", steps_line));
-    if (!snapshot) return fail(xpp::format("no {} section: a recording begins with the session's state", snapshot_line));
-    std::string note;
-    bool noted = false;
-    for (i++; i < lines.size(); i++) {
-        const std::string_view l = lines[i];
-        if (l.empty()) continue;
-        if (l.starts_with(fingerprint_start)) {
-            r.fingerprint = l.substr(fingerprint_start.size());
-            break;
-        }
-        if (l.starts_with('#')) {
-            std::string_view n = l.substr(1);
-            if (n.starts_with(' ')) n.remove_prefix(1);
-            if (noted) note += '\n';
-            note += n;
-            noted = true;
-            continue;
-        }
-        r.steps.push_back({std::move(note), std::string(l)});
-        hashed.emplace_back(l);
-        note.clear();
-        noted = false;
-    }
-    got.intact = !r.fingerprint.empty() && r.fingerprint == fingerprint(hashed);
-    if (r.fingerprint.empty()) r.fingerprint = "missing"; /* written again so: a note saved does not make one */
-    return got;
+        l.end();
+        got.intact = r.fingerprint == fingerprint(hashed);
+        return got;
+    });
 }
 
 } // namespace xpp::recx

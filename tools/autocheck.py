@@ -48,7 +48,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SLOW, Server, is_idle, is_ask, is_state, whole_series
+from xppclient import SLOW, Server, is_idle, is_ask, is_state, placed, whole_series
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -1152,9 +1152,14 @@ def section_autox():
     for name, change, expect in (
             ('nosolutions.autox', lambda m: m.pop('solutions.s'), 'its solutions.s is missing'),
             ('cutdiagram.autox', lambda m: m.__setitem__('diagram.csv', '\n'.join(rows_csv[:5])[:-7].encode()),
-             'its diagram.csv cannot be read'),
+             'cutdiagram.autox/diagram.csv:5: '),
             ('latersettings.autox', lambda m: m.__setitem__('settings.txt', m['settings.txt'] + b'later 1\n'),
-             'its settings.txt cannot be read'),
+             'latersettings.autox/settings.txt:%d: later is not one of AUTO\'s settings' % (members['settings.txt'].count(b'\n') + 1)),
+            # W125: a value AUTO refuses (Ncol 9), at its line; a bad value on views.txt's last line
+            ('badncol.autox', lambda m: m.__setitem__('settings.txt', re.sub(rb'(?m)^ncol .*$', b'ncol 9', m['settings.txt'])),
+             'badncol.autox/settings.txt:4: Ncol must be'),
+            ('lastviews.autox', lambda m: m.__setitem__('views.txt', m['views.txt'].rstrip(b'\n').rsplit(b'\n', 1)[0] + b'\nactive x\n'),
+             'lastviews.autox/views.txt:%d: "x" is not a whole number' % (members['views.txt'].rstrip(b'\n').count(b'\n') + 1)),
             ('latermanifest.autox', lambda m: m.__setitem__('autox.txt', m['autox.txt'] + b'later 1\n'),
              'is not one it has: "later 1"')):
         damaged = dict(members)
@@ -1163,8 +1168,9 @@ def section_autox():
             for n, b in damaged.items():
                 out.writestr(n, b)
         evs = open_file(s, name)
+        errors = ' '.join(placed(e) for e in evs if e.get('ev') == 'message')
         check('autox: %s is refused before its model is kept (%s), the model open stays' % (name, expect),
-              expect in messages(evs) and hello_title(evs) is None and s.alive(), messages(evs)[:300])
+              expect in errors and hello_title(evs) is None and s.alive(), errors[:300])
     # a binary file opened as a model: refused, its bytes never shown
     with open(os.path.join(s.run, 'bin.ode'), 'wb') as out:
         out.write(b'x\'=-x\n\x00\x01\x02\xff\n')

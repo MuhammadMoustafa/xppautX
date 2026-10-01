@@ -91,11 +91,12 @@ std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session
 /* f's members read for the session s its model's load made, before the
    load keeps it (xpp::load_model's check), or for the session open when
    the model is the same (an AUTO file's diagram): a member missing or one
-   that does not read fails the open, and the session before stays as it
-   was. Nothing when f can be restored, otherwise what is wrong (its file
-   f.name, and as its cause the member and the line: "its windows.set,
-   line 12: ..."). A session file's set file is read into s (the load's
-   session, which a failed check throws away); nothing else is changed. */
+   that does not read or holds a value this model refuses fails the open,
+   and the session before stays as it was. Nothing when f can be
+   restored, otherwise the error at its place: a member's line
+   ("name.snapx/windows.set", line 12, the line as written), or the file
+   f.name when a member is missing. Nothing is changed (W125: every member
+   is read whole and checked before anything is applied). */
 std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);
 /* what f adds to its model into the session s, whose model is f's
    (loaded from it, or the same files): AUTO's diagram, or the session;
@@ -107,6 +108,4 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
    name Save session and AUTO's Save diagram offer */
 std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext);
 
-/* a note on restoring a file, in the log and on the status line */
-void xpp_session_warn(const std::string &text);
 #endif

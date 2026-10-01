@@ -82,7 +82,6 @@ static void mswtch(const xpp::Session &s, double *u, const double *v)
   memcpy(u,v,s.solver_work.xpv.node*sizeof(double));
 }
 
-#define READEM 1
 
 #define ESCAPE 27
 #define FIRSTCOLOR 30
@@ -96,28 +95,6 @@ constexpr int OnTheFly=1;
 
 
     
-void dump_range(xpp::Session &s, FILE *fp, int f)
-{
-  io_heading(f,fp,"# Range information");
-  io_string(s.integrator.eq_range.item,fp,f);
-  io_int(&s.integrator.eq_range.col,fp,f,"eq-range stab col");
-  io_int(&s.integrator.eq_range.shoot,fp,f,"shoot flag 1=on");
-  io_int(&s.integrator.eq_range.steps,fp,f,"eq-range steps");
-  io_double(&s.integrator.eq_range.plow,fp,f,"s.integrator.eq_range low");
-  io_double(&s.integrator.eq_range.phigh,fp,f,"s.integrator.eq_range high");
-  io_string(s.integrator.range.item,fp,f);
-  io_string(s.integrator.range.item2,fp,f);
-  io_int(&s.integrator.range.steps,fp,f,"Range steps");
-  io_int(&s.integrator.range.cycle,fp,f,"Cycle color 1=on");
-  io_int(&s.integrator.range.reset,fp,f,"Reset data 1=on");
-  io_int(&s.integrator.range.oldic,fp,f,"Use old I.C.s 1=yes");
-  io_double(&s.integrator.range.plow,fp,f,"Par1 low");
-  io_double(&s.integrator.range.plow2,fp,f,"Par2 low");
-  io_double(&s.integrator.range.phigh,fp,f,"Par1 high");
-  io_double(&s.integrator.range.phigh2,fp,f,"Par2 high");
-  dump_shoot_range(s,fp,f);
-  if(f==READEM)s.integrator.range.steps2=s.integrator.range.steps;
-}
 void init_range(xpp::Session &s)
 {
  s.integrator.eq_range.col=-1;
@@ -1084,18 +1061,8 @@ void do_init_data(xpp::Session &s, int com)
   case M_IF:
     icfile.clear();
     if(!file_selector("Read initial data",icfile,"*.dat"))return;
-    {
-      xpp::TokenReader reader(icfile.c_str());
-      if(!reader){
-        err_reading(icfile," Cant open IC file");
-        return;
-      }
-      for(i=0;i<s.model().node;i++)
-        if(!reader.read(s.last_ic[i])){
-          err_msg(" IC file too short");
-          break;
-        }
-    }
+    /* the initial-conditions file, all of it or nothing (W125) */
+    load_ic_file_named(s,icfile);
     get_ic(s,2,x);
     break;
       

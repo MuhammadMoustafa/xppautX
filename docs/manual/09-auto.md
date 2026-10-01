@@ -525,8 +525,9 @@ diagram keeps both).
 
 Sets AUTO's settings from a `.autoset` file written by save settinGs (the
 AUTO view's Load settings does the same). A file that does not hold every
-setting is refused and nothing changes; so is a value AUTO does not take,
-with the message the Numerics dialog would show. While AUTO runs, the
+setting once, or has a line that does not read, is refused and nothing
+changes; so is a value AUTO does not take, with the message the Numerics
+dialog would show. The error names the file and the line. While AUTO runs, the
 settings apply when it stops.
 
 ## Homoclinics and heteroclinics

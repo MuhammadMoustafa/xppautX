@@ -3706,7 +3706,7 @@ async function runsCheck(dir) {
   fs.writeFileSync(badIc, '-0.1\n');
   await pickFiles('#values-load-ic', [badIc]);
   check('runs: an ic file with too few values is refused with the core\'s own message',
-    await until("s.bottom && /Expected 2 initial conditions/.test(s.bottom)", 'bad ic message'), await S('s.bottom'));
+    await until("s.bottom && /bad.ic:2: the file ends here/.test(s.bottom)", 'bad ic message'), await S('s.bottom'));
   await closeErrors();
 
   /* a slider: its default range is [0, 2v]; a drag sends its values as
@@ -5217,7 +5217,7 @@ async function main() {
     if (run('million')) await session(MILLION, million);
     if (run('ani')) await session(ODE, animation);
     if (run('kinescope')) await session(ODE, kinescope);
-    if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'Expected 2 initial conditions but only found 1 in bad.ic.']);
+    if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'bad.ic:2: the file ends here, before W']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);

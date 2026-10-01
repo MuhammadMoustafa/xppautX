@@ -349,12 +349,18 @@ static int if_needed_load_ext_options(xpp::Session &s)
     }
     std::string myopts(lr.next().value_or(std::string_view()));
     xpp::log(XPP_LOG_DEBUG, "Got this string: {{{}}}\n",myopts);
-    extract_action(s,("$ "+myopts));
+    if(const xpp::Result<> r=extract_action(s,("$ "+myopts),xpp::Place{readsetfile,1,0,myopts});!r){
+      xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
+      return 0;
+    }
     return 1;
   }
 
   if(externaloptionsflag==2){
-    extract_action(s,("$ "+externaloptionsstring));
+    if(const xpp::Result<> r=extract_action(s,("$ "+externaloptionsstring),xpp::Place{});!r){
+      xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
+      return 0;
+    }
     return 1;
   }
   return 0;
@@ -399,17 +405,9 @@ static int if_needed_load_set(xpp::Session &s)
   {
     return 1;
   }
-  xpp::UniqueFile fp=xpp::open_read_binary(setfilename.c_str());
-  if(!fp)
+  if(const xpp::Result<> r=load_set_file(s,setfilename,true);!r)
   {
-    xpp::log(XPP_LOG_WARN, "Couldn't load {}\n",setfilename);
-    return 0;
-  }
-  if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r)
-  {
-    xpp::Error e=r.error();
-    e.place.file=setfilename;
-    xpp::log(XPP_LOG_ERROR, "{}\n",e.text());
+    xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
     return 0;
   }
   return 1;
@@ -423,7 +421,7 @@ static int if_needed_load_par(xpp::Session &s)
     return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",parfilename);
-  io_parameter_file(s,parfilename,1);
+  load_parameter_file_named(s,parfilename);
   return 1;
 }
 
@@ -435,7 +433,7 @@ static int if_needed_load_ic(xpp::Session &s)
   	return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",icfilename);
-  io_ic_file(s,icfilename,1);
+  load_ic_file_named(s,icfilename);
   return(1);
 }
 

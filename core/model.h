@@ -280,6 +280,8 @@ struct Model {
      "$ name=value ..." */
   struct InternalSet {
     std::string name,does;
+    /* its line in the model, for an item that cannot be applied */
+    Place place;
   };
   std::vector<InternalSet> intern_sets;
   /* the loaded file's path, as given ("console" for standard input) */

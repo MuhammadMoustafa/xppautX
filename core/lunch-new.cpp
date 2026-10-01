@@ -1,3 +1,6 @@
+/* The set format (lunch-new.h): a set file (.set), a parameter file
+   (.par), an initial-conditions file (.ic), written here and read through
+   xpp_io.h's Lines whole, checked, then applied in one step (W125). */
 #include "model.h"
 #include "session.h"
 #include "xpp_ui.h"
@@ -10,36 +13,24 @@
 #include "storage.h"
 
 #include "numerics.h"
-#include <stdlib.h> 
 #include <stdio.h>
-#include <string.h>
-#include <math.h>
-#include "arrayplot.h"
 #include <time.h>
 #include "load_eqn.h"
-#include "adj2.h"
-#include "integrate.h"
 #include "xpp_globals.h"
 #include "xpp_batch.h"
 #include "delay_handle.h"
 #include "solver.h"
-#include <algorithm>
 #include <array>
-#include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace xpp {
 
-#define READEM 1
-#define WRITEM 0
-
-static int set_type=0;
-
-/* delay_handle.cpp's and integrate.cpp's (no header declares them yet) */
-
 namespace {
+
+/* the Poincare map's names, as a set file labels its number with them */
+constexpr std::array<const char *, 4> poincare_names = {"Poincare None", "Poincare Section", "Poincare Max", "Period"};
 
 /* An equation line of do_info/dump_eqn: dX/dT=..., X(n+1)=... or X=... */
 void put_equation(const xpp::Session &s, FILE *fp, int i)
@@ -79,87 +70,499 @@ void put_parameters(const xpp::Session &s, FILE *fp, const char *prefix)
   xpp::print(fp,"\n");
 }
 
-/* the next whole line from fp (any length -- a line longer than a fixed
-   buffer is not cut, leaving the rest of it to desync every read after
-   it); at the end of the file SetLineError, the line that is missing
-   being what (a value's name, or "") */
-std::string next_line(FILE *fp, std::string_view what)
+/* the value of parameter i of s */
+double parameter(const xpp::Session &s, int i)
 {
-  xpp::LineReader lr = xpp::LineReader::attach(fp);
-  std::optional<std::string_view> line = lr.next();
-  if(!line){
-    std::string cause="the file ends here";
-    if(!what.empty())cause+=xpp::format(", before {}",what);
-    throw SetLineError{xpp::lines_read(fp)+1,std::move(cause)};
-  }
-  return std::string(*line);
+  double z=0;
+  get_val(s,s.model().upar_names[i],&z);
+  return z;
 }
 
-/* a value's name as io_int and io_double write it after the value, for a
-   message: without the blanks around it */
-std::string_view value_name(std::string_view ss)
+/* ---- a set file's parts, written ---- */
+
+void write_numerics(const xpp::Session &s, FILE *fp)
 {
-  while(!ss.empty()&&ss.front()==' ')ss.remove_prefix(1);
-  while(!ss.empty()&&ss.back()==' ')ss.remove_suffix(1);
-  return ss;
+  const NumericsSettings &n=s.numerics;
+  write_heading(fp,"# Numerical stuff");
+  write_whole(fp,n.njmp," nout");
+  write_whole(fp,n.nmesh," nullcline mesh");
+  write_whole(fp,n.method,xpp::solver_info(n.method).set_label);
+  write_real(fp,n.tend,"total");
+  write_real(fp,n.delta_t,"DeltaT");
+  write_real(fp,n.t0,"T0");
+  write_real(fp,n.trans,"Transient");
+  write_real(fp,n.bound,"Bound");
+  write_real(fp,n.hmin,"DtMin");
+  write_real(fp,n.hmax,"DtMax");
+  write_real(fp,n.toler,"Tolerance");
+  write_real(fp,n.atoler,"Abs. Tolerance");
+  write_real(fp,n.delay,"Max Delay");
+  write_whole(fp,n.evec_iter,"Eigenvector iterates");
+  write_real(fp,n.evec_err,"Eigenvector tolerance");
+  write_real(fp,n.newt_err,"Newton tolerance");
+  write_real(fp,n.poipln,"Poincare plane");
+  write_real(fp,n.bvp_tol,"Boundary value tolerance");
+  write_real(fp,n.bvp_eps,"Boundary value epsilon");
+  write_whole(fp,n.bvp_maxit,"Boundary value iterates");
+  write_whole(fp,n.poimap,poincare_names[static_cast<std::size_t>(n.poimap)]);
+  write_whole(fp,n.poivar,"Poincare variable");
+  write_whole(fp,n.poisgn,"Poincare sign");
+  write_whole(fp,n.sos,"Stop on Section");
+  write_whole(fp,s.delay.flag,"Delay flag");
+  write_real(fp,s.data_store.current_time,"Current time");
+  write_real(fp,s.integrator.last_time,"Last Time");
+  write_whole(fp,s.integrator.my_start,"s.integrator.my_start");
+  write_whole(fp,n.inflag,"INFLAG");
 }
 
-/* the number line starts with (what io_int and io_double write: the
-   number, then blanks and its name), through parse (xpp::parse_int or
-   xpp::parse_number); SetLineError when it does not start with one */
-template <class T>
-void line_number(FILE *fp, std::string_view ss, const char *kind, bool (*parse)(std::string_view, T &), T &value)
+void write_exprs(const xpp::Session &s, FILE *fp)
 {
-  const std::string_view name=value_name(ss);
-  const std::string line=next_line(fp,name);
-  std::string_view text=line;
-  while(!text.empty()&&(text.front()==' '||text.front()=='\t'))text.remove_prefix(1);
-  const std::string_view first=text.substr(0,text.find_first_of(" \t"));
-  if(!parse(first,value))
-    throw SetLineError{xpp::lines_read(fp),
-                       xpp::format("\"{}\" is not {}{}",line,kind,name.empty()?std::string():xpp::format(" ({})",name))};
+  const xpp::Model &m=s.model();
+  write_heading(fp,"# Delays");
+  for(int i=0;i<m.node;i++)write_text(fp,s.delay_string[i]);
+  write_heading(fp,"# Bndry conds");
+  for(int i=0;i<m.node;i++)write_text(fp,s.bcs[i].string.data());
+  write_heading(fp,"# Old ICs");
+  for(int i=0;i<m.node+m.nmarkov;i++)write_real(fp,s.last_ic[i],m.uvar_names[i]);
+  write_heading(fp,"# Ending  ICs");
+  for(int i=0;i<m.node+m.nmarkov;i++)write_real(fp,s.data_store.current[i],m.uvar_names[i]);
+  write_heading(fp,"# Parameters");
+  for(int i=0;i<m.nupar;i++)write_real(fp,parameter(s,i),m.upar_names[i]);
 }
 
-/* Reads a set file's settings from fp (read_lunch); what is wrong (the
-   line, through SetLineError) when it is not one of s's model's */
-void read_set(xpp::Session &s, FILE *fp)
+/* Transpose's settings, the H functions' coupling, the array plot, the
+   torus and the ranges: the parts a set file of xppautX's has after the
+   graphics */
+void write_more(const xpp::Session &s, FILE *fp)
 {
-  int f=READEM,ne,np,temp;
-  const std::string first=next_line(fp,"");
-  if(!first.empty() && first[0]=='#'){
-    set_type=1;
-    io_int(&ne,fp,f,"Number of equations and auxiliaries");
+  const auto &t=s.adjoint.transpose;
+  write_heading(fp,"# Transpose variables etc");
+  write_text(fp,t.firstcol);
+  write_whole(fp,t.ncol,"n columns");
+  write_whole(fp,t.nrow,"n rows");
+  write_whole(fp,t.rowskip,"row skip");
+  write_whole(fp,t.colskip,"col skip");
+  write_whole(fp,t.row0,"row 0");
+
+  write_heading(fp,"# Coupling stuff for H funs");
+  for(int i=0;i<s.model().node;i++)write_text(fp,s.adjoint.coup_string[i]);
+
+  const APLOT &a=s.array_plot.plot;
+  write_heading(fp,"# Array plot stuff");
+  write_text(fp,a.name);
+  write_whole(fp,a.nacross,"NCols");
+  write_whole(fp,a.nstart,"Row 1");
+  write_whole(fp,a.ndown,"NRows");
+  write_whole(fp,a.nskip,"RowSkip");
+  write_real(fp,a.zmin,"Zmin");
+  write_real(fp,a.zmax,"Zmax");
+
+  write_heading(fp,"# Torus information ");
+  write_whole(fp,s.numerics.torus," Torus flag 1=ON");
+  write_real(fp,s.numerics.tor_period,"Torus period");
+  if(s.numerics.torus)
+    for(int i=0;i<s.model().neq;i++)write_whole(fp,s.itor[i],s.model().uvar_names[i]);
+
+  const EquilibriumRange &e=s.integrator.eq_range;
+  write_heading(fp,"# Range information");
+  write_text(fp,e.item);
+  write_whole(fp,e.col,"eq-range stab col");
+  write_whole(fp,e.shoot,"shoot flag 1=on");
+  write_whole(fp,e.steps,"eq-range steps");
+  write_real(fp,e.plow,"s.integrator.eq_range low");
+  write_real(fp,e.phigh,"s.integrator.eq_range high");
+  const RangeVars &r=s.integrator.range;
+  write_text(fp,r.item);
+  write_text(fp,r.item2);
+  write_whole(fp,r.steps,"Range steps");
+  write_whole(fp,r.cycle,"Cycle color 1=on");
+  write_whole(fp,r.reset,"Reset data 1=on");
+  write_whole(fp,r.oldic,"Use old I.C.s 1=yes");
+  write_real(fp,r.plow,"Par1 low");
+  write_real(fp,r.plow2,"Par2 low");
+  write_real(fp,r.phigh,"Par1 high");
+  write_real(fp,r.phigh2,"Par2 high");
+  const ShootRange &h=s.shoot_range;
+  write_text(fp,h.item);
+  write_whole(fp,h.side,"BVP side");
+  write_whole(fp,h.cycle,"color cycle flag 1=on");
+  write_whole(fp,h.steps,"BVP range steps");
+  write_real(fp,h.plow,"BVP range low");
+  write_real(fp,h.phigh,"BVP range high");
+}
+
+/* ---- a set file, read ---- */
+
+/* the numerics into f (ours: with the absolute tolerance, else ten times
+   the tolerance) */
+void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
+{
+  if(f.ours)l.heading("# Numerical stuff");
+  f.njmp=l.whole("nout");
+  f.nmesh=l.whole("nullcline mesh");
+  f.method=l.whole("the method");
+  if(f.method<0||f.method>=static_cast<int>(xpp::solvers().size()))
+    l.fail(xpp::format("{} is not a method's number (0 to {})",f.method,xpp::solvers().size()-1));
+  f.tend=l.real("total");
+  f.delta_t=l.real("DeltaT");
+  f.t0=l.real("T0");
+  f.trans=l.real("Transient");
+  f.bound=l.real("Bound");
+  f.hmin=l.real("DtMin");
+  f.hmax=l.real("DtMax");
+  f.toler=l.real("Tolerance");
+  f.atoler=f.ours?l.real("Abs. Tolerance"):f.toler*10;
+  f.delay=l.real("Max Delay");
+  f.evec_iter=l.whole("Eigenvector iterates");
+  f.evec_err=l.real("Eigenvector tolerance");
+  f.newt_err=l.real("Newton tolerance");
+  f.poipln=l.real("Poincare plane");
+  f.bvp_tol=l.real("Boundary value tolerance");
+  f.bvp_eps=l.real("Boundary value epsilon");
+  f.bvp_maxit=l.whole("Boundary value iterates");
+  f.poimap=l.whole("the Poincare map");
+  if(f.poimap<0||f.poimap>=static_cast<int>(poincare_names.size()))
+    l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",f.poimap,poincare_names.size()-1));
+  f.poivar=l.whole("Poincare variable");
+  if(f.poivar<0||f.poivar>s.model().neq)
+    l.fail(xpp::format("{} is not a variable's number (0 to {})",f.poivar,s.model().neq));
+  f.poisgn=l.whole("Poincare sign");
+  f.sos=l.whole("Stop on Section");
+  f.delay_flag=l.whole("Delay flag");
+  f.current_time=l.real("Current time");
+  f.last_time=l.real("Last Time");
+  f.my_start=l.whole("my_start");
+  f.inflag=l.whole("INFLAG");
+  /* the method do_meth makes it: Volterra's when the model has kernels */
+  if((s.model().nkernel>0?static_cast<int>(xpp::method::VOLTERRA):f.method)==xpp::method::VOLTERRA){
+    f.volterra_points=l.whole("Max points for volterra");
+    if(*f.volterra_points<1)l.fail(xpp::format("{} points for Volterra: at least 1",*f.volterra_points));
   }
-  else {
-    /* an XPPAUT set file: the number of equations first */
-    set_type=0;
-    if(!xpp::parse_int(first.substr(0,first.find_first_of(" \t")),ne))
-      throw SetLineError{1,xpp::format("\"{}\" is neither \"## Set file\" nor the number of equations",first)};
+}
+
+void read_exprs(const xpp::Session &s, Lines &l, SetFile &f)
+{
+  const xpp::Model &m=s.model();
+  if(f.ours)l.heading("# Delays");
+  for(int i=0;i<m.node;i++)f.delays.emplace_back(l.next(xpp::format("the delay of {}",m.uvar_names[i])));
+  if(f.ours)l.heading("# Bndry conds");
+  for(int i=0;i<m.node;i++){
+    const std::string_view bc=l.next(xpp::format("boundary condition {}",i+1));
+    /* the room the session's boundary condition has, its NUL left out */
+    const std::size_t room=s.bcs[i].string.empty()?0:s.bcs[i].string.size()-1;
+    if(bc.size()>room)l.fail(xpp::format("a boundary condition of {} characters: at most {}",bc.size(),room));
+    f.bcs.emplace_back(bc);
   }
-  io_int(&np,fp,f,"Number of parameters");
-  if(ne!=s.model().neq||np!=s.model().nupar)
-    throw SetLineError{set_type==1?3:2,
-                       xpp::format("it is for {} equations and auxiliaries and {} parameters, the model has {} and {}",
-                                   ne,np,s.model().neq,s.model().nupar)};
-  io_numerics(s,f,fp);
-  if(s.numerics.method==xpp::method::VOLTERRA){
-    io_int(&temp,fp,f,"Max points for volterra");
-    xpp::allocate_volterra(s,temp,1);
-    s.integrator.my_start=1;
+  if(f.ours)l.heading("# Old ICs");
+  for(int i=0;i<m.node+m.nmarkov;i++)f.last_ic.push_back(l.real(m.uvar_names[i]));
+  if(f.ours)l.heading("# Ending  ICs");
+  for(int i=0;i<m.node+m.nmarkov;i++)f.current.push_back(l.real(m.uvar_names[i]));
+  if(f.ours)l.heading("# Parameters");
+  for(int i=0;i<m.nupar;i++)f.params.push_back(l.real(m.upar_names[i]));
+}
+
+void read_more(const xpp::Session &s, Lines &l, SetFile &f)
+{
+  auto &t=f.transpose;
+  l.heading("# Transpose variables etc");
+  t.firstcol=l.next("Transpose's first column");
+  t.ncol=l.whole("n columns");
+  t.nrow=l.whole("n rows");
+  t.rowskip=l.whole("row skip");
+  t.colskip=l.whole("col skip");
+  t.row0=l.whole("row 0");
+
+  l.heading("# Coupling stuff for H funs");
+  for(int i=0;i<s.model().node;i++)f.coupling.emplace_back(l.next(xpp::format("the coupling of {}",s.model().uvar_names[i])));
+
+  APLOT &a=f.aplot;
+  l.heading("# Array plot stuff");
+  a.name=l.next("the array plot's first column");
+  a.nacross=l.whole("NCols");
+  a.nstart=l.whole("Row 1");
+  a.ndown=l.whole("NRows");
+  a.nskip=l.whole("RowSkip");
+  a.zmin=l.real("Zmin");
+  a.zmax=l.real("Zmax");
+
+  l.heading("# Torus information");
+  f.torus=l.whole("Torus flag 1=ON");
+  if(f.torus!=0&&f.torus!=1)l.fail(xpp::format("the torus flag {}: 0 or 1",f.torus));
+  f.tor_period=l.real("Torus period");
+  if(f.torus)
+    for(int i=0;i<s.model().neq;i++)f.itor.push_back(l.whole(s.model().uvar_names[i]));
+
+  EquilibriumRange &e=f.eq_range;
+  l.heading("# Range information");
+  e.item=l.next("the equilibrium range's parameter");
+  e.col=l.whole("eq-range stab col");
+  e.shoot=l.whole("shoot flag 1=on");
+  e.steps=l.whole("eq-range steps");
+  e.plow=l.real("eq-range low");
+  e.phigh=l.real("eq-range high");
+  RangeVars &r=f.range;
+  r.item=l.next("the range's parameter");
+  r.item2=l.next("the range's second parameter");
+  r.steps=l.whole("Range steps");
+  r.cycle=l.whole("Cycle color 1=on");
+  r.reset=l.whole("Reset data 1=on");
+  r.oldic=l.whole("Use old I.C.s 1=yes");
+  r.plow=l.real("Par1 low");
+  r.plow2=l.real("Par2 low");
+  r.phigh=l.real("Par1 high");
+  r.phigh2=l.real("Par2 high");
+  r.steps2=r.steps;
+  ShootRange &h=f.shoot_range;
+  h.item=l.next("the BVP range's parameter");
+  h.side=l.whole("BVP side");
+  h.cycle=l.whole("color cycle flag 1=on");
+  h.steps=l.whole("BVP range steps");
+  h.plow=l.real("BVP range low");
+  h.phigh=l.real("BVP range high");
+}
+
+/* the set file whose lines are l, for s; ReadFailed at a line that is wrong */
+SetFile read_set(const xpp::Session &s, Lines &l)
+{
+  const xpp::Model &m=s.model();
+  SetFile f;
+  const std::string_view first=l.next("## Set file");
+  int ne=0;
+  f.ours=first.starts_with("#");
+  if(f.ours){
+    if(!first.starts_with("## Set file"))l.fail(xpp::format("\"{}\" is not \"## Set file\"",first));
+    ne=l.whole("Number of equations and auxiliaries");
   }
-  xpp::chk_delay(s);
-  io_exprs(s,f,fp);
-  io_graph(s,f,fp);
-  if(set_type==1){
-    xpp::dump_transpose_info(s,fp,f);
-    xpp::dump_h_stuff(s,fp,f);
-    dump_aplot(s,fp,f);
-    dump_torus(s,fp,f);
-    xpp::dump_range(s,fp,f);
+  /* a set file of XPPAUT's: the number of equations first */
+  else if(!xpp::parse_int(first.substr(0,first.find_first_of(" \t")),ne))
+    l.fail(xpp::format("\"{}\" is neither \"## Set file\" nor the number of equations",first));
+  const int ne_line=l.line();
+  const int np=l.whole("Number of parameters");
+  if(ne!=m.neq||np!=m.nupar)
+    l.fail(ne!=m.neq?ne_line:l.line(),xpp::format("it is for {} equations and auxiliaries and {} parameters, the model has {} and {}",
+                               ne,np,m.neq,m.nupar));
+  read_numerics(s,l,f);
+  read_exprs(s,l,f);
+  /* the active window's graphics; in a session's check, before the load
+     has an active window, the main one's */
+  f.graph=s.plot_windows.current?*s.plot_windows.current:s.plot_windows.graph[0];
+  read_graph(l,f.graph,f.ours);
+  /* XPPAUT's own set file (an import) ends with what it holds of the
+     graphics; the rest is its equations, written for a reader */
+  if(!f.ours)return f;
+  f.transpose=s.adjoint.transpose;
+  f.aplot=s.array_plot.plot;
+  f.eq_range=s.integrator.eq_range;
+  f.range=s.integrator.range;
+  f.shoot_range=s.shoot_range;
+  read_more(s,l,f);
+  /* the model's equations, written for a reader, end it */
+  if(!l.at_end()){
+    const std::string_view rest=l.next();
+    if(rest!="RHS etc ...")l.fail(xpp::format("\"{}\" where the equations (\"RHS etc ...\") or the end were due",rest));
   }
+  return f;
+}
+
+/* a parameter file's values, the model's parameters' in order; the lines
+   after them are the trailer write_parameter_file writes, "File:" and the
+   model's name, then the time */
+std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
+{
+  const int np=l.whole("Number params");
+  if(np!=m.nupar)l.fail(xpp::format("it is for {} parameters, the model has {}",np,m.nupar));
+  std::vector<double> z;
+  for(int i=0;i<m.nupar;i++)z.push_back(l.real(m.upar_names[i]));
+  while(!l.at_end()){
+    const std::string_view line=l.next();
+    if(line.empty())continue;
+    if(!line.starts_with("File:"))l.fail(xpp::format("\"{}\" after the parameters, where \"File:\" or the end was due",line));
+    if(!l.at_end())l.next(); /* the time it was written */
+    l.end();
+  }
+  return z;
+}
+
+/* an initial-conditions file's values: one per differential equation */
+std::vector<double> read_ics(const xpp::Model &m, Lines &l)
+{
+  std::vector<double> z;
+  for(int i=0;i<m.node;i++)z.push_back(l.real(m.uvar_names[i]));
+  l.end();
+  return z;
 }
 
 } // namespace
+
+void write_whole(FILE *fp, int value, std::string_view name) { xpp::print(fp,"{}   {}\n",value,name); }
+
+void write_real(FILE *fp, double value, std::string_view name) { xpp::print(fp,"{:.16g}  {}\n",value,name); }
+
+void write_text(FILE *fp, std::string_view text) { xpp::print(fp,"{}\n",text); }
+
+void write_heading(FILE *fp, std::string_view heading) { xpp::print(fp,"{}\n",heading); }
+
+namespace {
+
+/* a plot window's settings as a set file holds them, in its order: each
+   member given to f with its name (the set file's label after it) */
+template <class G, class F>
+void graph_settings(G &g, F &&f)
+{
+  for(int j=0;j<3;j++)
+    for(int k=0;k<3;k++)f(g.rm[k][j],"rm");
+  for(int j=0;j<MAXPERPLOT;j++){
+    f(g.xv[j]," ");
+    f(g.yv[j]," ");
+    f(g.zv[j]," ");
+    f(g.line[j]," ");
+    f(g.color[j]," ");
+  }
+  f(g.ZPlane," ");
+  f(g.ZView," ");
+  f(g.PerspFlag," ");
+  f(g.ThreeDFlag,"3DFlag");
+  f(g.TimeFlag,"Timeflag");
+  f(g.ColorFlag,"Colorflag");
+  f(g.grtype,"Type");
+  f(g.color_scale,"color scale");
+  f(g.min_scale," minscale");
+  f(g.xmax," xmax");
+  f(g.xmin," xmin");
+  f(g.ymax," ymax");
+  f(g.ymin," ymin");
+  f(g.zmax," zmax");
+  f(g.zmin," zmin");
+  f(g.xbar," ");
+  f(g.dx," ");
+  f(g.ybar," ");
+  f(g.dy," ");
+  f(g.zbar," ");
+  f(g.dz," ");
+  f(g.Theta," Theta");
+  f(g.Phi," Phi");
+  f(g.xshft," xshft");
+  f(g.yshft," yshft");
+  f(g.zshft," zshft");
+  f(g.xlo," xlo");
+  f(g.ylo," ylo");
+  f(g.oldxlo," ");
+  f(g.oldylo," ");
+  f(g.xhi," xhi");
+  f(g.yhi," yhi");
+  f(g.oldxhi," ");
+  f(g.oldyhi," ");
+}
+
+} // namespace
+
+void write_graph(FILE *fp, const GRAPH &g)
+{
+  write_heading(fp,"# Graphics");
+  graph_settings(g,[fp](const auto &v,const char *name){
+    if constexpr(std::is_same_v<std::decay_t<decltype(v)>,int>)write_whole(fp,v,name);
+    else write_real(fp,v,name);
+  });
+}
+
+void read_graph(Lines &l, GRAPH &g, bool headed)
+{
+  if(headed)l.heading("# Graphics");
+  graph_settings(g,[&l](auto &v,const char *name){
+    if constexpr(std::is_same_v<std::decay_t<decltype(v)>,int>)v=l.whole(name);
+    else v=l.real(name);
+  });
+}
+
+void copy_graph_settings(const GRAPH &from, GRAPH &to)
+{
+  std::vector<double> values;
+  graph_settings(from,[&values](const auto &v,const char *){ values.push_back(v); });
+  std::size_t k=0;
+  graph_settings(to,[&](auto &v,const char *){ v=static_cast<std::decay_t<decltype(v)>>(values[k++]); });
+}
+
+Result<SetFile> read_set_file(const xpp::Session &s, std::string file, std::string_view text)
+{
+  return read_lines("set file",std::move(file),text,[&s](Lines &l){ return read_set(s,l); });
+}
+
+void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
+{
+  const xpp::Model &m=s.model();
+  NumericsSettings &n=s.numerics;
+  n.njmp=f.njmp;
+  n.nmesh=f.nmesh;
+  n.method=f.method;
+  xpp::do_meth(s);
+  n.tend=f.tend;
+  n.delta_t=f.delta_t;
+  n.t0=f.t0;
+  n.trans=f.trans;
+  n.bound=f.bound;
+  n.hmin=f.hmin;
+  n.hmax=f.hmax;
+  n.toler=f.toler;
+  n.atoler=f.atoler;
+  n.delay=f.delay;
+  n.evec_iter=f.evec_iter;
+  n.evec_err=f.evec_err;
+  n.newt_err=f.newt_err;
+  n.poipln=f.poipln;
+  n.bvp_tol=f.bvp_tol;
+  n.bvp_eps=f.bvp_eps;
+  n.bvp_maxit=f.bvp_maxit;
+  n.poimap=f.poimap;
+  n.poivar=f.poivar;
+  n.poisgn=f.poisgn;
+  n.sos=f.sos;
+  s.delay.flag=f.delay_flag;
+  s.data_store.current_time=f.current_time;
+  s.integrator.last_time=f.last_time;
+  s.integrator.my_start=f.my_start;
+  n.inflag=f.inflag;
+  if(f.volterra_points){
+    xpp::allocate_volterra(s,*f.volterra_points,1);
+    s.integrator.my_start=1;
+  }
+  xpp::chk_delay(s);
+  for(int i=0;i<m.node;i++){
+    s.delay_string[i]=f.delays[i];
+    set_bc_formula(s,i,f.bcs[i]);
+  }
+  for(int i=0;i<m.node+m.nmarkov;i++){
+    s.last_ic[i]=f.last_ic[i];
+    s.data_store.current[i]=f.current[i];
+  }
+  for(int i=0;i<m.nupar;i++)set_val(s,m.upar_names[i],f.params[i]);
+  copy_graph_settings(f.graph,*s.plot_windows.current);
+  if(f.ours){
+    s.adjoint.transpose=f.transpose;
+    for(int i=0;i<m.node;i++)s.adjoint.coup_string[i]=f.coupling[i];
+    s.array_plot.plot=f.aplot;
+    n.torus=f.torus;
+    n.tor_period=f.tor_period;
+    for(std::size_t i=0;i<f.itor.size();i++)s.itor[i]=f.itor[i];
+    s.integrator.eq_range=f.eq_range;
+    s.integrator.range=f.range;
+    s.shoot_range=f.shoot_range;
+  }
+  if(redraw&&program.interactive){
+    ui.redraw_bcs();
+    redraw_ics();
+    ui.redraw_delays();
+    redraw_params();
+    ui.redraw_graph(s);
+  }
+}
+
+Result<> load_set_file(xpp::Session &s, std::string_view path, bool redraw)
+{
+  Result<SetFile> f=read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l); });
+  if(!f)return std::unexpected(f.error());
+  apply_set_file(s,*f,redraw);
+  return {};
+}
 
 void file_inf(xpp::Session &s)
 {
@@ -207,68 +610,28 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_parameters(s,fp,"");
 }
 
-xpp::Error SetLineError::error(std::string_view where, std::string_view file) const
-{
-  return xpp::Error{std::string(where),cause,xpp::Place{std::string(file),line}};
-}
-
-xpp::Result<> read_lunch(xpp::Session &s, FILE *fp, bool redraw)
-{
-  try{
-    read_set(s,fp);
-  }catch(const SetLineError &e){
-    return std::unexpected(e.error("set file",""));
-  }
-  if(redraw&&program.interactive){
-    ui.redraw_bcs();
-    redraw_ics();
-    ui.redraw_delays();
-    redraw_params();
-    ui.redraw_graph(s);
-  }
-  return {};
-}
-
 void write_lunch(xpp::Session &s, FILE *fp)
 {
- int f=0;
- time_t ttt;
-
- ttt=time(0);
- xpp::print(fp,"## Set file for {} on {}",s.model().this_file,ctime(&ttt));
- io_int(&s.model().neq,fp,f,"Number of equations and auxiliaries");
- io_int(&s.model().nupar,fp,f,"Number of parameters");
- io_numerics(s,f,fp);
- if(s.numerics.method==xpp::method::VOLTERRA){
-     io_int(&s.numerics.max_points,fp,f,"Max points for volterra");
-     }
-   io_exprs(s,f,fp);
-   io_graph(s,f,fp);
-    xpp::dump_transpose_info(s,fp,f);
-   xpp::dump_h_stuff(s,fp,f);
-   dump_aplot(s,fp,f);
-   dump_torus(s,fp,f);
-   xpp::dump_range(s,fp,f);
-   dump_eqn(s,fp);
+  time_t ttt=time(0);
+  xpp::print(fp,"## Set file for {} on {}",s.model().this_file,ctime(&ttt));
+  write_whole(fp,s.model().neq,"Number of equations and auxiliaries");
+  write_whole(fp,s.model().nupar,"Number of parameters");
+  write_numerics(s,fp);
+  if(s.numerics.method==xpp::method::VOLTERRA)write_whole(fp,s.numerics.max_points,"Max points for volterra");
+  write_exprs(s,fp);
+  write_graph(fp,*s.plot_windows.current);
+  write_more(s,fp);
+  dump_eqn(s,fp);
 }
 
 void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
 {
   std::string filename=s.model().this_file+".set";
 
-  if(f==READEM){
+  if(f==1){
     ping();
     if(!file_selector("Load SET File",filename,"*.set"))return;
-    xpp::UniqueFile fp=xpp::open_read_binary(filename.c_str());
-    if(!fp){
-      err_reading(filename,"Cannot open file");
-      return;
-    }
-    if(const xpp::Result<> r=read_lunch(s,fp.get(),true);!r){
-      xpp::Error e=r.error();
-      e.place.file=filename;
-      show_error(e);
-    }
+    if(const Result<> r=load_set_file(s,filename,true);!r)show_error(r.error());
     return;
   }
   if(!file_selector("Save SET File",filename,"*.set"))return;
@@ -285,86 +648,37 @@ void dump_eqn(const xpp::Session &s, FILE *fp)
   put_equations(s,fp);
 }
 
-void io_numerics(xpp::Session &s, int f, FILE *fp)
+Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)
 {
-const char *pmap[]={"Poincare None","Poincare Section","Poincare Max","Period"};
-io_heading(f,fp,"# Numerical stuff");
-io_int(&s.numerics.njmp,fp,f," nout");
-io_int(&s.numerics.nmesh,fp,f," nullcline mesh");
-io_int(&s.numerics.method,fp,f,xpp::solver_info(s.numerics.method).set_label);
-if(f==READEM&&(s.numerics.method<0||s.numerics.method>=static_cast<int>(xpp::solvers().size())))
-  throw SetLineError{xpp::lines_read(fp),xpp::format("{} is not a method's number",s.numerics.method)};
- if(f==READEM)xpp::do_meth(s);
-io_double(&s.numerics.tend,fp,f,"total");
-io_double(&s.numerics.delta_t,fp,f,"DeltaT");
-io_double(&s.numerics.t0,fp,f,"T0");
-io_double(&s.numerics.trans,fp,f,"Transient");
-io_double(&s.numerics.bound,fp,f,"Bound");
-io_double(&s.numerics.hmin,fp,f,"DtMin");
-io_double(&s.numerics.hmax,fp,f,"DtMax");
-io_double(&s.numerics.toler,fp,f,"Tolerance");
-/* fix stuff concerning the tolerance */
-if(f==READEM){
-   if(set_type==1)
-     io_double(&s.numerics.atoler,fp,f,"Abs. Tolerance");
-   else
-     s.numerics.atoler=s.numerics.toler*10;
- }
- else 
-   io_double(&s.numerics.atoler,fp,f,"Abs. Tolerance");
-
-io_double(&s.numerics.delay,fp,f,"Max Delay");
-io_int(&s.numerics.evec_iter,fp,f,"Eigenvector iterates");
-io_double(&s.numerics.evec_err,fp,f,"Eigenvector tolerance");
-io_double(&s.numerics.newt_err,fp,f,"Newton tolerance");
-io_double(&s.numerics.poipln,fp,f,"Poincare plane");
-io_double(&s.numerics.bvp_tol,fp,f,"Boundary value tolerance");
-io_double(&s.numerics.bvp_eps,fp,f,"Boundary value epsilon");
-io_int(&s.numerics.bvp_maxit,fp,f,"Boundary value iterates");
-io_int(&s.numerics.poimap,fp,f,pmap[s.numerics.poimap]);
-if(f==READEM&&(s.numerics.poimap<0||s.numerics.poimap>=static_cast<int>(std::size(pmap))))
-  throw SetLineError{xpp::lines_read(fp),xpp::format("{} is not a Poincare map's number",s.numerics.poimap)};
-
-io_int(&s.numerics.poivar,fp,f,"Poincare variable");
-io_int(&s.numerics.poisgn,fp,f,"Poincare sign");
-io_int(&s.numerics.sos,fp,f,"Stop on Section");
-io_int(&s.delay.flag,fp,f,"Delay flag");
-io_double(&s.data_store.current_time,fp,f,"Current time");
-io_double(&s.integrator.last_time,fp,f,"Last Time");
-io_int(&s.integrator.my_start,fp,f,"s.integrator.my_start");
-io_int(&s.numerics.inflag,fp,f,"INFLAG");
+  return read_file_lines("parameter file",path,[&m](Lines &l){ return read_parameters(m,l); });
 }
-void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
+
+Result<std::vector<double>> read_ic_file(const xpp::Model &m, std::string_view path)
 {
-  xpp::Model &m=s.model();
-  /* fn is a plain file name; a filename an interactive caller must still
-     pick goes through save_parameter_file/load_parameter_file below,
-     which ask for it first */
-  if(flag==READEM) {
-    xpp::UniqueFile fp=xpp::open_read_binary(fn);
-    if(!fp){
-      err_reading(fn,"Cannot open file");
-      return;
-    }
-    try{
-      int np;
-      io_int(&np,fp.get(),flag,"Number params");
-      if(np!=m.nupar)
-        throw SetLineError{1,xpp::format("it is for {} parameters, the model has {}",np,m.nupar)};
-      io_parameters(s,flag,fp.get());
-    }catch(const SetLineError &e){
-      show_error(e.error("parameter file",fn));
-      return;
-    }
-    fp.reset();
-    redo_stuff(s);
+  return read_file_lines("initial conditions file",path,[&m](Lines &l){ return read_ics(m,l); });
+}
+
+void load_parameter_file_named(xpp::Session &s, std::string_view fn)
+{
+  const xpp::Model &m=s.model();
+  const Result<std::vector<double>> z=read_parameter_file(m,fn);
+  if(!z){
+    show_error(z.error());
     return;
   }
+  for(int i=0;i<m.nupar;i++)set_val(s,m.upar_names[i],(*z)[static_cast<std::size_t>(i)]);
+  redraw_params();
+  redo_stuff(s);
+}
+
+void write_parameter_file(xpp::Session &s, std::string_view fn)
+{
+  const xpp::Model &m=s.model();
   xpp::Writer w=open_writer_asking(std::string(fn).c_str());
   if(!w)return;
   FILE *fp=w.file();
-  io_int(&m.nupar,fp,flag,"Number params");
-  io_parameters(s,flag,fp);
+  write_whole(fp,m.nupar,"Number params");
+  for(int i=0;i<m.nupar;i++)write_real(fp,parameter(s,i),m.upar_names[i]);
   time_t ttt=time(0);
   xpp::print(fp,"\n\nFile:{}\n{}",m.this_file,ctime(&ttt));
   w.commit();
@@ -374,35 +688,23 @@ void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
    line, one per differential-equation variable, in the model's order --
    exactly `node` of them, as XPPAUT's own io_ic_file always read (the
    Markov chains are not in this file, in XPPAUT or here: docs/manual
-   16-quick-reference.md); io_parameter_file's write shares its writer
-   and overwrite-ask (open_writer_asking), the read its TokenReader */
-void io_ic_file(xpp::Session &s, std::string_view fn,int flag)
+   16-quick-reference.md) */
+void load_ic_file_named(xpp::Session &s, std::string_view fn)
 {
-  int n=s.model().node;
-  if(flag==READEM){
-    xpp::TokenReader tr(fn);
-    if(!tr){
-      err_reading(fn,"Cannot open file");
-      return;
-    }
-    for(int i=0;i<n;i++){
-      if(!tr.read(s.last_ic[i])){
-        err_msg(xpp::format("Expected {} initial conditions but only found {} in {}.",
-                            n,i,fn).c_str());
-        return;
-      }
-    }
-    /* one number more is one too many */
-    double extra;
-    if(n>0 && tr.read(extra))
-      err_msg(xpp::format("Found more than {} initial conditions in {}.",n,fn));
+  const xpp::Model &m=s.model();
+  const Result<std::vector<double>> z=read_ic_file(m,fn);
+  if(!z){
+    show_error(z.error());
     return;
   }
+  for(int i=0;i<m.node;i++)s.last_ic[i]=(*z)[static_cast<std::size_t>(i)];
+}
+
+void write_ic_file(const xpp::Session &s, std::string_view fn)
+{
   xpp::Writer w=open_writer_asking(std::string(fn).c_str());
   if(!w)return;
-  FILE *fp=w.file();
-  for(int i=0;i<n;i++)
-    xpp::print(fp,"{:.16g}\n",s.last_ic[i]);
+  for(int i=0;i<s.model().node;i++)w.print("{:.16g}\n",s.last_ic[i]);
   w.commit();
 }
 
@@ -411,38 +713,37 @@ namespace {
 /* the values panel's Save/Load of .par and .ic (docs/protocol.md
    "values"), shared by the four functions below: name empty asks for
    one like Save data does (title/wild picking the dialog and the
-   extension), given skips the ask; io is io_parameter_file or
-   io_ic_file, flag READEM or WRITEM */
-void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext,
-                       void (*io)(xpp::Session &, std::string_view, int), int flag)
+   extension), given skips the ask; then io(s, name) */
+template <class F>
+void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext, F io)
 {
   if(name.empty()){
     name=s.model().this_file+ext;
     if(!file_selector(title,name,xpp::format("*{}",ext)))return;
   }
-  io(s,name,flag);
+  io(s,name);
 }
 
 } // namespace
 
 void save_parameter_file(xpp::Session &s, std::string name)
 {
-  named_value_file(s,std::move(name),"Save Parameters",".par",io_parameter_file,WRITEM);
+  named_value_file(s,std::move(name),"Save Parameters",".par",write_parameter_file);
 }
 
 void save_ic_file(xpp::Session &s, std::string name)
 {
-  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",io_ic_file,WRITEM);
+  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",write_ic_file);
 }
 
 void load_parameter_file(xpp::Session &s, std::string name)
 {
-  named_value_file(s,std::move(name),"Load Parameters",".par",io_parameter_file,READEM);
+  named_value_file(s,std::move(name),"Load Parameters",".par",load_parameter_file_named);
 }
 
 void load_ic_file(xpp::Session &s, std::string name)
 {
-  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
+  named_value_file(s,std::move(name),"Load Initial Conditions",".ic",load_ic_file_named);
 }
 
 void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)
@@ -469,161 +770,6 @@ void write_values_query(const xpp::Session &s, std::string_view name, bool sets,
       w.print("{} {:f}\n",m.uvar_names[i],s.last_ic[i]);
   }
   w.commit();
-}
-
-void io_parameters(xpp::Session &s, int f, FILE *fp)
-{
- const xpp::Model &m=s.model();
- int i;
- double z;
- for(i=0;i<m.nupar;i++){
-  if(f!=READEM){
-    get_val(s,m.upar_names[i],&z);
-    io_double(&z,fp,f,m.upar_names[i]);
-  }
-  else {
-    io_double(&z,fp,f," ");
-    set_val(s,m.upar_names[i],z);
-
-    }
-  }
-  if(f==READEM) redraw_params();
- }
-
-void io_heading(int f, FILE *fp, const char *heading)
-{
-  if(f==READEM){
-    if(set_type!=1)return;
-    const std::string line=next_line(fp,heading);
-    if(!line.starts_with("#"))
-      throw SetLineError{xpp::lines_read(fp),xpp::format("\"{}\" is not the heading \"{}\"",line,heading)};
-  }
-  else
-    xpp::print(fp,"{}\n",heading);
-}
-
-void io_exprs(xpp::Session &s, int f, FILE *fp)
-{
- int i;
- double z;
- io_heading(f,fp,"# Delays");
- for(i=0;i<s.model().node;i++)io_string(s.delay_string[i],fp,f);
- io_heading(f,fp,"# Bndry conds");
- for(i=0;i<s.model().node;i++){
-   std::string formula=s.bcs[i].string.data();
-   io_string(formula,fp,f);
-   if(f==READEM)set_bc_formula(s,i,formula);
- }
- io_heading(f,fp,"# Old ICs");
- for(i=0;i<s.model().node+s.model().nmarkov;i++)io_double(&s.last_ic[i],fp,f,s.model().uvar_names[i]);
- io_heading(f,fp,"# Ending  ICs");
- for(i=0;i<s.model().node+s.model().nmarkov;i++)io_double(&s.data_store.current[i],fp,f,s.model().uvar_names[i]);
- io_heading(f,fp,"# Parameters");
- for(i=0;i<s.model().nupar;i++){
-  if(f!=READEM){
-    get_val(s,s.model().upar_names[i],&z);
-    io_double(&z,fp,f,s.model().upar_names[i]);
-  }
-  else {
-    io_double(&z,fp,f,s.model().upar_names[i]);
-    set_val(s,s.model().upar_names[i],z);
-  }
-}
-}
-
-static void io_graph_of(int f, FILE *fp, GRAPH &g)
-{
- int j,k;
- io_heading(f,fp,"# Graphics");
- for(j=0;j<3;j++)
-   for(k=0;k<3;k++)
-     io_double(&(g.rm[k][j]),fp,f,"rm");
- for(j=0;j<MAXPERPLOT;j++){
-        io_int(&(g.xv[j]),fp,f," ");
-        io_int(&(g.yv[j]),fp,f," ");
-        io_int(&(g.zv[j]),fp,f," ");
-        io_int(&(g.line[j]),fp,f," ");
-        io_int(&(g.color[j]),fp,f," ");
-        }
-
-    io_double(&(g.ZPlane),fp,f," ");
-    io_double(&(g.ZView),fp,f," ");
-    io_int(&(g.PerspFlag),fp,f," ");
-    io_int(&(g.ThreeDFlag),fp,f,"3DFlag");
-    io_int(&(g.TimeFlag),fp,f,"Timeflag");
-    io_int(&(g.ColorFlag),fp,f,"Colorflag");
-    io_int(&(g.grtype),fp,f,"Type");
-    io_double(&(g.color_scale),fp,f,"color scale");
-    io_double(&(g.min_scale),fp,f," minscale");
-
-    io_double(&(g.xmax),fp,f," xmax");
-    io_double(&(g.xmin),fp,f," xmin");
-    io_double(&(g.ymax),fp,f," ymax");
-    io_double(&(g.ymin),fp,f," ymin");
-    io_double(&(g.zmax),fp,f," zmax");
-    io_double(&(g.zmin),fp,f," zmin");
-    io_double(&(g.xbar),fp,f, " ");
-    io_double(&(g.dx  ),fp,f," ");
-    io_double(&(g.ybar),fp,f," ");
-    io_double(&(g.dy  ),fp,f," ");
-    io_double(&(g.zbar),fp,f," ");
-    io_double(&(g.dz  ),fp,f," ");
-
-    io_double(&(g.Theta),fp,f," Theta");
-    io_double(&(g.Phi),fp,f, " Phi");
-    io_int(&(g.xshft),fp,f," xshft");
-    io_int(&(g.yshft),fp,f," yshft");
-    io_int(&(g.zshft),fp,f," zshft");
-    io_double(&(g.xlo),fp,f," xlo");
-    io_double(&(g.ylo),fp,f," ylo");
-    io_double(&(g.oldxlo),fp,f," ");
-    io_double(&(g.oldylo),fp,f," ");
-    io_double(&(g.xhi),fp,f," xhi");
-    io_double(&(g.yhi),fp,f," yhi");
-    io_double(&(g.oldxhi),fp,f," ");
-    io_double(&(g.oldyhi),fp,f," ");
-}
-
-void io_graph(xpp::Session &s, int f, FILE *fp)
-{
-  io_graph_of(f,fp,*s.plot_windows.current);
-}
-
-void write_graph(FILE *fp, GRAPH &g)
-{
-  io_graph_of(WRITEM,fp,g);
-}
-
-void read_graph(FILE *fp, GRAPH &g)
-{
-  set_type=1; /* its "# Graphics" heading */
-  io_graph_of(READEM,fp,g);
-}
-
-void io_int(int *i, FILE *fp, int f, std::string_view ss)
-{
- if(f==READEM)
-   line_number(fp,ss,"a whole number",xpp::parse_int,*i);
- else
- xpp::print(fp,"{}   {}\n",*i,ss);
-}
-
-void io_double(double *z, FILE *fp, int f, std::string_view ss)
-{
- if(f==READEM)
-   line_number(fp,ss,"a number",xpp::parse_number,*z);
- else
- xpp::print(fp,"{:.16g}  {}\n",*z,ss);
-}
-
-void io_string(std::string &s, FILE *fp, int f)
-{
- /* One line per string, read whole whatever its length (CR/LF tolerant),
-    so the lines after it stay in step */
- if(f==READEM)
-   s=next_line(fp,"");
- else
-   xpp::print(fp,"{}\n",s);
 }
 
 } // namespace xpp

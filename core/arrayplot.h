@@ -36,7 +36,6 @@ void fit_aplot(xpp::Session &s);
 void scale_aplot(const xpp::Session &s, APLOT *ap, double *zmax, double *zmin);
 int editaplot(xpp::Session &s, APLOT *ap);
 void print_aplot(const xpp::Session &s, APLOT *ap);
-void dump_aplot(xpp::Session &s, FILE *fp, int f);
 /* splits an array plot's first column name at its trailing digits: "u10"
    gives "u" and 10, a name with no digits itself and 0 */
 std::string get_root(std::string_view s, int *num);

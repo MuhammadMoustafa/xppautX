@@ -92,6 +92,12 @@ int auto_settings_num_ok(int i, double v, std::string &why);
    (plot type, names, ranges, fit) draw the diagram again when AUTO's
    window is open, as the AutoPlot form does. Nothing is thrown. */
 int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why);
+/* the same checks, nothing applied, as the diagram will be when it has
+   views views (-1: the views s has; a file's views.txt restores them):
+   false with why and the key of the value that is wrong ("ntst", "pars",
+   "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
+   a file of AUTO's settings to name its line (autox_io.cpp) */
+bool auto_settings_check(const Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key);
 
 } // namespace xpp
 #endif

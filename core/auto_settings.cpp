@@ -280,37 +280,57 @@ bool num_ok(int i, double v, std::string &why)
     return ok;
 }
 
-bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
+/* what a set changes, checked (check), for commit to write */
+struct Checked {
+    double num[AUTO_NUM_N];
+    int pars[8];
+    int view = 0, plot = 0, var = 0, icp1 = 0, icp2 = 0;
+    double range[4];
+    int uzr[AUTO_SETTINGS_MARKS];
+};
+
+/* set checked against s, as it will be when views views of the diagram
+   are there (-1: the views s has), into c: false, with why and the key
+   of the value that is wrong ("ntst", "pars", "var", "mark2", ...; "" for
+   the whole set) when one is */
+bool check(const xpp::Session &s, const AutoSettingsSet *set, int views, Checked &c, std::string &why, std::string &key)
 {
+    key.clear();
     if (!have_settings(s)) {
         why = xpp::format("AUTO is restricted to less than {} variables", NAUTO);
         return false;
     }
     /* Numerics: each value given, then the pairs that must be in order */
-    double num[AUTO_NUM_N];
+    double *num = c.num;
     read_num(s, num);
     for (int i = 0; i < AUTO_NUM_N; i++) {
         if (!set->has_num[i]) continue;
-        if (!num_ok(i, set->num[i], why)) return false;
+        if (!num_ok(i, set->num[i], why)) {
+            key = num_fields[i].key;
+            return false;
+        }
         num[i] = set->num[i];
     }
     for (const NumPair &p : num_pairs) {
         if (!set->has_num[p.lo] && !set->has_num[p.hi]) continue;
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
         why = pair_message(p);
+        key = num_fields[p.hi].key;
         return false;
     }
     if ((set->has_num[AUTO_NUM_DS] || set->has_num[AUTO_NUM_DSMIN] || set->has_num[AUTO_NUM_DSMAX])
         && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
         why = step_rule;
+        key = num_fields[AUTO_NUM_DS].key;
         return false;
     }
 
     /* the Parameter form: AUTO's parameters by name */
-    int pars[8];
+    int (&pars)[8] = c.pars;
     std::memcpy(pars, s.auto_state.par.data(), sizeof pars);
     if (set->npars > s.auto_state.npar) {
         why = xpp::format("AUTO has {} parameters for this model, not {}", s.auto_state.npar, set->npars);
+        key = "pars";
         return false;
     }
     for (int k = 0; k < set->npars; k++) {
@@ -318,6 +338,7 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
         int p = xpp::find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
         if (p < 0) {
             why = xpp::format("{} is not a parameter", set->pars[k]);
+            key = "pars";
             return false;
         }
         pars[k] = p;
@@ -326,16 +347,29 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     /* the Axes: plot type, the variable, the two parameters among AUTO's, the ranges */
     /* of the view named (W50), else the active one: setting a view's axes makes it the active one */
     const int view = set->view < 0 ? s.auto_state.active_view : set->view;
-    if (view >= static_cast<int>(s.auto_state.views.size())) {
+    c.view = view;
+    if (view >= (views < 0 ? static_cast<int>(s.auto_state.views.size()) : views)) {
         why = xpp::format("there is no view {}", view);
+        key = "view";
         return false;
     }
-    const AUTOAX &now = s.auto_state.views[static_cast<std::size_t>(view)].axes;
-    int plot = now.plot, var = now.var, icp1 = now.icp1, icp2 = now.icp2;
-    double range[4] = {now.xmin, now.xmax, now.ymin, now.ymax};
+    /* a view not there yet (views) starts from the active one's axes */
+    const AUTOAX &now = static_cast<std::size_t>(view) < s.auto_state.views.size() ? s.auto_state.views[static_cast<std::size_t>(view)].axes
+                                                                                  : s.auto_state.axes();
+    int &plot = c.plot, &var = c.var, &icp1 = c.icp1, &icp2 = c.icp2;
+    plot = now.plot;
+    var = now.var;
+    icp1 = now.icp1;
+    icp2 = now.icp2;
+    double (&range)[4] = c.range;
+    range[0] = now.xmin;
+    range[1] = now.xmax;
+    range[2] = now.ymin;
+    range[3] = now.ymax;
     if (set->has_plot) {
         if (!plot_ok(set->plot)) {
             why = xpp::format("{} is not one of AUTO's plot types (0-4, 10, 11)", set->plot);
+            key = "plot";
             return false;
         }
         plot = set->plot;
@@ -345,25 +379,29 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
         find_variable(s,set->var.c_str(), &col);
         if (col < 1 || col > s.model().node) {
             why = xpp::format("{} is not a variable AUTO computes", set->var);
+            key = "var";
             return false;
         }
         var = col - 1;
     }
-    const struct { const char *name; int *icp; } axis_pars[] = {{set->par1.c_str(), &icp1}, {set->par2.c_str(), &icp2}};
+    const struct { const char *name; int *icp; const char *key; } axis_pars[] = {{set->par1.c_str(), &icp1, "par1"}, {set->par2.c_str(), &icp2, "par2"}};
     for (const auto &a : axis_pars) {
         if (!a.name[0]) continue;
         int k = auto_index_of(s, pars, a.name);
         if (k < 0) {
             why = xpp::format("{} is not one of AUTO's parameters (see Parameter)", a.name);
+            key = a.key;
             return false;
         }
         *a.icp = k;
     }
     static const char *const range_names[4] = {"Xmin", "Xmax", "Ymin", "Ymax"};
+    static const char *const range_keys[4] = {"xmin", "xmax", "ymin", "ymax"};
     for (int i = 0; i < 4; i++) {
         if (!set->has_range[i]) continue;
         if (!std::isfinite(set->range[i])) {
             why = xpp::format("{} must be a number", range_names[i]);
+            key = range_keys[i];
             return false;
         }
         range[i] = set->range[i];
@@ -371,14 +409,16 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     for (int i = 0; i < 4; i += 2) {
         if ((set->has_range[i] || set->has_range[i + 1]) && !(range[i] < range[i + 1])) {
             why = xpp::format("{} must be below {}", range_names[i], range_names[i + 1]);
+            key = range_keys[i + 1];
             return false;
         }
     }
 
     /* Mark values: parameter (or T, the period) = value */
-    int uzr[AUTO_SETTINGS_MARKS];
+    int (&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     if (set->nmarks > AUTO_SETTINGS_MARKS) {
         why = xpp::format("at most {} Mark values", AUTO_SETTINGS_MARKS);
+        key = "mark";
         return false;
     }
     for (int i = 0; i < set->nmarks; i++) {
@@ -386,15 +426,27 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
         if (uzr[i] < 0) {
             why = xpp::format("Mark values: {} is not one of AUTO's parameters (see Parameter) or T",
                                     set->mark_name[i]);
+            key = xpp::format("mark{}", i);
             return false;
         }
         if (!std::isfinite(set->mark_value[i])) {
             why = xpp::format("Mark values: the value of {} must be a number", set->mark_name[i]);
+            key = xpp::format("mark{}", i);
             return false;
         }
     }
 
-    /* all good: write them, as the forms do */
+    return true;
+}
+
+/* set, checked into c, written as the forms do */
+void commit(xpp::Session &s, const AutoSettingsSet *set, const Checked &c)
+{
+    const double *num = c.num;
+    const int(&pars)[8] = c.pars;
+    const int view = c.view, plot = c.plot, var = c.var, icp1 = c.icp1, icp2 = c.icp2;
+    const double(&range)[4] = c.range;
+    const int(&uzr)[AUTO_SETTINGS_MARKS] = c.uzr;
     write_num(s, num);
     const bool new_pars = set->npars > 0 && std::memcmp(pars, s.auto_state.par.data(), sizeof pars) != 0;
     for (int k = 0; k < set->npars; k++) {
@@ -432,6 +484,14 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     }
     /* the diagram in its new quantities (and a new parameter's name on its axis) */
     if ((axes || new_pars) && s.auto_state.bifur.exist) redraw_diagram(s);
+}
+
+bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
+{
+    Checked c;
+    std::string key;
+    if (!check(s, set, -1, c, why, key)) return false;
+    commit(s, set, c);
     return true;
 }
 
@@ -480,6 +540,12 @@ int auto_settings_num_ok(int i, double v, std::string &why)
         }
     }
     return 0;
+}
+
+bool auto_settings_check(const xpp::Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key)
+{
+    Checked c;
+    return check(s, &set, views, c, why, key);
 }
 
 int auto_settings_apply(xpp::Session &s, const AutoSettingsSet &set, std::string &why)

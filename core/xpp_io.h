@@ -26,9 +26,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "xpp_error.h" /* a file of ours that does not read (read_lines) */
 #include "xpp_files.h" /* the files the readers and writers open */
 
 #if defined(__cpp_lib_format) || (defined(__has_include) && __has_include(<format>))
@@ -306,13 +308,6 @@ inline UniqueFile open_read_binary(std::string_view path) noexcept
     return UniqueFile(xpp::files::open_stream(path, "rb"));
 }
 
-/* the lines of fp before its position, the one it is in counting (a last
-   line without its newline too): the line a reader just read, for a
-   message saying where a file is wrong; the position is kept. Exact for a
-   file opened binary (open_read_binary: LineReader takes \r\n as well);
-   on Windows a text stream's position is not a byte count. */
-int lines_read(FILE *fp);
-
 /* path's whole contents, byte for byte, into out; false (out empty) when
    it cannot be opened or read. std::bad_alloc is the caller's to catch. */
 inline bool read_bytes(std::string_view path, std::string &out)
@@ -348,7 +343,7 @@ void print(FILE *fp, std::format_string<Args...> fmt, Args &&...args) noexcept
    the FILE * (closed when the handle goes); attach()ed to a FILE * the
    caller already has, they read through it without owning it, for a
    helper that takes a plain FILE * from elsewhere and must not close it
-   (lunch-new.cpp's io_int/io_double, diagram.cpp's load_diagram). A
+   (diagram.cpp's load_diagram). A
    handle that could not be made is false. */
 
 /* Lines of any length, CR/LF tolerant: next() gives the next line without
@@ -481,6 +476,122 @@ public:
 private:
     std::unique_ptr<State, Free> state_;
 };
+
+/* ---- A file of ours, loaded: all or nothing, strict (W125) ------------
+   Loading one of xppautX's own files is one operation, the same for each
+   kind: read the whole file into a value (no change to the Session yet),
+   checking every line and every value; then the caller applies that value
+   in one step that cannot fail, or, when a line is wrong, applies nothing
+   and shows the error, which names the file, the line and the line as
+   written (an xpp::Error with its xpp::Place). read_lines below is that
+   first half, the one way such a file is read. Every load of one of our
+   files goes through it:
+     - a set file (.set: File > Read set, -setfile, a session's model.set)
+       and a parameter file (.par: -parfile, the values panel's Load):
+       lunch-new.cpp's read_set_file and read_parameter_file;
+     - an initial-conditions file (.ic: -icfile, Initialconds/File, the
+       values panel's Load): lunch-new.cpp's read_ic_file;
+     - a session's members windows.set, marks.set and random.txt (.snapx:
+       Open session, a recording's snapshot): xpp_session.cpp's
+       read_windows, read_marks and read_random, all read and checked
+       (read_session) before any is applied (apply_session); model.set as
+       a set file above; data.npz and frozen.npz are NPZ, checked whole
+       (data_formats.cpp) the same way;
+     - AUTO's members settings.txt, diagram.csv, views.txt (.autox, a
+       session's auto/) and AUTO's settings file (.autoset, its Load
+       settings): autox.cpp's parse_settings, parse_diagram_csv,
+       parse_views;
+     - a recording (.recx: Play recording, Open model of one, the command
+       line): recx.cpp's read.
+   (An internal set, File > Get par set, is a model's line, not a file:
+   load_eqn.cpp's extract_action checks every item before it applies one;
+   a model's own files, .ode and .odex, load all or nothing through
+   xpp::Load, session.h.) What proves it: tests/test_lunch.cpp,
+   test_autox.cpp and test_recx.cpp, servercheck's
+   check_load_all_or_nothing, its session and player checks and
+   autocheck's autox section give each kind a bad value on its last line
+   and find the session as it was and the error at that line.
+   Foreign formats (XPPAUT's .auto, a data file) are imports, read where
+   they are converted. */
+
+/* text's lines, each without its \n or \r\n (a last line needs none; no
+   bytes, no lines): the views are into text */
+std::vector<std::string_view> split_lines(std::string_view text);
+
+/* line n (from 1) of text, the file named file, as a Place (the line as
+   written): a value read whole that a later check refuses, at its line */
+Place line_place(std::string file, std::string_view text, int n);
+
+/* what a reader of Lines throws at a line that is wrong: the error, at
+   its place; read_lines turns it into its Result */
+struct ReadFailed {
+    Error error;
+};
+
+/* a file of ours as lines, for a reader that takes them one by one */
+class Lines {
+public:
+    /* text's lines (a \n or \r\n ends one; a last line needs none), of
+       the file named file, read by where ("set file", ...: the Error's) */
+    Lines(std::string where, std::string file, std::string_view text);
+    const std::string &file() const noexcept { return file_; }
+    /* no line is left */
+    bool at_end() const noexcept { return next_ >= lines_.size(); }
+    /* the line read last, from 1; 0 before the first */
+    int line() const noexcept { return static_cast<int>(next_); }
+    /* the next line whole; at the end of the file ReadFailed, what (the
+       line due: a value's name, or "") named */
+    std::string_view next(std::string_view what = {});
+    /* the next line's first word, as a whole number or a number (the set
+       format's line: the value, then blanks and its name, which is not
+       read); ReadFailed when it is not one, what named */
+    int whole(std::string_view what);
+    double real(std::string_view what);
+    /* the next line starts with "#" (a set file's heading); ReadFailed
+       when not */
+    void heading(std::string_view heading);
+    /* nothing but blank lines is left; ReadFailed at the first line that
+       is not blank */
+    void end();
+    /* line n (from 1) as written; "" past the end */
+    std::string_view text(int n) const noexcept;
+    /* what is wrong at line n (the line read last), its place named */
+    Error error(int n, std::string what) const;
+    [[noreturn]] void fail(int n, std::string what) const;
+    [[noreturn]] void fail(std::string what) const { fail(line(), std::move(what)); }
+
+private:
+    std::string where_, file_, text_;
+    std::vector<std::string_view> lines_;
+    std::size_t next_ = 0;
+};
+
+/* parse(lines) over text, the contents of file (the name its errors
+   give): the value it read, or the error at the line it stopped at
+   (ReadFailed) */
+template <class F>
+auto read_lines(std::string where, std::string file, std::string_view text, F &&parse)
+    -> Result<std::invoke_result_t<F &, Lines &>>
+{
+    Lines lines(std::move(where), std::move(file), text);
+    try {
+        return parse(lines);
+    } catch (ReadFailed &e) {
+        return std::unexpected<Error>(std::move(e.error));
+    }
+}
+
+/* the same over the file at path, read whole; the error when it cannot
+   be read (its place the file, no line) */
+template <class F>
+auto read_file_lines(std::string where, std::string_view path, F &&parse)
+    -> Result<std::invoke_result_t<F &, Lines &>>
+{
+    std::string bytes;
+    if (!read_bytes(path, bytes))
+        return fail_reading(std::move(where), "Cannot open file", std::string(path));
+    return read_lines(std::move(where), std::string(path), bytes, parse);
+}
 
 } // namespace xpp
 

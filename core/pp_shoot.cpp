@@ -15,7 +15,6 @@
 #include "graf_par.h"
 #include "integrate.h"
 #include "xpp_job.h"
-#include "lunch-new.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -96,16 +95,6 @@ void init_shoot_range(xpp::Session &s, std::string_view item)
  s.shoot_range.movie=0;
 }
   
-void dump_shoot_range(xpp::Session &s, FILE *fp, int f)
-{
-  io_string(s.shoot_range.item,fp,f);
-  io_int(&s.shoot_range.side,fp,f,"BVP side");
-  io_int(&s.shoot_range.cycle,fp,f,"color cycle flag 1=on");
-  io_int(&s.shoot_range.steps,fp,f,"BVP range steps");
-  io_double(&s.shoot_range.plow,fp,f,"BVP range low");
-  io_double(&s.shoot_range.phigh,fp,f,"BVP range high");
-
-}
 
 void bad_shoot(int iret)
 {

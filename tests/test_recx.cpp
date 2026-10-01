@@ -60,12 +60,11 @@ int main()
 
     /* read back: the same recording, intact; a note edited keeps it so,
        and the text written again with it keeps what the file said */
-    std::string error;
     r = sample();
     xpp::recx::add_file(r, {"lecar.autox", std::string("PK\x03\x04\0binary\xff", 12)}); /* a zip: @binary */
     const std::string file = xpp::recx::text(r);
     CHECK(file.find("\n@binary lecar.autox\nUEsDBABiaW5hcnn/\n@end\n") != std::string::npos);
-    std::optional<xpp::recx::Read> back = xpp::recx::read(file, error);
+    xpp::Result<xpp::recx::Read> back = xpp::recx::read(file, "");
     CHECK(back && back->intact);
     CHECK(back->rec.files.size() == 2 && back->rec.files[1].bytes == r.files[1].bytes);
     CHECK_STR(back->rec.files[0].bytes.c_str(), "x'=-x\n@end\n@@ twice\n@ total=10\ndone\n");
@@ -75,20 +74,33 @@ int main()
     CHECK_STR(xpp::recx::text(back->rec).c_str(), file.c_str());
     std::string edited = file;
     edited.replace(edited.find("# It settles."), 13, "# It fires and settles.");
-    back = xpp::recx::read(edited, error);
+    back = xpp::recx::read(edited, "");
     CHECK(back && back->intact);
     edited.replace(edited.find("[\"e\"]"), 5, "[\"x\"]");
-    back = xpp::recx::read(edited, error);
+    back = xpp::recx::read(edited, "");
     CHECK(back && !back->intact); /* a step changed: it still reads */
     back->rec.steps[0].note = "Saved again.";
-    CHECK(!xpp::recx::read(xpp::recx::text(back->rec), error)->intact); /* saving a note does not mend it */
-    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@snapshot\nUEsFBg==\n@end\n@file a.ode\nx'=1\n", error));
-    CHECK_STR(error.c_str(), "line 6: the section of a.ode has no @end");
+    CHECK(!xpp::recx::read(xpp::recx::text(back->rec), "")->intact); /* saving a note does not mend it */
+    /* each refusal at its line (W125): "line N: what" with no file named */
+    const auto error = [](std::string_view text) {
+        const xpp::Result<xpp::recx::Read> e = xpp::recx::read(text, "");
+        return e ? std::string() : e.error().text();
+    };
+    const std::string head = "xppautx-recording 1\nprogram: xppautX\nmodel: a.ode\nrecorded: now\n\n";
+    CHECK(error(head + "@snapshot\nUEsFBg==\n@end\n@file a.ode\nx'=1\n") == "line 9: the section of a.ode has no @end");
     /* no fallback: a file without the session it began from is not a recording */
-    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@file a.ode\nx'=1\n@end\n@steps\n", error));
-    CHECK_STR(error.c_str(), "line 3: no @snapshot section before the files: a recording begins with the session's state");
-    CHECK(!xpp::recx::read("xppautx-recording 1\n\n@steps\n", error));
-    CHECK_STR(error.c_str(), "line 3: no @snapshot section: a recording begins with the session's state");
-    CHECK(!xpp::recx::read("not one\n", error));
+    CHECK(error(head + "@file a.ode\nx'=1\n@end\n@steps\n") == "line 6: no @snapshot section before the files: a recording begins with the session's state");
+    CHECK(error(head + "@steps\n") == "line 6: no @snapshot section: a recording begins with the session's state");
+    CHECK(error("not one\n").starts_with("line 1: not a recording"));
+    /* the header: each line once, none other, a model named */
+    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.ode\n\n") == "line 4: the header has no \"recorded:\" line");
+    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.ode\nmodel: b.ode\n") == "line 4: a second \"model:\" line");
+    CHECK(error("xppautx-recording 1\nauthor: me\n") == "line 2: \"author: me\" is not a header line (program:, model:, recorded:)");
+    /* the fingerprint ends it: missing, or a line after it */
+    const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"keys\":[\"g\"]}\n";
+    CHECK(error(steps) == "line 11: the file ends here, before its fingerprint");
+    CHECK(error(steps + "fingerprint: 00\nmore\n") == "line 12: \"more\" after the end of what the file holds");
+    const xpp::Result<xpp::recx::Read> one = xpp::recx::read(steps + "fingerprint: 00\n", "");
+    CHECK(one && !one->intact && one->rec.steps.size() == 1 && one->rec.steps[0].at == 10);
     TEST_REPORT("test_recx");
 }

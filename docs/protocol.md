@@ -100,6 +100,26 @@ does (`file:line: what`). Errors that do not come from a file yet (a
 command's argument, a computation) have no place until W140b gives them
 theirs; `tools/errorcheck.py` counts them.
 
+### Our files: all or nothing
+
+Loading one of xppautX's own files is one operation (W125, core/xpp_io.h
+`read_lines`, its comment listing every reader): the whole file is read
+into a value and every line and value checked, then the value is applied
+in one step, or, at the first line that is wrong, nothing is applied and
+the error names the file, the line and the line as written. The same for
+a set file (`.set`: File/Read set, `-setfile`), a parameter file (`.par`)
+and an initial-conditions file (`.ic`: `values` `read`, `-parfile`,
+`-icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
+files"), AUTO's file and its settings file (`.autox`, `.autoset`: "AUTO
+files"), and a recording (`.recx`, "Playing a recording"); a model's
+internal set (File/Get par set) checks every item before it applies one,
+a bad item an error at the `set` line. Strict: a line that is not one of
+the file's, a key given twice or missing, a number that does not read
+(`1e999` too), a value out of range (a method's or a Poincare map's
+number, a boundary condition longer than its room) and a line after the
+last the file holds all refuse the file; a file of ours is never read in
+part. A file that cannot be read at all is the error with line 0 (above).
+
 ## Commands (client to server)
 
 | cmd | fields | meaning |
@@ -113,7 +133,7 @@ theirs; `tools/errorcheck.py` counts them.
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
 | `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `-silent` does after its run. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `io_parameter_file`/`io_ic_file`, W66): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window; one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data or File/Write set). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
 | `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `-silent`'s `-dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
 | `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `-silent`'s `-equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
@@ -536,9 +556,13 @@ began from, its `@snapshot` (W59d): its model, from the files saved there,
 then everything as it was when Record was pressed, as Open model of a
 `.snapx` restores it (the data table excepted: the steps compute it). The
 `player` event lists the steps, and `state.player` says where the player
-is. A recording that does not read (not one, no `@snapshot`, a section
-with no `@end`, no `@steps`, a step that is not a JSON object with `keys`
-or a `cmd`) is an `error` message and nothing changes. One whose
+is. A recording that does not read (not one, a header line missing,
+twice or not one of `program:`, `model:`, `recorded:`, no `@snapshot`, a
+section with no `@end`, no `@steps`, a step that is not a JSON object
+with `keys` or a `cmd`, no `fingerprint:` line or a line after it) is an
+`error` message at its line (`file` the `.recx`, `line`, `source`: W125)
+and nothing changes: every step is read before anything is played or
+loaded. One whose
 fingerprint does not match plays all the same: `player`'s `intact` is
 false, and the page says it was changed after it was made.
 
@@ -901,9 +925,13 @@ AUTO's settings alone as a file (W118): the AUTO window's File menu has
 save settinGs (`g`) and settings From file (`f`), each asking for a file
 (`ask` kind `file`, wildcard `*.autoset`): one "key value" line per
 setting, the `.autox` member `settings.txt`'s text (core/autox.cpp
-settings_text, the one serialization of them; "AUTO files"). A file that
-is not every setting is refused whole (`message` `error`); a value AUTO
-does not take is refused as `set` refuses it. Axes (and new parameters) draw an open diagram again in its new
+settings_text, the one serialization of them; "AUTO files"). Loading
+one is all or nothing (W125, "Our files: all or nothing"): a file that
+is not every setting once, has a line that is not one or a value that
+does not read, is refused whole (`message` `error`, the file and its
+line: `lecar.autoset:2: the file ends here, without its nmx line`); a
+value AUTO does not take is refused as `set` refuses it, at its line
+(`lecar.autoset:4: Ncol must be a whole number from 2 to 7`). Axes (and new parameters) draw an open diagram again in its new
 quantities, as the AutoPlot form's OK does. The forms stay: `set` is a
 second way to the same fields (Numerics, `param`, Axes, `usr`), and each
 shows what the other wrote.
@@ -1213,13 +1241,17 @@ is not one it has: "later 1"`), and (W116) one with a member it always
 writes missing (`model.set`, `windows.set`, `marks.set`, `random.txt`, which must also load as a generator state; `data.npz` when
 `data` is 1, and only then; AUTO's four when one is there; the points of
 every frozen curve `marks.set` lists) or one whose member does not read: a
-line missing or not a number, a variable, a window or a slot it does not
-have. The members are read against the model's load before it is kept,
-so the session before stays exactly as it was, its model included; the
-error names the member and the line: `s1.snapx could not be loaded
-(s1.snapx: its windows.set, line 11: the file ends here); lecar.ode is
-still loaded` (at the start, the command line's file, the `error` event,
-then exit 1). The command
+line missing or not a number, a value out of range, a line after the
+last it holds, a variable, a window or a slot it does not have, a value
+of AUTO's it does not take. Every member is read whole and checked
+against the model's load before it is kept, and only then applied (W125):
+the session before stays exactly as it was, its model included; the
+error's place is the member's line, the member named inside its file
+(`file` `s1.snapx/windows.set`, `line` 11, `source` the line as written):
+`s1.snapx/windows.set:11: s1.snapx could not be loaded (the file ends
+here, before # Graphics); lecar.ode is still loaded` (at the start, the
+command line's file, the `error` event, then exit 1). A member missing
+is named on the file itself (`s1.snapx: its random.txt is missing`). The command
 line opens one too, `xppautX name.snapx` (every mode but `-silent`),
 from its own folder.
 
@@ -1259,13 +1291,15 @@ grabbed point as the one saved would. A file without its model is
 refused, as a session file is; so is one without `settings.txt`,
 `diagram.csv`, `solutions.s` or `views.txt` (every file saved before W50
 lacks the last), or with one that does not read (a key `settings.txt`
-does not have, or one missing; a row of `diagram.csv` cut short): an
-error names the member (`d1.autox: its views.txt is missing`, `its
-diagram.csv cannot be read`; in a session file, `auto/views.txt`), and
-nothing changes, the model open included (W116). Save diagram, and Save
+does not have, given twice or missing; a row of `diagram.csv` cut short)
+or holds a value AUTO does not take for this model (a setting, a view's
+axes): an error names the member (`d1.autox: its views.txt is missing`)
+or its line (`d1.autox/diagram.csv:5: 30 fields, not 45`; in a session
+file, `s1.snapx/auto/views.txt:2: ...`), and nothing changes, the model
+open included (W116, W125). Save diagram, and Save
 session with a diagram, are refused with an error when AUTO's solution
 file cannot be read (the orbits a grab restarts from). A setting the model no longer takes
-leaves AUTO's settings as they were, which a `message` `bottom` says. An
+refuses the file, at its line, as above. An
 XPPAUT `.auto` file still loads into the model open, as an import (after
 asking whether to destroy the diagram there is): its settings, its
 diagram (to the 6 digits it prints) and its solutions; File/Save diagram

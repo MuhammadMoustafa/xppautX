@@ -161,8 +161,13 @@ whether to save the session open, since it takes its place. A session file witho
 its model (one saved before this version) is refused with an error, and so
 is one with a part missing or damaged (a member cut short, a line that is
 not a number, a variable the model does not have): the error names the
-part and its line (`s1.snapx: its windows.set, line 12: ...`), and the
-session open stays exactly as it was, nothing of the file taken. The
+part and its line (`s1.snapx/windows.set:12: ...`), and the
+session open stays exactly as it was, nothing of the file taken. Every
+file of xppautX's loads this way, all or nothing: a set, parameter or
+initial-conditions file, an AUTO file or AUTO settings file and a
+recording are read and checked whole first, and a bad value anywhere in
+one, even on its last line, is an error naming the file and that line,
+with nothing of the file applied. The
 earlier runs a window shows until Erase are
 not saved (the data table is the last run's), nor are Sing pts'
 equilibrium symbols. A data table above 50 MB makes Save session ask
