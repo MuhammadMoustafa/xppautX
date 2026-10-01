@@ -638,7 +638,7 @@ const XppMenu menu_auto_hopf = XPP_MENU("auto", "Hopf Pt", auto_hopf_items, "pen
 static const char *auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
 const XppMenu menu_auto_branch = XPP_MENU("auto", "Branch Pt", auto_branch_items, "sent", "xxxx", no_hint, -1);
 
-/* the File menu's own 15 hints plus one for the CSV export */
+/* the File menu's own 15 hints plus the CSV export and the settings file (W118) */
 static const char *const auto_file_hint[]={
 "Load a computed orbit into XPP",
 "Save the diagram, its orbits and AUTO's settings (.autox)",
@@ -655,11 +655,13 @@ static const char *const auto_file_hint[]={
 "Select a point in 2 parameter diagram",
 "Draw orbits of labeled points automatically",
 "Put all data from branch into browser",
-"Write the diagram, and its eigenvalues/multipliers, as CSV"};
+"Write the diagram, and its eigenvalues/multipliers, as CSV",
+"Save AUTO's settings alone to a file (.autoset)",
+"Set AUTO's settings from a saved file (.autoset)"};
 static const char *auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
   "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
-  "draw laBled","lOad branch","eXport CSV"};
-const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtnebox", "ddddddddddvxdxdd", auto_file_hint, -1);
+  "draw laBled","lOad branch","eXport CSV","save settinGs","settings From file"};
+const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxgf", "ddddddddddvxdxdddd", auto_file_hint, -1);
 
 static const char *auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);

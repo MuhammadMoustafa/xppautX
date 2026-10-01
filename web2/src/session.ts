@@ -26,7 +26,7 @@ import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
 import type {TextTab} from './store/text';
 import {fieldKey, setCommand, type ValueSet} from './store/values';
-import {parseSettings, setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
+import {setCommand as autoSetCommand, type AutoSettingsPatch} from './store/autoSettings';
 
 /** the data browser's buttons (docs/protocol.md `browser` op; web/xpp-client.js's BROWSER_BUTTONS) */
 export type BrowserOp = 'find' | 'get' | 'replace' | 'unreplace' | 'table' | 'load' | 'write' | 'first' | 'last'
@@ -763,16 +763,10 @@ export class Session {
     if (this.send(autoSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
   }
 
-  /** a saved settings file set as AUTO's settings; null when done, else
-      what is wrong with the file (also a notification) */
-  loadAutoSettings(text: string): string | null {
-    const {patch, error} = parseSettings(text);
-    if (!patch) {
-      this.store.dispatch({type: 'toast', kind: 'error', text: error!});
-      return error;
-    }
-    this.autoSettings(patch);
-    return null;
+  /** AUTO's File > settings From file (core/auto_nox.cpp auto_file): the core asks for
+      the file and reads it (its own format, autox.h settings_extension) */
+  loadAutoSettings(): void {
+    this.runPlan([this.layerKey('auto', 'file')], [ask => (ask.kind === 'menu' ? {key: 'f'} : null)]);
   }
 
   /** the AUTO view's close: done with it (A10). A running job is stopped

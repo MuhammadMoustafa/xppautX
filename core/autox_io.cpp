@@ -16,6 +16,7 @@
 #include "auto_data.h"
 #include "auto_nox.h"
 #include "auto_settings.h"
+#include "browse.h"
 #include "diagram.h"
 
 #include <map>
@@ -158,6 +159,38 @@ bool import_file(Session &s, const std::string &path)
     }
     fp.reset();
     if (s.auto_state.bifur.exist) redraw_diagram(s);
+    return true;
+}
+
+bool save_settings_file(const Session &s, const std::string &path)
+{
+    xpp::Writer w = open_writer_asking(path);
+    if (!w) return false;
+    if (!w.write(settings_text(auto_settings_now(s)))) {
+        w.abort();
+        err_msg(xpp::format("Cannot write {}", path));
+        return false;
+    }
+    return w.commit();
+}
+
+bool load_settings_file(Session &s, const std::string &path)
+{
+    std::string bytes;
+    if (!xpp::read_bytes(path.c_str(), bytes)) {
+        err_reading(path, xpp::format("Cannot open {}", path));
+        return false;
+    }
+    const std::optional<AutoSettingsSet> set = parse_settings(bytes);
+    if (!set) {
+        err_msg(xpp::format("{} is not a file of AUTO's settings ({})", file_name(path), settings_extension));
+        return false;
+    }
+    std::string why;
+    if (auto_settings_apply(s, *set, why) != 0) {
+        err_msg(xpp::format("AUTO settings: {}", why));
+        return false;
+    }
     return true;
 }
 

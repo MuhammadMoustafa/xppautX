@@ -2062,21 +2062,21 @@ async function autoView(dir) {
     dottedNmx.invalid === null && dottedNmx.error === 'Pasted ".5" is not a whole number ("." at character 1)'
     && dottedNmx.ok === false, JSON.stringify(dottedNmx));
   /* T31: a lone sign is on the way to a whole number while typed (fieldIncomplete), so it lands;
-     Enter on it keeps the form and its message (numError's own wording), sends nothing */
+     Enter on it keeps the form and its message (the core's, from the event's rules), sends nothing */
   await typeInto('nmx', '-');
   await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=nmx]').focus()`);
   await key('Enter');
   await sleep(200);
   const signNmx = await fieldState('nmx');
   check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
-    signNmx.invalid === 'true' && signNmx.error === 'Max points (NMX) must be a whole number' && signNmx.ok === true
+    signNmx.invalid === 'true' && signNmx.error === 'Nmax must be a whole number of at least 1' && signNmx.ok === true
     && await cdp.eval(`!!document.querySelector('.auto-settings-dialog')`)
     && !(await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'set')`)), JSON.stringify(signNmx));
   await typeInto('nmx', '200');
   await typeInto('ds', '9');
   const bigDs = await fieldState('ds');
   check('T23: a first step larger than DSMAX is refused beside DS, OK disabled',
-    bigDs.error === 'DS must be from DSMIN to DSMAX in size' && bigDs.ok === true, JSON.stringify(bigDs));
+    bigDs.error === 'Ds must be from Dsmin to Dsmax in size (its sign is the direction)' && bigDs.ok === true, JSON.stringify(bigDs));
   await key('Escape');
   check('T22: Escape cancels it: nothing sent',
     await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics cancelled')
@@ -2410,28 +2410,26 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
-  /* T22: Load settings, from a settings JSON the page reads (not one it
-     wrote any more: Save settings went at W66, docs/roadmap.md -- AUTO's
-     settings live in the .auto file, docs/protocol.md `session`). Only
-     the fields under test are given: parseSettings patches just what a
-     file names, so a minimal fixture proves the form and the core agree,
-     same as the old Save/Load round trip did for these fields. The AUTO
-     Stop race (W42, GitHub #85) is tested separately, on
-     tools/models/heavy.ode, in autoStopRace() below -- a run whose
-     settings need to defeat a timing race (fast enough to still be seen
-     running, slow enough that Stop still lands within its budget) does
-     not belong here, tangled with unrelated settings-file coverage; see
-     autoStopRace()'s own comment for why. */
-  const saved = {
-    xppautX: 'auto-settings', version: 2,
-    numerics: {Nmax: '20000'},
-    plot: 1,
-    axes: {Xmin: '0.01', Xmax: '0.4'},
-  };
-  const setFile = path.join(dir, 'lecar-auto.json');
-  fs.writeFileSync(setFile, JSON.stringify(saved));
-  await pickFiles('#auto-settings-load', [setFile]);
-  check('T22: Load settings sets them (one auto set): norm plot at the file\'s x range',
+  /* T22, W118: Load settings goes through the core: AUTO's File > settings
+     From file asks for the file (the page uploads it, as any file ask) and
+     the core reads its own format (core/autox.cpp settings_text, the .autox
+     member's text: every setting, one "key value" line each), built here
+     from the core's settings now with Nmax, the plot type and the x range
+     changed. The AUTO Stop race (W42, GitHub #85) is tested separately, on
+     tools/models/heavy.ode, in autoStopRace() below. */
+  const cur = await S('s.autoSettings.core');
+  const nameOf = n => (n === null || n === '' ? '-' : n);
+  const lines = Object.keys(cur.rules).map(k => `${k} ${k === 'nmx' ? 20000 : cur.numerics[k]}`);
+  lines.push(`pars ${cur.pars.map(nameOf).join(' ')}`, 'plot 1', `var ${nameOf(cur.axes.var)}`, `par1 ${nameOf(cur.axes.par1)}`,
+    `par2 ${nameOf(cur.axes.par2)}`, 'xmin 0.01', 'xmax 0.4', `ymin ${cur.axes.ymin}`, `ymax ${cur.axes.ymax}`);
+  for (const [n, v] of cur.marks) lines.push(`mark ${n} ${v}`);
+  const setFile = path.join(dir, 'lecar-w118.autoset');
+  fs.writeFileSync(setFile, lines.join('\n') + '\n');
+  const setsBefore = await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`);
+  await cdp.eval(`document.querySelector('#auto-settings-load').click()`);
+  await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read' && document.querySelector('.file-ask')`, 'settings file ask');
+  await pickFiles('[data-file-input=open]', [setFile]);
+  check('T22, W118: Load settings sets them through the core (File > settings From file): norm plot at the file\'s x range',
     await until(`!s.busy && !s.ask && dv.axes.plot === 1 && dv.axes.xmin === 0.01 && dv.axes.xmax === 0.4
       && dv.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
   await autoButton('N');
@@ -2439,7 +2437,7 @@ async function autoView(dir) {
   check("T22: ... and the Numerics (Nmax 20000): the core's settings and the form",
     await S(`s.autoSettings.core.numerics.nmx === 20000
       && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '20000'`)
-    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === 2,
+    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === setsBefore,
     JSON.stringify([await S('s.autoSettings.core.numerics'), await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto')`)]));
   await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
   await key('Escape');

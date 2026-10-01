@@ -114,11 +114,11 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
   const [texts, setTexts] = useState<Record<string, string>>(() =>
     Object.fromEntries(NUM_FIELDS.map(f => [f.key, shown ? String(shown.numerics[f.key]) : ''])));
   if (!shown) return null;
-  const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(f.key, texts[f.key] ?? '')]));
+  const errors = Object.fromEntries(NUM_FIELDS.map(f => [f.key, numError(shown.rules[f.key], texts[f.key] ?? '')]));
   const anyError = NUM_FIELDS.some(f => errors[f.key]);
   const values = Object.fromEntries(NUM_FIELDS.map(f => [f.key, Number(texts[f.key])])) as Record<NumKey, number>;
   /* T23: the values that must agree (DSMIN <= |DS| <= DSMAX, the limits in order), each by its field */
-  const pairMessages: Partial<Record<NumKey, string>> = anyError ? {} : pairErrors(values);
+  const pairMessages: Partial<Record<NumKey, string>> = anyError ? {} : pairErrors(shown, values);
   const pairs = Object.keys(pairMessages).length > 0;
   const ok = () => {
     if (anyError || pairs) return;
@@ -139,7 +139,7 @@ export function AutoNumericsDialog({onClose}: {onClose: () => void}) {
                 <label key={k} class={queued ? 'queued' : undefined}
                   title={queued ? `${f.help} (Applied when the running command ends.)` : f.help}>
                   <span>{f.name}</span>
-                  <Field spec={numSpec(k)} check={t => numError(k, t)} value={texts[k]} data-field={k}
+                  <Field spec={numSpec(shown.rules[k])} check={t => numError(shown.rules[k], t)} value={texts[k]} data-field={k}
                     id={`auto-num-${k}`} data-queued={queued ? '1' : undefined} error={pairMessages[k] ?? null}
                     data-autofocus={g === NUM_GROUPS[0] && i === 0 ? '' : undefined}
                     onInput={t => setTexts(x => ({...x, [k]: t}))} />

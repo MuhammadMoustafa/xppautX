@@ -64,6 +64,41 @@ constexpr NumField num_fields[AUTO_NUM_N] = {
     {"suppbp", "SuppBP", true, Rule::range, 0, 1},
 };
 
+/* the values that must be in order: lo below hi (strict) or at most hi */
+struct NumPair {
+    int lo, hi;
+    bool strict;
+};
+constexpr NumPair num_pairs[] = {
+    {AUTO_NUM_DSMIN, AUTO_NUM_DSMAX, false}, {AUTO_NUM_RL0, AUTO_NUM_RL1, true}, {AUTO_NUM_A0, AUTO_NUM_A1, true}};
+/* the first step within the step sizes AUTO may take (T23), whichever its sign */
+constexpr const char *step_rule = "Ds must be from Dsmin to Dsmax in size (its sign is the direction)";
+
+/* what a field takes, as the refusal of a value it does not take says it
+   (the event sends it, so the page says the same before it sends) */
+std::string rule_message(const NumField &f)
+{
+    const std::string whole = f.integer ? "a whole number" : "a number";
+    switch (f.rule) {
+    case Rule::positive:
+        return xpp::format("{} must be a number above 0", f.label);
+    case Rule::nonzero:
+        return xpp::format("{} must be a number other than 0", f.label);
+    case Rule::range:
+        if (f.lo == INT_MIN && f.hi == INT_MAX) break;
+        if (f.hi == INT_MAX) return xpp::format("{} must be {} of at least {}", f.label, whole, static_cast<long>(f.lo));
+        return xpp::format("{} must be {} from {} to {}", f.label, whole, static_cast<long>(f.lo), static_cast<long>(f.hi));
+    case Rule::any:
+        break;
+    }
+    return xpp::format("{} must be {}", f.label, whole);
+}
+
+std::string pair_message(const NumPair &p)
+{
+    return xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most", num_fields[p.hi].label);
+}
+
 /* Auto.plot's values: hi, norm, hi and lo, period, two parameters, frequency, average */
 bool plot_ok(int p) { return (p >= 0 && p <= 4) || p == 10 || p == 11; }
 
@@ -192,7 +227,33 @@ std::string event_text(const xpp::Session &s)
         add_num(o, set.mark_value[i]);
         o += ']';
     }
-    o += "]}";
+    /* what each Numerics value takes and which must be in order, as `auto`
+       `set` checks them (num_ok, apply), with the messages it refuses with */
+    o += "],\"rules\":{";
+    for (int i = 0; i < AUTO_NUM_N; i++) {
+        const NumField &f = num_fields[i];
+        o += xpp::format("{}\"{}\":{{\"label\":", i ? "," : "", f.key);
+        xpp::json_append_string(o, f.label);
+        if (f.integer) o += ",\"integer\":true";
+        if (f.rule == Rule::positive) o += ",\"positive\":true";
+        if (f.rule == Rule::nonzero) o += ",\"nonzero\":true";
+        if (f.rule == Rule::range && f.lo != INT_MIN) o += xpp::format(",\"min\":{}", static_cast<long>(f.lo));
+        if (f.rule == Rule::range && f.hi != INT_MAX) o += xpp::format(",\"max\":{}", static_cast<long>(f.hi));
+        o += ",\"message\":";
+        xpp::json_append_string(o, rule_message(f).c_str());
+        o += '}';
+    }
+    o += "},\"pairs\":[";
+    for (const NumPair &p : num_pairs) {
+        o += xpp::format("{}{{\"lo\":\"{}\",\"hi\":\"{}\",\"strict\":{},\"message\":", &p == num_pairs ? "" : ",",
+                         num_fields[p.lo].key, num_fields[p.hi].key, p.strict);
+        xpp::json_append_string(o, pair_message(p).c_str());
+        o += '}';
+    }
+    o += xpp::format("],\"step\":{{\"key\":\"{}\",\"lo\":\"{}\",\"hi\":\"{}\",\"message\":", num_fields[AUTO_NUM_DS].key,
+                     num_fields[AUTO_NUM_DSMIN].key, num_fields[AUTO_NUM_DSMAX].key);
+    xpp::json_append_string(o, step_rule);
+    o += "}}";
     return o;
 }
 
@@ -211,32 +272,12 @@ bool num_ok(int i, double v, std::string &why)
         return false;
     }
     const NumField &f = num_fields[i];
-    const std::string whole = f.integer ? "a whole number" : "a number";
-    if (!std::isfinite(v) || (f.integer && (v != std::floor(v) || v < INT_MIN || v > INT_MAX))) {
-        why = xpp::format("{} must be {}", f.label, whole);
-        return false;
-    }
-    switch (f.rule) {
-    case Rule::positive:
-        if (v > 0) return true;
-        why = xpp::format("{} must be a number above 0", f.label);
-        return false;
-    case Rule::nonzero:
-        if (v != 0) return true;
-        why = xpp::format("{} must be a number other than 0", f.label);
-        return false;
-    case Rule::range:
-        if (v >= f.lo && v <= f.hi) return true;
-        if (f.hi == INT_MAX)
-            why = xpp::format("{} must be {} of at least {}", f.label, whole, static_cast<long>(f.lo));
-        else
-            why = xpp::format("{} must be {} from {} to {}", f.label, whole, static_cast<long>(f.lo),
-                                    static_cast<long>(f.hi));
-        return false;
-    case Rule::any:
-        break;
-    }
-    return true;
+    bool ok = std::isfinite(v) && !(f.integer && (v != std::floor(v) || v < INT_MIN || v > INT_MAX));
+    if (ok && f.rule == Rule::positive) ok = v > 0;
+    if (ok && f.rule == Rule::nonzero) ok = v != 0;
+    if (ok && f.rule == Rule::range) ok = v >= f.lo && v <= f.hi;
+    if (!ok) why = rule_message(f);
+    return ok;
 }
 
 bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
@@ -253,19 +294,15 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
         if (!num_ok(i, set->num[i], why)) return false;
         num[i] = set->num[i];
     }
-    const struct { int lo, hi; bool strict; } pairs[] = {
-        {AUTO_NUM_DSMIN, AUTO_NUM_DSMAX, false}, {AUTO_NUM_RL0, AUTO_NUM_RL1, true}, {AUTO_NUM_A0, AUTO_NUM_A1, true}};
-    for (const auto &p : pairs) {
+    for (const NumPair &p : num_pairs) {
         if (!set->has_num[p.lo] && !set->has_num[p.hi]) continue;
         if (p.strict ? num[p.lo] < num[p.hi] : num[p.lo] <= num[p.hi]) continue;
-        why = xpp::format("{} must be {} {}", num_fields[p.lo].label, p.strict ? "below" : "at most",
-                                num_fields[p.hi].label);
+        why = pair_message(p);
         return false;
     }
-    /* the first step within the step sizes AUTO may take (T23) */
     if ((set->has_num[AUTO_NUM_DS] || set->has_num[AUTO_NUM_DSMIN] || set->has_num[AUTO_NUM_DSMAX])
         && !(std::fabs(num[AUTO_NUM_DS]) >= num[AUTO_NUM_DSMIN] && std::fabs(num[AUTO_NUM_DS]) <= num[AUTO_NUM_DSMAX])) {
-        why = "Ds must be from Dsmin to Dsmax in size (its sign is the direction)";
+        why = step_rule;
         return false;
     }
 

@@ -980,7 +980,7 @@ AUTO_MENUS = {
     'Mark values: how many?': (list('0123456789'), '0123456789'),
     'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
               'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
-              'lOad branch', 'eXport CSV'], 'islpvrcwadtnebox'),
+              'lOad branch', 'eXport CSV', 'save settinGs', 'settings From file'], 'islpvrcwadtneboxgf'),
     'Torus': (['Two Param', 'Fixed period', 'Extend'], 'tfe'),
     'Per. Doub.': (['Doubling', 'Two Param', 'Fixed period', 'Extend'], 'dtfe'),
     'Periodic ': (['Extend', 'Fixed Period'], 'ef'),
@@ -2401,6 +2401,15 @@ def check_autosettings():
         check('autosettings: sent at once after data, before AUTO is open', st is not None
               and sorted(st['numerics']) == sorted(NUM_KEYS) and len(st['pars']) == 8
               and st['axes']['par1'] == st['pars'][0], str(st)[:300])
+        rules = st.get('rules', {}) if st else {}
+        check('W118: autosettings carries each Numerics rule with the message its refusal says, the pairs and the step',
+              sorted(rules) == sorted(NUM_KEYS) and rules['ncol'].get('min') == 2 and rules['ncol'].get('max') == 7
+              and rules['ncol'].get('integer') is True and rules['dsmin'].get('positive') is True
+              and rules['ds'].get('nonzero') is True and 'min' not in rules['mxbf']
+              and rules['ncol'].get('message') == 'Ncol must be a whole number from 2 to 7'
+              and [(p['lo'], p['hi'], p['strict']) for p in st.get('pairs', [])]
+              == [('dsmin', 'dsmax', False), ('rl0', 'rl1', True), ('a0', 'a1', True)]
+              and st.get('step', {}).get('key') == 'ds', str(st and (st.get('pairs'), st.get('step')))[:300])
         ask = ask_of(cmd='key', win='auto', key='n')
         cancel(ask)
         want = [form_text(st['numerics'][k]) for k in NUM_KEYS]
@@ -2464,6 +2473,44 @@ def check_autosettings():
             evs, st4, errs = auto_set(**bad)
             check('auto set %s is refused with an error naming %s, nothing changes' % (json.dumps(bad), why),
                   len(errs) == 1 and why in errs[0] and st4 is None, '%s %s' % (errs, st4))
+        evs, st4, errs = auto_set(numerics={'ncol': 9})
+        check('W118: a refused value says the message the event gave its rule',
+              errs == ['AUTO settings: ' + rules.get('ncol', {}).get('message', '?')], str(errs))
+
+        # W118: AUTO's settings alone to a file and back, through AUTO's File menu (the core's one format)
+        def auto_file_item(key, name):
+            ask = ask_of(cmd='key', win='auto', key='f')
+            if not ask or ask.get('kind') != 'menu':
+                return [], None
+            snda(cmd='answer', id=ask['id'], key=key)
+            evs, ask2 = cola(lambda e: e.get('ev') == 'ask' or is_idle(e))
+            if not ask2 or ask2.get('kind') != 'file':
+                return evs, ask2
+            snda(cmd='answer', id=ask2['id'], file=name)
+            more, _ = cola(is_idle)
+            return evs + more, ask2
+
+        set_dir = tempfile.mkdtemp(prefix='w118-')
+        set_path = os.path.join(set_dir, 'lecar.autoset')
+        before = settings_of(auto_set(numerics={'nmx': 41})[0])
+        evs, ask = auto_file_item('g', set_path)
+        saved = open(set_path, encoding='utf-8').read() if os.path.exists(set_path) else ''
+        check('W118: File > save settinGs asks for a .autoset and writes the settings in the core\'s format',
+              ask is not None and ask.get('mode') == 'write' and '.autoset' in ask.get('wild', '')
+              and 'nmx 41\n' in saved and '\nplot ' in saved, '%s %r' % (ask, saved[:120]))
+        auto_set(numerics={'nmx': 42})
+        evs, ask = auto_file_item('f', set_path)
+        back = settings_of(evs)
+        check('W118: File > settings From file sets them back', ask is not None and ask.get('mode') == 'read'
+              and back is not None and before is not None and back['numerics'] == before['numerics'],
+              '%s %s' % (ask, back and back['numerics'].get('nmx')))
+        with open(set_path, 'w', encoding='utf-8') as f:
+            f.write('nmx 5\n')
+        evs, ask = auto_file_item('f', set_path)
+        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W118: a file that is not every setting is refused, nothing changes',
+              len(errs) == 1 and 'not a file of AUTO' in errs[0] and settings_of(evs) is None, str(errs))
+        shutil.rmtree(set_dir, ignore_errors=True)
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
         ask = ask_of(cmd='key', win='auto', key='n')

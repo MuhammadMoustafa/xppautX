@@ -139,6 +139,17 @@ std::optional<std::string> restore_members(Session &s, Members m, const std::str
    nothing was read. (An .autox is opened as a model is: xpp_model_open.) */
 bool import_file(Session &s, const std::string &path);
 
+/* AUTO's settings alone as a file (the AUTO window's File menu, W118):
+   settings_text, the .autox member's own text, the one serialization of
+   them; the page has none of its own. */
+inline constexpr std::string_view settings_extension = ".autoset";
+/* s's settings written to path (asking before replacing a file); false
+   with an error message when not */
+bool save_settings_file(const Session &s, const std::string &path);
+/* path's settings applied to s; false with an error message when the file
+   cannot be read, is not a settings file or AUTO refuses a value */
+bool load_settings_file(Session &s, const std::string &path);
+
 } // namespace xpp::autox
 
 #endif

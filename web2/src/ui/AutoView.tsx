@@ -540,7 +540,6 @@ function AutoPanel({dark}: {dark: boolean}) {
     if (kind) setSettingsOpen(kind);
     else session.autoOp(op);
   };
-  const settingsInput = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLElement>(null);
 
   /* keys anywhere in the panel: AUTO's hotkeys (not from a control), Escape hides it */
@@ -591,14 +590,8 @@ function AutoPanel({dark}: {dark: boolean}) {
               onClick={() => act(op)}>{text}</button>
           );
         })}
-        <button onClick={() => settingsInput.current?.click()}
-          title="Load AUTO's settings from a saved file (while AUTO runs they apply when it stops)">Load settings</button>
-        <input ref={settingsInput} id="auto-settings-load" type="file" accept=".json,application/json" hidden
-          onChange={async e => {
-            const el = e.target as HTMLInputElement, file = el.files?.[0];
-            if (file) session.loadAutoSettings(await file.text());
-            el.value = '';
-          }} />
+        <button id="auto-settings-load" disabled={off('file')} onClick={() => session.loadAutoSettings()}
+          title="Load AUTO's settings from a file saved with File > save settinGs (.autoset)">Load settings</button>
       </div>
       <div class="auto-view">
         {grabbing && <GrabBar />}

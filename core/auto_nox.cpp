@@ -2786,6 +2786,13 @@ void auto_file(xpp::Session &s)
   if(ch=='x'){
     export_auto_csv(s);
   }
+  if(ch=='g'||ch=='f'){
+    /* AUTO's settings alone (autox.h settings_extension) */
+    std::string filename=xpp_session_file_name(s.model(),xpp::autox::settings_extension);
+    const std::string wild=xpp::format("*{}",xpp::autox::settings_extension);
+    if(ch=='g'&&file_selector("Save AUTO settings",filename,wild))xpp::autox::save_settings_file(s,filename);
+    if(ch=='f'&&file_selector("Load AUTO settings",filename,wild))xpp::autox::load_settings_file(s,filename);
+  }
   if(ch=='n'){
     if(diagram_mark.state<2) 
       err_msg("Mark a branch first using S and E");
