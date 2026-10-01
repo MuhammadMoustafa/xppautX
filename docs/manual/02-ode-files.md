@@ -429,14 +429,14 @@ with $`x(0)=-(1+e),x'(0)=1.`$ Note that the function $`x+exp(x)`$ has no closed 
     aux xdot=xp
     done
 
-Note that we create a dummy algebraic variable called `xp` which is the derivative of $`x.`$ This is because XPP treats the derivatives in a special manner so we have to accomodate its idiosyncrasies by adding an additional algebraic variable. This last example exploits numerical errors to get the DAE solver to go beyond where it should go legally! It is a relaxation oscillator:
+Note that we create a dummy algebraic variable called `xp` which is the derivative of $`x.`$ This is because XPP treats the derivatives in a special manner so we have to accomodate its idiosyncrasies by adding an additional algebraic variable. The last example is meant as a relaxation oscillator:
 ``` math
 \begin{eqnarray*}
 w' &=& v \\
 0 &=& v(1-v^2)-w
 \end{eqnarray*}
 ```
-with $`w(0)=0,v(0)=1.`$ Note that the algebraic equation has multiple roots for some values of $`w`$ and thus as $`w`$ groes it must “jump” to a new branch. This cannot happen in a true DAE and in fact, one has to set tolerances low to get the numerical errors to let it work. Here is the next DAE example:
+with $`w(0)=0,v(0)=1.`$ Note that the algebraic equation has multiple roots for some values of $`w`$ and thus as $`w`$ grows it would have to “jump” to a new branch. This cannot happen in a true DAE: the branch $`v>1/\sqrt{3}`$ the run follows ends in a fold at $`v=1/\sqrt{3}`$, $`w=2/(3\sqrt{3})`$, reached at $`tpprox 0.4507`$, and no solution continues it. XPPAUT let loose tolerances step over the fold onto another branch; xppautX stops the run there instead, keeping the rows up to the last time it solved, with the error “No solution of the algebraic equations past t=0.45: their Jacobian changed sign, a fold where this branch of solutions ends”. Here is the example:
 
     #dae_ex3.ode
     w'=v_
@@ -447,6 +447,8 @@ with $`w(0)=0,v(0)=1.`$ Note that the algebraic equation has multiple roots for 
     done
 
 The important numerical parameters for the DAEs are the maximum iterates, the tolerance for Newton’s method, and the epsilon value for computing the Jacobian. These are found in the numerics menu under the menu item SingPt Control.
+
+At every step the algebraic variables are solved by Newton’s method, starting from their last values. A solution is accepted only where the algebraic equations hold within the Newton tolerance, and only on the branch the run has followed: the sign of the determinant of the equations’ Jacobian (with respect to the algebraic variables) must stay the one it had at the last solution, at every Newton iterate. A sign change means the solution reached a singular point, a fold, past which that branch does not continue. When no solution is accepted (a fold, a singular Jacobian, Newton not converging within the maximum iterates or its update leaving the bounds) the integration stops, the rows computed so far are kept, and one error says the time of the last solution and why: “No solution of the algebraic equations past t=…: …”.
 
 The DAE algebraic variables are initialized in the ODE file as formulae or constants. However, once integrated, the DAEs retain their current values, not their initial values. To change the initial DAE values, you use the Initialconds menu under the DAE sub menu.
 

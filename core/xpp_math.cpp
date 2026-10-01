@@ -286,6 +286,19 @@ void sgesl(double *a, int lda, int n, int *ipvt, double *b)
     }
 }
 
+int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt)
+{
+    /* det = the product of U's diagonal, negated once per row swap */
+    int sign = 1;
+    for (int k = 0; k < n; k++) {
+        const double pivot = a[k * lda + k];
+        if (pivot == 0.0) return 0;
+        if (pivot < 0.0) sign = -sign;
+        if (ipvt[k] != k) sign = -sign;
+    }
+    return sign;
+}
+
 /* ------------------------------------------------------------------ */
 /* Banded LU, no pivoting                                              */
 

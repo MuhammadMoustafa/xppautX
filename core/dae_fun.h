@@ -2,6 +2,7 @@
 #define _dae_fun_h_
 
 #include <array>
+#include <optional>
 #include <vector>
 
 #include "xpplim.h"
@@ -19,7 +20,20 @@ struct DaeState {
   std::vector<int> iwork;
   int status = 0;
   std::array<double, MAXDAE> svar_last{};
+  /* since the integration started: the sign of the algebraic equations'
+     Jacobian at the last solution (0 before the first Newton step), which
+     a solution on the same branch keeps (W127: a sign change is a fold), and
+     the time of the last solution, where a run that can go no further ends */
+  int jac_sign = 0;
+  std::optional<double> last_t;
 };
+
+/* solve_dae's result: solved, or why not (the run stops there) */
+constexpr int DAE_SOLVED = 1;
+constexpr int DAE_SINGULAR = -1;
+constexpr int DAE_NO_CONVERGENCE = -2;
+constexpr int DAE_OUT_OF_BOUNDS = -3;
+constexpr int DAE_FOLD = -4;
 
 int add_svar(Session &s, const char *name, const char *rhs);
 int add_svar_names(Session &s);

@@ -3589,6 +3589,34 @@ def check_silent_commands():
 check_silent_commands()
 
 
+def check_dae_fold():
+    """W127: a DAE run stops at a fold instead of stepping over it.
+    dae_ex3.ode (w'=v, 0=v(1-v^2)-w, v(0)=1) reaches the fold v=1/sqrt(3) at
+    t*=0.450694, past which its branch has no solution (docs/w126-dae-check.md):
+    the run keeps the rows to t=0.45 (dt .05: 10 rows) and says once, as an
+    error, that there is no solution past the last time solved. dae.ode, a
+    DAE with no fold, runs to its end (total 20, dt .05: 401 rows)."""
+    def run(ode):
+        code, out, err = run_script([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}], ode=ode)
+        evs = [json.loads(l) for l in out.splitlines() if l.strip()]
+        errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
+        return code, errs, (last_state(evs) or {}).get('rows'), err
+
+    code, errs, rows, err = run('examples/ode/dae_ex3.ode')
+    # --script exits 1 after an error message (docs/protocol.md "Scripts")
+    check('dae_ex3 stops at the fold: the rows to t=0.45, then one error',
+          code == 1 and rows == 10 and len(errs) == 1, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
+    check('... saying there is no solution past t=0.45, a fold',
+          len(errs) == 1 and errs[0].startswith('No solution of the algebraic equations past t=0.45:')
+          and 'fold' in errs[0], str(errs))
+    code, errs, rows, err = run('examples/ode/dae.ode')
+    check('dae.ode, a DAE without a fold, runs to its end with no error',
+          code == 0 and rows == 401 and not errs, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
+
+
+check_dae_fold()
+
+
 def check_session_random():
     """W123: a session file holds the random generator's state (random.txt):
     Go on a stochastic model, save, open in a new server and Continue gives

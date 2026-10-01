@@ -82,6 +82,8 @@ bool rand_state_load(const std::string &state);
    its solve. a is n x n, row i at a[i*lda]; sgefa factors it in place,
    the pivots in ipvt[n], *info -1 when it succeeded, else the (0-based)
    index of a zero pivot; sgesl then solves A x = b, x replacing b.
+   sgefa_det_sign: the sign of the factored matrix's determinant (a and
+   ipvt as sgefa left them): 1, -1, or 0 when a pivot is zero.
 
    bandfac/bandsol: the same for a banded matrix, without pivoting: ml
    sub- and mr super-diagonals, row i at a[i*(ml+mr+1)], its diagonal at
@@ -96,6 +98,7 @@ bool rand_state_load(const std::string &state);
    span would not describe); the solvers call them inside their steps. */
 void sgefa(double *a, int lda, int n, int *ipvt, int *info);
 void sgesl(double *a, int lda, int n, int *ipvt, double *b);
+int sgefa_det_sign(const double *a, int lda, int n, const int *ipvt);
 int bandfac(double *a, int ml, int mr, int n);
 void bandsol(double *a, double *b, int ml, int mr, int n);
 void eigenvalues(int n, double *a, double *ev, double *work, int *ierr);
