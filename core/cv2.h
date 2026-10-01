@@ -32,6 +32,11 @@ struct CvodeRun {
      points at while it runs: here, so that they outlive its memory */
   std::array<double, cvode_opt_size> ropt{};
   std::array<int, cvode_opt_size> iopt{};
+  /* why its last integration failed, as CVODE words it, and the
+     variable (its index) CVODE's error test or corrector failed at, -1
+     for none (cvode.h's cv_error, cv_error_var) */
+  std::string error;
+  long error_var = -1;
 };
 
 /* the integration of run has ended: its memory freed (nothing when it has

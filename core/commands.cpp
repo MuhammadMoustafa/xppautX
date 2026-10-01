@@ -95,11 +95,11 @@ void edit_xpprc(void)
   const char *ed = getenv("XPPEDITOR");
   const char *home = getenv("USERPROFILE");
   if (ed == NULL || ed[0] == '\0') {
-    err_msg("Environment variable XPPEDITOR needs to be set.");
+    command_error("editor", "Environment variable XPPEDITOR needs to be set.");
     return;
   }
   std::string cmd = xpp::format("start \"\" \"{}\" \"{}\\.xpprc\"", ed, home ? home : ".");
-  if (system(cmd.c_str()) != 0) err_msg("Unable to start the editor.");
+  if (system(cmd.c_str()) != 0) command_error("editor", "Unable to start the editor.");
 }
 #else
 void edit_xpprc(void)
@@ -107,7 +107,7 @@ void edit_xpprc(void)
   const char *ed = getenv("XPPEDITOR");
 
   if (ed == NULL || ed[0] == '\0') {
-    err_msg("Environment variable XPPEDITOR needs to be set.");
+    command_error("editor", "Environment variable XPPEDITOR needs to be set.");
     return;
   }
   std::string editor = ed;
@@ -123,7 +123,7 @@ void edit_xpprc(void)
     return;
   }
   if (child_pid == -1)
-    err_msg("Unable to fork process for editor.");
+    command_error("editor", "Unable to fork process for editor.");
 }
 #endif
 
@@ -188,7 +188,7 @@ void use_intern_set(xpp::Session &s, int j)
 {
   const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
   if (j < 0 || j >= static_cast<int>(sets.size())) {
-    err_msg("Not a valid set");
+    command_error("set", "Not a valid set");
     return;
   }
   get_graph(s);
@@ -212,7 +212,7 @@ static void copy_set_line(xpp::Session &s)
   if (!new_string("Name of the set", name)) return;
   std::string problem = xpp::intern_set_name_problem(s.model(), name);
   if (!problem.empty()) {
-    err_msg(problem);
+    command_error("copy set", problem);
     return;
   }
   std::string line = xpp::intern_set_line(s, name);

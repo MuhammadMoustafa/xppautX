@@ -209,8 +209,7 @@ int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
 void add_vectorizer_name(xpp::Session &s, std::string_view name, std::string_view rhs)
 {
   if(s.model().nvector>=MAXVEC){
-    xpp::log_printf(XPP_LOG_ERROR, "Too many vectors \n");
-    model_failed();
+    model_failed("Too many vectors");
   }
   s.model().vectors[s.model().nvector].name=name;
   if(add_net_name(s,s.model().nvector,name,1))
@@ -256,7 +255,7 @@ int next_positive_int(xpp::Tokens &args, const char *sep)
 {
   std::string str=args.text(sep);
   int n=atoi(str.c_str());
-  if(n<=0)xpp::log(XPP_LOG_ERROR, " {} must be positive int \n",str);
+  if(n<=0)model_failed(xpp::format("{} must be a positive integer",str));
   return n;
 }
 
@@ -269,13 +268,11 @@ int next_index(const xpp::Session &s, xpp::Tokens &args, const char *net, const 
   name=args.text(sep);
   if(kind==NameKind::table){
     int i=find_lookup(s,name);
-    if(i<0)xpp::log_printf(XPP_LOG_ERROR, "in network %s,  %s is not a table \n",
-                   net,name.c_str());
+    if(i<0)model_failed(xpp::format("In network {}, {} is not a table",net,name));
     return i;
   }
   int i=get_var_index(s,name);
-  if(i<0)xpp::log_printf(XPP_LOG_ERROR, " In %s , %s is not valid variable\n",
-                 net,name.c_str());
+  if(i<0)model_failed(xpp::format("In {}, {} is not a valid variable",net,name));
   return i;
 }
 
@@ -292,8 +289,7 @@ bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int
   fname=args.text(")");
   int elen;
   if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.data(),&elen)){
-    xpp::log_printf(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
-    return false;
+    model_failed(xpp::format("Bad function {}",fname));
   }
   return true;
 }
@@ -318,8 +314,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     if(s.model().networks[i].name==name)break;
   ind=i;
   if(ind>=s.model().nnetwork){
-    xpp::log_printf(XPP_LOG_ERROR, " No such name %s ?? \n",name);
-    return 0;
+    model_failed(xpp::format("No such name {}",name));
   }
   /* the arguments: NAME(a,b,...) */
   xpp::Tokens args(rhs);
@@ -332,8 +327,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=CONV0;
     if(str[0]=='P')ntype=CONVP;
     if(ntype==-1){
-      xpp::log(XPP_LOG_ERROR, " No such convolution type {} \n",str);
-      return 0;
+      model_failed(xpp::format("No such convolution type {}",str));
     }
     ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
@@ -389,8 +383,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=FCONV0;
     if(str[0]=='P')ntype=FCONVP;
     if(ntype==-1){
-      xpp::log(XPP_LOG_ERROR, " No such convolution type {} \n",str);
-      return 0;
+      model_failed(xpp::format("No such convolution type {}",str));
     }
     ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
@@ -447,8 +440,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     if(str[0]=='0'||str[0]=='Z')ntype=FFTCON0;
     if(str[0]=='P')ntype=FFTCONP;
     if(ntype==-1){
-      xpp::log(XPP_LOG_ERROR, " No such fft convolution type {} \n",str);
-      return 0;
+      model_failed(xpp::format("No such fft convolution type {}",str));
     }
     ntot=next_positive_int(args,",");
     if(ntot<=0)return 0;
@@ -457,12 +449,10 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     if(iwgt<0)return 0;
     ntab=get_lookup_len(s,iwgt);
     if(type==FFTCONP&&ntab<ntot){
-     xpp::log_printf(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,ntot);
-     return 0;
+     model_failed(xpp::format("In {}, weight is length {} < {}",name,ntab,ntot));
     }
     if(type==FFTCON0&&ntab<(2*ntot)){
-     xpp::log_printf(XPP_LOG_ERROR, " In %s, weight is length %d < %d \n",name,ntab,2*ntot);
-     return 0;
+     model_failed(xpp::format("In {}, weight is length {} < {}",name,ntab,2*ntot));
     }
     ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
@@ -539,24 +529,18 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     str=args.text(",");
     ntype=atoi(str.c_str());
     if(ntype>1||ntype<(-1)){
-      xpp::log_printf(XPP_LOG_ERROR, "In %s,  type =-1,0,1 not %d \n",
-	     name,ntype);
-      return 0;
+      model_failed(xpp::format("In {}, type is -1, 0 or 1, not {}",name,ntype));
     }
     str=args.text(",");
     ntot=atoi(str.c_str());
     if(ntot<=0){
-      xpp::log_printf(XPP_LOG_ERROR, "In %s,  n>0 not %d \n",
-	     name,ntot);
-      return 0;
+      model_failed(xpp::format("In {}, n > 0, not {}",name,ntot));
     }
     
     str=args.text(",");
     ncon=atoi(str.c_str());
     if(ncon<=0){
-      xpp::log_printf(XPP_LOG_ERROR, "In %s,  skip>=1 not %d \n",
-	     name,ncon);
-      return 0;
+      model_failed(xpp::format("In {}, skip >= 1, not {}",name,ncon));
     }
     ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
@@ -582,8 +566,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     str=args.text(",");
     ivar=atoi(str.c_str());
     if(ivar<1){
-      xpp::log_printf(XPP_LOG_ERROR, "Need more than 1 entry for interpolate\n");
-      return 0;
+      model_failed("Need more than 1 entry for interpolate");
     }
     s.model().networks[ind].n=ivar; /* # entries in array */
     ivar=next_index(s,args,name,")",rootname,NameKind::variable);
@@ -594,7 +577,6 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
 
    case IMPORT:
      refuse_compiled_functions("import");
-     return 0;
    case DEL_MUL:
 
     args.next("(");
@@ -1159,12 +1141,10 @@ bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &in
     for (const std::string &bn : names) {
       int iv = get_var_index(s,bn);
       if (iv < 0) {
-        xpp::log(XPP_LOG_ERROR, "No such name {}\n", bn);
-        return false;
+        model_failed(xpp::format("No such name {}", bn));
       }
       if (ind.size() >= max_reactions) {
-        xpp::log(XPP_LOG_ERROR, "Too many reactions in {} (at most {})\n", list, max_reactions);
-        return false;
+        model_failed(xpp::format("Too many reactions in {} (at most {})", list, max_reactions));
       }
       ind.push_back(iv);
     }
@@ -1187,16 +1167,13 @@ int get_vector_info(const xpp::Session &ses, char *str, std::string_view name,in
   std::string temp(s.substr(i,comma==std::string_view::npos?std::string_view::npos:comma-i));
   int ivar=get_var_index(ses,temp);
   if(ivar<0||comma==std::string_view::npos){
-    xpp::log(XPP_LOG_ERROR, " In vector {} , {} is not valid variable\n",
-	     name,temp);
-    return 0;
+    model_failed(xpp::format("In vector {}, {} is not a valid variable",name,temp));
   }
   *root=ivar;
   i=comma+1;
   comma=s.find(',',i);
   if(comma==std::string_view::npos){
-    xpp::log(XPP_LOG_ERROR, " In vector {} , no ends given\n",name);
-    return 0;
+    model_failed(xpp::format("In vector {}, no ends given",name));
   }
   *length=atoi(std::string(s.substr(i,comma-i)).c_str());
   i=comma+1;

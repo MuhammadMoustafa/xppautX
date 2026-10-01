@@ -221,7 +221,7 @@ void browser_command(xpp::Session &s, const char *line)
     if (o == "load") data_read(s, &s.browser.view, format, name);
     else if (o == "write") data_write(s, &s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
     else if (o == "postprocess") post_process_stuff(s);
-    else j_err_msg(xpp::format("Unknown browser op {}", o));
+    else j_command_error("browser", xpp::format("Unknown browser op {}", o));
     session.browser_dirty = 1;
 }
 
@@ -458,7 +458,7 @@ void apply_set(xpp::Session &s, const char *line)
         if (v.type == 0) {
             std::string why;
             if (xpp::numerics_settings_set(s, v.name, v.text, why) != 0)
-                return j_err_msg(xpp::Error{"set", xpp::format("Numerics: {}", why), {}, v.field});
+                return j_err_msg(xpp::Error{"set", xpp::format("Numerics: {}", why), j_command_place(), v.field});
             continue;
         }
         const xpp::Result<void> r = box_set_value(s, v.type, v.index, v.text, v.field);
@@ -476,7 +476,7 @@ void default_command(xpp::Session &s, const char *line)
     get_string(line, "kind", kind);
     if (kind == "par") set_default_params(s);
     else if (kind == "ic") set_default_ics(s);
-    else j_err_msg(xpp::format("default takes kind par or ic, not \"{}\"", kind));
+    else j_command_error("default", xpp::format("default takes kind par or ic, not \"{}\"", kind));
 }
 
 /* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets
@@ -490,9 +490,9 @@ void slide_command(xpp::Session &s, const char *line)
     double value;
     get_string(line, "name", name);
     if (!find_par_or_var(s.model(), name, &type, &index))
-        j_err_msg(xpp::format("slide: the model has no parameter or variable {}", name));
+        j_command_error("slide", xpp::format("slide: the model has no parameter or variable {}", name));
     else if (!js_number(js_find(line, "value"), &value))
-        j_err_msg(xpp::format("slide {}: its value is not a number", name));
+        j_command_error("slide", xpp::format("slide {}: its value is not a number", name));
     else {
         set_par_or_var(s, name, type, index, value);
         session.state_dirty = 1;
@@ -516,18 +516,18 @@ void values_command(xpp::Session &s, const char *line)
         int j = get_int(line, "index", -1);
         for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
             if (sets[i].name == name) j = static_cast<int>(i);
-        if (j < 0) j_err_msg(xpp::format("No internal set {}", name));
+        if (j < 0) j_command_error("values", xpp::format("No internal set {}", name));
         else use_intern_set(s, j);
         session.state_dirty = 1;
         return;
     }
     if (o == "query") {
-        if (name.empty()) j_err_msg("values query needs a name");
+        if (name.empty()) j_command_error("values", "values query needs a name");
         else write_values_query(s, name, get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
         return;
     }
     if (kind != "par" && kind != "ic") {
-        j_err_msg(xpp::format("values writes or reads par or ic, not {}", kind));
+        j_command_error("values", xpp::format("values writes or reads par or ic, not {}", kind));
         return;
     }
     if (o == "write") {

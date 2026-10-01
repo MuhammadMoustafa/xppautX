@@ -72,7 +72,8 @@ void compile_bvp(xpp::Session &s)
  for(i=0;i<s.model().node;i++){
 
    if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
-     err_msg(xpp::format("Bad syntax on {} th BC",i+1));
+     show_error(xpp::Error{"boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[i].string),
+                           xpp::model_place(s.model(),xpp::odex::Statement::Kind::Boundary,i),xpp::format("bc:{}",i)});
      return;
    }
  }
@@ -103,16 +104,16 @@ void bad_shoot(int iret)
    err_msg("No change from last point. Saving anyway");
    break;
  case NUMICS:
-   err_msg("Number BCS not equal number ICs");
+   command_error("bvp", "Number BCS not equal number ICs");
    break;
  case BADINT:
-   err_msg("Unable to complete integration");
+   command_error("bvp", "Unable to complete integration");
    break;
  case TOOMANY:
-   err_msg("Maximum iterates exceeded");
+   command_error("bvp", "Maximum iterates exceeded");
    break;
  case BADJAC:
-   err_msg("Bad Jacobian -- uninvertable");
+   command_error("bvp", "Bad Jacobian -- uninvertable");
    break;
  }
 }
@@ -187,14 +188,14 @@ int set_up_periodic(xpp::Session &s, int *ipar, int *ivar, double *sect, int *is
 	       if(i>-1)
 		 *ipar=i;
 	       else {
-		 err_msg("No such parameter");
+		 command_error("bvp", "No such parameter");
 		 return(0);
 	       }
 	       i=find_user_name(s.model(),IC,values[1].c_str());
 	       if(i>-1)
 		 *ivar=i;
 	       else {
-		 err_msg("No such variable");
+		 command_error("bvp", "No such variable");
 		 return(0);
 	       }
 	       *sect=atof(values[2].c_str());
@@ -215,7 +216,7 @@ void find_bvp_com(xpp::Session &s, int com)
  double yend[MAXODE];
  /*  Window temp=main_win; */
  if(s.model().nmarkov>0||s.model().nkernel>0){
-   err_msg("Can't do BVP with integral or markov eqns");
+   command_error("bvp", "Can't do BVP with integral or markov eqns");
    return;
  }
  wipe_rep(s.browser);
@@ -319,7 +320,7 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
    s.shoot_range.item=values[0];
    i=find_user_name(s.model(),PARAM,s.shoot_range.item);
    if(i<0){
-        err_msg("No such parameter");
+        command_error("bvp", "No such parameter");
        return(0);
      }
    

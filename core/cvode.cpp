@@ -13,6 +13,7 @@
 /******************* BEGIN Imports **************************/
 /************************************************************/
 
+#include "xpp_io.h"
 #include "xpp_log.h"
 #include <stdlib.h>
 #include <memory>
@@ -362,6 +363,12 @@ static real CVComputeEtaqp1(CVodeMem cv_mem);
 static void CVChooseEta(CVodeMem cv_mem,real etaqm1, real etaq, real etaqp1);
 
 static int  CVHandleFailure(CVodeMem cv_mem,int kflag);
+/* why this CVode call failed, kept for the caller (cv_error) */
+static void CVFailed(CVodeMem cv_mem, std::string what)
+{
+  while (!what.empty() && what.back() == '\n') what.pop_back();
+  cv_mem->cv_error = std::move(what);
+}
 
 /**************************************************************/
 /********** END Private Helper Functions Prototypes ***********/
@@ -716,6 +723,8 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     xpp::log_printf(XPP_LOG_ERROR, MSG_CVODE_NO_MEM);
     return(CVODE_NO_MEM);
   }
+  cv_mem->cv_error.clear();
+  cv_mem->cv_error_var = -1;
   
   if ((y = yout) == NULL) {
     xpp::log(XPP_LOG_ERROR, MSG_YOUT_NULL);       
@@ -765,13 +774,13 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     h = ZERO;
     if (ropt != NULL) h = ropt[ROPT_H0];
     if ( (h != ZERO) && ((tout-tn)*h < ZERO) ) {
-      xpp::log(XPP_LOG_ERROR, MSG_BAD_H0, h, tout-tn);
+      CVFailed(cv_mem, xpp::format(MSG_BAD_H0, h, tout-tn));
       return(ILL_INPUT);
     }
     if (h == ZERO) {
       hOK = CVHin(cv_mem, tout);
       if (!hOK) {
-	xpp::log(XPP_LOG_ERROR, MSG_TOO_CLOSE, tout, tn);
+	CVFailed(cv_mem, xpp::format(MSG_TOO_CLOSE, tout, tn));
 	return(ILL_INPUT);
       }
     }
@@ -788,7 +797,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     *t = tout;
     ier =  CVodeDky(cv_mem, tout, 0, yout);
     if (ier != OKAY) {  /* ier must be == BAD_T */
-      xpp::log(XPP_LOG_ERROR, MSG_BAD_TOUT, tout);
+      CVFailed(cv_mem, xpp::format(MSG_BAD_TOUT, tout));
       return(ILL_INPUT);
     }
     return(SUCCESS);
@@ -807,7 +816,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     if (nst > 0) {
       ewtsetOK = CVEwtSet(cv_mem, reltol, abstol, itol, zn[0], ewt, N);
       if (!ewtsetOK) {
-	xpp::log(XPP_LOG_ERROR, MSG_EWT_NOW_BAD, tn);
+	CVFailed(cv_mem, xpp::format(MSG_EWT_NOW_BAD, tn));
 	istate = ILL_INPUT;
 	*t = tn;
 	N_VScale(ONE, zn[0], yout);
@@ -818,7 +827,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     /* Check for too many steps */
     
     if (nstloc >= mxstep) {
-      xpp::log(XPP_LOG_ERROR, MSG_MAX_STEPS, tn, mxstep, tout);
+      CVFailed(cv_mem, xpp::format(MSG_MAX_STEPS, tn, mxstep, tout));
       istate = TOO_MUCH_WORK;
       *t = tn;
       N_VScale(ONE, zn[0], yout);
@@ -828,7 +837,7 @@ int CVode(void *cvode_mem, real tout, N_Vector yout, real *t, int itask)
     /* Check for too much accuracy requested */
 
     if ((tolsf = uround * N_VWrmsNorm(zn[0], ewt)) > ONE) {
-      xpp::log(XPP_LOG_ERROR, MSG_TOO_MUCH_ACC, tn);
+      CVFailed(cv_mem, xpp::format(MSG_TOO_MUCH_ACC, tn));
       istate = TOO_MUCH_ACC;
       *t = tn;
       N_VScale(ONE, zn[0], yout);
@@ -2342,20 +2351,25 @@ static void CVChooseEta(CVodeMem cv_mem, real etaqm1, real etaq, real etaqp1)
 
 static int CVHandleFailure(CVodeMem cv_mem, int kflag)
 {
+  long i, imxer = 0;
 
   /* Set imxer to the index of maximum weighted local error */
   N_VProd(acor, ewt, tempv);
   N_VAbs(tempv, tempv);
+  for (i = 1; i < N; i++)
+    if (N_VDATA(tempv)[i] > N_VDATA(tempv)[imxer]) imxer = i;
 
-  /* Depending on kflag, print error message and return error flag */
+  /* Depending on kflag, keep the error message and return error flag */
   switch (kflag) {
-    case REP_ERR_FAIL:  xpp::log(XPP_LOG_ERROR, MSG_ERR_FAILS, tn, h);
+    case REP_ERR_FAIL:  CVFailed(cv_mem, xpp::format(MSG_ERR_FAILS, tn, h));
+                        cv_mem->cv_error_var = imxer;
                         return(ERR_FAILURE);
-    case REP_CONV_FAIL: xpp::log(XPP_LOG_ERROR, MSG_CONV_FAILS, tn, h);
+    case REP_CONV_FAIL: CVFailed(cv_mem, xpp::format(MSG_CONV_FAILS, tn, h));
+                        cv_mem->cv_error_var = imxer;
                         return(CONV_FAILURE);
-    case SETUP_FAILED:  xpp::log(XPP_LOG_ERROR, MSG_SETUP_FAILED, tn);
+    case SETUP_FAILED:  CVFailed(cv_mem, xpp::format(MSG_SETUP_FAILED, tn));
                         return(SETUP_FAILURE);
-    case SOLVE_FAILED:  xpp::log(XPP_LOG_ERROR, MSG_SOLVE_FAILED, tn);
+    case SOLVE_FAILED:  CVFailed(cv_mem, xpp::format(MSG_SOLVE_FAILED, tn));
                         return(SOLVE_FAILURE);
   }
   return(ERR_FAILURE);

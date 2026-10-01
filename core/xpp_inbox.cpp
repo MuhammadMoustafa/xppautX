@@ -246,7 +246,13 @@ bool xpp::inbox::start_stdin()
 namespace {
 
 xpp::UniqueFile script_fp;
-int pushed_line; /* of the line last pushed, for error messages */
+/* the script's file, and the line last pushed (its number in the file,
+   or in a script made as it goes) as written: an error's place */
+struct Pushed {
+    std::string path;
+    int line = 0;
+    std::string text;
+} pushed;
 /* a script made as it goes (start_generated: -silent's) in
    place of a file: it is never read ahead */
 std::function<std::optional<std::string>()> script_gen;
@@ -297,10 +303,16 @@ bool script_open() { return script_fp || ahead.valid || ahead.eof; }
 
 namespace xpp::inbox {
 
-int script_line() { return pushed_line; }
+
+xpp::Place script_place()
+{
+    if (pushed.path.empty() || pushed.line <= 0) return {};
+    return xpp::Place{pushed.path, pushed.line, 0, pushed.text};
+}
 
 bool start_file(std::string_view path)
 {
+    pushed.path = path;
     script_fp.reset(xpp::files::open_stream(path, "rb"));
     return script_fp != nullptr;
 }
@@ -320,7 +332,7 @@ void script_advance()
             out_of_memory_now("making the script");
         }
         if (line) {
-            pushed_line++;
+            pushed.line++;
             push(*line);
         } else {
             script_gen = nullptr; /* closed once: later calls do nothing */
@@ -336,7 +348,8 @@ void script_advance()
     }
     if (ahead.valid) {
         ahead.valid = false;
-        pushed_line = ahead.line;
+        pushed.line = ahead.line;
+        pushed.text = ahead.text;
         push(ahead.text);
         return;
     }

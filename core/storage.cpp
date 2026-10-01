@@ -1,5 +1,6 @@
 
 #include "storage.h"
+#include "xpp_ui.h"
 #include "session.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
 #include <stdlib.h> 
@@ -48,7 +49,7 @@ xpp::Result<> DataStore::grow(int ncol, int nrow)
       table_[c]=columns_[c].data();
     }
   } catch (const std::bad_alloc &) {
-    return xpp::fail("storage","Cannot allocate sufficient storage");
+    return xpp::fail("storage","Cannot allocate sufficient storage",xpp::command_place());
   }
   return {};
 }

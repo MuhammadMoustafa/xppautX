@@ -82,8 +82,10 @@ typedef struct XppDiagPoint {
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
-/* an error with no place yet (W140b gives the callers theirs): show_error
-   of an Error with msg as its what */
+/* msg shown as an error with no place: only the results that are not
+   errors (a fit's outcome, a mean, a toggle's state), which W133 shows as
+   results (tools/errorcheck.py lists them); an error is command_error,
+   err_reading or show_error with its place */
 void err_msg(std::string_view msg);
 /* an error about `path`, a file the command could not read (line 0: the
    page offers to add it to the model's folder, docs/protocol.md
@@ -152,6 +154,8 @@ typedef struct XppUi {
     /* an error, shown with where it is (xpp_error.h; the headless
        default logs its text()) */
     void (*err_msg)(const Error &e);
+    /* where the command that runs came from (command_place) */
+    Place (*command_place)(void);
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg);
     void (*message_box)(std::string_view msg);
@@ -410,6 +414,15 @@ int get_dialog_of(std::string_view wname, std::string_view name, std::string &va
    place (logging where at DEBUG); an empty `what` shows nothing (the
    computation said it already) */
 void show_error(const Error &e);
+/* Where the command that runs came from (W140): in a --script, the
+   script's file and the step's line; in a recording's Play, the .recx and
+   the step's line; an empty Place for a command the user gave. The place
+   of an error a command finds in what it was given, or that a
+   computation it ran meets with no file or model line to name. */
+Place command_place();
+/* the error what of the command `command` (its where), at
+   command_place() */
+void command_error(std::string_view command, std::string_view what);
 /* whether r succeeded, its error shown when it did not */
 template <class T> bool ok_or_show(const Result<T> &r)
 {

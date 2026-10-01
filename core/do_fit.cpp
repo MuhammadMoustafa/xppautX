@@ -200,7 +200,7 @@ void test_fit(xpp::Session &s)
  parse_collist(s.fit.collist,s.fit.icols.data(),&nvars);
  
  if(nvars<=0){
-   err_msg("No columns...");
+   command_error("fit", "No columns given");
    return;
  }
  s.fit.nvars=nvars;
@@ -208,7 +208,7 @@ void test_fit(xpp::Session &s)
  parse_varlist(s,s.fit.varlist, s.fit.ivar.data(), &nvars);
 
  if(s.fit.nvars!=nvars){
-   err_msg(" # columns != # fitted variables");
+   command_error("fit", "The number of columns is not the number of fitted variables");
    return;
  }
  npars=0;
@@ -217,7 +217,7 @@ void test_fit(xpp::Session &s)
  parse_parlist(s,s.fit.parlist2,s.fit.ipar.data(),&npars);
 
  if(npars<=0){
-   err_msg(" No parameters!");
+   command_error("fit", "No parameters to vary");
    return;
  }
  s.fit.npars=npars;
@@ -225,17 +225,17 @@ void test_fit(xpp::Session &s)
    if(s.fit.ipar[i]>=0)
      {
        if(s.fit.ipar[i]>=s.model().node){
-	 err_msg(" Cant vary auxiliary/markov variables! ");
+	 command_error("fit", "Auxiliary and Markov variables cannot be fitted");
 	 return;
        }
      }
  for(i=0;i<nvars;i++){
    if(s.fit.icols[i]<2){
-     err_msg(" Illegal column must be >= 2");
+     command_error("fit", "A column of the data is 2 or more");
      return;
    }
    if(s.fit.ivar[i]<0||s.fit.ivar[i]>=s.model().node){
-     err_msg(" Fit only to variables! ");
+     command_error("fit", "Fit only to variables");
      return;
    }
  }
@@ -298,7 +298,7 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
 
   xpp::TokenReader reader(filename);
   if(!reader){
-    return xpp::fail("fit","No such file...");
+    return xpp::fail_reading("fit","cannot be read",filename);
   }
   std::vector<double> t0_v(static_cast<size_t>(npts)+1);
   std::vector<double> y_v(static_cast<size_t>(npts+1)*nvars);
@@ -307,12 +307,12 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
 
   for(i=0;i<npts;i++){
     if(!reader.read(t)){
-      return xpp::fail("fit","Data file too short...");
+      return xpp::fail("fit",xpp::format("The data file has no number here: it needs {} rows of {} numbers",npts,ndim),xpp::Place{filename,reader.line()});
     }
 
     for(j=0;j<ndim-1;j++)
       if(!reader.read(ytemp[j])){
-	return xpp::fail("fit","Data file too short...");
+	return xpp::fail("fit",xpp::format("The data file has no number here: it needs {} rows of {} numbers",npts,ndim),xpp::Place{filename,reader.line()});
       }
     t0[i]=t;
 
@@ -440,7 +440,7 @@ sigma  weights on nvars
   }
   xpp::sgefa(covar,npars,npars,ipivot,&ierr);
     if(ierr!=-1){
-      return xpp::fail("fit"," Singular matrix encountered...");
+      return xpp::fail("fit","Singular matrix encountered",command_place());
     }
   
   xpp::sgesl(covar,npars,npars,ipivot,oneda);

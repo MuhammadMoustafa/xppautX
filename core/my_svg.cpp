@@ -264,7 +264,7 @@ xpp::Result<> svg_init(xpp::Session &s, const char *filename, int /*color*/)
   s.plot_file.last_ps_y=-10000;
 
   s.plot_file.writer=xpp::Writer(filename);
-  if(!s.plot_file.writer)return xpp::fail("SVG export","Cannot open file ");
+  if(!s.plot_file.writer)return xpp::fail("SVG export",xpp::format("Cannot write {}",filename),command_place());
   s.plot_file.svgfile=s.plot_file.writer.file();
   s.plot_file.plt_fmt_flag=SVGFMT;
   s.plot_file.writer.print("{}",svg_head);

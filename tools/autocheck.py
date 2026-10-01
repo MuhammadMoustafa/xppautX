@@ -1538,7 +1538,7 @@ def section_script():
     t = time.monotonic()
     code, out, run = run_script(bad.name)
     check('a command where an answer was due exits 1 at once, naming the line',
-          code == 1 and time.monotonic() - t < 10 and 'script line 3 does not answer' in run_script.stderr,
+          code == 1 and time.monotonic() - t < 10 and ':3: does not answer' in run_script.stderr,
           'exit %d, %s' % (code, run_script.stderr[-300:]))
     os.unlink(bad.name)
     shutil.rmtree(run, ignore_errors=True)
@@ -1637,7 +1637,7 @@ def section_replay():
                         '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}'])
     code, out, run = run_script(path)
     check('replay: an interruption never reached exits 1, naming its line',
-          code == 1 and 'script line 4: the recorded interruption at' in run_script.stderr and
+          code == 1 and ':4: the recorded interruption at' in run_script.stderr and
           'was never reached' in run_script.stderr, 'exit %d, %s' % (code, run_script.stderr[-300:]))
     check('replay: and plays nothing after it', out.count('"ev":"idle"') == 1, '%d idles' % out.count('"ev":"idle"'))
     os.unlink(path)

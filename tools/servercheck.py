@@ -1662,6 +1662,56 @@ def check_error_places():
 check_error_places()
 
 
+def check_error_places_of_each_kind():
+    """W140b: every error names its file and line, by kind (docs/protocol.md
+    "Errors"): a table file a model line names and that cannot be read, at
+    that model line; a table file that ends too soon, at its own last line;
+    a variable an equation makes NaN at run time, at the equation's line; a
+    script's step that fails, at the script's file and line."""
+    d = tempfile.mkdtemp(prefix='xppw140b')
+    try:
+        def load(ode):
+            p = subprocess.run([os.path.abspath(args.server), '--server', ode], cwd=d, input='',
+                               capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+            return next((json.loads(l) for l in p.stdout.splitlines() if '"ev":"error"' in l), {}), p
+
+        def write(name, text):
+            with open(os.path.join(d, name), 'w') as f:
+                f.write(text)
+
+        write('gonetab.ode', "par a=1\ntable tb gone.tab\nx'=-x+tb(t)\ndone\n")
+        e, p = load('gonetab.ode')
+        check('an error event: a table file that is not there is named at the model line that names it (W140b)',
+              p.returncode == 1 and e.get('file') == 'gonetab.ode' and e.get('line') == 2
+              and e.get('source') == 'table tb gone.tab' and 'gone.tab' in e.get('error', ''), str(e))
+        check('... and the log reads file:line: what', 'gonetab.ode:2: gone.tab: cannot be read' in p.stderr,
+              repr(p.stderr[-300:]))
+        write('short.tab', '5\n0\n1\n0.5\n')
+        write('shorttab.ode', "table tb short.tab\nx'=-x+tb(t)\ndone\n")
+        e, p = load('shorttab.ode')
+        check('an error event: a table file that ends too soon is named at its own last line (W140b)',
+              p.returncode == 1 and e.get('file') == 'short.tab' and e.get('line') == 4 and e.get('source') == '0.5'
+              and 'too short' in e.get('error', ''), str(e))
+
+        write('nan.ode', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\ndone\n")
+        code, out, err = run_script([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+                                     {'cmd': 'nosuchcommand'}], ode=os.path.join(d, 'nan.ode'))
+        errs = [json.loads(l) for l in out.splitlines() if '"error"' in l and '"message"' in l]
+        nan = next((m for m in errs if 'NaN' in m.get('error', '')), {})
+        check('an error event: a run-time NaN is named at the equation that makes it (W140b)',
+              nan.get('file') == 'nan.ode' and nan.get('line') == 3 and nan.get('source') == "x'=sqrt(x-2*a)"
+              and nan.get('error', '').startswith('X is NaN at t'), str(errs))
+        step = next((m for m in errs if 'nosuchcommand' in m.get('error', '')), {})
+        check("an error event: a script's step is named at the script's file and line (W140b)",
+              step.get('file', '').endswith('script.jsonl') and step.get('line') == 3
+              and step.get('source') == '{"cmd": "nosuchcommand"}', str(step))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+check_error_places_of_each_kind()
+
+
 def check_load_all_or_nothing():
     """W125: loading one of our files is all or nothing. A set file (File >
     Read set), a parameter file and an initial-conditions file (`values`
@@ -3575,8 +3625,8 @@ def check_open_reload():
               and not [e for e in evs if e.get('ev') == 'hello']
               and last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(errs)[:300])
         evs = open_model('missing.ode')
-        check('a missing model: an error, nothing asked',
-              [e for e in evs if e.get('ev') == 'message' and 'missing.ode' in e.get('error', '')]
+        check('a missing model: an error naming the file (line 0: it cannot be read), nothing asked',
+              [e for e in evs if e.get('ev') == 'message' and e.get('file') == 'missing.ode' and e.get('line') == 0]
               and not [e for e in evs if e.get('ev') == 'ask'], str(evs)[:200])
         integrate()
         after = rows_of('other3.csv')
@@ -3809,6 +3859,11 @@ def check_dae_fold():
     check('... saying there is no solution past t=0.45, a fold',
           len(errs) == 1 and errs[0].startswith('No solution of the algebraic equations past t=0.45:')
           and 'fold' in errs[0], str(errs))
+    code, out, err = run_script(GO, ode='examples/ode/dae_ex3.ode')
+    fold = next((json.loads(l) for l in out.splitlines() if 'No solution of the algebraic' in l), {})
+    check('... at the 0= line, the place of every error (W140b)',
+          fold.get('file') == 'dae_ex3.ode' and fold.get('line') == 3 and fold.get('source') == '0= v_*(1-v_*v_)-w',
+          str(fold))
     code, errs, rows, err = run('examples/ode/dae.ode')
     check('dae.ode, a DAE without a fold, runs to its end with no error',
           code == 0 and rows == 401 and not errs, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))

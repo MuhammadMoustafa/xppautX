@@ -8,6 +8,7 @@
 #include <string.h>
 #include <math.h>
 #include "getvar.h"
+#include "xpp_batch.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "xpp_ui.h"
@@ -27,63 +28,57 @@ namespace xpp {
 /* this adds an algebraically defined variable  and a formula
    for the first guess */
 
-int add_svar(xpp::Session &s, const char *name, const char *rhs)
+void add_svar(xpp::Session &s, const char *name, const char *rhs)
 {
-  if(s.model().nsvar>=MAXDAE){
-    xpp::log_printf(XPP_LOG_ERROR, " Too many variables\n");
-    return 1;
-  }
+  if(s.model().nsvar>=MAXDAE)
+    model_failed(xpp::format("Too many algebraic variables (at most {})",MAXDAE));
   s.model().svars[s.model().nsvar].name=name;
   s.model().svars[s.model().nsvar].rhs=rhs;
+  s.model().svars[s.model().nsvar].where=xpp::Load::place();
   xpp::log_printf(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
 	 s.model().nsvar,s.model().svars[s.model().nsvar].name.c_str(),s.model().svars[s.model().nsvar].rhs.c_str());
   s.model().nsvar++;
-return 0;
- }
+}
 
 /* adds algebraically define name to name list */
 
-int add_svar_names(xpp::Session &s)
+void add_svar_names(xpp::Session &s)
 {
   xpp::Model &m=s.model();
   int i;
   for(i=0;i<m.nsvar;i++){
      m.svars[i].index=m.nvar;
     if(add_var(s,m.svars[i].name.c_str(),0.0)==1)
-      return 1;
+      model_failed(xpp::Error{"DAE",xpp::format("{} is a name already, or one variable too many",m.svars[i].name),
+                              m.svars[i].where});
   }
-  return 0;
 }
 
 /* adds a right-hand side to slove for zero */
 
-int add_aeqn(xpp::Session &s, const char *rhs)
+void add_aeqn(xpp::Session &s, const char *rhs)
 {
   xpp::Model &m=s.model();
-  if(m.naeqn>=MAXDAE){
-    xpp::log_printf(XPP_LOG_ERROR, " Too many equations\n");
-    return 1;
-  }
+  if(m.naeqn>=MAXDAE)
+    model_failed(xpp::format("Too many algebraic equations (at most {})",MAXDAE));
   m.aeqns[m.naeqn].rhs=rhs;
+  m.aeqns[m.naeqn].where=xpp::Load::place();
   m.naeqn++;
- return 0;
 }
 
 /* this compiles formulas to set to zero */
-int compile_svars(xpp::Session &s)
+void compile_svars(xpp::Session &s)
 {
   xpp::Model &m=s.model();
   int i,f[256],n;
-  if(m.nsvar!=m.naeqn){
-    xpp::log_printf(XPP_LOG_ERROR, " #DaeSolVar(%d) must equal #ALG_EQN(%d) ! \n",m.nsvar,m.naeqn);
-    return 1;
-  }
+  if(m.nsvar!=m.naeqn)
+    model_failed(xpp::Error{"DAE",xpp::format("The model has {} algebraic variables (solv) and {} algebraic equations (0=): "
+                                              "they must be as many",m.nsvar,m.naeqn),
+                            m.naeqn>0?m.aeqns[0].where:m.svars[0].where});
   
   for(i=0;i<m.naeqn;i++){
-    if(add_expr(s,m.aeqns[i].rhs,f,&n)==1){
-    xpp::log_printf(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
-    return(1);
-    }
+    if(add_expr(s,m.aeqns[i].rhs,f,&n)==1)
+      model_failed(xpp::Error{"DAE","Bad right-hand side for the algebraic equation",m.aeqns[i].where});
     /* n+2, zero-padded like the xpp_malloc block this replaces: evaluate(s,)
        may read a couple of entries past the parsed length. */
     m.aeqns[i].form.assign(f, f+n);
@@ -91,16 +86,12 @@ int compile_svars(xpp::Session &s)
   }
 
    for(i=0;i<m.nsvar;i++){
-    if(add_expr(s,m.svars[i].rhs,f,&n)==1){
-    xpp::log_printf(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
-    return(1);
-    }
+    if(add_expr(s,m.svars[i].rhs,f,&n)==1)
+      model_failed(xpp::Error{"DAE",xpp::format("Bad initial guess for {}",m.svars[i].name),m.svars[i].where});
     m.svars[i].form.assign(f, f+n);
     m.svars[i].form.resize(100, 0);
    }
      init_dae_work(s);
-   return 0;
- 
 }
 
 /* the solver starts afresh: no failure */
@@ -132,6 +123,18 @@ void set_init_guess(xpp::Session &s)
   }
 }
 namespace {
+/* the 0= line a failure is at: the equation whose residual was the
+   largest at the last iterate (the first of equals) */
+const xpp::Place &dae_place(const xpp::Session &s)
+{
+  const xpp::Model &m=s.model();
+  const double *f=s.dae.work.data()+m.nsvar;
+  int k=0;
+  for(int i=1;i<m.naeqn;i++)
+    if(fabs(f[i])>fabs(f[k]))k=i;
+  return m.aeqns[k].where;
+}
+
 /* why solve_dae failed (its status, DAE_SINGULAR ... DAE_FOLD), as a
    value: where the solutions end, and why no step went further */
 xpp::Error dae_failure(const xpp::Session &s, int status)
@@ -144,8 +147,9 @@ xpp::Error dae_failure(const xpp::Session &s, int status)
   case DAE_FOLD: why="their Jacobian changed sign, a fold where this branch of solutions ends"; break;
   }
   if(s.dae.run&&s.dae.run->last_t)
-    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae.run->last_t,why)};
-  return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s,0),why)};
+    return {"DAE",xpp::format("No solution of the algebraic equations past t={:g}: {}",*s.dae.run->last_t,why),
+            dae_place(s)};
+  return {"DAE",xpp::format("No solution of the algebraic equations at t={:g}: {}",getvar(s,0),why),dae_place(s)};
 }
 }
 
@@ -295,7 +299,7 @@ void get_new_guesses(xpp::Session &s)
       m.svars[i].name,z);
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
     if(add_expr(s,m.svars[i].rhs,m.svars[i].form.data(),&n)){
-      err_msg("Illegal formula");
+      command_error("initial guess",xpp::format("{}: illegal formula {}",m.svars[i].name,m.svars[i].rhs));
       return;
     }
     z=evaluate(s,m.svars[i].form.data());

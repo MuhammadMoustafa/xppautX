@@ -18,6 +18,8 @@
 #include "stiff.h"
 #include "volterra2.h"
 #include "xpp_mem.h" /* xpp::out_of_memory */
+#include "xpp_ui.h"
+#include "model.h"
 
 namespace xpp {
 namespace {
@@ -122,7 +124,16 @@ public:
     NumericsSettings &num=session_.numerics;
     int kflag=0;
     cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
-    if(kflag<0)return failed(cvode_error_text(session_,run_,kflag));
+    if(kflag<0){
+      /* the short reason, then CVODE's own words; at the equation of the
+         variable CVODE's error test or corrector failed at, if it names one */
+      std::string what=cvode_error_text(session_,run_,kflag);
+      if(!run_.error.empty())what+="\n"+run_.error;
+      const Model &m=session_.model();
+      if(run_.error_var>=0&&run_.error_var<m.neq)
+        return failed(std::move(what),model_place(m,m.uvar_names[static_cast<size_t>(run_.error_var)]));
+      return failed(std::move(what));
+    }
     return {};
   }
   void finish() override { end_cv(run_); }
@@ -245,6 +256,11 @@ static_assert(in_method_order(),"the registry's rows are in method order");
 std::span<const SolverInfo> solvers()
 {
   return registry;
+}
+
+Result<> Solver::failed(std::string what) const
+{
+  return fail(info_.name,std::move(what),command_place());
 }
 
 const SolverInfo &solver_info(int m)

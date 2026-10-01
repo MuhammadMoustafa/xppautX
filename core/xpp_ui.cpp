@@ -17,6 +17,7 @@ namespace xpp {
 /* ---- headless defaults ------------------------------------------------ */
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }
+static Place hl_command_place(void) { return {}; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
@@ -104,6 +105,7 @@ XppTextMetrics text_metrics;
 
 XppUi ui = {
     .err_msg = hl_err_msg,
+    .command_place = hl_command_place,
     .ping = hl_void,
     .bottom_msg = hl_bottom_msg,
     .message_box = hl_str,
@@ -254,6 +256,11 @@ void show_error(const Error &e)
     }
     if (!e.where.empty()) xpp::log(XPP_LOG_DEBUG, "{} failed: {}\n", e.where, e.what);
     if (!e.what.empty()) ui.err_msg(e);
+}
+Place command_place() { return ui.command_place(); }
+void command_error(std::string_view command, std::string_view what)
+{
+    show_error(Error{std::string(command), std::string(what), command_place()});
 }
 void ping(void) { ui.ping(); }
 void bottom_msg(int line, std::string_view msg) { ui.bottom_msg(line, msg); }

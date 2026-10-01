@@ -816,13 +816,13 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
 {
     xpp::LineReader fp = model_file ? xpp::model_file_lines(s.model(),filename) : xpp::LineReader(filename);
     if (!fp) {
-        return xpp::fail("animation", "Couldn't open ani-file");
+        return xpp::fail_reading("animation", "cannot be opened", filename);
     }
     if (s.animation.ncom > 0) free_ani(s);
     /* a new animation: its frames start again, nothing of the old one shows */
     ani_data_forget(s);
     if (load_ani_file(s,fp) == 0) {
-        return xpp::fail("animation", xpp::format("Bad ani-file at line {}", s.animation.lineno));
+        return xpp::fail("animation", "This line is not an animation command", xpp::Place{filename, s.animation.lineno});
     }
     return {};
 }

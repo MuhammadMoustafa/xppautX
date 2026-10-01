@@ -92,6 +92,12 @@ void resize_values(TABULAR &t, int length)
   t.y_storage.resize(static_cast<size_t>(length));
   t.y=t.y_storage.data();
 }
+
+/* where the model defines table index (its table line), for its errors */
+xpp::Place table_place(const xpp::Session &s, int index)
+{
+  return xpp::model_place(s.model(),s.tables[index].name);
+}
 }
 
 void set_auto_eval_flags(xpp::Session &s, int f)
@@ -245,14 +251,14 @@ xpp::Result<> redo_all_fun_tables(xpp::Session &s)
   xpp::FirstError first;
   for(i=0;i<s.ntable;i++){
     if(s.tables[i].flag==2&&s.tables[i].autoeval==1)
-      first.keep(eval_fun_table(s,s.tables[i].n,s.tables[i].xlo,
+      first.keep(eval_fun_table(s,i,s.tables[i].n,s.tables[i].xlo,
 		     s.tables[i].xhi,s.tables[i].filename,s.tables[i].y));
   }
   update_all_ffts(s);
   return first.result();
 }
 
-xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const std::string &formula, double *y)
+xpp::Result<> eval_fun_table(xpp::Session &s, int index, int n, double xlo, double xhi, const std::string &formula, double *y)
 {
   int i;
   
@@ -262,7 +268,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, con
   if(add_expr(s,formula,command,&i)){
     s.parser.ncon=ncold;
     s.parser.nsym=nsym;
-    return xpp::fail("table","Illegal formula...");
+    return xpp::fail("table",xpp::format("Illegal formula {}",formula),table_place(s,index));
   }
   oldt=getvar(s,0);
   dx=(xhi-xlo)/(static_cast<double>(n-1));
@@ -281,17 +287,17 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   int length=npts;
 
    if(s.tables[index].flag==1){
-    return xpp::fail("table","Not a function table...");
+    return xpp::fail("table",xpp::format("{} is not a function table",s.tables[index].name),table_place(s,index));
   }
   if(xlo>xhi){
-    return xpp::fail("table","Xlo > Xhi ???");
+    return xpp::fail("table",xpp::format("{}: its low end {:g} is above its high end {:g}",s.tables[index].name,xlo,xhi),table_place(s,index));
   }
   if(npts<2){
-    return xpp::fail("table","Too few points...");
+    return xpp::fail("table",xpp::format("{}: {} points is too few (at least 2)",s.tables[index].name,npts),table_place(s,index));
   }
   resize_values(s.tables[index],length);
   s.tables[index].flag=2;
-  auto ev=eval_fun_table(s,npts,xlo,xhi,std::string(formula),s.tables[index].y);
+  auto ev=eval_fun_table(s,index,npts,xlo,xhi,std::string(formula),s.tables[index].y);
   if(!ev)return ev;
   s.tables[index].xlo=xlo;
   s.tables[index].xhi=xhi;
@@ -319,24 +325,34 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
   }
 
   if(s.tables[index].flag==2){
-    return xpp::fail("table","Not a file table...");
+    return xpp::fail("table",xpp::format("{} is not a file table",s.tables[index].name),table_place(s,index));
   }
 
   xpp::LineReader reader=model_file?xpp::model_file_lines(s.model(),filename2):xpp::LineReader(filename2.c_str());
   if(!reader){
     xpp::files::refresh_cur_dir();
-    return xpp::fail_reading("table",xpp::format("File<{:.245}> not found in {:.245}",filename2,xpp::files::cur_dir()),filename2);
+    return xpp::fail_reading("table",xpp::format("cannot be read (not found in {})",xpp::files::cur_dir()),filename2);
   }
-  auto next_line=[&reader]() -> std::optional<std::string> {
+  int at=0; /* the file's lines read */
+  auto next_line=[&reader,&at]() -> std::optional<std::string> {
     auto line=reader.next();
     if(!line) return std::nullopt;
+    at++;
     return std::string(*line);
+  };
+  /* a problem at the line read last; a file that ends too soon at its
+     last line */
+  auto problem=[&](std::string what){
+    return xpp::fail("table",std::move(what),xpp::Place{filename2,at>0?at:1});
+  };
+  auto too_short=[&](){
+    return problem(xpp::format("The table file ends after {} lines: it is too short",at));
   };
 
  s.tables[index].interp=0;
   auto line0=next_line();
   if(!line0){
-    return xpp::fail("table","Table file too short");
+    return too_short();
   }
   {
     const char *bob=line0->c_str();
@@ -353,20 +369,20 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     length=atoi(bob);
   }
   if(length<2){
-    return xpp::fail("table","Length too small");
+    return problem(xpp::format("A table has at least 2 values, not {}",length));
   }
   auto line1=next_line();
   if(!line1){
-    return xpp::fail("table","Table file too short");
+    return too_short();
   }
   xlo=atof(line1->c_str());
   auto line2=next_line();
   if(!line2){
-    return xpp::fail("table","Table file too short");
+    return too_short();
   }
   xhi=atof(line2->c_str());
   if(xlo>=xhi){
-    return xpp::fail("table","xlo >= xhi ??? ");
+    return problem(xpp::format("Its high end {:g} is not above its low end {:g}",xhi,xlo));
   }
   bool fresh=(s.tables[index].flag==0);
   resize_values(s.tables[index],length);
@@ -376,7 +392,7 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
        s.tables[index].y_storage=std::vector<double>();
        s.tables[index].y=NULL;
        s.tables[index].flag=0;
-       return xpp::fail("table","Table file too short");
+       return too_short();
      }
      s.tables[index].y[i]=atof(line->c_str());
    }
@@ -434,7 +450,7 @@ int select_table(const xpp::Session &s)
  }
  j=static_cast<int>(ch-'a');
  if(j<0||j>=s.ntable){
-   err_msg("Not a valid table");
+   command_error("table","Not a valid table");
    return -1;
  }
  return j;

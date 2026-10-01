@@ -64,7 +64,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  if(*ierr!=0)
  {
   for(i=0;i<n;i++)x[i]=old_x[i];
-  return xpp::fail("equilibrium","Could not converge to root");
+  return xpp::fail("equilibrium","Could not converge to root",command_place());
  }
  DING;
  
@@ -83,7 +83,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  }
  xpp::eigenvalues(n,work,eval,ework,ierr);
  if(*ierr!=0)
-  return xpp::fail("equilibrium","Could not compute eigenvalues");
+  return xpp::fail("equilibrium","Could not compute eigenvalues",command_place());
 /* succesfully computed evals now lets work with them */
 ch='n';
 if(!s.numerics.par_fol)

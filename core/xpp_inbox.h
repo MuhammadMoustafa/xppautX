@@ -1,6 +1,8 @@
 #ifndef XPP_INBOX_H
 #define XPP_INBOX_H
 
+#include "xpp_error.h"
+
 #include <functional>
 #include <optional>
 #include <string>
@@ -85,8 +87,10 @@ void start_generated(std::function<std::optional<std::string>()> next);
    or already reached end of file). */
 void script_advance();
 
-/* the file line number of the script line pushed last (1-based) */
-int script_line();
+/* --script's file, the line pushed last and that line as written: the
+   place of an error its command meets (xpp_ui.h command_place); empty
+   for a script made as it goes */
+xpp::Place script_place();
 
 /* The command line the next script_advance() pushes, without pushing it,
    with its file line number in line_no; nullptr at the end of the file or

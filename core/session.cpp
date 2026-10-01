@@ -124,11 +124,15 @@ void Load::write_kept()
   }
 }
 
-Error Load::error()
+Error Load::error(std::string_view also)
 {
   Load &load=*loading;
   Error e{"load",load.kept(),load.where};
   load.messages.clear();
+  if(!also.empty()){
+    if(!e.what.empty())e.what+='\n';
+    e.what+=also;
+  }
   if(e.what.empty())e.what="the model does not load";
   return e;
 }

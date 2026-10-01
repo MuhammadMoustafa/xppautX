@@ -13,14 +13,22 @@ emptied, is each place an error is made or reported with no place:
   log ERROR    an xpp::log/log_printf at XPP_LOG_ERROR not of an
                Error's text() (an error written to the log by hand)
 
-err_reading(path, ...) and fail_reading(..., file) name their file and are
-not counted; an Error built elsewhere (a Result's error()) is counted where
-it was made. The owners are not counted: xpp_error.h (fail itself),
-xpp_ui.cpp (the dispatchers) and json_prompts.cpp (j_err_msg itself).
+A Place given as an explicit empty one ({} or Place{}) is no place and is
+counted too. err_reading(path, ...) and fail_reading(..., file) name their
+file and are not counted; an Error built elsewhere (a Result's error()) is
+counted where it was made. The owners are not counted: xpp_error.h (fail
+itself), xpp_ui.cpp (the dispatchers) and json_prompts.cpp (j_err_msg
+itself).
 
-tests/errors.baseline is the count per file this started from: stage b
-(W140b) gives the call sites their places and drives it down. A file that
-grows past it fails --check; a total below it asks for --update.
+Where an error's place comes from: a file read, the file and its line; a
+model line at run time, model_place (model_files.h) or the place the
+parser kept; a command, command_error(command, what) or command_place()
+(xpp_ui.h: in a --script or a recording's Play, the step's file and line);
+a model being loaded, model_failed(what) (xpp_batch.h: the load's place).
+
+ALLOWED below lists the sites that are not errors with a place to give,
+each with its reason. W140b took the rest to 0, so tests/errors.baseline
+holds none: any new site fails --check.
 
 Modes:
   (default)  print the per-file counts and the total
@@ -91,6 +99,36 @@ def args_at(text, i):
     return []
 
 
+ARGUMENT_CHECK = "CVODE's check of an argument cv2.cpp passes: a bug of ours if it fires, no file or model line"
+# (file, a regex the site's lines as written match, why it has no place)
+ALLOWED = [
+    # results shown through err_msg that are not errors: W133 (#185) shows
+    # an outcome once, as a result
+    ('core/histogram.cpp', r'Mean=', 'W133: a result (the mean and deviation), not an error'),
+    ('core/do_fit.cpp', r'Success!', "W133: the fit's outcome, a result"),
+    ('core/adj2.cpp', r'Maximal exponent', 'W133: the Liapunov exponent, a result'),
+    ('core/pp_shoot.cpp', r'Saving anyway', 'W133: a notice that the BVP saved its result'),
+    ('core/auto_nox.cpp', r'Redraw is O|Draw orbits', "W133: a toggle's new state, not an error"),
+    # the vendored CVODE's checks of what cv2.cpp passes it
+    ('core/cvode.cpp', r'MSG_(Y0_NULL|BAD_N|BAD_LMM|BAD_ITER|BAD_ITOL|F_NULL|RELTOL_NULL|BAD_RELTOL|ABSTOL_NULL'
+     r'|BAD_ABSTOL|BAD_OPTIN|BAD_OPT|BAD_HMIN_HMAX|MEM_FAIL|BAD_EWT|CVODE_NO_MEM|YOUT_NULL|T_NULL|BAD_ITASK'
+     r'|LINIT_NULL|LINIT_FAIL|LSETUP_NULL|LSOLVE_NULL|LFREE_NULL|DKY_NO_MEM|BAD_DKY|BAD_K|BAD_T)\b', ARGUMENT_CHECK),
+    ('core/cvband.cpp', r'MSG_(MEM_FAIL|BAD_SIZES)', ARGUMENT_CHECK),
+    ('core/cvdense.cpp', r'MSG_MEM_FAIL', ARGUMENT_CHECK),
+    # the process itself, about no file or command
+    ('core/xpp_mem.cpp', r'out of memory', 'out of memory: the process exits'),
+    ('core/xpp_io.cpp', r'out of memory', 'out of memory: the process exits'),
+    ('core/xpp_io.cpp', r'no destination path given', "a Writer given no path: its caller's bug, no file to name"),
+    ('core/ode_read.cpp', r'out of memory', 'out of memory: the process exits'),
+    ('core/xpp_math.cpp', r'Fourier transform of', 'pocketfft out of memory: the process exits'),
+    ('core/ui_json.cpp', r'cannot start the input thread', 'the system refused a thread'),
+    ('core/xpp_http.cpp', r'cannot open a port', 'the system refused a port'),
+    ('core/xppautx_main.cpp', r'usage: xppautX --convert', "the command line's usage"),
+    ('core/xpp_batch.cpp', r'"model", std::string\(what\), xpp::Place\{\}',
+     'model_failed(what) outside a load: a model is built only by one, so never reached'),
+]
+
+EMPTY_PLACE = re.compile(r'(?:(?:xpp::)?Place\s*)?\{\s*\}')
 DEFINITION = re.compile(r'(?:void|int|bool|Error|Result<[^>]*>)\s*[&*]?\s*$')
 
 
@@ -98,10 +136,17 @@ def sites(path):
     rel = os.path.relpath(path, ROOT).replace(os.sep, '/')
     with open(path, encoding='utf-8', errors='replace') as f:
         text = strip(f.read())
+    with open(path, encoding='utf-8', errors='replace') as f:
+        lines = f.read().split('\n')
     found = []
 
     def at(pos, kind):
-        found.append((rel, text.count('\n', 0, pos) + 1, kind))
+        line = text.count('\n', 0, pos) + 1
+        # a call over several lines is matched by its first three
+        written = '\n'.join(lines[line - 1:line + 2])
+        if any(f == rel and re.search(pattern, written) for f, pattern, _ in ALLOWED):
+            return
+        found.append((rel, line, kind))
 
     for m in re.finditer(r'(?<![\w.>])(?:xpp::(?:json::)?)?(j_)?err_msg\s*\(', text):
         before = text[max(0, m.start() - 40):m.start()]
@@ -113,11 +158,12 @@ def sites(path):
             at(m.start(), 'err_msg')
     for m in re.finditer(r'(?<![\w.>])(?:xpp::)?fail\s*\(', text):
         args = args_at(text, m.end())
-        if len(args) == 2 and args[0].startswith('"'):
+        if (len(args) == 2 and args[0].startswith('"')) or (len(args) == 3 and EMPTY_PLACE.fullmatch(args[2])):
             at(m.start(), 'fail')
     for m in re.finditer(r'(?<![\w.>])(?:xpp::)?Error\s*\{', text):
         args = args_at(text, m.end())
-        if len(args) == 2 and (args[0].startswith('"') or args[0] == '{}'):
+        if (len(args) == 2 and (args[0].startswith('"') or args[0] == '{}')) or \
+                (len(args) >= 3 and EMPTY_PLACE.fullmatch(args[2])):
             at(m.start(), 'Error{}')
     for m in re.finditer(r'(?<![\w.>])(?:xpp::)?log(?:_printf)?\s*\(\s*XPP_LOG_ERROR\s*,', text):
         args = args_at(text, m.end())

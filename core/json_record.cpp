@@ -167,13 +167,13 @@ std::string now_utc()
 void start(xpp::Session &s)
 {
     if (recorder.rec) {
-        j_err_msg("Already recording: File/recorD again stops and saves the recording");
+        j_command_error("record", "Already recording: File/recorD again stops and saves the recording");
         return;
     }
     /* the session as it is now, what the replay starts from (W59d) */
     std::optional<std::string> snapshot = xpp_session_snapshot(s);
     if (!snapshot) {
-        j_err_msg("Cannot record: the session's state could not be saved to begin the recording with");
+        j_command_error("record", "Cannot record: the session's state could not be saved to begin the recording with");
         return;
     }
     recx::Recording r;
@@ -194,7 +194,7 @@ void start(xpp::Session &s)
 bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
 {
     if (!recorder.rec) {
-        j_err_msg("Not recording");
+        j_command_error("record", "Not recording");
         return false;
     }
     recorder.step.open = false; /* this command is no step */
@@ -213,7 +213,7 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     xpp::Writer w = open_writer_asking(file.c_str());
     if (!w) return false;
     if (!w.write(recx::text(*recorder.rec)) || !w.commit()) {
-        j_err_msg(xpp::format("Cannot write {}", file));
+        j_command_error("record", xpp::format("Cannot write {}", file));
         return false;
     }
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
@@ -237,13 +237,13 @@ void record_command(xpp::Session &s, const char *line)
         stop(s, text, false);
     } else if (o == "note") {
         if (!recorder.rec) {
-            j_err_msg("Not recording: a note goes with a recording's next step");
+            j_command_error("record", "Not recording: a note goes with a recording's next step");
             return;
         }
         get_string(line, "text", text);
         recorder.note = text;
     } else {
-        j_err_msg(xpp::format("Unknown record op {}", o));
+        j_command_error("record", xpp::format("Unknown record op {}", o));
     }
 }
 

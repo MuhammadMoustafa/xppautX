@@ -289,8 +289,8 @@ public:
   static void at(std::string_view file, int line=0, int col=0);
   /* what went wrong where the load is (a Load is in progress): the place
      at() gave, and as what failed the ERROR and WARN messages logged
-     since (no longer kept to be written) */
-  static Error error();
+     since (no longer kept to be written), then also */
+  static Error error(std::string_view also={});
   /* where the load is (at()'s place); empty when no Load is in progress */
   static Place place();
 private:

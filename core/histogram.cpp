@@ -164,7 +164,7 @@ int new_2d_hist(xpp::Session &s)
 {
 
   if((s.model().neq<2)||(s.data_store.rows<3)){
-    err_msg("Need more data and at least 3 columns");
+    command_error("histogram", "Need more data and at least 3 columns");
     return 0;
   }
   if(get_col_info(s,&s.histogram.info.col,"Variable 1 ")==0)return(-1);  
@@ -172,11 +172,11 @@ int new_2d_hist(xpp::Session &s)
   new_float(s,"Low ",&s.histogram.info.xlo);
   new_float(s,"Hi ",&s.histogram.info.xhi);
   if(s.histogram.info.nbins<2){
-    err_msg("At least 2 bins\n");
+    command_error("histogram", "At least 2 bins");
     return(0);
   }
   if(s.histogram.info.xlo>=s.histogram.info.xhi){
-    err_msg("Low must be less than hi");
+    command_error("histogram", "Low must be less than hi");
     return(0);
   }
   
@@ -186,11 +186,11 @@ int new_2d_hist(xpp::Session &s)
   new_float(s,"Hi ",&s.histogram.info.yhi);
 
 if(s.histogram.info.nbins2<2){
-    err_msg("At least 2 bins\n");
+    command_error("histogram", "At least 2 bins");
     return(0);
   }
   if(s.histogram.info.ylo>=s.histogram.info.yhi){
-    err_msg("Low must be less than hi");
+    command_error("histogram", "Low must be less than hi");
     return(0);
   }
 
@@ -226,7 +226,7 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     else
       {
 	if(add_expr(s,condition,command,&i)){
-	  condition_error=xpp::fail("histogram","Bad condition. Ignoring...");
+	  condition_error=xpp::fail("histogram","Bad condition. Ignoring...",command_place());
 	}
 	else {
 	  cond=1;
@@ -290,7 +290,7 @@ void column_mean(xpp::Session &s)
  double sum,sum2,ss;
  double mean,sdev;
  if(s.data_store.rows<=1){
-   err_msg("Need at least 2 data points!");
+   command_error("mean", "Need at least 2 data points!");
    return;
  }
  if(get_col_info(s,&s.histogram.info.col,"Variable ")==0)return;
@@ -312,7 +312,7 @@ int get_col_info(const xpp::Session &s, int *col, const char *prompt)
  new_string_of(prompt,variable,XPP_FIELD_NAME_IN(0));
  find_variable(s,variable.c_str(),col);
  if(*col<0){
-   err_msg("No such variable...");
+   command_error("mean", "No such variable...");
    return(0);
  }
  return(1);
@@ -540,11 +540,11 @@ void compute_fourier(xpp::Session &s)
 {
   int nmodes=10;
   if(s.model().neq<2){
-    err_msg("Need at least three data columns");
+    command_error("fourier", "Need at least three data columns");
     return;
   }
   if(s.data_store.rows<=1){
-    err_msg("No data!");
+    command_error("fourier", "No data!");
     return;
   }
   if(get_col_info(s,&s.histogram.spec_col,"Variable ")==1){

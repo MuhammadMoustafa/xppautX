@@ -65,6 +65,16 @@ void start_cv(xpp::Session &s, CvodeRun &run, double *y, double t, int n, double
 }
 }
 
+namespace {
+/* why CVODE's integration failed, from its memory before it is freed */
+void keep_failure(CvodeRun &run)
+{
+  const CVodeMem m=static_cast<CVodeMem>(run.memory->cvode);
+  run.error=m->cv_error;
+  run.error_var=m->cv_error_var;
+}
+}
+
 void end_cv(CvodeRun &run)
 {
   run.memory.reset();
@@ -123,6 +133,7 @@ int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, i
     if(flag != SUCCESS){
      
      *kflag=flag;
+     keep_failure(run);
      end_cv(run);
      *command=1;
       return(-1);
@@ -134,6 +145,7 @@ int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, i
   flag=CVode(run.memory->cvode,tout,run.memory->y,t,NORMAL);
   if(flag != SUCCESS){
       *kflag=flag;
+      keep_failure(run);
       end_cv(run);
       *command=1;
      

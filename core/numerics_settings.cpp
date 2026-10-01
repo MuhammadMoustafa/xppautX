@@ -211,7 +211,7 @@ bool numerics_settings_ask(xpp::Session &s, std::string_view key)
     }
     std::string why;
     if (numerics_settings_set(s, key, text, why) == 0) return true;
-    err_msg(why.c_str());
+    command_error("numerics", why);
     return false;
 }
 

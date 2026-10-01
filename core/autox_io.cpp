@@ -55,7 +55,7 @@ bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::s
     const std::string solutions_path = auto_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path.c_str(), solutions)) {
-        err_msg(xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
+        command_error("save AUTO", xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
                             solutions_path)
                     .c_str());
         return false;
@@ -165,21 +165,21 @@ bool import_file(Session &s, const std::string &path)
 {
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_reading(path, xpp::format("Cannot open {}", path));
+        err_reading(path, "cannot be opened");
         return false;
     }
     if (xpp::zip::is_zip(bytes)) {
-        err_msg(xpp::format("{} is not an XPPAUT .auto file (an AUTO file of xppautX is a .autox)", file_name(path)));
+        command_error("import AUTO", xpp::format("{} is not an XPPAUT .auto file (an AUTO file of xppautX is a .autox)", file_name(path)));
         return false;
     }
     xpp::UniqueFile fp = xpp::open_read(path.c_str());
     if (!fp) {
-        err_reading(path, xpp::format("Cannot open {}", path));
+        err_reading(path, "cannot be opened");
         return false;
     }
     if (!s.auto_state.bifur.exist) do_auto_win(s);
     if (import_auto_file(s, fp.get()) != 1) {
-        err_msg(xpp::format("{} holds no AUTO diagram", path));
+        command_error("import AUTO", xpp::format("{} holds no AUTO diagram", path));
         return false;
     }
     fp.reset();
@@ -193,7 +193,7 @@ bool save_settings_file(const Session &s, const std::string &path)
     if (!w) return false;
     if (!w.write(settings_text(auto_settings_now(s)))) {
         w.abort();
-        err_msg(xpp::format("Cannot write {}", path));
+        command_error("save AUTO settings", xpp::format("Cannot write {}", path));
         return false;
     }
     return w.commit();
@@ -203,7 +203,7 @@ bool load_settings_file(Session &s, const std::string &path)
 {
     std::string bytes;
     if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_reading(path, "Cannot open file");
+        err_reading(path, "cannot be opened");
         return false;
     }
     Result<SettingsRead> set = parse_settings(bytes, path);

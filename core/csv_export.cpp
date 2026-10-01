@@ -6,6 +6,7 @@
 #include "session.h"
 #include "csv_export.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #include "diagram.h"
 #include "autevd.h"
 #include "form_ode.h"
@@ -51,7 +52,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
     const xpp::Model &m = s.model();
     if (s.diagram.points.size() < 2) return false; /* nothing recorded */
     xpp::Writer w(filename);
-    if (!w) return xpp::fail("CSV export", "Can't open file");
+    if (!w) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
     for (int i = 0; i < m.node; i++) w.print(",{}_max", m.uvar_names[i]);
     for (int i = 0; i < m.node; i++) w.print(",{}_min", m.uvar_names[i]);
@@ -74,7 +75,7 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");
     }
-    if (!w.commit()) return xpp::fail("CSV export", "Can't open file");
+    if (!w.commit()) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
     return true;
 }
 
@@ -82,7 +83,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
 {
     if (s.diagram.points.size() < 2) return false;
     xpp::Writer w(filename);
-    if (!w) return xpp::fail("CSV export", "Can't open file");
+    if (!w) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
     w.print("branch,point,index,re,im,kind\n");
     for (const DiagramPoint &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p.d;
@@ -92,7 +93,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);
     }
-    if (!w.commit()) return xpp::fail("CSV export", "Can't open file");
+    if (!w.commit()) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
     return true;
 }
 

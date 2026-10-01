@@ -909,7 +909,7 @@ int create_crv(xpp::Session &s, int ind)
       const int iy=s.plot_windows.current->yv[ind];
       const int iz=s.plot_windows.current->zv[ind];
       if(s.browser.view.maxrow<=2){
-	err_msg("No Curve to freeze");
+	command_error("freeze", "No Curve to freeze");
 	return(-1);
       }
       const int type=s.plot_windows.current->grtype;
@@ -920,7 +920,7 @@ int create_crv(xpp::Session &s, int ind)
       return(i);
     }
   }
-    err_msg("All curves used");
+    command_error("freeze", "All curves used");
     return(-1);
 }	
 
@@ -1095,7 +1095,7 @@ void frz_bd(xpp::Session &s)
   if(!file_selector("Import Diagram",filename,"*.dat"))return;
   xpp::TokenReader fp(filename.c_str());
   if(!fp){
-    err_msg("Couldn't open file");
+    err_reading(filename,"cannot be opened");
     return;
   }
   read_bd(s,fp);
@@ -1173,7 +1173,7 @@ void add_a_curve_com(xpp::Session &s, int c)
  switch(c){
  case 0: if(s.plot_windows.current->nvars>=MAXPERPLOT)
    {
-     err_msg("Too many plots!");
+     command_error("plots", "Too many plots!");
      return;
    }
    new_curve(s);

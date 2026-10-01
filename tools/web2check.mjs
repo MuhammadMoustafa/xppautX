@@ -5208,7 +5208,7 @@ async function main() {
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
-    if (run('files')) await session(ODE, files, ['gone.set: Cannot open file']);
+    if (run('files')) await session(ODE, files, ['gone.set: cannot be opened']);
     if (run('native')) await session(ODE, nativeFiles);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

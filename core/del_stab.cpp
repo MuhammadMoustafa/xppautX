@@ -45,7 +45,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
    {
      s.delay.stab_flag=1;
      for(i=0;i<n;i++)x[i]=old_x[i];
-     return xpp::fail("equilibrium","Could not converge to root");
+     return xpp::fail("equilibrium","Could not converge to root",command_place());
    }
  /* OKAY -- we have the root */
  s.delay.ndelay=0;

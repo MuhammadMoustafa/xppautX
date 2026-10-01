@@ -166,7 +166,8 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
 	 if(add_expr(s,s.delay_string[i],del_form[i].data(),&len)){
 		 s.parser.ncon=s.model().ncon_start;
 		s.parser.nsym=s.model().nsym_start;
-		return xpp::fail("delay","Illegal delay expression");
+		return xpp::fail("delay",xpp::format("Illegal delay expression {} for {}",s.delay_string[i],s.model().uvar_names[i]),
+		                 command_place());
 		}
 	 }        /*  Okay all formulas are cool... */
   s.delay.latest=1;

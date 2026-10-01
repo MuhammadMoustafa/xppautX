@@ -193,7 +193,7 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,s.browser.view.maxcol,
 		      s.browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
-   if(errflag==-1)xpp::err_msg("Couldn't open file");
+   if(errflag==-1)xpp::command_error("array print",xpp::format("Cannot write {}",ap->filename));
  }
 }
 
@@ -241,7 +241,7 @@ values[8] = xpp::format("{:d}", ap->ncskip);
    }
    else
      {
-       xpp::err_msg("No such columns");
+       xpp::command_error("array plot", "No such columns");
        ap->plotdef=0;
        return 0;
      }

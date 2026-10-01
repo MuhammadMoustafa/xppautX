@@ -94,8 +94,10 @@ protected:
   /* the Session it steps: the run takes it once, where it starts (W47d4) */
   Session &session_;
 
-  /* a failed advance of this method */
-  Result<> failed(std::string what) const { return fail(info_.name, std::move(what)); }
+  /* a failed advance of this method: at the command that ran it (in a
+     script, its step: xpp_ui.h command_place), or at place (a model line) */
+  Result<> failed(std::string what) const;
+  Result<> failed(std::string what, Place place) const { return fail(info_.name, std::move(what), std::move(place)); }
 
 private:
   const SolverInfo &info_;

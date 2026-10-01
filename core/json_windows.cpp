@@ -224,14 +224,14 @@ void display_command(xpp::Session &s, const char *line)
 {
     const int win = get_int(line, "win", 1) - 1;
     if (win < 0 || win >= MAXPOP || !s.plot_windows.graph[win].Use) {
-        j_err_msg("display: no such plot window");
+        j_command_error("display", "display: no such plot window");
         return;
     }
     xpp::PlotDisplay &d = s.plot_display[win];
     xpp::Zoom z = d.zoom;
     const int rx = get_range(line, "x", z.x), ry = get_range(line, "y", z.y);
     if (rx < 0 || ry < 0) {
-        j_err_msg("display: x and y are [low, high] with low below high, or null");
+        j_command_error("display", "display: x and y are [low, high] with low below high, or null");
         return;
     }
     d.zoom = z;
@@ -415,7 +415,7 @@ void j_movie_make_anigif(xpp::Session &s)
             w0 = w;
             h0 = h;
         } else if (w != w0 || h != h0) {
-            j_err_msg("All clips must be same size");
+            j_command_error("kinescope", "All clips must be same size");
             break;
         }
         web_safe_colors(rgb);
@@ -544,14 +544,14 @@ void aplot_gif(ArrayPlotState &a, const char *file, int still)
     if (still == 1) {
         one = xpp::Writer::binary(file);
         if (!one) {
-            j_err_msg("Cannot open file ");
+            j_command_error("aplot", xpp::format("Cannot write {}", file));
             return;
         }
     } else if (a.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
         if ((a.fp = xpp::files::open_stream(file, "wb")) == NULL) {
-            j_err_msg("Cannot open file ");
+            j_command_error("aplot", xpp::format("Cannot write {}", file));
             return;
         }
     }
@@ -584,7 +584,7 @@ void aplot_command(xpp::Session &s, const char *line)
     std::string o;
     get_string(line, "op", o, 16);
     if (o != "scroll" && o != "close") {
-        j_err_msg(xpp::format("Unknown aplot op {}", o));
+        j_command_error("aplot", xpp::format("Unknown aplot op {}", o));
         return;
     }
     if (!s.array_plot.plot.alive) return;

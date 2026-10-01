@@ -576,7 +576,7 @@ void auto_set_command(xpp::Session &s, const char *line)
     AutoSettingsSet set;
     std::string why;
     if (!read_auto_set(line, set, why) || auto_settings_apply(s, set, why) != 0)
-        j_err_msg(xpp::format("AUTO settings: {}", why));
+        j_command_error("auto", xpp::format("AUTO settings: {}", why));
 }
 
 } // namespace
@@ -598,12 +598,12 @@ void auto_command(xpp::Session &s, const char *line)
         if (jl != NULL) {
             int lab = static_cast<int>(js_num(jl, 0));
             if (!auto_grab_label(s, lab))
-                j_err_msg(xpp::format("Grab: no point labelled {}", lab));
+                j_command_error("auto", xpp::format("Grab: no point labelled {}", lab));
         } else if (get_string(line, "type", type, 8) && js_find(line, "index") != NULL) {
             int idx = get_int(line, "index", 0);
             if (!auto_grab_type_index(s, type.c_str(), idx))
-                j_err_msg(xpp::format("Grab: no {} point number {}", type, idx));
-        } else j_err_msg("Grab: give a label, or a type and index");
+                j_command_error("auto", xpp::format("Grab: no {} point number {}", type, idx));
+        } else j_command_error("auto", "Grab: give a label, or a type and index");
     }
     else if (o == "set") auto_set_command(s, line);
     else if (o == "display") {
@@ -613,12 +613,12 @@ void auto_command(xpp::Session &s, const char *line)
         xpp::AutoView &v = s.auto_view;
         const int k = get_int(line, "view", s.auto_state.active_view);
         if (k < 0 || k >= static_cast<int>(s.auto_state.views.size())) {
-            j_err_msg(xpp::format("auto display: no view {}", k));
+            j_command_error("auto", xpp::format("auto display: no view {}", k));
             return;
         }
         xpp::Zoom z = s.auto_state.views[static_cast<std::size_t>(k)].zoom;
         if (get_range(line, "x", z.x) < 0 || get_range(line, "y", z.y) < 0) {
-            j_err_msg("auto display: x and y are [low, high] with low below high, or null");
+            j_command_error("auto", "auto display: x and y are [low, high] with low below high, or null");
             return;
         }
         s.auto_state.views[static_cast<std::size_t>(k)].zoom = z;
@@ -631,12 +631,12 @@ void auto_command(xpp::Session &s, const char *line)
         if (js_find(line, "new")) auto_new_view(s);
         else if (js_find(line, "close")) {
             const int k = get_int(line, "close", -1);
-            if (k < 0 || k >= n) j_err_msg(xpp::format("auto view: no view {}", k));
-            else if (!auto_close_view(s, k)) j_err_msg("auto view: the last view stays open");
+            if (k < 0 || k >= n) j_command_error("auto", xpp::format("auto view: no view {}", k));
+            else if (!auto_close_view(s, k)) j_command_error("auto", "auto view: the last view stays open");
         } else if (js_find(line, "active")) {
             const int k = get_int(line, "active", -1);
-            if (!auto_activate_view(s, k)) j_err_msg(xpp::format("auto view: no view {}", k));
-        } else j_err_msg("auto view: give new, close or active");
+            if (!auto_activate_view(s, k)) j_command_error("auto", xpp::format("auto view: no view {}", k));
+        } else j_command_error("auto", "auto view: give new, close or active");
     }
     else if (o == "point") {
         /* in the diagram's quantities, or a pixel of window 101 */
@@ -654,7 +654,7 @@ void auto_command(xpp::Session &s, const char *line)
         s.auto_view = xpp::AutoView();
         for (AutoDiagramView &w : s.auto_state.views) w.zoom = xpp::Zoom(); /* the views stay, shown whole */
     }
-    else j_err_msg(xpp::format("Unknown auto op {}", o));
+    else j_command_error("auto", xpp::format("Unknown auto op {}", o));
 }
 
 /* a key of the AUTO window (menu_auto_window) */

@@ -191,6 +191,13 @@ void model_failed()
     xpp::model_failed(xpp::Load::running() ? xpp::Load::error() : xpp::Error());
 }
 
+void model_failed(std::string_view what)
+{
+    /* no load is in progress: a model is built only by one, so there is
+       no place to name */
+    xpp::model_failed(xpp::Load::running() ? xpp::Load::error(what) : xpp::Error{"model", std::string(what), xpp::Place{}});
+}
+
 void batch_start(xpp::Session &s)
 {
     xpp_build_colormap(s.colormap);

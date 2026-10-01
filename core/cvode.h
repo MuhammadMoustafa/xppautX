@@ -12,6 +12,7 @@
 #define _cvode_h
 
 #include "llnltyps.h"
+#include <string>
 #include "vector.h"
 #ifdef __cplusplus
 extern "C" {
@@ -570,6 +571,13 @@ typedef struct CVodeMemRec {
 /* Pointer to Machine Environment-Specific Information */
 
   void *cv_machenv;
+
+/* why the last CVode call failed, as CVODE words it, and the component
+   whose weighted local error was the largest when the error test or the
+   corrector failed (-1 for none): cv2.cpp makes them its error (W140) */
+
+  std::string cv_error;
+  long cv_error_var = -1;
 
 } *CVodeMem;
 

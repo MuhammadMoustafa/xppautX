@@ -1315,7 +1315,7 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   std::string arg0 = "xppautX", model = ode;
   std::vector<char *> argv = {arg0.data(), model.data(), nullptr};
   if (is_odex(ode)) {
-    xpp::log(XPP_LOG_ERROR, "{} is .odex already\n", ode);
+    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "is .odex already", Place{ode}}.text());
     return 1;
   }
   /* the .ode built with .odex's derived quantities, as its .odex will be:
@@ -1331,19 +1331,21 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
     text = convert_model(s, auto_answer, ask);
     before = fingerprint(s);
   } catch (const Error &e) {
-    xpp::log(XPP_LOG_ERROR, "{}: {}\n", ode, e.what);
+    Error at = e;
+    if (at.place.file.empty()) at.place = Place{ode};
+    xpp::log(XPP_LOG_ERROR, "{}\n", at.text());
     return 1;
   }
   if (xpp::files::exists(out.c_str()) && !auto_answer) {
     std::optional<std::string> answer = ask ? ask(out + " exists; replace it (yes/no)", "no") : std::nullopt;
     if (!answer || (*answer != "yes" && *answer != "y")) {
-      xpp::log(XPP_LOG_ERROR, "{} exists and was left as it is (--convert --auto replaces it)\n", out);
+      xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "exists and was left as it is (--convert --auto replaces it)", Place{out}}.text());
       return 1;
     }
   }
   xpp::Writer w(out.c_str());
   if (!w || !w.write(text) || !w.commit()) {
-    xpp::log(XPP_LOG_ERROR, "cannot write {}\n", out);
+    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "cannot be written", Place{out}}.text());
     return 1;
   }
   /* exact by construction, and checked: the .odex builds what the .ode did */
@@ -1351,11 +1353,11 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
   argv[1] = model.data();
   const xpp::Loaded reloaded = xpp::load_model(2, argv.data(), 1);
   if (!reloaded) {
-    xpp::log(XPP_LOG_ERROR, "{} was written but does not load: a bug in --convert\n", out);
+    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "was written but does not load: a bug in --convert", Place{out}}.text());
     return 1;
   }
   if (!(fingerprint(**reloaded) == before)) {
-    xpp::log(XPP_LOG_ERROR, "{} was written but does not compile to what {} did: a bug in --convert\n", out, ode);
+    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", xpp::format("was written but does not compile to what {} did: a bug in --convert", ode), Place{out}}.text());
     return 1;
   }
   xpp::log(XPP_LOG_INFO, "wrote {}\n", out);

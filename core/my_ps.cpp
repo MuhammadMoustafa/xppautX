@@ -130,7 +130,7 @@ std::string ps_string(std::string_view str)
 xpp::Result<> ps_init(xpp::Session &s, const char *filename, int color)
 {
   s.plot_file.writer = xpp::Writer(filename);
-  if (!s.plot_file.writer) return xpp::fail("PostScript export","Cannot open file ");
+  if (!s.plot_file.writer) return xpp::fail("PostScript export",xpp::format("Cannot write {}",filename),command_place());
   init_ps(s);
   s.plot_file.plt_fmt_flag=1;
   s.plot_file.ps_lines=0;

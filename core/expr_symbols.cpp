@@ -404,7 +404,6 @@ xpp::Result<> add_file_table(xpp::Session &s, int index, std::string_view file)
     if(c>31&&c<127)
       file2+=c;
   auto loaded=load_table(s,file2,index,1);
-  if(!loaded&&s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "Problem with creating table !!\n");
   return loaded;
 }
 
@@ -422,7 +421,6 @@ xpp::Result<> add_form_table(xpp::Session &s, int index, int nn, double xlo, dou
 {
 
   auto made=create_fun_table(s,nn,xlo,xhi,formula,index);
-  if(!made&&s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "Problem with creating table !!\n");
   return made;
 }
 

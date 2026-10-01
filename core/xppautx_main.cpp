@@ -185,10 +185,7 @@ static void run_session(void)
         }
         if (!xpp_saved_file_name(args[i])) continue;
         saved = xpp_saved_read(args[i]);
-        if (!saved) { /* the error message said why */
-            xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open %s\n", args[i].c_str());
-            exit(1);
-        }
+        if (!saved) exit(1); /* the error message said why, at the file */
         xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
         const std::vector<std::string> model = xpp_saved_args(*saved);
         args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
@@ -282,7 +279,9 @@ int main(int argc, char **argv)
     if (batch) {
         for (i = 1; i < argc; i++)
             if (xpp_saved_file_name(argv[i])) {
-                xpp::log_printf(XPP_LOG_ERROR, "xppautX: an AUTO or session file (%s) opens in the window, the browser or --server, not with -silent\n", argv[i]);
+                xpp::log(XPP_LOG_ERROR, "{}\n",
+                         xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with -silent",
+                                    xpp::Place{argv[i]}}.text());
                 return 2;
             }
         return xpp::json_ui_silent(argc, argv);
@@ -292,7 +291,7 @@ int main(int argc, char **argv)
     if (mode == MODE_WINDOW && (!open_browser || !xpp::window::supported())) mode = MODE_BROWSER;
     start_auto_dir();
     if (script && !xpp::json_ui_set_script(script)) {
-        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
+        xpp::log(XPP_LOG_ERROR, "{}\n", xpp::Error{"xppautX", "the script cannot be opened", xpp::Place{script}}.text());
         return 1;
     }
     if (mode != MODE_SERVER) {

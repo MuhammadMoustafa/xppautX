@@ -155,6 +155,7 @@ struct Model {
     int index=0;
     std::string rhs;
     std::vector<int> form;
+    Place where; /* its line, for an error */
   };
   std::vector<DerivedQuantity> derived;
 
@@ -165,11 +166,13 @@ struct Model {
     std::string name,rhs;
     std::vector<int> form;
     int index=0;
+    Place where; /* its solv line, for an error */
   };
   /* an algebraic condition 0=rhs (compiled form) */
   struct AlgebraicEquation {
     std::string rhs;
     std::vector<int> form;
+    Place where; /* its 0= line, for an error (a DAE that cannot be solved) */
   };
   int nsvar=0,naeqn=0;
   std::array<AlgebraicVariable,MAXDAE> svars;
@@ -267,6 +270,9 @@ struct Model {
      fixed quantity of parameters a derived one): xppautX --convert
      writes them (odex_convert.cpp) */
   std::vector<odex::Statement> statements;
+  /* the files a statement's place (odex::Pos::file) indexes: the model's
+     own first, then each file it includes (model_place, model_files.h) */
+  std::vector<std::string> statement_files;
   /* a " comment of the model: its text, and with {name=value,...} an
      action, "$ name=value ..." (aflag 1), run when it is picked */
   struct Comment {

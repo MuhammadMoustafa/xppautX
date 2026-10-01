@@ -121,6 +121,18 @@ void set_bc_formula(xpp::Session &s, int i, std::string_view string)
 
 namespace {
 
+/* a table the load could not make fails it: at the table's file and line
+   when the error names one, else at the model line that makes the table
+   (a file that cannot be read included: the model line names it) */
+[[noreturn]] void table_failed(xpp::Error e)
+{
+  if(e.place.line<=0){
+    if(!e.place.file.empty())e.what=xpp::format("{}: {}",e.place.file,e.what);
+    e.place=xpp::Load::place();
+  }
+  model_failed(std::move(e));
+}
+
 /* s after a C function wrote into s.data(): cut at its NUL */
 void c_resync(std::string &s)
 {
@@ -128,10 +140,9 @@ void c_resync(std::string &s)
 }
 } // namespace
 
-int refuse_compiled_functions(std::string_view what)
+void refuse_compiled_functions(std::string_view what)
 {
-  xpp::log(XPP_LOG_ERROR, " {}: compiled functions are not supported\n", what);
-  return -1;
+  model_failed(xpp::format("{}: compiled functions are not supported", what));
 }
 
 void set_ode_name(xpp::Model &m, int i, std::string_view text)
@@ -374,10 +385,8 @@ void begin_model(xpp::Session &s)
 void add_parameter(xpp::Session &s, const std::string &name, double value)
 {
   xpp::Model &m=s.model();
-  if(add_con(s,name,value)){
-    xpp::log(XPP_LOG_ERROR, "{} is a name already, or one parameter too many\n",name);
-    model_failed();
-  }
+  if(add_con(s,name,value))
+    model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   m.default_val[m.nupar]=value;
   m.upar_con[m.nupar]=s.parser.ncon-1; /* add_con's */
   m.upar_names[m.nupar++]=name;
@@ -388,10 +397,8 @@ void add_parameter(xpp::Session &s, const std::string &name, double value)
 void add_constant(xpp::Session &s, const std::string &name, double value, bool wiener)
 {
   xpp::log(XPP_LOG_DEBUG, "|{}|={:f} ",name,value);
-  if(add_con(s,name,value)){
-    xpp::log(XPP_LOG_ERROR, "{} is a name already, or one parameter too many\n",name);
-    model_failed();
-  }
+  if(add_con(s,name,value))
+    model_failed(xpp::format("{} is a name already, or one parameter too many",name));
   if(wiener)xpp::add_wiener(s,s.parser.ncon-1);
 }
 
@@ -442,10 +449,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
   int nlin,i;
   done=1;
   if(bob[0]=='@'){
-    if(add_model_option(m,bob)<0){
-      xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-      model_failed();
-    }
+    if(add_model_option(m,bob)<0)
+      model_failed(); /* the option said why, at this line */
     if(ConvertStyle)
       xpp::print(s.parser.convert.file(),"{}\n",bob.c_str());
     return(done);
@@ -526,10 +531,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       nstates=atoi(tokens.text(" \n").c_str());
-      if(add_var(s,name,value)){
-	xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-	model_failed();
-      }
+      if(add_var(s,name,value))
+	model_failed(xpp::format("{} is a name already, or one variable too many",name));
       m.uvar_names[s.parser.build.in_vars+m.nmarkov]=name;
       s.last_ic[s.parser.build.in_vars+m.nmarkov]=value;
       m.default_ic[s.parser.build.in_vars+m.nmarkov]=value;
@@ -558,15 +561,12 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	{
 	  if((s.parser.build.in_vars>m.neq)||(s.parser.build.in_vars==MAXODE))
 	    {
-	      xpp::log_printf(XPP_LOG_ERROR, " too many variables at line %d\n",m.nlines());
-	      model_failed();
+	      model_failed("too many variables");
 	    }
 	  name=item.name;
 	  value=item.value;
-	  if(add_var(s,name,value)){
-	    xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-	    model_failed();
-	  }
+	  if(add_var(s,name,value))
+	    model_failed(xpp::format("{} is a name already, or one variable too many",name));
 	  if(iflg)
 	    {
 	      m.uvar_names[s.parser.build.in_vars]=name;
@@ -624,11 +624,8 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	       name,nn,xlo,xhi,formula);
 	add_table_name(s,s.ntable,name);
 
-	if(auto t=add_form_table(s,s.ntable,nn,xlo,xhi,formula);!t){
-	  xpp::show_error(t.error());
-	  xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-	  model_failed();
-	}
+	if(auto t=add_form_table(s,s.ntable,nn,xlo,xhi,formula);!t)
+	  table_failed(t.error());
 
 	if(ConvertStyle)
 	  xpp::print(s.parser.convert.file(),"table {} % {} {:g} {:g} {}\n",
@@ -642,20 +639,15 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  xpp::log_printf(XPP_LOG_INFO, " Two-dimensional array: \n ");
 	  formula=tokens.text(" ");
 	  xpp::log(XPP_LOG_INFO, " {} = {} \n",name,formula);
-	  if(add_2d_table(name,formula)){
-	    xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-	    model_failed();
-	  }
+	  if(add_2d_table(name,formula))
+	    model_failed(); /* add_2d_table said why */
 	}
 	else
 	  {
 	    xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",name,formula);
             add_table_name(s,s.ntable,name);
-	    if(auto t=add_file_table(s,s.ntable,formula);!t){
-	      xpp::show_error(t.error());
-	      xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m.nlines());
-	      model_failed();
-	    }
+	    if(auto t=add_file_table(s,s.ntable,formula);!t)
+	      table_failed(t.error());
 	    if(ConvertStyle)
 	      xpp::print(s.parser.convert.file(),"table {} {}\n",
 		      name,formula);
@@ -805,12 +797,10 @@ void finish_model(xpp::Session &s)
   xpp::Model &m=s.model();
   int i;
  if((m.node+m.nmarkov)==0){
-   xpp::log_printf(XPP_LOG_ERROR, " Must have at least one equation! \n Probably not an ODE file.\n");
-   model_failed();
+   model_failed("Must have at least one equation: probably not an ODE file");
  }
   if(s.model().bc_defined>s.parser.build.in_vars ){
-    xpp::log_printf(XPP_LOG_ERROR, "Too many boundary conditions\n");
-    model_failed();
+    model_failed("Too many boundary conditions");
   }
   if(s.model().bc_defined<s.parser.build.in_vars ){
     if(s.model().bc_defined>0)xpp::log_printf(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
@@ -822,13 +812,11 @@ void finish_model(xpp::Session &s)
 
   if(m.node!=m.neq+m.fix_var-m.nmarkov)
     {
-      xpp::log_printf(XPP_LOG_ERROR, " Too many/few equations\n");
-      model_failed();
+      model_failed("Too many/few equations");
     }
   if(s.parser.build.in_vars>m.neq)
     {
-      xpp::log_printf(XPP_LOG_ERROR, " Too many variables\n");
-	model_failed();
+      model_failed("Too many variables");
     }
   m.node=s.parser.build.in_vars;
 
@@ -865,8 +853,7 @@ void finish_model(xpp::Session &s)
   if(m.nmarkov>0)
     xpp::compile_all_markov(s);
   if(compile_flags(s)==1){
-    xpp::log_printf(XPP_LOG_ERROR, " Error in compiling a flag \n");
-    model_failed();
+    model_failed("Error in compiling a flag");
   }
   /*  add auxiliary variables   */
   for(i=m.node+m.nmarkov;i<m.neq;i++)add_var(s,uvar_names[i],0.0);
@@ -1041,16 +1028,15 @@ public:
       compile(s);
     }
     xpp::Load::at(m_.this_file);
-    if(compile_derived(s_)==1)
-      model_failed();
-    if(xpp::compile_svars(s_)==1)
-      model_failed();
+    compile_derived(s_);
+    xpp::compile_svars(s_);
     evaluate_derived(s_);
     xpp::log_printf(XPP_LOG_INFO, " All formulas are valid!!\n");
     m.node=nvar_+naux_+nfix_;
     xpp::log_printf(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
 	   nvar_,naux_,nfix_,nmark_,m.neq,m.node);
     m.statements=std::move(p_.statements);
+    m.statement_files=p_.files;
     finish_model(s_);
   }
 
@@ -1166,8 +1152,7 @@ private:
     switch(s.kind){
     case Statement::Kind::Options:
       if(add_model_option(m,s.text)<0){
-	xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",s.text);
-	model_failed();
+	model_failed(xpp::format("Error in parsing {}",s.text));
       }
       break;
     case Statement::Kind::Comment: add_comment(m,"\""+s.text); break;
@@ -1209,8 +1194,7 @@ private:
     case Statement::Kind::Volterra: {
       std::string name=converted(s.name);
       if(std::find(vnames_.begin(),vnames_.end(),name)!=vnames_.end()){
-	xpp::log(XPP_LOG_ERROR, " {} is a duplicate name \n",name);
-	model_failed();
+	model_failed(xpp::format("{} is a duplicate name",name));
       }
       vnames_.push_back(std::move(name));
       break;
@@ -1221,8 +1205,7 @@ private:
       c_resync(s.text);
       break;
     case Statement::Kind::Solv:
-      if(xpp::add_svar(s_,s.name.c_str(),text(s.expr).c_str())==1)
-	model_failed();
+      xpp::add_svar(s_,s.name.c_str(),text(s.expr).c_str());
       break;
     case Statement::Kind::Aux:
       for(const Binding &b : s.bindings){
@@ -1246,8 +1229,7 @@ private:
     case Statement::Kind::Table: {
       const std::string name=converted(s.name);
       if(add_table_name(s_,ntab_,name)==1){
-	xpp::log(XPP_LOG_ERROR, " {} is duplicate name \n",name);
-	model_failed();
+	model_failed(xpp::format("{} is a duplicate name",name));
       }
       xpp::log_printf(XPP_LOG_DEBUG, "added name %d\n",ntab_);
       ntab_++;
@@ -1256,8 +1238,7 @@ private:
     case Statement::Kind::Fun: {
       const std::string name=converted(s.name);
       if(add_ufun_name(s_,name,nufun_,static_cast<int>(s.names.size()))==1){
-	xpp::log(XPP_LOG_ERROR, "Duplicate name or too many functions for {} \n",name);
-	model_failed();
+	model_failed(xpp::format("Duplicate name or too many functions for {}",name));
       }
       nufun_++;
       break;
@@ -1276,8 +1257,7 @@ private:
     const int nvar=static_cast<int>(vnames_.size());
     for(int i=0;i<nvar;i++){
       if(add_var(s_,vnames_[i].c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",vnames_[i]);
-	model_failed();
+	model_failed(xpp::format("Duplicate name {}",vnames_[i]));
       }
       m.uvar_names[i]=vnames_[i];
       s.last_ic[i]=0.0;
@@ -1285,13 +1265,11 @@ private:
     }
     for(const std::string &f : fnames_)
       if(add_var(s_,f.c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",f);
-	model_failed();
+	model_failed(xpp::format("Duplicate name {}",f));
       }
     for(size_t i=0;i<mnames_.size();i++){
       if(add_var(s_,mnames_[i].c_str(),0.0)){
-	xpp::log(XPP_LOG_ERROR, " Duplicate name {} \n",mnames_[i]);
-	model_failed();
+	model_failed(xpp::format("Duplicate name {}",mnames_[i]));
       }
       m.uvar_names[i+nvar]=mnames_[i];
       s.last_ic[i+nvar]=0.0;
@@ -1329,8 +1307,7 @@ private:
     bool markov;
     const int in=variable(name,markov);
     if(in<0){
-      xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",name);
-      model_failed();
+      model_failed(xpp::format("In initial value statement no variable {}",name));
     }
     const double z=b.value.value;
     s_.last_ic[in]=z;
@@ -1345,8 +1322,7 @@ private:
     bool markov;
     const int in=variable(name,markov);
     if(in<0){
-      xpp::log(XPP_LOG_ERROR, "In initial value statement no variable {} \n",name);
-      model_failed();
+      model_failed(xpp::format("In initial value statement no variable {}",name));
     }
     if(!markov)s_.delay_string[in]=text(b.value,true);
   }
@@ -1378,8 +1354,7 @@ private:
       new_program(m,nvar_);
       find_ker(s_,rhs,&alt);
       if(add_expr(s_,rhs,m.programs[nvar_].data(),&len)){
-	xpp::log(XPP_LOG_ERROR, "ERROR compiling {}' \n",s.name);
-	model_failed();
+	model_failed(xpp::format("ERROR compiling {}'",s.name));
       }
       if(s.kind==Statement::Kind::Map){
 	xpp::log(XPP_LOG_INFO, "{}(t+1)={}\n",s.name,rhs);
@@ -1397,8 +1372,7 @@ private:
       find_ker(s_,rhs,&alt);
       new_program(m,nfix_+s_.parser.build.in_vars);
       if(add_expr(s_,rhs,m.programs[nfix_+s_.parser.build.in_vars].data(),&len)!=0){
-	xpp::log(XPP_LOG_ERROR, " Error allocating or compiling {}\n",s.name);
-	model_failed();
+	model_failed(xpp::format("Error allocating or compiling {}",s.name));
       }
       nfix_++;
       xpp::log(XPP_LOG_INFO, "{}={}\n",s.name,rhs);
@@ -1406,8 +1380,7 @@ private:
     }
     case Statement::Kind::Dae: {
       const std::string rhs=text(s.expr,true);
-      if(xpp::add_aeqn(s_,rhs.c_str())==1)
-	model_failed();
+      xpp::add_aeqn(s_,rhs.c_str());
       xpp::log(XPP_LOG_INFO, " DAE eqn: {}=0 \n",rhs);
       break;
     }
@@ -1418,8 +1391,7 @@ private:
 	set_ode_name(m,in1,rhs);
 	new_program(m,in2);
 	if(add_expr(s_,rhs,m.programs[in2].data(),&len)){
-	  xpp::log(XPP_LOG_ERROR, "ERROR compiling {} \n",b.name);
-	  model_failed();
+	  model_failed(xpp::format("ERROR compiling {}",b.name));
 	}
 	naux_++;
 	xpp::log(XPP_LOG_INFO, "{}={}\n",b.name,rhs);
@@ -1429,8 +1401,7 @@ private:
       const int ok=add_vectorizer(s_,s.name,s.text.data());
       c_resync(s.text);
       if(ok==0){
-	xpp::log(XPP_LOG_ERROR, " Illegal vector  {} \n",s.text);
-	model_failed();
+	model_failed(xpp::format("Illegal vector {}",s.text));
       }
       break;
     }
@@ -1438,8 +1409,7 @@ private:
       const int ok=add_spec_fun(s_,s.name,s.text.data());
       c_resync(s.text);
       if(ok==0){
-	xpp::log(XPP_LOG_ERROR, " Illegal special function {} \n",s.text);
-	model_failed();
+	model_failed(xpp::format("Illegal special function {}",s.text));
       }
       break;
     }
@@ -1456,8 +1426,7 @@ private:
       if(s.expr.kind!=Expr::Kind::Text)
 	for(std::string &a : args)xpp::to_upper(a.data());
       if(add_ufun_new(s_,nufun_,rhs,args)!=0){
-	xpp::log(XPP_LOG_ERROR, " Function {} messed up \n",s.name);
-	model_failed();
+	model_failed(xpp::format("Function {} messed up",s.name));
       }
       nufun_++;
       xpp::log(XPP_LOG_INFO, "{}({}",s.name,s.names.empty()?std::string():s.names[0]);
@@ -1479,9 +1448,7 @@ private:
       xpp::log_printf(XPP_LOG_INFO, " Function form of table....\n");
       xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.count,s.lo,s.hi,formula);
       if(auto t=add_form_table(s_,ntab_,s.count,s.lo,s.hi,formula);!t){
-	xpp::show_error(t.error());
-	xpp::log(XPP_LOG_ERROR, "ERROR computing {}\n",s.name);
-	model_failed();
+	table_failed(t.error());
       }
       ntab_++;
       break;
@@ -1490,16 +1457,13 @@ private:
       xpp::log_printf(XPP_LOG_INFO, " Two-dimensional array: \n ");
       xpp::log(XPP_LOG_INFO, " {} = {} \n",s.name,s.text);
       if(add_2d_table(s.name,s.text)){
-	xpp::log_printf(XPP_LOG_ERROR, "ERROR at line %d\n",m_.nlines());
-	model_failed();
+	model_failed(); /* add_2d_table said why */
       }
       break;
     case Statement::TableKind::File:
       xpp::log(XPP_LOG_INFO, "Lookup table {} = {} \n",s.name,s.text);
       if(auto t=add_file_table(s_,ntab_,s.text);!t){
-	xpp::show_error(t.error());
-	xpp::log(XPP_LOG_ERROR, "ERROR computing {}",s.name);
-	model_failed();
+	table_failed(t.error());
       }
       ntab_++;
       break;

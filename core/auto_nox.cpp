@@ -545,7 +545,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
 		       */
     if(!failed.empty()){
       xpp::log_auto("AUTO stopped: {}\n",failed); /* the AUTO window's Output */
-      err_msg(("AUTO stopped: "+failed));
+      command_error("auto", ("AUTO stopped: "+failed));
     }
     
     if(s.auto_state.restart_label!=0){
@@ -1437,7 +1437,7 @@ void do_auto_win(xpp::Session &s)
 {
   if(s.auto_state.bifur.exist==0){
     if(s.model().node>NAUTO){
-      err_msg(xpp::format("Auto restricted to less than {} variables",NAUTO));
+      command_error("auto", xpp::format("Auto restricted to less than {} variables",NAUTO));
       return;
     }
     make_auto(s,"It's AUTO man!","AUTO");
@@ -1711,7 +1711,7 @@ void auto_start_choice(xpp::Session &s)
   /* the other starts take the orbit last integrated (autpp.cpp stpnt:
      get_start_period, get_start_orbit) */
   if(strchr("pbhe",ch)!=NULL&&ch!=0&&s.data_store.rows<2){
-    err_msg("Integrate first: this start takes its orbit from the last integration");
+    command_error("auto", "Integrate first: this start takes its orbit from the last integration");
     return;
   }
   if(ch=='p'){
@@ -2094,7 +2094,7 @@ void auto_extend_ss(xpp::Session &s)
   
   if (isinf(s.auto_state.grabpt.per))
   {
-  	err_msg("Can't continue infinite period Hopf!");
+  	command_error("auto", "Can't continue infinite period Hopf!");
   	return;
   } 
   
@@ -2225,7 +2225,7 @@ void auto_new_per(xpp::Session &s) /* same for extending periodic  */
   
   if (isinf(s.auto_state.grabpt.per))
   {
-  	err_msg("Can't continue infinite period Hopf.");
+  	command_error("auto", "Can't continue infinite period Hopf.");
   	return;
   } 	
       s.auto_state.type_of_calc=PE1;
@@ -2426,7 +2426,7 @@ void auto_2p_hopf(xpp::Session &s)
   
   if (isinf(s.auto_state.grabpt.per))
   {
-  	err_msg("Can't continue infinite period Hopf.");
+  	command_error("auto", "Can't continue infinite period Hopf.");
   	return;
   } 
   
@@ -2483,7 +2483,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   string=s.auto_state.file+".s";
   xpp::UniqueFile fp=xpp::open_read(string.c_str());
   if(!fp){
-    return xpp::fail("AUTO","No such file");
+    return xpp::fail_reading("AUTO","cannot be read",string);
   }
   label=lab;
   period=per;
@@ -2492,7 +2492,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   if(ndim>s.model().node)nstor=s.model().node;
   if(flg==0){
     xpp::log_auto_printf("Could not find label %d in file %s \n",label,string.c_str());
-    return xpp::fail("AUTO","Cant find labeled pt");
+    return xpp::fail("AUTO",xpp::format("No point labelled {} in {}",label,string),command_place());
   }
   x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
@@ -2526,7 +2526,7 @@ void save_auto(xpp::Session &s)
   filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
   if(diagram_count(s.diagram)<=1){
     /* leave no file without a diagram (nor replace one with it) */
-    err_msg("Empty diagram -- nothing to save");
+    command_error("auto", "Empty diagram -- nothing to save");
     return;
   }
   std::optional<std::string> bytes=xpp::autox::file_bytes(s);
@@ -2536,7 +2536,7 @@ void save_auto(xpp::Session &s)
   if(!w)return;
   if(!w.write(*bytes)){
     w.abort();
-    err_msg(xpp::format("Cannot write {}",filename));
+    command_error("auto", xpp::format("Cannot write {}",filename));
     return;
   }
   w.commit();
@@ -2593,7 +2593,7 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
   /* written beside the .s and renamed over it once whole */
   xpp::Writer w(string.c_str());
   if(!w){
-    return xpp::fail("AUTO","Couldnt open s-file");
+    return xpp::fail("AUTO",xpp::format("Cannot write {}",string),command_place());
   }
 
   /* the rest of fp, the .auto's copy of the .s, without its blank lines */
@@ -2682,7 +2682,7 @@ void export_auto_csv(xpp::Session &s)
   if(!file_selector("Export CSV",filename,"*.csv"))return;
   const xpp::Result<bool> written=csv_export_diagram_pair(s,filename.c_str());
   if(!written)xpp::show_error(written.error());
-  else if(!*written)err_msg("Nothing to export: run or load a diagram first");
+  else if(!*written)command_error("auto", "Nothing to export: run or load a diagram first");
 }
 
 void auto_file(xpp::Session &s)
@@ -2736,7 +2736,7 @@ void auto_file(xpp::Session &s)
   }
   if(ch=='o'){
     if(s.auto_state.diagram_mark.state<2)
-      err_msg("Mark a branch first using S and E");
+      command_error("auto", "Mark a branch first using S and E");
     else
       load_browser_with_branch(s, s.auto_state.diagram_mark.start_branch,s.auto_state.diagram_mark.start_point,s.auto_state.diagram_mark.end_point);
 	}
@@ -2752,13 +2752,13 @@ void auto_file(xpp::Session &s)
   }
   if(ch=='n'){
     if(s.auto_state.diagram_mark.state<2) 
-      err_msg("Mark a branch first using S and E");
+      command_error("auto", "Mark a branch first using S and E");
     else
       do_auto_range(s);
   }
   if(ch=='e'){
     if(s.auto_state.axes().plot!=P_P){
-      err_msg("Must be in 2 parameter plot");
+      command_error("auto", "Must be in 2 parameter plot");
       return;
     }
     setautopoint(s);

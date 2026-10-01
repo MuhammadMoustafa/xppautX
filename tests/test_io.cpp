@@ -201,6 +201,25 @@ int main(void)
         CHECK(!r.read(d)); /* end of file */
     }
 
+    /* line(): the line of the last character read, for an error's place
+       (W140b): the token that is no number, and the last line at the end */
+    {
+        TempFile tf("test_io_tok.tmp");
+        write_raw(tf.c_str(), "1 2\n3 4\n5 x\n6\n\n");
+        xpp::TokenReader r(tf.c_str());
+        double d;
+        CHECK(r.line() == 0);
+        for (int k = 0; k < 5; k++) CHECK(r.read(d));
+        CHECK(r.line() == 3);
+        CHECK(!r.read(d)); /* "x" */
+        CHECK(r.line() == 3);
+        CHECK(r.read(d) && d == 6);
+        CHECK(r.line() == 4);
+        CHECK(!r.read(d)); /* end of file: the blank lines read */
+        CHECK(r.line() == 5);
+        CHECK(r.read(d) == false && r.line() == 5); /* line() leaves the reader where it was */
+    }
+
     /* a float token reads as fscanf "%g" reads it (rounded straight to
        float), and the whitespace after a token stays in the stream */
     {

@@ -173,7 +173,7 @@ void ani_command(xpp::Session &s, const char *line)
             send_window("destroy", WIN_ANI, 0, 0);
         }
     } else {
-        j_err_msg(xpp::format("Unknown ani op {}", o));
+        j_command_error("ani", xpp::format("Unknown ani op {}", o));
         return;
     }
     send_ani_slider(s);

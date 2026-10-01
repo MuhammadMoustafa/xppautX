@@ -45,6 +45,31 @@ struct xpp::TokenReader::State {
     xpp::UniqueFile owned;
     std::FILE *attached = nullptr;
     std::FILE *fp() const noexcept { return owned ? owned.get() : attached; }
+    /* the newlines read, the last two characters read (EOF: none) and
+       whether one was: line() (no ftell, which a text stream on Windows
+       miscounts) */
+    int newlines = 0;
+    int last = EOF, before_last = EOF;
+    bool read_any = false;
+    int get() noexcept
+    {
+        const int c = std::fgetc(fp());
+        if (c == EOF) return c;
+        before_last = last;
+        last = c;
+        read_any = true;
+        if (c == '\n') newlines++;
+        return c;
+    }
+    /* c, the last character read, back to the stream (one at a time) */
+    void unget(int c) noexcept
+    {
+        if (c == EOF) return;
+        std::ungetc(c, fp());
+        if (c == '\n') newlines--;
+        last = before_last;
+        before_last = EOF;
+    }
 };
 
 /* the temp file being written, and the file it replaces at commit */
@@ -95,19 +120,19 @@ bool text_line(xpp::LineReader::State &r)
    The whitespace that ends the token goes back to the stream, as fscanf
    leaves it, so a line read after a token on an attached FILE* sees the
    same rest of the line. */
-bool read_token(std::FILE *fp, std::string &tok)
+bool read_token(xpp::TokenReader::State &in, std::string &tok)
 {
     tok.clear();
     int c;
     do {
-        c = std::fgetc(fp);
+        c = in.get();
     } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
     if (c == EOF) return false;
     while (c != EOF && !std::isspace(static_cast<unsigned char>(c))) {
         tok.push_back(static_cast<char>(c));
-        c = std::fgetc(fp);
+        c = in.get();
     }
-    if (c != EOF) std::ungetc(c, fp);
+    in.unget(c);
     return true;
 }
 
@@ -115,11 +140,11 @@ bool read_token(std::FILE *fp, std::string &tok)
    base 10): false at the end of the file or when it does not start with
    a number */
 template <class T, class Convert>
-bool read_number(std::FILE *fp, T &out, Convert strto)
+bool read_number(xpp::TokenReader::State *in, T &out, Convert strto)
 {
     std::string tok;
     try {
-        if (!fp || !read_token(fp, tok)) return false;
+        if (!in || !in->fp() || !read_token(*in, tok)) return false;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("reading a number");
     }
@@ -196,7 +221,8 @@ Ptr writer_open(std::string_view path, bool binary)
             if (!w->fp && errno != EEXIST) break;
         }
         if (!w->fp) {
-            xpp::log(XPP_LOG_ERROR, "Writer: cannot create a temp file for {}\n", path);
+            xpp::log(XPP_LOG_ERROR, "{}\n", xpp::Error{"writer", "cannot be written: no temp file can be made next to it",
+                                                       xpp::Place{std::string(path)}}.text());
             return nullptr;
         }
         return w;
@@ -270,19 +296,19 @@ TokenReader TokenReader::attach(FILE *fp) noexcept
 
 bool TokenReader::read(double &x) noexcept
 {
-    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtod(s, e); });
+    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtod(s, e); });
 }
 
 /* strtof, not (float)strtod: fscanf "%f"/"%g" rounds the decimal
    straight to float, and rounding through double first can differ. */
 bool TokenReader::read(float &x) noexcept
 {
-    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtof(s, e); });
+    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtof(s, e); });
 }
 
 bool TokenReader::read(int &x) noexcept
 {
-    return state_ && read_number(state_->fp(), x, [](const char *s, char **e) { return std::strtol(s, e, 10); });
+    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtol(s, e, 10); });
 }
 
 /* fscanf "%ld"'s own grammar, one character of lookahead pushed back as
@@ -290,37 +316,43 @@ bool TokenReader::read(int &x) noexcept
    (AUTO's "%5ld" columns) is the next read's. */
 bool TokenReader::read(long &x) noexcept
 {
-    std::FILE *fp = state_ ? state_->fp() : nullptr;
-    if (!fp) return false;
+    if (!state_ || !state_->fp()) return false;
+    State &in = *state_;
     std::string num;
     int c;
     do {
-        c = std::fgetc(fp);
+        c = in.get();
     } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
     try {
         if (c == '+' || c == '-') {
             num.push_back(static_cast<char>(c));
-            c = std::fgetc(fp);
+            c = in.get();
         }
         while (c != EOF && std::isdigit(static_cast<unsigned char>(c))) {
             num.push_back(static_cast<char>(c));
-            c = std::fgetc(fp);
+            c = in.get();
         }
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("reading a number");
     }
-    if (c != EOF) std::ungetc(c, fp);
+    in.unget(c);
     if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
     x = std::strtol(num.c_str(), nullptr, 10);
     return true;
 }
 
+int TokenReader::line() const noexcept
+{
+    if (!state_ || !state_->read_any) return 0;
+    /* the newlines before the last character read */
+    return 1 + state_->newlines - (state_->last == '\n' ? 1 : 0);
+}
+
 bool TokenReader::skip_line() noexcept
 {
-    std::FILE *fp = state_ ? state_->fp() : nullptr;
-    if (!fp) return false;
+    if (!state_ || !state_->fp()) return false;
     int c;
-    while ((c = std::fgetc(fp)) != EOF)
+    while ((c = state_->get()) != EOF)
         if (c == '\n') return true;
     return false;
 }
@@ -357,12 +389,12 @@ bool Writer::commit() noexcept
     decltype(state_) w = std::move(state_);
     int closed = std::fclose(w->fp.release()); /* its result: a write that failed at the flush */
     if (closed != 0) {
-        xpp::log(XPP_LOG_ERROR, "Writer: write failed for {}\n", w->target);
+        xpp::log(XPP_LOG_ERROR, "{}\n", Error{"writer", "cannot be written: the write failed", Place{w->target}}.text());
         writer_discard(std::move(w));
         return false;
     }
     if (files::replace_file(w->tmp, w->target) != 0) {
-        xpp::log(XPP_LOG_ERROR, "Writer: cannot replace {}\n", w->target);
+        xpp::log(XPP_LOG_ERROR, "{}\n", Error{"writer", "cannot be replaced", Place{w->target}}.text());
         writer_discard(std::move(w));
         return false;
     }

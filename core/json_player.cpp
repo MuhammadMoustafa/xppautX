@@ -54,6 +54,7 @@ using Clock = std::chrono::steady_clock;
 /* a recorded step, read from its line */
 struct PlayStep {
     std::string line; /* the step's JSON object, as the file has it */
+    int at = 0;       /* its line in the file */
     std::string note;
     std::string win, button, cmd; /* cmd: a command other than key, whole */
     std::vector<std::string> keys, answers;
@@ -130,6 +131,7 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         return false;
     }
     out.line = st.line;
+    out.at = st.at;
     out.note = st.note;
     get_string(line, "win", out.win);
     get_string(line, "button", out.button);
@@ -169,7 +171,7 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
 xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<PlayStep> &steps)
 {
     std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) return xpp::fail_reading("recording", "Cannot open file", path);
+    if (!xpp::read_bytes(path.c_str(), bytes)) return xpp::fail_reading("recording", "cannot be opened", path);
     xpp::Result<recx::Read> got = recx::read(bytes, path);
     if (!got) return got;
     steps.assign(got->rec.steps.size(), PlayStep());
@@ -192,6 +194,17 @@ Clock::duration pace(double ms)
 }
 
 bool fast() { return player.next < player.fast_to; }
+
+} // namespace
+
+xpp::Place player_place(void)
+{
+    if (player.running < 0 || player.running >= static_cast<int>(player.steps.size())) return {};
+    const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
+    return xpp::Place{player.path, st.at, 0, st.line};
+}
+
+namespace {
 
 /* the timer runs */
 bool timer_on() { return player.open && (player.playing || player.step_once); }
@@ -218,7 +231,7 @@ void send_press(const char *what, size_t index, Clock::duration ms)
 /* the step stops playing: an error, and the player pauses */
 void diverged(const std::string &why)
 {
-    j_err_msg(xpp::format("Step {} of the recording {}; the player stopped", player.running + 1, why));
+    j_command_error("play", xpp::format("Step {} of the recording {}; the player stopped", player.running + 1, why));
     player.playing = false;
     player.step_once = false;
     player.fast_to = 0;
@@ -350,13 +363,13 @@ bool serve(const std::string &path, std::string *copy)
     }
     if (!section) {
         if (copy && !player.loading)
-            j_err_msg(xpp::format("The recording holds no copy of {} for step {}: it is not there", path,
+            j_command_error("play", xpp::format("The recording holds no copy of {} for step {}: it is not there", path,
                                   player.running + 1).c_str());
         return false;
     }
     if (!copy) return true;
     if (!copy_of(*section, *copy)) {
-        j_err_msg(xpp::format("Cannot copy {} out of the recording", path));
+        j_command_error("play", xpp::format("Cannot copy {} out of the recording", path));
         return false;
     }
     return true;
@@ -381,7 +394,7 @@ void load(xpp::Session &s, int from, bool play)
     std::unique_ptr<xpp::TempDir> before = std::move(player.work);
     player.work = std::make_unique<xpp::TempDir>();
     if (player.work->path().empty()) {
-        j_err_msg("Cannot make a folder to play the recording in");
+        j_command_error("play", "Cannot make a folder to play the recording in");
         player.work = std::move(before);
         return;
     }
@@ -420,7 +433,7 @@ void send_player()
 void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
 {
     if (player.running >= 0) {
-        j_err_msg("Not while a recording plays a step");
+        j_command_error("play", "Not while a recording plays a step");
         return;
     }
     std::string file(path);
@@ -453,7 +466,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
 void control(const std::string &op, const char *line)
 {
     if (!player.open) {
-        j_err_msg("No recording is open in the player");
+        j_command_error("play", "No recording is open in the player");
         return;
     }
     if (op == "pause") {
@@ -487,7 +500,7 @@ void play_command(xpp::Session &s, const char *line)
         open_recording(s, file);
     } else if (op == "from") {
         if (!player.open || player.running >= 0) {
-            j_err_msg(player.open ? "Not while a step plays" : "No recording is open in the player");
+            j_command_error("play", player.open ? "Not while a step plays" : "No recording is open in the player");
             return;
         }
         const int n = static_cast<int>(player.steps.size());
@@ -497,7 +510,7 @@ void play_command(xpp::Session &s, const char *line)
     } else if (op == "note") {
         const int i = get_int(line, "step", -1);
         if (!player.open || i < 0 || i >= static_cast<int>(player.steps.size())) {
-            j_err_msg("play note: no such step");
+            j_command_error("play", "play note: no such step");
             return;
         }
         std::string text;
@@ -510,7 +523,7 @@ void play_command(xpp::Session &s, const char *line)
         xpp::Writer w(player.path.c_str());
         if (!w || !w.write(recx::text(player.rec)) || !w.commit()) {
             note = was;
-            j_err_msg(xpp::format("Cannot write {}", player.path));
+            j_command_error("play", xpp::format("Cannot write {}", player.path));
             return;
         }
         player.steps[static_cast<size_t>(i)].note = text;
@@ -518,14 +531,14 @@ void play_command(xpp::Session &s, const char *line)
         send_player();
     } else if (op == "close") {
         if (player.running >= 0) {
-            j_err_msg("Not while a step plays");
+            j_command_error("play", "Not while a step plays");
             return;
         }
         close_player();
     } else if (op == "start" || op == "pause" || op == "step" || op == "speed") {
         control(op, line);
     } else {
-        j_err_msg(xpp::format("Unknown play op {}", op));
+        j_command_error("play", xpp::format("Unknown play op {}", op));
     }
 }
 

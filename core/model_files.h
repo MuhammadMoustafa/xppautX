@@ -15,7 +15,9 @@
 
    The model itself is loaded by xpp::load_model (xpp_batch.h), given the
    saved files for a saved one. C++ only. */
+#include "xpp_error.h"
 #include "xpp_io.h"
+#include "odex.h"
 
 #include <string>
 #include <string_view>
@@ -63,6 +65,21 @@ LineReader model_file_lines(Model &m, const std::string &name);
 /* bytes can be a model's text: not a zip (an .autox or .snapx is opened
    as what it is, by its name) nor any other binary file (a NUL byte) */
 bool is_model_text(std::string_view bytes);
+
+/* Where a model line is, for an error it causes at run time (W140): the
+   file of a statement's place (odex::Pos, its file one of
+   Model::statement_files), its line and column and the line as written. */
+Place model_place(const Model &m, const odex::Pos &pos);
+/* where m defines name (any case): the equation, aux quantity, function,
+   table, Markov variable, network or parameter line the parser read it
+   from; where a load in progress is (xpp::Load::place(), session.h) when
+   no line does, else an empty Place (a column the browser added) */
+Place model_place(const Model &m, std::string_view name);
+/* where m's statement number k (from 0) of kind is (its k-th boundary,
+   say); an empty Place when it has fewer */
+Place model_place(const Model &m, odex::Statement::Kind kind, int k);
+/* line n of m's file name as m read it ("" when it has no such line) */
+std::string model_source_line(const Model &m, const std::string &name, int n);
 
 /* m as a title names it: its file, and the file it is saved in
    ("lecar.ode (saved in lecar.autox)") */

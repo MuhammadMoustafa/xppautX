@@ -216,8 +216,7 @@ bool read_raw_line(LineSource &src, std::string &line)
 void save_line(std::vector<std::string> &source, const std::string &line)
 {
   if (source.size()>=MAXLINES) {
-    xpp::log_printf(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
-    model_failed();
+    model_failed(xpp::format("The model has more than {} lines", MAXLINES));
   }
   source.push_back(line.substr(0,line.find('\0')));
 }
@@ -409,8 +408,7 @@ int extract_args(const char *s1, int i0, int *ie, std::vector<std::string> &args
     type=find_char(s1,",)",i,&i1);
     if(type<0)break;
     if(static_cast<int>(args.size())>=MAXARG){
-      xpp::log_printf(XPP_LOG_ERROR, "More than %d arguments\n",MAXARG);
-      return 0;
+      model_failed(xpp::format("More than {} arguments",MAXARG));
     }
     args.emplace_back(s1+i,s1+i1);
     i=i1+1;
@@ -948,10 +946,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
    done=parse_a_string(big,v,out);
 
-   if(done==-1){
-     xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
-     return -1;
-   }
+   if(done==-1)
+     model_failed(xpp::format("Error in parsing {}",big));
    if(done==1){
      if(v.type==COMMAND)xpp::to_upper(v.lhs.data());
      if(v.type==COMMAND && char_at(v.lhs,0)=='G' && char_at(v.lhs,1)=='R') {
@@ -960,8 +956,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        std::optional<std::string_view> parts=tokens.next(" \n");
        nstates=parts?atoi_of(*parts):0;
        if(nstates<1){
-	 xpp::log(XPP_LOG_ERROR, "Group {}  must have at least 1 part \n",name);
-	 return -1;
+	 model_failed(xpp::format("Group {} must have at least 1 part",name));
        }
        xpp::log(XPP_LOG_INFO, "Group {} has {} parts\n",name,nstates);
        for(istates=0;istates<nstates;istates++){
@@ -979,8 +974,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        std::optional<std::string_view> count=tokens.next(" \n");
        nstates=count?atoi_of(*count):0;
        if(nstates<2){
-	 xpp::log(XPP_LOG_ERROR, "Markov variable {}  must have at least 2 states \n",name);
-	 return -1;
+	 model_failed(xpp::format("Markov variable {} must have at least 2 states",name));
        }
        if(jj==jj1) {  /* test to see if this is the first one */
 	 markov_states.assign(nstates,std::string());
@@ -1045,8 +1039,6 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 /*   export {inputs} {outputs} called a compiled library's function   */
      if(v.type==COMMAND && char_at(v.lhs,0)=='E' && char_at(v.lhs,1)=='X'){
        refuse_compiled_functions("export");
-       xpp::log(XPP_LOG_ERROR, " Error in parsing {} \n",big.c_str());
-       return -1;
      }
 
 /*  ONLY save options  */
@@ -1227,8 +1219,7 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
   }
   /* the subscript's text runs to its ']' */
   auto unterminated=[big](){
-    xpp::log_printf(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
-    model_failed();
+    model_failed(xpp::format("Error in {}: the expression does not terminate. Perhaps a ] is missing.",big));
   };
   while(i<n){
     ch=big[i];

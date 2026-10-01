@@ -24,9 +24,9 @@ struct Session; /* session.h */
 extern int ConvertStyle;
 
 /* a model statement that calls compiled C code (export, dll_lib, dll_fun,
-   a network's import; W55 removed them): logs why the line is refused
-   and returns -1, the parsers' "this line does not parse" */
-int refuse_compiled_functions(std::string_view what);
+   a network's import; W55 removed them): the load fails at the line,
+   saying why (model_failed) */
+[[noreturn]] void refuse_compiled_functions(std::string_view what);
 
 /* The load's readers and builder fill the Model and Session the load
    builds (xpp::Load, W47d3), which they are given. */

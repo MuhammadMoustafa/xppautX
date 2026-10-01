@@ -80,7 +80,7 @@ int do_transpose(xpp::Session &s)
      s.adjoint.transpose.col0=i+1;
    else
      {
-       err_msg("No such columns");
+       command_error("adjoint", "No such columns");
        return 0;
      }
    s.adjoint.transpose.firstcol=values[0];
@@ -203,11 +203,11 @@ void new_h_fun(xpp::Session &s, int silent)
  int n=2;
  AdjointState &a=s.adjoint;
  if(!a.adjoint_here){
-   err_msg("Must compute adjoint first!");
+   command_error("adjoint", "Must compute adjoint first!");
    return;
  }
   if(s.data_store.rows!=a.adjoint_rows){
-     err_msg("incompatible data and adjoint");
+     command_error("adjoint", "incompatible data and adjoint");
      return;
    }
  if(a.h_here){
@@ -243,7 +243,7 @@ int make_h(xpp::Session &s, float **orb, float **adj, float **h, int nt, double 
      std::string name=xpp::format("Coupling for {} eqn:",s.model().uvar_names[i]);
      new_string_of(name,s.adjoint.coup_string[i],XPP_FIELD_EXPRESSION);
      if(add_expr(s,s.adjoint.coup_string[i],s.adjoint.coup_fun[i].data(),&j)){
-       err_msg("Illegal formula");
+       command_error("adjoint", xpp::format("Illegal formula {}",s.adjoint.coup_string[i]));
        goto bye;
      }
    }
@@ -404,7 +404,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
          for(i=0;i<node;i++){
 	  if(fabs(yold[i])>s.numerics.bound){
 	    
-	  rval=xpp::fail("adjoint","Out of bounds");
+	  rval=xpp::fail("adjoint","Out of bounds",command_place());
 	  goto bye;
 	  }
 	error+=fabs(yold[i]-fdev[i]);
@@ -471,7 +471,7 @@ mat=work+node;
   xpp::sgefa(mat,node,node,ipvt,&info);
 if(info!=-1){
   
-  return xpp::fail("adjoint","Univertible Jacobian");
+  return xpp::fail("adjoint","Uninvertible Jacobian",command_place());
 }
 xpp::sgesl(mat,node,node,ipvt,yold);
 return {};
@@ -548,7 +548,7 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
  int istart=1;
  int i,j;
   if(s.data_store.rows<2){
-   return xpp::fail("Liapunov","You need to compute an orbit first");
+   return xpp::fail("Liapunov","You need to compute an orbit first",command_place());
  }
 
  /* lets make an initial random perturbation */
@@ -568,7 +568,7 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
      norm_vec(std::span(yp,s.model().node),nrm);
      nrm=nrm/eps;
      if(nrm==0.0){
-       return xpp::fail("Liapunov","Liapunov:-infinity exponent!"); /* something wrong here */
+       return xpp::fail("Liapunov","Liapunov: -infinity exponent!",command_place()); /* something wrong here */
      }
      sum=sum+::log(nrm);
     for(i=0;i<s.model().node;i++)

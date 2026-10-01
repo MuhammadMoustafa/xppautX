@@ -62,7 +62,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
     if(!xpp::file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
   }
   if(!model_file_ok(file)){
-    xpp::err_reading(file,xpp::format("Cannot open {}",file));
+    xpp::err_reading(file,"cannot be opened");
     return;
   }
   /* a recording: its model, in the player (W59b) */
@@ -137,7 +137,7 @@ void xpp_model_reload(xpp::Session &s)
 {
   const xpp::Model &m=s.model();
   if(m.command_line.empty()||m.this_file=="console"){
-    xpp::err_msg("This model was not read from a file: there is nothing to reload");
+    xpp::command_error("reload", "This model was not read from a file: there is nothing to reload");
     return;
   }
   const std::string question=xpp::format("Reload {}? Its values are kept by name; this model's data and diagram go. Save its session first?",
@@ -259,13 +259,13 @@ Session *load_requested(const Session &now, const ModelRequest &req)
 {
   const std::string before=xpp::files::working_dir(),before_file=now.model().this_file;
   if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0){
-    xpp::err_msg(xpp::format("Cannot open the folder {}",req.dir));
+    xpp::command_error("open model", xpp::format("The folder {} cannot be opened",req.dir));
     return nullptr;
   }
   auto back=[&before](){ if(!before.empty())xpp::files::change_dir(before.c_str()); };
   if(!req.saved&&!model_file_ok(req.file)){
     back();
-    xpp::err_msg(xpp::format("Cannot open {}",req.file));
+    xpp::err_reading(req.file,"cannot be opened");
     return nullptr;
   }
   /* load_model takes argv as main has it: writable, NULL after the last */

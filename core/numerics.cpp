@@ -133,7 +133,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			 /* the method picked, refused as `set num` refuses it */
 			 std::string why;
 			 if(numerics_settings_set(s,"method",xpp::format("{}",chosen_method(s)),why)!=0){
-			   err_msg(why.c_str());
+			   command_error("numerics", why);
 			   flash(8);
 			   break;
 			 }
@@ -326,7 +326,7 @@ void get_pmap_pars_com(xpp::Session &s, int l)
  if(status!=0){
               find_variable(s,values[0].c_str(),&i1);
 	      if(i1<0) { s.numerics.poimap=0;
-                         err_msg("No such section");
+                         command_error("numerics", "No such section");
 			 return;
 		       }
 	      s.numerics.poivar=i1;
@@ -399,7 +399,7 @@ void set_col_par_com(xpp::Session &s, int i)
 	s.plot_windows.current->ColorValue=ivar;
       else{
 	
-	err_msg("No such quantity!");
+	command_error("numerics", "No such quantity!");
 	s.plot_windows.current->ColorFlag=0;
 	return;
       }
@@ -421,7 +421,7 @@ void set_col_par_com(xpp::Session &s, int i)
       s.plot_windows.current->color_scale=(temp[1]-temp[0]);
      }
      else{
-       err_msg("Min>=Max or Min<0 error");
+       command_error("numerics", "Min>=Max or Min<0 error");
      }
      return;
     }

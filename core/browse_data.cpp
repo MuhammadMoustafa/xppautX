@@ -228,7 +228,7 @@ namespace {
 xpp::Writer open_writer(std::string_view fil, bool binary)
 {
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
- if(!w)err_msg("Cannot open file");
+ if(!w)command_error("write",xpp::format("Cannot write {}",fil));
  return w;
 }
 
@@ -285,7 +285,7 @@ void get_data_xyz(const xpp::Session &s, float *x, float *y, float *z, int i1, i
 int check_for_stor(const xpp::Session &s, float **data)
 {
  if(data!=s.data_store.col){
-   err_msg("Only data can be in browser");
+   command_error("browser", "Only data can be in browser");
    return(0);
  }
    else return(1);
@@ -295,7 +295,7 @@ int check_for_stor(const xpp::Session &s, float **data)
 void data_del_col(const xpp::Session &s, BROWSER *b)  /*  this only works with storage  */
 {
     if(check_for_stor(s,b->data)==0)return;
-  err_msg("Sorry - not working very well yet...");
+  command_error("browser", "Sorry - not working very well yet...");
 }
 
 void data_add_col(xpp::Session &s, BROWSER *b)
@@ -342,7 +342,7 @@ bool compute_added_column(xpp::Session &s, const std::string &formula, int col_i
   int com[4000],i;
   const xpp::Model &m=s.model();
   if(xpp::add_expr(s,formula,com,&i)){
-    err_msg("Bad Formula .... ");
+    command_error("browser", "Bad Formula .... ");
     return false;
   }
   RowValues row(s);
@@ -369,7 +369,7 @@ int add_stor_col(xpp::Session &s, std::string_view name, const std::string &form
      never advances neq) */
   const int col_index=m.neq+1+static_cast<int>(s.browser.added_columns.size());
   if(col_index>MAXODE){
-    err_msg("Too many columns");
+    command_error("browser", "Too many columns");
     return(0);
   }
   s.data_store.add_column(col_index); /* max_rows zeros */
@@ -418,7 +418,7 @@ while(i<static_cast<int>(strlen(form))){
    form[i]=' ';
    find_variable(s,form,&dif_var);
    if(dif_var<0){
-     err_msg("No such variable");
+     command_error("browser", "No such variable");
      return;
    }
 
@@ -435,7 +435,7 @@ if(dif_var<0)
  if(seq==2)
    da=a2;
  if(seq==3){
-   err_msg("Illegal sequence");
+   command_error("browser", "Illegal sequence");
    return;
  }
 
@@ -445,7 +445,7 @@ if(dif_var<0)
    if(xpp::add_expr(s,form,com,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
-     err_msg("Illegal formula...");
+     command_error("browser", "Illegal formula...");
      return;
    }
  }
@@ -453,7 +453,7 @@ if(dif_var<0)
 
  find_variable(s,var,&i);
  if(i<0){
-   err_msg("No such column...");
+   command_error("browser", "No such column...");
    s.parser.ncon=s.model().ncon_start;
    s.parser.nsym=s.model().nsym_start;
    return;
@@ -614,7 +614,7 @@ void data_read(xpp::Session &s, BROWSER *b, std::string_view format, std::string
 {
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format))){
-   err_msg(xpp::format("No data format {}",format));
+   command_error("save data", xpp::format("No data format {}",format));
    return;
  }
  std::string fil(name);
@@ -670,12 +670,12 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
  }
  else if(what=="table"||what=="plot"||what=="output")plot=what=="plot";
  else {
-   err_msg(xpp::format("Save data writes the table, the output or the plot, not {}",what));
+   command_error("save data", xpp::format("Save data writes the table, the output or the plot, not {}",what));
    return;
  }
  const xpp::DataFormat *f=nullptr;
  if(!format.empty()&&!(f=xpp::data_format_named(format))){
-   err_msg(xpp::format("No data format {}",format));
+   command_error("save data", xpp::format("No data format {}",format));
    return;
  }
  if(!f&&!name.empty())f=xpp::data_format_of_file(name);
@@ -690,7 +690,7 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
  xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
  if(!w)return;
  if(!f->write(t,w)){
-   err_msg(xpp::format("Cannot write {}",fil));
+   command_error("save data", xpp::format("Cannot write {}",fil));
    return;
  }
  w.commit();

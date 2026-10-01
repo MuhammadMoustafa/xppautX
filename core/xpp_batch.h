@@ -8,6 +8,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xpp {
@@ -21,6 +22,9 @@ struct Session; /* session.h */
    and window mode the page stays open on the log until it is closed
    (xpp_http's at_exit). */
 [[noreturn]] void model_failed();
+/* the same, for the reason what (the parser's own): at the place the load
+   is, after what was logged there (Load::error(what)) */
+[[noreturn]] void model_failed(std::string_view what);
 
 /* After a load with no interface (-silent, a unit test): s's browser,
    graphs and colours set up, and the command line's files and internal

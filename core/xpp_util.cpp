@@ -171,7 +171,7 @@ int do_calc(xpp::Session &s, std::string_view temp, double *z)
   else {
     i=find_user_name(s.model(),IC,val);
     if(i<0){
-      err_msg("No such name!");
+      command_error("value", "No such name!");
       return(-1);
     }
     set_val(s,val,newz);
@@ -207,7 +207,7 @@ Result<double> evaluate_formula(xpp::Session &s, std::string_view expr)
   if(!bad)z=evaluate(s,com);
   s.parser.ncon=s.model().ncon_start;
   s.parser.nsym=s.model().nsym_start;
-  if(bad)return std::unexpected(Error{"formula","Illegal formula ..",{},""});
+  if(bad)return std::unexpected(Error{"formula","Illegal formula ..",command_place(),""});
   return z;
 }
 
@@ -221,7 +221,7 @@ double calculate(xpp::Session &s, std::string_view expr, int *ok)
 /* a typed value refused: what, and the field it was typed in */
 static std::unexpected<Error> refused_value(std::string what,std::string_view field)
 {
-  return std::unexpected(Error{"value",std::move(what),{},std::string(field)});
+  return std::unexpected(Error{"value",std::move(what),command_place(),std::string(field)});
 }
 
 Result<double> typed_number(xpp::Session &s, std::string_view typed, std::string_view field)
@@ -376,7 +376,7 @@ void clone_ode(xpp::Session &s)
   if(!file_selector("Clone ODE file",clone,"*.ode"))return;
   xpp::Writer fp(clone.c_str());
   if(!fp){
-      err_msg(" Cant open clone file");
+      command_error("clone",xpp::format("Cannot write {}",clone));
       return;
     }
   ttt=time(0);
@@ -516,7 +516,7 @@ static Result<double> box_number(xpp::Session &s,std::string_view text,std::stri
   if(!r)return r;
   const std::string_view t=trim_blanks(text);
   double z=*r;
-  if(t.starts_with('%')&&do_calc(s,t.substr(1),&z)==-1)return std::unexpected(Error{"formula","",{},std::string(field)});
+  if(t.starts_with('%')&&do_calc(s,t.substr(1),&z)==-1)return std::unexpected(Error{"formula","",command_place(),std::string(field)});
   return z;
 }
 

@@ -144,7 +144,16 @@ void send_error(const char *ev, const xpp::Error &e)
 
 void j_err_msg(const xpp::Error &e) { send_error("message", e); }
 
-void j_err_msg(std::string_view msg) { j_err_msg(xpp::Error{{}, std::string(msg)}); }
+xpp::Place j_command_place(void)
+{
+    xpp::Place p = player_place();
+    return p.file.empty() ? xpp::inbox::script_place() : p;
+}
+
+void j_command_error(std::string_view command, std::string what)
+{
+    j_err_msg(xpp::Error{std::string(command), std::move(what), j_command_place()});
+}
 
 void j_ping(void) { send_simple("ping"); }
 

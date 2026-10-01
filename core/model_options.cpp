@@ -820,11 +820,8 @@ void set_option(Session &s, std::string_view name, std::string_view value, bool 
   }
   /* the load stops, at the option's line; outside a load (an internal
      set, checked first) the error is shown and nothing else changes */
-  const Error e{"options", xpp::format("@ {}={}: {}", name, value, why)};
-  if (Load::running()) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", e.what);
-    model_failed();
-  }
+  if (Load::running()) model_failed(xpp::format("@ {}={}: {}", name, value, why));
+  const Error e{"options", xpp::format("@ {}={}: {}", name, value, why), command_place()};
   show_error(e);
 }
 

@@ -74,8 +74,11 @@ void quit_command(void)
    nothing after it can line up. */
 void script_fail(const char *what, const char *line, const char *ask)
 {
-    xpp::log_printf(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp::inbox::script_line(), what, line);
-    if (ask && ask[0]) xpp::log_printf(XPP_LOG_ERROR, "  open question: %s}\n", ask);
+    std::string why = what;
+    if (ask && ask[0]) why += xpp::format("\n  open question: {}}}", ask);
+    xpp::Place at = xpp::inbox::script_place();
+    if (at.source.empty()) at.source = line;
+    xpp::log(XPP_LOG_ERROR, "{}\n  line: {}\n", xpp::Error{"script", why, at}.text(), line);
     exit(1);
 }
 
@@ -342,8 +345,11 @@ namespace {
 /* the job ends with its recorded interruption still armed */
 void script_stop_missed(void)
 {
-    xpp::log(XPP_LOG_ERROR, "xppautX: script line {}: the recorded interruption at {} was never reached\n", stop_line,
-             stop_at);
+    xpp::Place at = xpp::inbox::script_place();
+    at.line = stop_line;
+    at.source.clear();
+    xpp::log(XPP_LOG_ERROR, "{}\n",
+             xpp::Error{"script", xpp::format("the recorded interruption at {} was never reached", stop_at), at}.text());
     exit(1);
 }
 
@@ -366,6 +372,7 @@ XppUi make_json_ui(void)
 {
     XppUi u{};
     u.err_msg = j_err_msg;
+    u.command_place = j_command_place;
     u.ping = j_ping;
     u.bottom_msg = j_bottom_msg;
     u.message_box = j_message_box;
@@ -469,7 +476,7 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
     else if (win == "ani") ani_key(s, ch);
     else if (win == "aplot") aplot_key(s, ch);
     else if (win == "equilibrium") equilibrium_key(s, ch);
-    else j_err_msg(xpp::format("No key layer for the window {}", win));
+    else j_command_error("key", xpp::format("No key layer for the window {}", win));
 }
 
 void key_command(xpp::Session &s, const char *line)
@@ -506,7 +513,7 @@ void write_command(xpp::Session &s, const char *line)
     std::string o, name;
     get_string(line, "op", o, 8);
     get_string(line, "name", name, XPP_MAX_NAME);
-    if (o != "write" || name.empty()) j_err_msg("dfield and equilibrium write to a file: op write and a name");
+    if (o != "write" || name.empty()) j_command_error("write", "dfield and equilibrium write to a file: op write and a name");
     else if (is_cmd(line, "dfield")) write_dfield(s,name);
     else write_equilibrium(s,name.c_str(), get_int(line, "shoot", 0));
 }
@@ -678,7 +685,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);
-        j_err_msg(xpp::format("Not while a computation runs: {} was refused", c));
+        j_command_error("command", xpp::format("Not while a computation runs: {} was refused", c));
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
         player_begin(line);
@@ -686,7 +693,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         e->run(*s, line);
     } else {
         std::string c;
-        if (get_string(line, "cmd", c, 32)) j_err_msg(xpp::format("Unknown command {}", c));
+        if (get_string(line, "cmd", c, 32)) j_command_error("command", xpp::format("Unknown command {}", c));
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */

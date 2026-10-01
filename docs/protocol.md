@@ -96,9 +96,22 @@ fields, always all of them, and `field`:
 web2 shows `file`, `line` (and `col`) under the error's text in the
 error dialog, with `source` and a caret under `col` when there is one,
 and writes the error in Messages and the status line as the console
-does (`file:line: what`). Errors that do not come from a file yet (a
-command's argument, a computation) have no place until W140b gives them
-theirs; `tools/errorcheck.py` counts them.
+does (`file:line: what`).
+
+Every error has its place (W140b; `tools/errorcheck.py` fails one made
+without it):
+- read from a file: the file and its line (a table file, a values file, an
+  `.ani`, a data file a curve fit reads, AUTO's files, a session or a
+  recording), or line 0 when it cannot be read at all;
+- caused by a model line, when the model loads or when it runs: that line
+  (a table file a `table` line names that cannot be read; a variable an
+  equation makes NaN or out of bounds; a DAE that cannot be solved, at its
+  `0=` line; a CVODE failure, at the equation of the variable its error
+  test or corrector failed at);
+- from a command (a protocol command, a key's computation): in a `--script`
+  the script's file and the line of the step, in a recording's Play the
+  `.recx` and the step's line; a command the user gave has no file, and
+  the error says which command (`where`, in the log).
 
 ### Our files: all or nothing
 
@@ -365,7 +378,8 @@ stdout exactly as `--server` sends them. The process exits 0 when FILE
 runs out, or 1 if a `message` event of `error` kind (or, for a model that
 does not load, an `error` event) was sent. A line that
 does not fit the dialogue stops the script at once with exit status 1 and
-a message on stderr naming the line and the open question: an `answer`
+a message on stderr at the line (`FILE:K: ...`, as every error is
+written: "Errors" above), with the open question: an `answer`
 when no question is open, or a command where an answer was due (a prompt
 the script did not expect, such as "Draw Strong Sets?" after Sing pts on
 some models).
@@ -393,8 +407,8 @@ event. An integration stops when it has stored `rows` rows; an AUTO run
 when it has stored point `point` - 1 of branch `branch`, so that, as every
 cancelled run does, it ends the branch on point `point`, an end point (EP)
 repeating the one before. If the job ends without getting there, the
-script stops with exit status 1 and "script line K: the recorded
-interruption at AT was never reached", K being the abort line. The
+script stops with exit status 1 and "FILE:K: the recorded interruption
+at AT was never reached", K being the abort line. The
 animation's Go (`{"what":"ani","frame":F}`) stops when it has shown frame
 F. An `at` of `other` cannot be placed: the job runs to its end. An abort line with no
 `at` stops nothing (the player hands lines over only between commands) and

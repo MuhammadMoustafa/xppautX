@@ -416,6 +416,10 @@ public:
     bool read(int &x) noexcept;
     bool read(long &x) noexcept;
     bool skip_line() noexcept;
+    /* the line (from 1) of the last character read, for an error's place
+       (xpp_error.h); 0 when nothing was read. An attached stream's lines
+       count from where it was when attached. */
+    int line() const noexcept;
     void close() noexcept { state_.reset(); }
     struct State;
     struct Free {
@@ -589,7 +593,7 @@ auto read_file_lines(std::string where, std::string_view path, F &&parse)
 {
     std::string bytes;
     if (!read_bytes(path, bytes))
-        return fail_reading(std::move(where), "Cannot open file", std::string(path));
+        return fail_reading(std::move(where), "cannot be opened", std::string(path));
     return read_lines(std::move(where), std::string(path), bytes, parse);
 }
 

@@ -137,14 +137,12 @@ void load_eqn(xpp::Session &s)
    const bool read=xpp::read_model_file(s.model(),this_file,bytes);
    if(read&&!xpp::is_model_text(bytes))
    {
-     xpp::log(XPP_LOG_ERROR, "{} is not a model: {}\n",this_file,
-              xpp::zip::is_zip(bytes)?"it is a zip file (an AUTO file is a .autox, a session file a .snapx)":"it is a binary file");
-     model_failed();
+     model_failed(xpp::format("{} is not a model: {}",this_file,
+              xpp::zip::is_zip(bytes)?"it is a zip file (an AUTO file is a .autox, a session file a .snapx)":"it is a binary file"));
    }
    if(!read&&!s.model().saved_in.empty())
    {
-     xpp::log(XPP_LOG_ERROR, "{} is not saved in {}\n",this_file,s.model().saved_in);
-     model_failed();
+     model_failed(xpp::format("{} is not saved in {}",this_file,s.model().saved_in));
    }
  }
  /* an .odex model: its own reader, then the same builder (odex.h) */
@@ -444,7 +442,7 @@ int add_model_option(xpp::Model &m, std::string_view s1)
     if(msc("DLL_LIB",upper))refused="dll_lib";
     else if(msc("DLL_FUN",upper))refused="dll_fun";
   });
-  if(refused)return refuse_compiled_functions(refused);
+  if(refused)refuse_compiled_functions(refused);
   store_option(m.options,xpp::Model::OptionLine{std::string(s1),xpp::Load::place()},s1);
   return 0;
 }

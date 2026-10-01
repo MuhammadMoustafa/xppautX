@@ -197,7 +197,7 @@ xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *n
   if(!xpp::file_selector(title,filename,"*.dat"))return xpp::Writer();
   if(diagram_count(s.diagram)<2)return xpp::Writer();
   xpp::Writer w(filename.c_str());
-  if(!w)xpp::err_msg("Can't open file");
+  if(!w)xpp::command_error("write diagram",xpp::format("Cannot write {}",filename));
   return w;
 }
 

@@ -210,6 +210,9 @@ void player_stop_missed(void);
 void player_step_end(void);
 /* a command's model request was carried out: loaded, or it failed */
 void player_model_switched(bool loaded);
+/* the .recx, the line and the text of the step that plays; an empty
+   Place when none does (j_command_place) */
+xpp::Place player_place(void);
 /* state's "player" member while a recording is open in the player */
 void buf_player(Buf *b);
 
@@ -308,8 +311,12 @@ int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 void send_error(const char *ev, const xpp::Error &e);
 /* the XppUi err_msg: e as a `message` event */
 void j_err_msg(const xpp::Error &e);
-/* the front end's own error about a command, with no place */
-void j_err_msg(std::string_view msg);
+/* the XppUi command_place: the recording's step that plays, else
+   --script's line (xpp_ui.h command_place) */
+xpp::Place j_command_place(void);
+/* the front end's own error about the protocol command `command` (its
+   where), at j_command_place() */
+void j_command_error(std::string_view command, std::string what);
 void j_ping(void);
 void j_bottom_msg(int line, std::string_view msg);
 void j_message_box(std::string_view msg);

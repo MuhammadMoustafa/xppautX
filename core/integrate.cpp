@@ -140,7 +140,7 @@ values[7] = yn[s.integrator.eq_range.mc];
    s.integrator.eq_range.item=values[0];
    i=find_user_name(s.model(),PARAM,s.integrator.eq_range.item);
    if(i<0){
-        err_msg("No such parameter");
+        command_error("range",xpp::format("No such parameter {}",s.integrator.eq_range.item));
        return(0);
      }
    
@@ -196,7 +196,7 @@ int find_range_item(const xpp::Session &s, const std::string &item, int *type, i
  }
  i=find_user_name(s.model(),IC,item);
  if(i<=-1){
-   err_msg(xpp::format(" {} is not a parameter or variable !",item));
+   command_error("range",xpp::format("{} is not a parameter or variable",item));
    return(0);
  }
  *type=IC;
@@ -469,7 +469,7 @@ public:
   {
     return [](const std::string &line){ bottom_msg(2,line); };
   }
-  void report() const { if(out_)err_msg("Out of film"); }
+  void report() const { if(out_)command_error("kinescope","Out of film: the kinescope holds no more frames"); }
 private:
   xpp::Session &s_;
   bool out_=false;
@@ -856,7 +856,7 @@ void find_equilib_com(xpp::Session &s, int com)
         iv=s.plot_windows.current->xv[0]-1;
         jv=s.plot_windows.current->yv[0]-1;
     if(iv<0||iv>=s.model().node||jv<0||jv>=s.model().node||s.plot_windows.current->grtype>=5||jv==iv){
-      err_msg("Not in useable 2D plane...");
+      command_error("initialconds","Not in a usable 2D plane");
       return;
     }
 
@@ -951,7 +951,7 @@ void do_init_data(xpp::Session &s, int com)
   case M_IL:
     if(s.numerics.inflag==0){
       ping();
-      err_msg("No prior solution");
+      command_error("initialconds","No prior solution");
       return;
     }
     get_ic(s,0,x);
@@ -977,7 +977,7 @@ void do_init_data(xpp::Session &s, int com)
         iv=s.plot_windows.current->xv[0]-1;
         jv=s.plot_windows.current->yv[0]-1;
     if(iv<0||iv>=s.model().node||jv<0||jv>=s.model().node||s.plot_windows.current->grtype>=5||jv==iv){
-      err_msg("Not in useable 2D plane...");
+      command_error("initialconds","Not in a usable 2D plane");
       return;
     }
 
@@ -1044,7 +1044,7 @@ void do_init_data(xpp::Session &s, int com)
     break;
   case M_IH:
     if(s.manifolds.ic_flag==0){
-      err_msg("No shooting data available");
+      command_error("initialconds","No shooting data available");
       break;
     }
     si=1;
@@ -1056,7 +1056,7 @@ void do_init_data(xpp::Session &s, int com)
       get_ic(s,2,x);
     }
     else
-      err_msg("Out of range");
+      command_error("initialconds","Out of range");
     break;
   case M_IF:
     icfile.clear();
@@ -1316,7 +1316,7 @@ int set_array_ic(xpp::Session &s)
      set_val(s,"t",static_cast<double>((i-i1)));
      flag=do_calc(s,s.integrator.array_ics.ics[myar].formula,&z);
      if(flag==-1){
-       err_msg("Bad formula");
+       command_error("initialconds",xpp::format("Bad formula {}",s.integrator.array_ics.ics[myar].formula));
        return 1;
      }
      s.last_ic[i]=z;
@@ -1538,7 +1538,7 @@ if(program.interactive) cwidth=get_command_width();
 	*/	    
 	    if(isnan(x[ieqn-1])!=0)
             {
-             std::string error_message=xpp::format(" {} is NaN at t = {} ",
+             std::string error_message=xpp::format("{} is NaN at t = {}",
              s.model().uvar_names[ieqn-1],*t);
  i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
@@ -1552,14 +1552,14 @@ if(program.interactive) cwidth=get_command_width();
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		s.model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
-             failure=xpp::Error{"integration",error_message};
+             failure=xpp::Error{"integration",error_message,xpp::model_place(s.model(),s.model().uvar_names[ieqn-1])};
              break;
              }
        /* end of NaN */     
             if(fabs(x[ieqn-1])>s.numerics.bound)
             {
 	     if(s.integrator.range_flag||s.integrator.suppress_bounds)break;
-             std::string error_message=xpp::format(" {} out of bounds at t = {} ",
+             std::string error_message=xpp::format("{} out of bounds at t = {}",
              s.model().uvar_names[ieqn-1],*t);
  i_nan=0;
 	         xpp::log(XPP_LOG_DEBUG, "variable\tf(t-1)\tf(t) \n");
@@ -1573,7 +1573,7 @@ if(program.interactive) cwidth=get_command_width();
  		 xpp::log(XPP_LOG_DEBUG, " {}\t{:g}\t{:g}\n",
              		s.model().uvar_names[i_nan-1],xv[i_nan],static_cast<float>(x[i_nan-1]));
 		 }	
-             failure=xpp::Error{"integration",error_message};
+             failure=xpp::Error{"integration",error_message,xpp::model_place(s.model(),s.model().uvar_names[ieqn-1])};
              break;
             }
            }
@@ -1616,7 +1616,7 @@ if(program.interactive) cwidth=get_command_width();
 	s.integrator.rhs(oldt,oldx,oldxprime,s.model().neq);
         dxp=xprime[s.numerics.poivar-1]-oldxprime[s.numerics.poivar-1];
         if(dxp==0.0)
-	  return xpp::fail("Poincare map","Cannot zero RHS for max/min - use a variable");
+	  return xpp::fail("Poincare map","Cannot zero RHS for max/min - use a variable",command_place());
 	dint=xprime[s.numerics.poivar-1]/dxp;
 
 	tv=(1-dint)**t+dint*oldt;

@@ -126,7 +126,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
     if(z.nmx==0&&z.nmy==0)return;
     xpp::Writer fp(xpp::format("{}.{}",fn,i).c_str());
     if(!fp){
-      err_msg("Cant open file!");
+      command_error("nullclines", xpp::format("Cannot write {}.{}",fn,i));
       return;
     }
     dump_clines(fp,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
@@ -434,7 +434,7 @@ void save_the_nullclines(xpp::Session &s)
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
   xpp::Writer fp(filename.c_str());
   if(!fp){
-    err_msg("Cant open file!");
+    command_error("nullclines", xpp::format("Cannot write {}",filename));
     return;
   }
   dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
@@ -584,7 +584,7 @@ void redraw_dfield(xpp::Session &s)
 void write_dfield(xpp::Session &s, std::string_view name)
 {
   if(!dfield_shown(s)){
-    err_msg("No direction field in this window");
+    command_error("direction field", "No direction field in this window");
     return;
   }
   /* in PostScript's frame, whatever the window's, as -silent always
