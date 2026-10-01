@@ -86,7 +86,7 @@ struct NumericsSettings {
   double tor_period = 6.2831853071795864770;
   /* the random numbers' seed: rand_seed is the NEXT run's (shown/set by
      "@ seed=", Stochastic > New seed, -newseed; W71's "a seed per run"),
-     applied and logged when that run starts (xpp_math.cpp nsrand48); the
+     applied and logged when that run starts (xpp_math.cpp Random::seed); the
      seed a run actually used is last_seed, empty before any run, for the
      protocol's state and a saved data file's header/metadata. Once used,
      rand_seed is redrawn from a separate seed stream seeded by it

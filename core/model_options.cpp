@@ -291,7 +291,7 @@ constexpr OptionRow rows[] = {
      if (whole_in(v, i) || i < 0) return "not a seed (a whole number of at least 0)";
      if (!v.apply) return nullptr;
      s.numerics.rand_seed = i;
-     nsrand48(s.numerics.rand_seed);
+     s.random.seed(s.numerics.rand_seed);
      return nullptr;
    }},
   {.name = "STOCH", .flag = Option::STOCH,

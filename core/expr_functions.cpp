@@ -47,11 +47,6 @@ double heaviside(double z)
  return(w);
 }
 
-double rndom(double z)
-{
-  return(z*xpp::ndrand48());
-}
-
 double signum(double z)
 {
   if(z<0.0)return(-1.0);
@@ -136,12 +131,12 @@ const std::array<Fun1,26> fun1={
   ::heaviside,
   ::signum,
   ::floor,
-  ::rndom,
+  nullptr,   /* RANDOM_UNIFORM: RANDUNI, the evaluator's */
   ::dnot,    /* 20 */
   ::erf,
   ::erfc,
   ::hom_bcs,
-  xpp::poidev,
+  nullptr,   /* RANDOM_POISSON: RANDPOI, the evaluator's */
   ::lgamma,  /* 25 */
 };
 
@@ -164,7 +159,7 @@ const std::array<Fun2,23> fun2={
   ::dge,
   ::dle,     /* 15 */
   ::dne,
-  xpp::normal,
+  nullptr,   /* RANDOM_NORMAL: RANDNORM, the evaluator's */
   xpp::bessel_j,
   xpp::bessel_y,
   xpp::bessel_i,  /* 20 */

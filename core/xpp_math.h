@@ -25,6 +25,7 @@
    throws. */
 
 #include <cstddef>
+#include <random>
 #include <span>
 #include <string>
 
@@ -47,34 +48,45 @@ void fft_real(std::span<const double> in, std::span<double> re, std::span<double
 
 /* ---- random numbers ----
 
-   One generator, std::mt19937_64, drawn through our own distributions
-   (not the C++ library's, whose results differ between libstdc++, libc++
-   and MSVC): the same seed gives the same numbers on every platform.
-   nsrand48 seeds it (and forgets a normal() deviate kept from the last
-   pair); ndrand48 is uniform in (0,1), never 0 or 1; normal() is Gaussian
-   (Marsaglia's polar method); poidev() is Poisson with mean xm (Numerical
-   Recipes' algorithm). The names are the historical ones the parser and
-   the stochastic code use.
+   A generator, std::mt19937_64, drawn through our own distributions (not
+   the C++ library's, whose results differ between libstdc++, libc++ and
+   MSVC): the same seed gives the same numbers on every platform. A
+   Session has its own (Session::random: its stochastic runs, the parser's
+   ran(), normal() and poisson(), Monte Carlo's guesses), so a load or
+   another Session never draws from it. seed() seeds it (and forgets a
+   normal() deviate kept from the last pair); uniform() is uniform in
+   (0,1), never 0 or 1; normal() is Gaussian (Marsaglia's polar method);
+   poisson() is Poisson with mean xm (Numerical Recipes' algorithm).
 
-   next_seed(seed) is a separate seed stream: a pure function of seed
-   (touches neither the generator above nor its spare deviate), used to
-   pick the following run's seed once a run has used this one (W71's "a
-   seed per run"), so an untouched Session still gets fresh noise every
-   run while every run's own seed stays a small loggable int. */
-void nsrand48(int seed);
-double ndrand48();
-double normal(double mean, double std);
-double poidev(double xm);
+   save() is its full state -- std::mt19937_64's state and normal()'s
+   spare deviate -- as opaque text, and load() restores it (false and
+   leaving the generator untouched if the text is not one save() wrote).
+   Continuing a session (W57's session file) after Open then draws
+   exactly the numbers it would have without stopping. */
+class Random {
+public:
+    void seed(int seed);
+    double uniform();
+    double normal(double mean, double std);
+    double poisson(double xm);
+    std::string save() const;
+    bool load(const std::string &state);
+
+private:
+    /* std::mt19937_64's algorithm and seeding are fixed by the standard,
+       so every C++ library gives the same sequence for a seed */
+    std::mt19937_64 engine_{1};
+    /* normal() draws its deviates in pairs and keeps the second */
+    bool have_spare_ = false;
+    double spare_ = 0.0;
+};
+
+/* next_seed(seed) is a separate seed stream: a pure function of seed
+   (touches no Random), used to pick the following run's seed once a run
+   has used this one (W71's "a seed per run"), so an untouched Session
+   still gets fresh noise every run while every run's own seed stays a
+   small loggable int. */
 int next_seed(int seed);
-
-/* the random generator's full state -- std::mt19937_64's state and
-   normal()'s spare deviate -- as opaque text (rand_state_save), and
-   restoring it (rand_state_load, false and leaving the generator
-   untouched if the text is not one this function wrote). Continuing a
-   session (W57's session file) after Open then draws exactly the numbers
-   it would have without stopping. */
-std::string rand_state_save();
-bool rand_state_load(const std::string &state);
 
 /* ---- linear algebra ----
 

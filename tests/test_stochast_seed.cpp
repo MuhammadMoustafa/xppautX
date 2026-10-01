@@ -1,4 +1,4 @@
-/* stocHast's "New seed" (markov.cpp nsrand48/ndrand48): the same seed must
+/* stocHast's "New seed" (markov.cpp: the Session's xpp::Random, seed and uniform): the same seed must
    give the same draws twice, and a different seed must give a different
    sequence. This is the guard W32a (replacing the Numerical Recipes ran1
    generator with std::mt19937_64) must keep passing with no edit here:
@@ -12,15 +12,16 @@
 int main(void)
 {
     double a[50], b[50], c[50];
+    xpp::Random r;
 
-    xpp::nsrand48(42);
-    for (int i = 0; i < 50; i++) a[i] = xpp::ndrand48();
+    r.seed(42);
+    for (int i = 0; i < 50; i++) a[i] = r.uniform();
 
-    xpp::nsrand48(42);
-    for (int i = 0; i < 50; i++) b[i] = xpp::ndrand48();
+    r.seed(42);
+    for (int i = 0; i < 50; i++) b[i] = r.uniform();
 
-    xpp::nsrand48(43);
-    for (int i = 0; i < 50; i++) c[i] = xpp::ndrand48();
+    r.seed(43);
+    for (int i = 0; i < 50; i++) c[i] = r.uniform();
 
     CHECK(std::memcmp(a, b, sizeof(a)) == 0); /* same seed: same run */
 

@@ -46,6 +46,7 @@
 #include "arrayplot.h"
 #include "aniparse.h"
 #include "userbut.h"
+#include "xpp_math.h"
 #include "phase_data.h"
 #include "marks_data.h"
 #include "ani_data.h"
@@ -178,6 +179,10 @@ struct Session {
   AdjointState adjoint;
   /* stocHast's many-runs state (markov.cpp) */
   StochasticState stochastic;
+  /* the random generator its runs, the parser's ran(), normal() and
+     poisson() and Monte Carlo draw from (xpp_math.h); a .snapx's
+     random.txt saves and restores it */
+  Random random;
   /* the nullclines', direction field's and orbit colouring's settings
      (nullcline.cpp) */
   NullclineSettings nullclines;

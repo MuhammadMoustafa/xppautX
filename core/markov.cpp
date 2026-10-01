@@ -41,7 +41,7 @@ void set_wieners(xpp::Session &s, double dt, double *x, double t)
   int i;
   update_markov(s,x,t,fabs(dt));
   for(i=0;i<s.model().nwiener;i++)
-    s.parser.constants[s.model().wiener[i]]=xpp::normal(0.00,1.00)/sqrt(fabs(dt));
+    s.parser.constants[s.model().wiener[i]]=s.random.normal(0.00,1.00)/sqrt(fabs(dt));
 }
 
 void add_markov(xpp::Session &s, int nstate, const char *name)
@@ -242,7 +242,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
 double new_state(xpp::Session &s, double old, int index, double dt)
 {
   double prob,sum;
-  double coin=xpp::ndrand48();
+  double coin=s.random.uniform();
   int row=-1,rns;
   double *st;
   xpp::Model::MarkovChain &chain=s.model().markov[index];
@@ -307,7 +307,7 @@ void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
   }
 }
 
-void one_gill_step(const xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
+void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
 {
   double rate=0,test;
   double r[1000];
@@ -322,8 +322,8 @@ void one_gill_step(const xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
       rate+=r[i];
     }
     if(rate<=0.0)return;
-    v[0]=-::log(xpp::ndrand48())/rate; /* next step */
-    test=rate*xpp::ndrand48();
+    v[0]=-::log(s.random.uniform())/rate; /* next step */
+    test=rate*s.random.uniform();
     rate=r[0];
     for(i=0;i<nrxn;i++){
       if(test<rate){
@@ -350,7 +350,7 @@ void do_stochast_com(xpp::Session &s, int i)
   switch(ch){
   case 'n': 
     new_int("Seed:",&s.numerics.rand_seed);
-    xpp::nsrand48(s.numerics.rand_seed);
+    s.random.seed(s.numerics.rand_seed);
     break;
   case 'd':
     data_back(s);

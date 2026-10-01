@@ -509,9 +509,9 @@ RandomRead read_random(const xpp::Model &m, xpp::Lines &l)
         r.generator += l.next();
         if (!l.at_end()) r.generator += '\n';
     }
-    const std::string before = xpp::rand_state_save();
-    const bool loads = xpp::rand_state_load(r.generator);
-    xpp::rand_state_load(before);
+    /* only proves it reads: a generator of its own, not the Session's */
+    xpp::Random probe;
+    const bool loads = probe.load(r.generator);
     if (!loads) l.fail(first, "not a random generator's state");
     return r;
 }
@@ -638,7 +638,7 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     s.numerics.rand_seed = r.random.seed;
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) s.parser.constants[m.wiener[i]] = r.random.wieners[static_cast<std::size_t>(i)];
-    xpp::rand_state_load(r.random.generator);
+    s.random.load(r.random.generator); /* read_random proved it loads */
 
     apply_marks(s, std::move(r.marks), slot);
 
@@ -661,7 +661,7 @@ std::string random_text(xpp::Session &s)
     std::string w = "wiener";
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) w += ' ' + xpp::number(s.parser.constants[m.wiener[i]]);
-    return xpp::format("seed {}\n{}\n{}", s.numerics.rand_seed, w, xpp::rand_state_save());
+    return xpp::format("seed {}\n{}\n{}", s.numerics.rand_seed, w, s.random.save());
 }
 
 /* the session file of s, as its bytes: the data table in when data;

@@ -378,7 +378,7 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
   /* now we iterate to get a good adjoint using implicit Euler's method */
   ytemp=0.0;
  for(i=0;i<node;i++){
-	yold[i]=1.+.01*(xpp::ndrand48()-.5); /* random initial data */
+	yold[i]=1.+.01*(s.random.uniform()-.5); /* random initial data */
 	
 	ytemp+=fabs(yold[i]);
 	}

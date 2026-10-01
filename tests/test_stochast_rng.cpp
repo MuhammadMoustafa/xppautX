@@ -2,7 +2,7 @@
    an .ode file, plus the 1D/2D histogram and spike-time-autocorrelation
    features (histogram.cpp new_hist/two_d_hist), all computed on the one
    run of tools/models/stoch_rng.ode: x never moves, so every stored row is
-   an independent sample of ran(1), xpp::normal(2,3) and the wiener "n" with a
+   an independent sample of ran(1), normal(2,3) and the wiener "n" with a
    fixed seed (4001 rows). Checks use statistical tolerances (a few sigma),
    never exact values, so they still pass after W32a swaps the generator
    for std::mt19937_64. The spike-time-autocorrelation check instead uses
@@ -65,13 +65,13 @@ int main(void)
     CHECK(std::fabs(rmean - 0.5) < rtol);
     CHECK(std::fabs(rvar - 1.0 / 12.0) < 0.02); /* loose: 4th-moment tail */
 
-    /* xpp::normal(2,3): mean 2, var 9 */
+    /* normal(2,3): mean 2, var 9 */
     double nmean = column_mean(ncol, n), nvar = column_var(ncol, n, nmean);
     double ntol = 4.0 * 3.0 / std::sqrt(static_cast<double>(n));
     CHECK(std::fabs(nmean - 2.0) < ntol);
     CHECK(std::fabs(nvar - 9.0) < 1.5);
 
-    /* wiener n: xpp::normal(0,1)/sqrt(dt), dt=1 here, so N(0,1) */
+    /* wiener n: normal(0,1)/sqrt(dt), dt=1 here, so N(0,1) */
     double wmean = column_mean(wcol, n), wvar = column_var(wcol, n, wmean);
     double wtol = 4.0 * 1.0 / std::sqrt(static_cast<double>(n));
     CHECK(std::fabs(wmean - 0.0) < wtol);
@@ -108,7 +108,7 @@ int main(void)
     for (int k = 1; k <= 50; k++) expect_total -= 2.0 * k;
     CHECK(std::fabs(stacor_total - expect_total) < 1.0);
 
-    /* 2D histogram of ran(1) (x) against xpp::normal(2,3) (y): independent, so
+    /* 2D histogram of ran(1) (x) against normal(2,3) (y): independent, so
        the row of bins straddling the normal's mean (y=2) should hold more
        mass than the row in its tail. twod_hist() is new_2d_hist() without
        its dialog: it reads hist_inf and bins all n stored rows. */

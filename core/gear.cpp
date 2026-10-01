@@ -170,7 +170,7 @@ if(!s.numerics.par_fol)
   
    if(rp==1)
    {
-     get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
+     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
      if(*ierr==0)
      {
      change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
@@ -187,7 +187,7 @@ if(!s.numerics.par_fol)
    if(rn==1)
    {
      
-     get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
+     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
      if(*ierr==0)
      {
         change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
@@ -221,7 +221,7 @@ if(!s.numerics.par_fol)
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
 	   xpp::log_printf(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
-	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
+	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
 	       change_current_linestyle(s,s.manifolds.unstable_color,&oldcol);
@@ -239,7 +239,7 @@ if(!s.numerics.par_fol)
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
 	 {
 	   xpp::log_printf(XPP_LOG_INFO, "strong stable %g \n",bigneg);
-	   get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
+	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
 	       change_current_linestyle(s,s.manifolds.stable_color,&oldcol);
@@ -438,7 +438,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
  
    if(rp==1)
    {
-     get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
+     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*pose],ierr);
 
      if(*ierr==0)
      {
@@ -451,7 +451,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
    if(rn==1)
    {
      
-     get_evec(work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
+     get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,eval[2*nege],ierr);
 
      if(*ierr==0)
      {
@@ -484,7 +484,7 @@ void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval,
  if(pr==0)return;
 }
 
-void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr)
+void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr)
 {
     int j,iter,jmax;
     double temp;
@@ -504,7 +504,7 @@ void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, 
     }
     for(j=0;j<n;j++)
     {
-     b[j]=1+.1*xpp::ndrand48();
+     b[j]=1+.1*random.uniform();
      bp[j]=b[j];
     }
      iter=0;

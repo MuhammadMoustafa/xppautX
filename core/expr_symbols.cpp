@@ -88,7 +88,7 @@ constexpr Builtin builtins[]=
    {"FLR",3,COM(FUN1TYPE,18),0,10},  /*  40 */
    {"MOD",3,COM(FUN2TYPE,8),2,10}, /*  41 */
    {"DELAY",5,ENDDELAY,2,10},      /*  42 */   /*  Delay symbol */
-   {"RAN",3,COM(FUN1TYPE,19),1,10}, /* 43 */
+   {"RAN",3,COM(FUN1TYPE,xpp::expr::RANDOM_UNIFORM),1,10}, /* 43 */
    {"&",1,COM(FUN2TYPE,9),0,6},  /* logical stuff  */
    {"|",1,COM(FUN2TYPE,10),0,4},
    {">",1,COM(FUN2TYPE,11),0,7},
@@ -101,7 +101,7 @@ constexpr Builtin builtins[]=
    {"ELSE",4,993,1,10},
    {"!=",2,COM(FUN2TYPE,16),0,7},
    {"NOT",3,COM(FUN1TYPE,20),0,6},
-   {"NORMAL",6,COM(FUN2TYPE,17),2,10}, /* returns normally dist number */
+   {"NORMAL",6,COM(FUN2TYPE,xpp::expr::RANDOM_NORMAL),2,10}, /* returns normally dist number */
    {"BESSELJ",7,COM(FUN2TYPE,18),2,10}, /* Bessel J   */
    {"BESSELY",7,COM(FUN2TYPE,19),2,10}, /* Bessel Y */
    {"NXXQQ",5,NUMSYM,0,10},  
@@ -116,7 +116,7 @@ constexpr Builtin builtins[]=
    {"@",1,INDXCOM,0,10}, /*68 */
    {"]",1,ENDSHIFT,0,10},
    {"[",1,ENDSHIFT,0,10}, /*70 */
-   {"POISSON",7,COM(FUN1TYPE,24),0,10}, /* 71 */
+   {"POISSON",7,COM(FUN1TYPE,xpp::expr::RANDOM_POISSON),0,10}, /* 71 */
    {"SET",3,ENDSET,3,10}, /* 72 */
    {"ARG1",4,COM(USTACKTYPE,0),0,10}, /*  FIXXX ????  */
    {"ARG2",4,COM(USTACKTYPE,1),0,10},
@@ -214,7 +214,7 @@ void init_rpn(xpp::Session &s)
       s.numerics.rand_seed=static_cast<int>(time(0));
       xpp::log(XPP_LOG_INFO,"-newseed: seed {}\n",s.numerics.rand_seed);
     }
-    xpp::nsrand48(s.numerics.rand_seed);
+    s.random.seed(s.numerics.rand_seed);
 }
 
 namespace {

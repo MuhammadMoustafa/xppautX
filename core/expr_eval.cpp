@@ -163,6 +163,15 @@ double eval_rpn(const int *equat, xpp::Session &s)
    case COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE):
      temx=pop();temy=pop();push(temy/temx);
      break;
+   case RANDUNI:
+     push(pop()*s.random.uniform());
+     break;
+   case RANDPOI:
+     push(s.random.poisson(pop()));
+     break;
+   case RANDNORM:
+     temx=pop();temy=pop();push(s.random.normal(temy,temx));
+     break;
    default:
    {
    it=i/MAXTYPE;

@@ -403,6 +403,8 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	    /* an .odex model divides as IEEE does (docs/odex.md) */
 	    if(command[comptr]==COM(FUN2TYPE,3)&&m.ieee_division)
 	      command[comptr]=COM(FUN2TYPE,xpp::expr::IEEE_DIVIDE);
+	    /* ran, poisson and normal: instructions of their own */
+	    command[comptr]=xpp::expr::random_instruction(command[comptr]);
 	    if((my_symb[oldtok].arg==2)&&
 	       (my_symb[oldtok].com/MAXTYPE==FUN2TYPE))
 	      ncomma--;

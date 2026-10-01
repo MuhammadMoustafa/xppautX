@@ -50,6 +50,12 @@
      ENDSET     pop value, shift then v: variable v+shift becomes value;
                 push value
      INDXCOM    push 0 (the index @ of a vector formula)
+     RANDUNI    pop x, push x times a uniform draw of (0,1): RAN(x)
+     RANDPOI    pop m, push a Poisson draw of mean m: POISSON(m)
+     RANDNORM   pop sd then mean, push a normal draw: NORMAL(mean,sd)
+                (the three from the Session's generator, Session::random;
+                the compiler writes them for the symbol table's
+                COM(FUN1TYPE,RANDOM_UNIFORM) ..., random_instruction)
      ENDEXP     the end: the program's value is the stack's top */
 #include "expr.h"
 
@@ -86,6 +92,9 @@
 #define ENDISHIFT 985
 #define ENDSET 981
 #define INDXCOM 922
+#define RANDUNI 984
+#define RANDPOI 983
+#define RANDNORM 982
 
 namespace xpp::expr {
 
@@ -99,6 +108,32 @@ using Fun1 = double (*)(double);
 using Fun2 = double (*)(double, double);
 extern const std::array<Fun1, 26> fun1;
 extern const std::array<Fun2, 23> fun2;
+
+/* the symbol table's indices of RAN(x) (FUN1TYPE), POISSON(m) (FUN1TYPE)
+   and NORMAL(mean,sd) (FUN2TYPE): their table entries are null (the
+   tables hold no Session), and a program draws them with RANDUNI,
+   RANDPOI and RANDNORM, instructions of their own, so that no other
+   instruction's dispatch pays for them */
+constexpr int RANDOM_UNIFORM = 19;
+constexpr int RANDOM_POISSON = 24;
+constexpr int RANDOM_NORMAL = 17;
+
+/* the instruction the compiler writes for the symbol table's com, and
+   back (odex_convert.cpp reads programs) */
+constexpr int random_instruction(int com)
+{
+    return com == COM(FUN1TYPE, RANDOM_UNIFORM)   ? RANDUNI
+           : com == COM(FUN1TYPE, RANDOM_POISSON) ? RANDPOI
+           : com == COM(FUN2TYPE, RANDOM_NORMAL)  ? RANDNORM
+                                                  : com;
+}
+constexpr int random_com(int instruction)
+{
+    return instruction == RANDUNI   ? COM(FUN1TYPE, RANDOM_UNIFORM)
+           : instruction == RANDPOI ? COM(FUN1TYPE, RANDOM_POISSON)
+           : instruction == RANDNORM ? COM(FUN2TYPE, RANDOM_NORMAL)
+                                     : instruction;
+}
 
 /* the FUN2TYPE index of an .odex model's division, which the compiler
    writes for / when the Model's ieee_division is set */

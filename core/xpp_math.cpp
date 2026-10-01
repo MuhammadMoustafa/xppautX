@@ -91,27 +91,16 @@ void fft_real(std::span<const double> in, std::span<double> re, std::span<double
 /* ------------------------------------------------------------------ */
 /* Random numbers                                                      */
 
-namespace {
-
-/* std::mt19937_64's algorithm and seeding are fixed by the standard, so
-   every C++ library gives the same sequence for a seed */
-std::mt19937_64 engine(1);
-/* normal() draws its deviates in pairs and keeps the second */
-bool have_spare = false;
-double spare = 0.0;
-
-} // namespace
-
-void nsrand48(int seed)
+void Random::seed(int seed)
 {
-    engine.seed(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
-    have_spare = false;
+    engine_.seed(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
+    have_spare_ = false;
 }
 
 int next_seed(int seed)
 {
-    /* a generator of its own, seeded by seed and never touching the one
-       above: a pure function, so the same run seed always picks the same
+    /* a generator of its own, seeded by seed and never touching a
+       Random: a pure function, so the same run seed always picks the same
        following seed regardless of what that run itself drew */
     std::mt19937_64 stream(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
     /* stir it once so consecutive seeds (0,1,2,...) do not pick visibly
@@ -122,32 +111,32 @@ int next_seed(int seed)
     return static_cast<int>(stream() & 0x7fffffff);
 }
 
-double ndrand48()
+double Random::uniform()
 {
     /* the top 53 bits, centred in their interval: (0,1), never 0 (the
        callers take its log) nor 1 */
-    return (static_cast<double>(engine() >> 11) + 0.5) * 0x1.0p-53;
+    return (static_cast<double>(engine_() >> 11) + 0.5) * 0x1.0p-53;
 }
 
-double normal(double mean, double std)
+double Random::normal(double mean, double std)
 {
-    if (have_spare) {
-        have_spare = false;
-        return spare * std + mean;
+    if (have_spare_) {
+        have_spare_ = false;
+        return spare_ * std + mean;
     }
     double v1, v2, r;
     do {
-        v1 = 2.0 * ndrand48() - 1.0;
-        v2 = 2.0 * ndrand48() - 1.0;
+        v1 = 2.0 * uniform() - 1.0;
+        v2 = 2.0 * uniform() - 1.0;
         r = v1 * v1 + v2 * v2;
     } while (r >= 1.0 || r == 0.0);
     const double fac = std::sqrt(-2.0 * std::log(r) / r);
-    spare = v1 * fac;
-    have_spare = true;
+    spare_ = v1 * fac;
+    have_spare_ = true;
     return v2 * fac * std + mean;
 }
 
-double poidev(double xm)
+double Random::poisson(double xm)
 {
     double em, t, y;
     if (xm < 12.0) { /* multiply uniforms until the product drops below e^-xm */
@@ -156,7 +145,7 @@ double poidev(double xm)
         t = 1.0;
         do {
             ++em;
-            t *= ndrand48();
+            t *= uniform();
         } while (t > g);
     } else { /* rejection from a Lorentzian */
         const double sq = std::sqrt(2.0 * xm);
@@ -164,24 +153,24 @@ double poidev(double xm)
         const double g = xm * alxm - std::lgamma(xm + 1.0);
         do {
             do {
-                y = std::tan(std::numbers::pi * ndrand48());
+                y = std::tan(std::numbers::pi * uniform());
                 em = sq * y + xm;
             } while (em < 0.0);
             em = std::floor(em);
             t = 0.9 * (1.0 + y * y) * std::exp(em * alxm - std::lgamma(em + 1.0) - g);
-        } while (ndrand48() > t);
+        } while (uniform() > t);
     }
     return em;
 }
 
-std::string rand_state_save()
+std::string Random::save() const
 {
     std::ostringstream os;
-    os << engine << ' ' << (have_spare ? 1 : 0) << ' ' << std::setprecision(17) << spare;
+    os << engine_ << ' ' << (have_spare_ ? 1 : 0) << ' ' << std::setprecision(17) << spare_;
     return os.str();
 }
 
-bool rand_state_load(const std::string &state)
+bool Random::load(const std::string &state)
 {
     std::istringstream is(state);
     std::mt19937_64 loaded;
@@ -189,9 +178,9 @@ bool rand_state_load(const std::string &state)
     double spare_value = 0.0;
     is >> loaded >> spare_flag >> spare_value;
     if (!is) return false;
-    engine = loaded;
-    have_spare = spare_flag != 0;
-    spare = spare_value;
+    engine_ = loaded;
+    have_spare_ = spare_flag != 0;
+    spare_ = spare_value;
     return true;
 }
 

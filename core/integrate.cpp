@@ -388,7 +388,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   }
   for(i=0;i<n;i++){
     for(j=0;j<s.model().node;j++){ 
-      x[j]=xpp::ndrand48()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
+      x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
     do_sing_info(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,er,em,&ierr);
     if(ierr==0){
@@ -586,7 +586,7 @@ namespace {
    sweep, usual_integrate_stuff's plain run): rand_seed is the seed shown
    or set for the next run (docs/roadmap.md W71, "@ seed=" in
    load_eqn.cpp, Stochastic > New seed in markov.cpp, -newseed in
-   expr_symbols.cpp's init_rpn -- each of those already calls nsrand48
+   expr_symbols.cpp's init_rpn -- each of those already seeds s.random
    with it immediately too, unchanged, so this reapplies exactly the
    same value and changes nothing there); apply it, log it and keep it
    as last_seed for the protocol's state and a saved data file's
@@ -597,7 +597,7 @@ namespace {
 void seed_this_run(xpp::Session &s)
 {
   const int seed=s.numerics.rand_seed;
-  xpp::nsrand48(seed);
+  s.random.seed(seed);
   s.numerics.last_seed=seed;
   xpp::log(XPP_LOG_INFO,"Go: seed {}\n",seed);
   s.numerics.rand_seed=xpp::next_seed(seed);

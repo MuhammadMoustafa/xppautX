@@ -569,6 +569,17 @@ private:
         continue;
       }
       case INDXCOM: refuse("a vector's index @ has no .odex form yet");
+      case RANDUNI:
+      case RANDPOI: {
+        Expr a = st.pop(&first);
+        call(builtin(xpp::expr::random_com(i)), {std::move(a)});
+        continue;
+      }
+      case RANDNORM: {
+        Expr y = st.pop(), x = st.pop(&first);
+        call(builtin(xpp::expr::random_com(i)), {std::move(x), std::move(y)});
+        continue;
+      }
       default: break;
       }
       const int type = i / MAXTYPE, in = i % MAXTYPE;
@@ -649,8 +660,7 @@ private:
       }
       if (c == MYELSE) continue;
       const int type = c / MAXTYPE, in = c % MAXTYPE;
-      if (type == FUN1TYPE && in != 19 && in != 24) continue; /* not ran, poisson */
-      if (type == FUN2TYPE && in != 17) continue;             /* not normal */
+      if (type == FUN1TYPE || type == FUN2TYPE) continue; /* ran, poisson and normal are RANDUNI ... */
       if (type == CONTYPE && constants_.count(in)) continue;
       return std::nullopt;
     }

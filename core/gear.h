@@ -8,8 +8,9 @@
 namespace xpp {
 
 struct Session; /* session.h */
+class Random;   /* xpp_math.h */
 
-void get_evec(double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
+void get_evec(Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
 double sqr2(double z);
 
 void do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
