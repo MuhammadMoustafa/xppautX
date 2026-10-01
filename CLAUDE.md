@@ -17,7 +17,7 @@ The sections below give the details.
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
-| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | review, then errorcheck (W140) |
+| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140a; W140b takes its baseline to 0), review |
 | No dead code | deadcode.sh, deadcheck.py |
 | Safe C++: RAII, std containers, `xpp::format`/`xpp::log`, the I/O readers and writers, `static_cast` | unsafecheck, alloccheck, formatcheck, literalcheck, filecheck, stdoutcheck |
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
@@ -581,6 +581,20 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   nothing at all (a bare "here", an unused value dump), remove it rather
   than downgrading it. `tools/stdoutcheck.sh` also fails a new `plintf(`
   call so it cannot creep back in.
+  An error is an `xpp::Error` (core/xpp_error.h, W140a): what failed, a
+  `where` for the log and an `xpp::Place` (file, line, col, the line as
+  written; 0 when unknown, and a file with no line is one that could not
+  be read, which the page offers to add). `Error::text()` is the one
+  rendering, `file:line:col: what`, for the console, the log and -silent;
+  every error event the page gets (`error`, and a `message` error) carries
+  the same fields (docs/protocol.md "Errors"). `err_msg`, `show_error`,
+  `fail`/`fail_reading`, `err_reading` and `model_failed` take it. While a
+  model loads, its ERROR/WARN lines are held and printed with their place,
+  and a failed load is printed once, by `load_model`.
+  `tools/errorcheck.py` (sourcecheck) counts per file the errors made or
+  reported with no place (err_msg, an ERROR log line, `fail` without a
+  Place) against `tests/errors.baseline` and fails on growth (`--update`
+  after a drop).
   AUTO's table goes through `xpp::log_auto()` (`xpp::log_auto_printf`
   for printf's formats): INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
