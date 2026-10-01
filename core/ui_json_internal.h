@@ -100,6 +100,7 @@ extern ProtocolSession session;
 xpp::Session &client();
 
 [[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
+[[noreturn]] void quit_command(void); /* the client's quit: bye, then quit_session */
 /* {"cmd":"quit","ask":true} (W59d: File > Quit's question) or
    {"cmd":"quit","save":true} (its Save session, answered in the page,
    W110): a command of its own, in its turn; a plain quit exits at once

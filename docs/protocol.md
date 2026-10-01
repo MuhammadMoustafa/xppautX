@@ -589,7 +589,7 @@ model's start in every mode, before the script.
 | `film` | `op` (`capture`, `reset`, `play`, `autoplay`), `count`, `win`, `cycles`, `delay` | Kinescope. The client keeps the frames: on `capture` it copies window `win` as it is drawn now; `play` shows them, `autoplay` plays `cycles` times `delay` ms apart. |
 | `browser` | `rows`, `cols` (names, `T` first), `row0` (selected row), `start`, `end` (the First..Last range), `from`, `col`, `data` | Rows `from`.. as [T, column `col`, `col`+1, ...]; `null` for NaN. Sent for a `browser` block request and after any command that changed the data while the client shows the browser. |
 | `ping` | | Beep. |
-| `bye` | | The program is exiting. |
+| `bye` | | The program is exiting normally: sent by every quit (a plain `quit`, during a computation or not, and the question's outcomes) before the exit, so browser mode's `exit` event says `code` 0. A crash or an error exit sends none (`exit` `code` 1). |
 | `error` | `file`, `line`, `col`, `cause`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
@@ -607,7 +607,10 @@ window closes through its own path) it POSTs `/leave?t=TOKEN` with
 `navigator.sendBeacon` (204; 403 without the token). xppautX then waits about
 2 seconds for an event stream to connect again, which a reload does within
 that, and ends the program as the watchdog would (no `bye`, no page left to
-tell) if none has and no other stream still answers. A page that vanishes
+tell) if none has and no other stream still answers. This includes a program
+that has stopped on an error (no `bye`, `exit` `code` 1) and only serves its
+log: it keeps serving while a page is open and ends the same way once the
+last page has left (W112), though not if no page ever connected. A page that vanishes
 without a word (a crashed browser) is found by the heartbeat, an SSE comment
 every 2 seconds, and ends the program after 10 seconds without a page. Before
 closing, the browser-mode page also asks the browser's own "Leave site?"

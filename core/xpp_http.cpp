@@ -207,6 +207,12 @@ void heartbeat()
        there is no page left to tell anyway. Flush what the core wrote,
        then go. */
     std::fflush(nullptr);
+#ifdef _WIN32
+    /* the core thread may sit in exit() (at_exit waiting for a page that is
+       gone: a stopped model's log), holding the C runtime's exit lock, which
+       _exit() would wait on forever (W112) */
+    TerminateProcess(GetCurrentProcess(), 0);
+#endif
     _exit(0);
 }
 

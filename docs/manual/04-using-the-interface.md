@@ -24,8 +24,11 @@ it says so plainly instead of describing the old window.
 Everything runs on your machine: the page is served on 127.0.0.1 only,
 at an address with a one-time token. Closing the window quits xppautX,
 after asking whether to save the session first (see [Starting it](01-introduction.md#starting-it) for its menu bar). In
-browser mode, closing the tab does not stop xppautX at once; press
-`Ctrl+C` in the terminal, or use `File` `Quit` in the page. The VS Code extension
+browser mode, closing the tab ends xppautX a few seconds later (a reload
+does not), and `File` `Quit` in the page ends it at once, with exit code 0;
+`Ctrl+C` in the terminal also works. A model that stopped on an error keeps
+its page open to show what it printed, and ends the same way once the page
+is closed. The VS Code extension
 (docs/vscode-extension.md) shows the same page in a panel and starts the
 program for you.
 

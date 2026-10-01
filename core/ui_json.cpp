@@ -59,6 +59,15 @@ xpp::Session &client() { return xpp::client_session(); }
    (docs/protocol.md "Scripts"), else as always, 0 */
 void quit_session(void) { exit(session.script_mode && session.script_error ? 1 : 0); }
 
+/* a client's quit command is a normal end (W112): the bye first, as the
+   end of a session says it, so a front end that waits on one (browser mode's
+   at_exit) knows the exit was meant; a script's error stays exit 1 without it */
+void quit_command(void)
+{
+    if (!(session.script_mode && session.script_error)) send_simple("bye", NULL, NULL);
+    quit_session();
+}
+
 /* A line that does not fit a script's dialogue (an answer with no question
    open, or a command where an answer was due) stops the script at once:
    nothing after it can line up. */
@@ -78,7 +87,7 @@ bool quit_waits(const char *line)
    quit that asks or saves is a command of its own, in the dispatch table) */
 int handle_async(xpp::Session &s, const char *line)
 {
-    if (is_cmd(line, "quit") && !quit_waits(line)) quit_session();
+    if (is_cmd(line, "quit") && !quit_waits(line)) quit_command();
     if (is_cmd(line, "state")) {
         send_state(s);
         return 1;
@@ -526,7 +535,7 @@ const CommandInfo commands[] = {
     {"abort", nullptr, C, [](xpp::Session &, const char *) {}},
     {"quit", nullptr, C,
      [](xpp::Session &s, const char *line) {
-         if (!quit_waits(line)) quit_session();
+         if (!quit_waits(line)) quit_command();
          /* the user's quit (W59d): File/Quit's question, or its Save
             session answered in the page (W110); a recording playing
             waits, the question being the user's */

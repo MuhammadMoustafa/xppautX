@@ -279,9 +279,10 @@ lrun = tempfile.mkdtemp(prefix='xppleave')
 shutil.copy(args.ode, lrun)
 
 
-def leave_session():
+def leave_session(ode=None):
     """a fresh --browser process with one event stream open; (proc, port, token, stream's connection)"""
-    p = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', os.path.basename(args.ode)],
+    ode = ode or os.path.basename(args.ode)
+    p = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', ode],
                          cwd=lrun, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     mm = None
     for _ in range(50):
@@ -347,6 +348,98 @@ if sess:
     c2.close()
     p.kill()
     p.wait()
+# ---- W112: a plain quit is a normal end (bye, then exit code 0), even during a run; a process that
+# only serves a stopped model's log (no bye) keeps serving while a page is open and ends once none is left.
+# Generous safety timeouts only; the times print as perf: lines.
+
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'heavy.ode')) as f:
+    heavy = f.read().replace('total=20', 'total=1e7')
+with open(os.path.join(lrun, 'longrun.ode'), 'w') as f:
+    f.write(heavy)
+shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'malformed_unbalanced.ode'), lrun)
+
+
+def read_events(c, until, timeout=30):
+    """events from an open stream's response until until(e) is true; (events, matching or None)"""
+    evs = []
+    end = time.time() + timeout
+    c.sk.settimeout(timeout)
+    try:
+        while time.time() < end:
+            line = c.resp.readline()
+            if not line:
+                break
+            if line.startswith(b'data: '):
+                e = json.loads(line[6:])
+                evs.append(e)
+                if until(e):
+                    return evs, e
+    except OSError:
+        pass
+    return evs, None
+
+
+def post_cmd(pt, tk, obj):
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=10)
+    c.request('POST', '/cmd?t=' + tk, body=json.dumps(obj))
+    c.getresponse().read()
+
+
+sess = leave_session('longrun.ode')
+check('W112: a process starts for the quit-during-a-run check', sess is not None)
+if sess:
+    p, pt, tk, c = sess
+    c.close()
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
+    c.request('GET', '/events?t=' + tk)
+    c.sk = c.sock
+    c.resp = c.getresponse()
+    read_events(c, lambda e: e['ev'] == 'idle')
+    post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
+    post_cmd(pt, tk, {'cmd': 'key', 'key': 'g'})
+    _, comp = read_events(c, lambda e: e['ev'] == 'computing' or e['ev'] == 'series', 30)
+    time.sleep(1)
+    check('W112: the run is still going when the quit comes', p.poll() is None)
+    t0 = time.time()
+    post_cmd(pt, tk, {'cmd': 'quit'})
+    evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
+    names = [e['ev'] for e in evs]
+    check('W112: a plain quit during a run says bye, then exit code 0',
+          ex is not None and ex['code'] == 0 and 'bye' in names, str(names[-4:]) + str(ex))
+    try:
+        p.wait(timeout=15)
+        print('perf: quit-exit %.2f s' % (time.time() - t0))
+        check('W112: ... and the process ends with code 0', p.returncode == 0, str(p.returncode))
+    except subprocess.TimeoutExpired:
+        p.kill()
+        check('W112: ... and the process ends with code 0', False, 'still running after 15 s')
+    c.close()
+
+sess = leave_session('malformed_unbalanced.ode')
+check('W112: a process with a model that does not load starts', sess is not None)
+if sess:
+    p, pt, tk, c = sess
+    c.close()
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
+    c.request('GET', '/events?t=' + tk)
+    c.sk = c.sock
+    c.resp = c.getresponse()
+    evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
+    check('W112: it reports exit code 1, with no bye', ex is not None and ex['code'] == 1
+          and not any(e['ev'] == 'bye' for e in evs), str([e['ev'] for e in evs]))
+    time.sleep(3.5)  # past the watchdog's waits: the page is still open
+    check('W112: it keeps serving while the page is open', p.poll() is None and answers(pt, tk))
+    c.resp.close()  # the response holds the socket open otherwise
+    c.close()
+    t0 = time.time()
+    check('W112: the leave beacon is accepted', leave_post(pt, tk) == 204)
+    try:
+        p.wait(timeout=30)
+        print('perf: stopped-leave-exit %.2f s' % (time.time() - t0))
+        check('W112: it ends once the page has left', True)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        check('W112: it ends once the page has left', False, 'still running after 30 s')
 shutil.rmtree(lrun, ignore_errors=True)
 
 # ---- T27: the Windows exe with no standard error handle ------------------------------
