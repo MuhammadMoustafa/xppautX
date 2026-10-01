@@ -350,7 +350,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 	    else{
 
 	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
-	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))xpp::send_halt(ynew,*tnew);
+	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))xpp::send_halt(s);
 	    }
 	  }
 

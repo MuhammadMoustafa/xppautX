@@ -958,7 +958,7 @@ void draw_ani_null(xpp::Session &s, int j, int id)
 
     set_ani_col(s, j);
     const int who = static_cast<int>(a.zval); /* the nullcline that you want  -1 is the default cline */
-    if (get_nullcline_floats(&v, &n, who, id) == 1) return;
+    if (get_nullcline_floats(s, &v, &n, who, id) == 1) return;
     for (int i = 0; i < n; i++) {
         const int i4 = 4 * i;
         const float x1 = (v[i4] - xl) / dx;

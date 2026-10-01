@@ -1,5 +1,5 @@
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
-   pair of nullclines, the frozen ones, and the direction field's grid, drawn
+   pair of nullclines, the s.nullcline_state.frozen ones, and the direction field's grid, drawn
    through graphics.cpp's primitives and recorded for the front end by
    phase_data.cpp. */
 #include "nullcline.h"
@@ -39,8 +39,6 @@ namespace xpp {
 
 constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
 
-static int DF_IX=-1,DF_IY=-1;
-static int DFIELD_TYPE=0;
 
 
 /* load_eqn.cpp's @ colorvia= writes it through sizeof: kept an array */
@@ -51,72 +49,46 @@ struct Pt {
   float x,y,z;
 };
 
-/* A frozen pair of nullclines: 4 floats (a segment) per point. */
-struct FrozenCline {
-  std::vector<float> xn,yn;
-  int nmx=0,nmy=0;
-  int n_ix=-5,n_iy=-5;
-};
 
-/* Range clines' dialog values */
-struct {
-  std::string rv;
-  int nstep=0;
-  double xlo=0,xhi=0;
-} ncrange;
-
-/* the current nullclines, as segments (4 floats each) */
-std::vector<float> x_null,y_null;
-int num_x_n,num_y_n;
-int null_ix,null_iy,WHICH_CRV;
-/* the contour's two rows of the grid, and where new segments go */
-std::vector<float> n_top,n_bot;
-std::vector<float> *saver;
-int num_index;
-
-/* the frozen nullclines; started is Freeze's first use (start_ncline) */
-std::vector<FrozenCline> frozen;
-bool frozen_started=false;
-
-/* Walks the frozen nullclines up to the first empty one (the original
+/* Walks the s.nullcline_state.frozen nullclines up to the first empty one (the original
    linked list's end marker, also where one with no points stops it). */
 template <class F>
-void for_each_frozen(F &&f)
+void for_each_frozen(xpp::Session &s, F &&f)
 {
-  for(FrozenCline &z:frozen){
+  for(FrozenCline &z:s.nullcline_state.frozen){
     if(z.nmx==0&&z.nmy==0)break;
     f(z);
   }
 }
 
-/* the frozen nullclines the current window shows (phase_data.h): those of
+/* the s.nullcline_state.frozen nullclines the current window shows (phase_data.h): those of
    its axes, as redraw_froz_cline draws them */
 void note_frozen(xpp::Session &s)
 {
   phase_data_frozen_begin(s.plot_windows);
-  if(!frozen_started)return;
-  for_each_frozen([&](FrozenCline &z){
+  if(!s.nullcline_state.frozen_started)return;
+  for_each_frozen(s,[&](FrozenCline &z){
     if(s.plot_windows.current->xv[0]==z.n_ix&&s.plot_windows.current->yv[0]==z.n_iy&&s.plot_windows.current->ThreeDFlag==0)
       phase_data_frozen(s.plot_windows,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
   });
 }
 
-void start_ncline()
+void start_ncline(xpp::Session &s)
 {
-  frozen_started=true;
-  frozen.clear();
-  ncrange.xlo=0;
-  ncrange.xhi=1;
-  ncrange.nstep=10;
-  ncrange.rv=" ";
+  s.nullcline_state.frozen_started=true;
+  s.nullcline_state.frozen.clear();
+  s.nullcline_state.range.xlo=0;
+  s.nullcline_state.range.xhi=1;
+  s.nullcline_state.range.nstep=10;
+  s.nullcline_state.range.rv=" ";
 }
 
-void clear_froz_cline()
+void clear_froz_cline(xpp::Session &s)
 {
-  frozen.clear();
+  s.nullcline_state.frozen.clear();
 }
 
-void add_froz_cline(const float *xn, int nmx, int n_ix, const float *yn, int nmy, int n_iy)
+void add_froz_cline(xpp::Session &s, const float *xn, int nmx, int n_ix, const float *yn, int nmy, int n_iy)
 {
   FrozenCline z;
   z.xn.assign(xn,xn+4*nmx);
@@ -125,7 +97,7 @@ void add_froz_cline(const float *xn, int nmx, int n_ix, const float *yn, int nmy
   z.nmy=nmy;
   z.n_ix=n_ix;
   z.n_iy=n_iy;
-  frozen.push_back(std::move(z));
+  s.nullcline_state.frozen.push_back(std::move(z));
 }
 
 void dump_clines(xpp::Writer &fp, const float *x, int nx, const float *y, int ny)  /* gnuplot format */
@@ -144,13 +116,13 @@ void dump_clines(xpp::Writer &fp, const float *x, int nx, const float *y, int ny
   }
 }
 
-void save_frozen_clines(const std::string &fn)
+void save_frozen_clines(xpp::Session &s, const std::string &fn)
 {
-  if(!frozen_started)return;
+  if(!s.nullcline_state.frozen_started)return;
   const char ch=static_cast<char>(TwoChoice("YES","NO","Save Frozen Clines?","yn"));
   if(ch=='n')return;
   int i=1;
-  for(const FrozenCline &z:frozen){
+  for(const FrozenCline &z:s.nullcline_state.frozen){
     if(z.nmx==0&&z.nmy==0)return;
     xpp::Writer fp(xpp::format("{}.{}",fn,i).c_str());
     if(!fp){
@@ -192,9 +164,9 @@ void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x an
 void redraw_froz_cline(xpp::Session &s, int flag)
 {
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
-  if(!frozen_started)return;
+  if(!s.nullcline_state.frozen_started)return;
   phase_data_frozen_begin(s.plot_windows);
-  for_each_frozen([&](FrozenCline &z){
+  for_each_frozen(s,[&](FrozenCline &z){
     if(s.plot_windows.current->xv[0]==z.n_ix&&s.plot_windows.current->yv[0]==z.n_iy
        &&s.plot_windows.current->ThreeDFlag==0){
       if(flag>0){
@@ -217,33 +189,33 @@ void redraw_froz_cline(xpp::Session &s, int flag)
 void null_storage(xpp::Session &s, int course)
 {
   if(s.numerics.null_here==0){
-    x_null.assign(4*MAX_NULL,0.0f);
-    y_null.assign(4*MAX_NULL,0.0f);
+    s.nullcline_state.x_null.assign(4*MAX_NULL,0.0f);
+    s.nullcline_state.y_null.assign(4*MAX_NULL,0.0f);
     s.numerics.null_here=1;
   }
-  n_top.assign(course+1,0.0f);
-  n_bot.assign(course+1,0.0f);
+  s.nullcline_state.n_top.assign(course+1,0.0f);
+  s.nullcline_state.n_bot.assign(course+1,0.0f);
 }
 
-void stor_null(float x1, float y1, float x2, float y2)
+void stor_null(xpp::Session &s, float x1, float y1, float x2, float y2)
 {
-  if(num_index>=MAX_NULL)return;
-  const int i=4*num_index;
-  (*saver)[i]=x1;
-  (*saver)[i+1]=y1;
-  (*saver)[i+2]=x2;
-  (*saver)[i+3]=y2;
-  num_index++;
+  if(s.nullcline_state.num_index>=MAX_NULL)return;
+  const int i=4*s.nullcline_state.num_index;
+  (*s.nullcline_state.saver)[i]=x1;
+  (*s.nullcline_state.saver)[i+1]=y1;
+  (*s.nullcline_state.saver)[i+2]=x2;
+  (*s.nullcline_state.saver)[i+3]=y2;
+  s.nullcline_state.num_index++;
 }
 
 float fnull(xpp::Session &s, float x, float y)
 {
   std::array<double,MAXODE> y1,ydot;
   for(int i=0;i<s.model().node;i++)y1[i]=s.last_ic[i];
-  y1[null_ix-1]=static_cast<double>(x);
-  y1[null_iy-1]=static_cast<double>(y);
+  y1[s.nullcline_state.null_ix-1]=static_cast<double>(x);
+  y1[s.nullcline_state.null_iy-1]=static_cast<double>(y);
   s.integrator.rhs(0.0,y1.data(),ydot.data(),s.model().node);
-  return(static_cast<float>(ydot[WHICH_CRV-1]));
+  return(static_cast<float>(ydot[s.nullcline_state.which_crv-1]));
 }
 
 int interpolate(Pt p1, Pt p2, float z, float *x, float *y)
@@ -270,7 +242,7 @@ void quad_contour(xpp::Session &s, Pt p1, Pt p2, Pt p3, Pt p4)
 
   if(count==2){
     line_abs(s,x[0],y[0],x[1],y[1]);
-    stor_null(x[0],y[0],x[1],y[1]);
+    stor_null(s,x[0],y[0],x[1],y[1]);
   }
 }
 
@@ -285,29 +257,29 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
   float y=y2;
   for(int i=0;i<nx;i++){
     const float x=x1+i*dx;
-    n_bot[i]=fnull(s,x,y);
+    s.nullcline_state.n_bot[i]=fnull(s,x,y);
   }
 
   for(int j=1;j<ny;j++){
     y=y2-j*dy;
-    n_top[0]=n_bot[0];
-    n_bot[0]=fnull(s,x1,y);
+    s.nullcline_state.n_top[0]=s.nullcline_state.n_bot[0];
+    s.nullcline_state.n_bot[0]=fnull(s,x1,y);
     for(int i=1;i<nx;i++){
       const float x=x1+i*dx;
-      n_top[i]=n_bot[i];
-      n_bot[i]=fnull(s,x,y);
+      s.nullcline_state.n_top[i]=s.nullcline_state.n_bot[i];
+      s.nullcline_state.n_bot[i]=fnull(s,x,y);
       p[0].x=x-dx;
       p[0].y=y+dy;
-      p[0].z=n_top[i-1];
+      p[0].z=s.nullcline_state.n_top[i-1];
       p[1].x=x;
       p[1].y=y+dy;
-      p[1].z=n_top[i];
+      p[1].z=s.nullcline_state.n_top[i];
       p[3].x=x-dx;
       p[3].y=y;
-      p[3].z=n_bot[i-1];
+      p[3].z=s.nullcline_state.n_bot[i-1];
       p[2].x=x;
       p[2].y=y;
-      p[2].z=n_bot[i];
+      p[2].z=s.nullcline_state.n_bot[i];
       quad_contour(s,p[0],p[1],p[2],p[3]);
     }
   }
@@ -315,10 +287,10 @@ void do_cline(xpp::Session &s, int ngrid, float x1, float y1, float x2, float y2
 
 void new_nullcline(xpp::Session &s, int course, float xlo, float ylo, float xhi, float yhi, std::vector<float> &stor, int *npts)
 {
-  num_index=0;
-  saver=&stor;
+  s.nullcline_state.num_index=0;
+  s.nullcline_state.saver=&stor;
   do_cline(s,course,xlo,ylo,xhi,yhi);
-  *npts=num_index;
+  *npts=s.nullcline_state.num_index;
 }
 
 void do_range_clines(xpp::Session &s)
@@ -327,47 +299,47 @@ void do_range_clines(xpp::Session &s)
   std::array<std::string, 4> values;
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   const int course=s.numerics.nmesh;
-  values[0] = ncrange.rv;
-  values[1] = xpp::format("{:d}", ncrange.nstep);
-  values[2] = xpp::format("{:g}", ncrange.xlo);
-  values[3] = xpp::format("{:g}", ncrange.xhi);
+  values[0] = s.nullcline_state.range.rv;
+  values[1] = xpp::format("{:d}", s.nullcline_state.range.nstep);
+  values[2] = xpp::format("{:g}", s.nullcline_state.range.xlo);
+  values[3] = xpp::format("{:g}", s.nullcline_state.range.xhi);
   static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
   const int status=do_string_box_of(4,1,"Range Clines",n,values,kinds);
   if(status==0)return;
-  ncrange.rv=values[0];
-  ncrange.nstep=std::atoi(values[1].c_str());
-  ncrange.xlo=std::atof(values[2].c_str());
-  ncrange.xhi=std::atof(values[3].c_str());
-  if(ncrange.nstep<=0)return;
-  const double dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
+  s.nullcline_state.range.rv=values[0];
+  s.nullcline_state.range.nstep=std::atoi(values[1].c_str());
+  s.nullcline_state.range.xlo=std::atof(values[2].c_str());
+  s.nullcline_state.range.xhi=std::atof(values[3].c_str());
+  if(s.nullcline_state.range.nstep<=0)return;
+  const double dz=(s.nullcline_state.range.xhi-s.nullcline_state.range.xlo)/static_cast<double>(s.nullcline_state.range.nstep);
   if(dz<=0.0)return;
   double zold;
-  xpp::get_val(s,ncrange.rv.c_str(),&zold);
+  xpp::get_val(s,s.nullcline_state.range.rv.c_str(),&zold);
 
   for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows.current->xmin);
   const float xmax=static_cast<float>(s.plot_windows.current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows.current->ymax);
   const float y_bot=static_cast<float>(s.plot_windows.current->ymin);
-  null_ix=s.plot_windows.current->xv[0];
-  null_iy=s.plot_windows.current->yv[0];
+  s.nullcline_state.null_ix=s.plot_windows.current->xv[0];
+  s.nullcline_state.null_iy=s.plot_windows.current->yv[0];
 
-  for(int i=0;i<=ncrange.nstep;i++){
-    const double z=static_cast<double>(i)*dz+ncrange.xlo;
-    xpp::set_val(s,ncrange.rv.c_str(),z);
+  for(int i=0;i<=s.nullcline_state.range.nstep;i++){
+    const double z=static_cast<double>(i)*dz+s.nullcline_state.range.xlo;
+    xpp::set_val(s,s.nullcline_state.range.rv.c_str(),z);
     null_storage(s,course);
 
-    WHICH_CRV=null_ix;
+    s.nullcline_state.which_crv=s.nullcline_state.null_ix;
     set_linestyle(s,col1);
-    new_nullcline(s,course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
+    new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.x_null,&s.nullcline_state.num_x_n);
 
-    WHICH_CRV=null_iy;
+    s.nullcline_state.which_crv=s.nullcline_state.null_iy;
     set_linestyle(s,col2);
-    new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
-    add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
+    new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
+    add_froz_cline(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.null_ix,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_iy);
   }
-  xpp::set_val(s,ncrange.rv.c_str(),zold);
-  phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
+  xpp::set_val(s,s.nullcline_state.range.rv.c_str(),zold);
+  phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
   note_frozen(s);
 }
 
@@ -401,7 +373,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   xpp::get_ic(s,2,y.data());
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
-    phase_data_dfield_begin(s.plot_windows,grid+1,du,dv,DFIELD_TYPE==0,s.plot_windows.current->color[0]);
+    phase_data_dfield_begin(s.plot_windows,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
   if (s.plot_file.plt_fmt_flag==SVGFMT){
     s.nullclines.doing_dfield=1;
     svg_write("<g>");
@@ -424,7 +396,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
       if(s.nullclines.df_flag==1||s.nullclines.df_flag==4){
         if(!suppress)phase_data_arrow(s.plot_windows,y[inx],y[iny],ydot[inx],ydot[iny]);
         scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
-        if(DFIELD_TYPE==1){
+        if(s.nullcline_state.dfield_type==1){
           ydot[inx]/=mdf;
           ydot[iny]/=mdf;
         }
@@ -465,9 +437,9 @@ void save_the_nullclines(xpp::Session &s)
     err_msg("Cant open file!");
     return;
   }
-  dump_clines(fp,x_null.data(),num_x_n,y_null.data(),num_y_n);
+  dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
   fp.commit();
-  save_frozen_clines(filename);
+  save_frozen_clines(s,filename);
 }
 
 } // namespace
@@ -475,15 +447,15 @@ void save_the_nullclines(xpp::Session &s)
 void froz_cline_stuff_com(xpp::Session &s, int i)
 {
   int delay=200;
-  if(!frozen_started)start_ncline();
+  if(!s.nullcline_state.frozen_started)start_ncline(s);
   switch(i){
   case 0:
     if(s.numerics.null_here==0)return;
-    add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
+    add_froz_cline(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.null_ix,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_iy);
     note_frozen(s);
     break;
   case 1:
-    clear_froz_cline();
+    clear_froz_cline(s);
     note_frozen(s);
     break;
   case 3:
@@ -497,27 +469,27 @@ void froz_cline_stuff_com(xpp::Session &s, int i)
   }
 }
 
-int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
+int get_nullcline_floats(xpp::Session &s, float **v,int *n,int who,int type) /* type=0,1 */
 {
   if(who<0){
     if(type==0){
-      *v=x_null.empty()?nullptr:x_null.data();
-      *n=num_x_n;
+      *v=s.nullcline_state.x_null.empty()?nullptr:s.nullcline_state.x_null.data();
+      *n=s.nullcline_state.num_x_n;
     }
     else {
-      *v=y_null.empty()?nullptr:y_null.data();
-      *n=num_y_n;
+      *v=s.nullcline_state.y_null.empty()?nullptr:s.nullcline_state.y_null.data();
+      *n=s.nullcline_state.num_y_n;
     }
     return 0;
   }
-  if(!frozen_started||who>static_cast<int>(frozen.size()))return 1;
-  if(who==static_cast<int>(frozen.size())){
+  if(!s.nullcline_state.frozen_started||who>static_cast<int>(s.nullcline_state.frozen.size()))return 1;
+  if(who==static_cast<int>(s.nullcline_state.frozen.size())){
     /* the list's empty end */
     *v=nullptr;
     *n=0;
     return 0;
   }
-  FrozenCline &z=frozen[who];
+  FrozenCline &z=s.nullcline_state.frozen[who];
   if(type==0){
     *v=z.xn.empty()?nullptr:z.xn.data();
     *n=z.nmx;
@@ -555,22 +527,22 @@ void do_batch_dfield(xpp::Session &s)
   case 1:
   case 4:
     s.nullclines.df_flag=1;
-    DFIELD_TYPE=1;
+    s.nullcline_state.dfield_type=1;
     break;
   case 2:
   case 5:
     s.nullclines.df_flag=1;
-    DFIELD_TYPE=0;
+    s.nullcline_state.dfield_type=0;
     break;
   case 3:
     s.nullclines.df_flag=2;
-    DFIELD_TYPE=0;
+    s.nullcline_state.dfield_type=0;
     break;
   default:
     return;
   }
-  DF_IX=s.plot_windows.current->xv[0];
-  DF_IY=s.plot_windows.current->yv[0];
+  s.nullcline_state.df_ix=s.plot_windows.current->xv[0];
+  s.nullcline_state.df_iy=s.plot_windows.current->yv[0];
   redraw_dfield(s);
 }
 
@@ -581,7 +553,7 @@ bool dfield_shown(xpp::Session &s)
 {
   return !(s.nullclines.df_flag==0||
      s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag
-     || DF_IX!=s.plot_windows.current->xv[0]||DF_IY!=s.plot_windows.current->yv[0]);
+     || s.nullcline_state.df_ix!=s.plot_windows.current->xv[0]||s.nullcline_state.df_iy!=s.plot_windows.current->yv[0]);
 }
 
 /* the current window's direction field, drawn, or into dump */
@@ -595,7 +567,7 @@ void dfield_of_window(xpp::Session &s, xpp::Writer *dump)
 
   const double dup=static_cast<double>(s.drawing.d_right-s.drawing.d_left)/static_cast<double>(grid);
   const double dvp=static_cast<double>(s.drawing.d_top-s.drawing.d_bottom)/static_cast<double>(grid);
-  const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE);
+  const double dz=hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type);
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
   if(!dump)set_linestyle(s,s.plot_windows.current->color[0]);
@@ -642,8 +614,8 @@ void direct_field_com(xpp::Session &s, int c)
     s.nullclines.df_flag=0;
     return;
   }
-  if(c==0)DFIELD_TYPE=1;
-  if(c==4)DFIELD_TYPE=0;
+  if(c==0)s.nullcline_state.dfield_type=1;
+  if(c==4)s.nullcline_state.dfield_type=0;
   new_int("Grid:",&grid);
   if(grid<=1)return;
   s.nullclines.df_grid=grid;
@@ -652,7 +624,7 @@ void direct_field_com(xpp::Session &s, int c)
 
   const double dup=static_cast<double>(s.drawing.d_right-s.drawing.d_left)/static_cast<double>(grid);
   const double dvp=static_cast<double>(s.drawing.d_top-s.drawing.d_bottom)/static_cast<double>(grid);
-  const double dz=hypot(dup,dvp)*(.25+.75*DFIELD_TYPE) ;
+  const double dz=hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type) ;
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
   set_linestyle(s,s.plot_windows.current->color[0]);
@@ -663,8 +635,8 @@ void direct_field_com(xpp::Session &s, int c)
       du=(s.plot_windows.current->xhi-s.plot_windows.current->xlo)/static_cast<double>(grid+1);
       dv=(s.plot_windows.current->yhi-s.plot_windows.current->ylo)/static_cast<double>(grid+1);
     }
-    DF_IX=inx+1;
-    DF_IY=iny+1;
+    s.nullcline_state.df_ix=inx+1;
+    s.nullcline_state.df_iy=iny+1;
     dfield_grid(s,grid,u0,v0,du,dv,dz,inx,iny,nullptr);
     s.numerics.trans=oldtrans;
     return;
@@ -707,19 +679,19 @@ void direct_field_com(xpp::Session &s, int c)
    freeze   -   store the current set
    range_freeze - compute over some range of parameters
    clear - delete all but the current set
-   animate - replay all frozen ones (not current set )
+   animate - replay all s.nullcline_state.frozen ones (not current set )
    */
 
 void restore_nullclines(xpp::Session &s)
 {
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
   if(s.numerics.null_here==0)return;
-  if(s.plot_windows.current->xv[0]==null_ix&&s.plot_windows.current->yv[0]==null_iy&&s.plot_windows.current->ThreeDFlag==0){
+  if(s.plot_windows.current->xv[0]==s.nullcline_state.null_ix&&s.plot_windows.current->yv[0]==s.nullcline_state.null_iy&&s.plot_windows.current->ThreeDFlag==0){
     set_linestyle(s,col1);
-    restor_null(s,x_null.data(),num_x_n,1);
+    restor_null(s,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,1);
     set_linestyle(s,col2);
-    restor_null(s,y_null.data(),num_y_n,2);
-    phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
+    restor_null(s,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,2);
+    phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
   }
   redraw_froz_cline(s,0);
 }
@@ -763,20 +735,20 @@ void new_clines_com(xpp::Session &s, int c)
   const float xmax=static_cast<float>(s.plot_windows.current->xmax);
   const float y_tp=static_cast<float>(s.plot_windows.current->ymax);
   const float y_bot=static_cast<float>(s.plot_windows.current->ymin);
-  null_ix=s.plot_windows.current->xv[0];
-  null_iy=s.plot_windows.current->yv[0];
+  s.nullcline_state.null_ix=s.plot_windows.current->xv[0];
+  s.nullcline_state.null_iy=s.plot_windows.current->yv[0];
   null_storage(s,course);
 
-  WHICH_CRV=null_ix;
+  s.nullcline_state.which_crv=s.nullcline_state.null_ix;
   set_linestyle(s,col1);
-  new_nullcline(s,course,xmin,y_bot,xmax,y_tp,x_null,&num_x_n);
+  new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.x_null,&s.nullcline_state.num_x_n);
   ping();
 
-  WHICH_CRV=null_iy;
+  s.nullcline_state.which_crv=s.nullcline_state.null_iy;
   set_linestyle(s,col2);
-  new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
+  new_nullcline(s,course,xmin,y_bot,xmax,y_tp,s.nullcline_state.y_null,&s.nullcline_state.num_y_n);
   ping();
-  phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
+  phase_data_nullclines(s.plot_windows,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n,s.nullcline_state.null_ix,s.nullcline_state.null_iy,col1,col2);
 }
 
 } // namespace xpp

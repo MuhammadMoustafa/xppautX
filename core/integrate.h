@@ -1,6 +1,7 @@
 #ifndef _integrate_h_
 #define _integrate_h_
 
+#include <array>
 #include <cstdio>
 #include <memory>
 #include <optional>
@@ -10,15 +11,17 @@
 
 #include "solver.h"
 #include "xpplim.h"
+#include "model.h"
 
 namespace xpp {
 
 struct Session; /* session.h */
 
-void init_ar_ic();
-void store_new_array_ic(const char *newic, int j1, int j2, const char *formula);
-int extract_ic_data(char *big);
-void send_halt(double *y, double t);
+/* a line of initial data x[j1..j2](0)=formula (the parser's, which
+   search_array hands it) kept in m's array initial values */
+int extract_ic_data(Model &m, char *big);
+/* a global flag's event stops the integration (flags.cpp) */
+void send_halt(Session &s);
 
 /* The integrator's driver works on the Session s the command (or the run)
    that started it passes down (W47d4). */
@@ -72,7 +75,7 @@ struct ArrayInitialValue {
   std::string var, formula;
   int j = 0, group = 0;
 };
-std::vector<ArrayInitialValue> array_initial_values();
+std::vector<ArrayInitialValue> array_initial_values(const Model &m);
 
 /* Initialconds/Range's settings (integrate.cpp's, read by load_eqn.cpp's
    options): the one range over item (and item2 for the double range) */
@@ -94,6 +97,28 @@ struct RightHandSide {
   {
     return function(*session,t,y,ydot,neq);
   }
+};
+
+/* the fixed points the Monte Carlo search found (at most MAXFP): each
+   one's values and its eigenvalues' real and imaginary parts, NODE of
+   each; flag 1 once their storage is made */
+constexpr int MAXFP = 400;
+struct FixedPointList {
+  int n = 0, flag = 0;
+  std::array<std::vector<double>, MAXFP> x, er, em;
+};
+/* the Monte Carlo search's settings: the number of guesses, the tolerance
+   two points are one within, and each variable's range */
+struct FixedPointGuess {
+  int n = 0;
+  double tol = 0;
+  double xlo[MAXODE], xhi[MAXODE];
+};
+/* Sing pts' Range settings */
+struct EquilibriumRange {
+  std::string item;
+  int steps = 0, shoot = 0, col = 0, movie = 0, mc = 0;
+  double plow = 0, phigh = 0;
 };
 
 /* the integrator's state, a Session's (session.h) */
@@ -121,6 +146,14 @@ struct IntegratorState {
   double last_time = 0;
   /* the adjoint is computed over a range (adj2.cpp) */
   int adj_range = 0;
+  /* a global flag's event asked the integration to stop (send_halt) */
+  int stop_flag = 0;
+  /* the array initial values in use */
+  ArrayIcs array_ics;
+  /* Sing pts' Monte Carlo search and Range */
+  FixedPointList fixptlist;
+  FixedPointGuess fixptguess{};
+  EquilibriumRange eq_range;
 };
 
 /* integrates x from *t over tend in steps of dt, storing the points

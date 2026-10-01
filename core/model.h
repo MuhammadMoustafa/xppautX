@@ -44,6 +44,24 @@ namespace xpp {
 
 class TempDir; /* xpp_files.h */
 
+/* the array initial values: each one's variable x and range j1..j2 and
+   its formula (type 2 when in use), at most NAR_IC of them; defined once
+   the model gave one. The model's (Model::array_ics), and the run's own
+   copy (IntegratorState), which Initialconds edits. */
+constexpr int NAR_IC = 50;
+struct ArrayIc {
+  int index0 = -1, type = 0;
+  std::string formula;
+  int n = 0;
+  std::string var;
+  int j1 = 0, j2 = 0;
+};
+struct ArrayIcs {
+  std::array<ArrayIc, NAR_IC> ics{};
+  int defined = 0;
+};
+
+
 struct Model {
   /* ---- counts and kinds (form_ode.cpp's parser sets them) ---- */
   /* the stored columns but time: the ODEs, the Markov variables and the
@@ -172,6 +190,8 @@ struct Model {
     Diagnostic where;
   };
   std::vector<InitialValue> initial_values;
+  /* its array initial values, x[j1..j2](0)=formula (extract_ic_data) */
+  ArrayIcs array_ics;
   /* its @ lines, each whole, as read, and where (no cause), for a value
      an option refuses: load_eqn.cpp's set_internopts sets the numerics
      and plot settings from them (their current values are the

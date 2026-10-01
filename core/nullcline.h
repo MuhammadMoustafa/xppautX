@@ -4,12 +4,13 @@
 #include "xpplim.h"
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace xpp {
 struct Session; /* session.h */
 
 /* the nullclines (current, or frozen number who) as segments: 4 floats each */
-int get_nullcline_floats(float **v, int *n, int who, int type);
+int get_nullcline_floats(Session &s, float **v, int *n, int who, int type);
 
 /* nullcline.cpp's settings, a Session's (session.h): a batch run's
    nullclines and direction field (@ ncdraw=, dfdraw=), the nullclines'
@@ -24,6 +25,39 @@ struct NullclineSettings {
   std::string color_via = "speed";
   double color_via_lo = 0, color_via_hi = 1;
   int colorize_flag = 0;
+};
+
+/* A frozen pair of nullclines: 4 floats (a segment) per point. */
+struct FrozenCline {
+  std::vector<float> xn,yn;
+  int nmx=0,nmy=0;
+  int n_ix=-5,n_iy=-5;
+};
+
+/* what nullcline.cpp computed and keeps, a Session's (session.h) */
+struct NullclineState {
+  /* Range clines' dialog values */
+  struct {
+    std::string rv;
+    int nstep=0;
+    double xlo=0,xhi=0;
+  } range;
+  /* the current nullclines, as segments (4 floats each), the variables
+     on their axes, and which one is being computed (1 x, 2 y) */
+  std::vector<float> x_null,y_null;
+  int num_x_n=0,num_y_n=0;
+  int null_ix=0,null_iy=0,which_crv=0;
+  /* the contour's two rows of the grid, and where new segments go */
+  std::vector<float> n_top,n_bot;
+  std::vector<float> *saver=nullptr;
+  int num_index=0;
+  /* the frozen nullclines; started is Freeze's first use (start_ncline) */
+  std::vector<FrozenCline> frozen;
+  bool frozen_started=false;
+  /* the direction field drawn last: its variables, and its arrows (1
+     Direct Field's, all one length; 0 Scaled Dir.Fld's) */
+  int df_ix=-1,df_iy=-1;
+  int dfield_type=0;
 };
 
 /* The nullclines and the direction field of the session s's active plot

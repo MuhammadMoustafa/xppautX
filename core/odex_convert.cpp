@@ -929,7 +929,7 @@ private:
   std::string array_initials()
   {
     std::string out;
-    const std::vector<ArrayInitialValue> all = array_initial_values();
+    const std::vector<ArrayInitialValue> all = array_initial_values(m_);
     for (size_t i = 0; i < all.size();) {
       size_t e = i;
       std::vector<std::string> texts;

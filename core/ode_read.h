@@ -10,6 +10,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct Model; /* model.h */
 
 /* the first character of s2 found in s1 from i0 on: its index in s2, *i1
    where it is; -1 when there is none */
@@ -31,8 +32,9 @@ std::vector<OdeItem> ode_items(std::string_view rhs);
 /* old with its array range x[i..j] made x[j] (i1, i2 the range; flag 1,
    or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
    is malformed. A line of initial data x[..](0)=... goes to
-   extract_ic_data, which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag);
+   extract_ic_data, into m's array initial values (when there is an m),
+   which may rewrite old. */
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m=nullptr);
 /* big with its subscripts worked out for index k */
 void subsk(std::string_view big, std::string &newstr, int k, int flag);
 

@@ -90,69 +90,21 @@ static void mswtch(const xpp::Session &s, double *u, const double *v)
 #define PARAM 1
 #define IC 2
 
-#define MAXFP 400
-#define NAR_IC 50
 
 constexpr int OnTheFly=1;
 
-struct ARRAY_IC {
-  int index0,type;
-  std::string formula;
-  int n;
-  std::string var;
-  int j1,j2;
-};
-static int ar_ic_defined=0;
-static ARRAY_IC ar_ic[NAR_IC];
-namespace {
-/* the fixed points the Monte Carlo search found: each one's values and
-   its eigenvalues' real and imaginary parts, NODE of each */
-struct {
-  int n,flag;
-  std::array<std::vector<double>, MAXFP> x, er, em;
-} fixptlist;
-}
-
-typedef struct 
-{
-  int n;
-  double tol;
-  double xlo[MAXODE],xhi[MAXODE];
-} FIXPTGUESS;
-
-static FIXPTGUESS fixptguess;
 
 
-static int STOP_FLAG=0;
- struct {
-         std::string item;
-   int steps,shoot,col,movie,mc;
-	 double plow,phigh;
-       } eq_range;
-
-
-
-void init_ar_ic()
-{
-  int i;
-  for(i=0;i<NAR_IC;i++){
-    ar_ic[i].index0=-1;
-    ar_ic[i].formula.clear();
-    ar_ic[i].n=0;
-    ar_ic[i].var.clear();
-    ar_ic[i].type=0;
-  }
-}
     
 void dump_range(xpp::Session &s, FILE *fp, int f)
 {
   io_heading(f,fp,"# Range information");
-  io_string(eq_range.item,fp,f);
-  io_int(&eq_range.col,fp,f,"eq-range stab col");
-  io_int(&eq_range.shoot,fp,f,"shoot flag 1=on");
-  io_int(&eq_range.steps,fp,f,"eq-range steps");
-  io_double(&eq_range.plow,fp,f,"eq_range low");
-  io_double(&eq_range.phigh,fp,f,"eq_range high");
+  io_string(s.integrator.eq_range.item,fp,f);
+  io_int(&s.integrator.eq_range.col,fp,f,"eq-range stab col");
+  io_int(&s.integrator.eq_range.shoot,fp,f,"shoot flag 1=on");
+  io_int(&s.integrator.eq_range.steps,fp,f,"eq-range steps");
+  io_double(&s.integrator.eq_range.plow,fp,f,"s.integrator.eq_range low");
+  io_double(&s.integrator.eq_range.phigh,fp,f,"s.integrator.eq_range high");
   io_string(s.integrator.range.item,fp,f);
   io_string(s.integrator.range.item2,fp,f);
   io_int(&s.integrator.range.steps,fp,f,"Range steps");
@@ -168,14 +120,14 @@ void dump_range(xpp::Session &s, FILE *fp, int f)
 }
 void init_range(xpp::Session &s)
 {
- eq_range.col=-1;
- eq_range.mc=0;
- eq_range.shoot=0;
- eq_range.steps=10;
- eq_range.plow=0.0;
- eq_range.phigh=1.0;
- eq_range.movie=0;
- eq_range.item=s.model().upar_names[0];
+ s.integrator.eq_range.col=-1;
+ s.integrator.eq_range.mc=0;
+ s.integrator.eq_range.shoot=0;
+ s.integrator.eq_range.steps=10;
+ s.integrator.eq_range.plow=0.0;
+ s.integrator.eq_range.phigh=1.0;
+ s.integrator.eq_range.movie=0;
+ s.integrator.eq_range.item=s.model().upar_names[0];
  s.integrator.range.type=0;
  s.integrator.range.rtype=0;
  s.integrator.range.index=s.integrator.range.index2=0;
@@ -195,38 +147,38 @@ static const char *const n[]={"*2Range over","Steps","Start","End",
  std::array<std::string, 8> values;
  int status,i;
  static  const char *yn[]={"N","Y"};
- values[0] = eq_range.item;
- values[1] = xpp::format("{}", eq_range.steps);
- values[2] = xpp::format("{:.16g}", eq_range.plow);
- values[3] = xpp::format("{:.16g}", eq_range.phigh);
- values[4] = yn[eq_range.shoot];
- values[5] = xpp::format("{}", eq_range.col);
- values[6] = yn[eq_range.movie];
-values[7] = yn[eq_range.mc];
+ values[0] = s.integrator.eq_range.item;
+ values[1] = xpp::format("{}", s.integrator.eq_range.steps);
+ values[2] = xpp::format("{:.16g}", s.integrator.eq_range.plow);
+ values[3] = xpp::format("{:.16g}", s.integrator.eq_range.phigh);
+ values[4] = yn[s.integrator.eq_range.shoot];
+ values[5] = xpp::format("{}", s.integrator.eq_range.col);
+ values[6] = yn[s.integrator.eq_range.movie];
+values[7] = yn[s.integrator.eq_range.mc];
 
  static const int kinds[]={XPP_FIELD_NAME_IN(2),XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
                            XPP_FIELD_TEXT,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
  status=do_string_box_of(8,1,"Range Equilibria",n,values,kinds);
  if(status!=0){
-   eq_range.item=values[0];
-   i=find_user_name(s.model(),PARAM,eq_range.item);
+   s.integrator.eq_range.item=values[0];
+   i=find_user_name(s.model(),PARAM,s.integrator.eq_range.item);
    if(i<0){
         err_msg("No such parameter");
        return(0);
      }
    
-   eq_range.steps=atoi(values[1].c_str());
-   if(eq_range.steps<=0)eq_range.steps=10;
-   eq_range.plow=atof(values[2].c_str());
-   eq_range.phigh=atof(values[3].c_str());
-   if(values[4][0]=='Y'||values[4][0]=='y')eq_range.shoot=1;
-   else eq_range.shoot=0;
-   if(values[6][0]=='Y'||values[6][0]=='y')eq_range.movie=1;
-   else eq_range.movie=0;
-    if(values[7][0]=='Y'||values[6][0]=='y')eq_range.mc=1;
-   else eq_range.mc=0;
-   eq_range.col=atoi(values[5].c_str());
-   if(eq_range.col<=1||eq_range.col>(s.model().neq+1))eq_range.col=-1;
+   s.integrator.eq_range.steps=atoi(values[1].c_str());
+   if(s.integrator.eq_range.steps<=0)s.integrator.eq_range.steps=10;
+   s.integrator.eq_range.plow=atof(values[2].c_str());
+   s.integrator.eq_range.phigh=atof(values[3].c_str());
+   if(values[4][0]=='Y'||values[4][0]=='y')s.integrator.eq_range.shoot=1;
+   else s.integrator.eq_range.shoot=0;
+   if(values[6][0]=='Y'||values[6][0]=='y')s.integrator.eq_range.movie=1;
+   else s.integrator.eq_range.movie=0;
+    if(values[7][0]=='Y'||values[6][0]=='y')s.integrator.eq_range.mc=1;
+   else s.integrator.eq_range.mc=0;
+   s.integrator.eq_range.col=atoi(values[5].c_str());
+   if(s.integrator.eq_range.col<=1||s.integrator.eq_range.col>(s.model().neq+1))s.integrator.eq_range.col=-1;
  
  return(1);
  }
@@ -401,14 +353,14 @@ values[6] = xpp::format("{}", s.integrator.range.steps);
 void init_monte_carlo(xpp::Session &s)
 {
   int i;
-  fixptguess.tol=.001;
-  fixptguess.n=100;
+  s.integrator.fixptguess.tol=.001;
+  s.integrator.fixptguess.n=100;
   for(i=0;i<s.model().node;i++){
-    fixptguess.xlo[i]=-10;
-    fixptguess.xhi[i]=10;
+    s.integrator.fixptguess.xlo[i]=-10;
+    s.integrator.fixptguess.xhi[i]=10;
   }
-  fixptlist.flag=0;
-  fixptlist.n=0;
+  s.integrator.fixptlist.flag=0;
+  s.integrator.fixptlist.n=0;
 }
 
 void monte_carlo(xpp::Session &s)
@@ -418,18 +370,18 @@ void monte_carlo(xpp::Session &s)
   double z;
   new_int("Append(1/0",&append);
   new_int("Shoot (1/0)",&ishoot);
-  new_int("# Guesses:",&fixptguess.n);
-  new_float(s,"Tolerance:",&fixptguess.tol);
+  new_int("# Guesses:",&s.integrator.fixptguess.n);
+  new_float(s,"Tolerance:",&s.integrator.fixptguess.tol);
   while(1){
-    z=fixptguess.xlo[i];
+    z=s.integrator.fixptguess.xlo[i];
     done=new_float(s,xpp::format("{}_lo :",s.model().uvar_names[i]),&z);
     if(done==0)
-      fixptguess.xlo[i]=z;
+      s.integrator.fixptguess.xlo[i]=z;
     if(done==-1)break;
-    z=fixptguess.xhi[i];
+    z=s.integrator.fixptguess.xhi[i];
     done=new_float(s,xpp::format("{}_hi :",s.model().uvar_names[i]),&z);
     if(done==0)
-      fixptguess.xhi[i]=z;
+      s.integrator.fixptguess.xhi[i]=z;
     if(done==-1)break;
     i++;
     if(i>=s.model().node)
@@ -442,35 +394,35 @@ void monte_carlo(xpp::Session &s)
 xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse,int ishoot)
 {
   xpp::FirstError failure; /* a manifold's */
-  int i,j,k,m,n=fixptguess.n;
+  int i,j,k,m,n=s.integrator.fixptguess.n;
   int ierr,is_new=1;
   double x[MAXODE],sum;
   double er[MAXODE],em[MAXODE];
   if(append==0)
-    fixptlist.n=0;
+    s.integrator.fixptlist.n=0;
 
-  if(fixptlist.flag==0){
+  if(s.integrator.fixptlist.flag==0){
     for(i=0;i<MAXFP;i++){
-      fixptlist.x[i].assign(s.model().node,0.0);
-      fixptlist.er[i].assign(s.model().node,0.0);
-      fixptlist.em[i].assign(s.model().node,0.0);
+      s.integrator.fixptlist.x[i].assign(s.model().node,0.0);
+      s.integrator.fixptlist.er[i].assign(s.model().node,0.0);
+      s.integrator.fixptlist.em[i].assign(s.model().node,0.0);
     }
-    fixptlist.flag=1;
+    s.integrator.fixptlist.flag=1;
   }
   for(i=0;i<n;i++){
     for(j=0;j<s.model().node;j++){ 
-      x[j]=xpp::ndrand48()*(fixptguess.xhi[j]-fixptguess.xlo[j])+fixptguess.xlo[j];
+      x[j]=xpp::ndrand48()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
     do_sing_info(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,er,em,&ierr);
     if(ierr==0){
-      m=fixptlist.n;
+      m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
-	fixptlist.n=1;
+	s.integrator.fixptlist.n=1;
 	xpp::log(XPP_LOG_INFO, "Found: {}\n",m);
 	for(j=0;j<s.model().node;j++){
-	  fixptlist.x[0][j]=x[j];
-	  fixptlist.er[0][j]=er[j];
-	  fixptlist.em[0][j]=em[j];
+	  s.integrator.fixptlist.x[0][j]=x[j];
+	  s.integrator.fixptlist.er[0][j]=er[j];
+	  s.integrator.fixptlist.em[0][j]=em[j];
           if(ishoot)failure.keep(shoot_this_now(s));
 	  xpp::log(XPP_LOG_INFO, " x[{}]= {:g}   eval= {:g} + I {:g} \n",j,x[j],er[j],em[j]);
 	}
@@ -480,19 +432,19 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
 	for(k=0;k<m;k++){
 	  sum=0.0;
 	  for(j=0;j<s.model().node;j++)
-	    sum+=fabs(x[j]-fixptlist.x[k][j]);
-	  if(sum<fixptguess.tol)
+	    sum+=fabs(x[j]-s.integrator.fixptlist.x[k][j]);
+	  if(sum<s.integrator.fixptguess.tol)
 	    is_new=0;
 	}
 	if(is_new==1){
-	  m=fixptlist.n;
-	  fixptlist.n++;
+	  m=s.integrator.fixptlist.n;
+	  s.integrator.fixptlist.n++;
 	  if(m<MAXFP){
 	    xpp::log(XPP_LOG_INFO, "Found: {}\n",m);
 	    for(j=0;j<s.model().node;j++){
-	      fixptlist.x[m][j]=x[j];
-	      fixptlist.er[m][j]=er[j];
-	      fixptlist.em[m][j]=em[j];
+	      s.integrator.fixptlist.x[m][j]=x[j];
+	      s.integrator.fixptlist.er[m][j]=er[j];
+	      s.integrator.fixptlist.em[m][j]=em[j];
 	      if(ishoot)failure.keep(shoot_this_now(s));
 	      xpp::log(XPP_LOG_INFO, " x[{}]= {:g}   eval= {:g} + I {:g} \n",j,x[j],er[j],em[j]);
 	    }
@@ -504,10 +456,10 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
   if(stuffbrowse) {
     reset_browser(s);
     s.data_store.rows=0;
-    m=fixptlist.n;
+    m=s.integrator.fixptlist.n;
     for(i=0;i<m;i++){
       s.data_store.col[0][s.data_store.rows]=static_cast<float>(i);
-      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(fixptlist.x[i][j]);
+      for(j=0;j<s.model().node;j++)s.data_store.col[j+1][s.data_store.rows]=static_cast<float>(s.integrator.fixptlist.x[i][j]);
       s.data_store.rows++;
     }
     refresh_browser(s,s.data_store.rows);
@@ -546,7 +498,7 @@ private:
   bool out_=false;
 };
 
-/* Range Equilibria's sweep over eq_range: each step's equilibrium (or
+/* Range Equilibria's sweep over s.integrator.eq_range: each step's equilibrium (or
    Monte Carlo's) stored as a row; the first step that failed is
    returned once the sweep has ended */
 xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_frame, const ShowProgress &show_progress)
@@ -559,34 +511,34 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
 
  wipe_rep(s.browser);
  data_back(s);
- parlo=eq_range.plow;
- parhi=eq_range.phigh;
+ parlo=s.integrator.eq_range.plow;
+ parhi=s.integrator.eq_range.phigh;
  
- npar=eq_range.steps;
+ npar=s.integrator.eq_range.steps;
  dpar=(parhi-parlo)/static_cast<double>(npar);
- stabcol=eq_range.col;
- mc=eq_range.mc;
+ stabcol=s.integrator.eq_range.col;
+ mc=s.integrator.eq_range.mc;
  s.data_store.rows=0;
  s.integrator.step_error.reset();
  s.numerics.endsing=0;
  s.numerics.par_fol=1;
  s.numerics.pauser=0;
- s.numerics.shoot=eq_range.shoot;
+ s.numerics.shoot=s.integrator.eq_range.shoot;
  reset_browser(s);
  if(mc==1){
-   eq_range.movie=1;
+   s.integrator.eq_range.movie=1;
    s.numerics.shoot=0;
  }
- if(eq_range.movie)reset_film(s);
+ if(s.integrator.eq_range.movie)reset_film(s);
  for(i=0;i<=npar;i++)
    {
-     if(eq_range.movie)
+     if(s.integrator.eq_range.movie)
        clear_draw_window(s);
       temp=parlo+dpar*static_cast<double>(i);
-      set_val(s,eq_range.item,temp);
+      set_val(s,s.integrator.eq_range.item,temp);
       s.numerics.par_fol=1;
       {
-        std::string bob=xpp::format("{}={:.16g}",eq_range.item,temp);
+        std::string bob=xpp::format("{}={:.16g}",s.integrator.eq_range.item,temp);
         show_progress(bob);
         evaluate_derived(s);
         /*  I think  */ failure.keep(redo_all_fun_tables(s));
@@ -600,7 +552,7 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
         else failure.keep(do_sing(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,
 		     s.model().node,&ierr,&stabinfo));
         }
-        if(eq_range.movie){
+        if(s.integrator.eq_range.movie){
 	  draw_label(s,s.plot_windows.draw_win);
 	  take_frame(); /* out of film, the sweep goes on without frames */
         }
@@ -1239,44 +1191,40 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
 namespace {
 /* the array IC newic[j1..j2]: the one already used for it, else the first
    free one (the first slot when none is free) made into it */
-ARRAY_IC &array_ic_for(const char *newic, int j1, int j2)
+ArrayIc &array_ic_for(ArrayIcs &ics, const char *newic, int j1, int j2)
 {
   int ihot=-1;
   int ifree=-1;
   for(int i=0;i<NAR_IC;i++){
-    if(ar_ic[i].index0==-1&&ifree==-1&&ar_ic[i].type==0)
+    if(ics.ics[i].index0==-1&&ifree==-1&&ics.ics[i].type==0)
       ifree=i;
-    if(ar_ic[i].var==newic&&ar_ic[i].j1==j1&&ar_ic[i].j2==j2)
+    if(ics.ics[i].var==newic&&ics.ics[i].j1==j1&&ics.ics[i].j2==j2)
       ihot=i;
   }
   if(ihot==-1){
     ihot=ifree==-1?0:ifree;
-    ar_ic[ihot].var=newic;
-    ar_ic[ihot].type=2;
-    ar_ic[ihot].j1=j1;
-    ar_ic[ihot].j2=j2;
+    ics.ics[ihot].var=newic;
+    ics.ics[ihot].type=2;
+    ics.ics[ihot].j1=j1;
+    ics.ics[ihot].j2=j2;
   }
-  return ar_ic[ihot];
+  return ics.ics[ihot];
 }
 }
 
 void do_new_array_ic(xpp::Session &s, const char *newic, int j1, int j2)
 {
-  ARRAY_IC &ic=array_ic_for(newic,j1,j2);
+  ArrayIc &ic=array_ic_for(s.integrator.array_ics,newic,j1,j2);
   new_string_of("Formula:",ic.formula,XPP_FIELD_EXPRESSION);
   evaluate_ar_ic(s,ic.var.c_str(),ic.formula.c_str(),ic.j1,ic.j2);
 }
 
-void store_new_array_ic(const char *newic, int j1, int j2, const char *formula)
-{
-  array_ic_for(newic,j1,j2).formula=formula;
-}
-std::vector<ArrayInitialValue> array_initial_values()
+std::vector<ArrayInitialValue> array_initial_values(const xpp::Model &m)
 {
   std::vector<ArrayInitialValue> out;
-  if(ar_ic_defined==0)return out;
+  if(m.array_ics.defined==0)return out;
   int group=0;
-  for(const ARRAY_IC &ic : ar_ic){
+  for(const ArrayIc &ic : m.array_ics.ics){
     if(ic.type!=2)continue;
     group++;
     for(int j=ic.j1;j<=ic.j2;j++){
@@ -1312,7 +1260,7 @@ void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j
   }
 
 }
-int extract_ic_data(char *big)
+int extract_ic_data(xpp::Model &m, char *big)
 {
   int j1,j2,flag2;
   de_space(big);
@@ -1329,8 +1277,8 @@ int extract_ic_data(char *big)
   std::string newic;
   search_array(front.data(),newic,&j1,&j2,&flag2);
   if(flag2==1){
-    store_new_array_ic(newic.c_str(),j1,j2,back.c_str());
-    ar_ic_defined=1;
+    array_ic_for(m.array_ics,newic.c_str(),j1,j2).formula=back;
+    m.array_ics.defined=1;
   }
   return(1);
 
@@ -1339,11 +1287,13 @@ int extract_ic_data(char *big)
 void arr_ic_start(xpp::Session &s)
 {
   int i;
-  if(ar_ic_defined==0) return;
+  s.integrator.array_ics=s.model().array_ics; /* the run's own, which Initialconds edits */
+  const ArrayIcs &ics=s.integrator.array_ics;
+  if(ics.defined==0) return;
   for(i=0;i<NAR_IC;i++){
-    if(ar_ic[i].type==2){
-      evaluate_ar_ic(s,ar_ic[i].var.c_str(),ar_ic[i].formula.c_str(),
-		     ar_ic[i].j1,ar_ic[i].j2);
+    if(ics.ics[i].type==2){
+      evaluate_ar_ic(s,ics.ics[i].var.c_str(),ics.ics[i].formula.c_str(),
+		     ics.ics[i].j1,ics.ics[i].j2);
     }
   }
 
@@ -1370,16 +1320,16 @@ int set_array_ic(xpp::Session &s)
      return 0;
    index0=i;
    for(i=0;i<NAR_IC;i++){
-     if(ar_ic[i].type==2)continue;
-     if(index0==ar_ic[i].index0){
+     if(s.integrator.array_ics.ics[i].type==2)continue;
+     if(index0==s.integrator.array_ics.ics[i].index0){
        myar=i;
        break;
      }
    }
    if(myar<0){
      for(i=0;i<NAR_IC;i++){
-       if(ar_ic[i].type==2)continue;
-       if(ar_ic[i].index0==-1){
+       if(s.integrator.array_ics.ics[i].type==2)continue;
+       if(s.integrator.array_ics.ics[i].index0==-1){
 	 myar=i;
 	 break;
        }
@@ -1388,16 +1338,16 @@ int set_array_ic(xpp::Session &s)
    if(myar<0)myar=0;
    
    /* Now we have an element in the array index */
-   ar_ic[myar].index0=index0;
-   ar_ic[myar].type=0;
-   new_int("Number elements:",&ar_ic[myar].n);
-   new_string_of("u=F(t-i0):",ar_ic[myar].formula,XPP_FIELD_EXPRESSION);
+   s.integrator.array_ics.ics[myar].index0=index0;
+   s.integrator.array_ics.ics[myar].type=0;
+   new_int("Number elements:",&s.integrator.array_ics.ics[myar].n);
+   new_string_of("u=F(t-i0):",s.integrator.array_ics.ics[myar].formula,XPP_FIELD_EXPRESSION);
    i1=index0-1;
-   in=i1+ar_ic[myar].n;
+   in=i1+s.integrator.array_ics.ics[myar].n;
    if(i1>s.model().node||in>s.model().node)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
      set_val(s,"t",static_cast<double>((i-i1)));
-     flag=do_calc(s,ar_ic[myar].formula,&z);
+     flag=do_calc(s,s.integrator.array_ics.ics[myar].formula,&z);
      if(flag==-1){
        err_msg("Bad formula");
        return 1;
@@ -1671,7 +1621,7 @@ if(program.interactive) cwidth=get_command_width();
 	    
            }
 	}        
-	if(STOP_FLAG==1){STOP_FLAG=0;break;}
+	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;break;}
            if(s.integrator.step_error){
              s.numerics.endsing=1;
              xpp::Error e=take_step_error(s).error();
@@ -1813,9 +1763,9 @@ out:
        if(failure)return std::unexpected(std::move(*failure));
        return(rval);
   }
-void send_halt(double *y, double t)
+void send_halt(xpp::Session &s)
 {
-  STOP_FLAG=1;
+  s.integrator.stop_flag=1;
 }
 void send_output(xpp::Session &s, double *y,double t)
 {

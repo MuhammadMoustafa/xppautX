@@ -923,7 +923,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
     }
 
     xpp::Load::at(src.file,src.line);
-    search_array(old.data(),newstr,&jj1,&jj2,&is_array);
+    search_array(old.data(),newstr,&jj1,&jj2,&is_array,src.model);
    jj=jj1;
    jjsgn=1;
    if(jj2<jj1)jjsgn=-1;
@@ -1144,7 +1144,7 @@ int find_char(std::string_view s1, std::string_view s2, int i0, int *i1)
    or 2 for a %[i..j] for loop): newstr. 0 (newstr old) when the range
    is malformed. A line of initial data x[..](0)=... goes to
    extract_ic_data, which may rewrite old. */
-int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
+int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Model *m)
 {
   int i,j;
   int ileft,iright;
@@ -1161,7 +1161,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
     return 1;
   }
   if(check_if_ic(old)==1){
-    xpp::extract_ic_data(old);
+    if(m)xpp::extract_ic_data(*m,old);
     newstr=old;
     return 1;
   }

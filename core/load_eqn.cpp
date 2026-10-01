@@ -136,7 +136,6 @@ void load_eqn(xpp::Session &s)
  int okay=0;
  int std=0;
  options_applied=0;
- xpp::init_ar_ic();
  for(int i=0;i<MAXODE;i++)
  {
   s.itor[i]=0;

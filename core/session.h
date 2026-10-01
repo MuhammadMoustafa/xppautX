@@ -157,6 +157,8 @@ struct Session {
   /* the nullclines', direction field's and orbit colouring's settings
      (nullcline.cpp) */
   NullclineSettings nullclines;
+  /* the nullclines and direction field computed, and the frozen ones */
+  NullclineState nullcline_state;
   /* Sing pts' shooting (gear.cpp) */
   ManifoldShots manifolds;
 
