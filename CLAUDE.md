@@ -14,7 +14,7 @@ The sections below give the details.
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck, sessioncheck; review for internal-linkage statics (W120) |
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
-| Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a model's bad option value stops the load with its line, in .ode and .odex alike (2026-10-01) | review (W125) |
+| Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .autox, .autoset, .recx alike (maintainer, 2026-10-01) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
 | No dead code | deadcode.sh, deadcheck.py |
