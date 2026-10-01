@@ -4,6 +4,15 @@ on:
   push:
     branches: [master, 'ci/**']
   pull_request:
+  # run only some jobs on a commit already pushed (a fix pushed with [skip ci]:
+  # maintainer, 2026-10-01, rerun only what failed): gh workflow run build.yml
+  # --ref master -f jobs=macos-ui,windows-clang. Empty runs every job.
+  workflow_dispatch:
+    inputs:
+      jobs:
+        description: 'comma-separated job names to run (empty: all)'
+        required: false
+        default: ''
 
 # Each platform runs the same behaviour checks against its own build
 # (build, unit tests, protocol, web, command-line modes, AUTO, every
@@ -27,6 +36,7 @@ jobs:
   # (tools/sourcecheck.sh; tools/verify.sh runs it too, locally), and web2's
   # dist/ built from src/, types and unit tests
   source:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source,')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -58,6 +68,7 @@ jobs:
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
 
   linux-core:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-core,')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -108,6 +119,7 @@ jobs:
   # Needs its own build (plain, not the whole verify.sh) and the same
   # WebKitGTK window the checks in verify.sh's build already carry.
   linux-ui:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-ui,')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -140,6 +152,7 @@ jobs:
   # parallel with the jobs above (it takes a few minutes); one step:
   # asancheck.sh builds and runs every check itself
   linux-sanitizers:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-sanitizers,')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -163,6 +176,7 @@ jobs:
   # runners (asancheck.sh --no-leaks turns off ASAN_OPTIONS'
   # detect_leaks).
   macos-sanitizers:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-sanitizers,')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -178,6 +192,7 @@ jobs:
           if-no-files-found: ignore
 
   macos-core:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-core,')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -251,6 +266,7 @@ jobs:
   # windows-ui are beside theirs): its own build, the runner's Google
   # Chrome (tools/cdp.mjs findBrowser: /Applications/Google Chrome.app)
   macos-ui:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-ui,')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
@@ -265,6 +281,7 @@ jobs:
         run: node tools/web2check.mjs
 
   windows-core:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-core,')
     runs-on: windows-latest
     defaults:
       run:
@@ -335,6 +352,7 @@ jobs:
   # (tools/cdp.mjs findBrowser; runner-images lists Google Chrome and
   # Microsoft Edge on windows-2025)
   windows-ui:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-ui,')
     runs-on: windows-latest
     defaults:
       run:
@@ -360,6 +378,7 @@ jobs:
   # then asancheck.sh with AddressSanitizer + UBSan (--no-leaks: no
   # LeakSanitizer on Windows)
   windows-clang:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-clang,')
     runs-on: windows-latest
     defaults:
       run:
@@ -443,6 +462,7 @@ jobs:
   # in each shard's own log will say for certain, and whether autocheck
   # needs splitting further or servercheck/webcheck need it too.
   windows-clang-sanitizers:
+    if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-clang-sanitizers,')
     runs-on: windows-latest
     defaults:
       run:
