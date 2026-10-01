@@ -24,6 +24,7 @@ The sections below give the details.
 | Numerics change only on purpose | examples md5s, goldencheck, odexcheck |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58) | review |
 | Agents stop only their own processes, by PID, never by name | review |
+| A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence | review |
 
 ## Build (from Windows this repo builds only under WSL)
 

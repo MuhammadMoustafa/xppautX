@@ -112,4 +112,7 @@ if [ -n "$bad" ]; then
   echo "EXAMPLES DIFFER from $base: $ndiff of $n models"
   exit 1
 fi
-echo "examples ok: $n models, $(grep -vc '^none' "$base") outputs match $base${platform:+ ($platform)}"
+# the models that write nothing by themselves (a range run, say), named so
+# "183 of 184" reads as all of them rather than one failing
+nonef=$(grep '^none' "$base" | sed 's/^none //; s#.*/##' | tr '\n' ' ')
+echo "examples ok: $n models, $(grep -vc '^none' "$base") outputs match $base${platform:+ ($platform)}${nonef:+; no output by design: $nonef}"
