@@ -412,7 +412,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `diagram`, read through `diagram_count`/`diagram_point`/
   `diagram_first`/`_next`/`_prev`), the browser, the kinescope, the
   numerics and plot settings, the parser's working state, `sliders` and
-  `not_already_set`, the tables, the boundary conditions in use, and the
+  `options_set` (which @ options a load gave, W119), the tables, the boundary conditions in use, and the
   drawing, label, array plot and animator state; a function takes the
   `xpp::Session &s` (or the part it uses) from its caller, never a
   current one ("No global state" below). What stays process-wide is a global of its
