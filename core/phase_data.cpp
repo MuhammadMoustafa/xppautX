@@ -3,13 +3,15 @@
 
    Each plot window keeps a record of what the core drew in it since it was
    last blanked, reported by the code that draws (nullcline.c, and
-   integrate.c for Flow's trajectories), and what the client got last. At
-   the end of a command a window whose record differs from what the client
-   got gets its event. Records are compared bit for bit (a flow's breaks are
-   NaN), so drawing the same thing again sends nothing. */
+   integrate.c for Flow's trajectories), and the fingerprint of what the
+   client got last. At the end of a command a window whose record was
+   touched since then (its generation, which every change bumps) and whose
+   fingerprint differs gets its event: drawing the same thing again sends
+   nothing, and a command that draws nothing costs nothing. */
 #include <new>
 #include "xpp_mem.h"
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -41,24 +43,55 @@ const std::size_t FLOW_MAX = 8000000;
 
 using Floats = std::vector<float>;
 
-bool same_floats(const Floats &a, const Floats &b)
-{
-    return a.size() == b.size() && (a.empty() || std::memcmp(a.data(), b.data(), a.size() * sizeof(float)) == 0);
-}
+/* a record's fingerprint, to tell whether it is what the client got
+   without keeping a copy of that: 64-bit FNV-1a over 8-byte words of its
+   bits (a flow's breaks are NaN), so a change goes unseen with odds of
+   one in 2^64 */
+class Fingerprint {
+public:
+    void bytes(const void *p, std::size_t n)
+    {
+        const unsigned char *b = static_cast<const unsigned char *>(p);
+        for (; n >= sizeof(std::uint64_t); n -= sizeof(std::uint64_t), b += sizeof(std::uint64_t)) {
+            std::uint64_t w;
+            std::memcpy(&w, b, sizeof w);
+            mix(w);
+        }
+        for (; n > 0; n--, b++) mix(*b);
+    }
+    template <class T> void value(const T &v) { bytes(&v, sizeof v); }
+    void floats(const Floats &v)
+    {
+        value(v.size());
+        bytes(v.data(), v.size() * sizeof(float));
+    }
+    std::uint64_t result() const { return h_; }
+private:
+    void mix(std::uint64_t w) { h_ = (h_ ^ w) * 1099511628211ULL; /* the FNV 64-bit prime */ }
+    std::uint64_t h_ = 14695981039346656037ULL; /* the FNV 64-bit offset basis */
+};
 
 struct Clines {
     Floats x, y; /* segments, 4 values each */
-    bool operator==(const Clines &o) const { return same_floats(x, o.x) && same_floats(y, o.y); }
+    void add_to(Fingerprint &f) const
+    {
+        f.floats(x);
+        f.floats(y);
+    }
 };
 
 struct Nullclines {
     int ix = 0, iy = 0, xcolor = 0, ycolor = 0;
     Clines now;
     std::vector<Clines> frozen;
-    bool operator==(const Nullclines &o) const
+    std::uint64_t fingerprint() const
     {
-        return ix == o.ix && iy == o.iy && xcolor == o.xcolor && ycolor == o.ycolor && now == o.now
-               && frozen == o.frozen;
+        Fingerprint f;
+        for (int v : {ix, iy, xcolor, ycolor}) f.value(v);
+        now.add_to(f);
+        f.value(frozen.size());
+        for (const Clines &c : frozen) c.add_to(f);
+        return f.result();
     }
 };
 
@@ -68,7 +101,6 @@ struct FlowCurve {
     /* thinning: the last point kept, and the last one seen when it was not kept */
     float kx = 0, ky = 0, px = 0, py = 0;
     bool pending = false;
-    bool operator==(const FlowCurve &o) const { return color == o.color && same_floats(x, o.x) && same_floats(y, o.y); }
 };
 
 struct Field {
@@ -77,19 +109,56 @@ struct Field {
     Floats grid;  /* x, y, ux, uy per arrow */
     Floats speed; /* one per arrow */
     std::vector<FlowCurve> flows; /* one per curve of the window */
-    bool operator==(const Field &o) const
+    std::uint64_t fingerprint() const
     {
-        return n == o.n && scaled == o.scaled && color == o.color && std::memcmp(&du, &o.du, sizeof du) == 0
-               && std::memcmp(&dv, &o.dv, sizeof dv) == 0 && same_floats(grid, o.grid)
-               && same_floats(speed, o.speed) && flows == o.flows;
+        Fingerprint f;
+        for (int v : {n, scaled, color}) f.value(v);
+        f.value(du);
+        f.value(dv);
+        f.floats(grid);
+        f.floats(speed);
+        f.value(flows.size());
+        for (const FlowCurve &c : flows) {
+            f.value(c.color);
+            f.floats(c.x);
+            f.floats(c.y);
+        }
+        return f.result();
+    }
+};
+
+/* a window's record of what it shows, and what the client got of it: each
+   change bumps the generation (change(), which every mutator below calls),
+   and an update looks at the record again only when the generation moved
+   since it last did */
+template <class Record>
+struct Shown {
+    Record now;
+    unsigned long generation = 0, seen = 0;
+    bool valid = false;     /* the client got a record: the one whose fingerprint is `sent` */
+    std::uint64_t sent = 0;
+    Record &change()
+    {
+        generation++;
+        return now;
+    }
+    /* whether the client needs the record: none got yet, or another one */
+    bool due()
+    {
+        if (valid && generation == seen) return false;
+        seen = generation;
+        const std::uint64_t f = now.fingerprint();
+        if (valid && f == sent) return false;
+        valid = true;
+        sent = f;
+        return true;
     }
 };
 
 struct Window {
-    Nullclines nc, nc_sent;
-    Field df, df_sent;
-    bool nc_valid = false, df_valid = false; /* the client got nc_sent, df_sent */
-    unsigned long trajectory = 0;           /* the flow trajectory its last point was from */
+    Shown<Nullclines> nc;
+    Shown<Field> df;
+    unsigned long trajectory = 0; /* the flow trajectory its last point was from */
 };
 
 Window windows[MAXPOP];
@@ -248,16 +317,8 @@ void update(const xpp::Session &s)
             w = Window(); /* a window made again later starts afresh */
             continue;
         }
-        if (nullclines_on && !(w.nc_valid && w.nc == w.nc_sent)) {
-            send_nullclines(s, pop, w.nc);
-            w.nc_sent = w.nc;
-            w.nc_valid = true;
-        }
-        if (dfield_on && !(w.df_valid && w.df == w.df_sent)) {
-            send_dfield(s.plot_windows.graph[pop], w.df);
-            w.df_sent = w.df;
-            w.df_valid = true;
-        }
+        if (nullclines_on && w.nc.due()) send_nullclines(s, pop, w.nc.now);
+        if (dfield_on && w.df.due()) send_dfield(s.plot_windows.graph[pop], w.df.now);
     }
 }
 
@@ -272,7 +333,7 @@ void phase_data_subscribe(int nullclines, int dfield, int f32)
     nullclines_on = nullclines != 0;
     dfield_on = dfield != 0;
     values_f32 = f32 != 0;
-    for (Window &w : windows) w.nc_valid = w.df_valid = false; /* the next update sends */
+    for (Window &w : windows) w.nc.valid = w.df.valid = false; /* the next update sends */
 }
 
 void phase_data_update(const xpp::Session &s)
@@ -289,9 +350,10 @@ void phase_data_cleared(int pop)
 {
     if (!emit_line || pop < 0 || pop >= MAXPOP) return;
     Window &w = windows[pop];
-    w.nc.now = Clines();
-    w.nc.frozen.clear();
-    w.df = Field();
+    Nullclines &nc = w.nc.change();
+    nc.now = Clines();
+    nc.frozen.clear();
+    w.df.change() = Field();
 }
 
 void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny, int ix, int iy,
@@ -300,7 +362,7 @@ void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, co
     Window *w = current(pw);
     if (!w) return;
     try {
-        Nullclines &nc = w->nc;
+        Nullclines &nc = w->nc.change();
         nc.ix = ix;
         nc.iy = iy;
         nc.xcolor = xcolor;
@@ -314,7 +376,7 @@ void phase_data_nullclines(const XppPlotWindows &pw, const float *xn, int nx, co
 
 void phase_data_frozen_begin(const XppPlotWindows &pw)
 {
-    if (Window *w = current(pw)) w->nc.frozen.clear();
+    if (Window *w = current(pw)) w->nc.change().frozen.clear();
 }
 
 void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const float *yn, int ny)
@@ -325,7 +387,7 @@ void phase_data_frozen(const XppPlotWindows &pw, const float *xn, int nx, const 
         Clines c;
         c.x.assign(xn, xn + 4 * (nx > 0 ? nx : 0));
         c.y.assign(yn, yn + 4 * (ny > 0 ? ny : 0));
-        w->nc.frozen.push_back(std::move(c));
+        w->nc.change().frozen.push_back(std::move(c));
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("recording the frozen nullclines");
     }
@@ -335,7 +397,7 @@ void phase_data_dfield_begin(const XppPlotWindows &pw, int n, double du, double 
 {
     Window *w = current(pw);
     if (!w) return;
-    Field &f = w->df;
+    Field &f = w->df.change();
     f.n = n;
     f.du = du;
     f.dv = dv;
@@ -352,7 +414,7 @@ void phase_data_arrow(const XppPlotWindows &pw, double x, double y, double fx, d
     const double s = std::hypot(fx, fy);
     const bool unit = s > 0 && std::isfinite(s);
     try {
-        Field &f = w->df;
+        Field &f = w->df.change();
         const float v[4] = {static_cast<float>(x), static_cast<float>(y), unit ? static_cast<float>(fx / s) : 0.0f,
                             unit ? static_cast<float>(fy / s) : 0.0f};
         f.grid.insert(f.grid.end(), v, v + 4);
@@ -373,8 +435,8 @@ void phase_data_flow_step(const XppPlotWindows &pw, int ncurves, const float *ox
     Window *w = current(pw);
     if (!w || pw.graph[pw.active].ThreeDFlag || ncurves <= 0) return;
     try {
-        Field &f = w->df;
-        if (flow_values(f) > FLOW_MAX) return;
+        if (flow_values(w->df.now) > FLOW_MAX) return;
+        Field &f = w->df.change();
         if (f.flows.size() != static_cast<std::size_t>(ncurves)) f.flows.resize(ncurves);
         const GRAPH &g = pw.graph[pw.active];
         const double ex = std::fabs(g.xhi - g.xlo) * FLOW_STEP, ey = std::fabs(g.yhi - g.ylo) * FLOW_STEP;
@@ -395,7 +457,8 @@ void phase_data_flow_stop(void)
 {
     flowing = false;
     for (Window &w : windows)
-        for (FlowCurve &c : w.df.flows) try {
+        for (FlowCurve &c : w.df.now.flows) try {
+                if (c.pending) w.df.change();
                 flow_flush(c);
             } catch (const std::bad_alloc &) {
                 xpp::out_of_memory("recording the flow");
