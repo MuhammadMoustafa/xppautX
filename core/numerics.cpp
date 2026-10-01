@@ -29,8 +29,6 @@
 
 namespace xpp {
 
-namespace method = xpp::method;
-
 /*   This is numerics.c    
  *   The input is primitive and eventually, I want to make it so
 	that it uses nice windows for input. 
