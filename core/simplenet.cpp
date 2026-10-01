@@ -135,6 +135,8 @@ special ydot=import(...) ran a compiled library's function: refused
 #include "delay_handle.h"
 #include "model.h"
 
+namespace xpp {
+
 /* simple network stuff */
 
 
@@ -179,7 +181,7 @@ double net_interp(xpp::Session &s, double x, int i)
 
 }
 
-int add_vectorizer(xpp::Session &s, const char *name,char *rhs)
+int add_vectorizer(xpp::Session &s, std::string_view name,char *rhs)
 {
   int i,ivar,il,ir;
   int ind;
@@ -198,21 +200,21 @@ int add_vectorizer(xpp::Session &s, const char *name,char *rhs)
     s.model().vectors[ind].length=len;
     s.model().vectors[ind].il=il;
     s.model().vectors[ind].ir=ir;
-    xpp::log_printf(XPP_LOG_INFO, "adding vector %s based on variable %d of length %d ends %d %d\n",
+    xpp::log(XPP_LOG_INFO, "adding vector {} based on variable {} of length {} ends {} {}\n",
 	   name,ivar,len,il,ir);
  
   return 1;
 
 }  
-void add_vectorizer_name(xpp::Session &s, const char *name, const char *rhs)
+void add_vectorizer_name(xpp::Session &s, std::string_view name, std::string_view rhs)
 {
   if(s.model().nvector>=MAXVEC){
     xpp::log_printf(XPP_LOG_ERROR, "Too many vectors \n");
-    xpp_model_failed();
+    model_failed();
   }
   s.model().vectors[s.model().nvector].name=name;
   if(add_net_name(s,s.model().nvector,name,1))
-    xpp_model_failed();
+    model_failed();
   s.model().nvector++;
 
 }
@@ -289,7 +291,7 @@ bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int
   if(ivar2<0)return false;
   fname=args.text(")");
   int elen;
-  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name).c_str(),s.model().networks[ind].f.data(),&elen)){
+  if(add_expr(s,xpp::format("{}({},{})",fname,rootname,root2name),s.model().networks[ind].f.data(),&elen)){
     xpp::log_printf(XPP_LOG_ERROR, " bad function %s \n",fname.c_str());
     return false;
   }
@@ -297,8 +299,11 @@ bool next_pair_function(xpp::Session &s, xpp::Tokens &args, const char *net, int
 }
 } // namespace
 
-int add_spec_fun(xpp::Session &s, const char *name, char *rhs)
+int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
 {
+  /* the name as the messages below print it */
+  const std::string name_copy(name_text);
+  const char *name=name_copy.c_str();
   int i,ind;
   int type;
   int iwgt,itau,iind,ivar,ivar2;
@@ -692,7 +697,7 @@ int add_spec_fun(xpp::Session &s, const char *name, char *rhs)
   }
   return 0;
 }
-void add_special_name(xpp::Session &s, const char *name, char *rhs)
+void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
 {
   if(is_network(rhs)){
     xpp::log_printf(XPP_LOG_DEBUG, " netrhs = |%s| \n",rhs);
@@ -1172,7 +1177,7 @@ bool gilparse(const xpp::Session &s, std::string_view list, std::vector<int> &in
 
 /* vector(var,length,e|z|p,e|z|p) (spaces removed from str first): the
    first variable, the length and the two ends' kinds */
-int get_vector_info(const xpp::Session &ses, char *str, const char *name,int *root, int *length, int *il, int *ir)
+int get_vector_info(const xpp::Session &ses, char *str, std::string_view name,int *root, int *length, int *il, int *ir)
 {
   de_space(str);
   std::string_view s(str);
@@ -1210,3 +1215,5 @@ int get_vector_info(const xpp::Session &ses, char *str, const char *name,int *ro
     *ir=ZERO;
   return 1;
 }
+
+} // namespace xpp

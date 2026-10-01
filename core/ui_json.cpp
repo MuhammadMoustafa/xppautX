@@ -823,7 +823,7 @@ int json_ui_silent(int argc, char **argv)
     const xpp::Loaded loaded = xpp::load_model(argc, argv, 1);
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
-    xpp_batch_start(s);
+    xpp::batch_start(s);
     session.script_mode = 1;
     xpp_inbox_start_generated(silent_script(s));
     install(true);

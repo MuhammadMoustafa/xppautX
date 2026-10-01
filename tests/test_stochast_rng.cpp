@@ -47,7 +47,7 @@ int main(void)
     char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.ode";
     char *argv[] = {arg0, arg1, NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
-    xpp_batch_start(xpp::client_session());
+    xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), M_IG); /* Initialconds/Go, as -silent's script runs it */
 
     int n = xpp::client_session().data_store.rows;

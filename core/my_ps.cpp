@@ -192,7 +192,7 @@ void ps_end(xpp::Session &s)
   ps_write("grestore");
   ps_write("end");
   ps_write("showpage");
-  ps_write_pars(s,ps_writer.file());
+  xpp::ps_write_pars(s,ps_writer.file());
   ps_writer.commit();
   s.plot_file.plt_fmt_flag=0;
   if(program.interactive)init_x11(s);

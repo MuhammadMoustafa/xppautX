@@ -190,7 +190,7 @@ std::string quantities(const char *text, const char *ext = "odex")
 double constant(const char *name)
 {
   double v = -12345;
-  get_val(xpp::client_session(), xpp::upper_case(name), &v);
+  xpp::get_val(xpp::client_session(), xpp::upper_case(name), &v);
   return v;
 }
 
@@ -530,15 +530,15 @@ int main(void)
   CHECK_STR(quantities("par a = 2\ntr = -a\nw = a*2\nv = x\nx' = tr+w+v\n").c_str(), "tr:derived|w:derived|v:fixed");
   {
     /* --convert's check builds the .ode as the .odex will be */
-    const OdeAsOdex as_odex;
+    const xpp::OdeAsOdex as_odex;
     CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:derived");
   }
   CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:fixed");
   CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
   {
     /* worked out again when a parameter changes, as .ode's ! is */
-    set_val(xpp::client_session(), "A", 5);
-    evaluate_derived(xpp::client_session());
+    xpp::set_val(xpp::client_session(), "A", 5);
+    xpp::evaluate_derived(xpp::client_session());
     CHECK(constant("d") == 15);
   }
 
@@ -609,7 +609,7 @@ int main(void)
     char arg0[] = "test_odex", model[] = "tools/models/near_test.odex";
     char *argv[] = {arg0, model, nullptr};
     CHECK(xpp::load_model(2, argv, 1).has_value());
-    xpp_batch_start(xpp::client_session());
+    xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), M_IG);
     const xpp::DataStore &d = xpp::client_session().data_store;
     CHECK(d.rows > 0);

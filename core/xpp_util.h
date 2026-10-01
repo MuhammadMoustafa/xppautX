@@ -3,83 +3,81 @@
 
 #include <stdio.h>
 #include "xpp_types.h"
-#ifdef __cplusplus
 #include "many_pops.h"
 #include "session.h"
-extern "C" {
-#endif
 
-/* xpp_util.c: pure helpers relocated out of X11 files */
+#include <string>
+#include <string_view>
 
-void de_space(char *s);
-
-const char *eq_stability(int cp, int rp, int im);
-
-#ifdef __cplusplus
-}
+/* the kinds of a value box find_user_name and box_set_value read */
+#define PARAMBOX 1
+#define ICBOX 2
 
 namespace xpp {
-struct Session; /* session.h */
-}
+
+/* s without its white space, in place */
+void de_space(char *s);
+
+/* an equilibrium's stability from its eigenvalues' counts: UNSTABLE,
+   NEUTRAL or STABLE */
+const char *eq_stability(int cp, int rp, int im);
+
 
 /* at exit (xppautx_main.cpp's atexit hook): removes s's AUTO scratch
    folder (auto_state.h) if it is set, and clears it */
-void xpp_cleanup_auto_dir(xpp::Session &s);
-void man_ic(xpp::Session &s);
-void redo_stuff(xpp::Session &s);
+void cleanup_auto_dir(Session &s);
+void man_ic(Session &s);
+void redo_stuff(Session &s);
 /* the value of the formula expr in the Session s (*ok 0, said why, when it
    does not compile) */
-double calculate(xpp::Session &s, const char *expr, int *ok);
+double calculate(Session &s, std::string_view expr, int *ok);
 /* temp ("name:formula" sets name, or a formula) worked out in the Session
    s into *z */
-int do_calc(xpp::Session &s, const char *temp, double *z);
+int do_calc(Session &s, std::string_view temp, double *z);
 /* text, a number or %formula (worked out in s), into *z: -1 when the
    formula does not compile */
-int to_float(xpp::Session &s, const char *text, double *z);
+int to_float(Session &s, std::string_view text, double *z);
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
-int find_par_or_var(const xpp::Model &m, const char *name, int *type, int *index);
+int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the
    active window's bounds made valid (check_windows) */
-void set_active_windows(xpp::Session &s);
-void make_active(xpp::Session &s, int i, int flag);
-int graph_of(const xpp::Session &s, XppWinId w);
-void check_windows(xpp::Session &s);
+void set_active_windows(Session &s);
+void make_active(Session &s, int i, int flag);
+int graph_of(const Session &s, XppWinId w);
+void check_windows(Session &s);
 /* the least and greatest of s's browser column index, widened when equal */
-void get_max(const xpp::Session &s, int index, double *vmin, double *vmax);
+void get_max(const Session &s, int index, double *vmin, double *vmax);
 /* the values behind the parameter and IC boxes and the sliders of s */
-void new_parameter(xpp::Session &s);
-void set_default_params(xpp::Session &s);
-void set_default_ics(xpp::Session &s);
-int box_set_value(xpp::Session &s, int type, int i, const char *text, double *z);
-void box_values_loaded(xpp::Session &s, int type);
-void set_par_or_var(xpp::Session &s, const char *name, int type, int index, double val);
-void eq_import(xpp::Session &s, double *y, int n);
+void new_parameter(Session &s);
+void set_default_params(Session &s);
+void set_default_ics(Session &s);
+int box_set_value(Session &s, int type, int i, std::string_view text, double *z);
+void box_values_loaded(Session &s, int type);
+void set_par_or_var(Session &s, std::string_view name, int type, int index, double val);
+void eq_import(Session &s, double *y, int n);
 /* the plot of s redrawn into the picture file begun (image_format.h's
    restore), which it then closes */
-void ps_restore(xpp::Session &s);
-void svg_restore(xpp::Session &s);
+void ps_restore(Session &s);
+void svg_restore(Session &s);
 /* s's active plot window blanked, its axes drawn again */
-void clr_scrn(xpp::Session &s);
+void clr_scrn(Session &s);
 /* the ICs box "xvst" (how 0) and "pp" (how 1) buttons: plot s's checked
    variables (isck, n entries) and uncheck them */
-void plot_checked_vars(xpp::Session &s, int how, int *isck, int n);
+void plot_checked_vars(Session &s, int how, int *isck, int n);
 /* a comment's action (the source's "# ... {action}"), run on s when it is
    picked */
-void do_txt_action(xpp::Session &s, const char *action);
+void do_txt_action(Session &s, std::string_view action);
 /* File > Clone: s's model file with its values now */
-void clone_ode(xpp::Session &s);
+void clone_ode(Session &s);
 /* the model m's user functions, as lunch-new.cpp's file info writes them */
-void user_fun_info(const xpp::Model &m, FILE *fp);
+void user_fun_info(const Model &m, FILE *fp);
 /* another model is loaded (File > Open model, Reload): a new, empty AUTO
    scratch folder in place of the Session s's, whose files (<model>.s, .b,
    .d) were the model before's */
-void xpp_renew_auto_dir(xpp::Session &s);
-
-#include <string>
-#include <string_view>
+void renew_auto_dir(Session &s);
 
 /* name, shortened for a fixed-width display of width characters: a longer
    one keeps its start and ends in '~' so it cannot pass for another name */
@@ -96,19 +94,17 @@ int has_eq(std::string_view z, std::string &name, int *where);
 /* the name of plotted column ind: T (0), a model variable, or (W77) a
    browser column data_add_col added; browse_column_name (browse.h) owns
    the naming, this is just its name for a plotted column */
-std::string ind_to_sym(const xpp::Session &s, int ind);
+std::string ind_to_sym(const Session &s, int ind);
 
 /* the index of parameter (type PARAMBOX) or variable (ICBOX) oname,
    blanks ignored and case not, -1 when there is none */
-#define PARAMBOX 1
-#define ICBOX 2
-int find_user_name(const xpp::Model &m, int type, std::string_view oname);
+int find_user_name(const Model &m, int type, std::string_view oname);
 
 /* f() on the active plot window of s, or under Simulplot on each open one
    in turn (made active with make_active(s, i, flag)), the active one made
    active again after */
 template <class F>
-void for_each_shown_window(xpp::Session &s, int flag, F f)
+void for_each_shown_window(Session &s, int flag, F f)
 {
     if (s.plot_windows.simul == 0) {
         f();
@@ -121,5 +117,5 @@ void for_each_shown_window(xpp::Session &s, int flag, F f)
     }
     make_active(s, ic, flag);
 }
-#endif
+} // namespace xpp
 #endif

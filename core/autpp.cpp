@@ -27,8 +27,8 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, con
      s.parser.constants[s.auto_state.par_index[i]]=par[i];
      
    }
-   evaluate_derived(s);
-   if(auto r=redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+   xpp::evaluate_derived(s);
+   if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
    if(ijac==1){
      xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.newt_err,dfdu,ndim);
@@ -91,8 +91,8 @@ int stpnt(xpp::Session &s, integer ndim, doublereal t, doublereal *u, doublereal
      s.parser.constants[s.auto_state.par_index[i]]=par[i];
  }
 
- evaluate_derived(s);
- if(auto r=redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
+ xpp::evaluate_derived(s);
+ if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
  /* the boundary conditions only read the two ends */
  xpp::do_bc(s,const_cast<double *>(u0),0.0,const_cast<double *>(u1),1.0,fb,nbc);
 

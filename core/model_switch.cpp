@@ -46,7 +46,7 @@ std::string poincare_name(const xpp::Model &m, int i)
 /* the model's own ICs (the ODEs and Markov variables): not an aux quantity */
 int ic_index(const xpp::Model &m, const std::string &name)
 {
-  int i=find_user_name(m,ICBOX,name);
+  int i=xpp::find_user_name(m,ICBOX,name);
   return i<m.node+m.nmarkov?i:-1;
 }
 

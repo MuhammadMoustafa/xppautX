@@ -85,15 +85,15 @@ bool read_as_file(const xpp::TempDir &tmp, const char *name, const std::string &
 void io_bool(int f, FILE *fp, bool &b, const char *name)
 {
     int i = b;
-    io_int(&i, fp, f, name);
+    xpp::io_int(&i, fp, f, name);
     b = i != 0;
 }
 
 void io_range(int f, FILE *fp, xpp::AxisRange &r, const char *name)
 {
     io_bool(f, fp, r.set, name);
-    io_double(&r.lo, fp, f, " low");
-    io_double(&r.hi, fp, f, " high");
+    xpp::io_double(&r.lo, fp, f, " low");
+    xpp::io_double(&r.hi, fp, f, " high");
 }
 
 void io_zoom(int f, FILE *fp, xpp::Zoom &z)
@@ -108,35 +108,35 @@ bool write_windows(xpp::Session &s, FILE *fp)
 {
     int count = 0;
     for (int i = 0; i < MAXPOP; i++) count += s.plot_windows.graph[i].Use != 0;
-    io_int(&count, fp, writing, "windows");
-    io_int(&s.plot_windows.active, fp, writing, "active");
+    xpp::io_int(&count, fp, writing, "windows");
+    xpp::io_int(&s.plot_windows.active, fp, writing, "active");
     for (int i = 0; i < MAXPOP; i++) {
         GRAPH &g = s.plot_windows.graph[i];
         if (!g.Use) continue;
-        io_int(&i, fp, writing, "window");
-        io_int(&g.nvars, fp, writing, "curves");
+        xpp::io_int(&i, fp, writing, "window");
+        xpp::io_int(&g.nvars, fp, writing, "curves");
         for (int j = 0; j < g.nvars; j++) {
-            std::string x = ind_to_sym(s,g.xv[j]), y = ind_to_sym(s,g.yv[j]), z = ind_to_sym(s,g.zv[j]);
-            io_string(x, fp, writing);
-            io_string(y, fp, writing);
-            io_string(z, fp, writing);
+            std::string x = xpp::ind_to_sym(s,g.xv[j]), y = xpp::ind_to_sym(s,g.yv[j]), z = xpp::ind_to_sym(s,g.zv[j]);
+            xpp::io_string(x, fp, writing);
+            xpp::io_string(y, fp, writing);
+            xpp::io_string(z, fp, writing);
         }
-        io_string(g.xlabel, fp, writing);
-        io_string(g.ylabel, fp, writing);
-        io_string(g.zlabel, fp, writing);
-        write_graph(fp, g);
+        xpp::io_string(g.xlabel, fp, writing);
+        xpp::io_string(g.ylabel, fp, writing);
+        xpp::io_string(g.zlabel, fp, writing);
+        xpp::write_graph(fp, g);
         xpp::PlotDisplay &d = s.plot_display[i];
         io_zoom(writing, fp, d.zoom);
         io_bool(writing, fp, d.show_runs, "previous runs");
     }
     xpp::AutoView &v = s.auto_view;
-    io_int(&v.earlier, fp, writing, "AUTO: points before Clear");
+    xpp::io_int(&v.earlier, fp, writing, "AUTO: points before Clear");
     io_bool(writing, fp, v.show_earlier, "AUTO: show them");
     int added = static_cast<int>(s.browser.added_columns.size());
-    io_int(&added, fp, writing, "added columns");
+    xpp::io_int(&added, fp, writing, "added columns");
     for (AddedColumn &c : s.browser.added_columns) {
-        io_string(c.name, fp, writing);
-        io_string(c.formula, fp, writing);
+        xpp::io_string(c.name, fp, writing);
+        xpp::io_string(c.formula, fp, writing);
     }
     return true;
 }
@@ -179,26 +179,26 @@ struct WindowsRead {
 bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRead &rest)
 {
     int count = 0, active = 0;
-    io_int(&count, fp, reading, "");
-    io_int(&active, fp, reading, "");
+    xpp::io_int(&count, fp, reading, "");
+    xpp::io_int(&active, fp, reading, "");
     if (count < 1 || count > MAXPOP) return false;
     for (int k = 0; k < count; k++) {
         int saved = 0, nvars = 0;
-        io_int(&saved, fp, reading, "");
-        io_int(&nvars, fp, reading, "");
+        xpp::io_int(&saved, fp, reading, "");
+        xpp::io_int(&nvars, fp, reading, "");
         if (saved < 0 || saved >= MAXPOP || nvars < 0 || nvars > MAXPERPLOT) return false;
         std::vector<std::string> names(3 * static_cast<std::size_t>(nvars));
-        for (std::string &n : names) io_string(n, fp, reading);
+        for (std::string &n : names) xpp::io_string(n, fp, reading);
         std::string xlabel, ylabel, zlabel;
-        io_string(xlabel, fp, reading);
-        io_string(ylabel, fp, reading);
-        io_string(zlabel, fp, reading);
+        xpp::io_string(xlabel, fp, reading);
+        xpp::io_string(ylabel, fp, reading);
+        xpp::io_string(zlabel, fp, reading);
         /* the main window is there; another one is made as Makewindow/
            Create makes it (a front end without windows makes none, and the
            saved one is read and left) */
         int i = 0;
         if (saved != 0) {
-            make_active(s, 0, 1);
+            xpp::make_active(s, 0, 1);
             create_a_pop(s);
             i = s.plot_windows.active;
         }
@@ -207,7 +207,7 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
         const bool made = saved == 0 || i != 0;
         GRAPH &g = made ? s.plot_windows.graph[i] : scratch;
         xpp::PlotDisplay &d = made ? s.plot_display[i] : scratch_display;
-        read_graph(fp, g);
+        xpp::read_graph(fp, g);
         g.nvars = nvars;
         curves_by_name(s, g, names);
         g.xlabel = std::move(xlabel);
@@ -218,15 +218,15 @@ bool read_windows(xpp::Session &s, FILE *fp, std::map<int, int> &slot, WindowsRe
         d.axes_seen = false; /* the zoom is for the axes just read */
         if (made) slot[saved] = i;
     }
-    make_active(s, slot.contains(active) ? slot[active] : 0, 1);
-    io_int(&rest.auto_view.earlier, fp, reading, "");
+    xpp::make_active(s, slot.contains(active) ? slot[active] : 0, 1);
+    xpp::io_int(&rest.auto_view.earlier, fp, reading, "");
     io_bool(reading, fp, rest.auto_view.show_earlier, "");
     int added = 0;
-    io_int(&added, fp, reading, "");
+    xpp::io_int(&added, fp, reading, "");
     for (int k = 0; k < added; k++) {
         AddedColumn c;
-        io_string(c.name, fp, reading);
-        io_string(c.formula, fp, reading);
+        xpp::io_string(c.name, fp, reading);
+        xpp::io_string(c.formula, fp, reading);
         if (!c.name.empty()) rest.added.push_back(std::move(c));
     }
     return true;
@@ -238,49 +238,49 @@ bool write_marks(xpp::Session &s, FILE *fp)
 {
     int n = 0;
     for (const LABEL &l : s.labels) n += l.use != 0;
-    io_int(&n, fp, writing, "labels");
+    xpp::io_int(&n, fp, writing, "labels");
     for (LABEL &l : s.labels) {
         if (!l.use) continue;
-        int win = graph_of(s, l.w);
+        int win = xpp::graph_of(s, l.w);
         double x = l.x, y = l.y;
-        io_int(&win, fp, writing, "window");
-        io_double(&x, fp, writing, "x");
-        io_double(&y, fp, writing, "y");
-        io_int(&l.size, fp, writing, "size");
-        io_int(&l.font, fp, writing, "font");
-        io_string(l.s, fp, writing);
+        xpp::io_int(&win, fp, writing, "window");
+        xpp::io_double(&x, fp, writing, "x");
+        xpp::io_double(&y, fp, writing, "y");
+        xpp::io_int(&l.size, fp, writing, "size");
+        xpp::io_int(&l.font, fp, writing, "font");
+        xpp::io_string(l.s, fp, writing);
     }
     n = 0;
     for (const GROB &g : s.grobs) n += g.use != 0;
-    io_int(&n, fp, writing, "arrows and markers");
+    xpp::io_int(&n, fp, writing, "arrows and markers");
     for (GROB &g : s.grobs) {
         if (!g.use) continue;
-        int win = graph_of(s, g.w);
+        int win = xpp::graph_of(s, g.w);
         double xs = g.xs, ys = g.ys, xe = g.xe, ye = g.ye;
-        io_int(&win, fp, writing, "window");
-        io_int(&g.type, fp, writing, "type");
-        io_int(&g.color, fp, writing, "color");
-        io_double(&g.size, fp, writing, "size");
-        io_double(&xs, fp, writing, "x start");
-        io_double(&ys, fp, writing, "y start");
-        io_double(&xe, fp, writing, "x end");
-        io_double(&ye, fp, writing, "y end");
+        xpp::io_int(&win, fp, writing, "window");
+        xpp::io_int(&g.type, fp, writing, "type");
+        xpp::io_int(&g.color, fp, writing, "color");
+        xpp::io_double(&g.size, fp, writing, "size");
+        xpp::io_double(&xs, fp, writing, "x start");
+        xpp::io_double(&ys, fp, writing, "y start");
+        xpp::io_double(&xe, fp, writing, "x end");
+        xpp::io_double(&ye, fp, writing, "y end");
     }
     n = 0;
     for (const CURVE &c : s.frozen_curves.curve) n += c.use != 0;
-    io_int(&n, fp, writing, "frozen curves");
-    io_int(&s.frozen_curves.auto_freeze, fp, writing, "freeze each run");
+    xpp::io_int(&n, fp, writing, "frozen curves");
+    xpp::io_int(&s.frozen_curves.auto_freeze, fp, writing, "freeze each run");
     for (int i = 0; i < MAXFRZ; i++) {
         CURVE &c = s.frozen_curves.curve[i];
         if (!c.use) continue;
-        int win = graph_of(s, c.w), type = c.type;
-        io_int(&i, fp, writing, "slot");
-        io_int(&win, fp, writing, "window");
-        io_int(&type, fp, writing, "type");
-        io_int(&c.color, fp, writing, "color");
-        io_int(&c.len, fp, writing, "points");
-        io_string(c.key, fp, writing);
-        io_string(c.name, fp, writing);
+        int win = xpp::graph_of(s, c.w), type = c.type;
+        xpp::io_int(&i, fp, writing, "slot");
+        xpp::io_int(&win, fp, writing, "window");
+        xpp::io_int(&type, fp, writing, "type");
+        xpp::io_int(&c.color, fp, writing, "color");
+        xpp::io_int(&c.len, fp, writing, "points");
+        xpp::io_string(c.key, fp, writing);
+        xpp::io_string(c.name, fp, writing);
     }
     return true;
 }
@@ -325,17 +325,17 @@ XppWinId window_of(const xpp::Session &s, const std::map<int, int> &slot, int sa
 bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const xpp::DataTable &frozen)
 {
     int n = 0;
-    io_int(&n, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "");
     for (int k = 0; k < n; k++) {
         int win = 0, size = 0, font = 0;
         double x = 0, y = 0;
         std::string text;
-        io_int(&win, fp, reading, "");
-        io_double(&x, fp, reading, "");
-        io_double(&y, fp, reading, "");
-        io_int(&size, fp, reading, "");
-        io_int(&font, fp, reading, "");
-        io_string(text, fp, reading);
+        xpp::io_int(&win, fp, reading, "");
+        xpp::io_double(&x, fp, reading, "");
+        xpp::io_double(&y, fp, reading, "");
+        xpp::io_int(&size, fp, reading, "");
+        xpp::io_int(&font, fp, reading, "");
+        xpp::io_string(text, fp, reading);
         for (LABEL &l : s.labels) {
             if (l.use) continue;
             l.use = 1;
@@ -348,18 +348,18 @@ bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const
             break;
         }
     }
-    io_int(&n, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "");
     for (int k = 0; k < n; k++) {
         int win = 0, type = 0, color = 0;
         double size = 0, xs = 0, ys = 0, xe = 0, ye = 0;
-        io_int(&win, fp, reading, "");
-        io_int(&type, fp, reading, "");
-        io_int(&color, fp, reading, "");
-        io_double(&size, fp, reading, "");
-        io_double(&xs, fp, reading, "");
-        io_double(&ys, fp, reading, "");
-        io_double(&xe, fp, reading, "");
-        io_double(&ye, fp, reading, "");
+        xpp::io_int(&win, fp, reading, "");
+        xpp::io_int(&type, fp, reading, "");
+        xpp::io_int(&color, fp, reading, "");
+        xpp::io_double(&size, fp, reading, "");
+        xpp::io_double(&xs, fp, reading, "");
+        xpp::io_double(&ys, fp, reading, "");
+        xpp::io_double(&xe, fp, reading, "");
+        xpp::io_double(&ye, fp, reading, "");
         for (GROB &g : s.grobs) {
             if (g.use) continue;
             g = GROB{static_cast<float>(xs), static_cast<float>(ys), static_cast<float>(xe), static_cast<float>(ye),
@@ -367,18 +367,18 @@ bool read_marks(xpp::Session &s, FILE *fp, const std::map<int, int> &slot, const
             break;
         }
     }
-    io_int(&n, fp, reading, "");
-    io_int(&s.frozen_curves.auto_freeze, fp, reading, "");
+    xpp::io_int(&n, fp, reading, "");
+    xpp::io_int(&s.frozen_curves.auto_freeze, fp, reading, "");
     for (int k = 0; k < n; k++) {
         int i = 0, win = 0, type = 0, color = 0, len = 0;
         std::string key, name;
-        io_int(&i, fp, reading, "");
-        io_int(&win, fp, reading, "");
-        io_int(&type, fp, reading, "");
-        io_int(&color, fp, reading, "");
-        io_int(&len, fp, reading, "");
-        io_string(key, fp, reading);
-        io_string(name, fp, reading);
+        xpp::io_int(&i, fp, reading, "");
+        xpp::io_int(&win, fp, reading, "");
+        xpp::io_int(&type, fp, reading, "");
+        xpp::io_int(&color, fp, reading, "");
+        xpp::io_int(&len, fp, reading, "");
+        xpp::io_string(key, fp, reading);
+        xpp::io_string(name, fp, reading);
         const std::string array = xpp::format("curve{}_", i);
         std::vector<float> x = points_of(frozen, array + "0", len), y = points_of(frozen, array + "1", len),
                            z = type > 0 ? points_of(frozen, array + "2", len) : std::vector<float>();
@@ -412,7 +412,7 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
 
     /* the values and numerics (and the active window's graphics) */
     if (const std::string *set = member(mem, xpp::snapx::set_member)) {
-        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [&s](FILE *fp) { return read_lunch(s, fp) != 0; }))
+        if (!read_as_file(tmp, xpp::snapx::set_member, *set, [&s](FILE *fp) { return xpp::read_lunch(s, fp) != 0; }))
             xpp_session_warn("Open session: its parameters and numerics could not be read");
     }
 
@@ -450,10 +450,10 @@ bool restore_session(xpp::Session &s, const SavedFile &f)
     const int active = s.plot_windows.active;
     for (int i = 0; i < MAXPOP; i++)
         if (s.plot_windows.graph[i].Use && i != active) {
-            make_active(s, i, 1);
+            xpp::make_active(s, i, 1);
             redraw_the_graph(s);
         }
-    make_active(s, active, 1);
+    xpp::make_active(s, active, 1);
     redraw_the_graph(s);
     if (!f.snapshot) s.saved_session = SavedSession{f.path};
     return true;
@@ -474,7 +474,7 @@ std::optional<std::string> session_bytes(xpp::Session &s, bool data)
     }
     redraw_params(); /* as File/Write set does, before write_lunch */
     std::optional<std::string> set = written(tmp, xpp::snapx::set_member, [&s](FILE *fp) {
-        write_lunch(s, fp);
+        xpp::write_lunch(s, fp);
         return true;
     });
     if (!set) {

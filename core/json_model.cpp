@@ -116,7 +116,7 @@ xpp::Session &switch_model(xpp::Session &before, const xpp::ModelRequest &req)
     diag_forget();
     plot_data_changed();
     state_forget();
-    xpp_renew_auto_dir(s);
+    renew_auto_dir(s);
     start_model(s, req.keep_values ? &kept : nullptr);
     if (req.restore) xpp_saved_restore(s, *req.restore); /* an AUTO or session file */
     redraw_graph(s);

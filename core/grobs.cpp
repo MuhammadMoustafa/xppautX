@@ -355,7 +355,7 @@ void edit_object_com(xpp::Session &s, int com)
                     scale_to_real(s,i, j, &x, &y);
                     s.labels[ilab].x = x;
                     s.labels[ilab].y = y;
-                    clr_scrn(s);
+                    xpp::clr_scrn(s);
                     redraw_all(s);
                 }
             }
@@ -369,7 +369,7 @@ void edit_object_com(xpp::Session &s, int com)
                 new_int("Size 0-4 :", &s.labels[ilab].size);
                 if (s.labels[ilab].size > 4) s.labels[ilab].size = 4;
                 if (s.labels[ilab].size < 0) s.labels[ilab].size = 0;
-                clr_scrn(s);
+                xpp::clr_scrn(s);
                 redraw_all(s);
             }
             break;
@@ -378,7 +378,7 @@ void edit_object_com(xpp::Session &s, int com)
             if (ans == 'y') {
                 s.labels[ilab].w = 0;
                 s.labels[ilab].use = 0;
-                clr_scrn(s);
+                xpp::clr_scrn(s);
                 redraw_all(s);
             }
             break;
@@ -399,7 +399,7 @@ void edit_object_com(xpp::Session &s, int com)
                     s.grobs[ilab].ye = s.grobs[ilab].ye - s.grobs[ilab].ys + y;
                     s.grobs[ilab].xs = x;
                     s.grobs[ilab].ys = y;
-                    clr_scrn(s);
+                    xpp::clr_scrn(s);
                     redraw_all(s);
                 }
             }
@@ -410,7 +410,7 @@ void edit_object_com(xpp::Session &s, int com)
                 if (s.grobs[ilab].type >= MARKER) select_marker_type(&s.grobs[ilab].type);
                 new_float(s,"Size ", &s.grobs[ilab].size);
                 new_int("Color :", &s.grobs[ilab].color);
-                clr_scrn(s);
+                xpp::clr_scrn(s);
                 redraw_all(s);
             }
             break;
@@ -419,7 +419,7 @@ void edit_object_com(xpp::Session &s, int com)
             if (ans == 'y') {
                 s.grobs[ilab].w = 0;
                 s.grobs[ilab].use = 0;
-                clr_scrn(s);
+                xpp::clr_scrn(s);
                 redraw_all(s);
             }
             break;
@@ -447,7 +447,7 @@ void do_gr_objs_com(xpp::Session &s, int com)
         break;
     case 5:
         destroy_labels_and_grobs(s,s.plot_windows.draw_win);
-        clr_scrn(s);
+        xpp::clr_scrn(s);
         redraw_all(s);
         break;
     }
@@ -478,7 +478,7 @@ void do_windows_com(xpp::Session &s, int c)
         s.plot_windows.simul = 1 - s.plot_windows.simul;
         break;
     }
-    set_active_windows(s);
+    xpp::set_active_windows(s);
 }
 
 void set_restore(xpp::Session &s, int flag)

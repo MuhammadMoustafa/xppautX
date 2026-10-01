@@ -16,8 +16,8 @@
 static double calc(const std::string &expr, int *ok)
 {
     int command[256], length = 0;
-    *ok = (add_expr(xpp::client_session(), expr.c_str(), command, &length) == 0);
-    return *ok ? evaluate(xpp::client_session(), command) : 0.0;
+    *ok = (xpp::add_expr(xpp::client_session(), expr, command, &length) == 0);
+    return *ok ? xpp::evaluate(xpp::client_session(), command) : 0.0;
 }
 
 int main(void)
@@ -28,41 +28,41 @@ int main(void)
     int ok, where = 0;
 
     xpp::Session &s = xpp::client_session();
-    init_rpn(s);
+    xpp::init_rpn(s);
 
     /* the parser keeps the whole name: before, it cut every name to 10
        characters, so two names that began alike were one symbol */
-    CHECK(add_con(s, "stimulus_amplitude_first", 1.5) == 0);
-    CHECK(add_con(s, "stimulus_amplitude_second", 2.5) == 0);
-    CHECK(get_val(xpp::client_session(), "stimulus_amplitude_first", &z) && z == 1.5);
-    CHECK(get_val(xpp::client_session(), "STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
+    CHECK(xpp::add_con(s, "stimulus_amplitude_first", 1.5) == 0);
+    CHECK(xpp::add_con(s, "stimulus_amplitude_second", 2.5) == 0);
+    CHECK(xpp::get_val(xpp::client_session(), "stimulus_amplitude_first", &z) && z == 1.5);
+    CHECK(xpp::get_val(xpp::client_session(), "STIMULUS_AMPLITUDE_SECOND", &z) && z == 2.5); /* any case */
     CHECK(calc("stimulus_amplitude_second-stimulus_amplitude_first", &ok) == 1.0 && ok);
 
     /* no length limit: 200 and 1000 characters are names like any other */
-    CHECK(add_con(s, p200.c_str(), 3.0) == 0);
-    CHECK(get_val(xpp::client_session(), p200, &z) && z == 3.0);
-    CHECK(add_con(s, q1000.c_str(), 4.0) == 0);
-    CHECK(get_val(xpp::client_session(), q1000, &z) && z == 4.0);
+    CHECK(xpp::add_con(s, p200, 3.0) == 0);
+    CHECK(xpp::get_val(xpp::client_session(), p200, &z) && z == 3.0);
+    CHECK(xpp::add_con(s, q1000, 4.0) == 0);
+    CHECK(xpp::get_val(xpp::client_session(), q1000, &z) && z == 4.0);
     /* a longer name does not find the name it starts with, nor a shorter */
-    CHECK(!get_val(xpp::client_session(), p200 + "x", &z));
-    CHECK(!get_val(xpp::client_session(), p200.substr(0, 199), &z));
+    CHECK(!xpp::get_val(xpp::client_session(), p200 + "x", &z));
+    CHECK(!xpp::get_val(xpp::client_session(), p200.substr(0, 199), &z));
     /* a formula of long names (over 1200 characters) compiles whole */
     CHECK(calc(q1000 + "-" + p200, &ok) == 1.0 && ok);
 
     /* a long variable gets its primed name X' too */
-    CHECK(add_var(xpp::client_session(), v200.c_str(), 0.0) == 0);
-    CHECK(add_var(xpp::client_session(), (v200 + "'").c_str(), 0.0) == 0);
+    CHECK(xpp::add_var(xpp::client_session(), v200.c_str(), 0.0) == 0);
+    CHECK(xpp::add_var(xpp::client_session(), (v200 + "'").c_str(), 0.0) == 0);
 
     /* "name:formula" hands back the name whole */
-    CHECK(has_eq(p200 + ":2*3", name, &where) == 1);
+    CHECK(xpp::has_eq(p200 + ":2*3", name, &where) == 1);
     CHECK(name == p200 && where == 201);
-    CHECK(has_eq("no formula", name, &where) == 0);
+    CHECK(xpp::has_eq("no formula", name, &where) == 0);
 
     /* short_name: for display only, with a marker when it shortens */
-    CHECK_STR(short_name("gca", 10).c_str(), "gca");
-    CHECK_STR(short_name("abcdefghij", 10).c_str(), "abcdefghij");
-    CHECK_STR(short_name("abcdefghijk", 10).c_str(), "abcdefghi~");
-    CHECK(short_name(q1000, 10) == std::string(9, 'q') + "~");
+    CHECK_STR(xpp::short_name("gca", 10).c_str(), "gca");
+    CHECK_STR(xpp::short_name("abcdefghij", 10).c_str(), "abcdefghij");
+    CHECK_STR(xpp::short_name("abcdefghijk", 10).c_str(), "abcdefghi~");
+    CHECK(xpp::short_name(q1000, 10) == std::string(9, 'q') + "~");
 
     /* AUTO's headings stay 14 wide: a long name is shortened with the marker
        and leaves a blank before the next heading */
@@ -82,8 +82,8 @@ int main(void)
 
     /* find_user_name finds a 200-character parameter, blanks and all */
     xpp::client_session().model().upar_names[0] = p200;
-    CHECK(find_user_name(xpp::client_session().model(), PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
-    CHECK(find_user_name(xpp::client_session().model(), PARAMBOX, p200 + "x") == -1);
+    CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, " " + p200.substr(0, 100) + " " + p200.substr(100)) == 0);
+    CHECK(xpp::find_user_name(xpp::client_session().model(), PARAMBOX, p200 + "x") == -1);
 
     /* a .set file line of a 1000-character name: read whole, and the next
        field is read from the next line */
@@ -95,8 +95,8 @@ int main(void)
         std::string a, b;
         fprintf(fp, "%s\nnext\n", q1000.c_str());
         rewind(fp);
-        io_string(a, fp, 1);
-        io_string(b, fp, 1);
+        xpp::io_string(a, fp, 1);
+        xpp::io_string(b, fp, 1);
         CHECK(a == q1000);
         CHECK_STR(b.c_str(), "next");
         fclose(fp);

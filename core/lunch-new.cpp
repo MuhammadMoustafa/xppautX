@@ -30,6 +30,8 @@
 #include <string>
 #include <string_view>
 
+namespace xpp {
+
 #define READEM 1
 #define WRITEM 0
 
@@ -295,7 +297,7 @@ io_double(&s.integrator.last_time,fp,f,"Last Time");
 io_int(&s.integrator.my_start,fp,f,"s.integrator.my_start");
 io_int(&s.numerics.inflag,fp,f,"INFLAG");
 }
-void io_parameter_file(xpp::Session &s, const char *fn,int flag)
+void io_parameter_file(xpp::Session &s, std::string_view fn,int flag)
 {
   xpp::Model &m=s.model();
   /* fn is a plain file name; a filename an interactive caller must still
@@ -320,7 +322,7 @@ void io_parameter_file(xpp::Session &s, const char *fn,int flag)
     redo_stuff(s);
     return;
   }
-  xpp::Writer w=open_writer_asking(fn);
+  xpp::Writer w=open_writer_asking(std::string(fn).c_str());
   if(!w)return;
   FILE *fp=w.file();
   io_int(&m.nupar,fp,flag,"Number params");
@@ -336,7 +338,7 @@ void io_parameter_file(xpp::Session &s, const char *fn,int flag)
    Markov chains are not in this file, in XPPAUT or here: docs/manual
    16-quick-reference.md); io_parameter_file's write shares its writer
    and overwrite-ask (open_writer_asking), the read its TokenReader */
-void io_ic_file(xpp::Session &s, const char *fn,int flag)
+void io_ic_file(xpp::Session &s, std::string_view fn,int flag)
 {
   int n=s.model().node;
   if(flag==READEM){
@@ -358,7 +360,7 @@ void io_ic_file(xpp::Session &s, const char *fn,int flag)
       err_msg(xpp::format("Found more than {} initial conditions in {}.",n,fn).c_str());
     return;
   }
-  xpp::Writer w=open_writer_asking(fn);
+  xpp::Writer w=open_writer_asking(std::string(fn).c_str());
   if(!w)return;
   FILE *fp=w.file();
   for(int i=0;i<n;i++)
@@ -374,13 +376,13 @@ namespace {
    extension), given skips the ask; io is io_parameter_file or
    io_ic_file, flag READEM or WRITEM */
 void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext,
-                       void (*io)(xpp::Session &, const char *, int), int flag)
+                       void (*io)(xpp::Session &, std::string_view, int), int flag)
 {
   if(name.empty()){
     name=s.model().this_file+ext;
     if(!file_selector(title,name,xpp::format("*{}",ext).c_str()))return;
   }
-  io(s,name.c_str(),flag);
+  io(s,name,flag);
 }
 
 } // namespace
@@ -405,7 +407,7 @@ void load_ic_file(xpp::Session &s, std::string name)
   named_value_file(s,std::move(name),"Load Initial Conditions",".ic",io_ic_file,READEM);
 }
 
-void write_values_query(const xpp::Session &s, const char *name, bool sets, bool pars, bool ics)
+void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)
 {
   const xpp::Model &m=s.model();
   xpp::Writer w(name);
@@ -599,4 +601,4 @@ void io_string(std::string &s, FILE *fp, int f)
    xpp::print(fp,"{}\n",s);
 }
 
-
+} // namespace xpp

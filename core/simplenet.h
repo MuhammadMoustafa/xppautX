@@ -1,41 +1,37 @@
 #ifndef _simplenet_h_
 #define _simplenet_h_
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int is_network(char *s);
-void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *ffti, double *dr, double *di);
-
-
-#ifdef __cplusplus
-}
 
 #include <array>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#define MAXVEC 100
 
 namespace xpp {
+
 struct Session; /* session.h */
-}
-/* vector(var,length,e|z|p,e|z|p) in str: its first variable (ses's),
-   length and ends' kinds */
-int get_vector_info(const xpp::Session &ses, char *str, const char *name, int *root, int *length, int *il, int *ir);
 
-double net_interp(xpp::Session &s, double x, int i);
-int add_vectorizer(xpp::Session &s, const char *name, char *rhs);
-void add_vectorizer_name(xpp::Session &s, const char *name, const char *rhs);
-double vector_value(xpp::Session &s, double x, int i);
-double network_value(xpp::Session &s, double x, int i);
-int add_spec_fun(xpp::Session &s, const char *name, char *rhs);
-void add_special_name(xpp::Session &s, const char *name, char *rhs);
-void eval_all_nets(xpp::Session &s);
-void evaluate_network(xpp::Session &s, int ind);
-void update_all_ffts(xpp::Session &s);
-void update_fft(xpp::Session &s, int ind);
+/* s (blanks removed and upper-cased in place) names a network's kind:
+   its number (conv 1, sparse 2, ...), 0 when it names none */
+int is_network(char *s);
+void fft_conv(int it, int n, double *values, double *yy, double *fftr, double *ffti, double *dr, double *di);
 
-#define MAXVEC 100
+/* vector(var,length,e|z|p,e|z|p) in str (blanks removed in place): its
+   first variable (ses's), length and ends' kinds */
+int get_vector_info(const Session &ses, char *str, std::string_view name, int *root, int *length, int *il, int *ir);
+
+double net_interp(Session &s, double x, int i);
+int add_vectorizer(Session &s, std::string_view name, char *rhs);
+void add_vectorizer_name(Session &s, std::string_view name, std::string_view rhs);
+double vector_value(Session &s, double x, int i);
+double network_value(Session &s, double x, int i);
+int add_spec_fun(Session &s, std::string_view name, char *rhs);
+void add_special_name(Session &s, std::string_view name, char *rhs);
+void eval_all_nets(Session &s);
+void evaluate_network(Session &s, int ind);
+void update_all_ffts(Session &s);
+void update_fft(Session &s, int ind);
 
 /* a network (a special function: conv, sparse, fftcon, gill, ...) as
    the model defines it, xpp::Model's (model.h): its kind, sizes, roots
@@ -69,5 +65,6 @@ struct Vectorizer {
   std::string name;
   int root=0,length=0,il=0,ir=0;
 };
-#endif
+
+} // namespace xpp
 #endif

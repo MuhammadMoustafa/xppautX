@@ -86,7 +86,7 @@ static void start_auto_dir(void)
     dir = xpp::files::make_temp_dir();
     /* at exit the folder is the session list's client's: every load hands
        it on to the Session it makes (session.cpp) */
-    if (!dir.empty()) atexit([] { xpp_cleanup_auto_dir(xpp::client_session()); });
+    if (!dir.empty()) atexit([] { xpp::cleanup_auto_dir(xpp::client_session()); });
 }
 
 /* the desktop window's Help > About: the same text hello sends the page

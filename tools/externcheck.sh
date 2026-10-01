@@ -32,17 +32,6 @@ core/cvode.h 1|vendored CVODE: W34 (#72) decides
 core/dense.h 1|vendored CVODE: W34 (#72) decides
 core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
 core/vector.h 1|vendored CVODE: W34 (#72) decides
-core/comline.h 1|W109c: the parser and the load
-core/derived.h 1|W109c
-core/expr.h 1|W109c
-core/form_ode.h 1|W109c
-core/load_eqn.h 1|W109c
-core/lunch-new.h 1|W109c
-core/ode_read.h 1|W109c
-core/simplenet.h 1|W109c
-core/tabular.h 1|W109c
-core/xpp_batch.h 1|W109c
-core/xpp_util.h 1|W109c
 core/autevd.h 1|W109d: AUTO
 core/auto_c.h 1|W109d
 core/auto_data.h 1|W109d

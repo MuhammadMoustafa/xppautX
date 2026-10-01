@@ -286,10 +286,10 @@ void setautopoint(xpp::Session &s)
   if(FromAutoFlag)
     {
       FromAutoFlag=0;
-      set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]],XfromAuto);
-      set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]],YfromAuto);
-      evaluate_derived(s);
-      xpp::ok_or_show(redo_all_fun_tables(s));
+      xpp::set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]],XfromAuto);
+      xpp::set_val(s,s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]],YfromAuto);
+      xpp::evaluate_derived(s);
+      xpp::ok_or_show(xpp::redo_all_fun_tables(s));
       redraw_params();
     }
 }
@@ -601,7 +601,7 @@ int auto_name_to_index(const xpp::Session &s, std::string_view name)
   int i,in;
   find_variable(s,name,&in);
   if(in==0)return(10);
-  in=find_user_name(s.model(),PARAM_BOX,name);
+  in=xpp::find_user_name(s.model(),PARAM_BOX,name);
   for(i=0;i<s.auto_state.npar;i++)
     if(s.auto_state.par[i]==in)return(i);
   return(-1);
@@ -639,7 +639,7 @@ bool read_long(const char *s,long &v)
    14 wide so the numbers below stay under it. */
 std::string col_centre(const std::string &s)
 {
-  const std::string t=short_name(s,AUTO_COL_W-1);
+  const std::string t=xpp::short_name(s,AUTO_COL_W-1);
   const int n=static_cast<int>(t.size());
   const int l=(AUTO_COL_W-n)/2;
   return std::string(static_cast<size_t>(l),' ')+t+std::string(static_cast<size_t>(AUTO_COL_W-n-l),' ');
@@ -730,10 +730,10 @@ void auto_params(xpp::Session &s)
   if(status!=0){
     for(i=0;i<8;i++){
       if(i<s.auto_state.npar){
-	in=find_user_name(s.model(),PARAM_BOX,values[i].c_str());
+	in=xpp::find_user_name(s.model(),PARAM_BOX,values[i].c_str());
 	if(in>=0){
 	  s.auto_state.par[i]=in;
-	  in=get_param_index(s,values[i].c_str());
+	  in=xpp::get_param_index(s,values[i].c_str());
 	  s.auto_state.par_index[i]=in;
 	}
       }
@@ -876,7 +876,7 @@ void auto_plot_par(xpp::Session &s)
     auto_new_view(s);
     return;
   }
-  values[0] = ind_to_sym(s,i1);
+  values[0] = xpp::ind_to_sym(s,i1);
   values[1] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp1]];
   values[2] = s.model().upar_names[s.auto_state.par[s.auto_state.axes().icp2]];
   values[3] = xpp::format("{:g}", s.auto_state.axes().xmin);
@@ -891,7 +891,7 @@ void auto_plot_par(xpp::Session &s)
     if(i>0)
       s.auto_state.axes().var=i-1;
     /*  Now check the parameters  */
-    i1=find_user_name(s.model(),PARAM_BOX,values[1].c_str());
+    i1=xpp::find_user_name(s.model(),PARAM_BOX,values[1].c_str());
     if(i1>=0){
       for(i=0;i<s.auto_state.npar;i++){
 	if(i1==s.auto_state.par[i]){
@@ -900,7 +900,7 @@ void auto_plot_par(xpp::Session &s)
 	}
       }
     }
-     i1=find_user_name(s.model(),PARAM_BOX,values[2].c_str());
+     i1=xpp::find_user_name(s.model(),PARAM_BOX,values[2].c_str());
     if(i1>=0){
       for(i=0;i<s.auto_state.npar;i++){
 	if(i1==s.auto_state.par[i]){
@@ -1381,7 +1381,7 @@ const char *auto_bif_sym(int itp)
 void info_header(xpp::Session &s, int flag2, int icp1, int icp2)
 {
   /* the names head 10-wide columns of new_info's numbers */
-  auto short10=[](std::string_view name){ return short_name(name,10); };
+  auto short10=[](std::string_view name){ return xpp::short_name(name,10); };
   const std::string p1name=short10(s.model().upar_names[s.auto_state.par[icp1]]);
   const std::string p2name=icp2<s.auto_state.npar?short10(s.model().upar_names[s.auto_state.par[icp2]]):std::string("   ");
   const std::string vname=short10(s.model().uvar_names[s.auto_state.axes().var]);
@@ -1582,7 +1582,7 @@ void init_auto_win(xpp::Session &s)
   if(s.model().nupar<8)s.auto_state.npar=s.model().nupar;
   for(i=0;i<s.auto_state.npar;i++)s.auto_state.par[i]=i;
   for(i=0;i<s.auto_state.npar;i++){
-    s.auto_state.par_index[i]=get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
+    s.auto_state.par_index[i]=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
   }
   s.auto_state.bifur.nper=0;
   grabpt.flag=0;  /*  no point in buffer  */
@@ -2595,7 +2595,7 @@ void load_auto_numerics(xpp::Session &s, FILE *fp)
  if (!tr.read(s.auto_state.npar)) return;
  for(i=0;i<s.auto_state.npar;i++){
    if (!tr.read(s.auto_state.par[i])) return;
-   in=get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
+   in=xpp::get_param_index(s,s.model().upar_names[s.auto_state.par[i]]);
    s.auto_state.par_index[i]=in;
  }
  if (!tr.read(s.auto_state.nuzr)) return;
@@ -2876,8 +2876,8 @@ void find_point(xpp::Session &s, int ibr, int pt)
 	     setvar(s,i+1,d->u0[i]);
 	   xpp::get_ic(s,0,d->u0);
 	   auto_set_pars_from(s, d->par);
-	   evaluate_derived(s);
-	   xpp::ok_or_show(redo_all_fun_tables(s));
+	   xpp::evaluate_derived(s);
+	   xpp::ok_or_show(xpp::redo_all_fun_tables(s));
 	   redraw_params();
 	   redraw_ics();
            if((d->per)>0)
@@ -3222,8 +3222,8 @@ static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d)
 /* what follows a grab: derived values, tables and the shown values */
 static void finish_grab(xpp::Session &s)
 {
-  evaluate_derived(s);
-  xpp::ok_or_show(redo_all_fun_tables(s));
+  xpp::evaluate_derived(s);
+  xpp::ok_or_show(xpp::redo_all_fun_tables(s));
   redraw_params();
   redraw_ics();
 }

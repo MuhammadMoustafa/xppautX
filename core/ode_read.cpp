@@ -47,6 +47,8 @@ using xpp::odex::Expr;
 using xpp::odex::Parsed;
 using xpp::odex::Statement;
 
+namespace xpp {
+
 namespace {
 
 /* the files being included: more than 0 inside one */
@@ -226,7 +228,7 @@ void save_line(std::vector<std::string> &source, const std::string &line)
 {
   if (source.size()>=MAXLINES) {
     xpp::log_printf(XPP_LOG_ERROR, "The model has more than %d lines\n", MAXLINES);
-    xpp_model_failed();
+    model_failed();
   }
   source.push_back(line.substr(0,line.find('\0')));
 }
@@ -338,7 +340,7 @@ int formula_or_number(const char *expr,double *z)
   int flag,i=0;
   *z=0.0; /* initial it to 0 */
   const std::string form=converted(expr);
-  flag=do_num(form.c_str(),num.data(),z,&i,0); /* a formula is no error here */
+  flag=do_num(form,num.data(),z,&i,0); /* a formula is no error here */
   if(i<static_cast<int>(form.size()))flag=1;
   if(flag==0)
     return 0; /* 0 is a number */
@@ -727,7 +729,7 @@ void command(const VAR_INFO &v, std::vector<Statement> &out)
     std::vector<FlagEvent> split;
     if(split_events(cond.c_str(),events.c_str(),split)){
       xpp::log_printf(XPP_LOG_WARN, "Bad global !! \n");
-      xpp_model_failed();
+      model_failed();
     }
     s.expr=text_expr(cond);
     for(FlagEvent &e : split)s.bindings.push_back(text_binding(std::move(e.name),std::move(e.formula)));
@@ -874,7 +876,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
       			if(!fnew){
          		  xpp::log(XPP_LOG_ERROR, "Can't open include file <{}>\n",inc);
-			  xpp_model_failed();
+			  model_failed();
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			IN_INCLUDED_FILE++;
@@ -952,7 +954,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       for(ns=0;ns<static_cast<int>(strings.size());ns++){
       xpp::Load::at(src.file,string_lines[ns]);
       const size_t first_new=out.size();
-      subsk(strings[ns].c_str(),big,jj,is_array);
+      subsk(strings[ns],big,jj,is_array);
 
    done=parse_a_string(big,v,out);
 
@@ -1007,7 +1009,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
        markov.count=nstates;
        markov_states2.assign(nstates,std::string());
        for(istates=0;istates<nstates;istates++){
-	 subsk(markov_states[istates].c_str(),markov_states2[istates],jj,is_array);
+	 subsk(markov_states[istates],markov_states2[istates],jj,is_array);
 	 int istart=0;
 	 for(int k=0;k<nstates;k++)
 	   markov.cells.push_back(text_expr(xpp::markov_cell(markov_states2[istates].c_str(),&istart)));
@@ -1020,7 +1022,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
         /* take care of special form for SOLVE-VARIABLE */
           if(v.type==COMMAND && char_at(v.lhs,0)=='S' && char_at(v.lhs,1)=='O'){
-           if(find_char(v.rhs.c_str(),"=",0,&i1)<0){
+           if(find_char(v.rhs,"=",0,&i1)<0){
              v.lhs=v.rhs;
              v.rhs="0";
             }
@@ -1031,7 +1033,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
    /* take care of special form for auxiliary */
      if(v.type==COMMAND && char_at(v.lhs,0)=='A' && char_at(v.lhs,1)=='U'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
+       if(find_char(v.rhs,"=",0,&i1)>=0)
 	 split_rhs(v,i1,i1+1);
        v.type=AUX_VAR;
      }
@@ -1039,13 +1041,13 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
      /* take care of special form for vector */
      if(v.type==COMMAND && char_at(v.lhs,0)=='V' && char_at(v.lhs,1)=='E' && char_at(v.lhs,5)=='R')
      {
-      if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
+      if(find_char(v.rhs,"=",0,&i1)>=0)
 	split_rhs(v,i1,i1+1);
        v.type=VECTOR;
      }
         /* take care of special form for special */
      if(v.type==COMMAND && char_at(v.lhs,0)=='S'&&char_at(v.lhs,1)=='P'&&char_at(v.lhs,5)=='A'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
+       if(find_char(v.rhs,"=",0,&i1)>=0)
 	 split_rhs(v,i1,i1+1);
        v.type=SPEC_FUN;
      }
@@ -1066,7 +1068,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
  /*  forced integral equation form */
      if(v.type==COMMAND && char_at(v.lhs,0)=='V'){
-       if(find_char(v.rhs.c_str(),"=",0,&i1)>=0)
+       if(find_char(v.rhs,"=",0,&i1)>=0)
 	 split_rhs(v,i1,i1+1);
        v.type=VEQ;
      }
@@ -1076,10 +1078,10 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       int i0=0;
       next_nonspace(v.rhs.c_str(),i0,&i1);
       i0=i1;
-      i2=find_char(v.rhs.c_str()," ",i0,&i1);
+      i2=find_char(v.rhs," ",i0,&i1);
       if(i2!=0){
 	xpp::log(XPP_LOG_WARN, " Illegal definition of table {} \n",v.rhs);
-	xpp_model_failed();
+	model_failed();
       }
       std::string rest=v.rhs;
       v.lhs=rest.substr(i0,i1-i0);
@@ -1119,9 +1121,9 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 
 } // namespace
 
-int find_char(const char *s1, const char *s2, int i0, int *i1)
+int find_char(std::string_view s1, std::string_view s2, int i0, int *i1)
 {
-  int m=strlen(s2),n=strlen(s1);
+  int m=static_cast<int>(s2.size()),n=static_cast<int>(s1.size());
   int i=i0;
   char ch;
   int j;
@@ -1219,9 +1221,12 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
 
 /* big with its subscripts worked out for index k: [n] becomes n, [j+n]
    k+n, [j-n] k-n, [j*n] k*n ([j] only in an array line, flag nonzero) */
-void subsk(const char *big, std::string &newstr, int k, int flag)
+void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
 {
-  int n=strlen(big),i=0,add,isign,multflag=0;
+  /* read as a C string: the scan looks one past a character */
+  const std::string big_copy(big_text);
+  const char *big=big_copy.c_str();
+  int n=static_cast<int>(big_copy.size()),i=0,add,isign,multflag=0;
   bool ok;
   char ch,chp;
   std::string num;
@@ -1233,7 +1238,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
   /* the subscript's text runs to its ']' */
   auto unterminated=[big](){
     xpp::log_printf(XPP_LOG_ERROR, "Error in %s The expression does not terminate. Perhaps a ] is missing.\n",big);
-    xpp_model_failed();
+    model_failed();
   };
   while(i<n){
     ch=big[i];
@@ -1258,7 +1263,7 @@ void subsk(const char *big, std::string &newstr, int k, int flag)
     else if(ch=='['&&chp=='j'){
       if(flag==0){
 	xpp::log_printf(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
-	xpp_model_failed();
+	model_failed();
       }
       num.clear();
       isign=1;
@@ -1332,7 +1337,9 @@ int get_eqn(xpp::Session &s, FILE *fptr)
   }
   Parsed p;
   p.files.push_back(src.file);
-  if(do_new_parser(src,first,0,!in_file,p)<0)xpp_model_failed();
+  if(do_new_parser(src,first,0,!in_file,p)<0)model_failed();
   build_model(s,std::move(p));
   return 1;
 }
+
+} // namespace xpp

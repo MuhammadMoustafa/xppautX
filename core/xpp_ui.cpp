@@ -399,7 +399,7 @@ int new_float(xpp::Session &s, const char *name, double *value)
 
     if (tvalue[0] == '%') {
         double newz;
-        if (do_calc(s, tvalue.c_str() + 1, &newz) != -1) *value = newz;
+        if (xpp::do_calc(s, tvalue.c_str() + 1, &newz) != -1) *value = newz;
         return 0;
     }
     *value = atof(tvalue.c_str());

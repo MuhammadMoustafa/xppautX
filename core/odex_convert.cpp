@@ -269,7 +269,7 @@ private:
   {
     std::vector<int> prog(MAXEXPLEN, 0);
     int len = 0;
-    if (add_expr(s_, text.c_str(), prog.data(), &len)) refuse(xpp::format("the formula {} does not compile", text));
+    if (add_expr(s_, text, prog.data(), &len)) refuse(xpp::format("the formula {} does not compile", text));
     prog.resize(len);
     s_.parser.ncon = m_.ncon_start;
     s_.parser.nsym = m_.nsym_start;

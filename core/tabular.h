@@ -3,9 +3,15 @@
 #define _tabular_h_
 
 #include "xpplim.h" /* MAX_TAB */
-#ifdef __cplusplus
+#include "xpp_error.h"
+
 #include <string>
+#include <string_view>
 #include <vector>
+
+namespace xpp {
+
+struct Session; /* session.h */
 
 /* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi] step dx (x too
    when xyvals); y stays a raw double* because simplenet.cpp's networks
@@ -27,47 +33,39 @@ struct TABULAR {
   std::string name;
 };
 
-extern "C" {
-#endif
-
-
-/* tabular.c */
+/* the value at x of the table of n points (xv, yv), linearly
+   interpolated; the cubic through y[i-1..i+2] (from xlo, step h) at x */
 double lookupxy(double x, int n, double *xv, double *yv);
 double tab_interp(double xlo, double h, double x, double *y, int n, int i);
 
-
-#ifdef __cplusplus
-}
-
-#include "xpp_error.h"
-
 /* Tables return why they failed; the command (or the model load) shows it. */
-namespace xpp {
-struct Session; /* session.h */
-}
 
-int get_lookup_len(xpp::Session &s, int i);
+int get_lookup_len(Session &s, int i);
 /* the Session s's function tables again, after a parameter changed: the
    first failure, the others still done */
-xpp::Result<> redo_all_fun_tables(xpp::Session &s);
+Result<> redo_all_fun_tables(Session &s);
 /* table index's value at x in the Session s (the evaluator's TABTYPE) */
-double lookup(const xpp::Session &s, double x, int index);
-xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y);
+double lookup(const Session &s, double x, int index);
+/* formula worked out at n points of [xlo,xhi] into y; formula is a
+   std::string (a table's own) and not a string_view: AUTO redoes the
+   tables at every right-hand side (redo_all_fun_tables), and a
+   string_view there cost two instructions a call (W109c) */
+Result<> eval_fun_table(Session &s, int n, double xlo, double xhi, const std::string &formula, double *y);
 /* the session s's tables: @ autoeval= for each, View, Numerics' tables
    menu (i: 0 view, 1 edit) and which table it picks, -1 for none */
-void set_auto_eval_flags(xpp::Session &s, int f);
-void view_table(xpp::Session &s, int index);
-void new_lookup_com(xpp::Session &s, int i);
-int select_table(const xpp::Session &s);
+void set_auto_eval_flags(Session &s, int f);
+void view_table(Session &s, int index);
+void new_lookup_com(Session &s, int i);
+int select_table(const Session &s);
 /* the session s's table index is called name; every table back to none
    (a load's start) */
-void set_table_name(xpp::Session &s, const char *name, int index);
-void init_table(xpp::Session &s);
-xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, const char *formula, int index);
+void set_table_name(Session &s, std::string_view name, int index);
+void init_table(Session &s);
+Result<> create_fun_table(Session &s, int npts, double xlo, double xhi, std::string_view formula, int index);
 /* table index read from the file filename (quoted or not): one of the
    model's own files (model_file, model_files.h: a file table of the
    model) or a file the user picked (Numerics' table file) */
-xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int model_file);
-#endif
-#endif
+Result<> load_table(Session &s, std::string_view filename, int index, int model_file);
 
+} // namespace xpp
+#endif

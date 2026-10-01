@@ -38,6 +38,8 @@
 #include "load_eqn.h"
 #include "auto_nox.h"
 
+namespace xpp {
+
 #define DELAYBOX 3
 #define BCBOX 4
 #define PARAM 1
@@ -143,20 +145,20 @@ int find_user_name(const xpp::Model &m, int type, std::string_view oname)
 	return(-1);
  }
 
-int do_calc(xpp::Session &s, const char *temp, double *z)
+int do_calc(xpp::Session &s, std::string_view temp, double *z)
 {
  std::string val; /* the name before ':' */
  int ok; 
  int i;
  double newz;
- if(strlen(temp)==0){
+ if(temp.empty()){
 	*z=0.0;
 	return(1);
 	}
  if(has_eq(temp,val,&i))
  {
 
-  newz=calculate(s,&temp[i],&ok);  /*  calculate quantity  */
+  newz=calculate(s,temp.substr(i),&ok);  /*  calculate quantity  */
  
   if(ok==0)return(-1);
   i=find_user_name(s.model(),PARAM,val);
@@ -196,7 +198,7 @@ int has_eq(std::string_view z, std::string &name, int *where)
   return(1);
  }
 
-double calculate(xpp::Session &s, const char *expr, int *ok)
+double calculate(xpp::Session &s, std::string_view expr, int *ok)
 {
   int com[400],i;
   double z=0.0;
@@ -235,6 +237,9 @@ void check_windows(xpp::Session &s)
  check_val(&s.plot_windows.current->ylo,&s.plot_windows.current->yhi,&zip,&zap);
 } 
 
+} // namespace xpp
+
+/* graf_par.h's */
 void check_val(double *x1, double *x2, double *xb, double *xd)
 {
  double temp;
@@ -274,6 +279,8 @@ void dump_ps(xpp::Session &s, int i)
    if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)))
      fmt->restore(s);
 }
+
+namespace xpp {
 
 void   redo_stuff(xpp::Session &s)
     {
@@ -456,17 +463,17 @@ void   set_default_ics(xpp::Session &s)
    redraw_ics();
 }
 
-int to_float(xpp::Session &s, const char *text, double *z)
+int to_float(xpp::Session &s, std::string_view text, double *z)
 {
   int flag;
   *z=0.0;
-  if(text[0]=='%')
+  if(text.starts_with('%'))
     {
-      flag=do_calc(s,&text[1],z);
+      flag=do_calc(s,text.substr(1),z);
       if(flag==-1)return -1;
       return 0;
     }
-  *z=atof(text);
+  *z=atof(std::string(text).c_str());
   return(0);
 }
 
@@ -491,7 +498,7 @@ void man_ic(xpp::Session &s)
 /* store the text s typed for entry i of a box of the given type. Numbers
    (ICs, parameters) come back in *z and the result is 1; BCs and delays are
    strings (0); -1 when a %formula does not evaluate. */
-int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
+int box_set_value(xpp::Session &s, int type,int i,std::string_view text,double *z)
 {
   *z=0.0;
   switch(type){
@@ -548,7 +555,7 @@ void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 
 /* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
    neither */
-int find_par_or_var(const xpp::Model &m, const char *name,int *type,int *index)
+int find_par_or_var(const xpp::Model &m, std::string_view name,int *type,int *index)
 {
   int status=find_user_name(m,PARAMBOX,name);
   if(status==-1){
@@ -561,7 +568,7 @@ int find_par_or_var(const xpp::Model &m, const char *name,int *type,int *index)
   return 1;
 }
 
-void set_par_or_var(xpp::Session &s, const char *name,int type,int index,double val)
+void set_par_or_var(xpp::Session &s, std::string_view name,int type,int index,double val)
 {
   set_val(s,name,val);
   if(type==ICBOX)
@@ -608,7 +615,7 @@ const char *eq_stability(int cp, int rp, int im)
 /* ---- a comment with an action in the ODE file was picked (logic from
    txtread.c): run its "name=value ..." settings ---- */
 
-void do_txt_action(xpp::Session &s, const char *action)
+void do_txt_action(xpp::Session &s, std::string_view action)
 {
  get_graph(s);
  extract_action(s,action);
@@ -621,7 +628,7 @@ void do_txt_action(xpp::Session &s, const char *action)
 
 /* ---- AUTO's private scratch directory (session.h: AutoState::dir),
    made by xpp::files::make_temp_dir ---- */
-void xpp_cleanup_auto_dir(xpp::Session &s)
+void cleanup_auto_dir(xpp::Session &s)
 {
   std::string &dir=s.auto_state.dir;
   if (!dir.empty()) {
@@ -630,10 +637,12 @@ void xpp_cleanup_auto_dir(xpp::Session &s)
   }
 }
 
-void xpp_renew_auto_dir(xpp::Session &s)
+void renew_auto_dir(xpp::Session &s)
 {
   std::string &dir=s.auto_state.dir;
   if (dir.empty()) return; /* none was made: AUTO writes beside the model */
   xpp::files::remove_temp_dir(dir.c_str());
   dir=xpp::files::make_temp_dir();
 }
+
+} // namespace xpp

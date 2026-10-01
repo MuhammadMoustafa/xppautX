@@ -172,7 +172,7 @@ static bool compile(xpp::Session &s, const std::string &expr, std::vector<int> &
 {
   int command[256];
   int nc;
-  if(add_expr(s,expr.c_str(),command,&nc))return false;
+  if(xpp::add_expr(s,expr,command,&nc))return false;
   out.assign(command,command+nc+1);
   return true;
 }
@@ -192,9 +192,9 @@ int compile_flags(xpp::Session &s)
     flags[j].nointerp=0;
     for(i=0;i<flags[j].nevents;i++){
       const char *name=flags[j].lhsname[i].c_str();
-      index=find_user_name(s.model(),IC,name);
+      index=xpp::find_user_name(s.model(),IC,name);
       if(index<0){
-	index=find_user_name(s.model(),PARAM,name);
+	index=xpp::find_user_name(s.model(),PARAM,name);
 	if(index<0){
 	  if(strcasecmp(name,"out_put")==0)
 	    {
@@ -275,7 +275,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     for(j=0;j<neq;j++)
       setvar(s,j+1,ynew[j]);
     setvar(s,0,*tnew);
-    f1=evaluate(s,flags[i].comcond.data());
+    f1=xpp::evaluate(s,flags[i].comcond.data());
     fstate[i].f1=f1;
     tol=fabs(f1-f0);
     switch(sign){
@@ -318,7 +318,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
     setvar(s,i+1,ynew[i]);
   }
   for(i=0;i<s.model().nflags;i++)
-    fstate[i].f0=evaluate(s,flags[i].comcond.data());
+    fstate[i].f0=xpp::evaluate(s,flags[i].comcond.data());
   while(1){ /* run through all possible events  */
     ncycle++;
     newhit=0;
@@ -326,7 +326,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       nevents=flags[i].nevents;
       if(fstate[i].hit==ncycle&&fstate[i].tstar<=smin){
 	for(j=0;j<nevents;j++){
-	  fstate[i].vrhs[j]=evaluate(s,flags[i].comrhs[j].data());
+	  fstate[i].vrhs[j]=xpp::evaluate(s,flags[i].comrhs[j].data());
 	  in=flags[i].lhs[j];
 	  if(flags[i].type[j]==0)
 	        setvar(s,in+1,fstate[i].vrhs[j]);
@@ -346,7 +346,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 	  }
 	  else {
 	    if(flags[i].type[j]==1)
-	      set_val(s,s.model().upar_names[in],fstate[i].vrhs[j]);
+	      xpp::set_val(s,s.model().upar_names[in],fstate[i].vrhs[j]);
 	    else{
 
 	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
@@ -356,7 +356,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 
 	}
 	if(flags[i].anypars){
-	  evaluate_derived(s);
+	  xpp::evaluate_derived(s);
 	  redraw_params();
 	}
       }
@@ -366,7 +366,7 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
       ynew[i]=getvar(s,i+1); /* if this screws up */
     }
     for(i=0;i<s.model().nflags;i++){
-      fstate[i].f1=evaluate(s,flags[i].comcond.data());
+      fstate[i].f1=xpp::evaluate(s,flags[i].comcond.data());
       if(fstate[i].hit>0)continue; /* already hit so dont do anything */
       f1=fstate[i].f1;
       sign=flags[i].sign;

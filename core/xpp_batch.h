@@ -1,19 +1,5 @@
 #ifndef XPP_BATCH_H
 #define XPP_BATCH_H
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* the model cannot be loaded (a parse or compile error, already logged):
-   xpp::model_failed, at the place the load is (xpp::Load::diagnostic):
-   during a load, the load fails (xpp::LoadFailed, caught by
-   xpp::load_model); otherwise the program exits with status 1. In browser
-   and window mode the page stays open on the log until it is closed
-   (xpp_http's at_exit). */
-[[noreturn]] void xpp_model_failed(void);
-
-#ifdef __cplusplus
-}
 
 #include "diagnostic.h"
 #include "model_files.h"
@@ -23,25 +9,32 @@ extern "C" {
 #include <vector>
 
 namespace xpp {
+
 struct Session; /* session.h */
-}
+
+/* the model cannot be loaded (a parse or compile error, already logged):
+   model_failed(Diagnostic), at the place the load is
+   (Load::diagnostic): during a load, the load fails (LoadFailed, caught
+   by load_model); otherwise the program exits with status 1. In browser
+   and window mode the page stays open on the log until it is closed
+   (xpp_http's at_exit). */
+[[noreturn]] void model_failed();
 
 /* After a load with no interface (-silent, a unit test): s's browser,
    graphs and colours set up, and the command line's files and internal
    sets taken in (-setfile, -parfile, -icfile, -readset/-with,
    -internset/-uset/-rset). What -silent then runs is its built-in
    script (json_silent.cpp). */
-void xpp_batch_start(xpp::Session &s);
+void batch_start(Session &s);
 
-/* The start of a load (xpp::load_model), in the Session it builds: the
+/* The start of a load (load_model), in the Session it builds: the
    "which options were explicitly set" table reset; the command line's
    -quiet and -logfile (they must win over .xpprc); .xpprc's and the
    command line's options */
-void xpp_reset_options(xpp::Session &s);
-void check_for_quiet(xpp::Session &s, int argc, char **argv);
-void do_vis_env(xpp::Session &s);
+void reset_options(Session &s);
+void check_for_quiet(Session &s, int argc, char **argv);
+void do_vis_env(Session &s);
 
-namespace xpp {
 /* what a load gives: the Session it loaded (its Model the Session's),
    or what is wrong and where */
 using Loaded = std::expected<Session *, Diagnostic>;
@@ -58,7 +51,6 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nu
    load, the load fails (LoadFailed with d, the line d.line of d.file
    added as it is written); otherwise the program exits with status 1 */
 [[noreturn]] void model_failed(Diagnostic d);
-}
 
 /* How a run without an interface goes and where its output lands: the
    command line (-silent, -outfile, -equil, -iset) and the ODE file's
@@ -80,5 +72,6 @@ struct XppBatchOptions {
     }
 };
 extern XppBatchOptions batch_options;
-#endif
+
+} // namespace xpp
 #endif

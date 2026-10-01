@@ -92,7 +92,7 @@ int compile_svars(xpp::Session &s)
   }
   
   for(i=0;i<m.naeqn;i++){
-    if(add_expr(s,m.aeqns[i].rhs.c_str(),f,&n)==1){
+    if(add_expr(s,m.aeqns[i].rhs,f,&n)==1){
     xpp::log_printf(XPP_LOG_ERROR, " Bad right-hand side for alg-eqn \n");
     return(1);
     }
@@ -103,7 +103,7 @@ int compile_svars(xpp::Session &s)
   }
 
    for(i=0;i<m.nsvar;i++){
-    if(add_expr(s,m.svars[i].rhs.c_str(),f,&n)==1){
+    if(add_expr(s,m.svars[i].rhs,f,&n)==1){
     xpp::log_printf(XPP_LOG_ERROR, " Bad initial guess for sol-var \n");
     return(1);
     }
@@ -276,7 +276,7 @@ void get_new_guesses(xpp::Session &s)
     const std::string name=xpp::format("Initial {}({:g}):",
       m.svars[i].name,z);
     new_string_of(name.c_str(),m.svars[i].rhs,XPP_FIELD_EXPRESSION);
-    if(add_expr(s,m.svars[i].rhs.c_str(),m.svars[i].form.data(),&n)){
+    if(add_expr(s,m.svars[i].rhs,m.svars[i].form.data(),&n)){
       err_msg("Illegal formula");
       return;
     }

@@ -14,6 +14,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace xpp {
 #define NCMD 46 /* add new commands as needed  */
 
 #define XORFX 0
@@ -349,12 +351,12 @@ static int if_needed_load_ext_options(xpp::Session &s)
     }
     std::string myopts(lr.next().value_or(std::string_view()));
     xpp::log(XPP_LOG_DEBUG, "Got this string: {{{}}}\n",myopts);
-    extract_action(s,("$ "+myopts).c_str());
+    extract_action(s,("$ "+myopts));
     return 1;
   }
 
   if(externaloptionsflag==2){
-    extract_action(s,("$ "+externaloptionsstring).c_str());
+    extract_action(s,("$ "+externaloptionsstring));
     return 1;
   }
   return 0;
@@ -417,7 +419,7 @@ static int if_needed_load_par(xpp::Session &s)
     return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external parameter file: {}\n",parfilename);
-  io_parameter_file(s,parfilename.c_str(),1);
+  io_parameter_file(s,parfilename,1);
   return 1;
 }
 
@@ -429,7 +431,7 @@ static int if_needed_load_ic(xpp::Session &s)
   	return 1;
   }
   xpp::log(XPP_LOG_INFO, "Loading external initial condition file: {}\n",icfilename);
-  io_ic_file(s,icfilename.c_str(),1);
+  io_ic_file(s,icfilename,1);
   return(1);
 }
 
@@ -439,12 +441,12 @@ void load_command_line_values(xpp::Session &s)
     load(s);
 }
 
-int parse_it(xpp::Session &s, const char *com)
+int parse_it(xpp::Session &s, std::string_view com)
 {
   int j;
   for(j=0;j<NCMD;j++)
   {
-  	if(strncmp(com,my_cmd[j].name,my_cmd[j].len)==0)
+  	if(com.starts_with(std::string_view(my_cmd[j].name,my_cmd[j].len)))
     	{
     		break;
   	}
@@ -563,8 +565,8 @@ int parse_it(xpp::Session &s, const char *com)
     }
   }
   else {
-    if(com[0]=='-'||s.got_file==1){ 
-     xpp::log_printf(XPP_LOG_WARN, "Problem reading option %s\n",com);
+    if(com.starts_with('-')||s.got_file==1){ 
+     xpp::log(XPP_LOG_WARN, "Problem reading option {}\n",com);
      xpp::log_printf(XPP_LOG_WARN, "\nUsage: xppaut filename [options ...]\n\n");
      xpp::log_printf(XPP_LOG_WARN, "Options:\n");
      xpp::log_printf(XPP_LOG_WARN, "  -silent                Batch run without the interface and dump solutions to a file\n");
@@ -626,3 +628,4 @@ int parse_it(xpp::Session &s, const char *com)
   return 0;
 }
 
+} // namespace xpp

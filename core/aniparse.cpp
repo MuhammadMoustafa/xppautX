@@ -378,7 +378,7 @@ bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
 {
     std::array<int, 300> com;
     int n;
-    if (add_expr(s,x, com.data(), &n) == 1) return false;
+    if (xpp::add_expr(s,x, com.data(), &n) == 1) return false;
     c.assign(com.begin(), com.begin() + n);
     return true;
 }
@@ -388,7 +388,7 @@ bool compile_expr(xpp::Session &s, const char *x, std::vector<int> &c)
 int chk_ani_color(std::string &s, int *index)
 {
     *index = -1;
-    de_space(s.data());
+    xpp::de_space(s.data());
     s.resize(std::strlen(s.c_str()));
     xpp::to_upper(s.data());
     if (s.empty()) {
@@ -529,7 +529,7 @@ int add_ani_settext(AniCom &a, const std::string &x1, std::string &y1, std::stri
     int size = std::atoi(x1.c_str());
     int font = 0;
     int index = 0;
-    de_space(y1.data());
+    xpp::de_space(y1.data());
     if (y1[0] == 's' || y1[0] == 'S') font = 1;
     if (chk_ani_color(col, &index) != 1) index = 0;
     if (size < 0) size = 0;
@@ -724,7 +724,7 @@ void do_grab_tasks(xpp::Session &s, int which) /* which=1 for start, 2 for end *
     if (i < 0 || i >= static_cast<int>(ani_grab.size())) return; /*  no legal grab point */
     if (which != 1 && which != 2) return;
     for (GrabEvent &e : (which == 1 ? ani_grab[i].start : ani_grab[i].end).events)
-        set_val(s,e.lhs.c_str(), evaluate(s,e.rhs.data()));
+        xpp::set_val(s,e.lhs.c_str(), xpp::evaluate(s,e.rhs.data()));
 }
 
 /* a command is known by its first two letters */
@@ -860,9 +860,9 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
     ani_lineno = 1;
     for (;;) {
         std::string old = read_ani_line(fp, eof);
-        search_array(old.data(), expanded, &jj1, &jj2, &flag);
+        xpp::search_array(old.data(), expanded, &jj1, &jj2, &flag);
         for (int jj = jj1; jj <= jj2; jj++) {
-            subsk(expanded.c_str(), big, jj, flag);
+            xpp::subsk(expanded, big, jj, flag);
             ans = parse_ani_string(s,big, fp);
         }
 
@@ -936,7 +936,7 @@ void eval_ani_color(xpp::Session &s, int j)
 {
     AniCom &a = my_ani[j];
     if (a.col[0] > 0) {
-        double z = evaluate(s,a.col.data());
+        double z = xpp::evaluate(s,a.col.data());
         if (z > 1) z = 1.0;
         if (z < 0) z = 0.0;
         a.zcol = z;
@@ -946,8 +946,8 @@ void eval_ani_color(xpp::Session &s, int j)
 void eval_ani_com(xpp::Session &s, int j)
 {
     AniCom &a = my_ani[j];
-    a.zx1 = evaluate(s,a.x1.data());
-    a.zy1 = evaluate(s,a.y1.data());
+    a.zx1 = xpp::evaluate(s,a.x1.data());
+    a.zy1 = xpp::evaluate(s,a.y1.data());
 
     switch (a.type) {
     case LINE:
@@ -957,19 +957,19 @@ void eval_ani_com(xpp::Session &s, int j)
     case FELLIP:
     case AXNULL:
     case AYNULL:
-        a.zx2 = evaluate(s,a.x2.data());
-        a.zy2 = evaluate(s,a.y2.data());
+        a.zx2 = xpp::evaluate(s,a.x2.data());
+        a.zy2 = xpp::evaluate(s,a.y2.data());
         break;
     case CIRC:
     case FCIRC:
-        a.zrad = evaluate(s,a.x2.data());
+        a.zrad = xpp::evaluate(s,a.x2.data());
         break;
     case VTEXT:
-        a.zval = evaluate(s,a.x2.data());
+        a.zval = xpp::evaluate(s,a.x2.data());
         break;
     }
 
-    if (a.type == AXNULL || a.type == AYNULL) a.zval = evaluate(s,a.who.data());
+    if (a.type == AXNULL || a.type == AYNULL) a.zval = xpp::evaluate(s,a.who.data());
 }
 
 void set_ani_font_stuff(int size, int font, int color) { pen_font(size, font, color); }
@@ -1092,8 +1092,8 @@ void draw_grab_points(xpp::Session &s)
 {
     pen_color(0);
     for (AniGrab &g : ani_grab) {
-        const double xc = evaluate(s,g.x.data());
-        const double yc = evaluate(s,g.y.data());
+        const double xc = xpp::evaluate(s,g.x.data());
+        const double yc = xpp::evaluate(s,g.y.data());
         g.zx = xc;
         g.zy = yc;
         const double z = g.tol;
@@ -1117,10 +1117,10 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
     if (dt == 0.0) dt = 10000000000;
     ami.vx = (ami.x - ami.ox) / dt;
     ami.vy = (ami.y - ami.oy) / dt;
-    set_val(s,"mouse_x", ami.x);
-    set_val(s,"mouse_y", ami.y);
-    set_val(s,"mouse_vx", ami.vx);
-    set_val(s,"mouse_vy", ami.vy);
+    xpp::set_val(s,"mouse_x", ami.x);
+    xpp::set_val(s,"mouse_y", ami.y);
+    xpp::set_val(s,"mouse_vx", ami.vx);
+    xpp::set_val(s,"mouse_vy", ami.vy);
     do_grab_tasks(s, 1);
     fix_only(s);
     ani_frame(s,0);

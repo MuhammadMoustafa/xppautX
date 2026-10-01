@@ -394,7 +394,7 @@ int apply_value(xpp::Session &s, const char *line)
     }
     state_dirty = 1;
     if (index < 0) return 0;
-    if (box_set_value(s, type, index, text.c_str(), &z) == -1) {
+    if (box_set_value(s, type, index, text, &z) == -1) {
         j_err_msg("Bad formula");
         return -1;
     }
@@ -436,8 +436,8 @@ void slide_command(xpp::Session &s, const char *line)
     std::string name;
     int type, index;
     get_string(line, "name", name);
-    if (find_par_or_var(s.model(), name.c_str(), &type, &index)) {
-        set_par_or_var(s, name.c_str(), type, index, get_num(line, "value", 0));
+    if (find_par_or_var(s.model(), name, &type, &index)) {
+        set_par_or_var(s, name, type, index, get_num(line, "value", 0));
         state_dirty = 1;
     }
 }
@@ -466,7 +466,7 @@ void values_command(xpp::Session &s, const char *line)
     }
     if (o == "query") {
         if (name.empty()) j_err_msg("values query needs a name");
-        else write_values_query(s, name.c_str(), get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
+        else write_values_query(s, name, get_int(line, "sets", 0), get_int(line, "pars", 0), get_int(line, "ics", 0));
         return;
     }
     if (kind != "par" && kind != "ic") {
@@ -583,7 +583,7 @@ void action_command(xpp::Session &s, const char *line)
     int i = get_int(line, "index", -1);
     const std::vector<xpp::Model::Comment> &comments = s.model().comments;
     if (i >= 0 && i < static_cast<int>(comments.size()) && comments[i].aflag > 0)
-        do_txt_action(s, comments[i].action.c_str());
+        do_txt_action(s, comments[i].action);
 }
 
 } // namespace xpp::json

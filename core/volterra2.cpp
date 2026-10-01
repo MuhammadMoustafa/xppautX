@@ -76,16 +76,16 @@ void alloc_v_memory(xpp::Session &s)  /* allocate stuff for volterra equations *
 /* First parse the kernels   since these were deferred */
   for(i=0;i<s.model().nkernel;i++){
      kstate[i].k_n=0.0;
-     if(add_expr(s,kernels[i].expr.c_str(),formula.data(),&len)){
+     if(add_expr(s,kernels[i].expr,formula.data(),&len)){
        xpp::log(XPP_LOG_ERROR, "Illegal kernel {}={}\n",kernels[i].name,kernels[i].expr);
-       xpp_model_failed(); /* fatal error ... */
+       model_failed(); /* fatal error ... */
      }
      kernels[i].formula=program(len);
      if(kernels[i].flag==CONV){
-       if(add_expr(s,kernels[i].kerexpr.c_str(),formula.data(),&len)){
+       if(add_expr(s,kernels[i].kerexpr,formula.data(),&len)){
 	 xpp::log(XPP_LOG_ERROR, "Illegal convolution {}={}\n",
 		kernels[i].name,kernels[i].kerexpr);
-	 xpp_model_failed(); /* fatal error ... */
+	 model_failed(); /* fatal error ... */
        }
        kernels[i].kerform=program(len);
      }

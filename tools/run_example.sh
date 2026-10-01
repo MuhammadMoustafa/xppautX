@@ -55,7 +55,7 @@ if [ $timed_out -eq 1 ]; then
   sum=timeout
   st=timeout
 elif [ "$st" -eq 1 ]; then
-  # the model does not load by itself (xpp_model_failed: an include, a
+  # the model does not load by itself (xpp::model_failed: an include, a
   # DLL, a fragment): a result the baseline records, not a crash
   sum=noload
   st=0

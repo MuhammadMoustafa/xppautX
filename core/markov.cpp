@@ -67,7 +67,7 @@ static int markov_named(xpp::Session &s, const char *name)
   }
   if(index==-1){
     xpp::log_printf(XPP_LOG_ERROR, " Markov variable |%s| not found \n",name);
-    xpp_model_failed();
+    model_failed();
   }
   if(ConvertStyle)
     xpp::print(convertf,"markov {} {}\n", name, s.model().markov[index].nstates);
@@ -106,7 +106,7 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
     auto line_view = reader.next();
     if(!line_view){
       xpp::log_printf(XPP_LOG_ERROR, " Unexpected end of file building markov variable |%s|\n",name);
-      xpp_model_failed();
+      model_failed();
     }
     std::string line(*line_view);
 
@@ -153,7 +153,7 @@ void create_markov(xpp::Session &s, int nstates, double *st, int type, const cha
   int j=s.model().nmarkov;
   if(j>=MAXMARK){
     xpp::log_printf(XPP_LOG_ERROR, "Too many Markov chains...\n");
-    xpp_model_failed();
+    model_failed();
   }
 
   s.model().markov[j].nstates=nstates;
@@ -198,7 +198,7 @@ void compile_all_markov(xpp::Session &s)
 	if(compile_markov(s,index,j,k)==-1){
 	  xpp::log_printf(XPP_LOG_ERROR, "Bad expression %s[%d][%d] = %s \n",
 		 s.model().markov[index].name.c_str(), j,k,s.model().markov[index].trans[l0].c_str());
-	  xpp_model_failed();
+	  model_failed();
 	}
       }
     }

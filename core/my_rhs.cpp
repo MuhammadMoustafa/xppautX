@@ -18,11 +18,11 @@ void extra(xpp::Session &s, double *y__y, double t, int nod, int neq)
   setvar(s,i+1,y__y[i]);
   for(i=nod+fix;i<nod+fix+nmark;i++)setvar(s,i+1,y__y[i-fix]);
   for(i=nod;i<nod+fix;i++)
-  setvar(s,i+1,evaluate(s,m.programs[i].data()));
+  setvar(s,i+1,xpp::evaluate(s,m.programs[i].data()));
   /* I dont think this is generally needed  */
 
   for(i=nod+nmark;i<neq;i++)
-  y__y[i]=evaluate(s,m.programs[i+fix-nmark].data());
+  y__y[i]=xpp::evaluate(s,m.programs[i+fix-nmark].data());
 }
 
 void set_fix_rhs(xpp::Session &s, double t, double *y)
@@ -36,8 +36,8 @@ void set_fix_rhs(xpp::Session &s, double t, double *y)
   for(i=0;i<m.nmarkov;i++)
     setvar(s,i+1+node+fix,y[i+node]);
   for(i=node;i<node+fix;i++)
-    setvar(s,i+1,evaluate(s,m.programs[i].data()));
-  eval_all_nets(s);
+    setvar(s,i+1,xpp::evaluate(s,m.programs[i].data()));
+  xpp::eval_all_nets(s);
 }
 
 int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
@@ -50,14 +50,14 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   setvar(s,i+1,y[i]);
 
   for(i=node;i<node+fix;i++){
-  setvar(s,i+1,evaluate(s,m.programs[i].data()));
+  setvar(s,i+1,xpp::evaluate(s,m.programs[i].data()));
   }
-eval_all_nets(s);
+xpp::eval_all_nets(s);
     
     xpp::do_daes(s);
  for(i=0;i<node;i++)
   {
-    ydot[i]=evaluate(s,m.programs[i].data());
+    ydot[i]=xpp::evaluate(s,m.programs[i].data());
   }
  if(neq>node)vec_rhs(t,y,ydot,neq);
 	
@@ -70,9 +70,9 @@ void update_based_on_current(xpp::Session &s)
   const int node=m.node,fix=m.fix_var;
   int i;
    for(i=node;i<node+fix;i++)
-    setvar(s,i+1,evaluate(s,m.programs[i].data()));
+    setvar(s,i+1,xpp::evaluate(s,m.programs[i].data()));
     
-  eval_all_nets(s);
+  xpp::eval_all_nets(s);
 }
 
 void fix_only(xpp::Session &s)
@@ -81,7 +81,7 @@ void fix_only(xpp::Session &s)
   const int node=m.node,fix=m.fix_var;
    int i;
   for(i=node;i<node+fix;i++)
-    setvar(s,i+1,evaluate(s,m.programs[i].data()));
+    setvar(s,i+1,xpp::evaluate(s,m.programs[i].data()));
 
 }
 
@@ -91,7 +91,7 @@ void rhs_only(xpp::Session &s, double *ydot)
   const int node=m.node;
   int i;
   for(i=0;i<node;i++){
-    ydot[i]=evaluate(s,m.programs[i].data());
+    ydot[i]=xpp::evaluate(s,m.programs[i].data());
   }
 }
  

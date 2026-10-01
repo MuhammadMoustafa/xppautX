@@ -4,6 +4,13 @@
 #include <stdio.h>
 #include "xpplim.h"
 
+#include <array>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 /*
 The acutual max filename length is determined by the 
 FILENAME_MAX (see <stdio.h>), and usually 4096 -- but
@@ -21,9 +28,13 @@ override the below definition.
 	#define XPP_MAX_NAME FILENAME_MAX
 #endif
 #endif
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+#define XPP_NSLIDERS 3
+
+namespace xpp {
+
+struct Model;   /* model.h */
+struct Session; /* session.h */
 
 /*
 Options are set accroding to an order of precedence
@@ -32,7 +43,7 @@ command line < mfile < .xpprc < default.opt
 
 Add any options here that you might want to track.
 */
-typedef struct {
+struct OptionsSet {
    int BIG_FONT_NAME;
    int SMALL_FONT_NAME;
    int IXPLT;
@@ -184,26 +195,17 @@ typedef struct {
   int HISTHI2;
   int HISTBINS2;
 
-  } OptionsSet;
+  };
 
 void fil_flt(FILE *fpt, double *val);
 void fil_int(FILE *fpt, int *val);
 
-int msc(const char *s1, const char *s2);
-void check_for_xpprc(void);
-void stor_internopts(const char *s1);
+/* s2 starts with s1 */
+int msc(std::string_view s1, std::string_view s2);
+/* ~/.xpprc's @ lines, kept as options (stor_internopts each) */
+void check_for_xpprc();
+void stor_internopts(std::string_view s1);
 
-#define XPP_NSLIDERS 3
-
-#ifdef __cplusplus
-}
-
-#include <array>
-#include <optional>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 /* The parameter sliders the ODE file sets up (@ s1=name, slo1=, shi1=,
    likewise 2 and 3); notAlreadySet.SLIDERn is 0 once slider n was set. */
 struct XppSlider {
@@ -288,48 +290,44 @@ struct PlotSettings {
    item without a name or a value left out (@ total = 1 sets nothing) */
 std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set);
 
-namespace xpp {
-struct Model;   /* model.h */
-struct Session; /* session.h */
-}
-
 /* The load (xpp_batch.cpp) hands the Model and Session it builds to what
    reads the model and its options (W47d3): */
 /* the model's file (Model::this_file) read into s: an .ode, an .odex, or
    one typed in when there is none */
-void load_eqn(xpp::Session &s);
+void load_eqn(Session &s);
 /* the settings the model and its options file leave unset, then the
    storage, the solver and the initial values the model gives */
-void set_all_vals(xpp::Session &s);
+void set_all_vals(Session &s);
 /* the options file's settings, those still unset */
-void read_defaults(xpp::Session &s, FILE *fp);
+void read_defaults(Session &s, FILE *fp);
 /* an @ line of the model (form_ode.cpp's parser) kept in m's options,
    which set_internopts applies; -1 (logged, not kept) when it sets
    dll_lib or dll_fun */
-int add_model_option(xpp::Model &m, const char *s1);
+int add_model_option(Model &m, std::string_view s1);
 /* the model's options not yet applied, then .xpprc's and the command
    line's; option name set to s2 (force: even when set already, mask:
    which may be set again) */
-void set_internopts(xpp::Session &s, OptionsSet *mask);
-void set_internopts_xpprc_and_comline(xpp::Session &s);
-void set_option(xpp::Session &s, const char *name, const char *s2, int force, OptionsSet *mask);
+void set_internopts(Session &s, OptionsSet *mask);
+void set_internopts_xpprc_and_comline(Session &s);
+void set_option(Session &s, std::string_view name, std::string_view s2, int force, OptionsSet *mask);
 /* the torus settings read from or written to a set file (lunch-new.cpp) */
-void dump_torus(xpp::Session &s, FILE *fp, int f);
+void dump_torus(Session &s, FILE *fp, int f);
 /* the model's internal sets: one added (set name {does}), one's
    "name=value ..." settings applied to s (extract_action for any such
    text, a comment's action), one setting */
-void add_intern_set(xpp::Model &m, const char *name, const char *does);
-void extract_action(xpp::Session &s, const char *ptr);
-void extract_internset(xpp::Session &s, int j);
-void do_intern_set(xpp::Session &s, const char *name1, const char *value);
+void add_intern_set(Model &m, std::string_view name, std::string_view does);
+void extract_action(Session &s, std::string_view ptr);
+void extract_internset(Session &s, int j);
+void do_intern_set(Session &s, std::string_view name1, std::string_view value);
 /* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of
    the model */
-std::string intern_set_default_name(const xpp::Model &m);
+std::string intern_set_default_name(const Model &m);
 /* why name cannot name a new set (not a name the parser reads, or already
    a set), "" when it can */
-std::string intern_set_name_problem(const xpp::Model &m, std::string_view name);
+std::string intern_set_name_problem(const Model &m, std::string_view name);
 /* `set name {p=v,...,x=v,...}`: every parameter and initial condition as
    it is now, numbers that read back exactly */
-std::string intern_set_line(const xpp::Session &s, std::string_view name);
-#endif
+std::string intern_set_line(const Session &s, std::string_view name);
+
+} // namespace xpp
 #endif

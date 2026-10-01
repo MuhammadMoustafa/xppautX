@@ -13,6 +13,8 @@
 #include <utility>
 #include <vector>
 
+namespace xpp {
+
 /* This compiles all of the formulae
 It is called only once during the session
 */
@@ -21,7 +23,7 @@ int compile_derived(xpp::Session &s)
   std::array<int, 256> f;
   int n;
   for (xpp::Model::DerivedQuantity &d : s.model().derived) {
-    if (add_expr(s, d.rhs.c_str(), f.data(), &n) == 1) {
+    if (add_expr(s, d.rhs, f.data(), &n) == 1) {
       xpp::log(XPP_LOG_ERROR, " Bad right-hand side for derived parameters \n");
       return 1;
     }
@@ -42,7 +44,7 @@ void evaluate_derived(xpp::Session &s)
 }
 
 /* this adds a derived quantity  */
-int add_derived(xpp::Session &s, const char *name, const char *rhs)
+int add_derived(xpp::Session &s, std::string_view name, std::string_view rhs)
 {
   xpp::Model::DerivedQuantity d;
   d.rhs = rhs;
@@ -53,3 +55,5 @@ int add_derived(xpp::Session &s, const char *name, const char *rhs)
   s.model().derived.push_back(std::move(d));
   return add_con(s, name, 0.0);
 }
+
+} // namespace xpp

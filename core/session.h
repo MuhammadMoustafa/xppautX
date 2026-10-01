@@ -191,7 +191,7 @@ private:
    fails a read anywhere else in core/. */
 Session &client_session();
 
-/* what xpp_model_failed throws while a Load is in progress: the model
+/* what model_failed throws while a Load is in progress: the model
    cannot be loaded (a parse or compile error, already logged), what is
    wrong and where */
 struct LoadFailed {

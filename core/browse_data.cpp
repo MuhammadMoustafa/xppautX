@@ -96,7 +96,7 @@ namespace {
 /* the columns a batch run writes: the "only" list, else every column */
 std::vector<int> output_columns(const BROWSER &b)
 {
-  return N_plist>0?std::vector<int>(plotlist,plotlist+N_plist):all_columns(b);
+  return xpp::N_plist>0?std::vector<int>(xpp::plotlist,xpp::plotlist+xpp::N_plist):all_columns(b);
 }
 
 } // namespace
@@ -149,7 +149,7 @@ void find_variable(const xpp::Session &s, std::string_view name, int *col)
    *col=0;
     return;
    }
-  *col=find_user_name(s.model(),2,name);
+  *col=xpp::find_user_name(s.model(),2,name);
   if(*col>-1){
     *col=*col+1;
     return;
@@ -256,7 +256,7 @@ void data_get(xpp::Session &s, BROWSER *b)
    setvar(s,i+1+s.model().node+s.model().fix_var,s.last_ic[i+s.model().node]);
  }
  for(i=s.model().node+s.model().nmarkov;i<s.model().neq;i++)
-   set_val(s,s.model().uvar_names[i],s.data_store.col[i+1][in]);
+   xpp::set_val(s,s.model().uvar_names[i],s.data_store.col[i+1][in]);
 
  redraw_ics();
 }
@@ -310,14 +310,14 @@ bool compute_added_column(xpp::Session &s, const std::string &formula, int col_i
 {
   int com[4000],i,j;
   const xpp::Model &m=s.model();
-  if(add_expr(s,formula.c_str(),com,&i)){
+  if(xpp::add_expr(s,formula,com,&i)){
     err_msg("Bad Formula .... ");
     return false;
   }
   for(i=0;i<nrows;i++){
     for(j=0;j<m.node+1;j++)setvar(s,j,static_cast<double>(s.data_store.col[j][i]));
-    for(j=m.node;j<m.neq;j++)set_val(s,m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
-    s.data_store.col[col_index][i]=static_cast<float>(evaluate(s,com));
+    for(j=m.node;j<m.neq;j++)xpp::set_val(s,m.uvar_names[j],static_cast<double>(s.data_store.col[j+1][i]));
+    s.data_store.col[col_index][i]=static_cast<float>(xpp::evaluate(s,com));
   }
   /* add_expr may have added constants to the parser's working symbol
      table (ParserState::ncon/nsym, session.h): roll it back to the
@@ -412,7 +412,7 @@ if(dif_var<0)
 /*  first compile formula ... */
 
  if(dif_var<0&&seq==0){
-   if(add_expr(s,form,com,&i)){
+   if(xpp::add_expr(s,form,com,&i)){
      s.parser.ncon=s.model().ncon_start;
      s.parser.nsym=s.model().nsym_start;
      err_msg("Illegal formula...");
@@ -443,14 +443,14 @@ if(dif_var<0)
        if(seq==0)
 	 {
 	   for(j=0;j<s.model().node+1;j++)setvar(s,j,static_cast<double>(dat[j][i]));
-	   for(j=s.model().node;j<s.model().neq;j++)set_val(s,s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
+	   for(j=s.model().node;j<s.model().neq;j++)xpp::set_val(s,s.model().uvar_names[j],static_cast<double>(dat[j+1][i]));
 	   if(intflag)
 	     {
-	       sum+=static_cast<float>(evaluate(s,com));
+	       sum+=static_cast<float>(xpp::evaluate(s,com));
 	       dat[s.browser.replaced_col][i]=sum*dt;
 	     }
 	   else 
-	     dat[s.browser.replaced_col][i]=static_cast<float>(evaluate(s,com));
+	     dat[s.browser.replaced_col][i]=static_cast<float>(xpp::evaluate(s,com));
 	 }
        else 
 	 {

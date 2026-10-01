@@ -1316,8 +1316,8 @@ std::vector<ArrayInitialValue> array_initial_values()
     group++;
     for(int j=ic.j1;j<=ic.j2;j++){
       ArrayInitialValue v;
-      subsk(ic.var.c_str(),v.var,j,1);
-      subsk(ic.formula.c_str(),v.formula,j,1);
+      subsk(ic.var,v.var,j,1);
+      subsk(ic.formula,v.formula,j,1);
       v.j=j;
       v.group=group;
       out.push_back(std::move(v));
@@ -1338,7 +1338,7 @@ void evaluate_ar_ic(xpp::Session &s, const char *v, const char *f, int j1, int j
     find_variable(s,vp.c_str(),&i);
     if(i>0){
       subsk(f,fp,j,1);
-      flag=do_calc(s,fp.c_str(),&z);
+      flag=do_calc(s,fp,&z);
       if(flag!=-1)
 	s.last_ic[i-1]=z;
       else 
@@ -1432,7 +1432,7 @@ int set_array_ic(xpp::Session &s)
    if(i1>s.model().node||in>s.model().node)return 0; /* out of bounds */
    for(i=i1;i<in;i++){
      set_val(s,"t",static_cast<double>((i-i1)));
-     flag=do_calc(s,ar_ic[myar].formula.c_str(),&z);
+     flag=do_calc(s,ar_ic[myar].formula,&z);
      if(flag==-1){
        err_msg("Bad formula");
        return 1;

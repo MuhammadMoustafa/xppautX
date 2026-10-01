@@ -17,6 +17,8 @@ using xpp::expr::is_ucon;
 using xpp::expr::is_uvar;
 using xpp::expr::is_ufun;
 
+namespace xpp {
+
 namespace {
 
 /* the symbol table (ParserState::symbols) the compiler reads */
@@ -499,7 +501,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 
 /* ADD_EXPR   */
 
-int add_expr(xpp::Session &s, const char *expr, int *command, int *length)
+int add_expr(xpp::Session &s, std::string_view expr, int *command, int *length)
 {
  int err,i;
  std::string dest=converted(expr);
@@ -517,7 +519,7 @@ int add_expr(xpp::Session &s, const char *expr, int *command, int *length)
 }
 
 
-int do_num(const char *source, char *num, double *value, int *ind, int report)
+int do_num(std::string_view source, char *num, double *value, int *ind, int report)
 {
  int i=*ind,error=0;
  int ndec=0,nexp=0,ndig=0;
@@ -527,7 +529,7 @@ int do_num(const char *source, char *num, double *value, int *ind, int report)
  *value=0.0;
  while(1)
  {
-  ch=source[i];
+  ch=static_cast<size_t>(i)<source.size()?source[i]:'\0';
   if(((ch=='+')||(ch=='-'))&&(oldch!='E'))break;
   if((ch=='*')||(ch=='^')||(ch=='/')||(ch==',')||(ch==')')||(ch=='\0')
               || (ch=='|') || (ch=='>') || (ch=='<') || (ch=='&')
@@ -567,3 +569,5 @@ err:
   *ind=i;
   return(error);
 }
+
+} // namespace xpp

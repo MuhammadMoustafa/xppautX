@@ -223,7 +223,7 @@ void emit_runs(xpp::Session &s, int pop, bool clear, std::size_t drop, std::size
             o += "{\"col\":";
             add_int(o, r.cols[k]);
             o += ",\"name\":";
-            xpp::json_append_string(o, ind_to_sym(s,r.cols[k]));
+            xpp::json_append_string(o, xpp::ind_to_sym(s,r.cols[k]));
             o += ",\"data\":";
             xpp_series_append(o, r.data[k].data(), r.rows, series_f32);
             o += '}';
@@ -360,7 +360,7 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
         o += "{\"col\":";
         add_int(o, cols[k]);
         o += ",\"name\":";
-        xpp::json_append_string(o, ind_to_sym(s,cols[k]));
+        xpp::json_append_string(o, xpp::ind_to_sym(s,cols[k]));
         o += ",\"data\":";
         add_values(o, s.browser.view, cols[k], 0, rows);
         o += '}';
@@ -434,7 +434,7 @@ void series_update(xpp::Session &s)
    make_title() names the active one */
 std::string title(const xpp::Session &s, const GRAPH &g)
 {
-    const std::string x = ind_to_sym(s,g.xv[0]), y = ind_to_sym(s,g.yv[0]), z = ind_to_sym(s,g.zv[0]);
+    const std::string x = xpp::ind_to_sym(s,g.xv[0]), y = xpp::ind_to_sym(s,g.yv[0]), z = xpp::ind_to_sym(s,g.zv[0]);
     return g.grtype >= 5 ? z + " vs " + y + " vs " + x : y + " vs " + x;
 }
 

@@ -39,7 +39,7 @@ static char *body(const char *path)
 static void save(const char *path)
 {
     FILE *fp = fopen(path, "w");
-    write_lunch(xpp::client_session(),fp);
+    xpp::write_lunch(xpp::client_session(),fp);
     fclose(fp);
 }
 
@@ -56,13 +56,13 @@ int main(void)
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());
 
-    get_val(xpp::client_session(), "iapp", &iapp);
+    xpp::get_val(xpp::client_session(), "iapp", &iapp);
     v0 = xpp::client_session().last_ic[0];
     tend = xpp::client_session().numerics.tend;
     dt = xpp::client_session().numerics.delta_t;
     save(a);
 
-    set_val(xpp::client_session(), "iapp", iapp + 1);
+    xpp::set_val(xpp::client_session(), "iapp", iapp + 1);
     xpp::client_session().last_ic[0] = v0 + 1;
     xpp::client_session().numerics.tend = tend * 2;
     xpp::client_session().numerics.delta_t = dt / 2;
@@ -70,10 +70,10 @@ int main(void)
     fp = fopen(a, "r");
     CHECK(fp != NULL);
     if (!fp) TEST_REPORT("lunch round trip");
-    CHECK(read_lunch(xpp::client_session(),fp) == 1);
+    CHECK(xpp::read_lunch(xpp::client_session(),fp) == 1);
     fclose(fp);
 
-    get_val(xpp::client_session(), "iapp", &x);
+    xpp::get_val(xpp::client_session(), "iapp", &x);
     CHECK(x == iapp);
     CHECK(xpp::client_session().last_ic[0] == v0);
     CHECK(xpp::client_session().numerics.tend == tend);

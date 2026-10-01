@@ -76,6 +76,9 @@ to be added later
 #include <stdio.h>
 #include "model.h"
 #include "model_files.h"
+#include "menus.h"
+
+namespace xpp {
 
 
 namespace {
@@ -97,7 +100,7 @@ void set_auto_eval_flags(xpp::Session &s, int f)
   for(i=0;i<MAX_TAB;i++) 
     s.tables[i].autoeval=f;
 }
-void set_table_name(xpp::Session &s, const char *name, int index)
+void set_table_name(xpp::Session &s, std::string_view name, int index)
 {
   s.tables[index].name=name;
 }
@@ -133,7 +136,7 @@ void new_lookup_com(xpp::Session &s, int i)
      std::string file=s.tables[index].filename;
      status=file_selector("Load table",file,"*.tab");
      if(status==0)return;
-     if(xpp::ok_or_show(load_table(s,file.c_str(),index,0)))s.tables[index].filename=file;
+     if(xpp::ok_or_show(load_table(s,file,index,0)))s.tables[index].filename=file;
 
    }
    if(s.tables[index].flag==2){
@@ -147,7 +150,7 @@ void new_lookup_com(xpp::Session &s, int i)
        new_float(s,"Xlo: ",&xlo);
        new_float(s,"Xhi: ",&xhi);
        new_string_of("Formula :",newform,XPP_FIELD_EXPRESSION);
-       xpp::ok_or_show(create_fun_table(s,npts,xlo,xhi,newform.c_str(),index));
+       xpp::ok_or_show(create_fun_table(s,npts,xlo,xhi,newform,index));
 
    }
 
@@ -243,13 +246,13 @@ xpp::Result<> redo_all_fun_tables(xpp::Session &s)
   for(i=0;i<s.ntable;i++){
     if(s.tables[i].flag==2&&s.tables[i].autoeval==1)
       first.keep(eval_fun_table(s,s.tables[i].n,s.tables[i].xlo,
-		     s.tables[i].xhi,s.tables[i].filename.c_str(),s.tables[i].y));
+		     s.tables[i].xhi,s.tables[i].filename,s.tables[i].y));
   }
   update_all_ffts(s);
   return first.result();
 }
 
-xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const char *formula, double *y)
+xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, const std::string &formula, double *y)
 {
   int i;
   
@@ -273,7 +276,7 @@ xpp::Result<> eval_fun_table(xpp::Session &s, int n, double xlo, double xhi, con
   return {};
 }
 
-xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, const char *formula, int index)
+xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi, std::string_view formula, int index)
 {
   int length=npts;
 
@@ -288,7 +291,7 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   }
   resize_values(s.tables[index],length);
   s.tables[index].flag=2;
-  auto ev=eval_fun_table(s,npts,xlo,xhi,formula,s.tables[index].y);
+  auto ev=eval_fun_table(s,npts,xlo,xhi,std::string(formula),s.tables[index].y);
   if(!ev)return ev;
   s.tables[index].xlo=xlo;
   s.tables[index].xhi=xhi;
@@ -298,7 +301,7 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   return {};
 }
 
-xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int model_file)
+xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, int model_file)
 {
   int i;
   int length;
@@ -306,13 +309,13 @@ xpp::Result<> load_table(xpp::Session &s, const char *filename, int index, int m
   /* the name without its quotes, up to a closing one */
   std::string filename2;
   bool quoted=false;
-  for(const char *p=filename;*p;p++){
-    if(*p=='"'){
+  for(char c:filename){
+    if(c=='"'){
       if(quoted)break;
       quoted=true;
     }
     else
-      filename2+=*p;
+      filename2+=c;
   }
 
   if(s.tables[index].flag==2){
@@ -412,7 +415,6 @@ for npts lines
 
 */
 
-#include "menus.h"
 int select_table(const xpp::Session &s)
 {
  int j;
@@ -437,3 +439,5 @@ int select_table(const xpp::Session &s)
  }
  return j;
 }
+
+} // namespace xpp

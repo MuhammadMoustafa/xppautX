@@ -48,6 +48,8 @@
 #include "xpp_globals.h"
 #include "delay_handle.h"
 
+namespace xpp {
+
 
 #define DFNORMAL 1
 #define MAXOPT 1000
@@ -67,10 +69,10 @@ std::vector<std::string> interopt;
 std::size_t options_applied=0;
 
 /* s1 appended to options, unless they already hold MAXOPT */
-void store_option(std::vector<std::string> &options, const char *s1)
+void store_option(std::vector<std::string> &options, std::string_view s1)
 {
   if(options.size()>=MAXOPT){
-   xpp::log_printf(XPP_LOG_WARN, "to many options set %s ignored\n",s1);
+   xpp::log(XPP_LOG_WARN, "to many options set {} ignored\n",s1);
     return;
   }
   options.emplace_back(s1);
@@ -171,12 +173,12 @@ void load_eqn(xpp::Session &s)
    {
      xpp::log(XPP_LOG_ERROR, "{} is not a model: {}\n",this_file,
               xpp::zip::is_zip(bytes)?"it is a zip file (an AUTO file is a .autox, a session file a .snapx)":"it is a binary file");
-     xpp_model_failed();
+     model_failed();
    }
    if(!read&&!s.model().saved_in.empty())
    {
      xpp::log(XPP_LOG_ERROR, "{} is not saved in {}\n",this_file,s.model().saved_in);
-     xpp_model_failed();
+     model_failed();
    }
  }
  /* an .odex model: its own reader, then the same builder (odex.h) */
@@ -396,22 +398,22 @@ void fil_int(FILE *fpt, int *val)
    { x=y, z=w, q=p , .... }
 */
 
-void add_intern_set(xpp::Model &m, const char *name, const char *does)
+void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
 {
   std::vector<xpp::Model::InternalSet> &sets=m.intern_sets;
   if(sets.size()>=MAX_INTERN_SET){
-   xpp::log_printf(XPP_LOG_WARN, " %s not added -- too many must be less than %d \n",
+   xpp::log(XPP_LOG_WARN, " {} not added -- too many must be less than {} \n",
 	   name,MAX_INTERN_SET);
     return;
   }
   /* "$ " then does without its braces, commas as spaces */
   std::string bob="$ ";
-  for(const char *p=does;*p;p++){
-    if(*p=='}'||*p=='{')
+  for(char c:does){
+    if(c=='}'||c=='{')
       continue;
-    bob+=*p==','?' ':*p;
+    bob+=c==','?' ':c;
   }
-  sets.push_back({name,bob});
+  sets.push_back({std::string(name),bob});
  xpp::log_printf(XPP_LOG_INFO, " added %s doing %s \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
@@ -456,34 +458,33 @@ std::string intern_set_line(const xpp::Session &s, std::string_view name)
   return line+"}";
 }
 
-void extract_action(xpp::Session &s, const char *ptr)
+void extract_action(xpp::Session &s, std::string_view ptr)
 {
   each_option(ptr," "," ,;\n",[&s](const std::string &name,const std::string &value){
-    do_intern_set(s,name.c_str(),value.c_str());
+    do_intern_set(s,name,value);
   });
 }
 
 void extract_internset(xpp::Session &s, int j)
 {
-  extract_action(s,s.model().intern_sets[j].does.c_str());
+  extract_action(s,s.model().intern_sets[j].does);
 }
 
-void do_intern_set(xpp::Session &s, const char *name1, const char *value)
+void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view value_text)
 {
   int i;
-  /* convert only drops white space: the name fits name1's length */
-  std::string buf(name1);
-  convert(name1,buf.data());
-  const char *name=buf.c_str();
+  const std::string name=converted(name1);
+  /* the value as atof reads it */
+  const std::string value(value_text);
 
   i=find_user_name(s.model(),ICBOX,name);
   if(i>-1){
-    s.last_ic[i]=atof(value);
+    s.last_ic[i]=atof(value.c_str());
   }
   else {
     i=find_user_name(s.model(),PARAMBOX,name);
     if(i>-1){
-      set_val(s,name,atof(value));
+      set_val(s,name,atof(value.c_str()));
     }
     else {
       set_option(s,name,value,1,NULL);
@@ -493,10 +494,10 @@ void do_intern_set(xpp::Session &s, const char *name1, const char *value)
 }
 /*  ODE options stuff  here !!   */
 
-int msc(const char *s1, const char *s2)
+int msc(std::string_view s1, std::string_view s2)
 {
  /* s2 starts with s1 */
- return std::string_view(s2).starts_with(s1);
+ return s2.starts_with(s1);
 }  
   
 std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set)
@@ -513,7 +514,7 @@ void set_internopts(xpp::Session &s, OptionsSet *mask)
   const std::vector<std::string> &options=s.model().options;
   for(;options_applied<options.size();options_applied++)
     each_option(options[options_applied]," ,"," ,\n\r",[&s,mask](const std::string &name,const std::string &value){
-      set_option(s,name.c_str(),value.c_str(),0,mask);
+      set_option(s,name,value,0,mask);
     });
 }
 
@@ -529,7 +530,7 @@ void set_internopts_xpprc_and_comline(xpp::Session &s)
       split_apart(*t,name,value);
       name=xpp::upper_case(name);
       if(name=="QUIET"||name=="LOGFILE")
-        set_option(s,name.c_str(),value.c_str(),0,NULL);
+        set_option(s,name,value,0,NULL);
     }
   }
 
@@ -540,7 +541,7 @@ void set_internopts_xpprc_and_comline(xpp::Session &s)
   OptionsSet mask = s.not_already_set;
   for(const std::string &opt : interopt)
     each_option(opt," ,"," ,\n\r",[&s,&mask](const std::string &name,const std::string &value){
-      set_option(s,name.c_str(),value.c_str(),0,&mask);
+      set_option(s,name,value,0,&mask);
     });
 
   /*
@@ -557,31 +558,31 @@ void check_for_xpprc()
   if(!lr)return;
   while(std::optional<std::string_view> line=lr.next()){
     if(!line->empty()&&(*line)[0]=='@')
-      stor_internopts(std::string(*line).c_str());
+      stor_internopts(*line);
   }
 }
 
-void stor_internopts(const char *s1)
+void stor_internopts(std::string_view s1)
 {
   store_option(interopt,s1);
 }
 
-int add_model_option(xpp::Model &m, const char *s1)
+int add_model_option(xpp::Model &m, std::string_view s1)
 {
   /* dll_lib= and dll_fun= named a compiled library and its function */
   const char *refused=nullptr;
   each_option(s1," ,"," ,\n\r",[&refused](const std::string &name,const std::string &){
     if(refused)return;
     std::string upper=xpp::upper_case(name);
-    if(msc("DLL_LIB",upper.c_str()))refused="dll_lib";
-    else if(msc("DLL_FUN",upper.c_str()))refused="dll_fun";
+    if(msc("DLL_LIB",upper))refused="dll_lib";
+    else if(msc("DLL_FUN",upper))refused="dll_fun";
   });
   if(refused)return refuse_compiled_functions(refused);
   store_option(m.options,s1);
   return 0;
 }
 
-void set_option(xpp::Session &s, const char *name, const char *s2, int force, OptionsSet *mask)
+void set_option(xpp::Session &s, std::string_view name, std::string_view value, int force, OptionsSet *mask)
 {
   int i,j,f;
  static constexpr std::string_view mkey="demragvbqsc582y";
@@ -591,11 +592,14 @@ void set_option(xpp::Session &s, const char *name, const char *s2, int force, Op
  std::string upper(name);
  xpp::to_upper(upper.data());
  const char *s1=upper.c_str();
+ /* the value as the C conversions below (atoi, atof) read it */
+ const std::string value_text(value);
+ const char *s2=value_text.c_str();
  if(msc("QUIET",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp::log_printf(XPP_LOG_ERROR, "QUIET option must be 0 or 1.\n");
-	xpp_model_failed(); /* a load fails, else the program ends */
+	model_failed(); /* a load fails, else the program ends */
    }
    if (xpp::log_settings.quiet_from_command_line==0)/*Will be 1 if -quiet was specified on the command line.*/
    {
@@ -614,7 +618,7 @@ void set_option(xpp::Session &s, const char *name, const char *s2, int force, Op
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp::log_printf(XPP_LOG_ERROR, "BELL option must be 0 or 1.\n");
-	xpp_model_failed(); /* a load fails, else the program ends */
+	model_failed(); /* a load fails, else the program ends */
    }
    return; /* X11's bell: checked, not kept */
  }
@@ -673,7 +677,7 @@ void set_option(xpp::Session &s, const char *name, const char *s2, int force, Op
 	    if(!(msc(s2,"0")||msc(s2,"1")))
 	    {
    		 xpp::log_printf(XPP_LOG_ERROR, "GRADS option must be 0 or 1.\n");
-		 xpp_model_failed(); /* a load fails, else the program ends */
+		 model_failed(); /* a load fails, else the program ends */
 	    }
 	    s.not_already_set.UserGradients=0;
     }
@@ -832,34 +836,34 @@ if(msc("UMC",s1)){
       std::string xxl=xpp::format("XLO{}",j);
       std::string yyh=xpp::format("YHI{}",j);
       std::string yyl=xpp::format("YLO{}",j);
-    if(msc(xx.c_str(),s1)){
+    if(msc(xx,s1)){
     find_variable(s,s2,&i);
     if(i>-1)s.plot_settings.ix_plt[j]=i;
     return;
   }
-   if(msc(yy.c_str(),s1)){
+   if(msc(yy,s1)){
      find_variable(s,s2,&i);
     if(i>-1)s.plot_settings.iy_plt[j]=i;
     return;
   }
-   if(msc(zz.c_str(),s1)){
+   if(msc(zz,s1)){
      find_variable(s,s2,&i);
     if(i>-1)s.plot_settings.iz_plt[j]=i;
     return;
   }
-   if(msc(xxh.c_str(),s1)){
+   if(msc(xxh,s1)){
      s.plot_settings.x_hi[j]=atof(s2);
      return;
    }
-   if(msc(xxl.c_str(),s1)){
+   if(msc(xxl,s1)){
      s.plot_settings.x_lo[j]=atof(s2);
      return;
    }
-if(msc(yyh.c_str(),s1)){
+if(msc(yyh,s1)){
      s.plot_settings.y_hi[j]=atof(s2);
      return;
    }
-if(msc(yyl.c_str(),s1)){
+if(msc(yyl,s1)){
      s.plot_settings.y_lo[j]=atof(s2);
      return;
    }
@@ -1614,7 +1618,7 @@ if(msc("TUTORIAL",s1)){
    if(!(msc(s2,"0")||msc(s2,"1")))
    {
    	xpp::log_printf(XPP_LOG_ERROR, "TUTORIAL option must be 0 or 1.\n");
-	xpp_model_failed(); /* a load fails, else the program ends */
+	model_failed(); /* a load fails, else the program ends */
    }
    if ((s.not_already_set.TUTORIAL||force) || ((mask!=NULL)&&(mask->TUTORIAL==1)))
    {
@@ -1883,3 +1887,4 @@ xpp::log_printf(XPP_LOG_WARN, "Option %s not recognized\n",s1);
   
 }
 
+} // namespace xpp

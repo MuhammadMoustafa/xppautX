@@ -197,7 +197,7 @@ void redraw_froz_cline(xpp::Session &s, int flag)
        &&s.plot_windows.current->ThreeDFlag==0){
       if(flag>0){
         waitasec(flag);
-        clr_scrn(s);
+        xpp::clr_scrn(s);
       }
       set_linestyle(s,col1);
       restor_null(s,z.xn.data(),z.nmx,1);
@@ -340,7 +340,7 @@ void do_range_clines(xpp::Session &s)
   const double dz=(ncrange.xhi-ncrange.xlo)/static_cast<double>(ncrange.nstep);
   if(dz<=0.0)return;
   double zold;
-  get_val(s,ncrange.rv.c_str(),&zold);
+  xpp::get_val(s,ncrange.rv.c_str(),&zold);
 
   for(int i=s.model().node;i<s.model().node+s.model().nmarkov;i++)setvar(s,i+1+s.model().fix_var,s.last_ic[i]);
   const float xmin=static_cast<float>(s.plot_windows.current->xmin);
@@ -352,7 +352,7 @@ void do_range_clines(xpp::Session &s)
 
   for(int i=0;i<=ncrange.nstep;i++){
     const double z=static_cast<double>(i)*dz+ncrange.xlo;
-    set_val(s,ncrange.rv.c_str(),z);
+    xpp::set_val(s,ncrange.rv.c_str(),z);
     null_storage(s,course);
 
     WHICH_CRV=null_ix;
@@ -364,7 +364,7 @@ void do_range_clines(xpp::Session &s)
     new_nullcline(s,course,xmin,y_bot,xmax,y_tp,y_null,&num_y_n);
     add_froz_cline(x_null.data(),num_x_n,null_ix,y_null.data(),num_y_n,null_iy);
   }
-  set_val(s,ncrange.rv.c_str(),zold);
+  xpp::set_val(s,ncrange.rv.c_str(),zold);
   phase_data_nullclines(s.plot_windows,x_null.data(),num_x_n,y_null.data(),num_y_n,null_ix,null_iy,col1,col2);
   note_frozen(s);
 }
@@ -531,7 +531,7 @@ int get_nullcline_floats(float **v,int *n,int who,int type) /* type=0,1 */
 
 void do_batch_nclines(xpp::Session &s)
 {
-  if(!batch_options.enabled)return;
+  if(!xpp::batch_options.enabled)return;
   if(!s.nullclines.nc_batch)return;
   if(s.nullclines.nc_batch==1){
     new_clines_com(s,0);
@@ -546,7 +546,7 @@ void set_colorization_stuff(xpp::Session &s)
 
 void do_batch_dfield(xpp::Session &s)
 {
-  if(!batch_options.enabled)return;
+  if(!xpp::batch_options.enabled)return;
   switch(s.nullclines.df_batch){
   case 0:
     return;

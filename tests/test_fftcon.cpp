@@ -38,7 +38,7 @@ static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
                     const_cast<char *>("tools/models/fftcon_test.ode"),
                     NULL};
     if (!xpp::load_model(2, argv, 1)) return 0;
-    xpp_batch_start(xpp::client_session());
+    xpp::batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), M_IG);
     const xpp::DataStore &d = xpp::client_session().data_store;
     if (d.rows < 2) return 0;

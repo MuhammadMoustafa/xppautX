@@ -223,13 +223,13 @@ void dump_aplot(xpp::Session &s, FILE *fp, int f)
   }
   else
     xpp::print(fp,"# Array plot stuff\n");
-  io_string(s.array_plot.plot.name,fp,f);
-  io_int(&s.array_plot.plot.nacross ,fp,f,"NCols");
-  io_int(&s.array_plot.plot.nstart ,fp,f,"Row 1");
-  io_int(&s.array_plot.plot.ndown ,fp,f,"NRows");
-  io_int(&s.array_plot.plot.nskip ,fp,f,"RowSkip");
-  io_double(&s.array_plot.plot.zmin,fp,f,"Zmin");
-  io_double(&s.array_plot.plot.zmax,fp,f,"Zmax");
+  xpp::io_string(s.array_plot.plot.name,fp,f);
+  xpp::io_int(&s.array_plot.plot.nacross ,fp,f,"NCols");
+  xpp::io_int(&s.array_plot.plot.nstart ,fp,f,"Row 1");
+  xpp::io_int(&s.array_plot.plot.ndown ,fp,f,"NRows");
+  xpp::io_int(&s.array_plot.plot.nskip ,fp,f,"RowSkip");
+  xpp::io_double(&s.array_plot.plot.zmin,fp,f,"Zmin");
+  xpp::io_double(&s.array_plot.plot.zmax,fp,f,"Zmax");
 }
 
 int editaplot(xpp::Session &s, APLOT *ap)

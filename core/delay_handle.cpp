@@ -170,7 +170,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
  s.parser.ncon=s.model().ncon_start;
  s.parser.nsym=s.model().nsym_start;
  for(i=0;i<(s.model().node );i++){
-	 if(add_expr(s,s.delay_string[i].c_str(),del_form[i].data(),&len)){
+	 if(add_expr(s,s.delay_string[i],del_form[i].data(),&len)){
 		 s.parser.ncon=s.model().ncon_start;
 		s.parser.nsym=s.model().nsym_start;
 		return xpp::fail("delay","Illegal delay expression");

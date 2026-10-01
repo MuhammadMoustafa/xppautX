@@ -302,8 +302,8 @@ void set_extra_graphs(xpp::Session &s)
     s.plot_windows.graph[i].ylo=s.plot_settings.y_lo[i+1];
     s.plot_windows.graph[i].yhi=s.plot_settings.y_hi[i+1];
   }
-  set_active_windows(s);
-  make_active(s,0,1); 
+  xpp::set_active_windows(s);
+  xpp::make_active(s,0,1); 
   }
 }
 
@@ -333,7 +333,7 @@ void reset_graph(xpp::Session &s)
     s.plot_windows.current->xhi=s.plot_settings.my_xhi;
     s.plot_windows.current->yhi=s.plot_settings.my_yhi;
     s.plot_windows.current->grtype=s.plot_settings.axes;
-    check_windows(s);
+    xpp::check_windows(s);
     set_normal_scale(s);
     xpp_ui.redraw_graph(s);
 }
@@ -749,7 +749,7 @@ std::string fill_in_text(xpp::Session &s, std::string_view old)
         const char c2=i<l?old[i]:'\0';
         if(c2=='}'){
           double z;
-          if(do_calc(s,name.c_str(),&z)!=-1){
+          if(xpp::do_calc(s,name,&z)!=-1){
             out+=xpp::format("{:g}",z);
             break;
           }

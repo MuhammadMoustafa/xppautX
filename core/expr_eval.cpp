@@ -9,6 +9,8 @@
 #include "tabular.h"
 #include "volterra2.h"
 
+namespace xpp {
+
 
 namespace {
 
@@ -250,3 +252,4 @@ double evaluate(xpp::Session &s, const int *program)
   return(eval_rpn(program,s));
 }
 
+} // namespace xpp

@@ -109,7 +109,7 @@ void write_num(xpp::Session &s, const double v[AUTO_NUM_N])
 /* AUTO's parameter index of a model parameter's name in pars, or -1 */
 int auto_index_of(const xpp::Session &s, const int pars[8], const char *name)
 {
-    int p = find_user_name(s.model(),PARAM_BOX, name);
+    int p = xpp::find_user_name(s.model(),PARAM_BOX, name);
     if (p < 0) return -1;
     for (int k = 0; k < s.auto_state.npar; k++)
         if (pars[k] == p) return k;
@@ -276,7 +276,7 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     }
     for (int k = 0; k < set->npars; k++) {
         if (set->pars[k].empty()) continue;
-        int p = find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
+        int p = xpp::find_user_name(s.model(),PARAM_BOX, set->pars[k].c_str());
         if (p < 0) {
             why = xpp::format("{} is not a parameter", set->pars[k]);
             return false;
@@ -361,7 +361,7 @@ bool apply(xpp::Session &s, const AutoSettingsSet *set, std::string &why)
     for (int k = 0; k < set->npars; k++) {
         if (set->pars[k].empty()) continue;
         s.auto_state.par[k] = pars[k];
-        s.auto_state.par_index[k] = get_param_index(s,s.model().upar_names[pars[k]]);
+        s.auto_state.par_index[k] = xpp::get_param_index(s,s.model().upar_names[pars[k]]);
     }
     bool axes = set->has_plot || !set->var.empty() || !set->par1.empty() || !set->par2.empty() || set->fit;
     for (int i = 0; i < 4; i++) axes = axes || set->has_range[i];

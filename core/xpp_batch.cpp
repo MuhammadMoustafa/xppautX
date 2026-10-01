@@ -34,6 +34,8 @@
 #include "xpp_files.h"
 #include "graf_par.h"
 
+namespace xpp {
+
 XppBatchOptions batch_options;
 
 
@@ -88,7 +90,7 @@ void do_vis_env(xpp::Session &s)
   
 }
 
-void xpp_reset_options(xpp::Session &s)
+void reset_options(xpp::Session &s)
 {
   s.not_already_set.BIG_FONT_NAME=1;
   s.not_already_set.SMALL_FONT_NAME=1;
@@ -246,7 +248,7 @@ void xpp_reset_options(xpp::Session &s)
 static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
 {
     xpp::Model &m = s.model();
-    xpp_reset_options(s);
+    reset_options(s);
     program.interactive = 0;
     batch_options.out_file = "output.dat";
     s.plot_export.format = "ps";
@@ -284,7 +286,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch)
     create_plot_list(s);
 }
 
-xpp::Loaded xpp::load_model(int argc, char **argv, int batch, const SavedModel *saved)
+Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved)
 {
     /* the parser and the set-up fill a fresh Model and Session, kept only
        when the load gets to the end: a failed one puts back those before */
@@ -311,19 +313,19 @@ xpp::Loaded xpp::load_model(int argc, char **argv, int batch, const SavedModel *
     return &load.session();
 }
 
-void xpp::model_failed(Diagnostic d)
+void model_failed(Diagnostic d)
 {
     if (!xpp::Load::running()) exit(1);
     xpp::Load::add_source(d);
     throw xpp::LoadFailed{std::move(d)};
 }
 
-void xpp_model_failed(void)
+void model_failed()
 {
     xpp::model_failed(xpp::Load::running() ? xpp::Load::diagnostic() : xpp::Diagnostic());
 }
 
-void xpp_batch_start(xpp::Session &s)
+void batch_start(xpp::Session &s)
 {
     xpp_build_colormap();
     init_browser(s);
@@ -333,3 +335,5 @@ void xpp_batch_start(xpp::Session &s)
     set_extra_graphs(s);
     set_colorization_stuff(s);
 }
+
+} // namespace xpp

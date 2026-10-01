@@ -192,7 +192,7 @@ void use_intern_set(xpp::Session &s, int j)
     return;
   }
   get_graph(s);
-  extract_internset(s, j);
+  xpp::extract_internset(s, j);
   xpp::chk_delay(s);
   redraw_params();
   redraw_ics();
@@ -204,14 +204,14 @@ void use_intern_set(xpp::Session &s, int j)
    .ode, shown for confirmation, then sent to the page's clipboard */
 static void copy_set_line(xpp::Session &s)
 {
-  std::string name = intern_set_default_name(s.model());
+  std::string name = xpp::intern_set_default_name(s.model());
   if (!new_string("Name of the set", name)) return;
-  std::string problem = intern_set_name_problem(s.model(), name);
+  std::string problem = xpp::intern_set_name_problem(s.model(), name);
   if (!problem.empty()) {
     err_msg(problem.c_str());
     return;
   }
-  std::string line = intern_set_line(s, name);
+  std::string line = xpp::intern_set_line(s, name);
   std::string question = xpp::format("Copy this line to paste into the .ode, then reload:\n{}", line);
   if (TwoChoice("Copy", "Cancel", question.c_str(), "cn") != 'c') return;
   copy_text("set", line.c_str());
@@ -282,7 +282,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com == M_UKE || com == M_UKV) {
-    new_lookup_com(s, com - M_UKE);
+    xpp::new_lookup_com(s, com - M_UKE);
     return;
   }
   if (com == M_R) {
@@ -305,7 +305,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com == M_P) {
-    new_parameter(s);
+    xpp::new_parameter(s);
     return;
   }
   if (com >= M_MC && com <= M_MS) {
@@ -342,20 +342,20 @@ static void do_file_com(xpp::Session &s, int com)
   case M_FT: xpp::do_transpose(s); break;
   case M_FG: get_intern_set(s); break;
   case M_FP: make_txtview(s); break;
-  case M_FW: do_lunch(s, 0); break;
-  case M_FS: file_inf(s); break;
+  case M_FW: xpp::do_lunch(s, 0); break;
+  case M_FS: xpp::file_inf(s); break;
   case M_FA:
 #ifdef AUTO
     do_auto_win(s);
 #endif
     break;
   case M_FC: q_calc(s); break;
-  case M_FR: do_lunch(s, 1); break;
+  case M_FR: xpp::do_lunch(s, 1); break;
   case M_FH: open_help("05-commands", "file"); break;
   case M_FX: edit_xpprc(); break;
   case M_FU: do_tutorial(); break;
   case M_FQ: xpp_quit(s); break;
-  case M_FL: clone_ode(s); break;
+  case M_FL: xpp::clone_ode(s); break;
   case M_FO: copy_set_line(s); break;
   }
 }
@@ -473,8 +473,8 @@ void commander(xpp::Session &s, int ch)
     case 't': xpp::do_transpose(s); break;
     case 'g': get_intern_set(s); break;
     case 'p': flash(0); make_txtview(s); flash(0); break;
-    case 'w': flash(1); do_lunch(s, 0); flash(1); break;
-    case 's': flash(2); file_inf(s); flash(2); break;
+    case 'w': flash(1); xpp::do_lunch(s, 0); flash(1); break;
+    case 's': flash(2); xpp::file_inf(s); flash(2); break;
     case 'a':
       flash(3);
 #ifdef AUTO
@@ -483,14 +483,14 @@ void commander(xpp::Session &s, int ch)
       flash(3);
       break;
     case 'c': flash(4); q_calc(s); flash(4); break;
-    case 'r': flash(5); do_lunch(s, 1); flash(5); break;
+    case 'r': flash(5); xpp::do_lunch(s, 1); flash(5); break;
     case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);
       xpp_quit(s);
       flash(7);
       break;
-    case 'l': clone_ode(s); break;
+    case 'l': xpp::clone_ode(s); break;
     case 'o': copy_set_line(s); break;
     case 'm': xpp_model_open(s, nullptr); break;
     case 'e': xpp_model_reload(s); break;

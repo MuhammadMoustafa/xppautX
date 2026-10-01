@@ -479,7 +479,7 @@ void j_q_calc(xpp::Session &s)
     std::string result = "Formula:";
     /* the X11 calculator shows the answer in its window: here in the prompt */
     while (new_string_of(result.c_str(), expr, XPP_FIELD_EXPRESSION)) {
-        if (do_calc(s, expr.c_str(), &z) != -1) {
+        if (do_calc(s, expr, &z) != -1) {
             result = xpp::format("{:.200} = {:.16g}   Formula:", expr, z);
             send_simple("message", "calc", result.c_str());
         }
