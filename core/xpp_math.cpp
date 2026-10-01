@@ -177,7 +177,10 @@ bool Random::load(const std::string &state)
     int spare_flag = 0;
     double spare_value = 0.0;
     is >> loaded >> spare_flag >> spare_value;
-    if (!is) return false;
+    /* save()'s three parts and nothing after them but blanks; the flag 0 or 1 */
+    if (!is || (spare_flag != 0 && spare_flag != 1)) return false;
+    is >> std::ws;
+    if (is.peek() != std::istringstream::traits_type::eof()) return false;
     engine_ = loaded;
     have_spare_ = spare_flag != 0;
     spare_ = spare_value;

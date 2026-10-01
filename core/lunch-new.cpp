@@ -20,6 +20,7 @@
 #include "xpp_batch.h"
 #include "delay_handle.h"
 #include "solver.h"
+#include "model_options.h"
 #include <array>
 #include <string>
 #include <string_view>
@@ -193,33 +194,60 @@ void write_more(const xpp::Session &s, FILE *fp)
 
 /* ---- a set file, read ---- */
 
+/* the value v of the line just read refused (ReadFailed) when the
+   numerics setting key (the option table's, model_options.h) does not
+   take it: the rule an @ line, the Numerics menu and `set num` check */
+void check_setting(Lines &l, std::string_view key, double v)
+{
+  const OptionRow *row=numerics_option(key);
+  if(const char *no=rule_problem(row->rule,v))l.fail(xpp::format("{} {}",row->label,no));
+}
+
 /* the numerics into f (ours: with the absolute tolerance, else ten times
-   the tolerance) */
+   the tolerance), each checked as the Numerics menu checks it */
 void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
 {
   if(f.ours)l.heading("# Numerical stuff");
   f.njmp=l.whole("nout");
+  check_setting(l,"nout",f.njmp);
   f.nmesh=l.whole("nullcline mesh");
+  check_setting(l,"nmesh",f.nmesh);
   f.method=l.whole("the method");
   if(f.method<0||f.method>=static_cast<int>(xpp::solvers().size()))
     l.fail(xpp::format("{} is not a method's number (0 to {})",f.method,xpp::solvers().size()-1));
   f.tend=l.real("total");
   f.delta_t=l.real("DeltaT");
+  check_setting(l,"dt",f.delta_t);
   f.t0=l.real("T0");
   f.trans=l.real("Transient");
   f.bound=l.real("Bound");
+  check_setting(l,"bound",f.bound);
   f.hmin=l.real("DtMin");
+  check_setting(l,"dtmin",f.hmin);
   f.hmax=l.real("DtMax");
+  check_setting(l,"dtmax",f.hmax);
   f.toler=l.real("Tolerance");
-  f.atoler=f.ours?l.real("Abs. Tolerance"):f.toler*10;
+  check_setting(l,"tol",f.toler);
+  if(f.ours){
+    f.atoler=l.real("Abs. Tolerance");
+    check_setting(l,"atol",f.atoler);
+  }
+  else f.atoler=f.toler*10;
   f.delay=l.real("Max Delay");
+  check_setting(l,"delay",f.delay);
   f.evec_iter=l.whole("Eigenvector iterates");
+  check_setting(l,"newt_iter",f.evec_iter);
   f.evec_err=l.real("Eigenvector tolerance");
+  check_setting(l,"newt_tol",f.evec_err);
   f.newt_err=l.real("Newton tolerance");
+  check_setting(l,"jac_eps",f.newt_err);
   f.poipln=l.real("Poincare plane");
   f.bvp_tol=l.real("Boundary value tolerance");
+  check_setting(l,"bvp_tol",f.bvp_tol);
   f.bvp_eps=l.real("Boundary value epsilon");
+  check_setting(l,"bvp_eps",f.bvp_eps);
   f.bvp_maxit=l.whole("Boundary value iterates");
+  check_setting(l,"bvp_maxit",f.bvp_maxit);
   f.poimap=l.whole("the Poincare map");
   if(f.poimap<0||f.poimap>=static_cast<int>(poincare_names.size()))
     l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",f.poimap,poincare_names.size()-1));
@@ -321,8 +349,11 @@ void read_more(const xpp::Session &s, Lines &l, SetFile &f)
   h.phigh=l.real("BVP range high");
 }
 
-/* the set file whose lines are l, for s; ReadFailed at a line that is wrong */
-SetFile read_set(const xpp::Session &s, Lines &l)
+/* the set file whose lines are l, for s; ReadFailed at a line that is
+   wrong. A session's (session) ends at its last value; a set file opened
+   by itself may be XPPAUT's, whose model's equations follow its last
+   value, after "RHS etc ...", written for a reader and not read. */
+SetFile read_set(const xpp::Session &s, Lines &l, bool session)
 {
   const xpp::Model &m=s.model();
   SetFile f;
@@ -356,17 +387,38 @@ SetFile read_set(const xpp::Session &s, Lines &l)
   f.range=s.integrator.range;
   f.shoot_range=s.shoot_range;
   read_more(s,l,f);
-  /* the model's equations, written for a reader, end it */
-  if(!l.at_end()){
+  if(session)l.end();
+  else if(!l.at_end()){
     const std::string_view rest=l.next();
     if(rest!="RHS etc ...")l.fail(xpp::format("\"{}\" where the equations (\"RHS etc ...\") or the end were due",rest));
   }
   return f;
 }
 
+/* text is a time as ctime writes it ("Wed Jun 30 21:49:08 1993": the
+   day, the month, the day of the month, the time and the year) */
+bool is_ctime(std::string_view text)
+{
+  constexpr std::string_view days="SunMonTueWedThuFriSat",months="JanFebMarAprMayJunJulAugSepOctNovDec";
+  const auto named=[text](std::size_t at, std::string_view names){
+    const std::size_t i=names.find(text.substr(at,3));
+    return i!=std::string_view::npos&&i%3==0;
+  };
+  const auto digit=[text](std::size_t at){ return text[at]>='0'&&text[at]<='9'; };
+  /* "Www Mmm dd hh:mm:ss " then the year: twenty characters */
+  constexpr std::size_t year_at=20;
+  if(text.size()<=year_at||!named(0,days)||!named(4,months))return false;
+  for(const std::size_t at : {3u,7u,10u,19u})if(text[at]!=' ')return false;
+  if(text[13]!=':'||text[16]!=':')return false;
+  if(!(text[8]==' '||digit(8)))return false;
+  for(const std::size_t at : {9u,11u,12u,14u,15u,17u,18u})if(!digit(at))return false;
+  for(std::size_t at=year_at;at<text.size();at++)if(!digit(at))return false;
+  return true;
+}
+
 /* a parameter file's values, the model's parameters' in order; the lines
-   after them are the trailer write_parameter_file writes, "File:" and the
-   model's name, then the time */
+   after them are the trailer write_parameter_file writes (XPPAUT's too):
+   "File:" and the model's name, then the time it was written */
 std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
 {
   const int np=l.whole("Number params");
@@ -377,7 +429,8 @@ std::vector<double> read_parameters(const xpp::Model &m, Lines &l)
     const std::string_view line=l.next();
     if(line.empty())continue;
     if(!line.starts_with("File:"))l.fail(xpp::format("\"{}\" after the parameters, where \"File:\" or the end was due",line));
-    if(!l.at_end())l.next(); /* the time it was written */
+    const std::string_view time=l.next("the time the file was written");
+    if(!is_ctime(time))l.fail(xpp::format("\"{}\" where the time the file was written (\"Wed Jun 30 21:49:08 1993\") was due",time));
     l.end();
   }
   return z;
@@ -482,9 +535,9 @@ void copy_graph_settings(const GRAPH &from, GRAPH &to)
   graph_settings(to,[&](auto &v,const char *){ v=static_cast<std::decay_t<decltype(v)>>(values[k++]); });
 }
 
-Result<SetFile> read_set_file(const xpp::Session &s, std::string file, std::string_view text)
+Result<SetFile> read_session_set(const xpp::Session &s, std::string file, std::string_view text)
 {
-  return read_lines("set file",std::move(file),text,[&s](Lines &l){ return read_set(s,l); });
+  return read_lines("set file",std::move(file),text,[&s](Lines &l){ return read_set(s,l,true); });
 }
 
 void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
@@ -558,7 +611,7 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
 
 Result<> load_set_file(xpp::Session &s, std::string_view path, bool redraw)
 {
-  Result<SetFile> f=read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l); });
+  Result<SetFile> f=read_file_lines("set file",path,[&s](Lines &l){ return read_set(s,l,false); });
   if(!f)return std::unexpected(f.error());
   apply_set_file(s,*f,redraw);
   return {};
@@ -621,7 +674,6 @@ void write_lunch(xpp::Session &s, FILE *fp)
   write_exprs(s,fp);
   write_graph(fp,*s.plot_windows.current);
   write_more(s,fp);
-  dump_eqn(s,fp);
 }
 
 void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
@@ -640,12 +692,6 @@ void do_lunch(xpp::Session &s, int f) /* f=1 to read and 0 to write */
   redraw_params();
   write_lunch(s,w.file());
   w.commit();
-}
-
-void dump_eqn(const xpp::Session &s, FILE *fp)
-{
-  xpp::print(fp,"RHS etc ...\n");
-  put_equations(s,fp);
 }
 
 Result<std::vector<double>> read_parameter_file(const xpp::Model &m, std::string_view path)

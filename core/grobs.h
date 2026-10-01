@@ -15,6 +15,11 @@ struct Session; /* session.h */
 #define MAXLAB 50
 #define MAXGROB 400
 
+/* a graphic object's type: a pointer, an arrow, or a marker, MARKER plus
+   its shape (the Markers menu's: box, diamond, triangle, plus, X, circle) */
+constexpr int POINTER = 0, ARROW = 1, MARKER = 2;
+constexpr int MARKER_SHAPE_COUNT = 6;
+
 /* Text,etc's marker settings: the last ones the Marker and Markers
    dialogs gave (type, colour, size; the Markers' number, first row and
    skip) */

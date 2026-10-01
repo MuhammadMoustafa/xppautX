@@ -9,7 +9,11 @@
    nothing (W125): a set file, a parameter file or an initial-conditions
    file whose last value is bad leaves the session exactly as it was (the
    set file it writes, the same), and its error names the file and that
-   line.
+   line. A numerics value the setting's rule refuses (0 nout, 0 DeltaT)
+   is refused as a bad number is. A session's set file ends at its last
+   value; a set file opened by itself may be XPPAUT's, its model's
+   equations after "RHS etc ..." (not read). A parameter file's trailer
+   is "File:" and the model, then the time as ctime writes it.
 
    The model is loaded the way xppautX -silent loads it (xpp::load_model),
    without integrating. make test runs this from the top of the tree. */
@@ -24,6 +28,7 @@
 #include "load_eqn.h"
 #include <stdio.h>
 #include <string>
+#include <tuple>
 
 namespace {
 
@@ -147,10 +152,28 @@ int main(void)
     CHECK(body(a) == body(b));
     xpp::get_val(s, "iapp", &x);
     CHECK(x == iapp + 2 && s.last_ic[0] == v0 + 2 && s.numerics.tend == tend * 3);
-    /* the line after the last one read: a set file holds its equations
-       there, nothing else */
-    const std::string extra = whole.substr(0, whole.find("RHS etc ...")) + "something else\n";
+    /* the line after the last one read: XPPAUT's set file holds its
+       equations there, nothing else; a session's holds nothing */
+    CHECK(whole.find("RHS etc") == std::string::npos);
+    const std::string extra = whole + "something else\n";
     CHECK(read_error(c, extra).starts_with(xpp::format("{}:{}: \"something else\"", c, bvp_high + 1)));
+    CHECK(read_error(c, whole + "RHS etc ...\ndV/dT=whatever\n").empty());
+    CHECK(xpp::load_set_file(s, b, false).has_value()); /* the session before that load again */
+    const xpp::Result<xpp::SetFile> session_set = xpp::read_session_set(s, c, whole + "RHS etc ...\n");
+    CHECK(!session_set && session_set.error().place.line == bvp_high + 1);
+    CHECK(xpp::read_session_set(s, c, whole).has_value());
+    /* a numerics value its rule refuses, at its line, nothing applied */
+    for (const auto &[label, value, why] : {std::tuple{" nout", "0", "nOutput must be a whole number of at least 1"},
+                                            std::tuple{"DeltaT", "0", "Dt must be a number other than 0"},
+                                            std::tuple{"Bound", "-1", "Bounds must be a number above 0"},
+                                            std::tuple{"Max Delay", "-1", "Maximal delay must be a number of at least 0"}}) {
+        const int n = line_ending(whole, label);
+        const std::string e = read_error(c, with_line(whole, n, xpp::format("{}  {}", value, label)));
+        CHECK(e.starts_with(xpp::format("{}:{}: {}", c, n, why)));
+        if (!e.starts_with(xpp::format("{}:{}: {}", c, n, why))) printf("  %s\n", e.c_str());
+    }
+    save(a);
+    CHECK(body(a) == body(b));
 
     /* a parameter file and an initial-conditions file: the same */
     const xpp::Model &m = s.model();
@@ -164,6 +187,21 @@ int main(void)
     xpp::load_parameter_file_named(s, par);
     save(a);
     CHECK(body(a) == body(b));
+    /* its trailer: as write_parameter_file writes it, then the end */
+    remove(par); /* written afresh, no question asked */
+    xpp::write_parameter_file(s, par);
+    CHECK(xpp::read_parameter_file(m, par).has_value());
+    std::string written = bytes_of(par);
+    std::erase(written, '\r'); /* a text file: CRLF on Windows */
+    const std::string values = written.substr(0, written.find("\n\nFile:"));
+    put(par, values + "\n\nFile:lecar.ode\nWed Jun  3 21:49:08 1993\n");
+    CHECK(xpp::read_parameter_file(m, par).has_value());
+    put(par, values + "\n\nFile:lecar.ode\nyesterday\n");
+    const xpp::Result<std::vector<double>> no_time = xpp::read_parameter_file(m, par);
+    CHECK(!no_time && no_time.error().place.line == m.nupar + 5 && no_time.error().place.source == "yesterday");
+    put(par, values + "\n\nFile:lecar.ode\nWed Jun 30 21:49:08 1993\nmore\n");
+    const xpp::Result<std::vector<double>> more = xpp::read_parameter_file(m, par);
+    CHECK(!more && more.error().place.line == m.nupar + 6);
     std::string ic_text;
     for (int i = 0; i < m.node; i++) ic_text += i == m.node - 1 ? "nan?\n" : "0.5\n";
     put(ic, ic_text);

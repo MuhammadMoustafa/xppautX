@@ -195,7 +195,7 @@ or in a file it includes, is:
 
     @ name1=value1, name2=value2, ...
 
-where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case).
+where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value an option does not take stops the load at its line; a numerical setting takes what the Numerics menu takes: DT any number but 0, NOUT, NMESH and NEWT_ITER a whole number of at least 1, BOUND, the tolerances, DTMIN, DTMAX, NEWT_TOL and JAC_EPS a number above 0, DELAY a number of at least 0.
 
 - QUIET=`0,1` dont print out stuff
 

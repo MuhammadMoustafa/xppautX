@@ -128,26 +128,9 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
         why = xpp::format("{} must be a number", f.label);
         return false;
     }
-    switch (f.rule) {
-    case OptionRule::nonzero:
-        if (v != 0) return true;
-        why = xpp::format("{} must be a number other than 0", f.label);
+    if (const char *no = rule_problem(f.rule, v)) {
+        why = xpp::format("{} {}", f.label, no);
         return false;
-    case OptionRule::positive:
-        if (v > 0) return true;
-        why = xpp::format("{} must be a number above 0", f.label);
-        return false;
-    case OptionRule::nonnegative:
-        if (v >= 0) return true;
-        why = xpp::format("{} must be a number of at least 0", f.label);
-        return false;
-    case OptionRule::whole_positive:
-        if (v == std::floor(v) && v >= 1 && v <= INT_MAX) return true;
-        why = xpp::format("{} must be a whole number of at least 1", f.label);
-        return false;
-    case OptionRule::any:
-    case OptionRule::method:
-        break;
     }
     return true;
 }

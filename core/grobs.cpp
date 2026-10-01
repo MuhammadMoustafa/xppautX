@@ -19,10 +19,6 @@ namespace xpp {
 
 namespace {
 
-const int POINTER = 0;
-const int ARROW = 1;
-const int MARKER = 2; /* markers start at 2; there are several of them */
-
 const double WDMARK = .001;
 const double HTMARK = .0016;
 
@@ -190,13 +186,14 @@ int select_marker_type(int *type)
     int ival = *type - MARKER;
     static const char *const list[] = {"Box", "Diamond", "Triangle", "Plus", "X", "Circle"};
     static constexpr std::string_view key = "bdtpxc";
-    XppMenu m = {"markers", "Markers", 6, list, key.data(), no_hint, -1};
+    static_assert(std::size(list) == MARKER_SHAPE_COUNT && key.size() == MARKER_SHAPE_COUNT);
+    XppMenu m = {"markers", "Markers", MARKER_SHAPE_COUNT, list, key.data(), no_hint, -1};
     const char ch = static_cast<char>(menu_choose(&m, ival));
     if (ch == 27) return 0;
-    for (int i = 0; i < 6; i++) {
-        if (ch == key[i]) ival = i;
+    for (int i = 0; i < MARKER_SHAPE_COUNT; i++) {
+        if (ch == key[static_cast<std::size_t>(i)]) ival = i;
     }
-    if (ival < 6) *type = MARKER + ival;
+    if (ival < MARKER_SHAPE_COUNT) *type = MARKER + ival;
     return 1;
 }
 

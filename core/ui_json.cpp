@@ -46,6 +46,7 @@
 #include <math.h>
 #include "load_eqn.h"
 #include "graf_par.h"
+#include "colormap.h"
 #include "xpp_files.h"
 
 /* the core's own globals and functions that have no header of their own */
@@ -985,7 +986,7 @@ void send_hello(xpp::Session &s)
         buf_str(&b, i < m.node + m.nmarkov ? m.uvar_names[i] : m.upar_names[i - m.node - m.nmarkov]);
     }
     BUF_LIT(&b, "],[");
-    for (i = 0; i < 11; i++) {
+    for (i = 0; i <= xpp::LAST_PLOT_COLOR; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, xpp::format("{} {}", i, color_names[i]).c_str());
     }

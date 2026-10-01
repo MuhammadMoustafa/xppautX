@@ -3,6 +3,7 @@
 #include "xpp_io.h"
 
 #include <cctype>
+#include <set>
 
 namespace xpp::snapx {
 
@@ -47,6 +48,8 @@ std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::
     const std::string head = first_line(kind);
     int number = 0;
     bool named = false;
+    /* the keys given so far: each at most once */
+    std::set<std::string_view> given;
     while (!text.empty()) {
         const std::size_t nl = text.find('\n');
         std::string_view line = text.substr(0, nl);
@@ -61,6 +64,7 @@ std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::
         const std::size_t sp = line.find(' ');
         const std::string_view key = line.substr(0, sp);
         const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
+        if (!given.insert(key).second) return std::unexpected(xpp::format("its line {} gives {} a second time: \"{}\"", number, key, line));
         if (key == "name") {
             m.model_name = value;
             named = true;

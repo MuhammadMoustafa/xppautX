@@ -56,8 +56,8 @@ struct Manifest {
 std::string manifest_text(const Manifest &m, std::string_view kind = session_kind);
 /* text's manifest, or what is wrong with it: not one of this kind
    (another format's first line, a later version, a count that is not a
-   number), a key manifest_text does not write (a line number from 1), a
-   data line other than 0 or 1, no name */
+   number), a key manifest_text does not write or one given twice (a line
+   number from 1), a data line other than 0 or 1, no name */
 std::expected<Manifest, std::string> parse_manifest(std::string_view text, std::string_view kind = session_kind);
 
 /* files as members of the folder model_folder, in their order, after entries' */

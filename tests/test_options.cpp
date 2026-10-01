@@ -260,7 +260,9 @@ int main(void)
     const char bad_ode[] = "build/test_options_bad.ode";
     const char bad_odex[] = "build/test_options_bad.odex";
     for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
-                            "axes=4", "quiet=2", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e"}) {
+                            "axes=4", "quiet=2", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
+                            /* a number the setting's rule refuses (OptionRule) */
+                            "nout=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
         CHECK(write_file(bad_ode, std::string(model_text) + "@ total=5\n@ " + bad + "\ndone\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";

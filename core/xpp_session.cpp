@@ -27,6 +27,8 @@
 #include "browse.h"
 #include "graf_par.h"
 #include "xpp_math.h"
+#include "colormap.h"
+#include "grobs.h"
 #include <algorithm>
 #include <cstdint>
 #include <map>
@@ -177,9 +179,10 @@ struct WindowsRead {
     std::vector<xpp::AddedColumn> added;
 };
 
-/* windows.set's lines l read for s (its model's names); ReadFailed at a
-   line that does not read or names what the model does not have */
-WindowsRead read_windows(const xpp::Session &s, xpp::Lines &l)
+/* windows.set's lines l read for s (its model's names; an added
+   column's formula compiled in it, nothing of it changed); ReadFailed at
+   a line that does not read or names what the model does not have */
+WindowsRead read_windows(xpp::Session &s, xpp::Lines &l)
 {
     WindowsRead r;
     const int count = l.whole("windows");
@@ -215,12 +218,15 @@ WindowsRead read_windows(const xpp::Session &s, xpp::Lines &l)
     r.auto_view.earlier = l.whole("AUTO: points before Clear");
     r.auto_view.show_earlier = read_bool(l, "AUTO: show them");
     const int added = l.whole("added columns");
-    if (added < 0) l.fail(xpp::format("{} added columns", added));
+    const int room = xpp::added_columns_room(s.model());
+    if (added < 0 || added > room) l.fail(xpp::format("{} added columns: the model has room for 0 to {}", added, room));
     for (int k = 0; k < added; k++) {
         xpp::AddedColumn c;
         c.name = l.next("an added column's name");
         if (c.name.empty()) l.fail("an added column without a name");
         c.formula = l.next("an added column's formula");
+        if (!xpp::added_column_compiles(s, c.formula))
+            l.fail(xpp::format("the formula of the added column {} does not compile", c.name));
         r.added.push_back(std::move(c));
     }
     l.end();
@@ -393,6 +399,14 @@ int window_in(xpp::Lines &l, const WindowsRead &w)
     return saved;
 }
 
+/* a colour of marks.set: one a curve or a mark takes (colormap.h) */
+int color_in(xpp::Lines &l)
+{
+    const int color = l.whole("color");
+    if (color < 0 || color > xpp::LAST_PLOT_COLOR) l.fail(xpp::format("{} is not a colour (0 to {})", color, xpp::LAST_PLOT_COLOR));
+    return color;
+}
+
 /* marks.set's lines l read, its windows those of windows (windows.set's),
    its frozen curves' points from frozen (frozen.npz's); ReadFailed at a
    line that does not read, names a window windows.set does not have or a
@@ -413,7 +427,9 @@ MarksRead read_marks(xpp::Lines &l, const WindowsRead &windows, const xpp::DataT
         SavedGrob &g = r.grobs.emplace_back();
         g.window = window_in(l, windows);
         g.type = l.whole("type");
-        g.color = l.whole("color");
+        if (g.type < xpp::POINTER || g.type >= xpp::MARKER + xpp::MARKER_SHAPE_COUNT)
+            l.fail(xpp::format("{} is not an object's type (0 to {})", g.type, xpp::MARKER + xpp::MARKER_SHAPE_COUNT - 1));
+        g.color = color_in(l);
         g.size = l.real("size");
         g.xs = l.real("x start");
         g.ys = l.real("y start");
@@ -431,7 +447,7 @@ MarksRead read_marks(xpp::Lines &l, const WindowsRead &windows, const xpp::DataT
         listed[static_cast<std::size_t>(c.slot)] = true;
         c.window = window_in(l, windows);
         c.type = l.whole("type");
-        c.color = l.whole("color");
+        c.color = color_in(l);
         const int len = l.whole("points");
         const int len_line = l.line();
         c.key = l.next("the curve's key");
@@ -484,8 +500,9 @@ struct RandomRead {
 };
 
 /* random.txt's lines l read for the model m: "seed N", then "wiener" and
-   one value per wiener of the model, then the generator's text (checked by
-   loading it, the generator then put back as it was) */
+   one value per wiener of the model, then the generator's state on a line
+   of its own, the last (checked by loading it into a generator of its
+   own) */
 RandomRead read_random(const xpp::Model &m, xpp::Lines &l)
 {
     RandomRead r;
@@ -504,15 +521,11 @@ RandomRead read_random(const xpp::Model &m, xpp::Lines &l)
     }
     if (static_cast<int>(r.wieners.size()) != m.nwiener)
         l.fail(xpp::format("{} wiener values, the model has {}", r.wieners.size(), m.nwiener));
-    const int first = l.line() + 1;
-    while (!l.at_end()) {
-        r.generator += l.next();
-        if (!l.at_end()) r.generator += '\n';
-    }
+    r.generator = l.next("the random generator's state");
     /* only proves it reads: a generator of its own, not the Session's */
     xpp::Random probe;
-    const bool loads = probe.load(r.generator);
-    if (!loads) l.fail(first, "not a random generator's state");
+    if (!probe.load(r.generator)) l.fail("not a random generator's state");
+    l.end();
     return r;
 }
 
@@ -548,7 +561,7 @@ struct SessionRead {
 /* session file f read for s (its model's session): each member read and
    checked whole, or the error at the member's line (the member named as
    f.name/member) or about the file (f.name) when a member is missing */
-xpp::Result<SessionRead> read_session(const xpp::Session &s, const SavedFile &f)
+xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
 {
     const std::map<std::string, std::string> &mem = f.members;
     const auto missing = [&f](const std::string &member) {
@@ -567,7 +580,7 @@ xpp::Result<SessionRead> read_session(const xpp::Session &s, const SavedFile &f)
     xpp::Result<xpp::SetFile> set = [&]() -> xpp::Result<xpp::SetFile> {
         const auto it = mem.find(xpp::snapx::set_member);
         if (it == mem.end()) return missing(xpp::snapx::set_member);
-        return xpp::read_set_file(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second);
+        return xpp::read_session_set(s, xpp::format("{}/{}", f.name, xpp::snapx::set_member), it->second);
     }();
     if (!set) return std::unexpected(set.error());
     r.set = std::move(*set);
@@ -639,6 +652,9 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     const xpp::Model &m = s.model();
     for (int i = 0; i < m.nwiener; i++) s.parser.constants[m.wiener[i]] = r.random.wieners[static_cast<std::size_t>(i)];
     s.random.load(r.random.generator); /* read_random proved it loads */
+    /* the added columns computed over the data put in place, with the
+       values just restored */
+    if (r.data && r.data->rows() > 0) refresh_browser(s, s.data_store.rows);
 
     apply_marks(s, std::move(r.marks), slot);
 

@@ -4011,7 +4011,8 @@ def check_session_file():
     opens it shows the same state, plots, marks, AUTO view and diagram, and
     AUTO continues from the restored diagram; with the .ode on the disk
     edited, the saved model is the one loaded; a session file without its
-    model, or a zip opened as a model, is refused and nothing changes"""
+    model, or a zip opened as a model, is refused and nothing changes; an
+    added browser column comes back computed (W145)"""
     import zipfile
     allev = []
     last = lambda name, **m: next((e for e in reversed(allev) if e.get('ev') == name
@@ -4054,6 +4055,12 @@ def check_session_file():
         key(snd, col, 't', 't', {'value': 'here'}, {'value': '2'}, {'xd': 10, 'yd': 0.1})
         key(snd, col, 'g', 'f', 'f', {'values': ['4', 'first', 'frz1']})
         key(snd, col, 'm', 'c')
+        # W145: an added browser column is saved with the session and comes back computed
+        key(snd, col, 'a', {'ok': 1, 'value': 'VW'}, {'ok': 1, 'value': 'v*w'}, win='browser')
+        browser1 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser', **{'from': 0, 'count': 2}))
+                         if e.get('ev') == 'browser'), None)
+        check('W145: the added column VW is in the browser before the save',
+              browser1 is not None and browser1.get('cols', [])[-1:] == ['VW'], str(browser1)[:200])
         answered(snd, col, (), cmd='session', op='save', name='s1')
         st1 = no_t(last('state'))
         check('session save: state.session names the .snapx', st1 and st1.get('session') == {'file': 's1.snapx'},
@@ -4132,6 +4139,10 @@ def check_session_file():
         check('open session of the model open: asks once whether to save this session first',
               len(asks) == 1 and asks[0].get('kind') == 'choice' and asks[0].get('keys') == 'sd', str(asks[:2]))
         diagram2 = restored_as_saved('open session')
+        browser2 = next((no_t(e) for e in reversed(answered(snd, col, (), cmd='browser', **{'from': 0, 'count': 2}))
+                         if e.get('ev') == 'browser'), None)
+        check('W145: open session: the added column VW is back, computed as before the save',
+              browser1 is not None and browser2 == browser1, '%s\n    %s' % (str(browser1)[:200], str(browser2)[:200]))
         m2 = [no_t(last('marks', win=w)) for w in (1, 2)]
         strip = lambda m: m and dict(m, equilibria=[])
         check('open session: the labels and frozen curves are the saved ones (not Sing pts\' symbols)',
@@ -4199,8 +4210,16 @@ def check_session_file():
 
         win_rows = members['windows.set'].decode().split('\n')
         set_rows = members['model.set'].decode().split('\n')
+        random_rows = members['random.txt'].decode().split('\n')
+        # the line (from 1) of a member's rows that ends with label
+        line_of = lambda rows, label: next(k + 1 for k in reversed(range(len(rows))) if rows[k].rstrip('\r').endswith(label))
         # the line of model.set's last value (the BVP range's high end)
-        set_high = next(k + 1 for k in reversed(range(len(set_rows))) if set_rows[k].rstrip('\r').endswith('BVP range high'))
+        set_high = line_of(set_rows, 'BVP range high')
+        set_nout, set_dt = line_of(set_rows, ' nout'), line_of(set_rows, 'DeltaT')
+        # windows.set's added columns: their count, then VW's name and formula
+        win_added = line_of(win_rows, 'added columns')
+        generator = random_rows[-1].split(' ')
+        manifest_lines = len(members['session.txt'].decode().rstrip('\n').split('\n'))
         damages = [
             ('nowindows', lambda m: m.pop('windows.set'), 'its windows.set is missing'),
             ('cutwindows', lambda m: m.__setitem__('windows.set', '\n'.join(win_rows[:10]).encode() + b'\n'),
@@ -4216,6 +4235,30 @@ def check_session_file():
              ('lastset.snapx/model.set:%d:' % set_high, '"1e999  BVP range high" is not a number')),
             ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
              'is not one it has: "later 1"'),
+            # W145: every value checked by the rule that checks it anywhere else, before anything is applied
+            ('zeronout', lambda m: m.__setitem__('model.set', text_lines('model.set', set_nout, '0   nout')),
+             ('zeronout.snapx/model.set:%d:' % set_nout, 'nOutput must be a whole number of at least 1')),
+            ('zerodt', lambda m: m.__setitem__('model.set', text_lines('model.set', set_dt, '0  DeltaT')),
+             ('zerodt.snapx/model.set:%d:' % set_dt, 'Dt must be a number other than 0')),
+            ('oldset', lambda m: m.__setitem__('model.set', m['model.set'].rstrip(b'\n') + b'\nRHS etc ...\ndV/dT=0\n'),
+             ('oldset.snapx/model.set:%d:' % (len(members['model.set'].decode().rstrip('\n').split('\n')) + 1),
+              '"RHS etc ..." after the end')),
+            ('manycolumns', lambda m: m.__setitem__('windows.set', text_lines('windows.set', win_added, '5001 added columns')
+                                                    + b''.join(b'X%d\nv*w\n' % k for k in range(5000))),
+             ('manycolumns.snapx/windows.set:%d:' % win_added, '5001 added columns: the model has room for 0 to')),
+            ('badformula', lambda m: m.__setitem__('windows.set', text_lines('windows.set', win_added + 2, 'unknown_symbol+')),
+             ('badformula.snapx/windows.set:%d:' % (win_added + 2), 'the formula of the added column VW does not compile')),
+            ('spareflag', lambda m: m.__setitem__('random.txt', text_lines('random.txt', len(random_rows),
+                                                                           ' '.join(generator[:-2] + ['9', generator[-1]]))),
+             ('spareflag.snapx/random.txt:%d:' % len(random_rows), "not a random generator's state")),
+            ('aftergenerator', lambda m: m.__setitem__('random.txt', m['random.txt'] + b'\nnot_generator_state\n'),
+             ('aftergenerator.snapx/random.txt:%d:' % (len(random_rows) + 1), '"not_generator_state" after the end')),
+            ('marktype', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n999\n0\n1\n0\n0\n1\n1\n0\n0\n'),
+             ('marktype.snapx/marks.set:4:', "999 is not an object's type (0 to 7)")),
+            ('markcolor', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n2\n999\n1\n0\n0\n1\n1\n0\n0\n'),
+             ('markcolor.snapx/marks.set:5:', '999 is not a colour (0 to 10)')),
+            ('twonames', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'name lecar.ode\n'),
+             'its line %d gives name a second time: "name lecar.ode"' % (manifest_lines + 1)),
         ]
         if 'data.npz' in members:
             damages.append(('nodata', lambda m: m.pop('data.npz'), 'its data.npz is missing'))

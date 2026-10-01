@@ -112,6 +112,12 @@ struct OptionRow {
   OptionUse use = OptionUse::always;
 };
 
+/* why the number v is not one rule accepts ("must be a number above 0"),
+   nullptr when it is: the one check of a numerics setting's value, for
+   an @ line, the Numerics menu, `set num` and a set file alike
+   (OptionRule::method's name is checked by numerics_settings.cpp) */
+const char *rule_problem(OptionRule rule, double v);
+
 /* the table, the numerics settings first, in the Numerics menu's order */
 std::span<const OptionRow> option_rows();
 

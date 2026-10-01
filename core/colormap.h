@@ -5,6 +5,10 @@ namespace xpp {
 
 #define XPP_MAX_COLORS 256
 
+/* the colours a curve, a mark or an @ option's colour takes: 0 (black) to
+   10, the named ones (graf_par.h's color_names) */
+constexpr int LAST_PLOT_COLOR = 10;
+
 extern unsigned short cmap_rgb[XPP_MAX_COLORS][3];
 
 /* The colour scale's slots in cmap_rgb (xpp_build_colormap sets them)

@@ -1232,13 +1232,13 @@ is a zip of ordinary files, in this order:
 |---|---|
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `-anifile`'s animation; byte for byte |
-| `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics): the original XPPAUT reads it |
+| `model.set` | File/Write set's file (values, numerics, delays, boundary conditions, the active window's graphics), ending at its last value (XPPAUT's set file has its model's equations after it, written for a reader; a session's has none, W145): the original XPPAUT reads it |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision, its orbits and the views of it), when there is a diagram |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
 | `data.npz` | the data table as Save data's NPZ writes it (`T.npy`, `V.npy`, ..., `seed.npy`), unless left out |
-| `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state (the Mersenne Twister's, and the normal deviate it holds over); opening restores it, so a stochastic model goes on from the same numbers |
+| `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
 
 Opening one (`open`, `session` `load`, the command line) loads the model
 saved in it, from those saved files alone: an edit to the `.ode` since,
@@ -1257,7 +1257,11 @@ writes missing (`model.set`, `windows.set`, `marks.set`, `random.txt`, which mus
 every frozen curve `marks.set` lists) or one whose member does not read: a
 line missing or not a number, a value out of range, a line after the
 last it holds, a variable, a window or a slot it does not have, a value
-of AUTO's it does not take. Every member is read whole and checked
+of AUTO's it does not take; and (W145) a numerical setting its rule
+refuses, as `set` `num` and an `@` line refuse it (0 `nout`, 0 `DeltaT`),
+more added columns than the model has room for or one whose formula does
+not compile, an arrow's or marker's type or a colour out of range, a
+manifest line given twice. Every member is read whole and checked
 against the model's load before it is kept, and only then applied (W125):
 the session before stays exactly as it was, its model included; the
 error's place is the member's line, the member named inside its file

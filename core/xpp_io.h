@@ -492,7 +492,7 @@ private:
    files goes through it:
      - a set file (.set: File > Read set, -setfile, a session's model.set)
        and a parameter file (.par: -parfile, the values panel's Load):
-       lunch-new.cpp's read_set_file and read_parameter_file;
+       lunch-new.cpp's read_set and read_parameter_file;
      - an initial-conditions file (.ic: -icfile, Initialconds/File, the
        values panel's Load): lunch-new.cpp's read_ic_file;
      - a session's members windows.set, marks.set and random.txt (.snapx:

@@ -8,6 +8,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+struct Model; /* model.h */
 
 typedef struct {
     int dataflag;
@@ -86,6 +87,14 @@ std::string browse_column_name(const Session &s, int j);
    of every added column, both go through this; false (and an error) on
    a formula that no longer compiles */
 bool compute_added_column(Session &s, const std::string &formula, int col_index, int nrows);
+/* formula compiles as an added column's in s (Add column's check, a
+   saved session's added columns' too); the parser's working symbols
+   rolled back after, so s is left as it was */
+bool added_column_compiles(Session &s, std::string_view formula);
+/* how many columns Add column may add to the model m's: the data store
+   holds MAXODE columns past T, the model's variables and auxiliaries
+   first */
+int added_columns_room(const Model &m);
 
 /* an Add column (browse_data.cpp data_add_col): its name and formula, as
    typed, kept to recompute it after every fresh run (below) */

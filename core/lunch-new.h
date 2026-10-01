@@ -42,11 +42,12 @@ void read_graph(Lines &lines, GRAPH &g, bool headed);
    window, as made, takes the saved one's) */
 void copy_graph_settings(const GRAPH &from, GRAPH &to);
 
-/* What a set file holds, read whole (read_set_file) before anything is
-   applied (apply_set_file): the numerics, the delays, the boundary
-   conditions, the initial conditions and parameters, the active window's
-   graphics and, in a set file of xppautX's, Transpose, the H functions'
-   coupling, the array plot, the torus and the ranges. A set file of
+/* What a set file holds, read whole (read_session_set, load_set_file)
+   before anything is applied (apply_set_file): the numerics, the delays,
+   the boundary conditions, the initial conditions and parameters, the
+   active window's graphics and, in a set file of xppautX's, Transpose,
+   the H functions' coupling, the array plot, the torus and the ranges.
+   A set file of
    XPPAUT's (its first line the number of equations) has neither the
    headings nor the parts after the graphics, nor an absolute tolerance
    (ten times the tolerance). */
@@ -76,15 +77,17 @@ struct SetFile {
   ShootRange shoot_range;
 };
 
-/* text, the set file named file, read for the session s (its model; what
-   the file does not hold, the active window's other settings, are s's):
-   every line checked, or the error at the line that is wrong (not one of
-   this model's, a value that does not read or is out of range) */
-Result<SetFile> read_set_file(const Session &s, std::string file, std::string_view text);
+/* text, a session's set file named file, read for the session s (its
+   model; what the file does not hold, the active window's other
+   settings, are s's): every line checked, or the error at the line that
+   is wrong (not one of this model's, a value that does not read or is out
+   of range, a line after the last value) */
+Result<SetFile> read_session_set(const Session &s, std::string file, std::string_view text);
 /* f applied to s, in one step (the front end shown it when redraw) */
 void apply_set_file(Session &s, const SetFile &f, bool redraw);
 /* the set file at path read and applied (File > Read set, -setfile), or
-   the error, nothing applied */
+   the error, nothing applied; it may be XPPAUT's, its model's equations
+   after its last value ("RHS etc ...", not read) */
 Result<> load_set_file(Session &s, std::string_view path, bool redraw);
 /* s's settings as a set file (File > Write set, a session's model.set) */
 void write_lunch(Session &s, FILE *fp);
@@ -121,7 +124,6 @@ void file_inf(Session &s);
 void ps_write_pars(const Session &s, FILE *fp);
 void do_info(const Session &s, FILE *fp);
 void do_lunch(Session &s, int f);
-void dump_eqn(const Session &s, FILE *fp);
 
 } // namespace xpp
 #endif

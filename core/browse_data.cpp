@@ -337,27 +337,48 @@ private:
 
 }
 
+namespace {
+
+/* add_expr may have added constants to the parser's working symbol
+   table (ParserState::ncon/nsym, session.h): rolled back to the Model's
+   own end, like a histogram condition (histogram.cpp) -- an added column
+   is not a symbol a later formula can name */
+void forget_formula_symbols(xpp::Session &s)
+{
+  s.parser.ncon=s.model().ncon_start;
+  s.parser.nsym=s.model().nsym_start;
+}
+
+} // namespace
+
 bool compute_added_column(xpp::Session &s, const std::string &formula, int col_index, int nrows)
 {
-  int com[4000],i;
-  const xpp::Model &m=s.model();
-  if(xpp::add_expr(s,formula,com,&i)){
+  std::array<int,MAXEXPLEN> com;
+  int length=0;
+  if(xpp::add_expr(s,formula,com.data(),&length)){
+    forget_formula_symbols(s);
     command_error("browser", "Bad Formula .... ");
     return false;
   }
   RowValues row(s);
-  for(i=0;i<nrows;i++){
+  for(int i=0;i<nrows;i++){
     row.set(s.data_store.col,i);
-    s.data_store.col[col_index][i]=static_cast<float>(xpp::evaluate(s,com));
+    s.data_store.col[col_index][i]=static_cast<float>(xpp::evaluate(s,com.data()));
   }
-  /* add_expr may have added constants to the parser's working symbol
-     table (ParserState::ncon/nsym, session.h): roll it back to the
-     Model's own end, like a histogram condition (histogram.cpp) -- the
-     added column is not a symbol a later formula can name */
-  s.parser.ncon=m.ncon_start;
-  s.parser.nsym=m.nsym_start;
+  forget_formula_symbols(s);
   return true;
 }
+
+bool added_column_compiles(xpp::Session &s, std::string_view formula)
+{
+  std::array<int,MAXEXPLEN> com;
+  int length=0;
+  const bool compiles=xpp::add_expr(s,formula,com.data(),&length)==0;
+  forget_formula_symbols(s);
+  return compiles;
+}
+
+int added_columns_room(const xpp::Model &m) { return MAXODE-m.neq; }
 
 int add_stor_col(xpp::Session &s, std::string_view name, const std::string &formula, BROWSER *b)
 {
@@ -368,7 +389,7 @@ int add_stor_col(xpp::Session &s, std::string_view name, const std::string &form
      stays as the load left it -- docs/roadmap.md W77 -- so this count
      never advances neq) */
   const int col_index=m.neq+1+static_cast<int>(s.browser.added_columns.size());
-  if(col_index>MAXODE){
+  if(static_cast<int>(s.browser.added_columns.size())>=added_columns_room(m)){
     command_error("browser", "Too many columns");
     return(0);
   }

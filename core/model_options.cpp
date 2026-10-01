@@ -26,10 +26,6 @@ namespace xpp {
 
 namespace {
 
-/* the plot's colours are 0 (black) to 10, the last of the colour table's
-   named ones (colormap.h) */
-constexpr int last_color = 10;
-
 /* the method letters of "@ meth=": the Numerics menu's keys, in
    method::Id order */
 constexpr std::string_view method_keys = "demragvbqsc582y";
@@ -80,7 +76,7 @@ int variable_of(const Session &s, const OptionValue &v)
 const char *color_into(int &member, const OptionValue &v)
 {
   int i = 0;
-  if (whole_in(v, i) || i < 0 || i > last_color) return "not a colour from 0 to 10";
+  if (whole_in(v, i) || i < 0 || i > LAST_PLOT_COLOR) return "not a colour from 0 to 10";
   if (v.apply) member = i;
   return nullptr;
 }
@@ -750,6 +746,21 @@ bool OptionSource::claim(Session &s, Option o) const
   return true;
 }
 
+const char *rule_problem(OptionRule rule, double v)
+{
+  switch (rule) {
+  case OptionRule::nonzero: return v != 0 ? nullptr : "must be a number other than 0";
+  case OptionRule::positive: return v > 0 ? nullptr : "must be a number above 0";
+  case OptionRule::nonnegative: return v >= 0 ? nullptr : "must be a number of at least 0";
+  case OptionRule::whole_positive:
+    return v == std::floor(v) && v >= 1 && v <= INT_MAX ? nullptr : "must be a whole number of at least 1";
+  case OptionRule::any:
+  case OptionRule::method:
+    break;
+  }
+  return nullptr;
+}
+
 std::span<const OptionRow> option_rows() { return rows; }
 
 const OptionRow *find_option(std::string_view upper_name, int &index)
@@ -793,8 +804,12 @@ const char *option_value(Session &s, std::string_view name, std::string_view val
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
   const char *why = nullptr;
+  /* a number the setting's rule refuses (a parser checks its own) */
+  double x = 0;
+  const char *refused = !row->parse && parse_number(text, x) ? rule_problem(row->rule, x) : nullptr;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
   else if (row->flag != Option::none && !source.may(s, row->flag)) return nullptr;
+  else if (refused) why = refused;
   else if (row->parse) why = row->parse(s, v);
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);
