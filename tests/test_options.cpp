@@ -310,11 +310,11 @@ int main(void)
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == s);
         if (l) continue;
-        CHECK(l.error().file == bad_ode);
-        CHECK(l.error().line == 5);
-        CHECK(l.error().cause.find("foo.opt") != std::string::npos);
-        CHECK(l.error().cause.find("@ lines") != std::string::npos);
-        if (l.error().line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
+        CHECK(l.error().place.file == bad_ode);
+        CHECK(l.error().place.line == 5);
+        CHECK(l.error().what.find("foo.opt") != std::string::npos);
+        CHECK(l.error().what.find("@ lines") != std::string::npos);
+        if (l.error().place.line != 5) printf("  %s: %s\n", word, l.error().text().c_str());
     }
 
     /* the settings go in @ lines of an include file (an .odex's include),
@@ -360,10 +360,10 @@ int main(void)
         CHECK(!l.has_value());
         CHECK(&xpp::client_session() == before);
         if (!l) {
-            CHECK(l.error().file == bad_ode);
-            CHECK(l.error().line == 5);
-            CHECK(l.error().cause.find("nosuch.inc") != std::string::npos);
-            if (l.error().line != 5) printf("  include: %s\n", l.error().text().c_str());
+            CHECK(l.error().place.file == bad_ode);
+            CHECK(l.error().place.line == 5);
+            CHECK(l.error().what.find("nosuch.inc") != std::string::npos);
+            if (l.error().place.line != 5) printf("  include: %s\n", l.error().text().c_str());
         }
         CHECK(write_file(bad_ode, std::string(model_text) + "done\n"));
         char flag[] = "-include";
@@ -373,8 +373,8 @@ int main(void)
         CHECK(!f.has_value());
         CHECK(&xpp::client_session() == before);
         if (!f) {
-            CHECK(f.error().file == "nosuch.inc");
-            CHECK(f.error().cause.find("-include") != std::string::npos);
+            CHECK(f.error().place.file == "nosuch.inc");
+            CHECK(f.error().what.find("-include") != std::string::npos);
         }
     }
 
