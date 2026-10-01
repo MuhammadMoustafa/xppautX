@@ -23,6 +23,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The Linux jobs run on ubuntu-26.04, named rather than ubuntu-latest
+# (maintainer, 2026-10-01): ubuntu-latest moves to 26.04 over Oct 19 -
+# Nov 19, 2026, and a runner that changes under us mid-wave would read as
+# a failure of the wave. The release's Linux binary stays on 24.04
+# (release.yml: its glibc is the oldest the binary runs on).
+
 # Each platform runs the same behaviour checks against its own build
 # (build, unit tests, protocol, web, command-line modes, AUTO, every
 # example, the browser checks); the checks about the source, the same
@@ -46,7 +52,7 @@ jobs:
   # dist/ built from src/, types and unit tests
   source:
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -78,7 +84,7 @@ jobs:
 
   linux-core:
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-core,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       # the packages WebKitGTK pulls in (libsoup, gstreamer, ...) are the
@@ -129,7 +135,7 @@ jobs:
   # WebKitGTK window the checks in verify.sh's build already carry.
   linux-ui:
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-ui,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Runner image
@@ -162,7 +168,7 @@ jobs:
   # asancheck.sh builds and runs every check itself
   linux-sanitizers:
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-sanitizers,')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       # gcc's ASan cannot map its shadow memory with the 32 bits of mmap
