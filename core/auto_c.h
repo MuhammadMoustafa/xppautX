@@ -333,7 +333,7 @@ int fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par
 ICNI_TYPE(icho);
 int fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, const integer *icp, integer nint, integer nnt0, const doublereal *u, const doublereal *uold, const doublereal *udot, const doublereal *upold, doublereal *fi, doublereal *dint);
 int inho(iap_type *iap, integer *icp, doublereal *par);
-int preho(integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par);
+int preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par);
 int stpnho(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *ntsr, integer *ncolrs, doublereal *rlcur, doublereal *rldot, integer *ndxloc, doublereal *ups, doublereal *udotps, doublereal *upoldp, doublereal *tm, doublereal *dtm, integer *nodir, doublereal *thl, doublereal *thu);
 int stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t);
 PVLI_TYPE_BVP(pvlsho);

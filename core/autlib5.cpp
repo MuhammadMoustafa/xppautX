@@ -18,42 +18,6 @@
    blocks in the original code.  They are ONLY used within
    the Homcont code.
 */
-namespace {
-struct {
-  integer itwist, istart, iequib, nfixed, npsi, nunstab, nstab, nrev;
-} blhom_1;
-
-struct {
-  std::vector<integer> ipsi, ifixed, irev;
-} blhmp_1;
-
-struct {
-  std::vector<doublereal> pu0, pu1;
-} blhmu_1;
-
-struct {
-  integer nbcn;
-} bcnn_1;
-
-struct {
-  doublereal compzero;
-} blhma_1;
-
-struct {
-  std::vector<doublereal> rr, ri, v, vt, xequib;
-  integer ineig = 0;
-} bleig_1;
-
-struct {
-  std::vector<doublereal> vrprev;
-  std::vector<integer> ieigc;
-} blhme_1;
-
-struct {
-  std::vector<doublereal> cprev;
-  std::vector<integer> iflag;
-} beyn_1;
-} // namespace
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -166,7 +130,7 @@ ffho(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     
   ndm = iap->ndm;
 
-  if (blhom_1.itwist == 0) {
+  if (iap->lib->homcont.blhom.itwist == 0) {
     /*        *Evaluate the R.-H. sides */
     funi(iap, rap, ndm, u, uold, icp, par, 0,
 	 f, dfdu, dfdp);
@@ -368,11 +332,11 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
 /*     *Update pu0,pu1 */
   for (i = 0; i < ndim; ++i) {
-    blhmu_1.pu0[i] = u0[i];
-    blhmu_1.pu1[i] = u1[i];
+    iap->lib->homcont.blhmu.pu0[i] = u0[i];
+    iap->lib->homcont.blhmu.pu1[i] = u1[i];
   }
 
-  if (blhom_1.iequib == 0 || blhom_1.iequib == -1) {
+  if (iap->lib->homcont.blhom.iequib == 0 || iap->lib->homcont.blhom.iequib == -1) {
     pvls(ndm, u0, par);
   }
   /*              write(9,*) 'Xequib:' */
@@ -380,7 +344,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     xequib1[i] = par[i + 11];
     /*              write(9,*) I,XEQUIB1(I) */
   }
-  if (blhom_1.iequib >= 0) {
+  if (iap->lib->homcont.blhom.iequib >= 0) {
     for (i = 0; i < ndm; ++i) {
       xequib2[i] = par[i + 11];
     }
@@ -391,11 +355,11 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   }
 
   /*     **Regular Continuation** */
-  if (blhom_1.istart != 3) {
+  if (iap->lib->homcont.blhom.istart != 3) {
     /*        *Projection boundary conditions for the homoclinic orbit */
     /*        *NSTAB boundary conditions at t=0 */
     prjcti(iap, bound.data(), xequib1.data(), icp, par, -1, 1, 1, &ndm);
-    for (i = 0; i < blhom_1.nstab; ++i) {
+    for (i = 0; i < iap->lib->homcont.blhom.nstab; ++i) {
       for (k = 0; k < ndm; ++k) {
 	fb[-1 + jb] += (u0[k] - xequib1[k]) * bound[i + k * (iap->ndm)];
       }
@@ -403,10 +367,10 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       ++jb;
     }
     /*        *NUNSTAB boundary conditions at t=1 */
-    if (blhom_1.nrev == 0) {
+    if (iap->lib->homcont.blhom.nrev == 0) {
       prjcti(iap, bound.data(), xequib2.data(), icp, par, 1, 2, 1, &
 	     ndm);
-      for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
+      for (i = ndm - iap->lib->homcont.blhom.nunstab; i < ndm; ++i) {
 	for (k = 0; k < ndm; ++k) {
 	  fb[-1 + jb] += (u1[k] - xequib2[k]) * bound[i + k * (iap->ndm)];
 	}
@@ -417,8 +381,8 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
        */
 
       for (i = 0; i < ndim; ++i) {
-	if (blhmp_1.irev[i] > 0) {
-	  if (blhmp_1.irev[i] == 1) {
+	if (iap->lib->homcont.blhmp.irev[i] > 0) {
+	  if (iap->lib->homcont.blhmp.irev[i] == 1) {
 	    /* *****NOTE MODIFICATION FROM GENERAL CASE */
 	    fb[-1 + jb] = sin(u1[i]);
 	    /*                        FB(JB)=U1(I) */
@@ -433,24 +397,24 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     ineig = 0;
     /*        *NFIXED extra boundary conditions for the fixed conditions 
      */
-    if (blhom_1.nfixed > 0) {
+    if (iap->lib->homcont.blhom.nfixed > 0) {
       if (ieig == 0) {
 	eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &
 	      ndm);
 	ieig = 1;
       }
-      for (i = 0; i < blhom_1.nfixed; ++i) {
-	if (blhmp_1.ifixed[i] > 10 && ineig == 0) {
+      for (i = 0; i < iap->lib->homcont.blhom.nfixed; ++i) {
+	if (iap->lib->homcont.blhmp.ifixed[i] > 10 && ineig == 0) {
 	  eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	  ineig = 1;
 	}
-	fb[-1 + jb] = psiho(iap, blhmp_1.ifixed[i], rr.data(), ri.data(), vr.data(),vt.data(), icp, par);
+	fb[-1 + jb] = psiho(iap, iap->lib->homcont.blhmp.ifixed[i], rr.data(), ri.data(), vr.data(),vt.data(), icp, par);
 	++jb;
       }
     }
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
      */
-    if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
+    if (iap->lib->homcont.blhom.iequib != 0 && iap->lib->homcont.blhom.iequib != -1) {
       func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
@@ -458,7 +422,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       }
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
-      if (blhom_1.iequib == -2) {
+      if (iap->lib->homcont.blhom.iequib == -2) {
 	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2);
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
@@ -468,20 +432,20 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     /*       *extra boundary condition in the case of a saddle-node homocl
 	     inic*/
-    if (blhom_1.iequib == 2) {
+    if (iap->lib->homcont.blhom.iequib == 2) {
       if (ineig == 0) {
 	eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib1.data(), icp, par, &ndm);
 	ineig = 1;
       }
-      fb[-1 + jb] = rr[blhom_1.nstab];
+      fb[-1 + jb] = rr[iap->lib->homcont.blhom.nstab];
       ++jb;
     }
     /*        *boundary conditions for normal vector */
-    if (blhom_1.itwist == 1) {
+    if (iap->lib->homcont.blhom.itwist == 1) {
       /*           *-orthogonal to the unstable directions of A  at t=0 
        */
       prjcti(iap, bound.data(), xequib1.data(), icp, par, 1, 1, 2, &ndm);
-      for (i = ndm - blhom_1.nunstab; i < ndm; ++i) {
+      for (i = ndm - iap->lib->homcont.blhom.nunstab; i < ndm; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
 	  dum += u0[ndm + k] * bound[i + k * (iap->ndm)];
@@ -491,7 +455,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       }
       /*           *-orthogonal to the stable directions of A  at t=1 */
       prjcti(iap, bound.data(), xequib2.data(), icp, par, -1, 2, 2, &ndm);
-      for (i = 0; i < blhom_1.nstab; ++i) {
+      for (i = 0; i < iap->lib->homcont.blhom.nstab; ++i) {
 	dum = 0.;
 	for (k = 0; k < ndm; ++k) {
 	  dum += u1[ndm + k] * bound[i + k * (iap->ndm)];
@@ -509,7 +473,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     }
     ineig = 0;
     ip = 12;
-    if (blhom_1.iequib >= 0) {
+    if (iap->lib->homcont.blhom.iequib >= 0) {
       ip += ndm;
     } else {
       ip += ndm << 1;
@@ -518,13 +482,13 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *Explicit boundary conditions for homoclinic orbit at t=0 */
     eighi(iap, 1, 2, rr.data(), ri.data(), vr.data(), xequib1.data(), icp, par, &ndm);
     ieig = 1;
-    if (blhom_1.nunstab > 1) {
+    if (iap->lib->homcont.blhom.nunstab > 1) {
       dum = 0.;
-      kp = ip + blhom_1.nunstab;
+      kp = ip + iap->lib->homcont.blhom.nunstab;
       jb = ndm + 1;
-      for (j = 0; j < blhom_1.nunstab; ++j) {
+      for (j = 0; j < iap->lib->homcont.blhom.nunstab; ++j) {
 	for (i = 0; i < ndm; ++i) {
-	  fb[i] = u0[i] - xequib1[i] - par[ip + j] * vr[blhom_1.nstab + j + i * (iap->ndm)];
+	  fb[i] = u0[i] - xequib1[i] - par[ip + j] * vr[iap->lib->homcont.blhom.nstab + j + i * (iap->ndm)];
 	}
 	/* Computing 2nd power */
 	dum += par[ip + j] * par[ip + j];
@@ -537,7 +501,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       jb = ndm;
       for (i = 0; i < ndm; ++i) {
 	fb[i] = u0[i] - xequib1[i] - par[-1 + ip] * par[ip] *
-	  vr[blhom_1.nstab + i * (iap->ndm)];
+	  vr[iap->lib->homcont.blhom.nstab + i * (iap->ndm)];
       }
       jb = ndm + 1;
     }
@@ -547,8 +511,8 @@ t=1 */
       eighi(iap, 1, 1, rr.data(), ri.data(), vt.data(), xequib2.data(), icp, par, &ndm);
       ineig = 1;
     }
-    for (i = 0; i < blhom_1.nunstab; ++i) {
-      k = i + blhom_1.nstab;
+    for (i = 0; i < iap->lib->homcont.blhom.nunstab; ++i) {
+      k = i + iap->lib->homcont.blhom.nstab;
       dum = 0.;
       for (j = 0; j < ndm; ++j) {
 	dum += (u1[j] - xequib2[j]) * vt[k + j * (iap->ndm)];
@@ -559,7 +523,7 @@ t=1 */
     }
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
  */
-    if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
+    if (iap->lib->homcont.blhom.iequib != 0 && iap->lib->homcont.blhom.iequib != -1) {
       func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
@@ -567,7 +531,7 @@ t=1 */
       }
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
-      if (blhom_1.iequib == -2) {
+      if (iap->lib->homcont.blhom.iequib == -2) {
 	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2)
 	  ;
 	for (i = 0; i < ndm; ++i) {
@@ -580,9 +544,9 @@ t=1 */
 
   /*      write(9,*) NBCN,NBC */
   /* *user defined extra boundary conditions */
-  if (bcnn_1.nbcn > 0) {
-    bcnd(*iap->lib->session, ndim, par, icp, bcnn_1.nbcn, u0, u1, ijc, fj.data(), dbc);
-    for (k = 0; k < bcnn_1.nbcn; ++k) {
+  if (iap->lib->homcont.bcnn.nbcn > 0) {
+    bcnd(*iap->lib->session, ndim, par, icp, iap->lib->homcont.bcnn.nbcn, u0, u1, ijc, fj.data(), dbc);
+    for (k = 0; k < iap->lib->homcont.bcnn.nbcn; ++k) {
       fb[-1 + jb] = fj[k];
       /*            write(9,*),fb(jb),par(30) */
       ++jb;
@@ -709,7 +673,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
 /* Integral phase condition for homoclinic orbit */
 
-  if (blhom_1.nrev == 0) {
+  if (iap->lib->homcont.blhom.nrev == 0) {
     dum = 0.;
     for (i = 0; i < ndm; ++i) {
       dum += upold[i] * (u[i] - uold[i]);
@@ -720,7 +684,7 @@ fiho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Integral phase condition for adjoint equation */
 
-  if (blhom_1.itwist == 1) {
+  if (iap->lib->homcont.blhom.itwist == 1) {
     dum = 0.;
     for (i = 0; i < ndm; ++i) {
       dum += uold[ndm + i] * (u[ndm + i] - uold[ndm + i]);
@@ -751,20 +715,20 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
   /* Allocate memory for global structures. */
 
-  blhmp_1.ipsi.assign(NPARX, 0);
-  blhmp_1.ifixed.assign(NPARX, 0);
-  blhmp_1.irev.assign((iap->ndim), 0);
+  iap->lib->homcont.blhmp.ipsi.assign(NPARX, 0);
+  iap->lib->homcont.blhmp.ifixed.assign(NPARX, 0);
+  iap->lib->homcont.blhmp.irev.assign((iap->ndim), 0);
 
-  blhme_1.ieigc.assign(2, 0);
+  iap->lib->homcont.blhme.ieigc.assign(2, 0);
 
-  beyn_1.iflag.assign(4, 0);
+  iap->lib->homcont.beyn.iflag.assign(4, 0);
 
   /* the prjctn_ function uses this array to test if this is
        the first time the prjctn_ function has been called.
        Accordingly, I initialize it to zero here after I
        have created it. */
   for(i=0;i<4;i++)
-    beyn_1.iflag[i]=0;
+    iap->lib->homcont.beyn.iflag[i]=0;
 
 /* Reads from fort.11 specific constants for homoclinic continuation. */
 /* Sets up re-defined constants in IAP. */
@@ -782,42 +746,42 @@ inho(iap_type *iap, integer *icp, doublereal *par)
   nint = iap->nint;
   nuzr = iap->nuzr;
   ndm = ndim;
-  blhma_1.compzero = HMACHHO;
-  blhom_1.nunstab=iap->lib->session->auto_state.run.nunstab;
-  blhom_1.nstab=iap->lib->session->auto_state.run.nstab;
-  blhom_1.iequib=iap->lib->session->auto_state.run.iequib;
-  blhom_1.itwist=0;
-  blhom_1.istart=2;
-  blhom_1.nrev=0;
-  blhom_1.nfixed=0;
-  blhom_1.npsi=0;
+  iap->lib->homcont.blhma.compzero = HMACHHO;
+  iap->lib->homcont.blhom.nunstab=iap->lib->session->auto_state.run.nunstab;
+  iap->lib->homcont.blhom.nstab=iap->lib->session->auto_state.run.nstab;
+  iap->lib->homcont.blhom.iequib=iap->lib->session->auto_state.run.iequib;
+  iap->lib->homcont.blhom.itwist=0;
+  iap->lib->homcont.blhom.istart=2;
+  iap->lib->homcont.blhom.nrev=0;
+  iap->lib->homcont.blhom.nfixed=0;
+  iap->lib->homcont.blhom.npsi=0;
   /* updated reading in of constants for reversible equations */
   /* replaces location in datafile of compzero */
 
-  ndim = ndm * (blhom_1.itwist + 1);
+  ndim = ndm * (iap->lib->homcont.blhom.itwist + 1);
   /* Allocate memory for global structures.  We didn't know the
      size for these until ndim was computed. */
 
-  blhmu_1.pu0.assign((ndim), 0.);
-  blhmu_1.pu1.assign((ndim), 0.);
+  iap->lib->homcont.blhmu.pu0.assign((ndim), 0.);
+  iap->lib->homcont.blhmu.pu1.assign((ndim), 0.);
 
-  bleig_1.rr.assign((ndim), 0.);
-  bleig_1.ri.assign((ndim), 0.);
-  bleig_1.v.assign((ndim)*(ndim), 0.);
-  bleig_1.vt.assign((ndim)*(ndim), 0.);
-  bleig_1.xequib.assign((ndim), 0.);
+  iap->lib->homcont.bleig.rr.assign((ndim), 0.);
+  iap->lib->homcont.bleig.ri.assign((ndim), 0.);
+  iap->lib->homcont.bleig.v.assign((ndim)*(ndim), 0.);
+  iap->lib->homcont.bleig.vt.assign((ndim)*(ndim), 0.);
+  iap->lib->homcont.bleig.xequib.assign((ndim), 0.);
 
-  blhme_1.vrprev.assign(2*(ndim)*(ndim), 0.);
+  iap->lib->homcont.blhme.vrprev.assign(2*(ndim)*(ndim), 0.);
 
-  beyn_1.cprev.assign(2*2*(ndim)*(ndim), 0.);
+  iap->lib->homcont.beyn.cprev.assign(2*2*(ndim)*(ndim), 0.);
 
-  nfree = blhom_1.nfixed + 2 - blhom_1.nrev + nint + nbc;
-  bcnn_1.nbcn = nbc;
+  nfree = iap->lib->homcont.blhom.nfixed + 2 - iap->lib->homcont.blhom.nrev + nint + nbc;
+  iap->lib->homcont.bcnn.nbcn = nbc;
 
 /* Free parameter (artificial parameter for psi) */
 /* nondegeneracy parameter of the adjoint */
 
-  if (blhom_1.itwist == 1) {
+  if (iap->lib->homcont.blhom.itwist == 1) {
     ++nfree;
     icp[-1 + nfree] = 9;
     par[9] = 0.;
@@ -825,47 +789,47 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
   /* Extra free parameters for equilibrium if iequib=1,2,-2 */
 
-  if (blhom_1.iequib != 0 && blhom_1.iequib != -1) {
+  if (iap->lib->homcont.blhom.iequib != 0 && iap->lib->homcont.blhom.iequib != -1) {
     for (i = 0; i < ndm; ++i) {
       icp[nfree + i] = i + 11;
     }
   }
 
-  if (blhom_1.iequib == -2) {
+  if (iap->lib->homcont.blhom.iequib == -2) {
     for (i = 0; i < ndm; ++i) {
       icp[nfree + ndm + i] = ndm + 11 + i;
     }
   }
 
-  if (blhom_1.istart != 3) {
+  if (iap->lib->homcont.blhom.istart != 3) {
     /*     *regular continuation */
 
-    nint = nint + blhom_1.itwist + 1 - blhom_1.nrev;
+    nint = nint + iap->lib->homcont.blhom.itwist + 1 - iap->lib->homcont.blhom.nrev;
 
     if (isw == 2) {
       icorr = 2;
     } else {
       icorr = 1;
     }
-    nbc = blhom_1.nstab + blhom_1.nunstab + (blhom_1.itwist + blhom_1.iequib) * ndm + nfree - nint - icorr;
-    if (blhom_1.iequib == 2) {
+    nbc = iap->lib->homcont.blhom.nstab + iap->lib->homcont.blhom.nunstab + (iap->lib->homcont.blhom.itwist + iap->lib->homcont.blhom.iequib) * ndm + nfree - nint - icorr;
+    if (iap->lib->homcont.blhom.iequib == 2) {
       nbc = nbc - ndm + 1;
     }
-    if (blhom_1.iequib < 0) {
-      nbc -= (blhom_1.iequib * 3 + 2) * ndm;
+    if (iap->lib->homcont.blhom.iequib < 0) {
+      nbc -= (iap->lib->homcont.blhom.iequib * 3 + 2) * ndm;
     }
   } else {
     /*     *starting solutions using homotopy */
-    if (blhom_1.nunstab == 1) {
-      nbc = ndm * (blhom_1.iequib + 1) + 1;
+    if (iap->lib->homcont.blhom.nunstab == 1) {
+      nbc = ndm * (iap->lib->homcont.blhom.iequib + 1) + 1;
     } else {
-      nbc = ndm * (blhom_1.iequib + 1) + blhom_1.nunstab + 1;
+      nbc = ndm * (iap->lib->homcont.blhom.iequib + 1) + iap->lib->homcont.blhom.nunstab + 1;
     }
-    if (blhom_1.iequib == 2) {
+    if (iap->lib->homcont.blhom.iequib == 2) {
       xpp::print(iap->lib->fp9,"WARNING: IEQUIB=2 NOT ALLOWED WITH ISTART=3\n");	
     }
-    if (blhom_1.iequib < 0) {
-      nbc -= ndm * (blhom_1.iequib * 3 + 2);
+    if (iap->lib->homcont.blhom.iequib < 0) {
+      nbc -= ndm * (iap->lib->homcont.blhom.iequib * 3 + 2);
     }
     nint = 0;
   }
@@ -883,7 +847,7 @@ inho(iap_type *iap, integer *icp, doublereal *par)
 
 /*     ---------- ----- */
 /* Subroutine */ int 
-preho(integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par)
+preho(AutoLib &lib, integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs, doublereal *ups, doublereal *udotps, doublereal *tm, doublereal *par)
 {
   /* System generated locals */
   integer ups_dim1, udotps_dim1;
@@ -924,7 +888,7 @@ preho(integer *ndx, integer *ntsr, integer *nar, integer *ndim, integer *ncolrs,
   /* Shift phase if necessary if continu(e)ing from */
   /* a periodic orbit into a homoclinic one */
 
-  if (blhom_1.istart == 1) {
+  if (lib.homcont.blhom.istart == 1) {
 
     /* First find smallest value in norm */
 
@@ -1099,7 +1063,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   /* Initialize solution and additional parameters */
 
-  switch (static_cast<int>(blhom_1.istart)) {
+  switch (static_cast<int>(iap->lib->homcont.blhom.istart)) {
   case 1:  goto L1;
   case 2:  goto L2;
   case 3:  goto L3;
@@ -1134,7 +1098,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   /* Set up artificial parameters at the left-hand end point of orbit */
 
   ip = 12;
-  if (blhom_1.iequib >= 0) {
+  if (iap->lib->homcont.blhom.iequib >= 0) {
     ip += ndm;
   } else {
     ip += ndm * 2;
@@ -1144,19 +1108,19 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 /* Parameters xi 1=1, xi i=0, i=2,NSTAB */
 
   par[ip] = 1.;
-  if (blhom_1.nunstab > 1) {
-    for (i = 1; i < blhom_1.nunstab; ++i) {
+  if (iap->lib->homcont.blhom.nunstab > 1) {
+    for (i = 1; i < iap->lib->homcont.blhom.nunstab; ++i) {
       par[ip + i] = 0.;
     }
   }
-  ip += blhom_1.nunstab;
+  ip += iap->lib->homcont.blhom.nunstab;
 
 /*Starting guess for homoclinic orbit in real principal unstable direction
 */
 
   for (i = 0; i < ndm; ++i) {
-    u[i] = xequib[i] + vr[blhom_1.nstab + i * (iap->ndm)]
-      * par[-1 + kp] * par[kp] * exp(rr[blhom_1.nstab] * *t * par[10]);
+    u[i] = xequib[i] + vr[iap->lib->homcont.blhom.nstab + i * (iap->ndm)]
+      * par[-1 + kp] * par[kp] * exp(rr[iap->lib->homcont.blhom.nstab] * *t * par[10]);
   }
   for (i = 0; i < ndm; ++i) {
     xpp::print(iap->lib->fp9,"stpho {:20.10f}\n",u[i]);	
@@ -1166,14 +1130,14 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 /* Artificial parameters at the right-hand end point of the orbit */
 /* omega_i=<x(1)-x_o,w_i^*> */
 
-  for (i = 0; i < blhom_1.nunstab; ++i) {
+  for (i = 0; i < iap->lib->homcont.blhom.nunstab; ++i) {
     par[ip + i] = 0.;
     for (j = 0; j < ndm; ++j) {
-      par[ip + i] += vr[blhom_1.nstab + j * (iap->ndm)] * par[-1 + kp] * par[kp] * exp(rr[blhom_1.nstab] * par[10]) * 
-	vt[blhom_1.nstab + i + j * (iap->ndm)];
+      par[ip + i] += vr[iap->lib->homcont.blhom.nstab + j * (iap->ndm)] * par[-1 + kp] * par[kp] * exp(rr[iap->lib->homcont.blhom.nstab] * par[10]) * 
+	vt[iap->lib->homcont.blhom.nstab + i + j * (iap->ndm)];
     }
   }
-  ip += blhom_1.nunstab;
+  ip += iap->lib->homcont.blhom.nunstab;
   return 0;
   /* -----------------------------------------------------------------------
    */
@@ -1203,24 +1167,24 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
 	 p0, p1, par);
 
   /*      *Compute eigenvalues */
-  bleig_1.ineig = 0;
+  iap->lib->homcont.bleig.ineig = 0;
   for (i = 0; i < ndm; ++i) {
-    bleig_1.xequib[i] = par[i + 11];
+    iap->lib->homcont.bleig.xequib[i] = par[i + 11];
   }
-  eighi(iap, 1, 2, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.xequib.data(), 
+  eighi(iap, 1, 2, iap->lib->homcont.bleig.rr.data(), iap->lib->homcont.bleig.ri.data(), iap->lib->homcont.bleig.v.data(), iap->lib->homcont.bleig.xequib.data(), 
 	icp, par, &ndm);
   if (iid >= 3) {
     xpp::print(iap->lib->fp9,"EIGENVALUES\n");	
     for (j = 0; j < ndm; ++j) {
-      xpp::print(iap->lib->fp9," ({:12.7f} {:12.7f})\n",bleig_1.rr[j],bleig_1.ri[j]);	
+      xpp::print(iap->lib->fp9," ({:12.7f} {:12.7f})\n",iap->lib->homcont.bleig.rr[j],iap->lib->homcont.bleig.ri[j]);	
     }
   }
-  if (blhom_1.itwist == 1) {
-    eighi(iap, 1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
-	  bleig_1.xequib.data(), icp, par, &ndm);
-    bleig_1.ineig = 1;
-    orient = psiho(iap, 0, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), 
-		   bleig_1.vt.data(), icp, par);
+  if (iap->lib->homcont.blhom.itwist == 1) {
+    eighi(iap, 1, 1, iap->lib->homcont.bleig.rr.data(), iap->lib->homcont.bleig.ri.data(), iap->lib->homcont.bleig.vt.data(), 
+	  iap->lib->homcont.bleig.xequib.data(), icp, par, &ndm);
+    iap->lib->homcont.bleig.ineig = 1;
+    orient = psiho(iap, 0, iap->lib->homcont.bleig.rr.data(), iap->lib->homcont.bleig.ri.data(), iap->lib->homcont.bleig.v.data(), 
+		   iap->lib->homcont.bleig.vt.data(), icp, par);
     if (iid >= 3) {
       if (orient < 0.) {
 	xpp::print(iap->lib->fp9," Non-orientable, ({:20.10f})\n",orient);	
@@ -1230,15 +1194,15 @@ pvlsho(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
     }
   }
 
-  for (i = 0; i < blhom_1.npsi; ++i) {
-    if (blhmp_1.ipsi[i] > 10 && bleig_1.ineig == 0) {
-      eighi(iap, 1, 1, bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.vt.data(), 
-	    bleig_1.xequib.data(), icp, par, &ndm);
-      bleig_1.ineig = 1;
+  for (i = 0; i < iap->lib->homcont.blhom.npsi; ++i) {
+    if (iap->lib->homcont.blhmp.ipsi[i] > 10 && iap->lib->homcont.bleig.ineig == 0) {
+      eighi(iap, 1, 1, iap->lib->homcont.bleig.rr.data(), iap->lib->homcont.bleig.ri.data(), iap->lib->homcont.bleig.vt.data(), 
+	    iap->lib->homcont.bleig.xequib.data(), icp, par, &ndm);
+      iap->lib->homcont.bleig.ineig = 1;
     }
-    par[blhmp_1.ipsi[i] + 19] = psiho(iap, blhmp_1.ipsi[i], bleig_1.rr.data(), bleig_1.ri.data(), bleig_1.v.data(), bleig_1.vt.data(), icp, par);
+    par[iap->lib->homcont.blhmp.ipsi[i] + 19] = psiho(iap, iap->lib->homcont.blhmp.ipsi[i], iap->lib->homcont.bleig.rr.data(), iap->lib->homcont.bleig.ri.data(), iap->lib->homcont.bleig.v.data(), iap->lib->homcont.bleig.vt.data(), icp, par);
     if (iid >= 3) {
-      xpp::print(iap->lib->fp9," PSI({:2})={:20.10f}\n",blhmp_1.ipsi[i],par[blhmp_1.ipsi[i] + 19]);	
+      xpp::print(iap->lib->fp9," PSI({:2})={:20.10f}\n",iap->lib->homcont.blhmp.ipsi[i],par[iap->lib->homcont.blhmp.ipsi[i] + 19]);	
 
     }
   }
@@ -1288,8 +1252,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
   ndm = iap->ndm;
 
-  func(*iap->lib->session, ndm, blhmu_1.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
-  func(*iap->lib->session, ndm, blhmu_1.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
 
   ret_val = 0.;
 
@@ -1303,16 +1267,16 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     u0norm = 0.;
     u1norm = 0.;
     for (j = 0; j < ndm; ++j) {
-      s1 += f1[j] * blhmu_1.pu0[ndm + j];
-      s2 += f0[j] * blhmu_1.pu1[ndm + j];
+      s1 += f1[j] * iap->lib->homcont.blhmu.pu0[ndm + j];
+      s2 += f0[j] * iap->lib->homcont.blhmu.pu1[ndm + j];
       /* Computing 2nd power */
       f0norm += f0[j] * f0[j];
       /* Computing 2nd power */
       f1norm += f1[j] * f1[j];
       /* Computing 2nd power */
-      u0norm += blhmu_1.pu0[j + ndm] * blhmu_1.pu0[j + ndm];
+      u0norm += iap->lib->homcont.blhmu.pu0[j + ndm] * iap->lib->homcont.blhmu.pu0[j + ndm];
       /* Computing 2nd power */
-      u1norm += blhmu_1.pu1[j + ndm] * blhmu_1.pu1[j + ndm];
+      u1norm += iap->lib->homcont.blhmu.pu1[j + ndm] * iap->lib->homcont.blhmu.pu1[j + ndm];
     }
     droot = sqrt(f0norm * f1norm * u0norm * u1norm);
     if (droot != 0.) {
@@ -1350,21 +1314,21 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
   /* Resonant eigenvalues (neutral saddle) */
 
  L1:
-  ret_val = rr[-1 + blhom_1.nstab] + rr[blhom_1.nstab] + ri[-1 + blhom_1.nstab] + 
-    ri[blhom_1.nstab];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab] + ri[-1 + iap->lib->homcont.blhom.nstab] + 
+    ri[iap->lib->homcont.blhom.nstab];
   return ret_val;
 
 /* Double real leading eigenvalues (stable) */
 /*   (saddle, saddle-focus transition) */
 
  L2:
-  if (f2c::abs(ri[-1 + blhom_1.nstab]) > blhma_1.compzero) {
+  if (f2c::abs(ri[-1 + iap->lib->homcont.blhom.nstab]) > iap->lib->homcont.blhma.compzero) {
     /* Computing 2nd power */
-    doublereal tmp= ri[-1 + blhom_1.nstab] - ri[-1 + blhom_1.nstab - 1];
+    doublereal tmp= ri[-1 + iap->lib->homcont.blhom.nstab] - ri[-1 + iap->lib->homcont.blhom.nstab - 1];
     ret_val = -(tmp * tmp);
   } else {
     /* Computing 2nd power */
-    doublereal tmp = rr[-1 + blhom_1.nstab] - rr[-1 + blhom_1.nstab - 1];
+    doublereal tmp = rr[-1 + iap->lib->homcont.blhom.nstab] - rr[-1 + iap->lib->homcont.blhom.nstab - 1];
     ret_val = tmp * tmp;
   }
   return ret_val;
@@ -1373,13 +1337,13 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /*   (saddle, saddle-focus transition) */
 
  L3:
-  if (f2c::abs(ri[blhom_1.nstab]) > blhma_1.compzero) {
+  if (f2c::abs(ri[iap->lib->homcont.blhom.nstab]) > iap->lib->homcont.blhma.compzero) {
     /* Computing 2nd power */
-    doublereal tmp = ri[blhom_1.nstab] - ri[blhom_1.nstab + 1];
+    doublereal tmp = ri[iap->lib->homcont.blhom.nstab] - ri[iap->lib->homcont.blhom.nstab + 1];
     ret_val = -(tmp * tmp);
   } else {
     /* Computing 2nd power */
-    doublereal tmp = rr[blhom_1.nstab] - rr[blhom_1.nstab + 1];
+    doublereal tmp = rr[iap->lib->homcont.blhom.nstab] - rr[iap->lib->homcont.blhom.nstab + 1];
     ret_val = tmp * tmp;
   }
   return ret_val;
@@ -1387,44 +1351,44 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 /* Neutral saddle, saddle-focus or bi-focus (includes 1, above, also) */
 
  L4:
-  ret_val = rr[-1 + blhom_1.nstab] + rr[blhom_1.nstab];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab];
   return ret_val;
 
   /* Neutrally-divergent saddle-focus (stable eigenvalues complex) */
 
  L5:
-  ret_val = rr[-1 + blhom_1.nstab] + rr[blhom_1.nstab] + rr[blhom_1.nstab - 2];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab - 2];
   return ret_val;
 
 /* Neutrally-divergent saddle-focus (unstable eigenvalues complex) */
 
  L6:
-  ret_val = rr[-1 + blhom_1.nstab] + rr[blhom_1.nstab] + rr[blhom_1.nstab + 1];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab] + rr[iap->lib->homcont.blhom.nstab + 1];
   return ret_val;
 
 /* Three leading eigenvalues (stable) */
 
  L7:
-  ret_val = rr[-1 + blhom_1.nstab] - rr[blhom_1.nstab - 3];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab] - rr[iap->lib->homcont.blhom.nstab - 3];
   return ret_val;
 
   /* Three leading eigenvalues (ustable) */
 
  L8:
-  ret_val = rr[blhom_1.nstab] - rr[blhom_1.nunstab + 2];
+  ret_val = rr[iap->lib->homcont.blhom.nstab] - rr[iap->lib->homcont.blhom.nunstab + 2];
   return ret_val;
 
   /* Local bifurcation (zero eigenvalue or Hopf): NSTAB decreases */
   /*  (nb. the problem becomes ill-posed after a zero of 9 or 10) */
 
  L9:
-  ret_val = rr[-1 + blhom_1.nstab];
+  ret_val = rr[-1 + iap->lib->homcont.blhom.nstab];
   return ret_val;
 
 /* Local bifurcation (zero eigenvalue or Hopf): NSTAB increases */
 
  L10:
-  ret_val = rr[blhom_1.nstab];
+  ret_val = rr[iap->lib->homcont.blhom.nstab];
   return ret_val;
 
   /* Orbit flip (with respect to leading stable direction) */
@@ -1432,9 +1396,9 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
  L11:
   for (j = 0; j < ndm; ++j) {
-    ret_val += f1[j] * vt[blhom_1.nstab + (j + 1) * (iap->ndm)];
+    ret_val += f1[j] * vt[iap->lib->homcont.blhom.nstab + (j + 1) * (iap->ndm)];
   }
-  ret_val *= exp(-par[10] * rr[-1 + blhom_1.nstab] / 2.);
+  ret_val *= exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Orbit flip (with respect to leading unstable direction) */
@@ -1442,9 +1406,9 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
  L12:
   for (j = 0; j < ndm; ++j) {
-    ret_val += f0[j] * vt[blhom_1.nstab + 1 + (j + 1) * (iap->ndm)];
+    ret_val += f0[j] * vt[iap->lib->homcont.blhom.nstab + 1 + (j + 1) * (iap->ndm)];
   }
-  ret_val *= exp(par[10] * rr[blhom_1.nstab] / 2.);
+  ret_val *= exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to stable manifold 
@@ -1453,10 +1417,10 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
  L13:
   for (i = 0; i < ndm; ++i) {
-    ret_val += blhmu_1.pu0[ndm + i] * v[blhom_1.nstab + (i + 1) * (iap->ndm)]
+    ret_val += iap->lib->homcont.blhmu.pu0[ndm + i] * v[iap->lib->homcont.blhom.nstab + (i + 1) * (iap->ndm)]
       ;
   }
-  ret_val *= exp(-par[10] * rr[-1 + blhom_1.nstab] / 2.);
+  ret_val *= exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to unstable manifold
@@ -1465,16 +1429,16 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
  L14:
   for (i = 0; i < ndm; ++i) {
-    ret_val += blhmu_1.pu1[ndm + i] * v[blhom_1.nstab + 1 + (i + 1) * (iap->ndm)];
+    ret_val += iap->lib->homcont.blhmu.pu1[ndm + i] * v[iap->lib->homcont.blhom.nstab + 1 + (i + 1) * (iap->ndm)];
   }
-  ret_val *= exp(par[10] * rr[blhom_1.nstab] / 2.);
+  ret_val *= exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Non-central homoclinic to saddle-node (in stable manifold) */
 
  L15:
   for (i = 0; i < ndm; ++i) {
-    ret_val += (par[i + 11] - blhmu_1.pu1[i]) * v[blhom_1.nstab + 1 + (i + 1) * (iap->ndm)];
+    ret_val += (par[i + 11] - iap->lib->homcont.blhmu.pu1[i]) * v[iap->lib->homcont.blhom.nstab + 1 + (i + 1) * (iap->ndm)];
   }
   return ret_val;
 
@@ -1482,7 +1446,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
  L16:
   for (i = 0; i < ndm; ++i) {
-    ret_val += (par[i + 11] - blhmu_1.pu0[i]) * v[blhom_1.nstab + 1 + (i + 1) * (iap->ndm)];
+    ret_val += (par[i + 11] - iap->lib->homcont.blhmu.pu0[i]) * v[iap->lib->homcont.blhom.nstab + 1 + (i + 1) * (iap->ndm)];
   }
   return ret_val;
 
@@ -1626,13 +1590,13 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
   /* commensurate with that of the corresponding eigenvector */
   /* from the previous call with the same value of ISIGN */
 
-  if (blhme_1.ieigc[*itrans - 1] == 0) {
+  if (iap->lib->homcont.blhme.ieigc[*itrans - 1] == 0) {
     for (j = 0; j < *ndm; ++j) {
       for (i = 0; i < *ndm; ++i) {
-	blhme_1.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
+	iap->lib->homcont.blhme.vrprev[*itrans + (i * 2 + j * (*ndm) * 2) - 1] = vr[i + j * (*ndm)];
       }
     }
-    blhme_1.ieigc[*itrans - 1] = 1;
+    iap->lib->homcont.blhme.ieigc[*itrans - 1] = 1;
   }
   for (i = 0; i < *ndm; ++i) {
     vdot = 0.;
@@ -1640,7 +1604,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       integer tmp;
       tmp = *ndm;
       for (j = 0; j < tmp; ++j) {
-	vdot += vr[j + i * tmp] * blhme_1.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
+	vdot += vr[j + i * tmp] * iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * tmp * 2) - 1];
       }
     }
     if (vdot < 0.) {
@@ -1650,7 +1614,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
       }
     }
     for (j = 0; j < *ndm; ++j) {
-      blhme_1.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
+      iap->lib->homcont.blhme.vrprev[*itrans + (j * 2 + i * (*ndm) * 2) - 1] = vr[j + i * (*ndm)];
     }
   }
 
@@ -1764,7 +1728,7 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
 
   /* Computes basis to put A in "Quasi Upper-Triangular form" */
   /* with the positive (negative) eigenvalues first if IMFD =-1 (=1) */
-  eps = blhma_1.compzero;
+  eps = iap->lib->homcont.blhma.compzero;
   {
     /* This is here since I don't want to change the calling sequence of the
        BLAS routines. */
@@ -1774,11 +1738,11 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   }
   /* Put the basis in the appropriate part of the matrix CNOW */
   if (*imfd == 1) {
-    k1 = *ndm - blhom_1.nunstab + 1;
+    k1 = *ndm - iap->lib->homcont.blhom.nunstab + 1;
     k2 = *ndm;
   } else {
     k1 = 1;
-    k2 = blhom_1.nstab;
+    k2 = iap->lib->homcont.blhom.nstab;
   }
   mcond = k2 - k1 + 1;
   m0 = k1 - 1;
@@ -1796,14 +1760,14 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
        hence its value is, in general, undefined.  It has
        worked because the just happened to be filled
        with zeros, even though this is not guaranteed.*/
-  if (beyn_1.iflag[*is + (*itrans *2 ) - 3] == 0) {
+  if (iap->lib->homcont.beyn.iflag[*is + (*itrans *2 ) - 3] == 0) {
     for (i = k1 - 1; i < k2; ++i) {
       for (j = 0; j < *ndm; ++j) {
-	beyn_1.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = cnow[i + j * (*ndm)];
+	iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = cnow[i + j * (*ndm)];
 	bound[(i + 1) + (j + 1) * (*ndm)] = cnow[i + j * (*ndm)];
       }
     }
-    beyn_1.iflag[*is + (*itrans * 2) - 3] = 1;
+    iap->lib->homcont.beyn.iflag[*is + (*itrans * 2) - 3] = 1;
     return 0;
   }
 
@@ -1816,10 +1780,10 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
 	integer tmp;
 	tmp = *ndm;
 	for (k = 0; k < tmp; ++k) {
-	  dum1[i + j * (tmp)] += beyn_1.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
+	  dum1[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
 	    * cnow[j + m0 + k * (tmp)];
-	  dum2[i + j * (tmp)] += beyn_1.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
-	    * beyn_1.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)];
+	  dum2[i + j * (tmp)] += iap->lib->homcont.beyn.cprev[i + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)] 
+	    * iap->lib->homcont.beyn.cprev[j + m0 + (k + ((*is - 1) + ((*itrans - 1) * 2)) * (tmp)) * (tmp)];
 	}
       }
     }
@@ -1842,7 +1806,7 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
 
   for (i = k1 - 1; i < k2; ++i) {
     for (j = 0; j < *ndm; ++j) {
-      beyn_1.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = bound[(i + 1) + (j + 1) * (*ndm)];
+      iap->lib->homcont.beyn.cprev[i + (j + ((*is - 1) + ((*itrans - 1) * 2)) * (*ndm)) * (*ndm)] = bound[(i + 1) + (j + 1) * (*ndm)];
     }
   }
 

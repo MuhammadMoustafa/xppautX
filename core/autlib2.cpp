@@ -10,14 +10,6 @@
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
 
-namespace {
-/* solvbv's matrices, kept from one call to the next: a call with
-   *ifst == 1 sizes (and zeroes) them, later ones reuse what it factored. */
-struct {
-  std::vector<doublereal> a, b, c, d, a1, a2, s1, s2, bb, cc, faa, ca1;
-  std::vector<integer> icf, irf, ipr, icf11, icf1, icf2, np;
-} main_auto_storage;
-} // namespace
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -84,49 +76,49 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
     */
 
     /*(M 1AAR*M 2AA*N AX) */
-    main_auto_storage.a.assign(((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
+    iap->lib->solvbv.a.assign(((((iap->ndim * iap->ncol ) + iap->ndim ) ) * 
 								 ((iap->ndim * iap->ncol ) ) * 
 								 (iap->ntst +1) ), 0.); 
     /*(M 1BB*M 2BB*N AX)*/ 
-    main_auto_storage.b.assign(((NPARX) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.b.assign(((NPARX) * ((iap->ndim * iap->ncol ) ) * (iap->ntst +1) ) , 0.);
     /*(M 1CC*M 2CC*N AX)*/ 
-    main_auto_storage.c.assign((((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
+    iap->lib->solvbv.c.assign((((((iap->ndim * iap->ncol ) + iap->ndim ) ) ) * 
 								   ((iap->nbc +iap->nint+1) ) * (iap->ntst +1) ), 0.);
     /*(M 1DD*M 2DD)*/ 
-    main_auto_storage.d.assign((((iap->nbc +iap->nint+1) ) * (NPARX) ) , 0.);
+    iap->lib->solvbv.d.assign((((iap->nbc +iap->nint+1) ) * (NPARX) ) , 0.);
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.a1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.a1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ) , 0.);
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.a2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
+    iap->lib->solvbv.a2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.s1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
+    iap->lib->solvbv.s1.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
     /*(iap->ndim * iap->ndim *N AX)*/ 
-    main_auto_storage.s2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
+    iap->lib->solvbv.s2.assign((iap->ndim * iap->ndim * (iap->ntst +1) ), 0.); 
     /*(iap->ndim *N PARX*N AX)*/ 
-    main_auto_storage.bb.assign((iap->ndim *NPARX* (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.bb.assign((iap->ndim *NPARX* (iap->ntst +1) ) , 0.);
     /*(N RCX* iap->ndim *N AX+1)*/ 
-    main_auto_storage.cc.assign(((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1), 0.);
+    iap->lib->solvbv.cc.assign(((iap->nbc + iap->nint + 1) * iap->ndim * (iap->ntst  + 1) + 1), 0.);
 
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.faa.assign((iap->ndim * (iap->ntst +1) ) , 0.);
+    iap->lib->solvbv.faa.assign((iap->ndim * (iap->ntst +1) ) , 0.);
 
     /*(iap->ndim * iap->ndim *K REDO)*/ 
-    main_auto_storage.ca1.assign((iap->ndim * iap->ndim *KREDO) , 0.);
+    iap->lib->solvbv.ca1.assign((iap->ndim * iap->ndim *KREDO) , 0.);
     
     /*(N CLMX*N AX)*/ 
-    main_auto_storage.icf.assign((((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) , 0);
+    iap->lib->solvbv.icf.assign((((iap->ndim * iap->ncol ) + iap->ndim ) * (iap->ntst +1) ) , 0);
     /*(N ROWX*N AX)*/ 
-    main_auto_storage.irf.assign(((iap->ndim * iap->ncol ) * (iap->ntst +1) ) , 0);
+    iap->lib->solvbv.irf.assign(((iap->ndim * iap->ncol ) * (iap->ntst +1) ) , 0);
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.ipr.assign((iap->ndim * (iap->ntst +1) ) , 0);
+    iap->lib->solvbv.ipr.assign((iap->ndim * (iap->ntst +1) ) , 0);
     /*(iap->ndim *K REDO)*/ 
-    main_auto_storage.icf11.assign((iap->ndim *KREDO) , 0);
+    iap->lib->solvbv.icf11.assign((iap->ndim *KREDO) , 0);
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.icf1.assign((iap->ndim * (iap->ntst +1) ), 0);
+    iap->lib->solvbv.icf1.assign((iap->ndim * (iap->ntst +1) ), 0);
     /*(iap->ndim *N AX)*/ 
-    main_auto_storage.icf2.assign((iap->ndim * (iap->ntst +1) ), 0); 
+    iap->lib->solvbv.icf2.assign((iap->ndim * (iap->ntst +1) ), 0); 
     /*(2)*/ 
-    main_auto_storage.np.assign((2) , 0);
+    iap->lib->solvbv.np.assign((2) , 0);
      } 
 
   iam = iap->mynode;
@@ -152,22 +144,22 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   if (kwt > ntst) {
     xpp::auto_fail(xpp::format("Ntst is {}, less than the number of nodes ({}); set Ntst (Numerics) to 1 or more", ntst, kwt));
   } else {
-    partition(&ntst, &kwt, main_auto_storage.np.data());
+    partition(&ntst, &kwt, iap->lib->solvbv.np.data());
   }
   
   /*     NTST0 is the global one, NTST is the local one. */
   /*     The value of NTST may be different in different nodes. */
   ntst0 = ntst;
-  ntst = main_auto_storage.np[iam];
+  ntst = iap->lib->solvbv.np[iam];
   
   if (*ifst == 1) {
     setubv(ndim, ips, ntst, ncol, nbc, nint, nfpr, nrc, nrow, nclm,
 	   funi, bcni, icni, *ndxloc, iap, rap, par, icp, 
-	   *rds, main_auto_storage.a.data(), main_auto_storage.b.data(), main_auto_storage.c.data(), main_auto_storage.d.data(), ft.data(), fc, rlcur, 
+	   *rds, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, 
 	   dtm, thl, thu, p0, p1);
   } else {
-    setrhs(&ndim, &ips, &ntst, &ntst0, main_auto_storage.np.data(), &ncol, &nbc, &nint, &
+    setrhs(&ndim, &ips, &ntst, &ntst0, iap->lib->solvbv.np.data(), &ncol, &nbc, &nint, &
 	   nfpr, &nrc, &nrow, &nclm, &iam, &kwt, &ipar, funi, bcni, icni,
 	   ndxloc, iap, rap, par, icp, rds, ft.data(), fc, rlcur, 
 	   rlold, rldot, ups, uoldps, udotps, upoldp, dups, dtm, thl, 
@@ -177,15 +169,15 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
    */
   if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
   if (iam > 0) {
-    setfcdd(ifst, main_auto_storage.d.data(), fc, &nfpr, &nrc);
+    setfcdd(ifst, iap->lib->solvbv.d.data(), fc, &nfpr, &nrc);
   }
 
-  brbd(iap->lib->fp9, main_auto_storage.a.data(), main_auto_storage.b.data(), main_auto_storage.c.data(), main_auto_storage.d.data(), ft.data(), fc, p0, p1, 
+  brbd(iap->lib->fp9, iap->lib->solvbv.a.data(), iap->lib->solvbv.b.data(), iap->lib->solvbv.c.data(), iap->lib->solvbv.d.data(), ft.data(), fc, p0, p1, 
        ifst, &iid, nllv, &det, &ndim, &ntst, &nbc, &nrow, &nclm, &nfpr, &
-       nrc, &iam, &kwt, &ipar, main_auto_storage.a1.data(), main_auto_storage.a2.data(), main_auto_storage.bb.data(), 
-       main_auto_storage.cc.data(), main_auto_storage.faa.data(), main_auto_storage.ca1.data(), main_auto_storage.s1.data(), main_auto_storage.s2.data(), 
-       main_auto_storage.icf11.data(), main_auto_storage.ipr.data(), main_auto_storage.icf1.data(), main_auto_storage.icf2.data(), 
-       main_auto_storage.irf.data(), main_auto_storage.icf.data());
+       nrc, &iam, &kwt, &ipar, iap->lib->solvbv.a1.data(), iap->lib->solvbv.a2.data(), iap->lib->solvbv.bb.data(), 
+       iap->lib->solvbv.cc.data(), iap->lib->solvbv.faa.data(), iap->lib->solvbv.ca1.data(), iap->lib->solvbv.s1.data(), iap->lib->solvbv.s2.data(), 
+       iap->lib->solvbv.icf11.data(), iap->lib->solvbv.ipr.data(), iap->lib->solvbv.icf1.data(), iap->lib->solvbv.icf2.data(), 
+       iap->lib->solvbv.irf.data(), iap->lib->solvbv.icf.data());
   
   if (ipar) {
     /*        Global concatenation of the solution from each node. */

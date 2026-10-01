@@ -190,6 +190,37 @@ struct AutoLib {
      branch) until the run writes its first label, which becomes the
      follow-up run's restart label (autlib1.cpp); a failed run clears it */
   int restart_flag=0;
+  /* 1 while lcspae/lcspbv locate a special point: their solves run to
+     the end (autlib1.cpp's Locating) */
+  int locating=0;
+  /* the storage behind scratch's and rotations' pointers
+     (allocate_global_memory) */
+  struct {
+    std::vector<double> dfu,dfp,uu1,uu2,ff1,ff2;
+    std::vector<long> nrtn;
+  } store;
+  /* solvae's last ntop (its output's paging) */
+  long solvae_ntop=0;
+  /* solvbv's matrices, kept from one call to the next: a call with
+     *ifst == 1 sizes (and zeroes) them, later ones reuse what it
+     factored (autlib2.cpp) */
+  struct {
+    std::vector<double> a,b,c,d,a1,a2,s1,s2,bb,cc,faa,ca1;
+    std::vector<long> icf,irf,ipr,icf11,icf1,icf2,np;
+  } solvbv;
+  /* the homoclinic continuation's (HomCont's) common blocks
+     (autlib5.cpp): its settings, the projections, the equilibria's
+     eigenvalues and vectors, and their previous values */
+  struct {
+    struct { long itwist,istart,iequib,nfixed,npsi,nunstab,nstab,nrev; } blhom{};
+    struct { std::vector<long> ipsi,ifixed,irev; } blhmp;
+    struct { std::vector<double> pu0,pu1; } blhmu;
+    struct { long nbcn; } bcnn{};
+    struct { double compzero; } blhma{};
+    struct { std::vector<double> rr,ri,v,vt,xequib; long ineig=0; } bleig;
+    struct { std::vector<double> vrprev; std::vector<long> ieigc; } blhme;
+    struct { std::vector<double> cprev; std::vector<long> iflag; } beyn;
+  } homcont;
 };
 
 namespace xpp {

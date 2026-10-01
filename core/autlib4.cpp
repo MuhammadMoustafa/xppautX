@@ -384,12 +384,12 @@ dhhpr(integer *k, integer *j, integer *n, doublereal *x, integer *incx, doublere
 {
 
   /* Local variables */
-  static integer iend, jmkp1;
+  integer iend, jmkp1;
 
-  static integer i, l;
-  static doublereal m, alpha;
+  integer i, l;
+  doublereal m, alpha;
 
-  static integer istart;
+  integer istart;
 
     
 
@@ -539,9 +539,9 @@ dhhap(integer *k, integer *j, integer *n, integer *q, doublereal *beta, doublere
 
     /* Local variables */
 
-  static integer jmkp1;
-  static doublereal s;
-  static integer col, row;
+  integer jmkp1;
+  doublereal s;
+  integer col, row;
 
     
 

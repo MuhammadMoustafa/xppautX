@@ -24,14 +24,14 @@
    to. The cancel then reaches the next ordinary solve, which returns to the
    last stored point, so a cancelled run always ends the same way (the EP
    repeating that point) and a script can replay it exactly. */
-static int auto_locating = 0;
 
 namespace {
 /* auto_locating = 1 for a scope: cleared however it ends, a failed solve
    (xpp::AutoFailed) included, so the next run can be cancelled again */
 struct Locating {
-  Locating() { auto_locating = 1; }
-  ~Locating() { auto_locating = 0; }
+  AutoLib &lib;
+  explicit Locating(AutoLib &l) : lib(l) { lib.locating = 1; }
+  ~Locating() { lib.locating = 0; }
   Locating(const Locating &) = delete;
   Locating &operator=(const Locating &) = delete;
 };
@@ -1262,7 +1262,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   integer nit, mxt;
   doublereal umx;
   integer nit1;
-  static integer last_ntop=0;
+  integer &last_ntop=iap->lib->solvae_ntop;
 
 /* This is the subroutine for computing solution branches. It solves */
 /* the equations for finding the next point on the branch at distance DS 
@@ -1319,7 +1319,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    if (!auto_locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
+    if (!iap->lib->locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -1551,7 +1551,7 @@ lcspae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_AE
   contae(iap, rap, &rds, rlcur, rlold, rldot, u, uold,
 	 udot);
   {
-    Locating locating; /* xppautX: cancel: runs to the end */
+    Locating locating(*iap->lib); /* xppautX: cancel: runs to the end */
     solvae(iap, rap, par, icp, funi, &rds, m1aaloc, aa,
 	   rhs, rlcur, rlold, rldot, u, du, uold, udot, f,
 	   dfdu, dfdp, thl, thu);
@@ -5164,7 +5164,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
     { int iflag; xpp::byeauto_(&iflag); } /* xppautX: cancel */
-    if (!auto_locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!iap->lib->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5175,14 +5175,14 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
     }
 
     {
-      SetubvStop stop(*iap->lib, !auto_locating); /* xppautX: cancel */
+      SetubvStop stop(*iap->lib, !iap->lib->locating); /* xppautX: cancel */
       solvbv(&ifst, iap, rap, par, icp, funi, bcni, icni, 
 	     rds, &nllv, rlcur, rlold, rldot, ndxloc, 
 	     ups, dups, uoldps, 
 	     udotps, upoldp, dtm, fa, fc, p0, 
 	     p1, thl, thu);
     }
-    if (!auto_locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!iap->lib->locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -5629,7 +5629,7 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* continuation */
 
   if (ips == 9) {
-    preho(ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
+    preho(*iap->lib, ndxloc, ntsrs, &ndimrd, &ndim, ncolrs, ups, udotps, tm, par);
 
     /* Special case : Preprocess restart data in case of branch switching 
      */
@@ -5981,7 +5981,7 @@ lcspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FNCS_TYPE_BV
   contbv(iap, rap, par, icp, funi, &rds, rlcur, rlold, &
 	 rldot[0], ndxloc, ups, uoldps, udotps, upoldp, dtm, thl, thu);
   {
-    Locating locating; /* xppautX: cancel: runs to the end */
+    Locating locating(*iap->lib); /* xppautX: cancel: runs to the end */
     stepbv(iap, rap, par, icp, funi, bcni, icni, pvli, &rds, &rlcur[-1 +
 								   1], rlold, rldot, ndxloc, ups, dups, uoldps, udotps,
 	   upoldp, fa, fc, tm, dtm, p0, p1, thl, thu);
@@ -6926,31 +6926,23 @@ pvlsbv(iap_type *iap, rap_type *rap, integer *icp, doublereal *dtm, integer *ndx
   return 0;
 } /* pvlsbv_ */
 
-namespace {
-/* The storage behind global_scratch's and global_rotations' pointers
-   (auto_c.h keeps them plain pointers for its C-shaped API). */
-struct {
-  std::vector<doublereal> dfu, dfp, uu1, uu2, ff1, ff2;
-  std::vector<integer> nrtn;
-} global_store;
-} // namespace
 
 void allocate_global_memory(const iap_type iap) {
     /* assign: zeroed, like the xpp_malloc it replaces */
-    global_store.dfu.assign(iap.ndim * iap.ndim, 0.);
-    global_store.dfp.assign(iap.ndim * NPARX, 0.);
-    global_store.uu1.assign(iap.ndim, 0.);
-    global_store.uu2.assign(iap.ndim, 0.);
-    global_store.ff1.assign(iap.ndim, 0.);
-    global_store.ff2.assign(iap.ndim, 0.);
-    iap.lib->scratch.dfu = global_store.dfu.data();
-    iap.lib->scratch.dfp = global_store.dfp.data();
-    iap.lib->scratch.uu1 = global_store.uu1.data();
-    iap.lib->scratch.uu2 = global_store.uu2.data();
-    iap.lib->scratch.ff1 = global_store.ff1.data();
-    iap.lib->scratch.ff2 = global_store.ff2.data();
+    iap.lib->store.dfu.assign(iap.ndim * iap.ndim, 0.);
+    iap.lib->store.dfp.assign(iap.ndim * NPARX, 0.);
+    iap.lib->store.uu1.assign(iap.ndim, 0.);
+    iap.lib->store.uu2.assign(iap.ndim, 0.);
+    iap.lib->store.ff1.assign(iap.ndim, 0.);
+    iap.lib->store.ff2.assign(iap.ndim, 0.);
+    iap.lib->scratch.dfu = iap.lib->store.dfu.data();
+    iap.lib->scratch.dfp = iap.lib->store.dfp.data();
+    iap.lib->scratch.uu1 = iap.lib->store.uu1.data();
+    iap.lib->scratch.uu2 = iap.lib->store.uu2.data();
+    iap.lib->scratch.ff1 = iap.lib->store.ff1.data();
+    iap.lib->scratch.ff2 = iap.lib->store.ff2.data();
 
-    global_store.nrtn.assign(iap.nbc, 0);
-    iap.lib->rotations.nrtn = global_store.nrtn.data();
+    iap.lib->store.nrtn.assign(iap.nbc, 0);
+    iap.lib->rotations.nrtn = iap.lib->store.nrtn.data();
 }
 
