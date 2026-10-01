@@ -54,7 +54,7 @@ int my_rhs(xpp::Session &s, double t, double *y, double *ydot, int neq)
   }
 eval_all_nets(s);
     
-    do_daes(s);
+    xpp::do_daes(s);
  for(i=0;i<node;i++)
   {
     ydot[i]=evaluate(s,m.programs[i].data());

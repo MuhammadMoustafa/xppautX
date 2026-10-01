@@ -14,7 +14,9 @@
 #
 # Until W109's stages finish (docs/roadmap.md, "W109: the core's API in
 # C++, in stages"), the C API they have not reached yet is listed with
-# the stage card that converts it; never add an entry for new code.
+# the stage card that converts it; never add an entry for new code. The
+# vendored CVODE's headers keep theirs until W34 (#72) decides whether
+# SUNDIALS replaces CVODE (maintainer, 2026-09-30).
 # tools/sourcecheck.sh runs this. Usage: tools/externcheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
@@ -23,30 +25,13 @@ ALLOW="core/xpp_window_plugin.h 1|the window library's C ABI: libxppwindow.so's 
 core/xpp_window.cpp 3|xpp_window_plugin_init, that export; xpp_icon_png and its length, C data tools/embed_bytes.c generates
 core/xpp_window_loader.cpp 2|xpp_window_lib and its length, C data tools/embed_bytes.c generates
 core/xpp_http.cpp 2|xpp_web_assets, C data tools/embed.c generates; rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S
-core/adj2.h 1|W109b: the integrator and the solvers
-core/band.h 1|W109b
-core/cv2.h 1|W109b
-core/cvband.h 1|W109b
-core/cvdense.h 1|W109b
-core/cvode.h 1|W109b
-core/dae_fun.h 1|W109b
-core/del_stab.h 1|W109b
-core/delay_handle.h 1|W109b
-core/dense.h 1|W109b
-core/do_fit.h 1|W109b
-core/gear.h 1|W109b
-core/histogram.h 1|W109b
-core/integrate.h 1|W109b
-core/llnlmath.h 1|W109b
-core/markov.h 1|W109b
-core/numerics.h 1|W109b
-core/numerics_settings.h 1|W109b
-core/odesol2.h 1|W109b
-core/pp_shoot.h 1|W109b
-core/stiff.h 1|W109b
-core/storage.h 1|W109b
-core/vector.h 1|W109b
-core/volterra2.h 1|W109b
+core/band.h 1|vendored CVODE, its own C API: W34 (#72) decides whether SUNDIALS replaces it
+core/cvband.h 1|vendored CVODE: W34 (#72) decides
+core/cvdense.h 1|vendored CVODE: W34 (#72) decides
+core/cvode.h 1|vendored CVODE: W34 (#72) decides
+core/dense.h 1|vendored CVODE: W34 (#72) decides
+core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
+core/vector.h 1|vendored CVODE: W34 (#72) decides
 core/comline.h 1|W109c: the parser and the load
 core/derived.h 1|W109c
 core/expr.h 1|W109c

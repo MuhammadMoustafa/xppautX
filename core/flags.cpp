@@ -349,8 +349,8 @@ int one_flag_step(xpp::Session &s, double *yold, double *ynew, int *istart, doub
 	      set_val(s,s.model().upar_names[in],fstate[i].vrhs[j]);
 	    else{
 
-	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))send_output(s,ynew,*tnew);
-	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))send_halt(ynew,*tnew);
+	      if((flags[i].type[j]==2)&&(fstate[i].vrhs[j]>0))xpp::send_output(s,ynew,*tnew);
+	      if((flags[i].type[j]==3)&&(fstate[i].vrhs[j]>0))xpp::send_halt(ynew,*tnew);
 	    }
 	  }
 
@@ -414,7 +414,7 @@ int one_flag_step_symp(xpp::Session &s, double *y, double dt, double *work, int 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*tim;
-    one_step_symp(s,y,dtt,work,neq,tim);
+    xpp::one_step_symp(s,y,dtt,work,neq,tim);
     if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
       break;
     /* Its a hit !! */
@@ -440,7 +440,7 @@ int one_flag_step_euler(xpp::Session &s, double *y, double dt, double *work, int
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*tim;
-    one_step_euler(s,y,dtt,work,neq,tim);
+    xpp::one_step_euler(s,y,dtt,work,neq,tim);
     if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
       break;
     /* Its a hit !! */
@@ -466,7 +466,7 @@ int one_flag_step_discrete(xpp::Session &s, double *y, double dt, double *work, 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*tim;
-    one_step_discrete(s,y,dtt,work,neq,tim);
+    xpp::one_step_discrete(s,y,dtt,work,neq,tim);
     if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
       break;
     /* Its a hit !! */
@@ -491,7 +491,7 @@ int one_flag_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], i
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*tim;
-    one_step_heun(s,y,dtt,yval,neq,tim);
+    xpp::one_step_heun(s,y,dtt,yval,neq,tim);
     if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
       break;
     /* Its a hit !! */
@@ -516,7 +516,7 @@ int one_flag_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], in
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*tim;
-    one_step_rk4(s,y,dtt,yval,neq,tim);
+    xpp::one_step_rk4(s,y,dtt,yval,neq,tim);
     if((hit=one_flag_step(s,yold,y,istart,told,tim,neq,&frac))==0)
       break;
     /* Its a hit !! */
@@ -541,7 +541,7 @@ int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    ggear(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
+    xpp::ggear(s,neq,t,tout,y, hmin,hmax,eps,mf,error,kflag,jstart,work,iwork);
     if(*kflag<0) break;
     if((hit=one_flag_step(s,yold,y,jstart,told,t,neq,&frac))==0)
       break;
@@ -569,7 +569,7 @@ int *istart,int n,double *work,int *ierr)
     for(i=0;i<n;i++)
       yold[i]=y[i];
     told=*tstart;
-    ok=rosen(s,y,tstart,tfinal,istart,n,work,ierr);
+    ok=xpp::rosen(s,y,tstart,tfinal,istart,n,work,ierr);
     if(ok==-1) break;
     if((hit=one_flag_step(s,yold,y,istart,told,tstart,n,&frac))==0)
       break;
@@ -629,13 +629,13 @@ int one_flag_step_cvode(xpp::Session &s, int *command, double *y, double *t, int
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    ccvode(s,command,y,t,n,tout,kflag,atol,rtol);
+    xpp::ccvode(s,command,y,t,n,tout,kflag,atol,rtol);
     if(*kflag<0) break;
     if((hit=one_flag_step(s,yold,y,command,told,t,neq,&frac))==0)
       break;
     /* Its a hit !! */
     nstep++;
-   end_cv();
+   xpp::end_cv();
     *command=1; /* for cvode always reset  */
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){
@@ -659,7 +659,7 @@ int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double to
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    gadaptive(s,y,neq,t,tout,eps,
+    xpp::gadaptive(s,y,neq,t,tout,eps,
 		     hguess,hmin,work,ier,epjac,iflag,jstart);
     if(*ier) break;
     if((hit=one_flag_step(s,yold,y,jstart,told,t,neq,&frac))==0)
@@ -689,7 +689,7 @@ int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int 
     for(i=0;i<neq;i++)
       yold[i]=y[i];
     told=*t;
-    if((j=one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
+    if((j=xpp::one_bak_step(s,y,t,dtt,neq,yg,yp,yp2,ytemp,errvec,jac,istart))!=0)
       return(j);
     if((hit=one_flag_step(s,yold,y,istart,told,t,neq,&frac))==0)
       break;

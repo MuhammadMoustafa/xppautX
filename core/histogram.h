@@ -1,23 +1,22 @@
 #ifndef _histogram_h_
 #define _histogram_h_
-#ifdef __cplusplus
+
+#include <span>
 #include <string>
-#include "xpp_error.h"
-extern "C" {
-#endif
-
-
-int spectrum(float *data, int nr, int win, int w_type, float *pow);
-int cross_spectrum(float *data, float *data2, int nr, int win, int w_type, float *pow, int type);
-void mycor2(float *x, float *y, int n, int nbins, float *z, int flag);
-void fftxcorr(float *data1, float *data2, int length, int nlag, float *cr, int flag);
-void fourier_modes(float *data, float *ct, float *st, int nmodes, int length);
-
-
-#ifdef __cplusplus
-}
-
 #include "storage.h"
+#include "xpp_error.h"
+
+namespace xpp {
+
+struct Session; /* session.h */
+
+/* the spectral analysis of stored columns (two columns of the same
+   length) */
+int spectrum(std::span<const float> data, int win, int w_type, float *pow);
+int cross_spectrum(std::span<const float> data, std::span<const float> data2, int win, int w_type, float *pow, int type);
+void mycor2(std::span<const float> x, std::span<const float> y, int nbins, float *z, int flag);
+void fftxcorr(std::span<const float> data1, std::span<const float> data2, int nlag, float *cr, int flag);
+void fourier_modes(std::span<const float> data, float *ct, float *st, int nmodes);
 
 /* the histogram / spectrum settings the dialogs and the model's own
    @ options edit (load_eqn.cpp's option reader; cond, the histogram's
@@ -45,38 +44,34 @@ struct HistogramState {
   int post_process=0;
 };
 
-namespace xpp {
-struct Session; /* session.h */
-}
-
-void column_mean(xpp::Session &s);
-void compute_correl(xpp::Session &s);
-void compute_fourier(xpp::Session &s);
-void compute_hist(xpp::Session &s);
-void compute_power(xpp::Session &s);
-void compute_sd(xpp::Session &s);
-void compute_stacor(xpp::Session &s);
-int new_2d_hist(xpp::Session &s);
+void column_mean(Session &s);
+void compute_correl(Session &s);
+void compute_fourier(Session &s);
+void compute_hist(Session &s);
+void compute_power(Session &s);
+void compute_sd(Session &s);
+void compute_stacor(Session &s);
+int new_2d_hist(Session &s);
 
 /* a histogram or correlation of the session s's stored data; the error of
    a condition that did not compile (it was ignored, the rest is done), for
    the command to show */
-xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
-                       int which);
+Result<> new_hist(Session &s, int nbins, double zlo, double zhi, int col, int col2, const char *condition,
+                  int which);
 /* the other results of s's stored data: a 2D histogram, the Fourier
    modes, a spectrum; shown in the browser (four_back, hist_back) */
-int two_d_hist(xpp::Session &s, int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo,
+int two_d_hist(Session &s, int col1, int col2, int ndat, int n1, int n2, double xlo, double xhi, double ylo,
                double yhi);
-int twod_hist(xpp::Session &s);
-void four_back(xpp::Session &s);
-void hist_back(xpp::Session &s);
-void new_four(xpp::Session &s, int nmodes, int col);
-void just_fourier(xpp::Session &s, int flag);
-void just_sd(xpp::Session &s, int flag);
+int twod_hist(Session &s);
+void four_back(Session &s);
+void hist_back(Session &s);
+void new_four(Session &s, int nmodes, int col);
+void just_fourier(Session &s, int flag);
+void just_sd(Session &s, int flag);
 /* a batch run's post-processing (@ post_process=) of s's data */
-void post_process_stuff(xpp::Session &s);
+void post_process_stuff(Session &s);
 /* asks for a column of s's model (prompt); 0 when it names none */
-int get_col_info(const xpp::Session &s, int *col, const char *prompt);
-#endif
-#endif
+int get_col_info(const Session &s, int *col, const char *prompt);
 
+} // namespace xpp
+#endif

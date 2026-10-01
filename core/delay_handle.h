@@ -1,33 +1,29 @@
 
 #ifndef _delay_handle_h_
 #define _delay_handle_h_
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void polint(double *xa, double *ya, int n, double x, double *y, double *dy);
-
-#ifdef __cplusplus
-}
 
 #include <array>
+#include <span>
 #include "xpp_error.h"
 #include "xpplim.h"
 
-
 namespace xpp {
-struct Session; /* session.h */
-}
 
-double delay_stab_eval(xpp::Session &s, double delay, int var);
-int alloc_delay(xpp::Session &s, double big);
-void free_delay(xpp::Session &s);
-void stor_delay(xpp::Session &s, double *y);
-double get_delay(xpp::Session &s, int in, double tau);
+struct Session; /* session.h */
+
+/* Neville's interpolation through the points (xa[i], ya[i]) (at most 10,
+   ya as long as xa) at x: the value y and its error estimate dy */
+void polint(std::span<const double> xa, std::span<const double> ya, double x, double &y, double &dy);
+
+double delay_stab_eval(Session &s, double delay, int var);
+int alloc_delay(Session &s, double big);
+void free_delay(Session &s);
+void stor_delay(Session &s, double *y);
+double get_delay(Session &s, int in, double tau);
 
 /* the delay's initial data, from t0-big to t0, stored from the Delay ICs'
    formulas, or the error when one does not parse */
-xpp::Result<> do_init_delay(xpp::Session &s, double big);
+Result<> do_init_delay(Session &s, double big);
 /* the delay equations' state (delay_handle.cpp, del_stab.cpp), a
    Session's (session.h): the model has delays (flag); the stability
    search's grid and bounds (grid, alpha_max, omega_max), whether the
@@ -40,5 +36,6 @@ struct DelayState {
   std::array<std::array<double, MAXODE>, 2> variable_shift{};
   std::array<double, MAXDELAY> list{};
 };
-#endif
+
+} // namespace xpp
 #endif

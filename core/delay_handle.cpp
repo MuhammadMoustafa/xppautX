@@ -15,6 +15,8 @@
 #include "form_ode.h"
 #include "model.h"
 
+namespace xpp {
+
 namespace {
 /* the stored history, NODE values per row, MaxDelay rows (a ring,
    LatestDelay its newest row) */
@@ -82,8 +84,9 @@ void stor_delay(xpp::Session &s, double *y)
 
 }
 
-void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
+void polint(std::span<const double> xa, std::span<const double> ya, double x, double &y, double &dy)
 {
+  const int n=static_cast<int>(xa.size());
   int i,m,ns=1;
   double den,dif,dift,h0,hp,w;
   double c[10],d[10];
@@ -96,7 +99,7 @@ void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
     c[i-1]=ya[i-1];
     d[i-1]=ya[i-1];
   }
-  *y=ya[(ns--) -1];
+  y=ya[(ns--) -1];
   for(m=1;m<n;m++){
     for(i=1;i<=n-m;i++){
       h0=xa[i-1]-x;
@@ -107,7 +110,7 @@ void polint(double *xa, double *ya, int n, double x, double *y, double *dy)
       d[i-1]=hp*den;
       c[i-1]=h0*den;
     }
-    *y += (*dy=(2*ns < (n-m) ? c[ns]:d[ns-- -1]));
+    y += (dy=(2*ns < (n-m) ? c[ns]:d[ns-- -1]));
   }
 }
 
@@ -147,7 +150,7 @@ double get_delay(xpp::Session &s, int in, double tau)
   ya[2]=DelayWork[in+(nodes )*i2];
    ya[0]=DelayWork[in+(nodes )*i0];
   ya[3]=DelayWork[in+(nodes )*i3];
-  polint(xa,ya,4,tau,&y,&dy);
+  polint(xa,ya,tau,y,dy);
   
   return(y);
  }
@@ -190,3 +193,4 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
    return {};
  }
 
+} // namespace xpp

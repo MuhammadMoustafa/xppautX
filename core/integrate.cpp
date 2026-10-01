@@ -67,6 +67,8 @@
 #include "colormap.h"
 #include "comline.h"
 
+namespace xpp {
+
 /* a row was just stored (storage[.][storind-1]): a replayed script may stop
    the job here (xpp_job.h), and a front end may show the run growing */
 static void row_stored(xpp::Session &s)
@@ -2098,3 +2100,5 @@ ov:
  }
   return(0);
 }
+
+} // namespace xpp

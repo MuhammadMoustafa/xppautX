@@ -1010,7 +1010,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 	 subsk(markov_states[istates].c_str(),markov_states2[istates],jj,is_array);
 	 int istart=0;
 	 for(int k=0;k<nstates;k++)
-	   markov.cells.push_back(text_expr(markov_cell(markov_states2[istates].c_str(),&istart)));
+	   markov.cells.push_back(text_expr(xpp::markov_cell(markov_states2[istates].c_str(),&istart)));
        }
        out.push_back(std::move(markov));
        v.type=MARKOV_VAR;
@@ -1159,7 +1159,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag)
     return 1;
   }
   if(check_if_ic(old)==1){
-    extract_ic_data(old);
+    xpp::extract_ic_data(old);
     newstr=old;
     return 1;
   }

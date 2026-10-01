@@ -678,7 +678,7 @@ void  data_last(BROWSER *b)
 
 void  data_restore(xpp::Session &s, BROWSER *b)
  {
-  restore(s,b->istart,b->iend);
+  xpp::restore(s,b->istart,b->iend);
 
   }
 

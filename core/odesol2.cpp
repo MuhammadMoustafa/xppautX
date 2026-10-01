@@ -10,6 +10,8 @@
 #include "numerics.h"
 #include "model.h"
 
+namespace xpp {
+
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
@@ -576,3 +578,5 @@ void get_band_jac(xpp::Session &s, double *a, double *y, double t, double *ypnew
   } 
  
 }
+
+} // namespace xpp

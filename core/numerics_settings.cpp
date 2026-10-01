@@ -19,6 +19,8 @@
 #include "xpp_io.h"
 #include "xpp_mem.h"
 
+namespace xpp {
+
 namespace {
 
 enum class Rule { any, nonzero, positive, nonnegative, whole_positive, method };
@@ -219,3 +221,5 @@ void numerics_settings_init(NumericsSettingsEmit emit) { event.init(emit); }
 void numerics_settings_subscribe(const xpp::Session &s, int on) { event.subscribe(on != 0, s); }
 
 void numerics_settings_update(const xpp::Session &s) { event.update(s); }
+
+} // namespace xpp

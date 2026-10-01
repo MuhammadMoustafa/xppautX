@@ -125,18 +125,18 @@ int read_set(xpp::Session &s, FILE *fp, bool ask)
   io_numerics(s,f,fp);
   if(s.numerics.method==xpp::method::VOLTERRA){
     io_int(&temp,fp,f," ");
-    allocate_volterra(s,temp,1);
+    xpp::allocate_volterra(s,temp,1);
     s.integrator.my_start=1;
   }
-  chk_delay(s);
+  xpp::chk_delay(s);
   io_exprs(s,f,fp);
   io_graph(s,f,fp);
   if(set_type==1){
-    dump_transpose_info(fp,f);
-    dump_h_stuff(s,fp,f);
+    xpp::dump_transpose_info(fp,f);
+    xpp::dump_h_stuff(s,fp,f);
     dump_aplot(s,fp,f);
     dump_torus(s,fp,f);
-    dump_range(s,fp,f);
+    xpp::dump_range(s,fp,f);
   }
   return 1;
 }
@@ -209,11 +209,11 @@ void write_lunch(xpp::Session &s, FILE *fp)
      }
    io_exprs(s,f,fp);
    io_graph(s,f,fp);
-    dump_transpose_info(fp,f);
-   dump_h_stuff(s,fp,f);
+    xpp::dump_transpose_info(fp,f);
+   xpp::dump_h_stuff(s,fp,f);
    dump_aplot(s,fp,f);
    dump_torus(s,fp,f);
-   dump_range(s,fp,f);
+   xpp::dump_range(s,fp,f);
    dump_eqn(s,fp);
 }
 
@@ -257,7 +257,7 @@ if(f!=READEM)
 io_int(&s.numerics.njmp,fp,f," nout");
 io_int(&s.numerics.nmesh,fp,f," nullcline mesh");
 io_int(&s.numerics.method,fp,f,xpp::solver_info(s.numerics.method).set_label);
- if(f==READEM)do_meth(s);
+ if(f==READEM)xpp::do_meth(s);
 io_double(&s.numerics.tend,fp,f,"total");
 io_double(&s.numerics.delta_t,fp,f,"DeltaT");
 io_double(&s.numerics.t0,fp,f,"T0");

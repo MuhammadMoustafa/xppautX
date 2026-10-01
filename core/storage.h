@@ -2,31 +2,24 @@
 #define _storage_h_
 
 #include "xpplim.h" /* MAXODE */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* the integrator's state vector (the ODEs, then the Markov variables and
-   the delay/Volterra extras) that the solvers step in place */
-typedef struct {
-  int nvec,node;
-  double *x;
-} XPPVEC;
-
-#ifdef __cplusplus
-}
-
 #include <array>
 #include <vector>
-
 #include "xpp_error.h"
 
 namespace xpp {
+
 struct Session; /* session.h */
-}
+
+/* the integrator's state vector (the ODEs, then the Markov variables and
+   the delay/Volterra extras) that the solvers step in place */
+struct XPPVEC {
+  int nvec,node;
+  double *x;
+};
+
 /* the Session s's state vector, zeroed, for its Model's ODEs and Markov
    variables */
-void init_alloc_info(xpp::Session &s);
+void init_alloc_info(Session &s);
 
 /* the integrator's state vector (init_alloc_info), a Session's
    (session.h); each solver owns its own work memory (solver.h) */
@@ -55,7 +48,7 @@ struct DataStore {
   /* the first ncol columns to nrow rows, keeping what they hold (the rows
      added are zero), or the error when there is no memory (the columns
      as they were). The caller sets max_rows. */
-  xpp::Result<> grow(int ncol, int nrow);
+  Result<> grow(int ncol, int nrow);
   /* column c (a new user column) with max_rows rows of zeros */
   void add_column(int c);
   /* A derived data set (a histogram, the Fourier modes, the adjoint's
@@ -88,5 +81,6 @@ private:
   std::vector<std::vector<float>> own_;
   std::array<float *, MAXODE + 1> table_{};
 };
-#endif
+
+} // namespace xpp
 #endif

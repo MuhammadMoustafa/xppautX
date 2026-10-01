@@ -11,6 +11,8 @@
 #include "load_eqn.h"
 #include "model.h"
 
+namespace xpp {
+
 void init_alloc_info(xpp::Session &s)
 {
   SolverWork &w=s.solver_work;
@@ -80,3 +82,5 @@ void LentColumns::release()
   own_.clear();
   table_.fill(nullptr);
 }
+
+} // namespace xpp

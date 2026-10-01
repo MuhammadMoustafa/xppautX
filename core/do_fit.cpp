@@ -23,6 +23,8 @@
 #include "load_eqn.h"
 #include "model.h"
 
+namespace xpp {
+
 /*  this is also X free ! */
  
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -618,3 +620,4 @@ void parse_parlist(const xpp::Session &s, std::string_view parlist, int *ipars, 
   *n=*n+i;
 }
 
+} // namespace xpp

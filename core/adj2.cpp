@@ -34,6 +34,8 @@
 #include "histogram.h"
 #include "load_eqn.h"
 
+namespace xpp {
+
 #define READEM 1
 
 namespace {
@@ -579,18 +581,16 @@ void do_this_liaprun(xpp::Session &s, int i,double p)
  LIAP_I++;
 }
 
-void norm_vec(double *v, double *mu, int n)  /* returns the length of the vector and the unit vector */
+void norm_vec(std::span<double> v, double &mu)
 {
-  int i;
   double sum=0.0;
-  for(i=0;i<n;i++)
-    sum+=(v[i]*v[i]);
+  for(double vi : v)
+    sum+=(vi*vi);
   sum=sqrt(sum);
   if(sum>0)
-    for(i=0;i<n;i++)
-      v[i]=v[i]/sum;
-  *mu=sum;
-  return;
+    for(double &vi : v)
+      vi=vi/sum;
+  mu=sum;
 }
 
 xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
@@ -619,12 +619,12 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
      if(auto st=one_step_int(s,y,t0,t1,&istart);!st)return std::unexpected(st.error());
      for(i=0;i<s.model().node;i++)
        yp[i]=(y[i]-s.data_store.col[i+1][j+1]);
-     norm_vec(yp,&nrm,s.model().node);
+     norm_vec(std::span(yp,s.model().node),nrm);
      nrm=nrm/eps;
      if(nrm==0.0){
        return xpp::fail("Liapunov","Liapunov:-infinity exponent!"); /* something wrong here */
      }
-     sum=sum+log(nrm);
+     sum=sum+::log(nrm);
     for(i=0;i<s.model().node;i++)
       dy[i]=eps*yp[i];
 
@@ -636,3 +636,4 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
  return sum; /*  success !! */
 }
 
+} // namespace xpp

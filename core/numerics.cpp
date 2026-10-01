@@ -27,6 +27,8 @@
 #include "model.h"
 #include "solver.h"
 
+namespace xpp {
+
 namespace method = xpp::method;
 
 /*   This is numerics.c    
@@ -499,3 +501,4 @@ void do_meth(xpp::Session &s)
  xpp::start_solver(s);
 }
 
+} // namespace xpp

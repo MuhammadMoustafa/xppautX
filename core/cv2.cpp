@@ -17,6 +17,8 @@
 #include "numerics.h"
 #include <string>
 #include "model.h"
+
+namespace xpp {
 static double cv_ropt[OPT_SIZE];
 static int cv_iopt[OPT_SIZE];
 static void *cvode_mem;
@@ -122,3 +124,4 @@ int ccvode(xpp::Session &s, int *command, double *y, double *t, int n, double to
   return(0);
 }
 
+} // namespace xpp

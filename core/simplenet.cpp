@@ -799,10 +799,10 @@ void evaluate_network(xpp::Session &s, int ind)
    case GILLTYPE:
      if(net.ncon==-1&&net.iwgt>0&&!nv.gill_ready){
        nv.gill_nu.assign(static_cast<size_t>(net.root)*s.model().node,0.0);
-       make_gill_nu(s,nv.gill_nu.data(),s.model().node,net.root,nv.values.data());
+       xpp::make_gill_nu(s,nv.gill_nu.data(),s.model().node,net.root,nv.values.data());
        nv.gill_ready=true;
      }
-     one_gill_step(s,net.iwgt,net.root,net.gcom.data(),nv.values.data());
+     xpp::one_gill_step(s,net.iwgt,net.root,net.gcom.data(),nv.values.data());
      break;
    case CONVE:
      y=&variables[root];
@@ -860,7 +860,7 @@ void evaluate_network(xpp::Session &s, int ind)
          ij=j*ncon+i;
 	 /* root indexes variables[], where t comes first; get_delay counts
 	    from the first state variable, as the parser's delay() does */
-	 sum+=(w[ij]*get_delay(s,i+in0-1,tau[ij]));
+	 sum+=(w[ij]*xpp::get_delay(s,i+in0-1,tau[ij]));
        }
        values[j]=sum;
      }
@@ -885,7 +885,7 @@ void evaluate_network(xpp::Session &s, int ind)
 	 ij=i*ncon+j;
 	 k=static_cast<int>(cc[ij]);
          if(k>=0)
-	   sum+=(w[ij]*get_delay(s,k+in0-1,tau[ij])); /* as in DEL_MUL */
+	   sum+=(w[ij]*xpp::get_delay(s,k+in0-1,tau[ij])); /* as in DEL_MUL */
        }
        values[i]=sum;
      }  

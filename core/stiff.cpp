@@ -8,6 +8,8 @@
 #include "model.h"
 #include "solver.h"
 
+namespace xpp {
+
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define SIGN(a,b) ((b)>=0.0 ? fabs(a):-fabs(a))
@@ -306,3 +308,4 @@ void rkck(xpp::Session &s, double *y, double *dydx, int n, double x, double h, d
 			   dc4*ak4[i]+dc5*ak5[i]+dc6*ak6[i]);
 }
 
+} // namespace xpp

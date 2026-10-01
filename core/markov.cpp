@@ -26,6 +26,8 @@
 #include <vector>
 #include "model.h"
 
+namespace xpp {
+
 
 
 void add_wiener(xpp::Session &s, int index)
@@ -320,7 +322,7 @@ void one_gill_step(const xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
       rate+=r[i];
     }
     if(rate<=0.0)return;
-    v[0]=-log(xpp::ndrand48())/rate; /* next step */
+    v[0]=-::log(xpp::ndrand48())/rate; /* next step */
     test=rate*xpp::ndrand48();
     rate=r[0];
     for(i=0;i<nrxn;i++){
@@ -495,3 +497,5 @@ void do_stats(xpp::Session &s, int ierr)
  
   }
 }
+
+} // namespace xpp

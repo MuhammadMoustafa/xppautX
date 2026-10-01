@@ -27,6 +27,8 @@
 #include "getvar.h"
 #include "delay_handle.h"
 
+namespace xpp {
+
 #define ESCAPE 27
 
 #define NOCHANGE 2
@@ -482,3 +484,4 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
    return shown.result();
 }
 
+} // namespace xpp

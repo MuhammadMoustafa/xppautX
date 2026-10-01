@@ -19,6 +19,8 @@
 #include "form_ode.h"
 #include "load_eqn.h"
 #include "model.h"
+
+namespace xpp {
 #define DING ping()
 
 static int ShootType[8];
@@ -1150,3 +1152,5 @@ L860:
   return(1);
 
 }
+
+} // namespace xpp

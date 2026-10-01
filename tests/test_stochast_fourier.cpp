@@ -60,7 +60,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::client_session().data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N));
         int nmodes = N / 2 - 1;
-        new_four(xpp::client_session(),nmodes, 1);
+        xpp::new_four(xpp::client_session(),nmodes, 1);
         CHECK(xpp::client_session().histogram.four_here == 1);
         CHECK(xpp::client_session().histogram.four_len == nmodes);
         CHECK(relerr(xpp::client_session().histogram.four()[1][m], A) < 1e-4);
@@ -82,7 +82,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::client_session().data_store.col[1][i] = static_cast<float>(A * std::cos(2 * PI * m * i / N) +
                                                 B * std::sin(2 * PI * m * i / N));
-        just_fourier(xpp::client_session(),1);
+        xpp::just_fourier(xpp::client_session(),1);
         CHECK(xpp::client_session().histogram.four_here == 1);
         /* just_fourier(1) converts my_four[1]/[2] from (cos,sin) coefficients
            to (magnitude,phase) in place (four_back() inside new_four() points
@@ -109,7 +109,7 @@ int main(void)
         for (int i = 0; i < N; i++)
             xpp::client_session().data_store.col[2][i] = static_cast<float>(x[((i - L) % N + N) % N]);
         int nbins = N;
-        CHECK(new_hist(xpp::client_session(),nbins, 0.0, 1.0, 1, 2, "", 2).has_value());
+        CHECK(xpp::new_hist(xpp::client_session(),nbins, 0.0, 1.0, 1, 2, "", 2).has_value());
         CHECK(xpp::client_session().histogram.hist_here == 1);
         int lag = nbins / 2;
         int worst_ok = 1;
@@ -139,7 +139,7 @@ int main(void)
         xpp::client_session().histogram.spec_col = 1;
         xpp::client_session().histogram.spec_wid = win;
         xpp::client_session().histogram.spec_win = 0; /* square */
-        just_sd(xpp::client_session(),0);
+        xpp::just_sd(xpp::client_session(),0);
         CHECK(xpp::client_session().histogram.hist_here == 1);
         CHECK(xpp::client_session().histogram.hist_len == win / 2);
         CHECK(relerr(xpp::client_session().histogram.hist()[1][m], A) < 1e-3);

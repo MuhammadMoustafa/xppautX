@@ -42,7 +42,7 @@ int main(void)
     xpp::client_session().integrator.range.rtype = 0;
 
     xpp::client_session().stochastic.flag = 1;
-    int ierr = do_range(xpp::client_session(), xpp::client_session().data_store.current, 0);
+    int ierr = xpp::do_range(xpp::client_session(), xpp::client_session().data_store.current, 0);
     xpp::client_session().stochastic.flag = 0;
 
     CHECK(ierr != -1);

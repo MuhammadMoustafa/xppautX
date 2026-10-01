@@ -278,7 +278,7 @@ void dump_ps(xpp::Session &s, int i)
 void   redo_stuff(xpp::Session &s)
     {
       evaluate_derived(s);
-   re_evaluate_kernels(s);
+   xpp::re_evaluate_kernels(s);
 	  xpp::ok_or_show(redo_all_fun_tables(s));
         evaluate_derived(s);
 }
@@ -302,7 +302,7 @@ void ps_restore(xpp::Session &s)
  if(s.plot_windows.current->Nullrestore){restore_nullclines(s);ps_stroke();}
   }
 
-  restore(s,0,s.browser.view.maxrow);  
+  xpp::restore(s,0,s.browser.view.maxrow);  
  
   do_batch_nclines(s);
   do_batch_dfield(s); 
@@ -321,7 +321,7 @@ void svg_restore(xpp::Session &s)
 
   redraw_dfield(s);
  if(s.plot_windows.current->Nullrestore){restore_nullclines(s);}
- restore(s,0,s.browser.view.maxrow);
+ xpp::restore(s,0,s.browser.view.maxrow);
  do_axes(s);
  if(program.interactive){
  draw_label(s,s.plot_windows.draw_win);
@@ -441,7 +441,7 @@ void   set_default_params(xpp::Session &s)
  }
  
  redraw_params();
- re_evaluate_kernels(s);
+ xpp::re_evaluate_kernels(s);
  xpp::ok_or_show(redo_all_fun_tables(s));
  }
 
@@ -517,11 +517,11 @@ int box_set_value(xpp::Session &s, int type,int i,const char *text,double *z)
 void box_values_loaded(xpp::Session &s, int type)
 {
   if(type==PARAMBOX){
-    re_evaluate_kernels(s);
+    xpp::re_evaluate_kernels(s);
     xpp::ok_or_show(redo_all_fun_tables(s));
   }
   if(type==DELAYBOX){
-   xpp::ok_or_show(do_init_delay(s,s.numerics.delay));
+   xpp::ok_or_show(xpp::do_init_delay(s,s.numerics.delay));
   }
 }
 
@@ -613,7 +613,7 @@ void do_txt_action(xpp::Session &s, const char *action)
  get_graph(s);
  extract_action(s,action);
  ping();
-  chk_delay(s);
+  xpp::chk_delay(s);
   redraw_params();
   redraw_ics();
   reset_graph(s);

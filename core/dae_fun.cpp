@@ -18,6 +18,8 @@
 #include <vector>
 #include "model.h"
 
+namespace xpp {
+
 
 /*    will have more stuff someday */
 
@@ -284,3 +286,4 @@ void get_new_guesses(xpp::Session &s)
   }
 }
 
+} // namespace xpp

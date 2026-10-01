@@ -789,7 +789,7 @@ void install(bool silent)
     ani_data_init(data_emit);
     auto_data_init(data_emit, diag_point_of_node);
     auto_settings_init(data_emit);
-    numerics_settings_init(data_emit);
+    xpp::numerics_settings_init(data_emit);
     xpp_inbox_set_classifier(classify);
     xpp_job_set_compute_hook(send_computing);
     XppUi ui = json_ui;

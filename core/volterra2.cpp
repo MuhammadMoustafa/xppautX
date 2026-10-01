@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <vector>
 #include "model.h"
+
+namespace xpp {
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
@@ -391,3 +393,4 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  
 }
 
+} // namespace xpp

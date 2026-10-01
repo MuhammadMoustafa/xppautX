@@ -13,6 +13,8 @@
 #include "del_stab.h"
 #include "delay_handle.h"
 
+namespace xpp {
+
 #define Z(a,b) z[(a)+n*(b)]
 /* this code takes the determinant of a complex valued matrix
 */
@@ -424,3 +426,4 @@ int plot_args(double *coef, double *delay, int n, int m, int npts, double almax,
   return sign;
 }
 
+} // namespace xpp

@@ -202,7 +202,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
             push(st.args[st.nargs-1-in]); break;
      case KERTYPE:
              save();
-             temx=ker_val(s,in);
+             temx=xpp::ker_val(s,in);
              restore();
              push(temx);
              break;

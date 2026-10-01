@@ -612,7 +612,7 @@ int main(void)
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp_batch_start(xpp::client_session());
     run_the_commands(xpp::client_session(), M_IG);
-    const DataStore &d = xpp::client_session().data_store;
+    const xpp::DataStore &d = xpp::client_session().data_store;
     CHECK(d.rows > 0);
     if (d.rows > 0) {
       /* t=0's row: t, x, then the auxes in order */

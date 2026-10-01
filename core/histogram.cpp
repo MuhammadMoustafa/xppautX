@@ -21,6 +21,8 @@
 #include "form_ode.h"
 #include "load_eqn.h"
 
+namespace xpp {
+
 static int spec_type=0;
 /* type =0 for PSD
    type =1 for crossspectrum
@@ -107,7 +109,7 @@ void new_four(xpp::Session &s, int nmodes, int col)
  s.histogram.four_here=1;
 for(i=0;i<length;i++)s.histogram.four()[0][i]=static_cast<float>(i)/total; 
  bob=get_data_col(s,col);
-    fourier_modes(bob,s.histogram.four()[1],s.histogram.four()[2],nmodes,s.data_store.rows);
+    fourier_modes(std::span(bob,s.data_store.rows),s.histogram.four()[1],s.histogram.four()[2],nmodes);
  four_back(s);
   ping();
 }
@@ -282,13 +284,13 @@ xpp::Result<> new_hist(xpp::Session &s, int nbins, double zlo, double zhi, int c
     return {};
   }
   if(which==2){
-    mycor2(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,nbins,s.histogram.hist()[1],1);
+    mycor2(std::span(s.data_store.col[col],s.data_store.rows),std::span(s.data_store.col[col2],s.data_store.rows),nbins,s.histogram.hist()[1],1);
     hist_back(s);
     ping();
     return {};
   }
   if(which==3){
-    fftxcorr(s.data_store.col[col],s.data_store.col[col2],s.data_store.rows,(nbins-1)/2,s.histogram.hist()[1],1);
+    fftxcorr(std::span(s.data_store.col[col],s.data_store.rows),std::span(s.data_store.col[col2],s.data_store.rows),(nbins-1)/2,s.histogram.hist()[1],1);
     hist_back(s);
     ping();
     return {};
@@ -363,8 +365,9 @@ void compute_power(xpp::Session &s)
       size = win/2
 */
 
-int spectrum(float *data,int nr,int win,int w_type,float *pow)
+int spectrum(std::span<const float> data,int win,int w_type,float *pow)
 {
+  const int nr=static_cast<int>(data.size());
   /* assumes 50% overlap */
   int shift=win/2;
   int kwin=(nr-win+1)/shift;
@@ -394,7 +397,7 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
      kk=(j*shift+i+nr)%nr;
      d[i]=f[i]*data[kk];
    }
-   fourier_modes(d,ct,st,shift,win);
+   fourier_modes(d_v,ct,st,shift);
    for(i=0;i<shift;i++){
      x=ct[i]*ct[i]+st[i]*st[i];
      pow[i]=pow[i]+sqrt(x);
@@ -421,8 +424,9 @@ int spectrum(float *data,int nr,int win,int w_type,float *pow)
 
 */
 
-int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow,int type)
+int cross_spectrum(std::span<const float> data,std::span<const float> data2,int win,int w_type,float *pow,int type)
 {
+  const int nr=static_cast<int>(data.size());
   int shift=win/2;
   int kwin=(nr-win+1)/shift; 
   /*  int kwin=nr/shift; */
@@ -463,8 +467,8 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
      d[i]=f[i]*data[kk];
      d2[i]=f[i]*data2[kk];
    }
-   fourier_modes(d,ct,st,shift,win);
-   fourier_modes(d2,ct2,st2,shift,win);
+   fourier_modes(d_v,ct,st,shift);
+   fourier_modes(d2_v,ct2,st2,shift);
    for(i=0;i<shift;i++){
      pxyr[i]+=(ct[i]*ct2[i]+st[i]*st2[i]);
      pxym[i]+=(ct[i]*st2[i]-ct2[i]*st[i]);
@@ -480,7 +484,7 @@ int cross_spectrum(float *data,float *data2,int nr,int win,int w_type,float *pow
    pxym[i]=pxym[i]/((kwin)*nrmwin);
    pxyr[i]=pxyr[i]*pxyr[i]+pxym[i]*pxym[i];
    if(type==1)
-     pow[i]=log(pxyr[i]);
+     pow[i]=::log(pxyr[i]);
    else
      pow[i]=pxyr[i]/(pxx[i]*pyy[i]);
  }
@@ -504,9 +508,9 @@ void just_sd(xpp::Session &s, int flag)
   s.histogram.hist_here=1;
   for(j=0;j<s.histogram.hist_len;j++)s.histogram.hist()[0][j]=(static_cast<float>(j)*s.data_store.rows/s.histogram.spec_wid)/total;
   if(spec_type==0)
-    spectrum(s.data_store.col[s.histogram.spec_col],s.data_store.rows,s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1]);
+    spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1]);
   else
-    cross_spectrum(s.data_store.col[s.histogram.spec_col],s.data_store.col[s.histogram.spec_col2],s.data_store.rows,s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],spec_type);
+    cross_spectrum(std::span(s.data_store.col[s.histogram.spec_col],s.data_store.rows),std::span(s.data_store.col[s.histogram.spec_col2],s.data_store.rows),s.histogram.spec_wid,s.histogram.spec_win,s.histogram.hist()[1],spec_type);
   hist_back(s);
   ping();
 }
@@ -596,8 +600,9 @@ void compute_stacor(xpp::Session &s)
 	   s.histogram.info.xhi,s.histogram.info.col,0,s.histogram.info.cond.c_str(),1));
 }
 
-void mycor2(float *x,float *y, int n, int nbins, float *z, int flag)
+void mycor2(std::span<const float> x,std::span<const float> y, int nbins, float *z, int flag)
 {
+  const int n=static_cast<int>(x.size());
   int i,j;
   int k,count=0,lag=nbins/2;
   float sum,avx=0.0,avy=0.0;
@@ -640,8 +645,9 @@ void compute_hist(xpp::Session &s)
 
 /* experimental -- does it work */
 /* nlag should be less than length/2 */
-void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
+void fftxcorr(std::span<const float> data1,std::span<const float> data2,int nlag,float *cr,int flag)
 {
+  const int length=static_cast<int>(data1.size());
   double x,y,sum;
   float av1=0.0,av2=0.0;
   int i;
@@ -686,13 +692,14 @@ void fftxcorr(float *data1,float *data2,int length,int nlag,float *cr,int flag)
    
 }
 
-/* the Fourier modes 0..nmodes-1 of data[0..length-1]: ct[i] and st[i]
+/* the Fourier modes 0..nmodes-1 of data (length points): ct[i] and st[i]
    are twice the real and imaginary parts of the transform
    (1/length) sum_j data[j] exp(+2 pi i j k/length), ct[0] once */
-void fourier_modes(float *data, float *ct, float *st, int nmodes, int length)
+void fourier_modes(std::span<const float> data, float *ct, float *st, int nmodes)
 {
+  const int length=static_cast<int>(data.size());
   if(length<=0)return;
-  std::vector<double> in(data,data+length);
+  std::vector<double> in(data.begin(),data.end());
   const int half=length/2+1;
   std::vector<double> re(half), im(half);
   xpp::fft_real(in,re,im,1,1.0/length);
@@ -707,3 +714,4 @@ void fourier_modes(float *data, float *ct, float *st, int nmodes, int length)
   }
 }
 
+} // namespace xpp
