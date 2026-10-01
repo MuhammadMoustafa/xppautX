@@ -6,7 +6,6 @@
 /* a kernel that is a convolution (KERNEL's flag) */
 #define CONV 2
 
-#ifdef __cplusplus
 #include <array>
 #include <string>
 #include <vector>
@@ -22,6 +21,5 @@ struct KERNEL {
   int flag=0;
   std::string name,expr,kerexpr;
 };
-#endif
 
 #endif

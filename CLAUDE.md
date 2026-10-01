@@ -171,7 +171,7 @@ from outside without the app's cooperation, so the gap before the next
 animation frame stands in for it. A check whose *correctness* (not its
 speed) needs a run still in progress uses a heavier model (W42's heavy.ode)
 so that holds without racing the clock, and a check that can know its
-stopping point ahead of time arms it exactly (`xpp_job_stop_at_rows`/`_point`,
+stopping point ahead of time arms it exactly (`xpp::job::stop_at_rows`/`_point`,
 the same mechanism `--script`'s abort replay uses: docs/protocol.md "Scripts"),
 in a one-shot `--script` subprocess, rather than racing a live Abort.
 
@@ -291,7 +291,7 @@ twice as slow, for fixing a report) and fails on
 any report (build/vg/reports; tools/valgrind.supp only for code we do not
 own). It sets `XPP_CHECK_SLOW=30`, which multiplies every wait of the
 python checks (tools/xppclient.py).
-`XPP_NO_THROTTLE=1` (core/xpp_job.h, W49) turns off `xpp_every`'s
+`XPP_NO_THROTTLE=1` (core/xpp_job.h, W49) turns off `xpp::every`'s
 throttling of progress events, so a check sees every intermediate event
 on any machine instead of only on a slow one (servercheck's autoinfo
 checks run under it).
@@ -455,9 +455,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `--no-open`), `--server` (the protocol on stdin/stdout) or `-silent`
   (no interface at all: json_ui_silent plays json_silent.cpp's built-in
   script of protocol commands, W56). The window (W13a) is
-  `core/xpp_window.cpp` (C API in xpp_window.h) over the vendored
+  `core/xpp_window.cpp` (xpp_window.h, namespace `xpp::window`) over the vendored
   `third_party/webview` (built as its own object, `webview.o`, from
-  `core/xpp_webview.cpp`, which includes it and adds `xpp_webview_create`:
+  `core/xpp_webview.cpp`, which includes it and adds `xpp::webview_create`:
   webview_create with the error it failed with, W35e; WebView2 through the SDK headers in
   `third_party/webview2` and webview's built-in loader on Windows,
   WebKitGTK on Linux only when `pkg-config` finds webkit2gtk-4.1, else a
@@ -486,7 +486,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   where Cocoa needs the main thread and the session moves to a second
   thread (untested); there a file Finder opens in xppautX.app comes as an
   open-documents Apple Event, which xpp_window.cpp handles (W91: the
-  launch's is the model, `xpp_window_launch_document`, a later one opens
+  launch's is the model, `xpp::window::launch_document`, a later one opens
   as File > Open model; CI's macos-core checks it with `open -a`). Closing the window (its x, or the menu bar's Quit; on macOS also
   Cmd+Q and the Dock's Quit, through `windowShouldClose:` and
   `applicationShouldTerminate:` added to webview's delegate classes; W59d,
@@ -504,7 +504,7 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `__xppCloseWindow`, which closes it as below. A plain `{"cmd":"quit"}`
   (scripts, --server clients) quits at once. When the window closes
   (Don't save, a page without the hook, or the core already exiting) it
-  pushes the plain quit and calls `xpp_http_release()`, and ends the
+  pushes the plain quit and calls `xpp::http::release()`, and ends the
   process after EXIT_GRACE even if a computation never reaches a
   checkpoint; the core's
   exit closes the window after a bye, and after an error leaves it open
@@ -541,15 +541,15 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
   `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
   them from there; `-silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
-  number); computations ask `xpp_job_cancelled()` or go through the
+  number); computations ask `xpp::job::cancelled()` or go through the
   throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.cpp's `classify()`
   says which lines are control lines; docs/protocol.md "Commands during a
   command" is the contract. Computations report how far they got to
-  xpp_job (`xpp_job_rows_stored` per stored row in integrate.c's `row_stored()`,
+  xpp_job (`xpp::job::report_rows` per stored row in integrate.cpp's `row_stored()`,
   which also feeds `XppUi.rows_stored` (web2's live `series` appends),
-  `xpp_job_point_stored` per AUTO point in autevd.cpp addbif): a cancelled
+  `xpp::job::report_point` per AUTO point in autevd.cpp addbif): a cancelled
   command sends `stopped` with that, and `--script` replays a recorded
-  `{"cmd":"abort","at":...}` by arming `xpp_job_stop_at_rows/point` for
+  `{"cmd":"abort","at":...}` by arming `xpp::job::stop_at_rows/point` for
   the line before it (ui_json.cpp `script_arm_stop`). Rebuild xppautX
   after rebuilding `web2/dist`: the page is compiled in.
 - `core/xpp_log.{h,cpp}` is the one logging module, quiet by default:
@@ -711,11 +711,12 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 ## C and C++
 
 Every core source is C++ since W27 (2026-09-25; decided 2026-09-23,
-converted file by file, then the remaining 71 at once): tools/sourcecheck.sh
-fails a new core/*.c. verify.sh's `C++: N / M sources` is N = M. The API
-between the files is C++ too (W109, maintainer 2026-09-30: below), in
-stages; what follows the goals is how the files were converted, kept for
-a file brought in from outside.
+converted file by file, then the remaining 71 at once), and so are the
+unit tests (tests/test_job.c, the last C one, at W109f): tools/sourcecheck.sh
+fails a new core/*.c or tests/*.c. verify.sh's `C++: N / M sources` is
+N = M. The API between the files is C++ too (W109, maintainer 2026-09-30,
+done in six stages by W109f, 2026-10-01: below); what follows the goals
+is how the files were converted, kept for a file brought in from outside.
 
 The extension was only the first step. The goal (maintainer, 2026-09-25)
 is safe C++ in place of the unsafe C idioms, file by file (the W29 cards):
@@ -770,10 +771,11 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   (`new`, `delete`, `class`, `this`, `template`, `or`, `and`, `not`, ...)
   are renamed, designated initializers must follow member order
   (C++20's rule), string literals are `const char *`, and `int` is not an enum.
-- Text a function only reads is `std::string_view` in a header W109 has
-  moved to C++, and `const char *` (a list of them `const char *const *`)
-  in one it has not reached yet, the dialog API (xpp_ui.h) included (W28);
-  `char *` says the function writes into it. A string literal is never cast to
+- Text a function only reads is `std::string_view` (W109; the dialog
+  API, xpp_ui.h, since W109e), and `const char *` only where the text goes
+  on to a C function or a library that needs it NUL-terminated (the
+  drawing's text primitives, the protocol's JSON reader, the Windows API)
+  or across the C boundary below; `char *` says the function writes into it. A string literal is never cast to
   `char *`: `tools/literalcheck.sh` (sourcecheck.sh) fails one.
 - The API is C++ (W109, maintainer 2026-09-30, replacing W27's "the API
   stays C"): a core header declares C++ functions, in namespace `xpp`
@@ -789,18 +791,22 @@ deadcode.sh (GNU nm's section column). At W47a: 300 (from 461); at W47b: 266; at
   tools/embed_bytes.c's icon and window library), and a C library's own
   function a header hides (rand_s). `tools/externcheck.sh` (sourcecheck)
   fails an `extern "C"` in core/ or tests/ that its allowlist does not
-  name, each entry with its reason; until W109's stages are done
-  (docs/roadmap.md "W109: the core's API in C++, in stages") the C API
-  they have not reached is listed under its stage card. A stage moves a
-  module's header off it: drop the guard, put the declarations in the
-  namespace, give the boundary C++ types, rename the callers (a
-  function's module prefix becomes its namespace: `xpp_files_exists` is
-  `xpp::files::exists`, `xpp_log` is `xpp::log_printf`), and lower or
-  delete the module's entries. Each stage is timed before and after
-  (examples_check's wall time, kuramot100.ode -silent, an AUTO run; 3
-  runs each, the before and after binaries alternated, nothing else
-  running): a stage slower beyond the noise is not merged, and if C++
-  costs speed the card stops (maintainer, 2026-09-30).
+  name, each entry with its reason. W109 is done (its six stages,
+  W109a-f, docs/roadmap.md "W109: the core's API in C++, in stages"):
+  what the allowlist names is that permanent boundary, and the vendored
+  CVODE's seven headers (band, cvband, cvdense, cvode, dense, llnlmath,
+  vector), whose C API stays until W34 (#72) decides whether SUNDIALS
+  replaces CVODE. Code brought in from outside follows what each stage
+  did: drop the guard, put the declarations in the namespace, give the
+  boundary C++ types, rename the callers (a function's module prefix
+  becomes its namespace: `xpp_files_exists` is `xpp::files::exists`,
+  `xpp_job_cancelled` `xpp::job::cancelled`, `xpp_log` is
+  `xpp::log_printf`). Each stage was timed before and after (examples_check's
+  wall time, kuramot100.ode -silent, an AUTO run, and callgrind's
+  instruction counts for the last two, which do not depend on code
+  layout): a stage slower beyond the noise was not merged, and if C++
+  had cost speed the card would have stopped (maintainer, 2026-09-30); none
+  did.
 - No exception may cross code compiled as C (a C library, an OS or
   webview callback): C++ called from there catches what it can throw
   (std::bad_alloc included) or uses only non-throwing code, and C

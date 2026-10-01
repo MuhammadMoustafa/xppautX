@@ -60,7 +60,7 @@ EXE      = .exe
 DLLIB    =
 LDSTATIC = -static
 # -mwindows: a GUI-subsystem exe, so Explorer and a file association start
-# it with no console window (xpp_win32.cpp's xpp_win32_attach_console()
+# it with no console window (xpp_win32.cpp's xpp::win32::attach_console()
 # reattaches to a real one for the command-line modes; --server's pipes are
 # untouched, W13b)
 NETLIBS  = -lpthread -lws2_32 -mwindows
@@ -335,8 +335,8 @@ app: xppautx assets/icon.icns
 
 # unit tests over libxppcore, for pure code that an end-to-end run would only
 # report as a puzzling difference somewhere else. tests/README.md says more.
-# a test is C or C++ (tests/test_x.c or .cpp)
-TEST_SOURCES := $(wildcard tests/test_*.c tests/test_*.cpp)
+# a test is C++ (tests/test_x.cpp)
+TEST_SOURCES := $(wildcard tests/test_*.cpp)
 TEST_OBJECTS := $(patsubst tests/%,$(BUILDDIR)/tests/%.o,$(basename $(TEST_SOURCES)))
 TEST_BINS := $(TEST_OBJECTS:.o=$(EXE))
 # what runs each test (tools/valgrindcheck.sh: valgrind)
@@ -369,9 +369,6 @@ deadcode-link: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(TEST_OBJECTS) $(CORELIB) $(WI
 ifeq ($(WINDOW_EMBED),1)
 	@$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map $(DEADCODE_GC) -o $(WINDOW_LIB_DIR)/libxppwindow-gc.so $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread 2> $(BUILDDIR)/gc-window.log || { cat $(BUILDDIR)/gc-window.log; exit 1; }
 endif
-
-$(BUILDDIR)/tests/%.o: tests/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tests
-	$(CC) $(CFLAGS) -Itests -MMD -MP -c $< -o $@
 
 $(BUILDDIR)/tests/%.o: tests/%.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tests
 	$(CXX) $(CXXFLAGS) -Itests -MMD -MP -MF $(@:.o=.cpp.d) -c $< -o $@

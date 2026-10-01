@@ -14,29 +14,32 @@
 #include <array>
 #include <string>
 
+namespace xpp::win32 {
+
 /* blocks until stdin has data: xpp_inbox.cpp calls it on its reader thread */
-int xpp_read_stdin(char *buf, int n)
+int read_stdin(std::span<char> buf)
 {
     DWORD got = 0;
-    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf, static_cast<DWORD>(n), &got, NULL) || got == 0) return -1;
+    if (!ReadFile(GetStdHandle(STD_INPUT_HANDLE), buf.data(), static_cast<DWORD>(buf.size()), &got, NULL) || got == 0)
+        return -1;
     return static_cast<int>(got);
 }
 
-void xpp_binary_mode(int fd) { _setmode(fd, _O_BINARY); }
+void binary_mode(int fd) { _setmode(fd, _O_BINARY); }
 
 /* xpp_files.cpp: a link is never read or written through */
-int xpp_path_is_link(const char *path)
+bool path_is_link(const char *path)
 {
     DWORD a = GetFileAttributesA(path);
     return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
-int xpp_replace_file(const char *from, const char *to)
+bool move_over(const char *from, const char *to)
 {
-    return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+    return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
-std::string xpp_temp_folder(void)
+std::string temp_folder()
 {
     std::array<char, MAX_PATH> base; /* GetTempPathA writes it */
     DWORD n = GetTempPathA(static_cast<DWORD>(base.size()), base.data());
@@ -45,17 +48,19 @@ std::string xpp_temp_folder(void)
     return std::string(base.data(), n);
 }
 
-int xpp_process_running(unsigned long pid)
+bool process_running(unsigned long pid)
 {
     HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, static_cast<DWORD>(pid));
     DWORD code;
-    int running;
+    bool running;
 
-    if (h == NULL) return 0; /* no such process */
+    if (h == NULL) return false; /* no such process */
     running = !GetExitCodeProcess(h, &code) || code == STILL_ACTIVE;
     CloseHandle(h);
     return running;
 }
+
+} // namespace xpp::win32
 
 /* W13b: xppautX links -mwindows, so no console appears when Explorer or a
    file association starts it; a command-line mode reattaches to a real
@@ -88,7 +93,7 @@ bool redirected(DWORD which)
 
 } // namespace
 
-void xpp_win32_attach_console(void)
+void xpp::win32::attach_console()
 {
     bool in = redirected(STD_INPUT_HANDLE), out = redirected(STD_OUTPUT_HANDLE), err = redirected(STD_ERROR_HANDLE);
     if (in && out && err) return;

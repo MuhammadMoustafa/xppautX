@@ -3,14 +3,14 @@
    stream protocol events to it (Server-Sent Events), take its commands by
    POST, and replay what a page that (re)connects needs to draw.
 
-   Threads: the core runs on the main thread and calls xpp_http_emit; one
+   Threads: the core runs on the main thread and calls http::emit; one
    thread accepts connections, each answered on a thread of its own (see
    handle()), which pushes the page's commands into the inbox (xpp_inbox.h),
    where the core takes them; one thread copies what xppaut prints to the
    terminal and into the page's log. The
    model's folder is served as /files (xpp_files.h: listing, reading, and
    uploads streamed to a temporary file). This file includes no core header
-   but those small C APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h,
+   but those small APIs (xpp_inbox.h, xpp_files.h, xpp_log.h, xpp_io.h,
    xpp_mem.h), so the socket and Windows headers cannot clash with core
    names. */
 /* macOS hides the BSD names (INADDR_LOOPBACK) under _XOPEN_SOURCE=600;
@@ -65,7 +65,7 @@ typedef SOCKET sock_t;
 typedef int sock_t;
 #define INVALID_SOCKET (-1)
 #define close_sock close
-/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in xpp_http_start */
+/* BSD and macOS have no MSG_NOSIGNAL; SIGPIPE is ignored in http::start */
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
@@ -81,6 +81,10 @@ typedef struct {
     size_t len;
 } XppWebAsset;
 extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C): web2/dist/ at / */
+
+/* No exception may leave a thread: a failed allocation ends the program
+   with xpp::out_of_memory_now (not out_of_memory: at_exit would wait on
+   the lock this thread may hold). */
 
 namespace {
 
@@ -126,26 +130,17 @@ struct Server {
 };
 Server &srv = *new Server;
 
-int active;
+bool serving; /* http::active() */
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 /* requests other than POST /cmd are answered one at a time (handle()) */
 pthread_mutex_t serve_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_t watchdog_thread;
 pthread_t http_thread, log_thread;
-int saw_bye, orig_stderr = -1;
-/* at_exit's wait after an error ends when this is set (xpp_http_release) */
-int released;
+bool saw_bye;
+int orig_stderr = -1;
+/* at_exit's wait after an error ends when this is set (http::release) */
+bool released;
 pthread_cond_t released_cond = PTHREAD_COND_INITIALIZER;
-
-/* No exception may leave a thread or reach the C code that calls in: a
-   failed allocation ends the program, as xpp_mem's do. _exit, not exit:
-   at_exit would wait on the lock this thread may hold. */
-[[noreturn]] void out_of_memory()
-{
-    xpp::log_printf(XPP_LOG_ERROR, "xppautX: out of memory in the HTTP server\n");
-    std::fflush(nullptr);
-    _exit(1);
-}
 
 /* stream i is gone (the lock is held) */
 void drop_client(int i)
@@ -299,7 +294,7 @@ void track_window(std::string_view line, std::string_view op, std::string_view w
     }
 }
 
-void emit(std::string_view line)
+void emit_event(std::string_view line)
 {
     pthread_mutex_lock(&lock);
     if (std::optional<std::string_view> ev = field(line.substr(0, 40), "ev")) {
@@ -311,7 +306,7 @@ void emit(std::string_view line)
             srv.sticky_ask.clear();
             srv.sticky_computing.clear();
         }
-        else if (*ev == "bye") saw_bye = 1;
+        else if (*ev == "bye") saw_bye = true;
         else if (*ev == "error") srv.load_error = line;
         else if (*ev == "window") {
             std::optional<std::string_view> op = field(line, "op"), win = field(line, "win");
@@ -334,7 +329,7 @@ void push_command(std::string_view s)
         size_t nl = s.find('\n');
         std::string_view one = s.substr(0, nl);
         if (!one.empty() && one.back() == '\r') one.remove_suffix(1);
-        xpp_inbox_push(one.data(), one.size());
+        xpp::inbox::push(one);
         if (nl == std::string_view::npos) break;
         s.remove_prefix(nl + 1);
     }
@@ -385,10 +380,10 @@ void *log_main(void *arg)
                 srv.log_text.erase(0, cut);
             }
             pthread_mutex_unlock(&lock);
-            emit(log_event(got));
+            emit_event(log_event(got));
         }
     } catch (...) {
-        out_of_memory();
+        xpp::out_of_memory_now("in the HTTP server");
     }
     return nullptr;
 }
@@ -904,7 +899,7 @@ void *connection_main(void *arg)
     try {
         handle(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)));
     } catch (...) {
-        out_of_memory();
+        xpp::out_of_memory_now("in the HTTP server");
     }
     return nullptr;
 }
@@ -963,9 +958,9 @@ void at_exit()
         pthread_mutex_lock(&lock);
         srv.exit_event = line;
         pthread_mutex_unlock(&lock);
-        emit(line);
+        emit_event(line);
     } catch (...) {
-        out_of_memory();
+        xpp::out_of_memory_now("in the HTTP server");
     }
     pthread_mutex_lock(&lock);
     bool done = saw_bye || released; /* released: the window showing the page is closed */
@@ -1054,11 +1049,11 @@ void print_address(const char *page_url)
 
 std::array<int, 2> log_pipe;
 
-void start(int got, int flags)
+void start_serving(int got, bool show, bool open)
 {
     make_token();
     srv.page_url = xpp::format("http://127.0.0.1:{}/?t={}", got, srv.token);
-    if (flags & XPP_HTTP_SHOW) print_address(srv.page_url.c_str());
+    if (show) print_address(srv.page_url.c_str());
 
     /* what xppaut prints: to the terminal and the page */
     orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
@@ -1076,63 +1071,65 @@ void start(int got, int flags)
         setvbuf(stderr, nullptr, _IONBF, 0);
         pthread_create(&log_thread, nullptr, log_main, &log_pipe[0]);
     }
-    active = 1;
+    serving = true;
     pthread_create(&http_thread, nullptr, http_main, nullptr);
     pthread_create(&watchdog_thread, nullptr, watchdog_main, nullptr);
     atexit(at_exit);
-    if (flags & XPP_HTTP_OPEN) open_in_browser(srv.page_url);
+    if (open) open_in_browser(srv.page_url);
 }
 
 } // namespace
 
-/* ---- the C API ------------------------------------------------------------------- */
+/* ---- the API ---------------------------------------------------------------------- */
 
-int xpp_http_active(void) { return active; }
+namespace xpp::http {
 
-void xpp_http_emit(const char *line, size_t n)
+bool active() { return serving; }
+
+void emit(std::string_view line)
 {
     try {
-        emit(std::string_view(line, n));
+        emit_event(line);
     } catch (...) {
-        out_of_memory();
+        xpp::out_of_memory_now("in the HTTP server");
     }
 }
 
-void xpp_http_release(void)
+void release()
 {
     pthread_mutex_lock(&lock);
-    released = 1;
+    released = true;
     pthread_cond_broadcast(&released_cond);
     pthread_mutex_unlock(&lock);
 }
 
-int xpp_http_said_bye(void)
+bool said_bye()
 {
     pthread_mutex_lock(&lock);
-    int bye = saw_bye;
+    const bool bye = saw_bye;
     pthread_mutex_unlock(&lock);
     return bye;
 }
 
-const char *xpp_http_url(void) { return srv.page_url.c_str(); }
+const char *url() { return srv.page_url.c_str(); }
 
-void xpp_http_show(int open)
+void show(bool open)
 {
     print_address(srv.page_url.c_str());
     if (open) {
         try {
             open_in_browser(srv.page_url);
         } catch (...) {
-            out_of_memory();
+            xpp::out_of_memory_now("in the HTTP server");
         }
     }
 }
 
-int xpp_http_start(int port, int flags)
+bool start(int port, bool show, bool open)
 {
 #ifdef _WIN32
     WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return 0;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) return false;
 #else
     signal(SIGPIPE, SIG_IGN);
 #endif
@@ -1140,12 +1137,14 @@ int xpp_http_start(int port, int flags)
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
         xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
-        return 0;
+        return false;
     }
     try {
-        start(got, flags);
+        start_serving(got, show, open);
     } catch (...) {
-        out_of_memory();
+        xpp::out_of_memory_now("in the HTTP server");
     }
-    return 1;
+    return true;
 }
+
+} // namespace xpp::http

@@ -564,7 +564,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
           auto_restore_finite_pars(s, before.data()); /* leave no NaN parameter behind (QA SCI-001) */
       }
       run_from=0;
-      if(xpp_job_cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
+      if(xpp::job::cancelled()||!failed.empty())s.auto_state.restart_label=0; /* xppautX: cancel: no follow-up run */
       if(!failed.empty())s.auto_lib.restart_flag=0;
     }
     /*     run_aut(Auto.nfpar,itp); THIS WILL CHANGE TO gogoauto stuff */ 

@@ -175,7 +175,7 @@ solvbv(integer *ifst, iap_type *iap, rap_type *rap, doublereal *par, integer *ic
   }
   /*     The matrix D and FC are set to zero for all nodes except the first.
    */
-  if (iap->lib->setubv_stop && xpp_job_cancelled()) return 0; /* xppautX: cancel */
+  if (iap->lib->setubv_stop && xpp::job::cancelled()) return 0; /* xppautX: cancel */
   if (iam > 0) {
     setfcdd(ifst, main_auto_storage.d.data(), fc, &nfpr, &nrc);
   }

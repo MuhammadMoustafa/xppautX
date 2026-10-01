@@ -74,7 +74,7 @@ void quit_command(void)
    nothing after it can line up. */
 void script_fail(const char *what, const char *line, const char *ask)
 {
-    xpp::log_printf(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp_inbox_script_line(), what, line);
+    xpp::log_printf(XPP_LOG_ERROR, "xppautX: script line %d %s\n  line: %s\n", xpp::inbox::script_line(), what, line);
     if (ask && ask[0]) xpp::log_printf(XPP_LOG_ERROR, "  open question: %s}\n", ask);
     exit(1);
 }
@@ -100,51 +100,51 @@ int handle_async(xpp::Session &s, const char *line)
     return play_async(line) ? 1 : 0;
 }
 
-/* What a running computation (xpp_job_computing(): an integration, a
+/* What a running computation (xpp::job::computing(): an integration, a
    range, Sing pts, a boundary value problem, an AUTO run) takes: the one
    list (docs/protocol.md "Commands during a command"). On the reader
    thread (classify()) and at the computation's checkpoint (j_check_abort,
    for a line queued just before the computation began); it only parses
    the line and logs, allocation-free (short strings).
 
-   - acted on at the computation's next check (XPP_INBOX_CONTROL): abort and
+   - acted on at the computation's next check (Verdict::control): abort and
      quit, the stop keys (Escape, and '/', which ends a range or a shooting
      for good), and what only reads or steers a view: state, browser with
      from, ani pause/fast/slow/speed;
-   - kept for its turn (XPP_INBOX_NORMAL): an answer (the computation's own
+   - kept for its turn (Verdict::normal): an answer (the computation's own
      questions), every other command of the view kind (W95: data, a zoom,
      a window picked, a menu that only shows) and of the setting kind
      (W106: set, values, auto set, a Numerics item's key, whose dialog
      opens then): it runs after the computation's idle, in arrival order
      with the rest, so the run in progress never sees a setting and each
      line's idle comes in the order the client sent it;
-   - refused (XPP_INBOX_REFUSE), with one log line: a command of the data
+   - refused (Verdict::refuse), with one log line: a command of the data
      or computation kind (a key that computes or saves, a file written):
      never run, it gets an error message, state and idle when the core
      takes it, after the computation. A client that enables its actions by
      kind, as the page does (W95), never sends one. */
-int during_run(const char *line)
+xpp::inbox::Verdict during_run(const char *line)
 {
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
     get_string(line, "cmd", c, 16);
-    if (c == "abort" || c == "quit" || c == "state") return XPP_INBOX_CONTROL;
-    if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (c == "abort" || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
+    if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
     if (c == "play" && get_string(line, "op", o, 16) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
-        return XPP_INBOX_CONTROL;
-    if (c == "answer") return XPP_INBOX_NORMAL;
+        return xpp::inbox::Verdict::control;
+    if (c == "answer") return xpp::inbox::Verdict::normal;
     if (c == "key" && !js_find(line, "win")) {
         get_string(line, "key", o, 16);
         int k = key_code(o.c_str());
-        if (k == ESC || k == '/') return XPP_INBOX_CONTROL;
+        if (k == ESC || k == '/') return xpp::inbox::Verdict::control;
     } else if (get_string(line, "op", o, 16) && c == "ani"
                && (o == "pause" || o == "fast" || o == "slow" || o == "speed")) {
-        return XPP_INBOX_CONTROL;
+        return xpp::inbox::Verdict::control;
     }
     const char kind = line_kind(line);
-    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return XPP_INBOX_NORMAL;
+    if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return xpp::inbox::Verdict::normal;
     xpp::log_printf(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
             o.empty() ? "" : " ", o.c_str());
-    return XPP_INBOX_REFUSE;
+    return xpp::inbox::Verdict::refuse;
 }
 
 void defer_line(const char *line, bool refused, bool applied)
@@ -163,7 +163,7 @@ namespace {
 
    abort and quit go to the control queue always, and cancel the running
    job (and any not yet begun that came before them) at once: the
-   computation sees xpp_job_cancelled() at its next check without reading
+   computation sees xpp::job::cancelled() at its next check without reading
    input. Quit then exits when the engine takes the line.
 
    While a computation runs, during_run() decides: what it acts on is a
@@ -182,35 +182,35 @@ namespace {
 
    Everything else is normal: a command sent while a job runs, outside a
    computation, waits for it and runs after the job's idle. */
-int classify(const char *line, unsigned long seq)
+xpp::inbox::Verdict classify(const char *line, unsigned long seq)
 {
     std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
     if (!get_string(line, "cmd", c, 16))
-        return xpp_job_computing() && !xpp_job_stopping() ? during_run(line) : XPP_INBOX_NORMAL;
+        return xpp::job::computing() && !xpp::job::stopping() ? during_run(line) : xpp::inbox::Verdict::normal;
     /* a quit that asks (W59d), or saves (the page asked, W110), stops a
        computation, then runs as a command of its own, in its turn */
     if (c == "quit" && (get_int(line, "ask", 0) != 0 || get_int(line, "save", 0) != 0)) {
-        if (xpp_job_computing() && !xpp_job_stopping()) xpp_job_cancel(seq);
-        return XPP_INBOX_NORMAL;
+        if (xpp::job::computing() && !xpp::job::stopping()) xpp::job::cancel(seq);
+        return xpp::inbox::Verdict::normal;
     }
     if (c == "abort" || c == "quit") {
-        xpp_job_cancel(seq);
-        return XPP_INBOX_CONTROL;
+        xpp::job::cancel(seq);
+        return xpp::inbox::Verdict::control;
     }
-    if (xpp_job_computing() && !xpp_job_stopping()) return during_run(line);
-    if (!xpp_job_running()) return XPP_INBOX_NORMAL;
-    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state") return XPP_INBOX_CONTROL;
-    if (c == "browser" && js_find(line, "from")) return XPP_INBOX_CONTROL;
+    if (xpp::job::computing() && !xpp::job::stopping()) return during_run(line);
+    if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
+    if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state") return xpp::inbox::Verdict::control;
+    if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
     if (c == "ani" && get_string(line, "op", o, 16) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
-        return XPP_INBOX_CONTROL;
-    return XPP_INBOX_NORMAL;
+        return xpp::inbox::Verdict::control;
+    return xpp::inbox::Verdict::normal;
 }
 
 } // namespace
 
 void take_setting(xpp::Session &s, const char *line)
 {
-    const bool now = !xpp_job_computed() && is_cmd(line, "set");
+    const bool now = !xpp::job::computed() && is_cmd(line, "set");
     if (now) {
         record_setting(line);
         apply_set(s, line);
@@ -233,7 +233,7 @@ int control_line(xpp::Session &s, const char *line)
            at the same point in a replay: / ends a range; Escape stops the
            animation's Go (during a computation it cancels the job: the
            step's abort) */
-        if (code == '/' || (code == ESC && xpp_job_progress().what == XPP_JOB_ANI)) record_key_read(k);
+        if (code == '/' || (code == ESC && xpp::job::progress().what == xpp::job::Reported::frame)) record_key_read(k);
         return code;
     }
     if (line_kind(line) == XPP_KIND_SETTING) {
@@ -253,15 +253,15 @@ int control_line(xpp::Session &s, const char *line)
    recorded step's `abort` (json_record.cpp) */
 void buf_stopped_at(Buf *b)
 {
-    XppJobProgress p = xpp_job_progress();
-    if (p.what == XPP_JOB_INTEGRATE) {
+    xpp::job::Progress p = xpp::job::progress();
+    if (p.what == xpp::job::Reported::rows) {
         /* t is a stored single-precision number: 9 digits read back exactly */
         buf_format(b, "{{\"what\":\"integrate\",\"rows\":{:d},\"t\":", p.rows);
         buf_num(b, p.t, 9);
         BUF_LIT(b, "}");
-    } else if (p.what == XPP_JOB_AUTO) {
+    } else if (p.what == xpp::job::Reported::point) {
         buf_format(b, "{{\"what\":\"auto\",\"branch\":{:d},\"point\":{:d}}}", p.branch, p.point);
-    } else if (p.what == XPP_JOB_ANI) {
+    } else if (p.what == xpp::job::Reported::frame) {
         buf_format(b, "{{\"what\":\"ani\",\"frame\":{:d}}}", p.frame);
     } else {
         BUF_LIT(b, "{\"what\":\"other\"}");
@@ -293,12 +293,12 @@ std::string stop_at; /* recorded_at's */
 void script_arm_stop(void)
 {
     int no = 0;
-    const char *next = xpp_inbox_script_peek(&no), *at;
+    const char *next = xpp::inbox::script_peek(no), *at;
     if (!next || !is_cmd(next, "abort") || !(at = js_find(next, "at")) || *at != '{') return;
     stop_at = recorded_at(at);
     stop_line = no;
     arm_recorded_stop(at, 0);
-    xpp_inbox_script_skip();
+    xpp::inbox::script_skip();
 }
 
 } // namespace
@@ -318,14 +318,14 @@ bool arm_recorded_stop(const char *at, int key)
     std::string what;
     get_string(at, "what", what, 16);
     if (what == "integrate")
-        xpp_job_stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
+        xpp::job::stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
     else if (what == "auto")
-        xpp_job_stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
+        xpp::job::stop_at_point(get_int(at, "branch", -1), get_int(at, "point", -1));
     else if (what == "ani")
-        xpp_job_stop_at_frame(get_int(at, "frame", -1));
+        xpp::job::stop_at_frame(get_int(at, "frame", -1));
     else
         return false; /* an interruption of anything else cannot be placed: the job runs on */
-    xpp_job_stop_with_key(key);
+    xpp::job::stop_with_key(key);
     return true;
 }
 
@@ -333,7 +333,7 @@ bool arm_recorded_stop(const char *at, int key)
    the interruption recorded after it */
 void script_next(void)
 {
-    xpp_inbox_script_advance();
+    xpp::inbox::script_advance();
     script_arm_stop();
 }
 
@@ -669,7 +669,7 @@ namespace {
    it ran in, or the model's it loaded in that one's place. */
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
-    xpp_job_begin(seq);
+    xpp::job::begin(seq);
     /* the session this command runs in, the client's in the session list
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */
@@ -709,13 +709,13 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     json_flush();
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */
-    if (xpp_job_cancelled()) send_stopped();
-    if (session.script_mode && xpp_job_stop_armed()) script_stop_missed();
-    else if (xpp_job_stop_armed()) player_stop_missed();
-    record_end(*s, xpp_job_cancelled());
+    if (xpp::job::cancelled()) send_stopped();
+    if (session.script_mode && xpp::job::stop_armed()) script_stop_missed();
+    else if (xpp::job::stop_armed()) player_stop_missed();
+    record_end(*s, xpp::job::cancelled());
     player_step_end();
     /* the command is finished; the client may send the next one */
-    xpp_job_end();
+    xpp::job::end();
     send_state(*s);
     send_simple("idle");
     /* a script's next line is the next command (docs/protocol.md
@@ -749,7 +749,7 @@ void json_ui_loop(void)
             session.deferred.pop_front();
         } else {
             /* a recording playing acts when its time comes (json_player.cpp) */
-            char *line = read_line(XPP_INBOX_ARRIVAL, player_wait_ms());
+            char *line = read_line(xpp::inbox::From::arrival, player_wait_ms());
             if (!line) {
                 player_fire();
                 continue;
@@ -779,7 +779,7 @@ void json_ui_push_open(const char *path)
         BUF_LIT(&b, "{\"cmd\":\"open\",\"file\":");
         buf_str(&b, path);
         BUF_LIT(&b, "}");
-        xpp_inbox_push(b.s.data(), b.s.size());
+        xpp::inbox::push(b.s);
     } catch (...) {
         xpp::out_of_memory("opening a model");
     }
@@ -787,7 +787,7 @@ void json_ui_push_open(const char *path)
 
 int json_ui_set_script(const char *path)
 {
-    if (!xpp_inbox_start_file(path)) return 0;
+    if (!xpp::inbox::start_file(path)) return 0;
     session.script_mode = 1;
     return 1;
 }
@@ -800,12 +800,12 @@ namespace {
    interface at all: xpp_ui.cpp's headless messages) */
 void install(bool silent)
 {
-    if (!silent && !xpp_http_active()) { /* browser mode has taken stdout and stderr */
+    if (!silent && !xpp::http::active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
         /* commands from stdin, read on a thread of their own; a script's
            file (json_ui_set_script(), called before this) is read by the
            core thread itself instead, so no reader thread for it here */
-        if (!session.script_mode && !xpp_inbox_start_stdin()) {
+        if (!session.script_mode && !xpp::inbox::start_stdin()) {
             xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }
@@ -818,8 +818,8 @@ void install(bool silent)
     xpp::auto_data_init(data_emit, diag_point_of_node);
     xpp::auto_settings_init(data_emit);
     xpp::numerics_settings_init(data_emit);
-    xpp_inbox_set_classifier(classify);
-    xpp_job_set_compute_hook(send_computing);
+    xpp::inbox::set_classifier(classify);
+    xpp::job::set_compute_hook(send_computing);
     XppUi ui = json_ui;
     if (silent) {
         /* NULL keeps the headless entry (set_ui) */
@@ -844,7 +844,7 @@ int json_ui_silent(int argc, char **argv)
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
     session.script_mode = 1;
-    xpp_inbox_start_generated(silent_script(s));
+    xpp::inbox::start_generated(silent_script(s));
     install(true);
     script_next(); /* its first line */
     json_ui_loop(); /* exits when the script ends */

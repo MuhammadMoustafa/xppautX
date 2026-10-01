@@ -1319,7 +1319,7 @@ solvae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
-    if (!auto_locating && xpp_job_cancelled()) goto L5; /* xppautX: cancel */
+    if (!auto_locating && xpp::job::cancelled()) goto L5; /* xppautX: cancel */
     nit = nit1;
     iap->nit = nit;
     par[icp[0]] = rlcur[0];
@@ -2649,9 +2649,9 @@ stplae(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   /* xppautX: cancel: a point the solve reached is stored as it is; the next
      solve sees the cancel and ends the branch with an EP repeating it, so a
      cancel always ends the same way, wherever it came (xpp_job.h, replay) */
-  if (istop == 0 && xpp_job_cancelled()) iflag = 0;
+  if (istop == 0 && xpp::job::cancelled()) iflag = 0;
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
-  if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
+  if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;
@@ -5164,7 +5164,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
   for (nit1 = 1; nit1 <= itnw; ++nit1) {
 
     { int iflag; xpp::byeauto_(&iflag); } /* xppautX: cancel */
-    if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!auto_locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     nitps = nit1;
     iap->nit = nitps;
     nllv = 0;
@@ -5182,7 +5182,7 @@ stepbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
 	     udotps, upoldp, dtm, fa, fc, p0, 
 	     p1, thl, thu);
     }
-    if (!auto_locating && xpp_job_cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
+    if (!auto_locating && xpp::job::cancelled()) { nrow = ndim * ncol; goto L13; } /* xppautX: cancel */
     /* Add Newton increments. */
 
     for (i = 0; i < ndim; ++i) {
@@ -6552,9 +6552,9 @@ stplbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
    call with iflag  */
   xpp::byeauto_(&iflag);
   istop = iap->istop;
-  if (istop == 0 && xpp_job_cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
+  if (istop == 0 && xpp::job::cancelled()) iflag = 0; /* xppautX: cancel: as in stplae */
   stop_at.user = iflag == 1 || istop == 1; /* xppautX: T23, unless MX or UZR below */
-  if (istop == 1 && !xpp_job_cancelled()) { /* xppautX: cancel: EP, not MX */
+  if (istop == 1 && !xpp::job::cancelled()) { /* xppautX: cancel: EP, not MX */
     /*        ** Maximum number of iterations reached somewhere. */
     itp = -9 - itpst * 10;
     iap->itp = itp;

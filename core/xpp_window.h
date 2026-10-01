@@ -1,15 +1,12 @@
 #ifndef XPP_WINDOW_H
 #define XPP_WINDOW_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/* The desktop window (xpp_window.cpp, docs/roadmap.md W13a): web2 in the
-   operating system's own web view (the vendored third_party/webview:
-   WebView2 on Windows, WebKitGTK on Linux, WKWebView on macOS), showing
-   the page xpp_http.cpp serves on 127.0.0.1, with the app's own menu bar
-   (File: Open model, Quit; Help: Manual, Keyboard shortcuts, About).
+/* The desktop window (xpp_window.cpp, docs/roadmap.md W13a), in namespace
+   xpp::window (W109f): web2 in the operating system's own web view (the
+   vendored third_party/webview: WebView2 on Windows, WebKitGTK on Linux,
+   WKWebView on macOS), showing the page xpp_http.cpp serves on
+   127.0.0.1, with the app's own menu bar (File: Open model, Quit; Help:
+   Manual, Keyboard shortcuts, About).
 
    Threads: the core keeps the thread it has (the main thread) and stays
    single-threaded. On Windows and Linux the window runs its own UI loop on
@@ -22,35 +19,40 @@ extern "C" {
    Quit (a running job is cancelled; the core exits), and releases
    xpp_http's wait after an error. When the core exits after a Quit the
    window closes; after an error it stays, showing the page's log, until it
-   is closed. */
+   is closed.
 
-/* 1 when this build has the window (Windows, macOS, and Linux built with
-   WebKitGTK: the Makefile's pkg-config test), else 0 and xppautX is
-   browser-only */
-int xpp_window_supported(void);
+   On Linux the window is a library of its own (libxppwindow.so, W13e):
+   these functions load it (xpp_window_loader.cpp) and call it through the
+   C table of xpp_window_plugin.h. */
 
-/* Open the window on xpp_http_url() and run session() -- the core's whole
+namespace xpp::window {
+
+/* true when this build has the window (Windows, macOS, and Linux built
+   with WebKitGTK: the Makefile's pkg-config test), else false and xppautX
+   is browser-only */
+bool supported();
+
+/* Open the window on http::url() and run session() -- the core's whole
    session, which ends the process with exit() -- with it: never returns
-   when the window opened. Returns 0 at once, without running session(),
-   when the window cannot open (no WebView2 runtime, no display): the
-   caller falls back to browser mode. `about` is Help > About's text. */
-int xpp_window_run(void (*session)(void), const char *about);
+   when the window opened. Returns false at once, without running
+   session(), when the window cannot open (no WebView2 runtime, no
+   display): the caller falls back to browser mode. `about` is Help >
+   About's text. */
+bool run(void (*session)(), const char *about);
 
 /* The model's file, for the title ("xppautX — lecar.ode"); any thread,
    a no-op without a window */
-void xpp_window_set_model(const char *path);
+void set_model(const char *path);
 
 #ifdef __APPLE__
 /* The document Finder (a double-click, a drop on the app) or `open` asked
    xppautX.app to open when it launched it, which macOS sends as an
    open-documents Apple Event rather than an argument (W91): the model to
-   load, from the session xpp_window_run runs; NULL when there was none.
+   load, from the session run() runs; nullptr when there was none.
    One that comes while the app runs is opened as File > Open model opens
    one (W61). */
-const char *xpp_window_launch_document(void);
+const char *launch_document();
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+} // namespace xpp::window
 #endif

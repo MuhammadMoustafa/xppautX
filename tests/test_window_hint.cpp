@@ -1,4 +1,4 @@
-/* xpp_window_load_message: what xppautX says when the Linux window's
+/* xpp::window::load_message: what xppautX says when the Linux window's
    library does not load (W13e). A missing WebKitGTK must name the missing
    library and the install command for the system /etc/os-release
    describes; any other failure is quoted. tools/modecheck.sh checks that
@@ -15,7 +15,7 @@ const char MISSING[] =
 
 std::string msg(std::string_view os_release, std::string_view err)
 {
-    return xpp_window_load_message(os_release, err);
+    return xpp::window::load_message(os_release, err);
 }
 
 bool has(const std::string &s, const char *part) { return s.find(part) != std::string::npos; }
@@ -62,13 +62,13 @@ int main()
               "browser instead\n");
     CHECK(has(msg("ID=ubuntu\n", ""), "(unknown error)"));
 
-    /* xpp_webview_error_message (W35e): translate webview error codes */
-    CHECK_STR(xpp_webview_error_message(-5, "").c_str(),
+    /* xpp::webview_error_message (W35e): translate webview error codes */
+    CHECK_STR(xpp::webview_error_message(-5, "").c_str(),
               "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
               "display); using the browser instead\n");
-    CHECK_STR(xpp_webview_error_message(-1, "bad display").c_str(),
+    CHECK_STR(xpp::webview_error_message(-1, "bad display").c_str(),
               "xppautX: the window cannot open (webview error -1: bad display); using the browser instead\n");
-    CHECK_STR(xpp_webview_error_message(-2, "").c_str(),
+    CHECK_STR(xpp::webview_error_message(-2, "").c_str(),
               "xppautX: the window cannot open (webview error -2: no details); using the browser instead\n");
 
     TEST_REPORT("window_hint");

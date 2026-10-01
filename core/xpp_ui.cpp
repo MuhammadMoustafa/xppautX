@@ -291,11 +291,11 @@ int menu_choose(const struct XppMenu *m, int def) { return ui.menu_choose(m, def
 int my_abort(void)
 {
     int ch;
-    if (xpp_job_cancelled()) return 27;
-    if (int key = xpp_job_take_key()) return key; /* a replayed / (xpp_job.h) */
-    if (!xpp_job_poll_due()) return 64;
+    if (xpp::job::cancelled()) return 27;
+    if (int key = xpp::job::take_key()) return key; /* a replayed / (xpp_job.h) */
+    if (!xpp::job::poll_due()) return 64;
     ch = ui.check_abort();
-    if (ch == 27) xpp_job_cancel_current();
+    if (ch == 27) xpp::job::cancel_current();
     return ch;
 }
 int get_command_width(void) { return ui.progress_begin(); }
@@ -338,13 +338,13 @@ int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 {
     int r;
     *iflag = 0;
-    if (xpp_job_cancelled()) {
+    if (xpp::job::cancelled()) {
         *iflag = 1;
         return 0;
     }
-    if (!xpp_job_poll_due()) return 0;
+    if (!xpp::job::poll_due()) return 0;
     r = ui.auto_check_abort(iflag);
-    if (*iflag == 1) xpp_job_cancel_current();
+    if (*iflag == 1) xpp::job::cancel_current();
     return r;
 }
 int auto_rubber(Session &s, int *i1, int *j1, int *i2, int *j2, int flag)

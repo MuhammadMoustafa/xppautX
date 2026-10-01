@@ -217,7 +217,7 @@ void auto_data_update(int final)
 {
     static double last;
     if (!enabled || !subscribed || !emit_line) return;
-    if (!final && !xpp_every(&last, 0.1)) return;
+    if (!final && !xpp::every(last, 0.1)) return;
     try {
         std::string e = event();
         if (sent_valid && e == sent) return;

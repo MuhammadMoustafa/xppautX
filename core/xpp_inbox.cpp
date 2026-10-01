@@ -2,24 +2,23 @@
 
    The core runs on the main thread and never reads a file descriptor or a
    socket for protocol input: reader threads push lines here and the core
-   takes them with xpp_inbox_next(). That keeps input moving while the core
+   takes them with next(). That keeps input moving while the core
    computes, so a later classifier can pick out Abort or Quit at once.
 
    Two locks: push_lock serialises pushers (sequence number, classifier,
    enqueue happen as one step, so sequence order is queue order) and is
    never taken by the core; lock guards the queues and is held only briefly.
    Waiting is on a condition variable, never a polling loop. This file
-   includes no core header but the small C APIs of xpp_log.h, xpp_io.h
-   and xpp_files.h.
+   includes no core header but the small APIs of xpp_log.h, xpp_io.h,
+   xpp_files.h and xpp_mem.h.
 
-   C++ with a C API for the pushers (xpp_inbox.h is extern "C"); the core
-   takes a line into a std::string (the header's C++ section). Nothing here
-   throws into C or out of a thread (an allocation that fails ends the
-   program). */
+   Nothing here throws out of a thread (an allocation that fails ends the
+   program: xpp::out_of_memory_now). */
 #include "xpp_inbox.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
+#include "xpp_mem.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -47,72 +46,69 @@ namespace {
 struct Item {
     unsigned long seq = 0;
     std::string line; /* moved out to the caller as it is */
-    bool refused = false; /* the classifier's XPP_INBOX_REFUSE */
+    bool refused = false; /* the classifier's Verdict::refuse */
 };
 
 pthread_mutex_t push_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
-/* [XPP_INBOX_NORMAL], [XPP_INBOX_CONTROL]. Never destroyed: a reader
-   thread may still push while exit() destroys statics. */
+/* [NORMAL], [CONTROL]. Never destroyed: a reader thread may still push
+   while exit() destroys statics. */
 std::array<std::deque<Item>, 2> &queues = *new std::array<std::deque<Item>, 2>;
-int closed;
+bool closed;
 unsigned long next_seq = 1;
-int (*classify)(const char *line, unsigned long seq);
+xpp::inbox::Verdict (*classify)(const char *line, unsigned long seq);
+
+/* the queues' indices */
+constexpr int NORMAL = 0, CONTROL = 1;
 
 /* the queue to take from now, or -1; call with the lock held */
-int pick(int which)
+int pick(xpp::inbox::From which)
 {
-    if (which == XPP_INBOX_ARRIVAL) {
-        const std::deque<Item> &n = queues[XPP_INBOX_NORMAL], &c = queues[XPP_INBOX_CONTROL];
-        if (n.empty() || c.empty()) return !c.empty() ? XPP_INBOX_CONTROL : !n.empty() ? XPP_INBOX_NORMAL : -1;
-        return c.front().seq < n.front().seq ? XPP_INBOX_CONTROL : XPP_INBOX_NORMAL;
+    if (which == xpp::inbox::From::arrival) {
+        const std::deque<Item> &n = queues[NORMAL], &c = queues[CONTROL];
+        if (n.empty() || c.empty()) return !c.empty() ? CONTROL : !n.empty() ? NORMAL : -1;
+        return c.front().seq < n.front().seq ? CONTROL : NORMAL;
     }
-    if (which != XPP_INBOX_NORMAL && !queues[XPP_INBOX_CONTROL].empty()) return XPP_INBOX_CONTROL;
-    if (which != XPP_INBOX_CONTROL && !queues[XPP_INBOX_NORMAL].empty()) return XPP_INBOX_NORMAL;
+    if (which != xpp::inbox::From::normal && !queues[CONTROL].empty()) return CONTROL;
+    if (which != xpp::inbox::From::control && !queues[NORMAL].empty()) return NORMAL;
     return -1;
-}
-
-/* No exception may reach the C callers or leave a thread: a failed
-   allocation ends the program, as xpp_mem's do. */
-[[noreturn]] void out_of_memory(const char *what)
-{
-    xpp::log_printf(XPP_LOG_ERROR, "xppautX: out of memory %s\n", what);
-    std::abort();
 }
 
 } // namespace
 
-void xpp_inbox_set_classifier(int (*cls)(const char *line, unsigned long seq))
+namespace xpp::inbox {
+
+void set_classifier(Verdict (*cls)(const char *line, unsigned long seq))
 {
     pthread_mutex_lock(&push_lock);
     classify = cls;
     pthread_mutex_unlock(&push_lock);
 }
 
-void xpp_inbox_push(const char *line, size_t n)
+void push(std::string_view line)
 {
     Item it;
-    int q = XPP_INBOX_NORMAL, c;
+    int q = NORMAL;
     try {
-        it.line.assign(line, n);
+        it.line.assign(line);
     } catch (...) {
-        out_of_memory("keeping a line");
+        out_of_memory_now("keeping a line");
     }
     pthread_mutex_lock(&push_lock);
     it.seq = next_seq++;
-    c = classify ? classify(it.line.c_str(), it.seq) : XPP_INBOX_NORMAL;
-    if (c == XPP_INBOX_DROP) {
+    const Verdict c = classify ? classify(it.line.c_str(), it.seq) : Verdict::normal;
+    if (c == Verdict::drop) {
         pthread_mutex_unlock(&push_lock);
         return;
     }
-    if (c == XPP_INBOX_CONTROL) q = XPP_INBOX_CONTROL;
-    it.refused = c == XPP_INBOX_REFUSE;
+    if (c == Verdict::control) q = CONTROL;
+    it.refused = c == Verdict::refuse;
     pthread_mutex_lock(&lock);
     try {
         queues[q].push_back(std::move(it));
     } catch (...) {
-        out_of_memory("queueing a line");
+        out_of_memory_now("queueing a line");
     }
     /* broadcast: the core may wait on one queue while a line lands in the other */
     pthread_cond_broadcast(&ready);
@@ -120,18 +116,19 @@ void xpp_inbox_push(const char *line, size_t n)
     pthread_mutex_unlock(&push_lock);
 }
 
-void xpp_inbox_close(void)
+void close()
 {
     pthread_mutex_lock(&lock);
-    closed = 1;
+    closed = true;
     pthread_cond_broadcast(&ready);
     pthread_mutex_unlock(&lock);
 }
 
-int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq, bool *refused)
+Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &refused)
 {
     struct timespec until = {};
-    int q, r = 0;
+    int q;
+    Took r = Took::nothing;
     if (wait_ms > 0) {
         struct timeval now;
         gettimeofday(&now, nullptr);
@@ -151,16 +148,18 @@ int xpp_inbox_next(int which, int wait_ms, std::string &line, unsigned long *seq
     if (q >= 0) {
         Item &it = queues[q].front();
         line = std::move(it.line); /* no allocation: it takes the item's block */
-        if (seq) *seq = it.seq;
-        if (refused) *refused = it.refused;
+        seq = it.seq;
+        refused = it.refused;
         queues[q].pop_front();
-        r = 1;
-    } else if (closed && queues[0].empty() && queues[1].empty()) {
-        r = -1;
+        r = Took::line;
+    } else if (closed && queues[NORMAL].empty() && queues[CONTROL].empty()) {
+        r = Took::end;
     }
     pthread_mutex_unlock(&lock);
     return r;
 }
+
+} // namespace xpp::inbox
 
 /* ---- the --server reader: stdin, line by line ---------------------------- */
 
@@ -175,7 +174,7 @@ constexpr size_t CHUNK = 65536;
 long read_stdin(char *buf, size_t n)
 {
 #ifdef _WIN32
-    return xpp_read_stdin(buf, static_cast<int>(n));
+    return xpp::win32::read_stdin({buf, n});
 #else
     for (;;) {
         ssize_t r = read(0, buf, n);
@@ -200,7 +199,7 @@ void read_stdin_lines()
         while ((nl = static_cast<char *>(std::memchr(base + scanned, '\n', len - scanned))) != nullptr) {
             size_t n = static_cast<size_t>(nl - start);
             if (n > 0 && start[n - 1] == '\r') n--;
-            if (!skipping) xpp_inbox_push(start, n);
+            if (!skipping) xpp::inbox::push({start, n});
             skipping = false;
             start = nl + 1;
             scanned = static_cast<size_t>(start - base);
@@ -222,33 +221,33 @@ void *stdin_main(void *)
     try {
         read_stdin_lines();
     } catch (...) {
-        out_of_memory("reading stdin");
+        xpp::out_of_memory_now("reading stdin");
     }
-    xpp_inbox_close();
+    xpp::inbox::close();
     return nullptr;
 }
 
 } // namespace
 
-int xpp_inbox_start_stdin(void)
+bool xpp::inbox::start_stdin()
 {
     pthread_t t;
-    if (pthread_create(&t, nullptr, stdin_main, nullptr) != 0) return 0;
+    if (pthread_create(&t, nullptr, stdin_main, nullptr) != 0) return false;
     pthread_detach(t);
-    return 1;
+    return true;
 }
 
 /* ---- the --script reader: a file, one line at a time, pulled by the core ----
 
    The reader keeps one command line read ahead (`ahead`), so the core can
-   look at the line after the one it is about to run (xpp_inbox_script_peek:
+   look at the line after the one it is about to run (script_peek:
    a recorded interruption follows the command it interrupted). */
 
 namespace {
 
 xpp::UniqueFile script_fp;
-int script_line; /* of the line last pushed, for error messages */
-/* a script made as it goes (xpp_inbox_start_generated: -silent's) in
+int pushed_line; /* of the line last pushed, for error messages */
+/* a script made as it goes (start_generated: -silent's) in
    place of a file: it is never read ahead */
 std::function<std::optional<std::string>()> script_gen;
 
@@ -296,34 +295,36 @@ bool script_open() { return script_fp || ahead.valid || ahead.eof; }
 
 } // namespace
 
-int xpp_inbox_script_line(void) { return script_line; }
+namespace xpp::inbox {
 
-int xpp_inbox_start_file(const char *path)
+int script_line() { return pushed_line; }
+
+bool start_file(std::string_view path)
 {
     script_fp.reset(xpp::files::open_stream(path, "rb"));
     return script_fp != nullptr;
 }
 
-void xpp_inbox_start_generated(std::function<std::optional<std::string>()> next)
+void start_generated(std::function<std::optional<std::string>()> next)
 {
     script_gen = std::move(next);
 }
 
-void xpp_inbox_script_advance(void)
+void script_advance()
 {
     if (script_gen) {
         std::optional<std::string> line;
         try {
             line = script_gen();
         } catch (const std::bad_alloc &) {
-            out_of_memory("making the script");
+            out_of_memory_now("making the script");
         }
         if (line) {
-            script_line++;
-            xpp_inbox_push(line->data(), line->size());
+            pushed_line++;
+            push(*line);
         } else {
             script_gen = nullptr; /* closed once: later calls do nothing */
-            xpp_inbox_close();
+            close();
         }
         return;
     }
@@ -331,34 +332,37 @@ void xpp_inbox_script_advance(void)
     try {
         read_ahead();
     } catch (const std::bad_alloc &) {
-        out_of_memory("reading the script");
+        out_of_memory_now("reading the script");
     }
     if (ahead.valid) {
         ahead.valid = false;
-        script_line = ahead.line;
-        xpp_inbox_push(ahead.text.data(), ahead.text.size());
+        pushed_line = ahead.line;
+        push(ahead.text);
         return;
     }
     if (ahead.eof) {
         ahead.eof = false; /* closed once: later calls do nothing */
-        xpp_inbox_close();
+        close();
     }
 }
 
-const char *xpp_inbox_script_peek(int *line_no)
+const char *script_peek(int &line_no)
 {
     if (script_gen || !script_open()) return nullptr;
     try {
         read_ahead();
     } catch (const std::bad_alloc &) {
-        out_of_memory("reading the script");
+        out_of_memory_now("reading the script");
     }
     if (!ahead.valid) return nullptr;
-    if (line_no) *line_no = ahead.line;
+    line_no = ahead.line;
     return ahead.text.c_str();
 }
 
-void xpp_inbox_script_skip(void)
+void script_skip()
 {
-    if (xpp_inbox_script_peek(nullptr)) ahead.valid = false;
+    int line_no = 0;
+    if (script_peek(line_no)) ahead.valid = false;
 }
+
+} // namespace xpp::inbox

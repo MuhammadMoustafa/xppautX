@@ -153,7 +153,7 @@ static void run_session(void)
        dialog the load then shows begins */
     static std::string launch_name;
     static std::vector<char *> launch_argv;
-    if (const char *doc = xpp_window_launch_document()) {
+    if (const char *doc = xpp::window::launch_document()) {
         const std::pair<std::string, std::string> where = xpp::files::split_path(doc);
         if (!where.first.empty()) xpp::files::change_dir(where.first.c_str());
         launch_name = where.second;
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
        association): reattach to a real console before any output, for
        --version/--help and every command-line mode; a no-op when stdio is
        already a real pipe or file, or there is no parent console */
-    xpp_win32_attach_console();
+    xpp::win32::attach_console();
 #endif
     /* our options come first; the rest are xppaut's */
     for (i = k = 1; i < argc; i++) {
@@ -244,7 +244,7 @@ int main(int argc, char **argv)
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("%s%s%s", usage_head, xpp_window_supported() ? usage_window : usage_no_window, usage_tail);
+            printf("%s%s%s", usage_head, xpp::window::supported() ? usage_window : usage_no_window, usage_tail);
             return 0;
         }
         if (strcmp(argv[i], "--web") == 0 || strcmp(argv[i], "--browser") == 0) mode = MODE_BROWSER;
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
     }
     /* --no-open is browser mode (the VS Code extension, tools/cdp.mjs), and
        so is a build without a window */
-    if (mode == MODE_WINDOW && (!open_browser || !xpp_window_supported())) mode = MODE_BROWSER;
+    if (mode == MODE_WINDOW && (!open_browser || !xpp::window::supported())) mode = MODE_BROWSER;
     start_auto_dir();
     if (script && !xpp::json_ui_set_script(script)) {
         xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open script %s\n", script);
@@ -297,15 +297,14 @@ int main(int argc, char **argv)
     }
     if (mode != MODE_SERVER) {
         /* the window navigates to the address itself: shown nowhere */
-        int flags = mode == MODE_BROWSER ? XPP_HTTP_SHOW | (open_browser ? XPP_HTTP_OPEN : 0) : 0;
-        if (!xpp_http_start(port, flags)) return 1;
+        if (!xpp::http::start(port, mode == MODE_BROWSER, mode == MODE_BROWSER && open_browser)) return 1;
         /* the AUTO window's Output panel shows AUTO's table from the log */
         xpp::log_set_auto_echo(1);
     }
     session_argc = argc;
     session_argv = argv;
     /* the window runs the session itself; when it cannot open, the browser */
-    if (mode == MODE_WINDOW && !xpp_window_run(run_session, xpp_about_text().c_str())) xpp_http_show(1);
+    if (mode == MODE_WINDOW && !xpp::window::run(run_session, xpp_about_text().c_str())) xpp::http::show(true);
     run_session();
     return 0;
 }

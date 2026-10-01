@@ -62,7 +62,7 @@ void init_main_graph(xpp::Session &s)
    animation */
 void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {
-    xpp_window_set_model(xpp::model_title(s.model()).c_str());
+    xpp::window::set_model(xpp::model_title(s.model()).c_str());
     program.interactive = 1;
     color_table.enabled = 1;                    /* init_X on a colour display */
     s.drawing.axis_var_labels = 1; /* a plot without axis names is hard to read */

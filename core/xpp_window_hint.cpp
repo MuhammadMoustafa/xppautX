@@ -77,7 +77,7 @@ std::string message(std::string_view os_release, std::string_view err)
 
 } /* namespace */
 
-std::string xpp_window_load_message(std::string_view os_release, std::string_view dl_error)
+std::string xpp::window::load_message(std::string_view os_release, std::string_view dl_error)
 {
     return message(os_release, dl_error.empty() ? "unknown error" : dl_error);
 }

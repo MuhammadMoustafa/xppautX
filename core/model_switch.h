@@ -10,8 +10,6 @@
    Model and Session through xpp::load_model, and a load that fails leaves
    the ones before current, untouched, and says so. */
 
-#ifdef __cplusplus
-
 #include "load_eqn.h"
 #include "model_files.h"
 #include "xpp_session.h"
@@ -122,5 +120,4 @@ void restore_values(Session &s, const KeptValues &kept);
 Session *load_requested(const Session &now, const ModelRequest &req);
 
 }
-#endif
 #endif

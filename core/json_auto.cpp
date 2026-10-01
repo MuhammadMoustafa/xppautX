@@ -320,7 +320,7 @@ void diag_flush(const xpp::Session &s, int final)
 void j_auto_refresh(void)
 {
     static double last;
-    if (xpp_every(&last, 0.05)) {
+    if (xpp::every(last, 0.05)) {
         json_flush();
         auto_data_update(0);
     }

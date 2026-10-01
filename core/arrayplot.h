@@ -4,8 +4,6 @@
 #include "xpplim.h"
 #include <stdio.h>
 
-
-#ifdef __cplusplus
 #include <string>
 #include <string_view>
 
@@ -56,5 +54,4 @@ struct ArrayPlotState {
   FILE *fp = nullptr;
   std::string range_stem = "rangearray";
 };
-#endif
 #endif

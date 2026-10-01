@@ -30,6 +30,7 @@
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
+#include "xpp_inbox.h"
 #include "display_state.h"
 #include <stddef.h>
 #include <atomic>
@@ -124,7 +125,7 @@ int control_line(xpp::Session &s, const char *line);   /* a control line taken b
    with its own state and idle after the job, so a client counts one idle
    per setting whenever it sends one. */
 void take_setting(xpp::Session &s, const char *line);
-int during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
+xpp::inbox::Verdict during_run(const char *line);     /* what a running computation takes (ui_json.cpp) */
 /* keep the line read last (read_line) for after the running command;
    refused: during_run() refused it (the command loop answers it so);
    applied: a set control_line() applied already (the loop only ends it) */
@@ -207,7 +208,7 @@ void buf_player(Buf *b);
 /* ---- json_silent.cpp ---- */
 
 /* -silent's built-in script for the session s: its command lines, each
-   made when its turn comes (xpp_inbox_start_generated) */
+   made when its turn comes (xpp::inbox::start_generated) */
 std::function<std::optional<std::string>()> silent_script(const xpp::Session &s);
 
 /* ---- json_io.cpp: output ---- */
@@ -251,7 +252,7 @@ void data_emit(const char *line, size_t n);
 
 /* ---- json_io.cpp: input and the JSON reader ---- */
 
-char *read_line(int which, int wait_ms);
+char *read_line(xpp::inbox::From which, int wait_ms);
 unsigned long read_line_seq(void); /* the sequence number of read_line()'s line */
 bool read_line_refused(void);      /* whether classify() refused read_line()'s line */
 

@@ -31,13 +31,13 @@ namespace xpp::files {
 #ifdef _WIN32
 using Stat = struct _stat64;
 inline int stat_follow(const char *path, Stat *st) { return _stat64(path, st); }
-inline bool is_link(const char *name) { return xpp_path_is_link(name) != 0; }
+inline bool is_link(const char *name) { return xpp::win32::path_is_link(name); }
 inline int make_dir(const char *path) { return _mkdir(path); }
 inline int remove_dir(const char *path) { return _rmdir(path); }
 inline long long own_pid() { return _getpid(); }
 /* the folder the scratch folders go in */
-inline std::string temp_base() { return xpp_temp_folder(); }
-inline bool process_gone(long long pid) { return pid >= 0 && !xpp_process_running(static_cast<unsigned long>(pid)); }
+inline std::string temp_base() { return xpp::win32::temp_folder(); }
+inline bool process_gone(long long pid) { return pid >= 0 && !xpp::win32::process_running(static_cast<unsigned long>(pid)); }
 inline constexpr char SEP = '\\';
 #else
 using Stat = struct stat;

@@ -61,7 +61,7 @@ int ask_wait(Buf *b, int id)
     if (session.script_mode) script_next();
     else if (ask_user) player_asked(ask_kind);
     for (;;) {
-        char *line = read_line(XPP_INBOX_ANY, player_wait_ms());
+        char *line = read_line(xpp::inbox::From::any, player_wait_ms());
         int lid;
         if (!line) {
             player_fire();
@@ -90,7 +90,7 @@ int ask_wait(Buf *b, int id)
                 xpp::out_of_memory("taking an answer");
             }
             /* an Abort sent before this answer no longer stops the command */
-            if (ask_user) xpp_job_resume(read_line_seq());
+            if (ask_user) xpp::job::resume(read_line_seq());
             const char *ok = js_find(answer.c_str(), "ok");
             const bool answered = ok == NULL || js_num(ok, 0) != 0;
             /* the user's answer is part of the step a recording is taking
@@ -503,7 +503,7 @@ int j_check_abort(void)
     char *line;
     static double last;
     /* let the client see the picture grow, a few frames a second */
-    if (xpp_every(&last, 0.05)) {
+    if (xpp::every(last, 0.05)) {
         flush_pending();
         out_flush();
     }
@@ -511,10 +511,10 @@ int j_check_abort(void)
        takes (during_run()): a line queued just before it began, a key or a
        set, is kept for after the command like one sent during it, refused
        when its kind is data or computation */
-    while ((line = read_line(XPP_INBOX_CONTROL, 0)) != NULL) {
-        const int take = during_run(line);
-        if (take != XPP_INBOX_CONTROL) {
-            defer_line(line, take == XPP_INBOX_REFUSE);
+    while ((line = read_line(xpp::inbox::From::control, 0)) != NULL) {
+        const xpp::inbox::Verdict take = during_run(line);
+        if (take != xpp::inbox::Verdict::control) {
+            defer_line(line, take == xpp::inbox::Verdict::refuse);
             continue;
         }
         int r = control_line(client(), line);
@@ -529,7 +529,7 @@ void j_progress(int nit, int icount, int)
 {
     static double last;
     Buf b;
-    if (!xpp_every(&last, 0.1)) return;
+    if (!xpp::every(last, 0.1)) return;
     buf_format(&b, "{{\"ev\":\"progress\",\"n\":{:d},\"of\":{:d}}}", icount, nit);
     send_buf(&b);
 }

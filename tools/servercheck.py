@@ -774,7 +774,7 @@ check('a run that is not cancelled sends no stopped', not any(e.get('ev') == 'st
 
 # An Abort right behind the answer that starts the run: the run stops, and
 # says where (docs/protocol.md "stopped") before its state and idle. Armed
-# by row count ahead of time (xpp_job_stop_at_rows, the same mechanism
+# by row count ahead of time (xpp::job::stop_at_rows, the same mechanism
 # --script's own abort replay uses: docs/protocol.md "Scripts"), in a
 # one-shot --script subprocess of its own, not raced against the clock in
 # the middle of this session: how many rows are kept is known in advance,

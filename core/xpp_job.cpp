@@ -5,7 +5,7 @@
    Everything else belongs to the main thread. A job is cancelled when the
    number it started from is <= cancel_upto; cancel_upto only grows.
 
-   C++ with a C API (xpp_job.h is extern "C"); nothing here throws. */
+   Nothing here throws. */
 #include "xpp_job.h"
 
 #include <atomic>
@@ -15,13 +15,13 @@
 namespace {
 
 std::atomic<unsigned long> cancel_upto{0};
-std::atomic<bool> running{false}; /* depth > 0, for other threads */
-std::atomic<bool> computing{false}; /* compute_depth > 0, for other threads */
+std::atomic<bool> job_running{false}; /* depth > 0, for other threads */
+std::atomic<bool> job_computing{false}; /* compute_depth > 0, for other threads */
 int compute_depth; /* nesting of compute_begin/end */
 bool compute_told;  /* the hook was called for this job */
-bool computed;      /* a computation began in this job */
+bool job_computed;  /* a computation began in this job */
 void (*compute_hook)(void);
-std::atomic<unsigned long> shared_seq{0}; /* job_seq, for other threads (xpp_job_stopping) */
+std::atomic<unsigned long> shared_seq{0}; /* job_seq, for other threads (stopping) */
 
 int depth;             /* nesting of begin/end */
 unsigned long job_seq; /* the outermost job's number */
@@ -29,8 +29,8 @@ unsigned long last_seq;
 
 unsigned long load_upto() { return cancel_upto.load(std::memory_order_acquire); }
 
-/* where the job got to (xpp_job_progress), and the armed stop */
-XppJobProgress progress;
+/* where the job got to (progress()), and the armed stop */
+xpp::job::Progress reported;
 
 enum class Stop { none, rows, point, frame };
 Stop stop = Stop::none;
@@ -44,64 +44,11 @@ void stop_reached()
 {
     stop = Stop::none;
     if (stop_key) reached_key = stop_key;
-    else xpp_job_cancel_current();
+    else xpp::job::cancel_current();
 }
 
-} // namespace
-
-void xpp_job_begin(unsigned long seq)
-{
-    if (depth++ > 0) return;
-    progress = XppJobProgress{};
-    compute_told = false;
-    computed = false;
-    if (seq == 0) { /* no command line: a number no cancel so far covers */
-        seq = last_seq > load_upto() ? last_seq : load_upto();
-        seq++;
-    }
-    job_seq = seq;
-    shared_seq.store(seq, std::memory_order_relaxed);
-    if (seq > last_seq) last_seq = seq;
-    running.store(true, std::memory_order_release);
-}
-
-void xpp_job_end(void)
-{
-    if (depth == 0 || --depth > 0) return;
-    stop = Stop::none;
-    reached_key = 0;
-    running.store(false, std::memory_order_release);
-}
-
-void xpp_job_rows_stored(long rows, double t)
-{
-    progress.what = XPP_JOB_INTEGRATE;
-    progress.rows = rows;
-    progress.t = t;
-    if (stop == Stop::rows && rows == stop_count) stop_reached();
-}
-
-void xpp_job_point_stored(int branch, int point)
-{
-    progress.what = XPP_JOB_AUTO;
-    progress.branch = branch;
-    progress.point = point;
-    if (stop == Stop::point && branch == stop_branch && point + 1 == stop_count) stop_reached();
-}
-
-void xpp_job_frame_shown(int frame)
-{
-    progress.what = XPP_JOB_ANI;
-    progress.frame = frame;
-    if (stop == Stop::frame && frame == stop_count) stop_reached();
-}
-
-XppJobProgress xpp_job_progress(void) { return progress; }
-
-namespace {
-
-/* a stop of that kind at count armed, cancelling (xpp_job_stop_with_key
-   may give it a key after) */
+/* a stop of that kind at count armed, cancelling (stop_with_key may give
+   it a key after) */
 void arm(Stop kind, long count)
 {
     stop = kind;
@@ -111,57 +58,108 @@ void arm(Stop kind, long count)
 
 } // namespace
 
-void xpp_job_stop_at_rows(long rows) { arm(Stop::rows, rows); }
+namespace xpp::job {
 
-void xpp_job_stop_at_point(int branch, int point)
+void begin(unsigned long seq)
+{
+    if (depth++ > 0) return;
+    reported = Progress{};
+    compute_told = false;
+    job_computed = false;
+    if (seq == 0) { /* no command line: a number no cancel so far covers */
+        seq = last_seq > load_upto() ? last_seq : load_upto();
+        seq++;
+    }
+    job_seq = seq;
+    shared_seq.store(seq, std::memory_order_relaxed);
+    if (seq > last_seq) last_seq = seq;
+    job_running.store(true, std::memory_order_release);
+}
+
+void end()
+{
+    if (depth == 0 || --depth > 0) return;
+    stop = Stop::none;
+    reached_key = 0;
+    job_running.store(false, std::memory_order_release);
+}
+
+void report_rows(long rows, double t)
+{
+    reported.what = Reported::rows;
+    reported.rows = rows;
+    reported.t = t;
+    if (stop == Stop::rows && rows == stop_count) stop_reached();
+}
+
+void report_point(int branch, int point)
+{
+    reported.what = Reported::point;
+    reported.branch = branch;
+    reported.point = point;
+    if (stop == Stop::point && branch == stop_branch && point + 1 == stop_count) stop_reached();
+}
+
+void report_frame(int frame)
+{
+    reported.what = Reported::frame;
+    reported.frame = frame;
+    if (stop == Stop::frame && frame == stop_count) stop_reached();
+}
+
+Progress progress() { return reported; }
+
+void stop_at_rows(long rows) { arm(Stop::rows, rows); }
+
+void stop_at_point(int branch, int point)
 {
     arm(Stop::point, point);
     stop_branch = branch;
 }
 
-void xpp_job_stop_at_frame(int frame) { arm(Stop::frame, frame); }
+void stop_at_frame(int frame) { arm(Stop::frame, frame); }
 
-void xpp_job_stop_with_key(int key) { stop_key = key; }
+void stop_with_key(int key) { stop_key = key; }
 
-int xpp_job_take_key(void)
+int take_key()
 {
     const int k = reached_key;
     reached_key = 0;
     return k;
 }
 
-int xpp_job_stop_armed(void) { return stop != Stop::none; }
+bool stop_armed() { return stop != Stop::none; }
 
-int xpp_job_running(void) { return running.load(std::memory_order_acquire); }
+bool running() { return job_running.load(std::memory_order_acquire); }
 
-void xpp_job_compute_begin(void)
+void compute_begin()
 {
     if (compute_depth++ > 0) return;
-    computing.store(true, std::memory_order_release);
-    if (depth > 0) computed = true;
+    job_computing.store(true, std::memory_order_release);
+    if (depth > 0) job_computed = true;
     if (depth > 0 && !compute_told && compute_hook) {
         compute_told = true;
         compute_hook();
     }
 }
 
-void xpp_job_set_compute_hook(void (*hook)(void)) { compute_hook = hook; }
+void set_compute_hook(void (*hook)()) { compute_hook = hook; }
 
-void xpp_job_compute_end(void)
+void compute_end()
 {
-    if (compute_depth > 0 && --compute_depth == 0) computing.store(false, std::memory_order_release);
+    if (compute_depth > 0 && --compute_depth == 0) job_computing.store(false, std::memory_order_release);
 }
 
-int xpp_job_computing(void) { return computing.load(std::memory_order_acquire); }
+bool computing() { return job_computing.load(std::memory_order_acquire); }
 
-int xpp_job_computed(void) { return depth > 0 && computed; }
+bool computed() { return depth > 0 && job_computed; }
 
-int xpp_job_stopping(void)
+bool stopping()
 {
-    return running.load(std::memory_order_acquire) && shared_seq.load(std::memory_order_relaxed) <= load_upto();
+    return job_running.load(std::memory_order_acquire) && shared_seq.load(std::memory_order_relaxed) <= load_upto();
 }
 
-void xpp_job_cancel(unsigned long upto_seq)
+void cancel(unsigned long upto_seq)
 {
     unsigned long cur = load_upto();
     while (upto_seq > cur &&
@@ -170,14 +168,14 @@ void xpp_job_cancel(unsigned long upto_seq)
     }
 }
 
-void xpp_job_cancel_current(void)
+void cancel_current()
 {
-    if (depth > 0) xpp_job_cancel(job_seq);
+    if (depth > 0) cancel(job_seq);
 }
 
-int xpp_job_cancelled(void) { return depth > 0 && job_seq <= load_upto(); }
+bool cancelled() { return depth > 0 && job_seq <= load_upto(); }
 
-void xpp_job_resume(unsigned long seq)
+void resume(unsigned long seq)
 {
     if (depth > 0 && seq > job_seq) {
         job_seq = seq;
@@ -186,20 +184,26 @@ void xpp_job_resume(unsigned long seq)
     }
 }
 
-int xpp_every(double *last, double seconds)
+} // namespace xpp::job
+
+namespace xpp {
+
+bool every(double &last, double seconds)
 {
     static const bool always = std::getenv("XPP_NO_THROTTLE") != nullptr; /* a check's hook (xpp_job.h) */
-    if (always) return 1;
+    if (always) return true;
     using seconds_d = std::chrono::duration<double>;
     const double now = seconds_d(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - *last < seconds && now >= *last) return 0; /* a clock set back also passes */
-    *last = now;
-    return 1;
+    if (now - last < seconds && now >= last) return false; /* a clock set back also passes */
+    last = now;
+    return true;
 }
 
-int xpp_job_poll_due(void)
+} // namespace xpp
+
+bool xpp::job::poll_due()
 {
     static double last;
-    return xpp_every(&last, 0.05);
+    return every(last, 0.05);
 }
 

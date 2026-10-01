@@ -80,8 +80,8 @@ void buf_num(Buf *b, double v, int sig)
 /* one event line to the client: stdout, or the page xppautX serves */
 void out_line(const char *s, size_t n)
 {
-    if (xpp_http_active()) {
-        xpp_http_emit(s, n);
+    if (xpp::http::active()) {
+        xpp::http::emit({s, n});
         return;
     }
     if (!proto) return; /* -silent: nowhere */
@@ -101,8 +101,8 @@ void open_protocol_stdout(void)
 {
     int fd = dup(1);
 #ifdef _WIN32
-    xpp_binary_mode(fd); /* "\n" line ends, not "\r\n" */
-    xpp_binary_mode(0);
+    xpp::win32::binary_mode(fd); /* "\n" line ends, not "\r\n" */
+    xpp::win32::binary_mode(0);
 #endif
     proto = fdopen(fd, "w");
     dup2(2, 1);
@@ -158,8 +158,8 @@ void data_emit(const char *line, size_t n) { data_emit(std::string_view(line, n)
    never reads a descriptor itself.
 
    Which queue a reader takes from (see classify() in ui_json.cpp): the
-   command loop takes lines in the order they came (XPP_INBOX_ARRIVAL), a
-   prompt the control lines first (XPP_INBOX_ANY), a long computation's
+   command loop takes lines in the order they came (inbox::From::arrival),
+   a prompt the control lines first (From::any), a long computation's
    checkpoint only the control queue, so it never takes (and never drops) a
    command meant to run after it.
 
@@ -177,14 +177,13 @@ std::string last_line; /* the line read_line gave last, freed at the next call *
 
 } // namespace
 
-char *read_line(int which, int wait_ms)
+char *read_line(xpp::inbox::From which, int wait_ms)
 {
     std::string().swap(last_line); /* a pixels answer is megabytes: not kept while waiting */
-    int r = xpp_inbox_next(which, wait_ms, last_line, &line_seq, &line_refused);
-    switch (r) {
-    case 1:
+    switch (xpp::inbox::next(which, wait_ms, last_line, line_seq, line_refused)) {
+    case xpp::inbox::Took::line:
         return last_line.data();
-    case -1:
+    case xpp::inbox::Took::end:
         /* end of input: exit 1 for a script that hit an error or an
            unmatched ask (docs/protocol.md "Scripts"), else as always, 0 */
         quit_session();

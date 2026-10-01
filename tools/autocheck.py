@@ -1540,7 +1540,7 @@ def section_script():
 
 # ---- replay: a recorded interruption stops the script's job at the same point
 # ----------------------------------------------------------------------------
-# Both cases below arm the stop ahead of time (xpp_job_stop_at_rows/point, the
+# Both cases below arm the stop ahead of time (xpp::job::stop_at_rows/point, the
 # same mechanism a script's own abort replay uses: docs/protocol.md
 # "Scripts") instead of racing a live Abort against the clock: the exact row
 # or point to stop at is chosen from a first, uninterrupted run, not

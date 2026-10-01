@@ -117,7 +117,7 @@ void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *p
   auto_point_id(ibrs,ntots,iap->itp,node,from);
   add_point(s,par,per,uhigh,ulow,ubar,*a,type,iap->ntot==1?0:1,lab,
 	    iap->nfpr,icp1,icp2,icp3,icp4,s.auto_state.two_param,d->evr,d->evi);
-  xpp_job_point_stored(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
+  xpp::job::report_point(static_cast<int>(labs(ibrs)),static_cast<int>(labs(ntots))); /* xppautX: where it got to (xpp_job.h) */
 }
 
 

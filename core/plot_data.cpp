@@ -587,7 +587,7 @@ void plot_data_rows_stored(xpp::Session &s, int nrows)
     if (nrows <= rows_seen) /* storage started again from its first row */
         for (Sent &w : sent) w.held = 0;
     rows_seen = nrows;
-    if (!xpp_every(&last, append_every)) return;
+    if (!xpp::every(last, append_every)) return;
     try {
         series_append(s, nrows);
     } catch (const std::bad_alloc &) {

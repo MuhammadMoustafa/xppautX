@@ -1,6 +1,5 @@
 #ifndef _xpp_session_h_
 #define _xpp_session_h_
-#ifdef __cplusplus
 
 #include <map>
 #include <optional>
@@ -110,5 +109,4 @@ std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext);
 
 /* a note on restoring a file, in the log and on the status line */
 void xpp_session_warn(const std::string &text);
-#endif
 #endif

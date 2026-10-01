@@ -64,7 +64,7 @@ int put_commit(Put *put, unsigned long long &size, std::string &sha256);
 const char *ask_mode(std::string_view title);
 
 /* Atomically replaces `to` with `from` (POSIX rename(), which already
-   replaces; xpp_replace_file on Windows, where rename() does not): 0 on
+   replaces; win32::move_over on Windows, where rename() does not): 0 on
    success. The one place that knows the platform difference; core/xpp_io.cpp's
    writer (core/xpp_io.h) calls this for its own temp-then-rename commit
    instead of duplicating it. */

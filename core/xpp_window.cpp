@@ -2,7 +2,7 @@
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).
 
-   Like xpp_http.cpp this file includes no core header but small C APIs
+   Like xpp_http.cpp this file includes no core header but small APIs
    (xpp_http.h, xpp_inbox.h, xpp_log.h, ui_json.h), so the platform headers it needs
    for the menu bar and the file dialogs (<windows.h> and <shobjidl.h> on
    Windows, GTK on Linux, the Objective-C runtime on macOS) cannot clash
@@ -32,11 +32,11 @@
 
 #ifndef XPP_WINDOW
 
-int xpp_window_supported(void) { return 0; }
-int xpp_window_run(void (*)(void), const char *) { return 0; }
-void xpp_window_set_model(const char *) {}
+bool xpp::window::supported() { return false; }
+bool xpp::window::run(void (*)(), const char *) { return false; }
+void xpp::window::set_model(const char *) {}
 #ifdef __APPLE__
-const char *xpp_window_launch_document(void) { return nullptr; }
+const char *xpp::window::launch_document() { return nullptr; }
 #endif
 
 #else /* XPP_WINDOW */
@@ -81,8 +81,13 @@ namespace {
 #ifdef XPP_WINDOW_PLUGIN
 const XppWindowHost *host; /* the loader's, kept for the process's life */
 #else
-const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION, xpp_http_url, xpp_http_release, xpp_http_said_bye,
-                                  xpp_inbox_push, xpp::json_ui_push_open, xpp::log_printf};
+const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
+                                  xpp::http::url,
+                                  xpp::http::release,
+                                  xpp::http::said_bye,
+                                  [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
+                                  xpp::json_ui_push_open,
+                                  xpp::log_printf};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -448,7 +453,7 @@ id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8
    window delegate (WebviewNSWindowDelegate) and
    -applicationShouldTerminate: on its application delegate
    (WebviewAppDelegate), both added to the library's classes once it has
-   made them (in xpp_webview_create). The core's own exit after its bye
+   made them (in xpp::webview_create). The core's own exit after its bye
    stops the run loop (webview_terminate), which asks neither. On the main
    thread, from the run loop. Not tested: written without a Mac (CI's
    macos-core). */
@@ -543,9 +548,9 @@ std::optional<std::string> pick_file(void *, const FileDialog &d)
    when NSApplicationWillFinishLaunchingNotification is posted, where Apple
    says a handler replaces the standard one, and before the event a launch
    brings, which Cocoa dispatches before applicationDidFinishLaunching:.
-   That all happens inside xpp_webview_create (webview runs the app until
+   That all happens inside xpp::webview_create (webview runs the app until
    it has finished launching), so a launch's document is known before the
-   session starts, and becomes its model (xpp_window_launch_document);
+   session starts, and becomes its model (xpp::window::launch_document);
    one that comes later is opened as File > Open model opens one (W61),
    asking first. On the main thread, from the run loop. Not tested: written
    without a Mac. */
@@ -832,16 +837,16 @@ void place_window(webview_t w)
    webview's JSON (xpp_webview.h) */
 FileDialog file_dialog_of(const std::string &request)
 {
-    const std::string o = xpp_webview_json_value(request, nullptr, 0);
+    const std::string o = xpp::webview_json_value(request, "", 0);
     FileDialog d;
-    d.save = xpp_webview_json_value(o, "mode", 0) == "write";
-    d.title = xpp_webview_json_value(o, "title", 0);
-    d.dir = xpp_webview_json_value(o, "dir", 0);
-    d.file = xpp_webview_json_value(o, "file", 0);
-    d.filter = xpp_webview_json_value(o, "wild", 0);
-    const std::string exts = xpp_webview_json_value(o, "exts", 0);
+    d.save = xpp::webview_json_value(o, "mode", 0) == "write";
+    d.title = xpp::webview_json_value(o, "title", 0);
+    d.dir = xpp::webview_json_value(o, "dir", 0);
+    d.file = xpp::webview_json_value(o, "file", 0);
+    d.filter = xpp::webview_json_value(o, "wild", 0);
+    const std::string exts = xpp::webview_json_value(o, "exts", 0);
     for (int i = 0;; i++) {
-        std::string e = xpp_webview_json_value(exts, nullptr, i);
+        std::string e = xpp::webview_json_value(exts, "", i);
         if (e.empty()) break;
         d.exts.push_back(std::move(e));
     }
@@ -861,9 +866,9 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
         std::optional<std::string> path = pick_file(webview_get_window(w), file_dialog_of(request ? request : ""));
         if (!path) {
             status = 1;
-            reply = xpp_webview_json_quote("the file dialog could not open");
+            reply = xpp::webview_json_quote("the file dialog could not open");
         } else if (!path->empty()) {
-            reply = xpp_webview_json_quote(*path);
+            reply = xpp::webview_json_quote(*path);
         }
     } catch (const std::exception &e) {
         status = 1;
@@ -878,10 +883,10 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
 webview_t open_view()
 {
     int code = 0;
-    std::array<char, 512> why{};
-    webview_t w = xpp_webview_create(0, nullptr, &code, why.data(), why.size());
+    std::string why;
+    webview_t w = xpp::webview_create(false, nullptr, code, why);
     if (!w) {
-        st->error_msg = xpp_webview_error_message(code, why.data());
+        st->error_msg = xpp::webview_error_message(code, why);
         return nullptr;
     }
     std::string t;
@@ -919,7 +924,7 @@ void *session_main(void *)
 
 /* xpp_window.h's set_model and run: the library's (XppWindowApi) in the
    plugin, else the public functions below */
-void set_model(const char *path)
+void set_window_model(const char *path)
 {
     if (!st || !path) return;
     const char *base = path;
@@ -930,7 +935,7 @@ void set_model(const char *path)
     if (st->view) webview_dispatch(st->view, set_title_cb, nullptr);
 }
 
-int run(void (*session)(void), const char *about)
+bool run_window(void (*session)(), const char *about)
 {
     try {
         st = new State;
@@ -944,7 +949,7 @@ int run(void (*session)(void), const char *about)
         webview_t w = open_view();
         if (!w) {
             host->log(XPP_LOG_WARN, "%s", no_view_message());
-            return 0;
+            return false;
         }
         {
             std::lock_guard<std::mutex> lk(st->mu);
@@ -960,7 +965,7 @@ int run(void (*session)(void), const char *about)
         pthread_create(&core, &attr, session_main, nullptr);
         webview_run(w);
         window_closed(w); /* never returns */
-        return 1;
+        return true;
 #else
         auto ready = std::make_shared<std::promise<webview_t>>();
         std::future<webview_t> up = ready->get_future();
@@ -977,16 +982,16 @@ int run(void (*session)(void), const char *about)
         }).detach();
         if (!up.get()) {
             host->log(XPP_LOG_WARN, "%s", no_view_message());
-            return 0;
+            return false;
         }
         std::atexit(on_exit);
 #endif
     } catch (const std::exception &e) {
         host->log(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
-        return 0;
+        return false;
     }
     session();
-    return 1;
+    return true;
 }
 
 } /* namespace */
@@ -997,16 +1002,16 @@ extern "C" __attribute__((visibility("default"))) int xpp_window_plugin_init(con
 {
     if (!h || h->version != XPP_WINDOW_HOST_VERSION || !api) return 0;
     host = h;
-    api->run = run;
-    api->set_model = set_model;
+    api->run = run_window;
+    api->set_model = set_window_model;
     return 1;
 }
 #else
-int xpp_window_supported(void) { return 1; }
-void xpp_window_set_model(const char *path) { set_model(path); }
-int xpp_window_run(void (*session)(void), const char *about) { return run(session, about); }
+bool xpp::window::supported() { return true; }
+void xpp::window::set_model(const char *path) { set_window_model(path); }
+bool xpp::window::run(void (*session)(), const char *about) { return run_window(session, about); }
 #ifdef __APPLE__
-const char *xpp_window_launch_document(void)
+const char *xpp::window::launch_document()
 {
     if (!st) return nullptr;
     std::lock_guard<std::mutex> lk(st->mu);

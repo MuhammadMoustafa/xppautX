@@ -73,7 +73,7 @@ namespace xpp {
    the job here (xpp_job.h), and a front end may show the run growing */
 static void row_stored(xpp::Session &s)
 {
-  xpp_job_rows_stored(s.data_store.rows, s.data_store.col[0][s.data_store.rows-1]);
+  xpp::job::report_rows(s.data_store.rows, s.data_store.col[0][s.data_store.rows-1]);
   rows_stored(s,s.data_store.rows);
 }
 /* the state x of the Session's solver work copied into u from v (its node ODEs) */
@@ -1575,7 +1575,7 @@ if(program.interactive) cwidth=get_command_width();
  if(tscal==0.0)tscal=1.0;
  stor_delay(s,x);
  /* xppautX: the rows a cancel before the first step finds (xpp_job.h) */
- xpp_job_rows_stored(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
+ xpp::job::report_rows(s.data_store.rows, s.data_store.rows > 0 ? s.data_store.col[0][s.data_store.rows-1] : *t);
 
  while(1)
  {

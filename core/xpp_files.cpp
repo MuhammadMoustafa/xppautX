@@ -79,7 +79,7 @@ using namespace xpp::files;
 
 #ifdef _WIN32
 int stat_name(const char *name, Stat *st) { return _stat64(name, st); }
-int rename_over(const char *from, const char *to) { return xpp_replace_file(from, to); }
+int rename_over(const char *from, const char *to) { return xpp::win32::move_over(from, to) ? 0 : -1; }
 #else
 int stat_name(const char *name, Stat *st) { return lstat(name, st); }
 int rename_over(const char *from, const char *to) { return std::rename(from, to); }

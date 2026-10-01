@@ -40,6 +40,11 @@ namespace xpp {
 /* what says what was being built ("reading a command"): the ERROR is
    "out of memory <what>". It allocates nothing itself. */
 [[noreturn]] void out_of_memory(std::string_view what) noexcept;
+/* the same on a thread of its own (the protocol's readers, xpp_inbox.cpp
+   and xpp_http.cpp) or with a lock held that an exit handler takes
+   (xpp_http's at_exit): the ERROR, then std::_Exit(1), which runs no exit
+   handler and destroys no static that another thread may be using. */
+[[noreturn]] void out_of_memory_now(std::string_view what) noexcept;
 } // namespace xpp
 
 #endif

@@ -51,10 +51,11 @@ if [ -n "$noexec" ]; then
   echo "SCRIPT MODE CHECK FAILED"
   exit 1
 fi
-# the core is C++ (W27, 2026-09-25): a new source there is a .cpp
-csrc=$(ls core/*.c 2>/dev/null)
+# the core is C++ (W27, 2026-09-25), and its unit tests with it (W109f):
+# a new source there is a .cpp
+csrc=$(ls core/*.c tests/*.c 2>/dev/null)
 if [ -n "$csrc" ]; then
-  echo "C sources in core/ (the core is C++: git mv to .cpp):" $csrc
+  echo "C sources in core/ or tests/ (they are C++: git mv to .cpp):" $csrc
   echo "C SOURCE CHECK FAILED"
   exit 1
 fi

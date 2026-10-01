@@ -12,11 +12,11 @@
 # no entry, fails, naming its lines; a file with fewer fails too, so the
 # list follows the stages down (lower or delete its entry).
 #
-# Until W109's stages finish (docs/roadmap.md, "W109: the core's API in
-# C++, in stages"), the C API they have not reached yet is listed with
-# the stage card that converts it; never add an entry for new code. The
-# vendored CVODE's headers keep theirs until W34 (#72) decides whether
-# SUNDIALS replaces CVODE (maintainer, 2026-09-30).
+# W109's stages are done (W109f, the last, 2026-10-01; docs/roadmap.md
+# "W109: the core's API in C++, in stages"): what is listed is the
+# permanent C boundary, and the vendored CVODE's headers, which keep their
+# C API until W34 (#72) decides whether SUNDIALS replaces CVODE
+# (maintainer, 2026-09-30); never add an entry for new code.
 # tools/sourcecheck.sh runs this. Usage: tools/externcheck.sh
 cd "$(dirname "$0")/.." || exit 1
 
@@ -31,13 +31,7 @@ core/cvdense.h 1|vendored CVODE: W34 (#72) decides
 core/cvode.h 1|vendored CVODE: W34 (#72) decides
 core/dense.h 1|vendored CVODE: W34 (#72) decides
 core/llnlmath.h 1|vendored CVODE: W34 (#72) decides
-core/vector.h 1|vendored CVODE: W34 (#72) decides
-core/xpp_http.h 1|W109f: the threads and the window's edges (tests/test_job.c, C, calls xpp_job.h)
-core/xpp_inbox.h 1|W109f
-core/xpp_job.h 1|W109f
-core/xpp_webview.h 1|W109f
-core/xpp_win32.h 1|W109f
-core/xpp_window.h 1|W109f"
+core/vector.h 1|vendored CVODE: W34 (#72) decides"
 
 allowed() {
   printf '%s\n' "$ALLOW" | awk -v f="$1" '$1 == f { split($2, a, "|"); print a[1]; exit }'
