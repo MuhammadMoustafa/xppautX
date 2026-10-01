@@ -419,7 +419,7 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y);
 void j_auto_show_hint(xpp::Session &s);
 void j_auto_scroll_window(xpp::Session &s);
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
-void j_auto_refresh(void);
+void j_auto_refresh(xpp::Session &s);
 
 /* ---- json_model.cpp ---- */
 

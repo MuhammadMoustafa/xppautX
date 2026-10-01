@@ -317,12 +317,12 @@ void diag_flush(const xpp::Session &s, int final)
 /* AUTO's refreshdisplay() after every point: a few frames a second, not a
    flush per point. The end of a command and every ask flush in full, so
    the last point of a run and a grab's circle are never held back. */
-void j_auto_refresh(void)
+void j_auto_refresh(xpp::Session &s)
 {
     static double last;
     if (xpp::every(last, 0.05)) {
         json_flush();
-        auto_data_update(client(), 0);
+        auto_data_update(s, 0);
     }
 }
 

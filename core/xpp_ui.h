@@ -120,7 +120,7 @@ void clear_auto_plot(void);
 void redraw_auto_menus(void);
 void clear_auto_info(void);
 void draw_auto_info(std::string_view bob, int x, int y);
-void refreshdisplay(void);
+void refreshdisplay(Session &s);
 int byeauto_(int *iflag);
 void init_txtview(void);
 void bye_bye(void);
@@ -277,7 +277,7 @@ typedef struct XppUi {
     void (*auto_redraw_menus)(void);
     void (*auto_clear_info)(void);
     void (*auto_draw_info)(std::string_view s, int x, int y);
-    void (*auto_refresh)(void);
+    void (*auto_refresh)(Session &s);
     int (*auto_check_abort)(int *iflag);
     int (*auto_rubber)(Session &s, int *i1, int *j1, int *i2, int *j2, int flag);
     void (*auto_scroll_window)(Session &s);

@@ -350,7 +350,7 @@ void draw_bif_axes(xpp::Session &s)
  ATEXT(10*text_metrics.small_width,text_metrics.small_height,l.y.c_str());
  /* the data of the diagram starts again too, in every view */
  for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)auto_diagram(s,v,NULL);
- refreshdisplay();
+ refreshdisplay(s);
 }
 
 int IXVal(const xpp::Session &s, double x)
@@ -1306,7 +1306,7 @@ void add_point(xpp::Session &s, const DIAGRAM &d, const double *par, int type, i
   for(int v=0;v<static_cast<int>(s.auto_state.views.size());v++)
     view_point(s, v,s.auto_state.views[static_cast<std::size_t>(v)].axes,v==s.auto_state.active_view,d,par,type,flg);
   show_stab(s, d.evr,d.evi,s.model().node,type==STABLE_PERIODIC||type==UNSTABLE_PERIODIC);
-  refreshdisplay();
+  refreshdisplay(s);
 }
 
 const char *auto_bif_sym(int itp)
@@ -1361,7 +1361,7 @@ void new_info(xpp::Session &s, const DIAGRAM &d)
   std::string bob=xpp::format("{:4} {:4} {:>2} {:4} {:10.4g} {:10.4g} {:10.4g} {:10.4g} {:10.4g}",
 	  d.ibr,d.ntot,auto_bif_sym(d.itp),d.lab,p1,p2,d.norm,d.u0[s.auto_state.axes().var],d.per);
   draw_auto_info(bob,10,2*text_metrics.small_height+2);
-  refreshdisplay();
+  refreshdisplay(s);
 }
 
 void traverse_out(xpp::Session &s, DIAGRAM *d, int *ix, int *iy, int dodraw)

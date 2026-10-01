@@ -189,7 +189,7 @@ XppUi ui = {
     .auto_redraw_menus = hl_void,
     .auto_clear_info = hl_void,
     .auto_draw_info = hl_auto_draw_info,
-    .auto_refresh = hl_void,
+    .auto_refresh = hl_s,
     .auto_check_abort = hl_auto_check_abort,
     .auto_rubber = hl_auto_rubber,
     .auto_scroll_window = hl_s,
@@ -333,7 +333,7 @@ void clear_auto_plot(void) { ui.auto_clear_plot(); }
 void redraw_auto_menus(void) { ui.auto_redraw_menus(); }
 void clear_auto_info(void) { ui.auto_clear_info(); }
 void draw_auto_info(std::string_view bob, int x, int y) { ui.auto_draw_info(bob, x, y); }
-void refreshdisplay(void) { ui.auto_refresh(); }
+void refreshdisplay(Session &s) { ui.auto_refresh(s); }
 int byeauto_(int *iflag) /* AUTO's checkpoint, as my_abort() */
 {
     int r;
