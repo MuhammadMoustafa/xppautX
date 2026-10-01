@@ -353,7 +353,8 @@ For the browser front end: [docs/using-the-panel.md](docs/using-the-panel.md)
 (what differs from the classic menus), [docs/protocol.md](docs/protocol.md)
 (the JSON protocol), [docs/front-end-gaps.md](docs/front-end-gaps.md) (the
 historical parity record), [docs/xppautx-vs-xppaut.md](docs/xppautx-vs-xppaut.md)
-(what is ours and what is XPPAUT's, by area) and [docs/vscode-extension.md](docs/vscode-extension.md).
+(what is ours and what is XPPAUT's, by area), [docs/vscode-extension.md](docs/vscode-extension.md)
+and the [CHANGELOG.md](CHANGELOG.md) (what is new, changed and fixed, by release).
 
 The manual (model language, numerics, AUTO, the current front end) is
 [docs/manual/](docs/manual/README.md), kept current with the code (W12). The

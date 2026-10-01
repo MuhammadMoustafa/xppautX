@@ -183,30 +183,32 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      # the release's body is the version's section of CHANGELOG.md: the
+      # tag's version, or Unreleased on a dispatch without a tag; a missing
+      # section fails the job (no fallback text)
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v8
         with:
           path: dist
+      - name: Release notes from CHANGELOG.md
+        run: |
+          python3 - "${XPP_VERSION#v}" > notes.md <<'PY'
+          import re, sys
+          version = sys.argv[1] or "Unreleased"
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          m = re.search(r"^## \[" + re.escape(version) + r"\][^\n]*$(.*?)(?=^## \[|\Z)", text, re.M | re.S)
+          if not m or not m.group(1).strip():
+              sys.exit("CHANGELOG.md has no section for " + version)
+          print(m.group(1).strip())
+          print()
+          print("GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these binaries is the attached `*-source.tar.gz`.")
+          PY
       - name: Attach everything to the release
         uses: softprops/action-gh-release@v3
         with:
           files: dist/*/*
-          body: |
-            xppautX for Linux, Windows and macOS: one program, no X11.
-
-            `xppautX model.ode` opens the front end in a window of its own:
-            on Windows (WebView2, part of Windows 10/11), on macOS (the
-            system's WKWebView) and on Linux where WebKitGTK 4.1 is
-            installed (elsewhere it says what to install and uses your
-            browser); nothing else is needed. `-silent` runs it headlessly
-            and writes output.dat, as upstream xppaut does; `--server`
-            speaks the JSON protocol on stdin/stdout. `linux-x64` needs
-            glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40 and
-            later). `macos-arm64` is for Apple silicon Macs, `macos-x64` for
-            Intel Macs, macOS 13.3 or newer. The macOS and
-            Windows binaries are not signed, so the system asks you to
-            allow them the first time (macOS: `xattr -dr
-            com.apple.quarantine` on the unpacked folder, or right-click >
-            Open; Windows: SmartScreen's "More info" > "Run anyway").
-
-            GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these
-            binaries is the attached `*-source.tar.gz`.
+          body_path: notes.md
