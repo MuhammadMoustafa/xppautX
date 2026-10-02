@@ -1032,7 +1032,7 @@ def section_sessiondiagram():
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model in it',
-          list(got) == ['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.set', 'marks.set', 'random.txt'], str(list(got)))
+          list(got) == ['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.set', 'marks.set', 'random.txt', 'sliders.set', 'nullclines.set'], str(list(got)))
     check('sessiondiagram: session.txt is the manifest of lecar.odex, which is in it byte for byte',
           got.get('session.txt', '') == 'xppautX session 1\nname lecar.odex\ndata 0\n'
           and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.txt', '')[:300])
