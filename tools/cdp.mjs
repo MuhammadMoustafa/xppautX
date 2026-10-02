@@ -28,7 +28,7 @@ const STDERR_KEPT = 4000; /* bytes of the browser's stderr a failure shows */
 
 /* ---- the DevTools protocol ------------------------------------------------ */
 
-const NOTES_KEPT = 30;
+const NOTES_KEPT = 30; /* page events a failure shows: a reload's whole story, not the whole run's */
 
 export class Cdp {
   constructor(url) {
@@ -57,8 +57,8 @@ export class Cdp {
     });
   }
   /* what the page did, for a failure to name itself (W158): the last
-     navigations, console errors, exceptions, failed or refused document
-     loads and a crashed renderer, oldest first, NOTES_KEPT of them */
+     navigations, console errors, exceptions, the log's errors (a failed
+     load among them) and a crashed renderer, oldest first, NOTES_KEPT of them */
   note(d) {
     const p = d.params;
     let text = null;
@@ -69,8 +69,6 @@ export class Cdp {
         if (p.type === 'error' || p.type === 'warning') text = `console.${p.type}: ${p.args.map(a => a.value ?? a.description).join(' ')}`;
         break;
       case 'Log.entryAdded': if (p.entry.level === 'error') text = `log: ${p.entry.text} ${p.entry.url || ''}`; break;
-      case 'Network.loadingFailed': if (!p.canceled) text = `load failed: ${p.errorText} (${p.type})`; break;
-      case 'Network.responseReceived': if (p.type === 'Document') text = `document ${p.response.url}: HTTP ${p.response.status}`; break;
       case 'Inspector.targetCrashed': text = 'the renderer crashed'; break;
       default: break;
     }
@@ -239,8 +237,10 @@ export async function startBrowser(browser, profile) {
   const cdp = new Cdp(page.webSocketDebuggerUrl);
   cdp.browserState = state;
   await cdp.open();
-  /* the events Cdp.report() tells a failure with */
-  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector', 'Network']) await cdp.send(`${domain}.enable`).catch(() => undefined);
+  /* the events Cdp.report() tells a failure with; not Network, which would send every SSE
+     message of the page over this socket (a failed load is the Log's error and the
+     chrome-error page Cdp.report() shows) */
+  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector']) await cdp.send(`${domain}.enable`).catch(() => undefined);
 
   /* Set download behavior once at browser start, for all sections */
   await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
