@@ -6,6 +6,9 @@
 #include "xpptest.h"
 #include "xpp_job.h"
 
+#include <atomic>
+#include <thread>
+
 int main(void)
 {
     CHECK(!xpp::job::running());
@@ -112,6 +115,44 @@ int main(void)
     CHECK(!xpp::job::cancelled());
     xpp::job::end();
     CHECK(!xpp::job::stop_armed());
+
+    /* an upload lands outside a computation (W134): held when none runs,
+       several at once; refused while one runs */
+    {
+        xpp::job::OutsideComputation a, b;
+        CHECK(a && b && !xpp::job::computing());
+    }
+    xpp::job::compute_begin();
+    CHECK(xpp::job::computing());
+    {
+        xpp::job::OutsideComputation c;
+        CHECK(!c);
+    }
+    xpp::job::compute_end();
+    {
+        xpp::job::OutsideComputation d;
+        CHECK(d);
+    }
+    /* ... and a computation begins only once an upload held on another
+       thread has ended: compute_begin returns after the release, never
+       before, however the threads are scheduled */
+    {
+        std::atomic<bool> ready{false}, held{false}, go{false}, released{false};
+        std::thread upload([&] {
+            xpp::job::OutsideComputation e;
+            held = static_cast<bool>(e);
+            ready = true;
+            while (!go) std::this_thread::yield();
+            released = true; /* still held: the scope ends below */
+        });
+        while (!ready) std::this_thread::yield();
+        CHECK(held);
+        go = true;
+        xpp::job::compute_begin();
+        CHECK(released);
+        xpp::job::compute_end();
+        upload.join();
+    }
 
     /* the poll throttle lets the first poll through (the 50 ms after it
        would make a flaky test) */

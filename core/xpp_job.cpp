@@ -1,7 +1,8 @@
 /* The cancel token of a running computation (xpp_job.h).
 
-   State the reader threads touch is three atomics (no locks): cancel_upto,
-   the highest sequence number any cancel has named, running and computing.
+   State the reader threads touch is atomics (no locks): cancel_upto,
+   the highest sequence number any cancel has named, running, and the
+   computation gate (computing, or the uploads landing outside one).
    Everything else belongs to the main thread. A job is cancelled when the
    number it started from is <= cancel_upto; cancel_upto only grows.
 
@@ -11,12 +12,16 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <thread>
 
 namespace {
 
 std::atomic<unsigned long> cancel_upto{0};
 std::atomic<bool> job_running{false}; /* depth > 0, for other threads */
-std::atomic<bool> job_computing{false}; /* compute_depth > 0, for other threads */
+/* -1 while a computation runs (compute_depth > 0), else how many
+   OutsideComputation scopes hold it: the one word compute_begin and an
+   upload's rename agree through, so neither can start inside the other */
+std::atomic<int> compute_gate{0};
 int compute_depth; /* nesting of compute_begin/end */
 bool compute_told;  /* the hook was called for this job */
 bool job_computed;  /* a computation began in this job */
@@ -153,7 +158,10 @@ bool running() { return job_running.load(std::memory_order_acquire); }
 void compute_begin()
 {
     if (compute_depth++ > 0) return;
-    job_computing.store(true, std::memory_order_release);
+    /* an upload landing now (OutsideComputation) finishes its rename first */
+    for (int idle = 0; !compute_gate.compare_exchange_weak(idle, -1, std::memory_order_acq_rel, std::memory_order_acquire);
+         idle = 0)
+        std::this_thread::yield();
     if (depth > 0) job_computed = true;
     if (depth > 0 && !compute_told && compute_hook) {
         compute_told = true;
@@ -165,10 +173,23 @@ void set_compute_hook(void (*hook)()) { compute_hook = hook; }
 
 void compute_end()
 {
-    if (compute_depth > 0 && --compute_depth == 0) job_computing.store(false, std::memory_order_release);
+    if (compute_depth > 0 && --compute_depth == 0) compute_gate.store(0, std::memory_order_release);
 }
 
-bool computing() { return job_computing.load(std::memory_order_acquire); }
+bool computing() { return compute_gate.load(std::memory_order_acquire) < 0; }
+
+OutsideComputation::OutsideComputation()
+{
+    int n = compute_gate.load(std::memory_order_acquire);
+    while (n >= 0 && !compute_gate.compare_exchange_weak(n, n + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
+    }
+    held_ = n >= 0;
+}
+
+OutsideComputation::~OutsideComputation()
+{
+    if (held_) compute_gate.fetch_sub(1, std::memory_order_release);
+}
 
 bool computed() { return depth > 0 && job_computed; }
 

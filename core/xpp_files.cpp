@@ -6,6 +6,7 @@
 #include "xpp_files.h"
 #include "xpp_files_internal.h"
 #include "xpp_io.h"
+#include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
 #include "xpp_sha256.h"
@@ -336,6 +337,14 @@ std::string run_command(std::string_view op, const char *name_json, const char *
     return s;
 }
 
+/* an upload refused because a computation runs (xpp_files.h put_begin):
+   the same WARN the protocol's classifier logs for a refused command */
+int refused_busy(std::string_view name)
+{
+    xpp::log(XPP_LOG_WARN, "refused during a computation: an upload of {}\n", name);
+    return XPP_FILES_BUSY;
+}
+
 } // namespace
 
 /* ---- the API --------------------------------------------------------------------- */
@@ -370,6 +379,7 @@ const char *status_text(int status)
     case XPP_FILES_NOT_FOUND: return "no such file";
     case XPP_FILES_REFUSED: return "not a plain file (a link, a folder or a device)";
     case XPP_FILES_TOO_LARGE: return "larger than 64 MB";
+    case XPP_FILES_BUSY: return xpp::job::REFUSED_WHILE_COMPUTING;
     default: return "the file could not be read or written";
     }
 }
@@ -396,6 +406,7 @@ int put_begin(std::string_view name, unsigned long long cap, Put *&put)
 {
     put = nullptr;
     if (!name_ok(name)) return XPP_FILES_BAD_NAME;
+    if (xpp::job::computing()) return refused_busy(name); /* before a byte of it is read */
     try {
         std::unique_ptr<Put> p = std::make_unique<Put>();
         p->name = name;
@@ -428,9 +439,15 @@ int put_commit(Put *put, unsigned long long &size, std::string &sha256)
 {
     std::unique_ptr<Put> p(put);
     Stat st;
-    int k = kind_of(p->name.c_str(), &st);
-    if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k; /* became a link or a folder meanwhile */
-    if (!p->w.commit()) return XPP_FILES_IO;
+    {
+        /* decided with the rename, atomically: no computation runs now,
+           and none begins until the file is in place */
+        xpp::job::OutsideComputation outside;
+        if (!outside) return refused_busy(p->name);
+        int k = kind_of(p->name.c_str(), &st);
+        if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k; /* became a link or a folder meanwhile */
+        if (!p->w.commit()) return XPP_FILES_IO;
+    }
     size = p->bytes;
     try {
         sha256 = p->sha.hex();

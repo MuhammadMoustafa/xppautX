@@ -37,6 +37,7 @@
 #define XPP_FILES_REFUSED 3   /* a link, a folder or a device: not a plain file */
 #define XPP_FILES_TOO_LARGE 4 /* more than the cap */
 #define XPP_FILES_IO 5        /* the system refused, or the data was cut short */
+#define XPP_FILES_BUSY 6      /* a computation runs: nothing lands in the folder under it */
 
 namespace xpp::files {
 
@@ -52,7 +53,15 @@ int open(std::string_view name, FILE *&fp, unsigned long long &size);
    abort. Commit gives the size and SHA-256 of what was written (sha256,
    64 hex digits).
    The write is xpp_io.h's writer (binary): the temp file beside the name
-   and its rename are the same as every other replace's. */
+   and its rename are the same as every other replace's.
+   The one route a file takes into the model's folder, whichever way it
+   came (HTTP PUT /files/NAME, the protocol's `file` put; W134), and the
+   one decision whether it may land now: never while a computation runs
+   (XPP_FILES_BUSY, logged as a refusal). Begin refuses before a byte is
+   read; commit decides again inside xpp::job::OutsideComputation, so a
+   computation that began meanwhile refuses the rename too and one cannot
+   begin under it. The bytes go to the hidden temp file meanwhile, which
+   no model reads. */
 struct Put;
 int put_begin(std::string_view name, unsigned long long cap, Put *&put);
 int put_write(Put &put, std::string_view bytes);

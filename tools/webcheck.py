@@ -450,6 +450,58 @@ if sess:
         check('W112: ... and the process ends with code 0', False, 'still running after 15 s')
     c.close()
 
+# ---- W134: one route into the model's folder. An upload (PUT /files/NAME) during a run is refused
+# like the protocol's `file` put (a data command): nothing lands under a computation, whichever way
+# it came; once the run has ended the same upload goes through.
+with open(os.path.join(lrun, 'guard.par'), 'wb') as f:
+    f.write(b'old')
+
+
+def put_at(pt, tk, name, body):
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=20)
+    c.request('PUT', '/files/' + name + '?t=' + tk, body=body)
+    r = c.getresponse()
+    return r.status, r.read().decode('utf-8', 'replace')
+
+
+def guard():
+    with open(os.path.join(lrun, 'guard.par'), 'rb') as f:
+        return f.read()
+
+
+sess = leave_session('longrun.ode')
+check('W134: a process starts for the upload-during-a-run check', sess is not None)
+if sess:
+    p, pt, tk, c = sess
+    close_stream(c)
+    c = http.client.HTTPConnection('127.0.0.1', pt, timeout=30)
+    c.request('GET', '/events?t=' + tk)
+    c.sk = c.sock
+    c.resp = c.getresponse()
+    read_events(c, lambda e: e['ev'] == 'idle')
+    post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
+    _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
+    post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'] if ask else 0, 'key': 'g'})
+    _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
+    st, body = put_at(pt, tk, 'guard.par', b'new')
+    check('W134: PUT /files/NAME during a run is refused (409, "Not while a computation runs")',
+          comp is not None and st == 409 and 'Not while a computation runs' in body, '%s %s %s' % (comp, st, body))
+    post_cmd(pt, tk, {'cmd': 'file', 'op': 'put', 'name': 'guard.par', 'data': 'bmV3'})  # "new"
+    post_cmd(pt, tk, {'cmd': 'abort'})
+    evs, _ = read_events(c, lambda e: e['ev'] == 'idle', 30)  # the run's idle, stopped
+    evs, _ = read_events(c, lambda e: e['ev'] == 'idle', 30)  # the refused file put's
+    refused = [e.get('error', '') for e in evs if e['ev'] == 'message']
+    check('W134: ... like the file command sent during it (an error after the run, no file event)',
+          len(refused) == 1 and 'Not while a computation runs' in refused[0]
+          and not any(e['ev'] == 'file' for e in evs), str([e['ev'] for e in evs]) + str(refused))
+    check('W134: ... and neither wrote the file', guard() == b'old', str(guard()))
+    st, body = put_at(pt, tk, 'guard.par', b'new')
+    check('W134: after the run the same upload lands', st == 200 and guard() == b'new', '%s %s' % (st, body))
+    c.resp.close()
+    c.close()
+    p.kill()
+    p.wait()
+
 sess = leave_session('malformed_unbalanced.ode')
 check('W112: a process with a model that does not load starts', sess is not None)
 if sess:

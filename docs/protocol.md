@@ -1509,6 +1509,23 @@ file. core/xpp_files.cpp does the work for both ways in:
     replaces stays as it was until then.
 - **`--server`**: the `file` command above, with the same rules.
 
+Nothing lands in the folder while a computation runs (W134): a file a run
+reads (a table, a `.par` it loads next) is never replaced under it,
+whichever way the copy came. The `file` command's `put` is a data command,
+refused during a computation like any other ("Commands during a
+command": `message` `error` "Not while a computation runs: file was
+refused" after it, then `state` and `idle`, and nothing written). `PUT
+/files/NAME` cannot wait in the queue as a line does, so during a
+computation (a stopping one too) it is refused with 409 and the same
+words, before a byte of its body is read; the core logs the refusal as a
+WARN. Both go through core/xpp_files.cpp's one decision, made again
+atomically with the rename (`xpp::job::OutsideComputation`): an upload
+whose body was still arriving when a computation began is refused at the
+end too, and a computation that begins while an upload is being renamed
+into place waits for it. Outside a computation an upload goes through at
+once, even while a command waits in a prompt (a `file` ask is answered
+with the name a client has just uploaded).
+
 A NAME is percent-decoded, then must be a base name: no `/` or `\`, no
 `..`, no leading dot (hidden files, `.` and `..`), no leading space and no
 trailing dot or space, no control characters, none of `: * ? " < > |`

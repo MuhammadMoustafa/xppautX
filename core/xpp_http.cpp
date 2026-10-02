@@ -719,6 +719,7 @@ const char *files_status(int st)
     case XPP_FILES_NOT_FOUND: return "404 Not Found";
     case XPP_FILES_REFUSED: return "403 Forbidden";
     case XPP_FILES_TOO_LARGE: return "413 Payload Too Large";
+    case XPP_FILES_BUSY: return "409 Conflict";
     default: return "500 Internal Server Error";
     }
 }
@@ -743,7 +744,9 @@ void get_file(sock_t s, const std::string &name)
 }
 
 /* PUT /files/NAME: the body streams into a temporary file that becomes
-   NAME only once all of it arrived (xpp_files.h) */
+   NAME only once all of it arrived (xpp_files.h); xpp_files decides
+   whether it may land now, as for the protocol's `file` put (refused
+   while a computation runs, 409) */
 void put_file(Request &q, const std::string &name)
 {
     xpp::files::Put *put;

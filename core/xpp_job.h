@@ -39,13 +39,37 @@ bool running();
    only what the computation itself acts on and drops everything else
    (core/ui_json.cpp during_run(), docs/protocol.md "Commands during a
    command"). Nested pairs are fine (a counter); main thread. Code uses
-   xpp::Computation (below), a scope. */
+   xpp::Computation (below), a scope. The outermost begin waits for an
+   OutsideComputation another thread holds (below). */
 void compute_begin();
 void compute_end();
 
 /* true while a computation runs. Any thread; the protocol's classifier
    asks it. */
 bool computing();
+
+/* what a client is told of a command or an upload refused because a
+   computation runs (core/ui_json.cpp handle_line, xpp_files.h's uploads) */
+constexpr const char *REFUSED_WHILE_COMPUTING = "Not while a computation runs";
+
+/* A scope outside any computation, for a write into the model's folder
+   that another thread makes (an upload's rename, xpp_files.h put_commit;
+   W134): held, no computation begins until it ends (compute_begin waits
+   for it); it cannot be held while one runs (false). So whether a
+   computation runs is decided once, atomically with the write, on any
+   thread, and a write never lands inside a computation however the two
+   race. Any thread; held only for the rename, never for the transfer. */
+class OutsideComputation {
+public:
+    OutsideComputation();
+    ~OutsideComputation();
+    OutsideComputation(const OutsideComputation &) = delete;
+    OutsideComputation &operator=(const OutsideComputation &) = delete;
+    explicit operator bool() const { return held_; }
+
+private:
+    bool held_;
+};
 
 /* true when the running job has begun a computation, running or done (a
    Flow's next trajectory, a range's next run): a setting taken now waits

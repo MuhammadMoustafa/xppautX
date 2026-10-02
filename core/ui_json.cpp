@@ -689,7 +689,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);
-        j_command_error("command", xpp::format("Not while a computation runs: {} was refused", c));
+        j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
         player_begin(line);
