@@ -348,8 +348,12 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
   for(;s.options_applied<options.size();s.options_applied++){
     /* a value an option refuses is reported at its line */
     const xpp::Place &at=options[s.options_applied].where;
-    xpp::Load::at(at.file.empty()?s.model().this_file:at.file,at.line,at.col);
-    each_option(options[s.options_applied].text," ,",",\n\r",[&s,mask](const std::string &name,const std::string &value){
+    const std::string &file=at.file.empty()?s.model().this_file:at.file;
+    xpp::Load::at(file,at.line,at.col);
+    /* a .odex value ends at a comma (`@ meth=Mod. Euler`); a .ode's, as
+       XPPAUT reads it, at a space too (`@ parmin=-.2 parmax=.5`) */
+    const char *ends=xpp::odex::is_odex(file)?",\n\r":" ,\n\r";
+    each_option(options[s.options_applied].text," ,",ends,[&s,mask](const std::string &name,const std::string &value){
       set_option(s,name,value,0,mask);
     });
   }
