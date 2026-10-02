@@ -420,8 +420,10 @@ Models are named by family, never by version (maintainer, 2026-10-01),
 so a newer one is used the day it ships: the agents' `model:` is the bare
 alias (haiku, sonnet, opus). Codex agents (maintainer, 2026-10-01) are a
 second pool for easy and medium cards: easy luna (low effort), medium sol
-(medium); a hard card stays on opus (`task-hard`), never astra, which is
-token hungry (maintainer, 2026-10-01); each the newest listed model of its family
+(medium); a hard card goes to `task-hard` on opus, or on sonnet
+(the Agent tool's model override; being tried since 2026-10-01, W159), or
+to Codex sol at high effort (W155's trial), never astra, which is token
+hungry (maintainer, 2026-10-01); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
 <model> -o <report>` and registered by the reviewer. A Codex agent follows
