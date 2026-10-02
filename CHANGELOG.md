@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Added
 
+- `--convert` notes `@` option words XPPAUT ignores when spaces surround `=`, while keeping the option values unchanged (W167, [#219](https://github.com/MuhammadMoustafa/xppautX/issues/219)).
+
 - Sliders belong to the session: opening a model replaces them with its presets; saved `.snapx` sessions restore slider definitions and current and frozen nullclines (W135, [#187](https://github.com/MuhammadMoustafa/xppautX/issues/187)).
 
 - Save a session (`name.snapx`) and open it later to continue where you stopped: the model, its values, every plot view, frozen curves, labels and the data; a session of the model already open asks to save first, and the file carries its model and opens only that one (W57, #105; W103, #152)

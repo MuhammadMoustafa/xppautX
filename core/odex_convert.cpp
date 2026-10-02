@@ -1163,10 +1163,25 @@ private:
     const bool map = disc(m_) != 0;
     for (const xpp::Model::OptionLine &line : m_.options) {
       std::string items;
-      for (const auto &[key, value] : option_items(line.text, false)) {
+      std::vector<std::string> ignored;
+      for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
         const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
         if (map && meth) continue;
         items += (items.empty() ? "" : ", ") + key + "=" + (meth ? method_name(key, value) : option_value(key, value));
+      }
+      if (!ignored.empty()) {
+        std::string dropped;
+        for (const std::string &token : ignored) dropped += (dropped.empty() ? "" : " ") + token;
+        std::string names;
+        std::set<std::string> seen;
+        for (size_t i = 0; i + 1 < ignored.size(); ++i) {
+          if (ignored[i + 1] != "=") continue;
+          const std::string &name = ignored[i];
+          if (!seen.insert(name).second) continue;
+          names += (names.empty() ? "" : ", ") + name;
+        }
+        option_notes_.push_back(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
+                                            names.empty() ? "" : ", so " + names + " keep their values"));
       }
       if (!items.empty()) out += "@ " + items + "\n";
     }

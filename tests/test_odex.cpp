@@ -645,6 +645,21 @@ int main(void)
     CHECK(text.find("# @ meth=symplectic in the .ode: XPP reads a method by its first letter, Stiff") != std::string::npos);
   }
 
+  /* W167: keep ignored, spaced @ words visible in the conversion note. */
+  {
+    CHECK(load_text("x'=0\n@ total=7 dt=.5\n@ parmin = -.2 parmax = .5\ndone\n", "ode") == 1);
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(result.has_value());
+    const std::string text = result ? *result : "";
+    CHECK(text.find("@ total=7, dt=.5") != std::string::npos);
+    CHECK(text.find("# @ parmin = -.2 parmax = .5 in the .ode: XPP ignores an option with spaces around its =, so parmin, parmax keep their values") != std::string::npos);
+    CHECK(text.find("XPP ignores an option") == text.rfind("XPP ignores an option"));
+    CHECK(load_text("x'=0\n@ total=7 dt=.5\ndone\n", "ode") == 1);
+    const auto clean = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(clean.has_value());
+    CHECK(clean && clean->find("XPP ignores an option") == std::string::npos);
+  }
+
   {
     CHECK(load_text("x'=1/ran(1)\ndone\n", "ode") == 1);
     xpp::Session &session = xpp::client_session();

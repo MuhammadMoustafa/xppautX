@@ -90,7 +90,7 @@ splitter, and can fuse two words together at a token boundary.
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
 | spaces around `=` in `par` | `par a = 1` | accepted, `a=1` (declaration-line splitting tolerates it) | not flagged | same, whitespace-insensitive around `=` everywhere |
-| spaces around `=` in `@` option | `@ total = 0.03` | **silently ignored**, `total` keeps its default (measured: with `@ total = 0.03` and `@ dt=0.01` together, the run went to `t=20`, the default `total`, not `0.03`) | `semanticCheckerCore.ts`'s `badSpacing`, **error**: "ignored by XPP... spaces and commas both separate one option from the next, so `dt = 0.1` is read as the three unrelated words" | `.odex` requires (and its grammar defines) `name=value` with optional spaces around `=`, parsed as one token: never silently dropped |
+| spaces around `=` in `@` option | `@ total = 0.03` | **silently ignored**, `total` keeps its default (measured: with `@ total = 0.03` and `@ dt=0.01` together, the run went to `t=20`, the default `total`, not `0.03`); the converter keeps that and notes the dropped words in the `.odex` (W167) | `semanticCheckerCore.ts`'s `badSpacing`, **error**: "ignored by XPP... spaces and commas both separate one option from the next, so `dt = 0.1` is read as the three unrelated words" | `.odex` requires (and its grammar defines) `name=value` with optional spaces around `=`, parsed as one token: never silently dropped |
 | word fused across a stripped space | `if(1>0)then 10 else 20` | load error, `10else` (above) | flagged by the parenthesized-`if` check together with the sign/precedence checks | tokenization never strips whitespace inside identifiers/keywords first |
 
 ## Floating-point literals

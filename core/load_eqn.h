@@ -129,7 +129,8 @@ struct PlotSettings {
 /* the name=value items of an @ line as set_internopts reads them, or
    (set) of an internal set's "$ ..." as extract_action does: each
    item without a name or a value left out (@ total = 1 sets nothing) */
-std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set);
+std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set,
+                                                              std::vector<std::string> *ignored = nullptr);
 
 /* The load (xpp_batch.cpp) hands the Model and Session it builds to what
    reads the model and its options (W47d3): */

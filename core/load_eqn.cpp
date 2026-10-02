@@ -2,6 +2,7 @@
 #include <array>
 #include <cctype>
 #include <cstdio>
+#include <functional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -86,7 +87,8 @@ void split_apart(std::string_view bob, std::string &name, std::string &value)
    an empty name or value left out; first: the delimiters of the first
    token */
 template <class F>
-void each_option(std::string_view line, std::string_view first, std::string_view delims, F set)
+void each_option(std::string_view line, std::string_view first, std::string_view delims, F set,
+                 const std::function<void(std::string_view)> &ignored = {})
 {
   xpp::Tokens tok(line);
   if (!tok.next(first)) return;
@@ -94,6 +96,7 @@ void each_option(std::string_view line, std::string_view first, std::string_view
   while (std::optional<std::string_view> t = tok.next(delims)) {
     split_apart(*t, name, value);
     if (!name.empty() && !value.empty()) set(name, value);
+    else if(ignored) ignored(*t);
   }
 }
 
@@ -332,12 +335,14 @@ int msc(std::string_view s1, std::string_view s2)
  return s2.starts_with(s1);
 }  
   
-std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set)
+std::vector<std::pair<std::string, std::string>> option_items(std::string_view line, bool set,
+                                                              std::vector<std::string> *ignored)
 {
   std::vector<std::pair<std::string, std::string>> out;
   auto keep=[&out](const std::string &name,const std::string &value){ out.emplace_back(name,value); };
-  if(set)each_option(line," "," ,;\n",keep);
-  else each_option(line," ,"," ,\n\r",keep);
+  auto drop=[ignored](std::string_view token){ if(ignored) ignored->emplace_back(token); };
+  if(set)each_option(line," "," ,;\n",keep,drop);
+  else each_option(line," ,"," ,\n\r",keep,drop);
   return out;
 }
 
