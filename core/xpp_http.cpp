@@ -535,8 +535,8 @@ void open_events(sock_t s)
 constexpr size_t HEAD_MAX = 8192;                   /* request line and headers */
 constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* a POST /cmd body */
 constexpr int RECV_SECONDS = 30;                    /* a client that stops sending mid-request is dropped */
-constexpr int HEAD_SECONDS = 5;                    /* a loopback browser's small head gets ample scheduling slack, without renewing on each byte */
-constexpr int SEND_SECONDS = 2;                    /* a non-reading local client must not hold a response or the core's event lock indefinitely */
+constexpr int HEAD_SECONDS = 5;  /* a whole head from accept: a browser sends its small head at once, a preconnected spare socket is closed and reopened */
+constexpr int SEND_SECONDS = 10; /* a client that stops reading is dropped rather than holding its thread, or the core at an event, for ever; a page busy drawing a large plot may not read for a few seconds, and a dropped event stream loses the run's data */
 /* a connection over MAX_CONNECTION_THREADS is read on the accept thread,
    for its head only (closing on an unread head loses the 503 on Windows):
    a silent one may hold up the next accept this long, never RECV_SECONDS */
@@ -604,7 +604,7 @@ bool read_head(Request &q)
         const long long left = q.head_deadline - now_ms();
         if (left <= 0 || !set_recv_timeout(q.s, static_cast<int>(left))) return false;
         int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
-        if (r <= 0 || now_ms() >= q.head_deadline) return false;
+        if (r <= 0) return false;
         got += static_cast<size_t>(r);
         for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
             if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;

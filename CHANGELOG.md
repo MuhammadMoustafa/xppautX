@@ -26,7 +26,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
-- The local HTTP server now closes silent or trickling request heads after five seconds and times out blocked sends after two seconds, dropping unresponsive event streams; upload bodies keep their 30-second timeout per receive (W164, #216).
+- The local HTTP server now closes silent or trickling request heads after five seconds and times out blocked sends after ten seconds, dropping unresponsive event streams; upload bodies keep their 30-second timeout per receive (W164, #216).
 - Import XPPAUT set checks every named value, refuses another model's names without applying anything, and immediately saves valid imports as `<name>.snapx` beside the `.set`, making that session open; a save failure keeps the imported values. Session labels regain their original XPPAUT spellings; earlier sessions with accidentally renamed labels are refused ([finding 26](docs/xppaut-findings.md#26-set-files-ignore-the-models-names)) (W153, #205)
 
 - The AUTO view's Back button is now labelled Hide AUTO, with its tooltip explaining that AUTO stays open and Show AUTO brings it back (W152, #204)

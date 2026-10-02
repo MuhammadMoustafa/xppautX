@@ -177,7 +177,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | JSON protocol | none | line-delimited JSON on stdin/stdout (`--server`) and over HTTP; [protocol.md](protocol.md) | W5, W7a |
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |
 | Scripts | none | `--script` (W10), decided to go in favour of `.recx` | W144 (ready) |
-| Local server | none | 127.0.0.1 only, random token in the address; `--no-open`, `--port`; 256 request threads and 32 concurrent uploads, excess requests receive 503 before their bodies are read; whole heads limited to 5 s, body receives to 30 s, blocked sends to 2 s ([protocol](protocol.md#files)) | W5, W161 (#213), W164 (#216) |
+| Local server | none | 127.0.0.1 only, random token in the address; `--no-open`, `--port`; 256 request threads and 32 concurrent uploads, excess requests receive 503 before their bodies are read; whole heads limited to 5 s, body receives to 30 s, blocked sends to 10 s ([protocol](protocol.md#files)) | W5, W161 (#213), W164 (#216) |
 | Command line options | XPPAUT's list ([comline.c](../reference/xppaut-8.0/comline.c)) | the same names are accepted; X11 ones accepted and ignored; new: `--browser`, `--server`, `--convert`, `--verbose`, `--debug`, `-logfile` | W13a |
 | Logging | `plintf` to stdout | `xpp::log`, quiet by default; stdout carries only the protocol | W2, W25 |
 

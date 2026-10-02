@@ -1477,7 +1477,7 @@ file. core/xpp_files.cpp does the work for both ways in:
     cannot renew it (W164, #216). Five seconds gives a loopback browser
     ample scheduling slack. Bodies retain a 30-second timeout per receive
     to allow large uploads and slow disk writes; no minimum rate is imposed.
-    Every send has a two-second timeout. Event streams have no lifetime
+    Every send has a ten-second timeout. Event streams have no lifetime
     limit, but a blocked write that times out drops the stream, including
     replay, core events and watchdog heartbeats. Event writes hold the
     server lock, so an unresponsive stream can delay the core until that
