@@ -1389,6 +1389,8 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
   saved.files.push_back({model, text});
   Result<> checked = xpp::inspect_model(2, argv.data(), load_eqn,
     [&](Session &s) -> std::optional<Error> {
+      /* run() writes the guard last, so every other function keeps its
+         .ode number and the programs' calls compare as they are */
       const int guard = guard_name.empty() ? -1 : s.model().nfun - 1;
       /* Check the helper's compiled guard before erasing its calls from
          fingerprints; function storage is padded beyond ENDEXP. */

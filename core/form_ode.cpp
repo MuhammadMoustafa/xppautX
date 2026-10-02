@@ -891,7 +891,13 @@ public:
     /* what follows is the whole model's */
     xpp::Load::at(m_.this_file);
     add_names();
-    for(Statement &s : p_.statements){
+    /* A formula table evaluates while it compiles, so every function it
+       can call must already have its program (including converter guards). */
+    for(Statement &s : p_.statements) if(s.kind==Statement::Kind::Fun){
+      at(s);
+      compile(s);
+    }
+    for(Statement &s : p_.statements) if(s.kind!=Statement::Kind::Fun){
       at(s);
       compile(s);
     }

@@ -105,7 +105,9 @@ grammar:
   ends at a comma or the end of its line and must name a suitable solver
   (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
 - `set NAME = EXPR, ...` — a named parameter set, as `.ode`.
-- `table NAME EXPR` / `table NAME FILE` — as `.ode`.
+- `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
+  may call a `fun` written after it (every function is compiled first,
+  W165).
 - `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`
   (`bdry`), `network` (`special`) renamed, same meaning, `.odex`-spelled
   arguments; no `volt` (an equation calling `volterra(...)` is a Volterra
