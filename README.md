@@ -237,6 +237,34 @@ the same binary still starts on a system without WebKitGTK: `-silent`,
 `--server` and `--browser` never touch it, and the window mode says what
 to install and uses the browser.
 
+#### An older Linux (Ubuntu 24.04, 22.04, Debian 12, ...)
+
+The released Linux program is built on Ubuntu 26.04 and needs its glibc or
+newer (the `.deb` says so in its `libc6` dependency). On an older system,
+build it from source; from the source folder:
+
+```bash
+sh tools/build_linux.sh            # build ./xppautX
+sh tools/build_linux.sh --install  # and copy it to ~/.local/bin
+```
+
+The script:
+
+1. installs `make`, `pkg-config`, `gcc` and `g++` with apt (through
+   `sudo`, printing each command first);
+2. finds a gcc 13 or newer, installing `g++-13` (or newer) from the
+   system's archive or, on Ubuntu, from the `ppa:ubuntu-toolchain-r/test`
+   PPA when the default compiler is older (Ubuntu 22.04's is gcc 11);
+3. installs `libwebkit2gtk-4.1-dev` for the desktop window when the
+   system has it, and otherwise builds xppautX without the window (it then
+   opens in your browser);
+4. builds with `make -j4 xppautx` and runs one example model as a check.
+
+`--no-apt` installs nothing and builds with what is there. On another
+distribution, install the same things with its package manager and run
+`make -j4 xppautx` (add `CC=gcc-13 CXX=g++-13` when the default gcc is
+older than 13).
+
 ### macOS
 
 ```bash

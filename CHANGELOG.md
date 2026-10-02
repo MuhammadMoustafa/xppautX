@@ -44,6 +44,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 - An AUTO run that draws random numbers differs by 0.27 % since the generator belongs to the session (W141, #193)
 - The Values panel shows Boundary conditions only for a model that defines them (W99, #148)
 - Errors from computations (fits, AUTO, DAEs) come back as values with their place, not as lost messages (W63, #111, #157)
+- The Linux release is built on Ubuntu 26.04 and needs its glibc or newer; an older Linux builds from source with `tools/build_linux.sh`, which installs what the build needs (README "An older Linux")
 
 ### Removed
 

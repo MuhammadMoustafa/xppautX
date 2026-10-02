@@ -26,8 +26,8 @@ concurrency:
 # The Linux jobs run on ubuntu-26.04, named rather than ubuntu-latest
 # (maintainer, 2026-10-01): ubuntu-latest moves to 26.04 over Oct 19 -
 # Nov 19, 2026, and a runner that changes under us mid-wave would read as
-# a failure of the wave. The release's Linux binary stays on 24.04
-# (release.yml: its glibc is the oldest the binary runs on).
+# a failure of the wave. The release is built on 26.04 too (release.yml);
+# an older system builds from source with tools/build_linux.sh.
 
 # Each platform runs the same behaviour checks against its own build
 # (build, unit tests, protocol, web, command-line modes, AUTO, every
