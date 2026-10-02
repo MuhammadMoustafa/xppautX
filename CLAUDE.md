@@ -416,11 +416,15 @@ The reviewer (the main session) reviews, refactors, merges, runs the
 5-task tier, pushes when the user says so, and then closes the finished
 cards' issues (above). A new roadmap card gets its GitHub issue at once.
 
-Codex agents (maintainer, 2026-10-01) are a second pool, by the same
-difficulty: easy `gpt-6-luna` (low), medium `gpt-6.1-sol` (medium), hard
-`gpt-6-astra` (high), run by the reviewer with `codex exec -C <worktree>
---add-dir C:/gitRepos/xppautX/.git -s workspace-write -m <model> -o
-<report>` and registered by the reviewer. A Codex agent follows every rule
+Models are named by family, never by version (maintainer, 2026-10-01),
+so a newer one is used the day it ships: the agents' `model:` is the bare
+alias (haiku, sonnet, opus). Codex agents (maintainer, 2026-10-01) are a
+second pool, by the same difficulty: easy luna (low effort), medium sol
+(medium), hard astra (high), each the newest listed model of its family
+(the task-board skill's `codex_model.py <family>`: Codex has no aliases),
+run by the reviewer with `codex exec -C <worktree> --add-dir
+C:/gitRepos/xppautX/.git -s workspace-write -m <model> -o <report>` and
+registered by the reviewer. A Codex agent follows every rule
 of this section as written, with three differences of its sandbox: it
 writes only in its worktree (and .git), so it starts no background runs
 and does not touch the register; it runs its gates from Git Bash in the
