@@ -5,6 +5,7 @@
 #include "odex.h"
 #include "derived.h"
 #include "form_ode.h"
+#include "ode_read.h"
 #include "model.h"
 #include "expr.h"
 #include "xpp_batch.h"
@@ -540,6 +541,38 @@ int main(void)
     xpp::set_val(xpp::client_session(), "A", 5);
     xpp::evaluate_derived(xpp::client_session());
     CHECK(constant("d") == 15);
+  }
+
+  /* W160: strip once for every physical .ode line, including the first. */
+  {
+    CHECK(load_text("p a=1 # some words\\ ignored continuation\n"
+                    "p b=2# another comment\ninit x=0 # words\n"
+                    "aux y=x # words\nnumber n=3 # words\n"
+                    "x'=-x # words\ndone\n", "ode") == 1);
+    CHECK(constant("a") == 1 && constant("b") == 2 && constant("n") == 3);
+    CHECK(xpp::client_session().model().statements.size() == 6);
+    CHECK(xpp::client_session().model().source.front().find("# some words") != std::string::npos);
+    const std::string converted=xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
+    CHECK(converted.find("# some words\\ ignored continuation") != std::string::npos);
+    CHECK(converted.find("# another comment") != std::string::npos);
+    CHECK(model_error(converted.c_str()).empty());
+    CHECK(load_text("  # whole-line comment\nx'=-x # ignored\n", "ode") == 1);
+    CHECK(load_text("x'=int{exp(-t)#x} # trailing\n", "ode") == 1);
+    CHECK(load_text("x'=int[.5]{exp(-t)#x} # trailing\n", "ode") == 1);
+    CHECK(xpp::ode_comment_start("#include file.inc # note") == 18);
+    CHECK(xpp::ode_comment_start("#done # note") == 6);
+    CHECK(xpp::ode_comment_start("k conv 0 exp(-t)#x # note") == 19);
+    CHECK(xpp::ode_comment_start("\" display # text") == std::string::npos);
+    {
+      xpp::Writer include("build/test_ode_comments.inc");
+      CHECK(include.write("p included=7 # included words\n#done # end include\np ignored=9\n"));
+      CHECK(include.commit());
+    }
+    CHECK(load_text("#include test_ode_comments.inc # include words\n"
+                    "init x=4 # initial words\nx'=-x # formula words\n", "ode") == 1);
+    CHECK(constant("included") == 7);
+    CHECK(xpp::client_session().model().default_ic[0] == 4);
+    CHECK(xpp::client_session().model().statements.size() == 3);
   }
 
   /* --convert: what the .ode's reader understood, its quirks explicit */

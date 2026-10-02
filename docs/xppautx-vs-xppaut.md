@@ -112,6 +112,8 @@ value stops the load with the file, line and value, and nothing is applied.
 
 ## The model language
 
+Trailing `#` text in `.ode` lines is now read as a comment, unlike XPPAUT ([finding 28](xppaut-findings.md#28-a--comment-after-a-declaration-makes-names-of-its-words)); `#include`, `#done` and Volterra convolution separators retain their meanings (W160, #212).
+
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
 | `.ode` quirks (comparisons bind tighter than `+`, `^` groups left, no sign after an operator, ...) | the parser's own | kept bit for bit; the list, measured, is [odex-quirks.md](odex-quirks.md) | W73 |

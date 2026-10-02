@@ -49,6 +49,31 @@ using xpp::odex::Statement;
 
 namespace xpp {
 
+size_t ode_comment_start(std::string_view line)
+{
+  const std::string_view text=trim_blanks(line);
+  if(text.starts_with('"'))return std::string_view::npos;
+  size_t start=0;
+  if(line.starts_with("#include")||line.starts_with("#done"))start=1;
+  /* A k declaration's first # separates its two convolution formulas. */
+  bool kernel=!text.empty()&&(text[0]=='k'||text[0]=='K')&&
+    text.find_first_of(" \t")!=std::string_view::npos&&
+    text.find('=')==std::string_view::npos;
+  const std::string upper=upper_case(std::string(line));
+  bool integral=false;
+  for(size_t i=start;i<line.size();i++){
+    if(line[i]=='{'){
+      const std::string_view prefix=trim_blanks(std::string_view(upper).substr(0,i));
+      integral=prefix.ends_with("INT")||prefix.ends_with(']');
+    }
+    if(line[i]=='}')integral=false;
+    if(line[i]!='#'||integral)continue;
+    if(kernel){kernel=false;continue;}
+    return i;
+  }
+  return std::string_view::npos;
+}
+
 namespace {
 
 
@@ -211,14 +236,20 @@ bool read_raw_line(LineSource &src, std::string &line)
   return false;
 }
 
-/* keeps one line of the model's source in source (Model::source), up
-   to a NUL (the front ends read it as text) */
-void save_line(std::vector<std::string> &source, const std::string &line)
+/* Keeps the original physical line for source display and conversion,
+   then removes its comment before continuation or declaration parsing. */
+void save_line(std::vector<std::string> &source, std::string &line)
 {
   if (source.size()>=MAXLINES) {
     model_failed(xpp::format("The model has more than {} lines", MAXLINES));
   }
   source.push_back(line.substr(0,line.find('\0')));
+  const size_t comment=ode_comment_start(line);
+  if(comment!=std::string::npos){
+    const bool newline=line.ends_with('\n');
+    line.resize(comment);
+    if(newline)line+='\n';
+  }
 }
 
 /* The next logical line: a line ending in a backslash goes on in the

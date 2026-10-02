@@ -56,7 +56,7 @@ public:
   explicit Spelling(const std::vector<std::string> &source)
   {
     for (const std::string &raw : source) {
-      std::string line = std::string(xpp::trim_blanks(raw));
+      std::string line = std::string(xpp::trim_blanks(std::string_view(raw).substr(0, ode_comment_start(raw))));
       if (line.empty() || line[0] == '#' || line[0] == '"' || line[0] == '@' || line[0] == '%') continue;
       declarations(line);
       for (const std::string &w : words_of(line)) first_.emplace(xpp::upper_case(w), w);
@@ -64,7 +64,7 @@ public:
     int n = 0;
     for (const std::string &raw : source) {
       n++;
-      std::string line = std::string(xpp::trim_blanks(raw));
+      std::string line = std::string(xpp::trim_blanks(std::string_view(raw).substr(0, ode_comment_start(raw))));
       if (line.empty() || line[0] == '#' || line[0] == '"') continue;
       for (const std::string &w : words_of(line)) {
         auto d = decl_.find(xpp::upper_case(w));
@@ -1095,6 +1095,11 @@ private:
   std::string comments()
   {
     std::string out;
+    for (const std::string &raw : m_.source) {
+      const size_t comment = ode_comment_start(raw);
+      if (comment != std::string::npos)
+        out += std::string(xpp::trim_blanks(std::string_view(raw).substr(comment))) + "\n";
+    }
     for (const Model::Comment &c : m_.comments) {
       std::string t = c.text;
       if (c.aflag) {

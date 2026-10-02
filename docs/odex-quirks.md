@@ -100,6 +100,16 @@ splitter, and can fuse two words together at a token boundary.
 
 ## Several names or options on one line
 
+In XPPAUT, `p a=1 # some words` declares parameters named `#`, `some`
+and `words`; a second such line fails on the duplicate `#` ([finding
+28](xppaut-findings.md#28-a--comment-after-a-declaration-makes-names-of-its-words)).
+xppautX now reads `#` as a comment wherever it occurs in a `.ode` line,
+before splitting declarations or joining continuations, as `.odex` does
+(W160, #212). `#include`, `#done`, displayed `"` comments and Volterra
+convolution separators (`int{kernel#variable}`, `int[mu]{kernel#variable}`,
+and the first separator in a `k` declaration) keep their existing meanings.
+Conversion retains comment text as separate `.odex` comment lines.
+
 | quirk | `.ode` | xppautX today | extension | .odex |
 |---|---|---|---|---|
 | several parameters, one `par` | `par a=1, b=2` | both declared correctly (measured: `aux z=a+b` gives `3`) | not flagged | same, comma list |

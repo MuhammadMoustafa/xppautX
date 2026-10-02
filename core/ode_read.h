@@ -21,6 +21,11 @@ int find_char(std::string_view s1, std::string_view s2, int i0, int *i1);
    fails the load, model_failed) */
 int get_eqn(Session &s, FILE *fptr);
 
+/* The comment marker in a physical .ode line, or npos. Directives,
+   displayed (quoted) comments and Volterra convolution separators keep
+   their existing meanings. Shared by the reader and conversion. */
+size_t ode_comment_start(std::string_view line);
+
 /* the name=value items of a par, init, number or wiener line as the
    reader splits them (get_next2, take_apart): each name, its value's
    text and the number atof reads from it */
