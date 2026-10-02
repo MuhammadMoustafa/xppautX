@@ -752,10 +752,12 @@ namespace {
 /* the values panel's Save/Load of .par and .ic (docs/protocol.md
    "values"), shared by the four functions below: name empty asks for
    one like Save data does (title/wild picking the dialog and the
-   extension), given skips the ask; then io(s, name) */
+   extension), given skips the ask; then io(s, name); a save with
+   nothing to write (available false) stops before the name is asked */
 template <class F>
-void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext, F io)
+void named_value_file(xpp::Session &s, std::string name, const char *title, const char *ext, F io, bool available = true)
 {
+  if(!save_ready(available))return;
   if(name.empty()){
     name=s.model().this_file+ext;
     if(!file_selector(title,name,xpp::format("*{}",ext)))return;
@@ -767,14 +769,12 @@ void named_value_file(xpp::Session &s, std::string name, const char *title, cons
 
 void save_parameter_file(xpp::Session &s, std::string name)
 {
-  if(!save_ready(s.model().nupar>0))return;
-  named_value_file(s,std::move(name),"Save Parameters",".par",write_parameter_file);
+  named_value_file(s,std::move(name),"Save Parameters",".par",write_parameter_file,s.model().nupar>0);
 }
 
 void save_ic_file(xpp::Session &s, std::string name)
 {
-  if(!save_ready(s.model().node>0))return;
-  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",write_ic_file);
+  named_value_file(s,std::move(name),"Save Initial Conditions",".ic",write_ic_file,s.model().node>0);
 }
 
 void load_parameter_file(xpp::Session &s, std::string name)
