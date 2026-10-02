@@ -1,7 +1,7 @@
-#include <cmath>
 /* Pure helpers that used to live in X11 source files (init_conds.c,
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
+#include <cmath>
 #include "model.h"
 #include "session.h"
 #include "ode_read.h"
@@ -580,8 +580,9 @@ void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
     graph_all(s,plot_list,k,1);
 }
 
-/* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
-   neither */
+/* why slider cannot be one of m's: a name that is no parameter or
+   variable (an empty one is an empty slot), a range not low < high, a
+   step outside it; nullopt when it can */
 std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider)
 {
   int type, index;
@@ -594,6 +595,8 @@ std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider)
   return std::nullopt;
 }
 
+/* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
+   neither */
 int find_par_or_var(const xpp::Model &m, std::string_view name,int *type,int *index)
 {
   int status=find_user_name(m,PARAMBOX,name);

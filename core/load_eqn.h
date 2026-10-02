@@ -51,7 +51,7 @@ std::vector<std::string> check_for_xpprc();
 struct XppSlider {
     std::string var;           /* the parameter it moves */
     double lo = 0.0, hi = 1.0; /* its range */
-    double step = 0.0; /* zero asks the page to choose a step for the model preset */
+    double step = 0.0;         /* 0: the page picks one */
 };
 
 /* The numerics settings in use (the nUmerics menu, the model's @ options,
