@@ -152,10 +152,12 @@ int main(void)
         model.nkernel = info.traits.integral_history ? 1 : 0;
         for (const std::string &text : {std::string(info.name), std::string(info.set_label),
                                       xpp::upper_case(std::string(info.name)), std::string(1, keys[info.id]),
-                                      xpp::upper_case(std::string(1, keys[info.id])), xpp::format("#{}", static_cast<int>(info.id))}) {
+                                      xpp::upper_case(std::string(1, keys[info.id]))}) {
             const auto picked = xpp::pick_method(model, text, place);
             CHECK(picked && *picked == info.id);
         }
+        const auto by_number = xpp::check_method(model, info.id, place);
+        CHECK(by_number && *by_number == info.id);
     }
     model.nkernel = 0;
     for (const auto &alias : {std::pair{"disc", xpp::method::DISCRETE},
@@ -166,7 +168,8 @@ int main(void)
         const auto picked = xpp::pick_method(model, alias.first, place);
         CHECK(picked && *picked == alias.second);
     }
-    for (const char *text : {"unknown", "rubbish", "", "#-1", "#15", "volterra"}) {
+    for (const int id : {-1, static_cast<int>(xpp::method::COUNT)}) CHECK(!xpp::check_method(model, id, place));
+    for (const char *text : {"unknown", "rubbish", "", "#3", "volterra"}) {
         const auto picked = xpp::pick_method(model, text, place);
         CHECK(!picked);
         if (!picked) CHECK(picked.error().place.line == 7 && picked.error().place.file == "pick.odex");

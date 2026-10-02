@@ -98,8 +98,8 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
 {
     if (f.rule == OptionRule::method) {
         int id = 0;
-        const std::string input = xpp::parse_int(text, id) ? xpp::format("#{}", id) : std::string(text);
-        const auto picked = xpp::pick_method(m_of, input, place);
+        const auto picked = xpp::parse_int(text, id) ? xpp::check_method(m_of, id, place)
+                                                     : xpp::pick_method(m_of, text, place);
         if (!picked) {
             why = xpp::format("{}: {}", f.label, picked.error().what);
             return false;

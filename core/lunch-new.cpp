@@ -214,7 +214,7 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
   f.nmesh=l.whole("nullcline mesh",true);
   check_setting(l,"nmesh",f.nmesh);
   f.method=l.whole("the method");
-  const auto picked=pick_method(s.model(),format("#{}",f.method),l.error(l.line(),"").place);
+  const auto picked=check_method(s.model(),f.method,l.error(l.line(),"").place);
   if(!picked)l.fail(picked.error().what);
   f.method=*picked;
   l.check_name(xpp::solver_info(f.method).set_label);

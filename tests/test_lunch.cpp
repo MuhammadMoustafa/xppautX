@@ -205,7 +205,7 @@ int main(void)
         s.model().node = dimension;
         const std::string unknown = read_error(c, with_line(whole, line, "99 Unknown"));
         CHECK(unknown.starts_with(xpp::format("{}:{}:", c, line)));
-        CHECK(unknown.find("Unknown method") != std::string::npos);
+        CHECK(unknown.find("99 is not a method's number") != std::string::npos);
         CHECK(s.numerics.method == before);
     }
 

@@ -275,6 +275,20 @@ const SolverInfo &solver_info(int m)
   return registry[m];
 }
 
+Result<method::Id> check_method(const Model &model, int id, Place place)
+{
+  if (id < 0 || id >= method::COUNT)
+    return fail("method", xpp::format("{} is not a method's number (0 to {})", id, method::COUNT - 1), std::move(place));
+  const SolverTraits &traits = registry[id].traits;
+  if (traits.integral_history && model.nkernel == 0)
+    return fail("method", "Volterra only for integral eqns", std::move(place));
+  if (traits.paired_dimension && model.node % 2 != 0)
+    return fail("method", "Symplectic is only for even dimensions", std::move(place));
+  if (model.nkernel > 0 && !traits.integral_history)
+    return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
+  return static_cast<method::Id>(id);
+}
+
 Result<method::Id> pick_method(const Model &model, std::string_view text, Place place)
 {
   /* XPPAUT's @ meth keys in registry order (load_eqn.c:1116). */
@@ -282,32 +296,20 @@ Result<method::Id> pick_method(const Model &model, std::string_view text, Place 
   static_assert(keys.size() == registry.size());
   const SolverInfo *chosen = nullptr;
   const std::string name = lower_case(std::string(trim_blanks(text)));
-  int id = 0;
-  if (name.starts_with("#") && parse_int(std::string_view(name).substr(1), id)) {
-    if (id >= 0 && id < method::COUNT) chosen = &registry[id];
-  } else {
-    for (const SolverInfo &info : registry)
-      if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label)) chosen = &info;
-    if (!chosen && name.size() == 1) {
-      const auto i = keys.find(name[0]);
-      if (i != std::string_view::npos) chosen = &registry[i];
-    }
-    /* Spellings used by shipped models and the long descriptive names. */
-    if (name == "rk4") chosen = &registry[method::RK4];
-    if (name == "disc") chosen = &registry[method::DISCRETE];
-    if (name == "qualrk4") chosen = &registry[method::RKQS];
-    if (name == "modified euler") chosen = &registry[method::MOD_EULER];
-    if (name == "backward euler") chosen = &registry[method::BACKEUL];
+  for (const SolverInfo &info : registry)
+    if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label)) chosen = &info;
+  if (!chosen && name.size() == 1) {
+    const auto i = keys.find(name[0]);
+    if (i != std::string_view::npos) chosen = &registry[i];
   }
+  /* Spellings used by shipped models and the long descriptive names. */
+  if (name == "rk4") chosen = &registry[method::RK4];
+  if (name == "disc") chosen = &registry[method::DISCRETE];
+  if (name == "qualrk4") chosen = &registry[method::RKQS];
+  if (name == "modified euler") chosen = &registry[method::MOD_EULER];
+  if (name == "backward euler") chosen = &registry[method::BACKEUL];
   if (!chosen) return fail("method", xpp::format("Unknown method `{}`", text), std::move(place));
-  const SolverTraits &traits = chosen->traits;
-  if (traits.integral_history && model.nkernel == 0)
-    return fail("method", "Volterra only for integral eqns", std::move(place));
-  if (traits.paired_dimension && model.node % 2 != 0)
-    return fail("method", "Symplectic is only for even dimensions", std::move(place));
-  if (model.nkernel > 0 && !traits.integral_history)
-    return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
-  return chosen->id;
+  return check_method(model, chosen->id, std::move(place));
 }
 
 void start_solver(Session &s)

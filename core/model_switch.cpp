@@ -277,8 +277,8 @@ Session *load_requested(const Session &now, const ModelRequest &req)
       if(auto error=xpp_saved_check(fresh,*req.restore))return error;
     }
     if(req.keep_values) {
-      const std::string method=disc(fresh.model()) ? "Discrete" : xpp::format("#{}",now.numerics.method);
-      const auto picked=pick_method(fresh.model(),method,command_place());
+      const auto picked=disc(fresh.model()) ? pick_method(fresh.model(),"Discrete",command_place())
+                                            : check_method(fresh.model(),now.numerics.method,command_place());
       if(!picked)return picked.error();
     }
     return std::nullopt;
