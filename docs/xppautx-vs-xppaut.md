@@ -135,11 +135,12 @@ every example, the goldens guard the output files.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Kinescope capacity | rotation and BVP movies silently drop frames when full ([findings #26](xppaut-findings.md)) | every capture returns a result; the command reports a full buffer once | W133 |
+| Kinescope capacity | rotation and BVP movies silently drop frames when full ([findings #27](xppaut-findings.md#27-rotation-and-boundary-value-movies-silently-drop-frames-when-full)) | every capture returns a result; the command reports a full buffer once | W133 |
 | Results and notices | fit outcomes, statistics and toggle states use the error-message dialog | the existing status bar info route; successful results do not count as errors | W133 |
 | Integrators (Euler, RK4, Dormand-Prince, Gear, CVODE, Rosen, Stiff, Volterra, symplectic, discrete, ...) | a switch on a method number | the same methods, one `xpp::Solver` per method in a registry; results unchanged | W51 |
 | CVODE | vendored | vendored; whether to move to SUNDIALS is an evaluation, later | W34 |
 | Fourier transform | `fftn` ([histogram.c:940](../reference/xppaut-8.0/histogram.c#L940)) | pocketfft | W32a |
+| `sin`, `cos`, `exp`, `log`, `pow`, `erf`, `lgamma`, ... and `a*b+c` | the C library's, which round differently by CPU and system, and the compiler's FMA contraction: the numbers depend on the machine ([findings #29](xppaut-findings.md#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma)) | correctly rounded (CORE-MATH, `xpp::math`) and no contraction: the same bits on every CPU and system, except Bessel `besselj`/`bessely`; the example md5s rebaselined once | W159 |
 | Random numbers | Numerical Recipes `ran1` ([markov.c:736](../reference/xppaut-8.0/markov.c#L736)) | `std::mt19937_64` and our own distributions; stochastic models' md5s rebaselined once | W32a, W71 |
 | Linear solves | `sgefa`/`sgesl`, `ge`, band solves | one LU solve; eigenvalues for Gear from EISPACK | W32a |
 | Model options such as `newt_iter`, `jac_eps` | silently ignored ([findings #1](xppaut-findings.md)) | take effect, so some results differ from XPPAUT's (the DAE examples, W126) | W119, W126 |

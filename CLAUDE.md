@@ -24,7 +24,7 @@ The sections below give the details.
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
 | A memory or thread error is fixed, never suppressed | asancheck (with UBSan), tsancheck |
 | Builds with 0 warnings on WSL gcc 15, UCRT gcc 16 and clang | `WERROR=1` builds (UCRT and clang64 on each merged tip: gcc 16 alone flags a discarded `std::expected`, clang alone a namespace self-alias) |
-| Numerics change only on purpose | examples md5s, goldencheck, odexcheck |
+| Numerics change only on purpose, and are the same on every CPU, system and compiler: `xpp::math`'s correctly rounded functions, never the C library's, and no FMA contraction (W159) | examples md5s (one baseline, every platform), goldencheck, odexcheck, mathcheck |
 | What is ours and what is XPPAUT's is recorded as it changes, so it never needs a review from the beginning (maintainer, 2026-10-01): a card that changes what a user meets adds its line under Unreleased in CHANGELOG.md (W149), one that changes what an XPPAUT user meets (new, changed, removed, a limit lifted) updates its row in docs/xppautx-vs-xppaut.md (W148), one that fixes a bug of XPPAUT's own adds its entry to docs/xppaut-findings.md (below); each with its card | review (at merge) |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58) | review |
 | Agents stop only their own processes, by PID, never by name | review |
@@ -104,22 +104,26 @@ compares each output.dat's md5 (CRs removed) with tests/examples.md5
 (`tools/examples_check.sh`, ~30 s); a model that crashes or times out
 fails it too. A difference means the numerics changed: rewrite the
 baseline with `tools/examples_check.sh --update` only when the change is
-intended, and say which models changed in the commit. Other platforms
-(W17): CI's windows-core and macos-core jobs run `examples_check.sh --platform
-<windows|macos> --write examples.<platform>.md5`, which compares with
-tests/examples.<platform>.md5 when it exists, else with Linux's in a
-first-run mode that reports the differing models without failing (a
-crash still fails), and, only when some model differs from that
-baseline, upload the md5s they computed (and the differing outputs) as
-the artifact `examples-md5-<platform>`; the programs are the artifacts
-`xppautX-<platform>` (kept 14 days, like the sanitizer reports; the
-md5 artifacts 30, long enough to commit as a baseline: W44). A platform that differs from Linux gets its
-own baseline by committing that artifact's file as
-tests/examples.<platform>.md5; when numerics change on purpose, commit
-the new Linux baseline and the artifacts of that push's CI run. The local
-MinGW build (gcc 13.2) matched 179 of Linux's 195 at W17:
-`tools/examples_check.sh --bin xppautX.exe --platform windows` from Git
-Bash.
+intended, and say which models changed in the commit. The numbers are
+the same on every CPU, system and compiler (W159, maintainer
+2026-10-01): the transcendental functions are xpp_math's correctly
+rounded ones (`xpp::math::exp`, `sin`, `pow`, ..., CORE-MATH vendored in
+third_party/core-math, each built twice on x86, once with FMA, the copy
+picked at run time; `tools/mathcheck.sh`, in sourcecheck, fails a direct
+call of the C library's), and the build passes `-ffp-contract=off`, so
+no target fuses `a*b+c`. One baseline, tests/examples.md5, for every
+platform: CI's windows-core and windows-clang compare with it strictly;
+macos-core (`--platform macos`, no tests/examples.macos.md5) still runs
+it in the first-run mode that reports differing models without failing
+(a crash still fails) until a run shows macOS matches, and then turns
+strict like Windows. A run with a differing model uploads its md5s and
+the differing outputs as the artifact `examples-md5-<platform>`; the
+programs are the artifacts `xppautX-<platform>` (kept 14 days, like the
+sanitizer reports; the md5 artifacts 30: W44). A platform that differs
+is a bug to trace (W159's way: the CPU flags and the compiler's target),
+not a baseline of its own. Bessel `besselj`/`bessely` (the C library's
+`jn`/`yn`) are the one gap. From Git Bash:
+`tools/examples_check.sh --bin xppautX.exe`.
 
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
@@ -130,7 +134,7 @@ differing line. They guard the conversion of the output code's fprintf
 calls (W32b, W33).
 
 verify.sh's checks about the source rather than the build (UTF-8, the
-scripts' executable bit, stdoutcheck, formatcheck, literalcheck, sessioncheck, the LTO
+scripts' executable bit, stdoutcheck, formatcheck, literalcheck, sessioncheck, mathcheck, the LTO
 type check, the dead-code checks, the global state check, the duplication check) are `tools/sourcecheck.sh`; CI runs them once, in its `source` job (with
 `--warnings`: tools/warnings.sh's count, and web2's dist/types/unit
 tests), and its linux-core job runs `verify.sh --no-source-checks`. Every

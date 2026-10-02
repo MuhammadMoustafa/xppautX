@@ -119,6 +119,10 @@ jobs:
           grep -m1 'model name' /proc/cpuinfo
           grep -m1 -o -w -E 'fma|avx2|avx512f' /proc/cpuinfo | sort -u | paste -sd ' '
           gcc --version | head -1; ldd --version | head -1
+          # what gcc targets and any flags the image sets: W159 could not
+          # find why this runner's build fused a*b+c into FMAs
+          gcc -Q --help=target | grep -m1 -- '-march='
+          echo "CFLAGS=${CFLAGS-} CXXFLAGS=${CXXFLAGS-} MAKEFLAGS=${MAKEFLAGS-}"
           tools/verify.sh --no-source-checks
       # a golden output that differs, for reading beside tests/golden (W159)
       - name: Upload the differing golden outputs
