@@ -423,12 +423,15 @@ second pool for easy and medium cards: easy luna (low effort), medium sol
 (medium); a hard card stays on opus (`task-hard`), never astra, which is
 token hungry (maintainer, 2026-10-01); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
-run by the reviewer with `codex exec -C <worktree> --add-dir
-C:/gitRepos/xppautX/.git -s workspace-write -m <model> -o <report>` and
-registered by the reviewer. A Codex agent follows every rule
-of this section as written, with three differences of its sandbox: it
-writes only in its worktree (and .git), so it starts no background runs
-and does not touch the register; it runs its gates from Git Bash in the
+run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
+<model> -o <report>` and registered by the reviewer. A Codex agent follows
+every rule of this section as written, with four differences of its
+sandbox: it writes only in its worktree, so it starts no background runs
+and does not touch the register; it cannot commit (the worktree's git
+data is in the main checkout's .git, whose lock file the Windows sandbox
+refuses even with `--add-dir`, W153), so it leaves its work uncommitted
+and its report ends with the commit message, which the reviewer commits
+with the Codex trailer before the review; it runs its gates from Git Bash in the
 worktree (the UCRT build `mingw32-make -j4 xppautx BUILDDIR=build/ucrt
 WERROR=1`, its unit tests, servercheck/autocheck against that exe,
 web2's checks and `web2check --only`); and the WSL gates (`tools/wslrun.sh`)
