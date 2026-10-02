@@ -43,6 +43,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default=None)
 ap.add_argument('--update', action='store_true')
 ap.add_argument('-v', action='store_true')
+# a differing output is copied here (CI uploads it): the bytes, not only the first differing line
+ap.add_argument('--keep', default=None, metavar='DIR')
 args = ap.parse_args()
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -88,6 +90,12 @@ def check_file(name, data):
                 min(len(got_lines), len(want_lines)) + 1)
     print('FAIL %s: differs from %s at line %d (%d vs %d bytes)' %
           (name, path, line, len(text), len(want)))
+    print('  got:  %s' % got_lines[line - 1][:200].decode('latin-1') if line <= len(got_lines) else '  got:  (end of file)')
+    print('  want: %s' % want_lines[line - 1][:200].decode('latin-1') if line <= len(want_lines) else '  want: (end of file)')
+    if args.keep:
+        os.makedirs(args.keep, exist_ok=True)
+        with open(os.path.join(args.keep, name), 'wb') as f:
+            f.write(text)
 
 
 def read(run_dir, name):

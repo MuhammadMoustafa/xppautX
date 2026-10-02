@@ -132,12 +132,16 @@ else
   echo "AUTO CHECK FAILED"
   exit 1
 fi
-if python3 tools/goldencheck.py > build/goldencheck.log 2>&1; then
+# a differing output is kept in build/golden-differ (CI uploads it); the
+# examples still run after a golden failure, so one run says both
+rm -rf build/golden-differ
+golden_failed=0
+if python3 tools/goldencheck.py --keep build/golden-differ > build/goldencheck.log 2>&1; then
   echo "golden outputs ok: $(grep -c '^PASS' build/goldencheck.log) files"
 else
   grep -v '^PASS' build/goldencheck.log
   echo "GOLDEN CHECK FAILED"
-  exit 1
+  golden_failed=1
 fi
 # every example's output against tests/examples.md5: the numerics
 if tools/examples_check.sh > build/examples.log 2>&1; then
@@ -147,6 +151,7 @@ else
   echo "EXAMPLES CHECK FAILED"
   exit 1
 fi
+[ "$golden_failed" -eq 0 ] || exit 1
 # every example converted to .odex and run: the same md5 (W74, docs/odex.md)
 if sh tools/odexcheck.sh > build/odexcheck.log 2>&1; then
   tail -1 build/odexcheck.log

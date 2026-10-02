@@ -113,7 +113,21 @@ jobs:
       # everything verify.sh checks but the source checks (the source job's);
       # one step: verify.sh runs every check itself and reports each
       - name: Build, smoke test, protocol, modes, AUTO, examples, metrics
-        run: tools/verify.sh --no-source-checks
+        run: |
+          # the machine the numerics ran on: a golden or md5 difference
+          # between runners is read against it (W159)
+          grep -m1 'model name' /proc/cpuinfo
+          grep -m1 -o -w -E 'fma|avx2|avx512f' /proc/cpuinfo | sort -u | paste -sd ' '
+          gcc --version | head -1; ldd --version | head -1
+          tools/verify.sh --no-source-checks
+      # a golden output that differs, for reading beside tests/golden (W159)
+      - name: Upload the differing golden outputs
+        if: ${{ !cancelled() && hashFiles('build/golden-differ/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: golden-differ-linux
+          retention-days: 14
+          path: build/golden-differ/
       # strip the CI artifact only (verify.sh above already ran against
       # the -g build; the window's embedded library is already stripped
       # at link time, -Wl,-s, so this does not touch it twice)
