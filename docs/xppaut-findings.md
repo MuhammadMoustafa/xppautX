@@ -54,6 +54,7 @@ evidence. The index gives one line each.
 | 25 | Numerics | an output stride of 0 from a .set file or an `@ nout` line divides by zero on the next run | W145 |
 | 26 | Set files | equal counts allow another model's values: names ignored | W153 |
 | 27 | Kinescope | rotation and BVP movies ignore a full film buffer | W133 |
+| 28 | Model files | a `#` comment after a declaration makes parameters of its words (XPPAUT's own issue #11) | W160 |
 
 ## 1. Model options
 
@@ -417,6 +418,40 @@ remaining frames. Integration ranges instead show an error.
 - **Evidence:** the unchecked return values in those two movie loops; capture beyond the capacity cannot add a frame.
 - **xppautX:** film capture returns an error value, retained and shown once by the command, including rotation and BVP movies.
 - **Card:** W133 (#185).
+
+## 28. A `#` comment after a declaration makes names of its words
+
+XPPAUT treats `#` as a comment only when it starts the line. On a
+declaration line, the words after a `#` are read as more declarations:
+`p gr=0.01  # Changed on Oct 6th 2009` declares the parameters `#`,
+`Changed`, `on`, `Oct`, `6th` and `2009` (each with the value 0), and
+`-qpars` lists them. A second line with a trailing comment declares `#`
+again. This was reported to XPPAUT as its own issue:
+[Ermentrout/xppaut#11](https://github.com/Ermentrout/xppaut/issues/11)
+(open), with a model from ModelDB as the example.
+
+- **XPPAUT 8.0:** a statement is a comment only when its first character
+  is `#` ([form_ode.c:2274-2277](../reference/xppaut-8.0/form_ode.c#L2274-L2277)
+  ([master 2274-2277](../reference/xppaut-master/form_ode.c#L2274-L2277)),
+  and `is_comment` [form_ode.c:2822](../reference/xppaut-8.0/form_ode.c#L2822)
+  ([master 2822](../reference/xppaut-master/form_ode.c#L2822)) skips only
+  leading blanks before it); the `p` line's loop
+  [form_ode.c:698-712](../reference/xppaut-8.0/form_ode.c#L698-L712)
+  ([master 698-712](../reference/xppaut-master/form_ode.c#L698-L712)) makes
+  a parameter of every token `get_next2`
+  ([form_ode.c:3107](../reference/xppaut-8.0/form_ode.c#L3107),
+  [master 3107](../reference/xppaut-master/form_ode.c#L3107)) returns, `#`
+  and the comment's words included.
+- **Evidence:** the model `p gr=0.01<TAB># Changed on Oct 6th 2009` then
+  `p a=2, b=3 # another note`: XPPAUT declares the comment's words as
+  parameters; xppautX's .ode reader did the same and then refused the
+  second line (`q11.ode:2: # is a name already, or one parameter too
+  many`), 2026-10-01.
+- **xppautX:** `#` starts a comment wherever it is (maintainer, 2026-10-01),
+  in .odex already and in the .ode reader with W160; the VS Code extension
+  marks a trailing `#` in a .ode as an error naming XPPAUT's issue
+  (MuhammadMoustafa/XPP-ODE-Extension#1, 2026-10-01).
+- **Card:** W160 (#212).
 
 ## Known and kept
 
