@@ -243,10 +243,7 @@ def raw(data, read=True):
     s.shutdown(socket.SHUT_WR)
     got = b''
     while read:
-        try:
-            chunk = s.recv(4096)
-        except ConnectionResetError:
-            break  # an early refusal can close with an unread body
+        chunk = s.recv(4096)
         if not chunk:
             break
         got += chunk

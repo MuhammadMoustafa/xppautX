@@ -535,6 +535,10 @@ void open_events(sock_t s)
 constexpr size_t HEAD_MAX = 8192;                   /* request line and headers */
 constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* a POST /cmd body */
 constexpr int RECV_SECONDS = 30;                    /* a client that stops sending mid-request is dropped */
+/* a connection over MAX_CONNECTION_THREADS is read on the accept thread,
+   for its head only (closing on an unread head loses the 503 on Windows):
+   a silent one may hold up the next accept this long, never RECV_SECONDS */
+constexpr int REFUSED_HEAD_SECONDS = 1;
 constexpr size_t CHUNK = 65536;
 constexpr size_t METHOD_MAX = 7, TARGET_MAX = 1023; /* longer is cut, as sscanf's %7s %1023s did */
 
@@ -543,6 +547,8 @@ struct Request {
     std::array<char, HEAD_MAX + 1> head{};
     std::string method, target;
     size_t head_len = 0;           /* the head, up to and with its blank line */
+    const char *body0 = nullptr;   /* body bytes that arrived with the head */
+    size_t have = 0;               /* how many */
     bool has_length = false;       /* a Content-Length was sent */
     unsigned long long length = 0;
     unsigned long long consumed = 0; /* body bytes read so far */
@@ -590,23 +596,19 @@ bool read_head(Request &q)
 {
     size_t got = 0, i = 0;
     while (got < HEAD_MAX) {
-        /* Peek to locate the blank line, then consume only header bytes:
-           admission never consumes an already-arrived request body. */
-        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), MSG_PEEK);
-        if (r <= 0) return false;
-        const size_t available = got + static_cast<size_t>(r);
-        for (i = got >= 3 ? got - 3 : 0; i + 4 <= available; i++)
-            if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
-        const size_t end = i + 4 <= available ? i + 4 : available;
-        r = recv(q.s, q.head.data() + got, static_cast<int>(end - got), 0);
+        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
         if (r <= 0) return false;
         got += static_cast<size_t>(r);
+        for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
+            if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
         if (i + 4 <= got) {
             q.head_len = i + 4;
             break;
         }
     }
     if (!q.head_len) return false;
+    q.body0 = q.head.data() + q.head_len;
+    q.have = got - q.head_len;
     q.head[q.head_len - 2] = 0; /* the head as a string (the body starts after it) */
     std::string_view line(q.head.data());
     if (!scan_word(line, METHOD_MAX, q.method) || !scan_word(line, TARGET_MAX, q.target)) return false;
@@ -615,6 +617,7 @@ bool read_head(Request &q)
     if (q.has_length) {
         if (v->empty() || v->find_first_not_of("0123456789") != std::string::npos || v->size() > 18) q.length = ~0ULL;
         else q.length = std::strtoull(v->c_str(), nullptr, 10);
+        q.consumed = q.have < q.length ? q.have : q.length;
     }
     return true;
 }
@@ -705,7 +708,7 @@ bool first_arrival(std::string_view page, unsigned long long n)
 /* POST /cmd: the whole body, then into the inbox */
 void serve_cmd(Request &q)
 {
-    unsigned long long n = q.has_length ? q.length : 0;
+    unsigned long long n = q.has_length ? q.length : q.have;
     if (n > CMD_MAX) {
         reply_text(q.s, "413 Payload Too Large", "command too long");
         return;
@@ -719,7 +722,8 @@ void serve_cmd(Request &q)
     }
     continue_body(q);
     std::string body(static_cast<size_t>(n), '\0');
-    size_t got = 0;
+    size_t got = q.have < n ? q.have : static_cast<size_t>(n);
+    std::memcpy(body.data(), q.body0, got);
     while (got < n) {
         int r = take(q, body.data() + got, static_cast<size_t>(n) - got);
         if (r <= 0) break;
@@ -807,6 +811,11 @@ void put_file(Request &q, const std::string &name)
     }
     continue_body(q);
     left = q.length;
+    {
+        size_t first = q.have < left ? q.have : static_cast<size_t>(left);
+        st = xpp::files::put_write(*put, {q.body0, first});
+        left -= first;
+    }
     std::vector<char> buf(CHUNK);
     while (st == XPP_FILES_OK && left > 0) {
         int r = take(q, buf.data(), static_cast<size_t>(left < CHUNK ? left : CHUNK));
@@ -1035,11 +1044,8 @@ void *http_main(void *)
         set_recv_timeout(s, RECV_SECONDS);
         RequestSlot slot;
         if (!slot.acquire(srv.nconnections, MAX_CONNECTION_THREADS)) {
-            /* Consume only the head on the accept thread: closing on unread
-               headers discards the 503 on Winsock. No worker is started,
-               no route is served and no body is read. The receive timeout
-               also bounds a silent excess connection's wait here. */
-            answer_connection(s, true);
+            set_recv_timeout(s, REFUSED_HEAD_SECONDS);
+            answer_connection(s, true); /* the head only: no thread, no route, no body */
             continue;
         }
         if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0) {
