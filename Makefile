@@ -276,6 +276,12 @@ $$(BUILDDIR)/core_math_$(1)_fma.o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/to
 	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -mfma -Dcr_$(1)=cr_$(1)_fma -w -c $$< -o $$@
 endef
 $(foreach f,$(CORE_MATH_FUNCS),$(eval $(call CORE_MATH_RULE,$(f))))
+# MinGW's C library has no roundeven, which the plain x86 copies call (third_party/core-math/roundeven.c)
+ifeq ($(OS),Windows_NT)
+CORE_OBJECTS += $(BUILDDIR)/core_math_roundeven.o
+$(BUILDDIR)/core_math_roundeven.o: $(CORE_MATH_DIR)/roundeven.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CC) $(call NOLTO,$(OPT)) $(FPFLAGS) -fno-builtin -w -c $< -o $@
+endif
 # the linker of xppautX
 LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library
