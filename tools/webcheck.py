@@ -432,17 +432,18 @@ if sess:
     read_events(c, lambda e: e['ev'] == 'idle')
     post_cmd(pt, tk, {'cmd': 'key', 'key': 'i'})
     _, ask = read_events(c, lambda e: e['ev'] == 'ask', 30)
-    if ask:
-        post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'], 'key': 'g'})
-    run_events, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
-    still_running = comp is not None and not any(e['ev'] == 'idle' for e in run_events)
-    check('W112: a real run starts before the quit', comp is not None, str([e['ev'] for e in run_events]))
-    check('W112: no idle arrives before quit', still_running, str([e['ev'] for e in run_events]))
-    check('W112: the run is still going when the quit comes', still_running and p.poll() is None)
+    check('W112: i asks for the initial conditions', ask is not None)
+    post_cmd(pt, tk, {'cmd': 'answer', 'id': ask['id'] if ask else 0, 'key': 'g'})
+    _, comp = read_events(c, lambda e: e['ev'] == 'computing', 30)
+    check('W112: the run starts (computing)', comp is not None)
     t0 = time.time()
     post_cmd(pt, tk, {'cmd': 'quit'})
     evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
     names = [e['ev'] for e in evs]
+    # the run was still going when the quit came: the quit stopped it
+    stopped = next((e for e in evs if e['ev'] == 'stopped'), None)
+    check('W112: the quit stops the run (stopped, integrate)',
+          stopped is not None and stopped['at']['what'] == 'integrate', str(names))
     check('W112: a plain quit during a run says bye, then exit code 0',
           ex is not None and ex['code'] == 0 and 'bye' in names, str(names[-4:]) + str(ex))
     try:
