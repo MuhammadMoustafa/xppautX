@@ -17,6 +17,7 @@
 #include "lunch-new.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "browse.h"
 #include "graphics.h"
 #include "comline.h"
@@ -40,6 +41,10 @@ const char model_text[] = "x'=-x\ny'=x\nz'=y\npar a=1,b=2\n";
 
 bool write_file(const char *path, const std::string &text)
 {
+    /* a .ode opens only beside its own conversion or none: drop the
+       .odex an earlier run left */
+    const std::string_view file(path);
+    if (file.ends_with(".ode")) xpp::files::remove(std::string(file) + "x");
     xpp::Writer w(path);
     return w && w.write(text) && w.commit();
 }
