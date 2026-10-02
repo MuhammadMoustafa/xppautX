@@ -425,8 +425,11 @@ second pool for easy and medium cards: easy luna (low effort), medium sol
 to Codex sol at high effort (W155's trial), never astra, which is token
 hungry (maintainer, 2026-10-01). Start each card on the cheapest model and
 effort that may do it and adapt (maintainer, 2026-10-01: agents code
-well from clear instructions): the ladder is luna or haiku, then sol at
-medium effort, sol high, sonnet, opus; any card may start at its bottom
+well from clear instructions): the ladder, low effort first (maintainer):
+luna low or haiku low, sol low, sonnet low, sol medium, sonnet medium,
+sol high, opus high (a Claude agent's effort is its definition's:
+`task-easy` low, `task` medium, `task-hard` high, the model set by the
+Agent tool's override); any card may start at its bottom
 when its brief is precise (the files and lines, what done means, the
 exact gates), a card the brief cannot pin down starts higher; when the
 review finds the work fell short (a missed requirement, a wrong cause, a
