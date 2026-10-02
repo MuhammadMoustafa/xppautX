@@ -187,8 +187,10 @@ export function Field(props: FieldProps) {
   };
   const spin = (dir: 1 | -1, el: HTMLInputElement) => {
     if (!step || !(step > 0) || (spec.kind !== 'number' && spec.kind !== 'integer')) return false;
-    const v = Number(text.trim());
-    if (text.trim() === '' || !Number.isFinite(v)) return false;
+    /* from the text last typed, like the commit: an arrow right after a keystroke steps that */
+    const now = standalone ? (latest.current ?? value) : value;
+    const v = Number(now.trim());
+    if (now.trim() === '' || !Number.isFinite(v)) return false;
     let next = v + dir * step;
     const lo = el.min !== '' ? Number(el.min) : NaN, hi = el.max !== '' ? Number(el.max) : NaN;
     if (Number.isFinite(lo)) next = Math.max(lo, next);
