@@ -309,11 +309,11 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
 
 int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h)
 {
-    xpp::Writer out = xpp::Writer::binary(file);
+    xpp::Writer out = xpp::open_writer_asking(file,true);
     if (!out) return 0;
     out.print("P6\n{} {}\n255\n", w, h);
     fwrite(rgb.data(), 3, static_cast<size_t>(w) * h, out.file());
-    return out.commit();
+    return xpp::ok_or_show(xpp::commit_save(out));
 }
 
 /* the GIF writer takes at most 256 colours; a canvas smooths its lines */
@@ -333,12 +333,12 @@ void write_gif_frame(FILE *out, std::vector<unsigned char> &rgb, int w, int h)
     gif_stuff_ppm(rgb.data(), w, h, out, MAKE_ONE_GIF);
 }
 
-void write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
+bool write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
 {
-    xpp::Writer out = xpp::Writer::binary(file);
-    if (!out) return;
+    xpp::Writer out = xpp::open_writer_asking(file,true);
+    if (!out) return false;
     write_gif_frame(out.file(), rgb, w, h);
-    out.commit();
+    return xpp::ok_or_show(xpp::commit_save(out));
 }
 
 } // namespace
@@ -397,8 +397,8 @@ void j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
         if (rgb.empty()) return;
         std::string file = xpp::format("{}_{}.{}", basename, i,
                                         fmat == 1 ? "ppm" : xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension);
-        if (fmat == 1) write_ppm(file.c_str(), rgb, w, h);
-        else write_gif(file.c_str(), rgb, w, h);
+        if (fmat == 1) { if(!write_ppm(file.c_str(), rgb, w, h))return; }
+        else if(!write_gif(file.c_str(), rgb, w, h))return;
     }
 }
 
@@ -406,24 +406,25 @@ void j_movie_make_anigif(xpp::Session &s)
 {
     const XppKinescope &k = s.kinescope;
     int w, h, w0 = 0, h0 = 0;
-    if (k.frames == 0) return;
-    xpp::Writer out = xpp::Writer::binary(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str());
+    if (!xpp::save_ready(k.frames > 0)) return;
+    xpp::Writer out = xpp::open_writer_asking(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(),true);
     if (!out) return;
     for (int i = 0; i < k.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
-        if (rgb.empty()) break;
+        if (rgb.empty()) { xpp::abort_save(out); return; }
         if (i == 0) {
             w0 = w;
             h0 = h;
         } else if (w != w0 || h != h0) {
             j_command_error("kinescope", "All clips must be same size");
-            break;
+            xpp::abort_save(out);
+            return;
         }
         web_safe_colors(rgb);
         gif_stuff_ppm(rgb.data(), w, h, out.file(), i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
     }
     end_ani_gif(out.file());
-    out.commit();
+    xpp::ok_or_show(xpp::commit_save(out));
 }
 
 /* ---- array plot ------------------------------------------------------------------
@@ -538,33 +539,32 @@ namespace {
 
 /* write the picture the client shows as a GIF: one file, or a frame of
    the range movie (aplotwin.c gif_aplot_all) */
-void aplot_gif(ArrayPlotState &a, const char *file, int still)
+bool aplot_gif(ArrayPlotState &a, const char *file, int still)
 {
     int w, h;
     xpp::Writer one; /* a still: one GIF, in place once whole */
     if (still == 1) {
-        one = xpp::Writer::binary(file);
-        if (!one) {
-            j_command_error("aplot", xpp::format("Cannot write {}", file));
-            return;
-        }
+        one = xpp::open_writer_asking(file,true);
+        if (!one) return false;
     } else if (a.range_count == 0) {
         /* a range movie's frames all go into the first frame's file, a
            stream kept open until arrayplot.cpp's close_aplot_files */
-        if ((a.fp = xpp::files::open_stream(file, "wb")) == NULL) {
-            j_command_error("aplot", xpp::format("Cannot write {}", file));
-            return;
-        }
+        a.movie=xpp::open_writer_asking(file,true);
+        if(!a.movie)return false;
     }
+    if(still!=1&&!a.movie)return false;
     std::vector<unsigned char> rgb = ask_pixels(WIN_APLOT, -1, &w, &h);
-    if (!rgb.empty()) {
-        if (still == 1) write_gif_frame(one.file(), rgb, w, h);
-        else {
-            web_safe_colors(rgb);
-            gif_stuff_ppm(rgb.data(), w, h, a.fp, a.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-        }
+    if(rgb.empty()){
+        if(one)xpp::abort_save(one);
+        else if(a.movie)xpp::abort_save(a.movie);
+        return false;
     }
-    one.commit();
+    if (still == 1) write_gif_frame(one.file(), rgb, w, h);
+    else {
+        web_safe_colors(rgb);
+        gif_stuff_ppm(rgb.data(), w, h, a.movie.file(), a.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+    }
+    return !one || xpp::ok_or_show(xpp::commit_save(one));
 }
 
 } // namespace
@@ -573,7 +573,8 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 {
     const std::string shown(tag); /* send_aplot's tag: NUL-terminated, or none */
     send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
-    aplot_gif(s.array_plot, xpp::format("{}.{}.{}", s.array_plot.range_stem, s.array_plot.range_count,
+    if(!s.array_plot.save_cancelled)
+        s.array_plot.save_cancelled=!aplot_gif(s.array_plot, xpp::format("{}.{}.{}", s.array_plot.range_stem, s.array_plot.range_count,
                           xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(), s.array_plot.still);
     s.array_plot.range_count++;
 }
@@ -614,6 +615,7 @@ void aplot_key(xpp::Session &s, int ch)
     case PK_RANGE: set_up_aplot_range(s); break;
     case PK_PRINT: print_aplot(s, &s.array_plot.plot); break;
     case PK_GIF: {
+        if(!xpp::save_ready(s.array_plot.plot.plotdef!=0&&s.browser.view.maxrow>2))return;
         const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
         std::string file = xpp::format("{}.{}", s.model().this_file, ext);
         if (file_selector("GIF plot", file, xpp::format("*.{}", ext))) aplot_gif(s.array_plot, file.c_str(), 1);

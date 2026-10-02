@@ -78,6 +78,7 @@ void SilentScript::line(std::string_view cmd, std::string_view field, std::strin
     Buf b;
     buf_format(&b, "{{\"cmd\":\"{}\",\"{}\":", cmd, field);
     buf_str(&b, value);
+    if(cmd=="key")BUF_LIT(&b, ",\"replace\":1");
     BUF_LIT(&b, "}");
     lines.push_back(std::move(b.s));
 }
@@ -97,6 +98,7 @@ void SilentScript::command(std::string_view cmd, std::string_view op, std::strin
     Buf b;
     buf_format(&b, "{{\"cmd\":\"{}\",\"op\":\"{}\",\"name\":", cmd, op);
     buf_str(&b, name);
+    BUF_LIT(&b, ",\"replace\":1");
     buf_add(&b, more.data(), more.size());
     BUF_LIT(&b, "}");
     lines.push_back(std::move(b.s));
@@ -142,7 +144,7 @@ void SilentScript::add_run(int set)
                 key("Escape");
             }
             if (!s.integrator.suppress_out)
-                command("browser", "write", batch_options.out_file, ",\"what\":\"output\",\"format\":\"dat\",\"replace\":1");
+                command("browser", "write", batch_options.out_file, ",\"what\":\"output\",\"format\":\"dat\"");
             if (s.integrator.make_plot_flag) {
                 const std::string &format = s.plot_export.format;
                 if (format == "ps") {

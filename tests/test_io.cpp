@@ -292,6 +292,22 @@ int main(void)
         CHECK(read_raw(tf.c_str()) == "42 answer" TEXT_NL);
     }
 
+    /* W129: rename over a directory fails with an error value, preserving
+       its contents. The temporary file beside it is discarded. */
+    {
+        ScratchDir blocked;
+        CHECK(blocked.made);
+        const std::string original = blocked.path + "/original";
+        write_raw(original.c_str(), "old bytes");
+        xpp::Writer w(blocked.path);
+        CHECK(static_cast<bool>(w));
+        CHECK(w.write("replacement"));
+        const xpp::Result<> result = w.commit();
+        CHECK(!result);
+        CHECK(result.error().place.file == blocked.path);
+        CHECK(read_raw(original.c_str()) == "old bytes");
+    }
+
     /* writer: abandoned (abort()) leaves an existing file completely
        untouched */
     {

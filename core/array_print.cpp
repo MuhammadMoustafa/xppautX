@@ -1,3 +1,5 @@
+#include "browse.h"
+#include "xpp_ui.h"
 /* Print arrayplot: the array plot as a PostScript picture of shaded bars
    with its colour scale, titles and ranges. tests/golden/lecar_array.ps
    guards the output byte for byte (tools/goldencheck.py). */
@@ -234,27 +236,26 @@ void ps_boxit(Picture &p, double tlo, double thi, double jlo, double jhi, double
   ps_text2(p,sb, xlo-.035*dx,.5*(yhi+ylo),1);
 }
 
-void ps_close(Picture &p)
+Result<> ps_close(Picture &p)
 {
   p.plot_writer.print("showpage\ngrestore\nend\n");
-  p.plot_writer.commit();
+  return xpp::commit_save(p.plot_writer);
 }
 
 } // namespace
 
-int array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
+Result<> array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
 {
   float xx=static_cast<float>(ndown);
   float yy=static_cast<float>(nacross/ncskip);
   Picture p;
-  p.plot_writer=xpp::Writer(filename);
-  if(!p.plot_writer)
-    return -1;
+  Result<> opened;
+  p.plot_writer=xpp::open_writer_asking(filename,false,&opened);
+  if(!opened||!p.plot_writer)return opened;
   ps_begin(p,0.0,0.0,xx,yy,10.,7.);
   ps_replot(p,data,col0,row0,nskip,ncskip,maxrow,maxcol,nacross,ndown,zmin,zmax,type);
   ps_boxit(p,tlo,thi,0.0,yy,zmin,zmax,xtitle,ytitle,bottom,type);
-  ps_close(p);
-  return 0;
+  return ps_close(p);
 }
 
 } // namespace xpp

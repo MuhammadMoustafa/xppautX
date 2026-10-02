@@ -24,6 +24,7 @@
 #include "lunch-new.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
+#include "xpp_ui.h"
 #include "expr.h"
 #include "browse.h"
 #include "graphics.h"
@@ -102,6 +103,9 @@ int line_ending(const std::string &text, const std::string &what)
 
 int main(void)
 {
+    xpp::XppUi test_ui{};
+    test_ui.save_replace = []() -> int { return xpp::SAVE_REPLACE; };
+    xpp::set_ui(&test_ui); /* these writes target this test's scratch files */
     char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.odex";
     char *argv[] = {arg0, arg1, NULL};
     const char *a = "build/test_lunch_a.set", *b = "build/test_lunch_b.set", *c = "build/test_lunch_c.set";

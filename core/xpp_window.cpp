@@ -244,8 +244,9 @@ void on_exit()
    its own dialog, and answers the ask with what it resolves to. What the
    dialog filters by (exts) is web2's wildExtensions (web2/src/pickers.ts),
    the one reading of an ask's pattern; File > Open model's is its own.
-   A save dialog does not ask before replacing a file: the core does, as
-   in every front end (open_writer_asking), and one question is enough. */
+   A save dialog confirms an existing destination itself. Its file answer
+   carries replace:1, so the core writes the chosen path without another
+   question. Browser pickers choose a separate delivery destination. */
 struct FileDialog {
     bool save = false;
     std::string title;
@@ -329,7 +330,7 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     dlg->GetOptions(&opts);
     opts |= FOS_FORCEFILESYSTEM | FOS_NOCHANGEDIR | FOS_PATHMUSTEXIST;
     if (d.save)
-        opts &= ~static_cast<FILEOPENDIALOGOPTIONS>(FOS_OVERWRITEPROMPT); /* the core asks (FileDialog) */
+        opts |= FOS_OVERWRITEPROMPT;
     else
         opts |= FOS_FILEMUSTEXIST;
     dlg->SetOptions(opts);
@@ -693,7 +694,7 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     if (!dlg) return std::nullopt;
     GtkFileChooser *fc = GTK_FILE_CHOOSER(dlg);
     gtk_file_chooser_set_local_only(fc, TRUE);
-    gtk_file_chooser_set_do_overwrite_confirmation(fc, FALSE); /* the core asks (FileDialog) */
+    gtk_file_chooser_set_do_overwrite_confirmation(fc, TRUE);
     if (!d.exts.empty()) {
         GtkFileFilter *types = gtk_file_filter_new();
         gtk_file_filter_set_name(types, d.filter.c_str());

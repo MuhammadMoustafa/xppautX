@@ -1,3 +1,4 @@
+#include "browse.h"
 /* The SVG export (Graphic stuff/SVG): svg_init opens the file through an
    xpp::Writer (a temp file, renamed into place only at svg_end's commit),
    graphics.cpp's primitives call the svg_* functions below while the
@@ -263,8 +264,9 @@ xpp::Result<> svg_init(xpp::Session &s, const char *filename, int /*color*/)
   s.plot_file.last_ps_x=-10000;
   s.plot_file.last_ps_y=-10000;
 
-  s.plot_file.writer=xpp::Writer(filename);
-  if(!s.plot_file.writer)return xpp::fail("SVG export",xpp::format("Cannot write {}",filename),command_place());
+  xpp::Result<> opened;
+  s.plot_file.writer=xpp::open_writer_asking(filename,false,&opened);
+  if(!opened||!s.plot_file.writer)return opened;
   s.plot_file.svgfile=s.plot_file.writer.file();
   s.plot_file.plt_fmt_flag=SVGFMT;
   s.plot_file.writer.print("{}",svg_head);
@@ -301,7 +303,7 @@ void svg_do_color(PlotFileState &pf, int color)
 void svg_end(xpp::Session &s)
 {
   svg_write(s.plot_file,"</svg>");
-  s.plot_file.writer.commit();
+  if(s.plot_file.writer)xpp::ok_or_show(xpp::commit_save(s.plot_file.writer));
   s.plot_file.svgfile=NULL;
   s.plot_file.plt_fmt_flag=SCRNFMT;
   s.plot_file.svg_color=false;

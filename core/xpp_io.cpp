@@ -209,27 +209,21 @@ Ptr attached_state(std::FILE *fp) noexcept
 template <class Ptr>
 Ptr writer_open(std::string_view path, bool binary)
 {
-    if (path.empty()) {
-        xpp::log(XPP_LOG_ERROR, "Writer: no destination path given\n");
-        return nullptr;
-    }
+    if (path.empty()) return nullptr;
     try {
         Ptr w = new_state<Ptr>();
         if (!w) throw std::bad_alloc();
         w->target = path;
         const auto [dir, base] = xpp::files::split_path(path);
         /* exclusive: a name some other run left behind is skipped */
-        for (int tries = 0; tries < 100 && !w->fp; tries++) {
+        constexpr int temp_attempts = 100; /* skip exclusive names left by older processes */
+        for (int tries = 0; tries < temp_attempts && !w->fp; tries++) {
             w->tmp = std::format("{}{}.{}.tmp-{}-{}", dir, dir.empty() ? "" : "/", base, writer_pid(),
                                  writer_serial.fetch_add(1, std::memory_order_relaxed));
             w->fp.reset(xpp::files::create_new(w->tmp, binary));
             if (!w->fp && errno != EEXIST) break;
         }
-        if (!w->fp) {
-            xpp::log(XPP_LOG_ERROR, "{}\n", xpp::Error{"writer", "cannot be written: no temp file can be made next to it",
-                                                       xpp::Place{std::string(path)}}.text());
-            return nullptr;
-        }
+        if (!w->fp) return nullptr;
         return w;
     } catch (...) {
         xpp::log_printf(XPP_LOG_ERROR, "out of memory opening %.*s for writing\n", static_cast<int>(path.size()),
@@ -390,38 +384,41 @@ Writer &Writer::operator=(Writer &&o) noexcept
 {
     if (this != &o) {
         abort();
+        path_ = std::move(o.path_);
         state_ = std::move(o.state_);
     }
     return *this;
 }
 
-Writer::Writer(std::string_view path) noexcept : state_(writer_open<decltype(state_)>(path, false)) {}
+Writer::Writer(std::string_view path) noexcept : path_(path), state_(writer_open<decltype(state_)>(path, false)) {}
 
 Writer Writer::binary(std::string_view path) noexcept
 {
     Writer w;
+    w.path_ = path;
     w.state_ = writer_open<decltype(w.state_)>(path, true);
     return w;
 }
 
 FILE *Writer::file() const noexcept { return state_ ? state_->fp.get() : nullptr; }
 
-bool Writer::commit() noexcept
+Result<> Writer::commit() noexcept
 {
-    if (!state_) return false;
+    if (!state_) return fail("writer", "cannot be written: no open temporary file", Place{path_});
     decltype(state_) w = std::move(state_);
+    const bool failed = std::ferror(w->fp.get()) != 0;
     int closed = std::fclose(w->fp.release()); /* its result: a write that failed at the flush */
-    if (closed != 0) {
-        xpp::log(XPP_LOG_ERROR, "{}\n", Error{"writer", "cannot be written: the write failed", Place{w->target}}.text());
+    if (failed || closed != 0) {
+        const Error error{"writer", "cannot be written: the write failed", Place{w->target}};
         writer_discard(std::move(w));
-        return false;
+        return std::unexpected(error);
     }
     if (files::replace_file(w->tmp, w->target) != 0) {
-        xpp::log(XPP_LOG_ERROR, "{}\n", Error{"writer", "cannot be replaced", Place{w->target}}.text());
+        const Error error{"writer", "cannot be replaced", Place{w->target}};
         writer_discard(std::move(w));
-        return false;
+        return std::unexpected(error);
     }
-    return true;
+    return {};
 }
 
 void Writer::abort() noexcept

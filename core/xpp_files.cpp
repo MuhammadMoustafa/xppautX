@@ -520,7 +520,7 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
     in.reset();
     if (second) copy_bytes(second.get(), w.file());
     second.reset();
-    w.commit();
+    if(const xpp::Result<> saved=w.commit();!saved)xpp::log(XPP_LOG_ERROR,"{}\n",saved.error().text());
 }
 
 } // namespace

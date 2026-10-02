@@ -38,6 +38,9 @@ struct Session; /* session.h */
 
 struct XppMenu; /* menus.h */
 
+/* Save permissions on a command: a stable answer, independent of disk state. */
+enum { SAVE_ASK = 0, SAVE_REPLACE = 1, SAVE_DECLINE = -1 };
+
 /* What a prompt's field takes (T31): new_string_of, get_dialog_of and
    do_string_box_of name it, new_int and new_float say it themselves, and
    a front end checks the text while it is typed (docs/protocol.md "Asks",
@@ -153,6 +156,11 @@ typedef struct XppUi {
     void (*err_msg)(const Error &e);
     /* where the command that runs came from (command_place) */
     Place (*command_place)(void);
+    /* A command's explicit replace decision: 0 asks, 1 permits, -1 declines. */
+    int (*save_replace)(void);
+    /* A core decision without a dialog/command answer, for recording. */
+    void (*save_decision)(int decision, bool asked);
+    void (*save_result)(std::string_view file, bool saved);
     void (*ping)(void);
     void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
     void (*message_box)(std::string_view msg);

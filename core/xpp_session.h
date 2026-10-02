@@ -40,8 +40,8 @@ struct Session; /* session.h */
    problem). The session file last saved or opened is the Session's
    saved_session (below): core/json_state.cpp reports it as the state
    event's "session" member. Both work on the session s. */
-/* Save to file without asking; return the error for the caller to show once. */
-xpp::Result<> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data);
+/* Save through the shared owner; false when declined, error shown by the caller. */
+xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data);
 int xpp_session_save(xpp::Session &s, const char *name, int data);
 int xpp_session_load(xpp::Session &s, const char *name);
 /* the session file of s as it would be saved without the data table, as

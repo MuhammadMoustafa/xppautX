@@ -606,10 +606,15 @@ Result<> import_xppaut_set(xpp::Session &s, std::string_view path, bool redraw)
   const auto [folder,base]=xpp::files::split_path(path);
   const std::size_t dot=base.find_last_of('.');
   const std::string file=(folder.empty()?std::string():folder+"/")+base.substr(0,dot)+std::string(xpp::snapx::extension);
-  if(Result<> saved=xpp_session_save_file(s,file,true);!saved){
+  Result<bool> saved=xpp_session_save_file(s,file,true);
+  if(!saved){
     saved.error().what=xpp::format("Import of {} applied, but saving session {} failed: {}. The imported values remain applied.",
                                    path,file,saved.error().what);
     return std::unexpected(saved.error());
+  }
+  if(!*saved){
+    xpp::bottom_msg(0,xpp::format("Imported {}. Saving {} was declined; the imported values remain applied.",path,file));
+    return {};
   }
   xpp::bottom_msg(0,xpp::format("Imported {}. The session now open is {}.",path,file));
   return {};
@@ -624,7 +629,7 @@ void file_inf(xpp::Session &s)
   if(!w)return;
   redraw_params();
   do_info(s,w.file());
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 }
 
 void ps_write_pars(const xpp::Session &s, FILE *fp)
@@ -715,7 +720,7 @@ void write_parameter_file(xpp::Session &s, std::string_view fn)
   for(int i=0;i<m.nupar;i++)write_real(fp,parameter(s,i),m.upar_names[i]);
   time_t ttt=time(0);
   xpp::print(fp,"\n\nFile:{}\n{}",m.this_file,ctime(&ttt));
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 }
 
 /* the --icfile / Initialconds/File format: the values alone, one per
@@ -739,7 +744,7 @@ void write_ic_file(const xpp::Session &s, std::string_view fn)
   xpp::Writer w=open_writer_asking(std::string(fn).c_str());
   if(!w)return;
   for(int i=0;i<s.model().node;i++)w.print("{:.16g}\n",s.last_ic[i]);
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 }
 
 namespace {
@@ -762,11 +767,13 @@ void named_value_file(xpp::Session &s, std::string name, const char *title, cons
 
 void save_parameter_file(xpp::Session &s, std::string name)
 {
+  if(!save_ready(s.model().nupar>0))return;
   named_value_file(s,std::move(name),"Save Parameters",".par",write_parameter_file);
 }
 
 void save_ic_file(xpp::Session &s, std::string name)
 {
+  if(!save_ready(s.model().node>0))return;
   named_value_file(s,std::move(name),"Save Initial Conditions",".ic",write_ic_file);
 }
 
@@ -783,11 +790,9 @@ void load_ic_file(xpp::Session &s, std::string name)
 void write_values_query(const xpp::Session &s, std::string_view name, bool sets, bool pars, bool ics)
 {
   const xpp::Model &m=s.model();
-  xpp::Writer w(name);
-  if(!w){
-    xpp::log(XPP_LOG_WARN, " Unable to open {} to write \n",name);
-    return;
-  }
+  if(!save_ready((sets&&!m.intern_sets.empty())||(pars&&m.nupar>0)||(ics&&m.neq>0)))return;
+  xpp::Writer w=xpp::open_writer_asking(name);
+  if(!w)return;
   if(sets){
     w.print("#Internal sets query:\n");
     for(std::size_t i=0;i<m.intern_sets.size();i++)
@@ -803,7 +808,7 @@ void write_values_query(const xpp::Session &s, std::string_view name, bool sets,
     for(int i=0;i<m.neq;i++)
       w.print("{} {:f}\n",m.uvar_names[i],s.last_ic[i]);
   }
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 }
 
 } // namespace xpp

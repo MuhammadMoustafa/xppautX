@@ -84,6 +84,7 @@ struct DeferredLine {
 };
 
 struct ProtocolSession {
+    int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
     /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
        json_ui_set_script(); errors kept by xpp_log make
        the process exit 1 at the end of the file */
@@ -168,6 +169,11 @@ bool j_save_recording(xpp::Session &s); /* Quit's Save: the recording saved (its
 /* a command handle_line is about to run: a step begins, when recording
    and the command is one (not a request of the client's own) */
 void record_begin(const char *line);
+void record_save_permission();
+void record_save_decision(int decision, bool asked);
+int player_save_replace(int decision);
+/* Optional command/file-answer decision, validated once by the protocol. */
+xpp::Result<> read_save_replace(const char *line, int &decision);
 /* an ask of kind (ask_begin's) answered with the line answer; ok: not cancelled */
 void record_answer(const char *kind, const char *answer, bool ok);
 /* a key the running job read itself (control_line: / ending a range,

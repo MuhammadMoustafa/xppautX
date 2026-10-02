@@ -310,6 +310,26 @@ run).
 
 ## Saving pictures and files
 
+The desktop's operating-system save dialog asks before replacing an
+existing file. Accepting that dialog authorizes the chosen path; the core
+does not ask again. A recording keeps the dialog's answer, so replay uses
+the same decision even if the file now exists.
+
+In a browser, the save picker chooses where the finished file will be
+delivered. The core also writes a copy in the model's folder, which that
+picker never saw. If this copy exists, the core asks **“<file> exists.
+Replace it?”**, with **Yes** and **No**. A new copy needs no question. The
+download fallback and saves with no filename dialog follow this core rule.
+Recordings keep each core decision too, so replay does not gain a question
+or turn No into a write when the destination's existence changes.
+No keeps the destination as it was and delivers nothing. A failed save
+shows one error and keeps the old file. An empty export says
+**“Nothing to save”** before asking for a name.
+This also applies to Clone ODE, AUTO's Save diagram and the session written
+beside an imported XPPAUT `.set`. Declining the last keeps the imported values
+applied, without changing the session file. Scripts can put `replace:1` on
+the saving command to authorize it, or `replace:-1` to decline it (W129).
+
 Files (PostScript/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as in X11. The
 browser never silently downloads anything on its own.

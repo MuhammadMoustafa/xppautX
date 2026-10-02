@@ -377,6 +377,18 @@ XppUi make_json_ui(void)
     XppUi u{};
     u.err_msg = j_err_msg;
     u.command_place = j_command_place;
+    u.save_replace = []() {
+        record_save_permission();
+        return player_save_replace(session.save_replace);
+    };
+    u.save_decision = record_save_decision;
+    u.save_result = [](std::string_view file, bool saved) {
+        Buf b;
+        buf_format(&b, "{{\"ev\":\"saved\",\"saved\":{},\"file\":", saved ? "true" : "false");
+        buf_str(&b, std::string(file).c_str());
+        BUF_LIT(&b, "}");
+        send_buf(&b);
+    };
     u.ping = j_ping;
     u.bottom_msg = j_bottom_msg;
     u.message_box = j_message_box;
@@ -682,11 +694,15 @@ namespace {
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp::job::begin(seq);
+    session.save_replace = SAVE_ASK;
+    const xpp::Result<> permission = read_save_replace(line, session.save_replace);
     /* the session this command runs in, the client's in the session list
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */
     xpp::Session *s = &xpp::client_session();
-    if (applied) {
+    if (!permission) {
+        xpp::show_error(permission.error());
+    } else if (applied) {
     } else if (refused) {
         std::string c;
         get_string(line, "cmd", c, 32);

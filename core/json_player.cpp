@@ -24,6 +24,7 @@
 #include "ui_json.h"
 #include "ui_json_internal.h"
 #include "model.h"
+#include "browse.h"
 #include "model_files.h"
 #include "model_switch.h"
 #include "recx.h"
@@ -247,11 +248,19 @@ void diverged(const std::string &why)
 }
 
 /* the running step's input `line` goes next, after its press */
+bool last_input(const PlayStep &st)
+{
+    if (player.keys_used != st.keys.size()) return false;
+    for (size_t i=player.answers_used; i<st.answers.size(); ++i)
+        if (!js_find(st.answers[i].c_str(), "save_replace")) return false;
+    return true; /* save decisions are consumed by the owner, not another input */
+}
+
 void input_after(std::string line, const char *what, size_t index, double ms)
 {
     PlayStep &st = player.steps[static_cast<size_t>(player.running)];
     player.input = std::move(line);
-    player.input_last = player.keys_used == st.keys.size() && player.answers_used == st.answers.size();
+    player.input_last = last_input(st);
     const Clock::duration d = pace(st.view ? ms / 3 : ms);
     send_press(what, index, d);
     schedule(Next::input, d);
@@ -526,12 +535,13 @@ void play_command(xpp::Session &s, const char *line)
         note = text;
         /* the file as it was, but for the note: its fingerprint is kept,
            a mismatch included (recx.h) */
-        xpp::Writer w(player.path.c_str());
-        if (!w || !w.write(recx::text(player.rec)) || !w.commit()) {
+        xpp::Writer w=xpp::open_writer_asking(player.path);
+        if (!w) {
             note = was;
-            j_command_error("play", xpp::format("Cannot write {}", player.path));
             return;
         }
+        w.write(recx::text(player.rec));
+        if(!xpp::ok_or_show(xpp::commit_save(w))){note=was;return;}
         player.steps[static_cast<size_t>(i)].note = text;
         bottom_msg(0, xpp::format("Saved the note of step {} in {}", i + 1, xpp::files::split_path(player.path).second));
         send_player();
@@ -623,6 +633,24 @@ void player_begin(const char *line)
     xpp::files::serve_reads(serve); /* the files it reads: the recording's */
 }
 
+int player_save_replace(int decision)
+{
+    if (decision != SAVE_ASK || !player.in_command || player.off_script) return decision;
+    const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
+    if (player.answers_used == st.answers.size()) return decision;
+    const char *value=js_find(st.answers[player.answers_used].c_str(), "save_replace");
+    if (!value) return decision;
+    double saved;
+    if (!js_number(value, &saved) || (saved != static_cast<double>(SAVE_REPLACE) &&
+                                    saved != static_cast<double>(SAVE_DECLINE))) {
+        diverged("has an invalid recorded save decision");
+        return SAVE_DECLINE;
+    }
+    ++player.answers_used;
+    player.input_last=last_input(st);
+    return static_cast<int>(saved);
+}
+
 void player_asked(const char *kind)
 {
     if (!player.in_command || player.off_script) return;
@@ -642,6 +670,8 @@ void player_asked(const char *kind)
             input_after(answer_line(k, st.keys[i], true), "key", i, 600);
         } else {
             if (player.answers_used == st.answers.size()) return diverged(xpp::format("asks a {} it holds no answer for", k));
+            if (js_find(st.answers[player.answers_used].c_str(), "save_replace"))
+                return diverged(xpp::format("asks a {} before its recorded save decision", k));
             const size_t i = player.answers_used++;
             input_after(answer_line(k, st.answers[i], false), "answer", i,
                         std::min(2500.0, 900 + 40.0 * static_cast<double>(st.answers[i].size())));

@@ -27,6 +27,19 @@ def is_idle(e):
     return e.get('ev') == 'idle'
 
 
+def save_permission(cmd):
+    """Checks authorize their scratch saves explicitly (W129); replace=0
+    exercises the core's question instead. Answers never change policy."""
+    kind, op = cmd.get('cmd'), cmd.get('op')
+    if kind in ('key', 'quit') or op in {
+            'browser': ('write',), 'values': ('write', 'query'),
+            'session': ('save',), 'dfield': ('write',), 'equilibrium': ('write',),
+            'record': ('stop',), 'play': ('note',), 'aplot': ('print', 'gif'),
+            'ani': ('go',)}.get(kind, ()):
+        cmd.setdefault('replace', 1)
+    return cmd
+
+
 def is_ask(e):
     return e.get('ev') == 'ask'
 
@@ -165,6 +178,7 @@ class Server:
         self.events.put({'ev': 'eof', '_t': time.monotonic()})
 
     def send(self, **cmd):
+        save_permission(cmd)
         if self.verbose:
             print('  >', json.dumps(cmd))
         self.proc.stdin.write(json.dumps(cmd) + '\n')

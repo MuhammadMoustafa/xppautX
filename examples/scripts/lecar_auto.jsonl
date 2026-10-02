@@ -43,6 +43,6 @@
 {"cmd":"answer","key":"p"}
 
 # File / Save diagram
-{"cmd":"key","win":"auto","key":"f"}
+{"cmd":"key","win":"auto","key":"f","replace":1}
 {"cmd":"answer","key":"s"}
 {"cmd":"answer","file":"lecar.snapx"}

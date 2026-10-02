@@ -176,6 +176,7 @@ async function settled(read) {
 }
 const steadyP = P;
 
+let acceptSave = true; /* scratch saves are authorized; the W129 No check opts out */
 async function until(expr, what, ms = 15000) {
   const t0 = Date.now();
   for (;;) {
@@ -184,6 +185,11 @@ async function until(expr, what, ms = 15000) {
       v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(), w = ${ACTIVE}, dv = ${DV}; return !!(${expr}); } catch (e) { return false; } })()`);
     } catch { /* page not there yet */ }
     if (v) return true;
+    if (acceptSave) {
+      await cdp.eval(`(() => { const a = window.__xpp && __xpp.state().ask;
+        if (a && a.kind === 'choice' && a.keys === 'yn' && a.question.endsWith(' exists. Replace it?'))
+          __xpp.send({cmd: 'answer', id: a.id, key: 'y'}); })()`).catch(() => {});
+    }
     if (Date.now() - t0 > ms) {
       if (opt.v) console.log(`  (timed out waiting for ${what})`);
       return false;
@@ -1660,6 +1666,7 @@ async function phone() {
 /* ---- prompts (docs/ui-v2.md T4) ------------------------------------------------- */
 
 const lastAnswer = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').pop();
+const lastFileAnswer = async () => (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer' && c.file).pop();
 const focusPlot = () => cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').focus()`);
 
 /** a key, then the key that answers the menu it opens */
@@ -4339,7 +4346,9 @@ async function files(dir) {
       i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
     await sleep(50);
     await key('Enter');
-    check('the ask is answered with the name', (await lastAnswer())?.file === 't5.snapx', JSON.stringify(await lastAnswer()));
+    check('the ask is answered with the name', (await lastFileAnswer())?.file === 't5.snapx', JSON.stringify(await lastFileAnswer()));
+    check('W129 browser mode: the file answer carries no model-copy decision',
+      !Object.hasOwn(await lastFileAnswer(), 'replace'));
     const offered = await until("s.files.offered && s.files.offered.name === 't5.snapx' && !s.busy", 'offered');
     const saved = fs.existsSync(path.join(dir, 't5.snapx')) ? fs.readFileSync(path.join(dir, 't5.snapx')) : null;
     check('Save session lands in the model\'s folder', saved && saved.length > 100, String(saved && saved.length));
@@ -4350,6 +4359,27 @@ async function files(dir) {
       const got = await waitFile(path.join(downloads, 't5.snapx'));
       check('the browser downloaded it', got && saved && got.equals(saved), String(got && got.length));
     }
+
+    /* W129: decline the core's save permission. A prior destination exists,
+       but neither the offered-file action nor a second download may occur. */
+    const beforeDownloads = fs.readdirSync(downloads);
+    acceptSave = false;
+    try {
+      await fileMenu('v', 'write');
+      await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
+        i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
+      await until("document.querySelector('[data-file-name]').value === 't5.snapx'", 'repeat name');
+      await key('Enter');
+      check('W129 browser mode: the existing model copy asks once',
+        await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'yn' && s.ask.question === 't5.snapx exists. Replace it?'", 'save permission'));
+      const beforeOffers = await cdp.eval("__xpp.actions().filter(a => a === 'files').length");
+      await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'n'})");
+      check('W129 browser mode: No to the core question delivers nothing and preserves the model copy',
+        await until('!s.busy && !s.ask', 'declined save finished')
+        && fs.readFileSync(path.join(dir, 't5.snapx')).equals(saved)
+        && beforeOffers === await cdp.eval("__xpp.actions().filter(a => a === 'files').length")
+        && JSON.stringify(beforeDownloads) === JSON.stringify(fs.readdirSync(downloads)));
+    } finally { acceptSave = true; }
 
     /* the .set XPPAUT wrote for lecar.odex (its equations after the values): iapp 0.09, the model's 0.05 */
     const setBytes = xppautLecarSet();
@@ -4518,7 +4548,7 @@ async function nativeFiles(dir) {
     check('... asked for a save, filtered by *.snapx (wildExtensions), in the model\'s folder, the name offered',
       w && w.mode === 'write' && w.wild === '*.snapx' && JSON.stringify(w.exts) === '[".snapx"]' && w.dir
       && w.file.endsWith('.snapx') && !/[\\/]/.test(w.file), JSON.stringify(w));
-    check('... answered with the full path picked', (await lastAnswer())?.file === far, JSON.stringify(await lastAnswer()));
+    check('... answered with the full path picked', (await lastFileAnswer())?.file === far, JSON.stringify(await lastFileAnswer()));
     const saved = await waitFile(far);
     check('... and the core wrote it there, nothing in the model\'s folder, nothing offered',
       saved && saved.length > 100 && !fs.existsSync(path.join(dir, 'w88 native.snapx')) && !(await S('s.files.offered')),
@@ -4528,7 +4558,7 @@ async function nativeFiles(dir) {
     const r = await asked();
     check('... asked to open, filtered by *.set', r && r.mode === 'read' && JSON.stringify(r.exts) === '[".set"]', JSON.stringify(r));
     check('... the core read it where it is (its iapp is in), nothing copied',
-      Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastAnswer())?.file === farSet
+      Math.abs(await par('iapp') - 0.09) < 1e-12 && (await lastFileAnswer())?.file === farSet
       && !fs.existsSync(path.join(dir, 'w88 native.set')) && !(await S('s.files.uploads.length')), String(await par('iapp')));
 
     check('Cancel in the native dialog cancels the ask', await fileKey('r', null)

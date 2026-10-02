@@ -380,6 +380,8 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         if (!js_find(answer.c_str(), "file")) continue; /* a new pattern alone lists again */
         get_string(answer.c_str(), "file", file); /* a name in the folder or a full path, whole (W88) */
         if (file.empty()) return 0;
+        if (strcmp(xpp::files::ask_mode(title), "write") == 0 &&
+            !xpp::ok_or_show(read_save_replace(answer.c_str(), session.save_replace))) return 0;
         /* a name in a folder the page went into is a path in it; one in the
            folder it started in stays as answered (a replay's own scratch
            folder is where its relative names go) */

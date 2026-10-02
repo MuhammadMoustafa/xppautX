@@ -193,11 +193,10 @@ namespace {
    or when it cannot be written (err_msg says so). */
 xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *name)
 {
+  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return {};
   std::string filename=name;
   if(!xpp::file_selector(title,filename,"*.dat"))return xpp::Writer();
-  if(diagram_count(s.diagram)<2)return xpp::Writer();
-  xpp::Writer w(filename.c_str());
-  if(!w)xpp::command_error("write diagram",xpp::format("Cannot write {}",filename));
+  xpp::Writer w=xpp::open_writer_asking(filename.c_str());
   return w;
 }
 
@@ -208,9 +207,10 @@ void export_diagram(xpp::Session &s, const char *title, const char *name, const 
 {
   xpp::DIAGRAM *d;
   int type,flag=0;
+  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
   std::string filename=name;
   if(!xpp::file_selector(title,filename,wild))return;
-  if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color)))
+  if(!xpp::ok_or_show(begin(s,filename.c_str(),s.plot_export.color))||!s.plot_file.writer)
     return;
   draw_export_axes(s);
   d=diagram_first(s.diagram);
@@ -278,7 +278,7 @@ void write_info_out(xpp::Session &s)
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 
 }
 
@@ -348,7 +348,7 @@ void write_init_data_file(xpp::Session &s)
     d=diagram_next(s.diagram,d);
     if(d==NULL)break;
   }
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 
 }
 
@@ -388,7 +388,7 @@ void write_pts(xpp::Session &s)
       d=diagram_next(s.diagram,d);
       if(d==NULL)break;
   }
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
 }
 
 /* the AUTO File menu's Postscript/SVG entries (W53, issue #101): one

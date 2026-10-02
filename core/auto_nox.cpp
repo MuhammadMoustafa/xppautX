@@ -2525,6 +2525,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
 
 void save_auto(xpp::Session &s)
 {
+  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
   xpp_session_save(s, nullptr, -1);
 }
 
@@ -2588,8 +2589,7 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
     if(!noinfo(*line))
       w.print("{}\n",*line);
   }
-  w.commit();
-  return {};
+  return w.commit();
 }
 
 void load_auto(xpp::Session &s)
@@ -2719,11 +2719,11 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
    answer names both files (csv_export_diagram_pair derives the second) */
 void export_auto_csv(xpp::Session &s)
 {
+  if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
   std::string filename="diagram.csv";
   if(!file_selector("Export CSV",filename,"*.csv"))return;
   const xpp::Result<bool> written=csv_export_diagram_pair(s,filename.c_str());
   if(!written)xpp::show_error(written.error());
-  else if(!*written)command_error("auto", "Nothing to export: run or load a diagram first");
 }
 
 void auto_file(xpp::Session &s)

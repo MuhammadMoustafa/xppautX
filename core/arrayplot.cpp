@@ -4,6 +4,8 @@
 #include "storage.h"
 #include "xpp_ui.h"
 #include "array_print.h"
+#include "browse.h"
+#include "scrngif.h"
 
 #include <array>
 #include <cctype>
@@ -63,6 +65,7 @@ void set_up_aplot_range(xpp::Session &s)
    s.array_plot.tag=atoi(values[2].c_str());
  s.array_plot.range=1;
  s.array_plot.range_count=0;
+ s.array_plot.save_cancelled=false;
  x=&s.data_store.current[0];
  xpp::do_range(s,x,0);
  }
@@ -157,7 +160,7 @@ void init_my_aplot(xpp::Session &s)
 void print_aplot(const xpp::Session &s, APLOT *ap)
 {
   double tlo,thi;
-  int status,errflag;
+  int status;
   static const char *const n[]={"Filename","Top label","Side label","Bottom label", 
 	       "Render(-1,0,1,2)"};
    std::array<std::string, 5> values;
@@ -165,8 +168,7 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
   int row0=ap->nstart;
   int col0=ap->index0;
   int jb;
-  if(nrows<=2)return;
-  if(ap->plotdef==0||ap->nacross<2||ap->ndown<2)return;
+  if(!xpp::save_ready(nrows>2&&ap->plotdef!=0&&ap->nacross>=2&&ap->ndown>=2))return;
   jb=row0;
   tlo=0.0;
   thi=20.0;
@@ -188,12 +190,11 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
    ap->bottom=values[3];
    ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
-   errflag=xpp::array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
+   xpp::ok_or_show(xpp::array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
 		       ap->nacross,
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,s.browser.view.maxcol,
-		      s.browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type);
-   if(errflag==-1)xpp::command_error("array print",xpp::format("Cannot write {}",ap->filename));
+		      s.browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type));
  }
 }
 
@@ -267,8 +268,9 @@ values[8] = xpp::format("{:d}", ap->ncskip);
 void close_aplot_files(xpp::Session &s)
 {
   if(s.array_plot.still==0){
-    xpp::UniqueFile movie(s.array_plot.fp); /* closes it */
-    s.array_plot.fp=nullptr;
+    if(s.array_plot.movie){
+      xpp::end_ani_gif(s.array_plot.movie.file());
+      xpp::ok_or_show(xpp::commit_save(s.array_plot.movie));
+    }
   }
 }
-

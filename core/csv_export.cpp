@@ -1,3 +1,4 @@
+#include "browse.h"
 /* CSV exports beside the old whitespace formats (W26, issue #42): a
    header row of names, "\n" line ends, full precision, that
    pandas.read_csv and MATLAB readtable read with no options. See
@@ -50,9 +51,11 @@ int unsigned_of(int v) { return v < 0 ? -v : v; }
 xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename)
 {
     const xpp::Model &m = s.model();
-    if (s.diagram.points.size() < 2) return false; /* nothing recorded */
-    xpp::Writer w(filename);
-    if (!w) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
+    if (!xpp::save_ready(s.diagram.points.size() >= 2)) return false; /* nothing recorded */
+    xpp::Result<> opened;
+    xpp::Writer w=xpp::open_writer_asking(filename,false,&opened);
+    if (!opened) return std::unexpected(opened.error());
+    if (!w) return false;
     w.print("branch,point,type,label,stability,f2,param1_name,param1,param2_name,param2,period");
     for (int i = 0; i < m.node; i++) w.print(",{}_max", m.uvar_names[i]);
     for (int i = 0; i < m.node; i++) w.print(",{}_min", m.uvar_names[i]);
@@ -75,15 +78,17 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
         for (int i = 0; i < m.node; i++) w.print(",{}", xpp::number(d->ulo[i]));
         w.print("\n");
     }
-    if (!w.commit()) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
+    if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
     return true;
 }
 
 xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const char *filename)
 {
-    if (s.diagram.points.size() < 2) return false;
-    xpp::Writer w(filename);
-    if (!w) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
+    if (!xpp::save_ready(s.diagram.points.size() >= 2)) return false;
+    xpp::Result<> opened;
+    xpp::Writer w=xpp::open_writer_asking(filename,false,&opened);
+    if (!opened) return std::unexpected(opened.error());
+    if (!w) return false;
     w.print("branch,point,index,re,im,kind\n");
     for (const DiagramPoint &p : s.diagram.points) {
         const xpp::DIAGRAM *d = &p.d;
@@ -93,7 +98,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
             w.print("{},{},{},{},{},{}\n", unsigned_of(d->ibr), unsigned_of(d->ntot), i, xpp::number(d->evr[i]),
                     xpp::number(d->evi[i]), kind);
     }
-    if (!w.commit()) return xpp::fail("CSV export", xpp::format("Cannot write {}", filename), xpp::command_place());
+    if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
     return true;
 }
 

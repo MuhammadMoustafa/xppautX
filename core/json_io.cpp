@@ -419,6 +419,19 @@ const char *js_elem(const char *arr, int i)
     return p;
 }
 
+xpp::Result<> read_save_replace(const char *line, int &decision)
+{
+    const char *permission = js_find(line, "replace");
+    if (!permission) return {};
+    double replace;
+    if (!js_number(permission, &replace) ||
+        (replace != static_cast<double>(SAVE_ASK) && replace != static_cast<double>(SAVE_REPLACE) &&
+         replace != static_cast<double>(SAVE_DECLINE)))
+        return xpp::fail("save", "replace must be 1 (save), -1 (decline), or 0 (ask)", xpp::command_place());
+    decision = static_cast<int>(replace);
+    return {};
+}
+
 bool get_string(const char *obj, const char *key, std::string &out, size_t max)
 {
     return js_string(js_find(obj, key), out, max);

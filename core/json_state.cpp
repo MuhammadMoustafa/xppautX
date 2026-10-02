@@ -229,7 +229,7 @@ void browser_command(xpp::Session &s, const char *line)
     get_string(line, "format", format, 16);
     get_string(line, "name", name, XPP_MAX_NAME);
     if (o == "load") data_read(s, &s.browser.view, format, name);
-    else if (o == "write") data_write(s, &s.browser.view, what, format, name, get_int(line, "replace", 0) != 0);
+    else if (o == "write") data_write(s, &s.browser.view, what, format, name);
     else if (o == "postprocess") post_process_stuff(s);
     else j_command_error("browser", xpp::format("Unknown browser op {}", o));
     session.browser_dirty = 1;

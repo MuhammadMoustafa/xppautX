@@ -240,6 +240,11 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
 {
   int opm=s.numerics.poimap;
   double ot=s.numerics.trans,ote=s.numerics.tend;
+  const auto restore = [&]() {
+    s.numerics.trans=ot;
+    s.numerics.poimap=opm;
+    s.numerics.tend=ote;
+  };
   s.numerics.trans=0;
   s.numerics.t0=0;
   s.data_store.current_time=0;
@@ -249,42 +254,42 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
 
   usual_integrate_stuff(s,x);
   {
-    xpp::Writer w(xpp::format("orbit.{}.dat",name).c_str());
+    xpp::Writer w=xpp::open_writer_asking(xpp::format("orbit.{}.dat",name).c_str());
     if(w){
       write_mybrowser_data(s,w);
-      w.commit();
+      if (!xpp::ok_or_show(xpp::commit_save(w))) { restore(); return; }
     }
     else{
-      s.numerics.trans=ot;
-      s.numerics.poimap=opm;
-      s.numerics.tend=ote;
+      restore();
       return;
     }
   }
   new_adjoint(s);
   {
-    xpp::Writer w(xpp::format("adjoint.{}.dat",name).c_str());
+    xpp::Writer w=xpp::open_writer_asking(xpp::format("adjoint.{}.dat",name).c_str());
     if(w){
       write_mybrowser_data(s,w);
-      w.commit();
+      const bool saved=xpp::ok_or_show(xpp::commit_save(w));
       data_back(s);
+      if (!saved) { restore(); return; }
     }
+    else { data_back(s); restore(); return; }
   }
   new_h_fun(s,1);
   {
-    xpp::Writer w(xpp::format("hfun.{}.dat",name).c_str());
+    xpp::Writer w=xpp::open_writer_asking(xpp::format("hfun.{}.dat",name).c_str());
     if(w){
       write_mybrowser_data(s,w);
-      w.commit();
+      const bool saved=xpp::ok_or_show(xpp::commit_save(w));
       data_back(s);
+      if (!saved) { restore(); return; }
     }
+    else { data_back(s); restore(); return; }
   }
 
   reset_browser(s);
 
-  s.numerics.trans=ot;
-  s.numerics.poimap=opm;
-  s.numerics.tend=ote;
+  restore();
 
 }
 void get_pmap_pars_com(xpp::Session &s, int l)

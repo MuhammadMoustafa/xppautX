@@ -765,6 +765,7 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
 
 int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
 {
+    if(!xpp::save_ready(s.model().nlines()>0))return 0;
     std::string name;
     if (!name_or_ask(s.model(), "Save session", "*.snapx", name_arg, name)) return 0;
     const std::string file = xpp::snapx::session_file_name(name);
@@ -785,22 +786,29 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
             return 0;
         }
     }
-    if (const xpp::Result<> saved = xpp_session_save_file(s, file, with_data); !saved) {
+    const xpp::Result<bool> saved = xpp_session_save_file(s, file, with_data);
+    if (!saved) {
         xpp::show_error(saved.error());
         return 0;
     }
-    return 1;
+    return *saved ? 1 : 0;
 }
 
-xpp::Result<> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data)
+xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data)
 {
     const xpp::Result<std::string> bytes = session_bytes(s, data && s.data_store.rows > 0);
-    if (!bytes) return std::unexpected(bytes.error());
-    xpp::Writer w = xpp::Writer::binary(file.c_str());
-    if (!w || !w.write(*bytes) || !w.commit())
-        return xpp::fail("save session", xpp::format("Cannot write {}", file), xpp::Place{file});
+    if (!bytes) {
+        xpp::ui.save_result(file,false);
+        return std::unexpected(bytes.error());
+    }
+    xpp::Result<> opened;
+    xpp::Writer w=xpp::open_writer_asking(file,true,&opened);
+    if (!opened) return std::unexpected(opened.error());
+    if (!w) return false;
+    w.write(*bytes);
+    if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
     s.saved_session = SavedSession{file};
-    return {};
+    return true;
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)

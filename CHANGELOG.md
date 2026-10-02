@@ -30,6 +30,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Every save uses one atomic write owner. Native save dialogs confirm existing destinations and carry their decision into the command and recording; the core asks only for an existing target without a decision, including the browser's separate model-folder copy. New files need no question. Recordings also retain each core decision, independently of later disk contents. No and failed saves never download an older file; empty exports report “Nothing to save” before asking for a name (W129, [#181](https://github.com/MuhammadMoustafa/xppautX/issues/181)).
+
 - Word options require two dashes (`--silent`, `--setfile`, `--logfile` and the rest); old single-dash words stop and name the new spelling. `-h` is unchanged (W156, [#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)).
 
 - The local HTTP server now closes silent or trickling request heads after five seconds and times out blocked sends after ten seconds, dropping unresponsive event streams; upload bodies keep their 30-second timeout per receive (W164, #216).

@@ -273,9 +273,49 @@ What is not given is asked, in this order: `what` as a `menu` ask named
 `save_what` (keys `t`, `p`), the format as a `menu` ask named
 `save_format` (one item per registered format, in the table's order, keys
 `d`, `c`, `g`, `n`), the name as a `file` ask whose `wild` is `*` and the
-format's extension. An existing file is only replaced after a `choice` ask
-(File Exists! Overwrite?), or without it with `replace` 1 (a script cannot
-know whether the file is there). An unknown `what` or `format` is an error message.
+format's extension. Before the name is asked, an empty selection reports
+one error, `Nothing to save`. An unknown `what` or `format` is an error message.
+
+Every user save uses the same owner (W129, #181), including sessions,
+recordings, pictures, Clone ODE, AUTO exports and the session beside an
+imported XPPAUT set. Numeric `replace` on a command means `1` permits the
+write/replacement, `-1` declines it, and `0` or omission leaves it undecided.
+Other values are errors. With no decision, a new file is written without a
+question; an existing destination asks one `choice`, keys `yn`,
+`<file> exists. Replace it?`. No opens no temporary file.
+
+The desktop's Windows, GTK and macOS save dialogs confirm replacement of
+an existing file themselves. Their successful `file` answer carries
+`{"cmd":"answer","id":N,"file":"<picked full path>","replace":1}`.
+The core accepts this decision for a write ask and asks nothing again.
+Recording stores the complete file answer unchanged; replay uses its
+decision even when that destination now exists. Explicit decisions in key
+commands still use the recording step's `cmd`, for saves without a file ask.
+When the core makes a decision itself, recording stores an owner answer
+`{"save_replace":1}` or `{"save_replace":-1}` in the step's `answers`, in
+save order, instead of a conditional choice key. This includes permission
+to create a new file. Play consumes these answers in the save owner, so a
+browser/core No stays No even if its target is absent, and a recorded new
+file needs no question if it now exists. These are recorded step answers,
+not file-picker answers or additional prompts.
+
+In browser mode, `showSaveFilePicker` confirms only its delivery destination.
+The core's copy is a different file in the model's folder, which that picker
+did not see, so the page's `file` answer carries no decision. The core asks
+about that copy only if it exists. The download fallback uses the same core
+rule. `--silent`'s built-in commands and scripts with `replace:1` keep their
+explicit authorization; scripts needing disk-independent runs should carry
+that decision rather than assume a conditional question will occur.
+
+Each attempted save sends `{"ev":"saved","saved":true|false,"file":"<destination>"}`
+before the command's `idle`. `true` means the complete temporary file was
+committed to that destination. A decline, unsuccessful open, write, commit
+or cancelled capture sends `false`. An empty save sends `false` with `file:""`
+and its one error. A cancelled name ask starts no attempt. Failure errors
+are shown once at the command's place, naming the destination in their text.
+The page delivers only the matching successful destination (including a
+suffix the core appended from the file dialog), at that command's
+idle; an idle alone, No, or a failed commit never delivers an older file.
 
 The browser's `load` asks for `name` (a `file` ask, `wild` `*`) when it is
 not given and reads it as `format`, or else as the format of its extension,
@@ -588,7 +628,9 @@ changed. The player sends the step's command (a `key` with its `win` and
 asks with the recording's next answer of its kind: a `menu` or `choice`
 ask the next of `keys` (`Escape`: a cancel), any other the next of
 `answers` (a `string`'s value, a `form`'s values, a `file`'s or any other
-answer's members; `null`: a cancel); an `alert` it answers OK; a
+answer's members; `null`: a cancel). A `save_replace` owner answer is
+consumed by the save operation before checking the disk, without another
+prompt or input; it does not delay arming a recorded interruption. An `alert` it answers OK; a
 `pixels` ask is the client's, as always. With the step's last input it
 arms its `abort`, or its first `during` key, as a script arms an abort
 line ("Scripts"): the job stops, or is handed the key, exactly where the
@@ -691,6 +733,7 @@ model's start in every mode, before the script.
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file`, `line`, `col`, `source` | Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or AUTO toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again. |
 | `progress` | `n`, `of` | Computation progress, at most 10 a second. |
+| `saved` | `saved` boolean, `file` | The save owner's result for this exact destination; only `true` authorizes delivery after the command's `idle` (W129). |
 | `computing` | | The running command began computing (once per command, before its first `progress`); until its `idle` the server refuses data and computation commands ("Action kinds", "Commands during a command"). A page that connects meanwhile gets it again. |
 | `equilibrium` | `type`, `cplus`, `cminus`, `rplus`, `rminus`, `im`, `values`, `eigenvalues` | Result of Sing pts. `eigenvalues`: the Jacobian's `[re,im]` pairs, one per variable; absent for a delay equation. |
 | `source` | `lines`, `comments` [[text, has action]...] | File/Prt src. |
@@ -1225,7 +1268,9 @@ import is saved through Save session as `<base>.snapx` beside the `.set`;
 `state.session.file` then names that session, and one `message.bottom`
 says it is now open. A save failure produces one placed error saying that
 saving failed and the imported values remain applied; the previous
-session identity remains. No command or event shape changes (W153).
+session identity remains (W153). This adjacent session now uses the same
+save permission and `saved` result as every other user save; No retains
+the imported values and previous session identity (W129).
 
 ## Session files
 
@@ -1378,7 +1423,7 @@ sets `show` and view 1's zoom (the active view's without `view`).
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
 | `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. |
 | `checklist` | `title`, `names`, `flags` | `flags` |
-| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); or `cd` (a folder name or `..`, in `dir`: only the folder listed changes, not the process's) or `wild` (a new pattern) to be asked again with that listing; `dir` starts as the folder of the file of that `wild` last chosen, else the model's folder (a replay's recording's), never AUTO's or a replay's scratch folder (W151) |
+| `file` | `title`, `mode` (`read` or `write`), `file`, `wild`, `dir`, `dirs`, `files` | `file` (a name in `dir`, or a full path anywhere, whole: the desktop window's own dialog answers with one, W88); a native save dialog also supplies `replace:1`, while a browser save supplies no decision for the core's model-folder copy (W129); or `cd` (a folder name or `..`, in `dir`: only the folder listed changes, not the process's) or `wild` (a new pattern) to be asked again with that listing; `dir` starts as the folder of the file of that `wild` last chosen, else the model's folder (a replay's recording's), never AUTO's or a replay's scratch folder (W151) |
 | `alert` | `button`, `message` | nothing |
 | `mouse` | `win` | `x`, `y`; or `xd`, `yd` (data coordinates, below) |
 | `rubber` | `win`, `flag` (0 box, 1 line) | `x`, `y`, `x2`, `y2`; or `xd`, `yd`, `xd2`, `yd2` |

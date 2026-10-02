@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SeriesMirror, drain_stderr, is_ask, placed, whole_series
+from xppclient import SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -100,6 +100,7 @@ def launch_server(extra_env=None, ode=None, log=None):
     drain_stderr(proc, (lambda l: log.append(l.rstrip('\n'))) if log is not None else None)
 
     def send(**cmd):
+        save_permission(cmd)
         if args.v:
             print('  >', json.dumps(cmd))
         proc.stdin.write(json.dumps(cmd) + '\n')
@@ -828,7 +829,7 @@ def run_script(lines, ode=None):
         shutil.copy(ode, run_dir)
         script_path = os.path.join(run_dir, 'script.jsonl')
         with open(script_path, 'w') as f:
-            f.write(''.join(json.dumps(c) + chr(10) for c in lines))
+            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
         r = subprocess.run([os.path.abspath(args.server), '--script', script_path, os.path.basename(ode)],
                             cwd=run_dir, capture_output=True, text=True, timeout=60 * SLOW)
         return r.returncode, r.stdout, r.stderr
@@ -3140,6 +3141,99 @@ def check_data_formats():
 check_data_formats()
 
 
+def check_save_owner():
+    """W129: the permission belongs to the command; only commit delivers."""
+    log = []
+    p, r, snd, col, _ = launch_server(log=log)
+    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    results = lambda evs: [e for e in evs if e.get('ev') == 'saved']
+    try:
+        col(is_idle)
+        snd(cmd='browser', op='write', what='table', format='csv', replace=0)
+        evs, end = col(lambda e: is_idle(e) or is_ask(e))
+        check('W129: nothing to save reports once before asking for a name',
+              end is not None and is_idle(end) and len(errors(evs)) == 1
+              and errors(evs)[0]['error'] == 'Nothing to save'
+              and results(evs) == [{'ev': 'saved', 'saved': False, 'file': ''}], str(evs)[-400:])
+        live_run(snd, col)
+        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+        evs, end = col(lambda e: is_idle(e) or is_ask(e))
+        check('W129: a new file saves without a question or a command decision',
+              end is not None and is_idle(end)
+              and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}]
+              and not errors(evs), str(evs)[-300:])
+        before = open(os.path.join(r, 'same.par'), 'rb').read()
+        snd(cmd='set', kind='par', name='iapp', value=0.11)
+        col(is_idle)
+        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+        _, ask = col(is_ask)
+        check('W129: an existing target without a decision asks once',
+              ask is not None and ask.get('question') == 'same.par exists. Replace it?'
+              and ask.get('keys') == 'yn', str(ask))
+        snd(cmd='answer', id=ask['id'], key='n')
+        evs, _ = col(is_idle)
+        check('W129: No preserves the file and emits saved false, no error',
+              before == open(os.path.join(r, 'same.par'), 'rb').read()
+              and results(evs) == [{'ev': 'saved', 'saved': False, 'file': 'same.par'}]
+              and not errors(evs), str(evs)[-300:])
+        snd(cmd='values', op='write', kind='par', name='same.par', replace=0)
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='y')
+        evs, end = col(lambda e: is_idle(e) or is_ask(e))
+        check('W129: Yes replaces the existing file without a second question',
+              end is not None and is_idle(end) and not errors(evs)
+              and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}]
+              and before != open(os.path.join(r, 'same.par'), 'rb').read(), str(evs)[-300:])
+        before = open(os.path.join(r, 'same.par'), 'rb').read()
+        snd(cmd='values', op='write', kind='par', name='same.par', replace=1)
+        evs, end = col(lambda e: is_idle(e) or is_ask(e))
+        check('W129: replace 1 overwrites an existing target without a question',
+              end is not None and is_idle(end) and not errors(evs)
+              and results(evs) == [{'ev': 'saved', 'saved': True, 'file': 'same.par'}], str(end))
+        before = open(os.path.join(r, 'same.par'), 'rb').read()
+        snd(cmd='values', op='write', kind='par', name='same.par', replace=-1)
+        evs, end = col(lambda e: is_ask(e) or is_idle(e))
+        check('W129: a command can carry No without a question',
+              end is not None and is_idle(end) and not errors(evs)
+              and results(evs) == [{'ev': 'saved', 'saved': False, 'file': 'same.par'}]
+              and before == open(os.path.join(r, 'same.par'), 'rb').read(), str(end))
+        os.mkdir(os.path.join(r, 'blocked.par'))
+        marker = os.path.join(r, 'blocked.par', 'original')
+        with open(marker, 'wb') as f: f.write(b'old bytes')
+        # The temp can be created beside this directory, but rename cannot
+        # replace it: a deterministic commit failure, including on Windows.
+        for name in ['blocked.par', 'absent/fail.par']:
+            snd(cmd='values', op='write', kind='par', name=name, replace=1)
+            evs, _ = col(is_idle)
+            check('W129: failed %s reports one error and no successful save' % name,
+                  len(errors(evs)) == 1
+                  and results(evs) == [{'ev': 'saved', 'saved': False, 'file': name}]
+                  and open(marker, 'rb').read() == b'old bytes', str(evs)[-400:])
+        check('W129: failed saves leave no temporary files or duplicate Writer log',
+              not glob.glob(os.path.join(r, '*.tmp-*'))
+              and not any('writer' in line.lower() for line in log), str(log[-5:]))
+    finally:
+        stop_server(p, r, snd)
+    d = tempfile.mkdtemp(prefix='w129script')
+    try:
+        shutil.copy(args.ode, d)
+        commands = [{'cmd': 'values', 'op': 'write', 'kind': 'par', 'name': 'repeat.par', 'replace': 1}]
+        script = os.path.join(d, 'save.jsonl')
+        with open(script, 'w') as f: f.write('\n'.join(json.dumps(c) for c in commands))
+        runs = [subprocess.run([os.path.abspath(args.server), '--script', script, os.path.basename(args.ode)],
+                              cwd=d, capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+                for _ in range(2)]
+        check('W129: the same script saves twice with its explicit answer, no disk-dependent ask',
+              all(v.returncode == 0 and not any(e.get('ev') == 'ask' for e in
+                  [json.loads(line) for line in v.stdout.splitlines() if line.strip()])
+                  and '"saved":true' in v.stdout for v in runs), str([v.returncode for v in runs]))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+check_save_owner()
+
+
 def check_seed_per_run():
     """W71 "a seed per run": examples/ode/fhn_noise.odex (wiener n) run
     twice gives different noise, each run logging its own seed in state
@@ -3896,7 +3990,7 @@ def check_silent_commands():
         if before:
             before(d)
         with open(os.path.join(d, 'script.jsonl'), 'w') as f:
-            f.write(''.join(json.dumps(c) + chr(10) for c in lines))
+            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
         r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', os.path.basename(ode)],
                            cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
         return d, r
@@ -4659,6 +4753,76 @@ def read_recx(text):
             note = []
     got = hashlib.sha256(''.join(h + '\n' for h in hashed).encode('utf-8')).hexdigest()
     return header, files, steps, written, got
+
+
+def check_save_recording():
+    """W129: key saves replay explicit decisions and recorded choice answers."""
+    p, r, snd, col, _ = launch_server()
+    def run(**cmd):
+        snd(**cmd)
+        return col(is_idle, timeout=30 * SLOW)[0]
+    try:
+        col(is_idle)
+        with open(os.path.join(r, 'browser-no.par'), 'wb') as f: f.write(b'unchanged')
+        run(cmd='record', op='start')
+        for policy in [1, -1, 0]:
+            run(cmd='key', key='f')
+            snd(cmd='key', key='v', replace=policy)
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], file='dialog-save.snapx' if policy == 0 else 'key-save.snapx',
+                **({'replace': 1} if policy == 0 else {}))
+            evs, end = col(lambda e: is_idle(e) or is_ask(e))
+            check('W129: key save with explicit command/dialog decision asks no core question',
+                  end is not None and is_idle(end), str(end))
+        fresh = run(cmd='values', op='write', kind='par', name='browser-new.par', replace=0)
+        snd(cmd='values', op='write', kind='par', name='browser-no.par', replace=0)
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='n')
+        declined, _ = col(is_idle)
+        run(cmd='record', op='stop', name='key-save.recx')
+        path = os.path.join(r, 'key-save.recx')
+        _, _, steps, written, got = read_recx(open(path, encoding='utf-8').read())
+        saves = [steps[i][0] for i in [1, 3, 5]]
+        check('W129: recorded key saves retain explicit Yes and No in the command',
+              [v.get('cmd', {}).get('replace') for v in saves[:2]] == [1, -1]
+              and written == got, str(saves))
+        check('W129: the OS dialog file answer is recorded unchanged with replace 1',
+              saves[2].get('keys') == ['v'] and saves[2].get('answers') == [{'file': 'dialog-save.snapx', 'replace': 1}], str(saves[2]))
+        check('W129: core new-file and No decisions are recorded as owner answers',
+              [steps[i][0].get('answers') for i in [6, 7]] == [[{'save_replace': 1}], [{'save_replace': -1}]]
+              and not steps[7][0].get('keys')
+              and any(e.get('saved') for e in fresh)
+              and any(e.get('ev') == 'saved' and not e.get('saved') for e in declined), str(steps[6:]))
+        snd(cmd='play', op='open', file=path)
+        evs, end = col(lambda e: is_ask(e) or is_idle(e))
+        if end and is_ask(end):
+            snd(cmd='answer', id=end['id'], key='d')
+            col(is_idle)
+        run(cmd='play', op='speed', speed=8)
+        prepared = run(cmd='session', op='save', name='dialog-save.snapx', replace=1)
+        check('W129: the replay folder already contains the native dialog destination',
+              any(e.get('ev') == 'saved' and e.get('saved') and e.get('file') == 'dialog-save.snapx' for e in prepared), str(prepared)[-200:])
+        run(cmd='values', op='write', kind='par', name='browser-new.par', replace=1)
+        snd(cmd='play', op='start')
+        evs, end = col(lambda e: e.get('ev') == 'state'
+                        and (e.get('player') or {}).get('step') == 8
+                        and e['player']['running'] == -1, timeout=120 * SLOW)
+        check('W129: Play reuses explicit/dialog decisions when the destination now exists',
+              end is not None and [e['saved'] for e in evs if e.get('ev') == 'saved'] == [True, False, True, True, False]
+              and not any(e.get('ev') == 'message' and e.get('error') for e in evs), str(evs)[-500:])
+        col(is_idle)
+        listing = run(cmd='file', op='list')
+        names = {f['name'] for e in listing if e.get('ev') == 'file' for f in e.get('files', [])}
+        check('W129: replay preserves a core No even when its target no longer exists',
+              any(e.get('ev') == 'saved' and e.get('file') == 'browser-no.par' and not e.get('saved') for e in evs)
+              and 'browser-no.par' not in names and 'browser-new.par' in names
+              and not any(e.get('ev') == 'ask' and e.get('kind') == 'choice'
+                          and e.get('question', '').endswith(' exists. Replace it?') for e in evs), str(names))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_save_recording()
 
 
 def check_quit():

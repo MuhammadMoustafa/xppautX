@@ -819,12 +819,11 @@ void write_equilibrium(xpp::Session &s, const char *name, int shoot)
 
   do_sing_info(s,x.data(),s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,n,er.data(),em.data(),&ierr);
   if(ierr!=0)return;
-  xpp::Writer w(name);
-  if(w){
-    for(int i=0;i<n;i++)
-      w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
-    w.commit();
-  }
+  xpp::Writer w=xpp::open_writer_asking(name);
+  if(!w)return;
+  for(int i=0;i<n;i++)
+    w.print("{:g} {:g} {:g}\n",x[i],er[i],em[i]);
+  if(!xpp::ok_or_show(xpp::commit_save(w)))return;
   if(shoot)
     save_batch_shoot(s);
 }
@@ -895,13 +894,11 @@ int write_this_run(xpp::Session &s, const char *file, int i)
 {
   if(!s.integrator.suppress_out){
   std::string outfile=xpp::format("{}.{}",file,i);
-  xpp::Writer w(outfile.c_str());
-  if(!w){
-    xpp::log(XPP_LOG_WARN, "Couldnt open {}\n",outfile.c_str());
-    return -1;
-  }
+  if(!save_ready(s.browser.view.iend>s.browser.view.istart))return -1;
+  xpp::Writer w=xpp::open_writer_asking(outfile.c_str());
+  if(!w)return -1;
   write_mybrowser_data(s,w);
-  w.commit();
+  xpp::ok_or_show(xpp::commit_save(w));
   }
    if(s.integrator.make_plot_flag)dump_ps(s,i);
   return(1);

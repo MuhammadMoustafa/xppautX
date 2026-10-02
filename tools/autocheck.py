@@ -46,10 +46,10 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SLOW, Server, is_idle, is_ask, is_state, placed, whole_series
+from xppclient import SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--server', default='./xppautX')
+ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
@@ -1607,7 +1607,8 @@ def section_script():
 
 def script_file(lines):
     f = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
-    f.write(''.join(l + '\n' for l in lines))
+    f.write(''.join((l if not l.strip() or l.lstrip().startswith('#')
+                    else json.dumps(save_permission(json.loads(l)))) + '\n' for l in lines))
     f.close()
     return f.name
 

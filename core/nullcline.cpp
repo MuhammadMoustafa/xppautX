@@ -123,17 +123,14 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
 {
   if(!s.nullcline_state.frozen_started)return;
   const char ch=static_cast<char>(TwoChoice("YES","NO","Save Frozen Clines?","yn"));
-  if(ch=='n')return;
+  if(ch!='y')return;
   int i=1;
   for(const FrozenCline &z:s.nullcline_state.frozen){
     if(z.nmx==0&&z.nmy==0)return;
-    xpp::Writer fp(xpp::format("{}.{}",fn,i).c_str());
-    if(!fp){
-      command_error("nullclines", xpp::format("Cannot write {}.{}",fn,i));
-      return;
-    }
+    xpp::Writer fp=xpp::open_writer_asking(xpp::format("{}.{}",fn,i).c_str());
+    if(!fp)return;
     dump_clines(fp,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
-    fp.commit();
+    if(!xpp::ok_or_show(xpp::commit_save(fp)))return;
     i++;
   }
 }
@@ -429,17 +426,14 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
 
 void save_the_nullclines(xpp::Session &s)
 {
-  if(s.numerics.null_here==0)return;
+  if(!save_ready(s.numerics.null_here!=0))return;
   std::string filename="nc.dat";
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
-  xpp::Writer fp(filename.c_str());
-  if(!fp){
-    command_error("nullclines", xpp::format("Cannot write {}",filename));
-    return;
-  }
+  xpp::Writer fp=xpp::open_writer_asking(filename.c_str());
+  if(!fp)return;
   dump_clines(fp,s.nullcline_state.x_null.data(),s.nullcline_state.num_x_n,s.nullcline_state.y_null.data(),s.nullcline_state.num_y_n);
-  fp.commit();
+  if(!xpp::ok_or_show(xpp::commit_save(fp)))return;
   save_frozen_clines(s,filename);
 }
 
@@ -584,18 +578,15 @@ void redraw_dfield(xpp::Session &s)
 
 void write_dfield(xpp::Session &s, std::string_view name)
 {
-  if(!dfield_shown(s)){
-    command_error("direction field", "No direction field in this window");
-    return;
-  }
+  if(!save_ready(dfield_shown(s)))return;
   /* in PostScript's frame, whatever the window's, as --silent always
      wrote it: the arrows' lengths do not depend on the window's size */
   const DrawingState drawn=s.drawing;
   init_ps(s);
-  xpp::Writer w(name);
+  xpp::Writer w=xpp::open_writer_asking(name);
   if(w){
     dfield_of_window(s,&w);
-    w.commit();
+    xpp::ok_or_show(xpp::commit_save(w));
   }
   s.drawing=drawn;
 }

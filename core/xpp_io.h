@@ -440,17 +440,16 @@ private:
 /* The write handle. Writer(path) creates a hidden temp file next to path
    ("w" text mode, like the fopen(path,"w") it replaces, so a Windows
    build writes CRLF line ends exactly as before; created exclusively,
-   never through a link: xpp::files::create_new) and logs an ERROR itself
-   when that fails (most callers' own "cannot open file" message already
-   covers the case, this is for the rest). binary(path) is the same in
+   never through a link: xpp::files::create_new); an unsuccessful open is
+   false, reported by its caller. binary(path) is the same in
    binary mode ("wb"), for a byte-for-byte copy whose lines end as the
    source's do on every platform. file() is the FILE * to format into (print(), or
    xpp::print on it); commit() closes the temp file and renames it into
    place (xpp::files::replace_file, the one place that knows POSIX
-   rename() from Windows's), false (an ERROR logged, the original file
-   left untouched) on failure; abort() closes and discards the temp file
-   without touching path at all. Either one ends the Writer (a second is a
-   no-op); a Writer destroyed without either aborts. */
+   rename() from Windows's), returning a Result with the error and the
+   original file left untouched on failure; abort() discards the temp file
+   without touching path at all. Either one ends the Writer; a second
+   commit returns an error. A Writer destroyed without either aborts. */
 class Writer {
 public:
     Writer() noexcept = default;
@@ -477,7 +476,8 @@ public:
         FILE *fp = file();
         return fp && std::fwrite(bytes.data(), 1, bytes.size(), fp) == bytes.size();
     }
-    bool commit() noexcept;
+    Result<> commit() noexcept;
+    const std::string &path() const noexcept { return path_; }
     void abort() noexcept;
     struct State;
     struct Free {
@@ -485,6 +485,7 @@ public:
     };
 
 private:
+    std::string path_;
     std::unique_ptr<State, Free> state_;
 };
 

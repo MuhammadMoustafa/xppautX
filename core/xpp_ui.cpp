@@ -18,6 +18,9 @@ namespace xpp {
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }
 static Place hl_command_place(void) { return {}; }
+static int hl_save_replace(void) { return SAVE_ASK; }
+static void hl_save_decision(int, bool) {}
+static void hl_save_result(std::string_view, bool) {}
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
@@ -106,6 +109,9 @@ XppTextMetrics text_metrics;
 XppUi ui = {
     .err_msg = hl_err_msg,
     .command_place = hl_command_place,
+    .save_replace = hl_save_replace,
+    .save_decision = hl_save_decision,
+    .save_result = hl_save_result,
     .ping = hl_void,
     .bottom_msg = hl_bottom_msg,
     .message_box = hl_str,

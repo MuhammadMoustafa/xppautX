@@ -93,10 +93,13 @@ void ani_go(xpp::Session &s)
     float **ss = s.browser.view.data;
     xpp::Writer gif; /* anim.gif, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
-    if (s.animation.ncom == 0 || s.browser.view.maxrow < 2) return;
+    const bool available=s.animation.ncom!=0 && s.browser.view.maxrow>=2;
+    if ((s.animation.mpeg.aviflag==1 || s.animation.mpeg.flag>0) && !xpp::save_ready(available)) return;
+    if (!available) return;
     set_ani_perm(s);
     if (s.animation.mpeg.aviflag == 1) {
-        gif = xpp::Writer::binary("anim.gif");
+        gif = xpp::open_writer_asking("anim.gif",true);
+        if(!gif)return;
     }
     while (!stop) {
         int row = s.animation.vcr.pos, ppm = s.animation.mpeg.flag > 0 && frame % (s.animation.mpeg.skip > 0 ? s.animation.mpeg.skip : 1) == 0;
@@ -107,8 +110,14 @@ void ani_go(xpp::Session &s)
         ui.ani_show();
         if (ppm || gif) {
             std::vector<unsigned char> rgb = ask_pixels(WIN_ANI, -1, &w, &h);
-            if (rgb.empty()) break;
-            if (ppm) write_ppm(xpp::format("{}_{}.ppm", s.animation.mpeg.root, written++).c_str(), rgb, w, h);
+            if (rgb.empty()) {
+                if(gif)xpp::abort_save(gif);
+                break;
+            }
+            if (ppm && !write_ppm(xpp::format("{}_{}.ppm", s.animation.mpeg.root, written++).c_str(), rgb, w, h)) {
+                if(gif)xpp::abort_save(gif);
+                break;
+            }
             if (gif) {
                 web_safe_colors(rgb);
                 gif_stuff_ppm(rgb.data(), w, h, gif.file(), frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
@@ -127,7 +136,7 @@ void ani_go(xpp::Session &s)
     s.animation.mpeg.flag = 0;
     if (gif) {
         end_ani_gif(gif.file());
-        gif.commit();
+        xpp::ok_or_show(xpp::commit_save(gif));
     }
     send_ani_slider(s);
 }

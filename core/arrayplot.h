@@ -2,6 +2,7 @@
 #define _arrayplot_h_
 
 #include "xpplim.h"
+#include "xpp_io.h"
 #include <stdio.h>
 
 #include <string>
@@ -50,7 +51,8 @@ std::string get_root(std::string_view s, int *num);
 struct ArrayPlotState {
   APLOT plot{};
   int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
-  FILE *fp = nullptr;
+  xpp::Writer movie;
+  bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
   std::string range_stem = "rangearray";
 };
 #endif

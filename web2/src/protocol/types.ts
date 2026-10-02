@@ -541,6 +541,8 @@ export type XppEvent =
   | FilmEvent
   | PlayerEvent
   | PressEvent
+  /** A user save completed (false for a declined or failed save). */
+  | {ev: 'saved'; saved: boolean; file: string}
   | {ev: 'idle'}
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'erase' | 'redraw'; win: number}

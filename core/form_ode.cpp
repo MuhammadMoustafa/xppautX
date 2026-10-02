@@ -781,7 +781,7 @@ void build_old_style(xpp::Session &s, int neq, FILE *fptr, const std::function<b
     done=compiler(s,bob,fptr);
   if(ConvertStyle){
     xpp::print(s.parser.convert.file(),"done\n");
-    s.parser.convert.commit();
+    if(const xpp::Result<> saved=s.parser.convert.commit();!saved)xpp::show_error(saved.error());
   }
   finish_model(s);
 }

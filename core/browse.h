@@ -36,9 +36,20 @@ void data_restore(Session &s, BROWSER *b);
 
 /* A file the user named, opened for a write that replaces it only at
    commit (Writer, binary: byte for byte), after asking whether to
-   overwrite it when it exists: an empty Writer when the answer is no, or
-   when it cannot be written (err_msg says so) */
-Writer open_writer_asking(std::string_view fil, bool binary = false);
+   replace it if it exists. A command or native dialog's answer supplies
+   permission; only an existing target without a decision asks in core.
+   Empty when declined or when opening fails. With opened, the caller
+   receives the error to show; otherwise it is shown here, once. */
+Writer open_writer_asking(std::string_view fil, bool binary = false,
+                          Result<> *opened = nullptr);
+/* One precondition, before asking for a name. Empty saves report once. */
+bool save_ready(bool available);
+/* Finish a user save: report its destination and whether commit succeeded.
+   The command shows the returned error once (ok_or_show for void commands). */
+Result<> commit_save(Writer &writer);
+/* A serializer or picture capture stopped before commit: discard the
+   temporary file and report that this destination was not saved. */
+void abort_save(Writer &writer);
 /* The existing overwrite question, with Cancel (0). For an imported
    model, n opens the existing file instead of declining the write. */
 int file_replace_choice(bool open_existing = false);
@@ -54,10 +65,10 @@ void write_mybrowser_data(Session &s, Writer &w);
    output.dat) or "plot" (what the current plot window shows: its curves
    and frozen curves as one table curve,x,y[,z]), format a data format's
    id (data_formats.h), name the file; whichever is empty is asked for (a
-   menu, a menu of the formats, a file). An existing file is replaced
-   without asking when replace is set, else after asking. */
+   menu, a menu of the formats, a file). The command's replace decision
+   is used, or asked for independent of destination existence. */
 void data_write(const Session &s, BROWSER *b, std::string_view what, std::string_view format,
-                std::string_view name, bool replace = false);
+                std::string_view name);
 /* the browser's Load: name (asked for when empty) read as format (by its
    extension when empty, else .dat) into s's stored columns, in order */
 void data_read(Session &s, BROWSER *b, std::string_view format, std::string_view name);

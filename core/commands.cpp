@@ -4,6 +4,7 @@
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
+#include "browse.h"
 #include "session.h"
 #include "xpp_session.h"
 #include "model_switch.h"
@@ -147,6 +148,7 @@ void do_movie_com(xpp::Session &s, int c)
     ui.movie_auto_play(s);
     break;
   case 4:
+    if(!save_ready(s.kinescope.frames>0))return;
     base = "frame";
     new_string_of("Base file name", base, XPP_FIELD_FILE);
     if (!base.empty())

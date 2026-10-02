@@ -43,7 +43,9 @@ struct StepTaken {
     std::string note;                 /* the note set before it began */
     std::string win;                  /* a window's own key layer ("auto") */
     std::string button;               /* the page's control that sent the key */
-    std::string cmd;                  /* a command other than a key, whole */
+    std::string cmd;                  /* a command, including an explicit save decision */
+    std::string key_cmd;              /* retained until a key actually saves */
+    size_t save_keys = 0;             /* keys present before this save's conditional choice */
     std::vector<std::string> keys;    /* the key, then the keys that answered a menu or a choice */
     std::vector<std::string> answers; /* every other answer: a value, a form's values, an object, null for a cancel */
     std::vector<size_t> files;        /* the file sections it read, in order */
@@ -212,10 +214,8 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     file = xpp::snapx::with_extension(file, recx::extension);
     xpp::Writer w = open_writer_asking(file.c_str());
     if (!w) return false;
-    if (!w.write(recx::text(*recorder.rec)) || !w.commit()) {
-        j_command_error("record", xpp::format("Cannot write {}", file));
-        return false;
-    }
+    w.write(recx::text(*recorder.rec));
+    if (!xpp::ok_or_show(xpp::commit_save(w))) return false;
     const std::string done = xpp::format("Recorded {} steps in {}", steps.size(), file);
     xpp::log(XPP_LOG_INFO, "{}\n", done);
     bottom_msg(0, done);
@@ -280,11 +280,32 @@ void record_begin(const char *line)
         t.label = key_label(k, menu, t.win);
         t.file_menu = t.win.empty() && menu == MAIN_MENU && key_code(k.c_str()) == main_menu_key(MAIN_MENU, "file");
         t.keys.push_back(std::move(k));
+        if (session.save_replace != SAVE_ASK) t.key_cmd = std::string(js_raw(line));
     } else {
         t.label = command_label(line);
         t.cmd = std::string(js_raw(line));
     }
     recorder.step = std::move(t);
+}
+
+void record_save_permission()
+{
+    StepTaken &t = recorder.step;
+    if (!recorder.rec || !t.open) return;
+    if (!t.key_cmd.empty() && t.cmd.empty()) {
+        t.cmd = std::move(t.key_cmd);
+        t.keys.erase(t.keys.begin()); /* the initiating key is now in cmd */
+    }
+    t.save_keys = t.keys.size();
+}
+
+void record_save_decision(int decision, bool asked)
+{
+    StepTaken &t = recorder.step;
+    if (!recorder.rec || !t.open) return;
+    if (asked && t.keys.size() > t.save_keys)
+        t.keys.pop_back(); /* this save's choice becomes a decision, not a conditional UI key */
+    t.answers.push_back(xpp::format("{{\"save_replace\":{}}}", decision));
 }
 
 void record_answer(const char *kind, const char *answer, bool ok)

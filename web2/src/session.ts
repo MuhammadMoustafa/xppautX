@@ -90,7 +90,7 @@ export class Session {
   /* a file the core writes, offered at its command's idle: `ahead` counts the
      idles of the commands sent before it, which come first (W95's click right
      behind a redraw delivered it at the redraw's idle, before it was written) */
-  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number} | null = null;
+  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; saved?: boolean; suffix?: string} | null = null;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
@@ -220,6 +220,13 @@ export class Session {
         this.keyWaiting = false;
         this.typeahead = [];
       }
+    } else if (ev.ev === 'saved') {
+      const save = this.pendingSave;
+      if (save && save.ahead === 0 && (ev.file === save.name
+          || (save.suffix && ev.file === save.name + save.suffix))) {
+        save.saved = ev.saved;
+        save.name = ev.file; /* use the core's destination when it appended the dialog's suffix */
+      }
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
       /* an earlier command's idle: the key still waits for its own */
@@ -235,7 +242,7 @@ export class Session {
       if (save && save.ahead > 0) save.ahead--;
       else {
         this.pendingSave = null;
-        if (save && !this.store.getState().files.runFailed) void this.deliver(save.name, save.handle);
+        if (save?.saved) void this.deliver(save.name, save.handle);
       }
       const next = this.afterIdle;
       this.afterIdle = null;
@@ -1336,7 +1343,8 @@ export class Session {
       this.failed(`The file dialog could not open: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (this.store.getState().ask?.id !== ask.id) return; /* the prompt went meanwhile */
-    if (typeof path === 'string' && path) this.answer(ask, {file: path});
+    if (typeof path === 'string' && path)
+      this.answer(ask, ask.mode === 'write' ? {file: path, replace: 1} : {file: path});
     else this.cancel(ask);
   }
 
@@ -1353,7 +1361,8 @@ export class Session {
       `handle` (showSaveFilePicker's) or offers it as a download */
   saveFile(ask: AskEvent, name: string, handle: SaveHandle | null): void {
     /* the ask belongs to the command running now: its idle is the next one */
-    this.pendingSave = {name, handle, ahead: 0};
+    const suffix = ask.wild?.match(/^\*(\.[^*? /\\]+)$/)?.[1];
+    this.pendingSave = {name, handle, ahead: 0, suffix};
     this.answer(ask, {file: name});
   }
 

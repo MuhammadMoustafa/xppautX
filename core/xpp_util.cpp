@@ -306,7 +306,7 @@ void dump_ps(xpp::Session &s, int i)
 {
   const std::string filename=batch_plot_name(s,i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
-   if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)))
+   if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)) && s.plot_file.writer)
      fmt->restore(s);
 }
 
@@ -374,12 +374,10 @@ void clone_ode(xpp::Session &s)
   const char *line;
   time_t ttt;
   double z;
+  if(!save_ready(s.model().nlines()>0))return;
   if(!file_selector("Clone ODE file",clone,"*.ode"))return;
-  xpp::Writer fp(clone.c_str());
-  if(!fp){
-      command_error("clone",xpp::format("Cannot write {}",clone));
-      return;
-    }
+  xpp::Writer fp=xpp::open_writer_asking(clone.c_str());
+  if(!fp)return;
   ttt=time(0);
   fp.print("# clone of {} on {}",s.model().this_file,ctime(&ttt));
   for(i=0;i<s.model().nlines();i++){
@@ -431,7 +429,7 @@ void clone_ode(xpp::Session &s)
   }
   fp.print("\n");
   fp.print("done \n");
-  fp.commit();
+  xpp::ok_or_show(xpp::commit_save(fp));
 }
 
 void new_parameter(xpp::Session &s)

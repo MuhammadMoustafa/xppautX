@@ -209,34 +209,55 @@ void init_browser(xpp::Session &s)
 
 }
 
-namespace {
-
-/* 1 when fil does not exist yet or may be overwritten */
-bool may_write_file(std::string_view fil)
+bool save_ready(bool available)
 {
- if(!xpp::files::exists(fil))return true;
- return file_replace_choice()=='y';
+ if(available)return true;
+ ui.save_result("",false);
+ command_error("save","Nothing to save");
+ return false;
 }
 
-} // namespace
-
-namespace {
-
-/* fil opened for a write that replaces it at commit, whether or not it
-   exists: an empty Writer when it cannot be written (err_msg says so) */
-xpp::Writer open_writer(std::string_view fil, bool binary)
+xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened)
 {
+ if(opened)*opened={};
+ int answer=ui.save_replace();
+ /* A native dialog or an explicit command already made the decision.
+    Otherwise only an existing destination needs confirmation. */
+ if(answer==SAVE_ASK){
+   const bool asked=xpp::files::exists(fil);
+   answer=asked&&TwoChoice("Yes","No",xpp::format("{} exists. Replace it?",fil),"yn")!='y'
+          ?SAVE_DECLINE:SAVE_REPLACE;
+   ui.save_decision(answer,asked);
+ }
+ if(answer==SAVE_DECLINE){
+   ui.save_result(fil,false);
+   return {};
+ }
  xpp::Writer w=binary?xpp::Writer::binary(fil):xpp::Writer(fil);
- if(!w)command_error("write",xpp::format("Cannot write {}",fil));
+ if(!w){
+   ui.save_result(fil,false);
+   const Result<> error=fail("save",xpp::format("Cannot write {}: no temporary file can be made beside it",fil),command_place());
+   if(opened)*opened=error;
+   else show_error(error.error());
+ }
  return w;
 }
 
-} // namespace
-
-xpp::Writer open_writer_asking(std::string_view fil, bool binary)
+Result<> commit_save(Writer &w)
 {
- if(!may_write_file(fil))return xpp::Writer();
- return open_writer(fil,binary);
+ Result<> result=w.commit();
+ ui.save_result(w.path(),result.has_value());
+ if(!result){
+   result.error().what=xpp::format("Cannot save {}: {}",w.path(),result.error().what);
+   result.error().place=command_place();
+ }
+ return result;
+}
+
+void abort_save(Writer &w)
+{
+ w.abort();
+ ui.save_result(w.path(),false);
 }
 
 int file_replace_choice(bool open_existing)
@@ -540,6 +561,7 @@ void unreplace_column(xpp::Session &s)
 void make_d_table(double xlo, double xhi, int col, std::string_view filename, BROWSER b)
 {
   int i,npts;
+  if(!save_ready(b.iend>b.istart))return;
   xpp::Writer w=open_writer_asking(filename);
   if(!w)return;
   npts=b.iend-b.istart;
@@ -547,7 +569,7 @@ void make_d_table(double xlo, double xhi, int col, std::string_view filename, BR
   w.print("{:g}\n{:g}\n",xlo,xhi);
   for(i=0;i<npts;i++)
     w.print("{:10.10g}\n",static_cast<double>(b.data[col][i+b.istart]));
-  w.commit();
+  if(!ok_or_show(commit_save(w)))return;
   ping();
 }
 
@@ -589,6 +611,7 @@ void data_unreplace(xpp::Session &s)
 
 void data_table(const xpp::Session &s, BROWSER *b)
 {
+ if(!save_ready(b->iend>b->istart))return;
  int status;
 
  static const char *const name[]={"Variable","Xlo","Xhi","File"};
@@ -686,7 +709,7 @@ const xpp::DataFormat *choose_data_format()
 
 } // namespace
 
-void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::string_view format, std::string_view name, bool replace)
+void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::string_view format, std::string_view name)
 {
  bool plot;
  if(what.empty()){
@@ -704,6 +727,8 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    command_error("save data", xpp::format("No data format {}",format));
    return;
  }
+ xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(s,*b):all_columns(*b));
+ if(!save_ready(t.rows()>0))return;
  if(!f&&!name.empty())f=xpp::data_format_of_file(name);
  if(!f&&!(f=choose_data_format()))return;
  std::string fil(name);
@@ -711,15 +736,15 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
    fil=std::string(plot?"curves":"data")+f->extension;
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
- xpp::DataTable t=plot?plot_curves_table(s):browser_table(s,*b,what=="output"?output_columns(s,*b):all_columns(*b));
  t.seed=s.numerics.last_seed;
- xpp::Writer w=replace?open_writer(fil.c_str(),f->binary):open_writer_asking(fil.c_str(),f->binary);
+ xpp::Writer w=open_writer_asking(fil,f->binary);
  if(!w)return;
  if(!f->write(t,w)){
+   abort_save(w);
    command_error("save data", xpp::format("Cannot write {}",fil));
    return;
  }
- w.commit();
+ ok_or_show(commit_save(w));
 }
 
 void  data_first(BROWSER *b)

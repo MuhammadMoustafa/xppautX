@@ -1,3 +1,4 @@
+#include "browse.h"
 /* The PostScript export (Graphic stuff/Postscript): ps_init opens the
    file through an xpp::Writer (a temp file, renamed into place only at
    ps_end's commit), graphics.cpp's primitives call the ps_* functions
@@ -129,8 +130,9 @@ std::string ps_string(std::string_view str)
 
 xpp::Result<> ps_init(xpp::Session &s, const char *filename, int color)
 {
-  s.plot_file.writer = xpp::Writer(filename);
-  if (!s.plot_file.writer) return xpp::fail("PostScript export",xpp::format("Cannot write {}",filename),command_place());
+  xpp::Result<> opened;
+  s.plot_file.writer = xpp::open_writer_asking(filename,false,&opened);
+  if (!opened || !s.plot_file.writer) return opened;
   init_ps(s);
   s.plot_file.plt_fmt_flag=1;
   s.plot_file.ps_lines=0;
@@ -194,7 +196,7 @@ void ps_end(xpp::Session &s)
   ps_write(s.plot_file,"end");
   ps_write(s.plot_file,"showpage");
   xpp::ps_write_pars(s,s.plot_file.writer.file());
-  s.plot_file.writer.commit();
+  if(s.plot_file.writer)xpp::ok_or_show(xpp::commit_save(s.plot_file.writer));
   s.plot_file.plt_fmt_flag=0;
   if(program.interactive)init_x11(s);
 }
