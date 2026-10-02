@@ -23,11 +23,11 @@ export interface FolderFile {
     (session.ts upload: every upload of the page) */
 export interface ReplaceConfirm {
   /** the ask the upload answers (the file dialog shows the confirm), or null:
-      an upload of the page's own (Values > Load, Add file…), its own dialog */
+      an upload of the page's own (Values > Load, Add file...), its own dialog */
   ask: number | null;
   name: string;
   /** the name Keep both uploads it under; null: the upload needs this name
-      (Add file… copies the file the core asked for), no Keep both */
+      (Add file... copies the file the core asked for), no Keep both */
   keepBoth: string | null;
 }
 
