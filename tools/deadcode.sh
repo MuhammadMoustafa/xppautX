@@ -30,8 +30,7 @@ cd "$(dirname "$0")/.." || exit 1
 # What stays although no Linux link reaches it: "file symbol|reason", the
 # symbol as reported (C++ names demangled, without their parameters), or
 # "file *|reason" for a whole file.
-ALLOW="core/auto_settings.cpp xpp::auto_settings_num_ok|test_auto_settings' view of the field check auto_settings_apply makes
-core/auto_stop.cpp xpp::auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"
+ALLOW="core/auto_stop.cpp xpp::auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"
 
 check=0
 build=1
