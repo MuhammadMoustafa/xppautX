@@ -31,12 +31,11 @@ static inline uint64_t xpp_musl_bits(double x)
     (lo) = (uint32_t)xpp_musl_words; \
 } while (0)
 
-/* Reuse xpp::math's dispatch through the numerics owner's C++ bridge. */
+/* Reuse xpp::math's dispatch through the numerics owner's C++ bridge;
+   sqrt and fabs are exact in IEEE, so the C library's are the same everywhere. */
 #define sin xpp_musl_sin
 #define cos xpp_musl_cos
 #define log xpp_musl_log
-#define sqrt xpp_musl_sqrt
-#define fabs xpp_musl_fabs
 
 /* Avoid binding musl's public Bessel symbols to the platform C library. */
 #define j0 xpp_musl_j0

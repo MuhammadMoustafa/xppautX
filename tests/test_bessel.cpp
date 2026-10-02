@@ -99,6 +99,9 @@ int main()
     }
     CHECK(xpp::bessel_j(std::numeric_limits<int>::min(),tiny) == 0);
     CHECK(std::isinf(xpp::bessel_y(std::numeric_limits<int>::min(),tiny)));
-    printf("Bessel bits: %016llx\n", static_cast<unsigned long long>(fingerprint));
+    // the same bits on every CPU, system and compiler (W159): CI runs this on
+    // Linux, macOS, Windows UCRT and clang
+    constexpr std::uint64_t expected_fingerprint = 0xcf87a488ffc0a3adULL;
+    CHECK(fingerprint == expected_fingerprint);
     TEST_REPORT("bessel");
 }

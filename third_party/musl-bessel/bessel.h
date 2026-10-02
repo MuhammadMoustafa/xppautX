@@ -14,8 +14,6 @@ double xpp_musl_yn(int n, double x);
 double xpp_musl_sin(double x);
 double xpp_musl_cos(double x);
 double xpp_musl_log(double x);
-double xpp_musl_sqrt(double x);
-double xpp_musl_fabs(double x);
 #ifdef __cplusplus
 }
 #endif

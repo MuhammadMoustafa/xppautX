@@ -23,8 +23,6 @@
 double xpp_musl_sin(double x) { return xpp::math::sin(x); }
 double xpp_musl_cos(double x) { return xpp::math::cos(x); }
 double xpp_musl_log(double x) { return xpp::math::log(x); }
-double xpp_musl_sqrt(double x) { return std::sqrt(x); }
-double xpp_musl_fabs(double x) { return std::fabs(x); }
 
 /* the core is single-threaded: no thread pool */
 #define POCKETFFT_NO_MULTITHREADING
