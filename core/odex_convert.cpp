@@ -47,6 +47,12 @@ std::string leading_word(std::string_view s)
   return std::string(s.substr(0, i));
 }
 
+/* a source line without its comment, blanks trimmed */
+std::string code_of(std::string_view raw)
+{
+  return std::string(xpp::trim_blanks(raw.substr(0, ode_comment_start(raw))));
+}
+
 /* A model's names as its declarations spell them: the .ode reader keeps
    every name in upper case (V and v are one name); .odex has case, so a
    name is written the way the statement declaring it does, everywhere,
@@ -56,7 +62,7 @@ public:
   explicit Spelling(const std::vector<std::string> &source)
   {
     for (const std::string &raw : source) {
-      std::string line = std::string(xpp::trim_blanks(std::string_view(raw).substr(0, ode_comment_start(raw))));
+      std::string line = code_of(raw);
       if (line.empty() || line[0] == '#' || line[0] == '"' || line[0] == '@' || line[0] == '%') continue;
       declarations(line);
       for (const std::string &w : words_of(line)) first_.emplace(xpp::upper_case(w), w);
@@ -64,7 +70,7 @@ public:
     int n = 0;
     for (const std::string &raw : source) {
       n++;
-      std::string line = std::string(xpp::trim_blanks(std::string_view(raw).substr(0, ode_comment_start(raw))));
+      std::string line = code_of(raw);
       if (line.empty() || line[0] == '#' || line[0] == '"') continue;
       for (const std::string &w : words_of(line)) {
         auto d = decl_.find(xpp::upper_case(w));
