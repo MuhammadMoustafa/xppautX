@@ -98,6 +98,32 @@ def request_limit(name):
     return int(re.search(r'constexpr int ' + name + r' = (\d+);', http_source).group(1))
 
 
+# W164: keep the head incomplete while making progress well within RECV_SECONDS.
+# Only closure is a pass condition; the longer wait is a safety timeout, not a speed gate.
+head_wait = (request_limit('HEAD_SECONDS') + request_limit('RECV_SECONDS')) * float(os.environ.get('XPP_CHECK_SLOW', '1'))
+with socket.create_connection(('127.0.0.1', port), timeout=head_wait) as trickle:
+    trickle.sendall(b'GET / HTTP/1.1\r\nHost: localhost\r\nX-Trickle: ')
+    end = time.monotonic() + head_wait
+    closed = False
+    while time.monotonic() < end:
+        trickle.settimeout(min(1, max(0.001, end - time.monotonic())))
+        try:
+            if trickle.recv(1) == b'':
+                closed = True
+                break
+        except socket.timeout:
+            try:
+                trickle.sendall(b'x')
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                closed = True
+                break
+        except (ConnectionResetError, ConnectionAbortedError):
+            closed = True
+            break
+    check('a trickling head is closed before it is complete', closed)
+check('a complete head still serves the page after the head deadline check', get('/')[0] == 200)
+
+
 def held_request(method, path, length):
     s = socket.create_connection(('127.0.0.1', port), timeout=20)
     s.sendall(('%s %s HTTP/1.1\r\nHost: localhost\r\nContent-Length: %d\r\n'

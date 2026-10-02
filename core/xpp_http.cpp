@@ -535,6 +535,8 @@ void open_events(sock_t s)
 constexpr size_t HEAD_MAX = 8192;                   /* request line and headers */
 constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* a POST /cmd body */
 constexpr int RECV_SECONDS = 30;                    /* a client that stops sending mid-request is dropped */
+constexpr int HEAD_SECONDS = 5;                    /* a loopback browser's small head gets ample scheduling slack, without renewing on each byte */
+constexpr int SEND_SECONDS = 2;                    /* a non-reading local client must not hold a response or the core's event lock indefinitely */
 /* a connection over MAX_CONNECTION_THREADS is read on the accept thread,
    for its head only (closing on an unread head loses the 503 on Windows):
    a silent one may hold up the next accept this long, never RECV_SECONDS */
@@ -544,6 +546,7 @@ constexpr size_t METHOD_MAX = 7, TARGET_MAX = 1023; /* longer is cut, as sscanf'
 
 struct Request {
     sock_t s = INVALID_SOCKET;
+    long long head_deadline = 0;  /* measured from accept, including thread scheduling */
     std::array<char, HEAD_MAX + 1> head{};
     std::string method, target;
     size_t head_len = 0;           /* the head, up to and with its blank line */
@@ -591,13 +594,17 @@ bool scan_word(std::string_view &rest, size_t max, std::string &out)
     return true;
 }
 
+bool set_recv_timeout(sock_t s, int milliseconds);
+
 /* reads the head; false when the connection is not a request worth an answer */
 bool read_head(Request &q)
 {
     size_t got = 0, i = 0;
     while (got < HEAD_MAX) {
+        const long long left = q.head_deadline - now_ms();
+        if (left <= 0 || !set_recv_timeout(q.s, static_cast<int>(left))) return false;
         int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
-        if (r <= 0) return false;
+        if (r <= 0 || now_ms() >= q.head_deadline) return false;
         got += static_cast<size_t>(r);
         for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
             if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
@@ -894,18 +901,23 @@ void serve_asset(Request &q)
     else reply_text(q.s, "404 Not Found", "not found");
 }
 
-/* a client that stops sending (a stalled upload) is dropped after a while */
-void set_recv_timeout(sock_t s, int seconds)
+/* Both socket timeouts use milliseconds; zero would disable the timeout. */
+bool set_socket_timeout(sock_t s, int option, int milliseconds)
 {
 #ifdef _WIN32
-    DWORD ms = static_cast<DWORD>(seconds) * 1000;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&ms), sizeof ms);
+    DWORD ms = static_cast<DWORD>(milliseconds);
+    return setsockopt(s, SOL_SOCKET, option, reinterpret_cast<const char *>(&ms), sizeof ms) == 0;
 #else
     struct timeval tv;
-    tv.tv_sec = seconds;
-    tv.tv_usec = 0;
-    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&tv), sizeof tv);
+    tv.tv_sec = milliseconds / 1000;
+    tv.tv_usec = (milliseconds % 1000) * 1000;
+    return setsockopt(s, SOL_SOCKET, option, reinterpret_cast<const char *>(&tv), sizeof tv) == 0;
 #endif
+}
+
+bool set_recv_timeout(sock_t s, int milliseconds)
+{
+    return set_socket_timeout(s, SO_RCVTIMEO, milliseconds);
 }
 
 /* A request refused before its body was read (a bad token, a bad name)
@@ -913,13 +925,14 @@ void set_recv_timeout(sock_t s, int seconds)
    and the client may lose the answer. A small rest is read and dropped
    first; a large one (an upload over the cap) is not waited for. */
 constexpr unsigned long long DRAIN_MAX = 1ULL << 20;
+constexpr int DRAIN_SECONDS = 2; /* a refused small body gets only a short wait to preserve its error reply */
 void drain(Request &q)
 {
     std::array<char, 4096> buf;
     if (!q.has_length || q.length == ~0ULL || q.consumed >= q.length) return;
     unsigned long long left = q.length - q.consumed;
     if (left > DRAIN_MAX) return;
-    set_recv_timeout(q.s, 2);
+    if (!set_recv_timeout(q.s, DRAIN_SECONDS * 1000)) return;
     while (left > 0) {
         int r = take(q, buf.data(), left < buf.size() ? static_cast<size_t>(left) : buf.size());
         if (r <= 0) break;
@@ -928,20 +941,21 @@ void drain(Request &q)
 }
 
 /* One connection, on its own thread (http_main): reading its head may
-   wait up to RECV_SECONDS, since a browser opens connections it sends
+   wait up to HEAD_SECONDS, since a browser opens connections it sends
    nothing on yet (a preconnect, a spare socket), and that wait must not
    hold up the next request: with one thread doing it all, an Abort POSTed
-   meanwhile waited those 30 s while the run went on (T25). A command is
+   meanwhile waited the old 30 s while the run went on (T25). A command is
    pushed as soon as it has arrived; other routes and upload admission and
    commit are serialized, but admitted upload bodies stream independently.
    The page keeps its commands in order by sending
    the next one once the last was answered (web2's HttpTransport), and
    numbers them so that one sent again is not taken twice (serve_cmd). */
-void handle(sock_t s, bool connection_limited)
+void handle(sock_t s, bool connection_limited, long long head_deadline)
 {
     std::unique_ptr<Request> q = std::make_unique<Request>();
     q->s = s;
-    if (!read_head(*q)) {
+    q->head_deadline = head_deadline;
+    if (!read_head(*q) || !set_recv_timeout(s, RECV_SECONDS * 1000)) {
         close_sock(s);
         return;
     }
@@ -994,19 +1008,25 @@ void handle(sock_t s, bool connection_limited)
     close_sock(s);
 }
 
-void answer_connection(sock_t s, bool connection_limited)
+void answer_connection(sock_t s, bool connection_limited, long long head_deadline)
 {
     try {
-        handle(s, connection_limited);
+        handle(s, connection_limited, head_deadline);
     } catch (...) {
         xpp::out_of_memory_now("in the HTTP server");
     }
 }
 
+struct Connection {
+    sock_t s;
+    long long head_deadline;
+};
+
 void *connection_main(void *arg)
 {
     RequestSlot connection_slot(&srv.nconnections);
-    answer_connection(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)), false);
+    std::unique_ptr<Connection> connection(static_cast<Connection *>(arg));
+    answer_connection(connection->s, false, connection->head_deadline);
     return nullptr;
 }
 
@@ -1040,17 +1060,29 @@ void *http_main(void *)
     for (;;) {
         sock_t s = accept(listener, nullptr, nullptr);
         if (s == INVALID_SOCKET) continue;
+        const long long accepted_at = now_ms();
         no_inherit_sock(s);
-        set_recv_timeout(s, RECV_SECONDS);
-        RequestSlot slot;
-        if (!slot.acquire(srv.nconnections, MAX_CONNECTION_THREADS)) {
-            set_recv_timeout(s, REFUSED_HEAD_SECONDS);
-            answer_connection(s, true); /* the head only: no thread, no route, no body */
+        if (!set_recv_timeout(s, RECV_SECONDS * 1000) || !set_socket_timeout(s, SO_SNDTIMEO, SEND_SECONDS * 1000)) {
+            close_sock(s); /* never serve with an unbounded socket if setting a timeout failed */
             continue;
         }
-        if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0) {
+        RequestSlot slot;
+        if (!slot.acquire(srv.nconnections, MAX_CONNECTION_THREADS)) {
+            answer_connection(s, true, accepted_at + REFUSED_HEAD_SECONDS * 1000); /* head only: no thread, route or body */
+            continue;
+        }
+        std::unique_ptr<Connection> connection;
+        try {
+            connection = std::make_unique<Connection>(Connection{s, accepted_at + HEAD_SECONDS * 1000});
+        } catch (...) {
+            xpp::out_of_memory_now("in the HTTP server");
+        }
+        if (pthread_create(&t, &detached, connection_main, connection.get()) != 0) {
             refuse_connection(s, "cannot start request thread");
-        } else slot.counter = nullptr; /* connection_main now owns the reservation */
+        } else {
+            connection.release(); /* connection_main owns the socket and deadline */
+            slot.counter = nullptr; /* connection_main now owns the reservation */
+        }
     }
     return nullptr;
 }
