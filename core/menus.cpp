@@ -637,11 +637,11 @@ const XppMenu menu_auto_hopf = XPP_MENU("auto", "Hopf Pt", auto_hopf_items, "pen
 static const char *const auto_branch_items[]={"Switch","Extend","New Point","Two Param"};
 const XppMenu menu_auto_branch = XPP_MENU("auto", "Branch Pt", auto_branch_items, "sent", "xxxx", no_hint, -1);
 
-/* the File menu's own 15 hints plus the CSV export and the settings file (W118) */
+/* AUTO's File menu: session save/open and foreign diagram import. */
 static const char *const auto_file_hint[]={
 "Load a computed orbit into XPP",
-"Save the diagram, its orbits and AUTO's settings (.autox)",
-"Load a saved diagram (.autox, or import an XPPAUT .auto) for restart",
+"Save this session, including the diagram and AUTO's settings (.snapx)",
+"Open a saved session (.snapx), including its AUTO diagram",
 "Create postscript file of picture",
 "Create SVG file of picture",
 "Delete all points of diagram and associated files",
@@ -655,12 +655,11 @@ static const char *const auto_file_hint[]={
 "Draw orbits of labeled points automatically",
 "Put all data from branch into browser",
 "Write the diagram, and its eigenvalues/multipliers, as CSV",
-"Save AUTO's settings alone to a file (.autoset)",
-"Set AUTO's settings from a saved file (.autoset)"};
+"Import a foreign XPPAUT diagram (.auto)"};
 static const char *const auto_file_items[]={"Import orbit","Save diagram","Load diagram","Postscript","SVG",
   "Reset diagram","Clear grab","Write pts","All info","init Data","Toggle redraw","auto raNge","sElect 2par pt",
-  "draw laBled","lOad branch","eXport CSV","save settinGs","settings From file"};
-const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxgf", "ddddddddddvxdxdddd", auto_file_hint, -1);
+  "draw laBled","lOad branch","eXport CSV","Import diagram"};
+const XppMenu menu_auto_file = XPP_MENU("auto", "File", auto_file_items, "islpvrcwadtneboxf", "ddddddddddvxdxddd", auto_file_hint, -1);
 
 static const char *const auto_special_items[]={"BP","EP","HB","LP","MX","PD","TR","UZ"};
 const XppMenu menu_auto_special = XPP_MENU("auto", "", auto_special_items, "behlmptu", "vvvvvvvv", aspecial_hint, -1);

@@ -1,9 +1,9 @@
-/* AUTO's members for this session: see autox.h. Their text is
-   autox.cpp's, the manifest and the model's members snapx.cpp's and
+/* AUTO's members for this session: see xpp_session_auto.h. Their text is
+   xpp_session_auto.cpp's, the manifest and the model's members snapx.cpp's and
    xpp_session.cpp's (the one reader and writer of a file that carries a
    model), the zip xpp_zip.cpp's; this file gathers AUTO's state into
    them and puts it back. */
-#include "autox.h"
+#include "xpp_session_auto.h"
 #include "snapx.h"
 #include "session.h"
 #include "model.h"
@@ -24,12 +24,9 @@
 #include <string>
 #include <vector>
 
-namespace xpp::autox {
+namespace xpp::snapx::auto_members {
 
 namespace {
-
-/* the file name of path, for messages */
-std::string file_name(const std::string &path) { return xpp::files::split_path(path).second; }
 
 /* member name of a file whose AUTO members are named prefix and theirs */
 std::string named(std::string_view prefix, const char *name) { return std::string(prefix) + name; }
@@ -52,16 +49,7 @@ AutoSettingsSet view_settings(const SavedView &v, int k)
 Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
 {
     const xpp::Model &m = s.model();
-    const std::string solutions_path = auto_solutions_file(s);
-    std::string solutions;
-    if (!xpp::read_bytes(solutions_path.c_str(), solutions)) {
-        return xpp::fail("save AUTO", xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
-                                                 solutions_path), xpp::Place{solutions_path});
-    }
-    const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
     entries.push_back({named(prefix, settings_member), settings_text(auto_settings_now(s))});
-    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, vars)});
-    entries.push_back({named(prefix, solutions_member), std::move(solutions)});
     SavedViews views;
     views.active = s.auto_state.active_view;
     for (std::size_t k = 0; k < s.auto_state.views.size(); k++) {
@@ -69,6 +57,14 @@ Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, st
         views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
+    if (diagram_count(s.diagram) <= 1) return {};
+    const std::string solutions_path = auto_solutions_file(s);
+    std::string solutions;
+    if (!xpp::read_bytes(solutions_path, solutions))
+        return xpp::fail("save session", "AUTO's restart solutions cannot be read", xpp::Place{solutions_path});
+    const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
+    entries.push_back({named(prefix, diagram_member), diagram_csv(s.diagram.points, vars)});
+    entries.push_back({named(prefix, solutions_member), std::move(solutions)});
     return {};
 }
 
@@ -98,38 +94,45 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
 
 } // namespace
 
-std::optional<std::string> file_bytes(const Session &s)
-{
-    if (diagram_count(s.diagram) <= 1) return std::nullopt; /* an empty diagram */
-    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, xpp::snapx::Manifest{}, kind);
-    if (!entries) {
-        xpp::show_error(entries.error());
-        return std::nullopt;
-    }
-    if (const Result<> added = add_members(s, *entries, ""); !added) {
-        xpp::show_error(added.error());
-        return std::nullopt;
-    }
-    return xpp::zip::make_zip(*entries);
-}
-
 Result<Members> members_read(const Session &s, const std::map<std::string, std::string> &members, std::string_view prefix,
                              const std::string &name)
 {
+    if (s.model().node > NAUTO)
+        return xpp::fail("session AUTO", "this model has too many variables for AUTO", Place{name});
     /* a member's file, for its errors: the file it is in and its own name */
     const auto file = [&](const char *member) { return xpp::format("{}/{}", name, named(prefix, member)); };
-    for (const char *member : {settings_member, diagram_member, solutions_member, views_member})
+    for (const char *member : {settings_member, views_member})
         if (!members.contains(named(prefix, member)))
             return xpp::fail("AUTO file", xpp::format("its {} is missing", named(prefix, member)), Place{name});
     const auto text = [&](const char *member) -> const std::string & { return members.at(named(prefix, member)); };
+    for (const auto &[member, bytes] : members) {
+        if (!member.starts_with(prefix)) continue;
+        if (member != named(prefix, settings_member) && member != named(prefix, views_member)
+            && member != named(prefix, diagram_member) && member != named(prefix, solutions_member))
+            return xpp::fail("session AUTO", "unknown AUTO member", Place{name + "/" + member});
+    }
     Result<SettingsRead> settings = parse_settings(text(settings_member), file(settings_member));
     if (!settings) return std::unexpected(settings.error());
-    Result<std::deque<DiagramPoint>> points = parse_diagram_csv(text(diagram_member), s.model().node, file(diagram_member));
-    if (!points) return std::unexpected(points.error());
+    const bool diagram = members.contains(named(prefix, diagram_member));
+    const bool solutions = members.contains(named(prefix, solutions_member));
+    if (diagram != solutions)
+        return xpp::fail("session AUTO", xpp::format("its {} is missing", named(prefix, diagram ? solutions_member : diagram_member)), Place{name});
+    std::deque<DiagramPoint> points;
+    if (diagram) {
+        if (const Result<> checked = check_auto_solutions(text(solutions_member), file(solutions_member)); !checked)
+            return std::unexpected(checked.error());
+        Result<std::deque<DiagramPoint>> read = parse_diagram_csv(text(diagram_member), s.model().node, file(diagram_member));
+        if (!read) return std::unexpected(read.error());
+        points = std::move(*read);
+    }
     Result<ViewsRead> views = parse_views(text(views_member), file(views_member));
     if (!views) return std::unexpected(views.error());
     /* what AUTO accepts for this model: the settings, then each view's
        axes with the settings' parameters */
+    if (points.size() > 1)
+        for (const DiagramPoint &p : points)
+            if (p.d.icp1 >= settings->set.npars)
+                return xpp::fail("session AUTO", "diagram parameter index is not among its saved parameters", Place{file(diagram_member)});
     const int nviews = static_cast<int>(views->views.views.size());
     std::string why, key;
     if (!auto_settings_check(s, settings->set, -1, why, key)) {
@@ -144,85 +147,26 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
         if (!auto_settings_check(s, a, nviews, why, key))
             return xpp::fail("AUTO file", why, line_place(file(views_member), text(views_member), views->lines[static_cast<std::size_t>(k)]));
     }
-    return Members{std::move(settings->set), std::move(*points), std::move(views->views), text(solutions_member)};
+    return Members{std::move(settings->set), std::move(points), std::move(views->views), diagram ? std::string_view(text(solutions_member)) : std::string_view()};
 }
 
 Result<> restore_members(Session &s, Members m)
 {
-    /* the solution file first: when it cannot be written, nothing is restored */
-    const std::string solutions_path = auto_solutions_file(s);
-    xpp::Writer w = xpp::Writer::binary(solutions_path.c_str());
-    if (!w || !w.write(m.solutions) || !w.commit())
-        return xpp::fail("AUTO file",
-                         xpp::format("AUTO's solutions could not be written to {}: a grab cannot restart from them", solutions_path),
-                         Place{solutions_path});
-    if (!s.auto_state.bifur.exist) do_auto_win(s); /* the diagram needs a window to draw into */
+    if (!m.points.empty()) {
+        /* Write the restart file before applying any held state. */
+        const std::string solutions_path = auto_solutions_file(s);
+        xpp::Writer w = xpp::Writer::binary(solutions_path);
+        if (!w || !w.write(m.solutions) || !w.commit())
+            return xpp::fail("session AUTO", "AUTO's restart solutions cannot be written", Place{solutions_path});
+        if (!s.auto_state.bifur.exist) do_auto_win(s);
+    }
     std::string why;
     auto_settings_apply(s, m.settings, why); /* members_read checked it */
     auto_data_forget(s); /* the strip described the diagram this one replaces */
-    diagram_restore(s, std::move(m.points));
+    if (!m.points.empty()) diagram_restore(s, std::move(m.points));
     restore_views(s, m.views);
     if (s.auto_state.bifur.exist) redraw_diagram(s);
     return {};
 }
 
-bool import_file(Session &s, const std::string &path)
-{
-    std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_reading(path, "cannot be opened");
-        return false;
-    }
-    if (xpp::zip::is_zip(bytes)) {
-        command_error("import AUTO", xpp::format("{} is not an XPPAUT .auto file (an AUTO file of xppautX is a .autox)", file_name(path)));
-        return false;
-    }
-    xpp::UniqueFile fp = xpp::open_read(path.c_str());
-    if (!fp) {
-        err_reading(path, "cannot be opened");
-        return false;
-    }
-    if (!s.auto_state.bifur.exist) do_auto_win(s);
-    if (import_auto_file(s, fp.get()) != 1) {
-        command_error("import AUTO", xpp::format("{} holds no AUTO diagram", path));
-        return false;
-    }
-    fp.reset();
-    if (s.auto_state.bifur.exist) redraw_diagram(s);
-    return true;
-}
-
-bool save_settings_file(const Session &s, const std::string &path)
-{
-    xpp::Writer w = open_writer_asking(path);
-    if (!w) return false;
-    if (!w.write(settings_text(auto_settings_now(s)))) {
-        w.abort();
-        command_error("save AUTO settings", xpp::format("Cannot write {}", path));
-        return false;
-    }
-    return w.commit();
-}
-
-bool load_settings_file(Session &s, const std::string &path)
-{
-    std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) {
-        err_reading(path, "cannot be opened");
-        return false;
-    }
-    Result<SettingsRead> set = parse_settings(bytes, path);
-    std::string why, key;
-    if (set && !auto_settings_check(s, set->set, -1, why, key)) {
-        const auto at = set->lines.find(key);
-        set = xpp::fail("AUTO's settings", why, line_place(path, bytes, at == set->lines.end() ? 0 : at->second));
-    }
-    if (!set) {
-        show_error(set.error());
-        return false;
-    }
-    auto_settings_apply(s, set->set, why);
-    return true;
-}
-
-} // namespace xpp::autox
+} // namespace xpp::snapx::auto_members

@@ -109,8 +109,7 @@ leaves no process behind. On macOS, which has no File/Help menu bar of
 its own yet, close the window instead to quit, and use the model's own
 menus inside the page.
 
-**Double-clicking a .ode file** (or a `.snapx` session file, an
-`.autox` AUTO file or a `.recx` recording, which opens in the player, below)
+**Double-clicking a .ode file** (or a `.snapx` session file, a `.recx` recording, which opens in the player, below)
 opens it the same way, once xppautX is registered as its opener: run
 the matching script in `tools/associate/`
 once (Windows: `xppautx-associate.ps1 -Register`, a per-user registry
@@ -128,7 +127,7 @@ first; starting the app on its own shows the Open dialog.
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
-session file, an `.autox` AUTO file or a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
+session file, a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
 go, so it offers **Save session** (a session file, as File/saVe session
 writes it) or **Don't save**; Escape keeps the current model (the
 question every way of leaving a session asks, File/Quit's too). The new model is loaded from its own folder,
@@ -176,9 +175,8 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.set` holds the values and numerics (the set format) and its
 `data.npz` reads in NumPy (`numpy.load`). A `.set` file is no longer a
 file xppautX saves or opens: the session holds what it held, and
-File/Import XPPAUT set checks the names in the one XPPAUT wrote and converts it immediately to a `.snapx` session beside it, which is then open. AUTO's own file, `.autox` (AUTO's File/Save diagram),
-carries its model the same way and opens the same way, with its diagram;
-an XPPAUT `.auto` file loads into the model open as an import.
+File/Import XPPAUT set checks the names in the one XPPAUT wrote and converts it immediately to a `.snapx` session beside it, which is then open. AUTO's File > Save diagram and Load diagram save and open the session too.
+Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself

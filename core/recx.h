@@ -21,7 +21,7 @@
      @end
      ...                      (the model's files, then every other file
                                the session read: text as @file, any
-                               other (an .autox, a .snapx) as @binary)
+                               other (a .snapx, a .snapx) as @binary)
      @steps
      # <the note shown above the next step, any number of # lines>
      {"step":"Initialconds → Go","keys":["i","g"]}

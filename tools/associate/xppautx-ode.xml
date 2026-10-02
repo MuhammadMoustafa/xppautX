@@ -19,13 +19,6 @@
     <icon name="xppautx"/>
     <glob pattern="*.snapx"/>
   </mime-type>
-  <mime-type type="application/x-xppautx-auto">
-    <comment>xppautX AUTO file (.autox)</comment>
-    <comment xml:lang="en">xppautX AUTO file (.autox)</comment>
-    <sub-class-of type="application/zip"/>
-    <icon name="xppautx"/>
-    <glob pattern="*.autox"/>
-  </mime-type>
   <mime-type type="application/x-xppautx-recording">
     <comment>xppautX recording (.recx)</comment>
     <comment xml:lang="en">xppautX recording (.recx)</comment>

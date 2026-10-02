@@ -1,12 +1,14 @@
-/* The .autox file's pure part: see autox.h. */
-#include "autox.h"
+/* The session's AUTO-member serializers: see xpp_session_auto.h. */
+#include "xpp_session_auto.h"
 #include "xpp_io.h"
 
 #include <algorithm>
 #include <array>
+#include <limits>
+#include <cmath>
 #include <vector>
 
-namespace xpp::autox {
+namespace xpp::snapx::auto_members {
 
 namespace {
 
@@ -15,18 +17,6 @@ constexpr std::string_view no_name = "-";
 
 std::string name_text(const std::string &name) { return name.empty() ? std::string(no_name) : name; }
 std::string name_of(std::string_view text) { return text == no_name ? std::string() : std::string(text); }
-
-/* s split at each sep (empty fields kept) */
-std::vector<std::string_view> split(std::string_view s, char sep)
-{
-    std::vector<std::string_view> f;
-    while (true) {
-        const std::size_t i = s.find(sep);
-        f.push_back(s.substr(0, i));
-        if (i == std::string_view::npos) return f;
-        s = s.substr(i + 1);
-    }
-}
 
 constexpr std::array<const char *, 4> range_keys = {"xmin", "xmax", "ymin", "ymax"};
 
@@ -42,7 +32,7 @@ bool parse_range(std::string_view text, xpp::AxisRange &r)
     const std::size_t c = text.find(':');
     if (c == std::string_view::npos) return false;
     r.set = true;
-    return xpp::parse_number(text.substr(0, c), r.lo) && xpp::parse_number(text.substr(c + 1), r.hi) && r.lo < r.hi;
+    return xpp::parse_number(text.substr(0, c), r.lo) && xpp::parse_number(text.substr(c + 1), r.hi) && std::isfinite(r.lo) && std::isfinite(r.hi) && r.lo < r.hi;
 }
 
 /* diagram.csv's columns before the parameters: n_ints whole numbers, then
@@ -79,12 +69,12 @@ Result<SettingsRead> parse_settings(std::string_view text, std::string file)
             if (!r.lines.emplace(key, l.line()).second) l.fail(xpp::format("{} given twice", key));
         };
         const auto number = [&](std::string_view t, double &v) {
-            if (!xpp::parse_number(t, v)) l.fail(xpp::format("\"{}\" is not a number", t));
+            if (!xpp::parse_number(t, v) || !std::isfinite(v)) l.fail(xpp::format("\"{}\" is not a number", t));
         };
         while (!l.at_end()) {
             const std::string_view line = l.next();
             if (line.empty()) continue;
-            const std::vector<std::string_view> w = split(line, ' ');
+            const std::vector<std::string_view> w = split_fields(line, ' ');
             const std::string_view key = w[0];
             if (key == "pars") {
                 at("pars");
@@ -162,7 +152,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
         while (!l.at_end()) {
             const std::string_view line = l.next();
             if (line.empty()) continue;
-            const std::vector<std::string_view> w = split(line, ' ');
+            const std::vector<std::string_view> w = split_fields(line, ' ');
             if (w[0] == "active" && w.size() == 2) {
                 if (active_line) l.fail("a second active line");
                 if (!xpp::parse_int(w[1], v.active)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
@@ -171,6 +161,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
             }
             if (w[0] != "view" || w.size() != 11)
                 l.fail("not \"view PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY\" nor \"active K\"");
+            if (v.views.size() >= saved_views_limit) l.fail("too many AUTO views");
             SavedView &s = v.views.emplace_back();
             r.lines.push_back(l.line());
             if (!xpp::parse_int(w[1], s.plot)) l.fail(xpp::format("\"{}\" is not a whole number", w[1]));
@@ -178,7 +169,7 @@ Result<ViewsRead> parse_views(std::string_view text, std::string file)
             s.par1 = name_of(w[3]);
             s.par2 = name_of(w[4]);
             for (std::size_t i = 0; i < s.range.size(); i++)
-                if (!xpp::parse_number(w[5 + i], s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[5 + i]));
+                if (!xpp::parse_number(w[5 + i], s.range[i]) || !std::isfinite(s.range[i])) l.fail(xpp::format("\"{}\" is not a number", w[5 + i]));
             for (std::size_t i = 0; i < 2; i++)
                 if (!parse_range(w[9 + i], i == 0 ? s.zoom.x : s.zoom.y))
                     l.fail(xpp::format("\"{}\" is not a zoom (LO:HI, LO below HI, or -)", w[9 + i]));
@@ -219,8 +210,9 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
 Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file)
 {
     return read_lines("AUTO's diagram", std::move(file), text, [n](Lines &l) {
+        if (n < 0) l.fail("negative variable count");
         const std::size_t columns = lead_columns.size() + n_pars + 6 * static_cast<std::size_t>(n < 0 ? 0 : n);
-        const std::vector<std::string_view> head = split(l.next("the header row"), ',');
+        const std::vector<std::string_view> head = split_fields(l.next("the header row"), ',');
         if (head.size() != columns) l.fail(xpp::format("{} columns: a diagram of this model's {} variables has {}", head.size(), n, columns));
         for (std::size_t i = 0; i < lead_columns.size(); i++)
             if (head[i] != lead_columns[i]) l.fail(xpp::format("column {} is \"{}\", not \"{}\"", i + 1, head[i], lead_columns[i]));
@@ -228,8 +220,13 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
         while (!l.at_end()) {
             const std::string_view line = l.next();
             if (line.empty()) continue;
-            const std::vector<std::string_view> f = split(line, ',');
+            const std::vector<std::string_view> f = split_fields(line, ',');
             if (f.size() != columns) l.fail(xpp::format("{} fields, not {}", f.size(), columns));
+            /* Bound the expanded vectors too: short textual numbers can occupy
+               several times their archive bytes once stored as doubles. */
+            const std::size_t point_bytes = sizeof(DiagramPoint) + (columns - n_ints) * sizeof(double);
+            if (points.size() >= saved_points_limit || points.size() >= zip::archive_bytes_limit / point_bytes)
+                l.fail("too many AUTO diagram points for the session memory limit");
             DiagramPoint &p = points.emplace_back();
             DIAGRAM &d = p.d;
             int *ints[n_ints] = {&d.calc, &d.ibr, &d.ntot, &d.itp, &d.lab, &d.nfpar, &d.icp1, &d.icp2, &d.icp3, &d.icp4, &d.flag2, &d.from};
@@ -238,11 +235,17 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 l.fail(xpp::format("field {} (\"{}\") is not {}", k + 1, f[k], kind));
             };
             for (int *v : ints) {
-                if (!xpp::parse_int(f[c], *v)) bad(c, "a whole number");
+                if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
                 c++;
             }
+            /* Drawing and grabbing index AUTO's parameter arrays directly. */
+            for (const int index : {d.icp1, d.icp2, d.icp3, d.icp4})
+                if (index < 0 || index >= AUTO_SETTINGS_PARS)
+                    l.fail(xpp::format("parameter index {} is outside AUTO's parameters", index));
+            if (d.nfpar < 0 || d.nfpar > n_pars)
+                l.fail(xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
             const auto real = [&](double &v) {
-                if (!xpp::parse_number(f[c], v)) bad(c, "a number");
+                if (!xpp::parse_number(f[c], v) || !std::isfinite(v)) bad(c, "a number");
                 c++;
             };
             for (double *v : {&d.norm, &d.per, &d.torper}) real(*v);
@@ -257,4 +260,4 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
     });
 }
 
-} // namespace xpp::autox
+} // namespace xpp::snapx::auto_members

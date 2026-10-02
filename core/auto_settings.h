@@ -75,9 +75,12 @@ struct AutoSettingsSet {
 
 /* the settings now, whole: every Numerics field, AUTO's parameters, the
    axes and the Mark values, names empty where there is none (the event's
-   null). What the event sends and an .autox's settings.txt saves (autox.h);
+   null). What the event sends and a .snapx's settings.txt saves (xpp_session_auto.h);
    applied with auto_settings_apply, it gives the settings back. */
 AutoSettingsSet auto_settings_now(const Session &s);
+/* Reload carries settings already in memory; missing model names keep the
+   new model's defaults. No diagram, grab or run state carries over. */
+void auto_settings_reload(Session &s, const AutoSettingsSet &kept);
 /* view `view`'s axes alone (W50, AutoState::views; it must be one), as the
    axes keys and `view`: applied, they give the view its axes back */
 AutoSettingsSet auto_settings_view(const Session &s, int view);
@@ -96,7 +99,7 @@ int auto_settings_apply(Session &s, const AutoSettingsSet &set, std::string &why
    views views (-1: the views s has; a file's views.txt restores them):
    false with why and the key of the value that is wrong ("ntst", "pars",
    "var", "par1", "xmax", "mark2", ...; "view"; "" for the whole set), for
-   a file of AUTO's settings to name its line (autox_io.cpp) */
+   a file of AUTO's settings to name its line (xpp_session_auto_io.cpp) */
 bool auto_settings_check(const Session &s, const AutoSettingsSet &set, int views, std::string &why, std::string &key);
 
 } // namespace xpp

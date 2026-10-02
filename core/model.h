@@ -297,7 +297,7 @@ struct Model {
      options file and -anifile's animation, in the order read; an AUTO
      file and a session file save them all (xpp_session.h) */
   std::vector<ModelFile> files;
-  /* the .autox or .snapx the model was loaded from (an absolute path),
+  /* the .snapx the model was loaded from (an absolute path),
      whose saved copies are its files; empty for a model read from the
      disk */
   std::string saved_in;

@@ -61,9 +61,9 @@ int main()
     /* read back: the same recording, intact; a note edited keeps it so,
        and the text written again with it keeps what the file said */
     r = sample();
-    xpp::recx::add_file(r, {"lecar.autox", std::string("PK\x03\x04\0binary\xff", 12)}); /* a zip: @binary */
+    xpp::recx::add_file(r, {"lecar.snapx", std::string("PK\x03\x04\0binary\xff", 12)}); /* a zip: @binary */
     const std::string file = xpp::recx::text(r);
-    CHECK(file.find("\n@binary lecar.autox\nUEsDBABiaW5hcnn/\n@end\n") != std::string::npos);
+    CHECK(file.find("\n@binary lecar.snapx\nUEsDBABiaW5hcnn/\n@end\n") != std::string::npos);
     xpp::Result<xpp::recx::Read> back = xpp::recx::read(file, "");
     CHECK(back && back->intact);
     CHECK(back->rec.files.size() == 2 && back->rec.files[1].bytes == r.files[1].bytes);

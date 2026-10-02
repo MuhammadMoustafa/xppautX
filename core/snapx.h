@@ -7,9 +7,8 @@
    tests/test_snapx.cpp): the members' names, the manifest (session.txt:
    the model's first file, the animation it was loaded with, whether the
    data is in) and the model's members. Reading and writing a whole file
-   is xpp_session.cpp's, for both kinds that carry a model. AUTO's own
-   file, name.autox (autox.h), has the same manifest under another first
-   line and the same model members. C++ only. */
+   is xpp_session.cpp's; AUTO's members belong to the session too
+   (xpp_session_auto.h). C++ only. */
 #include <expected>
 #include <optional>
 #include <span>
@@ -29,7 +28,7 @@ inline constexpr std::string_view extension = ".snapx";
    the model's (model_folder below), then these */
 inline constexpr const char *manifest_member = "session.txt"; /* Manifest below */
 inline constexpr const char *set_member = "model.set";        /* the session's set file */
-inline constexpr std::string_view auto_folder = "auto/";       /* AUTO's members, as an .autox has them (autox.h) */
+inline constexpr std::string_view auto_folder = "auto/";       /* AUTO's members, settings, views and optional diagram/orbits (xpp_session_auto.h) */
 inline constexpr const char *windows_member = "windows.set";  /* the plot windows and what they display */
 inline constexpr const char *marks_member = "marks.set";      /* labels, arrows and markers, frozen curves */
 inline constexpr const char *frozen_member = "frozen.npz";    /* the frozen curves' points */
@@ -52,14 +51,13 @@ struct Manifest {
     bool operator==(const Manifest &) const = default;
 };
 
-/* the manifest of a file of this kind: "xppautX <kind> 1" first, and the
-   data line only in a session file's */
-std::string manifest_text(const Manifest &m, std::string_view kind = session_kind);
+/* The session manifest: "xppautX session 1", model, animation and data. */
+std::string manifest_text(const Manifest &m);
 /* text, the manifest member file (its errors' place), read whole: not
-   one of this kind (another format's first line, a later version), a key
+   a session manifest (another format's first line, a later version), a key
    manifest_text does not write or one given twice, a data line other than
    0 or 1, no name: the error at its line (xpp::read_lines) */
-xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text, std::string_view kind = session_kind);
+xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text);
 
 /* files as members of the folder model_folder, in their order, after entries' */
 void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFile> files);
@@ -67,7 +65,7 @@ void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFi
    the model's own file, model_name, is not one of them */
 std::optional<std::vector<ModelFile>> model_members(const std::vector<zip::Entry> &entries, std::string_view model_name);
 
-/* path ends in extension ext (".snapx", ".autox"; case ignored) */
+/* path ends in extension ext (case ignored) */
 bool has_extension(std::string_view path, std::string_view ext);
 /* name with ext added unless it has it */
 std::string with_extension(std::string_view name, std::string_view ext);

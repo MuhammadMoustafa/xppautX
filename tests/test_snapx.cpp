@@ -67,7 +67,7 @@ void check_manifest()
     CHECK(!parse_manifest("s/session.txt", "# Set file\n").has_value());
     CHECK(!parse_manifest("s/session.txt", "").has_value());
     CHECK(!parse_manifest("s/session.txt", "xppautX session 2\n").has_value());
-    CHECK(!parse_manifest("s/session.txt", manifest_text(m), "autox").has_value());
+    CHECK(!parse_manifest("s/session.txt", "xppautX obsolete 1\nname m.ode\n").has_value());
 
     /* the model's members: model/<name>, in order; the model's own needed */
     std::vector<xpp::zip::Entry> entries{{"session.txt", text}};
@@ -83,7 +83,7 @@ void check_manifest()
     CHECK(is_session_file("a/b.snapx") && is_session_file("B.SNAPX") && !is_session_file("b.snapx.zip"));
     CHECK_STR(session_file_name("run1").c_str(), "run1.snapx");
     CHECK_STR(session_file_name("run1.SnapX").c_str(), "run1.SnapX");
-    CHECK(xpp_saved_file_name("d.autox") && xpp_saved_file_name("s.SNAPX") && !xpp_saved_file_name("m.ode"));
+    CHECK(xpp_saved_file_name("s.SNAPX") && !xpp_saved_file_name("m.ode"));
 }
 
 /* a model with an included file and a file table: recorded, saved, read
@@ -101,13 +101,13 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
 
     /* written as a session file's first members, read back whole */
-    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
+    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{});
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");
     CHECK(write_file(path, xpp::zip::make_zip(*entries)));
     std::optional<SavedFile> f = xpp_saved_read(path);
-    CHECK(f && f->session && f->manifest.model_name == "main.ode" && f->model.files == files && f->model.in == path);
+    CHECK(f && f->manifest.model_name == "main.ode" && f->model.files == files && f->model.in == path);
     if (!f) return;
     CHECK(xpp_saved_args(*f) == std::vector<std::string>{"main.ode"});
 

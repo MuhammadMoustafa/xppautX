@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstring>
 #include <new>
+#include <set>
+#include <limits>
 
 #include "miniz.h"
 #include "xpp_mem.h"
@@ -19,6 +21,7 @@ namespace {
 struct Sink {
     std::string bytes;
     bool out_of_memory = false;
+    std::size_t limit = std::numeric_limits<std::size_t>::max();
 };
 
 mz_bool put_deflated(const void *buf, int len, void *user)
@@ -44,6 +47,7 @@ std::size_t put_at(void *user, mz_uint64 ofs, const void *buf, std::size_t n)
 {
     Sink &s = *static_cast<Sink *>(user);
     try {
+        if (ofs > s.limit || n > s.limit - static_cast<std::size_t>(ofs)) return 0;
         const std::size_t at = static_cast<std::size_t>(ofs);
         if (s.bytes.size() < at + n) s.bytes.resize(at + n);
         std::memcpy(s.bytes.data() + at, buf, n);
@@ -168,6 +172,7 @@ bool is_zip(std::string_view bytes) { return bytes.starts_with(std::string_view(
 
 std::optional<std::vector<Entry>> read_zip(std::string_view zip)
 {
+    if (zip.size() > archive_bytes_limit) return std::nullopt;
     mz_zip_archive z;
     mz_zip_zero_struct(&z);
     if (!mz_zip_reader_init_mem(&z, zip.data(), zip.size(), 0)) return std::nullopt;
@@ -176,14 +181,24 @@ std::optional<std::vector<Entry>> read_zip(std::string_view zip)
     try {
         std::vector<Entry> entries;
         const mz_uint n = mz_zip_reader_get_num_files(&z);
-        bool ok = true;
+        bool ok = n <= archive_entries_limit;
+        std::size_t total = 0;
+        std::set<std::string> names;
         for (mz_uint i = 0; ok && i < n; i++) {
             if (mz_zip_reader_is_file_a_directory(&z, i)) continue;
+            mz_zip_archive_file_stat stat;
+            if (!mz_zip_reader_file_stat(&z, i, &stat) || stat.m_uncomp_size > archive_bytes_limit - total) {
+                ok = false;
+                break;
+            }
+            total += static_cast<std::size_t>(stat.m_uncomp_size);
             Entry e;
             e.name.resize(mz_zip_reader_get_filename(&z, i, nullptr, 0));
             mz_zip_reader_get_filename(&z, i, e.name.data(), static_cast<mz_uint>(e.name.size()));
             if (!e.name.empty()) e.name.pop_back(); /* its NUL */
+            if (!names.insert(e.name).second) { ok = false; break; }
             Sink s;
+            s.limit = static_cast<std::size_t>(stat.m_uncomp_size);
             ok = mz_zip_reader_extract_to_callback(&z, i, put_at, &s, 0);
             oom = oom || s.out_of_memory;
             e.bytes = std::move(s.bytes);

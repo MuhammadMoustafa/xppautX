@@ -2441,13 +2441,13 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Local variables */
   integer ndim;
   std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
+  integer nfpr, nfpr1, nrsp1, i, j, k;
   logical found;
-  integer nparr, k1, k2, nskip1;
+  integer nparr, k1, k2;
   std::array<integer, NPARX> icprs;
 
   doublereal rd1, rd2;
-  integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
+  integer ibr, ndm, irs;
 
   
 
@@ -2473,24 +2473,19 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   ibr = iap->ibr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out before *ntsr,
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) return 1;
-  if (!tr.read(ntot1)) return 1;
-  if (!tr.read(itp1)) return 1;
-  if (!tr.read(lab1)) return 1;
-  if (!tr.read(nfpr1)) return 1;
-  if (!tr.read(isw1)) return 1;
-  if (!tr.read(ntpl1)) return 1;
-  if (!tr.read(nar1)) return 1;
-  if (!tr.read(nskip1)) return 1;
-  if (!tr.read(*ntsr)) return 1;
-  if (!tr.read(*ncolrs)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  ibr = header.ibr;
+  nfpr1 = header.nfpr;
+  *ntsr = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -2843,12 +2838,12 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Local variables */
   integer ndim;
   std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, ntpl1, nrsp1, ntot1, i, j, k;
+  integer nfpr, nfpr1, nrsp1, i, j, k;
   logical found;
-  integer nparr, k1, k2, nskip1;
+  integer nparr, k1, k2;
   std::array<integer, NPARX> icprs;
 
-  integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
+  integer ibr, ndm, irs;
 
     
 
@@ -2874,24 +2869,19 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   ibr = iap->ibr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out before *ntsr,
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) return 1;
-  if (!tr.read(ntot1)) return 1;
-  if (!tr.read(itp1)) return 1;
-  if (!tr.read(lab1)) return 1;
-  if (!tr.read(nfpr1)) return 1;
-  if (!tr.read(isw1)) return 1;
-  if (!tr.read(ntpl1)) return 1;
-  if (!tr.read(nar1)) return 1;
-  if (!tr.read(nskip1)) return 1;
-  if (!tr.read(*ntsr)) return 1;
-  if (!tr.read(*ncolrs)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  ibr = header.ibr;
+  nfpr1 = header.nfpr;
+  *ntsr = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
   nrsp1 = *ntsr + 1;
 
@@ -3255,12 +3245,12 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Local variables */
   integer ndim;
   std::array<doublereal, 7> temp;
-  integer nfpr, nfpr1, ntpl1, ntot1, i, j, k;
+  integer nfpr, nfpr1, i, j, k;
   logical found;
-  integer nparr, k1, k2, k3, nskip1;
+  integer nparr, k1, k2, k3;
   std::array<integer, NPARX> icprs;
 
-  integer ibr, ndm, k2p1, irs, lab1, nar1, itp1, isw1;
+  integer ibr, ndm, k2p1, irs;
 
     
 
@@ -3286,24 +3276,19 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   ibr = iap->ibr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out before *ntsr,
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) return 1;
-  if (!tr.read(ntot1)) return 1;
-  if (!tr.read(itp1)) return 1;
-  if (!tr.read(lab1)) return 1;
-  if (!tr.read(nfpr1)) return 1;
-  if (!tr.read(isw1)) return 1;
-  if (!tr.read(ntpl1)) return 1;
-  if (!tr.read(nar1)) return 1;
-  if (!tr.read(nskip1)) return 1;
-  if (!tr.read(*ntsr)) return 1;
-  if (!tr.read(*ncolrs)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  ibr = header.ibr;
+  nfpr1 = header.nfpr;
+  *ntsr = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {
@@ -3768,17 +3753,17 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   doublereal dump;
 
   doublereal dumu;
-  integer nfpr1, ntpl1, ntot1, i, j, k;
+  integer nfpr1, i, j, k;
   logical found;
   integer nparr;
   std::array<integer, NPARX> icprs;
 
-  integer k1, k2, nskip1;
+  integer k1, k2;
   doublereal fs;
 
-  integer ibr, ndm, irs, lab1, nar1;
+  integer ibr, ndm, irs;
   doublereal rld1, rld2;
-  integer itp1, isw1;
+
 
   integer temporary_storage_dim1;
   /* This is a little funky.  In the older version, upoldp was used for some
@@ -3810,24 +3795,19 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   ibr = iap->ibr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out (freeing the
      buffers allocated above) before *ntsr, *ncolrs or nparr can be
      used as a garbage loop bound or array index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) goto read_failed;
-  if (!tr.read(ntot1)) goto read_failed;
-  if (!tr.read(itp1)) goto read_failed;
-  if (!tr.read(lab1)) goto read_failed;
-  if (!tr.read(nfpr1)) goto read_failed;
-  if (!tr.read(isw1)) goto read_failed;
-  if (!tr.read(ntpl1)) goto read_failed;
-  if (!tr.read(nar1)) goto read_failed;
-  if (!tr.read(nskip1)) goto read_failed;
-  if (!tr.read(*ntsr)) goto read_failed;
-  if (!tr.read(*ncolrs)) goto read_failed;
-  if (!tr.read(nparr)) goto read_failed;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) goto read_failed;
+  ibr = header.ibr;
+  nfpr1 = header.nfpr;
+  *ntsr = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {
@@ -4359,12 +4339,12 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Local variables */
   integer ndim;
   std::array<doublereal, 7> temp;
-  integer nfpr, nfpx, nfpr0, nfpr1, ntpl1, ntot1, i, j, k;
+  integer nfpr, nfpx, nfpr0, nfpr1, i, j, k;
   logical found;
-  integer nparr, k1, k2, nskip1;
+  integer nparr, k1, k2;
   std::array<integer, NPARX> icprs;
 
-  integer ibr, ndm, irs, lab1, nar1, itp1, isw1;
+  integer ibr, ndm, irs;
 
     
 
@@ -4390,24 +4370,19 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   ibr = iap->ibr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out before *ntsr,
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfpr1, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) return 1;
-  if (!tr.read(ntot1)) return 1;
-  if (!tr.read(itp1)) return 1;
-  if (!tr.read(lab1)) return 1;
-  if (!tr.read(nfpr1)) return 1;
-  if (!tr.read(isw1)) return 1;
-  if (!tr.read(ntpl1)) return 1;
-  if (!tr.read(nar1)) return 1;
-  if (!tr.read(nskip1)) return 1;
-  if (!tr.read(*ntsr)) return 1;
-  if (!tr.read(*ncolrs)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  ibr = header.ibr;
+  nfpr1 = header.nfpr;
+  *ntsr = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
 
   for (j = 0; j < *ntsr; ++j) {

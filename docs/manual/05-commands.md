@@ -166,8 +166,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **t(U)torial**: Steps through a series of short tips ("Did you know you
   can...") one at a time; Next for another, Done to stop.
 - **open (M)odel**: Asks for a `.ode` or `.odex` file (or a `.snapx`
-  session file, which opens that session: **opeN session** below; or an
-  `.autox` AUTO file, which opens its model with its diagram; or a `.recx`
+  session file, which opens that session: **opeN session** below; or a `.recx`
   recording, which opens in the player), then
   whether to save this session first (**Save session** writes a session
   file, **Don't save**; Escape keeps the current model), and loads it in
@@ -178,15 +177,14 @@ This brings up a menu with several options. Type `Esc` to abort.
   [Opening another model](01-introduction.md#starting-it)).
 - **r(E)load**: Reads the model's file again (edit it in your editor, then
   Reload), after asking whether to save this session first, as **open
-  (M)odel** does (its data and diagram go). Parameters, initial data and numerics keep their values by name;
+  (M)odel** does (its data and diagram go). Parameters, initial data, numerics and AUTO settings keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session**: Asks for a file name and writes one session file,
   `name.snapx`, to continue later exactly where you are: the model itself
   (its `.ode` and every file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
-  frozen curves, AUTO's diagram and settings (as AUTO's **Save diagram**
-  file, `.autox`, has them) and view, and the data table (NumPy's `.npz`). The earlier runs a
+  frozen curves, AUTO's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this

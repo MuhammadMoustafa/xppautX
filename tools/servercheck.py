@@ -1011,7 +1011,7 @@ AUTO_MENUS = {
     'Mark values: how many?': (list('0123456789'), '0123456789'),
     'File': (['Import orbit', 'Save diagram', 'Load diagram', 'Postscript', 'SVG', 'Reset diagram', 'Clear grab',
               'Write pts', 'All info', 'init Data', 'Toggle redraw', 'auto raNge', 'sElect 2par pt', 'draw laBled',
-              'lOad branch', 'eXport CSV', 'save settinGs', 'settings From file'], 'islpvrcwadtneboxgf'),
+              'lOad branch', 'eXport CSV', 'Import diagram'], 'islpvrcwadtneboxf'),
     'Torus': (['Two Param', 'Fixed period', 'Extend'], 'tfe'),
     'Per. Doub.': (['Doubling', 'Two Param', 'Fixed period', 'Extend'], 'dtfe'),
     'Periodic ': (['Extend', 'Fixed Period'], 'ef'),
@@ -2820,56 +2820,6 @@ def check_autosettings():
         check('W118: a refused value says the message the event gave its rule',
               errs == ['AUTO settings: ' + rules.get('ncol', {}).get('message', '?')], str(errs))
 
-        # W118: AUTO's settings alone to a file and back, through AUTO's File menu (the core's one format)
-        def auto_file_item(key, name):
-            ask = ask_of(cmd='key', win='auto', key='f')
-            if not ask or ask.get('kind') != 'menu':
-                return [], None
-            snda(cmd='answer', id=ask['id'], key=key)
-            evs, ask2 = cola(lambda e: e.get('ev') == 'ask' or is_idle(e))
-            if not ask2 or ask2.get('kind') != 'file':
-                return evs, ask2
-            snda(cmd='answer', id=ask2['id'], file=name)
-            more, _ = cola(is_idle)
-            return evs + more, ask2
-
-        set_dir = tempfile.mkdtemp(prefix='w118-')
-        set_path = os.path.join(set_dir, 'lecar.autoset')
-        before = settings_of(auto_set(numerics={'nmx': 41})[0])
-        evs, ask = auto_file_item('g', set_path)
-        saved = open(set_path, encoding='utf-8').read() if os.path.exists(set_path) else ''
-        check('W118: File > save settinGs asks for a .autoset and writes the settings in the core\'s format',
-              ask is not None and ask.get('mode') == 'write' and '.autoset' in ask.get('wild', '')
-              and 'nmx 41\n' in saved and '\nplot ' in saved, '%s %r' % (ask, saved[:120]))
-        auto_set(numerics={'nmx': 42})
-        evs, ask = auto_file_item('f', set_path)
-        back = settings_of(evs)
-        check('W118: File > settings From file sets them back', ask is not None and ask.get('mode') == 'read'
-              and back is not None and before is not None and back['numerics'] == before['numerics'],
-              '%s %s' % (ask, back and back['numerics'].get('nmx')))
-        with open(set_path, 'w', encoding='utf-8') as f:
-            f.write('nmx 5\n')
-        evs, ask = auto_file_item('f', set_path)
-        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
-        check('W118: a file that is not every setting is refused at the line where its first missing one was due, nothing changes',
-              len(errs) == 1 and 'the file ends here, without its ntst line' in errs[0]['error']
-              and os.path.basename(errs[0].get('file', '')) == 'lecar.autoset' and errs[0].get('line') == 2
-              and settings_of(evs) is None, str(errs))
-        # W125: all or nothing: a changed value, then a value on the last line that does not read
-        lines = saved.replace('nmx 41\n', 'nmx 43\n').rstrip('\n').split('\n')
-        lines[-1] = lines[-1].split(' ')[0] + ' 1e999' if not lines[-1].startswith('mark') else 'mark x nope'
-        with open(set_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(lines) + '\n')
-        evs, ask = auto_file_item('f', set_path)
-        errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
-        check('W125: a .autoset with a bad value on its last line is refused at that line, the value before it unapplied',
-              len(errs) == 1 and errs[0].get('line') == len(lines) and errs[0].get('source') == lines[-1]
-              and settings_of(evs) is None, str(errs))
-        snda(cmd='data', events=['autosettings'])
-        now = settings_of(cola(is_idle)[0])
-        check('W125: after the refused .autoset the settings are as they were (Nmax 41, read back above, not 43)',
-              now is not None and back is not None and now['numerics'] == back['numerics'], str(now and now['numerics'].get('nmx')))
-        shutil.rmtree(set_dir, ignore_errors=True)
         # a set sent while a question is open is kept for after the command, not dropped: a
         # command of its own then (W106), with its own idle
         ask = ask_of(cmd='key', win='auto', key='n')
@@ -2887,6 +2837,19 @@ def check_autosettings():
         na, nb = len(rebuild_diagram(evs_a, [])), len(rebuild_diagram(evs_b, []))
         check('auto set: Nmax 12 makes the next run stop at 12 points (the default goes on to %d)' % nb,
               not errs and na == 12 and nb > 12, '%s: %d vs %d points' % (errs, na, nb))
+        # W155: Reload keeps AUTO's settings without a settings file.
+        before_reload = settings_of(auto_set(numerics={'nmx': 41})[0])
+        snda(cmd='reload')
+        reload_ask = cola(lambda e: e.get('ev') == 'ask')[1]
+        snda(cmd='answer', id=reload_ask['id'], key='d')
+        cola(is_idle)
+        snda(cmd='data', events=['autosettings'])
+        after_reload = settings_of(cola(is_idle)[0])
+        check('W155: Reload keeps AUTO numerics, parameters, axes and marks without a settings file',
+              before_reload is not None and after_reload is not None
+              and all(before_reload[k] == after_reload[k] for k in ('numerics', 'pars', 'axes', 'marks')),
+              str(after_reload))
+
     finally:
         stop_server(pa, ra, snda)
         stop_server(pb, rb, sndb)
@@ -4249,8 +4212,8 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              names == ['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt'],
+              sorted(names) == sorted(['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
+                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)

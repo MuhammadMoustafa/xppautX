@@ -20,7 +20,7 @@ struct Session; /* session.h */
    of ordinary files (snapx.h names them): the manifest, the model itself
    (W103: every file it read, model/<name>), model.set (the set format:
    values, numerics, the active window's graphics), AUTO's members
-   (auto/: the diagram, AUTO's settings and solutions, autox.h), windows.set
+   (auto/: the diagram, AUTO's settings and solutions, xpp_session_auto.h), windows.set
    (every plot window's axes, variables and zoom, AUTO's view), marks.set
    and frozen.npz (labels, arrows and markers, frozen curves) and data.npz
    (the data table, NPZ as Save data writes it). The earlier runs a window
@@ -55,29 +55,25 @@ struct SavedSession {
     std::string file; /* the .snapx */
 };
 
-/* A file that carries a model (W103): an AUTO file (.autox, autox.h) or
-   a session file (.snapx), read whole by the one reader both share. The
-   model is always in it: opening one loads that model, from those saved
-   files and never the disk (model_files.h), then what the file adds. */
+/* A session archive carries its saved model and all session members.
+   The reader checks the whole file before the model is kept. */
 struct SavedFile {
     std::string path;              /* absolute */
     std::string name;              /* what a message calls it: its file name, or a recording's snapshot */
-    bool session = false;          /* a .snapx, else an .autox */
     bool snapshot = false;         /* a recording's snapshot (recx.h): restored as a session, but no session file */
     xpp::snapx::Manifest manifest;
     std::map<std::string, std::string> members; /* every member, by its name */
     xpp::SavedModel model;         /* the model's files, saved in path */
 };
 
-/* path is named as a file that carries a model: .autox or .snapx (case
-   ignored) */
+/* path ends in .snapx (case ignored). */
 bool xpp_saved_file_name(std::string_view path);
-/* the file path (a .autox or .snapx, xpp_saved_file_name) read whole:
+/* the session file path read whole:
    nothing, with an error message, when it cannot be read, is not a zip,
    has no manifest of its kind or has no model */
 std::optional<SavedFile> xpp_saved_read(const std::string &path);
 /* what a file that carries a model holds */
-enum class SavedKind { autox, session, snapshot };
+enum class SavedKind { session, snapshot };
 /* bytes, a file of kind kind, read as xpp_saved_read reads one: path is
    where it is (absolute; for a snapshot the recording's), name what an
    error message calls it */
@@ -85,14 +81,12 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
 /* the command line's arguments that load f's model: its file, and
    -anifile's animation when it was loaded with one */
 std::vector<std::string> xpp_saved_args(const SavedFile &f);
-/* the first members of a file of kind (snapx.h's session_kind, autox.h's
-   kind) that carries the model of s: the manifest man and the model's
+/* The first members of the session archive carrying the model of s: the manifest man and the model's
    files; the error when the model was not read
    from files (a model typed in) */
-xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind);
+xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man);
 /* f's members read for the session s its model's load made, before the
-   load keeps it (xpp::load_model's check), or for the session open when
-   the model is the same (an AUTO file's diagram): a member missing or one
+   load keeps it (xpp::load_model's check): a member missing or one
    that does not read or holds a value this model refuses fails the open,
    and the session before stays as it was. Nothing when f can be
    restored, otherwise the error at its place: a member's line
@@ -101,12 +95,12 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
    is read whole and checked before anything is applied). */
 std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);
 /* what f adds to its model into the session s, whose model is f's
-   (loaded from it, or the same files): AUTO's diagram, or the session;
+   (loaded from it): the whole session;
    false, with an error message, when it could not be read or put in
    place (a file xpp_saved_check passed fails only on the disk) */
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
-/* m's file name without .ode/.odex, and ext (".snapx", ".autox"): the
+/* m's file name without .ode/.odex, and ext (".snapx", ".auto"): the
    name Save session and AUTO's Save diagram offer */
 std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext);
 

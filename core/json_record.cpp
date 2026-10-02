@@ -140,7 +140,7 @@ void add_model_files(const xpp::Model &m)
 
 /* xpp::files::observe_reads' observer: a file the core opened for reading,
    embedded when it is the user's (not in a scratch folder: text as it
-   is, any other file, an .autox or a .snapx, as base64), and named by
+   is, any other file, a .snapx, as base64), and named by
    the step that read it */
 void file_read(const std::string &path)
 {

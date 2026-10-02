@@ -10,10 +10,10 @@ namespace xpp::snapx {
 namespace {
 
 /* "xppautX <kind> " before the version */
-std::string first_line(std::string_view kind)
+std::string first_line()
 {
     std::string o = "xppautX ";
-    o += kind;
+    o += session_kind;
     o += ' ';
     return o;
 }
@@ -30,23 +30,23 @@ void add_line(std::string &o, std::string_view key, std::string_view value)
 
 } // namespace
 
-std::string manifest_text(const Manifest &m, std::string_view kind)
+std::string manifest_text(const Manifest &m)
 {
     std::string o;
-    o += first_line(kind);
+    o += first_line();
     o += std::to_string(m.version);
     o += '\n';
     add_line(o, "name", m.model_name);
     if (!m.anifile.empty()) add_line(o, "anifile", m.anifile);
-    if (kind == session_kind) add_line(o, "data", m.data ? "1" : "0");
+    add_line(o, "data", m.data ? "1" : "0");
     return o;
 }
 
-xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text, std::string_view kind)
+xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
 {
-    return xpp::read_lines("session", std::move(file), text, [kind](xpp::Lines &l) {
+    return xpp::read_lines("session", std::move(file), text, [](xpp::Lines &l) {
         Manifest m;
-        const std::string head = first_line(kind);
+        const std::string head = first_line();
         if (l.at_end()) l.fail("it is empty");
         const std::string_view first = l.next();
         if (!first.starts_with(head) || !xpp::parse_int(first.substr(head.size()), m.version) || m.version != 1)
@@ -66,7 +66,7 @@ xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text, st
                 named = true;
             } else if (key == "anifile")
                 m.anifile = value;
-            else if (key == "data" && kind == session_kind && (value == "0" || value == "1"))
+            else if (key == "data" && (value == "0" || value == "1"))
                 m.data = value == "1";
             else
                 l.fail("not a line it has");

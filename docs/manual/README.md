@@ -48,7 +48,7 @@ link from a menu item or dialog to its section here.
 | Values panel: initial conditions, parameters, checkboxes, sliders, user buttons, boundary conditions, delay data | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Slider Add/Edit dialog | [Using the interface: the values panel](04-using-the-interface.md#the-values-panel) |
 | Data tab | [The Data Browser](07-data-browser.md) (commands below) |
-| AUTO view (status strip, Output, axis dialog, Save/Load settings, Grab, Clear) | [Auto interface: the AUTO view](09-auto.md#the-auto-view) |
+| AUTO view (status strip, Output, axis dialog, Save/Load session, Grab, Clear) | [Auto interface: the AUTO view](09-auto.md#the-auto-view) |
 | Animation tab | [Creating Animations: the animation view](10-animations.md#the-animation-view) |
 | File dialogs (Open/Save, Add file…) | [Using the interface: saving pictures and files](04-using-the-interface.md#saving-pictures-and-files) |
 | Messages panel, `--verbose`/`--debug`/`-logfile` | [Using the interface: the log](04-using-the-interface.md#the-log) |

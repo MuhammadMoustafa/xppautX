@@ -1,6 +1,5 @@
 #include "model.h"
 #include "session.h"
-#include "autox.h"
 #include "snapx.h"
 #include "xpp_session.h"
 #include "model_switch.h"
@@ -31,6 +30,7 @@
 #include "pp_shoot.h"
 
 #include "xpp_files.h"
+#include "xpp_zip.h"
 #include "load_eqn.h"
 
 
@@ -2488,11 +2488,16 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   label=lab;
   period=per;
   flg=move_to_label(label,&nrow,&ndim,fp.get());
-  nstor=ndim;
-  if(ndim>s.model().node)nstor=s.model().node;
   if(flg==0){
     xpp::log_auto_printf("Could not find label %d in file %s \n",label,string.c_str());
     return xpp::fail("AUTO",xpp::format("No point labelled {} in {}",label,string),command_place());
+  }
+  if(nrow<1||ndim<1||ndim>NAUTO)
+    return xpp::fail_reading("AUTO","invalid orbit dimensions",string);
+  nstor=std::min(ndim,s.model().node);
+  if(nrow>s.data_store.max_rows){
+    if(const xpp::Result<> grown=s.data_store.grow(s.model().neq+1,nrow);!grown)return grown;
+    s.data_store.max_rows=nrow;
   }
   x=&s.data_store.current[0];
   for(i=0;i<nrow;i++){
@@ -2520,26 +2525,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
 
 void save_auto(xpp::Session &s)
 {
-  std::string filename=xpp_session_file_name(s.model(),xpp::autox::extension);
-  if(!file_selector("Save diagram",filename,"*.autox"))return;
-  if(xpp::snapx::has_extension(filename,".auto"))filename+='x'; /* the old name, the new file */
-  filename=xpp::snapx::with_extension(filename,xpp::autox::extension);
-  if(diagram_count(s.diagram)<=1){
-    /* leave no file without a diagram (nor replace one with it) */
-    command_error("auto", "Empty diagram -- nothing to save");
-    return;
-  }
-  std::optional<std::string> bytes=xpp::autox::file_bytes(s);
-  if(!bytes)return; /* an error message said why */
-  /* written beside filename and renamed over it once whole */
-  xpp::Writer w=open_writer_asking(filename.c_str(),true);
-  if(!w)return;
-  if(!w.write(*bytes)){
-    w.abort();
-    command_error("auto", xpp::format("Cannot write {}",filename));
-    return;
-  }
-  w.commit();
+  xpp_session_save(s, nullptr, -1);
 }
 
 void load_auto_numerics(xpp::Session &s, FILE *fp)
@@ -2608,17 +2594,23 @@ xpp::Result<> make_q_file(const xpp::Session &s, FILE *fp)
 
 void load_auto(xpp::Session &s)
 {
-  std::string filename=xpp_session_file_name(s.model(),xpp::autox::extension);
-  if(!file_selector("Load diagram",filename,"*.autox *.auto"))return;
-  /* an .autox carries its model: opened as File > Open model opens it,
-     its diagram into that model (the same one: only the diagram, in
-     place of the one there) */
-  if(xpp_saved_file_name(filename)){
-    xpp_model_open(s, filename.c_str());
+  xpp_session_load(s, nullptr);
+}
+
+/* Foreign XPPAUT diagrams remain an explicit import, separate from Load. */
+static void import_auto(xpp::Session &s)
+{
+  std::string filename=xpp_session_file_name(s.model(), ".auto");
+  if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return;
+  xpp::UniqueFile fp=xpp::open_read(filename);
+  if(!fp){err_reading(filename,"cannot be opened");return;}
+  if(diagram_count(s.diagram)>1&&reset_auto(s)==0)return;
+  if(!s.auto_state.bifur.exist)do_auto_win(s);
+  if(import_auto_file(s,fp.get())!=1){
+    command_error("import AUTO",xpp::format("{} holds no XPPAUT AUTO diagram",filename));
     return;
   }
-  if(diagram_count(s.diagram)>1&&reset_auto(s)==0)return;
-  xpp::autox::import_file(s,filename);
+  redraw_diagram(s);
 }
 
 std::string auto_solutions_file(const xpp::Session &s)
@@ -2627,7 +2619,7 @@ std::string auto_solutions_file(const xpp::Session &s)
 }
 
 /* an XPPAUT .auto file, at fp, imported: its settings, diagram and
-   solutions (xpp_session.cpp's older files too): 1 loaded, -1 an empty
+   solutions: 1 loaded, -1 an empty
    diagram */
 int import_auto_file(xpp::Session &s, FILE *fp)
 {
@@ -2641,27 +2633,76 @@ int import_auto_file(xpp::Session &s, FILE *fp)
   return 1;
 }
 
+/* Bound a restart mesh at AUTO's largest dimension, within the session
+   byte budget, before native mesh or orbit-table allocation can use it. */
+constexpr std::size_t auto_solution_rows_limit = zip::archive_bytes_limit / ((NAUTO + 1) * sizeof(double));
+
+bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h)
+{
+    for (long *v : {&h.ibr, &h.ntot, &h.itp, &h.lab, &h.nfpr, &h.isw, &h.ntpl, &h.nar, &h.nskip, &h.ntst, &h.ncol, &h.npar})
+        if (!reader.read(*v) || *v <= std::numeric_limits<int>::min() || *v > std::numeric_limits<int>::max()) return false;
+    std::string why;
+    const bool collocation = h.ntst == 0 ? h.ncol == 0 : auto_settings_num_ok(AUTO_NUM_NCOL, h.ncol, why);
+    return h.nfpr >= 0 && h.nfpr <= NPARX && h.ntpl >= 1 && static_cast<std::size_t>(h.ntpl) <= auto_solution_rows_limit && h.nar >= 2 && h.nar <= NAUTO + 1
+        && h.nskip >= h.ntpl && h.ntst >= 0 && h.ntst <= h.nskip
+        && collocation && h.npar >= 0 && h.npar <= NPARX
+        && (h.ntst == 0 || h.ntpl == static_cast<long long>(h.ntst) * h.ncol + 1);
+}
+
+Result<> check_auto_solutions(std::string_view text, std::string file)
+{
+    const auto read = read_lines("AUTO's solutions", std::move(file), text, [](Lines &l) {
+        while (!l.at_end()) {
+            const std::string_view head = l.next();
+            if (head.empty()) continue;
+            AutoSolutionHeader h;
+            TokenReader header = TokenReader::of_text(head);
+            if (!read_auto_solution_header(header, h) || !header.at_end())
+                l.fail("invalid AUTO solution header or counts");
+            const long rows = h.ntpl, columns = h.nar, payload = h.nskip, parameters = h.npar;
+            const std::size_t orbit_values = static_cast<std::size_t>(rows) * static_cast<std::size_t>(columns);
+            const std::size_t expected = orbit_values + parameters
+                + (h.ntst ? 2 * h.nfpr + static_cast<std::size_t>(rows) * (columns - 1) : 0);
+            std::size_t values = 0;
+            for (int row = 0; row < payload; row++) {
+                const auto row_text = l.next("an AUTO solution payload row");
+                Tokens tokens(row_text);
+                if (trim_blanks(row_text).empty()) l.fail("empty AUTO solution payload row");
+                while (const auto word = tokens.next(" \t\r\n")) {
+                    double value;
+                    if (!parse_number(*word, value) || !std::isfinite(value)) l.fail("invalid AUTO solution number");
+                    if (h.ntst && values >= orbit_values && values < orbit_values + h.nfpr) {
+                        int parameter;
+                        if (!parse_int(*word, parameter) || parameter < 0 || parameter >= NPARX)
+                            l.fail("AUTO restart parameter index is out of bounds");
+                    }
+                    values++;
+                }
+            }
+            if (values != expected)
+                l.fail("AUTO solution payload does not match its header counts");
+        }
+        return true;
+    });
+    if (!read) return std::unexpected(read.error());
+    return {};
+}
+
 int move_to_label(int mylab, int *nrow, int *ndim, FILE *fp)
 {
-  /* a solution's label line: ibr ntot itp lab nfpr isw ntpl nar nrowpr
-     (and more), AUTO's "%5ld" columns that may touch, which read(long&)
-     reads apart; then its nrowpr rows. The rows after the label line
-     found are get_a_row()'s. */
-  enum {IBR,NTOT,ITP,LAB,NFPAR,ISW,NTPL,NAR,NSKIP,NFIELDS};
-  std::array<long,NFIELDS> f{};
-  xpp::TokenReader tr=xpp::TokenReader::attach(fp);
-  while(true){
-    for(long &v:f)
-      if(!tr.read(v))return(0);
+  AutoSolutionHeader h;
+  TokenReader tr = TokenReader::attach(fp);
+  while (read_auto_solution_header(tr, h)) {
     tr.skip_line();
-    if(mylab==f[LAB]){
-      *nrow=static_cast<int>(f[NTPL]);
-      *ndim=static_cast<int>(f[NAR])-1;
-      return(1);
+    if (mylab == h.lab) {
+      *nrow = static_cast<int>(h.ntpl);
+      *ndim = static_cast<int>(h.nar) - 1;
+      return 1;
     }
-    for(long i=0;i<f[NSKIP];i++)
-      if(!tr.skip_line())return(0);
+    for (long i = 0; i < h.nskip; i++)
+      if (!tr.skip_line()) return 0;
   }
+  return 0;
 }
 
 void get_a_row(double *u, double *t, int n, FILE *fp)
@@ -2743,13 +2784,7 @@ void auto_file(xpp::Session &s)
   if(ch=='x'){
     export_auto_csv(s);
   }
-  if(ch=='g'||ch=='f'){
-    /* AUTO's settings alone (autox.h settings_extension) */
-    std::string filename=xpp_session_file_name(s.model(),xpp::autox::settings_extension);
-    const std::string wild=xpp::format("*{}",xpp::autox::settings_extension);
-    if(ch=='g'&&file_selector("Save AUTO settings",filename,wild))xpp::autox::save_settings_file(s,filename);
-    if(ch=='f'&&file_selector("Load AUTO settings",filename,wild))xpp::autox::load_settings_file(s,filename);
-  }
+  if(ch=='f')import_auto(s);
   if(ch=='n'){
     if(s.auto_state.diagram_mark.state<2) 
       command_error("auto", "Mark a branch first using S and E");

@@ -59,6 +59,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [27](#27-rotation-and-boundary-value-movies-silently-drop-frames-when-full) | Kinescope | rotation and BVP movies ignore a full film buffer | [W133](https://github.com/MuhammadMoustafa/xppautX/issues/185) |
 | [28](#28-a--comment-after-a-declaration-makes-names-of-its-words) | Model files | a `#` comment after a declaration makes parameters of its words (XPPAUT's own issue [Ermentrout/xppaut#11](https://github.com/Ermentrout/xppaut/issues/11)) | [W160](https://github.com/MuhammadMoustafa/xppautX/issues/212) |
 | [29](#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma) | Numerics | the numbers depend on the CPU and on whether the compiler targets FMA | [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) |
+| [30](#30-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity) | AUTO files | orbit dimensions and row counts can overrun fixed buffers and storage | [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) |
 
 ## 1. Model options
 
@@ -284,7 +285,7 @@ therefore loses the session (parameters, data, everything) with no message the
 front end can show.
 
 - **XPPAUT 8.0:** autlib1.c [autlib1.c:370-377](../reference/xppaut-8.0/autlib1.c#L370-L377) ([master 370-377](../reference/xppaut-master/autlib1.c#L370-L377)), [autlib1.c:3320-3326](../reference/xppaut-8.0/autlib1.c#L3320-L3326) ([master 3317-3322](../reference/xppaut-master/autlib1.c#L3317-L3322)), [autlib1.c:4352-4358](../reference/xppaut-8.0/autlib1.c#L4352-L4358) ([master 4349-4355](../reference/xppaut-master/autlib1.c#L4349-L4355)); autlib4.c [autlib4.c:472-486](../reference/xppaut-8.0/autlib4.c#L472-L486) ([master 474-485](../reference/xppaut-master/autlib4.c#L474-L485)), [autlib4.c:637-652](../reference/xppaut-8.0/autlib4.c#L637-L652) ([master 637-652](../reference/xppaut-master/autlib4.c#L637-L652)); autlib2.c [autlib2.c:300-308](../reference/xppaut-8.0/autlib2.c#L300-L308) ([master 300-308](../reference/xppaut-master/autlib2.c#L300-L308)); eispack.c [eispack.c:3922-3925](../reference/xppaut-8.0/eispack.c#L3922-L3925) ([master 3915-3918](../reference/xppaut-master/eispack.c#L3915-L3918)).
-- **Evidence:** `Ncol` above 7 in AUTO's Numerics: XPPAUT's library prints "Dimension exceeded : NCOL=... maximum=7" and exits with status 1 ([autlib1.c:3320-3326](../reference/xppaut-8.0/autlib1.c#L3320-L3326) ([master 3317-3322](../reference/xppaut-master/autlib1.c#L3317-L3322))); autocheck's autox section checks that xppautX refuses it at its line instead.
+- **Evidence:** `Ncol` above 7 in AUTO's Numerics: XPPAUT's library prints "Dimension exceeded : NCOL=... maximum=7" and exits with status 1 ([autlib1.c:3320-3326](../reference/xppaut-8.0/autlib1.c#L3320-L3326) ([master 3317-3322](../reference/xppaut-master/autlib1.c#L3317-L3322))); autocheck's sessiondiagram section checks that xppautX refuses it at its line instead.
 - **xppautX:** each is an `xpp::Error` returned to the command, which shows it once; the program keeps running.
 - **Card:** [W63a](https://github.com/MuhammadMoustafa/xppautX/issues/111) ([5651fe5](https://github.com/MuhammadMoustafa/xppautX/commit/5651fe5)), [W63d](https://github.com/MuhammadMoustafa/xppautX/issues/157).
 
@@ -482,6 +483,17 @@ how XPPAUT's code meets the machine, neither a bug in a line of it.
 - **Evidence:** xppautX before W159 has XPPAUT's numerical code and the same calls. On one machine (Ubuntu 26.04, gcc 15.2, glibc 2.43, a Zen 4 CPU), the 184 example models' `output.dat` md5s against the committed baseline: with glibc masked to its SSE2 variants (`GLIBC_TUNABLES=glibc.cpu.hwcaps=-FMA`) 11 differ (`fp`, `sine-circle`, `atcoaster`, `fr`, `geisel`, `hhred`, `itoy`, `nf3`, `r3b`, `toy_ok`, `waterwheel`); the same sources built with `-mfma -mavx2` (gcc's default contraction) 29 differ, including `ross-orbit` and `rossler-pecora`, whose equations are only `+ - *`; masking AVX-512 changes none. GitHub's ubuntu-26.04 runner (an AMD EPYC 7763) produced exactly those 29 and two differing PostScript goldens, with the same compiler and C library as the machine where they matched.
 - **xppautX:** the transcendental functions are CORE-MATH's correctly rounded ones (`xpp::math`, third_party/core-math), which return the exact value rounded to nearest and so the same bits on every CPU and C library, and the build passes `-ffp-contract=off`, so no target contracts. The example baselines and the goldens were rewritten once, on purpose (W159's commit names the models). `tools/mathcheck.sh` fails a direct call of the C library's.
 - **Card:** [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) ([#211](https://github.com/MuhammadMoustafa/xppautX/issues/211)).
+
+## 30. AUTO orbit loading trusts file dimensions and storage capacity
+
+The solution header supplies the number of rows and variables. XPPAUT
+uses them to fill a fixed `u[NAUTO]` and the existing data table without
+checking the variable bound or growing the table for those rows.
+
+- **XPPAUT 8.0:** header counts in [auto_nox.c:2908-2930](../reference/xppaut-8.0/auto_nox.c#L2908-L2930) ([master 2879-2901](../reference/xppaut-master/auto_nox.c#L2879-L2901)); unchecked writes in [auto_nox.c:2678-2724](../reference/xppaut-8.0/auto_nox.c#L2678-L2724) ([master 2649-2695](../reference/xppaut-master/auto_nox.c#L2649-L2695)).
+- **Evidence:** code review of those loops; a three-row, two-variable periodic orbit with only two allocated data rows writes a third row beyond storage. The session AUTO unit check exercises exactly those counts and verifies all three times and both variables after loading.
+- **xppautX:** one shared AUTO header reader bounds dimensions, parameter counts, collocation and mesh allocation; the session checks complete restart payloads before restoring anything. Orbit loading grows through the data store's owner before writing rows.
+- **Card:** [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) ([#207](https://github.com/MuhammadMoustafa/xppautX/issues/207)).
 
 ## Known and kept
 

@@ -25,11 +25,9 @@
                                     --script with its events going nowhere
      xppautX name.recx              a recording (W59c): its model starts,
                                     then it opens in the player
-     xppautX name.snapx             a session file or an AUTO file (.autox,
-                                    xpp_session.h) in any mode but -silent:
+     xppautX name.snapx             a session file (xpp_session.h) in any mode but -silent:
                                     the model saved in it, loaded from its
-                                    saved files, then the session or the
-                                    diagram as it was saved
+                                    saved files, then the session as it was saved
 
    usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
@@ -110,9 +108,8 @@ static const char *const usage_tail =
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
     "  -silent          (an xppaut option) a headless run that writes output.dat\n"
-    "A session file (name.snapx, File/saVe session) or an AUTO file (name.autox,\n"
-    "AUTO's File/Save diagram) in place of file.ode opens the model saved in it,\n"
-    "then the session or the diagram as it was saved. A recording (name.recx)\n"
+    "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
+    "opens its saved model and whole session. A recording (name.recx)\n"
     "opens in the player.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"

@@ -4,7 +4,7 @@
 /* The one source of truth for the stability values of AUTO's points
    (issue #27, W15): the eigenvalues of a steady state, the Floquet
    multipliers of a periodic orbit, which the diagram stores per point,
-   saves in .autox files (autox.h) and the stability circle shows (auto_data.h).
+   saves in sessions (xpp_session_auto.h) and the stability circle shows (auto_data.h).
 
    AUTO computes them in its stability check (autlib1.cpp: stbif for a
    steady state, fnspbv's flowkm for an orbit) for the point it is about to
@@ -17,7 +17,7 @@
    parameter both): its first point is exactly the label's solution, and
    takes the label's values (auto_stability_run_start()).
 
-   "Not computed" is all zeros, the form .autox files keep (as XPPAUT's
+   "Not computed" is all zeros, the form sessions keep (as XPPAUT's
    .auto files did); the page says so (web2 autoInfo.ts). XPPAUT itself stores the
    previous point's values there.
 

@@ -18,8 +18,7 @@
    after Axes and File/Load, so there is no reDraw); Clear is the view's:
    the branches so far become "earlier branches", hidden until their key
    entry shows them. A click on an axis name opens its dialog
-   (ui/AutoAxes.tsx). Load settings runs the core's File > settings From
-   file (its own .autoset, which File > save settinGs writes: W118).
+   (ui/AutoAxes.tsx).
 
    T22: Parameter, Numerics and Mark values are the page's own forms on the
    `autosettings` data (ui/AutoSettings.tsx), and so is what the axis dialog
@@ -590,8 +589,6 @@ function AutoPanel({dark}: {dark: boolean}) {
               onClick={() => act(op)}>{text}</button>
           );
         })}
-        <button id="auto-settings-load" disabled={off('file')} onClick={() => session.loadAutoSettings()}
-          title="Load AUTO's settings from a file saved with File > save settinGs (.autoset)">Load settings</button>
       </div>
       <div class="auto-view">
         {grabbing && <GrabBar />}

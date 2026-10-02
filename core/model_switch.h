@@ -11,6 +11,7 @@
    the ones before current, untouched, and says so. */
 
 #include "load_eqn.h"
+#include "auto_settings.h"
 #include "model_files.h"
 #include "xpp_session.h"
 #include <optional>
@@ -25,13 +26,9 @@ struct Session; /* session.h */
 /* File > Open model (key m) and {"cmd":"open"}: path, or the file the
    user picks when it is NULL or empty; asks before this model goes,
    offering to save its session first (xpp_session_save). A file that
-   carries a model (W103, xpp_session.h: an AUTO file, .autox, or a
-   session file, .snapx) loads its saved model, from its saved files, then
-   its diagram or session; when the model open is that one (the same
-   files, byte for byte) nothing is asked: an AUTO file's diagram goes
-   into it, keeping its data, and a session file loads it again with the
-   session. A recording (.recx) opens in the player (play_recording,
-   W59b). */
+   carries a model (.snapx, xpp_session.h) always loads its saved model,
+   then the whole session, after asking whether to save first.
+   A recording (.recx) opens in the player (play_recording, W59b). */
 void xpp_model_open(xpp::Session &s, const char *path);
 /* The one question before the session s goes (W59d): question, answered
    Save session (key s), Don't save (d) or Cancel (Esc). Save saves the
@@ -54,7 +51,7 @@ void xpp_quit(xpp::Session &s, bool saving = false);
 /* File > Reload (key e) and {"cmd":"reload"}: asks first, as Open model
    does, then the model's file again, with
    the command line it was loaded with (a saved model's from its saved
-   files); the parameters, initial data and numerics keep their values by
+   files); the parameters, initial data, numerics and AUTO settings keep their values by
    name (restore_values) */
 void xpp_model_reload(xpp::Session &s);
 
@@ -80,7 +77,7 @@ struct ModelRequest {
   bool keep_values=false;
   /* a saved model: its files, read in place of the disk's (model_files.h) */
   std::optional<SavedModel> saved;
-  /* Open of an AUTO or session file: what it adds, restored once its
+  /* Open of a session file: what it adds, restored once its
      model is loaded (xpp_saved_restore) */
   std::optional<SavedFile> restore;
   /* the folder file dialogs start in once it is loaded ("" the folder it
@@ -93,7 +90,7 @@ struct ModelRequest {
    double-click starts it (the command line: the program's name, then the
    file), in place of the model of s */
 ModelRequest open_request(const Session &s, std::string dir, std::string file);
-/* a request for the model saved in f (a session or AUTO file, a
+/* a request for the model saved in f (a session file or a
    recording's snapshot), loaded in the folder dir with the command line
    it was saved with, in place of the model of s; then what f adds */
 ModelRequest saved_request(const Session &s, std::string dir, SavedFile f);
@@ -108,6 +105,7 @@ struct KeptValues {
   std::vector<std::pair<std::string,double>> pars, ics;
   std::vector<std::pair<std::string,std::string>> delays;
   NumericsSettings numerics;
+  AutoSettingsSet auto_settings;
   std::string poivar;
 };
 /* the session's and its model's */

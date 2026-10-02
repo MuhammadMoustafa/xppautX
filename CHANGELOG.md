@@ -12,7 +12,6 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ### Added
 
 - Save a session (`name.snapx`) and open it later to continue where you stopped: the model, its values, every plot view, frozen curves, labels and the data; a session of the model already open asks to save first, and the file carries its model and opens only that one (W57, #105; W103, #152)
-- AUTO's own file, `name.autox`: the diagram at full precision with AUTO's settings, saved and loaded without a whole session; it carries its model too (W92, #141; W103, #152)
 - Record and Play: every step of a session is written to `name.recx`, one plain text file with the model and the files it read, and played back step by step with a progress bar; a `.recx` opens in the player from the command line or a double-click, and quitting saves a recording in progress (W59, #107)
 - Any number of views of the AUTO diagram, side by side, each with its own axes, ranges and variables (W50, #98)
 - The page shows what the core holds: earlier runs until Erase, AUTO's hidden branches and the zoom, all saved with the session (W65, #113)
@@ -33,7 +32,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 - The player's 1x is slower: every pace is 1.5 times what it was; the speeds stay 0.5x, 1x, 2x, 4x (W150, #202)
 - File > Read set and `-setfile` are now File > Import XPPAUT set and an import of the `.set` file XPPAUT wrote (it must end with XPPAUT's equations, `RHS etc ...`); a `.set` xppautX or its session wrote is refused at its end (W147, #199)
 - A session's `model.set` no longer carries the model's equations at its end (the session holds the model itself); sessions saved before this are refused (W145, #197)
-- Our own files (`.set`, `.par`, `.ic`, `.snapx`, `.autox`, AUTO's settings) load all or nothing: a bad value stops the load with the file, line and value, and nothing is applied; XPPAUT guessed ([finding 21](docs/xppaut-findings.md#21-set-par-and-ic-files-read-by-guessing)) (W125, #177)
+- Our own files (`.set`, `.par`, `.ic`, `.snapx`) load all or nothing: a bad value stops the load with the file, line and value, and nothing is applied; XPPAUT guessed ([finding 21](docs/xppaut-findings.md#21-set-par-and-ic-files-read-by-guessing)) (W125, #177)
 - Editing a value is one operation: one strict number rule everywhere, a multi-value set applies all or none, with the error on its own field (W131, #183)
 - Our files and commands accept only what they hold: a missing or bad piece is an error you see, not a silent default (W116)
 - A missing `#include` file stops the load and says so; XPPAUT carried on without it ([finding 5](docs/xppaut-findings.md#5-model-files)) (W139, #191)
@@ -50,6 +49,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Removed
 
+- `.autox` and `.autoset`: AUTO's Save diagram saves the session (`.snapx`) and Load opens one; AUTO settings, diagram, views and orbits live under its `auto/` members. Reload keeps AUTO's settings without a separate file (W155, #207)
+
 - File > Write set (the `w` key): a `.set` is no longer a file xppautX saves; a session (`.snapx`) holds all it did, `.par` and `.ic` stay (W147, #199)
 - The options file: a model's `option` line is refused at load with the line named, and `default.opt` is never read; write the settings as `@` lines, as XPPAUT in effect already required ([finding 4](docs/xppaut-findings.md#4-model-options)) (W139, #191)
 
@@ -58,6 +59,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 - Results (fits, statistics, Liapunov exponents, saved BVP points and AUTO toggles) use the status bar; every exit counts errors, including failed `-silent` writes, and a full kinescope is reported once by its command (W133, #185).
 - Values > Load replaced a different `.par` or `.ic` of the same name in the model's folder without asking, and a copy into the folder could land during a run; every upload now asks Replace, Keep both or Cancel, and none is taken while a computation runs, whether it came from the page or the protocol's `file` command (W134, #186)
 - The numbers no longer depend on the machine: the same model gave different results on a CPU with FMA, a glibc that picked another variant of `exp`, `sin`, `pow`, ... or a compiler that fused `a*b+c` (one CI runner differed from another computer in 29 of 184 example models); the functions `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `exp`, `log`, `log10`, `pow`, `hypot`, `erf`, `erfc` and `lgamma` are now correctly rounded (CORE-MATH, `xpp::math`) and the build never contracts into an FMA, so every CPU and system gives the same bits; Bessel `besselj` and `bessely` still use the C library's `jn` and `yn`. Results of models that use these functions change in the last digits once ([finding 29](docs/xppaut-findings.md#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma)) (W159, #211)
+- AUTO orbit loading checks restart dimensions and grows storage before copying rows; session loads validate complete restart payloads and bound archive expansion and AUTO state (W155, #207; XPPAUT finding 27)
 - Playing a recording shows its caption, keys, controls and step list over the AUTO view and the other full views, and lights AUTO's buttons (W150, #202)
 - A file dialog opened after playing a recording (or an AUTO run) started in a scratch folder under the temp folder; it now starts in the folder of the file of its kind last opened or saved, else the model's folder (W151, #203)
 - A session or set file with an output stride or step of 0 loaded, and the next run divided by zero; every numerics value from a file, an `@` line or the Numerics dialog is now checked by the same rule, so `@ nout=0` stops the load too ([finding 25](docs/xppaut-findings.md#25-an-output-stride-of-0-divides-by-zero)) (W145, #197)
@@ -91,6 +93,7 @@ for Linux (x64), Windows (x64) and macOS (Apple silicon and Intel).
 - What differs from XPPAUT 8.0, by area, is in [docs/xppautx-vs-xppaut.md](docs/xppautx-vs-xppaut.md); the bugs found in XPPAUT's own code and fixed here are in [docs/xppaut-findings.md](docs/xppaut-findings.md)
 
 ### Removed
+
 
 - The X11 front end (the page replaces it)
 

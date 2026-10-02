@@ -15,6 +15,8 @@
 #include "model.h"
 #include "session.h"
 #include "auto_settings.h"
+#include "xpp_ui.h"
+#include <algorithm>
 #include "data_event.h"
 #include "browse.h"
 #include "diagram.h"
@@ -514,6 +516,44 @@ AutoSettingsSet auto_settings_now(const xpp::Session &s)
     } catch (...) {
         xpp::out_of_memory("reading AUTO's settings");
     }
+}
+
+void auto_settings_reload(Session &s, const AutoSettingsSet &kept)
+{
+    if (!have_settings(s)) return;
+    AutoSettingsSet set = kept;
+    const AutoSettingsSet fresh = settings_now(s);
+    set.npars = fresh.npars;
+    for (int i = 0; i < set.npars; i++)
+        if (i >= kept.npars || xpp::find_user_name(s.model(), PARAM_BOX, set.pars[i]) < 0)
+            set.pars[i] = fresh.pars[i];
+    if (xpp::find_user_name(s.model(), ICBOX, set.var) < 0) set.var = fresh.var;
+    const auto has_par = [&](const std::string &name) {
+        return std::find(set.pars.begin(), set.pars.begin() + set.npars, name) != set.pars.begin() + set.npars;
+    };
+    if (!has_par(set.par1)) set.par1 = fresh.par1;
+    if (!has_par(set.par2)) set.par2 = fresh.par2;
+    set.nmarks = 0;
+    for (int i = 0; i < kept.nmarks; i++) {
+        if (kept.mark_name[i] != "T" && xpp::find_user_name(s.model(), PARAM_BOX, kept.mark_name[i]) < 0) continue;
+        set.mark_name[set.nmarks] = kept.mark_name[i];
+        set.mark_value[set.nmarks++] = kept.mark_value[i];
+    }
+    /* The form can hold values that a run refuses (and a Fit can leave a
+       flat range). Check the names through the normal settings owner,
+       then commit the numbers and ranges already held in memory. */
+    AutoSettingsSet names = set;
+    names.has_num.fill(0);
+    names.has_range.fill(0);
+    Checked c;
+    std::string why, key;
+    if (!check(s, &names, -1, c, why, key)) {
+        command_error("reload AUTO settings", why);
+        return;
+    }
+    std::copy(set.num.begin(), set.num.end(), c.num);
+    std::copy(set.range.begin(), set.range.end(), c.range);
+    commit(s, &set, c);
 }
 
 AutoSettingsSet auto_settings_view(const xpp::Session &s, int view)

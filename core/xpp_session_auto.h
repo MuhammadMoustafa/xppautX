@@ -1,22 +1,9 @@
-#ifndef XPP_AUTOX_H
-#define XPP_AUTOX_H
-/* AUTO's own file, name.autox (W92, docs/protocol.md "AUTO files"): AUTO's
-   work alone, without a whole session, as a zip (xpp_zip.h) of ordinary
-   files: the manifest (snapx.h's Manifest), the model it is a diagram of,
-   every file of it (W103: snapx.h's model members, model/<name>), AUTO's
-   settings, the diagram at full precision and AUTO's solution file (the
-   orbits a grab restarts from). The AUTO window's File/Save diagram
-   writes one; opening one (File > Open model, the command line, AUTO's
-   Load diagram) loads its model and then the diagram (xpp_session.h's
-   reader, the one both files that carry a model share). A session file
-   (snapx.h) holds AUTO's members too, in its folder auto/.
-
-   The first part is pure (autox.cpp: the members' names and the text of
-   settings.txt and diagram.csv, no I/O, unit tested by
-   tests/test_autox.cpp); the second gathers AUTO's state of this session
-   into the members and puts it back (autox_io.cpp), and imports an
-   XPPAUT .auto (AUTO's Load diagram).
-   C++ only. */
+#ifndef XPP_SESSION_AUTO_H
+#define XPP_SESSION_AUTO_H
+/* The session's auto/ members: settings, views, full-precision diagram
+   and AUTO's restart orbits. The pure serializers are xpp_session_auto.cpp;
+   xpp_session_auto_io.cpp gathers and restores the session's state. The
+   only archive reader/writer is xpp_session.cpp (.snapx). */
 #include <deque>
 #include <expected>
 #include <map>
@@ -36,15 +23,8 @@ namespace xpp {
 struct Session; /* session.h */
 }
 
-namespace xpp::autox {
+namespace xpp::snapx::auto_members {
 
-inline constexpr std::string_view extension = ".autox";
-/* the manifest's first line, "xppautX autox 1" (snapx::manifest_text) */
-inline constexpr std::string_view kind = "autox";
-
-/* the members, in the order an .autox holds them: the manifest, the
-   model's (snapx.h's model_folder), then AUTO's */
-inline constexpr const char *manifest_member = "autox.txt";   /* snapx.h's Manifest, of kind autox */
 inline constexpr const char *settings_member = "settings.txt"; /* settings_text below */
 inline constexpr const char *diagram_member = "diagram.csv";   /* diagram_csv below */
 inline constexpr const char *solutions_member = "solutions.s"; /* AUTO's solution file (fort.8), as AUTO wrote it */
@@ -86,6 +66,11 @@ struct SavedViews {
     bool operator==(const SavedViews &) const = default;
 };
 
+/* Bound the in-memory objects a sent member can create; these exceed normal
+   saved diagrams/views while keeping tiny rows from allocating without limit. */
+inline constexpr std::size_t saved_views_limit = 4096;
+inline constexpr std::size_t saved_points_limit = 1000000;
+
 /* views.txt: one line per view in order, "view PLOT VAR PAR1 PAR2 XMIN
    XMAX YMIN YMAX ZOOMX ZOOMY" (names and numbers as settings_text's, a
    zoom LO:HI or "-" for none), then "active K" */
@@ -112,12 +97,7 @@ std::string diagram_csv(const std::deque<DiagramPoint> &points, std::span<const 
    error at the line that is not of a diagram of n variables */
 Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n, std::string file);
 
-/* ---- this session's (autox_io.cpp) ---- */
-
-/* AUTO's work in the session s as an .autox's bytes, its model included;
-   nothing when the diagram is empty or AUTO's solution file cannot be
-   read (an error message says so) */
-std::optional<std::string> file_bytes(const Session &s);
+/* ---- this session's (xpp_session_auto_io.cpp) ---- */
 
 /* AUTO's members (settings, diagram, solutions, views) of the session s
    after entries', each named prefix and its name (a session file's
@@ -148,25 +128,6 @@ Result<Members> members_read(const Session &s, const std::map<std::string, std::
    when the solution file cannot be written */
 Result<> restore_members(Session &s, Members m);
 
-/* AUTO's File/Load diagram of an XPPAUT .auto, path: imported into the
-   session s, its
-   diagram to the 6 digits it prints. The diagram before is replaced but
-   not reset: the caller asks for that. False with an error message when
-   nothing was read. (An .autox is opened as a model is: xpp_model_open.) */
-bool import_file(Session &s, const std::string &path);
-
-/* AUTO's settings alone as a file (the AUTO window's File menu, W118):
-   settings_text, the .autox member's own text, the one serialization of
-   them; the page has none of its own. */
-inline constexpr std::string_view settings_extension = ".autoset";
-/* s's settings written to path (asking before replacing a file); false
-   with an error message when not */
-bool save_settings_file(const Session &s, const std::string &path);
-/* path's settings applied to s, all or nothing; false with the error
-   (the file, the line) shown when the file cannot be read, a line is not
-   one of a settings file or AUTO refuses a value */
-bool load_settings_file(Session &s, const std::string &path);
-
-} // namespace xpp::autox
+} // namespace xpp::snapx::auto_members
 
 #endif

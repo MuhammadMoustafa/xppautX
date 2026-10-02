@@ -45,6 +45,10 @@ struct xpp::TokenReader::State {
     xpp::UniqueFile owned;
     std::FILE *attached = nullptr;
     std::FILE *fp() const noexcept { return owned ? owned.get() : attached; }
+    std::string_view text;
+    std::size_t pos = 0;
+    bool text_mode = false;
+    bool has_input() const noexcept { return fp() || text_mode; }
     /* the newlines read, the last two characters read (EOF: none) and
        whether one was: line() (no ftell, which a text stream on Windows
        miscounts) */
@@ -53,7 +57,7 @@ struct xpp::TokenReader::State {
     bool read_any = false;
     int get() noexcept
     {
-        const int c = std::fgetc(fp());
+        const int c = text_mode ? (pos < text.size() ? static_cast<unsigned char>(text[pos++]) : EOF) : std::fgetc(fp());
         if (c == EOF) return c;
         before_last = last;
         last = c;
@@ -65,7 +69,8 @@ struct xpp::TokenReader::State {
     void unget(int c) noexcept
     {
         if (c == EOF) return;
-        std::ungetc(c, fp());
+        if (text_mode) --pos;
+        else std::ungetc(c, fp());
         if (c == '\n') newlines--;
         last = before_last;
         before_last = EOF;
@@ -144,7 +149,7 @@ bool read_number(xpp::TokenReader::State *in, T &out, Convert strto)
 {
     std::string tok;
     try {
-        if (!in || !in->fp() || !read_token(*in, tok)) return false;
+        if (!in || !in->has_input() || !read_token(*in, tok)) return false;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("reading a number");
     }
@@ -294,6 +299,23 @@ TokenReader TokenReader::attach(FILE *fp) noexcept
     return t;
 }
 
+TokenReader TokenReader::of_text(std::string_view text) noexcept
+{
+    TokenReader t;
+    t.state_ = new_state<decltype(t.state_)>();
+    if (t.state_) { t.state_->text = text; t.state_->text_mode = true; }
+    return t;
+}
+
+bool TokenReader::at_end() noexcept
+{
+    if (!state_) return true;
+    int c;
+    do { c = state_->get(); } while (c != EOF && std::isspace(static_cast<unsigned char>(c)));
+    state_->unget(c);
+    return c == EOF;
+}
+
 bool TokenReader::read(double &x) noexcept
 {
     return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtod(s, e); });
@@ -316,7 +338,7 @@ bool TokenReader::read(int &x) noexcept
    (AUTO's "%5ld" columns) is the next read's. */
 bool TokenReader::read(long &x) noexcept
 {
-    if (!state_ || !state_->fp()) return false;
+    if (!state_ || !state_->has_input()) return false;
     State &in = *state_;
     std::string num;
     int c;
@@ -337,8 +359,9 @@ bool TokenReader::read(long &x) noexcept
     }
     in.unget(c);
     if (num.empty() || !std::isdigit(static_cast<unsigned char>(num.back()))) return false;
+    errno = 0;
     x = std::strtol(num.c_str(), nullptr, 10);
-    return true;
+    return errno != ERANGE;
 }
 
 int TokenReader::line() const noexcept
@@ -350,7 +373,7 @@ int TokenReader::line() const noexcept
 
 bool TokenReader::skip_line() noexcept
 {
-    if (!state_ || !state_->fp()) return false;
+    if (!state_ || !state_->has_input()) return false;
     int c;
     while ((c = state_->get()) != EOF)
         if (c == '\n') return true;
@@ -438,6 +461,18 @@ bool parse_number(std::string_view text, double &value)
 }
 
 /* ---- Lines: a file of ours, read (W125) ---- */
+
+/* s split at each sep (empty fields kept) */
+std::vector<std::string_view> split_fields(std::string_view s, char sep)
+{
+    std::vector<std::string_view> f;
+    while (true) {
+        const std::size_t i = s.find(sep);
+        f.push_back(s.substr(0, i));
+        if (i == std::string_view::npos) return f;
+        s = s.substr(i + 1);
+    }
+}
 
 std::vector<std::string_view> split_lines(std::string_view text)
 {

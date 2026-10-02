@@ -123,7 +123,6 @@ the error names the file, the line and the line as written. The same for
 an XPPAUT set file (`.set`: File/Import XPPAUT set, `-setfile`), a parameter file (`.par`)
 and an initial-conditions file (`.ic`: `values` `read`, `-parfile`,
 `-icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
-files"), AUTO's file and its settings file (`.autox`, `.autoset`: "AUTO
 files"), and a recording (`.recx`, "Playing a recording"); a model's
 internal set (File/Get par set) checks every item before it applies one,
 a bad item an error at the `set` line. Strict: a line that is not one of
@@ -158,7 +157,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `state` | | Send `state` now. |
 | `auto` | `op`: `grab` (`label`, or `type`+`index`), `display` (`view`, `x`, `y`, `show`), `view` (`new`, `close` or `active`), `close`, `point` (`x`, `y`, or `xd`, `yd`), `set` (`numerics`, `pars`, `axes`, `marks`) | What the AUTO window's keys ("Window keys") do not say. `set` writes AUTO's settings without the forms (see "AUTO's settings as data"); `point` is a click on the diagram at pixel `x`, `y` of window 101 or at `xd`, `yd` in the diagram's quantities (shows its coordinates, and in a two-parameter plot stores them for AUTO's File/sElect 2par pt (`e`), which sets the two parameters to them); a run (AUTO's key `r`) AUTO cannot compute (the Numerics form's Ncol above 7 or Ntst 0, a singular Newton step) ends with a `message` `error` beginning `AUTO stopped:` and the diagram so far saved, as a cancel leaves it; the session goes on (W63a); `display` sets what the page displays of the diagram (below): `x`, `y` a view's zoom, `show` whether the branches hidden by Clear are drawn; `view` adds, closes or activates a view of the diagram ("Views of the diagram" below); `grab` grabs that stored point directly, with no ask ("Grab by label" below), a label or a type and index being required (the interactive grab is the key `g`); `close` destroys window 101, File/Auto opens it again. |
 | `session` | `op` (`save`, `load`), `name`, `data` (save) | Save or open a session file, `name.snapx` (`.snapx` added unless `name` ends so; "Session files" below): File/saVe session and File/opeN session, keys `v` and `n` of the File menu. Without `name`, asks for one (`ask` kind `file`, wildcard `*.snapx`). `save`'s `data`: `true` puts the data table in, `false` leaves it out; without it the table goes in unless it is above 50 MB, when a `choice` ask (keys `l` leave it out, `s` save it) decides. `load` of a session file is `open` of it (below: its saved model, then the session). `state.session` (below) names the file the current session was last saved to or opened from. |
-| `open` | `file` | Load another model in place of this one (File/open Model, key `m` of the File menu; the desktop window's File > Open model sends it with the file picked). Without `file`, asks for one (`ask` kind `file`, wildcard `*.ode* *.autox *.snapx`). A file that is not there fails at once (`message` `error`, nothing asked); so does a session file (`.snapx`) or an AUTO file (`.autox`) that cannot be read or has no model in it ("Session files" below). Then asks `choice` with `keys` `sd` (`Open NAME? This model's data and diagram go. Save its session first?`, Save session or Don't save, the question every way of leaving a session asks, W59d): `s` saves the session first (as `session` `save` with no `name`: a `file` ask; cancelling it keeps the model), `d` does not, a cancel keeps the model. A session file or an AUTO file loads the model saved in it, from its saved files and never the disk's (however the `.ode` there has changed, or when there is none), then restores the session or loads the diagram; when the model open is that one (the same files, byte for byte), an AUTO file's diagram goes into it with nothing asked, the data kept and no model loaded, while a session file still asks (it replaces this session's values, data and diagram) and then loads the model again with its session. The model is loaded from its own folder (a saved model from the folder of its file), which becomes the working directory (the page's files, "Files" below: outputs go there, and nothing is written beside a session or AUTO file), with a command line of the file alone (and `-anifile` with its saved animation when it was loaded with one). `hello`'s `title` names a saved model's file and the one it is saved in, `lecar.ode (saved in lecar.autox)`. A file that is not a model's text (a zip, another binary file) is refused, as a model that does not load (below), its bytes never shown. Loaded: every window but the main one is destroyed (`window` `destroy`), and a new `hello` follows, then the main window, `state`, and the rest of a first start (the ICs the file sets, `-anifile`'s animation, `@ runnow`); a client handles it as it does a reconnection's (it sends `data` again). A model that does not load (a parse error, a bad option) sends a `message` `error` naming both files, the log says why, and nothing else changes: the model before, its values, windows, data and folder are as they were. |
+| `open` | `file` | Load another model in place of this one (File > Open model). Without `file`, asks with wildcard `*.ode* *.snapx *.recx`. A missing file, an invalid session or a session without its model fails at once. Then asks `choice`, keys `sd`: Save session (`s`) or Don't save (`d`); a cancel keeps the session. A `.snapx` loads its saved model from its own members, then restores its whole session, even when the same model is open. A `.recx` opens in the player. The opened file's folder becomes the working directory; nothing is extracted beside a session. `hello.title` identifies its saved model, e.g. `lecar.ode (saved in lecar.snapx)`. A binary file or a model that does not load is refused with its place shown and the previous session unchanged. On success, all windows but the main one are destroyed and a new `hello`, main window, `state` and first-start events follow; the client subscribes with `data` again. |
 | `reload` | | Read the model's file again with the command line and in the folder it was loaded with (File/rEload, key `e` of the File menu; the window's File > Reload), as `open` does, asking first as it does (W59d: `choice` `sd`, `Reload NAME? Its values are kept by name; this model's data and diagram go. Save its session first?`): the parameters, initial data (a delay equation's history text too) and numerics keep the session's values by name (the Poincare section's variable by its name), a name the file no longer has is dropped, a new one comes with the file's value; `hello`'s `defaults` are the file's. A file that does not load changes nothing, as for `open`. |
 | `record` | `op`: `start`, `stop` (`name`), `note` (`text`) | Record the session's steps into a `.recx` file ("Recordings" below): File/recorD, key `d` of the File menu, starts a recording or stops it. `start` begins one, with the session as it is now (its `@snapshot`, W59d; an error when one runs, or when the model was not read from files); `stop` writes `name.recx` (`.recx` added unless `name` ends so; without `name`, asks for one as the other File saves do: `ask` kind `file`, wildcard `*.recx`, the model's name offered; a cancel or a refused overwrite keeps recording) and ends it; `note` sets the note for the next step (replacing one set before; an error when not recording). `start` and `stop` are data, `note` control ("Action kinds"). `state.recording` says one runs. |
 | `play` | `op`: `open` (`file`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, paused at step 0; File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
@@ -452,7 +451,7 @@ that bifurcates from it, and saves the diagram:
 
 {"cmd":"key","win":"auto","key":"f"}
 {"cmd":"answer","key":"s"}
-{"cmd":"answer","file":"lecar.autox"}
+{"cmd":"answer","file":"lecar.snapx"}
 ```
 
 Run it with:
@@ -510,7 +509,7 @@ fingerprint: 5f0c...(64 hex digits)
   the file that is `@end` or starts with `@@` is written with one more
   `@` in front. A file read again with other bytes (a model edited and
   reloaded) is a second section of the same name, after the first. A file
-  that is not text (an `.autox` or `.snapx` opened while recording, a
+  that is not text (a `.snapx` opened while recording, a
   binary table) is a `@binary NAME` section instead: its bytes in base64,
   76 digits a line, then `@end` (W59b). A recording holds no data: a
   replay computes it again.
@@ -939,20 +938,9 @@ names of parameters and variables the model has. A refusal is a `message`
 number from 2 to 7`), so a client checks a form with the core's rules and
 says what the core would.
 
-AUTO's settings alone as a file (W118): the AUTO window's File menu has
-save settinGs (`g`) and settings From file (`f`), each asking for a file
-(`ask` kind `file`, wildcard `*.autoset`): one "key value" line per
-setting, the `.autox` member `settings.txt`'s text (core/autox.cpp
-settings_text, the one serialization of them; "AUTO files"). Loading
-one is all or nothing (W125, "Our files: all or nothing"): a file that
-is not every setting once, has a line that is not one or a value that
-does not read, is refused whole (`message` `error`, the file and its
-line: `lecar.autoset:2: the file ends here, without its nmx line`); a
-value AUTO does not take is refused as `set` refuses it, at its line
-(`lecar.autoset:4: Ncol must be a whole number from 2 to 7`). Axes (and new parameters) draw an open diagram again in its new
-quantities, as the AutoPlot form's OK does. The forms stay: `set` is a
-second way to the same fields (Numerics, `param`, Axes, `usr`), and each
-shows what the other wrote.
+AUTO's settings are saved in the session's `auto/settings.txt`
+(core/xpp_session_auto.cpp, settings_text); Reload keeps them in memory.
+The forms and `set` change the same fields and show what the other wrote.
 
 `set` is a setting (W106): sent while AUTO (or anything) computes, the
 core takes it at once and applies it after that job's `idle`, as a command
@@ -1244,7 +1232,7 @@ is a zip of ordinary files, in this order:
 | `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
 | `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `-anifile`'s animation; byte for byte |
 | `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `-setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
-| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's members, as an AUTO file has them ("AUTO files" below: its settings, the diagram at full precision, its orbits and the views of it), when there is a diagram |
+| `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h) |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
 | `frozen.npz` | the frozen curves' points, one (points, 3) array `curve<slot>` each, when there are some |
@@ -1290,49 +1278,26 @@ but `-silent`) starts the recording's own model and opens the recording in
 the player, as `{"cmd":"play","op":"open"}` does, without the question
 File/open Model asks (nothing is open to save).
 
-### AUTO files
+### AUTO diagram files
 
-AUTO's own file, `name.autox` (W92, core/autox_io.cpp; its pure part, the
-member names and the text of its members, core/autox.h; read and written
-by the reader and writer it shares with session files, core/xpp_session.cpp),
-holds AUTO's work with its model, without a whole session: the AUTO
-window's File/Save diagram (key `s` of its File menu, a `file` ask with
-wildcard `*.autox`) writes one, `.autox` added unless the name ends so (a
-name ending in `.auto` gets an `x`). Opening one (File/Load diagram, key
-`l`, wildcard `*.autox *.auto`; `open`; the command line) loads its saved
-model as `open` does, then its diagram; with that model already open
-(the same files, byte for byte) only the diagram loads, in place of the
-one there, and the data stays. It is a zip of ordinary files, in this
-order:
+Session ZIP input and total decompressed members are limited to 512 MiB,
+with at most 4096 entries; duplicate file members are refused. Saved AUTO
+views are limited to 4096 and diagram points to 1,000,000, also capped by
+the 512 MiB budget for their expanded vectors. Restart headers, complete
+payloads and parameter indices use AUTO's shared reader checks; restart
+meshes are bounded by the same byte budget at AUTO's largest dimension. Member text,
+settings, dimensions and parameter indices are checked before the new
+model is kept. Members remain virtual files, with temporary model copies
+named by their numeric index; archive paths are never extracted.
 
-| Member | What it holds |
-|---|---|
-| `autox.txt` | the manifest, as a session file's `session.txt` but for its first line, `xppautX autox 1`, and no `data` line: `name` (the model's own file) and `anifile` |
-| `model/<name>` | the model, as in a session file |
-| `settings.txt` | AUTO's settings, one `key value` line each, with the keys of `auto` `set` ("AUTO's settings as data" above): every Numerics key (`ntst` ... `suppbp`), `pars` and AUTO's parameters' names, `plot`, `var`, `par1`, `par2`, `xmin`, `xmax`, `ymin`, `ymax`, and one `mark NAME VALUE` line per Mark value; `-` stands for no name |
-| `diagram.csv` | the diagram, a header row of names and one row per point in the order stored: `calc`, `ibr` (branch), `ntot` (point, negative when stable), `itp` (type), `lab` (label), `nfpar`, `icp1`..`icp4`, `flag2`, `from` (the label its run started from), `norm`, `per`, `torper`, `par1`..`par20` (AUTO's parameters' values), then for each variable x `u0.x`, `uhi.x`, `ulo.x`, `ubar.x`, and last `evr1`, `evi1` ... `evrN`, `eviN` (the eigenvalues or Floquet multipliers, zeros when not computed) |
-| `solutions.s` | AUTO's solution file (`fort.8`) as AUTO wrote it: the solutions at the labelled points, which a grab restarts from |
-| `views.txt` | the views of the diagram (W50, "Views of the diagram" above), one line each in order, `view PLOT VAR PAR1 PAR2 XMIN XMAX YMIN YMAX ZOOMX ZOOMY` (the axes as `settings.txt` names them, each zoom `LO:HI` or `-` for the whole axis), then `active K`; restored exactly, ranges included |
-
-Every number is the shortest text that reads back as the same double, so
-a diagram saved and loaded is the same bit for bit, and continues from a
-grabbed point as the one saved would. A file without its model is
-refused, as a session file is; so is one without `settings.txt`,
-`diagram.csv`, `solutions.s` or `views.txt` (every file saved before W50
-lacks the last), or with one that does not read (a key `settings.txt`
-does not have, given twice or missing; a row of `diagram.csv` cut short)
-or holds a value AUTO does not take for this model (a setting, a view's
-axes): an error names the member (`d1.autox: its views.txt is missing`)
-or its line (`d1.autox/diagram.csv:5: 30 fields, not 45`; in a session
-file, `s1.snapx/auto/views.txt:2: ...`), and nothing changes, the model
-open included (W116, W125). Save diagram, and Save
-session with a diagram, are refused with an error when AUTO's solution
-file cannot be read (the orbits a grab restarts from). A setting the model no longer takes
-refuses the file, at its line, as above. An
-XPPAUT `.auto` file still loads into the model open, as an import (after
-asking whether to destroy the diagram there is): its settings, its
-diagram (to the 6 digits it prints) and its solutions; File/Save diagram
-then writes an `.autox`. Nothing writes a `.auto` any more.
+AUTO's File > Save diagram (`s`) calls Save session (`.snapx`), with the
+same data-table choice. Load diagram (`l`) opens a `.snapx` through Open
+session: it asks whether to save first and replaces the whole session,
+even when its saved model is already open. The diagram's full-precision
+points, settings, views and restart orbits are the session's `auto/`
+members ("Session files"). Import diagram (`f`, wildcard `*.auto`)
+imports a foreign XPPAUT diagram into the model open, after a reset asks
+for confirmation; no `.auto` file is written.
 
 ### Display state
 

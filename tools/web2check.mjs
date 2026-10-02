@@ -50,8 +50,7 @@
    T21: AUTO's status strip names the run and its point count, the axis
    dialog sets the range during a run (its plot type waits), an Axes change
    brings the diagram in the new quantities without reDraw, Clear hides the
-   branches so far, the Numerics and Axes settings round trip through a
-   file, grabbing a labelled periodic point plots its limit cycle, Tab in a
+   branches so far, AUTO settings are held in the session, grabbing a labelled periodic point plots its limit cycle, Tab in a
    form replaces a field's text; `keys`: I then G typed at once integrate,
    F acts from the plot and from a button, the theme switch is an icon, a
    long menu is in columns; `busy`: during an integration the AUTO diagram
@@ -1979,7 +1978,7 @@ async function autoView(dir) {
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
   const words = await cdp.eval(`[...document.querySelectorAll('.auto-panel button')].map(b => b.textContent.trim())`);
   check('the view has the AUTO buttons, no reDraw (the diagram is always current) and no Stop while idle (A10, T21)',
-    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Load settings', 'Close']
+    ['Parameter', 'Axes', 'Numerics', 'Run', 'Grab', 'Mark values…', 'Clear', 'File', 'Close']
       .every(w => words.includes(w)) && !words.some(w => /abort|stop|redraw/i.test(w)), JSON.stringify(words));
   check('the status strip says AUTO is idle', /^Idle/.test(await autoStatus()), await autoStatus());
   check("T24: the status strip is the AUTO window's bottom line, as the main window's status bar",
@@ -2414,38 +2413,8 @@ async function autoView(dir) {
   await cdp.eval(`document.querySelector('.auto-earlier').click()`);
   check('T21: "Earlier branches" shows them again', await until(`__xpp.diagram().curves.length === ${nCurvesAll}`, 'earlier shown'));
 
-  /* T22, W118: Load settings goes through the core: AUTO's File > settings
-     From file asks for the file (the page uploads it, as any file ask) and
-     the core reads its own format (core/autox.cpp settings_text, the .autox
-     member's text: every setting, one "key value" line each), built here
-     from the core's settings now with Nmax, the plot type and the x range
-     changed. The AUTO Stop race (W42, GitHub #85) is tested separately, on
-     tools/models/heavy.ode, in autoStopRace() below. */
-  const cur = await S('s.autoSettings.core');
-  const nameOf = n => (n === null || n === '' ? '-' : n);
-  const lines = Object.keys(cur.rules).map(k => `${k} ${k === 'nmx' ? 20000 : cur.numerics[k]}`);
-  lines.push(`pars ${cur.pars.map(nameOf).join(' ')}`, 'plot 1', `var ${nameOf(cur.axes.var)}`, `par1 ${nameOf(cur.axes.par1)}`,
-    `par2 ${nameOf(cur.axes.par2)}`, 'xmin 0.01', 'xmax 0.4', `ymin ${cur.axes.ymin}`, `ymax ${cur.axes.ymax}`);
-  for (const [n, v] of cur.marks) lines.push(`mark ${n} ${v}`);
-  const setFile = path.join(dir, 'lecar-w118.autoset');
-  fs.writeFileSync(setFile, lines.join('\n') + '\n');
-  const setsBefore = await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`);
-  await cdp.eval(`document.querySelector('#auto-settings-load').click()`);
-  await until(`s.ask && s.ask.kind === 'file' && s.ask.mode === 'read' && document.querySelector('.file-ask')`, 'settings file ask');
-  await pickFiles('[data-file-input=open]', [setFile]);
-  check('T22, W118: Load settings sets them through the core (File > settings From file): norm plot at the file\'s x range',
-    await until(`!s.busy && !s.ask && dv.axes.plot === 1 && dv.axes.xmin === 0.01 && dv.axes.xmax === 0.4
-      && dv.points.x.length === ${nAll}`, 'settings loaded', 20000), JSON.stringify(await DS('d.axes')));
-  await autoButton('N');
-  await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-numerics]')`, 'numerics again');
-  check("T22: ... and the Numerics (Nmax 20000): the core's settings and the form",
-    await S(`s.autoSettings.core.numerics.nmx === 20000
-      && document.querySelector('.auto-settings-dialog input[data-field=nmx]').value === '20000'`)
-    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto' && c.op === 'set').length`)) === setsBefore,
-    JSON.stringify([await S('s.autoSettings.core.numerics'), await cdp.eval(`__xpp.sent().filter(c => c.cmd === 'auto')`)]));
-  await until(`!!document.activeElement.closest('.dialog')`, 'numerics focus');
-  await key('Escape');
-  await until(`!document.querySelector('.auto-settings-dialog')`, 'numerics closed');
+  check('W155: AUTO has no standalone settings-file control',
+    await cdp.eval(`document.querySelector('#auto-settings-load') === null`));
   /* T22: Parameter lists AUTO's parameters; Mark values adds a user point and takes it away again */
   await autoButton('P');
   await until(`!!document.querySelector('.auto-settings-dialog[data-settings=auto-pars]')`, 'parameter form');

@@ -288,6 +288,15 @@ int main(void)
               (*e)[1].bytes == std::string(10000, 'x'));
         CHECK(z.size() < 1000); /* deflated */
         CHECK(!xpp::zip::read_zip("PK but not a zip"));
+        CHECK(!xpp::zip::read_zip(xpp::zip::make_zip({{"same", "a"}, {"same", "b"}})));
+        std::vector<xpp::zip::Entry> many;
+        for (std::size_t i = 0; i <= xpp::zip::archive_entries_limit; i++) many.push_back({std::to_string(i), ""});
+        CHECK(!xpp::zip::read_zip(xpp::zip::make_zip(many)));
+        std::string oversized = z;
+        const std::size_t central = le32(z, z.size() - 6);
+        const std::uint32_t declared = xpp::zip::archive_bytes_limit + 1;
+        for (int i = 0; i < 4; i++) oversized[central + 24 + i] = static_cast<char>(declared >> (8 * i));
+        CHECK(!xpp::zip::read_zip(oversized));
     }
 
     TEST_REPORT("test_data_formats");

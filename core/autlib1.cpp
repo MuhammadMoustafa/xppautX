@@ -4151,10 +4151,7 @@ findlb(iap_type *iap, const rap_type *rap,
        integer irs, integer *nfpr, logical *found)
 {
   /* Local variables */
-  integer nars;
-
-  integer labrs, nskip, itpst, iswrs, ntplrs, ntotrs, ibr, itp, 
-    isw;
+  integer labrs, nskip, itpst, ibr, itp, isw;
   logical eof3;
   long line_start;
 
@@ -4169,33 +4166,13 @@ findlb(iap_type *iap, const rap_type *rap,
   while(1) {
     /* where this label line starts: readlb() reads it again from here */
     line_start = ftell(iap->lib->fp3);
-    if (!tr.read(ibr)) {
-      break;
-    }
-    if (!tr.read(ntotrs)) {
-      break;
-    }
-    if (!tr.read(itp)) {
-      break;
-    }
-    if (!tr.read(labrs)) {
-      break;
-    }
-    if (!tr.read(*nfpr)) {
-      break;
-    }
-    if (!tr.read(iswrs)) {
-      break;
-    }
-    if (!tr.read(ntplrs)) {
-      break;
-    }
-    if (!tr.read(nars)) {
-      break;
-    }
-    if (!tr.read(nskip)) {
-      break;
-    }
+    xpp::AutoSolutionHeader header;
+    if (!xpp::read_auto_solution_header(tr, header)) break;
+    ibr = header.ibr;
+    itp = header.itp;
+    labrs = header.lab;
+    *nfpr = header.nfpr;
+    nskip = header.nskip;
     /*go to the end of the line*/
     tr.skip_line();
     iap->itp = itp;
@@ -4236,9 +4213,9 @@ findlb(iap_type *iap, const rap_type *rap,
 readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
 {
   /* Local variables */
-  integer labr, ndim, ibrr, itpr, iswr, i;
+  integer ndim, i;
   doublereal t;
-  integer nparr, nfprr, n1, n2, ntotr, nskipr, ntplrs, nar;
+  integer nparr, nar;
 
   /* Reads the restart data for algebraic problems. findlb() has
      already validated the label line this is reading (it's the same
@@ -4247,18 +4224,10 @@ readlb(const iap_type *iap, const rap_type *rap, doublereal *u, doublereal *par)
      used as a garbage loop bound or array size if one ever does. */
 
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibrr)) return 1;
-  if (!tr.read(ntotr)) return 1;
-  if (!tr.read(itpr)) return 1;
-  if (!tr.read(labr)) return 1;
-  if (!tr.read(nfprr)) return 1;
-  if (!tr.read(iswr)) return 1;
-  if (!tr.read(ntplrs)) return 1;
-  if (!tr.read(nar)) return 1;
-  if (!tr.read(nskipr)) return 1;
-  if (!tr.read(n1)) return 1;
-  if (!tr.read(n2)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  nar = header.nar;
+  nparr = header.npar;
   ndim = nar - 1;
   if (!tr.read(t)) return 1;
   for (i = 0; i < ndim; ++i) {
@@ -5363,27 +5332,12 @@ rsptbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, FUNI_TYPE((*
        the parameter file fort.2.
     */
   if(iap->irs > 0) {
-    /* Peek at ntst/ncol as written in this restart line of fort.8, past
-       the 9 fields findlb() already validated for this label. Older
-       restart files may not carry these two extra fields; if either
-       read comes up short, fall back to the fort.2 values exactly as
-       the iap->irs <= 0 case below does, instead of sizing the
-       allocations below from whatever was left on the stack. */
-    logical fort8_ok = TRUE_;
     findlb(iap, rap, iap->irs, &junk, &junk);
     xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-    for (i = 0; i < 9; ++i) {
-      if (!tr.read(junk)) {
-	fort8_ok = FALSE_;
-	break;
-      }
-    }
-    if (!fort8_ok ||
-	!tr.read(ntst_fort8) ||
-	!tr.read(ncol_fort8)) {
-      ntst_fort8 = iap->ntst;
-      ncol_fort8 = iap->ncol;
-    }
+    xpp::AutoSolutionHeader header;
+    if (!xpp::read_auto_solution_header(tr, header)) return 1;
+    ntst_fort8 = header.ntst;
+    ncol_fort8 = header.ncol;
   } else {
     ntst_fort8 = iap->ntst;
     ncol_fort8 = iap->ncol;
@@ -5493,12 +5447,12 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   integer i, j, k;
 
   logical found;
-  integer nparr, nskip;
+  integer nparr;
   std::array<integer, NPARX> icprs;
 
-  integer nfprs, k1, k2, itprs, iswrs, nskip1, nskip2;
+  integer nfprs, k1, k2, itprs, nskip1, nskip2;
 
-  integer ndimrd, ndimrs, ntplrs, ntotrs, lab, ibr, ips, irs, isw;
+  integer ndimrd, ndimrs, lab, ibr, ips, irs, isw;
   logical eof3;
 
   /* This subroutine locates and retrieves the information required to */
@@ -5524,24 +5478,22 @@ stpnbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   nfpr = iap->nfpr;
 
   /* This re-reads the label line findlb() just located and validated
-     (9 of these 12 fields are the ones it already checked), so these
+     (all twelve fields were checked), so these
      reads are not expected to fail; still bail out before *ntsrs,
      *ncolrs or nparr can be used as a garbage loop bound or array
      index below. */
   findlb(iap, rap, irs, &nfprs, &found);
   xpp::TokenReader tr = xpp::TokenReader::attach(iap->lib->fp3);
-  if (!tr.read(ibr)) return 1;
-  if (!tr.read(ntotrs)) return 1;
-  if (!tr.read(itprs)) return 1;
-  if (!tr.read(lab)) return 1;
-  if (!tr.read(nfprs)) return 1;
-  if (!tr.read(iswrs)) return 1;
-  if (!tr.read(ntplrs)) return 1;
-  if (!tr.read(nars)) return 1;
-  if (!tr.read(nskip)) return 1;
-  if (!tr.read(*ntsrs)) return 1;
-  if (!tr.read(*ncolrs)) return 1;
-  if (!tr.read(nparr)) return 1;
+  xpp::AutoSolutionHeader header;
+  if (!xpp::read_auto_solution_header(tr, header)) return 1;
+  ibr = header.ibr;
+  itprs = header.itp;
+  lab = header.lab;
+  nfprs = header.nfpr;
+  nars = header.nar;
+  *ntsrs = header.ntst;
+  *ncolrs = header.ncol;
+  nparr = header.npar;
   iap->ibr = ibr;
   iap->lab = lab;
 

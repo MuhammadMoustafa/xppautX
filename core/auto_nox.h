@@ -13,6 +13,14 @@
 namespace xpp {
 
 struct Session; /* session.h */
+class TokenReader;
+/* The twelve fort.8 header fields, read and bounded once for every AUTO
+   restart/orbit reader and the session's untrusted solution member. */
+struct AutoSolutionHeader {
+    long ibr{}, ntot{}, itp{}, lab{}, nfpr{}, isw{}, ntpl{}, nar{}, nskip{}, ntst{}, ncol{}, npar{};
+};
+bool read_auto_solution_header(TokenReader &reader, AutoSolutionHeader &h);
+Result<> check_auto_solutions(std::string_view text, std::string file);
 
 typedef struct {
   double torper;
@@ -179,8 +187,7 @@ void auto_2p_hopf(Session &s);
 void auto_period_double(Session &s);
 void auto_run(Session &s);
 void load_auto_orbit(Session &s);
-/* File/Save diagram and Load diagram: an .autox (autox.h), or an XPPAUT
-   .auto imported */
+/* File/Save diagram and Load diagram save/open the session (.snapx). */
 void save_auto(Session &s);
 void load_auto(Session &s);
 /* the parts of an XPPAUT .auto file, read (import_auto_file reads them

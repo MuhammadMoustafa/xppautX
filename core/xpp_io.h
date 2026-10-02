@@ -310,14 +310,17 @@ inline UniqueFile open_read_binary(std::string_view path) noexcept
 
 /* path's whole contents, byte for byte, into out; false (out empty) when
    it cannot be opened or read. std::bad_alloc is the caller's to catch. */
-inline bool read_bytes(std::string_view path, std::string &out)
+inline bool read_bytes(std::string_view path, std::string &out, std::size_t limit = std::numeric_limits<std::size_t>::max())
 {
     out.clear();
     UniqueFile f = open_read_binary(path);
     if (!f) return false;
     std::array<char, 65536> buf;
     std::size_t n;
-    while ((n = std::fread(buf.data(), 1, buf.size(), f.get())) > 0) out.append(buf.data(), n);
+    while ((n = std::fread(buf.data(), 1, buf.size(), f.get())) > 0) {
+        if (n > limit - out.size()) { out.clear(); return false; }
+        out.append(buf.data(), n);
+    }
     return !std::ferror(f.get());
 }
 
@@ -406,6 +409,10 @@ public:
     TokenReader() noexcept = default;
     explicit TokenReader(std::string_view path) noexcept;
     static TokenReader attach(FILE *fp) noexcept;
+    /* Borrow text for this reader's lifetime, using the same token grammar. */
+    static TokenReader of_text(std::string_view text) noexcept;
+    /* True when only whitespace remains; leaves the next token untouched. */
+    bool at_end() noexcept;
     TokenReader(const TokenReader &) = delete;
     TokenReader &operator=(const TokenReader &) = delete;
     TokenReader(TokenReader &&o) noexcept = default;
@@ -501,9 +508,8 @@ private:
        (read_session) before any is applied (apply_session); model.set as
        a set file above; data.npz and frozen.npz are NPZ, checked whole
        (data_formats.cpp) the same way;
-     - AUTO's members settings.txt, diagram.csv, views.txt (.autox, a
-       session's auto/) and AUTO's settings file (.autoset, its Load
-       settings): autox.cpp's parse_settings, parse_diagram_csv,
+     - AUTO's session members auto/settings.txt, auto/diagram.csv and
+       auto/views.txt: xpp_session_auto.cpp's parse_settings, parse_diagram_csv,
        parse_views;
      - a recording (.recx: Play recording, Open model of one, the command
        line): recx.cpp's read.
@@ -511,15 +517,17 @@ private:
    load_eqn.cpp's extract_action checks every item before it applies one;
    a model's own files, .ode and .odex, load all or nothing through
    xpp::Load, session.h.) What proves it: tests/test_lunch.cpp,
-   test_autox.cpp and test_recx.cpp, servercheck's
+   test_session_auto.cpp and test_recx.cpp, servercheck's
    check_load_all_or_nothing, its session and player checks and
-   autocheck's autox section give each kind a bad value on its last line
+   autocheck's sessiondiagram section give each kind a bad value on its last line
    and find the session as it was and the error at that line.
    Foreign formats (XPPAUT's .auto, a data file) are imports, read where
    they are converted. */
 
 /* text's lines, each without its \n or \r\n (a last line needs none; no
    bytes, no lines): the views are into text */
+/* Split at each delimiter, preserving empty fields (strict text formats). */
+std::vector<std::string_view> split_fields(std::string_view text, char delimiter);
 std::vector<std::string_view> split_lines(std::string_view text);
 
 /* line n (from 1) of text, the file named file, as a Place (the line as

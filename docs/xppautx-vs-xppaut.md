@@ -39,7 +39,7 @@ Contents: [Platforms and install](#platforms-and-install) -
 | Windows, macOS | through an X server or a port (its install notes: docs/installonwindows.html, docs/installonmac.html; not verified) | native: one program, built and checked in CI on Linux, Windows and macOS; the macOS window has not been run by hand ([README](../README.md#trying-the-macos-build)) | W13a, W13d, W17 |
 | Release files | source tarball and distribution packages (not verified) | Windows `.exe`, Linux `.deb` and archive, macOS `.dmg`/archive; unsigned ([README](../README.md#installing-a-release)) | W89, W14 |
 | Linux window | X11 libraries linked | the window (WebKitGTK) is a library loaded only when it opens, so one binary starts on any Linux and falls back to the browser | W13e |
-| Opening models | the command line | also a double-click: `.ode`, `.odex`, `.snapx`, `.autox`, `.recx` registered per user or by the package | W13b, W59c, W91 |
+| Opening models | the command line | also a double-click: `.ode`, `.odex`, `.snapx`, `.recx` registered per user or by the package | W13b, W59c, W91, W155 |
 | Build | per-system Makefiles (Makefile, Makefile.64, ... in the source) | one Makefile, C++23, 0 warnings on gcc and clang, CI on three systems | W0, W17 |
 | Source language | C | C++ throughout: containers and RAII, no raw allocator, no `exit()` in the numerics | W27, W29, W33, W48 |
 | Web assembly build | no | a proof of concept was planned, blocked (needs emsdk) | W9 |
@@ -82,10 +82,9 @@ value stops the load with the file, line and value, and nothing is applied.
 |---|---|---|---|
 | `.ode` | the model; read with its quirks | kept, same quirks (docs/odex-quirks.md); never deprecated | W73 |
 | `.odex` | none | a cleaner model language, same Model; `xppautX --convert` writes it from an `.ode` | W73, W74, W79, W80 |
-| `.snapx` | none | the session: a zip of ordinary files incl. the saved model | W57, W103 |
-| `.autox` | none | AUTO's diagram, settings and views with the saved model | W92, W103, W50 |
+| `.snapx` | none | the session: a zip of ordinary files incl. the saved model and AUTO settings, diagram, views and orbits | W57, W103, W155 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |
-| `.auto` (AUTO diagram) | written by File > Save diagram | read as an import into the open model (to 6 digits); never written | W92 |
+| `.auto` (AUTO diagram) | written by File > Save diagram | Import diagram reads into the open model (to 6 digits); never written | W92, W155 |
 | `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof`, names ignored ([finding 26](xppaut-findings.md#26-set-files-ignore-the-models-names)) | never written; File > Import XPPAUT set and `-setfile` check every named value and require XPPAUT's equations trailer, all or nothing; valid imports are saved beside the `.set` as `<name>.snapx`, now open; the format stays as the session member `model.set` | W125, W147, W153 |
 | `.par`, `.ic` | written and read | kept, XPPAUT's format, read all or nothing | W125, W147 |
 | The options file (`option file`, `default.opt`) | never applied ([findings #4](xppaut-findings.md)) | an `option` line is refused at load; write `@` lines in the model or an included file ([manual 14](manual/14-options-file.md)) | W139 |
@@ -158,12 +157,13 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 |---|---|---|---|
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |
-| Saving | `.auto` text file at 6 digits | `.autox`: every digit, settings, orbits, views | W92 |
+| Saving | `.auto` text file at 6 digits | `.snapx` session: every digit, settings, orbits, views | W92, W155 |
 | Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start | W19 |
 | Eigenvalues shown | a run's first point shows the previous run's ([findings #14](xppaut-findings.md)) | one source of a point's eigenvalues and multipliers | W15 |
 | Grab a label | by keys in the window | also `auto grab <label>` for scripts and recordings | W64 |
 | Errors | numerics call `exit()` ([findings #17](xppaut-findings.md)) | returned as errors; the program stays | W63a |
 | Settings | an X11 form | settings are data (`autosettings`); checked by AUTO's own rules | W92, W118 |
+| Orbit loading | trusts solution dimensions and existing storage ([finding 27](xppaut-findings.md#27-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity)) | shared bounded restart reader; grows the data table before copying an orbit | W155 |
 | Exports | a table | `Write pts` and All info as CSV with names; `.auto` never written | W26, W92 |
 
 ## Batch, the protocol, --server
@@ -201,7 +201,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Compiled functions | `export`, Load DLL | removed (risks outweigh benefits); examples rewritten | W55 |
 | The options file | `default.opt`, `option` line | removed ([findings #4](xppaut-findings.md)) | W139 |
 | `.set` as a user file | File > Write set | removed; Import XPPAUT set and `-setfile` check XPPAUT's names and immediately convert valid imports to a `.snapx` session beside the `.set`; the format stays as `model.set` in a `.snapx` | W147, W153 |
-| `.auto` writing | File > Save diagram | removed; `.autox` | W92 |
+| `.auto` writing | File > Save diagram | removed; Save diagram saves `.snapx` | W92, W155 |
 | Bell, Tips | menu items | removed | W7e |
 | Font, colour and window-size options | X resources | accepted, ignored | W8 |
 

@@ -75,8 +75,7 @@ back). It has:
   has a plain name with AUTO's short name kept ("Max points (NMX)"), its
   help as a tooltip, and a message beside it when its value is not one
   AUTO takes, worded as the core refuses it (OK waits until every value
-  is); Load settings beside the buttons reads a settings file (File >
-  settings From file, below);
+  is);
 - **Grab** as a mode of the diagram: arrows, `[` `]`, Tab to the labelled
   points, Enter takes the point, Escape cancels, a click or tap takes the
   nearest point (see "Points and labels" below for what grabbing does);
@@ -229,8 +228,8 @@ core checks them again when they arrive:
 | Adapt step every (IADS) | adapt the step every IADS steps; 0 keeps it at DS, and a point that does not converge then ends the branch (MX) | whole number, 0 or more (1 is usual) |
 | Skip branch points (SuppBP) | 1: do not look for branch points (and for periodic orbits no Floquet multipliers, period doublings or tori); 0: look for them | 0 or 1 |
 
-The settings file (File > save settinGs and settings From file, below)
-keeps every setting under the keys of the protocol (`nmx`, `ntst`, ...).
+The session keeps every AUTO setting under `auto/settings.txt`, with
+the protocol keys (`nmx`, `ntst`, ...); Reload keeps them too.
 The original window had the following items:
 
 ### Ntst
@@ -426,30 +425,24 @@ If the grabbed point is a special one and is a periodic orbit, this loads the or
 
 ### Save diagram
 
-Writes the diagram to `name.autox`, AUTO's own file, to pick up later
-without saving a whole session: every point at full precision (its
-values, label, type and eigenvalues or Floquet multipliers), AUTO's
-settings (Numerics, Parameter, Axes and the Mark values), the views of
-the diagram, the orbits of the labelled points, and the model itself (its
-`.ode` and every file it read). It is a zip of ordinary files: renamed to `.zip`, its
-`diagram.csv` opens in any spreadsheet or `pandas.read_csv` (the file's
-members are listed in docs/protocol.md "AUTO files"). A session file
-(File/saVe session) carries the same members.
+Saves this session as `name.snapx`, through File > Save session: the
+model and its values, plots and AUTO's settings, every diagram point at
+full precision, its eigenvalues or Floquet multipliers, views and labelled
+orbits. The data table is included unless you choose to leave a large table
+out, as Save session offers. The archive's `auto/diagram.csv` opens in a
+spreadsheet or `pandas.read_csv` (docs/protocol.md "Session files").
 
 ### Load Diagram
 
-Opens an `.autox` with the model saved in it: the diagram exactly as it
-was saved, and AUTO's settings; grab a point and AUTO continues from it.
-When the model open is that model (the same files, byte for byte), only
-the diagram loads, in place of the one there, and the data stays;
-otherwise the saved model is loaded, as File/open Model loads one (it
-asks whether to save this session first), from the `.autox` alone,
-however the `.ode` has changed since or wherever it is, and the diagram
-into it. A file without its model (saved before this version) is
-refused with an error. An XPPAUT `.auto` file loads into the model open,
-as an import (after asking whether to destroy the diagram there is; its
-diagram to the 6 digits it prints); Save diagram then writes it as an
-`.autox`. Nothing writes `.auto` files any more.
+Opens a `.snapx` through Open session, asking whether to save this session
+first. Its saved model, values, data, plots and AUTO diagram replace this
+session; grab a labelled point to continue from its saved orbit.
+
+### Import diagram
+
+Imports an XPPAUT `.auto` into the model open, after asking whether to
+reset its diagram. The imported points have the six digits XPPAUT wrote;
+Save diagram saves them in the session. Nothing writes `.auto` files.
 
 ### Postscript
 
@@ -513,22 +506,6 @@ per diagram point.
 ### Export CSV
 
 Writes the whole stored diagram as two CSV files that `pandas.read_csv` and MATLAB's `readtable` read with no options (a header row of names, one row per point). The file named is the diagram itself: branch, point, type (`EP`, `HB`, `LP`, ...), label, stability, the point's curve kind, the active parameter(s) by name and value, the period, and every variable's max and min over the point (named), the same values `All info` writes. A second file, its name with `_eig` inserted before the extension, has the eigenvalues (a steady state) or Floquet multipliers (a periodic orbit) of every point, one row each, keyed by branch and point (`branch`, `point`, `index`, `re`, `im`, `kind`) rather than packed into a diagram row's cells. This is a new export beside `Write pts` and `All info`, not a replacement: the old whitespace files stay as they were.
-
-### save settinGs
-
-Writes AUTO's settings alone (the Numerics, the parameters, the axes and
-the Mark values) to a `.autoset` file: one `key value` line each, the same
-text an `.autox` keeps them in. A diagram is not saved with them (Save
-diagram keeps both).
-
-### settings From file
-
-Sets AUTO's settings from a `.autoset` file written by save settinGs (the
-AUTO view's Load settings does the same). A file that does not hold every
-setting once, or has a line that does not read, is refused and nothing
-changes; so is a value AUTO does not take, with the message the Numerics
-dialog would show. The error names the file and the line. While AUTO runs, the
-settings apply when it stops.
 
 ## Homoclinics and heteroclinics
 

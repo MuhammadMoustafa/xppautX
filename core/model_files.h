@@ -7,7 +7,7 @@
    working folder or to an including .odex's folder):
 
    - a model read from the disk: each file is read there, and recorded in
-     the Model (Model::files) as it was read, so that an AUTO file (.autox)
+     the Model (Model::files) as it was read, so that an AUTO file (.snapx)
      or a session file (.snapx) saves the model whole (xpp_session.h);
    - a model saved in one of those: each file is the copy saved there and
      never the disk (Model::saved_in names the file), a file not saved
@@ -35,7 +35,7 @@ struct ModelFile {
 };
 
 /* a model saved in a file: its files, the model's own first, and the
-   .autox or .snapx they are saved in (an absolute path) */
+   .snapx they are saved in (an absolute path) */
 struct SavedModel {
     std::string in;
     std::vector<ModelFile> files;
@@ -62,7 +62,7 @@ UniqueFile open_model_file(Model &m, const std::string &name);
    is none */
 LineReader model_file_lines(Model &m, const std::string &name);
 
-/* bytes can be a model's text: not a zip (an .autox or .snapx is opened
+/* bytes can be a model's text: not a zip (an .snapx is opened
    as what it is, by its name) nor any other binary file (a NUL byte) */
 bool is_model_text(std::string_view bytes);
 
@@ -82,7 +82,7 @@ Place model_place(const Model &m, odex::Statement::Kind kind, int k);
 std::string model_source_line(const Model &m, const std::string &name, int n);
 
 /* m as a title names it: its file, and the file it is saved in
-   ("lecar.ode (saved in lecar.autox)") */
+   ("lecar.ode (saved in lecar.snapx)") */
 std::string model_title(const Model &m);
 
 } // namespace xpp

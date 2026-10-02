@@ -138,7 +138,7 @@ void load_eqn(xpp::Session &s)
    if(read&&!xpp::is_model_text(bytes))
    {
      model_failed(xpp::format("{} is not a model: {}",this_file,
-              xpp::zip::is_zip(bytes)?"it is a zip file (an AUTO file is a .autox, a session file a .snapx)":"it is a binary file"));
+              xpp::zip::is_zip(bytes)?"it is a zip file (a session file is a .snapx)":"it is a binary file"));
    }
    if(!read&&!s.model().saved_in.empty())
    {

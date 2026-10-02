@@ -78,7 +78,7 @@ void bound_diagram(xpp::Session &s, double *xlo, double *xhi, double *ylo, doubl
    -1 an empty diagram */
 int load_diagram(xpp::Session &s, FILE *fp, int node);
 
-/* points, whole (an .autox's diagram, autox.h), in place of the session
+/* points, whole (a .snapx's diagram, xpp_session_auto.h), in place of the session
    s's diagram: each point's DIAGRAM arrays and index set to its own, the
    first point filled in (DiagFlag); none is start_diagram's empty diagram */
 void diagram_restore(xpp::Session &s, std::deque<DiagramPoint> points);

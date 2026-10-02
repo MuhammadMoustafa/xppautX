@@ -763,12 +763,6 @@ export class Session {
     if (this.send(autoSettingsSetCommand(patch))) this.store.dispatch({type: 'autoSettings', action: {type: 'sent', patch, ahead}});
   }
 
-  /** AUTO's File > settings From file (core/auto_nox.cpp auto_file): the core asks for
-      the file and reads it (its own format, autox.h settings_extension) */
-  loadAutoSettings(): void {
-    this.runPlan([this.layerKey('auto', 'file')], [ask => (ask.kind === 'menu' ? {key: 'f'} : null)]);
-  }
-
   /** the AUTO view's close: done with it (A10). A running job is stopped
       first and the window closes at its idle, instead of the close waiting
       behind the run. */

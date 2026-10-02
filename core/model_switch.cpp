@@ -57,7 +57,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    if(!xpp::file_selector("Open model",file,"*.ode* *.autox *.snapx *.recx"))return;
+    if(!xpp::file_selector("Open model",file,"*.ode* *.snapx *.recx"))return;
   }
   if(!model_file_ok(file)){
     xpp::err_reading(file,"cannot be opened");
@@ -73,11 +73,6 @@ void xpp_model_open(xpp::Session &s, const char *path)
   if(xpp_saved_file_name(file)){
     saved=xpp_saved_read(file);
     if(!saved)return;
-  }
-  const bool same=saved&&saved->model.files==s.model().files;
-  if(same&&!saved->session){ /* only the diagram, into this model */
-    xpp_saved_restore(s,*saved);
-    return;
   }
   /* everything below replaces this session (a .snapx of this very model
      too: its values, data and diagram take the place of these), so it
@@ -200,6 +195,7 @@ KeptValues keep_values(const Session &s)
   for(int i=0;i<m.node;i++)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
   kept.numerics=s.numerics;
+  kept.auto_settings=auto_settings_now(s);
   kept.poivar=poincare_name(m,s.numerics.poivar);
   return kept;
 }
@@ -209,6 +205,7 @@ void restore_values(Session &s, const KeptValues &kept)
   const Model &m=s.model();
   /* the numerics: the settings kept, what a run leaves (data stored, a
      range's or shooting's state, the last seed) the new session's own */
+  auto_settings_reload(s, kept.auto_settings);
   const NumericsSettings loaded=s.numerics;
   NumericsSettings &n=s.numerics;
   n=kept.numerics;
@@ -271,7 +268,7 @@ Session *load_requested(const Session &now, const ModelRequest &req)
   std::vector<char *> argv;
   for(std::string &a : args)argv.push_back(a.data());
   argv.push_back(nullptr);
-  /* what an AUTO or session file adds is read before the load keeps its
+  /* what a session file adds is read before the load keeps its
      model: a member missing or that does not read fails the open */
   std::function<std::optional<Error>(Session &)> check;
   if(req.restore)check=[&req](Session &fresh){ return xpp_saved_check(fresh,*req.restore); };
