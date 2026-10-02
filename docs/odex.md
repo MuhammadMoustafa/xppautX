@@ -58,7 +58,8 @@ still pending. docs/odex-quirks.md inventories every `.ode` quirk
   `return`, and may never write a parameter or a state variable. It
   compiles to the same stack program with jumps the current `if/then/
   else` compiler already produces (expr_compile.cpp, `alg_to_rpn`), so there is
-  no runtime cost.
+  no runtime cost. Locals are substituted expressions; function arguments
+  are evaluated once before a call.
 - Names are case-sensitive (`V` and `v` are two names) with no length
   limit (neither has `.ode` since W76).
 - Every problem is an error carrying a line and column. Nothing is
@@ -545,16 +546,23 @@ refused, since `d = expr` would then be current at every evaluation. A quirk of 
 number `atof` cut, an option spaced around its `=` (dropped) or cut, a
 formula in `x(0)=` (its value, and its history in a delay model) are
 written as XPP read them, with a comment. A division by something that
-can be 0 is written as XPP computes it, `a/(if b then b else
-2.23e-15)`; a divisor that is a constant other than 0, or a sum positive
-by its form (`1+exp(-x)`), is left as it is. Names are written as their
+can be 0 is written as `a/ode_divisor(b)`, with an ordinary generated
+function `fun ode_divisor(value) = if value then value else 2.23e-15`.
+Its argument evaluates once; the name gets underscores if already taken.
+Nonzero constants, positive forms (`1+exp(-x)`, `x*x+1`), and products
+of a sum's integer index when its literal lower bound is at least 1 are
+left plain. Parameters remain guarded because they can change. Standalone
+`exp(x)` remains guarded because it can underflow to zero; `exp` of a
+proven nonnegative argument divides plainly. An outer sum
+with a parameter upper bound remains guarded because it can be empty
+(W165, [#217](https://github.com/MuhammadMoustafa/xppautX/issues/217)). Names are written as their
 declarations spell them (the header lists the `.ode` lines that spelled
 one another way); a name `.odex` reserves is renamed as question 3 says
 (a question on the terminal, `--auto` for the suggestions, none asked
 with no terminal: the conversion stops and names them). What followed
 `done` becomes comments at the end. The `.odex` is then loaded and must
-compile to the `.ode`'s own programs (an `.odex` division and its guard
-read as `.ode`'s division), or `--convert` fails: exact by construction,
+compile to the `.ode`'s own programs (IEEE divisions normalized to
+`.ode` divisions and calls to the verified generated guard removed), or `--convert` fails: exact by construction,
 and checked. `tools/odexcheck.sh` (verify.sh) converts every example
 that loads by itself and runs the `.odex`: every output.dat's md5 is its
 `.ode`'s (tests/examples.md5), and an example with arrays must have

@@ -4,9 +4,9 @@ par gl = 0.5, gca = 1, gk = 2
 par vk = -0.7, vl = -0.5, vca = 1
 par v1 = 0.01, v2 = 0.145, v3 = 0.1, v4 = 0.15
 par i = 0.2, phi = 0.333
-fun minf(v) = 0.5*(1+tanh((v-v1)/v2))
-fun winf(v) = 0.5*(1+tanh((v-v3)/v4))
-fun lamw(v) = cosh((v-v3)/(2*v4))
+fun minf(v) = 0.5*(1+tanh((v-v1)/ode_divisor(v2)))
+fun winf(v) = 0.5*(1+tanh((v-v3)/ode_divisor(v4)))
+fun lamw(v) = cosh((v-v3)/ode_divisor(2*v4))
 v' = gl*(vl-v)+gk*w*(vk-v)-icaf+i
 w' = phi*lamw(v)*(winf(v)-w)
 icaf = gca*minf(v)*(v-vca)
@@ -27,3 +27,5 @@ init w = 0
 @ xp=v, yp=w
 @ xlo=-1, xhi=1, ylo=-.1, yhi=1, nmesh=100
 @ total=50
+
+fun ode_divisor(value) = if value then value else 2.23e-15

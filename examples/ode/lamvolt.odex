@@ -3,10 +3,10 @@
 init u = 0, v = 0, u1 = 0, v1 = 0
 par lam = 1.5, q = 0.8, d = 1, u0 = 1, u10 = 0.95
 const spi = 0.56419
-u(t) = u0*exp(-5*t)+spi*(volterra(exp(-t), of=f, mu=0.5)+volterra(exp(-t-d/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=f1, mu=0.5))
-v(t) = spi*(volterra(exp(-t), of=g, mu=0.5)+volterra(exp(-t-d/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=g1, mu=0.5))
-u1(t) = u10*exp(-5*t)+spi*(volterra(exp(-t), of=f1, mu=0.5)+volterra(exp(-t-d/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=f, mu=0.5))
-v1(t) = spi*(volterra(exp(-t), of=g1, mu=0.5)+volterra(exp(-t-d/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=g, mu=0.5))
+u(t) = u0*exp(-5*t)+spi*(volterra(exp(-t), of=f, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=f1, mu=0.5))
+v(t) = spi*(volterra(exp(-t), of=g, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=g1, mu=0.5))
+u1(t) = u10*exp(-5*t)+spi*(volterra(exp(-t), of=f1, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=f, mu=0.5))
+v1(t) = spi*(volterra(exp(-t), of=g1, mu=0.5)+volterra(exp(-t-d/ode_divisor(t+1e-04)), of=g, mu=0.5))
 f = lam*u-v-(u*u+v*v)*(u+q*v)
 g = lam*v+u-(u*u+v*v)*(v-q*u)
 f1 = lam*u1-v1-(u1*u1+v1*v1)*(u1+q*v1)
@@ -27,3 +27,5 @@ g1 = lam*v1+u1-(u1*u1+v1*v1)*(v1-q*u1)
 # # and anti-phase solution are stable (q=.8) One should use DELTA_T=.01
 # # and MaxPoints=1001 to get numerical stability.
 # #
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -3,7 +3,7 @@
 init x = 1, y = 1, z = 1
 par q = 8.375e-06, s = 77.27, f = 1, w = 0.161
 x' = s*(y-x*y+x-q*x*x)
-y' = (-y-x*y+f*z)/s
+y' = (-y-x*y+f*z)/ode_divisor(s)
 z' = w*(x-z)
 aux lx = ln(abs(x))
 aux ly = ln(abs(y))
@@ -13,3 +13,5 @@ aux lz = ln(abs(z))
 @ meth=cvode, total=1000, dt=.5, tol=1e-8, atol=1e-7
 @ xlo=0, xhi=1000, ylo=0, yhi=12, yp=lz
 @ bound=1e7
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -1,6 +1,6 @@
 # sine-circle.odex: converted from sine-circle.ode by xppautX --convert (docs/odex.md)
 
-table w exp(-abs(t)/sig), n=21, lo=-10, hi=10
+table w exp(-abs(t)/ode_divisor(sig)), n=21, lo=-10, hi=10
 par sig = 3
 x[j]' = 1+k*sum(w(i')*sin(del_shft(x0, (i'+j) mod 100, tau*abs(i'))-x[j]), from=-10, to=10) for j in 0..99
 par tau = 0.7
@@ -110,3 +110,5 @@ init x[j] = ran(1)*2*pi for j in 0..99
 @ fold=x97
 @ fold=x98
 @ fold=x99
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -3,11 +3,11 @@
 r' = rp
 rp' = r*thp^2+cos(th)-1-a*(r-1)-f*rp
 th' = thp
-thp' = -(2*rp*thp+sin(th)+f*thp)/(if r then r else 2.23e-15)
+thp' = -(2*rp*thp+sin(th)+f*thp)/ode_divisor(r)
 par a = 1, f = 0.05, scale = 10
 init r = 1, th = 1.4
-xb = 0.5+0.5*r*sin(th)/scale
-yb = 0.5-0.5*r*cos(th)/scale
+xb = 0.5+0.5*r*sin(th)/ode_divisor(scale)
+yb = 0.5-0.5*r*cos(th)/ode_divisor(scale)
 fun r0(x, y) = sqrt((x-0.5)^2+(y-0.5)^2)*2*scale
 fun q(x, y) = atan2(x-0.5, 0.5-y)
 aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*(cos(th)-1)
@@ -22,3 +22,5 @@ aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*(cos(th)-1)
 # the energy
 @ total=100, meth=qualrk, dt=.1
 @ bound=100000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

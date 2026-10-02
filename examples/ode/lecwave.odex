@@ -4,14 +4,16 @@ par eta = 1
 par iapp = 0.08, phi = 0.1
 par v1 = -0.01, v2 = 0.15, v3 = 0.1, v4 = 0.145, gca = 1
 par vk = -0.7, vl = -0.5, gk = 2, gl = 0.5, om = 1
-fun minf(v) = 0.5*(1+tanh((v-v1)/v2))
-fun ninf(v) = 0.5*(1+tanh((v-v3)/v4))
-fun lamn(v) = phi*cosh((v-v3)/(2*v4))
+fun minf(v) = 0.5*(1+tanh((v-v1)/ode_divisor(v2)))
+fun ninf(v) = 0.5*(1+tanh((v-v3)/ode_divisor(v4)))
+fun lamn(v) = phi*cosh((v-v3)/ode_divisor(2*v4))
 ica = gca*minf(v)*(v-1)
 v' = vp
 vp' = eta*vp-(iapp+gl*(vl-v)+gk*w*(vk-v)-ica)
-w' = lamn(v)*(ninf(v)-w)/eta
+w' = lamn(v)*(ninf(v)-w)/ode_divisor(eta)
 init v = -0.28, w = 0.005
 # The Morris-Lecar model as in our chapter in Koch & Segev
 #  A simple membrane oscillator.
 #
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -4,12 +4,14 @@ par beta = 1.463, gam = 3.358, Input = 1.352, eps = 0.1, sigma = 0
 init V = 2, X = 1.5
 fun xm(z) = z
 fun Vnull(z) = 3*z-z^3+2+Input
-fun Xnull(z) = gam*(1+tanh(z/beta))
+fun Xnull(z) = gam*(1+tanh(z/ode_divisor(beta)))
 wiener z
 V' = 3*V-V^3+2-X+Input+sigma*z
-X' = eps*(gam*(1+tanh(V/beta))-X)
+X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 @ parmin=0, parmax=6, ds=-0.001, dsmax=.01
 @ BUT=AUTO:fa, NOUT=10
 @ MAXSTOR=100000, TOTAL=400, XP=V, YP=X, Xlo=-3, Xhi=3, Ylo=-3, Yhi=6
 @ METH=euler
 @ AUTOVAR=V
+
+fun ode_divisor(value) = if value then value else 2.23e-15

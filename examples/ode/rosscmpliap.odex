@@ -16,24 +16,24 @@ zz = z+eps*vz
 xp = x+eps*ux
 yp = y+eps*uy
 zp = z+eps*uz
-dx = vx+dt*((f(xx, yy, zz)-xdot)/eps+kx*(mu*vx-nu*ux))
-dy = vy+dt*((g(xx, yy, zz)-ydot)/eps+ky*(mu*vy-nu*uy))
-dz = vz+dt*((h(xx, yy, zz)-zdot)/eps+kz*(mu*vz-nu*uz))
-fx = ux+dt*((f(xp, yp, zp)-xdot)/eps+kx*(mu*ux+nu*vx))
-fy = uy+dt*((g(xp, yp, zp)-ydot)/eps+ky*(mu*uy+nu*vy))
-fz = uz+dt*((h(xp, yp, zp)-zdot)/eps+kz*(mu*uz+nu*vz))
+dx = vx+dt*((f(xx, yy, zz)-xdot)/ode_divisor(eps)+kx*(mu*vx-nu*ux))
+dy = vy+dt*((g(xx, yy, zz)-ydot)/ode_divisor(eps)+ky*(mu*vy-nu*uy))
+dz = vz+dt*((h(xx, yy, zz)-zdot)/ode_divisor(eps)+kz*(mu*vz-nu*uz))
+fx = ux+dt*((f(xp, yp, zp)-xdot)/ode_divisor(eps)+kx*(mu*ux+nu*vx))
+fy = uy+dt*((g(xp, yp, zp)-ydot)/ode_divisor(eps)+ky*(mu*uy+nu*vy))
+fz = uz+dt*((h(xp, yp, zp)-zdot)/ode_divisor(eps)+kz*(mu*uz+nu*vz))
 amp = sqrt(dx^2+dy^2+dz^2+fx^2+fy^2+fz^2)
 x' = x+dt*xdot
 y' = y+dt*ydot
 z' = z+dt*zdot
-vx' = dx/(if amp then amp else 2.23e-15)
-vy' = dy/(if amp then amp else 2.23e-15)
-vz' = dz/(if amp then amp else 2.23e-15)
-ux' = fx/(if amp then amp else 2.23e-15)
-uy' = fy/(if amp then amp else 2.23e-15)
-uz' = fz/(if amp then amp else 2.23e-15)
+vx' = dx/ode_divisor(amp)
+vy' = dy/ode_divisor(amp)
+vz' = dz/ode_divisor(amp)
+ux' = fx/ode_divisor(amp)
+uy' = fy/ode_divisor(amp)
+uz' = fz/ode_divisor(amp)
 ss' = ss+ln(amp)
-aux liap = ss/(if max(dt, t*dt) then max(dt, t*dt) else 2.23e-15)
+aux liap = ss/ode_divisor(max(dt, t*dt))
 aux muu = mu
 aux nuu = nu
 init vx = 1
@@ -87,3 +87,5 @@ init vx = 1
 # it will take a while
 # 
 # 
+
+fun ode_divisor(value) = if value then value else 2.23e-15

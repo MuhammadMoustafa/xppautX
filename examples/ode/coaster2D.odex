@@ -10,12 +10,12 @@ par g = 8.3
 init M = 0, X = 0, Z = 1
 init L = 0, Lalt = 0.01
 fun normM(M) = sqrt(xMdM(M)^2+zMdM(M)^2)
-fun mdt(M) = Lalt/(if normM(M) then normM(M) else 2.23e-15)
+fun mdt(M) = Lalt/ode_divisor(normM(M))
 X' = xMdM(M)*mdt(M)
 Z' = zMdM(M)*mdt(M)
 M' = mdt(M)
 L' = Lalt
-Lalt' = 1/mass*(-g*zMdM(M)/(if normM(M) then normM(M) else 2.23e-15)-drag*Lalt)
+Lalt' = 1/ode_divisor(mass)*(-g*zMdM(M)/ode_divisor(normM(M))-drag*Lalt)
 set Sun = g = 274.13
 set Mercury = g = 3.59
 set Venus = g = 8.87
@@ -35,3 +35,5 @@ set Pluto = g = 0.42
 #Thanks to Newton!
 @ XP=X, YP=Z, XLO=-1, XHI=1, YLO=-1, YHI=1
 @ bounds=100000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

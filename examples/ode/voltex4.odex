@@ -1,7 +1,9 @@
 # voltex4.odex: converted from voltex4.ode by xppautX --convert (docs/odex.md)
 
-u(t) = exp(4*t)+(exp(t*(t+4))+exp(-(t+4)))/(if t+4 then t+4 else 2.23e-15)-volterra(exp(t*t')*u)
+u(t) = exp(4*t)+(exp(t*(t+4))+exp(-(t+4)))/ode_divisor(t+4)-volterra(exp(t*t')*u)
 aux utrue = exp(4*t)
 #  voltex4.ode - no convol
 @ total=1
 @ bound=10000000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -3,9 +3,9 @@
 par iapp = 0, phi = 0.333
 par va = -0.01, vb = 0.15, vc = 0.1, vd = 0.145, gca = 1
 par vk = -0.7, vl = -0.5, gk = 2, gl = 0.5, om = 1
-fun minf(v) = 0.5*(1+tanh((v-va)/vb))
-fun ninf(v) = 0.5*(1+tanh((v-vc)/vd))
-fun lamn(v) = phi*cosh((v-vc)/(2*vd))
+fun minf(v) = 0.5*(1+tanh((v-va)/ode_divisor(vb)))
+fun ninf(v) = 0.5*(1+tanh((v-vc)/ode_divisor(vd)))
+fun lamn(v) = phi*cosh((v-vc)/ode_divisor(2*vd))
 i = imin+(imax-imin)*(1+cos(2*pi*eps*a*t))/2
 par imin = 0.09, imax = 0.23
 isyn1 = eps*gsyn*s2*(v1-esyn)
@@ -14,8 +14,10 @@ p1 = delta
 p2 = -delta
 v[j]' = i+eps*p[j]+gl*(vl-v[j])+gk*w[j]*(vk-v[j])+gca*minf(v[j])*(1-v[j])+isyn[j] for j in 1..2
 w[j]' = lamn(v[j])*(ninf(v[j])-w[j]) for j in 1..2
-s[j]' = 1/(1+exp(-(v[j]-vth)/vshp))-s[j]/tau for j in 1..2
+s[j]' = 1/(1+exp(-(v[j]-vth)/ode_divisor(vshp)))-s[j]/ode_divisor(tau) for j in 1..2
 par vshp = 0.05, tau = 0.25, vth = 0.05
 par esyn = -0.65, gsyn = 1, delta = 0
 aux ii = i
 par a = 1, eps = 0.002
+
+fun ode_divisor(value) = if value then value else 2.23e-15

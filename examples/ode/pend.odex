@@ -4,7 +4,7 @@
 # renamed: t.e is t_e_ here (.odex reserves t.e)
 
 x' = xp
-xp' = (-mu*xp-m*g*sin(x))/(m*l)
+xp' = (-mu*xp-m*g*sin(x))/ode_divisor(m*l)
 pe = m*g*(1-cos(x))
 ke = 0.5*m*l*xp^2
 aux p_e__ = pe
@@ -23,3 +23,5 @@ init x = 2
 # watch the energy landscape change as you move the slider!
 @ xp=x, yp=xp, xlo=-4, xhi=4, ylo=-8, yhi=8
 @ bounds=1000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

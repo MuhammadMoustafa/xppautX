@@ -2,7 +2,9 @@
 
 x' = -x+1
 init x = 1
-u(t) = volterra(heav(tau-t)/tau, of=x)
+u(t) = volterra(heav(tau-t)/ode_divisor(tau), of=x)
 par tau = 1
 @ autoeval=1
 @ total=10
+
+fun ode_divisor(value) = if value then value else 2.23e-15

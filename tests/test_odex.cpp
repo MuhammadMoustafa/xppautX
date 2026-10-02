@@ -4,6 +4,8 @@
 #include "xpptest.h"
 #include "odex.h"
 #include "derived.h"
+#include "expr.h"
+#include "expr_program.h"
 #include "form_ode.h"
 #include "ode_read.h"
 #include "model.h"
@@ -588,7 +590,7 @@ int main(void)
     CHECK(has("par Gk = 0.5"));
     CHECK(has("x' = (2^3)^2+a*(3<4)-Gk"));
     CHECK(has("y' = -x^2+(if x>0 then 1 else 2)+5"));
-    CHECK(has("z' = 1/(if x then x else 2.23e-15)+x/2+x/(1+exp(-x))+x/a+and_"));
+    CHECK(has("z' = 1/ode_divisor(x)+x/2+x/(1+exp(-x))+x/ode_divisor(a)+and_"));
     CHECK(has("aux w = x and y or z"));
     CHECK(has("# y=2*3 in the .ode: XPP reads the number at its front, 2"));
     CHECK(has("init x = 1, y = 2"));
@@ -596,7 +598,7 @@ int main(void)
     CHECK(has("dd = a*2"));
     CHECK(has("v[j]' = -v[j]+j for j in 1..3"));
     CHECK(has("aux sq[j] = v[j]^2 for j in 1..3"));
-    CHECK(has("event 1 x-1, y = y/(if x then x else 2.23e-15), z = 0"));
+    CHECK(has("event 1 x-1, y = y/ode_divisor(x), z = 0"));
     CHECK(has("@ total=6, dt=.1"));
     CHECK(has("# anything here is kept as a comment"));
     CHECK(text.find("the .ode's lines 8") != std::string::npos); /* gk spelled Gk */
@@ -608,6 +610,55 @@ int main(void)
       back = e.text();
     }
     CHECK_STR(back.c_str(), "");
+  }
+
+  /* W165: uncertain divisors use a function argument, evaluated once;
+     positive integer sum indices and positive forms need no guard. */
+  {
+    CHECK(load_text("par a=2\nnumber c=3\nx'=0\n"
+                    "aux g=1/a\naux z=1/0\naux k=1/c\naux q=1/(x*x+1)\n"
+                    "aux e=1/exp(x)\naux ep=1/exp(x*x)\naux ss=sum(1,4)of(1/(i'*i'))\n"
+                    "aux uu=sum(0,4)of(1/(i'*i'))\ndone\n", "ode") == 1);
+    const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(result.has_value());
+    const std::string text = result ? *result : "";
+    CHECK(text.find("aux g = 1/ode_divisor(a)") != std::string::npos);
+    CHECK(text.find("aux z = 1/ode_divisor(0)") != std::string::npos);
+    CHECK(text.find("aux k = 1/c") != std::string::npos);
+    CHECK(text.find("aux q = 1/(x*x+1)") != std::string::npos);
+    CHECK(text.find("aux e = 1/ode_divisor(exp(x))") != std::string::npos);
+    CHECK(text.find("aux ep = 1/exp(x*x)") != std::string::npos);
+    CHECK(text.find("aux ss = sum(1/(i'*i'), from=1, to=4)") != std::string::npos);
+    CHECK(text.find("aux uu = sum(1/ode_divisor(i'*i'), from=0, to=4)") != std::string::npos);
+    CHECK(text.find("fun ode_divisor(value) = if value then value else 2.23e-15") != std::string::npos);
+  }
+
+  {
+    CHECK(load_text("x'=1/ran(1)\ndone\n", "ode") == 1);
+    xpp::Session &session = xpp::client_session();
+    session.random.seed(1);
+    const double divisor = session.random.uniform();
+    const double next = session.random.uniform();
+    session.random.seed(1);
+    CHECK(xpp::evaluate(session, session.model().programs[0].data()) == 1/divisor);
+    CHECK(session.random.uniform() == next); /* exactly one draw */
+    CHECK(load_text("par a=2\nx'=1/a\ndone\n", "ode") == 1);
+    xpp::set_val(xpp::client_session(), "A", 0);
+    CHECK(xpp::evaluate(xpp::client_session(), xpp::client_session().model().programs[0].data()) == 1/xpp::expr::ZERO_DIVISOR);
+    CHECK(load_text("par ode_divisor=2\nx'=1/x\ndone\n", "ode") == 1);
+    const auto collision = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(collision && collision->find("fun ode_divisor_(value)") != std::string::npos);
+    CHECK(load_text("x'=0\naux nested=sum(1,2)of(sum(0,0)of(i')+1/(i'*i'))\ndone\n", "ode") == 1);
+    const auto nested = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(nested && nested->find("+1/ode_divisor(i'*i')") != std::string::npos);
+  }
+
+  {
+    /* Function tables evaluate at load, including forward guard calls. */
+    CHECK(load_text("table tab % 3 -1 1 exp(t/a)\npar a=2\nx'=0\n@ dt=.1 total=1\ndone\n", "ode") == 1);
+    const auto table = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(table && table->find("table tab exp(t/ode_divisor(a))") != std::string::npos);
+    CHECK(table && table->find("@ dt=.1, total=1") != std::string::npos);
   }
 
   /* --convert refuses an .ode's !d = expr that reads a variable: .odex's

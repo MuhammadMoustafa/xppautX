@@ -2,7 +2,7 @@
 
 wiener w
 par a = 0.8, sig = 0.05, alpha = 0.1, beta = 0.1
-fun f(x) = if x<a then -1 else a/(1-a)
+fun f(x) = if x<a then -1 else a/ode_divisor(1-a)
 x' = z*f(x mod 1)+sig*w
 markov z 2
   {0} {alpha} 
@@ -15,3 +15,5 @@ aux xm = x mod 1
 # z is two states
 @ meth=euler, dt=.1, total=2000, njmp=10
 @ xhi=2000, yhi=8, ylo=-8
+
+fun ode_divisor(value) = if value then value else 2.23e-15

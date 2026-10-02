@@ -2,7 +2,7 @@
 # names written as their declarations spell them (.odex names have case); the .ode's lines 4
 
 flux0 = 0
-flux[j] = d*(b[j]-b[j-1])-chi*b[j]*(1-a[j-1]/(if a[j] then a[j] else 2.23e-15)) for j in 1..100
+flux[j] = d*(b[j]-b[j-1])-chi*b[j]*(1-a[j-1]/ode_divisor(a[j])) for j in 1..100
 b[j]' = flux[j+1]-flux[j]+r*a[j]*b[j]-z*b[j] for j in 0..99
 b100' = -flux100
 a[j]' = -k*b[j]*a[j]+mu*a[j]*(1-a[j]) for j in 0..100
@@ -11,3 +11,5 @@ init b[j] = 10 for j in 0..5
 aux btot = sum(shift(b0, i'), from=0, to=100)
 par chi = 1, d = 1, k = 0.2, mu = 0.4, r = 0.05, z = 0.01
 # bacterial chemotaxis model
+
+fun ode_divisor(value) = if value then value else 2.23e-15

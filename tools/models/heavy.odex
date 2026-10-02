@@ -1,10 +1,8 @@
-# heavy.odex: converted from heavy.ode by xppautX --convert (docs/odex.md);
-# s written without the converter's division guards (i'*i' is never 0),
-# which made each step several times slower than the model was built for
+# heavy.odex: converted from heavy.ode by xppautX --convert (docs/odex.md)
 
 par mu = -1, w = 1, n = 400
 par k1 = 10, k2 = 30, k3 = 100, k4 = 300, k5 = 1000, k6 = 3000
-s = sum(1/(i'*i'), from=1, to=n)/sum(1/(i'*i'), from=1, to=n)
+s = sum(1/(i'*i'), from=1, to=n)/ode_divisor(sum(1/(i'*i'), from=1, to=n))
 x' = s*(mu*x-w*y-x*(x^2+y^2))
 y' = s*(w*x+mu*y-y*(x^2+y^2))
 z1' = -k1*(z1-x)
@@ -21,3 +19,5 @@ init x = 0, y = 0
 @ ntst=150, nmax=2000, npr=2000, ds=0.02, dsmin=0.0001, dsmax=0.05
 @ parmin=-1, parmax=1, autoxmin=-1, autoxmax=1, autoymin=0, autoymax=1.5
 @ epsl=1e-10, epsu=1e-10, epss=1e-8
+
+fun ode_divisor(value) = if value then value else 2.23e-15

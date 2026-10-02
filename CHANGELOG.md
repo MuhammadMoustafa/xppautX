@@ -63,6 +63,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- The `.ode` converter omits division guards for proven nonzero divisors, including positive sum-index products, and evaluates guarded divisors once through a generated function. Parameters remain guarded; historical space-separated options and formula tables using generated guards also convert, and examples retain their checksums (W165, [#217](https://github.com/MuhammadMoustafa/xppautX/issues/217)).
+
 - Method selection uses one validator: unsuitable menu choices keep the previous method instead of switching to Adams; unknown or unsuitable `@ meth` values fail the whole load at their file and line (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
 
 - A trailing `#` in a `.ode` line now starts a comment, so its words no longer become parameters or break formulas; conversion keeps the comment text. Existing include directives and Volterra convolution separators still work ([finding 28](docs/xppaut-findings.md#28-a--comment-after-a-declaration-makes-names-of-its-words)) (W160, #212).

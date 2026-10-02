@@ -2,7 +2,7 @@
 
 par ntot = 100, k = 1
 z = 2*ran(1)-1
-fun h(u) = (0.5+0.5*cos(2*pi*u*k/ntot))^sig
+fun h(u) = (0.5+0.5*cos(2*pi*u*k/ode_divisor(ntot)))^sig
 par sig = 20, eps = 0.1
 ihot = flr(ran(1)*100)
 w[j]' = w[j]+eps*(z-w[j])*h(ihot-j) for j in 0..99
@@ -10,3 +10,5 @@ ip' = ihot
 aux zz = z
 # kohox.ode
 @ meth=discrete, total=2000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -1,8 +1,8 @@
 # eiz-hom.odex: converted from eiz-hom.ode by xppautX --convert (docs/odex.md)
 
-u' = k*(-u+f(aee*we-aie*v-aze*z-te))/(c*taue)
-v' = k*(-v+f(aei*we-aii*v-ti))/(c*taui)
-z' = k*(-z+f(aez*u-tz))/(c*tauz)
+u' = k*(-u+f(aee*we-aie*v-aze*z-te))/ode_divisor(c*taue)
+v' = k*(-v+f(aei*we-aii*v-ti))/ode_divisor(c*taui)
+z' = k*(-z+f(aez*u-tz))/ode_divisor(c*tauz)
 we' = k*ve
 ve' = k*(we-u)
 fun f(u) = 1/(1+exp(-u))
@@ -14,3 +14,5 @@ par tauz = 50, aez = 10, tz = 7
 init u = 0.036, v = 5e-04, z = 0.0013, we = 0.0365
 @ dt=.002
 @ xp=we, yp=ve, xlo=-.05, ylo=-.2, xhi=.5, yhi=.3
+
+fun ode_divisor(value) = if value then value else 2.23e-15

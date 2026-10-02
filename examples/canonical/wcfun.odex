@@ -1,7 +1,7 @@
 # wcfun.odex: converted from wcfun.ode by xppautX --convert (docs/odex.md)
 
 u' = -u+f(aee*u-aie*v-te)
-v' = (-v+f(aei*u-aii*v-ti))/tau
+v' = (-v+f(aei*u-aii*v-ti))/ode_divisor(tau)
 fun f(u) = 1/(1+exp(-u))
 par aee = 20, aei = 30, aii = 5, aie = 10, te = 4.5, ti = 10
 par tau = 0.75
@@ -9,3 +9,5 @@ par tau = 0.75
 # try S C with the shoot option and
 # (u,v) between -.1 and 1.1
 @ xp=u, yp=v, xlo=-.1, xhi=1.1, ylo=-.1, yhi=1.1
+
+fun ode_divisor(value) = if value then value else 2.23e-15

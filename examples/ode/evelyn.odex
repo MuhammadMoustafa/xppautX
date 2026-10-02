@@ -1,17 +1,19 @@
 # evelyn.odex: converted from evelyn.ode by xppautX --convert (docs/odex.md)
 
 v' = -gl*(v-el)-(gk*n+gks*sks)*(v-ek)-gna*minf(v)*(v-ena)
-na' = -mu*gna*minf(v)*(v-ena)-(na-namin)/tauna
-sks = na^q/(if na^q+nah^q then na^q+nah^q else 2.23e-15)
+na' = -mu*gna*minf(v)*(v-ena)-(na-namin)/ode_divisor(tauna)
+sks = na^q/ode_divisor(na^q+nah^q)
 par q = 4
 par nah = 20
 par namin = 1, mu = 0.001, tauna = 200
-n' = (ninf(v)-n)/taun
-fun minf(v) = 1/(1+exp(-(v-va)/vb))
-fun ninf(v) = 1/(1+exp(-(v-vc)/vd))
+n' = (ninf(v)-n)/ode_divisor(taun)
+fun minf(v) = 1/(1+exp(-(v-va)/ode_divisor(vb)))
+fun ninf(v) = 1/(1+exp(-(v-vc)/ode_divisor(vd)))
 par gks = 0
 par va = -45, vb = 8, vc = -48, vd = 4
 par gl = 0.025, gk = 7.5, gna = 4
 par ena = 55, ek = -85, el = -70
 par taun = 0.3
 aux ss = sks
+
+fun ode_divisor(value) = if value then value else 2.23e-15

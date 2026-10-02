@@ -12,13 +12,15 @@ zl' = zl*x+xl*z-c*zl+alpha*c3*zl
 init xl = 1, yl = 0, zl = 0
 par dtout = 1.1
 init tt = 0
-event 1 tt-dtout, tt = 0, norm = sqrt(xl^2+yl^2+zl^2), acc = acc+ln(norm), xl = xl/(if norm then norm else 2.23e-15), yl = yl/(if norm then norm else 2.23e-15), zl = zl/(if norm then norm else 2.23e-15)
+event 1 tt-dtout, tt = 0, norm = sqrt(xl^2+yl^2+zl^2), acc = acc+ln(norm), xl = xl/ode_divisor(norm), yl = yl/ode_divisor(norm), zl = zl/ode_divisor(norm)
 tt' = 1
 norm' = 0
 acc' = 0
-aux liap = acc/(if max(1, t) then max(1, t) else 2.23e-15)
+aux liap = acc/ode_divisor(max(1, t))
 aux mya = alpha
 # rossler attractor
 @ bound=100000000
 @ dt=.025001, total=1000, nout=100, transient=999.99
 @ runnow=1
+
+fun ode_divisor(value) = if value then value else 2.23e-15

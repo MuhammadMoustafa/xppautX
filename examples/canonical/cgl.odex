@@ -1,6 +1,6 @@
 # cgl.odex: converted from cgl.ode by xppautX --convert (docs/odex.md)
 
-d = 1/(h*h)
+d = 1/ode_divisor(h*h)
 r[j] = u[j]*u[j]+v[j]*v[j] for j in 0..127
 u0' = u0-(u0-beta*v0)*r0+d*(u1-u0-eps*(v1-v0))
 v0' = v0-(v0+beta*u0)*r0+d*(v1-v0+eps*(u1-u0))
@@ -270,3 +270,5 @@ init u[j] = 1 for j in 50..55
 # Use the array to plot u0 256 cols 
 # with colskip=2 rowskip=2,nrows=401,zlo=-1,zhi=+1
 # 
+
+fun ode_divisor(value) = if value then value else 2.23e-15

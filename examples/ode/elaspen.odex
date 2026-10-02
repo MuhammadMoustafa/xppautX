@@ -3,11 +3,11 @@
 r' = rp
 rp' = r*thp^2+cos(th)-1-a*(r-1)-fk*rp
 th' = thp
-thp' = -(2*rp*thp+sin(th)+ft*thp)/(if r then r else 2.23e-15)
+thp' = -(2*rp*thp+sin(th)+ft*thp)/ode_divisor(r)
 par a = 0.15, fk = 0, ft = 0, scale = 15
 init r = 1, th = 1.4
-xb = 0.5+0.5*r*sin(th)/scale
-yb = 0.5-0.5*r*cos(th)/scale
+xb = 0.5+0.5*r*sin(th)/ode_divisor(scale)
+yb = 0.5-0.5*r*cos(th)/ode_divisor(scale)
 aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*cos(th)+1
 # the pendulum on a spring
 # the dimensionless parameter is
@@ -20,3 +20,5 @@ aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*cos(th)+1
 # the energy
 @ total=400, meth=qualrk, dt=.25
 @ bound=100000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

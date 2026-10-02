@@ -125,7 +125,7 @@ Trailing `#` text in `.ode` lines is now read as a comment, unlike XPPAUT ([find
 | Option names | some unreachable, some never applied ([findings #1, #2](xppaut-findings.md)) | one table of options (`core/model_options.cpp`); a bad `@` value stops the load, naming the file, the line and the value (W125, W140) | W119, W125 |
 | `@` settings from `.xpprc`, command line, model | merged by a set of flags | one option table | W119 |
 | `#include` | `#include file`, ends with `#done` | same for `.ode`; `.odex` uses `include "file"` | W139 |
-| Division by zero | a large finite number, not IEEE (not verified) | see [odex.md](odex.md) (old models give XPP's numbers); not verified here | W73 |
+| Division by zero | zero divisor replaced by 2.23e-15 | `.odex` uses IEEE; conversion preserves XPPAUT through a function evaluating uncertain divisors once, omitting guards for proven nonzero divisors ([odex.md](odex.md)) | W73, W165 ([#217](https://github.com/MuhammadMoustafa/xppautX/issues/217)) |
 | `special` (conv, sparse, fftcon, ...) | supported | supported; `fftcon` weight table fixed ([findings #23](xppaut-findings.md)) | W38 |
 | Compiled functions in the model | `export` and DLL functions | removed | W55 |
 

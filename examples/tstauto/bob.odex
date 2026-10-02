@@ -2,8 +2,10 @@
 # names written as their declarations spell them (.odex names have case); the .ode's lines 1, 2
 
 X' = -X+F(a+b*X-c*Y)
-Y' = (-Y+F(a+b*X-c*Y))/tau
+Y' = (-Y+F(a+b*X-c*Y))/ode_divisor(tau)
 fun F(X) = sqrt(max(X, 0))/pi
 init X = 0.008133577343489495
 init Y = 0.1549233657962823
 par a = 1, b = 6, c = 8, tau = 7
+
+fun ode_divisor(value) = if value then value else 2.23e-15

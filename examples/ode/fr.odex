@@ -2,10 +2,10 @@
 
 init tau = 1, x = 1.08
 junk = volterra(0, of=x)
-tau' = v/(if c+delay(v, tau) then c+delay(v, tau) else 2.23e-15)
-x0 = -xs+a*sin(th)^2/(1-cos(th)^2-2*cos(th)*cos(xs))
+tau' = v/ode_divisor(c+delay(v, tau))
+x0 = -xs+a*sin(th)^2/ode_divisor(1-cos(th)^2-2*cos(th)*cos(xs))
 x' = v
-v' = -v/q-x-x0+a*(fr*fr+fi*fi)*sin(th)^2
+v' = -v/ode_divisor(q)-x-x0+a*(fr*fr+fi*fi)*sin(th)^2
 fr(t) = 1+cos(th)*(cos(delay(x, tau))*delay(fr, tau)-sin(delay(x, tau))*delay(fi, tau))
 fi(t) = 1+cos(th)*(sin(delay(x, tau))*delay(fr, tau)+cos(delay(x, tau))*delay(fi, tau))
 par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
@@ -40,3 +40,5 @@ par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
 # as integral equations
 # 
 # 
+
+fun ode_divisor(value) = if value then value else 2.23e-15

@@ -3,8 +3,8 @@
 par g = 9.8, l = 1, mp = 1, mc = 1
 par fp = 0.1, fc = 0.1
 par k = 0.1
-0 = p1dd+fp*q1+g/l*sin(p1)+xdd*cos(p1)/l
-0 = p2dd+fp*q2+g/l*sin(p2)+xdd*cos(p2)/l
+0 = p1dd+fp*q1+g/ode_divisor(l)*sin(p1)+xdd*cos(p1)/ode_divisor(l)
+0 = p2dd+fp*q2+g/ode_divisor(l)*sin(p2)+xdd*cos(p2)/ode_divisor(l)
 0 = (mc+2*mp)*xdd+fc*v+k*x+mp*l*(cos(p1)*p1dd-sin(p1)*q1^2+cos(p2)*p2dd-sin(p2)*q2^2)
 solv p1dd = 0
 solv p2dd = 0
@@ -32,3 +32,5 @@ par c = 0.1, eps = 0.3
 # dynamics
 # escapement mechanism
 #
+
+fun ode_divisor(value) = if value then value else 2.23e-15

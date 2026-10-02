@@ -1,6 +1,6 @@
 # wcbiwave.odex: converted from wcbiwave.ode by xppautX --convert (docs/odex.md)
 
-u' = k*(-u+f(a*w-b))/c
+u' = k*(-u+f(a*w-b))/ode_divisor(c)
 w' = k*z
 z' = k*(w-u)
 par c = 1, k = 1, a = 15, b = 5
@@ -8,3 +8,5 @@ fun f(x) = 1/(1+exp(-x))
 @ xp=u, yp=z
 @ xlo=-.1, ylo=-1, yhi=1, xhi=1.2
 @ dt=.01
+
+fun ode_divisor(value) = if value then value else 2.23e-15

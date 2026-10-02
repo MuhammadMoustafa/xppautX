@@ -1,6 +1,6 @@
 # torx.odex: converted from torx.ode by xppautX --convert (docs/odex.md)
 
-x' = (-(be+rn)*x+be*y-a3*(x*(x*x))+b3*((y-x)*((y-x)*(y-x))))/r
+x' = (-(be+rn)*x+be*y-a3*(x*(x*x))+b3*((y-x)*((y-x)*(y-x))))/ode_divisor(r)
 y' = be*x-(be+ga)*y-z-b3*((y-x)*((y-x)*(y-x)))
 z' = y
 par rn = -0.9, be = 0.5, ga = -0.6, r = 0.6, a3 = 0.328578, b3 = 0.933578
@@ -9,3 +9,5 @@ par rn = -0.9, be = 0.5, ga = -0.6, r = 0.6, a3 = 0.328578, b3 = 0.933578
 @ epsl=1e-7, epsu=1e-7, epss=1e-5
 @ autoymax=1, autoymin=-1, autoxmin=-.9, autoxmax=-.4
 @ ds=.001
+
+fun ode_divisor(value) = if value then value else 2.23e-15

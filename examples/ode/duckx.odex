@@ -5,15 +5,15 @@ m1 = mmin+mu
 m2 = mmin+mutot-mu
 mu' = mudot+gamma*cos(x)*(mutot-mu)*mu
 x' = xdot
-xdot' = (-f*xdot-(m1*l1-m2*l2)*sin(x)+k/(if 1-cos(x-xlo) then 1-cos(x-xlo) else 2.23e-15)-mudot*(l1^2-l2^2))/(if m1*l1^2+m2*l2^2 then m1*l1^2+m2*l2^2 else 2.23e-15)
+xdot' = (-f*xdot-(m1*l1-m2*l2)*sin(x)+k/ode_divisor(1-cos(x-xlo))-mudot*(l1^2-l2^2))/ode_divisor(m1*l1^2+m2*l2^2)
 par l1 = 2.6, l2 = 2.5, mmin = 2, f = 0.5, k = 0.002, xlo = -0.2, eps = 0.015, xdip = 1.6, mutot = 0.4
 par beta = 50, gamma = 0
 event 1 x-xdip, xdot = 0, mu = mutot
 init mu = 0.25, x = 1.5
-x1 = 0.5+0.8*(l1/(l1+l2))*sin(x)
-y1 = 0.5-0.8*(l1/(l1+l2))*cos(x)
-x2 = 0.5-0.8*(l2/(l1+l2))*sin(x)
-y2 = 0.5+0.8*(l2/(l1+l2))*cos(x)
+x1 = 0.5+0.8*(l1/ode_divisor(l1+l2))*sin(x)
+y1 = 0.5-0.8*(l1/ode_divisor(l1+l2))*cos(x)
+x2 = 0.5-0.8*(l2/ode_divisor(l1+l2))*sin(x)
+y2 = 0.5+0.8*(l2/ode_divisor(l1+l2))*cos(x)
 xb = x2-0.15*cos(x)
 yb = y2-0.15*sin(x)
 fun th(x, y) = min(atan2(0.5-x, y-0.5), xdip)
@@ -28,3 +28,5 @@ fun th(x, y) = min(atan2(0.5-x, y-0.5), xdip)
 # without loss of generality we assume this is 1 so M=1+2*mmin
 # some animation constants
 @ meth=qualrk, dt=1, total=1000
+
+fun ode_divisor(value) = if value then value else 2.23e-15

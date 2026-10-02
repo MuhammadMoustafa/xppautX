@@ -3,8 +3,8 @@
 init a = 0.0118, ap = 1.18, k = 0, omeg = -0.19, s = 0.01
 par d = 0.177, q = 0.5, sig = 3
 a' = ap
-ap' = a*k*k-ap/(if s then s else 2.23e-15)+a/(if s^2 then s^2 else 2.23e-15)-a*(1-a*a)/d
-k' = -k/(if s then s else 2.23e-15)-2*k*ap/(if a then a else 2.23e-15)-(omeg+q*a*a)/d
+ap' = a*k*k-ap/ode_divisor(s)+a/ode_divisor(s^2)-a*(1-a*a)/ode_divisor(d)
+k' = -k/ode_divisor(s)-2*k*ap/ode_divisor(a)-(omeg+q*a*a)/ode_divisor(d)
 omeg' = 0
 s' = 1
 boundary a-s*ap
@@ -26,3 +26,5 @@ boundary k'
 # right end - note primes here refer to value at the right end
 # set it up for the user
 @ xhi=1, total=1, dt=.001
+
+fun ode_divisor(value) = if value then value else 2.23e-15

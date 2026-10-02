@@ -1,11 +1,11 @@
 # vlsi.odex: converted from vlsi.ode by xppautX --convert (docs/odex.md)
 
-v' = (iext*alp+ibh*alp/(1+exp(-k*(v-vh)/ut))-ibl*aln/(1+exp(-k*(w-vl)/ut)))/c1
-w' = itau*tanh(k*(v-w)/(2*ut))*bep*ben/c2
-alp = 1-exp((v-vhigh)/ut)
-aln = 1-exp((vlow-v)/ut)
-bep = 1-exp((w-vdd)/ut)
-ben = 1-exp(-w/ut)
+v' = (iext*alp+ibh*alp/(1+exp(-k*(v-vh)/ode_divisor(ut)))-ibl*aln/(1+exp(-k*(w-vl)/ode_divisor(ut))))/ode_divisor(c1)
+w' = itau*tanh(k*(v-w)/ode_divisor(2*ut))*bep*ben/ode_divisor(c2)
+alp = 1-exp((v-vhigh)/ode_divisor(ut))
+aln = 1-exp((vlow-v)/ode_divisor(ut))
+bep = 1-exp((w-vdd)/ode_divisor(ut))
+ben = 1-exp(-w/ode_divisor(ut))
 init v = 3, w = 2.5
 par iext = 32, vlow = 0, vhigh = 5, vl = 2.5, vh = 2.5, ibh = 6.5, ibl = 42, itau = 2.2
 par vdd = 5, ut = 0.025, k = 0.65, c1 = 28, c2 = 28
@@ -13,3 +13,5 @@ par vdd = 5, ut = 0.025, k = 0.65, c1 = 28, c2 = 28
 # shows bistability of a limit cycle and fixed point
 #
 @ xlo=0, xhi=5, ylo=2.25, yhi=2.8, xp=v, yp=w, nmesh=100, total=50
+
+fun ode_divisor(value) = if value then value else 2.23e-15

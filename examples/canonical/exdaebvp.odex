@@ -2,11 +2,11 @@
 
 u' = up
 up' = v*up+lamu*(u-w)
-0 = -k*w/(if 1+w then 1+w else 2.23e-15)+lamv*(u-w)
+0 = -k*w/ode_divisor(1+w)+lamv*(u-w)
 solv w = 0.235
 init u = 1, up = -0.34
 aux ww = w
-aux z = -k*w/(if 1+w then 1+w else 2.23e-15)+lamv*(u-w)
+aux z = -k*w/ode_divisor(1+w)+lamv*(u-w)
 par k = 1, lamu = 0.25, lamv = 0.25, v = 0.2, u0 = 1
 boundary u-u0
 boundary up'
@@ -20,3 +20,5 @@ boundary up'
 # DAE stuff
 # some extra stuff
 @ total=5.001, jac_eps=1e-5, newt_tol=1e-5, dt=.005
+
+fun ode_divisor(value) = if value then value else 2.23e-15

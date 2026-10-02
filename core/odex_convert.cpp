@@ -30,6 +30,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
@@ -232,6 +233,8 @@ public:
   {
     rename_reserved();
     steady_constants();
+    guard_name_ = "ode_divisor";
+    while (taken_.count(xpp::upper_case(guard_name_))) guard_name_ += "_";
     std::string body;
     const std::vector<Statement> &st = m_.statements;
     for (size_t i = 0; i < st.size();) {
@@ -255,8 +258,12 @@ public:
     std::string out = header();
     out += body;
     out += after_done();
+    if (uses_guard_)
+      out += "\nfun " + guard_name_ + "(value) = if value then value else " + print(number_expr(xpp::expr::ZERO_DIVISOR)) + "\n";
     return out;
   }
+
+  std::string guard_name() const { return uses_guard_ ? guard_name_ : std::string(); }
 
 private:
   /* the conversion stops: why */
@@ -279,9 +286,10 @@ private:
   void steady_constants()
   {
     /* the constants that keep their value through a run: every one but
-       sum's index, the animator's mouse, the Wiener parameters and the
-       parameters an event sets */
+       sum's index, the animator's mouse, parameters and derived quantities */
     std::set<int> moving = {xpp::expr::SUM_INDEX};
+    for (int k = 0; k < m_.nupar; k++) moving.insert(m_.upar_con[k]);
+    for (const auto &d : m_.derived) moving.insert(d.index);
     for (int k = 0; k < m_.nwiener; k++) moving.insert(m_.wiener[k]);
     for (int j = 0; j < m_.nflags; j++)
       for (int e = 0; e < m_.flags[j].nevents; e++)
@@ -516,7 +524,7 @@ private:
     }
   };
 
-  std::vector<Expr> walk(const int *p, const int *end, int fun) const
+  std::vector<Expr> walk(const int *p, const int *end, int fun, bool positive_index = false) const
   {
     Stack st(m_.this_file);
     while (p < end) {
@@ -539,17 +547,23 @@ private:
         const int j2 = else_start[-1];
         const int *after = else_start + j2;
         Expr c = st.pop(&first);
-        Expr a = one(p, else_start - 2, fun);
-        Expr b = one(else_start, after - 1, fun);
+        Expr a = one(p, else_start - 2, fun, positive_index);
+        Expr b = one(else_start, after - 1, fun, positive_index);
         st.push(op_expr(Expr::Kind::If, "", {std::move(c), std::move(a), std::move(b)}), first);
         p = after;
+        positive_index = false;
         continue;
       }
       case SUMSYM: {
         Expr hi = st.pop(), lo = st.pop(&first);
         const int j = *p++;
-        Expr body = one(p, p + j, fun);
+        /* SUM_INDEX is an integer; nested sums overwrite it rather than
+           restoring it, so do not assume the outer range after one. */
+        const auto lower = leaf_value(lo);
+        const bool index_positive = lower && *lower >= 1 && *lower <= std::numeric_limits<int>::max();
+        Expr body = one(p, p + j, fun, index_positive);
         p += j;
+        positive_index = false;
         Expr e = op_expr(Expr::Kind::Call, "sum", {std::move(body), std::move(lo), std::move(hi)});
         e.arg_names = {"", "from", "to"};
         st.push(std::move(e), first);
@@ -606,7 +620,7 @@ private:
           {0, "+"}, {1, "-"}, {2, "*"}, {3, "/"}, {xpp::expr::IEEE_DIVIDE, "/"}, {5, "^"}, {8, "mod"}, {9, "and"},
           {10, "or"}, {11, ">"}, {12, "<"}, {13, "=="}, {14, ">="}, {15, "<="}, {16, "!="}};
         /* XPP's division: a divisor that can be 0 written with XPP's guard */
-        if (in == 3 && !never_zero(y, divisor, here)) y = guarded(std::move(y));
+        if (in == 3 && !never_zero(y, divisor, here, positive_index)) y = guarded(std::move(y));
         auto op = ops.find(in);
         if (op != ops.end()) st.push(op_expr(Expr::Kind::Binary, op->second, {std::move(x), std::move(y)}), first);
         else call(builtin(i), {std::move(x), std::move(y)});
@@ -623,6 +637,7 @@ private:
         for (int k = n; k-- > 0;) args[k] = st.pop(&first);
         if (n == 0) first = here;
         call(name(m_.ufun_names[in]), std::move(args));
+        positive_index = false; /* a function may contain a sum */
         break;
       }
       case USTACKTYPE:
@@ -692,6 +707,7 @@ private:
   {
     if (std::optional<double> v = leaf_value(e)) return *v > 0;
     if (e.kind == Expr::Kind::Call && e.text == "cosh") return true;
+    if (e.kind == Expr::Kind::Call && e.text == "exp") return nonnegative(e.args[0]);
     if (e.kind == Expr::Kind::Binary && e.text == "+")
       return (positive(e.args[0]) && nonnegative(e.args[1])) || (nonnegative(e.args[0]) && positive(e.args[1]));
     return false;
@@ -707,31 +723,42 @@ private:
     if (e.kind == Expr::Kind::Binary) {
       const Expr &a = e.args[0], &b = e.args[1];
       if (e.text == "^" && b.kind == Expr::Kind::Number && std::fmod(b.value, 2.0) == 0) return true;
-      if (e.text == "*" && print(a) == print(b)) return true; /* x*x */
+      if (e.text == "*" && a.kind == Expr::Kind::Name && b.kind == Expr::Kind::Name && print(a) == print(b)) return true; /* x*x, no repeated random call */
       if (e.text == "+" || e.text == "*") return nonnegative(a) && nonnegative(b);
     }
     return false;
   }
 
   /* the divisor y (its instructions [from,to)) is never 0: a constant
-     that is not 0, or a sum positive by its form */
-  bool never_zero(const Expr &y, const int *from, const int *to) const
+     that is not 0, a positive form, or a positive integer index product */
+  bool never_zero(const Expr &y, const int *from, const int *to, bool positive_index) const
   {
     if (std::optional<double> v = constant_value(from, to)) return *v != 0;
-    return positive(y);
+    if (const auto v = leaf_value(y)) return *v != 0;
+    if (positive(y)) return true;
+    const auto index_product = [](const auto &self, const Expr &e) -> bool {
+      if (e.kind == Expr::Kind::Name) return e.primed && e.text == "i";
+      return e.kind == Expr::Kind::Binary && e.text == "*" && self(self, e.args[0]) && self(self, e.args[1]);
+    };
+    if (positive_index) {
+      /* Products of integer indices cannot underflow to zero. Do not
+         extend this rule to arbitrary nonzero floating-point factors. */
+      return index_product(index_product, y);
+    }
+    return false;
   }
 
   /* y as XPP divides by it: if y then y else ZERO_DIVISOR (a zero y,
      -0 too, is false; NaN is true, as XPP's guard lets it through) */
-  static Expr guarded(Expr y)
+  Expr guarded(Expr y) const
   {
-    Expr cond = y;
-    return op_expr(Expr::Kind::If, "", {std::move(cond), std::move(y), number_expr(xpp::expr::ZERO_DIVISOR)});
+    uses_guard_ = true;
+    return op_expr(Expr::Kind::Call, guard_name_, {std::move(y)});
   }
 
-  Expr one(const int *p, const int *end, int fun) const
+  Expr one(const int *p, const int *end, int fun, bool positive_index = false) const
   {
-    std::vector<Expr> st = walk(p, end, fun);
+    std::vector<Expr> st = walk(p, end, fun, positive_index);
     if (st.size() != 1) refuse("a program part leaves other than one value");
     return std::move(st[0]);
   }
@@ -1224,6 +1251,8 @@ private:
   /* every declared name and new name, in upper case (an array's index is
      none of them) */
   std::set<std::string> taken_;
+  std::string guard_name_;
+  mutable bool uses_guard_ = false;
   std::set<int> constants_;
   std::map<std::string, double> constant_values_;
   std::vector<std::string> option_notes_;
@@ -1244,62 +1273,39 @@ std::string odex_name(const std::string &ode)
 
 namespace {
 
-/* what a load compiled, to compare an .ode's Model with its .odex's: every
-   program, with an .odex division read as .ode's (the one instruction the
-   formats compile differently on purpose), and the model's own values */
+/* Compare the imported Model with its conversion: IEEE division read as
+   .ode division, and calls to the verified generated guard erased. */
 struct Fingerprint {
   std::vector<std::vector<int>> programs;
   std::vector<double> values;
   bool operator==(const Fingerprint &) const = default;
 };
 
-std::vector<int> normalized(const std::vector<int> &prog);
+std::vector<int> normalized(const std::vector<int> &prog, int guard = -1);
 
-/* the .odex's a/(if b then b else ZERO_DIVISOR), --convert's writing of
-   an .ode division whose divisor can be 0, at the MYIF prog[i] (the
-   condition b already in out): the .ode's own division of a by b
-   instead, i at the division; false when this if is not that */
-bool collapse_guard(const std::vector<int> &prog, size_t &i, std::vector<int> &out)
-{
-  using xpp::expr::number_from_halves;
-  if (i + 1 >= prog.size() || prog[i + 1] < 3) return false;
-  const size_t len = static_cast<size_t>(prog[i + 1] - 2); /* the then part, b again */
-  const size_t t = i + 2 + len;                            /* its MYTHEN */
-  if (t + 6 >= prog.size() || prog[t] != MYTHEN || prog[t + 1] != 4 || prog[t + 2] != NUMSYM ||
-      number_from_halves(prog[t + 4], prog[t + 3]) != xpp::expr::ZERO_DIVISOR || prog[t + 5] != MYELSE ||
-      prog[t + 6] != COM(FUN2TYPE, xpp::expr::IEEE_DIVIDE))
-    return false;
-  std::vector<int> b(prog.begin() + static_cast<std::ptrdiff_t>(i + 2), prog.begin() + static_cast<std::ptrdiff_t>(t));
-  b.push_back(ENDEXP);
-  std::vector<int> nb = normalized(b);
-  nb.pop_back();
-  if (out.size() < nb.size() || !std::equal(nb.begin(), nb.end(), out.end() - static_cast<std::ptrdiff_t>(nb.size())))
-    return false;
-  out.push_back(COM(FUN2TYPE, 3));
-  i = t + 6;
-  return true;
-}
-
-std::vector<int> normalized(const std::vector<int> &prog)
+std::vector<int> normalized(const std::vector<int> &prog, int guard)
 {
   std::vector<int> out;
   for (size_t i = 0; i < prog.size(); i++) {
     const int c = prog[i];
-    if (c == MYIF && collapse_guard(prog, i, out)) continue;
+    if (guard >= 0 && c == COM(UFUNTYPE, guard) && i + 1 < prog.size() && prog[i + 1] == 1) {
+      i++; /* guard's argument is already on the stack, evaluated once */
+      continue;
+    }
     /* Removing a division guard also shortens its containing branch or
        sum. Recompute those jumps from the normalized bodies. */
     if (c == MYIF || c == SUMSYM) {
       const size_t end = i + 2 + static_cast<size_t>(prog[i + 1]);
       const size_t body_end = c == MYIF ? end - 2 : end;
       const std::vector<int> body = normalized(std::vector<int>(prog.begin() + static_cast<std::ptrdiff_t>(i + 2),
-                                                               prog.begin() + static_cast<std::ptrdiff_t>(body_end)));
+                                                               prog.begin() + static_cast<std::ptrdiff_t>(body_end)), guard);
       out.push_back(c);
       out.push_back(static_cast<int>(body.size()) + (c == MYIF ? 2 : 0));
       out.insert(out.end(), body.begin(), body.end());
       if (c == MYIF) {
         const size_t after = end + static_cast<size_t>(prog[end - 1]);
         const std::vector<int> otherwise = normalized(std::vector<int>(prog.begin() + static_cast<std::ptrdiff_t>(end),
-                                                                      prog.begin() + static_cast<std::ptrdiff_t>(after - 1)));
+                                                                      prog.begin() + static_cast<std::ptrdiff_t>(after - 1)), guard);
         out.push_back(MYTHEN);
         out.push_back(static_cast<int>(otherwise.size()) + 1);
         out.insert(out.end(), otherwise.begin(), otherwise.end());
@@ -1317,22 +1323,22 @@ std::vector<int> normalized(const std::vector<int> &prog)
   return out;
 }
 
-Fingerprint fingerprint(const xpp::Session &s)
+Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 {
   const xpp::Model &m = s.model();
   Fingerprint f;
-  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun, m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
+  for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
     f.values.push_back(c);
-  for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i]));
-  for (int i = 0; i < m.nfun; i++) f.programs.push_back(normalized(m.ufun_programs[i]));
+  for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i], guard));
+  for (int i = 0; i < m.nfun; i++) if (i != guard) f.programs.push_back(normalized(m.ufun_programs[i], guard));
   for (int j = 0; j < m.nflags; j++) {
-    f.programs.push_back(normalized(m.flags[j].comcond));
-    for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e]));
+    f.programs.push_back(normalized(m.flags[j].comcond, guard));
+    for (int e = 0; e < m.flags[j].nevents; e++) f.programs.push_back(normalized(m.flags[j].comrhs[e], guard));
   }
-  for (int i = 0; i < m.naeqn; i++) f.programs.push_back(normalized(m.aeqns[i].form));
-  for (int i = 0; i < m.nsvar; i++) f.programs.push_back(normalized(m.svars[i].form));
+  for (int i = 0; i < m.naeqn; i++) f.programs.push_back(normalized(m.aeqns[i].form, guard));
+  for (int i = 0; i < m.nsvar; i++) f.programs.push_back(normalized(m.svars[i].form, guard));
   for (int i = 0; i < m.nmarkov; i++)
-    for (const std::vector<int> &c : m.markov[i].command) f.programs.push_back(normalized(c));
+    for (const std::vector<int> &c : m.markov[i].command) f.programs.push_back(normalized(c, guard));
   for (int i = 0; i < m.nupar; i++) f.values.push_back(m.default_val[i]);
   for (int i = 0; i < m.node + m.nmarkov; i++) f.values.push_back(s.last_ic[i]);
   return f;
@@ -1352,6 +1358,7 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
   argv.push_back(nullptr);
   std::string text;
   Fingerprint before;
+  std::string guard_name;
   SavedModel saved;
   const OdeAsOdex as_odex;
   Result<> imported = xpp::inspect_model(static_cast<int>(args.size()), argv.data(), [](Session &s) {
@@ -1365,7 +1372,9 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
     get_eqn(s, input.get());
   }, [&](Session &s) -> std::optional<Error> {
     try {
-      text = Converter(s, auto_answer, ask).run();
+      Converter converter(s, auto_answer, ask);
+      text = converter.run();
+      guard_name = converter.guard_name();
       before = fingerprint(s);
       saved = SavedModel{odex_name(ode), s.model().files};
     } catch (Error &e) {
@@ -1380,7 +1389,20 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
   saved.files.push_back({model, text});
   Result<> checked = xpp::inspect_model(2, argv.data(), load_eqn,
     [&](Session &s) -> std::optional<Error> {
-      if (!(fingerprint(s) == before))
+      const int guard = guard_name.empty() ? -1 : s.model().nfun - 1;
+      /* Check the helper's compiled guard before erasing its calls from
+         fingerprints; function storage is padded beyond ENDEXP. */
+      constexpr size_t guard_program_size = 13; /* argument, conditional, number and function terminator */
+      bool guard_valid = guard_name.empty() || guard >= 0;
+      if (guard >= 0) {
+        const auto program = normalized(s.model().ufun_programs[guard]);
+        guard_valid = s.model().ufun_names[guard] == xpp::upper_case(guard_name) && s.model().narg_fun[guard] == 1
+            && program.size() == guard_program_size && program[0] == COM(USTACKTYPE, 0) && program[1] == MYIF && program[2] == 3
+            && program[3] == COM(USTACKTYPE, 0) && program[4] == MYTHEN && program[5] == 4 && program[6] == NUMSYM
+            && xpp::expr::number_from_halves(program[8], program[7]) == xpp::expr::ZERO_DIVISOR
+            && program[9] == MYELSE && program[10] == ENDFUN && program[11] == 1 && program[12] == ENDEXP;
+      }
+      if (!guard_valid || !(fingerprint(s, guard) == before))
         return Error{"convert", xpp::format("does not compile to what {} did: a bug in the converter", ode), Place{model}};
       return std::nullopt;
     }, &saved);

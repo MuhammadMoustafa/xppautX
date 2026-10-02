@@ -5,10 +5,12 @@ fun f(x) = 0.5*(1+tanh(x))
 x1' = -x1+f(aee*x1+c*x2-aie*u-te)
 x2' = -x2+f(aee*x2+c*x3-aie*u-te)
 x3' = -x3+f(aee*x3+c*x1-aie*u-te)
-u' = (-u+f(aei*(x1+x2+x3)-ti))/tau
+u' = (-u+f(aei*(x1+x2+x3)-ti))/ode_divisor(tau)
 init x1 = 0.3
 init x2 = 0.2
 init x3 = 0.1
 # a model used by the author to study complex dynamics in winner
 # take all neural networks change tau to 1.1 and then .25
 @ dt=.1, total=200, xhi=200, ylo=0, yhi=1
+
+fun ode_divisor(value) = if value then value else 2.23e-15
