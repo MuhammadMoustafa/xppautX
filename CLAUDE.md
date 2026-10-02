@@ -415,6 +415,19 @@ difficulty) implements one card in the worktree its brief names:
 The reviewer (the main session) reviews, refactors, merges, runs the
 5-task tier, pushes when the user says so, and then closes the finished
 cards' issues (above). A new roadmap card gets its GitHub issue at once.
+Every card's review, before its merge, does three things (maintainer,
+2026-10-01): checks the card is met and every "review" row of Code
+quality holds; checks the agent followed this section (it stayed in its
+card's scope, ran the gates its report claims, squashed its wip commits,
+closed its register lines, moved the docs, reported what it checked at a
+trust boundary), naming a broken rule in the card's note so the next
+brief says it louder; and simplifies and refactors the diff even when it
+passes: what the change does not need is removed (a dead branch, a flag
+nothing varies, a check of what cannot happen, a comment that restates
+the code), a new helper moves into its owner, code the diff copied is
+merged, a function it made long is split, names say what things are. The
+behaviour stays: the card's gates are rerun after it, and it is committed
+apart from the agent's work as "Review: ...".
 
 Models are named by family, never by version (maintainer, 2026-10-01),
 so a newer one is used the day it ships: the agents' `model:` is the bare
