@@ -24,15 +24,25 @@ export function findBrowser(explicit) {
   return null;
 }
 
+const STDERR_KEPT = 4000; /* bytes of the browser's stderr a failure shows */
+
 /* ---- the DevTools protocol ------------------------------------------------ */
+
+const NOTES_KEPT = 30;
 
 export class Cdp {
   constructor(url) {
     this.ws = new WebSocket(url);
     this.id = 0;
     this.pending = new Map();
+    this.notes = [];
+    this.ws.onclose = () => {
+      for (const [, p] of this.pending) p.reject(new Error(`${p.method}: the DevTools connection closed${this.browserState ? ` (browser: ${this.browserState()})` : ''}`));
+      this.pending.clear();
+    };
     this.ws.onmessage = m => {
       const d = JSON.parse(m.data);
+      if (d.method) this.note(d);
       if (d.method && this.onEvent) this.onEvent(d);
       const p = d.id && this.pending.get(d.id);
       if (!p) return;
@@ -46,6 +56,44 @@ export class Cdp {
       this.ws.onerror = reject;
     });
   }
+  /* what the page did, for a failure to name itself (W158): the last
+     navigations, console errors, exceptions, failed or refused document
+     loads and a crashed renderer, oldest first, NOTES_KEPT of them */
+  note(d) {
+    const p = d.params;
+    let text = null;
+    switch (d.method) {
+      case 'Page.frameNavigated': if (!p.frame.parentId) text = `navigated to ${p.frame.url}`; break;
+      case 'Runtime.exceptionThrown': text = `exception: ${p.exceptionDetails.exception?.description || p.exceptionDetails.text}`; break;
+      case 'Runtime.consoleAPICalled':
+        if (p.type === 'error' || p.type === 'warning') text = `console.${p.type}: ${p.args.map(a => a.value ?? a.description).join(' ')}`;
+        break;
+      case 'Log.entryAdded': if (p.entry.level === 'error') text = `log: ${p.entry.text} ${p.entry.url || ''}`; break;
+      case 'Network.loadingFailed': if (!p.canceled) text = `load failed: ${p.errorText} (${p.type})`; break;
+      case 'Network.responseReceived': if (p.type === 'Document') text = `document ${p.response.url}: HTTP ${p.response.status}`; break;
+      case 'Inspector.targetCrashed': text = 'the renderer crashed'; break;
+      default: break;
+    }
+    if (text === null) return;
+    this.notes.push(text);
+    if (this.notes.length > NOTES_KEPT) this.notes.shift();
+  }
+  /* what the page holds right now, and what it did before: for an error */
+  async report() {
+    let now;
+    try {
+      const r = await Promise.race([
+        this.send('Runtime.evaluate', {expression: `JSON.stringify({url: location.href, state: document.readyState,
+          title: document.title, app: !!document.getElementById('app') && document.getElementById('app').childElementCount,
+          text: (document.body ? document.body.innerText : '').slice(0, 200)})`, returnByValue: true}),
+        sleep(3000).then(() => null)]);
+      now = r && r.result ? r.result.value : 'the page did not answer within 3 s';
+    } catch (e) {
+      now = `the page could not be asked: ${e.message}`;
+    }
+    return `page now: ${now}\n  page before: ${this.notes.length ? this.notes.join('\n    ') : '(nothing recorded)'}` +
+      (this.browserState ? `\n  browser: ${this.browserState()}` : '');
+  }
   send(method, params = {}) {
     const id = ++this.id;
     this.ws.send(JSON.stringify({id, method, params}));
@@ -53,7 +101,11 @@ export class Cdp {
   }
   async eval(expression) {
     const r = await this.send('Runtime.evaluate', {expression, awaitPromise: true, returnByValue: true});
-    if (r.exceptionDetails) throw new Error(`page: ${r.exceptionDetails.exception?.description || r.exceptionDetails.text}`);
+    if (r.exceptionDetails) {
+      const what = r.exceptionDetails.exception?.description || r.exceptionDetails.text;
+      /* the page's own error is its code's; a missing __xpp is the app never having loaded: say what did load */
+      throw new Error(`page: ${what}${/__xpp is not defined/.test(what) ? `\n  ${await this.report()}` : ''}`);
+    }
     return r.result.value;
   }
 }
@@ -159,16 +211,23 @@ export async function startBrowser(browser, profile) {
     '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
     'about:blank'],
   {stdio: ['ignore', 'ignore', 'pipe']});
+  /* the browser's stderr for its whole life (the tail: STDERR_KEPT bytes) and how it ended: a
+     failure names the exit code or signal and what Chrome said (W158) */
+  let text = '', ended = null;
+  const state = () => (ended ? `exited (${ended})` : `running, pid ${proc.pid}`) + `; stderr:\n${text.slice(-STDERR_KEPT) || '(empty)'}`;
+  proc.stderr.on('data', d => { text += d; });
+  proc.on('exit', (code, signal) => { ended = signal ? `signal ${signal}` : `code ${code}`; });
+  const startMs = 30000 * Number(process.env.XPP_CHECK_SLOW || 1); /* a safety timeout, never a pass/fail budget (W58) */
   const wsUrl = await new Promise((resolve, reject) => {
-    let text = '';
-    proc.stderr.on('data', d => {
-      text += d;
+    const timer = setTimeout(() => reject(new Error(`browser ${browser} did not start (no DevTools address in ${startMs / 1000} s): ${state()}`)), startMs);
+    const look = () => {
       const m = /DevTools listening on (ws:\/\/\S+)/.exec(text);
-      if (m) resolve(m[1]);
-    });
-    proc.on('exit', () => reject(new Error('browser exited:\n' + text)));
-    setTimeout(() => reject(new Error('browser did not start:\n' + text)), 30000);
-  });
+      if (m) { clearTimeout(timer); resolve(m[1]); }
+    };
+    proc.stderr.on('data', look);
+    proc.on('exit', () => { clearTimeout(timer); reject(new Error(`browser ${browser} exited before it started: ${state()}`)); });
+    proc.on('error', e => { clearTimeout(timer); reject(new Error(`browser ${browser} could not be run: ${e.message}`)); });
+  }).catch(e => { proc.kill(); throw e; });
   const port = new URL(wsUrl).port;
   let page = null;
   for (let i = 0; i < 50 && !page; i++) {
@@ -176,8 +235,12 @@ export async function startBrowser(browser, profile) {
     page = list.find(t => t.type === 'page');
     if (!page) await sleep(100);
   }
+  if (!page) throw new Error(`browser ${browser} has no page after 5 s: ${state()}`);
   const cdp = new Cdp(page.webSocketDebuggerUrl);
+  cdp.browserState = state;
   await cdp.open();
+  /* the events Cdp.report() tells a failure with */
+  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector', 'Network']) await cdp.send(`${domain}.enable`).catch(() => undefined);
 
   /* Set download behavior once at browser start, for all sections */
   await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
