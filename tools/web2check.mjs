@@ -192,6 +192,16 @@ async function until(expr, what, ms = 15000) {
   }
 }
 
+/* Page.reload returns before the old document is gone: a wait right after
+   it could be met by the old page, and the next read then hit the new one
+   while it loads, before __xpp exists (CI's linux-ui, GitHub #210). The old
+   page is marked, as a navigation's is (W20), and the new one waited for. */
+async function reloadPage() {
+  await cdp.eval('window.__left = true').catch(() => {});
+  await cdp.send('Page.reload');
+  return until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
+}
+
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
   ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112};
 async function key(k, modifiers = 0) {
@@ -2485,7 +2495,7 @@ async function autoView(dir) {
   await sleep(200);
 
   /* a page that connects while AUTO is open gets the view and the whole diagram again */
-  await cdp.send('Page.reload');
+  await reloadPage();
   check('a reloaded page opens the AUTO view and asks for the diagram again',
     await until(`s.diagram.open && dv.axes && !s.busy && dv.points.x.length === ${want.pts.length}`, 'reload auto', 30000)
     && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels), JSON.stringify(await DS('[d.open, d.points.x.length]')));
@@ -4617,8 +4627,7 @@ async function animation() {
 
   /* a reload: the server shows the new page the animation window again, and the data
      subscription brings the last frame */
-  await cdp.send('Page.reload');
-  await sleep(300);
+  await reloadPage();
   check('ani: after a reload the panel shows the core\'s window and its last frame again',
     await until('s.hello && !s.busy && s.ani.open && s.ani.exists', 'window again') && await aniShown(599),
     JSON.stringify(await S('[s.ani.open, s.ani.exists, s.busy, s.ani.frame && s.ani.frame.pos]')));
