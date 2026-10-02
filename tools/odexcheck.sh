@@ -47,7 +47,9 @@ if [ "${1:-}" = --one ]; then
     rm -f "$run/output.dat"
     st=0
     ( cd "$run" && exec $tmo "$bin" "$base.odex" -silent >run.log 2>&1 ) || st=$?
-    if [ "$st" -ne 0 ]; then
+    # exit 1 after a runtime error that still wrote its data (W133, as
+    # run_example.sh): the data is compared like any other run's
+    if [ "$st" -ne 0 ] && ! { [ "$st" -eq 1 ] && [ -s "$run/output.dat" ]; }; then
       why="the .odex run exited $st"
     else
       if [ -s "$run/output.dat" ]; then got=$(tr -d '\r' < "$run/output.dat" | md5); else got=none; fi
