@@ -1461,6 +1461,28 @@ file. core/xpp_files.cpp does the work for both ways in:
 
 - **Browser mode (HTTP, core/xpp_http.cpp)**, token-protected like `/cmd`
   (`?t=TOKEN`, else 403):
+  - At most 256 connection threads and 32 admitted uploads (W161, #213).
+    The connection bound includes slow or silent connections from acceptance
+    until their thread ends; registered event streams use the separate
+    16-stream bound. This leaves room for 32 tabs with parallel requests;
+    the page uploads its picked files sequentially, so 32 uploads allow one
+    per tab. Excess connections or uploads receive `503 Service Unavailable`
+    with `connection limit reached` or `upload limit reached`, then close
+    without reading the body. Connection admission precedes starting a worker;
+    an excess request reads only its headers on the accept thread before
+    authentication and refusal (closing with unread headers can lose the
+    response on Windows). A silent excess connection can consequently hold
+    the accept loop until its receive timeout.
+    Upload admission follows the constant-time token check and precedes any
+    body read. Admitted upload bodies stream independently; file admission
+    and commit remain serialized. `Expect: 100-continue` is acknowledged
+    after admission and validation for uploads and commands.
+    The existing receive timeout drops a client after 30 seconds without
+    incoming data, not after 30 seconds total: a trickling client can hold
+    a slot longer. The 2-second drain timeout for other rejected requests
+    does not apply to limit rejections. Sends have no timeout; if a client
+    already sent a refused body, closing without draining it can reset TCP
+    and obscure the response.
   - `GET /files` lists the folder: `{"files":[{"name","size","mtime","sha256"}...]}`,
     plain files only (no folders, links or hidden files), sorted by name,
     `mtime` in seconds since 1970, `sha256` in hex.

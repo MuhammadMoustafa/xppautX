@@ -104,6 +104,8 @@ struct WindowLine {
    open tab or window, more than MAX_CLIENTS streams can hold, so a page is
    only forgotten once it has long stopped sending. */
 constexpr int MAX_PAGES = 32;
+constexpr int MAX_CONNECTION_THREADS = 256; /* room for MAX_CLIENTS streams and six parallel requests per MAX_PAGES tab, plus spare sockets */
+constexpr int MAX_UPLOADS = 32; /* one per MAX_PAGES tab: the page uploads its picked files sequentially */
 constexpr size_t PAGE_ID_MAX = 64; /* web2's ids are 32 hex digits */
 
 /* the last command a page numbered that reached the inbox */
@@ -122,6 +124,7 @@ struct Server {
     /* event streams and what a new one gets first (an empty line: none) */
     std::array<sock_t, MAX_CLIENTS> clients{};
     int nclients = 0;
+    int nconnections = 0, nuploads = 0;
     std::string sticky_hello, sticky_state, sticky_ask, exit_event;
     std::string sticky_computing; /* the running command computes: until its idle */
     std::string load_error; /* the error event of a model that did not load */
@@ -134,8 +137,32 @@ Server &srv = *new Server;
 
 bool serving; /* http::active() */
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-/* requests other than POST /cmd are answered one at a time (handle()) */
+/* Non-command routes and upload admission/commit are serialized; upload
+   bodies use independent xpp::files::Put writers outside this mutex. */
 pthread_mutex_t serve_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/* Admission and release use the server's existing counter lock. A thread
+   adopts the connection slot reserved before pthread_create. */
+struct RequestSlot {
+    int *counter = nullptr;
+    explicit RequestSlot(int *reserved = nullptr) : counter(reserved) {}
+    RequestSlot(const RequestSlot &) = delete;
+    RequestSlot &operator=(const RequestSlot &) = delete;
+    bool acquire(int &count, int limit)
+    {
+        pthread_mutex_lock(&lock);
+        if (count < limit) { count++; counter = &count; }
+        pthread_mutex_unlock(&lock);
+        return counter != nullptr;
+    }
+    ~RequestSlot()
+    {
+        if (!counter) return;
+        pthread_mutex_lock(&lock);
+        --*counter;
+        pthread_mutex_unlock(&lock);
+    }
+};
 pthread_t watchdog_thread;
 pthread_t http_thread, log_thread;
 bool saw_bye;
@@ -432,6 +459,18 @@ void reply(sock_t s, const char *status, const char *type, std::string_view body
 
 void reply_text(sock_t s, const char *status, const char *text) { reply(s, status, "text/plain", text); }
 
+/* Limit refusals never drain the body. */
+void refuse_connection(sock_t s, const char *reason)
+{
+    reply_text(s, "503 Service Unavailable", reason);
+#ifdef _WIN32
+    shutdown(s, SD_SEND);
+#else
+    shutdown(s, SHUT_WR);
+#endif
+    close_sock(s);
+}
+
 /* the query's t= is the token, compared in full and in constant time */
 bool token_ok(std::string_view target)
 {
@@ -504,8 +543,6 @@ struct Request {
     std::array<char, HEAD_MAX + 1> head{};
     std::string method, target;
     size_t head_len = 0;           /* the head, up to and with its blank line */
-    const char *body0 = nullptr;   /* body bytes that arrived with the head */
-    size_t have = 0;               /* how many */
     bool has_length = false;       /* a Content-Length was sent */
     unsigned long long length = 0;
     unsigned long long consumed = 0; /* body bytes read so far */
@@ -553,19 +590,23 @@ bool read_head(Request &q)
 {
     size_t got = 0, i = 0;
     while (got < HEAD_MAX) {
-        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), 0);
+        /* Peek to locate the blank line, then consume only header bytes:
+           admission never consumes an already-arrived request body. */
+        int r = recv(q.s, q.head.data() + got, static_cast<int>(HEAD_MAX - got), MSG_PEEK);
+        if (r <= 0) return false;
+        const size_t available = got + static_cast<size_t>(r);
+        for (i = got >= 3 ? got - 3 : 0; i + 4 <= available; i++)
+            if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
+        const size_t end = i + 4 <= available ? i + 4 : available;
+        r = recv(q.s, q.head.data() + got, static_cast<int>(end - got), 0);
         if (r <= 0) return false;
         got += static_cast<size_t>(r);
-        for (i = got >= static_cast<size_t>(r) + 3 ? got - static_cast<size_t>(r) - 3 : 0; i + 4 <= got; i++)
-            if (std::memcmp(q.head.data() + i, "\r\n\r\n", 4) == 0) break;
         if (i + 4 <= got) {
             q.head_len = i + 4;
             break;
         }
     }
     if (!q.head_len) return false;
-    q.body0 = q.head.data() + q.head_len;
-    q.have = got - q.head_len;
     q.head[q.head_len - 2] = 0; /* the head as a string (the body starts after it) */
     std::string_view line(q.head.data());
     if (!scan_word(line, METHOD_MAX, q.method) || !scan_word(line, TARGET_MAX, q.target)) return false;
@@ -574,7 +615,6 @@ bool read_head(Request &q)
     if (q.has_length) {
         if (v->empty() || v->find_first_not_of("0123456789") != std::string::npos || v->size() > 18) q.length = ~0ULL;
         else q.length = std::strtoull(v->c_str(), nullptr, 10);
-        q.consumed = q.have < q.length ? q.have : q.length;
     }
     return true;
 }
@@ -585,6 +625,12 @@ int take(Request &q, char *buf, size_t n)
     int r = recv(q.s, buf, static_cast<int>(n), 0);
     if (r > 0) q.consumed += static_cast<unsigned long long>(r);
     return r;
+}
+
+void continue_body(Request &q)
+{
+    if (std::optional<std::string> v = header(q, "expect"); v && *v == "100-continue")
+        send_all(q.s, "HTTP/1.1 100 Continue\r\n\r\n");
 }
 
 /* the query-less path of the target */
@@ -659,11 +705,7 @@ bool first_arrival(std::string_view page, unsigned long long n)
 /* POST /cmd: the whole body, then into the inbox */
 void serve_cmd(Request &q)
 {
-    unsigned long long n = q.has_length ? q.length : q.have;
-    if (!token_ok(q.target)) {
-        reply_text(q.s, "403 Forbidden", "bad token");
-        return;
-    }
+    unsigned long long n = q.has_length ? q.length : 0;
     if (n > CMD_MAX) {
         reply_text(q.s, "413 Payload Too Large", "command too long");
         return;
@@ -675,9 +717,9 @@ void serve_cmd(Request &q)
         reply_text(q.s, "400 Bad Request", "bad command number");
         return;
     }
+    continue_body(q);
     std::string body(static_cast<size_t>(n), '\0');
-    size_t got = q.have < n ? q.have : static_cast<size_t>(n);
-    std::memcpy(body.data(), q.body0, got);
+    size_t got = 0;
     while (got < n) {
         int r = take(q, body.data() + got, static_cast<size_t>(n) - got);
         if (r <= 0) break;
@@ -702,10 +744,6 @@ void serve_cmd(Request &q)
    LEAVE_MS later. */
 void serve_leave(Request &q)
 {
-    if (!token_ok(q.target)) {
-        reply_text(q.s, "403 Forbidden", "bad token");
-        return;
-    }
     pthread_mutex_lock(&lock);
     leave_at = now_ms();
     pthread_mutex_unlock(&lock);
@@ -760,19 +798,15 @@ void put_file(Request &q, const std::string &name)
         reply_text(q.s, "413 Payload Too Large", xpp::files::status_text(XPP_FILES_TOO_LARGE));
         return;
     }
+    pthread_mutex_lock(&serve_lock);
     int st = xpp::files::put_begin(name, XPP_FILES_CAP, put);
+    pthread_mutex_unlock(&serve_lock);
     if (st != XPP_FILES_OK) {
         reply_text(q.s, files_status(st), xpp::files::status_text(st));
         return;
     }
-    if (std::optional<std::string> v = header(q, "expect"); v && *v == "100-continue")
-        send_all(q.s, "HTTP/1.1 100 Continue\r\n\r\n");
+    continue_body(q);
     left = q.length;
-    {
-        size_t first = q.have < left ? q.have : static_cast<size_t>(left);
-        st = xpp::files::put_write(*put, {q.body0, first});
-        left -= first;
-    }
     std::vector<char> buf(CHUNK);
     while (st == XPP_FILES_OK && left > 0) {
         int r = take(q, buf.data(), static_cast<size_t>(left < CHUNK ? left : CHUNK));
@@ -786,7 +820,9 @@ void put_file(Request &q, const std::string &name)
         else reply_text(q.s, "400 Bad Request", "incomplete body");
         return;
     }
+    pthread_mutex_lock(&serve_lock);
     st = xpp::files::put_commit(put, size, sha);
+    pthread_mutex_unlock(&serve_lock);
     if (st != XPP_FILES_OK) {
         reply_text(q.s, files_status(st), xpp::files::status_text(st));
         return;
@@ -800,10 +836,6 @@ void put_file(Request &q, const std::string &name)
 void serve_files(Request &q)
 {
     size_t n = path_len(q.target);
-    if (!token_ok(q.target)) {
-        reply_text(q.s, "403 Forbidden", "bad token");
-        return;
-    }
     if (n == 6 || (n == 7 && q.target[6] == '/')) {
         if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp::files::list_json());
         else reply_text(q.s, "405 Method Not Allowed", "GET only");
@@ -891,12 +923,12 @@ void drain(Request &q)
    nothing on yet (a preconnect, a spare socket), and that wait must not
    hold up the next request: with one thread doing it all, an Abort POSTed
    meanwhile waited those 30 s while the run went on (T25). A command is
-   pushed as soon as it has arrived; everything else is answered one at a
-   time, as when a single thread answered them all (an upload, the event
-   streams' registration). The page keeps its commands in order by sending
+   pushed as soon as it has arrived; other routes and upload admission and
+   commit are serialized, but admitted upload bodies stream independently.
+   The page keeps its commands in order by sending
    the next one once the last was answered (web2's HttpTransport), and
    numbers them so that one sent again is not taken twice (serve_cmd). */
-void handle(sock_t s)
+void handle(sock_t s, bool connection_limited)
 {
     std::unique_ptr<Request> q = std::make_unique<Request>();
     q->s = s;
@@ -905,25 +937,45 @@ void handle(sock_t s)
         return;
     }
     const bool command = q->method == "POST" && q->target.starts_with("/cmd");
-    const bool serial = !command;
-    if (serial) pthread_mutex_lock(&serve_lock);
     size_t n = path_len(q->target);
+    const bool events = q->method == "GET" && q->target.starts_with("/events");
+    const bool leave = q->method == "POST" && q->target.starts_with("/leave");
+    const bool files = n >= 6 && q->target.starts_with("/files") && (n == 6 || q->target[6] == '/');
+    /* Static page assets are public; every protected route authenticates
+       before validation, admission, serialization, or any body read. */
+    if ((command || events || leave || files) && !token_ok(q->target)) {
+        reply_text(s, "403 Forbidden", "bad token");
+        if (!connection_limited) drain(*q);
+        close_sock(s);
+        return;
+    }
+    if (connection_limited) {
+        refuse_connection(s, "connection limit reached");
+        return;
+    }
+    const bool upload = q->method == "PUT" && n > 7 && q->target.starts_with("/files/");
+    RequestSlot upload_slot;
+    if (upload) {
+        if (!upload_slot.acquire(srv.nuploads, MAX_UPLOADS)) {
+            refuse_connection(s, "upload limit reached");
+            return; /* no drain: a refused upload's body is never read */
+        }
+    }
+    const bool serial = !command && !upload;
+    if (serial) pthread_mutex_lock(&serve_lock);
     if (q->target.size() >= TARGET_MAX) {
         reply_text(s, "414 URI Too Long", "address too long");
     } else if (q->has_length && q->length == ~0ULL) {
         reply_text(s, "400 Bad Request", "bad Content-Length");
-    } else if (q->method == "GET" && q->target.starts_with("/events")) {
-        if (token_ok(q->target)) {
-            open_events(s);
-            pthread_mutex_unlock(&serve_lock);
-            return;
-        }
-        reply_text(s, "403 Forbidden", "bad token");
-    } else if (q->method == "POST" && q->target.starts_with("/leave")) {
+    } else if (events) {
+        open_events(s);
+        pthread_mutex_unlock(&serve_lock);
+        return;
+    } else if (leave) {
         serve_leave(*q);
     } else if (command) {
         serve_cmd(*q);
-    } else if (n >= 6 && q->target.starts_with("/files") && (n == 6 || q->target[6] == '/')) {
+    } else if (files) {
         serve_files(*q);
     } else if (q->method == "GET") {
         serve_asset(*q);
@@ -933,13 +985,19 @@ void handle(sock_t s)
     close_sock(s);
 }
 
-void *connection_main(void *arg)
+void answer_connection(sock_t s, bool connection_limited)
 {
     try {
-        handle(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)));
+        handle(s, connection_limited);
     } catch (...) {
         xpp::out_of_memory_now("in the HTTP server");
     }
+}
+
+void *connection_main(void *arg)
+{
+    RequestSlot connection_slot(&srv.nconnections);
+    answer_connection(static_cast<sock_t>(reinterpret_cast<uintptr_t>(arg)), false);
     return nullptr;
 }
 
@@ -975,8 +1033,18 @@ void *http_main(void *)
         if (s == INVALID_SOCKET) continue;
         no_inherit_sock(s);
         set_recv_timeout(s, RECV_SECONDS);
-        if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0)
-            connection_main(reinterpret_cast<void *>(static_cast<uintptr_t>(s))); /* no thread to spare: answered here, as it always was */
+        RequestSlot slot;
+        if (!slot.acquire(srv.nconnections, MAX_CONNECTION_THREADS)) {
+            /* Consume only the head on the accept thread: closing on unread
+               headers discards the 503 on Winsock. No worker is started,
+               no route is served and no body is read. The receive timeout
+               also bounds a silent excess connection's wait here. */
+            answer_connection(s, true);
+            continue;
+        }
+        if (pthread_create(&t, &detached, connection_main, reinterpret_cast<void *>(static_cast<uintptr_t>(s))) != 0) {
+            refuse_connection(s, "cannot start request thread");
+        } else slot.counter = nullptr; /* connection_main now owns the reservation */
     }
     return nullptr;
 }

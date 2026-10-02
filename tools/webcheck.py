@@ -4,7 +4,7 @@ the token protects the event and command URLs.
 
 usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.ode]
 """
-import argparse, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
+import argparse, atexit, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default='./xppautX')
@@ -15,15 +15,26 @@ run = tempfile.mkdtemp(prefix='xppweb')
 shutil.copy(args.ode, run)
 proc = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)],
                         cwd=run, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+
+
+def stop_test_server():
+    if proc.poll() is None:
+        proc.kill()
+    proc.wait()
+
+
+atexit.register(stop_test_server)
 # --verbose: core/xpp_log.h is quiet by default now, and this script's "what
 # xppaut printed reaches the page" check below wants the startup banner/
 # parser-stats chatter that used to always print, to exercise the log ->
 # page pipeline (xpp_http.cpp log thread -> the "log" event -> the page's log).
 failures = 0
+checks = 0
 
 
 def check(name, ok, detail=''):
-    global failures
+    global failures, checks
+    checks += 1
     print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else '  ' + detail))
     failures += 0 if ok else 1
 
@@ -76,6 +87,96 @@ for old in ('/v1/', '/v2/'):  # the classic page's path (removed at T18) and web
 check('serves no classic page script any more', get('/v1/xpp-client.js')[0] in (302, 404) and get('/xpp-client.js')[0] == 404)
 check('refuses events without the token', get('/events?t=wrong')[0] == 403)
 check('refuses commands without the token', post({'cmd': 'state'}, 'wrong') == 403)
+
+# W161: 100 Continue acknowledges admission while the body stays open.
+# Read the owner's constants so changing a limit cannot silently weaken this gate.
+with open(os.path.join(os.path.dirname(__file__), '..', 'core', 'xpp_http.cpp')) as source:
+    http_source = source.read()
+
+
+def request_limit(name):
+    return int(re.search(r'constexpr int ' + name + r' = (\d+);', http_source).group(1))
+
+
+def held_request(method, path, length):
+    s = socket.create_connection(('127.0.0.1', port), timeout=20)
+    s.sendall(('%s %s HTTP/1.1\r\nHost: localhost\r\nContent-Length: %d\r\n'
+               'Expect: 100-continue\r\n\r\n' % (method, path, length)).encode())
+    return s, s.makefile('rb')
+
+
+def response_head(reader):
+    line = reader.readline()
+    match = re.match(rb'HTTP/1.1 (\d+)', line)
+    headers = {}
+    while line and line != b'\r\n':
+        line = reader.readline()
+        if b':' in line:
+            key, value = line.split(b':', 1)
+            headers[key.lower()] = value.strip()
+    status = int(match.group(1)) if match else None
+    body = reader.read(int(headers.get(b'content-length', b'0')))
+    return status, body
+
+
+def limit_check(label, constant, method, path, finish, expected):
+    held = []
+    try:
+        admitted = []
+        for i in range(request_limit(constant)):
+            s, reader = held_request(method, path(i), 1)
+            held.append((s, reader))
+            admitted.append(response_head(reader)[0])
+        check(label + ' admits its full limit with bodies held open', all(st == 100 for st in admitted), str(admitted))
+        if method == 'PUT':
+            s, reader = held_request(method, '/files/unauthorized.bin?t=wrong', 1)
+            try:
+                check('upload token check precedes saturated upload limit', response_head(reader)[0] == 403)
+            finally:
+                reader.close()
+                s.close()
+        rejected = []
+        for i in range(2):
+            s, reader = held_request(method, path(len(held) + i), 1)
+            try:
+                st, body = response_head(reader)
+                rejected.append(st == 503 and b'limit reached' in body and reader.read(1) == b'')
+            finally:
+                reader.close()
+                s.close()
+        check(label + ' refuses both extra requests immediately with 503 and closes', all(rejected))
+        finished = []
+        for s, reader in held:
+            finish(s)
+            finished.append(response_head(reader)[0])
+        check(label + ' admitted requests finish', all(st == expected for st in finished), str(finished))
+    finally:
+        for s, reader in held:
+            reader.close()
+            s.close()
+
+
+limit_check('connection limit', 'MAX_CONNECTION_THREADS', 'POST', lambda i: '/cmd?t=' + token,
+            lambda s: s.shutdown(socket.SHUT_WR), 400)
+check('connection slots are released after incomplete bodies', post({'cmd': 'state'}) == 204)
+limit_check('upload limit', 'MAX_UPLOADS', 'PUT', lambda i: '/files/limit-%d.bin?t=%s' % (i, token),
+            lambda s: s.sendall(b'x'), 200)
+s, reader = held_request('PUT', '/files/limit-reused.bin?t=' + token, 1)
+try:
+    admitted = response_head(reader)[0]
+    if admitted == 100:
+        s.sendall(b'x')
+    check('upload slots are released after success', admitted == 100 and response_head(reader)[0] == 200)
+finally:
+    reader.close()
+    s.close()
+os.remove(os.path.join(run, 'limit-reused.bin'))
+stored = []
+for i in range(request_limit('MAX_UPLOADS')):
+    with open(os.path.join(run, 'limit-%d.bin' % i), 'rb') as uploaded:
+        stored.append(uploaded.read() == b'x')
+    os.remove(os.path.join(run, 'limit-%d.bin' % i))
+check('all held uploads store their completed bodies', all(stored))
 
 events = queue.Queue()
 
@@ -142,7 +243,10 @@ def raw(data, read=True):
     s.shutdown(socket.SHUT_WR)
     got = b''
     while read:
-        chunk = s.recv(4096)
+        try:
+            chunk = s.recv(4096)
+        except ConnectionResetError:
+            break  # an early refusal can close with an unread body
         if not chunk:
             break
         got += chunk
@@ -575,5 +679,5 @@ if os.name == 'nt':
         check('T27: ... and it exits', False)
     _winapi.CloseHandle(hproc)
     shutil.rmtree(run, ignore_errors=True)
-print('web checks: %s' % ('all passed' if failures == 0 else '%d failed' % failures))
+print('web checks: %d passed, %d failed' % (checks - failures, failures))
 sys.exit(1 if failures else 0)
