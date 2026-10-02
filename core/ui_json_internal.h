@@ -85,9 +85,9 @@ struct DeferredLine {
 
 struct ProtocolSession {
     /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
-       json_ui_set_script(), script_error by an error message, which makes
+       json_ui_set_script(); errors kept by xpp_log make
        the process exit 1 at the end of the file */
-    int script_mode, script_error;
+    int script_mode;
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
@@ -114,7 +114,7 @@ extern ProtocolSession session;
    auto_data.cpp's point lookup (diag_point_of_node). */
 xpp::Session &client();
 
-[[noreturn]] void quit_session(void); /* exit 1 after a script's error, else 0 */
+[[noreturn]] void quit_session(void); /* exit 1 after any error, else 0 */
 [[noreturn]] void quit_command(void); /* the client's quit: bye, then quit_session */
 /* {"cmd":"quit","ask":true} (W59d: File > Quit's question) or
    {"cmd":"quit","save":true} (its Save session, answered in the page,
@@ -400,7 +400,7 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* emp
 int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h);
 void web_safe_colors(std::span<unsigned char> rgb); /* at most 256 colours, for the GIF writer */
 
-int j_film_clip(xpp::Session &s);
+xpp::Result<> j_film_clip(xpp::Session &s);
 void j_reset_film(xpp::Session &s);
 void j_movie_play_back(xpp::Session &s);
 void j_movie_auto_play(xpp::Session &s);

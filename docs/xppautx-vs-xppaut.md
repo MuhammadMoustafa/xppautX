@@ -135,6 +135,8 @@ every example, the goldens guard the output files.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
+| Kinescope capacity | rotation and BVP movies silently drop frames when full ([findings #26](xppaut-findings.md)) | every capture returns a result; the command reports a full buffer once | W133 |
+| Results and notices | fit outcomes, statistics and toggle states use the error-message dialog | the existing status bar info route; successful results do not count as errors | W133 |
 | Integrators (Euler, RK4, Dormand-Prince, Gear, CVODE, Rosen, Stiff, Volterra, symplectic, discrete, ...) | a switch on a method number | the same methods, one `xpp::Solver` per method in a registry; results unchanged | W51 |
 | CVODE | vendored | vendored; whether to move to SUNDIALS is an evaluation, later | W34 |
 | Fourier transform | `fftn` ([histogram.c:940](../reference/xppaut-8.0/histogram.c#L940)) | pocketfft | W32a |
@@ -167,7 +169,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| `-silent` | integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags; a built-in script of protocol commands, no interface | W56 |
+| `-silent` | integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags; a built-in script of protocol commands, no interface; exits 1 if an output cannot be written | W56, W133 |
 | Exit code of a model that does not load | not verified | non-zero in every mode | W35c |
 | JSON protocol | none | line-delimited JSON on stdin/stdout (`--server`) and over HTTP; [protocol.md](protocol.md) | W5, W7a |
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |

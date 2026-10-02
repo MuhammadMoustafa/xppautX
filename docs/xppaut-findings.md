@@ -53,6 +53,7 @@ evidence. The index gives one line each.
 | 24 | Export | an export with no library copies uninitialised memory into the model | d5eebae |
 | 25 | Numerics | an output stride of 0 from a .set file or an `@ nout` line divides by zero on the next run | W145 |
 | 26 | Set files | equal counts allow another model's values: names ignored | W153 |
+| 27 | Kinescope | rotation and BVP movies ignore a full film buffer | W133 |
 
 ## 1. Model options
 
@@ -405,6 +406,17 @@ in position order, even when they belong to different variables or parameters.
 - **Evidence:** save a set for `x'=-a*x+b`, `y'=x-y`, `par a=1,b=2`; replace its parameter line `2  b` with `9  another_models_parameter`, leaving counts unchanged. `read_lunch` accepts it and sets `b=9`. The same follows for renamed ICs and torus variables.
 - **xppautX:** every named numeric line is checked against its expected model name or setting label before any values apply. The first mismatch reports its file, line and source. A valid import is saved by the session writer as `<base>.snapx` beside the `.set`, then becomes the session open; failed saves keep valid imported values applied.
 - **Card:** W153 (#205).
+
+## 27. Rotation and boundary-value movies silently drop frames when full
+
+XPPAUT ignores `film_clip()`'s failure in rotation and boundary-value
+movies. A movie with more than 250 frames therefore silently loses its
+remaining frames. Integration ranges instead show an error.
+
+- **XPPAUT 8.0:** [graf_par.c:618](../reference/xppaut-8.0/graf_par.c#L618) ([master](../reference/xppaut-master/graf_par.c#L618)), [pp_shoot.c:264](../reference/xppaut-8.0/pp_shoot.c#L264) ([master](../reference/xppaut-master/pp_shoot.c#L264)); integration reports the failure at [integrate.c:742](../reference/xppaut-8.0/integrate.c#L742) ([master](../reference/xppaut-master/integrate.c#L736)).
+- **Evidence:** the unchecked return values in those two movie loops; capture beyond the capacity cannot add a frame.
+- **xppautX:** film capture returns an error value, retained and shown once by the command, including rotation and BVP movies.
+- **Card:** W133 (#185).
 
 ## Known and kept
 

@@ -102,13 +102,6 @@ def args_at(text, i):
 ARGUMENT_CHECK = "CVODE's check of an argument cv2.cpp passes: a bug of ours if it fires, no file or model line"
 # (file, a regex the site's lines as written match, why it has no place)
 ALLOWED = [
-    # results shown through err_msg that are not errors: W133 (#185) shows
-    # an outcome once, as a result
-    ('core/histogram.cpp', r'Mean=', 'W133: a result (the mean and deviation), not an error'),
-    ('core/do_fit.cpp', r'Success!', "W133: the fit's outcome, a result"),
-    ('core/adj2.cpp', r'Maximal exponent', 'W133: the Liapunov exponent, a result'),
-    ('core/pp_shoot.cpp', r'Saving anyway', 'W133: a notice that the BVP saved its result'),
-    ('core/auto_nox.cpp', r'Redraw is O|Draw orbits', "W133: a toggle's new state, not an error"),
     # the vendored CVODE's checks of what cv2.cpp passes it
     ('core/cvode.cpp', r'MSG_(Y0_NULL|BAD_N|BAD_LMM|BAD_ITER|BAD_ITOL|F_NULL|RELTOL_NULL|BAD_RELTOL|ABSTOL_NULL'
      r'|BAD_ABSTOL|BAD_OPTIN|BAD_OPT|BAD_HMIN_HMAX|MEM_FAIL|BAD_EWT|CVODE_NO_MEM|YOUT_NULL|T_NULL|BAD_ITASK'

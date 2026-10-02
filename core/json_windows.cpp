@@ -359,12 +359,13 @@ void send_film(const xpp::Session &s, const char *what)
 
 } // namespace
 
-int j_film_clip(xpp::Session &s)
+xpp::Result<> j_film_clip(xpp::Session &s)
 {
-    if (s.kinescope.frames >= MAXFILM) return 0;
+    if (s.kinescope.frames >= MAXFILM)
+        return xpp::fail("kinescope", "Out of film: the kinescope holds no more frames", xpp::command_place());
     s.kinescope.frames++;
     send_film(s, "capture");
-    return 1;
+    return {};
 }
 
 void j_reset_film(xpp::Session &s)

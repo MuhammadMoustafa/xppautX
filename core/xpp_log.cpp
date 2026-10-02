@@ -3,6 +3,7 @@
 #include "xpp_files.h"
 #include "xpp_mem.h"
 #include <cstdio>
+#include <cstdlib>
 #include <new>
 #include <string>
 
@@ -105,8 +106,13 @@ void LogCapture::keep(const char *message) noexcept
     }
 }
 
+void log_note_error() { ++log_settings.errors; }
+int log_exit_code() { return log_settings.errors.load() != 0 ? 1 : 0; }
+void log_exit() { std::exit(log_exit_code()); }
+
 void log_vprintf(XppLogLevel level, const char *fmt, va_list ap)
 {
+    if (level == XPP_LOG_ERROR) log_note_error();
     FILE *out = sink();
     if (capture != nullptr && level <= XPP_LOG_WARN) {
         /* the message as text, for the capture to keep */

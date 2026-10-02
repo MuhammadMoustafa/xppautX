@@ -21,7 +21,7 @@ static Place hl_command_place(void) { return {}; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
-static void hl_bottom_msg(int, std::string_view) {}
+static void hl_bottom_msg(int, std::string_view msg) { log(XPP_LOG_INFO, "{}\n", msg); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_s_str(Session &, std::string_view) {}
@@ -55,7 +55,7 @@ static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
     *h = g && g->x11Hgt > 0 ? static_cast<unsigned int>(g->x11Hgt) : 480;
 }
 static void hl_put_text(int, int, const char *) {}
-static int hl_film_clip(Session &) { return 1; }
+static Result<> hl_film_clip(Session &) { return {}; }
 static void hl_draw_point(int, int) {}
 static void hl_draw_line(int, int, int, int) {}
 static void hl_draw_frect(int, int, int, int) {}
@@ -99,7 +99,7 @@ static void hl_record_toggle(Session &) { xpp::log_printf(XPP_LOG_WARN, "Recordi
 static void hl_play_recording(Session &, std::string_view) { xpp::log_printf(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
 static bool hl_save_recording(Session &) { return true; }
-static void hl_exit_program(void) { exit(1); }
+static void hl_exit_program(void) { log_exit(); }
 
 XppTextMetrics text_metrics;
 
@@ -240,7 +240,6 @@ void set_ui(const XppUi *table)
 
 /* ---- dispatchers with the historical names ---------------------------- */
 
-void err_msg(std::string_view msg) { show_error(Error{{}, std::string(msg)}); }
 void err_reading(std::string_view path, std::string_view msg, int line)
 {
     show_error(Error{"reading", std::string(msg), Place{std::string(path), line}});

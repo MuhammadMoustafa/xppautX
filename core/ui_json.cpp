@@ -57,16 +57,20 @@ ProtocolSession session;
 
 xpp::Session &client() { return xpp::client_session(); }
 
-/* exit 1 for a script that hit an error or an unmatched ask
-   (docs/protocol.md "Scripts"), else as always, 0 */
-void quit_session(void) { exit(session.script_mode && session.script_error ? 1 : 0); }
+/* exit 1 for a script or -silent run that reported an error (the logging
+   owner's count: err_msg, an ERROR line, a failed file event; docs/protocol.md
+   "Scripts"); an interactive session's errors were shown to its user as they
+   came, so its end is always 0 */
+static int exit_code(void) { return session.script_mode ? xpp::log_exit_code() : 0; }
+
+void quit_session(void) { exit(exit_code()); }
 
 /* a client's quit command is a normal end (W112): the bye first, as the
    end of a session says it, so a front end that waits on one (browser mode's
    at_exit) knows the exit was meant; a script's error stays exit 1 without it */
 void quit_command(void)
 {
-    if (!(session.script_mode && session.script_error)) send_simple("bye");
+    if (exit_code() == 0) send_simple("bye");
     quit_session();
 }
 
@@ -356,8 +360,7 @@ void script_stop_missed(void)
 
 void j_exit_program(void)
 {
-    send_simple("bye");
-    exit(0);
+    quit_command();
 }
 
 void j_void(void) {}

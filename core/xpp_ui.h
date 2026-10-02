@@ -82,11 +82,8 @@ typedef struct XppDiagPoint {
 
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
-/* msg shown as an error with no place: only the results that are not
-   errors (a fit's outcome, a mean, a toggle's state), which W133 shows as
-   results (tools/errorcheck.py lists them); an error is command_error,
-   err_reading or show_error with its place */
-void err_msg(std::string_view msg);
+/* An error is command_error, err_reading or show_error with its place.
+   Results use bottom_msg, the existing information route. */
 /* an error about `path`, a file the command could not read (line 0: the
    page offers to add it to the model's folder, docs/protocol.md
    "Errors"), or at its line */
@@ -235,7 +232,7 @@ typedef struct XppUi {
     void (*blank_draw_window)(Session &s);
     void (*small_base)(void);  /* pen selection for small text */
     void (*small_gr)(void);
-    int (*film_clip)(Session &s); /* returns 0 when the movie buffer is full */
+    Result<> (*film_clip)(Session &s); /* a frame, or why it was not captured */
     void (*reset_film)(Session &s);
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */

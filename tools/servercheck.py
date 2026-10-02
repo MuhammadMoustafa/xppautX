@@ -3935,6 +3935,83 @@ def check_silent_commands():
 
 check_silent_commands()
 
+def check_outcomes_once():
+    """W133: results, file places, film failures, and every exit route."""
+    d = tempfile.mkdtemp(prefix='xppoutcomes')
+    try:
+        with open(os.path.join(d, 'linear.ode'), 'w') as f:
+            f.write("par a=1\nx'=a\ninit x=0\n@ dt=.1,total=1\ndone\n")
+        with open(os.path.join(d, 'fit.dat'), 'w') as f:
+            f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
+        def run(lines, *flags):
+            with open(os.path.join(d, 'script.jsonl'), 'w') as f:
+                f.write(''.join(json.dumps(c) + '\n' for c in lines))
+            r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', 'linear.ode', *flags],
+                               cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
+            return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
+        def fit(name):
+            return [{'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 'h'},
+                    {'cmd': 'answer', 'key': 'i'},
+                    {'cmd': 'answer', 'values': [name, 'x', 'a', '1e-6', '6', '2', '2', '', '1e-5', '50']}]
+        r, evs = run(fit('fit.dat'))
+        results = [e.get('bottom', '').strip() for e in evs if e.get('ev') == 'message']
+        errors = [e for e in evs if e.get('error')]
+        check('a converged script fit exits 0 and sends exactly one info outcome, no error dialog event',
+              r.returncode == 0 and results.count('Success!') == 1 and not errors, str((r.returncode, results, errors, r.stderr[-300:])))
+        r, evs = run(fit('missing.dat') + [{'cmd': 'quit', 'ask': True}, {'cmd': 'answer', 'key': 'd'}])
+        errors = [e for e in evs if e.get('error')]
+        check('an unreadable fit file has its Place; the asking quit also exits 1, without bye',
+              r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.dat'
+              and errors[0].get('line') == 0 and not any(e.get('ev') == 'bye' for e in evs), str(errors))
+        r, evs = run([{'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'missing.ani'}])
+        errors = [e for e in evs if e.get('error')]
+        check('an unreadable animation names its file at line 0 once',
+              r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.ani'
+              and errors[0].get('line') == 0, str(errors))
+        # Kinescope capture has a fixed capacity; its last attempted frame fails once.
+        capture = [{'cmd': 'key', 'key': 'k'}, {'cmd': 'answer', 'key': 'c'}]
+        r, evs = run(capture * 251)
+        errors = [e for e in evs if e.get('error')]
+        frames = [e for e in evs if e.get('ev') == 'film' and e.get('op') == 'capture']
+        check('the full kinescope returns one error at its command, retaining 250 frames',
+              r.returncode == 1 and len(frames) == 250 and len(errors) == 1
+              and errors[0].get('file') == 'script.jsonl' and errors[0].get('line') == 502, str(errors))
+        r, evs = run([{'cmd': 'file', 'op': 'get', 'name': '../outside.dat'}])
+        check('a file command refusal also counts towards exit status without a second event',
+              r.returncode == 1 and len([e for e in evs if e.get('error')]) == 1, str(evs[-3:]))
+        # A directory at the output path makes the write fail on every platform.
+        os.mkdir(os.path.join(d, 'output.dat'))
+        r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+                           capture_output=True, text=True, timeout=60 * SLOW)
+        check('a failed silent output write exits 1 and keeps stdout empty',
+              r.returncode == 1 and r.stdout == '' and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
+        os.rmdir(os.path.join(d, 'output.dat'))
+        # Windows directory readonly attributes do not deny writes; use its ACL.
+        if os.name == 'nt':
+            denied = subprocess.run(['icacls', d, '/deny', '*S-1-1-0:(W)'], capture_output=True)
+            try:
+                r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+                                   capture_output=True, text=True, timeout=60 * SLOW)
+                check('silent in a read-only folder exits 1 for output.dat',
+                      denied.returncode == 0 and r.returncode == 1 and 'output.dat' in r.stderr,
+                      str((denied.returncode, r.returncode, r.stderr[-300:])))
+            finally:
+                subprocess.run(['icacls', d, '/remove:d', '*S-1-1-0'], capture_output=True, check=True)
+        elif os.geteuid() != 0:
+            os.chmod(d, 0o555)
+            try:
+                r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+                                   capture_output=True, text=True, timeout=60 * SLOW)
+                check('silent in a read-only folder exits 1 for output.dat',
+                      r.returncode == 1 and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
+            finally:
+                os.chmod(d, 0o755)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+check_outcomes_once()
+
+
 
 def check_dae_fold():
     """W127: a DAE run stops at a fold instead of stepping over it.

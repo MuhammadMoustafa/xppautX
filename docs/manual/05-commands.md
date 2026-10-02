@@ -1,5 +1,13 @@
 # The main commands
 
+Results such as a successful curve fit, a mean and standard deviation, a
+Liapunov exponent, a saved boundary-value point, and AUTO toggle states
+appear in the status bar. They do not open an error dialog. If the
+kinescope fills, the command reports one error; frames already captured
+remain available. A script or `-silent` run exits 1 if any error occurred,
+including an output file it could not write; a successful fit exits 0
+(W133).
+
 All commands can be invoked by typing the hot key for that command (capitalized on the menu) or clicking on the menu with the mouse. Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
 
 **In web2**, the main menu and every one of these commands and hotkeys

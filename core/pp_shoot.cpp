@@ -101,7 +101,7 @@ void bad_shoot(int iret)
 {
  switch(iret){
  case NOCHANGE:
-   err_msg("No change from last point. Saving anyway");
+   bottom_msg(0,"No change from last point. Saving anyway");
    break;
  case NUMICS:
    command_error("bvp", "Number BCS not equal number ICs");
@@ -134,6 +134,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
  cycle=s.shoot_range.cycle;
  s.data_store.rows=0;
  icol=0;
+ xpp::Result<> film;
  if(s.shoot_range.movie==1)
    reset_film(s);
  for(i=0;i<=npar;i++)
@@ -161,12 +162,13 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      set_cycle(s,cycle,&icol);
      get_ic(s,0,ystart);
      if(const xpp::Result<> r=last_shot(s,0);!r)xpp::show_error(r.error());
-     if(s.shoot_range.movie==1)ui.film_clip(s);
+     if(s.shoot_range.movie==1 && film)film=ui.film_clip(s);
      ping();
    }
   refresh_browser(s,s.data_store.rows);
   auto_freeze_it(s);     
  swap_color(s,&color,1);
+ if(!film)show_error(film.error());
 
 }
 

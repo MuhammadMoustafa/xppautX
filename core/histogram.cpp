@@ -303,7 +303,7 @@ void column_mean(xpp::Session &s)
  }
  mean=sum/static_cast<double>(s.data_store.rows);
  sdev=sqrt(sum2/static_cast<double>(s.data_store.rows)-mean*mean);
- err_msg(xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev));
+ bottom_msg(0,xpp::format("Mean={:g} Std. Dev. = {:g} ",mean,sdev));
 }
 
 int get_col_info(const xpp::Session &s, int *col, const char *prompt)

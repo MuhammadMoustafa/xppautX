@@ -135,8 +135,7 @@ void do_movie_com(xpp::Session &s, int c)
   std::string base;
   switch (c) {
   case 0:
-    if (ui.film_clip(s) == 0)
-      respond_box("Okay", "Out of film!");
+    if (const auto r = ui.film_clip(s); !r) show_error(r.error());
     break;
   case 1: reset_film(s); break;
   case 2: ui.movie_play_back(s); break;

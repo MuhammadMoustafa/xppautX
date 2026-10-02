@@ -438,6 +438,7 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
   int i;
   double thetaold=s.plot_windows.current->Theta,phiold=s.plot_windows.current->Phi;
   reset_film(s);
+  xpp::Result<> film;
   for(i=0;i<=nclip;i++){
    
     if(angle==0)
@@ -445,10 +446,11 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
     else
       make_rot(s,thetaold,start+i*increment);
     redraw_the_graph(s);
-    ui.film_clip(s);
+    if(film)film=ui.film_clip(s);
   }
   s.plot_windows.current->Theta=thetaold;
   s.plot_windows.current->Phi=phiold;
+  if(!film)show_error(film.error());
 }
 
 void get_3d_par_com(xpp::Session &s)

@@ -263,6 +263,7 @@ std::string file_event(std::string_view op, const std::string &name)
 
 void fail_event(std::string &s, int status)
 {
+    xpp::log_note_error();
     s += ",\"ok\":0,\"error\":";
     json_str(s, xpp::files::status_text(status));
     s += '}';
@@ -280,6 +281,7 @@ std::string run_command(std::string_view op, const char *name_json, const char *
     bool named = json_string(name_json, name) && xpp::files::name_ok(name);
     std::string s = file_event(op, name_json && named ? name : std::string());
     if (op != "get" && op != "put") {
+        xpp::log_note_error();
         s += ",\"ok\":0,\"error\":\"unknown op\"}";
         return s;
     }
@@ -298,6 +300,7 @@ std::string run_command(std::string_view op, const char *name_json, const char *
             else xpp::files::put_abort(put);
         }
         if (st == NOT_BASE64) {
+            xpp::log_note_error();
             s += ",\"ok\":0,\"error\":\"data is not a base64 string\"}";
             return s;
         }

@@ -494,7 +494,7 @@ void do_liapunov(xpp::Session &s)
   new_int("Range over parameters?(0/1)",&s.adjoint.liap_flag);
   if(s.adjoint.liap_flag!=1){
     auto z=hrw_liapunov(s,s.numerics.newt_err);
-    if(z)err_msg(xpp::format("Maximal exponent is {:g}",*z));
+    if(z)bottom_msg(0,xpp::format("Maximal exponent is {:g}",*z));
     else xpp::show_error(z.error());
     return;
   }

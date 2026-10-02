@@ -126,8 +126,8 @@ int ask_begin(Buf *b, const char *kind)
 
 void send_error(const char *ev, const xpp::Error &e)
 {
-    /* a script that provokes an error fails the run (docs/protocol.md) */
-    if (session.script_mode) session.script_error = 1;
+    /* Every error affects the process result, whatever UI is installed. */
+    xpp::log_note_error();
     const xpp::Place &p = e.place;
     Buf b;
     buf_format(&b, "{{\"ev\":\"{}\",\"error\":", ev);

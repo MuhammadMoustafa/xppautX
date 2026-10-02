@@ -262,7 +262,7 @@ void test_fit(xpp::Session &s)
      xpp::show_error(ok.error());
      return;
    }
-   err_msg(*ok==FitEnd::Converged ? " Success! " : "Max iterations exceeded...");
+   bottom_msg(0,*ok==FitEnd::Converged ? " Success! " : "Max iterations exceeded...");
 
  /* get the latest par values ...  */
  

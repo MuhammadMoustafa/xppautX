@@ -460,19 +460,18 @@ public:
   TakeFrame taker()
   {
     return [this]{
-      if(ui.film_clip(s_)!=0)return true;
-      out_=true;
-      return false;
+      if(result_)result_=ui.film_clip(s_);
+      return result_.has_value();
     };
   }
   static ShowProgress progress()
   {
     return [](const std::string &line){ bottom_msg(2,line); };
   }
-  void report() const { if(out_)command_error("kinescope","Out of film: the kinescope holds no more frames"); }
+  const xpp::Result<> &result() const { return result_; }
 private:
   xpp::Session &s_;
-  bool out_=false;
+  xpp::Result<> result_;
 };
 
 /* Range Equilibria's sweep over s.integrator.eq_range: each step's equilibrium (or
@@ -555,8 +554,8 @@ void do_eq_range(xpp::Session &s, double *x)
  if(set_up_eq_range(s)==0)return;
  RangeFilm film(s);
  const xpp::Result<> r=eq_range_sweep(s,x,film.taker(),film.progress());
- film.report();
  if(!r)xpp::show_error(r.error());
+ else if(!film.result())xpp::show_error(film.result().error());
 }
 
 void swap_color(xpp::Session &s, int *col, int rorw)
@@ -801,11 +800,11 @@ int do_range(xpp::Session &s, double *x, int flag)  /* 0 for 1-param 1 for 2 par
  }
  RangeFilm film(s);
  const xpp::Result<int> r=range_sweep(s,x,flag,film.taker(),film.progress());
- film.report();
  if(!r){
    xpp::show_error(r.error());
    return -1;
  }
+ if(!film.result())xpp::show_error(film.result().error());
  return *r;
 }
 

@@ -2731,8 +2731,8 @@ void auto_file(xpp::Session &s)
   }
   if(ch=='t'){
     s.auto_state.redraw=1-s.auto_state.redraw;
-    if(s.auto_state.redraw==1)err_msg("Redraw is ON");
-    else err_msg("Redraw is OFF");
+    if(s.auto_state.redraw==1)bottom_msg(0,"Redraw is ON");
+    else bottom_msg(0,"Redraw is OFF");
   }
   if(ch=='o'){
     if(s.auto_state.diagram_mark.state<2)
@@ -2767,17 +2767,17 @@ void auto_file(xpp::Session &s)
   if(ch=='b'){
     if(s.auto_state.load_all_labeled_orbits==0){
       s.auto_state.load_all_labeled_orbits=1;
-      err_msg("Draw orbits - no erase");
+      bottom_msg(0,"Draw orbits - no erase");
       return;
     }
      if(s.auto_state.load_all_labeled_orbits==1){
       s.auto_state.load_all_labeled_orbits=2;
-      err_msg("Draw orbits - erase first");
+      bottom_msg(0,"Draw orbits - erase first");
       return;
     }
       if(s.auto_state.load_all_labeled_orbits==2){
       s.auto_state.load_all_labeled_orbits=0;
-      err_msg("Draw orbits off");
+      bottom_msg(0,"Draw orbits off");
       return;
     }
   }

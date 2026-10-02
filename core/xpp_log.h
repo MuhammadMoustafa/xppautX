@@ -37,6 +37,7 @@
 #ifndef XPP_LOG_H
 #define XPP_LOG_H
 
+#include <atomic>
 #include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
 #include <cstdarg>
 #include <string>
@@ -67,8 +68,14 @@ struct LogSettings {
     int verbose;                 /* 0: an INFO message prints nothing (@ quiet=1) */
     int quiet_from_command_line; /* -quiet was given: @ quiet= is ignored */
     int file_from_command_line;  /* -logfile was given: @ logfile= is ignored */
+    std::atomic<unsigned> errors{0}; /* errors reported, even when output is suppressed */
 };
 extern LogSettings log_settings;
+
+/* One accounting path for errors logged or sent through the UI. */
+void log_note_error();
+int log_exit_code();
+[[noreturn]] void log_exit();
 
 /* The log goes to the file path from now on (@ logfile=): the one it
    went to before is closed, unless that was stdout or stderr. */
