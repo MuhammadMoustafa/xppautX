@@ -416,6 +416,22 @@ The reviewer (the main session) reviews, refactors, merges, runs the
 5-task tier, pushes when the user says so, and then closes the finished
 cards' issues (above). A new roadmap card gets its GitHub issue at once.
 
+Codex agents (maintainer, 2026-10-01) are a second pool, by the same
+difficulty: easy `gpt-6-luna` (low), medium `gpt-6.1-sol` (medium), hard
+`gpt-6-astra` (high), run by the reviewer with `codex exec -C <worktree>
+--add-dir C:/gitRepos/xppautX/.git -s workspace-write -m <model> -o
+<report>` and registered by the reviewer. A Codex agent follows every rule
+of this section as written, with three differences of its sandbox: it
+writes only in its worktree (and .git), so it starts no background runs
+and does not touch the register; it runs its gates from Git Bash in the
+worktree (the UCRT build `mingw32-make -j4 xppautx BUILDDIR=build/ucrt
+WERROR=1`, its unit tests, servercheck/autocheck against that exe,
+web2's checks and `web2check --only`); and the WSL gates (`tools/wslrun.sh`)
+are the reviewer's, run on its branch at review. Before a batch the
+reviewer reads both pools' limits (the app's usage for Claude, the
+task-board skill's `codex_limits.py` for Codex) and gives each card to the
+pool with room, saying which in the batch proposal.
+
 ## Architecture of the split (phase 2)
 
 - `core/xpp_ui.h` is the seam: an `XppUi` table of callbacks. Core code
