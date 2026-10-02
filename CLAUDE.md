@@ -466,7 +466,11 @@ exact gates), a card the brief cannot pin down starts higher; when the
 review finds the work fell short (a missed requirement, a wrong cause, a
 fix the reviewer had to redo), the card goes back one step up with the
 review's list, and the step that did the work is noted
-on the card, so the starting point per kind of card follows the record; each the newest listed model of its family
+on the card, so the starting point per kind of card follows the record
+(2026-10-02, this repo's and another's: docs and small precise fixes start
+at luna or haiku, low, and haiku gets nothing else; a medium card on the
+protocol or a trust boundary starts at sol, medium, as W133 and W153 did;
+a hard one at sol or sonnet, high, as W155 and W159 did); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
 <model> -o <report>` and registered by the reviewer. A Codex agent follows
