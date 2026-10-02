@@ -989,14 +989,14 @@ L610:
 
 L620:
 
-    pr2=1.2*pow(d/e,enq2);
+    pr2=1.2*xpp::math::pow(d/e,enq2);
     pr3=1.0e20;
     if((nq<maxder)&&(*kflag>-1))
     {
      d=0.0;
      for(i=0;i<n;i++)
      d+=sqr2((error[i]-save10[i])/ymax[i]);
-     pr3=1.4*pow(d/eup,enq3);
+     pr3=1.4*xpp::math::pow(d/eup,enq3);
     }
     pr1=1.0e20;
     if(nq>1)
@@ -1004,7 +1004,7 @@ L620:
      d=0.0;
      for(i=0;i<n;i++)
      d+=sqr2(ytable[k-1][i]/ymax[i]);
-     pr1=1.3*pow(d/edwn,enq1);
+     pr1=1.3*xpp::math::pow(d/edwn,enq1);
     }
     if(pr2<=pr3)goto L720;
     if(pr3<pr1)goto L730;

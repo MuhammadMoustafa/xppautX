@@ -8,6 +8,7 @@
 #include "xpp_log.h"
 #include "session.h"
 #include "auto_c.h"
+#include "xpp_math.h"
 
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since the they are used many times
@@ -724,8 +725,8 @@ ffhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   ndm2 = ndm * 2;
 
   thta = u[-1 + ndim - 1];
-  s1 = sin(thta);
-  c1 = cos(thta);
+  s1 = xpp::math::sin(thta);
+  c1 = xpp::math::cos(thta);
   par[icp[1]] = u[-1 + ndim];
   funi(iap, rap, ndm, u, uold, icp, par, 1, f, dfdu, dfdp);
   for (i = 0; i < ndm; ++i) {
@@ -796,8 +797,8 @@ stpnhd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublereal *
   readlb(iap, rap, u, par);
 
   thta = pi(2.0) / par[10];
-  s1 = sin(thta);
-  c1 = cos(thta);
+  s1 = xpp::math::sin(thta);
+  c1 = xpp::math::cos(thta);
   funi(iap, rap, ndm, u, &uold, icp, par, 1, f.data(), 
        iap->lib->scratch.dfu, iap->lib->scratch.dfp);
 
@@ -1615,8 +1616,8 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   for (j = 0; j < ntst + 1; ++j) {
     t = tm[j];
-    s = sin(tpi * t);
-    c = cos(tpi * t);
+    s = xpp::math::sin(tpi * t);
+    c = xpp::math::cos(tpi * t);
     for (k = 0; k < ndim; ++k) {
       ARRAY2D(udotps, j, k) = s * rnllv[k] + c * rnllv[ndim + k];
       ARRAY2D(upoldp, j, k) = c * rnllv[k] - s * rnllv[ndim + k];
@@ -1627,8 +1628,8 @@ stpnps(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < ncol - 1; ++i) {
     for (j = 0; j < ntst; ++j) {
       t = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
-      s = sin(tpi * t);
-      c = cos(tpi * t);
+      s = xpp::math::sin(tpi * t);
+      c = xpp::math::cos(tpi * t);
       for (k = 0; k < ndim; ++k) {
 	k1 = (i + 1) * ndim + k;
 	ARRAY2D(udotps, j, k1) = s * rnllv[k ] + c * rnllv[ndim + k];
@@ -1939,8 +1940,8 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   for (j = 0; j < ntst + 1; ++j) {
     t = tm[j];
-    s = sin(tpi * t);
-    c = cos(tpi * t);
+    s = xpp::math::sin(tpi * t);
+    c = xpp::math::cos(tpi * t);
     for (k = 0; k < ndim; ++k) {
       ARRAY2D(udotps, j, k) = s * rnllv[k] + c * rnllv[ndim + k];
       ARRAY2D(upoldp, j, k) = c * rnllv[k] - s * rnllv[ndim + k];
@@ -1951,8 +1952,8 @@ stpnwp(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   for (i = 0; i < ncol - 1; ++i) {
     for (j = 0; j < ntst; ++j) {
       t = tm[j] + (i + 1) * (tm[j + 1] - tm[j]) / ncol;
-      s = sin(tpi * t);
-      c = cos(tpi * t);
+      s = xpp::math::sin(tpi * t);
+      c = xpp::math::cos(tpi * t);
       for (k = 0; k < ndim; ++k) {
 	k1 = (i + 1) * ndim + k;
 	ARRAY2D(udotps, j, k1) = s * rnllv[k] + c * rnllv[ndim + k];
@@ -3132,8 +3133,8 @@ bctr(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   ndm2 = ndm << 1;
   theta = par[11];
 
-  ss = sin(theta);
-  cs = cos(theta);
+  ss = xpp::math::sin(theta);
+  cs = xpp::math::cos(theta);
 
   for (i = 0; i < ndm; ++i) {
     f[i] = u0[i] - u1[i];
@@ -3316,8 +3317,8 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
       k2p1 = k2 + 1;
       k3 = k2 + ndm;
       for (k = k2p1; k <= k3; ++k) {
-	ARRAY2D(ups, j, k) = sin(temp[i]) * 1e-4;
-	ARRAY2D(ups, j, (k + ndm)) = cos(temp[i]) * 1e-4;
+	ARRAY2D(ups, j, k) = xpp::math::sin(temp[i]) * 1e-4;
+	ARRAY2D(ups, j, (k + ndm)) = xpp::math::cos(temp[i]) * 1e-4;
       }
     }
     tm[j] = temp[0];

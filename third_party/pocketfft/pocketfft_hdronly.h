@@ -326,6 +326,16 @@ template<bool fwd, typename T> void ROTX90(cmplx<T> &a)
 //
 // twiddle factor section
 //
+// xppautX: the twiddle factors' cos and sin go through these two macros
+// (the only change to this file, README.md), so the program can give them
+// correctly rounded ones: the C library's differ between CPUs
+#ifndef POCKETFFT_COS
+#define POCKETFFT_COS(x) std::cos(x)
+#endif
+#ifndef POCKETFFT_SIN
+#define POCKETFFT_SIN(x) std::sin(x)
+#endif
+
 template<typename T> class sincos_2pibyn
   {
   private:
@@ -340,14 +350,14 @@ template<typename T> class sincos_2pibyn
         {
         if (x<2*n) // first quadrant
           {
-          if (x<n) return cmplx<Thigh>(std::cos(Thigh(x)*ang), std::sin(Thigh(x)*ang));
-          return cmplx<Thigh>(std::sin(Thigh(2*n-x)*ang), std::cos(Thigh(2*n-x)*ang));
+          if (x<n) return cmplx<Thigh>(POCKETFFT_COS(Thigh(x)*ang), POCKETFFT_SIN(Thigh(x)*ang));
+          return cmplx<Thigh>(POCKETFFT_SIN(Thigh(2*n-x)*ang), POCKETFFT_COS(Thigh(2*n-x)*ang));
           }
         else // second quadrant
           {
           x-=2*n;
-          if (x<n) return cmplx<Thigh>(-std::sin(Thigh(x)*ang), std::cos(Thigh(x)*ang));
-          return cmplx<Thigh>(-std::cos(Thigh(2*n-x)*ang), std::sin(Thigh(2*n-x)*ang));
+          if (x<n) return cmplx<Thigh>(-POCKETFFT_SIN(Thigh(x)*ang), POCKETFFT_COS(Thigh(x)*ang));
+          return cmplx<Thigh>(-POCKETFFT_COS(Thigh(2*n-x)*ang), POCKETFFT_SIN(Thigh(2*n-x)*ang));
           }
         }
       else
@@ -355,14 +365,14 @@ template<typename T> class sincos_2pibyn
         x=8*n-x;
         if (x<2*n) // third quadrant
           {
-          if (x<n) return cmplx<Thigh>(std::cos(Thigh(x)*ang), -std::sin(Thigh(x)*ang));
-          return cmplx<Thigh>(std::sin(Thigh(2*n-x)*ang), -std::cos(Thigh(2*n-x)*ang));
+          if (x<n) return cmplx<Thigh>(POCKETFFT_COS(Thigh(x)*ang), -POCKETFFT_SIN(Thigh(x)*ang));
+          return cmplx<Thigh>(POCKETFFT_SIN(Thigh(2*n-x)*ang), -POCKETFFT_COS(Thigh(2*n-x)*ang));
           }
         else // fourth quadrant
           {
           x-=2*n;
-          if (x<n) return cmplx<Thigh>(-std::sin(Thigh(x)*ang), -std::cos(Thigh(x)*ang));
-          return cmplx<Thigh>(-std::cos(Thigh(2*n-x)*ang), -std::sin(Thigh(2*n-x)*ang));
+          if (x<n) return cmplx<Thigh>(-POCKETFFT_SIN(Thigh(x)*ang), -POCKETFFT_COS(Thigh(x)*ang));
+          return cmplx<Thigh>(-POCKETFFT_COS(Thigh(2*n-x)*ang), -POCKETFFT_SIN(Thigh(2*n-x)*ang));
           }
         }
       }

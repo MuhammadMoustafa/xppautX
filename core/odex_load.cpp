@@ -21,6 +21,7 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
+#include "xpp_math.h"
 
 #include <array>
 #include <cmath>
@@ -170,7 +171,7 @@ private:
         if (op == "-") return a - b;
         if (op == "*") return a * b;
         if (op == "/") return a / b;
-        if (op == "^") return std::pow(a, b);
+        if (op == "^") return xpp::math::pow(a, b);
         /* mod as the expression engine's: in [0, b) */
         const double z = std::fmod(a, b);
         return z < 0 ? z + b : z;

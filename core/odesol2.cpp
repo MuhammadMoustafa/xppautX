@@ -9,6 +9,7 @@
 #include "load_eqn.h"
 #include "numerics.h"
 #include "model.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -515,7 +516,7 @@ int *istart,int n,double *work,int *ierr)
            *ierr=-1;
 	   return(-1);
 	 }
-	 absh = MAX(hmin, absh * MAX(0.1, pow(0.8*(rtol/err),1./3.)));
+	 absh = MAX(hmin, absh * MAX(0.1, xpp::math::pow(0.8*(rtol/err),1./3.)));
 	 h = tdir * absh;
 	 nofailed=0;
 	 done=0;
@@ -525,7 +526,7 @@ int *istart,int n,double *work,int *ierr)
        }
      }
      if(nofailed==1){
-       temp=1.25*pow(err/rtol,1./3.);
+       temp=1.25*xpp::math::pow(err/rtol,1./3.);
        if(temp>0.2)
 	 absh=absh/temp;
        else

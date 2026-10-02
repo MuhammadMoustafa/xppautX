@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include "auto_f2c.h"
+#include "xpp_math.h"
 
 namespace {
 constexpr double log10e = 0.43429448190325182765;
@@ -34,7 +35,7 @@ double f__cabs(double real, double imag) {
 
 double d_imag(const doublecomplex *z) { return (z->i); }
 
-double d_lg10(const doublereal *x) { return (log10e * log(*x)); }
+double d_lg10(const doublereal *x) { return (log10e * xpp::math::log(*x)); }
 
 double d_sign(doublereal a, doublereal b) {
   double x;
@@ -50,7 +51,7 @@ integer i_nint(const real *x) {
   return static_cast<integer>(*x >= 0 ? floor(*x + .5) : -floor(.5 - *x));
 }
 
-double pow_dd(const doublereal *ap, const doublereal *bp) { return (pow(*ap, *bp)); }
+double pow_dd(const doublereal *ap, const doublereal *bp) { return (xpp::math::pow(*ap, *bp)); }
 
 double pow_di(const doublereal *ap, const integer *bp) {
   double pow_, x;
@@ -104,20 +105,20 @@ integer pow_ii(integer ap, integer bp) {
   return (pow_);
 }
 
-double r_lg10(real x) { return (log10e * log(x)); }
+double r_lg10(real x) { return (log10e * xpp::math::log(x)); }
 
 double z_abs(const doublecomplex *z) { return (f__cabs(z->r, z->i)); }
 
 void z_exp(doublecomplex *r, const doublecomplex *z) {
   double expx, zi = z->i;
 
-  expx = exp(z->r);
-  r->r = expx * cos(zi);
-  r->i = expx * sin(zi);
+  expx = xpp::math::exp(z->r);
+  r->r = expx * xpp::math::cos(zi);
+  r->i = expx * xpp::math::sin(zi);
 }
 
 void z_log(doublecomplex *r, const doublecomplex *z) {
   double zi = z->i, zr = z->r;
-  r->i = atan2(zi, zr);
-  r->r = log(f__cabs(zr, zi));
+  r->i = xpp::math::atan2(zi, zr);
+  r->r = xpp::math::log(f__cabs(zr, zi));
 }

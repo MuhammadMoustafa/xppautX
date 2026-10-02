@@ -570,7 +570,7 @@ xpp::Result<double> hrw_liapunov(xpp::Session &s, double eps)
      if(nrm==0.0){
        return xpp::fail("Liapunov","Liapunov: -infinity exponent!",command_place()); /* something wrong here */
      }
-     sum=sum+::log(nrm);
+     sum=sum+xpp::math::log(nrm);
     for(i=0;i<s.model().node;i++)
       dy[i]=eps*yp[i];
 

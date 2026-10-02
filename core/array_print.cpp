@@ -6,6 +6,7 @@
 #include <string_view>
 #include "array_print.h"
 #include "xpp_io.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -112,8 +113,8 @@ void ps_text2(Picture &p, std::string_view str, float xr, float yr, int icent)
   double slant=.0174532*p.ps_scale.slant;
   float x,y;
   float sizex=p.ps_scale.tx,sizey=p.ps_scale.ty,rot=p.ps_scale.angle;
-  double a=sizex*cos(slant),b=sizey*sin(slant),
-    c=-sizex*sin(slant),d=sizey*cos(slant);
+  double a=sizex*xpp::math::cos(slant),b=sizey*xpp::math::sin(slant),
+    c=-sizex*xpp::math::sin(slant),d=sizey*xpp::math::cos(slant);
   ps_convert(p,xr,yr,&x,&y);
   p.plot_writer.print("{} {} m\n",static_cast<int>(x),static_cast<int>(y));
   p.plot_writer.print("gsave \n {:f} rotate \n",rot);

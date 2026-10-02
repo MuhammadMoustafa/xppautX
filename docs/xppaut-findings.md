@@ -58,6 +58,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [26](#26-set-files-ignore-the-models-names) | Set files | equal counts allow another model's values: names ignored | [W153](https://github.com/MuhammadMoustafa/xppautX/issues/205) |
 | [27](#27-rotation-and-boundary-value-movies-silently-drop-frames-when-full) | Kinescope | rotation and BVP movies ignore a full film buffer | [W133](https://github.com/MuhammadMoustafa/xppautX/issues/185) |
 | [28](#28-a--comment-after-a-declaration-makes-names-of-its-words) | Model files | a `#` comment after a declaration makes parameters of its words (XPPAUT's own issue [Ermentrout/xppaut#11](https://github.com/Ermentrout/xppaut/issues/11)) | [W160](https://github.com/MuhammadMoustafa/xppautX/issues/212) |
+| [29](#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma) | Numerics | the numbers depend on the CPU and on whether the compiler targets FMA | [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) |
 
 ## 1. Model options
 
@@ -455,6 +456,32 @@ again. This was reported to XPPAUT as its own issue:
   marks a trailing `#` in a .ode as an error naming XPPAUT's issue
   (MuhammadMoustafa/XPP-ODE-Extension#1, 2026-10-01).
 - **Card:** [W160](https://github.com/MuhammadMoustafa/xppautX/issues/212) ([#212](https://github.com/MuhammadMoustafa/xppautX/issues/212)).
+
+## 29. The numbers depend on the CPU and on the compiler's FMA
+
+XPPAUT's results are not a function of the model: the same model gives
+different numbers on different machines, which a chaotic model or an
+adaptive step size turns into a different plot or file. Two causes, both in
+how XPPAUT's code meets the machine, neither a bug in a line of it.
+
+1. Its expression evaluator and its solvers call the C library's `sin`,
+   `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`,
+   `exp`, `log`, `log10`, `pow`, `erf`, `erfc`, `lgamma` directly, and
+   glibc runs FMA or plain SSE2 variants of them, chosen by the CPU at run
+   time; none is correctly rounded, and the variants disagree in about one
+   call in 1500 (2 million random inputs each: `pow` 1 in 1600, `exp`
+   1 in 1400, `sin` 1 in 1400, `log` 1 in 15000, `tan` 1 in 80000).
+2. Its arithmetic is compiled with the compiler's default of contracting
+   `a*b+c` into one fused multiply-add wherever the target has one (gcc's
+   `-ffp-contract=fast`, which XPPAUT's makefile does not turn off): a
+   build for a CPU with FMA (x86-64-v3 or `-march=native`, which a
+   distribution or a user may choose; arm64 always has one) rounds
+   differently from a baseline x86-64 build, in plain `+ - * /` models too.
+
+- **XPPAUT 8.0:** the parser's function tables, [parserslow2.c:1950-1975](../reference/xppaut-8.0/parserslow2.c#L1950-L1975) (`fun1`, `sin` ... `lgamma`; [master](../reference/xppaut-master/parserslow2.c#L1858-L1883)) and [parserslow2.c:1598-1599](../reference/xppaut-8.0/parserslow2.c#L1598-L1599) (`atan2`, `pow`; [master](../reference/xppaut-master/parserslow2.c#L1582-L1583)), and the step-size controls, [stiff.c:233-281](../reference/xppaut-8.0/stiff.c#L233-L281) ([master](../reference/xppaut-master/stiff.c#L233-L281)) and [dormpri.c:574](../reference/xppaut-8.0/dormpri.c#L574) ([master](../reference/xppaut-master/dormpri.c#L574)), all call the C library's `pow`, `sin`, ... through their own names; the makefile's flags, [Makefile:44](../reference/xppaut-8.0/Makefile#L44), say `-O2` and nothing about contraction.
+- **Evidence:** xppautX before W159 has XPPAUT's numerical code and the same calls. On one machine (Ubuntu 26.04, gcc 15.2, glibc 2.43, a Zen 4 CPU), the 184 example models' `output.dat` md5s against the committed baseline: with glibc masked to its SSE2 variants (`GLIBC_TUNABLES=glibc.cpu.hwcaps=-FMA`) 11 differ (`fp`, `sine-circle`, `atcoaster`, `fr`, `geisel`, `hhred`, `itoy`, `nf3`, `r3b`, `toy_ok`, `waterwheel`); the same sources built with `-mfma -mavx2` (gcc's default contraction) 29 differ, including `ross-orbit` and `rossler-pecora`, whose equations are only `+ - *`; masking AVX-512 changes none. GitHub's ubuntu-26.04 runner (an AMD EPYC 7763) produced exactly those 29 and two differing PostScript goldens, with the same compiler and C library as the machine where they matched.
+- **xppautX:** the transcendental functions are CORE-MATH's correctly rounded ones (`xpp::math`, third_party/core-math), which return the exact value rounded to nearest and so the same bits on every CPU and C library, and the build passes `-ffp-contract=off`, so no target contracts. The example baselines and the goldens were rewritten once, on purpose (W159's commit names the models). `tools/mathcheck.sh` fails a direct call of the C library's.
+- **Card:** [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) ([#211](https://github.com/MuhammadMoustafa/xppautX/issues/211)).
 
 ## Known and kept
 

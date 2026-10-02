@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include "del_stab.h"
 #include "delay_handle.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -146,9 +147,9 @@ COMPLEX cdivv(COMPLEX z, COMPLEX w)
 COMPLEX cexp2(COMPLEX z)
 {
   COMPLEX sum;
-  double ex=exp(z.r);
-  sum.r=ex*cos(z.i);
-  sum.i=ex*sin(z.i);
+  double ex=xpp::math::exp(z.r);
+  sum.r=ex*xpp::math::cos(z.i);
+  sum.i=ex*xpp::math::sin(z.i);
   return sum;
 }
 
@@ -336,7 +337,7 @@ double get_arg(double *delay, double *coef, int m, int n, COMPLEX lambda)
   }
   /*  the array is done  */
   temp=cdeterm(z.data(),n);
-  arg=atan2(temp.i,temp.r);
+  arg=xpp::math::atan2(temp.i,temp.r);
   return(arg);
 }   
 

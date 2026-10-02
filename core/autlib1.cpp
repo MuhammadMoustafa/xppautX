@@ -12,6 +12,7 @@
 #include "auto_stop.h" /* xppautX: why a branch ended (T23) */
 #include "form_ode.h"
 #include "model.h"
+#include "xpp_math.h"
 
 /* ----------------------------------------------------------------------- */
 /* ----------------------------------------------------------------------- */
@@ -3915,7 +3916,7 @@ pi(doublereal r)
   /* System generated locals */
   doublereal ret_val;
 
-  ret_val = r * 4. * atan(1.);
+  ret_val = r * 4. * xpp::math::atan(1.);
 
   return ret_val;
 } /* pi */
@@ -6417,7 +6418,7 @@ tpspbv(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, doublecomple
     /*       ** torus bifurcation */
     itp = itpst * 10 + 8;
     iap->itp = itp;
-    par[11] =f2c::abs(atan2(d_imag(&ev[loc1]),ev[loc1].r));
+    par[11] =f2c::abs(xpp::math::atan2(d_imag(&ev[loc1]),ev[loc1].r));
 
   } else { /* a real multiplier */
     if (ev[loc1].r < -.5) {

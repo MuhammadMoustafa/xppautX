@@ -7,6 +7,7 @@
 #include "markov.h"
 #include "model.h"
 #include "solver.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -215,11 +216,11 @@ int stiff(xpp::Session &s, double y[], double dydx[], int n, double *x, double h
 		errmax /= eps;
 		if (errmax <= 1.0) {
 		  *hdid=h;
-		  *hnext=(errmax > ERRCON ? SAFETY*h*pow(errmax,PGROW) : GROW*h);          
+		  *hnext=(errmax > ERRCON ? SAFETY*h*xpp::math::pow(errmax,PGROW) : GROW*h);          
                   
 		  return 0;
 		} else {
-		  *hnext=SAFETY*h*pow(errmax,PSHRNK);
+		  *hnext=SAFETY*h*xpp::math::pow(errmax,PSHRNK);
 		  h=(h >= 0.0 ? MAX(*hnext,SHRNK*h) : MIN(*hnext,SHRNK*h));
 		}
 	}
@@ -245,7 +246,7 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
     for (i=0;i<n;i++) errmax=MAX(errmax,fabs(yerr[i]/yscal[i]));
     errmax /= eps;
     if (errmax > 1.0) {
-      htemp=SAFETY*h*pow(errmax,PSHRNK2);
+      htemp=SAFETY*h*xpp::math::pow(errmax,PSHRNK2);
       h=(h >= 0.0 ? MAX(htemp,0.1*h) : MIN(htemp,0.1*h));
       xnew=(*x)+h;
       if (xnew == *x) {
@@ -255,7 +256,7 @@ int rkqs(xpp::Session &s, double *y, double *dydx, int n, double *x, double htry
       }
       continue;
     } else {
-      if (errmax > ERRCON2) *hnext=SAFETY*h*pow(errmax,PGROW2);
+      if (errmax > ERRCON2) *hnext=SAFETY*h*xpp::math::pow(errmax,PGROW2);
       else *hnext=5.0*h;
       *x += (*hdid=h);
       for (i=0;i<n;i++) y[i]=ytemp[i];

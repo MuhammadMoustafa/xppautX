@@ -9,6 +9,7 @@
 #include "session.h"
 #include "auto_c.h"
 #include "xpp_job.h" /* xppautX: cancel */
+#include "xpp_math.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -2166,7 +2167,7 @@ rd0(integer *iam, integer *kwt, doublereal *d, integer *nrc)
 
   /* Determine the recursion level */
   {
-    doublereal tmp = log(xkwt) / log(2.);
+    doublereal tmp = xpp::math::log(xkwt) / xpp::math::log(2.);
     nredo = i_dnnt(&tmp);
   }
 

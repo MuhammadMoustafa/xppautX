@@ -20,6 +20,7 @@
 #include "xpp_job.h"
 #include "data_event.h"
 #include "session.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -96,9 +97,9 @@ void add_stab(std::string &o, const AutoDataShown &sh)
     if (!stab_periodic) {
         o += ",\"eig\":[";
         for (std::size_t i = 0; i < n; i++) {
-            const double r = std::hypot(stab_re[i], stab_im[i]);
+            const double r = xpp::math::hypot(stab_re[i], stab_im[i]);
             if (i) o += ',';
-            if (r > 0) add_pair(o, std::log(r), std::atan2(stab_im[i], stab_re[i]));
+            if (r > 0) add_pair(o, xpp::math::log(r), xpp::math::atan2(stab_im[i], stab_re[i]));
             else o += "[null,null]";
         }
         o += ']';

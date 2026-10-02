@@ -16,6 +16,7 @@
 #include "graf_par.h"
 #include "xpp_globals.h"
 #include "xpp_io.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -62,8 +63,8 @@ double make_tics(double tmin, double tmax)
   
   xr = fabs(tmin-tmax);
   
-  l10 = log10(xr);
-  xnorm = pow(10.0,l10-static_cast<double>((l10 >= 0.0 ) ? static_cast<int>(l10) : (static_cast<int>(l10)-1)));
+  l10 = xpp::math::log10(xr);
+  xnorm = xpp::math::pow(10.0,l10-static_cast<double>((l10 >= 0.0 ) ? static_cast<int>(l10) : (static_cast<int>(l10)-1)));
   if (xnorm <= 2)
     tics = 0.2;
   else if (xnorm <= 5)

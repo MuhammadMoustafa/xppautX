@@ -31,6 +31,7 @@
 #include "xpp_batch.h"
 #include "form_ode.h"
 #include "model.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -354,7 +355,7 @@ void get_max_dfield(xpp::Session &s, double *y, double *ydot, double u0, double 
       s.integrator.rhs(0.0,y,ydot,s.model().node);
       extra(s,y,0.0,s.model().node,s.model().neq);
       scale_dxdy(s,ydot[inx],ydot[iny],&dxp,&dyp);
-      const double amp=hypot(dxp,dyp);
+      const double amp=xpp::math::hypot(dxp,dyp);
       if(amp>*mdf)*mdf=amp;
     }
   }
@@ -401,7 +402,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
           ydot[iny]/=mdf;
         }
         else{
-          const double amp=hypot(dxp,dyp);
+          const double amp=xpp::math::hypot(dxp,dyp);
           if(amp!=0.0){
             ydot[inx]/=amp;
             ydot[iny]/=amp;
@@ -567,7 +568,7 @@ void dfield_of_window(xpp::Session &s, xpp::Writer *dump)
 
   const double dup=static_cast<double>(s.drawing.d_right-s.drawing.d_left)/static_cast<double>(grid);
   const double dvp=static_cast<double>(s.drawing.d_top-s.drawing.d_bottom)/static_cast<double>(grid);
-  const double dz=hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type);
+  const double dz=xpp::math::hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type);
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
   if(!dump)set_linestyle(s,s.plot_windows.current->color[0]);
@@ -624,7 +625,7 @@ void direct_field_com(xpp::Session &s, int c)
 
   const double dup=static_cast<double>(s.drawing.d_right-s.drawing.d_left)/static_cast<double>(grid);
   const double dvp=static_cast<double>(s.drawing.d_top-s.drawing.d_bottom)/static_cast<double>(grid);
-  const double dz=hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type) ;
+  const double dz=xpp::math::hypot(dup,dvp)*(.25+.75*s.nullcline_state.dfield_type) ;
   const double u0=s.plot_windows.current->xlo;
   const double v0=s.plot_windows.current->ylo;
   set_linestyle(s,s.plot_windows.current->color[0]);

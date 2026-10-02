@@ -7,6 +7,7 @@
 #include "xpp_io.h"
 #include "session.h"
 #include "autevd.h" /* xAuto (its own extern) */
+#include "xpp_math.h"
 
 /* The memory for these are taken care of in main, and setubv for the
    mpi parallel case.  These are global since the they are used many times
@@ -384,7 +385,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 	if (iap->lib->homcont.blhmp.irev[i] > 0) {
 	  if (iap->lib->homcont.blhmp.irev[i] == 1) {
 	    /* *****NOTE MODIFICATION FROM GENERAL CASE */
-	    fb[-1 + jb] = sin(u1[i]);
+	    fb[-1 + jb] = xpp::math::sin(u1[i]);
 	    /*                        FB(JB)=U1(I) */
 	  } else {
 	    fb[-1 + jb] = u1[i];
@@ -1120,7 +1121,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
 
   for (i = 0; i < ndm; ++i) {
     u[i] = xequib[i] + vr[iap->lib->homcont.blhom.nstab + i * (iap->ndm)]
-      * par[-1 + kp] * par[kp] * exp(rr[iap->lib->homcont.blhom.nstab] * *t * par[10]);
+      * par[-1 + kp] * par[kp] * xpp::math::exp(rr[iap->lib->homcont.blhom.nstab] * *t * par[10]);
   }
   for (i = 0; i < ndm; ++i) {
     xpp::print(iap->lib->fp9,"stpho {:20.10f}\n",u[i]);	
@@ -1133,7 +1134,7 @@ stpho(iap_type *iap, integer *icp, doublereal *u, doublereal *par, doublereal *t
   for (i = 0; i < iap->lib->homcont.blhom.nunstab; ++i) {
     par[ip + i] = 0.;
     for (j = 0; j < ndm; ++j) {
-      par[ip + i] += vr[iap->lib->homcont.blhom.nstab + j * (iap->ndm)] * par[-1 + kp] * par[kp] * exp(rr[iap->lib->homcont.blhom.nstab] * par[10]) * 
+      par[ip + i] += vr[iap->lib->homcont.blhom.nstab + j * (iap->ndm)] * par[-1 + kp] * par[kp] * xpp::math::exp(rr[iap->lib->homcont.blhom.nstab] * par[10]) * 
 	vt[iap->lib->homcont.blhom.nstab + i + j * (iap->ndm)];
     }
   }
@@ -1398,7 +1399,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
   for (j = 0; j < ndm; ++j) {
     ret_val += f1[j] * vt[iap->lib->homcont.blhom.nstab + (j + 1) * (iap->ndm)];
   }
-  ret_val *= exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
+  ret_val *= xpp::math::exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Orbit flip (with respect to leading unstable direction) */
@@ -1408,7 +1409,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
   for (j = 0; j < ndm; ++j) {
     ret_val += f0[j] * vt[iap->lib->homcont.blhom.nstab + 1 + (j + 1) * (iap->ndm)];
   }
-  ret_val *= exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
+  ret_val *= xpp::math::exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to stable manifold 
@@ -1420,7 +1421,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
     ret_val += iap->lib->homcont.blhmu.pu0[ndm + i] * v[iap->lib->homcont.blhom.nstab + (i + 1) * (iap->ndm)]
       ;
   }
-  ret_val *= exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
+  ret_val *= xpp::math::exp(-par[10] * rr[-1 + iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Inclination flip (critically twisted) with respect to unstable manifold
@@ -1431,7 +1432,7 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
   for (i = 0; i < ndm; ++i) {
     ret_val += iap->lib->homcont.blhmu.pu1[ndm + i] * v[iap->lib->homcont.blhom.nstab + 1 + (i + 1) * (iap->ndm)];
   }
-  ret_val *= exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
+  ret_val *= xpp::math::exp(par[10] * rr[iap->lib->homcont.blhom.nstab] / 2.);
   return ret_val;
 
   /* Non-central homoclinic to saddle-node (in stable manifold) */

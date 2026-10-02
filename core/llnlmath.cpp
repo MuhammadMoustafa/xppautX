@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "llnlmath.h"
+#include "xpp_math.h"
 
 
 #define ZERO RCONST(0.0)
@@ -54,7 +55,7 @@ real RPowerR(real base, real exponent)
  
   if (base <= ZERO) return(ZERO);
 
-  return(static_cast<real>(pow(static_cast<double>(base), static_cast<double>(exponent))));
+  return(static_cast<real>(xpp::math::pow(static_cast<double>(base), static_cast<double>(exponent))));
 }
 
 

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "auto_stability.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -45,9 +46,9 @@ void auto_stability_computed(AutoStability &st, int br, int pt, int n, const dou
         for (int i = 0; i < n; i++) {
             double r = values[2 * i], im = values[2 * i + 1];
             if (kind == AUTO_STABILITY_STEADY) { /* e^lambda */
-                double er = std::exp(r);
-                computed.re[static_cast<size_t>(i)] = er * std::cos(im);
-                computed.im[static_cast<size_t>(i)] = er * std::sin(im);
+                double er = xpp::math::exp(r);
+                computed.re[static_cast<size_t>(i)] = er * xpp::math::cos(im);
+                computed.im[static_cast<size_t>(i)] = er * xpp::math::sin(im);
             } else {
                 computed.re[static_cast<size_t>(i)] = r;
                 computed.im[static_cast<size_t>(i)] = im;

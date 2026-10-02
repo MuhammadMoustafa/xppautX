@@ -250,6 +250,23 @@ CORE_OBJECTS += $(BUILDDIR)/miniz.o
 $(BUILDDIR)/miniz.o: $(MINIZ_DIR)/miniz.c $(MINIZ_DIR)/miniz.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(call NOLTO,$(OPT)) $(MINIZ_DEFS) -w -c $< -o $@
 $(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
+# vendored third_party/core-math (xpp_math's exp, log, sin, ...: correctly
+# rounded, so the same bits on every CPU and system), one C object per
+# function in the core library, built like miniz: no warnings of ours, no
+# LTO, and no contraction of a*b+c into an FMA (the algorithms are exact
+# either way, a contracted copy would only be a different build)
+CORE_MATH_DIR = third_party/core-math
+CORE_MATH_FUNCS = exp log log10 pow sin cos tan asin acos atan atan2 sinh cosh tanh hypot erf erfc lgamma
+CORE_MATH_OBJECTS := $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f).o)
+CORE_OBJECTS += $(CORE_MATH_OBJECTS)
+# lgamma's sign output goes to a temporary, not the C library's global
+$(BUILDDIR)/core_math_lgamma.o: CORE_MATH_EXTRA = -include $(CORE_MATH_DIR)/lgamma_sign.h
+# (CORE-MATH keeps each function's source in a folder of its own name)
+define CORE_MATH_RULE
+$$(BUILDDIR)/core_math_$(1).o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/toolchain.stamp | $$(BUILDDIR)
+	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -w -c $$< -o $$@
+endef
+$(foreach f,$(CORE_MATH_FUNCS),$(eval $(call CORE_MATH_RULE,$(f))))
 # the linker of xppautX
 LINK_X := $(call link,$(SERVER_SOURCES) $(CORE_SOURCES))
 # per build directory, so a MinGW build does not replace the Linux library

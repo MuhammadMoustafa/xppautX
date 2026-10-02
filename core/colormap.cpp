@@ -2,6 +2,7 @@
    export (which need the RGB values) work without an X display. color.c
    keeps the X colormap allocation and pixel lookup. */
 #include "colormap.h"
+#include "xpp_math.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -124,11 +125,11 @@ void make_cmaps(int *r, int *g, int *b, int n, int type)
         for (i = 0; i < n; i++) {
             x = static_cast<double>(i) / static_cast<double>(n);
             angle = 2 * pii * (start / 3.0 + 1 + rots * x);
-            x = pow(x, gamma);
+            x = xpp::math::pow(x, gamma);
             amp = hue * x * (1 - x) / 2.0;
-            rr = x + amp * (-.14861 * cos(angle) + 1.78277 * sin(angle));
-            gg = x + amp * (-.29227 * cos(angle) - .90649 * sin(angle));
-            bb = x + amp * (1.97294 * cos(angle));
+            rr = x + amp * (-.14861 * xpp::math::cos(angle) + 1.78277 * xpp::math::sin(angle));
+            gg = x + amp * (-.29227 * xpp::math::cos(angle) - .90649 * xpp::math::sin(angle));
+            bb = x + amp * (1.97294 * xpp::math::cos(angle));
             if (rr < 0.0) rr = 0.0;
             if (rr > 1.0) rr = 1.0;
             if (gg < 0.0) gg = 0.0;

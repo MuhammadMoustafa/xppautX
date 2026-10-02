@@ -26,6 +26,9 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
+/* the twiddle factors' cos and sin: ours, correctly rounded (third_party/pocketfft/README.md) */
+#define POCKETFFT_COS(x) ::xpp::math::cos(x)
+#define POCKETFFT_SIN(x) ::xpp::math::sin(x)
 #include "../third_party/pocketfft/pocketfft_hdronly.h"
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
@@ -130,7 +133,7 @@ double Random::normal(double mean, double std)
         v2 = 2.0 * uniform() - 1.0;
         r = v1 * v1 + v2 * v2;
     } while (r >= 1.0 || r == 0.0);
-    const double fac = std::sqrt(-2.0 * std::log(r) / r);
+    const double fac = std::sqrt(-2.0 * xpp::math::log(r) / r);
     spare_ = v1 * fac;
     have_spare_ = true;
     return v2 * fac * std + mean;
@@ -140,7 +143,7 @@ double Random::poisson(double xm)
 {
     double em, t, y;
     if (xm < 12.0) { /* multiply uniforms until the product drops below e^-xm */
-        const double g = std::exp(-xm);
+        const double g = xpp::math::exp(-xm);
         em = -1;
         t = 1.0;
         do {
@@ -149,15 +152,15 @@ double Random::poisson(double xm)
         } while (t > g);
     } else { /* rejection from a Lorentzian */
         const double sq = std::sqrt(2.0 * xm);
-        const double alxm = std::log(xm);
-        const double g = xm * alxm - std::lgamma(xm + 1.0);
+        const double alxm = xpp::math::log(xm);
+        const double g = xm * alxm - xpp::math::lgamma(xm + 1.0);
         do {
             do {
-                y = std::tan(std::numbers::pi * uniform());
+                y = xpp::math::tan(std::numbers::pi * uniform());
                 em = sq * y + xm;
             } while (em < 0.0);
             em = std::floor(em);
-            t = 0.9 * (1.0 + y * y) * std::exp(em * alxm - std::lgamma(em + 1.0) - g);
+            t = 0.9 * (1.0 + y * y) * xpp::math::exp(em * alxm - xpp::math::lgamma(em + 1.0) - g);
         } while (uniform() > t);
     }
     return em;
@@ -570,10 +573,10 @@ double bessel_i0(double x, bool scaled)
         y = x / 3.75;
         y *= y;
         const double p = 1.0 + y * (3.5156229 + y * (3.0899424 + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2)))));
-        return scaled ? p * std::exp(-ax) : p;
+        return scaled ? p * xpp::math::exp(-ax) : p;
     }
     y = 3.75 / ax;
-    return (scaled ? 1.0 / std::sqrt(ax) : std::exp(ax) / std::sqrt(ax)) *
+    return (scaled ? 1.0 / std::sqrt(ax) : xpp::math::exp(ax) / std::sqrt(ax)) *
            (0.39894228 + y * (0.1328592e-1 + y * (0.225319e-2 + y * (-0.157565e-2 + y * (0.916281e-2 + y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + y * 0.392377e-2))))))));
 }
 
@@ -584,13 +587,13 @@ double bessel_i1(double x, bool scaled)
     if (ax < 3.75) {
         y = x / 3.75;
         y *= y;
-        ans = (scaled ? std::exp(-ax) * ax : ax) *
+        ans = (scaled ? xpp::math::exp(-ax) * ax : ax) *
               (0.5 + y * (0.87890594 + y * (0.51498869 + y * (0.15084934 + y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3))))));
     } else {
         y = 3.75 / ax;
         ans = 0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2));
         ans = 0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * ans))));
-        ans *= scaled ? 1. / std::sqrt(ax) : std::exp(ax) / std::sqrt(ax);
+        ans *= scaled ? 1. / std::sqrt(ax) : xpp::math::exp(ax) / std::sqrt(ax);
     }
     return x < 0.0 ? -ans : ans;
 }

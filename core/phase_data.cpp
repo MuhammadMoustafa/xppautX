@@ -26,6 +26,7 @@
 #include "series_enc.h"
 #include "many_pops.h"
 #include "form_ode.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -397,7 +398,7 @@ void phase_data_arrow(xpp::Session &s, double x, double y, double fx, double fy)
 {
     PhaseShown::Window *w = current(s);
     if (!w) return;
-    const double speed = std::hypot(fx, fy);
+    const double speed = xpp::math::hypot(fx, fy);
     const bool unit = speed > 0 && std::isfinite(speed);
     try {
         PhaseShown::Field &f = change(w->df, w->df_generation);

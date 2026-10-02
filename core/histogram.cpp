@@ -332,7 +332,7 @@ void compute_power(xpp::Session &s)
     c=datx[i];
     sv=daty[i];
     datx[i]=sqrt(sv*sv+c*c);
-    daty[i]=atan2(sv,c);
+    daty[i]=xpp::math::atan2(sv,c);
     ptot+=(datx[i]*datx[i]);
   }
   xpp::log(XPP_LOG_INFO, "a0={:g} L2norm= {:g}  \n",datx[0],sqrt(ptot));
@@ -369,8 +369,8 @@ int spectrum(std::span<const float> data,int win,int w_type,float *pow)
    switch(w_type){
    case 0: f[i]=1; break;
    case 1: f[i]=x*(1-x)*4.0; break;
-   case 2: f[i]=.54-.46*cos(2*M_PI*x);break;
-   case 4: f[i]=.5*(1-cos(2*M_PI*x));break;
+   case 2: f[i]=.54-.46*xpp::math::cos(2*M_PI*x);break;
+   case 4: f[i]=.5*(1-xpp::math::cos(2*M_PI*x));break;
    case 3: f[i]=1-2*fabs(x-.5);break;
    }
    nrmf+=(f[i]*f[i]/win);
@@ -434,8 +434,8 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
    switch(w_type){
    case 0: f[i]=1; break;
    case 1: f[i]=x*(1-x)*4.0; break;
-   case 4: f[i]=.5*(1-cos(2*M_PI*x));break;
-   case 2: f[i]=.54-.46*cos(2*M_PI*x);break;
+   case 4: f[i]=.5*(1-xpp::math::cos(2*M_PI*x));break;
+   case 2: f[i]=.54-.46*xpp::math::cos(2*M_PI*x);break;
    case 3: f[i]=1-2*fabs(x-.5);break;
    }
    nrmwin+=f[i]*f[i];
@@ -470,7 +470,7 @@ int cross_spectrum(std::span<const float> data,std::span<const float> data2,int 
    pxym[i]=pxym[i]/((kwin)*nrmwin);
    pxyr[i]=pxyr[i]*pxyr[i]+pxym[i]*pxym[i];
    if(type==1)
-     pow[i]=::log(pxyr[i]);
+     pow[i]=xpp::math::log(pxyr[i]);
    else
      pow[i]=pxyr[i]/(pxx[i]*pyy[i]);
  }
@@ -529,7 +529,7 @@ void just_fourier(xpp::Session &s, int flag)
 	 c=datx[i];
 	 sv=daty[i];
 	 datx[i]=sqrt(sv*sv+c*c);
-	 daty[i]=atan2(sv,c);
+	 daty[i]=xpp::math::atan2(sv,c);
 	 
        }
 

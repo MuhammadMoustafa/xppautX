@@ -11,6 +11,8 @@
 #   - no more direct fopen/remove/rename/mkdir/... than tests/files.baseline
 #     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
+#   - no direct exp, log, pow, sin, ... of the C library: xpp::math's, the same
+#     bits on every CPU (tools/mathcheck.sh, W159)
 #   - no more errors reported with no place (file, line) than
 #     tests/errors.baseline allows (tools/errorcheck.py, W140)
 #   - no extern "C" but where C calls across (tools/externcheck.sh, W109)
@@ -85,6 +87,10 @@ fi
 tail -1 build/errorcheck.out
 if ! sh tools/literalcheck.sh; then
   echo "LITERAL CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/mathcheck.sh; then
+  echo "MATH CHECK FAILED"
   exit 1
 fi
 if ! sh tools/externcheck.sh; then

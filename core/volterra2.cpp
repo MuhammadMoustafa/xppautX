@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <vector>
 #include "model.h"
+#include "xpp_math.h"
 
 namespace xpp {
 #define MAX(a,b) ((a)>(b)?(a):(b))
@@ -200,7 +201,7 @@ double alpha1n(double mu, double dt, double t, double t0)
   double m1;
   if(mu==.5)return(sqrt(fabs(t-t0))-sqrt(fabs(t-t0-dt)));
   m1=1-mu;
-  return(.5*(pow(fabs(t-t0),m1)-pow(fabs(t-t0-dt),m1))/m1);
+  return(.5*(xpp::math::pow(fabs(t-t0),m1)-xpp::math::pow(fabs(t-t0-dt),m1))/m1);
 }
 
 double alpbetjn(double mu, double dt, int l)
@@ -209,14 +210,14 @@ double alpbetjn(double mu, double dt, int l)
   double dif=l*dt;
   if(mu==.5)return(sqrt(dif+dt)-sqrt(fabs(dif-dt)));
   m1=1-mu;
-  return(.5*(pow(dif+dt,m1)-pow(fabs(dif-dt),m1))/m1);
+  return(.5*(xpp::math::pow(dif+dt,m1)-xpp::math::pow(fabs(dif-dt),m1))/m1);
 }
 double betnn(double mu, double dt, double t0, double t)
 {
  double m1;
  if(mu==.5)return(sqrt(dt));
  m1=1-mu;
- return(.5*pow(dt,m1)/m1);
+ return(.5*xpp::math::pow(dt,m1)/m1);
 }
 
 void get_kn(xpp::Session &s, double *y, double t)  /* uses the guessed value y to update Kn  */

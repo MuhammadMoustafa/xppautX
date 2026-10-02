@@ -24,12 +24,52 @@
    table holds some of these as plain function pointers). None of them
    throws. */
 
+#include "../third_party/core-math/core_math.h"
+
 #include <cstddef>
 #include <random>
 #include <span>
 #include <string>
 
 namespace xpp {
+
+/* ---- the transcendental functions: the same bits on every CPU (W159) ----
+
+   xpp::math::exp, log, log10, pow, sin, cos, tan, asin, acos, atan, atan2,
+   sinh, cosh, tanh, hypot, erf, erfc and lgamma are CORE-MATH's
+   (third_party/core-math), correctly rounded in binary64: each returns the
+   exact value rounded to nearest, so it is the same number whatever the C
+   library, CPU or compiler. The C library's are not: glibc picks FMA or
+   SSE2 variants of exp, log, pow, sin, cos, tan, atan, asin, acos, atan2
+   at run time (and lgamma, erf and the hyperbolic functions call them),
+   they round differently in about one call in 1500, and UCRT and macOS have
+   algorithms of their own; an adaptive step size or a chaotic model turns
+   that into a different output on another machine (issue #211). Core code
+   calls these, never <cmath>'s (tools/mathcheck.sh fails it). Exact in
+   IEEE and so the C library's: sqrt, fabs, floor, ceil, fmod, ldexp, frexp.
+   The one function left to the C library is jn/yn (bessel_j, bessel_y). */
+namespace math {
+
+inline double exp(double x) { return cr_exp(x); }
+inline double log(double x) { return cr_log(x); }
+inline double log10(double x) { return cr_log10(x); }
+inline double pow(double x, double y) { return cr_pow(x, y); }
+inline double sin(double x) { return cr_sin(x); }
+inline double cos(double x) { return cr_cos(x); }
+inline double tan(double x) { return cr_tan(x); }
+inline double asin(double x) { return cr_asin(x); }
+inline double acos(double x) { return cr_acos(x); }
+inline double atan(double x) { return cr_atan(x); }
+inline double atan2(double y, double x) { return cr_atan2(y, x); }
+inline double sinh(double x) { return cr_sinh(x); }
+inline double cosh(double x) { return cr_cosh(x); }
+inline double tanh(double x) { return cr_tanh(x); }
+inline double hypot(double x, double y) { return cr_hypot(x, y); }
+inline double erf(double x) { return cr_erf(x); }
+inline double erfc(double x) { return cr_erfc(x); }
+inline double lgamma(double x) { return cr_lgamma(x); }
+
+} // namespace math
 
 /* ---- Fourier transform (pocketfft, third_party/pocketfft) ----
 
@@ -122,7 +162,8 @@ double sign(double a, double b);
 /* ---- special functions (the parser's besselj, bessely, besseli,
    besselis) ----
    The order n is truncated to an int. bessel_j/_y are the C library's
-   jn/yn; bessel_i is the modified Bessel function I_n(x) and
+   jn/yn (the C library's, whose own sin and cos are CPU-dispatched: the one
+   gap in xpp::math's promise); bessel_i is the modified Bessel function I_n(x) and
    bessel_i_scaled exp(-|x|) I_n(x) (Numerical Recipes' polynomial
    approximations and downward recurrence). */
 double bessel_j(double n, double x);

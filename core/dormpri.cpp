@@ -152,7 +152,7 @@ static double hinit (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doubl
   if (der12 <= 1.0E-15)
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
-    h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
+    h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
   return xpp::sign (h, posneg);
@@ -503,9 +503,9 @@ static int dopcor (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double*
     err = fabs(h) * err * sqrt (1.0 / (deno*static_cast<double>(n)));
 
     /* computation of hnew */
-    fac11 = pow (err, expo1);
+    fac11 = xpp::math::pow(err, expo1);
     /* Lund-stabilization */
-    fac = fac11 / pow(facold,beta);
+    fac = fac11 / xpp::math::pow(facold,beta);
     /* we require fac1 <= hnew/h <= fac2 */
     fac = max_d (facc2, min_d (facc1, fac/safe));
     hnew = h / fac;
@@ -916,7 +916,7 @@ static double hinit5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, doub
   if (der12 <= 1.0E-15)
     h1 = max_d (1.0E-6, fabs(h)*1.0E-3);
   else
-    h1 = pow (0.01/der12, 1.0/static_cast<double>(iord));
+    h1 = xpp::math::pow(0.01/der12, 1.0/static_cast<double>(iord));
   h = min_d (100.0 * h, min_d (h1, hmax));
 
   return xpp::sign (h, posneg);
@@ -1081,9 +1081,9 @@ static int dopcor5 (xpp::Session &s, unsigned n, FcnEqDiff fcn, double x, double
     err = sqrt (err / static_cast<double>(n));
 
     /* computation of hnew */
-    fac11 = pow (err, expo1);
+    fac11 = xpp::math::pow(err, expo1);
     /* Lund-stabilization */
-    fac = fac11 / pow(facold,beta);
+    fac = fac11 / xpp::math::pow(facold,beta);
     /* we require fac1 <= hnew/h <= fac2 */
     fac = max_d (facc2, min_d (facc1, fac/safe));
     hnew = h / fac;

@@ -13,6 +13,7 @@
 #include "graf_par.h"
 #include "xpp_io.h"
 #include "load_eqn.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -490,8 +491,8 @@ void copy_graph(xpp::Session &s, int i, int l)  /*  Graph[i]=Graph[l]  */
 
 void make_rot(xpp::Session &s, double theta, double phi)
 {
- double ct=cos(DEGTORAD*theta),st=sin(DEGTORAD*theta);
- double sp=sin(DEGTORAD*phi),cp=cos(DEGTORAD*phi);
+ double ct=xpp::math::cos(DEGTORAD*theta),st=xpp::math::sin(DEGTORAD*theta);
+ double sp=xpp::math::sin(DEGTORAD*phi),cp=xpp::math::cos(DEGTORAD*phi);
  s.plot_windows.current->Theta=theta;
  s.plot_windows.current->Phi=phi;
  s.plot_windows.current->rm[0][0]=ct;

@@ -110,21 +110,22 @@ double ieee_divide(double x, double y)
 
 namespace xpp::expr {
 
-/* the C library's functions by their global names (xpp::log is not log) */
+/* xpp::math's functions (correctly rounded, the same on every CPU) and the
+   C library's exact ones (sqrt, fabs, floor) */
 const std::array<Fun1,26> fun1={
-  ::sin,     /*  0 */
-  ::cos,
-  ::tan,
-  ::asin,
-  ::acos,
-  ::atan,    /*  5 */
-  ::sinh,
-  ::tanh,
-  ::cosh,
+  xpp::math::sin,     /*  0 */
+  xpp::math::cos,
+  xpp::math::tan,
+  xpp::math::asin,
+  xpp::math::acos,
+  xpp::math::atan,    /*  5 */
+  xpp::math::sinh,
+  xpp::math::tanh,
+  xpp::math::cosh,
   ::fabs,
-  ::exp,     /* 10 */
-  ::log,
-  ::log10,
+  xpp::math::exp,     /* 10 */
+  xpp::math::log,
+  xpp::math::log10,
   ::sqrt,
   ::neg,
   ::recip,   /* 15 */
@@ -133,11 +134,11 @@ const std::array<Fun1,26> fun1={
   ::floor,
   nullptr,   /* RANDOM_UNIFORM: RANDUNI, the evaluator's */
   ::dnot,    /* 20 */
-  ::erf,
-  ::erfc,
+  xpp::math::erf,
+  xpp::math::erfc,
   ::hom_bcs,
   nullptr,   /* RANDOM_POISSON: RANDPOI, the evaluator's */
-  ::lgamma,  /* 25 */
+  xpp::math::lgamma,  /* 25 */
 };
 
 /* 0-3 are + - * /, which the evaluator does itself (and IEEE_DIVIDE) */
@@ -146,8 +147,8 @@ const std::array<Fun2,23> fun2={
   nullptr,
   nullptr,
   nullptr,
-  ::atan2,
-  ::pow,     /*  5 */
+  xpp::math::atan2,
+  xpp::math::pow,     /*  5 */
   ::max,
   ::min,
   ::pmod,

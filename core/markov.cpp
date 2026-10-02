@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 #include "model.h"
+#include "xpp_math.h"
 
 namespace xpp {
 
@@ -319,7 +320,7 @@ void one_gill_step(xpp::Session &s, int meth,int nrxn,int *rxn,double *v)
       rate+=r[i];
     }
     if(rate<=0.0)return;
-    v[0]=-::log(s.random.uniform())/rate; /* next step */
+    v[0]=-xpp::math::log(s.random.uniform())/rate; /* next step */
     test=rate*s.random.uniform();
     rate=r[0];
     for(i=0;i<nrxn;i++){
