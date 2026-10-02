@@ -346,7 +346,8 @@ def find_conditionals(sources, defined: set[str]):
                 if name in fixed and fixed[name][0] == s.rel and fixed[name][1] < ln:
                     found.append(("ifdead", s.rel, name + " (always defined)", ln))
                     continue
-                if name in ("defined",) or name in defined or name in EXTERNAL_MACROS:
+                if (name in ("defined",) or name in defined or name in EXTERNAL_MACROS
+                        or name in third_party_words()):
                     continue
                 if kw in ("if", "elif") and not re.search(r"defined\s*\(?\s*" + name, rest):
                     continue  # a value compared, not a presence
