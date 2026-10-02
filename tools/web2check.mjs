@@ -4422,6 +4422,32 @@ async function files(dir) {
       JSON.stringify([await par('iapp'), await S('s.toasts'), await cdp.eval('__xpp.sent().slice(-4)')]));
     check('no file dialog is left open', await S('!s.ask'));
 
+    /* W134: Values > Load is an upload like the others: a same-name file with other content
+       asks first, in a dialog of its own (no file ask is open), and Cancel copies and reads nothing */
+    await cdp.eval(`__xpp.send({cmd: 'values', op: 'write', kind: 'par', name: 'w134.par'})`);
+    await until(`!s.busy`, 'w134.par written');
+    const parThere = fs.readFileSync(path.join(dir, 'w134.par'));
+    const parPicked = path.join(up, 'w134.par');
+    fs.writeFileSync(parPicked, parThere.toString().replace(/\n[^\n]*  iapp\r?\n/, '\n0.0777  iapp\n'));
+    const sentLoad = await cdp.eval('__xpp.sent().length');
+    await pickFiles('#values-load-par', [parPicked]);
+    check('W134: Values > Load over a different file of the same name asks: Replace, Keep both, Cancel',
+      await until(`s.files.confirm && s.files.confirm.ask === null && s.files.confirm.name === 'w134.par'
+        && document.querySelectorAll('[data-replace-dialog] [data-choice]').length === 3`, 'load confirm'),
+      JSON.stringify(await S('s.files.confirm')));
+    await cdp.eval(`document.querySelector('[data-replace-dialog] [data-choice=cancel]').click()`);
+    check('W134: ... Cancel leaves the folder\'s file untouched and reads nothing',
+      await until('!s.files.confirm && !document.querySelector("[data-replace-dialog]")', 'load cancel')
+      && fs.readFileSync(path.join(dir, 'w134.par')).equals(parThere)
+      && !(await cdp.eval(`__xpp.sent().slice(${sentLoad}).some(c => c.cmd === 'values')`)),
+      JSON.stringify(await cdp.eval(`__xpp.sent().slice(${sentLoad})`)));
+    await pickFiles('#values-load-par', [parPicked]);
+    await until('s.files.confirm', 'load confirm again');
+    await cdp.eval(`document.querySelector('[data-replace-dialog] [data-choice=replace]').click()`);
+    check('W134: ... Replace copies it over and reads it',
+      await until(`!s.busy && Math.abs(s.core.pars.find(p => p[0] === 'iapp')[1] - 0.0777) < 1e-12`, 'load replace')
+      && fs.readFileSync(path.join(dir, 'w134.par')).equals(fs.readFileSync(parPicked)), String(await par('iapp')));
+
     /* a read ask is one prompt (no tabs, no folder listing) that opens the browser's picker filtered by wild */
     await fileMenu('r', 'read');
     check('a read ask has no tabs and no listing, one Choose file… button, focused',

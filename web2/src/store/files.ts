@@ -19,13 +19,16 @@ export interface FolderFile {
   sha256: string;
 }
 
-/** what a file ask for reading asks when a picked file's name is taken by other content */
+/** what an upload asks when the name it goes under is taken by other content
+    (session.ts upload: every upload of the page) */
 export interface ReplaceConfirm {
-  /** the ask the upload answers */
-  ask: number;
+  /** the ask the upload answers (the file dialog shows the confirm), or null:
+      an upload of the page's own (Values > Load, Add file…), its own dialog */
+  ask: number | null;
   name: string;
-  /** the name Keep both uploads it under */
-  keepBoth: string;
+  /** the name Keep both uploads it under; null: the upload needs this name
+      (Add file… copies the file the core asked for), no Keep both */
+  keepBoth: string | null;
 }
 
 export type ReplaceChoice = 'replace' | 'keep' | 'cancel';

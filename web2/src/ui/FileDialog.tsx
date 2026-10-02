@@ -13,6 +13,7 @@ import type {AskEvent} from '../protocol/types';
 import {baseName, safeName} from '../store/files';
 import {FILE} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
+import {useDialogFocus} from './dialogFocus';
 import {Field} from './Field';
 
 /* Enter in a field submits its form (A3), as in AskDialog's forms */
@@ -26,7 +27,8 @@ function ReplaceConfirm() {
   const session = useSession();
   const confirm = useStore(s => s.files.confirm)!;
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => box.current?.querySelector<HTMLElement>('[data-choice=keep]')?.focus(), [confirm.name]);
+  useEffect(() => box.current?.querySelector<HTMLElement>(confirm.keepBoth ? '[data-choice=keep]' : '[data-choice=cancel]')?.focus(),
+    [confirm.name]);
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
     e.preventDefault();
@@ -37,15 +39,35 @@ function ReplaceConfirm() {
     <div class="file-confirm" role="group" aria-labelledby="file-confirm-text" data-confirm="replace" ref={box}
       onKeyDown={onKeyDown}>
       <p id="file-confirm-text">
-        The model's folder already has a <b>{confirm.name}</b> with other content. Replace it, or keep both and
-        copy yours as <b>{confirm.keepBoth}</b>?
+        The model's folder already has a <b>{confirm.name}</b> with other content.{' '}
+        {confirm.keepBoth ? <>Replace it, or keep both and copy yours as <b>{confirm.keepBoth}</b>?</> : 'Replace it?'}
       </p>
       <div class="dialog-actions">
         <button type="button" data-choice="cancel" onClick={() => session.resolveReplace('cancel')}>Cancel</button>
-        <button type="button" data-choice="keep" onClick={() => session.resolveReplace('keep')}>Keep both</button>
+        {confirm.keepBoth && (
+          <button type="button" data-choice="keep" onClick={() => session.resolveReplace('keep')}>Keep both</button>
+        )}
         <button type="button" data-choice="replace" class="danger" onClick={() => session.resolveReplace('replace')}>
           Replace
         </button>
+      </div>
+    </div>
+  );
+}
+
+/** the replace confirm of an upload no `file` ask is open for (Values >
+    Load, Add file…: session.ts upload), in a dialog of its own */
+export function ReplaceDialog() {
+  const confirm = useStore(s => s.files.confirm);
+  const box = useRef<HTMLDivElement>(null);
+  const shown = confirm !== null && confirm.ask === null;
+  useDialogFocus(box, [shown]);
+  if (!shown) return null;
+  return (
+    <div class="dialog-backdrop">
+      <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="replace-title" data-replace-dialog="">
+        <h2 id="replace-title">Copy into the model's folder</h2>
+        <ReplaceConfirm />
       </div>
     </div>
   );

@@ -887,32 +887,17 @@ export class Session {
   }
 
   /** Load of a section (W66 review): the picked file goes into the
-      model's folder, the same PUT `addMissingFile` uses for an upload
-      with a known name, then the core reads it with `values` `read`
-      (io_parameter_file/io_ic_file, READEM) -- at once, like File/Read
-      set, not staged as a pending edit (the values panel has nothing
-      left to parse: the file is XPP's own par/ic format, or nothing
-      reads it). A bad file's `message` `error` (core/lunch-new.cpp
-      err_msg, e.g. "Expected N initial conditions...") becomes a
-      notification the same way any other command's does. */
+      model's folder through `upload`, as every upload does (the same name
+      with other content asks first: Replace, Keep both, Cancel; W134), then
+      the core reads it with `values` `read` (io_parameter_file/io_ic_file,
+      READEM) -- at once, like File/Read set, not staged as a pending edit
+      (the values panel has nothing left to parse: the file is XPP's own
+      par/ic format, or nothing reads it). A bad file's `message` `error`
+      (core/lunch-new.cpp err_msg, e.g. "Expected N initial conditions...")
+      becomes a notification the same way any other command's does. */
   async loadValues(kind: 'par' | 'ic', file: File): Promise<void> {
-    if (!this.files) return;
-    if (!safeName(file.name)) {
-      this.failed(`XPP cannot use a file named "${file.name}" in the model's folder. Rename it and pick it again.`);
-      return;
-    }
-    const big = this.tooBig(file);
-    if (big) {
-      this.failed(big);
-      return;
-    }
-    try {
-      await this.files.put(file.name, file);
-    } catch (e) {
-      this.failed(e instanceof Error ? e.message : String(e));
-      return;
-    }
-    this.send({cmd: 'values', op: 'read', kind, name: file.name});
+    const uploads = await this.upload([{file, name: file.name}], null, true);
+    if (uploads) this.send({cmd: 'values', op: 'read', kind, name: uploads[0].name});
   }
 
   /* ---- recording (W59a, docs/protocol.md "Recordings") ---- */
@@ -1261,56 +1246,74 @@ export class Session {
     this.store.dispatch({type: 'toast', kind: 'error', text});
   }
 
-  /** the files picked for a `file` ask for reading, copied into the model's
-      folder (one already there with the same content is not copied; one
-      with other content only after the replace confirm), then the ask
-      answered with the name its pattern matches. Resolves false when
-      nothing was answered: cancelled at the confirm, or a failure, which a
+  /** files into the model's folder: every upload of the page comes here (a
+      `file` ask's picks, Values > Load, a notification's Add file…; W134).
+      Each name is checked first (the core's rule, safeName) and each size
+      against the core's cap; then, against the folder's listing, a file
+      already there with the same content is not copied again, and a name
+      taken by other content is copied only after the confirm: Replace, Keep
+      both (name-2.ext, when `keepBoth`) or Cancel, shown in the dialog of
+      `ask`, or in one of its own when null. Whether a copy may land now is
+      the core's (never during a computation, docs/protocol.md "Files"): a
+      refusal fails it like any other. Resolves what each file became, in
+      order, or null when cancelled at the confirm or failed, which a
       notification reports. */
-  async openFiles(ask: AskEvent, picked: File[]): Promise<boolean> {
-    if (!this.files || !picked.length) return false;
+  private async upload(files: {file: File; name: string}[], ask: number | null, keepBoth: boolean): Promise<Upload[] | null> {
+    if (!this.files || !files.length) return null;
     try {
       const listing = await this.files.list();
       this.store.dispatch({type: 'files', action: {type: 'listing', files: listing}});
       const taken = new Set(listing.map(f => f.name)), uploads: Upload[] = [];
-      for (const file of picked) {
-        if (!safeName(file.name)) {
-          this.failed(`XPP cannot use a file named “${file.name}” in the model's folder. Rename it and pick it again.`);
-          return false;
+      for (const {file, name: wanted} of files) {
+        if (!safeName(wanted)) {
+          this.failed(`XPP cannot use a file named “${wanted}” in the model's folder.`
+            + (wanted === file.name ? ' Rename it and pick it again.' : ''));
+          return null;
         }
         const big = this.tooBig(file);
         if (big) {
           this.failed(big);
-          return false;
+          return null;
         }
         const sha256 = await sha256Hex(file);
-        const plan = uploadPlan(file.name, sha256, listing);
-        let name = file.name;
+        const plan = uploadPlan(wanted, sha256, listing);
+        let name = wanted;
         if (plan === 'confirm') {
-          const keepBoth = keepBothName(file.name, taken);
-          const choice = await this.confirmReplace(ask, file.name, keepBoth);
-          if (choice === 'cancel') return false;
-          if (choice === 'keep') name = keepBoth;
+          const other = keepBoth ? keepBothName(wanted, taken) : null;
+          const choice = await this.confirmReplace(ask, wanted, other);
+          if (choice === 'cancel') return null;
+          if (choice === 'keep' && other) name = other;
         }
         if (plan !== 'same') await this.files.put(name, file);
         taken.add(name);
         uploads.push({picked: file.name, name, sha256, copied: plan !== 'same'});
       }
       this.store.dispatch({type: 'files', action: {type: 'uploaded', uploads}});
-      if (this.store.getState().ask?.id !== ask.id) return false; /* the prompt went meanwhile */
-      const chosen = answerName(uploads.map(u => u.picked), ask.wild);
-      this.answer(ask, {file: uploads.find(u => u.picked === chosen)!.name});
-      return true;
+      return uploads;
     } catch (e) {
       this.failed(e instanceof Error ? e.message : String(e));
-      return false;
+      return null;
     }
   }
 
-  /** the folder has `name` with other content: Replace, Keep both or Cancel (the dialog asks) */
-  private confirmReplace(ask: AskEvent, name: string, keepBoth: string): Promise<ReplaceChoice> {
+  /** the files picked for a `file` ask for reading, uploaded (`upload`),
+      then the ask answered with the name its pattern matches. Resolves
+      false when nothing was answered: cancelled at the confirm, or a
+      failure, which a notification reports. */
+  async openFiles(ask: AskEvent, picked: File[]): Promise<boolean> {
+    const uploads = await this.upload(picked.map(file => ({file, name: file.name})), ask.id, true);
+    if (!uploads) return false;
+    if (this.store.getState().ask?.id !== ask.id) return false; /* the prompt went meanwhile */
+    const chosen = answerName(uploads.map(u => u.picked), ask.wild);
+    this.answer(ask, {file: uploads.find(u => u.picked === chosen)!.name});
+    return true;
+  }
+
+  /** the folder has `name` with other content: Replace, Keep both (when
+      `keepBoth` names it) or Cancel (the dialog asks) */
+  private confirmReplace(ask: number | null, name: string, keepBoth: string | null): Promise<ReplaceChoice> {
     this.replaceChoice?.('cancel');
-    this.store.dispatch({type: 'files', action: {type: 'confirm', confirm: {ask: ask.id, name, keepBoth}}});
+    this.store.dispatch({type: 'files', action: {type: 'confirm', confirm: {ask, name, keepBoth}}});
     return new Promise(resolve => {
       this.replaceChoice = resolve;
     });
@@ -1373,18 +1376,11 @@ export class Session {
   }
 
   /** "Add file…" of a notification: `file` goes into the model's folder
-      under the name the core could not open, and the command runs again */
+      under the name the core could not open (`upload`, no Keep both: the
+      core wants that name), and the command runs again */
   async addMissingFile(toastId: number, file: File): Promise<void> {
     const action = this.store.getState().toasts.find(t => t.id === toastId)?.action;
-    if (!this.files || !action) return;
-    try {
-      const big = this.tooBig(file);
-      if (big) throw new Error(big);
-      await this.files.put(action.name, file);
-    } catch (e) {
-      this.failed(e instanceof Error ? e.message : String(e));
-      return;
-    }
+    if (!action || !(await this.upload([{file, name: action.name}], null, false))) return;
     this.store.dispatch({type: 'dismiss', id: toastId});
     const {run} = action, state = this.store.getState();
     const keys = run ? menuKeys(state.hello, state.core?.menu ?? 0, run.menu) : null;

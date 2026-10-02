@@ -314,9 +314,14 @@ browser never silently downloads anything on its own.
   shows a prompt whose "Choose file…" opens the browser's own file picker, showing
   the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in
-  `#include`, tables and diagrams keep resolving as they always have. A
-  name that already exists with different content asks to Replace, Keep
-  both, or Cancel.
+  `#include`, tables and diagrams keep resolving as they always have.
+  Every copy into the folder works the same way, the Values panel's Load
+  of a `.par` or `.ic` included: a name that already exists with
+  different content asks to Replace, Keep both, or Cancel (Cancel copies
+  and reads nothing), and a file with the same content is not copied
+  again. Nothing is copied while a computation runs: the copy is refused
+  with "Not while a computation runs", so a run never has a file it
+  reads replaced under it.
 - **Save** (Save session, Save diagram, PostScript/SVG, ...): where the
   browser supports it, a native Save dialog is offered with the name
   suggested; xppautX writes the file into the working directory and the
@@ -325,7 +330,8 @@ browser never silently downloads anything on its own.
   the latest copy, so a later Open by name finds it.
 - **Missing companions**: when xppautX reports it cannot open a file, the
   notification offers "Add file…", which uploads it under that name and
-  repeats the command.
+  repeats the command (a different file already there under that name
+  asks to Replace or Cancel).
 
 In the desktop window (not the browser), every Open and Save shows the
 operating system's own file dialog instead: it starts in the model's

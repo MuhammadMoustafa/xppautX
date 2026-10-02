@@ -21,6 +21,7 @@ import {TextViews} from './TextViews';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
+import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
 import {SliderStrip} from './SliderStrip';
@@ -85,6 +86,7 @@ function Shell() {
       <Toasts />
       <AskDialog />
       <ErrorDialog />
+      <ReplaceDialog />
     </div>
   );
 }
