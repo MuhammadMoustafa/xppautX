@@ -132,7 +132,7 @@ void load_eqn(xpp::Session &s)
  if(!xpp::read_model_file(s.model(),file,bytes))
    model_failed(Error{"model",s.model().saved_in.empty()?"cannot be read":xpp::format("is not saved in {}",s.model().saved_in),Place{file}});
  if(!xpp::is_model_text(bytes))
-   model_failed(Error{"model","is not model text",Place{file}});
+   model_failed(Error{"model",xpp::zip::is_zip(bytes)?"is not a model: it is a zip file (a session file is a .snapx)":"is not a model: it is a binary file",Place{file}});
  xpp::odex::load(s,file);
 }
 

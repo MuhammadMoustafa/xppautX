@@ -274,8 +274,9 @@ xpp::Result<std::string> convert_text(const std::string &ode, bool auto_answer, 
    the same programs (exact by construction, checked); 0 when written, 1
    (said why) when not. ask answers the questions (no terminal: none). */
 int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
-/* Opening a foreign model: validated conversion saved beside it, or an
-   existing .odex selected by the overwrite question. No memory fallback. */
+/* Opening a .ode: its conversion, checked, written as odex_name(ode)
+   (true), or the existing .odex opened as it is (false: the same text, or
+   the user chose it); an error when cancelled or not written. */
 xpp::Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);

@@ -1417,7 +1417,7 @@ Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std
   if (xpp::files::exists(out)) {
     std::string existing;
     if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
-    if (xpp::split_lines(existing) == xpp::split_lines(*text)) return true;
+    if (xpp::split_lines(existing) == xpp::split_lines(*text)) return false; /* the same text: opened as it is */
     if (silent)
       return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed", ode), out);
     const int choice = xpp::file_replace_choice(true);
