@@ -139,8 +139,11 @@ def normalise_line(line: str) -> str:
 
 
 def core_files(extra: list[str]) -> list[Path]:
+    # Vendored sources (CORE-MATH, musl Bessel, ...) keep their upstream
+    # polynomial/recurrence patterns, even when passed explicitly.
     if extra:
-        return [Path(p) for p in extra]
+        return [Path(p) for p in extra
+                if not Path(p).resolve().is_relative_to(ROOT / "third_party")]
     return sorted(CORE.glob("*.cpp")) + sorted(CORE.glob("*.h"))
 
 

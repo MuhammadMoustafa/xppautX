@@ -295,10 +295,12 @@ _third_party: set[str] = set()
 
 
 def third_party_words() -> set[str]:
-    """Every identifier of the vendored headers under third_party/: a
-    macro core/ defines for one of them (POCKETFFT_NO_MULTITHREADING)."""
+    """Vendored identifiers: header configuration and APIs called from
+    source ports (CORE-MATH and musl Bessel), outside the core scan."""
     if not _third_party:
-        for p in (ROOT / "third_party").rglob("*.h*"):
+        for p in (ROOT / "third_party").rglob("*"):
+            if p.suffix not in {".h", ".hpp", ".c", ".cpp"}:
+                continue
             _third_party.update(IDENT_RE.findall(p.read_text(encoding="utf-8", errors="replace")))
     return _third_party
 

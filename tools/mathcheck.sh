@@ -17,18 +17,22 @@ cd "$(dirname "$0")/.." || exit 1
 EXCLUDE="core/xpp_math.h"
 
 NAMES='sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|asinh|acosh|atanh|exp|exp2|expm1|log|log2|log10|log1p|pow|hypot|cbrt|erf|erfc|lgamma|tgamma|sincos'
+BESSEL='jn|yn|j0|j1|y0|y1'
 # a call, not a member (x.exp(), p->exp()), a longer name (xpp_exp()), a
 # string ("exp(O)rt") or a qualified name of ours (xpp::log, xpp::math::exp)
-CALL="(^|[^a-zA-Z0-9_.>:\"])(std::|::)?($NAMES)[ 	]*\("
+CALL="(^|[^a-zA-Z0-9_.>:\"])(std::|::)?($NAMES|$BESSEL)[ 	]*\("
 # a function named by address: std::sin, ::exp, &std::pow
 ADDR="(^|[^a-zA-Z0-9_])(std::|::|&)($NAMES)[ 	]*[,;)}]"
+# Bessel names also occur as coordinate variables (&y1): only a qualified
+# address is unambiguous here; all unqualified direct calls are checked above.
+BADDR="(^|[^a-zA-Z0-9_])(std::|::)($BESSEL)[ 	]*[,;)}]"
 
 bad=0
 for f in core/*.cpp core/*.h; do
   [ -f "$f" ] || continue
   case " $EXCLUDE " in *" $f "*) continue ;; esac
   # (xpp::log called as log(XPP_LOG_..., inside namespace xpp, is the logger)
-  hits=$(awk -f tools/strip_comments.awk "$f" | grep -nE "$CALL|$ADDR" | grep -vE 'log[ 	]*\((XPP_LOG_|XppLogLevel )')
+  hits=$(awk -f tools/strip_comments.awk "$f" | grep -nE "$CALL|$ADDR|$BADDR" | grep -vE 'log[ 	]*\((XPP_LOG_|XppLogLevel )')
   [ -n "$hits" ] || continue
   printf '%s\n' "$hits" | while IFS=: read -r lineno _; do
     printf '%s:%s: %s\n' "$f" "$lineno" "$(sed -n "${lineno}p" "$f")"
@@ -36,7 +40,7 @@ for f in core/*.cpp core/*.h; do
   bad=1
 done
 if [ $bad -ne 0 ]; then
-  echo "mathcheck: the C library's transcendental function called directly; use xpp::math::<name> (core/xpp_math.h)"
+  echo "mathcheck: direct C library maths call; use xpp::math::<name> or xpp::bessel_j/_y (core/xpp_math.h)"
   exit 1
 fi
-echo "mathcheck ok: every core exp, log, pow, sin, cos, ... is xpp::math's"
+echo "mathcheck ok: core transcendental calls use xpp::math; Bessel J/Y use the portable port"

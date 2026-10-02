@@ -266,6 +266,13 @@ ifneq ($(CORE_MATH_X86),)
 CORE_MATH_OBJECTS += $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f)_fma.o)
 endif
 CORE_OBJECTS += $(CORE_MATH_OBJECTS)
+# Unmodified musl Bessel: libm.h routes maths to xpp_math's bridge.
+# Like CORE-MATH: third-party C, no LTO, no contraction or project warnings.
+MUSL_BESSEL_DIR = third_party/musl-bessel
+MUSL_BESSEL_OBJECTS = $(addprefix $(BUILDDIR)/musl_bessel_,j0.o j1.o jn.o)
+CORE_OBJECTS += $(MUSL_BESSEL_OBJECTS)
+$(BUILDDIR)/musl_bessel_%.o: $(MUSL_BESSEL_DIR)/%.c $(MUSL_BESSEL_DIR)/libm.h $(MUSL_BESSEL_DIR)/bessel.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CC) -std=c11 $(call NOLTO,$(OPT)) $(FPFLAGS) -w -c $< -o $@
 # lgamma's sign output goes to a temporary, not the C library's global
 $(BUILDDIR)/core_math_lgamma.o $(BUILDDIR)/core_math_lgamma_fma.o: CORE_MATH_EXTRA = -include $(CORE_MATH_DIR)/lgamma_sign.h
 # (CORE-MATH keeps each function's source in a folder of its own name)

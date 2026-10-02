@@ -25,6 +25,12 @@ whose outputs differ from Linux's: CLAUDE.md says how CI makes those).
 
 ## What the tests pin
 
+`test_bessel.cpp` compares J/Y orders 0, 1, 2 and 5 with John Burkardt's
+published TEST_VALUES tables (the source link is in the test). It allows
+16 ULP, or 64 ULP at selected near-zero inputs; checks repeat-call bits,
+order truncation, parity, tiny arguments and IEEE special values; and prints
+a result-bit fingerprint for comparisons between builds (W163, #215).
+
 Several checks pin upstream behaviour that looks like a bug and is not, so
 that nobody "fixes" it into a silent change of what models compute:
 

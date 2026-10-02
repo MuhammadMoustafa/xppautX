@@ -2,6 +2,7 @@
    algebra, special functions. See xpp_math.h for what each does and for
    the copies left elsewhere on purpose. */
 #include "xpp_math.h"
+#include "../third_party/musl-bessel/bessel.h"
 
 #include "xpp_log.h"
 
@@ -16,6 +17,14 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+/* The unmodified musl C sources call this bridge to the numerics owner.
+   C linkage is declared once, in third_party/musl-bessel/bessel.h. */
+double xpp_musl_sin(double x) { return xpp::math::sin(x); }
+double xpp_musl_cos(double x) { return xpp::math::cos(x); }
+double xpp_musl_log(double x) { return xpp::math::log(x); }
+double xpp_musl_sqrt(double x) { return std::sqrt(x); }
+double xpp_musl_fabs(double x) { return std::fabs(x); }
 
 /* the core is single-threaded: no thread pool */
 #define POCKETFFT_NO_MULTITHREADING
@@ -553,12 +562,12 @@ void eigenvalues(int n, double *a, double *ev, double *work, int *ierr)
 
 double bessel_j(double n, double x)
 {
-    return jn(static_cast<int>(n), x);
+    return xpp_musl_jn(static_cast<int>(n), x);
 }
 
 double bessel_y(double n, double x)
 {
-    return yn(static_cast<int>(n), x);
+    return xpp_musl_yn(static_cast<int>(n), x);
 }
 
 namespace {

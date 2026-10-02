@@ -47,7 +47,7 @@ namespace xpp {
    that into a different output on another machine (issue #211). Core code
    calls these, never <cmath>'s (tools/mathcheck.sh fails it). Exact in
    IEEE and so the C library's: sqrt, fabs, floor, ceil, fmod, ldexp, frexp.
-   The one function left to the C library is jn/yn (bessel_j, bessel_y). */
+   Bessel J/Y use the musl implementation over these functions (W163). */
 namespace math {
 
 /* On x86, CPUs with FMA run the copy of each function built with FMA
@@ -173,9 +173,8 @@ double sign(double a, double b);
 
 /* ---- special functions (the parser's besselj, bessely, besseli,
    besselis) ----
-   The order n is truncated to an int. bessel_j/_y are the C library's
-   jn/yn (the C library's, whose own sin and cos are CPU-dispatched: the one
-   gap in xpp::math's promise); bessel_i is the modified Bessel function I_n(x) and
+   The order n is truncated to an int. bessel_j/_y are the vendored musl
+   implementation over xpp::math; bessel_i is the modified Bessel function I_n(x) and
    bessel_i_scaled exp(-|x|) I_n(x) (Numerical Recipes' polynomial
    approximations and downward recurrence). */
 double bessel_j(double n, double x);
