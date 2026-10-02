@@ -1,0 +1,10 @@
+# junk2.odex: converted from junk2.ode by xppautX --convert (docs/odex.md)
+
+table w 0.4*ran(1), n=255, lo=0, hi=255
+table ind flr(51*ran(1)), n=255, lo=0, hi=255
+network bob = sparse(51, 5, w, ind, v0)
+v[j]' = -v[j]+f(k*bob(j)-thr-c*delay(v[j], tau)) for j in 0..50
+par k = 3, thr = 1, beta = 1, c = 2.5, tau = 5
+fun f(u) = 1/(1+exp(-beta*u))
+# junk2.ode
+#v0'=-v0+f(k*bob(0)-thr-c*delay(v0,tau))

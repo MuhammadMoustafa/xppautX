@@ -1,24 +1,36 @@
 # .odex: the model format without .ode's quirks
 
-W73 (#121). `.odex` is a second, optional model format: `.ode` stays
-supported forever, never deprecated. Both parsers build the same
-in-memory `Model` (core/model.h); everything after the parse — the
-integrators, AUTO, the front end — is one route regardless of which
-file was read. The extension (MuhammadMoustafa/XPP-ODE-Extension) picks
-the front door: `.ode`, `.odex`, and (per #1) `.recx`/`.snapx`.
+Opening a `.ode` converts it and saves `<name>.odex` beside it in every
+mode: window, browser, `--server` and `-silent`, File > Open model,
+Reload and a double-click (W154, #206). From then on the `.odex` is the
+model. The loader reads only `.odex`; only the converter reaches the
+foreign `.ode` parser. A name reserved here asks for its replacement,
+with a suggestion as the default; `-silent` accepts the suggestions.
+Cancel keeps the previous model and writes nothing. Equal existing text
+opens unchanged (CRLF and LF are the same lines); different text asks
+Replace, Open existing .odex, or Cancel, using the existing overwrite
+question. `-silent` refuses it, naming both files. Failure to write names
+the `.odex` path; there is no memory-only open. `.snapx` and `.recx` store
+`.odex` model text and included files and refuse a `.ode` model.
 
-This document is the spec only: no parser code. W74 implements the
-`.odex` parser and `--convert`; W75 implements `xppautX --check` for a
-`.ode`'s own quirks. docs/odex-quirks.md is the companion inventory of
-every `.ode` quirk `.odex` removes.
+W73 (#121) introduced `.odex`; W154 makes it the model format.
+Foreign `.ode` input remains supported through conversion. Both readers
+use the same in-memory `Model` builder (core/model.h); the converter
+checks that its `.odex` compiles to the `.ode`'s programs and values.
+The integrators, AUTO and front end then use the saved `.odex`.
+
+This document specifies the language implemented by the `.odex` parser
+and `--convert`. W75's proposed `--check` for foreign `.ode` quirks is
+still pending. docs/odex-quirks.md inventories every `.ode` quirk
+`.odex` removes.
 
 ## Design decisions (from issue #121)
 
 - **A `.ode` gives XPPAUT's numbers** (maintainer, 2026-09-27): every quirk
   of the `.ode` reader stays as XPPAUT has it, so the same file gives the
   same result in both programs; a fix goes into `.odex` only, and the
-  `.ode` gets a warning (at load and from `--check`, W75). `--convert`
-  (W74) keeps the `.ode`'s meaning, writing what XPPAUT computes (with a
+  converter records the quirks in comments. Conversion on open and
+  `--convert` (W74) keep the `.ode`'s meaning, writing what XPPAUT computes (with a
   comment where that differs from what the line seems to say). Example:
   `y(0)=a` starts y at 0 in `.ode` (a scalar initial value is read with
   `atof`, which finds no number in `a`; measured 2026-09-27, see

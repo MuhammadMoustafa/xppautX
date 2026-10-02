@@ -1,0 +1,21 @@
+# lecdiff200.odex: converted from lecdiff200.ode by xppautX --convert (docs/odex.md)
+
+par dif = 5
+par iapp = 0, phi = 0.333
+par va = -0.01, vb = 0.15, vc = 0.1, vd = 0.145, gca = 1
+par vk = -0.7, vl = -0.5, gk = 2, gl = 0.5, om = 1
+fun minf(v) = 0.5*(1+tanh((v-va)/vb))
+fun ninf(v) = 0.5*(1+tanh((v-vc)/vd))
+fun lamn(v) = phi*cosh((v-vc)/(2*vd))
+fun ica(v) = gca*minf(v)*(v-1)
+fun f(v, w) = iapp+gl*(vl-v)+gk*w*(vk-v)-ica(v)
+fun g(v, w) = lamn(v)*(ninf(v)-w)
+v0 = v1
+v201 = v200
+v[j]' = f(v[j], w[j])+dif*(v[j+1]-2*v[j]+v[j-1]) for j in 1..200
+w[j]' = g(v[j], w[j]) for j in 1..200
+init v[j] = -0.49 for j in 20..200
+init v[j] = 0 for j in 1..19
+# The Morris-Lecar model as in our chapter in Koch & Segev
+#  A simple membrane oscillator.
+#

@@ -1,0 +1,11 @@
+# tyson.odex: converted from tyson.ode by xppautX --convert (docs/odex.md)
+
+init u = 0.0075, v = 0.48, m = 1
+par k1 = 0.015, k4 = 200, k6 = 2, a = 1e-04, b = 0.005
+u' = k4*(v-u)*(a+u^2)-k6*u
+v' = k1*m-k6*u
+m' = b*m
+event -1 u-0.2, m = 0.5*m
+# tyson.ode
+@ total=1000, meth=8, dt=.25
+@ xhi=1000, ylo=0, yhi=2, yp=m

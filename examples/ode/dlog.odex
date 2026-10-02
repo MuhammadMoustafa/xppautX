@@ -1,0 +1,7 @@
+# dlog.odex: converted from dlog.ode by xppautX --convert (docs/odex.md)
+
+x' = a*x*(1-delay(x, tau))
+par tau = 1, a = 2
+init x = 0.5
+@ delay=5
+@ total=200

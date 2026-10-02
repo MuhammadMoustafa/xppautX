@@ -1,0 +1,10 @@
+# frcp.odex: converted from frcp.ode by xppautX --convert (docs/odex.md)
+
+ss = x*x+y*y
+v' = (v*(v-a)*(1-v)-w)/eps
+w' = v-d*w-(b+r*x)
+x' = x+bet*y-x*ss
+y' = y-bet*x-y*ss
+par a = 0.5, b = 0.5, r = 0, eps = 0.005, bet = 100, d = 1
+init v = 0.5, w = 0, x = 0, y = 1
+@ total=.0628, dt=.0001

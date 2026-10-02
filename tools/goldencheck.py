@@ -6,10 +6,10 @@ what it writes, byte for byte with CRs stripped (a Windows checkout may
 have CRLF line endings), with tests/golden/<name>. A difference prints
 the file and the number of its first differing line.
 
-Two models cover the four kinds of output: examples/ode/lecar.ode (run,
+Two models cover the four kinds of output: examples/ode/lecar.odex (run,
 then Graphic stuff/Postscript and .../SVG export the default V-W phase
 plane, its own two variables as an array plot for Print arrayplot, and
-two kinescope frames saved as GIF) and examples/ode/vanderpol.ode (run,
+two kinescope frames saved as GIF) and examples/ode/vanderpol.odex (run,
 switched to the x-xp phase plane with a fixed view, Nullcline/New and
 Dir.field-Flow/(D)irect Field computed, then a PostScript export, so a
 plot with a nullcline and a direction field is covered too).
@@ -128,7 +128,7 @@ def run_and_go(s):
 
 
 def run_lecar(home):
-    s = Server(binary, 'examples/ode/lecar.ode', env={'HOME': home}, verbose=args.v)
+    s = Server(binary, 'examples/ode/lecar.odex', env={'HOME': home}, verbose=args.v)
     try:
         run_and_go(s)
 
@@ -177,7 +177,7 @@ def run_lecar(home):
 
 
 def run_vanderpol(home):
-    s = Server(binary, 'examples/ode/vanderpol.ode', env={'HOME': home}, verbose=args.v)
+    s = Server(binary, 'examples/ode/vanderpol.odex', env={'HOME': home}, verbose=args.v)
     try:
         run_and_go(s)
 

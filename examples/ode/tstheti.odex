@@ -1,0 +1,35 @@
+# tstheti.odex: converted from tstheti.ode by xppautX --convert (docs/odex.md)
+
+fun f(u, up) = up
+fun g(u, up) = -c*up-u*(1-u)*(u-a)
+u' = per*f(u, up)
+up' = per*g(u, up)
+uleft' = 0
+upleft' = 0
+uright' = 0
+upright' = 0
+c' = 0
+boundary f(uleft, upleft)
+boundary g(uleft, upleft)
+boundary f(uright, upright)
+boundary g(uright, upright)
+boundary hom_bcs(0)
+boundary hom_bcs(1)
+par per = 6.67, a = 0.5
+init u = 0.918, up = -0.0577, c = 0
+init uleft = 1, upleft = 0, uright = 0, upright = 0
+# tstheti.ode
+# a heteroclinic orbit
+# unstable at u=1, stable at u=0
+# the dynamics
+# dummy equations for the fixed points
+# the velocity parameter
+# fixed points
+# projection conditions
+# parameters
+# initial data
+# initial fixed points
+# some AUTO parameters
+@ total=1.01, dt=.01
+@ xp=u, yp=up, xlo=-.25, xhi=1.25, ylo=-.75, yhi=.25
+@ epss=1e-7, epsu=1e-7, epsl=1e-7, parmax=60, dsmax=5, dsmin=1e-4, ntst=35

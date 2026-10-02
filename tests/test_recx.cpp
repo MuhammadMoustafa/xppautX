@@ -15,11 +15,11 @@ xpp::recx::Recording sample()
 {
     xpp::recx::Recording r;
     r.program = "xppautX dev";
-    r.model = "lecar.ode";
+    r.model = "lecar.odex";
     r.recorded = "2026-09-30T10:14:02Z";
     r.snapshot = std::string("PK\x05\x06", 4); /* the session, a zip (W59d) */
-    xpp::recx::add_file(r, {"lecar.ode", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"});
-    xpp::recx::add_file(r, {"lecar.ode", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"}); /* the same: once */
+    xpp::recx::add_file(r, {"lecar.odex", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"});
+    xpp::recx::add_file(r, {"lecar.odex", "x'=-x\r\n@end\n@@ twice\n@ total=10\ndone"}); /* the same: once */
     r.steps.push_back({"First run.\n\nIt settles.", R"({"step":"Initialconds → Go","keys":["i","g"]})"});
     r.steps.push_back({"", R"({"step":"Erase","keys":["e"]})"});
     return r;
@@ -38,10 +38,10 @@ int main()
 {
     xpp::recx::Recording r = sample();
     CHECK(r.files.size() == 1);
-    const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
+    const std::string hashed = "@snapshot\nUEsFBg==\n@end\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n"
                                "{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n{\"step\":\"Erase\",\"keys\":[\"e\"]}\n";
-    const std::string want = "xppautx-recording 1\nprogram: xppautX dev\nmodel: lecar.ode\nrecorded: 2026-09-30T10:14:02Z\n\n"
-                             "@snapshot\nUEsFBg==\n@end\n\n@file lecar.ode\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
+    const std::string want = "xppautx-recording 1\nprogram: xppautX dev\nmodel: lecar.odex\nrecorded: 2026-09-30T10:14:02Z\n\n"
+                             "@snapshot\nUEsFBg==\n@end\n\n@file lecar.odex\nx'=-x\n@@end\n@@@ twice\n@ total=10\ndone\n@end\n\n@steps\n"
                              "# First run.\n#\n# It settles.\n{\"step\":\"Initialconds → Go\",\"keys\":[\"i\",\"g\"]}\n"
                              "{\"step\":\"Erase\",\"keys\":[\"e\"]}\n\nfingerprint: "
                              + sha(hashed) + "\n";
@@ -54,7 +54,7 @@ int main()
     r.steps[1].line = R"({"step":"Erase","keys":["x"]})";
     CHECK(!xpp::recx::text(r).ends_with(fp));
     r = sample();
-    xpp::recx::add_file(r, {"lecar.ode", "x'=-2*x\n"}); /* read again, changed: a second section */
+    xpp::recx::add_file(r, {"lecar.odex", "x'=-2*x\n"}); /* read again, changed: a second section */
     CHECK(r.files.size() == 2);
     CHECK(!xpp::recx::text(r).ends_with(fp));
 
@@ -86,15 +86,16 @@ int main()
         const xpp::Result<xpp::recx::Read> e = xpp::recx::read(text, "");
         return e ? std::string() : e.error().text();
     };
-    const std::string head = "xppautx-recording 1\nprogram: xppautX\nmodel: a.ode\nrecorded: now\n\n";
-    CHECK(error(head + "@snapshot\nUEsFBg==\n@end\n@file a.ode\nx'=1\n") == "line 9: the section of a.ode has no @end");
+    const std::string head = "xppautx-recording 1\nprogram: xppautX\nmodel: a.odex\nrecorded: now\n\n";
+    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.ode\n") == "line 3: a recording stores an .odex model only; .ode is refused");
+    CHECK(error(head + "@snapshot\nUEsFBg==\n@end\n@file a.odex\nx'=1\n") == "line 9: the section of a.odex has no @end");
     /* no fallback: a file without the session it began from is not a recording */
-    CHECK(error(head + "@file a.ode\nx'=1\n@end\n@steps\n") == "line 6: no @snapshot section before the files: a recording begins with the session's state");
+    CHECK(error(head + "@file a.odex\nx'=1\n@end\n@steps\n") == "line 6: no @snapshot section before the files: a recording begins with the session's state");
     CHECK(error(head + "@steps\n") == "line 6: no @snapshot section: a recording begins with the session's state");
     CHECK(error("not one\n").starts_with("line 1: not a recording"));
     /* the header: each line once, none other, a model named */
-    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.ode\n\n") == "line 4: the header has no \"recorded:\" line");
-    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.ode\nmodel: b.ode\n") == "line 4: a second \"model:\" line");
+    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.odex\n\n") == "line 4: the header has no \"recorded:\" line");
+    CHECK(error("xppautx-recording 1\nprogram: x\nmodel: a.odex\nmodel: b.odex\n") == "line 4: a second \"model:\" line");
     CHECK(error("xppautx-recording 1\nauthor: me\n") == "line 2: \"author: me\" is not a header line (program:, model:, recorded:)");
     /* the fingerprint ends it: missing, or a line after it */
     const std::string steps = head + "@snapshot\nUEsFBg==\n@end\n@steps\n{\"keys\":[\"g\"]}\n";

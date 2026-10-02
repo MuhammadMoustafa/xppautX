@@ -56,7 +56,7 @@ export XPP_CHECK_SLOW=30
 fail=0
 
 tmp=$(mktemp -d)
-( cd "$tmp" && "$wrap" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+( cd "$tmp" && "$wrap" "$top/examples/ode/lecar.odex" -silent > run.log 2>&1 )
 st=$?
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
@@ -72,7 +72,7 @@ rm -rf "$tmp"
 # comparison); a model that does not run by itself exits non-zero without
 # a report
 ex=$(mktemp -d)
-find examples -name '*.ode' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
+find examples -name '*.odex' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
   cd "$run" && timeout 900 "$3" "$(basename "$f")" -silent > run.log 2>&1

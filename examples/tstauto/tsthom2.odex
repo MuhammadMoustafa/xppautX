@@ -1,0 +1,24 @@
+# tsthom2.odex: converted from tsthom2.ode by xppautX --convert (docs/odex.md)
+
+tr = -a
+det = -1
+r = sqrt(tr^2-4*det)
+lp = (-a+r)/2
+lm = (-a-r)/2
+boundary x-eps
+boundary y-lp*eps
+boundary x'-eps
+boundary y'-eps*lm
+x' = p*y
+y' = p*(x*(1-x)-a*y+b*x*y)
+b' = 0
+p' = 0
+par eps = 0.005
+init x = 0.005, y = 0.005
+init p = 20
+par a = 0
+# (0,0)
+# 0   1
+# 1  -a
+#
+@ total=1, dt=.002

@@ -1,0 +1,11 @@
+# vtst.odex: converted from vtst.ode by xppautX --convert (docs/odex.md)
+
+z = volterra(0, of=u)
+u(t) = 1.5*sin(t)+0.5*delay(u, pi)
+aux ut = sin(t)
+# this solves a continuous functional iteration problem
+# in the Volterra solver, change MaxPoints to 10 to get fast performance
+#
+# fool XPP
+#
+@ delay=4, total=80

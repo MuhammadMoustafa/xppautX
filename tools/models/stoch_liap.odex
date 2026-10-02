@@ -1,0 +1,10 @@
+# stoch_liap.odex: converted from stoch_liap.ode by xppautX --convert (docs/odex.md)
+
+par a = -0.7
+x' = a*x
+init x = 1
+# W31b: a linear system's maximal Liapunov exponent is exactly its rate
+# constant a, since every perturbation grows/shrinks as e^(a t) regardless
+# of size. tests/test_stochast_liap.cpp checks hrw_liapunov() against a
+# with a small tolerance.
+@ total=20, dt=.01, meth=rk4

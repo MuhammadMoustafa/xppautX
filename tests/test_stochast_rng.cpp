@@ -1,7 +1,7 @@
 /* stocHast's model-level RNG functions (ran, normal, wiener) as used from
    an .ode file, plus the 1D/2D histogram and spike-time-autocorrelation
    features (histogram.cpp new_hist/two_d_hist), all computed on the one
-   run of tools/models/stoch_rng.ode: x never moves, so every stored row is
+   run of tools/models/stoch_rng.odex: x never moves, so every stored row is
    an independent sample of ran(1), normal(2,3) and the wiener "n" with a
    fixed seed (4001 rows). Checks use statistical tolerances (a few sigma),
    never exact values, so they still pass after W32a swaps the generator
@@ -44,7 +44,7 @@ double column_var(int col, int n, double mean)
 
 int main(void)
 {
-    char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.ode";
+    char arg0[] = "test_stochast_rng", arg1[] = "tools/models/stoch_rng.odex";
     char *argv[] = {arg0, arg1, NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());

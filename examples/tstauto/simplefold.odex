@@ -1,0 +1,4 @@
+# simplefold.odex: converted from simplefold.ode by xppautX --convert (docs/odex.md)
+
+x' = a*x+b-x^3
+par b = 1, a = 1

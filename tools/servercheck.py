@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drive xppautX --server through the JSON protocol and check what comes back.
 
-usage: tools/servercheck.py [--server ./xppautX] [--ode examples/ode/lecar.ode] [-v]
+usage: tools/servercheck.py [--server ./xppautX] [--ode examples/ode/lecar.odex] [-v]
 
 Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
@@ -9,11 +9,11 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SeriesMirror, drain_stderr, placed, whole_series
+from xppclient import SeriesMirror, drain_stderr, is_ask, placed, whole_series
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
-ap.add_argument('--ode', default='examples/ode/lecar.ode')
+ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
@@ -634,7 +634,7 @@ send(cmd='key', key='s')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('File/Save info asks for a file name', ask is not None and ask['kind'] in ('file', 'string'), str(ask))
 check('the file ask lists its folder', ask is not None and ask.get('dir') and 'files' in ask
-      and 'lecar.ode' not in ask['files'], str(ask)[:200])
+      and 'lecar.odex' not in ask['files'], str(ask)[:200])
 if ask:
     if ask['kind'] == 'file':
         send(cmd='answer', id=ask['id'], ok=1, file='info.txt')
@@ -722,10 +722,10 @@ check('file get gives them back', ev.get('ok') == 1 and base64.b64decode(ev.get(
 ev = file_cmd(op='list')
 names = [f['name'] for f in ev.get('files', [])]
 check('file list names the folder\'s files with their digests', ev.get('ok') == 1 and 'srv.bin' in names
-      and 'lecar.ode' in names and all(len(f['sha256']) == 64 for f in ev['files']), str(ev)[:300])
+      and 'lecar.odex' in names and all(len(f['sha256']) == 64 for f in ev['files']), str(ev)[:300])
 refused = {n: file_cmd(op='put', name=n, data='eA==').get('ok') for n in ['../x', 'a/b', 'a\\b', '.hidden', '..', 'C:x', '']}
 refused['a\\u0000b'] = file_cmd(op='put', name='a\x00b', data='eA==').get('ok')
-refused['get ../lecar.ode'] = file_cmd(op='get', name='../' + os.path.basename(run) + '/lecar.ode').get('ok')
+refused['get ../lecar.odex'] = file_cmd(op='get', name='../' + os.path.basename(run) + '/lecar.odex').get('ok')
 check('file put and get refuse anything but a base name', all(v == 0 for v in refused.values()), str(refused))
 ev = file_cmd(op='put', name='bad.bin', data='not base64!')
 check('file put refuses data that is not base64', ev.get('ok') == 0 and 'base64' in ev.get('error', ''), str(ev))
@@ -1117,9 +1117,9 @@ if ask:
 
 # Live plotting (docs/protocol.md "The plot as data"): while an integration
 # runs, a subscribed client gets the rows as they are stored, in "append"
-# series events, then the full series. tools/models/live.ode stores 20 001
+# series events, then the full series. tools/models/live.odex stores 20 001
 # rows in about a second, long enough for several appends.
-LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.ode')
+LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.odex')
 
 
 def live_run(send, collect, key='i', answer=None):
@@ -1308,7 +1308,7 @@ check_data_coordinates()
 # Plot windows as data (docs/protocol.md "The plot as data", docs/ui-v2.md
 # T6): "plots" lists every window and the active one; "series" comes per
 # window, each with its win, when that window's data or curves changed;
-# appends only for the active window. live.ode runs long enough for appends.
+# appends only for the active window. live.odex runs long enough for appends.
 def check_plot_windows():
     proc4, run4, send4, collect4, _ = launch_server(ode=LIVE)
 
@@ -1588,9 +1588,9 @@ check_values_protocol()
 # W66 review: XPPAUT's -icfile/io_ic_file reads and writes exactly `node`
 # values -- one per differential-equation variable, never the Markov
 # chains -- so a Markov model's .ic file stays the file XPPAUT itself
-# reads (kepler.ode: x1, x2 are node, z is a markov chain, not in the file).
+# reads (kepler.odex: x1, x2 are node, z is a markov chain, not in the file).
 def check_ic_file_markov():
-    pm, rm, sndm, colm, _ = launch_server(ode='examples/ode/kepler.ode')
+    pm, rm, sndm, colm, _ = launch_server(ode='examples/ode/kepler.odex')
     ic = lambda st, n: next(v for k, v in st['ics'] if k.lower() == n)
     try:
         evs, _ = colm(is_idle)
@@ -1599,7 +1599,7 @@ def check_ic_file_markov():
         # still has all 3 -- x1, x2 and the markov chain z, which the panel
         # does let a user edit -- unlike the .ic file below, which is
         # exactly XPPAUT's own node-only format.
-        check('kepler.ode: state.ics has x1, x2 and the markov chain z (3)',
+        check('kepler.odex: state.ics has x1, x2 and the markov chain z (3)',
               st0 is not None and len(st0['ics']) == 3
               and [n.lower() for n, _ in st0['ics']] == ['x1', 'x2', 'z'],
               str(st0 and st0['ics']))
@@ -1678,27 +1678,27 @@ def check_error_places_of_each_kind():
             with open(os.path.join(d, name), 'w') as f:
                 f.write(text)
 
-        write('gonetab.ode', "par a=1\ntable tb gone.tab\nx'=-x+tb(t)\ndone\n")
-        e, p = load('gonetab.ode')
+        write('gonetab.odex', "par a=1\ntable tb \"gone.tab\"\nx'=-x+tb(t)\n")
+        e, p = load('gonetab.odex')
         check('an error event: a table file that is not there is named at the model line that names it (W140b)',
-              p.returncode == 1 and e.get('file') == 'gonetab.ode' and e.get('line') == 2
-              and e.get('source') == 'table tb gone.tab' and 'gone.tab' in e.get('error', ''), str(e))
-        check('... and the log reads file:line: what', 'gonetab.ode:2: gone.tab: cannot be read' in p.stderr,
+              p.returncode == 1 and e.get('file') == 'gonetab.odex' and e.get('line') == 2
+              and e.get('source') == 'table tb "gone.tab"' and 'gone.tab' in e.get('error', ''), str(e))
+        check('... and the log reads file:line:column: what', 'gonetab.odex:2:1: gone.tab: cannot be read' in p.stderr,
               repr(p.stderr[-300:]))
         write('short.tab', '5\n0\n1\n0.5\n')
-        write('shorttab.ode', "table tb short.tab\nx'=-x+tb(t)\ndone\n")
-        e, p = load('shorttab.ode')
+        write('shorttab.odex', "table tb \"short.tab\"\nx'=-x+tb(t)\n")
+        e, p = load('shorttab.odex')
         check('an error event: a table file that ends too soon is named at its own last line (W140b)',
               p.returncode == 1 and e.get('file') == 'short.tab' and e.get('line') == 4 and e.get('source') == '0.5'
               and 'too short' in e.get('error', ''), str(e))
 
-        write('nan.ode', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\ndone\n")
+        write('nan.odex', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\n")
         code, out, err = run_script([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
-                                     {'cmd': 'nosuchcommand'}], ode=os.path.join(d, 'nan.ode'))
+                                     {'cmd': 'nosuchcommand'}], ode=os.path.join(d, 'nan.odex'))
         errs = [json.loads(l) for l in out.splitlines() if '"error"' in l and '"message"' in l]
         nan = next((m for m in errs if 'NaN' in m.get('error', '')), {})
         check('an error event: a run-time NaN is named at the equation that makes it (W140b)',
-              nan.get('file') == 'nan.ode' and nan.get('line') == 3 and nan.get('source') == "x'=sqrt(x-2*a)"
+              nan.get('file') == 'nan.odex' and nan.get('line') == 3 and nan.get('source') == "x'=sqrt(x-2*a)"
               and nan.get('error', '').startswith('X is NaN at t'), str(errs))
         step = next((m for m in errs if 'nosuchcommand' in m.get('error', '')), {})
         check("an error event: a script's step is named at the script's file and line (W140b)",
@@ -1718,9 +1718,9 @@ def check_load_all_or_nothing():
     set) whose last item is, are refused at that line, naming the file and
     the line as written, and the session is exactly as it was (its state,
     and the set file it writes)."""
-    model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.ode')
+    model = os.path.join(tempfile.mkdtemp(prefix='w125m'), 'w125.odex')
     with open(model, 'w') as f:
-        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good {a=3,b=4}\nset bad {a=5,x=7,b=oops}\ndone\n")
+        f.write("x'=-a*x+b\ny'=x-y\npar a=1,b=2\ninit x=1,y=0\nset good = a=3,b=4\nset bad = a=5,x=7,b=oops\n")
     p, r, snd, col, _ = launch_server(ode=model)
 
     def answered(answers, **cmd):
@@ -1778,7 +1778,7 @@ def check_load_all_or_nothing():
                 ('an XPPAUT set file', None, 'bad.set', 'bad.set', high, '1e999  BVP range high'),
                 ('a parameter file', dict(cmd='values', op='read', kind='par', name='bad.par'), (), 'bad.par', 3, 'oops  b'),
                 ('an initial-conditions file', dict(cmd='values', op='read', kind='ic', name='bad.ic'), (), 'bad.ic', 2, 'nan?'),
-                ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.ode', 6, None)):
+                ('an internal set', dict(cmd='values', op='internset', name='bad'), (), 'w125.odex', 6, None)):
             errs = errors(read_set(answers) if cmd is None else answered(answers, **cmd))
             e = errs[0] if len(errs) == 1 else {}
             check('W125: %s whose last value is bad is refused at that line (%s:%d)' % (what, file, line),
@@ -2051,10 +2051,10 @@ def check_view():
 # angles web2 settled on after projecting the box itself and turning it
 # locally, set the active window's angles and redraw it, so "plots" and
 # state.view.theta/phi agree. The `view3d` command that used to do it is gone
-# (an unknown command). lorenz.ode sets axes=3d and phi=60 (theta stays the
+# (an unknown command). lorenz.odex sets axes=3d and phi=60 (theta stays the
 # default 45).
 def check_view3d():
-    proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.ode')
+    proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.odex')
     # runnow=1 loads, then runs, as two command cycles (the load's own idle
     # comes first, at row 0; the run keeps going in the background and
     # ends with its own state/idle some time later): the first idle is
@@ -2073,7 +2073,7 @@ def check_view3d():
             break
         rows0 = rows
     view0 = last_state(evs0) and last_state(evs0)['view']
-    check('lorenz.ode opens a 3D window at its @ phi=60 (theta the default 45)',
+    check('lorenz.odex opens a 3D window at its @ phi=60 (theta the default 45)',
           view0 is not None and view0['three'] == 1 and view0['theta'] == 45 and view0['phi'] == 60, str(view0))
 
     send7(cmd='data', events=['plots'])
@@ -2859,13 +2859,13 @@ check_autosettings()
 
 
 # Why a branch ended (T23, docs/protocol.md "The AUTO diagram as data",
-# autoinfo's "stop"): tools/models/auto_stop.ode's line of steady states run
+# autoinfo's "stop"): tools/models/auto_stop.odex's line of steady states run
 # into each limit in turn, one fresh server each, and a Stop.
-STOP_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'auto_stop.ode')
+STOP_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'auto_stop.odex')
 
 
 def auto_stop_run(numerics, abort=False):
-    """a steady-state run of auto_stop.ode with these Numerics: (the last autoinfo's stop, the run's points)"""
+    """a steady-state run of auto_stop.odex with these Numerics: (the last autoinfo's stop, the run's points)"""
     p, r, snd, col, _ = launch_server(ode=STOP_ODE)
     try:
         col(is_idle)
@@ -2926,7 +2926,7 @@ check_auto_stop()
 def check_auto_no_nan_par():
     """W35a (issue #73, QA SCI-001): a periodic-continuation script left the
     model's parameter at -nan after a run that never converged, which made
-    the next "state" event invalid JSON. auto_stop.ode's 'noconv-min' run
+    the next "state" event invalid JSON. auto_stop.odex's 'noconv-min' run
     (above: Par Max far out of reach, so AUTO never converges even at its
     smallest step) is the same failure mode, small and fast. Every line
     from the server must still parse as strict JSON (a non-finite constant
@@ -3132,12 +3132,12 @@ check_data_formats()
 
 
 def check_seed_per_run():
-    """W71 "a seed per run": examples/ode/fhn_noise.ode (wiener n) run
+    """W71 "a seed per run": examples/ode/fhn_noise.odex (wiener n) run
     twice gives different noise, each run logging its own seed in state
     (docs/protocol.md's state.seed); setting the numerics seed back to a
     run's own (Numerics > stocHast > New seed) and Go reproduces that
     run's series byte for byte."""
-    p, r, snd, col, _ = launch_server(ode='examples/ode/fhn_noise.ode')
+    p, r, snd, col, _ = launch_server(ode='examples/ode/fhn_noise.odex')
 
     def keys(key, *answers):
         snd(cmd='key', key=key)
@@ -3227,25 +3227,24 @@ else:
 shutil.rmtree(run2, ignore_errors=True)
 
 
-# A non-ASCII parameter name round-trips through state and set (card
-# W35b, MI-001): tools/models/utf8name.ode's "Iαpp" ('α', Greek
-# alpha) used to come back in the state event as mojibake (json_io.cpp's
-# buf_str treated each UTF-8 byte >=0x80 as Latin-1).
-UTF8_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'utf8name.ode')
-alpha_name = 'Iαpp'
+# W154: the converter gives the foreign non-ASCII identifier Iαpp an
+# .odex identifier. Its UTF-8 spelling remains intact in the source comment;
+# UTF-8 protocol file names are exercised above (W35b).
+UTF8_ODE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'utf8name.odex')
+alpha_name = 'i__pp_'
 p3, r3, snd3, col3, _ = launch_server(ode=UTF8_ODE)
 try:
     col3(is_idle)
     snd3(cmd='state')
     evs, st = col3(is_state)
     col3(is_idle)
-    check('a UTF-8 parameter name round-trips through state', st is not None
+    check('a converted non-ASCII parameter has its suggested .odex name in state', st is not None
           and dict(st['pars']).get(alpha_name) == 0.05, str(st and st['pars']))
     snd3(cmd='set', kind='par', name=alpha_name, value=0.2)
     snd3(cmd='state')
     evs, st = col3(is_state)
     col3(is_idle)
-    check('set by its UTF-8 name changes it, and state shows the UTF-8 name still', st is not None
+    check('set by the converted name changes it, and state retains that name', st is not None
           and dict(st['pars']).get(alpha_name) == 0.2, str(st and st['pars']))
 finally:
     stop_server(p3, r3, snd3)
@@ -3489,7 +3488,7 @@ check_kept_behind_ask()
 
 def check_copy_set():
     """W67: File/cOpy set line asks the set's name, shows the line, and sends it
-    (the copy event); pasted into the .ode, Get par set reproduces the state"""
+    (the copy event); pasted into the .odex, Get par set reproduces the state"""
     p, r, snd, col, _ = launch_server()
     p2 = r2 = None
     try:
@@ -3528,11 +3527,12 @@ def check_copy_set():
             evs, _ = copy_with(name)
             check('cOpy set line: refuses %r (no copy)' % name, not [e for e in evs if e.get('ev') == 'copy'], '')
         odelines = open(os.path.join(r, os.path.basename(args.ode)), encoding='utf-8').read().splitlines()
-        at = next(i for i, l in reversed(list(enumerate(odelines))) if l.strip().lower() in ('d', 'done'))
-        odelines.insert(at, line)
-        with open(os.path.join(r, 'withset.ode'), 'w', encoding='utf-8') as f:
+        # The copied foreign-format line is checked above; our model uses
+        # the .odex set statement, without braces or a done terminator.
+        odelines.append(line.replace(' {', ' = ', 1).removesuffix('}'))
+        with open(os.path.join(r, 'withset.odex'), 'w', encoding='utf-8') as f:
             f.write('\n'.join(odelines) + '\n')
-        p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.ode'))
+        p2, r2, snd2, col2, _ = launch_server(ode=os.path.join(r, 'withset.odex'))
         evs2, _ = col2(is_idle)
         st0 = last_state(evs2)
         check('set line loads: values differ before Get par set', st0 and st0['pars'] != st['pars'], '')
@@ -3624,7 +3624,7 @@ def check_open_reload():
         hello = next((e for e in evs if e.get('ev') == 'hello'), None)
         st = last_state(evs)
         check("open: the model before's AUTO window goes", made(evs, 'destroy', 101), '')
-        check('open loads the model here: a new hello names it', hello is not None and hello.get('file') == 'other.ode',
+        check('open loads the model here: a new hello names it', hello is not None and hello.get('file') == 'other.odex',
               str(hello)[:120])
         check('open: the state is the new model\'s', st and st['pars'] == [['a', 1]] and st['ics'] == [['X', 0.5]],
               str(st)[:200])
@@ -3635,13 +3635,13 @@ def check_open_reload():
         # Reload after editing: a's value set in the session stays, the new b comes with its file value
         snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
         col(is_idle)
-        with open(other, 'w') as f:
-            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total=5, dt=0.05\ndone\n')
+        with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
+            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total=5, dt=0.05\n')
         snd(cmd='reload')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         check('reload asks first, as Open model does (W59d): Save session s, Don\'t save d',
               ask and ask.get('kind') == 'choice' and ask.get('keys') == 'sd'
-              and ask.get('choices') == ['Save session', "Don't save"] and 'Reload other.ode?' in ask.get('question', ''),
+              and ask.get('choices') == ['Save session', "Don't save"] and 'Reload other.odex?' in ask.get('question', ''),
               str(ask))
         if ask and ask.get('ev') == 'ask':
             snd(cmd='answer', id=ask['id'], key='d')
@@ -3677,14 +3677,14 @@ def check_open_reload():
         evs = open_model('broken.ode')
         errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
         check('a broken model: an error, no hello',
-              errs and 'broken.ode' in errs[-1]['error'] and not [e for e in evs if e.get('ev') == 'hello'],
+              errs and errs[-1].get('file') == 'broken.ode' and not [e for e in evs if e.get('ev') == 'hello'],
               str(errs)[:200])
         check('a broken model: the model before is still loaded, its values untouched',
               last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(last_state(evs))[:200])
         evs = open_model('badoption.ode')
         errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
         check('a refused option value: an error naming the file, line and value, the model before kept (W119)',
-              errs and 'badoption.ode' in errs[-1]['error'] and 'ync=12' in errs[-1]['error']
+              errs and errs[-1].get('file') == 'badoption.ode' and 'ync=12' in errs[-1]['error']
               and not [e for e in evs if e.get('ev') == 'hello']
               and last_state(evs)['pars'] == [['a', 1], ['b', 7]], str(errs)[:300])
         evs = open_model('missing.ode')
@@ -3879,9 +3879,9 @@ def check_silent_commands():
               rb.returncode == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
 
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
-        post = os.path.join(dirs[-1], 'post.ode')
+        post = os.path.join(dirs[-1], 'post.odex')
         with open(post, 'w') as f:
-            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\ndone\n")
+            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\n")
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
@@ -3902,14 +3902,14 @@ def check_outcomes_once():
     """W133: results, file places, film failures, and every exit route."""
     d = tempfile.mkdtemp(prefix='xppoutcomes')
     try:
-        with open(os.path.join(d, 'linear.ode'), 'w') as f:
-            f.write("par a=1\nx'=a\ninit x=0\n@ dt=.1,total=1\ndone\n")
+        with open(os.path.join(d, 'linear.odex'), 'w') as f:
+            f.write("par a=1\nx'=a\ninit x=0\n@ dt=.1,total=1\n")
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
             with open(os.path.join(d, 'script.jsonl'), 'w') as f:
                 f.write(''.join(json.dumps(c) + '\n' for c in lines))
-            r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', 'linear.ode', *flags],
+            r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', 'linear.odex', *flags],
                                cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
             return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
         def fit(name):
@@ -3944,7 +3944,7 @@ def check_outcomes_once():
               r.returncode == 1 and len([e for e in evs if e.get('error')]) == 1, str(evs[-3:]))
         # A directory at the output path makes the write fail on every platform.
         os.mkdir(os.path.join(d, 'output.dat'))
-        r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+        r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
                            capture_output=True, text=True, timeout=60 * SLOW)
         check('a failed silent output write exits 1 and keeps stdout empty',
               r.returncode == 1 and r.stdout == '' and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
@@ -3953,7 +3953,7 @@ def check_outcomes_once():
         if os.name == 'nt':
             denied = subprocess.run(['icacls', d, '/deny', '*S-1-1-0:(W)'], capture_output=True)
             try:
-                r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
                                    capture_output=True, text=True, timeout=60 * SLOW)
                 check('silent in a read-only folder exits 1 for output.dat',
                       denied.returncode == 0 and r.returncode == 1 and 'output.dat' in r.stderr,
@@ -3963,7 +3963,7 @@ def check_outcomes_once():
         elif os.geteuid() != 0:
             os.chmod(d, 0o555)
             try:
-                r = subprocess.run([os.path.abspath(args.server), 'linear.ode', '-silent'], cwd=d,
+                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
                                    capture_output=True, text=True, timeout=60 * SLOW)
                 check('silent in a read-only folder exits 1 for output.dat',
                       r.returncode == 1 and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
@@ -3978,10 +3978,10 @@ check_outcomes_once()
 
 def check_dae_fold():
     """W127: a DAE run stops at a fold instead of stepping over it.
-    dae_ex3.ode (w'=v, 0=v(1-v^2)-w, v(0)=1) reaches the fold v=1/sqrt(3) at
+    dae_ex3.odex (w'=v, 0=v(1-v^2)-w, v(0)=1) reaches the fold v=1/sqrt(3) at
     t*=0.450694, past which its branch has no solution (docs/w126-dae-check.md):
     the run keeps the rows to t=0.45 (dt .05: 10 rows) and says once, as an
-    error, that there is no solution past the last time solved. dae.ode, a
+    error, that there is no solution past the last time solved. dae.odex, a
     DAE with no fold, runs to its end (total 20, dt .05: 401 rows)."""
     GO = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
     SING = [{'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}]
@@ -3992,20 +3992,20 @@ def check_dae_fold():
         errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
         return code, errs, (last_state(evs) or {}).get('rows'), err
 
-    code, errs, rows, err = run('examples/ode/dae_ex3.ode')
+    code, errs, rows, err = run('examples/ode/dae_ex3.odex')
     # --script exits 1 after an error message (docs/protocol.md "Scripts")
     check('dae_ex3 stops at the fold: the rows to t=0.45, then one error',
           code == 1 and rows == 10 and len(errs) == 1, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
     check('... saying there is no solution past t=0.45, a fold',
           len(errs) == 1 and errs[0].startswith('No solution of the algebraic equations past t=0.45:')
           and 'fold' in errs[0], str(errs))
-    code, out, err = run_script(GO, ode='examples/ode/dae_ex3.ode')
+    code, out, err = run_script(GO, ode='examples/ode/dae_ex3.odex')
     fold = next((json.loads(l) for l in out.splitlines() if 'No solution of the algebraic' in l), {})
     check('... at the 0= line, the place of every error (W140b)',
-          fold.get('file') == 'dae_ex3.ode' and fold.get('line') == 3 and fold.get('source') == '0= v_*(1-v_*v_)-w',
+          fold.get('file') == 'dae_ex3.odex' and fold.get('line') == 4 and fold.get('source') == '0 = v_*(1-v_*v_)-w',
           str(fold))
-    code, errs, rows, err = run('examples/ode/dae.ode')
-    check('dae.ode, a DAE without a fold, runs to its end with no error',
+    code, errs, rows, err = run('examples/ode/dae.odex')
+    check('dae.odex, a DAE without a fold, runs to its end with no error',
           code == 0 and rows == 401 and not errs, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
 
     # The branch is the run's alone (DaeRun): Sing pts after it solves the
@@ -4015,13 +4015,13 @@ def check_dae_fold():
     # the middle branch, which Newton from the run's v (the outer branch)
     # does not reach, before W127 or since: "Could not converge to root",
     # and no DAE error of the search's own.
-    code, errs, rows, err = run('examples/ode/dae_ex3.ode', GO + SING)
+    code, errs, rows, err = run('examples/ode/dae_ex3.odex', GO + SING)
     check('Sing pts right after the run stopped at the fold: as before W127',
           rows == 10 and len(errs) == 2 and 'fold' in errs[0] and errs[1] == 'Could not converge to root', str(errs))
     short_dir = tempfile.mkdtemp(prefix='xppdae')
     try:
-        short = os.path.join(short_dir, 'dae_ex3.ode')
-        with open('examples/ode/dae_ex3.ode') as f:
+        short = os.path.join(short_dir, 'dae_ex3.odex')
+        with open('examples/ode/dae_ex3.odex') as f:
             text = f.read().replace('METH=qualrk', 'METH=qualrk,TOTAL=.3')
         with open(short, 'w') as f:
             f.write(text)
@@ -4041,7 +4041,7 @@ def check_session_random():
     with one that is no generator state is refused naming it; a recording's
     snapshot holds it, and its replay writes the same rows"""
     import zipfile
-    ode = 'tools/models/stoch_rng.ode'
+    ode = 'tools/models/stoch_rng.odex'
     is_ask = lambda e: e.get('ev') == 'ask'
 
     def mk():
@@ -4212,16 +4212,16 @@ def check_session_file():
         snap = os.path.join(r, 's1.snapx')
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
-              sorted(names) == sorted(['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
+              sorted(names) == sorted(['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
                         'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
             check('session save: model.set is a set file of lecar, session.txt names it',
-                  z.read('model.set').startswith(b'## Set file for lecar.ode')
-                  and b'\nname lecar.ode\n' in z.read('session.txt'), str(z.read('session.txt')[:200]))
-            with open(os.path.join(r, 'lecar.ode'), 'rb') as f:
-                check('session save: model/lecar.ode is the model, byte for byte', z.read('model/lecar.ode') == f.read())
+                  z.read('model.set').startswith(b'## Set file for lecar.odex')
+                  and b'\nname lecar.odex\n' in z.read('session.txt'), str(z.read('session.txt')[:200]))
+            with open(os.path.join(r, 'lecar.odex'), 'rb') as f:
+                check('session save: model/lecar.odex is the model, byte for byte', z.read('model/lecar.odex') == f.read())
             vt = z.read('auto/views.txt').decode().splitlines()
             check('session save: auto/views.txt holds both views, the first active',
                   len(vt) == 3 and vt[0].startswith('view 2 V iapp ') and vt[1].startswith('view 1 V iapp ')
@@ -4235,12 +4235,12 @@ def check_session_file():
         stop_server(p, r, snd)
 
     def open_snapx(ode_text=None, name='s1.snapx'):
-        """a new server in a new folder with s1.snapx beside its lecar.ode (ode_text: an edited one)"""
+        """a new server in a new folder with s1.snapx beside its lecar.odex (ode_text: an edited one)"""
         p, r, snd, col, _ = launch_server()
         col(is_idle)
         shutil.copy(os.path.join(keep, 's1.snapx'), os.path.join(r, name))
         if ode_text is not None:
-            with open(os.path.join(r, 'lecar.ode'), 'w') as f:
+            with open(os.path.join(r, 'lecar.odex'), 'w') as f:
                 f.write(ode_text)
             answered(snd, col, ('d',), cmd='reload')
         answered(snd, col, (), **SUBSCRIBE)
@@ -4304,18 +4304,18 @@ def check_session_file():
     try:
         hello = last('hello')
         check('open session with the .ode edited: the saved model loads, the title names it',
-              hello is not None and 'lecar.ode (saved in s1.snapx)' in hello.get('title', ''), str(hello and hello.get('title')))
+              hello is not None and 'lecar.odex (saved in s1.snapx)' in hello.get('title', ''), str(hello and hello.get('title')))
         restored_as_saved('open session with the .ode edited')
-        with open(os.path.join(r, 'lecar.ode')) as f:
+        with open(os.path.join(r, 'lecar.odex')) as f:
             check('open session with the .ode edited: the .ode on the disk is left as it was, nothing written beside it',
-                  'phi2' in f.read() and sorted(os.listdir(r)) == ['lecar.ode', 's1.snapx'], str(os.listdir(r)))
+                  'phi2' in f.read() and sorted(os.listdir(r)) == ['lecar.odex', 's1.snapx'], str(os.listdir(r)))
         # a zip opened as a model: refused, its bytes never shown, nothing changes
         shutil.copy(os.path.join(r, 's1.snapx'), os.path.join(r, 'zip.ode'))
         del allev[:]
         answered(snd, col, ('d',), cmd='open', file='zip.ode')
         msgs = ' '.join(str(e.get('bottom', '')) + str(e.get('error', '')) for e in allev if e.get('ev') == 'message')
         check('a zip opened as a model is refused, its bytes never shown',
-              'not a model' in msgs and 'PK' not in msgs and not last('hello'), msgs[:300])
+              'model text' in msgs and 'PK' not in msgs and not last('hello'), msgs[:300])
         # a session file without its model: refused, nothing changes
         z = zipfile.ZipFile(os.path.join(r, 's1.snapx'))
         with zipfile.ZipFile(os.path.join(r, 'nomodel.snapx'), 'w') as out:
@@ -4397,7 +4397,7 @@ def check_session_file():
              ('marktype.snapx/marks.set:4:', "999 is not an object's type (0 to 7)")),
             ('markcolor', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n2\n999\n1\n0\n0\n1\n1\n0\n0\n'),
              ('markcolor.snapx/marks.set:5:', '999 is not a colour (0 to 10)')),
-            ('twonames', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'name lecar.ode\n'),
+            ('twonames', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'name lecar.odex\n'),
              ('twonames.snapx/session.txt:%d:' % (manifest_lines + 1), 'name a second time')),
         ]
         if 'data.npz' in members:
@@ -4528,7 +4528,7 @@ def check_model_bcs():
     """W99: the state event's `bcs` are the model's own boundary conditions;
     a model with no b/bndry lines sends none (the core's default 0 ones are not
     the model's), one with them sends its own."""
-    for ode, want in (('examples/ode/amari.ode', 0), ('examples/ode/dumbbvp.ode', 2), ('examples/ode/vdp.ode', 2)):
+    for ode, want in (('examples/ode/amari.odex', 0), ('examples/ode/dumbbvp.odex', 2), ('examples/ode/vdp.odex', 2)):
         p, r, snd, col, _ = launch_server(ode=ode)
         snd(cmd='state')
         evs, e = col(lambda e: e.get('ev') == 'idle')
@@ -5001,7 +5001,7 @@ def check_player():
               '%d steps, %s' % (len(steps), stopped))
         snap = recx_snapshot(text) or {}
         check('record: the recording begins with the session as it was (@snapshot: a .snapx without the data table)',
-              'session.txt' in snap and 'model/lecar.ode' in snap and 'model.set' in snap and 'data.npz' not in snap,
+              'session.txt' in snap and 'model/lecar.odex' in snap and 'model.set' in snap and 'data.npz' not in snap,
               str(sorted(snap)))
         # no fallback: a recording without its snapshot is refused
         lines = text.split('\n')
@@ -5170,6 +5170,118 @@ def check_player_ani():
         stop_server(p, r, snd)
 
 
+def check_ode_open():
+    """W154: the shared open commits only the converted model and asks."""
+    p, r, snd, col, _ = launch_server()
+    try:
+        initial, _ = col(is_idle)
+        original = last_state(initial)
+        foreign = os.path.join(r, 'foreign.ode')
+        converted = os.path.join(r, 'foreign.odex')
+
+        def write_foreign(value):
+            with open(foreign, 'w') as f:
+                f.write("par and=%d\nx'=and-x\ninit x=0\n@ total=1,dt=.1\ndone\n" % value)
+
+        def begin():
+            snd(cmd='open', file='foreign.ode')
+            _, leave = col(is_ask)
+            snd(cmd='answer', id=leave['id'], key='d')
+            return col(lambda e: e.get('ev') in ('ask', 'idle'))
+
+        write_foreign(1)
+        _, rename = begin()
+        check('ode open: reserved names ask string with the suggested default',
+              rename and rename.get('kind') == 'string' and rename.get('value') == 'and_', str(rename))
+        snd(cmd='answer', id=rename['id'], ok=False)
+        col(is_idle)
+        snd(cmd='redraw')
+        kept, _ = col(is_idle)
+        check('ode open: cancelling the name keeps the model and writes nothing',
+              not os.path.exists(converted) and last_state(kept)['pars'] == original['pars'])
+
+        _, rename = begin()
+        snd(cmd='answer', id=rename['id'], value=rename['value'])
+        opened, _ = col(is_idle)
+        check('ode open: saves and opens odex, with the manual link',
+              os.path.exists(converted) and any(e.get('ev') == 'hello' and 'foreign.odex' in e.get('title', '') for e in opened)
+              and any(e.get('help') == {'chapter': '02-ode-files', 'anchor': 'odex'} for e in opened), str(opened)[:300])
+        with open(converted, 'rb') as f:
+            before = f.read()
+        write_foreign(2)
+
+        for key in (None, 'n', 'y'):
+            _, rename = begin()
+            snd(cmd='answer', id=rename['id'], value=rename['value'])
+            _, choice = col(is_ask)
+            check('ode open: existing different text uses the overwrite ask (%s)' % key,
+                  choice and choice.get('question') == 'File Exists! Overwrite?'
+                  and choice.get('choices') == ['Replace', 'Open existing .odex'] and choice.get('keys') == 'yn', str(choice))
+            snd(cmd='answer', id=choice['id'], **({'ok': False} if key is None else {'key': key}))
+            col(is_idle)
+            with open(converted, 'rb') as f:
+                after = f.read()
+            check('ode open: %s leaves/writes the selected file' % ('Cancel' if key is None else key),
+                  (after == before) if key != 'y' else (after != before))
+
+        _, rename = begin()
+        snd(cmd='answer', id=rename['id'], value=rename['value'])
+        _, settled = col(lambda e: e.get('ev') in ('ask', 'idle'))
+        check('ode open: identical conversion opens without an overwrite ask', settled and settled.get('ev') == 'idle')
+        write_foreign(3)
+        snd(cmd='reload')
+        _, leave = col(is_ask)
+        snd(cmd='answer', id=leave['id'], key='d')
+        reloaded, _ = col(is_idle)
+        check('ode open: Reload uses odex after the foreign source changes',
+              any(e.get('ev') == 'hello' and 'foreign.odex' in e.get('title', '') for e in reloaded)
+              and any(e.get('ev') == 'state' and ['and_', 2] in e.get('pars', []) for e in reloaded))
+        with open(converted, 'rb') as f:
+            before = f.read()
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '-silent'], cwd=r,
+                                capture_output=True, text=True, timeout=30 * SLOW)
+        with open(converted, 'rb') as f:
+            after = f.read()
+        check('ode open: silent refuses different existing text, names both files and writes nothing',
+              silent.returncode == 1 and 'foreign.ode' in silent.stderr and 'foreign.odex' in silent.stderr and before == after)
+        os.remove(converted)
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '-silent'], cwd=r,
+                                capture_output=True, text=True, timeout=30 * SLOW)
+        check('ode open: silent takes suggestions and prints the saved path',
+              silent.returncode == 0 and 'Converted foreign.ode and saved as foreign.odex' in silent.stderr and os.path.exists(converted))
+        # A directory at the destination exercises a write failure on Windows
+        # too, even for a user who can bypass Unix permission bits.
+        with open(os.path.join(r, 'blocked.ode'), 'w') as f:
+            f.write("x'=-x\ndone\n")
+        os.mkdir(os.path.join(r, 'blocked.odex'))
+        snd(cmd='open', file='blocked.ode')
+        _, leave = col(is_ask)
+        snd(cmd='answer', id=leave['id'], key='d')
+        failed, _ = col(is_idle)
+        check('ode open: an unwritable destination is named, no model replacement',
+              any(e.get('file') == 'blocked.odex' and e.get('error') for e in failed)
+              and not any(e.get('ev') == 'hello' for e in failed)
+              and last_state(failed)['pars'] == [['and_', 2]], str(failed[-5:])[:300])
+        # At command-line startup the rename must be answerable before hello.
+        p2, r2, snd2, col2, _ = launch_server(ode=foreign)
+        try:
+            _, rename = col2(is_ask)
+            check('ode startup: reserved names ask string before hello',
+                  rename and rename.get('kind') == 'string' and rename.get('value') == 'and_', str(rename))
+            if rename:
+                snd2(cmd='answer', id=rename['id'], value=rename['value'])
+            startup, _ = col2(is_idle)
+            check('ode startup: accepting saves and opens the converted model',
+                  os.path.isfile(os.path.join(r2, 'foreign.odex'))
+                  and any(e.get('ev') == 'hello' and e.get('file') == 'foreign.odex' for e in startup)
+                  and last_state(startup)['pars'] == [['and_', 3]], str(startup[-5:])[:300])
+        finally:
+            stop_server(p2, r2, snd2)
+    finally:
+        stop_server(p, r, snd)
+
+
+check_ode_open()
 check_quit()
 check_recording()
 check_player()

@@ -2,13 +2,13 @@
 """Check xppautX in browser mode: the page is served, events stream, commands work, and
 the token protects the event and command URLs.
 
-usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.ode]
+usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.odex]
 """
 import argparse, atexit, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default='./xppautX')
-ap.add_argument('--ode', default='examples/ode/lecar.ode')
+ap.add_argument('--ode', default='examples/ode/lecar.odex')
 args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppweb')
@@ -514,9 +514,9 @@ if sess:
 # only serves a stopped model's log (no bye) keeps serving while a page is open and ends once none is left.
 # Generous safety timeouts only; the times print as perf: lines.
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'heavy.ode')) as f:
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'heavy.odex')) as f:
     heavy = f.read().replace('total=20', 'total=1e7')
-with open(os.path.join(lrun, 'longrun.ode'), 'w') as f:
+with open(os.path.join(lrun, 'longrun.odex'), 'w') as f:
     f.write(heavy)
 shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'malformed_unbalanced.ode'), lrun)
 
@@ -547,7 +547,7 @@ def post_cmd(pt, tk, obj):
     c.getresponse().read()
 
 
-sess = leave_session('longrun.ode')
+sess = leave_session('longrun.odex')
 check('W112: a process starts for the quit-during-a-run check', sess is not None)
 if sess:
     p, pt, tk, c = sess
@@ -601,7 +601,7 @@ def guard():
         return f.read()
 
 
-sess = leave_session('longrun.ode')
+sess = leave_session('longrun.odex')
 check('W134: a process starts for the upload-during-a-run check', sess is not None)
 if sess:
     p, pt, tk, c = sess

@@ -1,0 +1,10 @@
+# fhn3d.odex: converted from fhn3d.ode by xppautX --convert (docs/odex.md)
+# names written as their declarations spell them (.odex names have case); the .ode's lines 2
+
+v' = f(v)-w+i
+i' = 0
+w' = eps*(v-gamma*w)
+fun f(v) = v*(1-v)*(v-a)
+par a = 0.25, eps = 0.05, gamma = 1
+# Forced Fitzhugh-Nagumo fhn.ode
+@ total=100, dt=.2, xhi=100

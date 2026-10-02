@@ -808,7 +808,13 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
         return std::nullopt;
     }
     const char *manifest = xpp::snapx::manifest_member;
-    for (const xpp::zip::Entry &e : *entries) f.members[e.name] = e.bytes;
+    for (const xpp::zip::Entry &e : *entries) {
+        if (e.name.starts_with(xpp::snapx::model_folder) && xpp::snapx::has_extension(e.name, ".ode")) {
+            xpp::show_error(xpp::Error{"open", "a session cannot carry .ode model text", xpp::Place{xpp::format("{}/{}", name, e.name)}});
+            return std::nullopt;
+        }
+        f.members[e.name] = e.bytes;
+    }
     if (!f.members.contains(manifest)) {
         xpp::command_error("open", xpp::format("{} is not {}: its {} is missing", name, what, manifest));
         return std::nullopt;
@@ -846,6 +852,11 @@ xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &
     auto has = [&m](const std::string &name) {
         return std::any_of(m.files.begin(), m.files.end(), [&name](const xpp::ModelFile &f) { return f.name == name; });
     };
+    if (!xpp::odex::is_odex(m.this_file))
+        return xpp::fail_reading("save session", "a session stores an .odex model only", m.this_file);
+    for (const xpp::ModelFile &file : m.files)
+        if (xpp::snapx::has_extension(file.name, ".ode"))
+            return xpp::fail_reading("save session", "a session cannot carry .ode model text", file.name);
     if (!has(m.this_file)) {
         return xpp::fail("save session", xpp::format("{} was not read from a file: it cannot be saved with the model", m.this_file),
                          xpp::command_place());

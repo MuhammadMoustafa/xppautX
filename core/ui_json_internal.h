@@ -318,7 +318,7 @@ xpp::Place j_command_place(void);
    where), at j_command_place() */
 void j_command_error(std::string_view command, std::string what);
 void j_ping(void);
-void j_bottom_msg(int line, std::string_view msg);
+void j_bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
 void j_message_box(std::string_view msg);
 void j_kill_message_box(void);
 void j_title_text(std::string_view s);

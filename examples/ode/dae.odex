@@ -1,0 +1,11 @@
+# dae.odex: converted from dae.ode by xppautX --convert (docs/odex.md)
+
+x' = y
+0 = x+y+y^3+y^5
+solv y = -1
+init x = 3
+aux yy = y
+aux zz = x+y+y^3+y^5
+# plot y
+# plot the "error"
+@ newt_tol=1e-8

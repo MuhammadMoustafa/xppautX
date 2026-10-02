@@ -121,7 +121,7 @@ fail=0
 
 if has_phase smoke; then
   tmp=$(mktemp -d)
-  ( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.ode" -silent > run.log 2>&1 )
+  ( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.odex" -silent > run.log 2>&1 )
   st=$?
   # (CRs removed: Windows writes CRLF)
   sum=$( [ -e "$tmp/output.dat" ] && tr -d '\r' < "$tmp/output.dat" | md5 )
@@ -140,7 +140,7 @@ if has_phase examples; then
   # comparison, just their verdict); a model that does not run by itself
   # exits non-zero without a report
   ex=$(mktemp -d)
-  find examples -name '*.ode' | sort | xargs -P"$NPROC" -I{} sh -c '
+  find examples -name '*.odex' | sort | xargs -P"$NPROC" -I{} sh -c '
     f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
     cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
     cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1

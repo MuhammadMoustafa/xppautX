@@ -3,7 +3,7 @@
    this is the documented relationship fftcon's table layout must hold;
    W31a/W32a: run the way `xppautX -silent` runs it, so this also guards
    W32a's fftn->pocketfft swap). fftcon is only reachable by loading a
-   model that uses it: tools/models/fftcon_test.ode has a static
+   model that uses it: tools/models/fftcon_test.odex has a static
    (v_i'=0) 5-cell periodic ("p") fftcon network (k) and a zero-padded
    3-cell one (m), each beside the conv/conv0 network (kc, mc) that
    should equal it on the same table; read back through their aux
@@ -35,7 +35,7 @@ static double relerr(double got, double want)
 static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
 {
     char *argv[] = {const_cast<char *>("test_fftcon"),
-                    const_cast<char *>("tools/models/fftcon_test.ode"),
+                    const_cast<char *>("tools/models/fftcon_test.odex"),
                     NULL};
     if (!xpp::load_model(2, argv, 1)) return 0;
     xpp::batch_start(xpp::client_session());
@@ -54,7 +54,7 @@ int main(void)
 {
     /* --- fftcon: the periodic (k) and zero-padded (m) network
        convolutions vs. the matching conv/conv0 network (kc, mc) on the
-       same weight table (tools/models/fftcon_test.ode); see its header
+       same weight table (tools/models/fftcon_test.odex); see its header
        comment and simplenet.cpp's update_fft for why they must agree. */
     {
         double k[5], kc[5], m[3], mc[3];

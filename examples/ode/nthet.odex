@@ -1,0 +1,11 @@
+# nthet.odex: converted from nthet.ode by xppautX --convert (docs/odex.md)
+
+c[j] = cos(x[j]) for j in 0..99
+stot = 0.25
+s[j]' = exp(-20*(1+c[j]))*(1-s[j])-s[j]/tau for j in 0..99
+x[j]' = 1-c[j]+(1+c[j])*(-a+g*stot+sig*w[j]) for j in 0..99
+wiener w[j] for j in 0..99
+par a = 0.05, g = 0.2, tau = 20, sig = 0.2
+aux st = sum(shift(s0, i'), from=0, to=99)/100
+# stot=sum(0,99)of(shift(s0,i'))/100
+@ meth=euler, total=100

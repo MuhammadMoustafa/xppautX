@@ -120,7 +120,7 @@ run make -j"$JOBS" xppautx CC="$cc" CXX="$cxx" WINDOW="$window"
 echo "== check: one model, no interface"
 check_dir=$(mktemp -d)
 trap 'rm -rf "$check_dir"' EXIT
-model=$(ls examples/ode/lecar.odex examples/ode/lecar.ode 2>/dev/null | head -1)
+model=examples/ode/lecar.odex
 if [ -n "$model" ]; then
     cp "$model" "$check_dir/"
     (cd "$check_dir" && "$top/xppautX" "$(basename "$model")" -silent)

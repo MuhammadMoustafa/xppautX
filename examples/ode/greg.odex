@@ -1,0 +1,8 @@
+# greg.odex: converted from greg.ode by xppautX --convert (docs/odex.md)
+
+par k = 1
+a' = -k*a
+init a = 1
+#paramters to be varied to see the effect of fitcurve
+#equations
+#intial conditions

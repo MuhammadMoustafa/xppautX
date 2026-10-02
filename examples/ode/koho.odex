@@ -1,0 +1,16 @@
+# koho.odex: converted from koho.ode by xppautX --convert (docs/odex.md)
+
+par ntot = 100, k = 1
+z = 2*ran(1)-1
+fun h(u) = (0.5+0.5*cos(2*pi*u*k/ntot))^sig
+par sig = 20, eps = 0.1
+d[j] = abs(w[j]-z) for j in 0..99
+network mx = findext(-1, 100, 1, d0)
+w[j]' = w[j]+eps*(z-w[j])*h(mx(3)-j) for j in 0..99
+ip' = mx(3)
+aux zz = z
+# koho.ode: the Kohonen algorithm. The winning unit, the weight closest to
+# the stimulus, once came from a compiled C function (getmax.c, through
+# export); compiled functions are gone (W55), and findext finds it here
+# mx(2) is the least distance, mx(3) its index
+@ meth=discrete, total=2000

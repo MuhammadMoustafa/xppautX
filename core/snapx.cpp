@@ -62,6 +62,7 @@ xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
             const std::string_view value = sp == std::string_view::npos ? std::string_view() : line.substr(sp + 1);
             if (!given.emplace(key).second) l.fail(xpp::format("{} a second time", key));
             if (key == "name") {
+                if (!odex::is_odex(value)) l.fail("a session stores an .odex model only; .ode is refused");
                 m.model_name = value;
                 named = true;
             } else if (key == "anifile")

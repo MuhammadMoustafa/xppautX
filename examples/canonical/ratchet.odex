@@ -1,0 +1,17 @@
+# ratchet.odex: converted from ratchet.ode by xppautX --convert (docs/odex.md)
+
+wiener w
+par a = 0.8, sig = 0.05, alpha = 0.1, beta = 0.1
+fun f(x) = if x<a then -1 else a/(1-a)
+x' = z*f(x mod 1)+sig*w
+markov z 2
+  {0} {alpha} 
+  {beta} {0} 
+aux xm = x mod 1
+# a simple thermal ratchet
+# piecewise linear potential with slope
+# 1 from 0 to a and slope -a/(1-a) from a to 1
+#  f = -V'
+# z is two states
+@ meth=euler, dt=.1, total=2000, njmp=10
+@ xhi=2000, yhi=8, ylo=-8

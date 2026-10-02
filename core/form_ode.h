@@ -32,7 +32,6 @@ extern int ConvertStyle;
    builds (xpp::Load, W47d3), which they are given. */
 
 /* a model typed in at the terminal (no file given): read into s's Model */
-int make_eqn(Session &s);
 /* the model's source lines without control characters */
 void strip_saveqn(Model &m);
 /* the columns a batch run writes: the model's "only" statement's */

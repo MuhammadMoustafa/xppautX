@@ -1,0 +1,31 @@
+# hhred.odex: converted from hhred.ode by xppautX --convert (docs/odex.md)
+# names written as their declarations spell them (.odex names have case); the .ode's lines 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19
+
+init v = 20, n = 0
+par om = 1
+par VNA = 115, VK = -12, VL = 10.5989, GNABAR = 120, GKBAR = 36, GLBAR = 0.3, GL = 0.3
+par I0 = 20, IP = 0, PON = 0, POFF = 0, TEMP = 6.3, h0 = 0.8
+fun AM(arg1) = phi*0.1*(25-arg1)/(if exp(0.1*(25-arg1))-1 then exp(0.1*(25-arg1))-1 else 2.23e-15)
+fun BM(arg1) = phi*4*exp(-arg1/18)
+fun AH(arg1) = phi*0.07*exp(-arg1/20)
+fun BH(arg1) = phi*1/(exp(0.1*(30-arg1))+1)
+fun BN(arg1) = phi*0.125*exp(-arg1/80)
+fun AN(arg1) = phi*0.01*(10-arg1)/(if exp(0.1*(10-arg1))-1 then exp(0.1*(10-arg1))-1 else 2.23e-15)
+fun IAPP(arg1) = I0+heav(POFF-arg1)*heav(arg1-PON)*IP
+fun minf(arg1) = AM(arg1)/(if AM(arg1)+BM(arg1) then AM(arg1)+BM(arg1) else 2.23e-15)
+fun ninf(arg1) = AN(arg1)/(if AN(arg1)+BN(arg1) then AN(arg1)+BN(arg1) else 2.23e-15)
+fun hinf(arg1) = AH(arg1)/(if AH(arg1)+BH(arg1) then AH(arg1)+BH(arg1) else 2.23e-15)
+v' = (IAPP(t)-GNABAR*m^3*h*(v-VNA)-GKBAR*n^4*(v-VK)-GL*(v-VL))*om
+n' = (AN(v)-(AN(v)+BN(v))*n)*om
+phi = 3^((TEMP-6.3)/10)
+m = minf(v)
+h = h0-n
+aux aux1 = 0
+aux aux2 = 0
+aux aux3 = 0
+# The reduced Hodgkin Huxley equations showing fixed parameters
+# and a bunch of auxiliary columns left for post processing
+#
+# Here are the 3 fixed guys
+# and the auxiliary functions
+@ total=40, method=gear, bound=500, dt=.25, dtmin=1e-12, xhi=40, yhi=120, ylo=-10

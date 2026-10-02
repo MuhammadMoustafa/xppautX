@@ -20,7 +20,8 @@ extern std::vector<std::string> include_files;
 
 /* the command line read into the loading Session s (its switches, the
    model's file into its Model's this_file), one argument of it */
-void do_comline(Session &s, int argc, char **argv);
+/* The model argument's index, or -1 when a file still needs choosing. */
+int do_comline(Session &s, int argc, char **argv);
 int parse_it(Session &s, std::string_view com);
 /* the internal sets of m the command line picked (-internset, -uset,
    -rset) into batch_options */

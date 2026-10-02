@@ -165,7 +165,9 @@ This brings up a menu with several options. Type `Esc` to abort.
   is not set.
 - **t(U)torial**: Steps through a series of short tips ("Did you know you
   can...") one at a time; Next for another, Done to stop.
-- **open (M)odel**: Asks for a `.ode` or `.odex` file (or a `.snapx`
+- **open (M)odel**: A `.ode` converts and saves as `.odex` beside it,
+  which becomes the open model (see [.odex](02-ode-files.md#odex)).
+  Asks for a `.ode` or `.odex` file (or a `.snapx`
   session file, which opens that session: **opeN session** below; or a `.recx`
   recording, which opens in the player), then
   whether to save this session first (**Save session** writes a session
@@ -182,7 +184,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session**: Asks for a file name and writes one session file,
   `name.snapx`, to continue later exactly where you are: the model itself
-  (its `.ode` and every file it read), the values and numerics (the set format), every
+  (its `.odex` and every included file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
   frozen curves, AUTO's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks

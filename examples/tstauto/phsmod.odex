@@ -1,0 +1,8 @@
+# phsmod.odex: converted from phsmod.ode by xppautX --convert (docs/odex.md)
+
+fun p(u) = exp(-beta*(1-cos(u)))
+par k = 0.2, d = 0
+par beta = 50
+x1' = 1+d-k*sin(x1)*p(x2)
+x2' = 1-d-k*sin(x2)*p(x1)
+y' = -y+sin(x1)

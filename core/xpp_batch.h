@@ -57,6 +57,11 @@ using Loaded = std::expected<Session *, Error>;
    log here (Error::text()), once. */
 Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nullptr,
                   const std::function<std::optional<Error>(Session &)> &check = {});
+/* Import and validate in a temporary Model and Session, using the shared
+   setup. Never commits; the converter alone supplies the .ode reader. */
+Result<> inspect_model(int argc, char **argv, const std::function<void(Session &)> &read,
+                      const std::function<std::optional<Error>(Session &)> &check = {},
+                      const SavedModel *saved = nullptr);
 /* the model cannot be loaded, for the reason e: during a load, the load
    fails (LoadFailed with e, the line e.place.line of e.place.file added
    as it is written; load_model writes it); otherwise e is written and the

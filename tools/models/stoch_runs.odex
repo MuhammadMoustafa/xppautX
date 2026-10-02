@@ -1,0 +1,11 @@
+# stoch_runs.odex: converted from stoch_runs.ode by xppautX --convert (docs/odex.md)
+
+wiener n
+par dummy = 0
+x' = dummy*0
+aux nsamp = normal(0, 1)
+# W31b: drives stocHast's "Compute" (many runs) over a dummy parameter for
+# tests/test_stochast_runs.cpp, which sets STOCH_FLAG and calls do_range()
+# directly. Each of the trials samples nsamp=normal(0,1) independently; the
+# test checks the per-time mean/variance stocHast accumulates across trials.
+@ total=10, dt=1, meth=euler, seed=7

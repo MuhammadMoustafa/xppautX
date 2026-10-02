@@ -89,7 +89,7 @@ typedef struct XppDiagPoint {
    "Errors"), or at its line */
 void err_reading(std::string_view path, std::string_view msg, int line = 0);
 void ping(void);
-void bottom_msg(int line, std::string_view msg);
+void bottom_msg(int line, std::string_view msg, std::string_view chapter = {}, std::string_view anchor = {});
 void MessageBox(std::string_view m);
 void KillMessageBox(void);
 void title_text(std::string_view s);
@@ -154,7 +154,7 @@ typedef struct XppUi {
     /* where the command that runs came from (command_place) */
     Place (*command_place)(void);
     void (*ping)(void);
-    void (*bottom_msg)(int line, std::string_view msg);
+    void (*bottom_msg)(int line, std::string_view msg, std::string_view chapter, std::string_view anchor);
     void (*message_box)(std::string_view msg);
     void (*kill_message_box)(void);
     void (*title_text)(std::string_view s);

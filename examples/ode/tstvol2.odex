@@ -1,0 +1,8 @@
+# tstvol2.odex: converted from tstvol2.ode by xppautX --convert (docs/odex.md)
+
+init f1 = 1
+f1(t) = exp(-t)-t^2/2+volterra(exp(-t), of=f1*f1)+volterra(f2)
+f2(t) = t-t^4/24+volterra(t, of=f2*f2/(1+f1*f1))
+# Volterra example from Peter Linz's book
+# solution is f1=1,f2=t but it is unstable
+@ yplot=f2, total=5, xhi=5, yhi=5

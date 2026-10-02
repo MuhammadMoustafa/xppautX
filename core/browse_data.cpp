@@ -215,8 +215,7 @@ namespace {
 bool may_write_file(std::string_view fil)
 {
  if(!xpp::files::exists(fil))return true;
- return static_cast<char>(TwoChoice("Yes","No",
-		"File Exists! Overwrite?","yn"))=='y';
+ return file_replace_choice()=='y';
 }
 
 } // namespace
@@ -238,6 +237,12 @@ xpp::Writer open_writer_asking(std::string_view fil, bool binary)
 {
  if(!may_write_file(fil))return xpp::Writer();
  return open_writer(fil,binary);
+}
+
+int file_replace_choice(bool open_existing)
+{
+ return TwoChoice(open_existing?"Replace":"Yes",open_existing?"Open existing .odex":"No",
+                  "File Exists! Overwrite?","yn");
 }
 
 void  wipe_rep(BrowserState &b)

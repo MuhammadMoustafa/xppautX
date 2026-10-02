@@ -1,0 +1,8 @@
+# dumbbvp.odex: converted from dumbbvp.ode by xppautX --convert (docs/odex.md)
+
+x' = y
+y' = x
+boundary x-y'
+boundary y-a
+par a = 1
+@ total=1

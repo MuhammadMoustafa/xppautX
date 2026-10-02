@@ -1,0 +1,17 @@
+# delay.odex: converted from delay.ode by xppautX --convert (docs/odex.md)
+
+par tau = 3, b = 4.8, a = 4, p = -0.8
+fun f(x) = 1/(1+exp(-x))
+x' = -x+f(a*x-b*delay(x, tau)+p)
+# x(0)=1-T   in the .ode: XPP starts x at 1 (the number at the formula's front; the formula is only x's history for delays)
+init x = 1
+history x = 1-t
+init x = 1
+aux si = 0
+# delayed feedback delay.ode
+# declare all the parameters, initializing the delay to 3
+# define the nonlinearity
+# define the right-hand sides; delaying x by tau
+# set maxdelay
+# done
+@ delay=20

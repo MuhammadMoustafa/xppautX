@@ -1,0 +1,7 @@
+# rossler.odex: converted from rossler.ode by xppautX --convert (docs/odex.md)
+
+x' = -y-z
+y' = x+b*y
+z' = b+z*(x-a)
+par b = 0.2, a = 4
+@ total=50

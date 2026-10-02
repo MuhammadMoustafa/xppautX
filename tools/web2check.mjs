@@ -25,12 +25,12 @@
    (T7: in the store, drawn, toggled from the legend, cleared by Erase).
    Marks (T8: text with Greek, a pointer, a marker, a frozen curve and an
    equilibrium in the store, drawn, in the legend, toggled, cleared by
-   Erase). 3D plots (T14, examples/ode/lorenz.ode: the store's own window,
+   Erase). 3D plots (T14, examples/ode/lorenz.odex: the store's own window,
    the projection drawn on a canvas, a drag and the arrow keys turning it
    locally at once, throttled 3d-params turns (key 3), and state.view settling
-   to agree). Then live plotting (tools/models/live.ode: the store
+   to agree). Then live plotting (tools/models/live.odex: the store
    and the plot grow while 20 001 rows are computed, and end as output.dat)
-   and a run of 10^6 rows (tools/models/million.ode) that draws and zooms,
+   and a run of 10^6 rows (tools/models/million.odex) that draws and zooms,
    its draw times and long tasks (read through __xpp; W40), and both runs'
    frame pacing and series appends per second (W82), printed as perf:
    lines, never pass/fail (W58: performance is for CI, not the program).
@@ -96,12 +96,12 @@ for (let i = 2; i < process.argv.length; i++) {
   else opt[a.replace(/^--/, '')] = process.argv[++i];
 }
 const bin = path.resolve(top, opt.bin);
-const ODE = path.join(top, 'examples/ode/lecar.ode');
-const LIVE = path.join(top, 'tools/models/live.ode');
-const MILLION = path.join(top, 'tools/models/million.ode');
-const APLOT_ODE = path.join(top, 'examples/ode/wcring.ode');
-const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.ode');
-const HEAVY_ODE = path.join(top, 'tools/models/heavy.ode');
+const ODE = path.join(top, 'examples/ode/lecar.odex');
+const LIVE = path.join(top, 'tools/models/live.odex');
+const MILLION = path.join(top, 'tools/models/million.odex');
+const APLOT_ODE = path.join(top, 'examples/ode/wcring.odex');
+const LORENZ_ODE = path.join(top, 'examples/ode/lorenz.odex');
+const HEAVY_ODE = path.join(top, 'tools/models/heavy.odex');
 
 /* macos-ui is the slowest, least steady runner (W40, GitHub #83): a wait for
    something to settle needs slack a fast machine never sees. XPP_CHECK_SLOW
@@ -684,7 +684,7 @@ async function dataTable(want, dir) {
 
 /* text views (docs/ui-v2.md T16, docs/protocol.md `equations`, `source`,
    `action`, `equilibrium`, its window's Import key): equations, source with a comment
-   action, equilibrium with Import, and Tab reachability. lecar.ode's own
+   action, equilibrium with Import, and Tab reachability. lecar.odex's own
    tutorial ("To set parameters click on the asterisks") is the model with
    comment actions the task asks for: six `"..{name=value,...}"` lines, each
    an X11 "Action view" button. This picks the second one ({gk=0}) rather
@@ -1031,7 +1031,7 @@ async function marks() {
    Its cells come from `values` (not the core's own colour indices), so the
    store can pick its own colour map; the core's own buttons (Fit, Redraw,
    Close) and time scroll (wheel, keyboard) still go through the protocol.
-   examples/ode/wcring.ode (a ring of 20 coupled neurons, u0..u19) is a real
+   examples/ode/wcring.odex (a ring of 20 coupled neurons, u0..u19) is a real
    array model, so the grid actually has columns worth scrolling through. */
 async function aplotView() {
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
@@ -1382,7 +1382,7 @@ const area3d = () => settled(rawArea3d);
 /* a turn is the key 3 (3d-params) and its form's answer (W60) */
 const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'key' && c.key === '3' && !c.win).length");
 
-/* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.ode sets axes=3d
+/* 3D plots (docs/ui-v2.md T14, GitHub issue #18): lorenz.odex sets axes=3d
    and phi=60 (theta stays the default 45) and runnow=1, which the core
    runs as its own command cycle after loading (servercheck.py's
    check_view3d has the same two-cycle wait); the plot never draws with
@@ -2161,13 +2161,13 @@ async function autoView(dir) {
   await menuKey('p');
   /* T21 ("while it runs the status strip says Running...") and T22 ("the
      axis dialog can change during the run") used to be asserted here, on
-     lecar.ode's fast default mesh: on a slow runner they raced the same
+     lecar.odex's fast default mesh: on a slow runner they raced the same
      way the Stop checks did (W42, GitHub #85) and lost every time, not
      occasionally -- a slow page's render/dispatch loop, swamped by
      this run's fast stream of `diagram add` events, coalesces every
      intermediate state and paints only the final "Stopped" one, no matter
      how long the test polls for "Running" to appear. Moved to
-     autoStopRace() below (tools/models/heavy.ode, whose real, expensive
+     autoStopRace() below (tools/models/heavy.odex, whose real, expensive
      right-hand side makes every point slow by construction, not by a
      mesh size tuned to a timing window), where an intermediate frame is
      always paintable. This run still runs to completion here unassessed
@@ -2491,7 +2491,7 @@ async function autoView(dir) {
     && JSON.stringify(await DS('d.labels')) === JSON.stringify(labels), JSON.stringify(await DS('[d.open, d.points.x.length]')));
 
   /* T22/T23/T25 (Numerics edited during a run, Stop, the run after) moved
-     to autoStopRace() below, on tools/models/heavy.ode: see that
+     to autoStopRace() below, on tools/models/heavy.odex: see that
      function's own comment for why they no longer live here. */
 
   /* Close: done with AUTO */
@@ -2509,7 +2509,7 @@ async function autoView(dir) {
 }
 
 /* T21, T22, T23, T25: AUTO Numerics/Stop during a run (W42, GitHub #85).
-   On lecar.ode's fast default mesh, a slow page processes its incoming
+   On lecar.odex's fast default mesh, a slow page processes its incoming
    queue of `diagram add` events slower, in order; if the run finishes
    (reaches Nmax, or a parameter/norm bound) before the page's
    render/dispatch loop gets a turn, every intermediate state is coalesced
@@ -2522,7 +2522,7 @@ async function autoView(dir) {
    any speed (see the final report for how this reproduces; not fixed here,
    per the card).
 
-   tools/models/heavy.ode sidesteps both problems: its right-hand side is
+   tools/models/heavy.odex sidesteps both problems: its right-hand side is
    deliberately expensive (a long sum), so every AUTO point costs real
    seconds of native CPU by construction, at the model's own default mesh
    (NTST 150) -- not a mesh size picked to fit a timing window. Its own
@@ -2546,7 +2546,7 @@ async function autoStopRace() {
       diagram: [s.diagram.open, s.diagram.shown, !!s.diagram.views[s.diagram.active].axes], sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`)));
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
 
-  /* heavy.ode starts at a stable point (mu=-1): the steady branch finds
+  /* heavy.odex starts at a stable point (mu=-1): the steady branch finds
      its Hopf point continuing in mu, same as lecar's own first run above */
   await autoButton('R');
   check('AUTO Stop race: Run asks how to start',
@@ -2573,7 +2573,7 @@ async function autoStopRace() {
   const nPre = await DS('d.points.x.length');
   await periodicFromHopf('the run');
   const going = await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic run going', 60000 * SLOW);
-  check('AUTO Stop race: the periodic run from the Hopf point is going (heavy.ode: seconds per point, by construction)', going);
+  check('AUTO Stop race: the periodic run from the Hopf point is going (heavy.odex: seconds per point, by construction)', going);
 
   check('T21: while it runs the status strip says "Running: periodic orbits", with branch 2, its point count and a Stop',
     going && await until(`/^Running: periodic orbits · branch 2, point \\d+ · \\d+ points/.test(document.querySelector('[data-testid=auto-status]').textContent)
@@ -2858,7 +2858,7 @@ async function lostF() {
   await until('!s.busy && !s.ask', 'closed');
 }
 
-/* W100, sequence 1 on a run that is still going (heavy.ode: seconds per point): F in the AUTO view
+/* W100, sequence 1 on a run that is still going (heavy.odex: seconds per point): F in the AUTO view
    while the periodic run computes reaches AUTO's File menu (a view action: the run goes on, the
    menu is answered at once), not the main window's, and nothing is left hidden in the core. */
 async function lostFRunning() {
@@ -3164,11 +3164,11 @@ async function recordCheck(dir) {
   const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split(/\r?\n/) : [];
   const at = lines.indexOf('@steps');
   check('record: web.recx holds the model and the step, its note above it, the button named',
-    lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.ode') && at > 0
+    lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
     && lines[at + 3] === '{"step":"Initialconds → Go","button":"Integrate","keys":["i","g"]}', JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
-    lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.ode'));
+    lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.odex'));
 
   /* W59d: File/Quit (F Q) asks one question, as the window's close box does:
      Save session (S), Don't save (D), Cancel; Escape keeps the session */
@@ -3564,7 +3564,7 @@ const icFields = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('[
 const nowCells = () => cdp.eval(`JSON.stringify([...document.querySelectorAll('.value-now')].map(o => o.textContent))`);
 const close6 = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
 
-/* lecar.ode: runs accumulate, Erase, Redraw, Last and "Use current state", reset, save and load, sliders */
+/* lecar.odex: runs accumulate, Erase, Redraw, Last and "Use current state", reset, save and load, sliders */
 async function runsCheck(dir) {
   await desktopMetrics();
   check('runs: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy && s.values.defaults', 'hello'));
@@ -3861,7 +3861,7 @@ async function helpCheck() {
   await until('s.core.menu === 0 && !s.busy', 'main menu after help');
 }
 
-/* tools/models/live.ode (about two seconds a run): edits while busy wait and go
+/* tools/models/live.odex (about two seconds a run): edits while busy wait and go
    out once; the IC fields do not move during a run, Now does */
 async function valuesLive() {
   await desktopMetrics();
@@ -4070,7 +4070,7 @@ async function valuesLive() {
     JSON.stringify(allSent));
 }
 
-/* tools/models/live.ode: 20 001 rows in about two seconds */
+/* tools/models/live.odex: 20 001 rows in about two seconds */
 async function live(want) {
   await desktopMetrics();
   check('live: the page connects', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
@@ -4172,7 +4172,7 @@ async function zoomFrames() {
   };
 }
 
-/* tools/models/million.ode: a phase plane of 1 000 001 points, then the
+/* tools/models/million.odex: a phase plane of 1 000 001 points, then the
    same run against time */
 async function million() {
   await desktopMetrics();
@@ -4285,7 +4285,7 @@ async function waitFile(p, ms = 10000) {
   return null;
 }
 
-/** the .set XPPAUT wrote for an older lecar.ode (examples/ode/lecar.ode.set: iapp 0.09, equations after
+/** the .set XPPAUT wrote for an older lecar.odex (examples/ode/lecar.ode.set: iapp 0.09, equations after
     the values), its count of equations and auxiliaries made the model's today */
 function xppautLecarSet() {
   const text = fs.readFileSync(path.join(top, 'examples/ode/lecar.ode.set'), 'utf8');
@@ -4323,7 +4323,7 @@ async function files(dir) {
       check('the browser downloaded it', got && saved && got.equals(saved), String(got && got.length));
     }
 
-    /* the .set XPPAUT wrote for lecar.ode (its equations after the values): iapp 0.09, the model's 0.05 */
+    /* the .set XPPAUT wrote for lecar.odex (its equations after the values): iapp 0.09, the model's 0.05 */
     const setBytes = xppautLecarSet();
     const setIapp = 0.09;
     check('the model\'s iapp is not the set\'s', Math.abs(iapp0 - setIapp) > 1e-3, String(iapp0));
@@ -4438,9 +4438,11 @@ async function files(dir) {
       await until("s.ask && s.ask.kind === 'choice' && s.ask.keys === 'sd'", 'save first?'), JSON.stringify(await S('s.ask')));
     await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
     check('Don\'t save loads it here: a new hello names it, the state is its own',
-      await until("!s.busy && !s.ask && s.hello.file === 'w61.ode' && s.core.pars.length === 1 && s.core.pars[0][0] === 'a'"
+      await until("!s.busy && !s.ask && s.hello.file === 'w61.odex' && s.core.pars.length === 1 && s.core.pars[0][0] === 'a'"
         + " && s.core.pars[0][1] === 2 && s.core.ics[0][0] === 'X'", 'opened'),
       JSON.stringify(await S('[s.hello && s.hello.file, s.core.pars, s.core.ics]')));
+    check('... conversion names the saved .odex and links its manual section',
+      await S("s.bottom.includes('saved as w61.odex') && s.bottomHelp?.chapter === '02-ode-files' && s.bottomHelp?.anchor === 'odex'"));
     check('... and the page asked for the new model\'s plot data, as on a reconnection',
       await S("__xpp.sent().slice(-3).some(c => c.cmd === 'data')"), JSON.stringify(await cdp.eval('__xpp.sent().slice(-3)')));
   } finally {
@@ -5235,8 +5237,8 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
-    if (run('values')) await session(path.join(top, 'examples/ode/amari.ode'), bcSection(0));
-    if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.ode'), bcSection(2));
+    if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
+    if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);

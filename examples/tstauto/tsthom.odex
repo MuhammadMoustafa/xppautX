@@ -1,0 +1,5 @@
+# tsthom.odex: converted from tsthom.ode by xppautX --convert (docs/odex.md)
+
+x' = y
+y' = x*(1-x)-a*y+b*x*y
+par a = 0, b = 0

@@ -4,8 +4,7 @@
    fix in how a statement becomes the Model holds for both formats
    (docs/odex.md question 10). An old-style model (the number of
    equations on its first line) is built here line by line as it is read
-   (compiler, build_old_style), with the same pieces. And the file
-   selector's choice of a model to load (make_eqn). */
+   (compiler, build_old_style), with the same pieces, during conversion. */
 #include <new>
 #include <string>
 #include <vector>
@@ -151,129 +150,6 @@ void set_ode_name(xpp::Model &m, int i, std::string_view text)
 }
 
 namespace {
-
-void format_list(const std::vector<std::string> &s)
-{
- int n=static_cast<int>(s.size());
- int i,ip;
- int ncol;
- int k,j;
- int lmax=0,l=0;
- for(i=0;i<n;i++){
-   l=static_cast<int>(s[i].size());
-   if(lmax<l)lmax=l;
- }
- ncol=80/(lmax+2);
- if(ncol<1)ncol=1;
- if(ncol>8)ncol=8;
- k=n/ncol;
- j=n-ncol*k;
- /* each name right-aligned in lmax+2 columns */
- for(ip=0;ip<k;ip++){
-   for(i=0;i<ncol;i++)
-     xpp::log(XPP_LOG_INFO, "{:>{}}",s[ip*ncol+i],lmax+2);
-   xpp::log_printf(XPP_LOG_INFO, "\n");
- }
-  for(i=0;i<j;i++)
-     xpp::log(XPP_LOG_INFO, "{:>{}}",s[k*ncol+i],lmax+2);
-  xpp::log_printf(XPP_LOG_INFO, "\n");
-}
-
-void list_em(const char *wild)
-{
-  xpp::files::refresh_cur_dir();
-  xpp::log(XPP_LOG_INFO, "{}: \n",xpp::files::cur_dir());
-  std::vector<std::string> dirs,files;
-  if(!xpp::files::list_matching(wild,xpp::files::cur_dir(),dirs,files))return;
-  xpp::log_printf(XPP_LOG_INFO, "DIRECTORIES:\n");
-  format_list(dirs);
-  xpp::log_printf(XPP_LOG_INFO, "FILES OF TYPE %s:\n",wild);
-  format_list(files);
-}
-
-/* the next whitespace-separated word typed on stdin (what scanf("%s")
-   read, of any length); false at the end of input */
-bool read_word(std::string &word)
-{
-  int c;
-  word.clear();
-  while((c=getchar())!=EOF&&isspace(c)){}
-  if(c==EOF)return false;
-  do word+=static_cast<char>(c);
-  while((c=getchar())!=EOF&&!isspace(c));
-  return true;
-}
-
-/* The ODE file to read: asked on the console in batch mode ((r)un,
-   (c)d, (l)ist wild), else with the file selector. 0 on cancel. */
-int get_a_filename(std::string &filename,std::string &wild)
-{
- if(batch_options.enabled)
- {
-  std::string string;
-  list_em(wild.c_str());
-  while(1){
-  xpp::log_printf(XPP_LOG_INFO, "(r)un (c)d (l)ist ");
-  if(!read_word(string))return 0;
-  if(string[0]=='r'){
-    xpp::log_printf(XPP_LOG_INFO, "Run file: ");
-    if(!read_word(filename))return 0;
-    xpp::log(XPP_LOG_INFO, "Loading {}\n ",filename);
-    return 1;
-  }
-  else
-    {
-      if(string[0]=='l'){
-        xpp::log_printf(XPP_LOG_INFO, "List files of type: ");
-        if(!read_word(wild))return 0;
-        list_em(wild.c_str());
-      }
-      else
-        {
- 	 if(string[0]=='c'){
-	   xpp::log_printf(XPP_LOG_INFO, "Change to directory: ");
-	   if(!read_word(string))return 0;
-	   xpp::files::change_dir(string.c_str());
-	   list_em(wild.c_str());
-	 }
-        }
-    }
-  }
-  }
-  else
-  {
-    std::string dir=xpp::files::working_dir();
-    if (dir.empty() || dir.back() != '/')
-      dir += '/';
-    if (file_selector ("Select an ODE file", dir, wild.c_str()) == 0) {
-      bye_bye ();
-      return 0;
-    }
-    filename = dir;
-    return 1;
-  }
-  return(0);
-}
-
-void clrscr()
-{
- if(system("clear")){}
-}
-
-int read_eqn(xpp::Session &s)
-{
-  std::string wild="*.ode",string;
-  get_a_filename(string,wild);
-  xpp::UniqueFile fptr=xpp::open_model_file(s.model(),string);
-  if(!fptr)
-   {
-    xpp::log(XPP_LOG_WARN, "\n Cannot open {} \n",string);
-    return(0);
-   }
-   s.model().this_file=string;
-   clrscr();
-   return(get_eqn(s,fptr.get()));
-}
 
 void welcome()
 {
@@ -866,14 +742,6 @@ void finish_model(xpp::Session &s)
 }
 
 } // namespace
-
-int make_eqn(xpp::Session &s)
-{
-   s.model().neq=2;
-   s.model().fix_var=0;
-   s.model().nmarkov=0;
-   return(read_eqn(s));
-}
 
 void strip_saveqn(xpp::Model &m)
 {

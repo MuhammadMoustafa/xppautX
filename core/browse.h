@@ -39,6 +39,9 @@ void data_restore(Session &s, BROWSER *b);
    overwrite it when it exists: an empty Writer when the answer is no, or
    when it cannot be written (err_msg says so) */
 Writer open_writer_asking(std::string_view fil, bool binary = false);
+/* The existing overwrite question, with Cancel (0). For an imported
+   model, n opens the existing file instead of declining the write. */
+int file_replace_choice(bool open_existing = false);
 
 /* the stored rows First..Last as XPP's .dat (data_formats.h), only the
    columns of a batch run's "only" list (plotlist) when it has one: the

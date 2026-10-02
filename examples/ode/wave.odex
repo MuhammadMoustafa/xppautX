@@ -1,0 +1,15 @@
+# wave.odex: converted from wave.ode by xppautX --convert (docs/odex.md)
+
+par a = 0.1, d = 0.2, eps = 0.05, gamma = 0, i = 0
+init vv0 = 1
+init vv1 = 1
+fun f(v) = -v+heav(v-a)
+vv0' = i+f(vv0)-w0+d*(vv1-vv0)
+vv[j]' = i+f(vv[j])-w[j]+d*(vv[j-1]-2*vv[j]+vv[j+1]) for j in 1..19
+vv20' = i+f(vv20)-w20+d*(vv19-vv20)
+w[j]' = eps*(vv[j]-gamma*w[j]) for j in 0..20
+# pulse wave
+#
+#
+@ meth=qualrk, dt=.25, total=150, xhi=150
+@ colormap=1

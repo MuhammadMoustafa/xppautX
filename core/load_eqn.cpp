@@ -110,64 +110,30 @@ void each_option(std::string_view line, std::string_view first, std::string_view
 
 
 
+void choose_model_file(xpp::Session &s)
+{
+ std::string &file=s.model().this_file;
+ if(s.got_file&&!xpp::files::is_dir(file))return;
+ if(s.got_file)xpp::files::change_dir(file.c_str());
+ const char *start=getenv("XPPSTART");
+ if(start&&xpp::files::is_dir(start))xpp::files::change_dir(start);
+ file=xpp::files::working_dir()+"/";
+ if(batch_options.enabled||!file_selector("Open model",file,"*.ode*"))
+   model_failed(Error{"open","model open cancelled or no model named",Place{file}});
+}
+
 void load_eqn(xpp::Session &s)
 {
- int okay=0;
- int std=0;
- s.options_applied=0;
- for(int i=0;i<MAXODE;i++)
- {
-  s.itor[i]=0;
-  s.delay_string[i]="0.0";
- }
- std::string &this_file=s.model().this_file;
- if(this_file=="/dev/stdin")std=1;
- if (s.got_file==1&&(std==0)&&xpp::files::is_dir(this_file.c_str()))
- {
-   xpp::files::change_dir(this_file.c_str());
-   make_eqn(s);
-   return;
- }
- /* the model's file: text (a zip or another binary file is refused, its
-    bytes never shown as a parse error's line), and for a saved model its
-    saved copy (model_files.h) */
- if(s.got_file==1&&std==0)
- {
-   std::string bytes;
-   const bool read=xpp::read_model_file(s.model(),this_file,bytes);
-   if(read&&!xpp::is_model_text(bytes))
-   {
-     model_failed(xpp::format("{} is not a model: {}",this_file,
-              xpp::zip::is_zip(bytes)?"it is a zip file (a session file is a .snapx)":"it is a binary file"));
-   }
-   if(!read&&!s.model().saved_in.empty())
-   {
-     model_failed(xpp::format("{} is not saved in {}",this_file,s.model().saved_in));
-   }
- }
- /* an .odex model: its own reader, then the same builder (odex.h) */
- if(s.got_file==1&&std==0&&xpp::odex::is_odex(this_file))
- {
-   okay=xpp::odex::load(s,this_file);
-   if(okay==1)return;
- }
- if(s.got_file==1)
- {
-   xpp::UniqueFile fptr=std==1?xpp::open_read(this_file.c_str()):xpp::open_model_file(s.model(),this_file);
-   if(fptr)
-   {
-     if(std==1)this_file="console";
-     okay=get_eqn(s,fptr.get());
-     if(okay==1)return;
-   }
- }
- while(okay==0)
- {
-   const char *start=getenv("XPPSTART");
-   if (start!=NULL && xpp::files::is_dir(start))
-     xpp::files::change_dir(start);
-   okay=make_eqn(s);
- }
+ const std::string &file=s.model().this_file;
+ xpp::Load::at(file);
+ if(!xpp::odex::is_odex(file))
+   model_failed(Error{"model","the loader reads .odex only; open a .ode to convert it",Place{file}});
+ std::string bytes;
+ if(!xpp::read_model_file(s.model(),file,bytes))
+   model_failed(Error{"model",s.model().saved_in.empty()?"cannot be read":xpp::format("is not saved in {}",s.model().saved_in),Place{file}});
+ if(!xpp::is_model_text(bytes))
+   model_failed(Error{"model","is not model text",Place{file}});
+ xpp::odex::load(s,file);
 }
 
 void set_all_vals(xpp::Session &s)

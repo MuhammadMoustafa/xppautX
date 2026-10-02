@@ -1,0 +1,89 @@
+# rosscmpliap.odex: converted from rosscmpliap.ode by xppautX --convert (docs/odex.md)
+
+fun f(x, y, z) = -y-z
+fun g(x, y, z) = x+a*y
+fun h(x, y, z) = b*x-c*z+x*z
+par a = 0.36, b = 0.4, c = 4.5
+init x = 0, y = -4.3, z = -0.054
+par eps = 0.01, dt = 0.05
+par mu = 0, nu = 0, kx = 1, ky = 0, kz = 0
+xdot = f(x, y, z)
+ydot = g(x, y, z)
+zdot = h(x, y, z)
+xx = x+eps*vx
+yy = y+eps*vy
+zz = z+eps*vz
+xp = x+eps*ux
+yp = y+eps*uy
+zp = z+eps*uz
+dx = vx+dt*((f(xx, yy, zz)-xdot)/eps+kx*(mu*vx-nu*ux))
+dy = vy+dt*((g(xx, yy, zz)-ydot)/eps+ky*(mu*vy-nu*uy))
+dz = vz+dt*((h(xx, yy, zz)-zdot)/eps+kz*(mu*vz-nu*uz))
+fx = ux+dt*((f(xp, yp, zp)-xdot)/eps+kx*(mu*ux+nu*vx))
+fy = uy+dt*((g(xp, yp, zp)-ydot)/eps+ky*(mu*uy+nu*vy))
+fz = uz+dt*((h(xp, yp, zp)-zdot)/eps+kz*(mu*uz+nu*vz))
+amp = sqrt(dx^2+dy^2+dz^2+fx^2+fy^2+fz^2)
+x' = x+dt*xdot
+y' = y+dt*ydot
+z' = z+dt*zdot
+vx' = dx/(if amp then amp else 2.23e-15)
+vy' = dy/(if amp then amp else 2.23e-15)
+vz' = dz/(if amp then amp else 2.23e-15)
+ux' = fx/(if amp then amp else 2.23e-15)
+uy' = fy/(if amp then amp else 2.23e-15)
+uz' = fz/(if amp then amp else 2.23e-15)
+ss' = ss+ln(amp)
+aux liap = ss/(if max(dt, t*dt) then max(dt, t*dt) else 2.23e-15)
+aux muu = mu
+aux nuu = nu
+init vx = 1
+# This code computes the Pecora-Carroll exponents for a complex eigenvalue
+# You could use a different chaotic system if you wanted
+# rossler attractor
+# these are parameters for the numerical method
+# eps is to compute the variational equation
+# dt is the numerical dt
+#
+# coupling stuff
+# see below
+# evaluate the right-hand sides
+# perturb along the preferred direction
+# v,u are the real and complex vectors of the variational equation
+# Note that  [F(X + eps V)-F(x)]/eps = A V + O(eps)
+# so we compute  A V without using the actual Jacobian
+# we also add the coupling:
+# K =  diag(kx,ky,kz) so we get
+#  (A - mu K) V   mu ios the overall strength of coupling
+# we integrate this using Euler
+# (mu + i nu)*(v + i u)
+# dx, etc fx, etc are the new values of vx, ..., ux
+# but we will renormalize them to norm 1 and get
+# the accumulation
+# now we figure out the magnitude of the change in length
+# the new norm of them
+#
+# eulers method for integration of the Rossler equations
+# update the unit vector (vx,vy,vz)
+# renormalized initial variational equations
+# accumulate the log of the expansion/compression
+# we average it (note that time is discrete so multiply t by dt)
+# this yields the liapunov exponent
+# keep track of mu
+# xpp in range integration does not keep track of the parameters
+# initialize (vx,vy,vz) as a unit vector
+#####
+# integrate 80000*dt = 4000 time steps
+# only keep the last one (trans=79999)
+# plot set up
+@ total=80000, meth=discrete, nout=50
+@ trans=79999
+@ bound=100000
+@ xp=muu, yp=nuu, xlo=-4, xhi=0, ylo=0, yhi=2
+
+# what followed the .ode's done:
+# # init conditions 2 par range
+# # mu 0 to -4 50 steps
+# # nu 0 to 2 50 steps
+# it will take a while
+# 
+# 

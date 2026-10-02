@@ -1,0 +1,8 @@
+# tstvol3.odex: converted from tstvol3.ode by xppautX --convert (docs/odex.md)
+
+x' = -x+1
+init x = 1
+u(t) = volterra(heav(tau-t)/tau, of=x)
+par tau = 1
+@ autoeval=1
+@ total=10

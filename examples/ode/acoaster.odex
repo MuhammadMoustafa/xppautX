@@ -1,0 +1,42 @@
+# acoaster.odex: converted from acoaster.ode by xppautX --convert (docs/odex.md)
+
+fun xM(M) = sin(alpha*M)
+fun zM(M) = gamma*cos(beta*M+delta)
+fun xMdM(M) = alpha*cos(alpha*M)
+fun zMdM(M) = -gamma*beta*sin(beta*M+delta)
+par alpha = 3, beta = 1, gamma = 1, delta = 0
+par drag = 0.1
+par mass = 1
+par g = 8.3
+par sv = 0.25
+init M = 0, X = 0, Z = 1
+init L = 0, Lalt = 0.001
+fun normM(M) = sqrt(xMdM(M)^2+zMdM(M)^2)
+fun mdt(M) = Lalt/(if normM(M) then normM(M) else 2.23e-15)
+X' = xMdM(M)*mdt(M)
+Z' = zMdM(M)*mdt(M)
+M' = mdt(M)
+L' = Lalt
+Lalt' = 1/mass*(-g*zMdM(M)/(if normM(M) then normM(M) else 2.23e-15)-drag*Lalt)
+set Sun = g = 274.13
+set Mercury = g = 3.59
+set Venus = g = 8.87
+set Earth = g = 9.81
+set Moon = g = 1.62
+set Mars = g = 3.77
+set Jupiter = g = 25.95
+set Saturn = g = 11.08
+set Uranus = g = 10.67
+set Neptune = g = 14.07
+set Pluto = g = 0.42
+#Hey, define your roller coaster track here!
+#Use parametric equations in M.
+#Now calculate and put the derivatives of your
+#parametric equations here:
+# scale mouse velocity a little as it is too sensitive
+#Shouldn't need to modify too much below...
+#Thanks to Newton!
+@ XP=X, YP=Z, XLO=-1, XHI=1, YLO=-1, YHI=1
+@ bounds=100000
+@ dt=.01, nout=5
+@ total=50

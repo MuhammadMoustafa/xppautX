@@ -1,0 +1,7 @@
+# phs.odex: converted from phs.ode by xppautX --convert (docs/odex.md)
+
+x' = 1+sin(y-x)
+y' = a+sin(x-y)
+par a = 1
+init x = 0, y = 0
+@ total=6.28, dt=.01

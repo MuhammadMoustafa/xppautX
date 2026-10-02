@@ -1,0 +1,12 @@
+# pendx.odex: converted from pendx.ode by xppautX --convert (docs/odex.md)
+
+x' = xp
+xp' = (-mu*xp-m*g*sin(x))/(m*l)
+par m = 10, mu = 2, g = 9.8, l = 1
+par scale = 0.0083333
+fun th(x, y) = atan2(x-0.5, 0.5-y)
+fun thdot(x, y, xp, yp) = (xp*(0.5-y)+yp*(x-0.5))/(if (x-0.5)^2+(y-0.5)^2 then (x-0.5)^2+(y-0.5)^2 else 2.23e-15)
+# damped pendulum pend.ode
+# some stuff for the animator
+# use pendx.ani
+@ bounds=100000

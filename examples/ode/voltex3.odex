@@ -1,0 +1,5 @@
+# voltex3.odex: converted from voltex3.ode by xppautX --convert (docs/odex.md)
+
+u(t) = sin(t)-volterra(cos(t), of=u)
+aux utrue = 2/sqrt(3)*sin(sqrt(3)*t/2)*exp(-t/2)
+#  voltex2.ode - uses convolution to speed up soln

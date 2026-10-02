@@ -1,0 +1,43 @@
+# koho3.odex: converted from koho3.ode by xppautX --convert (docs/odex.md)
+
+const ntot = 100
+fun h(u) = exp(-sig*(1-cos(2*pi*u*k/ntot)))
+par sig = 10
+par k = 1, eps = 0.1
+par br = 4, bc = 1
+za = 2*ran(1)-1
+zb = br*ran(1)
+zc = bc*ran(1)
+d[j] = sqrt((wa[j]-za)^2+(wb[j]-zb)^2+(wc[j]-zc)^2) for j in 0..99
+network mx = findext(-1, 100, 1, d0)
+wa[j]' = wa[j]+eps*(za-wa[j])*h(mx(3)-j) for j in 0..99
+wb[j]' = wb[j]+eps*(zb-wb[j])*h(mx(3)-j) for j in 0..99
+wc[j]' = wc[j]+eps*(zc-wc[j])*h(mx(3)-j) for j in 0..99
+ip' = mx(3)
+aux zza = za
+aux zzb = zb
+aux zzc = zc
+event 0 t-t0, wa[j] = 2*ran(1)-1, wb[j] = br*ran(1), wc[j] = bc*ran(1) for j in 0..99
+par t0 = 0
+# this implements the kohonen algorithm
+# using the findext code in xpp
+# here is the Gaussian like nbhd function
+# k=1 gives 1 peak, k=2, 2, etc
+# eps is the growth rate
+# generate a random stimulus
+# compute distance between stimulus and weight
+# find minimum  mx(2) is value mx(3) is index
+# here is the algorithm
+# keep track of the index
+# and keep track of the stim
+# randomly initialize
+#
+@ meth=discrete, total=20000, nout=8, trans=10000
+@ colormap=6
+
+# what followed the .ode's done:
+# 
+# [wa,wb]' = eps [wa-za,wb-zb] h(xhat - x)
+# 
+# 
+# 

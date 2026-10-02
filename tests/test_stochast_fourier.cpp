@@ -42,7 +42,7 @@ static double relerr(double got, double want)
 int main(void)
 {
     char *argv[] = {const_cast<char *>("test_stochast_fourier"),
-                     const_cast<char *>("tools/models/stochast_fourier_test.ode"), NULL};
+                     const_cast<char *>("tools/models/stochast_fourier_test.odex"), NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
     init_browser(xpp::client_session());
     init_all_graph(xpp::client_session());

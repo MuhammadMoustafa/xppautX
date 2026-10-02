@@ -324,6 +324,8 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
    xpp_malloc() does */
 int do_new_parser(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p)
 {
+  if (p.included > xpp::odex::max_include_depth)
+    model_failed(xpp::Error{"convert", "too many includes inside each other", xpp::Place{src.file, 1}});
   try {
     return parse_model(src, first, nnn, at_end, p);
   } catch (const std::bad_alloc &) {

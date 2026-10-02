@@ -129,7 +129,7 @@ wr("Makefile", s)
 s, nl = rd("tools/verify.sh")
 s = s.replace("make -j8 > build/last-build.log 2>&1", "make -j8 xppaut xppcore-cli > build/last-build.log 2>&1")
 s = s.replace("tools/x11free.sh\n", """tmp=$(mktemp -d)
-( cd "$tmp" && "$OLDPWD/xppcore-cli" "$OLDPWD/examples/ode/lecar.ode" >/dev/null 2>&1 )
+( cd "$tmp" && "$OLDPWD/xppcore-cli" "$OLDPWD/examples/ode/lecar.odex" >/dev/null 2>&1 )
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 rm -rf "$tmp"
 if [ "$sum" = "$BASELINE" ]; then

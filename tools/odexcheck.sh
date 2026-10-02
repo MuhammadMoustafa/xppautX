@@ -1,11 +1,9 @@
 #!/bin/sh
-# Every example as .odex (W74, docs/odex.md): each examples/**/*.ode that
-# loads by itself (its tests/examples.md5 entry an md5 or "none") is
-# converted in a temp copy of its folder (xppautX --convert --auto, which
-# checks the .odex compiles to the .ode's own programs) and the .odex run
-# (xppautX model.odex -silent); output.dat's md5, CRs removed, must be the
-# .ode's own baseline entry. A model that does not load by itself
-# ("noload": an include, a DLL) is skipped. A model with arrays must
+# The five retained foreign examples (W154): opening each .ode converts
+# it in a temp copy of its folder, saves .odex and runs it. Both that run
+# and a second open of .odex must match its unchanged baseline md5.
+# The refused standalone examples (noload) have no .odex and are skipped.
+# A model with arrays must
 # convert to arrays (W80, docs/odex.md "Arrays"): each of the .ode's
 # array statements (a line before done with x[a..b], not an @ line nor
 # a %[a..b] block's) is one .odex statement with its range, "for j in",
@@ -38,18 +36,25 @@ if [ "${1:-}" = --one ]; then
   elif gtimeout --version >/dev/null 2>&1; then tmo="gtimeout $tmo_s"
   fi
   why=
+  run_model() {
+    st=0
+    ( cd "$run" && exec $tmo "$bin" "$1" -silent >"$2" 2>&1 ) || st=$?
+    "$top/tools/run_example.sh" --runtime-exit "$st" "$run/output.dat"
+  }
   arrays=$(awk '/^[dD][oO][nN][eE]/{exit} /^[^#%@]*\[[0-9]+\.\.[0-9]+\]/{n++} END{print n+0}' "$f")
-  if ! ( cd "$run" && exec $tmo "$bin" --convert --auto "$base.ode" >convert.log 2>&1 ); then
+  if ! run_model "$base.ode" convert.log; then
     why="the conversion failed"
+  elif [ ! -e "$run/$base.odex" ]; then
+    why="opening the .ode did not save its .odex"
+  elif [ "$(tr -d '\r' < "$run/output.dat" | md5)" != "$want" ]; then
+    why="the run opening .ode differs from its baseline"
   elif [ "$(grep -v '^#' "$run/$base.odex" | grep -cE ' for [a-z]+ in ')" -lt "$arrays" ]; then
     why="its $arrays array statements were not all written as arrays (for j in ...)"
   else
     rm -f "$run/output.dat"
-    st=0
-    ( cd "$run" && exec $tmo "$bin" "$base.odex" -silent >run.log 2>&1 ) || st=$?
     # exit 1 after a runtime error that still wrote its data (W133, as
     # run_example.sh): the data is compared like any other run's
-    if [ "$st" -ne 0 ] && ! { [ "$st" -eq 1 ] && [ -s "$run/output.dat" ]; }; then
+    if ! run_model "$base.odex" run.log; then
       why="the .odex run exited $st"
     else
       if [ -s "$run/output.dat" ]; then got=$(tr -d '\r' < "$run/output.dat" | md5); else got=none; fi
@@ -88,7 +93,12 @@ case "$bin" in /*) ;; *) bin=$top/$bin ;; esac
 if [ -n "$keep" ]; then mkdir -p "$keep"; KEEP=$(cd "$keep" && pwd); export KEEP; fi
 jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 out=$(mktemp -d)
-grep -v '^noload ' "$base" | awk '{print $2, $1}' \
+find examples -name '*.ode' | sort | while read -r f; do
+  [ -e "${f%.ode}.odex" ] || continue
+  want=$(awk -v f="${f%.ode}.odex" '$2==f {print $1}' "$base")
+  [ -n "$want" ] || { echo "missing baseline for $f" >&2; exit 1; }
+  echo "$f $want"
+done \
   | xargs -P"$jobs" -L1 "$top/tools/odexcheck.sh" --one "$bin" "$out" "${TIMEOUT:-300}"
 n=$(ls "$out"/*.r 2>/dev/null | wc -l | tr -d ' ')
 bad=$(grep -l fail "$out"/*.r 2>/dev/null | wc -l | tr -d ' ')

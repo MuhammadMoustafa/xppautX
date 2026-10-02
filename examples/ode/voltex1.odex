@@ -1,0 +1,5 @@
+# voltex1.odex: converted from voltex1.ode by xppautX --convert (docs/odex.md)
+
+u(t) = sin(t)+0.5*cos(t)-0.5*t*exp(-t)-0.5*exp(-t)+volterra((t-t')*exp(t'-t)*u)
+aux utrue = sin(t)
+#  Volterra solver example voltex1.ode

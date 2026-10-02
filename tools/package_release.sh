@@ -22,7 +22,7 @@ case "$platform" in
 esac
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
-mkdir -p "build/$name/examples" && cp examples/ode/lecar.ode "build/$name/examples/"
+mkdir -p "build/$name/examples" && cp examples/ode/lecar.odex "build/$name/examples/"
 # per-user .ode file association (tools/associate/, W13b): the Windows and
 # macOS pieces are plain text, small enough for every platform's archive;
 # Linux also needs the icons install-linux.sh installs into the hicolor
@@ -52,7 +52,7 @@ One program, and like xppaut it takes what to do from the command line:
   xppautX --server MODEL.ode   the JSON protocol on stdin/stdout, for a
                                program that embeds it
 
-Try:  ./xppautX examples/lecar.ode
+Try:  ./xppautX examples/lecar.odex
 Options: --port N (default 8765, 0 for any free port), --no-open (browser mode,
 printing the address only). xppautX --version prints this release's tag,
 xppautX --help the modes.

@@ -1,0 +1,31 @@
+# ml-range.odex: converted from ml-range.ode by xppautX --convert (docs/odex.md)
+
+par gl = 0.5, gca = 1, gk = 2
+par vk = -0.7, vl = -0.5, vca = 1
+par v1 = 0.01, v2 = 0.145, v3 = 0.1, v4 = 0.15
+par i = 0.2, phi = 0.333
+wiener nz
+fun minf(v) = 0.5*(1+tanh((v-v1)/v2))
+fun winf(v) = 0.5*(1+tanh((v-v3)/v4))
+fun lamw(v) = cosh((v-v3)/(2*v4))
+v' = gl*(vl-v)+gk*w*(vk-v)-icaf+i+sig*nz
+w' = phi*lamw(v)*(winf(v)-w)
+icaf = gca*minf(v)*(v-vca)
+aux ica = icaf
+par sig = 0
+init v = 0.05
+init w = 0
+# The Morris-Lecar equations ml1.ode
+#  NOTE: I use only the first letter for declarations!
+# Declare the parameters
+# Define some functions
+# define the right-hand sides
+# where
+# and
+# some initial conditions -- not necessary but for completeness
+# Done!!
+@ total=100, trans=50
+@ xp=v, yp=w, xlo=-.4, xhi=.6, ylo=-.1, yhi=.6
+@ range=1, rangeover=i, rangestep=50, rangelow=-.2, rangehigh=.5
+@ rangereset=yes
+@ dfgrid=16, ncdraw=1, dfdraw=2

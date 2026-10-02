@@ -1,0 +1,12 @@
+# kepler.odex: converted from kepler.ode by xppautX --convert (docs/odex.md)
+
+init x1 = 1e-04, x2 = 1e-04, z = 0
+par eps = 0.1, a = 1
+x1' = x1*(1-x1-z*x2)
+x2' = z*(a*x2*(1-x1-x2)+eps*x1)
+markov z 2
+  {0} {eps*x1} 
+  {0} {0} 
+aux dd = x2-x1
+# Kepler model kepler.ode
+# the markov variable and its transition matrix

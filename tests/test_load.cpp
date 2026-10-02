@@ -15,7 +15,7 @@
 int main(void)
 {
     char arg0[] = "test_load";
-    char good[] = "tools/models/stoch_liap.ode";
+    char good[] = "tools/models/stoch_liap.odex";
     char bad[] = "tools/models/malformed_unbalanced.ode";
     char *argv_good[] = {arg0, good, NULL};
     char *argv_bad[] = {arg0, bad, NULL};
@@ -102,7 +102,7 @@ int main(void)
     char map_arg[] = "build/test_load_map.ode";
     char *argv_map[] = {arg0, map_arg, NULL};
     CHECK(xpp::load_model(2, argv_map, 1).has_value());
-    CHECK(xpp::client_session().model().is_a_map == 1);
+    CHECK(xpp::client_session().model().this_file == "build/test_load_map.odex");
     CHECK(xpp::client_session().numerics.method == 0);
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().is_a_map == 0);

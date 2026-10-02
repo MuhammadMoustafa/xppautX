@@ -1,0 +1,9 @@
+# delta.odex: converted from delta.ode by xppautX --convert (docs/odex.md)
+
+x' = 1
+y' = w
+event 1 x-2*pi, x = 0, y = b*r(y)+y
+event 1 y-2*pi, y = 0, x = b*r(x)+x
+fun r(x) = sin(x+phi)-sin(phi)
+par b = -0.25, phi = 0, w = 1
+# delta coupled oscillators delta.ode

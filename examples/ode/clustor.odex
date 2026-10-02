@@ -1,0 +1,20 @@
+# clustor.odex: converted from clustor.ode by xppautX --convert (docs/odex.md)
+
+table je exp(-0.4*t^2)/2.80249, n=11, lo=-5, hi=5
+table ji exp(-0.08*t^2)/6.2664, n=41, lo=-10, hi=10
+network ke[j] = conv(even, 61, 5, je, w0_[j]) for j in 0..5
+network ki[j] = conv(even, 61, 5, ji, w0_[j]) for j in 0..5
+s[j] = (w0_[j]+w1_[j]+w2_[j]+w3_[j]+w4_[j]+w5_[j])/6 for j in 0..60
+fun f(u) = 1/(1+exp(-u))
+w0_[j]' = f(re*(a0*w0_[j]+a1*(w1_[j]+w5_[j])+a2*(w2_[j]+w4_[j])-0.5))*(1-s[j])-f(ri*(b0*w0_[j]+b1*(w1_[j]+w5_[j])+b2*(w2_[j]+w4_[j])-0.5))*w0_[j] for j in 0..60
+w1_[j]' = f(re*(a0*w1_[j]+a1*(w2_[j]+w0_[j])+a2*(w3_[j]+w5_[j])-0.5))*(1-s[j])-f(ri*(b0*w1_[j]+b1*(w2_[j]+w0_[j])+b2*(w3_[j]+w5_[j])-0.5))*w1_[j] for j in 0..60
+w2_[j]' = f(re*(a0*w2_[j]+a1*(w3_[j]+w1_[j])+a2*(w4_[j]+w0_[j])-0.5))*(1-s[j])-f(ri*(b0*w2_[j]+b1*(w3_[j]+w1_[j])+b2*(w4_[j]+w0_[j])-0.5))*w2_[j] for j in 0..60
+w3_[j]' = f(re*(a0*w3_[j]+a1*(w4_[j]+w2_[j])+a2*(w5_[j]+w1_[j])-0.5))*(1-s[j])-f(ri*(b0*w3_[j]+b1*(w4_[j]+w2_[j])+b2*(w5_[j]+w1_[j])-0.5))*w3_[j] for j in 0..60
+w4_[j]' = f(re*(a0*w4_[j]+a1*(w5_[j]+w3_[j])+a2*(w0_[j]+w2_[j])-0.5))*(1-s[j])-f(ri*(b0*w4_[j]+b1*(w5_[j]+w3_[j])+b2*(w0_[j]+w2_[j])-0.5))*w4_[j] for j in 0..60
+w5_[j]' = f(re*(a0*w5_[j]+a1*(w0_[j]+w4_[j])+a2*(w1_[j]+w3_[j])-0.5))*(1-s[j])-f(ri*(b0*w5_[j]+b1*(w0_[j]+w4_[j])+b2*(w1_[j]+w3_[j])-0.5))*w5_[j] for j in 0..60
+par a0 = 0.33333, a1 = 0.25, a2 = 0.083333
+par b0 = 0.33333, b1 = 0.25, b2 = 0.083333
+par re = 10, ri = 5
+# clustering of weights in 1-d model
+# orientation - 6 populations
+@ total=500, dt=1, meth=qualrk

@@ -1,0 +1,7 @@
+# wcring.odex: converted from wcring.ode by xppautX --convert (docs/odex.md)
+
+par a = 0.25, beta = 0.31415926
+u[j]' = -u[j]+f(a*sum(cos(beta*(j-i'))*shift(u0, i'), from=0, to=19)) for j in 0..19
+fun f(x) = tanh(x)
+init u0 = 0.5
+# chain of 20 neurons

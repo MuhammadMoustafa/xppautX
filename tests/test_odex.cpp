@@ -9,6 +9,7 @@
 #include "model.h"
 #include "expr.h"
 #include "xpp_batch.h"
+#include "xpp_files.h"
 #include "xpp_io.h"
 #include "session.h"
 #include "storage.h"
@@ -163,6 +164,7 @@ std::string lowered(const char *text)
 int load_text(const char *text, const char *ext = "odex")
 {
   std::string path = std::string("build/test_odex_model.") + ext;
+  if (std::string(ext) == "ode") xpp::files::remove(xpp::odex::odex_name(path));
   FILE *fp = fopen(path.c_str(), "w");
   if (!fp) return 0;
   fputs(text, fp);
@@ -527,14 +529,9 @@ int main(void)
   CHECK_STR(quantities("par a = 2\nd = a\nx' = delay(d, 1)\n").c_str(), "d:fixed");
   /* an .ode's fixed quantity of parameters stays fixed, as XPPAUT's; the
      same .odex d = expr is derived (maintainer, 2026-09-29) */
-  CHECK_STR(quantities("par a=2\n!tr=-a\nw=a*2\nv=x\nx'=tr+w+v\n", "ode").c_str(), "TR:derived|W:fixed|V:fixed");
+  CHECK_STR(quantities("par a=2\n!tr=-a\nw=a*2\nv=x\nx'=tr+w+v\n", "ode").c_str(), "tr:derived|w:derived|v:fixed");
   CHECK_STR(quantities("par a = 2\ntr = -a\nw = a*2\nv = x\nx' = tr+w+v\n").c_str(), "tr:derived|w:derived|v:fixed");
-  {
-    /* --convert's check builds the .ode as the .odex will be */
-    const xpp::OdeAsOdex as_odex;
-    CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:derived");
-  }
-  CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "W:fixed");
+  CHECK_STR(quantities("par a=2\nw=a*2\nx'=w\n", "ode").c_str(), "w:derived");
   CHECK(load_text("par a = 2\nd = a*3\nx' = d\n") == 1 && constant("d") == 6);
   {
     /* worked out again when a parameter changes, as .ode's ! is */
@@ -550,9 +547,9 @@ int main(void)
                     "aux y=x # words\nnumber n=3 # words\n"
                     "x'=-x # words\ndone\n", "ode") == 1);
     CHECK(constant("a") == 1 && constant("b") == 2 && constant("n") == 3);
-    CHECK(xpp::client_session().model().statements.size() == 6);
-    CHECK(xpp::client_session().model().source.front().find("# some words") != std::string::npos);
-    const std::string converted=xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
+    CHECK(xpp::client_session().model().nupar == 2);
+    CHECK(xpp::client_session().model().files.front().bytes.find("# some words") != std::string::npos);
+    const std::string converted=*xpp::odex::convert_text("build/test_odex_model.ode", true, xpp::odex::Ask());
     CHECK(converted.find("# some words\\ ignored continuation") != std::string::npos);
     CHECK(converted.find("# another comment") != std::string::npos);
     CHECK(model_error(converted.c_str()).empty());
@@ -572,21 +569,14 @@ int main(void)
                     "init x=4 # initial words\nx'=-x # formula words\n", "ode") == 1);
     CHECK(constant("included") == 7);
     CHECK(xpp::client_session().model().default_ic[0] == 4);
-    CHECK(xpp::client_session().model().statements.size() == 3);
+    CHECK(xpp::client_session().model().nupar == 1);
   }
 
   /* --convert: what the .ode's reader understood, its quirks explicit */
   {
-    char arg0[] = "test_odex", model[] = "tools/models/odex_quirks.ode";
-    char *argv[] = {arg0, model, nullptr};
-    std::string text, err;
-    CHECK(xpp::load_model(2, argv, 1).has_value());
-    try {
-      text = xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Error &e) {
-      err = e.text();
-    }
-    CHECK_STR(err.c_str(), "");
+    const xpp::Result<std::string> converted = xpp::odex::convert_text("tools/models/odex_quirks.ode", true, {});
+    CHECK(converted.has_value());
+    const std::string text = converted ? *converted : "";
     auto has = [&text](const char *line) {
       const bool found = text.find(std::string("\n") + line + "\n") != std::string::npos;
       if (!found) printf("  missing line: %s\n", line);
@@ -624,14 +614,9 @@ int main(void)
      d = expr would be worked out at every evaluation, not only when a
      parameter changes */
   {
-    std::string err;
-    CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 1);
-    try {
-      xpp::odex::convert_model(xpp::client_session(), true, xpp::odex::Ask());
-    } catch (const Error &e) {
-      err = e.what;
-    }
-    CHECK(starts(err, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
+    CHECK(load_text("par a=1\n!d=x*a\nx'=d\n", "ode") == 0);
+    const xpp::Result<std::string> converted = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
+    CHECK(!converted && starts(converted.error().what, "!d = x*a reads t, a variable, a random function or a derived quantity after it"));
   }
 
   /* near(a, b[, tol=]) numerically: tools/models/near_test.odex's aux

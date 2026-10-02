@@ -1,0 +1,22 @@
+# lorliap.odex: converted from lorliap.ode by xppautX --convert (docs/odex.md)
+
+init x = -7.5, y = -3.6, z = 30
+par r = 27, s = 10, b = 2.66666
+x' = s*(-x+y)
+y' = r*x-y-x*z
+z' = -b*z+x*y
+xl' = s*(-xl+yl)
+yl' = r*xl-yl-xl*z-x*zl
+zl' = -b*zl+xl*y+yl*x
+init xl = 1, yl = 0, zl = 0
+par dtout = 0.5
+init tt = 0
+event 1 tt-dtout, tt = 0, norm = sqrt(xl^2+yl^2+zl^2), acc = acc+ln(norm), xl = xl/(if norm then norm else 2.23e-15), yl = yl/(if norm then norm else 2.23e-15), zl = zl/(if norm then norm else 2.23e-15)
+tt' = 1
+norm' = 0
+acc' = 0
+aux liap = acc/(if max(1, t) then max(1, t) else 2.23e-15)
+# the famous Lorenz equation set up for 3d view
+@ bound=100000000
+@ dt=.025001, total=400, nout=10
+@ runnow=1

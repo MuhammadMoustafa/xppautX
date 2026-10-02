@@ -23,6 +23,8 @@
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
+#include "xpp_ui.h"
+#include "browse.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1240,11 +1242,6 @@ std::string odex_name(const std::string &ode)
   return ode + ".odex";
 }
 
-std::string convert_model(xpp::Session &s, bool auto_answer, const Ask &ask)
-{
-  return Converter(s, auto_answer, ask).run();
-}
-
 namespace {
 
 /* what a load compiled, to compare an .ode's Model with its .odex's: every
@@ -1289,6 +1286,28 @@ std::vector<int> normalized(const std::vector<int> &prog)
   for (size_t i = 0; i < prog.size(); i++) {
     const int c = prog[i];
     if (c == MYIF && collapse_guard(prog, i, out)) continue;
+    /* Removing a division guard also shortens its containing branch or
+       sum. Recompute those jumps from the normalized bodies. */
+    if (c == MYIF || c == SUMSYM) {
+      const size_t end = i + 2 + static_cast<size_t>(prog[i + 1]);
+      const size_t body_end = c == MYIF ? end - 2 : end;
+      const std::vector<int> body = normalized(std::vector<int>(prog.begin() + static_cast<std::ptrdiff_t>(i + 2),
+                                                               prog.begin() + static_cast<std::ptrdiff_t>(body_end)));
+      out.push_back(c);
+      out.push_back(static_cast<int>(body.size()) + (c == MYIF ? 2 : 0));
+      out.insert(out.end(), body.begin(), body.end());
+      if (c == MYIF) {
+        const size_t after = end + static_cast<size_t>(prog[end - 1]);
+        const std::vector<int> otherwise = normalized(std::vector<int>(prog.begin() + static_cast<std::ptrdiff_t>(end),
+                                                                      prog.begin() + static_cast<std::ptrdiff_t>(after - 1)));
+        out.push_back(MYTHEN);
+        out.push_back(static_cast<int>(otherwise.size()) + 1);
+        out.insert(out.end(), otherwise.begin(), otherwise.end());
+        out.push_back(MYELSE);
+        i = after - 1;
+      } else i = end - 1;
+      continue;
+    }
     out.push_back(c == COM(FUN2TYPE, xpp::expr::IEEE_DIVIDE) ? COM(FUN2TYPE, 3) : c);
     if (c == ENDEXP) break;
     /* the operands that follow an instruction, copied as they are */
@@ -1321,54 +1340,111 @@ Fingerprint fingerprint(const xpp::Session &s)
 
 } // namespace
 
-int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
+Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
+                               const std::vector<std::string> &includes)
 {
+  if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::string arg0 = "xppautX", model = ode;
-  std::vector<char *> argv = {arg0.data(), model.data(), nullptr};
-  if (is_odex(ode)) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "is .odex already", Place{ode}}.text());
-    return 1;
-  }
-  /* the .ode built with .odex's derived quantities, as its .odex will be:
-     the check compares like with like (the numbers are the same) */
-  const OdeAsOdex as_odex;
-  const xpp::Loaded loaded = xpp::load_model(2, argv.data(), 1);
-  if (!loaded) return 1;
-  const std::string out = odex_name(ode);
+  std::vector<std::string> args{arg0, model};
+  for (const std::string &include : includes) args.insert(args.end(), {"-include", include});
+  std::vector<char *> argv;
+  for (std::string &a : args) argv.push_back(a.data());
+  argv.push_back(nullptr);
   std::string text;
   Fingerprint before;
-  try {
-    xpp::Session &s = **loaded;
-    text = convert_model(s, auto_answer, ask);
-    before = fingerprint(s);
-  } catch (const Error &e) {
-    Error at = e;
-    if (at.place.file.empty()) at.place = Place{ode};
-    xpp::log(XPP_LOG_ERROR, "{}\n", at.text());
-    return 1;
-  }
-  if (xpp::files::exists(out.c_str()) && !auto_answer) {
-    std::optional<std::string> answer = ask ? ask(out + " exists; replace it (yes/no)", "no") : std::nullopt;
-    if (!answer || (*answer != "yes" && *answer != "y")) {
-      xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "exists and was left as it is (--convert --auto replaces it)", Place{out}}.text());
-      return 1;
+  SavedModel saved;
+  const OdeAsOdex as_odex;
+  Result<> imported = xpp::inspect_model(static_cast<int>(args.size()), argv.data(), [](Session &s) {
+    const std::string &file = s.model().this_file;
+    xpp::Load::at(file);
+    std::string bytes;
+    if (!read_model_file(s.model(), file, bytes) || !is_model_text(bytes))
+      model_failed(Error{"convert", "cannot be read as model text", Place{file}});
+    xpp::UniqueFile input = open_model_file(s.model(), file);
+    if (!input) model_failed(Error{"convert", "cannot be read", Place{file}});
+    get_eqn(s, input.get());
+  }, [&](Session &s) -> std::optional<Error> {
+    try {
+      text = Converter(s, auto_answer, ask).run();
+      before = fingerprint(s);
+      saved = SavedModel{odex_name(ode), s.model().files};
+    } catch (Error &e) {
+      if (e.place.file.empty()) e.place = Place{ode};
+      return e;
     }
-  }
-  xpp::Writer w(out.c_str());
+    return std::nullopt;
+  });
+  if (!imported) return std::unexpected(imported.error());
+  model = odex_name(ode);
+  argv = {arg0.data(), model.data(), nullptr};
+  saved.files.push_back({model, text});
+  Result<> checked = xpp::inspect_model(2, argv.data(), load_eqn,
+    [&](Session &s) -> std::optional<Error> {
+      if (!(fingerprint(s) == before))
+        return Error{"convert", xpp::format("does not compile to what {} did: a bug in the converter", ode), Place{model}};
+      return std::nullopt;
+    }, &saved);
+  if (!checked) return std::unexpected(checked.error());
+  return text;
+}
+
+namespace {
+
+Result<> write_conversion(const std::string &out, std::string_view text)
+{
+  /* Writer's diagnostic is rendered once by the command that opened it. */
+  xpp::LogCapture messages;
+  xpp::Writer w = xpp::Writer::binary(out);
   if (!w || !w.write(text) || !w.commit()) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "cannot be written", Place{out}}.text());
-    return 1;
+    messages.clear();
+    return xpp::fail_reading("convert", "cannot be written", out);
   }
-  /* exact by construction, and checked: the .odex builds what the .ode did */
-  model = out;
-  argv[1] = model.data();
-  const xpp::Loaded reloaded = xpp::load_model(2, argv.data(), 1);
-  if (!reloaded) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", "was written but does not load: a bug in --convert", Place{out}}.text());
-    return 1;
+  return {};
+}
+
+} // namespace
+
+Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes)
+{
+  const Ask ask = [&ode](const std::string &question, const std::string &suggestion) -> std::optional<std::string> {
+    std::string answer = suggestion;
+    if (!xpp::new_string(question, answer)) throw Error{"open", "model open cancelled", Place{ode}};
+    return answer;
+  };
+  Result<std::string> text = convert_text(ode, silent, ask, includes);
+  if (!text) return std::unexpected(text.error());
+  const std::string out = odex_name(ode);
+  if (xpp::files::exists(out)) {
+    std::string existing;
+    if (!xpp::read_bytes(out, existing)) return xpp::fail_reading("convert", "cannot be read", out);
+    if (xpp::split_lines(existing) == xpp::split_lines(*text)) return true;
+    if (silent)
+      return xpp::fail_reading("convert", xpp::format("differs from the conversion of {}; neither file was changed", ode), out);
+    const int choice = xpp::file_replace_choice(true);
+    if (choice == 'n') return false;
+    if (choice != 'y') return xpp::fail_reading("convert", "model open cancelled", ode);
   }
-  if (!(fingerprint(**reloaded) == before)) {
-    xpp::log(XPP_LOG_ERROR, "{}\n", Error{"convert", xpp::format("was written but does not compile to what {} did: a bug in --convert", ode), Place{out}}.text());
+  Result<> written = write_conversion(out, *text);
+  if (!written) return std::unexpected(written.error());
+  return true;
+}
+
+int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
+{
+  Result<std::string> text = convert_text(ode, auto_answer, ask);
+  const std::string out = odex_name(ode);
+  Result<> written;
+  if (!text) written = std::unexpected(text.error());
+  else {
+    if (xpp::files::exists(out) && !auto_answer) {
+      const std::optional<std::string> answer = ask ? ask(out + " exists; replace it (yes/no)", "no") : std::nullopt;
+      if (!answer || (*answer != "yes" && *answer != "y"))
+        written = xpp::fail_reading("convert", "exists and was left as it is (--convert --auto replaces it)", out);
+    }
+    if (written) written = write_conversion(out, *text);
+  }
+  if (!written) {
+    xpp::log(XPP_LOG_ERROR, "{}\n", written.error().text());
     return 1;
   }
   xpp::log(XPP_LOG_INFO, "wrote {}\n", out);

@@ -294,7 +294,7 @@ int main(void)
             if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
     }
-    CHECK(xpp::client_session().model().this_file == plain_ode);
+    CHECK(xpp::client_session().model().this_file == xpp::odex::odex_name(plain_ode));
 
     /* XPPAUT's options file is not supported: an option line stops the load
        at its line, saying to write @ lines; the model before stays */
@@ -332,6 +332,7 @@ int main(void)
 
     /* an .ode's #include opts.inc (the name as written, #done last) is found next to the model, not in the working folder (the tree's top) */
     {
+        remove(bad_odex);
         const char inc_file[] = "build/test_options_inc.inc";
         CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n#done\n"));
         CHECK(write_file(bad_ode, std::string(model_text) + "#include test_options_inc.inc\ndone\n"));

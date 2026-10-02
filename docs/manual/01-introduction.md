@@ -125,7 +125,9 @@ a later one opens in the same window as File > Open model… does, asking
 first; starting the app on its own shows the Open dialog.
 
 **Opening another model, reloading this one.** xppautX serves one model
-at a time. File/open Model (`F M` in the page, File > Open model… in
+at a time. Opening a `.ode` in any mode converts and saves `.odex` beside
+it, which becomes the model from then on; see [.odex](02-ode-files.md#odex).
+File/open Model (`F M` in the page, File > Open model… in
 the window's menu bar) picks a `.ode` or `.odex` file (or a `.snapx`
 session file, a `.recx` recording, below) and asks first: the current model's data and AUTO diagram
 go, so it offers **Save session** (a session file, as File/saVe session
@@ -144,7 +146,7 @@ why, and the model before goes on as it was.
 
 **Continuing where you stopped: session files.** File/saVe session (`F
 V`) writes everything you would need to pick up tomorrow into one file,
-`name.snapx`: the model itself (its `.ode`, and every file it read: the
+`name.snapx`: the model itself (its `.odex`, and every file it read: the
 files it includes, its tables), the
 parameters, initial data and numerics, every plot window (its axes,
 variables, zoom and the earlier-runs toggle), the text, arrows, markers

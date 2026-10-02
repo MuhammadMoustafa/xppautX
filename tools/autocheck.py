@@ -37,8 +37,8 @@ orbits, the saved model, and refusal of damaged members before replacing
 any state. script plays
 examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
 "Scripts") and checks a broken script exits 1; names loads
-tools/models/longnames.ode (200-character names: no length limit, W76)
-and checks it computes, saves and continues exactly like shortnames.ode. replay interrupts an
+tools/models/longnames.odex (200-character names: no length limit, W76)
+and checks it computes, saves and continues exactly like shortnames.odex. replay interrupts an
 integration and an AUTO run over --server and checks that a script made of
 the same commands and the recorded {"cmd":"abort","at":...} stops them at
 the same point: the same data file, the same saved diagram. --report prints the
@@ -61,8 +61,8 @@ if args.list:
     print(' '.join(ap.get_default('sections')))
     sys.exit(0)
 here = os.path.dirname(os.path.abspath(__file__))
-LECAR = 'examples/ode/lecar.ode'
-HEAVY = os.path.join(here, 'models', 'heavy.ode')
+LECAR = 'examples/ode/lecar.odex'
+HEAVY = os.path.join(here, 'models', 'heavy.odex')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.csv')  # the .snapx's diagram.csv of section_files
 OLD_AUTO = os.path.join(here, 'models', 'lecar_diagram.auto')  # XPPAUT's .auto of the same diagram
 SCRIPT = 'examples/scripts/lecar_auto.jsonl'
@@ -409,7 +409,7 @@ def cpu_seconds(pid):
 # ---- abort: a long AUTO run stops at once, and can be continued ------------
 
 def periodic_run(s):
-    """from the Hopf point of heavy.ode, start a periodic run; returns once
+    """from the Hopf point of heavy.odex, start a periodic run; returns once
     two points have been computed (diagram data), with the time between them"""
     s.collect(is_idle)
     s.send(cmd='data', events=['autoinfo'])
@@ -890,7 +890,7 @@ def section_session():
     snap_path = os.path.join(s.run, 's1.snapx')
     members = zipfile.ZipFile(snap_path).namelist() if os.path.exists(snap_path) else []
     check('session save writes s1.snapx with the model, the .set and AUTO\'s files in it',
-          'model/lecar.ode' in members and 'model.set' in members and 'auto/diagram.csv' in members, str(members))
+          'model/lecar.odex' in members and 'model.set' in members and 'auto/diagram.csv' in members, str(members))
     pars1 = dict(saved['pars']) if saved else {}
 
     # a NEW server, in a new directory, with only the session file copied in
@@ -898,7 +898,7 @@ def section_session():
     s2 = Server(args.server, LECAR, env={'HOME': home2}, verbose=args.v)
     s2.collect(is_idle)
     if os.path.exists(snap_path): shutil.copy(snap_path, s2.run)
-    # and a server of another model, with no lecar.ode in its folder
+    # and a server of another model, with no lecar.odex in its folder
     home3 = tempfile.mkdtemp(prefix='xpphome')
     s3 = Server(args.server, HEAVY, env={'HOME': home3}, verbose=args.v)
     s3.collect(is_idle)
@@ -934,14 +934,14 @@ def section_session():
     s2.close()
     shutil.rmtree(home2, ignore_errors=True)
 
-    # no lecar.ode where it opens: the saved model loads, with the session
+    # no lecar.odex where it opens: the saved model loads, with the session
     evs = open_session(s3, 's1')
     st = last_state(evs)
     check('session load where no .ode is: the saved lecar loads, its title names the session file',
-          'lecar.ode (saved in s1.snapx)' in (hello_title(evs) or ''), str(hello_title(evs)))
+          'lecar.odex (saved in s1.snapx)' in (hello_title(evs) or ''), str(hello_title(evs)))
     check('session load where no .ode is: the parameters and the diagram are the saved ones',
           st is not None and dict(st['pars']) == pars1 and any(is_point(e) for e in evs), str(st and st['pars']))
-    check('session load writes nothing beside the file', sorted(os.listdir(s3.run)) == ['heavy.ode', 's1.snapx'],
+    check('session load writes nothing beside the file', sorted(os.listdir(s3.run)) == ['heavy.odex', 's1.snapx'],
           str(os.listdir(s3.run)))
     # a session file without its model: refused, the model open stays
     import zipfile as zf
@@ -966,9 +966,9 @@ def section_session():
     table = os.path.join(folder, 'w.tab').replace(os.sep, '/')
     with open(table, 'w') as f:
         f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
-    tab_ode = os.path.join(folder, 'tab.ode')
+    tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
-        f.write(chr(10).join(['table w ' + table, 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total=4', 'done', '']))
+        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total=4', '']))
     s4 = Server(args.server, tab_ode, verbose=args.v)
     s4.collect(is_idle)
     s4.send(cmd='session', op='save', name='tab')
@@ -976,7 +976,7 @@ def section_session():
     tab_snap = os.path.join(s4.run, 'tab.snapx')
     names = zf.ZipFile(tab_snap).namelist() if os.path.exists(tab_snap) else []
     check('session save of a model with a file table carries the table',
-          'model/tab.ode' in names and 'model/' + table in names, str(names))
+          'model/tab.odex' in names and 'model/' + table in names, str(names))
     shutil.rmtree(folder, ignore_errors=True)
     s5 = Server(args.server, LECAR, verbose=args.v)
     s5.collect(is_idle)
@@ -993,7 +993,7 @@ def section_session():
     rows = [l.strip() for l in open(csv_path) if l.strip() and not l.startswith('#')] if os.path.exists(csv_path) else []
     x_end = float(rows[-1].split(',')[1]) if len(rows) > 1 else None
     check('and the table model loads from it alone, integrating through its table (w(1.5) = 2.5)',
-          'tab.ode (saved in tab.snapx)' in (hello_title(evs) or '') and x_end is not None
+          'tab.odex (saved in tab.snapx)' in (hello_title(evs) or '') and x_end is not None
           and abs(x_end - 2.5 * (1 - math.exp(-4))) < 1e-3, '%s %s' % (hello_title(evs), rows[-1:]))
     s5.close()
 
@@ -1032,10 +1032,10 @@ def section_sessiondiagram():
     # an old name asked for: the .snapx beside it
     got = save_diagram(s, 'd1', 'd1.snapx')
     check('sessiondiagram: Save diagram writes d1.snapx, a zip of the files listed, the model in it',
-          list(got) == ['session.txt', 'model/lecar.ode', 'model.set', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.set', 'marks.set', 'random.txt'], str(list(got)))
-    check('sessiondiagram: session.txt is the manifest of lecar.ode, which is in it byte for byte',
-          got.get('session.txt', '') == 'xppautX session 1\nname lecar.ode\ndata 0\n'
-          and got.get('model/lecar.ode') == open(LECAR).read(), got.get('session.txt', '')[:300])
+          list(got) == ['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/views.txt', 'auto/diagram.csv', 'auto/solutions.s', 'windows.set', 'marks.set', 'random.txt'], str(list(got)))
+    check('sessiondiagram: session.txt is the manifest of lecar.odex, which is in it byte for byte',
+          got.get('session.txt', '') == 'xppautX session 1\nname lecar.odex\ndata 0\n'
+          and got.get('model/lecar.odex') == open(LECAR).read(), got.get('session.txt', '')[:300])
     check('sessiondiagram: settings.txt has the numerics, the parameters and the axes',
           all(re.search(r'(^|\n)%s ' % k, got.get('auto/settings.txt', '')) for k in ('ntst', 'ds', 'pars', 'plot', 'xmin')),
           got.get('auto/settings.txt', '')[:300])
@@ -1121,7 +1121,7 @@ def section_sessiondiagram():
         text = f.read()
     for edit, what in (('# edited since\n' + text, 'a comment added'), (re.sub(r'\bphi\b', 'phi2', text), 'phi renamed')):
         folder = tempfile.mkdtemp(prefix='xppode', dir=scratch)
-        ode = os.path.join(folder, 'lecar.ode')
+        ode = os.path.join(folder, 'lecar.odex')
         with open(ode, 'w') as f:
             f.write(edit)
         s = server(ode)
@@ -1129,18 +1129,18 @@ def section_sessiondiagram():
         pts = Diagram().apply(evs).pts
         st = last_state(evs)
         check('sessiondiagram: the .ode edited (%s): Load diagram loads the saved model, its diagram exactly' % what,
-              'lecar.ode (saved in d1.snapx)' in (hello_title(evs) or '') and pts == dg1
+              'lecar.odex (saved in d1.snapx)' in (hello_title(evs) or '') and pts == dg1
               and st is not None and 'PHI' in [n.upper() for n, v in st['pars']], '%s; %s' % (hello_title(evs), messages(evs)[:300]))
         s.close()
 
-    # another model open, `open` of the .snapx (where no lecar.ode is): its model and diagram
+    # another model open, `open` of the .snapx (where no lecar.odex is): its model and diagram
     s = server(HEAVY)
     shutil.copy(d1, s.run)
     evs = open_file(s, 'd1.snapx')
     pts = Diagram().apply(evs).pts
     check('sessiondiagram: open of an .snapx with another model open loads its saved model and diagram',
-          'lecar.ode (saved in d1.snapx)' in (hello_title(evs) or '') and pts == dg1, '%s; %d points' % (hello_title(evs), len(pts)))
-    check('sessiondiagram: nothing is written beside it', sorted(os.listdir(s.run)) == ['d1.snapx', 'heavy.ode'], str(os.listdir(s.run)))
+          'lecar.odex (saved in d1.snapx)' in (hello_title(evs) or '') and pts == dg1, '%s; %d points' % (hello_title(evs), len(pts)))
+    check('sessiondiagram: nothing is written beside it', sorted(os.listdir(s.run)) == ['d1.snapx', 'heavy.odex'], str(os.listdir(s.run)))
     # a file without its model: an error, nothing changes
     import zipfile
     z = zipfile.ZipFile(d1)
@@ -1222,14 +1222,14 @@ def section_sessiondiagram():
           'archive size and member limits' in messages(evs) and hello_title(evs) is None and s.alive())
     shutil.copy(d1, os.path.join(s.run, 'obsolete.autox'))
     evs = open_file(s, 'obsolete.autox')
-    check('W155: an .autox is refused as a binary model, never opened as an archive',
-          'not a model' in messages(evs) and hello_title(evs) is None and s.alive())
+    check('W155: an .autox is refused by the .odex-only loader, never opened as an archive',
+          'loader reads .odex only' in messages(evs) and hello_title(evs) is None and s.alive())
     # a binary file opened as a model: refused, its bytes never shown
-    with open(os.path.join(s.run, 'bin.ode'), 'wb') as out:
+    with open(os.path.join(s.run, 'bin.odex'), 'wb') as out:
         out.write(b'x\'=-x\n\x00\x01\x02\xff\n')
-    evs = open_file(s, 'bin.ode')
+    evs = open_file(s, 'bin.odex')
     check('sessiondiagram: a binary file opened as a model is refused, its bytes never shown',
-          'not a model' in messages(evs) and hello_title(evs) is None and '\x00' not in messages(evs), messages(evs)[:300])
+          'is not model text' in messages(evs) and hello_title(evs) is None and '\x00' not in messages(evs), messages(evs)[:300])
     s.close()
     for h in homes + [scratch]:
         shutil.rmtree(h, ignore_errors=True)
@@ -1338,12 +1338,12 @@ def section_control():
 
 # ---- names: a model with long names works like the same model with short --
 
-LONG = os.path.join(here, 'models', 'longnames.ode')
-SHORT = os.path.join(here, 'models', 'shortnames.ode')
+LONG = os.path.join(here, 'models', 'longnames.odex')
+SHORT = os.path.join(here, 'models', 'shortnames.odex')
 
 
 def long_name(base):
-    """base padded to the 200 characters longnames.ode's names have (W76: a
+    """base padded to the 200 characters longnames.odex's names have (W76: a
     name has no length limit); the model was written with this"""
     words = ['of', 'the', 'model', 'with', 'a', 'name', 'two', 'hundred', 'characters', 'long']
     s, i = base, 0
@@ -1630,7 +1630,7 @@ def file_content(path, mode='r'):
 
 def section_replay():
     # (a) an integration: play it once to learn how many rows it stores
-    # (lecar's own default, no need for heavy.ode: nothing here races a
+    # (lecar's own default, no need for heavy.odex: nothing here races a
     # clock), then replay with the stop armed at half of them
     full = silent_output(LECAR)
     total_rows = len(full.strip().splitlines()) if full else 0
@@ -1805,9 +1805,9 @@ def section_errors():
 
 # ---- memory: borrowed columns, CVODE's memory on a failed run (W117) ----
 
-BORROWED = os.path.join(here, 'models', 'borrowed.ode')
-CVODE_STOP = os.path.join(here, 'models', 'cvode_stop.ode')
-CVODE_POINCARE = os.path.join(here, 'models', 'cvode_poincare.ode')
+BORROWED = os.path.join(here, 'models', 'borrowed.odex')
+CVODE_STOP = os.path.join(here, 'models', 'cvode_stop.odex')
+CVODE_POINCARE = os.path.join(here, 'models', 'cvode_poincare.odex')
 
 
 def integrate(s):
@@ -2054,7 +2054,7 @@ def section_play():
           '"during":[{"key":"/","at":{"what":"integrate","rows":' in text, text[text.find('@steps'):][:400])
     # the replay's range ends where the recorded one did: had the / not
     # come there (the stop is armed at its row), the step would say so,
-    # or run all 20 of heavy.ode's runs
+    # or run all 20 of heavy.odex's runs
     t0 = time.monotonic()
     pl, evs = play_recording(s, os.path.join(s.run, 'range.recx'))
     errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]

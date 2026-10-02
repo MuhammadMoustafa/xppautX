@@ -1,0 +1,19 @@
+# waterwheel.odex: converted from waterwheel.ode by xppautX --convert (docs/odex.md)
+
+fun ff(u) = heav(cos(u)-cos(pi/n))
+flow[j] = flow*ff(theta-2*pi*j/n) for j in 0..9
+cp[j] = flow[j]-mu*c[j] for j in 0..9
+m[j] = c[j]+mc/n for j in 0..9
+c[j]' = cp[j] for j in 0..9
+mdot = sum(shift(cp0, i'), from=0, to=9)
+m = sum(shift(c0, i'), from=0, to=9)+mc
+theta' = thetap
+thetap' = (-nu*thetap-l*l*mdot*thetap+l*sum(shift(m0, i')*sin(theta-2*pi*i'/n), from=0, to=9))/(if m*l*l then m*l*l else 2.23e-15)
+par flow = 0.5, mu = 0.1, n = 10, l = 0.15, mc = 2, nu = 0.1
+init theta = 0.05
+x[j] = 0.3*sin(theta-2*pi*j/n)+0.4 for j in 0..9
+y[j] = 0.3*cos(theta-2*pi*j/n)+0.4 for j in 0..9
+yc[j] = 0.3*cos(theta-2*pi*j/n)+0.4+0.1*c[j]/2 for j in 0..9
+# the waterwheel ala Lorenz but discrete
+### some stuf for animation
+@ total=200, dt=.05, meth=cvode, tol=1e-5, atol=1e-4

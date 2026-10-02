@@ -1,0 +1,6 @@
+# crazy.odex: converted from crazy.ode by xppautX --convert (docs/odex.md)
+
+x' = -y+sin(1/(if x then x else 2.23e-15))*x^2
+y' = x
+@ xp=x, yp=y, xlo=-2, xhi=2, ylo=-2, yhi=2
+@ nmesh=101

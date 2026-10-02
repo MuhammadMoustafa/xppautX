@@ -157,9 +157,10 @@ constexpr VOCAB my_cmd[NCMD]=
   {"-debug",6}
  };
 
-void do_comline(xpp::Session &s, int argc, char **argv)
+int do_comline(xpp::Session &s, int argc, char **argv)
 { 
  int i,k;
+ int model_argument=-1;
 
  s.got_file=0;
  setfilename.clear();
@@ -177,7 +178,9 @@ void do_comline(xpp::Session &s, int argc, char **argv)
  readsetfile.clear();
  externaloptionsstring.clear();
  for(i=1;i<argc;i++){
+   const int had_file=s.got_file;
    k=parse_it(s,argv[i]);
+   if(!had_file&&s.got_file)model_argument=i;
    if(k==1){
      setfilename=argv[i+1];
      i++;
@@ -334,6 +337,7 @@ void do_comline(xpp::Session &s, int argc, char **argv)
    }
 
  }
+ return model_argument;
 }
 
 static int if_needed_load_ext_options(xpp::Session &s)

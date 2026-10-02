@@ -1,0 +1,11 @@
+# pf.odex: converted from pf.ode by xppautX --convert (docs/odex.md)
+
+x' = r*x-x^3
+par r = -1
+init x = 0
+# load this in XPP
+# click File AUTO, in Autom Run Steady ststr
+@ dsmax=.1, parmin=-2, parmax=2
+@ autoxmin=-1.25, autoxmax=2
+@ autoymin=-2, autoymax=2
+@ autovar=x

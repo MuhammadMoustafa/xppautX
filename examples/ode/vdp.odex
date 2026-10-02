@@ -1,0 +1,10 @@
+# vdp.odex: converted from vdp.ode by xppautX --convert (docs/odex.md)
+
+par om = 6.6
+x' = xp*om
+xp' = (-x+xp*(1-x^2))*om
+init x = 1
+boundary x-x'
+boundary xp-xp'
+# The van der Pol Oscillator with a frequuency parameter and
+# periodic boundary conditions

@@ -2,7 +2,7 @@
    a known maximal Liapunov exponent, exactly a, since every perturbation
    grows or shrinks as e^(a t) regardless of its size or direction. This
    checks hrw_liapunov() against that known value within a small tolerance,
-   after integrating tools/models/stoch_liap.ode (rk4, a=-0.7) the way
+   after integrating tools/models/stoch_liap.odex (rk4, a=-0.7) the way
    xppautX -silent does (Initialconds/Go). */
 #include "xpptest.h"
 #include "session.h"
@@ -20,7 +20,7 @@
 
 int main(void)
 {
-    char arg0[] = "test_stochast_liap", arg1[] = "tools/models/stoch_liap.ode";
+    char arg0[] = "test_stochast_liap", arg1[] = "tools/models/stoch_liap.odex";
     char *argv[] = {arg0, arg1, NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
     xpp::batch_start(xpp::client_session());

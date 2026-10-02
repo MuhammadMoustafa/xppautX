@@ -1,0 +1,9 @@
+# cvode_poincare.odex: converted from cvode_poincare.ode by xppautX --convert (docs/odex.md)
+
+x' = if t<1 then 1 else 0
+y' = -y
+init x = 0, y = 1
+# CVODE stopped by the Poincare map's "Cannot zero RHS": a maximum of x
+# where its right-hand side is 0 on both sides (tools/autocheck.py's
+# memory section, W117)
+@ meth=cvode, total=5, dt=0.1, poimap=max, poivar=x

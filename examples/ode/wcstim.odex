@@ -1,0 +1,12 @@
+# wcstim.odex: converted from wcstim.ode by xppautX --convert (docs/odex.md)
+# renamed: t is t_ here (.odex reserves t)
+
+init u = 0.0426, v = 0.0834
+u' = -u+f(aee*u-aie*v-te+stim(t))
+v' = (-v+f(aei*u-aii*v-ti))/tau
+par aee = 15, aie = 9, te = 3
+par aei = 20, aii = 3, ti = 3, tau = 5
+fun stim(t_) = s0+s1*(if t_<tdone then t_/tdone else 0)
+par s0 = 0, tdone = 1, s1 = 1.2
+fun f(u) = 1/(1+exp(-u))
+@ xp=u, yp=v, xlo=-.1, ylo=-.1, xhi=1.1, yhi=1.1, total=50

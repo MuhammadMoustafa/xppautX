@@ -1,0 +1,4 @@
+# tst.odex: converted from tst.ode by xppautX --convert (docs/odex.md)
+
+x' = -x
+@ JAC_EPS=1e-10, NEWT_TOL=1e-8, NEWT_ITER=1000

@@ -1,7 +1,7 @@
 /* stocHast's "Compute" (many runs), "Mean" and "Variance" (markov.cpp
    append_stoch/do_stats, driven by integrate.cpp's do_range() while
    STOCH_FLAG is set): running many independent trials of
-   tools/models/stoch_runs.ode, each sampling nsamp=normal(0,1) afresh,
+   tools/models/stoch_runs.odex, each sampling nsamp=normal(0,1) afresh,
    the per-time mean stocHast accumulates across trials must be near 0 and
    the variance near 1, within a tolerance set by the trial count -- never
    an exact value, so this still passes after W32a's generator swap.
@@ -24,7 +24,7 @@
 
 int main(void)
 {
-    char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.ode";
+    char arg0[] = "test_stochast_runs", arg1[] = "tools/models/stoch_runs.odex";
     char *argv[] = {arg0, arg1, NULL};
     CHECK(xpp::load_model(2, argv, 1).has_value());
     init_browser(xpp::client_session());

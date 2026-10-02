@@ -436,7 +436,7 @@ int main(void)
     check_orbit_growth(tmp);
     check_session_round_trip(tmp);
 
-    CHECK(load("examples/ode/lecar.ode"));
+    CHECK(load("examples/ode/lecar.odex"));
     check_import(lecar_auto, tmp);
     TEST_REPORT("session_auto");
 }

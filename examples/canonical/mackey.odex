@@ -1,0 +1,12 @@
+# mackey.odex: converted from mackey.ode by xppautX --convert (docs/odex.md)
+
+x' = -g*x+b*f(delay(x, tau))
+init x = 0.5
+fun f(u) = u/(if 1+u^n then 1+u^n else 2.23e-15)
+aux xdel = delay(x, tau)
+par tau = 6, g = 0.1, b = 0.2, n = 10
+# mackey.ode
+# mackey-glass equations
+# delayed value of x
+@ delay=30, total=600, nout=10
+@ xhi=600, yhi=2

@@ -1,0 +1,4 @@
+# bob.odex: converted from bob.ode by xppautX --convert (docs/odex.md)
+
+x' = y
+y' = -x

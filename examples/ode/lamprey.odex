@@ -1,0 +1,14 @@
+# lamprey.odex: converted from lamprey.ode by xppautX --convert (docs/odex.md)
+
+par grad = 0, phi = 0.1
+fun h(u) = sin(u+phi)
+par af = 1, ar = 1
+par bend = 0.1
+x1' = 1+grad+af*h(x2-x1)
+x[j]' = 1+grad*j+ar*h(x[j-1]-x[j])+af*h(x[j+1]-x[j]) for j in 2..19
+x20' = 1+20*grad+ar*h(x9-x10)
+an1 = bend*sin(x1)
+an[j] = bend*sin(x[j])+an[j-1] for j in 2..20
+# example of a chain of coupled oscillators
+@ bound=1000
+@ total=50

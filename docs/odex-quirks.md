@@ -1,5 +1,10 @@
 # .odex: inventory of .ode quirks
 
+Since W154 (#206), opening `.ode` always converts and saves `.odex`
+beside it. These quirks belong to the converter's foreign input reader;
+loading, Reload, sessions and recordings use the resulting `.odex`.
+
+
 W73 (#121): every quirk of the `.ode` reader found in the maintainer's VS
 Code extension (C:\gitRepos\XPP-ODE-Extension: `operatorCheckerCore.ts`,
 `semanticCheckerCore.ts`, `variableCheckerCore.ts`,

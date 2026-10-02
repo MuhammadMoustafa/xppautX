@@ -1,0 +1,25 @@
+# pend.odex: converted from pend.ode by xppautX --convert (docs/odex.md)
+# renamed: k.e. is k_e__ here (.odex reserves k.e.)
+# renamed: p.e. is p_e__ here (.odex reserves p.e.)
+# renamed: t.e is t_e_ here (.odex reserves t.e)
+
+x' = xp
+xp' = (-mu*xp-m*g*sin(x))/(m*l)
+pe = m*g*(1-cos(x))
+ke = 0.5*m*l*xp^2
+aux p_e__ = pe
+aux k_e__ = ke
+aux t_e_ = pe+ke
+par m = 10, mu = 2, g = 9.8, l = 1
+par scale = 0.0083333
+init x = 2
+# damped pendulum pend.ode
+# MKS units
+#
+# click on numerics colorize color via T.e
+# choose min=0, max=400
+# click dir fld - colorize - grid=80
+# click on the slider and choose g, gravity start at 9.8, min=0,max=20
+# watch the energy landscape change as you move the slider!
+@ xp=x, yp=xp, xlo=-4, xhi=4, ylo=-8, yhi=8
+@ bounds=1000

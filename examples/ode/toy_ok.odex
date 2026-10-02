@@ -1,0 +1,91 @@
+# toy_ok.odex: converted from toy_ok.ode by xppautX --convert (docs/odex.md)
+
+const q1 = 0, q2 = 2.19324542, q3 = 4.38649084
+x1n[j] = cos(t1+a+q[j]) for j in 1..3
+x1s[j] = cos(t1-a+q[j]) for j in 1..3
+y1n[j] = sin(t1+a+q[j]) for j in 1..3
+y1s[j] = sin(t1-a+q[j]) for j in 1..3
+x2n[j] = 2+d+cos(t2-a+q[j]) for j in 1..3
+x2s[j] = 2+d+cos(t2+a+q[j]) for j in 1..3
+y2n[j] = sin(t2-a+q[j]) for j in 1..3
+y2s[j] = sin(t2+a+q[j]) for j in 1..3
+dnn[j+10] = (x1n1-x2n[j])^2+(y1n1-y2n[j])^2 for j in 1..3
+dss[j+10] = (x1s1-x2s[j])^2+(y1s1-y2s[j])^2 for j in 1..3
+dns[j+10] = (x1n1-x2s[j])^2+(y1n1-y2s[j])^2 for j in 1..3
+dsn[j+10] = (x1s1-x2n[j])^2+(y1s1-y2n[j])^2 for j in 1..3
+dnn[j+20] = (x1n2-x2n[j])^2+(y1n2-y2n[j])^2 for j in 1..3
+dss[j+20] = (x1s2-x2s[j])^2+(y1s2-y2s[j])^2 for j in 1..3
+dns[j+20] = (x1n2-x2s[j])^2+(y1n2-y2s[j])^2 for j in 1..3
+dsn[j+20] = (x1s2-x2n[j])^2+(y1s2-y2n[j])^2 for j in 1..3
+dnn[j+30] = (x1n3-x2n[j])^2+(y1n3-y2n[j])^2 for j in 1..3
+dss[j+30] = (x1s3-x2s[j])^2+(y1s3-y2s[j])^2 for j in 1..3
+dns[j+30] = (x1n3-x2s[j])^2+(y1n3-y2s[j])^2 for j in 1..3
+dsn[j+30] = (x1s3-x2n[j])^2+(y1s3-y2n[j])^2 for j in 1..3
+fnnx[j+10] = (x1n1-x2n[j])/(if dnn[j+10]^1.5 then dnn[j+10]^1.5 else 2.23e-15) for j in 1..3
+fnny[j+10] = (y1n1-y2n[j])/(if dnn[j+10]^1.5 then dnn[j+10]^1.5 else 2.23e-15) for j in 1..3
+fssx[j+10] = (x1s1-x2s[j])/(if dss[j+10]^1.5 then dss[j+10]^1.5 else 2.23e-15) for j in 1..3
+fssy[j+10] = (y1s1-y2s[j])/(if dss[j+10]^1.5 then dss[j+10]^1.5 else 2.23e-15) for j in 1..3
+fnsx[j+10] = (x1n1-x2s[j])/(if dns[j+10]^1.5 then dns[j+10]^1.5 else 2.23e-15) for j in 1..3
+fnsy[j+10] = (y1n1-y2s[j])/(if dns[j+10]^1.5 then dns[j+10]^1.5 else 2.23e-15) for j in 1..3
+fsnx[j+10] = (x1s1-x2n[j])/(if dsn[j+10]^1.5 then dsn[j+10]^1.5 else 2.23e-15) for j in 1..3
+fsny[j+10] = (y1s1-y2n[j])/(if dsn[j+10]^1.5 then dsn[j+10]^1.5 else 2.23e-15) for j in 1..3
+fnnx[j+20] = (x1n2-x2n[j])/(if dnn[j+20]^1.5 then dnn[j+20]^1.5 else 2.23e-15) for j in 1..3
+fnny[j+20] = (y1n2-y2n[j])/(if dnn[j+20]^1.5 then dnn[j+20]^1.5 else 2.23e-15) for j in 1..3
+fssx[j+20] = (x1s2-x2s[j])/(if dss[j+20]^1.5 then dss[j+20]^1.5 else 2.23e-15) for j in 1..3
+fssy[j+20] = (y1s2-y2s[j])/(if dss[j+20]^1.5 then dss[j+20]^1.5 else 2.23e-15) for j in 1..3
+fnsx[j+20] = (x1n2-x2s[j])/(if dns[j+20]^1.5 then dns[j+20]^1.5 else 2.23e-15) for j in 1..3
+fnsy[j+20] = (y1n2-y2s[j])/(if dns[j+20]^1.5 then dns[j+20]^1.5 else 2.23e-15) for j in 1..3
+fsnx[j+20] = (x1s2-x2n[j])/(if dsn[j+20]^1.5 then dsn[j+20]^1.5 else 2.23e-15) for j in 1..3
+fsny[j+20] = (y1s2-y2n[j])/(if dsn[j+20]^1.5 then dsn[j+20]^1.5 else 2.23e-15) for j in 1..3
+fnnx[j+30] = (x1n3-x2n[j])/(if dnn[j+30]^1.5 then dnn[j+30]^1.5 else 2.23e-15) for j in 1..3
+fnny[j+30] = (y1n3-y2n[j])/(if dnn[j+30]^1.5 then dnn[j+30]^1.5 else 2.23e-15) for j in 1..3
+fssx[j+30] = (x1s3-x2s[j])/(if dss[j+30]^1.5 then dss[j+30]^1.5 else 2.23e-15) for j in 1..3
+fssy[j+30] = (y1s3-y2s[j])/(if dss[j+30]^1.5 then dss[j+30]^1.5 else 2.23e-15) for j in 1..3
+fnsx[j+30] = (x1n3-x2s[j])/(if dns[j+30]^1.5 then dns[j+30]^1.5 else 2.23e-15) for j in 1..3
+fnsy[j+30] = (y1n3-y2s[j])/(if dns[j+30]^1.5 then dns[j+30]^1.5 else 2.23e-15) for j in 1..3
+fsnx[j+30] = (x1s3-x2n[j])/(if dsn[j+30]^1.5 then dsn[j+30]^1.5 else 2.23e-15) for j in 1..3
+fsny[j+30] = (y1s3-y2n[j])/(if dsn[j+30]^1.5 then dsn[j+30]^1.5 else 2.23e-15) for j in 1..3
+c[j+10] = cos(t1+q[j]) for j in 1..3
+s[j+10] = -sin(t1+q[j]) for j in 1..3
+c[j+20] = cos(t2+q[j]) for j in 1..3
+s[j+20] = -sin(t2+q[j]) for j in 1..3
+f11x = (fnnx11+fnnx12+fnnx13+fssx11+fssx12+fssx13-(fnsx11+fnsx12+fnsx13+fsnx11+fsnx12+fsnx13))*s11
+f11y = (fnny11+fnny12+fnny13+fssy11+fssy12+fssy13-(fnsy11+fnsy12+fnsy13+fsny11+fsny12+fsny13))*c11
+f12x = (fnnx21+fnnx22+fnnx23+fssx21+fssx22+fssx23-(fnsx21+fnsx22+fnsx23+fsnx21+fsnx22+fsnx23))*s12
+f12y = (fnny21+fnny22+fnny23+fssy21+fssy22+fssy23-(fnsy21+fnsy22+fnsy23+fsny21+fsny22+fsny23))*c12
+f13x = (fnnx31+fnnx32+fnnx33+fssx31+fssx32+fssx33-(fnsx31+fnsx32+fnsx33+fsnx31+fsnx32+fsnx33))*s13
+f13y = (fnny31+fnny32+fnny33+fssy31+fssy32+fssy33-(fnsy31+fnsy32+fnsy33+fsny31+fsny32+fsny33))*c13
+f21x = (fnnx11+fnnx21+fnnx31+fssx11+fssx21+fssx31-(fnsx11+fnsx21+fnsx31+fsnx11+fsnx21+fsnx31))*s21
+f21y = (fnny11+fnny21+fnny31+fssy11+fssy21+fssy31-(fnsy11+fnsy21+fnsy31+fsny11+fsny21+fsny31))*c21
+f22x = (fnnx12+fnnx22+fnnx32+fssx12+fssx22+fssx32-(fnsx12+fnsx22+fnsx32+fsnx12+fsnx22+fsnx32))*s22
+f22y = (fnny12+fnny22+fnny32+fssy12+fssy22+fssy32-(fnsy12+fnsy22+fnsy32+fsny12+fsny22+fsny32))*c22
+f23x = (fnnx13+fnnx23+fnnx33+fssx13+fssx23+fssx33-(fnsx13+fnsx23+fnsx33+fsnx13+fsnx23+fsnx33))*s23
+f23y = (fnny13+fnny23+fnny33+fssy13+fssy23+fssy33-(fnsy13+fnsy23+fnsy33+fsny13+fsny23+fsny33))*c23
+t1' = t1p
+t1p' = -nu*t1p+f0*(f11x+f11y+f12x+f12y+f13x+f13y)
+t2' = t2p
+t2p' = -nu*t2p+dd*f0*(f21x+f21y+f22x+f22y+f23x+f23y)
+par a = 0.05, d = 0.1, dd = -1, f0 = 1, nu = 0.01
+aux x1 = cos(t1)
+aux x2 = cos(t2)
+aux y1 = sin(t1)
+aux y2 = sin(t2)
+init t2 = 4.5
+init t2p = 5
+# The 24 points
+# the 36 distances !!
+# the 72 component forces !!
+# sin and cos of the arms
+#
+# forces for circle 1
+#
+# arm 1
+#  arm 2
+# arm 3
+#
+# forces for circle 2
+#
+# arm 1
+# arm 2
+# arm 3
+@ bound=10000, meth=cvode, dt=.25, atoler=1e-4, toler=1e-5, total=300

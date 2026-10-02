@@ -1,0 +1,9 @@
+# nnet2.odex: converted from nnet2.ode by xppautX --convert (docs/odex.md)
+
+table wgt 1/25, n=25, lo=-12, hi=12
+fun f(u) = 1/(1+exp(-beta*u))
+network k = conv(even, 51, 12, wgt, u0)
+u[j]' = -u[j]+f(a*k(j)-thr) for j in 0..50
+par c = 2, a = 4, beta = 10, thr = 1
+aux junk[j] = k(j) for j in 5..10
+# neural network

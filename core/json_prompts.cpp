@@ -157,9 +157,20 @@ void j_command_error(std::string_view command, std::string what)
 
 void j_ping(void) { send_simple("ping"); }
 
-void j_bottom_msg(int, std::string_view msg)
+void j_bottom_msg(int, std::string_view msg, std::string_view chapter, std::string_view anchor)
 {
-    send_simple("message", "bottom", msg);
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"message\",\"bottom\":");
+    buf_str(&b, msg);
+    if (!chapter.empty()) {
+        BUF_LIT(&b, ",\"help\":{\"chapter\":");
+        buf_str(&b, chapter);
+        BUF_LIT(&b, ",\"anchor\":");
+        buf_str(&b, anchor);
+        BUF_LIT(&b, "}");
+    }
+    BUF_LIT(&b, "}");
+    send_buf(&b);
 }
 
 void j_message_box(std::string_view msg) { send_simple("message", "box", msg); }

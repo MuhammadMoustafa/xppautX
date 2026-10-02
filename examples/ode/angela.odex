@@ -1,0 +1,7 @@
+# angela.odex: converted from angela.ode by xppautX --convert (docs/odex.md)
+# renamed: t is t_ here (.odex reserves t)
+
+fun k(t_) = 5*exp(-2*t_)-4*exp(-t_)
+fun f(u, v) = v+u*(1-u^2-v^2)
+u' = f(u, volterra(k(t), of=u))
+init u = 0.2

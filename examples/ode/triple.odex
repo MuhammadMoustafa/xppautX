@@ -1,0 +1,6 @@
+# triple.odex: converted from triple.ode by xppautX --convert (docs/odex.md)
+
+x' = y
+y' = z
+z' = -a*z-b*y-c*x+x^2
+par c = 1, a = 2, b = 1

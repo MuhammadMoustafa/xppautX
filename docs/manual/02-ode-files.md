@@ -2,7 +2,22 @@
 
 **NOTE.** *Pre 1992, XPP used a different form for ODE files. I no longer document them* A command line option lets you convert old-style to new style format.
 
-**The .odex format.** xppautX also reads `.odex` models: the same
+## .odex
+
+Opening a `.ode` in the window, browser, server or `-silent` converts it
+and saves `<name>.odex` beside it. That `.odex` is the model from then on,
+including Reload, sessions and recordings. The conversion preserves the
+old parser's numbers by making its quirks explicit. The status message
+links here; `-silent` prints the conversion on the console.
+
+Reserved names ask for a new name, offering the converter's suggestion;
+`-silent` takes it. Cancelling keeps the model before and writes nothing.
+An existing `.odex` with the same text opens unchanged. Different text
+asks **Replace**, **Open existing .odex**, or **Cancel**; `-silent` fails
+and names both files. A folder that cannot be written fails at the
+`.odex` path. Sessions and recordings carrying a `.ode` model are refused.
+
+xppautX reads `.odex` models: the same
 statements without `.ode`'s quirks (docs/odex.md). The usual precedence
 (arithmetic, then comparisons, then `not`, `and`, `or`), `^` grouping
 right, a sign allowed anywhere (`2*-3`), `if a then b else if c then d
@@ -19,7 +34,7 @@ a step; `x[3]` is the name `x3`). `/` divides as IEEE does (`1/0` is inf;
 a run stops at the first NaN or inf). `==` and `!=` are exact; `near(a, b)` is approximate
 equality, true when `|a-b| <= tol*max(1, |a|, |b|)`, `tol` the model's
 `@ neartol=` (default `1e-9`) or a call's own `near(a, b, tol=1e-6)`.
-The model above as `.odex`:
+For example, a Fitzhugh-Nagumo model in `.odex`:
 
     # Forced Fitzhugh-Nagumo, fhn.odex
     par a = .25, eps = .05, gamma = 1, I_0 = .25
@@ -37,7 +52,12 @@ new name of a name `.odex` reserves without asking. Both extensions
 open in xppautX from the file manager once `tools/associate/` has
 registered them.
 
-ODE files are ASCII readable files that the XPP parser reads to create machine usable code. Lines can be continued with the standard backslash character, however, the total length of any line cannot exceed 1000 characters.
+## Foreign .ode syntax
+
+The sections below describe XPPAUT's `.ode` input, which xppautX imports
+through conversion. After opening it, edit and reload the saved `.odex`.
+ODE files are readable text files. A backslash continues a line; xppautX
+has no fixed line-length limit.
 
 **Example.** I will start with a very simple example to get you up and running. The model is the periodically driven Fitzhugh-Nagumo equation:
 ``` math

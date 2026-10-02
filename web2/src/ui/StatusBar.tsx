@@ -3,6 +3,7 @@
    progress, Stop, then Stopping… until the run ends. */
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
+import {HelpButton} from './HelpButton';
 
 /* the connection, when it is not simply up (AutoStatus.tsx says it too) */
 export function connectionText(connected: boolean, exited: number | null): string | null {
@@ -19,6 +20,7 @@ export function StatusBar() {
   const asking = useStore(s => s.ask !== null);
   const progress = useStore(s => s.progress);
   const bottom = useStore(s => s.bottom);
+  const help = useStore(s => s.bottomHelp);
   const flash = useStore(s => s.flash);
   const rows = useStore(s => s.core?.rows ?? 0);
   const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
@@ -29,7 +31,7 @@ export function StatusBar() {
       {flash > 0 && <span key={flash} class="status-flash" aria-hidden="true" />}
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
-      <span class="status-message">{bottom}</span>
+      <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
       <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so
           the progress bar and Stop button toggling with a run never resize the

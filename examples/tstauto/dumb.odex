@@ -1,0 +1,4 @@
+# dumb.odex: converted from dumb.ode by xppautX --convert (docs/odex.md)
+
+x[j]' = -x[j]+p for j in 1..195
+par p = 0

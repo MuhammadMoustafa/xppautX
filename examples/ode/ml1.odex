@@ -1,0 +1,29 @@
+# ml1.odex: converted from ml1.ode by xppautX --convert (docs/odex.md)
+
+par gl = 0.5, gca = 1, gk = 2
+par vk = -0.7, vl = -0.5, vca = 1
+par v1 = 0.01, v2 = 0.145, v3 = 0.1, v4 = 0.15
+par i = 0.2, phi = 0.333
+fun minf(v) = 0.5*(1+tanh((v-v1)/v2))
+fun winf(v) = 0.5*(1+tanh((v-v3)/v4))
+fun lamw(v) = cosh((v-v3)/(2*v4))
+v' = gl*(vl-v)+gk*w*(vk-v)-icaf+i
+w' = phi*lamw(v)*(winf(v)-w)
+icaf = gca*minf(v)*(v-vca)
+init v = -0.144, w = 0.03
+aux ica = icaf
+init v = 0.05
+init w = 0
+# The Morris-Lecar equations ml1.ode
+#  NOTE: I use only the first letter for declarations!
+# Declare the parameters
+# Define some functions
+# define the right-hand sides
+# where
+# and
+# some initial conditions -- not necessary but for completeness
+# some options
+# Done!!
+@ xp=v, yp=w
+@ xlo=-1, xhi=1, ylo=-.1, yhi=1, nmesh=100
+@ total=50

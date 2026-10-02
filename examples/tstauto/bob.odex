@@ -1,0 +1,9 @@
+# bob.odex: converted from bob.ode by xppautX --convert (docs/odex.md)
+# names written as their declarations spell them (.odex names have case); the .ode's lines 1, 2
+
+X' = -X+F(a+b*X-c*Y)
+Y' = (-Y+F(a+b*X-c*Y))/tau
+fun F(X) = sqrt(max(X, 0))/pi
+init X = 0.008133577343489495
+init Y = 0.1549233657962823
+par a = 1, b = 6, c = 8, tau = 7

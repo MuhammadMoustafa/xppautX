@@ -1,0 +1,13 @@
+# amari2.odex: converted from amari2.ode by xppautX --convert (docs/odex.md)
+
+fun f(upre, upost) = heav(upre)
+fun mh(x) = exp(-abs(x))-c*b*exp(-b*abs(x))
+par c = 1.05, b = 0.5
+table w mh(dx*t)*dx, n=101, lo=-50, hi=50
+par dx = 0.1
+network z = fconv(even, 200, 50, w, u0, u0, f)
+u[j]' = -u[j]-h+z(j) for j in 0..199
+par h = 0.15
+init u[j] = 0.8 for j in 90..110
+# amari bump
+@ total=100, meth=euler

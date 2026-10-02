@@ -71,7 +71,11 @@ fi
 jobs=${JOBS:-$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)}
 out=$(mktemp -d)
 [ -n "$keep" ] && export KEEP_OUTPUT=1
-find examples -name '*.ode' | sort \
+find examples -name '*.odex' -o -name '*.ode' | while read -r f; do
+  # The retained foreign fixtures are tested end to end by odexcheck.
+  case "$f" in *.ode) [ -e "${f%.ode}.odex" ] && continue ;; esac
+  echo "$f"
+done | sort \
   | xargs -P"$jobs" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" > "$out/failures" 2>&1
 cat "$out"/*.sum | LC_ALL=C sort -k2 > "$out/all"
 n=$(wc -l < "$out/all" | tr -d ' ')

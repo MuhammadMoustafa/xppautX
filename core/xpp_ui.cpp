@@ -21,7 +21,7 @@ static Place hl_command_place(void) { return {}; }
 static void hl_void(void) {}
 static void hl_str(std::string_view) {}
 static void hl_int(int) {}
-static void hl_bottom_msg(int, std::string_view msg) { log(XPP_LOG_INFO, "{}\n", msg); }
+static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
 static void hl_s_str(Session &, std::string_view) {}
@@ -262,7 +262,7 @@ void command_error(std::string_view command, std::string_view what)
     show_error(Error{std::string(command), std::string(what), command_place()});
 }
 void ping(void) { ui.ping(); }
-void bottom_msg(int line, std::string_view msg) { ui.bottom_msg(line, msg); }
+void bottom_msg(int line, std::string_view msg, std::string_view chapter, std::string_view anchor) { ui.bottom_msg(line, msg, chapter, anchor); }
 void MessageBox(std::string_view m) { ui.message_box(m); }
 void KillMessageBox(void) { ui.kill_message_box(); }
 void title_text(std::string_view s) { ui.title_text(s); }

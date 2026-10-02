@@ -38,6 +38,9 @@ struct Model;   /* model.h */
 
 namespace xpp::odex {
 
+/* Bound the readers' recursive include stack for untrusted model files. */
+inline constexpr int max_include_depth = 16;
+
 /* a place in a model: which of Parsed::files, the line and the column
    (both from 1) */
 struct Pos {
@@ -262,15 +265,18 @@ int load(xpp::Session &s, const std::string &path);
    suggested answer; the answer ("" takes the suggestion), or nullopt
    when nobody can answer (no terminal) */
 using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
-/* the .ode model loaded in s as .odex text, from what the
-   .ode parser understood (odex_convert.cpp); auto_answer takes every
-   suggested name. Throws Error. */
-std::string convert_model(xpp::Session &s, bool auto_answer, const Ask &ask);
+/* Import and validate the conversion without changing the open model or
+   writing a file. Used by both conversion commands and their tests. */
+xpp::Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
+                                     const std::vector<std::string> &includes = {});
 /* xppautX --convert [--auto] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
    (said why) when not. ask answers the questions (no terminal: none). */
 int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
+/* Opening a foreign model: validated conversion saved beside it, or an
+   existing .odex selected by the overwrite question. No memory fallback. */
+xpp::Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);
 

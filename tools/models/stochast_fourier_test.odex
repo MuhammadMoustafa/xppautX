@@ -1,0 +1,12 @@
+# stochast_fourier_test.odex: converted from stochast_fourier_test.ode by xppautX --convert (docs/odex.md)
+
+x' = 0
+y' = 0
+# Minimal model for the stochastics menu's Fourier-family known-answer
+# tests (W31a: tests/test_stochast_fourier.cpp). The ODE itself never
+# runs: the test fills storage[][] directly with signals of known
+# amplitude/frequency and calls the same core functions the stocHast
+# menu's Fourier series (f), power spectrum (p), correlations (x) and
+# windowed spectral density (e) items call (new_four, just_fourier,
+# new_hist, just_sd), then checks the results against values computed
+# from first principles in the test.

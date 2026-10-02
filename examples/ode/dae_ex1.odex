@@ -1,0 +1,8 @@
+# dae_ex1.odex: converted from dae_ex1.ode by xppautX --convert (docs/odex.md)
+
+x' = -x
+0 = x+y-1
+init x = 1
+solv y = 0
+aux yy = y
+# dae_ex1.ode

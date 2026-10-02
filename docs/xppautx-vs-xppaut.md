@@ -80,7 +80,7 @@ value stops the load with the file, line and value, and nothing is applied.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| `.ode` | the model; read with its quirks | kept, same quirks (docs/odex-quirks.md); never deprecated | W73 |
+| `.ode` | the model; read with its quirks | converted on open to a saved `.odex`, quirks explicit and numbers preserved; that file becomes the model | W73, W154 (#206) |
 | `.odex` | none | a cleaner model language, same Model; `xppautX --convert` writes it from an `.ode` | W73, W74, W79, W80 |
 | `.snapx` | none | the session: a zip of ordinary files incl. the saved model and AUTO settings, diagram, views and orbits | W57, W103, W155 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |
@@ -118,7 +118,7 @@ Trailing `#` text in `.ode` lines is now read as a comment, unlike XPPAUT ([find
 |---|---|---|---|
 | `.ode` quirks (comparisons bind tighter than `+`, `^` groups left, no sign after an operator, ...) | the parser's own | kept bit for bit; the list, measured, is [odex-quirks.md](odex-quirks.md) | W73 |
 | `.odex` | none | usual precedence, `^` right-associative, unary minus anywhere, case-sensitive names, `and`/`or`, arrays by `for j in a..b`, `const`, `near(a,b)` ([odex.md](odex.md)) | W73, W78, W80 |
-| Two syntaxes | one | two readers, one Model builder; every example's `.odex` gives the same md5 as its `.ode` | W79 |
+| Two syntaxes | one | the loader reads `.odex` only; the converter alone reads `.ode`, through the same Model builder; converted examples preserve their md5 | W79 |
 | `--check` (quirks as warnings) | none | decided; blocked | W75 |
 | Name length | variables 11, parameters 10 characters ([findings #3](xppaut-findings.md)) | no limit | W76 |
 | Model line length and count | fixed buffers ([findings #19](xppaut-findings.md)) | none | W29e |

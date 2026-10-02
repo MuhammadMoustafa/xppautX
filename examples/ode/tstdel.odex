@@ -1,0 +1,12 @@
+# tstdel.odex: converted from tstdel.ode by xppautX --convert (docs/odex.md)
+
+table w ran(1), n=100, lo=0, hi=99
+table td 5*ran(1), n=100, lo=0, hi=99
+network k1 = mmult(10, 10, w, u0)
+network k2 = delmmult(10, 10, w, td, u0)
+fun f(u) = u/(1+u^2)
+u[j]' = c0-u[j]-c1*f(k1(j))-c2*f(k2(j)) for j in 0..9
+par c0 = 0.5, c1 = 1, c2 = 0
+@ total=20, delay=6
+@ autoeval=0
+@ total=50

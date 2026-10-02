@@ -20,6 +20,15 @@
 # The timeout is coreutils' timeout where there is one (Linux, Git Bash),
 # else (macOS) a watcher that kills the run.
 set -u
+
+# Shared with odexcheck: runtime errors can still produce baseline data.
+runtime_exit_ok() {
+  [ "$1" -eq 0 ] || { [ "$1" -eq 1 ] && [ -s "$2" ]; }
+}
+if [ "${1:-}" = --runtime-exit ]; then
+  runtime_exit_ok "$2" "$3"
+  exit $?
+fi
 f=$1
 bin=$2
 timeout_s=${3:-300}
@@ -59,7 +68,7 @@ if [ $timed_out -eq 1 ]; then
 elif [ "$st" -eq 1 ]; then
   # W133: -silent also exits 1 after a runtime error. The numerical
   # gate still compares the data it wrote; only no output means noload.
-  if [ -s "$run/output.dat" ]; then
+  if runtime_exit_ok "$st" "$run/output.dat"; then
     sum=$(tr -d '\r' < "$run/output.dat" | md5)
   else
     sum=noload

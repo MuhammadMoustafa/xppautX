@@ -355,6 +355,7 @@ export interface ErrorFields {
 export interface MessageEvent extends Partial<ErrorFields> {
   ev: 'message';
   bottom?: string;
+  help?: {chapter: string; anchor: string};
   box?: string;
   auto?: string;
   calc?: string;

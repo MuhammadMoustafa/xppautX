@@ -98,6 +98,7 @@ export interface AppState {
   box: string;
   progress: {n: number; of: number} | null;
   bottom: string;
+  bottomHelp: {chapter: string; anchor: string} | null;
   title: string;
   /** the plot windows, each with its series and zoom, and the active one (store/plots.ts) */
   plots: PlotsState;
@@ -195,6 +196,7 @@ export const initialState: AppState = {
   box: '',
   progress: null,
   bottom: '',
+  bottomHelp: null,
   title: '',
   plots: initialPlots,
   seriesCount: 0,
@@ -451,11 +453,11 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         const values = reduceValues(state.values, {type: 'error', text: ev.error, field: ev.field});
         const autoSettings = /^AUTO settings: /.test(ev.error)
           ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
-        const logged = addLog({...state, bottom: text, files, values, autoSettings}, {kind: 'error', text});
+        const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoSettings}, {kind: 'error', text});
         const claimed = values !== state.values || autoSettings !== state.autoSettings;
         return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev));
       }
-      if (ev.bottom !== undefined) return {...state, bottom: ev.bottom};
+      if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};
       if (ev.box !== undefined) return {...state, box: ev.box};
       return state;
     case 'aplot':

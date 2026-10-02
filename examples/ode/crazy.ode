@@ -1,5 +1,0 @@
-x'=-y+sin(1/x)*x^2
-y'=x
-@ xp=x,yp=y,xlo=-2,xhi=2,ylo=-2,yhi=2
-@ nmesh=101
-done

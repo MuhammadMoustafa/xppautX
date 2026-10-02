@@ -101,7 +101,7 @@ int line_ending(const std::string &text, const std::string &what)
 
 int main(void)
 {
-    char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.ode";
+    char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.odex";
     char *argv[] = {arg0, arg1, NULL};
     const char *a = "build/test_lunch_a.set", *b = "build/test_lunch_b.set", *c = "build/test_lunch_c.set";
     double iapp, v0, tend, dt, x;
@@ -256,12 +256,12 @@ int main(void)
     std::string written = bytes_of(par);
     std::erase(written, '\r'); /* a text file: CRLF on Windows */
     const std::string values = written.substr(0, written.find("\n\nFile:"));
-    put(par, values + "\n\nFile:lecar.ode\nWed Jun  3 21:49:08 1993\n");
+    put(par, values + "\n\nFile:lecar.odex\nWed Jun  3 21:49:08 1993\n");
     CHECK(xpp::read_parameter_file(m, par).has_value());
-    put(par, values + "\n\nFile:lecar.ode\nyesterday\n");
+    put(par, values + "\n\nFile:lecar.odex\nyesterday\n");
     const xpp::Result<std::vector<double>> no_time = xpp::read_parameter_file(m, par);
     CHECK(!no_time && no_time.error().place.line == m.nupar + 5 && no_time.error().place.source == "yesterday");
-    put(par, values + "\n\nFile:lecar.ode\nWed Jun 30 21:49:08 1993\nmore\n");
+    put(par, values + "\n\nFile:lecar.odex\nWed Jun 30 21:49:08 1993\nmore\n");
     const xpp::Result<std::vector<double>> more = xpp::read_parameter_file(m, par);
     CHECK(!more && more.error().place.line == m.nupar + 6);
     std::string ic_text;

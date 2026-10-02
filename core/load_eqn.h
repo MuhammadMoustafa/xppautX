@@ -134,6 +134,7 @@ std::vector<std::pair<std::string, std::string>> option_items(std::string_view l
    reads the model and its options (W47d3): */
 /* the model's file (Model::this_file) read into s: an .ode, an .odex, or
    one typed in when there is none */
+void choose_model_file(Session &s);
 void load_eqn(Session &s);
 /* the defaults of the options no source set (set_option_defaults), then
    the storage, the solver and the initial values the model gives */

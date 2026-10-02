@@ -1,0 +1,11 @@
+# pp.odex: converted from pp.ode by xppautX --convert (docs/odex.md)
+
+par p0 = 0, p1 = 3, p2 = 5, p3 = 3
+u0' = p1*u0*(1-u0)-u0*u1-p0*(1-ep0)
+u1' = -u1+p3*u0*u1
+ep0 = exp(-p2*u0)
+init u0 = 0.33333
+init u1 = 2
+# cts predator prey model
+# Test problem from the AUTO manual pp.ode
+# Use AUTO with defaults -- just click Run

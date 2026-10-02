@@ -1,0 +1,11 @@
+# kuramot100w.odex: converted from kuramot100w.ode by xppautX --convert (docs/odex.md)
+
+fun h(phi) = sin(phi+a)-sin(a)+b*sin(2*phi)
+par a = 0.5, b = 0.2
+par amp = 1, k = 1
+table w amp*t/100, n=100, lo=0, hi=99
+table mm 1/100, n=10000, lo=0, hi=9999
+x[j]' = w(j)+k*sum(mm(j*100+i')*h(shift(x0, i')-x[j]), from=0, to=99) for j in 0..99
+# kuramoto with sums
+# linear gradient
+@ total=100, bound=100000

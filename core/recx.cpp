@@ -1,6 +1,7 @@
 /* A recording's file, name.recx: see recx.h. */
 #include "recx.h"
 #include "model_files.h"
+#include "snapx.h"
 #include "xpp_io.h"
 #include "xpp_sha256.h"
 
@@ -129,6 +130,8 @@ Result<Read> read(std::string_view text, std::string file)
             if (k->given) l.fail(xpp::format("a second \"{}\" line", k->start.substr(0, k->start.size() - 1)));
             k->given = true;
             *k->value = h.substr(k->start.size());
+            if (k->value == &r.model && !odex::is_odex(r.model))
+                l.fail("a recording stores an .odex model only; .ode is refused");
         }
         for (const Key &k : keys)
             if (!k.given) l.fail(xpp::format("the header has no \"{}\" line", k.start.substr(0, k.start.size() - 1)));
@@ -144,6 +147,8 @@ Result<Read> read(std::string_view text, std::string file)
                 l.fail(xpp::format("no {} section before the files: a recording begins with the session's state", snapshot_line));
             ModelFile f;
             f.name = is_snapshot ? std::string("the snapshot") : std::string(h.substr(binary ? binary_start.size() : file_start.size()));
+            if (!is_snapshot && snapx::has_extension(f.name, ".ode"))
+                l.fail("a recording cannot carry .ode model text");
             hashed.emplace_back(h);
             const int first = l.line();
             std::string digits;

@@ -1,0 +1,5 @@
+# iaf.odex: converted from iaf.ode by xppautX --convert (docs/odex.md)
+
+v' = -v+i
+par i = 1.2
+event 1 v-1, v = -0.5

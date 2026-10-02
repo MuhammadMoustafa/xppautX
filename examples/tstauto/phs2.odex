@@ -1,0 +1,8 @@
+# phs2.odex: converted from phs2.ode by xppautX --convert (docs/odex.md)
+
+x' = a+b*sin(y-x)
+y' = 1+b*sin(x-y)
+z' = -z+sin(x)
+par a = 1, b = 0.2
+@ total=6.28
+@ dt=.01

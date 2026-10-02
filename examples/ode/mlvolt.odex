@@ -1,0 +1,19 @@
+# mlvolt.odex: converted from mlvolt.ode by xppautX --convert (docs/odex.md)
+
+f1 = k*(v1^2-v1^3-w1)
+f2 = k*(v2^2-v2^3-w2)
+v1(t) = v10*exp(-kk*t)+volterra(exp(-a*t), of=f1, mu=0.5)+volterra(exp(-a*t-xhat/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=f2, mu=0.5)
+v2(t) = v20*exp(-kk*t)+volterra(exp(-a*t), of=f2, mu=0.5)+volterra(exp(-a*t-xhat/(if t+1e-04 then t+1e-04 else 2.23e-15)), of=f1, mu=0.5)
+w[j]' = b*(v[j]-c-d*w[j]) for j in 1..2
+par a = 0.1, d = 0.5, c = 0.2, b = 0.2, k = 2
+par xhat = 3
+par v10 = 0.5, v20 = 0.2, kk = 5
+init w1 = 0.5, w2 = -0.4
+# cube volt.ode
+# two equlations with passive media and then two active regions
+#
+# dV/dt = -a v + active stuff + d V_xx
+# G(xhat,t) = exp(-a*t-xhat/t)/sqrt(pi t) xhat is a distance
+# change w2=-.2 to get sync
+@ dt=.05, total=100
+@ xp=v1, yp=v2, xlo=-.5, xhi=1, ylo=-.5, yhi=1

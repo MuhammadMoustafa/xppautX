@@ -148,6 +148,9 @@ def check_models(xppbin, verbose):
                 if verbose:
                     print(f"checking {relpath}:{start}")
                 model_path = os.path.join(tmpdir, "model.ode")
+                converted_path = os.path.join(tmpdir, "model.odex")
+                if os.path.exists(converted_path):
+                    os.remove(converted_path)  # each snippet is a new conversion input
                 out_path = os.path.join(tmpdir, "out.txt")
                 with open(model_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write("\n".join(lines) + "\n")

@@ -1,0 +1,23 @@
+# logbif.odex: converted from logbif.ode by xppautX --convert (docs/odex.md)
+
+fun f(x, a) = a*x*(1-x)
+x' = f(x, aa)
+a' = aa
+# ind=(nothing) in the .ode: XPP reads the number at its front, 0
+par ind = 0
+aa = amin+(amax-amin)*ind/200
+init x = 0.1
+par amin = 2, amax = 4
+# this is an example showing the logistic bifurcation diagram
+# here is the map
+# keep tabs on the parameter for plotting
+# dummy index so you can change range without reloading
+# define a in terms of the index ind over which we range
+#
+# change amin and amax to change the window
+@ maxstor=11000, total=400, trans=350, meth=discrete
+@ xlo=2, xhi=4.001, ylo=0, yhi=1.001, xp=a, yp=x
+@ range=1, rangeover=ind
+@ rangereset=no
+@ rangelow=0, rangehigh=200, rangestep=200
+@ LT=0

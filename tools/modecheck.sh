@@ -56,12 +56,12 @@ for opener in xdg-open open; do
   printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/bin/$opener"
   chmod +x "$tmp/bin/$opener"
 done
-cp examples/ode/lecar.ode "$tmp/"
+cp examples/ode/lecar.odex "$tmp/"
 
 # start xppautX with $@ in $tmp (and env's $ENVS), wait for its XPP: line (at most 10 s)
 start() {
   rm -f "$tmp/out" "$tmp/opened"
-  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.ode > out 2>&1 ) &
+  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.odex > out 2>&1 ) &
   pid=$!
   i=0
   while [ $i -lt 100 ] && ! grep -q '^XPP: http' "$tmp/out" 2>/dev/null; do

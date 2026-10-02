@@ -1,0 +1,69 @@
+# jcoaster1.odex: converted from jcoaster1.ode by xppautX --convert (docs/odex.md)
+
+par xs0 = 0, xs1 = 1, xs2 = 0, xs3 = 0
+par zs0 = 3, zs1 = -2, zs2 = -0.25, zs3 = 0.25
+fun xM(M) = heav(-2-M)*M+(heav(M+2)-heav(M-2))*(xs0+xs1*M+xs2*M^2+xs3*M^3)+heav(M-2)*M
+fun zM(M) = heav(-2-M)*(3+(M+3)^2)+(heav(M+2)-heav(M-2))*(zs0+zs1*M+zs2*M^2+zs3*M^3)+heav(M-2)*(M-2)^2
+fun xMdM(M) = heav(-2-M)*1+(heav(M+2)-heav(M-2))*(xs1+2*xs2*M+3*xs3*M^2)+heav(M-2)*1
+fun zMdM(M) = heav(-2-M)*(2*(M+3))+(heav(M+2)-heav(M-2))*(zs1+2*zs2*M+3*zs3*M^2)+heav(M-2)*(2*(M-2))
+par drag = 0.1
+par mass = 1
+par g = 8.3
+par sv = 0.25
+init M = -4, X = -4, Z = 4
+init L = 0, Lalt = 0
+fun normM(M) = sqrt(xMdM(M)^2+zMdM(M)^2)
+fun mdt(M) = Lalt/(if normM(M) then normM(M) else 2.23e-15)
+X' = xMdM(M)*mdt(M)
+Z' = zMdM(M)*mdt(M)
+M' = mdt(M)
+L' = Lalt
+Lalt' = 1/mass*(-g*zMdM(M)/(if normM(M) then normM(M) else 2.23e-15)-drag*Lalt)
+set Sun = g = 274.13
+set Mercury = g = 3.59
+set Venus = g = 8.87
+set Earth = g = 9.81
+set Moon = g = 1.62
+set Mars = g = 3.77
+set Jupiter = g = 25.95
+set Saturn = g = 11.08
+set Uranus = g = 10.67
+set Neptune = g = 14.07
+set Pluto = g = 0.42
+#Coaster demo showing how to use derivative and value matching to
+#join two coaster tracks together. Note, we're use cubic splines
+#parametric in M to do this.
+#
+#Here's the MATLAB code to find the spline coefficients
+#M1 = -2; %Specify your 1st join parametric point here.
+#M2 = 2;  %Specify your 2nd join parametric point here.
+#
+#
+#A = [1 M1 M1^2 M1^3;
+#     0 1 2*M1 3*M1^2;
+#     1 M2 M2^2 M2^3;
+#     0 1 2*M2 3*M2^2];
+#
+#%These values and derivatives will depend
+#%on the track you set up.  Be careful to get
+#%these right...
+#
+#XRHS = [-2 1 2 1]';
+#ZRHS = [4 2 0 0]';
+#
+#%Now solve for the matching parameters...
+#Xs_par = A\XRHS
+#Zs_par = A\ZRHS
+#
+#Hey, define your roller coaster track here!
+#Use parametric equations in M.
+#Parameters from our cubic spline matching solutions.
+#Now calculate and put the derivatives of your
+#parametric equations here:
+# scale mouse velocity a little as it is too sensitive
+#Shouldn't need to modify too much below...
+#Thanks to Newton!
+@ XP=X, YP=Z, XLO=-6, XHI=4, YLO=0, YHI=6
+@ bounds=100000, meth=r
+@ dt=.01, nout=5
+@ total=50

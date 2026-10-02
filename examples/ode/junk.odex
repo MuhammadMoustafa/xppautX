@@ -1,0 +1,11 @@
+# junk.odex: converted from junk.ode by xppautX --convert (docs/odex.md)
+
+table w 1/11, n=11, lo=-5, hi=5
+network bob = conv(period, 51, 5, w, v0)
+v[j]' = -v[j]+f(k*bob(j)-thr-c*delay(v[j], tau)) for j in 0..50
+par k = 3, thr = 0.5, beta = 10, c = 2.5, tau = 5
+fun f(u) = 1/(1+exp(-beta*u))
+init v[j] = 1 for j in 0..4
+# junk.ode
+# table w % 11 -5 5 1/11 - .2*heav(3-abs(t))
+@ delay=10, total=40

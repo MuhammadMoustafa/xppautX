@@ -1,6 +1,6 @@
 """A small client for xppautX --server, shared by the protocol checks.
 
-    s = Server('./xppautX', 'examples/ode/lecar.ode')
+    s = Server('./xppautX', 'examples/ode/lecar.odex')
     s.collect(is_idle)
     s.send(cmd='key', key='i')
     evs, ask = s.collect(is_ask)
