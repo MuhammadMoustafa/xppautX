@@ -123,7 +123,7 @@ trap 'rm -rf "$check_dir"' EXIT
 model=examples/ode/lecar.odex
 if [ -n "$model" ]; then
     cp "$model" "$check_dir/"
-    (cd "$check_dir" && "$top/xppautX" "$(basename "$model")" -silent)
+    (cd "$check_dir" && "$top/xppautX" "$(basename "$model")" --silent)
     rows=$(wc -l < "$check_dir/output.dat")
     [ "$rows" -gt 0 ] || { echo "build_linux: the check run wrote no rows" >&2; exit 1; }
     echo "ran $(basename "$model"): $rows rows"

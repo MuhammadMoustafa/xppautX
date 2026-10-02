@@ -16,7 +16,7 @@ bool auto_echo;
    any */
 thread_local xpp::LogCapture *capture = nullptr;
 
-/* where messages go: -logfile's file when one was given, else stderr
+/* where messages go: --logfile's file when one was given, else stderr
    (stdout is the protocol's in --server mode; the file's default is stdout) */
 FILE *sink()
 {
@@ -159,11 +159,11 @@ void log_auto_printf(const char *fmt, ...)
 
 bool log_parse_arg(std::string_view arg)
 {
-    if (arg == "--verbose" || arg == "-verbose") {
+    if (arg == "--verbose") {
         log_set_threshold(XPP_LOG_INFO);
         return true;
     }
-    if (arg == "--debug" || arg == "-debug") {
+    if (arg == "--debug") {
         log_set_threshold(XPP_LOG_DEBUG);
         return true;
     }

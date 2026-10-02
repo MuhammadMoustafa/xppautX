@@ -2,7 +2,7 @@
 # Run the checks under valgrind's memcheck, for what the sanitizers cannot
 # see: a read of memory never written (ASan does not track that, and MSan
 # needs every library rebuilt). Builds xppautX at -O1 without sanitizers
-# (make vg, into build/vg), then runs the -silent smoke run (same checksum
+# (make vg, into build/vg), then runs the --silent smoke run (same checksum
 # as verify.sh), every example, the unit tests, the protocol
 # (servercheck.py) and AUTO (autocheck.py) under it.
 #
@@ -56,26 +56,26 @@ export XPP_CHECK_SLOW=30
 fail=0
 
 tmp=$(mktemp -d)
-( cd "$tmp" && "$wrap" "$top/examples/ode/lecar.odex" -silent > run.log 2>&1 )
+( cd "$tmp" && "$wrap" "$top/examples/ode/lecar.odex" --silent > run.log 2>&1 )
 st=$?
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
-  echo "xppautX -silent ok: checksum matches baseline"
+  echo "xppautX --silent ok: checksum matches baseline"
 else
   head -20 "$tmp/run.log"
-  echo "xppautX -silent FAILED: exit $st, sum=$sum"
+  echo "xppautX --silent FAILED: exit $st, sum=$sum"
   fail=1
 fi
 rm -rf "$tmp"
 
-# every example through xppautX -silent, memcheck's verdict only (no output
+# every example through xppautX --silent, memcheck's verdict only (no output
 # comparison); a model that does not run by itself exits non-zero without
 # a report
 ex=$(mktemp -d)
 find examples -name '*.odex' | sort | xargs -P"$(nproc 2>/dev/null || echo 4)" -I{} sh -c '
   f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
   cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
-  cd "$run" && timeout 900 "$3" "$(basename "$f")" -silent > run.log 2>&1
+  cd "$run" && timeout 900 "$3" "$(basename "$f")" --silent > run.log 2>&1
   echo "$? $f" >> "$2/status"' sh {} "$ex" "$wrap"
 echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
 grep -E '^(99|124) ' "$ex/status" | sed 's/^99 /memcheck error: /; s/^124 /timed out: /'

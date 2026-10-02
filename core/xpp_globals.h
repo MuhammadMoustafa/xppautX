@@ -11,7 +11,7 @@
 #include <string>
 
 struct XppProgram {
-    int interactive = 0; /* a front end is up (0: -silent, headless) */
+    int interactive = 0; /* a front end is up (0: --silent, headless) */
     float version_major = 0, version_minor = 0; /* XPPAUT's version, for titles */
     int tutorial = 0; /* @ tutorial=1: show the tutorial at start-up */
 };

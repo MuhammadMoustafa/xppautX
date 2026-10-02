@@ -226,7 +226,7 @@ and F1 open it too.
 The core reads and writes files on its own machine, in its working directory
 (the model's folder), and many of XPP's files refer to others by relative
 name: an imported `.set`, XPPAUT `.auto` diagrams, `#include`d files, `table` files, data
-files for the browser's Load, `-anifile`. The page runs on the same machine
+files for the browser's Load, `--anifile`. The page runs on the same machine
 (127.0.0.1) but the browser never tells a page where a picked file lives.
 
 ### Options
@@ -242,7 +242,7 @@ files for the browser's Load, `-anifile`. The page runs on the same machine
 
 - **The working directory stays the workspace.** XPP keeps reading and
   writing there, so relative references resolve as they always have, and
-  scripts, `-silent` and the VS Code extension see the same files.
+  scripts, `--silent` and the VS Code extension see the same files.
 - **Open** (a `file` ask for reading: Import XPPAUT set, Load diagram, the browser's
   Load, `session load`): the page shows the browser's picker
   (`showOpenFilePicker` where available, else `<input type=file multiple>`).

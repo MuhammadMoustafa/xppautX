@@ -35,7 +35,7 @@ program for you.
 xppautX also has two front-end-free modes, for scripting and automated
 checks rather than interactive use:
 
-- **`xppautX model.ode -silent`**: no interface at all; loads the model,
+- **`xppautX model.ode --silent`**: no interface at all; loads the model,
   does whatever the ODE file's `@` options or further
   command-line flags
   ([Quick reference](16-quick-reference.md#command-line-arguments)) tell
@@ -52,7 +52,7 @@ checks rather than interactive use:
   integration or AUTO run reproduces exactly (docs/roadmap.md W10).
 
 `--web` (browser mode, opening the page) is the default when none of
-`--server`, `--script` or `-silent` is given.
+`--server`, `--script` or `--silent` is given.
 
 ## The page layout
 
@@ -368,7 +368,7 @@ say), the editor appears there, not in front of you.
 
 What xppautX prints — including AUTO's table (`Output`, in the AUTO
 view) — goes to **Messages** at the bottom of the page, as well as to
-the terminal or `-logfile`'s file, quiet by default (warnings and
+the terminal or `--logfile`'s file, quiet by default (warnings and
 errors); `--verbose`/`--debug` raise the level (core/xpp_log.h). The
 core never prints to stdout or stderr directly, so nothing bypasses
 Messages.

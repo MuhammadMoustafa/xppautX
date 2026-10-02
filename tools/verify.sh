@@ -75,14 +75,14 @@ else
   exit 1
 fi
 tmp=$(mktemp -d)
-( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.odex" -silent >/dev/null 2>&1 )
+( cd "$tmp" && "$OLDPWD/xppautX" "$OLDPWD/examples/ode/lecar.odex" --silent >/dev/null 2>&1 )
 sum=$(md5sum "$tmp/output.dat" 2>/dev/null | cut -d' ' -f1)
 rows=$(wc -l < "$tmp/output.dat" 2>/dev/null || echo 0)
 rm -rf "$tmp"
 if [ "$sum" = "$BASELINE" ]; then
-  echo "headless -silent ok: $rows rows, checksum matches baseline"
+  echo "headless --silent ok: $rows rows, checksum matches baseline"
 else
-  echo "HEADLESS -silent MISMATCH: rows=$rows sum=$sum"
+  echo "HEADLESS --silent MISMATCH: rows=$rows sum=$sum"
   exit 1
 fi
 if make -j"$NPROC" test > build/unittest.log 2>&1; then

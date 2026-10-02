@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build xppautX with AddressSanitizer, LeakSanitizer and
 # UndefinedBehaviorSanitizer (make asan, into build/asan) and run the checks
-# under it: the -silent smoke run (same checksum as verify.sh), the unit
+# under it: the --silent smoke run (same checksum as verify.sh), the unit
 # tests, the protocol (servercheck.py), browser mode (webcheck.py) and
 # AUTO (autocheck.py).
 #
@@ -121,29 +121,29 @@ fail=0
 
 if has_phase smoke; then
   tmp=$(mktemp -d)
-  ( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.odex" -silent > run.log 2>&1 )
+  ( cd "$tmp" && "$top/$bin" "$top/examples/ode/lecar.odex" --silent > run.log 2>&1 )
   st=$?
   # (CRs removed: Windows writes CRLF)
   sum=$( [ -e "$tmp/output.dat" ] && tr -d '\r' < "$tmp/output.dat" | md5 )
   if [ $st -eq 0 ] && [ "$sum" = "$BASELINE" ]; then
-    echo "$bin -silent ok: checksum matches baseline"
+    echo "$bin --silent ok: checksum matches baseline"
   else
     head -20 "$tmp/run.log"
-    echo "$bin -silent FAILED: exit $st, sum=$sum"
+    echo "$bin --silent FAILED: exit $st, sum=$sum"
     fail=1
   fi
   rm -rf "$tmp"
 fi
 
 if has_phase examples; then
-  # every example through xppautX -silent, sanitizers only (no output
+  # every example through xppautX --silent, sanitizers only (no output
   # comparison, just their verdict); a model that does not run by itself
   # exits non-zero without a report
   ex=$(mktemp -d)
   find examples -name '*.odex' | sort | xargs -P"$NPROC" -I{} sh -c '
     f=$1; run=$2/$(echo "$f" | tr / _); mkdir -p "$run"
     cp "$(dirname "$f")"/* "$run"/ 2>/dev/null
-    cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" -silent > run.log 2>&1
+    cd "$run" && ${4:+$4 120} "$3" "$(basename "$f")" --silent > run.log 2>&1
     echo "$? $f" >> "$2/status"' sh {} "$ex" "$top/$bin" "$TMO"
   echo "examples run: $(wc -l < "$ex/status"), exit codes: $(cut -d' ' -f1 "$ex/status" | sort -n | uniq -c | tr -s ' \n' ' ')"
   rm -rf "$ex"

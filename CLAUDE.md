@@ -93,13 +93,13 @@ comment on what landed.
 Headless smoke test by hand (writes output.dat in cwd, expect 601 rows and
 md5 c281851de59ffd03b2a46428619a0c8f for lecar.ode):
 
-    tools/wslrun.sh sh -c 'make -j4 xppautx && ./xppautX examples/ode/lecar.ode -silent && md5sum output.dat'
+    tools/wslrun.sh sh -c 'make -j4 xppautx && ./xppautX examples/ode/lecar.ode --silent && md5sum output.dat'
 
 Run it (opens its desktop window; `--browser` for the browser front end):
 
     wsl -e bash -lc "cd /mnt/c/gitRepos/xppautX && ./xppautX examples/ode/lecar.ode"
 
-verify.sh also runs every example model through `xppautX -silent` and
+verify.sh also runs every example model through `xppautX --silent` and
 compares each output.dat's md5 (CRs removed) with tests/examples.md5
 (`tools/examples_check.sh`, ~30 s); a model that crashes or times out
 fails it too. A difference means the numerics changed: rewrite the
@@ -523,8 +523,7 @@ pool with room, saying which in the batch proposal.
   `batch_options` (xpp_batch.h), `xpp::log_settings` (xpp_log.h),
   `color_table` (colormap.h), `text_metrics` (xpp_ui.h), the command-line
   flags (comline.h). Include the owner's header, never redeclare
-  anything `extern` in a .cpp. The options that set the X11 window's
-  fonts, colours and size are still accepted and no longer stored.
+  anything `extern` in a .cpp.
   `core/xpp_util.cpp`, `core/browse_data.cpp`, `core/colormap.cpp`,
   `core/menus.cpp` hold pure code moved out of those files.
 - Core structs that hold a window store an `XppWinId` (unsigned long); see
@@ -536,8 +535,8 @@ pool with room, saying which in the batch proposal.
   Command logic is all core (phase 3 step 2); `XppUi` only holds
   interaction primitives, window management and a few whole dialogs.
 - `core/xpp_batch.cpp` holds `xpp::load_model()`, the start every mode
-  shares, and `xpp::batch_start()`, the set-up with no interface (-silent,
-  a unit test); what -silent runs is `core/json_silent.cpp`'s built-in
+  shares, and `xpp::batch_start()`, the set-up with no interface (--silent,
+  a unit test); what --silent runs is `core/json_silent.cpp`'s built-in
   script, played through the JSON front end (W56).
 - `core/ui_json.cpp` + `core/xppautx_main.cpp` (`SERVER_SOURCES`) are the JSON
   protocol front end (docs/protocol.md). ui_json.cpp holds the `XppUi`
@@ -557,7 +556,7 @@ pool with room, saying which in the batch proposal.
   `state` then `idle`; a client waits for `idle`.
 - `xppautX` (`make xppautx`) is one program: `core/xppautx_main.cpp` picks
   the desktop window (the default), browser mode (`--browser`/`--web`, or
-  `--no-open`), `--server` (the protocol on stdin/stdout) or `-silent`
+  `--no-open`), `--server` (the protocol on stdin/stdout) or `--silent`
   (no interface at all: json_ui_silent plays json_silent.cpp's built-in
   script of protocol commands, W56). The window (W13a) is
   `core/xpp_window.cpp` (xpp_window.h, namespace `xpp::window`) over the vendored
@@ -644,7 +643,7 @@ pool with room, saying which in the batch proposal.
   xpp_http.cpp in web mode. Input never touches the core thread: reader
   threads (xpp_http.cpp, or the --server stdin reader) push lines into
   `core/xpp_inbox.cpp` (control and normal queues) and `read_line()` takes
-  them from there; `-silent` starts no reader. Abort and Quit cancel the
+  them from there; `--silent` starts no reader. Abort and Quit cancel the
   running job from the reader thread (`core/xpp_job.{h,cpp}`, by sequence
   number); computations ask `xpp::job::cancelled()` or go through the
   throttled checkpoints `my_abort()`/`byeauto_()`. ui_json.cpp's `classify()`
@@ -661,7 +660,7 @@ pool with room, saying which in the batch proposal.
   `xpp::log(level, fmt, args...)` with ERROR/WARN/INFO/DEBUG, threshold
   WARN, raised by `--verbose`/`--debug`. The caller writes the newline;
   output goes to
-  `-logfile`'s file if given, else stderr, which browser mode shows in the
+  `--logfile`'s file if given, else stderr, which browser mode shows in the
   page's log. There is no `plintf()` any more (retired at W25, ~620
   call sites): code prefers `xpp::log` (std::format-checked, same idea as
   xpp::format in xpp_io.h) whenever the format string converts
@@ -687,7 +686,7 @@ pool with room, saying which in the batch proposal.
   `where` for the log and an `xpp::Place` (file, line, col, the line as
   written; 0 when unknown, and a file with no line is one that could not
   be read, which the page offers to add). `Error::text()` is the one
-  rendering, `file:line:col: what`, for the console, the log and -silent;
+  rendering, `file:line:col: what`, for the console, the log and --silent;
   every error event the page gets (`error`, and a `message` error) carries
   the same fields (docs/protocol.md "Errors"). `err_msg`, `show_error`,
   `fail`/`fail_reading`, `err_reading` and `model_failed` take it. While a
@@ -706,7 +705,7 @@ pool with room, saying which in the batch proposal.
   written in browser mode, where the AUTO window's Output panel shows it.
   The core never prints to stdout or stderr directly; `tools/stdoutcheck.sh`
   (run by verify.sh) enforces it, with a short allowlist inside the script
-  for the handful of lines that are legitimately direct (the `-version`
+  for the handful of lines that are legitimately direct (the `--version`
   and `--version` text, the `XPP:` address lines).
 - The X11 front end was removed (issue #20, task W8); new UI work goes
   into the JSON front end (ui_json.cpp, json_*.cpp) and `web2/` (the
@@ -930,7 +929,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   becomes its namespace: `xpp_files_exists` is `xpp::files::exists`,
   `xpp_job_cancelled` `xpp::job::cancelled`, `xpp_log` is
   `xpp::log_printf`). Each stage was timed before and after (examples_check's
-  wall time, kuramot100.ode -silent, an AUTO run, and callgrind's
+  wall time, kuramot100.ode --silent, an AUTO run, and callgrind's
   instruction counts for the last two, which do not depend on code
   layout): a stage slower beyond the noise was not merged, and if C++
   had cost speed the card would have stopped (maintainer, 2026-09-30); none
@@ -995,7 +994,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   which core code reaches through the XppUi seam with no Session
   (`xpp::json::client()`, ui_json_internal.h). A load gives the Session
   it made (`xpp::load_model` returns it, `xpp::Loaded`); the program's
-  start, -silent, --convert and File > Open model take it from there.
+  start, --silent, --convert and File > Open model take it from there.
   `tools/sessioncheck.sh` (sourcecheck) fails a read of the list or of
   client() outside those owners, and any `xpp::session()`/`xpp::model()`.
   A hot loop gets the Session once where the run starts (the solvers

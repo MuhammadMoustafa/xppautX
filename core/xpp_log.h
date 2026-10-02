@@ -11,7 +11,7 @@
      XPP_LOG_DEBUG  integrator/solver chatter, internal traces
 
    The default threshold is XPP_LOG_WARN, so a clean run prints nothing;
-   --verbose / -verbose raises it to INFO, --debug / -debug to DEBUG.
+   --verbose / --verbose raises it to INFO, --debug / --debug to DEBUG.
    err_msg()'s headless default logs at ERROR. There is no plintf() any
    more (retired at W25): call xpp::log(level, fmt, args...) (a
    std::format-checked call, below), or xpp::log_printf(level, fmt, ...)
@@ -21,7 +21,7 @@
    used to.
 
    Messages follow printf: the caller writes the newline, so a line can be
-   built in pieces. They go to -logfile's file when one was given, else to
+   built in pieces. They go to --logfile's file when one was given, else to
    stderr. That is enough for both front ends: browser mode turns stderr
    into the page's log panel, and --server mode writes its protocol to a
    separate descriptor.
@@ -62,12 +62,12 @@ namespace xpp {
 
 /* Where the log goes and whether the model may silence it. The model's
    @ logfile= and @ quiet= options set file and verbose unless the command
-   line's -logfile / -quiet did first (they win over .xpprc and the model). */
+   line's --logfile / --quiet did first (they win over .xpprc and the model). */
 struct LogSettings {
-    FILE *file;                  /* -logfile's file; NULL or stdout: stderr */
+    FILE *file;                  /* --logfile's file; NULL or stdout: stderr */
     int verbose;                 /* 0: an INFO message prints nothing (@ quiet=1) */
-    int quiet_from_command_line; /* -quiet was given: @ quiet= is ignored */
-    int file_from_command_line;  /* -logfile was given: @ logfile= is ignored */
+    int quiet_from_command_line; /* --quiet was given: @ quiet= is ignored */
+    int file_from_command_line;  /* --logfile was given: @ logfile= is ignored */
     std::atomic<unsigned> errors{0}; /* errors reported, even when output is suppressed */
 };
 extern LogSettings log_settings;
@@ -106,7 +106,7 @@ bool log_auto_enabled();
 /* true: AUTO's table is written whatever the threshold (browser mode) */
 void log_set_auto_echo(bool on);
 
-/* Recognizes "--verbose"/"--debug" (xppautX) and "-verbose"/"-debug"
+/* Recognizes "--verbose"/"--debug" (xppautX) and "--verbose"/"--debug"
    (xppaut); true when arg matched, the threshold then applied. */
 bool log_parse_arg(std::string_view arg);
 

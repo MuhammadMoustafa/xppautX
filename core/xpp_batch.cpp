@@ -60,20 +60,20 @@ void check_for_quiet(xpp::Session &s, int argc, char **argv)
 	
 	for(i=1;i<argc;i++)
 	{
- 	       if (strcmp(argv[i],"-quiet")==0)
+	       if (strcmp(argv[i],"--quiet")==0)
 	       {
 	       	       set_option(s,"QUIET",argv[i+1],1,NULL);
 		       quiet_specified_once=1;
      		       i++;
 	       }
-	       else if (strcmp(argv[i],"-logfile")==0)
+	       else if (strcmp(argv[i],"--logfile")==0)
 	       {
 		       set_option(s,"LOGFILE",argv[i+1],1,NULL);
 		       logfile_specified_once = 1;
      		       i++;
 	       }
 	}
-	/*If -quiet or -logfile were specified at least once on the command line
+	/*If --quiet or --logfile were specified at least once on the command line
 	we lock those in now...
 	*/
 	if (quiet_specified_once == 1)
@@ -103,7 +103,7 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
     s.plot_export.format = "ps";
     check_for_quiet(s, argc, argv);
     do_comline(s, argc, argv);
-    if (batch) batch_options.enabled = 1; /* headless: always batch, even without -silent */
+    if (batch) batch_options.enabled = 1; /* headless: always batch, even without --silent */
 
     s.options_applied = 0;
     for (int i = 0; i < MAXODE; i++) {
@@ -223,7 +223,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
                 /* The converter has folded these foreign includes into
                    the .odex; Reload uses that file from now on. */
                 for (size_t i = 1; i + 1 < args.size();) {
-                    if (args[i] == "-include") args.erase(args.begin() + static_cast<std::ptrdiff_t>(i), args.begin() + static_cast<std::ptrdiff_t>(i + 2));
+                    if (args[i] == "--include") args.erase(args.begin() + static_cast<std::ptrdiff_t>(i), args.begin() + static_cast<std::ptrdiff_t>(i + 2));
                     else ++i;
                 }
             }

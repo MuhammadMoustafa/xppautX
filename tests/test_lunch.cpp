@@ -16,7 +16,7 @@
    etc ..." (not read), and is refused without them. A parameter file's trailer
    is "File:" and the model, then the time as ctime writes it.
 
-   The model is loaded the way xppautX -silent loads it (xpp::load_model),
+   The model is loaded the way xppautX --silent loads it (xpp::load_model),
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "session.h"

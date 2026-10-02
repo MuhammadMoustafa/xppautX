@@ -73,7 +73,7 @@ The other modes:
 ```bash
 ./xppautX --browser model.ode         # web2 in your default browser; prints its address
 ./xppautX --no-open model.ode         # the same, printing the address without opening it
-./xppautX model.ode -silent           # batch run, writes output.dat, no interface
+./xppautX model.ode --silent           # batch run, writes output.dat, no interface
 ./xppautX --server model.ode          # the JSON protocol on stdin/stdout
 ```
 
@@ -190,54 +190,51 @@ client.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, AUTO's table, solver chatter); by default it logs only
-warnings and errors. Without `-logfile`, that log goes to the terminal,
+warnings and errors. Without `--logfile`, that log goes to the terminal,
 and the browser front end also shows it live in the page's Messages
-panel; `-logfile FILE` sends it to FILE instead, so a run started that
+panel; `--logfile FILE` sends it to FILE instead, so a run started that
 way has nothing in Messages. See
 [Using the interface: the log](04-using-the-interface.md#the-log).
 
 ### Command-line options
 
+Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
+
 xppautX's own options (`--browser`, `--web`, `--server`, `--script`,
 `--port`, `--no-open`, `--version`, `--help`, `--verbose`, `--debug`)
 must come first; every
-other classic `xppaut` option (`core/comline.cpp`) still works and can
-follow in any order. The options below still do something in xppautX;
-a few classic options that only ever changed X11 window colours, fonts
-or icon state (`-forecolor`, `-backcolor`, `-backimage`, `-mwcolor`,
-`-dwcolor`, `-grads`, `-width`, `-height`, `-bigfont`, `-smallfont`,
-`-white`, `-allwin`, `-bell`, `-xorfix`, `-ee`, `-iconify`) are still
-accepted for compatibility but have nothing left to affect.
+supported model option (`core/comline.cpp`) uses two dashes and can
+follow in any order. The options below control the model and its run.
 
 | Option | Does |
 |---|---|
-| `-silent` | Batch run: no interface, integrates and exits |
-| `-runnow` | Runs the model immediately on startup (implied by `-silent`) |
-| `-outfile FILE` | Write batch output to FILE instead of `output.dat` |
-| `-noout` | Suppress writing rows to the output file |
-| `-parfile FILE` | Load parameter values from FILE before starting |
-| `-icfile FILE` | Load initial conditions from FILE before starting |
-| `-setfile FILE` | Import a set file XPPAUT wrote before starting |
-| `-readset FILE` | Load a set file the way an internal set is loaded |
-| `-with "STRING"` | Apply STRING as if it were an internal set |
-| `-internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |
-| `-uset NAME` | Include the named internal set in a batch run |
-| `-rset NAME` | Exclude the named internal set from a batch run |
-| `-include FILE` | Include FILE, as the ODE file's `#include` would |
-| `-qsets` / `-qpars` / `-qics` | Query internal sets, parameters or initial conditions to the output file, then exit |
-| `-equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
-| `-mkplot` | Produce a plot in batch mode |
-| `-plotfmt <svg\|ps>` | Batch plot format |
-| `-dfdraw N` / `-ncdraw N` | Draw the direction field / nullclines in batch, to screen or file |
-| `-newseed` | Randomize the random number generator's seed |
-| `-convert` | Convert an old-style (PHASEPLANE) ODE file to current syntax |
-| `-anifile FILE` | Load an animation script (`.ani`) at startup |
-| `-quiet <0\|1>` | Suppress the model's own console messages (independent of `-verbose`) |
-| `-logfile FILE` | Send console output to FILE |
-| `-verbose` / `-debug` | Raise the log level (`xppautX`'s `--verbose`/`--debug` do the same) |
-| `-version` | Print the version and exit |
+| `--silent` | Batch run: no interface, integrates and exits |
+| `--runnow` | Runs the model immediately on startup (implied by `--silent`) |
+| `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
+| `--noout` | Suppress writing rows to the output file |
+| `--parfile FILE` | Load parameter values from FILE before starting |
+| `--icfile FILE` | Load initial conditions from FILE before starting |
+| `--setfile FILE` | Import a set file XPPAUT wrote before starting |
+| `--readset FILE` | Load a set file the way an internal set is loaded |
+| `--with "STRING"` | Apply STRING as if it were an internal set |
+| `--internset <0\|1>` | Run (1) or skip (0) the model's internal sets in batch |
+| `--uset NAME` | Include the named internal set in a batch run |
+| `--rset NAME` | Exclude the named internal set from a batch run |
+| `--include FILE` | Include FILE, as the ODE file's `#include` would |
+| `--qsets` / `--qpars` / `--qics` | Query internal sets, parameters or initial conditions to the output file, then exit |
+| `--equil <0\|1>` | Write equilibria to `equil.dat`, and with `1` the invariant manifolds too |
+| `--mkplot` | Produce a plot in batch mode |
+| `--plotfmt <svg\|ps>` | Batch plot format |
+| `--dfdraw N` / `--ncdraw N` | Draw the direction field / nullclines in batch, to screen or file |
+| `--newseed` | Randomize the random number generator's seed |
+| `--convert` | Convert `.ode` to `.odex`; `--auto` accepts suggested names |
+| `--anifile FILE` | Load an animation script (`.ani`) at startup |
+| `--quiet <0\|1>` | Suppress the model's own console messages (independent of `--verbose`) |
+| `--logfile FILE` | Send console output to FILE |
+| `--verbose` / `--debug` | Raise the log level (`xppautX`'s `--verbose`/`--debug` do the same) |
+| `--version` | Print the version and exit |
 
-Running xppautX with an unrecognized option prints this same list.
+An unrecognized option stops with ?no such option? and its name; `--help` prints the option list.
 
 ## What is different from XPPAUT
 

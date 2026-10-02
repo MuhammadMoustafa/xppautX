@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run one example .ode model headless (xppautX -silent), in a temp dir of
+# Run one example .ode model headless (xppautX --silent), in a temp dir of
 # its own holding a copy of the model's folder. tools/examples_check.sh
 # runs this once per model, several at once through xargs -P (W16, W17).
 #
@@ -49,10 +49,10 @@ if timeout --version >/dev/null 2>&1; then tmo=timeout
 elif gtimeout --version >/dev/null 2>&1; then tmo=gtimeout
 fi
 if [ -n "$tmo" ]; then
-  ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" -silent >run.log 2>&1 ) || st=$?
+  ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 else
-  ( cd "$run" && exec "$bin" "$(basename "$f")" -silent >run.log 2>&1 ) &
+  ( cd "$run" && exec "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) &
   pid=$!
   ( sleep "$timeout_s" && touch "$run/.timed_out" && kill -9 "$pid" ) >/dev/null 2>&1 &
   watcher=$!
@@ -66,7 +66,7 @@ if [ $timed_out -eq 1 ]; then
   sum=timeout
   st=timeout
 elif [ "$st" -eq 1 ]; then
-  # W133: -silent also exits 1 after a runtime error. The numerical
+  # W133: --silent also exits 1 after a runtime error. The numerical
   # gate still compares the data it wrote; only no output means noload.
   if runtime_exit_ok "$st" "$run/output.dat"; then
     sum=$(tr -d '\r' < "$run/output.dat" | md5)

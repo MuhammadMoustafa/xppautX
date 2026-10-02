@@ -79,7 +79,7 @@ enum class SavedKind { session, snapshot };
    error message calls it */
 std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::string &name, std::string_view bytes, SavedKind kind);
 /* the command line's arguments that load f's model: its file, and
-   -anifile's animation when it was loaded with one */
+   --anifile's animation when it was loaded with one */
 std::vector<std::string> xpp_saved_args(const SavedFile &f);
 /* The first members of the session archive carrying the model of s: the manifest man and the model's
    files; the error when the model was not read

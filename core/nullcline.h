@@ -71,7 +71,7 @@ void new_clines_com(Session &s, int c);
 void do_batch_nclines(Session &s);
 void do_batch_dfield(Session &s);
 /* the direction field the current window shows, one arrow a line (x y
-   and the arrow's end), in PostScript's frame (-silent's dirfields.dat,
+   and the arrow's end), in PostScript's frame (--silent's dirfields.dat,
    the protocol's `dfield` `write`); an error message when it shows none */
 void write_dfield(Session &s, std::string_view name);
 /* the orbits' colouring (@ colorize=, colorvia=) of s in use */

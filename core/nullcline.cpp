@@ -588,7 +588,7 @@ void write_dfield(xpp::Session &s, std::string_view name)
     command_error("direction field", "No direction field in this window");
     return;
   }
-  /* in PostScript's frame, whatever the window's, as -silent always
+  /* in PostScript's frame, whatever the window's, as --silent always
      wrote it: the arrows' lengths do not depend on the window's size */
   const DrawingState drawn=s.drawing;
   init_ps(s);

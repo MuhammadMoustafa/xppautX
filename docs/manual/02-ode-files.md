@@ -4,16 +4,16 @@
 
 ## .odex
 
-Opening a `.ode` in the window, browser, server or `-silent` converts it
+Opening a `.ode` in the window, browser, server or `--silent` converts it
 and saves `<name>.odex` beside it. That `.odex` is the model from then on,
 including Reload, sessions and recordings. The conversion preserves the
 old parser's numbers by making its quirks explicit. The status message
-links here; `-silent` prints the conversion on the console.
+links here; `--silent` prints the conversion on the console.
 
 Reserved names ask for a new name, offering the converter's suggestion;
-`-silent` takes it. Cancelling keeps the model before and writes nothing.
+`--silent` takes it. Cancelling keeps the model before and writes nothing.
 An existing `.odex` with the same text opens unchanged. Different text
-asks **Replace**, **Open existing .odex**, or **Cancel**; `-silent` fails
+asks **Replace**, **Open existing .odex**, or **Cancel**; `--silent` fails
 and names both files. A folder that cannot be written fails at the
 `.odex` path. Sessions and recordings carrying a `.ode` model are refused.
 
@@ -109,7 +109,7 @@ binary; see [Using the interface](04-using-the-interface.md) for how it
 starts and opens the front end in your browser).
 
 The program loads the file. If there are errors, it reports them and exits
-(`-silent`) or keeps serving the page so you can read what it printed
+(`--silent`) or keeps serving the page so you can read what it printed
 (the browser front end). Almost every command has a keyboard shortcut,
 either the first letter or the letter in parentheses/capitalized, shown on
 the menu next to the item; use the mouse to click the command or the
@@ -241,7 +241,7 @@ The contents of `test.inc` will be included into the ODE file as if you had writ
     par a=.25
     done
 
-In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). The file is looked for in the folder of the file that holds the line (the model's, or an included file's for a nested include), unless the name is an absolute path; the `-include` flag's name is relative to the working folder. A file that cannot be read stops the load, with the model's file and the `#include` line.
+In `#include filename` and `options filename` (as in this list) `filename` stands for the name, which is written as it is, with no brackets or quotes (`#include test.inc`). The file is looked for in the folder of the file that holds the line (the model's, or an included file's for a nested include), unless the name is an absolute path; the `--include` flag's name is relative to the working folder. A file that cannot be read stops the load, with the model's file and the `#include` line.
 
 **NOTES:** (1) At the end of every include file you have to have the statement `#done` (2) include files can include other files.
 

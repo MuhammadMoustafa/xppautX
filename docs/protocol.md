@@ -69,7 +69,7 @@ Every error is one value, `xpp::Error` (core/xpp_error.h, W140): what
 failed and where, the place being the file, its line and column from 1
 (0 when not known) and that line as written. It is reported one way
 (`show_error`, core/xpp_ui.h; a load's by `load_model`), rendered one
-way as text for the console, the log and `-silent` (`Error::text()`:
+way as text for the console, the log and `--silent` (`Error::text()`:
 `file:line:col: what`, leaving out what is not known, `line N: what`
 with no file), and sent as one shape: the `error` event (a model that
 does not load, above) and a `message` with `error` carry the same five
@@ -120,9 +120,9 @@ Loading one of xppautX's own files is one operation (W125, core/xpp_io.h
 into a value and every line and value checked, then the value is applied
 in one step, or, at the first line that is wrong, nothing is applied and
 the error names the file, the line and the line as written. The same for
-an XPPAUT set file (`.set`: File/Import XPPAUT set, `-setfile`), a parameter file (`.par`)
-and an initial-conditions file (`.ic`: `values` `read`, `-parfile`,
-`-icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
+an XPPAUT set file (`.set`: File/Import XPPAUT set, `--setfile`), a parameter file (`.par`)
+and an initial-conditions file (`.ic`: `values` `read`, `--parfile`,
+`--icfile`, Initialconds/File), a session file's members (`.snapx`, "Session
 files"), and a recording (`.recx`, "Playing a recording"); a model's
 internal set (File/Get par set) checks every item before it applies one,
 a bad item an error at the `set` line. Strict: a line that is not one of
@@ -144,10 +144,10 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `userbut` | `index` | An `@ button` of the ODE file (`hello.userbuttons`). |
 | `plotvars` | `how` (0 x vs t, 1 phase plane, 2 array plot), `names` | The IC box's xvst/pp/arry buttons for the checked variables. |
 | `browser` | `from`, `count`, `col`, `ncol` | The data browser block the client shows (answered at once with `browser`, even during a prompt); `count` 0 stops the updates. |
-| `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `-silent` does after its run. The other buttons are the window's keys ("Window keys"). |
-| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `-silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `-silent`'s `-qsets`, `-qpars`, `-qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
-| `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `-silent`'s `-dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
-| `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `-silent`'s `-equil 0`/`1`, equil.dat. |
+| `browser` | `op` (`write`, `load`, `postprocess`); for `write` `what`, `format`, `name`, `replace`; for `load` `format`, `name` | Save data and Load with their choices given, each skipping its question (see "Saving data" below); the same commands by the keys `w` and `l` of the browser window ask them all. `postprocess` runs the model's `@ postprocess` (a histogram, a Fourier transform, ... of the data, core/histogram.cpp) and shows the result in the browser, as `--silent` does after its run. The other buttons are the window's keys ("Window keys"). |
+| `values` | `op` (`write`, `read`), `kind` (`par`, `ic`), `name` | The values panel's Save and Load of XPP's own file for a section (core/lunch-new.cpp `write_parameter_file`/`load_parameter_file_named` and the `ic` ones, W66), a Load all or nothing ("Our files: all or nothing"): `write` is Save, `read` is Load; `name` given skips the file ask (as `browser`'s `write` does), omitted or empty asks for one (`ask` kind `file`, like Save/Load data). `write` fails (`message` `error`) for a `kind` other than `par` or `ic`. `op` `internset` (no `kind`) is File/Get par set (keys `f`, `g`) for the internal set `index` (0-based) or `name`, with no ask: its values and options, its plot settings on the current window, all or nothing (an item whose value is not a number, or an option that does not take it, is a `message` `error` at the `set` line, nothing applied, W125); one the model does not have is a `message` `error`. `op` `query` (no `kind`) writes `name` with the model's internal sets (name, whether `--silent` runs it, what it sets), parameters (their values in the file) and initial conditions, each asked for by `sets`, `pars`, `ics` (1), under its `#` heading: `--silent`'s `--qsets`, `--qpars`, `--qics`. `read` and `internset` are settings (they set values), `write` and `query` data (they write a file). |
+| `dfield` | `op` `write`, `name` | Write the direction field the current plot window shows (Dir.field, key `d`) to `name`, one arrow a line (x, y and the arrow's end), its lengths in PostScript's frame whatever the window's size: `--silent`'s `--dfdraw 4`/`5` file, dirfields.dat. A window that shows none is a `message` `error`. |
+| `equilibrium` | `op` `write`, `name`, `shoot` | Find the equilibrium Newton reaches from the initial conditions and write it to `name`, one variable a line (its value, then its eigenvalue's real and imaginary parts); nothing when Newton does not converge. `shoot` 1 also integrates a saddle's invariant manifolds into `UMk.dat`/`SMk.dat`: `--silent`'s `--equil 0`/`1`, equil.dat. |
 | `equations` | | Send `equations`. |
 | `data` | `events` (names from `hello.features`), `enc` | The data events the client wants from now on (`[]` stops them); each is sent at the end of this command. `series`: the plot windows' curves as numbers, `plots`: the plot windows themselves, `nullclines` and `dfield`: what the phase planes show besides their curves, `marks`: equilibria, text, arrows, markers and frozen curves on the plots (all in "The plot as data", below); `ani`: the animation's frames ("The animation as data"); `autoinfo`: AUTO's info strip and stability circle ("The AUTO diagram as data"); `autosettings`: AUTO's Numerics, parameters, axes and Mark values ("AUTO's settings as data"); `numerics`: the main numerics ("The numerics as data"). `enc` `"f32"` sends these events' value arrays as base64 of little-endian float32 instead of JSON numbers (an `ani` frame is always JSON). |
 | `action` | `index` | Run the action of comment `index` of `source.comments`. |
@@ -165,7 +165,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
 | `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
-| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--script`, `-silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
+| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--script`, `--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
 
 ## Action kinds
 
@@ -261,7 +261,7 @@ per format):
 
 `what` is `table` (the rows First..Last of every column: `T`, then the
 browser's `cols`), `output` (those rows of the model's output columns: its
-`only` list when it has one, else every column: what `-silent` writes as
+`only` list when it has one, else every column: what `--silent` writes as
 output.dat) or `plot` (the current plot window's curves, then its
 frozen curves, as one long table `curve,x,y` (and `z` in 3D), one row per
 point, the curves numbered from 1; in NPZ one (points, 2 or 3) array per
@@ -375,7 +375,7 @@ commands a `--server` client sends, one per line (blank lines and lines
 whose first non-blank character is `#` are ignored). Protocol events go to
 stdout exactly as `--server` sends them. The process exits 0 when FILE
 runs out, or 1 if any error was reported, through the protocol or the
-log. The same accounting applies to every quit path and to `-silent`,
+log. The same accounting applies to every quit path and to `--silent`,
 including output files that could not be written (W133). Results such as
 a successful fit use `message` `bottom`, and do not count as errors. A line that
 does not fit the dialogue stops the script at once with exit status 1 and
@@ -627,9 +627,9 @@ while it waits. `tools/servercheck.py` (`check_player`,
 `check_player_ani`) and `tools/autocheck.py` (`play`) play recordings
 back and compare the data.
 
-## -silent
+## --silent
 
-`xppautX model.ode -silent` is a script of these same commands, built in
+`xppautX model.ode --silent` is a script of these same commands, built in
 (core/json_silent.cpp): after the model loads with no interface at all (a
 model that does not load exits 1), the command line and the model's `@`
 options say which commands, and they are played as `--script` plays a
@@ -639,25 +639,25 @@ message leaves the exit status 0, as before). Each step is made when its
 turn comes, after the steps before it ran, since an internal set may
 change any option. The questions the commands ask are answered by the
 script's next lines; one it does not expect stops it (exit 1). For each
-run (once, or for each internal set in turn with `-internset`/`-uset`/`-rset`,
-each set's data then in `<set>.dat` unless `-outfile` is given):
+run (once, or for each internal set in turn with `--internset`/`--uset`/`--rset`,
+each set's data then in `<set>.dat` unless `--outfile` is given):
 
 | what | commands |
 |---|---|
 | the internal set | `values` `internset` with its `index` (File/Get par set) |
-| `-qsets`/`-qpars`/`-qics`, `-dryrun` | `values` `query` into the output file; nothing is run |
+| `--qsets`/`--qpars`/`--qics`, `-dryrun` | `values` `query` into the output file; nothing is run |
 | the run | `key` `i`, `answer` `g` (Initialconds/Go), or `answer` `r` (Range) for `@ range=1` or `@ stoch=` |
 | `@ postprocess=` | `browser` `postprocess` |
 | unless each run of a range wrote its own `output.dat.N`: `@ stoch=1`/`2` | `key` `u`, `key` `h`, `answer` `m` (Mean) or `v` (Variance), `key` `Escape` |
-| output.dat (`@ output=`, `-outfile`; not with `-noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
-| `-mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `-plotfmt svg`), then `answer` `file` |
+| output.dat (`@ output=`, `--outfile`; not with `--noout`) | `browser` `write`, `what` `output`, `format` `dat`, `replace` 1 |
+| `--mkplot` | `key` `g`, `answer` `p` then the PostScript form answered with its own values (or `answer` `v`, SVG, for `--plotfmt svg`), then `answer` `file` |
 
 and after every run: `@ ncdraw=2` (on a phase plane) `key` `n`, `answer`
 `n`, `key` `n`, `answer` `s`, `answer` `file` nullclines.dat; `@ dfdraw=4`/`5`
 (on a phase plane) `key` `d`, `answer` `d` or `s`, `answer` the grid,
-`dfield` `write` dirfields.dat; `-equil 0`/`1` `equilibrium` `write`
-equil.dat (`shoot` 1 for `-equil 1`). The files the command line names
-(`-setfile`, `-parfile`, `-icfile`, `-readset`, `-with`) are read by the
+`dfield` `write` dirfields.dat; `--equil 0`/`1` `equilibrium` `write`
+equil.dat (`shoot` 1 for `--equil 1`). The files the command line names
+(`--setfile`, `--parfile`, `--icfile`, `--readset`, `--with`) are read by the
 model's start in every mode, before the script.
 
 ## Events (server to client)
@@ -679,7 +679,7 @@ model's start in every mode, before the script.
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
-| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menus.names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `-silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
+| `state` | `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menus.names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
 | `idle` | | The command finished. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
 | `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `play` `note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
@@ -1229,9 +1229,9 @@ is a zip of ordinary files, in this order:
 
 | Member | What it holds |
 |---|---|
-| `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `-anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
-| `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `-anifile`'s animation; byte for byte |
-| `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `-setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
+| `session.txt` | the manifest: `xppautX session 1`, then `name` (the model's own file, as the model names it), `anifile` (the animation `--anifile` loaded, one of the model's files; only when there is one), `data` (1 when `data.npz` is there), one `key value` line each |
+| `model/<name>` | the model (W103): its `.ode` or `.odex` first (`model/` and `name`), then every other file its load read, each by the name the model gives it (a path as the model writes it, relative to its folder or whole): the files it includes, its file tables, `--anifile`'s animation; byte for byte |
+| `model.set` | the set format (values, numerics, delays, boundary conditions, the active window's graphics, W147: no longer a file a user saves or opens), ending at its last value (XPPAUT's set file, which File/Import XPPAUT set and `--setfile` read, has its model's equations after it, `RHS etc ...`, written for a reader; a session's has none, W145): the original XPPAUT reads it |
 | `auto/settings.txt`, `auto/diagram.csv`, `auto/solutions.s`, `auto/views.txt` | AUTO's settings and views; full-precision diagram and restart orbits when a diagram exists (xpp_session_auto.h) |
 | `windows.set` | every plot window (its variables by name, labels, `# Graphics` block, zoom and earlier-runs toggle), which is active, AUTO's hidden branches (`autoview`'s `earlier` and `show`), the browser's added columns; set-file lines, a value and its name |
 | `marks.set` | the text labels, arrows and markers, and the frozen curves' settings, per window |
@@ -1269,12 +1269,12 @@ error's place is the member's line, the member named inside its file
 here, before # Graphics); lecar.ode is still loaded` (at the start, the
 command line's file, the `error` event, then exit 1). A member missing
 is named on the file itself (`s1.snapx: its random.txt is missing`). The command
-line opens one too, `xppautX name.snapx` (every mode but `-silent`),
+line opens one too, `xppautX name.snapx` (every mode but `--silent`),
 from its own folder.
 
 A recording, `name.recx` (W59c), is registered with the OS beside them (the
 same scripts in `tools/associate/`), and `xppautX name.recx` (every mode
-but `-silent`) starts the recording's own model and opens the recording in
+but `--silent`) starts the recording's own model and opens the recording in
 the player, as `{"cmd":"play","op":"open"}` does, without the question
 File/open Model asks (nothing is open to save).
 
@@ -1440,7 +1440,7 @@ with neither field is refused (`message` `error`): the interactive grab is
 the AUTO window's key `g`, `{"cmd":"key","win":"auto","key":"g"}`, which
 asks (`grab`, above). A script that recorded an interactive grab (W59) replays it as the
 keys it was answered with, exactly as it was driven; `grab`/`label` is for
-a script that names the point instead (W56's -silent commands).
+a script that names the point instead (W56's --silent commands).
 
 **The file ask's mode.** `mode` says whether the command opens the file
 (`read`: Import XPPAUT set, Load diagram, the browser's Load, Import, ...) or saves
@@ -1613,7 +1613,7 @@ ask: `value` is the suggestion, Cancel ends the open without writing and
 keeps the previous model. If the `.odex` already has different text, the
 existing `choice` question **File Exists! Overwrite?** has `keys` `yn`
 and choices **Replace** (`y`) and **Open existing .odex** (`n`); Cancel
-(`ok:false`) ends the open. Equal text opens unchanged. `-silent` takes
+(`ok:false`) ends the open. Equal text opens unchanged. `--silent` takes
 name suggestions and refuses different existing text. An unwritable
 folder fails at the `.odex` path. No new ask kind is introduced.
 

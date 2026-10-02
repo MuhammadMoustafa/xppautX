@@ -4,7 +4,7 @@ Results such as a successful curve fit, a mean and standard deviation, a
 Liapunov exponent, a saved boundary-value point, and AUTO toggle states
 appear in the status bar. They do not open an error dialog. If the
 kinescope fills, the command reports one error; frames already captured
-remain available. A script or `-silent` run exits 1 if any error occurred,
+remain available. A script or `--silent` run exits 1 if any error occurred,
 including an output file it could not write; a successful fit exits 0
 (W133).
 
@@ -71,7 +71,6 @@ allows you to rewindow the current graph. Pressing this presents another menu wi
 - **(Z)oom in**: Use the mouse to expand a region by clicking, dragging and releasing. The view in the rectangle will be expanded to the whole window.
 - **Zoom (O)ut**: As above but the whole window will be shrunk into the rectangle.
 - **(F)it**: The most common command will automatically fit the window so the entire curve is contained within it. For three-D stuff the window data will be scaled to fit into a cube and the cube scaled to fit in the window. Use this often.
-(In web2, Zoom/Zoom out/Fit are client-side plot modes drawn on the canvas — see [Using the interface](04-using-the-interface.md#plots-and-axes) — so there is no `-xorfix`-style rubber-band drawing bug to work around.)
 
 ### ph(A)se space
 

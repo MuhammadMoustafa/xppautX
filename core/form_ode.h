@@ -17,7 +17,7 @@ namespace xpp {
 struct Model;   /* model.h */
 struct Session; /* session.h */
 
-/* -convert: an old-style file read is rewritten in the new syntax, into
+/* --convert: an old-style file read is rewritten in the new syntax, into
    the loading Session's parser.convert (markov.cpp writes it too). The
    command line's flag (comline.cpp), which a model read in the new
    syntax clears for the rest of the run */

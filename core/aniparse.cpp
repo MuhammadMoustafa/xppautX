@@ -810,7 +810,7 @@ int load_ani_file(xpp::Session &s, xpp::LineReader &fp)
     return 1;
 }
 
-/* the .ani filename: -anifile's is one of the model's files (model_file,
+/* the .ani filename: --anifile's is one of the model's files (model_file,
    model_files.h), one picked in the animation window a file of the disk */
 xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_file)
 {

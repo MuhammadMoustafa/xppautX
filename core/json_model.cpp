@@ -58,7 +58,7 @@ void init_main_graph(xpp::Session &s)
 }
 
 /* the model just loaded: the front end's set-up (what main.c did after
-   opening its window), then Reload's kept values, hello, and -anifile's
+   opening its window), then Reload's kept values, hello, and --anifile's
    animation */
 void start_model(xpp::Session &s, const xpp::KeptValues *kept)
 {

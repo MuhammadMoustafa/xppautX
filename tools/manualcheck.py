@@ -10,15 +10,15 @@ a table snippet, one line of a bigger example) that never ends in
 "done" and is skipped by this rule, not by an allowlist of line numbers.
 
 Each block found is written to a temp .ode file and loaded with
-`xppautX -silent ... -qics` (docs/comline.h's -qics: batch mode, a dry
-run -- it queries the initial conditions and writes them to -outfile
+`xppautX --silent ... --qics` (core/comline.h's --qics: batch mode, a dry
+run -- it queries the initial conditions and writes them to --outfile
 instead of integrating, but still runs the whole parser and model
 set-up, so a bad model still fails to load). A nonzero exit is a load
 failure and fails the check, printing the file, the block's starting
 line and xppautX's stderr tail.
 
-Also checks that every "-name" command-line option the manual names
-(docs/manual/*.md, backtick-quoted, e.g. `-silent`, `-parfile
+Also checks that every "--name" command-line option the manual names
+(docs/manual/*.md, backtick-quoted, e.g. `--silent`, `--parfile
 *filename*`) is one `xppautX --help` and core/comline.cpp's option table
 both know: `--help` doesn't itself list xpp's own options (only its own
 front-end flags), so this reads comline.cpp's my_cmd[] table instead of
@@ -155,7 +155,7 @@ def check_models(xppbin, verbose):
                 with open(model_path, "w", encoding="utf-8", newline="\n") as f:
                     f.write("\n".join(lines) + "\n")
                 proc = subprocess.run(
-                    [xppbin, model_path, "-silent", "-qics", "-outfile", out_path],
+                    [xppbin, model_path, "--silent", "--qics", "--outfile", out_path],
                     cwd=tmpdir,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
@@ -176,8 +176,8 @@ def check_models(xppbin, verbose):
 # command-line flag (never prose, which also puts a hyphenated word or a
 # negated formula variable in backticks -- `-a`, `-thick` -- that is not
 # a flag at all):
-#   | `-name ARG` | ... |          a table row (docs/manual/01-introduction.md)
-#   - **-name *arg***: ...         a bulleted definition (docs/manual/16-quick-reference.md)
+#   | `--name ARG` | ... |          a table row (docs/manual/01-introduction.md)
+#   - **--name *arg***: ...         a bulleted definition (docs/manual/16-quick-reference.md)
 TABLE_ROW_RE = re.compile(r"^\|\s*`-")
 TABLE_OPTION_RE = re.compile(r"`(-{1,2}[A-Za-z][\w-]*)")
 BOLD_OPTION_RE = re.compile(r"^-?\s*\*\*(-{1,2}[A-Za-z][\w-]*)\*\*")
@@ -186,7 +186,7 @@ BOLD_OPTION_RE = re.compile(r"^-?\s*\*\*(-{1,2}[A-Za-z][\w-]*)\*\*")
 def manual_options():
     """Every option an actual "flags" table row or bulleted definition
     names, across docs/manual/*.md. A table row's first cell may name
-    several with `/` between them (`-qsets` / `-qpars` / `-qics`)."""
+    several with `/` between them (`--qsets` / `--qpars` / `--qics`)."""
     found = {}
     for path in sorted(glob.glob(os.path.join(ROOT, "docs", "manual", "*.md"))):
         relpath = os.path.relpath(path, ROOT)
@@ -209,7 +209,7 @@ def comline_options():
     path = os.path.join(ROOT, "core", "comline.cpp")
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
-    m = re.search(r"my_cmd\[NCMD\]\s*=\s*\{(.*?)\};", text, re.S)
+    m = re.search(r"my_cmd\[\]\s*=\s*\{(.*?)\};", text, re.S)
     if not m:
         return set()
     return set(re.findall(r'\{"(-[\w-]+)"', m.group(1)))
@@ -227,8 +227,7 @@ def check_options(xppbin):
     failures = []
     for opt, where in sorted(manual.items()):
         if opt.startswith("--"):
-            # a front-end flag: must be in --help's own text or comline's
-            # table (a few, like -silent, are xpp's and predate --)
+            # a word flag: must be in --help's text or comline's table
             if opt not in known:
                 failures.append(f"{where}: `{opt}` is not in `xppautX --help` or comline.cpp")
         else:

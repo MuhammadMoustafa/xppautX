@@ -131,7 +131,7 @@ struct ParserState {
   int errout = 0;
   std::array<ExprSymbol, MAX_SYMBS> symbols;
   ExprStack stack;
-  /* -convert's rewrite of the old-style file being read (form_ode.cpp,
+  /* --convert's rewrite of the old-style file being read (form_ode.cpp,
      markov.cpp), open while it is read */
   Writer convert;
   /* the Model builder's count of variables read (in_vars), the named

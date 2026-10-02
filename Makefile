@@ -1,6 +1,6 @@
 # xppautX — build xppautX from core/. No X11: the legacy X11 front end
 # was removed (issue #20); xppautX is the one program (its desktop window,
-# browser mode, --server or -silent).
+# browser mode, --server or --silent).
 # Requires: gcc, make; for the window on Linux, WebKitGTK (optional, below)
 
 VERSION  = 8.0
@@ -350,7 +350,7 @@ vg:
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
-# the one X11-free program: browser front end, --server protocol and -silent batch
+# the one X11-free program: browser front end, --server protocol and --silent batch
 xppautx: xppautX$(EXE)
 
 # rebuilt whole, and when the list of objects changes too: ar only adds

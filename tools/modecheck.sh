@@ -31,7 +31,7 @@ bad() { echo "FAIL $1"; fail=1; }
 
 help=$("$BIN" --help)
 missing=
-for flag in --browser --web --no-open --server --script --port --verbose --debug --version -silent; do
+for flag in --browser --web --no-open --server --script --port --verbose --debug --version --silent; do
   case "$help" in *" $flag"*) ;; *) missing="$missing $flag" ;; esac
 done
 if [ -z "$missing" ]; then pass "--help lists the modes and options"; else bad "--help lists$missing"; fi
@@ -57,6 +57,21 @@ for opener in xdg-open open; do
   chmod +x "$tmp/bin/$opener"
 done
 cp examples/ode/lecar.odex "$tmp/"
+
+# Check batch success and old spelling in foreground runs.
+if (cd "$tmp" && "$BIN" --silent lecar.odex > silent.out 2>&1) && [ -s "$tmp/output.dat" ]; then
+  pass "--silent writes batch output"
+else
+  bad "--silent: $(head -c 300 "$tmp/silent.out")"
+fi
+old_silent=$(printf '\055silent')
+if "$BIN" "$old_silent" > "$tmp/refused.out" 2>&1; then
+  bad "old silent spelling was accepted"
+elif grep -q -- "$old_silent is --silent" "$tmp/refused.out"; then
+  pass "old silent spelling stops and names --silent"
+else
+  bad "old silent spelling: $(head -c 300 "$tmp/refused.out")"
+fi
 
 # start xppautX with $@ in $tmp (and env's $ENVS), wait for its XPP: line (at most 10 s)
 start() {
@@ -133,9 +148,9 @@ if [ $linux_window -eq 1 ]; then
 fi
 
 # a model that does not load exits non-zero (QA INPUT-001): --server and
-# -silent at once (browser and window mode keep the page open on the log)
+# --silent at once (browser and window mode keep the page open on the log)
 cp tools/models/malformed_unbalanced.ode "$tmp/"
-for mode in --server -silent; do
+for mode in --server --silent; do
   ( cd "$tmp" && exec "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 ) &
   bpid=$!
   ( sleep 20; kill $bpid 2>/dev/null ) &
@@ -157,7 +172,7 @@ printf "x'=xp\nxp=0\nexport {x} {xp}\ninit x=1\ndone\n" > "$tmp/c_export.ode"
 printf "x'=-x\n@ dll_lib=ex.so, dll_fun=vdp\ndone\n" > "$tmp/c_dll.ode"
 printf "x[0..3]'=-x[j]\nspecial k=import(a.so,f,4,x0)\ndone\n" > "$tmp/c_import.ode"
 for m in c_export c_dll c_import; do
-  ( cd "$tmp" && exec "$BIN" -silent $m.ode < /dev/null > $m.out 2>&1 ) &
+  ( cd "$tmp" && exec "$BIN" --silent $m.ode < /dev/null > $m.out 2>&1 ) &
   bpid=$!
   ( sleep 20; kill $bpid 2>/dev/null ) &
   watchdog=$!

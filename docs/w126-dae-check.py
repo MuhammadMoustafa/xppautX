@@ -2,7 +2,7 @@
 """W126: independent check of xppautX's DAE results (docs/w126-dae-check.md).
 
 Usage: python3 docs/w126-dae-check.py OLD_EXE NEW_EXE [--work DIR]
-Runs each exe as `<exe> model.ode -silent` in a scratch copy of the model's
+Runs each exe as `<exe> model.ode --silent` in a scratch copy of the model's
 folder, reads output.dat, and compares it with two references per model:
 (a) scipy solve_ivp (Radau, rtol 1e-10, atol 1e-12) with the algebraic
 variable solved to full tolerance (brentq) inside the right-hand side;
@@ -94,7 +94,7 @@ def run(tag, exe, name, work):
     os.makedirs(d, exist_ok=True)
     src = os.path.join(ROOT, "examples", MODELS[name])
     shutil.copy(src, d)
-    p = subprocess.run([os.path.abspath(exe), os.path.basename(src), "-silent"], cwd=d,
+    p = subprocess.run([os.path.abspath(exe), os.path.basename(src), "--silent"], cwd=d,
                        capture_output=True, text=True, timeout=300)
     a = np.loadtxt(os.path.join(d, "output.dat"))
     return a, (p.stdout + p.stderr)

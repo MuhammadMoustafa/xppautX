@@ -218,7 +218,7 @@ void buf_player(Buf *b);
 
 /* ---- json_silent.cpp ---- */
 
-/* -silent's built-in script for the session s: its command lines, each
+/* --silent's built-in script for the session s: its command lines, each
    made when its turn comes (xpp::inbox::start_generated) */
 std::function<std::optional<std::string>()> silent_script(const xpp::Session &s);
 

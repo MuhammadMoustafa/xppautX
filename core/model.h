@@ -294,7 +294,7 @@ struct Model {
   std::string this_file;
   /* the model's own files as its load read them (model_files.h):
      this_file first, then each file included, each file table, the
-     options file and -anifile's animation, in the order read; an AUTO
+     options file and --anifile's animation, in the order read; an AUTO
      file and a session file save them all (xpp_session.h) */
   std::vector<ModelFile> files;
   /* the .snapx the model was loaded from (an absolute path),

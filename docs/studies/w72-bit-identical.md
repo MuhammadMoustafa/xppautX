@@ -107,7 +107,7 @@ UCRT ~30 ns, mingw-w64 11 ~160 ns and inexact). With the instruction,
 CORE-MATH is as fast as glibc or faster for most functions (pow 2x, cos
 1.5x slower). The results are the same bits either way: fma is exact.
 
-`xppautX -silent` wall time, median (ms; Linux 7 runs, Windows 5, the
+`xppautX --silent` wall time, median (ms; Linux 7 runs, Windows 5, the
 builds run in turn so drift hits them alike; other agents shared the
 machine, so +-5% is noise):
 

@@ -26,6 +26,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Word options require two dashes (`--silent`, `--setfile`, `--logfile` and the rest); old single-dash words stop and name the new spelling. `-h` is unchanged (W156, [#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)).
+
 - The local HTTP server now closes silent or trickling request heads after five seconds and times out blocked sends after ten seconds, dropping unresponsive event streams; upload bodies keep their 30-second timeout per receive (W164, #216).
 - Opening a `.ode` in every mode converts and saves a `.odex` beside it, then opens that file; reserved names and different existing text ask before proceeding, while `-silent` takes suggested names and refuses a conflict. Sessions and recordings store only `.odex` models and refuse `.ode` models; a model can no longer be read from standard input (W154, [#206](https://github.com/MuhammadMoustafa/xppautX/issues/206)).
 
@@ -51,6 +53,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 - The Linux release is built on Ubuntu 26.04 and needs its glibc or newer; an older Linux builds from source with `tools/build_linux.sh`, which installs what the build needs (README "An older Linux")
 
 ### Removed
+
+- X11 command-line options (`-xorfix`, `-iconify`, `-allwin`, `-ee`, `-white`, `-bigfont`, `-smallfont`, `-forecolor`, `-backcolor`, `-backimage`, `-grads`, `-width`, `-height`, `-mwcolor`, `-dwcolor`, `-bell`, `-def`); unknown options stop with ?no such option? (W156, [#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)).
 
 - `.autox` and `.autoset`: AUTO's Save diagram saves the session (`.snapx`) and Load opens one; AUTO settings, diagram, views and orbits live under its `auto/` members. Reload keeps AUTO's settings without a separate file (W155, #207)
 

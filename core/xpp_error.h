@@ -5,7 +5,7 @@
    and command_error (xpp_ui.h), a load that fails (xpp::load_model and
    xpp::model_failed, xpp_batch.h; xpp::LoadFailed, session.h), the .odex
    reader's problems (odex::error_at, odex.h). Error::text() is the one
-   rendering of it as text (the console, the log, -silent), and the JSON
+   rendering of it as text (the console, the log, --silent), and the JSON
    front end sends its fields in the `error` and `message` events
    (docs/protocol.md "Errors").
    A computation (an integration and its solvers, an equilibrium, a

@@ -26,16 +26,16 @@ struct Session; /* session.h */
    is, after what was logged there (Load::error(what)) */
 [[noreturn]] void model_failed(std::string_view what);
 
-/* After a load with no interface (-silent, a unit test): s's browser,
+/* After a load with no interface (--silent, a unit test): s's browser,
    graphs and colours set up, and the command line's files and internal
-   sets taken in (-setfile, -parfile, -icfile, -readset/-with,
-   -internset/-uset/-rset). What -silent then runs is its built-in
+   sets taken in (--setfile, --parfile, --icfile, --readset/--with,
+   --internset/--uset/--rset). What --silent then runs is its built-in
    script (json_silent.cpp). */
 void batch_start(Session &s);
 
 /* The start of a load (load_model), in the Session it builds (its
-   options_set empty: no option set yet): the command line's -quiet and
-   -logfile (they must win over .xpprc); .xpprc's and the command line's
+   options_set empty: no option set yet): the command line's --quiet and
+   --logfile (they must win over .xpprc); .xpprc's and the command line's
    options */
 void check_for_quiet(Session &s, int argc, char **argv);
 void do_vis_env(Session &s);
@@ -43,7 +43,7 @@ void do_vis_env(Session &s);
 /* what a load gives: the Session it loaded (its Model the Session's),
    or what is wrong and where */
 using Loaded = std::expected<Session *, Error>;
-/* The shared start of every mode (the program, -silent, --convert,
+/* The shared start of every mode (the program, --silent, --convert,
    File > Open model, a unit test): options, the ODE file, numerics
    set-up; batch forces batch mode. The Session loaded (the client's in
    the session list from now on, session.h), else what is wrong and where
@@ -69,15 +69,15 @@ Result<> inspect_model(int argc, char **argv, const std::function<void(Session &
 [[noreturn]] void model_failed(Error e);
 
 /* How a run without an interface goes and where its output lands: the
-   command line (-silent, -outfile, -equil, -iset) and the ODE file's
+   command line (--silent, --outfile, --equil, -iset) and the ODE file's
    @ output=, @ range= options set these. */
 struct XppBatchOptions {
     int enabled = 0;           /* batch mode: no interface, run and write */
     int range = 0;             /* run the range integration in batch mode */
-    int equilibria = -1;       /* -equil: <0 none, 1 find and write equilibria */
+    int equilibria = -1;       /* --equil: <0 none, 1 find and write equilibria */
     int use_intern_sets = 1;   /* run every internal set (1) or the chosen ones */
     std::string out_file;      /* the data file a batch run writes */
-    std::string user_out_file; /* -outfile as given ("": name it after the set) */
+    std::string user_out_file; /* --outfile as given ("": name it after the set) */
     /* whether a batch run uses each of the model's internal sets, as the
        command line picked them (if_needed_select_sets; a set it did not
        pick is used), and how many it picked in all (0: run once, no set) */

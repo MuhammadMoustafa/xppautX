@@ -1,15 +1,15 @@
 # .odex: the model format without .ode's quirks
 
 Opening a `.ode` converts it and saves `<name>.odex` beside it in every
-mode: window, browser, `--server` and `-silent`, File > Open model,
+mode: window, browser, `--server` and `--silent`, File > Open model,
 Reload and a double-click (W154, #206). From then on the `.odex` is the
 model. The loader reads only `.odex`; only the converter reaches the
 foreign `.ode` parser. A name reserved here asks for its replacement,
-with a suggestion as the default; `-silent` accepts the suggestions.
+with a suggestion as the default; `--silent` accepts the suggestions.
 Cancel keeps the previous model and writes nothing. Equal existing text
 opens unchanged (CRLF and LF are the same lines); different text asks
 Replace, Open existing .odex, or Cancel, using the existing overwrite
-question. `-silent` refuses it, naming both files. Failure to write names
+question. `--silent` refuses it, naming both files. Failure to write names
 the `.odex` path; there is no memory-only open. `.snapx` and `.recx` store
 `.odex` model text and included files and refuse a `.ode` model.
 

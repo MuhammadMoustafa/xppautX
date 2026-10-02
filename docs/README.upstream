@@ -192,7 +192,7 @@ VERSION 5.53 June 2002
 
 VERSION 5.5  Mar 2002
 - Integrate over 1800 equations
-- new command line -setfile <filename> lets you load up the setfile
+- new command line --setfile <filename> lets you load up the setfile
   (good mainly for batch)
 - added "only" statement to ODE files. Lets you save only the listed
   variables during a batch integration.
@@ -400,7 +400,7 @@ New features:
 
 VERSION 1.80 of XPP/XPPAUT
 New Features:
-1.  -convert command line argument converts old-style to new style
+1.  --convert command line argument converts old-style to new style
 2.  Symbol font and Times fonts in 5 sizes.  All Text is editable 
 3.  Add arrows and pointers to plots
 4.  Import bifurcation diagrams into main window

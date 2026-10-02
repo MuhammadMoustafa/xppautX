@@ -842,7 +842,7 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
 std::vector<std::string> xpp_saved_args(const SavedFile &f)
 {
     std::vector<std::string> args{f.manifest.model_name};
-    if (!f.manifest.anifile.empty()) args.insert(args.end(), {"-anifile", f.manifest.anifile});
+    if (!f.manifest.anifile.empty()) args.insert(args.end(), {"--anifile", f.manifest.anifile});
     return args;
 }
 

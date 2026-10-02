@@ -27,9 +27,9 @@ def _reject_non_finite(text):
     raise ValueError('non-finite JSON constant: %s' % text)
 
 def check_logging():
-    """core/xpp_log.h: -silent is quiet by default, --verbose shows the
+    """core/xpp_log.h: --silent is quiet by default, --verbose shows the
     banner/parser stats, and a real parse error still reaches stderr even
-    at the default (quiet) level. Uses -silent so this needs no JSON
+    at the default (quiet) level. Uses --silent so this needs no JSON
     conversation; see CLAUDE.md "Logging"."""
     global failures
     run_dir = tempfile.mkdtemp(prefix='xppquiet')
@@ -37,11 +37,11 @@ def check_logging():
         shutil.copy(args.ode, run_dir)
         odename = os.path.basename(args.ode)
 
-        p = subprocess.run([os.path.abspath(args.server), odename, '-silent'],
+        p = subprocess.run([os.path.abspath(args.server), odename, '--silent'],
                             cwd=run_dir, capture_output=True, text=True, timeout=30 * SLOW)
-        check('log: -silent is quiet by default', p.stderr.strip() == '', repr(p.stderr[:300]))
+        check('log: --silent is quiet by default', p.stderr.strip() == '', repr(p.stderr[:300]))
 
-        p = subprocess.run([os.path.abspath(args.server), '--verbose', odename, '-silent'],
+        p = subprocess.run([os.path.abspath(args.server), '--verbose', odename, '--silent'],
                             cwd=run_dir, capture_output=True, text=True, timeout=30 * SLOW)
         check('log: --verbose shows the banner and parser stats',
               'Copyright' in p.stderr and 'nvar=' in p.stderr, repr(p.stderr[:300]))
@@ -51,7 +51,7 @@ def check_logging():
             bad_ode = os.path.join(bad_dir, 'bad.ode')
             with open(bad_ode, 'w') as f:
                 f.write("x'=(1+2\ndone\n")
-            p = subprocess.run([os.path.abspath(args.server), 'bad.ode', '-silent'],
+            p = subprocess.run([os.path.abspath(args.server), 'bad.ode', '--silent'],
                                 cwd=bad_dir, capture_output=True, text=True, timeout=30 * SLOW)
             check('log: a syntax error still reaches stderr at the default level',
                   p.stderr.strip() != '', repr(p.stderr[:300]))
@@ -372,11 +372,11 @@ def same_floats(a, b):
 
 def series_matches_output_dat(ser, ode=None):
     """the series' columns hold the numbers output.dat has for the same run
-    (xppautX -silent): both are the stored floats, output.dat prints %.8g"""
+    (xppautX --silent): both are the stored floats, output.dat prints %.8g"""
     ode = ode or args.ode
     silent = tempfile.mkdtemp(prefix='xppsilent')
     shutil.copy(ode, silent)
-    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=silent,
+    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '--silent'], cwd=silent,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
     with open(os.path.join(silent, 'output.dat')) as f:
         rows = [l.split() for l in f if l.strip()]
@@ -1585,7 +1585,7 @@ def check_values_protocol():
 check_values_protocol()
 
 
-# W66 review: XPPAUT's -icfile/io_ic_file reads and writes exactly `node`
+# W66 review: XPPAUT's --icfile/io_ic_file reads and writes exactly `node`
 # values -- one per differential-equation variable, never the Markov
 # chains -- so a Markov model's .ic file stays the file XPPAUT itself
 # reads (kepler.odex: x1, x2 are node, z is a markov chain, not in the file).
@@ -3015,11 +3015,11 @@ def check_data_formats():
                   e is not None and is_idle(e) and os.path.exists(os.path.join(r, name)), str(e))
         silent = tempfile.mkdtemp(prefix='xppsilent')
         shutil.copy(args.ode, silent)
-        subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '-silent'], cwd=silent,
+        subprocess.run([os.path.abspath(args.server), os.path.basename(args.ode), '--silent'], cwd=silent,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
         want = read(silent, 'output.dat').replace(b'\r', b'')
         shutil.rmtree(silent, ignore_errors=True)
-        check("Save data as .dat is byte for byte the -silent run's output.dat",
+        check("Save data as .dat is byte for byte the --silent run's output.dat",
               read(r, 'd.dat').replace(b'\r', b'') == want, '%d vs %d bytes' % (len(read(r, 'd.dat')), len(want)))
         rows = [[float(x) for x in l.split()] for l in want.decode().splitlines() if l.strip()]
         csv = read(r, 'd.csv').decode().splitlines() or ['']
@@ -3817,15 +3817,15 @@ def check_display_state():
 
 
 def check_silent_commands():
-    """W56: -silent is a built-in script of the protocol's own commands.
+    """W56: --silent is a built-in script of the protocol's own commands.
     Each command it uses where the interface had none (browser write of
     the output columns with replace, browser postprocess, values query,
     dfield write, equilibrium write) writes, from a --script, the very
-    file the -silent run writes; -silent prints nothing on stdout."""
+    file the --silent run writes; --silent prints nothing on stdout."""
     def silent(ode, *flags):
         d = tempfile.mkdtemp(prefix='xppsilent')
         shutil.copy(ode, d)
-        r = subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'] + list(flags), cwd=d,
+        r = subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '--silent'] + list(flags), cwd=d,
                            capture_output=True, text=True, timeout=60 * SLOW)
         return d, r
 
@@ -3847,16 +3847,16 @@ def check_silent_commands():
     go = [{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'}]
     dirs = []
     try:
-        s, r = silent(args.ode, '-qsets', '-qpars', '-qics', '-outfile', 'q.txt')
+        s, r = silent(args.ode, '--qsets', '--qpars', '--qics', '--outfile', 'q.txt')
         dirs.append(s)
         q, rq = script(args.ode, [{'cmd': 'values', 'op': 'query', 'name': 'q.txt', 'sets': 1, 'pars': 1, 'ics': 1}])
         dirs.append(q)
-        check('values query writes what -silent -qsets -qpars -qics writes', rq.returncode == 0 and
+        check('values query writes what --silent --qsets --qpars --qics writes', rq.returncode == 0 and
               read(q, 'q.txt') is not None and read(q, 'q.txt') == read(s, 'q.txt'), rq.stderr[-300:])
 
-        s, r = silent(args.ode, '-dfdraw', '4', '-equil', '0')
+        s, r = silent(args.ode, '--dfdraw', '4', '--equil', '0')
         dirs.append(s)
-        check('-silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])
+        check('--silent writes nothing on stdout', r.returncode == 0 and r.stdout == '', r.stdout[:300])
         stale = lambda d: open(os.path.join(d, 'output.dat'), 'w').write('stale\n')
         c, rc = script(args.ode, go + [
             {'cmd': 'browser', 'op': 'write', 'what': 'output', 'format': 'dat', 'name': 'output.dat', 'replace': 1},
@@ -3864,13 +3864,13 @@ def check_silent_commands():
             {'cmd': 'key', 'key': 'd'}, {'cmd': 'answer', 'key': 'd'}, {'cmd': 'answer', 'value': '16'},
             {'cmd': 'dfield', 'op': 'write', 'name': 'dirfields.dat'}], before=stale)
         dirs.append(c)
-        check('the script with -silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
-        check('browser write of the output, replace: -silent\'s output.dat, over the file there, unasked',
+        check('the script with --silent\'s commands runs through', rc.returncode == 0, rc.stderr[-300:])
+        check('browser write of the output, replace: --silent\'s output.dat, over the file there, unasked',
               read(c, 'output.dat') is not None and read(c, 'output.dat') == read(s, 'output.dat'))
-        check('equilibrium write: -silent -equil 0\'s equil.dat',
+        check('equilibrium write: --silent --equil 0\'s equil.dat',
               read(c, 'equil.dat') is not None and read(c, 'equil.dat') == read(s, 'equil.dat'))
         df = read(c, 'dirfields.dat') or b''
-        check('dfield write: the direction field shown, one arrow a line (17 x 17), in -silent -dfdraw 4\'s form',
+        check('dfield write: the direction field shown, one arrow a line (17 x 17), in --silent --dfdraw 4\'s form',
               len(df.splitlines()) == 17 * 17 and df == read(s, 'dirfields.dat'),
               '%d lines' % len(df.splitlines()))
         bad, rb = script(args.ode, [{'cmd': 'dfield', 'op': 'write', 'name': 'none.dat'}])
@@ -3889,7 +3889,7 @@ def check_silent_commands():
                                     'name': 'output.dat'}])
         dirs.append(c)
         hist = read(c, 'output.dat') or b''
-        check('browser postprocess: the model\'s @ postprocess (a 20-bin histogram), as -silent writes it',
+        check('browser postprocess: the model\'s @ postprocess (a 20-bin histogram), as --silent writes it',
               len(hist.splitlines()) == 21 and hist == read(s, 'output.dat'), '%d lines' % len(hist.splitlines()))
     finally:
         for d in dirs:
@@ -3944,7 +3944,7 @@ def check_outcomes_once():
               r.returncode == 1 and len([e for e in evs if e.get('error')]) == 1, str(evs[-3:]))
         # A directory at the output path makes the write fail on every platform.
         os.mkdir(os.path.join(d, 'output.dat'))
-        r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
+        r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '--silent'], cwd=d,
                            capture_output=True, text=True, timeout=60 * SLOW)
         check('a failed silent output write exits 1 and keeps stdout empty',
               r.returncode == 1 and r.stdout == '' and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
@@ -3953,7 +3953,7 @@ def check_outcomes_once():
         if os.name == 'nt':
             denied = subprocess.run(['icacls', d, '/deny', '*S-1-1-0:(W)'], capture_output=True)
             try:
-                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
+                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '--silent'], cwd=d,
                                    capture_output=True, text=True, timeout=60 * SLOW)
                 check('silent in a read-only folder exits 1 for output.dat',
                       denied.returncode == 0 and r.returncode == 1 and 'output.dat' in r.stderr,
@@ -3963,7 +3963,7 @@ def check_outcomes_once():
         elif os.geteuid() != 0:
             os.chmod(d, 0o555)
             try:
-                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '-silent'], cwd=d,
+                r = subprocess.run([os.path.abspath(args.server), 'linear.odex', '--silent'], cwd=d,
                                    capture_output=True, text=True, timeout=60 * SLOW)
                 check('silent in a read-only folder exits 1 for output.dat',
                       r.returncode == 1 and 'output.dat' in r.stderr, str((r.returncode, r.stderr[-300:])))
@@ -5238,14 +5238,14 @@ def check_ode_open():
               and any(e.get('ev') == 'state' and ['and_', 2] in e.get('pars', []) for e in reloaded))
         with open(converted, 'rb') as f:
             before = f.read()
-        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '-silent'], cwd=r,
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent'], cwd=r,
                                 capture_output=True, text=True, timeout=30 * SLOW)
         with open(converted, 'rb') as f:
             after = f.read()
         check('ode open: silent refuses different existing text, names both files and writes nothing',
               silent.returncode == 1 and 'foreign.ode' in silent.stderr and 'foreign.odex' in silent.stderr and before == after)
         os.remove(converted)
-        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '-silent'], cwd=r,
+        silent = subprocess.run([os.path.abspath(args.server), 'foreign.ode', '--silent'], cwd=r,
                                 capture_output=True, text=True, timeout=30 * SLOW)
         check('ode open: silent takes suggestions and prints the saved path',
               silent.returncode == 0 and 'Converted foreign.ode and saved as foreign.odex' in silent.stderr and os.path.exists(converted))

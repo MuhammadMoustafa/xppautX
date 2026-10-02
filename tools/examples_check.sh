@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run every example ODE through xppautX -silent (tools/run_example.sh, one
+# Run every example ODE through xppautX --silent (tools/run_example.sh, one
 # per model, several at once) and compare what each writes (output.dat's
 # md5 with CRs removed, "none" when the model writes nothing by itself,
 # "noload" when it does not load by itself: includes, DLLs) with a

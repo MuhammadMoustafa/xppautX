@@ -1,7 +1,7 @@
 # W72's timing model (docs/studies/w72-bit-identical.md): a long stochastic
 # run whose every step calls the elementary functions -- two Wiener
 # increments (normal(): log), sin, tanh, exp, log and the ^ operator (pow).
-# 4 000 000 Euler steps, 20 001 rows written by -silent.
+# 4 000 000 Euler steps, 20 001 rows written by --silent.
 wiener w1,w2
 par a=0.7,b=0.8,eps=0.08,sig=0.3
 v'=v-v^3/3-u+0.5*sin(2*t)+sig*w1

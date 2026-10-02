@@ -47,7 +47,7 @@ One program, and like xppaut it takes what to do from the command line:
                                and uses your browser)
   xppautX --browser MODEL.ode  the same page in your browser, its address
                                printed
-  xppautX MODEL.ode -silent    a headless run that writes output.dat, the
+  xppautX MODEL.ode --silent    a headless run that writes output.dat, the
                                same switch upstream xppaut uses
   xppautX --server MODEL.ode   the JSON protocol on stdin/stdout, for a
                                program that embeds it

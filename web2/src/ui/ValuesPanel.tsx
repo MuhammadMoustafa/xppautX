@@ -150,7 +150,7 @@ function FileTools({kind}: {kind: 'par' | 'ic'}) {
   return (
     <>
       <button class="small" onClick={() => session.saveValues(kind)} disabled={saveOff}
-        title={saveOff ? BUSY_TITLE : `Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, -icfile'})`}>
+        title={saveOff ? BUSY_TITLE : `Save the ${what} as a file XPP reads (${kind === 'par' ? 'File/Read par' : 'Initialconds/File, --icfile'})`}>
         Save
       </button>
       <button class="small" onClick={() => input.current?.click()} disabled={saveOff}

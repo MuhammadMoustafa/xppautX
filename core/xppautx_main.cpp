@@ -18,25 +18,25 @@
                                     instead of stdin, one command per line;
                                     exits when FILE ends (docs/protocol.md
                                     "Scripts")
-     xppautX model.ode -silent      a headless batch run that writes
-                                    output.dat, as upstream xppaut -silent:
+     xppautX model.ode --silent      a headless batch run that writes
+                                    output.dat, as upstream xppaut --silent:
                                     a built-in script (json_silent.cpp) of
                                     the protocol's commands, played like
                                     --script with its events going nowhere
      xppautX name.recx              a recording (W59c): its model starts,
                                     then it opens in the player
-     xppautX name.snapx             a session file (xpp_session.h) in any mode but -silent:
+     xppautX name.snapx             a session file (xpp_session.h) in any mode but --silent:
                                     the model saved in it, loaded from its
                                     saved files, then the session as it was saved
 
    usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
           xppautX --version | --help
-   Every xppaut option still applies; ours have to come first. --verbose
+   Supported model options use GNU spelling; ours have to come first. --verbose
    and --debug raise the core/xpp_log.h threshold (default: warnings and
    errors only) so the banner, parser stats and integrator chatter show
    on stderr too; xpp::log_parse_arg() also recognizes them
-   among xppaut's own options, so they work with -silent as well. */
+   among xppaut's own options, so they work with --silent as well. */
 #include "model.h"
 #include "session.h"
 #include "xpp_batch.h"
@@ -74,7 +74,7 @@
 #include "nullcline.h"
 
 /* AUTO's files in a directory of this session's own, removed at exit
-   (issue #11); -silent runs no AUTO */
+   (issue #11); --silent runs no AUTO */
 static void start_auto_dir(void)
 {
     /* issue #32: the folders of runs that ended without their atexit (a
@@ -94,7 +94,7 @@ static void start_auto_dir(void)
 static const char *const usage_head =
     "usage: xppautX [MODE] [--port N] [--no-open] [--verbose|--debug] file.ode [xppaut options]\n"
     "       xppautX --version | --help\n"
-    "Our options come first; every xppaut option still applies after them.\n"
+    "Our options come first; the supported model options follow GNU spelling after them.\n"
     "Modes:\n"
     "  (none)           ";
 static const char *const usage_window = "a window of its own: the page in the system's web view\n";
@@ -107,13 +107,27 @@ static const char *const usage_tail =
     "  --script FILE    the protocol played from FILE, one command per line\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
-    "  -silent          (an xppaut option) a headless run that writes output.dat\n"
+    "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"
     "opens in the player.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
-    "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n";
+    "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
+    "  --setfile FILE   import an XPPAUT set; --parfile FILE / --icfile FILE load values\n"
+    "  --outfile FILE   batch output; --noout suppresses rows\n"
+    "  --include FILE   include text; --anifile FILE loads animation code\n"
+    "  --logfile FILE   console log; --quiet 0|1 controls INFO logging\n"
+    "  --newseed        randomize seed; --runnow runs on startup\n"
+    "  --internset 0|1 / --uset NAME / --rset NAME   select internal sets\n"
+    "  --qsets / --qpars / --qics   query sets / parameters / initial conditions\n"
+    "  --mkplot / --plotfmt svg|ps   batch plot and format\n"
+    "  --dfdraw 1-5 / --ncdraw 1|2   batch fields / nullclines\n"
+    "  --readset FILE / --with TEXT   internal-set settings\n"
+    "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
+    "  --auto           accept suggested names with --convert\n"
+    "  -h / --help      help; --version prints the version\n"
+    "Word options require two dashes. X11 options are removed.\n";
 
 /* --convert's question about a name, asked on the terminal: nobody can
    answer when standard input is not one (a script, CI) */
@@ -209,7 +223,7 @@ static void run_session(void)
     /* the redraw loads a recording's model in the place of this one: the
        session from here is the one it ends in */
     xpp::Session &s = xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
-    /* -tutorial and -runnow, as main.c does after opening its window */
+    /* -tutorial and --runnow, as main.c does after opening its window */
     if (program.tutorial == 1 || s.run_immediately == 1) {
         if (program.tutorial == 1) xpp::do_tutorial();
         if (s.run_immediately == 1) run_the_commands(s, 4);
@@ -259,12 +273,16 @@ int main(int argc, char **argv)
 #endif
         else {
             /* xppaut's own switch for a run with no interface at all */
-            if (strcmp(argv[i], "-silent") == 0) batch = 1;
+            if (strcmp(argv[i], "--silent") == 0) batch = 1;
             argv[k++] = argv[i];
         }
     }
     argc = k;
     argv[argc] = NULL;
+    if (const xpp::Result<> r = xpp::check_command_line(argc, argv); !r) {
+        xpp::log(XPP_LOG_ERROR, "{}\n", r.error().text());
+        return 2;
+    }
     /* --convert [--auto] model.ode: model.odex beside it (odex.h) */
     if (convert) {
         if (argc != 2) {
@@ -277,7 +295,7 @@ int main(int argc, char **argv)
         for (i = 1; i < argc; i++)
             if (xpp_saved_file_name(argv[i])) {
                 xpp::log(XPP_LOG_ERROR, "{}\n",
-                         xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with -silent",
+                         xpp::Error{"xppautX", "an AUTO or session file opens in the window, the browser or --server, not with --silent",
                                     xpp::Place{argv[i]}}.text());
                 return 2;
             }

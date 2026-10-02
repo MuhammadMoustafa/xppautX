@@ -24,7 +24,7 @@ export interface AniFrame {
 export interface AniState {
   /** the panel is shown (R6: a side panel from 48rem, a full-screen sheet under) */
   open: boolean;
-  /** the core's animation window exists (Viewaxes/Toon, -anifile) */
+  /** the core's animation window exists (Viewaxes/Toon, --anifile) */
   exists: boolean;
   /** an .ani file is loaded */
   loaded: boolean;

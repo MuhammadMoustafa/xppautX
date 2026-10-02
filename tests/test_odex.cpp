@@ -620,7 +620,7 @@ int main(void)
   }
 
   /* near(a, b[, tol=]) numerically: tools/models/near_test.odex's aux
-     columns, integrated as -silent does (Initialconds/Go) and read from
+     columns, integrated as --silent does (Initialconds/Go) and read from
      the stored columns (not the translation's text) */
   {
     char arg0[] = "test_odex", model[] = "tools/models/near_test.odex";

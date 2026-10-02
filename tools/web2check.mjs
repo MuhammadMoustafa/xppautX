@@ -137,7 +137,7 @@ function perf(name, value) {
 function outputDat(ode = ODE) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppsilent-'));
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
-  spawnSync(bin, [path.basename(ode), '-silent'], {cwd: dir, stdio: 'ignore', timeout: 60000});
+  spawnSync(bin, [path.basename(ode), '--silent'], {cwd: dir, stdio: 'ignore', timeout: 60000});
   const rows = fs.readFileSync(path.join(dir, 'output.dat'), 'utf8').trim().split(/\r?\n/).map(l => l.trim().split(/\s+/).map(Number));
   fs.rmSync(dir, {recursive: true, force: true});
   return rows;
@@ -4850,8 +4850,8 @@ async function errorDialogCheck(dir) {
 async function warningFlashCheck() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-warn-'));
   fs.copyFileSync(ODE, path.join(dir, path.basename(ODE)));
-  /* -white is an option the core no longer has: it logs a WARN (comline.cpp) */
-  const server = await startServer(bin, dir, [path.basename(ODE), '-white']);
+  /* Startup INFO logging exercises the same log event and status flash. */
+  const server = await startServer(bin, dir, [path.basename(ODE), '--verbose']);
   try {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});

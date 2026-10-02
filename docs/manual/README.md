@@ -51,7 +51,7 @@ link from a menu item or dialog to its section here.
 | AUTO view (status strip, Output, axis dialog, Save/Load session, Grab, Clear) | [Auto interface: the AUTO view](09-auto.md#the-auto-view) |
 | Animation tab | [Creating Animations: the animation view](10-animations.md#the-animation-view) |
 | File dialogs (Open/Save, Add file…) | [Using the interface: saving pictures and files](04-using-the-interface.md#saving-pictures-and-files) |
-| Messages panel, `--verbose`/`--debug`/`-logfile` | [Using the interface: the log](04-using-the-interface.md#the-log) |
+| Messages panel, `--verbose`/`--debug`/`--logfile` | [Using the interface: the log](04-using-the-interface.md#the-log) |
 | A `%formula` field | [Using the interface: formulas as values](04-using-the-interface.md#formulas-as-values) |
 | Main menu — Initialconds | [The main commands: (I)nitial conds](05-commands.md#initial-conds) |
 | Main menu — Continue | [The main commands: (C)ontinue](05-commands.md#continue) |

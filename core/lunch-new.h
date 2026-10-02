@@ -80,7 +80,7 @@ Result<SetFile> read_session_set(const Session &s, std::string file, std::string
 /* f applied to s, in one step (the front end shown it when redraw) */
 void apply_set_file(Session &s, const SetFile &f, bool redraw);
 /* XPPAUT's set file at path read and applied (File > Import XPPAUT set,
-   -setfile), or the error, nothing applied: its model's equations follow
+   --setfile), or the error, nothing applied: its model's equations follow
    its last value ("RHS etc ...", not read), and a file without them (a
    session's model.set, a file of ours) is refused at its end. Every named
    value must have its expected name. Valid values are applied, then saved
@@ -97,8 +97,8 @@ void write_lunch(Session &s, FILE *fp);
 Result<std::vector<double>> read_parameter_file(const Model &m, std::string_view path);
 Result<std::vector<double>> read_ic_file(const Model &m, std::string_view path);
 /* the parameters or the initial conditions of s read whole from the file
-   fn and applied, or the error shown and nothing applied (-parfile,
-   -icfile, Initialconds/File, the values panel's Load); written to it */
+   fn and applied, or the error shown and nothing applied (--parfile,
+   --icfile, Initialconds/File, the values panel's Load); written to it */
 void load_parameter_file_named(Session &s, std::string_view fn);
 void load_ic_file_named(Session &s, std::string_view fn);
 void write_parameter_file(Session &s, std::string_view fn);
@@ -110,10 +110,10 @@ void save_parameter_file(Session &s, std::string name);
 void save_ic_file(Session &s, std::string name);
 void load_parameter_file(Session &s, std::string name);
 void load_ic_file(Session &s, std::string name);
-/* the model's internal sets (name, whether -silent runs it, what it
+/* the model's internal sets (name, whether --silent runs it, what it
    sets), its parameters' values in the file and its initial conditions,
-   those asked for, each under its # heading, into name (-silent's
-   -qsets/-qpars/-qics, the protocol's `values` `query`) */
+   those asked for, each under its # heading, into name (--silent's
+   --qsets/--qpars/--qics, the protocol's `values` `query`) */
 void write_values_query(const Session &s, std::string_view name, bool sets, bool pars, bool ics);
 
 /* File > Import XPPAUT set (asks for the file), the session s's info file

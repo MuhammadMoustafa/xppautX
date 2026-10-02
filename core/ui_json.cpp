@@ -57,7 +57,7 @@ ProtocolSession session;
 
 xpp::Session &client() { return xpp::client_session(); }
 
-/* exit 1 for a script or -silent run that reported an error (the logging
+/* exit 1 for a script or --silent run that reported an error (the logging
    owner's count: err_msg, an ERROR line, a failed file event; docs/protocol.md
    "Scripts"); an interactive session's errors were shown to its user as they
    came, so its end is always 0 */
@@ -806,7 +806,7 @@ int json_ui_set_script(const char *path)
 namespace {
 
 /* the front end: the XppUi table, the data modules' output, the input
-   classifier, and the protocol on stdio unless silent (-silent: its
+   classifier, and the protocol on stdio unless silent (--silent: its
    events go nowhere, and what the core says goes to the log, as with no
    interface at all: xpp_ui.cpp's headless messages) */
 void install(bool silent)

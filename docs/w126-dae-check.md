@@ -8,7 +8,7 @@ is right?
 ## Method
 
 `docs/w126-dae-check.py OLD_EXE NEW_EXE` runs each build as
-`xppautX.exe model.ode -silent` in a scratch copy of the model's folder and
+`xppautX.exe model.ode --silent` in a scratch copy of the model's folder and
 reads `output.dat` (float32 text: about 1e-7 relative floor). Old = master's
 Windows build (eeb6a8f, no W119), new = the W119 branch's (04fce1e). The
 references (they agree to 5e-11 or better, per model):
@@ -35,7 +35,7 @@ column's largest value.
   there: no solution continues past t*, which is also what XPP's manual says
   ("cannot integrate past singularities").
 - `canonical/exdaebvp.ode`: u'=up, up'=v*up+lamu(u-w), 0=-k w/(1+w)+lamv(u-w),
-  to t=5 (1001 rows; columns u, up, ww, z = the residual). `-silent` runs only
+  to t=5 (1001 rows; columns u, up, ww, z = the residual). `--silent` runs only
   the initial value problem (its `bdry` lines are for AUTO's BVP mode), so
   the references are IVPs. Options: `jac_eps=1e-5, newt_tol=1e-5`.
 

@@ -108,7 +108,7 @@ struct AutoState {
      (start_diagram's), then 1 */
   int diag_flag=0;
   /* AUTO's scratch directory (fort.3/7/8/9, <model>.ode.b/.d/.s). Empty:
-     HOME, as upstream (-silent); xppautX sets a private one per session
+     HOME, as upstream (--silent); xppautX sets a private one per session
      so concurrent sessions never share AUTO files (xppautx_main.cpp) */
   std::string dir;
   /* <model>.ode under dir (the .b/.d/.s files are it plus their

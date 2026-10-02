@@ -12,7 +12,7 @@ Code extension (C:\gitRepos\XPP-ODE-Extension: `operatorCheckerCore.ts`,
 own parser: line level in `core/form_ode.cpp`, formula level in
 `core/expr_symbols.cpp` (the built-in symbol table, `builtins`). Each entry gives a
 one-line `.ode` that shows the quirk, the value or error xppautX gives
-today (measured with `./xppautX model.ode -silent`, reading `output.dat`;
+today (measured with `./xppautX model.ode --silent`, reading `output.dat`;
 `y'=0; y(0)=1; aux z=EXPR; @ total=0,dt=1; done` isolates one expression:
 `aux` evaluates `EXPR` with the model's parameters in scope every step,
 where a scalar `y(0)=EXPR` starts y at the number `atof` finds in
@@ -68,7 +68,7 @@ ERROR compiling z
 
 ## `e`: Euler's number, exponent notation, or a name
 
-Measured on master (`xppautX -silent`, a one-parameter model
+Measured on master (`xppautX --silent`, a one-parameter model
 `par NAME=2`, `y'=-NAME*y`):
 
 | quirk | `.ode` | xppautX today | extension | .odex |

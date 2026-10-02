@@ -9,8 +9,8 @@ par a = 1, b = 2
 # simple normal form for triple zero eigenvalue
 # equivalent to the Rossler attractor
 # this file illustrates how to compute a bifurcation diagram
-# as c varies in -silent mode
-# xppaut -silent nf3.ode
+# as c varies in --silent mode
+# xppaut --silent nf3.ode
 # plot, eg col 3 vs col 5
 @ total=1200, meth=euler, trans=1000
 @ poimap=section, poivar=x, poisgn=1, poipln=0

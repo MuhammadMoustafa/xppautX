@@ -85,7 +85,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | `.snapx` | none | the session: a zip of ordinary files incl. the saved model and AUTO settings, diagram, views and orbits | W57, W103, W155 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |
 | `.auto` (AUTO diagram) | written by File > Save diagram | Import diagram reads into the open model (to 6 digits); never written | W92, W155 |
-| `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof`, names ignored ([finding 26](xppaut-findings.md#26-set-files-ignore-the-models-names)) | never written; File > Import XPPAUT set and `-setfile` check every named value and require XPPAUT's equations trailer, all or nothing; valid imports are saved beside the `.set` as `<name>.snapx`, now open; the format stays as the session member `model.set` | W125, W147, W153 |
+| `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof`, names ignored ([finding 26](xppaut-findings.md#26-set-files-ignore-the-models-names)) | never written; File > Import XPPAUT set and `--setfile` check every named value and require XPPAUT's equations trailer, all or nothing; valid imports are saved beside the `.set` as `<name>.snapx`, now open; the format stays as the session member `model.set` | W125, W147, W153 |
 | `.par`, `.ic` | written and read | kept, XPPAUT's format, read all or nothing | W125, W147 |
 | The options file (`option file`, `default.opt`) | never applied ([findings #4](xppaut-findings.md)) | an `option` line is refused at load; write `@` lines in the model or an included file ([manual 14](manual/14-options-file.md)) | W139 |
 | `#include` of a missing file | skipped ([findings #5](xppaut-findings.md)) | an error | W139 |
@@ -106,7 +106,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | A changed model | not applicable | the session carries its own model; opening it loads that version | W103 |
 | Record and replay | none | File > Record writes a `.recx` of every step; the player steps, pauses, shows captions and notes | W59a-d |
 | Record from a snapshot | none | a recording starts from the session's state | W59d |
-| Replay a script from the command line | none | `--script FILE` today; decided: removed, `xppautX run.recx -silent` plays a recording and the checks move to `--server` or a `.recx` | W10, W144 (ready) |
+| Replay a script from the command line | none | `--script FILE` today; decided: removed, `xppautX run.recx --silent` plays a recording and the checks move to `--server` or a `.recx` | W10, W144 (ready) |
 | Slider settings | page only, not saved | page only, not saved in a session today; decided, not done | W135 (blocked) |
 | Seeds | one global generator seed | each run has its seed, logged and saved with its data; set it and Go repeats a run exactly | W71 |
 
@@ -172,13 +172,13 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| `-silent` | integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags; a built-in script of protocol commands, no interface; exits 1 if an output cannot be written | W56, W133 |
+| Batch (`--silent`) | XPPAUT `-silent` integrates, writes `output.dat` ([main.c:395](../reference/xppaut-8.0/main.c#L395)), then `silent_*` for nullclines, direction fields, equilibria ([main.c:508](../reference/xppaut-8.0/main.c#L508)) | the same files and flags, with `--silent` required (old spelling stops); a built-in script of protocol commands, no interface; exits 1 if an output cannot be written | W56, W133, W156 (#208) |
 | Exit code of a model that does not load | not verified | non-zero in every mode | W35c |
 | JSON protocol | none | line-delimited JSON on stdin/stdout (`--server`) and over HTTP; [protocol.md](protocol.md) | W5, W7a |
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |
 | Scripts | none | `--script` (W10), decided to go in favour of `.recx` | W144 (ready) |
 | Local server | none | 127.0.0.1 only, random token in the address; `--no-open`, `--port`; 256 request threads and 32 concurrent uploads, excess requests receive 503 before their bodies are read; whole heads limited to 5 s, body receives to 30 s, blocked sends to 10 s ([protocol](protocol.md#files)) | W5, W161 (#213), W164 (#216) |
-| Command line options | XPPAUT's list ([comline.c](../reference/xppaut-8.0/comline.c)) | the same names are accepted; X11 ones accepted and ignored; new: `--browser`, `--server`, `--convert`, `--verbose`, `--debug`, `-logfile` | W13a |
+| Command line options | XPPAUT's list ([comline.c](../reference/xppaut-8.0/comline.c)) | word options require two dashes; old single-dash words stop with the new spelling; X11 options and unused `-def` are errors; new: `--browser`, `--server`, `--convert`, `--verbose`, `--debug`, `--logfile` | W13a, W156 ([#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)) |
 | Logging | `plintf` to stdout | `xpp::log`, quiet by default; stdout carries only the protocol | W2, W25 |
 
 ## Limits removed
@@ -202,7 +202,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | In-program equation editor | Edit menu | removed: the model file is the source | W54 |
 | Compiled functions | `export`, Load DLL | removed (risks outweigh benefits); examples rewritten | W55 |
 | The options file | `default.opt`, `option` line | removed ([findings #4](xppaut-findings.md)) | W139 |
-| `.set` as a user file | File > Write set | removed; Import XPPAUT set and `-setfile` check XPPAUT's names and immediately convert valid imports to a `.snapx` session beside the `.set`; the format stays as `model.set` in a `.snapx` | W147, W153 |
+| `.set` as a user file | File > Write set | removed; Import XPPAUT set and `--setfile` check XPPAUT's names and immediately convert valid imports to a `.snapx` session beside the `.set`; the format stays as `model.set` in a `.snapx` | W147, W153 |
 | `.auto` writing | File > Save diagram | removed; Save diagram saves `.snapx` | W92, W155 |
 | Bell, Tips | menu items | removed | W7e |
 | Font, colour and window-size options | X resources | accepted, ignored | W8 |

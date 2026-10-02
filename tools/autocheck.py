@@ -1361,10 +1361,10 @@ LONG_AUX = long_name('total_membrane_drive_current').upper()
 
 
 def silent_output(ode):
-    """xppautX ODE -silent in a scratch dir: output.dat's text (None if none)"""
+    """xppautX ODE --silent in a scratch dir: output.dat's text (None if none)"""
     run = tempfile.mkdtemp(prefix='xppnames')
     shutil.copy(ode, run)
-    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '-silent'], cwd=run,
+    subprocess.run([os.path.abspath(args.server), os.path.basename(ode), '--silent'], cwd=run,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60 * SLOW)
     path = os.path.join(run, 'output.dat')
     text = open(path).read() if os.path.exists(path) else None
@@ -1401,7 +1401,7 @@ def names_diagram(ode):
 
 def section_names():
     short, long_ = silent_output(SHORT), silent_output(LONG)
-    check('names: -silent integrates the model with 200-character names',
+    check('names: --silent integrates the model with 200-character names',
           long_ is not None and len(long_.splitlines()) == 2001, str(long_ and len(long_.splitlines())))
     check("names: and its output.dat is the short-named model's", long_ is not None and long_ == short)
 

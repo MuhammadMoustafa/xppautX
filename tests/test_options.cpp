@@ -16,6 +16,7 @@
 #include "xpp_io.h"
 #include "browse.h"
 #include "graphics.h"
+#include "comline.h"
 
 #include <cstdio>
 #include <map>
@@ -138,6 +139,56 @@ std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r
 int main(void)
 {
     const std::span<const xpp::OptionRow> rows = xpp::option_rows();
+
+    {
+        char exe[] = "test_options";
+        char silent[] = "--silent";
+        char *argv[] = {exe, silent, nullptr};
+        CHECK(xpp::check_command_line(2, argv).has_value());
+        xpp::Session &session = xpp::client_session();
+        xpp::batch_options.enabled = 0;
+        CHECK(xpp::parse_it(session, silent) == 0);
+        CHECK(xpp::batch_options.enabled == 1);
+        xpp::batch_options.enabled = 0;
+        for (const char *name : {"silent", "setfile", "parfile", "icfile", "logfile", "include", "anifile", "outfile", "newseed", "runnow", "version", "internset", "uset", "rset", "qsets", "qpars", "qics", "quiet", "mkplot", "plotfmt", "noout", "dfdraw", "ncdraw", "readset", "with", "equil", "verbose", "debug", "convert"}) {
+            std::string word = "-" + std::string(name);
+            argv[1] = word.data();
+            const xpp::Result<> r = xpp::check_command_line(2, argv);
+            CHECK(!r);
+            if (!r) {
+                CHECK(r.error().what == word + " is -" + word);
+                CHECK(r.error().place.file == "command line");
+                CHECK(r.error().place.line == 1);
+            }
+        }
+        for (const char *name : {"xorfix", "iconify", "allwin", "ee", "white", "bigfont", "smallfont", "forecolor", "backcolor", "backimage", "grads", "width", "height", "mwcolor", "dwcolor", "bell", "def"}) {
+          for (const char *prefix : {"-", "--"}) {
+            std::string word = prefix + std::string(name);
+            argv[1] = word.data();
+            const xpp::Result<> r = xpp::check_command_line(2, argv);
+            CHECK(!r);
+            if (!r) {
+                CHECK(r.error().what == "no such option " + word);
+                CHECK(r.error().place.file == "command line");
+                CHECK(r.error().place.line == 1);
+            }
+          }
+        }
+        for (const char *word : {"--silently", "--nosuch", "--setfile"}) {
+            std::string arg(word);
+            argv[1] = arg.data();
+            CHECK(!xpp::check_command_line(2, argv));
+        }
+    }
+
+    for (const char *word : {"silent", "xorfix"}) {
+        char exe[] = "test_options";
+        std::string arg = "-" + std::string(word);
+        char *argv[] = {exe, arg.data(), nullptr};
+        const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
+        CHECK(!loaded);
+        if (!loaded) CHECK(loaded.error().what.find(word) != std::string::npos);
+    }
 
     /* each name finds its row */
     for (const xpp::OptionRow &r : rows) {
@@ -347,7 +398,7 @@ int main(void)
     }
 
     /* an include file that cannot be read stops the load: the #include
-       line's own (the model's file and line), and the -include flag's */
+       line's own (the model's file and line), and the --include flag's */
     {
         const xpp::Session *before = &xpp::client_session();
         CHECK(write_file(bad_ode, std::string(model_text) + "#include nosuch.inc\ndone\n"));
@@ -364,7 +415,7 @@ int main(void)
             if (l.error().place.line != 5) printf("  include: %s\n", l.error().text().c_str());
         }
         CHECK(write_file(bad_ode, std::string(model_text) + "done\n"));
-        char flag[] = "-include";
+        char flag[] = "--include";
         char missing[] = "nosuch.inc";
         char *argv2[] = {arg0, file, flag, missing, nullptr};
         const xpp::Loaded f = xpp::load_model(4, argv2, 1);
@@ -372,7 +423,7 @@ int main(void)
         CHECK(&xpp::client_session() == before);
         if (!f) {
             CHECK(f.error().place.file == "nosuch.inc");
-            CHECK(f.error().what.find("-include") != std::string::npos);
+            CHECK(f.error().what.find("--include") != std::string::npos);
         }
     }
 

@@ -14,7 +14,7 @@ https://gitlab.inria.fr/core-math/core-math), MIT licence (`LICENSE`).
   `roundeven.c` is ours too, built on Windows only: C23's `roundeven`, which MinGW's
   C library lacks and the plain x86 copies call;
   `lgamma_sign.h` is ours too, included before `lgamma.c` (the Makefile's
-  `-include`): that file stores gamma's sign in the C library's global
+  `--include`): that file stores gamma's sign in the C library's global
   `signgam`, which MinGW's math.h lacks and which xppautX never reads, so the
   stores go to a temporary.
   Only `core/xpp_math.h` includes it; the rest of the core calls

@@ -72,7 +72,7 @@ bool start_stdin();
    ask is pending). false when FILE cannot be opened. */
 bool start_file(std::string_view path);
 
-/* A script made as it goes, in place of --script's file (-silent's
+/* A script made as it goes, in place of --script's file (--silent's
    built-in script, core/json_silent.cpp): script_advance() pushes what
    next() gives, or closes the inbox when it gives nothing, and asks it
    only then, so each line can depend on what the lines before it did. It

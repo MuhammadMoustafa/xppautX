@@ -29,7 +29,7 @@ void send_halt(Session &s);
 /* the equilibrium Newton finds from the initial data, with its
    eigenvalues (x, re, im per variable), written to name (nothing when
    Newton does not converge); shoot: also the invariant manifolds of a
-   saddle, integrated into UMk.dat/SMk.dat (-silent's -equil 0/1, the
+   saddle, integrated into UMk.dat/SMk.dat (--silent's --equil 0/1, the
    protocol's `equilibrium` `write`) */
 void write_equilibrium(Session &s, const char *name, int shoot);
 void init_range(Session &s);
@@ -143,7 +143,7 @@ struct IntegratorState {
   int range_flag = 0;
   /* the integration starts afresh (the solvers' istart) */
   int my_start = 0;
-  /* -noout: a batch run writes no output file */
+  /* --noout: a batch run writes no output file */
   int suppress_out = 0;
   /* the bounds check is off */
   int suppress_bounds = 0;

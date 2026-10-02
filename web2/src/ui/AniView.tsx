@@ -5,7 +5,7 @@
    rows, the delay between frames, Load and Grab. A floating panel (R6: a
    side panel from 48rem, a full-screen sheet with Back under that), opened
    by the title bar's Animation button or when the core opens its
-   animation window (Viewaxes/Toon, -anifile).
+   animation window (Viewaxes/Toon, --anifile).
 
    Keys on the picture (A3): Space plays or pauses, the arrows step a frame
    (Shift: ten), PageUp/PageDown ten, Home/End go to the first and last

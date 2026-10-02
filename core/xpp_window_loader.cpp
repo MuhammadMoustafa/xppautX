@@ -4,7 +4,7 @@
    (build/.../window_lib.c, tools/embed_bytes.c) and loaded from memory
    only when the window opens: memfd_create, then dlopen of
    /proc/self/fd/N. xppautX itself links neither library, so one binary
-   starts on every Linux: -silent, --server and --browser never load it,
+   starts on every Linux: --silent, --server and --browser never load it,
    and without WebKitGTK the window mode says what to install
    (xpp_window_hint.h) and uses the browser.
 

@@ -153,7 +153,7 @@ struct Session {
   /* which menu the main window's keys go to: MAIN_MENU, FILE_MENU or
      NUM_MENU (commands.cpp show_main_menu) */
   int help_menu=0;
-  /* -runnow or @ runnow=1: integrate once the front end is up */
+  /* --runnow or @ runnow=1: integrate once the front end is up */
   int run_immediately=0;
   /* the command line named a model file */
   int got_file=0;
@@ -244,7 +244,7 @@ private:
 
 /* The session list, the only global that holds a Session (CLAUDE.md "No
    global state"): one Session per client. The process serves one client
-   (the page or the desktop window, --server's stdin, -silent's script, a
+   (the page or the desktop window, --server's stdin, --silent's script, a
    unit test), so the list holds one, its client's: the first made on
    first use (of an empty Model, before any load), then each load's (Load,
    below). It is read only where a Session is chosen, and passed down

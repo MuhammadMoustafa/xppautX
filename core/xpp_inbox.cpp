@@ -253,7 +253,7 @@ struct Pushed {
     int line = 0;
     std::string text;
 } pushed;
-/* a script made as it goes (start_generated: -silent's) in
+/* a script made as it goes (start_generated: --silent's) in
    place of a file: it is never read ahead */
 std::function<std::optional<std::string>()> script_gen;
 

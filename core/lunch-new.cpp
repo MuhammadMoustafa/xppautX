@@ -717,7 +717,7 @@ void write_parameter_file(xpp::Session &s, std::string_view fn)
   w.commit();
 }
 
-/* the -icfile / Initialconds/File format: the values alone, one per
+/* the --icfile / Initialconds/File format: the values alone, one per
    line, one per differential-equation variable, in the model's order --
    exactly `node` of them, as XPPAUT's own io_ic_file always read (the
    Markov chains are not in this file, in XPPAUT or here: docs/manual

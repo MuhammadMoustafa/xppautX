@@ -2,7 +2,7 @@
 # The core never prints to stdout or stderr directly (issue: W11): in
 # --server mode stdout carries the JSON protocol, so a stray printf
 # corrupts it, and every message belongs in xpp_log (core/xpp_log.h) so
-# --verbose/--debug and -logfile control it and browser mode can show it
+# --verbose/--debug and --logfile control it and browser mode can show it
 # in the page's log panel. tools/verify.sh runs this right after
 # utf8check. Usage: tools/stdoutcheck.sh
 cd "$(dirname "$0")/.." || exit 1
@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.." || exit 1
 # The substring only has to be unique enough to identify that one call;
 # it is matched literally (grep -F), so a line-number shift needs no edit
 # here.
-ALLOW="core/comline.cpp|XPPAUT Version %g.%g|the -version flag's own text, like --help
+ALLOW="core/comline.cpp|XPPAUT Version %g.%g|the --version flag's own text, like --help
 core/xppautx_main.cpp|printf(\"xppautX %s\\n\", xpp_version_string())|--version text the VS Code extension reads
 core/xpp_http.cpp|printf(\"XPP: %s\\n\", page_url)|the XPP: address line xppautX prints in browser mode
 core/xppautx_main.cpp|printf(\"%s%s%s\", usage_head|the --help text"

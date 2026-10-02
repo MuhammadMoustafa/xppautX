@@ -1346,7 +1346,7 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::string arg0 = "xppautX", model = ode;
   std::vector<std::string> args{arg0, model};
-  for (const std::string &include : includes) args.insert(args.end(), {"-include", include});
+  for (const std::string &include : includes) args.insert(args.end(), {"--include", include});
   std::vector<char *> argv;
   for (std::string &a : args) argv.push_back(a.data());
   argv.push_back(nullptr);

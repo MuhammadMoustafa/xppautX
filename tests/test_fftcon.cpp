@@ -1,7 +1,7 @@
 /* The network layer's "fftcon" special function (simplenet.cpp) against
    the matching direct conv/conv0 network on the same weight table (W38:
    this is the documented relationship fftcon's table layout must hold;
-   W31a/W32a: run the way `xppautX -silent` runs it, so this also guards
+   W31a/W32a: run the way `xppautX --silent` runs it, so this also guards
    W32a's fftn->pocketfft swap). fftcon is only reachable by loading a
    model that uses it: tools/models/fftcon_test.odex has a static
    (v_i'=0) 5-cell periodic ("p") fftcon network (k) and a zero-padded
@@ -30,7 +30,7 @@ static double relerr(double got, double want)
    m0..m2 (16..18), mc0..mc2 (19..21) (the first, t=0, row is stored
    before the networks' first evaluation, so its aux columns are still
    the zero the model started with -- not fftcon's fault, see the
-   report). Integrated as -silent integrates it (Initialconds/Go), read
+   report). Integrated as --silent integrates it (Initialconds/Go), read
    from the stored columns. Returns 1 on success. */
 static int run_fftcon(double k[5], double kc[5], double m[3], double mc[3])
 {

@@ -896,7 +896,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
       			if(!fnew){
 			  /* a file that could not be read: no line */
-			  model_failed(xpp::Error{"model",xpp::format("cannot open the include file {} (named by the -include flag)",inc),xpp::Place{inc}});
+			  model_failed(xpp::Error{"model",xpp::format("cannot open the include file {} (named by the --include flag)",inc),xpp::Place{inc}});
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			p.included++;

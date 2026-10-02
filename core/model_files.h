@@ -2,7 +2,7 @@
 #define XPP_MODEL_FILES_H
 /* A model's own files (W103): the .ode or .odex and every file its load
    reads -- the files it includes, its file tables, its options file,
-   -anifile's animation. Their readers read them through here, by the name
+   --anifile's animation. Their readers read them through here, by the name
    the model gives each (a path as the model writes it, relative to the
    working folder or to an including .odex's folder):
 
@@ -44,7 +44,7 @@ struct SavedModel {
 /* the path of the file an include line of file `including` names: relative
    to the including file's folder (the model's, or an included file's for a
    nested include), an absolute name as it is. The one rule of .ode's
-   #include and .odex's include; the -include flag is typed in the working
+   #include and .odex's include; the --include flag is typed in the working
    folder and stays as typed. */
 std::string include_path(const std::string &including, const std::string &name);
 

@@ -584,7 +584,7 @@ namespace {
 /* Seeds the random generator for a run about to start (Go, a do_range
    sweep, usual_integrate_stuff's plain run): rand_seed is the seed shown
    or set for the next run (docs/roadmap.md W71, "@ seed=" in
-   load_eqn.cpp, Stochastic > New seed in markov.cpp, -newseed in
+   load_eqn.cpp, Stochastic > New seed in markov.cpp, --newseed in
    expr_symbols.cpp's init_rpn -- each of those already seeds s.random
    with it immediately too, unchanged, so this reapplies exactly the
    same value and changes nothing there); apply it, log it and keep it

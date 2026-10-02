@@ -38,7 +38,7 @@ if [ "${1:-}" = --one ]; then
   why=
   run_model() {
     st=0
-    ( cd "$run" && exec $tmo "$bin" "$1" -silent >"$2" 2>&1 ) || st=$?
+    ( cd "$run" && exec $tmo "$bin" "$1" --silent >"$2" 2>&1 ) || st=$?
     "$top/tools/run_example.sh" --runtime-exit "$st" "$run/output.dat"
   }
   arrays=$(awk '/^[dD][oO][nN][eE]/{exit} /^[^#%@]*\[[0-9]+\.\.[0-9]+\]/{n++} END{print n+0}' "$f")

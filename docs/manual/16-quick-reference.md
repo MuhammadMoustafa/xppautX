@@ -415,26 +415,21 @@ xppautX adds its own front-end flags ahead of xpp's original ones (see
 
 xpp's own options still apply after the file name (or anywhere, for the
 ones below that predate this ordering). Many of them provide an API:
-other programs or scripts can interact with `xppautX -silent` in a batch
+other programs or scripts can interact with `xppautX --silent` in a batch
 mode, useful for processing many files or runs.
 
-**Appearance flags with no effect any more.** These sized, coloured or
-fonted the X11 windows; web2 has its own light/dark/system theme
-(docs/ui-v2.md section 6) and a responsive layout instead, so xppautX
-accepts and ignores them: `-xorfix`, `-allwin`, `-white`, `-bigfont
-*font*`, `-smallfont *font*`, `-forecolor *color*`, `-backcolor *color*`,
-`-mwcolor *color*`, `-dwcolor *color*`, `-backimage *filename*`, `-grads
-*B*`, `-width *N*`, `-height *N*`, `-bell *B*`, `-ee`.
+X11 command-line options are removed. Word options require two dashes;
+old single-dash words stop and name the new spelling (W156, #208).
 
 **Flags that still work**, because they are about the model, the batch
 run or the files, not the X11 windows:
 
-- **-silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `-outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
-- **-convert**: Converts the old-style parser format to the new style, writing `<file>.new`.
-- **-setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file, checking every named value and saving the imported session as `<name>.snapx` beside the `.set`.
-- **-newseed**: uses the machine time to re-seed the random number generator.
-- **-runnow**: runs the ODE file immediately on startup (implied by `-silent`).
-- **-parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (must match a parameter name in the ODE file), e.g. (`lecar.par`):
+- **--silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `--outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
+- **--convert**: Converts `.ode` to `.odex` beside the model; `--auto` accepts suggested names.
+- **--setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file, checking every named value and saving the imported session as `<name>.snapx` beside the `.set`.
+- **--newseed**: uses the machine time to re-seed the random number generator.
+- **--runnow**: runs the ODE file immediately on startup (implied by `--silent`).
+- **--parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (must match a parameter name in the ODE file), e.g. (`lecar.par`):
 
   ```
   12 Number params
@@ -451,7 +446,7 @@ run or the files, not the X11 windows:
   .5     gl
   1      om
   ```
-- **-outfile *filename***: sends output to this file (default `output.dat`). The first column is time, the rest are the ordered variables, e.g. (`lecar.out`, variables `V`, `W`):
+- **--outfile *filename***: sends output to this file (default `output.dat`). The first column is time, the rest are the ordered variables, e.g. (`lecar.out`, variables `V`, `W`):
 
   | t | V | W |
   |---|---|---|
@@ -459,34 +454,34 @@ run or the files, not the X11 windows:
   | 0.050000001 | -0.36620989 | 0.087350026 |
   | 0.1 | -0.3715646 | 0.083690271 |
   | ⋮ | ⋮ | ⋮ |
-- **-icfile *filename***: loads initial conditions from the named file, one value per line, one per variable with a differential equation, in order (Markov states are not in the file, as in XPPAUT), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
-- **-internset *B***: run (`1`) or not (`0`) internal sets during a batch run.
-- **-uset *setname***: names an internal set to run during a batch run (repeatable).
-- **-rset *setname***: names an internal set *not* to run during a batch run (repeatable).
-- **-include *filename***: names a file to include along with the selected file (the `#include` directive, from the command line).
-- **-qsets / -qpars / -qics**: query the names of internal sets, the parameters, or the initial conditions and save the results to `-outfile`; lets an external program or script inspect an ODE model.
-- **-quiet *B***: verbose log messages will (`B=0`) or will not (`B=1`) be written; xppautX's own `--verbose`/`--debug` raise the level further (core/xpp_log.h).
-- **-logfile *filename***: the file to which log messages are written (also xppautX's `-logfile`).
-- **-anifile *filename***: loads an animation (`.ani`) from the named file at start-up; useful for teaching demonstrations.
-- **-mkplot**: with `-silent`, writes a plot named after the ODE file (or numbered, for several); SVG or PS (`-plotfmt`).
-- **-noout**: does not write an output data file in batch mode; combine with `-mkplot` to suppress the data.
-- **-plotfmt *ps\|svg***: sets the plot format for `-mkplot`.
-- **-version**: prints xpp's version (`xppautX --version` prints this fork's).
-- **-ncdraw *k***: for a figure with nullclines: `k=1` draws them on the plot; `k=2` (with `-silent`) dumps them to `nullclines.dat` instead, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
+- **--icfile *filename***: loads initial conditions from the named file, one value per line, one per variable with a differential equation, in order (Markov states are not in the file, as in XPPAUT), e.g. (`lecar.ic`, for `V`, `W`): `-0.3606` then `0.0911`.
+- **--internset *B***: run (`1`) or not (`0`) internal sets during a batch run.
+- **--uset *setname***: names an internal set to run during a batch run (repeatable).
+- **--rset *setname***: names an internal set *not* to run during a batch run (repeatable).
+- **--include *filename***: names a file to include along with the selected file (the `#include` directive, from the command line).
+- **--qsets / --qpars / --qics**: query the names of internal sets, the parameters, or the initial conditions and save the results to `--outfile`; lets an external program or script inspect an ODE model.
+- **--quiet *B***: verbose log messages will (`B=0`) or will not (`B=1`) be written; xppautX's own `--verbose`/`--debug` raise the level further (core/xpp_log.h).
+- **--logfile *filename***: the file to which log messages are written (also xppautX's `--logfile`).
+- **--anifile *filename***: loads an animation (`.ani`) from the named file at start-up; useful for teaching demonstrations.
+- **--mkplot**: with `--silent`, writes a plot named after the ODE file (or numbered, for several); SVG or PS (`--plotfmt`).
+- **--noout**: does not write an output data file in batch mode; combine with `--mkplot` to suppress the data.
+- **--plotfmt *ps\|svg***: sets the plot format for `--mkplot`.
+- **--version**: prints xpp's version (`xppautX --version` prints this fork's).
+- **--ncdraw *k***: for a figure with nullclines: `k=1` draws them on the plot; `k=2` (with `--silent`) dumps them to `nullclines.dat` instead, X-nullcline first then Y (format for gnuplot). For example, to compute the nullclines, dump them to a file and not save the run's output:
 
   ```
-  xppautX lecar.ode -noout -silent -ncdraw 2
+  xppautX lecar.ode --noout --silent --ncdraw 2
   ```
   or to make a plot:
   ```
-  xppautX lecar.ode -noout -silent -ncdraw 1 -dfdraw 1 -mkplot
+  xppautX lecar.ode --noout --silent --ncdraw 1 --dfdraw 1 --mkplot
   ```
-- **-dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` dumps the scaled/unscaled coordinates to `dirfields.dat`.
-- **-readset *filename***: loads anything an internal set file can hold (options, parameters, initial conditions) from one line (up to 1024 characters), e.g. a file `tst.opt` containing `iapp=0.1;phi=.05;total=500`, run as `xppautX lecar.ode -readset tst.opt` (works with `-silent` and `-mkplot` too).
-- **-with *string***: the same as `-readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode -with "iapp=0.1;phi=0.05;total=1000" -runnow`.
+- **--dfdraw *k***: draws direction fields the same way: `k=1,2,3` unscaled, scaled or colorized on the plot; `k=4,5` dumps the scaled/unscaled coordinates to `dirfields.dat`.
+- **--readset *filename***: loads anything an internal set file can hold (options, parameters, initial conditions) from one line (up to 1024 characters), e.g. a file `tst.opt` containing `iapp=0.1;phi=.05;total=500`, run as `xppautX lecar.ode --readset tst.opt` (works with `--silent` and `--mkplot` too).
+- **--with *string***: the same as `--readset`, with the options inline in a quoted string (no spaces), e.g. `xppautX lecar.ode --with "iapp=0.1;phi=0.05;total=1000" --runnow`.
 
 The only other thing on the command line should be the file name. Thus,
 
-    xppautX test.ode -convert
+    xppautX test.ode --convert
 
 will convert `test.ode` to the new format and run it.

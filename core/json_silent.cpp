@@ -1,8 +1,8 @@
-/* -silent's built-in script (W56): xppautX model.ode -silent is the
+/* --silent's built-in script (W56): xppautX model.ode --silent is the
    protocol's own commands, the ones a page or a --script file sends,
    played through this front end (ui_json.cpp json_ui_silent) with its
-   events going nowhere. The command line (-outfile, -internset, -qsets,
-   -equil, -noout, -mkplot, ...) and the model's @ options (output=,
+   events going nowhere. The command line (--outfile, --internset, --qsets,
+   --equil, --noout, --mkplot, ...) and the model's @ options (output=,
    range=, stoch=, postprocess=, ncdraw=, dfdraw=, plotfmt=) say which.
 
    Each step makes its lines when its turn comes, after the lines before
@@ -15,7 +15,7 @@
    For one run (no internal sets, or each set in turn):
      select the set          values internset (File/Get par set, the set
                              by its index: no menu key limits their number)
-     -qsets/-qpars/-qics     values query (-dryrun: nothing is run)
+     --qsets/--qpars/--qics     values query (-dryrun: nothing is run)
      run                     key i, answer g (Initialconds/Go), or
                              answer r (Range) for @ range=1 or a
                              stochastic run
@@ -24,11 +24,11 @@
      @ stoch=1/2             key u, key h, answer m or v (the Mean or
                              Variance of the runs), key Escape
      output.dat              browser write, what output, replace
-     -mkplot                 key g, answer p (the PostScript form
+     --mkplot                 key g, answer p (the PostScript form
                              answered with its values) or v, the file
    After every run: @ ncdraw=2 (key n, answer n; key n, answer s, the
    file nullclines.dat), @ dfdraw=4/5 (key d, answer d or s, the grid;
-   dfield write dirfields.dat), -equil 0/1 (equilibrium write equil.dat). */
+   dfield write dirfields.dat), --equil 0/1 (equilibrium write equil.dat). */
 #include "ui_json_internal.h"
 #include "model.h"
 #include "session.h"
@@ -51,7 +51,7 @@ public:
     std::optional<std::string> next();
 
 private:
-    const xpp::Session &session; /* the session -silent runs (no other is ever loaded) */
+    const xpp::Session &session; /* the session --silent runs (no other is ever loaded) */
     std::deque<std::string> lines;               /* the step's lines not yet given */
     std::deque<std::function<void()>> steps;     /* the steps still to make */
     bool ran = false;                            /* the current run integrates */
@@ -108,7 +108,7 @@ void SilentScript::add_run(int set)
     steps.push_back([this, set] {
         ran = !dryrun && (set < 0 || batch_options.uses_intern_set(static_cast<std::size_t>(set)));
         if (set < 0) return;
-        /* its data file is named after it without -outfile (its plots
+        /* its data file is named after it without --outfile (its plots
            always are: batch_plot_name) */
         const std::string &name = session.model().intern_sets[static_cast<std::size_t>(set)].name;
         batch_options.out_file = batch_options.user_out_file.empty() ? name + ".dat" : batch_options.user_out_file;

@@ -27,7 +27,7 @@ bool process_running(unsigned long pid);
 std::string temp_folder();
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
    Explorer or a file association starts it) so a command-line mode
-   (--server, -silent, --script, --version, --help, --browser, or any log to
+   (--server, --silent, --script, --version, --help, --browser, or any log to
    stderr) needs this before its first output: when stdout/stderr/stdin are
    not already a real pipe, file or null device (an inherited handle, e.g. --server piped
    by the VS Code extension or a test script, which is left alone), it

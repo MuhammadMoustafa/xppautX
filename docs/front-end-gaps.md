@@ -26,7 +26,7 @@ row changes.
 | Array plot: Redraw, Edit, Print, Fit, Range, GIF, Close, drag to scroll | Array tab (T12) |
 | Kinescope: capture, reset, playback, autoplay, save, animated GIF | Captured as data and replayed by the page; the core writes the animated GIF itself (Make Anigif, asking `pixels` per frame), the page only offers it as a download (T15, W66) |
 | Calculator | Prompt shows the last answer |
-| `-runnow`, tutorial, `-anifile`, errors printed by xppaut | Handled at start; errors shown in the panel |
+| `--runnow`, tutorial, `--anifile`, errors printed by xppaut | Handled at start; errors shown in the panel |
 
 ## Not yet covered
 

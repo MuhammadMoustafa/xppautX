@@ -15,11 +15,11 @@ the command line:
 
 ```bash
 ./xppautX examples/ode/lecar.ode           # the front end in your browser
-./xppautX examples/ode/lecar.ode -silent   # no interface: writes output.dat
+./xppautX examples/ode/lecar.ode --silent   # no interface: writes output.dat
 ./xppautX --server examples/ode/lecar.ode  # the JSON protocol on stdin/stdout
 ```
 
-`-silent` writes an `output.dat`; `tools/verify.sh` checks it against a
+`--silent` writes an `output.dat`; `tools/verify.sh` checks it against a
 known-good checksum. Names in a model (variables, parameters, auxiliaries,
 functions and their arguments, tables) have no length limit (W76);
 XPPAUT 8 cut them to about 10.
@@ -105,7 +105,7 @@ them after a build and fails on any difference:
 
 | Script | Checks |
 |---|---|
-| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX -silent`, each output's md5 against `tests/examples.md5` (`--platform windows`/`macos`: against `tests/examples.<platform>.md5` when committed, CI-generated) |
+| `tools/examples_check.sh` | every `examples/**/*.ode` through `xppautX --silent`, each output's md5 against `tests/examples.md5` (`--platform windows`/`macos`: against `tests/examples.<platform>.md5` when committed, CI-generated) |
 | `tools/servercheck.py` | protocol session against `xppautX --server` (menus, prompts, integration, equilibria, windows, browser, animation, kinescope, array plot, the data events) |
 | `tools/autocheck.py` | AUTO continuations over the protocol (diagrams, labels, grabs, long names) |
 | `tools/webcheck.py` | `xppautX` over HTTP: page, token, event stream, files, commands, exit |
@@ -233,7 +233,7 @@ libwebkit2gtk-4.1-dev` on Debian and Ubuntu); the Makefile uses it when
 `pkg-config` finds `webkit2gtk-4.1`, and otherwise builds a browser-only
 xppautX (`WINDOW=0` asks for that anywhere). The window is a small library
 of its own, embedded in xppautX and loaded only when the window opens, so
-the same binary still starts on a system without WebKitGTK: `-silent`,
+the same binary still starts on a system without WebKitGTK: `--silent`,
 `--server` and `--browser` never touch it, and the window mode says what
 to install and uses the browser.
 
@@ -300,11 +300,11 @@ Chrome or Edge); swapping the icon is those two files.
 
 ### Headless smoke test
 
-`-silent` integrates without opening a window and writes `output.dat` in the
+`--silent` integrates without opening a window and writes `output.dat` in the
 current directory:
 
 ```bash
-./xppautX examples/ode/lecar.ode -silent
+./xppautX examples/ode/lecar.ode --silent
 head output.dat
 ```
 
@@ -313,7 +313,7 @@ head output.dat
 ```bash
 make lib          # build/obj/libxppcore.a: the numerics
 make xppautx      # xppautX: the one program
-./xppautX examples/ode/lecar.ode -silent   # writes output.dat
+./xppautX examples/ode/lecar.ode --silent   # writes output.dat
 ```
 
 ### Makefile knobs
