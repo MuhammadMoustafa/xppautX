@@ -7,5 +7,5 @@ s = sign(ran(1)-0.5)
 x' = s*r*cos(th)
 y' = s*r*sin(th)
 # julia set for z -> z^2+c
-@ total=2000, meth=disc, transient=100, xlo=-2, ylo=-2, xhi=2, yhi=2, xp=x
+@ total=2000, meth=Discrete, transient=100, xlo=-2, ylo=-2, xhi=2, yhi=2, xp=x
 @ yp=y

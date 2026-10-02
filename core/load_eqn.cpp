@@ -352,9 +352,12 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     xpp::Load::at(file,at.line,at.col);
     /* a .odex value ends at a comma (`@ meth=Mod. Euler`); a .ode's, as
        XPPAUT reads it, at a space too (`@ parmin=-.2 parmax=.5`) */
-    const char *ends=xpp::odex::is_odex(file)?",\n\r":" ,\n\r";
-    each_option(options[s.options_applied].text," ,",ends,[&s,mask](const std::string &name,const std::string &value){
-      set_option(s,name,value,0,mask);
+    const bool odex=xpp::odex::is_odex(file);
+    each_option(options[s.options_applied].text," ,",odex?",\n\r":" ,\n\r",[&s,mask,odex](const std::string &name,const std::string &value){
+      /* a .ode's method is its value's first letter, as XPPAUT reads it
+         (load_eqn.c:1511: `@ meth=modeuler` is Mod. Euler) */
+      const bool letter=!odex&&xpp::upper_case(name).starts_with("METH");
+      set_option(s,name,letter?value.substr(0,1):value,0,mask);
     });
   }
   xpp::Load::at(s.model().this_file);

@@ -7,6 +7,6 @@ init th = 0, v = 3
 aux mth = th mod (2*pi)
 # the inverted pendulum driven periodically
 # start at 0 and give it a push
-@ meth=qualrk, total=30
+@ meth=QualRK, total=30
 @ xp=t, yp=mth, xlo=0, xhi=30, ylo=0, yhi=6.3
 @ lt=-2

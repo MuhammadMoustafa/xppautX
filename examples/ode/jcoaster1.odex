@@ -64,7 +64,7 @@ set Pluto = g = 0.42
 #Shouldn't need to modify too much below...
 #Thanks to Newton!
 @ XP=X, YP=Z, XLO=-6, XHI=4, YLO=0, YHI=6
-@ bounds=100000, meth=r
+@ bounds=100000, meth=Runge-Kutta
 @ dt=.01, nout=5
 @ total=50
 

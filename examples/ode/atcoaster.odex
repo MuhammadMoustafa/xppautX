@@ -40,7 +40,7 @@ set Pluto = g = 0.42
 #Thanks to Newton!
 @ XP=X, YP=Z, XLO=-3.25, XHI=3.25, YLO=-3.25, YHI=3.25
 @ bounds=100000
-@ dt=.05, meth=cvode, tol=1e-10, atol=1e-10
+@ dt=.05, meth=CVode, tol=1e-10, atol=1e-10
 @ total=50
 
 fun ode_divisor(value) = if value then value else 2.23e-15

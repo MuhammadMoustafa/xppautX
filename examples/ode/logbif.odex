@@ -15,7 +15,7 @@ par amin = 2, amax = 4
 # define a in terms of the index ind over which we range
 #
 # change amin and amax to change the window
-@ maxstor=11000, total=400, trans=350, meth=discrete
+@ maxstor=11000, total=400, trans=350, meth=Discrete
 @ xlo=2, xhi=4.001, ylo=0, yhi=1.001, xp=a, yp=x
 @ range=1, rangeover=ind
 @ rangereset=no

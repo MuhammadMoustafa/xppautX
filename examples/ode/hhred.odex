@@ -28,6 +28,6 @@ aux aux3 = 0
 #
 # Here are the 3 fixed guys
 # and the auxiliary functions
-@ total=40, method=gear, bound=500, dt=.25, dtmin=1e-12, xhi=40, yhi=120, ylo=-10
+@ total=40, method=Gear, bound=500, dt=.25, dtmin=1e-12, xhi=40, yhi=120, ylo=-10
 
 fun ode_divisor(value) = if value then value else 2.23e-15

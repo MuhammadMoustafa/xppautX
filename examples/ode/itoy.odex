@@ -87,6 +87,6 @@ fun t1dot(x, y, xp, yp) = (yp*x-xp*y)/ode_divisor(x^2+y^2)
 # arm 1
 # arm 2
 # arm 3
-@ bound=10000, meth=cvode, dt=.05, atoler=1e-4, toler=1e-5, total=100
+@ bound=10000, meth=CVode, dt=.05, atoler=1e-4, toler=1e-5, total=100
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -5,4 +5,4 @@ par tau = 2
 init x = 1
 # CVODE stopped by a step error after a successful CVode call: a delay
 # longer than the maximal one (tools/autocheck.py's memory section, W117)
-@ meth=cvode, delay=1, total=5, dt=0.05
+@ meth=CVode, delay=1, total=5, dt=0.05

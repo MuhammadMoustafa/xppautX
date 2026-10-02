@@ -75,7 +75,7 @@ init vx = 1
 # integrate 80000*dt = 4000 time steps
 # only keep the last one (trans=79999)
 # plot set up
-@ total=80000, meth=discrete, nout=50
+@ total=80000, meth=Discrete, nout=50
 @ trans=79999
 @ bound=100000
 @ xp=muu, yp=nuu, xlo=-4, xhi=0, ylo=0, yhi=2

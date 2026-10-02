@@ -9,6 +9,6 @@ w[j]' = w[j]+eps*(z-w[j])*h(ihot-j) for j in 0..99
 ip' = ihot
 aux zz = z
 # kohox.ode
-@ meth=discrete, total=2000
+@ meth=Discrete, total=2000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -11,7 +11,7 @@ X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 @ parmin=0, parmax=6, ds=-0.001, dsmax=.01
 @ BUT=AUTO:fa, NOUT=10
 @ MAXSTOR=100000, TOTAL=400, XP=V, YP=X, Xlo=-3, Xhi=3, Ylo=-3, Yhi=6
-@ METH=euler
+@ METH=Euler
 @ AUTOVAR=V
 
 fun ode_divisor(value) = if value then value else 2.23e-15

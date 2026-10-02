@@ -11,5 +11,5 @@ w[j]' = eps*(vv[j]-gamma*w[j]) for j in 0..20
 # pulse wave
 #
 #
-@ meth=qualrk, dt=.25, total=150, xhi=150
+@ meth=QualRK, dt=.25, total=150, xhi=150
 @ colormap=1

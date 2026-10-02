@@ -7,4 +7,4 @@ u' = (a+b*cos(y))*sin(x)
 v' = (a+b*cos(x))*sin(y)
 init x = -30, y = -50, u = 1, v = 0.5
 # an example due to Geisel with 1/f spectral properties
-@ total=8000, dt=.25, maxstor=100000, bound=100000, meth=qualrk
+@ total=8000, dt=.25, maxstor=100000, bound=100000, meth=QualRK

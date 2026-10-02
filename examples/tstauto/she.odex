@@ -16,7 +16,7 @@ init t02cs = -0.1638749999491637
 init p12cs = -0.0008869668098317242
 init p01cs = -0.001
 init a01cs = 0
-@ meth=qualrk4, dt=.01, total=85.07
+@ meth=QualRK, dt=.01, total=85.07
 @ tol=1e-10
 
 fun ode_divisor(value) = if value then value else 2.23e-15

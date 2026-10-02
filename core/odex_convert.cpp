@@ -17,6 +17,7 @@
 #include "load_eqn.h"
 #include "model.h"
 #include "session.h"
+#include "solver.h"
 #include "tabular.h"
 #include "xpp_batch.h"
 #include "xpp_files.h"
@@ -1155,7 +1156,7 @@ private:
 
   /* the @ lines, each option as the .ode applies it: an option with
      spaces around its = is dropped (XPP ignores it), a value cut where a
-     number ends written as that number */
+     number ends written as that number, a method by its name */
   std::string options()
   {
     std::string out;
@@ -1163,14 +1164,28 @@ private:
     for (const xpp::Model::OptionLine &line : m_.options) {
       std::string items;
       for (const auto &[key, value] : option_items(line.text, false)) {
-        if (map && xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth")) continue;
-        items += (items.empty() ? "" : ", ") + key + "=" + option_value(key, value);
+        const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
+        if (map && meth) continue;
+        items += (items.empty() ? "" : ", ") + key + "=" + (meth ? method_name(key, value) : option_value(key, value));
       }
       if (!items.empty()) out += "@ " + items + "\n";
     }
     /* a map ((t+1)=, or a .dis file) runs with the discrete method */
     if (map) out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f") + "@ meth=discrete\n";
     return out;
+  }
+
+  /* the method XPP runs for @ key=value: its first letter's (the load
+     applied the same), noted when the whole value names another one */
+  std::string method_name(const std::string &key, const std::string &value)
+  {
+    const auto letter = xpp::pick_method(m_, value.substr(0, 1), xpp::Place{m_.this_file});
+    if (!letter) refuse(letter.error().what);
+    const char *name = xpp::solver_info(*letter).name;
+    const auto whole = xpp::pick_method(m_, value, xpp::Place{m_.this_file});
+    if (whole && *whole != *letter)
+      option_notes_.push_back(xpp::format("@ {}={} in the .ode: XPP reads a method by its first letter, {}", key, value, name));
+    return name;
   }
 
   std::string option_value(const std::string &key, const std::string &value)

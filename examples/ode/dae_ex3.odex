@@ -5,4 +5,4 @@ w' = v_
 solv v_ = 1
 aux v = v_
 #dae_ex3.ode
-@ NEWT_ITER=1000, NEWT_TOL=1e-3, JAC_EPS=1e-5, METH=qualrk
+@ NEWT_ITER=1000, NEWT_TOL=1e-3, JAC_EPS=1e-5, METH=QualRK

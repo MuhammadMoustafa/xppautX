@@ -13,6 +13,6 @@ aux zz = z
 # the stimulus, once came from a compiled C function (getmax.c, through
 # export); compiled functions are gone (W55), and findext finds it here
 # mx(2) is the least distance, mx(3) its index
-@ meth=discrete, total=2000
+@ meth=Discrete, total=2000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

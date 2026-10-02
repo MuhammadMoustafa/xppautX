@@ -8,6 +8,6 @@ wiener w[j] for j in 0..99
 par a = 0.05, g = 0.2, tau = 20, sig = 0.2
 aux st = sum(shift(s0, i'), from=0, to=99)/100
 # stot=sum(0,99)of(shift(s0,i'))/100
-@ meth=euler, total=100
+@ meth=Euler, total=100
 
 fun ode_divisor(value) = if value then value else 2.23e-15
