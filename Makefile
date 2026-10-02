@@ -385,8 +385,12 @@ test: $(TEST_BINS)
 	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
 	  else echo "unit tests: FAILURES"; exit 1; fi
 
+# linked like xppautX: statically on Windows outside a sanitizer build, so a
+# test never runs against another libstdc++-6.dll found on PATH (W159's push:
+# windows-core's test_lunch, the one test calling std::filesystem's
+# create_directory, met an older DLL and died at startup, 0xc0000139)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(SANITIZE) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) -o $@ $< $(CORELIB) -lm $(DLLIB)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),

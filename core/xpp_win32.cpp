@@ -34,9 +34,25 @@ bool path_is_link(const char *path)
     return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
+/* Another process may hold the target open for a moment, an antivirus or
+   the search indexer reading a file just written: the move then fails with
+   a sharing, lock or access error, gone a few milliseconds later (W159's
+   push: test_lunch's set files, 2 runs in 3 here). Those errors are tried
+   again, MOVE_RETRIES times MOVE_RETRY_MS apart (half a second in all,
+   longer than such a scan holds a small file); any other fails at once. */
+constexpr int MOVE_RETRIES = 50;
+constexpr DWORD MOVE_RETRY_MS = 10;
+
 bool move_over(const char *from, const char *to)
 {
-    return MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+    for (int attempt = 0;; attempt++) {
+        if (MoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) return true;
+        const DWORD e = GetLastError();
+        if (attempt == MOVE_RETRIES
+            || (e != ERROR_SHARING_VIOLATION && e != ERROR_LOCK_VIOLATION && e != ERROR_ACCESS_DENIED))
+            return false;
+        Sleep(MOVE_RETRY_MS);
+    }
 }
 
 std::string temp_folder()
