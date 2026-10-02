@@ -131,5 +131,36 @@ int main(void)
     CHECK(same(xpp::math::hypot(0x1.e2b6844db320dp-1, 0x1.60396fa1ae709p-2), 0x3ff00eafdaf3b812ULL));
     CHECK(same(xpp::math::hypot(0x1.40f6c790598eep-1, 0x1.1ba94ac6bcc81p-2), 0x3fe5ee77ea43753bULL));
 
+#ifdef XPP_CORE_MATH_FMA
+    /* the plain copy and the FMA copy of each function are one function:
+       the same bits at every input (a CPU with FMA runs the second, one
+       without the first, and the numbers must not depend on which) */
+    if (__builtin_cpu_supports("fma")) {
+        std::uint64_t state = 0x9E3779B97F4A7C15ULL;
+        auto next = [&] { /* xorshift64: a fixed sequence, the same on every machine */
+            state ^= state << 13; state ^= state >> 7; state ^= state << 17;
+            return static_cast<double>(state >> 11) * (1.0 / 9007199254740992.0);
+        };
+        auto equal = [](double a, double b) {
+            return std::bit_cast<std::uint64_t>(a) == std::bit_cast<std::uint64_t>(b) || (std::isnan(a) && std::isnan(b));
+        };
+        long differ = 0;
+        for (int i = 0; i < 20000; i++) {
+            const double u = next(), v = next(), w = next();
+            const double x = (u - 0.5) * (i % 3 == 0 ? 2.0 : i % 3 == 1 ? 40.0 : 1400.0); /* and beyond the ranges' ends */
+            const double p = u * (i % 2 ? 4.0 : 1e3) + 1e-3, e = (v - 0.5) * 30.0, a = (w - 0.5) * 200.0;
+            differ += !equal(cr_exp(x), cr_exp_fma(x)) + !equal(cr_log(p), cr_log_fma(p)) + !equal(cr_log10(p), cr_log10_fma(p)) +
+                      !equal(cr_pow(p, e), cr_pow_fma(p, e)) + !equal(cr_sin(x), cr_sin_fma(x)) + !equal(cr_cos(x), cr_cos_fma(x)) +
+                      !equal(cr_tan(x), cr_tan_fma(x)) + !equal(cr_asin(u * 2 - 1), cr_asin_fma(u * 2 - 1)) +
+                      !equal(cr_acos(u * 2 - 1), cr_acos_fma(u * 2 - 1)) + !equal(cr_atan(x), cr_atan_fma(x)) +
+                      !equal(cr_atan2(a, e), cr_atan2_fma(a, e)) + !equal(cr_sinh(x / 2), cr_sinh_fma(x / 2)) +
+                      !equal(cr_cosh(x / 2), cr_cosh_fma(x / 2)) + !equal(cr_tanh(x), cr_tanh_fma(x)) +
+                      !equal(cr_hypot(a, e), cr_hypot_fma(a, e)) + !equal(cr_erf(x / 3), cr_erf_fma(x / 3)) +
+                      !equal(cr_erfc(x / 3), cr_erfc_fma(x / 3)) + !equal(cr_lgamma(a), cr_lgamma_fma(a));
+        }
+        CHECK(differ == 0);
+    }
+#endif
+
     TEST_REPORT("xpp::math");
 }

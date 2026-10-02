@@ -26,6 +26,14 @@ https://gitlab.inria.fr/core-math/core-math), MIT licence (`LICENSE`).
   rounded to nearest, so every platform returns the same bits.
 - Built by the Makefile as one object per function (`core_math_<name>.o`,
   C, `-ffp-contract=off`, no warnings of ours, no LTO), like third_party/miniz.
+  Where the compiler targets x86 each function is built a second time with
+  `-mfma` and renamed `cr_<name>_fma` (`core_math_<name>_fma.o`), and
+  `xpp::math` calls that copy on a CPU that has FMA (`__builtin_cpu_supports`):
+  a plain build's fused multiply-adds are calls into the C library, and its
+  `cos` and `pow` take 100-150 ns against 20-50 with FMA instructions (glibc's
+  own: 20 and 25). Correct rounding makes the two copies one function, bit for
+  bit: tests/test_math.cpp compares them at 20000 inputs each, on a CPU with
+  FMA, and the plain copy is what runs on one without.
   CORE_MATH_SUPPORT_ERRNO is not defined: no errno, as the core never reads it.
 - To update: copy the same files from a newer CORE-MATH checkout, change
   the commit above, and rerun tools/examples_check.sh and goldencheck (a

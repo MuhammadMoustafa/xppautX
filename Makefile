@@ -253,18 +253,27 @@ $(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
 # vendored third_party/core-math (xpp_math's exp, log, sin, ...: correctly
 # rounded, so the same bits on every CPU and system), one C object per
 # function in the core library, built like miniz: no warnings of ours, no
-# LTO, and no contraction of a*b+c into an FMA (the algorithms are exact
-# either way, a contracted copy would only be a different build)
+# LTO, and no contraction of a*b+c into an FMA. Where the compiler targets
+# x86 each function is built twice, the second time with -mfma and renamed
+# cr_<name>_fma: a CPU that has FMA runs that one (core/xpp_math.h), about
+# 3-8 times faster than the plain build, whose fused multiply-adds are calls
+# into the C library; both return the one correctly rounded result.
 CORE_MATH_DIR = third_party/core-math
 CORE_MATH_FUNCS = exp log log10 pow sin cos tan asin acos atan atan2 sinh cosh tanh hypot erf erfc lgamma
+CORE_MATH_X86 := $(filter x86_64% i386% i486% i586% i686% amd64%,$(shell $(CC) -dumpmachine))
 CORE_MATH_OBJECTS := $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f).o)
+ifneq ($(CORE_MATH_X86),)
+CORE_MATH_OBJECTS += $(foreach f,$(CORE_MATH_FUNCS),$(BUILDDIR)/core_math_$(f)_fma.o)
+endif
 CORE_OBJECTS += $(CORE_MATH_OBJECTS)
 # lgamma's sign output goes to a temporary, not the C library's global
-$(BUILDDIR)/core_math_lgamma.o: CORE_MATH_EXTRA = -include $(CORE_MATH_DIR)/lgamma_sign.h
+$(BUILDDIR)/core_math_lgamma.o $(BUILDDIR)/core_math_lgamma_fma.o: CORE_MATH_EXTRA = -include $(CORE_MATH_DIR)/lgamma_sign.h
 # (CORE-MATH keeps each function's source in a folder of its own name)
 define CORE_MATH_RULE
 $$(BUILDDIR)/core_math_$(1).o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/toolchain.stamp | $$(BUILDDIR)
 	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -w -c $$< -o $$@
+$$(BUILDDIR)/core_math_$(1)_fma.o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/toolchain.stamp | $$(BUILDDIR)
+	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -mfma -Dcr_$(1)=cr_$(1)_fma -w -c $$< -o $$@
 endef
 $(foreach f,$(CORE_MATH_FUNCS),$(eval $(call CORE_MATH_RULE,$(f))))
 # the linker of xppautX

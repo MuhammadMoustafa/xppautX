@@ -50,24 +50,36 @@ namespace xpp {
    The one function left to the C library is jn/yn (bessel_j, bessel_y). */
 namespace math {
 
-inline double exp(double x) { return cr_exp(x); }
-inline double log(double x) { return cr_log(x); }
-inline double log10(double x) { return cr_log10(x); }
-inline double pow(double x, double y) { return cr_pow(x, y); }
-inline double sin(double x) { return cr_sin(x); }
-inline double cos(double x) { return cr_cos(x); }
-inline double tan(double x) { return cr_tan(x); }
-inline double asin(double x) { return cr_asin(x); }
-inline double acos(double x) { return cr_acos(x); }
-inline double atan(double x) { return cr_atan(x); }
-inline double atan2(double y, double x) { return cr_atan2(y, x); }
-inline double sinh(double x) { return cr_sinh(x); }
-inline double cosh(double x) { return cr_cosh(x); }
-inline double tanh(double x) { return cr_tanh(x); }
-inline double hypot(double x, double y) { return cr_hypot(x, y); }
-inline double erf(double x) { return cr_erf(x); }
-inline double erfc(double x) { return cr_erfc(x); }
-inline double lgamma(double x) { return cr_lgamma(x); }
+/* On x86, CPUs with FMA run the copy of each function built with FMA
+   instructions (third_party/core-math/README.md): the same bits, much
+   faster than the plain copy. Whether the CPU has it is the compiler
+   runtime's own table, read for free. */
+#ifdef XPP_CORE_MATH_FMA
+#define XPP_CR_PICK(name, ...) (__builtin_cpu_supports("fma") ? cr_##name##_fma(__VA_ARGS__) : cr_##name(__VA_ARGS__))
+#else
+#define XPP_CR_PICK(name, ...) cr_##name(__VA_ARGS__)
+#endif
+
+inline double exp(double x) { return XPP_CR_PICK(exp, x); }
+inline double log(double x) { return XPP_CR_PICK(log, x); }
+inline double log10(double x) { return XPP_CR_PICK(log10, x); }
+inline double pow(double x, double y) { return XPP_CR_PICK(pow, x, y); }
+inline double sin(double x) { return XPP_CR_PICK(sin, x); }
+inline double cos(double x) { return XPP_CR_PICK(cos, x); }
+inline double tan(double x) { return XPP_CR_PICK(tan, x); }
+inline double asin(double x) { return XPP_CR_PICK(asin, x); }
+inline double acos(double x) { return XPP_CR_PICK(acos, x); }
+inline double atan(double x) { return XPP_CR_PICK(atan, x); }
+inline double atan2(double y, double x) { return XPP_CR_PICK(atan2, y, x); }
+inline double sinh(double x) { return XPP_CR_PICK(sinh, x); }
+inline double cosh(double x) { return XPP_CR_PICK(cosh, x); }
+inline double tanh(double x) { return XPP_CR_PICK(tanh, x); }
+inline double hypot(double x, double y) { return XPP_CR_PICK(hypot, x, y); }
+inline double erf(double x) { return XPP_CR_PICK(erf, x); }
+inline double erfc(double x) { return XPP_CR_PICK(erfc, x); }
+inline double lgamma(double x) { return XPP_CR_PICK(lgamma, x); }
+
+#undef XPP_CR_PICK
 
 } // namespace math
 
