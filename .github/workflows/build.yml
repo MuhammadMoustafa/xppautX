@@ -337,8 +337,21 @@ jobs:
         id: build
         run: make -j4 xppautx
       - name: "Unit tests (C and C++ objects linked with g++), test binaries linked in parallel"
+        id: unittests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: make -j4 test
+      # a test that crashed (exit above 1: a check that fails exits 1) is run
+      # again under gdb for its backtrace (this MinGW's C runtime is MSVCRT,
+      # which no local build uses)
+      - name: Backtrace of a crashed unit test
+        if: ${{ !cancelled() && steps.unittests.outcome == 'failure' }}
+        run: |
+          for t in build/obj/tests/test_*.exe; do
+            st=0; "./$t" > /dev/null 2>&1 || st=$?
+            [ "$st" -gt 1 ] || continue
+            echo "== $t exited $st"
+            gdb -batch -ex run -ex bt -ex quit "./$t" 2>&1 | tail -40
+          done
       - name: Headless run matches Linux (ignoring line ends)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |

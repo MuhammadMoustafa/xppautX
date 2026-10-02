@@ -12,6 +12,10 @@
 
 static int tests_run, tests_failed;
 
+/* stdout unbuffered: a test that crashes keeps every FAIL line it printed
+   before, which a pipe's buffer (CI's log) would otherwise lose with it */
+static const int tests_stdout_unbuffered = setvbuf(stdout, NULL, _IONBF, 0);
+
 #define CHECK(cond) do {                                                  \
     tests_run++;                                                          \
     if (!(cond)) {                                                        \

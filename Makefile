@@ -381,7 +381,7 @@ LINK_TESTS := $(call link,$(CORE_SOURCES) $(TEST_SOURCES))
 .SECONDARY: $(TEST_OBJECTS)
 
 test: $(TEST_BINS)
-	@fail=0; for t in $(TEST_BINS); do $(TEST_RUNNER) ./$$t || fail=1; done; \
+	@fail=0; for t in $(TEST_BINS); do $(TEST_RUNNER) ./$$t || { st=$$?; echo "FAIL $$t exited $$st"; fail=1; }; done; \
 	  if [ $$fail -eq 0 ]; then echo "unit tests: all passed"; \
 	  else echo "unit tests: FAILURES"; exit 1; fi
 
