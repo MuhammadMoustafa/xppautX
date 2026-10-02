@@ -40,9 +40,13 @@ XPPAUTX_VERSION ?= $(or $(XPP_VERSION),$(shell git describe --tags --always 2>/d
 # and the commit, for the window's Help > About
 XPPAUTX_COMMIT ?= $(or $(shell git rev-parse --short HEAD 2>/dev/null),unknown)
 INCS     = -Icore
-CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(DEFS) $(INCS) -fcommon
+# no contraction of a*b+c into an FMA: a compiler targeting a CPU that has one
+# (arm64 always, x86 with -march=x86-64-v3 or native) must give the numbers
+# one without gives (W159: a 26.04 runner's differed from WSL's in 29 models)
+FPFLAGS = -ffp-contract=off
+CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(FPFLAGS) $(DEFS) $(INCS) -fcommon
 # no -fcommon: C++ has no tentative definitions
-CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(DEFS) $(INCS)
+CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(FPFLAGS) $(DEFS) $(INCS)
 LDFLAGS ?= -fcommon
 
 # Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2)
