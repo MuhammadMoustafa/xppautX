@@ -10,7 +10,7 @@ The sections below give the details.
 
 | Rule | Enforced by |
 |---|---|
-| Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions) | dupcheck (textual copies); review (the same algorithm in other words) |
+| Single source: one module owns each kind of operation (memory, logging, text, files, dialogs, numerics); a new helper goes into its owner, two copies are merged (Conventions); no logic is written before the common files and the code are searched for it, and the report says what was searched and reused (maintainer, 2026-10-01; Task agents) | dupcheck (textual copies); review (the same algorithm in other words, and the report's search) |
 | One name per thing: no namespace alias, type alias, using-declaration or renaming #define of our own names (W113) | aliascheck |
 | No global state: what a load makes is the Model's, what a run changes the Session's, passed as `Model&`/`Session&`; the session list is the only global (W47) | globalcheck (external and internal-linkage state, each baseline line with its reason, W120), sessioncheck |
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
@@ -378,11 +378,21 @@ difficulty) implements one card in the worktree its brief names:
   docs/xppautx-vs-xppaut.md and docs/xppaut-findings.md as "Code
   quality" says, docs/odex-quirks.md for a new .ode quirk (and name it in
   the report: the reviewer posts it to the VS Code extension's issue).
-- One operation, one module ("Single source" under Conventions): before
-  writing a helper, look for the module that owns that kind of operation
-  and use or extend it there; never add a local copy. If the owning
-  module is outside your card's files, say so in the report instead of
-  copying it.
+- No duplicated logic, strictly (maintainer, 2026-10-01; "Single source"
+  under Conventions): search before you write any logic, not only a
+  helper (a parse, a check of a value, a conversion, a loop over the
+  model's names, a file read or write, a format, an error built). First
+  the common modules that own kinds of operation (xpp_mem, xpp_log,
+  xpp_io, xpp_files, xpp_ui, xpp_math, xpp_error, xpp_util, the Model's
+  and the Session's own files; web2's src/ for the page), then the whole
+  of core/ (or web2/src) by what the logic does: grep the operation's
+  words and the names it touches, not only a function name you guess.
+  Found: call it, or extend it in its module. Not found: write it once,
+  in its owner. Never a second copy, nor the same algorithm in other
+  words. If the owner is outside your card's files, say so in the report
+  instead of copying it. The report names what you searched for and what
+  you reused or extended; a duplicate the review finds sends the card
+  back.
 - Gates: the per-task tier above. Iterate with `web2check --only <your
   sections>`; never run verify.sh, the full web2check or
   tools/asancheck.sh. Commit before `tools/wslrun.sh` (it checks HEAD
@@ -418,7 +428,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 Every card's review, before its merge, does three things (maintainer,
 2026-10-01): checks the card is met and every "review" row of Code
 quality holds; checks the agent followed this section (it stayed in its
-card's scope, ran the gates its report claims, squashed its wip commits,
+card's scope, searched before writing logic and duplicated none: each new
+function or block in the diff is grepped for an existing one, ran the
+gates its report claims, squashed its wip commits,
 closed its register lines, moved the docs, reported what it checked at a
 trust boundary), naming a broken rule in the card's note so the next
 brief says it louder; and simplifies and refactors the diff even when it
