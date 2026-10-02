@@ -1,8 +1,10 @@
-# heavy.odex: converted from heavy.ode by xppautX --convert (docs/odex.md)
+# heavy.odex: converted from heavy.ode by xppautX --convert (docs/odex.md);
+# s written without the converter's division guards (i'*i' is never 0),
+# which made each step several times slower than the model was built for
 
 par mu = -1, w = 1, n = 400
 par k1 = 10, k2 = 30, k3 = 100, k4 = 300, k5 = 1000, k6 = 3000
-s = sum(1/(if i'*i' then i'*i' else 2.23e-15), from=1, to=n)/(if sum(1/(if i'*i' then i'*i' else 2.23e-15), from=1, to=n) then sum(1/(if i'*i' then i'*i' else 2.23e-15), from=1, to=n) else 2.23e-15)
+s = sum(1/(i'*i'), from=1, to=n)/sum(1/(i'*i'), from=1, to=n)
 x' = s*(mu*x-w*y-x*(x^2+y^2))
 y' = s*(w*x+mu*y-y*(x^2+y^2))
 z1' = -k1*(z1-x)
