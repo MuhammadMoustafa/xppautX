@@ -44,7 +44,6 @@ export interface HelloEvent {
   window_ids: {plots: number; auto: number; ani: number; aplot: number};
   lists: string[][];
   userbuttons: string[];
-  sliders: {name: string; lo: number; hi: number}[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
 }
@@ -61,6 +60,7 @@ export interface View {
 
 export interface StateEvent {
   ev: 'state';
+  sliders: {name: string; lo: number; hi: number; step: number}[];
   pars: [string, number][];
   ics: [string, number][];
   /** the model's own boundary conditions; absent when it defines none */

@@ -51,7 +51,16 @@ void send_state(xpp::Session &s)
     int i;
     session.state_dirty = 0;
     evaluate_derived(s);
-    BUF_LIT(&b, "{\"ev\":\"state\",\"pars\":[");
+    BUF_LIT(&b, "{\"ev\":\"state\",\"sliders\":[");
+    for (std::size_t slot = 0; slot < s.sliders.size(); ++slot) {
+        if (slot) BUF_LIT(&b, ",");
+        const xpp::XppSlider &slider = s.sliders[slot];
+        BUF_LIT(&b, "{\"name\":");
+        buf_str(&b, slider.var.c_str());
+        buf_format(&b, ",\"lo\":{},\"hi\":{},\"step\":{}}}", slider.lo, slider.hi, slider.step);
+    }
+    BUF_LIT(&b, "],\"pars\":[");
+
     for (i = 0; i < m.nupar; i++) {
         if (i) BUF_LIT(&b, ",");
         BUF_LIT(&b, "[");
@@ -478,6 +487,30 @@ void default_command(xpp::Session &s, const char *line)
     if (kind == "par") set_default_params(s);
     else if (kind == "ic") set_default_ics(s);
     else j_command_error("default", xpp::format("default takes kind par or ic, not \"{}\"", kind));
+}
+
+/* Set a Session slider definition; the state event acknowledges it. */
+void slider_command(xpp::Session &s, const char *line)
+{
+    double requested;
+    xpp::XppSlider slider;
+    if (!js_number(js_find(line, "slot"), &requested) || requested < 0 || requested > s.sliders.size() || requested != static_cast<std::size_t>(requested)) {
+        j_command_error("slider", "slider slot: an existing slot or the next slot required");
+        return;
+    }
+    const std::size_t slot = static_cast<std::size_t>(requested);
+    if (!get_string(line, "name", slider.var) || !js_number(js_find(line, "lo"), &slider.lo) ||
+        !js_number(js_find(line, "hi"), &slider.hi) || !js_number(js_find(line, "step"), &slider.step)) {
+        j_command_error("slider", "slider: name, numeric lo, hi and step required");
+        return;
+    }
+    if (const auto why = xpp::slider_wrong(s.model(), slider)) {
+        j_command_error("slider", *why);
+        return;
+    }
+    if (slot == s.sliders.size()) s.sliders.push_back(std::move(slider));
+    else s.sliders[slot] = std::move(slider);
+    session.state_dirty = 1;
 }
 
 /* a parameter slider moved: {"cmd":"slide","name":...,"value":v} (W69: sets

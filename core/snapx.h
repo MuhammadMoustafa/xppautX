@@ -33,6 +33,8 @@ inline constexpr const char *windows_member = "windows.set";  /* the plot window
 inline constexpr const char *marks_member = "marks.set";      /* labels, arrows and markers, frozen curves */
 inline constexpr const char *frozen_member = "frozen.npz";    /* the frozen curves' points */
 inline constexpr const char *data_member = "data.npz";        /* the data table */
+inline constexpr const char *sliders_member = "sliders.set"; /* every slider slot, including empty ones */
+inline constexpr const char *nullclines_member = "nullclines.set"; /* current and frozen segments with their axes */
 inline constexpr const char *random_member = "random.txt";    /* "seed N" (the next Go's), "wiener v..." (their current values), then the generator's state (xpp::Random::save's text) */
 
 /* the kind of file a manifest's first line names, "xppautX session 1" */

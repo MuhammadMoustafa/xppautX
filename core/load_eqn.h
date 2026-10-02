@@ -32,7 +32,7 @@ override the below definition.
 #endif
 #endif
 
-#define XPP_NSLIDERS 3
+#define XPP_NSLIDERS 3 /* The model option language defines S1, S2 and S3. */
 
 namespace xpp {
 
@@ -51,6 +51,7 @@ std::vector<std::string> check_for_xpprc();
 struct XppSlider {
     std::string var;           /* the parameter it moves */
     double lo = 0.0, hi = 1.0; /* its range */
+    double step = 0.0; /* zero asks the page to choose a step for the model preset */
 };
 
 /* The numerics settings in use (the nUmerics menu, the model's @ options,

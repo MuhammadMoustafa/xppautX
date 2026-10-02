@@ -587,6 +587,7 @@ const CommandInfo commands[] = {
     {"set", nullptr, S, STEP, apply_set},
     {"default", nullptr, S, STEP, default_command},
     {"slide", nullptr, S, STEP, slide_command},
+    {"slider", nullptr, S, STEP, slider_command},
     {"action", nullptr, D, STEP, action_command},
     {"values", "write", D, STEP, values_command},
     {"values", "query", D, STEP, values_command},
@@ -1004,23 +1005,6 @@ void send_hello(xpp::Session &s)
     for (i = 0; i < s.nuserbut; i++) {
         if (i) BUF_LIT(&b, ",");
         buf_str(&b, s.userbut[i].bname);
-    }
-    /* @ slider1=name,slider1lo=...: the parameter sliders set in the file */
-    BUF_LIT(&b, "],\"sliders\":[");
-    {
-        const bool set[3] = {s.options_set.has(xpp::Option::S1), s.options_set.has(xpp::Option::S2), s.options_set.has(xpp::Option::S3)};
-        int k = 0;
-        for (i = 0; i < XPP_NSLIDERS; i++) {
-            if (!set[i]) continue;
-            if (k++) BUF_LIT(&b, ",");
-            BUF_LIT(&b, "{\"name\":");
-            buf_str(&b, s.sliders[i].var.c_str());
-            BUF_LIT(&b, ",\"lo\":");
-            buf_num(&b, s.sliders[i].lo, 16);
-            BUF_LIT(&b, ",\"hi\":");
-            buf_num(&b, s.sliders[i].hi, 16);
-            BUF_LIT(&b, "}");
-        }
     }
     /* the model file's values, what `default` restores, in state's order */
     BUF_LIT(&b, "],\"defaults\":{\"pars\":[");

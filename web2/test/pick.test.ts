@@ -100,7 +100,7 @@ test('a drag by the keyboard is down, move and up the other way from the middle'
 
 const ev = (s: AppState, e: object) => reduce(s, {type: 'event', ev: e as never});
 const withPlot = (): AppState => {
-  let s = ev(READY, {ev: 'state', pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
+  let s = ev(READY, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
   s = ev(s, {ev: 'series', win: 1, rows: 0, three: 0, xlabel: '', ylabel: '', zlabel: '',
     curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
     columns: [{col: 0, name: 'T', data: []}, {col: 1, name: 'V', data: []}, {col: 2, name: 'W', data: []}]});
@@ -137,9 +137,9 @@ test('the store: a cancelled mode is gone at once; a drag lasts over its asks', 
 test('the core\'s window moving (Window/Zoom) shows it: the client zoom is not kept, no history (GitHub #110)', () => {
   let s = withPlot();
   s = reduce(s, {type: 'viewport', viewport: {x: {min: 0, max: 0.1}, y: null}});
-  s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 0, menu: 0, win: 1});
   assert.deepEqual(activeWindow(s.plots)!.viewport.x, {min: 0, max: 0.1}, 'the same window: the zoom stays');
-  s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view: {...view, xlo: -0.2}, rows: 0, menu: 0, win: 1});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xlo: -0.2}, rows: 0, menu: 0, win: 1});
   assert.equal(activeWindow(s.plots)!.viewport.x, null);
 });
 

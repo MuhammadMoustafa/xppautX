@@ -166,8 +166,12 @@ beside the plot (a sheet on a phone):
 - **Data** opens the Data tab ([The Data Browser](07-data-browser.md)),
   **Equations** lists the equations (the X11 equation-listing window).
 
-Sections can be collapsed and their state (and the sliders) saved to and
-loaded from a settings file.
+Slider definitions (name, Min, Max and Step) are part of the session and
+return when you open its `.snapx`. Open model replaces them with the new
+model's `@ s1`, `slo1`, `shi1` presets (likewise 2 and 3). Current and frozen
+nullclines also return from a saved session (W135, #187).
+
+Sections can be collapsed and their state saved to and loaded from a settings file.
 
 ## Plots and axes
 

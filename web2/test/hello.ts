@@ -8,7 +8,7 @@ const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys
 export const HELLO: HelloEvent = {
   ev: 'hello', protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
-  lists: [], userbuttons: [], sliders: [], defaults: {pars: [], ics: []},
+  lists: [], userbuttons: [], defaults: {pars: [], ics: []},
   menus: {
     main: [], main_keys: 'icndwakgufpemtsvxr3b', main_hints: [], main_kinds: 'xxvvvdvvvvsvvvxvvvvx',
     file: [], file_keys: 'pracshqtglxuomevndy', file_hints: [], file_kinds: 'vdvvdvcdsddvvdddddd',
@@ -36,7 +36,7 @@ export const HELLO: HelloEvent = {
     {cmd: 'state', kind: 'v', step: false}, {cmd: 'data', kind: 'v', step: false},
     {cmd: 'display', kind: 'v', step: true}, {cmd: 'click', kind: 'v', step: true},
     {cmd: 'browser', op: 'write', kind: 'd', step: true}, {cmd: 'browser', kind: 'v', step: false},
-    {cmd: 'set', kind: 's', step: true},
+    {cmd: 'set', kind: 's', step: true}, {cmd: 'slider', kind: 's', step: true},
     {cmd: 'auto', op: 'set', kind: 's', step: true}, {cmd: 'auto', op: 'grab', kind: 'd', step: true},
     {cmd: 'auto', kind: 'v', step: true},
     {cmd: 'values', op: 'write', kind: 'd', step: true}, {cmd: 'values', kind: 's', step: true},

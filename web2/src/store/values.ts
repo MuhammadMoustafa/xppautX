@@ -21,7 +21,7 @@
    Reset (one field, or every field of a section) is the way back,
    through the model's own values. Pure: no DOM, no I/O. */
 import type {Command} from '../protocol/types';
-import {presetSliders, type SliderDef} from './sliders';
+import {stateSliders, type SliderDef} from './sliders';
 
 export type ValueKind = 'par' | 'ic' | 'bc' | 'delay' | 'num';
 
@@ -88,13 +88,8 @@ export type ValuesAction =
   | {type: 'defaulted'; kind: ValueKind}
   /** the model's values: hello.defaults by name */
   | {type: 'defaults'; pars: [string, number][]; ics: [string, number][]}
-  /** the model's `@ s1=..` presets, on a (re)connection: the list starts with them when it is empty */
-  | {type: 'presetSliders'; defs: {name: string; lo: number; hi: number}[]}
-  | {type: 'addSlider'}
-  /** the Add/Edit slider dialog's OK, adding one fully formed (SliderDialog.tsx) */
-  | {type: 'addSliderWith'; def: Omit<SliderDef, 'id'>}
-  | {type: 'setSlider'; id: number; patch: Partial<Omit<SliderDef, 'id'>>}
-  | {type: 'removeSlider'; id: number};
+  /** the authoritative definitions from every state event */
+  | {type: 'stateSliders'; defs: {name: string; lo: number; hi: number; step?: number}[]};
 
 export function reduceValues(state: ValuesState, action: ValuesAction): ValuesState {
   switch (action.type) {
@@ -130,18 +125,10 @@ export function reduceValues(state: ValuesState, action: ValuesAction): ValuesSt
       for (const [n, v] of action.ics) defaults[fieldKey('ic', n)] = v;
       return {...state, defaults};
     }
-    case 'presetSliders':
-      if (state.sliders.length || !action.defs.length) return state;
-      return {...state, sliders: presetSliders(action.defs, state.nextSlider), nextSlider: state.nextSlider + action.defs.length};
-    case 'addSlider':
-      return {...state, sliders: [...state.sliders, {id: state.nextSlider, name: '', lo: '', hi: '', step: ''}],
-        nextSlider: state.nextSlider + 1};
-    case 'addSliderWith':
-      return {...state, sliders: [...state.sliders, {id: state.nextSlider, ...action.def}], nextSlider: state.nextSlider + 1};
-    case 'setSlider':
-      return {...state, sliders: state.sliders.map(s => (s.id === action.id ? {...s, ...action.patch} : s))};
-    case 'removeSlider':
-      return {...state, sliders: state.sliders.filter(s => s.id !== action.id)};
+    case 'stateSliders':
+      return {...state, sliders: stateSliders(action.defs, 1),
+        nextSlider: (action.defs.findIndex(d => !d.name) + 1) || action.defs.length + 1};
+
   }
 }
 

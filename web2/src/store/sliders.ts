@@ -62,11 +62,10 @@ export function fromPosition(pos: number, r: {lo: number; hi: number}): number {
   return r.lo + (r.hi - r.lo) * pos / RANGE_STEPS;
 }
 
-/** the model's presets (`hello.sliders`) as the first sliders, with a
-    computed step since the core does not send one */
-export function presetSliders(defs: {name: string; lo: number; hi: number}[], firstId: number): SliderDef[] {
+/** the Session slots from state, with an automatic step for model presets */
+export function stateSliders(defs: {name: string; lo: number; hi: number; step?: number}[], firstId: number): SliderDef[] {
   return defs.map((d, i) => ({id: firstId + i, name: d.name, lo: String(d.lo), hi: String(d.hi),
-    step: String(defaultStep(d.lo, d.hi))}));
+    step: String(d.step || defaultStep(d.lo, d.hi))})).filter(d => d.name !== '');
 }
 
 /** the dialog's errors, keyed by field; empty when the range and step are valid */

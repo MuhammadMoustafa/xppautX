@@ -48,6 +48,8 @@ Result<double> typed_number(Session &s, std::string_view typed, std::string_view
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
+/* One validation path for protocol and saved slider settings; empty removes a slot. */
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider);
 /* The session s's plot windows: which are open (set_active_windows), the
    active one (make_active), the plot window (its graph's index) whose
    window is w (graph_of; 0, the main one, when none in use is), and the

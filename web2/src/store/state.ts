@@ -322,9 +322,8 @@ function defaultsOf(hello: HelloEvent, st: StateEvent): ValuesAction {
 function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello': {
-      /* a (re)connection: the defaults come with the next state; the model's sliders start the list */
-      const values = reduceValues(reduceValues({...state.values, defaults: null}, {type: 'settled'}),
-        {type: 'presetSliders', defs: ev.sliders});
+      /* a (re)connection: defaults and slider definitions come with state */
+      const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
       /* a set sent before gets no idle now */
       return {...state, hello: ev, title: ev.title, values, numerics: null,
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};
@@ -336,7 +335,8 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       return {
         ...state, core: ev, plots: moved ? coreMoved(state.plots, ev.view.win) : state.plots, diagram,
         player: reducePlayer(state.player, {type: 'core', player: ev.player}),
-        values: state.values.defaults || !state.hello ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
+        values: reduceValues(state.values.defaults || !state.hello ? state.values : reduceValues(state.values, defaultsOf(state.hello, ev)),
+          {type: 'stateSliders', defs: ev.sliders}),
       };
     }
     case 'series': {

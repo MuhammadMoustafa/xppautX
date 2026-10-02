@@ -833,6 +833,16 @@ export class Session {
     this.edit({kind, index, text});
   }
 
+  /** Slider definitions belong to the Session; the next state confirms the edit. */
+  setSlider(id: number, def: {name: string; lo: string; hi: string; step: string}): void {
+    this.send({cmd: 'slider', slot: id - 1, name: def.name,
+      lo: Number(def.lo), hi: Number(def.hi), step: Number(def.step)});
+  }
+
+  removeSlider(id: number): void {
+    this.setSlider(id, {name: '', lo: '0', hi: '1', step: '0'});
+  }
+
   /** a slider moved: sent like any other edit (W106) */
   slide(kind: 'par' | 'ic', name: string, value: number): void {
     this.edit({kind, name, text: String(value)});

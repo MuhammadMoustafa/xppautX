@@ -102,12 +102,12 @@ value stops the load with the file, line and value, and nothing is applied.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session / Open: values, every window, labels, frozen curves, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57 |
+| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session / Open: values, every window, labels, frozen curves, current and frozen nullclines, sliders, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57 |
 | A changed model | not applicable | the session carries its own model; opening it loads that version | W103 |
 | Record and replay | none | File > Record writes a `.recx` of every step; the player steps, pauses, shows captions and notes | W59a-d |
 | Record from a snapshot | none | a recording starts from the session's state | W59d |
 | Replay a script from the command line | none | `--script FILE` today; decided: removed, `xppautX run.recx --silent` plays a recording and the checks move to `--server` or a `.recx` | W10, W144 (ready) |
-| Slider settings | page only, not saved | page only, not saved in a session today; decided, not done | W135 (blocked) |
+| Slider settings | model options set three slider bindings | Session definitions, including added sliders and step sizes, saved in `.snapx`; Open model replaces them with its presets | W135, [#187](https://github.com/MuhammadMoustafa/xppautX/issues/187) |
 | Seeds | one global generator seed | each run has its seed, logged and saved with its data; set it and Go repeats a run exactly | W71 |
 
 ## The model language

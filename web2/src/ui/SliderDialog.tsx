@@ -71,8 +71,7 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
   const submit = () => {
     if (!valid || !picked) return;
     const def: Omit<SliderDef, 'id'> = {name: picked.name, lo, hi, step};
-    if (editing) session.store.dispatch({type: 'values', action: {type: 'setSlider', id: target.id, patch: def}});
-    else session.store.dispatch({type: 'values', action: {type: 'addSliderWith', def}});
+    session.setSlider(editing ? target.id : session.store.getState().values.nextSlider, def);
     onClose();
   };
 

@@ -3648,6 +3648,20 @@ def check_open_reload():
                 else:
                     snd(cmd='answer', id=e['id'], ok=0)
 
+        # W135: Open replaces all definitions, including slots absent from the next model.
+        for model, preset in [('lecar', '@ s1=iapp,slo1=-1,shi1=2\n'),
+                              ('vanderpol', '@ s1=x,slo1=-3,shi1=3\n')]:
+            with open(os.path.join('examples', 'ode', model + '.ode')) as f:
+                source = f.read()
+            filename = 'w135-' + model + '.ode'
+            with open(os.path.join(r, filename), 'w') as f:
+                f.write(preset + source)
+            switched = last_state(open_model(filename))
+            expected = 'iapp' if model == 'lecar' else 'x'
+            check('W135: Open %s replaces the sliders with its @ presets' % model,
+                  switched and [d['name'] for d in switched['sliders'] if d['name']] == [expected],
+                  str(switched and switched.get('sliders')))
+        open_model('lecar.odex')
         integrate()
         first = rows_of('lecar1.csv')
         snd(cmd='key', key='f')
@@ -4222,7 +4236,7 @@ def check_session_file():
     def key(snd, col, k, *answers, win=None):
         return answered(snd, col, answers, cmd='key', key=k, **({'win': win} if win else {}))
 
-    SUBSCRIBE = dict(cmd='data', events=['plots', 'marks', 'autoinfo'])
+    SUBSCRIBE = dict(cmd='data', events=['plots', 'marks', 'autoinfo', 'nullclines'])
     p, r, snd, col, _ = launch_server()
     keep = tempfile.mkdtemp(prefix='xppsnapx')
     try:
@@ -4248,11 +4262,20 @@ def check_session_file():
                          if e.get('ev') == 'browser'), None)
         check('W145: the added column VW is in the browser before the save',
               browser1 is not None and browser1.get('cols', [])[-1:] == ['VW'], str(browser1)[:200])
+        # W135: definitions and computed/frozen nullclines are Session members.
+        answered(snd, col, (), cmd='slider', slot=0, name='iapp', lo=-1, hi=2, step=0.01)
+        answered(snd, col, (), cmd='slider', slot=2, name='V', lo=-2, hi=2, step=0.02)
+        answered(snd, col, (), cmd='slider', slot=3, name='phi', lo=0, hi=1, step=0.001)
+        key(snd, col, 'n', 'n')
+        key(snd, col, 'n', 'f', 'f')
         answered(snd, col, (), cmd='session', op='save', name='s1')
         st1 = no_t(last('state'))
         check('session save: state.session names the .snapx', st1 and st1.get('session') == {'file': 's1.snapx'},
               str(st1 and st1.get('session')))
-        saved = {k: no_t(last(k)) for k in ('plots', 'autoview')}
+        saved = {k: no_t(last(k)) for k in ('plots', 'autoview', 'nullclines')}
+        check('W135: the saved nullclines contain a current curve and one frozen pair',
+              saved['nullclines'] and saved['nullclines'].get('x') and len(saved['nullclines'].get('frozen', [])) == 1,
+              str(saved['nullclines'] and [len(saved['nullclines'].get('x', [])), len(saved['nullclines'].get('frozen', []))]))
         marks1 = [no_t(last('marks', win=w)) for w in (1, 2)]
         diagram1 = rebuild_diagram(allev, [])
         view1 = rebuild_diagram(allev, [], 1)
@@ -4260,7 +4283,7 @@ def check_session_file():
         names = zipfile.ZipFile(snap).namelist() if os.path.exists(snap) else []
         check('session save: s1.snapx is a zip of the files listed, the model in it',
               sorted(names) == sorted(['session.txt', 'model/lecar.odex', 'model.set', 'auto/settings.txt', 'auto/diagram.csv',
-                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt']),
+                        'auto/solutions.s', 'auto/views.txt', 'windows.set', 'marks.set', 'frozen.npz', 'data.npz', 'random.txt', 'sliders.set', 'nullclines.set']),
               str(names))
         if names:
             z = zipfile.ZipFile(snap)
@@ -4304,8 +4327,10 @@ def check_session_file():
         check('%s: state.session names the file opened' % tag,
               st2 and st2.get('session', {}).get('file', '').endswith('s1.snapx'), str(st2 and st2.get('session')))
         for k in saved:
-            check('%s: the %s event is the saved one' % (tag, k), saved[k] == no_t(last(k)),
-                  '%s\n    %s' % (str(saved[k])[:300], str(no_t(last(k)))[:300]))
+            # Nullclines are per plot window: subscription order can differ after a load.
+            restored = no_t(last(k, **({'win': saved[k]['win']} if k == 'nullclines' else {})))
+            check('%s: the %s event is the saved one' % (tag, k), saved[k] == restored,
+                  str([field for field in (saved[k] or {}) if saved[k].get(field) != (restored or {}).get(field)]))
         diagram2 = rebuild_diagram(allev, [])
         # the diagram keeps every point at full precision (W92): the same points exactly
         check("%s: the diagram is the saved one, exactly" % tag,
@@ -4408,6 +4433,15 @@ def check_session_file():
         generator = random_rows[-1].split(' ')
         manifest_lines = len(members['session.txt'].decode().rstrip('\n').split('\n'))
         damages = [
+            ('badslider', lambda m: m.__setitem__('sliders.set', text_lines('sliders.set', 3, 'nonsense low')),
+             ('badslider.snapx/sliders.set:3:', 'nonsense')),
+            ('badsliderrange', lambda m: m.__setitem__('sliders.set', text_lines('sliders.set', 4, '-2 high')),
+             ('badsliderrange.snapx/sliders.set:4:', 'slider range -1 -2')),
+            ('nannullcline', lambda m: m.__setitem__('nullclines.set', text_lines('nullclines.set', 4, 'nan coordinate')),
+             ('nannullcline.snapx/nullclines.set:4:', 'nan')),
+            ('badnullcline', lambda m: m.__setitem__('nullclines.set', text_lines('nullclines.set', 3, '10001 segments')),
+             ('badnullcline.snapx/nullclines.set:3:', '10001')),
+
             ('nowindows', lambda m: m.pop('windows.set'), 'its windows.set is missing'),
             ('cutwindows', lambda m: m.__setitem__('windows.set', '\n'.join(win_rows[:10]).encode() + b'\n'),
              ('cutwindows.snapx/windows.set:11:', 'the file ends here')),
@@ -4463,7 +4497,7 @@ def check_session_file():
         snd(cmd='state')
         st2 = no_t(next((e for e in reversed(col(is_idle)[0]) if is_state(e)), None))
         check('W116: after the refused opens the session before stays: its state, s1.snapx its session',
-              st2 and st2.get('pars') == st1.get('pars') and st2.get('rows') == st1.get('rows')
+              st2 and st2.get('pars') == st1.get('pars') and st2.get('sliders') == st1.get('sliders') and st2.get('rows') == st1.get('rows')
               and st2.get('session', {}).get('file', '').endswith('s1.snapx'), str(st2 and st2.get('session')))
     finally:
         stop_server(p, r, snd)

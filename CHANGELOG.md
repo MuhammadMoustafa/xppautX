@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Added
 
+- Sliders belong to the session: opening a model replaces them with its presets; saved `.snapx` sessions restore slider definitions and current and frozen nullclines (W135, [#187](https://github.com/MuhammadMoustafa/xppautX/issues/187)).
+
 - Save a session (`name.snapx`) and open it later to continue where you stopped: the model, its values, every plot view, frozen curves, labels and the data; a session of the model already open asks to save first, and the file carries its model and opens only that one (W57, #105; W103, #152)
 - Record and Play: every step of a session is written to `name.recx`, one plain text file with the model and the files it read, and played back step by step with a progress bar; a `.recx` opens in the player from the command line or a double-click, and quitting saves a recording in progress (W59, #107)
 - Any number of views of the AUTO diagram, side by side, each with its own axes, ranges and variables (W50, #98)

@@ -27,7 +27,7 @@ function session(): {s: Session; sent: Command[]; ev: (e: object) => void} {
 test('W106: a parameter or numerics edit during a computation is sent at once and shown as the value', () => {
   const {s, sent, ev} = session();
   ev(HELLO);
-  ev({ev: 'state', pars: [['iapp', 0.05]], ics: [], bcs: []});
+  ev({ev: 'state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
   ev({ev: 'idle'});
   s.key('i');
   ev({ev: 'computing'});
@@ -39,11 +39,11 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   const st = () => s.store.getState();
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3', 'the field shows what was sent');
   /* the core's state during the run still has the value the run started with: the field keeps what was sent */
-  ev({ev: 'state', pars: [['iapp', 0.05]], ics: [], bcs: []});
+  ev({ev: 'state', sliders: [], pars: [['iapp', 0.05]], ics: [], bcs: []});
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3');
   ev({ev: 'idle'}); /* the run ends */
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3');
-  ev({ev: 'state', pars: [['iapp', 0.3]], ics: [], bcs: []});
+  ev({ev: 'state', sliders: [], pars: [['iapp', 0.3]], ics: [], bcs: []});
   ev({ev: 'idle'}); /* the set's own */
   assert.equal(sentText(st().values.inflight, 'par:iapp'), null, 'the core\'s value takes over');
   ev({ev: 'idle'}); /* the numerics set's */

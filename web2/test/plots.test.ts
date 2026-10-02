@@ -100,7 +100,7 @@ test('a series before any plots event makes its window (a server without plots)'
 test('a plot mode (T4) is its window\'s, and shows that window\'s tab', () => {
   let s = reduce(twoWindows(), {type: 'selectWindow', win: 1});
   const view = {win: 2, left: 50, right: 550, top: 20, bottom: 420, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0};
-  s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 2});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 2});
   s = ev(s, {ev: 'ask', id: 5, kind: 'rubber', win: 2});
   assert.equal(s.pick?.win, 2);
   assert.equal(s.plots.active, 2);
@@ -113,8 +113,8 @@ test('the core moving a window\'s axes resets that window\'s zoom only, no histo
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 1});
   s = reduce(s, {type: 'viewport', viewport: zoom, win: 2});
   const view = {win: 2, left: 0, right: 1, top: 0, bottom: 1, xlo: 0, xhi: 1, ylo: 0, yhi: 1, three: 0};
-  s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 2});
-  s = ev(s, {ev: 'state', pars: [], ics: [], bcs: [], view: {...view, xhi: 2}, rows: 2, menu: 0, win: 2});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view, rows: 2, menu: 0, win: 2});
+  s = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], bcs: [], view: {...view, xhi: 2}, rows: 2, menu: 0, win: 2});
   assert.deepEqual(windowOf(s.plots, 2)?.viewport, {x: null, y: null});
   assert.deepEqual(windowOf(s.plots, 1)?.viewport, zoom);
 });

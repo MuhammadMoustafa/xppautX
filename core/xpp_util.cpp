@@ -1,3 +1,4 @@
+#include <cmath>
 /* Pure helpers that used to live in X11 source files (init_conds.c,
    aniparse.c, graf_par.c, calc.c, many_pops.c, main.c). Nothing here
    touches a window. */
@@ -581,6 +582,18 @@ void plot_checked_vars(xpp::Session &s,int how,int *isck,int n)
 
 /* a slider names a parameter (PARAMBOX) or a variable (ICBOX); 0 if
    neither */
+std::optional<std::string> slider_wrong(const Model &m, const XppSlider &slider)
+{
+  int type, index;
+  if(!slider.var.empty()&&!find_par_or_var(m,slider.var,&type,&index))
+    return xpp::format("slider name {}: the model has no parameter or variable",slider.var);
+  if(!std::isfinite(slider.lo)||!std::isfinite(slider.hi)||!(slider.lo<slider.hi))
+    return xpp::format("slider range {} {}: finite low < high required",slider.lo,slider.hi);
+  if(!std::isfinite(slider.step)||slider.step<0||slider.step>slider.hi-slider.lo)
+    return xpp::format("slider step {}: zero (automatic) or a positive step within the range required",slider.step);
+  return std::nullopt;
+}
+
 int find_par_or_var(const xpp::Model &m, std::string_view name,int *type,int *index)
 {
   int status=find_user_name(m,PARAMBOX,name);

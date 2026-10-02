@@ -3,6 +3,8 @@
    through graphics.cpp's primitives and recorded for the front end by
    phase_data.cpp. */
 #include "nullcline.h"
+#include <cmath>
+#include <limits>
 #include "session.h"
 #include "getvar.h"
 #include "xpp_util.h"
@@ -35,7 +37,7 @@
 
 namespace xpp {
 
-#define MAX_NULL 10000
+#define MAX_NULL 10000 /* Existing contour storage caps each curve at this many segments. */
 
 
 constexpr int NullStyle=0; /* 1 is with little vertical/horizontal lines */
@@ -189,11 +191,9 @@ void redraw_froz_cline(xpp::Session &s, int flag)
    two grid rows for this mesh every time. */
 void null_storage(xpp::Session &s, int course)
 {
-  if(s.numerics.null_here==0){
-    s.nullcline_state.x_null.assign(4*MAX_NULL,0.0f);
-    s.nullcline_state.y_null.assign(4*MAX_NULL,0.0f);
-    s.numerics.null_here=1;
-  }
+  s.nullcline_state.x_null.resize(4*MAX_NULL);
+  s.nullcline_state.y_null.resize(4*MAX_NULL);
+  s.numerics.null_here=1;
   s.nullcline_state.n_top.assign(course+1,0.0f);
   s.nullcline_state.n_bot.assign(course+1,0.0f);
 }
@@ -682,6 +682,60 @@ void direct_field_com(xpp::Session &s, int c)
    clear - delete all but the current set
    animate - replay all s.nullcline_state.frozen ones (not current set )
    */
+
+std::string nullclines_text(const Session &s)
+{
+  const NullclineState &n=s.nullcline_state;
+  std::string out;
+  const auto pair=[&](int ix,int iy,const std::vector<float> &x,int nx,const std::vector<float> &y,int ny){
+    out+=xpp::format("{} x axis\n{} y axis\n",ix,iy);
+    const auto segments=[&](const std::vector<float> &v,int count){
+      out+=xpp::format("{} segments\n",count);
+      for(int k=0;k<4*count;++k)out+=xpp::number(v[k])+" coordinate\n";
+    };
+    segments(x,nx);segments(y,ny);
+  };
+  pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
+  out+=xpp::format("{} frozen pairs\n",n.frozen.size());
+  for(const FrozenCline &f:n.frozen)pair(f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
+  return out;
+}
+
+NullclineState read_nullclines(const Model &m, Lines &l)
+{
+  NullclineState n;
+  const auto pair=[&](int &ix,int &iy,std::vector<float> &x,int &nx,std::vector<float> &y,int &ny){
+    // Each line retains its axis label, so bad values name the exact source line.
+    ix=l.whole("x axis",true);
+    if(ix<0||ix>m.node)l.fail(xpp::format("x axis {}: 0 to {} required",ix,m.node));
+    iy=l.whole("y axis",true);
+    if(iy<0||iy>m.node)l.fail(xpp::format("y axis {}: 0 to {} required",iy,m.node));
+    const auto segments=[&](std::vector<float> &v,int &count){
+      count=l.whole("segments",true);
+      if(count<0||count>MAX_NULL)l.fail(xpp::format("segments {}: 0 to {} required",count,MAX_NULL));
+      for(int k=0;k<4*count;++k){
+        const double value=l.real("coordinate",true);
+        if(!std::isfinite(value)||value>std::numeric_limits<float>::max()||value<-std::numeric_limits<float>::max())
+          l.fail(xpp::format("coordinate {}: a finite value in float range required",value));
+        v.push_back(static_cast<float>(value));
+      }
+    };
+    segments(x,nx);segments(y,ny);
+    if((nx||ny)&&(ix==0||iy==0||ix==iy))l.fail("nonempty nullclines require distinct state variable axes");
+  };
+  pair(n.null_ix,n.null_iy,n.x_null,n.num_x_n,n.y_null,n.num_y_n);
+  const int count=l.whole("frozen pairs",true);
+  if(count<0)l.fail(xpp::format("frozen pairs {}: nonnegative count required",count));
+  // No allocation from the count: every pair must consume lines from the bounded archive.
+  for(int k=0;k<count;++k){
+    FrozenCline f;
+    pair(f.n_ix,f.n_iy,f.xn,f.nmx,f.yn,f.nmy);
+    n.frozen.push_back(std::move(f));
+  }
+  n.frozen_started=!n.frozen.empty();
+  l.end();
+  return n;
+}
 
 void restore_nullclines(xpp::Session &s)
 {

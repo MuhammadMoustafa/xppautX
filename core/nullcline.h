@@ -2,12 +2,14 @@
 #define _nullcline_h_
 
 #include "xpplim.h"
+#include "xpp_io.h"
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace xpp {
 struct Session; /* session.h */
+struct Model; /* model.h */
 
 /* the nullclines (current, or frozen number who) as segments: 4 floats each */
 int get_nullcline_floats(Session &s, float **v, int *n, int who, int type);
@@ -62,6 +64,9 @@ struct NullclineState {
 
 /* The nullclines and the direction field of the session s's active plot
    window: its commands, and redrawn with it */
+/* Saved segments are parsed whole before the session applies any member. */
+std::string nullclines_text(const Session &s);
+NullclineState read_nullclines(const Model &m, Lines &l);
 void create_new_cline(Session &s);
 void froz_cline_stuff_com(Session &s, int i);
 void redraw_dfield(Session &s);

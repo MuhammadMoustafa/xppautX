@@ -548,6 +548,35 @@ std::optional<std::string> data_wrong(const xpp::Session &s, const xpp::DataTabl
     return std::nullopt;
 }
 
+std::string sliders_text(const xpp::Session &s)
+{
+    std::string out=xpp::format("{} sliders\n",s.sliders.size());
+    for(const xpp::XppSlider &slider:s.sliders)
+        out+=xpp::format("{}\n{} low\n{} high\n{} step\n",slider.var,xpp::number(slider.lo),xpp::number(slider.hi),xpp::number(slider.step));
+    return out;
+}
+
+std::vector<xpp::XppSlider> read_sliders(const xpp::Model &m,xpp::Lines &l)
+{
+    const int count=l.whole("sliders",true);
+    if(count<XPP_NSLIDERS)l.fail(xpp::format("sliders {}: at least {} model slots required",count,XPP_NSLIDERS));
+    std::vector<xpp::XppSlider> sliders;
+    // Consume input before allocating a slot; archive limits bound hostile counts.
+    for(int k=0;k<count;++k){
+        xpp::XppSlider slider;
+        slider.var=l.next("slider name");
+        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
+        slider.lo=l.real("low",true);
+        slider.hi=l.real("high",true);
+        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
+        slider.step=l.real("step",true);
+        if(const auto why=xpp::slider_wrong(m,slider))l.fail(*why);
+        sliders.push_back(std::move(slider));
+    }
+    l.end();
+    return sliders;
+}
+
 /* a session file, read whole: every member, before any is applied */
 struct SessionRead {
     xpp::SetFile set;
@@ -556,6 +585,8 @@ struct SessionRead {
     std::optional<xpp::DataTable> data;
     RandomRead random;
     MarksRead marks;
+    std::vector<xpp::XppSlider> sliders;
+    xpp::NullclineState nullclines;
 };
 
 /* session file f read for s (its model's session): each member read and
@@ -575,6 +606,12 @@ xpp::Result<SessionRead> read_session(xpp::Session &s, const SavedFile &f)
         return xpp::read_lines("session", xpp::format("{}/{}", f.name, name), it->second, parse);
     };
     SessionRead r;
+    auto sliders=member(xpp::snapx::sliders_member,[&](xpp::Lines &l){return read_sliders(s.model(),l);});
+    if(!sliders)return std::unexpected(sliders.error());
+    r.sliders=std::move(*sliders);
+    auto nullclines=member(xpp::snapx::nullclines_member,[&](xpp::Lines &l){return xpp::read_nullclines(s.model(),l);});
+    if(!nullclines)return std::unexpected(nullclines.error());
+    r.nullclines=std::move(*nullclines);
 
     /* the values and numerics (and the active window's graphics) */
     xpp::Result<xpp::SetFile> set = [&]() -> xpp::Result<xpp::SetFile> {
@@ -657,6 +694,9 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     if (r.data && r.data->rows() > 0) refresh_browser(s, s.data_store.rows);
 
     apply_marks(s, std::move(r.marks), slot);
+    s.sliders=std::move(r.sliders);
+    s.nullcline_state=std::move(r.nullclines);
+    s.numerics.null_here=s.nullcline_state.num_x_n||s.nullcline_state.num_y_n||s.nullcline_state.frozen_started;
 
     /* every window drawn as it now is, the active one last */
     const int active = s.plot_windows.active;
@@ -716,6 +756,8 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
     if (std::optional<std::string> frozen = frozen_npz(s)) entries->push_back({xpp::snapx::frozen_member, std::move(*frozen)});
     if (man.data) entries->push_back({xpp::snapx::data_member, xpp::npz_bytes(stored_data_table(s))});
     entries->push_back({xpp::snapx::random_member, random_text(s)});
+    entries->push_back({xpp::snapx::sliders_member, sliders_text(s)});
+    entries->push_back({xpp::snapx::nullclines_member, xpp::nullclines_text(s)});
     return xpp::zip::make_zip(*entries);
 }
 

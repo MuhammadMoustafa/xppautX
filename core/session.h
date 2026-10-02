@@ -138,7 +138,7 @@ struct Session {
   ParserState parser;
   /* the parameter sliders the model sets up (@ s1=name, slo1=, shi1=,
      likewise 2 and 3) */
-  std::array<XppSlider,XPP_NSLIDERS> sliders;
+  std::vector<XppSlider> sliders = std::vector<XppSlider>(XPP_NSLIDERS);
   /* the options a source has set (model_options.h): the command line
      sets its own first, and the model's may not override them */
   OptionsSet options_set;

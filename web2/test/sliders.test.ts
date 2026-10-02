@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {
-  defaultRange, defaultStep, filterCandidates, fromPosition, niceStep, presetSliders, RANGE_STEPS, sliderRange,
+  defaultRange, defaultStep, filterCandidates, fromPosition, niceStep, stateSliders, RANGE_STEPS, sliderRange,
   sliderStep, toPosition, validateSliderFields,
 } from '../src/store/sliders';
 import {initialValues, reduceValues} from '../src/store/values';
@@ -30,20 +30,16 @@ test('positions map to values and back, clamped to the track', () => {
   assert.equal(toPosition(-10, r), 0);
 });
 
-test('the model presets start the list, once; add, set and remove', () => {
-  assert.deepEqual(presetSliders([{name: 'iapp', lo: 0, hi: 0.2}], 1),
+test('core state replaces sliders, preserves slot identities and clears an empty list', () => {
+  assert.deepEqual(stateSliders([{name: 'iapp', lo: 0, hi: 0.2}], 1),
     [{id: 1, name: 'iapp', lo: '0', hi: '0.2', step: '0.002'}]);
-  let s = reduceValues(initialValues, {type: 'presetSliders', defs: [{name: 'iapp', lo: 0, hi: 0.2}]});
-  s = reduceValues(s, {type: 'presetSliders', defs: [{name: 'phi', lo: 0, hi: 1}]});
-  assert.deepEqual(s.sliders.map(d => d.name), ['iapp'], 'a reconnection keeps the list');
-  s = reduceValues(s, {type: 'addSlider'});
-  s = reduceValues(s, {type: 'addSlider'});
-  assert.deepEqual(s.sliders.map(d => d.id), [1, 2, 3]);
-  assert.deepEqual(s.sliders[1], {id: 2, name: '', lo: '', hi: '', step: ''});
-  s = reduceValues(s, {type: 'setSlider', id: 2, patch: {name: 'phi', lo: '0', hi: '0.08', step: '0.001'}});
-  assert.deepEqual(s.sliders[1], {id: 2, name: 'phi', lo: '0', hi: '0.08', step: '0.001'});
-  s = reduceValues(s, {type: 'removeSlider', id: 1});
-  assert.deepEqual(s.sliders.map(d => d.id), [2, 3]);
+  let s = reduceValues(initialValues, {type: 'stateSliders', defs: [{name: 'iapp', lo: 0, hi: 0.2}]});
+  s = reduceValues(s, {type: 'stateSliders', defs: [
+    {name: '', lo: 0, hi: 1}, {name: 'phi', lo: 0, hi: 1, step: 0.1}]});
+  assert.deepEqual(s.sliders, [{id: 2, name: 'phi', lo: '0', hi: '1', step: '0.1'}]);
+  assert.equal(s.nextSlider, 1, 'an empty slot is reused');
+  s = reduceValues(s, {type: 'stateSliders', defs: []});
+  assert.deepEqual(s.sliders, []);
 });
 
 test('niceStep rounds up to 1, 2 or 5 times a power of ten', () => {

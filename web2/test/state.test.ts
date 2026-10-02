@@ -274,7 +274,7 @@ test("the page's leave question (W110): worded by hello, kept over the run's idl
   assert.equal(s.ask?.id, LEAVE_ASK, 'the run ending leaves it open');
   assert.equal(reduce(s, {type: 'leave', open: false}).ask, null);
   assert.equal(ev(s, {ev: 'ask', id: 7, kind: 'file'}).ask?.id, 7, "a question of the core's replaces it");
-  const rec = ev(s, {ev: 'state', pars: [], ics: [], recording: {steps: 1, note: ''}});
+  const rec = ev(s, {ev: 'state', sliders: [], pars: [], ics: [], recording: {steps: 1, note: ''}});
   assert.equal(reduce(rec, {type: 'leave', open: true}).ask?.question, quit.recording, 'naming the recording in progress');
   assert.equal(noIdle({cmd: 'quit'}), true, 'the plain quit has no idle');
   assert.equal(noIdle({cmd: 'quit', save: true}), false, 'the quit that saves is a command of its own');

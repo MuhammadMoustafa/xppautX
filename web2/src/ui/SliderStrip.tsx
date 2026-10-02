@@ -74,7 +74,7 @@ function Slider({def, index, onEdit}: {def: SliderDef; index: number; onEdit: ()
         <button class="icon slider-card-edit" aria-label={`Edit slider ${label}`}
           title="Change the parameter or variable, min, max or step" onClick={onEdit}>&#9998;</button>
         <button class="icon slider-card-remove" aria-label={`Remove slider ${label}`} title="Remove this slider"
-          onClick={() => session.store.dispatch({type: 'values', action: {type: 'removeSlider', id: def.id}})}>&#10005;</button>
+          onClick={() => session.removeSlider(def.id)}>&#10005;</button>
       </div>
       <div class="slider-card-track">
         <span class="slider-card-lim muted">{range ? sixSig(Math.min(range.lo, range.hi)) : ''}</span>

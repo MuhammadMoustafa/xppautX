@@ -367,6 +367,7 @@ void action_command(xpp::Session &s, const char *line);
 void apply_set(xpp::Session &s, const char *line);
 void default_command(xpp::Session &s, const char *line);
 void slide_command(xpp::Session &s, const char *line);
+void slider_command(xpp::Session &s, const char *line);
 void values_command(xpp::Session &s, const char *line);
 void state_forget(void); /* what the model before showed (its last equilibrium) goes */
 

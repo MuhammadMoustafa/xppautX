@@ -587,6 +587,24 @@ async function values() {
   check(`Tab reaches the values panel (${steps} presses)`, reached);
 }
 
+/* W135, desktop/sliders: each Open takes the model's own @ slider options. */
+async function sliderModelSwitch(dir) {
+  for (const [model, preset, expected] of [
+    ['lecar', '@ s1=iapp,slo1=-1,shi1=2', 'iapp'],
+    ['vanderpol', '@ s1=x,slo1=-3,shi1=3', 'x'],
+  ]) {
+    const file = `w135-${model}.ode`;
+    fs.writeFileSync(path.join(dir, file), preset + '\n' + fs.readFileSync(path.join(path.dirname(ODE), model + '.ode'), 'utf8'));
+    await cdp.eval(`__xpp.send({cmd: 'open', file: ${JSON.stringify(file)}})`);
+    await until("s.ask?.kind === 'choice'", 'save before Open');
+    await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+    await until(`!s.busy && !s.ask && s.hello.file === ${JSON.stringify(file.replace('.ode', '.odex'))}`, 'model opened');
+    check(`W135: Open model ${model} shows its own sliders`,
+      await S(`s.values.sliders.length === 1 && s.values.sliders[0].name === ${JSON.stringify(expected)}
+        && s.core.sliders.filter(d => d.name).length === 1`), JSON.stringify(await S('s.values.sliders')));
+  }
+}
+
 /* the data table (docs/ui-v2.md T10): open it, scroll to row 500 by
    scrolling and by keyboard, check its values against output.dat, Get,
    CSV export, and Tab reachability of every button */
@@ -5217,6 +5235,7 @@ async function main() {
       await windows();
       await textViews();
     });
+    if (run('desktop')) await session(ODE, sliderModelSwitch);
     if (run('layout')) await session(ODE, layoutCheck, ['set par iapp: Illegal formula ..']);
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);
