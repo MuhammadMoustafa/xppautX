@@ -82,7 +82,11 @@ void apply_set_file(Session &s, const SetFile &f, bool redraw);
 /* XPPAUT's set file at path read and applied (File > Import XPPAUT set,
    -setfile), or the error, nothing applied: its model's equations follow
    its last value ("RHS etc ...", not read), and a file without them (a
-   session's model.set, a file of ours) is refused at its end */
+   session's model.set, a file of ours) is refused at its end. Every named
+   value must have its expected name. Valid values are applied, then saved
+   through the session writer to <base>.snapx beside path, which becomes
+   the session open; one message names it. A save error is returned with
+   the imported values still applied. */
 Result<> import_xppaut_set(Session &s, std::string_view path, bool redraw);
 /* s's settings as a set file: a session's model.set, no equations after it */
 void write_lunch(Session &s, FILE *fp);

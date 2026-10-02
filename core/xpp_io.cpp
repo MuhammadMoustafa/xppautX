@@ -508,9 +508,28 @@ T first_word(Lines &lines, std::string_view what, const char *kind, bool (*parse
 
 } // namespace
 
-int Lines::whole(std::string_view what) { return first_word(*this, what, "a whole number", parse_int); }
+int Lines::whole(std::string_view what, bool named)
+{
+    const int value = first_word(*this, what, "a whole number", parse_int);
+    if (named) check_name(what);
+    return value;
+}
 
-double Lines::real(std::string_view what) { return first_word(*this, what, "a number", parse_number); }
+double Lines::real(std::string_view what, bool named)
+{
+    const double value = first_word(*this, what, "a number", parse_number);
+    if (named) check_name(what);
+    return value;
+}
+
+void Lines::check_name(std::string_view what) const
+{
+    const std::string_view value = trim_blanks(text(line()));
+    const std::size_t end = value.find_first_of(" \t");
+    const std::string_view name = end == std::string_view::npos ? std::string_view() : trim_blanks(value.substr(end));
+    if (name != trim_blanks(what))
+        fail(xpp::format("name \"{}\" differs from \"{}\"", name, trim_blanks(what)));
+}
 
 void Lines::heading(std::string_view heading)
 {

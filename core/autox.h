@@ -121,9 +121,9 @@ std::optional<std::string> file_bytes(const Session &s);
 
 /* AUTO's members (settings, diagram, solutions, views) of the session s
    after entries', each named prefix and its name (a session file's
-   "auto/"); false, with an error message, when AUTO's solution file
+   "auto/"); the error when AUTO's solution file
    cannot be read (the orbits a grab restarts from) */
-bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
+Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix);
 
 /* AUTO's members of a file as members_read reads them, for
    restore_members: the solution file's bytes are the members' own */

@@ -176,7 +176,7 @@ ordinary files: renamed to `.zip`, its `model/` folder holds the model's
 files, its `model.set` holds the values and numerics (the set format) and its
 `data.npz` reads in NumPy (`numpy.load`). A `.set` file is no longer a
 file xppautX saves or opens: the session holds what it held, and
-File/Import XPPAUT set reads the one XPPAUT wrote. AUTO's own file, `.autox` (AUTO's File/Save diagram),
+File/Import XPPAUT set checks the names in the one XPPAUT wrote and converts it immediately to a `.snapx` session beside it, which is then open. AUTO's own file, `.autox` (AUTO's File/Save diagram),
 carries its model the same way and opens the same way, with its diagram;
 an XPPAUT `.auto` file loads into the model open as an import.
 

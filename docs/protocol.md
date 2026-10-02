@@ -1224,7 +1224,14 @@ core/plot_data.cpp sends at most one append per 1/60 s, so a page that
 draws each on its next animation frame extends the curve at every frame;
 W82).
 
-### Session files
+Import XPPAUT set checks every named value before applying any. A valid
+import is saved through Save session as `<base>.snapx` beside the `.set`;
+`state.session.file` then names that session, and one `message.bottom`
+says it is now open. A save failure produces one placed error saying that
+saving failed and the imported values remain applied; the previous
+session identity remains. No command or event shape changes (W153).
+
+## Session files
 
 A session file, `name.snapx` (W57, core/xpp_session.cpp; its pure part,
 the member names, the manifest and the model's members, core/snapx.h),

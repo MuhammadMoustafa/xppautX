@@ -548,9 +548,11 @@ public:
     std::string_view next(std::string_view what = {});
     /* the next line's first word, as a whole number or a number (the set
        format's line: the value, then blanks and its name, which is not
-       read); ReadFailed when it is not one, what named */
-    int whole(std::string_view what);
-    double real(std::string_view what);
+       read unless named); ReadFailed when it is not one, what named */
+    int whole(std::string_view what, bool named = false);
+    double real(std::string_view what, bool named = false);
+    /* the name after the last line's number must equal what (blanks trimmed) */
+    void check_name(std::string_view what) const;
     /* the next line starts with "#" (a set file's heading); ReadFailed
        when not */
     void heading(std::string_view heading);

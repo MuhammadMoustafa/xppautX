@@ -40,6 +40,8 @@ struct Session; /* session.h */
    problem). The session file last saved or opened is the Session's
    saved_session (below): core/json_state.cpp reports it as the state
    event's "session" member. Both work on the session s. */
+/* Save to file without asking; return the error for the caller to show once. */
+xpp::Result<> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data);
 int xpp_session_save(xpp::Session &s, const char *name, int data);
 int xpp_session_load(xpp::Session &s, const char *name);
 /* the session file of s as it would be saved without the data table, as
@@ -85,9 +87,9 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
 std::vector<std::string> xpp_saved_args(const SavedFile &f);
 /* the first members of a file of kind (snapx.h's session_kind, autox.h's
    kind) that carries the model of s: the manifest man and the model's
-   files; nothing, with an error message, when the model was not read
+   files; the error when the model was not read
    from files (a model typed in) */
-std::optional<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind);
+xpp::Result<std::vector<xpp::zip::Entry>> xpp_saved_entries(const xpp::Session &s, xpp::snapx::Manifest man, std::string_view kind);
 /* f's members read for the session s its model's load made, before the
    load keeps it (xpp::load_model's check), or for the session open when
    the model is the same (an AUTO file's diagram): a member missing or one

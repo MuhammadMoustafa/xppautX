@@ -86,7 +86,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | `.autox` | none | AUTO's diagram, settings and views with the saved model | W92, W103, W50 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |
 | `.auto` (AUTO diagram) | written by File > Save diagram | read as an import into the open model (to 6 digits); never written | W92 |
-| `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof` | never written; File > Import XPPAUT set and `-setfile` read only XPPAUT's own (its equations trailer required), all or nothing; the format stays as the `.snapx` member `model.set` | W125, W147 |
+| `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof`, names ignored ([finding 26](xppaut-findings.md#26-set-files-ignore-the-models-names)) | never written; File > Import XPPAUT set and `-setfile` check every named value and require XPPAUT's equations trailer, all or nothing; valid imports are saved beside the `.set` as `<name>.snapx`, now open; the format stays as the session member `model.set` | W125, W147, W153 |
 | `.par`, `.ic` | written and read | kept, XPPAUT's format, read all or nothing | W125, W147 |
 | The options file (`option file`, `default.opt`) | never applied ([findings #4](xppaut-findings.md)) | an `option` line is refused at load; write `@` lines in the model or an included file ([manual 14](manual/14-options-file.md)) | W139 |
 | `#include` of a missing file | skipped ([findings #5](xppaut-findings.md)) | an error | W139 |
@@ -197,7 +197,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | In-program equation editor | Edit menu | removed: the model file is the source | W54 |
 | Compiled functions | `export`, Load DLL | removed (risks outweigh benefits); examples rewritten | W55 |
 | The options file | `default.opt`, `option` line | removed ([findings #4](xppaut-findings.md)) | W139 |
-| `.set` as a user file | File > Write set | removed; Import XPPAUT set and `-setfile` read XPPAUT's own only; the format stays as `model.set` in a `.snapx` | W147 |
+| `.set` as a user file | File > Write set | removed; Import XPPAUT set and `-setfile` check XPPAUT's names and immediately convert valid imports to a `.snapx` session beside the `.set`; the format stays as `model.set` in a `.snapx` | W147, W153 |
 | `.auto` writing | File > Save diagram | removed; `.autox` | W92 |
 | Bell, Tips | menu items | removed | W7e |
 | Font, colour and window-size options | X resources | accepted, ignored | W8 |

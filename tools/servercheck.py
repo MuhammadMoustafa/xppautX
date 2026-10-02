@@ -1788,6 +1788,45 @@ def check_load_all_or_nothing():
             st, set1 = state(), set_file()
             check('W125: after %s refused, the session is as it was (its state, its set file)' % what,
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
+        # W153: same counts, another model's names; valid earlier changes
+        # must not apply, and no session may be created for a refused file.
+        own = ('## Set file\n' + set0 + 'RHS etc ...\n').split('\n')
+        other = own.copy()
+        named_line = next(k for k, row in enumerate(other) if row.endswith('  b'))
+        other[named_line - 1] = '9  a'
+        other[named_line] = '9  another_models_parameter'
+        with open(os.path.join(r, 'other.set'), 'w') as f:
+            f.write('\n'.join(other))
+        evs = read_set('other.set')
+        errs = errors(evs)
+        e = errs[0] if len(errs) == 1 else {}
+        check('W153: another model with equal counts refused with file, first wrong line and source',
+              os.path.basename(e.get('file', '')) == 'other.set' and e.get('line') == named_line + 1
+              and e.get('source') == other[named_line] and 'another_models_parameter' in e.get('error', ''), str(errs))
+        check('W153: refused names apply nothing and write no session',
+              state() == st0 and set_file() == set0 and not os.path.exists(os.path.join(r, 'other.snapx')))
+        answered((), cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 8}, {'kind': 'ic', 'name': 'x', 'value': 7}])
+        with open(os.path.join(r, 'own.set'), 'w') as f:
+            f.write('\n'.join(own))
+        evs = read_set('own.set')
+        messages = [e for e in evs if e.get('ev') == 'message']
+        answered_state = last_state(answered((), cmd='state'))
+        check('W153: own set applies and its adjacent session becomes open, with one message',
+              not errors(evs) and state() == st0 and os.path.exists(os.path.join(r, 'own.snapx'))
+              and os.path.basename(answered_state.get('session', {}).get('file', '')) == 'own.snapx'
+              and len(messages) == 1 and 'own.snapx' in messages[0].get('bottom', ''), str(messages))
+        with zipfile.ZipFile(os.path.join(r, 'own.snapx')) as z:
+            check('W153: converted session saves the imported values through the session writer',
+                  z.read('model.set').decode().replace('\r\n', '\n').split('\n', 1)[1] == set0)
+        # Saving failure after a valid import: values stay applied, one error.
+        os.mkdir(os.path.join(r, 'blocked.snapx'))
+        with open(os.path.join(r, 'blocked.set'), 'w') as f:
+            f.write('\n'.join(own))
+        answered((), cmd='set', kind='par', name='a', value=8)
+        errs = errors(read_set('blocked.set'))
+        check('W153: failed conversion save says so once and keeps valid imported values',
+              len(errs) == 1 and 'saving session' in errs[0].get('error', '')
+              and 'remain applied' in errs[0].get('error', '') and state() == st0, str(errs))
         errs = errors(answered((), cmd='values', op='internset', name='good'))
         st = state()
         check('W125: a good internal set still applies whole', not errs and st['pars'] != st0['pars'], str(errs))

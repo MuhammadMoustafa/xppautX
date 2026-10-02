@@ -52,6 +52,7 @@ evidence. The index gives one line each.
 | 23 | Networks | `fftcon` reads one value past its weight table | W38 |
 | 24 | Export | an export with no library copies uninitialised memory into the model | d5eebae |
 | 25 | Numerics | an output stride of 0 from a .set file or an `@ nout` line divides by zero on the next run | W145 |
+| 26 | Set files | equal counts allow another model's values: names ignored | W153 |
 
 ## 1. Model options
 
@@ -393,6 +394,17 @@ the same way.
 - **Evidence:** the code review of 2026-10-01 (docs/code-review-2026-10-01.md): a saved session whose model.set had `0 nout` loaded, and Initialconds/Go exited on SIGFPE.
 - **xppautX:** every source of a numerics value checks it by one rule of model_options' table (`rule_problem`): the Numerics dialog, the `@` lines (which until W145 checked only that the value was a number) and the .set reader (W145).
 - **Card:** W145 (#197).
+
+## 26. Set files ignore the model's names
+
+A `.set` with the same equation/auxiliary and parameter counts is accepted
+for any open model. The names after values are ignored: values are applied
+in position order, even when they belong to different variables or parameters.
+
+- **XPPAUT 8.0:** the count-only check in [lunch-new.c:179-217](../reference/xppaut-8.0/lunch-new.c#L179-L217) ([master](../reference/xppaut-master/lunch-new.c#L179-L217)); names are discarded by [io_int/io_double, lunch-new.c:658-685](../reference/xppaut-8.0/lunch-new.c#L658-L685) ([master](../reference/xppaut-master/lunch-new.c#L658-L685)), including [ICs and parameters, lunch-new.c:561-581](../reference/xppaut-8.0/lunch-new.c#L561-L581) ([master](../reference/xppaut-master/lunch-new.c#L561-L581)).
+- **Evidence:** save a set for `x'=-a*x+b`, `y'=x-y`, `par a=1,b=2`; replace its parameter line `2  b` with `9  another_models_parameter`, leaving counts unchanged. `read_lunch` accepts it and sets `b=9`. The same follows for renamed ICs and torus variables.
+- **xppautX:** every named numeric line is checked against its expected model name or setting label before any values apply. The first mismatch reports its file, line and source. A valid import is saved by the session writer as `<base>.snapx` beside the `.set`, then becomes the session open; failed saves keep valid imported values applied.
+- **Card:** W153 (#205).
 
 ## Known and kept
 

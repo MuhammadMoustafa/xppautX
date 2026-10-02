@@ -101,7 +101,7 @@ void check_saved_model(const xpp::TempDir &tmp)
     CHECK(xpp::client_session().model().saved_in.empty() && xpp::client_session().model().nupar == 1);
 
     /* written as a session file's first members, read back whole */
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
+    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(xpp::client_session(), xpp::snapx::Manifest{}, xpp::snapx::session_kind);
     CHECK(entries.has_value());
     if (!entries) return;
     const std::string path = tmp.file("s.snapx");

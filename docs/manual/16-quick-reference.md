@@ -431,7 +431,7 @@ run or the files, not the X11 windows:
 
 - **-silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `-outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
 - **-convert**: Converts the old-style parser format to the new style, writing `<file>.new`.
-- **-setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file.
+- **-setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file, checking every named value and saving the imported session as `<name>.snapx` beside the `.set`.
 - **-newseed**: uses the machine time to re-seed the random number generator.
 - **-runnow**: runs the ODE file immediately on startup (implied by `-silent`).
 - **-parfile *filename***: loads parameters from the named file. The first line gives the number of parameters, then one value per line followed by its name (must match a parameter name in the ODE file), e.g. (`lecar.par`):

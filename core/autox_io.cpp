@@ -49,16 +49,14 @@ AutoSettingsSet view_settings(const SavedView &v, int k)
 
 } // namespace
 
-bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
+Result<> add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::string_view prefix)
 {
     const xpp::Model &m = s.model();
     const std::string solutions_path = auto_solutions_file(s);
     std::string solutions;
     if (!xpp::read_bytes(solutions_path.c_str(), solutions)) {
-        command_error("save AUTO", xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
-                            solutions_path)
-                    .c_str());
-        return false;
+        return xpp::fail("save AUTO", xpp::format("AUTO's solutions {} cannot be read: the diagram is not saved without the orbits a grab restarts from",
+                                                 solutions_path), xpp::Place{solutions_path});
     }
     const std::vector<std::string> vars(m.uvar_names.begin(), m.uvar_names.begin() + m.node);
     entries.push_back({named(prefix, settings_member), settings_text(auto_settings_now(s))});
@@ -71,7 +69,7 @@ bool add_members(const Session &s, std::vector<xpp::zip::Entry> &entries, std::s
         views.views.push_back({a.plot, a.var, a.par1, a.par2, a.range, s.auto_state.views[k].zoom});
     }
     entries.push_back({named(prefix, views_member), views_text(views)});
-    return true;
+    return {};
 }
 
 namespace {
@@ -103,8 +101,15 @@ void restore_views(xpp::Session &s, const SavedViews &saved)
 std::optional<std::string> file_bytes(const Session &s)
 {
     if (diagram_count(s.diagram) <= 1) return std::nullopt; /* an empty diagram */
-    std::optional<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, xpp::snapx::Manifest{}, kind);
-    if (!entries || !add_members(s, *entries, "")) return std::nullopt;
+    xpp::Result<std::vector<xpp::zip::Entry>> entries = xpp_saved_entries(s, xpp::snapx::Manifest{}, kind);
+    if (!entries) {
+        xpp::show_error(entries.error());
+        return std::nullopt;
+    }
+    if (const Result<> added = add_members(s, *entries, ""); !added) {
+        xpp::show_error(added.error());
+        return std::nullopt;
+    }
     return xpp::zip::make_zip(*entries);
 }
 

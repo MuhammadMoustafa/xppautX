@@ -27,6 +27,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Import XPPAUT set checks every named value, refuses another model's names without applying anything, and immediately saves valid imports as `<name>.snapx` beside the `.set`, making that session open; a save failure keeps the imported values. Session labels regain their original XPPAUT spellings; earlier sessions with accidentally renamed labels are refused ([finding 26](docs/xppaut-findings.md#26-set-files-ignore-the-models-names)) (W153, #205)
+
 - The AUTO view's Back button is now labelled Hide AUTO, with its tooltip explaining that AUTO stays open and Show AUTO brings it back (W152, #204)
 - The player's 1x is slower: every pace is 1.5 times what it was; the speeds stay 0.5x, 1x, 2x, 4x (W150, #202)
 - File > Read set and `-setfile` are now File > Import XPPAUT set and an import of the `.set` file XPPAUT wrote (it must end with XPPAUT's equations, `RHS etc ...`); a `.set` xppautX or its session wrote is refused at its end (W147, #199)

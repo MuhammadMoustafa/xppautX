@@ -27,9 +27,11 @@
 #include "browse.h"
 #include "graphics.h"
 #include "load_eqn.h"
+#include "xpp_files.h"
 #include <stdio.h>
 #include <string>
 #include <tuple>
+#include <filesystem>
 
 namespace {
 
@@ -128,6 +130,8 @@ int main(void)
     CHECK(s.numerics.tend == tend);
     CHECK(s.numerics.delta_t == dt);
 
+    CHECK(s.saved_session.file == "build/test_lunch_a.snapx");
+    CHECK(xpp::files::exists("build/test_lunch_a.snapx"));
     save(b);
     const std::string sa = body(a), sb = body(b);
     CHECK(sa.size() > 100);
@@ -186,6 +190,53 @@ int main(void)
     save(a);
     CHECK(body(a) == body(b));
 
+    /* Every named number is checked: both IC blocks, parameters, torus
+       (including auxiliaries), fixed labels, and the value-dependent labels.
+       A missing, reordered, differently cased or very long name is refused
+       with its source line, before even an earlier valid change applies. */
+    s.numerics.torus = 1;
+    save(b);
+    const std::string named = "## Set file\n" + body(b);
+    s.numerics.tend *= 2; /* an earlier valid value must not apply on a later mismatch */
+    save(b);
+    const auto named_lines = xpp::split_lines(named);
+    for (std::size_t k = 1; k < named_lines.size(); k++) {
+        const std::string_view line = xpp::trim_blanks(named_lines[k]);
+        if (line.empty() || !(line.front() == '-' || (line.front() >= '0' && line.front() <= '9'))) continue;
+        const std::size_t end = line.find_first_of(" \t");
+        if (end == std::string_view::npos || xpp::trim_blanks(line.substr(end)).empty()) continue;
+        const std::string wrong = std::string(line.substr(0,end)) + "  another_model_name";
+        put(c, with_line(named, static_cast<int>(k)+1, wrong) + trailer);
+        const xpp::Result<> r = xpp::import_xppaut_set(s,c,false);
+        CHECK(!r && r.error().place.file == c && r.error().place.line == static_cast<int>(k)+1
+              && r.error().place.source == wrong && r.error().what.find("another_model_name") != std::string::npos);
+        save(a);
+        CHECK(body(a) == body(b));
+    }
+    const int par_line = line_ending(named, "  iapp");
+    for (const std::string &name : {std::string(), std::string("IAPP"), std::string("gca"), std::string(10000,'q')}) {
+        const std::string wrong = "17  " + name;
+        put(c,with_line(named,par_line,wrong)+trailer);
+        const xpp::Result<> r = xpp::import_xppaut_set(s,c,false);
+        CHECK(!r && r.error().place.line == par_line && r.error().place.source == wrong);
+        save(a);
+        CHECK(body(a) == body(b));
+    }
+    /* A valid import whose adjacent session cannot be written keeps its
+       applied values, returns one contextual error, and keeps the old identity. */
+    const std::string saved_name = s.saved_session.file;
+    const std::string blocked = "build/test_lunch_blocked.snapx";
+    CHECK(std::filesystem::create_directory(blocked));
+    put("build/test_lunch_blocked.set",with_line(named,par_line,"17  iapp")+trailer);
+    const xpp::Result<> failed_save = xpp::import_xppaut_set(s,"build/test_lunch_blocked.set",false);
+    CHECK(!failed_save && failed_save.error().what.find("saving session") != std::string::npos
+          && failed_save.error().what.find("remain applied") != std::string::npos);
+    xpp::get_val(s,"iapp",&x);
+    CHECK(x == 17 && s.saved_session.file == saved_name);
+    CHECK(std::filesystem::remove(blocked));
+    remove("build/test_lunch_blocked.set");
+    CHECK(xpp::import_xppaut_set(s,b,false).has_value());
+
     /* a parameter file and an initial-conditions file: the same */
     const xpp::Model &m = s.model();
     const char *par = "build/test_lunch.par", *ic = "build/test_lunch.ic";
@@ -225,6 +276,6 @@ int main(void)
     const xpp::Result<std::vector<double>> short_ic = xpp::read_ic_file(m, ic);
     CHECK(!short_ic && short_ic.error().place.line == 2 && short_ic.error().what.starts_with("the file ends here"));
 
-    for (const char *f : {a, b, c, par, ic}) remove(f);
+    for (const char *f : {a, b, c, par, ic, "build/test_lunch_a.snapx", "build/test_lunch_b.snapx", "build/test_lunch_c.snapx"}) remove(f);
     TEST_REPORT("lunch round trip");
 }
