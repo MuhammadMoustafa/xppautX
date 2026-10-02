@@ -4069,7 +4069,7 @@ def check_dae_fold():
     try:
         short = os.path.join(short_dir, 'dae_ex3.odex')
         with open('examples/ode/dae_ex3.odex') as f:
-            text = f.read().replace('METH=qualrk', 'METH=qualrk,TOTAL=.3')
+            text = f.read() + '\n@ total=.3\n'
         with open(short, 'w') as f:
             f.write(text)
         code, errs, rows, err = run(short, GO + SING)
