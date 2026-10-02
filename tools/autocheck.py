@@ -1229,7 +1229,7 @@ def section_sessiondiagram():
         out.write(b'x\'=-x\n\x00\x01\x02\xff\n')
     evs = open_file(s, 'bin.odex')
     check('sessiondiagram: a binary file opened as a model is refused, its bytes never shown',
-          'is not model text' in messages(evs) and hello_title(evs) is None and '\x00' not in messages(evs), messages(evs)[:300])
+          'not a model' in messages(evs) and hello_title(evs) is None and '\x00' not in messages(evs), messages(evs)[:300])
     s.close()
     for h in homes + [scratch]:
         shutil.rmtree(h, ignore_errors=True)
