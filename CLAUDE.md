@@ -424,11 +424,14 @@ second pool for easy and medium cards: easy luna (low effort), medium sol
 (the Agent tool's model override; being tried since 2026-10-01, W159), or
 to Codex sol at high effort (W155's trial), never astra, which is token
 hungry (maintainer, 2026-10-01). Start each card on the cheapest model and
-effort that may do it and adapt (maintainer, 2026-10-01): a hard card
-first on Codex sol at medium effort; when the review finds the work
-fell short (a missed requirement, a wrong cause, a fix the reviewer had
-to redo), the card goes back one step up (sol high, then sonnet, then
-opus) with the review's list, and the step that did the work is noted
+effort that may do it and adapt (maintainer, 2026-10-01: agents code
+well from clear instructions): the ladder is luna or haiku, then sol at
+medium effort, sol high, sonnet, opus; any card may start at its bottom
+when its brief is precise (the files and lines, what done means, the
+exact gates), a card the brief cannot pin down starts higher; when the
+review finds the work fell short (a missed requirement, a wrong cause, a
+fix the reviewer had to redo), the card goes back one step up with the
+review's list, and the step that did the work is noted
 on the card, so the starting point per kind of card follows the record; each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
