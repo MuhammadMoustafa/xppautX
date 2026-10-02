@@ -12,6 +12,7 @@
 #include <bitset>
 #include <cstddef>
 #include <span>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -133,9 +134,9 @@ const OptionRow *numerics_option(std::string_view key);
 void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask);
 
 /* why value is not one option name takes ("not an option", "not a
-   number", ...), nullptr when it is: the checks set_option makes, nothing
+   number", ...), empty when it is: the checks set_option makes, nothing
    applied (an internal set checks every item before it applies one) */
-const char *option_problem(Session &s, std::string_view name, std::string_view value);
+std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value);
 
 /* each option no source set gets its default, in the table's order */
 void set_option_defaults(Session &s);

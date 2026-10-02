@@ -8,6 +8,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct Place; /* xpp_error.h */
 
 /* The main numerics as data (W106, docs/protocol.md "The numerics as
    data"): what the Numerics menu's items that ask for a value edit (Total,
@@ -38,8 +39,8 @@ int numerics_settings_check(const Session &s, std::string_view key, std::string_
    (a number; for method a name, as the event's choices, or its number),
    then apply the numerics as leaving the Numerics menu does (do_meth): 0
    when set, -1 with why (a sentence naming the field) when not. Nothing
-   is thrown. */
-int numerics_settings_set(Session &s, std::string_view key, std::string_view text, std::string &why);
+   is thrown. A menu supplies the command place saved before asking. */
+int numerics_settings_set(Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place = nullptr);
 
 /* the Numerics menu's question for s's field `key` (not method, which the
    menu picks from its list): its label, the value now, and the answer

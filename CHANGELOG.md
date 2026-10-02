@@ -63,6 +63,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Method selection uses one validator: unsuitable menu choices keep the previous method instead of switching to Adams; unknown or unsuitable `@ meth` values fail the whole load at their file and line (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
+
 - A trailing `#` in a `.ode` line now starts a comment, so its words no longer become parameters or break formulas; conversion keeps the comment text. Existing include directives and Volterra convolution separators still work ([finding 28](docs/xppaut-findings.md#28-a--comment-after-a-declaration-makes-names-of-its-words)) (W160, #212).
 - The local HTTP server answered any number of connections and uploads at once; it now takes at most 256 connections and 32 uploads, and one over a limit gets 503 with its body never read (W161, #213).
 - Results (fits, statistics, Liapunov exponents, saved BVP points and AUTO toggles) use the status bar; every exit counts errors, including failed `-silent` writes, and a full kinescope is reported once by its command (W133, #185).

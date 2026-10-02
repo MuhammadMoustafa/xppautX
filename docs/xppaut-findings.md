@@ -60,6 +60,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [28](#28-a--comment-after-a-declaration-makes-names-of-its-words) | Model files | a `#` comment after a declaration makes parameters of its words (XPPAUT's own issue [Ermentrout/xppaut#11](https://github.com/Ermentrout/xppaut/issues/11)) | [W160](https://github.com/MuhammadMoustafa/xppautX/issues/212) |
 | [29](#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma) | Numerics | the numbers depend on the CPU and on whether the compiler targets FMA | [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) |
 | [30](#30-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity) | AUTO files | orbit dimensions and row counts can overrun fixed buffers and storage | [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) |
+| [31](#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) | Method selection | model options bypass suitability checks and ignore unknown methods | [W132](https://github.com/MuhammadMoustafa/xppautX/issues/184) |
 
 ## 1. Model options
 
@@ -494,6 +495,29 @@ checking the variable bound or growing the table for those rows.
 - **Evidence:** code review of those loops; a three-row, two-variable periodic orbit with only two allocated data rows writes a third row beyond storage. The session AUTO unit check exercises exactly those counts and verifies all three times and both variables after loading.
 - **xppautX:** one shared AUTO header reader bounds dimensions, parameter counts, collocation and mesh allocation; the session checks complete restart payloads before restoring anything. Orbit loading grows through the data store's owner before writing rows.
 - **Card:** [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) ([#207](https://github.com/MuhammadMoustafa/xppautX/issues/207)).
+
+## 31. Model options bypass method suitability and ignore unknown methods
+
+XPPAUT 8.0's `@ meth` reader compares only the first character against its
+keys ([load_eqn.c:1116](../reference/xppaut-8.0/load_eqn.c#L1116),
+[load_eqn.c:1507-1517](../reference/xppaut-8.0/load_eqn.c#L1507-L1517);
+[master:1506-1516](../reference/xppaut-master/load_eqn.c#L1506-L1516)).
+An unknown key leaves METHOD unchanged and still marks the option as set.
+`@ meth=symplectic` selects Stiff (the `s` key), while `@ meth=y` selects
+Symplectic without checking dimension. The menu alone rejects odd dimensions
+and switches to Adams ([numerics.c:280-284](../reference/xppaut-8.0/numerics.c#L280-L284);
+[master:277-281](../reference/xppaut-master/numerics.c#L277-L281));
+`do_meth` starts Symplectic unconditionally
+([numerics.c:674-685](../reference/xppaut-8.0/numerics.c#L674-L685)), whose step
+reads and writes `y[j+1]` for every even `j < n`, including beyond the final
+odd coordinate ([odesol2.c:193-206](../reference/xppaut-8.0/odesol2.c#L193-L206);
+[master:193-206](../reference/xppaut-master/odesol2.c#L193-L206)).
+Thus an odd model with `@ meth=y` reaches the paired solver.
+
+**xppautX:** one picker reads full names and legacy keys and validates suitability
+for every input. Unknown or unsuitable options fail the whole load at the
+option line; menu refusal keeps the old method. W132,
+[#184](https://github.com/MuhammadMoustafa/xppautX/issues/184).
 
 ## Known and kept
 

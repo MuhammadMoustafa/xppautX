@@ -26,10 +26,6 @@ namespace xpp {
 
 namespace {
 
-/* the method letters of "@ meth=": the Numerics menu's keys, in
-   method::Id order */
-constexpr std::string_view method_keys = "demragvbqsc582y";
-
 /* a 3D box side's default: wide enough for most models' variables */
 constexpr double box_side = 12;
 
@@ -155,14 +151,10 @@ constexpr OptionRow rows[] = {
    .key = "bound", .label = "Bounds", .rule = OptionRule::positive},
   {.name = "METH", .flag = Option::METH,
    .whole = [](Session &s) -> int & { return s.numerics.method; },
-   .parse = [](Session &s, const OptionValue &v) -> const char * {
-     const std::size_t i = method_keys.find(static_cast<char>(std::tolower(static_cast<unsigned char>(v.text[0]))));
-     if (v.text[0] == 0 || i == std::string_view::npos) return "no method with that letter";
-     if (v.apply) s.numerics.method = static_cast<int>(i);
-     return nullptr;
+   /* Integral equations require Volterra; otherwise the usual RK4 default. */
+   .reset = [](Session &s) {
+     s.numerics.method = pick_method(s.model(), s.model().nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
    },
-   /* Runge-Kutta: fixed steps, accurate enough for most models */
-   .reset = [](Session &s) { s.numerics.method = method::RK4; },
    .key = "method", .label = "Method", .rule = OptionRule::method},
   {.name = "TOL", .flag = Option::TOL,
    .real = [](Session &s) -> double & { return s.numerics.toler; },
@@ -793,8 +785,8 @@ namespace {
 constexpr const char *unknown_option = "not an option";
 
 /* option name set to value (apply), or only checked; why it is not one,
-   nullptr when it is (or another source set it, which set_option leaves) */
-const char *option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply)
+   empty when it is (or another source set it, which set_option leaves) */
+std::optional<std::string> option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply)
 {
   const std::string upper = upper_case(std::string(name));
   /* the value as a NUL-ended text */
@@ -809,35 +801,40 @@ const char *option_value(Session &s, std::string_view name, std::string_view val
   double x = 0;
   const char *refused = !row->parse && parse_number(text, x) ? rule_problem(row->rule, x) : nullptr;
   if (row->zero_or_one && text != "0" && text != "1") why = "not 0 or 1";
-  else if (row->flag != Option::none && !source.may(s, row->flag)) return nullptr;
+  else if (row->flag != Option::none && !source.may(s, row->flag)) return std::nullopt;
   else if (refused) why = refused;
+  else if (row->rule == OptionRule::method) {
+    const auto picked = pick_method(s.model(), text, Load::running() ? Load::place() : command_place());
+    if (!picked) return picked.error().what;
+    if (apply) s.numerics.method = *picked;
+  }
   else if (row->parse) why = row->parse(s, v);
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);
   else if (row->text && apply) row->text(s) = text;
   if (!why && apply && row->flag != Option::none) s.options_set.mark(row->flag);
-  return why;
+  return why ? std::optional<std::string>(why) : std::nullopt;
 }
 
 } // namespace
 
-const char *option_problem(Session &s, std::string_view name, std::string_view value)
+std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value)
 {
   return option_value(s, name, value, true, nullptr, false);
 }
 
 void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask)
 {
-  const char *why = option_value(s, name, value, force, mask, true);
+  const auto why = option_value(s, name, value, force, mask, true);
   if (!why) return;
-  if (why == unknown_option) {
+  if (*why == unknown_option) {
     xpp::log(XPP_LOG_WARN, "Option {} not recognized\n", upper_case(std::string(name)));
     return;
   }
   /* the load stops, at the option's line; outside a load (an internal
      set, checked first) the error is shown and nothing else changes */
-  if (Load::running()) model_failed(xpp::format("@ {}={}: {}", name, value, why));
-  const Error e{"options", xpp::format("@ {}={}: {}", name, value, why), command_place()};
+  if (Load::running()) model_failed(xpp::format("@ {}={}: {}", name, value, *why));
+  const Error e{"options", xpp::format("@ {}={}: {}", name, value, *why), command_place()};
   show_error(e);
 }
 

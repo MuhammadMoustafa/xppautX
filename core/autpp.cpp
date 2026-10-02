@@ -1,3 +1,4 @@
+#include "solver.h"
 #include <array>
 #include <stdlib.h>
 #include "auto_f2c.h"
@@ -33,7 +34,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, con
    if(ijac==1){
      xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.newt_err,dfdu,ndim);
    }
-   if(s.numerics.method>0||s.numerics.njmp==1)return 0;
+   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.njmp==1)return 0;
    for(i=1;i<s.numerics.njmp;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];

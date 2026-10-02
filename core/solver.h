@@ -11,6 +11,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "xpp_error.h"
@@ -41,6 +42,14 @@ struct SolverTraits {
   bool newton = false;
   /* asks whether the system is banded */
   bool banded = false;
+  /* keeps integral-equation history and asks its maximum stored points */
+  bool integral_history = false;
+  /* pairs coordinates and momenta, requiring an even dimension */
+  bool paired_dimension = false;
+  /* uses the eighth-order Dormand-Prince step rather than the fifth */
+  bool eighth_order = false;
+  /* uses the stiff adaptive step rather than adaptive Runge-Kutta */
+  bool stiff_step = false;
 };
 
 /* one advance: from *t, either `steps` steps of `dt` (a fixed-step method)
@@ -105,7 +114,12 @@ private:
 
 /* the registry, in method order */
 std::span<const SolverInfo> solvers();
-/* a method's row (Runge-Kutta's for a number that names none) */
+struct Model;
+/* Names, XPPAUT keys and example aliases; #N denotes a persisted/menu id,
+   since the legacy keys 2, 5 and 8 already name different methods.
+   The caller supplies its file line or command place. */
+Result<method::Id> pick_method(const Model &model, std::string_view text, Place place);
+/* a method's row: callers must supply a checked id */
 const SolverInfo &solver_info(int method);
 
 

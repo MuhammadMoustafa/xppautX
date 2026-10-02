@@ -1,4 +1,5 @@
 /* File > Open model and File > Reload: see model_switch.h. */
+#include "solver.h"
 #include "model_switch.h"
 #include "session.h"
 #include "model.h"
@@ -233,7 +234,7 @@ void restore_values(Session &s, const KeptValues &kept)
     n.poipln=loaded.poipln;
     n.sos=loaded.sos;
   }else n.poivar=poi;
-  if(disc(m))n.method=0;
+  if(disc(m))n.method=pick_method(m, "Discrete", command_place()).value();
   do_meth(s); /* starts the method's solver too */
   set_delay(s);
 
@@ -271,7 +272,17 @@ Session *load_requested(const Session &now, const ModelRequest &req)
   /* what a session file adds is read before the load keeps its
      model: a member missing or that does not read fails the open */
   std::function<std::optional<Error>(Session &)> check;
-  if(req.restore)check=[&req](Session &fresh){ return xpp_saved_check(fresh,*req.restore); };
+  if(req.restore || req.keep_values)check=[&req,&now](Session &fresh) -> std::optional<Error> {
+    if(req.restore) {
+      if(auto error=xpp_saved_check(fresh,*req.restore))return error;
+    }
+    if(req.keep_values) {
+      const std::string method=disc(fresh.model()) ? "Discrete" : xpp::format("#{}",now.numerics.method);
+      const auto picked=pick_method(fresh.model(),method,command_place());
+      if(!picked)return picked.error();
+    }
+    return std::nullopt;
+  };
   Loaded loaded=load_model(static_cast<int>(args.size()),argv.data(),0,req.saved?&*req.saved:nullptr,check);
   if(!loaded){
     back();

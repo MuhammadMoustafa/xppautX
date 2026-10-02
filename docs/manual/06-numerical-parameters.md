@@ -6,6 +6,9 @@ The main ones (Total, Start time, tRansient, Dt, the nullcline mesh, the Sing pt
 
 Either way a value is checked first: Dt other than 0, the bounds, tolerances and Sing pt values above 0, the maximal delay at least 0, the mesh, nOutput and iteration counts whole numbers of at least 1, a method the model can use. A value that is not is refused with a message saying what it must be, and the value before stays.
 
+Method names are checked in the Numerics menu, the values panel, `@ meth`, and imported set files. Symplectic requires an even number of equations; Volterra requires integral equations, which require Volterra. A refused menu choice keeps the previous method (it does not switch to Adams). An unknown or unsuitable `@ meth` stops the whole model load and names the option's file and line. Names ignore case. The legacy `@ meth` keys are `d e m r a g v b q s c 5 8 2 y` in method order; `5` means DoPri5, `8` DoPri8(3), and `2` Rosenbrock. `disc` and `qualrk4` remain accepted. The values panel and set files use numeric method IDs, so their number 8 still means QualRK. (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
+
+
 The items on this menu are:
 
 ### (T)otal

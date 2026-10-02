@@ -99,6 +99,10 @@ grammar:
 - `@ NAME = VALUE, NAME = VALUE, ...` — options, comma-separated, each
   parsed independently and never silently dropped; a bad value is an
   error naming the option and the bad text, not a silent truncation.
+  `meth` also accepts the full solver names, including spaces and
+  parentheses (`@ meth=Mod. Euler`, `@ meth=DoPri8(3)`); the whole value
+  ends at a comma or the end of its line and must name a suitable solver
+  (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
 - `set NAME = EXPR, ...` — a named parameter set, as `.ode`.
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`.
 - `markov`, `wiener` kept; `event` (`.ode`'s `global`), `boundary`

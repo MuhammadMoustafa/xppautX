@@ -109,12 +109,12 @@ int gadaptive(xpp::Session &s, double *ystart, int nvar, double *xs, double x2, 
   for(nstp=1;nstp<=MAXSTP;nstp++){
     s.integrator.rhs(x,y,dydx,nvar);
     for(i=0;i<nvar;i++)
-      if(iflag==xpp::method::STIFF)
+      if(xpp::solver_info(iflag).traits.stiff_step)
 	yscal[i]=MAX(1,fabs(y[i]));
       else
 	yscal[i]=fabs(y[i])+fabs(dydx[i]*h)+TINY; 
     if ((x+h-x2)*(x+h-x1) > 0.0) h=x2-x;
-    if(iflag==xpp::method::STIFF)
+    if(xpp::solver_info(iflag).traits.stiff_step)
       stiff(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,epjac,ier);
     else
       rkqs(s,y,dydx,nvar,&x,h,eps,yscal,&hdid,&hnext,work2,ier); 

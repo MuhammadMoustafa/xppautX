@@ -8,6 +8,7 @@
 #include "snapx.h"
 #include "xpp_io.h"
 #include "model_files.h"
+#include "model_options.h"
 
 #include <array>
 #include <optional>
@@ -518,12 +519,12 @@ private:
 
   /* the text of the tokens from here that touch each other (no white
      space between), up to a comma: an option's value, a file's name */
-  std::string raw_word(Pos &at)
+  std::string raw_word(Pos &at, bool spaces = false)
   {
     at = peek().pos;
     if (at_end() || at_punct(",")) return std::string();
     size_t b = peek().begin, e = take().end;
-    while (!at_end() && !peek().space_before && !at_punct(",")) e = take().end;
+    while (!at_end() && ((spaces && peek().pos.line == at.line) || !peek().space_before) && !at_punct(",")) e = take().end;
     return std::string(src_.substr(b, e - b));
   }
 
@@ -536,8 +537,13 @@ private:
       o.name = n.text;
       o.pos = n.pos;
       expect_punct("=", xpp::format("after the option {}", o.name));
-      o.value = raw_word(o.value_pos);
-      check_option_value(o);
+      int index = 0;
+      const OptionRow *row = find_option(upper_case(o.name), index);
+      const bool method = row && row->rule == OptionRule::method;
+      /* Solver names include spaces and parentheses; the picker checks
+         the whole value after the model's dimension and kernels are known. */
+      o.value = raw_word(o.value_pos, method);
+      if (!method || o.value.empty()) check_option_value(o);
       s.options.push_back(std::move(o));
       if (!at_punct(",")) break;
       take();

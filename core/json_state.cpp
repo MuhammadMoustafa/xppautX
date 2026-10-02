@@ -2,6 +2,7 @@
    ICs, BCs, delays, the view), the data browser, the edits that change
    them (set, default, slide), the data events a client subscribes to, and
    the equations, source and equilibrium windows. */
+#include "solver.h"
 #include "model.h"
 #include "session.h"
 #include "ui_json_internal.h"
@@ -325,10 +326,10 @@ void send_equations(const xpp::Session &s)
         const std::string &name = m.uvar_names[i];
         const char *rhs = m.formulas[i].c_str();
         line.s.clear();
-        if (i < m.node && m.eq_type[i] != 1 && s.numerics.method > 0) BUF_LIT(&line, "d");
+        if (i < m.node && m.eq_type[i] != 1 && !xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(&line, "d");
         buf_add(&line, name.data(), name.size());
         if (i < m.node && m.eq_type[i] == 1) BUF_LIT(&line, "(t)");
-        else if (i < m.node && s.numerics.method == 0) BUF_LIT(&line, "(n+1)");
+        else if (i < m.node && xpp::solver_info(s.numerics.method).traits.discrete) BUF_LIT(&line, "(n+1)");
         else if (i < m.node) BUF_LIT(&line, "/dT");
         BUF_LIT(&line, "=");
         buf_add(&line, rhs, strlen(rhs));

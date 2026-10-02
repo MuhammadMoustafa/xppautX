@@ -10,6 +10,9 @@
    make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "session.h"
+#include "solver.h"
+#include "model.h"
+#include "numerics_settings.h"
 #include "model_options.h"
 #include "lunch-new.h"
 #include "xpp_batch.h"
@@ -20,6 +23,7 @@
 
 #include <cstdio>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <string_view>
@@ -138,6 +142,41 @@ std::string_view id(const xpp::OptionRow &r) { return r.name.empty() ? r.key : r
 
 int main(void)
 {
+    /* W132: all public names, set labels, legacy keys, case and persisted ids. */
+    const auto owned_model = std::make_unique<xpp::Model>();
+    xpp::Model &model = *owned_model;
+    model.node = 2;
+    const xpp::Place place{"pick.odex", 7, 1, "@ meth=symplectic"};
+    const std::string keys = "demragvbqsc582y";
+    for (const auto &info : xpp::solvers()) {
+        model.nkernel = info.traits.integral_history ? 1 : 0;
+        for (const std::string &text : {std::string(info.name), std::string(info.set_label),
+                                      xpp::upper_case(std::string(info.name)), std::string(1, keys[info.id]),
+                                      xpp::upper_case(std::string(1, keys[info.id])), xpp::format("#{}", static_cast<int>(info.id))}) {
+            const auto picked = xpp::pick_method(model, text, place);
+            CHECK(picked && *picked == info.id);
+        }
+    }
+    model.nkernel = 0;
+    for (const auto &alias : {std::pair{"disc", xpp::method::DISCRETE},
+                             std::pair{"rk4", xpp::method::RK4},
+                             std::pair{"qualrk4", xpp::method::RKQS},
+                             std::pair{"modified euler", xpp::method::MOD_EULER},
+                             std::pair{"backward euler", xpp::method::BACKEUL}}) {
+        const auto picked = xpp::pick_method(model, alias.first, place);
+        CHECK(picked && *picked == alias.second);
+    }
+    for (const char *text : {"unknown", "rubbish", "", "#-1", "#15", "volterra"}) {
+        const auto picked = xpp::pick_method(model, text, place);
+        CHECK(!picked);
+        if (!picked) CHECK(picked.error().place.line == 7 && picked.error().place.file == "pick.odex");
+    }
+    model.node = 3;
+    const auto refused = xpp::pick_method(model, "symplectic", place);
+    CHECK(!refused && refused.error().what.find("even dimensions") != std::string::npos);
+    model.nkernel = 1;
+    CHECK(!xpp::pick_method(model, "euler", place));
+
     const std::span<const xpp::OptionRow> rows = xpp::option_rows();
 
     {
@@ -188,6 +227,12 @@ int main(void)
         const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
         CHECK(!loaded);
         if (!loaded) CHECK(loaded.error().what.find(word) != std::string::npos);
+    /* Full registry names survive the .odex grammar and option reader. */
+    for (const auto &info : xpp::solvers()) {
+        if (info.traits.integral_history) continue; /* needs an integral model */
+        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\n@ meth={}, total=1\n", info.name)));
+        xpp::Session *named = load("build/test_method_names.odex");
+        CHECK(named && named->numerics.method == info.id && named->numerics.tend == 1);
     }
 
     /* each name finds its row */

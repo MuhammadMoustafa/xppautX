@@ -6,6 +6,8 @@
 #include "solver.h"
 
 #include <array>
+#include <cassert>
+#include "xpp_io.h"
 #include <new>
 #include <string>
 #include <vector>
@@ -152,7 +154,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().id==method::DP83,&kflag,
+    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().traits.eighth_order,&kflag,
        work_.data());
     switch(kflag){
     case -1: return failed("Input is not consistent");
@@ -218,6 +220,10 @@ std::unique_ptr<Solver> start_rosenbrock(const SolverInfo &info, Session &s, int
 constexpr SolverTraits map{.discrete=true,.fixed_step=true};
 constexpr SolverTraits steps{.fixed_step=true};
 constexpr SolverTraits implicit_steps{.fixed_step=true,.newton=true};
+constexpr SolverTraits integral_steps{.fixed_step=true,.newton=true,.integral_history=true};
+constexpr SolverTraits paired_steps{.fixed_step=true,.paired_dimension=true};
+constexpr SolverTraits stiff_tolerance{.step_tolerance=true,.stiff_step=true};
+constexpr SolverTraits rel_abs_eighth{.rel_abs_tolerance=true,.eighth_order=true};
 constexpr SolverTraits step_tolerance{.step_tolerance=true};
 constexpr SolverTraits rel_abs{.rel_abs_tolerance=true};
 constexpr SolverTraits rel_abs_banded{.rel_abs_tolerance=true,.banded=true};
@@ -232,15 +238,15 @@ constexpr std::array<SolverInfo,method::COUNT> registry{{
   {method::RK4,"Runge-Kutta","Runge-Kutta",steps,fixed_step<rung_kut,standard_work>},
   {method::ADAMS,"Adams","Adams",steps,fixed_step<adams,standard_work>},
   {method::GEAR,"Gear","Gear",step_tolerance,start_gear},
-  {method::VOLTERRA,"Volterra","Volterra",implicit_steps,fixed_step<volterra,implicit_work>},
+  {method::VOLTERRA,"Volterra","Volterra",integral_steps,fixed_step<volterra,implicit_work>},
   {method::BACKEUL,"BackEul","BackEul",implicit_steps,fixed_step<bak_euler,implicit_work>},
   {method::RKQS,"QualRK","Qual RK",step_tolerance,start_adaptive<standard_work>},
-  {method::STIFF,"Stiff","Stiff",step_tolerance,start_adaptive<stiff_work>},
+  {method::STIFF,"Stiff","Stiff",stiff_tolerance,start_adaptive<stiff_work>},
   {method::CVODE,"CVode","CVode",rel_abs_banded,start_cvode},
   {method::DP5,"DoPri5","DorPrin5",rel_abs,start_dormand_prince},
-  {method::DP83,"DoPri8(3)","DorPri8(3)",rel_abs,start_dormand_prince},
+  {method::DP83,"DoPri8(3)","DorPri8(3)",rel_abs_eighth,start_dormand_prince},
   {method::RB23,"Rosenbrock","Rosenbrock",rel_abs_banded,start_rosenbrock},
-  {method::SYMPLECT,"Symplectic","Symplectic",steps,fixed_step<symplect3,standard_work>},
+  {method::SYMPLECT,"Symplectic","Symplectic",paired_steps,fixed_step<symplect3,standard_work>},
 }};
 
 constexpr bool in_method_order()
@@ -265,8 +271,43 @@ Result<> Solver::failed(std::string what) const
 
 const SolverInfo &solver_info(int m)
 {
-  if(m<0||m>=method::COUNT)return registry[method::RK4];
+  assert(m>=0 && m<method::COUNT);
   return registry[m];
+}
+
+Result<method::Id> pick_method(const Model &model, std::string_view text, Place place)
+{
+  /* XPPAUT's @ meth keys in registry order (load_eqn.c:1116). */
+  constexpr std::string_view keys = "demragvbqsc582y";
+  static_assert(keys.size() == registry.size());
+  const SolverInfo *chosen = nullptr;
+  const std::string name = lower_case(std::string(trim_blanks(text)));
+  int id = 0;
+  if (name.starts_with("#") && parse_int(std::string_view(name).substr(1), id)) {
+    if (id >= 0 && id < method::COUNT) chosen = &registry[id];
+  } else {
+    for (const SolverInfo &info : registry)
+      if (equal_ignoring_case(name, info.name) || equal_ignoring_case(name, info.set_label)) chosen = &info;
+    if (!chosen && name.size() == 1) {
+      const auto i = keys.find(name[0]);
+      if (i != std::string_view::npos) chosen = &registry[i];
+    }
+    /* Spellings used by shipped models and the long descriptive names. */
+    if (name == "rk4") chosen = &registry[method::RK4];
+    if (name == "disc") chosen = &registry[method::DISCRETE];
+    if (name == "qualrk4") chosen = &registry[method::RKQS];
+    if (name == "modified euler") chosen = &registry[method::MOD_EULER];
+    if (name == "backward euler") chosen = &registry[method::BACKEUL];
+  }
+  if (!chosen) return fail("method", xpp::format("Unknown method `{}`", text), std::move(place));
+  const SolverTraits &traits = chosen->traits;
+  if (traits.integral_history && model.nkernel == 0)
+    return fail("method", "Volterra only for integral eqns", std::move(place));
+  if (traits.paired_dimension && model.node % 2 != 0)
+    return fail("method", "Symplectic is only for even dimensions", std::move(place));
+  if (model.nkernel > 0 && !traits.integral_history)
+    return fail("method", "a model with integral equations is integrated by Volterra", std::move(place));
+  return chosen->id;
 }
 
 void start_solver(Session &s)

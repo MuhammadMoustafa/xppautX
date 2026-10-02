@@ -20,6 +20,7 @@
    without integrating. make test runs this from the top of the tree. */
 #include "xpptest.h"
 #include "session.h"
+#include "solver.h"
 #include "lunch-new.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
@@ -189,6 +190,24 @@ int main(void)
     }
     save(a);
     CHECK(body(a) == body(b));
+
+    /* W132: set import checks suitability before applying any setting. */
+    {
+        const int line = line_ending(whole, "Runge-Kutta");
+        const int before = s.numerics.method;
+        const double before_total = s.numerics.tend;
+        const int dimension = s.model().node;
+        s.model().node = dimension + 1; /* the same import into an odd model */
+        const std::string error = read_error(c, with_line(whole, line, xpp::format("{} Symplectic", static_cast<int>(xpp::method::SYMPLECT))));
+        CHECK(error.starts_with(xpp::format("{}:{}:", c, line)));
+        CHECK(error.find("even dimensions") != std::string::npos);
+        CHECK(s.numerics.method == before && s.numerics.tend == before_total);
+        s.model().node = dimension;
+        const std::string unknown = read_error(c, with_line(whole, line, "99 Unknown"));
+        CHECK(unknown.starts_with(xpp::format("{}:{}:", c, line)));
+        CHECK(unknown.find("Unknown method") != std::string::npos);
+        CHECK(s.numerics.method == before);
+    }
 
     /* Every named number is checked: both IC blocks, parameters, torus
        (including auxiliaries), fixed labels, and the value-dependent labels.

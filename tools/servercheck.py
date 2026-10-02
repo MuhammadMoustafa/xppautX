@@ -210,6 +210,15 @@ def check_load_error():
                   p.returncode == 1 and e.get('file') == name and e.get('line') == 4
                   and src.replace(' ', '').split('@')[1] in e.get('error', '').replace(' ', '')
                   and e.get('source') == src, str(e))
+        for method, reason in (('symplectic', 'even dimensions'), ('rubbish', 'Unknown method')):
+            with open(os.path.join(bad_dir, 'badmethod.odex'), 'w') as f:
+                f.write("x' = -x\ny' = x\nz' = y\n@ meth=" + method + "\n")
+            p, evs = load('badmethod.odex')
+            e = next((v for v in evs if v.get('ev') == 'error'), {})
+            check('W132: @ meth=%s fails the whole load at its line' % method,
+                  p.returncode == 1 and e.get('file') == 'badmethod.odex' and e.get('line') == 4
+                  and e.get('source') == '@ meth=' + method and reason in e.get('error', '')
+                  and not any(v.get('ev') == 'hello' for v in evs), str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
 
@@ -3339,6 +3348,44 @@ check_refused_during_run()
 # else: the state after shows it, and the next run uses it. A bad numerics
 # value is an error message after the run, naming the field. The numerics
 # as data: `data` `numerics` sends them, and `set` kind `num` sets one.
+def check_method_refusal():
+    model_dir = tempfile.mkdtemp(prefix='xppmethod')
+    model = os.path.join(model_dir, 'odd.odex')
+    with open(model, 'w') as f:
+        f.write("x'=-x\ny'=x\nz'=y\n@ meth=euler\n")
+    p, r, snd, col, _ = launch_server(ode=model)
+    try:
+        col(is_idle)
+        snd(cmd='key', key='u')
+        col(is_idle)
+        snd(cmd='key', key='m')
+        _, ask = col(lambda e: e.get('ev') == 'ask')
+        snd(cmd='answer', id=ask['id'], key='y')
+        evs, _ = col(is_idle)
+        errors = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+        snd(cmd='data', events=['numerics'])
+        fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
+        method = next((f['value'] for f in fields if f['key'] == 'method'), None)
+        check('W132: menu refuses odd Symplectic at the command and keeps Euler',
+              method == 1 and len(errors) == 1 and 'even dimensions' in errors[0]['error']
+              and errors[0].get('file') == '' and errors[0].get('line') == 0, str(errors))
+        snd(cmd='set', kind='num', name='method', text='symplectic')
+        evs, _ = col(is_idle)
+        snd(cmd='data', events=['numerics'])
+        fields = next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
+        check('W132: values panel refuses odd Symplectic and keeps Euler',
+              any('even dimensions' in e.get('error', '') for e in evs)
+              and next((f['value'] for f in fields if f['key'] == 'method'), None) == 1, str(evs))
+    finally:
+        p.stdin.close()
+        p.wait(timeout=10 * SLOW)
+        shutil.rmtree(r, ignore_errors=True)
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_method_refusal()
+
+
 def check_settings_during_run():
     p, r, snd, col, _ = launch_server()
     is_prog = lambda e: e.get('ev') == 'progress'

@@ -199,6 +199,9 @@ classic XPPAUT cut names at about 9-10 characters.
 
 ## Checked, not quirks
 
+`@ meth` now accepts checked solver names and the legacy XPPAUT keys, plus the example spellings `disc` and `qualrk4`. It rejects an unknown name or a method unsuitable for the model at the option line. XPPAUT's arbitrary first-character interpretation is no longer used: for example `symplectic` means Symplectic, while the old `s` key still means Stiff. See [finding 31](xppaut-findings.md#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
+
+
 Candidates that were measured on xppautX and turned out to behave as a
 reader expects, or as any language would. The extension does not report
 them (decided by the maintainer 2026-09-28 for the argument case); they are

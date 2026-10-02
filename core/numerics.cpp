@@ -42,23 +42,11 @@ namespace xpp {
 
 /*   I will need access to storage  */
 
-void chk_volterra(xpp::Session &s)
-{
-  if (s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
-}
-
 void quick_num(xpp::Session &s, int com)
 {
   static const char *const key="tsrdnviobec";
   if(com>=0&&com<11)
     get_num_par(s,key[com]);
-}
-
-const char *method_refusal(const xpp::Model &model, int m)
-{
-  if(m==method::VOLTERRA&&model.nkernel==0)return "Volterra only for integral eqns";
-  if(m==method::SYMPLECT&&(model.node%2)!=0)return "Symplectic is only for even dimensions";
-  return nullptr;
 }
 
 void dt_changed(xpp::Session &s)
@@ -131,9 +119,10 @@ void  get_num_par(xpp::Session &s, char ch)
 		case 'm': flash(8);
 		       {
 			 /* the method picked, refused as `set num` refuses it */
+			 const xpp::Place place=command_place();
 			 std::string why;
-			 if(numerics_settings_set(s,"method",xpp::format("{}",chosen_method(s)),why)!=0){
-			   command_error("numerics", why);
+			 if(numerics_settings_set(s,"method",xpp::solver_info(chosen_method(s)).name,why,&place)!=0){
+			   show_error(Error{"numerics",why,place});
 			   flash(8);
 			   break;
 			 }
@@ -151,7 +140,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			 numerics_settings_ask(s,"eul_tol");
 			 numerics_settings_ask(s,"eul_iter");
 		       }
-		       if(s.numerics.method==method::VOLTERRA){
+		       if(xpp::solver_info(s.numerics.method).traits.integral_history){
 			 int tmp=s.numerics.max_points;
 			 new_int("MaxPoints:",&tmp);
 			 new_int("AutoEval(1=yes) :",&s.numerics.auto_evaluate);
@@ -456,7 +445,6 @@ void set_col_par_com(xpp::Session &s, int i)
 
 void do_meth(xpp::Session &s)
 {
- if(s.model().nkernel>0)s.numerics.method=method::VOLTERRA;
  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
  if(traits.discrete)s.numerics.delta_t=1;
  /* a method that picks its own steps stores every output time */

@@ -76,8 +76,8 @@ void split_apart(std::string_view bob, std::string &name, std::string &value)
     name = bob;
     value.clear();
   } else {
-    name = bob.substr(0, k);
-    value = bob.substr(k + 1);
+    name = trim_blanks(bob.substr(0, k));
+    value = trim_blanks(bob.substr(k + 1));
   }
 }
 
@@ -155,7 +155,7 @@ void set_all_vals(xpp::Session &s)
  init_my_aplot(s);
  init_txtview();
 
-  xpp::chk_volterra(s);  
+
 
 /*                           */
 
@@ -279,8 +279,8 @@ std::string intern_item_problem(xpp::Session &s, const std::string &name1, const
   double z=0;
   if(find_user_name(s.model(),ICBOX,name)>-1||find_user_name(s.model(),PARAMBOX,name)>-1)
     return xpp::parse_number(xpp::trim_blanks(value),z)?std::string():"not a number";
-  const char *why=option_problem(s,name,value);
-  return why?why:"";
+  const auto why=option_problem(s,name,value);
+  return why.value_or("");
 }
 
 } // namespace
@@ -349,7 +349,7 @@ void set_internopts(xpp::Session &s, const OptionsSet *mask)
     /* a value an option refuses is reported at its line */
     const xpp::Place &at=options[s.options_applied].where;
     xpp::Load::at(at.file.empty()?s.model().this_file:at.file,at.line,at.col);
-    each_option(options[s.options_applied].text," ,"," ,\n\r",[&s,mask](const std::string &name,const std::string &value){
+    each_option(options[s.options_applied].text," ,",",\n\r",[&s,mask](const std::string &name,const std::string &value){
       set_option(s,name,value,0,mask);
     });
   }

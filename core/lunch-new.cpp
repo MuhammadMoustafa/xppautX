@@ -40,7 +40,7 @@ void put_equation(const xpp::Session &s, FILE *fp, int i)
 {
   if(i>=s.model().node)
     xpp::print(fp,"{}={}\n",s.model().uvar_names[i],s.model().formulas[i]);
-  else if(s.numerics.method>0)
+  else if(!xpp::solver_info(s.numerics.method).traits.discrete)
     xpp::print(fp,"d{}/dT={}\n",s.model().uvar_names[i],s.model().formulas[i]);
   else
     xpp::print(fp,"{}(n+1)={}\n",s.model().uvar_names[i],s.model().formulas[i]);
@@ -214,8 +214,9 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
   f.nmesh=l.whole("nullcline mesh",true);
   check_setting(l,"nmesh",f.nmesh);
   f.method=l.whole("the method");
-  if(f.method<0||f.method>=static_cast<int>(xpp::solvers().size()))
-    l.fail(xpp::format("{} is not a method's number (0 to {})",f.method,xpp::solvers().size()-1));
+  const auto picked=pick_method(s.model(),format("#{}",f.method),l.error(l.line(),"").place);
+  if(!picked)l.fail(picked.error().what);
+  f.method=*picked;
   l.check_name(xpp::solver_info(f.method).set_label);
   f.tend=l.real("total",true);
   f.delta_t=l.real("DeltaT",true);
@@ -261,8 +262,8 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
   f.last_time=l.real("Last Time",true);
   f.my_start=l.whole("MyStart",true);
   f.inflag=l.whole("INFLAG",true);
-  /* the method do_meth makes it: Volterra's when the model has kernels */
-  if((s.model().nkernel>0?static_cast<int>(xpp::method::VOLTERRA):f.method)==xpp::method::VOLTERRA){
+  /* The checked solver owns integral history when its trait says so. */
+  if(xpp::solver_info(f.method).traits.integral_history){
     f.volterra_points=l.whole("Max points for volterra",true);
     if(*f.volterra_points<1)l.fail(xpp::format("{} points for Volterra: at least 1",*f.volterra_points));
   }
@@ -667,7 +668,7 @@ void write_lunch(xpp::Session &s, FILE *fp)
   write_whole(fp,s.model().neq,"Number of equations and auxiliaries");
   write_whole(fp,s.model().nupar,"Number of parameters");
   write_numerics(s,fp);
-  if(s.numerics.method==xpp::method::VOLTERRA)write_whole(fp,s.numerics.max_points,"Max points for volterra");
+  if(xpp::solver_info(s.numerics.method).traits.integral_history)write_whole(fp,s.numerics.max_points,"Max points for volterra");
   write_exprs(s,fp);
   write_graph(fp,*s.plot_windows.current);
   write_more(s,fp);

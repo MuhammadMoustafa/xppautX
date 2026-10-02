@@ -983,7 +983,12 @@ whole number of at least 1`): a number; `dt` not 0; the tolerances,
 `bound`, `newt_tol`, `jac_eps` above 0; `delay` at least 0; the whole-number
 fields at least 1; `method` a name of `choices` (any case) or its number, one
 the model can use (Volterra only for integral equations, and only it then;
-Symplectic only for an even dimension). Then it applies the numerics as
+Symplectic only for an even dimension). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
+uses the same solver picker for the menu, values panel, model options and
+set import. A method refusal keeps the previous method; `@ meth` rejects
+unknown or unsuitable methods at its file and line. Protocol numeric IDs
+remain IDs (8 is QualRK), while the legacy `@ meth=8` key means DoPri8(3).
+Then it applies the numerics as
 leaving the Numerics menu does (the delays' and integrals' memory for a new
 `dt` or `delay`, a fresh solver; a method that picks its own steps stores
 every output time, NOUT 1). The Numerics menu asks for the same fields

@@ -1699,7 +1699,7 @@ void auto_start_choice(xpp::Session &s)
 {
   char ch;
   s.auto_state.homo_flag=0;
-  if(s.numerics.method==xpp::method::DISCRETE){
+  if(xpp::solver_info(s.numerics.method).traits.discrete){
     auto_new_discrete(s);
     return;
   }
@@ -1798,7 +1798,7 @@ void periodic_choice(xpp::Session &s)
 
 void hopf_choice(xpp::Session &s)
 {
-  if(s.numerics.method==xpp::method::DISCRETE){
+  if(xpp::solver_info(s.numerics.method).traits.discrete){
     auto_2p_hopf(s);
     return;
   }
@@ -1974,7 +1974,7 @@ void auto_start_diff_ss(xpp::Session &s)
 {
   s.auto_state.type_of_calc=EQ1;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==xpp::method::DISCRETE)s.auto_state.bifur.ips=-1;
+  if(xpp::solver_info(s.numerics.method).traits.discrete)s.auto_state.bifur.ips=-1;
   s.auto_state.bifur.irs=0;
   s.auto_state.bifur.itp=0;
   s.auto_state.bifur.ilp=1;
@@ -2105,7 +2105,7 @@ void auto_extend_ss(xpp::Session &s)
   s.auto_state.bifur.ilp=1;
   s.auto_state.bifur.isw=1;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==xpp::method::DISCRETE)
+  if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=-1;
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
@@ -2299,7 +2299,7 @@ void auto_switch_ss(xpp::Session &s)
   s.auto_state.bifur.isp=1;
     if(s.auto_state.suppress_bp==1) s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==xpp::method::DISCRETE)
+  if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=0;
   do_auto(s, OPEN_3,APPEND,s.auto_state.bifur.itp);
@@ -2389,7 +2389,7 @@ void auto_2p_branch(xpp::Session &s, int ips)
   }
 
   s.auto_state.bifur.ips=ipsuse;
-  if(s.numerics.method==xpp::method::DISCRETE)
+  if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=BR2;
       s.auto_state.type_of_calc=BR2;
@@ -2437,7 +2437,7 @@ void auto_2p_hopf(xpp::Session &s)
   s.auto_state.bifur.isw=2;
   s.auto_state.bifur.isp=0;
   s.auto_state.bifur.ips=1;
-  if(s.numerics.method==xpp::method::DISCRETE)
+  if(xpp::solver_info(s.numerics.method).traits.discrete)
     s.auto_state.bifur.ips=-1;
   s.auto_state.two_param=HB2;
     s.auto_state.type_of_calc=HB2;

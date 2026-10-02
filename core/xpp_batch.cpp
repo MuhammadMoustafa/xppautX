@@ -2,6 +2,7 @@
    whatever else the batch options ask for. This is the XPPBatch branch of
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
+#include "solver.h"
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
@@ -129,7 +130,11 @@ static void load_and_set_up(xpp::Session &s, int argc, char **argv, int batch,
 #ifdef AUTO
     init_auto_win(s);
 #endif
-    if (disc(m)) s.numerics.method = 0;
+    if (disc(m)) {
+        const auto picked = pick_method(m, "Discrete", Load::place());
+        if (!picked) model_failed(picked.error());
+        s.numerics.method = *picked;
+    }
     program.version_major = static_cast<float>(MYSTR1);
     program.version_minor = static_cast<float>(MYSTR2);
     xpp::do_meth(s);

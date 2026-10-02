@@ -1,3 +1,4 @@
+#include "solver.h"
 #include "xpp_ui.h"
 #include "session.h"
 #include "odesol2.h"
@@ -107,7 +108,7 @@ if(!s.numerics.par_fol)
    xpp::log_printf(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
 
   }
-  if(s.numerics.method==0)real=real*real+imag*imag-1.00;
+  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -386,7 +387,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
   er[i]=real;
   em[i]=imag;
 
-  if(s.numerics.method==0)real=real*real+imag*imag-1.00;
+  if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
   if(fabs(imag)<.00000001)imag=0.0;
   if(real<0.0)
   {
@@ -566,7 +567,7 @@ void getjac(xpp::Session &s, double *x, double *y, double *yp, double *xp, doubl
  int i,j,k;
  double r;
    s.integrator.rhs(0.0,x,y,n);
-   if(s.numerics.method==0)
+   if(xpp::solver_info(s.numerics.method).traits.discrete)
    for(i=0;i<n;i++)y[i]=y[i]-x[i];
 
   for(i=0;i<n;i++)
@@ -575,7 +576,7 @@ void getjac(xpp::Session &s, double *x, double *y, double *yp, double *xp, doubl
     r=eps*std::max(eps,fabs(x[i]));
     xp[i]=xp[i]+r;
     s.integrator.rhs(0.0,xp,yp,n);
-    if(s.numerics.method==0){
+    if(xpp::solver_info(s.numerics.method).traits.discrete){
      for(j=0;j<n;j++)yp[j]=yp[j]-xp[j];
     }
     for(j=0;j<n;j++)
@@ -662,7 +663,7 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
   if(r<err)
   {
      getjac(s,x,y,yp,xp,eps,dermat,n);
-     if(s.numerics.method==0)
+     if(xpp::solver_info(s.numerics.method).traits.discrete)
      for(i=0;i<n;i++)dermat[i*(n+1)]+=1.0;
      return; /* success !! */
   }

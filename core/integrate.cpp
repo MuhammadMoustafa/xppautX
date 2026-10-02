@@ -1,3 +1,4 @@
+#include "solver.h"
 #include "model.h"
 #include "session.h"
 #include "ode_read.h"
@@ -958,7 +959,7 @@ void do_init_data(xpp::Session &s, int com)
       s.numerics.t0=s.integrator.last_time;
       s.data_store.current_time=s.numerics.t0;
     }
-    if(s.numerics.method==xpp::method::VOLTERRA&&oldstart==0){
+    if(xpp::solver_info(s.numerics.method).traits.integral_history&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
       if(ch=='n')s.integrator.my_start=oldstart;
     }

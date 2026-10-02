@@ -92,36 +92,19 @@ std::string event_text(const xpp::Session &s)
 
 xpp::ChangedEvent<xpp::Session> event{event_text, "sending the numerics"};
 
-/* the method `text` names (a name of xpp::solvers(), any case, or its
-   number); -1 for none */
-int method_of(std::string_view text)
-{
-    int i;
-    if (xpp::parse_int(text, i)) return i >= 0 && i < xpp::method::COUNT ? i : -1;
-    for (const xpp::SolverInfo &m : xpp::solvers())
-        if (xpp::equal_ignoring_case(text, m.name)) return m.id;
-    return -1;
-}
-
 /* the value of text for field f of a model m's numerics, checked; false
    with why */
-bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, double &v, std::string &why)
+bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, double &v, std::string &why, const xpp::Place &place)
 {
     if (f.rule == OptionRule::method) {
-        const int m = method_of(text);
-        if (m < 0) {
-            why = xpp::format("{}: no method {}", f.label, text);
+        int id = 0;
+        const std::string input = xpp::parse_int(text, id) ? xpp::format("#{}", id) : std::string(text);
+        const auto picked = xpp::pick_method(m_of, input, place);
+        if (!picked) {
+            why = xpp::format("{}: {}", f.label, picked.error().what);
             return false;
         }
-        if (const char *no = method_refusal(m_of,m)) {
-            why = xpp::format("{}: {}", f.label, no);
-            return false;
-        }
-        if (m_of.nkernel > 0 && m != xpp::method::VOLTERRA) {
-            why = xpp::format("{}: a model with integral equations is integrated by Volterra", f.label);
-            return false;
-        }
-        v = m;
+        v = *picked;
         return true;
     }
     if (!xpp::parse_number(text, v) || !std::isfinite(v)) {
@@ -145,10 +128,10 @@ int numerics_settings_check(const xpp::Session &s, std::string_view key, std::st
         why = xpp::format("no numerics setting {}", key);
         return -1;
     }
-    return check(s.model(), *f, text, v, why) ? 0 : -1;
+    return check(s.model(), *f, text, v, why, command_place()) ? 0 : -1;
 }
 
-int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why)
+int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_view text, std::string &why, const Place *place)
 {
     try {
         const OptionRow *f = numerics_option(key);
@@ -157,7 +140,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
             why = xpp::format("no numerics setting {}", key);
             return -1;
         }
-        if (!check(s.model(), *f, text, v, why)) return -1;
+        if (!check(s.model(), *f, text, v, why, place ? *place : command_place())) return -1;
         NumericsSettings &n = s.numerics;
         if (is_total(*f)) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;
