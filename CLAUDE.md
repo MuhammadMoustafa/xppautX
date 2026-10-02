@@ -419,8 +419,9 @@ cards' issues (above). A new roadmap card gets its GitHub issue at once.
 Models are named by family, never by version (maintainer, 2026-10-01),
 so a newer one is used the day it ships: the agents' `model:` is the bare
 alias (haiku, sonnet, opus). Codex agents (maintainer, 2026-10-01) are a
-second pool, by the same difficulty: easy luna (low effort), medium sol
-(medium), hard astra (high), each the newest listed model of its family
+second pool for easy and medium cards: easy luna (low effort), medium sol
+(medium); a hard card stays on opus (`task-hard`), never astra, which is
+token hungry (maintainer, 2026-10-01); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> --add-dir
 C:/gitRepos/xppautX/.git -s workspace-write -m <model> -o <report>` and
