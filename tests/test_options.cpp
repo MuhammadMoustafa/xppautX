@@ -230,6 +230,8 @@ int main(void)
         const xpp::Loaded loaded = xpp::load_model(2, argv, 1);
         CHECK(!loaded);
         if (!loaded) CHECK(loaded.error().what.find(word) != std::string::npos);
+    }
+
     /* Full registry names survive the .odex grammar and option reader. */
     for (const auto &info : xpp::solvers()) {
         if (info.traits.integral_history) continue; /* needs an integral model */
