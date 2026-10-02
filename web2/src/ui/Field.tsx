@@ -87,7 +87,13 @@ export function Field(props: FieldProps) {
   const baseId = id ?? `field-${own}`;
   const standalone = !!onCommit;
   /* a box on its own: its text while edited, and after a blur that did not commit (held) */
-  const [draft, setDraft] = useState<string | null>(null);
+  const [draft, setDraftState] = useState<string | null>(null);
+  /* the draft as the last event left it: a handler reads this, never the `draft` of its render,
+     because a keystroke and the Enter or blur after it can arrive before Preact has rendered
+     (a fast typist, a paste then Enter, a slow machine): the render's draft is then the text
+     before the keystroke, and the commit would send that and lose the edit */
+  const latest = useRef<string | null>(null);
+  const setDraft = (t: string | null) => { latest.current = t; setDraftState(t); };
   const started = useRef<string>('');
   const dropped = useRef(false);
   /* focused, and whether Enter was refused since the last keystroke: the start of a number is
@@ -202,7 +208,7 @@ export function Field(props: FieldProps) {
         onFocus={e => {
           setFocused(true);
           setCommitted(false);
-          if (standalone && draft === null) {
+          if (standalone && latest.current === null) {
             const from = editValue ?? value;
             started.current = from.trim();
             setDraft(from);
@@ -212,13 +218,14 @@ export function Field(props: FieldProps) {
         onInput={e => {
           const el = e.target as HTMLInputElement;
           const attempted = el.value;
-          const {prefix, added, suffix} = diffAdded(text, attempted);
+          const before = latest.current ?? text;
+          const {prefix, added, suffix} = diffAdded(before, attempted);
           /* nothing inserted (a deletion): always let it through; an insertion the kind never
              takes, and is not on the way to something it does, is refused outright (T35d): the
              box's text does not change, only a brief hint says why */
           if (added && !fieldAcceptsEdit(spec, attempted)) {
-            el.value = text;
-            const at = Math.max(0, Math.min(prefix.length, text.length));
+            el.value = before;
+            const at = Math.max(0, Math.min(prefix.length, before.length));
             try { el.setSelectionRange(at, at); } catch { /* not every input type supports it */ }
             if (added.length === 1) setHint(fieldCharMessage(spec, prefix, added));
             else {
@@ -237,7 +244,7 @@ export function Field(props: FieldProps) {
             /* the draft is kept, marked, when it is not what the box takes (half-typed) or the
                commit is still settling or the core refused it (WF-001); the effect above drops
                it once a commit is known to have settled cleanly */
-            else if (draft !== null && commit(draft)) setCommitted(true);
+            else if (latest.current !== null && commit(latest.current)) setCommitted(true);
           }
           onBlur?.(e);
         }}

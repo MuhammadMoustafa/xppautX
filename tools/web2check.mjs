@@ -4040,8 +4040,10 @@ async function valuesLive() {
   await until('!s.busy', 'idle after %0.02', 60000);
   const sent3 = await cdp.eval('__xpp.sent().length');
   await cdp.eval(`(() => { const el = ${fieldOf('par', 'iapp')}.querySelector('input');
-    el.focus(); el.value = '%bogus_symbol_zzz'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await key('Enter');
+    el.focus(); el.value = '%bogus_symbol_zzz'; el.dispatchEvent(new Event('input', {bubbles: true}));
+    /* Enter in the same task, before Preact renders the keystroke: the commit must still be of the
+       text typed (a runner slow enough to run the keystroke and the Enter apart is the same case) */
+    el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()`);
   const refused = await until(`s.values.errors['par:iapp']`, 'the core refuses %bogus_symbol_zzz', 60000);
   box = await fieldState('par', 'iapp');
   check('WF-001: a formula the core refuses keeps its draft, marked, with the core\'s message, and takes the focus back',
