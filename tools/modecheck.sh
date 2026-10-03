@@ -142,9 +142,10 @@ if [ $linux_window -eq 1 ]; then
   # the browser opens instead (the stand-in opener)
   ENVS="XPP_WINDOW_FAIL_LOAD=1" start --port 0
   wait_for_output . "$tmp/opened" || bad "the fallback opener did not write its address"
-  if grep -q 'the window needs WebKitGTK, which is not installed (libwebkit2gtk-4.1.so.0 not found)' "$tmp/out" &&
-    grep -q 'Using the browser instead' "$tmp/out"; then
-    pass "no WebKitGTK: says what to install ($(sed -n 's/.*install it with: \(.*\)\. Using.*/\1/p' "$tmp/out"))"
+  # W121b: one wording for the window's fallback, "the window cannot open (...); using the browser instead"
+  if grep -q 'the window cannot open (needs WebKitGTK, which is not installed: libwebkit2gtk-4.1.so.0 not found' "$tmp/out" &&
+    grep -q '; using the browser instead' "$tmp/out"; then
+    pass "no WebKitGTK: says what to install ($(sed -n 's/.*install it with: \(.*\)); using.*/\1/p' "$tmp/out"))"
   else
     bad "no WebKitGTK: says what to install: $(head -c 300 "$tmp/out")"
   fi
