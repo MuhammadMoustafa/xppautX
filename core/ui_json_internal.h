@@ -173,6 +173,10 @@ void record_save_decision(int decision, bool asked);
 int player_save_replace(int decision);
 /* Optional command/file-answer decision, validated once by the protocol. */
 xpp::Result<> read_save_replace(const char *line, int &decision);
+/* the running command's own decision again, forgetting a file dialog's: a
+   file derived from the one asked for (a later frame) was seen by no dialog,
+   so the core asks about it if it exists */
+xpp::Result<> reset_save_decision();
 /* an ask of kind (ask_begin's) answered with the line answer; ok: not cancelled */
 void record_answer(const char *kind, const char *answer, bool ok);
 /* a key the running job read itself (control_line: / ending a range,

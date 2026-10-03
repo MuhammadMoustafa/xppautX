@@ -653,6 +653,12 @@ char line_kind(const char *line)
     return l ? menu_kind(l->menu, ch) : 0;
 }
 
+xpp::Result<> reset_save_decision()
+{
+    session.save_replace = SAVE_ASK;
+    return read_save_replace(session.reading.source.c_str(), session.save_replace);
+}
+
 namespace {
 
 /* one command, run as a job (xpp_job.h) numbered by its line's sequence
@@ -668,8 +674,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* A live command is a one-line source; recordings retain their step's
        own Place through player_place. This also locates bad save names. */
     session.reading=xpp::Place{"command",1,0,line};
-    session.save_replace = SAVE_ASK;
-    const xpp::Result<> permission = read_save_replace(line, session.save_replace);
+    const xpp::Result<> permission = reset_save_decision();
     /* the session this command runs in, the client's in the session list
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */

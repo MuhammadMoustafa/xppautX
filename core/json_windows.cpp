@@ -363,9 +363,9 @@ void j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
         std::string file(basename);
-        if(i>0){
+        if(i>0){ /* the series was asked for once; later names are derived */
             file=xpp::files::frame_name(basename,xpp::format(".{}",format.extension),i);
-            if(!xpp::file_selector("Save kinescope frame",file,xpp::format("*.{}",format.extension)))return;
+            if(!xpp::ok_or_show(reset_save_decision()))return;
         }
         const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
         if (!xpp::ok_or_show(saved) || !*saved) return;
@@ -540,9 +540,9 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
     send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
     if(!s.array_plot.save_cancelled){
         std::string file=xpp::files::frame_name(s.array_plot.range_stem,".gif",s.array_plot.still?s.array_plot.range_count:0);
-        if(s.array_plot.still && s.array_plot.range_count>0 && !file_selector("Save array frame",file,"*.gif"))
-            s.array_plot.save_cancelled=true;
-        else s.array_plot.save_cancelled=!aplot_gif(s.array_plot,file.c_str(),s.array_plot.still);
+        if(s.array_plot.still && s.array_plot.range_count>0) /* asked once, for the first */
+            s.array_plot.save_cancelled=!xpp::ok_or_show(reset_save_decision());
+        if(!s.array_plot.save_cancelled)s.array_plot.save_cancelled=!aplot_gif(s.array_plot,file.c_str(),s.array_plot.still);
     }
     s.array_plot.range_count++;
 }

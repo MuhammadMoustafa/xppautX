@@ -910,9 +910,9 @@ for _ in range(2):
     collect(is_idle)
 check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
 send(cmd='key', key='k')
-evs, e = answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif' if e['title'] == 'Save kinescope frames' else 'kin_1.gif'}, 'pixels': pixels})
-check('Kinescope/Save asks for the pixels and writes GIFs',
-      all(os.path.exists(os.path.join(run, 'kin_%d.gif' % i)) for i in range(2)), str(os.listdir(run)))
+evs, e = answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif'}, 'pixels': pixels})
+check('Kinescope/Save asks for the pixels and writes GIFs, the second named from the first',
+      all(os.path.exists(os.path.join(run, n)) for n in ('kin_0.gif', 'kin_0-frame1.gif')), str(os.listdir(run)))
 send(cmd='key', key='v')
 evs, _ = answer_asks(is_idle, {'menu': menu('t')})
 check('the animation window opens', any(e.get('ev') == 'window' and e.get('win') == 104
@@ -3275,6 +3275,30 @@ def check_output_names():
         _, ask = col(is_ask)
         snd(cmd='answer', id=ask['id'], key='m')
         cancel_name('lecar.gif')
+        for _ in range(2):  # two more frames: three in all
+            snd(cmd='key', key='k')
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], key='c')
+            col(is_idle)
+        snd(cmd='key', key='k')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='s')
+        asks, saved = 0, []
+        while True:
+            evs, e = col(lambda e: is_ask(e) or is_idle(e))
+            saved += [x for x in evs if x.get('ev') == 'saved']
+            if not e or not is_ask(e): break
+            if e.get('kind') == 'file':
+                asks += 1
+                snd(cmd='answer', id=e['id'], file='lecar.gif')
+            elif e.get('kind') == 'pixels':
+                snd(cmd='answer', id=e['id'], **pixels(e))
+            else:
+                break
+        names = ['lecar.gif', 'lecar-frame1.gif', 'lecar-frame2.gif']
+        check('W130: a kinescope of 3 frames is asked for once and every frame is saved',
+              asks == 1 and [x.get('file') for x in saved] == names and all(x.get('saved') for x in saved)
+              and all(os.path.isfile(os.path.join(r, n)) for n in names), str((asks, saved)))
         # A long valid name is retained, while traversal/device names report an error.
         long = 'save-' + 'a' * 80 + '.par'
         snd(cmd='values', op='write', kind='par')
