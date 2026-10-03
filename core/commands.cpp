@@ -4,6 +4,7 @@
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
 #include "xpp_ui.h"
+#include "image_format.h"
 #include "browse.h"
 #include "session.h"
 #include "xpp_session.h"
@@ -152,7 +153,7 @@ void do_movie_com(xpp::Session &s, int c)
     base = "frame";
     new_string_of("Base file name", base, XPP_FIELD_FILE);
     if (!base.empty())
-      ui.movie_save(s,base.c_str(), 2);
+      ui.movie_save(s,base.c_str(), IMAGE_FORMAT_GIF);
     break;
   case 5: ui.movie_make_anigif(s); break;
   case 6: break;

@@ -317,6 +317,13 @@ The page delivers only the matching successful destination (including a
 suffix the core appended from the file dialog), at that command's
 idle; an idle alone, No, or a failed commit never delivers an older file.
 
+Array plot Range movies commit only after the sweep completes. A stopped
+sweep, failed integration or cancelled pixel capture aborts the Writer and
+sends `saved:false`, preserving any previous destination (W137).
+The plot's Freeze > Import diagram file ask now uses wildcard `*`, so
+`.dat` and `.csv` tables can both be selected; both require six columns
+(x, low, high, type, branch, two-parameter flag). CSV headers are skipped.
+
 The browser's `load` asks for `name` (a `file` ask, `wild` `*`) when it is
 not given and reads it as `format`, or else as the format of its extension,
 or else as `.dat`; the file's columns fill the stored ones in order (a CSV's

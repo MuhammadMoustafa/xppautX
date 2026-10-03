@@ -1,3 +1,4 @@
+#include "image_format.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
    pair of nullclines, the frozen ones, and the direction field's grid, drawn
    through graphics.cpp's primitives and recorded for the front end by
@@ -17,8 +18,6 @@
 #include "load_eqn.h"
 #include "graf_par.h"
 #include "phase_data.h"
-#include "my_ps.h"
-#include "my_svg.h"
 
 #include "expr.h"
 #include "xpp_ui.h"
@@ -137,8 +136,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
 
 void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x and 2 for y  */
 {
-  if (s.plot_file.plt_fmt_flag==SVGFMT)
-    svg_write(s.plot_file,"<g>");
+  xpp::image_group(s, true);
   for(int i=0;i<n;i++){
     const int i4=4*i;
     line_abs(s,v[i4],v[i4+1],v[i4+2],v[i4+3]);
@@ -157,8 +155,7 @@ void restor_null(xpp::Session &s, const float *v, int n, int d)  /* d=1 for x an
       }
     }
   }
-  if (s.plot_file.plt_fmt_flag==SVGFMT)
-    svg_write(s.plot_file,"</g>");
+  xpp::image_group(s, false);
 }
 
 void redraw_froz_cline(xpp::Session &s, int flag)
@@ -372,10 +369,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
   get_max_dfield(s,y.data(),ydot.data(),u0,v0,du,dv,grid,inx,iny,&mdf);
   if(!suppress&&(s.nullclines.df_flag==1||s.nullclines.df_flag==4))
     phase_data_dfield_begin(s,grid+1,du,dv,s.nullcline_state.dfield_type==0,s.plot_windows.current->color[0]);
-  if (s.plot_file.plt_fmt_flag==SVGFMT){
-    s.nullclines.doing_dfield=1;
-    svg_write(s.plot_file,"<g>");
-  }
+  xpp::image_group(s, true, true);
   for(int i=0;i<=grid;i++){
     y[inx]=u0+du*i;
     for(int j=0;j<=grid;j++){
@@ -418,10 +412,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
         frect_abs(s,static_cast<float>(y[inx]),static_cast<float>(y[iny]),static_cast<float>(du),static_cast<float>(dv));
     }
   }
-  if (s.plot_file.plt_fmt_flag==SVGFMT){
-    s.nullclines.doing_dfield=0;
-    svg_write(s.plot_file,"</g>");
-  }
+  xpp::image_group(s, false, true);
 }
 
 void save_the_nullclines(xpp::Session &s)
@@ -656,10 +647,7 @@ void direct_field_com(xpp::Session &s, int c)
   phase_data_flow_stop(s);
   s.integrator.suppress_bounds=0;
   s.numerics.delta_t=dtold;
-  if (s.plot_file.plt_fmt_flag==SVGFMT){
-    s.nullclines.doing_dfield=0;
-    svg_write(s.plot_file,"</g>");
-  }
+  xpp::image_group(s, false, true);
   if(const xpp::Result<> r=failure.result();!r)xpp::show_error(r.error());
 }
 

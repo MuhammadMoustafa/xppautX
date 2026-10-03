@@ -1,3 +1,4 @@
+#include "image_format.h"
 #include "solver.h"
 #include "model.h"
 #include "session.h"
@@ -31,8 +32,6 @@
 
 #include "pp_shoot.h"
 #include "dae_fun.h"
-#include "my_ps.h"
-#include "my_svg.h"
 #include "numerics.h"
 #include "my_rhs.h" /* extra */
 #include "volterra2.h"
@@ -610,6 +609,7 @@ void seed_this_run(xpp::Session &s)
 xpp::Result<int> range_sweep(xpp::Session &s, double *x, int flag, const TakeFrame &take_frame, const ShowProgress &show_progress)
 {
   std::optional<xpp::Error> failure;
+  bool complete=true; /* a failed capture can stop the sweep without an integration error */
 
   std::string bob;
   std::string parn; /* auto_get_info writes the parameter's name */
@@ -685,6 +685,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
 	 /* restart initial data */
 	 if(const xpp::Result<> r=do_init_delay(s,s.numerics.delay);!r){
 	   failure=r.error();
+	   complete=false;
 	   break;
 	 }
        }
@@ -730,9 +731,10 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
   }
 
  const xpp::Result<int> run=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
- if(!run||*run==1){
+ if(!run||*run==1||xpp::job::cancelled()){
    if(!run)failure=run.error();
    ierr=-1;
+   complete=false;
    break;
  }
  if(s.stochastic.flag)
@@ -742,7 +744,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
    redraw_dfield(s);
 	create_new_cline(s);
    draw_label(s,s.plot_windows.draw_win);
-   if(!take_frame())break;
+   if(!take_frame()){complete=false;break;}
  }
  refresh_browser(s,s.data_store.rows);
  if(s.integrator.adj_range==1){
@@ -768,7 +770,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
  }
  if(s.array_plot.range==1){
    s.array_plot.range=0;
-   close_aplot_files(s);
+   close_aplot_files(s, complete && !failure && ierr == 0 && !xpp::job::cancelled());
  }
  if(oldic==1)get_ic(s,1,x);
  else get_ic(s,0,x);
@@ -1833,10 +1835,7 @@ void restore(xpp::Session &s, int i1, int i2)
   if(s.data_store.rows<2)return;
 
    for(ip=0;ip<np;ip++){
-     if (s.plot_file.plt_fmt_flag==SVGFMT)
-     {
-  	   xpp::print(s.plot_file.svgfile,"<g>\n");
-     } 
+     xpp::image_group(s, true);
      kxoff=i1-XSHFT;
      kzoff=i1-ZSHFT;
      kyoff=i1-YSHFT;
@@ -1890,10 +1889,7 @@ void restore(xpp::Session &s, int i1, int i2)
       kzoff++;
      
     }
-    if (s.plot_file.plt_fmt_flag==SVGFMT)
-     {
-  	   xpp::print(s.plot_file.svgfile,"</g>\n");
-     } 
+    xpp::image_group(s, false);
     
   }
 }
@@ -1918,8 +1914,7 @@ void comp_color(xpp::Session &s, float *v1, float *v2, int n, float dt)
  if(cur_color>color_table.count)cur_color=color_table.count-1;
   cur_color+=FIRSTCOLOR;
   if (program.interactive){set_color(cur_color);}
- if(s.plot_file.plt_fmt_flag==1){ps_do_color(s.plot_file,cur_color);}
- else if(s.plot_file.plt_fmt_flag==SVGFMT){svg_do_color(s.plot_file,cur_color);}
+ xpp::image_color(s,cur_color);
 }
 
 xpp::Result<> shoot_easy(xpp::Session &s, double *x)

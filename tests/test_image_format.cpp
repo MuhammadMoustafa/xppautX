@@ -11,7 +11,7 @@
 
 int main(void)
 {
-    CHECK(xpp::n_image_formats == 3);
+    CHECK(xpp::n_image_formats == 4);
 
     std::set<std::string> names, extensions;
     for (int i = 0; i < xpp::n_image_formats; i++) {
@@ -26,6 +26,12 @@ int main(void)
     CHECK(extensions.count("ps") == 1);
     CHECK(extensions.count("svg") == 1);
     CHECK(extensions.count("gif") == 1);
+    CHECK(extensions.count("ppm") == 1);
+    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels != nullptr);
+    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie != nullptr);
+    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_PPM].pixels != nullptr);
+    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_PS].array != nullptr);
+    CHECK(xpp::image_formats[xpp::IMAGE_FORMAT_SVG].group != nullptr);
 
     /* PostScript and SVG are vector pictures written through begin/end
        (ps_init/ps_end, svg_init/svg_end); GIF is a raster snapshot with

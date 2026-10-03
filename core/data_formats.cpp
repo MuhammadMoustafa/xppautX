@@ -38,6 +38,18 @@ constexpr float nan_value = std::numeric_limits<float>::quiet_NaN();
    before it goes to the file */
 constexpr std::size_t chunk = 1 << 16;
 
+/* a field as a float; false when it is not a number (blanks around it
+   allowed, like strtof's leading ones) */
+bool data_number(const std::string &s, float &v)
+{
+    const char *b = s.c_str();
+    char *end = nullptr;
+    v = std::strtof(b, &end);
+    if (end == b) return false;
+    while (*end == ' ' || *end == '\t') end++;
+    return *end == 0;
+}
+
 /* ---- .dat ---- */
 
 bool write_dat(const DataTable &t, Writer &w)
@@ -57,29 +69,31 @@ bool write_dat(const DataTable &t, Writer &w)
 
 bool read_dat(const char *path, DataTable &t)
 {
-    std::size_t count = 0;
-    {
-        LineReader lr(path);
-        if (!lr) return false;
-        /* the width: the whitespace-separated fields of the first line */
-        if (std::optional<std::string_view> line = lr.next()) {
-            bool white = true;
-            for (unsigned char c : *line) {
-                const bool space = std::isspace(c) != 0;
-                if (!space && white) ++count;
-                white = space;
+    LineReader reader(path);
+    if (!reader) return false;
+    int line_number=0;
+    while (const auto line=reader.next()) {
+        ++line_number;
+        Tokens tokens(*line);
+        std::vector<float> row;
+        while (const auto token=tokens.next(" \t\r\n\v\f")) {
+            float value;
+            if (!data_number(std::string(*token),value)) {
+                t.error_line=line_number;
+                return false;
             }
+            row.push_back(value);
         }
+        if (row.empty()) continue;
+        if (t.columns.empty()) t.columns.resize(row.size());
+        if (row.size()!=t.columns.size()) {
+            t.error_line=line_number;
+            return false;
+        }
+        t.lines.push_back(line_number);
+        for (std::size_t k=0; k<row.size(); ++k) t.columns[k].push_back(row[k]);
     }
-    t.columns.assign(count, {});
-    if (!count) return true;
-    TokenReader tr(path);
-    std::vector<float> row(count);
-    for (;;) {
-        for (float &z : row)
-            if (!tr.read(z)) return true; /* a last row cut short is left out */
-        for (std::size_t k = 0; k < count; k++) t.columns[k].push_back(row[k]);
-    }
+    return true;
 }
 
 /* ---- CSV ---- */
@@ -103,16 +117,18 @@ std::string csv_text(const DataTable &t)
 {
     std::string o;
     if (t.seed) format_append(o, "# seed {}\n", *t.seed);
-    for (std::size_t j = 0; j < t.columns.size(); j++) {
+    const std::size_t width = t.fields.empty() ? t.columns.size() : t.fields.size();
+    for (std::size_t j = 0; j < width; j++) {
         if (j) o += ',';
         append_csv_field(o, data_column_name(t, j));
     }
     o += '\n';
     const std::size_t n = t.rows();
     for (std::size_t i = 0; i < n; i++) {
-        for (std::size_t j = 0; j < t.columns.size(); j++) {
+        for (std::size_t j = 0; j < width; j++) {
             if (j) o += ',';
-            format_append(o, "{}", t.columns[j][i]);
+            if (t.fields.empty()) format_append(o, "{}", t.columns[j][i]);
+            else append_csv_field(o, t.fields[j][i]);
         }
         o += '\n';
     }
@@ -120,40 +136,34 @@ std::string csv_text(const DataTable &t)
 }
 
 /* one line's fields, a quoted field unquoted */
-std::vector<std::string> csv_fields(std::string_view line)
+std::optional<std::vector<std::string>> csv_fields(std::string_view line)
 {
     std::vector<std::string> f(1);
-    bool quoted = false;
+    bool quoted = false, closed = false;
     for (std::size_t i = 0; i < line.size(); i++) {
         const char c = line[i];
         if (quoted) {
             if (c == '"' && i + 1 < line.size() && line[i + 1] == '"') f.back() += line[++i];
-            else if (c == '"') quoted = false;
+            else if (c == '"') { quoted = false; closed = true; }
             else f.back() += c;
-        } else if (c == '"') quoted = true;
-        else if (c == ',') f.emplace_back();
-        else f.back() += c;
+        } else if (c == ',') { f.emplace_back(); closed = false; }
+        else if (closed) return std::nullopt;
+        else if (c == '"') {
+            if (!f.back().empty()) return std::nullopt;
+            quoted = true;
+        } else f.back() += c;
     }
+    if (quoted) return std::nullopt;
     return f;
-}
-
-/* a field as a float; false when it is not a number (blanks around it
-   allowed, like strtof's leading ones) */
-bool csv_number(const std::string &s, float &v)
-{
-    const char *b = s.c_str();
-    char *end = nullptr;
-    v = std::strtof(b, &end);
-    if (end == b) return false;
-    while (*end == ' ' || *end == '\t') end++;
-    return *end == 0;
 }
 
 bool parse_csv(std::string_view text, DataTable &t)
 {
     bool first = true;
     std::size_t width = 0;
+    int line_number = 0;
     while (!text.empty()) {
+        ++line_number;
         const std::size_t nl = text.find('\n');
         std::string_view line = text.substr(0, nl);
         text = nl == std::string_view::npos ? std::string_view() : text.substr(nl + 1);
@@ -167,12 +177,17 @@ bool parse_csv(std::string_view text, DataTable &t)
             continue;
         }
         if (line.starts_with("#")) continue; /* any other comment: ignored */
-        std::vector<std::string> f = csv_fields(line);
+        auto fields = csv_fields(line);
+        if (!fields) {
+            t.error_line=line_number;
+            return false;
+        }
+        std::vector<std::string> f = std::move(*fields);
         std::vector<float> v(f.size());
         bool numbers = true;
         for (std::size_t j = 0; j < f.size(); j++)
             if (f[j].find_first_not_of(" \t") == std::string::npos) v[j] = nan_value; /* empty: no value */
-            else if (!csv_number(f[j], v[j])) numbers = false;
+            else if (!data_number(f[j], v[j])) numbers = false;
         if (first) {
             width = f.size();
             t.columns.assign(width, {});
@@ -182,10 +197,15 @@ bool parse_csv(std::string_view text, DataTable &t)
                 continue;
             }
         } else if (!numbers) {
-            t = DataTable();
+            t.error_line=line_number;
             return false; /* a second line of text: not a table of numbers */
         }
-        for (std::size_t j = 0; j < width; j++) t.columns[j].push_back(j < v.size() ? v[j] : nan_value);
+        if (f.size()!=width) {
+            t.error_line=line_number;
+            return false;
+        }
+        t.lines.push_back(line_number);
+        for (std::size_t j = 0; j < width; j++) t.columns[j].push_back(v[j]);
     }
     return true;
 }
@@ -420,7 +440,9 @@ bool read_clean(Src src, DataTable &t)
 {
     t = DataTable();
     if (F(src, t)) return true;
+    const int error_line=t.error_line;
     t = DataTable();
+    t.error_line=error_line;
     return false;
 }
 
@@ -428,6 +450,13 @@ bool read_clean(Src src, DataTable &t)
 template <auto F>
 bool guarded_write(const DataTable &t, Writer &w) noexcept
 {
+    if (!t.fields.empty()) {
+        if (!t.columns.empty()) return false;
+        for (const auto &column : t.fields) if (column.size() != t.rows()) return false;
+    }
+    if constexpr (F != write_csv && F != write_csv_gz) {
+        if (!t.fields.empty()) return false; /* these formats store numbers only */
+    }
     return guarded<F, const DataTable &, Writer &>("writing a data file", t, w);
 }
 
@@ -480,6 +509,16 @@ const DataFormat *data_format_of_file(std::string_view path)
         if (path.size() > e.size() && equal_ignoring_case(path.substr(path.size() - e.size()), e)) return &f;
     }
     return nullptr;
+}
+
+Result<DataTable> read_data_table(const char *path)
+{
+    const DataFormat *format=data_format_of_file(path);
+    if (!format || !format->read) return fail_reading("data", "has no registered data format",path);
+    DataTable table;
+    if (!format->read(path,table))
+        return fail("data","cannot be read as a data table",Place{path,table.error_line});
+    return table;
 }
 
 } // namespace xpp

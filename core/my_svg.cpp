@@ -293,8 +293,7 @@ void svg_write(PlotFileState &pf, const char *str)
 
 void svg_do_color(PlotFileState &pf, int color)
 {
-  if(pf.plt_fmt_flag==SCRNFMT)return;
-  if(pf.plt_fmt_flag==PSFMT)return;
+  if(pf.plt_fmt_flag!=SVGFMT)return;
   if(pf.ps_color_flag==0)return;
   get_svg_color(color,&pf.svg_rgb[0],&pf.svg_rgb[1],&pf.svg_rgb[2]);
   pf.svg_color=true;

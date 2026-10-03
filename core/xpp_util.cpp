@@ -306,7 +306,11 @@ void dump_ps(xpp::Session &s, int i)
 {
   const std::string filename=batch_plot_name(s,i);
    const xpp::ImageFormat *fmt=xpp::find_image_format_by_extension(s.plot_export.format);
-   if(fmt && xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)) && s.plot_file.writer)
+   if (!fmt || !fmt->begin) {
+     xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
+     return;
+   }
+   if(xpp::ok_or_show(fmt->begin(s,filename.c_str(),s.plot_export.color)) && s.plot_file.writer)
      fmt->restore(s);
 }
 

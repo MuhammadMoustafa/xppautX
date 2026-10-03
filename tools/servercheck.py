@@ -4043,7 +4043,7 @@ def check_outcomes_once():
     d = tempfile.mkdtemp(prefix='xppoutcomes')
     try:
         with open(os.path.join(d, 'linear.odex'), 'w') as f:
-            f.write("par a=1\nx'=a\ninit x=0\n@ dt=.1,total=1\n")
+            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\n@ dt=.1,total=1\n")
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
@@ -4061,6 +4061,51 @@ def check_outcomes_once():
         errors = [e for e in evs if e.get('error')]
         check('a converged script fit exits 0 and sends exactly one info outcome, no error dialog event',
               r.returncode == 0 and results.count('Success!') == 1 and not errors, str((r.returncode, results, errors, r.stderr[-300:])))
+        saved_csv = [
+            {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 2},
+            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'browser', 'op': 'write', 'what': 'table', 'format': 'csv', 'name': 'saved.csv', 'replace': 1},
+            {'cmd': 'set', 'kind': 'par', 'name': 'a', 'value': 1}]
+        r, evs = run(saved_csv + fit('saved.csv'))
+        results = [e.get('bottom', '').strip() for e in evs if e.get('ev') == 'message']
+        errors = [e for e in evs if e.get('error')]
+        states = [e for e in evs if e.get('ev') == 'state']
+        check('curve fit reads a CSV written by Save data and recovers the parameter',
+              r.returncode == 0 and results.count('Success!') == 1 and not errors
+              and states and abs(dict(states[-1]['pars'])['a'] - 2) < 1e-4,
+              str((r.returncode, results, errors, states[-1].get('pars') if states else None)))
+        STOP_MOVIE_ROWS = 15  # after the first 11-row frame, inside the second integration
+        # Arm Stop while answering the first captured frame; the second
+        # integration stops at row 15, after a real frame reached the temp file.
+        range_movie = [
+            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'plotvars', 'how': 2, 'names': ['x', 'y']},
+            {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
+            {'cmd': 'answer', 'values': ['movie', '0', '0']},
+            {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'N', 'Y', 'N', 'N']},
+            {'cmd': 'answer', **pixels(None)},
+            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
+        movie_path = os.path.join(d, 'movie.0.gif')
+        for old in [None, b'previous complete movie']:
+            if old is not None:
+                with open(movie_path, 'wb') as f:
+                    f.write(old)
+            r, evs = run(range_movie)
+            saved = [e for e in evs if e.get('ev') == 'saved']
+            got = open(movie_path, 'rb').read() if os.path.exists(movie_path) else None
+            check('stopped range movie preserves %s and reports no successful save' % ('the old file' if old else 'an absent file'),
+                  r.returncode == 0 and any(e.get('ev') == 'stopped' for e in evs)
+                  and len(saved) == 1 and saved[0].get('saved') is False and got == old
+                  and not glob.glob(os.path.join(d, '*.tmp-*')),
+                  str((r.returncode, saved, got, r.stderr[-300:])))
+        r, evs = run(range_movie[:-1] + [{'cmd': 'answer', **pixels(None)}] * 2)
+        saved = [e for e in evs if e.get('ev') == 'saved']
+        got = open(movie_path, 'rb').read() if os.path.exists(movie_path) else b''
+        check('completed range movie replaces the old file with a complete GIF',
+              r.returncode == 0 and len(saved) == 1 and saved[0].get('saved') is True
+              and got.startswith(b'GIF') and got.endswith(b';')
+              and not glob.glob(os.path.join(d, '*.tmp-*')),
+              str((r.returncode, saved, len(got), r.stderr[-300:])))
         r, evs = run(fit('missing.dat') + [{'cmd': 'quit', 'ask': True}, {'cmd': 'answer', 'key': 'd'}])
         errors = [e for e in evs if e.get('error')]
         check('an unreadable fit file has its Place; the asking quit also exits 1, without bye',

@@ -1,3 +1,4 @@
+#include "data_formats.h"
 
 #include "do_fit.h"
 #include "session.h"
@@ -288,42 +289,32 @@ xpp::Result<FitEnd> run_fit(xpp::Session &s, const char *filename, int npts, int
    
 */
 {
-  int i,j,k,ioff,ictrl=0;
+  int i,j,k,ictrl=0;
   xpp::Result<> ok;
   int niter=0,good_flag=0;
   double tol10=10*tol;
-  double t,ytemp[MAXODE];
   double sig[MAXODE];
   double chisq=0.0,ochisq=0.0,alambda=0.0;
 
-  xpp::TokenReader reader(filename);
-  if(!reader){
-    return xpp::fail_reading("fit","cannot be read",filename);
-  }
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename);
+  if (!read) return std::unexpected(read.error());
+  const xpp::DataTable &table=*read;
+  if (table.columns.size() < static_cast<std::size_t>(ndim) || table.rows() < static_cast<std::size_t>(npts))
+    return xpp::fail("fit", xpp::format("The data file needs {} rows of {} numbers", npts, ndim), xpp::Place{filename, static_cast<int>(table.rows()) + 1});
+  for (k=0; k<nvars; k++)
+    if (icols[k]<2 || static_cast<std::size_t>(icols[k])>table.columns.size())
+      return xpp::fail("fit", xpp::format("The data file has no column {}",icols[k]), xpp::Place{filename,1});
+  for (i=0; i<npts; i++)
+    for (j=0; j<ndim; j++)
+      if (!std::isfinite(table.columns[j][i]))
+        return xpp::fail("fit", xpp::format("Invalid data value {}",table.columns[j][i]), xpp::Place{filename,table.line(i)});
   std::vector<double> t0_v(static_cast<size_t>(npts)+1);
   std::vector<double> y_v(static_cast<size_t>(npts+1)*nvars);
   double *t0=t0_v.data(), *y=y_v.data();
-/* load up the data to fit   */
-
-  for(i=0;i<npts;i++){
-    if(!reader.read(t)){
-      return xpp::fail("fit",xpp::format("The data file has no number here: it needs {} rows of {} numbers",npts,ndim),xpp::Place{filename,reader.line()});
-    }
-
-    for(j=0;j<ndim-1;j++)
-      if(!reader.read(ytemp[j])){
-	return xpp::fail("fit",xpp::format("The data file has no number here: it needs {} rows of {} numbers",npts,ndim),xpp::Place{filename,reader.line()});
-      }
-    t0[i]=t;
-
-    ioff=nvars*i;
-    for(k=0;k<nvars;k++){
-      y[ioff+k]=ytemp[icols[k]-2];
-
-    }
-
+  for (i=0; i<npts; i++) {
+    t0[i]=table.columns[0][i];
+    for (k=0; k<nvars; k++) y[nvars*i+k]=table.columns[icols[k]-1][i];
   }
-  reader.close();
   xpp::log(XPP_LOG_INFO, " Data loaded ... {:f} {:f} ...  {:f} {:f} \n",
 	 y[0],y[1],y[npts*nvars-2],y[npts*nvars-1]);
 

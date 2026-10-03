@@ -30,7 +30,7 @@ void init_my_aplot(xpp::Session &s);
    Plotvars' columns shown, Array range saving's settings, Fit, the range
    of ap's values, Edit, Print, and its settings in a .set file (f: 1 read,
    else write) */
-void close_aplot_files(xpp::Session &s);
+void close_aplot_files(xpp::Session &s, bool complete);
 void optimize_aplot(xpp::Session &s, int *plist);
 void set_up_aplot_range(xpp::Session &s);
 void fit_aplot(xpp::Session &s);

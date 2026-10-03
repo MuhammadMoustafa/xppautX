@@ -661,6 +661,8 @@ def section_csv():
     check('File/eXport CSV writes the diagram and eigenvalues files', d is not None and e is not None)
     if d is None or e is None:
         return
+    check('AUTO diagram and eigenvalues CSV use LF on every platform',
+          chr(13) not in d and chr(13) not in e and d.endswith(chr(10)) and e.endswith(chr(10)))
     drows = list(csv.DictReader(io.StringIO(d)))
     erows = list(csv.DictReader(io.StringIO(e)))
     check('the diagram CSV has a header of names',

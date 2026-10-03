@@ -34,6 +34,7 @@
 #include "session.h"
 #include "comline.h"
 #include "graf_par.h"
+#include "image_format.h"
 #include "xpp_batch.h"
 #include "xpp_log.h"
 #include <deque>
@@ -146,21 +147,15 @@ void SilentScript::add_run(int set)
             if (!s.integrator.suppress_out)
                 command("browser", "write", batch_options.out_file, ",\"what\":\"output\",\"format\":\"dat\"");
             if (s.integrator.make_plot_flag) {
-                const std::string &format = s.plot_export.format;
-                if (format == "ps") {
-                    key("g");
-                    answer("key", "p");
-                    const std::vector<std::string> ps = {
-                        xpp::format("{:d}", s.plot_export.color), xpp::format("{:d}", s.drawing.ps_port),
-                        xpp::format("{:d}", s.plot_file.ps_font_size), s.plot_file.ps_font,
-                        xpp::format("{:.17g}", s.plot_file.ps_lw)};
-                    answer_values(ps);
-                    answer("file", batch_plot_name(s, -1));
-                } else if (format == "svg") {
-                    key("g");
-                    answer("key", "v");
-                    answer("file", batch_plot_name(s, -1));
+                const xpp::ImageFormat *format=xpp::find_image_format_by_extension(s.plot_export.format);
+                if (!format || !format->plot_key) {
+                    xpp::command_error("mkplot",xpp::format("Unsupported batch picture format {}",s.plot_export.format));
+                    return;
                 }
+                key("g");
+                answer("key", format->plot_key);
+                if (format->parameter_values) answer_values(format->parameter_values(s));
+                answer("file", batch_plot_name(s, -1));
             }
         }
         xpp::log(XPP_LOG_INFO, " Run complete ... \n");

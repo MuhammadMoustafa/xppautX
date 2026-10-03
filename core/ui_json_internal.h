@@ -407,8 +407,6 @@ void j_scroll_window(xpp::Session &s);
 void j_new_colormap(int type);
 
 std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h); /* empty: cancelled */
-int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h);
-void web_safe_colors(std::span<unsigned char> rgb); /* at most 256 colours, for the GIF writer */
 
 xpp::Result<> j_film_clip(xpp::Session &s);
 void j_reset_film(xpp::Session &s);

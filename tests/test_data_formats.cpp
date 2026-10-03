@@ -198,6 +198,39 @@ int main(void)
         }
         CHECK(!f.read(p.c_str(), r) && r.columns.empty());
         CHECK(!f.read(scratch("missing.csv").c_str(), r));
+        {
+            xpp::Writer w = xpp::Writer::binary(p);
+            CHECK(w.write("# seed 7\na,b\n1,2\n3\n") && w.commit());
+        }
+        CHECK(!f.read(p.c_str(), r) && r.columns.empty() && r.error_line == 4);
+        const auto bad = xpp::read_data_table(p.c_str());
+        CHECK(!bad && bad.error().place.file == p && bad.error().place.line == 4);
+        {
+            xpp::Writer w = xpp::Writer::binary(p);
+            CHECK(w.write("\"unclosed,b\n1,2\n") && w.commit());
+        }
+        CHECK(!f.read(p.c_str(), r) && r.error_line == 1);
+    }
+
+    {
+        const std::string p = scratch("ragged.dat");
+        xpp::Writer w = xpp::Writer::binary(p);
+        CHECK(w.write("1 2\n3\n") && w.commit());
+        xpp::DataTable r;
+        CHECK(!xpp::data_format_named("dat")->read(p.c_str(),r) && r.columns.empty() && r.error_line == 2);
+    }
+
+    /* AUTO's mixed CSV keeps doubles exact and quotes headers and cells once. */
+    {
+        xpp::DataTable mixed;
+        mixed.names = {"parameter, name", "value"};
+        mixed.fields = {{"a\"b,c"}, {xpp::number(1.0000000000000002)}};
+        const std::string path = scratch("mixed.csv");
+        CHECK(write_as(*xpp::data_format_named("csv"), mixed, path));
+        CHECK(bytes_of(path) == "\"parameter, name\",value\n\"a\"\"b,c\",1.0000000000000002\n");
+        CHECK(!write_as(*xpp::data_format_named("dat"), mixed, scratch("mixed.dat")));
+        mixed.fields[1].clear();
+        CHECK(!write_as(*xpp::data_format_named("csv"), mixed, path));
     }
 
     /* ---- CSV.gz: the CSV, gzipped */

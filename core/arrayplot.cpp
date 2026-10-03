@@ -3,9 +3,9 @@
 #include "arrayplot.h"
 #include "storage.h"
 #include "xpp_ui.h"
-#include "array_print.h"
+#include "image_format.h"
 #include "browse.h"
-#include "scrngif.h"
+#include "xpp_job.h"
 
 #include <array>
 #include <cctype>
@@ -150,7 +150,7 @@ void init_my_aplot(xpp::Session &s)
  ap->nstart=0;
  ap->nskip=8;
  ap->ncskip=1;
- ap->filename="output.ps";
+ ap->filename=xpp::format("output.{}", xpp::image_formats[xpp::IMAGE_FORMAT_PS].extension);
  ap->xtitle="index";
  ap->ytitle="time";
  ap->bottom="";
@@ -190,7 +190,7 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
    ap->bottom=values[3];
    ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
-   xpp::ok_or_show(xpp::array_print(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
+   xpp::ok_or_show(xpp::image_formats[xpp::IMAGE_FORMAT_PS].array(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
 		       ap->nacross,
 		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
 		       nrows,s.browser.view.maxcol,
@@ -265,12 +265,15 @@ values[8] = xpp::format("{:d}", ap->ncskip);
  }
    return 1;
 }
-void close_aplot_files(xpp::Session &s)
+void close_aplot_files(xpp::Session &s, bool complete)
 {
   if(s.array_plot.still==0){
     if(s.array_plot.movie){
-      xpp::end_ani_gif(s.array_plot.movie.file());
-      xpp::ok_or_show(xpp::commit_save(s.array_plot.movie));
+      if (!complete || s.array_plot.save_cancelled || xpp::job::cancelled()) xpp::abort_save(s.array_plot.movie);
+      else {
+        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(s.array_plot.movie);
+        xpp::ok_or_show(xpp::commit_save(s.array_plot.movie));
+      }
     }
   }
 }

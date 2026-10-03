@@ -77,7 +77,7 @@ Saves numbers to a file in the working directory (see [Using the interface](04-u
 
 ### (L)oad
 
-Loads a data file into the table for graphing: its columns fill T and the columns after it in order (more columns than the table has are left out). The format is the file's extension: `.csv`, `.csv.gz` and `.npz` as Save data writes them (a CSV's header row, when it has one, is skipped; an `.npz` array of two dimensions gives one column per column), anything else is read as XPP's `.dat`, as much of a similarly formatted data file as possible.
+Loads a data file into the table for graphing: its columns fill T and the columns after it in order (more columns than the table has are left out). The format is the file's extension: `.csv`, `.csv.gz` and `.npz` as Save data writes them (a CSV's header row, when it has one, is skipped; an `.npz` array of two dimensions gives one column per column), anything else is read as XPP's `.dat`. A malformed number or a row with a different number of fields refuses the whole table.
 
 ### (A)ddcol
 

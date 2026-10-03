@@ -138,6 +138,8 @@ every example, the goldens guard the output files.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
+| Curve fit and plot diagram import | whitespace data only | `.dat` and `.csv` through the Save data registry; CSV headers skipped | W137 ([#189](https://github.com/MuhammadMoustafa/xppautX/issues/189)) |
+| Array range movies | GIF stream written during the sweep | temporary file committed after a complete sweep; Stop preserves the old file | W137 |
 | Kinescope capacity | rotation and BVP movies silently drop frames when full ([findings #27](xppaut-findings.md#27-rotation-and-boundary-value-movies-silently-drop-frames-when-full)) | every capture returns a result; the command reports a full buffer once | W133 |
 | Results and notices | fit outcomes, statistics and toggle states use the error-message dialog | the existing status bar info route; successful results do not count as errors | W133 |
 | Integrators (Euler, RK4, Dormand-Prince, Gear, CVODE, Rosen, Stiff, Volterra, symplectic, discrete, ...) | a switch on a method number | the same methods, one `xpp::Solver` per method in a registry; results unchanged | W51 |
@@ -169,7 +171,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Errors | numerics call `exit()` ([findings #17](xppaut-findings.md)) | returned as errors; the program stays | W63a |
 | Settings | an X11 form | settings are data (`autosettings`); checked by AUTO's own rules | W92, W118 |
 | Orbit loading | trusts solution dimensions and existing storage ([finding 27](xppaut-findings.md#27-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity)) | shared bounded restart reader; grows the data table before copying an orbit | W155 |
-| Exports | a table | `Write pts` and All info as CSV with names; `.auto` never written | W26, W92 |
+| Exports | a table | `Write pts` and All info as CSV with names and LF line ends (including Windows, W137); `.auto` never written | W26, W92 |
 
 ## Batch, the protocol, --server
 

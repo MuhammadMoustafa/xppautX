@@ -245,7 +245,7 @@ typedef struct XppUi {
     /* kinescope: the captured frames live in the front end */
     void (*movie_play_back)(Session &s);  /* step through frames with keys/mouse */
     void (*movie_auto_play)(Session &s);  /* the kinescope's cycles, frame_ms apart */
-    void (*movie_save)(Session &s, std::string_view basename, int fmat); /* 1 ppm, 2 gif */
+    void (*movie_save)(Session &s, std::string_view basename, int fmat); /* image_format.h registry index */
     void (*movie_make_anigif)(Session &s);
 
     /* mouse interaction in the plot window. rubber_band returns 1 and the

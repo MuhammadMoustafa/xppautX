@@ -8,7 +8,7 @@
 #include "browse.h"
 #include "aniparse.h"
 #include "mykeydef.h"
-#include "scrngif.h"
+#include "image_format.h"
 #include "my_rhs.h"
 #include "form_ode.h"
 #include "menus.h"
@@ -99,7 +99,7 @@ void ani_go(xpp::Session &s)
     if (!available) return;
     set_ani_perm(s);
     if (s.animation.mpeg.aviflag == 1) {
-        gif = xpp::open_writer_asking("anim.gif",true);
+        gif = xpp::open_writer_asking(xpp::format("anim.{}",xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension),true);
         if(!gif)return;
     }
     while (!stop) {
@@ -115,13 +115,16 @@ void ani_go(xpp::Session &s)
                 if(gif)xpp::abort_save(gif);
                 break;
             }
-            if (ppm && !write_ppm(xpp::format("{}_{}.ppm", s.animation.mpeg.root, written++).c_str(), rgb, w, h)) {
-                if(gif)xpp::abort_save(gif);
-                break;
+            if (ppm) {
+                const xpp::ImageFormat &format=xpp::image_formats[xpp::IMAGE_FORMAT_PPM];
+                const xpp::Result<bool> saved=xpp::save_pixels(format,xpp::format("{}_{}.{}",s.animation.mpeg.root,written++,format.extension).c_str(),rgb,w,h);
+                if (!xpp::ok_or_show(saved) || !*saved) {
+                    if(gif)xpp::abort_save(gif);
+                    break;
+                }
             }
             if (gif) {
-                web_safe_colors(rgb);
-                gif_stuff_ppm(rgb.data(), w, h, gif.file(), frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+                xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(gif,rgb,w,h,frame);
             }
         }
         frame++;
@@ -136,7 +139,7 @@ void ani_go(xpp::Session &s)
     }
     s.animation.mpeg.flag = 0;
     if (gif) {
-        end_ani_gif(gif.file());
+        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(gif);
         xpp::ok_or_show(xpp::commit_save(gif));
     }
     send_ani_slider(s);

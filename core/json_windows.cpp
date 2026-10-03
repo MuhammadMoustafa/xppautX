@@ -12,7 +12,6 @@
 #include "browse.h"
 #include "colormap.h"
 #include "axes2.h"
-#include "scrngif.h"
 #include "arrayplot.h"
 #include "plot_data.h"
 #include "phase_data.h"
@@ -290,7 +289,9 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
     *w = get_int(ask_answer(), "w", 0);
     *h = get_int(ask_answer(), "h", 0);
     const char *v = js_find(ask_answer(), "rgb");
-    if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > 8192 || *h > 8192) return rgb;
+    // Bound a client-supplied picture's allocation to the existing canvas limit.
+    constexpr int max_picture_dimension = 8192;
+    if (!v || *v != '"' || *w <= 0 || *h <= 0 || *w > max_picture_dimension || *h > max_picture_dimension) return rgb;
     size_t n = static_cast<size_t>(*w) * static_cast<size_t>(*h) * 3;
     try {
         std::string bytes;
@@ -299,49 +300,13 @@ std::vector<unsigned char> ask_pixels(int win, int film, int *w, int *h)
         for (v++; *v && *v != '"' && bytes.size() < n; v++)
             if (!d.feed(*v)) break;
         d.finish();
-        rgb.assign(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(std::min(n, bytes.size())));
-        rgb.resize(n);
+        if (bytes.size() != n || *v != '"') return rgb;
+        rgb.assign(bytes.begin(), bytes.end());
     } catch (...) {
         xpp::out_of_memory("taking a picture");
     }
     return rgb;
 }
-
-int write_ppm(const char *file, std::span<const unsigned char> rgb, int w, int h)
-{
-    xpp::Writer out = xpp::open_writer_asking(file,true);
-    if (!out) return 0;
-    out.print("P6\n{} {}\n255\n", w, h);
-    fwrite(rgb.data(), 3, static_cast<size_t>(w) * h, out.file());
-    return xpp::ok_or_show(xpp::commit_save(out));
-}
-
-/* the GIF writer takes at most 256 colours; a canvas smooths its lines */
-void web_safe_colors(std::span<unsigned char> rgb)
-{
-    for (unsigned char &c : rgb) c = static_cast<unsigned char>(((c + 25) / 51) * 51);
-}
-
-namespace {
-
-/* a whole picture as one GIF frame (MAKE_ONE_GIF): the kinescope's still
-   export below and the array plot's aplot_gif used to write this by
-   hand, twice (W53, issue #101) */
-void write_gif_frame(FILE *out, std::vector<unsigned char> &rgb, int w, int h)
-{
-    web_safe_colors(rgb);
-    gif_stuff_ppm(rgb.data(), w, h, out, MAKE_ONE_GIF);
-}
-
-bool write_gif(const char *file, std::vector<unsigned char> &rgb, int w, int h)
-{
-    xpp::Writer out = xpp::open_writer_asking(file,true);
-    if (!out) return false;
-    write_gif_frame(out.file(), rgb, w, h);
-    return xpp::ok_or_show(xpp::commit_save(out));
-}
-
-} // namespace
 
 /* ---- kinescope: the client keeps the frames ------------------------------------ */
 
@@ -391,14 +356,15 @@ void j_movie_auto_play(xpp::Session &s) { play_film(s, "autoplay"); }
 
 void j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
 {
+    const xpp::ImageFormat &format = xpp::image_formats[fmat];
     int w, h;
     for (int i = 0; i < s.kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
         std::string file = xpp::format("{}_{}.{}", basename, i,
-                                        fmat == 1 ? "ppm" : xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension);
-        if (fmat == 1) { if(!write_ppm(file.c_str(), rgb, w, h))return; }
-        else if(!write_gif(file.c_str(), rgb, w, h))return;
+                                        format.extension);
+        const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
+        if (!xpp::ok_or_show(saved) || !*saved) return;
     }
 }
 
@@ -420,10 +386,9 @@ void j_movie_make_anigif(xpp::Session &s)
             xpp::abort_save(out);
             return;
         }
-        web_safe_colors(rgb);
-        gif_stuff_ppm(rgb.data(), w, h, out.file(), i == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+        xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(out,rgb,w,h,i);
     }
-    end_ani_gif(out.file());
+    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].finish_movie(out);
     xpp::ok_or_show(xpp::commit_save(out));
 }
 
@@ -559,11 +524,7 @@ bool aplot_gif(ArrayPlotState &a, const char *file, int still)
         else if(a.movie)xpp::abort_save(a.movie);
         return false;
     }
-    if (still == 1) write_gif_frame(one.file(), rgb, w, h);
-    else {
-        web_safe_colors(rgb);
-        gif_stuff_ppm(rgb.data(), w, h, a.movie.file(), a.range_count == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
-    }
+    xpp::image_formats[xpp::IMAGE_FORMAT_GIF].pixels(still == 1 ? one : a.movie,rgb,w,h,still == 1 ? xpp::IMAGE_STILL_FRAME : a.range_count);
     return !one || xpp::ok_or_show(xpp::commit_save(one));
 }
 

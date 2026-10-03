@@ -1,3 +1,4 @@
+#include <climits>
 #include "model.h"
 #include "session.h"
 #include "graf_par.h"
@@ -23,8 +24,6 @@
 #include <stdio.h>
 #include <math.h>
 #include "browse.h"
-#include "my_ps.h"
-#include "my_svg.h"
 #include "image_format.h"
 #include "load_eqn.h"
 #include <libgen.h>
@@ -737,18 +736,8 @@ void export_plot_picture(xpp::Session &s, int fmt)
 {
  const xpp::ImageFormat &f=xpp::image_formats[fmt];
  if(f.ask_params && !f.ask_params(s))return;
- std::string filename,title;
- if(fmt==xpp::IMAGE_FORMAT_PS){
-   filename=xpp::format("{:.250}.ps",s.model().this_file);
-   title="Print postscript";
- }else{
-   /* the model's name without its ".ode" */
-   filename=s.model().this_file;
-   filename.resize(filename.size()>=4?filename.size()-4:0);
-   filename+=xpp::format(".{}",f.extension);
-   title="Print svg";
- }
- if(!file_selector(title,filename,xpp::format("*.{}",f.extension)))return;
+ std::string filename=f.plot_filename(s);
+ if(!file_selector(f.plot_title,filename,xpp::format("*.{}",f.extension)))return;
  if(xpp::ok_or_show(f.begin(s,filename.c_str(),s.plot_export.color))&&s.plot_file.writer){
    f.restore(s);
    ping();
@@ -808,7 +797,7 @@ void draw_freeze_key(xpp::Session &s)
   int ix2;
   int dy=2*s.drawing.h_char;
   if(s.frozen_curves.key_flag==SCRNFMT)return;
-  if(s.plot_file.plt_fmt_flag==PSFMT)dy=-dy;
+  if (const xpp::ImageFormat *f=xpp::active_image_format(s)) dy*=f->key_direction;
   scale_to_screen(s,static_cast<float>(s.frozen_curves.key_x),static_cast<float>(s.frozen_curves.key_y),&ix,&iy);
   ix2=ix+4*s.drawing.h_char;
   y0=iy;
@@ -1042,13 +1031,24 @@ void add_bd_crv(xpp::Session &s, const float *x, const float *y, int len, int ty
 /* a diagram.dat (AUTO's Write pts): x ylo yhi type branch 2par per line;
    each run of points of one type and branch is a curve (two, ylo and yhi,
    for periodic orbits) */
-void read_bd(xpp::Session &s, xpp::TokenReader &fp)
+void read_bd(xpp::Session &s, const xpp::DataTable &table)
 {
-  int oldtype,type,oldbr,br,ncrv=0,len,f2;
+  int oldtype,type,oldbr,br,ncrv=0,len;
   std::vector<float> x(1),ylo(1),yhi(1);
   len=0;
-  if(!(fp.read(x[len])&&fp.read(ylo[len])&&fp.read(yhi[len])&&fp.read(oldtype)&&fp.read(oldbr)&&fp.read(f2)))
-    return;
+  if (table.rows() == 0) return;
+  std::size_t row=0;
+  auto next = [&](int at, int &point_type, int &branch) {
+    if (row == table.rows()) return false;
+    x[at]=table.columns[0][row];
+    ylo[at]=table.columns[1][row];
+    yhi[at]=table.columns[2][row];
+    point_type=static_cast<int>(table.columns[3][row]);
+    branch=static_cast<int>(table.columns[4][row]);
+    ++row;
+    return true;
+  };
+  next(len,oldtype,oldbr);
   len++;
   s.frozen_curves.bif_diagram.curves.clear();
   for(;;){
@@ -1057,7 +1057,7 @@ void read_bd(xpp::Session &s, xpp::TokenReader &fp)
       ylo.resize(len+1);
       yhi.resize(len+1);
     }
-    if(!(fp.read(x[len])&&fp.read(ylo[len])&&fp.read(yhi[len])&&fp.read(type)&&fp.read(br)&&fp.read(f2)))
+    if(!next(len,type,br))
       break;
     if(type==oldtype&&br==oldbr)
       len++;
@@ -1094,13 +1094,26 @@ void frz_bd(xpp::Session &s)
 {
   std::string filename="diagram.dat";
   ping();
-  if(!file_selector("Import Diagram",filename,"*.dat"))return;
-  xpp::TokenReader fp(filename.c_str());
-  if(!fp){
-    err_reading(filename,"cannot be opened");
+  if(!file_selector("Import Diagram",filename,"*"))return;
+  xpp::Result<xpp::DataTable> read=xpp::read_data_table(filename.c_str());
+  if (!xpp::ok_or_show(read)) return;
+  const xpp::DataTable &table=*read;
+  // AUTO's Write pts has six columns: x, low, high, type, branch, two-parameter flag.
+  constexpr std::size_t diagram_columns=6;
+  if (table.columns.size()!=diagram_columns) {
+    err_reading(filename,"a diagram needs six columns",1);
     return;
   }
-  read_bd(s,fp);
+  for (std::size_t row=0; row<table.rows(); ++row) {
+    for (std::size_t col=0; col<diagram_columns; ++col) {
+      const double value=table.columns[col][row];
+      if (!std::isfinite(value) || (col>=3 && (value!=std::trunc(value) || value<INT_MIN || value>INT_MAX))) {
+        err_reading(filename,xpp::format("invalid diagram value {}",value),table.line(row));
+        return;
+      }
+    }
+  }
+  read_bd(s,table);
 }
 
 } // namespace

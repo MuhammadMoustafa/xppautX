@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <vector>
 #include "xpp_error.h"
 #include "xpp_io.h"
 
@@ -60,6 +61,7 @@ void ps_text(Session &s, int x, int y, const char *str);
    graf_par.cpp's export_plot_picture (image_format.h's ask_params, W53,
    issue #101); 0 if the user cancelled */
 int ps_ask_params(Session &s);
+std::vector<std::string> ps_parameter_values(const Session &s);
 
 } // namespace xpp
 #endif

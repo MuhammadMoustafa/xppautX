@@ -371,15 +371,16 @@ void ps_text(xpp::Session &s, int x, int y, const char *str)
   s.plot_file.ps_lines=0;
 }
 
+std::vector<std::string> ps_parameter_values(const Session &s)
+{
+  return {xpp::format("{}",s.plot_export.color), xpp::format("{}",s.drawing.ps_port),
+          xpp::format("{}",s.plot_file.ps_font_size), s.plot_file.ps_font, xpp::number(s.plot_file.ps_lw)};
+}
+
 int ps_ask_params(xpp::Session &s)
 {
   static const char *const nn[]={"BW-0/Color-1","Land(0)/Port(1)","Axes fontsize","Font","Linewidth"};
-  std::array<std::string,5> values;
-  values[0]=xpp::format("{:d}",s.plot_export.color);
-  values[1]=xpp::format("{:d}",s.drawing.ps_port);
-  values[2]=xpp::format("{:d}",s.plot_file.ps_font_size);
-  values[3]=xpp::format("{:.24}",s.plot_file.ps_font);
-  values[4]=xpp::format("{:g}",s.plot_file.ps_lw);
+  std::vector<std::string> values=ps_parameter_values(s);
   static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_NUMBER};
   if(!do_string_box_of(5,1,"Postscript parameters",nn,values,kinds))return 0;
   s.plot_export.color=atoi(values[0].c_str());

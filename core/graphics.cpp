@@ -117,52 +117,41 @@ s.drawing.x_min=s.plot_windows.current->xlo;
  s.drawing.y_max=s.plot_windows.current->yhi;
 }
 
-namespace {
-/* the picture file being drawn into, as image_format.h's registry index
-   (W53, issue #101), or -1 while drawing to the screen (SCRNFMT) */
-int active_image_format(const xpp::Session &s)
-{
-  switch(s.plot_file.plt_fmt_flag){
-  case PSFMT: return xpp::IMAGE_FORMAT_PS;
-  case SVGFMT: return xpp::IMAGE_FORMAT_SVG;
-  default: return -1;
-  }
-}
-} // namespace
+
 
 void point(xpp::Session &s, int x, int y)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_point(s,x,y);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_point(s,x,y);
   else ui.draw_point(x,y);
 }
 
 void line(xpp::Session &s, int x1, int y1, int x2, int y2)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_line(s,x1,y1,x2,y2);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_line(s,x1,y1,x2,y2);
   else ui.draw_line(x1,y1,x2,y2);
 }
 /* draw a little filled circle */
 
 void bead(xpp::Session &s, int x1, int y1)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_bead(s,x1,y1);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_bead(s,x1,y1);
   else ui.draw_bead(x1,y1);
 }
 
 void frect(xpp::Session &s, int x1, int y1, int w, int h)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_frect(s,x1,y1,w,h);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_frect(s,x1,y1,w,h);
   else ui.draw_frect(x1,y1,w,h);
 }
 
 void put_text(xpp::Session &s, int x, int y, const char *str)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_text(s,x,y,str);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_text(s,x,y,str);
   else ui.draw_text(x,y,str);
 }
 
@@ -220,8 +209,8 @@ void init_svg(xpp::Session &s)
 
 void set_linestyle(xpp::Session &s, int ls)
 {
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_linetype(s,ls);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_linetype(s,ls);
   else ui.draw_linestyle(ls);
 }
 
@@ -783,8 +772,8 @@ void fancy_text_abs(xpp::Session &s, float x, float y, const char *old, int size
   int xp,yp;
   scale_to_screen(s,x,y,&xp,&yp);
   const std::string text=fill_in_text(s,old);
-  int f=active_image_format(s);
-  if(f>=0)xpp::image_formats[f].draw_special_text(s,xp,yp,text.c_str(),size);
+  const xpp::ImageFormat *f=xpp::active_image_format(s);
+  if(f)f->draw_special_text(s,xp,yp,text.c_str(),size);
   else ui.draw_special_text(xp,yp,text.c_str(),size);
     
 }
