@@ -18,10 +18,13 @@
 
 namespace xpp {
 
-/* named columns of equal length, single precision like the stored data */
+/* Named columns of equal length; readers retain the file's double values. */
 struct DataTable {
     std::vector<std::string> names; /* a column without one is col<i+1> */
-    std::vector<std::vector<float>> columns;
+    std::vector<std::vector<double>> columns;
+    /* Storage is float: its CSV values must still use float's shortest text.
+       Readers clear this marker because the file can contain doubles. */
+    bool stored_floats = true;
     /* CSV-only tables (AUTO): text and full-precision numeric fields share
        the registry's quoter, without rounding AUTO's doubles to floats. */
     std::vector<std::vector<std::string>> fields;

@@ -16,6 +16,7 @@ namespace xpp {
 struct Session; /* session.h */
 class Writer;
 struct PlotFileState;
+struct ArrayPicture;
 
 /* PostScript and SVG are vector pictures: begin opens the file (renamed
    into place at end, my_ps.cpp/my_svg.cpp's own xpp::Writer); ask_params
@@ -48,9 +49,9 @@ struct ImageFormat {
   void (*group)(Session &s, bool begin, bool direction_field) = nullptr;
   void (*y_label)(Session &s, int x, int y, const char *str) = nullptr;
   int key_direction = 1; /* PostScript's coordinates grow upwards */
-  void (*pixels)(Writer &w, std::span<unsigned char> rgb, int width, int height, int frame) = nullptr;
+  void (*pixels)(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame) = nullptr;
   void (*finish_movie)(Writer &w) = nullptr;
-  Result<> (*array)(const char *, const char *, const char *, const char *, int, int, int, int, int, int, int, int, float **, double, double, double, double, int) = nullptr;
+  Result<> (*array)(const ArrayPicture &) = nullptr;
   const char *plot_title = nullptr;
   std::string (*plot_filename)(const Session &s) = nullptr;
   const char *plot_key = nullptr;
@@ -71,7 +72,7 @@ constexpr int IMAGE_STILL_FRAME = -1; /* a still has no index in a movie */
 const ImageFormat *active_image_format(const Session &s);
 void image_color(Session &s, int color);
 void image_group(Session &s, bool begin, bool direction_field = false);
-Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<unsigned char> rgb, int width, int height);
+Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height);
 
 /* the format whose extension is `extension` (a Session's plot_export.format's
    own values, "ps"/"svg": xpp_util.cpp's dump_ps), or nullptr */

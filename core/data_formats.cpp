@@ -32,23 +32,11 @@ namespace {
 
 static_assert(std::endian::native == std::endian::little, "the .npy writer and reader assume little-endian");
 
-constexpr float nan_value = std::numeric_limits<float>::quiet_NaN();
+constexpr double nan_value = std::numeric_limits<double>::quiet_NaN();
 
 /* text written a chunk at a time: a table's text is built up to this size
    before it goes to the file */
 constexpr std::size_t chunk = 1 << 16;
-
-/* a field as a float; false when it is not a number (blanks around it
-   allowed, like strtof's leading ones) */
-bool data_number(const std::string &s, float &v)
-{
-    const char *b = s.c_str();
-    char *end = nullptr;
-    v = std::strtof(b, &end);
-    if (end == b) return false;
-    while (*end == ' ' || *end == '\t') end++;
-    return *end == 0;
-}
 
 /* ---- .dat ---- */
 
@@ -57,7 +45,7 @@ bool write_dat(const DataTable &t, Writer &w)
     std::string text;
     const std::size_t n = t.rows();
     for (std::size_t i = 0; i < n; i++) {
-        for (const std::vector<float> &c : t.columns) format_append(text, "{:.8g} ", static_cast<double>(c[i]));
+        for (const std::vector<double> &c : t.columns) format_append(text, "{:.8g} ", c[i]);
         text += '\n';
         if (text.size() >= chunk) {
             if (!w.write(text)) return false;
@@ -75,10 +63,10 @@ bool read_dat(const char *path, DataTable &t)
     while (const auto line=reader.next()) {
         ++line_number;
         Tokens tokens(*line);
-        std::vector<float> row;
+        std::vector<double> row;
         while (const auto token=tokens.next(" \t\r\n\v\f")) {
-            float value;
-            if (!data_number(std::string(*token),value)) {
+            double value;
+            if (!parse_number(*token,value)) {
                 t.error_line=line_number;
                 return false;
             }
@@ -127,7 +115,10 @@ std::string csv_text(const DataTable &t)
     for (std::size_t i = 0; i < n; i++) {
         for (std::size_t j = 0; j < width; j++) {
             if (j) o += ',';
-            if (t.fields.empty()) format_append(o, "{}", t.columns[j][i]);
+            if (t.fields.empty()) {
+                if (t.stored_floats) format_append(o, "{}", static_cast<float>(t.columns[j][i]));
+                else format_append(o, "{}", t.columns[j][i]);
+            }
             else append_csv_field(o, t.fields[j][i]);
         }
         o += '\n';
@@ -183,11 +174,11 @@ bool parse_csv(std::string_view text, DataTable &t)
             return false;
         }
         std::vector<std::string> f = std::move(*fields);
-        std::vector<float> v(f.size());
+        std::vector<double> v(f.size());
         bool numbers = true;
         for (std::size_t j = 0; j < f.size(); j++)
             if (f[j].find_first_not_of(" \t") == std::string::npos) v[j] = nan_value; /* empty: no value */
-            else if (!data_number(f[j], v[j])) numbers = false;
+            else if (!parse_number(trim_blanks(f[j]), v[j])) numbers = false;
         if (first) {
             width = f.size();
             t.columns.assign(width, {});
@@ -262,11 +253,11 @@ std::string npz_of(const DataTable &t)
         }
     } else if (!t.columns.empty()) {
         /* one array per curve, the curves in the order they first appear */
-        std::vector<float> ids;
-        for (float id : t.columns[0])
+        std::vector<double> ids;
+        for (double id : t.columns[0])
             if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
         const std::size_t m = t.columns.size() - 1;
-        for (float id : ids) {
+        for (double id : ids) {
             std::vector<double> v;
             std::size_t k = 0;
             for (std::size_t i = 0; i < n; i++)
@@ -358,12 +349,12 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
     if (shape.size() > 2) return false;
     const std::size_t rows = shape.empty() ? 1 : shape[0], cols = shape.size() == 2 ? shape[1] : 1;
     if (cols && rows > data.size() / size / cols) return false;
-    const auto value = [&](std::size_t k) -> float {
+    const auto value = [&](std::size_t k) -> double {
         const char *p = data.data() + k * size;
         if (descr == "f8") {
             double d;
             std::memcpy(&d, p, 8);
-            return static_cast<float>(d);
+            return d;
         }
         if (descr == "f4") {
             float f;
@@ -373,16 +364,16 @@ bool read_npy(std::string_view name, std::string_view b, DataTable &t)
         if (descr == "i8") {
             std::int64_t i;
             std::memcpy(&i, p, 8);
-            return static_cast<float>(i);
+            return static_cast<double>(i);
         }
         std::int32_t i;
         std::memcpy(&i, p, 4);
-        return static_cast<float>(i);
+        return static_cast<double>(i);
     };
     std::string base(name);
     if (base.size() > 4 && base.ends_with(".npy")) base.resize(base.size() - 4);
     for (std::size_t j = 0; j < cols; j++) {
-        std::vector<float> c(rows);
+        std::vector<double> c(rows);
         for (std::size_t i = 0; i < rows; i++) c[i] = value(fortran ? j * rows + i : i * cols + j);
         t.names.push_back(shape.size() == 2 ? xpp::format("{}_{}", base, j) : base);
         t.columns.push_back(std::move(c));
@@ -411,8 +402,8 @@ bool parse_npz(std::string_view bytes, DataTable &t)
     }
     /* arrays of different lengths: the shorter ones end in no value */
     std::size_t n = 0;
-    for (const std::vector<float> &c : t.columns) n = std::max(n, c.size());
-    for (std::vector<float> &c : t.columns) c.resize(n, nan_value);
+    for (const std::vector<double> &c : t.columns) n = std::max(n, c.size());
+    for (std::vector<double> &c : t.columns) c.resize(n, nan_value);
     return true;
 }
 
@@ -439,7 +430,10 @@ template <auto F, class Src>
 bool read_clean(Src src, DataTable &t)
 {
     t = DataTable();
-    if (F(src, t)) return true;
+    if (F(src, t)) {
+        t.stored_floats = false;
+        return true;
+    }
     const int error_line=t.error_line;
     t = DataTable();
     t.error_line=error_line;

@@ -71,8 +71,11 @@ std::string bytes_of(const std::string &path)
 bool same_values(const xpp::DataTable &a, const xpp::DataTable &b)
 {
     if (a.columns.size() != b.columns.size()) return false;
-    for (std::size_t j = 0; j < a.columns.size(); j++)
-        if (a.columns[j] != b.columns[j]) return false;
+    for (std::size_t j = 0; j < a.columns.size(); j++) {
+        if (a.columns[j].size() != b.columns[j].size()) return false;
+        for (std::size_t i=0; i<a.columns[j].size(); ++i)
+            if (static_cast<float>(a.columns[j][i]) != static_cast<float>(b.columns[j][i])) return false;
+    }
     return true;
 }
 
@@ -159,7 +162,7 @@ int main(void)
         xpp::DataTable r;
         CHECK(f.read(p.c_str(), r));
         CHECK(r.columns.size() == 3 && r.rows() == 4 && r.names.empty());
-        CHECK(r.rows() == 4 && r.columns[1][2] == 123456.79f && r.columns[0][1] == 0.1f);
+        CHECK(r.rows() == 4 && r.columns[1][2] == 123456.79 && r.columns[0][1] == 0.1);
         CHECK_STR(xpp::data_column_name(r, 2).c_str(), "col3");
     }
 
@@ -218,6 +221,21 @@ int main(void)
         CHECK(w.write("1 2\n3\n") && w.commit());
         xpp::DataTable r;
         CHECK(!xpp::data_format_named("dat")->read(p.c_str(),r) && r.columns.empty() && r.error_line == 2);
+    }
+
+    /* Text readers preserve doubles; storage writers retain their exact bytes. */
+    for (const char *id : {"dat", "csv"}) {
+        const auto &format=*xpp::data_format_named(id);
+        const std::string p=scratch((std::string("precise")+format.extension).c_str());
+        xpp::Writer w=xpp::Writer::binary(p);
+        CHECK(w.write("1.0000000001\n") && w.commit());
+        xpp::DataTable r;
+        CHECK(format.read(p.c_str(),r));
+        CHECK(r.columns.size()==1 && r.rows()==1 && r.columns[0][0]==1.0000000001);
+        CHECK(!r.stored_floats);
+        const std::string csv=scratch("precise-output.csv");
+        CHECK(write_as(*xpp::data_format_named("csv"),r,csv));
+        CHECK(bytes_of(csv)=="col1\n1.0000000001\n");
     }
 
     /* AUTO's mixed CSV keeps doubles exact and quotes headers and cells once. */

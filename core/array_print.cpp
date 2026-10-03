@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include "array_print.h"
+#include "arrayplot.h"
 #include "xpp_io.h"
 #include "xpp_math.h"
 
@@ -244,17 +245,20 @@ Result<> ps_close(Picture &p)
 
 } // namespace
 
-Result<> array_print(const char *filename, const char *xtitle, const char *ytitle, const char *bottom, int nacross, int ndown, int col0, int row0, int nskip, int ncskip, int maxrow, int maxcol, float **data, double zmin, double zmax, double tlo, double thi, int type)
+Result<> array_print(const ArrayPicture &picture)
 {
-  float xx=static_cast<float>(ndown);
-  float yy=static_cast<float>(nacross/ncskip);
+  float xx=static_cast<float>(picture.ndown);
+  float yy=static_cast<float>(picture.nacross/picture.ncskip);
   Picture p;
   Result<> opened;
-  p.plot_writer=xpp::open_writer_asking(filename,false,&opened);
+  p.plot_writer=xpp::open_writer_asking(picture.filename,false,&opened);
   if(!opened||!p.plot_writer)return opened;
   ps_begin(p,0.0,0.0,xx,yy,10.,7.);
-  ps_replot(p,data,col0,row0,nskip,ncskip,maxrow,maxcol,nacross,ndown,zmin,zmax,type);
-  ps_boxit(p,tlo,thi,0.0,yy,zmin,zmax,xtitle,ytitle,bottom,type);
+  ps_replot(p,picture.data,picture.col0,picture.row0,picture.nskip,picture.ncskip,
+            picture.maxrow,picture.maxcol,picture.nacross,picture.ndown,
+            picture.zmin,picture.zmax,picture.type);
+  ps_boxit(p,picture.tlo,picture.thi,0.0,yy,picture.zmin,picture.zmax,
+           picture.xtitle,picture.ytitle,picture.bottom,picture.type);
   return ps_close(p);
 }
 

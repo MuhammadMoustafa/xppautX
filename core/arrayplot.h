@@ -20,6 +20,14 @@ struct APLOT {
 };
 
 namespace xpp {
+/* One array picture passed to its registered encoder. Data remains in storage. */
+struct ArrayPicture {
+  const char *filename, *xtitle, *ytitle, *bottom;
+  int nacross, ndown, col0, row0, nskip, ncskip, maxrow, maxcol;
+  float **data;
+  double zmin, zmax, tlo, thi;
+  int type;
+};
 struct Session; /* session.h */
 }
 

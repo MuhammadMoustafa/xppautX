@@ -190,11 +190,14 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
    ap->bottom=values[3];
    ap->type=atoi(values[4].c_str());
    if(ap->type<-1||ap->type>2)ap->type=-1;
-   xpp::ok_or_show(xpp::image_formats[xpp::IMAGE_FORMAT_PS].array(ap->filename.c_str(),ap->xtitle.c_str(),ap->ytitle.c_str(),ap->bottom.c_str(),
-		       ap->nacross,
-		       ap->ndown,col0,row0,ap->nskip,ap->ncskip,
-		       nrows,s.browser.view.maxcol,
-		      s.browser.view.data,ap->zmin,ap->zmax,tlo,thi,ap->type));
+   const xpp::ArrayPicture picture{
+     .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
+     .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),
+     .nacross=ap->nacross, .ndown=ap->ndown, .col0=col0, .row0=row0,
+     .nskip=ap->nskip, .ncskip=ap->ncskip, .maxrow=nrows,
+     .maxcol=s.browser.view.maxcol, .data=s.browser.view.data,
+     .zmin=ap->zmin, .zmax=ap->zmax, .tlo=tlo, .thi=thi, .type=ap->type};
+   xpp::ok_or_show(xpp::image_formats[xpp::IMAGE_FORMAT_PS].array(picture));
  }
 }
 

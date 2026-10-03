@@ -71,7 +71,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Non-ASCII text in the page’s log is shown as written, including accented letters and four-byte UTF-8 characters (W121a, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
 
-- Picture exports share the complete picture registry, and a stopped array range movie preserves the previous file. AUTO's CSV exports share the data registry's quoting and use LF line ends on Windows; curve fit and plot Import diagram read CSV and DAT through the same registry as Save data. Malformed or ragged text tables are refused as a whole (W137, [#189](https://github.com/MuhammadMoustafa/xppautX/issues/189)).
+- Picture exports share the complete picture registry, and a stopped array range movie preserves the previous file. AUTO's CSV exports share the data registry's quoting and use LF line ends on Windows; curve fit and plot Import diagram read full double-precision CSV and DAT values through the same registry as Save data, while storage exports retain their previous bytes. Malformed or ragged text tables are refused as a whole (W137, [#189](https://github.com/MuhammadMoustafa/xppautX/issues/189)).
 
 - Startup `--runnow` and model `@ runnow=1` use protocol jobs, announcing computing and accepting Abort. Animator grabs that integrate are computing recording steps; speed and pause during Go are retained and replayed at their checkpoints. W136 ([#188](https://github.com/MuhammadMoustafa/xppautX/issues/188)).
 

@@ -45,17 +45,18 @@ void svg_label(Session &s, int x, int y, const char *str)
   svg_y_axis_label(s.plot_file, x, y, str);
 }
 
-void gif_pixels(Writer &w, std::span<unsigned char> rgb, int width, int height, int frame)
+void gif_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int height, int frame)
 {
   // A six-level RGB cube fits GIF's 256-colour palette, as before W137.
   constexpr int color_step = 51;
-  for (unsigned char &c : rgb) c = static_cast<unsigned char>(((c + color_step / 2) / color_step) * color_step);
-  gif_stuff_ppm(rgb.data(), width, height, w.file(), frame == IMAGE_STILL_FRAME ? MAKE_ONE_GIF : frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
+  std::vector<unsigned char> palette_rgb(rgb.begin(), rgb.end());
+  for (unsigned char &c : palette_rgb) c = static_cast<unsigned char>(((c + color_step / 2) / color_step) * color_step);
+  gif_stuff_ppm(palette_rgb.data(), width, height, w.file(), frame == IMAGE_STILL_FRAME ? MAKE_ONE_GIF : frame == 0 ? FIRST_ANI_GIF : NEXT_ANI_GIF);
 }
 
 void gif_finish(Writer &w) { end_ani_gif(w.file()); }
 
-void ppm_pixels(Writer &w, std::span<unsigned char> rgb, int width, int height, int)
+void ppm_pixels(Writer &w, std::span<const unsigned char> rgb, int width, int height, int)
 {
   w.print("P6\n{} {}\n255\n", width, height);
   w.write(std::string_view(reinterpret_cast<const char *>(rgb.data()), rgb.size()));
@@ -95,7 +96,7 @@ void image_group(Session &s, bool begin, bool direction_field)
   if (const ImageFormat *f = active_image_format(s); f && f->group) f->group(s, begin, direction_field);
 }
 
-Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<unsigned char> rgb, int width, int height)
+Result<bool> save_pixels(const ImageFormat &format, const char *filename, std::span<const unsigned char> rgb, int width, int height)
 {
   Result<> opened;
   Writer w = open_writer_asking(filename, true, &opened);
