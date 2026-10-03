@@ -482,18 +482,18 @@ when medium fell short); each the newest listed model of its family
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
 <model> -o <report>` and registered by the reviewer. A Codex agent follows
 every rule of this section as written, with four differences of its
-sandbox: it writes only in its worktree, so it starts no background runs
-and does not touch the register; it cannot commit (the worktree's git
+sandbox: it writes only in its worktree and the system's temp folder, so
+it starts no background runs and does not touch the register; it cannot commit (the worktree's git
 data is in the main checkout's .git, whose lock file the Windows sandbox
 refuses even with `--add-dir`, W153), so it leaves its work uncommitted
 and its report ends with the commit message, which the reviewer commits
 with the Codex trailer before the review; it runs its gates from Git Bash in the
 worktree (the UCRT build `mingw32-make -j4 xppautx BUILDDIR=build/ucrt
 WERROR=1`, its unit tests, servercheck/autocheck against that exe,
-web2's checks and `web2check --only`, the last with
-`XPP_CHECK_NO_BROWSER_SANDBOX=1` and TEMP and TMP pointed at a folder in
-the worktree, `build/tmp`: the sandbox writes only the worktree, and
-Chrome's own sandbox cannot start inside it, W168); and the WSL gates
+web2's checks and `web2check --only`, run as any agent runs them: the
+reviewer starts Codex with `XPP_CHECK_NO_BROWSER_SANDBOX=1` in its
+environment, which its commands inherit, since Chrome's own sandbox
+cannot start inside Codex's, W168); and the WSL gates
 (`tools/wslrun.sh`) are the reviewer's, run on its branch at review, with
 the card's web2check sections again (the task-board skill's
 `codex_gates.sh`, before the review: a failure goes back to the same
