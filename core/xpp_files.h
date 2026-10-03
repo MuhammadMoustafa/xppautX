@@ -54,7 +54,7 @@ std::string output_name(std::string_view model_file, std::string_view ext,
 std::string frame_name(std::string_view first, std::string_view ext, int frame);
 /* Case-insensitive suffix on the basename; an extension alone is not a filename. */
 bool has_extension(std::string_view path, std::string_view ext);
-bool name_ok(std::string_view name);
+bool name_ok(std::string_view name, bool allow_hidden = false);
 /* Validate the basename and refuse links, folders and devices at a save destination. */
 int output_status(std::string_view path);
 const char *status_text(int status); /* in words, for an error */
@@ -127,6 +127,9 @@ Error open_error(std::string where, std::string_view file, std::string_view why 
    an input script): fopen's modes, NULL on failure. A file opened and
    closed in one scope uses a handle of xpp_io.h instead. */
 FILE *open_stream(std::string_view path, const char *mode);
+/* Read a plain file inside folder; refuse traversal and linked descendants.
+   The caller owns the returned stream. Replay's saved reads remain isolated. */
+FILE *open_read_within(std::string_view path, std::string_view folder);
 /* While set, observer(path) is called on every file open_stream (so
    xpp_io.h's readers too) has just opened for reading only (a mode "r" or
    "rb"): what a recording embeds (W59a, json_record.cpp). The core

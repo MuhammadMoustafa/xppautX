@@ -43,13 +43,13 @@ struct SavedModel {
 
 /* the path of the file an include line of file `including` names: relative
    to the including file's folder (the model's, or an included file's for a
-   nested include), an absolute name as it is. The one rule of .ode's
+   nested include); an absolute include is refused (empty path). The one rule of .ode's
    #include and .odex's include; the --include flag is typed in the working
    folder and stays as typed. */
 std::string include_path(const std::string &including, const std::string &name);
 
-/* m's file name, whole, into bytes: false (bytes empty) when
-   there is none */
+/* m's file name, whole, into bytes: false (bytes empty) when absent,
+   outside the model's folder, linked, or over the archive member byte limit. */
 bool read_model_file(Model &m, const std::string &name, std::string &bytes);
 
 /* m's file name opened for reading, as open_read opens a file,

@@ -82,14 +82,12 @@ namespace xpp {
 
 
 namespace {
-/* table index's values y to length doubles, keeping what it holds (what
-   is added is zero); every caller then fills [0,length) itself, so a
-   regrow after a shrink leaving stale rather than zeroed values (unlike
-   xpp_realloc, std::vector::resize does not re-zero capacity it already
-   had) never shows. y stays a raw double*: see TABULAR (tabular.h). */
+/* Every caller fills all values. Release old capacity so replacing and
+   shrinking tables cannot accumulate storage beyond the session budget.
+   y stays a raw double*: see TABULAR (tabular.h). */
 void resize_values(TABULAR &t, int length)
 {
-  t.y_storage.resize(static_cast<size_t>(length));
+  std::vector<double>(static_cast<size_t>(length)).swap(t.y_storage);
   t.y=t.y_storage.data();
 }
 
@@ -97,6 +95,16 @@ void resize_values(TABULAR &t, int length)
 xpp::Place table_place(const xpp::Session &s, int index)
 {
   return xpp::model_place(s.model(),s.tables[index].name);
+}
+
+/* Replacements may reuse their table's budget; all other tables share it. */
+bool table_count_ok(const Session &s, int index, int count)
+{
+  if (count < 2 || count > table_points_limit) return false;
+  size_t total = static_cast<size_t>(count);
+  for (int i = 0; i < MAX_TAB; ++i)
+    if (i != index) total += s.tables[i].y_storage.size();
+  return total <= static_cast<size_t>(table_points_limit);
 }
 }
 
@@ -295,6 +303,8 @@ xpp::Result<> create_fun_table(xpp::Session &s, int npts, double xlo, double xhi
   if(npts<2){
     return xpp::fail("table",xpp::format("{}: {} points is too few (at least 2)",s.tables[index].name,npts),table_place(s,index));
   }
+  if (!table_count_ok(s,index,npts))
+    return xpp::fail("table",xpp::format("{} points exceeds the session table budget of {} points",npts,table_points_limit),table_place(s,index));
   resize_values(s.tables[index],length);
   s.tables[index].flag=2;
   auto ev=eval_fun_table(s,index,npts,xlo,xhi,std::string(formula),s.tables[index].y);
@@ -334,16 +344,18 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
     return xpp::fail_reading("table",xpp::format("cannot be read (not found in {})",xpp::files::cur_dir()),filename2);
   }
   int at=0; /* the file's lines read */
-  auto next_line=[&reader,&at]() -> std::optional<std::string> {
+  std::string source;
+  auto next_line=[&reader,&at,&source]() -> std::optional<std::string> {
     auto line=reader.next();
     if(!line) return std::nullopt;
     at++;
-    return std::string(*line);
+    source = *line;
+    return source;
   };
   /* a problem at the line read last; a file that ends too soon at its
      last line */
   auto problem=[&](std::string what){
-    return xpp::fail("table",std::move(what),xpp::Place{filename2,at>0?at:1});
+    return xpp::fail("table",std::move(what),xpp::Place{filename2,at>0?at:1,0,source});
   };
   auto too_short=[&](){
     return problem(xpp::format("The table file ends after {} lines: it is too short",at));
@@ -366,11 +378,14 @@ xpp::Result<> load_table(xpp::Session &s, std::string_view filename, int index, 
         s.tables[index].interp=2;
         bob++;  /* skip past initial "i" to length */
       };
-    length=atoi(bob);
+    if (!xpp::parse_int(bob,length))
+      return problem(xpp::format("Invalid table point count {}",bob));
   }
   if(length<2){
     return problem(xpp::format("A table has at least 2 values, not {}",length));
   }
+  if (!table_count_ok(s,index,length))
+    return problem(xpp::format("{} points exceeds the session table budget of {} points",length,table_points_limit));
   auto line1=next_line();
   if(!line1){
     return too_short();

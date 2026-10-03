@@ -313,18 +313,23 @@ inline UniqueFile open_read_binary(std::string_view path) noexcept
 
 /* path's whole contents, byte for byte, into out; false (out empty) when
    it cannot be opened or read. std::bad_alloc is the caller's to catch. */
-inline bool read_bytes(std::string_view path, std::string &out, std::size_t limit = std::numeric_limits<std::size_t>::max())
+inline bool read_bytes(FILE *f, std::string &out, std::size_t limit = std::numeric_limits<std::size_t>::max())
 {
     out.clear();
-    UniqueFile f = open_read_binary(path);
     if (!f) return false;
     std::array<char, 65536> buf;
     std::size_t n;
-    while ((n = std::fread(buf.data(), 1, buf.size(), f.get())) > 0) {
+    while ((n = std::fread(buf.data(), 1, buf.size(), f)) > 0) {
         if (n > limit - out.size()) { out.clear(); return false; }
         out.append(buf.data(), n);
     }
-    return !std::ferror(f.get());
+    return !std::ferror(f);
+}
+
+inline bool read_bytes(std::string_view path, std::string &out, std::size_t limit = std::numeric_limits<std::size_t>::max())
+{
+    UniqueFile f = open_read_binary(path);
+    return read_bytes(f.get(), out, limit);
 }
 
 #ifdef XPP_IO_HAVE_STD_FORMAT

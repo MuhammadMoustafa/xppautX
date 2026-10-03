@@ -305,8 +305,12 @@ private:
       for (size_t i = 0; i < ops.size(); ++i) {
         const Operator &op = ops[i];
         if (comparison(op.text)) {
-          for (const Operator &other : ops) {
-            if (arithmetic(other.text)) report(op, "comparison-precedence", "warning", "XPP comparisons bind before arithmetic; conversion parenthesizes that meaning.");
+          size_t begin = i, end = i + 1;
+          while (begin && ops[begin - 1].text != "&" && ops[begin - 1].text != "|") --begin;
+          while (end < ops.size() && ops[end].text != "&" && ops[end].text != "|") ++end;
+          for (size_t j = begin; j < end; ++j) {
+            if (arithmetic(ops[j].text) || (j == begin && ops[j].text == "neg"))
+              report(op, "comparison-precedence", "warning", "XPP comparisons bind before arithmetic or unary minus; conversion parenthesizes that meaning.");
           }
           if (i && comparison(ops[i - 1].text)) report(op, "chained-comparison", "warning", "XPP compares the preceding comparison's result; conversion keeps that grouping.");
         }
@@ -314,8 +318,6 @@ private:
           report(op, "power-associativity", "info", "XPP powers group left; conversion parenthesizes that meaning.");
         if (op.text == "^" && i && ops[i - 1].text == "neg")
           report(op, "unary-minus-power", "info", "Power binds before unary minus, as in ordinary mathematics.");
-        if (comparison(op.text) && !ops.empty() && ops.front().text == "neg")
-          report(op, "comparison-precedence", "warning", "XPP comparisons bind before unary minus; conversion parenthesizes that meaning.");
         if ((op.text == "&" || op.text == "|") && i + 1 < ops.size()) {
           const std::string &next = ops[i + 1].text;
           if ((op.text == "&" && arithmetic(next)) ||
@@ -377,14 +379,22 @@ private:
         if (c == '-' && operand) op.text = "neg";
         if (c == '/') {
           size_t divisor = i + 1;
-          while (divisor < source.size() && (source[divisor] == ' ' || source[divisor] == '\t' || source[divisor] == '(')) ++divisor;
+          size_t parentheses = 0;
+          while (divisor < source.size() && (source[divisor] == ' ' || source[divisor] == '\t' || source[divisor] == '(')) {
+            if (source[divisor] == '(') ++parentheses;
+            ++divisor;
+          }
           char *last = nullptr;
           const double value = std::strtod(raw.c_str() + divisor, &last);
           size_t next = static_cast<size_t>(last - raw.c_str());
           while (next < source.size() && (source[next] == ' ' || source[next] == '\t')) ++next;
-          const bool parenthesized = source.substr(i + 1, divisor - i - 1).find('(') != std::string_view::npos;
+          while (parentheses && next < source.size() && source[next] == ')') {
+            --parentheses;
+            ++next;
+            while (next < source.size() && (source[next] == ' ' || source[next] == '\t')) ++next;
+          }
           const bool power = next < source.size() && (source[next] == '^' || source.substr(next, 2) == "**");
-          const bool literal = parenthesized ? next < source.size() && source[next] == ')' : !power;
+          const bool literal = parentheses == 0 && !power;
           if (last != raw.c_str() + divisor && value == 0 && literal)
             report(op, "division-by-zero", "warning", "XPP replaces a zero divisor with 2.23e-15; conversion keeps guarded division.");
         }
@@ -1316,7 +1326,7 @@ private:
       for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
         const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
         if (map && meth) continue;
-        items += (items.empty() ? "" : ", ") + key + "=" + (meth ? method_name(key, value) : option_value(key, value));
+        items += (items.empty() ? "" : ", ") + key + "=" + (meth ? method_name(value) : option_value(key, value));
       }
       if (!ignored.empty()) {
         std::string dropped;
@@ -1346,17 +1356,12 @@ private:
     return out;
   }
 
-  /* the method XPP runs for @ key=value: its first letter's (the load
-     applied the same), noted when the whole value names another one */
-  std::string method_name(const std::string &key, const std::string &value)
+  /* Use the same checked names and legacy keys as the option reader. */
+  std::string method_name(const std::string &value)
   {
-    const auto letter = xpp::pick_method(m_, value.substr(0, 1), xpp::Place{m_.this_file});
-    if (!letter) refuse(letter.error().what);
-    const char *name = xpp::solver_info(*letter).name;
-    const auto whole = xpp::pick_method(m_, value, xpp::Place{m_.this_file});
-    if (whole && *whole != *letter)
-      option_note(xpp::format("@ {}={} in the .ode: XPP reads a method by its first letter, {}", key, value, name), "method-first-letter");
-    return name;
+    const auto picked = xpp::pick_method(m_, value, place_);
+    if (!picked) refuse(picked.error().what);
+    return xpp::solver_info(*picked).name;
   }
 
   std::string option_value(const std::string &key, const std::string &value)
@@ -1535,6 +1540,7 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 {
   const xpp::Model &m = s.model();
   Fingerprint f;
+  f.values.push_back(s.numerics.method);
   for (int c : {m.neq, m.node, m.nmarkov, m.fix_var, m.nupar, m.nfun - (guard >= 0 ? 1 : 0), m.nflags, m.naeqn, m.nsvar, m.nkernel, m.nwiener})
     f.values.push_back(c);
   for (int i = 0; i < m.node + m.fix_var + m.neq - m.node - m.nmarkov; i++) f.programs.push_back(normalized(m.programs[i], guard));
@@ -1578,7 +1584,9 @@ int check_file(const std::string &file)
     if (!first) json += ',';
     first = false;
     warning = warning || d.severity == "warning";
-    json += xpp::format("{{\"line\":{},\"col\":{},\"source\":", d.place.line, d.place.col);
+    json += "{\"file\":";
+    json_append_string(json, d.place.file);
+    json += xpp::format(",\"line\":{},\"col\":{},\"source\":", d.place.line, d.place.col);
     json_append_string(json, d.place.source);
     json += ",\"id\":";
     json_append_string(json, d.id);

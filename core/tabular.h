@@ -13,6 +13,9 @@ namespace xpp {
 
 struct Session; /* session.h */
 
+/* Bound both allocation and formula evaluation from hostile table counts to 8 MB per session. */
+inline constexpr int table_points_limit = 1000000;
+
 /* a model's table (xpp::Model's tables, model.h): file or function values y on [xlo,xhi] step dx (x too
    when xyvals); y stays a raw double* because simplenet.cpp's networks
    keep pointers into it (weights, indices, delays); y_storage owns that

@@ -92,7 +92,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | `.set` | written and read by File > Write set / Read set ([menus.h:29](../reference/xppaut-8.0/menus.h#L29)), read with `atoi`/`atof`, names ignored ([finding 26](xppaut-findings.md#26-set-files-ignore-the-models-names)) | never written; File > Import XPPAUT set and `--setfile` check every named value and require XPPAUT's equations trailer, all or nothing; valid imports are saved beside the `.set` as `<name>.snapx`, now open; the format stays as the session member `model.set` | W125, W147, W153 |
 | `.par`, `.ic` | written and read | kept, XPPAUT's format, read all or nothing | W125, W147 |
 | The options file (`option file`, `default.opt`) | never applied ([findings #4](xppaut-findings.md)) | an `option` line is refused at load; write `@` lines in the model or an included file ([manual 14](manual/14-options-file.md)) | W139 |
-| `#include` of a missing file | skipped ([findings #5](xppaut-findings.md)) | an error | W139 |
+| `#include` of a missing file | skipped ([findings #5](xppaut-findings.md)) | an error; model reads refuse absolute include names, traversal and linked descendants outside or within the model folder | W139, W175 ([#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)) |
 | Data output | `output.dat`, the Data browser's Write | `.dat` unchanged, CSV with a header row, CSV.gz and NPZ from one registry; the Save data dialog lists them | W52, W26 |
 | Saving what the plot shows | not verified | curves, frozen and earlier ones as one table (`curve,x,y[,z]`) | W52 |
 | Who writes files | the X client and the core | the core only; the page just downloads | W66 |
@@ -102,7 +102,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | `.ode` written back | Edit > Save as writes one | never: Copy as set line shows `set name {...}` for the user to paste | W54, W67 |
 | Compiled-function libraries (`export`, `.so`/DLL) | supported ([extra.c:110](../reference/xppaut-8.0/extra.c#L110)) | removed; a model using them fails to load | W55 |
 | Where files go | AUTO's to `$HOME` ([findings #8](xppaut-findings.md)) | per-process private scratch folders, stale ones cleaned at start only when their owner is proved exited (Windows too, W121b); outputs go beside the model (not verified for every file) | W19 |
-| Other formats (`.ani`, tables, `.dat` for tables) | read | read; tables and `.ani` are saved with a session | W103 |
+| Other formats (`.ani`, tables, `.dat` for tables) | read; table counts have no upper bound ([finding 33](xppaut-findings.md#33-model-table-counts-have-no-upper-bound)) | read; tables and `.ani` are saved with a session; file and formula tables share a 1,000,000-point allocation/evaluation budget | W103, W175 ([#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)) |
 | Text encoding | not verified | UTF-8 in and out | W35b |
 
 ## Sessions and recordings

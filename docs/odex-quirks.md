@@ -32,7 +32,6 @@ findings add no comments; converted programs and files stay unchanged.
 | `declaration-value` | parameter/constant value cut at its numeric prefix (new id) | warning |
 | `set-value` | internal-set value cut at its numeric prefix (new id) | warning |
 | `discrete-map` | discrete-method derivative interpreted as a map (new id) | info |
-| `method-first-letter` | the legacy import reads a method by its first letter (new id) | warning |
 | `load-error` | reader/conversion validation error | error |
 
 Known limits: the foreign reader must load before the converter can
@@ -242,7 +241,14 @@ classic XPPAUT cut names at about 9-10 characters.
 
 ## Checked, not quirks
 
-`@ meth` now accepts checked solver names and the legacy XPPAUT keys, plus the example spellings `disc` and `qualrk4`. It rejects an unknown name or a method unsuitable for the model at the option line. XPPAUT's arbitrary first-character interpretation is no longer used: for example `symplectic` means Symplectic, while the old `s` key still means Stiff. See [finding 31](xppaut-findings.md#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
+`@ meth` now accepts checked solver names and the legacy XPPAUT keys, plus the example spellings `disc`, `qualrk4` and `modeuler`. It rejects an unknown name or a method unsuitable for the model at the option line. XPPAUT's arbitrary first-character interpretation is no longer used: for example `symplectic` means Symplectic, while the old `s` key still means Stiff. See [finding 31](xppaut-findings.md#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184); .ode loading and conversion corrected in W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
+
+Conversion uses that same picker and verifies the selected solver. The obsolete
+`method-first-letter` diagnostic is removed. Comparison findings are confined
+to the same logical operand: `1+2|3<4` is clean. A parenthesized zero followed
+by a power is not reported as a literal zero divisor: `1/(0)^0` is clean
+because `0^0` is 1. Genuine precedence and literal zero-divisor warnings remain
+(W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
 
 
 Candidates that were measured on xppautX and turned out to behave as a

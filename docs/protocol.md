@@ -1616,6 +1616,15 @@ against hard links, changes to a regular file's contents, or replacement
 of an ancestor folder by someone with filesystem write access. The server
 listens on 127.0.0.1 only.
 
+Opening or inspecting a model also confines its file reads to the main
+model's folder. Relative plain subfolders are allowed; absolute include
+names, traversal, links, junctions and non-regular files are refused. Path
+components use the same name validation, with hidden files permitted.
+Model files share the archive limits (512 MiB, 4096 files), and file and
+formula tables share a 1,000,000-point session budget before allocation or
+evaluation. The ancestor-mutation and hard-link limitations above also
+apply here (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
+
 ### The animation as data
 
 A client that asked with `{"cmd":"data","events":["ani"]}` gets each frame

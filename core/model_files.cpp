@@ -17,7 +17,8 @@ std::string include_path(const std::string &including, const std::string &name)
 {
     const size_t slash = including.find_last_of("/\\");
     const bool absolute = !name.empty() && (name[0] == '/' || name[0] == '\\' || (name.size() > 1 && name[1] == ':'));
-    return (slash == std::string::npos || absolute) ? name : including.substr(0, slash + 1) + name;
+    if (absolute) return {};
+    return slash == std::string::npos ? name : including.substr(0, slash + 1) + name;
 }
 
 namespace {
@@ -40,7 +41,13 @@ bool read_model_file(Model &m, const std::string &name, std::string &bytes)
         bytes = m.files[static_cast<size_t>(i)].bytes;
         return true;
     }
-    if (!read_bytes(name.c_str(), bytes)) return false;
+    if (name.empty()) return false;
+    if (i < 0 && m.files.size() >= zip::archive_entries_limit) return false;
+    size_t available = zip::archive_bytes_limit;
+    for (const ModelFile &file : m.files)
+        if (file.name != name) available -= file.bytes.size();
+    UniqueFile fp(files::open_read_within(name, files::split_path(m.this_file).first));
+    if (!read_bytes(fp.get(), bytes, available)) return false;
     if (i < 0) m.files.push_back({name, bytes});
     return true;
 }
@@ -49,7 +56,7 @@ UniqueFile open_model_file(Model &m, const std::string &name)
 {
     std::string bytes;
     if (!read_model_file(m, name, bytes)) return UniqueFile();
-    if (m.saved_in.empty()) return open_read(name.c_str());
+    if (m.saved_in.empty()) return UniqueFile(files::open_read_within(name, files::split_path(m.this_file).first));
     if (!m.saved_copies) m.saved_copies = std::make_shared<TempDir>();
     if (m.saved_copies->path().empty()) return UniqueFile();
     const std::string copy = m.saved_copies->file(std::to_string(file_index(m, name)));

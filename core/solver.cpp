@@ -307,6 +307,7 @@ Result<method::Id> pick_method(const Model &model, std::string_view text, Place 
   if (name == "disc") chosen = &registry[method::DISCRETE];
   if (name == "qualrk4") chosen = &registry[method::RKQS];
   if (name == "modified euler") chosen = &registry[method::MOD_EULER];
+  if (name == "modeuler") chosen = &registry[method::MOD_EULER];
   if (name == "backward euler") chosen = &registry[method::BACKEUL];
   if (!chosen) return fail("method", xpp::format("Unknown method `{}`", text), std::move(place));
   return check_method(model, chosen->id, std::move(place));

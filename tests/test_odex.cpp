@@ -634,16 +634,15 @@ int main(void)
     CHECK(text.find("fun ode_divisor(value) = if value then value else 2.23e-15") != std::string::npos);
   }
 
-  /* a .ode's method is its first letter, as XPPAUT reads it; the .odex
-     names it, noting a value that named another method */
+  /* W175: the .ode and conversion share checked solver names and keys. */
   {
     CHECK(load_text("x'=-x\ny'=x\n@ meth=modeuler, total=1\n@ meth=symplectic\ndone\n", "ode") == 1);
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
     CHECK(text.find("@ meth=Mod. Euler, total=1") != std::string::npos);
-    CHECK(text.find("@ meth=Stiff") != std::string::npos);
-    CHECK(text.find("# @ meth=symplectic in the .ode: XPP reads a method by its first letter, Stiff") != std::string::npos);
+    CHECK(text.find("@ meth=Symplectic") != std::string::npos);
+    CHECK(text.find("first letter") == std::string::npos);
   }
 
   /* W167: keep ignored, spaced @ words visible in the conversion note. */

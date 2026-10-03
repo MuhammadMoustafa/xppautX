@@ -61,6 +61,8 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [29](#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma) | Numerics | the numbers depend on the CPU and on whether the compiler targets FMA | [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) |
 | [30](#30-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity) | AUTO files | orbit dimensions and row counts can overrun fixed buffers and storage | [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) |
 | [31](#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) | Method selection | model options bypass suitability checks and ignore unknown methods | [W132](https://github.com/MuhammadMoustafa/xppautX/issues/184) |
+| [33](#33-model-table-counts-have-no-upper-bound) | Model tables | tiny models request billions of values and evaluations | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
+| [34](#34-model-includes-read-outside-the-model-folder) | Model files | include names can read arbitrary reachable files | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
 | [32](#32-kinescope-cancel-still-saves-frames) | Kinescope | Cancel on the base filename still writes frames | [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182) |
 
 ## 1. Model options
@@ -535,3 +537,36 @@ files depend on them; `.odex` (docs/odex.md) is the format without them.
 - **xppautX:** Save uses a file ask and checks its result before requesting pixels or opening a writer. A canceled name produces no output, verified by servercheck.
 - **Filename limit:** the related array filename form uses 25-byte values ([arrayplot.c:363-381](../reference/xppaut-8.0/arrayplot.c#L363), [pop_list.h:19](../reference/xppaut-8.0/pop_list.h#L19)); `do_string_box` copies whole strings into those slots ([pop_list.c:253-263](../reference/xppaut-8.0/pop_list.c#L253)), risking overflow rather than reliably cutting input. Our `{:.24}` initialization was a refactoring artifact that retained 24 characters, not an upstream formatting expression. W130 removes filename form fields and that cut; the general upstream limit is finding [3](#3-names).
 - **Card:** [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182).
+
+## 33. Model table counts have no upper bound
+
+**Evidence:** a model with `x'=0`, `table f % 1000000000 0 1 t`, and
+`done` requests 8 GB of doubles and a billion formula evaluations.
+XPPAUT checks only `npts<2` before allocation
+([tabular.c:357-366](../reference/xppaut-8.0/tabular.c#L357),
+[master:357-366](../reference/xppaut-master/tabular.c#L357)). File tables
+likewise check only `length<2` before allocation
+([tabular.c:442-457](../reference/xppaut-8.0/tabular.c#L442),
+[master:442-457](../reference/xppaut-master/tabular.c#L442)).
+
+**xppautX:** file and formula tables share a one-million-point session
+budget, checked before allocation and evaluation. Errors identify the model
+table line or the file table's count line. W175,
+[#227](https://github.com/MuhammadMoustafa/xppautX/issues/227).
+
+## 34. Model includes read outside the model folder
+
+**Evidence:** `#include ../private.inc` or an absolute path goes straight
+to `fopen(newfile,"r")`, without containment or link checks
+([form_ode.c:1413-1414](../reference/xppaut-8.0/form_ode.c#L1413),
+[master:1413-1414](../reference/xppaut-master/form_ode.c#L1413)). A received
+model can therefore cause reads of files outside its folder. xppautX's
+former `--check` could also expose an invalid included line in JSON `source`.
+
+**xppautX:** the model file owner confines disk reads to the main model's
+folder, rejects absolute include names and traversal, and refuses linked
+descendants and non-regular opened files. A received model alone cannot
+redirect reads outside its folder. A local process that can mutate the folder
+concurrently can still race an ancestor-directory check; these checks do not
+provide a sandbox against concurrent filesystem mutation. W175,
+[#227](https://github.com/MuhammadMoustafa/xppautX/issues/227).

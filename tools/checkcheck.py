@@ -2,6 +2,7 @@
 """W75: each quirk's source line and expected --check diagnostic, no writes."""
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -62,7 +63,8 @@ def main():
             assert set(report) == {'file', 'diagnostics'}, report
             assert before == {p.name: p.read_bytes() for p in root.iterdir() if p.is_file()}, 'check wrote a file'
             for d in report['diagnostics']:
-                assert set(d) == {'line', 'col', 'source', 'id', 'severity', 'message'}, d
+                assert set(d) == {'file', 'line', 'col', 'source', 'id', 'severity', 'message'}, d
+                assert d['file'], d
                 assert d['message'], d
             count += 1
             return result.returncode, report['diagnostics']
@@ -93,7 +95,6 @@ def main():
                 'if-trailing-operator': 'The trailing operator applies to the whole',
                 'option': 'XPP ignores an option with spaces around its =',
                 'option-value': 'XPP reads the number at its front,',
-                'method-first-letter': 'XPP reads a method by its first letter, Stiff',
                 'init-value': 'XPP reads the number at its front,',
                 'initcond-formula': 'XPP starts x at 2',
                 'declaration-value': 'XPP reads the number at its front,',
@@ -109,6 +110,8 @@ def main():
             'aux z=(2^3)^2', 'aux z=2*(3<4)', 'aux z=(3-1)<2',
             'aux z=(3<2)&(2<1)', 'aux z=1+(1&1)', 'aux z=1*2&3',
             'aux z=1|0&0', 'aux z=1/(0+2)', 'aux z=1/0^0',
+            'aux z=1/(0)^0', 'aux z=1/((0))**0',
+            'aux z=1+2|3<4', 'aux z=-1|3<4',
             'aux z=1e-3^2', 'aux z=-2+3^2', 'aux z=1|2*3',
             '@ total=0,dt=0.1', '@ logfile=check.log',
         ]
@@ -119,10 +122,82 @@ def main():
         assert code == 0 and any(d['id'] == 'discrete-map' for d in diagnostics), diagnostics
         # A whole-name Symplectic method is suitable only with an even state count.
         code, diagnostics = run("x'=-x\ny'=x\n@ meth=symplectic\ndone\n")
-        method = [d for d in diagnostics if d['id'] == 'method-first-letter']
-        assert code == 1 and len(method) == 1 and method[0]['line'] == 3, diagnostics
-        assert method[0]['source'] == '@ meth=symplectic' and method[0]['severity'] == 'warning', method
-        assert 'XPP reads a method by its first letter, Stiff' in method[0]['message'], method
+        assert code == 0 and diagnostics == [], diagnostics
+        for method, selected in [('symplectic', 'Symplectic'), ('s', 'Stiff'), ('rk4', 'Runge-Kutta')]:
+            file.write_text("x'=y\ny'=-x\ninit x=1,y=0\n@ meth=" + method + '\ndone\n', encoding='utf-8')
+            converted = subprocess.run([binary, '--convert', '--auto', str(file)], cwd=root,
+                                       capture_output=True, text=True, timeout=CHECK_TIMEOUT)
+            assert converted.returncode == 0, converted.stderr + converted.stdout
+            assert '@ meth=' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')
+            file.with_suffix('.odex').unlink()
+            count += 1
+        # Includes retain the diagnostic's own file, line and source in both languages.
+        bad = root / 'bad.inc'
+        bad.write_text('aux z=unknown\n', encoding='utf-8')
+        for extension, include in [('.ode', '#include bad.inc'), ('.odex', 'include "bad.inc"')]:
+            code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
+            assert code == 2, diagnostics
+            error = diagnostics[-1]
+            assert Path(error['file']) == bad and error['line'] == 1 and error['source'] == 'aux z=unknown', error
+        nested = root / 'nested'
+        nested.mkdir()
+        (nested / 'good.inc').write_text('aux z=0\n#done\n', encoding='utf-8')
+        for extension, include in [('.ode', '#include nested/good.inc'), ('.odex', 'include "nested/good.inc"')]:
+            code, diagnostics = run("x'=0\n" + include + ('\ndone\n' if extension == '.ode' else '\n'), extension)
+            assert code == 0 and diagnostics == [], diagnostics
+        # A received file cannot read its neighbour, absolute includes, or a linked subtree.
+        received = root / 'received'
+        received.mkdir()
+        private = root / 'private.inc'
+        private.write_text('aux private_secret=unknown\n', encoding='utf-8')
+        def refused_include(name, extension):
+            nonlocal count
+            model = received / ('main' + extension)
+            include = '#include ' + name if extension == '.ode' else 'include ' + json.dumps(name)
+            model.write_text("x'=0\n" + include + '\ndone\n', encoding='utf-8')
+            result = subprocess.run([binary, '--check', str(model)], cwd=received,
+                                    capture_output=True, text=True, timeout=CHECK_TIMEOUT)
+            report = json.loads(result.stdout)
+            assert result.returncode == 2 and report['diagnostics'][-1]['id'] == 'load-error', report
+            assert 'private_secret' not in result.stdout, report
+            assert Path(report['diagnostics'][-1]['file']) == model, report
+            assert report['diagnostics'][-1]['line'] == 2, report
+            count += 1
+        for extension in ['.ode', '.odex']:
+            for name in ['../private.inc', str(private), '..\\private.inc', '.. /private.inc', 'linked/../private.inc']:
+                refused_include(name, extension)
+        linked = received / 'linked'
+        if os.name == 'nt':
+            junction = subprocess.run(['cmd', '/c', 'mklink', '/J', str(linked), str(root)], capture_output=True, text=True)
+            assert junction.returncode == 0, junction.stdout + junction.stderr
+        else:
+            linked.symlink_to(root, target_is_directory=True)
+        try:
+            for extension in ['.ode', '.odex']:
+                refused_include('linked/private.inc', extension)
+        finally:
+            if os.name == 'nt':
+                linked.rmdir()
+            else:
+                linked.unlink()
+        # Counts are checked before allocation or formula evaluation, including aggregate tables.
+        for extension in ['.ode', '.odex']:
+            # Fail safely just above the budget before exercising the billion-point attack.
+            for points in [1000001, 1000000000]:
+                first = f'table f % {points} 0 1 t' if extension == '.ode' else f'table f t, n={points}, lo=0, hi=1'
+                code, diagnostics = run("x'=0\n" + first + '\n' + ('done\n' if extension == '.ode' else ''), extension)
+                assert code == 2 and 'budget' in diagnostics[-1]['message'], diagnostics
+                assert diagnostics[-1]['line'] == 2, diagnostics
+            tables = 'table f % 600000 0 1 t\ntable g % 600000 0 1 t\ndone\n' if extension == '.ode' else 'table f t, n=600000, lo=0, hi=1\ntable g t, n=600000, lo=0, hi=1\n'
+            code, diagnostics = run("x'=0\n" + tables, extension)
+            assert code == 2 and 'budget' in diagnostics[-1]['message'], diagnostics
+            assert diagnostics[-1]['line'] == 3, diagnostics
+        values = root / 'values.dat'
+        for header in ['1000000000', '999999999999999999999999']:
+            values.write_text(header + '\n0\n1\n', encoding='utf-8')
+            code, diagnostics = run("x'=0\ntable f values.dat\ndone\n")
+            assert code == 2 and (root / diagnostics[-1]['file']).resolve() == values, diagnostics
+            assert diagnostics[-1]['line'] == 1 and diagnostics[-1]['source'] == header, diagnostics
         code, diagnostics = run("x'=0\n", '.odex')
         assert code == 0 and diagnostics == [], diagnostics
         for extension, text in [('.ode', "x'=unknown\ndone\n"), ('.odex', "x'=unknown\n")]:
@@ -131,6 +206,7 @@ def main():
             assert diagnostics[-1]['line'] == 1 and diagnostics[-1]['source'] == "x'=unknown", diagnostics
         # The checked option reader now rejects these before conversion (W125).
         for line in ['@ total=2*3', '@ total=(4)', 'aux z=2*-3',
+                     '@ meth=symplectic', '@ meth=stiffjunk',
                      'aux z=1&&1', 'aux z=1||1', 'aux z=!1',
                      'aux z=(1!=2)', 'aux z=if 1>0 then 10 else 20']:
             code, diagnostics = run("x'=0\n" + line + '\ndone\n')

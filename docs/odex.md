@@ -33,10 +33,11 @@ reader and reports only errors. Inspection does not open `@ logfile`.
 Stdout is one UTF-8 JSON object followed by a newline:
 
 ```json
-{"file":"model.ode","diagnostics":[{"line":2,"col":10,"source":"aux z=2*3<4","id":"comparison-precedence","severity":"warning","message":"XPP comparisons bind before arithmetic; conversion parenthesizes that meaning."}]}
+{"file":"model.ode","diagnostics":[{"file":"model.ode","line":2,"col":10,"source":"aux z=2*3<4","id":"comparison-precedence","severity":"warning","message":"XPP comparisons bind before arithmetic or unary minus; conversion parenthesizes that meaning."}]}
 ```
 
-`file` is the input path as supplied. Each diagnostic has `line` and
+The top-level `file` is the input path as supplied. Each diagnostic has its
+own `file` (including an included file's path), `line` and
 `col` (1-based; 0 when unknown), `source` (the line as written), stable
 `id`, `severity` (`warning`, `info`, or `error`), and `message`.
 A load error is a diagnostic with id `load-error`, even for an unreadable
@@ -44,6 +45,17 @@ file (line/col 0, empty source). Findings made before a conversion error
 remain in the array. Exit status is 0 with no warnings or errors (information
 alone also returns 0), 1 with warnings, 2 with an error. An empty array
 means clean. Usage errors return 2 and print usage on stderr.
+
+Model file reads stay inside the main model's folder: absolute include names,
+`..` traversal, links, junctions and non-regular files are refused. Nested
+plain subfolders remain usable. Model files share the session archive's
+512 MiB and 4096-file limits. Formula and file tables together have a budget of
+1,000,000 points (8 MB of values) per session, checked before allocation or
+evaluation; replacing a table reuses its share. These restrictions also apply
+when opening and converting models (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
+Valid formulas may still demand substantial CPU time. A local writer can
+race an ancestor-directory check or supply hard links; use operating-system
+isolation when that is part of the threat model.
 
 The converter owns the findings, including the notes already written as
 `.odex` comments. Opening a `.ode` shows them once, with their places,

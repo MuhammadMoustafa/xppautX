@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <filesystem>
 #include <map>
 #include <mutex>
 #include <new>
@@ -297,9 +298,9 @@ int refused_busy(std::string_view name)
 
 namespace xpp::files {
 
-bool name_ok(std::string_view name)
+bool name_ok(std::string_view name, bool allow_hidden)
 {
-    if (name.empty() || name[0] == '.' || name[0] == ' ') return false;
+    if (name.empty() || (!allow_hidden && name[0] == '.') || name[0] == ' ') return false;
     const size_t n = name.size();
     if (n > NAME_MAX_BYTES || name.find("..") != std::string_view::npos) return false;
     constexpr std::string_view reserved = "/\\:<>\"|?*";
@@ -525,6 +526,29 @@ bool write_path_ok(std::string_view path, bool opening)
     if (allowed && name_ok(plain) && (kind == XPP_FILES_OK || kind == XPP_FILES_NOT_FOUND)) return true;
     errno = EACCES;
     return false;
+}
+
+FILE *open_read_within(std::string_view path, std::string_view folder)
+{
+    const std::filesystem::path base = std::filesystem::path(absolute(folder.empty() ? "." : folder)).lexically_normal();
+    const std::filesystem::path target = std::filesystem::path(absolute(path));
+    const std::filesystem::path relative = target.lexically_relative(base);
+    if (relative.empty() || relative.is_absolute()) { errno = EACCES; return nullptr; }
+    std::filesystem::path checked = base;
+    for (const auto &part : relative) {
+        if (part == "..") { errno = EACCES; return nullptr; }
+        if (part == ".") continue;
+        if (!name_ok(part.string(), true)) { errno = EACCES; return nullptr; }
+        checked /= part;
+        if (is_link(checked.string().c_str())) { errno = EACCES; return nullptr; }
+    }
+    if (served_read(path)) return open_stream(path, "rb");
+    xpp::UniqueFile fp;
+    unsigned long long size;
+    const int status = open_plain(checked.string().c_str(), fp, size);
+    if (status != XPP_FILES_OK) { errno = status == XPP_FILES_NOT_FOUND ? ENOENT : EACCES; return nullptr; }
+    if (read_observer) read_observer(std::string(path));
+    return fp.release();
 }
 
 FILE *open_stream(std::string_view path, const char *mode)

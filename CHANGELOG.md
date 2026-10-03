@@ -85,6 +85,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Confine received model reads to their folder and bound table counts before allocation; preserve the solver during conversion and included files in JSON diagnostics; remove false zero-divisor and comparison warnings (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
+
 - Windows file downloads and exclusive temporary-file opens refuse links, junctions and non-regular files on the opened handle, closing the pathname-check race (W174, [#226](https://github.com/MuhammadMoustafa/xppautX/issues/226)).
 
 - Long wildcard patterns in file dialogs no longer exhaust the stack. Refused workspace file operations preserve the requested name and error location (W121b review, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
