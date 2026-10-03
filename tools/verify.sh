@@ -160,6 +160,14 @@ else
   echo "ODEX CHECK FAILED"
   exit 1
 fi
+# W75: quirk findings and the --check JSON/no-write contract
+if python3 tools/checkcheck.py > build/checkcheck.log 2>&1; then
+  tail -1 build/checkcheck.log
+else
+  tail -20 build/checkcheck.log
+  echo "CHECK CHECK FAILED"
+  exit 1
+fi
 # every whole model the manual shows still loads, and every command-line
 # option it names is real (W81)
 if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then

@@ -17,7 +17,7 @@
 
 namespace xpp {
 
-enum CommandId { SILENT, CONVERT, NEWSEED, SETFILE, RUNNOW, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT };
+enum CommandId { SILENT, CONVERT, CHECK, NEWSEED, SETFILE, RUNNOW, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT };
 
 namespace {
 
@@ -65,6 +65,7 @@ struct CommandOption {
 constexpr CommandOption my_cmd[] = {
   {"--silent", SILENT, false},
   {"--convert", CONVERT, false},
+  {"--check", CHECK, false},
   {"--newseed", NEWSEED, false},
   {"--setfile", SETFILE, true},
   {"--runnow", RUNNOW, false},
@@ -369,6 +370,8 @@ int parse_it(xpp::Session &s, std::string_view com)
       break;
     case SILENT:
       batch_options.enabled=1;
+      break;
+    case CHECK:
       break;
     case CONVERT:
       ConvertStyle=1;

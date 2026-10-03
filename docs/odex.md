@@ -20,9 +20,41 @@ checks that its `.odex` compiles to the `.ode`'s programs and values.
 The integrators, AUTO and front end then use the saved `.odex`.
 
 This document specifies the language implemented by the `.odex` parser
-and `--convert`. W75's proposed `--check` for foreign `.ode` quirks is
-still pending. docs/odex-quirks.md inventories every `.ode` quirk
+and `--convert`. `--check` reports foreign `.ode` quirks and load errors
+without writing files (W75, [#123](https://github.com/MuhammadMoustafa/xppautX/issues/123)). docs/odex-quirks.md inventories every `.ode` quirk
 `.odex` removes.
+
+## Checking a .ode
+
+Run `xppautX --check model.ode` to convert and validate in memory, with
+no window, integration, or written `.odex`. Reserved names take the
+converter's suggested replacements. `--check model.odex` uses the `.odex`
+reader and reports only errors. Inspection does not open `@ logfile`.
+Stdout is one UTF-8 JSON object followed by a newline:
+
+```json
+{"file":"model.ode","diagnostics":[{"line":2,"col":10,"source":"aux z=2*3<4","id":"comparison-precedence","severity":"warning","message":"XPP comparisons bind before arithmetic; conversion parenthesizes that meaning."}]}
+```
+
+`file` is the input path as supplied. Each diagnostic has `line` and
+`col` (1-based; 0 when unknown), `source` (the line as written), stable
+`id`, `severity` (`warning`, `info`, or `error`), and `message`.
+A load error is a diagnostic with id `load-error`, even for an unreadable
+file (line/col 0, empty source). Findings made before a conversion error
+remain in the array. Exit status is 0 with no warnings or errors (information
+alone also returns 0), 1 with warnings, 2 with an error. An empty array
+means clean. Usage errors return 2 and print usage on stderr.
+
+The converter owns the findings, including the notes already written as
+`.odex` comments. Opening a `.ode` shows them once, with their places,
+beside the converted/opened-existing message in the log panel (the console
+for `--silent`). A clean input adds no diagnostic messages. Explicit
+parentheses remove precedence warnings; information explains preserved
+power grouping, unary-minus precedence and trailing `if` operators.
+The inventory's diagnostic ids and known limits are in
+[odex-quirks.md](odex-quirks.md#diagnostic-ids-w75).
+`python3 tools/checkcheck.py --bin ./xppautX.exe` tests each quirk and the
+JSON/no-write contract; `verify.sh` runs it too.
 
 ## Design decisions (from issue #121)
 

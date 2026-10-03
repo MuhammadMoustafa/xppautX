@@ -85,6 +85,7 @@ value stops the load with the file, line and value, and nothing is applied.
 |---|---|---|---|
 | `.ode` | the model; read with its quirks | converted on open to a saved `.odex`, quirks explicit and numbers preserved; that file becomes the model | W73, W154 (#206) |
 | `.odex` | none | a cleaner model language, same Model; `xppautX --convert` writes it from an `.ode` | W73, W74, W79, W80 |
+| `--check` | none | in-memory validation, JSON quirk findings and load errors; opening `.ode` shows the same findings once | W75 ([#123](https://github.com/MuhammadMoustafa/xppautX/issues/123)) |
 | `.snapx` | none | the session: a zip of ordinary files incl. the saved model and AUTO settings, diagram, views and orbits | W57, W103, W155 |
 | `.recx` | none | a recording: one text file, steps and notes | W59 |
 | `.auto` (AUTO diagram) | written by File > Save diagram | Import diagram reads into the open model (to 6 digits); never written | W92, W155 |

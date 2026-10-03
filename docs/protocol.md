@@ -1,5 +1,12 @@
 # xppautX protocol
 
+`xppautX --check model.ode` (or `.odex`) is a separate one-shot command,
+not a server event stream: it prints the one JSON report documented in
+[Checking a .ode](odex.md#checking-a-ode) (W75, #123). In normal model
+opening, conversion findings use the existing log route (stderr, relayed
+to the page's `log` event), with their place, severity and id in the text. No event fields
+are added.
+
 `xppautX --server file.ode [xppaut options]` loads the model the way `xppaut`
 does and then talks line-delimited JSON: one object per line, UTF-8, on
 stdin (commands, `"cmd"`) and stdout (events, `"ev"`). stderr carries the

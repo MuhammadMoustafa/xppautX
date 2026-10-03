@@ -105,6 +105,7 @@ static std::string usage_tail()
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
+    "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"
@@ -224,7 +225,7 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, convert_auto = 0, i, k;
+    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, check = 0, convert_auto = 0, i, k;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
        association): reattach to a real console before any output, for
@@ -247,6 +248,7 @@ int main(int argc, char **argv)
         else if (strcmp(argv[i], "--server") == 0) mode = MODE_SERVER;
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--convert") == 0) convert = 1;
+        else if (strcmp(argv[i], "--check") == 0) check = 1;
         else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
         else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = atoi(argv[++i]);
         else if (xpp::log_parse_arg(argv[i])) { /* --verbose / --debug: xpp_log.h */ }
@@ -263,6 +265,12 @@ int main(int argc, char **argv)
     }
     argc = k;
     argv[argc] = NULL;
+    if (check && !convert && argc == 2 && argv[1][0] != '-')
+        return xpp::odex::check_file(argv[1]);
+    if (check) {
+        xpp::log(XPP_LOG_ERROR, "usage: xppautX --check model.ode (or model.odex)\n");
+        return 2;
+    }
     if (const xpp::Result<> r = xpp::check_command_line(argc, argv); !r) {
         xpp::log(XPP_LOG_ERROR, "{}\n", r.error().text());
         return 2;

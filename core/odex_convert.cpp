@@ -225,8 +225,8 @@ Expr op_expr(Expr::Kind kind, std::string text, std::vector<Expr> args)
 
 class Converter {
 public:
-  Converter(xpp::Session &s, bool auto_answer, const Ask &ask)
-      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), auto_(auto_answer), ask_(ask)
+  Converter(xpp::Session &s, bool auto_answer, const Ask &ask, std::vector<Diagnostic> &diagnostics)
+      : m_(s.model()), s_(s), spell_(m_.source), sym_(s_.parser), auto_(auto_answer), ask_(ask), diagnostics_(diagnostics)
   {
   }
 
@@ -267,8 +267,140 @@ public:
   std::string guard_name() const { return uses_guard_ ? guard_name_ : std::string(); }
 
 private:
+  /* Inspect operators at each parenthesis depth: explicit grouping removes
+     ambiguity. Tokens come from the source, semantics from the loaded .ode. */
+  void expression_findings(const Statement &s)
+  {
+    if (s.kind == Statement::Kind::Par || s.kind == Statement::Kind::Const ||
+        s.kind == Statement::Kind::InitNumbers || s.kind == Statement::Kind::History ||
+        s.kind == Statement::Kind::Options || s.kind == Statement::Kind::Comment ||
+        s.kind == Statement::Kind::OptionFile || s.kind == Statement::Kind::Only ||
+        s.kind == Statement::Kind::Network || s.kind == Statement::Kind::Vector ||
+        s.kind == Statement::Kind::Group || s.kind == Statement::Kind::Wiener ||
+        s.kind == Statement::Kind::Set ||
+        (s.kind == Statement::Kind::Table && s.table_kind != Statement::TableKind::Formula)) return;
+    if (!scanned_.insert({place_.file, place_.line}).second) return;
+    const std::string raw = place_.source;
+    const size_t end = ode_comment_start(raw);
+    const std::string_view source(raw.data(), end == std::string::npos ? raw.size() : end);
+    size_t start = source.find('=');
+    start = start == std::string::npos ? 0 : start + 1;
+    if (s.kind == Statement::Kind::Boundary || s.kind == Statement::Kind::Event) start = 0;
+    struct Operator { std::string text; size_t col; };
+    std::vector<std::vector<Operator>> scopes(1);
+    std::set<std::string> reported;
+    const auto report = [&](const Operator &op, const char *id, const char *severity, const char *message) {
+      if (!reported.insert(id).second) return;
+      Place at = place_;
+      at.col = static_cast<int>(op.col + 1);
+      diagnostics_.push_back({std::move(at), id, severity, message});
+    };
+    const auto comparison = [](const std::string &op) {
+      return op == "<" || op == ">" || op == "<=" || op == ">=" || op == "==" || op == "!=";
+    };
+    const auto arithmetic = [](const std::string &op) {
+      return op == "+" || op == "-" || op == "*" || op == "/";
+    };
+    const auto inspect = [&](const std::vector<Operator> &ops) {
+      for (size_t i = 0; i < ops.size(); ++i) {
+        const Operator &op = ops[i];
+        if (comparison(op.text)) {
+          for (const Operator &other : ops) {
+            if (arithmetic(other.text)) report(op, "comparison-precedence", "warning", "XPP comparisons bind before arithmetic; conversion parenthesizes that meaning.");
+          }
+          if (i && comparison(ops[i - 1].text)) report(op, "chained-comparison", "warning", "XPP compares the preceding comparison's result; conversion keeps that grouping.");
+        }
+        if (op.text == "^" && i && ops[i - 1].text == "^")
+          report(op, "power-associativity", "info", "XPP powers group left; conversion parenthesizes that meaning.");
+        if (op.text == "^" && i && ops[i - 1].text == "neg")
+          report(op, "unary-minus-power", "info", "Power binds before unary minus, as in ordinary mathematics.");
+        if (comparison(op.text) && !ops.empty() && ops.front().text == "neg")
+          report(op, "comparison-precedence", "warning", "XPP comparisons bind before unary minus; conversion parenthesizes that meaning.");
+        if ((op.text == "&" || op.text == "|") && i + 1 < ops.size()) {
+          const std::string &next = ops[i + 1].text;
+          if ((op.text == "&" && arithmetic(next)) ||
+              (op.text == "|" && (next == "+" || next == "-")))
+            report(op, "logical-precedence", "warning", "XPP logical operators share arithmetic precedence; conversion parenthesizes that meaning.");
+        }
+        if (op.text == "&" && i && (ops[i - 1].text == "+" || ops[i - 1].text == "-"))
+          report(op, "logical-precedence", "warning", "XPP logical operators share arithmetic precedence; conversion parenthesizes that meaning.");
+      }
+    };
+    bool operand = true;
+    bool else_branch = false;
+    size_t else_depth = 0;
+    bool after_if = false;
+    for (size_t i = start; i < source.size();) {
+      const char c = source[i];
+      if (c == ' ' || c == '\t') { ++i; continue; }
+      if ((c >= '0' && c <= '9') || c == '.') {
+        char *last = nullptr;
+        std::strtod(raw.c_str() + i, &last);
+        const size_t next = static_cast<size_t>(last - raw.c_str());
+        i = next > i ? next : i + 1;
+        operand = false;
+        continue;
+      }
+      if (is_word_start(c)) {
+        const size_t word = i;
+        do { ++i; } while (i < source.size() && is_word_char(source[i]));
+        if (equal_ignoring_case(source.substr(word, i - word), "else")) {
+          else_branch = true;
+          else_depth = scopes.size();
+        }
+        operand = false;
+        continue;
+      }
+      if (c == '(' || c == '{' || c == ',') {
+        if (c == ',') { inspect(scopes.back()); scopes.back().clear(); }
+        else scopes.emplace_back();
+        operand = true; ++i; continue;
+      }
+      if (c == ')' || c == '}') {
+        inspect(scopes.back());
+        if (scopes.size() > 1) scopes.pop_back();
+        if (else_branch && scopes.size() == else_depth) {
+          after_if = true;
+          else_branch = false;
+        }
+        operand = false; ++i; continue;
+      }
+      if (std::string_view("+-*/^<>=&|").find(c) != std::string_view::npos) {
+        Operator op{std::string(1, c), i};
+        if (after_if) report(op, "if-trailing-operator", "info", "The trailing operator applies to the whole if/then/else result.");
+        after_if = false;
+        if (i + 1 < source.size() && ((c == '*' && source[i + 1] == '*') ||
+            ((c == '<' || c == '>' || c == '=') && source[i + 1] == '='))) {
+          op.text += source[++i];
+          if (op.text == "**") op.text = "^";
+        }
+        if (c == '-' && operand) op.text = "neg";
+        if (c == '/') {
+          size_t divisor = i + 1;
+          while (divisor < source.size() && (source[divisor] == ' ' || source[divisor] == '\t' || source[divisor] == '(')) ++divisor;
+          char *last = nullptr;
+          const double value = std::strtod(raw.c_str() + divisor, &last);
+          size_t next = static_cast<size_t>(last - raw.c_str());
+          while (next < source.size() && (source[next] == ' ' || source[next] == '\t')) ++next;
+          const bool parenthesized = source.substr(i + 1, divisor - i - 1).find('(') != std::string_view::npos;
+          const bool power = next < source.size() && (source[next] == '^' || source.substr(next, 2) == "**");
+          const bool literal = parenthesized ? next < source.size() && source[next] == ')' : !power;
+          if (last != raw.c_str() + divisor && value == 0 && literal)
+            report(op, "division-by-zero", "warning", "XPP replaces a zero divisor with 2.23e-15; conversion keeps guarded division.");
+        }
+        scopes.back().push_back(op);
+        operand = true;
+      }
+      ++i;
+    }
+    for (const auto &ops : scopes) inspect(ops);
+  }
+
   /* the conversion stops: why */
-  [[noreturn]] void refuse(std::string msg) const { refuse_in(m_.this_file, std::move(msg)); }
+  [[noreturn]] void refuse(std::string msg) const
+  {
+    throw Error{"convert", std::move(msg), place_.file.empty() ? Place{m_.this_file} : place_};
+  }
 
   /* the text a program was compiled from, compiled again: a formula the
      Model keeps only as text (a derived parameter's, a boundary
@@ -829,7 +961,18 @@ private:
   /* ---- statements ---- */
   /* a note on what the .ode's reader made of a statement, a comment
      above the statement */
-  static std::string noted(const std::string &note) { return "# " + note + "\n"; }
+  std::string noted(const std::string &note, std::string id, std::string severity = "warning")
+  {
+    if (place_.source.empty()) place_.source = model_source_line(m_, place_.file, place_.line);
+    diagnostics_.push_back({place_, std::move(id), std::move(severity), note});
+    return "# " + diagnostics_.back().message + "\n";
+  }
+
+  void option_note(std::string message, std::string id)
+  {
+    noted(message, std::move(id));
+    option_notes_.push_back(diagnostics_.size() - 1);
+  }
 
   /* a number the reader read from text with atof (b's value, its text
      as written): the value, with a note when the text was not that
@@ -842,12 +985,14 @@ private:
     std::strtod(t.c_str(), &end);
     if (!t.empty() && end && *end == '\0') return print_number(b.value.value);
     pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", b.name,
-                                  text.empty() ? std::string("(nothing)") : text, print_number(b.value.value)));
+                                  text.empty() ? std::string("(nothing)") : text, print_number(b.value.value)), number_id_);
     return print_number(b.value.value);
   }
 
   std::string statement(const Statement &s)
   {
+    place_ = model_place(m_, s.pos);
+    expression_findings(s);
     pending_.clear();
     const std::string line = statement_line(s);
     return pending_ + line;
@@ -891,10 +1036,12 @@ private:
       for (const Binding &b : s.bindings) {
         const std::string d = name(xpp::upper_case(b.name));
         const std::string f = text(compiled(b.value.text));
-        if (!s.parameters_only)
+        if (!s.parameters_only) {
+          noted("XPP freezes this derived quantity when parameters change or a run starts.", "derived-frozen");
           refuse(xpp::format("!{} = {} reads t, a variable, a random function or a derived quantity after it: an "
                              ".odex quantity is worked out only when parameters change when it reads only "
                              "parameters, consts and pure functions (docs/odex.md question 9)", d, f));
+        }
         out += d + " = " + f + "\n";
       }
       return out;
@@ -945,7 +1092,7 @@ private:
     if (t.empty() || !end || *end != '\0')
       pending_ += noted(xpp::format("{}(0)={} in the .ode: XPP starts {} at {} (the number at the formula's front; the "
                                     "formula is only {}'s history for delays)",
-                                    name(upper), s.text, name(upper), print_number(z), name(upper)));
+                                    name(upper), s.text, name(upper), print_number(z), name(upper)), "initcond-formula");
     return "init " + name(upper) + " = " + print_number(z) + "\n";
   }
 
@@ -993,6 +1140,7 @@ private:
   /* par, init, number and wiener's name=value items */
   std::string items(const Statement &s)
   {
+    number_id_ = s.kind == Statement::Kind::InitNumbers ? "init-value" : "declaration-value";
     std::string out;
     const std::vector<Binding> &list = s.bindings;
     if (s.kind == Statement::Kind::Wiener) {
@@ -1045,7 +1193,7 @@ private:
       return find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0 ? name(upper) : value;
     }
     pending_ += noted(xpp::format("{}={} in the .ode: XPP reads the number at its front, {}", key, value,
-                                  print_number(std::atof(value.c_str()))));
+                                  print_number(std::atof(value.c_str()))), "set-value");
     return print_number(std::atof(value.c_str()));
   }
 
@@ -1162,6 +1310,7 @@ private:
     std::string out;
     const bool map = disc(m_) != 0;
     for (const xpp::Model::OptionLine &line : m_.options) {
+      place_ = line.where;
       std::string items;
       std::vector<std::string> ignored;
       for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
@@ -1180,13 +1329,20 @@ private:
           if (!seen.insert(name).second) continue;
           names += (names.empty() ? "" : ", ") + name;
         }
-        option_notes_.push_back(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
-                                            names.empty() ? "" : ", so " + names + " keep their values"));
+        option_note(xpp::format("@ {} in the .ode: XPP ignores an option with spaces around its ={}", dropped,
+                                            names.empty() ? "" : ", so " + names + " keep their values"), "option");
       }
       if (!items.empty()) out += "@ " + items + "\n";
     }
     /* a map ((t+1)=, or a .dis file) runs with the discrete method */
-    if (map) out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f") + "@ meth=discrete\n";
+    if (map) {
+      for (const Statement &s : m_.statements)
+        if (s.kind == Statement::Kind::Ode || s.kind == Statement::Kind::Map) {
+          place_ = model_place(m_, s.pos);
+          break;
+        }
+      out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ meth=discrete\n";
+    }
     return out;
   }
 
@@ -1199,7 +1355,7 @@ private:
     const char *name = xpp::solver_info(*letter).name;
     const auto whole = xpp::pick_method(m_, value, xpp::Place{m_.this_file});
     if (whole && *whole != *letter)
-      option_notes_.push_back(xpp::format("@ {}={} in the .ode: XPP reads a method by its first letter, {}", key, value, name));
+      option_note(xpp::format("@ {}={} in the .ode: XPP reads a method by its first letter, {}", key, value, name), "method-first-letter");
     return name;
   }
 
@@ -1220,7 +1376,7 @@ private:
       }
     }
     const std::string cut = print_number(std::atof(value.c_str()));
-    option_notes_.push_back(xpp::format("@ {}={} in the .ode: XPP reads the number at its front, {}", key, value, cut));
+    option_note(xpp::format("@ {}={} in the .ode: XPP reads the number at its front, {}", key, value, cut), "option-value");
     return cut;
   }
 
@@ -1229,13 +1385,31 @@ private:
   {
     std::string out = xpp::format("# {}: converted from {} by xppautX --convert (docs/odex.md)\n",
                                   base_name(odex_name(m_.this_file)), base_name(m_.this_file));
-    for (const auto &[from, to] : renames_) out += xpp::format("# renamed: {} is {} here (.odex reserves {})\n", from, to, from);
+    for (const auto &[from, to] : renames_) {
+      place_ = model_place(m_, xpp::upper_case(from));
+      const bool keyword = code_of(place_.source).starts_with(from + "=") || code_of(place_.source).starts_with(from + " =");
+      out += noted(xpp::format("renamed: {} is {} here (.odex reserves {})", from, to, from), keyword ? "keyword-name" : "reserved-word");
+    }
     if (!spell_.respelled().empty()) {
       std::string lines;
       for (int n : spell_.respelled()) lines += (lines.empty() ? "" : ", ") + std::to_string(n);
-      out += "# names written as their declarations spell them (.odex names have case); the .ode's lines " + lines + "\n";
+      const std::string message = "names written as their declarations spell them (.odex names have case); the .ode's lines " + lines;
+      for (int n : spell_.respelled()) {
+        place_ = Place{m_.this_file, n, 0, model_source_line(m_, m_.this_file, n)};
+        /* source is flattened across includes; statement places retain
+           the physical file and line. Keep the old comment's line list. */
+        for (const Statement &s : m_.statements) {
+          const Place at = model_place(m_, s.pos);
+          if (trim_blanks(at.source) == trim_blanks(m_.source[static_cast<size_t>(n - 1)])) {
+            place_ = at;
+            break;
+          }
+        }
+        const std::string comment = noted(message, "name-case");
+        if (n == spell_.respelled().front()) out += comment;
+      }
     }
-    for (const std::string &n : option_notes_) out += "# " + n + "\n";
+    for (size_t n : option_notes_) out += "# " + diagnostics_[n].message + "\n";
     out += "\n";
     return out;
   }
@@ -1285,7 +1459,11 @@ private:
   mutable bool uses_guard_ = false;
   std::set<int> constants_;
   std::map<std::string, double> constant_values_;
-  std::vector<std::string> option_notes_;
+  std::vector<size_t> option_notes_;
+  std::vector<Diagnostic> &diagnostics_;
+  Place place_;
+  std::string number_id_;
+  std::set<std::pair<std::string, int>> scanned_;
   std::string pending_;
   int nvar_ = 0, nfix_ = 0, naux_ = 0, nfun_ = 0, ndae_ = 0, nsol_ = 0, nbc_ = 0, nflag_ = 0, nset_ = 0,
       ntab_ = 0, nmark_ = 0;
@@ -1376,8 +1554,56 @@ Fingerprint fingerprint(const xpp::Session &s, int guard = -1)
 
 } // namespace
 
+int check_file(const std::string &file)
+{
+  std::vector<Diagnostic> diagnostics;
+  std::optional<Error> error;
+  LogCapture capture;
+  if (is_odex(file)) {
+    std::string program = "xppautX", path = file;
+    char *argv[] = {program.data(), path.data(), nullptr};
+    const Result<> loaded = inspect_model(2, argv, load_eqn, {});
+    if (!loaded) error = loaded.error();
+  } else {
+    const Result<std::string> converted = convert_text(file, true, {}, {}, &diagnostics);
+    if (!converted) error = converted.error();
+  }
+  capture.clear();
+  if (error) diagnostics.push_back({error->place, "load-error", "error", error->what});
+  std::string json = "{\"file\":";
+  json_append_string(json, file);
+  json += ",\"diagnostics\":[";
+  bool warning = false, first = true;
+  for (const Diagnostic &d : diagnostics) {
+    if (!first) json += ',';
+    first = false;
+    warning = warning || d.severity == "warning";
+    json += xpp::format("{{\"line\":{},\"col\":{},\"source\":", d.place.line, d.place.col);
+    json_append_string(json, d.place.source);
+    json += ",\"id\":";
+    json_append_string(json, d.id);
+    json += ",\"severity\":";
+    json_append_string(json, d.severity);
+    json += ",\"message\":";
+    json_append_string(json, d.message);
+    json += '}';
+  }
+  json += "]}\n";
+  /* This command owns stdout, independently of model quiet/log settings. */
+  std::printf("%s", json.c_str());
+  return error ? 2 : warning ? 1 : 0;
+}
+
+void show_diagnostics(const std::vector<Diagnostic> &diagnostics)
+{
+  for (const Diagnostic &d : diagnostics) {
+    const std::string message = Error{"check", d.message, d.place}.text();
+    xpp::log(XPP_LOG_WARN, "{} [{}: {}]\n", message, d.severity, d.id);
+  }
+}
+
 Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
-                               const std::vector<std::string> &includes)
+                               const std::vector<std::string> &includes, std::vector<Diagnostic> *diagnostics)
 {
   if (is_odex(ode)) return xpp::fail_reading("convert", "is .odex already", ode);
   std::string arg0 = "xppautX", model = ode;
@@ -1391,6 +1617,8 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
   std::string guard_name;
   SavedModel saved;
   const OdeAsOdex as_odex;
+  std::vector<Diagnostic> findings;
+  std::vector<Diagnostic> &output = diagnostics ? *diagnostics : findings;
   Result<> imported = xpp::inspect_model(static_cast<int>(args.size()), argv.data(), [](Session &s) {
     const std::string &file = s.model().this_file;
     xpp::Load::at(file);
@@ -1402,7 +1630,7 @@ Result<std::string> convert_text(const std::string &ode, bool auto_answer, const
     get_eqn(s, input.get());
   }, [&](Session &s) -> std::optional<Error> {
     try {
-      Converter converter(s, auto_answer, ask);
+      Converter converter(s, auto_answer, ask, output);
       text = converter.run();
       guard_name = converter.guard_name();
       before = fingerprint(s);
@@ -1458,14 +1686,15 @@ Result<> write_conversion(const std::string &out, std::string_view text)
 
 } // namespace
 
-Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes)
+Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes,
+                      std::vector<Diagnostic> &diagnostics)
 {
   const Ask ask = [&ode](const std::string &question, const std::string &suggestion) -> std::optional<std::string> {
     std::string answer = suggestion;
     if (!xpp::new_string(question, answer)) throw Error{"open", "model open cancelled", Place{ode}};
     return answer;
   };
-  Result<std::string> text = convert_text(ode, silent, ask, includes);
+  Result<std::string> text = convert_text(ode, silent, ask, includes, &diagnostics);
   if (!text) return std::unexpected(text.error());
   const std::string out = odex_name(ode);
   if (xpp::files::exists(out)) {
@@ -1485,7 +1714,9 @@ Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std
 
 int convert_file(const std::string &ode, bool auto_answer, const Ask &ask)
 {
-  Result<std::string> text = convert_text(ode, auto_answer, ask);
+  std::vector<Diagnostic> diagnostics;
+  Result<std::string> text = convert_text(ode, auto_answer, ask, {}, &diagnostics);
+  show_diagnostics(diagnostics);
   const std::string out = odex_name(ode);
   Result<> written;
   if (!text) written = std::unexpected(text.error());

@@ -265,10 +265,20 @@ int load(xpp::Session &s, const std::string &path);
    suggested answer; the answer ("" takes the suggestion), or nullopt
    when nobody can answer (no terminal) */
 using Ask = std::function<std::optional<std::string>(const std::string &question, const std::string &suggestion)>;
+/* Converter findings are values; comments and clients render this same list. */
+struct Diagnostic {
+  Place place;
+  std::string id, severity, message;
+};
 /* Import and validate the conversion without changing the open model or
    writing a file. Used by both conversion commands and their tests. */
 xpp::Result<std::string> convert_text(const std::string &ode, bool auto_answer, const Ask &ask,
-                                     const std::vector<std::string> &includes = {});
+                                     const std::vector<std::string> &includes = {},
+                                     std::vector<Diagnostic> *diagnostics = nullptr);
+/* Read and validate in memory; one JSON object on stdout, no files or window. */
+int check_file(const std::string &file);
+/* The opening/convert command displays findings once through its existing log route. */
+void show_diagnostics(const std::vector<Diagnostic> &diagnostics);
 /* xppautX --convert [--auto] model.ode: the model loaded, written as
    model.odex (odex_name), which is loaded in turn and must compile to
    the same programs (exact by construction, checked); 0 when written, 1
@@ -277,7 +287,8 @@ int convert_file(const std::string &ode, bool auto_answer, const Ask &ask);
 /* Opening a .ode: its conversion, checked, written as odex_name(ode)
    (true), or the existing .odex opened as it is (false: the same text, or
    the user chose it); an error when cancelled or not written. */
-xpp::Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes);
+xpp::Result<bool> open_ode(const std::string &ode, bool silent, const std::vector<std::string> &includes,
+                         std::vector<Diagnostic> &diagnostics);
 /* model.ode's .odex: its extension made .odex */
 std::string odex_name(const std::string &ode);
 

@@ -231,6 +231,7 @@ follow in any order. The options below control the model and its run.
 | `--dfdraw N` / `--ncdraw N` | Draw the direction field / nullclines in batch, to screen or file |
 | `--newseed` | Randomize the random number generator's seed |
 | `--convert` | Convert `.ode` to `.odex`; terminal name questions have a 60-second deadline |
+| `--check` | Validate `.ode` or `.odex` in memory; JSON diagnostics, no window or written files; exit 0 clean/info, 1 warnings, 2 error |
 | `--auto` | Answer every terminal question: accept suggested conversion names and replace silent playback outputs |
 | `--anifile FILE` | Load an animation script (`.ani`) at startup |
 | `--quiet <0\|1>` | Suppress the model's own console messages (independent of `--verbose`) |

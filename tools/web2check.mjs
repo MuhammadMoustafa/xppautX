@@ -5432,7 +5432,16 @@ async function main() {
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
-    if (run('loaderror')) await loadErrorCheck();
+    if (run('loaderror')) {
+      await loadErrorCheck();
+      await session(path.resolve('tools/models/check_quirks.ode'), async () => {
+        check('W75: opening a .ode keeps one placed quirk diagnostic in Messages',
+          await until(`__xpp.log().filter(l => l.text.includes('[warning: comparison-precedence]')).length === 1`, 'conversion diagnostic')
+          && await S(`__xpp.log().some(l => l.text.includes('check_quirks.ode:2:10:'))`));
+        check('W75: a quirk warning opens no error dialog',
+          await S(`!document.querySelector('.error-dialog') && !s.loadError`));
+      });
+    }
   } finally {
     b?.proc.kill();
     if (b) await b.waitForExit();

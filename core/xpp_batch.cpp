@@ -203,6 +203,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     bool existing = false;
     int argument = -1;
     std::vector<std::string> included;
+    std::vector<odex::Diagnostic> diagnostics;
     Loaded prepared = in_model([&](Session &s) {
         argument = do_comline(s, argc, argv);
         included = include_files;
@@ -219,7 +220,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     Loaded loaded = prepared;
     if (prepared) {
         if (snapx::has_extension(file, ".ode")) {
-            Result<bool> opened = odex::open_ode(file, batch != 0, included);
+            Result<bool> opened = odex::open_ode(file, batch != 0, included, diagnostics);
             if (!opened) loaded = std::unexpected(opened.error());
             else {
                 converted = odex::odex_name(file);
@@ -251,6 +252,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
         if (batch) xpp::log(XPP_LOG_WARN, "{}\n", message);
         else xpp::bottom_msg(0, message, "02-ode-files", "odex");
     }
+    odex::show_diagnostics(diagnostics);
     return loaded;
 }
 
@@ -258,7 +260,11 @@ Result<> inspect_model(int argc, char **argv, const std::function<void(Session &
                        const std::function<std::optional<Error>(Session &)> &check,
                        const SavedModel *saved)
 {
+    /* Inspection validates model options but must not create @ logfile's file. */
+    const int file_option = log_settings.file_from_command_line;
+    log_settings.file_from_command_line = 1;
     Loaded inspected = load_in(argc, argv, 1, saved, check, read, false);
+    log_settings.file_from_command_line = file_option;
     if (!inspected) return std::unexpected(inspected.error());
     return {};
 }

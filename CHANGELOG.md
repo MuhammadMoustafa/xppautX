@@ -9,15 +9,15 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-### Added
-
-- Help > Check for updates asks GitHub only on demand and opens the release page by choice; no download or installation. Run selected web2check sections in the actual Windows WebView2 window with --webview2 (W13c, [#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).
-
 ### Build
 
 - Embed the page, icon and Linux window library as C++ spans; remove the remaining project C generators and their C linkage (W173, [#225](https://github.com/MuhammadMoustafa/xppautX/issues/225)).
 
 ### Added
+
+- Help > Check for updates asks GitHub only on demand and opens the release page by choice; no download or installation. Run selected web2check sections in the actual Windows WebView2 window with --webview2 (W13c, [#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).
+
+- `--check` validates `.ode`/`.odex` in memory and prints JSON diagnostics; opening `.ode` shows the converter's structured quirk findings once with their places. W75 ([#123](https://github.com/MuhammadMoustafa/xppautX/issues/123)).
 
 - `--convert` notes `@` option words XPPAUT ignores when spaces surround `=`, while keeping the option values unchanged (W167, [#219](https://github.com/MuhammadMoustafa/xppautX/issues/219)).
 

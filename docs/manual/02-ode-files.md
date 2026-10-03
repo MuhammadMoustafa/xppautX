@@ -10,6 +10,13 @@ including Reload, sessions and recordings. The conversion preserves the
 old parser's numbers by making its quirks explicit. The status message
 links here; `--silent` prints the conversion on the console.
 
+The same log panel shows the converter's quirk diagnostics once, with
+file, line and column where known (`--silent` uses the console).
+`xppautX --check model.ode` validates without a window or written files
+and prints one JSON object; `.odex` checking reports only errors.
+Exit 0 means clean or information alone, 1 warnings, 2 an error.
+See [Checking a .ode](../odex.md#checking-a-ode) for the format (W75, #123).
+
 Reserved names ask for a new name, offering the converter's suggestion;
 `--silent` takes it. Cancelling keeps the model before and writes nothing.
 An existing `.odex` with the same text opens unchanged. Different text

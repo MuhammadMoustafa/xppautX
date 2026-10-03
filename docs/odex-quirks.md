@@ -4,6 +4,49 @@ Since W154 (#206), opening `.ode` always converts and saves `.odex`
 beside it. These quirks belong to the converter's foreign input reader;
 loading, Reload, sessions and recordings use the resulting `.odex`.
 
+## Diagnostic ids (W75)
+
+`xppautX --check` owns findings shown by the program and consumed by the
+VS Code extension (W75, [#123](https://github.com/MuhammadMoustafa/xppautX/issues/123)).
+See [Checking a .ode](odex.md#checking-a-ode) for JSON and exit status.
+Existing conversion comments keep their wording and bytes. Operator
+findings add no comments; converted programs and files stay unchanged.
+
+| id | finding | severity |
+|---|---|---|
+| `comparison-precedence` | comparison mixed with arithmetic or unary minus without explicit grouping | warning |
+| `power-associativity` | unparenthesized left-grouped power chain (`^` or `**`) | info |
+| `unary-minus-power` | power binds before unary minus | info |
+| `chained-comparison` | a comparison's result is compared again | warning |
+| `logical-precedence` | arithmetic and `&`/`\|` group differently from ordinary precedence | warning |
+| `division-by-zero` | literal zero divisor uses XPP's guard | warning |
+| `if-trailing-operator` | operator after `else(...)` applies to the whole conditional | info |
+| `option` | ignored option words, including spaces around `=` (extension's id) | warning |
+| `option-value` | numeric option value cut at its numeric prefix | warning |
+| `init-value` | `init` value cut at its numeric prefix | warning |
+| `initcond-formula` | scalar initial formula kept only as delay history | warning |
+| `derived-frozen` | derived quantity reads mutable values; conversion refuses it | warning, followed by error |
+| `keyword-name` | fixed name conflicts with a statement keyword and is renamed | warning |
+| `reserved-word` | name reserved in `.odex` is renamed | warning |
+| `name-case` | spelling changed to match the declaration (new id) | warning |
+| `declaration-value` | parameter/constant value cut at its numeric prefix (new id) | warning |
+| `set-value` | internal-set value cut at its numeric prefix (new id) | warning |
+| `discrete-map` | discrete-method derivative interpreted as a map (new id) | info |
+| `method-first-letter` | the legacy import reads a method by its first letter (new id) | warning |
+| `load-error` | reader/conversion validation error | error |
+
+Known limits: the foreign reader must load before the converter can
+inspect it. Illegal unary signs, unsupported `!=`/`&&`/`\|\|`/`!`, malformed
+`if`, unknown names and names refused by that reader produce `load-error`
+rather than a separate quirk finding. The checked numeric-option reader
+also rejects `@ total=2*3` and `@ total=(4)` before conversion; these
+historical cuts now give `load-error`. Operators split across continuation
+lines and array expansions with computed operators are not yet diagnosed.
+Literal-zero detection does not evaluate arbitrary constant expressions
+to prove a divisor zero. Conversion still guards those divisions.
+`tools/checkcheck.py`, also run by `verify.sh`, tests each reported quirk,
+explicit grouping, JSON fields/status, reader errors and no file writes.
+
 
 W73 (#121): every quirk of the `.ode` reader found in the maintainer's VS
 Code extension (C:\gitRepos\XPP-ODE-Extension: `operatorCheckerCore.ts`,
