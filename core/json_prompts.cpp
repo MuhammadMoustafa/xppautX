@@ -545,7 +545,9 @@ void j_q_calc(xpp::Session &s)
 
 int j_check_abort(void)
 {
-    player_controls(client());
+    /* the session the running job computes in (the seam passes none) */
+    xpp::Session &s = client();
+    player_controls(s);
     char *line;
     static double last;
     /* let the client see the picture grow, a few frames a second */
@@ -563,7 +565,7 @@ int j_check_abort(void)
             defer_line(line, take == xpp::inbox::Verdict::refuse);
             continue;
         }
-        int r = control_line(client(), line);
+        int r = control_line(s, line);
         if (r != 64 && r != ANI_PAUSE) return r;
     }
     return 64;
