@@ -71,6 +71,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- macOS CI checks read every thread's state from the aligned `ps -M` table and wait for text views to render after their events (W171, [#223](https://github.com/MuhammadMoustafa/xppautX/issues/223)).
+
 - The data table stops requesting rows at the end of the data, avoiding a render/effect loop on slow runners. CI checks establish a heavy run is computing at every value commit, wait for the slider pick to draw, and read macOS thread states from `ps -M`'s STAT column (W170, [#222](https://github.com/MuhammadMoustafa/xppautX/issues/222)).
 
 - Recordings can write their scratch outputs through macOS's linked temp-folder ancestors. Random states use one MT19937-64 layout across compilers, retaining already matching saved states and rejecting other layouts at their file and line. Option filenames accept Windows `~` short paths; sanitizer autocheck shards track the current sections (W169, [#221](https://github.com/MuhammadMoustafa/xppautX/issues/221)).

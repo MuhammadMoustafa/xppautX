@@ -740,16 +740,17 @@ async function textViews() {
   /* Equations: the model's own dV/dT, dW/dT lines from the `equations` event */
   check('opening it asks for the equations', await until('s.text.equations && s.text.equations.length >= 2', 'equations'),
     JSON.stringify(await S('s.text.equations')));
-  check('the equations view lists them (wrapped, monospace)', await cdp.eval(
-    `/d[vw]\\/dt=/i.test(document.querySelector('.text-equations').textContent)`),
-    await cdp.eval(`document.querySelector('.text-equations').textContent`));
+  check('the equations view lists them (wrapped, monospace)', await until(
+    `/d[vw]\\/dt=/i.test(document.querySelector('.text-equations')?.textContent ?? '')`, 'equations rendered'),
+    await cdp.eval(`document.querySelector('.text-equations')?.textContent`));
 
   /* Equilibrium: Sing pts/Go, then Import -- at the ODE file's own defaults,
      before the comment action below changes a parameter (gk=0 makes the
      model's dynamics degenerate along one variable and Newton's method
      does not reliably converge from the default ICs) */
   await cdp.eval(`[...document.querySelectorAll('.text-tab')].find(b => b.textContent === 'Equilibrium').click()`);
-  check('no equilibrium yet', await cdp.eval(`document.querySelector('.text-equilibrium .text-empty') !== null`));
+  check('no equilibrium yet', await until(`document.querySelector('.text-equilibrium .text-empty') !== null`,
+    'empty equilibrium rendered'));
   await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Find equilibrium').click()`);
   check('Find equilibrium (Sing pts/Go) computes one: type, counts and values from the equilibrium event',
     await until(`s.text.equilibrium && /STABLE|UNSTABLE|NEUTRAL/.test(s.text.equilibrium.type)
@@ -759,11 +760,12 @@ async function textViews() {
   const eq = await S('s.text.equilibrium');
   if (!eq) return;   /* reported above; the checks below need it */
   check('the view shows the type and the values (six significant digits)',
-    await cdp.eval(`document.querySelector('.text-equilibrium .eq-type').textContent === ${JSON.stringify(eq.type)}
-      && document.querySelectorAll('.text-equilibrium .eq-values tbody tr').length >= 2`));
+    await until(`document.querySelector('.text-equilibrium .eq-type')?.textContent === ${JSON.stringify(eq.type)}
+      && document.querySelectorAll('.text-equilibrium .eq-values tbody tr').length >= 2`, 'equilibrium rendered'));
   check('and its eigenvalues, one row per variable',
-    eq.eigenvalues && eq.eigenvalues.length === 2 && await cdp.eval(`[...document.querySelectorAll('.text-equilibrium .eq-values')]
-      .find(t => t.querySelector('caption').textContent === 'Eigenvalues').querySelectorAll('tbody tr').length === 2`),
+    eq.eigenvalues && eq.eigenvalues.length === 2 && await until(`[...document.querySelectorAll('.text-equilibrium .eq-values')]
+      .find(t => t.querySelector('caption')?.textContent === 'Eigenvalues')?.querySelectorAll('tbody tr').length === 2`,
+      'eigenvalues rendered'),
     JSON.stringify(eq.eigenvalues));
   await cdp.eval(`[...document.querySelectorAll('.text-tools button')].find(b => b.textContent === 'Import').click()`);
   const wantIcs = eq.values.map(([, v]) => v);

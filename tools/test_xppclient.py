@@ -8,8 +8,17 @@ class MacosThreadStates(unittest.TestCase):
     # per thread, including state modifiers and spaces in the command.
     OUTPUT = '''USER   PID TT  %CPU STAT PRI     STIME     UTIME COMMAND
 runner 123 ??   0.0 S    31T   0:00.01   0:00.03 ./xppautX --server
-runner 123 ??   0.0 S+   31T   0:00.00   0:00.00 ./xppautX --server
+                0.0 S+   31T   0:00.00   0:00.00
 '''
+
+    MULTITHREAD_OUTPUT = '''USER   PID TT  %CPU STAT PRI     STIME     UTIME COMMAND
+runner 123 ??   0.0 S    31T   0:00.01   0:00.03 ./xppautX --server
+                0.0 I    31T   0:00.00   0:00.00
+                0.0 R    31T   0:00.00   0:00.00
+'''
+
+    def test_blank_thread_columns(self):
+        self.assertEqual(macos_thread_states(self.MULTITHREAD_OUTPUT), ['S', 'I', 'R'])
 
     def test_sleeping_threads(self):
         self.assertEqual(macos_thread_states(self.OUTPUT), ['S', 'S+'])
@@ -26,6 +35,8 @@ runner 123 ??   0.0 S+   31T   0:00.00   0:00.00 ./xppautX --server
             macos_thread_states('PID STATE\n123 S')
         with self.assertRaisesRegex(ValueError, 'output:2: missing thread state'):
             macos_thread_states(self.OUTPUT.splitlines()[0] + '\nrunner 123')
+        with self.assertRaisesRegex(ValueError, 'output:3: missing thread state'):
+            macos_thread_states(self.OUTPUT.replace('S+ ', '   '))
 
 
 if __name__ == '__main__':

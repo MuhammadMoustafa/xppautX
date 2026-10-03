@@ -400,7 +400,10 @@ def input_blocked(pid):
     out = subprocess.run(['ps', '-M', '-p', str(pid)], capture_output=True, text=True, check=True)
     states = macos_thread_states(out.stdout)
     # Darwin also calls a sleeping thread I (idle); both prove it blocks.
-    return bool(states) and all(state.startswith(('S', 'I')) for state in states)
+    blocked = bool(states) and all(state.startswith(('S', 'I')) for state in states)
+    if not blocked:
+        print(out.stdout, end='')
+    return blocked
 
 
 # ---- abort: a long AUTO run stops at once, and can be continued ------------

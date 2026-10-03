@@ -39,13 +39,13 @@ def macos_thread_states(output):
     header = lines[0].split()
     if 'STAT' not in header:
         raise ValueError('ps -M output:1: missing STAT column: ' + lines[0])
-    column = header.index('STAT')
+    # Further threads leave USER, PID, TT and COMMAND blank; alignment stays.
+    column = lines[0].index('STAT')
     states = []
     for number, line in enumerate(lines[1:], 2):
-        fields = line.split()
-        if len(fields) <= column:
+        if len(line) <= column or line[column].isspace():
             raise ValueError('ps -M output:%d: missing thread state: %s' % (number, line))
-        states.append(fields[column])
+        states.append(line[column:].split()[0])
     return states
 
 
