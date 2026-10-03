@@ -127,16 +127,24 @@ const POLL_MS = 40; /* yield between observations of a condition without an even
 const EXIT_TIMEOUT_MS = 5000; /* safety ceiling for a stopped child to release its files */
 const DEVTOOLS_FETCH_TIMEOUT_MS = 1000; /* a hung local DevTools endpoint must not defeat waitFor's deadline */
 
+/* null until the endpoint answers: a browser still starting refuses or stalls the
+   request, which waitFor then asks again (macos-ui's Chrome, 2026-10-03) */
 async function devtoolsPage(port, accepts) {
-  const list = await (await fetch(`http://127.0.0.1:${port}/json/list`,
-    {signal: AbortSignal.timeout(DEVTOOLS_FETCH_TIMEOUT_MS)})).json();
+  let list;
+  try {
+    list = await (await fetch(`http://127.0.0.1:${port}/json/list`,
+      {signal: AbortSignal.timeout(DEVTOOLS_FETCH_TIMEOUT_MS)})).json();
+  } catch {
+    return null;
+  }
   return list.find(t => t.type === 'page' && (!accepts || accepts(t)));
 }
 
 async function connectPage(page) {
   const cdp = new Cdp(page.webSocketDebuggerUrl);
   await cdp.open();
-  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector']) await cdp.send(`${domain}.enable`);
+  /* not every build has every domain (W13c dropped this catch; restored) */
+  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector']) await cdp.send(`${domain}.enable`).catch(() => undefined);
   return cdp;
 }
 

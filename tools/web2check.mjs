@@ -4986,7 +4986,11 @@ async function updatesCheck() {
     check(text, await until(`document.querySelector('[data-update-dialog]')?.textContent.includes(${JSON.stringify(text)})`, text));
   };
   const about = await S('s.hello.about');
-  const local = /^xppautX (v\d+\.\d+\.\d+)/.exec(about)[1];
+  const tagged = /^xppautX (v\d+\.\d+\.\d+)/.exec(about);
+  /* a build from a checkout without the release tags has a bare commit for its version */
+  check('updates: the build has a release version to compare (git describe found a tag)', !!tagged, about);
+  if (!tagged) return;
+  const local = tagged[1];
   const release = tag => ({tag_name: tag, html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/' + tag});
   await run(release('v999.0.0'), 'xppautX 999.0.0 is available');
   check('updates: newer offers release page and Close', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));

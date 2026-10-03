@@ -164,6 +164,10 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
+        # the release tags: git describe gives the build the version the
+        # update check compares (v0.1.0-N-gHASH), not a bare commit hash
+        with:
+          fetch-depth: 0
       - name: Runner image
         id: image
         run: echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
@@ -311,6 +315,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+        # the release tags: git describe gives the build the version the
+        # update check compares (v0.1.0-N-gHASH), not a bare commit hash
+        with:
+          fetch-depth: 0
       - name: Build xppautX
         id: build
         run: make -j"$(sysctl -n hw.ncpu)" xppautx
@@ -412,6 +420,10 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v7
+        # the release tags: git describe gives the build the version the
+        # update check compares (v0.1.0-N-gHASH), not a bare commit hash
+        with:
+          fetch-depth: 0
       - name: Use the runner's own MinGW-w64 (C:\mingw64); no toolchain install
         run: echo 'C:\mingw64\bin' >> "$GITHUB_PATH"
       - name: Build xppautX.exe
