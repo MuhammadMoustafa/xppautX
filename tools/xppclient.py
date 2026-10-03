@@ -13,6 +13,34 @@ import base64, copy, json, os, queue, shutil, struct, subprocess, tempfile, thre
 # XPP_CHECK_SLOW=F multiplies every wait by F, for a server under a slow
 # tool (tools/valgrindcheck.sh: memcheck runs it some 30 times slower)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
+POLL_SECONDS = 0.05  # yield between observations where the OS provides no event reader
+WAIT_SECONDS = 10 * SLOW  # safety ceiling for an external condition, not a speed assertion
+
+
+def wait_until(predicate, timeout=WAIT_SECONDS):
+    deadline = time.monotonic() + timeout
+    while True:
+        if predicate():
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(POLL_SECONDS)
+
+
+class LogLines(list):
+    """stderr's reader signals each appended line; checks never delay for logging."""
+    def __init__(self):
+        super().__init__()
+        self.changed = threading.Condition()
+
+    def append(self, line):
+        with self.changed:
+            super().append(line)
+            self.changed.notify_all()
+
+    def wait_for(self, predicate, timeout=WAIT_SECONDS):
+        with self.changed:
+            return self.changed.wait_for(lambda: predicate(self), timeout)
 
 
 def _reject_non_finite(text):

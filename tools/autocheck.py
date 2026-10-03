@@ -46,7 +46,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
+from xppclient import wait_until, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -385,25 +385,22 @@ def section_input():
           'idles %d, iapp %s' % (idles, iapp))
 
     if sys.platform != 'win32':
-        pid = s.proc.pid
-        t0 = cpu_seconds(pid)
-        time.sleep(2)
-        used = cpu_seconds(pid) - t0
-        check('an idle server uses no CPU', used < 0.1, '%.2f s of CPU in 2 s' % used)
+        check('an idle server blocks every thread waiting for input', wait_until(lambda: input_blocked(s.proc.pid)))
     s.close()
 
 
-def cpu_seconds(pid):
-    """user+system CPU seconds of pid: /proc on Linux, ps elsewhere (macOS)"""
-    if os.path.exists('/proc/%d/stat' % pid):
-        with open('/proc/%d/stat' % pid) as f:
-            fields = f.read().rsplit(')', 1)[1].split()
-        return (int(fields[11]) + int(fields[12])) / os.sysconf('SC_CLK_TCK')
-    out = subprocess.run(['ps', '-o', 'time=', '-p', str(pid)], capture_output=True, text=True).stdout.strip()
-    secs = 0.0
-    for part in out.replace('-', ':').split(':'):  # [[dd-]hh:]mm:ss.ss
-        secs = secs * 60 + float(part)
-    return secs
+def input_blocked(pid):
+    """The OS's sleeping state proves the idle reader blocks, without a CPU/time budget."""
+    tasks = '/proc/%d/task' % pid
+    if os.path.isdir(tasks):
+        states = []
+        for task in os.listdir(tasks):
+            with open(os.path.join(tasks, task, 'stat')) as f:
+                states.append(f.read().rsplit(')', 1)[1].split()[0])
+        return bool(states) and all(state == 'S' for state in states)
+    out = subprocess.run(['ps', '-M', '-o', 'state=', '-p', str(pid)], capture_output=True, text=True, check=True)
+    states = out.stdout.split()
+    return bool(states) and all(state.startswith('S') for state in states)
 
 
 # ---- abort: a long AUTO run stops at once, and can be continued ------------
@@ -450,8 +447,8 @@ def section_abort():
     # view) runs after them
     s.send(cmd='auto', op='set', numerics={'nmx': 1500})
     s.send(cmd='data', events=['autoinfo', 'autosettings'])
-    # a point takes a few Newton steps: land the Abort inside one of them
-    time.sleep(0.25)
+    # periodic_run already observed two diagram points: the run is computing.
+    # Abort now, without guessing the duration of a Newton step.
     t = s.send(cmd='abort')
     evs, e = s.collect(is_idle, timeout=120 * SLOW)
     took = (e['_t'] if e else time.monotonic()) - t

@@ -1091,12 +1091,13 @@ void *http_main(void *)
    serving so the page can show what xppaut printed. */
 void at_exit()
 {
+    constexpr int EXIT_LOG_GRACE_MS = 200; /* let the log pipe's last output reach the page before exit */
     std::fflush(stdout);
     std::fflush(stderr);
 #ifdef _WIN32
-    Sleep(200);
+    Sleep(EXIT_LOG_GRACE_MS);
 #else
-    usleep(200000);
+    usleep(EXIT_LOG_GRACE_MS * 1000);
 #endif
     try {
         std::string line = xpp::format("{{\"ev\":\"exit\",\"code\":{}}}", saw_bye ? 0 : 1);

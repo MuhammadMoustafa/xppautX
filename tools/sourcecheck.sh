@@ -11,6 +11,7 @@
 #   - no more direct fopen/remove/rename/mkdir/... than tests/files.baseline
 #     allows: files go through xpp_files.h (tools/filecheck.sh)
 #   - no string literal cast to char * (tools/literalcheck.sh)
+#   - no delay outside condition polling or named lower bounds (tools/sleepcheck.sh, W166)
 #   - no direct exp, log, pow, sin, ... of the C library: xpp::math's, the same
 #     bits on every CPU (tools/mathcheck.sh, W159)
 #   - no more errors reported with no place (file, line) than
@@ -87,6 +88,10 @@ fi
 tail -1 build/errorcheck.out
 if ! sh tools/literalcheck.sh; then
   echo "LITERAL CHECK FAILED"
+  exit 1
+fi
+if ! sh tools/sleepcheck.sh; then
+  echo "SLEEP CHECK FAILED"
   exit 1
 fi
 if ! sh tools/mathcheck.sh; then

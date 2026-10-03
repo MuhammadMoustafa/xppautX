@@ -86,7 +86,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, installPerfObserver, sleep, startBrowser, startServer, stopServer} from './cdp.mjs';
+import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -153,33 +153,33 @@ const ACTIVE = 's.plots.windows.find(x => x.win === s.plots.active) || {}';
 /* the AUTO diagram's active view (W50: the diagram has views, each its own axes and points) */
 const DV = 's && s.diagram.views[s.diagram.active]';
 const S = expr => cdp.eval(`(() => { const s = __xpp.state(), w = ${ACTIVE}; return ${expr}; })()`);
-/* the page as drawn is read settled (settled(), below): the chart and the layout follow a
-   state change a frame or more later, so a read right after an action saw the page before it
-   (the W20 lesson, and every CI flake since W27); rawP is the one read that must be immediate,
-   mid-drag */
+/* Reads acknowledge the component callbacks, CSS transitions and the
+   ResizeObserver delivery before measuring geometry or drawing data. */
 const rawP = () => cdp.eval('__xpp.plot()');
 const P = () => settled(rawP);
-/* a measurement once it stops changing: a slow machine draws a step's view, or lays out the bar a
-   plot mode brings, a frame or more after the store has it, and a measurement taken in between is
-   of the page before (W20) */
+async function rendered() {
+  if (!await until('window.__xpp && __xpp.rendered()', 'component renders and effects'))
+    throw new Error('component renders and effects did not complete');
+  await cdp.eval(`Promise.all(document.getAnimations().filter(a => a instanceof CSSTransition)
+    .map(a => a.finished.catch(() => {})))`);
+  await cdp.eval(`new Promise(resolve => {
+    const observer = new ResizeObserver(() => { observer.disconnect(); resolve(true); });
+    observer.observe(document.documentElement);
+  })`);
+  if (!await until('__xpp.rendered()', 'renders after resize'))
+    throw new Error('component renders after resize did not complete');
+}
 async function settled(read) {
-  /* unchanged over 200 ms (three reads 100 ms apart): one 50 ms gap let a slow runner's
-     next redraw through (CI, after W27); gives up after 4 s with the last reading */
-  let a = JSON.stringify(await read()), same = 0;
-  for (let i = 0; i < 40 && same < 2; i++) {
-    await sleep(100);
-    const b = JSON.stringify(await read());
-    same = b === a ? same + 1 : 0;
-    a = b;
-  }
-  return JSON.parse(a);
+  await rendered();
+  if (!await until('!__xpp.plot()?.tracing', 'plot tracing complete'))
+    throw new Error('plot tracing did not complete');
+  return read();
 }
 const steadyP = P;
 
 let acceptSave = true; /* scratch saves are authorized; the W129 No check opts out */
-async function until(expr, what, ms = 15000) {
-  const t0 = Date.now();
-  for (;;) {
+async function until(expr, what, ms) {
+  const ready = await waitFor(async () => {
     let v = null;
     try {
       v = await cdp.eval(`(() => { try { const s = window.__xpp && __xpp.state(), w = ${ACTIVE}, dv = ${DV}; return !!(${expr}); } catch (e) { return false; } })()`);
@@ -190,12 +190,10 @@ async function until(expr, what, ms = 15000) {
         if (a && a.kind === 'choice' && a.keys === 'yn' && a.question.endsWith(' exists. Replace it?'))
           __xpp.send({cmd: 'answer', id: a.id, key: 'y'}); })()`).catch(() => {});
     }
-    if (Date.now() - t0 > ms) {
-      if (opt.v) console.log(`  (timed out waiting for ${what})`);
-      return false;
-    }
-    await sleep(40);
-  }
+    return false;
+  }, ms);
+  if (!ready && opt.v) console.log(`  (timed out waiting for ${what})`);
+  return !!ready;
 }
 
 /* Page.reload returns before the old document is gone: a wait right after
@@ -206,6 +204,13 @@ async function reloadPage() {
   await cdp.eval('window.__left = true').catch(() => {});
   await cdp.send('Page.reload');
   return until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
+}
+
+async function metrics(value) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', value);
+  if (!await until(`innerWidth === ${value.width} && innerHeight === ${value.height}`, 'viewport dimensions'))
+    throw new Error('viewport dimensions did not update');
+  await rendered();
 }
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
@@ -223,7 +228,7 @@ async function key(k, modifiers = 0) {
     await cdp.send('Input.dispatchKeyEvent', {type: 'keyDown', key: k, text: k, unmodifiedText: k});
     await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: k});
   }
-  await sleep(30);
+  await rendered();
 }
 /* an error's dialog (ErrorDialog.tsx) covers the page until OK: close it so a later click reaches its control */
 async function closeErrors() {
@@ -241,7 +246,7 @@ async function click(x, y) {
 async function clickSendsNothing(name, x, y) {
   const pre = await S('__xpp.sent().length');
   await click(x, y);
-  await sleep(200);
+  await rendered();
   const sent = await S(`__xpp.sent().slice(${pre})`);
   check(name, sent.length === 0 && !(await S('s.busy')), JSON.stringify(sent));
 }
@@ -260,7 +265,7 @@ const width = r => r.max - r.min;
 /* ---- the sessions -------------------------------------------------------------- */
 
 async function desktop(want) {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
   check('an empty plot says so and offers Integrate',
     await cdp.eval(`!!document.querySelector('.plot-empty button')`));
@@ -372,8 +377,8 @@ async function desktop(want) {
 /* the values panel (docs/ui-v2.md T3, GitHub #155): parameters, a slider,
    edits sent at once (settings, W106), layout */
 async function values() {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   const box = await cdp.eval(`(() => { const r = document.querySelector('.values-panel').getBoundingClientRect();
     return {left: r.left, right: r.right, top: r.top, width: r.width, winWidth: innerWidth}; })()`);
   check('at 1400px wide the values panel is a right column',
@@ -389,7 +394,7 @@ async function values() {
   /* two round trips, not one: Preact's state update from 'input' must be flushed (a render) before blur reads it */
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)}); el.focus();
     el.value = '0.2'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(80);
+  await rendered();
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).blur()`);
   check('editing a parameter sends it at once, one set, and the core applies it (W106)',
     await until(`!s.busy && ${iappIs(0.2)} && !s.values.inflight.length`, 'iapp set'),
@@ -403,11 +408,11 @@ async function values() {
 
   /* text typed into a box whose focus event the browser never delivered (CI's Linux Chrome, a
      window without the OS focus) stays as typed: only a committed draft is dropped (W35d) */
-  await sleep(100);
+  await rendered();
   const preNoFocus = await S('__xpp.sent().length');
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.value = '0.25'; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(150);
+  await rendered();
   const noFocus = await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     const msg = document.getElementById(el.getAttribute('aria-describedby') || '');
     return {value: el.value, focused: document.activeElement === el, active: document.activeElement?.id || document.activeElement?.tagName,
@@ -417,16 +422,16 @@ async function values() {
     JSON.stringify([noFocus, await S('[s.values.inflight, s.values.errors, s.busy, __xpp.sent().slice(-2)]')]));
   await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
     el.focus(); el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); })()`);
-  await sleep(150);
+  await rendered();
 
   /* an edit is sent on commit only (Enter/Tab/blur), never per keystroke */
   await cdp.eval(`document.getElementById(${JSON.stringify(field)}).focus()`);
-  await sleep(100);
+  await rendered();
   const preType = await S('__xpp.sent().length');
   for (const text of ['0', '0.3', '0.35']) {
     await cdp.eval(`(() => { const el = document.getElementById(${JSON.stringify(field)});
       el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-    await sleep(150);
+    await rendered();
   }
   const whileTyping = await S(`__xpp.sent().slice(${preType})`);
   check('typing into a field sends nothing while it types', whileTyping.length === 0, JSON.stringify(whileTyping));
@@ -461,7 +466,7 @@ async function values() {
   const preClick = await S('__xpp.sent().length');
   await mouse('mousePressed', plotCorner.x, plotCorner.y, {button: 'left', buttons: 1, clickCount: 1});
   await mouse('mouseReleased', plotCorner.x, plotCorner.y, {button: 'left', buttons: 0, clickCount: 1});
-  await sleep(200);
+  await rendered();
   check('a click on the plot host sends nothing: it is view-only', (await S('__xpp.sent().length')) === preClick);
 
 
@@ -535,20 +540,20 @@ async function values() {
     const boxes = await cdp.eval(`[...document.querySelectorAll('.slider-card')].map(e => Math.round(e.getBoundingClientRect().top))`);
     return {count: boxes.length, rows: new Set(boxes).size};
   };
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   let g = await gridRows();
   check('3 sliders sit in one row at 1280px wide', g.count === 3 && g.rows === 1, JSON.stringify(g));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 800, height: 860, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 800, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   g = await gridRows();
   check('3 sliders wrap 2 per row on a tablet (48rem)', g.count === 3 && g.rows === 2, JSON.stringify(g));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 500, height: 860, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 500, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   g = await gridRows();
   check('3 sliders stack one per row on a phone', g.count === 3 && g.rows === 3, JSON.stringify(g));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   for (const id of gridIds) await cdp.eval(`document.querySelector('[data-slider="${id}"] .slider-card-remove')?.click()`);
   await until(`!s.values.sliders.some(d => ${JSON.stringify(gridIds)}.includes(d.id))`, 'grid sliders removed');
 
@@ -615,8 +620,8 @@ async function sliderModelSwitch(dir) {
    scrolling and by keyboard, check its values against output.dat, Get,
    CSV export, and Tab reachability of every button */
 async function dataTable(want, dir) {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   await cdp.eval(`document.querySelector('.table-toggle').click()`);
   check('the Data button opens the table panel', await until('s.table.open', 'table open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.table-panel')).visibility === 'visible'`));
@@ -673,7 +678,7 @@ async function dataTable(want, dir) {
   await cdp.eval(`document.querySelector('.table-header .small').click()`);
   check('Export CSV offers data.csv, written by the core',
     await until("s.files.offered && s.files.offered.name === 'data.csv' && !s.busy", 'csv offered'));
-  for (let t0 = Date.now(); !fs.existsSync(dataCsvPath) && Date.now() - t0 < 5000;) await sleep(50);
+  await waitFile(dataCsvPath);
   let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
   if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
   const r500 = csv[501] ? csv[501].split(',').map(Number) : [];
@@ -688,7 +693,7 @@ async function dataTable(want, dir) {
   await cdp.eval(`document.querySelector('.plot-tools button[title^="Save the plotted numbers"]').click()`);
   check('the plot\'s CSV button offers xpp-curves.csv, written by the core',
     await until("s.files.offered && s.files.offered.name === 'xpp-curves.csv' && !s.busy", 'plot csv offered'));
-  for (let t0 = Date.now(); !fs.existsSync(curvesCsvPath) && Date.now() - t0 < 5000;) await sleep(50);
+  await waitFile(curvesCsvPath);
   check('xpp-curves.csv is not empty',
     fs.existsSync(curvesCsvPath) && fs.statSync(curvesCsvPath).size > 0);
 
@@ -725,8 +730,8 @@ async function dataTable(want, dir) {
    than the first ({total=100,iapp=.1}), so it leaves TOTAL (and so the
    601-row runs later windows() and prompts() still expect) alone. */
 async function textViews() {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   await cdp.eval(`document.querySelector('.text-toggle').click()`);
   check('the Text button opens the panel on Equations', await until("s.text.open && s.text.tab === 'equations'", 'text open')
     && await cdp.eval(`getComputedStyle(document.querySelector('.text-panel')).visibility === 'visible'`));
@@ -813,32 +818,32 @@ async function textViews() {
    to the field, and only a second one (nothing left to drop) closes the sheet. */
 async function valuesNarrowEscape() {
   await editField('par', 'iapp', '0.05');
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 546, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(200);
+  await metrics({width: 546, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   await cdp.eval(`document.querySelector('.values-toggle').click()`);
   await until('s.valuesOpen', 'the sheet opens (546px)');
-  await sleep(150);
+  await rendered();
   await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
   await typeIntoField('par', 'iapp', '1e');
   await key('Enter');
-  await sleep(80);
+  await rendered();
   let box = await fieldState('par', 'iapp');
   check('UX-001: Enter on "1e" refuses it and keeps the box focused, marked',
     box.invalid === 'true' && box.value === '1e' && box.focused && box.message === '"1e" needs an exponent\'s digits',
     JSON.stringify(box));
   await key('Escape');
-  await sleep(120);
+  await rendered();
   box = await fieldState('par', 'iapp');
   const open1 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
   check('UX-001: the first Escape belongs to the field: it drops the draft and the sheet stays open',
     box.invalid === null && close6(Number(box.value), 0.05) && open1, JSON.stringify({box, open1}));
   await key('Escape');
-  await sleep(300);
+  await rendered();
   const open2 = await cdp.eval(`document.querySelector('.values-panel').classList.contains('open')`);
   check('UX-001: a second Escape, with nothing left to drop, closes the sheet',
     open2 === false && !(await S('s.valuesOpen')), JSON.stringify({open2}));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-  await sleep(150);
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
 }
 
 async function keyboardOnly() {
@@ -1068,7 +1073,7 @@ async function marks() {
    examples/ode/wcring.odex (a ring of 20 coupled neurons, u0..u19) is a real
    array model, so the grid actually has columns worth scrolling through. */
 async function aplotView() {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   check('T12: the page connects', await until('s.hello && !s.busy', 'hello'));
 
   await key('i');
@@ -1092,13 +1097,13 @@ async function aplotView() {
      defaults, so Fit below has something to change. */
   await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select');
     s.value = 'U0'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-  await sleep(60); /* Preact's state update must be flushed before an input field's own change reads `values` */
+  await rendered();
   const editFields = ['20', '0', '10', '1', null, null, '0', '1']; /* NCols, Row1, NRows, RowSkip, -, -, Autoplot, ColSkip */
   for (let i = 0; i < editFields.length; i++) {
     if (editFields[i] === null) continue;
     await cdp.eval(`(() => { const el = document.querySelectorAll('[role=dialog] input')[${i}];
       el.value = ${JSON.stringify(editFields[i])}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-    await sleep(60); /* Preact's state update from 'input' must be flushed (a render) before the next field or OK reads it */
+    await rendered();
   }
   await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
   check('Edit sends the array plot: 20 columns (u0..u19), 10 rows',
@@ -1167,9 +1172,9 @@ async function aplotView() {
   await cdp.eval(`document.querySelector('.aplot-toggle').click()`);
   check('reopening it (the window already exists) shows the panel again, no Edit form',
     await until('s.aplot.open && !s.ask', 'reopen'));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
-  await sleep(300);
+  await rendered();
   const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
   check('390x844: the array plot sheet causes no sideways scroll',
     scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
@@ -1180,7 +1185,7 @@ async function aplotView() {
     .filter(b => b.getClientRects().length).map(b => [(b.textContent || '').trim(), b.getBoundingClientRect().height])
     .filter(([, h]) => h < 44)`);
   check('the panel\'s targets are at least 44px high', small.length === 0, JSON.stringify(small));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 /* plot windows as tabs (docs/ui-v2.md T6): Makewindow create adds a tab,
@@ -1286,13 +1291,13 @@ async function windows() {
     && Math.abs(info2.xlo - vb.xlo) <= 1e-5 * Math.abs(vb.xhi - vb.xlo) && Math.abs(info2.yhi - vb.yhi) <= 1e-5 * Math.abs(vb.yhi - vb.ylo)
     && await S('JSON.stringify(s.plots.windows[0].info)') === axes1, JSON.stringify({vz, pz: [pz.x, pz.y], vb, box, info2}));
 
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
-  await sleep(300);
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await rendered();
   const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, w: innerWidth,
     tabs: [...document.querySelectorAll('[role=tab]')].every(t => t.getBoundingClientRect().right <= innerWidth)})`);
   check('390 px with two tabs: no sideways scroll, the tabs fit', scroll.doc <= scroll.w && scroll.tabs, JSON.stringify(scroll));
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
-  await sleep(200);
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await rendered();
 
   await clickButton('Close window');
   check('Close window (Makewindow/Destroy) removes its tab',
@@ -1425,7 +1430,7 @@ const sentView3d = () => cdp.eval("__xpp.sent().filter(c => c.cmd === 'key' && c
 /* W99: the Values panel's boundary-conditions section is there only for a model that defines
    boundary conditions, and starts collapsed */
 const bcSection = (want) => async () => {
-  await sleep(300);
+  await rendered();
   const sec = await cdp.eval(`(() => { const e = document.querySelector('[data-section="bc"]');
     return e ? {folded: e.classList.contains('folded'), fields: e.querySelectorAll('.value-field').length} : null; })()`);
   const n = await S('(s.core.bcs || []).length');
@@ -1519,18 +1524,18 @@ async function threePlot() {
 
 async function touch(type, points) {
   await cdp.send('Input.dispatchTouchEvent', {type, touchPoints: points.map((p, i) => ({x: p.x, y: p.y, id: i}))});
-  await sleep(30);
+  await rendered();
 }
 
 async function phone() {
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
   /* reduced motion too, on every platform: the sheets then close with no
      transition, which is when their focus went to <body> instead of back to
      the toggle (W18: CI's Windows Server runner has reduced motion on) */
   await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'},
     {name: 'prefers-reduced-motion', value: 'reduce'}]}).catch(() => {});
-  await sleep(400);
+  await rendered();
   const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
   check('390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
   const plot = await area();
@@ -1702,7 +1707,7 @@ const dataAt = (p, fx, fy) => ({x: p.x.min + fx * (p.x.max - p.x.min), y: p.y.ma
 
 async function prompts() {
   await desktopMetrics();
-  await sleep(300);
+  await rendered();
   await until('!s.busy', 'idle');
   const lists = await S('s.hello.lists');
 
@@ -1710,7 +1715,7 @@ async function prompts() {
   const pickX = async name => {
     await cdp.eval(`(() => { const s = document.querySelector('[role=dialog] select'); s.value = ${JSON.stringify(name)};
       s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
-    await sleep(80);
+    await rendered();
     await key('Enter');
   };
   await focusPlot();
@@ -1752,14 +1757,14 @@ async function prompts() {
     return {invalid: i.getAttribute('aria-invalid'), value: i.value, message: m && m.textContent, mode: i.inputMode}; })()`);
   const before = await numberBoxState();
   await cdp.eval(`(() => { const i = ${numberBox}; i.focus(); i.value = 'abc'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(80);
+  await rendered();
   const keystroke = await numberBoxState();
   check('T35d: a letter a number field never takes is refused outright: the box keeps its own text, unmarked',
     keystroke.value === before.value && keystroke.invalid === null && !!keystroke.message, JSON.stringify(keystroke));
   await cdp.eval(`(() => { const i = ${numberBox}; i.value = '1e'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(80);
+  await rendered();
   await key('Enter');
-  await sleep(200);
+  await rendered();
   const refused = await cdp.eval(`(() => { const i = ${numberBox}, m = i.closest('label').querySelector('.field-error');
     return {invalid: i.getAttribute('aria-invalid'), message: m && m.textContent, mode: i.inputMode,
       ok: document.querySelector('[role=dialog] .dialog-actions .primary').disabled}; })()`);
@@ -1778,7 +1783,7 @@ async function prompts() {
   const formulaBox = `document.querySelector('[role=dialog] input')`;
   const kindOf = await cdp.eval(`${formulaBox}.dataset.kind`);
   await cdp.eval(`(() => { const i = ${formulaBox}; i.value = ${JSON.stringify(formula)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(80);
+  await rendered();
   const taken = await cdp.eval(`${formulaBox}.getAttribute('aria-invalid')`);
   await key('Enter');
   await until('!s.ask && !s.busy', 'total set');
@@ -1874,7 +1879,7 @@ async function prompts() {
   check('Window/Scroll puts the plot in drag mode', await until("s.pick && s.pick.mode === 'drag'", 'drag mode'));
   v0 = await S('s.core.view');
   await key('ArrowLeft');
-  await sleep(300);
+  await until('__xpp.sent().slice(-3).filter(c => c.cmd === "answer").map(c => c.what).join() === "down,move,up"', 'arrow drag answers');
   await key('Enter');
   const drags = (await cdp.eval('__xpp.sent()')).filter(c => c.cmd === 'answer').slice(-4);
   check('an arrow key drags the plot in data coordinates and Enter ends the drag',
@@ -1897,7 +1902,7 @@ async function prompts() {
     JSON.stringify(await S('s.ask')));
   check('its first box has the focus', await until(`document.activeElement.type === 'checkbox'`, 'checklist focus'));
   await cdp.eval(`document.querySelector('[role=dialog] input[type=checkbox]').click()`);
-  await sleep(80);
+  await rendered();
   await cdp.eval(`[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent === 'OK').click()`);
   const ans = await lastAnswer();
   check('OK answers the checklist with its flags', await until('!s.busy && !s.ask', 'checklist answered')
@@ -2101,7 +2106,7 @@ async function autoView(dir) {
   await typeInto('nmx', '-');
   await cdp.eval(`document.querySelector('.auto-settings-dialog input[data-field=nmx]').focus()`);
   await key('Enter');
-  await sleep(200);
+  await rendered();
   const signNmx = await fieldState('nmx');
   check('T31: Enter on a lone "-" in an integer AUTO Numerics field keeps the form open, marked, and sends nothing',
     signNmx.invalid === 'true' && signNmx.error === 'Nmax must be a whole number of at least 1' && signNmx.ok === true
@@ -2489,10 +2494,10 @@ async function autoView(dir) {
   await until('!s.busy', 'fit again');
 
   /* on a phone: a sheet with Back, 44 px targets, no sideways scroll */
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
   await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
-  await sleep(400);
+  await rendered();
   const sheet = await cdp.eval(`(() => { const r = document.querySelector('.auto-panel').getBoundingClientRect();
     return {l: r.left, t: r.top, w: r.width, bottom: r.bottom, ih: innerHeight, iw: innerWidth,
       doc: document.documentElement.scrollWidth, body: document.body.scrollWidth}; })()`);
@@ -2517,7 +2522,7 @@ async function autoView(dir) {
   check('Show AUTO (44 px) brings the sheet back with its diagram', show.h >= 44 && await until('s.diagram.shown', 'auto show')
     && await until(`__xpp.diagram() && __xpp.diagram().curves.length === ${nCurves}`, 'auto chart again'));
   await desktopMetrics();
-  await sleep(200);
+  await rendered();
 
   /* a page that connects while AUTO is open gets the view and the whole diagram again */
   await reloadPage();
@@ -2651,7 +2656,7 @@ async function autoStopRace() {
   const idle = net.connect(Number(port), host);
   idle.on('error', () => {}); /* a reset arriving around the destroy below is nothing to fail over */
   await new Promise(r => idle.once('connect', r));
-  await sleep(200);
+  /* The accepted command below is behind this socket in the listener's accept queue. */
   const labsPre = await DS('d.labels.length'), runningAtStop = await S('s.busy'), tStop = Date.now();
   const stopBtn = runningAtStop && await until(`document.querySelector('.auto-status .auto-stop')`, 'stop button present', 2000 * SLOW);
   if (stopBtn) await cdp.eval(`document.querySelector('.auto-status .auto-stop').click()`);
@@ -2763,7 +2768,7 @@ async function autoViews(dir) {
   check('AUTO views: a click in a view makes it the active one (the core says so too)',
     await until(`s.diagram.active === 0 && document.querySelector('.auto-pane.active').dataset.view === '0'`, 'activate')
     && await cdp.eval(`__xpp.sent().some(c => c.cmd === 'auto' && c.op === 'view' && c.active === 0)`)
-    && await until('!s.busy', 'activated') && await sleep(300).then(() => S('s.diagram.active === 0')));
+    && await until('!s.busy && s.diagram.active === 0', 'activated'));
 
   /* a grab from the other view: its cursor in both, a click in the second view takes a point */
   await autoButton('G');
@@ -3340,8 +3345,7 @@ async function longRun() {
 
 /** whether the section's xppautX exited within ms */
 async function exited(ms = 10000) {
-  const t0 = Date.now();
-  while (sessionServer.proc.exitCode === null && Date.now() - t0 < ms * SLOW) await sleep(50);
+  await waitForExit(sessionServer.proc, ms * SLOW);
   return sessionServer.proc.exitCode === 0;
 }
 
@@ -3484,8 +3488,8 @@ async function keysCheck() {
     wide.n > 8 && wide.cols >= 2 && wide.scroll <= 1, JSON.stringify(wide));
   await key('Escape');
   await until('!s.busy && !s.ask', 'menu closed');
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
-  await sleep(300);
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await rendered();
   await focusPlot();
   await key('i');
   await until(`s.ask && s.ask.kind === 'menu' && document.querySelector('[role=dialog] .menu-list')`, 'ic menu phone');
@@ -3502,7 +3506,7 @@ async function keysCheck() {
 async function desktopMetrics() {
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: false});
   await cdp.send('Emulation.setEmulatedMedia', {features: []}).catch(() => {});
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+  await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
 /* what the store and the chart hold, sampled by the page at every frame
@@ -3558,7 +3562,7 @@ async function setSliderDialogFields(fields) {
       const el = l.querySelector('input'); el.value = ${JSON.stringify(text)};
       el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   }
-  await sleep(50);
+  await rendered();
 }
 
 /** the input of field `name` in the values panel's section `sec` (par or ic) */
@@ -3575,9 +3579,9 @@ async function goRun() {
 async function editField(sec, name, text) {
   await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(60);
+  await rendered();
   await cdp.eval(`${fieldOf(sec, name)}.querySelector('input').blur()`);
-  await sleep(20);
+  await rendered();
 }
 /** one `input` event carrying the whole new text, as a keystroke, a paste or a drop would (T35d):
     focuses the field first (unless already focused) but does not blur, so a refused edit's brief
@@ -3586,7 +3590,7 @@ async function typeIntoField(sec, name, text) {
   await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input');
     if (document.activeElement !== el) el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
-  await sleep(60);
+  await rendered();
 }
 /** a field's box as the page shows it: its aria-invalid, its text, its message (if any) and
     whether it still has the focus */
@@ -3935,7 +3939,8 @@ async function valuesLive() {
   const wasBusy = await S('s.busy');
   const noMark = !(await cdp.eval(`${fieldOf('par', 'iapp')}.classList.contains('queued') || !!document.querySelector('.values-queued')`));
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
-  await sleep(500);
+  await until('!s.values.inflight.length', 'the queued edits acknowledged');
+  await rendered();
   await cdp.eval('window.__sampling = false; window.__nowObserver.disconnect(); true');
   check('values: five edits while busy are sent at once (five sets), the field shows the last, no pending mark',
     wasBusy && sentDuring.length === 5 && sentDuring.every(c => c.cmd === 'set' && c.name === 'iapp')
@@ -4017,7 +4022,7 @@ async function valuesLive() {
      focused): a blur marks it, keeps it (never reverted, never sent) and says what is missing */
   await typeIntoField('par', 'iapp', '1e-');
   await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').blur()`);
-  await sleep(80);
+  await rendered();
   box = await fieldState('par', 'iapp');
   check('T35d: "1e-" left half-typed is marked, kept, and says what is missing',
     box.value === '1e-' && box.invalid === 'true' && box.message === '"1e-" needs an exponent\'s digits', JSON.stringify(box));
@@ -4026,7 +4031,7 @@ async function valuesLive() {
   /* Escape belongs to the field: it drops the half-typed text, wherever the focus went */
   await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').focus()`);
   await key('Escape');
-  await sleep(80);
+  await rendered();
   let dropped = await fieldState('par', 'iapp');
   /* the value it goes back to is the one committed above (0.05: sent at once, W106), which the core has */
   const coreIapp = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
@@ -4055,7 +4060,7 @@ async function valuesLive() {
     && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - 0.02) < 1e-12,
     JSON.stringify({box, refused}));
   await key('Escape');
-  await sleep(80);
+  await rendered();
   dropped = await fieldState('par', 'iapp');
   check('WF-001: Escape drops the refused formula: the field is valid again and shows what the core has',
     dropped.invalid === null && close6(Number(dropped.value), 0.02) && !(await S(`s.values.errors['par:iapp']`)),
@@ -4091,7 +4096,7 @@ async function valuesLive() {
     !!refusedGca && /gca/.test(await S(`s.values.errors['par:gca']`)) && Object.keys(await S('s.values.errors')).join() === 'par:gca',
     JSON.stringify(await S('s.values.errors')));
   await key('Escape');
-  await sleep(80);
+  await rendered();
 
   /* Reset all sends the core's default command, once, and no set */
   await editField('par', 'iapp', '0.3');
@@ -4186,14 +4191,16 @@ const frameGapsSince = t0 => cdp.eval(`(() => { const f = window.__xppPerf.frame
 /** wheel zooms in and out about the middle of the plot; the long tasks and draw times they cost */
 async function zoomFrames() {
   const a = await area(), cx = a.x + a.w * 0.55, cy = a.y + a.h * 0.45;
-  await sleep(300);
+  await rendered();
   const t0 = await cdp.eval('performance.now()'), d0 = (await P()).draws;
   const v0 = await S('w.viewport');
   for (const dy of [-120, -120, -120, 120, 120, 120, 120]) {
+    const beforeWheel = await S('w.viewport');
     await mouse('mouseWheel', cx, cy, {deltaX: 0, deltaY: dy});
-    await sleep(60);
+    await until(`JSON.stringify(w.viewport) !== ${JSON.stringify(JSON.stringify(beforeWheel))}`, 'this wheel viewport');
+    await rendered();
   }
-  await sleep(200);
+  await rendered();
   await until('!__xpp.plot().tracing', 'tracing', 5000);
   const t1 = await cdp.eval('performance.now()');
   const p = await P(), draws = p.draws - d0;
@@ -4224,7 +4231,7 @@ async function million() {
   if (!done) return;
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   const t1 = await cdp.eval('performance.now()');
-  await sleep(300);
+  await rendered();
   const p = await P(), frames = await frameGapsSince(p0);
   const load = await longTasksSince(p0);
   /* the long tasks of the run are the arrival of the data (the final full
@@ -4256,7 +4263,7 @@ async function million() {
   check('10^6: X plots x against T', await until(`s.seriesCount > ${n0} && !s.busy && w.series.curves[0].x === 0`, 'x vs t', 60000));
   await until('!__xpp.plot().tracing', 'tracing', 10000);
   const t3 = await cdp.eval('performance.now()');
-  await sleep(300);
+  await rendered();
   const q = await P();
   check('10^6: the time plot draws', q.mode === 1 && q.curves[0].points === 1000001,
     JSON.stringify({mode: q.mode, points: q.curves[0].points}));
@@ -4312,12 +4319,7 @@ async function fileMenu(k, mode) {
 }
 
 async function waitFile(p, ms = 10000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < ms) {
-    if (fs.existsSync(p) && fs.statSync(p).size > 0) return fs.readFileSync(p);
-    await sleep(100);
-  }
-  return null;
+  return waitFor(() => fs.existsSync(p) && fs.statSync(p).size > 0 && fs.readFileSync(p), ms);
 }
 
 /** the .set XPPAUT wrote for an older lecar.odex (examples/ode/lecar.ode.set: iapp 0.09, equations after
@@ -4344,7 +4346,7 @@ async function files(dir) {
       JSON.stringify(await S('s.ask')));
     await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
       i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
-    await sleep(50);
+    await rendered();
     await key('Enter');
     check('the ask is answered with the name', (await lastFileAnswer())?.file === 't5.snapx', JSON.stringify(await lastFileAnswer()));
     check('W129 browser mode: the file answer carries no model-copy decision',
@@ -4668,7 +4670,7 @@ async function animation() {
   check('ani: the step back button, from the last frame shown', await aniShown(599));
 
   /* any size: a smaller window keeps the aspect */
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 600, deviceScaleFactor: 1, mobile: false});
+  await metrics({width: 1280, height: 600, deviceScaleFactor: 1, mobile: false});
   check('ani: drawn again at another size, the same aspect', await until(`__xpp.ani().height < ${d0.height}`, 'resized')
     && Math.abs((await cdp.eval('__xpp.ani().box.w / __xpp.ani().box.h')) - aspect) < 1e-6,
     JSON.stringify(await cdp.eval('__xpp.ani()')));
@@ -4681,10 +4683,10 @@ async function animation() {
     JSON.stringify(await S('[s.ani.open, s.ani.exists, s.busy, s.ani.frame && s.ani.frame.pos]')));
 
   /* a phone: a full-screen sheet, 44px targets, no sideways scroll */
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
+  await metrics({width: 390, height: 844, deviceScaleFactor: 2, mobile: true});
   await cdp.send('Emulation.setTouchEmulationEnabled', {enabled: true, maxTouchPoints: 5});
   await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'pointer', value: 'coarse'}, {name: 'hover', value: 'none'}]}).catch(() => {});
-  await sleep(400);
+  await rendered();
   const scroll = await cdp.eval(`({doc: document.documentElement.scrollWidth, body: document.body.scrollWidth, w: innerWidth})`);
   check('ani 390x844: no sideways scroll', scroll.doc <= scroll.w && scroll.body <= scroll.w, JSON.stringify(scroll));
   check('ani 390x844: the panel is a full-screen sheet', await cdp.eval(`(() => { const r = document.querySelector('.ani-panel')
@@ -4784,7 +4786,7 @@ async function kinescope(dir) {
   await cdp.eval(`document.querySelector('.kinescope-bar button[title^="Kinescope/Make AniGif"]').click()`);
   check('kinescope: Export GIF offers anim.gif, written by the core',
     await until("s.files.offered && s.files.offered.name === 'anim.gif' && !s.busy", 'gif offered'));
-  for (let t0 = Date.now(); !fs.existsSync(animPath) && Date.now() - t0 < 5000;) await sleep(50);
+  await waitFile(animPath);
   if (fs.existsSync(animPath)) {
     const gif = parseGifStructure(fs.readFileSync(animPath));
     check('kinescope: the GIF has one frame per capture, all the same size',
@@ -4808,7 +4810,7 @@ async function kinescope(dir) {
      button above also drives: no prompt, so a plain menu pick */
   fs.rmSync(animPath, {force: true});
   check('kinescope: Make Anigif (k, m) runs', await openKinescope('m') && await until('!s.busy', 'anigif done'));
-  for (let t0 = Date.now(); !fs.existsSync(animPath) && Date.now() - t0 < 5000;) await sleep(50);
+  await waitFile(animPath);
   check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
     fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20
     && fs.readFileSync(animPath).toString('ascii', 0, 3) === 'GIF',
@@ -4845,7 +4847,7 @@ async function loadErrorCheck() {
       text.includes('bad.ode, line 3') && text.includes("x'=-x+a*") && text.includes("ERROR compiling X'"), JSON.stringify(text));
   } finally {
     await stopServer(server);
-    await sleep(300);
+
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
   }
 }
@@ -4909,7 +4911,7 @@ async function warningFlashCheck() {
       && !(await S(`s.toasts.length`)), JSON.stringify(await S('[s.flash, __xpp.log().slice(-3)]')));
   } finally {
     await stopServer(server);
-    await sleep(300);
+
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
   }
 }
@@ -4935,7 +4937,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
   } finally {
     rec.lost = await lostCommands(expected);
     await stopServer(server);
-    await sleep(300);
+
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
     record = null;
   }
@@ -5083,8 +5085,8 @@ async function layoutCheck(dir) {
   for (const h of [900, 560]) {
     const bad = [];
     for (let w = 600; w <= 2000; w += 25) {
-      await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: h, deviceScaleFactor: 1, mobile: false});
-      await sleep(40);
+      await metrics({width: w, height: h, deviceScaleFactor: 1, mobile: false});
+      await rendered();
       const p = layoutProblems(await layoutRects());
       if (p.length) bad.push(`${w}: ${p.join(', ')}`);
     }
@@ -5093,15 +5095,15 @@ async function layoutCheck(dir) {
   }
   /* the widths of the maintainer's report, with a tall window */
   for (const w of [1000, 1070, 1180, 1279, 1280, 1880]) {
-    await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: 1000, deviceScaleFactor: 1, mobile: false});
-    await sleep(60);
+    await metrics({width: w, height: 1000, deviceScaleFactor: 1, mobile: false});
+    await rendered();
     const L = await layoutRects();
     check(`layout: ${w}x1000 shows the plot with the Values panel`, layoutProblems(L).length === 0,
       JSON.stringify([layoutProblems(L), L.plot]));
   }
   /* a phone: the Values sheet opens and closes, the plot stays */
-  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 600, height: 900, deviceScaleFactor: 1, mobile: false});
-  await sleep(100);
+  await metrics({width: 600, height: 900, deviceScaleFactor: 1, mobile: false});
+  await rendered();
   await cdp.eval(`document.querySelector('.values-toggle').click()`);
   check('layout: 600 px: the Values sheet opens over the window', await until('s.valuesOpen', 'values open')
     && (await layoutRects()).vals.h >= 800);
@@ -5109,7 +5111,7 @@ async function layoutCheck(dir) {
   check('layout: ... and closes, the plot still there', await until('!s.valuesOpen', 'values closed')
     && layoutProblems(await layoutRects()).length === 0);
   await desktopMetrics();
-  await sleep(100);
+  await rendered();
 
   /* AUTO open, Back: Show AUTO in the flow, off the plot, the messages and the status bar */
   await key('f');
@@ -5139,8 +5141,8 @@ async function layoutCheck(dir) {
   for (const h of [900, 560]) {
     const bad = [];
     for (let w = 600; w <= 2000; w += 50) {
-      await cdp.send('Emulation.setDeviceMetricsOverride', {width: w, height: h, deviceScaleFactor: 1, mobile: false});
-      await sleep(40);
+      await metrics({width: w, height: h, deviceScaleFactor: 1, mobile: false});
+      await rendered();
       const L = await layoutRects();
       const p = layoutProblems(L);
       if (!L.show) p.push('no Show AUTO');
@@ -5158,7 +5160,7 @@ async function layoutCheck(dir) {
       bad.length === 0, bad.slice(0, 6).join(' | '));
   }
   await desktopMetrics();
-  await sleep(100);
+  await rendered();
   await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
   await until(`s.bottom === 'set par iapp: Illegal formula ..'`, 'bottom message');
   await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
@@ -5179,7 +5181,7 @@ async function layoutCheck(dir) {
     JSON.stringify(await DS('[d.open, d.shown, d.points.x.length]')));
   await cdp.eval(`document.querySelector('.auto-back').click()`);
   await until('!s.diagram.shown && s.diagram.open', 'back after open');
-  await sleep(300);
+  await rendered();
   const L = await layoutRects();
   const pl = await cdp.eval(`__xpp.plot()`);
   check('layout: W102: after Back the main plot is in the layout, sized, and holds the rows',
@@ -5248,6 +5250,7 @@ async function main() {
        throttling), to reproduce a slow runner's timing here (W93) */
     if (Number(process.env.XPP_CPU_THROTTLE) > 1)
       await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.XPP_CPU_THROTTLE)});
+    /* about:blank has no app yet: this is protocol setup before the first navigation. */
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async (dir) => {
@@ -5305,20 +5308,17 @@ async function main() {
   } finally {
     b.proc.kill();
     await b.waitForExit();
-    await sleep(100);
+
     await b.cleanup();
     /* Remove profile with retries (W105): after closing, wait for the Chrome
        process to exit, then remove the profile with retries to handle Windows
        file locking delays */
-    let removed = false;
-    for (let retry = 0; retry < 10 && !removed; retry++) {
-      try {
-        fs.rmSync(profile, {recursive: true, force: true});
-        removed = true;
-      } catch (e) {
-        if (retry < 9) await sleep(50);
-      }
-    }
+    let lastError;
+    const removed = await waitFor(() => {
+      try { fs.rmSync(profile, {recursive: true, force: true}); return true; }
+      catch (e) { lastError = e; return false; }
+    });
+    if (!removed) throw new Error(`removing browser profile ${profile}: ${lastError.message}`);
   }
   console.log(`web2 checks: ${failures ? `${failures} failed` : 'all passed'}`
     + (flaky ? `, ${flaky} FLAKY (passed only after a section rerun)` : ''));

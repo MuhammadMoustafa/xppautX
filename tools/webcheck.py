@@ -6,6 +6,9 @@ usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.odex]
 """
 import argparse, atexit, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
 
+LEAVE_LOWER_BOUND_SECONDS = 3.5  # exceed core LEAVE_MS (2000 ms) to prove a live stream prevents exit
+ALONE_LOWER_BOUND_SECONDS = 14  # exceed core ALONE_SECONDS (10 s), HEARTBEAT_MS (2 s), TICK_MS and time_t rounding
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--bin', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
@@ -366,7 +369,7 @@ shutil.rmtree(secret, ignore_errors=True)
 idle = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall = socket.create_connection(('127.0.0.1', port), timeout=20)
 stall.sendall(('PUT /files/stall.txt%s HTTP/1.1\r\nHost: x\r\nContent-Length: 1000\r\n\r\nhalf' % tok).encode())
-time.sleep(0.3)
+# The menu reply below acknowledges acceptance behind both connected sockets.
 t = time.monotonic()
 try:
     post({'cmd': 'key', 'key': 'i'})
@@ -480,8 +483,7 @@ check('W108: a second process starts for the leave check', sess is not None)
 if sess:
     p, pt, tk, c = sess
     check('W108: /leave needs the token', leave_post(pt, 'wrong') == 403)
-    time.sleep(0.5)
-    check('W108: a wrong-token leave does not end the program', p.poll() is None)
+    check('W108: a wrong-token leave leaves the program answering commands', answers(pt, tk))
     close_stream(c)  # the page's pagehide: the stream closes, then the beacon
     t0 = time.time()
     check('W108: the leave beacon is accepted', leave_post(pt, tk) == 204)
@@ -506,7 +508,7 @@ if sess:
     c2.stream.readline()
     close_stream(c)  # the old page's stream closes, then its beacon
     check('W108: a reload leave beacon is accepted', leave_post(pt, tk) == 204)
-    time.sleep(3.5)  # past the 2 s wait (a lower bound only: waiting longer cannot change the outcome)
+    time.sleep(LEAVE_LOWER_BOUND_SECONDS)  # lower bound: core LEAVE_MS (2000 ms), reload keeps the stream open
     check('W108: the same process still answers after a reload inside the wait', p.poll() is None and answers(pt, tk))
     c2.close()
     p.kill()
@@ -668,7 +670,7 @@ if sess:
     evs, ex = read_events(c, lambda e: e['ev'] == 'exit', 30)
     check('W112: it reports exit code 1, with no bye', ex is not None and ex['code'] == 1
           and not any(e['ev'] == 'bye' for e in evs), str([e['ev'] for e in evs]))
-    time.sleep(3.5)  # past the watchdog's waits: the page is still open
+    time.sleep(ALONE_LOWER_BOUND_SECONDS)  # lower bound: core ALONE_SECONDS (10 s), stopped page keeps its stream open
     check('W112: it keeps serving while the page is open', p.poll() is None and answers(pt, tk))
     c.resp.close()  # the response holds the socket open otherwise
     c.close()

@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -3130,7 +3130,7 @@ check_data_formats()
 
 def check_save_owner():
     """W129: the permission belongs to the command; only commit delivers."""
-    log = []
+    log = LogLines()
     p, r, snd, col, _ = launch_server(log=log)
     errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
     results = lambda evs: [e for e in evs if e.get('ev') == 'saved']
@@ -3350,7 +3350,7 @@ finally:
 # says it is under way, and its stopped that it still was when the Abort
 # came, after the lines under test.
 def check_refused_during_run():
-    log = []
+    log = LogLines()
     p, r, snd, col, _ = launch_server(log=log)
     is_ask = lambda e: e.get('ev') == 'ask'
     try:
@@ -3398,9 +3398,7 @@ def check_refused_during_run():
               not any(x.get('ev') == 'message' for x in after[2]) and w1 and w1.get('zoom', {}).get('x') == [0, 50],
               str(w1 and w1.get('zoom')))
         want = ['refused during a computation: key s', 'refused during a computation: key c']
-        deadline = time.monotonic() + 5 * SLOW
-        while not all(w in log for w in want) and time.monotonic() < deadline:
-            time.sleep(0.05)
+        log.wait_for(lambda lines: all(w in lines for w in want))
         check('W95: each refused line is logged once ("refused during a computation: key s"), the view none',
               all(log.count(w) == 1 for w in want) and len([l for l in log if 'refused' in l]) == 2,
               str([l for l in log if 'refused' in l]))

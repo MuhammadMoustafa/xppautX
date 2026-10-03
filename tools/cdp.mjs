@@ -79,15 +79,18 @@ export class Cdp {
   /* what the page holds right now, and what it did before: for an error */
   async report() {
     let now;
+    let deadline;
     try {
       const r = await Promise.race([
         this.send('Runtime.evaluate', {expression: `JSON.stringify({url: location.href, state: document.readyState,
           title: document.title, app: !!document.getElementById('app') && document.getElementById('app').childElementCount,
           text: (document.body ? document.body.innerText : '').slice(0, 200)})`, returnByValue: true}),
-        sleep(3000).then(() => null)]);
+        new Promise(resolve => { deadline = setTimeout(() => resolve(null), REPORT_TIMEOUT_MS); })]);
       now = r && r.result ? r.result.value : 'the page did not answer within 3 s';
     } catch (e) {
       now = `the page could not be asked: ${e.message}`;
+    } finally {
+      clearTimeout(deadline);
     }
     return `page now: ${now}\n  page before: ${this.notes.length ? this.notes.join('\n    ') : '(nothing recorded)'}` +
       (this.browserState ? `\n  browser: ${this.browserState()}` : '');
@@ -109,6 +112,20 @@ export class Cdp {
 }
 
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
+const REPORT_TIMEOUT_MS = 3000; /* diagnostics must also work when the renderer is wedged */
+const WAIT_TIMEOUT_MS = 15000; /* safety ceiling for external processes and files, not a speed assertion */
+const POLL_MS = 40; /* yield between observations of a condition without an event API */
+const EXIT_TIMEOUT_MS = 5000; /* safety ceiling for a stopped child to release its files */
+
+export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await read();
+    if (value) return value;
+    if (Date.now() >= deadline) return null;
+    await sleep(POLL_MS);
+  }
+}
 
 /* Draw and frame timing (W58: the program itself carries no code that
    exists only to measure or slow it -- performance is for CI). Injected
@@ -152,18 +169,18 @@ export async function installPerfObserver(cdp) {
       cdp.send('Page.handleJavaScriptDialog', {accept: true}).catch(() => undefined);
   };
   await cdp.send('Page.addScriptToEvaluateOnNewDocument',
-    {source: "navigator.sendBeacon = () => true; "
+    {source: "window.__xppCheckRendering = true; navigator.sendBeacon = () => true; "
       + "window.addEventListener('beforeunload', e => e.stopImmediatePropagation(), true);"});
   return cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: PERF_SCRIPT});
 }
 
 /* Wait for a process to exit (W105). Resolves when process.exitCode is not null. */
-async function waitForExit(proc, timeoutMs = 5000) {
+export async function waitForExit(proc, timeoutMs = EXIT_TIMEOUT_MS) {
   return new Promise(resolve => {
-    if (proc.exitCode !== null) { resolve(); return; }
-    const done = () => { proc.off('exit', done); clearTimeout(timer); resolve(); };
+    if (proc.exitCode !== null || proc.signalCode !== null) { resolve(true); return; }
+    const done = () => { proc.off('exit', done); clearTimeout(timer); resolve(true); };
     proc.on('exit', done);
-    const timer = setTimeout(() => resolve(), timeoutMs);
+    const timer = setTimeout(() => { proc.off('exit', done); resolve(false); }, timeoutMs);
   });
 }
 
@@ -227,13 +244,11 @@ export async function startBrowser(browser, profile) {
     proc.on('error', e => { clearTimeout(timer); reject(new Error(`browser ${browser} could not be run: ${e.message}`)); });
   }).catch(e => { proc.kill(); throw e; });
   const port = new URL(wsUrl).port;
-  let page = null;
-  for (let i = 0; i < 50 && !page; i++) {
+  const page = await waitFor(async () => {
     const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    page = list.find(t => t.type === 'page');
-    if (!page) await sleep(100);
-  }
-  if (!page) throw new Error(`browser ${browser} has no page after 5 s: ${state()}`);
+    return list.find(t => t.type === 'page');
+  }, startMs);
+  if (!page) { proc.kill(); throw new Error(`browser ${browser} has no page: ${state()}`); }
   const cdp = new Cdp(page.webSocketDebuggerUrl);
   cdp.browserState = state;
   await cdp.open();

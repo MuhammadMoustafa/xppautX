@@ -26,6 +26,10 @@ esac
 windows=0
 case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) windows=1 ;; esac
 fail=0
+POLL_SECONDS=0.1 # yield between output observations without an event API
+OUTPUT_POLLS=100 # safety ceiling (10 s) for process startup, never a speed assertion
+EXIT_TIMEOUT_SECONDS=20 # safety ceiling for a malformed model to exit
+TIMEOUT_RUNNER=$(pwd)/tools/run_timeout.py
 pass() { echo "PASS $1"; }
 bad() { echo "FAIL $1"; fail=1; }
 
@@ -50,7 +54,7 @@ if [ "$(uname -s)" = Linux ]; then
 fi
 
 tmp=$(mktemp -d) || exit 1
-trap 'kill $pid 2>/dev/null; rm -rf "$tmp"' EXIT
+trap '[ -z "${pid:-}" ] || kill "$pid" 2>/dev/null; rm -rf "$tmp"' EXIT
 mkdir "$tmp/bin"
 for opener in xdg-open open; do
   printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/bin/$opener"
@@ -73,28 +77,37 @@ else
   bad "old silent spelling: $(head -c 300 "$tmp/refused.out")"
 fi
 
+# Poll only inside this output wait; both the address and the opener are observable.
+wait_for_output() {
+  i=0
+  while [ "$i" -lt "$OUTPUT_POLLS" ]; do
+    grep -q "$1" "$2" 2>/dev/null && return 0
+    kill -0 "$pid" 2>/dev/null || return 1
+    sleep "$POLL_SECONDS"
+    i=$((i + 1))
+  done
+  return 1
+}
+
 # start xppautX with $@ in $tmp (and env's $ENVS), wait for its XPP: line (at most 10 s)
 start() {
   rm -f "$tmp/out" "$tmp/opened"
   ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.odex > out 2>&1 ) &
   pid=$!
-  i=0
-  while [ $i -lt 100 ] && ! grep -q '^XPP: http' "$tmp/out" 2>/dev/null; do
-    sleep 0.1
-    i=$((i + 1))
-  done
+  wait_for_output '^XPP: http' "$tmp/out" || bad "startup did not print an address"
   url=$(sed -n 's/^XPP: \(http:[^ ]*\).*/\1/p' "$tmp/out" | head -1)
 }
 stop() {
-  kill $pid 2>/dev/null
-  wait $pid 2>/dev/null
+  kill "$pid" 2>/dev/null
+  wait "$pid" 2>/dev/null
+  pid=
 }
 
 if [ $windows -eq 1 ]; then
   echo "SKIP --browser: Windows opens it with ShellExecute, not a stand-in on PATH"
 else
   start --browser --port 0
-  sleep 1 # the opener runs in the background
+  wait_for_output . "$tmp/opened" || bad "the opener did not write its address"
   case "$url" in
     http://127.0.0.1:*/?t=*) pass "--browser prints the address ($(echo "$url" | cut -c1-30)...)" ;;
     *) bad "--browser prints the address: $(head -c 300 "$tmp/out")" ;;
@@ -108,7 +121,7 @@ else
 fi
 
 start --no-open --port 0
-sleep 1
+# Startup printed XPP after the mode had decided whether to invoke an opener.
 case "$url" in
   http://127.0.0.1:*/?t=*) pass "--no-open prints the address" ;;
   *) bad "--no-open prints the address" ;;
@@ -120,7 +133,7 @@ if [ $linux_window -eq 1 ]; then
   # the window's library cannot load: the WARN names what to install, and
   # the browser opens instead (the stand-in opener)
   ENVS="XPP_WINDOW_FAIL_LOAD=1" start --port 0
-  sleep 1
+  wait_for_output . "$tmp/opened" || bad "the fallback opener did not write its address"
   if grep -q 'the window needs WebKitGTK, which is not installed (libwebkit2gtk-4.1.so.0 not found)' "$tmp/out" &&
     grep -q 'Using the browser instead' "$tmp/out"; then
     pass "no WebKitGTK: says what to install ($(sed -n 's/.*install it with: \(.*\)\. Using.*/\1/p' "$tmp/out"))"
@@ -136,7 +149,7 @@ if [ $linux_window -eq 1 ]; then
   # the library itself loads (memfd, dlopen, its table); no display (GTK
   # would find a Wayland socket by its default name: X11 only) the browser
   ENVS="-u DISPLAY -u WAYLAND_DISPLAY GDK_BACKEND=x11" start --port 0
-  sleep 1
+  wait_for_output . "$tmp/opened" || bad "the fallback opener did not write its address"
   if grep -q 'the window cannot open (webview error -1: GTK init failed' "$tmp/out" && ! grep -q 'WebKitGTK' "$tmp/out" &&
     [ -n "$url" ] && [ "$(head -1 "$tmp/opened" 2>/dev/null)" = "$url" ]; then
     pass "no display: the window's library loads, then the browser opens"
@@ -151,15 +164,9 @@ fi
 # --silent at once (browser and window mode keep the page open on the log)
 cp tools/models/malformed_unbalanced.ode "$tmp/"
 for mode in --server --silent; do
-  ( cd "$tmp" && exec "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 ) &
-  bpid=$!
-  ( sleep 20; kill $bpid 2>/dev/null ) &
-  watchdog=$!
-  wait $bpid
+  ( cd "$tmp" && exec python3 "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" $mode malformed_unbalanced.ode < /dev/null > bad.out 2>&1 )
   status=$?
-  kill $watchdog 2>/dev/null
-  wait $watchdog 2>/dev/null
-  if [ $status -ne 0 ] && [ $status -lt 128 ] && grep -q 'ERROR' "$tmp/bad.out"; then
+  if [ $status -ne 0 ] && [ $status -lt 124 ] && grep -q 'ERROR' "$tmp/bad.out"; then
     pass "$mode: a model that does not load exits with status $status"
   else
     bad "$mode: a model that does not load exits with status $status: $(head -c 300 "$tmp/bad.out")"
@@ -172,16 +179,10 @@ printf "x'=xp\nxp=0\nexport {x} {xp}\ninit x=1\ndone\n" > "$tmp/c_export.ode"
 printf "x'=-x\n@ dll_lib=ex.so, dll_fun=vdp\ndone\n" > "$tmp/c_dll.ode"
 printf "x[0..3]'=-x[j]\nspecial k=import(a.so,f,4,x0)\ndone\n" > "$tmp/c_import.ode"
 for m in c_export c_dll c_import; do
-  ( cd "$tmp" && exec "$BIN" --silent $m.ode < /dev/null > $m.out 2>&1 ) &
-  bpid=$!
-  ( sleep 20; kill $bpid 2>/dev/null ) &
-  watchdog=$!
-  wait $bpid
+  ( cd "$tmp" && exec python3 "$TIMEOUT_RUNNER" "$EXIT_TIMEOUT_SECONDS" "$BIN" --silent $m.ode < /dev/null > $m.out 2>&1 )
   status=$?
-  kill $watchdog 2>/dev/null
-  wait $watchdog 2>/dev/null
   # one error, at its line (W140b): "c_dll.ode:2: dll_lib: compiled functions ..."
-  if [ $status -ne 0 ] && [ $status -lt 128 ] &&
+  if [ $status -ne 0 ] && [ $status -lt 124 ] &&
     grep -q "^$m\.ode:[0-9][0-9]*: .*compiled functions are not supported" "$tmp/$m.out"; then
     pass "$m: a model using compiled functions does not load, and says why"
   else

@@ -14,10 +14,29 @@ import type {Session} from './session';
 import type {Action} from './store/state';
 import {logEntries} from './store/log';
 import {autoWindow} from './store/diagram';
+import {options} from 'preact';
 
 const KEEP = 200;
 
 export function installTestHook(session: Session): void {
+  /* W166: acknowledge the actual render/effect callbacks, including local
+     form state, rather than asking a check to guess how long they take.
+     The checker opts in before the document loads (cdp.mjs); ordinary
+     pages retain Preact's own scheduling, including hidden-tab timers. */
+  let renders = 0, effects = 0;
+  const renderLater = options.debounceRendering ?? (fn => { void Promise.resolve().then(fn); });
+  const effectLater = options.requestAnimationFrame ?? requestAnimationFrame;
+  const renderingObserved = !!(window as unknown as {__xppCheckRendering?: boolean}).__xppCheckRendering;
+  if (renderingObserved) {
+    options.debounceRendering = fn => {
+      renders++;
+      renderLater(() => { try { fn(); } finally { renders--; } });
+    };
+    options.requestAnimationFrame = fn => {
+      effects++;
+      effectLater(() => { try { fn(); } finally { effects--; } });
+    };
+  }
   const actions: string[] = [];
   const sent: unknown[] = [];
   /* the `diagram` events as they came, so a test can rebuild the diagram on its
@@ -56,6 +75,8 @@ export function installTestHook(session: Session): void {
   };
   (window as unknown as {__xpp: unknown}).__xpp = {
     state: () => session.store.getState(),
+    /** all scheduled component renders and effects have run (not core idle) */
+    rendered: () => renderingObserved && renders === 0 && effects === 0,
     /** the log's entries, oldest first (the store keeps them in chunks: store/log.ts) */
     log: () => logEntries(session.store.getState().log),
     actions: () => actions.slice(),

@@ -18,8 +18,9 @@
 # .st file holding the exit status (or "timeout"), and with KEEP_OUTPUT=1
 # the output.dat itself as a .dat file (examples_check.sh --keep).
 # The timeout is coreutils' timeout where there is one (Linux, Git Bash),
-# else (macOS) a watcher that kills the run.
+# else (macOS) the shared process-exit runner tools/run_timeout.py.
 set -u
+TIMEOUT_RUNNER=$(cd "$(dirname "$0")" && pwd)/run_timeout.py
 
 # Shared with odexcheck: runtime errors can still produce baseline data.
 runtime_exit_ok() {
@@ -52,15 +53,8 @@ if [ -n "$tmo" ]; then
   ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 else
-  ( cd "$run" && exec "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) &
-  pid=$!
-  ( sleep "$timeout_s" && touch "$run/.timed_out" && kill -9 "$pid" ) >/dev/null 2>&1 &
-  watcher=$!
-  wait "$pid" || st=$?
-  pkill -P "$watcher" 2>/dev/null
-  kill "$watcher" 2>/dev/null
-  wait "$watcher" 2>/dev/null
-  [ -e "$run/.timed_out" ] && timed_out=1
+  ( cd "$run" && exec python3 "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) || st=$?
+  [ "$st" -eq 124 ] && timed_out=1
 fi
 if [ $timed_out -eq 1 ]; then
   sum=timeout

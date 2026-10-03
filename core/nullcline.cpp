@@ -441,7 +441,8 @@ void save_the_nullclines(xpp::Session &s)
 
 void froz_cline_stuff_com(xpp::Session &s, int i)
 {
-  int delay=200;
+  constexpr int FROZEN_FRAME_DELAY_MS = 200; /* default pacing when browsing frozen nullcline frames */
+  int delay=FROZEN_FRAME_DELAY_MS;
   if(!s.nullcline_state.frozen_started)start_ncline(s);
   switch(i){
   case 0:
