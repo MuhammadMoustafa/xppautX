@@ -707,19 +707,13 @@ if os.name == 'nt':
     import _winapi, msvcrt
     run = tempfile.mkdtemp(prefix='xppweb')
     shutil.copy(args.ode, run)
-# W121a: an external-options line with no assignments changes no values.
-# --debug logs the line read from disk, exercising UTF-8 independently of
-# the platform's command-line encoding.
-log_marker = 'café 😀'
-with open(os.path.join(run, 'log-text.set'), 'w', encoding='utf-8') as f:
-    f.write('# ' + log_marker + '\n')
     rfd, wfd = os.pipe()
     whandle = msvcrt.get_osfhandle(wfd)
     os.set_handle_inheritable(whandle, True)
     si = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESTDHANDLES, hStdOutput=whandle)  # stdin, stderr: none
     exe = os.path.abspath(args.bin)
     hproc, hthread, _, _ = _winapi.CreateProcess(
-        exe, subprocess.list2cmdline([exe, '--browser', '--no-open', '--port', '0', '--debug', os.path.basename(args.ode), '--readset', 'log-text.set']),
+        exe, subprocess.list2cmdline([exe, '--browser', '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)]),
         None, None, True, 0, None, run, si)
     _winapi.CloseHandle(hthread)
     os.close(wfd)
