@@ -146,7 +146,7 @@ int next_seed(int seed)
        close following seeds (mt19937_64's own mixing needs one step); the
        low 31 bits keep the result a non-negative int like every other
        seed in the UI and the .ode "@ seed=" option */
-    (void)stream.draw();
+    stream.draw();
     constexpr std::uint64_t SEED_MASK = 0x7fffffff; /* the UI's non-negative 31-bit seeds */
     return static_cast<int>(stream.draw() & SEED_MASK);
 }
