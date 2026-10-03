@@ -603,16 +603,17 @@ by module; each stage timed, and if C++ costs speed the card stops.
 What truly needs C linkage, and stays (tools/externcheck.sh's permanent
 entries):
 
-- `core/xpp_window_plugin.h`: libxppwindow.so's one export,
+- `core/xpp_window.cpp`: libxppwindow.so's one export,
   `xpp_window_plugin_init`, which the loader finds with dlsym by its C
-  name, and the tables it trades (XppWindowHost, XppWindowApi), the C ABI
-  across the shared library (W13e);
-- data the build generates as C and compiles with $(CC): tools/embed.c's
-  web_assets.c (`xpp_web_assets`, xpp_http.cpp) and tools/embed_bytes.c's
-  icon and window library (`xpp_icon_png`, `xpp_window_lib`,
-  xpp_window.cpp and xpp_window_loader.cpp);
+  name. The tables it trades (XppWindowHost, XppWindowApi) are C++,
+  declared in xpp_window_plugin.h and built together on both sides (W172);
 - `rand_s`, the Windows C library's, which stdlib.h declares only under
   _CRT_RAND_S (xpp_http.cpp).
+
+W173 (#225) removes the generated data's C linkage: tools/embed.cpp and
+tools/embed_bytes.cpp emit C++ spans in namespace xpp through a shared
+byte writer, declared in xpp_assets.h. The uniform byte-generator option
+is used because clang64 22 warns for #embed with the native WERROR flags.
 
 Nothing else is called from C: CVODE (W27a), AUTO's translated routines
 and every callback handed to a library are compiled as C++, and the C

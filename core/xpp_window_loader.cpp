@@ -1,7 +1,7 @@
 /* xpp_window.h on Linux (W13e): the window is a library of its own,
    libxppwindow.so (xpp_window.cpp and third_party/webview, linked against
    GTK 3 and WebKitGTK 4.1), embedded in xppautX as bytes
-   (build/.../window_lib.c, tools/embed_bytes.c) and loaded from memory
+   (build/.../window_lib.cpp, tools/embed_bytes.cpp) and loaded from memory
    only when the window opens: memfd_create, then dlopen of
    /proc/self/fd/N. xppautX itself links neither library, so one binary
    starts on every Linux: --silent, --server and --browser never load it,
@@ -36,9 +36,7 @@
 #define MFD_EXEC 0x0010U /* linux/memfd.h, Linux 6.3; glibc 2.35 lacks it */
 #endif
 
-/* build/.../window_lib.c: libxppwindow.so's bytes */
-extern "C" const unsigned char xpp_window_lib[];
-extern "C" const unsigned long xpp_window_lib_len;
+#include "xpp_assets.h"
 
 namespace {
 
@@ -93,7 +91,7 @@ void *open_library(std::string &err, bool from_memory)
     }
     void *lib = nullptr;
     const char *fail = std::getenv("XPP_WINDOW_FAIL_LOAD");
-    if (!write_all(fd, xpp_window_lib, xpp_window_lib_len))
+    if (!write_all(fd, xpp::window_lib.data(), xpp::window_lib.size()))
         err = "cannot write the window's library: " + std::string(std::strerror(errno));
     else if (fail && *fail && std::strcmp(fail, "0") != 0)
         err = path + ": " + std::string(SIMULATED_MISSING);

@@ -222,7 +222,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: "Sanitizers: no error report (no leak detection on macOS)"
-        run: tools/asancheck.sh --no-leaks
+        run: |
+          clang --version
+          tools/asancheck.sh --no-leaks
       - name: Upload sanitizer reports
         if: ${{ failure() }}
         uses: actions/upload-artifact@v7
@@ -240,6 +242,7 @@ jobs:
       - name: "Build xppautX (WKWebView window on, the Darwin default since W13d)"
         id: build
         run: |
+          clang --version
           make -j"$(sysctl -n hw.ncpu)" xppautx
           ./xppautX --help | head -5
       - name: "Unit tests (C and C++ objects linked with clang++)"
@@ -313,7 +316,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build xppautX
         id: build
-        run: make -j"$(sysctl -n hw.ncpu)" xppautx
+        run: |
+          clang --version
+          make -j"$(sysctl -n hw.ncpu)" xppautx
       - uses: actions/setup-node@v7
         with:
           node-version: 24

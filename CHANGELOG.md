@@ -9,6 +9,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Build
+
+- Embed the page, icon and Linux window library as C++ spans; remove the remaining project C generators and their C linkage (W173, [#225](https://github.com/MuhammadMoustafa/xppautX/issues/225)).
+
 ### Added
 
 - `--convert` notes `@` option words XPPAUT ignores when spaces surround `=`, while keeping the option values unchanged (W167, [#219](https://github.com/MuhammadMoustafa/xppautX/issues/219)).

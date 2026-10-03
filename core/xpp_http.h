@@ -5,7 +5,7 @@
 
 /* The browser front end without Node: a small HTTP server inside
    xppautX (xpp_http.cpp), in namespace xpp::http (W109f). The page and
-   its script are compiled in (web_assets.c); events reach the page by
+   its script are compiled in (web_assets.cpp); events reach the page by
    Server-Sent Events and commands come back by POST. Only 127.0.0.1 is
    served, and the event and command URLs need the random token printed
    with the address. */

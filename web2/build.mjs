@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Builds the new front end into web2/dist, which is committed: xppautX
-   embeds those files (Makefile WEB2_FILES, tools/embed.c), so building the
+   embeds those files (Makefile WEB2_FILES, tools/embed.cpp), so building the
    program never needs Node or npm. Anyone who edits web2/src runs this
    and commits dist with the change.
 
@@ -57,7 +57,7 @@ function copied() {
 /* the manual (docs/manual/*.md, W12), rendered to HTML at build time
    (tools/manualBuild.mjs; marked, a devDependency, runs only here, so it
    never reaches app.js) and written as dist/manual.json, served like any
-   other web2/dist file (Makefile WEB2_FILES, tools/embed.c). Help.tsx
+   other web2/dist file (Makefile WEB2_FILES, tools/embed.cpp). Help.tsx
    fetches it itself the first time Help opens, so a session that never
    opens Help never downloads the manual's own ~270 KB. */
 function generated() {

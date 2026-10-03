@@ -3789,7 +3789,7 @@ async function helpCheck() {
     !(await cdp.eval(`!!document.querySelector('.help-content')`)));
 
   /* manual.json itself: served like any other web2/dist file (Makefile
-     WEB2_FILES, tools/embed.c), no token needed, same as app.js/app.css */
+     WEB2_FILES, tools/embed.cpp), no token needed, same as app.js/app.css */
   const manualFetch = await cdp.eval(`fetch('manual.json').then(r => ({status: r.status, type: r.headers.get('content-type')}))`);
   check('help: manual.json is served with a JSON content type',
     manualFetch.status === 200 && /application\/json/.test(manualFetch.type || ''), JSON.stringify(manualFetch));

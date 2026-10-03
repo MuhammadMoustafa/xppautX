@@ -67,11 +67,7 @@ const char *xpp::window::launch_document() { return nullptr; }
 #include <gtk/gtk.h>
 #include <unistd.h>
 #ifdef XPP_ICON_ASSET
-/* build/obj/icon_assets.c (tools/embed_bytes.c), a plain C object: declared
-   at file scope, not inside the anonymous namespace below, so it keeps C
-   linkage instead of being mangled as one of its members */
-extern "C" const unsigned char xpp_icon_png[];
-extern "C" const unsigned long xpp_icon_png_len;
+#include "xpp_assets.h"
 #endif
 #endif
 
@@ -769,7 +765,7 @@ void set_window_icon(GtkWindow *win)
 #ifdef XPP_ICON_ASSET
     GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
     GError *err = nullptr;
-    if (gdk_pixbuf_loader_write(loader, xpp_icon_png, xpp_icon_png_len, &err) &&
+    if (gdk_pixbuf_loader_write(loader, xpp::icon_png.data(), xpp::icon_png.size(), &err) &&
         gdk_pixbuf_loader_close(loader, &err)) {
         GdkPixbuf *pix = gdk_pixbuf_loader_get_pixbuf(loader);
         if (pix) gtk_window_set_icon(win, pix);

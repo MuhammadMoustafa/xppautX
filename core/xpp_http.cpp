@@ -19,6 +19,7 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include "xpp_assets.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
@@ -76,13 +77,6 @@ typedef int sock_t;
 #ifdef _WIN32
 extern "C" errno_t rand_s(unsigned int *); /* the C library's; stdlib.h declares it only with _CRT_RAND_S */
 #endif
-
-typedef struct {
-    const char *path, *type;
-    const unsigned char *data;
-    size_t len;
-} XppWebAsset;
-extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C): web2/dist/ at / */
 
 /* No exception may leave a thread: a failed allocation ends the program
    with xpp::out_of_memory_now (not out_of_memory: at_exit would wait on
@@ -881,11 +875,12 @@ void serve_asset(Request &q)
         return;
     }
     if (path == "/index.html") path = "/";
-    const XppWebAsset *a;
-    for (a = xpp_web_assets; a->path; a++)
-        if (path == a->path) break;
-    if (a->path) reply(q.s, "200 OK", a->type, {reinterpret_cast<const char *>(a->data), a->len});
-    else reply_text(q.s, "404 Not Found", "not found");
+    for (const auto &a : xpp::web_assets) {
+        if (path != a.path) continue;
+        reply(q.s, "200 OK", a.type, {reinterpret_cast<const char *>(a.data.data()), a.data.size()});
+        return;
+    }
+    reply_text(q.s, "404 Not Found", "not found");
 }
 
 /* Both socket timeouts use milliseconds; zero would disable the timeout. */

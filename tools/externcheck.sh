@@ -3,10 +3,8 @@
 # namespace xpp, with C++ types at the boundary. extern "C" stays only
 # where C really calls across: the Linux window library's one export
 # (xpp_window_plugin_init: dlsym finds it by its C name; the tables it
-# trades are C++, both sides built together, W172), data the
-# build generates as C (tools/embed.c's web_assets.c, tools/embed_bytes.c's
-# icon and window library), a function of the C library that a header
-# declares only under a macro, and a callback a C library calls. This
+# trades are C++, both sides built together, W172), and rand_s, which
+# the C library header declares only under a macro (W173). This
 # check fails on an extern "C" in core/ or tests/ (.cpp and .h, comments
 # stripped: tools/strip_comments.awk) that the list below does not allow,
 # by file and count: a file with more than its entry allows, or one with
@@ -22,9 +20,8 @@
 cd "$(dirname "$0")/.." || exit 1
 
 # "file count|why"
-ALLOW="core/xpp_window.cpp 3|xpp_window_plugin_init, that export; xpp_icon_png and its length, C data tools/embed_bytes.c generates
-core/xpp_window_loader.cpp 2|xpp_window_lib and its length, C data tools/embed_bytes.c generates
-core/xpp_http.cpp 2|xpp_web_assets, C data tools/embed.c generates; rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S
+ALLOW="core/xpp_window.cpp 1|xpp_window_plugin_init, the dlsym export
+core/xpp_http.cpp 1|rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S
 core/band.h 1|vendored CVODE, its own C API: W34 (#72) decides whether SUNDIALS replaces it
 core/cvband.h 1|vendored CVODE: W34 (#72) decides
 core/cvdense.h 1|vendored CVODE: W34 (#72) decides

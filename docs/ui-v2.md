@@ -39,7 +39,7 @@ mergeability is not a goal.
 | `series` and `plots` events, `data` command | `core/plot_data.cpp` (C API in `plot_data.h`, called from `core/json_state.cpp`), `core/series_enc.cpp`, docs/protocol.md "The plot as data" | Every plot window's curves as numbers, one `series` per window: T and every plotted column, float32 values printed with 9 digits or base64 float32 (`enc` `f32`), sent at the end of a command when the window's data or curves changed, and for the active window in `append` parts while an integration runs. `plots` lists the windows (axes, labels, 3D view, curves) and the active one. |
 | Page | `web2/src/` | Preact + TypeScript. A store fed by protocol events, a session that sends commands, the layout shell, the command menu, the plot (uPlot), prompts as dialogs, notifications, status bar. |
 | Build | `web2/build.mjs`, `web2/package.json` | esbuild bundles `src/` into `web2/dist/` (`app.js`, `app.css`, `index.html`, the Inter font and its licence). `dist/` is committed. |
-| Embedding | `Makefile` `WEB2_FILES`, `tools/embed.c` | xppautX serves `web2/dist` at `/` (`/v1/` and `/v2/` redirect there). |
+| Embedding | `Makefile` `WEB2_FILES`, `tools/embed.cpp` | xppautX serves `web2/dist` at `/` (`/v1/` and `/v2/` redirect there); generated C++ spans share `core/xpp_assets.h` (W173, #225). |
 | Tests | `web2/test/`, `tools/web2check.mjs`, `tools/servercheck.py`, `tools/webcheck.py` | Reducer and plot-model unit tests; a browser session asserting store and plot state (desktop, keyboard only, 390x844 touch); the `series` numbers against `output.dat`; the page's assets. |
 
 The plot windows are tabs (Makewindow's windows, the core's active one

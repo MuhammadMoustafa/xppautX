@@ -7,9 +7,7 @@ VERSION  = 8.0
 MAJORVER = 8.0
 MINORVER = 1
 
-# The core is C converting to C++ file by file (CLAUDE.md, "C and C++"):
-# core/x.c builds with $(CC), core/x.cpp with $(CXX), and a program with any
-# C++ object links with $(CXX).
+# Our core and build tools are C++; CC still builds vendored third-party C.
 CC      ?= gcc
 CXX     ?= g++
 CSTD    ?= -std=c99 -pedantic -D_XOPEN_SOURCE=600
@@ -144,7 +142,7 @@ $(BUILDDIR)/xpp_about.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -D
 # view is not our code).
 # On Linux (W13e) the window is a shared library, libxppwindow.so, the only
 # thing linked against GTK and WebKitGTK, embedded in xppautX
-# (tools/embed_bytes.c) and loaded from memory only when the window opens
+# (tools/embed_bytes.cpp) and loaded from memory only when the window opens
 # (core/xpp_window_loader.cpp): xppautX itself needs neither to start, so
 # the one binary runs on every Linux, with the window where WebKitGTK is
 # installed and in the browser elsewhere. tools/modecheck.sh checks that
@@ -197,21 +195,21 @@ $(WINDOW_LIB_DIR)/xpp_window.o: $(SRCDIR)/xpp_window.cpp $(BUILDDIR)/toolchain.s
 	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -DXPP_WINDOW -DXPP_WINDOW_PLUGIN -DXPP_ICON_ASSET -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -MMD -MP -MF $(@:.o=.d) -c $< -o $@
 $(WINDOW_LIB_DIR)/webview.o: $(SRCDIR)/xpp_webview.cpp $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
 	$(CXX) $(WEBVIEW_STD) $(call NOLTO,$(OPT)) -fPIC -DWEBVIEW_STATIC -isystem $(WEBVIEW_DIR)/include $(WINDOW_CFLAGS) -c $< -o $@
-$(WINDOW_LIB_DIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c | $(WINDOW_LIB_DIR)
-	$(CC) -O2 -fPIC -c $< -o $@
+$(WINDOW_LIB_DIR)/icon_assets.o: $(BUILDDIR)/icon_assets.cpp core/xpp_assets.h $(BUILDDIR)/toolchain.stamp | $(WINDOW_LIB_DIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) -fPIC -MMD -MP -c $< -o $@
 # one export, xpp_window_plugin_init (every other symbol local); -z defs:
 # nothing of xppautX's is referenced but through the table it is handed
 # (xpp_window_plugin.h); stripped, as the bytes go into xppautX
 $(WINDOW_LIB): $(WINDOW_LIB_OBJECTS)
 	@printf '{ global: xpp_window_plugin_init; local: *; };' > $(WINDOW_LIB_DIR)/exports.map
 	$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map -s -o $@ $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread
-$(BUILDDIR)/window_lib.c: $(BUILDDIR)/embed_bytes$(EXE) $(WINDOW_LIB)
-	$(BUILDDIR)/embed_bytes$(EXE) $@ xpp_window_lib $(WINDOW_LIB)
-$(BUILDDIR)/window_lib.o: $(BUILDDIR)/window_lib.c
-	$(CC) -O2 -c $< -o $@
+$(BUILDDIR)/window_lib.cpp: $(BUILDDIR)/embed_bytes$(EXE) $(WINDOW_LIB) Makefile
+	$(BUILDDIR)/embed_bytes$(EXE) $@ window_lib $(WINDOW_LIB)
+$(BUILDDIR)/window_lib.o: $(BUILDDIR)/window_lib.cpp core/xpp_assets.h $(BUILDDIR)/toolchain.stamp
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 $(WINDOW_LIB_DIR):
 	mkdir -p $@
--include $(WINDOW_LIB_DIR)/xpp_window.d
+-include $(WINDOW_LIB_DIR)/xpp_window.d $(WINDOW_LIB_DIR)/icon_assets.d
 else
 SERVER_SOURCES += $(call src,xpp_window)
 SERVER_OBJECTS += $(call obj,$(call src,xpp_window))
@@ -423,23 +421,23 @@ $(BUILDDIR)/tests/%.o: tests/%.cpp $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)/tes
 $(BUILDDIR)/tests:
 	mkdir -p $@
 
-$(BUILDDIR)/embed$(EXE): tools/embed.c | $(BUILDDIR)
-	$(CC) -O2 -o $@ $<
+$(BUILDDIR)/embed$(EXE): tools/embed.cpp tools/embed_data.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) $(LDSTATIC) -o $@ $<
 
-$(BUILDDIR)/web_assets.c: $(BUILDDIR)/embed$(EXE) $(WEB2_FILES)
+$(BUILDDIR)/web_assets.cpp: $(BUILDDIR)/embed$(EXE) $(WEB2_FILES) Makefile
 	$(BUILDDIR)/embed$(EXE) $@ $(WEB2_FILES)
 
-$(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.c
-	$(CC) -O2 -c $< -o $@
+$(BUILDDIR)/web_assets.o: $(BUILDDIR)/web_assets.cpp core/xpp_assets.h $(BUILDDIR)/toolchain.stamp
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
-$(BUILDDIR)/embed_bytes$(EXE): tools/embed_bytes.c | $(BUILDDIR)
-	$(CC) -O2 -o $@ $<
+$(BUILDDIR)/embed_bytes$(EXE): tools/embed_bytes.cpp tools/embed_data.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
+	$(CXX) $(call NOLTO,$(CXXFLAGS)) $(LDSTATIC) -o $@ $<
 
-$(BUILDDIR)/icon_assets.c: $(BUILDDIR)/embed_bytes$(EXE) assets/icons/hicolor/256x256/apps/xppautx.png
-	$(BUILDDIR)/embed_bytes$(EXE) $@ xpp_icon_png assets/icons/hicolor/256x256/apps/xppautx.png
+$(BUILDDIR)/icon_assets.cpp: $(BUILDDIR)/embed_bytes$(EXE) assets/icons/hicolor/256x256/apps/xppautx.png Makefile
+	$(BUILDDIR)/embed_bytes$(EXE) $@ icon_png assets/icons/hicolor/256x256/apps/xppautx.png
 
-$(BUILDDIR)/icon_assets.o: $(BUILDDIR)/icon_assets.c
-	$(CC) -O2 -c $< -o $@
+$(BUILDDIR)/icon_assets.o: $(BUILDDIR)/icon_assets.cpp core/xpp_assets.h $(BUILDDIR)/toolchain.stamp
+	$(CXX) $(CXXFLAGS) -MMD -MP -c $< -o $@
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
@@ -471,6 +469,7 @@ depfiles = $(patsubst %.c,%.d,$(patsubst %.cpp,%.cpp.d,$(1)))
 # now checks that a header change reaches the core's objects.
 -include $(call depfiles,$(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(ALL_SOURCES)))
 -include $(call depfiles,$(patsubst tests/%,$(BUILDDIR)/tests/%,$(TEST_SOURCES)))
+-include $(BUILDDIR)/web_assets.d $(BUILDDIR)/icon_assets.d $(BUILDDIR)/window_lib.d
 
 clean:
 	rm -rf $(BUILDDIR) libxppcore.a xppautX xppautX.exe
