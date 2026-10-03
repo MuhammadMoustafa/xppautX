@@ -45,14 +45,13 @@ checks rather than interactive use:
   thing. This is what to use from a shell script or a test.
 - **`xppautX --server model.ode`**: the same JSON protocol web2 speaks
   over HTTP, instead over stdin/stdout, for a process that wants to drive
-  xppautX directly (docs/protocol.md is the contract). `--script FILE`
-  replays a recorded session of that protocol (used by this project's own
-  checks); a recorded `{"cmd":"abort",...}` line replays to the same
-  point in a run, not just to some arbitrary later one, so an interrupted
-  integration or AUTO run reproduces exactly (docs/roadmap.md W10).
+  xppautX directly (docs/protocol.md is the contract). `xppautX run.recx --silent`
+  plays a recording without an interface, from its saved snapshot, and
+  reproduces each recorded interruption at its exact row or AUTO point
+  (docs/protocol.md "Playing a recording without an interface", W144).
 
 `--web` (browser mode, opening the page) is the default when none of
-`--server`, `--script` or `--silent` is given.
+`--server` or `--silent` is given.
 
 ## The page layout
 

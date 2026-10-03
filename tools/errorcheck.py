@@ -23,7 +23,7 @@ itself).
 Where an error's place comes from: a file read, the file and its line; a
 model line at run time, model_place (model_files.h) or the place the
 parser kept; a command, command_error(command, what) or command_place()
-(xpp_ui.h: in a --script or a recording's Play, the step's file and line);
+(xpp_ui.h: in a recording's Play, the step's file and line);
 a model being loaded, model_failed(what) (xpp_batch.h: the load's place).
 
 ALLOWED below lists the sites that are not errors with a place to give,

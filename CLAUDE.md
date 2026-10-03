@@ -16,9 +16,9 @@ The sections below give the details.
 | No fallbacks: our own files and commands load and accept only what they hold, a missing or bad piece is a shown error, no code for older files of ours; importing a foreign format is fine | review (W116) |
 | Our files load all or nothing: one read pipeline parses the whole file, checks every line and value, then applies in one step (W125); a bad value in any file stops the load with the file, its line and the value, and nothing is applied: .ode, .odex, .set, .par, .ic, .snapx, .recx alike (maintainer, 2026-10-01; .autox and .autoset went at W155: AUTO's files are the session's auto/ members) | review (W125) |
 | No unexplained literal or default: a limit, id, interval or default is a named constant in its owner, with a one-line reason; what the page needs too comes in `hello` | review (W118, W121) |
-| Security is designed in wherever input crosses a trust boundary (maintainer, 2026-10-01): the HTTP server and its token (xpp_http.cpp: 127.0.0.1 only, every route checks the token in constant time), `/files` and the `file` command (xpp_files.cpp: base names only, no links, temp-then-rename), the page's bound calls (`__xppFileDialog`, `__xppCloseWindow`), anything that starts a process (`XPPEDITOR`), temp folders, and every reader of a file a user may have been sent (.ode, .odex, scripts, our session files): no path outside its folder, no unbounded allocation or recursion from a value in the input, no shell built from input. A card that touches one says in its report what it checked and what an attacker could still do | review; asancheck and valgrindcheck for memory errors |
+| Security is designed in wherever input crosses a trust boundary (maintainer, 2026-10-01): the HTTP server and its token (xpp_http.cpp: 127.0.0.1 only, every route checks the token in constant time), `/files` and the `file` command (xpp_files.cpp: base names only, no links, temp-then-rename), the page's bound calls (`__xppFileDialog`, `__xppCloseWindow`), anything that starts a process (`XPPEDITOR`), temp folders, and every reader of a file a user may have been sent (.ode, .odex, recordings, our session files): no path outside its folder, no unbounded allocation or recursion from a value in the input, no shell built from input. A card that touches one says in its report what it checked and what an attacker could still do | review; asancheck and valgrindcheck for memory errors |
 | Errors are values: a computation returns an `xpp::Error`, the command that ran it shows it once (W63) | review |
-| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a script, its line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140: none without a place, outside its allowlist), review |
+| Every error names its file and line (and the source line): read from a file, the file and its line; caused by a model line at run time, that line; from a command, the command (in a recording, its step's line); one error value, one renderer, one event (maintainer, 2026-10-01; W140) | errorcheck (W140: none without a place, outside its allowlist), review |
 | No dead code | deadcode.sh, deadcheck.py |
 | Safe C++: RAII, std containers, `xpp::format`/`xpp::log`, the I/O readers and writers, `static_cast` | unsafecheck, alloccheck, formatcheck, literalcheck, filecheck, stdoutcheck |
 | C++ API: `extern "C"` only where C really calls in (W109) | externcheck |
@@ -185,8 +185,8 @@ animation frame stands in for it. A check whose *correctness* (not its
 speed) needs a run still in progress uses a heavier model (W42's heavy.ode)
 so that holds without racing the clock, and a check that can know its
 stopping point ahead of time arms it exactly (`xpp::job::stop_at_rows`/`_point`,
-the same mechanism `--script`'s abort replay uses: docs/protocol.md "Scripts"),
-in a one-shot `--script` subprocess, rather than racing a live Abort.
+the recording player's mechanism: docs/protocol.md "Playing a recording without an interface"),
+in a one-shot `.recx --silent` subprocess.
 
 `tools/deadcode.sh` (W24; sourcecheck runs it with `--check`, about a
 minute) builds every object at -O0 with -ffunction-sections
@@ -665,9 +665,9 @@ pool with room, saying which in the batch proposal.
   xpp_job (`xpp::job::report_rows` per stored row in integrate.cpp's `row_stored()`,
   which also feeds `XppUi.rows_stored` (web2's live `series` appends),
   `xpp::job::report_point` per AUTO point in autevd.cpp addbif): a cancelled
-  command sends `stopped` with that, and `--script` replays a recorded
-  `{"cmd":"abort","at":...}` by arming `xpp::job::stop_at_rows/point` for
-  the line before it (ui_json.cpp `script_arm_stop`). Rebuild xppautX
+  command sends `stopped` with that, and the .recx player replays the step's
+  recorded `abort` by arming `xpp::job::stop_at_rows/point` before its
+  computation (json_player.cpp `arm_step`, ui_json.cpp `arm_recorded_stop`). Rebuild xppautX
   after rebuilding `web2/dist`: the page is compiled in.
 - `core/xpp_log.{h,cpp}` is the one logging module, quiet by default:
   `xpp::log(level, fmt, args...)` with ERROR/WARN/INFO/DEBUG, threshold
@@ -710,8 +710,7 @@ pool with room, saying which in the batch proposal.
   empty one) unless its `ALLOWED` list names it with its reason (a result
   shown through err_msg until W133, out of memory, CVODE's argument
   checks); tests/errors.baseline is empty since W140b. A command's error is
-  `command_error(cmd, what)` at `command_place()` (xpp_ui.h: in a --script
-  or a .recx Play, the step's file and line), a model line's
+  `command_error(cmd, what)` at `command_place()` (xpp_ui.h: in a .recx Play, the step's file and line), a model line's
   `model_place(m, name)` (model_files.h).
   AUTO's table goes through `xpp::log_auto()` (`xpp::log_auto_printf`
   for printf's formats): INFO on the console, always

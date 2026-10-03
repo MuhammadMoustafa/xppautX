@@ -60,6 +60,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Removed
 
+- `--script` and its `.jsonl` replay format: recordings are the one playable format. `xppautX run.recx --silent` loads the snapshot and plays without an interface, exits 0 on clean playback or 1 on failure, and reproduces recorded aborts exactly (W144, [#196](https://github.com/MuhammadMoustafa/xppautX/issues/196)).
+
 - X11 command-line options (`-xorfix`, `-iconify`, `-allwin`, `-ee`, `-white`, `-bigfont`, `-smallfont`, `-forecolor`, `-backcolor`, `-backimage`, `-grads`, `-width`, `-height`, `-mwcolor`, `-dwcolor`, `-bell`, `-def`); unknown options stop with ?no such option? (W156, [#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)).
 
 - `.autox` and `.autoset`: AUTO's Save diagram saves the session (`.snapx`) and Load opens one; AUTO settings, diagram, views and orbits live under its `auto/` members. Reload keeps AUTO's settings without a separate file (W155, #207)

@@ -14,22 +14,19 @@
                                     JSON protocol of ui_json.cpp on stdin and
                                     stdout, for a front end that embeds it
                                     (the VS Code webview, a test script)
-     xppautX --script FILE model.ode  the same protocol, played from FILE
-                                    instead of stdin, one command per line;
-                                    exits when FILE ends (docs/protocol.md
-                                    "Scripts")
      xppautX model.ode --silent      a headless batch run that writes
                                     output.dat, as upstream xppaut --silent:
                                     a built-in script (json_silent.cpp) of
-                                    the protocol's commands, played like
-                                    --script with its events going nowhere
+                                    the protocol's commands, with its
+                                    events going nowhere
      xppautX name.recx              a recording (W59c): its model starts,
-                                    then it opens in the player
+                                    then it opens in the player; --silent
+                                    plays every step and exits
      xppautX name.snapx             a session file (xpp_session.h) in any mode but --silent:
                                     the model saved in it, loaded from its
                                     saved files, then the session as it was saved
 
-   usage: xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
+   usage: xppautX [--browser|--server] [--port N] [--no-open]
                   [--verbose|--debug] file.ode [xppaut options]
           xppautX --version | --help
    Supported model options use GNU spelling; ours have to come first. --verbose
@@ -64,6 +61,7 @@
 #include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
+#include <algorithm>
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,7 +72,7 @@
 #include "nullcline.h"
 
 /* AUTO's files in a directory of this session's own, removed at exit
-   (issue #11); --silent runs no AUTO */
+   (issue #11); a model's --silent command list runs no AUTO */
 static void start_auto_dir(void)
 {
     /* issue #32: the folders of runs that ended without their atexit (a
@@ -106,13 +104,12 @@ static std::string usage_tail()
     "  --web            the same as --browser\n"
     "  --no-open        browser mode, printing the address without opening a browser\n"
     "  --server         the JSON protocol on stdin and stdout (docs/protocol.md)\n"
-    "  --script FILE    the protocol played from FILE, one command per line\n"
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"
-    "opens in the player.\n"
+    "opens in the player; name.recx --silent plays it without an interface.\n"
     "Options:\n"
     "  --port N         the page's port on 127.0.0.1 (default {}; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
@@ -158,7 +155,10 @@ static void run_session(void)
     xpp::text_metrics.small_width = 7; xpp::text_metrics.small_height = 13;
     xpp::text_metrics.big_width = 9; xpp::text_metrics.big_height = 15;
 
-    xpp::json_ui_install();
+    bool silent = false;
+    for (int i = 1; i < session_argc; ++i)
+        if (strcmp(session_argv[i], "--silent") == 0) silent = true;
+    xpp::json_ui_install(silent);
 #ifdef __APPLE__
     /* a document Finder or `open` gave xppautX.app when it launched it (an
        Apple Event, not an argument: xpp_window.h) is the model, loaded from
@@ -189,11 +189,12 @@ static void run_session(void)
     std::vector<std::string> args;
     std::vector<char *> argv;
     args.assign(session_argv, session_argv + session_argc);
+    if (silent) args.erase(std::remove(args.begin(), args.end(), "--silent"), args.end());
     for (size_t i = 1; i < args.size(); i++) {
         if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
             recording = xpp::json_ui_recording_launch(args[i]);
             if (!recording) exit(1); /* the error said why */
-            xpp::files::change_dir(xpp::files::split_path(recording->saved.in).first.c_str());
+            xpp::files::change_dir(recording->folder.c_str());
             args[i] = recording->model;
             break;
         }
@@ -214,7 +215,7 @@ static void run_session(void)
     const xpp::Loaded loaded = xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
                                                saved ? &saved->model : recording ? &recording->saved : nullptr, check);
     if (!loaded) {
-        json_ui_load_error(loaded.error());
+        if (!silent) json_ui_load_error(loaded.error()); /* load_model already logged the failure */
         exit(1);
     }
     /* the session the load made, the program's until the redraw (a protocol
@@ -237,7 +238,6 @@ static void run_session(void)
 int main(int argc, char **argv)
 {
     int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, convert_auto = 0, i, k;
-    char *script = NULL;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
        association): reattach to a real console before any output, for
@@ -258,10 +258,6 @@ int main(int argc, char **argv)
         }
         if (strcmp(argv[i], "--web") == 0 || strcmp(argv[i], "--browser") == 0) mode = MODE_BROWSER;
         else if (strcmp(argv[i], "--server") == 0) mode = MODE_SERVER;
-        else if (strcmp(argv[i], "--script") == 0 && i + 1 < argc) {
-            mode = MODE_SERVER;
-            script = argv[++i];
-        }
         else if (strcmp(argv[i], "--no-open") == 0) open_browser = 0;
         else if (strcmp(argv[i], "--convert") == 0) convert = 1;
         else if (strcmp(argv[i], "--auto") == 0) convert_auto = 1;
@@ -292,7 +288,10 @@ int main(int argc, char **argv)
         }
         return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
     }
-    if (batch) {
+    bool recording_batch = false;
+    for (i = 1; i < argc; ++i)
+        if (xpp::snapx::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
+    if (batch && !recording_batch) {
         for (i = 1; i < argc; i++)
             if (xpp_saved_file_name(argv[i])) {
                 xpp::log(XPP_LOG_ERROR, "{}\n",
@@ -306,10 +305,7 @@ int main(int argc, char **argv)
        so is a build without a window */
     if (mode == MODE_WINDOW && (!open_browser || !xpp::window::supported())) mode = MODE_BROWSER;
     start_auto_dir();
-    if (script && !xpp::json_ui_set_script(script)) {
-        xpp::log(XPP_LOG_ERROR, "{}\n", xpp::Error{"xppautX", "the script cannot be opened", xpp::Place{script}}.text());
-        return 1;
-    }
+    if (recording_batch) mode = MODE_SERVER;
     if (mode != MODE_SERVER) {
         /* the window navigates to the address itself: shown nowhere */
         if (!xpp::http::start(port, mode == MODE_BROWSER, mode == MODE_BROWSER && open_browser)) return 1;

@@ -48,10 +48,11 @@ void close_log_file()
 
 LogSettings log_settings = {nullptr, 1, 0, 0};
 
-void log_open_file(std::string_view path)
+bool log_open_file(std::string_view path)
 {
     close_log_file();
     log_settings.file = xpp::files::open_stream(path, "w");
+    return log_settings.file != nullptr;
 }
 
 void log_new_model()

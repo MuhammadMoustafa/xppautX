@@ -688,7 +688,8 @@ constexpr OptionRow rows[] = {
    .zero_or_one = true},
   {.name = "LOGFILE",
    .parse = [](Session &, const OptionValue &v) -> const char * {
-     if (v.apply && !log_settings.file_from_command_line) log_open_file(v.text);
+     if (v.apply && !log_settings.file_from_command_line && !log_open_file(v.text))
+       return "cannot be opened for writing";
      return nullptr;
    }},
   {.name = "BUT",

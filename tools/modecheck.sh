@@ -35,10 +35,18 @@ bad() { echo "FAIL $1"; fail=1; }
 
 help=$("$BIN" --help)
 missing=
-for flag in --browser --web --no-open --server --script --port --verbose --debug --version --silent; do
+for flag in --browser --web --no-open --server --port --verbose --debug --version --silent; do
   case "$help" in *" $flag"*) ;; *) missing="$missing $flag" ;; esac
 done
 if [ -z "$missing" ]; then pass "--help lists the modes and options"; else bad "--help lists$missing"; fi
+removed=$("$BIN" --script unused.jsonl 2>&1)
+status=$?
+script_in_help=0
+case "$help" in *" --script"*) script_in_help=1 ;; esac
+case "$script_in_help:$status:$removed" in
+  0:2:*"no such option --script"*) pass "--script is absent from help and an ordinary unknown option" ;;
+  *) bad "--script refusal: $status $removed" ;;
+esac
 linux_window=0
 if [ "$(uname -s)" = Linux ]; then
   if pkg-config --exists webkit2gtk-4.1 gtk+-3.0 2>/dev/null && [ "${WINDOW:-1}" != 0 ]; then

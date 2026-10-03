@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -816,35 +816,30 @@ check('a run that is not cancelled sends no stopped', not any(e.get('ev') == 'st
 # An Abort right behind the answer that starts the run: the run stops, and
 # says where (docs/protocol.md "stopped") before its state and idle. Armed
 # by row count ahead of time (xpp::job::stop_at_rows, the same mechanism
-# --script's own abort replay uses: docs/protocol.md "Scripts"), in a
-# one-shot --script subprocess of its own, not raced against the clock in
+# .recx --silent's own abort replay uses: docs/protocol.md "Playing a recording without an interface"), in a
+# one-shot .recx --silent subprocess of its own, not raced against the clock in
 # the middle of this session: how many rows are kept is known in advance,
 # not discovered by luck.
-def run_script(lines, ode=None):
-    """xppautX --script of `lines` (dicts, one command each) over `ode` (a
-    fresh scratch copy); returns (exit code, stdout text, stderr text)"""
+def run_replay(lines, ode=None):
+    """A .recx played silently for its exit code, and through the same
+    player over --server to inspect its events (xppclient owns both)."""
     ode = ode or args.ode
-    run_dir = tempfile.mkdtemp(prefix='xppscript')
-    try:
-        shutil.copy(ode, run_dir)
-        script_path = os.path.join(run_dir, 'script.jsonl')
-        with open(script_path, 'w') as f:
-            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
-        r = subprocess.run([os.path.abspath(args.server), '--script', script_path, os.path.basename(ode)],
-                            cwd=run_dir, capture_output=True, text=True, timeout=60 * SLOW)
+    with tempfile.TemporaryDirectory(prefix='xppreplay') as run:
+        path = make_recording(args.server, ode, lines, run)
+        with open(path, encoding='utf-8') as f:
+            run_replay.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
+        r = replay_recording(args.server, ode, path, run)
         return r.returncode, r.stdout, r.stderr
-    finally:
-        shutil.rmtree(run_dir, ignore_errors=True)
 
 STOP_ROWS = 400  # well inside total 40's 801 rows
-code, out, err = run_script([
+code, out, err = run_replay([
     {'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 't'}, {'cmd': 'answer', 'value': '40'},
     {'cmd': 'key', 'key': 'Escape'},
     {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
     {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_ROWS, 't': 0}},
     {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
 ])
-check('xppautX --script plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
+check('xppautX .recx --silent plays the armed interruption', code == 0, 'exit %d, %s' % (code, err[-300:]))
 evs = [json.loads(l) for l in out.splitlines() if l.strip()]
 kinds = [e.get('ev') for e in evs]
 stopped = [e for e in evs if e.get('ev') == 'stopped']
@@ -1703,7 +1698,7 @@ def check_error_places_of_each_kind():
               and 'too short' in e.get('error', ''), str(e))
 
         write('nan.odex', "# NaN at the first step\npar a=1\nx'=sqrt(x-2*a)\ninit x=1\n")
-        code, out, err = run_script([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+        code, out, err = run_replay([{'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
                                      {'cmd': 'nosuchcommand'}], ode=os.path.join(d, 'nan.odex'))
         errs = [json.loads(l) for l in out.splitlines() if '"error"' in l and '"message"' in l]
         nan = next((m for m in errs if 'NaN' in m.get('error', '')), {})
@@ -1712,8 +1707,8 @@ def check_error_places_of_each_kind():
               and nan.get('error', '').startswith('X is NaN at t'), str(errs))
         step = next((m for m in errs if 'nosuchcommand' in m.get('error', '')), {})
         check("an error event: a script's step is named at the script's file and line (W140b)",
-              step.get('file', '').endswith('script.jsonl') and step.get('line') == 3
-              and step.get('source') == '{"cmd": "nosuchcommand"}', str(step))
+              step.get('file', '').endswith('run.recx') and
+              (step.get('line'), step.get('source')) == run_replay.places[-1], str(step))
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -2405,7 +2400,7 @@ check_ani_data()
 # diagram as data", `autoinfo`), and a grab answered with a point of the
 # diagram's data (`point`). lecar's steady-state branch from its "hopf" fixed
 # point, then the periodic branch from the Hopf point, as
-# examples/scripts/lecar_auto.jsonl does it.
+# examples/recordings/lecar_auto.recx does it.
 def auto_scratch(p):
     """AUTO's private scratch directories of server process p (xpp::files::make_temp_dir)"""
     tmp = tempfile.gettempdir() if os.name == 'nt' else (os.environ.get('TMPDIR') or '/tmp')
@@ -3205,11 +3200,7 @@ def check_save_owner():
     try:
         shutil.copy(args.ode, d)
         commands = [{'cmd': 'values', 'op': 'write', 'kind': 'par', 'name': 'repeat.par', 'replace': 1}]
-        script = os.path.join(d, 'save.jsonl')
-        with open(script, 'w') as f: f.write('\n'.join(json.dumps(c) for c in commands))
-        runs = [subprocess.run([os.path.abspath(args.server), '--script', script, os.path.basename(args.ode)],
-                              cwd=d, capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
-                for _ in range(2)]
+        runs = [run_commands(args.server, args.ode, commands, d) for _ in range(2)]
         check('W129: the same script saves twice with its explicit answer, no disk-dependent ask',
               all(v.returncode == 0 and not any(e.get('ev') == 'ask' for e in
                   [json.loads(line) for line in v.stdout.splitlines() if line.strip()])
@@ -3422,7 +3413,7 @@ check_refused_during_run()
 # sent during a computation (a parameter, a numerics field) is taken at once
 # and kept for after it: the run in progress keeps the values it started
 # with (its rows are those of a run with the old values, stopped at the same
-# row: a --script with the stop armed there, not a race), and each setting
+# row: a .recx --silent with the stop armed there, not a race), and each setting
 # then applies as a command of its own (state and idle), before anything
 # else: the state after shows it, and the next run uses it. A bad numerics
 # value is an error message after the run, naming the field. The numerics
@@ -3557,7 +3548,7 @@ def check_settings_during_run():
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         live = br and br['data']
-        code, out, err = run_script([
+        code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 1e7},
             {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
@@ -3574,7 +3565,7 @@ def check_settings_during_run():
         snd(cmd='browser', **{'from': rows2 - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
-        code, out, err = run_script([
+        code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
             {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 50},
             {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
@@ -3960,8 +3951,9 @@ def check_silent_commands():
     """W56: --silent is a built-in script of the protocol's own commands.
     Each command it uses where the interface had none (browser write of
     the output columns with replace, browser postprocess, values query,
-    dfield write, equilibrium write) writes, from a --script, the very
-    file the --silent run writes; --silent prints nothing on stdout."""
+    dfield write, equilibrium write) writes, through --server, the very
+    file the --silent run writes; its .recx also plays silently with the
+    same success/error result. --silent prints nothing on stdout."""
     def silent(ode, *flags):
         d = tempfile.mkdtemp(prefix='xppsilent')
         shutil.copy(ode, d)
@@ -3974,10 +3966,14 @@ def check_silent_commands():
         shutil.copy(ode, d)
         if before:
             before(d)
-        with open(os.path.join(d, 'script.jsonl'), 'w') as f:
-            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
-        r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', os.path.basename(ode)],
-                           cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
+        r = run_commands(args.server, ode, lines, d)
+        path = make_recording(args.server, ode, lines, d)
+        quiet = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=d,
+            capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        r.returncode = quiet.returncode
+        r.stderr = quiet.stderr
+        if quiet.stdout:
+            raise AssertionError('silent recording emitted interface events')
         return d, r
 
     def read(d, n):
@@ -4016,7 +4012,7 @@ def check_silent_commands():
         bad, rb = script(args.ode, [{'cmd': 'dfield', 'op': 'write', 'name': 'none.dat'}])
         dirs.append(bad)
         check('dfield write with no field shown is an error, and writes nothing',
-              rb.returncode == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
+              rb.returncode == 1 and rb.outcome == 1 and '"error"' in rb.stdout and read(bad, 'none.dat') is None, rb.stdout[-300:])
 
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
         post = os.path.join(dirs[-1], 'post.odex')
@@ -4047,10 +4043,20 @@ def check_outcomes_once():
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
-            with open(os.path.join(d, 'script.jsonl'), 'w') as f:
-                f.write(''.join(json.dumps(c) + '\n' for c in lines))
-            r = subprocess.run([os.path.abspath(args.server), '--script', 'script.jsonl', 'linear.odex', *flags],
-                               cwd=d, capture_output=True, text=True, timeout=60 * SLOW)
+            if any((c.get('cmd') == 'abort' and 'at' in c) or c.get('key') == 'k' for c in lines):
+                path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
+                with open(path, encoding='utf-8') as f:
+                    run.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
+                r = replay_recording(args.server, os.path.join(d, 'linear.odex'), path, d,
+                    pixel_answers=[c for c in lines if 'rgb' in c])
+            else:
+                r = run_commands(args.server, os.path.join(d, 'linear.odex'), lines, d, flags)
+                if not any('rgb' in c for c in lines):
+                    path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
+                    quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', *flags],
+                        cwd=d, capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+                    r.returncode = quiet.returncode
+                    r.quiet_stdout = quiet.stdout
             return r, [json.loads(line) for line in r.stdout.splitlines() if line.startswith('{')]
         def fit(name):
             return [{'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 'h'},
@@ -4110,7 +4116,7 @@ def check_outcomes_once():
         errors = [e for e in evs if e.get('error')]
         check('an unreadable fit file has its Place; the asking quit also exits 1, without bye',
               r.returncode == 1 and len(errors) == 1 and errors[0].get('file') == 'missing.dat'
-              and errors[0].get('line') == 0 and not any(e.get('ev') == 'bye' for e in evs), str(errors))
+              and errors[0].get('line') == 0 and r.quiet_stdout == '', str(errors))
         r, evs = run([{'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'missing.ani'}])
         errors = [e for e in evs if e.get('error')]
         check('an unreadable animation names its file at line 0 once',
@@ -4123,7 +4129,8 @@ def check_outcomes_once():
         frames = [e for e in evs if e.get('ev') == 'film' and e.get('op') == 'capture']
         check('the full kinescope returns one error at its command, retaining 250 frames',
               r.returncode == 1 and len(frames) == 250 and len(errors) == 1
-              and errors[0].get('file') == 'script.jsonl' and errors[0].get('line') == 502, str(errors))
+              and errors[0].get('file', '').endswith('run.recx')
+              and (errors[0].get('line'), errors[0].get('source')) == run.places[-1], str(errors))
         r, evs = run([{'cmd': 'file', 'op': 'get', 'name': '../outside.dat'}])
         check('a file command refusal also counts towards exit status without a second event',
               r.returncode == 1 and len([e for e in evs if e.get('error')]) == 1, str(evs[-3:]))
@@ -4172,19 +4179,19 @@ def check_dae_fold():
     SING = [{'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}]
 
     def run(ode, lines=GO):
-        code, out, err = run_script(lines, ode=ode)
+        code, out, err = run_replay(lines, ode=ode)
         evs = [json.loads(l) for l in out.splitlines() if l.strip()]
         errs = [e['error'] for e in evs if e.get('ev') == 'message' and 'error' in e]
         return code, errs, (last_state(evs) or {}).get('rows'), err
 
     code, errs, rows, err = run('examples/ode/dae_ex3.odex')
-    # --script exits 1 after an error message (docs/protocol.md "Scripts")
+    # .recx --silent exits 1 after an error message (docs/protocol.md "Playing a recording without an interface")
     check('dae_ex3 stops at the fold: the rows to t=0.45, then one error',
           code == 1 and rows == 10 and len(errs) == 1, 'exit %d, rows %s, %s %s' % (code, rows, errs, err[-200:]))
     check('... saying there is no solution past t=0.45, a fold',
           len(errs) == 1 and errs[0].startswith('No solution of the algebraic equations past t=0.45:')
           and 'fold' in errs[0], str(errs))
-    code, out, err = run_script(GO, ode='examples/ode/dae_ex3.odex')
+    code, out, err = run_replay(GO, ode='examples/ode/dae_ex3.odex')
     fold = next((json.loads(l) for l in out.splitlines() if 'No solution of the algebraic' in l), {})
     check('... at the 0= line, the place of every error (W140b)',
           fold.get('file') == 'dae_ex3.odex' and fold.get('line') == 4 and fold.get('source') == '0 = v_*(1-v_*v_)-w',
@@ -4748,41 +4755,6 @@ def check_model_bcs():
 
 check_model_bcs()
 
-
-def read_recx(text):
-    """a .recx's parts (docs/protocol.md "Recordings"): the header lines, the
-    embedded files {name: lines}, the steps [(step, note)], the fingerprint
-    written and the one its files and steps give"""
-    lines = text.split('\n')
-    header, files, steps, hashed, note = lines[:4], {}, [], [], []
-    name, body, in_steps, written = None, None, False, None
-    for l in lines[4:]:
-        if body is not None:
-            hashed.append(l)
-            if l == '@end':
-                if name is not None:
-                    files[name] = body
-                body = None
-            else:
-                body.append(l[1:] if l.startswith('@@') else l)
-        elif l.startswith('@file ') or l.startswith('@binary '):
-            name, body = l.split(' ', 1)[1], []
-            hashed.append(l)
-        elif l == '@snapshot':  # the session it began from (W59d): recx_snapshot reads it
-            name, body = None, []
-            hashed.append(l)
-        elif l == '@steps':
-            in_steps = True
-        elif l.startswith('fingerprint: '):
-            written = l[len('fingerprint: '):]
-        elif in_steps and l.startswith('#'):
-            note.append(l[2:] if l.startswith('# ') else l[1:])
-        elif in_steps and l.strip():
-            hashed.append(l)
-            steps.append((json.loads(l), '\n'.join(note)))
-            note = []
-    got = hashlib.sha256(''.join(h + '\n' for h in hashed).encode('utf-8')).hexdigest()
-    return header, files, steps, written, got
 
 
 def check_save_recording():
@@ -5407,11 +5379,8 @@ def check_ani_grab_job():
             {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
             {'cmd': 'record', 'op': 'stop', 'name': 'grab'},
         ]
-        script = os.path.join(r, 'grab.jsonl')
-        with open(script, 'w') as f:
-            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
-        result = subprocess.run([os.path.abspath(args.server), '--script', script, os.path.basename(args.ode)],
-                                cwd=r, capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        path = make_recording(args.server, args.ode, lines, r)
+        result = replay_recording(args.server, args.ode, path, r)
         evs = [json.loads(l) for l in result.stdout.splitlines() if l.strip()]
         stopped = [e for e in evs if e.get('ev') == 'stopped']
         check('W136: animator grab computes as a job and stops at its armed row',

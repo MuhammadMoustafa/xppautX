@@ -9,7 +9,7 @@
    same way the X11 front end runs a nested event loop. See docs/protocol.md.
 
    This file holds the XppUi table, the command dispatch, the input
-   classifier, script replay, install and hello; ui_json_internal.h names
+   classifier, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "model.h"
 #include "session.h"
@@ -58,33 +58,34 @@ ProtocolSession session;
 
 xpp::Session &client() { return xpp::client_session(); }
 
-/* exit 1 for a script or --silent run that reported an error (the logging
-   owner's count: err_msg, an ERROR line, a failed file event; docs/protocol.md
-   "Scripts"); an interactive session's errors were shown to its user as they
-   came, so its end is always 0 */
-static int exit_code(void) { return session.script_mode ? xpp::log_exit_code() : 0; }
+/* --silent returns the logging owner's error count; an interactive
+   session's errors were shown as they came, so its end is always 0. */
+static int exit_code(void) { return session.silent ? xpp::log_exit_code() : 0; }
 
-void quit_session(void) { exit(exit_code()); }
+void quit_session(void)
+{
+    if (session.silent && xpp::log_exit_code() == 0 && !player_finished())
+        j_command_error("play", "Playback ended before every recorded step and input played");
+    exit(exit_code());
+}
 
 /* a client's quit command is a normal end (W112): the bye first, as the
    end of a session says it, so a front end that waits on one (browser mode's
-   at_exit) knows the exit was meant; a script's error stays exit 1 without it */
+   at_exit) knows the exit was meant; a silent error stays exit 1 without it */
 void quit_command(void)
 {
     if (exit_code() == 0) send_simple("bye");
     quit_session();
 }
 
-/* A line that does not fit a script's dialogue (an answer with no question
-   open, or a command where an answer was due) stops the script at once:
-   nothing after it can line up. */
-void script_fail(const char *what, const char *line, const char *ask)
+/* --silent's internal command list must match the command's dialogue. */
+void silent_fail(const char *what, const char *line, const char *ask)
 {
     std::string why = what;
     if (ask && ask[0]) why += xpp::format("\n  open question: {}}}", ask);
-    xpp::Place at = xpp::inbox::script_place();
+    xpp::Place at = xpp::command_place();
     if (at.source.empty()) at.source = line;
-    xpp::log(XPP_LOG_ERROR, "{}\n  line: {}\n", xpp::Error{"script", why, at}.text(), line);
+    xpp::log(XPP_LOG_ERROR, "{}\n  line: {}\n", xpp::Error{"silent commands", why, at}.text(), line);
     exit(1);
 }
 
@@ -292,36 +293,7 @@ void send_stopped(void)
     send_buf(&b);
 }
 
-/* A recorded interruption (docs/protocol.md "Scripts"): the line after the
-   one a script is about to run is {"cmd":"abort","at":AT}. That line is
-   dropped, and the job of the line about to run (the running job, for an
-   answer) cancels itself at AT (arm_recorded_stop). stop_line and
-   stop_at say what was armed, for script_stop_missed(). */
-int stop_line;
-std::string stop_at; /* recorded_at's */
-
-void script_arm_stop(void)
-{
-    int no = 0;
-    const char *next = xpp::inbox::script_peek(no), *at;
-    if (!next || !is_cmd(next, "abort") || !(at = js_find(next, "at")) || *at != '{') return;
-    stop_at = recorded_at(at);
-    stop_line = no;
-    arm_recorded_stop(at, 0);
-    xpp::inbox::script_skip();
-}
-
 } // namespace
-
-std::string recorded_at(const char *at)
-{
-    constexpr size_t max = 399; /* an error message's, not a file's */
-    try {
-        return std::string(js_raw(at).substr(0, max));
-    } catch (...) {
-        xpp::out_of_memory("reading a recorded interruption");
-    }
-}
 
 bool arm_recorded_stop(const char *at, int key)
 {
@@ -339,26 +311,7 @@ bool arm_recorded_stop(const char *at, int key)
     return true;
 }
 
-/* the script's next line to the core (docs/protocol.md "Scripts"), and
-   the interruption recorded after it */
-void script_next(void)
-{
-    xpp::inbox::script_advance();
-    script_arm_stop();
-}
-
 namespace {
-
-/* the job ends with its recorded interruption still armed */
-void script_stop_missed(void)
-{
-    xpp::Place at = xpp::inbox::script_place();
-    at.line = stop_line;
-    at.source.clear();
-    xpp::log(XPP_LOG_ERROR, "{}\n",
-             xpp::Error{"script", xpp::format("the recorded interruption at {} was never reached", stop_at), at}.text());
-    exit(1);
-}
 
 void j_exit_program(void)
 {
@@ -522,7 +475,14 @@ void file_command(xpp::Session &, const char *line)
     std::string o;
     get_string(line, "op", o, 8);
     xpp::files::command(o, js_find(line, "name"), js_find(line, "data"),
-                        [](std::string_view event) { data_emit(event); });
+                        [](std::string_view event) {
+                            /* The file owner accounts for a failed event;
+                               with no interface its error still needs a renderer. */
+                            std::string error;
+                            if (session.silent && get_string(event.data(), "error", error))
+                                j_command_error("file", std::move(error));
+                            else data_emit(event);
+                        });
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
@@ -562,9 +522,9 @@ const CommandInfo commands[] = {
     {"key", nullptr, 0, STEP, key_command},
     {"answer", nullptr, C, NOT_STEP,
      [](xpp::Session &, const char *line) {
-         /* reaching the main dispatch (rather than ask_wait) means no ask
-            was pending for it (docs/protocol.md "Scripts") */
-         if (session.script_mode) script_fail("answers a question that was never asked", line, NULL);
+         /* Reaching the main dispatch means no ask was pending. */
+         if (session.generated) silent_fail("answers a question that was never asked", line, NULL);
+         else if (!player_place().file.empty()) j_command_error("play", "Answers a question that was never asked");
      }},
     {"abort", nullptr, C, NOT_STEP, [](xpp::Session &, const char *) {}},
     {"quit", nullptr, C, NOT_STEP,
@@ -703,6 +663,7 @@ namespace {
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp::job::begin(seq);
+    player_begin(line);
     session.save_replace = SAVE_ASK;
     const xpp::Result<> permission = read_save_replace(line, session.save_replace);
     /* the session this command runs in, the client's in the session list
@@ -718,7 +679,6 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
-        player_begin(line);
         record_begin(line);
         e->run(*s, line);
     } else {
@@ -748,18 +708,15 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* a cancelled job says where it stopped; a replayed one must have
        stopped where the recorded session did */
     if (xpp::job::cancelled()) send_stopped();
-    if (session.script_mode && xpp::job::stop_armed()) script_stop_missed();
-    else if (xpp::job::stop_armed()) player_stop_missed();
+    if (xpp::job::stop_armed()) player_stop_missed();
     record_end(*s, xpp::job::cancelled());
     player_step_end();
     /* the command is finished; the client may send the next one */
     xpp::job::end();
     send_state(*s);
     send_simple("idle");
-    /* a script's next line is the next command (docs/protocol.md
-       "Scripts"); this also releases the very first script line, since
-       xppautx_main.c's startup "redraw" ends here too */
-    if (session.script_mode) script_next();
+    /* Make the next command of a silent model's internal list. */
+    if (session.generated) xpp::inbox::generated_advance();
     return *s;
 }
 
@@ -805,7 +762,7 @@ void json_ui_loop(void)
            command of its own, and gets no state or idle; in a script,
            where nothing ran for it to stop, the next line follows */
         if (!is_cmd(next.line.c_str(), "abort")) handle_line(next.line.c_str(), next.seq, next.refused, next.applied);
-        else if (session.script_mode) script_next();
+        else if (session.generated) xpp::inbox::generated_advance();
     }
 }
 
@@ -823,13 +780,6 @@ void json_ui_push_open(const char *path)
     }
 }
 
-int json_ui_set_script(const char *path)
-{
-    if (!xpp::inbox::start_file(path)) return 0;
-    session.script_mode = 1;
-    return 1;
-}
-
 namespace {
 
 /* the front end: the XppUi table, the data modules' output, the input
@@ -840,10 +790,7 @@ void install(bool silent)
 {
     if (!silent && !xpp::http::active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
-        /* commands from stdin, read on a thread of their own; a script's
-           file (json_ui_set_script(), called before this) is read by the
-           core thread itself instead, so no reader thread for it here */
-        if (!session.script_mode && !xpp::inbox::start_stdin()) {
+        if (!xpp::inbox::start_stdin()) {
             xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }
@@ -863,7 +810,6 @@ void install(bool silent)
         /* NULL keeps the headless entry (set_ui) */
         ui.err_msg = nullptr;
         ui.respond_box = nullptr;
-        ui.show_eq_box = nullptr;
         ui.copy_text = nullptr;
     }
     set_ui(&ui);
@@ -871,7 +817,7 @@ void install(bool silent)
 
 } // namespace
 
-void json_ui_install(void) { install(false); }
+void json_ui_install(bool silent) { session.silent = silent; install(silent); }
 
 int json_ui_silent(int argc, char **argv)
 {
@@ -881,10 +827,11 @@ int json_ui_silent(int argc, char **argv)
     if (!loaded) exit(1);
     xpp::Session &s = **loaded;
     xpp::batch_start(s);
-    session.script_mode = 1;
+    session.generated = true;
+    session.silent = true;
     xpp::inbox::start_generated(silent_script(s));
     install(true);
-    script_next(); /* its first line */
+    xpp::inbox::generated_advance(); /* its first line */
     json_ui_loop(); /* exits when the script ends */
     return 0;
 }

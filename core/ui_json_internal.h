@@ -85,10 +85,9 @@ struct DeferredLine {
 
 struct ProtocolSession {
     int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
-    /* --script FILE (docs/protocol.md "Scripts"): script_mode is set by
-       json_ui_set_script(); errors kept by xpp_log make
-       the process exit 1 at the end of the file */
-    int script_mode;
+    bool generated = false; /* --silent model's internal commands */
+    bool silent = false; /* no interface; errors determine the process result */
+    xpp::Place reading; /* a recording's snapshot being parsed, before any step */
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
@@ -142,18 +141,15 @@ xpp::inbox::Verdict during_run(const char *line);     /* what a running computat
 void defer_line(const char *line, bool refused, bool applied = false);
 char line_kind(const char *line); /* a command's kind, menus.h XPP_KIND_* (ui_json.cpp) */
 bool line_is_step(const char *line); /* a step of the user's (ui_json.cpp's command table) */
-/* a script line that does not fit the dialogue: stop at once */
-[[noreturn]] void script_fail(const char *what, const char *line, const char *ask);
-void script_next(void); /* the script's next line, and an interruption after it */
-/* A recorded interruption's `at` (the stopped event's: docs/protocol.md
-   "Scripts") armed for the running job, or the next one to begin: it
+/* An internal silent command that does not fit the dialogue: stop at once. */
+[[noreturn]] void silent_fail(const char *what, const char *line, const char *ask);
+/* A recorded interruption's `at` (the stopped event's) armed for the
+   running job, or the next one to begin: it
    cancels itself there, or, with a key code, is handed that key (a key
    the job read itself, xpp_job.h). False for an `at` that cannot be
-   placed (what "other"): nothing is armed. The script's abort lines and
-   a recording's replayed steps (json_player.cpp) both arm through this. */
+   placed (what "other"): nothing is armed. The recording's replayed
+   steps (json_player.cpp) arm through this. */
 bool arm_recorded_stop(const char *at, int key);
-/* the `at` object's text, for a message saying it was never reached */
-std::string recorded_at(const char *at);
 /* where the running job was when it was cancelled, the stopped event's
    `at` object (docs/protocol.md "stopped"), into b */
 void buf_stopped_at(Buf *b);
@@ -222,6 +218,7 @@ void player_model_switched(bool loaded);
 /* the .recx, the line and the text of the step that plays; an empty
    Place when none does (j_command_place) */
 xpp::Place player_place(void);
+bool player_finished(void); /* a silent quit must not skip any recorded input */
 /* state's "player" member while a recording is open in the player */
 void buf_player(Buf *b);
 
@@ -320,8 +317,7 @@ int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y);
 void send_error(const char *ev, const xpp::Error &e);
 /* the XppUi err_msg: e as a `message` event */
 void j_err_msg(const xpp::Error &e);
-/* the XppUi command_place: the recording's step that plays, else
-   --script's line (xpp_ui.h command_place) */
+/* the XppUi command_place: the recording's step that plays */
 xpp::Place j_command_place(void);
 /* the front end's own error about the protocol command `command` (its
    where), at j_command_place() */

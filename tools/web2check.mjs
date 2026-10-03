@@ -1997,7 +1997,7 @@ async function autoView(dir) {
   check('AUTO: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('AUTO: no view before the core opens it', !(await cdp.eval(`!!document.querySelector('.auto-panel')`)));
 
-  /* examples/scripts/lecar_auto.jsonl: the "hopf" parameter set, its fixed point as the IC */
+  /* examples/recordings/lecar_auto.recx: the "hopf" parameter set, its fixed point as the IC */
   await key('f');
   await until('!s.busy', 'file menu');
   await key('g');

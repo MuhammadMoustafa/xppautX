@@ -119,7 +119,7 @@ Result<> check_command_line(int argc, char **argv)
         if (command_option(spelling))
           return fail("options", xpp::format("{} is {}", word, spelling), place);
         // These switches are consumed by main before model loading.
-        for (std::string_view name : {"--server", "--browser", "--help", "--script", "--port", "--no-open", "--web", "--auto"})
+        for (std::string_view name : {"--server", "--browser", "--help", "--port", "--no-open", "--web", "--auto"})
           if (name == spelling) return fail("options", xpp::format("{} is {}", word, spelling), place);
       }
       return fail("options", xpp::format("no such option {}", word), place);

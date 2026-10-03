@@ -419,8 +419,7 @@ int get_dialog_of(std::string_view wname, std::string_view name, std::string &va
    place (logging where at DEBUG); an empty `what` shows nothing (the
    computation said it already) */
 void show_error(const Error &e);
-/* Where the command that runs came from (W140): in a --script, the
-   script's file and the step's line; in a recording's Play, the .recx and
+/* Where the command that runs came from (W140): in a recording's Play, the .recx and
    the step's line; an empty Place for a command the user gave. The place
    of an error a command finds in what it was given, or that a
    computation it ran meets with no file or model line to name. */

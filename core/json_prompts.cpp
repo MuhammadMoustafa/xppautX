@@ -32,7 +32,7 @@ const char *ask_kind = ""; /* the open ask's kind, a literal (ask_begin) */
 std::string answer;
 
 constexpr size_t SCRIPT_ASK_MAX = 399;
-std::string script_ask; /* the open question (cut to SCRIPT_ASK_MAX), for script_fail() */
+std::string script_ask; /* the open question (cut to SCRIPT_ASK_MAX), for silent_fail() */
 
 } // namespace
 
@@ -47,7 +47,7 @@ int ask_wait(Buf *b, int id)
     auto_data_update(s, 1);
     auto_settings_update(s);
     json_flush();
-    if (session.script_mode) {
+    if (session.generated) {
         try {
             script_ask.assign(b->s, 0, SCRIPT_ASK_MAX);
         } catch (...) {
@@ -55,10 +55,13 @@ int ask_wait(Buf *b, int id)
         }
     }
     send_buf(b);
-    /* a script's next line is its answer to this ask (json_io.cpp read_line()'s
-       "Which queue" comment, and docs/protocol.md "Scripts"); a recording
-       playing gives its own, when its time comes (json_player.cpp) */
-    if (session.script_mode) script_next();
+    if (session.silent && !ask_user) {
+        j_command_error("play", "This command requires an image from the interface");
+        quit_session();
+    }
+    /* The internal list advances at an ask; the recording player gives
+       its own answer when its time comes (json_player.cpp). */
+    if (session.generated) xpp::inbox::generated_advance();
     else if (ask_user) player_asked(ask_kind);
     for (;;) {
         char *line = read_line(xpp::inbox::From::any, player_wait_ms());
@@ -100,10 +103,10 @@ int ask_wait(Buf *b, int id)
         }
         /* for a script this line was supposed to answer this ask, and
            nothing after it can line up */
-        if (session.script_mode) script_fail("does not answer the open question", line, script_ask.c_str());
+        if (session.generated) silent_fail("does not answer the open question", line, script_ask.c_str());
         /* a setting (W106): at once before the command computes, else
            after it (take_setting) */
-        if (!session.script_mode && !is_cmd(line, "key") && line_kind(line) == XPP_KIND_SETTING) {
+        if (!session.generated && !is_cmd(line, "key") && line_kind(line) == XPP_KIND_SETTING) {
             take_setting(s, line);
             continue;
         }
@@ -126,6 +129,10 @@ int ask_begin(Buf *b, const char *kind)
 
 void send_error(const char *ev, const xpp::Error &e)
 {
+    if (session.silent) {
+        xpp::log(XPP_LOG_ERROR, "{}\n", e.text());
+        return;
+    }
     /* Every error affects the process result, whatever UI is installed. */
     xpp::log_note_error();
     const xpp::Place &p = e.place;
@@ -146,8 +153,8 @@ void j_err_msg(const xpp::Error &e) { send_error("message", e); }
 
 xpp::Place j_command_place(void)
 {
-    xpp::Place p = player_place();
-    return p.file.empty() ? xpp::inbox::script_place() : p;
+    xpp::Place place = player_place();
+    return place.file.empty() ? session.reading : place;
 }
 
 void j_command_error(std::string_view command, std::string what)

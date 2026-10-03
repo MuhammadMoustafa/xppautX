@@ -182,11 +182,11 @@ Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
-is in [docs/protocol.md](../protocol.md). `--script FILE model.ode`
-replays a recorded protocol session from FILE instead of reading
-commands from stdin (docs/protocol.md "Scripts"), which is how
-regression tests and recorded sessions are replayed without a live
-client.
+is in [docs/protocol.md](../protocol.md). `xppautX run.recx --silent`
+loads the recording's snapshot, plays its steps without an interface,
+and exits 0 when they played cleanly or 1 otherwise. Recorded aborts stop
+at their exact row or AUTO point (docs/protocol.md "Playing a recording
+without an interface").
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, AUTO's table, solver chatter); by default it logs only
@@ -200,7 +200,7 @@ way has nothing in Messages. See
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
 
-xppautX's own options (`--browser`, `--web`, `--server`, `--script`,
+xppautX's own options (`--browser`, `--web`, `--server`,
 `--port`, `--no-open`, `--version`, `--help`, `--verbose`, `--debug`)
 must come first; every
 supported model option (`core/comline.cpp`) uses two dashes and can

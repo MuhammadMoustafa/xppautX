@@ -168,6 +168,7 @@ Result<Read> read(std::string_view text, std::string file)
             if (binary && !base64_decode_append(f.bytes, digits)) l.fail(first, xpp::format("the section of {} is not base64", f.name));
             if (is_snapshot) {
                 r.snapshot = std::move(f.bytes);
+                r.snapshot_at = first;
                 snapshot = true;
             } else {
                 r.files.push_back(std::move(f));

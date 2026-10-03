@@ -72,6 +72,7 @@ struct Recording {
     /* the session when the recording began: a .snapx's bytes, without
        the data table (xpp_session_snapshot) */
     std::string snapshot;
+    int snapshot_at = 0; /* its section line, for a snapshot parse failure */
     std::vector<ModelFile> files;
     std::vector<Step> steps;
     /* the fingerprint a read file ends with (empty when it has none);

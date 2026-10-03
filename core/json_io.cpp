@@ -187,8 +187,7 @@ char *read_line(xpp::inbox::From which, int wait_ms)
     case xpp::inbox::Took::line:
         return last_line.data();
     case xpp::inbox::Took::end:
-        /* end of input: exit 1 for a script that hit an error or an
-           unmatched ask (docs/protocol.md "Scripts"), else as always, 0 */
+        /* End of input: --silent's error accounting, otherwise 0. */
         quit_session();
     default:
         return nullptr;

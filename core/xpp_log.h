@@ -79,7 +79,7 @@ int log_exit_code();
 
 /* The log goes to the file path from now on (@ logfile=): the one it
    went to before is closed, unless that was stdout or stderr. */
-void log_open_file(std::string_view path);
+bool log_open_file(std::string_view path);
 
 /* A model's load starts: what the model before set with @ logfile= and
    @ quiet= goes (a log file it opened is closed, the log goes to stdout

@@ -566,7 +566,7 @@ Target: WCAG 2.2 AA. Rules:
   (answered `ok` 0), Initialconds/Mouse by a click, Window/Scroll by an
   arrow key, a checklist answered. Phone (390x844, touch, coarse pointer): no
   sideways scroll, plot width, 44 px targets, the drawer, pinch, pan, tap.
-  AUTO (lecar, examples/scripts/lecar_auto.jsonl's steps from the page):
+  AUTO (lecar, examples/recordings/lecar_auto.recx's steps from the page):
   the store's diagram equals the `diagram` events (`__xpp.diagramEvents()`
   rebuilt in the test), the chart (`__xpp.diagram()`) has one curve per
   branch and stability run and every label, the periodic branch starts at

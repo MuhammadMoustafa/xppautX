@@ -14,18 +14,11 @@ struct Session; /* session.h */
 #define JSON_UI_PROTOCOL 3
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
-void json_ui_install(void);        /* protocol on the current stdout */
+void json_ui_install(bool silent = false); /* protocol, or no interface */
 void json_ui_loop(void);           /* read and run commands until EOF */
 /* {"cmd":"open","file":path} into the inbox, as if the page had sent it:
    the desktop window's File > Open model, from the window's thread */
 void json_ui_push_open(const char *path);
-
-/* --script FILE: play FILE's lines instead of reading stdin (docs/protocol.md
-   "Scripts"). Call before json_ui_install(), which then skips the stdin
-   reader. Returns 0 when FILE cannot be opened. Once set, the process exits
-   1 at end of file if a "message" "error" event was sent, or a script line
-   could not be matched to the ask it was meant to answer; 0 otherwise. */
-int json_ui_set_script(const char *path);
 
 /* xppautX model.ode --silent: load the model with no interface, then run
    the built-in script its options make (core/json_silent.cpp) through
@@ -57,6 +50,7 @@ void json_ui_load_error(const Error &e);
 struct RecordingLaunch {
     SavedModel saved;
     std::string model;
+    std::string folder; /* even the initial model load writes only in scratch */
 };
 std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path);
 void json_ui_play_launched(Session &s, const std::string &path);

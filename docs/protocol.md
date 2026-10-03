@@ -108,8 +108,7 @@ without it):
   equation makes NaN or out of bounds; a DAE that cannot be solved, at its
   `0=` line; a CVODE failure, at the equation of the variable its error
   test or corrector failed at);
-- from a command (a protocol command, a key's computation): in a `--script`
-  the script's file and the line of the step, in a recording's Play the
+- from a command (a protocol command, a key's computation): in a recording's Play the
   `.recx` and the step's line; a command the user gave has no file, and
   the error says which command (`where`, in the log).
 
@@ -137,7 +136,7 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | cmd | fields | meaning |
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
-| `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (see "Scripts": a script cannot know the id an `ask` is handed at run time, and this equally lets a plain client skip tracking it). |
+| `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
 | `default` | `kind` (`par` or `ic`) | The Default button, and web2's **Reset all** (W131): values from the ODE file (`hello.defaults`), the tables redone once; no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. Another `kind` is a `message` `error` and nothing changes. |
 | `slider` | `slot`, `name`, `lo`, `hi`, `step` | Set a Session slider definition. Zero-based `slot` is an existing slot or the next slot (append); empty `name` clears it. Name must be a parameter or initial condition; finite low < high, and step from 0 through high-low are required (0 chooses an automatic page step). A state event confirms the setting; it runs nothing. Open model replaces the definitions with that model's `@ s1/slo1/shi1` options. |
@@ -164,9 +163,9 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `play` | `op`: `open` (`file`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, paused at step 0; File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
 | `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
-| `abort` | `at` (scripts only) | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. `at` is where a recorded session stopped (the `stopped` event's `at`); only a script's player reads it (see "Scripts"), anywhere else it is an ordinary `abort`. |
+| `abort` | none | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. Recorded interruptions belong to a recording step's `abort`, whose position the player arms before the computation. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
-| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--script`, `--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
+| `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
 
 ## Action kinds
 
@@ -303,8 +302,8 @@ In browser mode, `showSaveFilePicker` confirms only its delivery destination.
 The core's copy is a different file in the model's folder, which that picker
 did not see, so the page's `file` answer carries no decision. The core asks
 about that copy only if it exists. The download fallback uses the same core
-rule. `--silent`'s built-in commands and scripts with `replace:1` keep their
-explicit authorization; scripts needing disk-independent runs should carry
+rule. `--silent`'s built-in commands and clients with `replace:1` keep their
+explicit authorization; clients needing disk-independent runs should carry
 that decision rather than assume a conditional question will occur.
 
 Each attempted save sends `{"ev":"saved","saved":true|false,"file":"<destination>"}`
@@ -396,8 +395,8 @@ in the input.
     client that enables its actions by kind, as web2 does, sends none: it
     disables data and computation actions from `computing` to the
     command's `idle`, sends its settings at once, and sends Escape as
-    `abort`; a script is read one line at a time after each `idle`, so
-    every step of it starts from idle.
+    `abort`; the recording player starts its next step after the current
+    command's `idle`.
 
   Once the computation is stopping (an `abort` or Escape cancelled it), a
   line that arrives is for after it: it is taken as below, so a command
@@ -421,104 +420,51 @@ in the input.
   command has not computed yet (a value edited while the Initialconds menu
   is open counts for the run its Go starts), else after the command, and
   has its own `state` and `idle` after the command either way. Not in a
-  script, where the line after an ask is its answer and anything else
-  fails the script.
+  recording, where each ask takes the step's next recorded answer; an
+  unexpected ask stops the player.
 - `abort` never has an `idle` of its own, so a client can send it at any
   time without upsetting its count of commands and idles.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
   `stopped` before its `state` and `idle`: where the computation got to,
-  which is what a script needs to replay the interruption (below).
+  which is what the recording player uses to replay the interruption (below).
 
-## Scripts
+## Playing a recording without an interface
 
-`xppautX --script FILE model.ode [xppaut options]` plays FILE instead of
-reading commands from stdin: FILE holds the same line-delimited JSON
-commands a `--server` client sends, one per line (blank lines and lines
-whose first non-blank character is `#` are ignored). Protocol events go to
-stdout exactly as `--server` sends them. The process exits 0 when FILE
-runs out, or 1 if any error was reported, through the protocol or the
-log. The same accounting applies to every quit path and to `--silent`,
-including output files that could not be written (W133). Results such as
-a successful fit use `message` `bottom`, and do not count as errors. A line that
-does not fit the dialogue stops the script at once with exit status 1 and
-a message on stderr at the line (`FILE:K: ...`, as every error is
-written: "Errors" above), with the open question: an `answer`
-when no question is open, or a command where an answer was due (a prompt
-the script did not expect, such as "Draw Strong Sets?" after Sing pts on
-some models).
+`xppautX run.recx --silent` loads the recording's snapshot and plays its
+steps through the same player as File/plaY recording, without a window,
+browser, stdin reader or protocol output. Display pacing is skipped.
+It exits 0 when every step played cleanly, and 1 after any error. Each
+failure is printed once on stderr with its file, line and source: a
+command failure names the `.recx` step, a model failure its model line.
+An unexpected question, unused answer or missed recorded interruption
+stops the player; nothing after that step runs. A command needing pixels
+from the interface fails in this mode.
 
-Pacing: a script cannot see the protocol's events going by, so it cannot
-itself wait for `idle` or watch for an `ask` the way a real client does.
-Instead the player takes FILE's next line only when the core is ready for
-it: an ordinary command's line is taken right after the previous command's
-`idle` (this includes the very first line, taken after the session's own
-opening `redraw`); an `answer` line is taken the moment an `ask` is sent,
-since that is the only thing a script's next line can mean. Nothing is
-read ahead, so a line already in FILE is never mistaken for the answer to
-the wrong `ask`, and every `answer` line can omit `id` (above): a script
-cannot know it in advance.
+A step's `abort` arms `xpp::job::stop_at_rows`, `stop_at_point` or
+`stop_at_frame` before its computation. The job stops at that exact row,
+AUTO branch/point or animation frame, as interactive replay does. If it
+never reaches that place, playback fails at the step. An interruption of
+`other` cannot be placed and the command runs to completion.
+An AUTO stop at point P ends the branch with an EP repeating point P - 1;
+an integration stop counts stored rows, including the initial row. A range
+stops in the first run to reach that row count.
 
-Interruptions: a recorded session that stopped a computation with Escape
-or Abort replays it with `{"cmd":"abort","at":AT}` on the line right
-after the command it interrupted (the `answer` that started it, for a run
-started from a menu), AT being the `stopped` event's `at`. When the player
-hands the core a line whose next line is such an abort, it arms a stop
-for that line's job and drops the abort line: the job cancels itself
-exactly where the recorded one stopped, so the rows it stored, or the AUTO
-diagram, are the recorded session's, and it ends with the same `stopped`
-event. An integration stops when it has stored `rows` rows; an AUTO run
-when it has stored point `point` - 1 of branch `branch`, so that, as every
-cancelled run does, it ends the branch on point `point`, an end point (EP)
-repeating the one before. If the job ends without getting there, the
-script stops with exit status 1 and "FILE:K: the recorded interruption
-at AT was never reached", K being the abort line. The
-animation's Go (`{"what":"ani","frame":F}`) stops when it has shown frame
-F. An `at` of `other` cannot be placed: the job runs to its end. An abort line with no
-`at` stops nothing (the player hands lines over only between commands) and
-the script goes on. The browser client's "Save session script" writes
-these lines: it records a `stopped` event as the abort, and leaves out the
-Escape keys and Aborts it sent while the core was busy. A range
-integration (Integrate/Range) stops in the first of its runs that stores
-`rows` rows.
+The whole recording and every step are read and checked before a model
+loads or a step runs. Input is capped at the file API's 64 MiB limit;
+JSON nesting and snapshot archive expansion retain their reader limits.
+Reads use the recording's embedded files. Replay writes only plain files
+inside its private scratch folders, including the initial model load;
+a recorded path
+cannot write outside them. Use `--server` and the `file` command to inspect
+replay output before closing the session. Protocol clients wait for
+`ask` and `idle`; recordings are the only playable file format.
 
-examples/scripts/lecar_auto.jsonl is a complete example: it selects the
-Le Car model's "hopf" parameter set, finds its fixed point by Newton and
-imports it as the initial condition (a Hopf bifurcation is only on the
-branch from a converged point), runs an AUTO steady-state continuation
-from there, grabs the Hopf point AUTO finds, starts the periodic branch
-that bifurcates from it, and saves the diagram:
+`examples/recordings/lecar_auto.recx` records the former AUTO example's
+steps: select Le Car's `hopf` parameter set, find its fixed point, import
+it, continue the steady branch, grab the Hopf point, continue the periodic
+branch, and save the diagram. Run it with:
 
-```
-{"cmd":"key","key":"f"}
-{"cmd":"key","key":"g"}
-{"cmd":"answer","key":"d"}
-
-{"cmd":"key","key":"s"}
-{"cmd":"answer","key":"g"}
-{"cmd":"answer","key":"n"}
-{"cmd":"key","win":"equilibrium","key":"i"}
-
-{"cmd":"key","key":"f"}
-{"cmd":"key","key":"a"}
-
-{"cmd":"key","win":"auto","key":"r"}
-{"cmd":"answer","key":"s"}
-
-{"cmd":"key","win":"auto","key":"g"}
-{"cmd":"answer","key":"Tab"}
-{"cmd":"answer","key":"Return"}
-
-{"cmd":"key","win":"auto","key":"r"}
-{"cmd":"answer","key":"p"}
-
-{"cmd":"key","win":"auto","key":"f"}
-{"cmd":"answer","key":"s"}
-{"cmd":"answer","file":"lecar.snapx"}
-```
-
-Run it with:
-
-    xppautX --script examples/scripts/lecar_auto.jsonl examples/ode/lecar.ode
+    xppautX examples/recordings/lecar_auto.recx --silent
 
 ## Recordings
 
@@ -594,8 +540,8 @@ fingerprint: 5f0c...(64 hex digits)
   a `pixels` ask (the client's, not the user's) and an `alert` have none.
   `view`: the step only changes what is shown (its kind, "Action kinds",
   refined by the menu item it picked), so a player may run it quickly.
-  `abort`: the `stopped` event's `at`, as a script's abort line has it
-  ("Scripts"). `during`: the keys the running job read itself, each
+  `abort`: the `stopped` event's `at`, recorded in the step
+  ("Playing a recording without an interface"). `during`: the keys the running job read itself, each
   `{"key":K,"at":AT}` with where the job was when it took it: `/` ending a
   range or a shooting, Escape stopping the animation's Go (an Escape
   during a computation cancels it: that is `abort`). Animator pause and
@@ -655,8 +601,8 @@ answer's members; `null`: a cancel). A `save_replace` owner answer is
 consumed by the save operation before checking the disk, without another
 prompt or input; it does not delay arming a recorded interruption. An `alert` it answers OK; a
 `pixels` ask is the client's, as always. With the step's last input it
-arms its `abort`, or its first `during` key, as a script arms an abort
-line ("Scripts"): the job stops, or is handed the key, exactly where the
+arms its `abort`, or its first `during` key
+("Playing a recording without an interface"): the job stops, or is handed the key, exactly where the
 recorded one did. A step that asks a question it holds no answer for, ends
 with answers left over, or never reaches its interruption gets a `message`
 `error` (`Step N of the recording ...; the player stopped`) and the player
@@ -698,10 +644,10 @@ back and compare the data.
 `xppautX model.ode --silent` is a script of these same commands, built in
 (core/json_silent.cpp): after the model loads with no interface at all (a
 model that does not load exits 1), the command line and the model's `@`
-options say which commands, and they are played as `--script` plays a
-file, with no reader, their events going nowhere and what the core says
+options say which commands, kept as an internal list with no file
+reader, their events going nowhere and what the core says
 going to the log as with no interface (nothing new on stdout; an error
-message leaves the exit status 0, as before). Each step is made when its
+message leaves the exit status 1). Each step is made when its
 turn comes, after the steps before it ran, since an internal set may
 change any option. The questions the commands ask are answered by the
 script's next lines; one it does not expect stops it (exit 1). For each
@@ -747,7 +693,7 @@ model's start in every mode, before the script.
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
 | `state` | `sliders` [{`name`,`lo`,`hi`,`step`}...] in slot order (empty names retain vacant slots), `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menus.names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
 | `idle` | | The command finished. |
-| `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. A script replays the interruption from it (see "Scripts"). |
+| `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface"). |
 | `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `play` `note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
 | `press` | `step`, `what`, `index`, `ms` | What the player sends next, before it sends it: `what` `key` (the step's `keys[index]`: its first key, the button's when the step has a `button`, or a menu's or a choice's answer), `answer` (`answers[index]`, a dialog's answer), `cmd` (the step's `cmd`) or `alert` (a message's OK); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted). |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |

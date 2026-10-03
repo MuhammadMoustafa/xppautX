@@ -108,7 +108,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | A changed model | not applicable | the session carries its own model; opening it loads that version | W103 |
 | Record and replay | none | File > Record writes a `.recx` of every step; the player steps, pauses, shows captions and notes | W59a-d |
 | Record from a snapshot | none | a recording starts from the session's state | W59d |
-| Replay a script from the command line | none | `--script FILE` today; decided: removed, `xppautX run.recx --silent` plays a recording and the checks move to `--server` or a `.recx` | W10, W144 (ready) |
+| Replay a recording from the command line | none | `xppautX run.recx --silent` loads its snapshot and plays without an interface; exit 0 on clean playback, 1 on failure, recorded aborts exact | W144 ([#196](https://github.com/MuhammadMoustafa/xppautX/issues/196)) |
 | Slider settings | model options set three slider bindings | Session definitions, including added sliders and step sizes, saved in `.snapx`; Open model replaces them with its presets | W135, [#187](https://github.com/MuhammadMoustafa/xppautX/issues/187) |
 | Seeds | one global generator seed | each run has its seed, logged and saved with its data; set it and Go repeats a run exactly | W71 |
 
@@ -181,7 +181,6 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Exit code of a model that does not load | not verified | non-zero in every mode | W35c |
 | JSON protocol | none | line-delimited JSON on stdin/stdout (`--server`) and over HTTP; [protocol.md](protocol.md) | W5, W7a |
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |
-| Scripts | none | `--script` (W10), decided to go in favour of `.recx` | W144 (ready) |
 | Local server | none | 127.0.0.1 only, random token in the address; `--no-open`, `--port`; 256 request threads and 32 concurrent uploads, excess requests receive 503 before their bodies are read; whole heads limited to 5 s, body receives to 30 s, blocked sends to 10 s ([protocol](protocol.md#files)) | W5, W161 (#213), W164 (#216) |
 | Command line options | XPPAUT's list ([comline.c](../reference/xppaut-8.0/comline.c)) | word options require two dashes; old single-dash words stop with the new spelling; X11 options and unused `-def` are errors; new: `--browser`, `--server`, `--convert`, `--verbose`, `--debug`, `--logfile` | W13a, W156 ([#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)) |
 | Logging | `plintf` to stdout | `xpp::log`, quiet by default; stdout carries only the protocol | W2, W25 |

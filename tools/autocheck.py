@@ -5,7 +5,7 @@ travels as data, how input is read, and how quickly a long computation stops.
 usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
-session, sessiondata, script, replay, names, scratch, errors, memory (default: all;
+session, sessiondata, recording, replay, names, scratch, errors, memory (default: all;
 tools/verify.sh runs them all).
 memory (W117) shows the adjoint, its H function and a histogram again
 after a run grew the store and after a load (they borrow the stored
@@ -34,19 +34,18 @@ no .ode is, its saved model loads, a file table with it, and a file
 without its model is refused; sessiondiagram checks AUTO's File/Save
 and Load through .snapx, the exact diagram, settings, views and restart
 orbits, the saved model, and refusal of damaged members before replacing
-any state. script plays
-examples/scripts/lecar_auto.jsonl through --script (docs/protocol.md
-"Scripts") and checks a broken script exits 1; names loads
+any state. recording plays
+examples/recordings/lecar_auto.recx with --silent and checks a broken recording exits 1; names loads
 tools/models/longnames.odex (200-character names: no length limit, W76)
 and checks it computes, saves and continues exactly like shortnames.odex. replay interrupts an
-integration and an AUTO run over --server and checks that a script made of
-the same commands and the recorded {"cmd":"abort","at":...} stops them at
+integration and an AUTO run over --server and checks that a .recx made of
+the same commands and a recorded abort stops them at
 the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
-import argparse, base64, json, os, shutil, subprocess, sys, tempfile, time
+import argparse, base64, io, json, os, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import wait_until, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
+from xppclient import file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -54,7 +53,7 @@ ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
 ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'script', 'replay', 'play', 'names', 'scratch', 'errors',
+                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors',
                                                 'memory'])
 args = ap.parse_args()
 if args.list:
@@ -65,7 +64,7 @@ LECAR = 'examples/ode/lecar.odex'
 HEAVY = os.path.join(here, 'models', 'heavy.odex')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.csv')  # the .snapx's diagram.csv of section_files
 OLD_AUTO = os.path.join(here, 'models', 'lecar_diagram.auto')  # XPPAUT's .auto of the same diagram
-SCRIPT = 'examples/scripts/lecar_auto.jsonl'
+RECORDING = 'examples/recordings/lecar_auto.recx'
 failures = 0
 
 
@@ -704,7 +703,7 @@ def step(s, **c):
 
 def hopf_steady(s):
     """lecar's "hopf" parameter set, its fixed point as the IC (as
-    examples/scripts/lecar_auto.jsonl does), AUTO; returns the events"""
+    examples/recordings/lecar_auto.recx does), AUTO; returns the events"""
     evs = []
     for c in ({'cmd': 'key', 'key': 'f'}, {'cmd': 'key', 'key': 'g'}, {'cmd': 'answer', 'key': 'd'},
               {'cmd': 'key', 'key': 's'}, {'cmd': 'answer', 'key': 'g'}, {'cmd': 'answer', 'key': 'n'},
@@ -1539,77 +1538,121 @@ def section_names():
     check('names: the Hopf bifurcation is labelled in both', 'HB' in syml and syml == syms, '%s %s' % (syml, syms))
 
 
-# ---- script: xppautX --script plays a file of protocol commands -----------
+# ---- recording: the one replay format, including headless batch runs ----
 
-def run_script(script_path, ode=LECAR):
-    """xppautX --script SCRIPT_PATH ODE, in a scratch dir with a copy of
-    ODE; returns (exit code, stdout text, the scratch dir)"""
-    run = tempfile.mkdtemp(prefix='xppscript')
-    shutil.copy(ode, run)
-    r = subprocess.run([os.path.abspath(args.server), '--script', os.path.abspath(script_path),
-                        os.path.basename(ode)], cwd=run, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                       text=True, timeout=60 * SLOW)
-    run_script.stderr = r.stderr
-    return r.returncode, r.stdout, run
+def run_recording(path=None, lines=None, steps=None):
+    run = tempfile.mkdtemp(prefix='xppreplay')
+    if path is None:
+        path = make_recording(args.server, LECAR, lines or [], run)
+        if steps is not None:
+            with open(path, encoding='utf-8') as f:
+                template = f.read()
+            with open(path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(recording_text(template, steps))
+    with open(path, encoding='utf-8') as f:
+        run_recording.places = [(i, l.rstrip()) for i, l in enumerate(f, 1) if l.startswith('{')]
+    result = replay_recording(args.server, LECAR, path, run)
+    run_recording.stderr = result.stderr
+    return result.returncode, result.stdout, run
 
 
-def section_script():
-    code, out, run = run_script(SCRIPT)
+def section_recording():
+    code, out, run = run_recording(RECORDING)
     idles = out.count('"ev":"idle"')
-    check('xppautX --script plays lecar_auto.jsonl to the end', code == 0, 'exit %d, %s' % (code, out[-300:]))
-    check('it reaches idle after each of its commands', idles >= 8, '%d idles' % idles)
-    check('it saves the AUTO diagram (File/Save diagram, key s)',
-          os.path.exists(os.path.join(run, 'lecar.snapx')))
+    check('xppautX lecar_auto.recx --silent plays to the end with no interface', code == 0,
+          'exit %d, %s' % (code, run_recording.stderr[-300:]))
+    check('the player reaches idle after each recorded command', idles >= 8, '%d idles' % idles)
+    check('it saves the AUTO diagram (File/Save diagram, key s)', os.path.exists(os.path.join(run, 'lecar.snapx')))
     shutil.rmtree(run, ignore_errors=True)
 
-    # a bad formula in a "set" sends a "message" "error" event
-    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
-    bad.write('{"cmd":"set","kind":"par","name":"iapp","text":"%not a valid formula("}\n')
-    bad.close()
-    code, out, run = run_script(bad.name)
+    # The snapshot precedes the steps: the model's defaults cannot replace it.
+    with tempfile.TemporaryDirectory(prefix='xppsnapshot') as run:
+        run_commands(args.server, LECAR, [
+            {'cmd':'set', 'kind':'par', 'name':'iapp', 'value':0.9},
+            {'cmd':'record', 'op':'start'}, {'cmd':'key', 'key':'i'}, {'cmd':'answer', 'key':'g'},
+            {'cmd':'record', 'op':'stop', 'name':'start.recx'}], run)
+        r = replay_recording(args.server, LECAR, os.path.join(run, 'start.recx'), run)
+        states = [json.loads(l) for l in r.stdout.splitlines() if '"ev":"state"' in l]
+        check('W144: silent playback loads the nondefault starting snapshot',
+              r.returncode == 0 and states and dict(states[-1]['pars'])['iapp'] == 0.9, r.stderr)
+
+    # A sent recording may be hostile; validate it whole before any step runs.
+    with tempfile.TemporaryDirectory(prefix='xpphostile') as run:
+        path = make_recording(args.server, LECAR, [], run)
+        with open(path, encoding='utf-8') as f:
+            template = f.read()
+        marker = os.path.join(run, 'outside.dat')
+        with open(marker, 'wb') as f:
+            f.write(b'keep')
+        def quiet(steps):
+            with open(path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(recording_text(template, steps))
+            return subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
+                capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        outside = {'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':marker, 'replace':1}}
+        r = quiet([outside])
+        check('W144: a recording cannot overwrite a path outside its scratch folder',
+              r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep', r.stderr)
+        # A model option runs during the initial load, before any replay step.
+        digits = template.split('@snapshot\n', 1)[1].split('\n@end', 1)[0]
+        encoded = io.BytesIO()
+        with zipfile.ZipFile(io.BytesIO(base64.b64decode(digits))) as source, \
+                zipfile.ZipFile(encoded, 'w', zipfile.ZIP_DEFLATED) as target:
+            for name in source.namelist():
+                data = source.read(name)
+                if name == 'model/lecar.odex':
+                    data += ('\n@ logfile=' + marker.replace('\\', '/') + '\n').encode()
+                target.writestr(name, data)
+        hostile = template.replace(digits, base64.b64encode(encoded.getvalue()).decode(), 1)
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(recording_text(hostile, []))
+        r = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
+            capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        check('W144: even initial model options cannot write outside scratch, and fail once',
+              r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep'
+              and r.stderr.count('cannot be opened for writing') == 1, r.stderr)
+        r = quiet([{'cmd':{'cmd':'file','op':'put','name':'../outside.dat','data':'AA=='}}])
+        check('W144: a file refusal is printed once at the recording step',
+              r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1
+              and file_content(marker, 'rb') == b'keep', r.stderr)
+        r = quiet([outside, {'cmd':{'cmd':'key','key':'i'}, 'files':[0.5]}])
+        check('W144: an invalid final step is refused before any earlier step executes',
+              r.returncode == 1 and r.stdout == '' and 'file section 0.5' in r.stderr
+              and r.stderr.count('run.recx:') == 1 and file_content(marker, 'rb') == b'keep', r.stderr)
+        r = quiet([{'cmd':{'cmd':'key','key':'i'}, 'abort':{'what':'integrate','rows':1e100}}])
+        check('W144: an out-of-range interruption is refused before playback',
+              r.returncode == 1 and 'invalid recorded interruption' in r.stderr and r.stdout == '', r.stderr)
+        r = quiet([])
+        check('W144: an empty recording loads its snapshot and exits cleanly', r.returncode == 0 and r.stdout == '', r.stderr)
+        r = quiet([{'cmd':{'cmd':'quit'}}, {'cmd':{'cmd':'set','kind':'par','name':'iapp','value':0.8}}])
+        leftover = quiet([{'cmd':{'cmd':'quit'}, 'answers':[{'save_replace':1}]}])
+        check('W144: a recorded quit cannot report success while skipping later steps',
+              r.returncode == 1 and r.stderr.count('Playback ended before') == 1 and r.stdout == ''
+              and leftover.returncode == 1 and leftover.stderr.count('Playback ended before') == 1
+              and leftover.stdout == '', r.stderr + leftover.stderr)
+        r = quiet([{'cmd':{'cmd':'play','op':'pause'}}])
+        check('W144: a hostile step cannot pause its own player and stall headless playback',
+              r.returncode == 1 and 'cannot control its own player' in r.stderr and r.stdout == '', r.stderr)
+        # Matches XPP_FILES_CAP: the shared upload/recording byte bound.
+        RECORDING_CAP = 64 << 20
+        with open(path, 'wb') as f:
+            f.truncate(RECORDING_CAP + 1)
+        r = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
+            capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        check('W144: the bounded recording reader refuses oversized input',
+              r.returncode == 1 and 'file size limit' in r.stderr and r.stdout == '', r.stderr)
+    code, out, run = run_recording(lines=[{'cmd':'set', 'kind':'par', 'name':'iapp', 'text':'%not a valid formula('}])
     check('a "set" with a bad formula exits 1', code == 1, 'exit %d' % code)
-    os.unlink(bad.name)
     shutil.rmtree(run, ignore_errors=True)
-
-    # an answer sent with no ask pending for it cannot be matched
-    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
-    bad.write('{"cmd":"answer","key":"s"}\n')
-    bad.close()
-    code, out, run = run_script(bad.name)
+    code, out, run = run_recording(lines=[{'cmd':'answer', 'key':'s'}])
     check('an answer to nothing exits 1', code == 1, 'exit %d' % code)
-    os.unlink(bad.name)
     shutil.rmtree(run, ignore_errors=True)
-
-    # a command where an answer was due stops at once, naming the line
-    # (it used to wait for an answer forever)
-    bad = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
-    bad.write('# the Initialconds menu opens and wants an answer\n'
-              '{"cmd":"key","key":"i"}\n'
-              '{"cmd":"key","key":"f"}\n')
-    bad.close()
-    t = time.monotonic()
-    code, out, run = run_script(bad.name)
-    check('a command where an answer was due exits 1 at once, naming the line',
-          code == 1 and time.monotonic() - t < 10 and ':3: does not answer' in run_script.stderr,
-          'exit %d, %s' % (code, run_script.stderr[-300:]))
-    os.unlink(bad.name)
+    code, out, run = run_recording(lines=[{'cmd':'key', 'key':'i'}, {'cmd':'key', 'key':'f'}])
+    check('a recording missing the open menu answer exits 1, naming the step once',
+          code == 1 and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
+          and run_recording.stderr.count('the player stopped') == 1,
+          'exit %d, %s' % (code, run_recording.stderr[-300:]))
     shutil.rmtree(run, ignore_errors=True)
-
-
-# ---- replay: a recorded interruption stops the script's job at the same point
-# ----------------------------------------------------------------------------
-# Both cases below arm the stop ahead of time (xpp::job::stop_at_rows/point, the
-# same mechanism a script's own abort replay uses: docs/protocol.md
-# "Scripts") instead of racing a live Abort against the clock: the exact row
-# or point to stop at is chosen from a first, uninterrupted run, not
-# discovered by luck. A fast model does; no run-in-progress is needed.
-
-def script_file(lines):
-    f = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl', delete=False, dir=here)
-    f.write(''.join((l if not l.strip() or l.lstrip().startswith('#')
-                    else json.dumps(save_permission(json.loads(l)))) + '\n' for l in lines))
-    f.close()
-    return f.name
 
 
 def stopped_events(out):
@@ -1629,82 +1672,64 @@ def file_content(path, mode='r'):
 
 
 def section_replay():
-    # (a) an integration: play it once to learn how many rows it stores
-    # (lecar's own default, no need for heavy.odex: nothing here races a
-    # clock), then replay with the stop armed at half of them
     full = silent_output(LECAR)
     total_rows = len(full.strip().splitlines()) if full else 0
     check('replay: the default run stores rows to replay against', total_rows > 4, '%d rows' % total_rows)
     target = max(total_rows // 2, 1)
-    path = script_file(['{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
-                        '{"cmd":"abort","at":{"what":"integrate","rows":%d,"t":0}}' % target,
-                        '{"cmd":"browser","op":"write","what":"table","format":"dat"}',
-                        '{"cmd":"answer","file":"run.dat"}',
-                        '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}'])
-    code, out, run = run_script(path)
+    code, out, run = run_recording(lines=[
+        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+        {'cmd':'abort','at':{'what':'integrate','rows':target,'t':0}},
+        {'cmd':'browser','op':'write','what':'table','format':'dat'}, {'cmd':'answer','file':'run.dat'},
+        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'}])
     at = (stopped_events(out) or [None])[0]
     check('replay: an interrupted integration stops exactly at the armed row', code == 0 and at is not None
           and at.get('what') == 'integrate' and at.get('rows') == target, 'exit %d, %s' % (code, at))
     written = file_content(os.path.join(run, 'run.dat'))
     written_rows = len(written.strip().splitlines()) if written else 0
     check('replay: it writes the rows it kept', written_rows == target, '%d rows vs %d' % (written_rows, target))
-    check('replay: a second run after the interruption computes to the end again',
-          last_rows(out) == total_rows, 'last state rows %s vs %s' % (last_rows(out), total_rows))
-    os.unlink(path)
+    check('replay: a second run after the interruption computes to the end again', last_rows(out) == total_rows,
+          'last state rows %s vs %s' % (last_rows(out), total_rows))
     shutil.rmtree(run, ignore_errors=True)
 
-    # (b) an AUTO run: play lecar_auto.jsonl's periodic branch once to learn
-    # how many points it reaches, then replay with the stop armed at one
-    # past half of them (docs/protocol.md "Scripts": arming point K ends the
-    # branch with point K - 1 stored, an EP repeating it)
-    with open(SCRIPT) as f:
-        lines_ = [json.loads(l) for l in f if l.strip() and not l.lstrip().startswith('#')]
-    body, save = lines_[:-3], lines_[-3:]
-    path0 = script_file([json.dumps(c) for c in body])
-    code0, out0, run0 = run_script(path0)
+    with open(RECORDING, encoding='utf-8') as f:
+        text = f.read()
+    steps = [json.loads(l) for l in text.split('@steps\n',1)[1].splitlines() if l.startswith('{')]
+    body, save = steps[:-1], steps[-1:]
+    code0, out0, run0 = run_recording(steps=body)
     dg0 = Diagram().apply([json.loads(l) for l in out0.splitlines()])
     br2 = [p for p in dg0.pts if p['br'] == 2]
     check('replay: the periodic run computes points to replay against', code0 == 0 and len(br2) > 4,
           'exit %d, %d points' % (code0, len(br2)))
-    os.unlink(path0)
     shutil.rmtree(run0, ignore_errors=True)
     if br2:
         target_point = br2[len(br2) // 2]['pt']
-        abort_at = {'what': 'auto', 'branch': 2, 'point': target_point + 1}
-        script2 = body + [{'cmd': 'abort', 'at': abort_at}] + save
-        path = script_file([json.dumps(c) for c in script2])
-        code, out, run = run_script(path)
+        abort_at = {'what':'auto','branch':2,'point':target_point+1}
+        interrupted = [dict(st) for st in body]
+        interrupted[-1]['abort'] = abort_at
+        code, out, run = run_recording(steps=interrupted + save)
         at = (stopped_events(out) or [None])[0]
         check('replay: an interrupted AUTO run stops exactly at the armed point', code == 0 and at == abort_at,
               'exit %d, %s vs %s' % (code, at, abort_at))
         diagram = file_content(os.path.join(run, 'lecar.snapx'), 'rb')
         check('replay: and saves a diagram at that point', diagram is not None and len(diagram) > 0,
               str(diagram and len(diagram)))
-        os.unlink(path)
         shutil.rmtree(run, ignore_errors=True)
 
-    # (c) an interruption the job never gets to: exit 1 at once, naming the line
-    path = script_file(['{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
-                        '# lecar stores 601 rows',
-                        '{"cmd":"abort","at":{"what":"integrate","rows":100000,"t":5000}}',
-                        '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}'])
-    code, out, run = run_script(path)
-    check('replay: an interruption never reached exits 1, naming its line',
-          code == 1 and ':4: the recorded interruption at' in run_script.stderr and
-          'was never reached' in run_script.stderr, 'exit %d, %s' % (code, run_script.stderr[-300:]))
-    check('replay: and plays nothing after it', out.count('"ev":"idle"') == 1, '%d idles' % out.count('"ev":"idle"'))
-    os.unlink(path)
+    code, out, run = run_recording(lines=[{'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+        {'cmd':'abort','at':{'what':'integrate','rows':100000,'t':5000}},
+        {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'}])
+    check('replay: an interruption never reached exits 1, naming its step once', code == 1
+          and 'run.recx:%d:' % run_recording.places[0][0] in run_recording.stderr
+          and run_recording.stderr.count('never got to its recorded interruption') == 1,
+          'exit %d, %s' % (code, run_recording.stderr[-300:]))
+    check('replay: and plays nothing after it', out.count('"ev":"computing"') == 1,
+          '%d computations' % out.count('"ev":"computing"'))
     shutil.rmtree(run, ignore_errors=True)
-
-    # (d) abort lines that interrupt nothing (bare, or of a job that cannot be
-    # placed) are consumed: the script goes on
-    path = script_file(['{"cmd":"abort"}', '{"cmd":"key","key":"i"}', '{"cmd":"answer","key":"g"}',
-                        '{"cmd":"abort","at":{"what":"other"}}', '{"cmd":"abort"}'])
-    code, out, run = run_script(path)
-    check('replay: abort lines that interrupt nothing do not stall the script',
+    code, out, run = run_recording(lines=[{'cmd':'abort'}, {'cmd':'key','key':'i'}, {'cmd':'answer','key':'g'},
+        {'cmd':'abort','at':{'what':'other'}}, {'cmd':'abort'}])
+    check('replay: interruptions that cannot be placed do not stall the player',
           code == 0 and last_rows(out) == 601 and not stopped_events(out),
-          'exit %d, rows %s, %s' % (code, last_rows(out), run_script.stderr[-300:]))
-    os.unlink(path)
+          'exit %d, rows %s, %s' % (code, last_rows(out), run_recording.stderr[-300:]))
     shutil.rmtree(run, ignore_errors=True)
 
 
@@ -2004,14 +2029,6 @@ def play_recording(s, path):
                         and e['player']['running'] == -1, timeout=300 * SLOW)
     return pl, evs + more + s.collect(is_idle)[0]
 
-
-def file_bytes(s, name):
-    """the model folder's file name, through the file command (the player's
-    folder is its own)"""
-    s.send(cmd='file', op='get', name=name)
-    _, ev = s.collect(lambda e: e.get('ev') == 'file')
-    s.collect(is_idle)
-    return base64.b64decode(ev['data']) if ev and ev.get('ok') else None
 
 
 def section_play():

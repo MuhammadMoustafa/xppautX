@@ -236,10 +236,26 @@ int main()
     if (!scratch.empty()) {
         CHECK(scratch.find("xppautoX-") != std::string::npos);
         CHECK(xpp::files::exists(scratch.c_str()));
+        /* A sent recording can write its own plain outputs, but cannot
+           write outside scratch or through a nested directory/link. */
+        xpp::files::serve_reads([](const std::string &, std::string *) { return false; });
         std::string inside = scratch + "/fort.7";
         std::FILE *f7 = xpp::files::open_stream(inside.c_str(), "w");
         CHECK(f7 != nullptr);
         if (f7) std::fclose(f7);
+        CHECK(xpp::files::open_stream("n.txt", "w") == nullptr);
+        CHECK(!xpp::files::exists("n.txt"));
+        const std::string nested = scratch + "/nested";
+#ifdef _WIN32
+        CHECK(_mkdir(nested.c_str()) == 0);
+#else
+        CHECK(mkdir(nested.c_str(), 0700) == 0);
+#endif
+        const std::string outside = nested + "/outside.txt";
+        CHECK(xpp::files::open_stream(outside, "w") == nullptr);
+        CHECK(!xpp::files::exists(outside));
+        xpp::files::serve_reads(nullptr);
+        CHECK(rmdir(nested.c_str()) == 0);
         xpp::files::remove_temp_dir(scratch.c_str());
         CHECK(!xpp::files::exists(scratch.c_str()));
     }

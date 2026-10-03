@@ -83,11 +83,21 @@ std::string make_temp_dir()
     return {};
 }
 
-bool is_scratch(std::string_view path)
+bool is_scratch(std::string_view path, bool root_only)
 {
     try {
-        const std::string prefix = xpp::format("{}{}xppautoX-{}-", temp_base(), SEP, own_pid());
-        return path.starts_with(prefix);
+        std::string name(path), prefix = xpp::format("{}{}xppautoX-{}-", temp_base(), SEP, own_pid());
+#ifdef _WIN32
+        /* getcwd uses backslashes; absolute scratch names may use either. */
+        std::replace(name.begin(), name.end(), '\\', '/');
+        std::replace(prefix.begin(), prefix.end(), '\\', '/');
+#endif
+        if (!name.starts_with(prefix) || name.find("..") != std::string::npos) return false;
+        const size_t end = name.find('/', prefix.size());
+        if (root_only && end != std::string::npos) return false;
+        const std::string folder = name.substr(0, end);
+        long long pid;
+        return scratch_dir_pid(split_path(folder).second, &pid) && pid == own_pid() && !is_link(folder.c_str());
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("naming the scratch folder");
     }

@@ -121,6 +121,9 @@ void observe_reads(void (*observer)(const std::string &path));
    recording's replay serves the files its steps read (W59b,
    json_player.cpp). The core thread's alone; nullptr stops it. */
 void serve_reads(bool (*server)(const std::string &path, std::string *copy));
+/* While replay serves reads, writes stay in this process's scratch folders.
+   Used by both stream opens and Writer's atomic create/replace. */
+bool write_path_ok(std::string_view path);
 /* the descriptor a standard stream (stdout, stderr) writes through, given
    one (the null device) if it has none: the Windows exe is a GUI-subsystem
    program, and started with no console (Explorer, a shortcut,
@@ -168,8 +171,9 @@ void move(std::string_view from, std::string_view to);
    path, or empty on failure */
 std::string make_temp_dir();
 /* path is in one of this process's scratch folders (as the path above
-   names them): a file the core itself keeps there, never the user's */
-bool is_scratch(std::string_view path);
+   names them): a file the core itself keeps there, never the user's.
+   root_only requires the folder itself, excluding nested directories. */
+bool is_scratch(std::string_view path, bool root_only = false);
 /* Removes every file directly in dir (no folders are expected there),
    then dir itself. "" does nothing. */
 void remove_temp_dir(std::string_view dir);

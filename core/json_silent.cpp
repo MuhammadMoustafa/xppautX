@@ -1,5 +1,5 @@
 /* --silent's built-in script (W56): xppautX model.ode --silent is the
-   protocol's own commands, the ones a page or a --script file sends,
+   protocol's own commands, the ones a page sends,
    played through this front end (ui_json.cpp json_ui_silent) with its
    events going nowhere. The command line (--outfile, --internset, --qsets,
    --equil, --noout, --mkplot, ...) and the model's @ options (output=,
@@ -9,8 +9,8 @@
    it have run: an internal set may change any option, so what a step
    does is read from the session then, not when the script starts. The
    questions the commands ask (a menu, a file name, a form) are answered
-   by the script's next lines, as in a --script file; a question the
-   script does not expect stops it (exit 1, script_fail).
+   by the internal list's next lines; a question the
+   script does not expect stops it (exit 1, silent_fail).
 
    For one run (no internal sets, or each set in turn):
      select the set          values internset (File/Get par set, the set

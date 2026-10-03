@@ -237,145 +237,31 @@ bool xpp::inbox::start_stdin()
     return true;
 }
 
-/* ---- the --script reader: a file, one line at a time, pulled by the core ----
-
-   The reader keeps one command line read ahead (`ahead`), so the core can
-   look at the line after the one it is about to run (script_peek:
-   a recorded interruption follows the command it interrupted). */
-
-namespace {
-
-xpp::UniqueFile script_fp;
-/* the script's file, and the line last pushed (its number in the file,
-   or in a script made as it goes) as written: an error's place */
-struct Pushed {
-    std::string path;
-    int line = 0;
-    std::string text;
-} pushed;
-/* a script made as it goes (start_generated: --silent's) in
-   place of a file: it is never read ahead */
-std::function<std::optional<std::string>()> script_gen;
-
-struct Ahead {
-    bool valid = false; /* read, not yet pushed or skipped */
-    bool eof = false;   /* nothing left after the lines already handed out */
-    std::string text;
-    int line = 0; /* its file line number */
-} ahead;
-int file_line; /* lines of the file read so far */
-
-/* read the next command line of the file into `ahead` (blank lines and
-   comments skipped), or mark the end of the file */
-void read_ahead()
-{
-    if (ahead.valid || ahead.eof || !script_fp) return;
-    for (;;) {
-        std::string s;
-        int c;
-        file_line++;
-        while ((c = std::fgetc(script_fp.get())) != EOF && c != '\n')
-            if (c != '\r') s += static_cast<char>(c); /* CRLF script files */
-        if (c == EOF && s.empty()) { /* nothing left to skip past */
-            script_fp.reset();
-            ahead.eof = true;
-            return;
-        }
-        size_t p = s.find_first_not_of(" \t");
-        if (p == std::string::npos || s[p] == '#') { /* blank or a comment line */
-            if (c == EOF) {
-                script_fp.reset();
-                ahead.eof = true;
-                return;
-            }
-            continue;
-        }
-        ahead.text = std::move(s);
-        ahead.line = file_line;
-        ahead.valid = true;
-        return;
-    }
-}
-
-bool script_open() { return script_fp || ahead.valid || ahead.eof; }
-
-} // namespace
-
+/* --silent's internal command source, pulled only when the core is ready. */
 namespace xpp::inbox {
-
-
-xpp::Place script_place()
-{
-    if (pushed.path.empty() || pushed.line <= 0) return {};
-    return xpp::Place{pushed.path, pushed.line, 0, pushed.text};
-}
-
-bool start_file(std::string_view path)
-{
-    pushed.path = path;
-    script_fp.reset(xpp::files::open_stream(path, "rb"));
-    return script_fp != nullptr;
-}
+namespace {
+std::function<std::optional<std::string>()> generated;
+} // namespace
 
 void start_generated(std::function<std::optional<std::string>()> next)
 {
-    script_gen = std::move(next);
+    generated = std::move(next);
 }
 
-void script_advance()
+void generated_advance()
 {
-    if (script_gen) {
-        std::optional<std::string> line;
-        try {
-            line = script_gen();
-        } catch (const std::bad_alloc &) {
-            out_of_memory_now("making the script");
-        }
-        if (line) {
-            pushed.line++;
-            push(*line);
-        } else {
-            script_gen = nullptr; /* closed once: later calls do nothing */
-            close();
-        }
-        return;
-    }
-    if (!script_open()) return;
+    if (!generated) return;
+    std::optional<std::string> line;
     try {
-        read_ahead();
+        line = generated();
     } catch (const std::bad_alloc &) {
-        out_of_memory_now("reading the script");
+        out_of_memory_now("making the silent commands");
     }
-    if (ahead.valid) {
-        ahead.valid = false;
-        pushed.line = ahead.line;
-        pushed.text = ahead.text;
-        push(ahead.text);
-        return;
-    }
-    if (ahead.eof) {
-        ahead.eof = false; /* closed once: later calls do nothing */
+    if (line) push(*line);
+    else {
+        generated = nullptr;
         close();
     }
-}
-
-const char *script_peek(int &line_no)
-{
-    if (script_gen || !script_open()) return nullptr;
-    try {
-        read_ahead();
-    } catch (const std::bad_alloc &) {
-        out_of_memory_now("reading the script");
-    }
-    if (!ahead.valid) return nullptr;
-    line_no = ahead.line;
-    return ahead.text.c_str();
-}
-
-void script_skip()
-{
-    int line_no = 0;
-    if (script_peek(line_no)) ahead.valid = false;
 }
 
 } // namespace xpp::inbox

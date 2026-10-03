@@ -361,6 +361,7 @@ bool name_ok(std::string_view name)
 
 int replace_file(std::string_view from, std::string_view to)
 {
+    if (!write_path_ok(to)) return -1;
     return rename_over(std::string(from).c_str(), std::string(to).c_str());
 }
 
@@ -534,9 +535,27 @@ void observe_reads(void (*observer)(const std::string &path)) { read_observer = 
 
 void serve_reads(bool (*server)(const std::string &path, std::string *copy)) { read_server = server; }
 
+bool write_path_ok(std::string_view path)
+{
+    if (!read_server) return true;
+    const auto [dir, base] = split_path(absolute(path));
+    /* Replay creates only plain files: no traversal, subdirectory or link
+       can turn its own scratch folder into a path to the user's files. */
+    Stat st;
+    const int kind = kind_of(std::string(path).c_str(), &st);
+    /* Writer's exclusive temporary has a leading dot; the rest is a
+       plain name, checked by the same owner as its eventual target. */
+    const std::string_view plain = std::string_view(base).starts_with('.') ? std::string_view(base).substr(1) : base;
+    if (is_scratch(dir, true) && name_ok(plain)
+        && (kind == XPP_FILES_OK || kind == XPP_FILES_NOT_FOUND)) return true;
+    errno = EACCES;
+    return false;
+}
+
 FILE *open_stream(std::string_view path, const char *mode)
 {
     const bool reading = mode[0] == 'r' && !std::strchr(mode, '+');
+    if (!reading && !write_path_ok(path)) return nullptr;
     std::string name, copy;
     bool served = false;
     try {
@@ -566,6 +585,7 @@ int stream_fd(FILE *f)
 
 FILE *create_new(std::string_view path_view, bool binary)
 {
+    if (!write_path_ok(path_view)) return nullptr;
     const std::string path(path_view);
     int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
     if (fd < 0) return nullptr;

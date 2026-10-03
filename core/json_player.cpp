@@ -3,7 +3,7 @@
    recording's model from the files it holds and replays its steps, as
    they were taken: each step's command, then, as the core asks, the key
    or the answer the recording gives each question, and the recorded
-   interruption armed as --script arms an abort line (arm_recorded_stop).
+   interruption armed by arm_recorded_stop.
    Nothing is fixed, skipped or changed: a step that asks what it does not
    answer, or ends with answers left, stops the player with an error.
 
@@ -108,8 +108,12 @@ Player player;
    nothing, with an error message, when it is not one */
 std::optional<SavedFile> snapshot_of(const std::string &path, const recx::Recording &rec)
 {
-    return xpp_saved_parse(path, xpp::format("The @snapshot of {}", xpp::files::split_path(path).second), rec.snapshot,
-                           SavedKind::snapshot);
+    xpp::Place before = std::move(session.reading);
+    session.reading = xpp::Place{path, rec.snapshot_at, 0, "@snapshot"};
+    std::optional<SavedFile> parsed = xpp_saved_parse(
+        path, xpp::format("The @snapshot of {}", xpp::files::split_path(path).second), rec.snapshot, SavedKind::snapshot);
+    session.reading = std::move(before);
+    return parsed;
 }
 
 /* the strings of the array at arr */
@@ -123,6 +127,22 @@ std::vector<std::string> strings_of(const char *arr)
         out.push_back(std::move(s));
     }
     return out;
+}
+
+/* Only bounded whole checkpoint coordinates can reach xpp_job's counters. */
+bool valid_position(const char *at)
+{
+    if (!at || *skip_ws(at) != '{') return false;
+    std::string what;
+    get_string(at, "what", what, 16);
+    const auto count = [at](const char *name) {
+        const char *raw = js_find(at, name);
+        int value;
+        return raw && xpp::parse_int(js_raw(raw), value) && value >= 0;
+    };
+    return what == "other" || (what == "ani" && count("frame"))
+        || (what == "integrate" && count("rows"))
+        || (what == "auto" && count("branch") && count("point"));
 }
 
 /* the step of line, or an error saying why it cannot be played */
@@ -140,18 +160,38 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
     get_string(line, "button", out.button);
     if (const char *c = js_find(line, "cmd")) out.cmd = std::string(js_raw(c));
     out.keys = strings_of(js_find(line, "keys"));
-    const char *a = js_find(line, "answers"), *e;
+    for (const char *name : {"keys", "answers", "files", "during"}) {
+        const char *array = js_find(line, name);
+        if (array && *skip_ws(array) != '[') {
+            error = xpp::format("{} is not an array", name);
+            return false;
+        }
+    }
+    const char *keys = js_find(line, "keys"), *e;
+    for (int i = 0; keys && (e = js_elem(keys, i)) != nullptr; ++i) {
+        if (*skip_ws(e) != '"') {
+            error = "a key is not a string";
+            return false;
+        }
+    }
+    const char *a = js_find(line, "answers");
     for (int i = 0; a && (e = js_elem(a, i)) != nullptr; i++) out.answers.emplace_back(js_raw(e));
     const char *f = js_find(line, "files");
     for (int i = 0; f && (e = js_elem(f, i)) != nullptr; i++) {
-        const double k = js_num(e, -1);
-        if (k < 0 || k >= static_cast<double>(sections)) {
+        int k;
+        if (!xpp::parse_int(js_raw(e), k) || k < 0 || static_cast<size_t>(k) >= sections) {
             error = xpp::format("it names file section {}, which the recording does not hold", js_raw(e));
             return false;
         }
         out.files.push_back(static_cast<size_t>(k));
     }
-    if (const char *ab = js_find(line, "abort")) out.abort = std::string(js_raw(ab));
+    if (const char *ab = js_find(line, "abort")) {
+        if (!valid_position(ab)) {
+            error = "it has an invalid recorded interruption";
+            return false;
+        }
+        out.abort = std::string(js_raw(ab));
+    }
     const char *d = js_find(line, "during");
     for (int i = 0; d && (e = js_elem(d, i)) != nullptr; ++i) {
         if (js_find(e, "cmd")) {
@@ -163,24 +203,19 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
                 error = "it has an invalid checkpoint command";
                 return false;
             }
-            const char *at = js_find(e, "at");
-            std::string what;
-            get_string(at, "what", what, 16);
-            const auto count = [at](const char *name) {
-                const char *raw = js_find(at, name);
-                int value;
-                return raw && xpp::parse_int(js_raw(raw), value) && value >= 0;
-            };
-            if (!(what == "other" || (what == "ani" && count("frame"))
-                  || (what == "integrate" && count("rows"))
-                  || (what == "auto" && count("branch") && count("point")))) {
+            if (!valid_position(js_find(e, "at"))) {
                 error = "it has an invalid checkpoint position";
                 return false;
             }
             out.controls.emplace_back(js_raw(e));
         } else if (out.key_read.empty()) {
             get_string(e, "key", out.key_read);
-            if (const char *at = js_find(e, "at")) out.key_read_at = std::string(js_raw(at));
+            const char *at = js_find(e, "at");
+            if (out.key_read.empty() || !valid_position(at)) {
+                error = "it has an invalid checkpoint key or position";
+                return false;
+            }
+            out.key_read_at = std::string(js_raw(at));
         }
     }
     const char *v = js_find(line, "view");
@@ -193,6 +228,10 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         error = "its cmd is not an object";
         return false;
     }
+    if (is_cmd(out.cmd.c_str(), "play")) {
+        error = "a recording step cannot control its own player";
+        return false;
+    }
     return true;
 }
 
@@ -201,7 +240,8 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
 xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<PlayStep> &steps)
 {
     std::string bytes;
-    if (!xpp::read_bytes(path.c_str(), bytes)) return xpp::fail_reading("recording", "cannot be opened", path);
+    if (!xpp::read_bytes(path, bytes, XPP_FILES_CAP))
+        return xpp::fail_reading("recording", "cannot be opened or exceeds the file size limit", path);
     xpp::Result<recx::Read> got = recx::read(bytes, path);
     if (!got) return got;
     steps.assign(got->rec.steps.size(), PlayStep());
@@ -225,7 +265,7 @@ constexpr double PACE_SLOWDOWN = 1.5;
    running to Play from here */
 Clock::duration pace(double ms)
 {
-    if (player.next < player.fast_to) return Clock::duration::zero();
+    if (session.silent || player.next < player.fast_to) return Clock::duration::zero();
     return std::chrono::duration_cast<Clock::duration>(
         std::chrono::duration<double, std::milli>(ms * PACE_SLOWDOWN / player.speed));
 }
@@ -274,6 +314,7 @@ void diverged(const std::string &why)
     player.fast_to = 0;
     player.what = Next::none;
     player.off_script = true;
+    if (session.silent) quit_session();
 }
 
 /* the running step's input `line` goes next, after its press */
@@ -284,6 +325,19 @@ bool last_input(const PlayStep &st)
         if (!js_find(st.answers[i].c_str(), "save_replace")) return false;
     return true; /* save decisions are consumed by the owner, not another input */
 }
+
+} // namespace
+
+bool player_finished(void)
+{
+    if (!player.open || player.next >= static_cast<int>(player.steps.size())) return true;
+    if (player.running != static_cast<int>(player.steps.size()) - 1 || !player.in_command) return false;
+    const PlayStep &st = player.steps.back();
+    return last_input(st) && player.answers_used == st.answers.size()
+        && player.controls_used == st.controls.size() && !xpp::job::stop_armed();
+}
+
+namespace {
 
 void input_after(std::string line, const char *what, size_t index, double ms)
 {
@@ -503,7 +557,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
     player.intact = got->intact;
     player.steps = std::move(steps);
     player.copy_of.assign(player.rec.files.size(), std::string());
-    load(s, 0, false);
+    load(s, 0, session.silent);
 }
 
 /* play, pause, step and speed: at any moment, even during a step */
@@ -589,7 +643,7 @@ void play_command(xpp::Session &s, const char *line)
 
 void player_hold(void)
 {
-    if (player.open) control("pause", nullptr);
+    if (player.open && !session.silent) control("pause", nullptr);
 }
 
 bool play_async(const char *line)
@@ -623,11 +677,26 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
     /* the model of its snapshot, which the player loads (W59d) */
     std::optional<SavedFile> snapshot = xpp::json::snapshot_of(xpp::files::absolute(path), got->rec);
     if (!snapshot) return std::nullopt; /* the error said why */
-    return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name};
+    json::session.reading = xpp::Place{xpp::files::absolute(path), 1, 0, std::string(recx::format_line)};
+    json::close_player();
+    json::player.work = std::make_unique<xpp::TempDir>();
+    if (json::player.work->path().empty()) {
+        json::j_command_error("play", "Cannot make a folder to load the recording in");
+        return std::nullopt;
+    }
+    /* The first load also crosses the recording's trust boundary: model
+       options such as logfile must not write beside the sent recording. */
+    json::player.rec = std::move(got->rec);
+    json::player.copy_of.assign(json::player.rec.files.size(), std::string());
+    json::player.loading = true;
+    xpp::files::serve_reads(json::serve);
+    return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name, json::player.work->path()};
 }
 
 void json_ui_play_launched(xpp::Session &s, const std::string &path)
 {
+    xpp::files::serve_reads(nullptr); /* the .recx itself is read from disk, whole */
+    json::session.reading = {};
     json::open_recording(s, path, false);
 }
 
@@ -768,6 +837,7 @@ void player_step_end(void)
         player.playing = false;
         player.what = Next::none;
         bottom_msg(0, "End of the recording");
+        if (session.silent) xpp::inbox::close();
     } else if (player.what == Next::none && timer_on()) {
         schedule(Next::begin, pace(ms));
     }
@@ -780,12 +850,14 @@ void player_model_switched(bool loaded)
         xpp::files::serve_reads(nullptr);
         if (!loaded) {
             close_player();
+            if (session.silent) xpp::inbox::close();
             return;
         }
         player.open = true;
         player.next = 0;
         player.playing = player.play_after_load;
         send_player();
+        if (session.silent && player.steps.empty()) xpp::inbox::close();
         if (timer_on() && !player.steps.empty()) schedule(Next::begin, Clock::duration::zero());
         return;
     }

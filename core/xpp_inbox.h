@@ -1,8 +1,6 @@
 #ifndef XPP_INBOX_H
 #define XPP_INBOX_H
 
-#include "xpp_error.h"
-
 #include <functional>
 #include <optional>
 #include <string>
@@ -64,45 +62,12 @@ void close();
    It never writes to stdout. false when the thread cannot start. */
 bool start_stdin();
 
-/* --script FILE: open FILE for script_advance() (below); no thread and
-   nothing pushed yet, unlike start_stdin(). A script is one client
-   talking to itself in order, so nothing needs to race the core to catch
-   an Abort: the core thread pulls one line at a time, only when it is
-   ready for it (see core/ui_json.cpp: after a command's idle, and when an
-   ask is pending). false when FILE cannot be opened. */
-bool start_file(std::string_view path);
-
-/* A script made as it goes, in place of --script's file (--silent's
-   built-in script, core/json_silent.cpp): script_advance() pushes what
-   next() gives, or closes the inbox when it gives nothing, and asks it
-   only then, so each line can depend on what the lines before it did. It
-   is never peeked at (script_peek gives nullptr: it holds no recorded
-   interruption). next() runs on the core's thread. */
+/* --silent's internal command list (json_silent.cpp). generated_advance
+   asks next on the core's thread, after the preceding command or at its
+   prompt, so each line can depend on what the previous lines did. */
 void start_generated(std::function<std::optional<std::string>()> next);
-
-/* Push the file source's next command line (blank lines and lines whose
-   first non-blank character is '#' are skipped, a '\r' before the newline
-   dropped), or close the inbox at end of file, ending a line with no
-   newline too. A no-op once no file is open (start_file was never called,
-   or already reached end of file). */
-void script_advance();
-
-/* --script's file, the line pushed last and that line as written: the
-   place of an error its command meets (xpp_ui.h command_place); empty
-   for a script made as it goes */
-xpp::Place script_place();
-
-/* The command line the next script_advance() pushes, without pushing it,
-   with its file line number in line_no; nullptr at the end of the file or
-   when no file is open. Valid until the next advance or skip. The core
-   looks at it to see what follows the line it is about to run (a
-   recorded interruption, core/ui_json.cpp). NUL-terminated, for the
-   protocol's JSON reader. */
-const char *script_peek(int &line_no);
-
-/* Drop the line script_peek() shows: the next advance pushes the one
-   after it. */
-void script_skip();
+/* Push its next line, or close the inbox when the list ends. */
+void generated_advance();
 
 /* what next() got */
 enum class Took {

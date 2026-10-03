@@ -410,8 +410,13 @@ Add a `.xpprc` file to set your favorite options, e.g
 xppautX adds its own front-end flags ahead of xpp's original ones (see
 [Using the interface](04-using-the-interface.md#starting-xppautx)):
 
-    xppautX [--browser|--server|--script FILE] [--port N] [--no-open]
+    xppautX [--browser|--server] [--port N] [--no-open]
             [--verbose|--debug] [--version|--help] file.ode [xpp options]
+    xppautX run.recx --silent
+
+The recording starts from its saved snapshot and plays without an interface;
+exit 0 means every step played cleanly, exit 1 means a failure. Recorded
+interruptions stop at the exact row or AUTO point (W144, #196).
 
 xpp's own options still apply after the file name (or anywhere, for the
 ones below that predate this ordering). Many of them provide an API:
