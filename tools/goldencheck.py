@@ -168,9 +168,10 @@ def run_lecar(home):
             s.answer_asks(lambda e: e.get('ev') == 'film', {'menu': menu('c')})
             s.collect(is_idle)
         s.send(cmd='key', key='k')
-        s.answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif' if e['title'] == 'Save kinescope frames' else 'kin_1.gif'}, 'pixels': pixels})
-        for i in range(2):
-            check_file('kin_%d.gif' % i, read(s.run, 'kin_%d.gif' % i))
+        # one ask for the series: the second frame's name is derived (W130)
+        s.answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin.gif'}, 'pixels': pixels})
+        for name in ('kin.gif', 'kin-frame1.gif'):
+            check_file(name, read(s.run, name))
     finally:
         s.close()
 
