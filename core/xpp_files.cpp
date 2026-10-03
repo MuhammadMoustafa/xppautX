@@ -36,9 +36,6 @@
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
-#ifndef O_NONBLOCK
-#define O_NONBLOCK 0
-#endif
 #ifndef O_TEXT
 #define O_TEXT 0
 #endif
@@ -93,12 +90,13 @@ int kind_of(const char *name, Stat *st)
 
 int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
 {
+    Stat st;
+    int k = kind_of(name, &st); /* a folder, a link or a device named at once */
+    if (k != XPP_FILES_OK) return k;
 #ifdef _WIN32
+    /* and refused again on the handle opened, so nothing swapped in between is followed (W174) */
     int fd = xpp::win32::open_plain(name, false, true, size);
 #else
-    Stat st;
-    int k = kind_of(name, &st);
-    if (k != XPP_FILES_OK) return k;
     /* O_NOFOLLOW: a link made between the check and the open is not followed */
     int fd = ::open(name, O_RDONLY | O_BINARY | O_NOFOLLOW | O_NONBLOCK);
 #endif

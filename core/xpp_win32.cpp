@@ -106,9 +106,21 @@ int open_plain(const char *path, bool create, bool binary, unsigned long long &s
     HANDLE h = CreateFileW(wide.c_str(), create ? GENERIC_WRITE : GENERIC_READ,
                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                           create ? CREATE_NEW : OPEN_EXISTING,
-                          FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+                          FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+    /* never FILE_FLAG_BACKUP_SEMANTICS: it opens folders, which are not
+       wanted here, and for a process with backup or restore privilege (an
+       administrator) it bypasses the folder's access rules (CI, 2026-10-03:
+       --silent wrote into a folder denying writes) */
     if (h == INVALID_HANDLE_VALUE) {
         const DWORD e = GetLastError();
+        /* a folder or a folder's junction cannot be opened without backup
+           semantics: denied, which names it a refused kind, not an I/O error
+           (only the error's name: nothing was opened) */
+        const DWORD a = e == ERROR_ACCESS_DENIED ? GetFileAttributesW(wide.c_str()) : INVALID_FILE_ATTRIBUTES;
+        if (a != INVALID_FILE_ATTRIBUTES && (a & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT))) {
+            errno = ELOOP;
+            return -1;
+        }
         errno = e == ERROR_FILE_NOT_FOUND || e == ERROR_PATH_NOT_FOUND ? ENOENT
               : e == ERROR_FILE_EXISTS || e == ERROR_ALREADY_EXISTS ? EEXIST
               : e == ERROR_ACCESS_DENIED || e == ERROR_SHARING_VIOLATION ? EACCES : EIO;
