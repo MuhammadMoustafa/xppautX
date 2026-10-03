@@ -480,7 +480,9 @@ brief cannot settle, as sonnet, high did W159's numerics, or as the climb
 when medium fell short); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
-<model> -o <report>` and registered by the reviewer. A Codex agent follows
+<model> -o <report>` and registered by the reviewer. The `delegate` skill lists
+every command between Claude and Codex (resume, `codex queue`, stopping a
+run by its PID, a session's id, testing its sandbox). A Codex agent follows
 every rule of this section as written, with four differences of its
 sandbox: it writes only in its worktree and the system's temp folder, so
 it starts no background runs and does not touch the register; it cannot commit (the worktree's git
