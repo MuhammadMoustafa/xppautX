@@ -8,17 +8,9 @@ int main(int argc, char **argv)
         std::cerr << "tools/embed_bytes.cpp:1: usage: embed_bytes out.cpp symbol file\n";
         return 2;
     }
-    const char *current = argv[1];
-    try {
-        auto out = xpp::embed::output(current);
-        current = argv[3];
-        xpp::embed::write_bytes(out, "bytes", current);
-        current = argv[1];
+    return xpp::embed::generate(argv[1], "embed_bytes", [&](std::ostream &out) {
+        xpp::embed::write_bytes(out, "bytes", argv[3]);
         out << "}\nconst std::span<const unsigned char> " << argv[2]
             << "{bytes, sizeof(bytes) - 1};\n}\n";
-        out.close();
-    } catch (const std::exception &e) {
-        std::cerr << current << ":1: embed_bytes: " << e.what() << '\n';
-        return 1;
-    }
+    });
 }

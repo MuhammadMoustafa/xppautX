@@ -24,14 +24,10 @@ int main(int argc, char **argv)
         std::cerr << "tools/embed.cpp:1: usage: embed out.cpp file...\n";
         return 2;
     }
-    const char *current = argv[1];
-    try {
-        auto out = xpp::embed::output(current);
+    return xpp::embed::generate(argv[1], "embed", [&](std::ostream &out) {
         for (int i = 2; i < argc; ++i) {
-            current = argv[i];
-            xpp::embed::write_bytes(out, "a" + std::to_string(i), current);
+            xpp::embed::write_bytes(out, "a" + std::to_string(i), argv[i]);
         }
-        current = argv[1];
         out << "const WebAsset assets[] = {\n";
         for (int i = 2; i < argc; ++i) {
             const std::string base = std::filesystem::path(argv[i]).filename().string();
@@ -40,9 +36,5 @@ int main(int argc, char **argv)
                 << i << ") - 1}},\n";
         }
         out << "};\n}\nconst std::span<const WebAsset> web_assets{assets};\n}\n";
-        out.close();
-    } catch (const std::exception &e) {
-        std::cerr << current << ":1: embed: " << e.what() << '\n';
-        return 1;
-    }
+    });
 }

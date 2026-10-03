@@ -168,6 +168,14 @@ else
   echo "CHECK CHECK FAILED"
   exit 1
 fi
+# W178: the embedding generators leave no partial target and name the file that failed
+if python3 tools/embedcheck.py --build-dir build/obj > build/embedcheck.log 2>&1; then
+  tail -1 build/embedcheck.log
+else
+  tail -20 build/embedcheck.log
+  echo "EMBED CHECK FAILED"
+  exit 1
+fi
 # every whole model the manual shows still loads, and every command-line
 # option it names is real (W81)
 if python3 tools/manualcheck.py > build/manualcheck.log 2>&1; then

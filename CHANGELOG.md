@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Build
 
+- Commit embedded C++ assets only after complete generation; failed reads preserve existing targets and output errors name the destination (W178, [#230](https://github.com/MuhammadMoustafa/xppautX/issues/230)).
+
 - Embed the page, icon and Linux window library as C++ spans; remove the remaining project C generators and their C linkage (W173, [#225](https://github.com/MuhammadMoustafa/xppautX/issues/225)).
 
 ### Added
