@@ -185,7 +185,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Other programs drive it | no | the VS Code extension and `tools/*check.py` use the protocol | W5 |
 | Local server | none | 127.0.0.1 only, random token in the address; `--no-open`, `--port`; 256 request threads and 32 concurrent uploads, excess requests receive 503 before their bodies are read; whole heads limited to 5 s, body receives to 30 s, blocked sends to 10 s ([protocol](protocol.md#files)) | W5, W161 (#213), W164 (#216) |
 | Command line options | XPPAUT's list ([comline.c](../reference/xppaut-8.0/comline.c)) | word options require two dashes; old single-dash words stop with the new spelling; X11 options and unused `-def` are errors; new: `--browser`, `--server`, `--convert`, `--verbose`, `--debug`, `--logfile` | W13a, W156 ([#208](https://github.com/MuhammadMoustafa/xppautX/issues/208)) |
-| Logging | `plintf` to stdout | `xpp::log`, quiet by default; stdout carries only the protocol | W2, W25 |
+| Logging | `plintf` to stdout | one checked `xpp::log` call (AUTO uses `xpp::log_auto`), including dynamic widths and precisions; quiet by default, stdout carries only the protocol; printed text unchanged | W2, W25, W172 ([#224](https://github.com/MuhammadMoustafa/xppautX/issues/224)) |
 
 ## Limits removed
 

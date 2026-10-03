@@ -78,14 +78,14 @@ int build_markov(xpp::Session &s, std::span<const std::string> cells, const char
 {
  int index=markov_named(s,name);
  int nstates=s.model().markov[index].nstates;
- xpp::log_printf(XPP_LOG_INFO, " Building %s %d states...\n",name,nstates);
+ xpp::log(XPP_LOG_INFO, " Building {} {:d} states...\n",name,nstates);
  for(int i=0;i<nstates;i++){
    for(int j=0;j<nstates;j++){
      const std::string &expr=cells[static_cast<size_t>(i*nstates+j)];
-     xpp::log_printf(XPP_LOG_INFO, "%s ",expr.c_str());
+     xpp::log(XPP_LOG_INFO, "{} ",expr.c_str());
      add_markov_entry(s,index,i,j,expr.c_str());
    }
-   xpp::log_printf(XPP_LOG_INFO, "\n");
+   xpp::log(XPP_LOG_INFO, "\n");
  }
  return index;
 }
@@ -97,7 +97,7 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
  int i,j;
  int index=markov_named(s,name);
  int nstates=s.model().markov[index].nstates;
- xpp::log_printf(XPP_LOG_INFO, " Building %s ...\n",name);
+ xpp::log(XPP_LOG_INFO, " Building {} ...\n",name);
  {
    /* a whole line at a time, no 256-byte fgets cut, wrapping the FILE*
       the caller keeps owning */
@@ -117,10 +117,10 @@ int old_build_markov(xpp::Session &s, FILE *fptr, const char *name)
    istart=0;
      for(j=0;j<nstates;j++){
        std::string expr = markov_cell(line.c_str(),&istart);
-       xpp::log_printf(XPP_LOG_INFO, "%s ",expr.c_str());
+       xpp::log(XPP_LOG_INFO, "{} ",expr.c_str());
        add_markov_entry(s,index,i,j,expr.c_str());
      }
-   xpp::log_printf(XPP_LOG_INFO, "\n");
+   xpp::log(XPP_LOG_INFO, "\n");
    }
  }
  return index;
@@ -299,7 +299,7 @@ void make_gill_nu(xpp::Session &s, double *nu,int n,int m,double *v)
     rhs_only(s,yp);
     for(iy=0;iy<n;iy++){
       nu[ir+m*iy]=yp[iy];
-      xpp::log_printf(XPP_LOG_DEBUG, "ir=%d iy=%d nu=%g\n",ir+1,iy,yp[iy]-yold[iy]);
+      xpp::log(XPP_LOG_DEBUG, "ir={:d} iy={:d} nu={:g}\n",ir+1,iy,yp[iy]-yold[iy]);
     }
     v[ir+1]=0;
   }

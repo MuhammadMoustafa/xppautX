@@ -79,7 +79,7 @@ void show_main_menu(xpp::Session &s, int which)
 void do_tutorial(void)
 {
   int tut = 0;
-  xpp::log_printf(XPP_LOG_INFO, "Running tutorial!\n");
+  xpp::log(XPP_LOG_INFO, "Running tutorial!\n");
   while (1) {
     char ans = static_cast<char>(ui.two_choice("Next", "Done", tutorial[tut], "nd",
                                        "Did you know you can..."));

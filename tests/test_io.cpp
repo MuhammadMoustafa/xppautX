@@ -111,6 +111,57 @@ int main(void)
     CHECK_STR(xpp::number(100.0).c_str(), "100");
 #endif
 
+    /* W172: compare the retired printf formats with the actual logging
+       path, including AUTO's columns, general/fixed floats and char semantics. */
+    {
+        xpp::log_set_threshold(XPP_LOG_DEBUG);
+        xpp::LogCapture outer;
+        for (double value : {0.0, -0.0, 1.23456789, -42.0, 1e-8, 1e8}) {
+            char expected[256]; // room for the complete representative table row
+            std::snprintf(expected, sizeof expected, "%4li%6li  %c%c%4li%14.6E %g %f\n",
+                          -1L, 123L, 'E', 'P', 7L, value, value, value);
+            xpp::log(XPP_LOG_WARN, "{:4d}{:6d}  {:c}{:c}{:4d}{:14.6E} {:g} {:f}\n",
+                     -1L, 123L, 'E', 'P', 7L, value, value, value);
+            CHECK_STR(outer.text().c_str(), expected);
+            outer.clear();
+        }
+        xpp::log(XPP_LOG_WARN, "{:d} {:c} {}\n", static_cast<int>('A'), 'A', "string");
+        CHECK_STR(outer.text().c_str(), "65 A string\n");
+        outer.clear();
+        xpp::log(XPP_LOG_WARN, "{1:.{0}} {1:>{0}}\n", 3, "abcdef");
+        CHECK_STR(outer.text().c_str(), "abc abcdef\n");
+        outer.clear();
+        {
+            xpp::LogCapture inner;
+            xpp::log(XPP_LOG_WARN, "inner");
+            CHECK_STR(inner.text().c_str(), "inner");
+            CHECK(outer.text().empty());
+            inner.clear();
+        }
+        xpp::log(XPP_LOG_WARN, "outer");
+        CHECK_STR(outer.text().c_str(), "outer");
+        outer.clear();
+        xpp::log_set_threshold(XPP_LOG_WARN);
+        xpp::log(XPP_LOG_INFO, "filtered");
+        CHECK(outer.text().empty());
+        xpp::log(XPP_LOG_ERROR, "error");
+        CHECK_STR(outer.text().c_str(), "error");
+        CHECK(xpp::log_exit_code() == 1);
+        outer.clear();
+        xpp::log_settings.errors = 0;
+    }
+    {
+        TempFile tf("test_io_auto.tmp");
+        CHECK(xpp::log_open_file(tf.c_str()));
+        xpp::log_auto("filtered");
+        CHECK(read_raw(tf.c_str()).empty());
+        xpp::log_set_auto_echo(true);
+        xpp::log_auto("{:4d}{:6d}  {:c}{:c}{:4d}{:14.6E}\n", -1L, 123L, 'E', 'P', 7L, 1.0);
+        CHECK_STR(read_raw(tf.c_str()).c_str(), "  -1   123  EP   7  1.000000E+00" TEXT_NL);
+        xpp::log_set_auto_echo(false);
+        xpp::log_new_model();
+    }
+
     /* ---- the file half: line reader, token reader, writer (W11 step 3) */
 
     /* failed open: a path that cannot exist */

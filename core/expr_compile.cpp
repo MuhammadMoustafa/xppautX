@@ -147,7 +147,7 @@ int check_syntax(const Symbols &my_symb, int oldtoken, int newtoken)  /* 1 is BA
    return(1);
  }
 
-  xpp::log_printf(XPP_LOG_WARN, "Bad token %d \n",oldtoken);
+  xpp::log(XPP_LOG_WARN, "Bad token {:d} \n",oldtoken);
   return(1);
     
 }
@@ -222,7 +222,7 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
       my_token[tok_in++]=halves[0];
       my_token[tok_in++]=halves[1];
       if(check_syntax(p.symbols,old_tok,NUMTOK)==1){
-	 xpp::log_printf(XPP_LOG_WARN, "Illegal syntax \n");
+	 xpp::log(XPP_LOG_WARN, "Illegal syntax \n");
 	 show_where(dest,lastindex);
 	 return(1);
        }
@@ -234,7 +234,7 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
      {
        my_token[tok_in++]=token;
        if(check_syntax(p.symbols,old_tok,token)==1){
-	 xpp::log_printf(XPP_LOG_WARN, "Illegal syntax (Ref:%d %d) \n",old_tok,token);
+	 xpp::log(XPP_LOG_WARN, "Illegal syntax (Ref:{:d} {:d}) \n",old_tok,token);
 	 show_where(dest,lastindex);
          tokeninfo(p.symbols,old_tok);
          tokeninfo(p.symbols,token);
@@ -247,13 +247,13 @@ int make_toks(const ParserState &p, const char *dest, int *my_token)
 
 my_token[tok_in++]=ENDTOK;
 if(check_syntax(p.symbols,old_tok,ENDTOK)==1){
-  xpp::log_printf(XPP_LOG_WARN, "Premature end of expression \n");
+  xpp::log(XPP_LOG_WARN, "Premature end of expression \n");
   show_where(dest,lastindex);
   return(1);
 }
 if(nparen!=0)
 {
- if(p.errout)xpp::log_printf(XPP_LOG_WARN, " parentheses don't match\n");
+ if(p.errout)xpp::log(XPP_LOG_WARN, " parentheses don't match\n");
  return(1);
 }
 return(0);
@@ -295,7 +295,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	   	    }
 	   else 
 	   {
-		xpp::log_printf(XPP_LOG_WARN, "Illegal use of DELAY \n");
+		xpp::log(XPP_LOG_WARN, "Illegal use of DELAY \n");
 		return(1);
            }
 
@@ -317,7 +317,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	   	    }
 	   else 
 	   {
-		xpp::log_printf(XPP_LOG_WARN, "Illegal use of DELAY Shift \n");
+		xpp::log(XPP_LOG_WARN, "Illegal use of DELAY Shift \n");
 		return(1);
            }
 
@@ -335,7 +335,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	   }
 	     else
 	       {
-		 xpp::log_printf(XPP_LOG_WARN, "Illegal use of set - variables only\n");
+		 xpp::log(XPP_LOG_WARN, "Illegal use of set - variables only\n");
 		   return(1);
 	       }
 	  }
@@ -358,7 +358,7 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
 	   	    }
 	   else 
 	   {
-		xpp::log_printf(XPP_LOG_WARN, "Illegal use of SHIFT \n");
+		xpp::log(XPP_LOG_WARN, "Illegal use of SHIFT \n");
 		return(1);
            }
 
@@ -487,11 +487,11 @@ int alg_to_rpn(xpp::Session &s, int *toklist, int *command)
           goto getnew;
        }
         if(ncomma!=0){
-        xpp::log_printf(XPP_LOG_WARN, "Illegal number of arguments\n");
+        xpp::log(XPP_LOG_WARN, "Illegal number of arguments\n");
 	return(1);
         }
 	if((nif!=nelse)||(nif!=nthen)){
-	  xpp::log_printf(XPP_LOG_WARN, "If statement missing ELSE or THEN \n");
+	  xpp::log(XPP_LOG_WARN, "If statement missing ELSE or THEN \n");
 	  return(1);
 	    }
         command[comptr]=my_symb[ENDTOK].com;

@@ -259,7 +259,7 @@ int set_symbol(ParserState &p, std::string_view name, int pri, int arg, int com)
   std::string string=converted(name);
   int len=static_cast<int>(string.size());
   if(len<1){
-    xpp::log_printf(XPP_LOG_WARN, "Empty name - remove spaces\n");
+    xpp::log(XPP_LOG_WARN, "Empty name - remove spaces\n");
     return 1;
   }
   ExprSymbol &s=p.symbols[p.nsym];
@@ -281,7 +281,7 @@ int add_constant(ParserState &p, std::string_view junk)
  if(duplicate_name(p,junk)==1)return(1);
  if(p.ncon>=MAXPAR)
  {
-  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp::log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(CONTYPE,p.ncon-1)))return 1;
@@ -312,7 +312,7 @@ int add_con(xpp::Session &s, std::string_view name, double value)
  ParserState &p=s.parser;
  if(p.ncon>=MAXPAR)
  {
-  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many constants !!\n");
+  if(p.errout)xpp::log(XPP_LOG_WARN, "too many constants !!\n");
   return(1);
  }
  p.constants[p.ncon]=value;
@@ -326,11 +326,11 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
   int in=-1;
   if(duplicate_name(s.parser,name)==1)return(1);
   if(m.nkernel==MAXKER){
-    xpp::log_printf(XPP_LOG_WARN, "Too many kernels..\n");
+    xpp::log(XPP_LOG_WARN, "Too many kernels..\n");
     return(1);
   }
   if(mu<0||mu>=1.0){
-    xpp::log_printf(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
+    xpp::log(XPP_LOG_WARN, " mu must lie in [0,1.0) \n");
     return(1);
   }
   if(set_symbol(s.parser,name,10,0,COM(KERTYPE,m.nkernel)))return 1;
@@ -341,7 +341,7 @@ int add_kernel(xpp::Session &s, std::string_view name, double mu, std::string_vi
   size_t hash=text.rfind('#');
   if(hash!=std::string_view::npos)in=static_cast<int>(hash);
   if(in==0||in==static_cast<int>(text.size())-1){
-    xpp::log_printf(XPP_LOG_WARN, "Illegal use of convolution...\n");
+    xpp::log(XPP_LOG_WARN, "Illegal use of convolution...\n");
     return(1);
   }
   if(in>0){
@@ -369,7 +369,7 @@ int add_var(xpp::Session &s, std::string_view junk, double value)
  if(duplicate_name(p,junk)==1)return(1);
  if(m.nvar>=MAXODE1)
  {
-  if(p.errout)xpp::log_printf(XPP_LOG_WARN, "too many variables !!\n");
+  if(p.errout)xpp::log(XPP_LOG_WARN, "too many variables !!\n");
   return(1);
  }
  if(set_symbol(p,junk,10,0,COM(VARTYPE,m.nvar)))return 1;
@@ -392,7 +392,7 @@ int add_net_name(xpp::Session &s, int index, std::string_view name, int vectoriz
 
 int add_2d_table(std::string_view name, std::string_view file)
 {
- xpp::log_printf(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
+ xpp::log(XPP_LOG_WARN, " TWO D NOT HERE YET \n");
  return(1);
 }
 
@@ -458,7 +458,7 @@ int add_ufun_name(xpp::Session &s, std::string_view name, int index, int narg)
  if(duplicate_name(s.parser,name)==1)return(1);
  if(index>=MAXUFUN)
  {
-  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
   xpp::log(XPP_LOG_INFO, " Added user fun {} \n",name);
@@ -493,7 +493,7 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
   int end;
   int narg=static_cast<int>(args.size());
    if(narg>MAXARG){
-    xpp::log_printf(XPP_LOG_WARN, "Maximal arguments exceeded \n");
+    xpp::log(XPP_LOG_WARN, "Maximal arguments exceeded \n");
     return(1);
   }
   /* add_expr compiles into it in place: MAXEXPLEN commands */
@@ -511,7 +511,7 @@ int add_ufun_new(xpp::Session &s, int index, std::string_view rhs, std::span<con
     }
 
   set_old_arg_names(s.parser,narg);
-  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+  if(s.parser.errout)xpp::log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
   return(1);
 }
 
@@ -526,7 +526,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
  if(duplicate_name(s.parser,junk)==1)return(1);
  if(m.nfun>=MAXUFUN)
  {
-  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "too many functions !!\n");
+  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many functions !!\n");
   return(1);
  }
  std::vector<int> &program=m.ufun_programs[m.nfun];
@@ -550,7 +550,7 @@ int add_ufun(xpp::Session &s, std::string_view junk, std::string_view expr, int 
   m.nfun++;
   return(0);
  }
-       if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
+       if(s.parser.errout)xpp::log(XPP_LOG_WARN, " ERROR IN FUNCTION DEFINITION\n");
        return(1);
 }
 

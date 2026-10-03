@@ -23,6 +23,14 @@ FILE *sink()
     return log_settings.file != nullptr && log_settings.file != stdout ? log_settings.file : stderr;
 }
 
+/* Every delivery uses the same sink and flush, including captured text. */
+void write_text(std::string_view text) noexcept
+{
+    FILE *out = sink();
+    std::fwrite(text.data(), 1, text.size(), out);
+    std::fflush(out);
+}
+
 /* exit() while a LogCapture keeps messages (a command-line mistake or
    running out of memory during a load) unwinds no stack: what it keeps
    is written here, as it is, so that no message is lost (the latest
@@ -91,9 +99,7 @@ LogCapture::~LogCapture()
 void LogCapture::write(std::string_view text) noexcept
 {
     if (!text.empty() && log_enabled(XPP_LOG_WARN)) {
-        FILE *out = sink();
-        std::fwrite(text.data(), 1, text.size(), out);
-        fflush(out);
+        write_text(text);
     }
     text_.clear();
 }
@@ -111,51 +117,25 @@ void log_note_error() { ++log_settings.errors; }
 int log_exit_code() { return log_settings.errors.load() != 0 ? 1 : 0; }
 void log_exit() { std::exit(log_exit_code()); }
 
-void log_vprintf(XppLogLevel level, const char *fmt, va_list ap)
+void log_message(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept
 {
+    if (!log_enabled(level)) return; /* no formatting for a filtered message */
+    std::string message = xpp::vformat(fmt, args);
     if (level == XPP_LOG_ERROR) log_note_error();
-    FILE *out = sink();
     if (capture != nullptr && level <= XPP_LOG_WARN) {
-        /* the message as text, for the capture to keep */
-        va_list again;
-        va_copy(again, ap);
-        const int n = std::vsnprintf(nullptr, 0, fmt, again);
-        va_end(again);
-        if (n < 0) return;
-        std::string message;
-        try {
-            message.resize(static_cast<size_t>(n));
-        } catch (const std::bad_alloc &) {
-            xpp::out_of_memory("a log message");
-        }
-        std::vsnprintf(message.data(), message.size() + 1, fmt, ap);
         capture->keep(message.c_str());
         return;
     }
-    if (!log_enabled(level)) return;
-    std::vfprintf(out, fmt, ap);
-    fflush(out);
-}
-
-void log_printf(XppLogLevel level, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    log_vprintf(level, fmt, ap);
-    va_end(ap);
+    write_text(message);
 }
 
 bool log_auto_enabled() { return auto_echo || threshold >= XPP_LOG_INFO; }
 
-void log_auto_printf(const char *fmt, ...)
+void log_auto_message(std::string_view fmt, std::format_args args) noexcept
 {
-    va_list ap;
-    FILE *out = sink();
     if (!log_auto_enabled()) return;
-    va_start(ap, fmt);
-    vfprintf(out, fmt, ap);
-    va_end(ap);
-    fflush(out);
+    std::string message = xpp::vformat(fmt, args);
+    write_text(message);
 }
 
 bool log_parse_arg(std::string_view arg)

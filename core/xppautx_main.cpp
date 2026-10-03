@@ -270,7 +270,7 @@ int main(int argc, char **argv)
     /* --convert [--auto] model.ode: model.odex beside it (odex.h) */
     if (convert) {
         if (argc != 2) {
-            xpp::log_printf(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
+            xpp::log(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
             return 2;
         }
         return xpp::odex::convert_file(argv[1], convert_auto != 0, xpp::ask_terminal);

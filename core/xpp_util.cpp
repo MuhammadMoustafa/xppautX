@@ -634,12 +634,12 @@ void eq_import(xpp::Session &s, double *y,int n)
     if(s.auto_state.homo_side==0){
       for(i=0;i<n;i++)
 	s.auto_state.homo_l[i]=y[i];
-      xpp::log_printf(XPP_LOG_INFO, "Saved to left equilibrium\n");
+      xpp::log(XPP_LOG_INFO, "Saved to left equilibrium\n");
     }
     if(s.auto_state.homo_side==1){
       for(i=0;i<n;i++)
 	s.auto_state.homo_r[i]=y[i];
-      xpp::log_printf(XPP_LOG_INFO, "Saved to right equilibrium\n");
+      xpp::log(XPP_LOG_INFO, "Saved to right equilibrium\n");
     }
     s.auto_state.homo_side=1-s.auto_state.homo_side;
   }

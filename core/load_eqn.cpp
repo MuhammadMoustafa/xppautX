@@ -227,7 +227,7 @@ void add_intern_set(xpp::Model &m, std::string_view name, std::string_view does)
     bob+=c==','?' ':c;
   }
   sets.push_back({std::string(name),bob,xpp::Load::place()});
- xpp::log_printf(XPP_LOG_INFO, " added %s doing %s \n",
+ xpp::log(XPP_LOG_INFO, " added {} doing {} \n",
 	 sets.back().name.c_str(),sets.back().does.c_str());
 }
 

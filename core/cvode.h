@@ -169,7 +169,7 @@ typedef void (*RhsFn)(integer N, real t, N_Vector y, N_Vector ydot,
  * If successful, CVodeMalloc returns a pointer to initialized    *
  * problem memory. This pointer should be passed to CVode. If     *
  * an initialization error occurs, CVodeMalloc logs an error     *
- * (xpp::log_printf's ERROR, as every CVODE message) and returns NULL.    *
+ * (xpp::log's ERROR, as every CVODE message) and returns NULL.    *
  *                                                                *
  ******************************************************************/
 
@@ -591,7 +591,7 @@ typedef struct CVodeMemRec {
  *                                                                *
  * LINIT_ERR   : The cv_linit routine failed. Each linear solver  *
  *               init routine should log an appropriate error     *
- *               message (xpp::log_printf's ERROR).                       *
+ *               message (xpp::log's ERROR).                       *
  *                                                                *
  * (2) convfail (input to cv_lsetup)                              *
  *                                                                *
@@ -650,7 +650,7 @@ typedef struct CVodeMemRec {
  * successfully initialized the CVODE linear solver and LINIT_ERR  *
  * (== -1) otherwise. These constants are defined above. If an     *
  * error does occur, an appropriate message should be logged       *
- * (xpp::log_printf's ERROR).                                              *
+ * (xpp::log's ERROR).                                              *
  *                                                                 *
  *******************************************************************/
 

@@ -96,7 +96,7 @@ if(!s.numerics.par_fol)
 
  if(ch=='y')
  {
-  xpp::log_printf(XPP_LOG_INFO, "\n Eigenvalues:\n");
+  xpp::log(XPP_LOG_INFO, "\n Eigenvalues:\n");
   pr=1;
 }
  for(i=0;i<n;i++)
@@ -105,7 +105,7 @@ if(!s.numerics.par_fol)
   imag=eval[2*i+1];
   if(pr==1)
   {
-   xpp::log_printf(XPP_LOG_INFO, " %f  +  i  %f \n",real,imag);
+   xpp::log(XPP_LOG_INFO, " {:f}  +  i  {:f} \n",real,imag);
 
   }
   if(xpp::solver_info(s.numerics.method).traits.discrete)real=real*real+imag*imag-1.00;
@@ -221,7 +221,7 @@ if(!s.numerics.par_fol)
 
 	 if((rp>1)&&(bpos>=0)) /* then there is a strong unstable */
 	 {
-	   xpp::log_printf(XPP_LOG_INFO, "strong unstable %g \n",bigpos);
+	   xpp::log(XPP_LOG_INFO, "strong unstable {:g} \n",bigpos);
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigpos,ierr);
 	   if(*ierr==0)
 	     {
@@ -239,7 +239,7 @@ if(!s.numerics.par_fol)
 	 
      if((rn>1)&&(bneg>=0)) /* then there is a strong stable */
 	 {
-	   xpp::log_printf(XPP_LOG_INFO, "strong stable %g \n",bigneg);
+	   xpp::log(XPP_LOG_INFO, "strong stable {:g} \n",bigneg);
 	   get_evec(s.random,work,oldwork,b,bp,n,maxit,err,ipivot,bigneg,ierr);
 	   if(*ierr==0)
 	     {
@@ -504,7 +504,7 @@ void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *b
 
     xpp::sgefa(anew,n,n,ipivot,ierr);
     if(*ierr!=-1) {
-      xpp::log_printf(XPP_LOG_WARN, " Pivot failed\n");
+      xpp::log(XPP_LOG_WARN, " Pivot failed\n");
       return;
     }
     for(j=0;j<n;j++)
@@ -543,7 +543,7 @@ void get_evec(xpp::Random &random, double *a, double *anew, double *b, double *b
       iter++;
       if(iter>maxit)
       {
-       xpp::log_printf(XPP_LOG_WARN, " max iterates exceeded\n");
+       xpp::log(XPP_LOG_WARN, " max iterates exceeded\n");
 
        *ierr=1;
        break;

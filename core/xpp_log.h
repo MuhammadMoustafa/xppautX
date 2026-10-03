@@ -14,9 +14,8 @@
    --verbose / --verbose raises it to INFO, --debug / --debug to DEBUG.
    err_msg()'s headless default logs at ERROR. There is no plintf() any
    more (retired at W25): call xpp::log(level, fmt, args...) (a
-   std::format-checked call, below), or xpp::log_printf(level, fmt, ...)
-   where the format does not convert mechanically (a dynamic width or
-   precision, `%*s`, `%.*s`). An INFO message additionally honours the
+   std::format-checked call, below). Dynamic widths and precisions use
+   nested replacement fields (`{:{}}`, `{:.{}}`). An INFO message honours the
    model's own "@ quiet=1" (xpp::log_settings.verbose), same as plintf()
    used to.
 
@@ -39,7 +38,6 @@
 
 #include <atomic>
 #include <cstdio> /* first, so MinGW's libstdc++ picks its C99 printf */
-#include <cstdarg>
 #include <string>
 #include <string_view>
 
@@ -51,12 +49,6 @@ typedef enum {
     XPP_LOG_INFO  = 2,
     XPP_LOG_DEBUG = 3
 } XppLogLevel;
-
-#if defined(__GNUC__)
-#define XPP_LOG_PRINTF(f, a) __attribute__((format(printf, f, a)))
-#else
-#define XPP_LOG_PRINTF(f, a)
-#endif
 
 namespace xpp {
 
@@ -92,15 +84,7 @@ void log_set_threshold(XppLogLevel level);
    "@ quiet=1" for INFO) */
 bool log_enabled(XppLogLevel level);
 
-/* printf-style; a no-op when !log_enabled(level). The caller writes the
-   newline. */
-void log_printf(XppLogLevel level, const char *fmt, ...) XPP_LOG_PRINTF(2, 3);
-void log_vprintf(XppLogLevel level, const char *fmt, va_list ap) XPP_LOG_PRINTF(2, 0);
-
-/* AUTO's console table and its startup/warning lines: always written,
-   never gated by the threshold. See the big comment above. */
-void log_auto_printf(const char *fmt, ...) XPP_LOG_PRINTF(1, 2);
-/* true when log_auto_printf() writes (browser mode, or a threshold of INFO
+/* true when log_auto() writes (browser mode, or a threshold of INFO
    or more) */
 bool log_auto_enabled();
 /* true: AUTO's table is written whatever the threshold (browser mode) */
@@ -129,7 +113,7 @@ public:
     /* text (what was kept, as its owner renders it) written where the
        log goes, and what was kept forgotten */
     void write(std::string_view text) noexcept;
-    /* an ERROR or WARN message logged (log_vprintf) */
+    /* an ERROR or WARN message logged */
     void keep(const char *message) noexcept;
 
 private:
@@ -138,31 +122,26 @@ private:
 };
 
 #ifdef XPP_IO_HAVE_STD_FORMAT
+/* The checked calls below and the window library's callback share this
+   formatting and delivery path. The caller writes the newline. */
+void log_message(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;
+void log_auto_message(std::string_view fmt, std::format_args args) noexcept;
+
 /* Compile-time checked logging (see core/xpp_io.h's xpp::format, same
    idea): a bad "{}" against the argument types is a compile error, not a
-   run-time surprise. Formats with std::format, then calls log_printf with
-   "%s" so the sink, threshold and log_settings.verbose gating stay in the
-   one place. A formatting failure (out of memory) is loud and final, like
-   xpp::format_failed. Prefer this over log_printf whenever the format
-   string converts mechanically (most do); a dynamic width/precision
-   (`%*s`, `%.*s`) or a pointer destination stay on log_printf. */
+   run-time surprise. A formatting failure is loud and final, like
+   xpp::format_failed. */
 template <class... Args>
 void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    if (!log_enabled(level)) return; /* no formatting for a filtered message */
-    /* xpp::vformat (xpp_io.h): the formatting compiled once, not here */
-    std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
-    log_printf(level, "%s", s.c_str());
+    log_message(level, fmt.get(), std::make_format_args(args...));
 }
 
-/* the same for AUTO's table and notes: log_auto_printf with a checked
-   format */
+/* the same checked call for AUTO's table and notes */
 template <class... Args>
 void log_auto(std::format_string<Args...> fmt, Args &&...args) noexcept
 {
-    if (!log_auto_enabled()) return;
-    std::string s = xpp::vformat(fmt.get(), std::make_format_args(args...));
-    log_auto_printf("%s", s.c_str());
+    log_auto_message(fmt.get(), std::make_format_args(args...));
 }
 #endif
 } // namespace xpp

@@ -549,7 +549,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
     }
     
     if(s.auto_state.restart_label!=0){
-      xpp::log_auto_printf("RestartLabel=%d itp=%d ips=%d nfpar=%d ilp=%d isw=%d isp=%d A2p=%d \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
+      xpp::log_auto("RestartLabel={:d} itp={:d} ips={:d} nfpar={:d} ilp={:d} isw={:d} isp={:d} A2p={:d} \n",s.auto_state.restart_label,s.auto_state.bifur.itp, s.auto_state.bifur.ips,s.auto_state.bifur.nfpar,s.auto_state.bifur.ilp,s.auto_state.bifur.isw,s.auto_state.bifur.isp,s.auto_state.two_param);
       s.auto_state.bifur.irs=s.auto_state.restart_label;
       s.auto_state.restart_label=0;
       do_auto(s, iold,isave, s.auto_state.bifur.itp);
@@ -1657,7 +1657,7 @@ void find_best_homo_shift(xpp::Session &s, int n)
     }
   }
   s.auto_state.homo_shift=tshift;
-  xpp::log_auto_printf("shifting %g\n",s.auto_state.homo_shift);
+  xpp::log_auto("shifting {:g}\n",s.auto_state.homo_shift);
 }
 void get_shifted_orbit(xpp::Session &s, double *u, double t, double p, int n)
 {
@@ -2489,7 +2489,7 @@ xpp::Result<> load_auto_orbitx(xpp::Session &s, int ibr,int flag, int lab, doubl
   period=per;
   flg=move_to_label(label,&nrow,&ndim,fp.get());
   if(flg==0){
-    xpp::log_auto_printf("Could not find label %d in file %s \n",label,string.c_str());
+    xpp::log_auto("Could not find label {:d} in file {} \n",label,string.c_str());
     return xpp::fail("AUTO",xpp::format("No point labelled {} in {}",label,string),command_place());
   }
   if(nrow<1||ndim<1||ndim>NAUTO)

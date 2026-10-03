@@ -194,7 +194,7 @@ double do_shift(const xpp::Session &s, double shift, double variable)
 	else
 	  return p.variables[in];
   default:
-    xpp::log_printf(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = %d\n", i);
+    xpp::log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = {:d}\n", i);
     return 0.0;
   }
 }

@@ -103,7 +103,7 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
     if(ch=='{'||ch==' ')continue;
     if(ch=='}'||ch==';'){
       if(static_cast<int>(events.size())==MAX_EVENTS){
-	xpp::log_printf(XPP_LOG_WARN, " Too many events per flag \n");
+	xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
 	return(1);
       }
       if(name.empty()){
@@ -124,7 +124,7 @@ int split_events(const char *cond, const char *rest, std::vector<FlagEvent> &eve
     temp+=ch;
   }
   if(events.empty()){
-    xpp::log_printf(XPP_LOG_WARN, " No events for condition %s \n",cond);
+    xpp::log(XPP_LOG_WARN, " No events for condition {} \n",cond);
     return(1);
   }
   return(0);
@@ -134,11 +134,11 @@ int add_global(xpp::Session &s, const char *cond, int sign, const std::vector<Fl
 {
   xpp::Model &m=s.model();
   if(m.nflags>=MAXFLAG){
-    xpp::log_printf(XPP_LOG_WARN, "Too many global conditions\n");
+    xpp::log(XPP_LOG_WARN, "Too many global conditions\n");
     return(1);
   }
   if(static_cast<int>(events.size())>MAX_EVENTS){
-    xpp::log_printf(XPP_LOG_WARN, " Too many events per flag \n");
+    xpp::log(XPP_LOG_WARN, " Too many events per flag \n");
     return(1);
   }
   xpp::Model::GlobalFlag &f=m.flags[m.nflags];
@@ -409,8 +409,8 @@ int one_flag_step_symp(xpp::Session &s, double *y, double dt, double *work, int 
     nstep++;
     dtt=(1-frac)*dt;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -435,8 +435,8 @@ int one_flag_step_euler(xpp::Session &s, double *y, double dt, double *work, int
     nstep++;
     dtt=(1-frac)*dt;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -461,8 +461,8 @@ int one_flag_step_discrete(xpp::Session &s, double *y, double dt, double *work, 
     nstep++;
     dtt=(1-frac)*dt;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard?? ");
-      xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard?? ");
+      xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -486,8 +486,8 @@ int one_flag_step_heun(xpp::Session &s, double *y, double dt, double *yval[2], i
     nstep++;
     dtt=(1-frac)*dt;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-      xpp::log_printf(XPP_LOG_WARN, " smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+      xpp::log(XPP_LOG_WARN, " smin={:g}\n",frac);
       break;
     }
   }
@@ -511,8 +511,8 @@ int one_flag_step_rk4(xpp::Session &s, double *y, double dt, double *yval[3], in
     nstep++;
     dtt=(1-frac)*dt;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard?");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard?");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -538,8 +538,8 @@ int one_flag_step_gear(xpp::Session &s, int neq, double *t, double tout, double 
     *jstart=0; /* for gear always reset  */
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -566,8 +566,8 @@ int *istart,int n,double *work,int *ierr)
     
     if(*tstart==tfinal)break;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       *ierr=-2;
       return 1;
       break;
@@ -596,8 +596,8 @@ int one_flag_step_dp(xpp::Session &s, int *istart, double *y, double *t, int n, 
     
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       return 1;
       break;
     }
@@ -627,8 +627,8 @@ int one_flag_step_cvode(xpp::Session &s, xpp::CvodeRun &run, int *command, doubl
     *command=1; /* for cvode always reset  */
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       return 1;
     }
   }
@@ -657,8 +657,8 @@ int one_flag_step_adap(xpp::Session &s, double *y, int neq, double *t, double to
     
     if(*t==tout)break;
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard? ");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard? ");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }
@@ -685,8 +685,8 @@ int one_flag_step_backeul(xpp::Session &s, double *y, double *t, double dt, int 
     nstep++;
     dtt=(1-frac)*dt;  
     if(nstep>(s.model().nflags+2)){
-      xpp::log_printf(XPP_LOG_WARN, " Working too hard?");
-            xpp::log_printf(XPP_LOG_WARN, "smin=%g\n",frac);
+      xpp::log(XPP_LOG_WARN, " Working too hard?");
+            xpp::log(XPP_LOG_WARN, "smin={:g}\n",frac);
       break;
     }
   }

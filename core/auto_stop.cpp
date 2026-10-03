@@ -128,7 +128,7 @@ void auto_stop_branch_end(Session &s, const AutoStopAt *at)
         st.last_value = value;
         st.last_limit = limit;
         st.last_text = std::move(text);
-        xpp::log_auto_printf("Branch %ld stopped at point %ld: %s\n", st.last_br, st.last_pt, st.last_text.c_str());
+        xpp::log_auto("Branch {:d} stopped at point {:d}: {}\n", st.last_br, st.last_pt, st.last_text.c_str());
     } catch (...) {
         st.last_why = AUTO_STOP_NONE;
     }

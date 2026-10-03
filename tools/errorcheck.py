@@ -10,7 +10,7 @@ emptied, is each place an error is made or reported with no place:
   err_msg      a call of err_msg(text) or j_err_msg(text): text alone
   fail         xpp::fail("where", what) with no Place (a third argument)
   Error{}      an Error built inline from "where" (or {}) and what alone
-  log ERROR    an xpp::log/log_printf at XPP_LOG_ERROR not of an
+  log ERROR    an xpp::log at XPP_LOG_ERROR not of an
                Error's text() (an error written to the log by hand)
 
 A Place given as an explicit empty one ({} or Place{}) is no place and is
@@ -158,7 +158,7 @@ def sites(path):
         if (len(args) == 2 and (args[0].startswith('"') or args[0] == '{}')) or \
                 (len(args) >= 3 and EMPTY_PLACE.fullmatch(args[2])):
             at(m.start(), 'Error{}')
-    for m in re.finditer(r'(?<![\w.>])(?:xpp::)?log(?:_printf)?\s*\(\s*XPP_LOG_ERROR\s*,', text):
+    for m in re.finditer(r'(?<![\w.>])(?:xpp::)?log\s*\(\s*XPP_LOG_ERROR\s*,', text):
         args = args_at(text, m.end())
         if not any('.text()' in a for a in args[1:]):
             at(m.start(), 'log ERROR')

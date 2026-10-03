@@ -167,7 +167,7 @@ int do_comline(xpp::Session &s, int argc, char **argv)
      loadparfile=1;
    }
    if(k==5){
-    xpp::log_printf(XPP_LOG_INFO, "%s",argv[i+1]);
+    xpp::log(XPP_LOG_INFO, "{}",argv[i+1]);
      batch_options.out_file=argv[i+1];
      batch_options.user_out_file=argv[i+1];
      i++;
@@ -245,7 +245,7 @@ int do_comline(xpp::Session &s, int argc, char **argv)
    if(k==30){ /* --equil */
      batch_options.equilibria=atoi(argv[i+1]);
      i++;
-     xpp::log_printf(XPP_LOG_INFO, " Batch equilibria %d \n",batch_options.equilibria);
+     xpp::log(XPP_LOG_INFO, " Batch equilibria {:d} \n",batch_options.equilibria);
    }
 
  }
@@ -296,7 +296,7 @@ int if_needed_select_sets(const xpp::Model &m)
 		
 		if (is_set_name(sets2use,name))
 		{
-		xpp::log_printf(XPP_LOG_INFO, "Internal set %s was included\n",name);
+		xpp::log(XPP_LOG_INFO, "Internal set {} was included\n",name);
 			if (use[j]==0){used++;}
 			use[j]=1;
 			
@@ -304,13 +304,13 @@ int if_needed_select_sets(const xpp::Model &m)
 		
 		if (is_set_name(setsNOTuse,name))
 		{
-		xpp::log_printf(XPP_LOG_INFO, "Internal set %s was excluded\n",name);
+		xpp::log(XPP_LOG_INFO, "Internal set {} was excluded\n",name);
 			if (use[j]==1){used--;}
 			use[j]=0;
 		}
 	}
 	
-	xpp::log_printf(XPP_LOG_INFO, "A total of %d internal sets will be used\n",used);
+	xpp::log(XPP_LOG_INFO, "A total of {:d} internal sets will be used\n",used);
 	
 	return 1;
 }
@@ -374,7 +374,7 @@ int parse_it(xpp::Session &s, std::string_view com)
       ConvertStyle=1;
       break;
     case NEWSEED:
-     xpp::log_printf(XPP_LOG_INFO, "Random number seed changed\n");
+     xpp::log(XPP_LOG_INFO, "Random number seed changed\n");
       newseed=1;
       break;
     case RUNNOW:

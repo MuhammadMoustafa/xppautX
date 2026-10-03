@@ -152,7 +152,7 @@ xpp::inbox::Verdict during_run(const char *line)
     }
     const char kind = line_kind(line);
     if (kind == XPP_KIND_VIEW || kind == XPP_KIND_CONTROL || kind == XPP_KIND_SETTING) return xpp::inbox::Verdict::normal;
-    xpp::log_printf(XPP_LOG_WARN, "refused during a computation: %s%s%s\n", c.empty() ? "(no cmd)" : c.c_str(),
+    xpp::log(XPP_LOG_WARN, "refused during a computation: {}{}{}\n", c.empty() ? "(no cmd)" : c.c_str(),
             o.empty() ? "" : " ", o.c_str());
     return xpp::inbox::Verdict::refuse;
 }
@@ -794,7 +794,7 @@ void install(bool silent)
     if (!silent && !xpp::http::active()) { /* browser mode has taken stdout and stderr */
         open_protocol_stdout();
         if (!xpp::inbox::start_stdin()) {
-            xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
+            xpp::log(XPP_LOG_ERROR, "xppautX: cannot start the input thread\n");
             exit(1);
         }
     }

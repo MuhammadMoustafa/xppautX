@@ -748,7 +748,7 @@ void command(const VAR_INFO &v, std::vector<Statement> &out)
     const std::string events=tokens.text("\n");
     std::vector<FlagEvent> split;
     if(split_events(cond.c_str(),events.c_str(),split)){
-      xpp::log_printf(XPP_LOG_WARN, "Bad global !! \n");
+      xpp::log(XPP_LOG_WARN, "Bad global !! \n");
       model_failed();
     }
     s.expr=text_expr(cond);
@@ -1200,7 +1200,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
 	  *i1=0;
           *i2=0;
 	  newstr=old;
-          xpp::log_printf(XPP_LOG_WARN, " Possible error in array %s -- ignoring it \n",old);
+          xpp::log(XPP_LOG_WARN, " Possible error in array {} -- ignoring it \n",old);
 	  return(0); /* error in array  */
 	}
       }
@@ -1217,7 +1217,7 @@ int search_array(char *old, std::string &newstr, int *i1, int *i2, int *flag, Mo
 	  *i1=0;
           *i2=0;
 	  newstr=old;
-          xpp::log_printf(XPP_LOG_WARN, " Possible error in array  %s -- ignoring it \n",old);
+          xpp::log(XPP_LOG_WARN, " Possible error in array  {} -- ignoring it \n",old);
 	  return(0); /* error again   */
 	}
       }
@@ -1276,7 +1276,7 @@ void subsk(std::string_view big_text, std::string &newstr, int k, int flag)
     }
     else if(ch=='['&&chp=='j'){
       if(flag==0){
-	xpp::log_printf(XPP_LOG_WARN, " Illegal use of [j] at %s \n",big);
+	xpp::log(XPP_LOG_WARN, " Illegal use of [j] at {} \n",big);
 	model_failed();
       }
       num.clear();

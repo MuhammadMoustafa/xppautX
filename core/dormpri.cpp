@@ -13,7 +13,7 @@
 #include "model.h"
 
 /* The integrators' messages (Hairer's fileout stream, which XPP passed as
-   stdout) are xpp::log_printf WARNs: its Solver (solver.cpp) reports the failure
+   stdout) are xpp::log WARNs: its Solver (solver.cpp) reports the failure
    itself; the stdout of --server is the protocol. */
 namespace {
 /* one dop853 or dopri5 call's counts, its stages in the work memory and

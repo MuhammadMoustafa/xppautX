@@ -1272,7 +1272,7 @@ bool start(int port, bool show, bool open)
     int got = listen_on(port);
     if (got < 0 && port != 0) got = listen_on(0); /* taken: any free port */
     if (got < 0) {
-        xpp::log_printf(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
+        xpp::log(XPP_LOG_ERROR, "xppautX: cannot open a port on 127.0.0.1\n");
         return false;
     }
     try {

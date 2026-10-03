@@ -153,34 +153,34 @@ namespace {
 
 void welcome()
 {
- xpp::log_printf(XPP_LOG_INFO, "\n The commands are: \n");
- xpp::log_printf(XPP_LOG_INFO, " P(arameter) -- declare parameters <name1>=<value1>,<name2>=<value2>,...\n");
- xpp::log_printf(XPP_LOG_INFO, " F(ixed)     -- declare fixed variables\n");
- xpp::log_printf(XPP_LOG_INFO, " V(ariables) -- declare ode variables \n");
- xpp::log_printf(XPP_LOG_INFO, " U(ser)      -- declare user functions <name> <nargs> <formula>\n");
- xpp::log_printf(XPP_LOG_INFO, " C(hange)    -- change option file   <filename>\n");
- xpp::log_printf(XPP_LOG_INFO, " O(de)       -- declare RHS for equations\n");
- xpp::log_printf(XPP_LOG_INFO, " D(one)      -- finished compiling formula\n");
- xpp::log_printf(XPP_LOG_INFO, " H(elp)      -- this menu                 \n");
- xpp::log_printf(XPP_LOG_INFO, " S(ymbols)   -- Valid functions and symbols\n");
- xpp::log_printf(XPP_LOG_INFO, " I(ntegral)  -- rhs for integral eqn\n");
- xpp::log_printf(XPP_LOG_INFO, " K(ernel)    -- declare kernel for integral eqns\n");
- xpp::log_printf(XPP_LOG_INFO, " T(able)     -- lookup table\n");
- xpp::log_printf(XPP_LOG_INFO, " A(ux)       -- name auxiliary variable\n");
- xpp::log_printf(XPP_LOG_INFO, " N(umbers)   --  hidden parameters\n");
- xpp::log_printf(XPP_LOG_INFO, " M(arkov)    --  Markov variables \n");
- xpp::log_printf(XPP_LOG_INFO, " W(iener)    -- Wiener parameter \n");
- xpp::log_printf(XPP_LOG_INFO, "_________________________________________________________________________\n");
+ xpp::log(XPP_LOG_INFO, "\n The commands are: \n");
+ xpp::log(XPP_LOG_INFO, " P(arameter) -- declare parameters <name1>=<value1>,<name2>=<value2>,...\n");
+ xpp::log(XPP_LOG_INFO, " F(ixed)     -- declare fixed variables\n");
+ xpp::log(XPP_LOG_INFO, " V(ariables) -- declare ode variables \n");
+ xpp::log(XPP_LOG_INFO, " U(ser)      -- declare user functions <name> <nargs> <formula>\n");
+ xpp::log(XPP_LOG_INFO, " C(hange)    -- change option file   <filename>\n");
+ xpp::log(XPP_LOG_INFO, " O(de)       -- declare RHS for equations\n");
+ xpp::log(XPP_LOG_INFO, " D(one)      -- finished compiling formula\n");
+ xpp::log(XPP_LOG_INFO, " H(elp)      -- this menu                 \n");
+ xpp::log(XPP_LOG_INFO, " S(ymbols)   -- Valid functions and symbols\n");
+ xpp::log(XPP_LOG_INFO, " I(ntegral)  -- rhs for integral eqn\n");
+ xpp::log(XPP_LOG_INFO, " K(ernel)    -- declare kernel for integral eqns\n");
+ xpp::log(XPP_LOG_INFO, " T(able)     -- lookup table\n");
+ xpp::log(XPP_LOG_INFO, " A(ux)       -- name auxiliary variable\n");
+ xpp::log(XPP_LOG_INFO, " N(umbers)   --  hidden parameters\n");
+ xpp::log(XPP_LOG_INFO, " M(arkov)    --  Markov variables \n");
+ xpp::log(XPP_LOG_INFO, " W(iener)    -- Wiener parameter \n");
+ xpp::log(XPP_LOG_INFO, "_________________________________________________________________________\n");
 
 }
 
 void show_syms()
 {
- xpp::log_printf(XPP_LOG_INFO, "(    ,    )    +    -      *    ^    **    / \n");
- xpp::log_printf(XPP_LOG_INFO, "sin  cos  tan  atan  atan2 acos asin\n");
- xpp::log_printf(XPP_LOG_INFO, "exp  ln   log  log10 tanh  cosh sinh \n");
- xpp::log_printf(XPP_LOG_INFO, "max  min  heav flr   mod   sign sqrt \n");
- xpp::log_printf(XPP_LOG_INFO, "t    pi   ran  \n");
+ xpp::log(XPP_LOG_INFO, "(    ,    )    +    -      *    ^    **    / \n");
+ xpp::log(XPP_LOG_INFO, "sin  cos  tan  atan  atan2 acos asin\n");
+ xpp::log(XPP_LOG_INFO, "exp  ln   log  log10 tanh  cosh sinh \n");
+ xpp::log(XPP_LOG_INFO, "max  min  heav flr   mod   sign sqrt \n");
+ xpp::log(XPP_LOG_INFO, "t    pi   ran  \n");
 }
 
 /* string with its integral operators int[mu]{form} (or int{form}) made
@@ -289,7 +289,7 @@ void add_constant(xpp::Session &s, const std::string &name, double value, bool w
 void add_boundary(xpp::Model &m, std::string_view formula)
 {
   set_bc(m,m.bc_defined,formula);
-  xpp::log_printf(XPP_LOG_DEBUG, "|%s| |%s| \n",m.bcs[m.bc_defined].name.data(),m.bcs[m.bc_defined].string.data());
+  xpp::log(XPP_LOG_DEBUG, "|{}| |{}| \n",m.bcs[m.bc_defined].name.data(),m.bcs[m.bc_defined].string.data());
   m.bc_defined++;
 }
 
@@ -297,7 +297,7 @@ void add_flag(xpp::Session &s, const std::string &cond, int sign, const std::vec
 {
   xpp::log(XPP_LOG_DEBUG, " GLOBAL: sign ={} condition = {} \n",sign,cond);
   if(add_global(s,cond.c_str(),sign,events)){
-    xpp::log_printf(XPP_LOG_WARN, "Bad global !! \n");
+    xpp::log(XPP_LOG_WARN, "Bad global !! \n");
     model_failed();
   }
 }
@@ -351,7 +351,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       break;
     case 'w':  /*  Make a Wiener (heh heh) constants  */
     case 'n':
-      xpp::log_printf(XPP_LOG_INFO, command[0]=='w'?"Wiener constants\n":" Hidden params:\n");
+      xpp::log(XPP_LOG_INFO, "{}", command[0]=='w'?"Wiener constants\n":" Hidden params:\n");
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"{}",command[0]=='w'?"wiener ":"number ");
       for(const OdeItem &item : ode_items(values))
@@ -366,7 +366,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"\n");
-      xpp::log_printf(XPP_LOG_DEBUG, "\n");
+      xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case 'g': { /* global */
       sign=atoi(tokens.text("{ ").c_str());
@@ -375,7 +375,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       xpp::log(XPP_LOG_DEBUG, " events={} \n",formula);
       std::vector<FlagEvent> events;
       if(split_events(condition.c_str(),formula.c_str(),events)){
-	xpp::log_printf(XPP_LOG_WARN, "Bad global !! \n");
+	xpp::log(XPP_LOG_WARN, "Bad global !! \n");
 	model_failed();
       }
       add_flag(s,condition,sign,events);
@@ -385,7 +385,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       break;
     }
     case 'p':
-      xpp::log_printf(XPP_LOG_INFO, "Parameters:\n");
+      xpp::log(XPP_LOG_INFO, "Parameters:\n");
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"par ");
       for(const OdeItem &item : ode_items(values))
@@ -396,12 +396,12 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"\n");
-      xpp::log_printf(XPP_LOG_DEBUG, "\n");
+      xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case 'c':
       refuse_options_file(tokens.text(" \n"));
     case 'f':iflg=0;
-      xpp::log_printf(XPP_LOG_INFO, "\nFixed variables:\n");
+      xpp::log(XPP_LOG_INFO, "\nFixed variables:\n");
       goto vrs;
     case 'm': /* Markov variable  */
       name=tokens.text(" ");
@@ -425,12 +425,12 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       break;
     case 'v':
       iflg=1;
-      xpp::log_printf(XPP_LOG_INFO, "\nVariables:\n");
+      xpp::log(XPP_LOG_INFO, "\nVariables:\n");
       if(ConvertStyle)
 	xpp::print(s.parser.convert.file(),"init ");
     vrs:
       if(m.nmarkov>0) {
-	xpp::log_printf(XPP_LOG_WARN, " Error at line %d \n Must declare Markov variables after fixed and regular variables\n",m.nlines());
+	xpp::log(XPP_LOG_WARN, " Error at line {:d} \n Must declare Markov variables after fixed and regular variables\n",m.nlines());
 	model_failed();
       }
       for(const OdeItem &item : ode_items(values))
@@ -461,7 +461,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",name);
 
 	}
-      xpp::log_printf(XPP_LOG_DEBUG, " \n");
+      xpp::log(XPP_LOG_DEBUG, " \n");
       if(iflg&&ConvertStyle)
 	xpp::print(s.parser.convert.file(),"\n");
       break;
@@ -472,26 +472,26 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
       break;
     case 'k':
       if(ConvertStyle)
-	xpp::log_printf(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
+	xpp::log(XPP_LOG_WARN, " Warning  kernel declaration cannot be converted \n");
       name=tokens.text(" ");
       value=atof(tokens.text(" ").c_str());
       formula=tokens.text("$");
       xpp::log(XPP_LOG_DEBUG, "Kernel mu={:f} {} = {} \n",value,name,formula);
       if(add_kernel(s,name,value,formula)){
-	xpp::log_printf(XPP_LOG_WARN, "ERROR at line %d\n",m.nlines());
+	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
       break;
     case 't':
       if(s.ntable>=MAX_TAB)
 	{
-	  if(s.parser.errout)xpp::log_printf(XPP_LOG_WARN, "too many tables !!\n");
+	  if(s.parser.errout)xpp::log(XPP_LOG_WARN, "too many tables !!\n");
 	  model_failed();
 	}
       name=tokens.text(" ");
       formula=tokens.text(" \n");
       if(formula[0]=='%') {
-	xpp::log_printf(XPP_LOG_INFO, " Function form of table....\n");
+	xpp::log(XPP_LOG_INFO, " Function form of table....\n");
 	nn=atoi(tokens.text(" ").c_str());
 	xlo=atof(tokens.text(" ").c_str());
 	xhi=atof(tokens.text(" ").c_str());
@@ -507,12 +507,12 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  xpp::print(s.parser.convert.file(),"table {} % {} {:g} {:g} {}\n",
 		  name,nn,xlo,xhi,formula);
 	s.ntable++;
-	xpp::log_printf(XPP_LOG_INFO, " NTable = %d \n",s.ntable);
+	xpp::log(XPP_LOG_INFO, " NTable = {:d} \n",s.ntable);
 
       }
       else
 	if(formula[0]=='@'){
-	  xpp::log_printf(XPP_LOG_INFO, " Two-dimensional array: \n ");
+	  xpp::log(XPP_LOG_INFO, " Two-dimensional array: \n ");
 	  formula=tokens.text(" ");
 	  xpp::log(XPP_LOG_INFO, " {} = {} \n",name,formula);
 	  if(add_2d_table(name,formula))
@@ -546,7 +546,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	xpp::print(s.parser.convert.file(),")={}",formula);
       }
       if(add_ufun(s,name,formula,narg)){
-	xpp::log_printf(XPP_LOG_WARN, "ERROR at line %d\n",m.nlines());
+	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
 
@@ -599,14 +599,14 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	}
       xpp::log(XPP_LOG_INFO, "RHS({})={}\n",m.node,formula);
       if(add_expr(s,formula,m.programs[m.node].data(),&len)){
-	xpp::log_printf(XPP_LOG_WARN, "ERROR at line %d\n",m.nlines());
+	xpp::log(XPP_LOG_WARN, "ERROR at line {:d}\n",m.nlines());
 	model_failed();
       }
       m.node++;
       break;
 
     case 'a':   /* name auxiliary variables */
-      xpp::log_printf(XPP_LOG_INFO, "Auxiliary variables:\n");
+      xpp::log(XPP_LOG_INFO, "Auxiliary variables:\n");
       for(std::optional<std::string_view> tok;(tok=tokens.next(" ,\n"));)
 	{
 	  std::string aux(*tok);
@@ -614,7 +614,7 @@ int compiler(xpp::Session &s, const std::string &bob, FILE *fptr)
 	  xpp::log(XPP_LOG_DEBUG, "|{}| ",s.parser.build.aux_names[s.parser.build.naux]);
 	  s.parser.build.naux++;
 	};
-      xpp::log_printf(XPP_LOG_DEBUG, "\n");
+      xpp::log(XPP_LOG_DEBUG, "\n");
       break;
 
     default:
@@ -679,7 +679,7 @@ void finish_model(xpp::Session &s)
     model_failed("Too many boundary conditions");
   }
   if(s.model().bc_defined<s.parser.build.in_vars ){
-    if(s.model().bc_defined>0)xpp::log_printf(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
+    if(s.model().bc_defined>0)xpp::log(XPP_LOG_WARN, "Warning: Too few boundary conditions\n");
     for(i=s.model().bc_defined;i<s.parser.build.in_vars ;i++){
       set_bc(m,i,"0");
     }
@@ -722,9 +722,9 @@ void finish_model(xpp::Session &s)
     add_var(s,xpp::format("{}'",uvar_names[i]),0.0);
 }
   else {
-    xpp::log_printf(XPP_LOG_WARN, " Warning: primed variables not added must have < %d variables\n",
+    xpp::log(XPP_LOG_WARN, " Warning: primed variables not added must have < {:d} variables\n",
      MAXPRIMEVAR);
-    xpp::log_printf(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
+    xpp::log(XPP_LOG_WARN, " Averaging and boundary value problems cannot be done\n");
   }
   if(m.nmarkov>0)
     xpp::compile_all_markov(s);
@@ -737,8 +737,8 @@ void finish_model(xpp::Session &s)
   m.nsym_start=s.parser.nsym;
   program.version_major=static_cast<float>(MYSTR1);
   program.version_minor=static_cast<float>(MYSTR2);
-  xpp::log_printf(XPP_LOG_INFO, "Used %d constants and %d symbols \n",s.parser.ncon,s.parser.nsym);
-  xpp::log_printf(XPP_LOG_INFO, "XPPAUT %g.%g Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
+  xpp::log(XPP_LOG_INFO, "Used {:d} constants and {:d} symbols \n",s.parser.ncon,s.parser.nsym);
+  xpp::log(XPP_LOG_INFO, "XPPAUT {:g}.{:g} Copyright (C) 2002-now  Bard Ermentrout \n",program.version_major,program.version_minor);
 }
 
 } // namespace
@@ -765,7 +765,7 @@ void build_old_style(xpp::Session &s, int neq, FILE *fptr, const std::function<b
 {
   begin_model(s);
   s.model().neq=neq;
-  xpp::log_printf(XPP_LOG_INFO, "NEQ=%d\n",neq);
+  xpp::log(XPP_LOG_INFO, "NEQ={:d}\n",neq);
   if(ConvertStyle){
     const std::string &this_file=s.model().this_file;
     std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
@@ -905,9 +905,9 @@ public:
     compile_derived(s_);
     xpp::compile_svars(s_);
     evaluate_derived(s_);
-    xpp::log_printf(XPP_LOG_INFO, " All formulas are valid!!\n");
+    xpp::log(XPP_LOG_INFO, " All formulas are valid!!\n");
     m.node=nvar_+naux_+nfix_;
-    xpp::log_printf(XPP_LOG_INFO, " nvar=%d naux=%d nfix=%d nmark=%d NEQ=%d NODE=%d \n",
+    xpp::log(XPP_LOG_INFO, " nvar={:d} naux={:d} nfix={:d} nmark={:d} NEQ={:d} NODE={:d} \n",
 	   nvar_,naux_,nfix_,nmark_,m.neq,m.node);
     m.statements=std::move(p_.statements);
     m.statement_files=p_.files;
@@ -1044,15 +1044,15 @@ private:
       break;
     }
     case Statement::Kind::Par:
-      xpp::log_printf(XPP_LOG_INFO, "Parameters:\n");
+      xpp::log(XPP_LOG_INFO, "Parameters:\n");
       for(const Binding &b : s.bindings)add_parameter(s_,b.name,b.value.value);
-      xpp::log_printf(XPP_LOG_DEBUG, "\n");
+      xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case Statement::Kind::Wiener:
     case Statement::Kind::Const:
-      xpp::log_printf(XPP_LOG_INFO, s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
+      xpp::log(XPP_LOG_INFO, "{}", s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
       for(const Binding &b : s.bindings)add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
-      xpp::log_printf(XPP_LOG_DEBUG, "\n");
+      xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
     case Statement::Kind::Set: add_intern_set(m,s.name,s.text); break;
@@ -1105,7 +1105,7 @@ private:
       if(add_table_name(s_,ntab_,name)==1){
 	model_failed(xpp::format("{} is a duplicate name",name));
       }
-      xpp::log_printf(XPP_LOG_DEBUG, "added name %d\n",ntab_);
+      xpp::log(XPP_LOG_DEBUG, "added name {:d}\n",ntab_);
       ntab_++;
       break;
     }
@@ -1319,7 +1319,7 @@ private:
     switch(s.table_kind){
     case Statement::TableKind::Formula: {
       const std::string formula=text(s.expr);
-      xpp::log_printf(XPP_LOG_INFO, " Function form of table....\n");
+      xpp::log(XPP_LOG_INFO, " Function form of table....\n");
       xpp::log(XPP_LOG_INFO, " {} has {} pts from {:f} to {:f} = {}\n",s.name,s.count,s.lo,s.hi,formula);
       if(auto t=add_form_table(s_,ntab_,s.count,s.lo,s.hi,formula);!t){
 	table_failed(t.error());
@@ -1328,7 +1328,7 @@ private:
       break;
     }
     case Statement::TableKind::TwoD:
-      xpp::log_printf(XPP_LOG_INFO, " Two-dimensional array: \n ");
+      xpp::log(XPP_LOG_INFO, " Two-dimensional array: \n ");
       xpp::log(XPP_LOG_INFO, " {} = {} \n",s.name,s.text);
       if(add_2d_table(s.name,s.text)){
 	model_failed(); /* add_2d_table said why */

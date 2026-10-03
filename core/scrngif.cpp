@@ -68,7 +68,7 @@ int ppmtopix(ColourMap &m, unsigned char r,unsigned char g, unsigned char b,int 
     if(r==gifcol[i].r&&g==gifcol[i].g&&b==gifcol[i].b)
       return i;
   if(nc>255){
-    xpp::log_printf(XPP_LOG_WARN, "Too many colors \n");
+    xpp::log(XPP_LOG_WARN, "Too many colors \n");
     return -1;
   }
   gifcol[nc].r=r;
@@ -256,7 +256,7 @@ int GifEncode(FILE *fout, unsigned char *pixels, int depth, int siz)
      curNode->typ = SEARCH;
      break;
    default:
-     xpp::log_printf(XPP_LOG_WARN, "Silly node type: %d\n", curNode->typ);
+     xpp::log(XPP_LOG_WARN, "Silly node type: {:d}\n", static_cast<int>(curNode->typ));
   }
   newNode->code = next;
   newNode->ix = *pixels;

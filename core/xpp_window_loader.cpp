@@ -48,7 +48,7 @@ const XppWindowHost host = {XPP_WINDOW_HOST_VERSION,
                             xpp::http::said_bye,
                             [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
                             xpp::json_ui_push_open,
-                            xpp::log_printf};
+                            xpp::log_message};
 XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;
 
@@ -153,11 +153,11 @@ bool xpp::window::run(void (*session)(), const char *about)
         std::string err;
         loaded = load(err);
         if (!loaded) {
-            xpp::log_printf(XPP_LOG_WARN, "%s", xpp::window::load_message(os_release(), err).c_str());
+            xpp::log(XPP_LOG_WARN, "{}", xpp::window::load_message(os_release(), err).c_str());
             return false;
         }
     } catch (const std::exception &e) {
-        xpp::log_printf(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
+        xpp::log(XPP_LOG_WARN, "xppautX: the window cannot open ({}); using the browser instead\n", e.what());
         return false;
     }
     return api.run(session, about);

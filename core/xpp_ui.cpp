@@ -136,8 +136,8 @@ static int hl_checklist(std::string_view, const char *const *, int *, int)
 static void hl_movie_save(Session &, std::string_view, int) {}
 static void hl_open_help(std::string_view, std::string_view) {}
 static void hl_copy_text(std::string_view, std::string_view text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
-static void hl_record_toggle(Session &) { xpp::log_printf(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
-static void hl_play_recording(Session &, std::string_view) { xpp::log_printf(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
+static void hl_record_toggle(Session &) { xpp::log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
+static void hl_play_recording(Session &, std::string_view) { xpp::log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
 static bool hl_recording(void) { return false; }
 static bool hl_save_recording(Session &) { return true; }
 static void hl_exit_program(void) { log_exit(); }
@@ -440,13 +440,13 @@ bool recording_in_progress(void) { return ui.recording(); }
 bool save_recording(Session &s) { return ui.save_recording(s); }
 
 /* new_int and new_float were in ggets.c; they never touched X. plintf()
-   was a thin wrapper around xpp::log_printf() at INFO (the banner, "All formulas
+   was a thin wrapper around xpp::log() at INFO (the banner, "All formulas
    are valid!!", parser statistics, duplicate-name notes) and was retired
-   at W25: call xpp::log_printf(XPP_LOG_INFO, ...) / xpp::log(XPP_LOG_INFO, ...)
-   directly -- xpp::log_vprintf() itself now honours xpp::log_settings.verbose (the
+   at W25: call xpp::log(XPP_LOG_INFO, ...)
+   directly -- xpp::log() itself now honours xpp::log_settings.verbose (the
    ODE file's own QUIET option, load_eqn.c) for INFO-level messages, the
    same gating plintf() used to do itself (see xpp_log.c/xpp_log.h). A
-   real error uses err_msg()/xpp::log_printf(..., XPP_LOG_ERROR/WARN) instead. */
+   real error uses err_msg()/xpp::log(..., XPP_LOG_ERROR/WARN) instead. */
 
 /* the question's name as a sentence's subject: "Total :" is Total */
 static std::string field_name(std::string_view name)

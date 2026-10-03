@@ -35,7 +35,7 @@ void add_svar(xpp::Session &s, const char *name, const char *rhs)
   s.model().svars[s.model().nsvar].name=name;
   s.model().svars[s.model().nsvar].rhs=rhs;
   s.model().svars[s.model().nsvar].where=xpp::Load::place();
-  xpp::log_printf(XPP_LOG_INFO, " Added sol-var[%d] %s = %s \n",
+  xpp::log(XPP_LOG_INFO, " Added sol-var[{:d}] {} = {} \n",
 	 s.model().nsvar,s.model().svars[s.model().nsvar].name.c_str(),s.model().svars[s.model().nsvar].rhs.c_str());
   s.model().nsvar++;
 }

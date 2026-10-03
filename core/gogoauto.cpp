@@ -65,7 +65,7 @@ int go_go_auto(xpp::Session &s) /* this is the entry  at this point, xAuto has b
       findlb(&iap, &rap, iap.irs, &(iap.nfpr), &found);
       if (! found) {
 	if (iap.mynode == 0) {
-	  xpp::log_auto_printf("\nRestart label %4ld not found\n",iap.irs);
+	  xpp::log_auto("\nRestart label {:4d} not found\n",iap.irs);
 	}
 	return(0);/* bad return: units closes the files */
       }
@@ -479,9 +479,9 @@ int set_function_pointers(const iap_type iap,function_list *data) {
   } else {
     /*        ** Error in INIT. */
     
-      xpp::log_auto_printf("\nInitialization Error CRASH!!\n");
+      xpp::log_auto("\nInitialization Error CRASH!!\n");
    
-      xpp::log_auto_printf("itp=%ld ips=%ld isw=%ld\n",iap.itp,iap.ips,iap.isw);
+      xpp::log_auto("itp={:d} ips={:d} isw={:d}\n",iap.itp,iap.ips,iap.isw);
   }
   /* -----------------------------------------------------------------------*/
 

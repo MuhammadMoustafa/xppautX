@@ -87,7 +87,7 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   xpp::http::said_bye,
                                   [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
                                   xpp::json_ui_push_open,
-                                  xpp::log_printf};
+                                  xpp::log_message};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -596,8 +596,8 @@ void open_documents(id, SEL, id event, id)
         std::vector<std::string> paths = document_paths(event);
         if (paths.empty()) return;
         if (paths.size() > 1)
-            host->log(XPP_LOG_WARN, "xppautX: %zu files to open, one model at a time: only the first\n", paths.size());
-        host->log(XPP_LOG_INFO, "xppautX: macOS asked to open %s\n", paths[0].c_str());
+            host->log(XPP_LOG_WARN, "xppautX: {:d} files to open, one model at a time: only the first\n", paths.size());
+        host->log(XPP_LOG_INFO, "xppautX: macOS asked to open {}\n", paths[0].c_str());
         {
             std::lock_guard<std::mutex> lk(st->mu);
             if (!st->session_started) {
@@ -607,7 +607,7 @@ void open_documents(id, SEL, id event, id)
         }
         host->open_model(paths[0].c_str());
     } catch (const std::exception &e) {
-        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost: %s\n", e.what());
+        host->log(XPP_LOG_WARN, "xppautX: a document to open was lost: {}\n", e.what());
     } catch (...) {
         host->log(XPP_LOG_WARN, "xppautX: a document to open was lost\n");
     }
@@ -774,7 +774,7 @@ void set_window_icon(GtkWindow *win)
         GdkPixbuf *pix = gdk_pixbuf_loader_get_pixbuf(loader);
         if (pix) gtk_window_set_icon(win, pix);
     } else {
-        host->log(XPP_LOG_WARN, "xppautX: window icon: %s\n", err ? err->message : "unknown error");
+        host->log(XPP_LOG_WARN, "xppautX: window icon: {}\n", err ? err->message : "unknown error");
     }
     if (err) g_error_free(err);
     g_object_unref(loader);
@@ -874,7 +874,7 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
     } catch (const std::exception &e) {
         status = 1;
         reply = "null";
-        host->log(XPP_LOG_WARN, "xppautX: the file dialog failed: %s\n", e.what());
+        host->log(XPP_LOG_WARN, "xppautX: the file dialog failed: {}\n", e.what());
     }
     webview_return(w, id, status, reply.c_str());
 }
@@ -949,7 +949,7 @@ bool run_window(void (*session)(), const char *about)
         watch_for_documents();
         webview_t w = open_view();
         if (!w) {
-            host->log(XPP_LOG_WARN, "%s", no_view_message());
+            host->log(XPP_LOG_WARN, "{}", no_view_message());
             return false;
         }
         {
@@ -982,13 +982,13 @@ bool run_window(void (*session)(), const char *about)
             window_closed(w);
         }).detach();
         if (!up.get()) {
-            host->log(XPP_LOG_WARN, "%s", no_view_message());
+            host->log(XPP_LOG_WARN, "{}", no_view_message());
             return false;
         }
         std::atexit(on_exit);
 #endif
     } catch (const std::exception &e) {
-        host->log(XPP_LOG_WARN, "xppautX: the window cannot open (%s); using the browser instead\n", e.what());
+        host->log(XPP_LOG_WARN, "xppautX: the window cannot open ({}); using the browser instead\n", e.what());
         return false;
     }
     session();

@@ -309,7 +309,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
   std::string rootname,wgtname,tauname,indname,fname;
   type=is_network(rhs);
     if(type==0)return 0;
-  xpp::log_printf(XPP_LOG_DEBUG, "type=%d \n",type);
+  xpp::log(XPP_LOG_DEBUG, "type={:d} \n",type);
   for(i=0;i<s.model().nnetwork;i++)
     if(s.model().networks[i].name==name)break;
   ind=i;
@@ -343,7 +343,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root=ivar;
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
-    xpp::log_printf(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
+    xpp::log(XPP_LOG_INFO, " Added net {} type {:d} len={:d} x {:d} using {} var[{:d}] \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
     
     return 1;   
@@ -371,7 +371,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root=ivar;
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
-    xpp::log_printf(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s\n",
+    xpp::log(XPP_LOG_INFO, " Added sparse {} len={:d} x {:d} using {} var[{:d}]  and {}\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     return 1;   
     break;
@@ -400,7 +400,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root2=s.model().networks[ind].f[1];
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
-    xpp::log_printf(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s %s(var[%d],var[%d]) \n",
+    xpp::log(XPP_LOG_INFO, " Added net {} type {:d} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}]) \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1;   
     break;
@@ -428,7 +428,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root2=s.model().networks[ind].f[1];
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
-    xpp::log_printf(XPP_LOG_INFO, " Sparse %s len=%d x %d using %s %s(var[%d],var[%d]) and %s\n",
+    xpp::log(XPP_LOG_INFO, " Sparse {} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}]) and {}\n",
 	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2,indname.c_str() );
     return 1;   
     break;
@@ -473,7 +473,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].ncon=ncon;
     update_fft(s,ind);
 
-    xpp::log_printf(XPP_LOG_INFO, " Added net %s type %d len=%d x %d using %s var[%d] \n",
+    xpp::log(XPP_LOG_INFO, " Added net {} type {:d} len={:d} x {:d} using {} var[{:d}] \n",
 	   name,ntype,ntot,ncon,wgtname.c_str(),ivar);
     return 1;   
     break;
@@ -497,7 +497,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root=ivar;
     s.model().networks[ind].n=ncon;
     s.model().networks[ind].ncon=ntot;
-    xpp::log_printf(XPP_LOG_INFO, " Added mmult %s len=%d x %d using %s var[%d]\n",
+    xpp::log(XPP_LOG_INFO, " Added mmult {} len={:d} x {:d} using {} var[{:d}]\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar );
     return 1;   
     break;
@@ -520,7 +520,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root2=s.model().networks[ind].f[1];
     s.model().networks[ind].n=ncon;
     s.model().networks[ind].ncon=ntot;
-    xpp::log_printf(XPP_LOG_INFO, " Added fmmult %s len=%d x %d using %s %s(var[%d],var[%d])\n",
+    xpp::log(XPP_LOG_INFO, " Added fmmult {} len={:d} x {:d} using {} {}(var[{:d}],var[{:d}])\n",
 	   name,ntot,ncon,wgtname.c_str(),fname.c_str(),ivar,ivar2);
     return 1; 
 
@@ -550,7 +550,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
     s.model().networks[ind].iwgt=ntype;
-    xpp::log_printf(XPP_LOG_INFO, " Added findextr %s: type=%d len=%d  skip= %d using var[%d] \n",
+    xpp::log(XPP_LOG_INFO, " Added findextr {}: type={:d} len={:d}  skip= {:d} using var[{:d}] \n",
 	   name,ntype,ntot,ncon,ivar);
     return 1; 
 
@@ -572,7 +572,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     ivar=next_index(s,args,name,")",rootname,NameKind::variable);
     if(ivar<0)return 0;
     s.model().networks[ind].root=ivar;
-    xpp::log_printf(XPP_LOG_INFO, "Added interpolator %s length %d on %s \n",name,s.model().networks[ind].n,rootname.c_str()); 
+    xpp::log(XPP_LOG_INFO, "Added interpolator {} length {:d} on {} \n",name,s.model().networks[ind].n,rootname.c_str());
     return 1;
 
    case IMPORT:
@@ -601,7 +601,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root=ivar;
     s.model().networks[ind].n=ncon;
     s.model().networks[ind].ncon=ntot;
-    xpp::log_printf(XPP_LOG_INFO, " Added del_mul %s len=%d x %d using %s var[%d] with delay %s\n",
+    xpp::log(XPP_LOG_INFO, " Added del_mul {} len={:d} x {:d} using {} var[{:d}] with delay {}\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str() );
     s.model().ndelays=1;
     return 1;   
@@ -634,7 +634,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].root=ivar;
     s.model().networks[ind].n=ntot;
     s.model().networks[ind].ncon=ncon;
-    xpp::log_printf(XPP_LOG_INFO, " Added sparse %s len=%d x %d using %s var[%d]  and %s with dely %s\n",
+    xpp::log(XPP_LOG_INFO, " Added sparse {} len={:d} x {:d} using {} var[{:d}]  and {} with dely {}\n",
 	   name,ntot,ncon,wgtname.c_str(),ivar,indname.c_str(),tauname.c_str() );
     s.model().ndelays=1;
     return 1;   
@@ -661,7 +661,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     str=args.text(")");
     s.model().networks[ind].type=GILLTYPE;
     if(ivar>0){
-      xpp::log_printf(XPP_LOG_WARN, " Tau leaping not implemented yet. Changing to 0\n");
+      xpp::log(XPP_LOG_WARN, " Tau leaping not implemented yet. Changing to 0\n");
       ivar=0;
     }
     s.model().networks[ind].iwgt=ivar;
@@ -673,7 +673,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
     s.model().networks[ind].ncon=-1;
     /* zeroed: the first output row reads them before the first step */
     s.networks[ind].values.assign(ivar2+2,0.0);
-    xpp::log_printf(XPP_LOG_INFO, "Added gillespie chain with %d reactions \n",ivar2);
+    xpp::log(XPP_LOG_INFO, "Added gillespie chain with {:d} reactions \n",ivar2);
     return 1;
 
   }
@@ -682,7 +682,7 @@ int add_spec_fun(xpp::Session &s, std::string_view name_text, char *rhs)
 void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
 {
   if(is_network(rhs)){
-    xpp::log_printf(XPP_LOG_DEBUG, " netrhs = |%s| \n",rhs);
+    xpp::log(XPP_LOG_DEBUG, " netrhs = |{}| \n",rhs);
     if(s.model().nnetwork>=MAXNET){
       return;
     }
@@ -691,7 +691,7 @@ void add_special_name(xpp::Session &s, std::string_view name, char *rhs)
     s.model().nnetwork++;
   }
   else
-    xpp::log_printf(XPP_LOG_WARN, " No such special type ...\n");
+    xpp::log(XPP_LOG_WARN, " No such special type ...\n");
 }
 
 int is_network(char *s)

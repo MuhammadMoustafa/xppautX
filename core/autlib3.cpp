@@ -2532,8 +2532,8 @@ stpnpl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp::log_auto_printf("Warning : NPARX too small for restart data\n");
-    xpp::log_auto_printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp::log_auto("Warning : NPARX too small for restart data\n");
+    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -2927,8 +2927,8 @@ stpnpd(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp::log_auto_printf("Warning : NPARX too small for restart data\n");
-    xpp::log_auto_printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp::log_auto("Warning : NPARX too small for restart data\n");
+    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -3355,8 +3355,8 @@ stpntr(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp::log_auto_printf("Warning : NPARX too small for restart data\n");
-    xpp::log_auto_printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp::log_auto("Warning : NPARX too small for restart data\n");
+    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;
@@ -3851,8 +3851,8 @@ stpnpo(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
   /* Read the parameter values. */
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp::log_auto_printf("Warning : NPARX too small for restart data\n");
-    xpp::log_auto_printf("PAR(i) set to zero, fot i > %3ld\n",nparr);
+    xpp::log_auto("Warning : NPARX too small for restart data\n");
+    xpp::log_auto("PAR(i) set to zero, fot i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) goto read_failed;
@@ -4426,8 +4426,8 @@ stpnbl(iap_type *iap, rap_type *rap, doublereal *par, integer *icp, integer *nts
 
   if (nparr > NPARX) {
     nparr = NPARX;
-    xpp::log_auto_printf("Warning : NPARX too small for restart data\n");
-    xpp::log_auto_printf("PAR(i) set to zero, for i > %3ld\n",nparr);
+    xpp::log_auto("Warning : NPARX too small for restart data\n");
+    xpp::log_auto("PAR(i) set to zero, for i > {:3d}\n",nparr);
   }
   for (i = 0; i < nparr; ++i) {
     if (!tr.read(par[i])) return 1;

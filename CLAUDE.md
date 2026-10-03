@@ -679,12 +679,10 @@ pool with room, saying which in the batch proposal.
   output goes to
   `--logfile`'s file if given, else stderr, which browser mode shows in the
   page's log. There is no `plintf()` any more (retired at W25, ~620
-  call sites): code prefers `xpp::log` (std::format-checked, same idea as
-  xpp::format in xpp_io.h) whenever the format string converts
-  mechanically, and falls back to `xpp::log_printf(level, fmt, ...)`
-  (printf's, its format checked by the compiler's format attribute) for a
-  dynamic width/precision (`%*s`, `%.*s`) or a pointer destination
-  (W109a renamed the C `xpp_log` to it).
+  call sites): there is one logging call, `xpp::log`, checked with
+  std::format like xpp::format in xpp_io.h. Dynamic widths and precisions
+  use nested replacement fields (`{:{}}`, `{:.{}}`); AUTO uses the same
+  checked formatting through `xpp::log_auto` (W172, #224).
   `err_msg()`'s headless default is ERROR. An INFO message additionally
   honours the model's own `@ quiet=1` (`xpp::log_settings.verbose`), what
   plintf() used to gate itself on. Picking a level for a new message:
@@ -944,7 +942,7 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   boundary C++ types, rename the callers (a function's module prefix
   becomes its namespace: `xpp_files_exists` is `xpp::files::exists`,
   `xpp_job_cancelled` `xpp::job::cancelled`, `xpp_log` is
-  `xpp::log_printf`). Each stage was timed before and after (examples_check's
+  `xpp::log`). Each stage was timed before and after (examples_check's
   wall time, kuramot100.ode --silent, an AUTO run, and callgrind's
   instruction counts for the last two, which do not depend on code
   layout): a stage slower beyond the noise was not merged, and if C++

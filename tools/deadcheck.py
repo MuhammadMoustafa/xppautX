@@ -630,7 +630,7 @@ CODE_LINE_RES = [re.compile(p) for p in [
     r"^(?:static\s+|extern\s+|const\s+)*(?:int|double|float|char|long|void|FILE|integer|doublereal|unsigned|short)\b[\w\s*,\[\]=.()+-]*[;{]\s*$",
     r"^#\s*(?:include|define|if|ifdef|ifndef|endif|else)\b",
     r"^case\s+[\w']+\s*:.*$",
-    r"^(?:printf|fprintf|plintf|sprintf|xpp_log|xpp::log_printf|xpp::log)\s*\(",
+    r"^(?:printf|fprintf|plintf|sprintf|xpp_log|xpp::log)\s*\(",
     r"^[A-Za-z_][\w.>-]*\s*\([^;]*\)\s*\{\s*$",                                   # a definition's head
     r"^[\w\s,()*]*\);\s*$",                                                        # a call's last line
 ]]

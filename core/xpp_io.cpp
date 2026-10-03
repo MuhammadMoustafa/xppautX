@@ -210,8 +210,7 @@ Ptr writer_open(std::string_view path, bool binary)
         if (!w->fp) return nullptr;
         return w;
     } catch (...) {
-        xpp::log_printf(XPP_LOG_ERROR, "out of memory opening %.*s for writing\n", static_cast<int>(path.size()),
-                        path.data());
+        xpp::log(XPP_LOG_ERROR, "out of memory opening {} for writing\n", path);
         return nullptr;
     }
 }
@@ -396,7 +395,7 @@ void Writer::abort() noexcept
 
 void format_failed(const char *file, int line) noexcept
 {
-    xpp::log_printf(XPP_LOG_ERROR, "out of memory formatting a string at %s:%d\n", file, line);
+    xpp::log(XPP_LOG_ERROR, "out of memory formatting a string at {}:{:d}\n", file, line);
     std::exit(1);
 }
 
