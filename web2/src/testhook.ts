@@ -17,10 +17,6 @@ import {autoWindow} from './store/diagram';
 import {options} from 'preact';
 
 const KEEP = 200;
-/* the commands sent are kept far longer: a check notes sent().length and later reads
-   slice(that), which a full list that drops its oldest entry turns into [] (a long session
-   passed 200 sent commands before the Values checks) */
-const KEEP_SENT = 5000;
 
 export function installTestHook(session: Session): void {
   /* W166: acknowledge the actual render/effect callbacks, including local
@@ -28,10 +24,10 @@ export function installTestHook(session: Session): void {
      The checker opts in before the document loads (cdp.mjs); ordinary
      pages retain Preact's own scheduling, including hidden-tab timers. */
   let renders = 0, effects = 0;
-  const renderLater = options.debounceRendering ?? (fn => { void Promise.resolve().then(fn); });
-  const effectLater = options.requestAnimationFrame ?? requestAnimationFrame;
   const renderingObserved = !!(window as unknown as {__xppCheckRendering?: boolean}).__xppCheckRendering;
   if (renderingObserved) {
+    const renderLater = options.debounceRendering ?? (fn => { void Promise.resolve().then(fn); });
+    const effectLater = options.requestAnimationFrame ?? requestAnimationFrame;
     options.debounceRendering = fn => {
       renders++;
       renderLater(() => { try { fn(); } finally { renders--; } });
@@ -43,6 +39,10 @@ export function installTestHook(session: Session): void {
   }
   const actions: string[] = [];
   const sent: unknown[] = [];
+  /* how many sent commands the list dropped, so a count taken before an action stays an
+     index into it however long the session (W166: a list stuck at KEEP made the slice after
+     a full run's 200th command always empty) */
+  let sentDropped = 0;
   /* the `diagram` events as they came, so a test can rebuild the diagram on its
      own: from the last that started it over (a reset to no points), for AUTO's
      window as it is now */
@@ -67,7 +67,7 @@ export function installTestHook(session: Session): void {
     }
     if (a.type === 'sent') {
       sent.push(a.cmd);
-      if (sent.length > KEEP_SENT) sent.shift();
+      if (sent.length > KEEP) { sent.shift(); sentDropped++; }
     }
     const shown = session.store.getState().kinescope.shown;
     dispatch(a);
@@ -85,6 +85,13 @@ export function installTestHook(session: Session): void {
     log: () => logEntries(session.store.getState().log),
     actions: () => actions.slice(),
     sent: () => sent.slice(),
+    /** how many commands the page has sent, all told: the mark for sentFrom */
+    sentCount: () => sentDropped + sent.length,
+    /** the commands sent since sentCount() was `mark`; an error if some were already dropped */
+    sentFrom: (mark: number) => {
+      if (mark < sentDropped) throw new Error(`sentFrom(${mark}): the commands before ${sentDropped} were dropped`);
+      return sent.slice(mark - sentDropped);
+    },
     /** window `win`'s chart (the active window's by default) */
     plot: (win?: number) => chartOf(win ?? session.store.getState().plots.active)?.info() ?? null,
     /** view `view` of the AUTO diagram's chart (the active view's by default): its curves, label

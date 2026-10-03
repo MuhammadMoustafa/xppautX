@@ -45,3 +45,22 @@ test('W166: rendering acknowledgement waits for nested renders and effects, incl
     else Reflect.deleteProperty(globalThis, 'window');
   }
 });
+
+test('W166: a mark from sentCount stays an index into the sent commands past the kept 200', () => {
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const page = {__xpp: undefined as unknown as {sentCount: () => number, sentFrom: (mark: number) => unknown[]}};
+  Object.defineProperty(globalThis, 'window', {configurable: true, value: page});
+  try {
+    const session = new Session({send: () => {}, close: () => {}, open: () => {}});
+    installTestHook(session);
+    for (let i = 0; i < 250; i++) session.store.dispatch({type: 'sent', cmd: {cmd: 'key', key: String(i)}});
+    const mark = page.__xpp.sentCount();
+    assert.equal(mark, 250);
+    session.store.dispatch({type: 'sent', cmd: {cmd: 'set', key: 'after'}});
+    assert.deepEqual(page.__xpp.sentFrom(mark), [{cmd: 'set', key: 'after'}]);
+    assert.throws(() => page.__xpp.sentFrom(10), /dropped/, 'a mark older than the kept commands is an error, never []');
+  } finally {
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
