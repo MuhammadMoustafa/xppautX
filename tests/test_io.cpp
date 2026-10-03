@@ -115,7 +115,6 @@ int main(void)
 
     /* failed open: a path that cannot exist */
     CHECK(!xpp::LineReader("no/such/directory/file.txt"));
-    CHECK(!xpp::TokenReader("no/such/directory/file.txt"));
 
     /* empty file: no lines at all */
     {
@@ -185,9 +184,7 @@ int main(void)
        strtod on the same token agreeing with the double read; a token
        that is no number is no read */
     {
-        TempFile tf("test_io_tok.tmp");
-        write_raw(tf.c_str(), "  3.5 -7 hello   1e3\n");
-        xpp::TokenReader r(tf.c_str());
+        xpp::TokenReader r = xpp::TokenReader::of_text("  3.5 -7 hello   1e3\n");
         CHECK(static_cast<bool>(r));
         double d;
         int i;
@@ -201,42 +198,18 @@ int main(void)
         CHECK(!r.read(d)); /* end of file */
     }
 
-    /* line(): the line of the last character read, for an error's place
-       (W140b): the token that is no number, and the last line at the end */
+    /* the whitespace after a token stays in an attached stream */
     {
         TempFile tf("test_io_tok.tmp");
-        write_raw(tf.c_str(), "1 2\n3 4\n5 x\n6\n\n");
-        xpp::TokenReader r(tf.c_str());
-        double d;
-        CHECK(r.line() == 0);
-        for (int k = 0; k < 5; k++) CHECK(r.read(d));
-        CHECK(r.line() == 3);
-        CHECK(!r.read(d)); /* "x" */
-        CHECK(r.line() == 3);
-        CHECK(r.read(d) && d == 6);
-        CHECK(r.line() == 4);
-        CHECK(!r.read(d)); /* end of file: the blank lines read */
-        CHECK(r.line() == 5);
-        CHECK(r.read(d) == false && r.line() == 5); /* line() leaves the reader where it was */
-    }
-
-    /* a float token reads as fscanf "%g" reads it (rounded straight to
-       float), and the whitespace after a token stays in the stream */
-    {
-        TempFile tf("test_io_tok.tmp");
-        write_raw(tf.c_str(), "0.1 16777217 2.5\nnext\n");
+        write_raw(tf.c_str(), "0.1 2.5\nnext\n");
         std::FILE *fp = std::fopen(tf.c_str(), "r");
         CHECK(fp != NULL);
-        float a, b, sa, sb;
+        double a, b;
         xpp::TokenReader r = xpp::TokenReader::attach(fp);
-        CHECK(r.read(a));
-        CHECK(r.read(b));
-        CHECK(r.read(sa));
+        CHECK(r.read(a) && a == 0.1);
+        CHECK(r.read(b) && b == 2.5);
         CHECK(std::fgetc(fp) == '\n');
         r.close();
-        std::rewind(fp);
-        CHECK(std::fscanf(fp, "%g %g", &sa, &sb) == 2);
-        CHECK(a == sa && b == sb);
         std::fclose(fp);
     }
 

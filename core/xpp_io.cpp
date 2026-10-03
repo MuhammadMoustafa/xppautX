@@ -42,28 +42,15 @@ struct xpp::LineReader::State {
 };
 
 struct xpp::TokenReader::State {
-    xpp::UniqueFile owned;
     std::FILE *attached = nullptr;
-    std::FILE *fp() const noexcept { return owned ? owned.get() : attached; }
+    std::FILE *fp() const noexcept { return attached; }
     std::string_view text;
     std::size_t pos = 0;
     bool text_mode = false;
     bool has_input() const noexcept { return fp() || text_mode; }
-    /* the newlines read, the last two characters read (EOF: none) and
-       whether one was: line() (no ftell, which a text stream on Windows
-       miscounts) */
-    int newlines = 0;
-    int last = EOF, before_last = EOF;
-    bool read_any = false;
     int get() noexcept
     {
-        const int c = text_mode ? (pos < text.size() ? static_cast<unsigned char>(text[pos++]) : EOF) : std::fgetc(fp());
-        if (c == EOF) return c;
-        before_last = last;
-        last = c;
-        read_any = true;
-        if (c == '\n') newlines++;
-        return c;
+        return text_mode ? (pos < text.size() ? static_cast<unsigned char>(text[pos++]) : EOF) : std::fgetc(fp());
     }
     /* c, the last character read, back to the stream (one at a time) */
     void unget(int c) noexcept
@@ -71,9 +58,6 @@ struct xpp::TokenReader::State {
         if (c == EOF) return;
         if (text_mode) --pos;
         else std::ungetc(c, fp());
-        if (c == '\n') newlines--;
-        last = before_last;
-        before_last = EOF;
     }
 };
 
@@ -284,8 +268,6 @@ std::string LineReader::line(int n)
 
 void TokenReader::Free::operator()(State *s) const noexcept { delete s; }
 
-TokenReader::TokenReader(std::string_view path) noexcept : state_(opened_state<decltype(state_)>(path)) {}
-
 TokenReader TokenReader::attach(FILE *fp) noexcept
 {
     TokenReader t;
@@ -313,13 +295,6 @@ bool TokenReader::at_end() noexcept
 bool TokenReader::read(double &x) noexcept
 {
     return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtod(s, e); });
-}
-
-/* strtof, not (float)strtod: fscanf "%f"/"%g" rounds the decimal
-   straight to float, and rounding through double first can differ. */
-bool TokenReader::read(float &x) noexcept
-{
-    return read_number(state_.get(), x, [](const char *s, char **e) { return std::strtof(s, e); });
 }
 
 bool TokenReader::read(int &x) noexcept
@@ -356,13 +331,6 @@ bool TokenReader::read(long &x) noexcept
     errno = 0;
     x = std::strtol(num.c_str(), nullptr, 10);
     return errno != ERANGE;
-}
-
-int TokenReader::line() const noexcept
-{
-    if (!state_ || !state_->read_any) return 0;
-    /* the newlines before the last character read */
-    return 1 + state_->newlines - (state_->last == '\n' ? 1 : 0);
 }
 
 bool TokenReader::skip_line() noexcept

@@ -301,7 +301,7 @@ using UniqueFile = std::unique_ptr<FILE, FileCloser>;
 
 /* path opened for reading, text ("r") or binary ("rb"); empty (false)
    when it cannot be. Lines and numbers are read with LineReader and
-   TokenReader below, which open their own. */
+   LineReader below, which opens its own. */
 inline UniqueFile open_read(std::string_view path) noexcept { return UniqueFile(xpp::files::open_stream(path, "r")); }
 inline UniqueFile open_read_binary(std::string_view path) noexcept
 {
@@ -386,10 +386,9 @@ private:
 
 /* Whitespace-separated tokens, the fscanf "%lg"/"%g"/"%d" equivalents, the
    conversion picked by the type read into: read(double&) is fscanf "%lg"
-   (also "%le"/"%lf"), read(float&) "%g" (strtof, rounded straight to
-   float as fscanf does), read(int&) "%d": each skips leading whitespace,
+   (also "%le"/"%lf"), read(int&) "%d": each skips leading whitespace,
    then reads the run of non-whitespace characters (the token) and
-   converts it with strtod/strtof/strtol, so a value read here and
+   converts it with strtod/strtol, so a value read here and
    strtod(token) agree. Every value in the files this reads is
    whitespace/newline separated (never comma or other punctuation), where
    a whitespace-delimited token is exactly what fscanf's own grammar would
@@ -407,7 +406,6 @@ private:
 class TokenReader {
 public:
     TokenReader() noexcept = default;
-    explicit TokenReader(std::string_view path) noexcept;
     static TokenReader attach(FILE *fp) noexcept;
     /* Borrow text for this reader's lifetime, using the same token grammar. */
     static TokenReader of_text(std::string_view text) noexcept;
@@ -419,14 +417,9 @@ public:
     TokenReader &operator=(TokenReader &&o) noexcept = default;
     explicit operator bool() const noexcept { return state_ != nullptr; }
     bool read(double &x) noexcept;
-    bool read(float &x) noexcept;
     bool read(int &x) noexcept;
     bool read(long &x) noexcept;
     bool skip_line() noexcept;
-    /* the line (from 1) of the last character read, for an error's place
-       (xpp_error.h); 0 when nothing was read. An attached stream's lines
-       count from where it was when attached. */
-    int line() const noexcept;
     void close() noexcept { state_.reset(); }
     struct State;
     struct Free {
