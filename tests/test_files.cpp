@@ -26,6 +26,8 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <process.h>
+#include <io.h>
+#include <cerrno>
 #else
 #include <unistd.h>
 #endif
@@ -206,6 +208,50 @@ int main()
 #endif
     CHECK(xpp::files::open("sub", fp, size) == XPP_FILES_REFUSED);
     CHECK(xpp::files::put_begin("sub", 100, put) == XPP_FILES_REFUSED);
+#ifdef _WIN32
+    /* Exercise the handle check directly, without a pathname precheck. */
+    int fd = xpp::win32::open_plain("a.bin", false, true, size);
+    CHECK(fd >= 0 && size == 3);
+    if (fd >= 0) _close(fd);
+    for (const char *name : {"sub", "NUL"}) {
+        fd = xpp::win32::open_plain(name, false, true, size);
+        CHECK(fd < 0 && errno == ELOOP);
+        if (fd >= 0) _close(fd);
+    }
+    /* Junctions need no symlink privilege; only fixed test names reach cmd. */
+    const intptr_t junction = _spawnlp(_P_WAIT, "cmd.exe", "cmd.exe", "/c",
+                                     "mklink /J link.txt sub >NUL", nullptr);
+    CHECK(junction == 0);
+    if (junction == 0) {
+        fd = xpp::win32::open_plain("link.txt", false, true, size);
+        CHECK(fd < 0 && errno == ELOOP);
+        if (fd >= 0) _close(fd);
+        CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
+        CHECK(xpp::files::create_new("link.txt", true) == nullptr);
+        CHECK(_rmdir("link.txt") == 0);
+    }
+    const intptr_t symlink = _spawnlp(_P_WAIT, "cmd.exe", "cmd.exe", "/c",
+                                     "mklink link.txt a.bin >symlink-result.txt 2>&1", nullptr);
+    CHECK(symlink >= 0);
+    if (symlink != 0) {
+        std::printf("SKIP Windows file symlink: %s (junction tested)\n", slurp("symlink-result.txt").c_str());
+    } else {
+        fd = xpp::win32::open_plain("link.txt", false, true, size);
+        CHECK(fd < 0 && errno == ELOOP);
+        if (fd >= 0) _close(fd);
+        CHECK(xpp::files::open("link.txt", fp, size) == XPP_FILES_REFUSED && !fp);
+        CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
+        CHECK(xpp::files::create_new("link.txt", true) == nullptr);
+        CHECK(std::filesystem::remove("link.txt"));
+    }
+    CHECK(std::remove("symlink-result.txt") == 0);
+    fp = xpp::files::create_new("exclusive.txt", false);
+    CHECK(fp != nullptr);
+    if (fp) { CHECK(std::fputs("line\n", fp) >= 0); std::fclose(fp); }
+    CHECK(xpp::files::create_new("exclusive.txt", true) == nullptr);
+    CHECK(slurp("exclusive.txt") == "line\r\n");
+    CHECK(std::remove("exclusive.txt") == 0);
+#endif
 #ifndef _WIN32
     /* a link is neither followed nor replaced */
     CHECK(symlink("/etc/hostname", "link.txt") == 0);

@@ -19,6 +19,10 @@ std::optional<std::string> read_stdin_line(int seconds, size_t cap);
 void binary_mode(int fd); /* no \r\n translation */
 /* true when path is a symbolic link or another reparse point (a junction) */
 bool path_is_link(const char *path);
+/* Open the final component itself, refuse reparse points/non-regular files,
+   and return a CRT fd and size from that same handle; -1 sets errno.
+   create means exclusive creation; binary selects the CRT translation mode. */
+int open_plain(const char *path, bool create, bool binary, unsigned long long &size);
 /* rename from to to, replacing to when it exists (rename() does not);
    true on success */
 bool move_over(const char *from, const char *to);

@@ -1606,8 +1606,15 @@ trailing dot or space, no control characters, none of `: * ? " < > |`
 (which also refuses drive letters), not a Windows device name (`CON`,
 `NUL`, `COM1`, ...), at most 255 bytes. Anything else is refused (400, or
 `ok` 0). A name that is a symbolic link, a folder or anything but a plain
-file is refused too (403): nothing outside the folder is reached through
-it. The server listens on 127.0.0.1 only.
+file is refused too (403). On Windows the open does not follow the final
+component: its own handle is checked for reparse points (including
+junctions), directories and non-disk files before it is read; exclusive
+temporary-file creation uses the same check (W174,
+[#226](https://github.com/MuhammadMoustafa/xppautX/issues/226)). Replacing
+the name after that open cannot redirect the handle. This does not protect
+against hard links, changes to a regular file's contents, or replacement
+of an ancestor folder by someone with filesystem write access. The server
+listens on 127.0.0.1 only.
 
 ### The animation as data
 

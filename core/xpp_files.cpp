@@ -36,9 +36,6 @@
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
-#ifndef O_NOFOLLOW
-#define O_NOFOLLOW 0
-#endif
 #ifndef O_NONBLOCK
 #define O_NONBLOCK 0
 #endif
@@ -96,11 +93,15 @@ int kind_of(const char *name, Stat *st)
 
 int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
 {
+#ifdef _WIN32
+    int fd = xpp::win32::open_plain(name, false, true, size);
+#else
     Stat st;
     int k = kind_of(name, &st);
     if (k != XPP_FILES_OK) return k;
     /* O_NOFOLLOW: a link made between the check and the open is not followed */
     int fd = ::open(name, O_RDONLY | O_BINARY | O_NOFOLLOW | O_NONBLOCK);
+#endif
     if (fd < 0) return errno == ENOENT ? XPP_FILES_NOT_FOUND : errno == ELOOP ? XPP_FILES_REFUSED : XPP_FILES_IO;
 #ifndef _WIN32
     struct stat fst;
@@ -116,7 +117,9 @@ int open_plain(const char *name, xpp::UniqueFile &fp, unsigned long long &size)
         close(fd);
         return XPP_FILES_IO;
     }
+#ifndef _WIN32
     size = static_cast<unsigned long long>(st.st_size);
+#endif
     return XPP_FILES_OK;
 }
 
@@ -561,7 +564,12 @@ FILE *create_new(std::string_view path_view, bool binary)
 {
     if (!write_path_ok(path_view)) return nullptr;
     const std::string path(path_view);
+#ifdef _WIN32
+    unsigned long long size;
+    int fd = xpp::win32::open_plain(path.c_str(), true, binary, size);
+#else
     int fd = ::open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | (binary ? O_BINARY : O_TEXT), 0666);
+#endif
     if (fd < 0) return nullptr;
     FILE *fp = fdopen(fd, binary ? "wb" : "w");
     if (!fp) {

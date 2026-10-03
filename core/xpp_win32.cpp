@@ -13,6 +13,8 @@
 #include "xpp_win32.h"
 #include <array>
 #include <string>
+#include <cerrno>
+#include <cstdint>
 
 namespace xpp::win32 {
 
@@ -88,6 +90,42 @@ bool path_is_link(const char *path)
 {
     DWORD a = GetFileAttributesA(path);
     return a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+int open_plain(const char *path, bool create, bool binary, unsigned long long &size)
+{
+    /* Match the narrow CRT/GetFileAttributesA paths used by xpp_files;
+       the window's UTF-8 converter serves a different encoding boundary. */
+    const int n = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, path, -1, nullptr, 0);
+    if (!n) { errno = EINVAL; return -1; }
+    std::wstring wide(static_cast<size_t>(n), L'\0');
+    if (!MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, path, -1, wide.data(), n)) {
+        errno = EINVAL;
+        return -1;
+    }
+    HANDLE h = CreateFileW(wide.c_str(), create ? GENERIC_WRITE : GENERIC_READ,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                          create ? CREATE_NEW : OPEN_EXISTING,
+                          FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        const DWORD e = GetLastError();
+        errno = e == ERROR_FILE_NOT_FOUND || e == ERROR_PATH_NOT_FOUND ? ENOENT
+              : e == ERROR_FILE_EXISTS || e == ERROR_ALREADY_EXISTS ? EEXIST
+              : e == ERROR_ACCESS_DENIED || e == ERROR_SHARING_VIOLATION ? EACCES : EIO;
+        return -1;
+    }
+    BY_HANDLE_FILE_INFORMATION info;
+    if (!GetFileInformationByHandle(h, &info) || GetFileType(h) != FILE_TYPE_DISK
+        || (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY))) {
+        CloseHandle(h);
+        errno = ELOOP; /* xpp_files maps a refused handle to its plain-file error. */
+        return -1;
+    }
+    size = (static_cast<unsigned long long>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
+    const int fd = _open_osfhandle(reinterpret_cast<intptr_t>(h),
+                                 (create ? _O_WRONLY : _O_RDONLY) | (binary ? _O_BINARY : _O_TEXT));
+    if (fd < 0) CloseHandle(h); /* A successful conversion transfers ownership to the CRT. */
+    return fd;
 }
 
 /* Another process may hold the target open for a moment, an antivirus or
