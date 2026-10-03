@@ -1147,7 +1147,7 @@ bool open_in_browser(const std::string &url)
     opener = "open";
 #endif
     if (getenv("WSL_DISTRO_NAME")) opener = "cmd.exe /c start";
-    std::string cmd = xpp::format("{} '{}' >/dev/null 2>&1 &", opener, url);
+    std::string cmd = xpp::format("{} '{}' >/dev/null 2>&1", opener, url);
     return system(cmd.c_str()) == 0;
 #endif
 }
@@ -1223,18 +1223,18 @@ namespace xpp::http {
 
 xpp::Result<> open_release_page(std::string_view url)
 {
-    constexpr std::string_view PREFIX = "https://github.com/MuhammadMoustafa/xppautX/releases/";
+    constexpr std::string_view PREFIX = "https://github.com/MuhammadMoustafa/xppautX/releases/tag/";
     constexpr size_t URL_LIMIT = 256; /* a release tag page needs no long query or fragment */
     const auto refused = [] {
         return xpp::fail("update check", "release URL refused", xpp::Place{"Check for updates", 1});
     };
     if (url.size() > URL_LIMIT || !url.starts_with(PREFIX)) return refused();
     const std::string_view tail = url.substr(PREFIX.size());
-    /* Strict path alphabet: no shell quotes, escapes, query, fragment, traversal or program scheme. */
-    if (tail.empty() || tail.find("..") != std::string_view::npos) return refused();
+    /* One tag segment only: no assets or other release routes. Strict path alphabet: no shell quotes, escapes, query, fragment, traversal or program scheme. */
+    if (tail.empty() || tail == "." || tail.find("..") != std::string_view::npos) return refused();
     for (char c : tail)
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-              || c == '/' || c == '.' || c == '-' || c == '_')) return refused();
+              || c == '.' || c == '-' || c == '_')) return refused();
     if (!open_in_browser(std::string(url)))
         return xpp::fail("update check", "the system browser could not open", xpp::Place{"Check for updates", 1});
     return {};

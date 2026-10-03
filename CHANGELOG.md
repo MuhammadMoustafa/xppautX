@@ -11,6 +11,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Build
 
+- Update checks refuse direct asset URLs, report opener failures, allow retry after closing a pending check, and show the actual error source (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)).
 - Embed the page, icon and Linux window library as C++ spans; remove the remaining project C generators and their C linkage (W173, [#225](https://github.com/MuhammadMoustafa/xppautX/issues/225)).
 
 ### Added

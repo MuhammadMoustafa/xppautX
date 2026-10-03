@@ -100,7 +100,7 @@ wait_for_output() {
 # start xppautX with $@ in $tmp (and env's $ENVS), wait for its XPP: line (at most 10 s)
 start() {
   rm -f "$tmp/out" "$tmp/opened"
-  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="$tmp/bin:$PATH" "$BIN" "$@" lecar.odex > out 2>&1 ) &
+  ( cd "$tmp" && exec env -u WSL_DISTRO_NAME $ENVS PATH="${OPENER_PATH:-$tmp/bin:$PATH}" "$BIN" "$@" lecar.odex > out 2>&1 ) &
   pid=$!
   wait_for_output '^XPP: http' "$tmp/out" || bad "startup did not print an address"
   url=$(sed -n 's/^XPP: \(http:[^ ]*\).*/\1/p' "$tmp/out" | head -1)
@@ -114,6 +114,30 @@ stop() {
 if [ $windows -eq 1 ]; then
   echo "SKIP --browser: Windows opens it with ShellExecute, not a stand-in on PATH"
 else
+  # W176: a nonzero opener exit must be observed, rather than a successful background shell.
+  for opener in xdg-open open; do
+    printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$opener"
+  done
+  start --browser --port 0
+  if wait_for_output 'open http.*in a browser' "$tmp/out"; then
+    pass "failed opener is reported"
+  else
+    bad "failed opener was reported as success"
+  fi
+  stop
+  mkdir "$tmp/missing"
+  OPENER_PATH="$tmp/missing"
+  start --browser --port 0
+  if wait_for_output 'open http.*in a browser' "$tmp/out"; then
+    pass "missing opener is reported"
+  else
+    bad "missing opener was reported as success"
+  fi
+  stop
+  unset OPENER_PATH
+  for opener in xdg-open open; do
+    printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/bin/$opener"
+  done
   start --browser --port 0
   wait_for_output . "$tmp/opened" || bad "the opener did not write its address"
   case "$url" in
