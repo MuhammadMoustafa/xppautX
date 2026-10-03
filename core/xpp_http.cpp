@@ -94,7 +94,7 @@ constexpr const char *BAD_TOKEN = "bad token"; /* one response for every protect
 constexpr int MAX_CLIENTS = 16; /* bound simultaneous event streams and their socket storage */
 constexpr int MAX_WINDOWS = 32; /* bound window events retained for reconnecting pages */
 constexpr size_t LOG_KEEP = 100000; /* bound printed text retained for reconnecting pages */
-constexpr size_t CHUNK = 65536; /* bound socket sends, file transfers and the Windows log pipe buffer */
+constexpr size_t CHUNK = 65536; /* bound each socket send and file transfer step */
 
 /* a window's create event, replayed to a page that (re)connects */
 struct WindowLine {
@@ -1194,7 +1194,8 @@ void start_serving(int got, bool show, bool open)
     orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
     if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
 #ifdef _WIN32
-    if (_pipe(log_pipe.data(), CHUNK, _O_BINARY | _O_NOINHERIT) == 0) {
+    constexpr unsigned LOG_PIPE_BYTES = 65536; /* the log pipe's buffer: printed text waits here for log_main */
+    if (_pipe(log_pipe.data(), LOG_PIPE_BYTES, _O_BINARY | _O_NOINHERIT) == 0) {
 #else
     if (pipe(log_pipe.data()) == 0) {
 #endif
