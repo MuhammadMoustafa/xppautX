@@ -17,6 +17,11 @@ namespace {
 /* the index @ of a vector formula (INDXCOM) */
 constexpr double CurrentIndex=0;
 
+/* eval_rpn starts a 4 KiB page of code (W111): where it fell within a page
+   swung kuramot100's run time by 9% with the same instructions, so any
+   unrelated change moved the timings; pinned there it no longer moves */
+constexpr int EvalRpnAlignment=4096;
+
 /* Runs program equat on p's stacks and returns the value on top at its
    end (ENDEXP, or ENDSUM for the part SUMSYM runs).
 
@@ -28,7 +33,7 @@ constexpr double CurrentIndex=0;
    follows here goes on from where that left it, as it always has. The
    built-in function tables (fun1, fun2) never evaluate a program, so
    their calls need no write-back. */
-double eval_rpn(const int *equat, xpp::Session &s)
+[[gnu::aligned(EvalRpnAlignment)]] double eval_rpn(const int *equat, xpp::Session &s)
 {
   ParserState &p=s.parser;
    int i,it,in,j;
