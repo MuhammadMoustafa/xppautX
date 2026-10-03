@@ -384,26 +384,28 @@ def section_input():
           'idles %d, iapp %s' % (idles, iapp))
 
     if sys.platform != 'win32':
-        check('an idle server blocks every thread waiting for input', wait_until(lambda: input_blocked(s.proc.pid)))
+        seen = {}
+        check('an idle server blocks every thread waiting for input', wait_until(lambda: input_blocked(s.proc.pid, seen)),
+              'last thread states read:\n' + seen.get('states', ''))
     s.close()
 
 
-def input_blocked(pid):
-    """The OS's sleeping state proves the idle reader blocks, without a CPU/time budget."""
+def input_blocked(pid, seen):
+    """The OS's sleeping state proves the idle reader blocks, without a CPU/time budget.
+    seen['states'] keeps what was last read, for the check's failure."""
     tasks = '/proc/%d/task' % pid
     if os.path.isdir(tasks):
         states = []
         for task in os.listdir(tasks):
             with open(os.path.join(tasks, task, 'stat')) as f:
                 states.append(f.read().rsplit(')', 1)[1].split()[0])
+        seen['states'] = ' '.join(states)
         return bool(states) and all(state == 'S' for state in states)
     out = subprocess.run(['ps', '-M', '-p', str(pid)], capture_output=True, text=True, check=True)
     states = macos_thread_states(out.stdout)
     # Darwin also calls a sleeping thread I (idle); both prove it blocks.
-    blocked = bool(states) and all(state.startswith(('S', 'I')) for state in states)
-    if not blocked:
-        print(out.stdout, end='')
-    return blocked
+    seen['states'] = out.stdout
+    return bool(states) and all(state.startswith(('S', 'I')) for state in states)
 
 
 # ---- abort: a long AUTO run stops at once, and can be continued ------------
