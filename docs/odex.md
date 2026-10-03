@@ -100,6 +100,8 @@ grammar:
 - `@ NAME = VALUE, NAME = VALUE, ...` — options, comma-separated, each
   parsed independently and never silently dropped; a bad value is an
   error naming the option and the bad text, not a silent truncation.
+  Filename values include `~`, as in Windows 8.3 paths
+  (`@ logfile=C:/Users/RUNNER~1/out.dat`; W169, #221).
   `meth` also accepts the full solver names, including spaces and
   parentheses (`@ meth=Mod. Euler`, `@ meth=DoPri8(3)`); the whole value
   ends at a comma or the end of its line and must name a suitable solver

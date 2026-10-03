@@ -7,11 +7,33 @@
    have been without saving at all. */
 #include "xpptest.h"
 #include "xpp_math.h"
+#include "random_state.h"
 
 #include <cstring>
+#include <random>
 
 int main(void)
 {
+    /* A Windows literal must load identically with libc++ and libstdc++;
+       a round-trip alone cannot detect implementation-defined streams. */
+    xpp::Random portable;
+    CHECK(portable.load(WINDOWS_STATE));
+    CHECK(portable.save() == WINDOWS_STATE);
+    CHECK(portable.normal(0.0, 1.0) == 0.125);
+    for (double expected : WINDOWS_NEXT) CHECK(portable.uniform() == expected);
+    std::mt19937_64 reference(7);
+    portable.seed(7);
+    constexpr int CROSS_TWISTS = 1000; /* crosses three MT state boundaries */
+    for (int i = 0; i < CROSS_TWISTS; ++i)
+        CHECK(portable.uniform() == (static_cast<double>(reference() >> 11) + 0.5) * 0x1.0p-53);
+    const std::string untouched = portable.save();
+    CHECK(!portable.load(std::string(WINDOWS_STATE) + " extra"));
+    std::string foreign_layout = WINDOWS_STATE;
+    foreign_layout.erase(foreign_layout.rfind(" 10 1 0.125"), 3); /* libc++ has no array index */
+    CHECK(!portable.load(foreign_layout));
+    CHECK(!portable.load("-1 " + std::string(WINDOWS_STATE)));
+    CHECK(portable.save() == untouched);
+
     /* xpp::next_seed(seed) is deterministic in seed alone */
     CHECK(xpp::next_seed(42) == xpp::next_seed(42));
     CHECK(xpp::next_seed(42) != xpp::next_seed(43));

@@ -43,6 +43,10 @@ else
   NPROC=4
 fi
 mkdir -p build || exit 1
+if ! python3 tools/cishardcheck.py; then
+  echo "CI SHARD CHECK FAILED"
+  exit 1
+fi
 if ! python3 tools/utf8check.py; then
   echo "ENCODING CHECK FAILED"
   exit 1

@@ -362,6 +362,7 @@ int main(void)
   CHECK(starts(model_error("@ total=10 dt=1\n"), "1:12 expected `,` between the items of an @ line"));
   CHECK(starts(model_error("par a=1 b=2\n"), "1:9 expected `,` between the items of par"));
   CHECK(model_error("@ total = 0.03, dt=0.01\nx'=1\n").empty());
+  CHECK(model_error("@ logfile=C:/Users/RUNNER~1/AppData/Local/Temp/outside.dat\nx'=1\n").empty());
   CHECK(model_error("par a=1,\n  b=2\nx'=a*b\n").empty());
   CHECK(starts(model_error("x = 1 +\n"), "2:1 expected a value, found the end of the file"));
   CHECK(starts(model_error("done\n"), "2:1 expected `'`, `=` or `(t) =` after `done`"));

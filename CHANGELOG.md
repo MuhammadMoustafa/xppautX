@@ -73,6 +73,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - The data table stops requesting rows at the end of the data, avoiding a render/effect loop on slow runners. CI checks establish a heavy run is computing at every value commit, wait for the slider pick to draw, and read macOS thread states from `ps -M`'s STAT column (W170, [#222](https://github.com/MuhammadMoustafa/xppautX/issues/222)).
 
+- Recordings can write their scratch outputs through macOS's linked temp-folder ancestors. Random states use one MT19937-64 layout across compilers, retaining already matching saved states and rejecting other layouts at their file and line. Option filenames accept Windows `~` short paths; sanitizer autocheck shards track the current sections (W169, [#221](https://github.com/MuhammadMoustafa/xppautX/issues/221)).
+
 - Non-ASCII text in the page’s log is shown as written, including accented letters and four-byte UTF-8 characters (W121a, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
 
 - Picture exports share the complete picture registry, and a stopped array range movie preserves the previous file. AUTO's CSV exports share the data registry's quoting and use LF line ends on Windows; curve fit and plot Import diagram read full double-precision CSV and DAT values through the same registry as Save data, while storage exports retain their previous bytes. Malformed or ragged text tables are refused as a whole (W137, [#189](https://github.com/MuhammadMoustafa/xppautX/issues/189)).

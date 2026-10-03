@@ -566,7 +566,7 @@ private:
       return;
     }
     for (char k : v)
-      if (!is_name_char(k) && k != '.' && k != '-' && k != '/' && k != '\\' && k != ':')
+      if (!is_name_char(k) && k != '.' && k != '-' && k != '/' && k != '\\' && k != ':' && k != '~')
         fail(o.value_pos, xpp::format("the option {}'s value `{}` is neither a number nor a name", o.name, v));
   }
 

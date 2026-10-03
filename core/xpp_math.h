@@ -27,7 +27,8 @@
 #include "../third_party/core-math/core_math.h"
 
 #include <cstddef>
-#include <random>
+#include <array>
+#include <cstdint>
 #include <span>
 #include <string>
 
@@ -100,7 +101,7 @@ void fft_real(std::span<const double> in, std::span<double> re, std::span<double
 
 /* ---- random numbers ----
 
-   A generator, std::mt19937_64, drawn through our own distributions (not
+   A generator, MT19937-64, drawn through our own distributions (not
    the C++ library's, whose results differ between libstdc++, libc++ and
    MSVC): the same seed gives the same numbers on every platform. A
    Session has its own (Session::random: its stochastic runs, the parser's
@@ -110,13 +111,15 @@ void fft_real(std::span<const double> in, std::span<double> re, std::span<double
    (0,1), never 0 or 1; normal() is Gaussian (Marsaglia's polar method);
    poisson() is Poisson with mean xm (Numerical Recipes' algorithm).
 
-   save() is its full state -- std::mt19937_64's state and normal()'s
-   spare deviate -- as opaque text, and load() restores it (false and
+   save() is its full state -- 312 unsigned 64-bit words, an index in
+   0..312, and normal()'s spare flag and deviate -- as portable text,
+   and load() restores it (false and
    leaving the generator untouched if the text is not one save() wrote).
    Continuing a session (W57's session file) after Open then draws
    exactly the numbers it would have without stopping. */
 class Random {
 public:
+    Random() { seed(1); }
     void seed(int seed);
     double uniform();
     double normal(double mean, double std);
@@ -125,9 +128,14 @@ public:
     bool load(const std::string &state);
 
 private:
-    /* std::mt19937_64's algorithm and seeding are fixed by the standard,
-       so every C++ library gives the same sequence for a seed */
-    std::mt19937_64 engine_{1};
+    friend int next_seed(int seed);
+    /* MT19937-64's parameters fix both the sequence and our saved layout;
+       library stream operators do not agree on the state layout. */
+    static constexpr size_t STATE_WORDS = 312; /* MT19937-64's recurrence length */
+    static constexpr size_t RECURRENCE_OFFSET = 156; /* MT19937-64's middle word */
+    std::array<std::uint64_t, STATE_WORDS> words_{};
+    size_t index_ = STATE_WORDS;
+    std::uint64_t draw();
     /* normal() draws its deviates in pairs and keeps the second */
     bool have_spare_ = false;
     double spare_ = 0.0;

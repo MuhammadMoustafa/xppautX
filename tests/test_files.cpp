@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -243,6 +244,13 @@ int main()
         std::FILE *f7 = xpp::files::open_stream(inside.c_str(), "w");
         CHECK(f7 != nullptr);
         if (f7) std::fclose(f7);
+        const std::string current = xpp::files::working_dir();
+        CHECK(chdir(scratch.c_str()) == 0);
+        CHECK(!xpp::files::is_scratch("fort.7"));
+        std::FILE *relative = xpp::files::open_stream("fort.7", "r");
+        CHECK(relative == nullptr); /* a relative read must consult the recording */
+        if (relative) std::fclose(relative);
+        CHECK(chdir(current.c_str()) == 0);
         CHECK(xpp::files::open_stream("n.txt", "w") == nullptr);
         CHECK(!xpp::files::exists("n.txt"));
         const std::string nested = scratch + "/nested";
@@ -260,6 +268,44 @@ int main()
         CHECK(!xpp::files::exists(scratch.c_str()));
     }
     xpp::files::remove_temp_dir(""); /* does nothing */
+#ifdef _WIN32
+    std::printf("SKIP scratch through symlink: Windows symlink creation requires privilege; Linux/macOS exercise it\n");
+#else
+    /* macOS /var -> /private/var: TMPDIR's spelling and getcwd differ.
+       Resolve only ancestors of scratch, never links within it. */
+    {
+        const char *previous = std::getenv("TMPDIR");
+        const std::string saved_tmp = previous ? previous : "";
+        const std::string real_base = std::filesystem::canonical(dir).string();
+        const std::string alias = real_base + "-link";
+        CHECK(symlink(real_base.c_str(), alias.c_str()) == 0);
+        CHECK(setenv("TMPDIR", alias.c_str(), 1) == 0);
+        const std::string real_scratch = xpp::files::make_temp_dir();
+        CHECK(!real_scratch.empty());
+        const std::string linked_scratch = alias + "/" + xpp::files::split_path(real_scratch).second;
+        CHECK(real_scratch == std::filesystem::canonical(linked_scratch).string());
+        CHECK(xpp::files::is_scratch(real_scratch, true));
+        CHECK(xpp::files::is_scratch(linked_scratch, true));
+        xpp::files::serve_reads([](const std::string &, std::string *) { return false; });
+        for (const std::string &root : {real_scratch, linked_scratch}) {
+            CHECK(xpp::files::write_path_ok(root + "/run1.dat"));
+            std::FILE *out = xpp::files::open_stream(root + "/run1.dat", "w");
+            CHECK(out != nullptr);
+            if (out) std::fclose(out);
+        }
+        const std::string escape = real_scratch + "/escape";
+        CHECK(symlink(real_base.c_str(), escape.c_str()) == 0);
+        CHECK(!xpp::files::write_path_ok(escape + "/outside.dat"));
+        CHECK(!xpp::files::is_scratch(escape + "/outside.dat"));
+        CHECK(!xpp::files::write_path_ok(real_scratch + "/../outside.dat"));
+        CHECK(unlink(escape.c_str()) == 0);
+        xpp::files::serve_reads(nullptr);
+        xpp::files::remove_temp_dir(real_scratch);
+        CHECK(unlink(alias.c_str()) == 0);
+        if (previous) CHECK(setenv("TMPDIR", saved_tmp.c_str(), 1) == 0);
+        else CHECK(unsetenv("TMPDIR") == 0);
+    }
+#endif
 #ifndef _WIN32
     /* a killed run's folder is swept, a live one's is kept (issue #32) */
     const char *old_tmpdir = std::getenv("TMPDIR");

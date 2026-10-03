@@ -543,14 +543,20 @@ void Lines::end()
         if (!trim_blanks(next()).empty()) fail(xpp::format("\"{}\" after the end of what the file holds", text(line())));
 }
 
-bool parse_int(std::string_view text, int &value)
+namespace {
+template<class Integer>
+bool parse_whole(std::string_view text, Integer &value)
 {
-    int v = 0;
+    Integer v = 0;
     const std::from_chars_result r = std::from_chars(text.data(), text.data() + text.size(), v);
     if (text.empty() || r.ec != std::errc() || r.ptr != text.data() + text.size()) return false;
     value = v;
     return true;
 }
+} // namespace
+
+bool parse_int(std::string_view text, int &value) { return parse_whole(text, value); }
+bool parse_uint64(std::string_view text, std::uint64_t &value) { return parse_whole(text, value); }
 
 void vformat_append(std::string &out, std::string_view fmt, std::format_args args) noexcept
 {

@@ -5,6 +5,7 @@
 #include "../third_party/musl-bessel/bessel.h"
 
 #include "xpp_log.h"
+#include "xpp_io.h"
 
 #include <cmath>
 #include <complex>
@@ -13,7 +14,6 @@
 #include <exception>
 #include <iomanip>
 #include <numbers>
-#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -103,8 +103,36 @@ void fft_real(std::span<const double> in, std::span<double> re, std::span<double
 
 void Random::seed(int seed)
 {
-    engine_.seed(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
+    words_[0] = static_cast<std::uint64_t>(static_cast<std::int64_t>(seed));
+    /* MT19937-64's initialization multiplier and upper-word shift. */
+    constexpr std::uint64_t INITIAL_MULTIPLIER = 6364136223846793005ULL;
+    for (size_t i = 1; i < STATE_WORDS; ++i)
+        words_[i] = INITIAL_MULTIPLIER * (words_[i - 1] ^ (words_[i - 1] >> 62)) + i;
+    index_ = STATE_WORDS;
     have_spare_ = false;
+}
+
+std::uint64_t Random::draw()
+{
+    /* MT19937-64's twist and tempering masks (the standard parameters). */
+    constexpr std::uint64_t LOWER_MASK = 0x7fffffffULL;
+    constexpr std::uint64_t TWIST_MASK = 0xb5026f5aa96619e9ULL;
+    constexpr std::uint64_t TEMPER_D = 0x5555555555555555ULL;
+    constexpr std::uint64_t TEMPER_B = 0x71d67fffeda60000ULL;
+    constexpr std::uint64_t TEMPER_C = 0xfff7eee000000000ULL;
+    if (index_ == STATE_WORDS) {
+        for (size_t i = 0; i < STATE_WORDS; ++i) {
+            const std::uint64_t joined = (words_[i] & ~LOWER_MASK) | (words_[(i + 1) % STATE_WORDS] & LOWER_MASK);
+            words_[i] = words_[(i + RECURRENCE_OFFSET) % STATE_WORDS] ^ (joined >> 1) ^
+                        ((joined & 1) ? TWIST_MASK : 0);
+        }
+        index_ = 0;
+    }
+    std::uint64_t value = words_[index_++];
+    value ^= (value >> 29) & TEMPER_D;
+    value ^= (value << 17) & TEMPER_B;
+    value ^= (value << 37) & TEMPER_C;
+    return value ^ (value >> 43);
 }
 
 int next_seed(int seed)
@@ -112,20 +140,22 @@ int next_seed(int seed)
     /* a generator of its own, seeded by seed and never touching a
        Random: a pure function, so the same run seed always picks the same
        following seed regardless of what that run itself drew */
-    std::mt19937_64 stream(static_cast<std::uint64_t>(static_cast<std::int64_t>(seed)));
+    Random stream;
+    stream.seed(seed);
     /* stir it once so consecutive seeds (0,1,2,...) do not pick visibly
        close following seeds (mt19937_64's own mixing needs one step); the
        low 31 bits keep the result a non-negative int like every other
        seed in the UI and the .ode "@ seed=" option */
-    stream.discard(1);
-    return static_cast<int>(stream() & 0x7fffffff);
+    (void)stream.draw();
+    constexpr std::uint64_t SEED_MASK = 0x7fffffff; /* the UI's non-negative 31-bit seeds */
+    return static_cast<int>(stream.draw() & SEED_MASK);
 }
 
 double Random::uniform()
 {
     /* the top 53 bits, centred in their interval: (0,1), never 0 (the
        callers take its log) nor 1 */
-    return (static_cast<double>(engine_() >> 11) + 0.5) * 0x1.0p-53;
+    return (static_cast<double>(draw() >> 11) + 0.5) * 0x1.0p-53;
 }
 
 double Random::normal(double mean, double std)
@@ -176,22 +206,33 @@ double Random::poisson(double xm)
 std::string Random::save() const
 {
     std::ostringstream os;
-    os << engine_ << ' ' << (have_spare_ ? 1 : 0) << ' ' << std::setprecision(17) << spare_;
+    os.imbue(std::locale::classic());
+    for (std::uint64_t word : words_) os << word << ' ';
+    os << index_ << ' ' << (have_spare_ ? 1 : 0) << ' ' << std::setprecision(17) << spare_;
     return os.str();
 }
 
 bool Random::load(const std::string &state)
 {
     std::istringstream is(state);
-    std::mt19937_64 loaded;
+    is.imbue(std::locale::classic());
+    std::array<std::uint64_t, STATE_WORDS> loaded{};
+    int index = 0;
     int spare_flag = 0;
     double spare_value = 0.0;
-    is >> loaded >> spare_flag >> spare_value;
-    /* save()'s three parts and nothing after them but blanks; the flag 0 or 1 */
-    if (!is || (spare_flag != 0 && spare_flag != 1)) return false;
+    bool nonzero = false;
+    std::string token;
+    for (std::uint64_t &word : loaded) {
+        if (!(is >> token) || !xpp::parse_uint64(token, word)) return false;
+        nonzero = nonzero || word != 0;
+    }
+    if (!(is >> token) || !xpp::parse_int(token, index) || index < 0 || index > static_cast<int>(STATE_WORDS)) return false;
+    if (!(is >> token) || !xpp::parse_int(token, spare_flag) || (spare_flag != 0 && spare_flag != 1)) return false;
+    if (!(is >> token) || !xpp::parse_number(token, spare_value) || !std::isfinite(spare_value) || !nonzero) return false;
     is >> std::ws;
     if (is.peek() != std::istringstream::traits_type::eof()) return false;
-    engine_ = loaded;
+    words_ = loaded;
+    index_ = index;
     have_spare_ = spare_flag != 0;
     spare_ = spare_value;
     return true;

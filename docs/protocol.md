@@ -1269,6 +1269,17 @@ is a zip of ordinary files, in this order:
 | `nullclines.set` | mandatory; current pair then frozen pairs: each pair has named x/y variable indices, each curve's segment count and four finite float coordinates per segment, one coordinate per line; a named frozen-pair count separates the current pair from the frozen pairs; axis indices and the existing contour segment limit are checked |
 | `random.txt` | the random numbers' state as text: a `seed N` line (the seed the next Go uses), a `wiener` line (the Wiener parameters' current values), then the generator's state on one line, the last (the Mersenne Twister's, and whether it holds a normal deviate over, 0 or 1, and that deviate); opening restores it, so a stochastic model goes on from the same numbers |
 
+The generator line has one portable layout (W169, #221): 312 decimal
+unsigned 64-bit MT19937-64 state words in array order, the next-word index
+(0 through 312), the spare-normal flag (0 or 1), and its finite binary64
+value written with 17 significant decimal digits in the classic locale.
+The recurrence and initialization are MT19937-64's standard parameters.
+Already saved libstdc++ states have this layout; a different library's
+layout is rejected at `random.txt`'s line, without conversion or fallback.
+Recording scratch roots and their parent folders are compared by real
+path, allowing linked temp-folder ancestors such as macOS's `/var`;
+links inside scratch and writes through subfolders remain refused.
+
 Opening one (`open`, `session` `load`, the command line) loads the model
 saved in it, from those saved files alone: an edit to the `.ode` since,
 or its absence, makes no difference, and a file the model reads that is

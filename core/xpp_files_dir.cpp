@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -51,6 +52,8 @@ bool dir_writable(std::string_view dir)
 
 namespace {
 
+constexpr int SCRATCH_ATTEMPTS = 1000; /* a crashed process with our reused pid may have left names */
+
 /* name is exactly "xppautoX-<pid>-<N>" (digits; the pid may be negative
    as %ld reads it): *pid */
 bool scratch_dir_pid(std::string_view name, long long *pid)
@@ -72,9 +75,17 @@ std::string make_temp_dir()
     try {
         std::string base = temp_base();
         if (base.empty()) return {};
-        for (int i = 0; i < 1000; i++) { /* a crashed run with our pid may have left one */
+        for (int i = 0; i < SCRATCH_ATTEMPTS; i++) {
             std::string path = xpp::format("{}{}xppautoX-{}-{}", base, SEP, own_pid(), i);
-            if (make_dir(path.c_str()) == 0) return path;
+            if (make_dir(path.c_str()) == 0) {
+                /* getcwd resolves linked ancestors such as macOS's /var;
+                   keep the same real name from the moment it is made. */
+                std::error_code error;
+                const std::string real = std::filesystem::canonical(path, error).generic_string();
+                if (!error) return real;
+                remove_dir(path.c_str());
+                return {};
+            }
             if (errno != EEXIST) break;
         }
     } catch (const std::bad_alloc &) {
@@ -86,18 +97,28 @@ std::string make_temp_dir()
 bool is_scratch(std::string_view path, bool root_only)
 {
     try {
-        std::string name(path), prefix = xpp::format("{}{}xppautoX-{}-", temp_base(), SEP, own_pid());
-#ifdef _WIN32
-        /* getcwd uses backslashes; absolute scratch names may use either. */
-        std::replace(name.begin(), name.end(), '\\', '/');
-        std::replace(prefix.begin(), prefix.end(), '\\', '/');
-#endif
-        if (!name.starts_with(prefix) || name.find("..") != std::string::npos) return false;
-        const size_t end = name.find('/', prefix.size());
-        if (root_only && end != std::string::npos) return false;
-        const std::string folder = name.substr(0, end);
-        long long pid;
-        return scratch_dir_pid(split_path(folder).second, &pid) && pid == own_pid() && !is_link(folder.c_str());
+        std::filesystem::path folder(path);
+        /* A relative read names a recording member, even while replay's
+           cwd is scratch. Only explicit scratch paths bypass that server. */
+        if (!folder.is_absolute()) return false;
+        for (const auto &part : folder)
+            if (part == "..") return false;
+        std::error_code error;
+        const auto base = std::filesystem::canonical(temp_base(), error);
+        if (error) return false;
+        while (!folder.empty()) {
+            /* Check before resolving: a link inside scratch must never
+               gain permission merely because its destination is scratch. */
+            if (is_link(folder.string().c_str())) return false;
+            long long pid;
+            if (scratch_dir_pid(folder.filename().string(), &pid) && pid == own_pid()) {
+                const auto parent = std::filesystem::canonical(folder.parent_path(), error);
+                return !error && parent == base && is_dir(folder.string());
+            }
+            if (root_only || folder == folder.parent_path()) return false;
+            folder = folder.parent_path();
+        }
+        return false;
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("naming the scratch folder");
     }

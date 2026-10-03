@@ -525,7 +525,7 @@ jobs:
           - shard: autocheck-1
             only: build,autocheck=diagram+grab+input+abort+control+files+csv+stability+sessiondata
           - shard: autocheck-2
-            only: build,autocheck=sessions+session+sessiondiagram+script+replay+play+names+scratch+errors+memory
+            only: build,autocheck=sessions+session+sessiondiagram+recording+replay+play+names+scratch+errors+memory
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/msys2-clang64
