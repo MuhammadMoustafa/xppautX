@@ -376,6 +376,13 @@ async function desktop(want) {
     return {x: r.left, y: r.top, w: r.width, h: r.height}; })()`);
   await clickSendsNothing('a click on the legend sends nothing (it only toggles the curve)',
     legendBox.x + legendBox.w / 2, legendBox.y + legendBox.h / 2);
+  /* it did toggle: the curve is hidden (nothing for the keyboard to step to), and a second click
+     shows it again, so what runs after this check in the same page (keyboardOnly, in the desktop
+     window where values() does not run between them) starts with the curve visible */
+  const pressed = () => cdp.eval(`document.querySelector('.legend-item').getAttribute('aria-pressed')`);
+  check('... and it hid the curve (the toggle not pressed)', await pressed() === 'false');
+  await click(legendBox.x + legendBox.w / 2, legendBox.y + legendBox.h / 2);
+  check('a second click on the legend shows it again', await until(`document.querySelector('.legend-item').getAttribute('aria-pressed') === 'true'`, 'legend shown'));
 }
 
 /* the values panel (docs/ui-v2.md T3, GitHub #155): parameters, a slider,
