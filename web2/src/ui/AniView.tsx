@@ -11,6 +11,7 @@
    (Shift: ten), PageUp/PageDown ten, Home/End go to the first and last
    frame, Escape closes the panel. Nothing plays by itself (A6): Go is only
    ever the user's. */
+import {cssVar} from '../plot/css';
 import {useEffect, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
 import {fromCanvas} from '../ani/frame';
@@ -81,7 +82,7 @@ export function AniView() {
 
   useEffect(() => {
     if (!open || !canvas.current || !size.w || !size.h) return;
-    const surface = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#fff';
+    const surface = cssVar('--surface');
     drawAniFrame(canvas.current, size.w, size.h, frame, dark, surface);
   }, [open, frame, size.w, size.h, dark]);
 

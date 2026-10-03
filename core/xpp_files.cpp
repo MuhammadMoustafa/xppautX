@@ -238,8 +238,9 @@ xpp::files::CommandResult run_command(std::string_view op, const char *name_json
     if (op == "list") return listing();
     xpp::files::CommandResult result;
     std::string name;
-    const bool named = json_string(name_json, name) && xpp::files::name_ok(name);
-    if (named) result.name = name;
+    const bool decoded = json_string(name_json, name);
+    if (decoded) result.name = name; /* Echo the requested name even when refused. */
+    const bool named = decoded && xpp::files::name_ok(name);
     if (op != "get" && op != "put") {
         command_error(result, "unknown op");
         return result;

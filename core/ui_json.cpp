@@ -479,7 +479,10 @@ void file_command(xpp::Session &, const char *line)
     try {
         auto result = xpp::files::command(o, js_find(line, "name"), js_find(line, "data"));
         if (result.error) {
-            if (result.error->place.file.empty()) result.error->place = xpp::command_place();
+            /* A replayed command belongs to its recording step; name still identifies the requested file. */
+            const xpp::Place step = player_place();
+            if (!step.file.empty()) result.error->place = step;
+            else if (result.error->place.file.empty()) result.error->place = xpp::command_place();
             if (session.silent) {
                 xpp::show_error(*result.error);
                 return;

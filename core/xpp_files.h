@@ -52,6 +52,8 @@ std::string output_name(std::string_view model_file, std::string_view ext,
 
 /* First is an actual picked destination; later frames add their sequence number. */
 std::string frame_name(std::string_view first, std::string_view ext, int frame);
+/* Case-insensitive suffix on the basename; an extension alone is not a filename. */
+bool has_extension(std::string_view path, std::string_view ext);
 bool name_ok(std::string_view name);
 /* Validate the basename and refuse links, folders and devices at a save destination. */
 int output_status(std::string_view path);

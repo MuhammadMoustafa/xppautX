@@ -7,6 +7,7 @@
 #include "odex.h"
 #include "expr.h"
 #include "snapx.h"
+#include "xpp_files.h"
 #include "xpp_io.h"
 #include "model_files.h"
 #include "model_options.h"
@@ -806,7 +807,7 @@ private:
     const Token &t = peek();
     if (t.kind != Token::Kind::String) fail(t.pos, xpp::format("expected the file's name in quotes, found {}", describe(t)));
     std::string name = take().text;
-    if (snapx::has_extension(name, ".ode")) fail(t.pos, "include reads .odex text, never a .ode model");
+    if (xpp::files::has_extension(name, ".ode")) fail(t.pos, "include reads .odex text, never a .ode model");
     if (depth_ >= max_include_depth) fail(t.pos, xpp::format("too many includes inside each other at {}", name));
     const std::string path = xpp::include_path(out_.files[file_], name);
     std::string text;

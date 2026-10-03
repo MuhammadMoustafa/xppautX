@@ -68,7 +68,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
     return;
   }
   /* a recording: its model, in the player (W59b) */
-  if(xpp::snapx::has_extension(file,xpp::recx::extension)){
+  if(xpp::files::has_extension(file,xpp::recx::extension)){
     play_recording(s,file);
     return;
   }

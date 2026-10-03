@@ -1,5 +1,6 @@
 /* File results rendered for the protocol and HTTP /files, in one place. */
 #include "json_files.h"
+#include "json_error.h"
 #include "xpp_io.h"
 
 namespace xpp::json {
@@ -28,8 +29,8 @@ std::string file_event(std::string_view op, const xpp::files::CommandResult &res
         xpp::json_append_string(s, result.name);
     }
     if (result.error) {
-        s += ",\"ok\":0,\"error\":";
-        xpp::json_append_string(s, result.error->what);
+        s += ",\"ok\":0";
+        append_error(s, *result.error);
         return s + '}';
     }
     s += ",\"ok\":1,";

@@ -13,6 +13,7 @@
 #include "graphics.h"
 #include "auto_nox.h"
 #include "xpp_files.h"
+#include "json_error.h"
 #include "auto_data.h"
 #include "auto_settings.h"
 #include <array>
@@ -136,18 +137,10 @@ void send_error(const char *ev, const xpp::Error &e)
     }
     /* Every error affects the process result, whatever UI is installed. */
     xpp::log_note_error();
-    const xpp::Place &p = e.place;
-    Buf b;
-    buf_format(&b, "{{\"ev\":\"{}\",\"error\":", ev);
-    buf_str(&b, e.what);
-    BUF_LIT(&b, ",\"file\":");
-    buf_str(&b, p.file);
-    buf_format(&b, ",\"line\":{:d},\"col\":{:d},\"source\":", p.line, p.col);
-    buf_str(&b, p.source);
-    BUF_LIT(&b, ",\"field\":");
-    buf_str(&b, e.field);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
+    std::string event = xpp::format("{{\"ev\":\"{}\"", ev);
+    append_error(event, e);
+    event += '}';
+    data_emit(event);
 }
 
 void j_err_msg(const xpp::Error &e) { send_error("message", e); }

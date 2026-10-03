@@ -6,6 +6,8 @@
 #include "xpptest.h"
 #include "xpp_files.h"
 #include "json_files.h"
+#include "snapx.h"
+#include "odex.h"
 #ifdef _WIN32
 #include "xpp_win32.h"
 #endif
@@ -81,6 +83,17 @@ int main()
         CHECK_STR(c.hex().c_str(), "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 
+    /* W121b: one basename suffix rule, including the bare-extension edge. */
+    CHECK(xpp::files::has_extension("dir/model.ODEX", ".odex"));
+    CHECK(!xpp::files::has_extension(".odex", ".odex"));
+    CHECK(!xpp::files::has_extension("dir/.odex", ".odex"));
+    CHECK(!xpp::files::has_extension("model.odex.bak", ".odex"));
+    CHECK(!xpp::files::has_extension("model", ""));
+    CHECK(xpp::odex::is_odex("model.ODEX"));
+    CHECK(!xpp::odex::is_odex("dir/.odex"));
+    CHECK(xpp::snapx::is_session_file("dir/model.SNAPX"));
+    CHECK(!xpp::snapx::is_session_file(".snapx"));
+
     /* W130: every extension uses the same model base; no filename truncation. */
     for(const char *ext : {".snapx", ".set", ".pars", ".par", ".ic", ".ps", ".svg", ".gif", ".dat", ".csv", ".csv.gz", ".npz", ".tab", ".recx"}) {
         CHECK(xpp::files::output_name("folder/lecar.odex",ext)==std::string("lecar")+ext);
@@ -148,6 +161,17 @@ int main()
     CHECK(sha == sha_of(bin, 8));
     CHECK(slurp("a.bin") == std::string(reinterpret_cast<const char *>(bin), 8));
     CHECK_STR(folder().c_str(), "a.bin");
+
+    /* Match classes, escapes and star retries without an input-sized stack. */
+    for (const auto &[pattern, matches] : std::vector<std::pair<std::string, bool>>{
+             {"a.bin", true}, {"a?bin", true}, {"[a-c].bin", true},
+             {"[!b-c].bin", true}, {"[!a-c].bin", false}, {"a*in", true},
+             {"*a*b*i*n", true}, {"*a*b*z", false}, {"a\\.bin", true},
+             {"a[", false}, {"a\\", false}, {std::string(100000, '*'), true}}) {
+        std::vector<std::string> dirs, files;
+        CHECK(xpp::files::list_matching(pattern, ".", dirs, files));
+        CHECK((files == std::vector<std::string>{"a.bin"}) == matches);
+    }
 
     /* over the cap: refused, and abort leaves nothing */
     CHECK(xpp::files::put_begin("big.dat", 10, put) == XPP_FILES_OK);

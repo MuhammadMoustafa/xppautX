@@ -79,7 +79,8 @@ failed and where, the place being the file, its line and column from 1
 way as text for the console, the log and `--silent` (`Error::text()`:
 `file:line:col: what`, leaving out what is not known, `line N: what`
 with no file), and sent as one shape: the `error` event (a model that
-does not load, above) and a `message` with `error` carry the same five
+does not load, above), a `message` with `error`, and a failed `file`
+event (`ok: 0`) carry the same five
 fields, always all of them, and `field`:
 
     {"ev":"message","error":"it is for 3 parameters, the model has 12","file":"bad.par","line":1,"col":0,"source":"3   Number params","field":""}
@@ -678,6 +679,9 @@ while it waits. `tools/servercheck.py` (`check_player`,
 `check_player_ani`) and `tools/autocheck.py` (`play`) play recordings
 back and compare the data.
 
+Wildcard matching uses constant stack space, including long runs of `*`.
+File-kind suffixes are case-insensitive and require a basename before the
+extension: `model.ODEX` is an .odex file; `.odex` and `dir/.odex` are not.
 Input strings are decoded whole: command and operation names, model names,
 values, file paths and wildcard patterns have no per-field character caps.
 An HTTP command body over 1 MB is refused with HTTP 413; a `--server` input
@@ -765,7 +769,7 @@ model's start in every mode, before the script.
 | `ping` | | Beep. |
 | `bye` | | The program is exiting normally: sent by every quit (a plain `quit`, during a computation or not, and the question's outcomes) before an error-free exit, so browser mode's `exit` event says `code` 0. Every quit path exits 1 after a reported error and sends no `bye` (W133). A crash or an error exit sends none (`exit` `code` 1). |
 | `error` | `error`, `file`, `line`, `col`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
-| `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error` when `ok` is 0 | The answer to a `file` command (see "Files" below). |
+| `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error`, `file`, `line`, `col`, `source`, `field` when `ok` is 0 (the common error shape above) | The answer to a `file` command (see "Files" below). |
 | `ask` | `id`, `kind`, ... | See below. |
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.

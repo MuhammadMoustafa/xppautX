@@ -2,6 +2,7 @@
 #include "recx.h"
 #include "model_files.h"
 #include "snapx.h"
+#include "xpp_files.h"
 #include "xpp_io.h"
 #include "xpp_sha256.h"
 
@@ -147,7 +148,7 @@ Result<Read> read(std::string_view text, std::string file)
                 l.fail(xpp::format("no {} section before the files: a recording begins with the session's state", snapshot_line));
             ModelFile f;
             f.name = is_snapshot ? std::string("the snapshot") : std::string(h.substr(binary ? binary_start.size() : file_start.size()));
-            if (!is_snapshot && snapx::has_extension(f.name, ".ode"))
+            if (!is_snapshot && xpp::files::has_extension(f.name, ".ode"))
                 l.fail("a recording cannot carry .ode model text");
             hashed.emplace_back(h);
             const int first = l.line();

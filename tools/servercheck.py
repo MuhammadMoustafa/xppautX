@@ -660,7 +660,14 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('File/Import XPPAUT set asks for a file to read (mode read)', ask is not None and ask['kind'] == 'file'
       and ask.get('mode') == 'read' and ask.get('wild') == '*.set', str(ask)[:200])
 if ask:
-    send(cmd='answer', id=ask['id'], ok=0)
+    long_wild = '*' * 100000
+    send(cmd='answer', id=ask['id'], wild=long_wild)
+    _, listed = collect(lambda e: e.get('ev') == 'ask')
+    check('W121b: 100,000 wildcard stars list normally without recursion',
+          listed is not None and listed.get('wild') == long_wild and 'lecar.odex' in listed.get('files', []),
+          str(listed)[:200])
+    if listed:
+        send(cmd='answer', id=listed['id'], ok=0)
 collect(is_idle)
 
 # W88: a file ask answered with a full path outside the model's folder (what
@@ -746,6 +753,12 @@ refused = {n: file_cmd(op='put', name=n, data='eA==').get('ok') for n in ['../x'
 refused['a\\u0000b'] = file_cmd(op='put', name='a\x00b', data='eA==').get('ok')
 refused['get ../lecar.odex'] = file_cmd(op='get', name='../' + os.path.basename(run) + '/lecar.odex').get('ok')
 check('file put and get refuse anything but a base name', all(v == 0 for v in refused.values()), str(refused))
+ev = file_cmd(op='put', name='../escape', data='AA==')
+check('W121b: refused upload keeps its name and all error-place fields',
+      ev.get('ok') == 0 and ev.get('name') == '../escape' and ev.get('file') == '../escape'
+      and ev.get('line') == 0 and ev.get('col') == 0 and ev.get('source') == ''
+      and ev.get('field') == '' and bool(ev.get('error'))
+      and not os.path.exists(os.path.join(run, '../escape')), str(ev))
 ev = file_cmd(op='put', name='bad.bin', data='not base64!')
 check('file put refuses data that is not base64', ev.get('ok') == 0 and 'base64' in ev.get('error', ''), str(ev))
 ev = file_cmd(op='get', name='none.bin')

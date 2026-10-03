@@ -210,46 +210,53 @@ namespace {
 
 constexpr char INVERT = '!'; /* the character that inverts a character class */
 
-int star(const char *string, const char *pattern);
-
+/* Keep only the latest star's retry position: hostile patterns never recurse. */
 bool wild_match(const char *string, const char *pattern)
 {
-    int prev;    /* the previous character in a character class */
-    int matched; /* the character class has been matched */
-    int reverse; /* the character class is inverted */
-
-    for (; *pattern; string++, pattern++)
-        switch (*pattern) {
-        case '\\':
-            /* a literal match with the following character; fall through */
-            pattern++;
-            [[fallthrough]];
-        default:
-            if (*string != *pattern) return false;
-            continue;
-        case '?':
-            if (*string == '\0') return false;
-            continue;
-        case '*':
-            /* a trailing star matches everything */
-            return *++pattern ? star(string, pattern) : true;
-        case '[':
-            reverse = pattern[1] == INVERT;
-            if (reverse) pattern++;
-            for (prev = 256, matched = 0; *++pattern && *pattern != ']'; prev = *pattern)
-                if (*pattern == '-' ? *string <= *++pattern && *string >= prev : *string == *pattern) matched = 1;
-            if (matched == reverse) return false;
+    const char *after_star = nullptr;
+    const char *retry = nullptr;
+    for (;;) {
+        if (*pattern == '*') {
+            do { pattern++; } while (*pattern == '*');
+            if (!*pattern) return true;
+            after_star = pattern;
+            retry = string;
             continue;
         }
-
-    return *string == '\0';
-}
-
-int star(const char *string, const char *pattern)
-{
-    while (!wild_match(string, pattern))
-        if (*++string == '\0') return 0;
-    return 1;
+        if (!*string) return !*pattern;
+        const char *next = pattern;
+        bool matched = false;
+        if (*next == '?') {
+            next++;
+            matched = true;
+        } else if (*next == '[') {
+            const bool reverse = next[1] == INVERT;
+            if (reverse) next++;
+            int prev = 256;
+            bool in_class = false;
+            while (*++next && *next != ']') {
+                if (*next == '-' && next[1]) {
+                    next++;
+                    if (*string <= *next && *string >= prev) in_class = true;
+                } else if (*string == *next) in_class = true;
+                prev = *next;
+            }
+            if (*next != ']') return false; /* An unfinished class cannot match. */
+            next++;
+            matched = in_class != reverse;
+        } else if (*next) {
+            if (*next == '\\') next++;
+            if (!*next) return false; /* A trailing escape has no literal. */
+            matched = *string == *next++;
+        }
+        if (matched) {
+            string++;
+            pattern = next;
+        } else if (after_star && *retry) {
+            string = ++retry;
+            pattern = after_star;
+        } else return false;
+    }
 }
 
 } // namespace
@@ -304,6 +311,13 @@ std::pair<std::string, std::string> split_path(std::string_view path)
     if (sep == 2 && path[1] == ':') keep = 3;
 #endif
     return {std::string(path.substr(0, keep)), std::string(path.substr(sep + 1))};
+}
+
+bool has_extension(std::string_view path, std::string_view ext)
+{
+    const std::string name = split_path(path).second;
+    return !ext.empty() && name.size() > ext.size() &&
+           xpp::equal_ignoring_case(std::string_view(name).substr(name.size() - ext.size()), ext);
 }
 
 std::string absolute(std::string_view path, std::string_view dir)

@@ -6,6 +6,7 @@
    so `state.view.theta/phi` agrees once it stops. Siblings PlotView.tsx
    (2D); ui/Plots.tsx renders this one instead when a window's `plots`
    says `three`. No zoom, pan or pick modes here: those are a 2D plot's. */
+import {cssVar} from '../plot/css';
 import {useEffect, useMemo, useRef} from 'preact/hooks';
 import {Chart3D} from '../plot/chart3d';
 import {curveColor} from '../plot/colors';
@@ -76,7 +77,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
 
   useEffect(() => {
     if (!shown || !chart.current || !view3d) return;
-    const axis = getComputedStyle(document.documentElement).getPropertyValue('--fg-muted').trim() || '#888';
+    const axis = cssVar('--fg-muted');
     chart.current.set(model, view3d.theta, view3d.phi, dark, axis);
   }, [model, view3d, dark, shown]);
 

@@ -19,6 +19,7 @@
 #include "session.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 #include "xpp_log.h"
 #include "xpp_util.h"
 #include "xpp_math.h"
@@ -766,7 +767,7 @@ private:
 
 bool is_odex(std::string_view path)
 {
-  return path.size() > extension.size() && xpp::equal_ignoring_case(path.substr(path.size() - extension.size()), extension);
+  return xpp::files::has_extension(path, extension);
 }
 
 Parsed ready(const Parsed &p)

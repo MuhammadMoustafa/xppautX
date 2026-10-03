@@ -2,7 +2,7 @@
 #include "snapx.h"
 #include "xpp_io.h"
 
-#include <cctype>
+#include "xpp_files.h"
 #include <set>
 
 namespace xpp::snapx {
@@ -96,24 +96,14 @@ std::optional<std::vector<ModelFile>> model_members(const std::vector<zip::Entry
     return files;
 }
 
-bool has_extension(std::string_view path, std::string_view ext)
-{
-    if (path.size() < ext.size()) return false;
-    path = path.substr(path.size() - ext.size());
-    for (std::size_t i = 0; i < ext.size(); i++)
-        if (std::tolower(static_cast<unsigned char>(path[i])) != std::tolower(static_cast<unsigned char>(ext[i])))
-            return false;
-    return true;
-}
-
 std::string with_extension(std::string_view name, std::string_view ext)
 {
     std::string n(name);
-    if (!has_extension(n, ext)) n += ext;
+    if (!xpp::files::has_extension(n, ext)) n += ext;
     return n;
 }
 
-bool is_session_file(std::string_view path) { return has_extension(path, extension); }
+bool is_session_file(std::string_view path) { return xpp::files::has_extension(path, extension); }
 
 std::string session_file_name(std::string_view name) { return with_extension(name, extension); }
 

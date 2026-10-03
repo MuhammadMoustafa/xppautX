@@ -69,8 +69,6 @@ void add_model_members(std::vector<zip::Entry> &entries, std::span<const ModelFi
    the model's own file, model_name, is not one of them */
 std::optional<std::vector<ModelFile>> model_members(const std::vector<zip::Entry> &entries, std::string_view model_name);
 
-/* path ends in extension ext (case ignored) */
-bool has_extension(std::string_view path, std::string_view ext);
 /* name with ext added unless it has it */
 std::string with_extension(std::string_view name, std::string_view ext);
 

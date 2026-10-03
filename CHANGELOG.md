@@ -83,6 +83,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Long wildcard patterns in file dialogs no longer exhaust the stack. Refused workspace file operations preserve the requested name and error location (W121b review, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
+
 - Windows scratch cleanup preserves folders when their owner process cannot be queried; a permission error is no longer treated as proof that the process exited (W121b, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
 
 - Preserve whole protocol names, values and file-dialog paths; report oversized input instead of discarding it silently. File-open errors name the requested file and why it failed; an unreadable workspace listing is shown as an error. The player offers the core's full 0.25–8× speed range (W121b, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).

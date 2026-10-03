@@ -219,7 +219,7 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
     }, false);
     Loaded loaded = prepared;
     if (prepared) {
-        if (snapx::has_extension(file, ".ode")) {
+        if (xpp::files::has_extension(file, ".ode")) {
             Result<bool> opened = odex::open_ode(file, batch != 0, included, diagnostics);
             if (!opened) loaded = std::unexpected(opened.error());
             else {

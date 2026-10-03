@@ -179,7 +179,7 @@ static void run_session(void)
     args.assign(session_argv, session_argv + session_argc);
     if (silent) std::erase(args, "--silent");
     for (size_t i = 1; i < args.size(); i++) {
-        if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
+        if (xpp::files::has_extension(args[i], xpp::recx::extension)) {
             recording = xpp::json_ui_recording_launch(args[i]);
             if (!recording) exit(1); /* the error said why */
             xpp::files::change_dir(recording->folder.c_str());
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
     bool recording_batch = false;
     xpp::json_ui_terminal_auto(convert_auto != 0);
     for (i = 1; i < argc; ++i)
-        if (xpp::snapx::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
+        if (xpp::files::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
     if (batch && !recording_batch) {
         for (i = 1; i < argc; i++)
             if (xpp_saved_file_name(argv[i])) {
