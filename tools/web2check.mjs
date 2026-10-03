@@ -2817,15 +2817,9 @@ async function autoViews(dir) {
     `${saved} vs ${await S('JSON.stringify([s.diagram.active, s.diagram.views.map(v => [v.axes && v.axes.plot, v.axes && v.axes.ylabel, v.points.x.length])])')}`);
 }
 
-/* T21: while the core computes (an integration here), the AUTO view's own
-   actions stay live and the buttons that need the core say why they wait */
-/* W100 (GitHub #149): F was lost twice in the desktop window. (1) In AUTO, after a steady run,
-   a grab of the Hopf point and a Periodic run, F did nothing; (2) after AUTO's Back, F in the
-   main window did not open the File menu. The page and the core must agree on the menu at every
-   step, and typed keys go to the menu the page shows. */
-async function lostF() {
-  await desktopMetrics();
-  check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
+/* from the main window to AUTO's view: a fixed point of the model made the initial conditions
+   (Sing pts, then Import), then File/Auto */
+async function openAutoAtFixedPoint() {
   await key('f');
   await until('!s.busy && s.core.menu === 1', 'file menu');
   await key('g');
@@ -2842,6 +2836,72 @@ async function lostF() {
   await until('!s.busy && s.core.menu === 1', 'file menu 2');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+}
+
+/* W102 (GitHub #151, the desktop window): a session saved with an AUTO diagram (a steady run, a
+   grabbed Hopf point and a Periodic run, whose points continue the period, PAR(11)) and opened
+   again as the window's File/Open model opens it (the core is sent `open`, not the page): the core
+   loads it without an error, the AUTO view shows the diagram, and after Back the main window's plot
+   still draws the rows the session holds (what the page holds and what the chart drew, never pixels). */
+async function reopenedSessionPlot(dir) {
+  await desktopMetrics();
+  check('W102: the page connects', await until('s.hello && !s.busy', 'hello'));
+  await key('i');
+  await menuKey('g');
+  check('W102: G integrates: 601 rows', await until('w.series && w.series.rows === 601 && !s.busy', 'series'));
+  await openAutoAtFixedPoint();
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
+  await menuKey('s');
+  await until('!s.busy && dv.points.x.length > 10', 'steady state', 60000 * SLOW);
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('g');
+  await until("s.ask && s.ask.kind === 'grab'", 'grab');
+  await key('Tab');
+  await until("s.diagram.info.sym === 'HB' && s.ask && s.ask.kind === 'grab'", 'grab tab');
+  await key('Enter');
+  await until('!s.busy && !s.diagram.grabbing', 'grabbed');
+  await cdp.eval(`document.querySelector('.auto-host').focus()`);
+  await key('r');
+  await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Hopf Pt'", 'hopf menu');
+  await menuKey('p');
+  await until('!s.busy && !s.ask', 'periodic', 120000 * SLOW);
+  const points = await DS('d.points.x.length');
+  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w102'})`);
+  await until('!s.busy', 'session saved');
+  check('W102: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
+
+  /* the window's File/Open model pushes the command into the core itself (json_ui_push_open) */
+  await cdp.eval(`window.__helloBefore = __xpp.state().hello; fetch('/cmd' + location.search, {method: 'POST',
+    body: JSON.stringify({cmd: 'open', file: 'w102.snapx'})}).then(r => r.status)`);
+  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
+  await answerAsk({key: 'd'});
+  check('W102: opening it loads the session (a new hello, the diagram shown) with no error',
+    await until(`!s.busy && s.hello !== window.__helloBefore && s.diagram.open && s.diagram.shown && dv.points.x.length === ${points}`,
+      'session opened', 30000 * SLOW)
+    && !(await S('__xpp.log().some(l => l.kind === "error")')),
+    JSON.stringify(await S('[__xpp.log().filter(l => l.kind === "error").map(l => l.text), s.diagram.open, s.diagram.shown]')));
+  const back = await center('.auto-back');
+  await click(back.x, back.y);
+  await until('!s.diagram.shown', 'back');
+  check('W102: after Back the store holds the 601 rows',
+    await until('w.series && w.series.rows === 601 && !s.busy', 'rows'), JSON.stringify(await S('w.series && w.series.rows')));
+  const drawn = () => cdp.eval('__xpp.plot()');
+  check('W102: ... and the plot draws them: W against V, 601 points, some inside its window',
+    await until('__xpp.plot() && __xpp.plot().curves.length === 1 && __xpp.plot().curves[0].points === 601 && __xpp.plot().vertices[0] > 0', 'drawn'),
+    JSON.stringify(await drawn()));
+}
+
+/* T21: while the core computes (an integration here), the AUTO view's own
+   actions stay live and the buttons that need the core say why they wait */
+/* W100 (GitHub #149): F was lost twice in the desktop window. (1) In AUTO, after a steady run,
+   a grab of the Hopf point and a Periodic run, F did nothing; (2) after AUTO's Back, F in the
+   main window did not open the File menu. The page and the core must agree on the menu at every
+   step, and typed keys go to the menu the page shows. */
+async function lostF() {
+  await desktopMetrics();
+  check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
+  await openAutoAtFixedPoint();
   check('lostF: File/Auto returns the core to its main menu', await until('s.core.menu === 0', 'menu after auto'), JSON.stringify(await S('s.core')));
 
   /* sequence 2 first half: Back at once, F in the main window */
@@ -5409,6 +5469,7 @@ async function main() {
       await textViews();
     });
     if (run('desktop')) await session(ODE, sliderModelSwitch);
+    if (run('desktop')) await session(ODE, reopenedSessionPlot);
     if (run('layout')) await session(ODE, layoutCheck, ['set par iapp: Illegal formula ..']);
     if (run('phase')) await session(ODE, phasePlane);
     if (run('auto')) await session(ODE, autoView);

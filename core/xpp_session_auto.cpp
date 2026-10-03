@@ -238,10 +238,15 @@ Result<std::deque<DiagramPoint>> parse_diagram_csv(std::string_view text, int n,
                 if (!xpp::parse_int(f[c], *v) || *v == std::numeric_limits<int>::min()) bad(c, "a whole number");
                 c++;
             }
-            /* Drawing and grabbing index AUTO's parameter arrays directly. */
-            for (const int index : {d.icp1, d.icp2, d.icp3, d.icp4})
-                if (index < 0 || index >= AUTO_SETTINGS_PARS)
-                    l.fail(xpp::format("parameter index {} is outside AUTO's parameters", index));
+            /* Drawing and grabbing index AUTO's parameter arrays directly: the first continued
+               parameter is one of the AutoPar slots (their names are indexed by it), and the
+               others may be AUTO's own, such as 10, the period of a periodic run, indexed only in
+               the point's own par array, which every use guards against the model's parameters. */
+            if (d.icp1 < 0 || d.icp1 >= AUTO_SETTINGS_PARS)
+                l.fail(xpp::format("parameter index {} is outside AUTO's parameters", d.icp1));
+            for (const int index : {d.icp2, d.icp3, d.icp4})
+                if (index < 0 || index >= n_pars)
+                    l.fail(xpp::format("parameter index {} is outside a diagram point's parameters", index));
             if (d.nfpar < 0 || d.nfpar > n_pars)
                 l.fail(xpp::format("nfpar {} is outside AUTO's parameter storage", d.nfpar));
             const auto real = [&](double &v) {

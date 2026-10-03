@@ -268,6 +268,7 @@ void check_session_round_trip(const xpp::TempDir &tmp)
         p.d.icp1 = 0;
         p.d.icp2 = 1;
     }
+    pts.back().d.icp2 = 10; /* a periodic run's second parameter is PAR(11), the period: past the model's parameters */
     diagram_restore(s, pts);
     CHECK(diagram_count(xpp::client_session().diagram) == 9 && diagram_point(xpp::client_session().diagram, 3)->uhi[1] == pts[3].uhi[1]);
     std::string solutions;
