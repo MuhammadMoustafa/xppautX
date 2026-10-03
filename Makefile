@@ -124,6 +124,18 @@ SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_play
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
 CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
+# CVODE (W34, an evaluation): the vendored one by default; SUNDIALS=DIR,
+# the prefix of a SUNDIALS install built with CVODE and its serial vector
+# and dense and band solvers only, makes cv_sundials.cpp's adapter step
+# SUNDIALS' instead (docs/sundials-eval.md)
+CV_VENDORED := $(call src,cvode cvdense cvband dense band llnlmath vector cv_vendored)
+ifeq ($(SUNDIALS),)
+CORE_SOURCES := $(filter-out $(call src,cv_sundials) ,$(CORE_SOURCES))
+else
+CORE_SOURCES := $(filter-out $(CV_VENDORED),$(CORE_SOURCES))
+CVODE_LIBS = -L$(SUNDIALS)/lib -lsundials_cvode -lsundials_sunlinsoldense -lsundials_sunlinsolband -lsundials_sunmatrixdense -lsundials_sunmatrixband -lsundials_nvecserial -lsundials_sunnonlinsolnewton -lsundials_core
+$(call obj,$(call src,cv_sundials)): CXXFLAGS += -isystem $(SUNDIALS)/include
+endif
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
@@ -306,7 +318,7 @@ objects: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(WINDOW_LIB_OBJECTS)
 ltocheck:
 	@$(MAKE) -s BUILDDIR=build/lto OPT="-O1 -flto=auto -ffat-lto-objects" lto-link
 lto-link: $(CORE_OBJECTS) $(SERVER_OBJECTS)
-	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
+	@$(LINK_X) -flto=auto -fcommon -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) $(CVODE_LIBS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/lto.log || { cat $(BUILDDIR)/lto.log; exit 1; }
 	@if grep -A4 'lto-type-mismatch' $(BUILDDIR)/lto.log; then echo "ltocheck: types differ across files"; exit 1; fi
 # AddressSanitizer + UndefinedBehaviorSanitizer (and LeakSanitizer, part of
 # ASan on Linux, off on macOS: tools/asancheck.sh --no-leaks, CI's
@@ -346,7 +358,7 @@ endif
 vg:
 	@$(MAKE) BUILDDIR=build/vg VALGRIND=1 asan-link
 $(BUILDDIR)/xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+	$(LINK_X) $(SANITIZE) -o $@ $(SERVER_OBJECTS) $(CORELIB) $(CVODE_LIBS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
 # the one X11-free program: browser front end, --server protocol and --silent batch
 xppautx: xppautX$(EXE)
@@ -362,7 +374,7 @@ $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
-	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) $(CVODE_LIBS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the
@@ -395,7 +407,7 @@ test: $(TEST_BINS)
 # windows-core's test_lunch, the one test calling std::filesystem's
 # create_directory, met an older DLL and died at startup, 0xc0000139)
 $(TEST_BINS): %$(EXE): %.o $(CORELIB)
-	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) -o $@ $< $(CORELIB) -lm $(DLLIB)
+	$(LINK_TESTS) $(if $(SANITIZE),$(SANITIZE),$(LDSTATIC)) -o $@ $< $(CORELIB) $(CVODE_LIBS) -lm $(DLLIB)
 
 # Code nothing reaches (tools/deadcode.sh reads what this leaves; Linux):
 # every function and datum in a section of its own, at -O0 (no inlining),
@@ -409,8 +421,8 @@ deadcode:
 	@$(MAKE) -s BUILDDIR=build/deadcode DEADCODE=1 OPT="-O0 -ffunction-sections -fdata-sections" deadcode-link
 deadcode-link: $(CORE_OBJECTS) $(SERVER_OBJECTS) $(TEST_OBJECTS) $(CORELIB) $(WINDOW_LIB_OBJECTS)
 	@rm -f $(BUILDDIR)/gc-*.log
-	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
-	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) -lm $(DLLIB) || exit 1; done
+	@$(LINK_X) $(DEADCODE_GC) -o $(BUILDDIR)/xppautX$(EXE) $(SERVER_OBJECTS) $(CORE_OBJECTS) $(CVODE_LIBS) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS) 2> $(BUILDDIR)/gc-xppautX.log || { cat $(BUILDDIR)/gc-xppautX.log; exit 1; }
+	@for t in $(TEST_OBJECTS); do $(LINK_TESTS) -Wl,--gc-sections -o $${t%.o}$(EXE) $$t $(CORELIB) $(CVODE_LIBS) -lm $(DLLIB) || exit 1; done
 ifeq ($(WINDOW_EMBED),1)
 	@$(CXX) -shared -Wl,-z,defs -Wl,--version-script=$(WINDOW_LIB_DIR)/exports.map $(DEADCODE_GC) -o $(WINDOW_LIB_DIR)/libxppwindow-gc.so $(WINDOW_LIB_OBJECTS) $(WINDOW_LIB_LIBS) -lpthread 2> $(BUILDDIR)/gc-window.log || { cat $(BUILDDIR)/gc-window.log; exit 1; }
 endif
