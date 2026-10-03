@@ -278,7 +278,7 @@ int i,k,type;
        s.numerics.delta_t=fabs(s.numerics.delta_t);
        usual_integrate_stuff(s,x);
        {
-         xpp::Writer w=xpp::open_writer_asking(xpp::format("UM{}.dat",k).c_str());
+         xpp::Writer w=xpp::ask_output_writer(s,"Save unstable manifold",".dat",xpp::format("eigen{}-unstable",k));
          if(!w){s.numerics.delta_t=olddt;return;}
          write_mybrowser_data(s,w);
          if(!xpp::ok_or_show(xpp::commit_save(w))){s.numerics.delta_t=olddt;return;}
@@ -289,7 +289,7 @@ int i,k,type;
        s.numerics.delta_t=-fabs(s.numerics.delta_t);
        usual_integrate_stuff(s,x);
        {
-         xpp::Writer w=xpp::open_writer_asking(xpp::format("SM{}.dat",k).c_str());
+         xpp::Writer w=xpp::ask_output_writer(s,"Save stable manifold",".dat",xpp::format("eigen{}-stable",k));
          if(!w){s.numerics.delta_t=olddt;return;}
          write_mybrowser_data(s,w);
          if(!xpp::ok_or_show(xpp::commit_save(w))){s.numerics.delta_t=olddt;return;}

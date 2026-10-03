@@ -466,13 +466,13 @@ This writes a file specified by the user which has 5 columns and describes the c
 
 ### All info
 
-Writes `allinfo.dat`, one line per diagram point with its type, branch,
+Offers `<model>-allinfo.dat`, one line per diagram point with its type, branch,
 label, both continuation parameters, the period and every variable's max
 and min: a more complete dump than `Write pts`.
 
 ### init Data
 
-Writes `initdata.dat`: for every diagram point, the active parameter's
+Offers `<model>-initdata.dat`: for every diagram point, the active parameter's
 value followed by that point's initial data for each variable, usable to
 seed new integrations away from the AUTO window.
 

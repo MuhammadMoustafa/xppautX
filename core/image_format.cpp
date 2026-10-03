@@ -7,6 +7,7 @@
    unchanged: tools/goldencheck.py's .ps/.svg files and the
    kinescope/array-plot GIFs still come from exactly the same
    ps_.../svg_.../gif_stuff_ppm calls as before. */
+#include "xpp_files.h"
 #include "image_format.h"
 #include "my_ps.h"
 #include "my_svg.h"
@@ -22,17 +23,8 @@ namespace xpp {
 
 namespace {
 
-// Keep the existing default-name limit, leaving room for its extension.
-constexpr int plot_filename_limit = 250;
-// SVG's default retains the existing removal of a four-character .ode suffix.
-constexpr std::size_t plot_model_suffix = 4;
-std::string ps_filename(const Session &s) { return xpp::format("{:.{}}.ps",s.model().this_file,plot_filename_limit); }
-std::string svg_filename(const Session &s)
-{
-  std::string filename=s.model().this_file;
-  filename.resize(filename.size()>=plot_model_suffix?filename.size()-plot_model_suffix:0);
-  return filename+".svg";
-}
+std::string ps_filename(const Session &s) { return xpp::files::output_name(s.model().this_file,".ps"); }
+std::string svg_filename(const Session &s) { return xpp::files::output_name(s.model().this_file,".svg"); }
 
 void svg_group(Session &s, bool begin, bool direction_field)
 {

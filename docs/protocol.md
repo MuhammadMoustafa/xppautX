@@ -275,6 +275,28 @@ What is not given is asked, in this order: `what` as a `menu` ask named
 format's extension. Before the name is asked, an empty selection reports
 one error, `Nothing to save`. An unknown `what` or `format` is an error message.
 
+Default output names (W130, #182) use `xpp::files::output_name`: the model's
+base without its last extension, then the output extension. A second kind
+with that extension adds `-<what>`: `lecar.csv`, `lecar-curves.csv`,
+`lecar-array.ps`, `lecar-eigen1-unstable.dat`. `hello.output_names` sends
+`par`, `ic`, `csv`, and `curves`, the complete defaults for the values
+panel and the two CSV buttons. Clients use these names directly, including
+on reconnect or model change; they do not derive names from `hello.file`.
+
+Kinescope Save asks for its first GIF as a `file` ask; later frames each
+ask for their own file (default `<first-base>-frameN.gif`). Make Anigif asks
+for `<model>.gif`. Array print, table export, array range and animation
+frame settings contain no filename field; names are separate `file` asks.
+Fit's input file is also a separate read ask. Periodic-orbit, adjoint,
+coupling-function and stable/unstable manifold outputs each ask for a
+name. Cancel opens no writer. Invalid names and render types report an
+error, with no fallback or truncation. Typed write answers are base names;
+only the native dialog's authorized path answer can select another folder.
+Live command errors identify the one-line virtual source `command:1` and
+carry the command JSON in `source`; a recording uses its real step location.
+Every committed `saved` event is delivered by the browser page, including
+all files from a command that saves several outputs.
+
 Every user save uses the same owner (W129, #181), including sessions,
 recordings, pictures, Clone ODE, AUTO exports and the session beside an
 imported XPPAUT set. Numeric `replace` on a command means `1` permits the
@@ -684,7 +706,7 @@ model's start in every mode, before the script.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`), `title`, `file`, `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |

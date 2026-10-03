@@ -77,6 +77,19 @@ int main()
         CHECK_STR(c.hex().c_str(), "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 
+    /* W130: every extension uses the same model base; no filename truncation. */
+    for(const char *ext : {".snapx", ".set", ".pars", ".par", ".ic", ".ps", ".svg", ".gif", ".dat", ".csv", ".csv.gz", ".npz", ".tab", ".recx"}) {
+        CHECK(xpp::files::output_name("folder/lecar.odex",ext)==std::string("lecar")+ext);
+    }
+    CHECK(xpp::files::output_name("lecar.ode",".csv","curves")=="lecar-curves.csv");
+    CHECK(xpp::files::output_name("lecar.ode",".dat","eigen1")=="lecar-eigen1.dat");
+    CHECK(xpp::files::output_name(std::string(100,'a')+".ode",".ps")==std::string(100,'a')+".ps");
+    CHECK(xpp::files::output_name("folder/model",".dat")=="model.dat");
+
+    CHECK(xpp::files::frame_name("lecar.gif",".gif",0)=="lecar.gif");
+    CHECK(xpp::files::frame_name("lecar.gif",".gif",1)=="lecar-frame1.gif");
+    CHECK(xpp::files::frame_name("long.model.gif",".gif",2)=="long.model-frame2.gif");
+
     /* names: base names only */
     CHECK(xpp::files::name_ok("lecar.set"));
     CHECK(xpp::files::name_ok("a b-2.ode"));

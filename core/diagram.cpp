@@ -1,6 +1,7 @@
 /* xpp_io.h first: it pulls in <optional>/<string_view>/<format>, which
    auto_f2c.h's own min/max macros (included transitively below, through
    auto_nox.h) break if they are already defined first. */
+#include "xpp_files.h"
 #include <algorithm>
 #include <array>
 #include <deque>
@@ -191,10 +192,10 @@ namespace {
    `name` as the default; opened only when there are points to write, so
    an empty diagram leaves an existing file alone. Empty when cancelled,
    or when it cannot be written (err_msg says so). */
-xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *name)
+xpp::Writer diagram_file(const xpp::Session &s, const char *title, const char *what)
 {
   if(!xpp::save_ready(diagram_count(s.diagram)>=2))return {};
-  std::string filename=name;
+  std::string filename=xpp::files::output_name(s.model().this_file,".dat",what);
   if(!xpp::file_selector(title,filename,"*.dat"))return xpp::Writer();
   xpp::Writer w=xpp::open_writer_asking(filename.c_str());
   return w;
@@ -242,7 +243,7 @@ void write_info_out(xpp::Session &s)
   int icp1,icp2;
   double *par;
   double par1,par2=0,*uhigh,*ulow,per;
-  xpp::Writer w=diagram_file(s,"Write all info","allinfo.dat");
+  xpp::Writer w=diagram_file(s,"Write all info","allinfo");
   if(!w)return;
   d=diagram_first(s.diagram);
  while(1){
@@ -328,7 +329,7 @@ void write_init_data_file(xpp::Session &s)
   int icp1;
   double *par;
   double par1,*u0;
-  xpp::Writer w=diagram_file(s,"Write init data file","initdata.dat");
+  xpp::Writer w=diagram_file(s,"Write init data file","initdata");
   if(!w)return;
   d=diagram_first(s.diagram);
  while(1){
@@ -359,7 +360,7 @@ void write_pts(xpp::Session &s)
   int icp1,icp2;
   double *par;
   double x,y1,y2,par1,par2=0,a,*uhigh,*ulow,*ubar,per;
-  xpp::Writer w=diagram_file(s,"Write points","diagram.dat");
+  xpp::Writer w=diagram_file(s,"Write points","diagram");
   if(!w)return;
   d=diagram_first(s.diagram);
   while(1){
@@ -393,12 +394,12 @@ void write_pts(xpp::Session &s)
 
 /* the AUTO File menu's Postscript/SVG entries (W53, issue #101): one
    function through the image_format.h registry in place of the former
-   post_auto/svg_auto pair, same "auto.ps"/"auto.svg" default name and
+   post_auto/svg_auto pair, with model-based default names and
    "*.ps"/"*.svg" filter as before */
 void export_auto_picture(xpp::Session &s, int fmt)
 {
   const xpp::ImageFormat &f=xpp::image_formats[fmt];
-  std::string name=xpp::format("auto.{}",f.extension);
+  std::string name=xpp::files::output_name(s.model().this_file,xpp::format(".{}",f.extension),"diagram");
   std::string wild=xpp::format("*.{}",f.extension);
   export_diagram(s,f.name,name.c_str(),wild.c_str(),f.begin,f.end);
 }

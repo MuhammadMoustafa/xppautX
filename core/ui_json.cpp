@@ -665,6 +665,9 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
 {
     xpp::job::begin(seq);
     player_begin(line);
+    /* A live command is a one-line source; recordings retain their step's
+       own Place through player_place. This also locates bad save names. */
+    session.reading=xpp::Place{"command",1,0,line};
     session.save_replace = SAVE_ASK;
     const xpp::Result<> permission = read_save_replace(line, session.save_replace);
     /* the session this command runs in, the client's in the session list
@@ -872,6 +875,15 @@ void send_hello(xpp::Session &s)
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, m.this_file);
+    BUF_LIT(&b, ",\"output_names\":{");
+    static constexpr struct { std::string_view key, ext, what; } names[]={
+        {"par",".par",""},{"ic",".ic",""},{"csv",".csv",""},{"curves",".csv","curves"}};
+    for (std::size_t n=0;n<std::size(names);++n){
+        if(n)BUF_LIT(&b,",");
+        buf_str(&b,names[n].key); BUF_LIT(&b,":");
+        buf_str(&b,xpp::files::output_name(m.this_file,names[n].ext,names[n].what));
+    }
+    BUF_LIT(&b,"}");
     BUF_LIT(&b, ",\"about\":");
     buf_str(&b, xpp_about_text());
     /* File > Quit's question, as the core asks it (model_switch.h): the

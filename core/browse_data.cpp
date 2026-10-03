@@ -1,6 +1,7 @@
 /* The data side of the browser: the one BROWSER instance, its storage
    pointer, row/column bookkeeping and the file writer. No X11 here; the
    widget code that displays it stays in browse.c. */
+#include "xpp_files.h"
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -209,6 +210,14 @@ void init_browser(xpp::Session &s)
 
 }
 
+Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,
+                         std::string_view what, bool binary)
+{
+ std::string file=xpp::files::output_name(s.model().this_file,ext,what);
+ if(!file_selector(title,file,xpp::format("*{}",ext)))return {};
+ return open_writer_asking(file,binary);
+}
+
 bool save_ready(bool available)
 {
  if(available)return true;
@@ -220,6 +229,16 @@ bool save_ready(bool available)
 xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened)
 {
  if(opened)*opened={};
+ const int status=xpp::files::output_status(fil);
+ if(status!=XPP_FILES_OK){
+   /* A replay's path guard must stop the step before later commands run,
+      even when the basename was rejected before Writer could open it. */
+   (void)xpp::files::write_path_ok(fil,true);
+   ui.save_result(fil,false);
+   const Result<> error=fail("save",xpp::format("Cannot save {}: {}",fil,xpp::files::status_text(status)),command_place());
+   if(opened)*opened=error; else show_error(error.error());
+   return {};
+ }
  int answer=ui.save_replace();
  /* A native dialog or an explicit command already made the decision.
     Otherwise only an existing destination needs confirmation. */
@@ -614,23 +633,24 @@ void data_table(const xpp::Session &s, BROWSER *b)
  if(!save_ready(b->iend>b->istart))return;
  int status;
 
- static const char *const name[]={"Variable","Xlo","Xhi","File"};
- std::array<std::string, 4> value;
+ static const char *const name[]={"Variable","Xlo","Xhi"};
+ std::array<std::string, 3> value;
 
  double xlo=0,xhi=1;
  int col;
  value[0] = s.model().uvar_names[0];
  value[1] = "0.00";
  value[2] = "1.00";
- value[3] = value[0] + ".tab";
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_FILE};
- status=do_string_box_of(4,1,"Tabulate",name,value,kinds);
+ static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_NUMBER};
+ status=do_string_box_of(3,1,"Tabulate",name,value,kinds);
  if(status==0)return;
  xlo=atof(value[1].c_str());
  xhi=atof(value[2].c_str());
  find_variable(s,value[0].c_str(),&col);
-  if(col>=0)
-   make_d_table(xlo,xhi,col,value[3],*b);
+  if(col>=0){
+   std::string file=xpp::files::output_name(s.model().this_file,".tab",value[0]);
+   if(file_selector("Save table",file,"*.tab"))make_d_table(xlo,xhi,col,file,*b);
+  }
 }
 
 void data_find(const xpp::Session &s, BROWSER *b)
@@ -733,7 +753,7 @@ void data_write(const xpp::Session &s, BROWSER *b, std::string_view what, std::s
  if(!f&&!(f=choose_data_format()))return;
  std::string fil(name);
  if(fil.empty()){
-   fil=std::string(plot?"curves":"data")+f->extension;
+   fil=xpp::files::output_name(s.model().this_file,f->extension,plot?"curves":"");
    if(!file_selector("Save data",fil,xpp::format("*{}",f->extension)))return;
  }
  t.seed=s.numerics.last_seed;

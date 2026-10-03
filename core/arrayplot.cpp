@@ -1,10 +1,13 @@
 #include "model.h"
 #include "session.h"
 #include "arrayplot.h"
+#include "array_print.h"
 #include "storage.h"
 #include "xpp_ui.h"
 #include "image_format.h"
 #include "browse.h"
+#include "xpp_files.h"
+#include "xpp_error.h"
 #include "xpp_job.h"
 
 #include <array>
@@ -46,23 +49,26 @@
 */
 
 #include "browse.h"
+#include "xpp_files.h"
+#include "xpp_error.h"
 #include "integrate.h"
 
 void set_up_aplot_range(xpp::Session &s)
 { 
-  static const char *const n[]={"Basename","Still(1/0)","Tag(0/1)"};
-  std::array<std::string, 3> values;
+  static const char *const n[]={"Still(1/0)","Tag(0/1)"};
+  std::array<std::string, 2> values;
   int status;
   double *x;
- values[0] = xpp::format("{:.24}", s.array_plot.range_stem);
- values[1] = xpp::format("{:d}", s.array_plot.still);
- values[2] = xpp::format("{:d}", s.array_plot.tag);
- static const int kinds[]={xpp::XPP_FIELD_FILE,xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
- status=xpp::do_string_box_of(3,1,"Array range saving",n,values,kinds);
+ values[0] = xpp::format("{:d}", s.array_plot.still);
+ values[1] = xpp::format("{:d}", s.array_plot.tag);
+ static const int kinds[]={xpp::XPP_FIELD_INTEGER,xpp::XPP_FIELD_INTEGER};
+ status=xpp::do_string_box_of(2,1,"Array range saving",n,values,kinds);
  if(status!=0){
-   s.array_plot.range_stem=values[0];
-   s.array_plot.still=atoi(values[1].c_str());
-   s.array_plot.tag=atoi(values[2].c_str());
+   std::string root=xpp::files::output_name(s.model().this_file,".gif","array");
+   if(!xpp::file_selector("Save array frames",root,"*.gif"))return;
+   s.array_plot.range_stem=root;
+   s.array_plot.still=atoi(values[0].c_str());
+   s.array_plot.tag=atoi(values[1].c_str());
  s.array_plot.range=1;
  s.array_plot.range_count=0;
  s.array_plot.save_cancelled=false;
@@ -150,20 +156,20 @@ void init_my_aplot(xpp::Session &s)
  ap->nstart=0;
  ap->nskip=8;
  ap->ncskip=1;
- ap->filename=xpp::format("output.{}", xpp::image_formats[xpp::IMAGE_FORMAT_PS].extension);
+ ap->filename.clear();
  ap->xtitle="index";
  ap->ytitle="time";
  ap->bottom="";
- ap->type=-1;
+ ap->type=xpp::ARRAY_GREYSCALE;
 }
 
 void print_aplot(const xpp::Session &s, APLOT *ap)
 {
   double tlo,thi;
   int status;
-  static const char *const n[]={"Filename","Top label","Side label","Bottom label", 
+  static const char *const n[]={"Top label","Side label","Bottom label",
 	       "Render(-1,0,1,2)"};
-   std::array<std::string, 5> values;
+   std::array<std::string, 4> values;
   int nrows=s.browser.view.maxrow;
   int row0=ap->nstart;
   int col0=ap->index0;
@@ -176,20 +182,20 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
   jb=row0+ap->nskip*(ap->ndown-1);
   if(jb>=nrows)jb=nrows-1;
   if(jb>=0)thi=s.browser.view.data[0][jb];
-  values[0] = xpp::format("{:.24}", ap->filename);
-  values[1] = xpp::format("{:.24}", ap->xtitle);
-  values[2] = xpp::format("{:.24}", ap->ytitle);
-    values[3] = xpp::format("{:.24}", ap->bottom);
-  values[4] = xpp::format("{:d}", ap->type);
-  static const int kinds[]={xpp::XPP_FIELD_FILE,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_INTEGER};
-  status=xpp::do_string_box_of(5,1,"Print arrayplot",n,values,kinds);
+  values[0] = ap->xtitle;
+  values[1] = ap->ytitle;
+    values[2] = ap->bottom;
+  values[3] = xpp::format("{:d}", ap->type);
+  static const int kinds[]={xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_INTEGER};
+  status=xpp::do_string_box_of(4,1,"Print arrayplot",n,values,kinds);
  if(status!=0){
-   ap->filename=values[0];
-   ap->xtitle=values[1];
-   ap->ytitle=values[2];
-   ap->bottom=values[3];
-   ap->type=atoi(values[4].c_str());
-   if(ap->type<-1||ap->type>2)ap->type=-1;
+   ap->xtitle=values[0];
+   ap->ytitle=values[1];
+   ap->bottom=values[2];
+   ap->type=atoi(values[3].c_str());
+   if(ap->type<xpp::ARRAY_GREYSCALE||ap->type>xpp::ARRAY_PERIODIC){xpp::command_error("Print arrayplot","Render must be -1, 0, 1 or 2");return;}
+   if(ap->filename.empty())ap->filename=xpp::files::output_name(s.model().this_file,".ps","array");
+   if(!xpp::file_selector("Save array plot",ap->filename,"*.ps"))return;
    const xpp::ArrayPicture picture{
      .filename=ap->filename.c_str(), .xtitle=ap->xtitle.c_str(),
      .ytitle=ap->ytitle.c_str(), .bottom=ap->bottom.c_str(),

@@ -92,14 +92,14 @@ void ani_go(xpp::Session &s)
 {
     double y[MAXODE];
     float **ss = s.browser.view.data;
-    xpp::Writer gif; /* anim.gif, when the animation is written as one */
+    xpp::Writer gif; /* chosen GIF, when the animation is written as one */
     int i, stop = 0, frame = 0, written = 0, w, h;
     const bool available=s.animation.ncom!=0 && s.browser.view.maxrow>=2;
     if ((s.animation.mpeg.aviflag==1 || s.animation.mpeg.flag>0) && !xpp::save_ready(available)) return;
     if (!available) return;
     set_ani_perm(s);
     if (s.animation.mpeg.aviflag == 1) {
-        gif = xpp::open_writer_asking(xpp::format("anim.{}",xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension),true);
+        gif = xpp::ask_output_writer(s,"Save animation GIF",".gif","animation",true);
         if(!gif)return;
     }
     while (!stop) {
@@ -117,7 +117,10 @@ void ani_go(xpp::Session &s)
             }
             if (ppm) {
                 const xpp::ImageFormat &format=xpp::image_formats[xpp::IMAGE_FORMAT_PPM];
-                const xpp::Result<bool> saved=xpp::save_pixels(format,xpp::format("{}_{}.{}",s.animation.mpeg.root,written++,format.extension).c_str(),rgb,w,h);
+                std::string file=xpp::files::frame_name(s.animation.mpeg.root,".ppm",written);
+                if(written>0 && !xpp::file_selector("Save animation frame",file,"*.ppm"))break;
+                ++written;
+                const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
                 if (!xpp::ok_or_show(saved) || !*saved) {
                     if(gif)xpp::abort_save(gif);
                     break;

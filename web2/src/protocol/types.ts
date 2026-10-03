@@ -17,6 +17,7 @@ export interface HelloEvent {
   features: string[];
   title: string;
   file: string;
+  output_names: {par: string; ic: string; csv: string; curves: string};
   /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
   about: string;
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs

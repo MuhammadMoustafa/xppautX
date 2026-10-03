@@ -910,7 +910,7 @@ for _ in range(2):
     collect(is_idle)
 check('Kinescope/Capture sends film captures', evs and evs[-1].get('count') == 2, str(evs[-1:]))
 send(cmd='key', key='k')
-evs, e = answer_asks(is_idle, {'menu': menu('s'), 'string': lambda e: {'value': 'kin'}, 'pixels': pixels})
+evs, e = answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif' if e['title'] == 'Save kinescope frames' else 'kin_1.gif'}, 'pixels': pixels})
 check('Kinescope/Save asks for the pixels and writes GIFs',
       all(os.path.exists(os.path.join(run, 'kin_%d.gif' % i)) for i in range(2)), str(os.listdir(run)))
 send(cmd='key', key='v')
@@ -965,9 +965,9 @@ collect(is_idle)
 
 send(cmd='key', win='aplot', key='r')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
-check("T32: array plot Range saving's Basename is a file, Still/Tag integers",
+check("T32: array plot Range settings contain only Still/Tag integers",
       ask is not None and ask['kind'] == 'form'
-      and ask.get('kinds') == ['file', 'integer', 'integer'], str(ask and ask.get('kinds')))
+      and ask.get('kinds') == ['integer', 'integer'], str(ask and ask.get('kinds')))
 if ask:
     send(cmd='answer', id=ask['id'], ok=0)
 collect(is_idle)
@@ -1656,8 +1656,8 @@ def check_error_places():
         snde(cmd='nosuchcommand')
         evs, _ = cole(is_idle, timeout=30 * SLOW)
         m = next((e for e in evs if e.get('ev') == 'message' and 'error' in e), {})
-        check('an error event: an error with no place has every field, empty (W140)',
-              m.get('file') == '' and m.get('line') == 0 and m.get('col') == 0 and m.get('source') == ''
+        check('an error event: a live command error has its one-line source (W130)',
+              m.get('file') == 'command' and m.get('line') == 1 and m.get('col') == 0 and json.loads(m.get('source', '{}')).get('cmd') == 'nosuchcommand'
               and 'nosuchcommand' in m.get('error', ''), str(m))
     finally:
         stop_server(pe, re_, snde)
@@ -2681,7 +2681,7 @@ def check_dialog_folder_after_auto():
         snd(cmd='key', key='f')
         snd(cmd='key', key='y')
         _, ask = col(lambda e: e.get('ev') == 'ask' and e.get('kind') == 'file', timeout=30 * SLOW)
-        snd(cmd='answer', id=ask['id'], file=os.path.join(sub, 'x.recx'))
+        snd(cmd='answer', id=ask['id'], file=os.path.join(sub, 'x.recx'), replace=1)
         col(is_idle, timeout=30 * SLOW)
         ask, d = ask_dir(['f', 'y'])
         check('W151: a file dialog starts in the folder of the file of its kind last chosen',
@@ -3211,6 +3211,98 @@ def check_save_owner():
 
 check_save_owner()
 
+def check_output_names():
+    """W130: actual asks, Cancel, whole names and the model-folder boundary."""
+    p, r, snd, col, _ = launch_server()
+    try:
+        evs, _ = col(is_idle)
+        h = next(e for e in evs if e.get('ev') == 'hello')
+        check('W130: hello supplies all page save names from the model base',
+              h.get('output_names') == {'par': 'lecar.par', 'ic': 'lecar.ic',
+                                       'csv': 'lecar.csv', 'curves': 'lecar-curves.csv'}, str(h.get('output_names')))
+        def cancel_name(want):
+            _, ask = col(lambda e: is_ask(e) or is_idle(e))
+            while ask and ask.get('kind') == 'form':
+                check('W130: settings forms contain no filename', 'file' not in ask.get('kinds', []), str(ask))
+                snd(cmd='answer', id=ask['id'], values=ask['values'])
+                _, ask = col(lambda e: is_ask(e) or is_idle(e))
+            check('W130: file ask offers ' + want,
+                  ask and ask.get('kind') == 'file' and ask.get('file') == want, str(ask))
+            if ask and is_ask(ask): snd(cmd='answer', id=ask['id'], ok=0)
+            evs, _ = col(is_idle)
+            return evs
+        for kind in ('par', 'ic'):
+            snd(cmd='values', op='write', kind=kind)
+            cancel_name('lecar.' + kind)
+        snd(cmd='session', op='save')
+        cancel_name('lecar.snapx')
+        snd(cmd='key', key='f')
+        col(is_idle)
+        snd(cmd='key', key='s')
+        cancel_name('lecar.pars')
+        snd(cmd='key', key='Escape')
+        col(is_idle)
+        live_run(snd, col)
+        for key, ext in [('p', 'ps'), ('v', 'svg')]:
+            snd(cmd='key', key='g')
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], key=key)
+            cancel_name('lecar.' + ext)
+        snd(cmd='key', win='browser', key='t')
+        cancel_name('lecar-V.tab')
+        snd(cmd='plotvars', how=2, names=['V', 'W'])
+        col(is_idle)
+        snd(cmd='key', win='aplot', key='p')
+        cancel_name('lecar-array.ps')
+        snd(cmd='aplot', op='close')
+        col(is_idle)
+        for what, ext, format in [('table', 'dat', 'dat'), ('table', 'csv', 'csv'),
+                                  ('plot', 'csv', 'csv'), ('table', 'csv.gz', 'csv.gz'), ('table', 'npz', 'npz')]:
+            snd(cmd='browser', op='write', what=what, format=format)
+            cancel_name('lecar' + ('-curves' if what == 'plot' else '') + '.' + ext)
+        snd(cmd='key', key='k')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='c')
+        col(is_idle)
+        before = sorted(os.listdir(r))
+        snd(cmd='key', key='k')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='s')
+        evs = cancel_name('lecar.gif')
+        check('W130: canceled kinescope name requests no pixels and writes nothing',
+              sorted(os.listdir(r)) == before and not any(e.get('ev') == 'saved' or e.get('kind') == 'pixels' for e in evs), str(evs)[-300:])
+        snd(cmd='key', key='k')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='m')
+        cancel_name('lecar.gif')
+        # A long valid name is retained, while traversal/device names report an error.
+        long = 'save-' + 'a' * 80 + '.par'
+        snd(cmd='values', op='write', kind='par')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], file=long)
+        evs, _ = col(is_idle)
+        check('W130: a filename over 24 characters is written whole',
+              os.path.isfile(os.path.join(r, long)) and any(e.get('file') == long and e.get('saved') for e in evs), str(evs)[-300:])
+        for bad in ('../escape.par', 'CON.par', '.hidden.par'):
+            snd(cmd='values', op='write', kind='par')
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], file=bad)
+            evs, _ = col(is_idle)
+            check('W130: typed unsafe output name is a placed error: ' + bad,
+                  any(e.get('error') and e.get('file') and 'line' in e for e in evs)
+                  and not any(e.get('saved') for e in evs), str(evs)[-300:])
+        snd(cmd='record', op='start')
+        col(is_idle)
+        snd(cmd='set', kind='par', name='iapp', value=.05)
+        col(is_idle)
+        snd(cmd='record', op='stop')
+        cancel_name('lecar.recx')
+    finally:
+        stop_server(p, r, snd)
+
+check_output_names()
+
+
 
 def check_seed_per_run():
     """W71 "a seed per run": examples/ode/fhn_noise.odex (wiener n) run
@@ -3438,7 +3530,7 @@ def check_method_refusal():
         method = next((f['value'] for f in fields if f['key'] == 'method'), None)
         check('W132: menu refuses odd Symplectic at the command and keeps Euler',
               method == 1 and len(errors) == 1 and 'even dimensions' in errors[0]['error']
-              and errors[0].get('file') == '' and errors[0].get('line') == 0, str(errors))
+              and errors[0].get('file') == 'command' and errors[0].get('line') == 1, str(errors))
         snd(cmd='set', kind='num', name='method', text='symplectic')
         evs, _ = col(is_idle)
         snd(cmd='data', events=['numerics'])
@@ -4061,7 +4153,8 @@ def check_outcomes_once():
         def fit(name):
             return [{'cmd': 'key', 'key': 'u'}, {'cmd': 'key', 'key': 'h'},
                     {'cmd': 'answer', 'key': 'i'},
-                    {'cmd': 'answer', 'values': [name, 'x', 'a', '1e-6', '6', '2', '2', '', '1e-5', '50']}]
+                    {'cmd': 'answer', 'values': ['x', 'a', '1e-6', '6', '2', '2', '', '1e-5', '50']},
+                    {'cmd': 'answer', 'file': name}]
         r, evs = run(fit('fit.dat'))
         results = [e.get('bottom', '').strip() for e in evs if e.get('ev') == 'message']
         errors = [e for e in evs if e.get('error')]
@@ -4087,11 +4180,12 @@ def check_outcomes_once():
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
             {'cmd': 'plotvars', 'how': 2, 'names': ['x', 'y']},
             {'cmd': 'key', 'win': 'aplot', 'key': 'r', 'replace': 1},
-            {'cmd': 'answer', 'values': ['movie', '0', '0']},
+            {'cmd': 'answer', 'values': ['0', '0']},
+            {'cmd': 'answer', 'file': 'movie.gif'},
             {'cmd': 'answer', 'values': ['a', '2', '1', '3', 'N', 'Y', 'N', 'N']},
             {'cmd': 'answer', **pixels(None)},
             {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': STOP_MOVIE_ROWS, 't': 0}}]
-        movie_path = os.path.join(d, 'movie.0.gif')
+        movie_path = os.path.join(d, 'movie.gif')
         for old in [None, b'previous complete movie']:
             if old is not None:
                 with open(movie_path, 'wb') as f:

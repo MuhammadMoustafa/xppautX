@@ -1,3 +1,4 @@
+#include "xpp_files.h"
 #include "image_format.h"
 /* Nullclines and direction fields (Nullcline, Dir.field/flow): the current
    pair of nullclines, the frozen ones, and the direction field's grid, drawn
@@ -418,7 +419,7 @@ void dfield_grid(xpp::Session &s, int grid, double u0, double v0, double du, dou
 void save_the_nullclines(xpp::Session &s)
 {
   if(!save_ready(s.numerics.null_here!=0))return;
-  std::string filename="nc.dat";
+  std::string filename=xpp::files::output_name(s.model().this_file,".dat","nullclines");
   ping();
   if(!file_selector("Save nullclines",filename,"*.dat"))return;
   xpp::Writer fp=xpp::open_writer_asking(filename.c_str());

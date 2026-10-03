@@ -90,7 +90,8 @@ export class Session {
   /* a file the core writes, offered at its command's idle: `ahead` counts the
      idles of the commands sent before it, which come first (W95's click right
      behind a redraw delivered it at the redraw's idle, before it was written) */
-  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; saved?: boolean; suffix?: string} | null = null;
+  private savedOutputs: {name: string; handle: SaveHandle | null}[] = [];
+  private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; suffix?: string} | null = null;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
   /** a command run again after "Add file…": the answers its prompts get, and
@@ -222,11 +223,13 @@ export class Session {
       }
     } else if (ev.ev === 'saved') {
       const save = this.pendingSave;
+      let handle: SaveHandle | null = null;
       if (save && save.ahead === 0 && (ev.file === save.name
           || (save.suffix && ev.file === save.name + save.suffix))) {
-        save.saved = ev.saved;
+        handle = save.handle;
         save.name = ev.file; /* use the core's destination when it appended the dialog's suffix */
       }
+      if (ev.saved && !nativeFileDialog()) this.savedOutputs.push({name: ev.file, handle});
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
       /* an earlier command's idle: the key still waits for its own */
@@ -242,7 +245,7 @@ export class Session {
       if (save && save.ahead > 0) save.ahead--;
       else {
         this.pendingSave = null;
-        if (save?.saved) void this.deliver(save.name, save.handle);
+        for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.handle);
       }
       const next = this.afterIdle;
       this.afterIdle = null;
@@ -890,9 +893,8 @@ export class Session {
       `pendingSave`/`deliver` path `writeDataFile` uses (W66: the page
       itself builds no file). */
   saveValues(kind: 'par' | 'ic'): void {
-    const file = this.store.getState().hello?.file ?? '';
-    const base = file.replace(/^.*[\\/]/, '').replace(/\.[^.]*$/, '') || 'model';
-    const name = `${base}.${kind}`;
+    const name = this.store.getState().hello?.output_names[kind];
+    if (!name) return;
     this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
     this.send({cmd: 'values', op: 'write', kind, name});
   }
@@ -1017,7 +1019,9 @@ export class Session {
       since both are given), then, at the command's idle, the page offers
       it as a download -- the same `pendingSave`/`deliver` path a `file`
       ask's Write uses (W66: the page itself builds no file). */
-  writeDataFile(what: 'table' | 'plot', format: string, name: string): void {
+  writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
+    name ??= this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
+    if (!name) return;
     this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
     this.send({cmd: 'browser', op: 'write', what, format, name});
   }
@@ -1170,13 +1174,12 @@ export class Session {
   }
 
   /** Make Anigif (Kinescope's own menu item, k then m): the core writes
-      anim.gif itself (json_windows.cpp j_movie_make_anigif), asking
+      the chosen GIF (json_windows.cpp j_movie_make_anigif), asking
       `pixels` with `film` for every captured frame (answerPixels above);
       the page only offers the result as a download, at the idle that
       follows (W66: the page built the GIF itself before this task). */
   downloadKinescopeGif(): void {
     if (!this.mayMain('kinescope') || !this.store.getState().kinescope.frames.length) return;
-    this.pendingSave = {name: 'anim.gif', handle: null, ahead: this.idlesOwed};
     this.kinescopeMenu('m');
   }
 

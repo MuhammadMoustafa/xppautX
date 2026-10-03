@@ -3,6 +3,7 @@
    Moved out of main.c and menudrive.c so that every front end drives XPP
    through the same code. Menus are data (menus.c) and are shown with
    menu_choose(); see xpp_ui.h. */
+#include "xpp_files.h"
 #include "xpp_ui.h"
 #include "image_format.h"
 #include "browse.h"
@@ -150,8 +151,8 @@ void do_movie_com(xpp::Session &s, int c)
     break;
   case 4:
     if(!save_ready(s.kinescope.frames>0))return;
-    base = "frame";
-    new_string_of("Base file name", base, XPP_FIELD_FILE);
+    base = xpp::files::output_name(s.model().this_file, ".gif");
+    if (!file_selector("Save kinescope frames", base, "*.gif")) return;
     if (!base.empty())
       ui.movie_save(s,base.c_str(), IMAGE_FORMAT_GIF);
     break;

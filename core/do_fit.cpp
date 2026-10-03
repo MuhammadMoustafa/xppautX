@@ -508,34 +508,33 @@ sigma  weights on nvars
 
 int get_fit_params(xpp::Session &s)
 {
-  static const char *const n[]={"File", "Fitvar","Params","Tolerance","Npts",
+  static const char *const n[]={"Fitvar","Params","Tolerance","Npts",
 		    "NCols","To Col","Params","Epsilon","Max iter"};
   int status;
-  std::array<std::string, 10> values;
-  values[0] = s.fit.file;
-  values[1] = s.fit.varlist;
-  values[2] = s.fit.parlist1;
-  values[3] = xpp::format("{:g}", s.fit.tol);
-  values[4] = xpp::format("{}", s.fit.npts);
-  values[5] = xpp::format("{}", s.fit.dim);
-  values[6] = s.fit.collist;
-  values[7] = s.fit.parlist2;
-  values[8] = xpp::format("{:g}", s.fit.eps);
-  values[9] = xpp::format("{}", s.fit.maxiter);
-  static const int kinds[]={XPP_FIELD_FILE,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
+  std::array<std::string, 9> values;
+  values[0] = s.fit.varlist;
+  values[1] = s.fit.parlist1;
+  values[2] = xpp::format("{:g}", s.fit.tol);
+  values[3] = xpp::format("{}", s.fit.npts);
+  values[4] = xpp::format("{}", s.fit.dim);
+  values[5] = s.fit.collist;
+  values[6] = s.fit.parlist2;
+  values[7] = xpp::format("{:g}", s.fit.eps);
+  values[8] = xpp::format("{}", s.fit.maxiter);
+  static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,
                             XPP_FIELD_INTEGER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
-  status=do_string_box_of(5,2,"Fit",n,values,kinds);
+  status=do_string_box_of(9,1,"Fit",n,values,kinds);
   if(status!=0){
-    s.fit.tol=atof(values[3].c_str());
-    s.fit.npts=atoi(values[4].c_str());
-    s.fit.dim=atoi(values[5].c_str());
-    s.fit.eps=atof(values[8].c_str());
-    s.fit.maxiter=atoi(values[9].c_str());
-    s.fit.file=values[0];
-    s.fit.varlist=values[1];
-    s.fit.parlist1=values[2];
-    s.fit.collist=values[6];
-    s.fit.parlist2=values[7];
+    if(!file_selector("Load fit data",s.fit.file,"*"))return 0;
+    s.fit.tol=atof(values[2].c_str());
+    s.fit.npts=atoi(values[3].c_str());
+    s.fit.dim=atoi(values[4].c_str());
+    s.fit.eps=atof(values[7].c_str());
+    s.fit.maxiter=atoi(values[8].c_str());
+    s.fit.varlist=values[0];
+    s.fit.parlist1=values[1];
+    s.fit.collist=values[5];
+    s.fit.parlist2=values[6];
      return(1);
   }
   return(0);

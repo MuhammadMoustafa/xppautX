@@ -622,7 +622,7 @@ Result<> import_xppaut_set(xpp::Session &s, std::string_view path, bool redraw)
 
 void file_inf(xpp::Session &s)
 {
-  std::string filename=s.model().this_file+".pars";
+  std::string filename=xpp::files::output_name(s.model().this_file,".pars");
   ping();
   if(!file_selector("Save info",filename,"*.pars*"))return;
   xpp::Writer w=open_writer_asking(filename.c_str());
@@ -681,7 +681,7 @@ void write_lunch(xpp::Session &s, FILE *fp)
 
 void import_xppaut_set_command(xpp::Session &s)
 {
-  std::string filename=s.model().this_file+".set";
+  std::string filename=xpp::files::output_name(s.model().this_file,".set");
   ping();
   if(!file_selector("Import XPPAUT set",filename,"*.set"))return;
   if(const Result<> r=import_xppaut_set(s,filename,true);!r)show_error(r.error());
@@ -759,7 +759,7 @@ void named_value_file(xpp::Session &s, std::string name, const char *title, cons
 {
   if(!save_ready(available))return;
   if(name.empty()){
-    name=s.model().this_file+ext;
+    name=xpp::files::output_name(s.model().this_file,ext);
     if(!file_selector(title,name,xpp::format("*{}",ext)))return;
   }
   io(s,name);

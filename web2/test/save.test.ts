@@ -61,14 +61,14 @@ test('W129: native save answers authorize the picked path; open answers do not',
   }
 });
 
-test('W129: only a committed save of the selected destination delivers it', () => {
+test('W130: every committed output is delivered after the command ends', () => {
   const {emit, reads} = saving();
   emit({ev: 'saved', saved: true, file: 'other.snapx'});
   assert.deepEqual(reads, []);
   emit({ev: 'saved', saved: true, file: 'old.snapx'});
   assert.deepEqual(reads, [], 'wait for the command to end');
   emit({ev: 'idle'});
-  assert.deepEqual(reads, ['old.snapx']);
+  assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
 });
 
 test('W129: a committed destination with the dialog suffix delivers the core filename', () => {
@@ -76,4 +76,15 @@ test('W129: a committed destination with the dialog suffix delivers the core fil
   emit({ev: 'saved', saved: true, file: 'session.snapx'});
   emit({ev: 'idle'});
   assert.deepEqual(reads, ['session.snapx']);
+});
+
+
+test('W130: page saves use hello names, even when they differ from the model filename', () => {
+  const {s, sent} = saving();
+  s.saveValues('par');
+  assert.equal(sent.at(-1)?.name, HELLO.output_names.par);
+  s.writeDataFile('table', 'csv');
+  assert.equal(sent.at(-1)?.name, HELLO.output_names.csv);
+  s.writeDataFile('plot', 'csv');
+  assert.equal(sent.at(-1)?.name, HELLO.output_names.curves);
 });

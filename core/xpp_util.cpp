@@ -374,7 +374,7 @@ void svg_restore(xpp::Session &s)
 void clone_ode(xpp::Session &s)
 {
   int i,j,x,y;
-  std::string clone;
+  std::string clone=xpp::files::output_name(s.model().this_file,".ode","clone");
   const char *line;
   time_t ttt;
   double z;

@@ -153,11 +153,10 @@ def run_lecar(home):
 
         def print_form(e):
             values = list(e['values'])
-            values[0] = 'lecar_array.ps'
             return {'ok': 1, 'values': values}
 
         s.send(cmd='key', win='aplot', key='p')
-        s.answer_asks(is_idle, {'form': print_form})
+        s.answer_asks(is_idle, {'form': print_form, 'file': lambda e: {'file': 'lecar_array.ps'}})
         check_file('lecar_array.ps', read(s.run, 'lecar_array.ps'))
         s.send(cmd='aplot', op='close')
         s.collect(is_idle)
@@ -169,7 +168,7 @@ def run_lecar(home):
             s.answer_asks(lambda e: e.get('ev') == 'film', {'menu': menu('c')})
             s.collect(is_idle)
         s.send(cmd='key', key='k')
-        s.answer_asks(is_idle, {'menu': menu('s'), 'string': lambda e: {'value': 'kin'}, 'pixels': pixels})
+        s.answer_asks(is_idle, {'menu': menu('s'), 'file': lambda e: {'file': 'kin_0.gif' if e['title'] == 'Save kinescope frames' else 'kin_1.gif'}, 'pixels': pixels})
         for i in range(2):
             check_file('kin_%d.gif' % i, read(s.run, 'kin_%d.gif' % i))
     finally:

@@ -368,7 +368,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           </button>
           <button disabled={noCurves || windowOff} onClick={() => session.fitView()}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
-          <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv', 'xpp-curves.csv')}
+          <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
             title="Save the plotted numbers as CSV (written by the core, then downloaded)">CSV</button>
         </div>
       </header>

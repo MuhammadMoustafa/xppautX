@@ -2600,7 +2600,7 @@ void load_auto(xpp::Session &s)
 /* Foreign XPPAUT diagrams remain an explicit import, separate from Load. */
 static void import_auto(xpp::Session &s)
 {
-  std::string filename=xpp_session_file_name(s.model(), ".auto");
+  std::string filename=xpp::files::output_name(s.model().this_file, ".auto");
   if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return;
   xpp::UniqueFile fp=xpp::open_read(filename);
   if(!fp){err_reading(filename,"cannot be opened");return;}
@@ -2720,7 +2720,7 @@ void get_a_row(double *u, double *t, int n, FILE *fp)
 void export_auto_csv(xpp::Session &s)
 {
   if(!xpp::save_ready(diagram_count(s.diagram)>=2))return;
-  std::string filename="diagram.csv";
+  std::string filename=xpp::files::output_name(s.model().this_file,".csv","diagram");
   if(!file_selector("Export CSV",filename,"*.csv"))return;
   const xpp::Result<bool> written=csv_export_diagram_pair(s,filename.c_str());
   if(!written)xpp::show_error(written.error());

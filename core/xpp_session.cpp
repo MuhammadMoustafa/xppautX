@@ -43,7 +43,7 @@ namespace {
 constexpr std::uint64_t large_data = 50ull * 1024 * 1024;
 
 /* what Save session offers */
-std::string default_name(const xpp::Model &m) { return xpp_session_file_name(m, xpp::snapx::extension); }
+std::string default_name(const xpp::Model &m) { return xpp::files::output_name(m.this_file, xpp::snapx::extension); }
 
 /* name, or when it is NULL/empty the one the user picks with title
    (wild the files listed); false on a cancel */
@@ -932,12 +932,4 @@ bool xpp_saved_restore(xpp::Session &s, const SavedFile &f)
     xpp::Result<> done = r ? apply_session(s, std::move(*r), f) : xpp::Result<>(std::unexpected(r.error()));
     if (!done) xpp::show_error(done.error());
     return done.has_value();
-}
-
-std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext)
-{
-    std::string base = xpp::files::split_path(m.this_file).second;
-    const std::size_t dot = base.rfind('.');
-    if (dot != std::string::npos && dot > 0) base.resize(dot);
-    return base + std::string(ext);
 }

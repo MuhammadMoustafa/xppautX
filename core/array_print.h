@@ -4,6 +4,9 @@
 
 namespace xpp {
 
+/* The four PostScript colour scales; these are also the form's allowed bounds. */
+enum ArrayRenderType { ARRAY_GREYSCALE=-1, ARRAY_REDBLUE=0, ARRAY_ROYGBIV=1, ARRAY_PERIODIC=2 };
+
 struct ArrayPicture;
 
 /* array_print.cpp: Print arrayplot's PostScript file */

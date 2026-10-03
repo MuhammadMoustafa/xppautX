@@ -44,6 +44,8 @@ Writer open_writer_asking(std::string_view fil, bool binary = false,
                           Result<> *opened = nullptr);
 /* One precondition, before asking for a name. Empty saves report once. */
 bool save_ready(bool available);
+Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,
+                         std::string_view what = {}, bool binary = false);
 /* Finish a user save: report its destination and whether commit succeeded.
    The command shows the returned error once (ok_or_show for void commands). */
 Result<> commit_save(Writer &writer);

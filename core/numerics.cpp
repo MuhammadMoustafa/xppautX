@@ -254,7 +254,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
 
   usual_integrate_stuff(s,x);
   {
-    xpp::Writer w=xpp::open_writer_asking(xpp::format("orbit.{}.dat",name).c_str());
+    xpp::Writer w=xpp::ask_output_writer(s,"Save orbit",".dat",xpp::format("orbit-{}",name));
     if(w){
       write_mybrowser_data(s,w);
       if (!xpp::ok_or_show(xpp::commit_save(w))) { restore(); return; }
@@ -266,7 +266,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   }
   new_adjoint(s);
   {
-    xpp::Writer w=xpp::open_writer_asking(xpp::format("adjoint.{}.dat",name).c_str());
+    xpp::Writer w=xpp::ask_output_writer(s,"Save adjoint",".dat",xpp::format("adjoint-{}",name));
     if(w){
       write_mybrowser_data(s,w);
       const bool saved=xpp::ok_or_show(xpp::commit_save(w));
@@ -277,7 +277,7 @@ void compute_one_period(xpp::Session &s, double period,double *x,const char *nam
   }
   new_h_fun(s,1);
   {
-    xpp::Writer w=xpp::open_writer_asking(xpp::format("hfun.{}.dat",name).c_str());
+    xpp::Writer w=xpp::ask_output_writer(s,"Save hfun",".dat",xpp::format("hfun-{}",name));
     if(w){
       write_mybrowser_data(s,w);
       const bool saved=xpp::ok_or_show(xpp::commit_save(w));

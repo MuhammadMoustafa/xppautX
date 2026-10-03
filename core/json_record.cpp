@@ -210,7 +210,7 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     }
     std::string file = name;
     if (file.empty()) {
-        file = xpp_session_file_name(s.model(),recx::extension);
+        file = xpp::files::output_name(s.model().this_file,recx::extension);
         ping();
         if (!file_selector("Save recording", file, "*.recx") || file.empty()) return false;
     }

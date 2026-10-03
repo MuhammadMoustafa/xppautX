@@ -389,6 +389,14 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
         if (file.empty()) return 0;
         if (strcmp(xpp::files::ask_mode(title), "write") == 0 &&
             !xpp::ok_or_show(read_save_replace(answer.c_str(), session.save_replace))) return 0;
+        /* Only a native dialog's replace decision permits a disk path.
+           Typed browser/server names stay in the model folder; replay also
+           passes the file owner's write_path_ok guard. */
+        if (strcmp(xpp::files::ask_mode(title), "write") == 0 &&
+            get_int(answer.c_str(),"replace",xpp::SAVE_ASK) != xpp::SAVE_REPLACE && (entered || !xpp::files::name_ok(file))) {
+            j_command_error("save",xpp::format("{} is not a plain base name in the model folder",file));
+            return 0;
+        }
         /* a name in a folder the page went into is a path in it; one in the
            folder it started in stays as answered (a replay's own scratch
            folder is where its relative names go) */

@@ -53,7 +53,7 @@ std::string get_root(std::string_view s, int *num);
    range: the next range integration saves the array plot at each step
    (the array plot's range saving), integrate.cpp clears it when the range
    ends; the range saving's settings (Array range saving: range_count,
-   still, tag, the base name range_stem) and its open GIF file
+   still, tag, the first destination range_stem) and its open GIF file
    (json_windows.cpp writes it); Autoplot: redraw after each integration
    (auto_redraw) */
 struct ArrayPlotState {
@@ -61,6 +61,6 @@ struct ArrayPlotState {
   int range = 0, range_count = 0, still = 1, tag = 0, auto_redraw = 0;
   xpp::Writer movie;
   bool save_cancelled = false; /* stop later frame saves after a declined/failed frame */
-  std::string range_stem = "rangearray";
+  std::string range_stem;
 };
 #endif

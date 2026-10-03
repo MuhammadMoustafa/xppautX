@@ -117,6 +117,7 @@ export interface NativeFileRequest {
 export type NativeFileDialog = (request: NativeFileRequest) => Promise<string | null>;
 
 export const nativeFileDialog = (): NativeFileDialog | undefined => {
+  if (typeof window === 'undefined') return undefined;
   const f = (window as unknown as {__xppFileDialog?: unknown}).__xppFileDialog;
   return typeof f === 'function' ? f as NativeFileDialog : undefined;
 };

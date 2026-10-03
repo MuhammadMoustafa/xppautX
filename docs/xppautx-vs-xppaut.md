@@ -94,6 +94,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | Data output | `output.dat`, the Data browser's Write | `.dat` unchanged, CSV with a header row, CSV.gz and NPZ from one registry; the Save data dialog lists them | W52, W26 |
 | Saving what the plot shows | not verified | curves, frozen and earlier ones as one table (`curve,x,y[,z]`) | W52 |
 | Who writes files | the X client and the core | the core only; the page just downloads | W66 |
+| Output names | silently writes `anim.gif`, `UMN.dat`/`SMN.dat` and periodic-orbit files; filenames in 25-byte forms (24 characters plus terminator) | every output has a file ask; Cancel writes nothing; names are kept whole; one model-base rule supplies core and page defaults | W130, [#182](https://github.com/MuhammadMoustafa/xppautX/issues/182) |
 | Save permission and failure | varied by command | native dialogs confirm existing destinations once; without a dialog decision, core asks only if its target exists; recordings keep native answers and scripts carry decisions; atomic commit reports once, only a successful save is delivered, and empty exports report before the name ask | W129, #181 |
 | `.ode` written back | Edit > Save as writes one | never: Copy as set line shows `set name {...}` for the user to paste | W54, W67 |
 | Compiled-function libraries (`export`, `.so`/DLL) | supported ([extra.c:110](../reference/xppaut-8.0/extra.c#L110)) | removed; a model using them fails to load | W55 |

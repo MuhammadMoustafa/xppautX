@@ -673,11 +673,12 @@ async function dataTable(want, dir) {
   /* CSV export: the core writes data.csv itself (browser op write, what:
      table, format: csv; core/browse_data.cpp data_write), then the page
      offers it as a download (docs/roadmap.md W66) */
-  const dataCsvPath = path.join(dir, 'data.csv');
+  const dataCsvName = await S('s.hello.output_names.csv');
+  const dataCsvPath = path.join(dir, dataCsvName);
   fs.rmSync(dataCsvPath, {force: true});
   await cdp.eval(`document.querySelector('.table-header .small').click()`);
   check('Export CSV offers data.csv, written by the core',
-    await until("s.files.offered && s.files.offered.name === 'data.csv' && !s.busy", 'csv offered'));
+    await until("s.files.offered && s.files.offered.name === s.hello.output_names.csv && !s.busy", 'csv offered'));
   await waitFile(dataCsvPath);
   let csv = fs.existsSync(dataCsvPath) ? fs.readFileSync(dataCsvPath, 'utf8').trim().split('\n') : [];
   if (csv[0]?.startsWith('# seed ')) csv = csv.slice(1); /* the run's seed, when it used one (docs/protocol.md) */
@@ -688,11 +689,12 @@ async function dataTable(want, dir) {
 
   /* the plot's own CSV export (PlotView.tsx), the same core write with
      what: plot instead of table (docs/protocol.md "Saving data") */
-  const curvesCsvPath = path.join(dir, 'xpp-curves.csv');
+  const curvesCsvName = await S('s.hello.output_names.curves');
+  const curvesCsvPath = path.join(dir, curvesCsvName);
   fs.rmSync(curvesCsvPath, {force: true});
   await cdp.eval(`document.querySelector('.plot-tools button[title^="Save the plotted numbers"]').click()`);
   check('the plot\'s CSV button offers xpp-curves.csv, written by the core',
-    await until("s.files.offered && s.files.offered.name === 'xpp-curves.csv' && !s.busy", 'plot csv offered'));
+    await until("s.files.offered && s.files.offered.name === s.hello.output_names.curves && !s.busy", 'plot csv offered'));
   await waitFile(curvesCsvPath);
   check('xpp-curves.csv is not empty',
     fs.existsSync(curvesCsvPath) && fs.statSync(curvesCsvPath).size > 0);
@@ -4364,6 +4366,21 @@ async function files(dir) {
   /* downloads folder is shared and set by startBrowser; downloads is a global */
   const canDownload = true;
   try {
+    /* W130: an unsafe picker name stays visible as an error; no fallback answer. */
+    await cdp.eval("window.showSaveFilePicker = async () => ({name: 'CON.snapx'}); true");
+    await fileMenu('v', 'write');
+    const badPickerStart = await cdp.eval('__xpp.sentCount()');
+    await cdp.eval("document.querySelector('.file-ask button[type=submit]').click()");
+    check('W130: an unsafe picker name is shown whole with a field error', await until(`(() => {
+      const el = document.querySelector('[data-file-name]');
+      return el?.value === 'CON.snapx' && el.getAttribute('aria-invalid') === 'true'
+        && document.querySelector('.file-ask .field-error')?.textContent && s.ask?.kind === 'file';
+    })()`, 'bad picked name'));
+    check('W130: a bad picker name never answers with a fallback name',
+      !(await cdp.eval(`__xpp.sentFrom(${badPickerStart}).some(c => c.cmd === 'answer')`)));
+    await cdp.eval("document.querySelector('.file-ask button[type=button]').click()");
+    await until('!s.ask && !s.busy', 'cancel bad picked name');
+    await cdp.eval('window.showSaveFilePicker = undefined; true');
     const iapp0 = await par('iapp');
 
     /* File/saVe session: the core writes into the model's folder, the page offers it */
@@ -4806,11 +4823,14 @@ async function kinescope(dir) {
      Anigif (k, m), which core/json_windows.cpp's j_movie_make_anigif
      writes as anim.gif itself, asking `pixels` for every captured frame
      (W66: the page built the GIF itself before this task) */
-  const animPath = path.join(dir, 'anim.gif');
+  const animName = 'lecar.gif';
+  const animPath = path.join(dir, animName);
   fs.rmSync(animPath, {force: true});
   await cdp.eval(`document.querySelector('.kinescope-bar button[title^="Kinescope/Make AniGif"]').click()`);
-  check('kinescope: Export GIF offers anim.gif, written by the core',
-    await until("s.files.offered && s.files.offered.name === 'anim.gif' && !s.busy", 'gif offered'));
+  await until("s.ask && s.ask.kind === 'file'", 'GIF name');
+  await answerAsk({file: 'lecar.gif'});
+  check('kinescope: Export GIF offers lecar.gif, written by the core',
+    await until("s.files.offered && s.files.offered.name === 'lecar.gif' && !s.busy", 'gif offered'));
   await waitFile(animPath);
   if (fs.existsSync(animPath)) {
     const gif = parseGifStructure(fs.readFileSync(animPath));
@@ -4834,7 +4854,9 @@ async function kinescope(dir) {
   /* Make Anigif (k, m) directly, the raw protocol path the Export GIF
      button above also drives: no prompt, so a plain menu pick */
   fs.rmSync(animPath, {force: true});
-  check('kinescope: Make Anigif (k, m) runs', await openKinescope('m') && await until('!s.busy', 'anigif done'));
+  const openedGif = await openKinescope('m') && await until("s.ask && s.ask.kind === 'file'", 'GIF name');
+  if (openedGif) await answerAsk({file: 'lecar.gif'});
+  check('kinescope: Make Anigif (k, m) runs', openedGif && await until('!s.busy', 'anigif done'));
   await waitFile(animPath);
   check('kinescope: it wrote anim.gif from the pixels answer (a real GIF, not empty)',
     fs.existsSync(animPath) && fs.readFileSync(animPath).length > 20

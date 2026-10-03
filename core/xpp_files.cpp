@@ -396,6 +396,14 @@ int open(std::string_view name, FILE *&fp, unsigned long long &size)
     return st;
 }
 
+int output_status(std::string_view path)
+{
+    if(!name_ok(split_path(path).second))return XPP_FILES_BAD_NAME;
+    Stat st;
+    const int status=kind_of(std::string(path).c_str(),&st);
+    return status==XPP_FILES_NOT_FOUND ? XPP_FILES_OK : status;
+}
+
 int put_begin(std::string_view name, unsigned long long cap, Put *&put)
 {
     put = nullptr;
@@ -404,9 +412,8 @@ int put_begin(std::string_view name, unsigned long long cap, Put *&put)
     try {
         std::unique_ptr<Put> p = std::make_unique<Put>();
         p->name = name;
-        Stat st;
-        int k = kind_of(p->name.c_str(), &st);
-        if (k != XPP_FILES_OK && k != XPP_FILES_NOT_FOUND) return k;
+        const int k = output_status(p->name);
+        if (k != XPP_FILES_OK) return k;
         p->cap = cap;
         p->w = xpp::Writer::binary(p->name); /* hidden (a leading dot): neither listed nor reachable by name */
         if (!p->w) return XPP_FILES_IO;
@@ -451,6 +458,23 @@ int put_commit(Put *put, unsigned long long &size, std::string &sha256)
         xpp::out_of_memory("finishing an upload");
     }
     return XPP_FILES_OK;
+}
+
+std::string output_name(std::string_view model_file, std::string_view ext, std::string_view what)
+{
+    std::string base = split_path(model_file).second;
+    const std::size_t dot = base.rfind('.');
+    if (dot != std::string::npos && dot > 0) base.resize(dot);
+    if (!what.empty()) { base += '-'; base += what; }
+    return base + std::string(ext);
+}
+
+std::string frame_name(std::string_view first, std::string_view ext, int frame)
+{
+    if(frame==0)return std::string(first);
+    const auto [folder,base]=split_path(first);
+    const std::string name=output_name(base,ext,xpp::format("frame{}",frame));
+    return folder.empty()?name:absolute(name,folder);
 }
 
 const char *ask_mode(std::string_view title)

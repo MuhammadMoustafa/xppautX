@@ -14,10 +14,6 @@
 namespace xpp {
 
 
-#define GREYSCALE -1
-#define REDBLUE  0
-#define ROYGBIV  1
-#define PERIODIC 2
 
 namespace {
 
@@ -85,21 +81,21 @@ void ps_bar(Picture &p, std::string_view colour, float x, float y, float wid, fl
 /* the colour command of fill (0..1) in the scale type */
 std::string ps_colour(float fill, int type)
 {
-  if(type==GREYSCALE)
+  if(type==ARRAY_GREYSCALE)
     return xpp::format("{:f} G",fill);
-  if(type==PERIODIC)
+  if(type==ARRAY_PERIODIC)
     return xpp::format("{:f} 1.0 1.0 HSB",fill);
   float r=0.0,g=0.0,b=0.0;
   if(fill<0.0)fill=0.0;
   if(fill>1.0)fill=1.0;
   switch(type)
     {
-    case REDBLUE:
+    case ARRAY_REDBLUE:
       fill=1.-fill;
       b=static_cast<float>(sqrt(static_cast<double>(1.0-fill*fill)));
       r=static_cast<float>(sqrt(static_cast<double>(fill*(2.0-fill))));
       break;
-    case ROYGBIV:
+    case ARRAY_ROYGBIV:
       if(fill>.4999)r=0.0;
       else r=static_cast<float>(sqrt(static_cast<float>(1.-4*fill*fill)));
       g=static_cast<float>(2)*sqrt(static_cast<double>(fill)*(1.-fill));

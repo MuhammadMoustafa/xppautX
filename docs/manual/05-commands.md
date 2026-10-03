@@ -83,13 +83,13 @@ This allows you to capture the active window and play it back. Another menu pops
 - **(R)eset**: which deletes all the snapshots
 - **(P)layback**: which cycles thru the pictures each time you click the left mouse button and stops if you click the middle.
 - **(A)utoplay**: continuously plays back snapshots. You tell it how many cycles and how much time between frames in milliseconds.
-- **(S)ave**: Save the frames in either ppm or gif format
-- **(M)ake anigif**: Create an animated gif from the frames. The file is always called `anim.gif`.
+- **(S)ave**: Save each frame as a GIF, with a file dialog for each destination; Cancel writes no new frame
+- **(M)ake anigif**: Create an animated gif from the frames. A file dialog offers `<model>.gif`.
 
 **In web2** a snapshot is data (the series, marks and viewport of the
 active plot window, docs/ui-v2.md T15), not a bitmap: reloading the
-page loses captured frames (they live in the client). Make anigif still
-writes `anim.gif` itself, as in X11, asking the page for each frame's
+page loses captured frames (they live in the client). Make anigif asks for its destination, then the core
+writes the GIF itself, asking the page for each frame's
 pixels, so the picture is only ever as good as what's on screen, not a
 copy of an X11 pixmap.
 

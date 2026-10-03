@@ -41,7 +41,15 @@
 
 namespace xpp::files {
 
+/* All offered defaults: model base without its extension, optional qualifier, extension. */
+std::string output_name(std::string_view model_file, std::string_view ext,
+                        std::string_view what = {});
+
+/* First is an actual picked destination; later frames add their sequence number. */
+std::string frame_name(std::string_view first, std::string_view ext, int frame);
 bool name_ok(std::string_view name);
+/* Validate the basename and refuse links, folders and devices at a save destination. */
+int output_status(std::string_view path);
 const char *status_text(int status); /* in words, for an error */
 
 /* opens a file for reading ("rb"); size its length */

@@ -407,3 +407,19 @@ above: nUmerics' Total, Dt, ...): the first character must be `%`, e.g.
 `%2*pi` or `%sin(1.5)`; it is evaluated and converted to a number when
 the field takes effect. A form's number fields (a window's limits, AUTO's
 Numerics) take plain numbers only.
+
+
+## Output filenames
+
+Every output uses a file dialog, including array plots, animation GIFs,
+kinescope frames, eigenvector manifolds and periodic-orbit data. Cancel
+writes nothing. Settings forms contain settings; file names are asked
+separately and kept whole. A bad name is an error.
+
+Defaults use the model's base: `lecar.par`, `lecar.ps`, `lecar.svg`,
+`lecar.gif`, `lecar.dat`, `lecar.csv`, `lecar.snapx`. Another output of the
+same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.ps`
+or `lecar-eigen1-stable.dat`. Kinescope Save asks for each frame's GIF;
+Make Anigif saves all captured frames into one GIF. The browser delivers
+every committed output. Typed browser names stay in the model's folder;
+the desktop's save dialog can choose a destination on disk. (W130, #182)

@@ -100,8 +100,4 @@ std::optional<xpp::Error> xpp_saved_check(xpp::Session &s, const SavedFile &f);
    place (a file xpp_saved_check passed fails only on the disk) */
 bool xpp_saved_restore(xpp::Session &s, const SavedFile &f);
 
-/* m's file name without .ode/.odex, and ext (".snapx", ".auto"): the
-   name Save session and AUTO's Save diagram offer */
-std::string xpp_session_file_name(const xpp::Model &m, std::string_view ext);
-
 #endif

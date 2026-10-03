@@ -8,6 +8,7 @@
    draws them since protocol 2) and ani_data.h, which
    keeps it in unit coordinates for a front end that draws it itself
    (docs/protocol.md "The animation as data"). */
+#include "xpp_files.h"
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -1057,19 +1058,22 @@ void update_ani_motion_stuff(xpp::Session &s, int x, int y)
 
 void ani_create_mpeg(xpp::Session &s)
 {
-    static const char *const n[] = {"PPM 0/1", "Basename", "AniGif(0/1)"};
-    std::array<std::string, 3> values;
+    static const char *const n[] = {"PPM 0/1", "AniGif(0/1)"};
+    std::array<std::string, 2> values;
     s.animation.mpeg.flag = 0;
     values[0] = xpp::format("{:d}", s.animation.mpeg.flag);
-    values[1] = xpp::format("{:.24}", s.animation.mpeg.root);
-    values[2] = xpp::format("{:d}", s.animation.mpeg.aviflag);
-    static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_FILE, XPP_FIELD_INTEGER};
-    const int status = do_string_box_of(3, 1, "Frame saving", n, values, kinds);
+    values[1] = xpp::format("{:d}", s.animation.mpeg.aviflag);
+    static const int kinds[] = {XPP_FIELD_INTEGER, XPP_FIELD_INTEGER};
+    const int status = do_string_box_of(2, 1, "Frame saving", n, values, kinds);
     if (status != 0) {
         s.animation.mpeg.flag = std::atoi(values[0].c_str());
         if (s.animation.mpeg.flag > 0) s.animation.mpeg.flag = 1;
-        s.animation.mpeg.aviflag = std::atoi(values[2].c_str());
-        s.animation.mpeg.root = values[1];
+        s.animation.mpeg.aviflag = std::atoi(values[1].c_str());
+        if(s.animation.mpeg.flag>0 && s.animation.mpeg.aviflag!=1){
+            std::string root=xpp::files::output_name(s.model().this_file,".ppm","animation");
+            if(!file_selector("Save animation frames",root,"*.ppm")){s.animation.mpeg.flag=0;return;}
+            s.animation.mpeg.root=root;
+        }
         if (s.animation.mpeg.aviflag == 1) s.animation.mpeg.flag = 0;
     } else
         s.animation.mpeg.flag = 0;
@@ -1242,7 +1246,7 @@ void set_ani_perm(xpp::Session &s)
 void ani_view_created(xpp::Session &s)
 {
     s.animation.mpeg.flag = 0;
-    s.animation.mpeg.root = "frame";
+    s.animation.mpeg.root = xpp::files::output_name(s.model().this_file,".ppm","animation");
     s.animation.mpeg.skip = 1;
     s.animation.vcr.pos = 0;
     if (s.animation.options.use_file) get_ani_file(s,s.animation.vcr.file.c_str());

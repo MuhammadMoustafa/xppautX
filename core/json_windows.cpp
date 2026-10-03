@@ -1,6 +1,7 @@
 /* The plot windows (create, select, destroy, redraw, the view), the
    pictures only the client has (pixels, for frame and GIF writers), the
    kinescope, whose frames the client keeps, and the array plot window. */
+#include "xpp_files.h"
 #include "model.h"
 #include "session.h"
 #include "ui_json_internal.h"
@@ -361,8 +362,11 @@ void j_movie_save(xpp::Session &s, std::string_view basename, int fmat)
     for (int i = 0; i < s.kinescope.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
         if (rgb.empty()) return;
-        std::string file = xpp::format("{}_{}.{}", basename, i,
-                                        format.extension);
+        std::string file(basename);
+        if(i>0){
+            file=xpp::files::frame_name(basename,xpp::format(".{}",format.extension),i);
+            if(!xpp::file_selector("Save kinescope frame",file,xpp::format("*.{}",format.extension)))return;
+        }
         const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
         if (!xpp::ok_or_show(saved) || !*saved) return;
     }
@@ -373,7 +377,7 @@ void j_movie_make_anigif(xpp::Session &s)
     const XppKinescope &k = s.kinescope;
     int w, h, w0 = 0, h0 = 0;
     if (!xpp::save_ready(k.frames > 0)) return;
-    xpp::Writer out = xpp::open_writer_asking(xpp::format("anim.{}", xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(),true);
+    xpp::Writer out = xpp::ask_output_writer(s,"Save kinescope GIF",".gif",{},true);
     if (!out) return;
     for (int i = 0; i < k.frames; i++) {
         std::vector<unsigned char> rgb = ask_pixels(0, i, &w, &h);
@@ -534,9 +538,12 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 {
     const std::string shown(tag); /* send_aplot's tag: NUL-terminated, or none */
     send_aplot(s, s.array_plot.tag ? shown.c_str() : nullptr);
-    if(!s.array_plot.save_cancelled)
-        s.array_plot.save_cancelled=!aplot_gif(s.array_plot, xpp::format("{}.{}.{}", s.array_plot.range_stem, s.array_plot.range_count,
-                          xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension).c_str(), s.array_plot.still);
+    if(!s.array_plot.save_cancelled){
+        std::string file=xpp::files::frame_name(s.array_plot.range_stem,".gif",s.array_plot.still?s.array_plot.range_count:0);
+        if(s.array_plot.still && s.array_plot.range_count>0 && !file_selector("Save array frame",file,"*.gif"))
+            s.array_plot.save_cancelled=true;
+        else s.array_plot.save_cancelled=!aplot_gif(s.array_plot,file.c_str(),s.array_plot.still);
+    }
     s.array_plot.range_count++;
 }
 
@@ -578,7 +585,7 @@ void aplot_key(xpp::Session &s, int ch)
     case PK_GIF: {
         if(!xpp::save_ready(s.array_plot.plot.plotdef!=0&&s.browser.view.maxrow>2))return;
         const char *ext = xpp::image_formats[xpp::IMAGE_FORMAT_GIF].extension;
-        std::string file = xpp::format("{}.{}", s.model().this_file, ext);
+        std::string file = xpp::files::output_name(s.model().this_file,xpp::format(".{}",ext),"array");
         if (file_selector("GIF plot", file, xpp::format("*.{}", ext))) aplot_gif(s.array_plot, file.c_str(), 1);
         break;
     }

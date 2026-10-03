@@ -7,6 +7,7 @@ const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys
 
 export const HELLO: HelloEvent = {
   ev: 'hello', protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
+  output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
   lists: [], userbuttons: [], defaults: {pars: [], ics: []},
   menus: {

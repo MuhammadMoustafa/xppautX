@@ -137,7 +137,9 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
     }
     const handle = await pickSave(name, ask.wild).catch(() => null);
     if (!handle) return;
-    session.saveFile(ask, safeName(handle.name) ? handle.name : name, handle);
+    setName(handle.name);
+    if (!safeName(handle.name)) return; /* show the picked name's field error */
+    session.saveFile(ask, handle.name, handle);
   };
   return (
     <form onSubmit={e => void save(e)} onKeyDown={enterSubmits}>
