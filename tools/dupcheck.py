@@ -56,6 +56,8 @@ core/cvband.cpp CVBandFree|vendored/numerical, keep: see core/cvband.cpp CVBandS
 core/cvdense.cpp CVDenseFree|vendored/numerical, keep: see core/cvband.cpp CVBandSolve
 core/dormpri.cpp hinit|vendored/numerical, keep: Hairer's dop853/dopri5, two integrators of parallel structure (hinit/hinit5) by the original source's own design
 core/dormpri.cpp hinit5|vendored/numerical, keep: see core/dormpri.cpp hinit
+core/xpp_http.cpp release|keep: each object's own shutdown signal (lock, set its flag, broadcast its condition) over its own mutex and condition; a shared helper would only take all three
+core/xpp_inbox.cpp close|keep: see core/xpp_http.cpp release
 core/flags.cpp one_flag_step_symp|keep (W33e looked): per-integration-method single-step dispatch (symplectic/euler/discrete/heun/rk4), each calling its own method's step; same shape by design
 core/flags.cpp one_flag_step_euler|keep: see core/flags.cpp one_flag_step_symp
 core/flags.cpp one_flag_step_discrete|keep: see core/flags.cpp one_flag_step_symp
