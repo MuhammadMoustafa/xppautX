@@ -12,6 +12,8 @@
 
 namespace xpp::http {
 
+constexpr int DEFAULT_PORT = 8765; /* stable default address for local browser sessions */
+
 /* Serve on `port` (another free one when it is taken). This redirects
    stdout and stderr (what xppaut prints) into the page's log as well as
    the terminal, and after it the protocol goes to the page instead of

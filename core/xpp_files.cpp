@@ -174,13 +174,6 @@ bool cached(const std::string &name, unsigned long long size, long long mtime, s
    "strict" mode: false for a control character or an unpaired surrogate,
    which are not a name we take. */
 
-void json_str(std::string &s, const std::string &v)
-{
-    s += '"';
-    xpp::json_encode_string(s, v);
-    s += '"';
-}
-
 /* a JSON string value, strictly: false for anything but a string, and for
    one that holds a control character (\u0000 included) or an unpaired
    surrogate */
@@ -241,9 +234,9 @@ std::string listing()
     for (size_t i = 0; i < files.size(); i++) {
         if (i) s += ',';
         s += "{\"name\":";
-        json_str(s, files[i].name);
+        xpp::json_append_string(s, files[i].name);
         s += xpp::format(",\"size\":{},\"mtime\":{},\"sha256\":", files[i].size, files[i].mtime);
-        json_str(s, files[i].sha);
+        xpp::json_append_string(s, files[i].sha);
         s += '}';
     }
     s += "]}";
@@ -254,10 +247,10 @@ std::string listing()
 std::string file_event(std::string_view op, const std::string &name)
 {
     std::string s = "{\"ev\":\"file\",\"op\":";
-    json_str(s, std::string(op));
+    xpp::json_append_string(s, op);
     if (!name.empty()) {
         s += ",\"name\":";
-        json_str(s, name);
+        xpp::json_append_string(s, name);
     }
     return s;
 }
@@ -266,7 +259,7 @@ void fail_event(std::string &s, int status)
 {
     xpp::log_note_error();
     s += ",\"ok\":0,\"error\":";
-    json_str(s, xpp::files::status_text(status));
+    xpp::json_append_string(s, xpp::files::status_text(status));
     s += '}';
 }
 

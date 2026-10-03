@@ -65,14 +65,6 @@ struct Recorder {
 
 Recorder recorder;
 
-/* a JSON string's text */
-std::string json_str(std::string_view s)
-{
-    Buf b;
-    buf_str(&b, s);
-    return std::move(b.s);
-}
-
 /* a command's label, for a person reading the file */
 std::string command_label(const char *line)
 {
@@ -111,9 +103,16 @@ std::string key_label(const std::string &k, int menu, const std::string &win)
 /* the step's line, one JSON object */
 std::string step_line(const StepTaken &t, const std::string &abort)
 {
-    std::string j = "{\"step\":" + json_str(t.label);
-    if (!t.win.empty()) j += ",\"win\":" + json_str(t.win);
-    if (!t.button.empty()) j += ",\"button\":" + json_str(t.button);
+    std::string j = "{\"step\":";
+    xpp::json_append_string(j, t.label);
+    if (!t.win.empty()) {
+        j += ",\"win\":";
+        xpp::json_append_string(j, t.win);
+    }
+    if (!t.button.empty()) {
+        j += ",\"button\":";
+        xpp::json_append_string(j, t.button);
+    }
     if (!t.cmd.empty()) j += ",\"cmd\":" + t.cmd;
     auto array = [&j](const char *name, const std::vector<std::string> &v) {
         if (v.empty()) return;
@@ -122,7 +121,10 @@ std::string step_line(const StepTaken &t, const std::string &abort)
         j += "]";
     };
     std::vector<std::string> keys;
-    for (const std::string &k : t.keys) keys.push_back(json_str(k));
+    for (const std::string &k : t.keys) {
+        keys.emplace_back();
+        xpp::json_append_string(keys.back(), k);
+    }
     array("keys", keys);
     array("answers", t.answers);
     std::vector<std::string> files;
@@ -348,7 +350,12 @@ void record_during(std::string_view field, std::string_view value)
 
 } // namespace
 
-void record_key_read(const std::string &key) { record_during("key", json_str(key)); }
+void record_key_read(const std::string &key)
+{
+    std::string value;
+    xpp::json_append_string(value, key);
+    record_during("key", value);
+}
 
 void record_control(const char *line) { record_during("cmd", js_raw(line)); }
 

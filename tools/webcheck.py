@@ -16,7 +16,13 @@ args = ap.parse_args()
 
 run = tempfile.mkdtemp(prefix='xppweb')
 shutil.copy(args.ode, run)
-proc = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)],
+# W121a: an external-options line with no assignments changes no values.
+# --debug logs the line read from disk, exercising UTF-8 independently of
+# the platform's command-line encoding.
+log_marker = 'café 😀'
+with open(os.path.join(run, 'log-text.set'), 'w', encoding='utf-8') as f:
+    f.write('# ' + log_marker + '\n')
+proc = subprocess.Popen([os.path.abspath(args.bin), '--browser', '--no-open', '--port', '0', '--debug', os.path.basename(args.ode), '--readset', 'log-text.set'],
                         cwd=run, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
 
@@ -27,7 +33,7 @@ def stop_test_server():
 
 
 atexit.register(stop_test_server)
-# --verbose: core/xpp_log.h is quiet by default now, and this script's "what
+# --debug: core/xpp_log.h is quiet by default now, and this script's "what
 # xppaut printed reaches the page" check below wants the startup banner/
 # parser-stats chatter that used to always print, to exercise the log ->
 # page pipeline (xpp_http.cpp log thread -> the "log" event -> the page's log).
@@ -245,6 +251,12 @@ check('a new page gets hello, window and state', all(k in kinds for k in ('hello
 check('and no drawing ops or palette (protocol 2)', not any(k in ('draw', 'palette') for k in kinds), str(kinds[:8]))
 check('hello says protocol 3', any(e['ev'] == 'hello' and e.get('protocol') == 3 for e in evs))
 check('what xppaut printed reaches the page', any(e['ev'] == 'log' for e in evs))
+# The log pipe can deliver after idle: wait for the matching event.
+log_seen = any(e['ev'] == 'log' and log_marker in e.get('text', '') for e in evs)
+if not log_seen:
+    _, log_event = collect(lambda e: e['ev'] == 'log' and log_marker in e.get('text', ''))
+    log_seen = log_event is not None
+check('UTF-8 text reaches the page log stream as written', log_seen)
 post({'cmd': 'key', 'key': 'i'})
 _, ask = collect(lambda e: e['ev'] == 'ask')
 check('a key opens a menu', ask is not None and ask['kind'] == 'menu', str(ask))
@@ -695,13 +707,19 @@ if os.name == 'nt':
     import _winapi, msvcrt
     run = tempfile.mkdtemp(prefix='xppweb')
     shutil.copy(args.ode, run)
+# W121a: an external-options line with no assignments changes no values.
+# --debug logs the line read from disk, exercising UTF-8 independently of
+# the platform's command-line encoding.
+log_marker = 'café 😀'
+with open(os.path.join(run, 'log-text.set'), 'w', encoding='utf-8') as f:
+    f.write('# ' + log_marker + '\n')
     rfd, wfd = os.pipe()
     whandle = msvcrt.get_osfhandle(wfd)
     os.set_handle_inheritable(whandle, True)
     si = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESTDHANDLES, hStdOutput=whandle)  # stdin, stderr: none
     exe = os.path.abspath(args.bin)
     hproc, hthread, _, _ = _winapi.CreateProcess(
-        exe, subprocess.list2cmdline([exe, '--browser', '--no-open', '--port', '0', '--verbose', os.path.basename(args.ode)]),
+        exe, subprocess.list2cmdline([exe, '--browser', '--no-open', '--port', '0', '--debug', os.path.basename(args.ode), '--readset', 'log-text.set']),
         None, None, True, 0, None, run, si)
     _winapi.CloseHandle(hthread)
     os.close(wfd)

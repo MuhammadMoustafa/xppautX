@@ -90,9 +90,11 @@ extern "C" const XppWebAsset xpp_web_assets[]; /* web_assets.c (C): web2/dist/ a
 
 namespace {
 
-constexpr int MAX_CLIENTS = 16;
-constexpr int MAX_WINDOWS = 32;
-constexpr size_t LOG_KEEP = 100000;
+constexpr const char *BAD_TOKEN = "bad token"; /* one response for every protected route with a rejected token */
+constexpr int MAX_CLIENTS = 16; /* bound simultaneous event streams and their socket storage */
+constexpr int MAX_WINDOWS = 32; /* bound window events retained for reconnecting pages */
+constexpr size_t LOG_KEEP = 100000; /* bound printed text retained for reconnecting pages */
+constexpr size_t CHUNK = 65536; /* bound socket sends, file transfers and the Windows log pipe buffer */
 
 /* a window's create event, replayed to a page that (re)connects */
 struct WindowLine {
@@ -185,7 +187,7 @@ bool send_all(sock_t s, std::string_view data)
     size_t n = data.size();
     while (n > 0) {
 #ifdef _WIN32
-        int r = send(s, p, static_cast<int>(n > 65536 ? 65536 : n), 0);
+        int r = send(s, p, static_cast<int>(n > CHUNK ? CHUNK : n), 0);
 #else
         ssize_t r = send(s, p, n, MSG_NOSIGNAL);
 #endif
@@ -399,31 +401,17 @@ void push_command(std::string_view s)
 /* {"ev":"log","text":"..."} for printed text */
 std::string log_event(std::string_view text)
 {
-    static constexpr std::string_view hex = "0123456789abcdef";
-    std::string line;
-    line.reserve(6 * text.size() + 32);
-    line = "{\"ev\":\"log\",\"text\":\"";
-    for (char ch : text) {
-        unsigned char c = static_cast<unsigned char>(ch);
-        if (c == '"' || c == '\\') {
-            line += '\\';
-            line += ch;
-        } else if (c == '\n') {
-            line += "\\n";
-        } else if (c < 0x20 || c >= 0x80) {
-            line += "\\u00";
-            line += hex[c >> 4];
-            line += hex[c & 15];
-        } else line += ch;
-    }
-    line += "\"}";
+    std::string line = "{\"ev\":\"log\",\"text\":";
+    xpp::json_append_string(line, text);
+    line += '}';
     return line;
 }
 
 void *log_main(void *arg)
 {
     int fd = *static_cast<int *>(arg);
-    std::array<char, 4096> chunk;
+    constexpr size_t LOG_READ_CHUNK = 4096; /* bound each log pipe read and its emitted event */
+    std::array<char, LOG_READ_CHUNK> chunk;
     try {
         for (;;) {
             int r = read(fd, chunk.data(), chunk.size());
@@ -540,8 +528,7 @@ constexpr int SEND_SECONDS = 10; /* a client that stops reading is dropped rathe
 /* a connection over MAX_CONNECTION_THREADS is read on the accept thread,
    for its head only (closing on an unread head loses the 503 on Windows):
    a silent one may hold up the next accept this long, never RECV_SECONDS */
-constexpr int REFUSED_HEAD_SECONDS = 1;
-constexpr size_t CHUNK = 65536;
+constexpr int REFUSED_HEAD_SECONDS = 1; /* bound the accept thread wait when connection slots are exhausted */
 constexpr size_t METHOD_MAX = 7, TARGET_MAX = 1023; /* longer is cut, as sscanf's %7s %1023s did */
 
 struct Request {
@@ -878,7 +865,7 @@ void redirect(sock_t s, std::string_view location)
 }
 
 constexpr size_t ASSET_PATH_MAX = 511; /* a longer path is cut, and found nowhere */
-constexpr size_t LOCATION_MAX = 559;
+constexpr size_t LOCATION_MAX = 559; /* preserve the legacy redirect location truncation */
 
 void serve_asset(Request &q)
 {
@@ -924,7 +911,7 @@ bool set_recv_timeout(sock_t s, int milliseconds)
    still has the body coming: closing on unread data resets the connection,
    and the client may lose the answer. A small rest is read and dropped
    first; a large one (an upload over the cap) is not waited for. */
-constexpr unsigned long long DRAIN_MAX = 1ULL << 20;
+constexpr unsigned long long DRAIN_MAX = 1ULL << 20; /* drain only small refused bodies so their error reply survives */
 constexpr int DRAIN_SECONDS = 2; /* a refused small body gets only a short wait to preserve its error reply */
 void drain(Request &q)
 {
@@ -967,7 +954,7 @@ void handle(sock_t s, bool connection_limited, long long head_deadline)
     /* Static page assets are public; every protected route authenticates
        before validation, admission, serialization, or any body read. */
     if ((command || events || leave || files) && !token_ok(q->target)) {
-        reply_text(s, "403 Forbidden", "bad token");
+        reply_text(s, "403 Forbidden", BAD_TOKEN);
         if (!connection_limited) drain(*q);
         close_sock(s);
         return;
@@ -1126,7 +1113,8 @@ void at_exit()
 void make_token()
 {
     static constexpr std::string_view hex = "0123456789abcdef";
-    std::array<unsigned char, 16> bytes{};
+    constexpr size_t TOKEN_BYTES = 16; /* 128 random bits authenticate local browser requests */
+    std::array<unsigned char, TOKEN_BYTES> bytes{};
 #ifdef _WIN32
     for (unsigned char &b : bytes) {
         unsigned int v = 0;
@@ -1176,7 +1164,8 @@ int listen_on(int port)
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* this machine only */
     addr.sin_port = htons(static_cast<unsigned short>(port));
-    if (bind(listener, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) != 0 || listen(listener, 16) != 0) {
+    constexpr int LISTEN_BACKLOG = 16; /* queue a burst of browser connections while accept dispatches them */
+    if (bind(listener, reinterpret_cast<struct sockaddr *>(&addr), sizeof addr) != 0 || listen(listener, LISTEN_BACKLOG) != 0) {
         close_sock(listener);
         listener = INVALID_SOCKET;
         return -1;
@@ -1205,7 +1194,7 @@ void start_serving(int got, bool show, bool open)
     orig_stderr = fileno(stderr) >= 0 ? dup(fileno(stderr)) : -1;
     if (orig_stderr >= 0) no_inherit_fd(orig_stderr);
 #ifdef _WIN32
-    if (_pipe(log_pipe.data(), 65536, _O_BINARY | _O_NOINHERIT) == 0) {
+    if (_pipe(log_pipe.data(), CHUNK, _O_BINARY | _O_NOINHERIT) == 0) {
 #else
     if (pipe(log_pipe.data()) == 0) {
 #endif

@@ -99,7 +99,9 @@ static const char *const usage_head =
     "  (none)           ";
 static const char *const usage_window = "a window of its own: the page in the system's web view\n";
 static const char *const usage_no_window = "the browser, as --browser (this build has no window of its own)\n";
-static const char *const usage_tail =
+static std::string usage_tail()
+{
+    return xpp::format(
     "  --browser        the page in the default browser; prints its address (XPP: http://...)\n"
     "  --web            the same as --browser\n"
     "  --no-open        browser mode, printing the address without opening a browser\n"
@@ -112,7 +114,7 @@ static const char *const usage_tail =
     "opens its saved model and whole session. A recording (name.recx)\n"
     "opens in the player.\n"
     "Options:\n"
-    "  --port N         the page's port on 127.0.0.1 (default 8765; 0: any free port)\n"
+    "  --port N         the page's port on 127.0.0.1 (default {}; 0: any free port)\n"
     "  --verbose        the log at INFO, --debug at DEBUG (default: warnings and errors)\n"
     "  --setfile FILE   import an XPPAUT set; --parfile FILE / --icfile FILE load values\n"
     "  --outfile FILE   batch output; --noout suppresses rows\n"
@@ -127,7 +129,8 @@ static const char *const usage_tail =
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
     "  --auto           accept suggested names with --convert\n"
     "  -h / --help      help; --version prints the version\n"
-    "Word options require two dashes. X11 options are removed.\n";
+    "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
+}
 
 /* --convert's question about a name, asked on the terminal: nobody can
    answer when standard input is not one (a script, CI) */
@@ -233,7 +236,7 @@ static void run_session(void)
 
 int main(int argc, char **argv)
 {
-    int mode = MODE_WINDOW, batch = 0, port = 8765, open_browser = 1, convert = 0, convert_auto = 0, i, k;
+    int mode = MODE_WINDOW, batch = 0, port = xpp::http::DEFAULT_PORT, open_browser = 1, convert = 0, convert_auto = 0, i, k;
     char *script = NULL;
 #ifdef _WIN32
     /* xppautX links -mwindows (no console from Explorer or a file
@@ -250,7 +253,7 @@ int main(int argc, char **argv)
             return 0;
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            printf("%s%s%s", usage_head, xpp::window::supported() ? usage_window : usage_no_window, usage_tail);
+            printf("%s%s%s", usage_head, xpp::window::supported() ? usage_window : usage_no_window, usage_tail().c_str());
             return 0;
         }
         if (strcmp(argv[i], "--web") == 0 || strcmp(argv[i], "--browser") == 0) mode = MODE_BROWSER;

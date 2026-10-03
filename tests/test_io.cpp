@@ -374,6 +374,15 @@ int main(void)
     {
         /* encode: valid UTF-8 (2/3/4-byte) passes through unchanged */
         std::string out;
+        xpp::json_append_string(out, "caf\xc3\xa9 \xf0\x9f\x98\x80");
+        CHECK_STR(out.c_str(), "\"caf\xc3\xa9 \xf0\x9f\x98\x80\"");
+        out.clear();
+        xpp::json_append_string(out, "a\"b\\c");
+        CHECK_STR(out.c_str(), "\"a\\\"b\\\\c\"");
+        out.clear();
+        xpp::json_append_string(out, "\n\t\r\b\f\x01");
+        CHECK_STR(out.c_str(), "\"\\n\\t\\r\\b\\f\\u0001\"");
+        out.clear();
         xpp::json_encode_string(out, "I\xce\xb1pp"); /* "Iαpp" */
         CHECK_STR(out.c_str(), "I\xce\xb1pp");
         out.clear();
