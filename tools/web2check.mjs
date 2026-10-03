@@ -2012,22 +2012,7 @@ async function autoView(dir) {
   check('AUTO: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('AUTO: no view before the core opens it', !(await cdp.eval(`!!document.querySelector('.auto-panel')`)));
 
-  /* examples/recordings/lecar_auto.recx: the "hopf" parameter set, its fixed point as the IC */
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('g');
-  await menuKey('d');
-  await until('!s.busy', 'hopf set');
-  await key('s');
-  await menuKey('g');
-  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
-  await menuKey('n');
-  await until('!s.busy', 'fixed point', 30000);
-  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
-  await until('!s.busy', 'import');
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('a');
+  await openAutoAtFixedPoint();
   check('File/Auto opens the AUTO view', await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open')
     && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`), JSON.stringify(await DS('d.axes')));
   check("the diagram has the focus, so AUTO's keys work", await until(`document.activeElement.closest('.auto-host')`, 'auto focus'));
@@ -2817,7 +2802,8 @@ async function autoViews(dir) {
     `${saved} vs ${await S('JSON.stringify([s.diagram.active, s.diagram.views.map(v => [v.axes && v.axes.plot, v.axes && v.axes.ylabel, v.points.x.length])])')}`);
 }
 
-/* from the main window to AUTO's view: a fixed point of the model made the initial conditions
+/* examples/recordings/lecar_auto.recx: the "hopf" parameter set; from the main window
+   to AUTO's view: a fixed point of the model made the initial conditions
    (Sing pts, then Import), then File/Auto */
 async function openAutoAtFixedPoint() {
   await key('f');
@@ -2844,11 +2830,12 @@ async function openAutoAtFixedPoint() {
    loads it without an error, the AUTO view shows the diagram, and after Back the main window's plot
    still draws the rows the session holds (what the page holds and what the chart drew, never pixels). */
 async function reopenedSessionPlot(dir) {
+  const rows = 601; // lecar's 60 time units at dt=0.1, including the initial row.
   await desktopMetrics();
   check('W102: the page connects', await until('s.hello && !s.busy', 'hello'));
   await key('i');
   await menuKey('g');
-  check('W102: G integrates: 601 rows', await until('w.series && w.series.rows === 601 && !s.busy', 'series'));
+  check('W102: G integrates: 601 rows', await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'series'));
   await openAutoAtFixedPoint();
   await key('r');
   await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
@@ -2871,6 +2858,8 @@ async function reopenedSessionPlot(dir) {
   await until('!s.busy', 'session saved');
   check('W102: the session file is written', fs.existsSync(path.join(dir, 'w102.snapx')));
 
+  /* Chart.info keeps its last drawing while AUTO covers the plot: reopening must advance it. */
+  const beforeOpen = (await P()).draws;
   /* the window's File/Open model pushes the command into the core itself (json_ui_push_open) */
   await cdp.eval(`window.__helloBefore = __xpp.state().hello; fetch('/cmd' + location.search, {method: 'POST',
     body: JSON.stringify({cmd: 'open', file: 'w102.snapx'})}).then(r => r.status)`);
@@ -2885,11 +2874,18 @@ async function reopenedSessionPlot(dir) {
   await click(back.x, back.y);
   await until('!s.diagram.shown', 'back');
   check('W102: after Back the store holds the 601 rows',
-    await until('w.series && w.series.rows === 601 && !s.busy', 'rows'), JSON.stringify(await S('w.series && w.series.rows')));
-  const drawn = () => cdp.eval('__xpp.plot()');
+    await until(`w.series && w.series.rows === ${rows} && !s.busy`, 'rows'), JSON.stringify(await S('w.series && w.series.rows')));
   check('W102: ... and the plot draws them: W against V, 601 points, some inside its window',
-    await until('__xpp.plot() && __xpp.plot().curves.length === 1 && __xpp.plot().curves[0].points === 601 && __xpp.plot().vertices[0] > 0', 'drawn'),
-    JSON.stringify(await drawn()));
+    await until(`(() => { const p = __xpp.plot(), e = document.querySelector('.plot-view:not([hidden]) .u-over');
+      if (!__xpp.rendered() || s.diagram.shown || !p || !e || p.draws <= ${beforeOpen}
+        || p.width <= 0 || p.height <= 0 || p.mode !== 2 || p.curves.length !== 1
+        || p.curves[0].label !== 'W vs V' || !p.curves[0].visible || p.curves[0].points !== ${rows}
+        || !(p.vertices[0] > 0)) return false;
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0
+        && document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === e;
+    })()`, 'restored series drawn after Back'),
+    JSON.stringify(await P()));
 }
 
 /* T21: while the core computes (an integration here), the AUTO view's own
