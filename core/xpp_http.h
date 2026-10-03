@@ -2,6 +2,7 @@
 #define XPP_HTTP_H
 
 #include <string_view>
+#include "xpp_error.h"
 
 /* The browser front end without Node: a small HTTP server inside
    xppautX (xpp_http.cpp), in namespace xpp::http (W109f). The page and
@@ -40,6 +41,8 @@ bool said_bye();
 void release();
 /* true once start() has succeeded: the protocol goes to the page */
 bool active();
+/* W13c: only this repository's release pages, never an arbitrary opener argument. */
+xpp::Result<> open_release_page(std::string_view url);
 /* one event, no newline */
 void emit(std::string_view line);
 

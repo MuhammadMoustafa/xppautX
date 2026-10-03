@@ -9,6 +9,7 @@ import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
 import {AutoShow, AutoView} from './AutoView';
 import {SessionContext, useStore} from './context';
+import {UpdateDialog} from './UpdateDialog';
 import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
 import {MenuPanel} from './MenuPanel';
@@ -82,6 +83,7 @@ function Shell() {
       <AplotView />
       <AniView />
       <HelpView />
+      <UpdateDialog />
       <StatusBar />
       <Toasts />
       <AskDialog />

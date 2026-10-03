@@ -5,13 +5,15 @@
    chapter (and anchor). Its close box and File > Quit (Cmd+Q on macOS) run
    `window.__xppQuit()` (W110): File > Quit's question (session.ts
    quitAsked). In a browser nothing calls them. */
+import {requestUpdateCheck} from './help/updates';
 import type {Session} from './session';
 import {nativeFileDialog} from './pickers';
 
 export function installDesktopHooks(session: Session): void {
-  const w = window as unknown as {__xppOpenHelp: unknown; __xppQuit: unknown};
+  const w = window as unknown as {__xppOpenHelp: unknown; __xppQuit: unknown; __xppCheckUpdates: unknown};
   w.__xppOpenHelp = (chapter?: string, anchor?: string) =>
     session.store.dispatch({type: 'help', action: {type: 'open', target: chapter ? {chapter, anchor} : undefined}});
+  w.__xppCheckUpdates = requestUpdateCheck;
   w.__xppQuit = () => session.quitAsked();
 }
 

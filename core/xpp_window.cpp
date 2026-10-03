@@ -83,7 +83,8 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   xpp::http::said_bye,
                                   [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
                                   xpp::json_ui_push_open,
-                                  xpp::log_message};
+                                  xpp::log_message,
+                                  xpp::http::open_release_page};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -187,6 +188,8 @@ void close_window_cb(const char *id, const char *, void *arg)
     webview_eval(w, js.c_str());
 }
 
+[[maybe_unused]] void check_updates(webview_t w) { webview_eval(w, "window.__xppCheckUpdates()"); }
+
 /* The window is gone (closed by the user, File > Quit, or the core's exit).
    On the window's own thread. Unless the core closed it, Quit the session:
    the protocol's quit (the running job is cancelled, the core exits), and
@@ -274,7 +277,7 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d);
 
 /* ---- the platform's menu bar, icon and dialogs -------------------------- */
 
-enum MenuId { ID_OPEN = 101, ID_RELOAD, ID_QUIT, ID_MANUAL, ID_KEYS, ID_ABOUT };
+enum MenuId { ID_OPEN = 101, ID_RELOAD, ID_QUIT, ID_MANUAL, ID_KEYS, ID_UPDATES, ID_ABOUT };
 [[maybe_unused]] const char *const KEYS_CHAPTER = "05-commands"; /* the hotkeys, from its first paragraph */
 
 #if defined(_WIN32)
@@ -375,6 +378,7 @@ LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         case ID_QUIT: PostMessageW(hwnd, WM_CLOSE, 0, 0); return 0; /* as the close box */
         case ID_MANUAL: if (w) open_help(w, nullptr); return 0;
         case ID_KEYS: if (w) open_help(w, KEYS_CHAPTER); return 0;
+        case ID_UPDATES: if (w) check_updates(w); return 0;
         case ID_ABOUT:
             MessageBoxW(hwnd, wide(st->about).c_str(), L"About xppautX", MB_OK | MB_ICONINFORMATION);
             return 0;
@@ -403,6 +407,7 @@ void add_menus(webview_t w)
     AppendMenuW(file, MF_STRING, ID_QUIT, L"&Quit");
     AppendMenuW(help, MF_STRING, ID_MANUAL, L"&Manual");
     AppendMenuW(help, MF_STRING, ID_KEYS, L"&Keyboard shortcuts");
+    AppendMenuW(help, MF_STRING, ID_UPDATES, L"Check for &updates");
     AppendMenuW(help, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(help, MF_STRING, ID_ABOUT, L"&About xppautX");
     AppendMenuW(bar, MF_POPUP, reinterpret_cast<UINT_PTR>(file), L"&File");
@@ -483,14 +488,20 @@ void add_method(const char *name, const char *sel, IMP imp, const char *types)
     if (c) class_replaceMethod(c, sel_registerName(sel), imp, types);
 }
 
-/* The app menu: Quit xppautX (Cmd+Q), which sends -terminate: to the
-   application, and with it the delegates' methods above. No menus of
-   ours yet beyond it, and the icon comes with the .app bundle (W13b). */
+void check_updates_action(id, SEL, id)
+{
+    std::lock_guard<std::mutex> lk(st->mu);
+    if (st->view) check_updates(st->view);
+}
+
+/* The app menu's Quit and Help's on-demand update check. The icon comes
+   with the .app bundle (W13b). */
 void add_menus(webview_t)
 {
     add_method("WebviewNSWindowDelegate", "windowShouldClose:", reinterpret_cast<IMP>(window_should_close), "c@:@");
     add_method("WebviewAppDelegate", "applicationShouldTerminate:", reinterpret_cast<IMP>(application_should_terminate),
                "Q@:@");
+    add_method("WebviewAppDelegate", "xppCheckUpdates:", reinterpret_cast<IMP>(check_updates_action), "v@:@");
     id pool = msg(cls("NSAutoreleasePool"), "new");
     id bar = msg(msg(cls("NSMenu"), "alloc"), "init");
     id app_item = msg(msg(cls("NSMenuItem"), "alloc"), "init");
@@ -502,6 +513,19 @@ void add_menus(webview_t)
         msg<void>(app_item, "setSubmenu:", app_menu);
         msg<void>(bar, "addItem:", app_item);
         msg<void>(msg(cls("NSApplication"), "sharedApplication"), "setMainMenu:", bar);
+    }
+    id help_item = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
+                       ns_string("Help"), static_cast<SEL>(nullptr), ns_string(""));
+    id help = msg(msg(cls("NSMenu"), "alloc"), "initWithTitle:", ns_string("Help"));
+    id update = msg(msg(cls("NSMenuItem"), "alloc"), "initWithTitle:action:keyEquivalent:",
+                    ns_string("Check for updates"), sel_registerName("xppCheckUpdates:"), ns_string(""));
+    if (bar && help_item && help && update) {
+        id app = msg(cls("NSApplication"), "sharedApplication");
+        msg<void>(update, "setTarget:", msg(app, "delegate"));
+        msg<void>(help, "addItem:", update);
+        msg<void>(help_item, "setSubmenu:", help);
+        msg<void>(bar, "addItem:", help_item);
+        msg<void>(app, "setHelpMenu:", help);
     }
     msg<void>(pool, "drain");
 }
@@ -724,6 +748,7 @@ void on_menu(GtkMenuItem *, gpointer id_ptr)
     case ID_QUIT: gtk_window_close(win); break; /* as the close box: delete_event */
     case ID_MANUAL: open_help(w, nullptr); break;
     case ID_KEYS: open_help(w, KEYS_CHAPTER); break;
+    case ID_UPDATES: check_updates(w); break;
     case ID_ABOUT: {
         GtkWidget *dlg = gtk_message_dialog_new(win, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s",
                                                 st->about.c_str());
@@ -797,6 +822,7 @@ void add_menus(webview_t w)
     menu_item(file, "_Quit", ID_QUIT);
     menu_item(help, "_Manual", ID_MANUAL);
     menu_item(help, "_Keyboard shortcuts", ID_KEYS);
+    menu_item(help, "Check for _updates", ID_UPDATES);
     gtk_menu_shell_append(GTK_MENU_SHELL(help), gtk_separator_menu_item_new());
     menu_item(help, "_About xppautX", ID_ABOUT);
     g_object_ref(view);
@@ -875,6 +901,24 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
     webview_return(w, id, status, reply.c_str());
 }
 
+/* The binding may be called by a tampered page: the core checks the URL before opening it. */
+void open_release_cb(const char *id, const char *request, void *arg)
+{
+    webview_t w = static_cast<webview_t>(arg);
+    constexpr size_t REQUEST_LIMIT = 1024; /* JSON escaping of a bounded release URL */
+    xpp::Result<> result = xpp::fail("update check", "release request refused", xpp::Place{"Check for updates", 1});
+    try {
+        if (request && std::strlen(request) <= REQUEST_LIMIT)
+            result = host->open_release_page(xpp::webview_json_value(request, "", 0));
+    } catch (const std::exception &e) {
+        result = xpp::fail("update check", e.what(), xpp::Place{"Check for updates", 1});
+    } catch (...) {
+        result = xpp::fail("update check", "release request failed", xpp::Place{"Check for updates", 1});
+    }
+    const std::string reply = result ? "null" : xpp::webview_json_quote(result.error().text());
+    webview_return(w, id, result ? 0 : 1, reply.c_str());
+}
+
 /* the window, on the thread that runs it; NULL when it cannot open, with
    why in st->error_msg */
 webview_t open_view()
@@ -898,6 +942,7 @@ webview_t open_view()
     /* before the page loads, so it is there from its first script */
     if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     webview_bind(w, "__xppCloseWindow", close_window_cb, w);
+    webview_bind(w, "__xppOpenRelease", open_release_cb, w);
     /* the token stays out of sight: the web view has no address bar */
     webview_navigate(w, host->http_url());
     return w;

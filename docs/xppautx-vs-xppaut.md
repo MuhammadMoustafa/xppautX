@@ -68,6 +68,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Busy | the program does not answer while it computes | Stop at any time; a command sent during a run is discarded at the source, except control, view and setting commands | W68, W95 |
 | Errors | `err_msg` text in a box | an error dialog with OK for a failed action; every error names its file and line | W104, W140 |
 | Fonts, colours, window size, `-bigfont`, `-white`, `-width` ... | X resources and options | the options are accepted and no longer stored | CLAUDE.md "Architecture" |
+| Update check | none | Help > Check for updates, on demand; release page opens by choice, no download or install | W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)) |
 | Help | the info/help files (`help/`) | the manual as Markdown in the Help view, linked from menus and dialogs | W12 |
 | Picture export | PostScript, GIF, SVG | PostScript, SVG and the GIFs from one registry | W53, W66 |
 | Kinescope | frames kept in the X window | frames captured as data in the page; the core writes the animated GIF | W6 (T-cards) |

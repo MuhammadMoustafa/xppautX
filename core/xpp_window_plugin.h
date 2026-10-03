@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "xpp_log.h"
+#include "xpp_error.h"
 
 /* The seam between xppautX and its window when the window is a library of
    its own (Linux, W13e): xpp_window.cpp and third_party/webview built into
@@ -13,8 +14,8 @@
    The library sees nothing of the core: what it calls there comes in this
    table, filled by the loader. The static builds (Windows, macOS) fill it
    with the same functions at compile time, so the window's code is one. */
-/* The checked-format callback replaces the varargs callback (W172). */
-#define XPP_WINDOW_HOST_VERSION 4
+/* W13c adds the core-validated release opener after W172's checked-format callback. */
+#define XPP_WINDOW_HOST_VERSION 5
 typedef struct XppWindowHost {
     int version; /* XPP_WINDOW_HOST_VERSION */
     const char *(*http_url)(void);
@@ -25,6 +26,7 @@ typedef struct XppWindowHost {
     void (*open_model)(const char *path);
     /* Checked at the call site; formatted and delivered by the core. */
     void (*log_message)(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;
+    xpp::Result<> (*open_release_page)(std::string_view url); /* checked in the core before opening */
     template <class... Args>
     void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) const noexcept
     {

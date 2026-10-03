@@ -6,6 +6,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import net from 'node:net';
 
 const win = process.platform === 'win32';
 
@@ -124,6 +125,20 @@ const REPORT_TIMEOUT_MS = 3000; /* diagnostics must also work when the renderer 
 const WAIT_TIMEOUT_MS = 15000; /* safety ceiling for external processes and files, not a speed assertion */
 const POLL_MS = 40; /* yield between observations of a condition without an event API */
 const EXIT_TIMEOUT_MS = 5000; /* safety ceiling for a stopped child to release its files */
+const DEVTOOLS_FETCH_TIMEOUT_MS = 1000; /* a hung local DevTools endpoint must not defeat waitFor's deadline */
+
+async function devtoolsPage(port, accepts) {
+  const list = await (await fetch(`http://127.0.0.1:${port}/json/list`,
+    {signal: AbortSignal.timeout(DEVTOOLS_FETCH_TIMEOUT_MS)})).json();
+  return list.find(t => t.type === 'page' && (!accepts || accepts(t)));
+}
+
+async function connectPage(page) {
+  const cdp = new Cdp(page.webSocketDebuggerUrl);
+  await cdp.open();
+  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector']) await cdp.send(`${domain}.enable`);
+  return cdp;
+}
 
 export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
   const deadline = Date.now() + timeoutMs;
@@ -255,18 +270,13 @@ export async function startBrowser(browser, profile) {
     proc.on('error', e => { clearTimeout(timer); reject(new Error(`browser ${browser} could not be run: ${e.message}`)); });
   }).catch(e => { proc.kill(); throw e; });
   const port = new URL(wsUrl).port;
-  const page = await waitFor(async () => {
-    const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-    return list.find(t => t.type === 'page');
-  }, startMs);
+  const page = await waitFor(() => devtoolsPage(port), startMs);
   if (!page) { proc.kill(); throw new Error(`browser ${browser} has no page: ${state()}`); }
-  const cdp = new Cdp(page.webSocketDebuggerUrl);
+  const cdp = await connectPage(page);
   cdp.browserState = state;
-  await cdp.open();
   /* the events Cdp.report() tells a failure with; not Network, which would send every SSE
      message of the page over this socket (a failed load is the Log's error and the
      chrome-error page Cdp.report() shows) */
-  for (const domain of ['Page', 'Runtime', 'Log', 'Inspector']) await cdp.send(`${domain}.enable`).catch(() => undefined);
 
   /* Set download behavior once at browser start, for all sections */
   await cdp.send('Browser.setDownloadBehavior', {behavior: 'allow', downloadPath: downloads})
@@ -300,6 +310,42 @@ export function startServer(bin, dir, args) {
     proc.stderr.on('data', d => { text += d; });
     proc.on('exit', code => reject(new Error(`${bin} exited (${code}):\n${text}`)));
   });
+}
+
+/* W13c: own the window process and attach to its WebView2 page, Windows only. */
+export async function startWebView2(bin, dir, args) {
+  if (!win) throw new Error('--webview2 requires Windows');
+  const port = await new Promise((resolve, reject) => {
+    const listener = net.createServer();
+    listener.on('error', reject);
+    listener.listen(0, '127.0.0.1', () => {
+      const assigned = listener.address().port;
+      listener.close(() => resolve(assigned));
+    });
+  });
+  const proc = spawn(bin, [...args, '--port', '0'], {cwd: dir, stdio: ['ignore', 'pipe', 'pipe'],
+    env: {...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`}});
+  let diagnostic = '';
+  proc.stdout.on('data', d => { diagnostic = (diagnostic + d).slice(-STDERR_KEPT); });
+  proc.stderr.on('data', d => { diagnostic = (diagnostic + d).slice(-STDERR_KEPT); });
+  let spawnError;
+  proc.on('error', e => { spawnError = e; });
+  try {
+    const page = await waitFor(async () => {
+      if (spawnError) throw spawnError;
+      if (proc.exitCode !== null) throw new Error(`WebView2 window exited (${proc.exitCode}): ${diagnostic}`);
+      try {
+        return await devtoolsPage(port, t => /^http:\/\/127\.0\.0\.1:\d+\/\?t=/.test(t.url));
+      } catch { return null; } // DevTools has not started listening yet: wait for the target.
+    });
+    if (!page) throw new Error(`WebView2 did not expose the xppautX page: ${diagnostic}`);
+    const cdp = await connectPage(page);
+    return {proc, url: page.url, cdp};
+  } catch (e) {
+    proc.kill(); // only the process this function started
+    await waitForExit(proc);
+    throw e;
+  }
 }
 
 /* Ends a startServer() session: {"cmd":"quit"} over its own /cmd (as

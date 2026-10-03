@@ -168,6 +168,19 @@ Chrome are (not WSL), and builds nothing: it drives `./xppautX[.exe]`
 build/web2check-downloads/<pid> (W142: set once when cdp.mjs starts the
 browser, removed when it closes, a dead run's folder removed by the next),
 never the user's Downloads.
+W13c (#126): `node tools/web2check.mjs --webview2 --only desktop,files`
+starts the Windows xppautX window with an isolated DevTools port in
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, attaches to its actual page, and
+stops its own process by PID. `help`, `updates` and `native` are also supported.
+`files` runs the native-file binding checks with stubbed picker replies;
+the OS picker itself remains a manual check. `desktop` omits table/values exports
+and uploads, whose checks require browser picker/download setup. Other sections are refused in
+this mode: their browser download or browser process lifecycle setup is
+not provided by the window driver. `--only updates` uses a fetch stub
+installed before load: newer, same, older, unavailable, missing, malformed
+and hostile API replies need no GitHub network. WebView2 startup can be
+blocked by an outer sandbox; an attachment failure is an error, never a pass.
+
 A section a check fails in is rerun once (macos-ui, the slowest runner,
 failed a different check nearly every time, always passing on a rerun,
 W40): still failing is a FAIL, passing on the rerun is FLAKY (counted at

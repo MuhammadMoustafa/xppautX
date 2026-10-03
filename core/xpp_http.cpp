@@ -1131,10 +1131,11 @@ void make_token()
     srv.token = token;
 }
 
-void open_in_browser(const std::string &url)
+bool open_in_browser(const std::string &url)
 {
 #ifdef _WIN32
-    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    constexpr INT_PTR SHELL_ERROR_MAX = 32; /* ShellExecute returns an error code up to 32, success above it */
+    return reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX;
 #else
     const char *opener = "xdg-open";
 #ifdef __APPLE__
@@ -1142,7 +1143,7 @@ void open_in_browser(const std::string &url)
 #endif
     if (getenv("WSL_DISTRO_NAME")) opener = "cmd.exe /c start";
     std::string cmd = xpp::format("{} '{}' >/dev/null 2>&1 &", opener, url);
-    if (system(cmd.c_str()) != 0) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", url);
+    return system(cmd.c_str()) == 0;
 #endif
 }
 
@@ -1206,7 +1207,7 @@ void start_serving(int got, bool show, bool open)
     pthread_create(&http_thread, nullptr, http_main, nullptr);
     pthread_create(&watchdog_thread, nullptr, watchdog_main, nullptr);
     atexit(at_exit);
-    if (open) open_in_browser(srv.page_url);
+    if (open && !open_in_browser(srv.page_url)) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
 }
 
 } // namespace
@@ -1214,6 +1215,26 @@ void start_serving(int got, bool show, bool open)
 /* ---- the API ---------------------------------------------------------------------- */
 
 namespace xpp::http {
+
+xpp::Result<> open_release_page(std::string_view url)
+{
+    constexpr std::string_view PREFIX = "https://github.com/MuhammadMoustafa/xppautX/releases/";
+    constexpr size_t URL_LIMIT = 256; /* a release tag page needs no long query or fragment */
+    const auto refused = [] {
+        return xpp::fail("update check", "release URL refused", xpp::Place{"Check for updates", 1});
+    };
+    if (url.size() > URL_LIMIT || !url.starts_with(PREFIX)) return refused();
+    const std::string_view tail = url.substr(PREFIX.size());
+    /* Strict path alphabet: no shell quotes, escapes, query, fragment, traversal or program scheme. */
+    if (tail.empty() || tail.find("..") != std::string_view::npos) return refused();
+    for (char c : tail)
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+              || c == '/' || c == '.' || c == '-' || c == '_')) return refused();
+    if (!open_in_browser(std::string(url)))
+        return xpp::fail("update check", "the system browser could not open", xpp::Place{"Check for updates", 1});
+    return {};
+}
+
 
 bool active() { return serving; }
 
@@ -1249,7 +1270,7 @@ void show(bool open)
     print_address(srv.page_url.c_str());
     if (open) {
         try {
-            open_in_browser(srv.page_url);
+            if (!open_in_browser(srv.page_url)) xpp::log(XPP_LOG_WARN, "open {} in a browser\n", srv.page_url);
         } catch (...) {
             xpp::out_of_memory_now("in the HTTP server");
         }

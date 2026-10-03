@@ -1,3 +1,4 @@
+import {requestUpdateCheck} from '../help/updates';
 /* The Help view (docs/roadmap.md W12: the manual, step 3): a table of
    contents, a search box (help/search.ts, over the manual's headings and
    text), and the chapter itself, rendered from its already-built HTML
@@ -143,6 +144,7 @@ export function HelpView() {
       <div class="help-header">
         <button class="help-back" onClick={close}>Back</button>
         <h2>Help</h2>
+        <button onClick={requestUpdateCheck}>Check for updates</button>
         <button type="button" class="help-about-toggle" aria-pressed={help.about}
           onClick={() => session.store.dispatch({type: 'help', action: {type: 'about'}})}>About</button>
       </div>

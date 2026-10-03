@@ -1684,3 +1684,20 @@ The conversion confirmation uses `message.bottom`, as an imported `.set`
 does. A bottom message can also carry `help:{chapter,anchor}`; the page
 shows its manual link. Conversion supplies `02-ode-files`, `odex`.
 Sessions and recordings carrying a `.ode` model fail with a shown error.
+
+### On-demand update check (W13c, #126)
+
+No protocol event or command changes: the page reads the program version
+from the first line of hello.about (xpp_about_text). A git-describe suffix
+compares its base release tag. Only the page requests GitHub's latest-release
+API. The window binds __xppOpenRelease(url); the core bounds and validates
+the fixed https://github.com/MuhammadMoustafa/xppautX/releases/ prefix and
+a safe path alphabet before using the existing system browser opener.
+It rejects invalid URLs or an opener failure. No asset is downloaded.
+The page reads only tag_name and html_url: the answer is capped at 1 MiB,
+the tag at 64 characters, and the URL at 256. Tags must be vX.Y.Z with
+safe integer components; the URL must be this repository's tag page for
+that tag. API text is rendered as text, never HTML. The native binding also
+caps its JSON request and rejects traversal, quoting, escapes, query strings
+and fragments before launching the existing browser opener. Its rejection
+is an xpp::Error placed at Check for updates:1 and shown by the dialog.

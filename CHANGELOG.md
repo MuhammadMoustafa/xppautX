@@ -9,6 +9,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Added
+
+- Help > Check for updates asks GitHub only on demand and opens the release page by choice; no download or installation. Run selected web2check sections in the actual Windows WebView2 window with --webview2 (W13c, [#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).
+
 ### Build
 
 - Embed the page, icon and Linux window library as C++ spans; remove the remaining project C generators and their C linkage (W173, [#225](https://github.com/MuhammadMoustafa/xppautX/issues/225)).

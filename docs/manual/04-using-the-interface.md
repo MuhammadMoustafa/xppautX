@@ -423,3 +423,17 @@ or `lecar-eigen1-stable.dat`. Kinescope Save asks for each frame's GIF;
 Make Anigif saves all captured frames into one GIF. The browser delivers
 every committed output. Typed browser names stay in the model's folder;
 the desktop's save dialog can choose a destination on disk. (W130, #182)
+
+### Check for updates
+
+Help > Check for updates (in the window's Help menu or the page's Help view)
+asks GitHub for the latest xppautX release, only when you choose it. There
+is no startup or background check. A newer release shows its version and
+**Open the release page** / **Close**. The release page opens in your system
+browser (a new tab in browser mode), where you choose whether to download.
+xppautX downloads and installs nothing. A current or newer installed version
+says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
+or unversioned development build shows why the check failed. Development
+builds described from a release tag compare that base version.
+
+W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).

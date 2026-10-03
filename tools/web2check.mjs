@@ -65,8 +65,11 @@
    load shows the core's `error` event, its file, line and cause, with the
    line as written, and no hello.
 
-   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH]
+   node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
      [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+   --only updates stubs GitHub before load. --webview2 is Windows only,
+   requires --only desktop,files,help,updates,native (a selected subset),
+   and runs files through native-binding fixtures; desktop omits browser file fixtures.
    A section a check fails in is rerun once; still failing is a FAIL,
    passing on the rerun is FLAKY. A command the page said did not reach
    the core (or was refused) is a FAIL in any attempt, never a flake (W124):
@@ -86,13 +89,14 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, stopServer} from './cdp.mjs';
+import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
   if (a === '-v') opt.v = true;
+  else if (a === '--webview2') opt.webview2 = true;
   else opt[a.replace(/^--/, '')] = process.argv[++i];
 }
 const bin = path.resolve(top, opt.bin);
@@ -4963,13 +4967,76 @@ async function warningFlashCheck() {
   }
 }
 
+async function updatesCheck() {
+  check('updates: no startup request', await cdp.eval('window.__updateRequests === 0'));
+  if (opt.webview2) {
+    check('updates: core refuses hostile bound URLs', await cdp.eval(`(async () => {
+      for (const url of ['file:///C:/Windows/System32/cmd.exe', 'https://evil.example/',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/../issues',
+        "https://github.com/MuhammadMoustafa/xppautX/releases/tag/x';bad",
+        'https://github.com/MuhammadMoustafa/xppautX/releases/' + 'x'.repeat(300)]) {
+        try { await window.__xppOpenRelease(url); return false; } catch {}
+      }
+      return true;
+    })()`));
+  }
+  const close = () => cdp.eval("document.querySelector('[data-update-dialog] .dialog-actions button:last-child').click()");
+  const run = async (answer, text) => {
+    await cdp.eval(`window.__updateAnswer = ${JSON.stringify(answer)}; window.__xppCheckUpdates(); true`);
+    check(text, await until(`document.querySelector('[data-update-dialog]')?.textContent.includes(${JSON.stringify(text)})`, text));
+  };
+  const about = await S('s.hello.about');
+  const local = /^xppautX (v\d+\.\d+\.\d+)/.exec(about)[1];
+  const release = tag => ({tag_name: tag, html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/' + tag});
+  await run(release('v999.0.0'), 'xppautX 999.0.0 is available');
+  check('updates: newer offers release page and Close', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));
+  await cdp.eval(opt.webview2
+    ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] button').click()"
+    : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] button').click()");
+  check('updates: opens only on choice', await cdp.eval("window.__openedRelease === 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'"));
+  await close();
+  await run(release(local), `xppautX ${local.slice(1)} is the latest`);
+  check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] button').length === 1"));
+  await close();
+  await run(release('v0.0.0'), 'is the latest'); await close();
+  await run('network', 'Check for updates failed: stub network unavailable'); await close();
+  await run(null, 'Check for updates failed: GitHub returned no release'); await close();
+  await run('http', 'Check for updates failed: GitHub returned HTTP 503'); await close();
+  await run('json', 'Check for updates failed:'); await close();
+  await run({tag_name: '<img src=x onerror=alert(1)>', html_url: 'file:///bad'}, 'Check for updates failed: invalid release version'); await close();
+  await run({tag_name: 'v999.0.0', html_url: 'https://evil.example/'}, 'Check for updates failed: GitHub returned an invalid release page URL'); await close();
+  await run({tag_name: 'v' + '9'.repeat(100), html_url: 'bad'}, 'Check for updates failed: invalid release version'); await close();
+}
+
 async function sessionAttempt(ode, fn, expected, attempts) {
   const rec = record = [];
   attempts.push(rec); /* its lost commands (rec.lost) count even if it throws */
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-'));
   fs.copyFileSync(ode, path.join(dir, path.basename(ode)));
-  const server = sessionServer = await startServer(bin, dir, [path.basename(ode)]);
+  let server;
   try {
+    server = sessionServer = await (opt.webview2 ? startWebView2 : startServer)(bin, dir, [path.basename(ode)]);
+  } catch (e) {
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+    record = null;
+    throw e;
+  }
+  try {
+    if (opt.webview2) {
+      cdp = server.cdp;
+      await installPerfObserver(cdp);
+    }
+    if (fn === updatesCheck) await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: `
+      window.__updateRequests = 0;
+      const originalFetch = window.fetch;
+      window.fetch = async (url, options) => {
+        if (url !== 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest') return originalFetch(url, options);
+        window.__updateRequests++;
+        if (window.__updateAnswer === 'network') throw new Error('stub network unavailable');
+        if (window.__updateAnswer === 'http') return new Response('unavailable', {status: 503});
+        if (window.__updateAnswer === 'json') return new Response('{');
+        return new Response(JSON.stringify(window.__updateAnswer), {status: 200, headers: {'Content-Type': 'application/json'}});
+      };`});
     /* the new page, connected and idle, before `fn`: a check run between the navigation and the
        new document's first state read the last page's store, and a key typed then was lost (W20) */
     await cdp.eval('window.__left = true').catch(() => {});
@@ -4984,6 +5051,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
   } finally {
     rec.lost = await lostCommands(expected);
     await stopServer(server);
+    if (opt.webview2) cdp.ws.close();
 
     fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
     record = null;
@@ -5260,8 +5328,14 @@ function cleanStaleProfiles() {
 }
 
 async function main() {
-  const browser = findBrowser(opt.browser);
-  if (!browser) {
+  if (opt.webview2) {
+    if (process.platform !== 'win32') throw new Error('--webview2 requires Windows');
+    const supported = ['desktop', 'files', 'help', 'updates', 'native'];
+    if (!opt.only || opt.only.split(',').some(s => !supported.includes(s)))
+      throw new Error('--webview2 requires --only desktop,files,help,updates,native: other sections need browser downloads or browser process lifecycle');
+  }
+  const browser = opt.webview2 ? null : findBrowser(opt.browser);
+  if (!opt.webview2 && !browser) {
     console.log('web2check: no Chrome, Chromium or Edge found (set CHROME=path); skipped');
     process.exit(0);
   }
@@ -5271,34 +5345,36 @@ async function main() {
 
   const want = outputDat(), wantLive = outputDat(LIVE);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-profile-'));
-  const b = await startBrowser(browser, profile);
-  cdp = b.cdp;
-  downloads = b.downloads;
+  const b = opt.webview2 ? null : await startBrowser(browser, profile);
+  cdp = b?.cdp;
+  downloads = b?.downloads;
   try {
-    await cdp.send('Page.enable');
-    await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
-    if (process.env.XPP_NETLOG) {
-      /* the renderer cancels a 204's empty body once it has the headers
-         (canceled: true), which loses nothing: only real failures print */
-      const sent = new Map(), t0 = Date.now(), before = cdp.onEvent;
-      cdp.onEvent = d => {
-        before(d);
-        const p = d.params;
-        if (d.method === 'Network.requestWillBeSent' && /\/cmd\?/.test(p.request.url))
-          sent.set(p.requestId, {body: p.request.postData, at: Date.now() - t0});
-        else if (d.method === 'Network.loadingFailed' && sent.has(p.requestId) && !p.canceled)
-          console.log(`netlog: POST /cmd ${sent.get(p.requestId).body} sent at ${sent.get(p.requestId).at} ms, `
-            + `failed at ${Date.now() - t0} ms: ${p.errorText}`);
-        if (d.method === 'Network.loadingFinished' || d.method === 'Network.loadingFailed') sent.delete(p.requestId);
-      };
-      await cdp.send('Network.enable');
+    if (!opt.webview2) {
+      await cdp.send('Page.enable');
+      await installPerfObserver(cdp); /* before the first Page.navigate: draw/frame timing and long tasks, W58 */
+      if (process.env.XPP_NETLOG) {
+        /* the renderer cancels a 204's empty body once it has the headers
+           (canceled: true), which loses nothing: only real failures print */
+        const sent = new Map(), t0 = Date.now(), before = cdp.onEvent;
+        cdp.onEvent = d => {
+          before(d);
+          const p = d.params;
+          if (d.method === 'Network.requestWillBeSent' && /\/cmd\?/.test(p.request.url))
+            sent.set(p.requestId, {body: p.request.postData, at: Date.now() - t0});
+          else if (d.method === 'Network.loadingFailed' && sent.has(p.requestId) && !p.canceled)
+            console.log(`netlog: POST /cmd ${sent.get(p.requestId).body} sent at ${sent.get(p.requestId).at} ms, `
+              + `failed at ${Date.now() - t0} ms: ${p.errorText}`);
+          if (d.method === 'Network.loadingFinished' || d.method === 'Network.loadingFailed') sent.delete(p.requestId);
+        };
+        await cdp.send('Network.enable');
+      }
+      /* XPP_CPU_THROTTLE=N runs the page N times slower (Chrome's own CPU
+         throttling), to reproduce a slow runner's timing here (W93) */
+      if (Number(process.env.XPP_CPU_THROTTLE) > 1)
+        await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.XPP_CPU_THROTTLE)});
+      /* about:blank has no app yet: this is protocol setup before the first navigation. */
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
-    /* XPP_CPU_THROTTLE=N runs the page N times slower (Chrome's own CPU
-       throttling), to reproduce a slow runner's timing here (W93) */
-    if (Number(process.env.XPP_CPU_THROTTLE) > 1)
-      await cdp.send('Emulation.setCPUThrottlingRate', {rate: Number(process.env.XPP_CPU_THROTTLE)});
-    /* about:blank has no app yet: this is protocol setup before the first navigation. */
-    await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const run = name => !opt.only || opt.only.split(',').includes(name);
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -5306,9 +5382,12 @@ async function main() {
          Go runs with them (docs/protocol.md `set`), so the stored data would no
          longer match the pristine `want` computed from the ODE file's own
          defaults */
-      await dataTable(want, dir);
-      await values();
-      await valuesNarrowEscape();
+      if (opt.webview2) console.log('SKIP desktop table/values: their file exports and uploads require browser picker/download setup; native files are checked by --only files');
+      else {
+        await dataTable(want, dir);
+        await values();
+        await valuesNarrowEscape();
+      }
       await keyboardOnly();
       await phone();
       await prompts();
@@ -5335,7 +5414,7 @@ async function main() {
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
-    if (run('files')) await session(ODE, files, ['gone.set: cannot be opened']);
+    if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot be opened']);
     if (run('native')) await session(ODE, nativeFiles);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);
@@ -5349,15 +5428,16 @@ async function main() {
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
     if (run('help')) await session(ODE, helpCheck);
+    if (run('updates')) await session(ODE, updatesCheck);
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
     if (run('loaderror')) await loadErrorCheck();
   } finally {
-    b.proc.kill();
-    await b.waitForExit();
+    b?.proc.kill();
+    if (b) await b.waitForExit();
 
-    await b.cleanup();
+    if (b) await b.cleanup();
     /* Remove profile with retries (W105): after closing, wait for the Chrome
        process to exit, then remove the profile with retries to handle Windows
        file locking delays */
