@@ -448,11 +448,11 @@ apart from the agent's work as "Review: ...".
 Models are named by family, never by version (maintainer, 2026-10-01),
 so a newer one is used the day it ships: the agents' `model:` is the bare
 alias (haiku, sonnet, opus). Codex agents (maintainer, 2026-10-01) are a
-second pool for easy and medium cards: easy luna (low effort), medium sol
-(medium); a hard card goes to `task-hard` on opus, or on sonnet
-(the Agent tool's model override; being tried since 2026-10-01, W159), or
-to Codex sol at high effort (W155's trial), never astra, which is token
-hungry (maintainer, 2026-10-01). Start each card on the cheapest model and
+second pool: docs and one-file mechanical edits luna (low effort), every
+other code card sol (medium); a card whose cause or design is still
+unknown goes to `task-hard` on sonnet or opus (the Agent tool's model
+override; sonnet, high did W159), or to Codex sol at high effort; never
+astra, which is token hungry (maintainer, 2026-10-01). Start each card on the cheapest model and
 effort that may do it and adapt (maintainer, 2026-10-01: agents code
 well from clear instructions): the ladder, effort by effort and within one
 the cheaper model first (maintainer): low, then medium, then high, each
@@ -467,10 +467,17 @@ review finds the work fell short (a missed requirement, a wrong cause, a
 fix the reviewer had to redo), the card goes back one step up with the
 review's list, and the step that did the work is noted
 on the card, so the starting point per kind of card follows the record
-(2026-10-02, this repo's and another's: docs and small precise fixes start
-at luna or haiku, low, and haiku gets nothing else; a medium card on the
-protocol or a trust boundary starts at sol, medium, as W133 and W153 did;
-a hard one at sol or sonnet, high, as W155 and W159 did); each the newest listed model of its family
+(maintainer, 2026-10-03, from this repo's and laser_pointer's record of
+about 30 cards: any code card starts at sol, medium, or sonnet, medium
+when Codex has no room, which did about 17 of them, a 36-file refactor
+and the protocol and trust-boundary cards included, with at most one
+review round; luna and haiku only for docs and one-file mechanical edits,
+since luna fell short on 5 of 7 other cards and haiku on 2 of 2; size is
+not difficulty: a large, precisely briefed change stays at medium, as sol
+at high on four such cards brought the same review fixes at far more
+tokens; high effort only for an unknown, a cause to find or a design the
+brief cannot settle, as sonnet, high did W159's numerics, or as the climb
+when medium fell short); each the newest listed model of its family
 (the task-board skill's `codex_model.py <family>`: Codex has no aliases),
 run by the reviewer with `codex exec -C <worktree> -s workspace-write -m
 <model> -o <report>` and registered by the reviewer. A Codex agent follows
