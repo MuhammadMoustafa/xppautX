@@ -771,7 +771,7 @@ void build_old_style(xpp::Session &s, int neq, FILE *fptr, const std::function<b
     std::string filename=this_file.empty()?std::string("convert.ode"):this_file+".new";
     s.parser.convert=xpp::Writer(filename.c_str());
     if(s.parser.convert.file()==NULL){
-      xpp::log(XPP_LOG_WARN, " Cannot open {} - no conversion done \n",filename);
+      xpp::log(XPP_LOG_WARN, "{}; no conversion done\n",xpp::files::open_error("conversion",filename).text());
       ConvertStyle=0;
     }
     xpp::print(s.parser.convert.file(),"# converted {} \n",this_file);

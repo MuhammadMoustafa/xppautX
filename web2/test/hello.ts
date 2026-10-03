@@ -43,6 +43,8 @@ export const HELLO: HelloEvent = {
     {cmd: 'values', op: 'write', kind: 'd', step: true}, {cmd: 'values', kind: 's', step: true},
     {cmd: 'userbut', kind: 'x', step: true},
   ],
+  upload_error: 'larger than 64 MB',
+  player_speed: {min: 0.25, max: 8},
   limits: {upload: 64 * 1024 * 1024, browser_rows: 2000, browser_cols: 500},
   window_ids: {plots: 21, auto: 101, ani: 104, aplot: 105},
 };

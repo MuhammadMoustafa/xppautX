@@ -1,8 +1,11 @@
 #ifndef XPP_FILES_H
 #define XPP_FILES_H
 
+#include "xpp_error.h"
+
 #include <cstddef>
 #include <cstdio>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -28,7 +31,7 @@
    namespace xpp::files (W109a); a path a function only reads is a
    std::string_view. */
 
-#define XPP_FILES_CAP (64ULL << 20) /* the largest upload, bytes */
+#define XPP_FILES_CAP (64ULL << 20) /* Bound upload memory and disk use to 64 MB per file. */
 
 /* what a call gives back */
 #define XPP_FILES_OK 0
@@ -40,6 +43,8 @@
 #define XPP_FILES_BUSY 6      /* a computation runs: nothing lands in the folder under it */
 
 namespace xpp::files {
+
+inline constexpr size_t NAME_MAX_BYTES = 255; /* Common filesystem basename limit; refuse longer names without cutting them. */
 
 /* All offered defaults: model base without its extension, optional qualifier, extension. */
 std::string output_name(std::string_view model_file, std::string_view ext,
@@ -87,17 +92,22 @@ const char *ask_mode(std::string_view title);
    instead of duplicating it. */
 int replace_file(std::string_view from, std::string_view to);
 
-/* {"files":[{"name":..,"size":..,"mtime":..,"sha256":".."},...]}: the plain
-   files of the working directory whose names are reachable, sorted by
-   name; mtime in seconds since 1970 */
-std::string list_json();
-
-/* the protocol's {"cmd":"file","op":..,"name":..,"data":..}: op "list",
-   "get" or "put"; name_json and data_json point at the JSON values of
-   "name" and "data" in the command (nullptr when absent). Sends one `file`
-   event through emit. */
-void command(std::string_view op, const char *name_json, const char *data_json,
-             void (*emit)(std::string_view line));
+struct FileEntry {
+    std::string name;
+    unsigned long long size;
+    long long mtime;
+    std::string sha;
+};
+/* The operation's data, independent of HTTP and protocol event rendering. */
+struct CommandResult {
+    std::string name, sha, bytes;
+    std::optional<Error> error;
+    unsigned long long size = 0;
+    std::vector<FileEntry> files;
+};
+CommandResult command(std::string_view op, const char *name_json, const char *data_json);
+/* Every failed open names the requested file and the system or explicit reason. */
+Error open_error(std::string where, std::string_view file, std::string_view why = {});
 
 /* ---- the core's own files, by any path (W32b) -------------------------------
    The one place the core opens, copies, moves, deletes and probes files
@@ -180,6 +190,7 @@ void move(std::string_view from, std::string_view to);
    $TMPDIR or /tmp (POSIX) or the system temp path (Windows): its absolute
    path, or empty on failure */
 std::string make_temp_dir();
+std::string temp_base(); /* The platform temp folder, shared by scratch files and the window loader. */
 /* path is in one of this process's scratch folders (as the path above
    names them): a file the core itself keeps there, never the user's.
    root_only requires the folder itself, excluding nested directories. */

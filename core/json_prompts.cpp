@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 /* Prompts: every question the core asks the client (a menu, a string box,
    a form, a file name, a mouse pick, a drag, ...) is an "ask" event with an
    id; the core blocks until the matching {"cmd":"answer","id":N,...}
@@ -240,7 +241,7 @@ int j_yes_no_box(void)
     BUF_LIT(&b, ",\"question\":\"Are you sure?\",\"choices\":[\"Yes\",\"No\"],\"keys\":\"yn\"");
     if (!ask_wait(&b, id)) return 0;
     std::string k;
-    get_string(answer.c_str(), "key", k, 8);
+    get_string(answer.c_str(), "key", k);
     return k[0] == 'y';
 }
 
@@ -261,7 +262,7 @@ int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, s
     BUF_LIT(&b, "],\"keys\":");
     buf_str(&b, key);
     if (!ask_wait(&b, id)) return 0;
-    get_string(answer.c_str(), "key", k, 8);
+    get_string(answer.c_str(), "key", k);
     return static_cast<unsigned char>(k[0]);
 }
 
@@ -344,10 +345,8 @@ int j_string_box(int, int, std::string_view title, const char *const *names, std
    save dialog (docs/ui-v2.md section 4). */
 int j_file_selector(std::string_view title, std::string &file, std::string_view wild)
 {
-    constexpr size_t PATTERN_MAX = 255, CD_MAX = 1024;
     xpp::Session &s = client();
     std::string pattern(wild), cd;
-    if (pattern.size() > PATTERN_MAX) pattern.resize(PATTERN_MAX);
     const auto last = s.file_dialogs.last.find(pattern);
     std::string dir = last != s.file_dialogs.last.end() ? last->second
                       : !s.file_dialogs.home.empty()   ? s.file_dialogs.home
@@ -374,8 +373,8 @@ int j_file_selector(std::string_view title, std::string &file, std::string_view 
             buf_str_array(&b, files);
         }
         if (!ask_wait(&b, id)) return 0;
-        if (get_string(answer.c_str(), "wild", cd, CD_MAX) && !cd.empty()) pattern = cd.substr(0, PATTERN_MAX);
-        if (get_string(answer.c_str(), "cd", cd, CD_MAX) && !cd.empty()) {
+        if (get_string(answer.c_str(), "wild", cd) && !cd.empty()) pattern = cd;
+        if (get_string(answer.c_str(), "cd", cd) && !cd.empty()) {
             const std::string into = xpp::files::folder_in(dir, cd);
             if (into.empty()) xpp::log(XPP_LOG_WARN, "Can't go to directory {}\n", cd);
             else {
@@ -490,7 +489,7 @@ int j_menu_choose(const struct XppMenu *m, int def)
     }
     buf_format(&b, ",\"def\":{:d}", def);
     if (!ask_wait(&b, id)) return 27;
-    get_string(answer.c_str(), "key", k, 8);
+    get_string(answer.c_str(), "key", k);
     const int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
     record_menu_pick(m, ch);
     return ch;
@@ -537,7 +536,7 @@ int ask_drag(xpp::Session &s, unsigned long win, int *x, int *y)
     std::string what;
     int id = ask_begin(&b, "drag");
     buf_format(&b, ",\"win\":{:d}", win);
-    if (!ask_wait(&b, id) || !get_string(answer.c_str(), "what", what, 8)) return 0;
+    if (!ask_wait(&b, id) || !get_string(answer.c_str(), "what", what)) return 0;
     answer_point(s, win, 0, x, y);
     return what == "down" ? 1 : what == "move" ? 2 : what == "up" ? 3 : 0;
 }
@@ -566,7 +565,7 @@ int j_check_abort(void)
     char *line;
     static double last;
     /* let the client see the picture grow, a few frames a second */
-    if (xpp::every(last, 0.05)) {
+    if (xpp::every(last, xpp::INPUT_POLL_SECONDS)) {
         flush_pending();
         out_flush();
     }
@@ -581,9 +580,9 @@ int j_check_abort(void)
             continue;
         }
         int r = control_line(s, line);
-        if (r != 64 && r != ANI_PAUSE) return r;
+        if (r != KEY_NONE && r != ANI_PAUSE) return r;
     }
-    return 64;
+    return KEY_NONE;
 }
 
 int j_progress_begin(void) { return 100; }
@@ -592,7 +591,7 @@ void j_progress(int nit, int icount, int)
 {
     static double last;
     Buf b;
-    if (!xpp::every(last, 0.1)) return;
+    if (!xpp::every(last, xpp::PROGRESS_SECONDS)) return;
     buf_format(&b, "{{\"ev\":\"progress\",\"n\":{:d},\"of\":{:d}}}", icount, nit);
     send_buf(&b);
 }

@@ -1,3 +1,4 @@
+import {cssVar} from './css';
 /* The AUTO diagram's chart: a uPlot chart in xy mode for a DiagramModel
    (docs/ui-v2.md T11a). Branches are its series (lines, the unstable ones
    dashed), the labelled points are drawn in its draw hook (a cross at the
@@ -30,9 +31,6 @@ export interface DiagramChartInfo {
 const NAMED_MAX = 40;
 const DASH = [6, 4];
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
 
 /** a palette colour of the core (0 the foreground, 20..29 red..purple) as a curve colour of the theme */
 export function paletteColor(c: number, dark: boolean): string {
@@ -174,7 +172,7 @@ export class DiagramChart {
     const m = this.model!;
     this.u?.destroy();
     /* the theme's colours when drawn: a new theme's variables are set after this chart is made */
-    const fg = () => cssVar('--fg-muted') || '#666', grid = () => cssVar('--grid') || '#eee', font = cssVar('--plot-font');
+    const fg = () => cssVar('--fg-muted'), grid = () => cssVar('--grid'), font = cssVar('--plot-font');
     const axis = (label: string): uPlot.Axis => ({
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
     });
@@ -222,7 +220,7 @@ export class DiagramChart {
     const shown = m.labels.map(l => ({l, px: u.valToPos(l.x, 'x', true), py: u.valToPos(l.y, 'y', true),
       py2: l.y2 === null ? null : u.valToPos(l.y2, 'y', true)})).filter(s => inside(s.px, s.py)
       || (s.py2 !== null && inside(s.px, s.py2)));
-    const fg = cssVar('--fg') || '#000', fgMuted = cssVar('--fg-muted') || '#666';
+    const fg = cssVar('--fg'), fgMuted = cssVar('--fg-muted');
     ctx.save();
     ctx.beginPath();
     ctx.rect(b.left, b.top, b.width, b.height);

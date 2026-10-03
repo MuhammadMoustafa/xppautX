@@ -69,17 +69,17 @@ Recorder recorder;
 std::string command_label(const char *line)
 {
     std::string c, o, name, v;
-    get_string(line, "cmd", c, 32);
-    get_string(line, "op", o, 32);
+    get_string(line, "cmd", c);
+    get_string(line, "op", o);
     if (c == "set" || c == "slide") {
         if (js_find(line, "values")) return "Set values";
-        if (!get_string(line, "name", name)) name = xpp::format("{} {}", get_string(line, "kind", v, 16) ? v : "", get_int(line, "index", 0));
+        if (!get_string(line, "name", name)) name = xpp::format("{} {}", get_string(line, "kind", v) ? v : "", get_int(line, "index", 0));
         if (!get_string(line, "text", v)) v = std::string(js_raw(js_find(line, "value")));
         return xpp::format("{} {} = {}", c == "set" ? "Set" : "Slide", name, v);
     }
     if (c == "display") return xpp::format("Zoom window {}", get_int(line, "win", 0));
     if (c == "click") return xpp::format("Window {}", get_int(line, "win", 0));
-    if (c == "default") return get_string(line, "kind", v, 16) && v == "ic" ? "Default initial conditions" : "Default parameters";
+    if (c == "default") return get_string(line, "kind", v) && v == "ic" ? "Default initial conditions" : "Default parameters";
     std::string label = c;
     if (!label.empty()) label[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(label[0])));
     return o.empty() ? label : label + " " + o;
@@ -212,7 +212,7 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
     if (file.empty()) {
         file = xpp::files::output_name(s.model().this_file,recx::extension);
         ping();
-        if (!file_selector("Save recording", file, "*.recx") || file.empty()) return false;
+        if (!file_selector("Save recording", file, "*" + std::string(recx::extension)) || file.empty()) return false;
     }
     file = xpp::snapx::with_extension(file, recx::extension);
     xpp::Writer w = open_writer_asking(file.c_str());
@@ -232,7 +232,7 @@ bool stop(const xpp::Session &s, const std::string &name, bool from_menu)
 void record_command(xpp::Session &s, const char *line)
 {
     std::string o, text;
-    get_string(line, "op", o, 16);
+    get_string(line, "op", o);
     if (o == "start") {
         start(s);
     } else if (o == "stop") {
@@ -277,7 +277,7 @@ void record_begin(const char *line)
     if (is_cmd(line, "key")) {
         std::string k;
         get_string(line, "key", k);
-        get_string(line, "win", t.win, 16);
+        get_string(line, "win", t.win);
         get_string(line, "button", t.button);
         const int menu = session.menu.load(std::memory_order_relaxed);
         t.label = key_label(k, menu, t.win);

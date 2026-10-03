@@ -205,129 +205,80 @@ int put_base64(xpp::files::Put &put, const char *v)
 
 /* ---- the listing ------------------------------------------------------------------ */
 
-struct Entry {
-    std::string name;
-    unsigned long long size;
-    long long mtime;
-    std::string sha;
-};
-
-std::string listing()
+void command_error(xpp::files::CommandResult &result, std::string_view why)
 {
-    std::vector<Entry> files;
-    if (DIR *d = opendir(".")) {
-        while (struct dirent *e = readdir(d)) {
-            if (!xpp::files::name_ok(e->d_name)) continue; /* ".", "..", hidden, unreachable */
-            Stat st;
-            if (kind_of(e->d_name, &st) != XPP_FILES_OK) continue;
-            Entry f{e->d_name, static_cast<unsigned long long>(st.st_size), static_cast<long long>(st.st_mtime), ""};
-            if (!cached(f.name, f.size, f.mtime, f.sha)) {
-                if (!file_sha(e->d_name, f.sha)) continue;
-                remember(f.name, f.size, f.mtime, f.sha);
-            }
-            files.push_back(std::move(f));
+    result.error = xpp::Error{"file", std::string(why), xpp::Place{result.name}};
+}
+
+xpp::files::CommandResult listing()
+{
+    xpp::files::CommandResult result;
+    std::vector<xpp::files::DirEntry> entries;
+    if (!xpp::files::list_dir(".", entries)) {
+        result.error = xpp::files::open_error("files", ".");
+        return result;
+    }
+    for (const auto &e : entries) {
+        if (!xpp::files::name_ok(e.name)) continue;
+        Stat st;
+        if (kind_of(e.name.c_str(), &st) != XPP_FILES_OK) continue;
+        xpp::files::FileEntry f{e.name, static_cast<unsigned long long>(st.st_size), static_cast<long long>(st.st_mtime), ""};
+        if (!cached(f.name, f.size, f.mtime, f.sha)) {
+            if (!file_sha(f.name.c_str(), f.sha)) continue;
+            remember(f.name, f.size, f.mtime, f.sha);
         }
-        closedir(d);
+        result.files.push_back(std::move(f));
     }
-    std::sort(files.begin(), files.end(), [](const Entry &a, const Entry &b) { return a.name < b.name; });
-    std::string s = "{\"files\":[";
-    for (size_t i = 0; i < files.size(); i++) {
-        if (i) s += ',';
-        s += "{\"name\":";
-        xpp::json_append_string(s, files[i].name);
-        s += xpp::format(",\"size\":{},\"mtime\":{},\"sha256\":", files[i].size, files[i].mtime);
-        xpp::json_append_string(s, files[i].sha);
-        s += '}';
-    }
-    s += "]}";
-    return s;
+    std::sort(result.files.begin(), result.files.end(), [](const auto &a, const auto &b) { return a.name < b.name; });
+    return result;
 }
 
-/* the `file` event, with what follows its name */
-std::string file_event(std::string_view op, const std::string &name)
+xpp::files::CommandResult run_command(std::string_view op, const char *name_json, const char *data_json)
 {
-    std::string s = "{\"ev\":\"file\",\"op\":";
-    xpp::json_append_string(s, op);
-    if (!name.empty()) {
-        s += ",\"name\":";
-        xpp::json_append_string(s, name);
-    }
-    return s;
-}
-
-void fail_event(std::string &s, int status)
-{
-    xpp::log_note_error();
-    s += ",\"ok\":0,\"error\":";
-    xpp::json_append_string(s, xpp::files::status_text(status));
-    s += '}';
-}
-
-std::string run_command(std::string_view op, const char *name_json, const char *data_json)
-{
+    if (op == "list") return listing();
+    xpp::files::CommandResult result;
     std::string name;
-    if (op == "list") {
-        std::string s = file_event(op, name), l = listing();
-        s += ",\"ok\":1,";
-        s.append(l, 1, std::string::npos); /* {"files":[...]} without its brace */
-        return s;
-    }
-    bool named = json_string(name_json, name) && xpp::files::name_ok(name);
-    std::string s = file_event(op, name_json && named ? name : std::string());
+    const bool named = json_string(name_json, name) && xpp::files::name_ok(name);
+    if (named) result.name = name;
     if (op != "get" && op != "put") {
-        xpp::log_note_error();
-        s += ",\"ok\":0,\"error\":\"unknown op\"}";
-        return s;
+        command_error(result, "unknown op");
+        return result;
     }
     if (!named) {
-        fail_event(s, XPP_FILES_BAD_NAME);
-        return s;
+        command_error(result, xpp::files::status_text(XPP_FILES_BAD_NAME));
+        return result;
     }
-    std::string sha;
-    unsigned long long size = 0;
-    if (op[0] == 'p') {
+    int st;
+    if (op == "put") {
         xpp::files::Put *put;
-        int st = xpp::files::put_begin(name, XPP_FILES_CAP, put);
+        st = xpp::files::put_begin(name, XPP_FILES_CAP, put);
         if (st == XPP_FILES_OK) {
             st = put_base64(*put, data_json);
-            if (st == XPP_FILES_OK) st = xpp::files::put_commit(put, size, sha);
+            if (st == XPP_FILES_OK) st = xpp::files::put_commit(put, result.size, result.sha);
             else xpp::files::put_abort(put);
         }
-        if (st == NOT_BASE64) {
-            xpp::log_note_error();
-            s += ",\"ok\":0,\"error\":\"data is not a base64 string\"}";
-            return s;
-        }
-        if (st != XPP_FILES_OK) {
-            fail_event(s, st);
-            return s;
-        }
-        s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\"}}", size, sha);
-        return s;
+        if (st != XPP_FILES_OK)
+            command_error(result, st == NOT_BASE64 ? "data is not a base64 string" : xpp::files::status_text(st));
+        return result;
     }
     xpp::UniqueFile fp;
-    int st = open_plain(name.c_str(), fp, size);
-    if (st == XPP_FILES_OK && size > XPP_FILES_CAP) {
-        fp.reset();
-        st = XPP_FILES_TOO_LARGE;
-    }
+    st = open_plain(name.c_str(), fp, result.size);
+    if (st == XPP_FILES_OK && result.size > XPP_FILES_CAP) st = XPP_FILES_TOO_LARGE;
     if (st != XPP_FILES_OK) {
-        fail_event(s, st);
-        return s;
+        command_error(result, xpp::files::status_text(st));
+        return result;
     }
-    std::vector<unsigned char> buf(size ? static_cast<size_t>(size) : 1);
-    size_t got = std::fread(buf.data(), 1, static_cast<size_t>(size), fp.get());
-    fp.reset();
-    if (got != size) {
-        fail_event(s, XPP_FILES_IO);
-        return s;
+    result.bytes.resize(static_cast<size_t>(result.size));
+    const size_t got = std::fread(result.bytes.data(), 1, result.bytes.size(), fp.get());
+    if (got != result.size) {
+        command_error(result, xpp::files::status_text(XPP_FILES_IO));
+        result.bytes.clear();
+        return result;
     }
     xpp::Sha256 c;
-    c.update(buf.data(), got);
-    s += xpp::format(",\"ok\":1,\"size\":{},\"sha256\":\"{}\",\"data\":\"", size, c.hex());
-    xpp::base64_append(s, std::string_view(reinterpret_cast<const char *>(buf.data()), got));
-    s += "\"}";
-    return s;
+    c.update(result.bytes.data(), got);
+    result.sha = c.hex();
+    return result;
 }
 
 /* an upload refused because a computation runs (xpp_files.h put_begin):
@@ -348,7 +299,7 @@ bool name_ok(std::string_view name)
 {
     if (name.empty() || name[0] == '.' || name[0] == ' ') return false;
     const size_t n = name.size();
-    if (n > 255 || name.find("..") != std::string_view::npos) return false;
+    if (n > NAME_MAX_BYTES || name.find("..") != std::string_view::npos) return false;
     constexpr std::string_view reserved = "/\\:<>\"|?*";
     for (char ch : name) {
         unsigned char c = static_cast<unsigned char>(ch);
@@ -378,14 +329,7 @@ const char *status_text(int status)
     }
 }
 
-std::string list_json()
-{
-    try {
-        return listing();
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("listing the model's folder");
-    }
-}
+
 
 int open(std::string_view name, FILE *&fp, unsigned long long &size)
 {
@@ -494,14 +438,15 @@ const char *ask_mode(std::string_view title)
     return "write";
 }
 
-void command(std::string_view op, const char *name_json, const char *data_json,
-             void (*emit)(std::string_view line))
+CommandResult command(std::string_view op, const char *name_json, const char *data_json)
 {
-    try {
-        emit(run_command(op, name_json, data_json));
-    } catch (const std::bad_alloc &) {
-        xpp::out_of_memory("in a file command");
-    }
+    return run_command(op, name_json, data_json);
+}
+
+Error open_error(std::string where, std::string_view file, std::string_view why)
+{
+    const std::string reason = why.empty() ? std::strerror(errno) : std::string(why);
+    return Error{std::move(where), xpp::format("cannot open {}: {}", file, reason), Place{std::string(file)}};
 }
 
 /* ---- the core's own files ------------------------------------------------------ */
@@ -526,12 +471,12 @@ void concat(const char *first, xpp::UniqueFile second, const char *to)
 {
     xpp::UniqueFile in(std::fopen(first, "rb"));
     if (!in) {
-        xpp::log(XPP_LOG_WARN, "Cannot read {} \n", first);
+        xpp::log(XPP_LOG_WARN, "{}\n", open_error("copy",first).text());
         return;
     }
     xpp::Writer w = xpp::Writer::binary(to);
     if (!w) {
-        xpp::log(XPP_LOG_WARN, "Cannot write {} \n", to);
+        xpp::log(XPP_LOG_WARN, "{}\n", open_error("copy",to).text());
         return;
     }
     copy_bytes(in.get(), w.file());

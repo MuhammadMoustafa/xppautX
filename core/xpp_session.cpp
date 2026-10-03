@@ -47,7 +47,7 @@ std::string default_name(const xpp::Model &m) { return xpp::files::output_name(m
 
 /* name, or when it is NULL/empty the one the user picks with title
    (wild the files listed); false on a cancel */
-bool name_or_ask(const xpp::Model &m, const char *title, const char *wild, const char *name, std::string &out)
+bool name_or_ask(const xpp::Model &m, const char *title, std::string_view wild, const char *name, std::string &out)
 {
     if (name != nullptr && name[0] != 0) {
         out = name;
@@ -767,7 +767,7 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
 {
     if(!xpp::save_ready(s.model().nlines()>0))return 0;
     std::string name;
-    if (!name_or_ask(s.model(), "Save session", "*.snapx", name_arg, name)) return 0;
+    if (!name_or_ask(s.model(), "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
     const std::string file = xpp::snapx::session_file_name(name);
     const xpp::Model &m = s.model();
 
@@ -824,7 +824,7 @@ std::optional<std::string> xpp_session_snapshot(xpp::Session &s)
 int xpp_session_load(xpp::Session &s, const char *name_arg)
 {
     std::string name;
-    if (!name_or_ask(s.model(), "Open session", "*.snapx", name_arg, name)) return 0;
+    if (!name_or_ask(s.model(), "Open session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
     xpp_model_open(s, xpp::snapx::session_file_name(name).c_str());
     return 1;
 }
@@ -880,9 +880,8 @@ std::optional<SavedFile> xpp_saved_parse(const std::string &path, const std::str
     f.manifest = std::move(*man);
     std::optional<std::vector<xpp::ModelFile>> files = xpp::snapx::model_members(*entries, f.manifest.model_name);
     if (!files) {
-        xpp::command_error("open", xpp::format("{} cannot be opened: its model is missing ({}{})", name, xpp::snapx::model_folder,
-                            f.manifest.model_name)
-                    .c_str());
+        xpp::show_error(xpp::files::open_error("open", name,
+            xpp::format("its model is missing ({}{})", xpp::snapx::model_folder, f.manifest.model_name)));
         return std::nullopt;
     }
     f.model = xpp::SavedModel{f.path, std::move(*files)};

@@ -68,26 +68,6 @@ struct Decl {
   int arity = 0;
 };
 
-/* the built-in functions and their number of arguments (sum and volterra
-   have named ones: checked apart) */
-int builtin_arity(std::string_view f)
-{
-  static constexpr auto one = std::to_array<std::string_view>({
-    "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "exp", "ln", "log",
-    "log10", "sqrt", "heav", "sign", "flr", "ran", "abs", "erf", "erfc", "hom_bcs", "lgamma",
-    "poisson"});
-  static constexpr auto two = std::to_array<std::string_view>({
-    "atan2", "max", "min", "normal", "besselj", "bessely", "besseli", "besselis", "delay",
-    "shift", "ishift"});
-  for (std::string_view n : one)
-    if (n == f) return 1;
-  for (std::string_view n : two)
-    if (n == f) return 2;
-  if (f == "del_shft" || f == "set") return 3;
-  if (f == "sum" || f == "volterra") return -2;
-  return -1;
-}
-
 /* where a formula is: what else it may read */
 struct Scope {
   /* a function's arguments */
@@ -786,7 +766,7 @@ private:
 
 bool is_odex(std::string_view path)
 {
-  return path.size() > 5 && xpp::equal_ignoring_case(path.substr(path.size() - 5), ".odex");
+  return path.size() > extension.size() && xpp::equal_ignoring_case(path.substr(path.size() - extension.size()), extension);
 }
 
 Parsed ready(const Parsed &p)

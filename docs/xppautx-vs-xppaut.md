@@ -100,7 +100,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | Save permission and failure | varied by command | native dialogs confirm existing destinations once; without a dialog decision, core asks only if its target exists; recordings keep native answers and scripts carry decisions; atomic commit reports once, only a successful save is delivered, and empty exports report before the name ask | W129, #181 |
 | `.ode` written back | Edit > Save as writes one | never: Copy as set line shows `set name {...}` for the user to paste | W54, W67 |
 | Compiled-function libraries (`export`, `.so`/DLL) | supported ([extra.c:110](../reference/xppaut-8.0/extra.c#L110)) | removed; a model using them fails to load | W55 |
-| Where files go | AUTO's to `$HOME` ([findings #8](xppaut-findings.md)) | per-process private scratch folders, stale ones cleaned at start; outputs go beside the model (not verified for every file) | W19 |
+| Where files go | AUTO's to `$HOME` ([findings #8](xppaut-findings.md)) | per-process private scratch folders, stale ones cleaned at start only when their owner is proved exited (Windows too, W121b); outputs go beside the model (not verified for every file) | W19 |
 | Other formats (`.ani`, tables, `.dat` for tables) | read | read; tables and `.ani` are saved with a session | W103 |
 | Text encoding | not verified | UTF-8 in and out | W35b |
 
@@ -127,7 +127,7 @@ Trailing `#` text in `.ode` lines is now read as a comment, unlike XPPAUT ([find
 | `.odex` | none | usual precedence, `^` right-associative, unary minus anywhere, case-sensitive names, `and`/`or`, arrays by `for j in a..b`, `const`, `near(a,b)` ([odex.md](odex.md)) | W73, W78, W80 |
 | Two syntaxes | one | the loader reads `.odex` only; the converter alone reads `.ode`, through the same Model builder; converted examples preserve their md5 | W79 |
 | `--check` (quirks as warnings) | none | decided; blocked | W75 |
-| Name length | variables 11, parameters 10 characters ([findings #3](xppaut-findings.md)) | no limit | W76 |
+| Name length | variables 11, parameters 10 characters ([findings #3](xppaut-findings.md)) | no limit, including protocol names and values (W121b removes remaining field cuts) | W76, W121b ([#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)) |
 | Model line length and count | fixed buffers ([findings #19](xppaut-findings.md)) | none | W29e |
 | Option names | some unreachable, some never applied ([findings #1, #2](xppaut-findings.md)) | one table of options (`core/model_options.cpp`); a bad `@` value stops the load, naming the file, the line and the value (W125, W140) | W119, W125 |
 | `@` settings from `.xpprc`, command line, model | merged by a set of flags | one option table | W119 |
@@ -170,7 +170,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Window | an X11 window with its own menus | the same menus and keys (as data), a view over the page | W96, W6 |
 | Diagram views | one diagram, one set of axes | any number of views of one diagram, each with its axes | W50 |
 | Saving | `.auto` text file at 6 digits | `.snapx` session: every digit, settings, orbits, views | W92, W155 |
-| Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start | W19 |
+| Files during a run | `fort.*` in `$HOME`; sessions overwrite each other ([findings #8](xppaut-findings.md)) | per-process scratch folders, stale ones cleaned at start only when their owner is proved exited | W19, W121b ([#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)) |
 | Eigenvalues shown | a run's first point shows the previous run's ([findings #14](xppaut-findings.md)) | one source of a point's eigenvalues and multipliers | W15 |
 | Grab a label | by keys in the window | also `auto grab <label>` for scripts and recordings | W64 |
 | Errors | numerics call `exit()` ([findings #17](xppaut-findings.md)) | returned as errors; the program stays | W63a |

@@ -83,6 +83,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Windows scratch cleanup preserves folders when their owner process cannot be queried; a permission error is no longer treated as proof that the process exited (W121b, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
+
+- Preserve whole protocol names, values and file-dialog paths; report oversized input instead of discarding it silently. File-open errors name the requested file and why it failed; an unreadable workspace listing is shown as an error. The player offers the core's full 0.25–8× speed range (W121b, [#172](https://github.com/MuhammadMoustafa/xppautX/issues/172)).
+
 - macOS CI checks read every thread's state from the aligned `ps -M` table and wait for text views to render after their events (W171, [#223](https://github.com/MuhammadMoustafa/xppautX/issues/223)).
 
 - The data table stops requesting rows at the end of the data, avoiding a render/effect loop on slow runners. CI checks establish a heavy run is computing at every value commit, wait for the slider pick to draw, and read macOS thread states from `ps -M`'s STAT column (W170, [#222](https://github.com/MuhammadMoustafa/xppautX/issues/222)).

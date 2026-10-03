@@ -62,7 +62,6 @@
 
 #define RUBBOX 0
 
-#define ESC 27
 
 #define UPT 6
 #define SPT 7
@@ -96,6 +95,13 @@
 #define FR_P 10  /* freq vs par   */
 #define AV_P 11 /* ubar vs par */
 
+/* auto_c.h's LEFT/RIGHT (1/2, unused below) are for AUTO's own
+   continuation direction; undef them so mykeydef.h's key codes (6/2,
+   used by the switch below) don't warn about redefining a different
+   value. */
+#undef LEFT
+#undef RIGHT
+#include "mykeydef.h"
 namespace xpp {
 
 
@@ -426,9 +432,9 @@ void create_auto_file_name(xpp::Session &s)
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
-  const char* HOME = auto_home_dir(s, dname);
+  const char* auto_dir = auto_home_dir(s, dname);
 
-  s.auto_state.file=xpp::format("{}/{}",HOME,bname);
+  s.auto_state.file=xpp::format("{}/{}",auto_dir,bname);
 }
 
 void open_auto(xpp::Session &s, int flg) /* compatible with new auto */
@@ -437,13 +443,13 @@ void open_auto(xpp::Session &s, int flg) /* compatible with new auto */
   char *bname = static_cast<char*>(basename(basec.data()));
   char *dname = static_cast<char*>(dirname(dirc.data()));
 
-  const char* HOME = auto_home_dir(s, dname);
+  const char* auto_dir = auto_home_dir(s, dname);
 
-  s.auto_state.file=xpp::format("{}/{}",HOME,bname);
-  s.auto_state.fort3=xpp::format("{}/fort.3",HOME);
-  s.auto_state.fort7=xpp::format("{}/fort.7",HOME);
-  s.auto_state.fort8=xpp::format("{}/fort.8",HOME);
-  s.auto_state.fort9=xpp::format("{}/fort.9",HOME);
+  s.auto_state.file=xpp::format("{}/{}",auto_dir,bname);
+  s.auto_state.fort3=xpp::format("{}/fort.3",auto_dir);
+  s.auto_state.fort7=xpp::format("{}/fort.7",auto_dir);
+  s.auto_state.fort8=xpp::format("{}/fort.8",auto_dir);
+  s.auto_state.fort9=xpp::format("{}/fort.9",auto_dir);
 
   if(flg==1){
     xpp::files::copy((s.auto_state.file+".s").c_str(),s.auto_state.fort3.c_str());
@@ -2603,7 +2609,7 @@ static void import_auto(xpp::Session &s)
   std::string filename=xpp::files::output_name(s.model().this_file, ".auto");
   if(!file_selector("Import XPPAUT diagram",filename,"*.auto"))return;
   xpp::UniqueFile fp=xpp::open_read(filename);
-  if(!fp){err_reading(filename,"cannot be opened");return;}
+  if(!fp){show_error(xpp::files::open_error("AUTO",filename));return;}
   if(diagram_count(s.diagram)>1&&reset_auto(s)==0)return;
   if(!s.auto_state.bifur.exist)do_auto_win(s);
   if(import_auto_file(s,fp.get())!=1){
@@ -2908,13 +2914,6 @@ void DLINE(xpp::Session &s, double a,double b,double c,double d)
 
 /* ---- grabbing a point on the bifurcation diagram, marking a branch and
    the hint line (logic from auto_x11.c) ---- */
-/* auto_c.h's LEFT/RIGHT (1/2, unused below) are for AUTO's own
-   continuation direction; undef them so mykeydef.h's key codes (6/2,
-   used by the switch below) don't warn about redefining a different
-   value. */
-#undef LEFT
-#undef RIGHT
-#include "mykeydef.h"
 static void grab_diagram_point(xpp::Session &s, const DIAGRAM *d);
 static void finish_grab(xpp::Session &s);
 

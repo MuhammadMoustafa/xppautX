@@ -231,7 +231,7 @@ This brings up a menu with several options. Type `Esc` to abort.
   computing takes time: after each step the player waits a moment to
   let you see it (less for a zoom or a pan), then goes on. The controls
   below the plot: **Play**/**Pause**, **Step** (one step, then pause),
-  **Restart**, and the speed (0.5x, 1x, 2x, 4x); the progress shows a
+  **Restart**, and the speed (0.25x, 0.5x, 1x, 2x, 4x, 8x; the core gives the bounds); the progress shows a
   segment per step (a half one for a view step). The step list at the
   right shows every step with its note; click one to write or change its
   note and **Save note** (it goes into the `.recx`; the fingerprint stays

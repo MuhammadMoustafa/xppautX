@@ -600,7 +600,7 @@ auto read_file_lines(std::string where, std::string_view path, F &&parse)
 {
     std::string bytes;
     if (!read_bytes(path, bytes))
-        return fail_reading(std::move(where), "cannot be opened", std::string(path));
+        return std::unexpected(files::open_error(std::move(where), path));
     return read_lines(std::move(where), std::string(path), bytes, parse);
 }
 

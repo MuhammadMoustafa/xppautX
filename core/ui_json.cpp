@@ -14,6 +14,7 @@
 #include "model.h"
 #include "session.h"
 #include "ui_json.h"
+#include "json_files.h"
 #include "xpp_about.h"
 #include "form_ode.h"
 #include "xpp_batch.h"
@@ -135,18 +136,18 @@ int handle_async(xpp::Session &s, const char *line)
      kind, as the page does (W95), never sends one. */
 xpp::inbox::Verdict during_run(const char *line)
 {
-    std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
-    get_string(line, "cmd", c, 16);
+    std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
+    get_string(line, "cmd", c);
     if (c == "abort" || c == "quit" || c == "state") return xpp::inbox::Verdict::control;
     if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
-    if (c == "play" && get_string(line, "op", o, 16) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
+    if (c == "play" && get_string(line, "op", o) && (o == "start" || o == "pause" || o == "step" || o == "speed"))
         return xpp::inbox::Verdict::control;
     if (c == "answer") return xpp::inbox::Verdict::normal;
     if (c == "key" && !js_find(line, "win")) {
-        get_string(line, "key", o, 16);
+        get_string(line, "key", o);
         int k = key_code(o.c_str());
         if (k == ESC || k == '/') return xpp::inbox::Verdict::control;
-    } else if (get_string(line, "op", o, 16) && c == "ani"
+    } else if (get_string(line, "op", o) && c == "ani"
                && (o == "pause" || o == "fast" || o == "slow" || o == "speed")) {
         return xpp::inbox::Verdict::control;
     }
@@ -194,8 +195,8 @@ namespace {
    computation, waits for it and runs after the job's idle. */
 xpp::inbox::Verdict classify(const char *line, unsigned long seq)
 {
-    std::string c, o; /* at most 15 bytes: no allocation on the reader thread */
-    if (!get_string(line, "cmd", c, 16))
+    std::string c, o; /* Whole words: a longer input must not impersonate a known command. */
+    if (!get_string(line, "cmd", c))
         return xpp::job::computing() && !xpp::job::stopping() ? during_run(line) : xpp::inbox::Verdict::normal;
     /* a quit that asks (W59d), or saves (the page asked, W110), stops a
        computation, then runs as a command of its own, in its turn */
@@ -211,7 +212,7 @@ xpp::inbox::Verdict classify(const char *line, unsigned long seq)
     if (!xpp::job::running()) return xpp::inbox::Verdict::normal;
     if ((c == "key" && !js_find(line, "win")) || c == "set" || c == "state") return xpp::inbox::Verdict::control;
     if (c == "browser" && js_find(line, "from")) return xpp::inbox::Verdict::control;
-    if (c == "ani" && get_string(line, "op", o, 16) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
+    if (c == "ani" && get_string(line, "op", o) && (o == "pause" || o == "fast" || o == "slow" || o == "speed"))
         return xpp::inbox::Verdict::control;
     return xpp::inbox::Verdict::normal;
 }
@@ -234,10 +235,10 @@ void take_setting(xpp::Session &s, const char *line)
 int control_line(xpp::Session &s, const char *line)
 {
     std::string k;
-    if (handle_async(s, line)) return 64;
+    if (handle_async(s, line)) return KEY_NONE;
     if (is_cmd(line, "abort")) return ESC;
     if (is_cmd(line, "key")) {
-        get_string(line, "key", k, 32);
+        get_string(line, "key", k);
         const int code = key_code(k.c_str());
         /* what the job does with it a recording keeps, to hand it the key
            at the same point in a replay: / ends a range; Escape stops the
@@ -248,15 +249,15 @@ int control_line(xpp::Session &s, const char *line)
     }
     if (line_kind(line) == XPP_KIND_SETTING) {
         take_setting(s, line);
-        return 64;
+        return KEY_NONE;
     }
     if (is_cmd(line, "ani")) {
-        get_string(line, "op", k, 32);
+        get_string(line, "op", k);
         record_control(line);
         if (k == "pause") return ANI_PAUSE;
         ani_speed_op(s, k.c_str(), line);
     }
-    return 64;
+    return KEY_NONE;
 }
 
 /* where the running job was when it was cancelled, from what the
@@ -298,7 +299,7 @@ void send_stopped(void)
 bool arm_recorded_stop(const char *at, int key)
 {
     std::string what;
-    get_string(at, "what", what, 16);
+    get_string(at, "what", what);
     if (what == "integrate")
         xpp::job::stop_at_rows(static_cast<long>(get_num(at, "rows", -1)));
     else if (what == "auto")
@@ -454,16 +455,16 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
 void key_command(xpp::Session &s, const char *line)
 {
     std::string k, win;
-    get_string(line, "key", k, 32);
-    if (get_string(line, "win", win, 16)) window_key(s, win, key_code(k.c_str()), line);
+    get_string(line, "key", k);
+    if (get_string(line, "win", win)) window_key(s, win, key_code(k.c_str()), line);
     else commander(s, key_code(k.c_str()));
 }
 
 void session_command(xpp::Session &s, const char *line)
 {
     std::string o, name;
-    get_string(line, "op", o, 8);
-    get_string(line, "name", name, XPP_MAX_NAME);
+    get_string(line, "op", o);
+    get_string(line, "name", name);
     /* data: in (1), left out (0), or asked above 50 MB (absent) */
     const char *jd = js_find(line, "data");
     if (o == "save") xpp_session_save(s, name.empty() ? nullptr : name.c_str(), jd ? (js_num(jd, 1) != 0) : -1);
@@ -474,24 +475,29 @@ void session_command(xpp::Session &s, const char *line)
 void file_command(xpp::Session &, const char *line)
 {
     std::string o;
-    get_string(line, "op", o, 8);
-    xpp::files::command(o, js_find(line, "name"), js_find(line, "data"),
-                        [](std::string_view event) {
-                            /* The file owner accounts for a failed event;
-                               with no interface its error still needs a renderer. */
-                            std::string error;
-                            if (session.silent && get_string(event.data(), "error", error))
-                                j_command_error("file", std::move(error));
-                            else data_emit(event);
-                        });
+    get_string(line, "op", o);
+    try {
+        auto result = xpp::files::command(o, js_find(line, "name"), js_find(line, "data"));
+        if (result.error) {
+            if (result.error->place.file.empty()) result.error->place = xpp::command_place();
+            if (session.silent) {
+                xpp::show_error(*result.error);
+                return;
+            }
+            xpp::log_note_error();
+        }
+        data_emit(file_event(o, result));
+    } catch (const std::bad_alloc &) {
+        xpp::out_of_memory("in a file command");
+    }
 }
 
 /* {"cmd":"dfield"|"equilibrium","op":"write","name":...} */
 void write_command(xpp::Session &s, const char *line)
 {
     std::string o, name;
-    get_string(line, "op", o, 8);
-    get_string(line, "name", name, XPP_MAX_NAME);
+    get_string(line, "op", o);
+    get_string(line, "name", name);
     if (o != "write" || name.empty()) j_command_error("write", "dfield and equilibrium write to a file: op write and a name");
     else if (is_cmd(line, "dfield")) write_dfield(s,name);
     else write_equilibrium(s,name.c_str(), get_int(line, "shoot", 0));
@@ -597,8 +603,8 @@ const CommandInfo commands[] = {
 const CommandInfo *command_of(const char *line)
 {
     std::string c, o; /* at most 15 bytes */
-    if (!get_string(line, "cmd", c, 16)) return nullptr;
-    get_string(line, "op", o, 16);
+    if (!get_string(line, "cmd", c)) return nullptr;
+    get_string(line, "op", o);
     for (const CommandInfo &e : commands)
         if (c == e.cmd && (!e.op || o == e.op)) return &e;
     return nullptr;
@@ -640,15 +646,15 @@ char line_kind(const char *line)
     if (!e) return 0;
     if (e->run == ani_command && e->kind == XPP_KIND_COMPUTE) {
         std::string what;
-        get_string(line, "what", what, 8);
+        get_string(line, "what", what);
         return what == "up" && session.grab_computes.load(std::memory_order_relaxed)
             ? XPP_KIND_COMPUTE : XPP_KIND_VIEW;
     }
     if (e->kind) return e->kind;
     std::string k, win; /* a key: its menu item's kind */
-    get_string(line, "key", k, 16);
+    get_string(line, "key", k);
     const int ch = key_code(k.c_str());
-    if (!get_string(line, "win", win, 16)) return main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
+    if (!get_string(line, "win", win)) return main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);
     const XppWindowLayer *l = window_layer(win);
     return l ? menu_kind(l->menu, ch) : 0;
 }
@@ -679,12 +685,15 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
        (session.h): chosen here, once, and passed down (W47d); only a model
        loaded in its place below replaces it */
     xpp::Session *s = &xpp::client_session();
-    if (!permission) {
+    std::string input_error;
+    if (get_string(line, "input_error", input_error)) {
+        j_command_error("input", input_error);
+    } else if (!permission) {
         xpp::show_error(permission.error());
     } else if (applied) {
     } else if (refused) {
         std::string c;
-        get_string(line, "cmd", c, 32);
+        get_string(line, "cmd", c);
         j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
@@ -692,7 +701,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         e->run(*s, line);
     } else {
         std::string c;
-        if (get_string(line, "cmd", c, 32)) j_command_error("command", xpp::format("Unknown command {}", c));
+        if (get_string(line, "cmd", c)) j_command_error("command", xpp::format("Unknown command {}", c));
     }
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
@@ -944,6 +953,9 @@ void send_hello(xpp::Session &s)
        events (plot windows are 1 to plots) */
     buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
                BROWSER_MAX_ROWS, BROWSER_MAX_COLS);
+    BUF_LIT(&b, ",\"upload_error\":");
+    buf_str(&b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
+    buf_format(&b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
     buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", MAXPOP, WIN_AUTO,
                WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other

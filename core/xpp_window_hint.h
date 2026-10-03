@@ -26,13 +26,19 @@ std::string load_message(std::string_view os_release, std::string_view dl_error)
    otherwise what webview said. Inline: the Linux window library, which
    links no core file, uses it too. */
 namespace xpp {
+inline std::string browser_message(std::string_view reason = {})
+{
+    std::string text = "xppautX: the window cannot open";
+    if (!reason.empty()) text += " (" + std::string(reason) + ")";
+    return text + "; using the browser instead\n";
+}
+
 inline std::string webview_error_message(int code, std::string_view msg)
 {
     if (code == -5)
-        return "xppautX: the window cannot open (no web view: on Windows the WebView2 runtime, on Linux a "
-               "display); using the browser instead\n";
-    return "xppautX: the window cannot open (webview error " + std::to_string(code) + ": " +
-           (msg.empty() ? std::string("no details") : std::string(msg)) + "); using the browser instead\n";
+        return browser_message("no web view: on Windows the WebView2 runtime, on Linux a display");
+    return browser_message("webview error " + std::to_string(code) + ": " +
+           (msg.empty() ? std::string("no details") : std::string(msg)));
 }
 } // namespace xpp
 

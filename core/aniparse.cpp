@@ -811,7 +811,7 @@ xpp::Result<> ani_new_file(xpp::Session &s, const char *filename, bool model_fil
 {
     xpp::LineReader fp = model_file ? xpp::model_file_lines(s.model(),filename) : xpp::LineReader(filename);
     if (!fp) {
-        return xpp::fail_reading("animation", "cannot be opened", filename);
+        return std::unexpected(xpp::files::open_error("animation", filename));
     }
     if (s.animation.ncom > 0) free_ani(s);
     /* a new animation: its frames start again, nothing of the old one shows */

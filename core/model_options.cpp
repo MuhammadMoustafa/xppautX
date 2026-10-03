@@ -1,3 +1,4 @@
+#include "xpp_files.h"
 /* The model's options as one table (model_options.h, W119). */
 #include <algorithm>
 #include <cctype>
@@ -689,7 +690,7 @@ constexpr OptionRow rows[] = {
   {.name = "LOGFILE",
    .parse = [](Session &, const OptionValue &v) -> const char * {
      if (v.apply && !log_settings.file_from_command_line && !log_open_file(v.text))
-       return "cannot be opened for writing";
+       return "log file open failed";
      return nullptr;
    }},
   {.name = "BUT",
@@ -809,7 +810,10 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
     if (!picked) return picked.error().what;
     if (apply) s.numerics.method = *picked;
   }
-  else if (row->parse) why = row->parse(s, v);
+  else if (row->parse) {
+    why = row->parse(s, v);
+    if (why && upper == "LOGFILE") return files::open_error("option", value).what;
+  }
   else if (row->real) why = number_into(row->real(s), v);
   else if (row->whole) why = whole_into(row->whole(s), v);
   else if (row->text && apply) row->text(s) = text;

@@ -55,7 +55,7 @@
 namespace xpp::recx {
 
 inline constexpr std::string_view extension = ".recx";
-inline constexpr std::string_view format_line = "xppautx-recording 1";
+inline constexpr std::string_view format_line = "xppautx-recording 1"; /* Signature and version: refuse other recording formats. */
 
 /* a step: its note (its lines separated by "\n", "" for none) and the
    step itself, one JSON object on one line */

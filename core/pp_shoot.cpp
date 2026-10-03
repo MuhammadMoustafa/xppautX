@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 #include "model.h"
 #include "session.h"
 #include "xpp_ui.h"
@@ -28,7 +29,6 @@
 
 namespace xpp {
 
-#define ESCAPE 27
 
 #define NOCHANGE 2
 #define NUMICS -1
@@ -372,7 +372,7 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
 
            {
             
-             if(esc==ESCAPE) {*iret=-5;break;}
+             if(esc==ESC) {*iret=-5;break;}
 	     if(esc=='/'){*iret=-6;break;}
 	    
            }

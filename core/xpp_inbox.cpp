@@ -165,10 +165,15 @@ Took next(From which, int wait_ms, std::string &line, unsigned long &seq, bool &
 
 namespace {
 
-/* A line longer than this is dropped up to its newline (the old read_line
-   gave up at 256 MB too); pixel answers are a few MB. */
+/* Bound allocation for command input; discard an oversized line through its newline
+   and enqueue one error. Pixel answers need several MB. */
 constexpr size_t MAX_LINE = size_t(256) << 20;
-constexpr size_t CHUNK = 65536;
+constexpr size_t CHUNK = 65536; /* Read stdin in bounded chunks rather than one syscall per byte. */
+
+void input_too_large()
+{
+    xpp::inbox::push(xpp::format(R"({{"input_error":"command exceeds the {} MB input limit"}})", MAX_LINE >> 20));
+}
 
 /* up to n bytes of stdin, blocking; <= 0 at end of input or on an error */
 long read_stdin(char *buf, size_t n)
@@ -199,7 +204,10 @@ void read_stdin_lines()
         while ((nl = static_cast<char *>(std::memchr(base + scanned, '\n', len - scanned))) != nullptr) {
             size_t n = static_cast<size_t>(nl - start);
             if (n > 0 && start[n - 1] == '\r') n--;
-            if (!skipping) xpp::inbox::push({start, n});
+            if (!skipping) {
+                if (n > MAX_LINE) input_too_large();
+                else xpp::inbox::push({start, n});
+            }
             skipping = false;
             start = nl + 1;
             scanned = static_cast<size_t>(start - base);
@@ -210,6 +218,7 @@ void read_stdin_lines()
         }
         scanned = len;
         if (len > MAX_LINE) {
+            if (!skipping) input_too_large();
             skipping = true;
             len = scanned = 0;
         }

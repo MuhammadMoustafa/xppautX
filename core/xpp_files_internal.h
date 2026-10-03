@@ -35,9 +35,7 @@ inline bool is_link(const char *name) { return xpp::win32::path_is_link(name); }
 inline int make_dir(const char *path) { return _mkdir(path); }
 inline int remove_dir(const char *path) { return _rmdir(path); }
 inline long long own_pid() { return _getpid(); }
-/* the folder the scratch folders go in */
-inline std::string temp_base() { return xpp::win32::temp_folder(); }
-inline bool process_gone(long long pid) { return pid >= 0 && !xpp::win32::process_running(static_cast<unsigned long>(pid)); }
+inline bool process_gone(long long pid) { return pid >= 0 && xpp::win32::process_gone(static_cast<unsigned long>(pid)); }
 inline constexpr char SEP = '\\';
 #else
 using Stat = struct stat;
@@ -50,11 +48,6 @@ inline bool is_link(const char *name)
 inline int make_dir(const char *path) { return mkdir(path, 0700); }
 inline int remove_dir(const char *path) { return rmdir(path); }
 inline long long own_pid() { return getpid(); }
-inline std::string temp_base()
-{
-    const char *base = std::getenv("TMPDIR");
-    return base && base[0] ? base : "/tmp";
-}
 /* kill(pid, 0) says ESRCH: no such process. A live pid, or one this user
    may not signal (EPERM), is not gone. */
 inline bool process_gone(long long pid) { return kill(static_cast<pid_t>(pid), 0) != 0 && errno == ESRCH; }

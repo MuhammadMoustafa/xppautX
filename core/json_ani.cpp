@@ -162,7 +162,7 @@ void ani_command(xpp::Session &s, const char *line)
         x = static_cast<int>(floor(get_num(line, "u", 0) * s.animation.vcr.wid + 0.5));
         yy = static_cast<int>(floor((1 - get_num(line, "v", 0)) * s.animation.vcr.hgt + 0.5));
     }
-    get_string(line, "op", o, 16);
+    get_string(line, "op", o);
     if (ani_speed_op(s, o.c_str(), line)) {
         send_ani_slider(s);
         return;
@@ -177,7 +177,7 @@ void ani_command(xpp::Session &s, const char *line)
         }
     } else if (o == "mouse") {
         /* dragging a grab point: down, move..., up (which may integrate) */
-        get_string(line, "what", what, 8);
+        get_string(line, "what", what);
         if (s.animation.grab_flag) {
             if (what == "down") ani_grab_mouse(s,1, x, yy);
             else if (what == "move") update_ani_motion_stuff(s,x, yy);

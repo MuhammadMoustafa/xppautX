@@ -1,3 +1,4 @@
+import {cssVar} from './css';
 /* The plot widget: a uPlot chart for a PlotModel. It draws, maps between
    data and screen, and finds the point under a position; the gestures that
    change the view are in interactions.ts. It owns no application state: the
@@ -84,9 +85,6 @@ function pixelOf(f: PixelFrame, x: number, y: number): {x: number; y: number} | 
   return Number.isFinite(px) && Number.isFinite(py) ? {x: px, y: py} : null;
 }
 
-function cssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
 
 export class Chart {
   private u: uPlot | null = null;
@@ -251,7 +249,7 @@ export class Chart {
     this.vertices = m.curves.map(() => null);
     /* the theme's colours when drawn: a theme switch sets the variables after the chart is made
        (useDark's effect runs after this view's), so values read now would be the old theme's */
-    const fg = () => cssVar('--fg-muted') || '#666', grid = () => cssVar('--grid') || '#eee', font = cssVar('--plot-font');
+    const fg = () => cssVar('--fg-muted'), grid = () => cssVar('--grid'), font = cssVar('--plot-font');
     const axis = (label: string): uPlot.Axis => ({
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
     });
@@ -499,7 +497,7 @@ export class Chart {
   private drawMarks(u: uPlot): void {
     const m = this.marks;
     if (!m) return;
-    const f = this.frame(u), r = uPlot.pxRatio, fg = cssVar('--fg') || '#1c2330', bg = cssVar('--surface') || '#fff';
+    const f = this.frame(u), r = uPlot.pxRatio, fg = cssVar('--fg'), bg = cssVar('--surface');
     this.clipped(u, ctx => {
       for (const a of m.arrows)
         this.strokeLayer(ctx, 'arrows', curveColor(a.color, this.dark), 1.5, p => (arrowPath(a, f, p) ? 1 : 0));

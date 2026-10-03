@@ -80,6 +80,7 @@ std::string converted(std::string_view name);
 /* name (as converted makes it) is a built-in symbol, the symbol table's
    first STDSYM, the same in every Session */
 bool is_builtin_symbol(std::string_view name);
+int builtin_arity(std::string_view name); /* .odex calls: -1 absent, -2 named arguments. */
 /* the symbol table by name (as converted makes it, of any length): a
    variable's, a lookup table's or a parameter's index (-1 when name is
    not one); a parameter's or variable's value got or set (1 when name is

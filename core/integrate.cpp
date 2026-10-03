@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 #include "image_format.h"
 #include "solver.h"
 #include "model.h"
@@ -83,7 +84,6 @@ static void mswtch(const xpp::Session &s, double *u, const double *v)
 }
 
 
-#define ESCAPE 27
 #define FIRSTCOLOR 30
 
 #define PARAM 1
@@ -1583,7 +1583,7 @@ if(program.interactive) cwidth=get_command_width();
 
            {
             
-             if(esc==ESCAPE) break;
+             if(esc==ESC) break;
 	     if(esc=='/'){rval=1;s.numerics.endsing=1;break;}
 	    
            }

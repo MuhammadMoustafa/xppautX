@@ -3244,6 +3244,7 @@ async function recordCheck(dir) {
    pixels. */
 async function playerCheck(dir) {
   await desktopMetrics();
+  check('W121b: player uses the core speed range', await S('s.hello.player_speed.min === 0.25 && s.hello.player_speed.max === 8'));
   await cdp.eval(`document.querySelector('.title-bar .record-toggle').click()`);
   await until(`s.core.recording && !s.busy`, 'recording');
   await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea');
@@ -3273,6 +3274,7 @@ async function playerCheck(dir) {
         && document.querySelectorAll('.player-segs i').length === 2 && document.querySelectorAll('.player-segs i.view').length === 1
         && document.querySelectorAll('.player-step').length === 2 && /The cell fires once/.test(document.querySelector('.player-step').textContent)
         && !document.querySelector('.player-changed'); })()`));
+  check('W121b: player offers every speed in the core range', await cdp.eval(`[...document.querySelectorAll('.player-speed button')].map(b => b.textContent).join(',') === '0.25x,0.5x,1x,2x,4x,8x'`));
   const sentBefore = await cdp.eval(`__xpp.sentCount()`);
   await cdp.eval(`[...document.querySelectorAll('.player-speed button')].find(b => b.textContent === '4x').click()`);
   await until(`s.core.player.speed === 4 && !s.busy`, '4x');
@@ -4361,6 +4363,7 @@ function xppautLecarSet() {
 }
 
 async function files(dir) {
+  check('W121b: uploads use the core refusal wording', await S("s.hello.upload_error === 'larger than 64 MB'"));
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
   /* a headless browser shows no picker: the page takes its fallbacks, the
@@ -5418,7 +5421,7 @@ async function main() {
     if (run('three')) await session(LORENZ_ODE, threePlot);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
-    if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot be opened']);
+    if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);
     if (run('native')) await session(ODE, nativeFiles);
     if (run('live')) await session(LIVE, () => live(wantLive));
     if (run('million')) await session(MILLION, million);

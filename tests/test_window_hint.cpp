@@ -26,8 +26,8 @@ int main()
 {
     /* the whole line, on Ubuntu */
     CHECK_STR(msg("PRETTY_NAME=\"Ubuntu 22.04.4 LTS\"\nNAME=\"Ubuntu\"\nID=ubuntu\nID_LIKE=debian\n", MISSING).c_str(),
-              "xppautX: the window needs WebKitGTK, which is not installed (libwebkit2gtk-4.1.so.0 not found); "
-              "install it with: sudo apt install libwebkit2gtk-4.1-0. Using the browser instead.\n");
+              "xppautX: the window cannot open (needs WebKitGTK, which is not installed: libwebkit2gtk-4.1.so.0 not found; "
+              "install it with: sudo apt install libwebkit2gtk-4.1-0); using the browser instead\n");
 
     /* each family, by ID or by ID_LIKE, quoted or not, CRLF too */
     CHECK(has(msg("ID=debian\n", MISSING), "sudo apt install libwebkit2gtk-4.1-0"));
@@ -52,9 +52,9 @@ int main()
     /* the missing one may be GTK or another dependency: named as it is */
     CHECK(has(msg("ID=ubuntu\n", "/tmp/xppautx-window-Ab12Cd: libgtk-3.so.0: cannot open shared object file: No such "
                                  "file or directory"),
-              "(libgtk-3.so.0 not found)"));
+              "libgtk-3.so.0 not found"));
     CHECK(has(msg("ID=ubuntu\n", "libjavascriptcoregtk-4.1.so.0: cannot open shared object file: x"),
-              "(libjavascriptcoregtk-4.1.so.0 not found)"));
+              "libjavascriptcoregtk-4.1.so.0 not found"));
 
     /* anything else is quoted, with no install advice */
     CHECK_STR(msg("ID=ubuntu\n", "/proc/self/fd/5: undefined symbol: webkit_web_view_new").c_str(),

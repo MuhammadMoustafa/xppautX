@@ -207,7 +207,7 @@ void auto_data_hold(Session &s, int on)
 void auto_data_update(const Session &s, int final)
 {
     if (!event.ready() || !event.subscribed()) return;
-    if (!final && !xpp::every(last_update, 0.1)) return;
+    if (!final && !xpp::every(last_update, xpp::PROGRESS_SECONDS)) return;
     event.update(s);
 }
 

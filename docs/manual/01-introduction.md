@@ -180,6 +180,9 @@ file xppautX saves or opens: the session holds what it held, and
 File/Import XPPAUT set checks the names in the one XPPAUT wrote and converts it immediately to a `.snapx` session beside it, which is then open. AUTO's File > Save diagram and Load diagram save and open the session too.
 Import diagram reads a foreign XPPAUT `.auto` into the model open.
 
+The recording player offers speeds from 0.25× to 8×. These bounds come from
+the core, so the page and protocol use the same range (W121b, #172).
+
 `--server` is for a front end that embeds xppautX instead of opening a
 browser tab (the VS Code extension, a test script); the protocol itself
 is in [docs/protocol.md](../protocol.md). `xppautX run.recx --silent`

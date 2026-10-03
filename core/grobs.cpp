@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 /* Text labels, arrows, pointers and markers drawn on the plot windows, and
    the Text,etc and Makewindow commands. Moved out of many_pops.c (X11);
    the window handling itself stays in the front end. What draw_label draws
@@ -189,7 +190,7 @@ int select_marker_type(int *type)
     static_assert(std::size(list) == MARKER_SHAPE_COUNT && key.size() == MARKER_SHAPE_COUNT);
     XppMenu m = {"markers", "Markers", MARKER_SHAPE_COUNT, list, key.data(), no_hint, -1};
     const char ch = static_cast<char>(menu_choose(&m, ival));
-    if (ch == 27) return 0;
+    if (ch == ESC) return 0;
     for (int i = 0; i < MARKER_SHAPE_COUNT; i++) {
         if (ch == key[static_cast<std::size_t>(i)]) ival = i;
     }

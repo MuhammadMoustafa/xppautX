@@ -13,7 +13,7 @@ import {caption, keycaps, litButton, segments} from '../store/player';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Plots} from './Plots';
 
-const SPEEDS = [0.5, 1, 2, 4];
+
 
 function ChangedBanner() {
   const session = useSession();
@@ -69,6 +69,7 @@ function Controls() {
   const may = useMay();
   const steps = useStore(s => s.player.steps);
   const cp = useStore(s => s.core?.player);
+  const speedRange = useStore(s => s.hello?.player_speed);
   const progress = useStore(s => s.progress);
   const n = steps.length, next = cp?.step ?? 0, running = cp?.running ?? -1, playing = !!cp?.playing;
   const ended = next >= n && running < 0;
@@ -97,7 +98,7 @@ function Controls() {
       </div>
       <div class="player-speed seg" role="group" aria-label="Speed">
         <span class="muted">Speed</span>
-        {SPEEDS.map(x => (
+        {(speedRange ? Array.from({length: Math.round(Math.log2(speedRange.max / speedRange.min)) + 1}, (_, i) => speedRange.min * 2 ** i) : []).map(x => (
           <button key={x} class="small" aria-pressed={cp?.speed === x} onClick={() => session.playSpeed(x)}>{x}x</button>
         ))}
       </div>

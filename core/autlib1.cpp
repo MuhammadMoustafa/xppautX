@@ -1,3 +1,4 @@
+#include "xpp_files.h"
 #include <array>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ FILE *fort8(AutoLib &lib)
 {
   if(!lib.fp8){
     lib.fp8.reset(xpp::files::open_stream(xpp::auto_fort_path(*lib.session,8),"w"));
-    if(!lib.fp8)xpp::auto_fail(xpp::format("Could not open {:.200}", xpp::auto_fort_path(*lib.session,8)));
+    if(!lib.fp8)xpp::auto_fail(xpp::files::open_error("AUTO", xpp::auto_fort_path(*lib.session,8)).what);
   }
   return lib.fp8.get();
 }

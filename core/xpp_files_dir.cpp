@@ -27,6 +27,16 @@
 
 namespace xpp::files {
 
+std::string temp_base()
+{
+#ifdef _WIN32
+    return xpp::win32::temp_folder();
+#else
+    const char *base = std::getenv("TMPDIR");
+    return base && base[0] ? base : "/tmp";
+#endif
+}
+
 bool is_dir(std::string_view path)
 {
     Stat st;

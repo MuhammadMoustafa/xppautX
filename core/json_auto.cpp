@@ -320,7 +320,7 @@ void diag_flush(const xpp::Session &s, int final)
 void j_auto_refresh(xpp::Session &s)
 {
     static double last;
-    if (xpp::every(last, 0.05)) {
+    if (xpp::every(last, xpp::INPUT_POLL_SECONDS)) {
         json_flush();
         auto_data_update(s, 0);
     }
@@ -461,10 +461,10 @@ int j_auto_grab_event(xpp::Session &s, int *x, int *y)
         double i = js_num(jp, -1);
         const XppDiagPoint *p = i >= 0 && i < INT_MAX ? diag_client_point(s, static_cast<int>(i)) : NULL;
         *x = p && diagram_has(s.diagram, p->node, p->ibr, p->pt) ? p->node : -1;
-        if (*x >= 0 && get_string(ask_answer(), "key", k, 32)) grab_key_after = key_code(k.c_str());
+        if (*x >= 0 && get_string(ask_answer(), "key", k)) grab_key_after = key_code(k.c_str());
         return XPP_AUTO_NODE;
     }
-    if (get_string(ask_answer(), "key", k, 32)) return key_code(k.c_str());
+    if (get_string(ask_answer(), "key", k)) return key_code(k.c_str());
     answer_point(s, WIN_AUTO, 0, x, y);
     return XPP_AUTO_CLICK;
 }
@@ -587,7 +587,7 @@ void auto_set_command(xpp::Session &s, const char *line)
 void auto_command(xpp::Session &s, const char *line)
 {
     std::string o;
-    get_string(line, "op", o, 16);
+    get_string(line, "op", o);
     if (o == "grab") {
         /* a label, or a type and index ("the 2nd HB"), grabs that stored
            point directly, exactly as the interactive grab ending with
@@ -599,7 +599,7 @@ void auto_command(xpp::Session &s, const char *line)
             int lab = static_cast<int>(js_num(jl, 0));
             if (!auto_grab_label(s, lab))
                 j_command_error("auto", xpp::format("Grab: no point labelled {}", lab));
-        } else if (get_string(line, "type", type, 8) && js_find(line, "index") != NULL) {
+        } else if (get_string(line, "type", type) && js_find(line, "index") != NULL) {
             int idx = get_int(line, "index", 0);
             if (!auto_grab_type_index(s, type.c_str(), idx))
                 j_command_error("auto", xpp::format("Grab: no {} point number {}", type, idx));

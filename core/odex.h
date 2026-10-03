@@ -38,6 +38,8 @@ struct Model;   /* model.h */
 
 namespace xpp::odex {
 
+inline constexpr std::string_view extension = ".odex"; /* The native model file suffix. */
+
 /* Bound the readers' recursive include stack for untrusted model files. */
 inline constexpr int max_include_depth = 16;
 

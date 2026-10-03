@@ -22,9 +22,9 @@ bool path_is_link(const char *path);
 /* rename from to to, replacing to when it exists (rename() does not);
    true on success */
 bool move_over(const char *from, const char *to);
-/* true while pid names a process that has not exited (xpp_files.cpp's
-   sweep of stale scratch folders) */
-bool process_running(unsigned long pid);
+/* Only a proved exit permits deleting that PID's scratch folders;
+   a failed query (including access denied) preserves them. */
+bool process_gone(unsigned long pid);
 /* the system temp folder without its trailing backslash; empty when
    there is none (xpp_files.cpp's scratch folders) */
 std::string temp_folder();

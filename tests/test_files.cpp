@@ -5,6 +5,10 @@
    tools/servercheck.py through the protocol's `file` command. */
 #include "xpptest.h"
 #include "xpp_files.h"
+#include "json_files.h"
+#ifdef _WIN32
+#include "xpp_win32.h"
+#endif
 #include "xpp_mem.h"
 #include "xpp_sha256.h"
 
@@ -185,29 +189,34 @@ int main()
     CHECK(xpp::files::put_begin("link.txt", 100, put) == XPP_FILES_REFUSED);
 #endif
 
+    const std::string long_name(xpp::files::NAME_MAX_BYTES + 1, 'x');
+    CHECK(!xpp::files::name_ok(long_name));
+    const auto bad_name = xpp::files::command("get", ("\"" + long_name + "\"").c_str(), nullptr);
+    CHECK(bad_name.error && bad_name.error->what == xpp::files::status_text(XPP_FILES_BAD_NAME));
+
     /* the listing: plain files only */
-    std::string list = xpp::files::list_json();
+    std::string list = xpp::json::files_json(xpp::files::command("list", nullptr, nullptr));
     std::string want = "{\"files\":[{\"name\":\"a.bin\",\"size\":3,\"mtime\":";
     CHECK(list.starts_with(want));
     CHECK(list.find(sha_of("new", 3)) != std::string::npos);
     CHECK(list.find("sub") == std::string::npos && list.find("link") == std::string::npos);
 
     /* the protocol's file command */
-    xpp::files::command("put", "\"c.dat\"", "\"AAEC/w0KgHg=\"", keep); /* bin, base64 */
+    keep(xpp::json::file_event("put", xpp::files::command("put", "\"c.dat\"", "\"AAEC/w0KgHg=\""))); /* bin, base64 */
     CHECK(last_event.find("\"ok\":1") != std::string::npos);
     CHECK(slurp("c.dat") == std::string(reinterpret_cast<const char *>(bin), 8));
-    xpp::files::command("get", "\"c.dat\"", nullptr, keep);
+    keep(xpp::json::file_event("get", xpp::files::command("get", "\"c.dat\"", nullptr)));
     CHECK(last_event.find("\"data\":\"AAEC/w0KgHg=\"") != std::string::npos);
     CHECK(last_event.find(sha_of(bin, 8)) != std::string::npos);
-    xpp::files::command("put", "\"..\\/xpp-escape-probe\"", "\"AA==\"", keep); /* ../xpp-escape-probe */
+    keep(xpp::json::file_event("put", xpp::files::command("put", "\"..\\/xpp-escape-probe\"", "\"AA==\""))); /* ../xpp-escape-probe */
     CHECK(last_event.find("\"ok\":0") != std::string::npos);
-    xpp::files::command("put", "\"a\\u0000b\"", "\"AA==\"", keep);
+    keep(xpp::json::file_event("put", xpp::files::command("put", "\"a\\u0000b\"", "\"AA==\"")));
     CHECK(last_event.find("\"ok\":0") != std::string::npos);
-    xpp::files::command("put", "\"d.dat\"", "\"not base64!\"", keep);
+    keep(xpp::json::file_event("put", xpp::files::command("put", "\"d.dat\"", "\"not base64!\"")));
     CHECK(last_event.find("not a base64") != std::string::npos);
-    xpp::files::command("get", "\"sub\"", nullptr, keep);
+    keep(xpp::json::file_event("get", xpp::files::command("get", "\"sub\"", nullptr)));
     CHECK(last_event.find("\"ok\":0") != std::string::npos);
-    xpp::files::command("list", nullptr, nullptr, keep);
+    keep(xpp::json::file_event("list", xpp::files::command("list", nullptr, nullptr)));
     CHECK(last_event.find("\"name\":\"c.dat\"") != std::string::npos);
     std::string names = " " + folder() + " ";
     CHECK(names.find(" x ") == std::string::npos && names.find(" d.dat ") == std::string::npos);
@@ -335,6 +344,12 @@ int main()
     CHECK(rmdir(live.c_str()) == 0);
     if (old_tmpdir) setenv("TMPDIR", saved.c_str(), 1);
     else unsetenv("TMPDIR");
+#endif
+
+#ifdef _WIN32
+    constexpr unsigned long SYSTEM_PID = 4; /* Windows' System process stays alive, and its query may be denied. */
+    CHECK(!xpp::win32::process_gone(SYSTEM_PID));
+    CHECK(!xpp::win32::process_gone(0)); /* invalid reserved PID cannot prove an exit */
 #endif
 
     /* clean up */

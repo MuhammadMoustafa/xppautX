@@ -12,7 +12,7 @@ namespace {
 /* "xppautX <kind> " before the version */
 std::string first_line()
 {
-    std::string o = "xppautX ";
+    std::string o(format_prefix);
     o += session_kind;
     o += ' ';
     return o;
@@ -49,8 +49,8 @@ xpp::Result<Manifest> parse_manifest(std::string file, std::string_view text)
         const std::string head = first_line();
         if (l.at_end()) l.fail("it is empty");
         const std::string_view first = l.next();
-        if (!first.starts_with(head) || !xpp::parse_int(first.substr(head.size()), m.version) || m.version != 1)
-            l.fail(xpp::format("it does not begin \"{}1\"", head));
+        if (!first.starts_with(head) || !xpp::parse_int(first.substr(head.size()), m.version) || m.version != format_version)
+            l.fail(xpp::format("it does not begin \"{}{}\"", head, format_version));
         /* the keys given so far: each at most once */
         std::set<std::string, std::less<>> given;
         bool named = false;

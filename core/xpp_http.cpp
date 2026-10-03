@@ -22,6 +22,7 @@
 #include "xpp_assets.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
+#include "json_files.h"
 #include "xpp_io.h"
 #include "xpp_log.h"
 #include "xpp_mem.h"
@@ -515,7 +516,7 @@ void open_events(sock_t s)
 /* ---- a request: its head, then a body read as it comes -------------------------------- */
 
 constexpr size_t HEAD_MAX = 8192;                   /* request line and headers */
-constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* a POST /cmd body */
+constexpr unsigned long long CMD_MAX = 1ULL << 20;  /* Bound command allocation; file uploads use the separate /files route. */
 constexpr int RECV_SECONDS = 30;                    /* a client that stops sending mid-request is dropped */
 constexpr int HEAD_SECONDS = 5;  /* a whole head from accept: a browser sends its small head at once, a preconnected spare socket is closed and reopened */
 constexpr int SEND_SECONDS = 10; /* a client that stops reading is dropped rather than holding its thread, or the core at an event, for ever; a page busy drawing a large plot may not read for a few seconds, and a dropped event stream loses the run's data */
@@ -834,7 +835,11 @@ void serve_files(Request &q)
 {
     size_t n = path_len(q.target);
     if (n == 6 || (n == 7 && q.target[6] == '/')) {
-        if (q.method == "GET") reply(q.s, "200 OK", "application/json", xpp::files::list_json());
+        if (q.method == "GET") {
+            const auto result = xpp::files::command("list", nullptr, nullptr);
+            reply(q.s, !result.error ? "200 OK" : "500 Internal Server Error", "application/json",
+                  !result.error ? xpp::json::files_json(result) : xpp::json::file_event("list", result));
+        }
         else reply_text(q.s, "405 Method Not Allowed", "GET only");
         return;
     }

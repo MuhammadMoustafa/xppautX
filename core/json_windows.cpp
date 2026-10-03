@@ -552,7 +552,7 @@ void j_aplot_draw_one(xpp::Session &s, std::string_view tag)
 void aplot_command(xpp::Session &s, const char *line)
 {
     std::string o;
-    get_string(line, "op", o, 16);
+    get_string(line, "op", o);
     if (o != "scroll" && o != "close") {
         j_command_error("aplot", xpp::format("Unknown aplot op {}", o));
         return;

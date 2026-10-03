@@ -239,10 +239,12 @@ namespace {
 
 /* one JSON value at p, strictly (RFC 8259, nesting at most 64 deep): past
    it, or NULL when it is not one */
+constexpr int JSON_MAX_DEPTH = 64; /* Bound recursive validation of untrusted recording JSON. */
+
 const char *valid_value(const char *p, int depth)
 {
     p = skip_ws(p);
-    if (depth > 64) return nullptr;
+    if (depth > JSON_MAX_DEPTH) return nullptr;
     if (*p == '{' || *p == '[') {
         const char close = *p == '{' ? '}' : ']';
         p = skip_ws(p + 1);
@@ -370,10 +372,10 @@ std::string js_object_without(const char *obj, std::initializer_list<std::string
     return out + "}";
 }
 
-bool js_string(const char *v, std::string &out, size_t max)
+bool js_string(const char *v, std::string &out)
 {
     try {
-        return xpp::json_decode_string(v, out, max, /*strict=*/false);
+        return xpp::json_decode_string(v, out, std::string::npos, /*strict=*/false);
     } catch (...) {
         xpp::out_of_memory("reading a command");
     }
@@ -431,9 +433,9 @@ xpp::Result<> read_save_replace(const char *line, int &decision)
     return {};
 }
 
-bool get_string(const char *obj, const char *key, std::string &out, size_t max)
+bool get_string(const char *obj, const char *key, std::string &out)
 {
-    return js_string(js_find(obj, key), out, max);
+    return js_string(js_find(obj, key), out);
 }
 
 double get_num(const char *obj, const char *key, double def)
@@ -449,7 +451,7 @@ int get_int(const char *obj, const char *key, double def)
 int is_cmd(const char *line, const char *name)
 {
     std::string c;
-    return get_string(line, "cmd", c, 32) && c == name;
+    return get_string(line, "cmd", c) && c == name;
 }
 
 /* a JSON number at v into *out; 0 for anything else (a string, null, true,

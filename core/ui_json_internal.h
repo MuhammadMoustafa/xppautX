@@ -195,6 +195,8 @@ void record_end(xpp::Session &s, bool cancelled);
 void buf_recording(Buf *b);
 
 /* ---- json_player.cpp: playing a recording (W59b) ---- */
+inline constexpr double PLAYER_SPEED_MIN = 0.25; /* Slowest supported replay pace. */
+inline constexpr double PLAYER_SPEED_MAX = 8; /* Fastest supported replay pace; hello gives both bounds to the page. */
 
 /* {"cmd":"play","op":"open"|"from"|"note"|"close"|...} */
 void play_command(xpp::Session &s, const char *line);
@@ -290,14 +292,12 @@ std::string_view js_raw(const char *v);
 bool js_valid(const char *text);
 /* the object at obj as JSON text without its members named in drop */
 std::string js_object_without(const char *obj, std::initializer_list<std::string_view> drop);
-/* the JSON string at v into out, cut to max - 1 bytes (a short keyword's
-   bound; a name or a value is read whole); false (out empty) when v is
-   not a string */
-bool js_string(const char *v, std::string &out, size_t max = std::string::npos);
+/* The JSON string at v into out, whole; false (out empty) when v is not a string. */
+bool js_string(const char *v, std::string &out);
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
 const char *js_elem(const char *arr, int i);
-bool get_string(const char *obj, const char *key, std::string &out, size_t max = std::string::npos);
+bool get_string(const char *obj, const char *key, std::string &out);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
 int is_cmd(const char *line, const char *name);

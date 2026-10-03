@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 /* The player (W59b, docs/protocol.md "Playing a recording"): File/plaY
    recording, Open model of a .recx, or {"cmd":"play","op":"open"} loads a
    recording's model from the files it holds and replays its steps, as
@@ -51,6 +52,18 @@ namespace xpp::json {
 namespace {
 
 using Clock = std::chrono::steady_clock;
+constexpr double VIEW_PACE_DIVISOR = 3; /* View-only presses need less display time. */
+constexpr double NOTE_MAX_MS = 3000; /* Cap the display pause for long notes. */
+constexpr double NOTE_CHARACTER_MS = 35; /* Reading time per note byte, as before. */
+constexpr double COMMAND_MS = 700; /* Light the step command before running it. */
+constexpr double ALERT_MS = 1200; /* Give the recorded alert time to be read. */
+constexpr double KEY_MS = 600; /* Light a recorded menu key before answering. */
+constexpr double ANSWER_MAX_MS = 2500; /* Cap the display pause for long answers. */
+constexpr double ANSWER_BASE_MS = 900; /* Minimum pause for a recorded answer. */
+constexpr double ANSWER_CHARACTER_MS = 40; /* Additional display time per answer byte. */
+constexpr double VIEW_STEP_MS = 250; /* Pause between view-only steps. */
+constexpr double STEP_MS = 800; /* Pause between computation steps. */
+constexpr long long WAIT_MAX_MS = 1LL << 30; /* Keep a millisecond wait representable by the signed-int timer API. */
 
 /* a recorded step, read from its line */
 struct PlayStep {
@@ -134,7 +147,7 @@ bool valid_position(const char *at)
 {
     if (!at || *skip_ws(at) != '{') return false;
     std::string what;
-    get_string(at, "what", what, 16);
+    get_string(at, "what", what);
     const auto count = [at](const char *name) {
         const char *raw = js_find(at, name);
         int value;
@@ -197,7 +210,7 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         if (js_find(e, "cmd")) {
             const char *cmd = js_find(e, "cmd");
             std::string op;
-            if (!is_cmd(cmd, "ani") || !get_string(cmd, "op", op, 16)
+            if (!is_cmd(cmd, "ani") || !get_string(cmd, "op", op)
                 || (op != "pause" && op != "fast" && op != "slow" && op != "speed")
                 || !js_find(e, "at")) {
                 error = "it has an invalid checkpoint command";
@@ -241,7 +254,7 @@ xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<Play
 {
     std::string bytes;
     if (!xpp::read_bytes(path, bytes, XPP_FILES_CAP))
-        return xpp::fail_reading("recording", "cannot be opened or exceeds the file size limit", path);
+        return std::unexpected(xpp::files::open_error("recording", path, "unreadable or exceeds the file size limit"));
     xpp::Result<recx::Read> got = recx::read(bytes, path);
     if (!got) return got;
     steps.assign(got->rec.steps.size(), PlayStep());
@@ -257,8 +270,7 @@ xpp::Result<recx::Read> read_recording(const std::string &path, std::vector<Play
 /* ---- the pace ---- */
 
 /* every pace below is scaled by this: the maintainer found 1x a little too
-   fast (2026-10-01), so the old 1x is now about 0.67x; the speeds stay
-   0.5, 1, 2, 4 */
+   fast (2026-10-01), so the old 1x is now about 0.67x; hello gives the supported speed bounds */
 constexpr double PACE_SLOWDOWN = 1.5;
 
 /* ms at the old 1x, times PACE_SLOWDOWN, divided by the speed; none while
@@ -344,13 +356,13 @@ void input_after(std::string line, const char *what, size_t index, double ms)
     PlayStep &st = player.steps[static_cast<size_t>(player.running)];
     player.input = std::move(line);
     player.input_last = last_input(st);
-    const Clock::duration d = pace(st.view ? ms / 3 : ms);
+    const Clock::duration d = pace(st.view ? ms / VIEW_PACE_DIVISOR : ms);
     send_press(what, index, d);
     schedule(Next::input, d);
 }
 
 /* the note's reading time before a step's first input */
-double reading_ms(const PlayStep &st) { return std::min(3000.0, 35.0 * static_cast<double>(st.note.size())); }
+double reading_ms(const PlayStep &st) { return std::min(NOTE_MAX_MS, NOTE_CHARACTER_MS * static_cast<double>(st.note.size())); }
 
 void begin_step()
 {
@@ -379,7 +391,7 @@ void begin_step()
         player.keys_used = 1;
         what = "key";
     }
-    input_after(std::move(line), what, 0, 700 + reading_ms(st));
+    input_after(std::move(line), what, 0, COMMAND_MS + reading_ms(st));
 }
 
 /* the recorded interruption, or key read, armed for the step's job */
@@ -560,7 +572,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
     }
     std::string file(path);
     if (file.empty()) {
-        if (!file_selector("Play recording", file, "*.recx") || file.empty()) return;
+        if (!file_selector("Play recording", file, "*" + std::string(recx::extension)) || file.empty()) return;
     }
     std::vector<PlayStep> steps;
     xpp::Result<recx::Read> got = read_recording(file, steps);
@@ -604,7 +616,7 @@ void control(const std::string &op, const char *line)
         }
     } else if (op == "speed") {
         const double x = get_num(line, "speed", 1);
-        player.speed = x < 0.25 ? 0.25 : x > 8 ? 8 : x;
+        player.speed = std::clamp(x, PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
     }
 }
 
@@ -613,7 +625,7 @@ void control(const std::string &op, const char *line)
 void play_command(xpp::Session &s, const char *line)
 {
     std::string op;
-    get_string(line, "op", op, 16);
+    get_string(line, "op", op);
     if (op == "open") {
         std::string file;
         get_string(line, "file", file);
@@ -672,7 +684,7 @@ bool play_async(const char *line)
 {
     if (!is_cmd(line, "play")) return false;
     std::string op;
-    get_string(line, "op", op, 16);
+    get_string(line, "op", op);
     if (op != "start" && op != "pause" && op != "step" && op != "speed") return false;
     control(op, line);
     return true;
@@ -731,7 +743,7 @@ int player_wait_ms(void)
 {
     if (!timer_on() || player.what == Next::none) return -1;
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(player.due - Clock::now()).count();
-    return ms < 0 ? 0 : static_cast<int>(std::min<long long>(ms, 1 << 30));
+    return ms < 0 ? 0 : static_cast<int>(std::min<long long>(ms, WAIT_MAX_MS));
 }
 
 void player_fire(void)
@@ -757,14 +769,14 @@ void player_begin(const char *line)
 
 int player_controls(xpp::Session &s)
 {
-    if (!player.in_command || player.off_script) return 64;
+    if (!player.in_command || player.off_script) return KEY_NONE;
     const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
     while (player.controls_used < st.controls.size()) {
         const char *line = st.controls[player.controls_used].c_str();
         const char *at = js_find(line, "at");
         const xpp::job::Progress p = xpp::job::progress();
         std::string what;
-        get_string(at, "what", what, 16);
+        get_string(at, "what", what);
         const bool reached = (what == "ani" && p.what == xpp::job::Reported::frame
                               && p.frame >= get_int(at, "frame", 0))
             || (what == "integrate" && p.what == xpp::job::Reported::rows
@@ -775,9 +787,9 @@ int player_controls(xpp::Session &s)
         if (!reached) break;
         ++player.controls_used;
         const int key = control_line(s, js_find(line, "cmd"));
-        if (key != 64) return key;
+        if (key != KEY_NONE) return key;
     }
-    return 64;
+    return KEY_NONE;
 }
 
 int player_save_replace(int decision)
@@ -808,20 +820,20 @@ void player_asked(const char *kind)
             /* the recording keeps no answer to a message: it was read */
             player.input = "{\"cmd\":\"answer\"}";
             player.input_last = false;
-            const Clock::duration d = pace(1200);
+            const Clock::duration d = pace(ALERT_MS);
             send_press("alert", 0, d);
             schedule(Next::input, d);
         } else if (k == "menu" || k == "choice") {
             if (player.keys_used == st.keys.size()) return diverged(xpp::format("asks a {} it holds no key for", k));
             const size_t i = player.keys_used++;
-            input_after(answer_line(k, st.keys[i], true), "key", i, 600);
+            input_after(answer_line(k, st.keys[i], true), "key", i, KEY_MS);
         } else {
             if (player.answers_used == st.answers.size()) return diverged(xpp::format("asks a {} it holds no answer for", k));
             if (js_find(st.answers[player.answers_used].c_str(), "save_replace"))
                 return diverged(xpp::format("asks a {} before its recorded save decision", k));
             const size_t i = player.answers_used++;
             input_after(answer_line(k, st.answers[i], false), "answer", i,
-                        std::min(2500.0, 900 + 40.0 * static_cast<double>(st.answers[i].size())));
+                        std::min(ANSWER_MAX_MS, ANSWER_BASE_MS + ANSWER_CHARACTER_MS * static_cast<double>(st.answers[i].size())));
         }
     } catch (const std::bad_alloc &) {
         xpp::out_of_memory("playing a recording");
@@ -851,7 +863,7 @@ void player_step_end(void)
         diverged("ended with recorded answers it never asked for");
     }
     player.off_script = false;
-    const double ms = st.view ? 250 : 800;
+    const double ms = st.view ? VIEW_STEP_MS : STEP_MS;
     player.running = -1;
     player.next++;
     player.step_once = false;

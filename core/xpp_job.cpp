@@ -249,6 +249,6 @@ bool every(double &last, double seconds)
 bool xpp::job::poll_due()
 {
     static double last;
-    return every(last, 0.05);
+    return every(last, INPUT_POLL_SECONDS);
 }
 

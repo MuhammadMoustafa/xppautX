@@ -120,16 +120,15 @@ std::string temp_folder()
     return std::string(base.data(), n);
 }
 
-bool process_running(unsigned long pid)
+bool process_gone(unsigned long pid)
 {
-    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, static_cast<DWORD>(pid));
+    /* Limited query rights suffice; a denied query never authorizes scratch cleanup. */
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
+    if (h == NULL) return pid != 0 && GetLastError() == ERROR_INVALID_PARAMETER;
     DWORD code;
-    bool running;
-
-    if (h == NULL) return false; /* no such process */
-    running = !GetExitCodeProcess(h, &code) || code == STILL_ACTIVE;
+    const bool gone = GetExitCodeProcess(h, &code) && code != STILL_ACTIVE;
     CloseHandle(h);
-    return running;
+    return gone;
 }
 
 } // namespace xpp::win32

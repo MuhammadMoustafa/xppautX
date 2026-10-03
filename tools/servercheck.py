@@ -327,6 +327,7 @@ def check_hello_shared():
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
           and hello.get('window_ids') == {'plots': 21, 'auto': 101, 'ani': 104, 'aplot': 105},
           str(hello.get('limits')) + str(hello.get('window_ids')))
+    check('W121b: hello gives the core player speed range', hello.get('player_speed') == {'min': 0.25, 'max': 8} and hello.get('upload_error') == 'larger than 64 MB', str(hello.get('player_speed')))
     steps = {(c['cmd'], c.get('op')): c.get('step') for c in hello.get('commands', [])}
     check('W118: every command says whether it is a step: a key, set and a write are, state, data, an answer, '
           'the browser\'s paging and the recording\'s own are not',
@@ -715,6 +716,14 @@ def file_cmd(**kw):
     collect(is_idle)
     return ev or {}
 
+
+long_op = 'list' + 'x' * 40
+long_reply = file_cmd(op=long_op)
+check('W121b: file operation is returned whole, never cut', long_reply.get('op') == long_op and long_reply.get('ok') == 0, str(long_reply))
+long_name = 'missing' + 'n' * 400
+send(cmd='values', op='internset', name=long_name)
+long_events, _ = collect(is_idle)
+check('W121b: names over 300 bytes reach the handler whole', any(e.get('ev') == 'message' and long_name in e.get('error', '') for e in long_events), str(long_events)[:500])
 
 blob = bytes(range(256)) * 4 + b'\x00\r\n\x1a'
 before = sorted(os.listdir(run))

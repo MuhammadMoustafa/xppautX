@@ -1,3 +1,4 @@
+#include "mykeydef.h"
 /* Headless defaults for the UI seam, plus the dispatchers that keep the
    historical function names working. See xpp_ui.h. */
 #include "xpp_ui.h"
@@ -85,7 +86,7 @@ static int hl_menu_choose(const struct XppMenu *, int)
     return 0;
 }
 static int hl_get_mouse_xy(Session &, int *, int *) { return 0; }
-static int hl_check_abort(void) { return 64; }
+static int hl_check_abort(void) { return KEY_NONE; }
 static void hl_progress(int, int, int) {}
 static void hl_activate_graph(Session &, int, int) {}
 static void hl_get_draw_size(Session &s, unsigned int *w, unsigned int *h)
@@ -353,9 +354,9 @@ int my_abort(void)
     int ch;
     if (xpp::job::cancelled()) return 27;
     if (int key = xpp::job::take_key()) return key; /* a replayed / (xpp_job.h) */
-    if (!xpp::job::poll_due()) return 64;
+    if (!xpp::job::poll_due()) return KEY_NONE;
     ch = ui.check_abort();
-    if (ch == 27) xpp::job::cancel_current();
+    if (ch == ESC) xpp::job::cancel_current();
     return ch;
 }
 int get_command_width(void) { return ui.progress_begin(); }

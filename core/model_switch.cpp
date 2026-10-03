@@ -33,9 +33,12 @@ std::string program_name(const xpp::Model &m)
 
 /* a file a load can read: there, and not a folder (load_eqn would ask
    for another file instead) */
-bool model_file_ok(const std::string &file)
+xpp::Result<> model_file_ok(const std::string &file)
 {
-  return !file.empty()&&xpp::files::exists(file.c_str())&&!xpp::files::is_dir(file.c_str());
+  if (file.empty()) return xpp::fail("open model", "no file name was given", xpp::command_place());
+  if (!xpp::files::exists(file)) return std::unexpected(xpp::files::open_error("open model", file));
+  if (xpp::files::is_dir(file)) return std::unexpected(xpp::files::open_error("open model", file, "a directory, not a model file"));
+  return {};
 }
 
 /* variable i's name, "T" for 0 (the Poincare section's numbering) */
@@ -58,10 +61,10 @@ void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    if(!xpp::file_selector("Open model",file,"*.ode* *.snapx *.recx"))return;
+    if(!xpp::file_selector("Open model",file,"*.ode* *" + std::string(xpp::snapx::extension) + " *" + std::string(xpp::recx::extension)))return;
   }
-  if(!model_file_ok(file)){
-    xpp::err_reading(file,"cannot be opened");
+  if (const auto checked = model_file_ok(file); !checked) {
+    xpp::show_error(checked.error());
     return;
   }
   /* a recording: its model, in the player (W59b) */
@@ -255,14 +258,17 @@ Session *load_requested(const Session &now, const ModelRequest &req)
 {
   const std::string before=xpp::files::working_dir(),before_file=now.model().this_file;
   if(!req.dir.empty()&&xpp::files::change_dir(req.dir.c_str())!=0){
-    xpp::command_error("open model", xpp::format("The folder {} cannot be opened",req.dir));
+    xpp::show_error(xpp::files::open_error("open model",req.dir));
     return nullptr;
   }
   auto back=[&before](){ if(!before.empty())xpp::files::change_dir(before.c_str()); };
-  if(!req.saved&&!model_file_ok(req.file)){
-    back();
-    xpp::err_reading(req.file,"cannot be opened");
-    return nullptr;
+  if (!req.saved) {
+    const auto checked = model_file_ok(req.file);
+    if (!checked) {
+      back();
+      xpp::show_error(checked.error());
+      return nullptr;
+    }
   }
   /* load_model takes argv as main has it: writable, NULL after the last */
   std::vector<std::string> args=req.command_line;

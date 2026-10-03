@@ -1475,8 +1475,8 @@ std::string odex_name(const std::string &ode)
 {
   const size_t slash = ode.find_last_of("/\\");
   const size_t dot = ode.rfind('.');
-  if (dot != std::string::npos && (slash == std::string::npos || dot > slash)) return ode.substr(0, dot) + ".odex";
-  return ode + ".odex";
+  if (dot != std::string::npos && (slash == std::string::npos || dot > slash)) return ode.substr(0, dot) + std::string(extension);
+  return ode + std::string(extension);
 }
 
 namespace {

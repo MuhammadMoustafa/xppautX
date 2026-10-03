@@ -1,3 +1,4 @@
+#include "xpp_files.h"
 /* The .ode reader (ode_read.h, odex.h): an .ode file's lines to the
    statement list the Model builder (form_ode.cpp's build_model) makes the
    Model from, the builder an .odex model's statements go through too
@@ -896,7 +897,9 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
 			xpp::UniqueFile fnew=xpp::open_model_file(*src.model,inc);
       			if(!fnew){
 			  /* a file that could not be read: no line */
-			  model_failed(xpp::Error{"model",xpp::format("cannot open the include file {} (named by the --include flag)",inc),xpp::Place{inc}});
+			  auto error = xpp::files::open_error("model",inc);
+              error.what += " (named by the --include flag)";
+              model_failed(std::move(error));
        			}
       			xpp::log(XPP_LOG_INFO, "Including {} \n",inc);
 			p.included++;
@@ -927,7 +930,9 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       newfile=xpp::include_path(src.file,newfile);
       xpp::UniqueFile fnew=xpp::open_model_file(*src.model,newfile);
       if(!fnew){
-         model_failed(xpp::Error{"model",xpp::format("cannot open the include file {}",newfile),xpp::Place{src.file,src.line,0,old}});
+         auto error = xpp::files::open_error("model",newfile);
+         error.place = xpp::Place{src.file,src.line,0,old};
+         model_failed(std::move(error));
        }
        xpp::log(XPP_LOG_INFO, "Including {}...\n",newfile);
        p.included++;

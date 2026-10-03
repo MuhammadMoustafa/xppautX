@@ -224,10 +224,10 @@ void j_browser_changed(int)
 void browser_command(xpp::Session &s, const char *line)
 {
     std::string o, what, format, name;
-    get_string(line, "op", o, 16);
-    get_string(line, "what", what, 8);
-    get_string(line, "format", format, 16);
-    get_string(line, "name", name, XPP_MAX_NAME);
+    get_string(line, "op", o);
+    get_string(line, "what", what);
+    get_string(line, "format", format);
+    get_string(line, "name", name);
     if (o == "load") data_read(s, &s.browser.view, format, name);
     else if (o == "write") data_write(s, &s.browser.view, what, format, name);
     else if (o == "postprocess") post_process_stuff(s);
@@ -302,7 +302,7 @@ void data_command(xpp::Session &s, const char *line)
     int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
         numerics = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
-        if (!js_string(js_elem(arr, i), name, 32)) continue;
+        if (!js_string(js_elem(arr, i), name)) continue;
         if (name == "series") series = 1;
         else if (name == "plots") plots = 1;
         else if (name == "nullclines") nullclines = 1;
@@ -313,7 +313,7 @@ void data_command(xpp::Session &s, const char *line)
         else if (name == "autosettings") autosettings = 1;
         else if (name == "numerics") numerics = 1;
     }
-    f32 = get_string(line, "enc", enc, 8) && enc == "f32";
+    f32 = get_string(line, "enc", enc) && enc == "f32";
     plot_data_subscribe(series, plots, f32);
     phase_data_subscribe(nullclines, dfield, f32);
     marks_data_subscribe(marks, f32);
@@ -542,9 +542,9 @@ void slide_command(xpp::Session &s, const char *line)
 void values_command(xpp::Session &s, const char *line)
 {
     std::string o, kind, name;
-    get_string(line, "op", o, 16);
-    get_string(line, "kind", kind, 8);
-    get_string(line, "name", name, XPP_MAX_NAME);
+    get_string(line, "op", o);
+    get_string(line, "kind", kind);
+    get_string(line, "name", name);
     if (o == "internset") { /* File/Get par set, the set given by index or name */
         const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
         int j = get_int(line, "index", -1);

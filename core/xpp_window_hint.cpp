@@ -62,7 +62,7 @@ std::string message(std::string_view os_release, std::string_view err)
 {
     size_t at = err.find(NOT_FOUND);
     if (at == std::string_view::npos)
-        return "xppautX: the window cannot open (" + std::string(err) + "); using the browser instead\n";
+        return xpp::browser_message(err);
     /* "/proc/self/fd/5: libwebkit2gtk-4.1.so.0: cannot open ...": the name
        between the last ": " before the wording and the wording */
     std::string_view lib = err.substr(0, at);
@@ -71,8 +71,7 @@ std::string message(std::string_view os_release, std::string_view err)
     std::string cmd = install_command(os_release);
     std::string how = cmd.empty() ? "install WebKitGTK 4.1 (libwebkit2gtk-4.1) with your system's package manager"
                                   : "install it with: " + cmd;
-    return "xppautX: the window needs WebKitGTK, which is not installed (" + std::string(lib) + " not found); " +
-           how + ". Using the browser instead.\n";
+    return xpp::browser_message("needs WebKitGTK, which is not installed: " + std::string(lib) + " not found; " + how);
 }
 
 } /* namespace */

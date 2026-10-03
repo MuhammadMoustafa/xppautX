@@ -81,8 +81,7 @@ void *open_library(std::string &err, bool from_memory)
     if (fd >= 0) {
         path = "/proc/self/fd/" + std::to_string(fd);
     } else {
-        const char *dir = std::getenv("TMPDIR");
-        temp = std::string(dir && *dir ? dir : "/tmp") + "/xppautx-window-XXXXXX";
+        temp = xpp::files::temp_base() + "/xppautx-window-XXXXXX";
         fd = mkstemp(temp.data());
         if (fd < 0) {
             err = "cannot write the window's library: " + std::string(std::strerror(errno));
@@ -156,7 +155,7 @@ bool xpp::window::run(void (*session)(), const char *about)
             return false;
         }
     } catch (const std::exception &e) {
-        xpp::log(XPP_LOG_WARN, "xppautX: the window cannot open ({}); using the browser instead\n", e.what());
+        xpp::log(XPP_LOG_WARN, "{}", xpp::browser_message(e.what()));
         return false;
     }
     return api.run(session, about);

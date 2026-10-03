@@ -942,7 +942,7 @@ export class Session {
     this.send({cmd: 'play', op});
   }
 
-  /** the speed the paces are divided by (0.5, 1, 2, 4) */
+  /** The speed the paces are divided by, within hello.player_speed. */
   playSpeed(speed: number): void {
     this.send({cmd: 'play', op: 'speed', speed});
   }
@@ -1385,9 +1385,10 @@ export class Session {
 
   /** why `file` is too large for the model's folder (hello.limits.upload, the core's cap), or null */
   private tooBig(file: File): string | null {
-    const cap = this.store.getState().hello?.limits.upload ?? 0;
-    return file.size > cap
-      ? `${file.name} is larger than ${Math.round(cap / (1024 * 1024))} MB, the most the model's folder takes from the page.`
+    const hello = this.store.getState().hello;
+    if (!hello) throw new Error("File upload before hello");
+    return file.size > hello.limits.upload
+      ? `${file.name}: ${hello.upload_error}`
       : null;
   }
 

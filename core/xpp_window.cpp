@@ -1,3 +1,5 @@
+#include "snapx.h"
+#include "recx.h"
 /* The desktop window (xpp_window.h): web2 in the operating system's web
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).
@@ -270,7 +272,7 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d);
 [[maybe_unused]] void open_model(void *window)
 {
     const FileDialog models{false, "Open model", "", "", "XPP models, sessions and recordings (*.ode, *.odex, *.snapx, *.recx)",
-                            {".ode", ".odex", ".snapx", ".recx"}};
+                            {".ode", std::string(xpp::odex::extension), std::string(xpp::snapx::extension), std::string(xpp::recx::extension)}};
     std::optional<std::string> path = pick_file(window, models);
     if (path && !path->empty()) host->open_model(path->c_str());
 }
@@ -951,7 +953,8 @@ webview_t open_view()
 /* the warning when the window does not open (why, when webview said) */
 const char *no_view_message()
 {
-    return st->error_msg.empty() ? "xppautX: the window cannot open; using the browser instead\n" : st->error_msg.c_str();
+    if (st->error_msg.empty()) st->error_msg = xpp::browser_message();
+    return st->error_msg.c_str();
 }
 
 #ifdef __APPLE__
@@ -1029,7 +1032,7 @@ bool run_window(void (*session)(), const char *about)
         std::atexit(on_exit);
 #endif
     } catch (const std::exception &e) {
-        host->log(XPP_LOG_WARN, "xppautX: the window cannot open ({}); using the browser instead\n", e.what());
+        host->log(XPP_LOG_WARN, "{}", xpp::browser_message(e.what()));
         return false;
     }
     session();

@@ -40,6 +40,8 @@ export interface HelloEvent {
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
   commands: CommandKind[];
   /** what the core takes: the largest upload (bytes), the most rows and columns of one browser block */
+  upload_error: string;
+  player_speed: {min: number; max: number};
   limits: {upload: number; browser_rows: number; browser_cols: number};
   /** the windows' numbers in `window` events: plot windows are 1 to `plots` */
   window_ids: {plots: number; auto: number; ani: number; aplot: number};

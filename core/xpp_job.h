@@ -188,6 +188,8 @@ namespace xpp {
    true: every throttled flush then happens, so a check sees each state a
    long loop passes through whatever the machine's speed
    (tools/servercheck.py's autoinfo checks) */
+inline constexpr double INPUT_POLL_SECONDS = 0.05; /* Keep cancellation and question input responsive without busy polling. */
+inline constexpr double PROGRESS_SECONDS = 0.1; /* Bound progress event traffic to ten updates per second. */
 bool every(double &last, double seconds);
 
 /* a computation's extent (job::compute_begin/end) as a scope */

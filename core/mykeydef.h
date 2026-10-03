@@ -12,7 +12,8 @@
 #define DEL 9 
 #define BKSP 8
 #define FINE 13
-#define ESC 27
+inline constexpr int ESC = 27; /* ASCII Escape cancels an interactive operation. */
+inline constexpr int KEY_NONE = 64; /* Historical UI sentinel: no key was received. */
 #define TAB 10
 #define BADKEY 0
 

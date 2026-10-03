@@ -23,6 +23,8 @@
 namespace xpp::snapx {
 
 inline constexpr std::string_view extension = ".snapx";
+inline constexpr int format_version = 1; /* Reject incompatible session manifests. */
+inline constexpr std::string_view format_prefix = "xppautX "; /* Manifest signature before its kind and version. */
 
 /* the members, in the order a session file holds them: the manifest,
    the model's (model_folder below), then these */
@@ -46,7 +48,7 @@ inline constexpr std::string_view model_folder = "model/";
 
 /* session.txt: one "key value" line each, the first naming the format */
 struct Manifest {
-    int version = 1;
+    int version = format_version;
     std::string model_name; /* the model's own file, as it names it: the member model/<model_name> */
     std::string anifile;    /* --anifile's animation the model was loaded with, one of its files ("": none) */
     bool data = false;      /* data.npz holds the data table (a session file's alone) */

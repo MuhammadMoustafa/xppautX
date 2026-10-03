@@ -223,6 +223,8 @@ Every action has a kind (W95), defined once in the core and sent in
 
 What a client must keep to, from the core that keeps to it (W118):
 
+- `hello.player_speed`: `{ "min": 0.25, "max": 8 }`, the core's playback speed bounds. The page derives its powers-of-two speed buttons from these bounds; the core clamps requested speeds to this range.
+- `hello.upload_error`: the core's upload-size refusal wording (`larger than 64 MB`), also used by the page before uploading.
 - `hello.limits`: `upload`, the largest file the model's folder takes
   (bytes, xpp_files.h XPP_FILES_CAP, 64 MB); `browser_rows` and
   `browser_cols`, the most rows and columns one `browser` block request
@@ -675,6 +677,18 @@ so the core stays on its one thread and keeps reading the client's lines
 while it waits. `tools/servercheck.py` (`check_player`,
 `check_player_ani`) and `tools/autocheck.py` (`play`) play recordings
 back and compare the data.
+
+Input strings are decoded whole: command and operation names, model names,
+values, file paths and wildcard patterns have no per-field character caps.
+An HTTP command body over 1 MB is refused with HTTP 413; a `--server` input
+line over 256 MB is discarded through its newline and produces one `message`
+`error` naming the input limit. Neither executes a truncated command. A
+workspace basename over 255 bytes is refused as `not a plain file name in the model's folder`, never shortened.
+An unreadable workspace listing is a failed `file` event (HTTP `/files`: 500),
+not an empty successful listing. Failed file opens report `cannot open FILE:
+REASON`, with the requested file in the error's place and the system or explicit
+reason in its text. Clients use the structured file/place fields, not this
+wording, to locate files.
 
 ## --silent
 
