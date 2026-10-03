@@ -40,6 +40,7 @@ Session &json_ui_handle(const char *line);
 
 /* the model of s just loaded (load_model): the front end's set-up,
    then hello, the main window and state (json_model.cpp) */
+void json_ui_queue_runnow(Session &s);
 void json_ui_start_model(Session &s);
 
 /* the model did not load: why and where, as the `error` event (in place

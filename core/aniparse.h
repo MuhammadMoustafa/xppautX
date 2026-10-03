@@ -9,6 +9,7 @@
 
 namespace xpp {
 struct Session; /* session.h */
+int run_now_grab(const Session &s);
 
 void reset_comets(Session &s);
 

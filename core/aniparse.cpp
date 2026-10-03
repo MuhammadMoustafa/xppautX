@@ -629,12 +629,6 @@ int add_grab_command(xpp::Session &s, const std::string &xs, const std::string &
     return (1);
 }
 
-int run_now_grab(xpp::Session &s)
-{
-    if (s.animation.who_was_grabbed < 0 || s.animation.who_was_grabbed >= static_cast<int>(s.animation.grabs.size())) return (0);
-    return (s.animation.grabs[s.animation.who_was_grabbed].end.runnow);
-}
-
 int search_for_grab(xpp::Session &s, double x, double y)
 {
     double dmin = 100000000;
@@ -1275,6 +1269,12 @@ void ani_reset(xpp::Session &s)
     reset_comets(s);
     ui.ani_slider(s);
     ani_flip1(s,0);
+}
+
+int run_now_grab(const xpp::Session &s)
+{
+    if (s.animation.who_was_grabbed < 0 || s.animation.who_was_grabbed >= static_cast<int>(s.animation.grabs.size())) return (0);
+    return (s.animation.grabs[s.animation.who_was_grabbed].end.runnow);
 }
 
 /* the mouse went down (flag 1) or up (0) at pixel ix,iy while grabbing */

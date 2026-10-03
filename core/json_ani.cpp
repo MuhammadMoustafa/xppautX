@@ -76,6 +76,7 @@ int ani_wait(xpp::Session &s, int ms)
         char *line;
         long left;
         int r;
+        if (player_controls(s) == ANI_PAUSE) return 1;
         if (xpp::job::cancelled() || xpp::job::take_key() == ESC) return 1; /* a replayed Escape (xpp_job.h) */
         gettimeofday(&now, NULL);
         left = ms - ((now.tv_sec - start.tv_sec) * 1000 + (now.tv_usec - start.tv_usec) / 1000);
@@ -160,7 +161,8 @@ void ani_command(xpp::Session &s, const char *line)
         send_ani_slider(s);
         return;
     }
-    if (o == "step") ani_flip1(s,get_int(line, "n", 1));
+    if (o == "pause") { /* already idle: nothing to stop */ }
+    else if (o == "step") ani_flip1(s,get_int(line, "n", 1));
     else if (o == "seek") {
         if (s.browser.view.maxrow >= 2) {
             s.animation.vcr.pos = 0;

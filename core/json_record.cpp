@@ -19,6 +19,7 @@
 #include "xpp_about.h"
 #include "xpp_files.h"
 #include "xpp_io.h"
+#include "xpp_job.h"
 #include "xpp_log.h"
 #include "xpp_session.h"
 
@@ -333,18 +334,23 @@ void record_menu_pick(const XppMenu *m, int ch)
     if (m->kinds) t.view = m->kinds[i] == XPP_KIND_VIEW;
 }
 
-void record_key_read(const std::string &key)
+namespace {
+
+/* A state-changing control belongs to the job that took it. */
+void record_during(std::string_view field, std::string_view value)
 {
     StepTaken &t = recorder.step;
     if (!recorder.rec || !t.open) return;
-    Buf b;
-    BUF_LIT(&b, "{\"key\":");
-    buf_str(&b, key);
-    BUF_LIT(&b, ",\"at\":");
-    buf_stopped_at(&b);
-    BUF_LIT(&b, "}");
-    t.during.push_back(std::move(b.s));
+    Buf at;
+    buf_stopped_at(&at);
+    t.during.push_back(xpp::format("{{\"{}\":{},\"at\":{}}}", field, value, at.s));
 }
+
+} // namespace
+
+void record_key_read(const std::string &key) { record_during("key", json_str(key)); }
+
+void record_control(const char *line) { record_during("cmd", js_raw(line)); }
 
 void record_setting(const char *line)
 {
@@ -365,6 +371,7 @@ void record_end(xpp::Session &s, bool cancelled)
     StepTaken &t = recorder.step;
     if (!t.open) return;
     t.open = false;
+    if (xpp::job::computed()) t.view = false;
     std::string abort;
     if (cancelled) {
         Buf b;

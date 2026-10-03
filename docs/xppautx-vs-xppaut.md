@@ -54,6 +54,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
+| Startup run / animator controls | startup run and grab integration use direct calls | protocol jobs announce computing and accept Abort; recordings retain animator pause/speed during Go | W136 ([#188](https://github.com/MuhammadMoustafa/xppautX/issues/188)) |
 | Windows | a separate X11 window each for the plot, data browser, AUTO, animation, array plot | one window with tabs; AUTO floats over it (a sheet on narrow screens) | W5, W6, W8 |
 | Menus and keys | pop-up menus, single-letter hotkeys ([menus.h](../reference/xppaut-8.0/menus.h)) | the same menus as data (`core/menus.cpp`), every hotkey kept | W7, W6 |
 | Drawing | the core draws pixels into the X window | the core sends numbers (`series`, `plots`, `nullclines`, `dfield`, `marks`, `diagram`, ...), the page draws them; the pixel events are gone | W5, W6; protocol 2 |

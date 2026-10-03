@@ -325,6 +325,20 @@ storage's rows.
 
 ## Commands during a command
 
+Startup `--runnow` and `@ runnow=1` enqueue Initialconds/Go through the
+same inbox as client commands (W136). They announce `computing`, accept
+Abort, and end with state/idle. Loading a model with `runnow` queues its
+Go as a separate job after the load.
+
+Animator `mouse` releases that integrate are computations:
+`hello.commands` advertises the `mouse` op as computation. Down, move and
+releases that do not integrate remain views. A release that integrates is
+recorded as a computing step. Animator speed and pause controls taken
+during a job are retained in arrival order and replayed at checkpoints;
+Pause ends Go at its recorded frame. Pause while idle is a view step with
+nothing running to stop.
+
+
 Input is read on its own thread, so lines keep arriving while the core
 computes. Every command runs as a *job*, numbered by the position of its line
 in the input.
@@ -577,7 +591,9 @@ fingerprint: 5f0c...(64 hex digits)
   ("Scripts"). `during`: the keys the running job read itself, each
   `{"key":K,"at":AT}` with where the job was when it took it: `/` ending a
   range or a shooting, Escape stopping the animation's Go (an Escape
-  during a computation cancels it: that is `abort`). `files`: the file
+  during a computation cancels it: that is `abort`). Animator pause and
+  speed controls use `{ "cmd": <command>, "at": AT }` in the same array,
+  in arrival order, and replay at their checkpoint. `files`: the file
   sections the step read, counted from 0 in the file's order, in the
   order it read them; the player serves each read from them. Every zoom or pan (`display`) is a step of its own. A
   setting sent while a command had not computed yet (a value edited while

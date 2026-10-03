@@ -4,6 +4,7 @@
 
 #include <string>
 #include "kbs.h"
+#include <iterator>
 
 namespace xpp {
 
@@ -40,6 +41,13 @@ int find_kbs(const std::string &sc)
 }
 
 } // namespace
+
+std::string_view command_keys(int com)
+{
+  for (int i = 0; i < static_cast<int>(std::size(kbs)) && kbs[i].seq; i++) /* M_IR is 0: the end is the first empty entry */
+    if (kbs[i].com == com) return kbs[i].seq;
+  return {};
+}
 
 void add_user_button(xpp::Session &s, std::string_view spec)
 {

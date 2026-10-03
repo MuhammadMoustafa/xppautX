@@ -61,7 +61,7 @@ def check_logging():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def launch_server(extra_env=None, ode=None, log=None):
+def launch_server(extra_env=None, ode=None, log=None, extra_args=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
@@ -80,7 +80,7 @@ def launch_server(extra_env=None, ode=None, log=None):
     # Windows box without the UTF-8 system locale is the ANSI code page
     # (cp1252 here), mojibake-ing a non-ASCII name on this side even though
     # the wire bytes and xppautX itself (card W35b) are correct UTF-8.
-    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(ode)], cwd=run_dir,
+    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(ode)] + (extra_args or []), cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', bufsize=1, env=env)
     events = queue.Queue()
@@ -2065,23 +2065,10 @@ def check_view():
 # default 45).
 def check_view3d():
     proc7, run7, send7, collect7, _ = launch_server(ode='examples/ode/lorenz.odex')
-    # runnow=1 loads, then runs, as two command cycles (the load's own idle
-    # comes first, at row 0; the run keeps going in the background and
-    # ends with its own state/idle some time later): the first idle is
-    # only the load's, so keep collecting (a short timeout: nothing more
-    # means the run's own idle already came) until the stored rows stop
-    # growing, so what follows starts from the settled run.
+    # Startup runnow has its own computing/idle cycle. Wait for that
+    # condition, so the load's idle cannot be mistaken for the run's.
+    collect7(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
     evs0, _ = collect7(is_idle, timeout=30 * SLOW)
-    rows0 = last_state(evs0) and last_state(evs0).get('rows')
-    for _ in range(9):
-        more, _ = collect7(is_idle, timeout=3 * SLOW)
-        if not more:
-            break
-        evs0 = more
-        rows = last_state(evs0) and last_state(evs0).get('rows')
-        if rows == rows0:
-            break
-        rows0 = rows
     view0 = last_state(evs0) and last_state(evs0)['view']
     check('lorenz.odex opens a 3D window at its @ phi=60 (theta the default 45)',
           view0 is not None and view0['three'] == 1 and view0['theta'] == 45 and view0['phi'] == 60, str(view0))
@@ -5351,6 +5338,84 @@ def check_player():
         stop_server(p, r, snd)
 
 
+def check_ani_grab_job():
+    # An armed row stop makes grab integration/cancellation independent of speed.
+    grab_rows = 400  # strictly inside lecar's default 601 stored rows
+    with tempfile.TemporaryDirectory(prefix='xppgrab') as r:
+        shutil.copy(args.ode, r)
+        for name, runnow in [('grab.ani', 1), ('view.ani', 0)]:
+            with open(os.path.join(r, name), 'w') as f:
+                f.write(chr(10).join(['dimension -1;-1;1;1', 'speed 0', 'transient',
+                                       'circle 0;0;0.1;$RED;1', 'grab 0;0;0.2',
+                                       '{w=w}', '{runnow=%d}' % runnow, 'end', '']))
+        lines = [
+            {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
+            {'cmd': 'key', 'key': 'v'}, {'cmd': 'answer', 'key': 't'},
+            {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'grab.ani'},
+            {'cmd': 'record', 'op': 'start'},
+            {'cmd': 'key', 'win': 'ani', 'key': 'a'},
+            {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': grab_rows, 't': 0}},
+            {'cmd': 'ani', 'op': 'pause'},
+            {'cmd': 'key', 'win': 'ani', 'key': 'f'}, {'cmd': 'answer', 'file': 'view.ani'},
+            {'cmd': 'key', 'win': 'ani', 'key': 'a'},
+            {'cmd': 'ani', 'op': 'mouse', 'what': 'down', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'ani', 'op': 'mouse', 'what': 'up', 'u': 0.5, 'v': 0.5},
+            {'cmd': 'record', 'op': 'stop', 'name': 'grab'},
+        ]
+        script = os.path.join(r, 'grab.jsonl')
+        with open(script, 'w') as f:
+            f.write(''.join(json.dumps(save_permission(c)) + chr(10) for c in lines))
+        result = subprocess.run([os.path.abspath(args.server), '--script', script, os.path.basename(args.ode)],
+                                cwd=r, capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
+        evs = [json.loads(l) for l in result.stdout.splitlines() if l.strip()]
+        stopped = [e for e in evs if e.get('ev') == 'stopped']
+        check('W136: animator grab computes as a job and stops at its armed row',
+              result.returncode == 0 and sum(e.get('ev') == 'computing' for e in evs) == 2
+              and len(stopped) == 1 and stopped[0]['at'].get('rows') == grab_rows, result.stderr[-300:])
+        path = os.path.join(r, 'grab.recx')
+        text = open(path, encoding='utf-8').read() if os.path.exists(path) else ''
+        _, _, steps, _, _ = read_recx(text)
+        mouse = [x for x, _ in steps if x.get('cmd', {}).get('op') == 'mouse']
+        check('W136: grab down is a view; integrating release is a computing recording step',
+              len(mouse) == 4 and mouse[0].get('view') is True and not mouse[1].get('view')
+              and all(x.get('view') for x in mouse[2:])
+              and mouse[1].get('abort', {}).get('rows') == grab_rows, str(mouse))
+        check('W136: pause while idle is recorded as a view without an error',
+              any(x.get('cmd', {}).get('op') == 'pause' and x.get('view') for x, _ in steps)
+              and not any(e.get('error') for e in evs if e.get('ev') == 'message'), '')
+
+
+check_ani_grab_job()
+
+
+def check_runnow_job():
+    # A deliberately heavy, effectively unbounded run: Abort follows the
+    # computing condition, never a delay or a race to beat completion.
+    with tempfile.TemporaryDirectory(prefix='xpprunnow') as source:
+        model = os.path.join(source, 'runnow.odex')
+        with open('tools/models/heavy.odex', encoding='utf-8') as f:
+            heavy = f.read().replace('total=20', 'total=1e7')
+        for option in ('model', 'cli'):
+            with open(model, 'w', encoding='utf-8') as f:
+                f.write(heavy + (chr(10) + '@ runnow=1' + chr(10) if option == 'model' else ''))
+            p, r, snd, col, _ = launch_server(ode=model, extra_args=['--runnow'] if option == 'cli' else [])
+            try:
+                _, comp = col(lambda e: e.get('ev') == 'computing', timeout=30 * SLOW)
+                check('W136: server runnow (%s) sends computing' % option, comp is not None)
+                snd(cmd='abort')
+                evs, idle = col(is_idle, timeout=30 * SLOW)
+                stopped = next((e for e in evs if e.get('ev') == 'stopped'), None)
+                check('W136: Abort stops startup runnow (%s) as an integration job' % option,
+                      idle and stopped and stopped['at']['what'] == 'integrate', str(stopped))
+            finally:
+                stop_server(p, r, snd)
+
+
+check_runnow_job()
+
+
 def check_player_ani():
     """W59b: Escape during the animation's Go, a key the running job reads
     itself, is recorded with the frame it came at, and the replay stops the
@@ -5388,14 +5453,25 @@ def check_player_ani():
         went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
         snd(cmd='key', key='Escape')
         evs, _ = col(is_idle, timeout=30 * SLOW)
+        escape_last = frames(went + evs)[-1:]
+        run(cmd='key', win='ani', key='r')
+        snd(cmd='key', win='ani', key='g')
+        went, _ = col(lambda e: e.get('ev') == 'ani' and e.get('op') == 'frame' and e['pos'] >= 40, timeout=30 * SLOW)
+        snd(cmd='ani', op='speed', ms=10)
+        snd(cmd='ani', op='pause')
+        evs, _ = col(is_idle, timeout=30 * SLOW)
         last = frames(went + evs)[-1:]
         run(cmd='record', op='stop', name='ani')
         text = open(os.path.join(r, 'ani.recx'), encoding='utf-8').read() if os.path.exists(os.path.join(r, 'ani.recx')) else ''
         _, files, steps, _, _ = read_recx(text)
         check('player: Escape during the animation\'s Go is recorded with its frame; the .ani is embedded',
-              last and 0 < last[0] < 600 and 'gui_test.ani' in files
+              escape_last and 0 < escape_last[0] < 600 and 'gui_test.ani' in files
               and any(x.get('during', [{}])[0].get('at', {}).get('what') == 'ani' for x, _ in steps),
               '%s %s' % (last, [x for x, _ in steps][-2:]))
+        controls = [d for x, _ in steps for d in x.get('during', []) if 'cmd' in d]
+        check('W136: speed and pause during Go retain their commands and frames',
+              [d['cmd'].get('op') for d in controls] == ['speed', 'pause']
+              and all(d['at'].get('what') == 'ani' for d in controls), str(controls))
         os.remove(os.path.join(r, 'gui_test.ani'))  # the replay reads the recording's copy
         snd(cmd='play', op='open', file=os.path.join(r, 'ani.recx'))
         evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
@@ -5408,8 +5484,10 @@ def check_player_ani():
         evs, _ = col(lambda e: e.get('ev') == 'state' and (e.get('player') or {}).get('step') == len(steps)
                      and e['player']['running'] == -1, timeout=120 * SLOW)
         errors = [e.get('error') for e in evs if e.get('ev') == 'message' and e.get('error')]
-        check('play: the replayed Escape stops the Go at the recorded frame, the .ani from the recording',
-              last and frames(evs)[-1:] == last and not errors, '%s vs %s %s' % (frames(evs)[-1:], last, errors))
+        check('W136: replayed pause stops Go at its recorded frame, after its speed change',
+              last and frames(evs)[-1:] == last and not errors
+              and any(e.get('ev') == 'ani' and e.get('speed') == 10 for e in evs),
+              '%s vs %s %s' % (frames(evs)[-1:], last, errors))
         col(is_idle, timeout=10 * SLOW)
     finally:
         stop_server(p, r, snd)

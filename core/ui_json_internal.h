@@ -92,6 +92,7 @@ struct ProtocolSession {
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */
     std::atomic<int> menu{0};
+    std::atomic<bool> grab_computes{false}; /* reader-thread command kind snapshot */
     /* the lines a command's prompt or computation took that were meant for
        after it, in arrival order; the command loop runs them first */
     std::deque<DeferredLine> deferred;
@@ -183,6 +184,7 @@ void record_key_read(const std::string &key);
 void record_menu_pick(const struct XppMenu *m, int ch);
 /* a setting a running command took and applied at once (take_setting): a
    step of its own, before that command's */
+void record_control(const char *line);
 void record_setting(const char *line);
 /* the command ends (handle_line, before its state): its step, with where
    it stopped when cancelled */
@@ -211,6 +213,7 @@ void player_begin(const char *line);
    answers it with the recording's next key or answer */
 void player_asked(const char *kind);
 /* the step's job ends with its recorded interruption still armed */
+int player_controls(xpp::Session &s);
 void player_stop_missed(void);
 /* the command ends (handle_line, before its state): the player's step ends */
 void player_step_end(void);

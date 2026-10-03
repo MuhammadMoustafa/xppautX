@@ -36,6 +36,7 @@
 #include "phase_data.h"
 #include "marks_data.h"
 #include "ani_data.h"
+#include "aniparse.h"
 #include "auto_data.h"
 #include "auto_settings.h"
 #include "numerics_settings.h"
@@ -250,6 +251,7 @@ int control_line(xpp::Session &s, const char *line)
     }
     if (is_cmd(line, "ani")) {
         get_string(line, "op", k, 32);
+        record_control(line);
         if (k == "pause") return ANI_PAUSE;
         ani_speed_op(s, k.c_str(), line);
     }
@@ -586,6 +588,7 @@ const CommandInfo commands[] = {
      }},
     {"plotvars", nullptr, V, STEP, plotvars_command},
     {"aplot", nullptr, V, STEP, aplot_command},
+    {"ani", "mouse", X, STEP, ani_command}, /* release can integrate */
     {"ani", nullptr, V, STEP, ani_command},
     {"browser", "write", D, STEP, browser_command},
     {"browser", "load", D, STEP, browser_command},
@@ -674,6 +677,12 @@ char line_kind(const char *line)
 {
     const CommandInfo *e = command_of(line);
     if (!e) return 0;
+    if (e->run == ani_command && e->kind == XPP_KIND_COMPUTE) {
+        std::string what;
+        get_string(line, "what", what, 8);
+        return what == "up" && session.grab_computes.load(std::memory_order_relaxed)
+            ? XPP_KIND_COMPUTE : XPP_KIND_VIEW;
+    }
     if (e->kind) return e->kind;
     std::string k, win; /* a key: its menu item's kind */
     get_string(line, "key", k, 16);
@@ -729,6 +738,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     phase_data_update(*s);
     marks_data_update(*s);
     ani_data_update(*s);
+    session.grab_computes.store(s->animation.grab_flag && run_now_grab(*s), std::memory_order_relaxed);
     diag_flush(*s, 1);
     auto_data_update(*s, 1);
     auto_view_update(*s);

@@ -61,6 +61,7 @@ struct PlayStep {
     std::vector<std::string> keys, answers;
     std::vector<size_t> files; /* the sections it read, in order */
     std::string abort;         /* the recorded interruption's `at` */
+    std::vector<std::string> controls; /* checkpoint commands, in arrival order */
     std::string key_read, key_read_at; /* the first key the job read itself */
     bool view = false;
 };
@@ -87,6 +88,7 @@ struct Player {
     bool in_command = false; /* handle_line runs the running step's command */
     bool off_script = false; /* it went where the recording does not: the user answers */
     size_t keys_used = 0, answers_used = 0;
+    size_t controls_used = 0;
     std::vector<bool> files_used; /* of the running step's */
     std::string pushed; /* the command line pushed, until handle_line takes it */
     bool playing = false, step_once = false;
@@ -150,9 +152,36 @@ bool read_step(const recx::Step &st, size_t sections, PlayStep &out, std::string
         out.files.push_back(static_cast<size_t>(k));
     }
     if (const char *ab = js_find(line, "abort")) out.abort = std::string(js_raw(ab));
-    if (const char *d = js_find(line, "during"); d && (e = js_elem(d, 0)) != nullptr) {
-        get_string(e, "key", out.key_read);
-        if (const char *at = js_find(e, "at")) out.key_read_at = std::string(js_raw(at));
+    const char *d = js_find(line, "during");
+    for (int i = 0; d && (e = js_elem(d, i)) != nullptr; ++i) {
+        if (js_find(e, "cmd")) {
+            const char *cmd = js_find(e, "cmd");
+            std::string op;
+            if (!is_cmd(cmd, "ani") || !get_string(cmd, "op", op, 16)
+                || (op != "pause" && op != "fast" && op != "slow" && op != "speed")
+                || !js_find(e, "at")) {
+                error = "it has an invalid checkpoint command";
+                return false;
+            }
+            const char *at = js_find(e, "at");
+            std::string what;
+            get_string(at, "what", what, 16);
+            const auto count = [at](const char *name) {
+                const char *raw = js_find(at, name);
+                int value;
+                return raw && xpp::parse_int(js_raw(raw), value) && value >= 0;
+            };
+            if (!(what == "other" || (what == "ani" && count("frame"))
+                  || (what == "integrate" && count("rows"))
+                  || (what == "auto" && count("branch") && count("point")))) {
+                error = "it has an invalid checkpoint position";
+                return false;
+            }
+            out.controls.emplace_back(js_raw(e));
+        } else if (out.key_read.empty()) {
+            get_string(e, "key", out.key_read);
+            if (const char *at = js_find(e, "at")) out.key_read_at = std::string(js_raw(at));
+        }
     }
     const char *v = js_find(line, "view");
     out.view = v && std::strncmp(v, "true", 4) == 0;
@@ -628,9 +657,35 @@ void player_begin(const char *line)
 {
     if (player.running < 0 || player.in_command || player.pushed != line) return;
     player.in_command = true;
+    player.controls_used = 0;
     player.off_script = false;
     player.pushed.clear();
     xpp::files::serve_reads(serve); /* the files it reads: the recording's */
+}
+
+int player_controls(xpp::Session &s)
+{
+    if (!player.in_command || player.off_script) return 64;
+    const PlayStep &st = player.steps[static_cast<size_t>(player.running)];
+    while (player.controls_used < st.controls.size()) {
+        const char *line = st.controls[player.controls_used].c_str();
+        const char *at = js_find(line, "at");
+        const xpp::job::Progress p = xpp::job::progress();
+        std::string what;
+        get_string(at, "what", what, 16);
+        const bool reached = (what == "ani" && p.what == xpp::job::Reported::frame
+                              && p.frame >= get_int(at, "frame", 0))
+            || (what == "integrate" && p.what == xpp::job::Reported::rows
+                && p.rows >= get_int(at, "rows", 0))
+            || (what == "auto" && p.what == xpp::job::Reported::point
+                && p.branch == get_int(at, "branch", 0) && p.point >= get_int(at, "point", 0))
+            || (what == "other" && p.what == xpp::job::Reported::nothing);
+        if (!reached) break;
+        ++player.controls_used;
+        const int key = control_line(s, js_find(line, "cmd"));
+        if (key != 64) return key;
+    }
+    return 64;
 }
 
 int player_save_replace(int decision)
@@ -698,6 +753,8 @@ void player_step_end(void)
     if (player.off_script) {
     } else if (player.what == Next::input) {
         diverged("ended before its next answer was given"); /* the user answered for it */
+    } else if (player.controls_used < st.controls.size()) {
+        diverged("ended before its recorded checkpoint commands");
     } else if (player.keys_used < st.keys.size() || player.answers_used < st.answers.size()) {
         diverged("ended with recorded answers it never asked for");
     }

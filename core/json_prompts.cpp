@@ -545,6 +545,7 @@ void j_q_calc(xpp::Session &s)
 
 int j_check_abort(void)
 {
+    player_controls(client());
     char *line;
     static double last;
     /* let the client see the picture grow, a few frames a second */
