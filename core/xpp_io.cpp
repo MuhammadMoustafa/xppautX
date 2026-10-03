@@ -193,7 +193,7 @@ Ptr attached_state(std::FILE *fp) noexcept
 template <class Ptr>
 Ptr writer_open(std::string_view path, bool binary)
 {
-    if (path.empty() || !xpp::files::write_path_ok(path)) return nullptr;
+    if (path.empty() || !xpp::files::write_path_ok(path, true)) return nullptr;
     try {
         Ptr w = new_state<Ptr>();
         if (!w) throw std::bad_alloc();

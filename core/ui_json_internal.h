@@ -87,6 +87,8 @@ struct ProtocolSession {
     int save_replace = SAVE_ASK; /* the running command's decision, never the disk's */
     bool generated = false; /* --silent model's internal commands */
     bool silent = false; /* no interface; errors determine the process result */
+    bool terminal_auto = false; /* --auto answers terminal questions */
+    std::string output_folder; /* silent recording's launch folder, never its input folder */
     xpp::Place reading; /* a recording's snapshot being parsed, before any step */
     /* the main-window menu shown (MAIN_MENU, FILE_MENU, NUM_MENU), for the
        reader thread's classify(): which menu a key is an item of */

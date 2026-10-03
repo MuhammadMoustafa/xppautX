@@ -7,12 +7,15 @@
 #ifdef _WIN32
 #include <span>
 #include <string>
+#include <optional>
 
 namespace xpp::win32 {
 
 /* up to buf.size() bytes of stdin, blocking; -1 at end of input or on an
    error */
 int read_stdin(std::span<char> buf);
+/* One bounded line from a console, pipe or file, with a whole-line deadline. */
+std::optional<std::string> read_stdin_line(int seconds, size_t cap);
 void binary_mode(int fd); /* no \r\n translation */
 /* true when path is a symbolic link or another reparse point (a junction) */
 bool path_is_link(const char *path);

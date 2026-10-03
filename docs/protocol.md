@@ -452,11 +452,19 @@ stops in the first run to reach that row count.
 The whole recording and every step are read and checked before a model
 loads or a step runs. Input is capped at the file API's 64 MiB limit;
 JSON nesting and snapshot archive expansion retain their reader limits.
-Reads use the recording's embedded files. Replay writes only plain files
-inside its private scratch folders, including the initial model load;
-a recorded path
-cannot write outside them. Use `--server` and the `file` command to inspect
-replay output before closing the session. Protocol clients wait for
+Reads use the recording's embedded files. Silent playback keeps its output
+in the current folder where the command was launched, under plain base
+names only: no paths, subfolders or links, including the initial model load.
+An existing file asks the terminal `NAME exists. Replace it? [y/N] (60 s)`.
+The shared terminal question helper reads a line from a console or pipe;
+end of input or the 60-second deadline means no answer. Without confirmation,
+playback stops at that step, exits 1, names the file and recording step,
+and leaves the existing file untouched. `--auto` answers every terminal
+question: it accepts conversion's suggested names and replaces existing
+playback outputs without asking. Recorded save decisions do not authorize
+overwriting the terminal user's files. Interactive Play still writes only
+in its private scratch folder; use `--server` and the `file` command to
+inspect those files before closing. Protocol clients wait for
 `ask` and `idle`; recordings are the only playable file format.
 
 `examples/recordings/lecar_auto.recx` records the former AUTO example's

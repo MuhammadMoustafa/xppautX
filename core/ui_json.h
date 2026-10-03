@@ -15,6 +15,7 @@ struct Session; /* session.h */
 #define JSON_UI_STR_(x) #x
 #define JSON_UI_STR(x) JSON_UI_STR_(x)
 void json_ui_install(bool silent = false); /* protocol, or no interface */
+void json_ui_terminal_auto(bool automatic); /* the one command-line --auto flag */
 void json_ui_loop(void);           /* read and run commands until EOF */
 /* {"cmd":"open","file":path} into the inbox, as if the page had sent it:
    the desktop window's File > Open model, from the window's thread */

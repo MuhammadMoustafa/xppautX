@@ -49,6 +49,9 @@ checks rather than interactive use:
   plays a recording without an interface, from its saved snapshot, and
   reproduces each recorded interruption at its exact row or AUTO point
   (docs/protocol.md "Playing a recording without an interface", W144).
+  Plain-name output files remain in the launch folder. Existing files ask
+  the terminal for confirmation within 60 seconds; EOF or timeout stops
+  playback with exit 1. `--auto` replaces them without asking.
 
 `--web` (browser mode, opening the page) is the default when none of
 `--server` or `--silent` is given.

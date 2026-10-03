@@ -120,10 +120,12 @@ void observe_reads(void (*observer)(const std::string &path));
    nullptr) holds, else asks the disk (a file about to be written). A
    recording's replay serves the files its steps read (W59b,
    json_player.cpp). The core thread's alone; nullptr stops it. */
-void serve_reads(bool (*server)(const std::string &path, std::string *copy));
-/* While replay serves reads, writes stay in this process's scratch folders.
-   Used by both stream opens and Writer's atomic create/replace. */
-bool write_path_ok(std::string_view path);
+void serve_reads(bool (*server)(const std::string &path, std::string *copy),
+                 bool (*write)(std::string_view path, bool opening, int kind) = nullptr);
+/* While replay serves reads, writes stay in private scratch or the server's
+   allowed output folder. opening confirms an existing output only once;
+   atomic create/replace recheck the same path without another question. */
+bool write_path_ok(std::string_view path, bool opening = false);
 /* the descriptor a standard stream (stdout, stderr) writes through, given
    one (the null device) if it has none: the Windows exe is a GUI-subsystem
    program, and started with no console (Explorer, a shortcut,

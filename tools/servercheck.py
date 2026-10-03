@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -3968,7 +3968,7 @@ def check_silent_commands():
             before(d)
         r = run_commands(args.server, ode, lines, d)
         path = make_recording(args.server, ode, lines, d)
-        quiet = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=d,
+        quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--auto'], cwd=d,
             capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
         r.returncode = quiet.returncode
         r.stderr = quiet.stderr
@@ -4053,7 +4053,7 @@ def check_outcomes_once():
                 r = run_commands(args.server, os.path.join(d, 'linear.odex'), lines, d, flags)
                 if not any('rgb' in c for c in lines):
                     path = make_recording(args.server, os.path.join(d, 'linear.odex'), lines, d)
-                    quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', *flags],
+                    quiet = subprocess.run([os.path.abspath(args.server), path, '--silent', '--auto', *flags],
                         cwd=d, capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
                     r.returncode = quiet.returncode
                     r.quiet_stdout = quiet.stdout
@@ -5641,5 +5641,75 @@ except subprocess.TimeoutExpired:
     check('File/Quit exits', False)
 
 shutil.rmtree(run, ignore_errors=True)
+
+def check_terminal_playback():
+    """W144 review: outputs survive, and only the terminal authorizes replacement."""
+    binary = os.path.abspath(args.server)
+    with tempfile.TemporaryDirectory(prefix='xpprec-input') as source, \
+            tempfile.TemporaryDirectory(prefix='xpprec-output') as destination:
+        data = b'recorded output\n'
+        lines = [{'cmd':'file', 'op':'put', 'name':'saved.dat', 'data':base64.b64encode(data).decode()},
+                 {'cmd':'file', 'op':'put', 'name':'after.dat', 'data':'YWZ0ZXI='}]
+        path = make_recording(binary, args.ode, lines, source)
+        def play(answer='', automatic=False):
+            return subprocess.run([binary, path, '--silent'] + (['--auto'] if automatic else []),
+                cwd=destination, input=answer, capture_output=True, text=True, encoding='utf-8', timeout=30 * SLOW)
+        saved = os.path.join(destination, 'saved.dat')
+        after = os.path.join(destination, 'after.dat')
+        result = play()
+        check('W144: silent recording output survives in the launch folder with its recorded content',
+              result.returncode == 0 and result.stdout == '' and open(saved, 'rb').read() == data
+              and not os.path.exists(os.path.join(source, 'saved.dat')), result.stderr)
+        os.remove(after)
+        with open(saved, 'wb') as f: f.write(b'keep')
+        result = play()
+        check('W144: closed stdin refuses replacement once at the step and plays nothing after it',
+              result.returncode == 1 and open(saved, 'rb').read() == b'keep' and not os.path.exists(after)
+              and 'saved.dat exists. Replace it? [y/N] (60 s)' in result.stderr
+              and 'saved.dat already exists; replace not confirmed (--auto replaces)' in result.stderr
+              and result.stderr.count(path + ':') == 1, result.stderr)
+        result = play('y\n')
+        check('W144: a confirmation line on piped stdin replaces the output and resumes playback',
+              result.returncode == 0 and open(saved, 'rb').read() == data and os.path.exists(after), result.stderr)
+        with open(saved, 'wb') as f: f.write(b'keep again')
+        result = play(automatic=True)
+        check('W144: --auto replaces existing outputs without a terminal question',
+              result.returncode == 0 and open(saved, 'rb').read() == data and 'Replace it?' not in result.stderr, result.stderr)
+        with open(path, encoding='utf-8') as f: template = f.read()
+        for name in ['../escaped.par', 'sub/escaped.par', os.path.join(destination, 'escaped.par'), 'bad..par']:
+            steps = [{'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':name, 'replace':1}},
+                     {'cmd':{'cmd':'file', 'op':'put', 'name':'after.dat', 'data':'YWZ0ZXI='}}]
+            with open(path, 'w', encoding='utf-8', newline='\n') as f: f.write(recording_text(template, steps))
+            if os.path.exists(after): os.remove(after)
+            before = sorted(os.listdir(destination))
+            result = play(automatic=True)
+            check('W144: recorded path %r is refused at its step without writing anything' % name,
+                  result.returncode == 1 and result.stderr.count(path + ':') == 1
+                  and sorted(os.listdir(destination)) == before and open(saved, 'rb').read() == data, result.stderr)
+        foreign = os.path.join(source, 'reserved.ode')
+        with open(foreign, 'w') as f: f.write("par and=1\nx'=and\ndone\n")
+        converted = foreign[:-4] + '.odex'
+        result = subprocess.run([binary, '--convert', foreign], input='', capture_output=True,
+                                text=True, encoding='utf-8', timeout=30 * SLOW)
+        check('W144: --convert still refuses a reserved name when terminal input ends',
+              result.returncode == 1 and not os.path.exists(converted), result.stderr)
+        result = subprocess.run([binary, '--convert', foreign], input='and_\n', capture_output=True,
+                                text=True, encoding='utf-8', timeout=30 * SLOW)
+        check('W144: --convert uses the shared terminal question with piped input',
+              result.returncode == 0 and os.path.exists(converted) and 'par and_ = 1' in open(converted).read()
+              and '(60 s)' in result.stderr, result.stderr)
+        model = os.path.join(source, 'other.odex')
+        with open(args.ode, 'rb') as f: embedded = f.read()
+        steps = [{'cmd':{'cmd':'open', 'file':model}, 'keys':['d']},
+                 {'cmd':{'cmd':'file', 'op':'put', 'name':'next.dat', 'data':base64.b64encode(data).decode()}}]
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(recording_text(template, steps, [('other.odex', embedded), ('.xpprc', b'')]))
+        result = play()
+        check('W144: opening an embedded model keeps later outputs in the launch folder',
+              result.returncode == 0 and os.path.exists(os.path.join(destination, 'next.dat'))
+              and open(os.path.join(destination, 'next.dat'), 'rb').read() == data
+              and not os.path.exists(model) and not os.path.exists(os.path.join(source, 'next.dat')), result.stderr)
+
+check_terminal_playback()
 print('server checks: %s' % ('all passed' if failures == 0 else '%d failed' % failures))
 sys.exit(1 if failures else 0)

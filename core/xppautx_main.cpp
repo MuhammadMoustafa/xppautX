@@ -123,21 +123,9 @@ static std::string usage_tail()
     "  --dfdraw 1-5 / --ncdraw 1|2   batch fields / nullclines\n"
     "  --readset FILE / --with TEXT   internal-set settings\n"
     "  --equil 0|1      batch equilibria (1 also writes manifolds)\n"
-    "  --auto           accept suggested names with --convert\n"
+    "  --auto           answer terminal questions: suggested names; replace files\n"
     "  -h / --help      help; --version prints the version\n"
     "Word options require two dashes. X11 options are removed.\n", xpp::http::DEFAULT_PORT);
-}
-
-/* --convert's question about a name, asked on the terminal: nobody can
-   answer when standard input is not one (a script, CI) */
-static std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
-{
-    if (!isatty(fileno(stdin))) return std::nullopt;
-    xpp::print(stderr, "{} [{}]: ", question, suggestion);
-    xpp::LineReader in = xpp::LineReader::attach(stdin);
-    std::optional<std::string_view> line = in.next();
-    if (!line) return std::nullopt;
-    return std::string(*line);
 }
 
 /* what xppautX does with the session */
@@ -285,9 +273,10 @@ int main(int argc, char **argv)
             xpp::log_printf(XPP_LOG_ERROR, "usage: xppautX --convert [--auto] model.ode\n");
             return 2;
         }
-        return xpp::odex::convert_file(argv[1], convert_auto != 0, ask_terminal);
+        return xpp::odex::convert_file(argv[1], convert_auto != 0, xpp::ask_terminal);
     }
     bool recording_batch = false;
+    xpp::json_ui_terminal_auto(convert_auto != 0);
     for (i = 1; i < argc; ++i)
         if (xpp::snapx::has_extension(argv[i], xpp::recx::extension)) recording_batch = batch != 0;
     if (batch && !recording_batch) {

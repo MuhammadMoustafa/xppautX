@@ -524,20 +524,24 @@ namespace {
 /* observe_reads()'s observer and serve_reads()'s server (the core
    thread's) */
 void (*read_observer)(const std::string &path);
-bool (*read_server)(const std::string &path, std::string *copy);
+struct FileServer {
+    bool (*read)(const std::string &path, std::string *copy) = nullptr;
+    bool (*write)(std::string_view path, bool opening, int kind) = nullptr;
+} read_server;
 
 /* a read the server has a say in */
-bool served_read(std::string_view path) { return read_server && !xpp::files::is_scratch(path); }
+bool served_read(std::string_view path) { return read_server.read && !xpp::files::is_scratch(path); }
 
 } // namespace
 
 void observe_reads(void (*observer)(const std::string &path)) { read_observer = observer; }
 
-void serve_reads(bool (*server)(const std::string &path, std::string *copy)) { read_server = server; }
+void serve_reads(bool (*server)(const std::string &path, std::string *copy),
+                 bool (*write)(std::string_view path, bool opening, int kind)) { read_server = {server, write}; }
 
-bool write_path_ok(std::string_view path)
+bool write_path_ok(std::string_view path, bool opening)
 {
-    if (!read_server) return true;
+    if (!read_server.read) return true;
     const auto [dir, base] = split_path(absolute(path));
     /* Replay creates only plain files: no traversal, subdirectory or link
        can turn its own scratch folder into a path to the user's files. */
@@ -546,8 +550,8 @@ bool write_path_ok(std::string_view path)
     /* Writer's exclusive temporary has a leading dot; the rest is a
        plain name, checked by the same owner as its eventual target. */
     const std::string_view plain = std::string_view(base).starts_with('.') ? std::string_view(base).substr(1) : base;
-    if (is_scratch(dir, true) && name_ok(plain)
-        && (kind == XPP_FILES_OK || kind == XPP_FILES_NOT_FOUND)) return true;
+    const bool allowed = read_server.write ? read_server.write(path, opening, kind) : is_scratch(dir, true);
+    if (allowed && name_ok(plain) && (kind == XPP_FILES_OK || kind == XPP_FILES_NOT_FOUND)) return true;
     errno = EACCES;
     return false;
 }
@@ -555,13 +559,13 @@ bool write_path_ok(std::string_view path)
 FILE *open_stream(std::string_view path, const char *mode)
 {
     const bool reading = mode[0] == 'r' && !std::strchr(mode, '+');
-    if (!reading && !write_path_ok(path)) return nullptr;
+    if (!reading && !write_path_ok(path, true)) return nullptr;
     std::string name, copy;
     bool served = false;
     try {
         name = path;
         if (reading && served_read(path)) {
-            if (!read_server(name, &copy)) {
+            if (!read_server.read(name, &copy)) {
                 errno = ENOENT;
                 return nullptr;
             }
@@ -601,7 +605,7 @@ bool exists(std::string_view path_view)
 {
     const std::string path(path_view);
     Stat st;
-    if (served_read(path) && read_server(path, nullptr)) return true;
+    if (served_read(path) && read_server.read(path, nullptr)) return true;
     return stat_follow(path.c_str(), &st) == 0;
 }
 

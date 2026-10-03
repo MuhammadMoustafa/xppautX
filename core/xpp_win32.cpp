@@ -25,6 +25,62 @@ int read_stdin(std::span<char> buf)
     return static_cast<int>(got);
 }
 
+std::optional<std::string> read_stdin_line(int seconds, size_t cap)
+{
+    const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+    const ULONGLONG deadline = GetTickCount64() + static_cast<ULONGLONG>(seconds) * 1000;
+    DWORD mode;
+    const bool console = GetConsoleMode(input, &mode) != 0;
+    const bool pipe = GetFileType(input) == FILE_TYPE_PIPE;
+    std::string line;
+    std::wstring wide;
+    /* Anonymous pipes have no data-ready event; observe available bytes without a blocking read. */
+    constexpr DWORD PIPE_POLL_MS = 10;
+    constexpr wchar_t CONSOLE_EOF = 26; /* Ctrl+Z is the console's end-of-input character. */
+    while (line.size() < cap && wide.size() < cap) {
+        const ULONGLONG now = GetTickCount64();
+        if (now >= deadline) return std::nullopt;
+        const DWORD left = static_cast<DWORD>(deadline - now);
+        if (console) {
+            if (WaitForSingleObject(input, left) != WAIT_OBJECT_0) return std::nullopt;
+            INPUT_RECORD event;
+            DWORD got;
+            if (!ReadConsoleInputW(input, &event, 1, &got) || got != 1) return std::nullopt;
+            if (event.EventType != KEY_EVENT || !event.Event.KeyEvent.bKeyDown) continue;
+            const wchar_t c = event.Event.KeyEvent.uChar.UnicodeChar;
+            if (!c) continue;
+            if (c == CONSOLE_EOF) return std::nullopt;
+            if (c == '\r') {
+                const int bytes = WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+                line.resize(static_cast<size_t>(bytes));
+                if (bytes) WideCharToMultiByte(CP_UTF8, 0, wide.data(), static_cast<int>(wide.size()), line.data(), bytes, nullptr, nullptr);
+                WriteConsoleW(GetStdHandle(STD_ERROR_HANDLE), L"\r\n", 2, &got, nullptr);
+                return line;
+            }
+            if (c == '\b') {
+                if (!wide.empty()) {
+                    wide.pop_back();
+                    WriteConsoleW(GetStdHandle(STD_ERROR_HANDLE), L"\b \b", 3, &got, nullptr);
+                }
+            } else {
+                wide += c;
+                WriteConsoleW(GetStdHandle(STD_ERROR_HANDLE), &c, 1, &got, nullptr);
+            }
+        } else {
+            if (pipe) {
+                DWORD available;
+                if (!PeekNamedPipe(input, nullptr, 0, nullptr, &available, nullptr)) return std::nullopt;
+                if (!available) { Sleep(left < PIPE_POLL_MS ? left : PIPE_POLL_MS); continue; }
+            }
+            char c;
+            if (read_stdin({&c, 1}) != 1) return std::nullopt;
+            if (c == '\n') return line;
+            if (c != '\r') line += c;
+        }
+    }
+    return std::nullopt;
+}
+
 void binary_mode(int fd) { _setmode(fd, _O_BINARY); }
 
 /* xpp_files.cpp: a link is never read or written through */

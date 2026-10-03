@@ -334,7 +334,8 @@ XppUi make_json_ui(void)
     u.command_place = j_command_place;
     u.save_replace = []() {
         record_save_permission();
-        return player_save_replace(session.save_replace);
+        const int decision = player_save_replace(session.save_replace);
+        return session.silent && !session.generated && decision == SAVE_ASK ? SAVE_REPLACE : decision;
     };
     u.save_decision = record_save_decision;
     u.save_result = [](std::string_view file, bool saved) {
@@ -688,6 +689,8 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     /* File > Open model or Reload asked for another model: loaded now,
        when nothing of this one's Session is in use any more */
     if (std::optional<xpp::ModelRequest> req = xpp::take_model_request(*s)) {
+        /* Every recorded model switch keeps silent outputs in the launch folder. */
+        if (session.silent && !session.generated) req->dir = session.output_folder;
         xpp::Session *before = s;
         s = &switch_model(*s, *req);
         player_model_switched(s != before);
@@ -817,7 +820,13 @@ void install(bool silent)
 
 } // namespace
 
-void json_ui_install(bool silent) { session.silent = silent; install(silent); }
+void json_ui_install(bool silent)
+{
+    session.silent = silent;
+    if (silent) session.output_folder = xpp::files::working_dir();
+    install(silent);
+}
+void json_ui_terminal_auto(bool automatic) { session.terminal_auto = automatic; }
 
 int json_ui_silent(int argc, char **argv)
 {

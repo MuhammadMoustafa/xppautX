@@ -10,9 +10,47 @@
 #include <stdlib.h>
 #include <string.h>
 #include "xpp_util.h"
+#include "xpp_win32.h"
+#include <chrono>
+#include <cerrno>
+#ifndef _WIN32
+#include <poll.h>
+#include <unistd.h>
+#endif
 
 namespace xpp {
 
+/* A forgotten prompt must not leave a headless run waiting indefinitely. */
+constexpr int TERMINAL_QUESTION_SECONDS = 60;
+/* Dialog answers are short; bound even a continuously supplied pipe line. */
+constexpr size_t TERMINAL_ANSWER_CAP = 4096;
+
+std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion)
+{
+    print(stderr, "{} [{}] ({} s): ", question, suggestion, TERMINAL_QUESTION_SECONDS);
+    fflush(stderr);
+#ifdef _WIN32
+    return win32::read_stdin_line(TERMINAL_QUESTION_SECONDS, TERMINAL_ANSWER_CAP);
+#else
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(TERMINAL_QUESTION_SECONDS);
+    std::string line;
+    while (line.size() < TERMINAL_ANSWER_CAP) {
+        const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+        if (left.count() <= 0) return std::nullopt;
+        pollfd input{STDIN_FILENO, POLLIN, 0};
+        if (poll(&input, 1, static_cast<int>(left.count())) < 0) {
+            if (errno == EINTR) continue;
+            return std::nullopt;
+        }
+        if (!(input.revents & (POLLIN | POLLHUP))) return std::nullopt;
+        char c;
+        if (read(STDIN_FILENO, &c, 1) != 1) return std::nullopt;
+        if (c == '\n') return line;
+        if (c != '\r') line += c;
+    }
+    return std::nullopt;
+#endif
+}
 
 /* ---- headless defaults ------------------------------------------------ */
 

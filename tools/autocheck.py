@@ -1591,7 +1591,7 @@ def section_recording():
                 capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
         outside = {'cmd':{'cmd':'values', 'op':'write', 'kind':'par', 'name':marker, 'replace':1}}
         r = quiet([outside])
-        check('W144: a recording cannot overwrite a path outside its scratch folder',
+        check('W144: a recording cannot overwrite a path using a recorded path',
               r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep', r.stderr)
         # A model option runs during the initial load, before any replay step.
         digits = template.split('@snapshot\n', 1)[1].split('\n@end', 1)[0]
@@ -1608,9 +1608,9 @@ def section_recording():
             f.write(recording_text(hostile, []))
         r = subprocess.run([os.path.abspath(args.server), path, '--silent'], cwd=run,
             capture_output=True, text=True, encoding='utf-8', timeout=60 * SLOW)
-        check('W144: even initial model options cannot write outside scratch, and fail once',
+        check('W144: even initial model options cannot write a recorded path, and fail once',
               r.returncode == 1 and r.stdout == '' and file_content(marker, 'rb') == b'keep'
-              and r.stderr.count('cannot be opened for writing') == 1, r.stderr)
+              and r.stderr.count('not a plain file name in the launch folder') == 1, r.stderr)
         r = quiet([{'cmd':{'cmd':'file','op':'put','name':'../outside.dat','data':'AA=='}}])
         check('W144: a file refusal is printed once at the recording step',
               r.returncode == 1 and r.stdout == '' and r.stderr.count('run.recx:') == 1

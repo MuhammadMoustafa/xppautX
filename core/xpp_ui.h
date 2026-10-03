@@ -6,6 +6,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <optional>
 #include "xpp_error.h"
 
 namespace xpp {
@@ -100,6 +101,8 @@ int new_int(std::string_view name, int *value);
 int yes_no_box(void);
 int TwoChoice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key);
 void respond_box(std::string_view button, std::string_view message);
+/* Terminal questions share the dialog owner; EOF or the deadline is no answer. */
+std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
 int my_abort(void);

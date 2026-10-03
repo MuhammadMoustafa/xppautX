@@ -405,7 +405,7 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
     The same player over --server supplies events and copies its scratch
     output files through the existing file API before the process closes."""
     quiet = None if pixel_answers else subprocess.run(
-        [os.path.abspath(binary), os.path.abspath(path), '--silent'],
+        [os.path.abspath(binary), os.path.abspath(path), '--silent', '--auto'],
         cwd=run, capture_output=True, text=True, encoding='utf-8', timeout=120 * SLOW)
     s = Server(binary, ode, run=run)
     events = []

@@ -416,7 +416,11 @@ xppautX adds its own front-end flags ahead of xpp's original ones (see
 
 The recording starts from its saved snapshot and plays without an interface;
 exit 0 means every step played cleanly, exit 1 means a failure. Recorded
-interruptions stop at the exact row or AUTO point (W144, #196).
+interruptions stop at the exact row or AUTO point (W144, #196). Plain-name
+outputs remain in the current folder. Existing files ask the terminal
+`NAME exists. Replace it? [y/N] (60 s)`; EOF or timeout stops playback with
+exit 1 without replacing the file. Piped input can answer; `--auto`
+replaces existing outputs without asking.
 
 xpp's own options still apply after the file name (or anywhere, for the
 ones below that predate this ordering). Many of them provide an API:
@@ -430,7 +434,8 @@ old single-dash words stop and name the new spelling (W156, #208).
 run or the files, not the X11 windows:
 
 - **--silent**: Runs XPP's integrators without opening the front end. The result of the integration is saved to a file called `output.dat` (see `--outfile`) but this can be changed. The length of integration, methods, Poincare sections, etc, are all specified in the `@` lines of the model (or a file it includes) or in the internal options. When you run a range integration in silent mode, if the parameter `RANGERESET` is `yes` (the default) then a new output file will be opened for each integration: ranging over 50 values gives 50 output files named `output.dat.0`, `output.dat.1`, etc. If you have set `RANGERESET=no`, then only one file is produced.
-- **--convert**: Converts `.ode` to `.odex` beside the model; `--auto` accepts suggested names.
+- **--convert**: Converts `.ode` to `.odex` beside the model; terminal name questions read a line from a console or pipe, with a 60-second deadline.
+- **--auto**: Answers every terminal question without asking: accepts suggested conversion names and replaces existing silent recording outputs.
 - **--setfile *filename***: imports the named `.set` file, one XPPAUT wrote (File > Import XPPAUT set), after loading up the ODE file, checking every named value and saving the imported session as `<name>.snapx` beside the `.set`.
 - **--newseed**: uses the machine time to re-seed the random number generator.
 - **--runnow**: runs the ODE file immediately on startup (implied by `--silent`).

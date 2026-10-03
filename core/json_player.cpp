@@ -9,9 +9,9 @@
 
    The files a step read are served from the recording (xpp::files::serve_reads):
    the sections the step names, never the disk; a file it does not hold is
-   not there, and says so. The replay runs in a scratch folder of its own,
-   so what it writes never touches the user's files and a second play
-   behaves as the first.
+   not there, and says so. Interactive replay writes in private scratch.
+   Silent replay keeps plain-name outputs in the launch folder, with the
+   terminal user's confirmation before replacing an existing file.
 
    Only computation takes time: before each input the core sends a press
    event (the key, the answer, the command: what the page lights) and
@@ -441,6 +441,28 @@ bool names(size_t section, std::string_view path)
     return name == path || xpp::files::split_path(name).second == xpp::files::split_path(path).second;
 }
 
+/* The file owner calls this for scratch temporaries and retained outputs.
+   Recorded decisions never authorize replacing the terminal user's file. */
+bool output_write(std::string_view path, bool opening, int kind)
+{
+    const std::string folder = xpp::files::split_path(xpp::files::absolute(path)).first;
+    if (folder != session.output_folder && xpp::files::is_scratch(folder, true)) return true;
+    std::string_view plain = !opening && path.starts_with('.') ? path.substr(1) : path;
+    if (!xpp::files::name_ok(plain)
+        || folder != session.output_folder || (kind != XPP_FILES_OK && kind != XPP_FILES_NOT_FOUND)) {
+        j_command_error("save", xpp::format("{} is not a plain file name in the launch folder", path));
+        quit_session();
+    }
+    if (opening && kind == XPP_FILES_OK && !session.terminal_auto) {
+        const auto answer = xpp::ask_terminal(xpp::format("{} exists. Replace it?", path), "y/N");
+        if (!answer || (!xpp::equal_ignoring_case(*answer, "y") && !xpp::equal_ignoring_case(*answer, "yes"))) {
+            j_command_error("save", xpp::format("{} already exists; replace not confirmed (--auto replaces)", path));
+            quit_session();
+        }
+    }
+    return true;
+}
+
 /* xpp::files::serve_reads' server: while the player's model loads, the
    recording's first file of that name; while a step runs, the next of
    the sections it read that has that name (again the last, read again) */
@@ -505,7 +527,7 @@ void load(xpp::Session &s, int from, bool play)
     player.pause_at = !play;
     player.what = Next::none;
     player.running = -1;
-    xpp::files::serve_reads(serve); /* its model's files: the recording's */
+    xpp::files::serve_reads(serve, session.silent ? output_write : nullptr); /* embedded reads; guarded outputs */
 }
 
 /* {"ev":"player",...}: the recording, its steps and notes */
@@ -685,12 +707,13 @@ std::optional<RecordingLaunch> json_ui_recording_launch(const std::string &path)
         return std::nullopt;
     }
     /* The first load also crosses the recording's trust boundary: model
-       options such as logfile must not write beside the sent recording. */
+       options such as logfile follow the same output policy as steps. */
     json::player.rec = std::move(got->rec);
     json::player.copy_of.assign(json::player.rec.files.size(), std::string());
     json::player.loading = true;
-    xpp::files::serve_reads(json::serve);
-    return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name, json::player.work->path()};
+    xpp::files::serve_reads(json::serve, json::session.silent ? json::output_write : nullptr);
+    return RecordingLaunch{std::move(snapshot->model), snapshot->manifest.model_name,
+                          json::session.silent ? json::session.output_folder : json::player.work->path()};
 }
 
 void json_ui_play_launched(xpp::Session &s, const std::string &path)
@@ -729,7 +752,7 @@ void player_begin(const char *line)
     player.controls_used = 0;
     player.off_script = false;
     player.pushed.clear();
-    xpp::files::serve_reads(serve); /* the files it reads: the recording's */
+    xpp::files::serve_reads(serve, session.silent ? output_write : nullptr); /* embedded reads; guarded outputs */
 }
 
 int player_controls(xpp::Session &s)

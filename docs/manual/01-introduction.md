@@ -186,7 +186,10 @@ is in [docs/protocol.md](../protocol.md). `xppautX run.recx --silent`
 loads the recording's snapshot, plays its steps without an interface,
 and exits 0 when they played cleanly or 1 otherwise. Recorded aborts stop
 at their exact row or AUTO point (docs/protocol.md "Playing a recording
-without an interface").
+without an interface"). Its plain-name output files remain in the current
+folder. Existing files ask `NAME exists. Replace it? [y/N] (60 s)`; a line
+on the terminal or piped stdin answers. EOF or timeout refuses replacement
+and stops playback with exit 1. `--auto` replaces them without asking.
 
 `--verbose` and `--debug` raise how much xppautX logs (parser stats, the
 startup banner, AUTO's table, solver chatter); by default it logs only
@@ -227,7 +230,8 @@ follow in any order. The options below control the model and its run.
 | `--plotfmt <svg\|ps>` | Batch plot format |
 | `--dfdraw N` / `--ncdraw N` | Draw the direction field / nullclines in batch, to screen or file |
 | `--newseed` | Randomize the random number generator's seed |
-| `--convert` | Convert `.ode` to `.odex`; `--auto` accepts suggested names |
+| `--convert` | Convert `.ode` to `.odex`; terminal name questions have a 60-second deadline |
+| `--auto` | Answer every terminal question: accept suggested conversion names and replace silent playback outputs |
 | `--anifile FILE` | Load an animation script (`.ani`) at startup |
 | `--quiet <0\|1>` | Suppress the model's own console messages (independent of `--verbose`) |
 | `--logfile FILE` | Send console output to FILE |
