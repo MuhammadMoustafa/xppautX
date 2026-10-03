@@ -61,7 +61,6 @@
 #include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
-#include <algorithm>
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
@@ -189,7 +188,7 @@ static void run_session(void)
     std::vector<std::string> args;
     std::vector<char *> argv;
     args.assign(session_argv, session_argv + session_argc);
-    if (silent) args.erase(std::remove(args.begin(), args.end(), "--silent"), args.end());
+    if (silent) std::erase(args, "--silent");
     for (size_t i = 1; i < args.size(); i++) {
         if (xpp::snapx::has_extension(args[i], xpp::recx::extension)) {
             recording = xpp::json_ui_recording_launch(args[i]);
