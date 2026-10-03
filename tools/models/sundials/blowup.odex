@@ -1,0 +1,5 @@
+# W34: x' = x^2, x(0) = 1 blows up at t = 1 (x = 1/(1-t)); bound=1e4 stops the
+# run at the first output row past it
+x' = x*x
+init x = 1
+@ total=2, dt=0.05, bound=1e4

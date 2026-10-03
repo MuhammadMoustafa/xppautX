@@ -1,0 +1,8 @@
+# W34: the oscillator at amplitude 1e6, to tell which of toler and atoler is
+# CVODE's relative tolerance: x = 1e6 cos t, error ex scaled by 1+|exact|
+x' = y
+y' = -x
+init x = 1e6, y = 0
+aux ex = (x-1e6*cos(t))/(1+abs(1e6*cos(t)))
+aux ey = (y+1e6*sin(t))/(1+abs(1e6*sin(t)))
+@ total=100, dt=0.1, bound=1e9

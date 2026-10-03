@@ -1,0 +1,15 @@
+# W34: the heat equation on 100 points with the ends held at 0 (stiff, a
+# tridiagonal Jacobian). The initial values are two eigenvectors of the
+# discrete Laplacian, so u_j(t) = e^(-l1 t) sin(pi j/101) + 0.5 e^(-l20 t)
+# sin(20 pi j/101) exactly; err: the root mean square over the points of the
+# error scaled by 1+|exact|, in double precision
+par d = 50
+l1 = 4*d*sin(pi/202)^2
+l20 = 4*d*sin(20*pi/202)^2
+u[1]' = d*(u[2]-2*u[1])
+u[j]' = d*(u[j-1]-2*u[j]+u[j+1]) for j in 2..99
+u[100]' = d*(u[99]-2*u[100])
+init u[j] = sin(pi*j/101)+0.5*sin(20*pi*j/101) for j in 1..100
+aux err = sqrt(sum(((shift(u1, i')-exact(i'+1))/(1+abs(exact(i'+1))))^2, from=0, to=99)/100)
+fun exact(j) = exp(-l1*t)*sin(pi*j/101)+0.5*exp(-l20*t)*sin(20*pi*j/101)
+@ total=2, dt=0.02

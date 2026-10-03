@@ -1,0 +1,7 @@
+# W34: Prothero-Robinson, y' = -L (y - cos t) - sin t, y(0) = 1: stiff, y = cos t exactly
+# (ey: the error scaled by 1+|exact|, in double precision)
+par L = 1000
+y' = -L*(y-cos(t))-sin(t)
+init y = 1
+aux ey = (y-cos(t))/(1+abs(cos(t)))
+@ total=20, dt=0.05

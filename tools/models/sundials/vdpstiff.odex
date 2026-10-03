@@ -1,0 +1,7 @@
+# W34: Van der Pol with mu = 1000 (stiff relaxation oscillation, two variables: the
+# step count is the cost), no closed form
+par mu = 1000
+x' = y
+y' = mu*(1-x*x)*y-x
+init x = 2, y = 0
+@ total=3000, dt=1

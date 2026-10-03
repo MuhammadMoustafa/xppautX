@@ -62,6 +62,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [30](#30-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity) | AUTO files | orbit dimensions and row counts can overrun fixed buffers and storage | [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) |
 | [31](#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) | Method selection | model options bypass suitability checks and ignore unknown methods | [W132](https://github.com/MuhammadMoustafa/xppautX/issues/184) |
 | [32](#32-kinescope-cancel-still-saves-frames) | Kinescope | Cancel on the base filename still writes frames | [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182) |
+| [33](#33-cvode-gets-toler-as-its-absolute-and-atoler-as-its-relative-tolerance) | Numerics | `@ toler` is CVODE's absolute and `@ atoler` its relative tolerance, the reverse of the manual | [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72) |
 
 ## 1. Model options
 
@@ -535,3 +536,10 @@ files depend on them; `.odex` (docs/odex.md) is the format without them.
 - **xppautX:** Save uses a file ask and checks its result before requesting pixels or opening a writer. A canceled name produces no output, verified by servercheck.
 - **Filename limit:** the related array filename form uses 25-byte values ([arrayplot.c:363-381](../reference/xppaut-8.0/arrayplot.c#L363), [pop_list.h:19](../reference/xppaut-8.0/pop_list.h#L19)); `do_string_box` copies whole strings into those slots ([pop_list.c:253-263](../reference/xppaut-8.0/pop_list.c#L253)), risking overflow rather than reliably cutting input. Our `{:.24}` initialization was a refactoring artifact that retained 24 characters, not an upstream formatting expression. W130 removes filename form fields and that cut; the general upstream limit is finding [3](#3-names).
 - **Card:** [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182).
+
+## 33. CVode gets TOLER as its absolute and ATOLER as its relative tolerance
+
+- **XPPAUT 8.0:** the manual says TOLER "is the relative tolerance for CVODE" and ATOLER its absolute one. The integrator calls `cvode(..., &TOLER, &ATOLER)` ([integrate.c:1811](../reference/xppaut-8.0/integrate.c#L1811), [integrate.c:1991](../reference/xppaut-8.0/integrate.c#L1991); [master:1783](../reference/xppaut-master/integrate.c#L1783)), which names its parameters `atol, rtol` ([cv2.c:95](../reference/xppaut-8.0/cv2.c#L95); master: the same line), so TOLER arrives as `atol`; `start_cv` then hands CVODE `rtol, atol` in that order ([cv2.c:36](../reference/xppaut-8.0/cv2.c#L36); master: the same line) and CVODE's relative tolerance is ATOLER, its absolute one TOLER. The Dormand-Prince integrators called on the next line get `&TOLER,&ATOLER` in the order they expect, so only CVode is reversed.
+- **Evidence** (tools/models/sundials/osc1e6.odex, an oscillator of amplitude 1e6, `@ meth=cvode`, 100 time units): `@ tol=1e-3, atol=1e-10` takes 3769 steps and ends within 1e-5 (scaled) of the exact solution, a relative tolerance of 1e-10; `@ tol=1e-10, atol=1e-3` takes 537 steps and ends off by 21, a relative tolerance of 1e-3 (docs/sundials-eval.md). With both set equal, as most models do, nothing shows.
+- **xppautX:** unchanged on purpose: every CVode result would change (the examples' md5s of atcoaster, fieldnoy, itoy, toy_ok and waterwheel, which set the two apart). The mapping is kept as XPPAUT has it and named in core/cv2.cpp's comment; the manual's sentence (docs/manual/02-ode-files.md, 16-quick-reference.md) is XPPAUT's and still says the opposite. Whether to swap is the maintainer's decision.
+- **Card:** [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72).

@@ -1,0 +1,6 @@
+# W34: Van der Pol, mu = 1 (non-stiff, a limit cycle), no closed form
+par mu = 1
+x' = y
+y' = mu*(1-x*x)*y-x
+init x = 2, y = 0
+@ total=100, dt=0.1

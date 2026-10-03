@@ -1,0 +1,6 @@
+# W34: the Poincare map on the oscillator, x = cos t going up through 0: at
+# t = 3 pi/2 + 2 pi k exactly, y = -sin t = 1
+x' = y
+y' = -x
+init x = 1, y = 0
+@ total=100, dt=0.1, poimap=section, poivar=x, poisgn=1, poipln=0

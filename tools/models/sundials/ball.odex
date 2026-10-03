@@ -1,0 +1,9 @@
+# W34: a bouncing ball (events: y crosses 0 going down, the speed is reversed
+# and scaled by 0.8): exact bounce times t_k = t_1 + (2 v_1/g) (1 - 0.8^k)/0.2
+# with v_1 = sqrt(2 g h), t_1 = sqrt(2 h/g)
+par g = 9.8, h = 10
+y' = v
+v' = -g
+init y = 10, v = 0
+event -1 y, v = -0.8*v
+@ total=8, dt=0.01

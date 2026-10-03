@@ -1,0 +1,12 @@
+# W34: the Brusselator reaction-diffusion on 50 points (100 variables, stiff, a
+# dense Jacobian of 100 x 100 to factor): a time-and-counts case, no closed form
+par a = 1, b = 3, d = 0.02
+u[1]' = a+u[1]^2*v[1]-(b+1)*u[1]+d*2500*(u[2]-u[1])
+u[j]' = a+u[j]^2*v[j]-(b+1)*u[j]+d*2500*(u[j-1]-2*u[j]+u[j+1]) for j in 2..49
+u[50]' = a+u[50]^2*v[50]-(b+1)*u[50]+d*2500*(u[49]-u[50])
+v[1]' = b*u[1]-u[1]^2*v[1]+d*2500*(v[2]-v[1])
+v[j]' = b*u[j]-u[j]^2*v[j]+d*2500*(v[j-1]-2*v[j]+v[j+1]) for j in 2..49
+v[50]' = b*u[50]-u[50]^2*v[50]+d*2500*(v[49]-v[50])
+init u[j] = 1+0.5*sin(2*pi*j/50) for j in 1..50
+init v[j] = 3 for j in 1..50
+@ total=60, dt=0.1

@@ -1,0 +1,6 @@
+# W34: the oscillator over 20000 time units (millions of steps of two equations: the
+# cost of CVODE's own step, a right-hand side that costs nothing); a timing case
+x' = y
+y' = -x
+init x = 1, y = 0
+@ total=20000, dt=10

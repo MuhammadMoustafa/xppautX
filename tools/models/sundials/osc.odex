@@ -1,0 +1,9 @@
+# W34: the harmonic oscillator, x = cos t, y = -sin t exactly (non-stiff, analytic).
+# ex, ey: the error against the closed form, scaled by 1+|exact|, worked out in
+# double precision (the stored columns are single precision)
+x' = y
+y' = -x
+init x = 1, y = 0
+aux ex = (x-cos(t))/(1+abs(cos(t)))
+aux ey = (y+sin(t))/(1+abs(sin(t)))
+@ total=100, dt=0.1

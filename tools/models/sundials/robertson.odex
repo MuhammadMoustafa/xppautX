@@ -1,0 +1,6 @@
+# W34: Robertson's chemical kinetics (stiff, rates from 0.04 to 3e7), no closed form
+y1' = -0.04*y1+1e4*y2*y3
+y2' = 0.04*y1-1e4*y2*y3-3e7*y2*y2
+y3' = 3e7*y2*y2
+init y1 = 1, y2 = 0, y3 = 0
+@ total=4000, dt=2
