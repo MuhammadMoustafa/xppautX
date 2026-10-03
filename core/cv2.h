@@ -1,42 +1,34 @@
 #ifndef _cv2_h_
 #define _cv2_h_
 
-#include <array>
 #include <memory>
 #include <string>
 
-/* xpp's driver of the vendored CVODE (cvode.h, its own C API) */
+/* xpp's driver of CVODE (cv_backend.h: the vendored one or SUNDIALS') */
 namespace xpp {
 
 struct Session; /* session.h */
+struct CvodeMemory; /* cv_backend.h */
 
-/* cvode.h's OPT_SIZE, the length of its optional input and output arrays
-   (cv2.cpp checks they agree) */
-inline constexpr int cvode_opt_size = 40;
-
-/* One CVODE integration's memory: CVODE's own and the state vector it
-   steps (Memory, cv2.cpp), made when an integration starts and freed when
-   it ends (end_cv), when the next one starts, or with the object,
-   whichever comes first; so a run that stops on any path (a failed step,
-   a step error, the Poincare map's) leaves nothing behind. The Cvode
-   solver owns one (solver.cpp). */
+/* One CVODE integration's memory (cv_backend.h), made when an
+   integration starts and freed when it ends (end_cv), when the next one
+   starts, or with the object, whichever comes first; so a run that stops
+   on any path (a failed step, a step error, the Poincare map's) leaves
+   nothing behind. The Cvode solver owns one (solver.cpp). */
 struct CvodeRun {
   CvodeRun();
   ~CvodeRun();
   CvodeRun(const CvodeRun &) = delete;
   CvodeRun &operator=(const CvodeRun &) = delete;
 
-  struct Memory;
-  std::unique_ptr<Memory> memory; /* none between integrations */
-  /* CVODE's optional inputs and outputs (cvode.h's iopt, ropt), which it
-     points at while it runs: here, so that they outlive its memory */
-  std::array<double, cvode_opt_size> ropt{};
-  std::array<int, cvode_opt_size> iopt{};
-  /* why its last integration failed, as CVODE words it, and the
-     variable (its index) CVODE's error test or corrector failed at, -1
-     for none (cvode.h's cv_error, cv_error_var) */
+  std::unique_ptr<CvodeMemory> memory; /* none between integrations */
+  /* why its last integration failed, as CVODE words it, the variable (its
+     index) CVODE's error test or corrector failed at, -1 for none, and
+     the factor CVODE suggests the tolerances be scaled by when they ask
+     for more accuracy than the machine has */
   std::string error;
   long error_var = -1;
+  double tolerance_factor = 1;
 };
 
 /* the integration of run has ended: its memory freed (nothing when it has

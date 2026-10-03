@@ -1,17 +1,10 @@
 #include "cv2.h"
+#include "cv_backend.h"
 #include "session.h"
 #include "xpp_ui.h"
 
 #include "flags.h"
-#include "my_rhs.h"
 
-                      /* integer (set to int), and the constant FALSE      */
-                      /* constants OPT_SIZE, BDF, NEWTON, SV, SUCCESS,     */
-                      /* NST, NFE, NSETUPS, NNI, NCFN, NETF                */
-#include "cvdense.h"  /* prototype for CVDense, constant DENSE_NJE         */
-
-                      /* prototypes for N_VNew, N_VFree                    */
-#include "cvband.h"
 #include "xpp_io.h"
 #include "load_eqn.h"
 #include "numerics.h"
@@ -19,38 +12,6 @@
 #include "model.h"
 
 namespace xpp {
-static_assert(cvode_opt_size==OPT_SIZE);
-
-namespace {
-/* CVODE's right-hand side: fdata is the Session start_cv gave it */
-void cvf(int n, double t, N_Vector y, N_Vector ydot, void *fdata)
-{
-  my_rhs(*static_cast<xpp::Session *>(fdata),t,y->data,ydot->data,n);
-}
-}
-
-struct CvodeRun::Memory {
-  N_Vector y;
-  void *cvode;
-  Memory(xpp::Session &s, CvodeRun &run, double *y0, double t, int n, double *atol, double *rtol)
-    : y(N_VNew(n,NULL))
-  {
-    for(int i=0;i<n;i++)y->data[i]=y0[i];
-    cvode=CVodeMalloc(n, cvf, t, y, BDF, NEWTON, SS, rtol, atol,
-                      &s, FALSE, run.iopt.data(), run.ropt.data(), NULL);
-    if(s.numerics.cv_bandflag==1)
-      CVBand(cvode,s.numerics.cv_bandupper,s.numerics.cv_bandlower,NULL,NULL);
-    else
-      CVDense(cvode, NULL, NULL);
-  }
-  ~Memory()
-  {
-    N_VFree(y);
-    CVodeFree(cvode);
-  }
-  Memory(const Memory &)=delete;
-  Memory &operator=(const Memory &)=delete;
-};
 
 CvodeRun::CvodeRun()=default;
 CvodeRun::~CvodeRun()=default;
@@ -61,17 +22,7 @@ namespace {
 void start_cv(xpp::Session &s, CvodeRun &run, double *y, double t, int n, double *atol, double *rtol)
 {
   run.memory.reset();
-  run.memory=std::make_unique<CvodeRun::Memory>(s,run,y,t,n,atol,rtol);
-}
-}
-
-namespace {
-/* why CVODE's integration failed, from its memory before it is freed */
-void keep_failure(CvodeRun &run)
-{
-  const CVodeMem m=static_cast<CVodeMem>(run.memory->cvode);
-  run.error=m->cv_error;
-  run.error_var=m->cv_error_var;
+  run.memory=start_cvode_memory(s,y,t,n,atol,rtol);
 }
 }
 
@@ -92,7 +43,7 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
   case -3: text = "Too much work -- try smaller DT";
     break;
   case -4: text = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
-	s.numerics.toler*run.ropt[ROPT_TOLSF], s.numerics.atoler*run.ropt[ROPT_TOLSF]);
+	s.numerics.toler*run.tolerance_factor, s.numerics.atoler*run.tolerance_factor);
     break;
   case -5: text = "Error test failure too frequent ??";
     break;
@@ -117,10 +68,10 @@ int cvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, in
  if(err==1)*kflag=-9;
  return 1;
 }
-/* rtol is like our TOLER and atol is something else ?? */
+/* CVODE's absolute tolerance is TOLER and its relative one ATOLER: the solver
+   passes them so, as XPPAUT does, whatever its manual says (docs/xppaut-findings.md 33) */
 int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, int n, double tout, int *kflag, double *atol, double *rtol)  /* command =0 continue, 1 is start 2 finish */
 {
-  int i,flag;
   *kflag=0;
   if(*command==2){
     end_cv(run);
@@ -129,29 +80,15 @@ int ccvode(xpp::Session &s, CvodeRun &run, int *command, double *y, double *t, i
   if(*command==1||!run.memory){ /* continuing an integration that has
                                     ended is starting one */
     start_cv(s,run,y,*t,n,atol,rtol);
-    flag=CVode(run.memory->cvode, tout, run.memory->y, t, NORMAL);
-    if(flag != SUCCESS){
-     
-     *kflag=flag;
-     keep_failure(run);
-     end_cv(run);
-     *command=1;
-      return(-1);
-    }
-    *command=0;
-    for(i=0;i<n;i++)y[i]=run.memory->y->data[i];
-    return(0);
-  } 
-  flag=CVode(run.memory->cvode,tout,run.memory->y,t,NORMAL);
-  if(flag != SUCCESS){
-      *kflag=flag;
-      keep_failure(run);
-      end_cv(run);
-      *command=1;
-     
-      return(-1);
   }
-  for(i=0;i<n;i++)y[i]=run.memory->y->data[i];
+  const int flag=run.memory->step(run,tout,t,y);
+  if(flag != 0){
+    *kflag=flag;
+    end_cv(run);
+    *command=1;
+    return(-1);
+  }
+  *command=0;
   return(0);
 }
 
