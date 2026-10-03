@@ -127,7 +127,7 @@ void save_frozen_clines(xpp::Session &s, const std::string &fn)
   int i=1;
   for(const FrozenCline &z:s.nullcline_state.frozen){
     if(z.nmx==0&&z.nmy==0)return;
-    xpp::Writer fp=xpp::open_writer_asking(xpp::format("{}.{}",fn,i).c_str());
+    xpp::Writer fp=xpp::open_writer_asking(xpp::format("{}.{}",fn,i),false,nullptr,true);
     if(!fp)return;
     dump_clines(fp,z.xn.data(),z.nmx,z.yn.data(),z.nmy);
     if(!xpp::ok_or_show(xpp::commit_save(fp)))return;

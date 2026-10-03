@@ -4632,7 +4632,7 @@ async function nativeFiles(dir) {
   await desktopMetrics();
   await until('!s.busy && !s.ask', 'idle');
   const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-native-'));
-  const far = path.join(elsewhere, 'w88 native.snapx');
+  const saveName = 'native-local.snapx';
   const farSet = path.join(elsewhere, 'w88 native.set');
   fs.writeFileSync(farSet, xppautLecarSet()); /* XPPAUT's: iapp 0.09 */
   await cdp.eval(`(() => {
@@ -4657,16 +4657,33 @@ async function nativeFiles(dir) {
   const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
   try {
     check('a new parameter value', await setPar('iapp', 0.21));
-    check('File/saVe session in the window: the ask is answered from the native dialog', await fileKey('v', far));
+    check('File/saVe session in the window: the ask is answered from the native dialog', await fileKey('v', saveName));
     const w = await asked();
     check('... asked for a save, filtered by *.snapx (wildExtensions), in the model\'s folder, the name offered',
-      w && w.mode === 'write' && w.wild === '*.snapx' && JSON.stringify(w.exts) === '[".snapx"]' && w.dir
+      w && w.ask === (await lastFileAnswer())?.id && w.mode === 'write' && w.wild === '*.snapx' && JSON.stringify(w.exts) === '[".snapx"]' && w.dir
       && w.file.endsWith('.snapx') && !/[\\/]/.test(w.file), JSON.stringify(w));
-    check('... answered with the full path picked', (await lastFileAnswer())?.file === far, JSON.stringify(await lastFileAnswer()));
-    const saved = await waitFile(far);
-    check('... and the core wrote it there, nothing in the model\'s folder, nothing offered',
-      saved && saved.length > 100 && !fs.existsSync(path.join(dir, 'w88 native.snapx')) && !(await S('s.files.offered')),
-      String(saved && saved.length));
+    check('... answered with the chosen model-folder name', (await lastFileAnswer())?.file === saveName, JSON.stringify(await lastFileAnswer()));
+    check('W177: the stub saves a model-folder name without offering a duplicate download',
+      fs.existsSync(path.join(dir, saveName)) && !(await S('s.files.offered')));
+    /* A JS stub cannot grant an external path: servercheck covers that
+       rejection; a real OS picker grant remains a manual desktop check. */
+    check('W177: integrate for the desktop CSV exports', await integrate(601, 30000));
+    for (const [call, name] of [["[...document.querySelectorAll('[data-section=par] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.par'],
+        ["[...document.querySelectorAll('[data-section=ic] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.ic'],
+        ["document.querySelector('.table-header .small').click()", 'native-table.csv'],
+        ["document.querySelector('[title=\"Save the plotted numbers as CSV (written by the core, then downloaded)\"]').click()", 'native-plot.csv']]) {
+      if (name === 'native-table.csv') {
+        await cdp.eval(`document.querySelector('.table-toggle').click()`);
+        await until('s.table.open && s.table.page && s.table.page.data.length', 'table rows');
+      }
+      const before = await cdp.eval('window.__nativeAsked.length');
+      await cdp.eval(`window.__nativeReply = ${JSON.stringify(name)}; ${call}; true`);
+      check('W177: desktop button opens a save picker and writes ' + name,
+        await until(`!s.busy && !s.ask && window.__nativeAsked.length > ${before}`, 'button saved')
+        && fs.existsSync(path.join(dir, name)) && (await asked())?.mode === 'write');
+      if (name === 'native-table.csv') await cdp.eval(`document.querySelector('.table-back').click()`);
+    }
+
 
     check('File/Import XPPAUT set in the window: answered from the native dialog', await fileKey('r', farSet));
     const r = await asked();

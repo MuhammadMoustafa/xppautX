@@ -126,7 +126,7 @@ int main()
 
     /* the ask's mode, for every file selector title in the core */
     const char *reads[] = {"Import XPPAUT set", "Load Auto", "Load data", "Load animation", "Load table",
-                           "Read initial data", "Import Diagram", "Library:", "Select an ODE file", "Load session"};
+                           "Read initial data", "Import Diagram", "Library:", "Select an ODE file", "Load session", "Play recording"};
     const char *writes[] = {"Save Auto", "Write data", "Write all info", "Write init data file",
                             "Write points", "Postscript", "SVG", "Save As", "Print postscript", "Print svg",
                             "Export graph data", "Save info", "Save nullclines", "Clone ODE file", "GIF plot",

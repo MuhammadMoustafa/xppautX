@@ -86,7 +86,8 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   [](const char *line, size_t n) { xpp::inbox::push({line, n}); },
                                   xpp::json_ui_push_open,
                                   xpp::log_message,
-                                  xpp::http::open_release_page};
+                                  xpp::http::open_release_page,
+                                  xpp::inbox::authorize_save};
 const XppWindowHost *const host = &host_table;
 #endif
 
@@ -888,11 +889,17 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
     int status = 0;
     std::string reply = "null";
     try {
-        std::optional<std::string> path = pick_file(webview_get_window(w), file_dialog_of(request ? request : ""));
+        const std::string input = request ? request : "";
+        const FileDialog dialog = file_dialog_of(input);
+        std::optional<std::string> path = pick_file(webview_get_window(w), dialog);
         if (!path) {
             status = 1;
             reply = xpp::webview_json_quote("the file dialog could not open");
         } else if (!path->empty()) {
+            if (dialog.save) {
+                const std::string object = xpp::webview_json_value(input, "", 0);
+                host->authorize_save(xpp::webview_json_value(object, "ask", 0), *path);
+            }
             reply = xpp::webview_json_quote(*path);
         }
     } catch (const std::exception &e) {

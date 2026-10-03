@@ -54,7 +54,11 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t ready = PTHREAD_COND_INITIALIZER;
 /* [NORMAL], [CONTROL]. Never destroyed: a reader thread may still push
    while exit() destroys statics. */
-std::array<std::deque<Item>, 2> &queues = *new std::array<std::deque<Item>, 2>;
+struct Queues : std::array<std::deque<Item>, 2> {
+    int save_ask = 0;
+    std::string save_path; /* one native choice, consumed by its exact prompt */
+};
+Queues &queues = *new Queues;
 bool closed;
 unsigned long next_seq = 1;
 xpp::inbox::Verdict (*classify)(const char *line, unsigned long seq);
@@ -114,6 +118,27 @@ void push(std::string_view line)
     pthread_cond_broadcast(&ready);
     pthread_mutex_unlock(&lock);
     pthread_mutex_unlock(&push_lock);
+}
+
+void authorize_save(std::string_view prompt, std::string_view path)
+{
+    std::string choice(path);
+    int ask = 0;
+    const int id = parse_int(prompt, ask) && ask > 0 ? ask : 0;
+    pthread_mutex_lock(&lock);
+    queues.save_ask = id;
+    queues.save_path = std::move(choice);
+    pthread_mutex_unlock(&lock);
+}
+
+bool consume_save(int ask, std::string_view path)
+{
+    pthread_mutex_lock(&lock);
+    const bool allowed = ask > 0 && queues.save_ask == ask && queues.save_path == path;
+    queues.save_ask = 0;
+    queues.save_path.clear();
+    pthread_mutex_unlock(&lock);
+    return allowed;
 }
 
 void close()

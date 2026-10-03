@@ -99,6 +99,7 @@ export function offerDownload(name: string, data: Blob): void {
 /** what the desktop window's own file dialog is asked (core/xpp_window.cpp) */
 export interface NativeFileRequest {
   mode: 'read' | 'write';
+  ask?: number; /* binds native write authorization to the core prompt */
   title: string;
   /** the folder shown first ('': the system's choice) */
   dir: string;

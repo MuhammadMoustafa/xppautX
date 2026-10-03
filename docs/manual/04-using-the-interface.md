@@ -313,8 +313,10 @@ run).
 ## Saving pictures and files
 
 The desktop's operating-system save dialog asks before replacing an
-existing file. Accepting that dialog authorizes the chosen path; the core
-does not ask again. A recording keeps the dialog's answer, so replay uses
+existing file. Accepting that dialog authorizes only the chosen path for
+that prompt; the core does not ask again. Frozen nullcline destinations
+ask separately before replacement. Values Save and table/plot CSV buttons
+use this same desktop picker (W177, #229). A recording keeps the dialog's answer, so replay uses
 the same decision even if the file now exists.
 
 In a browser, the save picker chooses where the finished file will be
@@ -419,9 +421,13 @@ separately and kept whole. A bad name is an error.
 Defaults use the model's base: `lecar.par`, `lecar.ps`, `lecar.svg`,
 `lecar.gif`, `lecar.dat`, `lecar.csv`, `lecar.snapx`. Another output of the
 same type adds its purpose, such as `lecar-curves.csv`, `lecar-array.ps`
-or `lecar-eigen1-stable.dat`. Kinescope Save asks for each frame's GIF;
+or `lecar-eigen1-stable.dat`. Kinescope and animation PPM sequences ask
+once, then derive `-frame1`, `-frame2`, etc.; an existing derived file
+still needs its own replacement decision (W177, #229). Kinescope
 Make Anigif saves all captured frames into one GIF. The browser delivers
-every committed output. Typed browser names stay in the model's folder;
+every committed output, capturing its bytes before answering the next
+export prompt even when both picker destinations use the same basename
+(W177, #229). Typed browser names stay in the model's folder;
 the desktop's save dialog can choose a destination on disk. (W130, #182)
 
 ### Check for updates

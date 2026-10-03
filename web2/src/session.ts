@@ -90,7 +90,9 @@ export class Session {
   /* a file the core writes, offered at its command's idle: `ahead` counts the
      idles of the commands sent before it, which come first (W95's click right
      behind a redraw delivered it at the redraw's idle, before it was written) */
-  private savedOutputs: {name: string; handle: SaveHandle | null}[] = [];
+  private savedOutputs: {name: string; handle: SaveHandle | null; data: Promise<Blob | null>}[] = [];
+  private savingReads = new Set<Promise<Blob | null>>();
+  private nativeSave: string | null = null;
   private pendingSave: {name: string; handle: SaveHandle | null; ahead: number; suffix?: string} | null = null;
   /** the answer to the replace confirm, when it is open */
   private replaceChoice: ((c: ReplaceChoice) => void) | null = null;
@@ -229,7 +231,17 @@ export class Session {
         handle = save.handle;
         save.name = ev.file; /* use the core's destination when it appended the dialog's suffix */
       }
-      if (ev.saved && !nativeFileDialog()) this.savedOutputs.push({name: ev.file, handle});
+      if (ev.saved && safeName(ev.file) && ev.file !== this.nativeSave && this.files) {
+        /* Start reading at commit; the next answer waits for this snapshot. */
+        const data = this.files.get(ev.file).catch(e => {
+          this.failed(`${ev.file} could not be read: ${e instanceof Error ? e.message : String(e)}`);
+          return null;
+        });
+        this.savingReads.add(data);
+        void data.then(() => this.savingReads.delete(data));
+        this.savedOutputs.push({name: ev.file, handle, data});
+      }
+      this.nativeSave = null;
     } else if (ev.ev === 'idle') {
       if (this.idlesOwed > 0) this.idlesOwed--;
       /* an earlier command's idle: the key still waits for its own */
@@ -245,7 +257,8 @@ export class Session {
       if (save && save.ahead > 0) save.ahead--;
       else {
         this.pendingSave = null;
-        for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.handle);
+        this.nativeSave = null;
+        for (const output of this.savedOutputs.splice(0)) void this.deliver(output.name, output.handle, output.data);
       }
       const next = this.afterIdle;
       this.afterIdle = null;
@@ -417,7 +430,9 @@ export class Session {
     const {run} = this.store.getState().diagram, {points} = activeView(this.store.getState().diagram);
     if (run?.active && ask.kind === 'menu' && points.x.length === run.first)
       this.store.dispatch({type: 'diagram', action: {type: 'run', op: 'clock', at: Date.now()}});
-    this.send({cmd: 'answer', id: ask.id, ...fields});
+    const send = () => this.send({cmd: 'answer', id: ask.id, ...fields});
+    if (this.savingReads.size) void Promise.all(this.savingReads).then(send);
+    else send();
   }
 
   cancel(ask: AskEvent): void {
@@ -895,8 +910,11 @@ export class Session {
   saveValues(kind: 'par' | 'ic'): void {
     const name = this.store.getState().hello?.output_names[kind];
     if (!name) return;
-    this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
-    this.send({cmd: 'values', op: 'write', kind, name});
+    if (nativeFileDialog()) this.send({cmd: 'values', op: 'write', kind});
+    else {
+      this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
+      this.send({cmd: 'values', op: 'write', kind, name});
+    }
   }
 
   /** Load of a section (W66 review): the picked file goes into the
@@ -1022,8 +1040,11 @@ export class Session {
   writeDataFile(what: 'table' | 'plot', format: string, name?: string): void {
     name ??= this.store.getState().hello?.output_names[what === 'plot' ? 'curves' : 'csv'];
     if (!name) return;
-    this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
-    this.send({cmd: 'browser', op: 'write', what, format, name});
+    if (nativeFileDialog()) this.send({cmd: 'browser', op: 'write', what, format});
+    else {
+      this.pendingSave = {name, handle: null, ahead: this.idlesOwed};
+      this.send({cmd: 'browser', op: 'write', what, format, name});
+    }
   }
 
   /* ---- animation (docs/ui-v2.md T13, docs/protocol.md `ani` and "The animation as data") ---- */
@@ -1341,14 +1362,15 @@ export class Session {
   async nativeFile(ask: AskEvent): Promise<void> {
     let path: unknown = null;
     try {
-      path = await nativeFileDialog()!(nativeFileRequest(ask));
+      path = await nativeFileDialog()!({...nativeFileRequest(ask), ask: ask.id});
     } catch (e) {
       this.failed(`The file dialog could not open: ${e instanceof Error ? e.message : String(e)}`);
     }
     if (this.store.getState().ask?.id !== ask.id) return; /* the prompt went meanwhile */
-    if (typeof path === 'string' && path)
+    if (typeof path === 'string' && path) {
+      if (ask.mode === 'write') this.nativeSave = path;
       this.answer(ask, ask.mode === 'write' ? {file: path, replace: 1} : {file: path});
-    else this.cancel(ask);
+    } else this.cancel(ask);
   }
 
   /** the user's answer to the replace confirm */
@@ -1369,10 +1391,9 @@ export class Session {
     this.answer(ask, {file: name});
   }
 
-  private async deliver(name: string, handle: SaveHandle | null): Promise<void> {
-    if (!this.files) return;
+  private async deliver(name: string, handle: SaveHandle | null, snapshot: Promise<Blob | null>): Promise<void> {
     try {
-      const data = await this.files.get(name);
+      const data = await snapshot;
       if (!data) return; /* not written: the command stopped before it */
       if (handle) await writeTo(handle, data);
       else offerDownload(name, data);

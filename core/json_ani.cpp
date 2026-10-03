@@ -118,7 +118,7 @@ void ani_go(xpp::Session &s)
             if (ppm) {
                 const xpp::ImageFormat &format=xpp::image_formats[xpp::IMAGE_FORMAT_PPM];
                 std::string file=xpp::files::frame_name(s.animation.mpeg.root,".ppm",written);
-                if(written>0 && !xpp::file_selector("Save animation frame",file,"*.ppm"))break;
+                if(written>0 && !xpp::ok_or_show(reset_save_decision()))break;
                 ++written;
                 const xpp::Result<bool> saved=xpp::save_pixels(format,file.c_str(),rgb,w,h);
                 if (!xpp::ok_or_show(saved) || !*saved) {

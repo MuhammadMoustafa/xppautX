@@ -333,7 +333,8 @@ XppUi make_json_ui(void)
     XppUi u{};
     u.err_msg = j_err_msg;
     u.command_place = j_command_place;
-    u.save_replace = []() {
+    u.save_replace = [](bool independent) -> int {
+        if (independent && !xpp::ok_or_show(reset_save_decision())) return SAVE_DECLINE;
         record_save_permission();
         const int decision = player_save_replace(session.save_replace);
         return session.silent && !session.generated && decision == SAVE_ASK ? SAVE_REPLACE : decision;

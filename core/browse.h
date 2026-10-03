@@ -39,9 +39,10 @@ void data_restore(Session &s, BROWSER *b);
    replace it if it exists. A command or native dialog's answer supplies
    permission; only an existing target without a decision asks in core.
    Empty when declined or when opening fails. With opened, the caller
-   receives the error to show; otherwise it is shown here, once. */
+   receives the error to show; otherwise it is shown here, once.
+   independent resets the command decision for a derived destination. */
 Writer open_writer_asking(std::string_view fil, bool binary = false,
-                          Result<> *opened = nullptr);
+                          Result<> *opened = nullptr, bool independent = false);
 /* One precondition, before asking for a name. Empty saves report once. */
 bool save_ready(bool available);
 Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,

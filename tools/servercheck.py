@@ -913,15 +913,15 @@ check('Makewindow/Create opens window 2', any(e.get('ev') == 'window' and e.get(
 collect(is_idle)
 
 
-def answer_asks(until, replies, timeout=20 * SLOW):
+def answer_asks(until, replies, timeout=20 * SLOW, sender=send, collector=collect):
     """collect up to until(ev), answering asks whose kind is in replies"""
     got = []
     while True:
-        evs, e = collect(lambda e: e.get('ev') == 'ask' or until(e), timeout)
+        evs, e = collector(lambda e: e.get('ev') == 'ask' or until(e), timeout)
         got += evs
         if e is None or e.get('ev') != 'ask' or e['kind'] not in replies:
             return got, e
-        send(cmd='answer', id=e['id'], **replies[e['kind']](e))
+        sender(cmd='answer', id=e['id'], **replies[e['kind']](e))
 
 
 pixels = lambda e: {'w': 2, 'h': 1, 'rgb': base64.b64encode(bytes([255, 0, 0, 0, 0, 255])).decode()}
@@ -2392,6 +2392,27 @@ def check_ani_data():
               and len(fr[-1]['prims']) > len(f0['prims']),
               str(fr and (in_unit(fr[-1]), colours_ok(fr[-1]), len(fr[-1]['prims']))))
 
+        # W177: one sequence choice, then derived PPM names, even across 601 rows.
+        ani('reset')
+        ani('speed', ms=1)
+        ani('mpeg', {'values': ['1', '0']}, {'file': 'sequence.ppm'}, {'key': 'y'})
+        send6(cmd='key', win='ani', key='g')
+        saved, file_asks = [], 0
+        while True:
+            evs, ask = collect6(lambda e: is_ask(e) or is_idle(e), timeout=60 * SLOW)
+            saved += [e for e in evs if e.get('ev') == 'saved' and e.get('saved')]
+            if not ask or is_idle(ask): break
+            if ask.get('kind') == 'pixels':
+                send6(cmd='answer', id=ask['id'], **pixels(ask))
+            elif ask.get('kind') == 'file':
+                file_asks += 1
+                send6(cmd='answer', id=ask['id'], ok=0)
+            else:
+                send6(cmd='answer', id=ask['id'], key='y')
+        check('W177: 601 animation PPM frames need no further destination picker',
+              file_asks == 0 and len(saved) == 601 and saved[0]['file'] == 'sequence.ppm'
+              and saved[-1]['file'] == 'sequence-frame600.ppm', str((file_asks, len(saved), saved[-1:])))
+
         # grab: the grab point's cross (the last two black lines), hit in unit coordinates
         evs = ani('grab')
         fr = frames(evs)
@@ -3321,6 +3342,56 @@ def check_output_names():
         check('W130: a kinescope of 3 frames is asked for once and every frame is saved',
               asks == 1 and [x.get('file') for x in saved] == names and all(x.get('saved') for x in saved)
               and all(os.path.isfile(os.path.join(r, n)) for n in names), str((asks, saved)))
+        # W177: a live JSON reply cannot grant native-picker authorization.
+        victim = os.path.join(os.path.dirname(r), os.path.basename(r) + '-victim.par')
+        with open(victim, 'wb') as f: f.write(b'keep victim')
+        try:
+            for path in (victim, os.path.relpath(victim, r)):
+                snd(cmd='values', op='write', kind='par')
+                _, ask = col(is_ask)
+                snd(cmd='answer', id=ask['id'], file=path, replace=1)
+                evs, _ = col(is_idle)
+                check('W177: replace 1 cannot authorize an external live save: ' + path,
+                      open(victim, 'rb').read() == b'keep victim'
+                      and any(e.get('error') and e.get('file') and 'line' in e for e in evs)
+                      and not any(e.get('saved') for e in evs), str(evs)[-400:])
+        finally:
+            os.unlink(victim)
+        # W177: each frozen destination has its own overwrite decision.
+        snd(cmd='key', key='n')
+        answer_asks(is_idle, {'menu': menu('n')}, sender=snd, collector=col)
+        snd(cmd='key', key='n')
+        answer_asks(is_idle, {'menu': menu('f')}, sender=snd, collector=col)
+        with open(os.path.join(r, 'result.dat.1'), 'wb') as f: f.write(b'keep frozen')
+        snd(cmd='key', key='n', replace=0)
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='s')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], file='result.dat', replace=1)
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='y')
+        evs, ask = col(lambda e: is_ask(e) or is_idle(e))
+        check('W177: frozen nullcline asks before replacing its derived destination',
+              ask and ask.get('question') == 'result.dat.1 exists. Replace it?', str(ask))
+        if ask and is_ask(ask):
+            snd(cmd='answer', id=ask['id'], key='n')
+            col(is_idle)
+        check('W177: declining a frozen save preserves its unrelated bytes',
+              open(os.path.join(r, 'result.dat.1'), 'rb').read() == b'keep frozen')
+        snd(cmd='plotvars', how=2, names=['V', 'W'])
+        col(is_idle)
+        snd(cmd='key', win='aplot', key='p')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], values=['index', 'time', '', 'garbage'])
+        evs, end = col(lambda e: is_ask(e) or is_idle(e))
+        check('W177: malformed render reports a placed error before asking for a filename',
+              end and is_idle(end) and any(e.get('error') and e.get('file') and 'line' in e
+                  and 'garbage' in e['error'] for e in evs), str(evs)[-400:])
+        if end and is_ask(end):
+            snd(cmd='answer', id=end['id'], ok=0)
+            col(is_idle)
+        snd(cmd='aplot', op='close')
+        col(is_idle)
         # A long valid name is retained, while traversal/device names report an error.
         long = 'save-' + 'a' * 80 + '.par'
         snd(cmd='values', op='write', kind='par')

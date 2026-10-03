@@ -428,9 +428,9 @@ const char *ask_mode(std::string_view title)
 {
     /* the file selectors' titles (file_selector() callers): "Load Auto",
        "Read initial data", "Import XPPAUT set", "Import Diagram", "Select an ODE file",
-       "Library:" open a file; "Save ...", "Write ...", "Postscript",
+       "Library:", "Play recording" open a file; "Save ...", "Write ...", "Postscript",
        "GIF plot", "Clone ODE file", ... write one */
-    static const char *const reads[] = {"load", "read", "import", "open", "select", "library"};
+    static const char *const reads[] = {"load", "read", "import", "open", "select", "library", "play"};
     std::string word; /* at most 15 letters: kept in the string itself, no allocation */
     const size_t from = title.find_first_not_of(' ');
     title.remove_prefix(from == std::string_view::npos ? title.size() : from);

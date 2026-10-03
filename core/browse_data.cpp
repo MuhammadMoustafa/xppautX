@@ -226,7 +226,7 @@ bool save_ready(bool available)
  return false;
 }
 
-xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened)
+xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent)
 {
  if(opened)*opened={};
  const int status=xpp::files::output_status(fil);
@@ -239,7 +239,7 @@ xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *open
    if(opened)*opened=error; else show_error(error.error());
    return {};
  }
- int answer=ui.save_replace();
+ int answer=ui.save_replace(independent);
  /* A native dialog or an explicit command already made the decision.
     Otherwise only an existing destination needs confirmation. */
  if(answer==SAVE_ASK){

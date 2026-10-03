@@ -57,7 +57,7 @@ std::optional<std::string> ask_terminal(const std::string &question, const std::
 
 static void hl_err_msg(const Error &e) { log(XPP_LOG_ERROR, "{}\n", e.text()); }
 static Place hl_command_place(void) { return {}; }
-static int hl_save_replace(void) { return SAVE_ASK; }
+static int hl_save_replace(bool) { return SAVE_ASK; }
 static void hl_save_decision(int, bool) {}
 static void hl_save_result(std::string_view, bool) {}
 static void hl_void(void) {}

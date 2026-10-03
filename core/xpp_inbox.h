@@ -43,6 +43,10 @@ enum class From {
    the caller strips line ends. Empty lines are kept. Thread-safe; pushes
    from several threads are serialised, so sequence order is queue order. */
 void push(std::string_view line);
+/* Native UI only: a single-use grant for the path actually selected by the
+   OS save picker, bound to the prompt id. JSON replies cannot mint it. */
+void authorize_save(std::string_view prompt, std::string_view path);
+bool consume_save(int ask, std::string_view path);
 
 /* cls(line, seq) says where a line goes (Verdict). It runs on the pushing
    reader thread, before the line is queued, with no inbox lock held that

@@ -160,7 +160,7 @@ typedef struct XppUi {
     /* where the command that runs came from (command_place) */
     Place (*command_place)(void);
     /* A command's explicit replace decision: 0 asks, 1 permits, -1 declines. */
-    int (*save_replace)(void);
+    int (*save_replace)(bool independent);
     /* A core decision without a dialog/command answer, for recording. */
     void (*save_decision)(int decision, bool asked);
     void (*save_result)(std::string_view file, bool saved);

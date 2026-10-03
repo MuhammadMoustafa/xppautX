@@ -104,7 +104,7 @@ int line_ending(const std::string &text, const std::string &what)
 int main(void)
 {
     xpp::XppUi test_ui{};
-    test_ui.save_replace = []() -> int { return xpp::SAVE_REPLACE; };
+    test_ui.save_replace = [](bool) -> int { return xpp::SAVE_REPLACE; };
     xpp::set_ui(&test_ui); /* these writes target this test's scratch files */
     char arg0[] = "test_lunch", arg1[] = "examples/ode/lecar.odex";
     char *argv[] = {arg0, arg1, NULL};

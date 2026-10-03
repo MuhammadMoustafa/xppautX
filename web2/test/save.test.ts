@@ -23,7 +23,7 @@ function saving(name = 'old.snapx') {
   const ask: AskEvent = {ev: 'ask', kind: 'file', id: 1, mode: 'write', wild: '*.snapx'};
   s.store.dispatch({type: 'event', ev: ask});
   s.saveFile(ask, name, null);
-  return {emit, reads, sent, s};
+  return {emit, reads, sent, s, files};
 }
 
 test('W129: a declined save, failure or missing save result never fetches the old file', () => {
@@ -61,12 +61,12 @@ test('W129: native save answers authorize the picked path; open answers do not',
   }
 });
 
-test('W130: every committed output is delivered after the command ends', () => {
+test('W177: every committed output is captured before the next prompt', () => {
   const {emit, reads} = saving();
   emit({ev: 'saved', saved: true, file: 'other.snapx'});
-  assert.deepEqual(reads, []);
+  assert.deepEqual(reads, ['other.snapx']);
   emit({ev: 'saved', saved: true, file: 'old.snapx'});
-  assert.deepEqual(reads, [], 'wait for the command to end');
+  assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
   emit({ev: 'idle'});
   assert.deepEqual(reads, ['other.snapx', 'old.snapx']);
 });
@@ -87,4 +87,55 @@ test('W130: page saves use hello names, even when they differ from the model fil
   assert.equal(sent.at(-1)?.name, HELLO.output_names.csv);
   s.writeDataFile('plot', 'csv');
   assert.equal(sent.at(-1)?.name, HELLO.output_names.curves);
+});
+
+
+test('W177: desktop Values and CSV buttons ask the core for a picker destination', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  Object.defineProperty(globalThis, 'window', {configurable: true, value: {__xppFileDialog: async () => null}});
+  try {
+    const {s, sent} = saving();
+    s.saveValues('par');
+    assert.deepEqual(sent.at(-1), {cmd: 'values', op: 'write', kind: 'par'});
+    s.saveValues('ic');
+    assert.deepEqual(sent.at(-1), {cmd: 'values', op: 'write', kind: 'ic'});
+    for (const what of ['table', 'plot'] as const) {
+      s.writeDataFile(what, 'csv');
+      assert.deepEqual(sent.at(-1), {cmd: 'browser', op: 'write', what, format: 'csv'});
+    }
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'window', original);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+test('W177: same-name exports snapshot distinct bytes before answering the next file ask', async () => {
+  const {s, emit, sent, files} = saving('data.dat');
+  let bytes = 'orbit';
+  const captured: string[] = [];
+  let finish: () => void = () => {};
+  Object.assign(files, {get: () => {
+    const snapshot = new Blob([bytes]);
+    return new Promise<Blob>(resolve => { finish = () => resolve(snapshot); });
+  }});
+  let done: () => void = () => {};
+  const delivered = new Promise<void>(resolve => { done = resolve; });
+  const handle = {name: 'data.dat', createWritable: async () => ({
+    write: async (data: Blob) => { captured.push(await data.text()); if (captured.length === 2) done(); }, close: async () => {},
+  })};
+  const first: AskEvent = {ev: 'ask', kind: 'file', mode: 'write', id: 3};
+  s.saveFile(first, 'data.dat', handle);
+  emit({ev: 'saved', saved: true, file: 'data.dat'});
+  const second = {...first, id: 4};
+  s.saveFile(second, 'data.dat', handle);
+  assert.equal(sent.at(-1)?.id, 3, 'the next answer waits for the orbit read');
+  finish();
+  await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(sent.at(-1)?.id, 4);
+  bytes = 'adjoint';
+  emit({ev: 'saved', saved: true, file: 'data.dat'});
+  finish();
+  emit({ev: 'idle'});
+  await delivered;
+  assert.deepEqual(captured, ['orbit', 'adjoint']);
 });

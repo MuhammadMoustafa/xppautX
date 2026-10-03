@@ -302,6 +302,7 @@ This selects one of different types of graphs: a 2D box or a 3D Box; brings up a
   - **0**: Blue-red
   - **1**: Red-Yellow-Green-Blue-Violet
   - **2**: Like 1 but periodic
+- Render must be a whole number from -1 through 2. Malformed or out-of-range text reports an error before the filename ask; no picture is written (W177, #229).
 - Array plot `Range` writes still GIFs or one movie, according to `Still(1/0)`. A movie replaces its destination only after the range finishes; Stop, a failed integration or a cancelled picture leaves an existing movie untouched.
 - The `Style` button does nothing yet. The `Edit` button lets you change ranges and arrays to plot. The `Redraw` button is obvious.
 - Since the animation option requires learning lots of new stuff, see [Creating Animations](10-animations.md) for a description of the animation language and what you can do with it.

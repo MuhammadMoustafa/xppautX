@@ -189,11 +189,12 @@ void print_aplot(const xpp::Session &s, APLOT *ap)
   static const int kinds[]={xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_TEXT,xpp::XPP_FIELD_INTEGER};
   status=xpp::do_string_box_of(4,1,"Print arrayplot",n,values,kinds);
  if(status!=0){
+   int render;
+   if(!xpp::parse_int(values[3],render)||render<xpp::ARRAY_GREYSCALE||render>xpp::ARRAY_PERIODIC){xpp::command_error("Print arrayplot",xpp::format("Render must be -1, 0, 1 or 2: {}",values[3]));return;}
    ap->xtitle=values[0];
    ap->ytitle=values[1];
    ap->bottom=values[2];
-   ap->type=atoi(values[3].c_str());
-   if(ap->type<xpp::ARRAY_GREYSCALE||ap->type>xpp::ARRAY_PERIODIC){xpp::command_error("Print arrayplot","Render must be -1, 0, 1 or 2");return;}
+   ap->type=render;
    if(ap->filename.empty())ap->filename=xpp::files::output_name(s.model().this_file,".ps","array");
    if(!xpp::file_selector("Save array plot",ap->filename,"*.ps"))return;
    const xpp::ArrayPicture picture{

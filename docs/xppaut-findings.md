@@ -61,9 +61,10 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [29](#29-the-numbers-depend-on-the-cpu-and-on-the-compilers-fma) | Numerics | the numbers depend on the CPU and on whether the compiler targets FMA | [W159](https://github.com/MuhammadMoustafa/xppautX/issues/211) |
 | [30](#30-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity) | AUTO files | orbit dimensions and row counts can overrun fixed buffers and storage | [W155](https://github.com/MuhammadMoustafa/xppautX/issues/207) |
 | [31](#31-model-options-bypass-method-suitability-and-ignore-unknown-methods) | Method selection | model options bypass suitability checks and ignore unknown methods | [W132](https://github.com/MuhammadMoustafa/xppautX/issues/184) |
+| [32](#32-kinescope-cancel-still-saves-frames) | Kinescope | Cancel on the base filename still writes frames | [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182) |
 | [33](#33-model-table-counts-have-no-upper-bound) | Model tables | tiny models request billions of values and evaluations | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
 | [34](#34-model-includes-read-outside-the-model-folder) | Model files | include names can read arbitrary reachable files | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
-| [32](#32-kinescope-cancel-still-saves-frames) | Kinescope | Cancel on the base filename still writes frames | [W130](https://github.com/MuhammadMoustafa/xppautX/issues/182) |
+| [35](#35-array-print-invalid-render-text-selects-blue-red) | Array plot | malformed render text silently selects blue-red | [W177](https://github.com/MuhammadMoustafa/xppautX/issues/229) |
 
 ## 1. Model options
 
@@ -570,3 +571,17 @@ redirect reads outside its folder. A local process that can mutate the folder
 concurrently can still race an ancestor-directory check; these checks do not
 provide a sandbox against concurrent filesystem mutation. W175,
 [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227).
+
+## 35. Array print invalid render text selects blue-red
+
+**XPPAUT 8.0:** [arrayplot.c:388-390](../reference/xppaut-8.0/arrayplot.c#L388)
+uses `atoi` for the Render field and checks only its converted range; the
+same code is in [master arrayplot.c:388-390](../reference/xppaut-master/arrayplot.c#L388).
+Populate an array plot, choose Print and enter `garbage` as Render: it
+becomes zero and writes blue-red PostScript. An out-of-range integer
+instead silently selects grey scale.
+
+**xppautX:** the shared strict integer parser must accept the whole field,
+then the render enum bounds must pass, before labels change or a file is
+asked for. Malformed input reports its command place and value; servercheck
+covers `garbage`. [W177, #229](https://github.com/MuhammadMoustafa/xppautX/issues/229).
