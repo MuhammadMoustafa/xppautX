@@ -1,8 +1,9 @@
 #!/bin/sh
 # The core's API is C++ (W109, maintainer 2026-09-30): C++ linkage, in
 # namespace xpp, with C++ types at the boundary. extern "C" stays only
-# where C really calls across: the Linux window library's one export and
-# its table (xpp_window_plugin.h: dlsym finds it by its C name), data the
+# where C really calls across: the Linux window library's one export
+# (xpp_window_plugin_init: dlsym finds it by its C name; the tables it
+# trades are C++, both sides built together, W172), data the
 # build generates as C (tools/embed.c's web_assets.c, tools/embed_bytes.c's
 # icon and window library), a function of the C library that a header
 # declares only under a macro, and a callback a C library calls. This
@@ -21,8 +22,7 @@
 cd "$(dirname "$0")/.." || exit 1
 
 # "file count|why"
-ALLOW="core/xpp_window_plugin.h 1|the window library's C ABI: libxppwindow.so's one export, found by dlsym by its C name, and the tables it trades (W13e)
-core/xpp_window.cpp 3|xpp_window_plugin_init, that export; xpp_icon_png and its length, C data tools/embed_bytes.c generates
+ALLOW="core/xpp_window.cpp 3|xpp_window_plugin_init, that export; xpp_icon_png and its length, C data tools/embed_bytes.c generates
 core/xpp_window_loader.cpp 2|xpp_window_lib and its length, C data tools/embed_bytes.c generates
 core/xpp_http.cpp 2|xpp_web_assets, C data tools/embed.c generates; rand_s, the C library's, which stdlib.h declares only under _CRT_RAND_S
 core/band.h 1|vendored CVODE, its own C API: W34 (#72) decides whether SUNDIALS replaces it

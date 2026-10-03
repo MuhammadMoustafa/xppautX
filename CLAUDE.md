@@ -714,8 +714,7 @@ pool with room, saying which in the batch proposal.
   checks); tests/errors.baseline is empty since W140b. A command's error is
   `command_error(cmd, what)` at `command_place()` (xpp_ui.h: in a .recx Play, the step's file and line), a model line's
   `model_place(m, name)` (model_files.h).
-  AUTO's table goes through `xpp::log_auto()` (`xpp::log_auto_printf`
-  for printf's formats): INFO on the console, always
+  AUTO's table goes through `xpp::log_auto()`: INFO on the console, always
   written in browser mode, where the AUTO window's Output panel shows it.
   The core never prints to stdout or stderr directly; `tools/stdoutcheck.sh`
   (run by verify.sh) enforces it, with a short allowlist inside the script
@@ -926,9 +925,9 @@ external, 615 internal at -O0 (461 of them vendored EISPACK).
   length, references for an out-parameter, `bool` for a yes/no, a class
   with RAII for a handle. No `extern "C"` and no `#ifdef __cplusplus`
   guard: a header is C++ only. `extern "C"` stays only where C really
-  calls across: the Linux window library's one export and its tables
-  (xpp_window_plugin.h: dlsym finds `xpp_window_plugin_init` by its C
-  name), data the build generates as C (tools/embed.c's web assets,
+  calls across: the Linux window library's one export (dlsym finds
+  `xpp_window_plugin_init` by its C name; the tables of
+  xpp_window_plugin.h it trades are C++, both sides built together, W172), data the build generates as C (tools/embed.c's web assets,
   tools/embed_bytes.c's icon and window library), and a C library's own
   function a header hides (rand_s). `tools/externcheck.sh` (sourcecheck)
   fails an `extern "C"` in core/ or tests/ that its allowlist does not
