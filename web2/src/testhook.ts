@@ -17,6 +17,10 @@ import {autoWindow} from './store/diagram';
 import {options} from 'preact';
 
 const KEEP = 200;
+/* the commands sent are kept far longer: a check notes sent().length and later reads
+   slice(that), which a full list that drops its oldest entry turns into [] (a long session
+   passed 200 sent commands before the Values checks) */
+const KEEP_SENT = 5000;
 
 export function installTestHook(session: Session): void {
   /* W166: acknowledge the actual render/effect callbacks, including local
@@ -63,7 +67,7 @@ export function installTestHook(session: Session): void {
     }
     if (a.type === 'sent') {
       sent.push(a.cmd);
-      if (sent.length > KEEP) sent.shift();
+      if (sent.length > KEEP_SENT) sent.shift();
     }
     const shown = session.store.getState().kinescope.shown;
     dispatch(a);
