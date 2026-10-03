@@ -973,7 +973,8 @@ def section_session():
     tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
         f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total=4', '']))
-    s4 = Server(args.server, tab_ode, verbose=args.v)
+    # run in the model's own folder: a table outside it is refused (W175)
+    s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
     s4.collect(is_idle)
     s4.send(cmd='session', op='save', name='tab')
     s4.collect(is_idle, timeout=20 * SLOW)
@@ -981,11 +982,11 @@ def section_session():
     names = zf.ZipFile(tab_snap).namelist() if os.path.exists(tab_snap) else []
     check('session save of a model with a file table carries the table',
           'model/tab.odex' in names and 'model/' + table in names, str(names))
-    shutil.rmtree(folder, ignore_errors=True)
     s5 = Server(args.server, LECAR, verbose=args.v)
     s5.collect(is_idle)
     if names: shutil.copy(tab_snap, s5.run)
     s4.close()
+    shutil.rmtree(folder, ignore_errors=True)
     evs = open_session(s5, 'tab')
     s5.send(cmd='key', key='i')
     evs2, ask = s5.collect(is_ask)
