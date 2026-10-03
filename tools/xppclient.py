@@ -27,6 +27,28 @@ def wait_until(predicate, timeout=WAIT_SECONDS):
         time.sleep(POLL_SECONDS)
 
 
+def macos_thread_states(output):
+    """ps(1)'s -M uses its thread table, even with -o state=; read STAT.
+
+    Format: USER PID TT %CPU STAT PRI STIME UTIME COMMAND (Apple adv_cmds,
+    ps/ps.c mfmt). Keep the header so a changed format is a shown error.
+    """
+    lines = output.splitlines()
+    if not lines:
+        return []
+    header = lines[0].split()
+    if 'STAT' not in header:
+        raise ValueError('ps -M output:1: missing STAT column: ' + lines[0])
+    column = header.index('STAT')
+    states = []
+    for number, line in enumerate(lines[1:], 2):
+        fields = line.split()
+        if len(fields) <= column:
+            raise ValueError('ps -M output:%d: missing thread state: %s' % (number, line))
+        states.append(fields[column])
+    return states
+
+
 class LogLines(list):
     """stderr's reader signals each appended line; checks never delay for logging."""
     def __init__(self):

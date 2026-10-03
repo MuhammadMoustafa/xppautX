@@ -45,7 +45,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, io, json, os, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
+from xppclient import file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -397,8 +397,8 @@ def input_blocked(pid):
             with open(os.path.join(tasks, task, 'stat')) as f:
                 states.append(f.read().rsplit(')', 1)[1].split()[0])
         return bool(states) and all(state == 'S' for state in states)
-    out = subprocess.run(['ps', '-M', '-o', 'state=', '-p', str(pid)], capture_output=True, text=True, check=True)
-    states = out.stdout.split()
+    out = subprocess.run(['ps', '-M', '-p', str(pid)], capture_output=True, text=True, check=True)
+    states = macos_thread_states(out.stdout)
     return bool(states) and all(state.startswith('S') for state in states)
 
 

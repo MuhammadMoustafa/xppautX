@@ -47,6 +47,11 @@ if ! python3 tools/utf8check.py; then
   echo "ENCODING CHECK FAILED"
   exit 1
 fi
+# W170: captured macOS ps output exercises the shared parser on every CI source run.
+if ! python3 tools/test_xppclient.py; then
+  echo "CHECKER UNIT TESTS FAILED"
+  exit 1
+fi
 # a script committed from Windows loses its executable bit: CI's checkout
 # then cannot run it ("Permission denied"), which a Windows or WSL run on
 # /mnt/c never shows

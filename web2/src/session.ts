@@ -989,9 +989,9 @@ export class Session {
       even during a job or a prompt (docs/protocol.md), so this never waits
       on `state.busy`. */
   fetchTableRows(visibleFrom: number, visibleCount: number): void {
-    const {table: {page, pendingKey}, hello} = this.store.getState();
+    const {table: {page, pendingKey}, hello, core} = this.store.getState();
     if (!hello) return;
-    const req = planRequest(page, visibleFrom, visibleCount, hello.limits);
+    const req = planRequest(page, visibleFrom, visibleCount, hello.limits, Math.max(page?.rows ?? 0, core?.rows ?? 0));
     if (!req) return;
     const key = JSON.stringify(req);
     if (key === pendingKey) return;

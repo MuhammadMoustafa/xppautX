@@ -26,6 +26,14 @@ test('planRequest asks for a buffered block around what is missing', () => {
   assert.deepEqual(req, {from: 480, count: 60, col: 1, ncol: 500});
 });
 
+test('W170: a truncated final block covers the viewport past EOF without requesting forever', () => {
+  const p = page({from: 595, data: Array.from({length: 6}, () => [0, 0, 0])});
+  assert.equal(planRequest(p, 598, 20, HELLO.limits), null);
+  assert.equal(planRequest(p, 601, 20, HELLO.limits), null);
+  assert.equal(planRequest(p, 0, 20, HELLO.limits)?.from, 0, 'missing real rows still need a request');
+  assert.ok(planRequest(p, 598, 20, HELLO.limits, 620), 'a live run growing past the cached end still needs a request');
+});
+
 test('planRequest asks again when the page is for other columns (col !== 1)', () => {
   const p = page({col: 2, data: [[0, 0.03], [0.05, 0.0301]]});
   const req = planRequest(p, 0, 2, HELLO.limits);

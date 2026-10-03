@@ -77,9 +77,13 @@ export interface TableLimits {
     than a model has), so a table that shows "every variable and aux" (T10)
     never needs to page columns for an ordinary model. */
 export function planRequest(page: BrowserEvent | null, visibleFrom: number, visibleCount: number,
-  limits: TableLimits): BrowserRequest | null {
-  const from = Math.max(0, visibleFrom);
-  const to = from + Math.max(0, visibleCount);
+  limits: TableLimits, rows = page?.rows): BrowserRequest | null {
+  /* W170: the viewport includes a partial row and can extend past EOF.
+     A truncated last block already covers every real row: requesting the
+     nonexistent remainder on each reply kept renders/effects going forever. */
+  const from = Math.max(0, rows === undefined ? visibleFrom : Math.min(visibleFrom, rows));
+  const end = from + Math.max(0, visibleCount);
+  const to = rows === undefined ? end : Math.min(end, rows);
   const have = !!page && page.col === 1 && page.from <= from && page.from + page.data.length >= to;
   if (have) return null;
   return {

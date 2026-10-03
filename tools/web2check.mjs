@@ -483,8 +483,8 @@ async function values() {
     && document.querySelector('.slider-picker-item').textContent.includes('iapp')`, 'search narrows to iapp');
   await cdp.eval(`document.querySelector('.slider-picker-item').click()`);
   check('picking iapp shows its current value and fills Min/Max/Step from it',
-    await cdp.eval(`document.querySelector('.slider-picker-picked').textContent.includes('0.05')
-      && document.querySelector('.slider-dialog-fields input').value === '0'`),
+    await until(`document.querySelector('.slider-picker-picked')?.textContent.includes('0.05')
+      && document.querySelector('.slider-dialog-fields input')?.value === '0'`, 'picked slider and its fields'),
     await cdp.eval(`document.querySelector('.slider-picker-picked')?.textContent`));
   check('OK is enabled once a valid range and step are picked', !(await cdp.eval(`${okBtn()}.disabled`)));
   await setSliderDialogFields({Min: '0', Max: '0.5', Step: '0.01'});
@@ -3580,8 +3580,10 @@ async function editField(sec, name, text) {
   await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await rendered();
-  await cdp.eval(`${fieldOf(sec, name)}.querySelector('input').blur()`);
+  const busy = await cdp.eval(`(() => { const busy = __xpp.state().busy && __xpp.state().computing;
+    ${fieldOf(sec, name)}.querySelector('input').blur(); return !!busy; })()`);
   await rendered();
+  return busy;
 }
 /** one `input` event carrying the whole new text, as a keystroke, a paste or a drop would (T35d):
     focuses the field first (unless already focused) but does not blur, so a refused edit's brief
@@ -3900,8 +3902,74 @@ async function helpCheck() {
   await until('s.core.menu === 0 && !s.busy', 'main menu after help');
 }
 
-/* tools/models/live.odex (about two seconds a run): edits while busy wait and go
-   out once; the IC fields do not move during a run, Now does */
+/* W170: heavy.odex's expensive RHS with widely spaced stored rows leaves
+   the integration computing through browser round trips. Stop only after
+   checking every edit's commit happened while it was actually computing. */
+async function valuesBusy() {
+  const BUSY_TOTAL = 1e7; /* the run cannot reach its end while the page edits */
+  const BUSY_JUMP = 50000; /* expensive heavy.odex steps between rows prevent filling storage during edits */
+  const BUSY_TIMEOUT_MS = 60000; /* the expensive first stored interval needs the values section's safety ceiling */
+  await desktopMetrics();
+  /* All heavy.odex ICs are zero: RK4 keeps that equilibrium exactly, and
+     unlike Stiff it honours nOutput instead of resetting it to one. */
+  await cdp.eval(`__xpp.send({cmd: 'set', values: [
+    {kind: 'num', name: 'method', text: 'rk4'},
+    {kind: 'num', name: 'total', value: ${BUSY_TOTAL}},
+    {kind: 'num', name: 'nout', value: ${BUSY_JUMP}}]})`);
+  if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total')?.value === ${BUSY_TOTAL}
+    && s.numerics.find(f => f.key === 'nout')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
+    throw new Error('heavy.odex: heavy integration settings were not applied');
+  const start = async () => {
+    await focusPlot();
+    await key('i');
+    await until("s.ask && s.ask.kind === 'menu'", 'heavy Integrate menu');
+    await key('g');
+    check('values: the heavy run is computing before editing',
+      await until('s.busy && s.computing && w.series?.rows >= 2', 'heavy integration computing', BUSY_TIMEOUT_MS));
+  };
+  await start();
+  const sent0 = await S('__xpp.sentCount()');
+  const busyEdits = [];
+  for (const v of ['-0.99', '-0.98', '-0.97', '-0.96', '-0.95']) busyEdits.push(await editField('par', 'mu', v));
+  const sentDuring = await S(`__xpp.sentFrom(${sent0})`);
+  const shownDuring = await cdp.eval(`${fieldOf('par', 'mu')}.querySelector('input').value`);
+  const coreDuring = await S('s.core.pars.find(p => p[0] === "mu")[1]');
+  const wasBusy = await S('s.busy && !!s.computing');
+  const noMark = !(await cdp.eval(`${fieldOf('par', 'mu')}.classList.contains('queued') || !!document.querySelector('.values-queued')`));
+  check('values: five edits while busy are sent at once (five sets), the field shows the last, no pending mark',
+    busyEdits.every(Boolean) && wasBusy && sentDuring.length === 5
+    && sentDuring.every(c => c.cmd === 'set' && c.name === 'mu')
+    && sentDuring[4].text === '-0.95' && shownDuring === '-0.95' && noMark,
+    JSON.stringify({busyEdits, wasBusy, sentDuring, shownDuring, noMark}));
+  await focusPlot();
+  await key('Escape');
+  check('values: the run kept the value it started with; the core has the last edit once it ends',
+    coreDuring === -1 && await until(`!s.busy && !s.values.inflight.length
+      && s.core.pars.find(p => p[0] === 'mu')[1] === -0.95`, 'heavy edits applied after Stop'),
+    JSON.stringify({coreDuring, now: await S('[s.values.inflight, s.core.pars]')}));
+
+  const sid = await addSlider('mu');
+  await start();
+  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+    return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
+  const sent1 = await S('__xpp.sentCount()');
+  const busyDrag = await S('s.busy && !!s.computing');
+  await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
+  for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.05), track.y, {button: 'left'});
+  await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
+  const busyThen = await S('s.busy && !!s.computing');
+  const out = await S(`__xpp.sentFrom(${sent1})`);
+  const draggedTo = out.length ? Number(out[out.length - 1].text) : null;
+  await focusPlot();
+  await key('Escape');
+  check('values: a slider dragged during a run sends its values as sets at once; the core has the last after the run',
+    busyDrag && busyThen && out.length >= 1 && out.every(c => c.cmd === 'set')
+    && await until(`!s.busy && !s.values.inflight.length
+      && Math.abs(s.core.pars.find(p => p[0] === 'mu')[1] - ${draggedTo}) < 1e-9`, 'heavy slider edits after Stop'),
+    JSON.stringify({busyDrag, busyThen, out}));
+}
+
+/* live.odex: the IC fields do not move during a run, Now does. */
 async function valuesLive() {
   await desktopMetrics();
   /* the first run ends the wait: slow on a loaded machine, so the section's
@@ -3927,29 +3995,9 @@ async function valuesLive() {
   await until("s.ask && s.ask.kind === 'menu'", 'menu');
   await key('g');
   await until('s.busy && w.series && w.series.rows > 100', 'running');
-  /* five edits of a parameter while the run goes (W106, GitHub #155): each
-     is a setting, sent at once and shown as the value; the run keeps the
-     value it started with (the core's state during it), and the core has
-     the last edit once the run ends */
-  const sent0 = await cdp.eval('__xpp.sentCount()');
-  for (const v of ['0.051', '0.052', '0.053', '0.054', '0.055']) await editField('par', 'iapp', v);
-  const sentDuring = await cdp.eval(`__xpp.sentFrom(${sent0})`);
-  const shownDuring = await cdp.eval(`${fieldOf('par', 'iapp')}.querySelector('input').value`);
-  const coreDuring = await S('s.core.pars.find(p => p[0] === "iapp")[1]');
-  const wasBusy = await S('s.busy');
-  const noMark = !(await cdp.eval(`${fieldOf('par', 'iapp')}.classList.contains('queued') || !!document.querySelector('.values-queued')`));
   await until('!s.busy && w.series.rows === 20001', 'first run', 60000);
-  await until('!s.values.inflight.length', 'the queued edits acknowledged');
   await rendered();
   await cdp.eval('window.__sampling = false; window.__nowObserver.disconnect(); true');
-  check('values: five edits while busy are sent at once (five sets), the field shows the last, no pending mark',
-    wasBusy && sentDuring.length === 5 && sentDuring.every(c => c.cmd === 'set' && c.name === 'iapp')
-    && sentDuring[4].text === '0.055' && shownDuring === '0.055' && noMark,
-    JSON.stringify({wasBusy, sentDuring, shownDuring, noMark}));
-  check('values: the run kept the value it started with; the core has the last edit once it ends',
-    Math.abs(coreDuring - 0.05) < 1e-9 && await until(`!s.busy && !s.values.inflight.length
-      && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - 0.055) < 1e-9`, 'edits applied after the run', 10000),
-    JSON.stringify({coreDuring, now: await S('[s.values.inflight, s.core.pars]')}));
   const icSeen = await cdp.eval('[...new Set(__icSeen)]');
   const nowSeen = await cdp.eval('[...new Set(__nowSeen)]');
   check('values: the IC fields and the ICs do not change during a run',
@@ -3960,31 +4008,6 @@ async function valuesLive() {
   check('values: after the run Now is the last row of the series',
     await S(`s.core.now && s.core.now.every((v, i) => Math.abs(v - ${JSON.stringify(last)}[i]) < 1e-6)`),
     JSON.stringify([await S('s.core.now'), last]));
-
-  /* a slider dragged while a run goes: its values go out at once (sets), and the core has the
-     last one once the run ends. Whether the run is still going when the drag ends depends on
-     the machine's speed (W58), so that is reported, not checked: the outcome is the same */
-  const sid = await addSlider('iapp');
-  await focusPlot();
-  await key('i');
-  await until("s.ask && s.ask.kind === 'menu'", 'menu');
-  await key('g');
-  await until('s.busy && w.series && w.series.rows > 100', 'running');
-  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
-    return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
-  const sent1 = await cdp.eval('__xpp.sentCount()');
-  await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
-  for (let k = 1; k <= 10; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.05), track.y, {button: 'left'});
-  await mouse('mouseReleased', track.x + track.w * 0.8, track.y, {button: 'left', clickCount: 1});
-  const busyThen = await S('s.busy');
-  await until('!s.busy && w.series.rows === 20001 && !s.values.inflight.length', 'the run under the drag', 60000);
-  const out = await cdp.eval(`__xpp.sentFrom(${sent1})`);
-  const draggedTo = out.length ? Number(out[out.length - 1].text) : null;
-  check('values: a slider dragged during a run sends its values as sets at once; the core has the last after the run',
-    out.length >= 1 && out.every(c => c.cmd === 'set')
-    && Math.abs((await S('s.core.pars.find(p => p[0] === "iapp")[1]')) - draggedTo) < 1e-9,
-    JSON.stringify({busyThen, out}));
-
 
   /* T35d: a parameter box takes a number or %formula only, and refuses outright, while typed, a
      keystroke or a paste that would leave a text it does not take and is not on the way to one
@@ -5297,6 +5320,7 @@ async function main() {
     if (run('runs')) await session(ODE, runsCheck, ['bad.par:1: it is for 3 parameters, the model has 12', 'bad.ic:2: the file ends here, before W']);
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
+    if (run('values')) await session(HEAVY_ODE, valuesBusy);
     if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
