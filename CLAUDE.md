@@ -483,8 +483,14 @@ and its report ends with the commit message, which the reviewer commits
 with the Codex trailer before the review; it runs its gates from Git Bash in the
 worktree (the UCRT build `mingw32-make -j4 xppautx BUILDDIR=build/ucrt
 WERROR=1`, its unit tests, servercheck/autocheck against that exe,
-web2's checks and `web2check --only`); and the WSL gates (`tools/wslrun.sh`)
-are the reviewer's, run on its branch at review. Before a batch the
+web2's checks and `web2check --only`, the last with
+`XPP_CHECK_NO_BROWSER_SANDBOX=1` and TEMP and TMP pointed at a folder in
+the worktree, `build/tmp`: the sandbox writes only the worktree, and
+Chrome's own sandbox cannot start inside it, W168); and the WSL gates
+(`tools/wslrun.sh`) are the reviewer's, run on its branch at review, with
+the card's web2check sections again (the task-board skill's
+`codex_gates.sh`, before the review: a failure goes back to the same
+Codex session). Before a batch the
 reviewer reads both pools' limits (the app's usage for Claude, the
 task-board skill's `codex_limits.py` for Codex) and gives each card to the
 pool with room, saying which in the batch proposal.

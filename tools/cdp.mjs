@@ -36,9 +36,15 @@ export class Cdp {
     this.id = 0;
     this.pending = new Map();
     this.notes = [];
+    /* why the connection closed, once it has: a send after it fails at once, since a
+       closed WebSocket drops what is sent without a word and its answer would never come
+       (W168: a browser that died left every call pending, and Node exited 0, a pass) */
+    this.closed = null;
     this.ws.onclose = () => {
-      for (const [, p] of this.pending) p.reject(new Error(`${p.method}: the DevTools connection closed${this.browserState ? ` (browser: ${this.browserState()})` : ''}`));
+      this.closed = `the DevTools connection closed${this.browserState ? ` (browser: ${this.browserState()})` : ''}`;
+      for (const [, p] of this.pending) p.reject(new Error(`${p.method}: ${this.closed}`));
       this.pending.clear();
+      if (this.openFailed) this.openFailed(new Error(this.closed));
     };
     this.ws.onmessage = m => {
       const d = JSON.parse(m.data);
@@ -54,6 +60,7 @@ export class Cdp {
     return new Promise((resolve, reject) => {
       this.ws.onopen = resolve;
       this.ws.onerror = reject;
+      this.openFailed = reject; /* closed before it opened */
     });
   }
   /* what the page did, for a failure to name itself (W158): the last
@@ -96,6 +103,7 @@ export class Cdp {
       (this.browserState ? `\n  browser: ${this.browserState()}` : '');
   }
   send(method, params = {}) {
+    if (this.closed) return Promise.reject(new Error(`${method}: ${this.closed}`));
     const id = ++this.id;
     this.ws.send(JSON.stringify({id, method, params}));
     return new Promise((resolve, reject) => this.pending.set(id, {resolve, reject, method}));
@@ -224,6 +232,9 @@ export async function startBrowser(browser, profile) {
     /* a headless window is never in front: without these Chrome throttles its timers and animation frames
        (macOS treats it as occluded), and the chart draws frames behind the page's state (W20) */
     '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+    /* inside another sandbox (a Codex agent's), Chrome's own cannot start its GPU and renderer
+       processes (access denied) and Chrome exits: the outer one confines it instead (W168) */
+    ...(process.env.XPP_CHECK_NO_BROWSER_SANDBOX === '1' ? ['--no-sandbox'] : []),
     'about:blank'],
   {stdio: ['ignore', 'ignore', 'pipe']});
   /* the browser's stderr for its whole life (the tail: STDERR_KEPT bytes) and how it ended: a
