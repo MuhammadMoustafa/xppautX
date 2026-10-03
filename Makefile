@@ -46,6 +46,13 @@ CFLAGS  ?= $(CSTD) $(WARN) $(STRICT) $(OPT) $(FPFLAGS) $(DEFS) $(INCS) -fcommon
 # no -fcommon: C++ has no tentative definitions
 CXXFLAGS ?= $(CXXSTD) $(WARN) $(CXXSTRICT) $(OPT) $(FPFLAGS) $(DEFS) $(INCS)
 LDFLAGS ?= -fcommon
+# WebAssembly (`make wasm`, W9): Emscripten's pthreads, so the core keeps
+# its own thread beside the worker's and its atomics (the cancel token)
+# live in shared memory
+ifeq ($(WASM),1)
+CFLAGS += -pthread
+CXXFLAGS += -pthread
+endif
 
 # Native Windows (MinGW-w64 gcc, from Git Bash or MSYS2)
 ifeq ($(OS),Windows_NT)
@@ -119,16 +126,26 @@ obj = $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%.o,$(basename $(1)))
 # them is C++ (it brings the C++ runtime), else $(CC)
 link = $(if $(filter %.cpp,$(1)),$(CXX),$(CC))
 
+# `make wasm` (WASM=1, W9) swaps the HTTP server for core/xpp_wasm.cpp: a
+# browser has no sockets, its client is the Web Worker around the module
+ifeq ($(WASM),1)
+SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_about xpp_wasm xpp_inbox)
+else
 SERVER_SOURCES := $(call src, ui_json json_io json_prompts json_record json_player json_state json_windows json_auto json_ani json_model json_silent xppautx_main xpp_about xpp_http xpp_inbox)
+endif
 # the window's (below): xpp_window, or on Linux the loader of its library;
 # xpp_webview is the web view library's own object (webview.o, below)
 WINDOW_SOURCES_ALL := $(call src,xpp_window xpp_window_loader xpp_webview)
-CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL),$(ALL_SOURCES))
+CORE_SOURCES := $(filter-out $(SERVER_SOURCES) $(WINDOW_SOURCES_ALL) $(call src,xpp_wasm),$(ALL_SOURCES))
 # the page xppautX serves, compiled in: web2 (web2/dist, built from
 # web2/src and committed: web2/build.mjs)
 WEB2_FILES := web2/dist/index.html web2/dist/app.js web2/dist/app.css web2/dist/manual.json web2/dist/inter.woff2 \
   web2/dist/inter-greek.woff2 web2/dist/inter-OFL.txt
-SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES)) $(BUILDDIR)/web_assets.o
+SERVER_OBJECTS := $(call obj,$(SERVER_SOURCES))
+# (the wasm build serves no page: wasm/ holds its own)
+ifneq ($(WASM),1)
+SERVER_OBJECTS += $(BUILDDIR)/web_assets.o
+endif
 $(BUILDDIR)/xpp_about.o: CFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 $(BUILDDIR)/xpp_about.o: CXXFLAGS += -DXPPAUTX_VERSION='"$(XPPAUTX_VERSION)"' -DXPPAUTX_COMMIT='"$(XPPAUTX_COMMIT)"'
 
@@ -151,7 +168,7 @@ WEBVIEW_DIR = third_party/webview
 # the vendored library's language standard: ours, except on macOS (below)
 # and with clang's libc++ anywhere, for the macOS reason: C++17
 WEBVIEW_STD = $(if $(CLANG),$(subst ++23,++17,$(CXXSTD)),$(CXXSTD))
-ifneq ($(ASAN)$(VALGRIND)$(TSAN),)
+ifneq ($(ASAN)$(VALGRIND)$(TSAN)$(WASM),)
 WINDOW := 0
 endif
 ifeq ($(OS),Windows_NT)
@@ -276,11 +293,15 @@ $(BUILDDIR)/core_math_lgamma.o $(BUILDDIR)/core_math_lgamma_fma.o: CORE_MATH_EXT
 # (CORE-MATH keeps each function's source in a folder of its own name)
 define CORE_MATH_RULE
 $$(BUILDDIR)/core_math_$(1).o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/toolchain.stamp | $$(BUILDDIR)
-	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -w -c $$< -o $$@
+	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) $$(CORE_MATH_WASM) -w -c $$< -o $$@
 $$(BUILDDIR)/core_math_$(1)_fma.o: $$(CORE_MATH_DIR)/$(1)/$(1).c $$(BUILDDIR)/toolchain.stamp | $$(BUILDDIR)
 	$$(CC) $$(call NOLTO,$$(OPT)) $$(FPFLAGS) $$(CORE_MATH_EXTRA) -mfma -Dcr_$(1)=cr_$(1)_fma -w -c $$< -o $$@
 endef
 $(foreach f,$(CORE_MATH_FUNCS),$(eval $(call CORE_MATH_RULE,$(f))))
+# WebAssembly has no floating-point exception flags (wasm_fenv.h)
+ifeq ($(WASM),1)
+CORE_MATH_WASM = -include $(CORE_MATH_DIR)/wasm_fenv.h
+endif
 # MinGW's C library has no roundeven, which the plain x86 copies call (third_party/core-math/roundeven.c)
 ifeq ($(OS),Windows_NT)
 CORE_OBJECTS += $(BUILDDIR)/core_math_roundeven.o
@@ -356,13 +377,40 @@ xppautx: xppautX$(EXE)
 # archive and clashed with its new home (W27b merged the f2c helpers)
 $(CORELIB): $(CORE_OBJECTS) $(BUILDDIR)/corelib.stamp
 	rm -f $@
-	ar rcs $@ $(CORE_OBJECTS)
+	$(AR) rcs $@ $(CORE_OBJECTS)
 
 $(BUILDDIR)/corelib.stamp: FORCE | $(BUILDDIR)
 	@echo '$(CORE_OBJECTS)' > $@.tmp; if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv $@.tmp $@; fi
 
 xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 	$(LINK_X) $(LDSTATIC) $(RELEASE_LD) -o $@ $(SERVER_OBJECTS) $(CORELIB) -lm $(DLLIB) $(NETLIBS) $(WINDOW_LIBS)
+
+# WebAssembly build (W9, a proof of concept; docs/wasm.md). Needs emsdk's
+# emcc on PATH (`source ~/emsdk/emsdk_env.sh`); build in WSL's own copy
+# (tools/wslrun.sh), never over /mnt/c. Left out, each for its reason:
+#  - the HTTP server and the web view window: a browser has no sockets and
+#    is the window; core/xpp_wasm.cpp takes their place (the Web Worker's
+#    postMessage);
+#  - the --server stdin reader: replaced by xpp::wasm::push, a thread
+#    cannot block on a browser's stdin;
+#  - starting a process (XPPEDITOR, the browser opener): no processes exist.
+# Threads stay: the core runs in a pthread (PROXY_TO_PTHREAD), so the
+# worker answers messages while it computes, and Abort reaches xpp_job's
+# atomics through the shared memory (the page must be cross-origin
+# isolated). Memory grows from 64 MB to the 4 GB wasm32 allows; the
+# stacks are 5 MB (a native thread's is 8 MB; emscripten's default 64 KB
+# is too small for the parser's and the solvers' recursion). embind carries push() to the worker
+# with no extern "C" (externcheck). IDBFS is linked for the page's
+# persistent files (wasm/worker.js mounts it).
+WASM_LDFLAGS = -pthread -sPROXY_TO_PTHREAD -sPTHREAD_POOL_SIZE=1 -sINITIAL_MEMORY=64MB -sALLOW_MEMORY_GROWTH   -sMAXIMUM_MEMORY=4GB -sSTACK_SIZE=5MB -sDEFAULT_PTHREAD_STACK_SIZE=5MB -lembind -lidbfs.js   -sMODULARIZE -sEXPORT_NAME=createXppautX -sENVIRONMENT=web,worker,node -sINVOKE_RUN=0   -sEXPORTED_RUNTIME_METHODS=FS,callMain -sFORCE_FILESYSTEM -sEXIT_RUNTIME=0   -sINCOMING_MODULE_JS_API=arguments,locateFile,noInitialRun,onAbort,onExit,onRuntimeInitialized,postRun,preInit,preRun,print,printErr,thisProgram,mainScriptUrlOrBlob
+ifeq ($(WASM),1)
+$(BUILDDIR)/xppautx.js: $(SERVER_OBJECTS) $(CORELIB)
+	$(CXX) $(WASM_LDFLAGS) -o $@ $(SERVER_OBJECTS) $(CORELIB)
+endif
+.PHONY: wasm
+wasm:
+	@command -v emcc >/dev/null || { echo 'make wasm: emcc not found (source ~/emsdk/emsdk_env.sh)' >&2; exit 1; }
+	@$(MAKE) WASM=1 BUILDDIR=build/wasm CC=emcc CXX=em++ AR=emar OPT=-O2 build/wasm/xppautx.js
 
 # macOS: xppautX.app, a bundle Finder and LaunchServices know as the .ode
 # opener (tools/associate/Info.plist.in's CFBundleDocumentTypes), from the

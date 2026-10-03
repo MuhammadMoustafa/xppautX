@@ -17,6 +17,10 @@ https://gitlab.inria.fr/core-math/core-math), MIT licence (`LICENSE`).
   `--include`): that file stores gamma's sign in the C library's global
   `signgam`, which MinGW's math.h lacks and which xppautX never reads, so the
   stores go to a temporary.
+  `wasm_fenv.h` is ours too, included before each function in the
+  WebAssembly build (`make wasm`): Emscripten's `<fenv.h>` has no
+  `FE_UNDERFLOW` and the other exception flags (WebAssembly has none), so
+  they are defined as 0.
   Only `core/xpp_math.h` includes it; the rest of the core calls
   `xpp::math::exp` and the others (CLAUDE.md "Single source").
 - Why: the C library's exp, log, pow, sin, cos, ... are CPU-dispatched

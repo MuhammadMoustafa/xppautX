@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xppautX in WebAssembly</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 760px; }
+  button { font: inherit; padding: 4px 12px; }
+  canvas { width: 100%; height: auto; border: 1px solid GrayText; margin: 12px 0; }
+  pre { max-height: 10em; overflow: auto; border: 1px solid GrayText; padding: 6px; }
+</style>
+</head>
+<body>
+<h1>xppautX in WebAssembly</h1>
+<p id="status">starting</p>
+<p><button id="run">Integrate lecar.ode</button> <button id="long">Start a long run</button> <button id="abort" disabled>Abort</button></p>
+<canvas id="plot" width="720" height="420"></canvas>
+<pre id="log"></pre>
+<script src="page.js"></script>
+</body>
+</html>

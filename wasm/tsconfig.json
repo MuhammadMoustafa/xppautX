@@ -1,0 +1,5 @@
+{
+  "extends": "../web2/tsconfig.json",
+  "compilerOptions": {"types": ["node"], "typeRoots": ["../web2/node_modules/@types"]},
+  "include": ["src"]
+}

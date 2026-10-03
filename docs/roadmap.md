@@ -34,7 +34,7 @@ issue; the card here is the one kept up to date.
 | W7d | #19 | AUTO's file I/O (autlib1/3, auto_nox: fort files, .s/.b/.d) through xpp_io's reader and writer; byte-identical diagrams | W7b | done |
 | W7e | #19 | The File menu's dead entries (found in W7c): Bell and Tips removed (nothing has read them since X11), Help opens the page's Help at the File menu chapter (a `help` event), the manual updated; load_eqn's option merge takes the seed's flag, not the small font's | W7c | done |
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
-| W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk | blocked |
+| W9  | #21 | WebAssembly build (proof of concept) | maintainer's OK to install emsdk (given 2026-10-03) | proof of concept done: docs/wasm.md; going further is the maintainer's call |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | #23 | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | done (steps 1-2 then; step 3 finished by W32b (xpp_io's Writer/readers, xpp_files for every other file operation) and the W33 sweeps: tools/filecheck.sh's baseline is empty) |
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
