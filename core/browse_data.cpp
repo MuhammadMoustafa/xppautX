@@ -233,7 +233,7 @@ xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *open
  if(status!=XPP_FILES_OK){
    /* A replay's path guard must stop the step before later commands run,
       even when the basename was rejected before Writer could open it. */
-   (void)xpp::files::write_path_ok(fil,true);
+   xpp::files::write_path_ok(fil,true);
    ui.save_result(fil,false);
    const Result<> error=fail("save",xpp::format("Cannot save {}: {}",fil,xpp::files::status_text(status)),command_place());
    if(opened)*opened=error; else show_error(error.error());
