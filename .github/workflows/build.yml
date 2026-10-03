@@ -3,6 +3,14 @@ name: build
 on:
   push:
     branches: [master, 'ci/**']
+    # a push that changes only documentation starts no run (maintainer,
+    # 2026-10-03); the Markdown a check reads still does: docs/manual/
+    # (built into web2's page, manualcheck) and docs/protocol.md (servercheck)
+    paths:
+      - '**'
+      - '!**/*.md'
+      - 'docs/manual/**'
+      - 'docs/protocol.md'
   pull_request:
   # run only some jobs on a commit already pushed (a fix pushed with [skip ci]:
   # maintainer, 2026-10-01, rerun only what failed): gh workflow run build.yml

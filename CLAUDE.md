@@ -83,7 +83,9 @@ wave or card; the push's CI run (every platform: asancheck, the full
 web2check, the Windows and macOS builds and tests) is the full tier, so it
 is not run locally before a push as well, except when Actions minutes are
 short or for what CI cannot see; a CI failure is fixed and goes with the
-next batch. A new request that comes up while a task is
+next batch. A push that changes only Markdown starts no run (build.yml's
+`paths`, maintainer 2026-10-03), except docs/manual/ and docs/protocol.md,
+which checks read; never `[skip ci]` a push with code in it. A new request that comes up while a task is
 running gets its own task card rather than growing the running one.
 Pushing closes issues: every GitHub issue whose card or task the pushed
 commits finish is closed right after the push, with a comment naming its
