@@ -269,6 +269,8 @@ issue; the card here is the one kept up to date.
 
 | W181 | #233 | Balance W180's new CI critical path: three automatic Windows AUTO sanitizer partitions, protocol/web combined to avoid another build and keep 20 jobs; descriptive platform/compiler/scope names; preserve stable dispatch ids and coverage; measure wall and aggregate runner time before further splits or shared builds | none | in-progress (reviewer) |
 
+| W182 | #234 | CI 37178261085 macOS phase-plane check answers a menu before its dialog has focus: reuse the shared focus-condition helper and fail explicitly when readiness is absent; keep all nullcline/field data assertions and validate the full matrix | none | in-progress (reviewer) |
+
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
 list with a reason per entry; this is the summary).

@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Build
 
+- Browser checks wait for a menu dialog to receive keyboard focus before answering it, preserving the phase-plane assertions on slower runners (W182, [#234](https://github.com/MuhammadMoustafa/xppautX/issues/234)).
+
 - Balance Windows sanitizer CI across three automatic AUTO partitions and a combined protocol/web job; name checks by platform, compiler and scope (W181, [#233](https://github.com/MuhammadMoustafa/xppautX/issues/233)).
 
 - Split Linux sanitizer checks across parallel CI jobs while preserving every phase and automatic coverage of new AUTO sections (W180, [#232](https://github.com/MuhammadMoustafa/xppautX/issues/232)).

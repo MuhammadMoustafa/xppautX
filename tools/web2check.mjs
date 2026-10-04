@@ -1709,7 +1709,7 @@ const displayTold = (mark, what = 'the display told') =>
 async function menuKeys(first, then) {
   await key(first);
   if (!(await until("s.ask && s.ask.kind === 'menu'", `menu of ${first}`))) return false;
-  await key(then);
+  await menuKey(then);
   return true;
 }
 
@@ -1999,7 +1999,8 @@ const readout = () => cdp.eval(`document.querySelector('.auto-readout').textCont
 const answerAsk = fields => cdp.eval(`__xpp.send(Object.assign({cmd: 'answer', id: __xpp.state().ask.id}, ${JSON.stringify(fields)}))`);
 /* a menu's key, once its dialog is up (it takes its keys from then on) */
 async function menuKey(k) {
-  await until(`s.ask && document.activeElement.closest('[role=dialog]')`, `dialog for ${k}`);
+  if (!await until(`s.ask && document.activeElement.closest('[role=dialog]')`, `dialog for ${k}`))
+    throw new Error(`the dialog for ${k} did not receive keyboard focus`);
   await key(k);
 }
 const center = sel => cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect();
