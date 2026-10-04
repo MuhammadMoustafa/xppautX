@@ -2708,22 +2708,7 @@ async function viewScreen(view, x, y) {
    the views back from a session file */
 async function autoViews(dir) {
   check('AUTO views: the page connects', await until('s.hello && !s.busy', 'hello'));
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('g');
-  await menuKey('d');
-  await until('!s.busy', 'hopf set');
-  await key('s');
-  await menuKey('g');
-  await until("s.ask && s.ask.kind === 'choice'", 'eigenvalues?');
-  await menuKey('n');
-  await until('!s.busy', 'fixed point', 30000);
-  await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
-  await until('!s.busy', 'import');
-  await key('f');
-  await until('!s.busy', 'file menu');
-  await key('a');
-  await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+  await openAutoAtFixedPoint();
   check('AUTO views: one view at first, no title and no close button',
     await cdp.eval(`document.querySelectorAll('.auto-pane').length === 1 && !document.querySelector('.auto-pane-close')`)
     && (await S('s.diagram.views.length')) === 1);
@@ -4680,7 +4665,7 @@ async function nativeFiles(dir) {
       await cdp.eval(`window.__nativeReply = ${JSON.stringify(name)}; ${call}; true`);
       check('W177: desktop button opens a save picker and writes ' + name,
         await until(`!s.busy && !s.ask && window.__nativeAsked.length > ${before}`, 'button saved')
-        && fs.existsSync(path.join(dir, name)) && (await asked())?.mode === 'write');
+        && await waitFor(() => fs.existsSync(path.join(dir, name))) && (await asked())?.mode === 'write');
       if (name === 'native-table.csv') await cdp.eval(`document.querySelector('.table-back').click()`);
     }
 

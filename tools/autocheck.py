@@ -966,7 +966,8 @@ def section_session():
     # a model with a file table (named by its whole path): the table goes
     # with it and comes back, from the session file alone
     import math
-    folder = tempfile.mkdtemp(prefix='xpptab')
+    # macOS's /var temporary alias must match the process's canonical cwd.
+    folder = os.path.realpath(tempfile.mkdtemp(prefix='xpptab'))
     table = os.path.join(folder, 'w.tab').replace(os.sep, '/')
     with open(table, 'w') as f:
         f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))

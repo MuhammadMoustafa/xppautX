@@ -23,6 +23,11 @@ public:
 
 inline void write_bytes(std::ostream &out, std::string_view symbol, const char *path)
 {
+    // Surface failed output even when libc++'s sentry skips an insertion.
+    out.exceptions(std::ios::failbit | std::ios::badbit);
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(path, error))
+        throw InputError(path, "embedded input is not a regular file");
     std::ifstream in(path, std::ios::binary);
     if (!in) throw InputError(path, "cannot open embedded file");
     out << "constexpr unsigned char " << symbol << "[] = {";
