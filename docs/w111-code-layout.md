@@ -33,3 +33,23 @@ effects of unrelated code are removed.
 
 Keep the candidate only if those measurements show a useful improvement
 and reduced sensitivity to the tested layouts.
+
+## W183 adoption decision, 2026-10-04
+
+One warm-up and five alternating samples per variant gave normal-build
+medians 9.901s baseline and 9.738s aligned (1.6% faster), but release/LTO
+medians 9.948s and 10.482s (5.4% slower). All 24 outputs including warm-ups
+had the MD5 above. Both release variants built with WERROR=1 and the
+alignment survived LTO (`eval_rpn` at 0xe74e0 versus 0xe8000).
+
+The current alignment proposal is declined: the small normal-build gain
+does not carry into release. The late release runs slowed in both
+variants, so this is evidence against a robust benefit, not a universal
+regression claim. The prerequisite for adoption failed; further padding
+and instruction-count experiments are not needed to decline this patch.
+On W9's optimized build, adding the alignment produced identical Wasm
+bytes. It does not prepare that build for a speed gain.
+
+The implementation remains unmerged. See the
+[joint assessment](https://github.com/MuhammadMoustafa/xppautX/blob/master/docs/performance-adoption.md)
+for samples, CPU medians and the independent solver/platform decisions.
