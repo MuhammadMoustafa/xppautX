@@ -33,6 +33,9 @@ Validation on the final native UCRT build:
   mouse/keyboard input, keyboard context, recordings, busy guards, plot
   numbers/exports, zoom/pan/readout, values and responsive geometry.
 - All six golden export checks passed without updating references.
+- WSL Linux: strict `WERROR=1` build, all native unit tests and 61 protocol
+  checks passed on code commit `6e64ecfce`; `build/steady-wsl.log` records the
+  committed run. The WSL build/protocol logs are in the tool's Linux cache.
 - Toolbar labels fit at widths 600–2000 in 25-pixel increments, at heights
   560 and 900. States and all parameters remain visible on the reference
   desktop; small screens retain the Values sheet and scrollable workspace.
