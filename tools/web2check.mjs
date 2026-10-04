@@ -1331,6 +1331,12 @@ async function windows() {
    chart still shows the same range); then Fit (the classic page's Window/Fit
    key sequence, w then f) widens the core's axes to contain the data. */
 async function viewCheck() {
+  const fit = async selector => {
+    const target = `document.querySelector(${JSON.stringify(selector)})`;
+    if (!await until(`!s.busy && !s.ask && ${target} && !${target}.disabled`, 'Fit enabled'))
+      throw new Error('Fit did not become enabled after the preceding commands');
+    await cdp.eval(`${target}.click()`);
+  };
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'),
     JSON.stringify(await S('({hello: !!s.hello, seriesCount: s.seriesCount, busy: s.busy})')));
   await key('i');
@@ -1386,7 +1392,7 @@ async function viewCheck() {
     }
     return {xmin, xmax, ymin, ymax};
   })()`);
-  await cdp.eval(`document.querySelector('.plot-tools button[title^="Fit the window"]').click()`);
+  await fit('.plot-tools button[title^="Fit the window"]');
   check("Fit changes the core's axes to the data's extent",
     await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
       && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6`, 'fit'),
@@ -1409,7 +1415,7 @@ async function viewCheck() {
   await until('w.viewport.x', 'panned away');
   const away = await P();
   check('panned far from the data', away.x.min > extent.xmax, JSON.stringify([away.x, extent]));
-  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
+  await fit('.plot-view:not([hidden]) .plot-host .plot-fit');
   check('the corner Fit brings the data back into view, through the core as the toolbar\'s Fit does',
     await until(`s.core.view && s.core.view.xlo <= ${extent.xmin} + 1e-6 && s.core.view.xhi >= ${extent.xmax} - 1e-6
       && s.core.view.ylo <= ${extent.ymin} + 1e-6 && s.core.view.yhi >= ${extent.ymax} - 1e-6
@@ -1422,7 +1428,7 @@ async function viewCheck() {
   for (let st = 0; st < 15; st++) await key('ArrowRight');
   await until('w.viewport.x', 'panned away again');
   await displayTold(pans0, 'the pan told'); /* before Fit (macos-ui, W93) */
-  await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host .plot-fit').click()`);
+  await fit('.plot-view:not([hidden]) .plot-host .plot-fit');
   check('Fit again with the axes already fitted still brings the data back (the page drops its pan)',
     await until('w.viewport.x === null && w.viewport.y === null && !s.busy', 'second corner fit'),
     JSON.stringify(await S('w.viewport')));
