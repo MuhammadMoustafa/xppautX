@@ -145,9 +145,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         {noCurves && (
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
-            {!busy && (
-              <button class="primary" onClick={() => session.buttonKeys('Integrate', session.mainKey('initialconds'), 'g')}>Integrate (I, G)</button>
-            )}
+            {!busy && <p>Choose a run action above the plot.</p>}
           </div>
         )}
       </div>

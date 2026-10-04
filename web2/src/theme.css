@@ -162,7 +162,7 @@ kbd {
   /* the values row takes what its content needs, but at most 40% of the height:
      the plot row keeps the rest (W98: an auto row let a tall Values panel
      squeeze the plot to nothing between 48rem and 80rem) */
-  grid-template-rows: auto minmax(10rem, 1fr) minmax(0, fit-content(40%)) auto;
+  grid-template-rows: auto minmax(10rem, 1fr) fit-content(40%) auto;
   grid-template-areas: 'title title' 'menu work' 'menu values' 'status status';
 }
 .title-bar {
@@ -549,6 +549,20 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   border-radius: var(--radius);
   background: var(--surface-2);
   border: 1px solid var(--border);
+}
+.run-toolbar { position: sticky; top: 0; z-index: 5; flex: none; container-type: inline-size; padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+/* Fit two actions even in the narrow desktop plot column; wrap labels rather
+   than stacking four rows above the trajectory. */
+.run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.run-actions button { font-size: var(--text-sm); padding-inline: var(--space-2); white-space: normal; }
+/* A wide plot fits the natural button widths on one row. */
+@container (min-width: 28rem) { .run-actions { display: flex; } .run-actions button { flex: 1; white-space: nowrap; } }
+.run-context { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.run-context strong { color: var(--fg); }
+/* Short stacked desktops reserve room for the run toolbar and trajectory;
+   Values remains scrollable below. Wide side-by-side layouts are unchanged. */
+@media (min-width: 48rem) and (max-width: 79.99rem) and (max-height: 40rem) {
+  .shell { grid-template-rows: auto minmax(10rem, 1fr) fit-content(25%) auto; }
 }
 .banner.error { background: var(--danger-bg); border-color: var(--danger); }
 /* the recording bar (RecordBar.tsx, docs/mockups/record-play.html) */

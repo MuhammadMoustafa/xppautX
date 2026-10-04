@@ -25,13 +25,13 @@ import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec}
 import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import {sampledTailRate, STATE_TAIL_INTERVALS} from '../store/series';
 import type {NumericsField} from '../protocol/types';
-import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
-const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Integrate starts from Initial; Use current state copies Now into Initial.';
+const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from current uses the last state and starts a new trajectory.';
 
 /* ---- folded sections, remembered per viewer ---- */
 
@@ -207,16 +207,12 @@ function useNow(): (number | null)[] {
 function StateSection() {
   const session = useSession();
   const ics = useStore(s => s.core?.ics);
-  const hasNow = useStore(s => !!s.core?.now);
-  const busy = !useMayMain()('initialconds'); /* Initialconds/Last: a computation (W95) */
   const now = useNow();
   const series = useStore(s => s.plots.windows.find(w => w.win === s.plots.active)?.series ?? null);
   if (!ics?.length) return null;
   return (
     <Section id="ic" title="States" hint={STATE_HINT} tools={(
       <>
-        <button class="small" disabled={busy || !hasNow} onClick={() => session.useCurrentState()}
-          title="Copy Now into Initial (as Initialconds/Last does), without running">← Use current state</button>
         <FileTools kind="ic" />
         <button class="small" onClick={() => session.defaultValues('ic')} title="Every initial condition from the ODE file">
           Reset all

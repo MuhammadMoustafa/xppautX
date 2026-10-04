@@ -1,10 +1,9 @@
-/* The top bar: the menu drawer's button (narrow screens), the model, the
-   most used command, the theme, and the panels' toggles. */
+/* The top bar: the menu drawer's button (narrow screens), model, theme,
+   workspace tools and panels. Common run actions belong to RunToolbar. */
 import type {Theme} from '../store/state';
-import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
+import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {saveTheme} from './theme';
 import {baseName} from '../store/files';
-import {menuCommand} from '../protocol/kinds';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
 /* the theme is an icon, not a word: "Auto" beside the feature buttons read as AUTO (T21) */
@@ -44,8 +43,6 @@ export function TitleBar() {
   const aniOpen = useStore(s => s.ani.open);
   const helpOpen = useStore(s => s.help.open);
   const may = useMay();
-  const mayMain = useMayMain();
-  const busy = !mayMain('initialconds'); /* Integrate is a computation (W95) */
   const recording = useStore(s => !!s.core?.recording);
   const mayRecord = may({cmd: 'record', op: 'start'});
   const mayPlay = may({cmd: 'play', op: 'open'});
@@ -61,12 +58,6 @@ export function TitleBar() {
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
       <span class="muted file">{title}</span>
       <span class="spacer" />
-      {/* aria-disabled, not disabled: a disabled button loses the focus, and the
-          letters typed next (XPP's keys, which a focused button passes on) with it */}
-      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.menuAction('main', 'initialconds', 'g'); }}
-        title={busy ? BUSY_TITLE : 'Integrate from the initial conditions (I, G)'}>Integrate</button>
-      <button class="save-session" disabled={!may(menuCommand('file', 'savesession'))}
-        onClick={() => session.menuAction('file', 'savesession')} title="Save this workspace to a .snapx session (Ctrl/Cmd+S)">Save session as…</button>
       <details class="workspace-tools"><summary>Tools</summary><div class="workspace-tools-menu">
       {!recording && (
         <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}

@@ -389,9 +389,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         {empty && (
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
-            {!busy && !erased && (
-              <button class="primary" onClick={() => session.menuAction('main', 'initialconds', 'g')}>Integrate (I, G)</button>
-            )}
+            {!busy && !erased && <p>Choose a run action above the plot.</p>}
           </div>
         )}
       </div>

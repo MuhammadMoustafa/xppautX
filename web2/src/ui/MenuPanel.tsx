@@ -29,8 +29,11 @@ export function MenuPanel() {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
-  const groups = navigationGroups(hello, query);
   const name = menuName(hello, which);
+  const groups = navigationGroups(hello, query).map(group => ({...group,
+    items: !query.trim() && group.name === 'Run'
+      ? group.items.filter(item => item.id === 'initialconds' || name === 'num' && item.menu === 'num')
+      : group.items}));
   const navigate = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement && e.key !== 'ArrowDown') return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
@@ -69,7 +72,7 @@ export function MenuPanel() {
                 button.tabIndex = button === e.currentTarget ? 0 : -1;
               });
             }} onClick={() => {close(); session.menuAction(item.menu, item.id);}}>
-            <span>{item.label}</span><kbd aria-hidden="true">{shortcut}</kbd>
+            <span>{!query.trim() && item.id === 'initialconds' ? 'More run options…' : item.label}</span><kbd aria-hidden="true">{shortcut}</kbd>
           </button></li>;
         })}</ul>
       </details>)}

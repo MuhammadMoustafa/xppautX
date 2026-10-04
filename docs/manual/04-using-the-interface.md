@@ -115,9 +115,10 @@ beside the plot (a sheet on a phone):
   columns: **Initial**, the initial conditions you edit, and **Now**, the
   last point of the latest run (read only). `Go` runs from Initial;
   `Last` (Initialconds/Last) copies Now into Initial, then runs;
-  **← Use current state** sends the same keys, `i` then `l`: it copies Now
-  into Initial and runs (a button sends its key's command; there is no
-  copy-without-running).
+  **Run from current** in the permanent toolbar performs that same Last
+  action: it copies Now into Initial and runs. **Continue…** extends the
+  existing trajectory to a chosen end time instead. There is no
+  copy-without-running action.
 - A value is set when you leave the field (Tab, Enter or a click
   elsewhere): the field shows it, and the next computation uses it. The
   values are *settings*: you can edit them while a computation runs too,

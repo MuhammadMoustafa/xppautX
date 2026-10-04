@@ -926,11 +926,6 @@ export class Session {
     this.edit({kind: 'num', name: key, text});
   }
 
-  /** "Use current state": Initialconds/Last (`i` `l`), the ICs from where the last run ended */
-  useCurrentState(): void {
-    this.keys(this.mainKey('initialconds'), 'l');
-  }
-
   /** Save of a section: the core writes its own .par/.ic (docs/protocol.md
       "values"; core/lunch-new.cpp io_parameter_file/io_ic_file), then, at
       the command's idle, the page offers it as a download -- the same

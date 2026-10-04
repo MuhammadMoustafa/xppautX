@@ -27,6 +27,7 @@ import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
 import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
+import {RunToolbar} from './RunToolbar';
 
 /* a model that did not load (W63c): where, the line as written with a
    caret under the column when there is one, and what is wrong */
@@ -70,6 +71,7 @@ function Shell() {
       <MenuPanel />
       <main id="main" class="workspace">
         <Banner />
+        <RunToolbar />
         <RecordBar />
         <AutoShow />
         <PlayerStage dark={dark} />

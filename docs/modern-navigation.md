@@ -22,7 +22,8 @@ there is no remembered destination or silent overwrite in this change.
 Recent files and save-in-place require separate persistent document state
 and are not invented here.
 
-Run contains integration, continuation, initial conditions, and parameters.
+Run exposes More run options; search also reaches the original parameter,
+continuation and solver commands. Values is their main editing surface.
 Analysis contains equilibria/stability, nullclines, direction fields/flow,
 AUTO continuation, boundary-value problems, stochastic/Poincare/adjoint
 tools. Plot contains axes, curves/export, phase space, labels, windows,
@@ -32,8 +33,15 @@ named parameter sets, preferences, tutorial, recording and playback.
 ## Workspace
 
 The header identifies the model by filename, with its full path available
-as a tooltip. Integrate, Save session as, Data, Model and Help remain
-immediate actions. Recording, array plots and animation remain discoverable
+as a tooltip. Data, Model and Help remain immediate actions; session save
+lives in Files. A permanent toolbar above the plot contains Run from
+initial (I/G), Run from current (I/L), Continue (C), and Stop. I/L copies
+the last state into Initial and starts a new trajectory at the configured
+start time; Continue extends the existing trajectory to a chosen end time.
+These current-state actions require a previous run. Idle/Running/Awaiting
+input and the last stored time make activity visible. Parameter edits apply
+to the next run. The former repeated run buttons in the header, empty plot
+and States panel are removed. Recording, array plots and animation remain discoverable
 in the grouped navigation rather than taking permanent header space.
 The plot title remains with the plot itself. Values remain beside the plot
 on wide screens and use the existing sheet on narrow screens.
@@ -96,7 +104,7 @@ commands but must not gain arbitrary filesystem authority.
 | Card | Work | Dependencies | Acceptance |
 |---|---|---|---|
 | W186 | Stable menu-item dispatch and plain command labels | None | Actions target their identified menu regardless of current shortcut state; unknown IDs fail; kinds, recording and legacy keys preserved |
-| W187 | Grouped searchable navigation and workspace hierarchy | W186 | Every existing command reachable; no sidebar replacement; Files/Run/Analysis/Plot/Tools; primary header emphasizes model/run/save |
+| W187 | Grouped searchable navigation and workspace hierarchy | W186 | Every existing command reachable; no sidebar replacement; Files/Run/Analysis/Plot/Tools; model header and permanent run toolbar |
 | W188 | Native session file actions and conventional shortcuts | W186 | Open/save sessions visible in native menus; OS picker reused; cancel/overwrite semantics preserved; Ctrl/Cmd+O/S |
 | W189 | Fast keyboard pane and command navigation | W187 | F6/Shift+F6 cycles visible work areas; Ctrl/Cmd+K searches; arrow navigation; modal focus unaffected |
 | W190 | Solver clarity and working-value recovery | W187 | Unused settings explicitly explained; checkpoint captures/restores par/IC values and cannot cross model loads |

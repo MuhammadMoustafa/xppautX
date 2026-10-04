@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Give common run actions one permanent toolbar: Run from initial, Run from current (Last), Continue and Stop; show activity and last stored time, remove duplicate run controls, and keep parameters/solver settings in Values with full command search (W192, local follow-up card).
+
 - Keep shortcut context visible with File/Numerics mode indicators, a Main commands/Esc action, mode-aware hints and explicit submenu cancellation guidance (W189, #242).
 
 - Put Run first and prioritize a compact States/Parameters panel; show ten-digit inspection values and sampled tail rates, and fold Numerics/Recovery to keep the reference model's values visible without scrolling (W187/W190, #240/#243).

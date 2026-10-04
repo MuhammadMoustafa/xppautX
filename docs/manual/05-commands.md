@@ -27,12 +27,25 @@ the browser picker or a download. Ctrl/Cmd+O opens a model and Ctrl/Cmd+S
 opens the session save dialog. The native desktop File menu also exposes
 session open/save actions.
 
-The header identifies the model and gives immediate access to Integrate,
-Save session as, Data, Model (equations/source), and Help. Tools contains
+The header identifies the model and gives access to Data, Model
+(equations/source), and Help. Files holds session open/save. Tools contains
 recording, playback, array plots and animation. F6 moves between Commands,
 Plot, Values and open Data/Model panels; Shift+F6 moves backwards. Within
 command results use the arrow keys, Home and End. These shortcuts leave
 modal dialogs in control of their focus.
+
+The run toolbar stays above the plots. **Run from initial** (`I, G`)
+starts a new trajectory from Initial values. **Run from current** (`I, L`)
+copies the last state into Initial and starts a new trajectory at the
+configured start time. **Continue…** (`C`) asks for an end time and extends
+the existing trajectory. Both current-state actions require a prior run.
+**Stop** stops a running command or cancels its prompt. The toolbar shows
+Idle/Running/Awaiting input and the last stored time in the active plot;
+stored time has sampled trajectory precision. Parameter edits apply to
+the next run. **Run → More run options…** opens the advanced choices.
+Parameters and Numerics have their main home in Values; command search
+still reaches their legacy actions. Numerics shortcut mode also displays
+its applicable commands in the sidebar.
 
 Values shows **States** first (Initial, Current and sampled Tail rate),
 then **Parameters** for changing the next run. Inspection uses ten

@@ -733,3 +733,14 @@ organized by user tasks; existing one-letter shortcuts remain available.
 | W191 | #244 | Focused validation, export wording, docs and visual review | W187–W190 | implemented locally; [validation and limits](modern-navigation-validation.md) |
 
 All six cards remain open pending review and integration of `codex/modern-navigation`.
+
+### W192 — Consolidate common run actions (approved 2026-10-04)
+
+Local follow-up card; no additional GitHub issue published. Depends on W186–W191.
+Permanent initial/current/continue/stop toolbar; remove repeated run controls;
+keep Values as the parameter/solver editing home and Files as the session
+home; retain every command in search and preserve legacy shortcuts.
+Acceptance: Last starts a new run from the previous state, Continue appends
+to the existing trajectory, unavailable/busy actions are guarded, recording
+and responsive layouts work. Implemented locally; validation recorded in
+[modern-navigation-validation.md](modern-navigation-validation.md).

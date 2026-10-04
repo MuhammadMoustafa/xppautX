@@ -3078,7 +3078,10 @@ async function busyKeys() {
       .map(b => b.dataset.item);
     return {
       status: document.querySelector('[data-testid=status]').textContent, off,
-      integrate: document.querySelector('.title-bar button.primary').getAttribute('aria-disabled'),
+      integrate: document.querySelector('.run-toolbar button.primary').getAttribute('aria-disabled'),
+      current: document.querySelector('[data-run=current]').getAttribute('aria-disabled'),
+      continue: document.querySelector('[data-run=continue]').getAttribute('aria-disabled'),
+      toolbarStop: document.querySelector('[data-run=stop]').disabled,
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
@@ -3087,8 +3090,8 @@ async function busyKeys() {
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) and Save are disabled, Parameters (a setting, W106) is not',
-    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.save
-    && ['initialconds', 'continue', 'phasespace', 'singpts', 'bndryval'].every(id => ui.off.includes(id)) && !ui.off.includes('parameters'), JSON.stringify(ui));
+    running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.current === 'true' && ui.continue === 'true' && !ui.toolbarStop && ui.save
+    && ['initialconds', 'phasespace', 'singpts', 'bndryval'].every(id => ui.off.includes(id)) && !ui.off.includes('parameters'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* a view clicked during the run is sent, and the core runs it after the run (the menu it
@@ -3130,7 +3133,7 @@ async function busyKeys() {
     JSON.stringify({dragged, edited, shownDrag, stillBusy}));
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
-  await key('Escape');
+  await cdp.eval(`document.querySelector('[data-run=stop]').click()`);
   const stopped = await until(`__xpp.actions().slice(${n0}).includes('event:idle') && !s.busy`, 'the run stopped', 30000);
   /* Stop goes straight to the transport (session.abort), so sent() has nothing: the run's `stopped` shows it */
   /* (the New window's own menu, answered by its key once the core runs it after the run, is no typed key) */
@@ -3251,7 +3254,7 @@ async function recordCheck(dir) {
     t.value = 'First run.\\nIt settles.'; t.dispatchEvent(new Event('input', {bubbles: true})); t.blur(); })()`);
   check('record: the note goes to the core when the box is left, and waits for the next step',
     await until(`s.core.recording.note === 'First run.\\nIt settles.' && !s.busy`, 'note'), JSON.stringify(await S('s.core.recording')));
-  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   check('record: a step taken (Integrate): 1 step, the note gone with it, the box empty',
     await until(`s.core.recording.steps === 1 && s.core.recording.note === '' && !s.busy`, 'step', 20000)
     && await cdp.eval(`document.querySelector('.recbar textarea').value === '' && document.querySelector('.recbar .rec-count').textContent.trim() === '1 step'`),
@@ -3305,7 +3308,7 @@ async function playerCheck(dir) {
   await cdp.eval(`(() => { const t = document.querySelector('.recbar textarea');
     t.value = 'The cell fires once.'; t.dispatchEvent(new Event('input', {bubbles: true})); t.dispatchEvent(new FocusEvent('blur')); })()`);
   await until(`s.core.recording.note === 'The cell fires once.' && !s.busy`, 'note');
-  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   await until(`s.core.recording.steps === 1 && !s.busy`, 'integrated', 20000);
   await key('e');
   await until(`s.core.recording.steps === 2 && !s.busy`, 'erased');
@@ -3490,6 +3493,15 @@ async function navigationCheck() {
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
   check('navigation: Run first, States first, and recovery folded', await cdp.eval(`
     document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic' && !document.querySelector('.working-values').open`));
+  check('navigation: common run actions have one visible home and require a prior state where appropriate', await cdp.eval(`(() => {
+    const toolbar = document.querySelector('.run-toolbar');
+    return toolbar.getBoundingClientRect().height > 0 && toolbar.querySelectorAll('.run-actions button').length === 4 &&
+      toolbar.querySelector('[data-run=current]').getAttribute('aria-disabled') === 'true' &&
+      toolbar.querySelector('[data-run=continue]').getAttribute('aria-disabled') === 'true' &&
+      toolbar.querySelector('[data-run=stop]').disabled &&
+      !document.querySelector('.title-bar button.primary, .plot-empty button, [data-section=ic] .value-tools button[title*="without running"]') &&
+      !document.querySelector('.menu-item[data-item=parameters], .menu-item[data-item=continue], .menu-item[data-item=dt]');
+  })()`));
   check('navigation: every state and parameter fits without scrolling on the reference desktop', await cdp.eval(`(() => {
     const box = document.querySelector('.values-body').getBoundingClientRect();
     return [...document.querySelectorAll('[data-section=par] .value-field input, [data-section=ic] .value-field input, .value-now')].every(el => {
@@ -3507,13 +3519,24 @@ async function navigationCheck() {
   await key('u');
   await until('s.core.menu === 2 && !s.busy', 'legacy numerics mode');
   const before = await S('s.seriesCount');
-  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   check('navigation: clicked Integrate works in Numerics shortcut mode', await until(`s.seriesCount > ${before} && !s.busy && s.core.menu === 0`, 'stable integrate', 20000));
   const finalStates = await S('s.core.now');
   const displayedStates = JSON.parse(await nowCells()).map(Number);
   check('navigation: current states retain ten-digit inspection precision', displayedStates.every((value, i) => Math.abs(value - finalStates[i]) <= 5e-10 * Math.max(1, Math.abs(finalStates[i]))), JSON.stringify(displayedStates));
   check('navigation: each state has a sampled tail rate, not a convergence claim', await cdp.eval(`
     [...document.querySelectorAll('.value-rate')].every(el => Number.isFinite(Number(el.textContent))) && document.querySelector('.state-rate-hint').textContent.includes('extend the run')`));
+  const rowsBeforeContinue = await S('w.series.rows');
+  const endTime = await S('w.series.columns.get(0)[w.series.rows - 1] + 10');
+  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
+  check('navigation: Continue asks for an end time and reports awaiting input', await until('s.ask && s.ask.kind === "string"', 'continue end time') &&
+    await cdp.eval(`document.querySelector('.dialog').textContent.includes('Continue until') && document.querySelector('.run-context strong').textContent === 'Awaiting input'`));
+  await cdp.eval(`(() => { const input = document.querySelector('.dialog input'); input.value = ${JSON.stringify(String(endTime))}; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  await rendered();
+  await key('Enter');
+  check('navigation: Continue appends to the trajectory and the toolbar shows the last stored time', await until(`!s.busy && w.series.rows > ${rowsBeforeContinue}`, 'continued trajectory', 20000) &&
+    await S(`Math.abs(w.series.columns.get(0)[w.series.rows - 1] - ${endTime}) < 1e-4`) &&
+    await cdp.eval(`document.querySelector('.run-context').textContent.includes('Stored t =') && document.querySelector('.run-context strong').textContent === 'Idle'`));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('.working-values summary').click(); document.querySelector('.working-values button').click()`);
@@ -3580,11 +3603,11 @@ async function keysCheck() {
   await until('!s.ask && !s.busy', 'cancel settings picker');
   await until('s.core.menu === 0 && !s.busy', 'main menu');
   /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
-  await cdp.eval(`document.querySelector('.title-bar button.primary').focus()`);
+  await cdp.eval(`document.querySelector('.run-toolbar button.primary').focus()`);
   await key('f');
   check('keys: F typed while a button has the focus acts too (File menu), the focus stays',
     await until('s.core.menu === 1 && !s.busy', 'file menu from button')
-    && await cdp.eval(`document.activeElement.matches('.title-bar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
+    && await cdp.eval(`document.activeElement.matches('.run-toolbar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
   await key('Escape');
   await until('s.core.menu === 0 && !s.busy', 'main menu 2');
   /* W67: File/cOpy set line by its menu button: the core asks the set's name, shows the line,
@@ -3798,13 +3821,13 @@ async function runsCheck(dir) {
   check('runs: Redraw shows the current data again',
     await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
 
-  /* "Use current state" is Initialconds/Last (i, l, W60): the ICs become the Now it was clicked at, and a run follows */
+  /* Run from current is Initialconds/Last: the ICs become Now and a new run follows. */
   const nowBefore = await S('s.core.now'), n1 = await S('s.seriesCount');
   const sentUse = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`[...document.querySelectorAll('[data-section="ic"] .value-tools button')].find(b => b.textContent.includes('Use current state')).click()`);
-  check('runs: "Use current state" sends Initialconds/Last (keys i, l), the ICs become the Now it started from and it runs',
+  await cdp.eval(`document.querySelector('[data-run=current]').click()`);
+  check('runs: Run from current targets Initialconds/Last, copies Now into Initial and runs',
     await until(`!s.busy && s.seriesCount > ${n1}`, 'use state')
-    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentUse})`)).map(c => c.key)) === JSON.stringify(['i', 'l'])
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentUse})`)).map(c => c.cmd === 'key' ? c.item ?? c.key : c.cmd)) === JSON.stringify(['initialconds', 'answer'])
     && JSON.stringify(await S('s.core.ics.map(p => p[1])')) === JSON.stringify(nowBefore),
     JSON.stringify([await S('s.core.ics'), nowBefore]));
 

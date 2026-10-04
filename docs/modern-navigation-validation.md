@@ -17,8 +17,9 @@ They remain open while the implementation is local and unmerged.
 Commands are grouped into searchable Files, Run, Analysis, Plot and Tools.
 The sidebar stays stable when legacy letter shortcuts change modes.
 The core owns plain labels, identities, shortcut keys and action kinds;
-the page only groups the identities. The header emphasizes the model,
-Integrate and Save session as. Specialized workspace tools use a disclosure.
+the page only groups the identities. The header identifies the model;
+the W192 follow-up puts common run actions in one toolbar above the plot
+and session save in Files. Specialized workspace tools use a disclosure.
 
 Native Windows/GTK/macOS File menu code exposes session open/save through
 the existing prompt/picker route. Ctrl/Cmd+O and Ctrl/Cmd+S use the same
@@ -88,6 +89,56 @@ modernizes the main navigation and common workflow, not every scientific
 dialog. No push or merge was performed.
 
 ## Visual evidence
+
+### Permanent run toolbar (W192)
+
+Common actions now have one permanent home above the plot: Run from initial
+(I/G), Run from current (I/L), Continue (C), and Stop. The misleading former
+Use current state tooltip said it copied without running; the core and the
+existing runs regression prove Last copies the last state into Initial and
+starts a new trajectory. The new label and manual describe that behavior.
+Continue asks for an end time and appends to the existing trajectory.
+Current/Continue require a prior state; computation actions are guarded
+while busy. Activity and the active plot's last stored time are visible;
+the time is sampled data, not a solver clock with double precision.
+
+Removed duplicate run controls from the header, empty 2D/3D plots and States.
+The default sidebar keeps More run options; parameter and solver editing
+lives in Values, session save in Files, and search retains every original
+command. Numerics prefix mode still exposes its applicable commands.
+
+Searched/reused Session.menuAction, command kinds/useMayMain, existing Last
+and Continue implementations in core/integrate.cpp, abort, inspectNumber,
+and the active plot series. No run algorithm or protocol was added. Removed
+the now-unused useCurrentState wrapper. No new filesystem or external
+service access is involved in the toolbar.
+
+Typecheck, 318 UI unit tests and the strict UCRT build pass. Combined final
+section results total 170 browser checks for navigation, keys, runs, busy,
+layout, recording, playback and 3D. Run-from-current checks exact starting
+ICs; Continue checks appended rows and end time; busy tests guard all three
+run buttons and stop through the toolbar. Recording/playback retain the
+existing stable identities. The layout matrix includes widths 600–2000
+at heights 560 and 900, plus the existing tall-window cases.
+
+Early layout runs found that the toolbar squeezed short stacked desktops.
+Compact buttons and a smaller Values height cap address this. The original
+grid rule used invalid minmax(0, fit-content(...)) syntax, so the cap did not
+apply; it is now a valid fit-content track. The final layout-only rerun
+passes all 23 checks. Short stacked Values may scroll; side-by-side reference
+States/Parameters still fit. Browser visual checks at 1280×720 and 390×844
+confirm the controls and no narrow horizontal overflow. These screenshots
+are browser evidence. Desktop native pickers are unchanged in this card.
+
+Logs: `build/run-toolbar-unit.log`, `build/run-toolbar-build-final.log`,
+`build/run-toolbar-browser.log` (keys/runs/record/player pass; superseded
+layout failures), `build/run-toolbar-browser-final.log` (3D pass),
+`build/run-toolbar-acceptance.log` (navigation/busy pass; superseded layout
+failures), and `build/run-toolbar-layout-verified.log` (final layout pass).
+
+![Permanent desktop run toolbar](modern-navigation/run-toolbar.png)
+
+![Narrow run toolbar](modern-navigation/run-toolbar-narrow.png)
 
 ### States and parameters follow-up
 
