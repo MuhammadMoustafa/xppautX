@@ -11,6 +11,9 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Add one-click Run to steady state, with decimal precision, unchanged-digits hold duration and a maximum duration; show why it stopped and compare full core state values at every Dt (W193, local follow-up card).
+- Put run duration and Continue For another / Until time directly in the toolbar. Direct continuation stores every Dt to avoid legacy output-stride overshoot; configured numerical settings and legacy C remain unchanged (W194, local follow-up card).
+
 - Give common run actions one permanent toolbar: Run from initial, Run from current (Last), Continue and Stop; show activity and last stored time, remove duplicate run controls, and keep parameters/solver settings in Values with full command search (W192, local follow-up card).
 
 - Keep shortcut context visible with File/Numerics mode indicators, a Main commands/Esc action, mode-aware hints and explicit submenu cancellation guidance (W189, #242).

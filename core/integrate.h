@@ -4,6 +4,8 @@
 #include <array>
 #include <cstdio>
 #include <memory>
+#include <limits>
+#include <span>
 #include <optional>
 #include <string>
 #include <utility>
@@ -16,6 +18,35 @@
 namespace xpp {
 
 struct Session; /* session.h */
+
+/* Decimal places, not significant digits. Double has digits10 reliable
+   decimal digits; asking for more would imply unsupported precision. */
+inline constexpr int MAX_STEADY_DECIMALS = std::numeric_limits<double>::digits10;
+inline constexpr int DEFAULT_STEADY_DECIMALS = 9; /* User's requested initial precision. */
+inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of unchanged digits. */
+struct SteadyStateSettings {
+  int decimals;
+  double hold, maximum;
+};
+struct SteadyStateResult {
+  std::string status;
+  int decimals;
+  double time = 0;
+};
+/* Compares full core states formatted to the requested fixed decimal
+   places at every configured Dt interval, never the float plot samples. */
+class SteadyStateMonitor {
+ public:
+  explicit SteadyStateMonitor(SteadyStateSettings settings): settings_(settings) {}
+  void begin(std::span<const double> state, double time);
+  bool observe(std::span<const double> state, double time);
+ private:
+  SteadyStateSettings settings_;
+  std::vector<std::string> previous_;
+  double previous_time_ = 0, unchanged_ = 0;
+};
+Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);
+Result<> run_to_steady_state(Session &s, SteadyStateSettings settings);
 
 /* a line of initial data x[j1..j2](0)=formula (the parser's, which
    search_array hands it) kept in m's array initial values */
@@ -34,7 +65,8 @@ void send_halt(Session &s);
 void write_equilibrium(Session &s, const char *name, int shoot);
 void init_range(Session &s);
 int set_up_eq_range(Session &s);
-void cont_integ(Session &s);
+void cont_integ(Session &s, std::optional<double> until = std::nullopt);
+Result<> continue_to(Session &s, double until);
 int range_item(Session &s);
 int range_item2(Session &s);
 int set_up_range(Session &s);
@@ -133,6 +165,10 @@ struct FlagState {
 
 /* the integrator's state, a Session's (session.h) */
 struct IntegratorState {
+  /* Present only during an explicitly requested unchanged-digits run;
+     its final result is session-local, cleared by the next ordinary run. */
+  std::optional<SteadyStateMonitor> steady;
+  std::optional<SteadyStateResult> steady_result;
   /* the method's solver, with its work memory (xpp::start_solver) */
   std::unique_ptr<Solver> solver;
   /* the right-hand side the solvers step: my_rhs of this Session */

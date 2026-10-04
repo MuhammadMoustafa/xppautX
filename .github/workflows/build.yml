@@ -277,7 +277,7 @@ jobs:
           echo "md5 on this platform: $(md5 -q output.dat) (linux baseline c281851de59ffd03b2a46428619a0c8f)"
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python3 tools/servercheck.py && python3 tools/webcheck.py
+        run: python3 tools/servercheck.py && python3 tools/steadycheck.py && python3 tools/webcheck.py
       - name: Command-line modes (--help, --browser, --no-open)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh
@@ -397,7 +397,7 @@ jobs:
           test "$(tr -d '\r' < output.dat | md5sum | cut -d' ' -f1)" = c281851de59ffd03b2a46428619a0c8f
       - name: Server protocol and web front end
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: python tools/servercheck.py --server ./xppautX.exe && python tools/webcheck.py --bin ./xppautX.exe
+        run: python tools/servercheck.py --server ./xppautX.exe && python tools/steadycheck.py --server ./xppautX.exe && python tools/webcheck.py --bin ./xppautX.exe
       - name: "Command-line modes (--help, --no-open; --browser's ShellExecute skipped)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: sh tools/modecheck.sh xppautX.exe
@@ -511,13 +511,14 @@ jobs:
             fi
           }
           run_check servercheck python tools/servercheck.py --server "$bin" &
+          run_check steadycheck python tools/steadycheck.py --server "$bin" &
           run_check webcheck python tools/webcheck.py --bin "$bin" &
           run_check autocheck python tools/autocheck.py --server "$bin" &
           # Linux's tests/examples.md5, no baseline of its own since W159
           run_check examples tools/examples_check.sh --bin "$bin" --write examples.windows-clang.md5 --keep examples-differ &
           wait
           fail=0
-          for name in servercheck webcheck autocheck examples; do
+          for name in servercheck steadycheck webcheck autocheck examples; do
             cat "$name.verdict"
             grep -q FAILED "$name.verdict" && fail=1
           done

@@ -104,6 +104,13 @@ else
   echo "SERVER CHECK FAILED"
   exit 1
 fi
+if python3 tools/steadycheck.py > build/steadycheck.log 2>&1; then
+  echo "steady and continuation ok: $(grep -c '^PASS' build/steadycheck.log) checks"
+else
+  grep -v '^PASS' build/steadycheck.log
+  echo "STEADY CHECK FAILED"
+  exit 1
+fi
 if python3 tools/webcheck.py > build/webcheck.log 2>&1; then
   echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
 else

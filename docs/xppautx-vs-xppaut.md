@@ -65,7 +65,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Open another model | by restarting the program | File > Open model and Reload in the same process; a failed load keeps the model before | W61 |
 | Leaving | closes the window | one question, "Save this session first?"; a run is never stopped by it | W59d, W110 |
 | File dialogs | XPPAUT's own file selector | the OS's own dialog in the window, the browser's picker in browser mode | W88, W90 |
-| Navigation | menus arranged around letter shortcuts | permanent initial/current/continue/stop run toolbar; consolidated Values and Files actions; searchable Run, Files, Analysis, Plot and Tools; stable clicked actions and existing letter shortcuts | W186–W189, W192 |
+| Navigation | menus arranged around letter shortcuts | permanent initial/current/steady/continue/stop run toolbar; inline duration and extra/until continuation; full-core unchanged-digits hold with bounded duration and termination reason; consolidated Values and Files actions; searchable groups; stable clicked actions and existing shortcuts | W186–W189, W192–W194 |
 | Experimental values | reset or manually re-enter values | explicit temporary parameter/initial-condition checkpoint and restore, alongside model-default Reset | W190 |
 | Inspecting states and parameters | separate legacy value windows | compact States/Parameters panel with ten-digit inspection and full-precision editing; sampled per-state tail rates indicate recent motion without certifying convergence | W187, W190 |
 | Busy | the program does not answer while it computes | Stop at any time; a command sent during a run is discarded at the source, except control, view and setting commands | W68, W95 |

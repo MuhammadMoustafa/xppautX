@@ -18,6 +18,7 @@ export interface HelloEvent {
   title: string;
   file: string;
   output_names: {par: string; ic: string; csv: string; curves: string};
+  steady: {max_decimals: number; default_decimals: number; default_hold: number};
   /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
   about: string;
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
@@ -72,6 +73,9 @@ export interface StateEvent {
   /** the current state, one value per `ics` entry: where the last run ended
       (what Initialconds/Last starts from); absent before any run */
   now?: number[];
+  /** Full core time, distinct from the float32 stored trajectory time. */
+  time?: number;
+  steady?: {status: 'settled' | 'limit' | 'stopped' | 'failed' | 'storage-limit'; decimals: number; time: number};
   view: View;
   rows: number;
   menu: number;

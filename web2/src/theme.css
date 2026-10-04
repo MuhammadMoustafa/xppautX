@@ -556,13 +556,28 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .run-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .run-actions button { font-size: var(--text-sm); padding-inline: var(--space-2); white-space: normal; }
 /* A wide plot fits the natural button widths on one row. */
-@container (min-width: 28rem) { .run-actions { display: flex; } .run-actions button { flex: 1; white-space: nowrap; } }
+@container (min-width: 28rem) {
+  .run-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .run-actions button { flex: 1 0 auto; padding-inline: var(--space-1); white-space: nowrap; }
+  .run-actions button.danger { flex: none; min-width: var(--target); }
+}
+.run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); }
+.run-time-controls label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.run-time-controls input { width: 5rem; min-width: 0; }
+.run-time-controls select { width: 7rem; }
+.run-time-controls input, .run-time-controls select, .steady-fields input { min-height: var(--target); padding: var(--space-1) var(--space-2); border: 1px solid var(--field-border); border-radius: var(--radius); font: inherit; color: var(--fg); background: var(--bg); }
+.steady-settings { margin-top: var(--space-2); font-size: var(--text-xs); }
+.steady-settings summary { cursor: pointer; }
+.steady-settings p, .steady-result { margin-top: var(--space-2); font-size: var(--text-xs); }
+.steady-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+.steady-fields label { display: grid; gap: var(--space-1); min-width: 0; }
+.steady-fields input { min-width: 0; width: 100%; }
 .run-context { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
 .run-context strong { color: var(--fg); }
 /* Short stacked desktops reserve room for the run toolbar and trajectory;
    Values remains scrollable below. Wide side-by-side layouts are unchanged. */
 @media (min-width: 48rem) and (max-width: 79.99rem) and (max-height: 40rem) {
-  .shell { grid-template-rows: auto minmax(10rem, 1fr) fit-content(25%) auto; }
+  .shell { grid-template-rows: auto minmax(10rem, 1fr) fit-content(20%) auto; }
 }
 .banner.error { background: var(--danger-bg); border-color: var(--danger); }
 /* the recording bar (RecordBar.tsx, docs/mockups/record-play.html) */
@@ -758,7 +773,9 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { bottom: var(--p
 .plot-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .plot-host { position: relative; flex: 1; min-height: 12rem; overflow: hidden; }
 .plot-host .u-over { touch-action: none; }
-.plot-host .uplot { font-family: var(--font); }
+/* The chart follows the host's measured size; its old pixel height must not
+   feed back into flex layout. Keep the readout's intrinsic height in flow. */
+.plot-host .uplot { position: absolute; font-family: var(--font); }
 .plot-host .u-select { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* a 3D plot (T14): drag turns it, no zoom or pan, so its cursor says so */
 .plot-canvas-3d { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }

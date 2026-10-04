@@ -37,8 +37,12 @@ modal dialogs in control of their focus.
 The run toolbar stays above the plots. **Run from initial** (`I, G`)
 starts a new trajectory from Initial values. **Run from current** (`I, L`)
 copies the last state into Initial and starts a new trajectory at the
-configured start time. **Continue…** (`C`) asks for an end time and extends
-the existing trajectory. Both current-state actions require a prior run.
+configured start time. **Run duration** edits their total duration in place.
+**Continue** extends the existing trajectory in one click: use the inline
+**For another** duration or **Until time** field. Both current-state actions
+require a prior run. Time uses the configured Dt grid; direct continuation
+stores every Dt, so the output stride cannot add a whole group of steps.
+The legacy `C` shortcut still asks for an end time and uses its original stride.
 **Stop** stops a running command or cancels its prompt. The toolbar shows
 Idle/Running/Awaiting input and the last stored time in the active plot;
 stored time has sampled trajectory precision. Parameter edits apply to
@@ -46,6 +50,25 @@ the next run. **Run → More run options…** opens the advanced choices.
 Parameters and Numerics have their main home in Values; command search
 still reaches their legacy actions. Numerics shortcut mode also displays
 its applicable commands in the sidebar.
+
+**Run to steady state** starts from Initial in one click. Its inline summary
+shows decimal places (default 9), hold duration and maximum duration. Open
+the summary to change them; no confirmation dialog is required. Every state
+is rounded to that number of places after the decimal point and compared
+with the previous Dt interval, using full core values. Any change resets the
+hold. All states must remain unchanged for the full hold duration in model
+time units. This run stores every Dt, temporarily ignoring output stride;
+the configured duration and stride are restored afterwards. Adaptive solvers
+can take internal substeps; comparisons occur at requested Dt intervals.
+
+The result distinguishes unchanged digits, maximum duration reached,
+storage capacity reached, cancellation and failure. Existing bounds and
+non-finite checks remain active. Periodic systems normally reach the duration
+limit. Very slow motion or sampling a periodic system at the same phase can
+also produce unchanged digits: this is the requested numerical observation,
+not proof of an equilibrium or its stability. Decimal places are 0–15; Dt
+must advance time, hold must cover at least one Dt, and maximum must cover
+the hold. Disable Poincare, histogram and FFT output for this action.
 
 Values shows **States** first (Initial, Current and sampled Tail rate),
 then **Parameters** for changing the next run. Inspection uses ten

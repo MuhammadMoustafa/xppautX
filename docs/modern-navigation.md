@@ -35,9 +35,13 @@ named parameter sets, preferences, tutorial, recording and playback.
 The header identifies the model by filename, with its full path available
 as a tooltip. Data, Model and Help remain immediate actions; session save
 lives in Files. A permanent toolbar above the plot contains Run from
-initial (I/G), Run from current (I/L), Continue (C), and Stop. I/L copies
+initial (I/G), Run from current (I/L), Run to steady state, Continue, and Stop. I/L copies
 the last state into Initial and starts a new trajectory at the configured
-start time; Continue extends the existing trajectory to a chosen end time.
+start time. Inline Run duration and Continue For another / Until time fields
+make time changes immediate. Continue extends the existing trajectory in one
+click; legacy C retains its prompt. The steady action also runs in one click,
+with precision, hold and maximum visible in an optional settings disclosure.
+Its full-core unchanged-digits result describes why it stopped.
 These current-state actions require a previous run. Idle/Running/Awaiting
 input and the last stored time make activity visible. Parameter edits apply
 to the next run. The former repeated run buttons in the header, empty plot

@@ -12,6 +12,7 @@
    classifier, install and hello; ui_json_internal.h names
    the files that hold the rest. */
 #include "model.h"
+#include <cmath>
 #include "session.h"
 #include "ui_json.h"
 #include "json_files.h"
@@ -543,6 +544,26 @@ struct CommandInfo {
 constexpr char C = XPP_KIND_CONTROL, V = XPP_KIND_VIEW, S = XPP_KIND_SETTING, D = XPP_KIND_DATA, X = XPP_KIND_COMPUTE;
 
 const CommandInfo commands[] = {
+    {"continue", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
+        double value;
+        const bool extra=js_find(line,"extra")!=nullptr, until=js_find(line,"until")!=nullptr;
+        if(extra==until||!js_number(js_find(line,extra?"extra":"until"),&value)||(extra&&value<=0)){
+            j_command_error("continue","Needs exactly one numeric end time or positive extra duration");
+            return;
+        }
+        show_main_menu(s, MAIN_MENU);
+        xpp::ok_or_show(xpp::continue_to(s,extra?s.data_store.current_time+value:value));
+    }},
+    {"steady", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
+        double decimals, hold, maximum;
+        if (!js_number(js_find(line,"decimals"),&decimals) || !std::isfinite(decimals) || decimals<0 || decimals>xpp::MAX_STEADY_DECIMALS || decimals!=static_cast<int>(decimals) ||
+            !js_number(js_find(line,"hold"),&hold) || !js_number(js_find(line,"maximum"),&maximum)) {
+            j_command_error("steady","Needs integer decimal places, numeric hold and maximum durations");
+            return;
+        }
+        show_main_menu(s, MAIN_MENU);
+        xpp::ok_or_show(xpp::run_to_steady_state(s,{static_cast<int>(decimals),hold,maximum}));
+    }},
     {"key", nullptr, 0, STEP, key_command},
     {"answer", nullptr, C, NOT_STEP,
      [](xpp::Session &, const char *line) {
@@ -913,6 +934,8 @@ void send_hello(xpp::Session &s)
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, m.this_file);
+    buf_format(&b, ",\"steady\":{{\"max_decimals\":{},\"default_decimals\":{},\"default_hold\":{}}}",
+        xpp::MAX_STEADY_DECIMALS,xpp::DEFAULT_STEADY_DECIMALS,xpp::DEFAULT_STEADY_HOLD);
     BUF_LIT(&b, ",\"output_names\":{");
     static constexpr struct { std::string_view key, ext, what; } names[]={
         {"par",".par",""},{"ic",".ic",""},{"csv",".csv",""},{"curves",".csv","curves"}};

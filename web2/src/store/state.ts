@@ -292,6 +292,8 @@ export function busyText(running: string | null, asking: boolean): string {
 /* the name of what an answer or a command starts, for the status line
    (null: not known, or not a new run) */
 function runningName(hello: HelloEvent | null, cmd: Command, ask: AskEvent | null): string | null {
+  if (cmd.cmd === 'steady') return 'to steady state';
+  if (cmd.cmd === 'continue') return 'continuation';
   if (isWindowKey(hello, cmd, 'auto', 'run')) return 'AUTO';
   if (cmd.cmd !== 'answer' || !ask || (ask.kind !== 'menu' && ask.kind !== 'choice') || typeof cmd.key !== 'string')
     return null;

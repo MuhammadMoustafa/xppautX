@@ -271,8 +271,8 @@ const width = r => r.max - r.min;
 async function desktop(want) {
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   check('the page connects and asks for the plot as data', await until('s.hello && s.seriesCount >= 1 && !s.busy', 'hello'));
-  check('an empty plot says so and offers Integrate',
-    await cdp.eval(`!!document.querySelector('.plot-empty button')`));
+  check('an empty plot points to the permanent Run toolbar',
+    await cdp.eval(`document.querySelector('.plot-empty').textContent.includes('above the plot') && !!document.querySelector('.run-toolbar button.primary') && !document.querySelector('.plot-empty button')`));
   /* W85: with no data uPlot padded the window and rounded it to "nice"
      values (lecar's -0.25..1.2 read as about -0.4..1.4 until the first run) */
   const emptyPlot = await P(), emptyView = await S('s.core.view');
@@ -554,7 +554,7 @@ async function values() {
   await metrics({width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   let g = await gridRows();
-  check('3 sliders sit in one row at 1280px wide', g.count === 3 && g.rows === 1, JSON.stringify(g));
+  check('3 sliders wrap in the narrower plot beside the wide Values column', g.count === 3 && g.rows === 2, JSON.stringify(g));
   await metrics({width: 800, height: 860, deviceScaleFactor: 1, mobile: false});
   await rendered();
   g = await gridRows();
@@ -1674,12 +1674,18 @@ async function phone() {
   await until('w.viewport.x === null', 'reset');
   /* ... drawn: the points are placed on the view the chart shows (W20) */
   await until(`(() => { const r = __xpp.plot(); return !!r && r.x.max - r.x.min > 1.5 * ${width(z2.x)}; })()`, 'reset drawn');
+  /* Earlier parameter edits can move the trajectory outside the model's
+     original axes. Fit the data before trying to tap an actually drawn point. */
+  await cdp.eval(`[...document.querySelectorAll('.plot-view:not([hidden]) .plot-tools button')].find(b => b.textContent === 'Fit').click()`);
+  await until('!s.busy', 'phone fit');
+  await rendered();
   /* a point well inside the plot */
   const box = await area();
-  let row = 100, pt = await screenOf(0, row);
+  let row = 0, pt = await screenOf(0, row);
   /* ... and not under anything drawn over the plot (the corner Fit, T30) */
   const bare = q => cdp.eval(`(() => { const e = document.elementFromPoint(${q.x}, ${q.y}); return !!e && e.classList.contains('u-over'); })()`);
-  while (row < 600 && (pt.x < box.x + 30 || pt.x > box.x + box.w - 30 || pt.y < box.y + 30 || pt.y > box.y + box.h - 30 || !(await bare(pt)))) {
+  const marginX = Math.min(30,box.w / 10), marginY = Math.min(30,box.h / 10);
+  while (row < 600 && (pt.x < box.x + marginX || pt.x > box.x + box.w - marginX || pt.y < box.y + marginY || pt.y > box.y + box.h - marginY || !(await bare(pt)))) {
     row += 10;
     pt = await screenOf(0, row);
   }
@@ -3495,7 +3501,7 @@ async function navigationCheck() {
     document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic' && !document.querySelector('.working-values').open`));
   check('navigation: common run actions have one visible home and require a prior state where appropriate', await cdp.eval(`(() => {
     const toolbar = document.querySelector('.run-toolbar');
-    return toolbar.getBoundingClientRect().height > 0 && toolbar.querySelectorAll('.run-actions button').length === 4 &&
+    return toolbar.getBoundingClientRect().height > 0 && toolbar.querySelectorAll('.run-actions button').length === 5 &&
       toolbar.querySelector('[data-run=current]').getAttribute('aria-disabled') === 'true' &&
       toolbar.querySelector('[data-run=continue]').getAttribute('aria-disabled') === 'true' &&
       toolbar.querySelector('[data-run=stop]').disabled &&
@@ -3527,16 +3533,20 @@ async function navigationCheck() {
   check('navigation: each state has a sampled tail rate, not a convergence claim', await cdp.eval(`
     [...document.querySelectorAll('.value-rate')].every(el => Number.isFinite(Number(el.textContent))) && document.querySelector('.state-rate-hint').textContent.includes('extend the run')`));
   const rowsBeforeContinue = await S('w.series.rows');
-  const endTime = await S('w.series.columns.get(0)[w.series.rows - 1] + 10');
-  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
-  check('navigation: Continue asks for an end time and reports awaiting input', await until('s.ask && s.ask.kind === "string"', 'continue end time') &&
-    await cdp.eval(`document.querySelector('.dialog').textContent.includes('Continue until') && document.querySelector('.run-context strong').textContent === 'Awaiting input'`));
-  await cdp.eval(`(() => { const input = document.querySelector('.dialog input'); input.value = ${JSON.stringify(String(endTime))}; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  const endTime = await S('s.core.time + 10');
+  await cdp.eval(`(() => { const input = document.querySelector('[data-continue-time]'); input.value = '10'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
   await rendered();
-  await key('Enter');
+  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
   check('navigation: Continue appends to the trajectory and the toolbar shows the last stored time', await until(`!s.busy && w.series.rows > ${rowsBeforeContinue}`, 'continued trajectory', 20000) &&
+    await S(`!s.ask && Math.abs(s.core.time - ${endTime}) < 1e-8`) &&
     await S(`Math.abs(w.series.columns.get(0)[w.series.rows - 1] - ${endTime}) < 1e-4`) &&
     await cdp.eval(`document.querySelector('.run-context').textContent.includes('Stored t =') && document.querySelector('.run-context strong').textContent === 'Idle'`));
+  await cdp.eval(`(() => { const select = document.querySelector('[aria-label="Continuation time mode"]'); select.value = 'until'; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+  await rendered();
+  const nextTime = endTime + 10;
+  check('navigation: switching continuation modes preserves the chosen duration', await cdp.eval(`Math.abs(Number(document.querySelector('[data-continue-time]').value) - ${nextTime}) < 1e-8`));
+  await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
+  check('navigation: Until time runs in one click without a prompt', await until(`!s.busy && Math.abs(s.core.time - ${nextTime}) < 1e-8 && !s.ask`, 'until continuation', 20000));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('.working-values summary').click(); document.querySelector('.working-values button').click()`);
@@ -3555,6 +3565,34 @@ async function navigationCheck() {
   check('navigation: F6 moves from plot to Values pane', await cdp.eval(`document.activeElement.id === 'values-panel'`));
   await key('F6', 8);
   check('navigation: Shift+F6 moves back to plot', await cdp.eval(`document.activeElement.classList.contains('plot-host')`));
+}
+
+async function steadyCheck() {
+  await desktopMetrics();
+  await until('s.hello && s.numerics && !s.busy', 'steady hello');
+  await rendered();
+  check('steady: action and run duration are visible without opening a menu', await cdp.eval(`
+    document.querySelector('[data-run=steady]').getAttribute('aria-disabled') === 'false' &&
+    !!document.querySelector('[data-run-duration]') && !document.querySelector('.steady-settings').open`));
+  await cdp.eval(`document.querySelector('.steady-settings summary').click()`);
+  await cdp.eval(`(() => { const input = document.querySelector('[data-steady=maximum]'); input.value = '200'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  await rendered();
+  await cdp.eval(`document.querySelector('.steady-settings summary').click(); document.querySelector('[data-run=steady]').click()`);
+  check('steady: one-click action completes with unchanged-digits status and no prompt', await until(`!s.busy && s.core.steady?.status === 'settled' && !s.ask`, 'settled UI', 30000));
+  check('steady: final core precision and result are visible', await cdp.eval(`document.querySelector('.steady-result').textContent.includes('9 decimal places')`) && await S('s.core.steady.time === s.core.time'));
+  await rendered();
+  const durationBox = await cdp.eval(`(() => { const r = document.querySelector('[data-run-duration]').getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouse('mousePressed', durationBox.x, durationBox.y, {button:'left',clickCount:1});
+  await mouse('mouseReleased', durationBox.x, durationBox.y, {button:'left',clickCount:1});
+  await rendered();
+  await key('a',2);
+  await cdp.send('Input.insertText', {text:'3'});
+  await rendered();
+  await key('Enter');
+  check('steady: inline duration commits to the numerical owner', await until(`s.numerics.find(f => f.key === 'total').value === 3 && !s.busy`, 'inline duration'),
+    JSON.stringify(await cdp.eval(`({input:document.querySelector('[data-run-duration]').value, focus:document.activeElement.outerHTML.slice(0,120), sent:__xpp.sent().slice(-3), num:__xpp.state().numerics.find(f => f.key === 'total'), errors:__xpp.state().values.errors})`)));
+  await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
+  check('steady: normal Run uses the duration and clears the previous result', await until(`!s.busy && Math.abs(s.core.time - 3) < 1e-8 && !s.core.steady`, 'duration run'));
 }
 
 async function keysCheck() {
@@ -5395,7 +5433,7 @@ const layoutRects = () => cdp.eval(`(() => {
   return {vw: innerWidth, vh: innerHeight, sw: document.documentElement.scrollWidth,
     plot: r('.plot-view:not([hidden]) .plot-host'), ws: r('.workspace'), vals: r('.values-panel'), menu: r('.menu-panel'),
     menuToggle: r('.menu-toggle'), valuesToggle: r('.values-toggle'), show: r('.auto-show'), msgs: r('.messages'),
-    status: r('.status-bar')}; })()`);
+    status: r('.status-bar'), runLabelsFit: [...document.querySelectorAll('.run-actions button')].every(b => b.scrollWidth <= b.clientWidth + 1)}; })()`);
 /** the part of rectangle a inside b (a plot taller than its scrolling container shows only that much) */
 const rectClip = (a, b) => (!a || !b) ? a : {...a, t: Math.max(a.t, b.t), b: Math.min(a.b, b.b), l: Math.max(a.l, b.l), r: Math.min(a.r, b.r)};
 const rectsCross = (a, b) => !!a && !!b && a.l < b.r - 0.5 && b.l < a.r - 0.5 && a.t < b.b - 0.5 && b.t < a.b - 0.5;
@@ -5404,6 +5442,7 @@ const rectsCross = (a, b) => !!a && !!b && a.l < b.r - 0.5 && b.l < a.r - 0.5 &&
 function layoutProblems(L) {
   const bad = [];
   const {plot, ws, vals, menu} = L;
+  if (!L.runLabelsFit) bad.push('run action label overflows');
   if (!plot || plot.w < 100 || plot.h < 150) bad.push(`plot ${plot ? `${Math.round(plot.w)}x${Math.round(plot.h)}` : 'missing'}`);
   else {
     if (plot.l < -0.5 || plot.r > L.vw + 0.5) bad.push('plot outside the width');
@@ -5633,6 +5672,7 @@ async function main() {
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('autoviews')) await session(ODE, autoViews);
     if (run('navigation')) await session(ODE, navigationCheck);
+    if (run('steady')) await session(ODE, steadyCheck);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);

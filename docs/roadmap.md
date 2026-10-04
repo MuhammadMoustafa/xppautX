@@ -744,3 +744,23 @@ Acceptance: Last starts a new run from the previous state, Continue appends
 to the existing trajectory, unavailable/busy actions are guarded, recording
 and responsive layouts work. Implemented locally; validation recorded in
 [modern-navigation-validation.md](modern-navigation-validation.md).
+
+### W193 — One-click run to unchanged digits (approved 2026-10-04)
+
+Local follow-up card; depends on W192. Compare every state, using full core
+values rounded to the selected decimal places (default 9), with its previous
+Dt interval. Require an uninterrupted hold in model time; reset the hold on
+any changed state. Stop at the maximum duration, storage capacity, invalid
+values, existing model bounds or user cancellation. Keep settings visible
+in an optional toolbar disclosure and report the termination reason.
+Implemented locally; core, protocol and UI validation are recorded in
+[modern-navigation-validation.md](modern-navigation-validation.md).
+
+### W194 — Inline run and continuation time (approved 2026-10-04)
+
+Local follow-up card; depends on W192. Edit Run duration in place. Continue
+in one click either For another duration or Until time, using current core
+time. Keep the legacy C prompt and numerical settings. Prevent output stride
+from overshooting direct continuation; direct continuation stores every Dt.
+Time is resolved on the configured Dt grid. Implemented locally; validation
+is recorded in [modern-navigation-validation.md](modern-navigation-validation.md).

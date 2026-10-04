@@ -151,6 +151,36 @@ part. A file that cannot be read at all is the error with line 0 (above).
 
 ## Commands (client to server)
 
+### Direct run controls (W193, W194)
+
+`{"cmd":"steady","decimals":9,"hold":1,"maximum":50}` starts a new
+trajectory from Initial. All fields are required JSON numbers; decimals
+must be an integer 0–15, hold at least one positive Dt, maximum at least
+hold, and durations/time/counts must be finite and fit the driver. Ordinary
+trajectory output is required (no Poincare, histogram or FFT). Compare all
+state doubles rounded to fixed decimal places at every configured Dt;
+changed digits reset the hold. Output stride is temporarily 1, then restored
+along with Total. `hello.steady` supplies `max_decimals`, `default_decimals`
+and `default_hold`; the core owns these values.
+
+`{"cmd":"continue","extra":10}` or
+`{"cmd":"continue","until":40}` appends from the current core state/time
+without a prompt. Exactly one numeric extra/until field is required; the
+additional duration must be positive and at least one Dt, with finite times
+and counts. Requires a prior trajectory, positive Dt and no histogram/FFT.
+Direct continuation stores every Dt; numerical settings stay unchanged.
+End time is resolved on the configured Dt grid. The legacy C command keeps
+its prompt and output-stride behavior. Both commands are compute actions
+(`kind: X`) and recording steps with their raw command fields.
+
+`state.time` is the full-precision current core time, independent of stored
+float32 plot time. After a steady run, `state.steady` contains `status`,
+`decimals` and `time`. Status is `settled` (unchanged digits for the hold),
+`limit`, `storage-limit`, `stopped`, or `failed`. This transient result is
+cleared when another ordinary integration starts. `settled` is not an
+analytical equilibrium/stability certificate. Adaptive solver internal
+steps are not comparison intervals.
+
 | cmd | fields | meaning |
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
@@ -181,6 +211,8 @@ part. A file that cannot be read at all is the error with line 0 (above).
 | `play` | `op`: `open` (`file`), `start`, `pause`, `step`, `speed` (`speed`), `from` (`step`, `play`), `note` (`step`, `text`), `close` | Play a recording ("Playing a recording" below). `open` loads the `.recx` `file` (without one, asks for it: `ask` kind `file`, wildcard `*.recx`; then, as File > Open model does, whether to save this model's session first) and its model, paused at step 0; File/plaY recording (key `y` of the File menu) and Open model of a `.recx` do the same. `start` plays (at the end, nothing), `pause` pauses (a wait in progress keeps what is left of it), `step` plays the next step, or the rest of the one running, then pauses; `speed` divides every pace by `speed` (0.25 to 8; the page offers 0.5, 1, 2, 4); these four act at once, even during a step or a computation, and have no `idle` of their own then. `from` loads the model again and runs steps 0 to `step` - 1 with no pace (their `press` events 0 ms), then pauses there (plays on with `play` 1); `step` 0 is Restart. `note` writes `text` as step `step`'s note into the `.recx` (its fingerprint kept: "Recordings") and sends `player` again. `close` leaves the player; the model stays. `open`, `from` and `note` are data, the rest control. |
 | `aplot` | `op`: `scroll` (`dy` pixels), `close` | Dragging the array plot scrolls through time; `close` destroys its window. Its other buttons are the window's keys. |
 | `ani` | `op`: `pause`, `fast`, `slow`, `speed` (`ms`), `step` (`n`), `seek` (`pos`), `mouse` (`what` down/move/up, `x`, `y` or `u`, `v`), `close` | What the animation window's keys ("Window keys") do not say: the ones that carry a number, steer a playing Go (`pause`, `fast`, `slow` and `speed` sent while it plays reach its loop) or drag. `speed` sets the delay between two frames of `go` to `ms` (0..1000; `fast` and `slow` change it by 2 within 0..100). `step` moves `n` rows from the core's position (`ani` `pos`), `seek` goes to row `pos`. `mouse` drags a grab point after the grab key, at pixel `x`, `y`, or at `u`, `v` in the animation's unit coordinates (those of the `ani` `frame` event, y up). |
+| `steady` | `decimals`, `hold`, `maximum` | One-click unchanged-digits run; see Direct run controls above. |
+| `continue` | exactly one of `extra`, `until` | Append directly using current core time; see Direct run controls above. |
 | `abort` | none | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. Recorded interruptions belong to a recording step's `abort`, whose position the player arms before the computation. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
 | `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as `session` `save` with no `name` does (a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |

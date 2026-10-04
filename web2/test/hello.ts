@@ -8,6 +8,7 @@ const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys
 export const HELLO: HelloEvent = {
   ev: 'hello', protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
+  steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
   lists: [], userbuttons: [], defaults: {pars: [], ics: []},
   menus: {
@@ -32,6 +33,7 @@ export const HELLO: HelloEvent = {
     equilibrium: layer('i', 's', ['import']),
   },
   commands: [
+    {cmd: 'steady', kind: 'x', step: true}, {cmd: 'continue', kind: 'x', step: true},
     {cmd: 'key', kind: '', step: true},
     {cmd: 'answer', kind: 'c', step: false}, {cmd: 'abort', kind: 'c', step: false},
     {cmd: 'state', kind: 'v', step: false}, {cmd: 'data', kind: 'v', step: false},

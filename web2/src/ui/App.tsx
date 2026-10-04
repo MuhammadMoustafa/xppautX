@@ -63,6 +63,7 @@ function Banner() {
 
 function Shell() {
   const theme = useStore(s => s.theme);
+  const modelFile = useStore(s => s.hello?.file);
   const dark = useDark(theme);
   return (
     <div class="shell">
@@ -71,7 +72,7 @@ function Shell() {
       <MenuPanel />
       <main id="main" class="workspace">
         <Banner />
-        <RunToolbar />
+        <RunToolbar key={modelFile} />
         <RecordBar />
         <AutoShow />
         <PlayerStage dark={dark} />

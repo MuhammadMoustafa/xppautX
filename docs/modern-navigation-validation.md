@@ -4,6 +4,79 @@
 
 ## Delivered
 
+### W193/W194 — Steady state and direct time controls
+
+The run toolbar now includes one-click Run to steady state, inline Run
+duration, and Continue For another / Until time. The steady summary exposes
+decimal places, hold and maximum; its settings disclosure is optional.
+The full-core comparison runs at every configured Dt, requiring every
+state's rounded fixed-decimal representation to match the previous interval
+throughout the hold. The next ordinary integration clears the result.
+Direct continuation uses full core time and stores every Dt so output stride
+cannot add a whole group of steps. Both actions retain the configured
+numerical settings and recording support. Legacy C remains compatible.
+
+Validation on the final native UCRT build:
+
+- Strict `WERROR=1` build and all native unit tests passed, including 19
+  monitor/validation checks. Final UI typecheck, build and 320 unit tests passed.
+- `tools/steadycheck.py`: 61 checks passed. Analytic two-state decay,
+  harmonic periodic motion, tiny double-precision drift hidden by float32
+  samples, divergence, non-finite values, storage capacity, discrete maps,
+  adaptive solver output intervals, malformed inputs, unchanged settings,
+  direct extra/until time, one-Dt rounding, ordinary legacy output stride,
+  silent recording replay and deterministically armed cancellation.
+  The malformed signed-NaN precision token is rejected before integer conversion.
+- Final desktop/layout/busy/steady browser run: 261 checks passed. A clean
+  prior navigation/steady/layout/keys/record/player/busy/runs run passed 161
+  checks. Together these cover run actions, time editing through actual
+  mouse/keyboard input, keyboard context, recordings, busy guards, plot
+  numbers/exports, zoom/pan/readout, values and responsive geometry.
+- All six golden export checks passed without updating references.
+- Toolbar labels fit at widths 600–2000 in 25-pixel increments, at heights
+  560 and 900. States and all parameters remain visible on the reference
+  desktop; small screens retain the Values sheet and scrollable workspace.
+
+Testing caught and fixed direct continuation's legacy output-stride
+overshoot and a chart-height feedback loop. The chart now follows its host
+without contributing its old pixel height to flex layout; the readout stays
+in flow. Short stacked desktop layouts reserve more plot space. Visual
+review caught button-label overlap and inconsistent field styling; both
+were corrected. Tests that expected the removed empty-plot run button and
+three sliders across the former wider plot were updated to the approved
+layout. The phone tap test now fits data after parameter edits before
+tapping a visible point. Artificial focus/blur input in the new duration
+test was replaced with real mouse/keyboard input; the numerical assertion
+was retained. Earlier failed logs are superseded by the clean final runs.
+
+Logs: `build/steady-core-final.log`, `build/steady-assets-final.log`,
+`build/steady-ui-unit.log`, `build/steady-ui-build.log`,
+`build/steady-protocol-final.log`, `build/steady-golden.log`,
+`build/steady-browser-acceptance.log` and `build/steady-browser-final-plot.log`.
+The new protocol regressions are included in the normal verification gate
+and Linux/Windows/sanitizer CI jobs; CI has not been run for this local branch.
+
+Owner/reuse review covered the integrator, solver traits, numerical settings,
+JSON state/command table, Field, Session.setNumeric and xppclient. The new
+flows reuse do_init_data/cont_integ, existing error/bounds/cancellation/storage
+handling, the shared field component and protocol client. The comparison
+belongs to the integrator; defaults and supported precision come from hello.
+
+The detector implements an unchanged-digits observation, not an analytical
+equilibrium or stability certificate. Comparisons use Dt output intervals,
+including for adaptive solvers. Slow motion or periodic sampling at an
+unchanging phase can satisfy the rule. Precision is fixed decimal places
+(0–15), not significant digits. Time controls resolve on the configured Dt
+grid. Current core values are doubles; plot samples and live state values
+remain float32. Storage capacity can terminate the run before the duration
+limit. Steady settings are local to this UI instance and reset when the
+model filename changes; they are not saved as session numerical settings.
+Screenshots are browser evidence, not native operating-system dialog evidence.
+
+![One-click steady run and inline time controls](modern-navigation/steady-toolbar.png)
+
+![Narrow run controls](modern-navigation/steady-toolbar-narrow.png)
+
 The approved design in [modern-navigation.md](modern-navigation.md) is
 implemented for W186–W191. The six published task cards are
 [#239](https://github.com/MuhammadMoustafa/xppautX/issues/239),

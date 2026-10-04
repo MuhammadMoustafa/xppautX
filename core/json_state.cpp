@@ -88,6 +88,16 @@ void send_state(xpp::Session &s)
         }
         BUF_LIT(&b, "]");
     }
+    BUF_LIT(&b, ",\"time\":");
+    buf_num(&b,s.data_store.current_time,17);
+    if(s.integrator.steady_result){
+        const auto &result=*s.integrator.steady_result;
+        BUF_LIT(&b, ",\"steady\":{\"status\":");
+        buf_str(&b,result.status);
+        buf_format(&b, ",\"decimals\":{},\"time\":",result.decimals);
+        buf_num(&b,result.time,17);
+        BUF_LIT(&b,"}");
+    }
     BUF_LIT(&b, ",\"bcs\":[");
     for (i = 0; m.bc_defined > 0 && i < m.node; i++) {
         if (i) BUF_LIT(&b, ",");

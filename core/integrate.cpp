@@ -37,6 +37,8 @@
 #include "my_rhs.h" /* extra */
 #include "volterra2.h"
 #include <stdlib.h> 
+#include <cmath>
+#include <climits>
 #include "aniparse.h"
 #include "delay_handle.h"
 
@@ -162,7 +164,7 @@ values[7] = yn[s.integrator.eq_range.mc];
  return(0);
 }
 
-void cont_integ(xpp::Session &s)
+void cont_integ(xpp::Session &s, std::optional<double> until)
 {
   double tetemp;
   double *x;
@@ -171,13 +173,19 @@ void cont_integ(xpp::Session &s)
   tetemp=s.numerics.tend;
   wipe_rep(s.browser);
   data_back(s);
-  if(new_float(s,"Continue until:",&tetemp)==-1)return;
+  if(until)tetemp=*until;
+  else if(new_float(s,"Continue until:",&tetemp)==-1)return;
   x=&s.data_store.current[0];
-  tetemp=fabs(tetemp);
-  if(fabs(s.data_store.current_time)>=tetemp)return;
-  dif=tetemp-fabs(s.data_store.current_time);
+  if(until)dif=tetemp-s.data_store.current_time;
+  else{
+    tetemp=fabs(tetemp);
+    if(fabs(s.data_store.current_time)>=tetemp)return;
+    dif=tetemp-fabs(s.data_store.current_time);
+  }
   s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,dif,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+  /* Direct time controls store every Dt, so nout cannot extend their end
+     by a whole output group. The legacy prompt keeps its original stride. */
+  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,dif,s.numerics.delta_t,1,until?1:s.numerics.njmp,&s.integrator.my_start);
   ping();
   refresh_browser(s,s.data_store.rows);
   if(!r)xpp::show_error(r.error());
@@ -1388,6 +1396,92 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
 }
 
 namespace {
+/* A formatted signed zero has the same numeric value as positive zero. */
+std::string steady_digits(double value, int decimals)
+{
+  std::string text=xpp::format("{:.{}f}",value,decimals);
+  if(text.starts_with('-')&&text.find_first_not_of("0.",1)==std::string::npos)text.erase(0,1);
+  return text;
+}
+}
+
+void xpp::SteadyStateMonitor::begin(std::span<const double> state, double time)
+{
+  previous_.clear();
+  for(double value:state)previous_.push_back(steady_digits(value,settings_.decimals));
+  previous_time_=time;
+  unchanged_=0;
+}
+
+bool xpp::SteadyStateMonitor::observe(std::span<const double> state, double time)
+{
+  bool same=state.size()==previous_.size()&&!state.empty()&&std::isfinite(time)&&time>previous_time_;
+  std::vector<std::string> next;
+  for(std::size_t i=0;i<state.size();++i){
+    next.push_back(steady_digits(state[i],settings_.decimals));
+    if(!std::isfinite(state[i])||i>=previous_.size()||next.back()!=previous_[i])same=false;
+  }
+  unchanged_=same?unchanged_+(time-previous_time_):0;
+  previous_=std::move(next);
+  previous_time_=time;
+  return same&&unchanged_>=settings_.hold;
+}
+
+Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start)
+{
+  /* integrate's iteration counters are int; leave room for its rounding. */
+  constexpr double MAX_STEADY_STEPS=INT_MAX-1;
+  if(settings.decimals<0||settings.decimals>MAX_STEADY_DECIMALS)
+    return fail("steady",format("Decimal places must be between 0 and {}",MAX_STEADY_DECIMALS),command_place());
+  if(!std::isfinite(dt)||dt<=0||!std::isfinite(start)||!std::isfinite(start+dt)||start+dt<=start)
+    return fail("steady","Dt must advance time with a finite positive step",command_place());
+  if(!std::isfinite(settings.hold)||!std::isfinite(settings.maximum)||settings.hold<dt||settings.maximum<settings.hold||
+     !std::isfinite(start+settings.maximum)||settings.maximum/dt>MAX_STEADY_STEPS)
+    return fail("steady","Hold duration must be at least Dt, maximum duration must cover the hold, and the step count must fit the integrator",command_place());
+  return {};
+}
+
+Result<> continue_to(Session &s, double until)
+{
+  const double interval=s.integrator.solver->traits().discrete?1:s.numerics.delta_t;
+  const double duration=until-s.data_store.current_time;
+  constexpr double MAX_CONTINUE_STEPS=INT_MAX-1; /* Driver's int counters. */
+  if(!s.numerics.inflag||s.numerics.fft||s.numerics.hist)
+    return fail("continue","Needs a prior trajectory; disable FFT and histogram modes",command_place());
+  if(!std::isfinite(until)||!std::isfinite(duration)||duration<=0||!std::isfinite(interval)||interval<=0||
+     s.numerics.delta_t<=0||(duration<interval&&until<s.data_store.current_time+interval)||duration/interval>MAX_CONTINUE_STEPS)
+    return fail("continue","End time must be at least one positive Dt beyond the current time, with a step count that fits the integrator",command_place());
+  cont_integ(s,until);
+  return {};
+}
+
+Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
+{
+  const double interval=s.integrator.solver->traits().discrete?(s.numerics.delta_t>0?1:-1):s.numerics.delta_t;
+  if(auto valid=validate_steady_state(settings,interval,s.numerics.t0);!valid)return valid;
+  if(s.model().node+s.model().nmarkov==0||s.numerics.poimap||s.numerics.fft||s.numerics.hist)
+    return fail("steady","Needs model states and ordinary trajectory output (disable Poincare, FFT and histogram modes)",command_place());
+  if(!s.integrator.solver->traits().fixed_step&&interval<std::fabs(s.numerics.hmin))
+    return fail("steady","Dt must be at least the solver's minimum step",command_place());
+  /* One core comparison per configured Dt, regardless of output stride.
+     Restore the user's duration/stride before deferred settings apply. */
+  struct Restore {
+    Session &s;
+    double duration;
+    int stride;
+    ~Restore(){s.numerics.tend=duration;s.numerics.njmp=stride;s.integrator.steady.reset();}
+  } restore{s,s.numerics.tend,s.numerics.njmp};
+  s.numerics.tend=std::floor(settings.maximum/interval)*interval;
+  s.numerics.njmp=1;
+  s.integrator.steady.emplace(settings);
+  s.integrator.steady_result=SteadyStateResult{"failed",settings.decimals};
+  s.integrator.last_time=s.numerics.t0;
+  do_init_data(s,M_IG);
+  s.integrator.steady_result->time=s.integrator.last_time;
+  return {};
+}
+
+namespace {
 /* the failure a step's delay or DAE solve recorded (step_error), which
    ends the integration; the next one starts clean, the DAE solve
    afresh */
@@ -1402,6 +1496,7 @@ std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 
 xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int nout, int *start)
 {
+  if(!s.integrator.steady)s.integrator.steady_result.reset();
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
   const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
@@ -1448,6 +1543,7 @@ if(program.interactive) cwidth=get_command_width();
  mswtch(s,x,s.solver_work.xpv.x);
  extra(s,x,*t,s.model().node,s.model().neq); /* Note this takes care of initializing Markov variables */
   mswtch(s,s.solver_work.xpv.x,x);
+ if(s.integrator.steady)s.integrator.steady->begin(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t);
  xv[0]=static_cast<float>(*t);
  for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(s.animation.options.on_the_fly)on_the_fly(s,1); 
@@ -1583,12 +1679,12 @@ if(program.interactive) cwidth=get_command_width();
 
            {
             
-             if(esc==ESC) break;
-	     if(esc=='/'){rval=1;s.numerics.endsing=1;break;}
+             if(esc==ESC){if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
+	     if(esc=='/'){rval=1;s.numerics.endsing=1;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
 	    
            }
 	}        
-	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;break;}
+	if(s.integrator.stop_flag==1){s.integrator.stop_flag=0;if(s.integrator.steady)s.integrator.steady_result->status="stopped";break;}
            if(s.integrator.step_error){
              s.numerics.endsing=1;
              xpp::Error e=take_step_error(s).error();
@@ -1713,13 +1809,24 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
 		 s.data_store.col[ieqn][s.data_store.rows]=xv[ieqn];
 	    s.data_store.rows++;
 	    row_stored(s); /* xppautX: replay stops here, a front end shows the run grow */
-	    if(!(s.data_store.rows<s.data_store.max_rows))
+	    if(!(s.data_store.rows<s.data_store.max_rows)){
+            if(s.integrator.steady){s.integrator.steady_result->status="storage-limit";break;}
             if(stor_full(s)==0)break;
+            }
 	    if((pflag==1)&&(s.numerics.sos==1))break;
 	   }
 
 out:
            icount++;
+           if(s.integrator.steady&&xpp::job::cancelled()){
+             s.integrator.steady_result->status="stopped";
+             break;
+           }
+           if(s.integrator.steady&&s.integrator.steady->observe(std::span(x,static_cast<std::size_t>(s.model().node+s.model().nmarkov)),*t)){
+             s.integrator.steady_result->status="settled";
+             break;
+           }
+           if(s.integrator.steady&&icount>=nit)s.integrator.steady_result->status="limit";
            if(icount>=nit&&count!=0)break;
 
 	   /* END POST INTEGRATE ANALYSIS  */
