@@ -160,7 +160,19 @@ export function valueSetCommand(sets: ValueSet[]): Command | null {
 
 /** display precision (A14): six significant digits */
 export function sixSig(n: number): string {
-  return Number.isFinite(n) ? String(Number(n.toPrecision(6))) : String(n);
+  return significant(n, 6);
+}
+
+/** Inspection uses ten significant digits; editing retains the full double. */
+export function inspectNumber(n: number): string {
+  if (Number.isFinite(n) && n !== 0 && (Math.abs(n) >= 1e9 || Math.abs(n) < 1e-4)) {
+    return n.toExponential(9).replace(/\.?0+(?=e)/, '');
+  }
+  return significant(n, 10);
+}
+
+function significant(n: number, digits: number): string {
+  return Number.isFinite(n) ? String(Number(n.toPrecision(digits))) : String(n);
 }
 
 /* the Values panel's folding (W99): a section that starts folded (the model's boundary

@@ -22,7 +22,8 @@ import {useFocusBackOnClose} from './focusBack';
 import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
-import {fieldKey, foldKey, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
+import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
+import {sampledTailRate, STATE_TAIL_INTERVALS} from '../store/series';
 import type {NumericsField} from '../protocol/types';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {Field} from './Field';
@@ -134,7 +135,7 @@ function ValueField({kind, label, name, index, display, full, hint, spec, extra}
 
 function fieldProps(value: string | number) {
   return {
-    display: typeof value === 'number' ? sixSig(value) : value,
+    display: typeof value === 'number' ? inspectNumber(value) : value,
     full: typeof value === 'number' ? String(value) : value,
   };
 }
@@ -170,7 +171,7 @@ function Parameters() {
   const pars = useStore(s => s.core?.pars);
   if (!pars?.length) return null;
   return (
-    <Section id="par" title="Parameters" hint="Edits apply on Enter or leaving the field, to the next run." tools={(
+    <Section id="par" title="Parameters" hint="Edit for the next run; Enter or leave a field to apply." tools={(
       <>
         <FileTools kind="par" />
         <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
@@ -209,9 +210,10 @@ function StateSection() {
   const hasNow = useStore(s => !!s.core?.now);
   const busy = !useMayMain()('initialconds'); /* Initialconds/Last: a computation (W95) */
   const now = useNow();
+  const series = useStore(s => s.plots.windows.find(w => w.win === s.plots.active)?.series ?? null);
   if (!ics?.length) return null;
   return (
-    <Section id="ic" title="State" hint={STATE_HINT} tools={(
+    <Section id="ic" title="States" hint={STATE_HINT} tools={(
       <>
         <button class="small" disabled={busy || !hasNow} onClick={() => session.useCurrentState()}
           title="Copy Now into Initial (as Initialconds/Last does), without running">← Use current state</button>
@@ -221,19 +223,28 @@ function StateSection() {
         </button>
       </>
     )}>
-      <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Now</span></div>
+      <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Current</span><span>Tail rate</span></div>
       <div class="value-list value-state">
-        {ics.map(([name, value], i) => (
+        {ics.map(([name, value], i) => {
+          const time = series?.columns.get(0);
+          const column = series?.names.get(i + 1)?.toLowerCase() === name.toLowerCase() ? series.columns.get(i + 1) : undefined;
+          const rate = now[i] !== null && time && column ? sampledTailRate(time, column, series!.rows) : null;
+          return (
           <ValueField key={name.toLowerCase()} kind="ic" label={name} name={name} hint={NUMBER_HINT} spec={FORMULA}
             {...fieldProps(value)}
             extra={(
-              <output class={'value-now' + (now[i] === null ? ' none' : '')} data-name={name}
+              <><output class={'value-now' + (now[i] === null ? ' none' : '')} data-name={name}
                 aria-label={`${name} now`} title={now[i] === null ? 'No run yet' : `Now: ${now[i]}`}>
-                {now[i] === null ? '–' : sixSig(now[i]!)}
+                {now[i] === null ? '–' : inspectNumber(now[i]!)}
               </output>
+              <output class="value-rate" aria-label={`${name} sampled tail rate`}
+                title={`Maximum |Δ${name}/Δt| over up to the last ${STATE_TAIL_INTERVALS} stored intervals; sampled float32 trajectory data, not a solver derivative.`}>
+                {rate === null ? '–' : rate.toExponential(2)}
+              </output></>
             )} />
-        ))}
+        );})}
       </div>
+      <p class="state-rate-hint">Tail rate: max |Δstate/Δt| in the last {STATE_TAIL_INTERVALS} stored intervals. Small rates suggest settling; extend the run to check.</p>
     </Section>
   );
 }
@@ -299,7 +310,7 @@ function NumericsSection() {
   const methodName = method?.choices?.[Number(method.value)] ?? 'the selected solver';
   const unused = fields.filter(f => f.unused);
   return (
-    <Section id="num" title="Numerics" hint="Changes apply to the next run: a run in progress keeps its own.">
+    <Section id="num" title="Numerics" startFolded hint="Changes apply to the next run: a run in progress keeps its own.">
       <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
       <div class="value-list">
         {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}
@@ -368,22 +379,23 @@ export function ValuesPanel() {
         <h2>Values</h2>
       </div>
       <div class="values-body">
-        <div class="working-values">
+        <StateSection />
+        <Parameters />
+        <UserButtonsBlock />
+        <IndexedSection id="bc" title="Boundary conditions" kind="bc" entries={modelBcs}
+          hint="An expression that is zero at the boundary" startFolded />
+        <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
+          hint="An expression in t for t < 0" startFolded />
+        <NumericsSection />
+        <details class="working-values">
+          <summary>Recovery</summary>
           <p>Keep parameters and initial conditions before experimenting. Reset restores model defaults.</p>
           <div class="dialog-actions">
             <button class="small" disabled={recoveryOff} onClick={() => session.captureWorkingValues()}>{checkpoint ? 'Update checkpoint' : 'Keep working values'}</button>
             <button class="small" disabled={recoveryOff || !checkpoint} onClick={() => session.restoreWorkingValues()}>Restore working values</button>
           </div>
           {checkpoint && <p role="status">Working values kept for this model.</p>}
-        </div>
-        <UserButtonsBlock />
-        <Parameters />
-        <StateSection />
-        <IndexedSection id="bc" title="Boundary conditions" kind="bc" entries={modelBcs}
-          hint="An expression that is zero at the boundary" startFolded />
-        <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
-          hint="An expression in t for t < 0" />
-        <NumericsSection />
+        </details>
       </div>
     </section>
   );

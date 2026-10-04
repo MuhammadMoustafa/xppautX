@@ -3104,7 +3104,7 @@ async function busyKeys() {
   await key('s');
   await key('c');
   const typed = await cdp.eval(`__xpp.sentFrom(${sent0})`);
-  const track = await cdp.eval(`(() => { const r = document.getElementById('slider-range-${sid}').getBoundingClientRect();
+  const track = await cdp.eval(`(() => { const el = document.getElementById('slider-range-${sid}'); el.scrollIntoView({block:'nearest'}); const r = el.getBoundingClientRect();
     return {x: r.left, y: r.top + r.height / 2, w: r.width}; })()`);
   await mouse('mousePressed', track.x + track.w * 0.3, track.y, {button: 'left', clickCount: 1});
   for (let k = 1; k <= 5; k++) await mouse('mouseMoved', track.x + track.w * (0.3 + k * 0.1), track.y, {button: 'left'});
@@ -3488,6 +3488,13 @@ async function navigationCheck() {
   await until('s.hello && !s.busy', 'hello');
   check('navigation: five stable command groups and model filename', await cdp.eval(`
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
+  check('navigation: Run first, States first, and recovery folded', await cdp.eval(`
+    document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic' && !document.querySelector('.working-values').open`));
+  check('navigation: every state and parameter fits without scrolling on the reference desktop', await cdp.eval(`(() => {
+    const box = document.querySelector('.values-body').getBoundingClientRect();
+    return [...document.querySelectorAll('[data-section=par] .value-field input, [data-section=ic] .value-field input, .value-now')].every(el => {
+      const r = el.getBoundingClientRect(); return r.height > 0 && r.top >= box.top && r.bottom <= box.bottom && r.left >= box.left && r.right <= box.right;
+    }); })()`));
   await key('k', 2);
   check('navigation: Ctrl+K focuses command search', await cdp.eval(`document.activeElement.id === 'command-search'`));
   await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = 'save session'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
@@ -3502,9 +3509,14 @@ async function navigationCheck() {
   const before = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
   check('navigation: clicked Integrate works in Numerics shortcut mode', await until(`s.seriesCount > ${before} && !s.busy && s.core.menu === 0`, 'stable integrate', 20000));
+  const finalStates = await S('s.core.now');
+  const displayedStates = JSON.parse(await nowCells()).map(Number);
+  check('navigation: current states retain ten-digit inspection precision', displayedStates.every((value, i) => Math.abs(value - finalStates[i]) <= 5e-10 * Math.max(1, Math.abs(finalStates[i]))), JSON.stringify(displayedStates));
+  check('navigation: each state has a sampled tail rate, not a convergence claim', await cdp.eval(`
+    [...document.querySelectorAll('.value-rate')].every(el => Number.isFinite(Number(el.textContent))) && document.querySelector('.state-rate-hint').textContent.includes('extend the run')`));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
-  await cdp.eval(`document.querySelector('.working-values button').click()`);
+  await cdp.eval(`document.querySelector('.working-values summary').click(); document.querySelector('.working-values button').click()`);
   check('navigation: working checkpoint captured', await until('!!s.values.checkpoint', 'checkpoint'));
   await cdp.eval(`__xpp.send({cmd:'set',kind:'par',name:'iapp',value:0.123456789012345})`);
   await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && !s.busy', 'changed value');
@@ -3719,7 +3731,7 @@ async function runsCheck(dir) {
   check('runs: one run, nothing earlier', await S('w.history.runs.length === 0 && __xpp.plot().runs.count === 0'));
   const end = await S('w.series.columns.get(1)[600]');
   check('runs: after the run Now is its last row', await until(`s.core.now && Math.abs(s.core.now[0] - ${end}) < 1e-6`, 'now')
-    && (await nowCells()).includes(String(Number(end.toPrecision(6)))), await nowCells());
+    && close6(Number(JSON.parse(await nowCells())[0]), end), await nowCells());
 
   /* Initialconds/Last: Now -> Initial, then a run; the first run stays under the new one */
   const now0 = await S('s.core.now.slice()');
@@ -3855,7 +3867,7 @@ async function runsCheck(dir) {
   await mouse('mouseReleased', track.x + track.w * 0.9, track.y, {button: 'left', clickCount: 1});
   await until(`!s.busy && !s.values.inflight.length && __xpp.sentCount() > ${sent1}`, 'drag settles');
   const out = await cdp.eval(`__xpp.sentFrom(${sent1})`);
-  const draggedTo = Number(out[out.length - 1].text);
+  const draggedTo = Number(out.at(-1)?.text);
   check('runs: a slider drag sends its values as sets, runs nothing, and the core has its final value',
     out.every(c => c.cmd === 'set') && Math.abs(draggedTo - 0.9 * 2 * iapp) < 2 * iapp * 0.05
     && (await S('s.seriesCount')) === nSlide && (await S(`Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9`)),

@@ -89,6 +89,42 @@ dialog. No push or merge was performed.
 
 ## Visual evidence
 
+### States and parameters follow-up
+
+The user's follow-up prioritizes Run and scientific inspection. Run is now
+the first navigation group. The former large grey checkpoint box is a
+folded Recovery disclosure below the primary values. States appears before
+Parameters, which uses two columns on wide desktops; Numerics starts folded.
+The reference model's two states and twelve parameters fit without scrolling
+at the tested 1280×860 desktop size and were visually confirmed at 1280×720.
+Large models and narrow screens still require scrolling.
+
+Values show ten significant digits, using compact scientific notation at
+extremes. Focused edits retain the full core double. Final Current values
+come from the core; live trajectory samples and tail diagnostics are
+float32. Each state's Tail rate is the maximum sampled |Δstate/Δt| over up
+to the last ten stored intervals. It is per-variable, in state/time units,
+with no automatic threshold or steady-state claim. A sampled quiet tail can
+miss motion or round small changes to zero; extend the run and inspect the
+trajectory to assess settling. Invalid/missing samples show a dash.
+
+The final follow-up passes typecheck, 317 UI unit tests, the strict UCRT
+asset build, and 103 browser checks across navigation, layout, runs and
+values. These cover all reference value fields on screen, inspection
+precision, current-state updates, parameter edits, checkpoint recovery,
+and sliders after widening the values column. Slider cards now fit the
+actual plot width and the drag test scrolls the track into view before use.
+The earlier run's hidden-upload-input geometry assertion was corrected to
+check visible value fields. No numerical engine or native core code changed.
+Logs: `build/values-inspection-unit.log`, `build/values-inspection-build.log`
+and `build/values-inspection-browser-final.log`.
+
+![States and parameters together](modern-navigation/states-parameters.png)
+
+![Narrow state inspection](modern-navigation/states-parameters-narrow.png)
+
+### Initial implementation
+
 ![Desktop workspace](modern-navigation/desktop.png)
 
 ![Narrow workspace](modern-navigation/narrow.png)

@@ -3,10 +3,29 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {decode, valueCount} from '../src/protocol/decode';
 import type {SeriesAppendEvent, SeriesEvent} from '../src/protocol/types';
-import {appendRows, columnStats, seriesFromEvent} from '../src/store/series';
+import {appendRows, columnStats, sampledTailRate, seriesFromEvent} from '../src/store/series';
 import {activeWindow} from '../src/store/plots';
 import {reduce, type AppState} from '../src/store/state';
 import {READY} from './hello';
+
+test('sampled tail rate distinguishes flat, moving and returning trajectories', () => {
+  const time = new Float32Array([0, 1, 2, 3]);
+  assert.equal(sampledTailRate(time, new Float32Array([2, 2, 2, 2]), 4), 0);
+  assert.equal(sampledTailRate(time, new Float32Array([0, 2, 4, 6]), 4), 2);
+  assert.equal(sampledTailRate(time, new Float32Array([0, 2, 2, 0]), 4), 2);
+  assert.equal(sampledTailRate(new Float32Array([3, 2, 1, 0]), new Float32Array([0, 2, 4, 6]), 4), 2);
+});
+
+test('sampled tail rate uses recent stored intervals and refuses unusable samples', () => {
+  const time = Float32Array.from({length: 13}, (_, i) => i);
+  const values = new Float32Array([20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.equal(sampledTailRate(time, values, 13), 0);
+  assert.equal(sampledTailRate(time, values, 1), null);
+  assert.equal(sampledTailRate(new Float32Array([0, 0]), new Float32Array([1, 2]), 2), null);
+  assert.equal(sampledTailRate(new Float32Array([0, 1, 0]), new Float32Array([1, 2, 3]), 3), null);
+  assert.equal(sampledTailRate(new Float32Array([0, 1]), new Float32Array([1, NaN]), 2), null);
+  assert.equal(sampledTailRate(time, new Float32Array(1), 13), null);
+});
 
 /** base64 of little-endian float32, as the server's enc "f32" */
 function f32(values: number[]): string {

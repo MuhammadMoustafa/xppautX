@@ -24,7 +24,17 @@ Plot, Values and open Data/Model panels; Shift+F6 moves backwards. Within
 command results use the arrow keys, Home and End. These shortcuts leave
 modal dialogs in control of their focus.
 
-In Values, **Keep working values** captures the parameters and initial
+Values shows **States** first (Initial, Current and sampled Tail rate),
+then **Parameters** for changing the next run. Inspection uses ten
+significant digits; focused edits retain full precision. Current uses the
+final core state when idle and stored float32 samples while integrating.
+Tail rate is maximum |Δstate/Δt| in up to the last ten stored intervals,
+in each variable's units per time unit. Small rates suggest settling;
+extend the run and inspect the trajectory before concluding steady state.
+This is a sampled diagnostic, not a convergence certificate. Numerics and
+Recovery start folded to leave values visible.
+
+In **Recovery**, **Keep working values** captures the parameters and initial
 conditions before an experiment. **Restore working values** applies them
 together, without changing plots or solver settings. This checkpoint is
 temporary and clears when a model/session is loaded or the page reconnects;

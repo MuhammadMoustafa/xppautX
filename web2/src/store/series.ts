@@ -30,6 +30,25 @@ export interface PlotSeries {
   version: number | null;
 }
 
+/** State diagnostics inspect the ten most recent stored intervals, not solver
+    derivatives. The short, explicitly labelled window bounds work during live runs. */
+export const STATE_TAIL_INTERVALS = 10;
+
+export function sampledTailRate(time: Float32Array, values: Float32Array, rows: number): number | null {
+  if (rows < 2 || time.length < rows || values.length < rows) return null;
+  let rate = 0;
+  let direction = 0;
+  for (let i = Math.max(1, rows - STATE_TAIL_INTERVALS); i < rows; i++) {
+    const dt = time[i] - time[i - 1];
+    const dv = values[i] - values[i - 1];
+    if (!Number.isFinite(dt) || !Number.isFinite(dv) || dt === 0) return null;
+    if (direction && Math.sign(dt) !== direction) return null;
+    direction = Math.sign(dt);
+    rate = Math.max(rate, Math.abs(dv / dt));
+  }
+  return Number.isFinite(rate) ? rate : null;
+}
+
 /** what the plot needs of a column (plot/model.ts): its least and greatest
     values, NaN left out (min > max for none), and whether it never
     decreases (a time plot's x; a NaN after the first value says no). An

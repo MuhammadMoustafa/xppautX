@@ -3,7 +3,7 @@
    browser (npm test). */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {fieldKey, initialValues, isFolded, showsBcSection, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
+import {fieldKey, initialValues, inspectNumber, isFolded, showsBcSection, reduceValues, sentText, sixSig, type ValueSet, type ValuesState} from '../src/store/values';
 
 const edit = (e: Partial<ValueSet> & Pick<ValueSet, 'kind' | 'text'>): ValueSet =>
   ({name: undefined, index: undefined, ...e});
@@ -70,6 +70,15 @@ test('sixSig shows six significant digits', () => {
   assert.equal(sixSig(1 / 3), '0.333333');
   assert.equal(sixSig(123456789), '123457000');
   assert.equal(sixSig(NaN), 'NaN');
+});
+
+test('inspection retains ten significant digits and uses compact scientific notation at extremes', () => {
+  assert.equal(inspectNumber(-0.3825256290227896), '-0.382525629');
+  assert.equal(inspectNumber(1 / 3), '0.3333333333');
+  assert.equal(inspectNumber(1.234567891234e15), '1.234567891e+15');
+  assert.equal(inspectNumber(1e-12), '1e-12');
+  assert.equal(inspectNumber(0), '0');
+  assert.equal(inspectNumber(NaN), 'NaN');
 });
 
 test('the boundary-conditions section is absent without model BCs, present and folded with them (W99)', () => {

@@ -8,7 +8,7 @@ input method and no longer determine the layout or capitalization.
 
 The command sidebar stays available and stable while legacy File/Numerics
 shortcut states change. It groups actions into **Files**, **Run**,
-**Analysis**, **Plot**, and **Tools**. Commands use the existing stable
+**Analysis**, **Plot**, and **Tools**, with Run first. Commands use the existing stable
 menu identifiers, independent of whichever legacy menu is active. A search
 field filters commands by label, description, and existing command identifier. Plain labels
 and a separate shortcut hint replace mixed capitalization.
@@ -55,7 +55,22 @@ condition values for exploration. Restore returns those values through
 existing validated set commands. It does not change the model defaults,
 solver settings, data or plots, and is cleared when another model/session
 is loaded. Reset continues to mean model defaults. This is a named recovery
-action, not a general undo system.
+action, not a general undo system. Recovery now starts folded.
+
+The right panel prioritizes States, then Parameters. A compact two-column
+parameter grid and folded Numerics keep the reference model's two states
+and twelve parameters visible together on a desktop. Inspection uses ten
+significant digits, with scientific notation for extreme values; focused
+edits retain full precision. Final current states come from the core's
+double values. Live trajectory samples during integration are float32,
+so display digits do not imply ten-digit numerical accuracy.
+
+Each state shows its maximum sampled |Δstate/Δt| over the last ten stored
+intervals. This indicates recent motion, not evaluated derivatives or
+certified convergence. Missing/invalid samples show a dash. Sampling can
+miss changes and float32 quantization can make a small rate zero. Extend
+the run and examine the trajectory; interpretation depends on state/time
+units. Larger models and narrow screens still require scrolling.
 
 ## Visual and implementation constraints
 

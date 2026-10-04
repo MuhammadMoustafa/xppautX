@@ -189,8 +189,9 @@ kbd {
 .command-group .menu-item kbd { flex: none; font-size: var(--text-xs); }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .legacy-mode { font-size: var(--text-xs); color: var(--fg-muted); }
-.working-values { margin-bottom: var(--space-3); padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
-.working-values p { margin-top: 0; }
+.working-values { border-top: 1px solid var(--border); padding-top: var(--space-2); }
+.working-values summary { min-height: var(--target); cursor: pointer; color: var(--fg-muted); }
+.working-values p { margin-top: var(--space-2); font-size: var(--text-xs); }
 .working-values .dialog-actions { flex-wrap: wrap; }
 .unused-settings { margin-top: var(--space-3); }
 .unused-settings > summary { min-height: var(--target); cursor: pointer; }
@@ -264,10 +265,10 @@ kbd {
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 .value-group-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
-.value-group-head h3 { flex: 1; font-size: var(--text-sm); }
+.value-group-head h3 { flex: 1; font-size: var(--text-sm); margin: 0; }
 .value-fold {
   display: inline-flex;
   align-items: center;
@@ -286,10 +287,13 @@ kbd {
 .value-hint { margin: 0 0 var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
 .value-tools { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
 .value-cols, .value-state .value-field {
-  grid-template-columns: minmax(4rem, 1fr) minmax(0, 7rem) minmax(0, 5.5rem) var(--target);
+  grid-template-columns: minmax(2rem, 1fr) minmax(0, 6.5rem) minmax(0, 8rem) minmax(0, 4.5rem) var(--target);
 }
 .value-cols { display: grid; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); margin-bottom: var(--space-1); }
-.value-now { font: var(--text-sm) var(--mono); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.value-now, .value-rate { font: var(--text-xs) var(--mono); white-space: nowrap; }
+.value-rate { color: var(--fg-muted); }
+.state-rate-hint { font-size: var(--text-xs); color: var(--fg-muted); margin: var(--space-2) 0 0; }
+.value-group[data-section="ic"] > div > .value-hint { display: none; }
 .value-now.none { opacity: 0.6; }
 .value-list { display: flex; flex-direction: column; gap: var(--space-2); }
 .value-buttons { flex-direction: row; flex-wrap: wrap; }
@@ -340,17 +344,16 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
 .field-error { margin: var(--space-1) 0 0; color: var(--danger); font-size: var(--text-xs); }
 /* ---- sliders: a responsive grid under the plot (GitHub #18, T20) ----
    Each card is compact (name, track, value, edit, remove) so many fit:
-   1 per row on a phone, 2 on a tablet (48rem), 3 on a laptop (80rem),
-   the same breakpoints the shell itself uses. */
+   columns fit the plot's available width, with room for value/edit/remove. */
 .slider-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: var(--space-2);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--border);
 }
-@media (min-width: 48rem) { .slider-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 80rem) { .slider-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Cards need room for the value box and two controls; follow the actual plot
+   width rather than the viewport now that the values column is wider. */
 .slider-add { grid-column: 1 / -1; justify-self: start; }
 .slider-card {
   display: flex;
@@ -1161,11 +1164,21 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { bottom: var(--p
 @media (min-width: 80rem) {
   :root { --menu-width: 15rem; }
   .shell {
-    grid-template-columns: var(--menu-width) minmax(0, 1fr) 20rem;
+    grid-template-columns: var(--menu-width) minmax(0, 1fr) 30rem;
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: 'title title title' 'menu work values' 'status status status';
   }
   .values-panel { border-top: none; border-left: 1px solid var(--border); }
+  .value-group[data-section="par"] .value-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
+  .value-group[data-section="par"] .value-field { grid-template-columns: minmax(2.5rem, 1fr) minmax(0, 7.5rem) var(--target); gap: var(--space-1); }
+  .value-group[data-section="par"] input { font-size: var(--text-xs); padding-inline: var(--space-1); }
+}
+@media (max-width: 47.999rem) {
+  .value-cols, .value-state .value-field { grid-template-columns: minmax(2rem, 1fr) minmax(0, 5.5rem) minmax(0, 8rem) var(--target); gap: var(--space-1); }
+  .value-cols > span:nth-child(4) { display: none; }
+  .value-state .value-rate { grid-column: 3; grid-row: 2; }
+  .value-state .value-rate::before { content: 'rate '; }
+  .value-state .value-reset { grid-column: 4; grid-row: 1; }
 }
 /* the data table stays a floating panel (never an inline column, R6): full
    screen under 48rem (the base rule above), a fixed-width panel anchored to
