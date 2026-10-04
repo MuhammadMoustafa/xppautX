@@ -181,7 +181,7 @@ run_check() {
   echo "$name finished after $(( $(date +%s) - t0 ))s"
 }
 # AUTO owns the section list and its round-robin partitions (W180).
-# Explicit section selections remain for Windows' existing shards.
+# Explicit section selections remain for local iteration.
 want=""
 autosections=
 old_ifs=$IFS; IFS=,
