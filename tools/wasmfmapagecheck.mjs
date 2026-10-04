@@ -19,9 +19,9 @@ try {
   fs.copyFileSync(path.join(root,'tools','wasmfmafixtures.mjs'),path.join(folder,'wasmfmafixtures.mjs'));
   for (const variant of ['baseline','original','int128','wide']) {
     const page = `w185-${variant}.html`;
-    fs.writeFileSync(path.join(folder,page),'<script>window.ready=true</script>');
+    fs.writeFileSync(path.join(folder,page),`<script>window.ready=${JSON.stringify(variant)}</script>`);
     await browser.cdp.send('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/${page}`});
-    await waitFor(async () => browser.cdp.eval('window.ready === true'));
+    await waitFor(async () => browser.cdp.eval(`window.ready === ${JSON.stringify(variant)}`));
     const supported = await browser.cdp.eval(`(async()=>WebAssembly.validate(await (await fetch('fma-${variant}.wasm')).arrayBuffer()))()`);
     console.log(`${variant}: runtime validation ${supported}`);
     if (!supported) {
