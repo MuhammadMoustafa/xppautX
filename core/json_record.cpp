@@ -274,7 +274,16 @@ void record_begin(const char *line)
     recorder.note.clear();
     const char kind = line_kind(line);
     t.view = kind == XPP_KIND_VIEW;
-    if (is_cmd(line, "key")) {
+    if (is_cmd(line, "key") && js_find(line, "menu")) {
+        std::string menu, item;
+        get_string(line, "menu", menu);
+        get_string(line, "item", item);
+        get_string(line, "button", t.button);
+        const int which = main_menu_number(menu);
+        const int ch = which < 0 ? 0 : main_menu_key(which, item);
+        t.label = ch ? key_label(std::string(1, static_cast<char>(ch)), which, "") : "Invalid menu action";
+        t.cmd = std::string(js_raw(line));
+    } else if (is_cmd(line, "key")) {
         std::string k;
         get_string(line, "key", k);
         get_string(line, "win", t.win);

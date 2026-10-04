@@ -1,5 +1,15 @@
 # xppautX protocol
 
+Clicked commands may use `{"cmd":"key","menu":"file","item":"savesession"}`
+with a `menu` of `main`, `file` or `num` and an `item` from that menu's
+`hello.menus.*_ids`. This form resolves the existing command independently
+of the current letter-shortcut menu and returns to the main shortcut menu
+after it finishes. Its kind is the target item's existing kind. Unknown
+menus or items, and combinations with `key` or `win`, are rejected.
+The optional `button` field describes the click for recording; recordings
+preserve the stable command plus subsequent prompt-answer keys. Legacy
+`key` commands and recordings continue to work.
+
 `xppautX --check model.ode` (or `.odex`) is a separate one-shot command,
 not a server event stream: it prints the one JSON report documented in
 [Checking a .ode](odex.md#checking-a-ode) (W75, #123). In normal model

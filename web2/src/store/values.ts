@@ -43,6 +43,8 @@ export interface InFlight {
 }
 
 export interface ValuesState {
+  /** Explicit exploratory recovery point; discarded by every model/session hello. */
+  checkpoint: {pars: [string, number][]; ics: [string, number][]} | null;
   /** field id -> the error the core sent for it, until the next edit on it */
   errors: Record<string, string>;
   /** the edits sent whose `set` has not ended, in the order sent */
@@ -55,7 +57,7 @@ export interface ValuesState {
 }
 
 export const initialValues: ValuesState = {
-  errors: {}, inflight: [], defaults: null, sliders: [], nextSlider: 1,
+  checkpoint: null, errors: {}, inflight: [], defaults: null, sliders: [], nextSlider: 1,
 };
 
 /** a field's identity as a store key: names fold case, as the core matches them (docs/protocol.md `set`) */
@@ -71,6 +73,7 @@ function omit(o: Record<string, string>, key: string): Record<string, string> {
 }
 
 export type ValuesAction =
+  | {type: 'checkpoint'; pars: [string, number][]; ics: [string, number][]}
   /** a field's edit, sent as its own `set`, `ahead` idles before its own */
   | {type: 'sent'; set: ValueSet; ahead: number}
   /** a command ended: the set whose command it was is done, the others one idle closer */
@@ -93,6 +96,8 @@ export type ValuesAction =
 
 export function reduceValues(state: ValuesState, action: ValuesAction): ValuesState {
   switch (action.type) {
+    case 'checkpoint':
+      return {...state, checkpoint: {pars: action.pars.map(([name, value]) => [name, value]), ics: action.ics.map(([name, value]) => [name, value])}};
     case 'sent':
       return {...state, errors: omit(state.errors, setKey(action.set)),
         inflight: [...state.inflight, {set: action.set, ahead: action.ahead}]};

@@ -39,22 +39,22 @@ consteval int menu_count(size_t items, size_t keys, size_t kinds, const char *k)
 
 
 const char *const main_menu[]={
- "XPP","Initialconds","Continue","Nullcline",
- "Dir.field/flow","Window/zoom","phAsespace",
- "Kinescope","Graphic stuff","nUmerics","File",
- "Parameters","Erase","Makewindow","Text,etc",
- "Sing pts","Viewaxes","Xi vs t","Restore","3d-params",
- "Bndryval"};
+ "XPP","Initial conditions","Continue integration","Nullclines",
+ "Direction fields and flow","Zoom and view","Phase space",
+ "Captured frames","Curves and export","Numerics","File",
+ "Parameters","Clear plot","Plot windows","Labels and annotations",
+ "Equilibria and stability","Plot axes","Variable vs time","Redraw plot","3D view",
+ "Boundary-value solver"};
 
-const char *const num_menu[]={"NUMERICS","Total","Start time","tRansient",
-"Dt","Ncline ctrl","sIng pt ctrl","nOutput","Bounds","Method",
-"dElay","Color code","stocHast","Poincare map","rUelle plot",
-"looKup","bndVal","Averaging","[Esc]-exit"};
+const char *const num_menu[]={"NUMERICS","Integration duration","Start time","Transient",
+"Time step","Nullcline settings","Equilibrium settings","Output stride","Bounds","Solver method",
+"Delay settings","Color by value","Stochastic analysis","Poincaré map","Ruelle plot",
+"Lookup tables","Boundary-value settings","Adjoint and averaging","Return to main shortcuts"};
 const char *const file_menu[]={
-"FILE","Prt src","Import XPPAUT set",
-"Auto","Calculator","Save info",
-"Help","Quit","Transpose","Get par set","cLone",".Xpprc","tUtorial",
-"cOpy set line","open Model","rEload","saVe session","opeN session","recorD","plaY recording"};
+"FILE","Model source","Import XPPAUT settings",
+"AUTO continuation","Calculator","Export simulation information",
+"Help","Quit","Transpose data","Named parameter sets","Clone model","Preferences","Tutorial",
+"Copy parameter set line","Open model…","Reload model","Save session as…","Open session…","Record steps","Play recording…"};
 
 /* hints for the main menus */
 const char *const main_hint[]=
@@ -87,7 +87,7 @@ const char *const file_hint[]={
 "A little calculator -- press ESC to exit",
 "Save info about simulation in human readable format",
 "Browser help",
-"Duh!",
+"Quit the application, with an option to save this session",
 "Transpose storage",
 "Set predefined parameters",
 "Clone the ode file",
@@ -428,6 +428,13 @@ int main_menu_key(int which, std::string_view id)
     for (int i = 0; i < n; i++)
         if (id == ids[i]) return static_cast<unsigned char>(keys[i]);
     return 0;
+}
+
+int main_menu_number(std::string_view name)
+{
+    for (int i = MAIN_MENU; i <= NUM_MENU; ++i)
+        if (name == main_menu_names[i]) return i;
+    return -1;
 }
 
 const char *main_menu_item(int which, int ch)

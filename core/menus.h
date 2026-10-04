@@ -63,6 +63,8 @@ extern const char *const file_menu_ids[FILE_ENTRIES];
 extern const char *const num_menu_ids[NUM_ENTRIES];
 /* the key of item `id` of main-window menu `which`, 0 for none */
 int main_menu_key(int which, std::string_view id);
+/* Stable menu name, independent of the current single-letter shortcut mode. */
+int main_menu_number(std::string_view name);
 
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */

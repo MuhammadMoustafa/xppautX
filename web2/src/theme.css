@@ -178,6 +178,22 @@ kbd {
 }
 .title-bar h1 { font-size: var(--text-md); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.workspace-tools { position: relative; }
+.workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+.workspace-tools-menu { position: absolute; z-index: 180; top: 100%; right: 0; min-width: 14rem; padding: var(--space-2); display: grid; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.workspace-tools:not([open]) .workspace-tools-menu { display: none; }
+.command-group { border-bottom: 1px solid var(--border); padding: var(--space-2) 0; }
+.command-group > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); font-weight: 650; cursor: pointer; }
+.command-group .menu-item { justify-content: space-between; gap: var(--space-2); white-space: normal; text-align: left; padding-block: var(--space-1); }
+.command-group .menu-item span { min-width: 0; overflow-wrap: anywhere; }
+.command-group .menu-item kbd { flex: none; font-size: var(--text-xs); }
+#command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
+.legacy-mode { font-size: var(--text-xs); color: var(--fg-muted); }
+.working-values { margin-bottom: var(--space-3); padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius); }
+.working-values p { margin-top: 0; }
+.working-values .dialog-actions { flex-wrap: wrap; }
+.unused-settings { margin-top: var(--space-3); }
+.unused-settings > summary { min-height: var(--target); cursor: pointer; }
 .spacer { flex: 1; }
 .menu-toggle, .values-toggle { display: none; }
 .menu-panel {

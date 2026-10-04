@@ -1,5 +1,40 @@
 # The main commands
 
+## Finding commands
+
+The sidebar groups commands into **Files**, **Run**, **Analysis**, **Plot**,
+and **Tools**. Search by name or purpose using **Search commands**
+(Ctrl/Cmd+K). Clicked commands work regardless of the current letter-shortcut
+mode; the sidebar does not change into a separate File or Numerics menu.
+The older letter sequences below remain available. Their keys appear
+separately from the plain command labels.
+
+Use **Files → Open model**, **Open session**, or **Save session as** to
+manage work. A `.snapx` session preserves the workspace; parameter and
+initial-condition files save only those values, and CSV exports save data.
+Desktop file actions use the operating system's dialogs. Browser mode uses
+the browser picker or a download. Ctrl/Cmd+O opens a model and Ctrl/Cmd+S
+opens the session save dialog. The native desktop File menu also exposes
+session open/save actions.
+
+The header identifies the model and gives immediate access to Integrate,
+Save session as, Data, Model (equations/source), and Help. Tools contains
+recording, playback, array plots and animation. F6 moves between Commands,
+Plot, Values and open Data/Model panels; Shift+F6 moves backwards. Within
+command results use the arrow keys, Home and End. These shortcuts leave
+modal dialogs in control of their focus.
+
+In Values, **Keep working values** captures the parameters and initial
+conditions before an experiment. **Restore working values** applies them
+together, without changing plots or solver settings. This checkpoint is
+temporary and clears when a model/session is loaded or the page reconnects;
+save a `.snapx` session for durable recovery. **Reset** still restores model
+defaults. Edits apply on Enter or leaving the field, to the next run.
+Numerics names the active solver and folds settings that solver does not
+use, explaining that changing them does not change its results.
+
+## Legacy letter shortcuts
+
 Results such as a successful curve fit, a mean and standard deviation, a
 Liapunov exponent, a saved boundary-value point, and AUTO toggle states
 appear in the status bar. They do not open an error dialog. If the

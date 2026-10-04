@@ -717,3 +717,19 @@ question of its own, for the maintainer (the release build is LTO's, a
 layout again different).
 
 | W185 | #237 | Investigate faster exact FMA in Wasm: integer/compiler improvements, established implementations and sine algorithm constraints; validate edge cases and browser support without changing production numerics | W184 | done (docs/wasm-exact-fma.md; selective unchanged FMA -O3 reduces integration time 13.8%, 51,825 MPFR cases pass in Node and Chrome, 106 math checks per candidate; wide arithmetic unsupported in tested runtimes; candidate retained outside production) |
+
+## Modern navigation — approved 2026-10-04
+
+Design: [modern-navigation.md](modern-navigation.md). The visual navigation is
+organized by user tasks; existing one-letter shortcuts remain available.
+
+| ID | Issue | Task | Needs | Status |
+|---|---|---|---|---|
+| W186 | #239 | Stable menu/item dispatch and plain labels | none | implemented locally; protocol/recording checks pass |
+| W187 | #240 | Grouped searchable navigation and workspace hierarchy | W186 | implemented locally; exhaustive reachability and responsive checks pass |
+| W188 | #241 | Native session file actions and conventional shortcuts | W186 | implemented locally; strict Windows build and WebView2 fixtures pass; platform runtime acceptance remains |
+| W189 | #242 | Fast keyboard pane and command navigation | W187 | implemented locally; search, arrows and pane cycling checks pass |
+| W190 | #243 | Active solver clarity and working-value checkpoint recovery | W187 | implemented locally; exact restore and model-boundary checks pass |
+| W191 | #244 | Focused validation, export wording, docs and visual review | W187–W190 | implemented locally; [validation and limits](modern-navigation-validation.md) |
+
+All six cards remain open pending review and integration of `codex/modern-navigation`.

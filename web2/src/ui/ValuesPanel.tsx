@@ -30,7 +30,7 @@ import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
-const STATE_HINT = 'Go runs from Initial; Last copies Now into Initial, then runs.';
+const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Integrate starts from Initial; Use current state copies Now into Initial.';
 
 /* ---- folded sections, remembered per viewer ---- */
 
@@ -170,7 +170,7 @@ function Parameters() {
   const pars = useStore(s => s.core?.pars);
   if (!pars?.length) return null;
   return (
-    <Section id="par" title="Parameters" tools={(
+    <Section id="par" title="Parameters" hint="Edits apply on Enter or leaving the field, to the next run." tools={(
       <>
         <FileTools kind="par" />
         <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
@@ -295,11 +295,20 @@ function NumericField({f}: {f: NumericsField}) {
 function NumericsSection() {
   const fields = useStore(s => s.numerics);
   if (!fields?.length) return null;
+  const method = fields.find(f => f.key === 'method');
+  const methodName = method?.choices?.[Number(method.value)] ?? 'the selected solver';
+  const unused = fields.filter(f => f.unused);
   return (
     <Section id="num" title="Numerics" hint="Changes apply to the next run: a run in progress keeps its own.">
+      <p class="value-hint">Solver: <strong>{methodName}</strong>. Unused solver controls are separated below.</p>
       <div class="value-list">
-        {fields.map(f => <NumericField key={f.key} f={f} />)}
+        {fields.filter(f => !f.unused).map(f => <NumericField key={f.key} f={f} />)}
       </div>
+      {unused.length > 0 && <details class="unused-settings">
+        <summary>Settings not used by {methodName}</summary>
+        <p class="value-hint">These values are kept for other solvers. Editing them does not change {methodName}'s results.</p>
+        <div class="value-list">{unused.map(f => <NumericField key={f.key} f={f} />)}</div>
+      </details>}
     </Section>
   );
 }
@@ -325,6 +334,8 @@ function UserButtonsBlock() {
 
 export function ValuesPanel() {
   const session = useSession();
+  const checkpoint = useStore(s => s.values.checkpoint);
+  const recoveryOff = useStore(s => !s.core || s.busy || !!s.ask || s.values.inflight.length > 0 || Object.keys(s.values.errors).length > 0);
   const open = useStore(s => s.valuesOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const modelBcs = showsBcSection(bcs) ? bcs : [];
@@ -357,6 +368,14 @@ export function ValuesPanel() {
         <h2>Values</h2>
       </div>
       <div class="values-body">
+        <div class="working-values">
+          <p>Keep parameters and initial conditions before experimenting. Reset restores model defaults.</p>
+          <div class="dialog-actions">
+            <button class="small" disabled={recoveryOff} onClick={() => session.captureWorkingValues()}>{checkpoint ? 'Update checkpoint' : 'Keep working values'}</button>
+            <button class="small" disabled={recoveryOff || !checkpoint} onClick={() => session.restoreWorkingValues()}>Restore working values</button>
+          </div>
+          {checkpoint && <p role="status">Working values kept for this model.</p>}
+        </div>
         <UserButtonsBlock />
         <Parameters />
         <StateSection />

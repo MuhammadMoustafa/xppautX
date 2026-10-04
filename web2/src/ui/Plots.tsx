@@ -39,7 +39,7 @@ function KinescopeBar() {
             title="Kinescope/Playback: show the captured frames (k, p)">Play</button>
           <button class="small" disabled={!playing} onClick={() => session.kinescopeStop()}>Stop</button>
           <button class="small" disabled={busy || playing} onClick={() => session.downloadKinescopeGif()}
-            title="Kinescope/Make AniGif (k, m): an animated GIF of the captured frames, written by the core and downloaded">
+            title="Export the captured frames as an animated GIF (K, M)">
             Export GIF
           </button>
           <button class="small" disabled={busy} onClick={() => session.kinescopeReset()}

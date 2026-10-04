@@ -3,6 +3,8 @@
 import type {Theme} from '../store/state';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {saveTheme} from './theme';
+import {baseName} from '../store/files';
+import {menuCommand} from '../protocol/kinds';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
 /* the theme is an icon, not a word: "Auto" beside the feature buttons read as AUTO (T21) */
@@ -56,21 +58,29 @@ export function TitleBar() {
     <header class="title-bar">
       <button class="menu-toggle" aria-controls="command-menu" aria-expanded={drawer}
         onClick={() => session.store.dispatch({type: 'drawer', open: !drawer})}>Menu</button>
-      <h1>{title || 'XPP'}</h1>
-      <span class="muted file">{file}</span>
+      <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
+      <span class="muted file">{title}</span>
       <span class="spacer" />
       {/* aria-disabled, not disabled: a disabled button loses the focus, and the
           letters typed next (XPP's keys, which a focused button passes on) with it */}
-      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.buttonKeys('Integrate', session.mainKey('initialconds'), 'g'); }}
-        title={busy ? BUSY_TITLE : 'Initialconds / Go (I, G)'}>Integrate</button>
+      <button class="primary" data-button="Integrate" aria-disabled={busy} onClick={() => { if (!busy) session.menuAction('main', 'initialconds', 'g'); }}
+        title={busy ? BUSY_TITLE : 'Integrate from the initial conditions (I, G)'}>Integrate</button>
+      <button class="save-session" disabled={!may(menuCommand('file', 'savesession'))}
+        onClick={() => session.menuAction('file', 'savesession')} title="Save this workspace to a .snapx session (Ctrl/Cmd+S)">Save session as…</button>
+      <details class="workspace-tools"><summary>Tools</summary><div class="workspace-tools-menu">
       {!recording && (
         <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}
           title={mayPlay ? 'Play a recording (.recx): its model, then its steps (File/plaY recording)' : BUSY_TITLE}>Play a recording…</button>
       )}
+      <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
+        onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}>Array plot</button>
+      <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
+        onClick={() => (aniOpen ? session.closeAni() : session.openAni())}>Animation</button>
       {!recording && (
         <button class="record-toggle" aria-disabled={!mayRecord} onClick={() => { if (mayRecord) session.startRecording(); }}
           title={mayRecord ? 'Record the steps you take to a .recx file (File/recorD)' : BUSY_TITLE}>Record</button>
       )}
+      </div></details>
       <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
         <ThemeIcon theme={theme} />
@@ -81,13 +91,7 @@ export function TitleBar() {
         onClick={() => (tableOpen ? session.closeTable() : session.openTable())}>Data</button>
       <button class="text-toggle" aria-controls="text-panel" aria-expanded={textOpen}
         onClick={() => (textOpen ? session.closeText() : session.openText())}
-        title="Equations, source and the last equilibrium">Text</button>
-      <button class="aplot-toggle" aria-controls="aplot-panel" aria-expanded={aplotOpen}
-        onClick={() => (aplotOpen ? session.closeAplot() : session.openAplot())}
-        title="The array plot: XPP's grid of a range of columns and rows, coloured by value">Array</button>
-      <button class="ani-toggle" aria-controls="ani-panel" aria-expanded={aniOpen}
-        onClick={() => (aniOpen ? session.closeAni() : session.openAni())}
-        title="The animation (Viewaxes/Toon): play, step and seek its frames">Animation</button>
+        title="Equations, source and the last equilibrium">Model</button>
       <button class="help-toggle" aria-controls="help-panel" aria-expanded={helpOpen}
         onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
         title="The manual (F1)">Help</button>

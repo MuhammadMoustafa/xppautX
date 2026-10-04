@@ -218,7 +218,7 @@ async function metrics(value) {
 }
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
-  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112};
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F6: 117};
 async function key(k, modifiers = 0) {
   if (NAMED[k]) {
     const code = NAMED[k];
@@ -703,7 +703,7 @@ async function dataTable(want, dir) {
   const curvesCsvName = await S('s.hello.output_names.curves');
   const curvesCsvPath = path.join(dir, curvesCsvName);
   fs.rmSync(curvesCsvPath, {force: true});
-  await cdp.eval(`document.querySelector('.plot-tools button[title^="Save the plotted numbers"]').click()`);
+  await cdp.eval(`document.querySelector('.plot-tools button[title^="Export the plotted numbers"]').click()`);
   check('the plot\'s CSV button offers xpp-curves.csv, written by the core',
     await until("s.files.offered && s.files.offered.name === s.hello.output_names.curves && !s.busy", 'plot csv offered'));
   await waitFile(curvesCsvPath);
@@ -3072,23 +3072,23 @@ async function busyKeys() {
   const running = await until('s.busy && !s.ask && w.series && w.series.rows > 0', 'the run under way', 30000);
   /* W95: what is disabled during a computation is decided by each action's kind, from hello */
   const ui = await cdp.eval(`(() => {
-    const item = k => document.querySelector('.menu-panel .menu-item[aria-keyshortcuts="' + k + '"]');
+    const item = id => document.querySelector('.menu-panel .menu-item[data-menu=main][data-item="' + id + '"]');
     const tool = t => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === t);
     const off = [...document.querySelectorAll('.menu-panel .menu-item')].filter(b => b.disabled)
-      .map(b => b.getAttribute('aria-keyshortcuts')).join('');
+      .map(b => b.dataset.item);
     return {
       status: document.querySelector('[data-testid=status]').textContent, off,
       integrate: document.querySelector('.title-bar button.primary').getAttribute('aria-disabled'),
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['w', 'v', 'x', 'r', 'e', 'f', 'n', 'd', 'k', 'g'].every(k => !item(k).disabled),
+      viewItems: ['window', 'viewaxes', 'xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'kinescope', 'graphic'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
     + 'and data (Initialconds, Sing pts...) and Save are disabled, Parameters (a setting, W106) is not',
     running && ui.status === 'Running Go… Esc stops' && ui.integrate === 'true' && ui.save
-    && ['i', 'c', 'a', 's', 'b'].every(k => ui.off.includes(k)) && !ui.off.includes('p'), JSON.stringify(ui));
+    && ['initialconds', 'continue', 'phasespace', 'singpts', 'bndryval'].every(id => ui.off.includes(id)) && !ui.off.includes('parameters'), JSON.stringify(ui));
   check('W95: ... while its views (Window/zoom, Viewaxes, Xi vs t, Restore, Erase, File, and the menus holding a view: Nullcline, Dir.field, Kinescope, Graphic stuff), New window and Stop stay enabled',
     ui.viewItems && !ui.newWindow && !ui.stop, JSON.stringify(ui));
   /* a view clicked during the run is sent, and the core runs it after the run (the menu it
@@ -3256,7 +3256,7 @@ async function recordCheck(dir) {
     await until(`s.core.recording.steps === 1 && s.core.recording.note === '' && !s.busy`, 'step', 20000)
     && await cdp.eval(`document.querySelector('.recbar textarea').value === '' && document.querySelector('.recbar .rec-count').textContent.trim() === '1 step'`),
     JSON.stringify(await S('s.core.recording')));
-  check('record: Integrate sends its key as a button', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.key === 'i' && c.button === 'Integrate')`));
+  check('record: Integrate sends its key as a button', await cdp.eval(`__xpp.sent().some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'initialconds' && c.button === 'Initial conditions')`));
   await cdp.eval(`document.querySelector('.recbar .rec-stop').click()`);
   check('record: Stop asks the file\'s name, the model\'s offered',
     await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx' && s.ask.file === 'lecar.recx'`, 'file ask'), JSON.stringify(await S('s.ask')));
@@ -3269,7 +3269,7 @@ async function recordCheck(dir) {
   check('record: web.recx holds the model and the step, its note above it, the button named',
     lines[0] === 'xppautx-recording 1' && lines.includes('@file lecar.odex') && at > 0
     && lines[at + 1] === '# First run.' && lines[at + 2] === '# It settles.'
-    && lines[at + 3] === '{"step":"Initialconds → Go","button":"Integrate","keys":["i","g"]}', JSON.stringify(lines.slice(at, at + 5)));
+    && (() => { const step = JSON.parse(lines[at + 3]); return step.step === 'Initial conditions → Go' && step.cmd.menu === 'main' && step.cmd.item === 'initialconds' && step.keys.join('') === 'g'; })(), JSON.stringify(lines.slice(at, at + 5)));
   check('record: the recording begins with the session\'s state (a @snapshot section before the files, W59d)',
     lines.indexOf('@snapshot') > 0 && lines.indexOf('@snapshot') < lines.indexOf('@file lecar.odex'));
 
@@ -3338,12 +3338,12 @@ async function playerCheck(dir) {
     JSON.stringify(await S('s.core.player')));
   const presses = await cdp.eval(`__xpp.presses()`);
   check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase)',
-    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'key', index: 0}, {step: 0, what: 'key', index: 1}, {step: 1, what: 'key', index: 0}]),
+    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 0, what: 'key', index: 0}, {step: 1, what: 'key', index: 0}]),
     JSON.stringify(presses));
   check('player: the page answered none of the step\'s questions (the player did)',
     await cdp.eval(`__xpp.sentFrom(${sentBefore}).every(c => c.cmd === 'play')`), JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBefore})`)));
   check('player: at the end the caption shows the last step, Play offers Play again',
-    await cdp.eval(`/Step 2: Erase/.test(document.querySelector('.player-caption').textContent) && /Play again/.test(document.querySelector('.player-play').textContent)`));
+    await cdp.eval(`/Step 2: Clear plot/.test(document.querySelector('.player-caption').textContent) && /Play again/.test(document.querySelector('.player-play').textContent)`));
   await cdp.eval(`document.querySelectorAll('.player-step')[1].click()`);
   check('player: a step clicked opens its note editor', await until(`s.player.selected === 1 && !!document.querySelector('.player-editor textarea')`, 'editor'));
   await cdp.eval(`(() => { const t = document.querySelector('.player-editor textarea');
@@ -3353,7 +3353,7 @@ async function playerCheck(dir) {
     await until(`s.player.steps[1].note === 'Clear the screen.' && s.player.intact && !s.busy`, 'saved'),
     JSON.stringify(await S('s.player.steps[1]')) + JSON.stringify(await cdp.eval(`__xpp.sent().slice(-3)`)) + JSON.stringify(await S('__xpp.log().slice(-3)')));
   const text = fs.readFileSync(path.join(dir, 'play.recx'), 'utf8');
-  check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Erase"/.test(text), text.slice(text.indexOf('@steps')));
+  check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Clear plot"/.test(text), text.slice(text.indexOf('@steps')));
   /* a changed copy: the banner, and Dismiss */
   fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('"keys":["e"]', '"keys":["e"] '));
   await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
@@ -3483,6 +3483,45 @@ async function leaveSaveCheck(dir) {
     JSON.stringify(fs.readdirSync(dir)));
 }
 
+async function navigationCheck() {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  check('navigation: five stable command groups and model filename', await cdp.eval(`
+    document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
+  await key('k', 2);
+  check('navigation: Ctrl+K focuses command search', await cdp.eval(`document.activeElement.id === 'command-search'`));
+  await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = 'save session'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  await rendered();
+  check('navigation: search crosses legacy menu boundaries', await cdp.eval(`!!document.querySelector('.menu-item[data-menu=file][data-item=savesession]') && !document.querySelector('.menu-item[data-item=initialconds]')`));
+  await key('ArrowDown');
+  check('navigation: search results reachable by arrow key', await cdp.eval(`document.activeElement.dataset.item === 'savesession'`));
+  await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = ''; input.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.plot-host').focus(); })()`);
+  await rendered();
+  await key('u');
+  await until('s.core.menu === 2 && !s.busy', 'legacy numerics mode');
+  const before = await S('s.seriesCount');
+  await cdp.eval(`document.querySelector('.title-bar button.primary').click()`);
+  check('navigation: clicked Integrate works in Numerics shortcut mode', await until(`s.seriesCount > ${before} && !s.busy && s.core.menu === 0`, 'stable integrate', 20000));
+  const values = await S('[s.core.pars, s.core.ics]');
+  const seriesCount = await S('s.seriesCount');
+  await cdp.eval(`document.querySelector('.working-values button').click()`);
+  check('navigation: working checkpoint captured', await until('!!s.values.checkpoint', 'checkpoint'));
+  await cdp.eval(`__xpp.send({cmd:'set',kind:'par',name:'iapp',value:0.123456789012345})`);
+  await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && !s.busy', 'changed value');
+  await cdp.eval(`document.querySelectorAll('.working-values button')[1].click()`);
+  check('navigation: Restore preserves exact parameters and ICs without integrating', await until(`JSON.stringify([s.core.pars,s.core.ics]) === ${JSON.stringify(JSON.stringify(values))} && !s.busy`, 'restored values') && await S(`s.seriesCount === ${seriesCount}`));
+  await focusPlot();
+  await key('s', 2);
+  check('navigation: Ctrl+S asks to save a session', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.snapx"', 'save session'));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'cancel save');
+  await focusPlot();
+  await key('F6');
+  check('navigation: F6 moves from plot to Values pane', await cdp.eval(`document.activeElement.id === 'values-panel'`));
+  await key('F6', 8);
+  check('navigation: Shift+F6 moves back to plot', await cdp.eval(`document.activeElement.classList.contains('plot-host')`));
+}
+
 async function keysCheck() {
   await desktopMetrics();
   check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -3519,9 +3558,9 @@ async function keysCheck() {
   await key('f');
   await until('s.core.menu === 1 && !s.busy', 'file menu for copy');
   const sentCopy0 = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('.menu-panel .menu-item[aria-keyshortcuts=o]').click()`);
+  await cdp.eval(`document.querySelector('.menu-panel .menu-item[data-menu=file][data-item=copyset]').click()`);
   check('copy set: its File menu button sends the key o',
-    await cdp.eval(`__xpp.sentFrom(${sentCopy0}).some(c => c.cmd === 'key' && c.key === 'o')`));
+    await cdp.eval(`__xpp.sentFrom(${sentCopy0}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'copyset')`));
   check('copy set: the core asks the name, pre-filled set1 or the next free one',
     await until("s.ask && s.ask.kind === 'string' && /^set[0-9]+$/.test(s.ask.value)", 'name ask'), JSON.stringify(await S('s.ask')));
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: 'mine'})`);
@@ -4663,7 +4702,7 @@ async function nativeFiles(dir) {
     for (const [call, name] of [["[...document.querySelectorAll('[data-section=par] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.par'],
         ["[...document.querySelectorAll('[data-section=ic] .value-tools button')].find(b => b.textContent === 'Save').click()", 'native-button.ic'],
         ["document.querySelector('.table-header .small').click()", 'native-table.csv'],
-        ["document.querySelector('[title=\"Save the plotted numbers as CSV (written by the core, then downloaded)\"]').click()", 'native-plot.csv']]) {
+        ["document.querySelector('[title=\"Export the plotted numbers as a CSV file\"]').click()", 'native-plot.csv']]) {
       if (name === 'native-table.csv') {
         await cdp.eval(`document.querySelector('.table-toggle').click()`);
         await until('s.table.open && s.table.page && s.table.page.data.length', 'table rows');
@@ -5530,6 +5569,7 @@ async function main() {
     if (run('auto')) await session(ODE, autoView);
     if (run('auto')) await session(HEAVY_ODE, autoStopRace);
     if (run('autoviews')) await session(ODE, autoViews);
+    if (run('navigation')) await session(ODE, navigationCheck);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);

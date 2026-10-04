@@ -11,8 +11,8 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {kindOf, mainKey, mayStart, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
-import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type XppEvent} from './protocol/types';
+import {kindOf, mainKey, mayStart, menuCommand, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
+import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoWindow} from './store/diagram';
 import {
@@ -138,7 +138,7 @@ export class Session {
   /** key sequences clicked while a key waits for its menu (a second Integrate
       right behind the first): each goes out after the idle before it, so the
       menu the first opens is answered by its own keys (W95) */
-  private clickedKeys: {button?: string; keys: [string, ...string[]]}[] = [];
+  private clickedKeys: {command: Command; then: string[]}[] = [];
   private replayIdles = 0;
   /** a command to send when the running one has ended (the AUTO view's close while busy, A10) */
   private afterIdle: Command | null = null;
@@ -270,8 +270,8 @@ export class Session {
       const typed = this.keyWaiting ? undefined : this.typeahead.shift();
       if (typed !== undefined && !next && !this.planIdles) this.key(typed);
       else if (!this.keyWaiting && this.clickedKeys.length) {
-        const {button, keys: [first, ...then]} = this.clickedKeys.shift()!;
-        this.sendKeys(button, first, then);
+        const {command, then} = this.clickedKeys.shift()!;
+        this.sendKeySequence(command, then);
       }
     }
     this.checkDiagram(ev);
@@ -334,9 +334,16 @@ export class Session {
     return menuKey(this.store.getState().hello, 'main', id);
   }
 
+  /** A clicked command uses its stable identity; typing still uses legacy keys. */
+  menuAction(menu: MenuName, item: string, ...then: string[]): void {
+    const hello = this.store.getState().hello;
+    if (!hello || !hello.menus[`${menu}_ids`].includes(item)) return;
+    this.sendKeySequence({...menuCommand(menu, item), button: hello.menus[menu][hello.menus[`${menu}_ids`].indexOf(item)]}, then);
+  }
+
   /** whether main-menu item `id` may go out now (may) */
   mayMain(id: string): boolean {
-    return this.may(mainKey(this.store.getState().hello, id));
+    return this.may(menuCommand('main', id));
   }
 
   /** whether item `id` of window `win`'s key layer may go out now (may) */
@@ -413,12 +420,19 @@ export class Session {
   }
 
   private sendKeys(button: string | undefined, first: string, then: string[]): void {
-    if (this.keyWaiting && this.may({cmd: 'key', key: first})) {
-      this.clickedKeys.push({button, keys: [first, ...then]});
+    this.sendKeySequence(button ? {cmd: 'key', key: first, button} : {cmd: 'key', key: first}, then);
+  }
+
+  private sendKeySequence(command: Command, then: string[]): void {
+    if (!this.may(command)) return;
+    if (this.keyWaiting) {
+      this.clickedKeys.push({command, then});
       return;
     }
     this.pendingKeys = then;
-    this.key(first, button);
+    this.keyWaiting = true;
+    this.keyIdlesAhead = this.idlesOwed;
+    this.send(command);
   }
 
   answer(ask: AskEvent, fields: Record<string, unknown>): void {
@@ -889,6 +903,21 @@ export class Session {
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
     this.send({cmd: 'default', kind});
+  }
+
+  captureWorkingValues(): void {
+    const {core, values, busy, ask} = this.store.getState();
+    if (!core || busy || ask || values.inflight.length || Object.keys(values.errors).length) return;
+    if (![...core.pars, ...core.ics].every(([, value]) => Number.isFinite(value))) return;
+    this.store.dispatch({type: 'values', action: {type: 'checkpoint', pars: core.pars, ics: core.ics}});
+  }
+
+  restoreWorkingValues(): void {
+    const {values, busy, ask} = this.store.getState();
+    if (!values.checkpoint || busy || ask || values.inflight.length) return;
+    const fields = (['par', 'ic'] as const).flatMap(kind => values.checkpoint![kind === 'par' ? 'pars' : 'ics']
+      .map(([name, value]) => ({kind, name, value})));
+    this.send({cmd: 'set', values: fields, button: 'Restore working values'});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the

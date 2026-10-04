@@ -1275,6 +1275,40 @@ def stop_server(p, r, snd):
     shutil.rmtree(r, ignore_errors=True)
 
 
+def check_stable_navigation():
+    p, r, snd, col, _ = launch_server()
+    def command(**cmd):
+        snd(**cmd)
+        return col(lambda e: e.get('ev') == 'idle')[0]
+    try:
+        col(lambda e: e.get('ev') == 'idle')
+        command(cmd='key', key='u')
+        events = command(cmd='key', menu='main', item='erase')
+        state = next((e for e in reversed(events) if e.get('ev') == 'state'), {})
+        check('navigation: stable main command works in Numerics mode and returns to main', state.get('menu') == 0, str(events[-3:]))
+        for fields in ({'menu': 'missing', 'item': 'erase'}, {'menu': 'main', 'item': 'missing'},
+                       {'menu': 'main', 'item': 'erase', 'key': 'e'}, {'menu': 'main', 'item': 'erase', 'win': 'auto'},
+                       {'menu': 'main'}, {'item': 'erase'}, {'menu': 42, 'item': 'erase'}):
+            events = command(cmd='key', **fields)
+            check('navigation: rejects malformed stable identity ' + repr(fields), any(e.get('ev') == 'message' and e.get('error') for e in events), str(events[-3:]))
+        snd(cmd='key', menu='file', item='savesession')
+        _, ask = col(is_ask)
+        check('navigation: stable save session asks the existing session picker', ask and ask.get('kind') == 'file' and ask.get('wild') == '*.snapx', str(ask))
+        if ask:
+            command(cmd='answer', id=ask['id'], ok=0)
+        command(cmd='key', key='f')
+        snd(cmd='key', menu='main', item='initialconds')
+        _, ask = col(is_ask)
+        check('navigation: stable integration opens initial conditions from File mode', ask and ask.get('kind') == 'menu' and 'g' in ask.get('keys', ''), str(ask))
+        if ask:
+            command(cmd='answer', id=ask['id'], key='Escape')
+    finally:
+        stop_server(p, r, snd)
+
+
+check_stable_navigation()
+
+
 def box_of(v):
     """a box from 20% to 60% of the window across and 30% to 80% down, in whole pixels"""
     w, h = v['right'] - v['left'], v['bottom'] - v['top']
@@ -5318,14 +5352,14 @@ def check_recording():
               list(files) == [ode] and files[ode] == want, str(list(files)))
         s = [x for x, _ in steps]
         check('record: I G is one step, its keys and label from the menus, its note above it',
-              s and s[0] == {'step': 'Initialconds → Go', 'keys': ['i', 'g']} and steps[0][1] == 'First run.\nThe cell settles.',
+              s and s[0] == {'step': 'Initial conditions → Go', 'keys': ['i', 'g']} and steps[0][1] == 'First run.\nThe cell settles.',
               str(steps[:1]))
         check('record: a cancelled menu is a step (keys i, Escape)',
-              len(s) > 1 and s[1] == {'step': 'Initialconds', 'keys': ['i', 'Escape']} and steps[1][1] == '', str(s[1:2]))
+              len(s) > 1 and s[1] == {'step': 'Initial conditions', 'keys': ['i', 'Escape']} and steps[1][1] == '', str(s[1:2]))
         check('record: a dialog\'s answer is in its step (nUmerics, Total 1e7, Esc)',
-              s[2:5] == [{'step': 'nUmerics', 'keys': ['u'], 'view': True},
-                         {'step': 'nUmerics → Total', 'keys': ['t'], 'answers': ['1e7']},
-                         {'step': 'nUmerics → [Esc]-exit', 'keys': ['Escape'], 'view': True}], str(s[2:5]))
+              s[2:5] == [{'step': 'Numerics', 'keys': ['u'], 'view': True},
+                         {'step': 'Numerics → Integration duration', 'keys': ['t'], 'answers': ['1e7']},
+                         {'step': 'Numerics → Return to main shortcuts', 'keys': ['Escape'], 'view': True}], str(s[2:5]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
               and stopped[0]['what'] == 'integrate', str(s[5:6]) + str(stopped))
@@ -5359,7 +5393,7 @@ def check_recording():
         check('File/recorD: the steps between (the file a step read named by its section), and not the File menu opened to stop',
               [x for x, _ in steps] == [{'step': 'Values read', 'cmd': {'cmd': 'values', 'op': 'read', 'kind': 'par', 'name': 'saved.par'},
                                          'files': [1]},
-                                        {'step': 'Erase', 'keys': ['e'], 'view': True}] and written == got, str(steps))
+                                        {'step': 'Clear plot', 'keys': ['e'], 'view': True}] and written == got, str(steps))
         par = open(os.path.join(r, 'saved.par'), encoding='utf-8').read().splitlines()
         check('record: a file the session read while recording is embedded after the model',
               list(files) == [ode, 'saved.par'] and files['saved.par'] == par, str(list(files)))

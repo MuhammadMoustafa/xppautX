@@ -455,9 +455,22 @@ void window_key(xpp::Session &s, const std::string &win, int ch, const char *lin
 
 void key_command(xpp::Session &s, const char *line)
 {
-    std::string k, win;
+    std::string k, win, menu, item;
     get_string(line, "key", k);
-    if (get_string(line, "win", win)) window_key(s, win, key_code(k.c_str()), line);
+    if (js_find(line, "menu") || js_find(line, "item")) {
+        get_string(line, "menu", menu);
+        get_string(line, "item", item);
+        const int which = main_menu_number(menu);
+        const int ch = which < 0 ? 0 : main_menu_key(which, item);
+        if (!ch || js_find(line, "win") || js_find(line, "key")) {
+            j_command_error("key", "A menu action needs a known menu and item, without key or win");
+            return;
+        }
+        show_main_menu(s, which);
+        commander(s, ch);
+        show_main_menu(s, MAIN_MENU);
+    }
+    else if (get_string(line, "win", win)) window_key(s, win, key_code(k.c_str()), line);
     else commander(s, key_code(k.c_str()));
 }
 
@@ -655,7 +668,14 @@ char line_kind(const char *line)
             ? XPP_KIND_COMPUTE : XPP_KIND_VIEW;
     }
     if (e->kind) return e->kind;
-    std::string k, win; /* a key: its menu item's kind */
+    std::string k, win, menu, item; /* a key: its menu item's kind */
+    if (js_find(line, "menu") || js_find(line, "item")) {
+        get_string(line, "menu", menu);
+        get_string(line, "item", item);
+        const int which = main_menu_number(menu);
+        if (which < 0 || js_find(line, "win") || js_find(line, "key")) return 0;
+        return main_menu_kind(which, main_menu_key(which, item));
+    }
     get_string(line, "key", k);
     const int ch = key_code(k.c_str());
     if (!get_string(line, "win", win)) return main_menu_kind(session.menu.load(std::memory_order_relaxed), ch);

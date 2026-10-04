@@ -1,5 +1,11 @@
 # The new front end (web2)
 
+The current navigation design is documented in [Modern navigation](modern-navigation.md)
+(W186–W191): stable command identities, searchable Files/Run/Analysis/Plot/Tools
+groups, native session menu actions, conventional file shortcuts, F6 pane
+navigation and temporary working-value recovery. Older task descriptions
+below retain the terminology used when those features were first implemented.
+
 The first browser front end (`web/`, removed at T18) copied the X11 program
 pixel for pixel: the core sent drawing primitives in window pixels and the
 page replayed them on canvases. The front end in `web2/` replaced it with a

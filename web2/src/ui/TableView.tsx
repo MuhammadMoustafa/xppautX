@@ -180,7 +180,7 @@ export function TableView() {
         <HelpButton target={HELP.dataTab} label="the Data tab" />
         <button class="small" onClick={() => session.writeDataFile('table', 'csv')}
           disabled={!page?.data.length || !may({cmd: 'browser', op: 'write'})}
-          title="Save every stored row as a CSV file (written by the core, then downloaded)">
+          title="Export every stored row as a CSV file">
           Export CSV
         </button>
       </div>

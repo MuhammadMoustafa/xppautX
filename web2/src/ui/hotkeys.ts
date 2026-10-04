@@ -10,6 +10,19 @@
 import {useEffect} from 'preact/hooks';
 import type {Session} from '../session';
 
+/** Visible work areas cycle without walking every field or command. */
+function focusPane(backwards: boolean): void {
+  const panes = ['#command-search', '.plot-host', '#values-panel', '#table-panel', '#text-panel']
+    .map(selector => document.querySelector<HTMLElement>(selector))
+    .filter((pane): pane is HTMLElement => !!pane && pane.getClientRects().length > 0 && getComputedStyle(pane).visibility !== 'hidden');
+  if (!panes.length) return;
+  const current = panes.findIndex(pane => pane === document.activeElement || pane.contains(document.activeElement));
+  const next = current < 0 ? backwards ? panes.length - 1 : 0 : (current + (backwards ? -1 : 1) + panes.length) % panes.length;
+  const pane = panes[next];
+  if (!pane.matches('input, button, [tabindex]')) pane.tabIndex = -1;
+  pane.focus();
+}
+
 const NAMED = new Set(['Escape', 'Enter', 'Backspace', 'Delete', 'Home', 'End', 'ArrowLeft', 'ArrowRight',
   'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown']);
 /** where typing is the element's own: text, lists, dialogs and menus */
@@ -34,6 +47,22 @@ export function useHotkeys(session: Session): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
+      if ((e.target as Element | null)?.closest('[role="dialog"], [aria-modal="true"]')) return;
+      const modifier = e.ctrlKey || e.metaKey;
+      if (modifier && !e.altKey && !e.shiftKey && ['o', 's', 'k'].includes(e.key.toLowerCase())) {
+        const key = e.key.toLowerCase();
+        e.preventDefault();
+        if (key === 'k') {
+          session.store.dispatch({type: 'drawer', open: true});
+          document.querySelector<HTMLInputElement>('#command-search')?.focus();
+        } else session.menuAction('file', key === 'o' ? 'openmodel' : 'savesession');
+        return;
+      }
+      if (e.key === 'F6') {
+        e.preventDefault();
+        focusPane(e.shiftKey);
+        return;
+      }
       const k = hotkey(e);
       if (!k || !isHotkeyTarget(e.target as Element | null, k)) return;
       e.preventDefault();

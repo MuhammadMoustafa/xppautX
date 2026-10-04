@@ -323,7 +323,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
   switch (ev.ev) {
     case 'hello': {
       /* a (re)connection: defaults and slider definitions come with state */
-      const values = reduceValues({...state.values, defaults: null}, {type: 'settled'});
+      const values = reduceValues({...state.values, defaults: null, checkpoint: null}, {type: 'settled'});
       /* a set sent before gets no idle now */
       return {...state, hello: ev, title: ev.title, values, numerics: null,
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};

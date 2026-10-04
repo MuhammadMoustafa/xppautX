@@ -9,6 +9,12 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Changed
+
+- Organize commands into searchable Files, Run, Analysis, Plot and Tools groups with plain labels; clicked actions use stable identities while legacy letter shortcuts remain. Show the model name and session save in the header (W186–W187, #239–#240).
+- Add native Open session/Save session as actions, Ctrl/Cmd+O/S, Ctrl/Cmd+K command search, and F6/Shift+F6 pane navigation (W188–W189, #241–#242).
+- Explain active solver settings and add temporary working-value checkpoints for parameter/initial-condition exploration; clarify CSV/GIF exports (W190–W191, #243–#244).
+
 ### Build
 
 - Browser checks wait for a menu dialog to receive keyboard focus before answering it, preserving the phase-plane assertions on slower runners (W182, [#234](https://github.com/MuhammadMoustafa/xppautX/issues/234)).

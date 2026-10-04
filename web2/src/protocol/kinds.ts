@@ -72,6 +72,11 @@ export function mainKey(hello: HelloEvent | null, id: string): {cmd: 'key'; key:
   return {cmd: 'key', key: menuKey(hello, 'main', id)};
 }
 
+/** A menu action does not depend on which legacy shortcut menu is active. */
+export function menuCommand(menu: MenuName, item: string): Command {
+  return {cmd: 'key', menu, item};
+}
+
 /** the key of item `id` of window `win`'s layer ('' before hello, or for no such item) */
 export function layerKey(hello: HelloEvent | null, win: LayerWindow, id: string): string {
   const l = hello?.windows[win];
@@ -96,6 +101,13 @@ export function isWindowKey(hello: HelloEvent | null, cmd: Command, win: LayerWi
 export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Kind | null {
   if (!hello) return null;
   if (cmd.cmd === 'key') {
+    if ('menu' in cmd || 'item' in cmd) {
+      if (typeof cmd.menu !== 'string' || typeof cmd.item !== 'string' || 'key' in cmd || 'win' in cmd) return null;
+      const name = hello.menus.names.find(n => n === cmd.menu);
+      if (!name) return null;
+      const i = hello.menus[`${name}_ids`].indexOf(cmd.item);
+      return i >= 0 ? OF_LETTER[hello.menus[`${name}_kinds`][i]] ?? null : null;
+    }
     const key = String(cmd.key ?? '');
     if (key === 'Escape') return 'control';
     if (typeof cmd.win === 'string') {
