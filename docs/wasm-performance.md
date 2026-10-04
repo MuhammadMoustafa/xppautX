@@ -4,6 +4,9 @@
 This follows [the adoption assessment](performance-adoption.md). The Wasm
 prototype and diagnostic tools remain on `task/W9-wasm`; no runtime or
 numerical policy change is merged into master or included in v0.2.0.
+The [exact-FMA follow-up](wasm-exact-fma.md) (W185) demonstrates a 13.8%
+improvement by selectively compiling the existing software FMA at `-O3`,
+with independent MPFR checks; it remains outside the production build.
 Reproduction commits are `318da681` (investigation tools) and `6d0202e5`
 (reviewed warm-up and runtime rounding witness), both on `task/W9-wasm`.
 

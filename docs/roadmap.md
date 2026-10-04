@@ -34,7 +34,7 @@ issue; the card here is the one kept up to date.
 | W7d | #19 | AUTO's file I/O (autlib1/3, auto_nox: fort files, .s/.b/.d) through xpp_io's reader and writer; byte-identical diagrams | W7b | done |
 | W7e | #19 | The File menu's dead entries (found in W7c): Bell and Tips removed (nothing has read them since X11), Help opens the page's Help at the File menu chapter (a `help` event), the manual updated; load_eqn's option merge takes the seed's flag, not the small font's | W7c | done |
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
-| W9  | #21 | WebAssembly build (proof of concept) | none | ready (W184 report: arithmetic model near native; trig gap dominated by exact software FMA; nonportable diagnostic 3.658s -> 1.430s, kept outside production; retain for browser portability, with persistence, errors, AUTO and full UI integration still to verify) |
+| W9  | #21 | WebAssembly build (proof of concept) | none | ready (W184/W185 reports: arithmetic near native; exact FMA -O3 candidate 13.8% faster with MPFR checks, retained outside production; hardware diagnostic nonportable; keep for browser portability, with persistence, errors, AUTO and full UI integration still to verify) |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | #23 | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | done (steps 1-2 then; step 3 finished by W32b (xpp_io's Writer/readers, xpp_files for every other file operation) and the W33 sweeps: tools/filecheck.sh's baseline is empty) |
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
@@ -715,3 +715,5 @@ the noise is the one that costs speed. Pinning the interpreter's layout
 (so that an unrelated change cannot cost the shipped program 10%) is a
 question of its own, for the maintainer (the release build is LTO's, a
 layout again different).
+
+| W185 | #237 | Investigate faster exact FMA in Wasm: integer/compiler improvements, established implementations and sine algorithm constraints; validate edge cases and browser support without changing production numerics | W184 | done (docs/wasm-exact-fma.md; selective unchanged FMA -O3 reduces integration time 13.8%, 51,825 MPFR cases pass in Node and Chrome, 106 math checks per candidate; wide arithmetic unsupported in tested runtimes; candidate retained outside production) |
