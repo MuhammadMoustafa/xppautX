@@ -87,3 +87,8 @@ The tools are retained here for reproduction. `wasmfmaexperiment.cpp` is
 an explicitly non-production diagnostic; no ordinary build enables it.
 Arithmetic can run near native speed; the measured trigonometric gap is
 dominated by software FMA. Browser portability remains the adoption goal.
+
+[W185 exact-FMA investigation](https://github.com/MuhammadMoustafa/xppautX/blob/master/docs/wasm-exact-fma.md)
+finds a 13.8% integration-time reduction by selectively rebuilding the
+existing FMA at -O3, with 51,825 MPFR vectors matching in Node and Chrome.
+Its tools stay here for reproduction; ordinary builds enable no override.
