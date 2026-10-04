@@ -17,9 +17,9 @@ namespace {
 /* the index @ of a vector formula (INDXCOM) */
 constexpr double CurrentIndex=0;
 
-/* eval_rpn starts a 4 KiB page of code (W111): where it fell within a page
-   swung kuramot100's run time by 9% with the same instructions, so any
-   unrelated change moved the timings; pinned there it no longer moves */
+/* W111's 4 KiB boundary reduced a 9% layout swing in earlier kuramot100
+   trials with the same instructions. Its benefit depends on the CPU,
+   compiler and build flags; measure new layouts before relying on it. */
 constexpr int EvalRpnAlignment=4096;
 
 /* Runs program equat on p's stacks and returns the value on top at its
