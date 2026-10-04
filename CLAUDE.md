@@ -301,11 +301,16 @@ build, then examples and unit tests, then 568 seconds in AUTO. Each
 shard builds independently; measure the elapsed time and runner minutes
 before adding further shards or a shared-build artifact.
 `windows-clang-sanitizers` is a 6-shard matrix, each with its own build:
-smoke+examples, unit tests, servercheck, webcheck, and autocheck split
-into two (roughly half its sections each) since it is the likeliest of
-the three side-by-side checks to be the long pole; each shard's own
-"finished after Ns" lines say for sure, and whether a shard needs
-splitting further.
+smoke+examples, unit tests, protocol+web together, and three AUTO
+partitions from the same owner as Linux's (W181). Combining the short
+protocol/web jobs removes a repeated build to offset the extra AUTO
+partition. In CI 37177097317 the previous second AUTO shard took 694s,
+Windows core 590s and macOS UI 579s; splitting jobs below the critical
+path cannot shorten the matrix by itself. Job labels describe platform,
+compiler and scope; workflow_dispatch keeps the stable job ids above.
+Shared artifacts must come from the same compiler and flags, and their
+upload/download and dependency cost must be measured against the build
+they save (W41's shared Windows sanitizer build was slower at the time).
 
 `tools/asancheck.sh --no-leaks` (CI's `macos-sanitizers` job, Apple clang
 on macos-latest) runs the same checks with LeakSanitizer's detect_leaks

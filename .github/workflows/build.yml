@@ -538,16 +538,12 @@ jobs:
   # this into a shared-build job plus shards that downloaded it, but the
   # build (57-89s) turned out far cheaper than the artifact round trip and
   # the extra job's own msys2 setup, so each shard now builds for itself
-  # (--only build is still in every shard's --only list; asancheck.sh's
-  # --skip-build stays for local use, e.g. iterating on one phase against
-  # an already-built tree). 6 shards, none expected over ~2.5 min of its
-  # own work after its build: smoke+examples, unit tests, servercheck and
-  # webcheck each alone, autocheck split into two (its 13 sections,
-  # tools/autocheck.py --list, roughly in half) since it is the most
-  # likely of the three side-by-side checks to be the long pole (heavier
-  # numerics under ASan) -- run_check's new "NAME finished after Ns" line
-  # in each shard's own log will say for certain, and whether autocheck
-  # needs splitting further or servercheck/webcheck need it too.
+  # (--skip-build stays for local iteration). W181 keeps six shards:
+  # smoke+examples, unit tests, protocol+web together, and three AUTO
+  # partitions selected by their owner. The previous AUTO partition 2
+  # took 694s in CI 37177097317; combining the short protocol/web jobs
+  # offsets the new AUTO shard's repeated build. Measure both the matrix
+  # critical path and summed runner time before further splitting.
   windows-clang-sanitizers:
     name: Windows - clang sanitizers - ${{ matrix.shard }}
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-clang-sanitizers,')
