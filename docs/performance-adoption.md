@@ -3,6 +3,10 @@
 Assessment [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235),
 2026-10-04. Implementation branches remain outside master and v0.2.0.
 
+The follow-up [Wasm profile and optimization report](wasm-performance.md)
+(W184) isolates exact software FMA as the main trig-workload cost, tests
+a nonportable hardware diagnostic, and retains W9 for browser portability.
+
 ## Different layers, no required dependency
 
 | Card | Layer | Potential benefit | Relationship |

@@ -34,7 +34,7 @@ issue; the card here is the one kept up to date.
 | W7d | #19 | AUTO's file I/O (autlib1/3, auto_nox: fort files, .s/.b/.d) through xpp_io's reader and writer; byte-identical diagrams | W7b | done |
 | W7e | #19 | The File menu's dead entries (found in W7c): Bell and Tips removed (nothing has read them since X11), Help opens the page's Help at the File menu chapter (a `help` event), the manual updated; load_eqn's option merge takes the seed's flag, not the small font's | W7c | done |
 | W8  | #20 | Remove the X11 front end (pulled ahead of W6, 2026-09-23: the classic web page covers its features until T17) | none | done (4136541) |
-| W9  | #21 | WebAssembly build (proof of concept) | none | ready (W183 review: partial proof verified, 16 exact-value assertions and 4 browser checks pass; optimized Wasm 3.49x slower on kuramot100; keep open for browser portability, with persistence, errors, AUTO and full UI integration still to verify) |
+| W9  | #21 | WebAssembly build (proof of concept) | none | ready (W184 report: arithmetic model near native; trig gap dominated by exact software FMA; nonportable diagnostic 3.658s -> 1.430s, kept outside production; retain for browser portability, with persistence, errors, AUTO and full UI integration still to verify) |
 | W10 | #22 | Replayable interruptions in scripts | none | done (539b300) |
 | W11 | #23 | One I/O module: logging only, safe formatting, file reading and writing | none (step 3 with W7) | done (steps 1-2 then; step 3 finished by W32b (xpp_io's Writer/readers, xpp_files for every other file operation) and the W33 sweeps: tools/filecheck.sh's baseline is empty) |
 | W12a | #24 | The manual as Markdown (docs/manual/), current with web2; W12 steps 1, 2, 4 | T20, T21 | done |
@@ -272,6 +272,8 @@ issue; the card here is the one kept up to date.
 | W182 | #234 | CI 37178261085 macOS phase-plane check answers a menu before its dialog has focus: reuse the shared focus-condition helper and fail explicitly when readiness is absent; keep all nullcline/field data assertions and validate the full matrix | none | done (reviewer; existing menuKey reused; all 13 phase checks passed at CPU throttle 16; CI 37178708106 all 20 green) |
 
 | W183 | #235 | Assess W9 (Wasm), W34 (SUNDIALS CVODE), and W111 (native evaluator layout) together: independent and interacting effects, numerical correctness, fair optimization and warmed alternating measurements; record which implementations to adopt or decline, preserving evaluation findings | W9, W34, W111 | done (docs/performance-adoption.md; W34 evaluation complete without adopting replacement, W111 alignment declined, W9 retained for portability; focused WSL and browser checks pass, no sleeps or timing assertions added) |
+
+| W184 | #236 | Profile W9's Wasm slowdown: separate computation and event delivery, compare representative arithmetic and transcendental workloads, identify hot functions, test controlled optimizations with exact numerical checks, and report demonstrated gains and remaining constraints | W9 | done (docs/wasm-performance.md and measurement data; controlled native/baseline/diagnostic comparison, CPU profiles, separate compiler trials, exact WSL and Chrome checks; no unsafe numerical path adopted or sleeps added) |
 
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
