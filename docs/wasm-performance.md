@@ -29,9 +29,8 @@ implementation result, not a universal ratio for WebAssembly.
 
 A separate hardware-assisted diagnostic removes most of the measured
 penalty (3.658s to 1.430s). This demonstrates an optimization opportunity,
-but its relaxed rounding semantics prevent production adoption. Keep W9
-for browser portability; pursue an exact FMA implementation before making
-a speed claim. W34 and W111 do not address this measured bottleneck.
+but its relaxed rounding semantics prevent production adoption. A future full port would require a concrete browser-only product requirement
+and further exact-math validation. W34 and W111 do not address this measured bottleneck.
 
 ## Method and controls
 
