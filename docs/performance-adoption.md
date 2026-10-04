@@ -5,7 +5,9 @@ Assessment [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235),
 
 The follow-up [Wasm profile and optimization report](wasm-performance.md)
 (W184) isolates exact software FMA as the main trig-workload cost, tests
-a nonportable hardware diagnostic, and retains W9 for browser portability.
+a nonportable hardware diagnostic. The later exact-FMA investigation
+and maintainer decision close W9 as not planned; see the
+[published evaluation](https://github.com/MuhammadMoustafa/xppautX/discussions/238).
 
 ## Different layers, no required dependency
 
@@ -151,7 +153,7 @@ Closing it does not claim that native code-layout sensitivity is solved.
 |---|---|---|
 | W34 | Complete the evaluation and close; retain the vendored CVODE | No consistent speed/accuracy gain for current workloads; preserve the report and tolerance finding, without merging the adapter |
 | W111 | Close the current alignment proposal as not planned | Small normal-build gain reverses under release/LTO; no benefit to the Wasm module |
-| W9 | Keep open for browser portability; do not adopt as a speed change | The partial proof works but this workload is slower; persistence, error handling, AUTO and full application integration remain |
+| W9 | Close the full port as not planned; preserve prototype and reports | Maintainer decision after W184/W185: browser portability does not justify remaining persistence, error handling, AUTO, UI/file integration and maintenance for current priorities |
 
 There is no supported combined speed improvement to adopt from these
 three candidates. Further speed work should profile a representative mix

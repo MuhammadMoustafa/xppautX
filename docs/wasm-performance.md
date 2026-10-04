@@ -10,6 +10,10 @@ with independent MPFR checks; it remains outside the production build.
 Reproduction commits are `318da681` (investigation tools) and `6d0202e5`
 (reviewed warm-up and runtime rounding witness), both on `task/W9-wasm`.
 
+Maintainer decision after W184/W185: the full W9 port is declined as not
+planned for current priorities. The prototype and evidence remain available.
+See the [published evaluation](https://github.com/MuhammadMoustafa/xppautX/discussions/238).
+
 ## What the evidence establishes
 
 Wasm is not uniformly slow for this core. An arithmetic-only model with
@@ -207,7 +211,7 @@ The same-run Node application comparison remains the controlled estimate.
 
 ## Practical decision and remaining limits
 
-Keep W9 as an optional browser-portability investigation. It already runs
+W9 demonstrated optional browser portability. It already runs
 some arithmetic models near native speed. For trigonometric-heavy work,
 the current exact portable math path carries a substantial measured cost.
 Do not expect porting more UI/file code, W34's solver replacement, or

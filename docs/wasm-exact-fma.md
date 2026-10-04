@@ -7,6 +7,10 @@ or included in v0.2.0.
 Reproduction tools are retained in `534942d6`; separate review commit
 `856fded0` makes the browser wait for the current fixture's identity.
 
+Maintainer decision after W184/W185: the full W9 port is declined as not
+planned for current priorities. The prototype and evidence remain available.
+See the [published evaluation](https://github.com/MuhammadMoustafa/xppautX/discussions/238).
+
 ## Result and decision
 
 There is a demonstrated improvement without relaxing FMA rounding.
