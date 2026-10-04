@@ -127,6 +127,11 @@ not a baseline of its own. Bessel `besselj`/`bessely` use the vendored musl impl
 `xpp::math` (W163, #215), so they also give the same bits on every platform. From Git Bash:
 `tools/examples_check.sh --bin xppautX.exe`.
 
+Timings do not move with unrelated code (W111, #163): `eval_rpn`
+(core/expr_eval.cpp), most of a model's run time, starts a 4 KiB page of
+code (`[[gnu::aligned(EvalRpnAlignment)]]`); where it fell within a page
+swung kuramot100 by 9% with the same instruction count.
+
 `tools/goldencheck.py` (W31c, run by verify.sh) drives `xppautX --server`
 through lecar.ode and vanderpol.ode to write PostScript (with a nullcline
 and a direction field), SVG, kinescope GIFs and an array-print PostScript,
