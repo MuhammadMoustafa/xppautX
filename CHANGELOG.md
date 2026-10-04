@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-04
+
 ### Build
 
 - Commit embedded C++ assets only after complete generation; failed reads preserve existing targets and output errors name the destination (W178, [#230](https://github.com/MuhammadMoustafa/xppautX/issues/230)).
