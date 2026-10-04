@@ -43,6 +43,7 @@ function MenuAsk({ask}: {ask: AskEvent}) {
   const items = ask.kind === 'menu' ? ask.items ?? [] : ask.choices ?? [];
   return (
     <>
+      {ask.kind === 'menu' && <p class="shortcut-instruction">Letter keys choose from this menu. <strong>Esc cancels</strong> before starting another command.</p>}
       {ask.question && <p>{ask.question}</p>}
       <ul class={'menu-list' + (items.length > MENU_ONE_COLUMN ? ' menu-columns' : '')} role="menu"
         aria-label={ask.title || ask.name || 'Choices'} style={{'--menu-rows': String(menuRows(items.length))}}>

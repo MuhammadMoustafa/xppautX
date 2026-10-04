@@ -74,6 +74,16 @@ units. Larger models and narrow screens still require scrolling.
 
 ## Visual and implementation constraints
 
+Unfinished keyboard commands retain their context when focus leaves the
+application. File and Numerics modes show a prominent context box, highlight
+their applicable commands, and show the next key rather than repeating the
+Main sequence. Other commands show the necessary Escape first. A Main
+commands button explicitly cancels the mode; the status bar also identifies
+it. Submenu dialogs remain visible and explain that Escape cancels before
+starting another command. Clicked command identities remain independent of
+the legacy shortcut mode. Leaving the application does not silently discard
+a pending choice.
+
 Keep the current palette, type scale, target sizes, responsive layout,
 contextual help and numerical engines. Export labels explain what data is
 saved rather than how internal delivery works. Menu metadata belongs to

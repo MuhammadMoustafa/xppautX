@@ -18,6 +18,14 @@ export interface NavigationItem {
   shortcut: string;
 }
 
+/** Show the sequence that works from the current shortcut layer, not just
+    the sequence from Main. Clicked identities remain independent of mode. */
+export function contextualShortcut(shortcut: string, target: MenuName, active: MenuName | null): string {
+  if (!active || active === 'main') return shortcut;
+  if (target === active) return shortcut.split(', ').at(-1)!;
+  return `Esc, ${shortcut}`;
+}
+
 export function navigationGroups(hello: HelloEvent | null, query: string) {
   const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   return COMMAND_GROUPS.map(group => ({name: group.name, items: hello ? (['main', 'file', 'num'] as const).flatMap(menu =>

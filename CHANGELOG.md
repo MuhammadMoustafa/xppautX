@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Keep shortcut context visible with File/Numerics mode indicators, a Main commands/Esc action, mode-aware hints and explicit submenu cancellation guidance (W189, #242).
+
 - Put Run first and prioritize a compact States/Parameters panel; show ten-digit inspection values and sampled tail rates, and fold Numerics/Recovery to keep the reference model's values visible without scrolling (W187/W190, #240/#243).
 
 - Organize commands into searchable Files, Run, Analysis, Plot and Tools groups with plain labels; clicked actions use stable identities while legacy letter shortcuts remain. Show the model name and session save in the header (W186–W187, #239–#240).

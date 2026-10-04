@@ -123,7 +123,33 @@ and `build/values-inspection-browser-final.log`.
 
 ![Narrow state inspection](modern-navigation/states-parameters-narrow.png)
 
-### Initial implementation
+### Shortcut context follow-up
+
+The user's unfinished I/G example identified the value of visible command
+state. File and Numerics now have a sticky context box, active-command
+highlighting, an explicit Main commands button, and status-bar feedback.
+Shortcut hints reflect the active layer (R in File; Esc, I to return to Main
+before I). Submenu dialogs explain that letters belong to their displayed
+menu and Escape cancels. Keyboard routing is unchanged: an unfinished I
+must be cancelled before typing F, R for the settings-file picker.
+
+Validation passes typecheck, 318 UI unit tests, the final strict UCRT asset
+build, and 62 browser checks: 35 navigation/keyboard checks plus 27 busy
+checks. The first combined browser run had two busy-edit failures because
+the test focused a hidden Numerics input. The helper now unfolds the section
+and scrolls the field into view before editing; the unchanged busy-value
+assertions pass on rerun. Logs: `build/shortcut-context-unit.log`,
+`build/shortcut-context-browser-final.log` (includes the superseded failures),
+`build/shortcut-context-busy.log`, and `build/shortcut-context-build-final.log`.
+Browser screenshots at 1280×720 confirm the visible File context and
+unfinished Integrate menu. These are browser evidence, not native OS dialog
+evidence. No numerical core or native menu code changed in this follow-up.
+
+![Visible File shortcut context](modern-navigation/shortcut-context.png)
+
+![Unfinished Integrate menu](modern-navigation/shortcut-submenu.png)
+
+### Initial implementation screenshots
 
 ![Desktop workspace](modern-navigation/desktop.png)
 

@@ -1,12 +1,22 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {kindOf, menuCommand} from '../src/protocol/kinds';
-import {navigationGroups} from '../src/ui/navigation';
+import {contextualShortcut, navigationGroups} from '../src/ui/navigation';
 import {initialState, reduce} from '../src/store/state';
 import {initialValues, reduceValues} from '../src/store/values';
 import {HELLO} from './hello';
 
 const hello = {...HELLO, menus: {...HELLO.menus}};
+
+test('shortcut hints describe the sequence from the active layer', () => {
+  assert.equal(contextualShortcut('F, R', 'file', 'main'), 'F, R');
+  assert.equal(contextualShortcut('F, R', 'file', 'file'), 'R');
+  assert.equal(contextualShortcut('I', 'main', 'file'), 'Esc, I');
+  assert.equal(contextualShortcut('U, D', 'num', 'file'), 'Esc, U, D');
+  assert.equal(contextualShortcut('F, R', 'file', 'num'), 'Esc, F, R');
+  assert.equal(contextualShortcut('U, D', 'num', 'num'), 'D');
+  assert.equal(contextualShortcut('I', 'main', null), 'I');
+});
 for (const menu of ['main', 'file', 'num'] as const) {
   hello.menus[menu] = hello.menus[`${menu}_ids`].map(id => id);
   hello.menus[`${menu}_hints`] = hello.menus[menu].map(id => `Action ${id}`);

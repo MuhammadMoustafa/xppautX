@@ -9,6 +9,16 @@ mode; the sidebar does not change into a separate File or Numerics menu.
 The older letter sequences below remain available. Their keys appear
 separately from the plain command labels.
 
+An unfinished shortcut sequence keeps its context. File and Numerics modes
+show a prominent **shortcuts active** indicator, highlight the commands
+whose next letter is active, and show the mode in the status bar. Shortcut
+hints reflect the current layer: File → Import shows `R` while File is
+active, and a main action shows `Esc, I` when it needs a return to Main.
+Choose **Main commands** or press Esc to leave a prefix mode. Submenu
+dialogs remain visible and explain that their letters choose from that
+menu; cancel with Esc before starting a different letter sequence. Leaving
+and returning to the app does not silently discard an unfinished command.
+
 Use **Files → Open model**, **Open session**, or **Save session as** to
 manage work. A `.snapx` session preserves the workspace; parameter and
 initial-condition files save only those values, and CSV exports save data.

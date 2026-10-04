@@ -3554,7 +3554,30 @@ async function keysCheck() {
   check('keys: F on the plot opens the File menu and the focus stays on the plot',
     await until('s.core.menu === 1 && !s.busy', 'file menu') && await cdp.eval(`!!document.activeElement.closest('.plot-host')`),
     await cdp.eval(`document.activeElement.className`));
+  check('keys: File mode is visible and hints identify the actual next key', await cdp.eval(`
+    document.querySelector('.shortcut-context strong').textContent === 'File shortcuts active' &&
+    document.querySelector('[data-item=importset] kbd').textContent === 'R' &&
+    document.querySelector('[data-item=initialconds] kbd').textContent === 'Esc, I' &&
+    document.querySelector('[data-item=importset]').dataset.shortcutActive === 'true' &&
+    document.querySelector('.shortcut-status').textContent.includes('File')`));
+  await cdp.eval(`document.querySelector('.values-toggle').focus(); document.querySelector('.plot-host').focus()`);
+  check('keys: returning focus preserves File mode and its visible context', await S('s.core.menu === 1') && await cdp.eval(`!!document.querySelector('.shortcut-context')`));
+  await cdp.eval(`document.querySelector('.shortcut-context button').click()`);
+  check('keys: Main commands explicitly clears File mode', await until('s.core.menu === 0 && !s.busy', 'main commands') && await cdp.eval(`!document.querySelector('.shortcut-context')`));
+  await focusPlot();
+  await key('i');
+  await until('s.ask && s.ask.kind === "menu"', 'unfinished initial conditions');
+  check('keys: an unfinished submenu explains which menu owns letter keys', await cdp.eval(`
+    document.querySelector('.dialog .shortcut-instruction').textContent.includes('Esc cancels')`));
   await key('Escape');
+  await until('!s.ask && !s.busy', 'cancel unfinished command');
+  await focusPlot();
+  await key('f');
+  await until('s.core.menu === 1 && !s.busy', 'file mode after unfinished command');
+  await key('r');
+  check('keys: after explicitly cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.set"', 'import settings'));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'cancel settings picker');
   await until('s.core.menu === 0 && !s.busy', 'main menu');
   /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
   await cdp.eval(`document.querySelector('.title-bar button.primary').focus()`);
@@ -3693,7 +3716,12 @@ async function goRun() {
   await until(`__xpp.actions().slice(${n}).includes('event:idle') && !s.busy`, 'the run after Go', 60000);
 }
 async function editField(sec, name, text) {
-  await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input'); el.focus();
+  await cdp.eval(`(() => { const group = ${fieldOf(sec, name)}.closest('.value-group');
+    const toggle = group.querySelector('.value-fold[aria-expanded="false"]');
+    if (toggle) toggle.click(); })()`);
+  await rendered();
+  await cdp.eval(`(() => { const el = ${fieldOf(sec, name)}.querySelector('input');
+    el.scrollIntoView({block: 'nearest'}); el.focus();
     el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', {bubbles: true})); })()`);
   await rendered();
   const busy = await cdp.eval(`(() => { const busy = __xpp.state().busy && __xpp.state().computing;
