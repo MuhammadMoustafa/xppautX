@@ -78,3 +78,12 @@ See the comment above `WASM_LDFLAGS` in the Makefile: the HTTP server and
 the window (a browser has no sockets and is the window), the stdin reader
 (replaced by `push`), starting a process (`XPPEDITOR`, the browser opener:
 there are none). The rest of the core is unchanged.
+
+## W184 performance follow-up
+
+The [performance report](https://github.com/MuhammadMoustafa/xppautX/blob/master/docs/wasm-performance.md)
+and its samples compare transport, arithmetic, compiler flags and exact math.
+The tools are retained here for reproduction. `wasmfmaexperiment.cpp` is
+an explicitly non-production diagnostic; no ordinary build enables it.
+Arithmetic can run near native speed; the measured trigonometric gap is
+dominated by software FMA. Browser portability remains the adoption goal.

@@ -13,6 +13,9 @@
    --bench also prints the time of kuramot100.odex's integration, module and
    native, through the same client (a perf: line, never a pass mark: W58).
    Usage: node tools/wasmcheck.mjs [--native ./xppautX] [--wasm build/wasm] [--bench [--bench-rounds N]]
+   --bench-model PATH selects a workload; --bench-total T changes its duration.
+   --bench-series off fetches final plotted data outside the timed integration.
+   --compare-wasm DIR adds a second module to the same alternating experiment.
    (tools/wasmcheck.sh builds everything it needs.) Every wait is for an
    event, with a generous safety limit (wasm/src/client.ts). */
 import {spawn, spawnSync} from 'node:child_process';
@@ -29,6 +32,10 @@ const option = (name, dflt) => (argv.includes(name) ? argv[argv.indexOf(name) + 
 const native = path.resolve(option('--native', path.join(root, 'xppautX')));
 const wasmDir = path.resolve(option('--wasm', path.join(root, 'build', 'wasm')));
 const bench = argv.includes('--bench');
+const benchModel = path.resolve(option('--bench-model', path.join(root, 'examples', 'ode', 'kuramot100.odex')));
+const benchTotal = option('--bench-total', null);
+const benchSeries = option('--bench-series', 'on');
+if (!['on', 'off'].includes(benchSeries)) throw new Error('--bench-series must be on or off');
 // Three warmed samples by default; more can be requested for a timing study.
 const measuredRounds = Number(option('--bench-rounds', '3'));
 if (!Number.isSafeInteger(measuredRounds) || measuredRounds < 1)
@@ -38,6 +45,8 @@ const {LineTransport, WasmClient} = await import(pathToFileURL(path.join(wasmDir
 const require = createRequire(import.meta.url);
 const xppCore = require(path.join(wasmDir, 'core.js'));
 const createXppautX = require(path.join(wasmDir, 'xppautx.js'));
+const compareWasm = option('--compare-wasm', null);
+const comparisonFactory = compareWasm === null ? null : require(path.join(path.resolve(compareWasm), 'xppautx.js'));
 
 let failures = 0;
 function check(name, ok, detail = '') {
@@ -48,9 +57,9 @@ function check(name, ok, detail = '') {
 const lecar = path.join(root, 'examples', 'ode', 'lecar.ode');
 
 /** a port to the core in the module: the model's file in its folder, --server */
-function wasmPort(file, text) {
+function wasmPort(file, text, factory = createXppautX) {
   return onLine => {
-    const core = xppCore.startXpp(createXppautX, {
+    const core = xppCore.startXpp(factory, {
       files: {[file]: text}, args: ['--server', file],
       onLine, onLog: () => {},
     });
@@ -79,8 +88,14 @@ function nativePort(file, text) {
   };
 }
 
-async function session(port) {
-  const client = new WasmClient(new LineTransport(port));
+async function session(port, traffic = null) {
+  const client = new WasmClient(new LineTransport(onLine => port(line => {
+    if (traffic) {
+      traffic.events++;
+      traffic.bytes += Buffer.byteLength(line);
+    }
+    onLine(line);
+  })));
   client.start();
   await client.started();
   return client;
@@ -175,24 +190,32 @@ for (const bad of ['../x.ode', 'a/b.ode', 'a\\b.ode', '', '..', '.']) {
 }
 
 if (bench) {
-  const text = fs.readFileSync(path.join(root, 'examples', 'ode', 'kuramot100.odex'), 'utf8');
+  const text = fs.readFileSync(benchModel, 'utf8');
+  const file = path.basename(benchModel);
   // One warm-up, alternating order to reduce thermal bias.
   const variants = [['native', nativePort], ['wasm', wasmPort]];
+  if (comparisonFactory) variants.push(['wasm-comparison', (file, text) => wasmPort(file, text, comparisonFactory)]);
   const samples = new Map(variants.map(([label]) => [label, []]));
   let reference;
   for (let round = 0; round <= measuredRounds; round++) {
     for (const [label, port] of round % 2 ? [...variants].reverse() : variants) {
-      const client = await session(port('kuramot100.odex', text));
-      await client.run({cmd: 'data', events: ['series']});
+      const traffic = {events: 0, bytes: 0};
+      const client = await session(port(file, text), traffic);
+      if (benchTotal !== null) await client.setTotal(benchTotal);
+      await client.run({cmd: 'data', events: benchSeries === 'on' ? ['series'] : []});
+      traffic.events = traffic.bytes = 0;
       const t0 = performance.now();
       await client.integrate();
       const elapsed = performance.now() - t0;
+      const measuredTraffic = {...traffic};
+      // Fetch the same final data after timing when live delivery is disabled.
+      if (benchSeries === 'off') await client.run({cmd: 'data', events: ['series']});
       const series = seriesOf(client);
       if (reference === undefined) reference = series;
-      check(`kuramot100 ${label} round ${round}: identical complete series`,
+      check(`${file} ${label} round ${round}: identical complete series`,
         sameSeries(series, reference));
       if (round) samples.get(label).push(elapsed);
-      console.log(`perf: kuramot100 ${label} ${elapsed.toFixed(0)} ms${round ? '' : ' (warm-up)'}`);
+      console.log(`perf: ${file} ${label} ${elapsed.toFixed(0)} ms${round ? '' : ' (warm-up)'} series=${benchSeries} events=${measuredTraffic.events} bytes=${measuredTraffic.bytes}`);
       client.close();
     }
   }
@@ -200,7 +223,7 @@ if (bench) {
     const sorted = [...times].sort((a, b) => a - b);
     const middle = Math.floor(sorted.length / 2);
     const median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-    console.log(`perf: kuramot100 ${label} median ${median.toFixed(0)} ms (alternated samples: ${times.map(t => t.toFixed(0)).join(', ')})`);
+    console.log(`perf: ${file} ${label} median ${median.toFixed(0)} ms (alternated samples: ${times.map(t => t.toFixed(0)).join(', ')})`);
   }
 }
 

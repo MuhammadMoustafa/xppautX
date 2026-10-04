@@ -1,0 +1,7 @@
+# W184: kuramot100's same expression/sum structure, with arithmetic in h.
+# It isolates evaluator dispatch from correctly rounded transcendental calls.
+fun h(phi) = phi
+par k = 1
+table w t/100, n=100, lo=0, hi=99
+x[j]' = w(j)+k*sum(h(shift(x0, i')-x[j]), from=0, to=99)/100 for j in 0..99
+@ total=100, bound=100000
