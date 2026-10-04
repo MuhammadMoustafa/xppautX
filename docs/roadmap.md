@@ -267,6 +267,8 @@ issue; the card here is the one kept up to date.
 
 | W180 | #232 | Shorten CI's Linux sanitizer critical path (17 minutes in CI 37175547727, AUTO 568 seconds): use asancheck's phase selection and AUTO's own section partitions; preserve all phases, future section coverage, ASan/UBSan/LeakSanitizer and strict condition waits; measure the full matrix | none | done (reviewer; full WSL verify and CI 37177097317: all 20 jobs green; matrix 17m08s to 11m35s, Linux sanitizers 17m06s to 6m10s; summed runner time +6%) |
 
+| W181 | #233 | Balance W180's new CI critical path: three automatic Windows AUTO sanitizer partitions, protocol/web combined to avoid another build and keep 20 jobs; descriptive platform/compiler/scope names; preserve stable dispatch ids and coverage; measure wall and aggregate runner time before further splits or shared builds | none | in-progress (reviewer) |
+
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
 list with a reason per entry; this is the summary).

@@ -59,6 +59,7 @@ jobs:
   # (tools/sourcecheck.sh; tools/verify.sh runs it too, locally), and web2's
   # dist/ built from src/, types and unit tests
   source:
+    name: Source - rules, types and web unit tests
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',source,')
     runs-on: ubuntu-26.04
     steps:
@@ -91,6 +92,7 @@ jobs:
         run: cd web2 && npm ci && npm run check && npm run typecheck && npm test
 
   linux-core:
+    name: Linux - GCC core and numerical baselines
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-core,')
     runs-on: ubuntu-26.04
     steps:
@@ -160,6 +162,7 @@ jobs:
   # Needs its own build (plain, not the whole verify.sh) and the same
   # WebKitGTK window the checks in verify.sh's build already carry.
   linux-ui:
+    name: Linux - GCC browser UI
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-ui,')
     runs-on: ubuntu-26.04
     steps:
@@ -197,21 +200,22 @@ jobs:
   # parallel with the jobs above (it takes a few minutes); one step:
   # asancheck.sh builds and runs every check itself
   linux-sanitizers:
+    name: Linux - GCC sanitizers with leaks - ${{ matrix.shard }}
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',linux-sanitizers,')
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - shard: basic
+          - shard: smoke-examples-unit
             only: build,smoke,examples,unittests
-          - shard: protocol
+          - shard: protocol-and-web
             only: build,servercheck,webcheck
-          - shard: auto-1
+          - shard: auto-1-of-3
             only: build,autocheck-shard=1/3
-          - shard: auto-2
+          - shard: auto-2-of-3
             only: build,autocheck-shard=2/3
-          - shard: auto-3
+          - shard: auto-3-of-3
             only: build,autocheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
@@ -235,6 +239,7 @@ jobs:
   # runners (asancheck.sh --no-leaks turns off ASAN_OPTIONS'
   # detect_leaks).
   macos-sanitizers:
+    name: macOS - clang sanitizers
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-sanitizers,')
     runs-on: macos-latest
     steps:
@@ -251,6 +256,7 @@ jobs:
           if-no-files-found: ignore
 
   macos-core:
+    name: macOS - clang core and numerical baselines
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-core,')
     runs-on: macos-latest
     steps:
@@ -325,6 +331,7 @@ jobs:
   # windows-ui are beside theirs): its own build, the runner's Google
   # Chrome (tools/cdp.mjs findBrowser: /Applications/Google Chrome.app)
   macos-ui:
+    name: macOS - clang browser UI
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',macos-ui,')
     runs-on: macos-latest
     steps:
@@ -344,6 +351,7 @@ jobs:
         run: node tools/web2check.mjs
 
   windows-core:
+    name: Windows - GCC UCRT core and numerical baselines
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-core,')
     runs-on: windows-latest
     defaults:
@@ -427,6 +435,7 @@ jobs:
   # (tools/cdp.mjs findBrowser; runner-images lists Google Chrome and
   # Microsoft Edge on windows-2025)
   windows-ui:
+    name: Windows - GCC UCRT browser UI
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-ui,')
     runs-on: windows-latest
     defaults:
@@ -457,6 +466,7 @@ jobs:
   # then asancheck.sh with AddressSanitizer + UBSan (--no-leaks: no
   # LeakSanitizer on Windows)
   windows-clang:
+    name: Windows - clang core and numerical baselines
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-clang,')
     runs-on: windows-latest
     defaults:
@@ -539,6 +549,7 @@ jobs:
   # in each shard's own log will say for certain, and whether autocheck
   # needs splitting further or servercheck/webcheck need it too.
   windows-clang-sanitizers:
+    name: Windows - clang sanitizers - ${{ matrix.shard }}
     if: github.event_name != 'workflow_dispatch' || inputs.jobs == '' || contains(format(',{0},', inputs.jobs), ',windows-clang-sanitizers,')
     runs-on: windows-latest
     defaults:
@@ -552,14 +563,14 @@ jobs:
             only: build,smoke,examples
           - shard: unittests
             only: build,unittests
-          - shard: servercheck
-            only: build,servercheck
-          - shard: webcheck
-            only: build,webcheck
-          - shard: autocheck-1
-            only: build,autocheck=diagram+grab+input+abort+control+files+csv+stability+sessiondata
-          - shard: autocheck-2
-            only: build,autocheck=sessions+session+sessiondiagram+recording+replay+play+names+scratch+errors+memory
+          - shard: protocol-and-web
+            only: build,servercheck,webcheck
+          - shard: auto-1-of-3
+            only: build,autocheck-shard=1/3
+          - shard: auto-2-of-3
+            only: build,autocheck-shard=2/3
+          - shard: auto-3-of-3
+            only: build,autocheck-shard=3/3
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/msys2-clang64
