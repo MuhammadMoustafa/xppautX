@@ -265,6 +265,8 @@ issue; the card here is the one kept up to date.
 | W178 | #230 | W173's cross-review: the generators truncate their output before reading (a failure leaves a target make treats as current: temp then rename), and an output write's error names the input | none | done (Codex sol medium) |
 | W179 | #231 | Repair CI 37164359923: libc++ embed stream errors and directory reads, macOS's temporary alias in the AUTO table fixture, desktop CSV completion and duplicated AUTO menu waits; CI 37174607594 also exposed Fit clicks before pending commands complete; keep every check strict and verify the complete platform matrix | none | done (reviewer; d652079b and e9c54908; full WSL verify, Windows GCC/UCRT and clang WERROR builds, condition-based browser checks; CI 37175547727 passed all 16 jobs) |
 
+| W180 | #232 | Shorten CI's Linux sanitizer critical path (17 minutes in CI 37175547727, AUTO 568 seconds): use asancheck's phase selection and AUTO's own section partitions; preserve all phases, future section coverage, ASan/UBSan/LeakSanitizer and strict condition waits; measure the full matrix | none | in-progress (reviewer) |
+
 ## W30 audit: the copies tools/dupcheck.sh found in core/, by the W32 card
 that absorbs them (the allowlist inside tools/dupcheck.py has the full
 list with a reason per entry; this is the summary).

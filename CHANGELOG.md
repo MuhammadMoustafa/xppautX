@@ -9,6 +9,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Build
+
+- Split Linux sanitizer checks across parallel CI jobs while preserving every phase and automatic coverage of new AUTO sections (W180, [#232](https://github.com/MuhammadMoustafa/xppautX/issues/232)).
+
 ## [0.2.0] - 2026-10-04
 
 ### Build

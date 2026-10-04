@@ -33,13 +33,15 @@
 #                    than one is named. autocheck=SECTION+SECTION... (the
 #                    names tools/autocheck.py --list prints, '+'-joined)
 #                    runs only those sections instead of its default full
-#                    list. Default: build,smoke,examples,unittests,checks
+#                    list. autocheck-shard=INDEX/COUNT partitions the owner's
+#                    section list, including newly added checks automatically.
+#                    Default: build,smoke,examples,unittests,checks
 #                    (everything). Lets a slow platform (W41:
 #                    windows-clang-sanitizers) split the work across
 #                    parallel CI jobs, each with its own build (a build is
 #                    only 60-90s here, so unlike the checks a shard rarely
-#                    needs --skip-build); Linux and macOS CI keep running
-#                    it whole.
+#                    needs --skip-build); Linux also shards its long AUTO
+#                    checks; macOS CI runs it whole.
 #   VAR=value       passed to make (the compilers, say)
 #   $MAKE, $PYTHON  the make and python programs (default make, python3)
 cd "$(dirname "$0")/.." || exit 1
@@ -178,11 +180,8 @@ run_check() {
   fi
   echo "$name finished after $(( $(date +%s) - t0 ))s"
 }
-# autocheck's sections (tools/autocheck.py --list), split roughly in half
-# by count so autocheck can be its own shard's own two shards if running
-# it whole is still the long pole (W41: unmeasured yet which of
-# servercheck/autocheck it is; --only autocheck=SECTION+SECTION... picks a
-# subset, '+'-joined so it doesn't collide with --only's own commas)
+# AUTO owns the section list and its round-robin partitions (W180).
+# Explicit section selections remain for Windows' existing shards.
 want=""
 autosections=
 old_ifs=$IFS; IFS=,
@@ -192,6 +191,7 @@ for tok in $only; do
     servercheck|webcheck) want="$want $tok" ;;
     autocheck) want="$want autocheck" ;;
     autocheck=*) want="$want autocheck"; autosections=$(printf '%s' "${tok#autocheck=}" | tr '+' ' ') ;;
+    autocheck-shard=*) want="$want autocheck"; autosections="--shard ${tok#autocheck-shard=}" ;;
   esac
 done
 IFS=$old_ifs
