@@ -65,6 +65,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [33](#33-model-table-counts-have-no-upper-bound) | Model tables | tiny models request billions of values and evaluations | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
 | [34](#34-model-includes-read-outside-the-model-folder) | Model files | include names can read arbitrary reachable files | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
 | [35](#35-array-print-invalid-render-text-selects-blue-red) | Array plot | malformed render text silently selects blue-red | [W177](https://github.com/MuhammadMoustafa/xppautX/issues/229) |
+| [36](#36-cvode-reverses-the-documented-tolerance-roles) | Numerics | CVODE receives TOLER as absolute and ATOLER as relative tolerance | [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72), [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235) |
 
 ## 1. Model options
 
@@ -585,3 +586,30 @@ instead silently selects grey scale.
 then the render enum bounds must pass, before labels change or a file is
 asked for. Malformed input reports its command place and value; servercheck
 covers `garbage`. [W177, #229](https://github.com/MuhammadMoustafa/xppautX/issues/229).
+
+## 36. CVODE reverses the documented tolerance roles
+
+XPPAUT documents TOLER as CVODE's relative tolerance and ATOLER as its
+absolute tolerance ([xppopt.html:157](../reference/xppaut-8.0/help/xppopt.html#L157)),
+but passes them in the reverse roles.
+
+- **XPPAUT 8.0:** the caller passes `&TOLER, &ATOLER`
+  ([integrate.c:1811](../reference/xppaut-8.0/integrate.c#L1811),
+  [integrate.c:1991](../reference/xppaut-8.0/integrate.c#L1991)); `cvode`
+  names those parameters `atol, rtol`
+  ([cv2.c:95](../reference/xppaut-8.0/cv2.c#L95)), and `start_cv` forwards
+  `rtol, atol` to `CVodeMalloc`
+  ([cv2.c:36](../reference/xppaut-8.0/cv2.c#L36)). The upstream master has
+  the same call ([integrate.c:1783](../reference/xppaut-master/integrate.c#L1783))
+  and parameter/initialization order ([cv2.c:95](../reference/xppaut-master/cv2.c#L95)).
+- **Evidence:** W34's amplitude-1e6 oscillator took 3769 steps with
+  `tol=1e-3, atol=1e-10` and 537 with the values reversed. Both CVODE
+  implementations showed this mapping. The original evaluation called
+  this finding 33; it is 36 in this combined index. See
+  [the archived evaluation](sundials-eval.md#findings-on-the-way).
+- **xppautX:** retains the historical mapping. Swapping it would change
+  existing results when the two tolerances differ; this assessment does
+  not change numerics or correct the manual. The discrepancy remains
+  actionable independently of adopting SUNDIALS.
+- **Cards:** [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72),
+  [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235).
