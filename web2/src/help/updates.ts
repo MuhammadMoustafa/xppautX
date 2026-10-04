@@ -1,4 +1,4 @@
-import {type ErrorPlace} from '../protocol/errors';
+import {sourcePlace, type ErrorPlace} from '../protocol/errors';
 
 /* W13c: an on-demand GitHub check. No assets or release notes are read. */
 export const RELEASE_API = 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest';
@@ -14,10 +14,7 @@ export class UpdateError extends Error {
 
 function located(error: unknown, file: string, text = '', offset?: number): UpdateError {
   const message = error instanceof Error ? error.message : String(error);
-  const before = offset === undefined ? [] : text.slice(0, offset).split('\n');
-  const line = before.length;
-  return new UpdateError(message, {file, line, col: line ? before[line - 1].length + 1 : 0,
-    source: line ? text.split('\n')[line - 1] : ''});
+  return new UpdateError(message, sourcePlace(file, text, offset));
 }
 
 // JSON.parse has validated the text; walk its tokens only to locate a root field.
@@ -40,6 +37,24 @@ function fieldOffset(text: string, field: string): number | undefined {
   return offset; // JSON.parse uses the last occurrence of a repeated root key.
 }
 
+function parseAnswer(text: string): unknown {
+  try { return JSON.parse(text) as unknown; }
+  catch (e) {
+    // Engines report a position, line/column, end of input, or an unexpected token.
+    const message = e instanceof Error ? e.message : String(e);
+    const position = /at position (\d+)(?: \(line \d+ column \d+\))?$/.exec(message);
+    const lc = /\(line (\d+) column (\d+)\)$/.exec(message);
+    const token = /Unexpected token '([^']+)'/.exec(message)?.[1];
+    // Without coordinates, only a token occurring exactly once locates the error.
+    const index = token ? text.indexOf(token) : -1;
+    const uniqueToken = index >= 0 && index === text.lastIndexOf(token!) ? index : undefined;
+    const offset = position ? Number(position[1]) : lc
+      ? text.split('\n').slice(0, Number(lc[1]) - 1).reduce((n, row) => n + row.length + 1, 0) + Number(lc[2]) - 1
+      : /end of JSON/.test(message) ? text.length : uniqueToken;
+    throw located(e, RELEASE_API, text, offset);
+  }
+}
+
 async function releaseAnswer(response: Response): Promise<{answer: unknown; text: string}> {
   if (!response.body) throw new Error('GitHub returned no answer');
   const reader = response.body.getReader();
@@ -57,20 +72,7 @@ async function releaseAnswer(response: Response): Promise<{answer: unknown; text
       text += decoder.decode(chunk.value, {stream: true});
     }
     text += decoder.decode();
-    try { return {answer: JSON.parse(text) as unknown, text}; }
-    catch (e) {
-      // JSON.parse reports either a string position or a line/column in current engines.
-      const message = e instanceof Error ? e.message : String(e);
-      const position = /position (\d+)/.exec(message);
-      const lc = /line (\d+) column (\d+)/.exec(message);
-      const token = /Unexpected token '([^']+)'/.exec(message)?.[1];
-      // Some V8 errors omit coordinates; a unique unexpected token still identifies its source.
-      const uniqueToken = token && text.indexOf(token) === text.lastIndexOf(token) ? text.indexOf(token) : undefined;
-      const offset = position ? Number(position[1]) : lc
-        ? text.split('\n').slice(0, Number(lc[1]) - 1).reduce((n, row) => n + row.length + 1, 0) + Number(lc[2]) - 1
-        : /end of JSON/.test(message) ? text.length : uniqueToken;
-      throw located(e, RELEASE_API, text, offset);
-    }
+    return {answer: parseAnswer(text), text};
   } finally { reader.releaseLock(); }
 }
 

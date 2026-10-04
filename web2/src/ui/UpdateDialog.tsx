@@ -9,43 +9,40 @@ export function UpdateDialog() {
   const session = useSession();
   const [result, setResult] = useState<UpdateResult | null>(null);
   const [place, setPlace] = useState<ErrorPlace>();
-  const checking = useRef(false);
   const controller = useRef<AbortController>();
-  const generation = useRef(0);
   const box = useRef<HTMLDivElement>(null);
   useDialogFocus(box, [!!result]);
+  const cancel = () => {
+    controller.current?.abort();
+    controller.current = undefined;
+  };
   useEffect(() => {
     const run = async () => {
-      if (checking.current) return;
-      checking.current = true;
-      const started = ++generation.current;
+      if (controller.current) return;
       const request = new AbortController();
       controller.current = request;
       setPlace(undefined);
       setResult({text: 'Checking for updates…'});
       try {
         const answer = await checkUpdates(session.store.getState().hello?.about ?? '', request.signal);
-        if (started === generation.current) setResult(answer);
+        if (controller.current === request) setResult(answer);
       }
       catch (e) {
-        if (started === generation.current) {
+        if (controller.current === request) {
           setPlace(e instanceof UpdateError ? e.place : undefined);
           setResult({text: `Check for updates failed: ${e instanceof Error ? e.message : String(e)}`});
         }
       }
-      finally { if (started === generation.current) { checking.current = false; controller.current = undefined; } }
+      finally { if (controller.current === request) controller.current = undefined; }
     };
     window.addEventListener('xpp-check-updates', run);
     return () => {
       window.removeEventListener('xpp-check-updates', run);
-      generation.current++;
-      controller.current?.abort();
-      controller.current = undefined;
-      checking.current = false;
+      cancel();
     };
   }, [session]);
   if (!result) return null;
-  const close = () => { generation.current++; controller.current?.abort(); controller.current = undefined; checking.current = false; setResult(null); setPlace(undefined); };
+  const close = () => { cancel(); setResult(null); setPlace(undefined); };
   return <div class="dialog-backdrop">
     <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="update-title" data-update-dialog
       onKeyDown={e => {

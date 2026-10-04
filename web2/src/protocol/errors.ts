@@ -6,6 +6,14 @@ import type {ErrorFields} from './types';
 /** where an error is: its file, line, column and the line as written */
 export type ErrorPlace = Omit<ErrorFields, 'error' | 'field'>;
 
+/** locate an offset in source text; an unknown offset names only the file */
+export function sourcePlace(file: string, text: string, offset?: number): ErrorPlace {
+  if (offset === undefined) return {file, line: 0, col: 0, source: ''};
+  const before = text.slice(0, offset).split('\n');
+  const line = before.length;
+  return {file, line, col: before[line - 1].length + 1, source: text.split('\n')[line - 1]};
+}
+
 /** the place of an error event, or nothing when it names none */
 export function errorPlace(e: Partial<ErrorFields>): ErrorPlace | undefined {
   const file = e.file ?? '', line = e.line ?? 0;
