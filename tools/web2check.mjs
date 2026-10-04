@@ -5053,14 +5053,29 @@ async function warningFlashCheck() {
 async function updatesCheck() {
   check('updates: no startup request', await cdp.eval('window.__updateRequests === 0'));
   if (opt.webview2) {
-    check('updates: core refuses hostile bound URLs', await cdp.eval(`(async () => {
+    const refusal = `async () => {
+      if (typeof window.__xppOpenRelease !== 'function') return false;
       for (const url of ['file:///C:/Windows/System32/cmd.exe', 'https://evil.example/',
         'https://github.com/MuhammadMoustafa/xppautX/releases/../issues',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/download/v0.1.0/xppautX-v0.1.0-windows-x64.zip',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v0.1.0/asset.zip',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/latest',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/tag/',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/tag/.',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v0.1.0?download=1',
+        'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v0.1.0%2fasset',
         "https://github.com/MuhammadMoustafa/xppautX/releases/tag/x';bad",
         'https://github.com/MuhammadMoustafa/xppautX/releases/' + 'x'.repeat(300)]) {
-        try { await window.__xppOpenRelease(url); return false; } catch {}
+        try { await window.__xppOpenRelease(url); return false; }
+        catch (e) { if (!String(e).includes('release URL refused')) return false; }
       }
       return true;
+    }`;
+    check('updates: core refuses hostile bound URLs', await cdp.eval(`(${refusal})()`));
+    check('updates: missing binding fails the refusal check (scratch deletion)', await cdp.eval(`(async () => {
+      const binding = window.__xppOpenRelease;
+      try { delete window.__xppOpenRelease; return !(await (${refusal})()); }
+      finally { window.__xppOpenRelease = binding; }
     })()`));
   }
   const close = () => cdp.eval("document.querySelector('[data-update-dialog] .dialog-actions button:last-child').click()");
@@ -5075,7 +5090,22 @@ async function updatesCheck() {
   if (!tagged) return;
   const local = tagged[1];
   const release = tag => ({tag_name: tag, html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/' + tag});
-  await run(release('v999.0.0'), 'xppautX 999.0.0 is available');
+  await cdp.eval("window.__updateAnswer = 'pending'; window.__xppCheckUpdates(); true");
+  await until("typeof window.__finishUpdate === 'function' && document.querySelector('[data-update-dialog]')", 'pending update');
+  await cdp.eval('window.__finishOldUpdate = window.__finishUpdate; window.__finishUpdate = null; true');
+  await close();
+  await cdp.eval('window.__xppCheckUpdates(); true');
+  await until("typeof window.__finishUpdate === 'function'", 'replacement update pending');
+  const requests = await cdp.eval('window.__updateRequests');
+  await cdp.eval(`window.__finishOldUpdate(new Response(JSON.stringify(${JSON.stringify(release('v0.0.0'))}))); true`);
+  await until('window.__pendingFinished', 'closed check finished');
+  await cdp.eval('window.__xppCheckUpdates(); true');
+  check('updates: an old completion cannot clear the replacement request pending state',
+    await cdp.eval(`window.__updateRequests === ${requests} && document.querySelector('[data-update-dialog]').textContent.includes('Checking for updates')`));
+  await cdp.eval(`window.__finishUpdate(new Response(JSON.stringify(${JSON.stringify(release('v999.0.0'))}))); true`);
+  check('xppautX 999.0.0 is available', await until("document.querySelector('[data-update-dialog]')?.textContent.includes('999.0.0 is available')", 'replacement update finished'));
+  check('updates: closing a pending check permits a new request and ignores the old result',
+    await cdp.eval(`window.__pendingAborted && window.__updateRequests === ${requests} && document.querySelector('[data-update-dialog]').textContent.includes('999.0.0 is available')`));
   check('updates: newer offers release page and Close', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));
   await cdp.eval(opt.webview2
     ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] button').click()"
@@ -5086,6 +5116,19 @@ async function updatesCheck() {
   check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] button').length === 1"));
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
+  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify('xppautX dev\n')}; true`);
+  const beforeInvalid = await cdp.eval('window.__updateRequests');
+  await run(null, 'Check for updates failed: invalid release version');
+  check('updates: local version failure shows hello.about and source without fetching', await cdp.eval(`
+    window.__updateRequests === ${beforeInvalid} && document.querySelector('[data-error-place]').textContent === 'hello.about, line 1, column 1'
+    && document.querySelector('[data-error-source]').textContent.includes('xppautX dev')`));
+  await close();
+  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify(about)}; true`);
+  await run('multiline', 'Check for updates failed:');
+  check('updates: multiline syntax failure shows its actual API line and source', await cdp.eval(`
+    document.querySelector('[data-error-place]').textContent.includes('line 3')
+    && document.querySelector('[data-error-source]').textContent.includes('"html_url": !')`));
+  await close();
   await run('network', 'Check for updates failed: stub network unavailable'); await close();
   await run(null, 'Check for updates failed: GitHub returned no release'); await close();
   await run('http', 'Check for updates failed: GitHub returned HTTP 503'); await close();
@@ -5119,6 +5162,13 @@ async function sessionAttempt(ode, fn, expected, attempts) {
       window.fetch = async (url, options) => {
         if (url !== 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest') return originalFetch(url, options);
         window.__updateRequests++;
+        if (window.__updateAnswer === 'pending') {
+          options.signal.addEventListener('abort', () => { window.__pendingAborted = true; }, {once: true});
+          const response = await new Promise(resolve => { window.__finishUpdate = resolve; });
+          window.__pendingFinished = true;
+          return response;
+        }
+        if (window.__updateAnswer === 'multiline') return new Response(${JSON.stringify('{\n"tag_name": "v1.0.0",\n"html_url": !\n}')});
         if (window.__updateAnswer === 'network') throw new Error('stub network unavailable');
         if (window.__updateAnswer === 'http') return new Response('unavailable', {status: 503});
         if (window.__updateAnswer === 'json') return new Response('{');

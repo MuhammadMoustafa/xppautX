@@ -1,3 +1,5 @@
+import {sourcePlace, type ErrorPlace} from '../protocol/errors';
+
 /* W13c: an on-demand GitHub check. No assets or release notes are read. */
 export const RELEASE_API = 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest';
 export const RELEASE_PREFIX = 'https://github.com/MuhammadMoustafa/xppautX/releases/';
@@ -6,7 +8,54 @@ const URL_LIMIT = 256; // a release tag URL needs no long query or fragment
 const CHECK_TIMEOUT_MS = 15000; // a network that never answers must give a shown error
 const ANSWER_LIMIT = 1024 * 1024; // allows release asset metadata while bounding an untrusted response allocation
 
-async function releaseAnswer(response: Response): Promise<unknown> {
+export class UpdateError extends Error {
+  constructor(message: string, readonly place: ErrorPlace) { super(message); }
+}
+
+function located(error: unknown, file: string, text = '', offset?: number): UpdateError {
+  const message = error instanceof Error ? error.message : String(error);
+  return new UpdateError(message, sourcePlace(file, text, offset));
+}
+
+// JSON.parse has validated the text; walk its tokens only to locate a root field.
+// Quoted strings stay whole, so nested keys and braces inside values cannot misplace it.
+function fieldOffset(text: string, field: string): number | undefined {
+  if (!text.trimStart().startsWith('{')) return undefined;
+  let depth = 0, key = false, offset: number | undefined;
+  for (const token of text.matchAll(/"(?:\\.|[^"\\])*"|[{}]|\[|\]|[:,]/g)) {
+    const word = token[0];
+    if (word === '{' || word === '[') {
+      depth++;
+      if (depth === 1) key = word === '{';
+    } else if (word === '}' || word === ']') depth--;
+    else if (depth === 1 && word === ',') key = true;
+    else if (depth === 1 && key && word.startsWith('"')) {
+      if (JSON.parse(word) === field) offset = token.index;
+      key = false;
+    }
+  }
+  return offset; // JSON.parse uses the last occurrence of a repeated root key.
+}
+
+function parseAnswer(text: string): unknown {
+  try { return JSON.parse(text) as unknown; }
+  catch (e) {
+    // Engines report a position, line/column, end of input, or an unexpected token.
+    const message = e instanceof Error ? e.message : String(e);
+    const position = /at position (\d+)(?: \(line \d+ column \d+\))?$/.exec(message);
+    const lc = /\(line (\d+) column (\d+)\)$/.exec(message);
+    const token = /Unexpected token '([^']+)'/.exec(message)?.[1];
+    // Without coordinates, only a token occurring exactly once locates the error.
+    const index = token ? text.indexOf(token) : -1;
+    const uniqueToken = index >= 0 && index === text.lastIndexOf(token!) ? index : undefined;
+    const offset = position ? Number(position[1]) : lc
+      ? text.split('\n').slice(0, Number(lc[1]) - 1).reduce((n, row) => n + row.length + 1, 0) + Number(lc[2]) - 1
+      : /end of JSON/.test(message) ? text.length : uniqueToken;
+    throw located(e, RELEASE_API, text, offset);
+  }
+}
+
+async function releaseAnswer(response: Response): Promise<{answer: unknown; text: string}> {
   if (!response.body) throw new Error('GitHub returned no answer');
   const reader = response.body.getReader();
   const decoder = new TextDecoder('utf-8', {fatal: true});
@@ -22,7 +71,8 @@ async function releaseAnswer(response: Response): Promise<unknown> {
       }
       text += decoder.decode(chunk.value, {stream: true});
     }
-    return JSON.parse(text + decoder.decode()) as unknown;
+    text += decoder.decode();
+    return {answer: parseAnswer(text), text};
   } finally { reader.releaseLock(); }
 }
 
@@ -36,22 +86,29 @@ function version(tag: unknown): number[] {
 
 export type UpdateResult = {text: string; url?: string};
 
-export async function checkUpdates(about: string): Promise<UpdateResult> {
+export async function checkUpdates(about: string, signal?: AbortSignal): Promise<UpdateResult> {
   // hello.about's first line is xpp_about_text's version; git-describe builds use its base tag.
   const local = /^xppautX (v\d+\.\d+\.\d+)(?:-\d+-g[0-9a-f]+)?\n/.exec(about)?.[1];
-  const current = version(local);
-  const response = await fetch(RELEASE_API, {signal: AbortSignal.timeout(CHECK_TIMEOUT_MS), credentials: 'omit'});
-  if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
-  const answer = await releaseAnswer(response);
-  if (!answer || typeof answer !== 'object') throw new Error('GitHub returned no release');
-  const {tag_name: tag, html_url: url} = answer as {tag_name?: unknown; html_url?: unknown};
-  const latest = version(tag);
-  if (typeof url !== 'string' || url.length > URL_LIMIT || url !== `${RELEASE_PREFIX}tag/${tag}`)
-    throw new Error('GitHub returned an invalid release page URL');
-  const differing = latest.findIndex((n, i) => n !== current[i]);
-  return differing >= 0 && latest[differing] > current[differing]
-    ? {text: `xppautX ${latest.join('.')} is available. Nothing is downloaded or installed by xppautX.`, url}
-    : {text: `xppautX ${current.join('.')} is the latest`};
+  let current: number[];
+  try { current = version(local); }
+  catch (e) { throw located(e, 'hello.about', about, 0); }
+  try {
+    const timeout = AbortSignal.timeout(CHECK_TIMEOUT_MS);
+    const response = await fetch(RELEASE_API, {signal: signal ? AbortSignal.any([signal, timeout]) : timeout, credentials: 'omit'});
+    if (!response.ok) throw new Error(`GitHub returned HTTP ${response.status}`);
+    const {answer, text} = await releaseAnswer(response);
+    if (!answer || typeof answer !== 'object') throw new Error('GitHub returned no release');
+    const {tag_name: tag, html_url: url} = answer as {tag_name?: unknown; html_url?: unknown};
+    let latest: number[];
+    try { latest = version(tag); }
+    catch (e) { throw located(e, RELEASE_API, text, fieldOffset(text, 'tag_name')); }
+    if (typeof url !== 'string' || url.length > URL_LIMIT || url !== `${RELEASE_PREFIX}tag/${tag}`)
+      throw located(new Error('GitHub returned an invalid release page URL'), RELEASE_API, text, fieldOffset(text, 'html_url'));
+    const differing = latest.findIndex((n, i) => n !== current[i]);
+    return differing >= 0 && latest[differing] > current[differing]
+      ? {text: `xppautX ${latest.join('.')} is available. Nothing is downloaded or installed by xppautX.`, url}
+      : {text: `xppautX ${current.join('.')} is the latest`};
+  } catch (e) { throw e instanceof UpdateError ? e : located(e, RELEASE_API); }
 }
 
 export function requestUpdateCheck(): void {

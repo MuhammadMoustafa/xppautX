@@ -441,5 +441,9 @@ xppautX downloads and installs nothing. A current or newer installed version
 says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
 or unversioned development build shows why the check failed. Development
 builds described from a release tag compare that base version.
+Closing a pending check lets you immediately try again. Failures show their
+actual source: the program version or the API answer, with its line when
+known. The desktop binding accepts only a release tag page, and reports a
+failed system browser opener (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)).
 
 W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)).

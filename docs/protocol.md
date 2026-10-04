@@ -1732,8 +1732,8 @@ No protocol event or command changes: the page reads the program version
 from the first line of hello.about (xpp_about_text). A git-describe suffix
 compares its base release tag. Only the page requests GitHub's latest-release
 API. The window binds __xppOpenRelease(url); the core bounds and validates
-the fixed https://github.com/MuhammadMoustafa/xppautX/releases/ prefix and
-a safe path alphabet before using the existing system browser opener.
+the fixed https://github.com/MuhammadMoustafa/xppautX/releases/tag/ prefix and
+a single nonempty tag with a safe alphabet (no further slash) before using the existing system browser opener.
 It rejects invalid URLs or an opener failure. No asset is downloaded.
 The page reads only tag_name and html_url: the answer is capped at 1 MiB,
 the tag at 64 characters, and the URL at 256. Tags must be vX.Y.Z with
@@ -1742,3 +1742,12 @@ that tag. API text is rendered as text, never HTML. The native binding also
 caps its JSON request and rejects traversal, quoting, escapes, query strings
 and fragments before launching the existing browser opener. Its rejection
 is an xpp::Error placed at Check for updates:1 and shown by the dialog.
+
+W176 ([#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)):
+the native binding rejects download paths and nested tag paths. Unix opener
+completion is checked synchronously, including a missing or failing opener.
+Closing a pending check aborts its fetch, invalidates its result and permits a fresh check;
+an old request cannot clear the new request's pending state. Page errors use
+the existing error place/source representation: local version errors name
+hello.about line 1; API syntax/field errors retain their actual line and source
+when known; transport failures name the API without inventing a line.

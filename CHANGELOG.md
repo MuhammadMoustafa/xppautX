@@ -85,6 +85,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Update checks refuse direct asset URLs, report opener failures, allow retry after closing a pending check, and show the actual error source (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)).
 - Confine received model reads to their folder and bound table counts before allocation; preserve the solver during conversion and included files in JSON diagnostics; remove false zero-divisor and comparison warnings (W175, [#227](https://github.com/MuhammadMoustafa/xppautX/issues/227)).
 - Bind native saves to the actual picker choice; confirm frozen destinations separately; preserve each browser export?s bytes; route desktop Save/CSV buttons through the picker; reject malformed array render values; choose animation PPM sequences once; open recordings with an open picker (W177, [#229](https://github.com/MuhammadMoustafa/xppautX/issues/229)).
 
