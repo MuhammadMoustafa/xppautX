@@ -14,7 +14,9 @@
 namespace {
 // Enough calls to amortize timer overhead without making a laptop run hot.
 constexpr int Iterations = 2'000'000;
-// One warm-up, then five samples to expose variance rather than best-case time.
+// Five unmeasured passes give the Wasm optimizing tier more work before sampling.
+constexpr int Warmups = 5;
+// Five samples expose variance rather than selecting a best-case time.
 constexpr int Samples = 5;
 // FNV-1a mixes every result bit, including sign-zero, into a stable fingerprint.
 constexpr std::uint64_t FingerprintOffset = 14695981039346656037ULL;
@@ -27,15 +29,15 @@ double fused(double x) { return std::fma(x, 0x1.0000000000001p0, -x); }
 int main()
 {
     // A rounding witness: separate multiplication/addition is not exact FMA.
-    constexpr double WitnessA = 1.0 + 0x1p-27;
-    constexpr double WitnessB = 1.0 - 0x1p-27;
+    volatile double WitnessA = 1.0 + 0x1p-27;
+    volatile double WitnessB = 1.0 - 0x1p-27;
     std::cout << "fma_witness fused=" << std::hexfloat << std::fma(WitnessA, WitnessB, -1.0)
               << " unfused=" << WitnessA * WitnessB - 1.0 << std::defaultfloat << '\n';
     for (const auto &[name, function] : std::array{
              std::pair{"arithmetic", arithmetic}, std::pair{"sin", sine}, std::pair{"fma", fused}}) {
         std::array<double, Samples> elapsed;
         std::uint64_t fingerprint = FingerprintOffset;
-        for (int sample = -1; sample < Samples; ++sample) {
+        for (int sample = -Warmups; sample < Samples; ++sample) {
             fingerprint = FingerprintOffset;
             const auto start = std::chrono::steady_clock::now();
             for (int i = 0; i < Iterations; ++i) {
