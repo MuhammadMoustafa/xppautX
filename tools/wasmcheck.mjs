@@ -12,7 +12,7 @@
      - names: core.js's glue refuses a file name that is not a base name.
    --bench also prints the time of kuramot100.odex's integration, module and
    native, through the same client (a perf: line, never a pass mark: W58).
-   Usage: node tools/wasmcheck.mjs [--native ./xppautX] [--wasm build/wasm] [--bench]
+   Usage: node tools/wasmcheck.mjs [--native ./xppautX] [--wasm build/wasm] [--bench [--bench-rounds N]]
    (tools/wasmcheck.sh builds everything it needs.) Every wait is for an
    event, with a generous safety limit (wasm/src/client.ts). */
 import {spawn, spawnSync} from 'node:child_process';
@@ -29,6 +29,10 @@ const option = (name, dflt) => (argv.includes(name) ? argv[argv.indexOf(name) + 
 const native = path.resolve(option('--native', path.join(root, 'xppautX')));
 const wasmDir = path.resolve(option('--wasm', path.join(root, 'build', 'wasm')));
 const bench = argv.includes('--bench');
+// Three warmed samples by default; more can be requested for a timing study.
+const measuredRounds = Number(option('--bench-rounds', '3'));
+if (!Number.isSafeInteger(measuredRounds) || measuredRounds < 1)
+  throw new Error('--bench-rounds must be a positive integer');
 
 const {LineTransport, WasmClient} = await import(pathToFileURL(path.join(wasmDir, 'client.mjs')).href);
 const require = createRequire(import.meta.url);
@@ -90,6 +94,14 @@ function seriesOf(client) {
   return {rows: s.rows, columns: [...s.columns].map(([col, values]) => ({col, name: s.names.get(col), values}))};
 }
 
+/** Compare stored values without losing negative zero through JSON serialization. */
+function sameSeries(a, b) {
+  return !!a && !!b && a.rows === b.rows && a.columns.length === b.columns.length
+    && a.columns.every((c, i) => c.col === b.columns[i].col && c.name === b.columns[i].name
+      && c.values.length === b.columns[i].values.length
+      && c.values.every((v, r) => Object.is(v, b.columns[i].values[r])));
+}
+
 /** `xppautX lecar.ode --silent`'s output.dat: rows of numbers as text, or null */
 function silentRows(file) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppsilent'));
@@ -133,8 +145,7 @@ check('wasm: the series equals the native --silent output.dat', diff === null, d
 
 const fromNative = await integrateLecar(nativePort);
 check('the native --server gives the module\'s series, bit for bit',
-  !!fromWasm && !!fromNative && fromWasm.columns.every((c, i) => c.values.length === fromNative.columns[i].values.length
-    && c.values.every((v, r) => Object.is(v, fromNative.columns[i].values[r]))));
+  sameSeries(fromWasm, fromNative));
 
 /* Abort: a run of 1e7 time units would store 2e8 rows; the abort goes to the
    running job through shared memory while the core's thread computes */
@@ -165,16 +176,31 @@ for (const bad of ['../x.ode', 'a/b.ode', 'a\\b.ode', '', '..', '.']) {
 
 if (bench) {
   const text = fs.readFileSync(path.join(root, 'examples', 'ode', 'kuramot100.odex'), 'utf8');
-  for (const [label, port] of [['native', nativePort], ['wasm', wasmPort]]) {
-    const times = [];
-    for (let i = 0; i < 3; i++) {
+  // One warm-up, alternating order to reduce thermal bias.
+  const variants = [['native', nativePort], ['wasm', wasmPort]];
+  const samples = new Map(variants.map(([label]) => [label, []]));
+  let reference;
+  for (let round = 0; round <= measuredRounds; round++) {
+    for (const [label, port] of round % 2 ? [...variants].reverse() : variants) {
       const client = await session(port('kuramot100.odex', text));
+      await client.run({cmd: 'data', events: ['series']});
       const t0 = performance.now();
       await client.integrate();
-      times.push(performance.now() - t0);
+      const elapsed = performance.now() - t0;
+      const series = seriesOf(client);
+      if (reference === undefined) reference = series;
+      check(`kuramot100 ${label} round ${round}: identical complete series`,
+        sameSeries(series, reference));
+      if (round) samples.get(label).push(elapsed);
+      console.log(`perf: kuramot100 ${label} ${elapsed.toFixed(0)} ms${round ? '' : ' (warm-up)'}`);
       client.close();
     }
-    console.log(`perf: kuramot100 ${label} ${Math.min(...times).toFixed(0)} ms (best of 3: ${times.map(t => t.toFixed(0)).join(', ')})`);
+  }
+  for (const [label, times] of samples) {
+    const sorted = [...times].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+    console.log(`perf: kuramot100 ${label} median ${median.toFixed(0)} ms (alternated samples: ${times.map(t => t.toFixed(0)).join(', ')})`);
   }
 }
 

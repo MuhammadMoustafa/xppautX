@@ -6,6 +6,15 @@ that it can, not a product: nothing here ships with a release, and CI has
 no emsdk. The maintainer's report on whether to go further is
 `build/W9-report.md` (written by the card, not committed).
 
+The 2026-10-04 joint W183 review keeps W9 open for browser portability,
+not as a speed change. With optimization at compilation and linking,
+warmed alternating kuramot100 medians were 10.609s native and 37.034s
+Wasm. The final exact-value checks passed all 16 assertions and the proof
+page passed all four worker/isolation checks. W111's evaluator alignment
+produced identical Wasm bytes. See the
+[joint assessment](https://github.com/MuhammadMoustafa/xppautX/blob/master/docs/performance-adoption.md)
+for methods and remaining application/persistence/error-path work.
+
 ## Build and check
 
 emsdk lives under the home folder (no sudo): `git clone

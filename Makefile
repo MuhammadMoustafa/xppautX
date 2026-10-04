@@ -405,7 +405,7 @@ xppautX$(EXE): $(SERVER_OBJECTS) $(CORELIB)
 WASM_LDFLAGS = -pthread -sPROXY_TO_PTHREAD -sPTHREAD_POOL_SIZE=1 -sINITIAL_MEMORY=64MB -sALLOW_MEMORY_GROWTH   -sMAXIMUM_MEMORY=4GB -sSTACK_SIZE=5MB -sDEFAULT_PTHREAD_STACK_SIZE=5MB -lembind -lidbfs.js   -sMODULARIZE -sEXPORT_NAME=createXppautX -sENVIRONMENT=web,worker,node -sINVOKE_RUN=0   -sEXPORTED_RUNTIME_METHODS=FS,callMain -sFORCE_FILESYSTEM -sEXIT_RUNTIME=0   -sINCOMING_MODULE_JS_API=arguments,locateFile,noInitialRun,onAbort,onExit,onRuntimeInitialized,postRun,preInit,preRun,print,printErr,thisProgram,mainScriptUrlOrBlob
 ifeq ($(WASM),1)
 $(BUILDDIR)/xppautx.js: $(SERVER_OBJECTS) $(CORELIB)
-	$(CXX) $(WASM_LDFLAGS) -o $@ $(SERVER_OBJECTS) $(CORELIB)
+	$(CXX) $(OPT) $(WASM_LDFLAGS) -o $@ $(SERVER_OBJECTS) $(CORELIB)
 endif
 .PHONY: wasm
 wasm:
