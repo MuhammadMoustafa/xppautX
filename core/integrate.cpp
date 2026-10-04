@@ -1502,7 +1502,8 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
   const DaeRun dae_run(s); /* the run follows one branch of a DAE's solutions */
   xpp::Solver &solver=*s.integrator.solver;
 
- float xv[MAXODE+1],xvold[MAXODE+1];
+ /* a window may plot an added column (index above neq, browse_data.cpp add_stor_col), which has no live value: its stored rows are filled later, so live it reads 0 like a fresh row */
+ float xv[MAXODE+1]={},xvold[MAXODE+1]={};
  float oldperiod=0.0;
  double xprime[MAXODE],oldxprime[MAXODE],hguess=dt;
 
