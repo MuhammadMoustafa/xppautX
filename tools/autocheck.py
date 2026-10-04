@@ -2,7 +2,7 @@
 """Checks of the protocol front end's behaviour under load: how AUTO's diagram
 travels as data, how input is read, and how quickly a long computation stops.
 
-usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [SECTION...]
+usage: tools/autocheck.py [--server ./xppautX] [-v] [--report] [--shard INDEX/COUNT] [SECTION...]
 
 Sections: diagram, grab, input, abort, control, files, csv, stability, sessions,
 session, sessiondata, recording, replay, names, scratch, errors, memory (default: all;
@@ -51,7 +51,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
 ap.add_argument('-v', action='store_true')
 ap.add_argument('--report', action='store_true', help='measure only; latency limits do not fail')
-ap.add_argument('--list', action='store_true', help='print the sections run by default and exit')
+ap.add_argument('--list', action='store_true', help='print the selected sections and exit')
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
                                                 'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors',

@@ -288,12 +288,18 @@ build,smoke,examples,unittests, then any of servercheck,webcheck,autocheck
 side by side, `run_check` printing "NAME finished after Ns" as each
 finishes) -- `autocheck=SECTION+SECTION...` (the names
 `tools/autocheck.py --list` prints) narrows autocheck to just those
-sections. `--skip-build` skips the build phase even when `--only`
-includes it, for a shard given an already-built tree (a build is only
-57-89s here, cheaper than an artifact round trip, so CI does not use this
-currently; it stays for local iteration). Default: every phase, in order
-(the whole script; Linux's `linux-sanitizers` and macOS's
-`macos-sanitizers` still run it this way, a few minutes each).
+sections. `autocheck-shard=INDEX/COUNT` partitions AUTO's own section list
+round-robin (one-based), so new sections are included automatically;
+`autocheck.py --list --shard INDEX/COUNT` shows the partition without
+running it. `--skip-build` skips the build phase even when `--only`
+includes it, for a shard given an already-built tree. Default: every
+phase, in order (the whole script; macOS still runs it this way).
+Linux's `linux-sanitizers` has five shards (W180): smoke+examples+unit
+tests, servercheck+webcheck, and three AUTO partitions. All keep leak
+detection. The baseline CI 37175547727 took 17 minutes: about four to
+build, then examples and unit tests, then 568 seconds in AUTO. Each
+shard builds independently; measure the elapsed time and runner minutes
+before adding further shards or a shared-build artifact.
 `windows-clang-sanitizers` is a 6-shard matrix, each with its own build:
 smoke+examples, unit tests, servercheck, webcheck, and autocheck split
 into two (roughly half its sections each) since it is the likeliest of
