@@ -4127,13 +4127,20 @@ def check_display_state():
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and len(got) == 1
               and got[0]['rows'] == first['rows'] and got[0]['curves'] == first['curves']
               and {c['col']: values(c, None) for c in got[0]['columns']} == cols1, str(runs_of(evs))[:200])
+        evs = keys('r')
+        check('display: Redraw preserves the retained trajectory without clearing it',
+              all(e['clear'] == 0 and e['erased'] == 0 for e in runs_of(evs)))
+        evs = after(cmd='data', events=['series', 'plots'])
+        got = added(evs)
+        check('display: retained values remain unchanged after Redraw',
+              len(got) == 1 and {c['col']: values(c, None) for c in got[0]['columns']} == cols1)
         evs = keys('e')
         check('display: Erase forgets the earlier runs and hides the current one',
               len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 1
               and not added(evs), str(runs_of(evs)))
         evs = keys('r')
-        check('display: Redraw shows the current run again, without earlier ones',
-              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 1 and runs_of(evs)[0]['erased'] == 0
+        check('display: Redraw unhides the current run without another history clear',
+              len(runs_of(evs)) == 1 and runs_of(evs)[0]['clear'] == 0 and runs_of(evs)[0]['erased'] == 0
               and not added(evs), str(runs_of(evs)))
 
         evs = after(cmd='display', win=1, x=[0, 10], y=[-0.5, 0.5], runs=False)
