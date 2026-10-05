@@ -59,12 +59,13 @@ function Modal({title, id, kind, onClose, children}: {
     }
   };
   return (
-    <div class="dialog-backdrop">
+    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div class="dialog auto-settings-dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}
         data-settings={id} onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id={`${id}-title`}>{title}</h2>
           <HelpButton target={HELP_OF[kind]} label={title} />
+          <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
         </div>
         {children}
       </div>

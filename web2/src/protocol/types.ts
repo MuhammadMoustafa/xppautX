@@ -208,6 +208,7 @@ export interface PlotWindowInfo {
   zoom?: {x: [number, number] | null; y: [number, number] | null};
   /** 1: the earlier runs are drawn */
   runs?: number;
+  freeze?: number;
 }
 
 /** a plot window's earlier runs changed (docs/protocol.md "The plot as data"): forget them

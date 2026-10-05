@@ -189,7 +189,8 @@ std::vector<int> used_columns(const xpp::PlotCurves &s, int maxcol)
    - an append that starts again before the rows the client holds (a new
      run under way, or the next run of a range) keeps the current run first;
    - Erase forgets the runs and hides the current data until the next run
-     or Redraw; Redraw shows the current data again, without the runs. */
+     or Redraw; Redraw (including Fit) preserves earlier runs. Freeze off
+     replaces the history on the next new run; Continue still appends. */
 
 /* at most this many earlier runs per window, the oldest dropped */
 constexpr std::size_t runs_keep = 50;
@@ -293,8 +294,13 @@ void runs_on_full(xpp::Session &s, int pop, const SeriesSig &sig, const std::vec
         d.erased = d.live = false;
         if (was) emit_runs(s, pop, false, 0, 0);
     } else if (sig.version != d.cur_version && d.cur.rows > 0) {
-        const Kept k = keep_run(s, pop, std::move(d.cur)); /* the series the client holds */
-        emit_runs(s, pop, false, k.drop, 0, k.kept);
+        if (d.freeze_runs) {
+            const Kept k = keep_run(s, pop, std::move(d.cur));
+            emit_runs(s, pop, false, k.drop, 0, k.kept);
+        } else {
+            d.runs.clear();
+            emit_runs(s, pop, true, 0, 0);
+        }
     }
     d.has_cur = true;
     d.cur_version = sig.version;
@@ -315,7 +321,7 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
     xpp::PlotDisplay &d = disp(s, pop);
     if (from < d.cur.rows) { /* a new run (or the next of a range): the rows it replaces become an earlier run */
         Kept k;
-        if (!d.erased) {
+        if (!d.erased && d.freeze_runs) {
             if (from == 0) {
                 const std::vector<int> cols = d.cur.cols;
                 const xpp::PlotCurves curves = d.cur.curves;
@@ -331,7 +337,8 @@ void runs_on_append(xpp::Session &s, int pop, int from, int rows)
         }
         d.erased = false;
         d.live = true;
-        emit_runs(s, pop, false, k.drop, 0, k.kept); /* the client's series, as it holds it */
+        if (!d.freeze_runs) d.runs.clear();
+        emit_runs(s, pop, !d.freeze_runs, k.drop, 0, k.kept);
     } else if (!(d.live && !d.erased)) {
         const bool was = d.erased;
         d.erased = false;
@@ -572,6 +579,8 @@ std::string plots_event(xpp::Session &s)
         add_zoom(o, disp(s, pop).zoom.y);
         o += "},\"runs\":";
         add_int(o, disp(s, pop).show_runs);
+        o += ",\"freeze\":";
+        add_int(o, disp(s, pop).freeze_runs);
         o += ',';
         add_curves(o, series_sig(s, pop));
         o += '}';
@@ -623,10 +632,10 @@ void plot_data_picture(xpp::Session &s, int redraw)
             emit(o);
             xpp::PlotDisplay &d = disp(s, pop);
             if (redraw ? (!d.runs.empty() || d.erased) : true) {
-                d.runs.clear();
+                if (!redraw) d.runs.clear();
                 d.erased = !redraw;
                 d.live = false;
-                emit_runs(s, pop, true, 0, 0);
+                emit_runs(s, pop, !redraw, 0, 0);
             }
         }
     } catch (const std::bad_alloc &) {

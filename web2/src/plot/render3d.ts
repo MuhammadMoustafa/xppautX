@@ -10,6 +10,7 @@ import {BOX_EDGES} from './project3d';
 import type {Point2} from './project3d';
 import {curveColor} from './colors';
 import type {Model3D} from './model3d';
+import {segmentDistance2} from './nearest';
 
 export interface Draw3DInfo {
   width: number;
@@ -51,6 +52,25 @@ function toCanvas(f: Frame, p: Point2): [number, number] {
   return [f.cx + p.x * f.scale, f.cy - p.y * f.scale];
 }
 
+/** Nearest visible projected trace, using the very same frame as the renderer. */
+export function nearest3d(model: Model3D, cw: number, ch: number, x: number, y: number, distance = 24): number | null {
+  const f = fitFrame(cw, ch, model.box, 24);
+  let nearest: number | null = null, best = distance * distance;
+  model.curves.forEach((c, i) => {
+    if (c.visible === false) return;
+    let previous: [number, number] | null = null;
+    for (const p of c.points) {
+      if (!p) { previous = null; continue; }
+      const [px, py] = toCanvas(f, p);
+      const d = c.line && previous ? segmentDistance2(previous[0] - x, previous[1] - y, px - x, py - y)
+        : (px - x) ** 2 + (py - y) ** 2;
+      if (d < best) { best = d; nearest = i; }
+      previous = [px, py];
+    }
+  });
+  return nearest;
+}
+
 /** draws `model` (or clears the canvas without one) on `canvas`, sized to
     cw x ch CSS pixels; returns what it drew, for a test (null with no
     model). `axisColor` is the wireframe's stroke, a muted foreground. */
@@ -82,10 +102,11 @@ export function draw3d(
   g.lineCap = 'round';
   g.lineJoin = 'round';
   for (const c of model.curves) {
-    g.strokeStyle = curveColor(c.color, dark);
+    if (c.visible === false) continue;
+    g.strokeStyle = c.cssColor ?? curveColor(c.color, dark);
     g.fillStyle = g.strokeStyle;
     if (c.line) {
-      g.lineWidth = 1.5;
+      g.lineWidth = c.highlighted ? 3.5 : 1.5;
       g.beginPath();
       let open = false;
       for (const p of c.points) {
@@ -111,7 +132,7 @@ export function draw3d(
   }
   return {
     width: cw, height: ch, theta, phi,
-    curves: model.curves.map(c => ({label: c.label, points: c.points.filter(p => p).length})),
+    curves: model.curves.map(c => ({label: c.label, points: c.visible === false ? 0 : c.points.filter(p => p).length})),
     box: model.box.map(p => (p ? {x: toCanvas(f, p)[0], y: toCanvas(f, p)[1]} : null)),
     at: performance.now(),
   };

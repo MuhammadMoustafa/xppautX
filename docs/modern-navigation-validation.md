@@ -4,6 +4,28 @@
 
 ## Delivered
 
+### W195 — Startup model selection and close regression
+
+Reproduced the user's no-model Windows window stuck on Awaiting input with
+Loading commands and no loaded model. The command owner `kindOf` returned
+unknown for every command before hello, so an open startup ask prevented
+its answer, cancellation and quit from being sent. Reused that owner to
+permit startup controls and send Quit to the waiting core before its native
+picker closes (avoiding a cancellation/load-error race). Loaded-session save/leave questions retain their owner.
+
+Validation: UI typecheck/build and all 323 unit tests passed; native core
+unit tests passed. Strict UCRT linking passed in a separate build executable
+because Windows locks the user's running executable. `tools/startupcheck.mjs`
+passed select-model-and-run, cancel-model-with-visible-load-failure and
+close-before-model-load acceptance cases. Those picker responses are fixtures.
+`tools/startupcheck.mjs --webview2` passed the real Windows close binding and
+successful process exit before hello. The actual Windows Open model menu was
+observed opening the OS picker, but choosing a file through that picker was
+not independently automated. No claim of full OS picker acceptance coverage.
+
+Test build: `build/xppautX-startup-fixed.exe`. The previously launched
+`xppautX.exe` still contains the old code until it is replaced after exit.
+
 ### W193/W194 — Steady state and direct time controls
 
 The run toolbar now includes one-click Run to steady state, inline Run
@@ -283,3 +305,64 @@ evidence. No numerical core or native menu code changed in this follow-up.
 ![Narrow workspace](modern-navigation/narrow.png)
 
 ![Narrow command drawer](modern-navigation/drawer.png)
+
+
+## W195–W199: reported regressions and trace controls (2026-10-04)
+
+Implemented startup model selection/closing, uppercase F/I handling, a Caps
+Lock indicator, × and outside-click dialog dismissal, Tools dropdown outside
+click/Escape dismissal, and direct variables/limits editing from plot axes.
+Browser select controls keep their native dismissal behaviour. Data deletion
+now operates on added columns only; plotted columns must first be removed
+from the plot's axes. Time/model columns remain protected.
+
+Freeze is per plot and defaults on to preserve the existing overlay behaviour.
+Turning it off replaces earlier runs on the next new run. Continue extends
+its current trajectory. Fit/Redraw retain older runs; 2D Fit bounds include
+visible older traces and 3D Fit's box includes retained runs. Legends now
+control individual current/retained traces, with hover names/highlights and
+a shared double-click editor for legend text and a standard colour picker.
+AUTO keeps its stability/symbol key and adds individual branch trace controls.
+Legend areas are bounded so large diagrams cannot displace their plot.
+
+Legend names, chosen hex colours and individual visibility are local view
+presentation: they are not model variable renames and are not serialized or
+included in core-generated exports. Freeze defaults on again after reopening
+a session. Existing history storage limits remain unchanged. Native OS picker
+selection is still represented by fixtures in automated coverage; real native
+startup-close coverage uses the installed WebView2 close bridge.
+
+Owners searched and reused: `protocol/kinds.ts` and `session.typeKey`,
+`AskDialog`/`dialogFocus`, `FileDialog`, `AutoAxes`, `MenuPanel`/`TitleBar`,
+`browse_data`/`storage`, `plot_data` history, `graf_par.fit_window`,
+`model`/`nearest`/`render3d`, `Chart`/`DiagramChart`, and the shared CDP driver.
+Deletion uses the existing column lookup and recomputation; no numerical
+integration code changes. Legend names are rendered as text, not HTML; colour
+input uses the browser's hex colour picker. No new external file path handling
+is introduced by the trace controls.
+
+Validation:
+
+- `npm run typecheck`, `npm run build`, `npm test`: 326 UI tests passed.
+- Strict native UCRT build (`WERROR=1`) and native unit suite passed:
+  `build/ui-controls-final-build.log`; final standalone link:
+  `build/ui-final-link.log` plus `build/ui-link-command.sh`.
+- 81 browser checks passed for keys, runs, AUTO views and 3D:
+  `build/ui-browser-regression.log`.
+- 150 final browser checks passed for AUTO, 3D, viewport, navigation and
+  steady-state UI: `build/ui-final-browser.log`.
+- The earlier broader run completed 205 desktop checks before its AUTO
+  section failed: the new large legend list displaced the plotting area.
+  Bounded legend layout fixes that regression; the final AUTO section passes.
+  Superseded evidence: `build/ui-broad-browser.log`.
+- `node tools/uiworkflowcheck.mjs build/xppautX-ui-fixed.exe`: real-model
+  uppercase F/I, Caps Lock status, outside dismissal, Tools dropdown,
+  main/additional axis editor, Freeze, Continue, retained-run Fit, individual
+  visibility, hover, legend text/colour, deleting a middle derived column
+  and recomputation, retained 3D rendering/Fit/visibility all passed.
+- `node tools/startupcheck.mjs build/xppautX-ui-fixed.exe`: browser startup
+  select/cancel/close passed. The `--webview2` case passed real native
+  startup close and process exit 0 after the close-order fix.
+
+Launch `build/xppautX-ui-fixed.exe` to test this batch; the old running root
+executable was not replaced. WSL checks are recorded after the committed run.

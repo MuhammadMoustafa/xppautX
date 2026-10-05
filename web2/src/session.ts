@@ -388,6 +388,11 @@ export class Session {
       what runs; while it computes a key of the data or computation kind
       does nothing: it is not kept to go out later (W68, W95) */
   typeKey(k: string): void {
+    /* Labels use capitals. Accept Caps Lock/Shift where only the lowercase
+       letter is a command, preserving any explicitly distinct uppercase key. */
+    const state = this.store.getState();
+    if (k.length === 1 && !state.ask && kindOf(state.hello, state.core?.menu ?? 0, {cmd: 'key', key: k}) === null
+        && kindOf(state.hello, state.core?.menu ?? 0, {cmd: 'key', key: k.toLowerCase()}) !== null) k = k.toLowerCase();
     const {ask, busy, computing, stopping} = this.store.getState();
     if (ask) {
       const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());
@@ -463,6 +468,13 @@ export class Session {
   quitAsked(): void {
     const {hello, ask, busy, computing} = this.store.getState();
     if (ask?.id === LEAVE_ASK) return;
+    /* There is no loaded session to save during the startup model prompt. */
+    if (!hello) {
+      /* End the waiting core first: closing the OS picker first can send its
+         cancellation answer ahead of Quit and turn an ordinary close into a load error. */
+      this.send({cmd: 'quit'});
+      return;
+    }
     if (hello && (computing || (busy && !ask))) this.store.dispatch({type: 'leave', open: true});
     else this.send({cmd: 'quit', ask: true});
   }
@@ -644,6 +656,13 @@ export class Session {
       ask => (ask.kind === 'menu' ? {key: 'w'} : null),
       ask => (ask.kind === 'form' ? {values: [x.min, x.max, y.min, y.max].map(String)} : null),
     ]);
+  }
+
+  /** Axis labels open the existing core editor directly for their plot. */
+  editPlotAxes(win: number, three: boolean): void {
+    if (!this.mayMain('viewaxes')) return;
+    this.selectWindow(win);
+    this.menuAction('main', 'viewaxes', three ? '3' : '2');
   }
 
   /** Window/Fit: the key sequence the classic page uses ('w' opens the

@@ -1,4 +1,5 @@
 #include <climits>
+#include <cmath>
 #include "model.h"
 #include "session.h"
 #include "graf_par.h"
@@ -325,6 +326,26 @@ void fit_window(xpp::Session &s)
       Mz=lmax(s.plot_windows.current->zmax,Mz);
       mz=-lmax(-s.plot_windows.current->zmin,-mz);
       
+    }
+    /* A fitted 3D box must contain the retained trajectories too. */
+    const auto &display=s.plot_display[s.plot_windows.active];
+    if(display.show_runs){
+      for(const auto &run:display.runs){
+        const auto extend=[&](int col,double &lo,double &hi){
+          const auto found=std::find(run.cols.begin(),run.cols.end(),col);
+          if(found==run.cols.end())return;
+          const auto &values=run.data[static_cast<std::size_t>(found-run.cols.begin())];
+          for(float value:values)if(std::isfinite(value)){
+            lo=std::min(lo,static_cast<double>(value));
+            hi=std::max(hi,static_cast<double>(value));
+          }
+        };
+        for(int curve=0;curve<run.curves.nvars;curve++){
+          extend(run.curves.xv[curve],mx,Mx);
+          extend(run.curves.yv[curve],my,My);
+          extend(run.curves.zv[curve],mz,Mz);
+        }
+      }
     }
     s.plot_windows.current->xmax=Mx;
     s.plot_windows.current->ymax=My;

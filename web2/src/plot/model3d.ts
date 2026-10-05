@@ -8,6 +8,9 @@ import {curveLabel, type PlotSeries} from '../store/series';
 export interface Curve3D {
   label: string;
   color: number;
+  cssColor?: string;
+  visible?: boolean;
+  highlighted?: boolean;
   /** a line, or points of this radius */
   line: boolean;
   radius: number;

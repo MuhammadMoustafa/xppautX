@@ -50,6 +50,7 @@ struct PlotRun {
 struct PlotDisplay {
     Zoom zoom;
     bool show_runs = true; /* the legend's "previous runs" toggle */
+    bool freeze_runs = true; /* retain replaced trajectories until Erase */
     /* earlier runs, oldest first; Erase (and Redraw) forgets them */
     std::vector<PlotRun> runs;
     bool erased = false; /* Erase blanked the window: the current run is not drawn */

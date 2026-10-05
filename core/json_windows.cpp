@@ -237,6 +237,8 @@ void display_command(xpp::Session &s, const char *line)
     d.zoom = z;
     const char *jr = js_find(line, "runs");
     if (jr) d.show_runs = js_num(jr, 1) != 0;
+    const char *freeze = js_find(line, "freeze");
+    if (freeze) d.freeze_runs = js_num(freeze, 1) != 0;
 }
 
 /* Window/zoom Scroll: drag the plot (rubber.c x11_scroll_window) */

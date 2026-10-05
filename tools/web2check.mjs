@@ -2449,7 +2449,7 @@ async function autoView(dir) {
   check("T21: its min and max change the view at once, the core's axes stay",
     await until(`dv.viewport.y && Math.abs(dv.viewport.y.min - ${fitted.ymin - 0.1}) < 1e-9`, 'y range')
     && (await DS('d.axes.ymin')) === fitted.ymin, JSON.stringify(await DS('[d.viewport, d.axes]')));
-  await cdp.eval(`document.querySelector('.auto-axis-dialog .dialog-actions button').click()`);
+  await cdp.eval(`document.querySelector('.auto-axis-dialog .dialog-close').click()`);
   await until('!document.querySelector(".auto-axis-dialog")', 'y dialog closed');
   await cdp.eval(`document.querySelector('.auto-panel .plot-tools button:nth-child(2)').click()`);
   await until('dv.viewport.y === null', 'view reset 2');
@@ -2758,7 +2758,7 @@ async function autoViews(dir) {
   check('AUTO views: each view draws its own chart', (await cdp.eval('__xpp.diagram(0).curves.length')) > 0
     && (await cdp.eval('__xpp.diagram(1).curves.length')) > 0
     && JSON.stringify(await cdp.eval('__xpp.diagram(0).y')) !== JSON.stringify(await cdp.eval('__xpp.diagram(1).y')));
-  await cdp.eval(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog .dialog-actions button').click()`);
+  await cdp.eval(`document.querySelector('.auto-pane[data-view="1"] .auto-axis-dialog .dialog-close').click()`);
 
   /* a click in the first view makes it the active one, the core's too */
   const c0 = await center('.auto-pane[data-view="0"] .auto-host');
@@ -3291,7 +3291,7 @@ async function recordCheck(dir) {
   check('quit: File/Quit asks "Quit xppautX? Save this session first?", Save session (S), Don\'t save (D), Cancel',
     await until(`s.ask && s.ask.kind === 'choice' && s.ask.question === 'Quit xppautX? Save this session first?'`, 'quit ask')
     && await cdp.eval(`(() => { const b = [...document.querySelectorAll('.dialog button')].map(e => e.textContent.trim());
-      return b.includes('SSave session') && b.includes("DDon't save") && b.includes('Cancel'); })()`),
+      return b.includes('SSave session') && b.includes("DDon't save") && !!document.querySelector('.dialog-close'); })()`),
     JSON.stringify(await S('s.ask')));
   await key('Escape');
   check('quit: Escape cancels: the dialog goes and the session stays',
@@ -3441,7 +3441,7 @@ async function leaveCheck() {
   check('leave: during the run the page asks the same question itself, Save session (S), Don\'t save (D), Cancel',
     await until(`s.ask && s.ask.id === -1 && s.ask.question === '${QUIT_Q}'`, 'page quit ask')
     && await cdp.eval(`(() => { const b = [...document.querySelectorAll('.dialog button')].map(e => e.textContent.trim());
-      return b.includes('SSave session') && b.includes("DDon't save") && b.includes('Cancel'); })()`),
+      return b.includes('SSave session') && b.includes("DDon't save") && !!document.querySelector('.dialog-close'); })()`),
     JSON.stringify(await S('s.ask')));
   const a0 = await appends();
   check('leave: the run goes on under the question, its rows still growing, nothing sent',

@@ -10,11 +10,11 @@
    its marks (T8: equilibria, text, arrows, markers, frozen curves) are
    drawn by the chart too, and listed in the legend after the curves. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
-import {Chart} from '../plot/chart';
+import {Chart, padded} from '../plot/chart';
 import {curveColor} from '../plot/colors';
 import {attachGestures, type PickSink} from '../plot/interactions';
 import {pickInstruction, pickKey, toData, type Frac, type PickState} from '../plot/pick';
-import {buildModel, type PlotModel} from '../plot/model';
+import {buildModel, visibleRanges, type PlotModel} from '../plot/model';
 import {markLayers, type MarkLayer} from '../plot/marks';
 import {phaseLayers, type Layer} from '../plot/phase';
 import {plotKey} from '../plot/plotKeys';
@@ -22,6 +22,8 @@ import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
+import {TraceDialog} from './TraceDialog';
+import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 
@@ -200,11 +202,27 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<Chart | null>(null);
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
+  const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
+  const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
+  const [trace, setTrace] = useState<{run: number; curve: number; index: number} | null>(null);
+  const runKeys = useRef(new WeakMap<PlotSeries, string>());
+  const nextRun = useRef(0);
   const history = pw?.history;
   const erased = !!history?.erased;
   const runsShown = pw?.showRuns ?? true;
-  const model: PlotModel | null = useMemo(() => (series ? buildModel(series, erased) : null), [series, erased]);
-  const runs: PlotModel[] = useMemo(() => (history?.runs ?? []).map(r => buildModel(r)), [history?.runs]);
+  const decorate = (m: PlotModel, prefix: string): PlotModel => ({...m, curves: m.curves.map((c, i) => {
+    const a = appearance[`${prefix}:${i}`];
+    return {...c, label: a?.label ?? c.label, cssColor: a?.color, visible: a?.visible};
+  })});
+  const keys = useMemo(() => (history?.runs ?? []).map(r => {
+    let key = runKeys.current.get(r);
+    if (!key) { key = `run-${++nextRun.current}`; runKeys.current.set(r, key); }
+    return key;
+  }), [history?.runs]);
+  const model: PlotModel | null = useMemo(() => (series ? decorate(buildModel(series, erased), 'current') : null),
+    [series, erased, appearance]);
+  const runs: PlotModel[] = useMemo(() => (history?.runs ?? []).map((r, i) => decorate(buildModel(r), keys[i])),
+    [history?.runs, keys, appearance]);
   const modelRef = useRef(model);
   modelRef.current = model;
 
@@ -213,19 +231,23 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   useEffect(() => {
     const c = new Chart(host.current!, {
       onViewport: v => session.setViewport(win, v),
+      onTrace: hit => setTrace(hit),
     });
     let detach = () => {};
     c.onArea = area => {
       detach();
       detach = attachGestures(c, area, {
-        hover: (curve, index) => setHover(session, modelRef.current, curve, index),
-        leave: () => clearHover(session),
+        hover: (curve, index, run) => {
+          if (run === undefined || run < 0) setHover(session, modelRef.current, curve, index);
+          else clearHover(session);
+        },
+        leave: () => { clearHover(session); setTrace(null); c.highlight(null); },
       }, pickSink(session, () => win, () => chart.current));
     };
     chart.current = c;
     setChart(win, c);
     const ro = new ResizeObserver(() => {
-      if (host.current?.clientWidth) c.resize(); /* not while its tab is hidden */
+      if (host.current?.clientWidth) { c.resize(); setShown(n => n + 1); } /* not while its tab is hidden */
     });
     ro.observe(host.current!);
     return () => {
@@ -239,7 +261,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   /* a hidden tab draws nothing: the chart catches up when it is shown */
   useEffect(() => {
     const w = windowOf(session.store.getState().plots, win);
-    if (model && shown) chart.current!.set(model, axes, w?.viewport ?? HOME, dark);
+    if (model && shown) { chart.current!.set(model, axes, w?.viewport ?? HOME, dark); setShown(n => n + 1); }
   }, [model, axes, dark, shown]);
 
   useEffect(() => {
@@ -303,12 +325,43 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     ? chart.current.position(hover.curve, hover.row - (model.curves[hover.curve]?.row0 ?? 0)) : null;
   const zoomed = viewport.x !== null || viewport.y !== null;
   const noCurves = !model || model.curves.every(c => c.xs.length === 0);
+  const area = chart.current?.areaBox();
+  const axisButton = (which: 'x' | 'y') => <button class={`auto-axis-name auto-axis-${which}`}
+    data-plot-axis={which} aria-haspopup="dialog" disabled={!mayMain('viewaxes')}
+    aria-label={`Edit ${which === 'x' ? 'horizontal' : 'vertical'} axis variables and limits`}
+    title="Change axis variables and limits" onClick={() => session.editPlotAxes(win, !!(info?.three ?? view?.three))}
+    style={which === 'x' ? {left: `${area!.left + area!.width / 2}px`, bottom: '0px'}
+      : {left: '0px', top: `${area!.top + area!.height / 2}px`}}>
+    {which === 'x' ? model?.xLabel || 'Horizontal axis' : model?.yLabel || 'Vertical axis'}
+  </button>;
   const empty = noCurves && !layers.length && !(runs.length && runsShown);
   const texts = marks?.text.length ? `; text: ${marks.text.map(t => t.plain).join('; ')}` : '';
   const withLayers = layers.length ? `; ${layers.map(l => l.label).join(', ')}${texts}` : '';
   const label = model?.curves.length
     ? `Plot of ${model.curves.map(c => c.label).join(', ')}, ${model.curves[0].xs.length} points${withLayers}`
     : `Plot, no data yet${withLayers}`;
+  const fit = () => {
+    session.selectWindow(win);
+    if (!runsShown || !runs.length || !model) { session.fitView(); return; }
+    const ranges = visibleRanges([model, ...runs]);
+    const x = padded(ranges.x), y = padded(ranges.y);
+    if (x && y) session.useThisView(win, {x, y});
+  };
+  const legend = (c: NonNullable<PlotModel>['curves'][number], key: string, run: number, curve: number) => (
+    <button key={key} data-trace-key={key}
+      class={'legend-item' + (c.visible === false || (run >= 0 && !runsShown) ? ' off' : '')
+        + (trace?.run === run && trace?.curve === curve ? ' highlighted' : '')}
+      aria-pressed={c.visible !== false && (run < 0 || runsShown)}
+      title="Click to show or hide; double click to edit the name and colour"
+      onMouseEnter={() => chart.current?.highlight({run, curve})}
+      onMouseLeave={() => chart.current?.highlight(null)}
+      onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}
+      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? curveColor(c.color, dark)})}>
+      <span class="swatch" style={{background: c.cssColor ?? curveColor(c.color, dark)}} aria-hidden="true" />
+      {c.label}{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
+    </button>
+  );
+  const hovered = trace && (trace.run < 0 ? model : runs[trace.run])?.curves[trace.curve];
   const panel = tabbed
     ? {role: 'tabpanel' as const, id: `plot-panel-${win}`, 'aria-labelledby': `plot-tab-${win}`}
     : {'aria-label': 'Plot'};
@@ -317,20 +370,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     <section class="plot-view" hidden={!shown} {...panel}>
       <header class="plot-bar">
         <div class="legend" role="group" aria-label="Curves">
-          {model?.curves.map((c, i) => (
-            <button
-              key={i}
-              class={'legend-item' + (chart.current?.isVisible(i) === false ? ' off' : '')}
-              aria-pressed={chart.current?.isVisible(i) !== false}
-              title="Show or hide this curve"
-              onClick={() => {
-                chart.current!.setVisible(i, !chart.current!.isVisible(i));
-                setShown(n => n + 1);
-              }}>
-              <span class="swatch" style={{background: curveColor(c.color, dark)}} aria-hidden="true" />
-              {c.label}
-            </button>
-          ))}
+          {model?.curves.map((c, i) => legend(c, `current:${i}`, -1, i))}
+          {runs.map((r, ri) => r.curves.map((c, i) => legend(c, `${keys[ri]}:${i}`, ri, i)))}
           {runs.length > 0 && (
             <button
               class={'legend-item layer runs' + (runsShown ? '' : ' off')}
@@ -360,13 +401,17 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           ))}
         </div>
         <div class="plot-tools">
+          <label title="Keep earlier trajectories when starting a new run. Uncheck to replace them on the next new run; Continue extends the current trajectory.">
+            <input type="checkbox" data-freeze-runs checked={info?.freeze !== 0}
+              onChange={e => session.send({cmd: 'display', win, freeze: e.currentTarget.checked ? 1 : 0})} /> Freeze
+          </label>
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to the window's axes (double click, or 0 on the plot)">Reset view</button>
           <button disabled={!zoomed || windowOff} onClick={() => session.useThisView(win, chart.current!.ranges())}
             title="Make this zoom the window's own axes (Window/Window), for PostScript/SVG export and Restore">
             Use this view
           </button>
-          <button disabled={noCurves || windowOff} onClick={() => session.fitView()}
+          <button disabled={noCurves || windowOff} onClick={fit}
             title="Fit the window's axes to the data (Window/Fit)">Fit</button>
           <button disabled={noCurves || csvOff} onClick={() => session.writeDataFile('plot', 'csv')}
             title="Export the plotted numbers as a CSV file">CSV</button>
@@ -382,29 +427,34 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
         aria-label={label}
         aria-describedby={picking ? 'pick-instruction plot-keys-help' : 'plot-keys-help'}
         onKeyDown={onKeyDown}>
-        {!noCurves && <FitButton onClick={() => session.fitView()} disabled={windowOff}
+        {!noCurves && <FitButton onClick={fit} disabled={windowOff}
           title="Fit the window's axes to the data (Window/Fit)" />}
+        {area && axisButton('x')}
+        {area && axisButton('y')}
         {picking && chart.current && <PickOverlay pick={picking} chart={chart.current} />}
+        {hovered && <span class="trace-tooltip" role="tooltip">{hovered.label}{trace!.run >= 0 ? ` · ${keys[trace!.run]}` : ''}</span>}
         {marker && <span class="hover-dot" style={{left: `${marker.left}px`, top: `${marker.top}px`}} />}
         {empty && (
           <div class="plot-empty">
-            <p>{busy ? 'Integrating…' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
+            <p>{busy ? 'Integratingâ€¦' : erased ? 'Erased: Redraw (R) draws the data again.' : 'No trajectory yet.'}</p>
             {!busy && !erased && <p>Choose a run action above the plot.</p>}
           </div>
         )}
       </div>
+      {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
+        apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       <footer class="readout" role="status" aria-live="polite">
         {hover && model ? (
           <span>
             <b>{model.curves[hover.curve]?.label}</b>
             {' '}row {hover.row}
-            {hover.t !== null && <> · T = {fmt(hover.t)}</>}
-            {' '}· {model.curves[hover.curve]?.xName} = {fmt(hover.x)} · {model.curves[hover.curve]?.yName} = {fmt(hover.y)}
+            {hover.t !== null && <> Â· T = {fmt(hover.t)}</>}
+            {' '}Â· {model.curves[hover.curve]?.xName} = {fmt(hover.x)} Â· {model.curves[hover.curve]?.yName} = {fmt(hover.y)}
           </span>
         ) : (
           <span class="muted">
-            <span class="hint-mouse">Drag to zoom · wheel zooms · Shift+drag pans · double click resets</span>
-            <span class="hint-touch">Pinch zooms · drag pans · tap a point to read it</span>
+            <span class="hint-mouse">Drag to zoom Â· wheel zooms Â· Shift+drag pans Â· double click resets</span>
+            <span class="hint-touch">Pinch zooms Â· drag pans Â· tap a point to read it</span>
           </span>
         )}
       </footer>

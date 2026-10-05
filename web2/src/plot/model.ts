@@ -9,6 +9,9 @@ export interface CurveData {
   xName: string;
   yName: string;
   color: number;
+  /** Local legend presentation; never changes the core's numerical data. */
+  cssColor?: string;
+  visible?: boolean;
   /** a line, or points of this radius */
   line: boolean;
   radius: number;
@@ -48,6 +51,13 @@ function rangeOf(stats: ColumnStats[]): Range | null {
     if (t.max > max) max = t.max;
   }
   return min <= max ? {min, max} : null;
+}
+
+/** Visible trajectories together, including older runs, for Fit. */
+export function visibleRanges(models: PlotModel[]): {x: Range | null; y: Range | null} {
+  const curves = models.flatMap(m => m.curves).filter(c => c.visible !== false);
+  return {x: rangeOf(curves.map(c => columnStats(c.xs, 0, c.xs.length))),
+    y: rangeOf(curves.map(c => columnStats(c.ys, 0, c.ys.length)))};
 }
 
 /** `erased`: the window's curves, with no points (Erase, until the next run or Redraw) */

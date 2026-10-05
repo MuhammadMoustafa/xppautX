@@ -60,6 +60,16 @@ void DataStore::add_column(int c)
   table_[c]=columns_[c].data();
 }
 
+void DataStore::remove_column(int c, int count)
+{
+  for(int j=c;j<count-1;j++){
+    columns_[j].swap(columns_[j+1]);
+    table_[j]=columns_[j].data();
+  }
+  std::vector<float>().swap(columns_[count-1]);
+  table_[count-1]=nullptr;
+}
+
 void DataStore::lend_columns(float **dst, int from, int to) const
 {
   for(int c=from;c<=to;c++)dst[c]=table_[c];

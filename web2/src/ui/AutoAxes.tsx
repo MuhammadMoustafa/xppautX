@@ -54,6 +54,12 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
 
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('select:not([disabled]), input')?.focus();
+    const outside = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (!box.current?.contains(target) && !target?.closest('.auto-axis-name')) onClose();
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
   }, []);
 
   const apply = (lo: string, hi: string) => {
@@ -105,6 +111,7 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
       <div class="dialog-title-row">
         <h3>{title}</h3>
         <HelpButton target={HELP.autoAxes} label={title} />
+        <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
       </div>
       <div class="auto-axis-fields">
         {axis === 'x'
@@ -131,9 +138,6 @@ export function AutoAxisDialog({axis, view, onClose}: {axis: AxisName; view: num
           {busy ? 'What the axis plots changes when AUTO stops (dashed); the range changes now.' : 'Applying…'}
         </p>
       )}
-      <div class="dialog-actions">
-        <button onClick={onClose}>Close</button>
-      </div>
     </div>
   );
 }

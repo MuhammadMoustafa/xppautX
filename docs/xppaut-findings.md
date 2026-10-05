@@ -66,6 +66,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [34](#34-model-includes-read-outside-the-model-folder) | Model files | include names can read arbitrary reachable files | [W175](https://github.com/MuhammadMoustafa/xppautX/issues/227) |
 | [35](#35-array-print-invalid-render-text-selects-blue-red) | Array plot | malformed render text silently selects blue-red | [W177](https://github.com/MuhammadMoustafa/xppautX/issues/229) |
 | [36](#36-cvode-reverses-the-documented-tolerance-roles) | Numerics | CVODE receives TOLER as absolute and ATOLER as relative tolerance | [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72), [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235) |
+| [37](#37-delete-column-is-an-unconditional-placeholder) | Data browser | Delete column always reports an error and returns | W197 (local card) |
 
 ## 1. Model options
 
@@ -613,3 +614,18 @@ but passes them in the reverse roles.
   actionable independently of adopting SUNDIALS.
 - **Cards:** [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72),
   [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235).
+
+## 37. Delete column is an unconditional placeholder
+
+XPPAUT 8.0's `data_del_col` reports "Sorry - not working very well yet..."
+and returns before the deletion code ([browse.c:262-270](../reference/xppaut-8.0/browse.c#L262)).
+The upstream master has the same unconditional return
+([browse.c:261-269](../reference/xppaut-master/browse.c#L261)). The manual
+nevertheless describes deleting an Addcol column.
+
+xppautX W197 implements removal of added columns in the storage owner,
+protects time/model columns and columns used by plots, shifts remaining data
+and formulas, and updates affected plot indices. `tools/uiworkflowcheck.mjs`
+adds two formula columns, deletes the first, checks the second's values and
+checks it recomputes correctly after a fresh run. The core column name
+lookup, derived-column computation and storage owner are reused.

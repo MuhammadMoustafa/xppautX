@@ -10,7 +10,7 @@ export const FOCUSABLE = 'button:not([disabled]), input, select, textarea, [tabi
     help button (a menu with its "?" first took the focus there, and Enter opened Help) */
 export function firstFocus(el: HTMLElement): HTMLElement | null {
   return el.querySelector<HTMLElement>('[data-autofocus]')
-    ?? [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].find(e => !e.closest('.help-link')) ?? null;
+    ?? [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].find(e => !e.closest('.help-link, .dialog-close')) ?? null;
 }
 
 /** focus the dialog's first field when it opens (and when `deps` change: another ask in the same

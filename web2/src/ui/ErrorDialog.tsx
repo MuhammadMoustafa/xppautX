@@ -28,7 +28,7 @@ export function ErrorDialog() {
   if (!shown) return null;
   const close = () => session.store.dispatch({type: 'dismissErrors'});
   return (
-    <div class="dialog-backdrop">
+    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
       <div class="dialog error-dialog" ref={box} role="alertdialog" aria-modal="true" aria-labelledby="error-title"
         data-error-dialog={errors.length}
         onKeyDown={e => {
@@ -41,7 +41,8 @@ export function ErrorDialog() {
             all[e.shiftKey ? (i <= 0 ? all.length - 1 : i - 1) : (i === all.length - 1 ? 0 : i + 1)].focus();
           }
         }}>
-        <h2 id="error-title" class="error-title">{errors.length > 1 ? `${errors.length} errors` : 'Error'}</h2>
+        <div class="dialog-title-row"><h2 id="error-title" class="error-title">{errors.length > 1 ? `${errors.length} errors` : 'Error'}</h2>
+          <button class="dialog-close" aria-label="Close error" onClick={close}>×</button></div>
         <ul class="error-list">
           {errors.map(t => (
             <li key={t.id} data-error>

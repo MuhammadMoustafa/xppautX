@@ -12,6 +12,11 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ### Changed
 
 - Add one-click Run to steady state, with decimal precision, unchanged-digits hold duration and a maximum duration; show why it stopped and compare full core state values at every Dt (W193, local follow-up card).
+- Fix model-picker answers and close requests being discarded before a model loads; end the unloaded session before its native picker closes (W195).
+- Accept uppercase F/I shortcuts and show Caps Lock in the status bar; dismiss dialogs with × or an outside click, and close Tools dropdowns on outside click or Escape (W196, W199).
+- Restore deletion of added data columns while protecting model/time columns and plotted columns; shift remaining values and recompute formulas on later runs (W197).
+- Open axis variables/limits directly from 2D axis labels and 3D axis controls, including additional windows; AUTO axis popovers also dismiss on outside click (W198).
+- Add a Freeze control for retaining earlier trajectories, preserve them through Fit/Redraw, and give traces visibility toggles, hover highlighting, and an editable legend name/colour (W199).
 - Put run duration and Continue For another / Until time directly in the toolbar. Direct continuation stores every Dt to avoid legacy output-stride overshoot; configured numerical settings and legacy C remain unchanged (W194, local follow-up card).
 
 - Give common run actions one permanent toolbar: Run from initial, Run from current (Last), Continue and Stop; show activity and last stored time, remove duplicate run controls, and keep parameters/solver settings in Values with full command search (W192, local follow-up card).

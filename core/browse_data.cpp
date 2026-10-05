@@ -337,10 +337,45 @@ int check_for_stor(const xpp::Session &s, float **data)
 
 }
 
-void data_del_col(const xpp::Session &s, BROWSER *b)  /*  this only works with storage  */
+void data_del_col(xpp::Session &s, BROWSER *b)
 {
-    if(check_for_stor(s,b->data)==0)return;
-  command_error("browser", "Sorry - not working very well yet...");
+  if(check_for_stor(s,b->data)==0)return;
+  if(s.browser.added_columns.empty()){
+    command_error("browser", "There are no added columns to delete");
+    return;
+  }
+  std::string name;
+  if(!get_dialog("Delete added column","Name",name,"Delete","Cancel"))return;
+  int col=-1;
+  find_variable(s,name,&col);
+  const int first=s.model().neq+1;
+  if(col<first){
+    command_error("browser", "Choose an added column; time and model columns cannot be deleted");
+    return;
+  }
+  for(const auto &g:s.plot_windows.graph){
+    if(!g.Use)continue;
+    for(int i=0;i<g.nvars;i++){
+      if(g.xv[i]==col||g.yv[i]==col||(g.ThreeDFlag&&g.zv[i]==col)){
+        command_error("browser", "This column is plotted; change its plot axes before deleting it");
+        return;
+      }
+    }
+  }
+  s.data_store.remove_column(col,b->maxcol);
+  s.browser.added_columns.erase(s.browser.added_columns.begin()+(col-first));
+  for(auto &g:s.plot_windows.graph){
+    if(!g.Use)continue;
+    for(int i=0;i<g.nvars;i++){
+      if(g.xv[i]>col)--g.xv[i];
+      if(g.yv[i]>col)--g.yv[i];
+      if(g.zv[i]>col)--g.zv[i];
+    }
+  }
+  if(s.browser.replaced_col==col)wipe_rep(s.browser);
+  else if(s.browser.replaced_col>col)--s.browser.replaced_col;
+  --b->maxcol;
+  ui.browser_redraw(1);
 }
 
 void data_add_col(xpp::Session &s, BROWSER *b)

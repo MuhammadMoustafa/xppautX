@@ -25,6 +25,7 @@ import type {Range, Viewport} from '../store/state';
 
 export interface ChartCallbacks {
   onViewport(v: Viewport): void;
+  onTrace?(hit: (Nearest & {run: number}) | null): void;
 }
 
 export interface ChartInfo {
@@ -70,7 +71,7 @@ interface CurveTraces {
 const asGiven: uPlot.Range.Function = (_u, min, max) => [min ?? 0, max ?? 1];
 
 /** the axis range the chart gives values from `r.min` to `r.max` (the model's ranges) */
-function padded(r: Range | null): Range | null {
+export function padded(r: Range | null): Range | null {
   if (!r) return null;
   const {min, max} = r;
   if (min === max) return {min: min - 1, max: max + 1};
@@ -109,6 +110,7 @@ export class Chart {
   private runs: PlotModel[] = [];
   private showRuns = true;
   private runsDrawn = 0;
+  private highlighted: {run: number; curve: number} | null = null;
   /** each earlier run's paths for the frame they were traced for: a run does
       not change, so only a new view traces it again */
   private runPaths = new WeakMap<PlotModel,
@@ -135,8 +137,8 @@ export class Chart {
     const rebuild = !this.u || !this.model || this.model.mode !== model.mode
       || this.model.curves.length !== model.curves.length || this.dark !== dark
       || this.model.curves.some((c, i) => c.color !== model.curves[i].color || c.line !== model.curves[i].line
-        || c.label !== model.curves[i].label);
-    if (rebuild) this.visible = model.curves.map(() => true);
+        || c.label !== model.curves[i].label || c.cssColor !== model.curves[i].cssColor);
+    this.visible = model.curves.map(c => c.visible !== false);
     this.model = model;
     this.dark = dark;
     this.base = {
@@ -144,7 +146,10 @@ export class Chart {
       y: view?.y ?? padded(model.yRange) ?? {min: 0, max: 1},
     };
     if (rebuild) this.create();
-    else this.u!.setData(this.data(), false); /* new rows (an append): the same chart, new paths */
+    else {
+      this.u!.setData(this.data(), false); /* new rows (an append): the same chart, new paths */
+      this.visible.forEach((show, i) => this.u!.setSeries(i + 1, {show}));
+    }
     this.applyViewport(viewport); /* draws */
   }
 
@@ -254,7 +259,7 @@ export class Chart {
       label, stroke: fg, font, labelFont: font, grid: {stroke: grid, width: 1}, ticks: {stroke: grid, width: 1},
     });
     const series: uPlot.Series[] = m.curves.map((c, i) => {
-      const color = curveColor(c.color, this.dark);
+      const color = c.cssColor ?? curveColor(c.color, this.dark);
       const s: uPlot.Series = {label: c.label, stroke: color, width: 1.5, show: this.visible[i], points: {show: false}};
       if (!c.line) {
         s.paths = this.pointPath(c.radius);
@@ -286,7 +291,7 @@ export class Chart {
       hooks: {
         setScale: [() => this.scaleChanged()],
         drawAxes: [u => this.drawPhase(u)], /* after the axes, before the curves */
-        draw: [u => { this.drawMarks(u); this.drawn(); }], /* over the curves */
+        draw: [u => { this.drawMarks(u); this.drawHighlight(u); this.drawn(); }], /* over the curves */
       },
     };
     this.u = new uPlot(opts, this.data(), this.root);
@@ -460,10 +465,10 @@ export class Chart {
         let cached = this.runPaths.get(run);
         if (!cached || cached.dark !== this.dark || !sameFrame(cached.frame, f)) {
           let drawn = 0;
-          const paths = run.curves.map(c => {
+          const paths = run.curves.filter(c => c.visible !== false).map(c => {
             const p = new Path2D();
             drawn += traceFrozen(c.xs, c.ys, c.line, f, Math.max(1, c.radius) * r, p);
-            return {p, css: curveColor(c.color, this.dark), fill: !c.line};
+            return {p, css: c.cssColor ?? curveColor(c.color, this.dark), fill: !c.line};
           });
           cached = {frame: f, dark: this.dark, drawn, paths};
           this.runPaths.set(run, cached);
@@ -595,12 +600,42 @@ export class Chart {
   }
 
   /** the point nearest to (px, py) of the plotting area, within maxDist CSS pixels */
-  hit(px: number, py: number, maxDist: number): Nearest | null {
+  hit(px: number, py: number, maxDist: number): (Nearest & {run: number}) | null {
     const u = this.u, m = this.model;
     if (!u || !m) return null;
     const {x, y} = this.ranges();
-    return nearestPoint(m.curves, this.visible, {xmin: x.min, xmax: x.max, ymin: y.min, ymax: y.max,
-      width: u.over.clientWidth, height: u.over.clientHeight}, px, py, maxDist);
+    const frame = {xmin: x.min, xmax: x.max, ymin: y.min, ymax: y.max,
+      width: u.over.clientWidth, height: u.over.clientHeight};
+    const current = nearestPoint(m.curves, this.visible, frame, px, py, maxDist, true);
+    let best = current ? {...current, run: -1} : null;
+    if (this.showRuns) this.runs.forEach((r, run) => {
+      const h = nearestPoint(r.curves, r.curves.map(c => c.visible !== false), frame, px, py, best?.dist ?? maxDist, true);
+      if (h) best = {...h, run};
+    });
+    this.highlight(best);
+    this.cb.onTrace?.(best);
+    return best;
+  }
+
+  highlight(hit: {run: number; curve: number} | null): void {
+    if (this.highlighted?.run === hit?.run && this.highlighted?.curve === hit?.curve) return;
+    this.highlighted = hit;
+    this.u?.redraw(false, false);
+  }
+
+  private drawHighlight(u: uPlot): void {
+    const h = this.highlighted;
+    const c = h && (h.run < 0 ? this.model : this.runs[h.run])?.curves[h.curve];
+    if (!c || c.visible === false || (h!.run >= 0 && !this.showRuns)) return;
+    this.clipped(u, ctx => {
+      const p = new Path2D(), f = this.frame(u);
+      if (c.line) tracePolyline(c.xs, c.ys, f, p);
+      else tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, (c.radius + 1) * uPlot.pxRatio,
+        (x, y) => { p.moveTo(x + 3, y); p.arc(x, y, 3 * uPlot.pxRatio, 0, Math.PI * 2); });
+      ctx.strokeStyle = c.cssColor ?? curveColor(c.color, this.dark);
+      ctx.lineWidth = 3.5 * uPlot.pxRatio;
+      ctx.stroke(p);
+    });
   }
 
   /** where a data point is, in CSS pixels from the chart's root (for the hover marker) */
@@ -640,7 +675,7 @@ export class Chart {
     return {
       mode: m.mode,
       curves: m.curves.map((c, i) => ({label: c.label, points: c.xs.length, visible: this.visible[i],
-        color: curveColor(c.color, this.dark)})),
+        color: c.cssColor ?? curveColor(c.color, this.dark)})),
       ...this.ranges(),
       width: u.over.clientWidth,
       height: u.over.clientHeight,

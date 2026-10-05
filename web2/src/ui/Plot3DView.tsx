@@ -7,14 +7,17 @@
    (2D); ui/Plots.tsx renders this one instead when a window's `plots`
    says `three`. No zoom, pan or pick modes here: those are a 2D plot's. */
 import {cssVar} from '../plot/css';
-import {useEffect, useMemo, useRef} from 'preact/hooks';
+import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {Chart3D} from '../plot/chart3d';
 import {curveColor} from '../plot/colors';
+import type {PlotSeries} from '../store/series';
 import {buildModel3d} from '../plot/model3d';
 import {KEY_STEP, KEY_STEP_FINE, rotateByDrag, rotateByKey} from '../plot/project3d';
 import {setChart} from '../plot/registry';
 import {windowOf} from '../store/plots';
 import {useMayMain, useSession, useStore} from './context';
+import {TraceDialog} from './TraceDialog';
+import {nearest3d} from '../plot/render3d';
 import {FitButton} from './PlotView';
 
 interface Props {
@@ -44,6 +47,9 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
   const info = pw?.info ?? null;
   const series = pw?.series ?? null;
   const view3d = pw?.view3d ?? null;
+  const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
   const busy = useStore(s => s.computing);
   const mayMain = useMayMain();
 
@@ -68,12 +74,29 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
     };
   }, [win]);
 
-  const model = useMemo(
-    () => (series && info?.three && view3d
-      ? buildModel3d(series, info.box, view3d.theta, view3d.phi, info.persp, info.zplane, info.zview)
-      : null),
-    [series, info, view3d],
+  const runKeys = useRef(new WeakMap<PlotSeries, string>());
+  const nextRun = useRef(0);
+  const history = pw?.history;
+  const runsShown = pw?.showRuns ?? true;
+  const sources = useMemo(() => series ? [series, ...(history?.runs ?? [])] : [], [series, history?.runs]);
+  const keys = useMemo(() => sources.map((r, i) => {
+    if (i === 0) return 'current';
+    let key = runKeys.current.get(r);
+    if (!key) { key = `run-${++nextRun.current}`; runKeys.current.set(r, key); }
+    return key;
+  }), [sources]);
+  const rawModels = useMemo(
+    () => info?.three && view3d ? sources.map(r => buildModel3d(r, info.box, view3d.theta, view3d.phi, info.persp, info.zplane, info.zview)) : [],
+    [sources, info, view3d],
   );
+  const traceKeys = rawModels.flatMap((m, run) => m.curves.map((_, i) => `${keys[run]}:${i}`));
+  const model = useMemo(() => rawModels.length ? ({box:rawModels[0].box,
+    curves:rawModels.flatMap((m, run) => m.curves.map((c, i) => {
+      const key = `${keys[run]}:${i}`, a = appearance[key];
+      return {...c, label:a?.label ?? `${c.label}${run ? ` · ${keys[run]}` : ''}`,
+        cssColor:a?.color, visible:a?.visible !== false && (run === 0 ? !history?.erased : runsShown),
+        highlighted:hovered === rawModels.slice(0, run).reduce((n, m) => n + m.curves.length, 0) + i};
+    }))}) : null, [rawModels, keys, appearance, hovered, history?.erased, runsShown]);
 
   useEffect(() => {
     if (!shown || !chart.current || !view3d) return;
@@ -90,7 +113,12 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
   };
   const onPointerMove = (e: PointerEvent) => {
     const d = drag.current;
-    if (!d || d.pointerId !== e.pointerId) return;
+    if (!d) {
+      const r = canvas.current!.getBoundingClientRect();
+      setHovered(model ? nearest3d(model, r.width, r.height, e.clientX - r.left, e.clientY - r.top) : null);
+      return;
+    }
+    if (d.pointerId !== e.pointerId) return;
     const r = rotateByDrag(d.theta0, d.phi0, e.clientX - d.x0, e.clientY - d.y0);
     rotate(r.theta, r.phi);
   };
@@ -118,12 +146,20 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
       <header class="plot-bar">
         <div class="legend" role="group" aria-label="Curves">
           {model?.curves.map((c, i) => (
-            <span key={i} class="legend-item">
-              <span class="swatch" style={{background: curveColor(c.color, dark)}} aria-hidden="true" />
+            <button key={traceKeys[i]} data-trace-key={traceKeys[i]} class={'legend-item' + (c.visible === false ? ' off' : '')} aria-pressed={c.visible !== false}
+              title="Click to show or hide; double click to edit name and colour"
+              onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
+              onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
+              onDblClick={() => setEditing(i)}>
+              <span class="swatch" style={{background: c.cssColor ?? curveColor(c.color, dark)}} aria-hidden="true" />
               {c.label}
-            </span>
+            </button>
           ))}
         </div>
+        <div class="plot-tools"><label title="Keep earlier trajectories on the next new run">
+          <input type="checkbox" checked={info?.freeze !== 0} data-freeze-runs
+            onChange={e => session.send({cmd:'display',win,freeze:e.currentTarget.checked ? 1 : 0})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button disabled={!mayMain('viewaxes')}
+          onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}</div>
       </header>
       <div
         class="plot-host"
@@ -137,11 +173,13 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
+        onPointerLeave={() => { if (!drag.current) setHovered(null); }}
         onPointerCancel={endDrag}>
         <canvas ref={canvas} class="plot-canvas-3d" aria-hidden="true" />
         {!noCurves && (
           <FitButton onClick={() => session.fitView()} disabled={!mayMain('window')} title="Fit the window's axes to the data (Window/Fit)" />
         )}
+        {hovered !== null && model && <span class="trace-tooltip" role="tooltip">{model.curves[hovered]?.label}</span>}
         {noCurves && (
           <div class="plot-empty">
             <p>{busy ? 'Integrating…' : 'No trajectory yet.'}</p>
@@ -149,6 +187,9 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
           </div>
         )}
       </div>
+      {editing !== null && model && <TraceDialog label={model.curves[editing].label}
+        color={model.curves[editing].cssColor ?? curveColor(model.curves[editing].color, dark)} close={() => setEditing(null)}
+        apply={(label, color) => { setAppearance(a => ({...a, [traceKeys[editing]]: {...a[traceKeys[editing]], label, color}})); setEditing(null); }} />}
       <p id="plot-3d-keys-help" class="visually-hidden">
         {`Drag turns the view; the arrow keys turn it ${KEY_STEP} degrees at a time, Shift ${KEY_STEP_FINE}.`}
       </p>

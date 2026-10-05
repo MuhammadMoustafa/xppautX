@@ -757,7 +757,7 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { bottom: var(--p
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--border);
 }
-.legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-1); flex: 1; min-width: 0; max-height: 4.5rem; overflow-y: auto; }
 .legend-item { border: none; background: none; padding: 0 var(--space-2); }
 .legend-item[aria-pressed='false'] { opacity: 0.45; text-decoration: line-through; }
 .swatch { width: 0.9rem; height: 0.2rem; border-radius: 0.125rem; }
@@ -1289,3 +1289,13 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { bottom: var(--p
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Dialog dismissal and per-trace presentation. */
+.dialog-close { margin-left: auto; font-size: 1.4rem; min-width: 2rem; line-height: 1; }
+.dialog-title-row h3 { flex: 1; }
+.caps-status { color: var(--warning, #b8860b); font-weight: 600; }
+.trace-tooltip { position: absolute; top: 10px; left: 80px; z-index: 3; pointer-events: none; padding: .3rem .6rem; border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--fg); }
+.legend-item.highlighted { outline: 2px solid var(--accent); }
+[data-trace-dialog] form > label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-block: .8rem; }
+[data-trace-dialog] input[type=color] { width: 4rem; height: 2.4rem; padding: .2rem; }
+.plot-tools label { display: inline-flex; align-items: center; gap: .3rem; }

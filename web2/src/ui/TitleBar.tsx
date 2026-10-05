@@ -4,6 +4,7 @@ import type {Theme} from '../store/state';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {saveTheme} from './theme';
 import {baseName} from '../store/files';
+import {useEffect, useRef} from 'preact/hooks';
 
 const NEXT_THEME: Record<Theme, Theme> = {system: 'light', light: 'dark', dark: 'system'};
 /* the theme is an icon, not a word: "Auto" beside the feature buttons read as AUTO (T21) */
@@ -31,6 +32,25 @@ function ThemeIcon({theme}: {theme: Theme}) {
 }
 
 export function TitleBar() {
+  const tools = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const outside = (e: PointerEvent) => {
+      if (tools.current?.open && !tools.current.contains(e.target as Node)) tools.current.open = false;
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && tools.current?.open) {
+        tools.current.open = false;
+        tools.current.querySelector('summary')?.focus();
+        e.preventDefault(); e.stopPropagation();
+      }
+    };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', escape, true);
+    return () => {
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', escape, true);
+    };
+  }, []);
   const session = useSession();
   const title = useStore(s => s.title);
   const file = useStore(s => s.hello?.file ?? '');
@@ -58,7 +78,7 @@ export function TitleBar() {
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
       <span class="muted file">{title}</span>
       <span class="spacer" />
-      <details class="workspace-tools"><summary>Tools</summary><div class="workspace-tools-menu">
+      <details class="workspace-tools" ref={tools}><summary>Tools</summary><div class="workspace-tools-menu">
       {!recording && (
         <button class="play-open" aria-disabled={!mayPlay} onClick={() => { if (mayPlay) session.playOpen(); }}
           title={mayPlay ? 'Play a recording (.recx): its model, then its steps (File/plaY recording)' : BUSY_TITLE}>Play a recording…</button>

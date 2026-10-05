@@ -36,6 +36,9 @@ export interface DiagramCurve {
   which: 'y' | 'y2';
   /** palette colour of the run (0 the foreground, 20..29 red..purple) */
   color: number;
+  cssColor?: string;
+  visible?: boolean;
+  legend?: string;
   width: number;
   dashed: boolean;
   xs: Float64Array;
@@ -223,6 +226,7 @@ export function nearestVertex(m: DiagramModel, f: DiagramFrame, px: number, py: 
   const found: DiagramHit[] = [];
   let best = maxDist;
   m.curves.forEach((c, k) => {
+    if (c.visible === false) return;
     for (let i = 0; i < c.xs.length; i++) {
       const dx = (c.xs[i] - f.xmin) * sx - px, dy = (f.ymax - c.ys[i]) * sy - py;
       const d = Math.hypot(dx, dy);

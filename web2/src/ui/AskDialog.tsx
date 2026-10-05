@@ -57,9 +57,6 @@ function MenuAsk({ask}: {ask: AskEvent}) {
           </li>
         ))}
       </ul>
-      <div class="dialog-actions">
-        <button onClick={() => session.cancel(ask)}>Cancel</button>
-      </div>
     </>
   );
 }
@@ -120,7 +117,6 @@ function FormAsk({ask}: {ask: AskEvent}) {
         })}
       </div>
       <div class="dialog-actions">
-        <button type="button" onClick={() => session.cancel(ask)}>{(ask.cancel as string) || 'Cancel'}</button>
         <button type="submit" class="primary" disabled={!valid}>{(ask.ok as string) || 'OK'}</button>
       </div>
     </form>
@@ -155,7 +151,6 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
       <div class="dialog-actions">
         <button type="button" onClick={() => all(1)}>All</button>
         <button type="button" onClick={() => all(0)}>None</button>
-        <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
         <button type="submit" class="primary">OK</button>
       </div>
     </form>
@@ -215,12 +210,15 @@ function Modal({ask, children}: {ask: AskEvent; children: ComponentChildren}) {
   };
   const title = ask.title || ask.name || 'XPP';
   return (
-    <div class="dialog-backdrop">
+    <div class="dialog-backdrop" onPointerDown={e => {
+      if (e.target === e.currentTarget) { e.preventDefault(); session.cancel(ask); }
+    }}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="ask-title" data-ask={ask.kind}
         onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id="ask-title">{title}</h2>
           <HelpButton target={askHelp({table, core, hello}, ask.kind)} label={title} />
+          <button class="dialog-close" aria-label={`Close ${title}`} title="Close (Esc)" onClick={() => session.cancel(ask)}>×</button>
         </div>
         {children}
       </div>

@@ -51,6 +51,8 @@ struct DataStore {
   Result<> grow(int ncol, int nrow);
   /* column c (a new user column) with max_rows rows of zeros */
   void add_column(int c);
+  /* Remove a derived column and shift subsequent owned columns left. */
+  void remove_column(int c, int count);
   /* A derived data set (a histogram, the Fourier modes, the adjoint's
      H function) shows the store's columns from..to (inclusive) beside its
      own computed ones: dst[from..to] point at the store's columns, which

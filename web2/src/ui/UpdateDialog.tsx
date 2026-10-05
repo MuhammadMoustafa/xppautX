@@ -43,7 +43,7 @@ export function UpdateDialog() {
   }, [session]);
   if (!result) return null;
   const close = () => { cancel(); setResult(null); setPlace(undefined); };
-  return <div class="dialog-backdrop">
+  return <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close(); }}>
     <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="update-title" data-update-dialog
       onKeyDown={e => {
         if (e.key === 'Escape') { e.stopPropagation(); close(); }
@@ -53,7 +53,8 @@ export function UpdateDialog() {
           buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (e.shiftKey ? buttons.length - 1 : 1)) % buttons.length].focus();
         }
       }}>
-      <h2 id="update-title">Check for updates</h2>
+      <div class="dialog-title-row"><h2 id="update-title">Check for updates</h2>
+        <button class="dialog-close" aria-label="Close update check" onClick={close}>×</button></div>
       <p>{result.text}</p>
       {place && <><p data-error-place>{placeWords(place)}</p><ErrorSource p={place}/></>}
       <div class="dialog-actions">

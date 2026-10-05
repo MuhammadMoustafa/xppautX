@@ -58,15 +58,17 @@ function ReplaceConfirm() {
 /** the replace confirm of an upload no `file` ask is open for (Values >
     Load, Add file…: session.ts upload), in a dialog of its own */
 export function ReplaceDialog() {
+  const session = useSession();
   const confirm = useStore(s => s.files.confirm);
   const box = useRef<HTMLDivElement>(null);
   const shown = confirm !== null && confirm.ask === null;
   useDialogFocus(box, [shown]);
   if (!shown) return null;
   return (
-    <div class="dialog-backdrop">
+    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) session.resolveReplace('cancel'); }}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="replace-title" data-replace-dialog="">
-        <h2 id="replace-title">Copy into the model's folder</h2>
+        <div class="dialog-title-row"><h2 id="replace-title">Copy into the model's folder</h2>
+          <button class="dialog-close" aria-label="Close replacement prompt" onClick={() => session.resolveReplace('cancel')}>×</button></div>
         <ReplaceConfirm />
       </div>
     </div>
@@ -112,7 +114,6 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
         }} />
       {confirm && confirm.ask === ask.id ? <ReplaceConfirm /> : (
         <div class="dialog-actions">
-          <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
           <button type="button" class="primary" data-autofocus="" disabled={copying} onClick={() => void choose()}>
             {copying ? 'Copying…' : 'Choose file…'}
           </button>
@@ -154,7 +155,6 @@ function SaveToComputer({ask}: {ask: AskEvent}) {
         </label>
       </div>
       <div class="dialog-actions">
-        <button type="button" onClick={() => session.cancel(ask)}>Cancel</button>
         <button type="submit" class="primary" disabled={!ok}>{picker ? 'Save…' : 'Save'}</button>
       </div>
     </form>

@@ -104,11 +104,12 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
 
   const title = editing ? `Edit slider ${target.name}` : 'Add slider';
   return (
-    <div class="dialog-backdrop">
+    <div class="dialog-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div class="dialog" ref={box} role="dialog" aria-modal="true" aria-labelledby="slider-dialog-title" onKeyDown={onKeyDown}>
         <div class="dialog-title-row">
           <h2 id="slider-dialog-title">{title}</h2>
           <HelpButton target={HELP.valuesPanel} label={title} />
+          <button class="dialog-close" aria-label={`Close ${title}`} onClick={onClose}>×</button>
         </div>
         <label class="slider-picker-search">
           <span class="visually-hidden">Search parameters and variables</span>
@@ -146,7 +147,6 @@ export function SliderDialog({target, onClose}: SliderDialogProps) {
           </label>
         </div>
         <div class="dialog-actions">
-          <button type="button" onClick={onClose}>Cancel</button>
           <button type="button" class="primary" disabled={!valid} onClick={submit}>OK</button>
         </div>
       </div>

@@ -26,6 +26,12 @@ test('W95: each action has the kind hello gives it', () => {
   assert.equal(kindOf(null, 0, {cmd: 'display'}), null);
 });
 
+test('startup prompts accept answers and cancellation before hello', () => {
+  for (const cmd of [{cmd: 'answer', id: 1, file: 'lecar.odex'}, {cmd: 'abort'}, {cmd: 'quit'}])
+    assert.ok(mayStart(kindOf(null, 0, cmd), false, true), JSON.stringify(cmd));
+  assert.ok(!mayStart(kindOf(null, 0, {cmd: 'steady'}), false, true));
+});
+
 test('W95, W106: while a computation runs only control, view and setting actions start; an open question takes control and settings', () => {
   for (const cmd of [{cmd: 'abort'}, {cmd: 'answer', id: 1}, {cmd: 'display', win: 1}, {cmd: 'click', win: 2},
     {cmd: 'key', key: 'w'}, {cmd: 'key', key: 'k'}, {cmd: 'key', key: 'g'}, {cmd: 'key', win: 'auto', key: 'a'}, {cmd: 'browser', from: 0, count: 1},

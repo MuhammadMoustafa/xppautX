@@ -50,6 +50,7 @@
    Axes/Scroll's drag are the plot's modes (plot/pick.ts) on the diagram. A
    click on a two-parameter diagram stores the point (`auto point`), marked
    on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
+import {TraceDialog} from './TraceDialog';
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
 import {stopPoint} from '../plot/autoStatus';
@@ -205,6 +206,9 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   const pick = useStore(s => (s.diagram.active === view && s.pick?.win === autoWindow(s) && !s.pick.waiting ? s.pick : null));
   const earlier = useStore(s => Math.min(s.diagram.earlier, pointCount(viewOf(s, view).points)));
   const showEarlier = useStore(s => s.diagram.showEarlier);
+  const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
+  const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
+  const [trace, setTrace] = useState<number | null>(null);
   const [axisOpen, setAxisOpen] = useState<AxisName | null>(null);
   /* the chart's area moved (a resize, a new model): the axis names follow */
   const [, setArea] = useState(0);
@@ -216,7 +220,13 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
   activeRef.current = active;
 
   const hidden = showEarlier ? 0 : earlier;
-  const model = useMemo(() => buildDiagramModel(points, labels, axes, hidden), [points, labels, axes, hidden]);
+  const rawModel = useMemo(() => buildDiagramModel(points, labels, axes, hidden), [points, labels, axes, hidden]);
+  const traceKey = (c: typeof rawModel.curves[number]) => `${c.branch}:${c.type}:${c.which}:${c.idx[0]}`;
+  const model = useMemo(() => ({...rawModel, curves: rawModel.curves.map(c => {
+    const a = appearance[traceKey(c)];
+    return {...c, cssColor: a?.color, visible: a?.visible,
+      legend: a?.label ?? `Branch ${c.branch} · ${c.stable ? 'stable' : 'unstable'} ${c.kind}${c.which === 'y2' ? ' (minimum)' : ''}`};
+  })}), [rawModel, appearance]);
   const modelRef = useRef(model);
   modelRef.current = model;
   const core: Ranges | null = useMemo(() => (axes && axes.xmax > axes.xmin && axes.ymax > axes.ymin
@@ -227,6 +237,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
     if (!c || index < 0 || index >= c.idx.length) return;
     const point = c.idx[index], p = viewOf(session.store.getState(), view).points;
     hint.current = curve;
+    setTrace(curve); chart.current?.highlight(curve);
     setHover(session, {point, low: c.which === 'y2' && p.y2[point] !== p.y[point], view});
   };
 
@@ -237,7 +248,7 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
     let detach = () => {};
     c.onArea = area => {
       detach();
-      const off = attachGestures(c, area, {hover: hoverVertex, leave: () => setHover(session, null)},
+      const off = attachGestures(c, area, {hover: hoverVertex, leave: () => { setHover(session, null); setTrace(null); c.highlight(null); }},
         autoSink(session, () => activeRef.current, () => chart.current, () => modelRef.current));
       /* a click (not a box) on a two-parameter view stores the point for AUTO's File/sElect 2par pt */
       let down: {x: number; y: number} | null = null;
@@ -448,6 +459,16 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
             </li>
           )}
         </ul>
+        <div class="legend" role="group" aria-label="Branches">
+          {model.curves.map((c, i) => <button key={traceKey(c)} data-auto-trace={traceKey(c)}
+            class={'legend-item' + (c.visible === false ? ' off' : '')} aria-pressed={c.visible !== false}
+            title="Click to show or hide; double click to edit name and colour"
+            onMouseEnter={() => chart.current?.highlight(i)} onMouseLeave={() => chart.current?.highlight(null)}
+            onClick={() => setAppearance(a => ({...a, [traceKey(c)]: {...a[traceKey(c)], visible: c.visible === false}}))}
+            onDblClick={() => setEditing({key: traceKey(c), label: c.legend!, color: c.cssColor ?? paletteColor(c.color, dark)})}>
+            <span class="swatch" style={{background: c.cssColor ?? paletteColor(c.color, dark)}} aria-hidden="true" />{c.legend}
+          </button>)}
+        </div>
         <div class="plot-tools">
           <button disabled={!zoomed} onClick={() => chart.current!.reset()}
             title="Back to AUTO's axes (double click, or 0 on the diagram)">Reset view</button>
@@ -462,10 +483,13 @@ function DiagramPane({view, dark}: {view: number; dark: boolean}) {
           )}
         </div>
       </header>
+      {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
+        apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       <div class={'plot-host auto-host' + (grabbing ? ' picking pick-grab' : pick ? ` picking pick-${pick.mode}` : '')}
         ref={host} tabIndex={0} role="application" aria-roledescription="diagram"
         aria-label={label} onKeyDown={onHostKey} aria-describedby={grabbing ? 'grab-instruction grab-keys-help'
           : pick ? 'pick-instruction auto-keys-help' : 'auto-keys-help'}>
+        {trace !== null && model.curves[trace] && <span class="trace-tooltip" role="tooltip">{model.curves[trace].legend}</span>}
         {!empty && (
           <FitButton onClick={() => chart.current!.fit()}
             title="Fit the view to the branches shown (client-side; earlier branches only if Earlier branches is on)" />

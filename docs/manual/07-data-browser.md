@@ -85,5 +85,4 @@ This allows you to add an additional column to the data browser. You are prompte
 
 ### (D)elcol
 
-This lets you delete a column. You can only delete columns which you have created with the `Addcol` command.
-- You can delete a column that is itself referred to by a different column; this will result in wrong answers in the column. Thus, do not delete columns whose contents are used by other columns. Also, if you delete a column, its name is still known by the internal system but it has no real value. For these reasons, you should delete columns with caution. If the purpose of deleting them is to change the formula, use the right-hand-side editor, (File-Edit) instead.
+Delete a column created with `Addcol` by entering its name. Time and model columns are protected. If a plot uses that column, change its axes first. Remaining added columns keep their names, values and formulas and recompute on the next run. Added column names cannot be used in other formulas.

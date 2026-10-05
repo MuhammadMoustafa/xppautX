@@ -14,11 +14,11 @@ export interface GestureChart {
   ranges(): Ranges;
   setView(r: Ranges): void;
   /** the point nearest to (px, py) of the plotting area, within maxDist CSS pixels */
-  hit(px: number, py: number, maxDist: number): {curve: number; index: number} | null;
+  hit(px: number, py: number, maxDist: number): {curve: number; index: number; run?: number} | null;
 }
 
 export interface HoverSink {
-  hover(curve: number, index: number): void;
+  hover(curve: number, index: number, run?: number): void;
   leave(): void;
 }
 
@@ -104,7 +104,7 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
   const onHoverMove = (e: PointerEvent) => {
     if (e.pointerType === 'touch' || e.buttons) return;
     const p = local(e), hit = chart.hit(p.x, p.y, HOVER_PX);
-    if (hit) sink.hover(hit.curve, hit.index);
+    if (hit) sink.hover(hit.curve, hit.index, hit.run);
     else sink.leave();
   };
   const onHoverLeave = (e: PointerEvent) => {
@@ -153,7 +153,7 @@ export function attachGestures(chart: GestureChart, area: HTMLElement, sink: Hov
     fingers.delete(e.pointerId);
     if (fingers.size === 0 && !moved) {
       const hit = chart.hit(p.x, p.y, TAP_PX);
-      if (hit) sink.hover(hit.curve, hit.index);
+      if (hit) sink.hover(hit.curve, hit.index, hit.run);
       else sink.leave();
     }
     if (fingers.size) restart();

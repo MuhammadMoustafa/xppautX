@@ -126,10 +126,18 @@ export class DiagramChart {
 
   constructor(private readonly root: HTMLElement, private readonly cb: {onViewport(v: Viewport): void}) {}
 
+  /** Emphasise a trace without rebuilding its data or its axes. */
+  highlight(curve: number | null): void {
+    const u = this.u;
+    if (!u) return;
+    this.model?.curves.forEach((c, i) => { u.series[i + 1].width = c.width + (i === curve ? 2 : 0); });
+    u.redraw(true, false);
+  }
+
   /** draws `model`; `axes` is the core's view of the diagram, `viewport` the user's zoom */
   set(model: DiagramModel, axes: Ranges | null, viewport: Viewport, dark: boolean): void {
     const key = JSON.stringify([dark, model.xLabel, model.yLabel,
-      model.curves.map(c => [c.color, c.width, c.dashed])]);
+      model.curves.map(c => [c.color, c.width, c.dashed, c.cssColor, c.visible])]);
     this.model = model;
     this.dark = dark;
     this.base = axes ?? fitRanges(model);
@@ -179,7 +187,7 @@ export class DiagramChart {
     const facets: uPlot.Series.Facet[] = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
-      stroke: paletteColor(c.color, this.dark),
+      stroke: c.cssColor ?? paletteColor(c.color, this.dark), show: c.visible !== false,
       width: c.width,
       dash: c.dashed ? DASH : undefined,
       paths: this.linePath,
@@ -347,7 +355,7 @@ export class DiagramChart {
     if (!u || !m) return null;
     return {
       curves: m.curves.map(c => ({branch: c.branch, type: c.type, kind: c.kind, stable: c.stable, which: c.which,
-        points: c.xs.length, dashed: c.dashed, width: c.width, color: paletteColor(c.color, this.dark), hopf: c.hopf,
+        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? paletteColor(c.color, this.dark), hopf: c.hopf,
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,

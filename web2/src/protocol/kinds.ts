@@ -99,7 +99,9 @@ export function isWindowKey(hello: HelloEvent | null, cmd: Command, win: LayerWi
 /** the kind of `cmd`, sent now with main-window menu `menu` shown (0 main, 1 File,
     2 nUmerics); null before hello, or for a key no menu has */
 export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Kind | null {
-  if (!hello) return null;
+  /* Startup can ask for a model (or conversion choices) before hello.
+     Its answer and cancellation must reach the waiting core. */
+  if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'abort' || cmd.cmd === 'quit' ? 'control' : null;
   if (cmd.cmd === 'key') {
     if ('menu' in cmd || 'item' in cmd) {
       if (typeof cmd.menu !== 'string' || typeof cmd.item !== 'string' || 'key' in cmd || 'win' in cmd) return null;

@@ -764,3 +764,41 @@ time. Keep the legacy C prompt and numerical settings. Prevent output stride
 from overshooting direct continuation; direct continuation stores every Dt.
 Time is resolved on the configured Dt grid. Implemented locally; validation
 is recorded in [modern-navigation-validation.md](modern-navigation-validation.md).
+
+### W195 — Restore model selection and closing before model load (approved 2026-10-04)
+
+Local regression card. Starting with no model asks for a file before hello;
+allow that answer and cancellation to reach the core. Close an unloaded
+desktop session directly, without asking to save it. Cover startup selection,
+cancellation and closing independently from the already-loaded-model checks.
+Implemented locally; evidence in modern-navigation-validation.md.
+
+### W196 — Shortcut case and consistent dismissal (approved 2026-10-04)
+
+Accept capital letters when only the lowercase command exists, preserving
+explicit case distinctions. Show Caps Lock in the status bar. Add × and
+outside-click cancellation to core dialogs, slider/AUTO settings, errors
+and updates. Keep focus restoration and Escape. Implemented locally.
+
+### W197 — Delete added data columns (approved 2026-10-04)
+
+Replace the inherited placeholder. Delete added columns only, reject columns
+still used by a plot, shift owned storage and axis indices safely, and retain
+the remaining formulas. Validate values before and after a fresh run.
+Implemented locally; see the workflow check and upstream finding 37.
+
+### W198 — Direct axis editing (approved 2026-10-04)
+
+Open the existing core variables/limits form from main/additional 2D axis
+labels and 3D X/Y/Z controls. Reuse AUTO's existing axis editor with × and
+outside dismissal. Implemented locally.
+
+### W199 — Retained runs, editable legends and dropdown dismissal (approved 2026-10-04)
+
+Freeze controls whether the next new run keeps older trajectories; Continue
+extends the current run. Fit/Redraw preserve history; 2D Fit includes visible
+older data. Each 2D current/retained trace and 3D/AUTO trace has a visibility
+control, hover feedback and double-click legend/name colour editing. Tools
+closes on outside click or Escape; standard select dropdowns use browser
+behaviour. Implemented locally. Legend presentation is local to the view;
+session/export persistence is outside this presentation change.

@@ -142,7 +142,7 @@ struct BrowserState {
    browser view b is (docs/protocol.md "The data browser") */
 float *get_data_col(const Session &s, int c);
 int check_for_stor(const Session &s, float **data);
-void data_del_col(const Session &s, BROWSER *b);
+void data_del_col(Session &s, BROWSER *b);
 void data_add_col(Session &s, BROWSER *b);
 int add_stor_col(Session &s, std::string_view name, const std::string &formula, BROWSER *b);
 void replace_column(Session &s, const char *var, char *form, float **dat, int n);
