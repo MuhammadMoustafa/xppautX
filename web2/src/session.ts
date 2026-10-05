@@ -455,6 +455,7 @@ export class Session {
   }
 
   cancel(ask: AskEvent): void {
+    if (this.store.getState().files.confirm?.ask === ask.id) this.resolveReplace('cancel');
     this.answer(ask, {ok: 0});
   }
 

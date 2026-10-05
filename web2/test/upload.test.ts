@@ -59,6 +59,21 @@ test('W134: Values > Load over a different file of the same name asks; Cancel co
   assert.deepEqual(reads(sent), [], 'nothing read');
 });
 
+test('closing a file prompt cancels its pending replacement without copying or a later answer', async () => {
+  const folder = new Map([['lecar.par', 'old']]);
+  const {s, sent, puts} = await session(folder);
+  const ask = {ev: 'ask' as const, id: 42, kind: 'file' as const, mode: 'read' as const, title: 'Load', wild: '*.par'};
+  s.store.dispatch({type:'event', ev:ask});
+  const done = s.openFiles(ask, [new File(['new'], 'lecar.par')]);
+  assert.ok(await settle(() => s.store.getState().files.confirm !== null));
+  s.cancel(ask);
+  assert.equal(await done, false);
+  assert.equal(s.store.getState().files.confirm, null);
+  assert.equal(folder.get('lecar.par'), 'old');
+  assert.deepEqual(puts, []);
+  assert.deepEqual(sent, [{cmd:'answer', id:42, ok:0}]);
+});
+
 test('W134: Keep both copies it as name-2.ext and reads that; Replace copies over it', async () => {
   const folder = new Map([['lecar.par', 'old']]);
   const {s, sent, puts} = await session(folder);
