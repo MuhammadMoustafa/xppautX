@@ -802,3 +802,11 @@ control, hover feedback and double-click legend/name colour editing. Tools
 closes on outside click or Escape; standard select dropdowns use browser
 behaviour. Implemented locally. Legend presentation is local to the view;
 session/export persistence is outside this presentation change.
+
+
+W195–W199 implementation:
+[a1a664c1](https://github.com/MuhammadMoustafa/xppautX/commit/a1a664c1),
+[b1cc67bc](https://github.com/MuhammadMoustafa/xppautX/commit/b1cc67bc).
+Protocol retention regression:
+[1582c750](https://github.com/MuhammadMoustafa/xppautX/commit/1582c750).
+These commits are local until the branch is published.

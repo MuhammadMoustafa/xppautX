@@ -629,3 +629,6 @@ and formulas, and updates affected plot indices. `tools/uiworkflowcheck.mjs`
 adds two formula columns, deletes the first, checks the second's values and
 checks it recomputes correctly after a fresh run. The core column name
 lookup, derived-column computation and storage owner are reused.
+
+Implementation: [a1a664c1](https://github.com/MuhammadMoustafa/xppautX/commit/a1a664c1)
+(W197, local branch).

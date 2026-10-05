@@ -343,7 +343,7 @@ is introduced by the trace controls.
 
 Validation:
 
-- `npm run typecheck`, `npm run build`, `npm test`: 326 UI tests passed.
+- `npm run typecheck`, `npm run build`, `npm test`: 327 UI tests passed.
 - Strict native UCRT build (`WERROR=1`) and native unit suite passed:
   `build/ui-controls-final-build.log`; final standalone link:
   `build/ui-final-link.log` plus `build/ui-link-command.sh`.
@@ -364,5 +364,25 @@ Validation:
   select/cancel/close passed. The `--webview2` case passed real native
   startup close and process exit 0 after the close-order fix.
 
-Launch `build/xppautX-ui-fixed.exe` to test this batch; the old running root
-executable was not replaced. WSL checks are recorded after the committed run.
+The delivered standalone copy is
+`C:\gitRepos\xppautX\build\xppautX-ui-W199.exe` (SHA-256
+`BD35CE1FA3552539853C6231E129653529A4087BA0F75F211FE381C0EE256535`).
+The worktree's same binary is `build/xppautX-ui-fixed.exe`.
+
+The final review also covers closing a file prompt during replacement:
+its pending upload resolves as cancelled, writes nothing and sends no late
+answer. That regression is part of the 327 UI tests (`upload.test.ts`).
+
+Strict WSL builds and the native unit suite passed for the committed core
+(`build/ui-wsl-build-test.log`, `build/ui-wsl-final.log`). The first protocol
+run had one outdated assertion that required Redraw to clear history; the
+updated test checks that a retained run's values survive Redraw and that
+Redraw after Erase does not issue another history clear. Final protocol and
+steady checks: `build/ui-wsl-protocol-final.log`.
+
+
+Final Linux outcome: native unit suite passed, 718 protocol checks passed,
+and 61 steady-state/direct-continuation checks passed with no failures.
+No processes started for this batch remain running, and the main checkout's
+background-task ledger has no lines owned by this batch. The unrelated
+pre-existing W21-agent ledger entry was preserved.
