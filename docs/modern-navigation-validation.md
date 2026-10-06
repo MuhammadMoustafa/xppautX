@@ -477,3 +477,23 @@ before starting initial autoplay, so playback is visible rather than completed
 while WebView2 starts. Explicit pause/start cancels that pending start. Reconnect
 core progress restores the current/last caption after step metadata arrives.
 Native tests wait for visible initial playing state and cover paused restart.
+
+
+Final validation: native WebView2 first-open autoplay and paused restart both
+passed all eight recording steps, including continuation and AUTO. All eight
+state rates were present. The controls were above AUTO and the ordinary run
+bar was hidden. Windows strict UCRT build/core units, UI typecheck, 327 UI tests
+and 719 server protocol checks passed. WSL strict gcc build/core units and the
+all-state live/rate checks (analytic slopes, returning discrete trajectory,
+backward time and pre-run nulls) passed at 4722d398. Browser player/values/live
+checks passed; the final subscription-ready change was verified natively.
+
+Delivered the validated recording/snapshot and testing instructions into
+C:\gitRepos\xppautX\sandbox. Updated the closed default root xppautX.exe and
+build/xppautX-playback-auto.exe to SHA256
+143EF604D77225A2E825F5B6511AC5F4AE079664CE85ECF95FDB054DBB77C775.
+Preserved the previous executable as build/xppautX-before-W201.exe. The root
+source checkout remains untouched. These binaries/fixtures are ignored local
+artifacts; the generators and regression checks are versioned. No push or
+merge was performed. All owned test processes ended and the W201 ledger row
+was removed, preserving the unrelated W21 row.
