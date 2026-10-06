@@ -2742,7 +2742,7 @@ def check_dialog_folder_after_auto():
         col(is_idle, timeout=30 * SLOW)
         snd(cmd='record', op='stop', name='dlg')
         col(is_idle, timeout=30 * SLOW)
-        snd(cmd='play', op='open', file='dlg.recx')
+        snd(cmd='play', op='open', autoplay=False, file='dlg.recx')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e), timeout=30 * SLOW)
         if ask and ask.get('ev') == 'ask':
             snd(cmd='answer', id=ask['id'], key='d')
@@ -4568,7 +4568,7 @@ def check_session_random():
     p, r, snd, col, run = mk()
     try:
         shutil.copy(os.path.join(keep, 'rr.recx'), r)
-        snd(cmd='play', op='open', file='rr.recx')
+        snd(cmd='play', op='open', autoplay=False, file='rr.recx')
         evs, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], key='d')
@@ -5047,7 +5047,7 @@ def check_save_recording():
               and not steps[7][0].get('keys')
               and any(e.get('saved') for e in fresh)
               and any(e.get('ev') == 'saved' and not e.get('saved') for e in declined), str(steps[6:]))
-        snd(cmd='play', op='open', file=path)
+        snd(cmd='play', op='open', autoplay=False, file=path)
         evs, end = col(lambda e: is_ask(e) or is_idle(e))
         if end and is_ask(end):
             snd(cmd='answer', id=end['id'], key='d')
@@ -5434,7 +5434,7 @@ def check_player():
 
     def open_player(name):
         """play open, answering the question about this model's session"""
-        snd(cmd='play', op='open', file=name)
+        snd(cmd='play', op='open', autoplay=False, file=name)
         evs, ask = col(lambda e: is_ask(e) or is_idle(e), timeout=30 * SLOW)
         if ask and is_ask(ask):
             snd(cmd='answer', id=ask['id'], key='d')
@@ -5507,7 +5507,7 @@ def check_player():
         at = lines.index('@snapshot') if '@snapshot' in lines else 0
         cut = '\n'.join(lines[:at] + lines[lines.index('@end', at) + 1:]) if at else text
         open(os.path.join(r, 'nosnap.recx'), 'w', encoding='utf-8').write(cut)
-        evs = run(cmd='play', op='open', file=os.path.join(r, 'nosnap.recx'))
+        evs = run(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'nosnap.recx'))
         check('play open: a recording without its @snapshot is an error, nothing asked',
               any(e.get('ev') == 'message' and 'no @snapshot section' in e.get('error', '') for e in evs)
               and not any(is_ask(e) for e in evs), str([e for e in evs if e.get('ev') == 'message']))
@@ -5583,7 +5583,7 @@ def check_player():
 
         # a recording that is not one
         open(os.path.join(r, 'bad.recx'), 'w').write('hello\n')
-        evs = run(cmd='play', op='open', file=os.path.join(r, 'bad.recx'))
+        evs = run(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'bad.recx'))
         check('play open: a file that is not a recording is an error',
               any(e.get('ev') == 'message' and 'not a recording' in e.get('error', '') for e in evs), '')
 
@@ -5594,7 +5594,7 @@ def check_player():
         rows[k] = 'not json'
         open(os.path.join(r, 'laststep.recx'), 'w', encoding='utf-8').write('\n'.join(rows))
         before = (last_state(run(cmd='state')) or {}).get('player')
-        evs = run(cmd='play', op='open', file=os.path.join(r, 'laststep.recx'))
+        evs = run(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'laststep.recx'))
         m = next((e for e in evs if e.get('ev') == 'message' and e.get('error')), {})
         check('W125: a recording whose last step does not read is refused at that line, the line as written',
               os.path.basename(m.get('file', '')) == 'laststep.recx' and m.get('line') == k + 1
@@ -5737,7 +5737,7 @@ def check_player_ani():
               [d['cmd'].get('op') for d in controls] == ['speed', 'pause']
               and all(d['at'].get('what') == 'ani' for d in controls), str(controls))
         os.remove(os.path.join(r, 'gui_test.ani'))  # the replay reads the recording's copy
-        snd(cmd='play', op='open', file=os.path.join(r, 'ani.recx'))
+        snd(cmd='play', op='open', autoplay=False, file=os.path.join(r, 'ani.recx'))
         evs, ask = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=30 * SLOW)
         if ask and ask.get('ev') == 'ask':
             snd(cmd='answer', id=ask['id'], key='d')

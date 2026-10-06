@@ -23,7 +23,6 @@ import type {ComponentChildren} from 'preact';
 import {HELP} from '../help/links';
 import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec} from '../store/fieldKinds';
 import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
-import {sampledTailRate, STATE_TAIL_INTERVALS} from '../store/series';
 import type {NumericsField} from '../protocol/types';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
@@ -200,7 +199,8 @@ function StateSection() {
   const session = useSession();
   const ics = useStore(s => s.core?.ics);
   const now = useNow();
-  const series = useStore(s => s.plots.windows.find(w => w.win === s.plots.active)?.series ?? null);
+  const rates = useStore(s => s.core?.rates);
+  const intervals = useStore(s => s.hello?.state_inspection.tail_intervals);
   if (!ics?.length) return null;
   return (
     <Section id="ic" title="States" hint={STATE_HINT} tools={(
@@ -214,9 +214,7 @@ function StateSection() {
       <div class="value-cols" aria-hidden="true"><span /><span>Initial</span><span>Current</span><span>Tail rate</span></div>
       <div class="value-list value-state">
         {ics.map(([name, value], i) => {
-          const time = series?.columns.get(0);
-          const column = series?.names.get(i + 1)?.toLowerCase() === name.toLowerCase() ? series.columns.get(i + 1) : undefined;
-          const rate = now[i] !== null && time && column ? sampledTailRate(time, column, series!.rows) : null;
+          const rate = rates?.[i] ?? null;
           return (
           <ValueField key={name.toLowerCase()} kind="ic" label={name} name={name} hint={NUMBER_HINT} spec={FORMULA}
             {...fieldProps(value)}
@@ -226,13 +224,13 @@ function StateSection() {
                 {now[i] === null ? '–' : inspectNumber(now[i]!)}
               </output>
               <output class="value-rate" aria-label={`${name} sampled tail rate`}
-                title={`Maximum |Δ${name}/Δt| over up to the last ${STATE_TAIL_INTERVALS} stored intervals; sampled float32 trajectory data, not a solver derivative.`}>
+                title={`Maximum |Δ${name}/Δt| over up to the last ${intervals} stored intervals; sampled float32 trajectory data, not a solver derivative.`}>
                 {rate === null ? '–' : rate.toExponential(2)}
               </output></>
             )} />
         );})}
       </div>
-      <p class="state-rate-hint">Tail rate: max |Δstate/Δt| in the last {STATE_TAIL_INTERVALS} stored intervals. Small rates suggest settling; extend the run to check.</p>
+      <p class="state-rate-hint">Tail rate: max |Δstate/Δt| in the last {intervals} stored intervals. Small rates suggest settling; extend the run to check.</p>
     </Section>
   );
 }

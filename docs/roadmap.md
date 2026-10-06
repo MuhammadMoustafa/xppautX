@@ -819,3 +819,21 @@ Publish full solver doubles at the existing responsive display cadence, leave
 initial conditions and solver behavior unchanged, and verify every output step
 using the deterministic no-throttle check hook. Create and replay a portable
 PY_S1Bf recording and reload its saved session with trajectory data.
+
+### W201 — Sandbox playback, startup and AUTO example (approved 2026-10-06)
+
+Reproduce `Unknown command continue` at step 3 against the user's older root
+executable. Record C → Continue until 400 through the existing menu owner;
+add AUTO equilibrium continuation with saved diagram/settings/solutions and
+verify normal playback and snapshot restoration. Start a newly opened recording
+automatically; retain explicit paused opening/restart for automation and review.
+Place controls above the plot and at the top of full views, avoid the empty-list
+Play again label, and resend the recording's metadata on page subscription.
+
+### W202 — Tail rates for all states (approved 2026-10-06)
+
+Compute recent motion from all state columns in the storage owner, independently
+of active plot subscriptions. Publish every state's rate during live updates and
+in the final/snapshot state, preserve the ten-stored-interval definition and
+label float32 sampled differences clearly. Verify flat, moving, returning and
+backward-time samples; keep the solver-double unchanged-digits check unchanged.

@@ -429,3 +429,45 @@ all three live-state doubles at all eight accepted output steps passed on
 Linux as on Windows. Logs: build/live-wsl-build.log and live-wsl-check.log.
 The browser values/live selection passed 40 checks. All processes started by
 this batch ended; its ledger row was removed, preserving the unrelated W21 row.
+
+## W201/W202: sandbox replay, native startup and all-state rates (2026-10-06)
+
+The reported sandbox error was reproduced using the currently running root
+xppautX.exe: `Unknown command continue`, at the recording's third step. That
+older build predates the direct continue command. The regenerated third step
+records the established C/string answer `400` through the recorder. The older
+root executable completed the repaired recording including AUTO at 8x.
+
+New recording opens start automatically; callers needing a paused recording
+send autoplay:false. The player controls precede the plot, a full-view dock
+sits at the top, and the ordinary run toolbar is hidden during playback.
+An empty/loading step list displays Loading rather than Play again. Native
+launch testing caught a second issue: HTTP retains hello/state but a late page
+can miss the player event. The existing data subscription now advertises and
+resends player metadata through its owner, without another HTTP cache.
+
+AUTO fixture: resting-cell run for 200 ms, continuation until 400 ms, then
+AUTO equilibrium continuation in Iapp. It retains 106 diagram points with HB
+and LP labels, settings, labelled solutions and readable voltage/current axes.
+The files retain all eight states and 40,001 trajectory rows. The generator
+checks fingerprint, silent replay, fast-forward, paced automatic replay and
+snapshot reload; AUTO CSV, solutions, settings and views match byte for byte.
+
+ValuesPanel previously computed tail rates only from subscribed plot columns.
+The JSON state owner now reads all stored state columns once per displayed
+update/final state. The page only renders those values; the duplicate UI rate
+algorithm was removed. Rates retain the max-over-ten-stored-interval definition,
+including negative times and invalid-sample rejection, and are labelled sampled
+float32 differences. Solver-double convergence logic and numerical output were
+not changed. Tests cover analytic constant slopes for unplotted states, a
+returning discrete trajectory with nonzero motion, a flat tail and backward time.
+
+Search/reuse: json_player open/load/send_player, data_command subscriptions,
+XppUi live_state, JSON state/storage columns, ValuesPanel, Player/Controls/Dock,
+shared xppclient recorder/replay/file readers and cdp native lifecycle helpers.
+No new solver/storage/file format owner or global state was introduced. Recorder
+files use core atomic writers and fingerprinting; reading/validation and the
+existing recorded file-output permissions remain in force. Automatic playback
+begins only after the existing complete recording/snapshot validation and the
+existing model-leave choice. Generated fixtures are copied only after successful
+validation; no hand-written ZIP or fallback decoder was added.

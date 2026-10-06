@@ -433,7 +433,7 @@ def replay_recording(binary, ode, path, run, pixel_answers=()):
     events = []
     try:
         s.collect(is_idle)
-        s.send(cmd='play', op='open', file=os.path.abspath(path))
+        s.send(cmd='play', op='open', autoplay=False, file=os.path.abspath(path))
         evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}})
         pl = next((e for e in evs if e.get('ev') == 'player'), None)
         if pl:

@@ -18,6 +18,7 @@ export interface HelloEvent {
   title: string;
   file: string;
   output_names: {par: string; ic: string; csv: string; curves: string};
+  state_inspection: {tail_intervals: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};
   /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
   about: string;
@@ -73,6 +74,8 @@ export interface StateEvent {
   /** the current state, one value per `ics` entry: where the last run ended
       (what Initialconds/Last starts from); absent before any run */
   now?: number[];
+  /** Recent float32 storage motion for every state, independent of plot columns. */
+  rates?: (number | null)[];
   /** Full core time, distinct from the float32 stored trajectory time. */
   time?: number;
   steady?: {status: 'settled' | 'limit' | 'stopped' | 'failed' | 'storage-limit'; decimals: number; time: number};
@@ -556,7 +559,7 @@ export type XppEvent =
   | {ev: 'erase' | 'redraw'; win: number}
   | {ev: 'progress'; n: number; of: number}
   /** Full solver doubles for all states, independently of plot columns. */
-  | {ev: 'liveState'; time: number; now: number[]}
+  | {ev: 'liveState'; time: number; now: number[]; rates: (number | null)[]}
   /** the running command began computing: until its idle only view and control actions start */
   | {ev: 'computing'}
   | {ev: 'title'; text: string}

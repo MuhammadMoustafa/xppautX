@@ -71,6 +71,8 @@ struct Buf; /* an event line being built (json_io.cpp, below) */
    hello.limits tells the page */
 constexpr int BROWSER_MAX_ROWS = 2000;
 constexpr int BROWSER_MAX_COLS = 500;
+/* A short, bounded recent-motion diagnostic, shared with the page through hello. */
+constexpr int STATE_TAIL_INTERVALS = 10;
 
 /* ---- ui_json.cpp ---- */
 
@@ -230,6 +232,8 @@ xpp::Place player_place(void);
 bool player_finished(void); /* a silent quit must not skip any recorded input */
 /* state's "player" member while a recording is open in the player */
 void buf_player(Buf *b);
+/* Resend the step list when a page subscribes after launch or reconnects. */
+void player_data(void);
 
 /* ---- json_silent.cpp ---- */
 

@@ -2033,7 +2033,7 @@ def play_recording(s, path):
     """play open path (the model switch's "save first?" answered don't),
     then play it at 8x to the end of its last step: the player event and
     the events"""
-    s.send(cmd='play', op='open', file=path)
+    s.send(cmd='play', op='open', autoplay=False, file=path)
     evs, _ = s.answer_asks(is_idle, {'choice': lambda e: {'key': 'd'}}, timeout=60 * SLOW)
     pl = next((e for e in evs if e.get('ev') == 'player'), None)
     if pl is None:

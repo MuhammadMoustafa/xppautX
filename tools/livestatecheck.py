@@ -29,7 +29,32 @@ with tempfile.TemporaryDirectory(prefix='xpp-live-') as folder:
             assert len(event['now']) == 3 and all(math.isclose(a, b, rel_tol=0, abs_tol=2e-15) for a, b in zip(event['now'], expected)), event
         final = [e for e in events if e.get('ev') == 'state'][-1]
         assert all(math.isclose(a, b, rel_tol=0, abs_tol=2e-15) for a, b in zip(final['now'], live[-1]['now']))
+        assert len(final['rates']) == 3 and all(math.isclose(a, b, abs_tol=2e-6) for a, b in zip(final['rates'], [1, 2, 3])), final['rates']
+        assert len(live[-1]['rates']) == 3
         assert final['ics'] == [['X', 1.123456789012345], ['Y', 2], ['Z', 3]], final['ics']
         print('PASS: all 3 solver doubles at all 8 output steps, including transient; final state and initial conditions verified')
     finally:
         server.close()
+
+for name, text, expected in [
+    ('returning-map', "x'=2-x\ny'=y\nz'=if(t<2)then(z+1)else(z)\ninit x=0,y=2,z=0\n@ total=16,dt=1,meth=discrete", [2, 0, 0]),
+    ('backward', "x'=1\ny'=2\nz'=3\ninit x=0,y=0,z=0\n@ total=1,dt=-.125,meth=euler", [1, 2, 3]),
+]:
+    with tempfile.TemporaryDirectory(prefix='xpp-tail-') as folder:
+        model = Path(folder) / (name + '.ode')
+        model.write_text(text + '\ndone\n', encoding='utf-8')
+        server = Server(args.server, str(model))
+        try:
+            startup, idle = server.collect(is_idle)
+            initial = [e for e in startup if e.get('ev') == 'state'][-1]
+            assert initial['rates'] == [None, None, None], initial['rates']
+            server.send(cmd='key', key='i')
+            _, ask = server.collect(lambda e: e.get('ev') == 'ask')
+            server.send(cmd='answer', id=ask['id'], key='g')
+            events, idle = server.collect(is_idle)
+            assert idle is not None and not any(e.get('error') for e in events), events[-5:]
+            final = [e for e in events if e.get('ev') == 'state'][-1]
+            assert final['rates'] == expected, (name, final['rates'])
+            print('PASS: ' + name + ' all-state rates, recent window and no-run values')
+        finally:
+            server.close()

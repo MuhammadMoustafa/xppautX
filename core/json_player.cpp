@@ -564,7 +564,7 @@ void send_player()
     send_buf(&b);
 }
 
-void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
+void open_recording(xpp::Session &s, std::string_view path, bool ask = true, bool play = true)
 {
     if (player.running >= 0) {
         j_command_error("play", "Not while a recording plays a step");
@@ -591,7 +591,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true)
     player.intact = got->intact;
     player.steps = std::move(steps);
     player.copy_of.assign(player.rec.files.size(), std::string());
-    load(s, 0, session.silent);
+    load(s, 0, play || session.silent);
 }
 
 /* play, pause, step and speed: at any moment, even during a step */
@@ -629,7 +629,7 @@ void play_command(xpp::Session &s, const char *line)
     if (op == "open") {
         std::string file;
         get_string(line, "file", file);
-        open_recording(s, file);
+        open_recording(s, file, true, get_int(line, "autoplay", 1) != 0);
     } else if (op == "from") {
         if (!player.open || player.running >= 0) {
             j_command_error("play", player.open ? "Not while a step plays" : "No recording is open in the player");
@@ -673,6 +673,11 @@ void play_command(xpp::Session &s, const char *line)
     } else {
         j_command_error("play", xpp::format("Unknown play op {}", op));
     }
+}
+
+void player_data(void)
+{
+    if (player.open) send_player();
 }
 
 void player_hold(void)

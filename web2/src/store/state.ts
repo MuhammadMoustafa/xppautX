@@ -331,7 +331,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
         autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};
     }
     case 'liveState':
-      return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time}} : state;
+      return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;
     case 'state': {
       const moved = ev.view && coreViewMoved(state.core?.view, ev.view);
       /* `auto` is there exactly while AUTO is open */

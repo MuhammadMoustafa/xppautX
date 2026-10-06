@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Start opened recordings automatically, show playback controls above plots/AUTO, and restore the step list when the desktop page connects after launch; use the established Continue menu command in the sandbox recording and include its AUTO diagram in both demo files (W201).
+- Show sampled tail rates for every state, independently of plotted columns, during a run and after snapshot loading (W202).
 - Refresh all state values from full-precision solver output while integrating, independently of plotted variables and stored trajectory filters (W200).
 - Add one-click Run to steady state, with decimal precision, unchanged-digits hold duration and a maximum duration; show why it stopped and compare full core state values at every Dt (W193, local follow-up card).
 - Fix model-picker answers and close requests being discarded before a model loads; end the unloaded session before its native picker closes (W195).

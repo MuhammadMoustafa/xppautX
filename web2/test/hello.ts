@@ -6,7 +6,8 @@ import {initialState, reduce} from '../src/store/state';
 const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
 
 export const HELLO: HelloEvent = {
-  ev: 'hello', protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
+  ev: 'hello',
+  state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},

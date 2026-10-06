@@ -36,6 +36,7 @@
 #include <math.h>
 #include "menudrive.h"
 #include "delay_handle.h"
+#include <algorithm>
 #include <array>
 #include <string>
 
@@ -44,6 +45,33 @@ namespace xpp::json {
 
 
 /* ---- state ------------------------------------------------------------------ */
+
+/* All state columns belong to storage even when the plot subscribes to only V.
+   Float32 sampled differences indicate recent motion, never certify settling. */
+static void buf_tail_rates(Buf *b, const xpp::Session &s)
+{
+    BUF_LIT(b, ",\"rates\":[");
+    const int rows = s.data_store.rows;
+    for (int col = 1; col <= s.model().node + s.model().nmarkov; ++col) {
+        if (col > 1) BUF_LIT(b, ",");
+        bool valid = rows >= 2;
+        double rate = 0;
+        int direction = 0;
+        for (int row = std::max(1, rows - STATE_TAIL_INTERVALS); valid && row < rows; ++row) {
+            const double dt = static_cast<double>(s.data_store.col[0][row]) - s.data_store.col[0][row - 1];
+            const double dv = static_cast<double>(s.data_store.col[col][row]) - s.data_store.col[col][row - 1];
+            if (!std::isfinite(dt) || !std::isfinite(dv) || dt == 0 || (direction && direction != (dt > 0 ? 1 : -1))) {
+                valid = false;
+                break;
+            }
+            direction = dt > 0 ? 1 : -1;
+            rate = std::max(rate, std::abs(dv / dt));
+        }
+        if (valid) buf_num(b, rate, 17);
+        else BUF_LIT(b, "null");
+    }
+    BUF_LIT(b, "]");
+}
 
 void send_state(xpp::Session &s)
 {
@@ -89,6 +117,7 @@ void send_state(xpp::Session &s)
         }
         BUF_LIT(&b, "]");
     }
+    buf_tail_rates(&b, s);
     BUF_LIT(&b, ",\"time\":");
     buf_num(&b,s.data_store.current_time,17);
     if(s.integrator.steady_result){
@@ -311,7 +340,7 @@ void data_command(xpp::Session &s, const char *line)
     const char *arr = js_find(line, "events");
     std::string name, enc;
     int i, series = 0, plots = 0, nullclines = 0, dfield = 0, marks = 0, ani = 0, autoinfo = 0, autosettings = 0,
-        numerics = 0, f32;
+        numerics = 0, player = 0, f32;
     for (i = 0; arr && js_elem(arr, i); i++) {
         if (!js_string(js_elem(arr, i), name)) continue;
         if (name == "series") series = 1;
@@ -323,6 +352,7 @@ void data_command(xpp::Session &s, const char *line)
         else if (name == "autoinfo") autoinfo = 1;
         else if (name == "autosettings") autosettings = 1;
         else if (name == "numerics") numerics = 1;
+        else if (name == "player") player = 1;
     }
     f32 = get_string(line, "enc", enc) && enc == "f32";
     plot_data_subscribe(series, plots, f32);
@@ -333,6 +363,7 @@ void data_command(xpp::Session &s, const char *line)
     auto_view_subscribe(autoinfo);
     auto_settings_subscribe(s, autosettings);
     numerics_settings_subscribe(s, numerics);
+    if (player) player_data();
 }
 
 /* the equations window: one "dX/dT=..." line per equation (eig_list.c) */
@@ -601,7 +632,9 @@ void j_live_state(xpp::Session &s, const double *values, double time)
         if (i) BUF_LIT(&b, ",");
         buf_num(&b, values[i], 17);
     }
-    BUF_LIT(&b, "]}");
+    BUF_LIT(&b, "]");
+    buf_tail_rates(&b, s);
+    BUF_LIT(&b, "}");
     send_buf(&b);
 }
 

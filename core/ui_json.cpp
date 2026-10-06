@@ -931,12 +931,13 @@ void send_hello(xpp::Session &s)
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
-    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\"],\"title\":");
+    BUF_LIT(&b, "{\"ev\":\"hello\",\"protocol\":" JSON_UI_STR(JSON_UI_PROTOCOL) ",\"features\":[\"series\",\"plots\",\"nullclines\",\"dfield\",\"marks\",\"ani\",\"autoinfo\",\"autosettings\",\"numerics\",\"player\"],\"title\":");
     buf_str(&b, title);
     BUF_LIT(&b, ",\"file\":");
     buf_str(&b, m.this_file);
     buf_format(&b, ",\"steady\":{{\"max_decimals\":{},\"default_decimals\":{},\"default_hold\":{}}}",
         xpp::MAX_STEADY_DECIMALS,xpp::DEFAULT_STEADY_DECIMALS,xpp::DEFAULT_STEADY_HOLD);
+    buf_format(&b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
     BUF_LIT(&b, ",\"output_names\":{");
     static constexpr struct { std::string_view key, ext, what; } names[]={
         {"par",".par",""},{"ic",".ic",""},{"csv",".csv",""},{"curves",".csv","curves"}};

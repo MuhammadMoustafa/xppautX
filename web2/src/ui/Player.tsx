@@ -72,12 +72,14 @@ function Controls() {
   const speedRange = useStore(s => s.hello?.player_speed);
   const progress = useStore(s => s.progress);
   const n = steps.length, next = cp?.step ?? 0, running = cp?.running ?? -1, playing = !!cp?.playing;
-  const ended = next >= n && running < 0;
+  const ready = n > 0 && !!cp;
+  const ended = ready && next >= n && running < 0;
   const mayRestart = may({cmd: 'play', op: 'from'});
   const segs = segments(useStore(s => s.player), next);
   const frac = progress && progress.of > 0 ? Math.min(1, progress.n / progress.of) : 0.5;
   const at = running >= 0 ? running : Math.min(next, n) - 1;
   const play = () => {
+    if (!ready) return;
     if (ended) {
       if (mayRestart) session.playFrom(0, true);
     } else session.play(playing ? 'pause' : 'start');
@@ -85,10 +87,10 @@ function Controls() {
   return (
     <section class="player-controls" aria-label="Player controls">
       <div class="player-buttons">
-        <button class="primary player-play" onClick={play} aria-disabled={ended && !mayRestart}>
-          {playing ? '❚❚ Pause' : ended ? '▶ Play again' : '▶ Play'}
+        <button class="primary player-play" onClick={play} disabled={!ready} aria-disabled={ended && !mayRestart}>
+          {!ready ? 'Loading…' : playing ? '❚❚ Pause' : ended ? '▶ Play again' : '▶ Play'}
         </button>
-        <button class="player-step-button" onClick={() => session.play('step')} disabled={ended} title="Play one step, then pause">
+        <button class="player-step-button" onClick={() => session.play('step')} disabled={!ready || ended} title="Play one step, then pause">
           Step &#9197;
         </button>
         <button class="player-restart" aria-label="Restart" aria-disabled={!mayRestart}
@@ -190,7 +192,7 @@ function useCovered(): boolean {
   return useStore(s => (s.diagram.open && s.diagram.shown) || s.table.open || s.text.open || s.ani.open || s.aplot.open);
 }
 
-/* the player while a view covers the plots: a dock over the view's bottom
+/* the player while a view covers the plots: a dock over the view's top
    edge (the views leave its height free, theme.css) with the caption, the
    keycaps, the controls and the step list */
 function Dock() {
@@ -212,9 +214,9 @@ function Dock() {
   }, []);
   return (
     <div class="player-dock" ref={ref}>
+      <Controls />
       <Caption />
       <KeysBox />
-      <Controls />
       <details class="player-dock-steps">
         <summary>Steps</summary>
         <StepList />
@@ -234,12 +236,12 @@ export function PlayerStage({dark}: {dark: boolean}) {
     <div class="player">
       <div class="player-main">
         <ChangedBanner />
+        {covered ? null : <Controls />}
         {covered ? null : <Caption />}
         <div class="player-stage">
           {covered ? null : <KeysBox />}
           <Plots dark={dark} />
         </div>
-        {covered ? null : <Controls />}
       </div>
       {covered ? <Dock /> : <StepList />}
       <ButtonLight />

@@ -3329,21 +3329,22 @@ async function playerCheck(dir) {
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, file: 'play.recx'})`);
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first?');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
-  check('player: the recording opens: its steps with their notes, paused at step 0, intact',
-    await until(`s.player.open && s.player.steps.length === 2 && s.core.player && s.core.player.step === 0 && !s.core.player.playing && !s.busy`, 'player', 20000)
+  check('player: the recording opens: its steps with their notes, playing automatically, intact',
+    await until(`s.player.open && s.player.steps.length === 2 && s.core.player && (s.core.player.playing || s.core.player.step > 0)`, 'player', 20000)
     && await S(`s.player.steps[0].note === 'The cell fires once.' && s.player.intact`), JSON.stringify(await S('s.player.steps')));
   check('player: the caption above the plot, the controls, the step list; no changed banner',
     await cdp.eval(`(() => { const c = document.querySelector('.player-caption');
-      return !!c && /Press Play/.test(c.textContent) && !!document.querySelector('.player-stage .plots')
+      return !!c && !!document.querySelector('.player-stage .plots')
         && document.querySelectorAll('.player-segs i').length === 2 && document.querySelectorAll('.player-segs i.view').length === 1
         && document.querySelectorAll('.player-step').length === 2 && /The cell fires once/.test(document.querySelector('.player-step').textContent)
-        && !document.querySelector('.player-changed'); })()`));
+        && !document.querySelector('.player-changed')
+        && !document.querySelector('.run-toolbar')
+        && !!(document.querySelector('.player-controls').compareDocumentPosition(document.querySelector('.player-stage')) & Node.DOCUMENT_POSITION_FOLLOWING); })()`));
   check('W121b: player offers every speed in the core range', await cdp.eval(`[...document.querySelectorAll('.player-speed button')].map(b => b.textContent).join(',') === '0.25x,0.5x,1x,2x,4x,8x'`));
   const sentBefore = await cdp.eval(`__xpp.sentCount()`);
   await cdp.eval(`[...document.querySelectorAll('.player-speed button')].find(b => b.textContent === '4x').click()`);
   await until(`s.core.player.speed === 4 && !s.busy`, '4x');
-  await cdp.eval(`document.querySelector('.player-play').click()`);
-  check('player: Play plays to the end (4x)', await until(`s.core.player.step === 2 && s.core.player.running === -1 && !s.busy`, 'played', 30000),
+  check('player: automatic playback plays to the end (4x)', await until(`s.core.player.step === 2 && s.core.player.running === -1 && !s.busy`, 'played', 30000),
     JSON.stringify(await S('s.core.player')));
   const presses = await cdp.eval(`__xpp.presses()`);
   check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase)',
@@ -3365,7 +3366,7 @@ async function playerCheck(dir) {
   check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Clear plot"/.test(text), text.slice(text.indexOf('@steps')));
   /* a changed copy: the banner, and Dismiss */
   fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('"keys":["e"]', '"keys":["e"] '));
-  await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
+  await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', autoplay: false, file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first? (2)');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
   check('player: a changed recording opens with the banner "changed after it was made"',
@@ -3383,7 +3384,9 @@ async function playerCheck(dir) {
       return !!d && !!document.querySelector('.auto-panel') && d.querySelectorAll('.player-controls').length === 1
         && document.querySelectorAll('.player-controls').length === 1 && !!d.querySelector('.player-caption')
         && d.querySelectorAll('.player-step').length === 2 && !!d.querySelector('.player-play')
-        && document.documentElement.classList.contains('player-docked'); })()`));
+        && document.documentElement.classList.contains('player-docked')
+        && getComputedStyle(d).top === '0px'
+        && parseFloat(getComputedStyle(document.querySelector('.auto-panel')).top) >= d.offsetHeight; })()`));
   await cdp.eval(`document.querySelector('.auto-close').click()`);
   check('player: with AUTO closed the player is back around the plots (no dock)',
     await until(`!s.diagram.open && !document.querySelector('.player-dock') && !!document.querySelector('.player-stage .plots') && !!document.querySelector('.player-controls') && !s.busy`, 'dock gone', 20000));
