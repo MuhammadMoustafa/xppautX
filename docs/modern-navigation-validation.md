@@ -471,3 +471,9 @@ existing recorded file-output permissions remain in force. Automatic playback
 begins only after the existing complete recording/snapshot validation and the
 existing model-leave choice. Generated fixtures are copied only after successful
 validation; no hand-written ZIP or fallback decoder was added.
+
+The desktop first-open path now waits for the page's player-data subscription
+before starting initial autoplay, so playback is visible rather than completed
+while WebView2 starts. Explicit pause/start cancels that pending start. Reconnect
+core progress restores the current/last caption after step metadata arrives.
+Native tests wait for visible initial playing state and cover paused restart.

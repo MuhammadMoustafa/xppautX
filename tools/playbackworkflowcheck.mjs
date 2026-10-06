@@ -12,6 +12,7 @@ const cdp = server.cdp;
 const state = code => cdp.eval(`(() => { const s = window.__xpp?.state(); return s && (${code}); })()`);
 const done = () => state(`s.core?.player?.step === ${steps} && s.core.player.running === -1 && !s.busy`);
 try {
+  assert.ok(await waitFor(() => state('s.player.steps.length > 0 && s.core?.player?.playing'), 15000), 'Initial native playback must start visibly after metadata arrives');
   assert.ok(await waitFor(done, 120000), 'Automatic initial native playback must complete');
   assert.equal(await state('s.core.rows'), 40001);
   assert.equal(await state('s.core.time'), 400);

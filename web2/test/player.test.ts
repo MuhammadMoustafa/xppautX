@@ -116,3 +116,11 @@ test('the app state: player and press events, state.player, the banner dismissed
   s = reduce(s, {type: 'player', action: {type: 'select', step: 3}});
   assert.equal(s.player.selected, 3);
 });
+
+test('a reconnect at the end restores the last caption from player metadata and core progress', () => {
+  const loaded = reducePlayer(initialPlayer, {type: 'player', ev: PLAYER});
+  const ended = reducePlayer(loaded, {type: 'core', player: {step: PLAYER.steps.length, running: -1,
+    playing: false, speed: 1, fast: false, intact: true}});
+  assert.equal(ended.shown, PLAYER.steps.length - 1);
+  assert.notEqual(caption(ended).text, 'Press Play to watch the recording.');
+});

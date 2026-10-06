@@ -1823,3 +1823,7 @@ backward time. Fewer than two rows, non-finite samples, repeated times or a time
 direction change produce null. Rates can be zero because float32 samples do not
 resolve small motion. The unchanged-digits stopping test still uses full solver
 doubles; these sampled rates do not certify equilibrium or stability.
+
+For desktop/browser startup, initial autoplay begins after the page subscribes
+to the player metadata, so the initial run is visible. Server/silent playback
+starts directly. Pause cancels a pending initial start.

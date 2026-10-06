@@ -29,6 +29,7 @@
 #include "model_files.h"
 #include "model_switch.h"
 #include "recx.h"
+#include "xpp_http.h"
 #include "session.h"
 #include "snapx.h"
 #include "xpp_files.h"
@@ -94,6 +95,7 @@ struct Player {
     std::vector<std::string> copy_of;     /* per section: its copy, "" not written */
     bool loading = false;                 /* its model's load is requested */
     bool play_after_load = false;
+    bool wait_for_page = false; /* Initial autoplay must be visible after the page subscribes. */
     int fast_to = 0;  /* the steps below it run with no pace (Play from here) */
     bool pause_at = false; /* and it pauses there */
     int next = 0;     /* the next step to run */
@@ -591,6 +593,7 @@ void open_recording(xpp::Session &s, std::string_view path, bool ask = true, boo
     player.intact = got->intact;
     player.steps = std::move(steps);
     player.copy_of.assign(player.rec.files.size(), std::string());
+    player.wait_for_page = play && xpp::http::active();
     load(s, 0, play || session.silent);
 }
 
@@ -602,10 +605,12 @@ void control(const std::string &op, const char *line)
         return;
     }
     if (op == "pause") {
+        player.wait_for_page = false;
         if (player.what != Next::none) player.left = std::max(Clock::duration::zero(), player.due - Clock::now());
         player.playing = false;
         player.step_once = false;
     } else if (op == "start" || op == "step") {
+        player.wait_for_page = false;
         const bool paused = !timer_on();
         if (op == "start") player.playing = true;
         else player.step_once = true;
@@ -677,7 +682,13 @@ void play_command(xpp::Session &s, const char *line)
 
 void player_data(void)
 {
-    if (player.open) send_player();
+    if (!player.open) return;
+    send_player();
+    if (player.wait_for_page) {
+        player.wait_for_page = false;
+        player.playing = true;
+        if (!player.steps.empty()) schedule(Next::begin, Clock::duration::zero());
+    }
 }
 
 void player_hold(void)
@@ -895,7 +906,7 @@ void player_model_switched(bool loaded)
         }
         player.open = true;
         player.next = 0;
-        player.playing = player.play_after_load;
+        player.playing = player.play_after_load && !player.wait_for_page;
         send_player();
         if (session.silent && player.steps.empty()) xpp::inbox::close();
         if (timer_on() && !player.steps.empty()) schedule(Next::begin, Clock::duration::zero());

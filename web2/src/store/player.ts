@@ -54,7 +54,8 @@ export function reducePlayer(state: PlayerState, a: PlayerAction): PlayerState {
       if (!a.player) return state.open ? initialPlayer : state;
       const running = a.player.running;
       /* a restart: nothing has run yet */
-      const shown = a.player.step === 0 && running < 0 ? -1 : state.shown;
+      const shown = running >= 0 ? running : a.player.step === 0 ? -1
+        : state.shown >= 0 ? state.shown : Math.min(a.player.step, state.steps.length) - 1;
       if (running === state.running && shown === state.shown && state.open) return state;
       return {...state, open: true, running, shown, press: running < 0 ? null : state.press};
     }
