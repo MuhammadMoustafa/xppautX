@@ -423,3 +423,9 @@ Delivered executable: C:\gitRepos\xppautX\build\xppautX-live-states.exe,
 SHA256 D736D2B20F60EF0F3134BF5E55ECD4E06CCFDBBA2EA551AAFEC6C3F1CC40E4B1.
 Sandbox fixtures are local, ignored user files; the reproducible generator is
 versioned. Native file-picker behavior was not changed or re-tested in W200.
+
+Final WSL outcome: strict gcc build and the complete core unit suite passed;
+all three live-state doubles at all eight accepted output steps passed on
+Linux as on Windows. Logs: build/live-wsl-build.log and live-wsl-check.log.
+The browser values/live selection passed 40 checks. All processes started by
+this batch ended; its ledger row was removed, preserving the unrelated W21 row.
