@@ -9,6 +9,7 @@
 #include "load_eqn.h"
 #include "storage.h"
 #include "xpp_util.h"
+#include "xpp_job.h"
 #include "graphics.h"
 #include "integrate.h"
 #include "browse.h"
@@ -589,10 +590,26 @@ void values_command(xpp::Session &s, const char *line)
    the start of a run (storage starting again) the state, so a client shows
    the initial conditions the run starts from (Initialconds/Last changed
    them) while it runs, not after */
+void j_live_state(xpp::Session &s, const double *values, double time)
+{
+    if (!xpp::every(session.live_state_last, xpp::INPUT_POLL_SECONDS)) return;
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"liveState\",\"time\":");
+    buf_num(&b, time, 17);
+    BUF_LIT(&b, ",\"now\":[");
+    for (int i = 0; i < s.model().node + s.model().nmarkov; ++i) {
+        if (i) BUF_LIT(&b, ",");
+        buf_num(&b, values[i], 17);
+    }
+    BUF_LIT(&b, "]}");
+    send_buf(&b);
+}
+
 void j_rows_stored(xpp::Session &s, int nrows)
 {
     int &last = session.rows_seen;
     if (nrows <= last) {
+        session.live_state_last = 0;
         session.state_dirty = 1;
         json_flush();
     }

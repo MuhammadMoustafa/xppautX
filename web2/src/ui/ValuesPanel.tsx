@@ -189,19 +189,11 @@ function Parameters() {
   );
 }
 
-/** where each variable is now: the active window's last stored row while a
-    run goes (the column when its series has it), else `state.now` (where
-    the last run ended or stopped); null before any run */
+/** Full solver values for every state, during the run and at its end. */
 function useNow(): (number | null)[] {
   const ics = useStore(s => s.core?.ics);
   const now = useStore(s => s.core?.now);
-  const busy = useStore(s => s.busy);
-  const series = useStore(s => (s.busy ? s.plots.windows.find(w => w.win === s.plots.active)?.series ?? null : null));
-  return (ics ?? []).map(([name], i) => {
-    const col = busy && series && series.rows > 0 ? series.columns.get(i + 1) : undefined;
-    if (col && series!.names.get(i + 1)?.toLowerCase() === name.toLowerCase()) return col[series!.rows - 1];
-    return now?.[i] ?? null;
-  });
+  return (ics ?? []).map((_, i) => now?.[i] ?? null);
 }
 
 function StateSection() {

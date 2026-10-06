@@ -555,6 +555,8 @@ export type XppEvent =
   /** Erase blanked plot window `win`; Redraw drew its current data again */
   | {ev: 'erase' | 'redraw'; win: number}
   | {ev: 'progress'; n: number; of: number}
+  /** Full solver doubles for all states, independently of plot columns. */
+  | {ev: 'liveState'; time: number; now: number[]}
   /** the running command began computing: until its idle only view and control actions start */
   | {ev: 'computing'}
   | {ev: 'title'; text: string}

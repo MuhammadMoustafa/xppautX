@@ -810,3 +810,12 @@ W195–W199 implementation:
 Protocol retention regression:
 [1582c750](https://github.com/MuhammadMoustafa/xppautX/commit/1582c750).
 These commits are local until the branch is published.
+
+### W200 — All-state live integration values and sandbox fixtures (approved 2026-10-06)
+
+The States panel must show every state at the current accepted output step,
+independently of active plot columns and transient/Poincare storage filtering.
+Publish full solver doubles at the existing responsive display cadence, leave
+initial conditions and solver behavior unchanged, and verify every output step
+using the deterministic no-throttle check hook. Create and replay a portable
+PY_S1Bf recording and reload its saved session with trajectory data.

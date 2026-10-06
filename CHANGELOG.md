@@ -11,6 +11,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Refresh all state values from full-precision solver output while integrating, independently of plotted variables and stored trajectory filters (W200).
 - Add one-click Run to steady state, with decimal precision, unchanged-digits hold duration and a maximum duration; show why it stopped and compare full core state values at every Dt (W193, local follow-up card).
 - Fix model-picker answers and close requests being discarded before a model loads; end the unloaded session before its native picker closes (W195).
 - Accept uppercase F/I shortcuts and show Caps Lock in the status bar; dismiss dialogs with × or an outside click, and close Tools dropdowns on outside click or Escape (W196, W199).

@@ -104,6 +104,7 @@ struct ProtocolSession {
     int state_dirty = 0, browser_dirty = 0;
     int br_from = 0, br_count = 0, br_col = 1, br_ncol = 1;
     int rows_seen = INT_MAX;
+    double live_state_last = 0; /* Display pacing only; solver steps are unchanged. */
 };
 extern ProtocolSession session;
 
@@ -368,6 +369,7 @@ void browser_key(xpp::Session &s, int ch, const char *line);
 void browser_update(const xpp::Session &s); /* at a command's end */
 void j_browser_changed(int i);
 void j_rows_stored(xpp::Session &s, int nrows);
+void j_live_state(xpp::Session &s, const double *values, double time);
 void plotvars_command(xpp::Session &s, const char *line);
 void data_command(xpp::Session &s, const char *line);
 void send_equations(const xpp::Session &s);

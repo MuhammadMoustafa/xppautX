@@ -225,6 +225,8 @@ typedef struct XppUi {
        far, before data_changed at its end. Called for every row: keep it
        cheap (a front end that shows the run as it grows rate-limits itself) */
     void (*rows_stored)(Session &s, int nrows);
+    /* Every accepted output step, before Poincare/transient filtering. */
+    void (*live_state)(Session &s, const double *values, double time);
     void (*browser_redraw)(int full); /* my_browser: 1 columns too, 0 data */
 
     /* plot windows */

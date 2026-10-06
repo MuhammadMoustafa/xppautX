@@ -386,6 +386,7 @@ XppUi make_json_ui(void)
     u.reset_graphics = j_reset_graphics;
     u.data_changed = j_browser_changed;
     u.rows_stored = j_rows_stored;
+    u.live_state = j_live_state;
     u.browser_redraw = j_browser_changed;
     u.activate_graph = j_activate_graph;
     u.create_plot_window = j_create_plot_window;

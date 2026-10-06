@@ -1793,3 +1793,16 @@ an old request cannot clear the new request's pending state. Page errors use
 the existing error place/source representation: local version errors name
 hello.about line 1; API syntax/field errors retain their actual line and source
 when known; transport failures name the API without inventing a line.
+
+### Live integration state (W200)
+
+`{"ev":"liveState","time":0.125,"now":[1.25,2.5]}` reports solver doubles
+for every ODE/Markov state in `state.ics` order, after an accepted output step
+and before transient/Poincare storage filtering. It does not change initial
+conditions or the resume state. The JSON front end paces updates at its existing
+50 ms input interval; it reports the latest complete vector, never individual
+plotted columns. This is display pacing, not a solver step or accuracy setting.
+The final `state` still supplies the exact end/stop values. No trajectory
+subscription is needed. `XPP_NO_THROTTLE` exposes every accepted output step for
+condition-based protocol checks. An output step follows configured Noutput;
+adaptive solver internal substeps are not display steps.

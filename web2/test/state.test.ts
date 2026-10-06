@@ -280,3 +280,13 @@ test("the page's leave question (W110): worded by hello, kept over the run's idl
   assert.equal(noIdle({cmd: 'quit', save: true}), false, 'the quit that saves is a command of its own');
   assert.equal(noIdle({cmd: 'quit', ask: true}), false);
 });
+
+test('live solver states update all values without changing initial conditions or plot data', () => {
+  const before = ev(ev(READY, {ev: 'state', sliders: [], pars: [], ics: [['x', 0], ['y', 0]]}), phase);
+  const now = [1.123456789012345, 9.876543210987654];
+  const after = ev(before, {ev: 'liveState', time: 0.125, now});
+  assert.deepEqual(after.core!.now, now);
+  assert.equal(after.core!.time, 0.125);
+  assert.equal(after.core!.ics, before.core!.ics);
+  assert.equal(after.plots, before.plots);
+});

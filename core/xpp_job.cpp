@@ -48,11 +48,11 @@ int reached_key; /* a reached stop's key, not taken yet */
 /* The throttles' clock reading (every(), below), shared by one stored
    row: an integration step passes up to this many throttled checkpoints
    right after it stores its row (its live append, plot_data.cpp; its
-   progress and its abort poll, xpp_ui.cpp), microseconds apart, so the
+   progress, abort poll and live state, xpp_ui.cpp), microseconds apart, so the
    first of them reads the clock and the others take that reading. A
    checkpoint the step does not pass leaves its use to the next every()
    call, which is then at most one step late. */
-constexpr int step_throttles = 3;
+constexpr int step_throttles = 4;
 int step_uses;   /* every() calls left that take step_now (report_rows sets it) */
 double step_now; /* the first of them reads it */
 

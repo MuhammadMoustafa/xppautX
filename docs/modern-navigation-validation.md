@@ -386,3 +386,40 @@ and 61 steady-state/direct-continuation checks passed with no failures.
 No processes started for this batch remain running, and the main checkout's
 background-task ledger has no lines owned by this batch. The unrelated
 pre-existing W21-agent ledger entry was preserved.
+
+## W200: all-state live values and sandbox fixtures (2026-10-06)
+
+Cause: ValuesPanel used the active plot's float32 columns while busy. States
+absent from that plot stayed at the preceding run's values. The integration
+owner now calls the UI seam after every accepted output step, before transient
+and Poincare storage filtering. The JSON state owner publishes all solver
+ODE/Markov doubles together at the existing 50 ms input cadence, with final
+values still supplied by the normal state event. ValuesPanel consumes those
+values independently of plot windows. Initial conditions and resume state
+remain unchanged. Noutput determines output steps; adaptive internal substeps
+are not display steps. This reuses XppUi, ProtocolSession, xpp::every and the
+existing state reducer; no second solver/state-storage owner was introduced.
+
+Windows validation: strict UCRT build and core unit suite passed, UI typecheck
+and 328 unit checks passed, browser values/live checks passed, and 61 steady/
+continuation checks passed. tools/livestatecheck.py uses XPP_NO_THROTTLE and
+checks all three doubles at all eight analytically known output steps, including
+transient steps without any trajectory subscription. The UI regression checks
+full-precision values and preservation of ICs and plot objects.
+
+The actual core writers produced sandbox/PY_S1Bf-live.recx and .snapx in the
+main checkout. tools/makesandboxfixture.py verifies eight live states, the
+three-step recording fingerprint, silent and interactive replay, and snapshot
+restoration of states, parameters, time and 40,001 trajectory rows. The run is
+200 ms from initial conditions plus 200 ms continuation, with original Iapp=0.
+The preceding W199 executable and the new one gave identical final states,
+parameters, ICs, time and row count. Model equations/settings were not edited.
+The generator uses the existing Server/read_recx/replay_recording clients and
+core serialization, never a hand-assembled snapshot. File names are fixed,
+files are written through the core's atomic writers in scratch folders, and
+only successfully validated fixtures are copied to the requested output folder.
+
+Delivered executable: C:\gitRepos\xppautX\build\xppautX-live-states.exe,
+SHA256 D736D2B20F60EF0F3134BF5E55ECD4E06CCFDBBA2EA551AAFEC6C3F1CC40E4B1.
+Sandbox fixtures are local, ignored user files; the reproducible generator is
+versioned. Native file-picker behavior was not changed or re-tested in W200.

@@ -1692,6 +1692,7 @@ if(program.interactive) cwidth=get_command_width();
              break;
            }
            if(ieqn<(s.model().neq+1))break;
+           ui.live_state(s, x, *t);
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
  if((s.numerics.poimap==2)&&!(s.numerics.poivar==0))

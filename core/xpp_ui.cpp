@@ -66,6 +66,7 @@ static void hl_int(int) {}
 static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::string_view) { log(XPP_LOG_INFO, "{}\n", msg); }
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
+static void hl_live_state(Session &, const double *, double) {}
 static void hl_s_str(Session &, std::string_view) {}
 static int hl_new_string(std::string_view, std::string &, int) { return 0; }
 static int hl_no(void) { return 0; }
@@ -189,6 +190,7 @@ XppUi ui = {
     .reset_graphics = hl_s,
     .data_changed = hl_int,
     .rows_stored = hl_s_int,
+    .live_state = hl_live_state,
     .browser_redraw = hl_int,
     .activate_graph = hl_activate_graph,
     .create_plot_window = hl_s,
