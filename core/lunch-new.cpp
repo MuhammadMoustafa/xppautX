@@ -205,11 +205,16 @@ void check_setting(Lines &l, std::string_view key, double v)
   if(const char *no=rule_problem(row->rule,v))l.fail(xpp::format("{} {}",row->label,no));
 }
 
-/* the numerics into f, each checked as the Numerics menu checks it */
-void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
+/* the name XPPAUT's set file gives the store-every setting (W206 renamed
+   it in ours; an import keeps the foreign format's own name) */
+constexpr std::string_view XPPAUT_STORE_EVERY="nout";
+
+/* the numerics into f, each checked as the Numerics menu checks it; the
+   store-every line is named as a session's or XPPAUT's file names it */
+void read_numerics(const xpp::Session &s, Lines &l, SetFile &f, bool session)
 {
   l.heading("# Numerical stuff");
-  f.store_every=l.whole("store_every",true);
+  f.store_every=l.whole(session?"store_every":XPPAUT_STORE_EVERY,true);
   check_setting(l,"store_every",f.store_every);
   f.nmesh=l.whole("nullcline mesh",true);
   check_setting(l,"nmesh",f.nmesh);
@@ -366,7 +371,7 @@ SetFile read_set(const xpp::Session &s, Lines &l, bool session)
   if(ne!=m.neq||np!=m.nupar)
     l.fail(ne!=m.neq?ne_line:l.line(),xpp::format("it is for {} equations and auxiliaries and {} parameters, the model has {} and {}",
                                ne,np,m.neq,m.nupar));
-  read_numerics(s,l,f);
+  read_numerics(s,l,f,session);
   read_exprs(s,l,f);
   /* the active window's graphics; in a session's check, before the load
      has an active window, the main one's */

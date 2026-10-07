@@ -511,7 +511,7 @@ int main(void)
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by 0\n"), "error 1:28 the range's step is a whole number above 0, not 0"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by -1\n"), "error 1:28 the range's step is a whole number above 0, not -1"));
   CHECK(starts(lowered("x' = 1\n@ total=10 for j in 1..2\n"), "error 2:12 this statement takes no range"));
-  CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already declared at 1:1"));
+  CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already a member of the array x[1..2], declared at 1:1"));
 
   /* const: fixed at load, from numbers and the consts before it */
   CHECK_STR(lowered("const n = 2, m = n*3+1\nx' = m\n").c_str(), "const n=2|const m=7|x'=m");

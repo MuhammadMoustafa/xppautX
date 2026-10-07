@@ -328,9 +328,22 @@ int main(void)
         CHECK(fp != nullptr);
         if (!fp) TEST_REPORT("options");
         xpp::write_lunch(*s, fp);
-        fputs("RHS etc ...\n", fp); /* XPPAUT's set file ends with its equations */
         fclose(fp);
     }
+    /* what the session's own reader takes unchanged is read back by it
+       (its label is store_every); XPPAUT's set file differs in that
+       label (nout) and ends with its equations, which the import reads */
+    std::string own;
+    {
+        xpp::LineReader in(set_file); /* closed before the file is written again */
+        CHECK(static_cast<bool>(in));
+        while (const auto line = in.next()) own += std::string(*line) + "\n";
+    }
+    CHECK(xpp::read_session_set(*s, set_file, own).has_value());
+    const std::size_t at = own.find("store_every");
+    CHECK(at != std::string::npos);
+    own.replace(at, std::string_view("store_every").size(), "nout");
+    CHECK(write_file(set_file, own + "RHS etc ...\n"));
     std::vector<std::string> written;
     for (const xpp::OptionRow &r : rows) {
         written.push_back(value_of(*s, r));

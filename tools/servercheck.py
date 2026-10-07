@@ -707,7 +707,7 @@ collect(is_idle)
 # the .set an XPPAUT writes is the session's model.set and its equations after it
 with zipfile.ZipFile(os.path.join(run, 'w88.snapx')) as z:
     with open(far_set, 'wb') as f:
-        f.write(z.read('model.set') + b'RHS etc ...\n')
+        f.write(z.read('model.set').replace(b'store_every', b'nout', 1) + b'RHS etc ...\n')
 send(cmd='set', kind='par', name='iapp', value=0.77)
 collect(is_idle)
 send(cmd='key', key='f')
@@ -1850,7 +1850,9 @@ def check_load_all_or_nothing():
         st0, set0 = state(), set_file()
         rows = set0.split('\n')
         high = max(k for k in range(len(rows)) if rows[k].endswith('BVP range high')) + 2  # its line in the file
-        lines = ('## Set file\n' + set0 + 'RHS etc ...\n').split('\n')
+        # XPPAUT's set file names the store-every line nout (ours store_every, W206)
+        xppaut_set = '## Set file\n' + set0.replace('store_every', 'nout', 1) + 'RHS etc ...\n'
+        lines = xppaut_set.split('\n')
         lines[high - 1] = '1e999  BVP range high'
         with open(os.path.join(r, 'bad.set'), 'w') as f:
             f.write('\n'.join(lines))
@@ -1875,7 +1877,7 @@ def check_load_all_or_nothing():
                   st == st0 and set1 == set0, str([(k, st0.get(k), st.get(k)) for k in st0 if st.get(k) != st0.get(k)])[:300])
         # W153: same counts, another model's names; valid earlier changes
         # must not apply, and no session may be created for a refused file.
-        own = ('## Set file\n' + set0 + 'RHS etc ...\n').split('\n')
+        own = xppaut_set.split('\n')
         other = own.copy()
         named_line = next(k for k, row in enumerate(other) if row.endswith('  b'))
         other[named_line - 1] = '9  a'

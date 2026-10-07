@@ -42,6 +42,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 - Add native Open session/Save session as actions, Ctrl/Cmd+O/S, Ctrl/Cmd+K command search, and F6/Shift+F6 pane navigation (W188–W189, #241–#242).
 - Explain active solver settings and add temporary working-value checkpoints for parameter/initial-condition exploration; clarify CSV/GIF exports (W190–W191, #243–#244).
 
+### Fixed
+
+- A name that clashes with a member of an array (`x[1..3]'=-x[j]` then `par x2=5`) is refused with `x2 is already a member of the array x[1..3]` at the later declaration, and a clash of two plain names shows the name as written, not in capitals, in `.ode` and `.odex` alike (W214, [#245](https://github.com/MuhammadMoustafa/xppautX/issues/245)).
+
 ### Build
 
 - Browser checks wait for a menu dialog to receive keyboard focus before answering it, preserving the phase-plane assertions on slower runners (W182, [#234](https://github.com/MuhammadMoustafa/xppautX/issues/234)).

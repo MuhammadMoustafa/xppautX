@@ -84,6 +84,8 @@ struct VAR_INFO {
   int type=0;
   std::string lhs,rhs;
   std::vector<std::string> args;
+  /* the name lhs is, as written (lhs is read in upper case) */
+  std::string written;
 };
 
 /* where a model's lines come from: the file, its name and its index in
@@ -318,6 +320,18 @@ void split_rhs(VAR_INFO &v, size_t name_end, size_t rest_start)
   v.rhs=rest_start<big.size()?big.substr(rest_start):std::string();
 }
 
+/* the array a line defines, as written: the name before its first [j...]
+   (the line's range worked out, x[j]'=...), then the range i..j; ""
+   when the line has no such name */
+std::string array_written(std::string_view line, int i1, int i2)
+{
+  const size_t at=line.find("[j");
+  size_t from=at;
+  while(from!=std::string_view::npos&&from>0&&(isalnum(static_cast<unsigned char>(line[from-1]))||line[from-1]=='_'))from--;
+  if(at==std::string_view::npos||from==at)return std::string();
+  return xpp::odex::array_text(line.substr(from,at-from),std::min(i1,i2),std::max(i1,i2),1);
+}
+
 int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end, Parsed &p);
 
 /* no exception crosses into C: the only one parse_model() can throw is
@@ -534,6 +548,7 @@ int parse_a_string(std::string &s1, VAR_INFO &v, std::vector<Statement> &out)
   std::string lhs,rhs;
   std::vector<std::string> args;
   int type,type2;
+  size_t lhs_at=0; /* where lhs begins in the line */
   if(char_at(s1,0)=='"'||char_at(s1,0)=='@'){
     Statement s;
     s.kind=s1[0]=='"'?Statement::Kind::Comment:Statement::Kind::Options;
@@ -597,6 +612,7 @@ int parse_a_string(std::string &s1, VAR_INFO &v, std::vector<Statement> &out)
   case 2:
     if(s1[0]!='D')return -1;
     if(extract_ode(s,&i2,i1)){
+      lhs_at=1;
       lhs=s1.substr(1,i1-1);
       rhs=s1.substr(i2);
       type2=ODE;
@@ -658,6 +674,7 @@ int parse_a_string(std::string &s1, VAR_INFO &v, std::vector<Statement> &out)
 
 good_type:
   v.type=type2;
+  v.written=s1old.substr(lhs_at,lhs.size());
   v.lhs=std::move(lhs);
   v.rhs=std::move(rhs);
   v.args=std::move(args);
@@ -822,6 +839,7 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
   case VEQ:
     s.kind=v.type==ODE?Statement::Kind::Ode:v.type==MAP?Statement::Kind::Map:Statement::Kind::Volterra;
     s.name=v.lhs;
+    s.written=v.written;
     s.expr=text_expr(v.rhs);
     break;
   case FIXED:
@@ -829,6 +847,7 @@ void add_statement(const VAR_INFO &v, std::vector<Statement> &out)
   case DAE:
     s.kind=v.type==FIXED?Statement::Kind::Fixed:v.type==SOL_VAR?Statement::Kind::Solv:Statement::Kind::Dae;
     s.name=v.lhs;
+    s.written=v.written;
     s.expr=text_expr(v.rhs);
     break;
   case FUNCTION:
@@ -1117,7 +1136,7 @@ int parse_model(LineSource &src, const std::string &first, int nnn, bool at_end,
       if(is_array&&out.size()>first_new){
         if(groups[ns]==0)groups[ns]=static_cast<int>(first_new)+1;
         for(size_t k=first_new;k<out.size();k++)
-          out[k].array=xpp::odex::ArrayCopy{groups[ns],"j",jj,jj1,jj2,jjsgn,is_array==2&&strings.size()>1};
+          out[k].array=xpp::odex::ArrayCopy{groups[ns],"j",jj,jj1,jj2,jjsgn,is_array==2&&strings.size()>1,array_written(strings[ns],jj1,jj2)};
       }
    } /* end loop for the strings */
    if(done==2)notdone=0;

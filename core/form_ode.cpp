@@ -933,6 +933,37 @@ private:
     xpp::Load::at(file(s.pos),s.pos.line,s.pos.col);
   }
 
+  /* a declaration of name (as written) at pos, kept for the message of a
+     clash: the name, where, and the array it is a member of (""
+     when it is not) */
+  void note(const std::string &name,const xpp::odex::Pos &pos,const Statement &s)
+  {
+    origins_[converted(name)].push_back(Origin{s.written.empty()?name:s.written,pos,s.array.written});
+  }
+
+  /* the load fails: the name in upper case (as the tables hold it) is
+     declared twice. The later declaration is the one the error is at:
+     the name as its author wrote it, and, when either is a member of an
+     array, the array. Names match without case (.ode's), said when the
+     two were written differently. */
+  [[noreturn]] void clash(const std::string &upper) const
+  {
+    auto it=origins_.find(upper);
+    if(it==origins_.end()||it->second.size()<2)
+      model_failed(xpp::format("Duplicate name {}",it==origins_.end()?upper:it->second.back().written));
+    const Origin &now=it->second.back(),&before=it->second[it->second.size()-2];
+    xpp::Load::at(file(now.pos),now.pos.line,now.pos.col);
+    std::string at=xpp::format("line {}",before.pos.line);
+    if(file(before.pos)!=file(now.pos))at+=xpp::format(" of {}",file(before.pos));
+    if(now.array.empty()&&before.array.empty()){
+      std::string what=xpp::format("Duplicate name {}",now.written);
+      if(now.written!=before.written)
+	what+=xpp::format(" (names match without case: {} is declared at {})",before.written,at);
+      model_failed(what);
+    }
+    model_failed(xpp::odex::name_clash(now.written,now.array,before.array,at));
+  }
+
   /* e as the text the expression engine compiles: an .ode formula as
      written; an .odex one with the parentheses it needs, in upper case
      where the Model keeps .ode's so (upper) */
@@ -1034,6 +1065,7 @@ private:
       for(const std::string &n : s.names)add_only(m,n);
       break;
     case Statement::Kind::Markov: {
+      note(s.name,s.pos,s);
       xpp::add_markov(s_,s.count,s.name.c_str());
       std::vector<std::string> cells;
       for(const Expr &c : s.cells)cells.push_back(text(c));
@@ -1045,13 +1077,19 @@ private:
     }
     case Statement::Kind::Par:
       xpp::log(XPP_LOG_INFO, "Parameters:\n");
-      for(const Binding &b : s.bindings)add_parameter(s_,b.name,b.value.value);
+      for(const Binding &b : s.bindings){
+	note(b.name,b.pos.line?b.pos:s.pos,s);
+	add_parameter(s_,b.name,b.value.value);
+      }
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case Statement::Kind::Wiener:
     case Statement::Kind::Const:
       xpp::log(XPP_LOG_INFO, "{}", s.kind==Statement::Kind::Wiener?"Wiener constants\n":" Hidden params:\n");
-      for(const Binding &b : s.bindings)add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
+      for(const Binding &b : s.bindings){
+	note(b.name,b.pos.line?b.pos:s.pos,s);
+	add_constant(s_,b.name,b.value.value,s.kind==Statement::Kind::Wiener);
+      }
       xpp::log(XPP_LOG_DEBUG, "\n");
       break;
     case Statement::Kind::OptionFile: refuse_options_file(s.text);
@@ -1067,9 +1105,8 @@ private:
     case Statement::Kind::Map:
     case Statement::Kind::Volterra: {
       std::string name=converted(s.name);
-      if(std::find(vnames_.begin(),vnames_.end(),name)!=vnames_.end()){
-	model_failed(xpp::format("{} is a duplicate name",name));
-      }
+      note(s.name,s.pos,s);
+      if(std::find(vnames_.begin(),vnames_.end(),name)!=vnames_.end())clash(name);
       vnames_.push_back(std::move(name));
       break;
     }
@@ -1088,12 +1125,15 @@ private:
       }
       break;
     case Statement::Kind::Derived:
-      for(const Binding &b : s.bindings)
+      for(const Binding &b : s.bindings){
+	note(b.name,b.pos.line?b.pos:s.pos,s);
 	if(add_derived(s_,xpp::upper_case(b.name),text(b.value,true))==1)
-	  model_failed();
+	  clash(converted(b.name));
+      }
       break;
     case Statement::Kind::Fixed: {
       const int k=static_cast<int>(fnames_.size());
+      note(s.name,s.pos,s);
       m.fixinfo[k].name=xpp::upper_case(s.name);
       m.fixinfo[k].value=text(s.expr,true);
       fnames_.push_back(converted(s.name));
@@ -1130,21 +1170,15 @@ private:
     xpp::Session &s=s_;
     const int nvar=static_cast<int>(vnames_.size());
     for(int i=0;i<nvar;i++){
-      if(add_var(s_,vnames_[i].c_str(),0.0)){
-	model_failed(xpp::format("Duplicate name {}",vnames_[i]));
-      }
+      if(add_var(s_,vnames_[i].c_str(),0.0))clash(vnames_[i]);
       m.uvar_names[i]=vnames_[i];
       s.last_ic[i]=0.0;
       m.default_ic[i]=0.0;
     }
     for(const std::string &f : fnames_)
-      if(add_var(s_,f.c_str(),0.0)){
-	model_failed(xpp::format("Duplicate name {}",f));
-      }
+      if(add_var(s_,f.c_str(),0.0))clash(f);
     for(size_t i=0;i<mnames_.size();i++){
-      if(add_var(s_,mnames_[i].c_str(),0.0)){
-	model_failed(xpp::format("Duplicate name {}",mnames_[i]));
-      }
+      if(add_var(s_,mnames_[i].c_str(),0.0))clash(mnames_[i]);
       m.uvar_names[i+nvar]=mnames_[i];
       s.last_ic[i+nvar]=0.0;
       m.default_ic[i+nvar]=0.0;
@@ -1351,6 +1385,13 @@ private:
      variables and the aux quantities (converted: blanks removed, upper
      case), in order */
   std::vector<std::string> vnames_,mnames_,fnames_,anames_;
+  /* every name declared so far, by its upper case form, in order */
+  struct Origin {
+    std::string written;
+    xpp::odex::Pos pos;
+    std::string array;
+  };
+  std::map<std::string,std::vector<Origin>> origins_;
   /* how many of each the compiling has met */
   int nvar_=0,nfix_=0,naux_=0,nmark_=0,ntab_=0,nufun_=0;
 };
