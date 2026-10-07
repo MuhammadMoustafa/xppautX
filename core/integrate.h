@@ -116,7 +116,7 @@ void plot_the_graphs(Session &s, float *xv, float *xvold, int node, int neq, dou
 void plot_one_graph(Session &s, float *xv, float *xvold, int node, int neq, double ddt, int *tc);
 void restore(Session &s, int i1, int i2);
 void comp_color(Session &s, float *v1, float *v2, int n, float dt);
-int stor_full(Session &s);
+int stor_full(Session &s, double t);
 int do_auto_range_go(Session &s);
 
 /* the model's array initial values (x[j1..j2](0)=formula, applied by

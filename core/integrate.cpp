@@ -1520,6 +1520,10 @@ xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, d
  int ieqn,i,pflag=0;
  int icount=0;
  int nit;
+ /* a steady-state run needs only the last values, so it is never bounded by
+    storage: when the store fills it keeps every second row and stores every
+    second event from then on */
+ int steady_stride=1,steady_seen=0;
  int cwidth=0;
  /* new poincare map stuff */
 
@@ -1804,7 +1808,8 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
 
 	  }
 
-	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.trans))
+	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.trans)
+	      &&(!s.integrator.steady||++steady_seen%steady_stride==0))
 	   {
            if(s.animation.options.on_the_fly)on_the_fly(s,0);
            for(ieqn=0;ieqn<=s.model().neq;ieqn++)
@@ -1812,8 +1817,12 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
 	    s.data_store.rows++;
 	    row_stored(s); /* xppautX: replay stops here, a front end shows the run grow */
 	    if(!(s.data_store.rows<s.data_store.max_rows)){
-            if(s.integrator.steady){s.integrator.steady_result->status="storage-limit";break;}
-            if(stor_full(s)==0)break;
+            if(s.integrator.steady){
+              s.data_store.thin(s.model().neq+1);
+              steady_stride*=2;
+              steady_seen=0;
+            }
+            else if(stor_full(s,xv[0])==0)break;
             }
 	    if((pflag==1)&&(s.numerics.sos==1))break;
 	   }
@@ -2056,7 +2065,7 @@ void stop_integration(xpp::Session &s, xpp::Error why)
   if(!e)e=std::move(why);
 }
 
-int stor_full(xpp::Session &s)
+int stor_full(xpp::Session &s, double t)
 {
 
  char ch;
@@ -2069,7 +2078,7 @@ int stor_full(xpp::Session &s)
  xpp::show_error(grown.error()); /* before asking what to do instead */
 
  if(!program.interactive){
-   xpp::log(XPP_LOG_WARN, " Storage full -- increase maxstor \n");
+   xpp::log(XPP_LOG_WARN, "Storage limit ({} rows) reached at t = {}; raise Total storage or Store every N steps\n",s.data_store.max_rows,t);
    return(0);
  }
  if(s.numerics.forever)goto ov;

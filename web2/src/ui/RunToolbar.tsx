@@ -56,7 +56,6 @@ export function RunToolbar() {
   const result = core?.steady;
   const resultText = result?.status === 'settled' ? `State values stopped changing at ${result.decimals} decimal places.`
     : result?.status === 'limit' ? 'Maximum duration reached; unchanged-digits hold not completed.'
-    : result?.status === 'storage-limit' ? 'Storage limit reached before the unchanged-digits hold completed.'
     : result?.status === 'stopped' ? 'Steady-state run stopped by the user or model event.'
     : result ? 'Steady-state run failed; see the error.' : null;
   return <section class="run-toolbar" aria-label="Run controls">

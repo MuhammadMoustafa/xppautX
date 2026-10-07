@@ -299,7 +299,10 @@ Alt+Enter (`default_keys` of the command table).
 `state.time` is the full-precision current core time, independent of stored
 float32 plot time. After a steady run, `state.steady` contains `status`,
 `decimals` and `time`. Status is `settled` (unchanged digits for the hold),
-`limit`, `storage-limit`, `stopped`, or `failed`. This transient result is
+`limit`, `stopped`, or `failed`. A steady run is not bounded by Total
+storage: when the store is full it keeps every second row and stores every
+second event from then on, so it runs until it settles, reaches its
+maximum, is stopped or fails. This transient result is
 cleared when another ordinary integration starts. `settled` is not an
 analytical equilibrium/stability certificate. Adaptive solver internal
 steps are not comparison intervals.

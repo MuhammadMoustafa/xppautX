@@ -54,6 +54,14 @@ xpp::Result<> DataStore::grow(int ncol, int nrow)
   return {};
 }
 
+void DataStore::thin(int ncol)
+{
+  const int kept=(rows+1)/2;
+  for(int c=0;c<ncol;c++)
+    for(int r=1;r<kept;r++)columns_[c][r]=columns_[c][2*r];
+  rows=kept;
+}
+
 void DataStore::add_column(int c)
 {
   columns_[c].assign(max_rows,0.0f);

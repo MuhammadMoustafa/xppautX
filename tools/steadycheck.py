@@ -125,8 +125,11 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
 
     def storage(server):
         got, state = command(server, cmd='steady', decimals=9, hold=1, maximum=10)
-        check('storage: stops with a reason instead of opening a storage prompt',
-              state and state['steady']['status'] == 'storage-limit' and not any(e.get('ev') == 'ask' for e in got), state)
+        check('storage: a steady run is not bounded by the store; it runs to its maximum without a prompt',
+              state and state['steady']['status'] == 'limit' and state['steady']['time'] > 9.9 and not any(e.get('ev') == 'ask' for e in got), state)
+        series = whole_series(got)
+        rows = len(series[-1]['columns'][0]['data']) if series else 0
+        check('storage: the thinned rows stay within maxstor', 0 < rows <= 10, rows)
     scenario(folder, 'storage', "x'=1\ninit x=0\n@ dt=.1,total=10,maxstor=10,bound=100", storage)
 
     def discrete(server):

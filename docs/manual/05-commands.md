@@ -112,7 +112,8 @@ the configured duration and stride are restored afterwards. Adaptive solvers
 can take internal substeps; comparisons occur at requested Dt intervals.
 
 The result distinguishes unchanged digits, maximum duration reached,
-storage capacity reached, cancellation and failure. Existing bounds and
+cancellation and failure. Storage never ends the run: when the store is
+full, every second stored row is kept and the run goes on. Existing bounds and
 non-finite checks remain active. Periodic systems normally reach the duration
 limit. Very slow motion or sampling a periodic system at the same phase can
 also produce unchanged digits: this is the requested numerical observation,

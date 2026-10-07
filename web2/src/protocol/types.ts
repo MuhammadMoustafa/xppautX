@@ -121,7 +121,7 @@ export interface StateEvent {
   rates?: (number | null)[];
   /** Full core time, distinct from the float32 stored trajectory time. */
   time?: number;
-  steady?: {status: 'settled' | 'limit' | 'stopped' | 'failed' | 'storage-limit'; decimals: number; time: number};
+  steady?: {status: 'settled' | 'limit' | 'stopped' | 'failed'; decimals: number; time: number};
   view: View;
   rows: number;
   menu: number;

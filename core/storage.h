@@ -49,6 +49,9 @@ struct DataStore {
      added are zero), or the error when there is no memory (the columns
      as they were). The caller sets max_rows. */
   Result<> grow(int ncol, int nrow);
+  /* the first ncol columns keep every second row (rows 0, 2, 4, ...), so
+     the rows left still span the run, with room for as many more */
+  void thin(int ncol);
   /* column c (a new user column) with max_rows rows of zeros */
   void add_column(int c);
   /* Remove a derived column and shift subsequent owned columns left; the
