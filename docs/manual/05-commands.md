@@ -11,11 +11,51 @@ Numerics mode.
 
 Every command's key comes from one table, shown in **Help > Keyboard
 shortcuts** and in the sidebar. The defaults are Ctrl/Cmd+O (Open model),
-Ctrl/Cmd+S (Save session as) and Ctrl/Cmd+R (Reload model). Ctrl/Cmd+K
+Ctrl/Cmd+S (Save session), Ctrl/Cmd+Shift+S (Save session as), Ctrl/Cmd+R
+(Reload model), Ctrl+Enter (Run from initial), Ctrl+Shift+Enter (Run from
+last state) and Alt+S (Run to steady state). Ctrl/Cmd+K
 searches commands, F6 and Shift+F6 move between panes, F1 opens Help, and
 Esc stops a running command, cancels a pending key and closes a menu.
-The page never takes Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 or F5: they stay
-the system's and the browser's.
+The page never takes Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5 or the other
+keys the browser and the system keep (the core's list, shown in the editor
+when you try one): they stay theirs.
+
+### The keyboard shortcuts editor
+
+**Keyboard shortcuts…** in the command list's Tools group (also found by
+the command search, and in Help > Keyboard shortcuts as *Change shortcuts…*) opens a dialog that lists every
+command with its category, its keys and where they come from: *default*
+(the table's), *changed* (yours, instead of the table's) or *user* (yours,
+for a command that has none by default). Type in the search box to find a
+command by its name, description, id or its keys; **Record keys** then a
+key combination finds the commands on it.
+
+- Click a key and press the new combination. **Esc** cancels, **Backspace**
+  removes the key. A key the system or the browser keeps is refused with
+  a message. A key that another command has asks *"Ctrl+B is Run from last
+  state. Replace / Cancel"*: Replace gives it to this command and takes
+  it from the other.
+- **+** adds a second key to a command; **Reset** puts a command back on
+  the table's keys; **Reset all** (it asks first) removes every change, pin
+  and the preset; **Preset** switches between *Default* and *XPPAUT
+  sequences*.
+- **Pin** puts a command on the toolbar (below).
+
+The dialog is fully reachable by keyboard (Tab, Enter, Esc) and announces
+what it does to a screen reader: the key being recorded, a refusal and a
+conflict. Your choices are the file `keymap.json` in the per-user config
+folder, the same for the window and the browser; a file that cannot be
+loaded is shown with its file, line and value and the default keys are used
+until you change a key (which replaces the file).
+
+### Pinned commands
+
+Under the fixed run buttons the toolbar shows the commands you pinned, in
+order, each with its name. Pin from the **Pin** button of a row in the
+command list or from the keyboard shortcuts editor. Drag a button to
+reorder; right-click it (or press Shift+F10 or the menu key) for *Unpin*,
+*Move earlier* and *Move later*. When they do not all fit, the rest are in
+a **More** menu; none is dropped.
 
 The XPPAUT one-letter keys are an optional preset, **XPPAUT sequences**
 (a switch in Help > Keyboard shortcuts, off by default). With it on, a

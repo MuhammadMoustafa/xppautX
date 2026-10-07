@@ -1,8 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {handleKey, keyName, resolveKeys, RESERVED_KEYS, shortcutLabel} from '../src/ui/hotkeys';
+import {handleKey, keyName, resolveKeys, shortcutLabel} from '../src/ui/hotkeys';
 import {BUSY_TITLE} from '../src/ui/context';
-import {initialState, reduce, type Action, type AppState, type KeyPreset} from '../src/store/state';
+import {initialState, reduce, type Action, type AppState} from '../src/store/state';
+import type {KeymapInfo} from '../src/protocol/types';
 import {mayStart, kindOf, noValueEdit} from '../src/protocol/kinds';
 import type {Session} from '../src/session';
 import {HELLO} from './hello';
@@ -14,9 +15,9 @@ function keyEvent(key: string, mods: Partial<KeyboardEvent> = {}) {
 }
 
 /** a session with the parts handleKey uses: a store, may (as Session.may), menuAction, typeKey, awaitingMenu */
-function fakeSession(opts: {computing?: boolean; hello?: AppState['hello']; preset?: KeyPreset; waiting?: boolean; ask?: boolean; core?: Partial<NonNullable<AppState['core']>>} = {}) {
+function fakeSession(opts: {computing?: boolean; hello?: AppState['hello']; preset?: 'default' | 'xppaut'; keymap?: KeymapInfo; waiting?: boolean; ask?: boolean; core?: Partial<NonNullable<AppState['core']>>} = {}) {
   let state: AppState = {...initialState, hello: opts.hello === undefined ? HELLO : opts.hello, computing: opts.computing ?? false, core: (opts.core ?? null) as AppState['core'],
-    keyPreset: opts.preset ?? 'default', ask: opts.ask ? {id: 1, kind: 'menu', keys: 'gl', items: []} as never : null};
+    keymap: {...initialState.keymap, info: opts.keymap ?? {...(opts.hello ?? HELLO).keymap, preset: opts.preset ?? 'default'}}, ask: opts.ask ? {id: 1, kind: 'menu', keys: 'gl', items: []} as never : null};
   const calls: string[] = [];
   const session = {
     store: {getState: () => state, dispatch: (a: Action) => { state = reduce(state, a); }},
@@ -33,6 +34,8 @@ function type(s: ReturnType<typeof fakeSession>, ...events: ReturnType<typeof ke
   for (const e of events) handleKey(s.session, e);
   return events;
 }
+
+const XPPAUT: KeymapInfo = {...HELLO.keymap, preset: 'xppaut'};
 
 test('a key event is named as the table writes keys', () => {
   assert.equal(keyName(keyEvent('s', {ctrlKey: true})), 'Ctrl+S');
@@ -90,8 +93,8 @@ test('the XPPAUT preset on: a letter, and F then S as a chord that Esc cancels',
   assert.equal(on.state().bottom, 'F Z is not a command');
   assert.deepEqual(on.state().pendingKeys, []);
   /* the layers' switches are no commands of the page */
-  assert.equal(resolveKeys(HELLO, 'xppaut', ['U', 'Esc']).row, null);
-  assert.equal(resolveKeys(HELLO, 'xppaut', ['U']).more, true);
+  assert.equal(resolveKeys(HELLO, XPPAUT, ['U', 'Esc']).row, null);
+  assert.equal(resolveKeys(HELLO, XPPAUT, ['U']).more, true);
 });
 
 test('a key typed while a menu is open or on its way answers it', () => {
@@ -103,8 +106,8 @@ test('a key typed while a menu is open or on its way answers it', () => {
   assert.deepEqual(asking.calls, ['key l']);
 });
 
-test('Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 and F5 are never bound or prevented', () => {
-  assert.deepEqual([...RESERVED_KEYS], ['Alt+F4', 'Ctrl+W', 'Ctrl+Q', 'F11', 'F12', 'F5']);
+test('the keys the core reserves (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5 ...) are never taken or prevented, whatever the table says', () => {
+  assert.ok(['Alt+F4', 'Ctrl+W', 'Ctrl+Q', 'F11', 'F12', 'F5'].every(k => HELLO.keymap.reserved.includes(k)));
   /* even a table that bound one of them */
   const bound = {...HELLO, command_table: HELLO.command_table.map(r => r.id === 'reload' ? {...r, default_keys: ['Ctrl+W']}
     : r.id === 'help' ? {...r, default_keys: ['F12']} : r)};
@@ -133,11 +136,14 @@ test('a run forbids a data command: the key says why, in the status bar', () => 
 
 test('the keys of a command are listed from the table', () => {
   const row = (id: string) => HELLO.command_table.find(r => r.id === id)!;
-  assert.equal(shortcutLabel(row('savesession'), 'default'), 'Ctrl+S');
-  assert.equal(shortcutLabel(row('continue'), 'default'), 'Alt+Enter');
-  assert.equal(shortcutLabel(row('saveinfo'), 'default'), '');
-  assert.equal(shortcutLabel(row('saveinfo'), 'xppaut'), 'F S');
-  assert.equal(shortcutLabel(row('initialconds'), 'xppaut'), 'I');
+  assert.equal(shortcutLabel(row('savesession'), HELLO.keymap), 'Ctrl+S');
+  assert.equal(shortcutLabel(row('continue'), HELLO.keymap), 'Alt+Enter');
+  assert.equal(shortcutLabel(row('saveinfo'), HELLO.keymap), '');
+  assert.equal(shortcutLabel(row('saveinfo'), XPPAUT), 'F S');
+  assert.equal(shortcutLabel(row('initialconds'), XPPAUT), 'I');
+  /* the user's keys replace the table's */
+  const moved = {...HELLO.keymap, commands: HELLO.keymap.commands.map(c => c.id === 'savesession' ? {...c, keys: ['Ctrl+B'], source: 'user' as const} : c)};
+  assert.equal(shortcutLabel(row('savesession'), moved), 'Ctrl+B');
 });
 
 test('Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y are Undo and Redo value edit; a text field keeps them, and the status bar says when there is nothing to do', () => {

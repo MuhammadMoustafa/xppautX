@@ -12,7 +12,7 @@ import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
 import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
-import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type XppEvent} from './protocol/types';
+import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoWindow} from './store/diagram';
 import {
@@ -24,7 +24,7 @@ import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
-import {continuePlan} from './store/steady';
+import {continuePlan, INITIAL_GO, INITIAL_LAST, steadyRun} from './store/steady';
 import type {TextTab} from './store/text';
 import {fieldKey, valueSetCommand, type ValueSet} from './store/values';
 import {autoSettingsSetCommand, type AutoSettingsPatch} from './store/autoSettings';
@@ -350,7 +350,46 @@ export class Session {
       this.continueRun();
       return;
     }
-    this.sendKeySequence({...menuCommand(menu, item), button: row.label}, then);
+    if (row.key === '') this.pageCommand(item);
+    else this.sendKeySequence({...menuCommand(menu, item), button: row.label}, then);
+  }
+
+  /** A command the page runs itself (a table row with no legacy key: core/command_table.h PAGE_KEY): the
+      run commands go out as the commands they are, the editor opens. The callers check that it may run now (hotkeys.ts, the disabled buttons). */
+  private pageCommand(id: string): void {
+    const {hello, core} = this.store.getState();
+    const row = commandRow(hello, 'main', id);
+    if (!row) return;
+    if (id === 'run_initial') this.menuAction('main', 'initialconds', INITIAL_GO);
+    else if (id === 'run_last') {
+      if (core?.now) this.menuAction('main', 'initialconds', INITIAL_LAST);
+      else this.store.dispatch({type: 'bottom', text: `${row.label}: run once to obtain a last state`});
+    } else if (id === 'steady') this.runSteady();
+    else if (id === 'keymapeditor') this.store.dispatch({type: 'keymapUi', action: {type: 'open'}});
+    else this.failed(`The command ${id} has no action in the page.`);
+  }
+
+  /** Run to steady state with the settings the toolbar holds (the user's edits over the defaults) */
+  runSteady(): void {
+    const {hello, numerics, steadyEdit} = this.store.getState();
+    const run = steadyRun(hello, numerics, steadyEdit);
+    if (!run || run.problem) {
+      this.store.dispatch({type: 'bottom', text: run?.problem ?? 'Run to steady state: the numerics have not arrived'});
+      return;
+    }
+    const {decimals, hold, maximum} = run.input;
+    this.send({cmd: 'steady', decimals: Number(decimals), hold: Number(hold), maximum: Number(maximum)});
+  }
+
+  /** Replace the user's keymap (docs/protocol.md "Keymap"): the answer is a `keymap` event, which is how the
+      page learns the effective keys, so nothing is changed here */
+  setKeymap(map: UserKeymap): void {
+    this.send({cmd: 'keymap', op: 'set', map});
+  }
+
+  /** Remove the user's keymap file: all keys, pins and the preset back to the defaults */
+  resetKeymap(): void {
+    this.send({cmd: 'keymap', op: 'reset'});
   }
 
   /** Continue (W213), the one way to continue: the toolbar's button, the command's key and a click on its

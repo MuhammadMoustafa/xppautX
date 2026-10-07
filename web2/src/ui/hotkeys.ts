@@ -10,7 +10,8 @@ import {useEffect} from 'preact/hooks';
 import {menuCommand, noValueEdit} from '../protocol/kinds';
 import type {CommandRow} from '../protocol/kinds';
 import type {HelloEvent} from '../protocol/types';
-import type {KeyPreset} from '../store/state';
+import {effectiveKeys} from '../store/keymap';
+import type {KeymapInfo} from '../protocol/types';
 import type {Session} from '../session';
 import {BUSY_TITLE} from './context';
 
@@ -24,11 +25,6 @@ const COMMAND_SEARCH = '#command-search';
 /** the workspace Tools menu (TitleBar.tsx) */
 export const TOOLS_MENU = '.workspace-tools';
 
-/** Keys the page never binds and never prevents: the system's and the browser's own (Alt+F4 closes the
-    application, Ctrl+W the tab or window, Ctrl+Q quits, F11 is full screen, F12 the developer tools, F5
-    reloads the page). A table row with one of them is a problem navigationProblems shows. Ctrl+R is not
-    here: it is Reload model's default key (docs/command-design.md), taken from the browser in browser mode. */
-export const RESERVED_KEYS: readonly string[] = ['Alt+F4', 'Ctrl+W', 'Ctrl+Q', 'F11', 'F12', 'F5'];
 /** the command search, which is no command: the way back to every command (docs/command-design.md: fixed) */
 const SEARCH_KEY = 'Ctrl+K';
 /** the keys the page takes that are no table command, listed by the Help key table */
@@ -101,27 +97,29 @@ export function keyName(e: KeyboardEvent): string | null {
     "Ctrl+K Ctrl+S"), and with the XPPAUT preset its legacy sequence */
 interface Binding {keys: string[]; row: CommandRow}
 
-/** every binding of the table under `preset`; the three switches of the legacy shortcut layers (category
-    layer) have none: the page has no layer to enter */
-function bindingsOf(hello: HelloEvent | null, preset: KeyPreset): Binding[] {
+/** every binding of the table under the keymap: each command's effective keys (the table's, or the user's),
+    and with the XPPAUT preset its legacy sequence; the three switches of the legacy shortcut layers
+    (category layer) and the commands the page runs itself have none to type */
+function bindingsOf(hello: HelloEvent | null, keymap: KeymapInfo | null): Binding[] {
   return (hello?.command_table ?? []).flatMap(row => [
-    ...row.default_keys.map(chord => ({keys: chord.split(' '), row})),
-    ...preset === 'xppaut' && row.category !== 'layer' ? [{keys: row.legacy_keys, row}] : []]);
+    ...effectiveKeys(keymap, row).map(chord => ({keys: chord.split(' '), row})),
+    ...keymap?.preset === 'xppaut' && row.category !== 'layer' && row.legacy_keys.length ? [{keys: row.legacy_keys, row}] : []]);
 }
 
 /** what the keys typed so far are among the bindings: the command they complete, else whether some binding
     goes on with them (a chord not yet finished) */
-export function resolveKeys(hello: HelloEvent | null, preset: KeyPreset, keys: string[]): {row: CommandRow | null; more: boolean} {
-  const bindings = bindingsOf(hello, preset);
+export function resolveKeys(hello: HelloEvent | null, keymap: KeymapInfo | null, keys: string[]): {row: CommandRow | null; more: boolean} {
+  const bindings = bindingsOf(hello, keymap);
   const starts = (b: Binding) => keys.every((k, i) => b.keys[i] === k);
   const done = bindings.find(b => b.keys.length === keys.length && starts(b));
   return {row: done?.row ?? null, more: !done && bindings.some(b => b.keys.length > keys.length && starts(b))};
 }
 
-/** how a command's keys are written where the page lists it: its default keys, else, when that preset is on,
-    its XPPAUT sequence */
-export function shortcutLabel(row: CommandRow, preset: KeyPreset): string {
-  return row.default_keys.length ? row.default_keys.join(' / ') : preset === 'xppaut' ? row.legacy_keys.join(' ') : '';
+/** how a command's keys are written where the page lists it: its effective keys, else, when that preset is
+    on, its XPPAUT sequence */
+export function shortcutLabel(row: CommandRow, keymap: KeymapInfo | null): string {
+  const keys = effectiveKeys(keymap, row);
+  return keys.length ? keys.join(' / ') : keymap?.preset === 'xppaut' ? row.legacy_keys.join(' ') : '';
 }
 
 /** a plain letter's name without Shift ("Shift+I" is I: the sequences are letters) */
@@ -160,9 +158,11 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   const target = e.target as Element | null;
   if (target?.closest?.(DIALOGS)) return;
   const name = keyName(e);
-  if (!name || RESERVED_KEYS.includes(name)) return;
-  const {hello, keyPreset, pendingKeys, busy, ask} = session.store.getState();
+  if (!name) return;
+  const {hello, keymap, pendingKeys, busy, ask} = session.store.getState();
   const dispatch = session.store.dispatch;
+  /* the keys the system and the browser keep (the core's list: hello.keymap.reserved) are never taken */
+  if (keymap.info?.reserved.includes(name)) return;
   if (name === 'Esc' && pendingKeys.length) {
     e.preventDefault();
     dispatch({type: 'pendingKeys', keys: []});
@@ -194,7 +194,7 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   }
   if (!ANYWHERE.test(name) && !isHotkeyTarget(target, e.key)) return;
   const keys = [...pendingKeys, plainName(name)];
-  const {row, more} = resolveKeys(hello, keyPreset, keys);
+  const {row, more} = resolveKeys(hello, keymap.info, keys);
   /* in a text field Undo and Redo are the field's own (its typing), not the Values' */
   if (row && EDIT_COMMANDS.has(row.id) && target?.closest?.(TEXT_FIELD)) return;
   if (!row && !more && !pendingKeys.length) return;

@@ -161,7 +161,7 @@ protocol lines from the same rows. Each row:
 |---|---|
 | `menu` | `main`, `file` or `num` (`hello.menu_names`): the legacy shortcut menu of the item, and the `menu` of its `key` command |
 | `id` | the stable name: a `key` command's `item`, what recordings keep, what the page calls (`initialconds`, `savesession` ...); never renamed |
-| `key` | the legacy one-letter key in `menu` (`"\u001b"` is Esc) |
+| `key` | the legacy one-letter key in `menu` (`"\u001b"` is Esc); `""` for a command the page runs itself (`run_initial`, `run_last`, `steady`, `keymapeditor`, W212): it has no key in any menu, no `legacy_keys`, and a `key` command naming it is refused (`PAGE_KEY`, core/command_table.h) |
 | `label` | plain text for buttons, menus and search |
 | `description` | one line |
 | `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |

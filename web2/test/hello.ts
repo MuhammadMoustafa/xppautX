@@ -20,16 +20,17 @@ function coreTable(): {categories: CommandCategory[]; rows: CommandRow[]} {
   const categories = [...header.matchAll(new RegExp(`\\{CommandCategory::\\w+, ("${text}"), ("${text}"), (true|false), (true|false)\\}`, 'g'))]
     .map((m): CommandCategory => ({id: cString(m[1]), label: cString(m[2]), listed: m[3] === 'true', expanded: m[4] === 'true'}));
   const rows = [...header.matchAll(new RegExp(
-    `\\{(MAIN|FILE|NUM)_MENU, '((?:\\\\.|[^'\\\\])+)', ("${text}"), ("${text}"), ("${text}"), (XPP_KIND_\\w+), CommandCategory::(\\w+), (true|false), (true|false), \\{([^}]*)\\}\\}`, 'g'))]
+    `\\{(MAIN|FILE|NUM)_MENU, ('(?:\\\\.|[^'\\\\])+'|PAGE_KEY), ("${text}"), ("${text}"), ("${text}"), (XPP_KIND_\\w+), CommandCategory::(\\w+), (true|false), (true|false), \\{([^}]*)\\}\\}`, 'g'))]
     .map((m): CommandRow => {
       const menu = m[1].toLowerCase() as MenuName;
-      const key = m[2] === '\\033' ? '\x1b' : m[2];
+      /* a command the page runs itself has no legacy key (command_table.h PAGE_KEY) */
+      const key = m[2] === 'PAGE_KEY' ? '' : m[2] === "'\\033'" ? '\x1b' : m[2].slice(1, -1);
       return {menu, id: cString(m[3]), key, label: cString(m[4]), description: cString(m[5]), kind: kinds.get(m[6])!, category: m[7].toLowerCase(),
         pinnable: m[8] === 'true', primary: m[9] === 'true', default_keys: [...m[10].matchAll(new RegExp(`"(${text})"`, 'g'))].map(k => k[1]),
         legacy_keys: []};
     });
   /* the XPPAUT sequence: the layer's key, then the item's (core/ui_json.cpp buf_command_table) */
-  for (const row of rows) {
+  for (const row of rows.filter(r => r.key !== '')) {
     const entry = rows.find(r => r.menu === 'main' && r.id === (row.menu === 'file' ? 'file' : 'numerics'));
     row.legacy_keys = [...row.menu === 'main' ? [] : [entry!.key.toUpperCase()], row.key === '\x1b' ? 'Esc' : row.key.toUpperCase()];
   }
@@ -37,6 +38,8 @@ function coreTable(): {categories: CommandCategory[]; rows: CommandRow[]} {
 }
 
 const CORE = coreTable();
+/** the keys no command may take, read from core/xpp_keymap.h like the table (hello.keymap.reserved) */
+const RESERVED = [...readFileSync('../core/xpp_keymap.h', 'utf8').match(/RESERVED_KEYS = \{([^}]*)\}/)![1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
 
 const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
 
@@ -53,7 +56,7 @@ export const HELLO: HelloEvent = {
   command_table: CORE.rows,
   /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
   keymap: {
-    ok: true, path: '', preset: 'default', pinned: [], reserved: ['Ctrl+W', 'F12'], limits: {keys: 8, parts: 2, key_bytes: 64},
+    ok: true, path: '', preset: 'default', pinned: [], reserved: RESERVED, limits: {keys: 8, parts: 2, key_bytes: 64},
     commands: CORE.rows.filter(r => r.category !== 'layer').map(r => ({id: r.id, keys: r.default_keys, source: 'default' as const})),
   },
   windows: {

@@ -29,6 +29,7 @@ import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {FOCUSABLE} from './dialogFocus';
 import {FIXED_KEYS, shortcutLabel} from './hotkeys';
+import {withPreset} from '../store/keymap';
 
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
     being open must not block Help -- only a field that might have its own
@@ -80,20 +81,21 @@ function AboutBody({text}: {text: string}) {
 function KeyTable() {
   const session = useSession();
   const hello = useStore(s => s.hello);
-  const preset = useStore(s => s.keyPreset);
-  const rows = (hello?.command_table ?? []).filter(row => row.category !== 'layer' && shortcutLabel(row, preset) !== '');
+  const keymap = useStore(s => s.keymap.info);
+  const rows = (hello?.command_table ?? []).filter(row => row.category !== 'layer' && shortcutLabel(row, keymap) !== '');
   return (
     <details class="help-keys">
       <summary>Keyboard shortcuts</summary>
       <label class="help-keys-preset">
-        <input type="checkbox" checked={preset === 'xppaut'}
-          onChange={e => session.store.dispatch({type: 'keyPreset', preset: (e.target as HTMLInputElement).checked ? 'xppaut' : 'default'})} />
+        <input type="checkbox" checked={keymap?.preset === 'xppaut'} disabled={!keymap}
+          onChange={e => { if (keymap) session.setKeymap(withPreset(keymap, (e.target as HTMLInputElement).checked ? 'xppaut' : 'default')); }} />
         XPPAUT sequences (a letter, or File F or Numerics U then a letter)
       </label>
+      <p><button type="button" onClick={() => session.store.dispatch({type: 'keymapUi', action: {type: 'open'}})}>Change shortcuts…</button></p>
       <table>
         <tbody>
           {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}
-          {rows.map(row => <tr key={`${row.menu}:${row.id}`}><th scope="row"><kbd>{shortcutLabel(row, preset)}</kbd></th><td>{row.label}</td></tr>)}
+          {rows.map(row => <tr key={`${row.menu}:${row.id}`}><th scope="row"><kbd>{shortcutLabel(row, keymap)}</kbd></th><td>{row.label}</td></tr>)}
         </tbody>
       </table>
     </details>

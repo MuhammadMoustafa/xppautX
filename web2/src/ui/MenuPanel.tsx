@@ -5,12 +5,13 @@ import {HelpButton} from './HelpButton';
 import {menuHelp} from '../help/links';
 import {menuCommand, noValueEdit} from '../protocol/kinds';
 import {navigationGroups, navigationProblems} from './navigation';
+import {togglePinned, withPinned} from '../store/keymap';
 
 export function MenuPanel() {
   const session = useSession();
   const hello = useStore(s => s.hello);
   const core = useStore(s => s.core);
-  const preset = useStore(s => s.keyPreset);
+  const keymap = useStore(s => s.keymap.info);
   const open = useStore(s => s.drawerOpen);
   const [query, setQuery] = useState('');
   const may = useMay();
@@ -26,7 +27,7 @@ export function MenuPanel() {
     const problems = hello ? navigationProblems(hello) : [];
     if (problems.length) session.store.dispatch({type: 'toast', kind: 'error', text: problems.join(' ')});
   }, [hello]);
-  const groups = navigationGroups(hello, query, preset);
+  const groups = navigationGroups(hello, query, keymap);
   const navigate = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement && e.key !== 'ArrowDown') return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
@@ -52,14 +53,19 @@ export function MenuPanel() {
           const off = !may(menuCommand(item.menu, item.id));
           return <li key={`${item.menu}:${item.id}`}><button class="menu-item" data-menu={item.menu} data-item={item.id}
             tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? noValueEdit(core, item.id) ? `Nothing to ${item.id}` : BUSY_TITLE : item.shortcut ? `${item.description} (${item.shortcut})` : item.description}
-            aria-keyshortcuts={item.defaultKey.replace('Ctrl', 'Control')}
+            aria-keyshortcuts={item.firstKey.replace('Ctrl', 'Control')}
             onFocus={e => {
               e.currentTarget.closest('ul')?.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
-                button.tabIndex = button === e.currentTarget ? 0 : -1;
+                button.tabIndex = button === e.currentTarget || button.closest('li') === e.currentTarget.closest('li') ? 0 : -1;
               });
             }} onClick={() => {close(); session.menuAction(item.menu, item.id);}}>
             <span>{item.label}</span>{item.shortcut && <kbd aria-hidden="true">{item.shortcut}</kbd>}
-          </button></li>;
+          </button>
+          {item.pinnable && keymap && <button class="menu-pin" data-pin={item.id} tabIndex={i === 0 ? 0 : -1}
+            aria-pressed={keymap.pinned.includes(item.id)} aria-label={`${keymap.pinned.includes(item.id) ? 'Unpin' : 'Pin'} ${item.label} ${keymap.pinned.includes(item.id) ? 'from' : 'to'} the toolbar`}
+            title={keymap.pinned.includes(item.id) ? 'Unpin from the toolbar' : 'Pin to the toolbar'}
+            onClick={() => session.setKeymap(withPinned(keymap, togglePinned(keymap.pinned, item.id)))}>{keymap.pinned.includes(item.id) ? 'Unpin' : 'Pin'}</button>}
+          </li>;
         })}</ul>
       </details>)}
       {!groups.some(group => group.items.length) && <p role="status">{hello ? 'No matching commands.' : 'Loading commands…'}</p>}

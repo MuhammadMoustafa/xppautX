@@ -19,6 +19,10 @@ export function runInterval(numerics: NumericsField[] | null): number {
   return method?.choices?.[Number(method.value)] === DISCRETE_METHOD ? DISCRETE_INTERVAL : Number(numericsField(numerics, NUM_DT)?.value);
 }
 
+/** the keys of the Initial conditions command's own prompt (core/menus.cpp ic_items: (G)o runs from
+    the Initial values, (L)ast from the last state); its menu names no ids for them */
+export const INITIAL_GO = 'g', INITIAL_LAST = 'l';
+
 export interface SteadyInput {decimals: string; hold: string; maximum: string}
 
 /** Cross-field checks for the inline settings; the core independently
@@ -86,4 +90,16 @@ export function continuePlan(input: ContinueInput, numerics: NumericsField[] | n
   const end = input.mode === 'until' && hello && core?.now && text !== null && !problem
     ? continueEnd(value, time, outputInterval(numerics), hello.continue.grid_tolerance) : undefined;
   return {text, problem, end, command: core?.now && text !== null && !problem ? {cmd: 'continue', [input.mode]: value} : null};
+}
+
+/** The settings Run to steady state would run with now: the user's edits over the defaults, with the Dt
+    they are checked against and what is wrong with them (null: ready). Null before the numerics and hello
+    arrive. The one place the toolbar's button and the command's key both read. */
+export function steadyRun(hello: HelloEvent | null, numerics: NumericsField[] | null, edit: Partial<SteadyInput>):
+    {input: SteadyInput; interval: number; problem: string | null} | null {
+  const total = numericsField(numerics, NUM_TOTAL)?.value ?? null;
+  const interval = runInterval(numerics);
+  if (!hello || total === null || !Number.isFinite(interval) || interval <= 0) return null;
+  const input = {...steadyDefaults(hello.steady, total, interval), ...edit};
+  return {input, interval, problem: steadyError(input, interval, hello.steady.max_decimals)};
 }

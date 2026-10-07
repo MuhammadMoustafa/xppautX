@@ -186,6 +186,10 @@ kbd {
 .command-group { border-bottom: 1px solid var(--border); padding: var(--space-2) 0; }
 .command-group > summary { min-height: var(--target); padding: var(--space-1) var(--space-2); font-weight: 650; cursor: pointer; }
 .command-group .menu-item { justify-content: space-between; gap: var(--space-2); white-space: normal; text-align: left; padding-block: var(--space-1); }
+.command-group li { display: flex; align-items: center; gap: var(--space-1); }
+.command-group li .menu-item { flex: 1; min-width: 0; width: auto; }
+.menu-pin { flex: none; font-size: var(--text-xs); padding: 0 var(--space-2); min-height: 1.5rem; color: var(--fg-muted); }
+.menu-pin[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .command-group .menu-item span { min-width: 0; overflow-wrap: anywhere; }
 .command-group .menu-item kbd { flex: none; font-size: var(--text-xs); }
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
@@ -554,6 +558,19 @@ input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--d
   .run-actions button { flex: 1 0 auto; padding-inline: var(--space-1); white-space: nowrap; }
   .run-actions button.danger { flex: none; min-width: var(--target); }
 }
+/* the pinned commands (ui/QuickAccess.tsx): one row, labelled buttons; those that do not fit are invisible
+   (still measured) and listed in More */
+.quick-access { position: relative; display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); }
+.quick-pinned { position: relative; flex: 1; min-width: 0; display: flex; gap: 4px; overflow: hidden; }
+.quick-button { flex: none; font-size: var(--text-sm); padding-inline: var(--space-2); white-space: nowrap; }
+.quick-button.quick-over { position: absolute; visibility: hidden; pointer-events: none; }
+.quick-more { position: relative; flex: none; }
+.quick-more > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-size: var(--text-sm); }
+.quick-more-list { position: absolute; z-index: 20; right: 0; top: 100%; margin: 0; padding: var(--space-2); list-style: none; display: grid; gap: var(--space-1); min-width: 12rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-more:not([open]) .quick-more-list { display: none; }
+.quick-menu { position: fixed; z-index: 190; display: grid; min-width: 10rem; padding: var(--space-1); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.quick-menu button { text-align: left; border: none; background: none; }
+.quick-menu button[aria-disabled="true"] { opacity: 0.5; }
 .run-time-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-xs); }
 .run-time-controls label { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
 .run-time-controls input { width: 5rem; min-width: 0; }
@@ -1295,3 +1312,17 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .help-keys summary { cursor: pointer; min-height: var(--target); }
 .help-keys-preset { display: flex; gap: var(--space-2); align-items: center; margin-block: var(--space-2); }
 .help-keys th { text-align: left; font-weight: normal; padding-right: var(--space-3); white-space: nowrap; }
+
+/* ---- the keymap editor (ui/KeymapEditor.tsx) ---- */
+.keymap-dialog { width: min(60rem, 100%); }
+.keymap-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.keymap-live { min-height: 1.5em; margin: var(--space-2) 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.keymap-conflict { margin: var(--space-2) 0; padding: var(--space-2); background: var(--warn-bg); border-radius: var(--radius); }
+.keymap-scroll { max-height: 55vh; overflow: auto; }
+.keymap-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.keymap-table th, .keymap-table td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.keymap-keys { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.keymap-key { display: inline-flex; align-items: center; }
+.keymap-actions { white-space: nowrap; }
+.keymap-actions button, .keymap-keys button { font-size: var(--text-xs); }
+.keymap-actions button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }

@@ -22,6 +22,7 @@ import {TextViews} from './TextViews';
 import {useDark} from './theme';
 import {TitleBar} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
+import {KeymapEditor} from './KeymapEditor';
 import {ReplaceDialog} from './FileDialog';
 import {ErrorSource} from './ErrorSource';
 import {Toasts} from './Toasts';
@@ -92,6 +93,7 @@ function Shell() {
       <Toasts />
       <AskDialog />
       <ErrorDialog />
+      <KeymapEditor />
       <ReplaceDialog />
     </div>
   );

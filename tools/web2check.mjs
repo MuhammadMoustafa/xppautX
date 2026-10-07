@@ -66,7 +66,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -212,10 +212,12 @@ async function reloadPage() {
   return loaded;
 }
 
-/* the checks type XPPAUT's letters (I, G, F then S): the preset that gives them is page state, off in a new
-   page; only the keymap section tests it off */
+/* the checks type XPPAUT's letters (I, G, F then S): the preset that gives them is the user's keymap (the
+   core's, W211), default in a new settings folder; only the keymap sections test it off */
 async function xppautSequences() {
   await cdp.eval(`__xpp.keyPreset('xppaut')`);
+  if (!await until(`s.keymap.info.preset === 'xppaut'`, 'the XPPAUT preset set by the core'))
+    throw new Error('the keymap preset was not set');
 }
 
 async function metrics(value) {
@@ -226,7 +228,7 @@ async function metrics(value) {
 }
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
-  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F6: 117};
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F6: 117, F9: 120, Backspace: 8};
 /** select all in the focused field the way the platform's own shortcut does: CDP key events carry no
     editing command, and macOS's Ctrl+A is "line start", so the command itself is sent (not a chord) */
 async function selectAll() {
@@ -3653,7 +3655,7 @@ async function steadyCheck() {
 async function keymapCheck() {
   await desktopMetrics();
   check('keymap: the page connects', await until('s.hello && !s.busy', 'hello'));
-  check('keymap: the XPPAUT sequences preset is off in a new page', (await S('s.keyPreset')) === 'default');
+  check('keymap: the XPPAUT sequences preset is off in a new page', (await S('s.keymap.info.preset')) === 'default');
   await cdp.eval(`window.__seen = []; window.addEventListener('keydown', e => window.__seen.push({key: e.key, prevented: e.defaultPrevented}))`);
   const seen = () => cdp.eval('window.__seen.splice(0)');
   const sentSince = mark => cdp.eval(`__xpp.sentFrom(${mark})`);
@@ -3704,6 +3706,232 @@ async function keymapCheck() {
   await until('!s.busy', 'the command ended');
   if (await S('!!s.ask')) await key('Escape');
   await until('!s.ask && !s.busy', 'idle');
+}
+
+/* W212 (docs/command-design.md "Keymap editor", "Quick access"): the editor dialog and the pinned toolbar.
+   Every change goes through the `keymap` command and shows in what the core answers; the editor's own state
+   (query, the key being recorded, the conflict, the refusal) is in the store. The settings folder is the
+   run's own (cdp.mjs), and the section ends by removing what it wrote. */
+async function keymapEditorCheck() {
+  await desktopMetrics();
+  check('keymapeditor: the page connects', await until('s.hello && s.keymap.info && !s.busy', 'hello'));
+  await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'reset'})`);
+  await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset');
+  const keysOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).keys.join(' / ')`);
+  const sourceOf = id => S(`s.keymap.info.commands.find(c => c.id === ${JSON.stringify(id)}).source`);
+  const sentSince = mark => cdp.eval(`__xpp.sentFrom(${mark})`);
+  const click = selector => cdp.eval(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const exists = selector => cdp.eval(`!!document.querySelector(${JSON.stringify(selector)})`);
+  const record = async (id, index = 0) => {
+    await click(`[data-key-cell="${id}"][data-index="${index}"]`);
+    return until(`s.keymap.editor.recording?.id === ${JSON.stringify(id)} && document.activeElement?.dataset.keyCell === ${JSON.stringify(id)}`, 'recording ' + id);
+  };
+  const ctrl = 2, alt = 1, shift = 8;
+  try {
+    /* the new commands, with the keys of the design */
+    check('keymapeditor: Run from initial, Run from last state and Run to steady state are commands with Ctrl+Enter, Ctrl+Shift+Enter and Alt+S; the editor has no key',
+      (await keysOf('run_initial')) === 'Ctrl+Enter' && (await keysOf('run_last')) === 'Ctrl+Shift+Enter' && (await keysOf('steady')) === 'Alt+S'
+      && (await keysOf('keymapeditor')) === '');
+    /* open it from the command list */
+    await click('.menu-item[data-item=keymapeditor]');
+    check('keymapeditor: Keyboard shortcuts… in the command list opens the dialog, labelled and modal', await until(`s.keymap.editor.open`, 'open')
+      && await cdp.eval(`(() => { const d = document.querySelector('[data-keymap-editor]');
+        return d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true' && document.getElementById(d.getAttribute('aria-labelledby')).textContent === 'Keyboard shortcuts'; })()`));
+    check('keymapeditor: every command but the shortcut-layer switches is a row, with its category, keys and source',
+      await cdp.eval(`(() => { const rows = [...document.querySelectorAll('[data-keymap-row]')];
+        const want = __xpp.state().hello.command_table.filter(r => r.category !== 'layer').length;
+        return rows.length === want && rows.every(r => r.children.length === 5 && r.querySelector('[data-source]')); })()`));
+    check('keymapeditor: the live region is a polite status and every control of the dialog has a name', await cdp.eval(`(() => {
+      const live = document.querySelector('[data-keymap-status]');
+      const unnamed = [...document.querySelectorAll('[data-keymap-editor] button, [data-keymap-editor] input, [data-keymap-editor] select')]
+        .filter(e => !(e.getAttribute('aria-label') || e.textContent.trim() || e.closest('label')?.textContent.trim()));
+      return live.getAttribute('role') === 'status' && live.getAttribute('aria-live') === 'polite' && unnamed.length === 0; })()`));
+    /* search by the keys pressed */
+    await click('[data-keymap-search-keys]');
+    await key('Enter', ctrl);
+    check('keymapeditor: Record keys then Ctrl+Enter lists the commands on those keys',
+      await until(`s.keymap.editor.query === 'Ctrl+Enter'`, 'query')
+      && JSON.stringify(await cdp.eval(`[...document.querySelectorAll('[data-keymap-row]')].map(r => r.dataset.keymapRow)`)) === JSON.stringify(['run_initial', 'run_last']));
+    const search = text => cdp.eval(`(() => { const i = document.querySelector('[data-keymap-search]'); i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+    await search('Initial conditions');
+    check('keymapeditor: the search also matches a label', await cdp.eval(`!![...document.querySelectorAll('[data-keymap-row]')].find(r => r.dataset.keymapRow === 'initialconds')`));
+    await search('');
+
+    /* record a key */
+    let mark = await cdp.eval('__xpp.sentCount()');
+    await record('reload');
+    check('keymapeditor: clicking a key cell starts recording, announced in the live region',
+      await cdp.eval(`document.querySelector('[data-keymap-status]').textContent.includes('Press the new key for Reload model')`));
+    await key('b', ctrl);
+    check('keymapeditor: Ctrl+B is sent as a keymap set for Reload model only, and shows as changed',
+      await until(`s.keymap.info.commands.find(c => c.id === 'reload').source === 'user'`, 'bound')
+      && (await keysOf('reload')) === 'Ctrl+B'
+      && (await sentSince(mark)).some(c => c.cmd === 'keymap' && c.op === 'set' && JSON.stringify(c.map.bindings) === '{"reload":["Ctrl+B"]}')
+      && await cdp.eval(`document.querySelector('[data-keymap-row=reload] [data-source]').textContent === 'changed'`) && (await S('s.keymap.editor.recording')) === null);
+    mark = await cdp.eval('__xpp.sentCount()');
+    /* Esc cancels, a reserved key is refused, a taken key asks */
+    await record('reload');
+    await key('Escape');
+    check('keymapeditor: Esc cancels the recording and the dialog stays', await until(`s.keymap.editor.recording === null`, 'cancelled') && (await S('s.keymap.editor.open')) === true
+      && (await sentSince(mark)).length === 0 && (await keysOf('reload')) === 'Ctrl+B');
+    await record('reload');
+    await key('w', ctrl);
+    check('keymapeditor: a key the core reserves (Ctrl+W) is refused with a message, in the live region, and nothing is sent',
+      await until(`s.keymap.editor.refusal.includes('Ctrl+W')`, 'refused') && (await S(`s.keymap.info.reserved.includes('Ctrl+W')`))
+      && await cdp.eval(`document.querySelector('[data-keymap-status]').textContent.includes('Ctrl+W is kept by the system')`) && (await sentSince(mark)).length === 0,
+      JSON.stringify(await cdp.eval(`({ed: __xpp.state().keymap.editor, status: document.querySelector('[data-keymap-status]').textContent, sent: __xpp.sentFrom(${mark})})`)));
+    await record('reload');
+    await key('s', ctrl);
+    check('keymapeditor: Ctrl+S is Save session: the conflict reads "Ctrl+S is Save session. Replace Cancel" and is an alert',
+      await until(`s.keymap.editor.conflict?.other === 'savesession'`, 'conflict')
+      && await cdp.eval(`(() => { const c = document.querySelector('[data-keymap-conflict]');
+        return c.getAttribute('role') === 'alert' && c.textContent.replace(/\\s+/g, ' ').trim() === 'Ctrl+S is Save session. Replace Cancel'; })()`)
+      && await cdp.eval(`document.activeElement.hasAttribute('data-conflict-replace')`) && (await sentSince(mark)).length === 0);
+    await click('[data-conflict-cancel]');
+    check('keymapeditor: Cancel leaves both commands as they were', await until(`s.keymap.editor.conflict === null`, 'cancelled')
+      && (await keysOf('savesession')) === 'Ctrl+S' && (await keysOf('reload')) === 'Ctrl+B' && (await sentSince(mark)).length === 0);
+    await record('reload');
+    await key('s', ctrl);
+    await until(`s.keymap.editor.conflict`, 'conflict again');
+    await click('[data-conflict-replace]');
+    check('keymapeditor: Replace gives Reload model Ctrl+S and takes it from Save session',
+      await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys[0] === 'Ctrl+S'`, 'replaced')
+      && (await keysOf('savesession')) === '' && (await sourceOf('savesession')) === 'user');
+    /* Backspace clears, Reset restores, a second binding is added */
+    await record('reload');
+    await key('Backspace');
+    check('keymapeditor: Backspace clears the key: the command has none', await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys.length === 0`, 'cleared'));
+    await click('[data-key-reset="reload"]');
+    check('keymapeditor: Reset puts the table\'s key back and the source is default', await until(`s.keymap.info.commands.find(c => c.id === 'reload').source === 'default'`, 'reset')
+      && (await keysOf('reload')) === 'Ctrl+R');
+    await click('[data-key-add="reload"]');
+    await until(`s.keymap.editor.recording?.index === 1 && document.activeElement?.dataset.index === '1'`, 'second binding');
+    await key('F9');
+    check('keymapeditor: Add a second binding keeps the first: Ctrl+R / F9', await until(`s.keymap.info.commands.find(c => c.id === 'reload').keys.length === 2`, 'added')
+      && (await keysOf('reload')) === 'Ctrl+R / F9', JSON.stringify(await cdp.eval(`({ed: __xpp.state().keymap.editor, keys: __xpp.state().keymap.info.commands.find(c => c.id === 'reload'), active: document.activeElement.outerHTML.slice(0, 150)})`)));
+    await click('[data-keymap-editor] .dialog-close');
+    check('keymapeditor: the close button closes it', await until(`!s.keymap.editor.open`, 'closed') && !(await exists('[data-keymap-editor]')));
+    /* Save session lost Ctrl+S above: the key runs nothing now */
+    await focusPlot();
+    mark = await cdp.eval('__xpp.sentCount()');
+    await key('s', ctrl);
+    check('keymapeditor: Ctrl+S, taken from Save session, runs nothing', (await sentSince(mark)).filter(c => c.cmd === 'key').length === 0);
+
+    /* the preset and Reset all */
+    await click('.menu-item[data-item=keymapeditor]');
+    await until(`s.keymap.editor.open`, 'open');
+    await cdp.eval(`(() => { const p = document.querySelector('[data-keymap-preset]'); p.value = 'xppaut'; p.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+    check('keymapeditor: Preset: XPPAUT sequences is the user\'s preset', await until(`s.keymap.info.preset === 'xppaut'`, 'preset'));
+    await click('[data-key-pin="help"]');
+    await until(`s.keymap.info.pinned.join() === 'help'`, 'first pin');
+    await click('[data-key-pin="steady"]');
+    check('keymapeditor: Pin to toolbar pins Help and Run to steady state, in that order',
+      await until(`s.keymap.info.pinned.join() === 'help,steady'`, 'pinned') && await cdp.eval(`document.querySelector('[data-key-pin=help]').getAttribute('aria-pressed') === 'true'`));
+    mark = await cdp.eval('__xpp.sentCount()');
+    await click('[data-keymap-reset-all]');
+    check('keymapeditor: Reset all asks first and sends nothing yet', await until(`s.keymap.editor.confirmingReset`, 'confirm') && (await sentSince(mark)).length === 0);
+    await click('[data-keymap-reset-confirm]');
+    check('keymapeditor: confirmed, Reset all removes every binding, pin and the preset',
+      await until(`s.keymap.info.pinned.length === 0 && s.keymap.info.preset === 'default' && s.keymap.info.commands.every(c => c.source === 'default')`, 'all reset')
+      && (await sentSince(mark)).some(c => c.cmd === 'keymap' && c.op === 'reset') && (await keysOf('savesession')) === 'Ctrl+S');
+    await key('Escape');
+    check('keymapeditor: Esc closes the dialog', await until(`!s.keymap.editor.open`, 'closed by Esc'));
+
+    /* the run commands by their keys */
+    await focusPlot();
+    mark = await cdp.eval('__xpp.sentCount()');
+    await key('Enter', ctrl);
+    check('keymapeditor: Ctrl+Enter is Run from initial: Initial conditions, answered Go, and a run follows',
+      await until(`s.seriesCount > 0 && !s.busy`, 'run', 20000)
+      && (await sentSince(mark)).some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'initialconds'));
+    const first = await S('s.seriesCount');
+    await focusPlot();
+    mark = await cdp.eval('__xpp.sentCount()');
+    await key('Enter', ctrl | shift);
+    check('keymapeditor: Ctrl+Shift+Enter is Run from last state: a new run from the state the last ended in',
+      await until(`s.seriesCount > ${first} && !s.busy`, 'run from last', 20000) && (await sentSince(mark)).some(c => c.cmd === 'key' && c.item === 'initialconds'));
+    await focusPlot();
+    mark = await cdp.eval('__xpp.sentCount()');
+    await key('s', alt);
+    check('keymapeditor: Alt+S is Run to steady state, with the toolbar\'s settings',
+      await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'steady' && c.decimals === 9));
+
+    /* the toolbar: the fixed part, then the pins in order */
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['help', 'reload', 'keymapeditor'], bindings: {}}})`);
+    await until(`s.keymap.info.pinned.length === 3`, 'three pins');
+    const order = () => cdp.eval(`[...document.querySelectorAll('[data-pinned]')].map(b => b.dataset.pinned).join()`);
+    check('keymapeditor: the toolbar has Run from initial, Run from last state, Continue and Stop first, then the pins in order with their labels',
+      await cdp.eval(`(() => { const t = document.querySelector('.run-toolbar');
+        const fixed = [...t.querySelectorAll('.run-actions button')].map(b => b.textContent.trim());
+        const pins = [...t.querySelectorAll('[data-pinned]')].map(b => b.textContent.trim());
+        return fixed.includes('Run from initial') && fixed.includes('Run from last state') && fixed.includes('Continue') && fixed.includes('Stop')
+          && pins.join() === 'Help,Reload model,Keyboard shortcuts…'; })()`) && (await order()) === 'help,reload,keymapeditor');
+    await click('[data-pinned=keymapeditor]');
+    check('keymapeditor: a pinned command runs from the toolbar (it opens the editor)', await until(`s.keymap.editor.open`, 'opened from the toolbar'));
+    await key('Escape');
+    await until(`!s.keymap.editor.open`, 'closed');
+    /* drag to reorder */
+    await cdp.eval(`(() => { const from = document.querySelector('[data-pinned=keymapeditor]'), to = document.querySelector('[data-pinned=help]');
+      const data = new DataTransfer();
+      from.dispatchEvent(new DragEvent('dragstart', {bubbles: true, dataTransfer: data}));
+      to.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: data}));
+      to.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: data})); })()`);
+    check('keymapeditor: dragging a pinned button before another reorders the pins, through the keymap', await until(`s.keymap.info.pinned.join() === 'keymapeditor,help,reload'`, 'dragged')
+      && (await order()) === 'keymapeditor,help,reload');
+    /* the context menu: Move later, then Unpin */
+    const menu = async (id, item) => {
+      await cdp.eval(`document.querySelector('[data-pinned=${id}]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 200, clientY: 200}))`);
+      await until(`!!document.querySelector('.quick-menu')`, 'context menu');
+      await cdp.eval(`[...document.querySelectorAll('.quick-menu button')].find(b => b.textContent === ${JSON.stringify(item)}).click()`);
+    };
+    await menu('keymapeditor', 'Move later');
+    check('keymapeditor: the context menu\'s Move later moves a pinned command one place', await until(`s.keymap.info.pinned.join() === 'help,keymapeditor,reload'`, 'moved')
+      && !(await exists('.quick-menu')));
+    await cdp.eval(`document.querySelector('[data-pinned=help]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 10, clientY: 10}))`);
+    await until(`!!document.querySelector('.quick-menu')`, 'menu');
+    check('keymapeditor: the context menu is a menu with three items, the first focused',
+      await cdp.eval(`(() => { const m = document.querySelector('.quick-menu');
+        return m.getAttribute('role') === 'menu' && m.querySelectorAll('[role=menuitem]').length === 3 && m.contains(document.activeElement); })()`));
+    await key('Escape');
+    check('keymapeditor: Esc closes the context menu and returns to the button', await until(`!document.querySelector('.quick-menu')`, 'closed')
+      && await cdp.eval(`document.activeElement.dataset.pinned === 'help'`));
+    await menu('reload', 'Unpin');
+    check('keymapeditor: Unpin removes it from the pins and the toolbar', await until(`s.keymap.info.pinned.join() === 'help,keymapeditor'`, 'unpinned') && (await order()) === 'help,keymapeditor');
+    /* the command list pins too */
+    await click('[data-pin=window]');
+    check('keymapeditor: a row of the command list has Pin; it pins Zoom and view', await until(`s.keymap.info.pinned.includes('window')`, 'pinned from the list')
+      && await cdp.eval(`document.querySelector('[data-pin=window]').getAttribute('aria-pressed') === 'true'`));
+
+    /* overflow: every pin stays reachable at any width */
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['help', 'reload'], bindings: {}}})`);
+    await until(`s.keymap.info.pinned.length === 2`, 'two pins');
+    await rendered();
+    check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
+    const all = ['help', 'reload', 'keymapeditor', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total', 'method'];
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
+    await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
+    const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
+      const shown = [...t.querySelectorAll('[data-pinned]')].filter(b => !b.classList.contains('quick-over')).map(b => b.dataset.pinned);
+      const more = [...t.querySelectorAll('[data-pinned-more]')].map(b => b.dataset.pinnedMore);
+      return {shown, more, fits: t.scrollWidth <= t.clientWidth + 1}; })()`);
+    await rendered();
+    const wide = await reach();
+    check('keymapeditor: the pins that fit show and the rest are in More; none is lost, in order',
+      wide.more.length > 0 && wide.shown.concat(wide.more).join() === all.join() && wide.fits, JSON.stringify(wide));
+    await metrics({width: 520, height: 860, deviceScaleFactor: 1, mobile: false});
+    await rendered();
+    await until(`!!document.querySelector('.quick-more')`, 'More shown');
+    const narrow = await reach();
+    check('keymapeditor: narrower, at least as many are in More, in order, and none is lost',
+      narrow.more.length >= wide.more.length && narrow.shown.concat(narrow.more).join() === all.join() && narrow.fits, JSON.stringify(narrow));
+    await click('.quick-more > summary');
+    await click('[data-pinned-more]');
+    check('keymapeditor: a command in More runs and closes the menu', await until(`!document.querySelector('.quick-more[open]')`, 'More closed'));
+    await desktopMetrics();
+  } finally {
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'reset'})`).catch(() => {});
+    await until(`s.keymap.info.pinned.length === 0 && !s.busy`, 'reset at the end');
+  }
 }
 
 async function keysCheck() {
@@ -5422,7 +5650,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
-    if (fn !== keymapCheck) await xppautSequences();
+    if (fn !== keymapCheck && fn !== keymapEditorCheck) await xppautSequences();
     await fn(dir);
     const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
@@ -5787,6 +6015,7 @@ async function main() {
     if (run('steady')) await session(ODE, steadyCheck);
     if (run('keys')) await session(ODE, keysCheck);
     if (run('keymap')) await session(ODE, keymapCheck);
+    if (run('keymapeditor')) await session(ODE, keymapEditorCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
     if (run('leave')) await session(ODE, leaveCheck);

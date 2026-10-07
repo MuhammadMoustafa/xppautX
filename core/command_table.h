@@ -48,6 +48,10 @@ inline constexpr std::size_t MAX_DEFAULT_KEYS = 2;
 inline constexpr std::array<std::string_view, 3> MENU_NAMES = {"main", "file", "num"};
 static_assert(MAIN_MENU == 0 && FILE_MENU == 1 && NUM_MENU == 2, "MENU_NAMES is indexed by the menu numbers");
 
+/* the legacy key of a command the page runs itself: it has no key in any menu, so no XPPAUT sequence either, and
+   the core's `key` command never takes it (main_menu_action finds none); the page's own action runs it */
+inline constexpr char PAGE_KEY = '\0';
+
 struct CommandRow {
   int menu;                /* MAIN_MENU, FILE_MENU or NUM_MENU: where the legacy shortcut lives */
   char key;                /* the legacy one-letter key in that menu ('\033' is Esc) */
@@ -78,8 +82,11 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 61> COMMANDS = {{
+inline constexpr std::array<CommandRow, 65> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
+    {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
+    {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
+    {MAIN_MENU, PAGE_KEY, "steady", "Run to steady state", "Run from Initial until every state stops changing at the chosen precision", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Alt+S"}},
     {MAIN_MENU, 'c', "continue", "Continue integration", "Extend the trajectory by a duration or to an end time (rounded up to the output grid)", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Alt+Enter"}},
     {MAIN_MENU, 'p', "parameters", "Parameters", "Change problem parameters", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 't', "total", "Integration duration", "Total time to integrate eqns", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
@@ -136,6 +143,7 @@ inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
     {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
     {FILE_MENU, 'h', "help", "Help", "Browser help", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
+    {MAIN_MENU, PAGE_KEY, "keymapeditor", "Keyboard shortcuts…", "Change the keys of the commands and pin commands to the toolbar", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
     {NUM_MENU, 'k', "lookup", "Lookup tables", "Modify lookup tables", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
     {MAIN_MENU, 'f', "file", "File", "Quit, save stuff, etc", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
     {MAIN_MENU, 'u', "numerics", "Numerics", "Numerics options", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
@@ -164,7 +172,7 @@ constexpr const CommandRow *find_command_by_id(std::string_view id)
 constexpr const CommandRow *find_command_by_key(int which, int ch)
 {
   for (const CommandRow &row : COMMANDS)
-    if (row.menu == which && static_cast<unsigned char>(row.key) == ch) return &row;
+    if (row.key != PAGE_KEY && row.menu == which && static_cast<unsigned char>(row.key) == ch) return &row;
   return nullptr;
 }
 

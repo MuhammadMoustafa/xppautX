@@ -302,11 +302,17 @@ export async function startBrowser(browser, profile) {
   return {proc, cdp, downloads, waitForExit: () => waitForExit(proc), cleanup};
 }
 
+/* The environment of a program under test: its per-user settings folder (the keymap, XPP_CONFIG_DIR) is in
+   its own `dir`, so a check that changes a key never touches the real file */
+function configEnv(dir) {
+  return {...process.env, XPP_CONFIG_DIR: path.join(dir, 'xpp-config')};
+}
+
 /* xppautX in browser mode (--browser, not its desktop window) in `dir` with `args` (the model and its options);
    resolves with the process and the address it printed */
 export function startServer(bin, dir, args) {
   const proc = spawn(bin, ['--browser', '--no-open', '--port', '0', ...args],
-    {cwd: dir, stdio: ['ignore', 'pipe', 'pipe']});
+    {cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], env: configEnv(dir)});
   return new Promise((resolve, reject) => {
     let text = '';
     const look = d => {
@@ -332,7 +338,7 @@ export async function startWebView2(bin, dir, args) {
     });
   });
   const proc = spawn(bin, [...args, '--port', '0'], {cwd: dir, stdio: ['ignore', 'pipe', 'pipe'],
-    env: {...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`}});
+    env: {...configEnv(dir), WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`}});
   let diagnostic = '';
   proc.stdout.on('data', d => { diagnostic = (diagnostic + d).slice(-STDERR_KEPT); });
   proc.stderr.on('data', d => { diagnostic = (diagnostic + d).slice(-STDERR_KEPT); });

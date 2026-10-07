@@ -7,6 +7,7 @@
    measure or slow it, so web2check measures those from outside, through
    CDP (tools/cdp.mjs: an injected PerformanceObserver and rAF timestamps),
    not through window.__xpp. */
+import {withPreset} from './store/keymap';
 import {diagramChart} from './plot/diagramChart';
 import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
@@ -100,8 +101,11 @@ export function installTestHook(session: Session): void {
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),
     send: (cmd: {cmd: string}) => session.send(cmd),
-    /** the keymap preset, as Help's switch sets it (the page keeps it only as state) */
-    keyPreset: (preset: 'default' | 'xppaut') => session.store.dispatch({type: 'keyPreset', preset}),
+    /** the keymap preset, as Help's switch sets it: a `keymap` set, answered by the core */
+    keyPreset: (preset: 'default' | 'xppaut') => {
+      const info = session.store.getState().keymap.info;
+      if (info) session.setKeymap(withPreset(info, preset));
+    },
     /** the animation's last drawing: the frame, its primitive count, the canvas and the box on it */
     ani: () => aniDrawInfo(),
     /** the kinescope frames shown, each change in order (null: none shown) */

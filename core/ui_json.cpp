@@ -699,7 +699,7 @@ void buf_command_row(Buf *b, const CommandRow &row)
     BUF_LIT(b, ",\"id\":");
     buf_str(b, row.id);
     BUF_LIT(b, ",\"key\":");
-    buf_str(b, std::string_view(&row.key, 1));
+    buf_str(b, row.key == PAGE_KEY ? std::string_view() : std::string_view(&row.key, 1));
     BUF_LIT(b, ",\"label\":");
     buf_str(b, row.label);
     BUF_LIT(b, ",\"description\":");
@@ -717,11 +717,13 @@ void buf_command_row(Buf *b, const CommandRow &row)
         buf_str(b, key);
     }
     BUF_LIT(b, "],\"legacy_keys\":[");
-    if (const CommandRow *layer = layer_entry(row.menu)) {
-        buf_str(b, key_name(layer->key));
-        BUF_LIT(b, ",");
+    if (row.key != PAGE_KEY) {
+        if (const CommandRow *layer = layer_entry(row.menu)) {
+            buf_str(b, key_name(layer->key));
+            BUF_LIT(b, ",");
+        }
+        buf_str(b, key_name(row.key));
     }
-    buf_str(b, key_name(row.key));
     BUF_LIT(b, "]}");
 }
 

@@ -24,7 +24,8 @@ import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
-import {initialKeymap, reduceKeymap, type KeymapState} from './keymap';
+import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
+import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {
   initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
@@ -33,8 +34,6 @@ import {
 export type {Range, Viewport} from './plots';
 
 export type Theme = 'light' | 'dark' | 'system';
-/** the keymaps (docs/command-design.md): the table's default keys alone, or with the XPPAUT sequences */
-export type KeyPreset = 'default' | 'xppaut';
 
 export interface Hover {
   curve: number;
@@ -122,8 +121,9 @@ export interface AppState {
   drawerOpen: boolean;
   /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
   continueInput: ContinueInput;
-  /** which keymap the keyboard layer reads: 'xppaut' adds the XPPAUT sequences (F then S) to the default keys; page state only until W211 */
-  keyPreset: KeyPreset;
+  /** the steady-state settings the user typed (RunToolbar), over steadyDefaults: kept here so the command
+      Run to steady state, from a key or the toolbar, runs with them */
+  steadyEdit: Partial<SteadyInput>;
   /** the keys of a chord typed so far ("F" of F, S), shown in the status bar; Esc or a focus change empties it */
   pendingKeys: string[];
   /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
@@ -178,7 +178,9 @@ export type Action =
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
   | {type: 'continueInput'; input: ContinueInput}
-  | {type: 'keyPreset'; preset: KeyPreset}
+  | {type: 'steadyEdit'; edit: Partial<SteadyInput>}
+  /** the keymap editor (W212) */
+  | {type: 'keymapUi'; action: KeymapAction}
   | {type: 'pendingKeys'; keys: string[]}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
@@ -226,7 +228,7 @@ export const initialState: AppState = {
   theme: 'system',
   drawerOpen: false,
   continueInput: CONTINUE_INPUT_DEFAULT,
-  keyPreset: 'default',
+  steadyEdit: {},
   pendingKeys: [],
   values: initialValues,
   valuesOpen: false,
@@ -572,8 +574,12 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
     case 'bottom':
       return {...state, bottom: action.text, bottomHelp: null};
-    case 'keyPreset':
-      return {...state, keyPreset: action.preset, pendingKeys: []};
+    case 'steadyEdit':
+      return {...state, steadyEdit: action.edit};
+    case 'keymapUi': {
+      const keymap = reduceKeymap(state.keymap, action.action);
+      return keymap === state.keymap ? state : {...state, keymap, pendingKeys: []};
+    }
     case 'pendingKeys':
       return action.keys.join(' ') === state.pendingKeys.join(' ') ? state : {...state, pendingKeys: action.keys};
     case 'continueInput':

@@ -244,7 +244,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 61)
+check('hello', hello is not None and len(hello["command_table"]) == 65)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -311,6 +311,10 @@ check_hello_kinds()
 
 # W207: the one command table (core/command_table.h): what the page's sidebar, search and
 # native menus are made from, so it must describe every command once and consistently
+# W212: the rows the page runs itself (no key in any menu: key and legacy_keys are empty)
+PAGE_COMMANDS = ('run_initial', 'run_last', 'steady', 'keymapeditor')
+
+
 def check_command_table(table):
     cats = {c['id']: c for c in hello.get('command_categories', [])}
     listed = [c['label'] for c in cats.values() if c['listed']]
@@ -319,14 +323,16 @@ def check_command_table(table):
           str(cats))
     ids = [(r['menu'], r['id']) for r in table]
     check('W207: every command is in the table once, with its menu, a key, a label, a description and one known category',
-          len(set(ids)) == len(ids) and all(r['menu'] in hello['menu_names'] and len(r['key']) == 1 and r['label'].strip()
+          len(set(ids)) == len(ids) and all(r['menu'] in hello['menu_names'] and len(r['key']) == (0 if r['id'] in PAGE_COMMANDS else 1) and r['label'].strip()
                                             and r['description'].strip() and r['category'] in cats for r in table),
           str(ids))
-    keys = [(r['menu'], r['key']) for r in table]
+    keys = [(r['menu'], r['key']) for r in table if r['id'] not in PAGE_COMMANDS]
     layer_key = {'main': [], 'file': ['F'], 'num': ['U']}
     check('W207: one letter is one command: no key twice in a menu, and the legacy sequence is the layer key then the item\'s',
           len(set(keys)) == len(keys)
-          and all(r['legacy_keys'] == layer_key[r['menu']] + ['Esc' if r['key'] == '\x1b' else r['key'].upper()] for r in table),
+          and all(r['legacy_keys'] == layer_key[r['menu']] + ['Esc' if r['key'] == '\x1b' else r['key'].upper()]
+                  for r in table if r['id'] not in PAGE_COMMANDS)
+          and all(r['legacy_keys'] == [] for r in table if r['id'] in PAGE_COMMANDS),
           str(keys))
     layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
     check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
@@ -335,9 +341,10 @@ def check_command_table(table):
           and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
           str(layer))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W208, W213: Continue, Open model, Save session, Save session as, Reload model, Undo and Redo have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
+    check('W208, W212, W213: Continue, Open model, Save session, Save session as, Reload model, Undo, Redo and the three run commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
           chords == {'continue': ['Alt+Enter'], 'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
-                     'undo': ['Ctrl+Z'], 'redo': ['Ctrl+Shift+Z', 'Ctrl+Y']}, str(chords))
+                     'undo': ['Ctrl+Z'], 'redo': ['Ctrl+Shift+Z', 'Ctrl+Y'],
+                     'run_initial': ['Ctrl+Enter'], 'run_last': ['Ctrl+Shift+Enter'], 'steady': ['Alt+S']}, str(chords))
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
           and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
@@ -1323,6 +1330,7 @@ def check_stable_navigation():
         check('navigation: stable main command works in Numerics mode and returns to main', state.get('menu') == 0, str(events[-3:]))
         for fields in ({'menu': 'missing', 'item': 'erase'}, {'menu': 'main', 'item': 'missing'},
                        {'menu': 'main', 'item': 'erase', 'key': 'e'}, {'menu': 'main', 'item': 'erase', 'win': 'auto'},
+                       {'menu': 'main', 'item': 'run_initial'},  # W212: a command the page runs itself is no key command
                        {'menu': 'main'}, {'item': 'erase'}, {'menu': 42, 'item': 'erase'}):
             events = command(cmd='key', **fields)
             err = next((e for e in events if e.get('ev') == 'message' and e.get('error')), {})
