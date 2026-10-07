@@ -858,7 +858,7 @@ Design: [command-design.md](command-design.md).
 | W213 | #267 | One Continue | W207 | done |
 | W214 | #245 | Duplicate-name message for array members | none | done |
 | W215 | #269 | `web2check --only files` and the XPPAUT .set import after W206 | W206 | done |
-| W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | in-progress |
+| W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | done |
 | W217 | #271 | CI fixes after W205-W207: focus back to Tools, quit reports stopped, stale web2check selectors, the ASan store-every label | none | done |
 | W218 | #272 | Reload model keeps the Session's remembered session file (Ctrl+S after Reload saves silently to it; the unsaved dot reads changed after Reload); new command Save a copy of the session… (no default key, pinnable): writes a .snapx elsewhere and leaves the session's file and changed flag alone; Save session as keeps the platform behaviour (the new file becomes the session's) (maintainer, 2026-10-07) | W209 | done |
 | W219 | #273 | Run to steady state is not bounded by the storage limit: it needs only the last few values, so it stores less (or nothing) and runs on until it settles or blows up (integrate.cpp:1824 now stops it at max_rows); the message of any storage-limit stop names the limit and its value (maintainer, 2026-10-07) | W213 | done |
