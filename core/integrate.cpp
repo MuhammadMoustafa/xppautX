@@ -373,7 +373,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     for(j=0;j<s.model().node;j++){ 
       x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
-    do_sing_info(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,er,em,&ierr);
+    do_sing_info(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er,em,&ierr);
     if(ierr==0){
       m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
@@ -506,9 +506,9 @@ xpp::Result<> eq_range_sweep(xpp::Session &s, double *x, const TakeFrame &take_f
         }
         else {
         if(s.delay.flag)
-	  failure.keep(do_delay_sing(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,
+	  failure.keep(do_delay_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,
 		        s.model().node,&ierr,&stabinfo));
-        else failure.keep(do_sing(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,
+        else failure.keep(do_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,
 		     s.model().node,&ierr,&stabinfo));
         }
         if(s.integrator.eq_range.movie){
@@ -650,7 +650,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
    if(cycle)s.plot_windows.current->color[0]=icol+1;
    icol++;
    if(icol==10)icol=0;
-   t=s.numerics.t0;
+   t=s.numerics.start_time;
    s.integrator.my_start=1;
    s.numerics.poiext=0;
 
@@ -705,7 +705,7 @@ if(s.integrator.range.type==PARAM)get_val(s,s.integrator.range.item,&temp);
      show_progress(bob);
    }
    do_start_flags(s,x,&s.data_store.current_time);
-if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
+if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storflag==1&&s.numerics.poincare_map==0)
   {
     s.data_store.col[0][s.data_store.rows]=static_cast<float>(s.data_store.current_time);
     extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -713,7 +713,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
     s.data_store.rows++;
   }
 
- const xpp::Result<int> run=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
+ const xpp::Result<int> run=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
  if(!run||*run==1||xpp::job::cancelled()){
    if(!run)failure=run.error();
    ierr=-1;
@@ -802,7 +802,7 @@ void write_equilibrium(xpp::Session &s, const char *name, int shoot)
   for(int i=0;i<n;i++)
     x[i]=s.last_ic[i];
 
-  do_sing_info(s,x.data(),s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,n,er.data(),em.data(),&ierr);
+  do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,n,er.data(),em.data(),&ierr);
   if(ierr!=0)return;
   xpp::Writer w=xpp::open_writer_asking(name);
   if(!w)return;
@@ -826,9 +826,9 @@ void find_equilib_com(xpp::Session &s, int com)
  if(s.numerics.fft||s.numerics.hist||s.model().nkernel>0)return;
 
  s.numerics.storflag=0;
- s.numerics.poimap=0;
- oldtrans=s.numerics.trans;
- s.numerics.trans=0.0;
+ s.numerics.poincare_map=0;
+ oldtrans=s.numerics.transient_time;
+ s.numerics.transient_time=0.0;
  evaluate_derived(s); 
  switch(com){
  case 2: 
@@ -865,12 +865,12 @@ void find_equilib_com(xpp::Session &s, int com)
 
  xpp::Result<> r;
  if(s.delay.flag){
-   r=do_delay_sing(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,&ierr,&stabinfo);
+   r=do_delay_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,&ierr,&stabinfo);
    ping();
  }
  else
-    r=do_sing(s,x,s.numerics.newt_err,s.numerics.evec_err,s.numerics.bound,s.numerics.evec_iter,s.model().node,&ierr,&stabinfo);
- s.numerics.trans=oldtrans;
+    r=do_sing(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,&ierr,&stabinfo);
+ s.numerics.transient_time=oldtrans;
  if(!r)xpp::show_error(r.error());
  
 }
@@ -914,7 +914,7 @@ void do_init_data(xpp::Session &s, int com)
 
  data_back(s);
   wipe_rep(s.browser);
-  s.data_store.current_time=s.numerics.t0;
+  s.data_store.current_time=s.numerics.start_time;
  
   s.numerics.storflag=1;
   s.numerics.poiext=0;
@@ -939,8 +939,8 @@ void do_init_data(xpp::Session &s, int com)
     xpp::push_value_undo(s); /* Run from last state overwrites the initial conditions */
     get_ic(s,0,x);
     if(com==M_IS){
-      s.numerics.t0=s.integrator.last_time;
-      s.data_store.current_time=s.numerics.t0;
+      s.numerics.start_time=s.integrator.last_time;
+      s.data_store.current_time=s.numerics.start_time;
     }
     if(xpp::solver_info(s.numerics.method).traits.integral_history&&oldstart==0){
       ch=static_cast<char>(TwoChoice("No","Yes","Reset integrals?","ny"));
@@ -1008,7 +1008,7 @@ void do_init_data(xpp::Session &s, int com)
 	    if(!xpp::ok_or_show(do_init_delay(s,s.numerics.delay)))break;
 	  }
           s.integrator.my_start=1;
-          s.data_store.current_time=s.numerics.t0;
+          s.data_store.current_time=s.numerics.start_time;
 	  usual_integrate_stuff(s,x);
 	}
 	KillMessageBox();
@@ -1084,7 +1084,7 @@ void run_now(xpp::Session &s)
  s.integrator.range_flag=0;
  s.integrator.step_error.reset();
  reset_dae(s);
- s.data_store.current_time=s.numerics.t0;
+ s.data_store.current_time=s.numerics.start_time;
  get_ic(s,2,x); 
   s.numerics.storflag=1;
   s.numerics.poiext=0;
@@ -1107,7 +1107,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
 
   seed_this_run(s);
   do_start_flags(s,x,&s.data_store.current_time);
-   if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.numerics.poimap==0)
+   if(fabs(s.data_store.current_time)>=s.numerics.transient_time&&s.numerics.storflag==1&&s.numerics.poincare_map==0)
     {
       s.data_store.col[0][0]=static_cast<float>(s.data_store.current_time);
       extra(s,x,s.data_store.current_time,s.model().node,s.model().neq);
@@ -1117,7 +1117,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
  
   const xpp::Result<int> r=[&]{
     const xpp::Job job; /* Abort cancels it (xpp_job.h) */
-    return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
+    return integrate(s,&s.data_store.current_time,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
   }();
   
   ping();
@@ -1337,7 +1337,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
  xpp::Solver &solver=*s.integrator.solver;
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec;
  int nit,store_every=s.numerics.store_every;
- double tend=s.numerics.tend;
+ double tend=s.numerics.total_time;
  double dt=s.numerics.delta_t;
   if(solver.traits().discrete){
  nit=tend;
@@ -1453,16 +1453,16 @@ Result<> continue_for(Session &s, double extra)
 
 Result<> continue_total(Session &s)
 {
-  return continue_for(s,s.numerics.tend);
+  return continue_for(s,s.numerics.total_time);
 }
 
 Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
 {
   const double interval=s.integrator.solver->traits().discrete?(s.numerics.delta_t>0?1:-1):s.numerics.delta_t;
-  if(auto valid=validate_steady_state(settings,interval,s.numerics.t0);!valid)return valid;
-  if(s.model().node+s.model().nmarkov==0||s.numerics.poimap||s.numerics.fft||s.numerics.hist)
+  if(auto valid=validate_steady_state(settings,interval,s.numerics.start_time);!valid)return valid;
+  if(s.model().node+s.model().nmarkov==0||s.numerics.poincare_map||s.numerics.fft||s.numerics.hist)
     return fail("steady","Needs model states and ordinary trajectory output (disable Poincare, FFT and histogram modes)",command_place());
-  if(!s.integrator.solver->traits().fixed_step&&interval<std::fabs(s.numerics.hmin))
+  if(!s.integrator.solver->traits().fixed_step&&interval<std::fabs(s.numerics.min_step))
     return fail("steady","Dt must be at least the solver's minimum step",command_place());
   /* One core comparison per configured Dt, regardless of output stride.
      Restore the user's duration/stride before deferred settings apply. */
@@ -1470,13 +1470,13 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
     Session &s;
     double duration;
     int stride;
-    ~Restore(){s.numerics.tend=duration;s.numerics.store_every=stride;s.integrator.steady.reset();}
-  } restore{s,s.numerics.tend,s.numerics.store_every};
-  s.numerics.tend=std::floor(settings.maximum/interval)*interval;
+    ~Restore(){s.numerics.total_time=duration;s.numerics.store_every=stride;s.integrator.steady.reset();}
+  } restore{s,s.numerics.total_time,s.numerics.store_every};
+  s.numerics.total_time=std::floor(settings.maximum/interval)*interval;
   s.numerics.store_every=1;
   s.integrator.steady.emplace(settings);
   s.integrator.steady_result=SteadyStateResult{"failed",settings.decimals};
-  s.integrator.last_time=s.numerics.t0;
+  s.integrator.last_time=s.numerics.start_time;
   do_init_data(s,M_IG);
   s.integrator.steady_result->time=s.integrator.last_time;
   return {};
@@ -1553,7 +1553,7 @@ if(program.interactive) cwidth=get_command_width();
  for(ieqn=1;ieqn<=s.model().neq;ieqn++)xv[ieqn]=static_cast<float>(x[ieqn-1]);
  if(s.animation.options.on_the_fly)on_the_fly(s,1); 
    
- if(s.numerics.poimap)
+ if(s.numerics.poincare_map)
  {
  oldt=*t;
  for(ieqn=0;ieqn<s.model().neq;ieqn++)oldx[ieqn]=x[ieqn];
@@ -1570,7 +1570,7 @@ if(program.interactive) cwidth=get_command_width();
 	   if(!solver.traits().fixed_step){
 	     /* on to the next output time, in steps of the method's own */
 	     tout=tzero+dt*(icount+1);
-	     if(fabs(dt)<fabs(s.numerics.hmin)){
+	     if(fabs(dt)<fabs(s.numerics.min_step)){
 	       s.integrator.last_time=*t;
 	       solver.finish();
 	       return(1);
@@ -1614,12 +1614,12 @@ if(program.interactive) cwidth=get_command_width();
 	for (ieqn = 0; ieqn < s.model().neq; ieqn++) {
 	        torcross[ieqn]=0;
 		if (s.itor[ieqn] == 1) {
-			if (x[ieqn] > s.numerics.tor_period) {
-				x[ieqn] -= s.numerics.tor_period;
+			if (x[ieqn] > s.numerics.torus_period) {
+				x[ieqn] -= s.numerics.torus_period;
                                 torcross[ieqn]=-1;
 			}
 			if (x[ieqn] < 0) {
-				x[ieqn] += s.numerics.tor_period;
+				x[ieqn] += s.numerics.torus_period;
                                 torcross[ieqn]=1;
 			}
 		      }
@@ -1700,25 +1700,25 @@ if(program.interactive) cwidth=get_command_width();
            ui.live_state(s, x, *t);
            tv=static_cast<float>(*t);
 	   xv[0]=tv;
- if((s.numerics.poimap==2)&&!(s.numerics.poivar==0))
+ if((s.numerics.poincare_map==2)&&!(s.numerics.poincare_variable==0))
  {
   pflag=0;
-  if((oldx[s.numerics.poivar-1]<x[s.numerics.poivar-1])&&!(s.numerics.poiext<0))s.numerics.poiext=1;
-  if((oldx[s.numerics.poivar-1]>x[s.numerics.poivar-1])&&!(s.numerics.poiext>0))s.numerics.poiext=-1;
-  if(  ( !(oldx[s.numerics.poivar-1]<x[s.numerics.poivar-1]) && (s.numerics.poiext>0) )||
-       ( !(oldx[s.numerics.poivar-1]>x[s.numerics.poivar-1]) && (s.numerics.poiext<0) )
+  if((oldx[s.numerics.poincare_variable-1]<x[s.numerics.poincare_variable-1])&&!(s.numerics.poiext<0))s.numerics.poiext=1;
+  if((oldx[s.numerics.poincare_variable-1]>x[s.numerics.poincare_variable-1])&&!(s.numerics.poiext>0))s.numerics.poiext=-1;
+  if(  ( !(oldx[s.numerics.poincare_variable-1]<x[s.numerics.poincare_variable-1]) && (s.numerics.poiext>0) )||
+       ( !(oldx[s.numerics.poincare_variable-1]>x[s.numerics.poincare_variable-1]) && (s.numerics.poiext<0) )
     )
   {
-     if(s.numerics.poisgn*s.numerics.poiext>=0)
+     if(s.numerics.poincare_sign*s.numerics.poiext>=0)
       {
 	/*  We will interpolate to get a good local extremum   */
 	
 	s.integrator.rhs(*t,x,xprime,s.model().neq);
 	s.integrator.rhs(oldt,oldx,oldxprime,s.model().neq);
-        dxp=xprime[s.numerics.poivar-1]-oldxprime[s.numerics.poivar-1];
+        dxp=xprime[s.numerics.poincare_variable-1]-oldxprime[s.numerics.poincare_variable-1];
         if(dxp==0.0)
 	  return xpp::fail("Poincare map","Cannot zero RHS for max/min - use a variable",command_place());
-	dint=xprime[s.numerics.poivar-1]/dxp;
+	dint=xprime[s.numerics.poincare_variable-1]/dxp;
 
 	tv=(1-dint)**t+dint*oldt;
 	xv[0]=tv;
@@ -1733,22 +1733,22 @@ if(program.interactive) cwidth=get_command_width();
 
  /*  here is code for a formula type map --  F(X,t)=0 
   */
- if(s.numerics.poimap==4) {
+ if(s.numerics.poincare_map==4) {
 
  }
  
- if(s.numerics.poimap==1||s.numerics.poimap==3)
+ if(s.numerics.poincare_map==1||s.numerics.poincare_map==3)
  {
-    if(s.numerics.poivar==0)
+    if(s.numerics.poincare_variable==0)
 
      {
-     sect1=fmod(fabs(oldt),fabs(s.numerics.poipln));
-     sect=fmod(fabs(*t),fabs(s.numerics.poipln));
+     sect1=fmod(fabs(oldt),fabs(s.numerics.poincare_plane));
+     sect=fmod(fabs(*t),fabs(s.numerics.poincare_plane));
      if(sect<sect1)
      {
-     dint=sect/(s.numerics.poipln+sect-sect1);
-     i=static_cast<int>((fabs(*t)/fabs(s.numerics.poipln)));
-     tv=static_cast<float>(s.numerics.poipln)*i;
+     dint=sect/(s.numerics.poincare_plane+sect-sect1);
+     i=static_cast<int>((fabs(*t)/fabs(s.numerics.poincare_plane)));
+     tv=static_cast<float>(s.numerics.poincare_plane)*i;
      xv[0]=tv;
      for(i=1;i<=s.model().neq;i++)xv[i]=static_cast<float>((dint*oldx[i-1]+(1-dint)*x[i-1]));
      pflag=1;
@@ -1759,11 +1759,11 @@ if(program.interactive) cwidth=get_command_width();
     else
 
     {
-     if(!(s.numerics.poisgn<0))
+     if(!(s.numerics.poincare_sign<0))
      {
-     if((oldx[s.numerics.poivar-1]<s.numerics.poipln)&&!(x[s.numerics.poivar-1]<s.numerics.poipln))
+     if((oldx[s.numerics.poincare_variable-1]<s.numerics.poincare_plane)&&!(x[s.numerics.poincare_variable-1]<s.numerics.poincare_plane))
      {
-      dint=(x[s.numerics.poivar-1]-s.numerics.poipln)/(x[s.numerics.poivar-1]-oldx[s.numerics.poivar-1]);
+      dint=(x[s.numerics.poincare_variable-1]-s.numerics.poincare_plane)/(x[s.numerics.poincare_variable-1]-oldx[s.numerics.poincare_variable-1]);
       tv=(1-dint)**t+dint*oldt;
       xv[0]=tv;
       for(i=1;i<=s.model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
@@ -1773,11 +1773,11 @@ if(program.interactive) cwidth=get_command_width();
      }
      else pflag=0;
      }
-    if(!(s.numerics.poisgn>0))
+    if(!(s.numerics.poincare_sign>0))
      {
-       if((oldx[s.numerics.poivar-1]>s.numerics.poipln)&&!(x[s.numerics.poivar-1]>s.numerics.poipln))
+       if((oldx[s.numerics.poincare_variable-1]>s.numerics.poincare_plane)&&!(x[s.numerics.poincare_variable-1]>s.numerics.poincare_plane))
        {
-        dint=(x[s.numerics.poivar-1]-s.numerics.poipln)/(x[s.numerics.poivar-1]-oldx[s.numerics.poivar-1]);
+        dint=(x[s.numerics.poincare_variable-1]-s.numerics.poincare_plane)/(x[s.numerics.poincare_variable-1]-oldx[s.numerics.poincare_variable-1]);
         tv=(1-dint)**t+dint*oldt;
         xv[0]=tv;
         for(i=1;i<=s.model().neq;i++)xv[i]=dint*oldx[i-1]+(1-dint)*x[i-1];
@@ -1792,7 +1792,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
  }
 
 /*	   Plotting and storing data      */
- if(s.numerics.poimap==3&&pflag==1){
+ if(s.numerics.poincare_map==3&&pflag==1){
    if(oldperiod==0.0){
      pflag=0; /* this is the first hit !! */
      oldperiod=*t;
@@ -1802,13 +1802,13 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
    oldperiod=*t;
  }
      
-          if(!(fabs(*t)<s.numerics.trans)&&program.interactive&&OnTheFly)
+          if(!(fabs(*t)<s.numerics.transient_time)&&program.interactive&&OnTheFly)
 	  {
 	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 
 	  }
 
-	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.trans)
+	   if((s.numerics.storflag==1)&&(count!=0)&&(s.data_store.rows<s.data_store.max_rows)&&!(fabs(*t)<s.numerics.transient_time)
 	      &&(!s.integrator.steady||++steady_seen%steady_stride==0))
 	   {
            if(s.animation.options.on_the_fly)on_the_fly(s,0);
@@ -1824,7 +1824,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
             }
             else if(stor_full(s,xv[0])==0)break;
             }
-	    if((pflag==1)&&(s.numerics.sos==1))break;
+	    if((pflag==1)&&(s.numerics.poincare_stop==1))break;
 	   }
 
 out:
@@ -1918,7 +1918,7 @@ void plot_one_graph(xpp::Session &s, float *xv,float *xvold,int node,int neq,dou
  zvar=s.plot_windows.current->zv;
  for(ip=0;ip<s.model().neq;ip++){
    if(s.itor[ip]==1)
-     xvold[ip+1]=xvold[ip+1]+tc[ip]*s.numerics.tor_period;
+     xvold[ip+1]=xvold[ip+1]+tc[ip]*s.numerics.torus_period;
  }
  for(ip=0;ip<NPlots;ip++){
  oldxpl[ip]=xvold[xvar[ip]];
@@ -1974,9 +1974,9 @@ void restore(xpp::Session &s, int i1, int i2)
       
       if(s.numerics.torus==1)
       {
-	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics.tor_period)))oldxpl=xpl;
-	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics.tor_period)))oldypl=ypl;
-	if (fabs(oldzpl-zpl)>static_cast<float>((.5*s.numerics.tor_period)))oldzpl=zpl;
+	if (fabs(oldxpl-xpl)>static_cast<float>((.5*s.numerics.torus_period)))oldxpl=xpl;
+	if (fabs(oldypl-ypl)>static_cast<float>((.5*s.numerics.torus_period)))oldypl=ypl;
+	if (fabs(oldzpl-zpl)>static_cast<float>((.5*s.numerics.torus_period)))oldzpl=zpl;
       }
       if(s.plot_windows.current->ColorFlag!=0&&i>i1){
 	  for(j=0;j<=s.model().neq;j++){
@@ -2040,7 +2040,7 @@ xpp::Result<> shoot_easy(xpp::Session &s, double *x)
   double t=0.0;
   int i;
   s.integrator.suppress_bounds=1;
-  const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&i);
+  const xpp::Result<int> r=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&i);
   s.integrator.suppress_bounds=0;
   return r.transform([](int){});
 }
@@ -2053,7 +2053,7 @@ xpp::Result<> shoot(xpp::Session &s, double *x, double *xg, double *evec, int sg
  for(i=0;i<s.model().node;i++)
  x[i]=xg[i]+sgn*evec[i]*s.numerics.delta_t*.1;
 i=1;
- const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&i);
+ const xpp::Result<int> r=integrate(s,&t,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&i);
  ping();
   s.integrator.suppress_bounds=0;
  return r.transform([](int){});

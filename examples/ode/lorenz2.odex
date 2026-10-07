@@ -15,6 +15,6 @@ x1 = x-del*(s*(-x+y))
 # some delayed coordinates as well
 # x is proportional to the angular velocity so integral is angle
 # approximate the velocity vector in the butterfly coords
-@ dt=.025, total=40, xplot=x, yplot=y, zplot=z, axes=3
+@ dt=.025, total_time=40, xplot=x, yplot=y, zplot=z, axes=3
 @ xmin=-20, xmax=20, ymin=-30, ymax=30, zmin=0, zmax=50
 @ xlo=-1.5, ylo=-2, xhi=1.5, yhi=2, bound=10000

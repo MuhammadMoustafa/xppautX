@@ -43,7 +43,7 @@ the same commands and a recorded abort stops them at
 the same point: the same data file, the same saved diagram. --report prints the
 measurements without failing on the latency limits, for comparing builds.
 """
-import argparse, base64, io, json, os, shutil, subprocess, sys, tempfile, time, zipfile
+import argparse, base64, io, json, os, re, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
@@ -973,7 +973,7 @@ def section_session():
         f.write(chr(10).join(['5', '0', '4', '0', '1', '4', '9', '16', '']))
     tab_ode = os.path.join(folder, 'tab.odex')
     with open(tab_ode, 'w') as f:
-        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total=4', '']))
+        f.write(chr(10).join(['table w "' + table + '"', 'par a=1.5', "x'=w(a)-x", 'init x=0', '@ total_time=4', '']))
     # run in the model's own folder: a table outside it is refused (W175)
     s4 = Server(args.server, tab_ode, verbose=args.v, run=folder)
     s4.collect(is_idle)
@@ -1586,6 +1586,11 @@ def check_session_names():
             if member.endswith('.set') and any(l.split()[-1:] == ['nout'] for l in z.read(member).decode().splitlines()):
                 old.append(path + '/' + member)
     check('no shipped .snapx or .recx carries a set with an old option name (nout; W206)', not old, str(old))
+    # W216: nor a model whose @ line names an option by XPPAUT's word
+    xppaut_words = re.compile(r'^@\s.*\b(total|t0|trans|nmesh|newt_iter|newt_tol|jac_eps|meth|tol|dtmin|dtmax|atol|maxstor|tor_per|poimap|poivar|poisgn|poistop|poipln)\s*=', re.I | re.M)
+    old = [path + '/' + member for path, z in shipped_session_zips() for member in z.namelist()
+           if member.endswith('.odex') and xppaut_words.search(z.read(member).decode())]
+    check('no shipped .snapx or .recx carries a model with an XPPAUT option word (W216)', not old, str(old))
 
 
 def section_recording():
@@ -1933,13 +1938,13 @@ def section_memory():
     s.send(cmd='browser', op='postprocess')  # the model's histogram
     s.collect(is_idle)
     # another orbit, from elsewhere, long enough to grow the store
-    # (maxstor 1000) twice
+    # (storage_rows 1000) twice
     s.send(cmd='set', values=[{'kind': 'ic', 'name': 'x', 'value': 0.5},
-                              {'kind': 'num', 'name': 'total', 'value': 30}])
+                              {'kind': 'num', 'name': 'total_time', 'value': 30}])
     s.collect(is_idle)
     evs = integrate(s)
     st = [e for e in evs if e.get('ev') == 'state']
-    check('memory: the longer run stores more rows than maxstor', st and st[-1].get('rows', 0) > 2000,
+    check('memory: the longer run stores more rows than storage_rows', st and st[-1].get('rows', 0) > 2000,
           str(st and st[-1].get('rows')))
     # the stored columns each shows, from: the adjoint's node+1 = 3, the H
     # function's 4 (its own: phase, H, odd and even parts), the

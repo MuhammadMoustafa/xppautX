@@ -294,7 +294,7 @@ void do_range_clines(xpp::Session &s)
   static const char *const n[]={"*2Range parameter","Steps","Low","High"};
   std::array<std::string, 4> values;
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
-  const int course=s.numerics.nmesh;
+  const int course=s.numerics.nullcline_mesh;
   values[0] = s.nullcline_state.range.rv;
   values[1] = xpp::format("{:d}", s.nullcline_state.range.nstep);
   values[2] = xpp::format("{:g}", s.nullcline_state.range.xlo);
@@ -589,7 +589,7 @@ void direct_field_com(xpp::Session &s, int c)
   const int inx=s.plot_windows.current->xv[0]-1;
   const int iny=s.plot_windows.current->yv[0]-1;
   const double dtold=s.numerics.delta_t;
-  const double oldtrans=s.numerics.trans;
+  const double oldtrans=s.numerics.transient_time;
   int grid=s.nullclines.df_grid;
 
   if(s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0]||s.plot_windows.current->ThreeDFlag)
@@ -623,7 +623,7 @@ void direct_field_com(xpp::Session &s, int c)
     s.nullcline_state.df_ix=inx+1;
     s.nullcline_state.df_iy=iny+1;
     dfield_grid(s,grid,u0,v0,du,dv,dz,inx,iny,nullptr);
-    s.numerics.trans=oldtrans;
+    s.numerics.transient_time=oldtrans;
     return;
   }
   s.numerics.storflag=0;
@@ -641,7 +641,7 @@ void direct_field_com(xpp::Session &s, int c)
         double t=0.0;
         int start=1;
         phase_data_flow_next(s);
-        failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&start));
+        failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&start));
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }
@@ -740,7 +740,7 @@ void create_new_cline(xpp::Session &s)
 
 void new_clines_com(xpp::Session &s, int c)
 {
-  const int course=s.numerics.nmesh;
+  const int course=s.numerics.nullcline_mesh;
   const int col1=s.nullclines.x_null_color,col2=s.nullclines.y_null_color;
 
   if(s.plot_windows.current->ThreeDFlag||s.plot_windows.current->TimeFlag||s.plot_windows.current->xv[0]==s.plot_windows.current->yv[0])return;

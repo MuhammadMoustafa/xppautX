@@ -12,8 +12,8 @@ void do_torus_com(xpp::Session &s, int c)
  int i;
  s.numerics.torus=0;
  if(c==0||c==2){
-   new_float(s,"Period :",&s.numerics.tor_period);
-   if(s.numerics.tor_period<=0.0){
+   new_float(s,"Period :",&s.numerics.torus_period);
+   if(s.numerics.torus_period<=0.0){
      xpp::command_error("torus", "Choose positive period");
      return;
    }

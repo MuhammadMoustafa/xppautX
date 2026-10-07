@@ -8,4 +8,4 @@ aux yy = y
 aux zz = x+y+y^3+y^5
 # plot y
 # plot the "error"
-@ newt_tol=1e-8
+@ singpt_newton_tolerance=1e-8

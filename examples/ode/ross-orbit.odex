@@ -5,4 +5,4 @@ y' = x+b*y
 z' = b+z*(x-a)
 par b = 0.2, a = 4
 aux aa = a
-@ total=5000, trans=1000
+@ total_time=5000, transient_time=1000

@@ -107,7 +107,7 @@ struct KeptValues {
   std::vector<std::pair<std::string,std::string>> delays;
   NumericsSettings numerics;
   AutoSettingsSet auto_settings;
-  std::string poivar;
+  std::string poincare_variable;
   /* the session file and the values it was saved with (W218): the next
      Ctrl+S saves to it, and the changed flag still compares with that
      save, so the data and diagram Reload drops read as a change */

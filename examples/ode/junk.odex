@@ -8,4 +8,4 @@ fun f(u) = 1/(1+exp(-beta*u))
 init v[j] = 1 for j in 0..4
 # junk.ode
 # table w % 11 -5 5 1/11 - .2*heav(3-abs(t))
-@ delay=10, total=40
+@ delay=10, total_time=40

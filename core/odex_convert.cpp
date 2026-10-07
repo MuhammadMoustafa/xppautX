@@ -1352,7 +1352,7 @@ private:
           place_ = model_place(m_, s.pos);
           break;
         }
-      out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ meth=discrete\n";
+      out += noted("the .ode is a map: x' = f with the discrete method is x(t+1) = f", "discrete-map", "info") + "@ method=discrete\n";
     }
     return out;
   }

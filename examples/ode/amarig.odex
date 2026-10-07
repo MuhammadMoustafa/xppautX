@@ -10,4 +10,4 @@ u[j]' = -u[j]-h+z(j) for j in 0..199
 par h = 0.15
 init u[j] = 0.8 for j in 90..110
 # amari bump with gaussian
-@ total=100, meth=Euler
+@ total_time=100, method=Euler

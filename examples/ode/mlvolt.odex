@@ -15,7 +15,7 @@ init w1 = 0.5, w2 = -0.4
 # dV/dt = -a v + active stuff + d V_xx
 # G(xhat,t) = exp(-a*t-xhat/t)/sqrt(pi t) xhat is a distance
 # change w2=-.2 to get sync
-@ dt=.05, total=100
+@ dt=.05, total_time=100
 @ xp=v1, yp=v2, xlo=-.5, xhi=1, ylo=-.5, yhi=1
 
 fun ode_divisor(value) = if value then value else 2.23e-15

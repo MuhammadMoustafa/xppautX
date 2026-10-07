@@ -7,5 +7,5 @@ x' = w1+beta*sin(y-x)
 y' = w2+beta*sin(x-y)
 # A differential equation on the Torus.  Use the "phAse spc" option to
 #  integrate it.
-@ xp=x, yp=y, xlo=0, ylo=0, xhi=6.3, yhi=6.3, tor_per=6.28318531
+@ xp=x, yp=y, xlo=0, ylo=0, xhi=6.3, yhi=6.3, torus_period=6.28318531
 @ fold=x, fold=y

@@ -91,8 +91,8 @@ std::string cvode_error_text(const xpp::Session &s, const CvodeRun &run, int kfl
     break;
   case -3: text = "Too much work -- try smaller DT";
     break;
-  case -4: text = xpp::format("Tolerance too low-- try TOL={} ATOL={}",
-	s.numerics.toler*run.ropt[ROPT_TOLSF], s.numerics.atoler*run.ropt[ROPT_TOLSF]);
+  case -4: text = xpp::format("Tolerance too low-- try tolerance={} abs_tolerance={}",
+	s.numerics.tolerance*run.ropt[ROPT_TOLSF], s.numerics.abs_tolerance*run.ropt[ROPT_TOLSF]);
     break;
   case -5: text = "Error test failure too frequent ??";
     break;

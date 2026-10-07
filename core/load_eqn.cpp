@@ -276,25 +276,25 @@ namespace {
 /* why name=value cannot be applied (an initial condition or a parameter
    whose value is not a number, an option that does not take it), "" when
    it can */
-std::string intern_item_problem(xpp::Session &s, const std::string &name1, const std::string &value)
+std::string intern_item_problem(xpp::Session &s, const std::string &name1, const std::string &value, bool xppaut_names)
 {
   const std::string name=converted(name1);
   double z=0;
   if(find_user_name(s.model(),ICBOX,name)>-1||find_user_name(s.model(),PARAMBOX,name)>-1)
     return xpp::parse_number(xpp::trim_blanks(value),z)?std::string():"not a number";
-  const auto why=option_problem(s,name,value);
+  const auto why=option_problem(s,name,value,xppaut_names);
   return why.value_or("");
 }
 
 } // namespace
 
-xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where)
+xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::Place &where, bool xppaut_names)
 {
   /* every item checked before one is applied: a bad one leaves s as it was */
   std::optional<xpp::Error> bad;
   each_option(ptr," "," ,;\n",[&](const std::string &name,const std::string &value){
     if(bad)return;
-    if(const std::string why=intern_item_problem(s,name,value);!why.empty())
+    if(const std::string why=intern_item_problem(s,name,value,xppaut_names);!why.empty())
       bad=xpp::Error{"internal set",xpp::format("{}={}: {}",name,value,why),where};
   });
   if(bad)return std::unexpected(std::move(*bad));
@@ -307,7 +307,7 @@ xpp::Result<> extract_action(xpp::Session &s, std::string_view ptr, const xpp::P
 xpp::Result<> extract_internset(xpp::Session &s, int j)
 {
   const xpp::Model::InternalSet &set=s.model().intern_sets[j];
-  return extract_action(s,set.does,set.place);
+  return extract_action(s,set.does,set.place,false);
 }
 
 void do_intern_set(xpp::Session &s, std::string_view name1, std::string_view value_text)

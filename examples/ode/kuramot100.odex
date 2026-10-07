@@ -7,4 +7,4 @@ table w amp*t/100, n=100, lo=0, hi=99
 x[j]' = w(j)+k*sum(h(shift(x0, i')-x[j]), from=0, to=99)/100 for j in 0..99
 # kuramoto with sums
 # linear gradient
-@ total=100, bound=100000
+@ total_time=100, bound=100000

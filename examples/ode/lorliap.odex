@@ -18,7 +18,7 @@ acc' = 0
 aux liap = acc/ode_divisor(max(1, t))
 # the famous Lorenz equation set up for 3d view
 @ bound=100000000
-@ dt=.025001, total=400, store_every=10
+@ dt=.025001, total_time=400, store_every=10
 @ runnow=1
 
 fun ode_divisor(value) = if value then value else 2.23e-15

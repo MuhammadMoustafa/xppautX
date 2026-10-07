@@ -200,8 +200,8 @@ int solve_dae(xpp::Session &s)
   int i,j,n;
   int info;
   double err,del,z,yold;
-  double tol=s.numerics.evec_err,eps=s.numerics.newt_err;
-  int maxit=s.numerics.evec_iter,iter=0;
+  double tol=s.numerics.singpt_newton_tolerance,eps=s.numerics.singpt_jacobian_epsilon;
+  int maxit=s.numerics.singpt_max_iterates,iter=0;
   int sign=0; /* the sign of the last Jacobian factored, 0 before one */
   DaeRunBranch *run=s.dae.run?&*s.dae.run:nullptr; /* none outside a run */
   double *y,*ynew,*f,*fnew,*jac,*errvec;

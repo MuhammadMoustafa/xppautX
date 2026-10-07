@@ -90,9 +90,9 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
 {
     /* options whose value is not just a number or a word */
     static const std::map<std::string_view, Sample> special = {
-        {"METH", {"e", "1"}},            /* the Euler method */
-        {"POIMAP", {"m", "2"}},          /* max */
-        {"POIVAR", {"y", "2"}},
+        {"METHOD", {"e", "1"}},            /* the Euler method */
+        {"POINCARE_MAP", {"m", "2"}},          /* max */
+        {"POINCARE_VARIABLE", {"y", "2"}},
         {"XP", {"y", "2"}},
         {"YP", {"z", "3"}},
         {"ZP", {"x", "1"}},
@@ -132,10 +132,10 @@ bool left_out(const xpp::OptionRow &r)
 /* the options a .set file holds (lunch-new.cpp's set file: its numerics,
    torus and ranges) */
 const std::set<std::string_view> in_set_file = {
-    "TOTAL", "T0", "TRANS", "DT", "NMESH", "NEWT_ITER", "NEWT_TOL", "JAC_EPS",
-    "STORE_EVERY", "BOUND", "METH", "TOL", "DTMIN", "DTMAX", "ATOL", "DELAY",
-    "bvp_maxit", "bvp_tol", "bvp_eps", "POIMAP", "POIVAR", "POISGN",
-    "POISTOP", "POIPLN", "TOR_PER", "RANGEOVER", "RANGESTEP", "RANGELOW",
+    "TOTAL_TIME", "START_TIME", "TRANSIENT_TIME", "DT", "NULLCLINE_MESH", "SINGPT_MAX_ITERATES",
+    "SINGPT_NEWTON_TOLERANCE", "SINGPT_JACOBIAN_EPSILON", "STORE_EVERY", "BOUND", "METHOD", "TOLERANCE",
+    "MIN_STEP", "MAX_STEP", "ABS_TOLERANCE", "DELAY", "bvp_max_iterates", "bvp_tolerance", "bvp_epsilon",
+    "POINCARE_MAP", "POINCARE_VARIABLE", "POINCARE_SIGN", "POINCARE_STOP", "POINCARE_PLANE", "TORUS_PERIOD", "RANGEOVER", "RANGESTEP", "RANGELOW",
     "RANGEHIGH", "RANGERESET", "RANGEOLDIC",
 };
 /* the numerics a .set file does not hold */
@@ -151,7 +151,7 @@ int main(void)
     const auto owned_model = std::make_unique<xpp::Model>();
     xpp::Model &model = *owned_model;
     model.node = 2;
-    const xpp::Place place{"pick.odex", 7, 1, "@ meth=symplectic"};
+    const xpp::Place place{"pick.odex", 7, 1, "@ method=symplectic"};
     const std::string keys = "demragvbqsc582y";
     for (const auto &info : xpp::solvers()) {
         model.nkernel = info.traits.integral_history ? 1 : 0;
@@ -240,9 +240,9 @@ int main(void)
     /* Full registry names survive the .odex grammar and option reader. */
     for (const auto &info : xpp::solvers()) {
         if (info.traits.integral_history) continue; /* needs an integral model */
-        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\n@ meth={}, total=1\n", info.name)));
+        CHECK(write_file("build/test_method_names.odex", xpp::format("x'=-x\ny'=x\n@ method={}, total_time=1\n", info.name)));
         xpp::Session *named = load("build/test_method_names.odex");
-        CHECK(named && named->numerics.method == info.id && named->numerics.tend == 1);
+        CHECK(named && named->numerics.method == info.id && named->numerics.total_time == 1);
     }
 
     /* each name finds its row */
@@ -267,19 +267,27 @@ int main(void)
     {
         int index = 0;
         CHECK(xpp::find_option("HISTLO2", index, true)->name == "HISTLO2");
-        CHECK(xpp::find_option("DTMINIMUM", index, true)->name == "DTMIN");
-        CHECK(xpp::find_option("METHOD", index, true)->name == "METH");
+        CHECK(xpp::find_option("DTMINIMUM", index, true)->name == "MIN_STEP");
+        CHECK(xpp::find_option("METHOD", index, true)->name == "METHOD" && xpp::find_option("METH", index, true)->name == "METHOD");
         CHECK(xpp::find_option("XP9", index, true)->name == "XP");
         CHECK(xpp::find_option("XP3", index, true)->first_digit == '2' && index == 3);
         CHECK(xpp::find_option("NOSUCH", index, true) == nullptr);
         CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
-        CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt");
+        CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt"
+               && xpp::odex_option_key("DTMIN") == "min_step" && xpp::odex_option_key("meth") == "method" && xpp::odex_option_key("method") == "method");
     }
 
     /* the defaults a model with no options gets */
     CHECK(write_file(plain_ode, std::string(model_text) + "done\n"));
     xpp::Session *s = load(plain_ode);
     CHECK(s != nullptr);
+    /* a model's own set or action takes the new names only; the command line's settings take XPPAUT's too */
+    if (s) {
+        CHECK(xpp::option_problem(*s, "total", "5", false).has_value());
+        CHECK(!xpp::option_problem(*s, "total", "5", true).has_value());
+        CHECK(!xpp::option_problem(*s, "total_time", "5", false).has_value());
+        CHECK(xpp::option_problem(*s, "meth", "e", false).has_value() && !xpp::option_problem(*s, "method", "e", false).has_value());
+    }
     if (!s) TEST_REPORT("options");
     std::vector<std::string> defaults;
     for (const xpp::OptionRow &r : rows) defaults.push_back(value_of(*s, r));
@@ -415,9 +423,9 @@ int main(void)
             if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
     }
-    /* XPPAUT's names for store_every are a .ode's: a .odex refuses them
+    /* XPPAUT's names for the renamed options are a .ode's: a .odex refuses them
        at their line */
-    for (const char *old_name : {"nout", "njmp"}) {
+    for (const char *old_name : {"nout", "njmp", "total", "t0", "trans", "nmesh", "newt_iter", "newt_tol", "jac_eps", "meth", "tol", "dtmin", "dtmax", "atol", "maxstor", "tor_per", "poimap", "poivar", "poisgn", "poistop", "poipln"}) {
         CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\n@ ") + old_name + "=2\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.odex";
@@ -453,7 +461,7 @@ int main(void)
        which apply */
     {
         const char inc_file[] = "build/test_options_inc.incx";
-        CHECK(write_file(inc_file, "@ total=7\n@ dt=0.25\n"));
+        CHECK(write_file(inc_file, "@ total_time=7\n@ dt=0.25\n"));
         CHECK(write_file(bad_odex, "par a = 1\nx' = -a*x\ninclude \"test_options_inc.incx\"\n"));
         xpp::Session *t = load(bad_odex);
         CHECK(t != nullptr);

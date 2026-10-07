@@ -57,34 +57,34 @@ struct XppSlider {
 /* The numerics settings in use (the nUmerics menu, the model's @ options,
    the command line), a Session's (session.h) */
 struct NumericsSettings {
-  /* the time span: from t0 for tend, step delta_t, every store_every-th step
-     stored once |t| is past the transient trans */
-  double t0 = 0, tend = 0, delta_t = 0, trans = 0;
+  /* the time span: from start_time for total_time, step delta_t, every store_every-th step
+     stored once |t| is past the transient_time */
+  double start_time = 0, total_time = 0, delta_t = 0, transient_time = 0;
   int store_every = 0;
   /* the method (numerics.cpp's numbers) and its step bounds, tolerances,
      the bound on the variables and the delays' maximum */
   int method = 0;
-  double hmin = 0, hmax = 0, toler = 0, atoler = 0, bound = 0, delay = 0;
+  double min_step = 0, max_step = 0, tolerance = 0, abs_tolerance = 0, bound = 0, delay = 0;
   /* the Volterra equations' memory, in points */
   int max_points = 0;
   /* equilibria: the Newton and eigenvector tolerances and iterations */
-  double evec_err = 0, newt_err = 0;
-  int evec_iter = 0;
+  double singpt_newton_tolerance = 0, singpt_jacobian_epsilon = 0;
+  int singpt_max_iterates = 0;
   /* the boundary value solver */
-  double bvp_eps = 0, bvp_tol = 0;
-  int bvp_maxit = 0, bvp_flag = 0;
+  double bvp_epsilon = 0, bvp_tolerance = 0;
+  int bvp_max_iterates = 0, bvp_flag = 0;
   /* the backward Euler's Newton solve */
   double eul_tol = 0;
   int max_eul_iter = 0;
   /* the nullclines' mesh */
-  int nmesh = 0;
+  int nullcline_mesh = 0;
   /* the Poincare map: its kind, the section's variable, sign and plane,
      extrema, stop on section */
-  int poimap = 0, poivar = 0, poisgn = 0, poiext = 0, sos = 0;
-  double poipln = 0;
+  int poincare_map = 0, poincare_variable = 0, poincare_sign = 0, poiext = 0, poincare_stop = 0;
+  double poincare_plane = 0;
   /* the torus and its period (each variable's flag is Session::itor) */
   int torus = 0;
-  double tor_period = 6.2831853071795864770;
+  double torus_period = 6.2831853071795864770;
   /* the random numbers' seed: rand_seed is the NEXT run's (shown/set by
      "@ seed=", Stochastic > New seed, --newseed; W71's "a seed per run"),
      applied and logged when that run starts (xpp_math.cpp Random::seed); the
@@ -157,8 +157,9 @@ void set_internopts_xpprc_and_comline(Session &s, std::span<const std::string> i
 void add_intern_set(Model &m, std::string_view name, std::string_view does);
 /* all or nothing: every item is checked first, and the first that cannot
    be applied is the error, at where (the set's line in the model), with
-   nothing applied */
-Result<> extract_action(Session &s, std::string_view ptr, const Place &where);
+   nothing applied. xppaut_names: XPPAUT's words for the options count too
+   (the command line's settings); a model's own set and action do not take them */
+Result<> extract_action(Session &s, std::string_view ptr, const Place &where, bool xppaut_names);
 Result<> extract_internset(Session &s, int j);
 void do_intern_set(Session &s, std::string_view name1, std::string_view value);
 /* File/cOpy set line (W67): the first of set1, set2, ... not yet a set of

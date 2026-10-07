@@ -128,7 +128,7 @@ def main():
             converted = subprocess.run([binary, '--convert', '--auto', str(file)], cwd=root,
                                        capture_output=True, text=True, timeout=CHECK_TIMEOUT)
             assert converted.returncode == 0, converted.stderr + converted.stdout
-            assert '@ meth=' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')
+            assert '@ method=' + selected in file.with_suffix('.odex').read_text(encoding='utf-8')
             file.with_suffix('.odex').unlink()
             count += 1
         # Includes retain the diagnostic's own file, line and source in both languages.

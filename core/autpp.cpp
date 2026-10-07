@@ -32,7 +32,7 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, con
    if(auto r=xpp::redo_all_fun_tables(s);!r)xpp::auto_fail(r.error().what);
    s.integrator.rhs(0.0,x,f,ndim);
    if(ijac==1){
-     xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.newt_err,dfdu,ndim);
+     xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.singpt_jacobian_epsilon,dfdu,ndim);
    }
    if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return 0;
    for(i=1;i<s.numerics.store_every;i++){

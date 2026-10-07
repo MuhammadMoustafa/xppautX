@@ -33,9 +33,9 @@ test('W106: a parameter or numerics edit during a computation is sent at once an
   ev({ev: 'computing'});
   sent.length = 0;
   s.setValue('par', 'iapp', '0.3');
-  s.setNumeric('total', '50');
+  s.setNumeric('total_time', '50');
   assert.deepEqual(sent, [{cmd: 'set', kind: 'par', name: 'iapp', text: '0.3'},
-    {cmd: 'set', kind: 'num', name: 'total', text: '50'}], 'sent at once, one set each');
+    {cmd: 'set', kind: 'num', name: 'total_time', text: '50'}], 'sent at once, one set each');
   const st = () => s.store.getState();
   assert.equal(sentText(st().values.inflight, 'par:iapp'), '0.3', 'the field shows what was sent');
   /* the core's state during the run still has the value the run started with: the field keeps what was sent */

@@ -201,9 +201,9 @@ def check_load_error():
         # a value an option refuses (W119): the load stops at the option's line
         for name, text, src in (('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", '@ ync=12'),
                                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", '@ dt=2*3'),
-                                ('badopt.odex', "par a = 1\nx' = -x\n@ total = 5\n@ ync = 12\n", '@ ync = 12'),
+                                ('badopt.odex', "par a = 1\nx' = -x\n@ total_time = 5\n@ ync = 12\n", '@ ync = 12'),
                                 # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
-                                ('oldname.odex', "par a = 1\nx' = -x\n@ total = 5\n@ nout = 2\n", '@ nout = 2')):
+                                ('oldname.odex', "par a = 1\nx' = -x\n@ total_time = 5\n@ nout = 2\n", '@ nout = 2')):
             with open(os.path.join(bad_dir, name), 'w') as f:
                 f.write(text)
             p, evs = load(name)
@@ -214,12 +214,12 @@ def check_load_error():
                   and e.get('source') == src, str(e))
         for method, reason in (('symplectic', 'even dimensions'), ('rubbish', 'Unknown method')):
             with open(os.path.join(bad_dir, 'badmethod.odex'), 'w') as f:
-                f.write("x' = -x\ny' = x\nz' = y\n@ meth=" + method + "\n")
+                f.write("x' = -x\ny' = x\nz' = y\n@ method=" + method + "\n")
             p, evs = load('badmethod.odex')
             e = next((v for v in evs if v.get('ev') == 'error'), {})
-            check('W132: @ meth=%s fails the whole load at its line' % method,
+            check('W132: @ method=%s fails the whole load at its line' % method,
                   p.returncode == 1 and e.get('file') == 'badmethod.odex' and e.get('line') == 4
-                  and e.get('source') == '@ meth=' + method and reason in e.get('error', '')
+                  and e.get('source') == '@ method=' + method and reason in e.get('error', '')
                   and not any(v.get('ev') == 'hello' for v in evs), str(e))
     finally:
         shutil.rmtree(bad_dir, ignore_errors=True)
@@ -1676,9 +1676,9 @@ def check_values_protocol():
               and par(st, 'iapp') == par(st1, 'iapp') and par(st, 'gca') == par(st1, 'gca') and ic(st, 'v') == ic(st1, 'v'),
               str(errs(evs)) + str(st and st['pars'][:3]))
         evs = after(cmd='set', values=[{'kind': 'par', 'name': 'iapp', 'text': '0.31'},
-                                       {'kind': 'num', 'name': 'total', 'text': '1O0'}])
-        check('a set with a bad numerics value applies none of it, its error names num:total',
-              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:total'
+                                       {'kind': 'num', 'name': 'total_time', 'text': '1O0'}])
+        check('a set with a bad numerics value applies none of it, its error names num:total_time',
+              len(errs(evs)) == 1 and errs(evs)[0].get('field') == 'num:total_time'
               and par(last_state(evs), 'iapp') == par(st1, 'iapp'), str(errs(evs)))
         keys('u')
         evs = keys('t', {'value': '1O0'})
@@ -2574,7 +2574,7 @@ def check_fit_retained_runs():
         d = tempfile.mkdtemp(prefix='xppfit')
         ode = os.path.join(d, 'fit.odex')
         with open(ode, 'w') as f:
-            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\n@ total=1,dt=.1,xlo=0,xhi=1,ylo=0,yhi=1\n")
+            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\n@ total_time=1,dt=.1,xlo=0,xhi=1,ylo=0,yhi=1\n")
         proc, run, snd, col, _ = launch_server(ode=ode)
 
         def keys(*replies):
@@ -3803,7 +3803,7 @@ def check_method_refusal():
     model_dir = tempfile.mkdtemp(prefix='xppmethod')
     model = os.path.join(model_dir, 'odd.odex')
     with open(model, 'w') as f:
-        f.write("x'=-x\ny'=x\nz'=y\n@ meth=euler\n")
+        f.write("x'=-x\ny'=x\nz'=y\n@ method=euler\n")
     p, r, snd, col, _ = launch_server(ode=model)
     try:
         col(is_idle)
@@ -3851,13 +3851,13 @@ def check_settings_during_run():
         fields = next((e['fields'] for e in evs if e.get('ev') == 'numerics'), [])
         meth = next((f for f in fields if f['key'] == 'method'), {})
         check('W106: data numerics sends the numerics: total, dt, method (by number, with its choices)',
-              n0 is not None and n0.get('total') == 30 and n0.get('dt') == 0.05
+              n0 is not None and n0.get('total_time') == 30 and n0.get('dt') == 0.05
               and meth.get('choices', [None] * 4)[meth.get('value', 0)] == 'Runge-Kutta'
               and next((f for f in fields if f['key'] == 'store_every'), {}).get('integer') is True, str(n0))
-        snd(cmd='set', kind='num', name='total', value=1e7)
+        snd(cmd='set', kind='num', name='total_time', value=1e7)
         evs, _ = col(is_idle)
         check('W106: set kind num sets a numerics field (total), the numerics event says so',
-              (num(evs) or {}).get('total') == 1e7, str(num(evs)))
+              (num(evs) or {}).get('total_time') == 1e7, str(num(evs)))
         snd(cmd='set', kind='num', name='dt', text='0')
         evs, _ = col(is_idle)
         errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
@@ -3911,7 +3911,7 @@ def check_settings_during_run():
         snd(cmd='answer', id=ask['id'], key='g')
         evs, prog = col(is_prog, timeout=30 * SLOW)
         snd(cmd='set', kind='par', name='iapp', value=0.3)
-        snd(cmd='set', kind='num', name='total', value=50)
+        snd(cmd='set', kind='num', name='total_time', value=50)
         snd(cmd='set', kind='num', name='store_every', value=0)  # bad: its error comes after the run
         snd(cmd='state')
         snd(cmd='browser', **{'from': 0, 'count': 1})  # control, behind the sets: they were taken
@@ -3932,14 +3932,14 @@ def check_settings_during_run():
             after.append(more)
         errs = [[e.get('error') for e in m if e.get('ev') == 'message'] for m in after]
         check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
-              iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total') == 50
+              iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total_time') == 50
               and errs == [[], [], ['Numerics: Store every N steps must be a whole number of at least 1']], str(errs))
         snd(cmd='browser', **{'from': rows - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
         live = br and br['data']
         code, out, err = run_replay([
-            {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 1e7},
+            {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 1e7},
             {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
             {'cmd': 'abort', 'at': {'what': 'integrate', 'rows': rows, 't': 0}},
@@ -3957,7 +3957,7 @@ def check_settings_during_run():
         col(is_idle)
         code, out, err = run_replay([
             {'cmd': 'set', 'kind': 'par', 'name': 'iapp', 'value': 0.3},
-            {'cmd': 'set', 'kind': 'num', 'name': 'total', 'value': 50},
+            {'cmd': 'set', 'kind': 'num', 'name': 'total_time', 'value': 50},
             {'cmd': 'set', 'kind': 'num', 'name': 'method', 'value': 3},
             {'cmd': 'key', 'key': 'i'}, {'cmd': 'answer', 'key': 'g'},
             {'cmd': 'browser', 'from': 1000, 'count': 1}])
@@ -4157,7 +4157,7 @@ def check_open_reload():
         snd(cmd='set', values=[{'kind': 'par', 'name': 'a', 'value': 3}, {'kind': 'ic', 'name': 'X', 'value': 2}])
         col(is_idle)
         with open(os.path.splitext(other)[0] + '.odex', 'w') as f:
-            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total=5, dt=0.05\n')
+            f.write('par a=1, b=7\ninit x=0.5\nx\'=-a*x+b*0\n@ total_time=5, dt=0.05\n')
         snd(cmd='reload')
         evs, ask = col(lambda e: e.get('ev') == 'ask' or is_idle(e))
         check('reload asks first, as Open model does (W59d): Save session s, Don\'t save d',
@@ -4414,7 +4414,7 @@ def check_silent_commands():
         dirs.append(tempfile.mkdtemp(prefix='xpppost'))
         post = os.path.join(dirs[-1], 'post.odex')
         with open(post, 'w') as f:
-            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\n")
+            f.write("x'=-x+sin(t)\ninit x=0.5\n@ total_time=50,dt=.05,postprocess=1,histcol=x,histlo=-1,histhi=1,histbins=20\n")
         s, r = silent(post)
         dirs.append(s)
         c, rc = script(post, go + [{'cmd': 'browser', 'op': 'postprocess'},
@@ -4436,7 +4436,7 @@ def check_outcomes_once():
     d = tempfile.mkdtemp(prefix='xppoutcomes')
     try:
         with open(os.path.join(d, 'linear.odex'), 'w') as f:
-            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\n@ dt=.1,total=1\n")
+            f.write("par a=1\nx'=a\ny'=a\ninit x=0,y=0\naux type=1\naux branch=1\naux f2=0\n@ dt=.1,total_time=1\n")
         with open(os.path.join(d, 'fit.dat'), 'w') as f:
             f.write(''.join('%d %d\n' % (t, 2*t) for t in range(6)))
         def run(lines, *flags):
@@ -4613,7 +4613,7 @@ def check_dae_fold():
     try:
         short = os.path.join(short_dir, 'dae_ex3.odex')
         with open('examples/ode/dae_ex3.odex') as f:
-            text = f.read() + '\n@ total=.3\n'
+            text = f.read() + '\n@ total_time=.3\n'
         with open(short, 'w') as f:
             f.write(text)
         code, errs, rows, err = run(short, GO + SING)
@@ -4783,7 +4783,7 @@ def check_save_session():
               not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
               and state(evs).get('changed') is False and state(evs).get('session') == {'file': 'sv1.snapx'}, str(asks(evs))[:200])
         for what, cmd in (('an initial condition', dict(kind='ic', name='V', value=-0.3)),
-                          ('the time span', dict(kind='num', name='total', value=77))):
+                          ('the time span', dict(kind='num', name='total_time', value=77))):
             evs = run(cmd='set', values=[cmd])
             check('W209: %s sets changed' % what, state(evs).get('changed') is True, str(state(evs).get('changed')) + str(evs[-4:])[:200])
             evs = run(cmd='key', menu='file', item='savesession', replace=0)
@@ -4863,7 +4863,7 @@ def check_save_session():
         check('W210: a new edit forgets what could be redone', state(evs).get('can_redo') is False and state(evs).get('can_undo') is True)
         evs = redo()
         check('W210: Redo with nothing to redo is an error', len(errs(evs)) == 1 and 'redo' in str(errs(evs)[0]) and pars(evs)['phi'] == 0.3)
-        evs = run(cmd='set', values=[{'kind': 'num', 'name': 'total', 'value': 123}, {'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = run(cmd='set', values=[{'kind': 'num', 'name': 'total_time', 'value': 123}, {'kind': 'par', 'name': 'phi', 'value': 0.4}])
         evs = undo()
         check('W210: one set of a parameter and a numerics field is one undo step', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
         evs = run(cmd='default', kind='par')
@@ -5674,7 +5674,7 @@ def check_recording():
               len(s) > 1 and s[1] == {'step': 'Initial conditions', 'keys': ['i', 'Escape']} and steps[1][1] == '', str(s[1:2]))
         check('record: a dialog\'s answer is in its step (nUmerics, Total 1e7, Esc)',
               s[2:5] == [{'step': 'Numerics', 'keys': ['u'], 'view': True},
-                         {'step': 'Numerics → Integration duration', 'keys': ['t'], 'answers': ['1e7']},
+                         {'step': 'Numerics → Total time', 'keys': ['t'], 'answers': ['1e7']},
                          {'step': 'Numerics → Return to main shortcuts', 'keys': ['Escape'], 'view': True}], str(s[2:5]))
         check('record: an Abort belongs to its step, where it stopped as the stopped event said',
               len(s) > 5 and s[5].get('keys') == ['i', 'g'] and stopped and s[5].get('abort') == stopped[0]
@@ -5969,7 +5969,7 @@ def check_runnow_job():
     with tempfile.TemporaryDirectory(prefix='xpprunnow') as source:
         model = os.path.join(source, 'runnow.odex')
         with open('tools/models/heavy.odex', encoding='utf-8') as f:
-            heavy = f.read().replace('total=20', 'total=1e7')
+            heavy = f.read().replace('total_time=20', 'total_time=1e7')
         for option in ('model', 'cli'):
             with open(model, 'w', encoding='utf-8') as f:
                 f.write(heavy + (chr(10) + '@ runnow=1' + chr(10) if option == 'model' else ''))

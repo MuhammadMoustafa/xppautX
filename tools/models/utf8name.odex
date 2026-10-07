@@ -8,4 +8,4 @@ init v = 0
 # UTF-8 round trip (card W35b, docs/protocol.md "state"): before the fix
 # a name like this came back in the state event as mojibake (each UTF-8
 # byte >=0x80 treated as Latin-1 and re-encoded).
-@ total=1, dt=.1
+@ total_time=1, dt=.1

@@ -10,4 +10,4 @@ aux wsamp = n
 # stored row is an independent sample of the three RNG expressions with a
 # fixed seed; the test checks their mean/variance against known values
 # (uniform[0,1), normal(2,3), N(0,1) from the wiener) within a few sigma.
-@ total=4000, dt=1, meth=Euler, seed=1234
+@ total_time=4000, dt=1, method=Euler, seed=1234

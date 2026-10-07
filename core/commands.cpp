@@ -388,7 +388,7 @@ void make_adj(xpp::Session &s) { menu_run(s, &menu_adjoint, 0); }
 
 void get_pmap_pars(xpp::Session &s)
 {
-  menu_run(s, &menu_poincare, s.numerics.poimap);
+  menu_run(s, &menu_poincare, s.numerics.poincare_map);
 }
 
 void new_lookup(xpp::Session &s)

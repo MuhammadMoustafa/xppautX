@@ -145,7 +145,7 @@ void do_sh_range(xpp::Session &s, double *ystart, double *yend)
      if(s.shoot_range.movie==1)
        clr_scrn(s);
      
-     xpp::ok_or_show(bvshoot(s,ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&ierr,s.model().node,0,
+     xpp::ok_or_show(bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&ierr,s.model().node,0,
 	     0,0,0,0.0));
      if(ierr==-5)continue;
      if(ierr<0){ 
@@ -227,9 +227,9 @@ void find_bvp_com(xpp::Session &s, int com)
  if(s.numerics.fft||s.numerics.hist||s.delay.flag||s.numerics.bvp_flag==0)return;
  s.numerics.storflag=0;
  s.integrator.range_flag=1;
- s.numerics.poimap=0;
- oldtrans=s.numerics.trans;
- s.numerics.trans=0.0;
+ s.numerics.poincare_map=0;
+ oldtrans=s.numerics.transient_time;
+ s.numerics.transient_time=0.0;
  get_ic(s,1,ystart);
  switch(com){
  case 0:
@@ -254,9 +254,9 @@ void find_bvp_com(xpp::Session &s, int com)
  }
  {
  const xpp::Result<> shot=iper
-   ? bvshoot(s,ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,s.model().node,ishow,
+   ? bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&iret,s.model().node,ishow,
 	iper,ipar,ivar,sect)
-   : bvshoot(s,ystart,yend,s.numerics.bvp_tol,s.numerics.bvp_eps,s.numerics.bvp_maxit,&iret,s.model().node,ishow,0,0,0,0.0 );
+   : bvshoot(s,ystart,yend,s.numerics.bvp_tolerance,s.numerics.bvp_epsilon,s.numerics.bvp_max_iterates,&iret,s.model().node,ishow,0,0,0,0.0 );
  if(!shot)xpp::show_error(shot.error());
  bad_shoot(iret);
  if(iret==1||iret==2) {
@@ -276,7 +276,7 @@ else
  if(iper)set_val(s,s.model().upar_names[ipar],oldpar);
  }
   
-bye:  s.numerics.trans=oldtrans;
+bye:  s.numerics.transient_time=oldtrans;
 }
 
 xpp::Result<> last_shot(xpp::Session &s, int flag)
@@ -287,15 +287,15 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
  s.integrator.my_start=1;
  get_ic(s,2,x);
  s.numerics.storflag=flag;
- s.data_store.current_time=s.numerics.t0;
+ s.data_store.current_time=s.numerics.start_time;
  if(flag){
-  s.data_store.col[0][0]=static_cast<float>(s.numerics.t0);
-  extra(s,x,s.numerics.t0,s.model().node,s.model().neq);
+  s.data_store.col[0][0]=static_cast<float>(s.numerics.start_time);
+  extra(s,x,s.numerics.start_time,s.model().node,s.model().neq);
   for(i=0;i<s.model().neq;i++)s.data_store.col[1+i][0]=static_cast<float>(x[i]);
   s.data_store.rows=1;
 
 }
- return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start)
+ return integrate(s,&s.data_store.current_time,x,s.numerics.total_time,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start)
    .transform([](int){});
 }
 
@@ -355,8 +355,8 @@ xpp::Result<> bvshoot(xpp::Session &s, double *y, double *yend, double err, doub
  char esc;
  int info,niter=0;
  double dt=s.numerics.delta_t,t;
- double t0=s.numerics.t0;
- double t1=s.numerics.t0+s.numerics.tend*dt/fabs(dt);
+ double t0=s.numerics.start_time;
+ double t1=s.numerics.start_time+s.numerics.total_time*dt/fabs(dt);
 
  if(iper)ntot=n+1;
  std::vector<double> jac_v(static_cast<size_t>(ntot)*ntot);

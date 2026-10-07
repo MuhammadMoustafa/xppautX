@@ -24,7 +24,7 @@ init w = 0
 # and
 # some initial conditions -- not necessary but for completeness
 # Done!!
-@ total=100, trans=50
+@ total_time=100, transient_time=50
 @ xp=v, yp=w, xlo=-.4, xhi=.6, ylo=-.1, yhi=.6
 @ range=1, rangeover=i, rangestep=50, rangelow=-.2, rangehigh=.5
 @ rangereset=yes

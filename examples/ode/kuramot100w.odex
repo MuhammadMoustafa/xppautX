@@ -8,4 +8,4 @@ table mm 1/100, n=10000, lo=0, hi=9999
 x[j]' = w(j)+k*sum(mm(j*100+i')*h(shift(x0, i')-x[j]), from=0, to=99) for j in 0..99
 # kuramoto with sums
 # linear gradient
-@ total=100, bound=100000
+@ total_time=100, bound=100000

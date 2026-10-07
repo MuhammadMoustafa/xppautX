@@ -14,7 +14,7 @@ par q = 0.11, xs = 1.07, a = 11.459, th = 1, r = 1.2221, c = 120, eps = 0.1
 # needed to fool XPP into using the Volterra solver
 # ode for the delay
 @ xp=fr, yp=fi, xlo=-.5, xhi=2.5, ylo=-.5, yhi=2.5
-@ dt=.05, total=200, trans=50, delay=4, vmaxpts=1
+@ dt=.05, total_time=200, transient_time=50, delay=4, vmaxpts=1
 
 # what followed the .ode's done:
 # 

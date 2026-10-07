@@ -8,4 +8,4 @@ aux ut = sin(t)
 #
 # fool XPP
 #
-@ delay=4, total=80
+@ delay=4, total_time=80

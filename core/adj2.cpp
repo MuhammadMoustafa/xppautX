@@ -493,7 +493,7 @@ void do_liapunov(xpp::Session &s)
   double *x;
   new_int("Range over parameters?(0/1)",&s.adjoint.liap_flag);
   if(s.adjoint.liap_flag!=1){
-    auto z=hrw_liapunov(s,s.numerics.newt_err);
+    auto z=hrw_liapunov(s,s.numerics.singpt_jacobian_epsilon);
     if(z)bottom_msg(0,xpp::format("Maximal exponent is {:g}",*z));
     else xpp::show_error(z.error());
     return;
@@ -523,7 +523,7 @@ void do_this_liaprun(xpp::Session &s, int i,double p)
  if(s.adjoint.liap_flag==0)return;
  s.adjoint.liap[0][i]=p;
  /* a sweep's step that fails is not shown: its point is 0 */
- s.adjoint.liap[1][i]=static_cast<float>(hrw_liapunov(s,s.numerics.newt_err).value_or(0.0));
+ s.adjoint.liap[1][i]=static_cast<float>(hrw_liapunov(s,s.numerics.singpt_jacobian_epsilon).value_or(0.0));
  s.adjoint.liap_i++;
 }
 

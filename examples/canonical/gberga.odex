@@ -25,6 +25,6 @@ boundary k'
 # left end - need to be a bit careful since it is singular
 # right end - note primes here refer to value at the right end
 # set it up for the user
-@ xhi=1, total=1, dt=.001
+@ xhi=1, total_time=1, dt=.001
 
 fun ode_divisor(value) = if value then value else 2.23e-15

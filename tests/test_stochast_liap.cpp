@@ -28,7 +28,7 @@ int main(void)
 
     CHECK(xpp::client_session().data_store.rows > 100);
 
-    auto liap = xpp::hrw_liapunov(xpp::client_session(), xpp::client_session().numerics.newt_err);
+    auto liap = xpp::hrw_liapunov(xpp::client_session(), xpp::client_session().numerics.singpt_jacobian_epsilon);
     CHECK(liap.has_value());
     CHECK(liap && std::fabs(*liap - (-0.7)) < 1e-3);
 

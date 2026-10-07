@@ -78,7 +78,7 @@ export function RunToolbar() {
     <QuickAccess />
     <div class="run-time-controls">
       {total && <label>Run duration <Field data-run-duration="" spec={{kind: 'number', positive: true}}
-        value={sentDuration ?? String(total.value ?? '')} onCommit={text => session.setNumeric('total', text)}
+        value={sentDuration ?? String(total.value ?? '')} onCommit={text => session.setNumeric(NUM_TOTAL, text)}
         error={durationError} settling={sentDuration !== null} title="Total duration of Run from initial/last state, in model time units" /></label>}
       <label>Continue <select aria-label="Continuation time mode" value={continueInput.mode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>

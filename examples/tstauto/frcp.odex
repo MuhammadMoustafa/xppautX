@@ -7,6 +7,6 @@ x' = x+bet*y-x*ss
 y' = y-bet*x-y*ss
 par a = 0.5, b = 0.5, r = 0, eps = 0.005, bet = 100, d = 1
 init v = 0.5, w = 0, x = 0, y = 1
-@ total=.0628, dt=.0001
+@ total_time=.0628, dt=.0001
 
 fun ode_divisor(value) = if value then value else 2.23e-15

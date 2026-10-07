@@ -7,6 +7,6 @@ network k2 = delmmult(10, 10, w, td, u0)
 fun f(u) = u/(1+u^2)
 u[j]' = c0-u[j]-c1*f(k1(j))-c2*f(k2(j)) for j in 0..9
 par c0 = 0.5, c1 = 1, c2 = 0
-@ total=20, delay=6
+@ total_time=20, delay=6
 @ autoeval=0
-@ total=50
+@ total_time=50

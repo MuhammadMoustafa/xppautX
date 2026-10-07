@@ -1550,7 +1550,7 @@ void init_auto_win(xpp::Session &s)
   s.auto_state.bifur.nper=0;
   s.auto_state.grabpt.flag=0;  /*  no point in buffer  */
   s.auto_state.bifur.exist=0;
- s.auto_state.blrtn.torper=s.numerics.tor_period;
+ s.auto_state.blrtn.torper=s.numerics.torus_period;
  create_auto_file_name(s);
  
 /*  Control -- done automatically   */
@@ -2900,11 +2900,11 @@ void find_point(xpp::Session &s, int ibr, int pt)
 
 void do_auto_range(xpp::Session &s)
 {
-  double t=s.numerics.tend;
+  double t=s.numerics.total_time;
   
   if(s.auto_state.diagram_mark.state==2)
     xpp::do_auto_range_go(s);
-  s.numerics.tend=t;
+  s.numerics.total_time=t;
 }
 
 void DLINE(xpp::Session &s, double a,double b,double c,double d)

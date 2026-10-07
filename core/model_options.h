@@ -29,9 +29,11 @@ struct Session; /* session.h */
 enum class Option : unsigned char {
   none,
   /* the numerics */
-  TOTAL, T0, TRANS, DT, NMESH, NEWT_ITER, NEWT_TOL, JAC_EPS, STORE_EVERY, BOUND,
-  METH, TOL, DTMIN, DTMAX, ATOL, DELAY, VMAXPTS, MAXSTOR, TOR_PER, BANDUP,
-  BANDLO, POIMAP, POIVAR, POISGN, POISTOP, POIPLN, SEED, STOCH, AUTOEVAL,
+  TOTAL_TIME, START_TIME, TRANSIENT_TIME, DT, NULLCLINE_MESH, SINGPT_MAX_ITERATES,
+  SINGPT_NEWTON_TOLERANCE, SINGPT_JACOBIAN_EPSILON, STORE_EVERY, BOUND,
+  METHOD, TOLERANCE, MIN_STEP, MAX_STEP, ABS_TOLERANCE, DELAY, VMAXPTS, STORAGE_ROWS,
+  TORUS_PERIOD, BANDUP, BANDLO, POINCARE_MAP, POINCARE_VARIABLE, POINCARE_SIGN,
+  POINCARE_STOP, POINCARE_PLANE, SEED, STOCH, AUTOEVAL,
   /* the plot */
   XP, YP, ZP, NPLOT, AXES, XLO, XHI, YLO, YHI, XMIN, XMAX, YMIN, YMAX,
   ZMIN, ZMAX, PHI, THETA, LT, YNC, XNC, SMC, UMC, COLORMAP, PLOTFMT,
@@ -88,8 +90,8 @@ struct OptionValue {
 };
 
 /* One option. Its names match as prefixes of the name given, upper case,
-   the longest winning (so "meth" and "method" are one, and "dt" is not
-   "dtmin"); a numbered one (xp2..xp8) is its name and one digit. */
+   the longest winning (so "method" and "methodx" are one, and "dt" is not
+   "dtminimum"); a numbered one (xp2..xp8) is its name and one digit. */
 struct OptionRow {
   std::string_view name;          /* "" for a numerics setting the model cannot set */
   std::string_view alias;         /* a second name, or "" */
@@ -145,8 +147,9 @@ void set_option(Session &s, std::string_view name, std::string_view value, bool 
 
 /* why value is not one option name takes ("not an option", "not a
    number", ...), empty when it is: the checks set_option makes, nothing
-   applied (an internal set checks every item before it applies one) */
-std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value);
+   applied (an internal set checks every item before it applies one);
+   xppaut_names as find_option's */
+std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value, bool xppaut_names);
 
 /* each option no source set gets its default, in the table's order */
 void set_option_defaults(Session &s);

@@ -151,7 +151,7 @@ double get_delay(xpp::Session &s, int in, double tau)
 /*  Handling of the initial data  */
 xpp::Result<> do_init_delay(xpp::Session &s, double big)
 {
- double t=s.numerics.t0,old_t,y[MAXODE];
+ double t=s.numerics.start_time,old_t,y[MAXODE];
  int i,nt,j;
  int len;
 
@@ -175,7 +175,7 @@ xpp::Result<> do_init_delay(xpp::Session &s, double big)
   get_val(s,"t",&old_t);
 
   for(i=nt;i>=0;i--){
-	t=s.numerics.t0-fabs(s.numerics.delta_t)*i;
+	t=s.numerics.start_time-fabs(s.numerics.delta_t)*i;
 	set_val(s,"t",t);
 	for(j=0;j<(s.model().node );j++)
 		y[j]=evaluate(s,del_form[j].data());

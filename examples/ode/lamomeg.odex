@@ -12,4 +12,4 @@ aux yp = (y*(1-x^2-y^2)-q*(x^2+y^2)*x)*om
 # Boundary conditions are periodic and there is
 # a frequency parameter -- om
 # Periodic boundary conditions
-@ dt=.01, total=4, xhi=4, ylo=-1.5, yhi=1.5
+@ dt=.01, total_time=4, xhi=4, ylo=-1.5, yhi=1.5

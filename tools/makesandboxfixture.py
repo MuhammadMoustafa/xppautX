@@ -48,7 +48,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         assert idle is not None and len(state(initial)['ics']) == 8
         command(server, cmd='record', op='start')
         command(server, cmd='record', op='note', text='Short 200 ms run; original model equations and initial conditions unchanged.')
-        command(server, cmd='set', kind='num', name='total', value=RUN_MS)
+        command(server, cmd='set', kind='num', name='total_time', value=RUN_MS)
         command(server, cmd='record', op='note', text='Resting cell: all eight states update, although only voltage is plotted.')
         server.send(cmd='key', key='i')
         _, ask = server.collect(lambda e: e.get('ev') == 'ask')

@@ -142,13 +142,21 @@ grammar:
   may use the one-line `if`.
 - `fun NAME(ARG, ...) { ... }` — a block function (above).
 - `@ NAME = VALUE, NAME = VALUE, ...` — options (one name each: `store_every`,
-  where a `.ode` says `nout` or `njmp`, which a `.odex` refuses at its line; W206), comma-separated, each
+  where a `.ode` says `nout` or `njmp`; W206. Every option has one name: `total_time`, `start_time`,
+  `transient_time`, `nullcline_mesh`, `singpt_max_iterates`, `singpt_newton_tolerance`,
+  `singpt_jacobian_epsilon`, `method`, `tolerance`, `min_step`, `max_step`, `abs_tolerance`,
+  `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon`, `storage_rows`, `torus_period`,
+  `poincare_map`, `poincare_variable`, `poincare_sign`, `poincare_stop`, `poincare_plane`, where
+  a `.ode` says `total`, `t0`, `trans`, `nmesh`, `newt_iter`, `newt_tol`, `jac_eps`, `meth`, `tol`,
+  `dtmin`, `dtmax`, `atol`, `bvp_maxit`, `bvp_tol`, `bvp_eps`, `maxstor`, `tor_per`, `poimap`,
+  `poivar`, `poisgn`, `poistop`, `poipln`; a `.odex` refuses XPPAUT's word at its line, in an `@`
+  line, a `set` and a narration action; W216), comma-separated, each
   parsed independently and never silently dropped; a bad value is an
   error naming the option and the bad text, not a silent truncation.
   Filename values include `~`, as in Windows 8.3 paths
   (`@ logfile=C:/Users/RUNNER~1/out.dat`; W169, #221).
-  `meth` also accepts the full solver names, including spaces and
-  parentheses (`@ meth=Mod. Euler`, `@ meth=DoPri8(3)`); the whole value
+  `method` also accepts the full solver names, including spaces and
+  parentheses (`@ method=Mod. Euler`, `@ method=DoPri8(3)`); the whole value
   ends at a comma or the end of its line and must name a suitable solver
   (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
 - `set NAME = EXPR, ...` — a named parameter set, as `.ode`.

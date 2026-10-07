@@ -17,6 +17,6 @@ event 1 count-maxcount, arret = 1
 # when v spikes, reset, compute isi, update tlast, output
 # when 1000 are computed stop!
 # set plot
-@ meth=Euler, bound=100000000
-@ total=8000, trans=50000
+@ method=Euler, bound=100000000
+@ total_time=8000, transient_time=50000
 @ xp=count, yp=isi, xlo=0, xhi=1000, ylo=0, yhi=100

@@ -8,4 +8,4 @@ vp' = -c*vp-f(v)
 init v = 0.995, vp = -0.0039366
 # -c v' = f(v) + v''
 #
-@ total=20
+@ total_time=20

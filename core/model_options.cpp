@@ -101,46 +101,46 @@ const char *yes_no_into(int &member, const OptionValue &v)
 constexpr OptionRow rows[] = {
   /* ---- the numerics the Numerics menu and `set num` edit, in the menu's
      order; total's sign there says "forever" ---- */
-  {.name = "TOTAL", .flag = Option::TOTAL,
-   .real = [](Session &s) -> double & { return s.numerics.tend; },
+  {.name = "TOTAL_TIME", .xppaut_names = {"TOTAL"}, .flag = Option::TOTAL_TIME,
+   .real = [](Session &s) -> double & { return s.numerics.total_time; },
    /* twenty time units, XPPAUT's */
-   .reset = [](Session &s) { s.numerics.tend = 20; },
-   .key = "total", .label = "Total"},
-  {.name = "T0", .flag = Option::T0,
-   .real = [](Session &s) -> double & { return s.numerics.t0; },
+   .reset = [](Session &s) { s.numerics.total_time = 20; },
+   .key = "total_time", .label = "Total time"},
+  {.name = "START_TIME", .xppaut_names = {"T0"}, .flag = Option::START_TIME,
+   .real = [](Session &s) -> double & { return s.numerics.start_time; },
    /* time starts at 0 */
-   .reset = [](Session &s) { s.numerics.t0 = 0; },
-   .key = "t0", .label = "Start time"},
-  {.name = "TRANS", .flag = Option::TRANS,
-   .real = [](Session &s) -> double & { return s.numerics.trans; },
+   .reset = [](Session &s) { s.numerics.start_time = 0; },
+   .key = "start_time", .label = "Start time"},
+  {.name = "TRANSIENT_TIME", .xppaut_names = {"TRANS"}, .flag = Option::TRANSIENT_TIME,
+   .real = [](Session &s) -> double & { return s.numerics.transient_time; },
    /* no transient: store from the start */
-   .reset = [](Session &s) { s.numerics.trans = 0; },
-   .key = "trans", .label = "Transient"},
+   .reset = [](Session &s) { s.numerics.transient_time = 0; },
+   .key = "transient_time", .label = "Transient time"},
   {.name = "DT", .flag = Option::DT,
    .real = [](Session &s) -> double & { return s.numerics.delta_t; },
    /* twenty steps per time unit, XPPAUT's */
    .reset = [](Session &s) { s.numerics.delta_t = .05; },
    .key = "dt", .label = "Dt", .rule = OptionRule::nonzero},
-  {.name = "NMESH", .flag = Option::NMESH,
-   .whole = [](Session &s) -> int & { return s.numerics.nmesh; },
+  {.name = "NULLCLINE_MESH", .xppaut_names = {"NMESH"}, .flag = Option::NULLCLINE_MESH,
+   .whole = [](Session &s) -> int & { return s.numerics.nullcline_mesh; },
    /* a 40 by 40 grid: smooth nullclines, quickly */
-   .reset = [](Session &s) { s.numerics.nmesh = 40; },
-   .key = "nmesh", .label = "Ncline mesh", .rule = OptionRule::whole_positive},
-  {.name = "NEWT_ITER", .flag = Option::NEWT_ITER,
-   .whole = [](Session &s) -> int & { return s.numerics.evec_iter; },
+   .reset = [](Session &s) { s.numerics.nullcline_mesh = 40; },
+   .key = "nullcline_mesh", .label = "Nullcline mesh", .rule = OptionRule::whole_positive},
+  {.name = "SINGPT_MAX_ITERATES", .xppaut_names = {"NEWT_ITER"}, .flag = Option::SINGPT_MAX_ITERATES,
+   .whole = [](Session &s) -> int & { return s.numerics.singpt_max_iterates; },
    /* Newton's method converges in far fewer or not at all */
-   .reset = [](Session &s) { s.numerics.evec_iter = 100; },
-   .key = "newt_iter", .label = "Sing pt: maximum iterates", .rule = OptionRule::whole_positive},
-  {.name = "NEWT_TOL", .flag = Option::NEWT_TOL,
-   .real = [](Session &s) -> double & { return s.numerics.evec_err; },
+   .reset = [](Session &s) { s.numerics.singpt_max_iterates = 100; },
+   .key = "singpt_max_iterates", .label = "Sing pt: maximum iterates", .rule = OptionRule::whole_positive},
+  {.name = "SINGPT_NEWTON_TOLERANCE", .xppaut_names = {"NEWT_TOL"}, .flag = Option::SINGPT_NEWTON_TOLERANCE,
+   .real = [](Session &s) -> double & { return s.numerics.singpt_newton_tolerance; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.evec_err = .001; },
-   .key = "newt_tol", .label = "Sing pt: Newton tolerance", .rule = OptionRule::positive},
-  {.name = "JAC_EPS", .flag = Option::JAC_EPS,
-   .real = [](Session &s) -> double & { return s.numerics.newt_err; },
+   .reset = [](Session &s) { s.numerics.singpt_newton_tolerance = .001; },
+   .key = "singpt_newton_tolerance", .label = "Sing pt: Newton tolerance", .rule = OptionRule::positive},
+  {.name = "SINGPT_JACOBIAN_EPSILON", .xppaut_names = {"JAC_EPS"}, .flag = Option::SINGPT_JACOBIAN_EPSILON,
+   .real = [](Session &s) -> double & { return s.numerics.singpt_jacobian_epsilon; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.newt_err = .001; },
-   .key = "jac_eps", .label = "Sing pt: Jacobian epsilon", .rule = OptionRule::positive},
+   .reset = [](Session &s) { s.numerics.singpt_jacobian_epsilon = .001; },
+   .key = "singpt_jacobian_epsilon", .label = "Sing pt: Jacobian epsilon", .rule = OptionRule::positive},
   {.name = "STORE_EVERY", .xppaut_names = {"NOUT", "NJMP"}, .flag = Option::STORE_EVERY,
    .whole = [](Session &s) -> int & { return s.numerics.store_every; },
    /* every step stored */
@@ -151,33 +151,33 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's: past it a solution is taken to blow up */
    .reset = [](Session &s) { s.numerics.bound = 100; },
    .key = "bound", .label = "Bounds", .rule = OptionRule::positive},
-  {.name = "METH", .flag = Option::METH,
+  {.name = "METHOD", .xppaut_names = {"METH"}, .flag = Option::METHOD,
    .whole = [](Session &s) -> int & { return s.numerics.method; },
    /* Integral equations require Volterra; otherwise the usual RK4 default. */
    .reset = [](Session &s) {
      s.numerics.method = pick_method(s.model(), s.model().nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
    },
    .key = "method", .label = "Method", .rule = OptionRule::method},
-  {.name = "TOL", .flag = Option::TOL,
-   .real = [](Session &s) -> double & { return s.numerics.toler; },
+  {.name = "TOLERANCE", .xppaut_names = {"TOL"}, .flag = Option::TOLERANCE,
+   .real = [](Session &s) -> double & { return s.numerics.tolerance; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.toler = .001; },
-   .key = "tol", .label = "Tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel},
-  {.name = "DTMIN", .flag = Option::DTMIN,
-   .real = [](Session &s) -> double & { return s.numerics.hmin; },
+   .reset = [](Session &s) { s.numerics.tolerance = .001; },
+   .key = "tolerance", .label = "Tolerance", .rule = OptionRule::positive, .use = OptionUse::step_or_rel},
+  {.name = "MIN_STEP", .xppaut_names = {"DTMIN"}, .flag = Option::MIN_STEP,
+   .real = [](Session &s) -> double & { return s.numerics.min_step; },
    /* as small as an adaptive method may need */
-   .reset = [](Session &s) { s.numerics.hmin = 1e-12; },
-   .key = "dtmin", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::step},
-  {.name = "DTMAX", .flag = Option::DTMAX,
-   .real = [](Session &s) -> double & { return s.numerics.hmax; },
+   .reset = [](Session &s) { s.numerics.min_step = 1e-12; },
+   .key = "min_step", .label = "Minimum step", .rule = OptionRule::positive, .use = OptionUse::step},
+  {.name = "MAX_STEP", .xppaut_names = {"DTMAX"}, .flag = Option::MAX_STEP,
+   .real = [](Session &s) -> double & { return s.numerics.max_step; },
    /* one time unit */
-   .reset = [](Session &s) { s.numerics.hmax = 1; },
-   .key = "dtmax", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step},
-  {.name = "ATOL", .flag = Option::ATOL,
-   .real = [](Session &s) -> double & { return s.numerics.atoler; },
+   .reset = [](Session &s) { s.numerics.max_step = 1; },
+   .key = "max_step", .label = "Maximum step", .rule = OptionRule::positive, .use = OptionUse::step},
+  {.name = "ABS_TOLERANCE", .xppaut_names = {"ATOL"}, .flag = Option::ABS_TOLERANCE,
+   .real = [](Session &s) -> double & { return s.numerics.abs_tolerance; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.atoler = .001; },
-   .key = "atol", .label = "Abs. tolerance", .rule = OptionRule::positive, .use = OptionUse::rel},
+   .reset = [](Session &s) { s.numerics.abs_tolerance = .001; },
+   .key = "abs_tolerance", .label = "Absolute tolerance", .rule = OptionRule::positive, .use = OptionUse::rel},
   {.real = [](Session &s) -> double & { return s.numerics.eul_tol; },
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.eul_tol = 1e-7; },
@@ -191,30 +191,30 @@ constexpr OptionRow rows[] = {
    /* no delays kept */
    .reset = [](Session &s) { s.numerics.delay = 0; },
    .key = "delay", .label = "Maximal delay", .rule = OptionRule::nonnegative, .use = OptionUse::delays},
-  {.whole = [](Session &s) -> int & { return s.numerics.bvp_maxit; },
+  {.whole = [](Session &s) -> int & { return s.numerics.bvp_max_iterates; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.bvp_maxit = 20; },
-   .key = "bvp_maxit", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive},
-  {.real = [](Session &s) -> double & { return s.numerics.bvp_tol; },
+   .reset = [](Session &s) { s.numerics.bvp_max_iterates = 20; },
+   .key = "bvp_max_iterates", .label = "BVP maximum iterates", .rule = OptionRule::whole_positive},
+  {.real = [](Session &s) -> double & { return s.numerics.bvp_tolerance; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.bvp_tol = 1e-5; },
-   .key = "bvp_tol", .label = "BVP tolerance", .rule = OptionRule::positive},
-  {.real = [](Session &s) -> double & { return s.numerics.bvp_eps; },
+   .reset = [](Session &s) { s.numerics.bvp_tolerance = 1e-5; },
+   .key = "bvp_tolerance", .label = "BVP tolerance", .rule = OptionRule::positive},
+  {.real = [](Session &s) -> double & { return s.numerics.bvp_epsilon; },
    /* XPPAUT's */
-   .reset = [](Session &s) { s.numerics.bvp_eps = 1e-5; },
-   .key = "bvp_eps", .label = "BVP epsilon", .rule = OptionRule::positive},
+   .reset = [](Session &s) { s.numerics.bvp_epsilon = 1e-5; },
+   .key = "bvp_epsilon", .label = "BVP epsilon", .rule = OptionRule::positive},
 
   /* ---- the other numerics ---- */
   {.name = "VMAXPTS", .flag = Option::VMAXPTS,
    .whole = [](Session &s) -> int & { return s.numerics.max_points; }},
-  {.name = "MAXSTOR", .flag = Option::MAXSTOR,
+  {.name = "STORAGE_ROWS", .xppaut_names = {"MAXSTOR"}, .flag = Option::STORAGE_ROWS,
    .whole = [](Session &s) -> int & { return s.data_store.max_rows; },
    /* rows the data store starts with: a run of 5000 steps (it grows) */
    .reset = [](Session &s) { s.data_store.max_rows = 5000; }},
-  {.name = "TOR_PER", .flag = Option::TOR_PER,
-   .real = [](Session &s) -> double & { return s.numerics.tor_period; },
+  {.name = "TORUS_PERIOD", .xppaut_names = {"TOR_PER"}, .flag = Option::TORUS_PERIOD,
+   .real = [](Session &s) -> double & { return s.numerics.torus_period; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     if (const char *why = number_into(s.numerics.tor_period, v)) return why;
+     if (const char *why = number_into(s.numerics.torus_period, v)) return why;
      if (v.apply) s.numerics.torus = 1;
      return nullptr;
    }},
@@ -241,8 +241,8 @@ constexpr OptionRow rows[] = {
      if (v.apply) s.numerics.cv_bandflag = 1;
      return nullptr;
    }},
-  {.name = "POIMAP", .flag = Option::POIMAP,
-   .whole = [](Session &s) -> int & { return s.numerics.poimap; },
+  {.name = "POINCARE_MAP", .xppaut_names = {"POIMAP"}, .flag = Option::POINCARE_MAP,
+   .whole = [](Session &s) -> int & { return s.numerics.poincare_map; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
      int map = 0;
      switch (v.text[0]) {
@@ -251,30 +251,30 @@ constexpr OptionRow rows[] = {
      case 'p': case 'P': map = 3; break;
      default: return "not section, max or period";
      }
-     if (v.apply) s.numerics.poimap = map;
+     if (v.apply) s.numerics.poincare_map = map;
      return nullptr;
    },
    /* no Poincare map */
-   .reset = [](Session &s) { s.numerics.poimap = 0; }},
-  {.name = "POIVAR", .flag = Option::POIVAR,
-   .whole = [](Session &s) -> int & { return s.numerics.poivar; },
+   .reset = [](Session &s) { s.numerics.poincare_map = 0; }},
+  {.name = "POINCARE_VARIABLE", .xppaut_names = {"POIVAR"}, .flag = Option::POINCARE_VARIABLE,
+   .whole = [](Session &s) -> int & { return s.numerics.poincare_variable; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
-     return variable_into(s, s.numerics.poivar, v);
+     return variable_into(s, s.numerics.poincare_variable, v);
    },
    /* the first variable */
-   .reset = [](Session &s) { s.numerics.poivar = 1; }},
-  {.name = "POISGN", .flag = Option::POISGN,
-   .whole = [](Session &s) -> int & { return s.numerics.poisgn; },
+   .reset = [](Session &s) { s.numerics.poincare_variable = 1; }},
+  {.name = "POINCARE_SIGN", .xppaut_names = {"POISGN"}, .flag = Option::POINCARE_SIGN,
+   .whole = [](Session &s) -> int & { return s.numerics.poincare_sign; },
    /* crossings upwards */
-   .reset = [](Session &s) { s.numerics.poisgn = 1; }},
-  {.name = "POISTOP", .flag = Option::POISTOP,
-   .whole = [](Session &s) -> int & { return s.numerics.sos; },
+   .reset = [](Session &s) { s.numerics.poincare_sign = 1; }},
+  {.name = "POINCARE_STOP", .xppaut_names = {"POISTOP"}, .flag = Option::POINCARE_STOP,
+   .whole = [](Session &s) -> int & { return s.numerics.poincare_stop; },
    /* a section does not stop the run */
-   .reset = [](Session &s) { s.numerics.sos = 0; }},
-  {.name = "POIPLN", .flag = Option::POIPLN,
-   .real = [](Session &s) -> double & { return s.numerics.poipln; },
+   .reset = [](Session &s) { s.numerics.poincare_stop = 0; }},
+  {.name = "POINCARE_PLANE", .xppaut_names = {"POIPLN"}, .flag = Option::POINCARE_PLANE,
+   .real = [](Session &s) -> double & { return s.numerics.poincare_plane; },
    /* the section at 0 */
-   .reset = [](Session &s) { s.numerics.poipln = 0; }},
+   .reset = [](Session &s) { s.numerics.poincare_plane = 0; }},
   {.name = "SEED", .flag = Option::SEED,
    .whole = [](Session &s) -> int & { return s.numerics.rand_seed; },
    .parse = [](Session &s, const OptionValue &v) -> const char * {
@@ -781,10 +781,10 @@ std::string odex_option_key(std::string_view key)
   const std::string upper = upper_case(std::string(key));
   int index = 0;
   const OptionRow *row = find_option(upper, index, true);
-  if (!row || row->xppaut_names[0].empty()) return std::string(key);
-  for (std::string_view n : row->xppaut_names)
-    if (upper == n) return lower_case(std::string(row->name));
-  return std::string(key);
+  /* a name a .odex reads as it stands (its own, or a longer spelling of
+     its row's) stays; XPPAUT's word for a row becomes the row's name */
+  if (!row || find_option(upper, index, false) == row) return std::string(key);
+  return lower_case(std::string(row->name));
 }
 
 const OptionRow *numerics_option(std::string_view key)
@@ -800,13 +800,14 @@ constexpr const char *unknown_option = "not an option";
 
 /* option name set to value (apply), or only checked; why it is not one,
    empty when it is (or another source set it, which set_option leaves) */
-std::optional<std::string> option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply)
+std::optional<std::string> option_value(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask, bool apply,
+                                        bool xppaut_names)
 {
   const std::string upper = upper_case(std::string(name));
   /* the value as a NUL-ended text */
   const std::string text(value);
   int index = 0;
-  const OptionRow *row = find_option(upper, index, true);
+  const OptionRow *row = find_option(upper, index, xppaut_names);
   if (!row) return unknown_option;
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};
@@ -835,14 +836,14 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
 
 } // namespace
 
-std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value)
+std::optional<std::string> option_problem(Session &s, std::string_view name, std::string_view value, bool xppaut_names)
 {
-  return option_value(s, name, value, true, nullptr, false);
+  return option_value(s, name, value, true, nullptr, false, xppaut_names);
 }
 
 void set_option(Session &s, std::string_view name, std::string_view value, bool force, const OptionsSet *mask)
 {
-  const auto why = option_value(s, name, value, force, mask, true);
+  const auto why = option_value(s, name, value, force, mask, true, true);
   if (!why) return;
   if (*why == unknown_option) {
     xpp::log(XPP_LOG_WARN, "Option {} not recognized\n", upper_case(std::string(name)));

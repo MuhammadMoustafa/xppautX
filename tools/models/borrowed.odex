@@ -11,7 +11,7 @@ init x = 1, y = 0
 # the session (tools/autocheck.py's memory section, W117): a stable limit
 # cycle of period 2*pi started on it, so the adjoint converges, with
 # three auxiliaries so that the adjoint, its H function and a histogram
-# each show stored columns beside their own; a small maxstor, so that a
+# each show stored columns beside their own; a small storage_rows, so that a
 # longer run grows the store.
-@ total=6.283185307179586, dt=0.010471975511965976, maxstor=1000
+@ total_time=6.283185307179586, dt=0.010471975511965976, storage_rows=1000
 @ postprocess=1, histbins=20, histcol=x, histlo=-1, histhi=1

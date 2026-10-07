@@ -7,4 +7,4 @@ x' = a-x-5*heav(x-1)
 # steady states are the line x = a while x < 1, with norm |x| = a; past
 # x = 1 the jump leaves none nearby, so a continuation from a = 0 ends
 # there without convergence (MX) unless a limit ends it before.
-@ total=20
+@ total_time=20

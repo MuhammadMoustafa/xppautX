@@ -749,7 +749,7 @@ async function dataTable(want, dir) {
    tutorial ("To set parameters click on the asterisks") is the model with
    comment actions the task asks for: six `"..{name=value,...}"` lines, each
    an X11 "Action view" button. This picks the second one ({gk=0}) rather
-   than the first ({total=100,iapp=.1}), so it leaves TOTAL (and so the
+   than the first ({total_time=100,iapp=.1}), so it leaves TOTAL (and so the
    601-row runs later windows() and prompts() still expect) alone. */
 async function textViews() {
   await metrics({width: 1400, height: 900, deviceScaleFactor: 1, mobile: false});
@@ -3139,7 +3139,7 @@ async function busyKeys() {
     && !document.querySelector('[data-slider="${sid}"]').classList.contains('queued') && !document.querySelector('.values-queued')`);
   /* W106: a parameter field and a Numerics field are settings too: editable during the run, sent at once */
   await editField('par', 'phi', '0.4');
-  await editField('num', 'Ncline mesh', '50');
+  await editField('num', 'Nullcline mesh', '50');
   const edited = await cdp.eval(`__xpp.sent().slice(${sent0 + dragged.length})`);
   const stillBusy = await S('s.busy');
   check('busy keys: computation keys typed during a run (I, S, C) send nothing',
@@ -3148,9 +3148,9 @@ async function busyKeys() {
     + 'shown as the values, with no pending mark',
     dragged.length >= 1 && dragged.every(c => c.cmd === 'set' && c.name === 'iapp') && shownDrag
     && JSON.stringify(edited) === JSON.stringify([{cmd: 'set', kind: 'par', name: 'phi', text: '0.4'},
-      {cmd: 'set', kind: 'num', name: 'nmesh', text: '50'}])
+      {cmd: 'set', kind: 'num', name: 'nullcline_mesh', text: '50'}])
     && await cdp.eval(`${fieldOf('par', 'phi')}.querySelector('input').value === '0.4'
-      && ${fieldOf('num', 'Ncline mesh')}.querySelector('input').value === '50'`) && stillBusy,
+      && ${fieldOf('num', 'Nullcline mesh')}.querySelector('input').value === '50'`) && stillBusy,
     JSON.stringify({dragged, edited, shownDrag, stillBusy}));
   const runPars = await S('JSON.stringify(s.core.pars)');
   await focusPlot();
@@ -3166,7 +3166,7 @@ async function busyKeys() {
     JSON.stringify({stopped, cancelled, out, runPars}));
   check('W106: after the run the core has the edits made during it (state and numerics)',
     await until(`!s.busy && !s.values.inflight.length && Math.abs(s.core.pars.find(p => p[0] === "iapp")[1] - ${draggedTo}) < 1e-9
-      && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'nmesh').value === 50`,
+      && s.core.pars.find(p => p[0] === "phi")[1] === 0.4 && s.numerics.find(f => f.key === 'nullcline_mesh').value === 50`,
     'settings applied after the run', 10000),
     JSON.stringify(await S('[s.busy, s.values.inflight, s.core.pars, s.numerics]')));
   /* the New window clicked during the run ran after it: its menu answered by the click's own key */
@@ -3633,8 +3633,8 @@ async function steadyCheck() {
   await cdp.send('Input.insertText', {text:'3'});
   await rendered();
   await key('Enter');
-  check('steady: inline duration commits to the numerical owner', await until(`s.numerics.find(f => f.key === 'total').value === 3 && !s.busy`, 'inline duration'),
-    JSON.stringify(await cdp.eval(`({input:document.querySelector('[data-run-duration]').value, focus:document.activeElement.outerHTML.slice(0,120), sent:__xpp.sent().slice(-3), num:__xpp.state().numerics.find(f => f.key === 'total'), errors:__xpp.state().values.errors})`)));
+  check('steady: inline duration commits to the numerical owner', await until(`s.numerics.find(f => f.key === 'total_time').value === 3 && !s.busy`, 'inline duration'),
+    JSON.stringify(await cdp.eval(`({input:document.querySelector('[data-run-duration]').value, focus:document.activeElement.outerHTML.slice(0,120), sent:__xpp.sent().slice(-3), num:__xpp.state().numerics.find(f => f.key === 'total_time'), errors:__xpp.state().values.errors})`)));
   await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
   check('steady: normal Run uses the duration and clears the previous result', await until(`!s.busy && Math.abs(s.core.time - 3) < 1e-8 && !s.core.steady`, 'duration run'));
 }
@@ -3900,7 +3900,7 @@ async function keymapEditorCheck() {
     await until(`s.keymap.info.pinned.length === 2`, 'two pins');
     await rendered();
     check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
-    const all = ['help', 'reload', 'keymapeditor', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total', 'method'];
+    const all = ['help', 'reload', 'keymapeditor', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total_time', 'method'];
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
     const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
@@ -4449,9 +4449,9 @@ async function valuesBusy() {
      unlike Stiff it honours Store every N steps instead of resetting it to one. */
   await cdp.eval(`__xpp.send({cmd: 'set', values: [
     {kind: 'num', name: 'method', text: 'rk4'},
-    {kind: 'num', name: 'total', value: ${BUSY_TOTAL}},
+    {kind: 'num', name: 'total_time', value: ${BUSY_TOTAL}},
     {kind: 'num', name: 'store_every', value: ${BUSY_JUMP}}]})`);
-  if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total')?.value === ${BUSY_TOTAL}
+  if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total_time')?.value === ${BUSY_TOTAL}
     && s.numerics.find(f => f.key === 'store_every')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
     throw new Error('heavy.odex: heavy integration settings were not applied');
   const start = async () => {

@@ -5,6 +5,6 @@ x' = r*x*(1-y)+eps
 par r = 2.177, eps = 0
 init x = 0.11, y = 0.21
 # illustrates a period 7 continuation for the delayed logistic map
-@ meth=Discrete, total=100, store_every=7
+@ method=Discrete, total_time=100, store_every=7
 @ autoxmin=2.17, autoxmax=2.21, autoymin=0, autoymax=1
 @ dsmax=.025, dsmin=.00001, parmin=2, parmax=2.5

@@ -131,13 +131,13 @@ int main(void)
 
     xpp::get_val(s, "iapp", &iapp);
     v0 = s.last_ic[0];
-    tend = s.numerics.tend;
+    tend = s.numerics.total_time;
     dt = s.numerics.delta_t;
     save(a);
 
     xpp::set_val(s, "iapp", iapp + 1);
     s.last_ic[0] = v0 + 1;
-    s.numerics.tend = tend * 2;
+    s.numerics.total_time = tend * 2;
     s.numerics.delta_t = dt / 2;
 
     CHECK(xpp::import_xppaut_set(s, a, false).has_value());
@@ -145,7 +145,7 @@ int main(void)
     xpp::get_val(s, "iapp", &x);
     CHECK(x == iapp);
     CHECK(s.last_ic[0] == v0);
-    CHECK(s.numerics.tend == tend);
+    CHECK(s.numerics.total_time == tend);
     CHECK(s.numerics.delta_t == dt);
 
     CHECK(s.saved_session.file == "build/test_lunch_a.snapx");
@@ -171,7 +171,7 @@ int main(void)
        line, and the session is as it was, value for value */
     xpp::set_val(s, "iapp", iapp + 2);
     s.last_ic[0] = v0 + 2;
-    s.numerics.tend = tend * 3;
+    s.numerics.total_time = tend * 3;
     save(b);
     const int bvp_high = line_ending(whole, "BVP range high");
     CHECK(bvp_high > 100);
@@ -181,7 +181,7 @@ int main(void)
     save(a);
     CHECK(body(a) == body(b));
     xpp::get_val(s, "iapp", &x);
-    CHECK(x == iapp + 2 && s.last_ic[0] == v0 + 2 && s.numerics.tend == tend * 3);
+    CHECK(x == iapp + 2 && s.last_ic[0] == v0 + 2 && s.numerics.total_time == tend * 3);
     /* the line after the last one read: XPPAUT's set file holds its
        equations there, nothing else; a session's holds nothing */
     CHECK(whole.find("RHS etc") == std::string::npos);
@@ -212,13 +212,13 @@ int main(void)
     {
         const int line = line_ending(whole, "Runge-Kutta");
         const int before = s.numerics.method;
-        const double before_total = s.numerics.tend;
+        const double before_total = s.numerics.total_time;
         const int dimension = s.model().node;
         s.model().node = dimension + 1; /* the same import into an odd model */
         const std::string error = read_error(c, with_line(whole, line, xpp::format("{} Symplectic", static_cast<int>(xpp::method::SYMPLECT))));
         CHECK(error.starts_with(xpp::format("{}:{}:", c, line)));
         CHECK(error.find("even dimensions") != std::string::npos);
-        CHECK(s.numerics.method == before && s.numerics.tend == before_total);
+        CHECK(s.numerics.method == before && s.numerics.total_time == before_total);
         s.model().node = dimension;
         const std::string unknown = read_error(c, with_line(whole, line, "99 Unknown"));
         CHECK(unknown.starts_with(xpp::format("{}:{}:", c, line)));
@@ -233,7 +233,7 @@ int main(void)
     s.numerics.torus = 1;
     save(b);
     const std::string named = relabel("## Set file\n" + body(b), "store_every", "nout"); /* put as XPPAUT's file */
-    s.numerics.tend *= 2; /* an earlier valid value must not apply on a later mismatch */
+    s.numerics.total_time *= 2; /* an earlier valid value must not apply on a later mismatch */
     save(b);
     const auto named_lines = xpp::split_lines(named);
     for (std::size_t k = 1; k < named_lines.size(); k++) {

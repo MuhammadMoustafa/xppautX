@@ -88,6 +88,6 @@ init t2p = 5
 # arm 1
 # arm 2
 # arm 3
-@ bound=10000, meth=CVode, dt=.25, atoler=1e-4, toler=1e-5, total=300
+@ bound=10000, method=CVode, dt=.25, abs_tolerance=1e-4, tolerance=1e-5, total_time=300
 
 fun ode_divisor(value) = if value then value else 2.23e-15

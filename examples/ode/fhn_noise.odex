@@ -6,4 +6,4 @@ w' = eps*(v-gamma*w)
 fun f(v) = v*(1-v)*(v-a)
 par a = 0.25, eps = 0.1, gamma = 1, I_0 = 0.25, sig = 0.1
 # Forced Fitzhugh-Nagumo fhn.ode
-@ total=1000, dt=.05, meth=Euler
+@ total_time=1000, dt=.05, method=Euler

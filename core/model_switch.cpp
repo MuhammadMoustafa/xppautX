@@ -200,7 +200,7 @@ KeptValues keep_values(const Session &s)
     kept.delays.emplace_back(m.uvar_names[i],s.delay_string[i]);
   kept.numerics=s.numerics;
   kept.auto_settings=auto_settings_now(s);
-  kept.poivar=poincare_name(m,s.numerics.poivar);
+  kept.poincare_variable=poincare_name(m,s.numerics.poincare_variable);
   kept.saved=s.saved_session;
   return kept;
 }
@@ -225,19 +225,19 @@ void restore_values(Session &s, const KeptValues &kept)
   n.null_here=loaded.null_here;
   n.last_seed=loaded.last_seed;
   int poi=-1;
-  if(kept.poivar=="T")poi=0;
-  else if(!kept.poivar.empty()){
-    const int i=find_user_name(m,ICBOX,kept.poivar);
+  if(kept.poincare_variable=="T")poi=0;
+  else if(!kept.poincare_variable.empty()){
+    const int i=find_user_name(m,ICBOX,kept.poincare_variable);
     if(i>=0)poi=i+1;
   }
   if(poi<0){
     /* its variable is gone: the section the model sets up */
-    n.poimap=loaded.poimap;
-    n.poivar=loaded.poivar;
-    n.poisgn=loaded.poisgn;
-    n.poipln=loaded.poipln;
-    n.sos=loaded.sos;
-  }else n.poivar=poi;
+    n.poincare_map=loaded.poincare_map;
+    n.poincare_variable=loaded.poincare_variable;
+    n.poincare_sign=loaded.poincare_sign;
+    n.poincare_plane=loaded.poincare_plane;
+    n.poincare_stop=loaded.poincare_stop;
+  }else n.poincare_variable=poi;
   if(disc(m))n.method=pick_method(m, "Discrete", command_place()).value();
   do_meth(s); /* starts the method's solver too */
   set_delay(s);

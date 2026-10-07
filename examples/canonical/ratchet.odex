@@ -13,7 +13,7 @@ aux xm = x mod 1
 # 1 from 0 to a and slope -a/(1-a) from a to 1
 #  f = -V'
 # z is two states
-@ meth=Euler, dt=.1, total=2000, store_every=10
+@ method=Euler, dt=.1, total_time=2000, store_every=10
 @ xhi=2000, yhi=8, ylo=-8
 
 fun ode_divisor(value) = if value then value else 2.23e-15

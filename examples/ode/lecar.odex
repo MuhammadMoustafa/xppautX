@@ -14,7 +14,7 @@ aux ica = ica
 aux ik = gk*w*(v-vk)
 aux rate = phi
 init v = -0.144, w = 0.03
-set vvst = xplot = t, yplot = v, xlo = 0, xhi = 100, ylo = -0.6, yhi = 0.5, total = 100, iapp = 0.1
+set vvst = xplot = t, yplot = v, xlo = 0, xhi = 100, ylo = -0.6, yhi = 0.5, total_time = 100, iapp = 0.1
 # xlo=-.6.xhi=1.2 in the .ode: XPP reads the number at its front, -0.6
 set pp = xp = v, yp = w, xlo = -0.6, ylo = -0.25, yhi = 1.2
 set snic = v3 = 0.1, v4 = 0.145, gca = 1, phi = 0.333
@@ -35,7 +35,7 @@ set cool = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15, iapp = 0.080918
 "Channnels for the ML Eqns"
 "The ML eqns have three channels Calcium, potassium and leak."
 "To set parameters click on the asterisks"
-"{total=100,iapp=.1} We first set the integration time to 100 and increase the current"
+"{total_time=100,iapp=.1} We first set the integration time to 100 and increase the current"
 "Integrate the equations and see the nice limit cycle. Draw the nullclines."
 "{gk=0} Now we block potassium. Integrate again and look at what happens"
 "Draw the nullclines. Where is the V nullcline?"
@@ -44,7 +44,7 @@ set cool = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15, iapp = 0.080918
 "{gk=2,gca=1.33} Back to normal.  Both currents are required for oscillations!"
 "{gl=0} What happens with no leak???"
 @ colormap=0
-@ TOTAL=30, DT=.05, xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
+@ total_time=30, DT=.05, xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
 @ xplot=v, yplot=w
 @ dsmin=1e-5, dsmax=.02, parmin=-.2, parmax=.5
 @ npr=500, nmax=2000

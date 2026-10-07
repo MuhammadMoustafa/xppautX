@@ -21,6 +21,6 @@ aux dd = d
 # add a small quickly decaying transient
 # the four functions f,g,f1,g1
 @ autoeval=1
-@ total=150
+@ total_time=150
 
 fun ode_divisor(value) = if value then value else 2.23e-15

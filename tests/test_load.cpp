@@ -33,14 +33,14 @@ int main(void)
     xpp::Session *session = &xpp::client_session();
     const int node = model->node;
     const std::string file = model->this_file;
-    session->numerics.tend = 123.0; /* a change the failed load must keep */
+    session->numerics.total_time = 123.0; /* a change the failed load must keep */
 
     CHECK(!xpp::load_model(2, argv_bad, 1).has_value());
     CHECK(&xpp::client_session().model() == model);
     CHECK(&xpp::client_session() == session);
     CHECK(xpp::client_session().model().node == node);
     CHECK(xpp::client_session().model().this_file == file);
-    CHECK(xpp::client_session().numerics.tend == 123.0);
+    CHECK(xpp::client_session().numerics.total_time == 123.0);
 
     /* why: f's formula (line 4) does not compile */
     xpp::Loaded d = xpp::load_model(2, argv_bad, 1);
@@ -74,7 +74,7 @@ int main(void)
     CHECK(xpp::load_model(2, argv_good, 1).has_value());
     CHECK(xpp::client_session().model().node == node);
     CHECK(xpp::client_session().model().this_file == file);
-    CHECK(xpp::client_session().numerics.tend != 123.0);
+    CHECK(xpp::client_session().numerics.total_time != 123.0);
 
     /* a model's @ colormap is its own Session's (W120): the next model
        loaded without one gets the default scale */

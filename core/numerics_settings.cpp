@@ -50,11 +50,11 @@ bool used(const xpp::Session &s, const OptionRow &f)
 }
 
 /* total's sign says "forever", as the menu's */
-bool is_total(const OptionRow &f) { return f.key == "total"; }
+bool is_total(const OptionRow &f) { return f.key == "total_time"; }
 
 double value_of(const xpp::Session &s, const OptionRow &f)
 {
-    if (is_total(f) && s.numerics.forever) return -s.numerics.tend;
+    if (is_total(f) && s.numerics.forever) return -s.numerics.total_time;
     /* the accessors name the member; reading it changes nothing */
     xpp::Session &member_of = const_cast<xpp::Session &>(s);
     return f.real ? f.real(member_of) : f.whole(member_of);
@@ -144,7 +144,7 @@ int numerics_settings_set(xpp::Session &s, std::string_view key, std::string_vie
         NumericsSettings &n = s.numerics;
         if (is_total(*f)) { /* the menu's Total: below 0 for ever */
             n.forever = v < 0;
-            n.tend = std::fabs(v);
+            n.total_time = std::fabs(v);
         } else if (f->real) {
             f->real(s) = v;
         } else {

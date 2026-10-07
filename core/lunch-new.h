@@ -47,11 +47,11 @@ void copy_graph_settings(const GRAPH &from, GRAPH &to);
    active window's graphics, Transpose, the H functions' coupling, the
    array plot, the torus and the ranges. */
 struct SetFile {
-  int store_every = 0, nmesh = 0, method = 0;
-  double tend = 0, delta_t = 0, t0 = 0, trans = 0, bound = 0, hmin = 0, hmax = 0, toler = 0, atoler = 0, delay = 0;
-  int evec_iter = 0;
-  double evec_err = 0, newt_err = 0, poipln = 0, bvp_tol = 0, bvp_eps = 0;
-  int bvp_maxit = 0, poimap = 0, poivar = 0, poisgn = 0, sos = 0, delay_flag = 0;
+  int store_every = 0, nullcline_mesh = 0, method = 0;
+  double total_time = 0, delta_t = 0, start_time = 0, transient_time = 0, bound = 0, min_step = 0, max_step = 0, tolerance = 0, abs_tolerance = 0, delay = 0;
+  int singpt_max_iterates = 0;
+  double singpt_newton_tolerance = 0, singpt_jacobian_epsilon = 0, poincare_plane = 0, bvp_tolerance = 0, bvp_epsilon = 0;
+  int bvp_max_iterates = 0, poincare_map = 0, poincare_variable = 0, poincare_sign = 0, poincare_stop = 0, delay_flag = 0;
   double current_time = 0, last_time = 0;
   int my_start = 0, inflag = 0;
   /* Max points for volterra, when the method is Volterra's */
@@ -64,7 +64,7 @@ struct SetFile {
   std::vector<std::string> coupling;
   APLOT aplot{};
   int torus = 0;
-  double tor_period = 0;
+  double torus_period = 0;
   std::vector<int> itor;
   EquilibriumRange eq_range;
   RangeVars range{};

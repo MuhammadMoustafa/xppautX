@@ -264,7 +264,7 @@ init u[j] = 1 for j in 50..55
 # coupled Ginsberg-Landau equation
 # cgl.ode
 # parameters
-@ dt=.25, total=300, trans=100
+@ dt=.25, total_time=300, transient_time=100
 
 # what followed the .ode's done:
 # Use the array to plot u0 256 cols 

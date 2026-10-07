@@ -311,7 +311,7 @@ steps are not comparison intervals.
 |---|---|---|
 | `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/command_table.h and core/menus.cpp, the only places a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
-| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
+| `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total_time`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
 | `default` | `kind` (`par` or `ic`) | The Default button, and web2's **Reset all** (W131): values from the ODE file (`hello.defaults`), the tables redone once; no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. Another `kind` is a `message` `error` and nothing changes. |
 | `slider` | `slot`, `name`, `lo`, `hi`, `step` | Set a Session slider definition. Zero-based `slot` is an existing slot or the next slot (append); empty `name` clears it. Name must be a parameter or initial condition; finite low < high, and step from 0 through high-low are required (0 chooses an automatic page step). A state event confirms the setting; it runs nothing. Open model replaces the definitions with that model's `@ s1/slo1/shi1` options. |
 | `slide` | `name`, `value` | A parameter slider moved: set the parameter or variable, no run (the `rerun` flag went with `set`'s, W69; web2 sends a slider's values as `set`). A setting, as `set` is. A name the model does not have, or a `value` that is not a number, is a `message` `error` and nothing changes. |
@@ -1200,34 +1200,36 @@ core/numerics_settings.cpp keeps it.
 
 ```
 {"ev":"numerics","fields":[
-  {"key":"total","label":"Total","value":30},
+  {"key":"total_time","label":"Total time","value":30},
   {"key":"dt","label":"Dt","value":0.05},
   {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
   {"key":"method","label":"Method","value":3,"integer":true,
    "choices":["Discrete","Euler","Mod. Euler","Runge-Kutta",...]},
-  {"key":"tol","label":"Tolerance","value":0.001,"unused":true}, ...]}
+  {"key":"tolerance","label":"Tolerance","value":0.001,"unused":true}, ...]}
 ```
 
-The fields, in the menu's order: `total` (below 0: integrate for ever, as
-the menu's), `t0`, `trans`, `dt`, `nmesh` (Ncline ctrl), `newt_iter`,
-`newt_tol`, `jac_eps` (sIng pt ctrl), `store_every`, `bound`, `method` (its number,
-`choices` its names by number), `tol`, `dtmin`, `dtmax`, `atol`, `eul_tol`,
-`eul_iter` (the method's own), `delay` (only for a model with delays),
-`bvp_maxit`, `bvp_tol`, `bvp_eps` (bndVal). `integer` marks a whole-number
+The fields, in the menu's order: `total_time` (below 0: integrate for ever, as
+the menu's), `start_time`, `transient_time`, `dt`, `nullcline_mesh` (nullcline mesh),
+`singpt_max_iterates`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` (sIng pt ctrl),
+`store_every`, `bound`, `method` (its number, `choices` its names by number), `tolerance`,
+`min_step`, `max_step`, `abs_tolerance`, `eul_tol`, `eul_iter` (the method's own), `delay` (only
+for a model with delays), `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon` (bndVal). Each key
+is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, ...) are not keys
+(W216). `integer` marks a whole-number
 field; `unused` one the current method does not use.
 
 **`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one
 field. The core checks the value first and changes nothing on a bad one,
 with a `message` `error` naming the field (`Numerics: Store every N steps must be a
 whole number of at least 1`): a number; `dt` not 0; the tolerances,
-`bound`, `newt_tol`, `jac_eps` above 0; `delay` at least 0; the whole-number
+`bound`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` above 0; `delay` at least 0; the whole-number
 fields at least 1; `method` a name of `choices` (any case) or its number, one
 the model can use (Volterra only for integral equations, and only it then;
 Symplectic only for an even dimension). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
 uses the same solver picker for the menu, values panel, model options and
-set import. A method refusal keeps the previous method; `@ meth` rejects
+set import. A method refusal keeps the previous method; `@ method` rejects
 unknown or unsuitable methods at its file and line. Protocol numeric IDs
-remain IDs (8 is QualRK), while the legacy `@ meth=8` key means DoPri8(3).
+remain IDs (8 is QualRK), while the legacy `@ meth=8` key of a `.ode` means DoPri8(3).
 Then it applies the numerics as
 leaving the Numerics menu does (the delays' and integrals' memory for a new
 `dt` or `delay`, a fresh solver; a method that picks its own steps stores

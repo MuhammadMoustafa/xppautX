@@ -105,7 +105,7 @@ void re_evaluate_kernels(xpp::Session &s)
   for(i=0;i<s.model().nkernel;i++){
     if(kernels[i].flag==CONV){
       for(j=0;j<=n;j++){
-	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
+	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
 	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }  
@@ -122,7 +122,7 @@ void alloc_kernels(xpp::Session &s, int flag)
     if(kernels[i].flag==CONV){
       s.volterra.kernels[i].cnv.assign(n+1,0.0);
       for(j=0;j<=n;j++){
-	setvar(s,0,s.numerics.t0+s.numerics.delta_t*j);
+	setvar(s,0,s.numerics.start_time+s.numerics.delta_t*j);
 	s.volterra.kernels[i].cnv[j]=evaluate(s,kernels[i].kerform.data());
       }
     }
@@ -305,7 +305,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
  i0=MAX(0,s.volterra.current_point-s.numerics.max_points);
  iend=MIN(s.volterra.current_point-1,s.numerics.max_points-1);
  ishift=i0%s.numerics.max_points;
- init_sums(s,s.numerics.t0,s.volterra.current_point,dt,i0,iend,ishift); /*  initialize all the sums */
+ init_sums(s,s.numerics.start_time,s.volterra.current_point,dt,i0,iend,ishift); /*  initialize all the sums */
  s.volterra.kn_flag=0;
  for(i=0;i<neq;i++){
    setvar(s,i+1,y[i]);
@@ -332,7 +332,7 @@ int volt_step(xpp::Session &s, double *y, double t, double dt, int neq, double *
    }
    /*   Compute Jacobian     */
    for(i=0;i<s.model().node;i++){
-     del=s.numerics.newt_err*MAX(s.numerics.newt_err,fabs(yg[i]));
+     del=s.numerics.singpt_jacobian_epsilon*MAX(s.numerics.singpt_jacobian_epsilon,fabs(yg[i]));
      yold=yg[i];
      yg[i]+=del;
      delinv=1./del;

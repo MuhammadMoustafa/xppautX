@@ -158,8 +158,8 @@ beside the plot (a sheet on a phone):
   them (`b` or `bndry` lines, `boundary` in `.odex`), and delays only for
   delay equations.
 - **Numerics** holds the main numerical parameters of the Numerics menu
-  ([Numerical parameters](06-numerical-parameters.md)): Total, Start
-  time, Transient, Dt, the nullcline mesh, the equilibrium (Sing pt)
+  ([Numerical parameters](06-numerical-parameters.md)): Total time, Start
+  time, Transient time, Dt, the nullcline mesh, the equilibrium (Sing pt)
   controls, Store every N steps, Bounds, the Method (a list) and its tolerances and
   step limits, the maximal delay (delay equations only) and the boundary
   value controls. A field the current method does not use is greyed. They

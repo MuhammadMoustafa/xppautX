@@ -10,4 +10,4 @@ init x = 0.12, y = 0.12, px = 0.12, py = 0.12
 # illustrates the use of the symplectic integrator
 # try integration to 20000 with store_every=100 and plot the energy
 # try again with Runge-Kutta
-@ total=200, dt=.166666, meth=Symplectic
+@ total_time=200, dt=.166666, method=Symplectic

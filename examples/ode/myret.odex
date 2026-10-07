@@ -5,4 +5,4 @@ y1' = y0*delay(y1, 1)-y1
 y2' = y1-delay(y1, 10)
 init y0 = 5, y1 = 0.1, y2 = 1
 # problem from hairer et al
-@ delay=20, total=50
+@ delay=20, total_time=50

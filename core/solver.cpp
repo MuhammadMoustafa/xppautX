@@ -77,7 +77,7 @@ public:
     NumericsSettings &num=session_.numerics;
     std::array<double,MAXODE> error{};
     int kflag=0;
-    gear(session_,s.neq,s.t,s.tout,s.y,num.hmin,num.hmax,num.toler,2,error.data(),&kflag,s.start,
+    gear(session_,s.neq,s.t,s.tout,s.y,num.min_step,num.max_step,num.tolerance,2,error.data(),&kflag,s.start,
          work_.data(),iwork_.data());
     switch(kflag){
     case -1: return failed("kflag=-1: minimum step too big");
@@ -102,8 +102,8 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    adaptive(session_,s.y,s.neq,s.t,s.tout,num.toler,s.hguess,num.hmin,work_.data(),&kflag,
-             num.newt_err,info().id,s.start);
+    adaptive(session_,s.y,s.neq,s.t,s.tout,num.tolerance,s.hguess,num.min_step,work_.data(),&kflag,
+             num.singpt_jacobian_epsilon,info().id,s.start);
     switch(kflag){
     case 0: return {};
     case 1: return failed("stepsize is close to 0");
@@ -125,7 +125,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.toler,&num.atoler);
+    cvode(session_,run_,s.start,s.y,s.t,s.neq,s.tout,&kflag,&num.tolerance,&num.abs_tolerance);
     if(kflag<0){
       /* the short reason, then CVODE's own words; at the equation of the
          variable CVODE's error test or corrector failed at, if it names one */
@@ -154,7 +154,7 @@ public:
   {
     NumericsSettings &num=session_.numerics;
     int kflag=0;
-    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.toler,&num.atoler,info().traits.eighth_order,&kflag,
+    dp(session_,s.start,s.y,s.t,s.neq,s.tout,&num.tolerance,&num.abs_tolerance,info().traits.eighth_order,&kflag,
        work_.data());
     switch(kflag){
     case -1: return failed("Input is not consistent");

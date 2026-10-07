@@ -7,4 +7,4 @@ init x = 1
 # constant a, since every perturbation grows/shrinks as e^(a t) regardless
 # of size. tests/test_stochast_liap.cpp checks hrw_liapunov() against a
 # with a small tolerance.
-@ total=20, dt=.01, meth=Runge-Kutta
+@ total_time=20, dt=.01, method=Runge-Kutta

@@ -11,6 +11,6 @@ init x2 = 0.2
 init x3 = 0.1
 # a model used by the author to study complex dynamics in winner
 # take all neural networks change tau to 1.1 and then .25
-@ dt=.1, total=200, xhi=200, ylo=0, yhi=1
+@ dt=.1, total_time=200, xhi=200, ylo=0, yhi=1
 
 fun ode_divisor(value) = if value then value else 2.23e-15

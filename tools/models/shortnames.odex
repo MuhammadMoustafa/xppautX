@@ -11,6 +11,6 @@ aux tot = f(v)+i
 init v = -1, w = -0.5
 # FitzHugh-Nagumo: longnames.ode with short names. The two must compute
 # the same numbers (tools/autocheck.py, section names).
-@ total=100, dt=0.05, xp=v, yp=w
+@ total_time=100, dt=0.05, xp=v, yp=w
 @ xlo=-2.5, xhi=2.5, ylo=-1, yhi=2
 @ parmin=0, parmax=2, autoxmin=0, autoxmax=2, autoymin=-2.5, autoymax=2.5, dsmax=0.05

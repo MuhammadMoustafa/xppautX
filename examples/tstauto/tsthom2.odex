@@ -21,4 +21,4 @@ par a = 0
 # 0   1
 # 1  -a
 #
-@ total=1, dt=.002
+@ total_time=1, dt=.002

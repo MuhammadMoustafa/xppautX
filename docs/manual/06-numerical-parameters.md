@@ -2,7 +2,7 @@
 
 When you click on the `nUmerics` command in the main menu, a new list appears. This is the numerics menu and allows you to set all of the numerical parameters as well as some post-processing. Some of these may not yet be implemented. Press `Esc` or click on the ` exit` to get the main menu back.
 
-The main ones (Total, Start time, tRansient, Dt, the nullcline mesh, the Sing pt controls, Store every N steps, Bounds, Method and its tolerances, dElay, bndVal) are also fields of the values panel's **Numerics** section, where you edit them like a parameter. They are settings: changed during a computation (in the panel, or with a menu item, whose dialog then opens when the computation ends), they apply to the next run, never to the one in progress.
+The main ones (Total time, Start time, tRansient time, Dt, the nullcline mesh, the Sing pt controls, Store every N steps, Bounds, Method and its tolerances, dElay, bndVal) are also fields of the values panel's **Numerics** section, where you edit them like a parameter. They are settings: changed during a computation (in the panel, or with a menu item, whose dialog then opens when the computation ends), they apply to the next run, never to the one in progress.
 
 Either way a value is checked first: Dt other than 0, the bounds, tolerances and Sing pt values above 0, the maximal delay at least 0, the mesh, Store every N steps and iteration counts whole numbers of at least 1, a method the model can use. A value that is not is refused with a message saying what it must be, and the value before stays.
 

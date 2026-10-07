@@ -12,4 +12,4 @@ init n[j] = ran(1) for j in 0..100
 # convolve it
 # random initial data
 # ODEs
-@ total=50
+@ total_time=50

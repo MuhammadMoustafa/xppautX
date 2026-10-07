@@ -20,7 +20,7 @@ aux e = 0.5*(rp^2+(r*thp)^2+a*(r-1)^2)-r*(cos(th)-1)
 # scale is for animation
 # the position of the bob for animation
 # the energy
-@ total=100, meth=QualRK, dt=.1
+@ total_time=100, method=QualRK, dt=.1
 @ bound=100000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

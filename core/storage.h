@@ -39,7 +39,7 @@ struct DataStore {
   float **col = nullptr; /* col[c] is column c, max_rows floats */
   int rows = 0;          /* rows stored so far */
   int max_rows = 0;      /* rows each column has room for (the model's
-                            maxstor; grows when a run fills it) */
+                            storage_rows; grows when a run fills it) */
   double current[MAXODE] = {}; /* the state where the last run ended */
   double current_time = 0;     /* and its time */
 

@@ -15,7 +15,7 @@ init x = 0, y = 0
 # A deliberately slow model for the abort tests (tools/autocheck.py):
 # a Hopf normal form driving six stiff slaves, with a right-hand side made
 # expensive by a sum, so one AUTO continuation step takes seconds.
-@ total=20, dt=0.01, meth=Stiff, bound=1000
+@ total_time=20, dt=0.01, method=Stiff, bound=1000
 @ ntst=150, nmax=2000, npr=2000, ds=0.02, dsmin=0.0001, dsmax=0.05
 @ parmin=-1, parmax=1, autoxmin=-1, autoxmax=1, autoymin=0, autoymax=1.5
 @ epsl=1e-10, epsu=1e-10, epss=1e-8

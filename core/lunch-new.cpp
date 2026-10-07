@@ -88,29 +88,29 @@ void write_numerics(const xpp::Session &s, FILE *fp)
   const NumericsSettings &n=s.numerics;
   write_heading(fp,"# Numerical stuff");
   write_whole(fp,n.store_every," store_every");
-  write_whole(fp,n.nmesh," nullcline mesh");
+  write_whole(fp,n.nullcline_mesh," nullcline mesh");
   write_whole(fp,n.method,xpp::solver_info(n.method).set_label);
-  write_real(fp,n.tend,"total");
+  write_real(fp,n.total_time,"total");
   write_real(fp,n.delta_t,"DeltaT");
-  write_real(fp,n.t0,"T0");
-  write_real(fp,n.trans,"Transient");
+  write_real(fp,n.start_time,"T0");
+  write_real(fp,n.transient_time,"Transient");
   write_real(fp,n.bound,"Bound");
-  write_real(fp,n.hmin,"DtMin");
-  write_real(fp,n.hmax,"DtMax");
-  write_real(fp,n.toler,"Tolerance");
-  write_real(fp,n.atoler,"Abs. Tolerance");
+  write_real(fp,n.min_step,"DtMin");
+  write_real(fp,n.max_step,"DtMax");
+  write_real(fp,n.tolerance,"Tolerance");
+  write_real(fp,n.abs_tolerance,"Abs. Tolerance");
   write_real(fp,n.delay,"Max Delay");
-  write_whole(fp,n.evec_iter,"Eigenvector iterates");
-  write_real(fp,n.evec_err,"Eigenvector tolerance");
-  write_real(fp,n.newt_err,"Newton tolerance");
-  write_real(fp,n.poipln,"Poincare plane");
-  write_real(fp,n.bvp_tol,"Boundary value tolerance");
-  write_real(fp,n.bvp_eps,"Boundary value epsilon");
-  write_whole(fp,n.bvp_maxit,"Boundary value iterates");
-  write_whole(fp,n.poimap,poincare_names[static_cast<std::size_t>(n.poimap)]);
-  write_whole(fp,n.poivar,"Poincare variable");
-  write_whole(fp,n.poisgn,"Poincare sign");
-  write_whole(fp,n.sos,"Stop on Section");
+  write_whole(fp,n.singpt_max_iterates,"Eigenvector iterates");
+  write_real(fp,n.singpt_newton_tolerance,"Eigenvector tolerance");
+  write_real(fp,n.singpt_jacobian_epsilon,"Newton tolerance");
+  write_real(fp,n.poincare_plane,"Poincare plane");
+  write_real(fp,n.bvp_tolerance,"Boundary value tolerance");
+  write_real(fp,n.bvp_epsilon,"Boundary value epsilon");
+  write_whole(fp,n.bvp_max_iterates,"Boundary value iterates");
+  write_whole(fp,n.poincare_map,poincare_names[static_cast<std::size_t>(n.poincare_map)]);
+  write_whole(fp,n.poincare_variable,"Poincare variable");
+  write_whole(fp,n.poincare_sign,"Poincare sign");
+  write_whole(fp,n.poincare_stop,"Stop on Section");
   write_whole(fp,s.delay.flag,"Delay flag");
   write_real(fp,s.data_store.current_time,"Current time");
   write_real(fp,s.integrator.last_time,"Last Time");
@@ -162,7 +162,7 @@ void write_more(const xpp::Session &s, FILE *fp)
 
   write_heading(fp,"# Torus information ");
   write_whole(fp,s.numerics.torus," Torus flag 1=ON");
-  write_real(fp,s.numerics.tor_period,"Torus period");
+  write_real(fp,s.numerics.torus_period,"Torus period");
   if(s.numerics.torus)
     for(int i=0;i<s.model().neq;i++)write_whole(fp,s.itor[i],s.model().uvar_names[i]);
 
@@ -216,52 +216,52 @@ void read_numerics(const xpp::Session &s, Lines &l, SetFile &f, bool session)
   l.heading("# Numerical stuff");
   f.store_every=l.whole(session?"store_every":XPPAUT_STORE_EVERY,true);
   check_setting(l,"store_every",f.store_every);
-  f.nmesh=l.whole("nullcline mesh",true);
-  check_setting(l,"nmesh",f.nmesh);
+  f.nullcline_mesh=l.whole("nullcline mesh",true);
+  check_setting(l,"nullcline_mesh",f.nullcline_mesh);
   f.method=l.whole("the method");
   const auto picked=check_method(s.model(),f.method,l.error(l.line(),"").place);
   if(!picked)l.fail(picked.error().what);
   f.method=*picked;
   l.check_name(xpp::solver_info(f.method).set_label);
-  f.tend=l.real("total",true);
+  f.total_time=l.real("total",true);
   f.delta_t=l.real("DeltaT",true);
   check_setting(l,"dt",f.delta_t);
-  f.t0=l.real("T0",true);
-  f.trans=l.real("Transient",true);
+  f.start_time=l.real("T0",true);
+  f.transient_time=l.real("Transient",true);
   f.bound=l.real("Bound",true);
   check_setting(l,"bound",f.bound);
-  f.hmin=l.real("DtMin",true);
-  check_setting(l,"dtmin",f.hmin);
-  f.hmax=l.real("DtMax",true);
-  check_setting(l,"dtmax",f.hmax);
-  f.toler=l.real("Tolerance",true);
-  check_setting(l,"tol",f.toler);
-  f.atoler=l.real("Abs. Tolerance",true);
-  check_setting(l,"atol",f.atoler);
+  f.min_step=l.real("DtMin",true);
+  check_setting(l,"min_step",f.min_step);
+  f.max_step=l.real("DtMax",true);
+  check_setting(l,"max_step",f.max_step);
+  f.tolerance=l.real("Tolerance",true);
+  check_setting(l,"tolerance",f.tolerance);
+  f.abs_tolerance=l.real("Abs. Tolerance",true);
+  check_setting(l,"abs_tolerance",f.abs_tolerance);
   f.delay=l.real("Max Delay",true);
   check_setting(l,"delay",f.delay);
-  f.evec_iter=l.whole("Eigenvector iterates",true);
-  check_setting(l,"newt_iter",f.evec_iter);
-  f.evec_err=l.real("Eigenvector tolerance",true);
-  check_setting(l,"newt_tol",f.evec_err);
-  f.newt_err=l.real("Newton tolerance",true);
-  check_setting(l,"jac_eps",f.newt_err);
-  f.poipln=l.real("Poincare plane",true);
-  f.bvp_tol=l.real("Boundary value tolerance",true);
-  check_setting(l,"bvp_tol",f.bvp_tol);
-  f.bvp_eps=l.real("Boundary value epsilon",true);
-  check_setting(l,"bvp_eps",f.bvp_eps);
-  f.bvp_maxit=l.whole("Boundary value iterates",true);
-  check_setting(l,"bvp_maxit",f.bvp_maxit);
-  f.poimap=l.whole("the Poincare map");
-  if(f.poimap<0||f.poimap>=static_cast<int>(poincare_names.size()))
-    l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",f.poimap,poincare_names.size()-1));
-  l.check_name(poincare_names[static_cast<std::size_t>(f.poimap)]);
-  f.poivar=l.whole("Poincare variable",true);
-  if(f.poivar<0||f.poivar>s.model().neq)
-    l.fail(xpp::format("{} is not a variable's number (0 to {})",f.poivar,s.model().neq));
-  f.poisgn=l.whole("Poincare sign",true);
-  f.sos=l.whole("Stop on Section",true);
+  f.singpt_max_iterates=l.whole("Eigenvector iterates",true);
+  check_setting(l,"singpt_max_iterates",f.singpt_max_iterates);
+  f.singpt_newton_tolerance=l.real("Eigenvector tolerance",true);
+  check_setting(l,"singpt_newton_tolerance",f.singpt_newton_tolerance);
+  f.singpt_jacobian_epsilon=l.real("Newton tolerance",true);
+  check_setting(l,"singpt_jacobian_epsilon",f.singpt_jacobian_epsilon);
+  f.poincare_plane=l.real("Poincare plane",true);
+  f.bvp_tolerance=l.real("Boundary value tolerance",true);
+  check_setting(l,"bvp_tolerance",f.bvp_tolerance);
+  f.bvp_epsilon=l.real("Boundary value epsilon",true);
+  check_setting(l,"bvp_epsilon",f.bvp_epsilon);
+  f.bvp_max_iterates=l.whole("Boundary value iterates",true);
+  check_setting(l,"bvp_max_iterates",f.bvp_max_iterates);
+  f.poincare_map=l.whole("the Poincare map");
+  if(f.poincare_map<0||f.poincare_map>=static_cast<int>(poincare_names.size()))
+    l.fail(xpp::format("{} is not a Poincare map's number (0 to {})",f.poincare_map,poincare_names.size()-1));
+  l.check_name(poincare_names[static_cast<std::size_t>(f.poincare_map)]);
+  f.poincare_variable=l.whole("Poincare variable",true);
+  if(f.poincare_variable<0||f.poincare_variable>s.model().neq)
+    l.fail(xpp::format("{} is not a variable's number (0 to {})",f.poincare_variable,s.model().neq));
+  f.poincare_sign=l.whole("Poincare sign",true);
+  f.poincare_stop=l.whole("Stop on Section",true);
   f.delay_flag=l.whole("Delay flag",true);
   f.current_time=l.real("Current time",true);
   f.last_time=l.real("Last Time",true);
@@ -322,7 +322,7 @@ void read_more(const xpp::Session &s, Lines &l, SetFile &f)
   l.heading("# Torus information");
   f.torus=l.whole("Torus flag 1=ON",true);
   if(f.torus!=0&&f.torus!=1)l.fail(xpp::format("the torus flag {}: 0 or 1",f.torus));
-  f.tor_period=l.real("Torus period",true);
+  f.torus_period=l.real("Torus period",true);
   if(f.torus)
     for(int i=0;i<s.model().neq;i++)f.itor.push_back(l.whole(s.model().uvar_names[i],true));
 
@@ -541,30 +541,30 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
   const xpp::Model &m=s.model();
   NumericsSettings &n=s.numerics;
   n.store_every=f.store_every;
-  n.nmesh=f.nmesh;
+  n.nullcline_mesh=f.nullcline_mesh;
   n.method=f.method;
   xpp::do_meth(s);
-  n.tend=f.tend;
+  n.total_time=f.total_time;
   n.delta_t=f.delta_t;
-  n.t0=f.t0;
-  n.trans=f.trans;
+  n.start_time=f.start_time;
+  n.transient_time=f.transient_time;
   n.bound=f.bound;
-  n.hmin=f.hmin;
-  n.hmax=f.hmax;
-  n.toler=f.toler;
-  n.atoler=f.atoler;
+  n.min_step=f.min_step;
+  n.max_step=f.max_step;
+  n.tolerance=f.tolerance;
+  n.abs_tolerance=f.abs_tolerance;
   n.delay=f.delay;
-  n.evec_iter=f.evec_iter;
-  n.evec_err=f.evec_err;
-  n.newt_err=f.newt_err;
-  n.poipln=f.poipln;
-  n.bvp_tol=f.bvp_tol;
-  n.bvp_eps=f.bvp_eps;
-  n.bvp_maxit=f.bvp_maxit;
-  n.poimap=f.poimap;
-  n.poivar=f.poivar;
-  n.poisgn=f.poisgn;
-  n.sos=f.sos;
+  n.singpt_max_iterates=f.singpt_max_iterates;
+  n.singpt_newton_tolerance=f.singpt_newton_tolerance;
+  n.singpt_jacobian_epsilon=f.singpt_jacobian_epsilon;
+  n.poincare_plane=f.poincare_plane;
+  n.bvp_tolerance=f.bvp_tolerance;
+  n.bvp_epsilon=f.bvp_epsilon;
+  n.bvp_max_iterates=f.bvp_max_iterates;
+  n.poincare_map=f.poincare_map;
+  n.poincare_variable=f.poincare_variable;
+  n.poincare_sign=f.poincare_sign;
+  n.poincare_stop=f.poincare_stop;
   s.delay.flag=f.delay_flag;
   s.data_store.current_time=f.current_time;
   s.integrator.last_time=f.last_time;
@@ -589,7 +589,7 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
   for(int i=0;i<m.node;i++)s.adjoint.coup_string[i]=f.coupling[i];
   s.array_plot.plot=f.aplot;
   n.torus=f.torus;
-  n.tor_period=f.tor_period;
+  n.torus_period=f.torus_period;
   for(std::size_t i=0;i<f.itor.size();i++)s.itor[i]=f.itor[i];
   s.integrator.eq_range=f.eq_range;
   s.integrator.range=f.range;
@@ -649,17 +649,17 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_equations(s,fp);
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
-  xpp::print(fp,"STORE_EVERY={}  NMESH={} METHOD={} EVEC_ITER={} \n",
-	 s.numerics.store_every,s.numerics.nmesh,xpp::solver_info(s.numerics.method).name,s.numerics.evec_iter);
-  xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
-	 s.numerics.bvp_eps,s.numerics.bvp_tol,s.numerics.bvp_maxit);
-  xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
-	 s.numerics.delta_t,s.numerics.t0,s.numerics.trans,s.numerics.tend,s.numerics.bound,s.numerics.delay,s.numerics.max_points);
-  xpp::print(fp,"EVEC_ERR={:g}, NEWT_ERR={:g} HMIN={:g} HMAX={:g} TOLER={:g} \n",
-	 s.numerics.evec_err,s.numerics.newt_err,s.numerics.hmin,s.numerics.hmax,s.numerics.toler);
-  const std::string &poivar=ind_to_sym(s,s.numerics.poivar);
-  xpp::print(fp,"POIMAP={} POIVAR={} POIPLN={:g} POISGN={} \n",
-        s.numerics.poimap,poivar,s.numerics.poipln,s.numerics.poisgn);
+  xpp::print(fp,"STORE_EVERY={}  NULLCLINE_MESH={} METHOD={} SINGPT_MAX_ITERATES={} \n",
+	 s.numerics.store_every,s.numerics.nullcline_mesh,xpp::solver_info(s.numerics.method).name,s.numerics.singpt_max_iterates);
+  xpp::print(fp,"BVP_EPSILON={:g},BVP_TOLERANCE={:g},BVP_MAX_ITERATES={} \n",
+	 s.numerics.bvp_epsilon,s.numerics.bvp_tolerance,s.numerics.bvp_max_iterates);
+  xpp::print(fp,"DT={:g} START_TIME={:g} TRANSIENT_TIME={:g} TOTAL_TIME={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",
+	 s.numerics.delta_t,s.numerics.start_time,s.numerics.transient_time,s.numerics.total_time,s.numerics.bound,s.numerics.delay,s.numerics.max_points);
+  xpp::print(fp,"SINGPT_NEWTON_TOLERANCE={:g}, SINGPT_JACOBIAN_EPSILON={:g} MIN_STEP={:g} MAX_STEP={:g} TOLERANCE={:g} \n",
+	 s.numerics.singpt_newton_tolerance,s.numerics.singpt_jacobian_epsilon,s.numerics.min_step,s.numerics.max_step,s.numerics.tolerance);
+  const std::string &poincare_variable=ind_to_sym(s,s.numerics.poincare_variable);
+  xpp::print(fp,"POINCARE_MAP={} POINCARE_VARIABLE={} POINCARE_PLANE={:g} POINCARE_SIGN={} \n",
+        s.numerics.poincare_map,poincare_variable,s.numerics.poincare_plane,s.numerics.poincare_sign);
 
   xpp::print(fp,"\n\n Delay strings ...\n");
   for(int i=0;i<s.model().node;i++)xpp::print(fp,"{}\n",s.delay_string[i]);

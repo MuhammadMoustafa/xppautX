@@ -437,8 +437,8 @@ void xi_vs_t(xpp::Session &s) /*  a short cut   */
    
     }
    else {
-     s.plot_windows.current->xmin=s.numerics.t0;
-     s.plot_windows.current->xmax=s.numerics.tend;
+     s.plot_windows.current->xmin=s.numerics.start_time;
+     s.plot_windows.current->xmax=s.numerics.total_time;
         }
     s.plot_windows.current->xlo=s.plot_windows.current->xmin;
     s.plot_windows.current->ylo=s.plot_windows.current->ymin;

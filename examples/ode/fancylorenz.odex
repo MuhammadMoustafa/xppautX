@@ -19,7 +19,7 @@ par xplane = -35, yplane = 60, zplane = -10
 # here are the 3 projections
 # set up the 3D window
 # and rotate the plot a bit so it looks nice
-@ total=50, dt=.02
+@ total_time=50, dt=.02
 @ xplot=x, yplot=y, zplot=z, axes=3
 @ nplot=4
 @ xp2=x, yp2=y, zp2=z2

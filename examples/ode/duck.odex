@@ -27,6 +27,6 @@ fun th(x, y) = min(atan2(0.5-x, y-0.5), xdip)
 # we will call mu the mass of th is fluid in the lower vessel
 # without loss of generality we assume this is 1 so M=1+2*mmin
 # some animation constants
-@ meth=QualRK, dt=1, total=1000
+@ method=QualRK, dt=1, total_time=1000
 
 fun ode_divisor(value) = if value then value else 2.23e-15

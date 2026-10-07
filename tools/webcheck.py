@@ -530,7 +530,7 @@ if sess:
 # Generous safety timeouts only; the times print as perf: lines.
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'heavy.odex')) as f:
-    heavy = f.read().replace('total=20', 'total=1e7')
+    heavy = f.read().replace('total_time=20', 'total_time=1e7')
 with open(os.path.join(lrun, 'longrun.odex'), 'w') as f:
     f.write(heavy)
 shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'malformed_unbalanced.ode'), lrun)

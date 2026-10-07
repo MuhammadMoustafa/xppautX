@@ -541,7 +541,7 @@ private:
          the whole value after the model's dimension and kernels are known. */
       o.value = raw_word(o.value_pos, method);
       /* XPPAUT's name for an option is a .ode's, not this file's */
-      if (!row && find_option(upper_case(o.name), index, true))
+      if (find_option(upper_case(o.name), index, true) != row)
         fail(o.pos, xpp::format("`{}={}` is not an option of a .odex", o.name, o.value));
       if (!method || o.value.empty()) check_option_value(o);
       s.options.push_back(std::move(o));

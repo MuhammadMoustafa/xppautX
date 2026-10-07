@@ -265,7 +265,7 @@ static int if_needed_load_ext_options(xpp::Session &s)
     }
     std::string myopts(lr.next().value_or(std::string_view()));
     xpp::log(XPP_LOG_DEBUG, "Got this string: {{{}}}\n",myopts);
-    if(const xpp::Result<> r=extract_action(s,("$ "+myopts),xpp::Place{readsetfile,1,0,myopts});!r){
+    if(const xpp::Result<> r=extract_action(s,("$ "+myopts),xpp::Place{readsetfile,1,0,myopts},true);!r){
       xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
       return 0;
     }
@@ -273,7 +273,7 @@ static int if_needed_load_ext_options(xpp::Session &s)
   }
 
   if(externaloptionsflag==2){
-    if(const xpp::Result<> r=extract_action(s,("$ "+externaloptionsstring),xpp::Place{});!r){
+    if(const xpp::Result<> r=extract_action(s,("$ "+externaloptionsstring),xpp::Place{},true);!r){
       xpp::log(XPP_LOG_ERROR, "{}\n",r.error().text());
       return 0;
     }

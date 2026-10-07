@@ -64,8 +64,8 @@ set Pluto = g = 0.42
 #Shouldn't need to modify too much below...
 #Thanks to Newton!
 @ XP=X, YP=Z, XLO=-6, XHI=4, YLO=0, YHI=6
-@ bounds=100000, meth=Runge-Kutta
+@ bounds=100000, method=Runge-Kutta
 @ dt=.01, store_every=5
-@ total=50
+@ total_time=50
 
 fun ode_divisor(value) = if value then value else 2.23e-15

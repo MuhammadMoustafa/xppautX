@@ -9,4 +9,4 @@ network mxh = fmmult(100, 100, mm, x0, x0, h)
 x[j]' = w(j)+k*mxh(j) for j in 0..99
 # kuramoto with fmmult
 # linear gradient
-@ total=100, bound=100000
+@ total_time=100, bound=100000

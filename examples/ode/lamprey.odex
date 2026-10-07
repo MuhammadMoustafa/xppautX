@@ -11,4 +11,4 @@ an1 = bend*sin(x1)
 an[j] = bend*sin(x[j])+an[j-1] for j in 2..20
 # example of a chain of coupled oscillators
 @ bound=1000
-@ total=50
+@ total_time=50

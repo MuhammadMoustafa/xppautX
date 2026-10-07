@@ -777,7 +777,7 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
     for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
     const xpp::NumericsSettings &n = s.numerics;
-    for (const double d : {n.t0, n.tend, n.delta_t, n.trans, n.hmin, n.hmax, n.toler, n.atoler, n.bound, n.delay}) f.value(d);
+    for (const double d : {n.start_time, n.total_time, n.delta_t, n.transient_time, n.min_step, n.max_step, n.tolerance, n.abs_tolerance, n.bound, n.delay}) f.value(d);
     f.value(n.method);
     f.value(n.store_every);
     f.value(s.data_store.rows);

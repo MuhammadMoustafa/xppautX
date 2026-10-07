@@ -148,7 +148,7 @@ int one_bak_step(xpp::Session &s, double *y, double *t, double dt, int neq, doub
 	err1+=fabs(errvec[i]);
 	ytemp[i]=yg[i];
       }
-      get_the_jac(s,*t,yg,yp,ytemp,jac,neq,s.numerics.newt_err,-.5*dt);
+      get_the_jac(s,*t,yg,yp,ytemp,jac,neq,s.numerics.singpt_jacobian_epsilon,-.5*dt);
       if(s.numerics.cv_bandflag){
 	for(i=0;i<neq;i++)
 	  jac[i*mt+ml]+=1;
@@ -415,10 +415,10 @@ int rosen(xpp::Session &s, double *y,double *tstart,double tfinal,
 int *istart,int n,double *work,int *ierr)
 {
  double &htry=s.integrator.rosen_htry; /* the step the last call ended with */
- double epsjac=s.numerics.newt_err;
+ double epsjac=s.numerics.singpt_jacobian_epsilon;
  double eps=1e-15,hmin,hmax;
  double tdir=1,t0=*tstart,t=t0;
- double atol=s.numerics.atoler,rtol=s.numerics.toler;
+ double atol=s.numerics.abs_tolerance,rtol=s.numerics.tolerance;
  double sqrteps=sqrt(eps);
  double thresh=atol/rtol,absh,h;
  double d=1/(2.+sqrt(2.)),e32=6.+sqrt(2.),tnew;

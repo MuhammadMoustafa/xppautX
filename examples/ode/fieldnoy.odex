@@ -10,7 +10,7 @@ aux ly = ln(abs(y))
 aux lz = ln(abs(z))
 # The Field-Noyes Equations.  A very hard problem for most numerical
 # integrators.  A stiff method is absolutely necessary
-@ meth=CVode, total=1000, dt=.5, tol=1e-8, atol=1e-7
+@ method=CVode, total_time=1000, dt=.5, tolerance=1e-8, abs_tolerance=1e-7
 @ xlo=0, xhi=1000, ylo=0, yhi=12, yp=lz
 @ bound=1e7
 

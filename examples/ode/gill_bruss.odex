@@ -18,6 +18,6 @@ y2' = y2+z(2)-z(3)
 # 2 y1 + y2 -> 3 y1 (c3)
 # y1 -> Z2 (c4)
 #  compute the reaction rates
-@ bound=100000000, meth=Discrete, total=1000000, store_every=1000
+@ bound=100000000, method=Discrete, total_time=1000000, store_every=1000
 @ xp=y1, yp=y2
 @ xlo=0, ylo=0, xhi=10000, yhi=10000

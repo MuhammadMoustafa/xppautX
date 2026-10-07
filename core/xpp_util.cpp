@@ -660,7 +660,7 @@ const char *eq_stability(int cp, int rp, int im)
 void do_txt_action(xpp::Session &s, std::string_view action)
 {
  get_graph(s);
- if(const xpp::Result<> r=extract_action(s,action,xpp::Place{s.model().this_file});!r){
+ if(const xpp::Result<> r=extract_action(s,action,xpp::Place{s.model().this_file},false);!r){
    show_error(r.error());
    return;
  }

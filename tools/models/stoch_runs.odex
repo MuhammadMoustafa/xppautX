@@ -8,4 +8,4 @@ aux nsamp = normal(0, 1)
 # tests/test_stochast_runs.cpp, which sets STOCH_FLAG and calls do_range()
 # directly. Each of the trials samples nsamp=normal(0,1) independently; the
 # test checks the per-time mean/variance stocHast accumulates across trials.
-@ total=10, dt=1, meth=Euler, seed=7
+@ total_time=10, dt=1, method=Euler, seed=7

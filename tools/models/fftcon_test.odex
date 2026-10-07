@@ -38,4 +38,4 @@ aux mc2 = mc(2)
 # length 2n=6, its first entry 0 so it carries no extra tap beyond the
 # 2n-1 a matching conv(0,...) reads); mc is that matching conv network
 # (ncon=n=3): m and mc must agree too.
-@ total=1, dt=1
+@ total_time=1, dt=1

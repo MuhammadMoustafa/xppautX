@@ -17,4 +17,4 @@ aux ss = s
 # kneading sequences for the Lorenz equation
 # 2 PAR RANGE r 20-120, s 10-70
 # color by p
-@ dt=.001, store_every=10, total=40, trans=1000, bound=100000
+@ dt=.001, store_every=10, total_time=40, transient_time=1000, bound=100000

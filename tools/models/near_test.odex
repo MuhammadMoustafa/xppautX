@@ -10,4 +10,4 @@ aux t_false = near(1, 2)
 aux t_bound = near(0, 0.000001, tol=0.000001)
 aux t_over = near(0, 0.0000011, tol=0.000001)
 aux t_default = near(1, 1.0000000005)
-@ total=.1, dt=.1
+@ total_time=.1, dt=.1

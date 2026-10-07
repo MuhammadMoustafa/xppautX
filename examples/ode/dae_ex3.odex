@@ -5,4 +5,4 @@ w' = v_
 solv v_ = 1
 aux v = v_
 #dae_ex3.ode
-@ NEWT_ITER=1000, NEWT_TOL=1e-3, JAC_EPS=1e-5, METH=QualRK
+@ singpt_max_iterates=1000, singpt_newton_tolerance=1e-3, singpt_jacobian_epsilon=1e-5, method=QualRK

@@ -610,6 +610,8 @@ The format for changing the options is:
 
 where `name` is one of the following and `value` is either an integer, floating point, or string. (All names can be upper or lower case). A value the option cannot take (a word where a number goes, a colour outside 0 to 10, a variable the model does not have, ...) stops the load with an error at its line, and the model loaded before stays. The first four options *can only be set outside the program.* They are:
 
+A `.odex` (what a `.ode` is converted to) spells these options in full words, the same as the Numerics menu and the values panel: TOTAL is `total_time`, T0 `start_time`, TRANS `transient_time`, NMESH `nullcline_mesh`, NEWT_ITER `singpt_max_iterates`, NEWT_TOL `singpt_newton_tolerance`, JAC_EPS `singpt_jacobian_epsilon`, METH `method`, TOL `tolerance`, DTMIN `min_step`, DTMAX `max_step`, ATOL `abs_tolerance`, BVP_MAXIT `bvp_max_iterates`, BVP_TOL `bvp_tolerance`, BVP_EPS `bvp_epsilon`, MAXSTOR `storage_rows`, TOR_PER `torus_period`, POIMAP `poincare_map`, POIVAR `poincare_variable`, POISGN `poincare_sign`, POISTOP `poincare_stop`, POIPLN `poincare_plane` (and NOUT/NJMP `store_every`). A `.ode` keeps XPPAUT's words, and so do `.xpprc` and the command line; a `.odex` refuses them at their line.
+
 - MAXSTOR=`integer` sets the total number of time steps that will be kept in memory. The default is 5000. If you want to perform very long integrations change this to some large number.
 
 - BACK= `{Black,White}` sets the background to black or white.

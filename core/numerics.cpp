@@ -63,7 +63,7 @@ void set_total(xpp::Session &s, double total)
 {
   int n;
   n=(total/fabs(s.numerics.delta_t))+1;
-  s.numerics.tend=n*fabs(s.numerics.delta_t);
+  s.numerics.total_time=n*fabs(s.numerics.delta_t);
 }
 
 void  get_num_par(xpp::Session &s, char ch)
@@ -74,15 +74,15 @@ void  get_num_par(xpp::Session &s, char ch)
 		       break;
 
 		case 't': flash(0);
-			 numerics_settings_ask(s,"total");
+			 numerics_settings_ask(s,"total_time");
 			flash(0);
 			break;
 		case 's': flash(1);
-			 numerics_settings_ask(s,"t0");
+			 numerics_settings_ask(s,"start_time");
 			flash(1);
 			break;
 		case 'r': flash(2);
-			 numerics_settings_ask(s,"trans");
+			 numerics_settings_ask(s,"transient_time");
 			flash(2);
 			break;
 		case 'd': flash(3);
@@ -90,19 +90,19 @@ void  get_num_par(xpp::Session &s, char ch)
 			flash(3);
 			break;
 		case 'n': flash(4);
-			 numerics_settings_ask(s,"nmesh");
+			 numerics_settings_ask(s,"nullcline_mesh");
 			flash(4);
 			break;
 		case 'v':
-		         numerics_settings_ask(s,"bvp_maxit");
-		         numerics_settings_ask(s,"bvp_tol");
-		         numerics_settings_ask(s,"bvp_eps");
+		         numerics_settings_ask(s,"bvp_max_iterates");
+		         numerics_settings_ask(s,"bvp_tolerance");
+		         numerics_settings_ask(s,"bvp_epsilon");
 		         break;
 		case 'i': flash(5);
 			 /* sing pt */
-			 numerics_settings_ask(s,"newt_iter");
-			 numerics_settings_ask(s,"newt_tol");
-			 numerics_settings_ask(s,"jac_eps");
+			 numerics_settings_ask(s,"singpt_max_iterates");
+			 numerics_settings_ask(s,"singpt_newton_tolerance");
+			 numerics_settings_ask(s,"singpt_jacobian_epsilon");
 		       if(s.model().nflags>0)
 			 new_float(s,"SMIN :",&s.numerics.stol);
 		       
@@ -128,13 +128,13 @@ void  get_num_par(xpp::Session &s, char ch)
 			 }
 			const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
 			if(traits.step_tolerance){
-			  numerics_settings_ask(s,"tol");
-			  numerics_settings_ask(s,"dtmin");
-			  numerics_settings_ask(s,"dtmax");
+			  numerics_settings_ask(s,"tolerance");
+			  numerics_settings_ask(s,"min_step");
+			  numerics_settings_ask(s,"max_step");
 			}
 			if(traits.rel_abs_tolerance){
-			  numerics_settings_ask(s,"tol");
-			  numerics_settings_ask(s,"atol");
+			  numerics_settings_ask(s,"tolerance");
+			  numerics_settings_ask(s,"abs_tolerance");
 			}
 		       if(traits.newton){
 			 numerics_settings_ask(s,"eul_tol");
@@ -196,7 +196,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			break;
 		case 27: 
 		       do_meth(s);
-		      s.numerics.tend=fabs(s.numerics.tend);
+		      s.numerics.total_time=fabs(s.numerics.total_time);
 			show_main_menu(s,MAIN_MENU);
 			break;
 
@@ -238,18 +238,18 @@ void ruelle(xpp::Session &s)
 
 void compute_one_period(xpp::Session &s, double period,double *x,const char *name)
 {
-  int opm=s.numerics.poimap;
-  double ot=s.numerics.trans,ote=s.numerics.tend;
+  int opm=s.numerics.poincare_map;
+  double ot=s.numerics.transient_time,ote=s.numerics.total_time;
   const auto restore = [&]() {
-    s.numerics.trans=ot;
-    s.numerics.poimap=opm;
-    s.numerics.tend=ote;
+    s.numerics.transient_time=ot;
+    s.numerics.poincare_map=opm;
+    s.numerics.total_time=ote;
   };
-  s.numerics.trans=0;
-  s.numerics.t0=0;
+  s.numerics.transient_time=0;
+  s.numerics.start_time=0;
   s.data_store.current_time=0;
-  s.numerics.tend=period;
-  s.numerics.poimap=0; /* turn off poincare map */
+  s.numerics.total_time=period;
+  s.numerics.poincare_map=0; /* turn off poincare map */
   reset_browser(s);
 
   usual_integrate_stuff(s,x);
@@ -300,34 +300,34 @@ void get_pmap_pars_com(xpp::Session &s, int l)
  std::array<std::string, 4> values;
  static const char *const yn[]={"N","Y"};
  int status;
- int i1=s.numerics.poivar;
+ int i1=s.numerics.poincare_variable;
 
  ch=mkey[l];
 
- s.numerics.poimap=0;
- if(ch=='s')s.numerics.poimap=1;
- if(ch=='m')s.numerics.poimap=2;
- if(ch=='p')s.numerics.poimap=3;
+ s.numerics.poincare_map=0;
+ if(ch=='s')s.numerics.poincare_map=1;
+ if(ch=='m')s.numerics.poincare_map=2;
+ if(ch=='p')s.numerics.poincare_map=3;
 
- if(s.numerics.poimap==0)return;
+ if(s.numerics.poincare_map==0)return;
 
  values[0] = ind_to_sym(s,i1);
- values[1] = xpp::format("{:.16g}", s.numerics.poipln);
- values[2] = xpp::format("{}", s.numerics.poisgn);
- values[3] = yn[s.numerics.sos];
+ values[1] = xpp::format("{:.16g}", s.numerics.poincare_plane);
+ values[2] = xpp::format("{}", s.numerics.poincare_sign);
+ values[3] = yn[s.numerics.poincare_stop];
  static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NUMBER,XPP_FIELD_INTEGER,XPP_FIELD_TEXT};
  status=do_string_box_of(4,1,"Poincare map",n,values,kinds);
  if(status!=0){
               find_variable(s,values[0].c_str(),&i1);
-	      if(i1<0) { s.numerics.poimap=0;
+	      if(i1<0) { s.numerics.poincare_map=0;
                          command_error("numerics", "No such section");
 			 return;
 		       }
-	      s.numerics.poivar=i1;
-	      s.numerics.poisgn=atoi(values[2].c_str());
-	      if(values[3][0]=='Y'||values[3][0]=='y')s.numerics.sos=1;
-	      else s.numerics.sos=0;
-	      s.numerics.poipln=atof(values[1].c_str());
+	      s.numerics.poincare_variable=i1;
+	      s.numerics.poincare_sign=atoi(values[2].c_str());
+	      if(values[3][0]=='Y'||values[3][0]=='y')s.numerics.poincare_stop=1;
+	      else s.numerics.poincare_stop=0;
+	      s.numerics.poincare_plane=atof(values[1].c_str());
 	    }
 
 }

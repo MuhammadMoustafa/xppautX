@@ -131,5 +131,5 @@ event 0 t-tstart, x[j] = ran(1)*2*pi for j in 0..99
 @ fold=x98
 @ fold=x99
 @ xp=x0, yp=x21, xlo=0, xhi=6.3, ylo=0, yhi=6.3
-@ total=50, meth=Euler
+@ total_time=50, method=Euler
 @ colormap=1

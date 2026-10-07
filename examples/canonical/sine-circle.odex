@@ -7,9 +7,9 @@ par tau = 0.7
 par k = 0.2
 init x[j] = ran(1)*2*pi for j in 0..99
 # example showing the del_shft orperator
-@ total=50
+@ total_time=50
 @ delay=30
-@ meth=Euler, total=300, trans=100
+@ method=Euler, total_time=300, transient_time=100
 @ fold=x0
 @ fold=x1
 @ fold=x2

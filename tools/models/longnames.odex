@@ -14,6 +14,6 @@ init membrane_potential_fast_variable_of_the_model_with_a_name_two_hundred_chara
 # argument, an auxiliary. shortnames.ode is the same model with short
 # names; tools/autocheck.py (section names) checks that both compute the
 # same numbers and that every name goes through whole.
-@ total=100, dt=0.05, xp=membrane_potential_fast_variable_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_m, yp=slow_recovery_variable_w
+@ total_time=100, dt=0.05, xp=membrane_potential_fast_variable_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_model_with_a_name_two_hundred_characters_long_of_the_m, yp=slow_recovery_variable_w
 @ xlo=-2.5, xhi=2.5, ylo=-1, yhi=2
 @ parmin=0, parmax=2, autoxmin=0, autoxmax=2, autoymin=-2.5, autoymax=2.5, dsmax=0.05

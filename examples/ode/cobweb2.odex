@@ -24,6 +24,6 @@ aux st = 0.01*t
 # tell xpp that it is discrete and iterate 100 times
 @ xlo=0, ylo=0, xhi=1, yhi=1
 @ xp=x, yp=y
-@ total=100
+@ total_time=100
 # the .ode is a map: x' = f with the discrete method is x(t+1) = f
-@ meth=discrete
+@ method=discrete

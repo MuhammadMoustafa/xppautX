@@ -293,7 +293,7 @@ int main(void)
       "const n = 3\n"
       "fun f(v, s) = v*s\n"
       "fun g(v, w) { let s = v + w  if s > 1 { return a*s } else if s > 0 { return b } else { return 0 } }\n"
-      "@ total = 20, dt=0.05, meth=stiff, output=out.dat\n"
+      "@ total_time = 20, dt=0.05, method=stiff, output=out.dat\n"
       "set fast = a = 2, b = 3\n"
       "table w1 \"w.tab\"\n"
       "table w2 exp(-abs(t)), n=51, lo=-25, hi=25\n"
@@ -357,11 +357,11 @@ int main(void)
   CHECK(starts(model_error("fun g(v) { return 1\nx' = 1\n"), "2:1 nothing can follow a return"));
   CHECK(starts(model_error("fun g(v) { return 1\n"), "2:1 missing `}` for the block opened at 1:10"));
   CHECK(starts(model_error("fun g(v) { let v = 1 return v }\n"), "1:16 v is already a name here"));
-  CHECK(starts(model_error("@ total=2*3\n"), "1:9 the option total's value `2*3` is not a number"));
-  CHECK(starts(model_error("@ total=(4)\n"), "1:9 the option total's value `(4)` is neither"));
-  CHECK(starts(model_error("@ total=10 dt=1\n"), "1:12 expected `,` between the items of an @ line"));
+  CHECK(starts(model_error("@ total_time=2*3\n"), "1:14 the option total_time's value `2*3` is not a number"));
+  CHECK(starts(model_error("@ total_time=(4)\n"), "1:14 the option total_time's value `(4)` is neither"));
+  CHECK(starts(model_error("@ total_time=10 dt=1\n"), "1:17 expected `,` between the items of an @ line"));
   CHECK(starts(model_error("par a=1 b=2\n"), "1:9 expected `,` between the items of par"));
-  CHECK(model_error("@ total = 0.03, dt=0.01\nx'=1\n").empty());
+  CHECK(model_error("@ total_time = 0.03, dt=0.01\nx'=1\n").empty());
   CHECK(model_error("@ logfile=C:/Users/RUNNER~1/AppData/Local/Temp/outside.dat\nx'=1\n").empty());
   CHECK(model_error("par a=1,\n  b=2\nx'=a*b\n").empty());
   CHECK(starts(model_error("x = 1 +\n"), "2:1 expected a value, found the end of the file"));
@@ -412,8 +412,8 @@ int main(void)
   CHECK_STR(lowered("x' = 1\nboundary x - x'\n").c_str(), "x'=1|bdry x-x'");
   CHECK_STR(lowered("x' = w\nw = x^2\naux w = w\n").c_str(), "x'=w|w=x^2|aux w=w");
   CHECK_STR(lowered("x' = 1\ntable f exp(-abs(t)), n=51, lo=-25, hi=25\n").c_str(), "x'=1|table f % 51 -25 25 exp((-abs(t)))");
-  CHECK_STR(lowered("x' = 1\nset s = x = -1, meth = stiff\n").c_str(), "x'=1|set s {x=-1,meth=stiff}");
-  CHECK_STR(lowered("x' = 1\n@ total = 20, meth=stiff\n").c_str(), "x'=1|@ total=20,meth=stiff");
+  CHECK_STR(lowered("x' = 1\nset s = x = -1, method = stiff\n").c_str(), "x'=1|set s {x=-1,method=stiff}");
+  CHECK_STR(lowered("x' = 1\n@ total_time = 20, method=stiff\n").c_str(), "x'=1|@ total_time=20,method=stiff");
   CHECK_STR(lowered("markov m 2 {0} {a} {1} {0}\npar a=1\n").c_str(), "markov m 2|{0} {a} |{1} {0} |par a=1");
   CHECK_STR(lowered("x' = 1\n\"{a=1} a comment\"\n").c_str(), "x'=1|\" {a=1} a comment");
 
@@ -510,7 +510,7 @@ int main(void)
   CHECK(starts(lowered("x[j]' = 1 for j in 3..1\n"), "error 1:20 the range 3..1 is empty"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by 0\n"), "error 1:28 the range's step is a whole number above 0, not 0"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..3 by -1\n"), "error 1:28 the range's step is a whole number above 0, not -1"));
-  CHECK(starts(lowered("x' = 1\n@ total=10 for j in 1..2\n"), "error 2:12 this statement takes no range"));
+  CHECK(starts(lowered("x' = 1\n@ total_time=10 for j in 1..2\n"), "error 2:17 this statement takes no range"));
   CHECK(starts(lowered("x[j]' = 1 for j in 1..2\nx[2]' = 1\n"), "error 2:1 `x2` is already a member of the array x[1..2], declared at 1:1"));
 
   /* const: fixed at load, from numbers and the consts before it */
@@ -600,7 +600,7 @@ int main(void)
     CHECK(has("v[j]' = -v[j]+j for j in 1..3"));
     CHECK(has("aux sq[j] = v[j]^2 for j in 1..3"));
     CHECK(has("event 1 x-1, y = y/ode_divisor(x), z = 0"));
-    CHECK(has("@ total=6, dt=.1"));
+    CHECK(has("@ total_time=6, dt=.1"));
     CHECK(has("# anything here is kept as a comment"));
     CHECK(text.find("the .ode's lines 8") != std::string::npos); /* gk spelled Gk */
     /* what the converted text reads back as */
@@ -640,8 +640,8 @@ int main(void)
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
-    CHECK(text.find("@ meth=Mod. Euler, total=1") != std::string::npos);
-    CHECK(text.find("@ meth=Symplectic") != std::string::npos);
+    CHECK(text.find("@ method=Mod. Euler, total_time=1") != std::string::npos);
+    CHECK(text.find("@ method=Symplectic") != std::string::npos);
     CHECK(text.find("first letter") == std::string::npos);
   }
 
@@ -651,7 +651,7 @@ int main(void)
     const auto result = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
     CHECK(result.has_value());
     const std::string text = result ? *result : "";
-    CHECK(text.find("@ total=7, dt=.5") != std::string::npos);
+    CHECK(text.find("@ total_time=7, dt=.5") != std::string::npos);
     CHECK(text.find("# @ parmin = -.2 parmax = .5 in the .ode: XPP ignores an option with spaces around its =, so parmin, parmax keep their values") != std::string::npos);
     CHECK(text.find("XPP ignores an option") == text.rfind("XPP ignores an option"));
     CHECK(load_text("x'=0\n@ total=7 dt=.5\ndone\n", "ode") == 1);
@@ -685,7 +685,7 @@ int main(void)
     CHECK(load_text("table tab % 3 -1 1 exp(t/a)\npar a=2\nx'=0\n@ dt=.1 total=1\ndone\n", "ode") == 1);
     const auto table = xpp::odex::convert_text("build/test_odex_model.ode", true, {});
     CHECK(table && table->find("table tab exp(t/ode_divisor(a))") != std::string::npos);
-    CHECK(table && table->find("@ dt=.1, total=1") != std::string::npos);
+    CHECK(table && table->find("@ dt=.1, total_time=1") != std::string::npos);
   }
 
   /* --convert refuses an .ode's !d = expr that reads a variable: .odex's

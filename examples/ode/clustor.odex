@@ -17,4 +17,4 @@ par b0 = 0.33333, b1 = 0.25, b2 = 0.083333
 par re = 10, ri = 5
 # clustering of weights in 1-d model
 # orientation - 6 populations
-@ total=500, dt=1, meth=QualRK
+@ total_time=500, dt=1, method=QualRK

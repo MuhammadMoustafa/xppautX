@@ -44,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         server.send(cmd='data', events=['series', 'numerics'])
         settings, _ = server.collect(is_idle)
         check('decay: original duration and stride restored',
-              any(e.get('ev') == 'numerics' and {f['key']: f['value'] for f in e['fields']}.get('total') == 30
+              any(e.get('ev') == 'numerics' and {f['key']: f['value'] for f in e['fields']}.get('total_time') == 30
                   and {f['key']: f['value'] for f in e['fields']}.get('store_every') == 7 for e in settings), settings[-4:])
         for invalid in [dict(decimals=9.5, hold=1, maximum=10), dict(decimals=True, hold=1, maximum=10),
                         dict(decimals=9, hold=0, maximum=10), dict(decimals=9, hold=2, maximum=1),
@@ -129,7 +129,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
               state and state['steady']['status'] == 'limit' and state['steady']['time'] > 9.9 and not any(e.get('ev') == 'ask' for e in got), state)
         series = whole_series(got)
         rows = len(series[-1]['columns'][0]['data']) if series else 0
-        check('storage: the thinned rows stay within maxstor', 0 < rows <= 10, rows)
+        check('storage: the thinned rows stay within storage_rows', 0 < rows <= 10, rows)
     scenario(folder, 'storage', "x'=1\ninit x=0\n@ dt=.1,total=10,maxstor=10,bound=100", storage)
 
     def discrete(server):

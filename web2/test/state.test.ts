@@ -153,7 +153,7 @@ test('a refusal that names its field lands there, not on the first value of the 
 });
 
 test('the numerics event is the store (W106); a new hello forgets it', () => {
-  const fields = [{key: 'total', label: 'Total', value: 20}, {key: 'method', label: 'Method', value: 3, choices: ['a', 'b', 'c', 'd']}];
+  const fields = [{key: 'total_time', label: 'Total time', value: 20}, {key: 'method', label: 'Method', value: 3, choices: ['a', 'b', 'c', 'd']}];
   let s = ev(READY, {ev: 'numerics', fields});
   assert.deepEqual(s.numerics, fields);
   s = ev(s, HELLO);
