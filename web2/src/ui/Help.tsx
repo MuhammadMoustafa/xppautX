@@ -28,6 +28,7 @@ import {TEXT} from '../store/fieldKinds';
 import {useSession, useStore} from './context';
 import {Field} from './Field';
 import {FOCUSABLE} from './dialogFocus';
+import {FIXED_KEYS, shortcutLabel} from './hotkeys';
 
 /** F1's own exclusion (narrower than hotkeys.ts's TYPING: a dialog or menu
     being open must not block Help -- only a field that might have its own
@@ -70,6 +71,32 @@ function AboutBody({text}: {text: string}) {
         </p>
       ))}
     </div>
+  );
+}
+
+/** The keyboard shortcuts, made from the command table (hello.command_table) and the page's own few keys
+    (FIXED_KEYS), with the switch of the preset "XPPAUT sequences" (off: the table's default keys only;
+    on: each command's XPPAUT sequence as well, F then S). */
+function KeyTable() {
+  const session = useSession();
+  const hello = useStore(s => s.hello);
+  const preset = useStore(s => s.keyPreset);
+  const rows = (hello?.command_table ?? []).filter(row => row.category !== 'layer' && shortcutLabel(row, preset) !== '');
+  return (
+    <details class="help-keys">
+      <summary>Keyboard shortcuts</summary>
+      <label class="help-keys-preset">
+        <input type="checkbox" checked={preset === 'xppaut'}
+          onChange={e => session.store.dispatch({type: 'keyPreset', preset: (e.target as HTMLInputElement).checked ? 'xppaut' : 'default'})} />
+        XPPAUT sequences (a letter, or File F or Numerics U then a letter)
+      </label>
+      <table>
+        <tbody>
+          {FIXED_KEYS.map(k => <tr key={k.key}><th scope="row"><kbd>{k.key}</kbd></th><td>{k.does}</td></tr>)}
+          {rows.map(row => <tr key={`${row.menu}:${row.id}`}><th scope="row"><kbd>{shortcutLabel(row, preset)}</kbd></th><td>{row.label}</td></tr>)}
+        </tbody>
+      </table>
+    </details>
   );
 }
 
@@ -184,6 +211,7 @@ export function HelpView() {
             </ol>
           </nav>
           <div class="help-content" ref={content} onClick={onContentClick}>
+            <KeyTable />
             {help.about
               ? <AboutBody text={hello?.about ?? ''} />
               : <>

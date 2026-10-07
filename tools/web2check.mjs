@@ -66,7 +66,7 @@
    line as written, and no hello.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -207,7 +207,15 @@ async function until(expr, what, ms) {
 async function reloadPage() {
   await cdp.eval('window.__left = true').catch(() => {});
   await cdp.send('Page.reload');
-  return until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
+  const loaded = await until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
+  await xppautSequences();
+  return loaded;
+}
+
+/* the checks type XPPAUT's letters (I, G, F then S): the preset that gives them is page state, off in a new
+   page; only the keymap section tests it off */
+async function xppautSequences() {
+  await cdp.eval(`__xpp.keyPreset('xppaut')`);
 }
 
 async function metrics(value) {
@@ -1810,7 +1818,7 @@ async function prompts() {
   /* ... and a number-or-formula box (new_float: nUmerics/Total) takes a %formula, sent as typed */
   await focusPlot();
   await key('u');
-  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
   await key('t');
   await until("s.ask && s.ask.kind === 'string'", 'total');
   const formula = `%${await S('s.ask.value')}*1`;
@@ -1824,7 +1832,7 @@ async function prompts() {
   check(`T31: a %formula (${formula}) in nUmerics/Total is taken and sent as typed`,
     kindOf === 'number' && taken === null && (await lastAnswer())?.value === formula, JSON.stringify([kindOf, taken, await lastAnswer()]));
   await key('Escape');
-  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await until('!s.busy', 'main menu');
 
   /* Window/Zoom by a box drawn with the mouse */
   await focusPlot();
@@ -2563,7 +2571,7 @@ async function autoView(dir) {
   await key('i');
   check('T21: after Close, I goes to the main window: the Initialconds menu, not an AUTO command',
     await until(`s.ask && s.ask.kind === 'menu' && s.ask.name !== 'auto'`, 'main menu after close')
-    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd !== 'answer').pop().key`)) === 'i', JSON.stringify(await S('s.ask')));
+    && (await cdp.eval(`__xpp.sent().filter(c => c.cmd !== 'answer').pop().item`)) === 'initialconds', JSON.stringify(await S('s.ask')));
   await key('Escape');
   await until('!s.busy && !s.ask', 'menu closed after close');
 }
@@ -2595,14 +2603,14 @@ async function autoView(dir) {
    result -- rows kept, the EP label, a second run working -- not how long
    it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
-  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu'); /* not only !busy: a sent too soon is lost (macos-ui, W93) */
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu'); /* not only !busy: a sent too soon is lost (macos-ui, W93) */
   await key('a');
   check('AUTO Stop race: File/Auto opens the AUTO view',
     await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open')
     && await cdp.eval(`!!document.querySelector('.auto-panel .auto-host')`),
-    JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state(); return {busy: s.busy, menu: s.core.menu, ask: s.ask,
+    JSON.stringify(await cdp.eval(`(() => { const s = __xpp.state(); return {busy: s.busy, ask: s.ask,
       diagram: [s.diagram.open, s.diagram.shown, !!s.diagram.views[s.diagram.active].axes], sent: __xpp.sent().slice(-4), actions: __xpp.actions().slice(-10)}; })()`)));
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
 
@@ -2812,7 +2820,7 @@ async function autoViews(dir) {
    (Sing pts, then Import), then File/Auto */
 async function openAutoAtFixedPoint() {
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('g');
   await menuKey('d');
   await until('!s.busy', 'hopf set');
@@ -2824,7 +2832,7 @@ async function openAutoAtFixedPoint() {
   await cdp.eval(`__xpp.send({cmd: 'key', win: 'equilibrium', key: 'i'})`);
   await until('!s.busy', 'import');
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu 2');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu 2');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
 }
@@ -2903,26 +2911,28 @@ async function lostF() {
   await desktopMetrics();
   check('lostF: the page connects', await until('s.hello && !s.busy', 'hello'));
   await openAutoAtFixedPoint();
-  check('lostF: File/Auto returns the core to its main menu', await until('s.core.menu === 0', 'menu after auto'), JSON.stringify(await S('s.core')));
+  check('lostF: File/Auto leaves no key pending', await until('s.pendingKeys.length === 0', 'menu after auto'), JSON.stringify(await S('s.pendingKeys')));
 
   /* sequence 2 first half: Back at once, F in the main window */
   const back = await center('.auto-back'); /* a real click, as the window gets: the focus is on the button that then goes */
   await click(back.x, back.y);
   await until('!s.diagram.shown && s.diagram.open && !s.busy', 'back');
   const menuShown = () => cdp.eval(`(() => { const r = document.querySelector('.menu-panel').getBoundingClientRect(); return !!document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.menu-panel'); })()`);
-  check('lostF: after Back the main menu is shown and the core is in its main menu', await menuShown() && (await S('s.core.menu')) === 0,
+  check('lostF: after Back the main menu is shown', await menuShown(),
     JSON.stringify(await cdp.eval(`[document.activeElement.tagName, document.activeElement.className]`)));
+  /* the focus returns to the plot after the button went: a key typed before that is typed on nothing, and the focus moving cancels a chord */
+  await until(`document.activeElement.closest('.plot-host')`, 'the focus back on the plot');
   await key('f');
-  check('lostF: after Back, F opens the main File menu (page and core agree)',
-    await until('s.core.menu === 1 && !s.busy', 'file menu after back') && await menuShown(),
-    JSON.stringify([await S('s.core.menu'), await cdp.eval(`document.activeElement.className`)]));
+  check('lostF: after Back, F starts the File chord in the main window',
+    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu after back') && await menuShown(),
+    JSON.stringify([await S('s.pendingKeys'), await cdp.eval(`document.activeElement.className`)]));
   await key('Escape');
-  check('lostF: Escape closes it: the core is back in its main menu', await until('s.core.menu === 0 && !s.busy', 'main menu'));
+  check('lostF: Escape cancels the chord', await until('!s.busy && s.pendingKeys.length === 0', 'main menu'));
   await key('u');
-  check('lostF: after Back a typed key reaches the menu the page shows (U opens Numerics)',
-    await until('s.core.menu === 2 && !s.busy', 'numerics after back'), JSON.stringify(await S('s.core.menu')));
+  check('lostF: after Back a typed key reaches the menu the page shows (U starts the Numerics chord)',
+    await until('s.pendingKeys.join("") === "U" && !s.busy', 'numerics after back'), JSON.stringify(await S('s.pendingKeys')));
   await key('Escape');
-  await until('s.core.menu === 0 && !s.busy', 'main menu 2');
+  await until('!s.busy && s.pendingKeys.length === 0', 'main menu 2');
 
   /* sequence 1: steady state, grab the Hopf point, Periodic, then F in the AUTO view */
   await cdp.eval(`document.querySelector('.auto-show').click()`);
@@ -2940,12 +2950,12 @@ async function lostF() {
   await click(back2.x, back2.y);
   await until('!s.diagram.shown', 'back during grab');
   check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
-    await until('!s.busy && !s.ask && !s.diagram.grabbing && s.core.menu === 0', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
+    await until('!s.busy && !s.ask && !s.diagram.grabbing', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
   await key('f');
-  check('lostF: ... and F opens the main File menu',
-    await until('s.core.menu === 1 && !s.busy && !s.ask', 'file menu after grab'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
+  check('lostF: ... and F starts the main File chord',
+    await until('s.pendingKeys.join("") === "F" && !s.busy && !s.ask', 'file menu after grab'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
   await key('Escape');
-  await until('s.core.menu === 0 && !s.busy', 'main menu 3');
+  await until('!s.busy', 'main menu 3');
   await cdp.eval(`document.querySelector('.auto-show').click()`);
   await until('s.diagram.shown', 'auto show 2');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus 2');
@@ -2978,9 +2988,9 @@ async function lostF() {
    while the periodic run computes reaches AUTO's File menu (a view action: the run goes on, the
    menu is answered at once), not the main window's, and nothing is left hidden in the core. */
 async function lostFRunning() {
-  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   const opened = await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
@@ -2991,7 +3001,7 @@ async function lostFRunning() {
   /* a missing view is a failed check with the state, not a page error that hides which step lost it */
   const hasAuto = await cdp.eval(`!!document.querySelector('.auto-host')`);
   check('lostF running: the AUTO view opened and is still there after the steady branch',
-    opened && hasAuto, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title, s.core.menu]')));
+    opened && hasAuto, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title]')));
   if (!hasAuto) return;
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('g');
@@ -3011,17 +3021,16 @@ async function lostFRunning() {
   check('lostF: the periodic run is going',
     await until(`s.busy && !s.ask && dv.points.x.length > ${nPre}`, 'periodic going', 60000 * SLOW));
   const sent0 = await cdp.eval('__xpp.sentCount()');
-  const menu0 = await S('s.core.menu');
   await key('f');
   const sent = await cdp.eval(`__xpp.sentFrom(${sent0})`);
   check("lostF: F in the AUTO view during the run is AUTO's File key (win auto), never the main window's",
     sent.length === 1 && sent[0].cmd === 'key' && sent[0].win === 'auto' && sent[0].key === 'f', JSON.stringify(sent));
   check("lostF: ... its menu opens when the run ends (a view action queued in the core), AUTO's File menu, not the main one",
     await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'File' && s.ask.items.includes('Save diagram')", 'auto file menu', 120000 * SLOW)
-    && (await S('s.core.menu')) === menu0, JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+    && (await S('s.pendingKeys.length')) === 0, JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
   await key('Escape');
-  check('lostF: Escape closes it and the core is idle in its main menu',
-    await until('!s.busy && !s.ask && s.core.menu === 0', 'closed', 60000 * SLOW), JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
+  check('lostF: Escape closes it and the core is idle',
+    await until('!s.busy && !s.ask', 'closed', 60000 * SLOW), JSON.stringify(await S('[s.busy, s.ask && s.ask.title, s.core]')));
 }
 
 async function busyAuto() {
@@ -3030,15 +3039,15 @@ async function busyAuto() {
   /* nUmerics / Total 3000: an integration of about three seconds */
   await focusPlot();
   await key('u');
-  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
   await key('t');
   await until("s.ask && s.ask.kind === 'string'", 'total');
   await answerAsk({ok: 1, value: '3000'});
   await until('!s.busy', 'total set');
   await key('Escape');
-  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await until('!s.busy', 'main menu');
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
   check('busy: File/Auto opens the AUTO view', await until('s.diagram.open && dv.axes && !s.busy', 'auto open'));
   await focusPlot();
@@ -3075,13 +3084,13 @@ async function busyKeys() {
   const sid = await addSlider('iapp');
   await focusPlot();
   await key('u');
-  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
   await key('t');
   await until("s.ask && s.ask.kind === 'string'", 'total');
   await answerAsk({ok: 1, value: '1e6'});
   await until('!s.busy', 'total set');
   await key('Escape');
-  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await until('!s.busy', 'main menu');
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
@@ -3176,13 +3185,13 @@ async function busyKeys() {
      run uses the slider's edit */
   await focusPlot();
   await key('u');
-  await until('!s.busy && s.core.menu === 2', 'numerics menu after the run');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu after the run');
   await key('t');
   await until("s.ask && s.ask.kind === 'string'", 'total after the run');
   await answerAsk({ok: 1, value: '20'});
   await until('!s.busy', 'total 20');
   await key('Escape');
-  await until('!s.busy && s.core.menu === 0', 'main menu after the run');
+  await until('!s.busy', 'main menu after the run');
   const n1 = await S('s.seriesCount');
   await focusPlot();
   await key('i');
@@ -3206,13 +3215,13 @@ async function statusBarLayout() {
   check('status bar: the page connects', await until('s.hello && !s.busy', 'hello'));
   const idle1 = await box();
   await key('u');
-  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
   await key('t');
   await until("s.ask && s.ask.kind === 'string'", 'total');
   await answerAsk({ok: 1, value: '1e6'});
   await until('!s.busy', 'total set');
   await key('Escape');
-  await until('!s.busy && s.core.menu === 0', 'main menu');
+  await until('!s.busy', 'main menu');
   await focusPlot();
   await key('i');
   await until("s.ask && s.ask.kind === 'menu'", 'ic menu');
@@ -3296,9 +3305,9 @@ async function recordCheck(dir) {
 
   /* W59d: File/Quit (F Q) asks one question, as the window's close box does:
      Save session (S), Don't save (D), Cancel; Escape keeps the session */
-  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'file menu');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('q');
   check('quit: File/Quit asks "Quit xppautX? Save this session first?", Save session (S), Don\'t save (D), Cancel',
     await until(`s.ask && s.ask.kind === 'choice' && s.ask.question === 'Quit xppautX? Save this session first?'`, 'quit ask')
@@ -3359,8 +3368,8 @@ async function playerCheck(dir) {
   check('player: automatic playback plays to the end (4x)', await until(`s.core.player.step === 2 && s.core.player.running === -1 && !s.busy`, 'played', 30000),
     JSON.stringify(await S('s.core.player')));
   const presses = await cdp.eval(`__xpp.presses()`);
-  check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase)',
-    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 0, what: 'key', index: 0}, {step: 1, what: 'key', index: 0}]),
+  check('player: each step\'s keys were pressed before they went (Integrate by its button, then G; Erase by its command)',
+    JSON.stringify(presses) === JSON.stringify([{step: 0, what: 'cmd', index: 0}, {step: 0, what: 'key', index: 0}, {step: 1, what: 'cmd', index: 0}]),
     JSON.stringify(presses));
   check('player: the page answered none of the step\'s questions (the player did)',
     await cdp.eval(`__xpp.sentFrom(${sentBefore}).every(c => c.cmd === 'play')`), JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBefore})`)));
@@ -3377,7 +3386,7 @@ async function playerCheck(dir) {
   const text = fs.readFileSync(path.join(dir, 'play.recx'), 'utf8');
   check('player: the note is a # line above the step in the file', /# Clear the screen\.\r?\n\{"step":"Clear plot"/.test(text), text.slice(text.indexOf('@steps')));
   /* a changed copy: the banner, and Dismiss */
-  fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('"keys":["e"]', '"keys":["e"] '));
+  fs.writeFileSync(path.join(dir, 'changed.recx'), text.replace('{"step":"Clear plot"', '{"step":"Clear plot" '));
   await cdp.eval(`__xpp.send({cmd: 'play', op: 'open', autoplay: false, file: ${JSON.stringify(path.join(dir, 'changed.recx'))}})`);
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first? (2)');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
@@ -3417,15 +3426,15 @@ const QUIT_Q = 'Quit xppautX? Save this session first?';
 
 /** an integration that goes on for minutes (lecar to t = 1e7), going */
 async function longRun() {
-  await until('!s.busy && !s.ask && s.core.menu === 0', 'main menu');
+  await until('!s.busy && !s.ask', 'main menu');
   await cdp.eval(`__xpp.send({cmd: 'key', key: 'u'})`);
-  await until('!s.busy && s.core.menu === 2', 'numerics menu');
+  await until('!s.busy && s.pendingKeys.join("") === "U"', 'numerics menu');
   await cdp.eval(`__xpp.send({cmd: 'key', key: 't'})`);
   await until(`s.ask && s.ask.kind === 'string'`, 'total');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, value: '1e7'})`);
-  await until('!s.busy && !s.ask && s.core.menu === 2', 'total set');
+  await until('!s.busy && !s.ask && s.pendingKeys.join("") === "U"', 'total set');
   await cdp.eval(`__xpp.send({cmd: 'key', key: 'Escape'})`);
-  await until('!s.busy && s.core.menu === 0', 'main menu again');
+  await until('!s.busy', 'main menu again');
   await cdp.eval(`__xpp.send({cmd: 'key', key: 'i'})`);
   await until(`s.ask && s.ask.kind === 'menu'`, 'initialconds');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'g'})`);
@@ -3538,10 +3547,12 @@ async function navigationCheck() {
   await cdp.eval(`(() => { const input = document.querySelector('#command-search'); input.value = ''; input.dispatchEvent(new Event('input', {bubbles:true})); document.querySelector('.plot-host').focus(); })()`);
   await rendered();
   await key('u');
-  await until('s.core.menu === 2 && !s.busy', 'legacy numerics mode');
+  await until('s.pendingKeys.join("") === "U" && !s.busy', 'a pending Numerics chord');
   const before = await S('s.seriesCount');
   await cdp.eval(`document.querySelector('.run-toolbar button.primary').click()`);
-  check('navigation: clicked Integrate works in Numerics shortcut mode', await until(`s.seriesCount > ${before} && !s.busy && s.core.menu === 0`, 'stable integrate', 20000));
+  check('navigation: clicked Integrate works while the Numerics chord is pending', await until(`s.seriesCount > ${before} && !s.busy`, 'stable integrate', 20000));
+  await key('Escape');
+  await until('s.pendingKeys.length === 0', 'the Numerics chord cancelled');
   const finalStates = await S('s.core.now');
   const displayedStates = JSON.parse(await nowCells()).map(Number);
   check('navigation: current states retain ten-digit inspection precision', displayedStates.every((value, i) => Math.abs(value - finalStates[i]) <= 5e-10 * Math.max(1, Math.abs(finalStates[i]))), JSON.stringify(displayedStates));
@@ -3620,6 +3631,67 @@ async function steadyCheck() {
   check('steady: normal Run uses the duration and clears the previous result', await until(`!s.busy && Math.abs(s.core.time - 3) < 1e-8 && !s.core.steady`, 'duration run'));
 }
 
+/* W208 (docs/command-design.md): the keyboard layer is one dispatcher from a key to a command. The default
+   keys come from the command table; the XPPAUT sequences are a preset, off in a new page: F then S is a chord
+   over the same dispatcher, shown while pending and cancelled by Esc or a change of focus; the keys the
+   system and the browser keep are never prevented. A keydown listener registered after the page's own sees
+   defaultPrevented as the page left it. */
+async function keymapCheck() {
+  await desktopMetrics();
+  check('keymap: the page connects', await until('s.hello && !s.busy', 'hello'));
+  check('keymap: the XPPAUT sequences preset is off in a new page', (await S('s.keyPreset')) === 'default');
+  await cdp.eval(`window.__seen = []; window.addEventListener('keydown', e => window.__seen.push({key: e.key, prevented: e.defaultPrevented}))`);
+  const seen = () => cdp.eval('window.__seen.splice(0)');
+  const sentSince = mark => cdp.eval(`__xpp.sentFrom(${mark})`);
+  await focusPlot();
+  let mark = await cdp.eval('__xpp.sentCount()');
+  await key('f');
+  await key('s');
+  await key('i');
+  const plain = await seen();
+  check('keymap: with the preset off, F, S and I alone send nothing, start no chord and prevent nothing',
+    (await sentSince(mark)).length === 0 && (await S('s.pendingKeys.length')) === 0 && plain.length === 3 && plain.every(k => !k.prevented),
+    JSON.stringify(plain));
+  /* a default key runs its command by id, through the path a click on it takes */
+  await key('o', 2);
+  check('keymap: Ctrl+O runs Open model: the same command a click sends, and its key is prevented',
+    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'openmodel')`, 'open model sent')
+    && (await seen()).at(-1)?.prevented === true && await until('s.ask && s.ask.kind === "file"', 'the model picker'));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'the picker cancelled');
+  /* what the system and the browser keep is never bound, whatever the preset */
+  await xppautSequences();
+  mark = await cdp.eval('__xpp.sentCount()');
+  const reserved = await cdp.eval(`(() => [['F4', {altKey: true}], ['w', {ctrlKey: true}], ['q', {ctrlKey: true}], ['F11', {}], ['F12', {}], ['F5', {}]]
+    .map(([key, mods]) => !document.querySelector('.plot-host').dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true, ...mods}))))()`);
+  check('keymap: Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 and F5 are not prevented and run nothing',
+    reserved.every(prevented => !prevented) && (await sentSince(mark)).length === 0 && (await S('s.pendingKeys.length')) === 0, JSON.stringify(reserved));
+  /* the preset on: F then S is a chord */
+  await seen();
+  await focusPlot();
+  await key('f');
+  const first = await seen();
+  check('keymap: with the preset on, F is the first key of a chord: pending, shown in the status bar, prevented, nothing sent',
+    (await S('s.pendingKeys.join("")')) === 'F' && first.length === 1 && first[0].prevented
+    && await cdp.eval(`document.querySelector('[data-testid=pending-keys]').textContent.includes('F')`)
+    && (await sentSince(mark)).length === 0);
+  await key('Escape');
+  check('keymap: Esc cancels the pending chord and sends nothing',
+    await until('s.pendingKeys.length === 0', 'cancelled by Esc') && (await sentSince(mark)).length === 0
+    && !(await cdp.eval(`!!document.querySelector('[data-testid=pending-keys]')`)));
+  await key('f');
+  await cdp.eval(`window.dispatchEvent(new Event('blur'))`);
+  check('keymap: losing the focus of the window cancels it too', await until('s.pendingKeys.length === 0', 'cancelled by blur'));
+  await key('f');
+  await key('s');
+  check('keymap: F then S runs File/Export simulation information, the command a click sends',
+    await until(`__xpp.sentFrom(${mark}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'saveinfo')`, 'saveinfo sent')
+    && (await S('s.pendingKeys.length')) === 0);
+  await until('!s.busy', 'the command ended');
+  if (await S('!!s.ask')) await key('Escape');
+  await until('!s.ask && !s.busy', 'idle');
+}
+
 async function keysCheck() {
   await desktopMetrics();
   check('keys: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -3637,19 +3709,21 @@ async function keysCheck() {
     await until(`s.seriesCount > ${n0} && w.series.rows === 601 && !s.busy`, 'typed integrate', 20000)
     && await cdp.eval(`!!document.activeElement.closest('.plot-host')`), JSON.stringify(await S('[s.seriesCount, s.busy, s.ask]')));
   await key('f');
-  check('keys: F on the plot opens the File menu and the focus stays on the plot',
-    await until('s.core.menu === 1 && !s.busy', 'file menu') && await cdp.eval(`!!document.activeElement.closest('.plot-host')`),
+  check('keys: F on the plot starts the File chord (XPPAUT sequences on) and the focus stays on the plot',
+    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file chord') && await cdp.eval(`!!document.activeElement.closest('.plot-host')`),
     await cdp.eval(`document.activeElement.className`));
-  check('keys: File mode is visible and hints identify the actual next key', await cdp.eval(`
-    document.querySelector('.shortcut-context strong').textContent === 'File shortcuts active' &&
-    document.querySelector('[data-item=importset] kbd').textContent === 'R' &&
-    document.querySelector('[data-item=initialconds] kbd').textContent === 'Esc, I' &&
-    document.querySelector('[data-item=importset]').dataset.shortcutActive === 'true' &&
-    document.querySelector('.shortcut-status').textContent.includes('File')`));
-  await cdp.eval(`document.querySelector('.values-toggle').focus(); document.querySelector('.plot-host').focus()`);
-  check('keys: returning focus preserves File mode and its visible context', await S('s.core.menu === 1') && await cdp.eval(`!!document.querySelector('.shortcut-context')`));
-  await cdp.eval(`document.querySelector('.shortcut-context button').click()`);
-  check('keys: Main commands explicitly clears File mode', await until('s.core.menu === 0 && !s.busy', 'main commands') && await cdp.eval(`!document.querySelector('.shortcut-context')`));
+  check('keys: the pending chord is shown in the status bar, the sidebar lists the XPPAUT sequences, and there is no File mode', await cdp.eval(`
+    document.querySelector('[data-testid=pending-keys]').textContent.includes('F') &&
+    document.querySelector('[data-item=importset] kbd').textContent === 'F R' &&
+    document.querySelector('[data-item=initialconds] kbd').textContent === 'I' &&
+    !document.querySelector('.shortcut-context') && !document.querySelector('.shortcut-status')`));
+  await cdp.eval(`document.querySelector('#command-search').focus()`);
+  check('keys: moving the focus cancels a pending chord, never a timeout', await until('s.pendingKeys.length === 0', 'chord cancelled by focus'));
+  await focusPlot();
+  await key('f');
+  await until('s.pendingKeys.length === 1', 'file chord again');
+  await key('Escape');
+  check('keys: Esc cancels a pending chord and sends nothing', await until('s.pendingKeys.length === 0 && !s.ask && !s.busy', 'chord cancelled by Esc'));
   await focusPlot();
   await key('i');
   await until('s.ask && s.ask.kind === "menu"', 'unfinished initial conditions');
@@ -3659,25 +3733,22 @@ async function keysCheck() {
   await until('!s.ask && !s.busy', 'cancel unfinished command');
   await focusPlot();
   await key('f');
-  await until('s.core.menu === 1 && !s.busy', 'file mode after unfinished command');
+  await until('s.pendingKeys.length === 1', 'file chord after unfinished command');
   await key('r');
-  check('keys: after explicitly cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.set"', 'import settings'));
+  check('keys: after cancelling I, F R opens the intended settings file picker', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.set"', 'import settings'));
   await key('Escape');
   await until('!s.ask && !s.busy', 'cancel settings picker');
-  await until('s.core.menu === 0 && !s.busy', 'main menu');
   /* a button that kept the focus after a click: letters typed on it are XPP's, Enter stays the button's */
   await cdp.eval(`document.querySelector('.run-toolbar button.primary').focus()`);
   await key('f');
-  check('keys: F typed while a button has the focus acts too (File menu), the focus stays',
-    await until('s.core.menu === 1 && !s.busy', 'file menu from button')
+  check('keys: F typed while a button has the focus starts the chord too, the focus stays',
+    await until('s.pendingKeys.join("") === "F" && !s.busy', 'file chord from button')
     && await cdp.eval(`document.activeElement.matches('.run-toolbar button.primary')`), await cdp.eval(`document.activeElement.outerHTML.slice(0, 80)`));
   await key('Escape');
-  await until('s.core.menu === 0 && !s.busy', 'main menu 2');
+  await until('s.pendingKeys.length === 0 && !s.busy', 'chord cancelled 2');
   /* W67: File/cOpy set line by its menu button: the core asks the set's name, shows the line,
      and sends it; the page shows what it copies (the toast holds the line, copied or, when the
      clipboard is refused, to copy by hand) */
-  await key('f');
-  await until('s.core.menu === 1 && !s.busy', 'file menu for copy');
   const sentCopy0 = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('.menu-panel .menu-item[data-menu=file][data-item=copyset]').click()`);
   check('copy set: its File menu button sends the key o',
@@ -3692,7 +3763,6 @@ async function keysCheck() {
   check('copy set: the page receives the line (a toast holds it)',
     await until("s.toasts.some(t => /set mine \{iapp=[^}]*,V=[^}]*\}/.test(t.text))", 'copy toast') && await until('!s.busy', 'idle after copy'),
     JSON.stringify(await S('s.toasts')));
-  await until('s.core.menu === 0 && !s.busy', 'main menu after copy');
   /* a letter typed into a field stays there */
   const sent0 = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`(() => { const i = document.querySelector('.messages-search input'); i.closest('details').open = true; i.focus(); })()`);
@@ -4121,7 +4191,7 @@ async function helpCheck() {
   /* File/Help (M_FH, key h): the core itself sends the `help` event (docs/protocol.md) */
   await focusPlot();
   await key('f');
-  await until('s.core.menu === 1 && !s.busy', 'file menu for help');
+  await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu for help');
   await key('h');
   check('help: File/Help opens Help at the File menu chapter (core-sent `help` event)',
     await until(`s.help.open && s.help.chapter === '05-commands' && s.help.anchor === 'file'`, 'file help open'),
@@ -4129,7 +4199,7 @@ async function helpCheck() {
   await cdp.eval(`document.querySelector('.help-back').click()`);
   await until('!s.help.open', 'closed after File/Help');
   await key('Escape');
-  await until('s.core.menu === 0 && !s.busy', 'main menu after help');
+  await until('!s.busy', 'main menu after help');
 }
 
 /* W170: heavy.odex's expensive RHS with widely spaced stored rows leaves
@@ -4563,10 +4633,10 @@ async function fileMenu(k, mode) {
      from the page is not that): else the File menu of the last one still
      shows, the wait below passes before `f` is read, and `k` reaches the
      main menu (macos-ui: m, File/open Model, opened Makewindow, W93) */
-  await until('!s.busy && !s.ask && s.core.menu !== 1', 'the command before ended');
+  await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
   await focusPlot();
   await key('f');
-  await until('!s.busy && s.core.menu === 1', 'the File menu');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'the File menu');
   await key(k);
   return until(`s.ask && s.ask.kind === 'file' && s.ask.mode === '${mode}' && document.querySelector('.file-ask')`, `file ask ${k}`);
 }
@@ -4807,7 +4877,7 @@ async function nativeFiles(dir) {
     await cdp.eval(`window.__nativeReply = ${JSON.stringify(reply)}; true`);
     await focusPlot();
     await key('f');
-    await until('!s.busy && s.core.menu === 1', 'the File menu');
+    await until('!s.busy && s.pendingKeys.join("") === "F"', 'the File menu');
     await key(k);
     return until('!s.busy && !s.ask', `file ask ${k} answered`);
   };
@@ -5338,6 +5408,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
+    if (fn !== keymapCheck) await xppautSequences();
     await fn(dir);
     const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));
@@ -5701,6 +5772,7 @@ async function main() {
     if (run('navigation')) await session(ODE, navigationCheck);
     if (run('steady')) await session(ODE, steadyCheck);
     if (run('keys')) await session(ODE, keysCheck);
+    if (run('keymap')) await session(ODE, keymapCheck);
     if (run('record')) await session(ODE, recordCheck);
     if (run('player')) await session(ODE, playerCheck);
     if (run('leave')) await session(ODE, leaveCheck);

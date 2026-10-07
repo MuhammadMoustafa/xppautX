@@ -4,9 +4,6 @@
 import {busyText} from '../store/state';
 import {useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
-import {menuName} from '../protocol/kinds';
-import {useCapsLock} from './hotkeys';
-import {layerLabel} from './navigation';
 
 /* the connection, when it is not simply up (AutoStatus.tsx says it too) */
 export function connectionText(connected: boolean, exited: number | null): string | null {
@@ -14,7 +11,6 @@ export function connectionText(connected: boolean, exited: number | null): strin
 }
 
 export function StatusBar() {
-  const caps = useCapsLock();
   const session = useSession();
   const connected = useStore(s => s.connected);
   const exited = useStore(s => s.exited);
@@ -27,8 +23,7 @@ export function StatusBar() {
   const help = useStore(s => s.bottomHelp);
   const flash = useStore(s => s.flash);
   const rows = useStore(s => s.core?.rows ?? 0);
-  const hello = useStore(s => s.hello);
-  const mode = useStore(s => menuName(s.hello, s.core?.menu ?? 0));
+  const pending = useStore(s => s.pendingKeys);
   const status = connectionText(connected, exited) ?? (stopping ? 'Stopping…' : busy ? busyText(running, asking) : 'Ready');
   const dot = exited !== null ? 'down' : !connected ? '' : busy ? 'busy' : 'up';
   return (
@@ -37,8 +32,7 @@ export function StatusBar() {
       {flash > 0 && <span key={flash} class="status-flash" aria-hidden="true" />}
       <span class={`status-dot ${dot}`} aria-hidden="true" />
       <span role="status" data-testid="status">{status}</span>
-      {caps && <span class="caps-status" role="status">Caps Lock on</span>}
-      {!busy && hello && mode && mode !== 'main' && <span class="shortcut-status" role="status">{layerLabel(hello, mode)} shortcuts · Esc returns</span>}
+      {pending.length > 0 && <span class="key-pending" role="status" data-testid="pending-keys">{pending.join(' ')} … (Esc cancels)</span>}
       <span class="status-message">{bottom} {help && <HelpButton target={help} label=".odex models" />}</span>
       <span class="muted rows">{rows} rows</span>
       {/* W83: a fixed-width slot the bar always keeps (theme.css .status-run), so

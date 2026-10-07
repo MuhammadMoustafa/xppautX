@@ -3,15 +3,14 @@ import {useFocusBackOnClose} from './focusBack';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {menuHelp} from '../help/links';
-import {menuCommand, menuName} from '../protocol/kinds';
-import {contextualShortcut, layerLabel, navigationGroups, navigationProblems} from './navigation';
+import {menuCommand} from '../protocol/kinds';
+import {navigationGroups, navigationProblems} from './navigation';
 
 export function MenuPanel() {
   const session = useSession();
   const hello = useStore(s => s.hello);
-  const which = useStore(s => s.core?.menu ?? 0);
+  const preset = useStore(s => s.keyPreset);
   const open = useStore(s => s.drawerOpen);
-  const asking = useStore(s => !!s.ask);
   const [query, setQuery] = useState('');
   const may = useMay();
   const nav = useRef<HTMLElement>(null);
@@ -26,8 +25,7 @@ export function MenuPanel() {
     const problems = hello ? navigationProblems(hello) : [];
     if (problems.length) session.store.dispatch({type: 'toast', kind: 'error', text: problems.join(' ')});
   }, [hello]);
-  const name = menuName(hello, which);
-  const groups = navigationGroups(hello, query, name === 'main' ? null : name);
+  const groups = navigationGroups(hello, query, preset);
   const navigate = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement && e.key !== 'ArrowDown') return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
@@ -47,26 +45,19 @@ export function MenuPanel() {
       <label class="visually-hidden" htmlFor="command-search">Search commands</label>
       <input id="command-search" type="search" placeholder="Search commands…" value={query}
         onInput={e => setQuery((e.target as HTMLInputElement).value)} aria-keyshortcuts="Control+k Meta+k" />
-      {name && name !== 'main' && hello && <div class="shortcut-context">
-        <strong>{layerLabel(hello, name)} shortcuts active</strong>
-        <span>The next letter selects a command here.</span>
-        <button class="small" disabled={asking} onClick={() => session.typeKey('Escape')}>Main commands <kbd>Esc</kbd></button>
-      </div>}
       {groups.map(group => group.items.length > 0 && <details class="command-group" key={`${group.id}:${!!query}`} open={!!query || group.expanded}>
         <summary>{group.name}</summary>
         <ul>{group.items.map((item, i) => {
           const off = !may(menuCommand(item.menu, item.id));
-          const shortcut = contextualShortcut(item.shortcut, item.menu, name);
           return <li key={`${item.menu}:${item.id}`}><button class="menu-item" data-menu={item.menu} data-item={item.id}
-            data-shortcut-active={name === item.menu && name !== 'main' ? 'true' : undefined}
-            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? BUSY_TITLE : `${item.description} (${shortcut})`}
-            aria-keyshortcuts={shortcut.includes(',') ? undefined : shortcut}
+            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? BUSY_TITLE : item.shortcut ? `${item.description} (${item.shortcut})` : item.description}
+            aria-keyshortcuts={item.defaultKey.replace('Ctrl', 'Control')}
             onFocus={e => {
               e.currentTarget.closest('ul')?.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
                 button.tabIndex = button === e.currentTarget ? 0 : -1;
               });
             }} onClick={() => {close(); session.menuAction(item.menu, item.id);}}>
-            <span>{item.label}</span><kbd aria-hidden="true">{shortcut}</kbd>
+            <span>{item.label}</span>{item.shortcut && <kbd aria-hidden="true">{item.shortcut}</kbd>}
           </button></li>;
         })}</ul>
       </details>)}

@@ -31,6 +31,8 @@ import {
 export type {Range, Viewport} from './plots';
 
 export type Theme = 'light' | 'dark' | 'system';
+/** the keymaps (docs/command-design.md): the table's default keys alone, or with the XPPAUT sequences */
+export type KeyPreset = 'default' | 'xppaut';
 
 export interface Hover {
   curve: number;
@@ -116,6 +118,10 @@ export interface AppState {
   theme: Theme;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
+  /** which keymap the keyboard layer reads: 'xppaut' adds the XPPAUT sequences (F then S) to the default keys; page state only until W211 */
+  keyPreset: KeyPreset;
+  /** the keys of a chord typed so far ("F" of F, S), shown in the status bar; Esc or a focus change empties it */
+  pendingKeys: string[];
   /** parameters, ICs, BCs, delays, sliders (T3): pending edits and errors, see store/values.ts */
   values: ValuesState;
   /** the values panel, a full-screen sheet on narrow screens */
@@ -165,6 +171,8 @@ export type Action =
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
+  | {type: 'keyPreset'; preset: KeyPreset}
+  | {type: 'pendingKeys'; keys: string[]}
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
   | {type: 'theme'; theme: Theme}
@@ -210,6 +218,8 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   drawerOpen: false,
+  keyPreset: 'default',
+  pendingKeys: [],
   values: initialValues,
   valuesOpen: false,
   table: initialTable,
@@ -548,6 +558,10 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
     case 'bottom':
       return {...state, bottom: action.text, bottomHelp: null};
+    case 'keyPreset':
+      return {...state, keyPreset: action.preset, pendingKeys: []};
+    case 'pendingKeys':
+      return action.keys.join(' ') === state.pendingKeys.join(' ') ? state : {...state, pendingKeys: action.keys};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':

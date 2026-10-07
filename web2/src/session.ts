@@ -388,7 +388,12 @@ export class Session {
     this.send(button ? {cmd: 'key', key, button} : {cmd: 'key', key});
   }
 
-  /** a hotkey typed on the page (ui/hotkeys.ts): it answers an open menu,
+  /** whether a command's menu is still on its way: the keys typed now are its answers (ui/hotkeys.ts), not new commands */
+  awaitingMenu(): boolean {
+    return this.keyWaiting;
+  }
+
+  /** a key typed on the page while a menu is open or on its way (ui/hotkeys.ts): it answers the menu,
       waits behind a key whose menu has not come yet (typing I then G
       quickly integrates), or goes out. While the core is busy Escape stops
       what runs; while it computes a key of the data or computation kind

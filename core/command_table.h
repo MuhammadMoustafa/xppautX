@@ -20,7 +20,8 @@ namespace xpp {
 /* what a command is for, the sidebar's groups in the order they are listed;
    Layer is not a group: it marks the three items that only switch the
    legacy one-letter shortcut layer (File, Numerics and Return to main
-   shortcuts), which the page shows as a state, never as a command */
+   shortcuts), which the page has no use for: its XPPAUT sequences preset
+   (off by default) types the layer's key as the first key of a chord */
 enum class CommandCategory { Run, Files, Analysis, Plot, Tools, Layer };
 
 struct CategoryInfo {
@@ -56,8 +57,7 @@ struct CommandRow {
   char kind;               /* XPP_KIND_*: what the command needs (docs/protocol.md "Action kinds") */
   CommandCategory category;
   bool pinnable;           /* may sit in the quick-access toolbar */
-  bool primary;            /* listed in its group before a search; the others only when searching or when
-                              their own shortcut layer is active */
+  bool primary;            /* listed in its group before a search; the others only when searching */
   /* keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS); the
      XPPAUT sequence is not here, it is `legacy_keys` of hello */
   std::array<std::string_view, MAX_DEFAULT_KEYS> default_keys;
@@ -93,7 +93,7 @@ inline constexpr std::array<CommandRow, 58> COMMANDS = {{
     {FILE_MENU, 'n', "opensession", "Open session…", "Open a session file: its model, values, windows, data and diagram", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'v', "savesession", "Save session", "Save everything to this session's file (.snapx) to continue later; the first save asks for one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+S"}},
     {FILE_MENU, 'w', "savesessionas", "Save session as…", "Save everything to a session file you choose (.snapx)", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+Shift+S"}},
-    {FILE_MENU, 'e', "reload", "Reload model", "Read the model's file again, keeping the values", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
+    {FILE_MENU, 'e', "reload", "Reload model", "Read the model's file again, keeping the values", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+R"}},
     {FILE_MENU, 'r', "importset", "Import XPPAUT settings", "Import a set file XPPAUT wrote (values, numerics, the active window)", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 's', "saveinfo", "Export simulation information", "Save info about simulation in human readable format", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'q', "quit", "Quit", "Quit the application, with an option to save this session", XPP_KIND_CONTROL, CommandCategory::Files, false, true, {}},

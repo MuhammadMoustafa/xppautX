@@ -4,20 +4,27 @@
 
 The sidebar groups commands into **Files**, **Run**, **Analysis**, **Plot**,
 and **Tools**. Search by name or purpose using **Search commands**
-(Ctrl/Cmd+K). Clicked commands work regardless of the current letter-shortcut
-mode; the sidebar does not change into a separate File or Numerics menu.
-The older letter sequences below remain available. Their keys appear
-separately from the plain command labels.
+(Ctrl/Cmd+K). Clicking a command runs it by name; there is no File or
+Numerics mode.
 
-An unfinished shortcut sequence keeps its context. File and Numerics modes
-show a prominent **shortcuts active** indicator, highlight the commands
-whose next letter is active, and show the mode in the status bar. Shortcut
-hints reflect the current layer: File → Import shows `R` while File is
-active, and a main action shows `Esc, I` when it needs a return to Main.
-Choose **Main commands** or press Esc to leave a prefix mode. Submenu
-dialogs remain visible and explain that their letters choose from that
-menu; cancel with Esc before starting a different letter sequence. Leaving
-and returning to the app does not silently discard an unfinished command.
+## Keyboard shortcuts
+
+Every command's key comes from one table, shown in **Help > Keyboard
+shortcuts** and in the sidebar. The defaults are Ctrl/Cmd+O (Open model),
+Ctrl/Cmd+S (Save session as) and Ctrl/Cmd+R (Reload model). Ctrl/Cmd+K
+searches commands, F6 and Shift+F6 move between panes, F1 opens Help, and
+Esc stops a running command, cancels a pending key and closes a menu.
+The page never takes Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 or F5: they stay
+the system's and the browser's.
+
+The XPPAUT one-letter keys are an optional preset, **XPPAUT sequences**
+(a switch in Help > Keyboard shortcuts, off by default). With it on, a
+main-menu letter runs its command (`I` for Initial conditions), and File
+or Numerics letters are two keys: `F` then `S`, `U` then `D`. After the
+first key of such a chord the status bar shows it (`F ... (Esc cancels)`)
+until the next key; Esc, or moving the focus, cancels it. A key that
+completes no chord is reported in the status bar. While a menu is open,
+its letters choose from it, whatever the preset.
 
 Use **Files → Open model**, **Open session**, **Save session** or **Save session as** to
 manage work. A `.snapx` session preserves the workspace; parameter and
@@ -51,8 +58,7 @@ Idle/Running/Awaiting input and the last stored time in the active plot;
 stored time has sampled trajectory precision. Parameter edits apply to
 the next run. **Run → More run options…** opens the advanced choices.
 Parameters and Numerics have their main home in Values; command search
-still reaches their legacy actions. Numerics shortcut mode also displays
-its applicable commands in the sidebar.
+still reaches their legacy actions.
 
 **Run to steady state** starts from Initial in one click. Its inline summary
 shows decimal places (default 9), hold duration and maximum duration. Open
@@ -102,7 +108,7 @@ remain available. A script or `--silent` run exits 1 if any error occurred,
 including an output file it could not write; a successful fit exits 0
 (W133).
 
-All commands can be invoked by typing the hot key for that command (capitalized on the menu) or clicking on the menu with the mouse. Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
+All commands can be invoked by typing the hot key for that command (capitalized on the menu, with the XPPAUT sequences preset on) or clicking on the menu with the mouse. Usually most commands can be aborted by pressing the `Esc` key. Once one of these is chosen, the program begins to calculate and draw the trajectories. If you want to stop prematurely, press the `Esc` key and the integration will stop.
 
 **In web2**, the main menu and every one of these commands and hotkeys
 are unchanged; see [Using the interface](04-using-the-interface.md) for

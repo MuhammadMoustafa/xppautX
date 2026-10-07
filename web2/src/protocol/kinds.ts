@@ -56,7 +56,7 @@ export interface CommandRow {
   /** a CommandCategory id */
   category: string;
   pinnable: boolean;
-  /** listed in its group before a search; the others only when searching or when their own shortcut layer is active */
+  /** listed in its group before a search; the others only when searching */
   primary: boolean;
   /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
   default_keys: string[];

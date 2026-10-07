@@ -167,15 +167,16 @@ protocol lines from the same rows. Each row:
 | `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |
 | `category` | an `id` of `hello.command_categories` |
 | `pinnable` | whether it may sit in the quick-access toolbar (W212): false for Quit and the three shortcut-layer switches |
-| `primary` | listed in its group before a search; the others (Continue, Parameters and the Numerics values, under Run) appear when searching or when their own shortcut layer is active |
-| `default_keys` | keys that run it from the page (`"Ctrl+O"`: Ctrl, or Cmd on macOS); only Open model and Save session as have one until W208 |
-| `legacy_keys` | the XPPAUT sequence: the shortcut layer's key, then the item's (`["F","S"]`, `["I"]`, `["U","Esc"]`) |
+| `primary` | listed in its group before a search; the others (Continue, Parameters and the Numerics values, under Run) appear only when searching |
+| `default_keys` | keys that run it from the page (`"Ctrl+O"`: Ctrl, or Cmd on macOS; several keys separated by a space are a chord); Open model, Save session as and Reload model have one (W208); the page never binds Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 or F5 |
+| `legacy_keys` | the XPPAUT sequence: the shortcut layer's key, then the item's (`["F","S"]`, `["I"]`, `["U","Esc"]`); the page runs the command on it only when its preset "XPPAUT sequences" is on (off by default) |
 
 `hello.command_categories` is [{`id`, `label`, `listed`, `expanded`}...] (`expanded`: the group is open before a search): `run`, `files`,
 `analysis`, `plot`, `tools` (the sidebar's groups, in order, `listed`) and
 `layer`, not listed: the rows File, Numerics and Return to main shortcuts
-only switch the legacy shortcut layer, so the page shows the layer as a
-state and never lists them. Every legacy menu item has exactly one row
+only switch the legacy shortcut layer, which the page never enters (it
+sends a command by its id) and never lists; the XPPAUT-sequences preset
+types the layer's key as the first key of a chord. Every legacy menu item has exactly one row
 (`tools/keycheck.py` fails a key a menu's handler takes with no row, or a row
 no handler takes); the page shows a table that disagrees with itself
 (`navigationProblems`) as an error, once.

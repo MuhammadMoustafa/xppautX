@@ -329,8 +329,8 @@ def check_command_table(table):
           and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
           str(layer))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W209: Open model, Save session and Save session as hold Ctrl+O, Ctrl+S and Ctrl+Shift+S, the only default keys (W208 adds the rest)',
-          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S']}, str(chords))
+    check('W208: Open model, Save session, Save session as and Reload model have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
+          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R']}, str(chords))
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
           and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
