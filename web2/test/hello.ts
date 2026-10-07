@@ -51,6 +51,11 @@ export const HELLO: HelloEvent = {
   menu_names: ['main', 'file', 'num'],
   command_categories: CORE.categories,
   command_table: CORE.rows,
+  /* no keymap.json: every command with the table's keys (core/xpp_keymap.cpp effective_json) */
+  keymap: {
+    ok: true, path: '', preset: 'default', pinned: [], reserved: ['Ctrl+W', 'F12'], limits: {keys: 8, parts: 2, key_bytes: 64},
+    commands: CORE.rows.filter(r => r.category !== 'layer').map(r => ({id: r.id, keys: r.default_keys, source: 'default' as const})),
+  },
   windows: {
     auto: layer('panrgucdf', 'svsxdsvvv', ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']),
     ani: layer('fgrsmoa', 'vvvvdvd', ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']),

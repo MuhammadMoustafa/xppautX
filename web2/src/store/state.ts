@@ -23,6 +23,7 @@ import {appendLog, emptyLog, lastEntry, type Log, type LogEntry} from './log';
 import {initialText, reduceText, type TextAction, type TextState} from './text';
 import {initialHelp, reduceHelp, type HelpAction, type HelpState} from './help';
 import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from './player';
+import {initialKeymap, reduceKeymap, type KeymapState} from './keymap';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
 import {
   initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
@@ -148,6 +149,8 @@ export interface AppState {
   help: HelpState;
   /** a recording in the player (W59b), see store/player.ts */
   player: PlayerState;
+  /** the user's keymap: effective keys, pinned commands and preset (W211), see store/keymap.ts */
+  keymap: KeymapState;
 }
 
 export type Action =
@@ -233,6 +236,7 @@ export const initialState: AppState = {
   kinescope: initialKinescope,
   help: initialHelp,
   player: initialPlayer,
+  keymap: initialKeymap,
 };
 
 const TOASTS_KEEP = 4;
@@ -340,7 +344,12 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
       const values = reduceValues({...state.values, defaults: null, checkpoint: null}, {type: 'settled'});
       /* a set sent before gets no idle now */
       return {...state, hello: ev, title: ev.title, values, numerics: null,
-        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'})};
+        autoSettings: reduceAutoSettings(state.autoSettings, {type: 'reset'}),
+        keymap: reduceKeymap(state.keymap, {type: 'info', info: ev.keymap})};
+    }
+    case 'keymap': {
+      const keymap = reduceKeymap(state.keymap, {type: 'info', info: ev.keymap});
+      return keymap === state.keymap ? state : {...state, keymap};
     }
     case 'liveState':
       return state.core ? {...state, core: {...state.core, now: ev.now, time: ev.time, rates: ev.rates}} : state;

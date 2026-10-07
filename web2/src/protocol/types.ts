@@ -33,6 +33,8 @@ export interface HelloEvent {
   command_categories: CommandCategory[];
   /** every command of the three main-window menus, once, in the sidebar's order (core/command_table.h) */
   command_table: CommandRow[];
+  /** the user's keymap as the core read it (W211, store/keymap.ts) */
+  keymap: KeymapInfo;
   /** the windows' key layers (protocol/kinds.ts) */
   windows: Record<LayerWindow, WindowLayer>;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
@@ -47,6 +49,51 @@ export interface HelloEvent {
   userbuttons: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
+}
+
+/** one command's effective keys: the user's (source `user`) or the command table's (`default`) */
+export interface KeymapCommand {
+  id: string;
+  keys: string[];
+  source: 'default' | 'user';
+}
+
+/** The `keymap` of hello and of a `keymap` event (core/xpp_keymap.h, docs/protocol.md "Keymap"). `ok`
+    false is a keymap.json that could not be loaded: the error, its file, line and value (the
+    `error` event's fields), and the commands are the table's defaults, nothing of the file applied. */
+export interface KeymapInfo {
+  ok: boolean;
+  /** the settings file's path ('' when the system names no config folder) */
+  path: string;
+  preset: 'default' | 'xppaut';
+  /** the quick-access toolbar's command ids, in order */
+  pinned: string[];
+  /** keys no command may take (the page and the system keep them) */
+  reserved: string[];
+  /** the most keys of a command, parts of a key (a chord) and bytes of a key string */
+  limits: {keys: number; parts: number; key_bytes: number};
+  commands: KeymapCommand[];
+  error?: string;
+  file?: string;
+  line?: number;
+  col?: number;
+  source?: string;
+  field?: string;
+}
+
+/** the user's differences, as keymap.json holds them and `set` replaces them */
+export interface UserKeymap {
+  preset: 'default' | 'xppaut';
+  pinned: string[];
+  /** command id -> its keys instead of the table's ([] = none) */
+  bindings: Record<string, string[]>;
+}
+
+/** the answer to a `keymap` command (get, set or reset) */
+export interface KeymapEvent {
+  ev: 'keymap';
+  op: 'get' | 'set' | 'reset';
+  keymap: KeymapInfo;
 }
 
 export interface View {
@@ -551,6 +598,7 @@ export type XppEvent =
   | FilmEvent
   | PlayerEvent
   | PressEvent
+  | KeymapEvent
   /** A user save completed (false for a declined or failed save). */
   | {ev: 'saved'; saved: boolean; file: string}
   | {ev: 'idle'}

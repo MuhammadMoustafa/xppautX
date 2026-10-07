@@ -7,7 +7,7 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
+import atexit, argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from xppclient import Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
@@ -16,6 +16,11 @@ ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
+# W211: no check touches the user's real keymap.json: every server started here reads and writes a
+# folder of its own (XPP_CONFIG_DIR, core/xpp_files.h), removed at exit
+CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')
+os.environ['XPP_CONFIG_DIR'] = os.path.join(CONFIG_ROOT, 'xppautX')
+atexit.register(shutil.rmtree, CONFIG_ROOT, ignore_errors=True)
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
 
@@ -6121,5 +6126,124 @@ def check_terminal_playback():
               and not os.path.exists(model) and not os.path.exists(os.path.join(source, 'next.dat')), result.stderr)
 
 check_terminal_playback()
+
+def check_keymap():
+    """W211, docs/protocol.md "Keymap": keymap.json is one file in the config folder; hello carries its
+    effective keys; `keymap` get / set / reset read, replace (checked whole, then written) and remove it;
+    a bad file is an error with its place and the defaults shown as marked, never applied in part; a
+    second server reads what the first wrote."""
+    folder = os.path.join(CONFIG_ROOT, 'nested', 'xppautX')     # not made: the first save makes it
+    path = os.path.join(folder, 'keymap.json')
+    env = {'XPP_CONFIG_DIR': folder}
+    same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+    keymap_events = lambda evs: [e for e in evs if e.get('ev') == 'keymap']
+    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    by_id = lambda km: {c['id']: c for c in km['commands']}
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_idle)
+        km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
+        cmds = by_id(km)
+        check("W211: hello gives the default keymap when there is no file: ok, preset default, nothing pinned, the table's keys, all source default",
+              km['ok'] is True and km['preset'] == 'default' and km['pinned'] == [] and same(km['path'], path)
+              and cmds['openmodel']['keys'] == ['Ctrl+O'] and cmds['reload']['keys'] == []
+              and all(c['source'] == 'default' for c in cmds.values()) and 'file' not in cmds, str(km)[:300])
+        check('W211: hello gives the reserved keys and the limits the editor keeps to',
+              'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 2, 'key_bytes': 64},
+              str(km['limits']))
+        check('W211: the folder is not made by reading', not os.path.exists(folder))
+        snd(cmd='keymap', op='get')
+        evs, _ = col(is_idle)
+        check('W211: get answers a keymap event with the same effective keymap, then state and idle',
+              [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
+              and not errors(evs), str(evs)[-300:])
+
+        good = {'preset': 'xppaut', 'pinned': ['reload', 'help'],
+                'bindings': {'reload': ['Ctrl+B', 'F S'], 'savesession': [], 'initialconds': ['Alt+I']}}
+        snd(cmd='keymap', op='set', map=good)
+        evs, _ = col(is_idle)
+        ev = keymap_events(evs)
+        cmds = by_id(ev[0]['keymap']) if ev else {}
+        check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
+              len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
+              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['reload', 'help']
+              and cmds['reload'] == {'id': 'reload', 'keys': ['Ctrl+B', 'F S'], 'source': 'user'}
+              and cmds['savesession'] == {'id': 'savesession', 'keys': [], 'source': 'user'}
+              and cmds['openmodel']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
+        written = open(path, 'rb').read()
+        check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
+              b'"reload": ["Ctrl+B", "F S"]' in written and b'openmodel' not in written
+              and os.listdir(folder) == ['keymap.json'], repr(written[:200]))
+
+        for what, bad, line, value in [
+                ('a reserved key', {'bindings': {'reload': ['Ctrl+W']}}, 1, 'Ctrl+W'),
+                ('a key two commands would share', {'bindings': {'help': ['Ctrl+O']}}, 1, 'Open model'),
+                ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
+                ('a command that cannot be pinned', {'pinned': ['quit']}, 1, 'quit'),
+                ('a malformed key', {'bindings': {'reload': ['ctrl+r']}}, 1, 'ctrl+r'),
+                ('an unknown preset', {'preset': 'emacs'}, 1, 'emacs'),
+                ('a setting the file does not have', {'colour': 1}, 1, 'colour')]:
+            snd(cmd='keymap', op='set', map=bad)
+            evs, _ = col(is_idle)
+            err = errors(evs)
+            check('W211: set refuses %s at its place with its value, and neither answers nor writes' % what,
+                  len(err) == 1 and err[0]['file'] == 'the keymap sent' and err[0]['line'] == line and value in err[0]['error']
+                  and not keymap_events(evs) and open(path, 'rb').read() == written, str(evs)[-300:])
+        snd(cmd='keymap', op='set', map=[1])
+        evs, _ = col(is_idle)
+        check('W211: set needs an object, shown once', len(errors(evs)) == 1 and not keymap_events(evs), str(evs)[-200:])
+        snd(cmd='keymap', op='frob')
+        evs, _ = col(is_idle)
+        check('W211: an unknown op is an error', len(errors(evs)) == 1 and not keymap_events(evs), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+    # a second server (the browser beside the window) reads what the first wrote
+    p, r, snd, col, _ = launch_server(extra_env=env)
+    try:
+        evs, _ = col(is_idle)
+        km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
+        check('W211: another server reads the same file: window and browser never disagree',
+              km['ok'] is True and by_id(km)['reload']['keys'] == ['Ctrl+B', 'F S'] and km['pinned'] == ['reload', 'help'], str(km)[:200])
+
+        # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
+        with open(path, 'w', newline='\n') as f:
+            f.write('{\n  "pinned": ["reload"],\n  "bindings": {"reload": ["Ctrl+Q"]}\n}\n')
+        snd(cmd='keymap', op='get')
+        evs, _ = col(is_idle)
+        ev = keymap_events(evs)
+        km = ev[0]['keymap'] if ev else {}
+        check('W211: a bad file is an error with its file, line and value; the keymap is the defaults, marked, nothing applied; no message event',
+              len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == 3 and 'Ctrl+Q' in km['error']
+              and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and km['preset'] == 'default'
+              and by_id(km)['reload']['keys'] == [] and not errors(evs), str(evs)[-400:])
+        snd(cmd='keymap', op='set', map={'pinned': ['help']})
+        evs, _ = col(is_idle)
+        ev = keymap_events(evs)
+        check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
+              and ev[0]['keymap']['pinned'] == ['help'], str(evs)[-300:])
+
+        # a file too large is refused as it is read
+        with open(path, 'w') as f:
+            f.write(' ' * 70000 + '{}')
+        snd(cmd='keymap', op='get')
+        evs, _ = col(is_idle)
+        ev = keymap_events(evs)
+        check('W211: a file over the limit is an error naming the file', len(ev) == 1 and ev[0]['keymap']['ok'] is False
+              and same(ev[0]['keymap']['file'], path), str(evs)[-300:])
+
+        snd(cmd='keymap', op='reset')
+        evs, _ = col(is_idle)
+        ev = keymap_events(evs)
+        check('W211: reset removes the file and answers the defaults',
+              len(ev) == 1 and ev[0]['op'] == 'reset' and ev[0]['keymap']['ok'] is True and ev[0]['keymap']['pinned'] == []
+              and not os.path.exists(path), str(evs)[-300:])
+        snd(cmd='keymap', op='reset')
+        evs, _ = col(is_idle)
+        check('W211: reset with no file is fine', len(keymap_events(evs)) == 1 and not errors(evs), str(evs)[-200:])
+    finally:
+        stop_server(p, r, snd)
+
+check_keymap()
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

@@ -147,6 +147,16 @@ constexpr const CommandRow *find_command(int which, std::string_view id)
   return nullptr;
 }
 
+/* the row of the command `id`, whichever menu it is in, nullptr for none (an
+   id is in one menu only: tests/test_keymap.cpp checks it): what a keymap
+   names a command by */
+constexpr const CommandRow *find_command_by_id(std::string_view id)
+{
+  for (const CommandRow &row : COMMANDS)
+    if (row.id == id) return &row;
+  return nullptr;
+}
+
 /* the row of the key `ch` of menu `which`, nullptr for none */
 constexpr const CommandRow *find_command_by_key(int which, int ch)
 {

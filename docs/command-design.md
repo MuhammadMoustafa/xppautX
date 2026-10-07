@@ -95,6 +95,16 @@ only the user's differences: `bindings` (command id → keys, `[]` = removed),
 - Not a fallback target: a missing file means "all defaults", a bad file is
   an error, never silently ignored.
 
+Settled while building it (W211, docs/protocol.md "Keymap" has the whole
+contract): a key has one spelling (`Ctrl+Alt+Shift+Meta+` in that order, a
+capital letter, `F1`..`F24` or a DOM name such as `Enter`), a chord is at most
+two parts, and a key that starts another command's chord clashes with it as
+two commands on one key do. While the file is bad the page is shown the table's
+defaults marked `ok: false` with the error (never the user's part of it, and no
+second error event); `set` replaces a bad file whole. The reserved list is
+core/xpp_keymap.h's `RESERVED_KEYS`, sent in `hello.keymap.reserved`. The
+three shortcut-layer rows take no keys.
+
 ## Keymap editor (a dialog in the page)
 
 Rows: command label, category, keys, source. Search matches label,

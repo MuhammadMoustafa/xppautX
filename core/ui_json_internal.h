@@ -27,6 +27,7 @@
 #error "ui_json_internal.h is C++ only"
 #endif
 
+#include "json_reader.h"
 #include "xpp_ui.h"
 #include "xpp_io.h"
 #include "xpp_mem.h"
@@ -280,28 +281,14 @@ void json_flush(void);
 void data_emit(std::string_view line);
 void data_emit(const char *line, size_t n);
 
-/* ---- json_io.cpp: input and the JSON reader ---- */
+/* ---- json_io.cpp: input; the JSON reader is json_reader.h ---- */
 
 char *read_line(xpp::inbox::From which, int wait_ms);
 unsigned long read_line_seq(void); /* the sequence number of read_line()'s line */
 bool read_line_refused(void);      /* whether classify() refused read_line()'s line */
 
-const char *skip_ws(const char *p);
-const char *skip_value(const char *p);
-const char *js_find(const char *obj, const char *key);
-/* the JSON text of the value at v (its whitespace after it left out;
-   empty for NULL) */
-std::string_view js_raw(const char *v);
-/* text is one JSON value, strictly (RFC 8259), with nothing after it but
-   whitespace: what a file holds before it goes into an event */
-bool js_valid(const char *text);
-/* the object at obj as JSON text without its members named in drop */
-std::string js_object_without(const char *obj, std::initializer_list<std::string_view> drop);
-/* The JSON string at v into out, whole; false (out empty) when v is not a string. */
-bool js_string(const char *v, std::string &out);
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
-const char *js_elem(const char *arr, int i);
 bool get_string(const char *obj, const char *key, std::string &out);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
@@ -450,6 +437,13 @@ void j_auto_show_hint(xpp::Session &s);
 void j_auto_scroll_window(xpp::Session &s);
 void j_auto_diagram(xpp::Session &s, int view, const XppDiagPoint *p);
 void j_auto_refresh(xpp::Session &s);
+
+/* ---- json_keymap.cpp ---- */
+
+/* the user's keymap as the page keeps it: hello's `keymap` object (xpp_keymap.h) */
+std::string hello_keymap();
+/* the `keymap` command: ops get, set (replace the whole user map) and reset */
+void keymap_command(xpp::Session &s, const char *line);
 
 /* ---- json_model.cpp ---- */
 

@@ -170,6 +170,14 @@ std::string temp_folder()
     return std::string(base.data(), n);
 }
 
+std::string app_data_folder()
+{
+    std::array<char, MAX_PATH> dir; /* GetEnvironmentVariableA writes it */
+    const DWORD n = GetEnvironmentVariableA("APPDATA", dir.data(), static_cast<DWORD>(dir.size()));
+    if (n == 0 || n >= dir.size()) return std::string();
+    return std::string(dir.data(), n);
+}
+
 bool process_gone(unsigned long pid)
 {
     /* Limited query rights suffice; a denied query never authorizes scratch cleanup. */

@@ -608,6 +608,7 @@ const CommandInfo commands[] = {
     {"auto", "set", S, STEP, auto_command},
     {"auto", "grab", D, STEP, auto_command},
     {"auto", nullptr, V, STEP, auto_command}, /* display, point, close */
+    {"keymap", nullptr, C, NOT_STEP, keymap_command}, /* the user's settings, not the model's: any time */
     {"file", "put", D, NOT_STEP, file_command},
     {"file", nullptr, V, NOT_STEP, file_command}, /* list, get */
     {"set", nullptr, S, STEP, apply_set},
@@ -1040,6 +1041,9 @@ void send_hello(xpp::Session &s)
     buf_str(&b, xpp::LEAVE_KEYS);
     BUF_LIT(&b, "}");
     buf_command_table(&b);
+    BUF_LIT(&b, ",\"keymap\":");
+    const std::string keymap = hello_keymap();
+    buf_add(&b, keymap.data(), keymap.size());
     /* the limits the page keeps to and the windows' numbers in `window`
        events (plot windows are 1 to plots) */
     buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,

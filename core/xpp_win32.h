@@ -32,6 +32,9 @@ bool process_gone(unsigned long pid);
 /* the system temp folder without its trailing backslash; empty when
    there is none (xpp_files.cpp's scratch folders) */
 std::string temp_folder();
+/* %APPDATA%, the per-user roaming folder, without a trailing backslash; empty
+   when it is not set (xpp_files_dir.cpp's config_dir) */
+std::string app_data_folder();
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
    Explorer or a file association starts it) so a command-line mode
    (--server, --silent, --version, --help, --browser, or any log to

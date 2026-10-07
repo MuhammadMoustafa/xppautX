@@ -37,6 +37,46 @@ std::string temp_base()
 #endif
 }
 
+std::string config_dir()
+{
+    constexpr std::string_view APP = "xppautX"; /* the folder's name under the system's config folder */
+    /* an override is a whole path: a relative one would follow the working folder, which opening a model changes */
+    if (const char *own = std::getenv(CONFIG_DIR_ENV); own && own[0]) return is_absolute(own) ? own : std::string();
+    std::string base;
+#ifdef _WIN32
+    base = xpp::win32::app_data_folder();
+#else
+    const char *home = std::getenv("HOME");
+    const bool have_home = home && home[0];
+#ifdef __APPLE__
+    if (have_home) base = std::string(home) + "/Library/Application Support";
+#else
+    /* the XDG spec: a relative $XDG_CONFIG_HOME is invalid and ignored */
+    const char *xdg = std::getenv("XDG_CONFIG_HOME");
+    if (xdg && xdg[0] == '/') base = xdg;
+    else if (have_home) base = std::string(home) + "/.config";
+#endif
+#endif
+    if (base.empty()) return {};
+    return xpp::format("{}{}{}", base, SEP, APP);
+}
+
+std::string config_path(std::string_view name)
+{
+    const std::string dir = config_dir();
+    return dir.empty() ? std::string() : xpp::format("{}{}{}", dir, SEP, name);
+}
+
+bool make_dirs(std::string_view path)
+{
+    for (std::size_t end = 1; end <= path.size(); end++) {
+        if (end != path.size() && path[end] != '/' && path[end] != SEP) continue;
+        const std::string part(path.substr(0, end));
+        if (!is_dir(part) && make_dir(part.c_str()) != 0 && errno != EEXIST) return false;
+    }
+    return true;
+}
+
 bool is_dir(std::string_view path)
 {
     Stat st;
@@ -320,18 +360,25 @@ bool has_extension(std::string_view path, std::string_view ext)
            xpp::equal_ignoring_case(std::string_view(name).substr(name.size() - ext.size()), ext);
 }
 
+bool is_absolute(std::string_view path)
+{
+#ifdef _WIN32
+    const auto sep = [](char c) { return c == '/' || c == '\\'; };
+    return (!path.empty() && sep(path[0])) ||
+           (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' && sep(path[2]));
+#else
+    return !path.empty() && path[0] == '/';
+#endif
+}
+
 std::string absolute(std::string_view path, std::string_view dir)
 {
 #ifdef _WIN32
     const auto sep = [](char c) { return c == '/' || c == '\\'; };
-    const bool absolute = (!path.empty() && sep(path[0])) ||
-                          (path.size() > 2 && std::isalpha(static_cast<unsigned char>(path[0])) && path[1] == ':' &&
-                           sep(path[2]));
 #else
     const auto sep = [](char c) { return c == '/'; };
-    const bool absolute = !path.empty() && path[0] == '/';
 #endif
-    if (absolute || path.empty()) return std::string(path);
+    if (is_absolute(path) || path.empty()) return std::string(path);
     std::string base = dir.empty() ? working_dir() : std::string(dir);
     if (!base.empty() && !sep(base.back())) base += '/';
     return base.append(path);

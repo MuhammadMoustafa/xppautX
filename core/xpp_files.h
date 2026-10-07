@@ -196,6 +196,22 @@ void move(std::string_view from, std::string_view to);
    path, or empty on failure */
 std::string make_temp_dir();
 std::string temp_base(); /* The platform temp folder, shared by scratch files and the window loader. */
+/* The per-user settings folder (keymap.json, xpp_keymap.h): $XPP_CONFIG_DIR
+   when set, else the system's: %APPDATA%\xppautX on Windows,
+   $XDG_CONFIG_HOME/xppautX or ~/.config/xppautX on Linux, and
+   ~/Library/Application Support/xppautX on macOS. Empty when the system
+   names none (no HOME), and when $XPP_CONFIG_DIR is not an absolute path.
+   The folder may not exist yet: make_dirs. */
+std::string config_dir();
+/* the file `name` in it ("" when there is no config folder), with the
+   platform's separator */
+std::string config_path(std::string_view name);
+/* the override: tests and CI point the settings at a folder of their own so
+   they never read or write the user's real file */
+inline constexpr const char *CONFIG_DIR_ENV = "XPP_CONFIG_DIR";
+/* path and its missing parents as folders, mode 0700 (POSIX); false when
+   one cannot be made */
+bool make_dirs(std::string_view path);
 /* path is in one of this process's scratch folders (as the path above
    names them): a file the core itself keeps there, never the user's.
    root_only requires the folder itself, excluding nested directories. */
@@ -229,7 +245,9 @@ std::string working_dir();
 /* path's folder ("" when it names none: a bare name) and its last part,
    either separator ('/', or '\' too on Windows) */
 std::pair<std::string, std::string> split_path(std::string_view path);
-/* path itself when it is absolute ("/x", and on Windows "C:\x" or "\x"),
+/* path starts at the root ("/x", and on Windows "C:\x" or "\x") */
+bool is_absolute(std::string_view path);
+/* path itself when it is absolute (is_absolute),
    else under the folder dir ("" the working directory) */
 std::string absolute(std::string_view path, std::string_view dir = {});
 

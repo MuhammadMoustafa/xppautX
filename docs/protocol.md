@@ -44,7 +44,7 @@ once, and keeps any other command for after the one that asked. See
    table"), the windows' key layers (`windows`), every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
    core keeps to (`limits`) and the windows' numbers (`window_ids`): see
-   "Shared limits and ids".
+   "Shared limits and ids"; the user's keymap (`keymap`: "Keymap").
 2. `window` `create` for window 1, the main plot.
 3. `state`, then `idle`.
 
@@ -181,6 +181,87 @@ types the layer's key as the first key of a chord. Every legacy menu item has ex
 no handler takes); the page shows a table that disagrees with itself
 (`navigationProblems`) as an error, once.
 
+## Keymap
+
+`keymap.json` (W211, #265, core/xpp_keymap.h) holds the user's own differences
+from the command table's keys, nothing else, in the per-user config folder:
+`%APPDATA%\xppautX` on Windows, `$XDG_CONFIG_HOME/xppautX` or
+`~/.config/xppautX` on Linux, `~/Library/Application Support/xppautX` on
+macOS. `XPP_CONFIG_DIR` names the folder instead (tests and CI use it so they
+never touch the real file). That fixed path is the only one: nothing the file
+says names another. The folder is made by the first save. The window and the
+browser page both read and write it through the one `keymap` command, so they
+never disagree.
+
+    {
+      "preset": "default",
+      "pinned": ["reload", "help"],
+      "bindings": {
+        "reload": ["Ctrl+B", "F S"],
+        "savesession": []
+      }
+    }
+
+- `preset`: `default`, or `xppaut` (the XPPAUT one-letter sequences, `legacy_keys` of the command table).
+- `pinned`: the quick-access commands, in order; each a command whose `pinnable` is true, none twice.
+- `bindings`: a command `id` of `hello.command_table` (not the three shortcut-layer rows) to its keys, which replace the table's `default_keys`; `[]` is no key. A command not named keeps the table's keys.
+
+A key is one to two parts (a chord) separated by one space; a part is the
+modifiers in the order `Ctrl+`, `Alt+`, `Shift+`, `Meta+` and then one key: a
+capital letter, a digit or other printable ASCII symbol, `F1` to `F24`, or
+`Enter`, `Escape`, `Tab`, `Backspace`, `Delete`, `Insert`, `Home`, `End`,
+`PageUp`, `PageDown`, `ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown` or
+`Space`. One spelling per key (`Ctrl+Shift+S`, never `shift+ctrl+s`). A key
+has at most 64 bytes, a command at most 8 keys, the file 65536 bytes, its
+JSON 64 levels.
+
+**Loading is all or nothing.** The whole file is parsed and every value
+checked, then it is applied in one step; a file with any of these is an error,
+shown with its file, line, column and the line as written, and nothing of it is
+applied: not valid JSON, text after the value, nesting too deep, a NUL byte,
+a file over the size limit, an unknown top-level setting, a setting or a
+command twice, an unknown command id or a shortcut-layer row, a value of the
+wrong type, a malformed key, a reserved key (any part of a chord), a command
+with too many keys, two commands on one key (one key also clashes with another
+that starts with it as a chord), a pinned command twice or not pinnable, an unknown preset.
+The effective map is checked: the keys of the commands the file leaves alone are
+the table's. A missing file is all defaults and no error; a bad one never
+falls back silently.
+
+**Reserved keys** are the page's and the system's: `Alt+F4`, `Ctrl+W`,
+`Ctrl+Q`, `F11`, `F12` and the browser's tab, window, address and reload keys
+(`hello.keymap.reserved`, core/xpp_keymap.h). No command is bound to one and
+the page never calls `preventDefault` on them.
+
+`hello.keymap` and the `keymap` event's `keymap` are one object, the load's
+result as the page keeps it:
+
+| field | meaning |
+|---|---|
+| `ok` | false when the file could not be loaded |
+| `error`, `file`, `line`, `col`, `source`, `field` | only when `ok` is false: the common error shape ("Errors"), at the file's line (an unreadable or oversized file at no line) |
+| `path` | the settings file ("" when the system names no config folder) |
+| `preset`, `pinned` | the user's (`default` and `[]` when `ok` is false) |
+| `reserved` | the keys no command may take |
+| `limits` | `keys` (per command), `parts` (per key), `key_bytes` |
+| `commands` | [{`id`, `keys`, `source`}...] for every command but the shortcut-layer rows: the effective keys, and whether they are the table's (`default`) or the user's (`user`) |
+
+When the file is bad, the page gets that error in `keymap` (in `hello`, and in
+the answer to `get`) and `commands` are the table's defaults with `source`
+`default`: the defaults are what the page shows while the error is up, marked
+by `ok: false`, never presented as the user's; no `message` event is sent for a
+load (the page shows the error once, from `keymap`). `set` replaces a bad file
+whole; `reset` removes it.
+
+`set`'s `map` is the user map as the file holds it (`preset`, `pinned`,
+`bindings`; a setting left out is its default). It is checked by the same
+pipeline as the file, and an error is a `message` error whose `file` is
+`the keymap sent` and whose line and `source` are in the `map` as sent (its
+JSON text), the file untouched. The file is written through `xpp::Writer`
+(a temporary file beside it, then a rename), one binding to a line.
+A `set` or `reset` that cannot write or remove the file is a `message` error
+naming it.
+
 ## Commands (client to server)
 
 ### Direct run controls (W193, W194)
@@ -247,6 +328,7 @@ steps are not comparison intervals.
 | `continue` | exactly one of `extra`, `until` | Append directly using current core time; see Direct run controls above. |
 | `abort` | none | Stop the running command's computation, at once (see below). No reply of its own: the stopped command ends with `stopped`, `state` and `idle`; outside a command it does nothing. Recorded interruptions belong to a recording step's `abort`, whose position the player arms before the computation. |
 | `file` | `op` (`list`, `get`, `put`), `name`, `data` | The model's folder (the working directory) for a client that cannot reach it: `put` writes `data` (base64, at most 64 MB decoded) as `name`, `get` reads `name` back, `list` lists the folder. Answered with a `file` event, then `state` and `idle`. Names are base names only (see "Files" below). |
+| `keymap` | `op` (`get`, `set`, `reset`); `map` (`set`) | The user's keymap, `keymap.json` in the per-user config folder ("Keymap"). `get` reads the file, `set` replaces the whole user map with `map` (checked as a file is, whole, then written), `reset` removes the file. Answered with a `keymap` event, then `state` and `idle`; a map that is refused or cannot be written is a `message` error and nothing changes. The user's settings, not the model's: a control command, taken any time, never a recording's step. |
 | `quit` | `ask`, `save` | Exit, at once even during a computation, asking nothing: a script's and a client's quit (`--silent`, servercheck). With `ask` `true` (W59d), the user's quit: the desktop page sends it when the window's File > Quit or close box comes while the core is idle (web2 asks itself while a command runs, below). It stops a computation in progress (as `abort`; the command ends with `stopped`, `state` and `idle`), cancels a question open at the time (its command ends), then runs as a command of its own: the `choice` ask "Quit xppautX? Save this session first?" (`keys` `sd`: `s` Save session, `d` Don't save; a cancel keeps the session), as File/Quit (keys `f` `q`) asks. `s` saves the session first, as the `savesession` command does (to `state.session.file` with no ask when there is one, else a `file` ask, `*.snapx`), and a recording in progress after it, as `record` `stop` with no `name` does (the question then says so); then, as for `d`, `bye` and the exit. A cancel of any of these questions keeps the session. A plain `quit` sent while it asks still exits at once. With `save` `true` (W110), that question answered **Save session** where the client asked it itself: the desktop page asks it while a command runs (the window's close box never stops a computation), worded by `hello`'s `quit`. It stops a computation in progress as `ask` does, then saves as `s` does (the session's `file` ask, then a recording's) and says `bye` and exits; a cancelled save keeps the session (its computation already stopped). The page's **Don't save** is the plain `quit` (in the window: closing it, which sends it). |
 
 ## Action kinds
@@ -846,6 +928,7 @@ model's start in every mode, before the script.
 | `bye` | | The program is exiting normally: sent by every quit (a plain `quit`, during a computation or not, and the question's outcomes) before an error-free exit, so browser mode's `exit` event says `code` 0. Every quit path exits 1 after a reported error and sends no `bye` (W133). A crash or an error exit sends none (`exit` `code` 1). |
 | `error` | `error`, `file`, `line`, `col`, `source` | The model did not load: sent instead of `hello`, then the program exits (see "A model that does not load"). |
 | `file` | `op`, `name`, `ok`; `size`, `sha256` (`put`, `get`), `data` (`get`, base64), `files` (`list`: [{`name`,`size`,`mtime`,`sha256`}...]); `error`, `file`, `line`, `col`, `source`, `field` when `ok` is 0 (the common error shape above) | The answer to a `file` command (see "Files" below). |
+| `keymap` | `op` (`get`, `set`, `reset`), `keymap` (the object of "Keymap") | The answer to a `keymap` command. |
 | `ask` | `id`, `kind`, ... | See below. |
 
 In browser mode (`xppautX model.ode`) events stream from `/events?t=TOKEN`.
