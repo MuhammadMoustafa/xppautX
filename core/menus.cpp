@@ -4,7 +4,6 @@
 #include "command_table.h"
 #include "menudrive.h"
 
-#include <cstring>
 #include <string>
 #include <string_view>
 

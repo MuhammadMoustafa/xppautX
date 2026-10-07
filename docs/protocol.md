@@ -167,10 +167,11 @@ protocol lines from the same rows. Each row:
 | `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |
 | `category` | an `id` of `hello.command_categories` |
 | `pinnable` | whether it may sit in the quick-access toolbar (W212): false for Quit and the three shortcut-layer switches |
+| `primary` | listed in its group before a search; the others (Continue, Parameters and the Numerics values, under Run) appear when searching or when their own shortcut layer is active |
 | `default_keys` | keys that run it from the page (`"Ctrl+O"`: Ctrl, or Cmd on macOS); only Open model and Save session as have one until W208 |
 | `legacy_keys` | the XPPAUT sequence: the shortcut layer's key, then the item's (`["F","S"]`, `["I"]`, `["U","Esc"]`) |
 
-`hello.command_categories` is [{`id`, `label`, `listed`}...]: `run`, `files`,
+`hello.command_categories` is [{`id`, `label`, `listed`, `expanded`}...] (`expanded`: the group is open before a search): `run`, `files`,
 `analysis`, `plot`, `tools` (the sidebar's groups, in order, `listed`) and
 `layer`, not listed: the rows File, Numerics and Return to main shortcuts
 only switch the legacy shortcut layer, so the page shows the layer as a
@@ -189,7 +190,7 @@ must be an integer 0–15, hold at least one positive Dt, maximum at least
 hold, and durations/time/counts must be finite and fit the driver. Ordinary
 trajectory output is required (no Poincare, histogram or FFT). Compare all
 state doubles rounded to fixed decimal places at every configured Dt;
-changed digits reset the hold. Output stride is temporarily 1, then restored
+changed digits reset the hold. Store every N steps is temporarily 1, then restored
 along with Total. `hello.steady` supplies `max_decimals`, `default_decimals`
 and `default_hold`; the core owns these values.
 

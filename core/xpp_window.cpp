@@ -291,6 +291,15 @@ static_assert(xpp::find_command(FILE_MENU, "openmodel") && xpp::find_command(FIL
     return label;
 }
 
+/* the title of the dialog File command `id` opens: its label without the ellipsis that says one follows */
+[[maybe_unused]] std::string dialog_title(std::string_view id)
+{
+    std::string_view label = xpp::find_command(FILE_MENU, id)->label;
+    constexpr std::string_view ELLIPSIS = "â¦";
+    if (label.ends_with(ELLIPSIS)) label.remove_suffix(ELLIPSIS.size());
+    return std::string(label);
+}
+
 /* File command `id`'s first default key, "" for none */
 [[maybe_unused]] std::string_view native_key(std::string_view id)
 {
@@ -307,7 +316,7 @@ static_assert(xpp::find_command(FILE_MENU, "openmodel") && xpp::find_command(FIL
 
 [[maybe_unused]] void open_model(void *window)
 {
-    const FileDialog models{false, "Open model", "", "", "XPP models, sessions and recordings (*.ode, *.odex, *.snapx, *.recx)",
+    const FileDialog models{false, dialog_title("openmodel"), "", "", "XPP models, sessions and recordings (*.ode, *.odex, *.snapx, *.recx)",
                             {".ode", std::string(xpp::odex::extension), std::string(xpp::snapx::extension), std::string(xpp::recx::extension)}};
     std::optional<std::string> path = pick_file(window, models);
     if (path && !path->empty()) host->open_model(path->c_str());

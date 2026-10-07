@@ -677,16 +677,49 @@ constexpr std::string_view ESC_KEY_NAME = "Esc";
 /* a legacy key as shown: its capital, or Esc */
 std::string key_name(char key)
 {
-    return key == '' ? std::string(ESC_KEY_NAME) : std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(key))));
+    return key == '\033' ? std::string(ESC_KEY_NAME) : std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(key))));
 }
 
-/* hello's "command_table" (core/command_table.h, docs/protocol.md "Hello"): the one list of commands, in the
-   sidebar's order, with the categories it groups them in; `legacy_keys` is the XPPAUT sequence (the layer's
-   key, then the item's) */
+/* one row of hello's "command_table" (core/command_table.h); `legacy_keys` is the XPPAUT sequence: the
+   shortcut layer's key, then the item's */
+void buf_command_row(Buf *b, const CommandRow &row)
+{
+    BUF_LIT(b, "{\"menu\":");
+    buf_str(b, MENU_NAMES[static_cast<std::size_t>(row.menu)]);
+    BUF_LIT(b, ",\"id\":");
+    buf_str(b, row.id);
+    BUF_LIT(b, ",\"key\":");
+    buf_str(b, std::string_view(&row.key, 1));
+    BUF_LIT(b, ",\"label\":");
+    buf_str(b, row.label);
+    BUF_LIT(b, ",\"description\":");
+    buf_str(b, row.description);
+    buf_format(b, ",\"kind\":\"{}\"", row.kind);
+    BUF_LIT(b, ",\"category\":");
+    for (const CategoryInfo &c : COMMAND_CATEGORIES)
+        if (c.category == row.category) buf_str(b, c.id);
+    buf_format(b, ",\"pinnable\":{},\"primary\":{},\"default_keys\":[", row.pinnable, row.primary);
+    bool first_key = true;
+    for (std::string_view key : row.default_keys) {
+        if (key.empty()) continue;
+        if (!first_key) BUF_LIT(b, ",");
+        first_key = false;
+        buf_str(b, key);
+    }
+    BUF_LIT(b, "],\"legacy_keys\":[");
+    if (const CommandRow *layer = layer_entry(row.menu)) {
+        buf_str(b, key_name(layer->key));
+        BUF_LIT(b, ",");
+    }
+    buf_str(b, key_name(row.key));
+    BUF_LIT(b, "]}");
+}
+
+/* hello's "menu_names", "command_categories" and "command_table" (docs/protocol.md "The command table"):
+   the one list of commands in the sidebar's order, with the categories it groups them in */
 void buf_command_table(Buf *b)
 {
-    BUF_LIT(b, ",\"menu_names\":");
-    BUF_LIT(b, "[");
+    BUF_LIT(b, ",\"menu_names\":[");
     for (std::size_t i = 0; i < MENU_NAMES.size(); ++i) {
         if (i) BUF_LIT(b, ",");
         buf_str(b, MENU_NAMES[i]);
@@ -699,42 +732,12 @@ void buf_command_table(Buf *b)
         buf_str(b, c.id);
         BUF_LIT(b, ",\"label\":");
         buf_str(b, c.label);
-        buf_format(b, ",\"listed\":{}}}", c.listed);
+        buf_format(b, ",\"listed\":{},\"expanded\":{}}}", c.listed, c.expanded);
     }
     BUF_LIT(b, "],\"command_table\":[");
-    bool first = true;
-    for (const CommandRow &row : COMMANDS) {
-        if (!first) BUF_LIT(b, ",");
-        first = false;
-        BUF_LIT(b, "{\"menu\":");
-        buf_str(b, MENU_NAMES[static_cast<std::size_t>(row.menu)]);
-        BUF_LIT(b, ",\"id\":");
-        buf_str(b, row.id);
-        BUF_LIT(b, ",\"key\":");
-        buf_str(b, std::string_view(&row.key, 1));
-        BUF_LIT(b, ",\"label\":");
-        buf_str(b, row.label);
-        BUF_LIT(b, ",\"description\":");
-        buf_str(b, row.description);
-        buf_format(b, ",\"kind\":\"{}\"", row.kind);
-        BUF_LIT(b, ",\"category\":");
-        for (const CategoryInfo &c : COMMAND_CATEGORIES)
-            if (c.category == row.category) buf_str(b, c.id);
-        buf_format(b, ",\"pinnable\":{},\"default_keys\":[", row.pinnable);
-        bool first_key = true;
-        for (std::string_view key : row.default_keys) {
-            if (key.empty()) continue;
-            if (!first_key) BUF_LIT(b, ",");
-            first_key = false;
-            buf_str(b, key);
-        }
-        BUF_LIT(b, "],\"legacy_keys\":[");
-        if (const CommandRow *layer = layer_entry(row.menu)) {
-            buf_str(b, key_name(layer->key));
-            BUF_LIT(b, ",");
-        }
-        buf_str(b, key_name(row.key));
-        BUF_LIT(b, "]}");
+    for (std::size_t i = 0; i < COMMANDS.size(); ++i) {
+        if (i) BUF_LIT(b, ",");
+        buf_command_row(b, COMMANDS[i]);
     }
     BUF_LIT(b, "]");
 }

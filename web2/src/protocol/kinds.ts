@@ -56,6 +56,8 @@ export interface CommandRow {
   /** a CommandCategory id */
   category: string;
   pinnable: boolean;
+  /** listed in its group before a search; the others only when searching or when their own shortcut layer is active */
+  primary: boolean;
   /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
   default_keys: string[];
   /** the XPPAUT sequence: the shortcut layer's key, then the item's ("F", "P") */
@@ -67,6 +69,8 @@ export interface CommandCategory {
   id: string;
   label: string;
   listed: boolean;
+  /** the group is open before a search */
+  expanded: boolean;
 }
 
 /** the row of item `id` of main-window menu `menu`, undefined for none (or before hello) */

@@ -27,10 +27,7 @@ export function MenuPanel() {
     if (problems.length) session.store.dispatch({type: 'toast', kind: 'error', text: problems.join(' ')});
   }, [hello]);
   const name = menuName(hello, which);
-  const groups = navigationGroups(hello, query).map(group => ({...group,
-    items: !query.trim() && group.id === 'run'
-      ? group.items.filter(item => item.id === 'initialconds' || name === 'num' && item.menu === 'num')
-      : group.items}));
+  const groups = navigationGroups(hello, query, name === 'main' ? null : name);
   const navigate = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement && e.key !== 'ArrowDown') return;
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
@@ -55,7 +52,7 @@ export function MenuPanel() {
         <span>The next letter selects a command here.</span>
         <button class="small" disabled={asking} onClick={() => session.typeKey('Escape')}>Main commands <kbd>Esc</kbd></button>
       </div>}
-      {groups.map(group => group.items.length > 0 && <details class="command-group" key={`${group.id}:${!!query}`} open={!!query || group.id === 'files' || group.id === 'run'}>
+      {groups.map(group => group.items.length > 0 && <details class="command-group" key={`${group.id}:${!!query}`} open={!!query || group.expanded}>
         <summary>{group.name}</summary>
         <ul>{group.items.map((item, i) => {
           const off = !may(menuCommand(item.menu, item.id));

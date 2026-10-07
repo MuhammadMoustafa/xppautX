@@ -154,7 +154,7 @@ every example, the goldens guard the output files.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Output stride | `NOUT`/`NJMP` ("nOutput" in the menu) | `store_every`, "Store every N steps" (one row per N output steps; 1 stores every step); a `.odex` and our files take only the new name, a `.ode` keeps NOUT/NJMP and converts to it | W206 ([#260](https://github.com/MuhammadMoustafa/xppautX/issues/260)) |
+| Store every N steps | `NOUT`/`NJMP` ("nOutput" in the menu) | `store_every`, "Store every N steps" (one row per N output steps; 1 stores every step); a `.odex` and our files take only the new name, a `.ode` keeps NOUT/NJMP and converts to it | W206 ([#260](https://github.com/MuhammadMoustafa/xppautX/issues/260)) |
 | Curve fit and plot diagram import | whitespace data only | `.dat` and `.csv` through the Save data registry; CSV headers skipped | W137 ([#189](https://github.com/MuhammadMoustafa/xppautX/issues/189)) |
 | Array range movies | GIF stream written during the sweep | temporary file committed after a complete sweep; Stop preserves the old file | W137 |
 | Kinescope capacity | rotation and BVP movies silently drop frames when full ([findings #27](xppaut-findings.md#27-rotation-and-boundary-value-movies-silently-drop-frames-when-full)) | every capture returns a result; the command reports a full buffer once | W133 |
@@ -168,7 +168,7 @@ every example, the goldens guard the output files.
 | Linear solves | `sgefa`/`sgesl`, `ge`, band solves | one LU solve; eigenvalues for Gear from EISPACK | W32a |
 | Model options such as `newt_iter`, `jac_eps` | silently ignored ([findings #1](xppaut-findings.md)) | take effect, so some results differ from XPPAUT's (the DAE examples, W126) | W119, W126 |
 | DAE past a fold | steps over it onto another branch ([findings #6](xppaut-findings.md)) | stops at the fold | W127 |
-| Output stride 0 | divides by zero ([findings #25](xppaut-findings.md)) | refused by the owner's rule | W145 |
+| Store every N steps set to 0 | divides by zero ([findings #25](xppaut-findings.md)) | refused by the owner's rule | W145 |
 | Bit-identical results on every platform | not a goal | studied: `-ffp-contract=off` and a correctly rounded libm; adoption deferred ([studies](studies/w72-bit-identical.md)) | W72 |
 | Speed | C | measured after each C++ stage and not slower beyond noise | W109 |
 

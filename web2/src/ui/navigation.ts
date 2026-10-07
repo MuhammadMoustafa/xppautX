@@ -22,6 +22,7 @@ export interface NavigationItem {
 export interface NavigationGroup {
   id: string;
   name: string;
+  expanded: boolean;
   items: NavigationItem[];
 }
 
@@ -34,12 +35,13 @@ export function contextualShortcut(shortcut: string, target: MenuName, active: M
 }
 
 /** the listed categories (the sidebar's groups) with the commands of each that match every word of
-    `query` in label, description or id, in the table's order */
-export function navigationGroups(hello: HelloEvent | null, query: string): NavigationGroup[] {
+    `query` in label, description or id, in the table's order; with no query only the primary commands
+    and those of the active shortcut layer `layer` */
+export function navigationGroups(hello: HelloEvent | null, query: string, layer: MenuName | null): NavigationGroup[] {
   const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   return (hello?.command_categories ?? []).filter(category => category.listed).map(category => ({
-    id: category.id, name: category.label,
-    items: hello!.command_table.filter(row => row.category === category.id)
+    id: category.id, name: category.label, expanded: category.expanded,
+    items: hello!.command_table.filter(row => row.category === category.id && (words.length > 0 || row.primary || row.menu === layer))
       .map((row): NavigationItem => ({menu: row.menu, id: row.id, label: row.label, description: row.description,
         shortcut: row.legacy_keys.join(', ')}))
       .filter(item => words.every(word => `${item.label} ${item.description} ${item.id}`.toLocaleLowerCase().includes(word)))}));

@@ -331,6 +331,9 @@ def check_command_table(table):
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
     check('W207: Open model and Save session as keep Ctrl+O and Ctrl+S, the only default keys (W208 adds the rest)',
           chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S']}, str(chords))
+    check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
+          [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
+          and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
     order = [cats[r['category']]['label'] for r in table if r['category'] != 'layer']
     check('W207: the table is in the sidebar\'s order: by category, as listed', order == sorted(order, key=listed.index), str(order))
 
