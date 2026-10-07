@@ -67,6 +67,7 @@ struct Decl {
   Kind kind;
   Pos pos;
   int arity = 0;
+  std::string array; /* the array this name is a member of (array_text), or "" */
 };
 
 /* where a formula is: what else it may read */
@@ -181,6 +182,15 @@ private:
     return name + std::to_string(whole(index, xpp::format("the index of {}", name), ix, value, true));
   }
 
+  /* element(), for a name the statement declares: the array it is a
+     member of is kept for the error a clash with it gives */
+  std::string defined(const std::string &base, const Expr &index, const std::string &ix, int value)
+  {
+    std::string name = element(base, index, ix, value);
+    if (group_) members_[{group_, name}] = array_text(base, lo_, hi_, step_);
+    return name;
+  }
+
   /* e with the range's index its value (value) and every element x[e]
      the name it is */
   Expr resolved(const Expr &e, const std::string &index, int value) const
@@ -220,16 +230,16 @@ private:
   {
     Statement c = s;
     c.range = Range();
-    if (c.name_index) c.name = element(c.name, *c.name_index, index, value);
+    if (c.name_index) c.name = defined(c.name, *c.name_index, index, value);
     c.name_index.reset();
     c.expr = resolved(c.expr, index, value);
     for (Binding &b : c.bindings) {
-      if (b.index) b.name = element(b.name, *b.index, index, value);
+      if (b.index) b.name = defined(b.name, *b.index, index, value);
       b.index.reset();
       b.value = resolved(b.value, index, value);
     }
     for (size_t i = 0; i < c.name_indices.size(); i++)
-      if (c.name_indices[i]) c.names[i] = element(c.names[i], *c.name_indices[i], index, value);
+      if (c.name_indices[i]) c.names[i] = defined(c.names[i], *c.name_indices[i], index, value);
     c.name_indices.clear();
     for (size_t i = 0; i < c.call_arg_indices.size(); i++)
       if (c.call_arg_indices[i]) c.call_args[i] = element(c.call_args[i], *c.call_arg_indices[i], index, value);
@@ -261,6 +271,7 @@ private:
     for (const Statement &s : p_.statements) {
       const Range &r = s.range;
       if (r.index.empty()) {
+        group_ = 0;
         out.push_back(copy(s, std::string(), 0));
         continue;
       }
@@ -272,8 +283,9 @@ private:
       if (hi < lo) fail(r.lo.pos, xpp::format("the range {}..{} is empty: a range counts up from its first index to "
                                               "its last", lo, hi));
       group++;
+      group_ = group, lo_ = lo, hi_ = hi, step_ = step;
       for (int k = lo; k <= hi; k += step) {
-        const ArrayCopy a{group, r.index, k, lo, hi, step, false};
+        const ArrayCopy a{group, r.index, k, lo, hi, step, false, std::string()};
         in_copy(a, [&] { out.push_back(copy(s, r.index, k)); });
         out.back().array = a;
       }
@@ -284,9 +296,12 @@ private:
   /* ---- the names ---- */
   void add(const std::string &name, Kind kind, Pos pos, int arity = 0)
   {
+    const auto member = members_.find({declaring_.group, name});
+    const std::string member_of = member == members_.end() ? std::string() : member->second;
     auto same = decls_.find(name);
     if (same != decls_.end())
-      fail(pos, xpp::format("`{}` is already declared at {}:{}", name, same->second.pos.line, same->second.pos.col));
+      fail(pos, name_clash(name, member_of, same->second.array,
+                           xpp::format("{}:{}", same->second.pos.line, same->second.pos.col)));
     const std::string upper = xpp::upper_case(name);
     auto folded = folded_.find(upper);
     if (folded != folded_.end())
@@ -296,7 +311,7 @@ private:
     if (reads_as_builtin(upper))
       fail(pos, xpp::format("`{}` would be read as the built-in `{}`: this version of xppautX keeps a model's "
                             "names without case", name, xpp::lower_case(upper)));
-    decls_[name] = Decl{kind, pos, arity};
+    decls_[name] = Decl{kind, pos, arity, member_of};
     folded_[upper] = name;
   }
 
@@ -313,6 +328,7 @@ private:
 
   void declare(const Statement &s)
   {
+    declaring_ = s.array;
     switch (s.kind) {
     case Statement::Kind::Ode:
     case Statement::Kind::Volterra: add(s.name, Kind::Variable, s.name_pos); break;
@@ -755,6 +771,12 @@ private:
 
   const Parsed &p_;
   std::map<std::string, Decl> decls_;
+  /* the array each declared member name belongs to, by the range statement
+     (its group) that made it; the range being expanded; the array
+     statement being declared */
+  std::map<std::pair<int, std::string>, std::string> members_;
+  int group_ = 0, lo_ = 0, hi_ = 0, step_ = 1;
+  ArrayCopy declaring_;
   std::map<std::string, std::string> folded_;
   /* the consts so far and their values: what a const's value, a range's
      ends and step and an index read (expanded() fills it in order) */
@@ -768,6 +790,19 @@ private:
 bool is_odex(std::string_view path)
 {
   return xpp::files::has_extension(path, extension);
+}
+
+std::string array_text(std::string_view base, int lo, int hi, int step)
+{
+  return step > 1 ? xpp::format("{}[{}..{} by {}]", base, lo, hi, step) : xpp::format("{}[{}..{}]", base, lo, hi);
+}
+
+std::string name_clash(std::string_view name, std::string_view array, std::string_view earlier_array,
+                       std::string_view earlier_at)
+{
+  const std::string who = array.empty() ? xpp::format("`{}`", name) : xpp::format("`{}`, a member of the array {},", name, array);
+  if (earlier_array.empty()) return xpp::format("{} is already declared at {}", who, earlier_at);
+  return xpp::format("{} is already a member of the array {}, declared at {}", who, earlier_array, earlier_at);
 }
 
 Parsed ready(const Parsed &p)

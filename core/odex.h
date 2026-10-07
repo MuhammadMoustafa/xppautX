@@ -126,6 +126,9 @@ struct ArrayCopy {
   std::string index;
   int value = 0, lo = 0, hi = 0, step = 1;
   bool interleaved = false;
+  /* the array as its author wrote it, x[1..3] (array_text), for the
+     error that names the array a member name comes from */
+  std::string written;
 };
 
 /* an @ option: its name and its value's text */
@@ -179,6 +182,9 @@ struct Statement {
   Pos pos;
   std::string name;
   Pos name_pos;
+  /* the name as its author wrote it, when the .ode reader kept it in
+     upper case (name) ("" for the .odex's, and a statement with none) */
+  std::string written;
   /* the name's index, x[e] (an array's element) */
   std::optional<Expr> name_index;
   std::string text;
@@ -254,6 +260,15 @@ bool is_name(std::string_view name);
    value, an @ line's, a set's, a network's and a comment's text the
    Model's own, ieee_division set. Throws Error. */
 Parsed ready(const Parsed &p);
+
+/* an array as written, base[lo..hi] (base[lo..hi by step] with a step
+   above 1) */
+std::string array_text(std::string_view base, int lo, int hi, int step);
+/* why a declaration of name clashes with the earlier one at earlier_at
+   ("3:1", "line 3"): either may be a member of an array (array,
+   earlier_array: array_text, "" when it is a plain name) */
+std::string name_clash(std::string_view name, std::string_view array, std::string_view earlier_array,
+                       std::string_view earlier_at);
 
 /* path names an .odex model (its extension, any case) */
 bool is_odex(std::string_view path);
