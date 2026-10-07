@@ -1290,7 +1290,9 @@ def check_stable_navigation():
                        {'menu': 'main', 'item': 'erase', 'key': 'e'}, {'menu': 'main', 'item': 'erase', 'win': 'auto'},
                        {'menu': 'main'}, {'item': 'erase'}, {'menu': 42, 'item': 'erase'}):
             events = command(cmd='key', **fields)
-            check('navigation: rejects malformed stable identity ' + repr(fields), any(e.get('ev') == 'message' and e.get('error') for e in events), str(events[-3:]))
+            err = next((e for e in events if e.get('ev') == 'message' and e.get('error')), {})
+            check('navigation: rejects malformed stable identity ' + repr(fields) + ', naming the command place',
+                  err.get('file') == 'command' and err.get('line') == 1 and json.loads(err.get('source') or '{}').get('cmd') == 'key', str(events[-3:]))
         snd(cmd='key', menu='file', item='savesession')
         _, ask = col(is_ask)
         check('navigation: stable save session asks the existing session picker', ask and ask.get('kind') == 'file' and ask.get('wild') == '*.snapx', str(ask))

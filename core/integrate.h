@@ -1,6 +1,7 @@
 #ifndef _integrate_h_
 #define _integrate_h_
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <memory>
@@ -24,6 +25,14 @@ struct Session; /* session.h */
 inline constexpr int MAX_STEADY_DECIMALS = std::numeric_limits<double>::digits10;
 inline constexpr int DEFAULT_STEADY_DECIMALS = 9; /* User's requested initial precision. */
 inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of unchanged digits. */
+/* The integrator's iteration counters are int; a run of more steps than
+   this (less one for its rounding) cannot be counted. */
+inline constexpr double MAX_RUN_STEPS = std::numeric_limits<int>::max() - 1;
+/* How far from a whole number of Dt a direct `continue until` may lie, as
+   a fraction of Dt: the integrator's own rounding of a run to its grid
+   (integrate()'s nit adds .1 Dt), so a longer remainder is refused rather
+   than silently dropped. */
+inline constexpr double CONTINUE_GRID_TOLERANCE = .1;
 struct SteadyStateSettings {
   int decimals;
   double hold, maximum;
@@ -32,6 +41,14 @@ struct SteadyStateResult {
   std::string status;
   int decimals;
   double time = 0;
+};
+/* A state value's digits at the requested decimals, text in a fixed buffer
+   (no allocation per comparison). 309 integer digits of the largest double,
+   the point, MAX_STEADY_DECIMALS decimals and a sign fit in 330. */
+struct SteadyDigits {
+  std::array<char, 330> text;
+  unsigned short size = 0;
+  bool operator==(const SteadyDigits &o) const { return std::equal(text.begin(), text.begin() + size, o.text.begin(), o.text.begin() + o.size); }
 };
 /* Compares full core states formatted to the requested fixed decimal
    places at every configured Dt interval, never the float plot samples. */
@@ -42,7 +59,7 @@ class SteadyStateMonitor {
   bool observe(std::span<const double> state, double time);
  private:
   SteadyStateSettings settings_;
-  std::vector<std::string> previous_;
+  std::vector<SteadyDigits> previous_, next_; /* next_ is kept to reuse its storage */
   double previous_time_ = 0, unchanged_ = 0;
 };
 Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start);

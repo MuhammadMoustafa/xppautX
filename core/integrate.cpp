@@ -1,3 +1,5 @@
+#include <charconv>
+#include <cstring>
 #include "mykeydef.h"
 #include "image_format.h"
 #include "solver.h"
@@ -1396,12 +1398,21 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
 }
 
 namespace {
-/* A formatted signed zero has the same numeric value as positive zero. */
-std::string steady_digits(double value, int decimals)
+/* The digits a state shows at `decimals` places, kept as text in a
+   stack buffer (std::to_chars: no allocation). A formatted signed zero has
+   the same numeric value as positive zero. A value too long for the
+   buffer (|x| near 1e308 with 15 decimals fits: 309+1+15+1) cannot occur. */
+SteadyDigits steady_digits(double value, int decimals)
 {
-  std::string text=xpp::format("{:.{}f}",value,decimals);
-  if(text.starts_with('-')&&text.find_first_not_of("0.",1)==std::string::npos)text.erase(0,1);
-  return text;
+  SteadyDigits d;
+  const auto r=std::to_chars(d.text.data(),d.text.data()+d.text.size(),value,std::chars_format::fixed,decimals);
+  d.size=static_cast<unsigned short>(r.ptr-d.text.data());
+  const std::string_view text(d.text.data(),d.size);
+  if(text.starts_with('-')&&text.find_first_not_of("0.",1)==std::string_view::npos){
+    std::memmove(d.text.data(),d.text.data()+1,d.size-1);
+    --d.size;
+  }
+  return d;
 }
 }
 
@@ -1416,27 +1427,25 @@ void xpp::SteadyStateMonitor::begin(std::span<const double> state, double time)
 bool xpp::SteadyStateMonitor::observe(std::span<const double> state, double time)
 {
   bool same=state.size()==previous_.size()&&!state.empty()&&std::isfinite(time)&&time>previous_time_;
-  std::vector<std::string> next;
+  next_.clear();
   for(std::size_t i=0;i<state.size();++i){
-    next.push_back(steady_digits(state[i],settings_.decimals));
-    if(!std::isfinite(state[i])||i>=previous_.size()||next.back()!=previous_[i])same=false;
+    next_.push_back(steady_digits(state[i],settings_.decimals));
+    if(!std::isfinite(state[i])||i>=previous_.size()||!(next_.back()==previous_[i]))same=false;
   }
   unchanged_=same?unchanged_+(time-previous_time_):0;
-  previous_=std::move(next);
+  previous_.swap(next_);
   previous_time_=time;
   return same&&unchanged_>=settings_.hold;
 }
 
 Result<> validate_steady_state(SteadyStateSettings settings, double dt, double start)
 {
-  /* integrate's iteration counters are int; leave room for its rounding. */
-  constexpr double MAX_STEADY_STEPS=INT_MAX-1;
   if(settings.decimals<0||settings.decimals>MAX_STEADY_DECIMALS)
     return fail("steady",format("Decimal places must be between 0 and {}",MAX_STEADY_DECIMALS),command_place());
   if(!std::isfinite(dt)||dt<=0||!std::isfinite(start)||!std::isfinite(start+dt)||start+dt<=start)
     return fail("steady","Dt must advance time with a finite positive step",command_place());
   if(!std::isfinite(settings.hold)||!std::isfinite(settings.maximum)||settings.hold<dt||settings.maximum<settings.hold||
-     !std::isfinite(start+settings.maximum)||settings.maximum/dt>MAX_STEADY_STEPS)
+     !std::isfinite(start+settings.maximum)||settings.maximum/dt>MAX_RUN_STEPS)
     return fail("steady","Hold duration must be at least Dt, maximum duration must cover the hold, and the step count must fit the integrator",command_place());
   return {};
 }
@@ -1445,12 +1454,14 @@ Result<> continue_to(Session &s, double until)
 {
   const double interval=s.integrator.solver->traits().discrete?1:s.numerics.delta_t;
   const double duration=until-s.data_store.current_time;
-  constexpr double MAX_CONTINUE_STEPS=INT_MAX-1; /* Driver's int counters. */
   if(!s.numerics.inflag||s.numerics.fft||s.numerics.hist)
     return fail("continue","Needs a prior trajectory; disable FFT and histogram modes",command_place());
   if(!std::isfinite(until)||!std::isfinite(duration)||duration<=0||!std::isfinite(interval)||interval<=0||
-     s.numerics.delta_t<=0||(duration<interval&&until<s.data_store.current_time+interval)||duration/interval>MAX_CONTINUE_STEPS)
+     s.numerics.delta_t<=0||(duration<interval&&until<s.data_store.current_time+interval)||duration/interval>MAX_RUN_STEPS)
     return fail("continue","End time must be at least one positive Dt beyond the current time, with a step count that fits the integrator",command_place());
+  const double steps=duration/interval;
+  if(std::fabs(steps-std::round(steps))>CONTINUE_GRID_TOLERANCE)
+    return fail("continue",format("End time must be a whole number of Dt ({}) beyond the current time",interval),command_place());
   cont_integ(s,until);
   return {};
 }

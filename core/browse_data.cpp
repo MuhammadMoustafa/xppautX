@@ -362,7 +362,10 @@ void data_del_col(xpp::Session &s, BROWSER *b)
       }
     }
   }
-  s.data_store.remove_column(col,b->maxcol);
+  if(const auto removed=s.data_store.remove_column(col,b->maxcol);!removed){
+    xpp::show_error(removed.error());
+    return;
+  }
   s.browser.added_columns.erase(s.browser.added_columns.begin()+(col-first));
   for(auto &g:s.plot_windows.graph){
     if(!g.Use)continue;

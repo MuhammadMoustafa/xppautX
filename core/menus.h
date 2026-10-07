@@ -1,6 +1,7 @@
 #ifndef _menus_h_
 #define _menus_h_
 
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -65,6 +66,13 @@ extern const char *const num_menu_ids[NUM_ENTRIES];
 int main_menu_key(int which, std::string_view id);
 /* Stable menu name, independent of the current single-letter shortcut mode. */
 int main_menu_number(std::string_view name);
+/* a main-window menu and the key of one of its items */
+struct MenuAction {
+  int which, key;
+};
+/* the action `{"menu":..,"item":..}` names: nothing unless both are known
+   (a missing or non-string one is an empty name) */
+std::optional<MenuAction> main_menu_action(std::string_view menu, std::string_view item);
 
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */

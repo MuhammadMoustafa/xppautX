@@ -74,7 +74,8 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         got, until = command(server, cmd='continue', until=target)
         check('until time continues to the chosen end time without asking a question',
               until and abs(until['time'] - target) < 1e-8 and not any(e.get('ev') == 'ask' for e in got), until)
-        for invalid in [dict(extra=0), dict(until=target - 1), dict(extra=1, until=target + 1), dict(extra='1')]:
+        for invalid in [dict(extra=0), dict(until=target - 1), dict(extra=1, until=target + 1), dict(extra='1'),
+                         dict(until=until['time'] + .075), dict(until=until['time'] + 1.02)]:
             got, after = command(server, cmd='continue', **invalid)
             check('invalid continuation does not mutate current values or time',
                   any(e.get('error') for e in got) and after and after['now'] == until['now'] and after['time'] == until['time'], invalid)

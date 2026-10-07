@@ -279,9 +279,8 @@ void record_begin(const char *line)
         get_string(line, "menu", menu);
         get_string(line, "item", item);
         get_string(line, "button", t.button);
-        const int which = main_menu_number(menu);
-        const int ch = which < 0 ? 0 : main_menu_key(which, item);
-        t.label = ch ? key_label(std::string(1, static_cast<char>(ch)), which, "") : "Invalid menu action";
+        const auto action = main_menu_action(menu, item);
+        t.label = action ? key_label(std::string(1, static_cast<char>(action->key)), action->which, "") : "Invalid menu action";
         t.cmd = std::string(js_raw(line));
     } else if (is_cmd(line, "key")) {
         std::string k;

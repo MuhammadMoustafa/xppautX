@@ -437,6 +437,15 @@ int main_menu_number(std::string_view name)
     return -1;
 }
 
+std::optional<MenuAction> main_menu_action(std::string_view menu, std::string_view item)
+{
+    const int which = main_menu_number(menu);
+    if (which < 0) return std::nullopt;
+    const int key = main_menu_key(which, item);
+    if (!key) return std::nullopt;
+    return MenuAction{which, key};
+}
+
 const char *main_menu_item(int which, int ch)
 {
     const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
