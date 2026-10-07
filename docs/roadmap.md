@@ -852,7 +852,7 @@ Design: [command-design.md](command-design.md).
 | W207 | #261 | One command table (core/command_table.h; sidebar, search, native menus, hello) | W206 | done |
 | W208 | #262 | Key layer over the command table | W207 | done |
 | W209 | #263 | Save / Save as | W207 | done |
-| W210 | #264 | Value undo/redo | W207 | in-progress |
+| W210 | #264 | Value undo/redo | W207 | done |
 | W211 | #265 | keymap.json | W208 | done |
 | W212 | #266 | Keymap editor and quick access | W211 | in-progress |
 | W213 | #267 | One Continue | W207 | in-progress |
@@ -861,3 +861,4 @@ Design: [command-design.md](command-design.md).
 | W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | open |
 | W217 | #271 | CI fixes after W205-W207: focus back to Tools, quit reports stopped, stale web2check selectors, the ASan store-every label | none | done |
 | W218 | #272 | Reload model keeps the Session's remembered session file (Ctrl+S after Reload saves silently to it; the unsaved dot reads changed after Reload); new command Save a copy of the session… (no default key, pinnable): writes a .snapx elsewhere and leaves the session's file and changed flag alone; Save session as keeps the platform behaviour (the new file becomes the session's) (maintainer, 2026-10-07) | W209 | done |
+| W219 | #273 | Run to steady state is not bounded by the storage limit: it needs only the last few values, so it stores less (or nothing) and runs on until it settles or blows up (integrate.cpp:1824 now stops it at max_rows); the message of any storage-limit stop names the limit and its value (maintainer, 2026-10-07) | W213 | ready |
