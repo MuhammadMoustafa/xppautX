@@ -28,15 +28,10 @@ Test build: `build/xppautX-startup-fixed.exe`. The previously launched
 
 ### W193/W194 — Steady state and direct time controls
 
-The run toolbar now includes one-click Run to steady state, inline Run
-duration, and Continue For another / Until time. The steady summary exposes
-decimal places, hold and maximum; its settings disclosure is optional.
-The full-core comparison runs at every configured Dt, requiring every
-state's rounded fixed-decimal representation to match the previous interval
-throughout the hold. The next ordinary integration clears the result.
-Direct continuation uses full core time and stores every Dt so output stride
-cannot add a whole group of steps. Both actions retain the configured
-numerical settings and recording support. Legacy C remains compatible.
+What W192-W194 do is defined in [roadmap.md](roadmap.md); the evidence follows.
+The next ordinary integration clears a steady result; direct continuation
+stores every Dt so output stride cannot add a whole group of steps; legacy C
+remains compatible.
 
 Validation on the final native UCRT build:
 
@@ -186,6 +181,14 @@ Some specialized popup menus still retain legacy terminology; this change
 modernizes the main navigation and common workflow, not every scientific
 dialog. No push or merge was performed.
 
+### Where each check runs
+
+| Check | Gate |
+|---|---|
+| `tools/steadycheck.py`, `tools/livestatecheck.py` | `tools/verify.sh` and every platform's protocol step in `.github/workflows/build.yml` |
+| `tools/uiworkflowcheck.mjs`, `tools/startupcheck.mjs` (browser mode) | the `linux-ui`, `macos-ui` and `windows-ui` jobs, after `web2check` |
+| `tools/startupcheck.mjs --webview2`, `tools/playbackworkflowcheck.mjs` | by hand on Windows: they need the real WebView2 window, which CI's runners cannot be relied on to start (W13c's `web2check --webview2` is run by hand for the same reason); `playbackworkflowcheck` also needs the recording `tools/makesandboxfixture.py` writes from the user's PY_S1Bf model, which is not in the repository |
+
 ## Visual evidence
 
 ### Permanent run toolbar (W192)
@@ -309,21 +312,11 @@ evidence. No numerical core or native menu code changed in this follow-up.
 
 ## W195–W199: reported regressions and trace controls (2026-10-04)
 
-Implemented startup model selection/closing, uppercase F/I handling, a Caps
-Lock indicator, × and outside-click dialog dismissal, Tools dropdown outside
-click/Escape dismissal, and direct variables/limits editing from plot axes.
-Browser select controls keep their native dismissal behaviour. Data deletion
-now operates on added columns only; plotted columns must first be removed
-from the plot's axes. Time/model columns remain protected.
-
-Freeze is per plot and defaults on to preserve the existing overlay behaviour.
-Turning it off replaces earlier runs on the next new run. Continue extends
-its current trajectory. Fit/Redraw retain older runs; 2D Fit bounds include
-visible older traces and 3D Fit's box includes retained runs. Legends now
-control individual current/retained traces, with hover names/highlights and
-a shared double-click editor for legend text and a standard colour picker.
-AUTO keeps its stability/symbol key and adds individual branch trace controls.
-Legend areas are bounded so large diagrams cannot displace their plot.
+The card definitions are in [roadmap.md](roadmap.md) (W195-W199, the one owner
+of what each card does); this section keeps their evidence and limits. Browser
+select controls keep their native dismissal behaviour; time/model columns stay
+protected from deletion. Freeze defaults on again after reopening a session and
+existing history storage limits are unchanged.
 
 Legend names, chosen hex colours and individual visibility are local view
 presentation: they are not model variable renames and are not serialized or

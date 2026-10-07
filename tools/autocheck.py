@@ -45,7 +45,7 @@ measurements without failing on the latency limits, for comparing builds.
 """
 import argparse, base64, io, json, os, shutil, subprocess, sys, tempfile, time, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
+from xppclient import Checker, file_bytes, make_recording, recording_text, replay_recording, run_commands, wait_until, macos_thread_states, SLOW, Server, is_idle, is_ask, is_state, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', '--bin', dest='server', default='./xppautX')
@@ -74,17 +74,8 @@ HEAVY = os.path.join(here, 'models', 'heavy.odex')
 DIAGRAM = os.path.join(here, 'models', 'lecar_diagram.csv')  # the .snapx's diagram.csv of section_files
 OLD_AUTO = os.path.join(here, 'models', 'lecar_diagram.auto')  # XPPAUT's .auto of the same diagram
 RECORDING = 'examples/recordings/lecar_auto.recx'
-failures = 0
-
-
-def check(name, ok, detail='', limit=False):
-    """limit: a timing limit, reported but not failed under --report"""
-    global failures
-    if limit and args.report:
-        print('INFO ' + name + ('  ' + detail if detail else ''))
-        return
-    print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else '  ' + detail))
-    failures += 0 if ok else 1
+# limit=True on a check: a timing limit, reported but not failed under --report
+check = Checker(report=args.report)
 
 
 def perf(name, detail=''):
@@ -2123,5 +2114,5 @@ def section_play():
 
 for name in args.sections:
     globals()['section_' + name]()
-print('auto checks: %s' % ('all passed' if failures == 0 else '%d failed' % failures))
-sys.exit(1 if failures else 0)
+print('auto checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
+sys.exit(1 if check.failures else 0)

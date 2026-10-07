@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Create and validate portable PY_S1Bf live-value demo files using core writers."""
+"""Create and validate portable PY_S1Bf live-value demo files using core writers.
+
+A generator, not a gate: it needs the user's own PY_S1Bf model (--model),
+which is not in the repository, so no check runs it. It stays in tools/
+because it is the only script that records the sandbox demo with the core's
+own writers and proves the recording replays and the snapshot restores;
+tools/playbackworkflowcheck.mjs plays its .recx in the native window."""
 import argparse
 import json
 import io
@@ -15,6 +21,11 @@ parser.add_argument('--server', required=True)
 parser.add_argument('--model', required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args()
+RUN_TIMEOUT = 120  # seconds: the 200 ms model runs and AUTO's continuation, a safety ceiling
+RUN_MS = 200  # the demo's first run and each continuation: short enough to record, long enough to move all eight states
+CONTINUE_TO_MS = 2 * RUN_MS  # the continuation's end time, matching the recorded note
+MIN_AUTO_POINTS = 20  # fewer means the continuation did not run across the Hopf and fold
+ITP_FOLD, ITP_HOPF = 2, 3  # AUTO's point types in diagram.csv
 binary = str(Path(args.server).resolve())
 model = str(Path(args.model).resolve())
 output = Path(args.output).resolve()
@@ -22,7 +33,7 @@ output.mkdir(parents=True, exist_ok=True)
 
 def command(server, **fields):
     server.send(**fields)
-    events, idle = server.collect(is_idle, timeout=120)
+    events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
     if idle is None or any(e.get('error') or e.get('ev') == 'ask' for e in events):
         raise AssertionError((fields, events[-6:]))
     return events
@@ -37,13 +48,13 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         assert idle is not None and len(state(initial)['ics']) == 8
         command(server, cmd='record', op='start')
         command(server, cmd='record', op='note', text='Short 200 ms run; original model equations and initial conditions unchanged.')
-        command(server, cmd='set', kind='num', name='total', value=200)
+        command(server, cmd='set', kind='num', name='total', value=RUN_MS)
         command(server, cmd='record', op='note', text='Resting cell: all eight states update, although only voltage is plotted.')
         server.send(cmd='key', key='i')
         _, ask = server.collect(lambda e: e.get('ev') == 'ask')
         assert ask is not None
         server.send(cmd='answer', id=ask['id'], key='g')
-        events, idle = server.collect(is_idle, timeout=120)
+        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events)
         live = [e for e in events if e.get('ev') == 'liveState']
         assert live and all(len(e['now']) == 8 for e in live)
@@ -51,11 +62,11 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         server.send(cmd='key', key='c')
         _, ask = server.collect(lambda e: e.get('ev') == 'ask')
         assert ask is not None and ask.get('kind') == 'string'
-        server.send(cmd='answer', id=ask['id'], ok=1, value='400')
-        events, idle = server.collect(is_idle, timeout=120)
+        server.send(cmd='answer', id=ask['id'], ok=1, value=str(CONTINUE_TO_MS))
+        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)
-        assert final['time'] == 400
+        assert final['time'] == CONTINUE_TO_MS
 
         command(server, cmd='record', op='note', text='Open AUTO to continue the resting equilibrium in applied current Iapp.')
         command(server, cmd='key', key='f')
@@ -71,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         _, ask = server.collect(lambda e: e.get('ev') == 'ask')
         assert ask is not None
         server.send(cmd='answer', id=ask['id'], key='s')
-        events, idle = server.collect(is_idle, timeout=120)
+        events, idle = server.collect(is_idle, timeout=RUN_TIMEOUT)
         assert idle is not None and not any(e.get('error') for e in events), events[-5:]
         final = state(events)
         command(server, cmd='record', op='stop', name='PY_S1Bf-live.recx')
@@ -82,7 +93,7 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     snap = Path(folder) / 'PY_S1Bf-live.snapx'
     header, files, steps, fingerprint, computed = read_recx(rec.read_text(encoding='utf-8'))
     assert fingerprint == computed and len(steps) >= 7
-    assert steps[2][0]['keys'] == ['c'] and steps[2][0]['answers'] == ['400']
+    assert steps[2][0]['keys'] == ['c'] and steps[2][0]['answers'] == [str(CONTINUE_TO_MS)]
     with tempfile.TemporaryDirectory(prefix='xpp-sandbox-replay-') as replay:
         quiet = replay_recording(binary, model, str(rec), replay)
         events = [json.loads(line) for line in quiet.stdout.splitlines()]
@@ -93,18 +104,17 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
     with zipfile.ZipFile(snap) as archive:
         auto_saved = {name: archive.read(name) for name in
             ('auto/diagram.csv', 'auto/solutions.s', 'auto/settings.txt', 'auto/views.txt')}
-    point_rows = [line for line in auto_saved['auto/diagram.csv'].decode().splitlines() if line and not line.startswith('#')]
     points = list(csv.DictReader(io.StringIO(auto_saved['auto/diagram.csv'].decode())))
-    assert len(points) > 20, points
-    assert any(int(point['itp']) == 3 for point in points), 'Hopf point must be retained'
-    assert any(int(point['itp']) == 2 for point in points), 'Fold point must be retained'
+    assert len(points) > MIN_AUTO_POINTS, points
+    assert any(int(point['itp']) == ITP_HOPF for point in points), 'Hopf point must be retained'
+    assert any(int(point['itp']) == ITP_FOLD for point in points), 'Fold point must be retained'
     assert auto_saved['auto/solutions.s'], 'AUTO must retain labelled solutions'
     # Normal paced, automatic first playback exercises the user's path, in
     # addition to silent and fast-forward playback above.
     paced = Server(binary, str(rec))
     try:
         events, ended = paced.collect(lambda e: e.get('error') or (e.get('ev') == 'state' and
-            (e.get('player') or {}).get('step') == len(steps) and e['player']['running'] == -1), timeout=120)
+            (e.get('player') or {}).get('step') == len(steps) and e['player']['running'] == -1), timeout=RUN_TIMEOUT)
         assert ended is not None and not any(e.get('error') for e in events), events[-5:]
         assert any(e.get('ev') == 'state' and (e.get('player') or {}).get('playing') for e in events)
         played = state(events)
@@ -132,4 +142,4 @@ with tempfile.TemporaryDirectory(prefix='xpp-sandbox-fixture-') as folder:
         restored.close()
     for path in (rec, snap):
         shutil.copy2(path, output / path.name)
-    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d AUTO diagram lines with identical settings and solutions' % (final['rows'], len(point_rows)))
+    print('PASS: 8 live states; intact recording replays silently, fast and normally; snapshot restores %d trajectory rows and %d AUTO diagram lines with identical settings and solutions' % (final['rows'], len(points)))

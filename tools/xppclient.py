@@ -17,6 +17,25 @@ POLL_SECONDS = 0.05  # yield between observations where the OS provides no event
 WAIT_SECONDS = 10 * SLOW  # safety ceiling for an external condition, not a speed assertion
 
 
+class Checker:
+    """The PASS/FAIL line and counter every check script prints (verify.sh counts the ^PASS lines).
+    detail_sep joins a failed check's detail to its name; report turns a check
+    marked `limit` (a timing limit) into an INFO line that never fails."""
+
+    def __init__(self, detail_sep='  ', report=False):
+        self.checks = self.failures = 0
+        self.detail_sep = detail_sep
+        self.report = report
+
+    def __call__(self, name, ok, detail='', limit=False):
+        if limit and self.report:
+            print('INFO ' + name + (self.detail_sep + str(detail) if detail else ''))
+            return
+        self.checks += 1
+        self.failures += not ok
+        print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else self.detail_sep + str(detail)))
+
+
 def wait_until(predicate, timeout=WAIT_SECONDS):
     deadline = time.monotonic() + timeout
     while True:

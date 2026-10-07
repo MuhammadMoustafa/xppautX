@@ -111,6 +111,13 @@ else
   echo "STEADY CHECK FAILED"
   exit 1
 fi
+if python3 tools/livestatecheck.py > build/livestatecheck.log 2>&1; then
+  echo "live state and rates ok: $(grep -c '^PASS' build/livestatecheck.log) checks"
+else
+  grep -v '^PASS' build/livestatecheck.log
+  echo "LIVE STATE CHECK FAILED"
+  exit 1
+fi
 if python3 tools/webcheck.py > build/webcheck.log 2>&1; then
   echo "web front end ok: $(grep -c '^PASS' build/webcheck.log) checks"
 else

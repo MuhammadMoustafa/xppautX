@@ -5,18 +5,12 @@ import json
 import math
 from pathlib import Path
 import tempfile
-from xppclient import Server, is_idle, whole_series, make_recording, replay_recording
+from xppclient import Checker, Server, is_idle, whole_series, make_recording, replay_recording
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--server', default='./xppautX')
 args = parser.parse_args()
-checks = failures = 0
-
-def check(name, condition, detail=''):
-    global checks, failures
-    checks += 1
-    failures += not condition
-    print(('PASS ' if condition else 'FAIL ') + name + (': ' + str(detail) if not condition else ''))
+check = Checker(detail_sep=': ')
 
 def command(server, **fields):
     server.send(**fields)
@@ -160,5 +154,5 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
           replay.returncode == 0 and bool(cancel_states) and cancel_states[-1]['steady']['status'] == 'stopped' and cancel_states[-1]['rows'] == 100,
           (replay.stderr, cancel_states[-1:]))
 
-print(f'steady checks: {checks} checks, {failures} failed')
-raise SystemExit(bool(failures))
+print(f'steady checks: {check.checks} checks, {check.failures} failed')
+raise SystemExit(bool(check.failures))

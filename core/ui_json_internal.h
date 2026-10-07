@@ -71,7 +71,7 @@ struct Buf; /* an event line being built (json_io.cpp, below) */
    hello.limits tells the page */
 constexpr int BROWSER_MAX_ROWS = 2000;
 constexpr int BROWSER_MAX_COLS = 500;
-/* A short, bounded recent-motion diagnostic, shared with the page through hello. */
+/* A short, bounded recent-motion diagnostic, the page reads it as hello.state_inspection.tail_intervals. */
 constexpr int STATE_TAIL_INTERVALS = 10;
 
 /* ---- ui_json.cpp ---- */

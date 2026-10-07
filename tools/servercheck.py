@@ -9,7 +9,7 @@ and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
 import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
@@ -31,7 +31,6 @@ def check_logging():
     banner/parser stats, and a real parse error still reaches stderr even
     at the default (quiet) level. Uses --silent so this needs no JSON
     conversation; see CLAUDE.md "Logging"."""
-    global failures
     run_dir = tempfile.mkdtemp(prefix='xppquiet')
     try:
         shutil.copy(args.ode, run_dir)
@@ -125,13 +124,7 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None):
 
 
 proc, run, send, collect, events = launch_server()
-failures = 0
-
-
-def check(name, ok, detail=''):
-    global failures
-    print(('PASS ' if ok else 'FAIL ') + name + ('' if ok else '  ' + detail))
-    failures += 0 if ok else 1
+check = Checker()
 
 
 check_logging()
@@ -5963,5 +5956,5 @@ def check_terminal_playback():
               and not os.path.exists(model) and not os.path.exists(os.path.join(source, 'next.dat')), result.stderr)
 
 check_terminal_playback()
-print('server checks: %s' % ('all passed' if failures == 0 else '%d failed' % failures))
-sys.exit(1 if failures else 0)
+print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
+sys.exit(1 if check.failures else 0)
