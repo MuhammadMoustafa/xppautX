@@ -4583,7 +4583,7 @@ async function files(dir) {
     })()`, 'bad picked name'));
     check('W130: a bad picker name never answers with a fallback name',
       !(await cdp.eval(`__xpp.sentFrom(${badPickerStart}).some(c => c.cmd === 'answer')`)));
-    await cdp.eval("document.querySelector('.file-ask button[type=button]').click()");
+    await cdp.eval("document.querySelector('.dialog[data-ask=file] .dialog-close').click()");
     await until('!s.ask && !s.busy', 'cancel bad picked name');
     await cdp.eval('window.showSaveFilePicker = undefined; true');
     const iapp0 = await par('iapp');
