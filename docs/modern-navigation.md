@@ -99,7 +99,7 @@ a pending choice.
 Keep the current palette, type scale, target sizes, responsive layout,
 contextual help and numerical engines. Export labels explain what data is
 saved rather than how internal delivery works. Menu metadata belongs to
-the existing menu owner; command-kind enforcement and recording use the
+the command table (core/command_table.h, W207); command-kind enforcement and recording use the
 existing protocol path. Native hooks may request normal application
 commands but must not gain arbitrary filesystem authority.
 

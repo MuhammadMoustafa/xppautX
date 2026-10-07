@@ -1,6 +1,7 @@
 /* Menu labels and hint strings. Generated from upstream menus.h; the
    MENUDEF widget struct lives in menus.h. */
 #include "menus.h"
+#include "command_table.h"
 #include "menudrive.h"
 
 #include <cstring>
@@ -37,92 +38,6 @@ consteval int menu_count(size_t items, size_t keys, size_t kinds, const char *k)
      hints, first, kinds}
 
 
-
-const char *const main_menu[]={
- "XPP","Initial conditions","Continue integration","Nullclines",
- "Direction fields and flow","Zoom and view","Phase space",
- "Captured frames","Curves and export","Numerics","File",
- "Parameters","Clear plot","Plot windows","Labels and annotations",
- "Equilibria and stability","Plot axes","Variable vs time","Redraw plot","3D view",
- "Boundary-value solver"};
-
-const char *const num_menu[]={"NUMERICS","Integration duration","Start time","Transient",
-"Time step","Nullcline settings","Equilibrium settings","Output stride","Bounds","Solver method",
-"Delay settings","Color by value","Stochastic analysis","Poincaré map","Ruelle plot",
-"Lookup tables","Boundary-value settings","Adjoint and averaging","Return to main shortcuts"};
-const char *const file_menu[]={
-"FILE","Model source","Import XPPAUT settings",
-"AUTO continuation","Calculator","Export simulation information",
-"Help","Quit","Transpose data","Named parameter sets","Clone model","Preferences","Tutorial",
-"Copy parameter set line","Open model…","Reload model","Save session as…","Open session…","Record steps","Play recording…"};
-
-/* hints for the main menus */
-const char *const main_hint[]=
-{ "Integrate the equations",
-  "Continue integration for specified time",
-  "Draw nullclines",
-  "Direction fields and flows of the phaseplane",
-  "Change the size of two-dimensional view",
-  "Set up periodic/torus phase space",
-  "Take snapshots of the screen",
-  "Adding graphs,hard copy, etc",
-  "Numerics options",
-  "Quit, save stuff, etc",
-  "Change problem parameters",
-  "Clear screen",
-  "Create other windows",
-  "Add fancy text and lines,arrows",
-  "Find fixed points and stability",
-  "Change 2 or 3d views",
-  "Plot variable vs time",
-  "Redraw the graph ",
-  "Set parameters for 3D view",
-  "Run boundary value solver" };
-
-
-const char *const file_hint[]={
-"Display source and active comments",
-"Import a set file XPPAUT wrote (values, numerics, the active window)",
-"Run AUTO, the bifurcation package",
-"A little calculator -- press ESC to exit",
-"Save info about simulation in human readable format",
-"Browser help",
-"Quit the application, with an option to save this session",
-"Transpose storage",
-"Set predefined parameters",
-"Clone the ode file",
-"Edit your .xpprc preferences file",
-"Run a quick tutorial on XPPAUT",
-"Copy the current values as a named set line for the .ode",
-"Load another model in place of this one",
-"Read the model's file again, keeping the values",
-"Save everything to one session file (.snapx) to continue later",
-"Open a session file: its model, values, windows, data and diagram",
-"Record the steps you take to a .recx file; again to stop and save it",
-"Play a recording (.recx): its model, then its steps as they were taken"
-};
-
-
-const char *const num_hint[]={
-"Total time to integrate eqns",
-"Starting time -- T0",
-"Time to integrate before storing",
-"Time step to use",
-"Mesh for nullclines",
-"Numerical parameters for fixed points",
-"Number of steps per plotted point",
-"Maximum allowed size of any variable",
-"Integration method",
-"Maximum delay and delay related stuff",
-"Color trajectories according to velocity,etc",
-"Curve fitting, FFT, mean, variance, seed, etc",
-"Define Poincare map parameters",
-"Define shifted plots",
-"Modify lookup tables",
-"Numerical setup for boundary value solver",
-"Compute adjoint and averaged functions",
-"Return to main menu"
-};
 
 /* other hints  */
 
@@ -382,58 +297,16 @@ const char *const arun_hint[]={
   "Start at a heteroclinic",
 }; 
 
-/* keys of the main-window menus; the numerics menu ends with Esc */
-const char *const main_menu_keys="icndwakgufpemtsvxr3b";
-const char *const num_menu_keys="tsrdniobmechpukva\033";
-const char *const file_menu_keys="pracshqtglxuomevndy";
-
-/* their kinds (menus.h): an item that opens a pop-up menu takes the least
-   restrictive kind of that menu's items (the maintainer's "menus open, only
-   their disabled items greyed": Nullcline, Dir.field, Kinescope and Graphic
-   stuff are views, stocHast and Averaging data; Initialconds, Sing pts and
-   Bndryval, whose items all compute, computations); nUmerics and File only
-   switch the main menu, Esc switches it back. Parameters, File/Get par set
-   and the Numerics items that ask for a value (Total ... dElay, Poincare
-   map, rUelle plot, bndVal) are settings (W106): pressed during a
-   computation, their dialog opens when it ends */
-namespace {
-constexpr char main_kinds[] = "xxvvvdvvvvsvvvxvvvvx";
-constexpr char num_kinds[] = "ssssssssssvdssdsdv";
-constexpr char file_kinds[] = "vdvvdvcdsddvvdddddd";
-static_assert(sizeof(main_kinds) == MAIN_ENTRIES + 1 && kinds_valid(main_kinds), "one kind per Main menu item");
-static_assert(sizeof(num_kinds) == NUM_ENTRIES + 1 && kinds_valid(num_kinds), "one kind per Numerics menu item");
-static_assert(sizeof(file_kinds) == FILE_ENTRIES + 1 && kinds_valid(file_kinds), "one kind per File menu item");
-} // namespace
-const char *const main_menu_kinds = main_kinds;
-const char *const num_menu_kinds = num_kinds;
-const char *const file_menu_kinds = file_kinds;
-
-const char *const main_menu_names[3] = {"main", "file", "num"};
-static_assert(MAIN_MENU == 0 && FILE_MENU == 1 && NUM_MENU == 2, "main_menu_names is indexed by the menu numbers");
-const char *const main_menu_ids[MAIN_ENTRIES] = {"initialconds", "continue", "nullcline", "dirfield", "window",
-  "phasespace", "kinescope", "graphic", "numerics", "file", "parameters", "erase", "makewindow", "text", "singpts",
-  "viewaxes", "xivst", "restore", "3dparams", "bndryval"};
-const char *const file_menu_ids[FILE_ENTRIES] = {"source", "importset", "auto", "calculator", "saveinfo",
-  "help", "quit", "transpose", "getparset", "clone", "xpprc", "tutorial", "copyset", "openmodel", "reload",
-  "savesession", "opensession", "record", "play"};
-const char *const num_menu_ids[NUM_ENTRIES] = {"total", "start", "transient", "dt", "ncline", "singpt", "store_every",
-  "bounds", "method", "delay", "colorcode", "stochastic", "poincare", "ruelle", "lookup", "bndval", "averaging",
-  "exit"};
-
 int main_menu_key(int which, std::string_view id)
 {
-    const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
-    const char *const *ids = which == FILE_MENU ? file_menu_ids : which == NUM_MENU ? num_menu_ids : main_menu_ids;
-    const int n = which == FILE_MENU ? FILE_ENTRIES : which == NUM_MENU ? NUM_ENTRIES : MAIN_ENTRIES;
-    for (int i = 0; i < n; i++)
-        if (id == ids[i]) return static_cast<unsigned char>(keys[i]);
-    return 0;
+    const CommandRow *row = find_command(which, id);
+    return row ? static_cast<unsigned char>(row->key) : 0;
 }
 
 int main_menu_number(std::string_view name)
 {
     for (int i = MAIN_MENU; i <= NUM_MENU; ++i)
-        if (name == main_menu_names[i]) return i;
+        if (name == MENU_NAMES[i]) return i;
     return -1;
 }
 
@@ -446,14 +319,6 @@ std::optional<MenuAction> main_menu_action(std::string_view menu, std::string_vi
     return MenuAction{which, key};
 }
 
-const char *main_menu_item(int which, int ch)
-{
-    const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
-    const char *const *items = which == FILE_MENU ? file_menu : which == NUM_MENU ? num_menu : main_menu;
-    const char *at = ch > 0 && ch < 256 ? std::strchr(keys, ch) : nullptr;
-    return at ? items[at - keys + 1] : nullptr; /* [0] is the title */
-}
-
 std::string menu_label(std::string_view item)
 {
     std::string out;
@@ -464,10 +329,8 @@ std::string menu_label(std::string_view item)
 
 char main_menu_kind(int which, int ch)
 {
-    const char *keys = which == FILE_MENU ? file_menu_keys : which == NUM_MENU ? num_menu_keys : main_menu_keys;
-    const char *kinds = which == FILE_MENU ? file_kinds : which == NUM_MENU ? num_kinds : main_kinds;
-    const char *at = ch > 0 && ch < 256 ? std::strchr(keys, ch) : nullptr;
-    return at ? kinds[at - keys] : 0;
+    const CommandRow *row = find_command_by_key(which, ch);
+    return row ? row->kind : 0;
 }
 
 /* pop-up menus, formerly static arrays inside the menudrive.c handlers */

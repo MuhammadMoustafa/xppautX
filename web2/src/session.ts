@@ -11,7 +11,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {kindOf, mainKey, mayStart, menuCommand, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
+import {commandRow, kindOf, mainKey, mayStart, menuCommand, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoWindow} from './store/diagram';
@@ -329,7 +329,7 @@ export class Session {
     return mayStart(kind, computing, ask !== null);
   }
 
-  /** the key of main-menu item `id` (hello.menus.main_ids: initialconds, window, ...) */
+  /** the key of main-menu item `id` (initialconds, window, ...) */
   mainKey(id: string): string {
     return menuKey(this.store.getState().hello, 'main', id);
   }
@@ -338,13 +338,13 @@ export class Session {
   menuAction(menu: MenuName, item: string, ...then: string[]): void {
     const hello = this.store.getState().hello;
     if (!hello) return;
-    const i = hello.menus[`${menu}_ids`].indexOf(item);
-    if (i < 0) {
+    const row = commandRow(hello, menu, item);
+    if (!row) {
       /* the page and the core disagree on a command's name: shown, once, never skipped */
       this.failed(`The command ${menu}/${item} is not in the core's menus.`);
       return;
     }
-    this.sendKeySequence({...menuCommand(menu, item), button: hello.menus[menu][i]}, then);
+    this.sendKeySequence({...menuCommand(menu, item), button: row.label}, then);
   }
 
   /** whether main-menu item `id` may go out now (may) */

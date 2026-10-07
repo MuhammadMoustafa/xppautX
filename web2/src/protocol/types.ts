@@ -1,13 +1,13 @@
 /* The protocol's messages as types (docs/protocol.md). Only the fields the
    new front end reads are typed; everything else passes through untouched. */
 
-import type {CommandKind, LayerWindow, WindowLayer} from './kinds';
+import type {CommandCategory, CommandKind, CommandRow, LayerWindow, WindowLayer} from './kinds';
 
 /** the protocol this page speaks (core/ui_json.h JSON_UI_PROTOCOL): core and
     page ship together, so a hello with another is a shown error (session.ts) */
 export const PROTOCOL = 3;
 
-/** a main-window menu's name (hello.menus.names, by state's menu number) */
+/** a main-window menu's name (hello.menu_names, by state's menu number) */
 export type MenuName = 'main' | 'file' | 'num';
 
 export interface HelloEvent {
@@ -27,17 +27,12 @@ export interface HelloEvent {
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
       answers and their keys */
   quit: {question: string; recording: string; choices: string[]; keys: string};
-  menus: {
-    main: string[]; main_keys: string; main_hints: string[];
-    file: string[]; file_keys: string; file_hints: string[];
-    num: string[]; num_keys: string; num_hints: string[];
-    /** each item's kind, one letter per key (protocol/kinds.ts) */
-    main_kinds: string; file_kinds: string; num_kinds: string;
-    /** each menu's name, indexed by state's menu number (0 main, 1 File, 2 nUmerics) */
-    names: MenuName[];
-    /** the page's name for each item, parallel to the keys (protocol/kinds.ts menuKey) */
-    main_ids: string[]; file_ids: string[]; num_ids: string[];
-  };
+  /** each main-window menu's name, indexed by state's menu number (0 main, 1 File, 2 nUmerics) */
+  menu_names: MenuName[];
+  /** the groups commands are listed in, in order (core/command_table.h) */
+  command_categories: CommandCategory[];
+  /** every command of the three main-window menus, once, in the sidebar's order (core/command_table.h) */
+  command_table: CommandRow[];
   /** the windows' key layers (protocol/kinds.ts) */
   windows: Record<LayerWindow, WindowLayer>;
   /** every command, with its kind (a key's is its menu item's: "") and whether it is a step */
@@ -598,6 +593,6 @@ export interface NumericsField {
 
 export type Command = {cmd: string; [k: string]: unknown};
 
-/** a `key` command naming a main-window menu item by its stable id (hello.menus.*_ids), not by a
+/** a `key` command naming a main-window menu item by its stable id (hello.command_table), not by a
     shortcut key; `button` is the control clicked, for a recording's step */
 export type MenuItemCommand = {cmd: 'key'; menu: MenuName; item: string; button?: string};

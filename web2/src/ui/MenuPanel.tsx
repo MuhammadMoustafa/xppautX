@@ -28,7 +28,7 @@ export function MenuPanel() {
   }, [hello]);
   const name = menuName(hello, which);
   const groups = navigationGroups(hello, query).map(group => ({...group,
-    items: !query.trim() && group.name === 'Run'
+    items: !query.trim() && group.id === 'run'
       ? group.items.filter(item => item.id === 'initialconds' || name === 'num' && item.menu === 'num')
       : group.items}));
   const navigate = (e: KeyboardEvent) => {
@@ -55,14 +55,14 @@ export function MenuPanel() {
         <span>The next letter selects a command here.</span>
         <button class="small" disabled={asking} onClick={() => session.typeKey('Escape')}>Main commands <kbd>Esc</kbd></button>
       </div>}
-      {groups.map(group => group.items.length > 0 && <details class="command-group" key={`${group.name}:${!!query}`} open={!!query || group.name === 'Files' || group.name === 'Run'}>
+      {groups.map(group => group.items.length > 0 && <details class="command-group" key={`${group.id}:${!!query}`} open={!!query || group.id === 'files' || group.id === 'run'}>
         <summary>{group.name}</summary>
         <ul>{group.items.map((item, i) => {
           const off = !may(menuCommand(item.menu, item.id));
           const shortcut = contextualShortcut(item.shortcut, item.menu, name);
           return <li key={`${item.menu}:${item.id}`}><button class="menu-item" data-menu={item.menu} data-item={item.id}
             data-shortcut-active={name === item.menu && name !== 'main' ? 'true' : undefined}
-            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? BUSY_TITLE : `${item.hint} (${shortcut})`}
+            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? BUSY_TITLE : `${item.description} (${shortcut})`}
             aria-keyshortcuts={shortcut.includes(',') ? undefined : shortcut}
             onFocus={e => {
               e.currentTarget.closest('ul')?.querySelectorAll<HTMLButtonElement>('button').forEach(button => {

@@ -10,26 +10,12 @@ namespace xpp {
 #define MAIN_MENU 0
 #define FILE_MENU 1
 #define NUM_MENU 2
-#define MAIN_ENTRIES 20
-#define FILE_ENTRIES 19
-#define NUM_ENTRIES 18
 
-extern const char *const main_menu[];
-extern const char *const num_menu[];
-extern const char *const file_menu[];
-extern const char *const main_hint[];
-extern const char *const file_hint[];
-extern const char *const num_hint[];
 extern const char *const auto_hint[];
 extern const char *const no_hint[];
 extern const char *const aaxes_hint[];
 extern const char *const aspecial_hint[];
 extern const char *const arun_hint[];
-
-/* key strings for the three main-window menus, one key per entry */
-extern const char *const main_menu_keys;
-extern const char *const num_menu_keys;
-extern const char *const file_menu_keys;
 
 /* The kind of an action (W95), one letter: what the page may still do while
    a computation runs (docs/protocol.md "Action kinds"). A control action
@@ -46,22 +32,9 @@ extern const char *const file_menu_keys;
 #define XPP_KIND_DATA 'd'
 #define XPP_KIND_COMPUTE 'x'
 
-/* the kinds of the three main-window menus' items, parallel to their keys;
-   an item that opens a pop-up menu has the least restrictive kind among
-   that menu's items: it opens when any of them could run (during a
-   computation it opens once the computation ends) */
-extern const char *const main_menu_kinds;
-extern const char *const num_menu_kinds;
-extern const char *const file_menu_kinds;
-
-/* the page's name for each main-window menu (hello.menus.names), indexed
-   by MAIN_MENU, FILE_MENU, NUM_MENU: `state`'s menu number names one */
-extern const char *const main_menu_names[3];
-/* the page's name for each item of the three main-window menus, parallel
-   to their keys (hello.menus.<name>_ids): the page looks a key up by it */
-extern const char *const main_menu_ids[MAIN_ENTRIES];
-extern const char *const file_menu_ids[FILE_ENTRIES];
-extern const char *const num_menu_ids[NUM_ENTRIES];
+/* The three main-window menus' items are the rows of command_table.h (W207): ids, labels, keys and kinds
+   live there. An item that opens a pop-up menu has the least restrictive kind among that menu's items:
+   it opens when any of them could run (during a computation it opens once the computation ends). */
 /* the key of item `id` of main-window menu `which`, 0 for none */
 int main_menu_key(int which, std::string_view id);
 /* Stable menu name, independent of the current single-letter shortcut mode. */
@@ -77,9 +50,6 @@ std::optional<MenuAction> main_menu_action(std::string_view menu, std::string_vi
 /* the kind of main-window key ch in main-window menu `which` (MAIN_MENU,
    FILE_MENU, NUM_MENU), 0 when that menu has no such key */
 char main_menu_kind(int which, int ch);
-/* the item of main-window menu `which` that key ch picks, NULL for none */
-const char *main_menu_item(int which, int ch);
-
 /* A pop-up menu as data. Core code asks the front end to show one with
    menu_choose() and gets back the chosen key. Item i usually runs
    run_the_commands(first_cmd + i); first_cmd is -1 when the caller handles

@@ -8,8 +8,8 @@
    button, and F or G typed then must still act). Tab is never taken: it
    moves the focus. */
 import {useEffect, useState} from 'preact/hooks';
-import {kindOf, menuCommand} from '../protocol/kinds';
-import type {MenuName} from '../protocol/types';
+import {commandRow, kindOf, menuCommand} from '../protocol/kinds';
+import type {HelloEvent, MenuName} from '../protocol/types';
 import type {Session} from '../session';
 import {BUSY_TITLE} from './context';
 
@@ -24,11 +24,11 @@ const COMMAND_SEARCH = '#command-search';
 export const TOOLS_MENU = '.workspace-tools';
 
 type Chord = {menu: MenuName; item: string} | 'search';
-/** The chords the page claims: Ctrl or Cmd with one of these keys, no Alt or Shift. Every other
+/** The chords the page claims: Ctrl or Cmd with one letter, no Alt or Shift: Ctrl+K (the command
+    search, which is no command) and the default keys of the command table ("Ctrl+O"). Every other
     chord stays the browser's and the system's (Ctrl/Cmd+W closes the tab or window, Alt+F4 the
-    application): it is not listed, so it is never prevented. */
-const CHORDS: Record<string, Chord> = {
-  o: {menu: 'file', item: 'openmodel'}, s: {menu: 'file', item: 'savesession'}, k: 'search'};
+    application): it is not claimed, so it is never prevented. */
+const SEARCH_CHORD = 'Ctrl+K';
 
 function inReach(pane: HTMLElement): boolean {
   if (pane.getClientRects().length === 0 || getComputedStyle(pane).visibility === 'hidden') return false;
@@ -70,10 +70,14 @@ export function isHotkeyTarget(target: Element | null, key: string): boolean {
   return true;
 }
 
-/** The chord a key event is, or null: Ctrl/Cmd with O, S or K and nothing else held. */
-export function chordOf(e: KeyboardEvent): Chord | null {
+/** The chord a key event is, or null: Ctrl/Cmd with a letter nothing else held, that is the search or a
+    command's default key (hello.command_table). */
+export function chordOf(hello: HelloEvent | null, e: KeyboardEvent): Chord | null {
   if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return null;
-  return CHORDS[e.key.toLowerCase()] ?? null;
+  const name = `Ctrl+${e.key.toUpperCase()}`;
+  if (name === SEARCH_CHORD) return 'search';
+  const row = hello?.command_table.find(r => r.default_keys.includes(name));
+  return row ? {menu: row.menu, item: row.id} : null;
 }
 
 /** Labels use capitals: Caps Lock or Shift types a capital where only the lowercase letter is a
@@ -108,7 +112,7 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   if (e.defaultPrevented) return;
   const target = e.target as Element | null;
   if (target?.closest?.(DIALOGS)) return;
-  const chord = chordOf(e);
+  const chord = chordOf(session.store.getState().hello, e);
   if (chord === 'search') {
     e.preventDefault();
     session.store.dispatch({type: 'drawer', open: true});
@@ -123,8 +127,7 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
     e.preventDefault();
     if (session.may(command)) session.menuAction(chord.menu, chord.item);
     else {
-      const label = hello.menus[chord.menu][hello.menus[`${chord.menu}_ids`].indexOf(chord.item)];
-      session.store.dispatch({type: 'bottom', text: `${label}: ${BUSY_TITLE}`});
+      session.store.dispatch({type: 'bottom', text: `${commandRow(hello, chord.menu, chord.item)?.label}: ${BUSY_TITLE}`});
     }
     return;
   }

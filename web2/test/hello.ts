@@ -1,7 +1,69 @@
-/* A hello with the kinds, ids and key layers the tests use (the core's own:
-   core/menus.cpp, core/ui_json.cpp's command table). Not a test itself. */
-import {PROTOCOL, type HelloEvent} from '../src/protocol/types';
+/* A hello with the command table and key layers the tests use (the core's own:
+   core/command_table.h, core/menus.cpp, core/ui_json.cpp's command table). Not a test itself. */
+import type {CommandRow} from '../src/protocol/kinds';
+import {PROTOCOL, type HelloEvent, type MenuName} from '../src/protocol/types';
 import {initialState, reduce} from '../src/store/state';
+
+/** [menu, key, id, kind, category, pinnable, default key]: the core's own table (core/command_table.h) */
+const COMMAND_TUPLES: [MenuName, string, string, string, string, boolean, string?][] = [
+  ['main', 'i', 'initialconds', 'x', 'run', true],
+  ['main', 'c', 'continue', 'x', 'run', true],
+  ['main', 'p', 'parameters', 's', 'run', true],
+  ['num', 't', 'total', 's', 'run', true],
+  ['num', 's', 'start', 's', 'run', true],
+  ['num', 'r', 'transient', 's', 'run', true],
+  ['num', 'd', 'dt', 's', 'run', true],
+  ['num', 'm', 'method', 's', 'run', true],
+  ['num', 'o', 'store_every', 's', 'run', true],
+  ['num', 'b', 'bounds', 's', 'run', true],
+  ['file', 'm', 'openmodel', 'd', 'files', true, 'Ctrl+O'],
+  ['file', 'n', 'opensession', 'd', 'files', true],
+  ['file', 'v', 'savesession', 'd', 'files', true, 'Ctrl+S'],
+  ['file', 'e', 'reload', 'd', 'files', true],
+  ['file', 'r', 'importset', 'd', 'files', true],
+  ['file', 's', 'saveinfo', 'd', 'files', true],
+  ['file', 'q', 'quit', 'c', 'files', false],
+  ['main', 's', 'singpts', 'x', 'analysis', true],
+  ['main', 'n', 'nullcline', 'v', 'analysis', true],
+  ['main', 'd', 'dirfield', 'v', 'analysis', true],
+  ['main', 'b', 'bndryval', 'x', 'analysis', true],
+  ['file', 'a', 'auto', 'v', 'analysis', true],
+  ['num', 'n', 'ncline', 's', 'analysis', true],
+  ['num', 'i', 'singpt', 's', 'analysis', true],
+  ['num', 'e', 'delay', 's', 'analysis', true],
+  ['num', 'h', 'stochastic', 'd', 'analysis', true],
+  ['num', 'p', 'poincare', 's', 'analysis', true],
+  ['num', 'u', 'ruelle', 's', 'analysis', true],
+  ['num', 'v', 'bndval', 's', 'analysis', true],
+  ['num', 'a', 'averaging', 'd', 'analysis', true],
+  ['main', 'w', 'window', 'v', 'plot', true],
+  ['main', 'a', 'phasespace', 'd', 'plot', true],
+  ['main', 'g', 'graphic', 'v', 'plot', true],
+  ['main', 'v', 'viewaxes', 'v', 'plot', true],
+  ['main', 'x', 'xivst', 'v', 'plot', true],
+  ['main', 't', 'text', 'v', 'plot', true],
+  ['main', 'm', 'makewindow', 'v', 'plot', true],
+  ['main', 'r', 'restore', 'v', 'plot', true],
+  ['main', '3', '3dparams', 'v', 'plot', true],
+  ['main', 'e', 'erase', 'v', 'plot', true],
+  ['main', 'k', 'kinescope', 'v', 'plot', true],
+  ['num', 'c', 'colorcode', 'v', 'plot', true],
+  ['file', 'p', 'source', 'v', 'tools', true],
+  ['file', 'c', 'calculator', 'v', 'tools', true],
+  ['file', 't', 'transpose', 'd', 'tools', true],
+  ['file', 'g', 'getparset', 's', 'tools', true],
+  ['file', 'l', 'clone', 'd', 'tools', true],
+  ['file', 'x', 'xpprc', 'd', 'tools', true],
+  ['file', 'u', 'tutorial', 'v', 'tools', true],
+  ['file', 'o', 'copyset', 'v', 'tools', true],
+  ['file', 'd', 'record', 'd', 'tools', true],
+  ['file', 'y', 'play', 'd', 'tools', true],
+  ['file', 'h', 'help', 'v', 'tools', true],
+  ['num', 'k', 'lookup', 'd', 'tools', true],
+  ['main', 'f', 'file', 'v', 'layer', false],
+  ['main', 'u', 'numerics', 'v', 'layer', false],
+  ['num', '\x1b', 'exit', 'v', 'layer', false],
+];
 
 const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys, kinds, hints: ids, ids});
 
@@ -13,20 +75,14 @@ export const HELLO: HelloEvent = {
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},
   quit: {question: 'Quit?', recording: 'Quit and stop recording?', choices: ['Save session', "Don't save"], keys: 'sd'},
   lists: [], userbuttons: [], defaults: {pars: [], ics: []},
-  menus: {
-    main: [], main_keys: 'icndwakgufpemtsvxr3b', main_hints: [], main_kinds: 'xxvvvdvvvvsvvvxvvvvx',
-    file: [], file_keys: 'pracshqtglxuomevndy', file_hints: [], file_kinds: 'vdvvdvcdsddvvdddddd',
-    num: [], num_keys: 'tsrdniobmechpukva\x1b', num_hints: [], num_kinds: 'ssssssssssvdssdsdv',
-    names: ['main', 'file', 'num'],
-    main_ids: ['initialconds', 'continue', 'nullcline', 'dirfield', 'window', 'phasespace', 'kinescope', 'graphic',
-      'numerics', 'file', 'parameters', 'erase', 'makewindow', 'text', 'singpts', 'viewaxes', 'xivst', 'restore',
-      '3dparams', 'bndryval'],
-    file_ids: ['source', 'importset', 'auto', 'calculator', 'saveinfo', 'help', 'quit', 'transpose',
-      'getparset', 'clone', 'xpprc', 'tutorial', 'copyset', 'openmodel', 'reload', 'savesession', 'opensession',
-      'record', 'play'],
-    num_ids: ['total', 'start', 'transient', 'dt', 'ncline', 'singpt', 'store_every', 'bounds', 'method', 'delay',
-      'colorcode', 'stochastic', 'poincare', 'ruelle', 'lookup', 'bndval', 'averaging', 'exit'],
-  },
+  menu_names: ['main', 'file', 'num'],
+  command_categories: [
+    {id: 'run', label: 'Run', listed: true}, {id: 'files', label: 'Files', listed: true},
+    {id: 'analysis', label: 'Analysis', listed: true}, {id: 'plot', label: 'Plot', listed: true},
+    {id: 'tools', label: 'Tools', listed: true}, {id: 'layer', label: 'Shortcut layer', listed: false}],
+  command_table: COMMAND_TUPLES.map(([menu, key, id, kind, category, pinnable, chord]): CommandRow => ({
+    menu, id, key, label: id, description: `Action ${id}`, kind, category, pinnable, default_keys: chord ? [chord] : [],
+    legacy_keys: [...menu === 'main' ? [] : [menu === 'file' ? 'F' : 'U'], key === '' ? 'Esc' : key.toUpperCase()]})),
   windows: {
     auto: layer('panrgucdf', 'svsxdsvvv', ['param', 'axes', 'numerics', 'run', 'grab', 'usr', 'clear', 'redraw', 'file']),
     ani: layer('fgrsmoa', 'vvvvdvd', ['file', 'go', 'reset', 'skip', 'mpeg', 'fly', 'grab']),

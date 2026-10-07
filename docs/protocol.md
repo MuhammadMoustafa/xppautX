@@ -2,7 +2,7 @@
 
 Clicked commands may use `{"cmd":"key","menu":"file","item":"savesession"}`
 with a `menu` of `main`, `file` or `num` and an `item` from that menu's
-`hello.menus.*_ids`. This form resolves the existing command independently
+the `id` of a row of `hello.command_table`. This form resolves the existing command independently
 of the current letter-shortcut menu and returns to the main shortcut menu
 after it finishes. Its kind is the target item's existing kind. Unknown
 menus or items, and combinations with `key` or `win`, are rejected.
@@ -40,8 +40,8 @@ once, and keeps any other command for after the one that asked. See
 ## Startup
 
 1. `hello`: protocol version (3), `about` (Help > About's text: version, commit, compiler, credit, the author's contact details and the issue tracker; core/xpp_about.cpp, the same string the desktop window's own About box shows), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
-   (`main`, `file`, `num` with `_keys`, `_hints`, `_kinds` and `_ids`, and
-   `names`), the windows' key layers (`windows`), every command's kind and
+   (`menu_names`, `command_categories` and `command_table`: "The command
+   table"), the windows' key layers (`windows`), every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
    core keeps to (`limits`) and the windows' numbers (`window_ids`): see
    "Shared limits and ids".
@@ -149,6 +149,36 @@ number, a boundary condition longer than its room) and a line after the
 last the file holds all refuse the file; a file of ours is never read in
 part. A file that cannot be read at all is the error with line 0 (above).
 
+## The command table
+
+`hello.command_table` (W207, core/command_table.h) is the one list of the
+commands of the main window's three menus, in the order the sidebar lists
+them; the page's sidebar groups, command search and every command label are
+made from it, and the desktop window's File menu takes its labels and
+protocol lines from the same rows. Each row:
+
+| field | meaning |
+|---|---|
+| `menu` | `main`, `file` or `num` (`hello.menu_names`): the legacy shortcut menu of the item, and the `menu` of its `key` command |
+| `id` | the stable name: a `key` command's `item`, what recordings keep, what the page calls (`initialconds`, `savesession` ...); never renamed |
+| `key` | the legacy one-letter key in `menu` (`"\u001b"` is Esc) |
+| `label` | plain text for buttons, menus and search |
+| `description` | one line |
+| `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |
+| `category` | an `id` of `hello.command_categories` |
+| `pinnable` | whether it may sit in the quick-access toolbar (W212): false for Quit and the three shortcut-layer switches |
+| `default_keys` | keys that run it from the page (`"Ctrl+O"`: Ctrl, or Cmd on macOS); only Open model and Save session as have one until W208 |
+| `legacy_keys` | the XPPAUT sequence: the shortcut layer's key, then the item's (`["F","S"]`, `["I"]`, `["U","Esc"]`) |
+
+`hello.command_categories` is [{`id`, `label`, `listed`}...]: `run`, `files`,
+`analysis`, `plot`, `tools` (the sidebar's groups, in order, `listed`) and
+`layer`, not listed: the rows File, Numerics and Return to main shortcuts
+only switch the legacy shortcut layer, so the page shows the layer as a
+state and never lists them. Every legacy menu item has exactly one row
+(`tools/keycheck.py` fails a key a menu's handler takes with no row, or a row
+no handler takes); the page shows a table that disagrees with itself
+(`navigationProblems`) as an error, once.
+
 ## Commands (client to server)
 
 ### Direct run controls (W193, W194)
@@ -183,7 +213,7 @@ steps are not comparison intervals.
 
 | cmd | fields | meaning |
 |---|---|---|
-| `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/menus.cpp, the only place a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
+| `key` | `key`; `win`, `row` | A hotkey, exactly as typed in xppaut: one character, or `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, `Home`, `End`, `ArrowLeft/Right/Up/Down`, `PageUp`, `PageDown` (DOM `KeyboardEvent.key` names; X keysym names also work). Menu clicks are sent as the item's key. One letter is one command, and every key is in a menu (core/command_table.h and core/menus.cpp, the only places a key is defined; `tools/keycheck.py`). With `win` (`auto`, `browser`, `ani`, `aplot` or `equilibrium`) the key is one of that window's own layer ("Window keys" below) instead of the main window's; the browser's takes `row`, the selected row. A page's button sends its key's command: the buttons that have no key (below) are the only other commands. `button` (optional, any command's key) names the control the key came from (web2: Integrate, and every window button by its `hello.windows` id); only a recording reads it ("Recordings"). |
 | `answer` | `id`, `ok` (0/1), plus the kind's fields | Reply to an `ask`. Omitting `ok` means ok. Omitting `id` answers whichever `ask` is currently pending (a client or the recording player can answer without tracking prompt ids). |
 | `set` | `kind` (`par`, `ic`, `bc`, `delay`, `num`), `name` or `index`, `value` or `text` | Change a value (no redraw or run: W69 dropped the `rerun` flag this command used to take). A setting ("Action kinds"): sent during a computation it applies when that ends, never to the run in progress ("Commands during a command"). `name` is matched without regard to case, in full: a name has no length limit (W76) and every event carries it unshortened. `text` is what the X11 box takes: a number or `%formula` for `par` and `ic`, an expression for `bc` and `delay`. BCs and delays go by `index` (BC names all read `0=`). `num` sets a main numerics field by its key (`name`: `total`, `dt`, `method`, ...; "The numerics as data"). A formula that does not evaluate gives `message` `error`, a numerics value refused one naming the field (`Numerics: Dt must be a number other than 0`); so does what the command cannot take, nothing set (W116): a `kind` it does not have (`set takes kind par, ic, delay, bc or num, not "parm"`), a name the model does not have (`set: the model has no par nosuch`), an `index` outside the list, no `value` that is a number and no `text` (`set par iapp: its value is not a number (or its text missing)`). Several values in one command: `values` [{`kind`, `name` or `index`, `value` or `text`}...]: all or nothing (W131), every value is checked first (a kind, a name, an `index`, a number, a formula that compiles, a numerics value) and none is applied when one is refused, the one `message` `error` naming that value (`set par gca: ...`) and its `field`. A `par` or `ic` `text` is one number, all of it (`xpp::parse_number`: no `1O0`, no `5x`; blanks around it are allowed), or a `%formula`; anything else is refused (`set par gca: "abc" is not a number`), as are an answer to a number ask, a `slide` value and an `internset` value that is not a number. web2 sends every edit (a value field, a slider, Reset, a numerics field) at once, busy or idle (W106). |
 | `default` | `kind` (`par` or `ic`) | The Default button, and web2's **Reset all** (W131): values from the ODE file (`hello.defaults`), the tables redone once; no run (the `rerun` flag went with `set`'s, W69). A setting, as `set` is. Another `kind` is a `message` `error` and nothing changes. |
@@ -231,25 +261,23 @@ Every action has a kind (W95), defined once in the core and sent in
 | data | `d` | saves and loads: Save/Load values' files, Import XPPAUT set, every file written, a session, AUTO's diagram files, AUTO's Grab (the curve is still changing) | refused |
 | computation | `x` | starts one: Initialconds, Continue, Range, AUTO's Run, Nullclines, Dir.field and Flow, Sing pts, Stochastic, a user button | refused |
 
-- `hello.menus` has `main_kinds`, `file_kinds` and `num_kinds`, one letter
-  per item, parallel to `main_keys` etc. (core/menus.cpp). An item that
+- Each row of `hello.command_table` has a `kind` (one letter) ("The command
+  table", core/command_table.h). An item that
   opens a pop-up menu has the least restrictive kind among that menu's
   items, so a menu opens when any of its items could run (Nullcline,
   Dir.field, Kinescope and Graphic stuff are views, run once a
   computation ends; stocHast and Averaging data; the Numerics items that
   ask a value settings, their dialog opening once the computation ends); every
-  pop-up menu's items have their kinds in core/menus.cpp too (checked when
+  pop-up menu's items have their kinds in core/menus.cpp (checked when
   it compiles), for the core itself.
 - `hello.windows` is the windows' key layers ("Window keys" below), by
   `win`: {`items`, `keys`, `kinds`, `ids`, `hints`}, `ids` the page's name
   for each item (`run`, `grab`, `write`, `go`, ...). A client takes a
   window's keys from here; web2 has no copy of them.
-- `hello.menus` also has `names` (`["main","file","num"]`: each menu's
-  name, indexed by `state`'s `menu` number) and `main_ids`, `file_ids` and
-  `num_ids`, the page's name for each item, parallel to the keys
-  (`initialconds`, `window`, `makewindow`, `file`, `numerics` ...; File's
-  `readset`, `source` ...; Numerics' `exit` ...: core/menus.cpp). A client
-  looks a main-window key up by its id; web2 has no copy of the letters.
+- `hello.menu_names` is `["main","file","num"]`: each menu's name,
+  indexed by `state`'s `menu` number; the page's name for each item is its
+  row's `id` in `hello.command_table` (below). A client looks a
+  main-window key up by its id; web2 has no copy of the letters.
 - `hello.commands` is every command, [{`cmd`, `op`, `kind`, `step`}...]:
   an entry with `op` is for that op, the entry without for the command's
   other lines (`browser` with `from` is a view, its `write` data); `key`'s
@@ -773,7 +801,7 @@ model's start in every mode, before the script.
 
 | ev | fields | meaning |
 |---|---|---|
-| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menus` (with `_kinds`), `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
+| `hello` | `protocol`, `features` (optional parts the server speaks: `series`, `plots`, `nullclines`, `dfield`, `marks`, `ani`, `autoinfo`, `autosettings`, `numerics`, `player`), `title`, `file`, `output_names` (`par`, `ic`, `csv`, `curves`), `menu_names`, `command_categories`, `command_table`, `windows` (AUTO's hints, once `auto_hints`, are `windows.auto.hints`), `commands`, `lists`, `userbuttons` [name...] | First event, and again after `open` or `reload` loaded a model in its place. `lists` are what a form field `*n` picks from: 0 T and every variable, 1 ODE variables, 2 parameters, 3 both, 4 colours, 5 markers, 6 methods (items like `2 Box` start with the number to enter). `defaults` {`pars`, `ics`}: the ODE file's values, one per entry of `state`'s `pars` and `ics` in their order (what `default` restores). |
 | `window` | `op` (`create`, `select`, `destroy`), `win`, `w`, `h`, `title` | Plot windows, AUTO, animation and array plot, numbered as `hello.window_ids` says. `w`, `h` are the core's pixel size of the window: what the pixel fields of `state.view`, `state.auto` and pixel answers to asks refer to. |
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
@@ -788,7 +816,7 @@ model's start in every mode, before the script.
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
-| `state` | `sliders` [{`name`,`lo`,`hi`,`step`}...] in slot order (empty names retain vacant slots), `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `rates` [number or null...] (one per `ics` entry: the largest absolute dv/dt over the last `hello.state_inspection.tail_intervals` stored intervals, null when it cannot be told: "Recording startup and all-state inspection"), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menus.names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
+| `state` | `sliders` [{`name`,`lo`,`hi`,`step`}...] in slot order (empty names retain vacant slots), `pars` [[name,value]...], `ics` [[name,value]...], `now` [value...] (after a first run), `rates` [number or null...] (one per `ics` entry: the largest absolute dv/dt over the last `hello.state_inspection.tail_intervals` stored intervals, null when it cannot be told: "Recording startup and all-state inspection"), `bcs` [[name,text]...] (only when the model itself defines boundary conditions, `b`/`bndry` lines or `boundary` statements: then one per variable, those it left out being 0; a model with none sends no `bcs`, the page shows no boundary-conditions section), `delays` [[name,text]...] (delay equations only), `view` {`win`,`left`,`right`,`top`,`bottom`,`xlo`,`xhi`,`ylo`,`yhi`,`three`, and `theta`,`phi` when `three`}, `auto` {`x0`,`y0`,`wid`,`hgt`,`xmin`,`xmax`,`ymin`,`ymax`} (AUTO open), `rows`, `menu`, `win`, `seed` (after a run that used one), `session` {`file`}, `recording` {`steps`, `note`} (while recording), `player` {`step`, `running`, `playing`, `speed`, `fast`, `intact`} (while a recording is open in the player) | Current values; `view` maps pixels of the active window to plot coordinates (x = xlo + (xhi-xlo)(px-left)/(right-left), y likewise with bottom/top) and `auto` those of the AUTO diagram, for a readout under the mouse; `theta`, `phi` are the active window's 3D angles (degrees, meaningful when `three`), so a client that turned a 3D plot itself (`view3d`) can confirm the core agrees; `rows` is the number of stored time points, `menu` the active main menu (0 main, 1 file, 2 numerics: `hello.menu_names` names them), `now` the current state, one value per `ics` entry: where the last run ended or stopped (what Initialconds/Last and `set` `from` `last` copy into the ICs), `win` the active window; `seed` is the seed the last run actually used (each Go, do_range sweep -- Stochastic > Compute's many runs included -- or `--silent` picks and logs one, W71's "a seed per run"; absent before any run in this session); setting the numerics' seed to it and Go reproduces that run's data byte for byte; `session` is `{"file": ...}`, the session file last saved or opened (a path as it was given to `save`, the absolute path of one opened); absent before any; `recording` is there while a recording runs ("Recordings"): the steps recorded so far and the note set for the next one; `player` while a recording is open in the player ("Playing a recording"): `step` the next step to run (the number of steps at the end), `running` the step running (-1 between steps), `playing`, `speed`, `fast` (running steps with no pace to a `from` step), `intact` (the fingerprint matches). |
 | `idle` | | The command finished. |
 | `liveState` | `time`, `now` [value...], `rates` [number\|null...] | The solver's doubles for every ODE/Markov state at the latest output step of a running integration, paced at the input interval, with no subscription ("Live integration state (W200)"); `rates` as `state.rates` ("Recording startup and all-state inspection"). The final `state` follows. |
 | `stopped` | `at` | The command's computation was cancelled; sent before its `state` and `idle`. `at` says where it stopped: `{"what":"integrate","rows":N,"t":T}` for an integration, N the rows in storage (as `state.rows`) and T the time of the last one stored (9 digits: the stored single-precision value exactly); `{"what":"auto","branch":B,"point":P}` for an AUTO run, P the last point it stored on branch B (the end point the cancel adds, as in the diagram's data); `{"what":"ani","frame":F}` for the animation's Go, F the frames it had shown (W59b); `{"what":"other"}` for anything else. The recording player replays the interruption from it (see "Playing a recording without an interface"). |

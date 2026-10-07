@@ -27,12 +27,12 @@ function fakeSession(computing: boolean, hello = HELLO as AppState['hello']) {
 }
 
 test('only Ctrl/Cmd+O, S and K are the page\'s: Ctrl/Cmd+W and Alt+F4 stay the browser\'s and the system\'s', () => {
-  assert.deepEqual(chordOf(keyEvent('o', {ctrlKey: true})), {menu: 'file', item: 'openmodel'});
-  assert.deepEqual(chordOf(keyEvent('S', {metaKey: true})), {menu: 'file', item: 'savesession'});
-  assert.equal(chordOf(keyEvent('k', {ctrlKey: true})), 'search');
+  assert.deepEqual(chordOf(HELLO, keyEvent('o', {ctrlKey: true})), {menu: 'file', item: 'openmodel'});
+  assert.deepEqual(chordOf(HELLO, keyEvent('S', {metaKey: true})), {menu: 'file', item: 'savesession'});
+  assert.equal(chordOf(HELLO, keyEvent('k', {ctrlKey: true})), 'search');
   for (const e of [keyEvent('w', {ctrlKey: true}), keyEvent('W', {metaKey: true}), keyEvent('F4', {altKey: true}),
     keyEvent('o', {ctrlKey: true, shiftKey: true}), keyEvent('o', {ctrlKey: true, altKey: true}), keyEvent('o')]) {
-    assert.equal(chordOf(e), null);
+    assert.equal(chordOf(HELLO, e), null);
   }
   for (const e of [keyEvent('w', {ctrlKey: true}), keyEvent('w', {metaKey: true}), keyEvent('F4', {altKey: true})]) {
     const {session, calls} = fakeSession(false);

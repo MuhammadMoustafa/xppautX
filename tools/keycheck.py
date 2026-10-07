@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """One letter, one command, every key in a menu (W60, decision 6).
 
-core/menus.cpp is the only place a key is defined: the three main-window
-key strings (main_menu_keys, num_menu_keys, file_menu_keys) and every
+core/command_table.h and core/menus.cpp are the only places a key is defined:
+the rows of the command table (the three main-window menus' items) and every
 XppMenu's `keys`. This fails when
 
   - the key handler of a main-window menu handles a key its string does
@@ -115,23 +115,24 @@ def check_handler(name, cases, keys):
             errors.append(f'{name}: key {chr(code)!r} falls through to the next key '
                           f'(two keys, one command)')
     for code in sorted(set(codes) - set(keys)):
-        errors.append(f'{name}: handles key {chr(code)!r}, which no menu lists (core/menus.cpp)')
+        errors.append(f'{name}: handles key {chr(code)!r}, which no menu lists (core/command_table.h)')
     for code in sorted(set(keys) - set(codes)):
         errors.append(f'{name}: the menu lists key {chr(code)!r}, which nothing handles')
 
 
 def main():
     menus = strip((ROOT / 'core/menus.cpp').read_text(encoding='utf-8'))
-    strings = {}
-    for m in re.finditer(r'const char \*const (\w+_keys)\s*=\s*"((?:\\.|[^"\\])*)"', menus):
-        strings[m.group(1)] = c_string(m.group(2))
-    for need in ('main_menu_keys', 'num_menu_keys', 'file_menu_keys'):
-        if need not in strings:
-            errors.append(f'menus.cpp: {need} not found')
+    # the three main-window menus' keys are the rows of core/command_table.h (W207)
+    table = strip((ROOT / 'core/command_table.h').read_text(encoding='utf-8'))
+    strings = {f'{m}_menu_keys': [] for m in ('main', 'file', 'num')}
+    for m in re.finditer(r"\{(MAIN|FILE|NUM)_MENU,\s*('(?:\\.|[^'\\])+')\s*,", table):
+        strings[f'{m.group(1).lower()}_menu_keys'].append(key_char(m.group(2)))
     for name, codes in strings.items():
+        if not codes:
+            errors.append(f'command_table.h: no rows for {name}')
         for code in set(codes):
             if codes.count(code) > 1:
-                errors.append(f'menus.cpp: {name} lists {chr(code)!r} twice')
+                errors.append(f'command_table.h: {name} lists {chr(code)!r} twice')
 
     # every XppMenu: as many keys as items, no key twice
     for m in re.finditer(r'const XppMenu (\w+)\s*=\s*\{\s*"[^"]*"\s*,\s*"[^"]*"\s*,\s*(\d+)\s*,\s*[\w_]+\s*,'
@@ -184,7 +185,7 @@ def main():
         for e in errors:
             print('  ' + e)
         return 1
-    print('key check: ok (main, File and numerics keys all in menus.cpp; no two keys for one command)')
+    print('key check: ok (main, File and numerics keys all in command_table.h; no two keys for one command)')
     return 0
 
 

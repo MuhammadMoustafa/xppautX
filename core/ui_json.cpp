@@ -27,6 +27,7 @@
 #include "xpp_inbox.h"
 #include "xpp_job.h"
 #include "xpp_util.h"
+#include "command_table.h"
 #include "menus.h"
 #include "mykeydef.h"
 #include "userbut.h"
@@ -670,6 +671,74 @@ void buf_commands(Buf *b)
     BUF_LIT(b, "]");
 }
 
+/* how the page names the Esc key of the Numerics layer's last item (the others are their letters) */
+constexpr std::string_view ESC_KEY_NAME = "Esc";
+
+/* a legacy key as shown: its capital, or Esc */
+std::string key_name(char key)
+{
+    return key == '' ? std::string(ESC_KEY_NAME) : std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(key))));
+}
+
+/* hello's "command_table" (core/command_table.h, docs/protocol.md "Hello"): the one list of commands, in the
+   sidebar's order, with the categories it groups them in; `legacy_keys` is the XPPAUT sequence (the layer's
+   key, then the item's) */
+void buf_command_table(Buf *b)
+{
+    BUF_LIT(b, ",\"menu_names\":");
+    BUF_LIT(b, "[");
+    for (std::size_t i = 0; i < MENU_NAMES.size(); ++i) {
+        if (i) BUF_LIT(b, ",");
+        buf_str(b, MENU_NAMES[i]);
+    }
+    BUF_LIT(b, "],\"command_categories\":[");
+    for (std::size_t i = 0; i < COMMAND_CATEGORIES.size(); ++i) {
+        const CategoryInfo &c = COMMAND_CATEGORIES[i];
+        if (i) BUF_LIT(b, ",");
+        BUF_LIT(b, "{\"id\":");
+        buf_str(b, c.id);
+        BUF_LIT(b, ",\"label\":");
+        buf_str(b, c.label);
+        buf_format(b, ",\"listed\":{}}}", c.listed);
+    }
+    BUF_LIT(b, "],\"command_table\":[");
+    bool first = true;
+    for (const CommandRow &row : COMMANDS) {
+        if (!first) BUF_LIT(b, ",");
+        first = false;
+        BUF_LIT(b, "{\"menu\":");
+        buf_str(b, MENU_NAMES[static_cast<std::size_t>(row.menu)]);
+        BUF_LIT(b, ",\"id\":");
+        buf_str(b, row.id);
+        BUF_LIT(b, ",\"key\":");
+        buf_str(b, std::string_view(&row.key, 1));
+        BUF_LIT(b, ",\"label\":");
+        buf_str(b, row.label);
+        BUF_LIT(b, ",\"description\":");
+        buf_str(b, row.description);
+        buf_format(b, ",\"kind\":\"{}\"", row.kind);
+        BUF_LIT(b, ",\"category\":");
+        for (const CategoryInfo &c : COMMAND_CATEGORIES)
+            if (c.category == row.category) buf_str(b, c.id);
+        buf_format(b, ",\"pinnable\":{},\"default_keys\":[", row.pinnable);
+        bool first_key = true;
+        for (std::string_view key : row.default_keys) {
+            if (key.empty()) continue;
+            if (!first_key) BUF_LIT(b, ",");
+            first_key = false;
+            buf_str(b, key);
+        }
+        BUF_LIT(b, "],\"legacy_keys\":[");
+        if (const CommandRow *layer = layer_entry(row.menu)) {
+            buf_str(b, key_name(layer->key));
+            BUF_LIT(b, ",");
+        }
+        buf_str(b, key_name(row.key));
+        BUF_LIT(b, "]}");
+    }
+    BUF_LIT(b, "]");
+}
+
 } // namespace
 
 bool line_is_step(const char *line)
@@ -962,42 +1031,7 @@ void send_hello(xpp::Session &s)
     BUF_LIT(&b, "],\"keys\":");
     buf_str(&b, xpp::LEAVE_KEYS);
     BUF_LIT(&b, "}");
-    BUF_LIT(&b, ",\"menus\":{\"main\":");
-    buf_str_array(&b, main_menu + 1, MAIN_ENTRIES); /* [0] is the title */
-    BUF_LIT(&b, ",\"main_keys\":");
-    buf_str(&b, main_menu_keys);
-    BUF_LIT(&b, ",\"main_hints\":");
-    buf_str_array(&b, main_hint, MAIN_ENTRIES);
-    BUF_LIT(&b, ",\"file\":");
-    buf_str_array(&b, file_menu + 1, FILE_ENTRIES); /* [0] is the title */
-    BUF_LIT(&b, ",\"file_keys\":");
-    buf_str(&b, file_menu_keys);
-    BUF_LIT(&b, ",\"file_hints\":");
-    buf_str_array(&b, file_hint, FILE_ENTRIES);
-    BUF_LIT(&b, ",\"num\":");
-    buf_str_array(&b, num_menu + 1, NUM_ENTRIES); /* [0] is the title */
-    BUF_LIT(&b, ",\"num_keys\":");
-    buf_str(&b, num_menu_keys);
-    BUF_LIT(&b, ",\"num_hints\":");
-    buf_str_array(&b, num_hint, NUM_ENTRIES);
-    /* each item's kind (W95, menus.h), parallel to the keys */
-    BUF_LIT(&b, ",\"main_kinds\":");
-    buf_str(&b, main_menu_kinds);
-    BUF_LIT(&b, ",\"file_kinds\":");
-    buf_str(&b, file_menu_kinds);
-    BUF_LIT(&b, ",\"num_kinds\":");
-    buf_str(&b, num_menu_kinds);
-    /* the page's names: of each menu, by state's menu number, and of each
-       item, parallel to the keys (what the page looks a key up by) */
-    BUF_LIT(&b, ",\"names\":");
-    buf_str_array(&b, main_menu_names, 3);
-    BUF_LIT(&b, ",\"main_ids\":");
-    buf_str_array(&b, main_menu_ids, MAIN_ENTRIES);
-    BUF_LIT(&b, ",\"file_ids\":");
-    buf_str_array(&b, file_menu_ids, FILE_ENTRIES);
-    BUF_LIT(&b, ",\"num_ids\":");
-    buf_str_array(&b, num_menu_ids, NUM_ENTRIES);
-    BUF_LIT(&b, "}");
+    buf_command_table(&b);
     /* the limits the page keeps to and the windows' numbers in `window`
        events (plot windows are 1 to plots) */
     buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,

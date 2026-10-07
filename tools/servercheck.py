@@ -238,7 +238,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello['menus']['main']) == 20)
+check('hello', hello is not None and len(hello['command_table']) == 57)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -262,13 +262,15 @@ check('hello lists the series feature', 'series' in hello.get('features', []), s
 # key layers (core/menus.cpp), and every command that is not a key (the
 # command table core/ui_json.cpp dispatches from); the documented commands
 # (docs/protocol.md's table) are each in it
+def menu_keys_of(menu):
+    """the legacy key -> kind of each item of main-window menu `menu` (hello.command_table)"""
+    return {r['key']: r['kind'] for r in hello['command_table'] if r['menu'] == menu}
+
+
 def check_hello_kinds():
-    menus = hello.get('menus', {})
-    bad = [w for w in ('main', 'file', 'num')
-           if len(menus.get(w + '_kinds', '')) != len(menus.get(w + '_keys', ''))
-           or len(menus.get(w + '_kinds', '')) != len(menus.get(w, []))
-           or set(menus.get(w + '_kinds', '')) - set('cvsdx')]
-    check('W95: hello gives each item of the main, File and Numerics menus a kind', not bad, str(bad))
+    table = hello.get('command_table', [])
+    bad = [r['id'] for r in table if r['kind'] not in 'cvsdx' or len(r['kind']) != 1]
+    check('W95: hello gives each item of the main, File and Numerics menus a kind', table and not bad, str(bad))
     wins = hello.get('windows', {})
     badw = [w for w, l in wins.items()
             if not (len(l.get('kinds', '')) == len(l.get('keys', '')) == len(l.get('ids', [])) == len(l.get('items', [])))
@@ -290,34 +292,59 @@ def check_hello_kinds():
     check('W95, W106: kinds as decided: display a view, set/values/auto set settings, Save data and Grab data, '
           'abort control, a user button a computation',
           all(kinds.get(k) == v for k, v in want.items()), str({k: kinds.get(k) for k in want}))
-    num = dict(zip(menus.get('num_keys', ''), menus.get('num_kinds', '')))
+    num, main, file = menu_keys_of('num'), menu_keys_of('main'), menu_keys_of('file')
     check('W106: the Numerics items that ask a value are settings (Total, Dt, Method, dElay), Parameters too',
-          all(num.get(k) == 's' for k in 'tdme') and num.get('') == 'v'
-          and dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', ''))).get('p') == 's', str(num))
-    main = dict(zip(menus.get('main_keys', ''), menus.get('main_kinds', '')))
+          all(num.get(k) == 's' for k in 'tdme') and num.get('\x1b') == 'v' and main.get('p') == 's', str(num))
     check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Save info is data, File/Quit control',
           main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
-          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('s') == 'd'
-          and dict(zip(menus.get('file_keys', ''), menus.get('file_kinds', ''))).get('q') == 'c'
-          and 'w' not in menus.get('file_keys', ''), str(main))
+          and file.get('s') == 'd' and file.get('q') == 'c' and 'w' not in file, str(main))
 
 
 check_hello_kinds()
 
 
+# W207: the one command table (core/command_table.h): what the page's sidebar, search and
+# native menus are made from, so it must describe every command once and consistently
+def check_command_table(table):
+    cats = {c['id']: c for c in hello.get('command_categories', [])}
+    listed = [c['label'] for c in cats.values() if c['listed']]
+    check('W207: hello lists the sidebar groups in order, Run first, and the unlisted shortcut-layer category',
+          listed == ['Run', 'Files', 'Analysis', 'Plot', 'Tools'] and [c['id'] for c in cats.values() if not c['listed']] == ['layer'],
+          str(cats))
+    ids = [(r['menu'], r['id']) for r in table]
+    check('W207: every command is in the table once, with its menu, a key, a label, a description and one known category',
+          len(set(ids)) == len(ids) and all(r['menu'] in hello['menu_names'] and len(r['key']) == 1 and r['label'].strip()
+                                            and r['description'].strip() and r['category'] in cats for r in table),
+          str(ids))
+    keys = [(r['menu'], r['key']) for r in table]
+    layer_key = {'main': [], 'file': ['F'], 'num': ['U']}
+    check('W207: one letter is one command: no key twice in a menu, and the legacy sequence is the layer key then the item\'s',
+          len(set(keys)) == len(keys)
+          and all(r['legacy_keys'] == layer_key[r['menu']] + ['Esc' if r['key'] == '\x1b' else r['key'].upper()] for r in table),
+          str(keys))
+    layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
+    check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
+          'Quit is the only other command that cannot',
+          layer == [('main', 'file'), ('main', 'numerics'), ('num', 'exit')]
+          and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
+          str(layer))
+    chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
+    check('W207: Open model and Save session as keep Ctrl+O and Ctrl+S, the only default keys (W208 adds the rest)',
+          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S']}, str(chords))
+    order = [cats[r['category']]['label'] for r in table if r['category'] != 'layer']
+    check('W207: the table is in the sidebar\'s order: by category, as listed', order == sorted(order, key=listed.index), str(order))
+
+
 # W118: what core and page both know comes in hello, written once in the core
 def check_hello_shared():
-    menus = hello.get('menus', {})
-    bad = [w for w in ('main', 'file', 'num')
-           if len(menus.get(w + '_ids', [])) != len(menus.get(w + '_keys', ''))
-           or len(set(menus.get(w + '_ids', []))) != len(menus.get(w + '_ids', []))]
-    check('W118: hello names the menus by state\'s menu number and gives each item an id, one per key',
-          menus.get('names') == ['main', 'file', 'num'] and not bad, str(menus.get('names')) + str(bad))
-    ids = dict(zip(menus.get('main_ids', []), menus.get('main_keys', '')))
-    fids = dict(zip(menus.get('file_ids', []), menus.get('file_keys', '')))
+    table = hello.get('command_table', [])
+    ids = {r['id']: r['key'] for r in table if r['menu'] == 'main'}
+    fids = {r['id']: r['key'] for r in table if r['menu'] == 'file'}
     check('W118: the ids name the keys (Initialconds i, Makewindow m, File f; File/Import XPPAUT set r)',
-          ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
+          hello.get('menu_names') == ['main', 'file', 'num']
+          and ids.get('initialconds') == 'i' and ids.get('makewindow') == 'm' and ids.get('file') == 'f'
           and ids.get('numerics') == 'u' and fids.get('importset') == 'r' and 'writeset' not in fids, str(ids))
+    check_command_table(table)
     check('W118: hello gives the limits (64 MB uploads, 2000 rows and 500 columns a browser block) and the window ids',
           hello.get('limits') == {'upload': 64 << 20, 'browser_rows': 2000, 'browser_cols': 500}
           and hello.get('window_ids') == {'plots': 21, 'auto': 101, 'ani': 104, 'aplot': 105},

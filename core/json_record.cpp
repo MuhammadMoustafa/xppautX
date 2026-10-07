@@ -10,6 +10,7 @@
    clock. */
 #include "ui_json_internal.h"
 #include "browse.h"
+#include "command_table.h"
 #include "menus.h"
 #include "model.h"
 #include "model_files.h"
@@ -94,10 +95,10 @@ std::string key_label(const std::string &k, int menu, const std::string &win)
         const int i = l ? menu_index(l->menu, ch) : -1;
         return i < 0 ? xpp::format("{} key {}", win, k) : xpp::format("{} → {}", l->menu->title, menu_label(l->menu->items[i]));
     }
-    const char *item = main_menu_item(menu, ch);
-    if (!item) return "Key " + k;
-    const char *in = menu == FILE_MENU ? main_menu_item(MAIN_MENU, 'f') : menu == NUM_MENU ? main_menu_item(MAIN_MENU, 'u') : nullptr;
-    return in ? menu_label(in) + " → " + menu_label(item) : menu_label(item);
+    const CommandRow *row = find_command_by_key(menu, ch);
+    if (!row) return "Key " + k;
+    const CommandRow *in = layer_entry(menu);
+    return in ? std::string(in->label) + " → " + std::string(row->label) : std::string(row->label);
 }
 
 /* the step's line, one JSON object */

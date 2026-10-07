@@ -190,7 +190,7 @@ already data and stay as they are.
 ### Commands
 
 XPP's single-letter hotkeys stay the command vocabulary: the core owns
-every command (`commands.c`), and the menus come from `hello.menus`. The
+every command (`commands.c`), and the menus come from `hello.command_table`. The
 new page adds direct manipulation that maps onto existing commands:
 
 | UI action | Protocol |

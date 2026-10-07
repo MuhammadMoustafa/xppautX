@@ -1,8 +1,8 @@
 /* What an action is, and so whether it may start now (W95, docs/protocol.md
    "Action kinds"). The core defines every action's kind once -- each menu
-   item's (core/menus.cpp) and each other command's (core/ui_json.cpp's
-   command table) -- and sends them in `hello`: the main-window menus'
-   `menus.<name>_kinds`, the windows' key layers `windows` (their keys,
+   item's (the command table, core/command_table.h) and each other command's
+   (core/ui_json.cpp's command table) -- and sends them in `hello`: the
+   main-window menus' `command_table`, the windows' key layers `windows` (their keys,
    kinds and the page's names for their items: the one place the page
    learns a window's keys), and `commands`. Only a running computation (the
    core's `computing` event, until the command's idle) or an open question
@@ -41,6 +41,39 @@ export interface CommandKind {
   step: boolean;
 }
 
+/** one row of hello.command_table (core/command_table.h, docs/protocol.md "Hello"): a command of the
+    main-window menus, which every list the page shows is made from */
+export interface CommandRow {
+  menu: MenuName;
+  /** stable: a `key` command's `item`, recordings, the page's calls */
+  id: string;
+  /** the legacy one-letter key in `menu` */
+  key: string;
+  label: string;
+  description: string;
+  /** one kind letter (OF_LETTER) */
+  kind: string;
+  /** a CommandCategory id */
+  category: string;
+  pinnable: boolean;
+  /** keys that run it from the page ("Ctrl+O": Ctrl, or Cmd on macOS) */
+  default_keys: string[];
+  /** the XPPAUT sequence: the shortcut layer's key, then the item's ("F", "P") */
+  legacy_keys: string[];
+}
+
+/** a group commands are listed in; an unlisted one (the shortcut-layer switches) is no group */
+export interface CommandCategory {
+  id: string;
+  label: string;
+  listed: boolean;
+}
+
+/** the row of item `id` of main-window menu `menu`, undefined for none (or before hello) */
+export function commandRow(hello: HelloEvent | null, menu: MenuName, id: string): CommandRow | undefined {
+  return hello?.command_table.find(row => row.menu === menu && row.id === id);
+}
+
 /** the table's entry for `cmd` (the first with its op, else the one with none) */
 function commandOf(hello: HelloEvent, cmd: Command): CommandKind | undefined {
   return hello.commands.find(c => c.cmd === cmd.cmd && (c.op === undefined || c.op === cmd.op));
@@ -53,18 +86,17 @@ export function isStep(hello: HelloEvent, cmd: Command): boolean {
 
 /** the name of main-window menu `menu` (state's menu number), null for none */
 export function menuName(hello: HelloEvent | null, menu: number): MenuName | null {
-  return hello?.menus.names[menu] ?? null;
+  return hello?.menu_names[menu] ?? null;
 }
 
 /** the number of main-window menu `name` (state's menu) */
 export function menuNumber(hello: HelloEvent, name: MenuName): number {
-  return hello.menus.names.indexOf(name);
+  return hello.menu_names.indexOf(name);
 }
 
 /** the key of item `id` of main-window menu `name` ('' before hello, or for no such item) */
 export function menuKey(hello: HelloEvent | null, name: MenuName, id: string): string {
-  const i = hello ? hello.menus[`${name}_ids`].indexOf(id) : -1;
-  return i >= 0 ? hello!.menus[`${name}_keys`][i] : '';
+  return commandRow(hello, name, id)?.key ?? '';
 }
 
 /** the command of item `id` of the main menu (its key in no window) */
@@ -109,10 +141,9 @@ export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Ki
   if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'abort' || cmd.cmd === 'quit' ? 'control' : null;
   if (cmd.cmd === 'key') {
     if (isMenuItemCommand(cmd)) {
-      const name = hello.menus.names.find(n => n === cmd.menu);
-      if (!name) return null;
-      const i = hello.menus[`${name}_ids`].indexOf(cmd.item);
-      return i >= 0 ? OF_LETTER[hello.menus[`${name}_kinds`][i]] ?? null : null;
+      const name = hello.menu_names.find(n => n === cmd.menu);
+      const row = name && commandRow(hello, name, cmd.item);
+      return row ? OF_LETTER[row.kind] ?? null : null;
     }
     /* a menu or an item with the rest of a menu item missing or mixed with a key is no command */
     if (cmd.menu !== undefined || cmd.item !== undefined) return null;
@@ -125,9 +156,8 @@ export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Ki
     }
     const name = menuName(hello, menu);
     if (!name) return null;
-    const keys = hello.menus[`${name}_keys`], kinds = hello.menus[`${name}_kinds`];
-    const i = key.length === 1 ? keys.indexOf(key) : -1;
-    return i >= 0 ? OF_LETTER[kinds[i]] ?? null : null;
+    const row = key.length === 1 ? hello.command_table.find(r => r.menu === name && r.key === key) : undefined;
+    return row ? OF_LETTER[row.kind] ?? null : null;
   }
   const e = commandOf(hello, cmd);
   return e ? OF_LETTER[e.kind] ?? null : null;
