@@ -46,6 +46,18 @@ std::string bytes_of(const char *path)
 
 const std::string trailer = "RHS etc ...\n"; /* what XPPAUT's set file ends with */
 
+/* text with its first `from` replaced by `to`: ours names the store-every
+   line store_every, XPPAUT's set file nout (W206), so what the import reads
+   (XPPAUT's) and what the session's own reader reads (ours) differ in that
+   one label */
+std::string relabel(std::string text, std::string_view from, std::string_view to)
+{
+    const std::size_t at = text.find(from);
+    CHECK(at != std::string::npos);
+    if (at != std::string::npos) text.replace(at, from.size(), to);
+    return text;
+}
+
 /* the file without its first line, which carries the time it was written,
    and without the trailer */
 std::string body(const char *path)
@@ -55,7 +67,7 @@ std::string body(const char *path)
     const std::size_t nl = b.find('\n');
     if (nl != std::string::npos) b.erase(0, nl + 1);
     if (b.ends_with(trailer)) b.erase(b.size() - trailer.size());
-    return b;
+    return relabel(std::move(b), "nout", "store_every");
 }
 
 void put(const char *path, const std::string &text)
@@ -67,7 +79,7 @@ void put(const char *path, const std::string &text)
 /* import_xppaut_set of text (written to path): the error, "" when it loads */
 std::string read_error(const char *path, const std::string &text)
 {
-    put(path, text);
+    put(path, relabel(text, "store_every", "nout"));
     const xpp::Result<> r = xpp::import_xppaut_set(xpp::client_session(), path, false);
     return r ? std::string() : r.error().text(); /* "path:N: what" */
 }
@@ -78,6 +90,7 @@ void save(const char *path)
     xpp::write_lunch(xpp::client_session(), w.file());
     w.print("{}", trailer);
     CHECK(w.commit());
+    put(path, relabel(bytes_of(path), "store_every", "nout")); /* XPPAUT's file, for the import */
 }
 
 /* text with its line n (from 1) replaced by line */
@@ -151,7 +164,7 @@ int main(void)
     std::string bad = whole;
     bad.replace(fifth, 1, "x");
     const std::string bad_error = read_error(b, bad);
-    CHECK(bad_error.starts_with(std::string(b) + ":5: \"x") && bad_error.find("is not a whole number (store_every)") != std::string::npos);
+    CHECK(bad_error.starts_with(std::string(b) + ":5: \"x") && bad_error.find("is not a whole number (nout)") != std::string::npos);
 
     /* all or nothing: the session changed, then a set file whose last
        value (the BVP range's high end) does not read is refused at that
@@ -219,7 +232,7 @@ int main(void)
        with its source line, before even an earlier valid change applies. */
     s.numerics.torus = 1;
     save(b);
-    const std::string named = "## Set file\n" + body(b);
+    const std::string named = relabel("## Set file\n" + body(b), "store_every", "nout"); /* put as XPPAUT's file */
     s.numerics.tend *= 2; /* an earlier valid value must not apply on a later mismatch */
     save(b);
     const auto named_lines = xpp::split_lines(named);
