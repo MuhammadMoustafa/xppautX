@@ -848,12 +848,14 @@ Design: [command-design.md](command-design.md).
 | W203 | #257 | Gate the navigation checks, one Checker, protocol docs | none | done |
 | W204 | #258 | Core cleanup: round-up `until`, one fit-bounds owner | W203 | done |
 | W205 | #259 | web2 fixes: trace colours, run-control defaults, key handling, until end shown | W203 | done |
-| W206 | #260 | Rename `nout` to its plain name | none | open |
-| W207 | #261 | One command table | W206 | open |
+| W206 | #260 | Rename `nout` to `store_every` ("Store every N steps"), code names too | none | done (verify.sh and the UCRT build green; an embedded-snapshot gap and the XPPAUT set import fixed with W215) |
+| W207 | #261 | One command table (core/command_table.h; sidebar, search, native menus, hello) | W206 | done |
 | W208 | #262 | Key layer over the command table | W207 | open |
 | W209 | #263 | Save / Save as | W207 | open |
 | W210 | #264 | Value undo/redo | W207 | open |
 | W211 | #265 | keymap.json | W208 | open |
 | W212 | #266 | Keymap editor and quick access | W211 | open |
 | W213 | #267 | One Continue | W207 | open |
-| W214 | #245 | Duplicate-name message for array members | none | open |
+| W214 | #245 | Duplicate-name message for array members | none | done |
+| W215 | #269 | `web2check --only files` and the XPPAUT .set import after W206 | W206 | done |
+| W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | open |
