@@ -65,6 +65,22 @@ xpp::Session &client() { return xpp::client_session(); }
    session's errors were shown as they came, so its end is always 0. */
 static int exit_code(void) { return session.silent ? xpp::log_exit_code() : 0; }
 
+namespace {
+
+/* {"ev":"stopped","at":AT}: where the running job was when it was
+   cancelled (docs/protocol.md "stopped"). A script replays the
+   interruption from AT. */
+void send_stopped(void)
+{
+    Buf b;
+    BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
+    buf_stopped_at(&b);
+    BUF_LIT(&b, "}");
+    send_buf(&b);
+}
+
+} // namespace
+
 void quit_session(void)
 {
     if (session.silent && xpp::log_exit_code() == 0 && !player_finished())
@@ -101,7 +117,12 @@ bool quit_waits(const char *line)
    quit that asks or saves is a command of its own, in the dispatch table) */
 int handle_async(xpp::Session &s, const char *line)
 {
-    if (is_cmd(line, "quit") && !quit_waits(line)) quit_command();
+    if (is_cmd(line, "quit") && !quit_waits(line)) {
+        /* read by a computation's own checkpoint, the quit ends the command it cancelled: that command
+           says where it stopped, as when the computation sees the cancel first and the quit comes after */
+        if (xpp::job::computing()) send_stopped();
+        quit_command();
+    }
     if (is_cmd(line, "state")) {
         send_state(s);
         return 1;
@@ -281,22 +302,6 @@ void buf_stopped_at(Buf *b)
         BUF_LIT(b, "{\"what\":\"other\"}");
     }
 }
-
-namespace {
-
-/* {"ev":"stopped","at":AT}: where the running job was when it was
-   cancelled (docs/protocol.md "stopped"). A script replays the
-   interruption from AT. */
-void send_stopped(void)
-{
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"stopped\",\"at\":");
-    buf_stopped_at(&b);
-    BUF_LIT(&b, "}");
-    send_buf(&b);
-}
-
-} // namespace
 
 bool arm_recorded_stop(const char *at, int key)
 {

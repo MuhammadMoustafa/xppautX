@@ -219,6 +219,13 @@ async function metrics(value) {
 
 const NAMED = {Escape: 27, Enter: 13, Tab: 9, Home: 36, End: 35, PageUp: 33, PageDown: 34,
   ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, F1: 112, F6: 117};
+/** select all in the focused field the way the platform's own shortcut does: CDP key events carry no
+    editing command, and macOS's Ctrl+A is "line start", so the command itself is sent (not a chord) */
+async function selectAll() {
+  await cdp.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2, commands: ['selectAll']});
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2});
+}
+
 async function key(k, modifiers = 0) {
   if (NAMED[k]) {
     const code = NAMED[k];
@@ -2975,12 +2982,17 @@ async function lostFRunning() {
   await key('f');
   await until('!s.busy && s.core.menu === 1', 'file menu');
   await key('a');
-  await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
+  const opened = await until('s.diagram.open && s.diagram.shown && dv.axes && !s.busy', 'auto open');
   await until(`document.activeElement.closest('.auto-host')`, 'auto focus');
   await key('r');
   await until("s.ask && s.ask.kind === 'menu' && s.ask.title === 'Start'", 'start menu');
   await menuKey('s');
   await until('!s.busy && dv.points.x.length > 2', 'steady', 60000 * SLOW);
+  /* a missing view is a failed check with the state, not a page error that hides which step lost it */
+  const hasAuto = await cdp.eval(`!!document.querySelector('.auto-host')`);
+  check('lostF running: the AUTO view opened and is still there after the steady branch',
+    opened && hasAuto, JSON.stringify(await S('[s.diagram.open, s.diagram.shown, s.busy, s.ask && s.ask.title, s.core.menu]')));
+  if (!hasAuto) return;
   await cdp.eval(`document.querySelector('.auto-host').focus()`);
   await key('g');
   await until("s.ask && s.ask.kind === 'grab' && s.diagram.info", 'grab');
@@ -3588,7 +3600,7 @@ async function steadyCheck() {
   await mouse('mousePressed', durationBox.x, durationBox.y, {button:'left',clickCount:1});
   await mouse('mouseReleased', durationBox.x, durationBox.y, {button:'left',clickCount:1});
   await rendered();
-  await key('a',2);
+  await selectAll();
   await cdp.send('Input.insertText', {text:'3'});
   await rendered();
   await key('Enter');
@@ -4962,8 +4974,10 @@ async function animation() {
   check('ani 390x844: the picture fits the width at its aspect', await until(`__xpp.ani().width <= 390
     && Math.abs(__xpp.ani().box.w / __xpp.ani().box.h - ${aspect}) < 1e-6`, 'phone drawn'), JSON.stringify(await cdp.eval('__xpp.ani()')));
   await cdp.eval(`document.querySelector('.ani-back').click()`);
-  check('ani: Back closes the sheet, the focus back on the Animation button',
-    await until('!s.ani.open', 'close ani') && await until(`document.activeElement.closest('.ani-toggle')`, 'ani focus back'));
+  /* the Animation button sits in the Tools menu, which closed on its choice: the focus goes to the menu's button */
+  check('ani: Back closes the sheet, the focus back on the Tools button that holds the Animation button',
+    await until('!s.ani.open', 'close ani') && await until(`document.activeElement.matches('.workspace-tools > summary')`, 'ani focus back'),
+    await cdp.eval(`document.activeElement.outerHTML.slice(0, 120)`));
   await desktopMetrics();
 }
 
@@ -5048,7 +5062,7 @@ async function kinescope(dir) {
   const animName = 'lecar.gif';
   const animPath = path.join(dir, animName);
   fs.rmSync(animPath, {force: true});
-  await cdp.eval(`document.querySelector('.kinescope-bar button[title^="Kinescope/Make AniGif"]').click()`);
+  await cdp.eval(`[...document.querySelectorAll('.kinescope-bar button')].find(b => b.textContent.trim() === 'Export GIF').click()`);
   await until("s.ask && s.ask.kind === 'file'", 'GIF name');
   await answerAsk({file: 'lecar.gif'});
   check('kinescope: Export GIF offers lecar.gif, written by the core',
@@ -5243,12 +5257,12 @@ async function updatesCheck() {
     await cdp.eval(`window.__pendingAborted && window.__updateRequests === ${requests} && document.querySelector('[data-update-dialog]').textContent.includes('999.0.0 is available')`));
   check('updates: newer offers release page and Close', await cdp.eval("document.querySelector('[data-update-dialog]').textContent.includes('Open the release page')"));
   await cdp.eval(opt.webview2
-    ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] button').click()"
-    : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] button').click()");
+    ? "window.__openedRelease = null; window.__xppOpenRelease = async url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] .dialog-actions button:first-child').click()"
+    : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] .dialog-actions button:first-child').click()");
   check('updates: opens only on choice', await cdp.eval("window.__openedRelease === 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'"));
   await close();
   await run(release(local), `xppautX ${local.slice(1)} is the latest`);
-  check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] button').length === 1"));
+  check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 1"));
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
   await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify('xppautX dev\n')}; true`);

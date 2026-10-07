@@ -530,6 +530,9 @@ in the input.
 - A command whose job was cancelled (by `abort`, Escape, `quit`) sends
   `stopped` before its `state` and `idle`: where the computation got to,
   which is what the recording player uses to replay the interruption (below).
+  A plain `quit` read by the computation's own check ends the command at once: it sends
+  `stopped` too, then `bye` and the exit (it never reaches `state` and `idle`), the same
+  `stopped` as when the computation sees the cancel first and the `quit` runs after the command.
 
 ## Playing a recording without an interface
 
