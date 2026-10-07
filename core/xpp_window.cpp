@@ -300,11 +300,13 @@ static_assert(xpp::find_command(FILE_MENU, "openmodel") && xpp::find_command(FIL
     return std::string(label);
 }
 
-/* File command `id`'s first default key, "" for none */
-[[maybe_unused]] std::string_view native_key(std::string_view id)
+#if defined(_WIN32) || defined(__APPLE__)
+/* File command `id`'s first default key, "" for none (the GTK menu shows no key hint) */
+std::string_view native_key(std::string_view id)
 {
     return xpp::find_command(FILE_MENU, id)->default_keys[0];
 }
+#endif
 
 /* the protocol line that runs File command `id` as the page's own call does */
 [[maybe_unused]] void push_file_command(std::string_view id)
