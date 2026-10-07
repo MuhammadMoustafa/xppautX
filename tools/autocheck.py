@@ -1564,7 +1564,32 @@ def run_recording(path=None, lines=None, steps=None):
     return result.returncode, result.stdout, run
 
 
+def shipped_session_zips():
+    """(path, zip) of every shipped .snapx and every .recx's @snapshot (W206: a text grep cannot see inside them)"""
+    for folder in ('examples', 'tests', 'tools', 'docs'):
+        for root, _, names in os.walk(folder):
+            for name in names:
+                path = os.path.join(root, name)
+                if name.endswith('.snapx'):
+                    yield path, zipfile.ZipFile(path)
+                elif name.endswith('.recx'):
+                    with open(path, encoding='utf-8') as f:
+                        lines = f.read().splitlines()
+                    start = lines.index('@snapshot')
+                    yield path, zipfile.ZipFile(io.BytesIO(base64.b64decode(''.join(lines[start + 1:lines.index('@end', start)]))))
+
+
+def check_session_names():
+    old = []
+    for path, z in shipped_session_zips():
+        for member in z.namelist():
+            if member.endswith('.set') and any(l.split()[-1:] == ['nout'] for l in z.read(member).decode().splitlines()):
+                old.append(path + '/' + member)
+    check('no shipped .snapx or .recx carries a set with an old option name (nout; W206)', not old, str(old))
+
+
 def section_recording():
+    check_session_names()
     code, out, run = run_recording(RECORDING)
     idles = out.count('"ev":"idle"')
     check('xppautX lecar_auto.recx --silent plays to the end with no interface', code == 0,
