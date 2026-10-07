@@ -11,6 +11,8 @@
 #include "model_switch.h"
 #include <cstddef>
 #include <deque>
+#include <string>
+#include <string_view>
 
 namespace xpp {
 
@@ -23,10 +25,13 @@ inline constexpr std::size_t MAX_VALUE_UNDO = 100;
 
 struct ValueUndo {
   std::deque<KeptValues> undo, redo;
+  /* the slider whose drag the last push belongs to: its next steps add no snapshot */
+  std::string dragging;
 };
 
-/* about to edit the values: remember them, and forget what could be redone */
-void push_value_undo(Session &s);
+/* about to edit the values: remember them, and forget what could be redone.
+   `drag` names a slider: its consecutive steps are one edit, one snapshot */
+void push_value_undo(Session &s, std::string_view drag = {});
 /* the values before the last edit come back in one step (the values now go
    to the redo stack); false, with nothing changed, when there is none */
 bool undo_values(Session &s);

@@ -4826,6 +4826,14 @@ def check_save_session():
             evs = undo()
             n += 1
         check('W210: the undo stack keeps the last %d edits' % MAX_VALUE_UNDO, n == MAX_VALUE_UNDO, str(n))
+        # a slider drag is one edit: its steps share one snapshot
+        evs = edit(0.11)
+        before = pars(evs)['phi']
+        for v in (0.12, 0.13, 0.14):
+            evs = run(cmd='slide', name='phi', value=v)
+        check('W210: a slider drag moves the value', pars(evs)['phi'] == 0.14)
+        evs = undo()
+        check('W210: one Undo takes back the whole drag', pars(evs)['phi'] == before, str(pars(evs)['phi']))
     finally:
         stop_server(p, r, snd)
 

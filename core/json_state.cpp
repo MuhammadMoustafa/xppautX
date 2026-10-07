@@ -577,7 +577,7 @@ void slide_command(xpp::Session &s, const char *line)
     else if (!js_number(js_find(line, "value"), &value))
         j_command_error("slide", xpp::format("slide {}: its value is not a number", name));
     else {
-        xpp::push_value_undo(s);
+        xpp::push_value_undo(s, name);
         set_par_or_var(s, name, type, index, value);
         session.state_dirty = 1;
     }
