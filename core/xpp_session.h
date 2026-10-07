@@ -1,6 +1,7 @@
 #ifndef _xpp_session_h_
 #define _xpp_session_h_
 
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -41,8 +42,24 @@ struct Session; /* session.h */
    saved_session (below): core/json_state.cpp reports it as the state
    event's "session" member. Both work on the session s. */
 /* Save through the shared owner; false when declined, error shown by the caller. */
-xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data);
+xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace = false);
 int xpp_session_save(xpp::Session &s, const char *name, int data);
+/* File > Save session (Ctrl+S): to the session file the Session remembers
+   (saved_session) with no dialog and no question about replacing it; with
+   none (a first save, a model never saved) it is Save as, which asks for
+   a path and before replacing an existing file (xpp_session_save with no
+   name). Quit's "Save this session first?" saves the same way. */
+int xpp_session_save_here(xpp::Session &s);
+/* The unsaved-changes dot's definition, once (state's `changed`): the
+   session's values differ from those it was last saved, opened or loaded
+   with. A value is a parameter's, an initial condition's, a numerics
+   setting of the time span, method, tolerances and bounds, or the run's
+   data (the rows stored and where the run ended). A view, a window or an
+   AUTO diagram alone is not a change. */
+bool xpp_session_changed(const xpp::Session &s);
+/* the session's values as they are now are the saved ones: a save, an
+   open of a session file and the end of every load call it */
+void xpp_session_mark_clean(xpp::Session &s);
 int xpp_session_load(xpp::Session &s, const char *name);
 /* the session file of s as it would be saved without the data table, as
    its bytes: a recording's snapshot (W59d, recx.h), made asking nothing;
@@ -52,7 +69,8 @@ std::optional<std::string> xpp_session_snapshot(xpp::Session &s);
 
 /* the session file last saved or opened; a Session's (session.h) */
 struct SavedSession {
-    std::string file; /* the .snapx */
+    std::string file;           /* the .snapx */
+    std::uint64_t clean = 0;    /* the values' fingerprint when it was saved, opened or loaded */
 };
 
 /* A session archive carries its saved model and all session members.

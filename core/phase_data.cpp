@@ -27,6 +27,7 @@
 #include "many_pops.h"
 #include "form_ode.h"
 #include "xpp_math.h"
+#include "xpp_util.h"
 
 namespace xpp {
 
@@ -39,34 +40,6 @@ namespace {
 const double FLOW_STEP = 2e-4;
 /* at most this many values of flows per window (x and y together) */
 const std::size_t FLOW_MAX = 8000000;
-
-/* a record's fingerprint, to tell whether it is what the client got
-   without keeping a copy of that: 64-bit FNV-1a over 8-byte words of its
-   bits (a flow's breaks are NaN), so a change goes unseen with odds of
-   one in 2^64 */
-class Fingerprint {
-public:
-    void bytes(const void *p, std::size_t n)
-    {
-        const unsigned char *b = static_cast<const unsigned char *>(p);
-        for (; n >= sizeof(std::uint64_t); n -= sizeof(std::uint64_t), b += sizeof(std::uint64_t)) {
-            std::uint64_t w;
-            std::memcpy(&w, b, sizeof w);
-            mix(w);
-        }
-        for (; n > 0; n--, b++) mix(*b);
-    }
-    template <class T> void value(const T &v) { bytes(&v, sizeof v); }
-    void floats(const std::vector<float> &v)
-    {
-        value(v.size());
-        bytes(v.data(), v.size() * sizeof(float));
-    }
-    std::uint64_t result() const { return h_; }
-private:
-    void mix(std::uint64_t w) { h_ = (h_ ^ w) * 1099511628211ULL; /* the FNV 64-bit prime */ }
-    std::uint64_t h_ = 14695981039346656037ULL; /* the FNV 64-bit offset basis */
-};
 
 void add_to(Fingerprint &f, const PhaseShown::Clines &c)
 {

@@ -226,7 +226,12 @@ bool save_ready(bool available)
  return false;
 }
 
-xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent)
+namespace {
+
+/* the writer of open_writer_asking and open_writer_replacing: ask is
+   whether the replace decision is still to be had (a command's, a
+   dialog's, or the user's answer) */
+xpp::Writer open_writer(std::string_view fil, bool binary, Result<> *opened, bool ask, bool independent)
 {
  if(opened)*opened={};
  const int status=xpp::files::output_status(fil);
@@ -239,7 +244,7 @@ xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *open
    if(opened)*opened=error; else show_error(error.error());
    return {};
  }
- int answer=ui.save_replace(independent);
+ int answer=ask?ui.save_replace(independent):SAVE_REPLACE;
  /* A native dialog or an explicit command already made the decision.
     Otherwise only an existing destination needs confirmation. */
  if(answer==SAVE_ASK){
@@ -260,6 +265,18 @@ xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *open
    else show_error(error.error());
  }
  return w;
+}
+
+} // namespace
+
+xpp::Writer open_writer_asking(std::string_view fil, bool binary, Result<> *opened, bool independent)
+{
+ return open_writer(fil,binary,opened,true,independent);
+}
+
+xpp::Writer open_writer_replacing(std::string_view fil, bool binary, Result<> *opened)
+{
+ return open_writer(fil,binary,opened,false,false);
 }
 
 Result<> commit_save(Writer &w)

@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Save session (Ctrl+S) saves to the session file the session was opened from or last saved to, with no dialog; the first save asks for a name. Save session as (Ctrl+Shift+S) always asks, and before replacing a file. The header shows a dot while the values (parameters, initial conditions, the time span, method and tolerances, the run's data) differ from the saved or loaded ones (`state.changed`); Quit's "Save this session first?" saves to the remembered file without asking again. The desktop File menus show both commands with their keys (W209, [#263](https://github.com/MuhammadMoustafa/xppautX/issues/263)).
+
 - Closing the Animation or Array plot sheet returns the keyboard focus to the Tools button (their buttons sit in the Tools menu, closed by the choice); a plain `quit` read by a running computation now sends `stopped` before `bye`, as one read after the command does (W217, [#271](https://github.com/MuhammadMoustafa/xppautX/issues/271)).
 
 - One command table in the core gives every command its id, category, label, description, kind and default keys, and `hello` sends it as `command_table`; the sidebar, command search and the desktop File menu are made from it, so they cannot disagree. The File menu now shows the same labels as the sidebar (Reload model for Reload) and, on Windows, Ctrl+O beside Open model (W207, [#261](https://github.com/MuhammadMoustafa/xppautX/issues/261)).

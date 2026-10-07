@@ -80,6 +80,9 @@ export interface StateEvent {
   menu: number;
   win: number;
   session?: {file?: string; set?: string; auto?: string};
+  /** the values (parameters, initial conditions, the numerics' time span, method and tolerances, the run's data) differ from
+      those last saved, opened or loaded: the title's unsaved dot (docs/protocol.md "state") */
+  changed: boolean;
   /** while the core records the steps (W59a): how many so far, and the note waiting for the next one */
   recording?: {steps: number; note: string};
   /** while a recording is open in the player (W59b): the next step, the one running (-1: none),

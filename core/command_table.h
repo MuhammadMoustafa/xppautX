@@ -78,7 +78,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 57> COMMANDS = {{
+inline constexpr std::array<CommandRow, 58> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, 'c', "continue", "Continue integration", "Continue integration for specified time", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {}},
     {MAIN_MENU, 'p', "parameters", "Parameters", "Change problem parameters", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
@@ -91,7 +91,8 @@ inline constexpr std::array<CommandRow, 57> COMMANDS = {{
     {NUM_MENU, 'b', "bounds", "Bounds", "Maximum allowed size of any variable", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {FILE_MENU, 'm', "openmodel", "Open model…", "Load another model in place of this one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+O"}},
     {FILE_MENU, 'n', "opensession", "Open session…", "Open a session file: its model, values, windows, data and diagram", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
-    {FILE_MENU, 'v', "savesession", "Save session as…", "Save everything to one session file (.snapx) to continue later", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+S"}},
+    {FILE_MENU, 'v', "savesession", "Save session", "Save everything to this session's file (.snapx) to continue later; the first save asks for one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+S"}},
+    {FILE_MENU, 'w', "savesessionas", "Save session as…", "Save everything to a session file you choose (.snapx)", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+Shift+S"}},
     {FILE_MENU, 'e', "reload", "Reload model", "Read the model's file again, keeping the values", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'r', "importset", "Import XPPAUT settings", "Import a set file XPPAUT wrote (values, numerics, the active window)", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 's', "saveinfo", "Export simulation information", "Save info about simulation in human readable format", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},

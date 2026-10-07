@@ -19,13 +19,16 @@ dialogs remain visible and explain that their letters choose from that
 menu; cancel with Esc before starting a different letter sequence. Leaving
 and returning to the app does not silently discard an unfinished command.
 
-Use **Files → Open model**, **Open session**, or **Save session as** to
+Use **Files → Open model**, **Open session**, **Save session** or **Save session as** to
 manage work. A `.snapx` session preserves the workspace; parameter and
 initial-condition files save only those values, and CSV exports save data.
 Desktop file actions use the operating system's dialogs. Browser mode uses
-the browser picker or a download. Ctrl/Cmd+O opens a model and Ctrl/Cmd+S
-opens the session save dialog. The native desktop File menu also exposes
-session open/save actions.
+the browser picker or a download. Ctrl/Cmd+O opens a model, Ctrl/Cmd+S saves the session to its file
+and Ctrl/Cmd+Shift+S saves it under a name you choose. The native desktop
+File menu shows the same commands and keys. A dot beside the model's name
+in the header says the values (parameters, initial conditions, the time span,
+method and tolerances, or the run's data) changed since the session was
+loaded or saved; a save or an open of a session file clears it.
 
 The header identifies the model and gives access to Data, Model
 (equations/source), and Help. Files holds session open/save. Tools contains
@@ -221,8 +224,9 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
   question every way of leaving a session asks (the desktop window's
   File > Quit and its close box too; **open (M)odel** and **r(E)load**
-  ask it in their own words): **Save session** (`S`) writes a session file
-  first, as **sa(V)e session** does, then quits; **Don't save** (`D`)
+  ask it in their own words): **Save session** (`S`) writes the session
+  first, as **sa(V)e session** does (to its remembered file with no question,
+  else it asks for a name), then quits; **Don't save** (`D`)
   quits; **Cancel** (`Esc`) keeps working. A recording in progress is saved
   with the session (its name is asked as **Stop** asks it). The desktop
   window's close box asks while something computes without stopping it
@@ -272,13 +276,19 @@ This brings up a menu with several options. Type `Esc` to abort.
   (M)odel** does (its data and diagram go). Parameters, initial data, numerics and AUTO settings keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
-- **sa(V)e session**: Asks for a file name and writes one session file,
-  `name.snapx`, to continue later exactly where you are: the model itself
+- **sa(V)e session** (Ctrl+S): writes one session file, `name.snapx`, to
+  continue later exactly where you are. The session remembers the file it
+  was opened from or last saved to and saves there again with no question
+  (the file is replaced); the first save, with no file yet, asks for a name
+  as **save session as** does. It writes the model itself
   (its `.odex` and every included file it read), the values and numerics (the set format), every
   plot window with its axes, variables and zoom, the text, arrows and
   frozen curves, AUTO's diagram and settings (saved under `auto/`) and views, and the data table (NumPy's `.npz`). The earlier runs a
   window keeps until Erase are left out. A data table above 50 MB asks
   whether to leave it out (**Leave it out**: Go computes it again).
+- **save session as (W)** (Ctrl+Shift+S): always asks for the file name, and
+  asks before replacing a file that exists; the session then remembers it
+  for **sa(V)e session**.
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this
   session first (as **open (M)odel**), loads the model saved in it, from the file alone however
   the `.ode` has changed since, and restores the session as it was saved.

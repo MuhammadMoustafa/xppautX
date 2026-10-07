@@ -2,6 +2,7 @@
    whatever else the batch options ask for. This is the XPPBatch branch of
    the historical do_main(), with no front end setup, so it links against
    libxppcore alone. */
+#include "xpp_session.h"
 #include "solver.h"
 #include "model.h"
 #include "model_files.h"
@@ -172,6 +173,7 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
         return nullptr; /* the inspected model is discarded */
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
+    xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
     load.commit();
     return &load.session();
 }

@@ -707,7 +707,8 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
         }
     xpp::make_active(s, active, 1);
     redraw_the_graph(s);
-    if (!f.snapshot) s.saved_session = SavedSession{f.path};
+    if (!f.snapshot) s.saved_session.file = f.path;
+    xpp_session_mark_clean(s);
     return {};
 }
 
@@ -763,14 +764,29 @@ xpp::Result<std::string> session_bytes(xpp::Session &s, bool data)
 
 } // namespace
 
-int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
-{
-    if(!xpp::save_ready(s.model().nlines()>0))return 0;
-    std::string name;
-    if (!name_or_ask(s.model(), "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
-    const std::string file = xpp::snapx::session_file_name(name);
-    const xpp::Model &m = s.model();
+namespace {
 
+/* the values the changed flag compares (xpp_session.h) */
+std::uint64_t values_fingerprint(const xpp::Session &s)
+{
+    const xpp::Model &m = s.model();
+    xpp::Fingerprint f;
+    for (int i = 0; i < m.nupar; i++) f.value(s.parser.constants[m.upar_con[i]]);
+    for (int i = 0; i < m.node + m.nmarkov; i++) f.value(s.last_ic[i]);
+    const xpp::NumericsSettings &n = s.numerics;
+    for (const double d : {n.t0, n.tend, n.delta_t, n.trans, n.hmin, n.hmax, n.toler, n.atoler, n.bound, n.delay}) f.value(d);
+    f.value(n.method);
+    f.value(n.store_every);
+    f.value(s.data_store.rows);
+    f.value(s.data_store.current_time);
+    return f.result();
+}
+
+/* the whole save to `file`; replace: the path is the remembered one, so
+   no question about replacing it */
+int save_to(xpp::Session &s, const std::string &file, int data, bool replace)
+{
+    const xpp::Model &m = s.model();
     bool with_data = s.data_store.rows > 0 && data != 0;
     const std::uint64_t data_bytes = static_cast<std::uint64_t>(s.data_store.rows) * static_cast<std::uint64_t>(m.neq + 1) * 8;
     if (with_data && data < 0 && data_bytes > large_data) {
@@ -786,7 +802,7 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
             return 0;
         }
     }
-    const xpp::Result<bool> saved = xpp_session_save_file(s, file, with_data);
+    const xpp::Result<bool> saved = xpp_session_save_file(s, file, with_data, replace);
     if (!saved) {
         xpp::show_error(saved.error());
         return 0;
@@ -794,7 +810,24 @@ int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
     return *saved ? 1 : 0;
 }
 
-xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data)
+} // namespace
+
+int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
+{
+    if(!xpp::save_ready(s.model().nlines()>0))return 0;
+    std::string name;
+    if (!name_or_ask(s.model(), "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
+    return save_to(s, xpp::snapx::session_file_name(name), data, false);
+}
+
+int xpp_session_save_here(xpp::Session &s)
+{
+    if (s.saved_session.file.empty()) return xpp_session_save(s, nullptr, -1);
+    if (!xpp::save_ready(s.model().nlines() > 0)) return 0;
+    return save_to(s, s.saved_session.file, -1, true);
+}
+
+xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace)
 {
     const xpp::Result<std::string> bytes = session_bytes(s, data && s.data_store.rows > 0);
     if (!bytes) {
@@ -802,13 +835,24 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
         return std::unexpected(bytes.error());
     }
     xpp::Result<> opened;
-    xpp::Writer w=xpp::open_writer_asking(file,true,&opened);
+    xpp::Writer w = replace ? xpp::open_writer_replacing(file, true, &opened) : xpp::open_writer_asking(file, true, &opened);
     if (!opened) return std::unexpected(opened.error());
     if (!w) return false;
     w.write(*bytes);
     if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
-    s.saved_session = SavedSession{file};
+    s.saved_session.file = file;
+    xpp_session_mark_clean(s);
     return true;
+}
+
+bool xpp_session_changed(const xpp::Session &s)
+{
+    return values_fingerprint(s) != s.saved_session.clean;
+}
+
+void xpp_session_mark_clean(xpp::Session &s)
+{
+    s.saved_session.clean = values_fingerprint(s);
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)

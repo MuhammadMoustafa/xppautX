@@ -177,6 +177,7 @@ kbd {
   min-width: 0;
 }
 .title-bar h1 { font-size: var(--text-md); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.title-bar .unsaved { color: var(--accent); font-size: var(--text-xs); }
 .title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .workspace-tools { position: relative; }
 .workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }

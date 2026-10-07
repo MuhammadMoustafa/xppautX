@@ -103,7 +103,7 @@ bool leave_as(xpp::Session &s, int key, bool with_recording)
 {
   switch(key){
   case 's':
-    return xpp_session_save(s,nullptr,-1)&&(!with_recording||save_recording(s));
+    return xpp_session_save_here(s)&&(!with_recording||save_recording(s));
   case 'd':
     return true;
   default:

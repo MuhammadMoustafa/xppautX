@@ -238,7 +238,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello['command_table']) == 57)
+check('hello', hello is not None and len(hello["command_table"]) == 58)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -297,7 +297,7 @@ def check_hello_kinds():
           all(num.get(k) == 's' for k in 'tdme') and num.get('\x1b') == 'v' and main.get('p') == 's', str(num))
     check('W95: Initialconds and Sing pts compute, Window/zoom is a view, File/Save info is data, File/Quit control',
           main.get('i') == 'x' and main.get('s') == 'x' and main.get('w') == 'v'
-          and file.get('s') == 'd' and file.get('q') == 'c' and 'w' not in file, str(main))
+          and file.get('s') == 'd' and file.get('q') == 'c' and file.get('v') == 'd' and file.get('w') == 'd', str(main))
 
 
 check_hello_kinds()
@@ -329,8 +329,8 @@ def check_command_table(table):
           and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
           str(layer))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W207: Open model and Save session as keep Ctrl+O and Ctrl+S, the only default keys (W208 adds the rest)',
-          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S']}, str(chords))
+    check('W209: Open model, Save session and Save session as hold Ctrl+O, Ctrl+S and Ctrl+Shift+S, the only default keys (W208 adds the rest)',
+          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S']}, str(chords))
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
           and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
@@ -1826,7 +1826,7 @@ def check_load_all_or_nothing():
 
     def state():
         st = last_state(answered((), cmd='state'))
-        return {k: v for k, v in st.items() if k not in ('_t', 'session')} if st else st
+        return {k: v for k, v in st.items() if k not in ('_t', 'session', 'changed')} if st else st
 
     def errors(evs):
         return [e for e in evs if e.get('ev') == 'message' and e.get('error')]
@@ -4669,6 +4669,83 @@ def check_session_random():
         shutil.rmtree(keep, ignore_errors=True)
 
 
+def check_save_session():
+    """W209: Save session (File item savesession, Ctrl+S) writes the session
+    file the Session remembers with no ask, and asks for a path when it has
+    none; Save session as (savesessionas, Ctrl+Shift+S) always asks, and asks
+    before replacing a file; state.changed follows the values (a parameter, an
+    initial condition, a numerics setting, a run's data) and a save or a load
+    clears it"""
+    p, r, snd, col, _ = launch_server()
+
+    def run(*answers, **cmd):
+        """cmd, its asks answered in order (a dict is the answer; then cancel), up to idle; the events"""
+        snd(**cmd)
+        got, n = [], 0
+        while True:
+            evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+            got.extend(evs)
+            if e is None or e['ev'] == 'idle':
+                return got
+            a = answers[n] if n < len(answers) else {'ok': 0}
+            n += 1
+            snd(cmd='answer', id=e['id'], **a)
+
+    state = lambda evs: next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
+    asks = lambda evs: [e for e in evs if e.get('ev') == 'ask']
+    saved = lambda evs: [e for e in evs if e.get('ev') == 'saved']
+    snapx = lambda name: os.path.join(r, name)
+    try:
+        col(is_idle)
+        evs = run(cmd='data', events=['series'])
+        check('W209: a loaded model is unchanged and has no session file',
+              state(evs).get('changed') is False and 'session' not in state(evs), str(state(evs).get('changed')))
+        evs = run({'file': 'sv1'}, cmd='key', menu='file', item='savesession', replace=0)
+        a = asks(evs)
+        check('W209: the first Save session asks for a path (the file picker), as Save as does',
+              len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx', str(a))
+        check('W209: it writes sv1.snapx and the Session remembers it, unchanged',
+              os.path.exists(snapx('sv1.snapx')) and state(evs).get('session') == {'file': 'sv1.snapx'}
+              and state(evs).get('changed') is False, str(state(evs)))
+        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        check('W209: a parameter edit sets changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
+        before = open(snapx('sv1.snapx'), 'rb').read()
+        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        after = open(snapx('sv1.snapx'), 'rb').read()
+        check('W209: the second Save session asks nothing, replaces sv1.snapx and clears changed',
+              not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and before != after
+              and state(evs).get('changed') is False and state(evs).get('session') == {'file': 'sv1.snapx'}, str(asks(evs))[:200])
+        for what, cmd in (('an initial condition', dict(kind='ic', name='V', value=-0.3)),
+                          ('the time span', dict(kind='num', name='total', value=77))):
+            evs = run(cmd='set', values=[cmd])
+            check('W209: %s sets changed' % what, state(evs).get('changed') is True, str(state(evs).get('changed')) + str(evs[-4:])[:200])
+            evs = run(cmd='key', menu='file', item='savesession', replace=0)
+            check('W209: Save session after %s clears it' % what, state(evs).get('changed') is False)
+        evs = run({'key': 'g'}, cmd='key', key='i')
+        check('W209: a run changes the data, so changed', state(evs).get('changed') is True, str(state(evs).get('changed')))
+        evs = run({'file': 'sv1'}, {'key': 'n'}, cmd='key', menu='file', item='savesessionas', replace=0)
+        a = asks(evs)
+        check('W209: Save session as asks for a path, then before replacing the file that is there',
+              len(a) == 2 and a[0].get('kind') == 'file' and a[1].get('kind') == 'choice', str(a)[:300])
+        check('W209: declining the replacement saves nothing and keeps changed',
+              saved(evs) and saved(evs)[-1].get('saved') is False and state(evs).get('changed') is True, str(saved(evs)))
+        evs = run({'file': 'sv2'}, cmd='key', menu='file', item='savesessionas', replace=0)
+        check('W209: Save session as a new name writes it, remembers it and clears changed',
+              os.path.exists(snapx('sv2.snapx')) and state(evs).get('session') == {'file': 'sv2.snapx'}
+              and state(evs).get('changed') is False, str(state(evs)))
+        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.5}])
+        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        check('W209: Save session now goes to sv2.snapx, asking nothing',
+              not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False, str(asks(evs))[:200])
+        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.6}])
+        evs = run({'key': 'd'}, cmd='session', op='load', name='sv1')
+        check('W209: opening a session file clears changed and names it',
+              state(evs).get('changed') is False and state(evs).get('session', {}).get('file', '').endswith('sv1.snapx'),
+              str(state(evs).get('session')) + str(state(evs).get('changed')))
+    finally:
+        stop_server(p, r, snd)
+
+
 def check_session_file():
     """W57, W103: Save session writes one name.snapx (a zip of the files
     listed in core/snapx.h, the model's own included); a new server that
@@ -5101,7 +5178,7 @@ def check_save_recording():
         run(cmd='record', op='start')
         for policy in [1, -1, 0]:
             run(cmd='key', key='f')
-            snd(cmd='key', key='v', replace=policy)
+            snd(cmd='key', key='w', replace=policy)
             _, ask = col(is_ask)
             snd(cmd='answer', id=ask['id'], file='dialog-save.snapx' if policy == 0 else 'key-save.snapx',
                 **({'replace': 1} if policy == 0 else {}))
@@ -5121,7 +5198,7 @@ def check_save_recording():
               [v.get('cmd', {}).get('replace') for v in saves[:2]] == [1, -1]
               and written == got, str(saves))
         check('W129: the OS dialog file answer is recorded unchanged with replace 1',
-              saves[2].get('keys') == ['v'] and saves[2].get('answers') == [{'file': 'dialog-save.snapx', 'replace': 1}], str(saves[2]))
+              saves[2].get('keys') == ['w'] and saves[2].get('answers') == [{'file': 'dialog-save.snapx', 'replace': 1}], str(saves[2]))
         check('W129: core new-file and No decisions are recorded as owner answers',
               [steps[i][0].get('answers') for i in [6, 7]] == [[{'save_replace': 1}], [{'save_replace': -1}]]
               and not steps[7][0].get('keys')
@@ -5958,6 +6035,7 @@ check_open_reload()
 check_display_state()
 check_auto_views()
 check_session_file()
+check_save_session()
 check_session_random()
 
 send(cmd='key', key='f')

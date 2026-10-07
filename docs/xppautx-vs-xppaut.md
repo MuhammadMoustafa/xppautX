@@ -119,7 +119,7 @@ value stops the load with the file, line and value, and nothing is applied.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session / Open: values, every window, labels, frozen curves, current and frozen nullclines, sliders, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57 |
+| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session (Ctrl+S: the file it remembers, no dialog after the first) / Save session as (Ctrl+Shift+S) / Open, with an unsaved-changes dot in the title: values, every window, labels, frozen curves, current and frozen nullclines, sliders, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57, W209 |
 | A changed model | not applicable | the session carries its own model; opening it loads that version | W103 |
 | Record and replay | none | File > Record writes a `.recx` of every step; opened recordings start automatically; the player steps, pauses, shows captions and notes, and keeps controls above the plot/AUTO; reconnects restore its step list | W59a-d, W201 |
 | Record from a snapshot | none | a recording starts from the session's state | W59d |

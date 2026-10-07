@@ -43,6 +43,10 @@ void data_restore(Session &s, BROWSER *b);
    independent resets the command decision for a derived destination. */
 Writer open_writer_asking(std::string_view fil, bool binary = false,
                           Result<> *opened = nullptr, bool independent = false);
+/* The same for a file the user already chose to replace, as the path a
+   session was saved to: no question, the status checks and the temp-then-
+   rename write of open_writer_asking. */
+Writer open_writer_replacing(std::string_view fil, bool binary = false, Result<> *opened = nullptr);
 /* One precondition, before asking for a name. Empty saves report once. */
 bool save_ready(bool available);
 Writer ask_output_writer(const Session &s, std::string_view title, std::string_view ext,

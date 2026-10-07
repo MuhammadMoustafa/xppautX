@@ -3575,6 +3575,16 @@ async function navigationCheck() {
   check('navigation: Ctrl+S asks to save a session', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.snapx"', 'save session'));
   await key('Escape');
   await until('!s.ask && !s.busy', 'cancel save');
+  /* W209: the title's dot follows state.changed; a save clears it, and Ctrl+S then saves to the remembered file with no ask */
+  check('W209: the unsaved dot is on while state.changed is', await S('s.core.changed') === true && await cdp.eval(`!!document.querySelector('.title-bar .unsaved')`));
+  await cdp.eval(`__xpp.send({cmd: 'session', op: 'save', name: 'w209'})`);
+  check('W209: a save clears changed and the dot', await until('!s.busy && s.core.changed === false && !document.querySelector(".title-bar .unsaved")', 'dot cleared'));
+  await cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', value: 0.2})`);
+  check('W209: an edit brings the dot back', await until('s.core.changed === true && !!document.querySelector(".title-bar .unsaved")', 'dot back'));
+  await focusPlot();
+  await key('s', 2);
+  check('W209: Ctrl+S saves to the remembered file, asking nothing, and clears the dot',
+    await until('!s.busy && s.core.changed === false && !s.ask && !document.querySelector(".title-bar .unsaved")', 'silent save') && await S('s.core.session.file') === 'w209.snapx');
   await focusPlot();
   await key('F6');
   check('navigation: F6 moves from plot to Values pane', await cdp.eval(`document.activeElement.id === 'values-panel'`));
@@ -4626,7 +4636,7 @@ async function files(dir) {
     const beforeDownloads = fs.readdirSync(downloads);
     acceptSave = false;
     try {
-      await fileMenu('v', 'write');
+      await fileMenu('w', 'write');
       await cdp.eval(`(() => { const i = document.querySelector('[data-file-name]'); i.value = 't5.snapx';
         i.dispatchEvent(new Event('input', {bubbles: true})); i.focus(); })()`);
       await until("document.querySelector('[data-file-name]').value === 't5.snapx'", 'repeat name');

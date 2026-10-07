@@ -7,8 +7,11 @@
 #include "session.h"
 #include "xpp_error.h"
 
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /* the kinds of a value box find_user_name and box_set_value read */
 #define PARAMBOX 1
@@ -130,5 +133,35 @@ void for_each_shown_window(Session &s, int flag, F f)
     }
     make_active(s, ic, flag);
 }
+
+/* a fingerprint of values, to tell whether they are what they were
+   without keeping a copy (a phase record against what the client got, a
+   session against what was saved): 64-bit FNV-1a over 8-byte words of its
+   bits (a flow's breaks are NaN), so a change goes unseen with odds of
+   one in 2^64 */
+class Fingerprint {
+public:
+    void bytes(const void *p, std::size_t n)
+    {
+        const unsigned char *b = static_cast<const unsigned char *>(p);
+        for (; n >= sizeof(std::uint64_t); n -= sizeof(std::uint64_t), b += sizeof(std::uint64_t)) {
+            std::uint64_t w;
+            std::memcpy(&w, b, sizeof w);
+            mix(w);
+        }
+        for (; n > 0; n--, b++) mix(*b);
+    }
+    template <class T> void value(const T &v) { bytes(&v, sizeof v); }
+    void floats(const std::vector<float> &v)
+    {
+        value(v.size());
+        bytes(v.data(), v.size() * sizeof(float));
+    }
+    std::uint64_t result() const { return h_; }
+private:
+    void mix(std::uint64_t w) { h_ = (h_ ^ w) * 1099511628211ULL; /* the FNV 64-bit prime */ }
+    std::uint64_t h_ = 14695981039346656037ULL; /* the FNV 64-bit offset basis */
+};
+
 } // namespace xpp
 #endif

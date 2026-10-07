@@ -45,6 +45,7 @@ export function TitleBar() {
   const session = useSession();
   const title = useStore(s => s.title);
   const file = useStore(s => s.hello?.file ?? '');
+  const changed = useStore(s => !!s.core?.changed);
   const theme = useStore(s => s.theme);
   const drawer = useStore(s => s.drawerOpen);
   const valuesOpen = useStore(s => s.valuesOpen);
@@ -67,6 +68,7 @@ export function TitleBar() {
       <button class="menu-toggle" aria-controls="command-menu" aria-expanded={drawer}
         onClick={() => session.store.dispatch({type: 'drawer', open: !drawer})}>Menu</button>
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
+      {changed && <span class="unsaved" role="img" aria-label="Unsaved changes" title="Changed since the session was loaded or saved (Ctrl+S saves)">&#9679;</span>}
       <span class="muted file">{title}</span>
       <span class="spacer" />
       <details class="workspace-tools" ref={tools}><summary aria-haspopup="true">Tools</summary>
