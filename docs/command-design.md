@@ -1,6 +1,6 @@
 # Commands, hotkeys and quick access: design draft
 
-Status: draft for maintainer approval, 2026-10-06. Nothing here is built.
+Status: defaults approved by the maintainer, 2026-10-07. Not built yet.
 Decided in conversation: the XPPAUT one-letter sequences stop shaping the
 interface; Ctrl+S saves the session and Ctrl+Shift+S is Save as; Ctrl+Z
 undoes Values edits; users can rebind keys and choose quick-access commands.
@@ -55,11 +55,12 @@ JSON as the primary path.
 | Save session as | Ctrl+Shift+S |
 | Reload model | Ctrl+R |
 | Command search | Ctrl+K (fixed: the way back to everything) |
-| Next / previous pane | F6 / Shift+F6 |
+| Next / previous pane (move focus between the sidebar, toolbar, plot and side panels; W208 lists them from the page's landmark regions) | F6 / Shift+F6 |
 | Undo / redo value edit | Ctrl+Z / Ctrl+Shift+Z, Ctrl+Y |
 | Run from initial | Ctrl+Enter |
 | Run from last state | Ctrl+Shift+Enter |
 | Continue | Alt+Enter |
+| Run to steady state | Alt+S |
 | Stop | Esc while running |
 | Help | F1 |
 
