@@ -306,47 +306,55 @@ void default_window(xpp::Session &s)
              
 }
 
-void fit_window(xpp::Session &s)
+namespace {
+/* The bounds Fit takes for the active window, 2D and 3D alike: every curve's
+   axes over the live data, and over each retained run shown beside it
+   (a run's own stored columns). Axis 2 (z) is used only when `three_d`. */
+struct FitBounds {
+  std::array<double,3> lo{1.e25,1.e25,1.e25},hi{-1.e25,-1.e25,-1.e25};
+  void include(int axis,double value){
+    lo[axis]=std::min(lo[axis],value);
+    hi[axis]=std::max(hi[axis],value);
+  }
+};
+
+FitBounds fit_bounds(const xpp::Session &s,bool three_d)
 {
-  double Mx=-1.e25,My=-1.e25,Mz=-1.e25,mx=-Mx,my=-My,mz=-Mz;
-  int i,n=s.plot_windows.current->nvars;
-  if(s.data_store.rows<2)return;
-  if(s.plot_windows.current->ThreeDFlag){
-    for(i=0;i<n;i++){
-      
-      xpp::get_max(s,s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
-      Mx=lmax(s.plot_windows.current->xmax,Mx);
-      mx=-lmax(-s.plot_windows.current->xmin,-mx);
-      
-      xpp::get_max(s,s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
-      My=lmax(s.plot_windows.current->ymax,My);
-      my=-lmax(-s.plot_windows.current->ymin,-my);
-      
-      xpp::get_max(s,s.plot_windows.current->zv[i],&(s.plot_windows.current->zmin),&(s.plot_windows.current->zmax));
-      Mz=lmax(s.plot_windows.current->zmax,Mz);
-      mz=-lmax(-s.plot_windows.current->zmin,-mz);
-      
+  FitBounds b;
+  const auto &w=*s.plot_windows.current;
+  const int axes=three_d?3:2;
+  for(int i=0;i<w.nvars;i++){
+    const std::array<int,3> cols{w.xv[i],w.yv[i],w.zv[i]};
+    for(int axis=0;axis<axes;axis++){
+      double lo,hi;
+      xpp::get_max(s,cols[axis],&lo,&hi);
+      b.include(axis,lo);
+      b.include(axis,hi);
     }
-    /* A fitted 3D box must contain the retained trajectories too. */
-    const auto &display=s.plot_display[s.plot_windows.active];
-    if(display.show_runs){
-      for(const auto &run:display.runs){
-        const auto extend=[&](int col,double &lo,double &hi){
-          const auto found=std::find(run.cols.begin(),run.cols.end(),col);
-          if(found==run.cols.end())return;
-          const auto &values=run.data[static_cast<std::size_t>(found-run.cols.begin())];
-          for(float value:values)if(std::isfinite(value)){
-            lo=std::min(lo,static_cast<double>(value));
-            hi=std::max(hi,static_cast<double>(value));
-          }
-        };
-        for(int curve=0;curve<run.curves.nvars;curve++){
-          extend(run.curves.xv[curve],mx,Mx);
-          extend(run.curves.yv[curve],my,My);
-          extend(run.curves.zv[curve],mz,Mz);
-        }
+  }
+  const auto &display=s.plot_display[s.plot_windows.active];
+  if(!display.show_runs)return b;
+  for(const auto &run:display.runs)
+    for(int curve=0;curve<run.curves.nvars;curve++){
+      const std::array<int,3> cols{run.curves.xv[curve],run.curves.yv[curve],run.curves.zv[curve]};
+      for(int axis=0;axis<axes;axis++){
+        const auto found=std::find(run.cols.begin(),run.cols.end(),cols[axis]);
+        if(found==run.cols.end())continue;
+        for(float value:run.data[static_cast<std::size_t>(found-run.cols.begin())])
+          if(std::isfinite(value))b.include(axis,value);
       }
     }
+  return b;
+}
+}
+
+void fit_window(xpp::Session &s)
+{
+  if(s.data_store.rows<2)return;
+  const bool three_d=s.plot_windows.current->ThreeDFlag;
+  const FitBounds fit=fit_bounds(s,three_d);
+  const double mx=fit.lo[0],my=fit.lo[1],mz=fit.lo[2],Mx=fit.hi[0],My=fit.hi[1],Mz=fit.hi[2];
+  if(three_d){
     s.plot_windows.current->xmax=Mx;
     s.plot_windows.current->ymax=My;
     s.plot_windows.current->zmax=Mz;
@@ -364,16 +372,6 @@ void fit_window(xpp::Session &s)
   }
   else  
     {
-      for(i=0;i<n;i++){
-	xpp::get_max(s,s.plot_windows.current->xv[i],&(s.plot_windows.current->xmin),&(s.plot_windows.current->xmax));
-	Mx=lmax(s.plot_windows.current->xmax,Mx);
-	mx=-lmax(-s.plot_windows.current->xmin,-mx);
-	
-       xpp::get_max(s,s.plot_windows.current->yv[i],&(s.plot_windows.current->ymin),&(s.plot_windows.current->ymax));
-	My=lmax(s.plot_windows.current->ymax,My);
-	my=-lmax(-s.plot_windows.current->ymin,-my);
-	
-      }
       s.plot_windows.current->xmax=Mx;
       s.plot_windows.current->ymax=My;
       

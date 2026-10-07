@@ -1283,7 +1283,9 @@ def check_stable_navigation():
                        {'menu': 'main', 'item': 'erase', 'key': 'e'}, {'menu': 'main', 'item': 'erase', 'win': 'auto'},
                        {'menu': 'main'}, {'item': 'erase'}, {'menu': 42, 'item': 'erase'}):
             events = command(cmd='key', **fields)
-            check('navigation: rejects malformed stable identity ' + repr(fields), any(e.get('ev') == 'message' and e.get('error') for e in events), str(events[-3:]))
+            err = next((e for e in events if e.get('ev') == 'message' and e.get('error')), {})
+            check('navigation: rejects malformed stable identity ' + repr(fields) + ', naming the command place',
+                  err.get('file') == 'command' and err.get('line') == 1 and json.loads(err.get('source') or '{}').get('cmd') == 'key', str(events[-3:]))
         snd(cmd='key', menu='file', item='savesession')
         _, ask = col(is_ask)
         check('navigation: stable save session asks the existing session picker', ask and ask.get('kind') == 'file' and ask.get('wild') == '*.snapx', str(ask))
@@ -2462,8 +2464,50 @@ def check_ani_data():
     finally:
         stop_server(proc6, run6, send6)
 
+def check_fit_retained_runs():
+    """Window/Fit takes the bounds of the live data and of every retained run
+    in 2D and in 3D alike: a first run that grows far past the live one is
+    inside the fitted box."""
+    zeq = "\nz'=a*z\ninit z=1\n@ xp=x,yp=y,zp=z,axes=3,xlo=0,xhi=10,ylo=0,yhi=10,zmin=0,zmax=10"
+    for dims, extra in ((2, ''), (3, zeq)):
+        d = tempfile.mkdtemp(prefix='xppfit')
+        ode = os.path.join(d, 'fit.odex')
+        with open(ode, 'w') as f:
+            f.write("par a=2\nx'=a*x\ny'=a*y\ninit x=1,y=1" + extra + "\n@ total=1,dt=.1,xlo=0,xhi=1,ylo=0,yhi=1\n")
+        proc, run, snd, col, _ = launch_server(ode=ode)
+
+        def keys(*replies):
+            snd(cmd='key', key=replies[0])
+            for r in replies[1:] + (None,):
+                evs, e = col(lambda e: e.get('ev') in ('ask', 'idle'), timeout=60 * SLOW)
+                if e is None or e['ev'] == 'idle':
+                    return evs
+                snd(cmd='answer', id=e['id'], **({'key': r} if r else {'ok': 0}))
+            return col(is_idle)[0]
+        try:
+            col(is_idle, timeout=60 * SLOW)
+            snd(cmd='data', events=['series', 'plots'])
+            col(is_idle)
+            keys('i', 'g')
+            snd(cmd='set', kind='par', name='a', value=0.1)
+            col(is_idle)
+            keys('i', 'g')
+            evs = keys('w', 'f')
+            snd(cmd='data', events=['series', 'plots'])
+            evs, _ = col(is_idle)
+            w = next((x for e in evs if e.get('ev') == 'plots' for x in e['windows'] if x['win'] == 1), {})
+            box = w.get('box', {})
+            grown = 7.3  # the first run ends near e^2, far past the live run's 1.1
+            check('Fit includes a retained run that extends past the live one (%dD)' % dims,
+                  box.get('ymax', 0) >= grown and (dims == 2 or (box.get('xmax', 0) >= grown and box.get('zmax', 0) >= grown)), str(box))
+        finally:
+            stop_server(proc, run, snd)
+            shutil.rmtree(d, ignore_errors=True)
+
+
 check_view()
 check_view3d()
+check_fit_retained_runs()
 check_marks()
 check_ani_data()
 # AUTO's info strip and stability circle as data (docs/protocol.md "The AUTO

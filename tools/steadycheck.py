@@ -75,6 +75,12 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         got, one_step = command(server, cmd='continue', until=until['time'] + .05)
         check('continuation: one Dt is accepted despite subtraction rounding',
               one_step and abs(one_step['time'] - (until['time'] + .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
+        # An `until` off the Dt grid ends at the next grid point (never short); state.time reports it.
+        for ask, steps in ((.075, 2), (1.02, 21), (.5, 10)):
+            start = one_step['time']
+            got, one_step = command(server, cmd='continue', until=start + ask)
+            check('continuation: until %+g ends at the next Dt grid point, reported as state.time' % ask,
+                  one_step and abs(one_step['time'] - (start + steps * .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
         # An ordinary legacy run remains unchanged and clears the transient result.
         server.send(cmd='key', menu='main', item='initialconds')
         got, ask = server.collect(lambda e: e.get('ev') == 'ask')

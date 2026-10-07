@@ -60,14 +60,17 @@ void DataStore::add_column(int c)
   table_[c]=columns_[c].data();
 }
 
-void DataStore::remove_column(int c, int count)
+Result<> DataStore::remove_column(int c, int count)
 {
+  if(c<0||c>=count||count>static_cast<int>(columns_.size()))
+    return xpp::fail("storage",xpp::format("Cannot remove column {} of {}",c,count),xpp::command_place());
   for(int j=c;j<count-1;j++){
     columns_[j].swap(columns_[j+1]);
     table_[j]=columns_[j].data();
   }
   std::vector<float>().swap(columns_[count-1]);
   table_[count-1]=nullptr;
+  return {};
 }
 
 void DataStore::lend_columns(float **dst, int from, int to) const
