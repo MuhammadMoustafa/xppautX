@@ -783,8 +783,8 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
 }
 
 /* the whole save to `file`; replace: the path is the remembered one, so
-   no question about replacing it */
-int save_to(xpp::Session &s, const std::string &file, int data, bool replace)
+   no question about replacing it; copy: a copy, not the session's file */
+int save_to(xpp::Session &s, const std::string &file, int data, bool replace, bool copy)
 {
     const xpp::Model &m = s.model();
     bool with_data = s.data_store.rows > 0 && data != 0;
@@ -802,7 +802,7 @@ int save_to(xpp::Session &s, const std::string &file, int data, bool replace)
             return 0;
         }
     }
-    const xpp::Result<bool> saved = xpp_session_save_file(s, file, with_data, replace);
+    const xpp::Result<bool> saved = xpp_session_save_file(s, file, with_data, replace, copy);
     if (!saved) {
         xpp::show_error(saved.error());
         return 0;
@@ -812,22 +812,22 @@ int save_to(xpp::Session &s, const std::string &file, int data, bool replace)
 
 } // namespace
 
-int xpp_session_save(xpp::Session &s, const char *name_arg, int data)
+int xpp_session_save(xpp::Session &s, const char *name_arg, int data, bool copy)
 {
     if(!xpp::save_ready(s.model().nlines()>0))return 0;
     std::string name;
-    if (!name_or_ask(s.model(), "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
-    return save_to(s, xpp::snapx::session_file_name(name), data, false);
+    if (!name_or_ask(s.model(), copy ? "Save a copy of the session" : "Save session", "*" + std::string(xpp::snapx::extension), name_arg, name)) return 0;
+    return save_to(s, xpp::snapx::session_file_name(name), data, false, copy);
 }
 
 int xpp_session_save_here(xpp::Session &s)
 {
     if (s.saved_session.file.empty()) return xpp_session_save(s, nullptr, -1);
     if (!xpp::save_ready(s.model().nlines() > 0)) return 0;
-    return save_to(s, s.saved_session.file, -1, true);
+    return save_to(s, s.saved_session.file, -1, true, false);
 }
 
-xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace)
+xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file, bool data, bool replace, bool copy)
 {
     const xpp::Result<std::string> bytes = session_bytes(s, data && s.data_store.rows > 0);
     if (!bytes) {
@@ -840,8 +840,10 @@ xpp::Result<bool> xpp_session_save_file(xpp::Session &s, const std::string &file
     if (!w) return false;
     w.write(*bytes);
     if (const xpp::Result<> saved=xpp::commit_save(w); !saved) return std::unexpected(saved.error());
-    s.saved_session.file = file;
-    xpp_session_mark_clean(s);
+    if (!copy) {
+        s.saved_session.file = file;
+        xpp_session_mark_clean(s);
+    }
     return true;
 }
 

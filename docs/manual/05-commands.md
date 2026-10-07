@@ -279,7 +279,8 @@ This brings up a menu with several options. Type `Esc` to abort.
   [Opening another model](01-introduction.md#starting-it)).
 - **r(E)load**: Reads the model's file again (edit it in your editor, then
   Reload), after asking whether to save this session first, as **open
-  (M)odel** does (its data and diagram go). Parameters, initial data, numerics and AUTO settings keep their values by name;
+  (M)odel** does (its data and diagram go, which shows as an unsaved
+  change; the session file it was saved to stays, so Ctrl+S saves there). Parameters, initial data, numerics and AUTO settings keep their values by name;
   what the file adds comes with the file's values, and what it drops is
   left out. A file that no longer loads changes nothing.
 - **sa(V)e session** (Ctrl+S): writes one session file, `name.snapx`, to
@@ -295,6 +296,11 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **save session as (W)** (Ctrl+Shift+S): always asks for the file name, and
   asks before replacing a file that exists; the session then remembers it
   for **sa(V)e session**.
+- **save a copy of the session (B)**: asks for a file name (and before
+  replacing a file that exists) and writes the session there as **save
+  session as** does, but the session keeps the file it had, and the
+  unsaved-changes dot as it was; Ctrl+S still saves to the first file.
+  It has no default key; pin it or give it one in the keymap.
 - **ope(N) session**: Asks for a `.snapx` file, then whether to save this
   session first (as **open (M)odel**), loads the model saved in it, from the file alone however
   the `.ode` has changed since, and restores the session as it was saved.

@@ -63,7 +63,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Values (ICs, parameters) | a box of fields with Ok/Cancel | a side panel, edits apply when a field is left; Reset one or all returns to the model's values | W6, W62 |
 | Numerics | the Numerics menu only | also a Numerics section of the values panel; edits during a run apply to the next run, never the one in progress | W106 |
 | Equation editor | Edit menu: right-hand sides, functions, Save as | removed; edit the model file and Reload | W54 |
-| Open another model | by restarting the program | File > Open model and Reload in the same process; a failed load keeps the model before | W61 |
+| Open another model | by restarting the program | File > Open model and Reload in the same process; a failed load keeps the model before; Reload keeps the session's file, so Ctrl+S still saves there | W61, W218 |
 | Leaving | closes the window | one question, "Save this session first?"; a run is never stopped by it | W59d, W110 |
 | File dialogs | XPPAUT's own file selector | the OS's own dialog in the window, the browser's picker in browser mode | W88, W90 |
 | Navigation | menus arranged around letter shortcuts | permanent initial/current/steady/continue/stop run toolbar; inline duration and extra/until continuation; full-core unchanged-digits hold with bounded duration and termination reason; consolidated Values and Files actions; searchable groups; stable clicked actions and existing shortcuts | W186–W189, W192–W194 |
@@ -120,7 +120,7 @@ value stops the load with the file, line and value, and nothing is applied.
 
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
-| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session (Ctrl+S: the file it remembers, no dialog after the first) / Save session as (Ctrl+Shift+S) / Open, with an unsaved-changes dot in the title: values, every window, labels, frozen curves, current and frozen nullclines, sliders, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57, W209 |
+| Continue where you stopped | not available; only `.set`/`.par`/`.ic` values | File > Save session (Ctrl+S: the file it remembers, no dialog after the first) / Save session as (Ctrl+Shift+S) / Save a copy of the session (no key; the session's file stays) / Open, with an unsaved-changes dot in the title: values, every window, labels, frozen curves, current and frozen nullclines, sliders, AUTO diagram, data, random state ([protocol.md "Session files"](protocol.md#session-files)) | W57, W209, W218 |
 | A changed model | not applicable | the session carries its own model; opening it loads that version | W103 |
 | Record and replay | none | File > Record writes a `.recx` of every step; opened recordings start automatically; the player steps, pauses, shows captions and notes, and keeps controls above the plot/AUTO; reconnects restore its step list | W59a-d, W201 |
 | Record from a snapshot | none | a recording starts from the session's state | W59d |

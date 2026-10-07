@@ -201,6 +201,7 @@ KeptValues keep_values(const Session &s)
   kept.numerics=s.numerics;
   kept.auto_settings=auto_settings_now(s);
   kept.poivar=poincare_name(m,s.numerics.poivar);
+  kept.saved=s.saved_session;
   return kept;
 }
 
@@ -252,6 +253,7 @@ void restore_values(Session &s, const KeptValues &kept)
     const int i=ic_index(m,d.first);
     if(i>=0&&i<m.node)s.delay_string[i]=d.second;
   }
+  s.saved_session=kept.saved;
 }
 
 Session *load_requested(const Session &now, const ModelRequest &req)

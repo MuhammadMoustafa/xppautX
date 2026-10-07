@@ -243,7 +243,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 58)
+check('hello', hello is not None and len(hello["command_table"]) == 59)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -4742,6 +4742,31 @@ def check_save_session():
         evs = run(cmd='key', menu='file', item='savesession', replace=0)
         check('W209: Save session now goes to sv2.snapx, asking nothing',
               not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False, str(asks(evs))[:200])
+        # W218: Reload keeps the session file; Save a copy leaves file and changed alone
+        evs = run({'key': 'd'}, cmd='reload')
+        check('W218: Reload keeps the session file, and its dropped data read as changed',
+              state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is True, str(state(evs).get('session')) + str(state(evs).get('changed')))
+        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        check('W218: Save session after Reload asks nothing and writes sv2.snapx',
+              not asks(evs) and saved(evs) and saved(evs)[-1].get('saved') is True and state(evs).get('changed') is False
+              and state(evs).get('session') == {'file': 'sv2.snapx'}, str(asks(evs))[:200])
+        evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.7}])
+        evs = run({'file': 'cp1'}, cmd='key', menu='file', item='savesessioncopy', replace=0)
+        a = asks(evs)
+        check('W218: Save a copy asks for a path (the file picker), writes it, and leaves the file and changed as they were',
+              len(a) == 1 and a[0].get('kind') == 'file' and a[0].get('wild') == '*.snapx' and os.path.exists(snapx('cp1.snapx'))
+              and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is True, str(a)[:200] + str(state(evs).get('session')))
+        copy_bytes = open(snapx('cp1.snapx'), 'rb').read()
+        evs = run({'file': 'cp1'}, {'key': 'n'}, cmd='key', menu='file', item='savesessioncopy', replace=0)
+        a = asks(evs)
+        check('W218: Save a copy of a file that exists asks before replacing it; declined, nothing changes',
+              len(a) == 2 and a[1].get('kind') == 'choice' and saved(evs) and saved(evs)[-1].get('saved') is False
+              and open(snapx('cp1.snapx'), 'rb').read() == copy_bytes and state(evs).get('changed') is True
+              and state(evs).get('session') == {'file': 'sv2.snapx'}, str(a)[:300])
+        evs = run(cmd='key', menu='file', item='savesession', replace=0)
+        check('W218: Save session after a copy still writes sv2.snapx, not the copy',
+              not asks(evs) and state(evs).get('session') == {'file': 'sv2.snapx'} and state(evs).get('changed') is False
+              and open(snapx('cp1.snapx'), 'rb').read() == copy_bytes, str(asks(evs))[:200])
         evs = run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': 0.6}])
         evs = run({'key': 'd'}, cmd='session', op='load', name='sv1')
         check('W209: opening a session file clears changed and names it',

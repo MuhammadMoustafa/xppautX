@@ -100,13 +100,18 @@ std::optional<ModelRequest> take_model_request(Session &s);
 
 /* what Reload carries over, by name: each parameter's value, each
    variable's initial data (and a delay equation's history text), and the
-   numerics (the Poincare section's variable by its name) */
+   numerics (the Poincare section's variable by its name), and the
+   session file the session was last saved to or opened from */
 struct KeptValues {
   std::vector<std::pair<std::string,double>> pars, ics;
   std::vector<std::pair<std::string,std::string>> delays;
   NumericsSettings numerics;
   AutoSettingsSet auto_settings;
   std::string poivar;
+  /* the session file and the values it was saved with (W218): the next
+     Ctrl+S saves to it, and the changed flag still compares with that
+     save, so the data and diagram Reload drops read as a change */
+  SavedSession saved;
 };
 /* the session's and its model's */
 KeptValues keep_values(const Session &s);
