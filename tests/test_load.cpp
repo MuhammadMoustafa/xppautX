@@ -124,5 +124,45 @@ int main(void)
     CHECK(xpp::client_session().nullcline_state.frozen.empty());
     CHECK(xpp::client_session().nullcline_state.num_x_n == 0);
 
+    /* W214 (#245): a name that clashes with an array's member says so, in
+       the name as its author wrote it, at the later declaration, in both
+       readers */
+    auto clash = [&](const char *path, const char *text) {
+        {
+            xpp::Writer w(path);
+            CHECK(w && w.write(text) && w.commit());
+        }
+        std::string p = path;
+        char *argv_clash[] = {arg0, p.data(), NULL};
+        return xpp::load_model(2, argv_clash, 1);
+    };
+    for (const char *text : {"x[1..3]'=-x[j]\npar x2=5\ndone\n", "x[1..3]'=-x[j]\nx2=5\ndone\n"}) {
+        d = clash("build/test_load_clash.ode", text);
+        CHECK(!d.has_value());
+        if (!d) {
+            CHECK_STR(d.error().what.c_str(), "`x2` is already a member of the array x[1..3], declared at line 1");
+            CHECK(d.error().place.line == 2);
+        }
+    }
+    d = clash("build/test_load_clash.ode", "par X2=5\nx[1..3]'=-x[j]\ndone\n");
+    CHECK(!d.has_value());
+    if (!d) {
+        CHECK_STR(d.error().what.c_str(), "`x2`, a member of the array x[1..3], is already declared at line 1");
+        CHECK(d.error().place.line == 2);
+    }
+    d = clash("build/test_load_clash.ode", "Vm'=1\nvm'=2\ndone\n");
+    CHECK(!d.has_value());
+    if (!d) {
+        CHECK_STR(d.error().what.c_str(), "Duplicate name vm (names match without case: Vm is declared at line 1)");
+        CHECK(d.error().place.line == 2);
+    }
+    d = clash("build/test_load_clash.odex", "x[j]' = -x[j] for j in 1..3\npar x2 = 5\n");
+    CHECK(!d.has_value());
+    if (!d) {
+        CHECK_STR(d.error().what.c_str(), "`x2` is already a member of the array x[1..3], declared at 1:1");
+        CHECK(d.error().place.line == 2);
+        CHECK(d.error().place.col == 5);
+    }
+
     TEST_REPORT("load: build, then swap");
 }
