@@ -855,7 +855,7 @@ Design: [command-design.md](command-design.md).
 | W210 | #264 | Value undo/redo | W207 | done |
 | W211 | #265 | keymap.json | W208 | done |
 | W212 | #266 | Keymap editor and quick access | W211 | in-progress |
-| W213 | #267 | One Continue | W207 | in-progress |
+| W213 | #267 | One Continue | W207 | done |
 | W214 | #245 | Duplicate-name message for array members | none | done |
 | W215 | #269 | `web2check --only files` and the XPPAUT .set import after W206 | W206 | done |
 | W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | open |
