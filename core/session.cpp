@@ -23,7 +23,7 @@ struct Client {
 /* The session list, kept for the program's life: never destroyed, as a
    union member is not. exit() comes from inside a command (Quit) whose
    Session is still in use, and what the process holds then is the
-   system's to reclaim (CLAUDE.md "Memory"). */
+   system's to reclaim (AGENTS.md "Memory"). */
 union SessionList {
   Client entry; /* its one entry */
   constexpr SessionList() : entry{} {}

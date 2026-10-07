@@ -46,7 +46,7 @@
 namespace xpp {
 
 /* std::format can throw (bad_alloc); no exception may cross into the C
-   code that calls these C++ functions (CLAUDE.md), so a failure is loud
+   code that calls these C++ functions (AGENTS.md), so a failure is loud
    and final like xpp_mem's: an ERROR naming the call site, exit 1 */
 [[noreturn]] void format_failed(const char *file, int line) noexcept;
 

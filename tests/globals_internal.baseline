@@ -1,21 +1,21 @@
 core/ani_data.cpp 1 the protocol client's (one struct): its subscription, its sink and whether and when it got the last frame, which outlive a load (the frames are the Session's ani_shown)
 core/auto_data.cpp 3 the autoinfo subscription and last line (the protocol client's, xpp::ChangedEvent) and its pacing clock
 core/auto_settings.cpp 1 the autosettings subscription (the protocol client's, xpp::ChangedEvent)
-core/comline.cpp 12 the command line's options (process-wide, CLAUDE.md)
+core/comline.cpp 12 the command line's options (process-wide, AGENTS.md)
 core/eispack.cpp 461 vendored EISPACK (f2c): its static locals and by-reference constants are the translated Fortran's, keep
 core/form_ode.cpp 2 ode_as_odex (OdeAsOdex's scope count) and Purity's const table built at first use
-core/json_auto.cpp 7 the JSON front end's AUTO view subscription and its last sent views (the protocol client's, file-local per CLAUDE.md)
-core/json_io.cpp 4 the protocol client's: the output's sequence, its protocol version and the input line read last (file-local per CLAUDE.md)
+core/json_auto.cpp 7 the JSON front end's AUTO view subscription and its last sent views (the protocol client's, file-local per AGENTS.md)
+core/json_io.cpp 4 the protocol client's: the output's sequence, its protocol version and the input line read last (file-local per AGENTS.md)
 core/json_player.cpp 1 the .recx player in progress (the protocol client's)
-core/json_prompts.cpp 7 the JSON front end's ask in progress and its pacing clocks (the protocol client's, file-local per CLAUDE.md)
+core/json_prompts.cpp 7 the JSON front end's ask in progress and its pacing clocks (the protocol client's, file-local per AGENTS.md)
 core/json_record.cpp 1 the session recording in progress (the protocol client's)
-core/json_windows.cpp 3 the JSON front end's array plot dirty flag and window size (the protocol client's, file-local per CLAUDE.md)
+core/json_windows.cpp 3 the JSON front end's array plot dirty flag and window size (the protocol client's, file-local per AGENTS.md)
 core/marks_data.cpp 1 the protocol client's (one struct): its subscription, its sink and the content each window's last event said, which outlive a load (the records are the Session's marks_shown)
 core/numerics_settings.cpp 1 the numerics subscription (the protocol client's, xpp::ChangedEvent)
 core/odex_convert.cpp 1 a const table built at first use
 core/phase_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink and the fingerprint each window's record had when it got it, which outlive a load (the records are the Session's phase_shown)
 core/plot_data.cpp 1 the protocol client's (one struct): its subscriptions, its sink, what it holds of each window, the data version it was told (never repeated while connected) and the appends' pacing clock, which outlive a load (earlier runs and zoom are the Session's plot_display)
-core/session.cpp 2 the session list (the one global that holds Sessions, CLAUDE.md) and the Load in progress
+core/session.cpp 2 the session list (the one global that holds Sessions, AGENTS.md) and the Load in progress
 core/ui_json.cpp 3 the XppUi table installed (the protocol client's)
 core/xpp_about.cpp 1 About's text, a const string built at first use
 core/xpp_files.cpp 4 the files module's cache and the HTTP reader's hooks (process-wide, thread-shared)
@@ -24,7 +24,7 @@ core/xpp_http.cpp 16 the HTTP server's threads, sockets and locks (process-wide)
 core/xpp_inbox.cpp 12 the input queues the reader threads fill (process-wide, thread-shared)
 core/xpp_io.cpp 1 the temp-file name counter (process-wide)
 core/xpp_job.cpp 21 the job's state the reader threads set (atomics) and its pacing clocks, the one clock read a stored row's throttles share among them (W122): process-wide, one job at a time
-core/xpp_log.cpp 4 the log threshold, AUTO's echo, the per-thread capture and the empty object whose destructor writes what it keeps at exit (process-wide, CLAUDE.md; W140)
+core/xpp_log.cpp 4 the log threshold, AUTO's echo, the per-thread capture and the empty object whose destructor writes what it keeps at exit (process-wide, AGENTS.md; W140)
 core/xpp_window.cpp 2 the desktop window's web view and its thread (process-wide, one window)
 core/xpp_window_loader.cpp 2 the window library loaded once (process-wide)
 core/xppautx_main.cpp 2 the program's argc/argv (process-wide)

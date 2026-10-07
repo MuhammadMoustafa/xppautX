@@ -1,6 +1,6 @@
 #ifndef XPP_SESSION_H
 #define XPP_SESSION_H
-/* xpp::Session: everything a run changes (CLAUDE.md "No global state";
+/* xpp::Session: everything a run changes (AGENTS.md "No global state";
    docs/roadmap.md W47c). C++ only.
 
    A Model (model.h) is what loading a .ode file produces and stays as the
@@ -242,7 +242,7 @@ private:
   Model *model_;
 };
 
-/* The session list, the only global that holds a Session (CLAUDE.md "No
+/* The session list, the only global that holds a Session (AGENTS.md "No
    global state"): one Session per client. The process serves one client
    (the page or the desktop window, --server's stdin, --silent's script, a
    unit test), so the list holds one, its client's: the first made on

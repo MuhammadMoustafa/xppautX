@@ -15,7 +15,7 @@ X11 feature has no web2 equivalent yet, the relevant chapter says so
 instead of describing the old window.
 
 A task that changes the UI updates the matching section here, the same way
-it updates docs/protocol.md (see CLAUDE.md). web2's own Help view (planned,
+it updates docs/protocol.md (see AGENTS.md). web2's own Help view (planned,
 docs/roadmap.md W12b) will search these files and link menu items and
 dialogs straight to the sections below.
 

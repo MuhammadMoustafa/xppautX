@@ -11,7 +11,7 @@
 
    C++ code whose std::string or std::vector could not allocate (it caught
    std::bad_alloc where no exception may pass: a callback a C library or
-   the system calls, CLAUDE.md "C and C++") ends the program the same way
+   the system calls, AGENTS.md "C and C++") ends the program the same way
    xpp_malloc used to: an ERROR
    "out of memory <what>", then exit(1).
 
