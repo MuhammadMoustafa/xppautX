@@ -70,7 +70,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Inspecting states and parameters | separate legacy value windows | compact States/Parameters panel with ten-digit inspection and full-precision editing; all states refresh from solver doubles during integration independently of plotted columns; sampled tail rates cover all states independently of plotted columns and indicate recent motion without certifying convergence | W187, W190, W200, W202 |
 | Busy | the program does not answer while it computes | Stop at any time; a command sent during a run is discarded at the source, except control, view and setting commands | W68, W95 |
 | Errors | `err_msg` text in a box | an error dialog with OK for a failed action; every error names its file and line | W104, W140 |
-| Fonts, colours, window size, `-bigfont`, `-white`, `-width` ... | X resources and options | the options are accepted and no longer stored | CLAUDE.md "Architecture" |
+| Fonts, colours, window size, `-bigfont`, `-white`, `-width` ... | X resources and options | the options are accepted and no longer stored | AGENTS.md "Architecture" |
 | Update check | none | Help > Check for updates, on demand; release tag page opens by choice, no download or install; retry after closing a pending check, errors retain their source (W176, [#228](https://github.com/MuhammadMoustafa/xppautX/issues/228)) | W13c ([#126](https://github.com/MuhammadMoustafa/xppautX/issues/126)) |
 | Help | the info/help files (`help/`) | the manual as Markdown in the Help view, linked from menus and dialogs | W12 |
 | Picture export | PostScript, GIF, SVG | PostScript, SVG and the GIFs from one registry | W53, W66 |

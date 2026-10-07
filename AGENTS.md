@@ -1,9 +1,33 @@
 # xppautX — rules for every agent
 
 Shared by every agent that works in this repository (Claude Code and Codex).
-CLAUDE.md imports this file and adds only what the Claude session coordinating the work needs.
+
+**Where rules live.** A rule that more than one agent must follow (Claude
+or Codex, coordinator or card agent) goes in this file, `AGENTS.md`, never
+only in `CLAUDE.md`: Codex does not read CLAUDE.md. `CLAUDE.md` is one line,
+`@AGENTS.md`, plus notes that are only for Claude Code. Long procedures
+the coordinator uses sometimes stay in skills; this file holds the rules
+every agent keeps and the lines that say when to use each skill.
 
 Fork of XPPAUT 8.x being modernized. See README.md for the plan and layout.
+
+## Workflow (the coordinator follows these without being asked)
+
+- New request, including one that comes up while a task runs: a new card and
+  GitHub issue at once (Cards: names and issues). A running card never
+  grows. (skill: task-board)
+- Before starting a batch: propose it and wait for a yes. Pick each card's
+  model by the ladder and the pools' limits. (skills: task-board, task-ladder)
+- A card agent reports done: review it, simplify the diff, then merge. Never
+  merge an unreviewed branch. (skill: task-review)
+- A push is asked for, or a batch of cards is finished: run the push tier,
+  push, close the issues with their commits. (skill: wave-push)
+- A design question is open: list the questions with the count, then settle
+  them one at a time with the count remaining. (skill: settle-design)
+  The outcome goes to a GitHub Discussion. (skill: design-discussions)
+- Work handed to Codex: skill delegate.
+- Before any merge, push or report to the maintainer: the background-task
+  register holds no finished work.
 
 
 ## Code quality
@@ -467,6 +491,81 @@ difficulty) implements one card in the worktree its brief names:
   (Conventions' commit messages): the branch is merged as it stands.
 - Final report: at most 15 lines: what changed, gate results as counts,
   anything unfinished or doubtful.
+
+The reviewer (the main session) reviews, refactors, merges, runs the
+verify.sh tier on a wave's merged tip, pushes when the maintainer says so,
+and then closes the finished cards' issues (Build, above). A new roadmap
+card gets its GitHub issue at once. Every card's review, before its merge,
+does three things (maintainer, 2026-10-01): checks the card is met and
+every "review" row of Code quality holds; checks the agent followed this
+section (it stayed in its card's scope, searched before writing logic and
+duplicated none: each new function or block in the diff is grepped for an
+existing one, ran the gates its report claims, squashed its wip commits,
+closed its register lines, moved the docs, reported what it checked at a
+trust boundary), naming a broken rule in the card's note so the next brief
+says it louder; and simplifies and refactors the diff even when it passes:
+what the change does not need is removed (a dead branch, a flag nothing
+varies, a check of what cannot happen, a comment that restates the code), a
+new helper moves into its owner, code the diff copied is merged, a function
+it made long is split, names say what things are. The behaviour stays: the
+card's gates are rerun after it, and it is committed apart from the agent's
+work as "Review: ...".
+
+Models are named by family, never by version (maintainer, 2026-10-01), so
+a newer one is used the day it ships: a Claude agent's `model:` is the bare
+alias (haiku, sonnet, opus). Codex agents are a second pool (luna, sol;
+never astra, which is token hungry, maintainer, 2026-10-01); Codex has no
+aliases, so the newest listed model of a family is found with the
+task-board skill's `codex_model.py <family>`. Which model and effort runs a
+card, where it starts and when it climbs is the task-ladder skill's
+(maintainer's rule: start each card on the cheapest model and effort that
+may do it, and climb on the review's evidence); the reviewer reads both
+pools' limits before a batch (the app's usage for Claude, the task-board
+skill's `codex_limits.py` for Codex) and gives each card to the pool with
+room, saying which in the batch proposal.
+
+A Codex agent (run by the reviewer with `codex exec -C <worktree> -s
+workspace-write -m <model> -o <report>`, registered by the reviewer; the
+`delegate` skill lists every command between Claude and Codex: resume,
+`codex queue`, stopping a run by its PID, a session's id, testing its
+sandbox) follows every rule of this section as written, with four
+differences of its sandbox:
+- it writes only in its worktree and the system's temp folder, so it starts
+  no background runs and does not touch the register;
+- it cannot commit (the worktree's git data is in the main checkout's .git,
+  whose lock file the Windows sandbox refuses even with `--add-dir`, W153),
+  so it leaves its work uncommitted and its report ends with the commit
+  message, which the reviewer commits with the Codex trailer before the
+  review;
+- it runs its gates from Git Bash in the worktree (the UCRT build
+  `mingw32-make -j4 xppautx BUILDDIR=build/ucrt WERROR=1`, its unit tests,
+  servercheck/autocheck against that exe, web2's checks and `web2check
+  --only`), as any agent runs them: the reviewer starts Codex with
+  `XPP_CHECK_NO_BROWSER_SANDBOX=1` in its environment, which its commands
+  inherit, since Chrome's own sandbox cannot start inside Codex's (W168);
+- the WSL gates (`tools/wslrun.sh`) are the reviewer's, run on its branch at
+  review, with the card's web2check sections again (the task-board skill's
+  `codex_gates.sh`, before the review: a failure goes back to the same
+  Codex session).
+
+## Checks that can be trusted
+
+Beyond the "Tests check data" and sleep rows of Code quality:
+- Wait for a command's own completion signal, never for "not busy"; stop a
+  run at a count, not by racing it.
+- A check that was rerun and passed is reported as flaky (Build: FLAKY),
+  never silently passed.
+- The program carries no code that exists only to measure or slow it.
+
+## Hygiene
+
+- Never a bare `git stash` (shared by every worktree); use a WIP commit.
+- Never kill the maintainer's own running programs; never stop a process by
+  name.
+- Anything run with root or a password (package installs) is the
+  maintainer's to run.
+- Save lasting workflow rules the maintainer gives as memories, and add the
+  ones other agents need to this file.
 
 ## Architecture of the split (phase 2)
 
