@@ -852,10 +852,10 @@ Design: [command-design.md](command-design.md).
 | W207 | #261 | One command table (core/command_table.h; sidebar, search, native menus, hello) | W206 | done |
 | W208 | #262 | Key layer over the command table | W207 | done |
 | W209 | #263 | Save / Save as | W207 | done |
-| W210 | #264 | Value undo/redo | W207 | open |
+| W210 | #264 | Value undo/redo | W207 | in-progress |
 | W211 | #265 | keymap.json | W208 | done |
-| W212 | #266 | Keymap editor and quick access | W211 | open |
-| W213 | #267 | One Continue | W207 | open |
+| W212 | #266 | Keymap editor and quick access | W211 | in-progress |
+| W213 | #267 | One Continue | W207 | in-progress |
 | W214 | #245 | Duplicate-name message for array members | none | done |
 | W215 | #269 | `web2check --only files` and the XPPAUT .set import after W206 | W206 | done |
 | W216 | #270 | Descriptive names for the vague numerics settings (nmesh, trans, t0, tend, newt_*, jac_eps, dtmin, dtmax, atol, bvp_*, maxstor, tor_per, poi*, meth) | W206 | open |
