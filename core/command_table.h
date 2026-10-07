@@ -73,6 +73,11 @@ struct CommandRow {
    Order is the sidebar's: by category, then as listed. Every item of the
    legacy menus has exactly one row (tools/keycheck.py reads the keys here;
    the page's navigationProblems checks the rest against hello). */
+/* the one wording of the store-every setting: the command's label here and the
+   option row's in model_options.cpp (a constant, not a lookup: a sanitizer
+   build of GCC refuses to evaluate the table's search as a constant) */
+inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
+
 inline constexpr std::array<CommandRow, 57> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, 'c', "continue", "Continue integration", "Continue integration for specified time", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {}},
@@ -82,7 +87,7 @@ inline constexpr std::array<CommandRow, 57> COMMANDS = {{
     {NUM_MENU, 'r', "transient", "Transient", "Time to integrate before storing", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'd', "dt", "Time step", "Time step to use", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'm', "method", "Solver method", "Integration method", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
-    {NUM_MENU, 'o', "store_every", "Store every N steps", "Store one row per N output steps", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
+    {NUM_MENU, 'o', "store_every", STORE_EVERY_LABEL, "Store one row per N output steps", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'b', "bounds", "Bounds", "Maximum allowed size of any variable", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {FILE_MENU, 'm', "openmodel", "Open model…", "Load another model in place of this one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+O"}},
     {FILE_MENU, 'n', "opensession", "Open session…", "Open a session file: its model, values, windows, data and diagram", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
@@ -139,14 +144,6 @@ constexpr const CommandRow *find_command(int which, std::string_view id)
   for (const CommandRow &row : COMMANDS)
     if (row.menu == which && row.id == id) return &row;
   return nullptr;
-}
-
-/* the label of item `id` of menu `which`: for code that shows a command's name where it is not a row (the
-   Numerics row of the same option); an unknown id does not compile when used in a constant */
-constexpr std::string_view command_label(int which, std::string_view id)
-{
-  const CommandRow *row = find_command(which, id);
-  return row ? row->label : throw "command_label: no such command";
 }
 
 /* the row of the key `ch` of menu `which`, nullptr for none */

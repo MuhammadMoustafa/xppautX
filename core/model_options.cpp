@@ -145,7 +145,7 @@ constexpr OptionRow rows[] = {
    .whole = [](Session &s) -> int & { return s.numerics.store_every; },
    /* every step stored */
    .reset = [](Session &s) { s.numerics.store_every = 1; },
-   .key = "store_every", .label = command_label(NUM_MENU, "store_every"), .rule = OptionRule::whole_positive},
+   .key = "store_every", .label = STORE_EVERY_LABEL, .rule = OptionRule::whole_positive},
   {.name = "BOUND", .flag = Option::BOUND,
    .real = [](Session &s) -> double & { return s.numerics.bound; },
    /* XPPAUT's: past it a solution is taken to blow up */

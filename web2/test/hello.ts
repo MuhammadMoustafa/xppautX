@@ -14,7 +14,9 @@ function coreTable(): {categories: CommandCategory[]; rows: CommandRow[]} {
   const source = (file: string) => readFileSync(`../core/${file}`, 'utf8');
   const kinds = new Map([...source('menus.h').matchAll(/#define (XPP_KIND_\w+) '(\w)'/g)].map(m => [m[1], m[2]]));
   const text = '(?:\\\\.|[^"\\\\])*';
-  const header = source('command_table.h');
+  /* a row may name its text by a string constant of the header (STORE_EVERY_LABEL): read as the text */
+  const constants = [...source('command_table.h').matchAll(new RegExp(`inline constexpr std::string_view (\\w+) = ("${text}");`, 'g'))];
+  const header = constants.reduce((h, m) => h.replaceAll(`, ${m[1]},`, `, ${m[2]},`), source('command_table.h'));
   const categories = [...header.matchAll(new RegExp(`\\{CommandCategory::\\w+, ("${text}"), ("${text}"), (true|false), (true|false)\\}`, 'g'))]
     .map((m): CommandCategory => ({id: cString(m[1]), label: cString(m[2]), listed: m[3] === 'true', expanded: m[4] === 'true'}));
   const rows = [...header.matchAll(new RegExp(
