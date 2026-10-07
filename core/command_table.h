@@ -80,7 +80,7 @@ inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
 inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
-    {MAIN_MENU, 'c', "continue", "Continue integration", "Continue integration for specified time", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {}},
+    {MAIN_MENU, 'c', "continue", "Continue integration", "Extend the trajectory by a duration or to an end time (rounded up to the output grid)", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Alt+Enter"}},
     {MAIN_MENU, 'p', "parameters", "Parameters", "Change problem parameters", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 't', "total", "Integration duration", "Total time to integrate eqns", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 's', "start", "Start time", "Starting time -- T0", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},

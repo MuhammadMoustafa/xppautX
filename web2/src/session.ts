@@ -24,6 +24,7 @@ import {closeDesktopWindow} from './desktop';
 import {stepTarget} from './store/ani';
 import {snapshotWindow} from './store/kinescope';
 import {planRequest} from './store/table';
+import {continuePlan} from './store/steady';
 import type {TextTab} from './store/text';
 import {fieldKey, valueSetCommand, type ValueSet} from './store/values';
 import {autoSettingsSetCommand, type AutoSettingsPatch} from './store/autoSettings';
@@ -345,7 +346,20 @@ export class Session {
       this.failed(`The command ${menu}/${item} is not in the core's menus.`);
       return;
     }
+    if (menu === 'main' && item === 'continue') {
+      this.continueRun();
+      return;
+    }
     this.sendKeySequence({...menuCommand(menu, item), button: row.label}, then);
+  }
+
+  /** Continue (W213), the one way to continue: the toolbar's button, the command's key and a click on its
+      menu item all send the toolbar's field as `continue`; an input that cannot run says why in the status bar */
+  continueRun(): void {
+    const {continueInput, numerics, core, hello} = this.store.getState();
+    const plan = continuePlan(continueInput, numerics, core, hello);
+    if (plan.command) this.send(plan.command);
+    else this.store.dispatch({type: 'bottom', text: `Continue: ${core?.now ? plan.problem ?? 'no value' : 'run once before continuing'}`});
   }
 
   /** whether main-menu item `id` may go out now (may) */

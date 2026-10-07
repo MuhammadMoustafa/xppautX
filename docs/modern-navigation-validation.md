@@ -29,9 +29,9 @@ Test build: `build/xppautX-startup-fixed.exe`. The previously launched
 ### W193/W194 — Steady state and direct time controls
 
 What W192-W194 do is defined in [roadmap.md](roadmap.md); the evidence follows.
-The next ordinary integration clears a steady result; direct continuation
-stores every Dt so output stride cannot add a whole group of steps; legacy C
-remains compatible.
+The next ordinary integration clears a steady result; continuation
+(W213: the one Continue, the legacy C prompt gone) honours the output stride
+and rounds its end up to the output grid.
 
 Validation on the final native UCRT build:
 
@@ -194,7 +194,7 @@ dialog. No push or merge was performed.
 ### Permanent run toolbar (W192)
 
 Common actions now have one permanent home above the plot: Run from initial
-(I/G), Run from current (I/L), Continue (C), and Stop. The misleading former
+(I/G), Run from last state (I/L), Continue (C), and Stop. The misleading former
 Use current state tooltip said it copied without running; the core and the
 existing runs regression prove Last copies the last state into Initial and
 starts a new trajectory. The new label and manual describe that behavior.

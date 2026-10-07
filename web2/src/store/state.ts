@@ -6,6 +6,7 @@ import {pickModeOf, startPick, type PickState} from '../plot/pick';
 import type {AskEvent, Command, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
 import {isWindowKey} from '../protocol/kinds';
+import {CONTINUE_INPUT_DEFAULT, type ContinueInput} from './steady';
 import {
   coreMoved, initialPlots, onAppend, onDfield, onEnd, onMarks, onNullclines, onPlots, onSeries, onWindowRuns,
   rotate3d, select, setViewport, showRuns, windowOf, type PlotsState,
@@ -119,6 +120,8 @@ export interface AppState {
   theme: Theme;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
+  /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
+  continueInput: ContinueInput;
   /** which keymap the keyboard layer reads: 'xppaut' adds the XPPAUT sequences (F then S) to the default keys; page state only until W211 */
   keyPreset: KeyPreset;
   /** the keys of a chord typed so far ("F" of F, S), shown in the status bar; Esc or a focus change empties it */
@@ -174,6 +177,7 @@ export type Action =
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
+  | {type: 'continueInput'; input: ContinueInput}
   | {type: 'keyPreset'; preset: KeyPreset}
   | {type: 'pendingKeys'; keys: string[]}
   /** the page's own line in the status bar (a key that cannot act now says why) */
@@ -221,6 +225,7 @@ export const initialState: AppState = {
   nextToast: 1,
   theme: 'system',
   drawerOpen: false,
+  continueInput: CONTINUE_INPUT_DEFAULT,
   keyPreset: 'default',
   pendingKeys: [],
   values: initialValues,
@@ -571,6 +576,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, keyPreset: action.preset, pendingKeys: []};
     case 'pendingKeys':
       return action.keys.join(' ') === state.pendingKeys.join(' ') ? state : {...state, pendingKeys: action.keys};
+    case 'continueInput':
+      return action.input.mode === state.continueInput.mode && action.input.text === state.continueInput.text ? state : {...state, continueInput: action.input};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':

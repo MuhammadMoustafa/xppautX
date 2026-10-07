@@ -116,8 +116,8 @@ beside the plot (a sheet on a phone):
   last point of the latest run (read only). `Go` runs from Initial;
   `Last` (Initialconds/Last) copies Now into Initial, then runs;
   **Run from last state** in the permanent toolbar performs that same Last
-  action: it copies Now into Initial and runs. **Continue…** extends the
-  existing trajectory to a chosen end time instead. There is no
+  action: it copies Now into Initial and runs. **Continue** (Alt+Enter) extends the
+  existing trajectory by a duration or to a chosen end time instead. There is no
   copy-without-running action.
 - A value is set when you leave the field (Tab, Enter or a click
   elsewhere): the field shows it, and the next computation uses it. The

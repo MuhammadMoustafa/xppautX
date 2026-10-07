@@ -2,7 +2,7 @@
 import {useEffect, useState} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {fieldKey, inspectNumber, sentText} from '../store/values';
-import {continueDefault, continueEnd, NUM_TOTAL, numericsField, runInterval, steadyDefaults, steadyError, type SteadyInput} from '../store/steady';
+import {continuePlan, NUM_TOTAL, numericsField, runInterval, steadyDefaults, steadyError, type SteadyInput} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
 import {Field} from './Field';
 
@@ -32,31 +32,29 @@ export function RunToolbar() {
   /* what the user typed; anything else follows Run duration, Dt and the core time (steadyDefaults,
      continueDefault), and a new Run duration drops the typed values so no old limit survives it */
   const [steadyEdit, setSteadyEdit] = useState<Partial<SteadyInput>>({});
-  const [continueMode, setContinueMode] = useState<'extra' | 'until'>('extra');
-  const [continueEdit, setContinueEdit] = useState<string | null>(null);
-  useEffect(() => { setSteadyEdit({}); setContinueEdit(null); }, [total?.value]);
+  const continueInput = useStore(s => s.continueInput);
+  const numerics = useStore(s => s.numerics);
+  const setContinue = (input: typeof continueInput) => session.store.dispatch({type: 'continueInput', input});
+  useEffect(() => {
+    setSteadyEdit({});
+    session.store.dispatch({type: 'continueInput', input: {...session.store.getState().continueInput, text: null}});
+  }, [total?.value]);
   const totalValue = total?.value ?? null;
   const steady: SteadyInput | null = hello && totalValue !== null && Number.isFinite(interval) && interval > 0
     ? {...steadyDefaults(hello.steady, totalValue, interval), ...steadyEdit} : null;
-  const continueValue = continueEdit ?? (totalValue !== null ? continueDefault(continueMode, totalValue, core?.time) : null);
+  const continueKeys = hello?.command_table.find(row => row.id === 'continue')?.default_keys.join(' / ') ?? '';
+  const plan = continuePlan(continueInput, numerics, core, hello);
   const initialOff = !mayMain('initialconds');
   const currentOff = initialOff || !hasNow;
   const steadyProblem = steady && hello ? steadyError(steady, interval, hello.steady.max_decimals) : null;
   const steadyOff = !may({cmd: 'steady'}) || !steady || !!steadyProblem;
-  const continueNumber = Number(continueValue);
-  const continueDuration = continueMode === 'extra' ? continueNumber : continueNumber - Number(core?.time);
-  const tooShort = continueMode === 'extra' ? continueNumber < interval : continueNumber < Number(core?.time) + interval;
-  const continueProblem = continueValue !== null && (!continueValue.trim() || !Number.isFinite(continueDuration) || tooShort)
-    ? 'Choose at least one Dt of additional time.' : null;
-  const continueOff = !may({cmd: 'continue'}) || !hasNow || continueValue === null || !!continueProblem;
-  const continueEndsAt = continueMode === 'until' && hello && !continueProblem
-    ? continueEnd(continueNumber, Number(core?.time), interval, hello.continue.grid_tolerance) : undefined;
+  const continueOff = !may({cmd: 'continue'}) || !plan.command;
   const changeMode = (mode: 'extra' | 'until') => {
-    if (mode === continueMode) return;
-    const time = Number(core?.time);
-    if (Number.isFinite(time) && continueEdit !== null)
-      setContinueEdit(String(mode === 'until' ? time + continueNumber : continueNumber - time));
-    setContinueMode(mode);
+    if (mode === continueInput.mode) return;
+    const time = Number(core?.time), value = Number(plan.text);
+    if (Number.isFinite(time) && continueInput.text !== null)
+      setContinue({mode, text: String(mode === 'until' ? time + value : value - time)});
+    else setContinue({...continueInput, mode});
   };
   const result = core?.steady;
   const resultText = result?.status === 'settled' ? `State values stopped changing at ${result.decimals} decimal places.`
@@ -76,8 +74,8 @@ export function RunToolbar() {
         onClick={() => { if (!steadyOff && steady) session.send({cmd: 'steady', decimals: Number(steady.decimals), hold: Number(steady.hold), maximum: Number(steady.maximum)}); }}
         title={initialOff ? BUSY_TITLE : steadyProblem ?? 'Run from Initial until every state stops changing at the configured precision'}>Run to steady state</button>
       <button data-run="continue" aria-disabled={continueOff}
-        onClick={() => { if (!continueOff) session.send({cmd: 'continue', [continueMode]: continueNumber}); }}
-        title={!may({cmd: 'continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : continueProblem ?? 'Extend the existing trajectory using the time below (legacy C still asks for an end time)'}>Continue</button>
+        onClick={() => { if (!continueOff) session.continueRun(); }}
+        title={!may({cmd: 'continue'}) ? BUSY_TITLE : !hasNow ? 'Run once before continuing' : plan.problem ?? `Extend the existing trajectory using the time below (${continueKeys})`}>Continue</button>
       <button class="danger" data-run="stop" disabled={!busy || stopping} onClick={() => session.abort()}
         title="Stop the running command or cancel its prompt (Esc)">{stopping ? 'Stopping…' : 'Stop'}</button>
     </div>
@@ -85,11 +83,11 @@ export function RunToolbar() {
       {total && <label>Run duration <Field data-run-duration="" spec={{kind: 'number', positive: true}}
         value={sentDuration ?? String(total.value ?? '')} onCommit={text => session.setNumeric('total', text)}
         error={durationError} settling={sentDuration !== null} title="Total duration of Run from initial/last state, in model time units" /></label>}
-      <label>Continue <select aria-label="Continuation time mode" value={continueMode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
+      <label>Continue <select aria-label="Continuation time mode" value={continueInput.mode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>
-      </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={continueValue ?? ''}
-        onInput={setContinueEdit} error={hasNow ? continueProblem : null} />
-        {continueEndsAt !== undefined && <span class="continue-end" data-continue-end="">will end at t={inspectNumber(continueEndsAt)}</span>}</label>
+      </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={plan.text ?? ''}
+        onInput={text => setContinue({...continueInput, text})} error={plan.problem} />
+        {plan.end !== undefined && <span class="continue-end" data-continue-end="">will end at t={inspectNumber(plan.end)}</span>}</label>
     </div>
     {steady && hello && <details class="steady-settings">
       <summary>Steady: {steady.decimals} decimal places · hold {steady.hold} · limit {steady.maximum}</summary>

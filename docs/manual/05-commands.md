@@ -50,9 +50,10 @@ copies the last state into Initial and starts a new trajectory at the
 configured start time. **Run duration** edits their total duration in place.
 **Continue** extends the existing trajectory in one click: use the inline
 **For another** duration or **Until time** field. Both current-state actions
-require a prior run. Time uses the configured Dt grid; direct continuation
-stores every Dt, so the output stride cannot add a whole group of steps.
-The legacy `C` shortcut still asks for an end time and uses its original stride.
+require a prior run. Continue is one command (`C`, Alt+Enter, the button):
+it uses the toolbar's field, honours **Store every N steps** (one row per N
+steps) and rounds the end up to that output grid; "will end at t=" shows
+where an **Until time** really ends. It never asks a question.
 **Stop** stops a running command or cancels its prompt. The toolbar shows
 Idle/Running/Awaiting input and the last stored time in the active plot;
 stored time has sampled trajectory precision. Parameter edits apply to
@@ -140,7 +141,7 @@ This invokes a list of options for integrating the differential equations. The c
 
 ### (C)ontinue
 
-This allows you to continue integrating appending the data to the current curve. Type in the new ending time.
+This allows you to continue integrating appending the data to the current curve. In web2 it takes the toolbar's **For another** duration or **Until time** (Alt+Enter, or the Continue button) and asks nothing; the end is rounded up to the output grid (Dt times Store every N steps). Without a toolbar (a script's key `c`) it continues for another Total.
 
 ### (N)ullclines
 

@@ -39,7 +39,7 @@ initial (I/G), Run from last state (I/L), Run to steady state, Continue, and Sto
 the last state into Initial and starts a new trajectory at the configured
 start time. Inline Run duration and Continue For another / Until time fields
 make time changes immediate. Continue extends the existing trajectory in one
-click; legacy C retains its prompt. The steady action also runs in one click,
+click; it is the one Continue (W213), with no prompt. The steady action also runs in one click,
 with precision, hold and maximum visible in an optional settings disclosure.
 Its full-core unchanged-digits result describes why it stopped.
 These current-state actions require a previous run. Idle/Running/Awaiting

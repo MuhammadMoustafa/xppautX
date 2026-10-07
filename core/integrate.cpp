@@ -166,33 +166,6 @@ values[7] = yn[s.integrator.eq_range.mc];
  return(0);
 }
 
-void cont_integ(xpp::Session &s, std::optional<double> until)
-{
-  double tetemp;
-  double *x;
-  double dif;
-  if(s.numerics.inflag==0||s.numerics.fft!=0||s.numerics.hist!=0)return;
-  tetemp=s.numerics.tend;
-  wipe_rep(s.browser);
-  data_back(s);
-  if(until)tetemp=*until;
-  else if(new_float(s,"Continue until:",&tetemp)==-1)return;
-  x=&s.data_store.current[0];
-  if(until)dif=tetemp-s.data_store.current_time;
-  else{
-    tetemp=fabs(tetemp);
-    if(fabs(s.data_store.current_time)>=tetemp)return;
-    dif=tetemp-fabs(s.data_store.current_time);
-  }
-  s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  /* Direct time controls store every Dt, so store_every cannot extend their end
-     by a whole output group. The legacy prompt keeps its original stride. */
-  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,dif,s.numerics.delta_t,1,until?1:s.numerics.store_every,&s.integrator.my_start);
-  ping();
-  refresh_browser(s,s.data_store.rows);
-  if(!r)xpp::show_error(r.error());
-}
-
 namespace {
 /* what a range varies: item a parameter (PARAM) or else a variable (IC),
    and its index; 0 (and a message) when it is neither */
@@ -1453,17 +1426,34 @@ Result<> validate_steady_state(SteadyStateSettings settings, double dt, double s
 
 Result<> continue_to(Session &s, double until)
 {
-  const double interval=s.integrator.solver->traits().discrete?1:s.numerics.delta_t;
+  /* one output group: store_every steps of Dt (of 1, for a map); the run ends on a group boundary,
+     so the end is rounded up to the output grid and the stride is honoured */
+  const double interval=(s.integrator.solver->traits().discrete?1:s.numerics.delta_t)*s.numerics.store_every;
   const double duration=until-s.data_store.current_time;
   if(!s.numerics.inflag||s.numerics.fft||s.numerics.hist)
     return fail("continue","Needs a prior trajectory; disable FFT and histogram modes",command_place());
   if(!std::isfinite(until)||!std::isfinite(duration)||duration<=0||!std::isfinite(interval)||interval<=0||
      s.numerics.delta_t<=0||duration/interval>MAX_RUN_STEPS)
     return fail("continue","End time must be beyond the current time with a positive Dt and a step count that fits the integrator",command_place());
-  /* Round up to the next Dt grid point: never short of the end asked for. */
-  const double steps=std::ceil(duration/interval-CONTINUE_GRID_TOLERANCE);
-  cont_integ(s,s.data_store.current_time+std::max(steps,1.0)*interval);
-  return {};
+  /* Round up to the next grid point: never short of the end asked for. */
+  const double length=std::max(std::ceil(duration/interval-CONTINUE_GRID_TOLERANCE),1.0)*interval;
+  wipe_rep(s.browser);
+  data_back(s);
+  s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
+  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,&s.data_store.current[0],length,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
+  ping();
+  refresh_browser(s,s.data_store.rows);
+  return r.transform([](int){});
+}
+
+Result<> continue_for(Session &s, double extra)
+{
+  return continue_to(s,s.data_store.current_time+extra);
+}
+
+Result<> continue_total(Session &s)
+{
+  return continue_for(s,s.numerics.tend);
 }
 
 Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)

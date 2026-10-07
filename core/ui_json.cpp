@@ -553,12 +553,16 @@ const CommandInfo commands[] = {
     {"continue", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
         double value;
         const bool extra=js_find(line,"extra")!=nullptr, until=js_find(line,"until")!=nullptr;
-        if(extra==until||!js_number(js_find(line,extra?"extra":"until"),&value)||(extra&&value<=0)){
-            j_command_error("continue","Needs exactly one numeric end time or positive extra duration");
+        if(extra&&until){
+            j_command_error("continue","Takes an end time or an extra duration, not both");
+            return;
+        }
+        if((extra||until)&&!js_number(js_find(line,extra?"extra":"until"),&value)){
+            j_command_error("continue","The end time or extra duration must be a number");
             return;
         }
         show_main_menu(s, MAIN_MENU);
-        xpp::ok_or_show(xpp::continue_to(s,extra?s.data_store.current_time+value:value));
+        xpp::ok_or_show(!extra&&!until?xpp::continue_total(s):extra?xpp::continue_for(s,value):xpp::continue_to(s,value));
     }},
     {"steady", nullptr, X, STEP, [](xpp::Session &s, const char *line) {
         double decimals, hold, maximum;

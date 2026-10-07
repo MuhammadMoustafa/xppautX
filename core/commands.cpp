@@ -236,7 +236,7 @@ void run_the_commands(xpp::Session &s, int com)
     return;
   }
   if (com == M_C) {
-    xpp::cont_integ(s);
+    xpp::ok_or_show(xpp::continue_total(s));
     return;
   }
   if (com >= M_SG && com <= M_SC) {
@@ -448,7 +448,7 @@ void commander(xpp::Session &s, int ch)
   case MAIN_MENU:
     switch (ch) {
     case 'i': flash(0); ini_data_menu(s); flash(0); break;
-    case 'c': flash(1); xpp::cont_integ(s); flash(1); break;
+    case 'c': flash(1); xpp::ok_or_show(xpp::continue_total(s)); flash(1); break;
     case 'n': flash(2); new_clines(s); flash(2); break;
     case 'd': flash(3); direct_field(s); flash(3); break;
     case 'w': flash(4); window_zoom(s); flash(4); break;

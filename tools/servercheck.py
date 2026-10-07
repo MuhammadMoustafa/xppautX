@@ -335,8 +335,8 @@ def check_command_table(table):
           and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
           str(layer))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W208: Open model, Save session, Save session as, Reload model, Undo and Redo have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
-          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
+    check('W208, W213: Continue, Open model, Save session, Save session as, Reload model, Undo and Redo have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
+          chords == {'continue': ['Alt+Enter'], 'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
                      'undo': ['Ctrl+Z'], 'redo': ['Ctrl+Shift+Z', 'Ctrl+Y']}, str(chords))
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
@@ -1181,12 +1181,15 @@ if ask:
 LIVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'live.odex')
 
 
-def live_run(send, collect, key='i', answer=None):
-    """integrate (Initialconds/Go, or Continue) and return the series events of the command"""
-    send(cmd='key', key=key)
-    evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20 * SLOW)
-    if ask:
-        send(cmd='answer', id=ask['id'], **(answer or {'key': 'g'}))
+def live_run(send, collect, key='i', answer=None, command=None):
+    """integrate (Initialconds/Go, or the `command` given, as Continue) and return the series events of the command"""
+    if command:
+        send(**command)
+    else:
+        send(cmd='key', key=key)
+        evs, ask = collect(lambda e: e.get('ev') == 'ask', timeout=20 * SLOW)
+        if ask:
+            send(cmd='answer', id=ask['id'], **(answer or {'key': 'g'}))
     evs, _ = collect(is_idle, timeout=120 * SLOW)
     return [e for e in evs if e.get('ev') == 'series']
 
@@ -1233,7 +1236,7 @@ def check_live_series():
         again = check_appends('run again', ser, 0)
         check('run again: the same numbers', final is not None and again is not None
               and all(same_floats(final[c], again[c]) for c in final))
-        ser = live_run(send3, collect3, 'c', {'value': '2000'})
+        ser = live_run(send3, collect3, command={'cmd': 'continue', 'until': 2000})
         more = check_appends('Continue', ser, 20001)
         check('Continue: the rows before it are kept', more is not None and final is not None
               and all(same_floats(more[c][:20001], final[c]) for c in final))
@@ -1341,6 +1344,55 @@ def check_stable_navigation():
 
 
 check_stable_navigation()
+
+
+def check_continue():
+    """W213: one Continue: `continue` takes a duration or an end time, rounds the end up to the output
+    grid (Dt times Store every N steps), stores at that stride, and the old `C` prompt is gone"""
+    p, r, snd, col, _ = launch_server()
+
+    def command(**cmd):
+        snd(**cmd)
+        evs, _ = col(is_idle)
+        return evs, next((e for e in reversed(evs) if e.get('ev') == 'state'), {})
+    try:
+        col(is_idle)
+        snd(cmd='key', key='i')
+        _, ask = col(is_ask)
+        snd(cmd='answer', id=ask['id'], key='g')
+        col(is_idle)
+        _, st = command(cmd='state')
+        t0, rows0 = st['time'], st['rows']
+        evs, st = command(cmd='continue', extra=1)
+        check('W213: continue extra appends a Dt grid of rows from the core time',
+              abs(st['time'] - (t0 + 1)) < 1e-8 and st['rows'] == rows0 + 20 and not any(e.get('ev') == 'ask' for e in evs), str(st.get('time')))
+        t1, rows1 = st['time'], st['rows']
+        evs, st = command(cmd='continue', until=t1 + .02)
+        check('W213: continue until off the grid is rounded up to the next Dt and the state reports the end',
+              abs(st['time'] - (t1 + .05)) < 1e-8 and st['rows'] == rows1 + 1, str(st.get('time')))
+        t2, rows2 = st['time'], st['rows']
+        evs, _ = command(cmd='set', kind='num', name='store_every', value=3)
+        evs, st = command(cmd='continue', extra=1)
+        check('W213: with Store every 3 the end is rounded up to the output grid (7 groups of 3 Dt) and every third row is stored',
+              abs(st['time'] - (t2 + 1.05)) < 1e-8 and st['rows'] == rows2 + 7, '%s %s' % (st.get('time'), st.get('rows')))
+        t3, rows3 = st['time'], st['rows']
+        evs, st = command(cmd='continue', until=t3 + .2)
+        check('W213: continue until at that stride ends on an output grid point',
+              abs(st['time'] - (t3 + .3)) < 1e-8 and st['rows'] == rows3 + 2, '%s %s' % (st.get('time'), st.get('rows')))
+        t4, rows4 = st['time'], st['rows']
+        evs, st = command(cmd='key', key='c')
+        check('W213: the key c asks nothing (the legacy prompt is gone) and continues for another Total',
+              not any(e.get('ev') == 'ask' for e in evs) and abs(st['time'] - (t4 + 30)) < 1e-8 and st['rows'] == rows4 + 200, '%s %s' % (st.get('time'), st.get('rows')))
+        t5 = st['time']
+        for bad in (dict(extra=1, until=t5 + 1), dict(extra='1'), dict(until=t5 - 1), dict(extra=0)):
+            evs, st = command(cmd='continue', **bad)
+            check('W213: continue %r is an error and changes nothing' % (bad,),
+                  any(e.get('ev') == 'message' and e.get('error') for e in evs) and st.get('time') == t5, str(evs[-3:]))
+    finally:
+        stop_server(p, r, snd)
+
+
+check_continue()
 
 
 def box_of(v):

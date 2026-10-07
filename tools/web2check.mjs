@@ -3573,6 +3573,17 @@ async function navigationCheck() {
   check('navigation: switching continuation modes preserves the chosen duration', await cdp.eval(`Math.abs(Number(document.querySelector('[data-continue-time]').value) - ${nextTime}) < 1e-8`));
   await cdp.eval(`document.querySelector('[data-run=continue]').click()`);
   check('navigation: Until time runs in one click without a prompt', await until(`!s.busy && Math.abs(s.core.time - ${nextTime}) < 1e-8 && !s.ask`, 'until continuation', 20000));
+  /* W213: the command's key sends the toolbar's field as the one `continue`, never the legacy C prompt */
+  const afterUntil = nextTime + 10;
+  await cdp.eval(`(() => { const input = document.querySelector('[data-continue-time]'); input.value = '${afterUntil}'; input.dispatchEvent(new Event('input', {bubbles:true})); })()`);
+  await rendered();
+  const altMark = await cdp.eval('__xpp.sentCount()');
+  await focusPlot();
+  await key('Enter', 1);
+  check('W213: Alt+Enter continues with the toolbar field: one continue command, no key, no prompt',
+    await until(`!s.busy && Math.abs(s.core.time - ${afterUntil}) < 1e-8 && !s.ask`, 'Alt+Enter continuation', 20000)
+    && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${altMark})`)).filter(c => c.cmd !== 'state')) === JSON.stringify([{cmd: 'continue', until: afterUntil}]),
+    JSON.stringify(await cdp.eval(`__xpp.sentFrom(${altMark})`)));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
   /* W210: Ctrl+Z takes back a value edit exactly, without integrating; Ctrl+Shift+Z puts it back */

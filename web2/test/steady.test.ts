@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {continueDefault, continueEnd, numericsField, runInterval, steadyDefaults, steadyError} from '../src/store/steady';
+import {CONTINUE_INPUT_DEFAULT, continueDefault, continueEnd, continuePlan, numericsField, outputInterval, runInterval, steadyDefaults, steadyError} from '../src/store/steady';
 import {HELLO} from './hello';
 import {kindOf, mayStart} from '../src/protocol/kinds';
 
@@ -47,4 +47,27 @@ test('Continue until ends at the next interval from the core time, as the core r
   assert.ok(Math.abs(continueEnd(5.1, 5, 0.25, tol)! - 5.25) < 1e-12);   // at least one interval
   assert.equal(continueEnd(3, 3, 0.25, tol), undefined);          // nothing to continue
   assert.equal(continueEnd(4, 3, NaN, tol), undefined);
+});
+
+test('Continue honours Store every N steps: the end shown is on the output grid, and the command is the field as typed (W213)', () => {
+  const fields = (every: number) => [
+    {key: 'total', label: 'Total', value: 20}, {key: 'dt', label: 'Dt', value: 0.05}, {key: 'method', label: 'Method', value: 1, choices: ['Discrete', 'Euler']},
+    {key: 'store_every', label: 'Store every N steps', value: every, integer: true}];
+  assert.ok(Math.abs(outputInterval(fields(7)) - 0.35) < 1e-12);
+  assert.equal(outputInterval(fields(1)), 0.05);
+  assert.ok(Number.isNaN(outputInterval(null)));
+  const core = {time: 5, now: [1]} as unknown as Parameters<typeof continuePlan>[2];
+  const none = continuePlan(CONTINUE_INPUT_DEFAULT, fields(1), core, HELLO);
+  assert.deepEqual(none.command, {cmd: 'continue', extra: 20});   // the default is another Run duration
+  assert.equal(none.problem, null);
+  const until = continuePlan({mode: 'until', text: '6.1'}, fields(7), core, HELLO);
+  assert.deepEqual(until.command, {cmd: 'continue', until: 6.1});
+  assert.ok(Math.abs(until.end! - 6.4) < 1e-12);                   // 1.1 / 0.35 rounds up to 4 groups
+  for (const text of ['', 'x', '0', '5.01']) {
+    const bad = continuePlan({mode: 'until', text}, fields(1), core, HELLO);
+    assert.equal(bad.command, null);
+    assert.ok(bad.problem);
+  }
+  assert.equal(continuePlan(CONTINUE_INPUT_DEFAULT, fields(1), null, HELLO).command, null);   // nothing to continue yet
+  assert.equal(continuePlan(CONTINUE_INPUT_DEFAULT, fields(1), null, HELLO).problem, null);
 });

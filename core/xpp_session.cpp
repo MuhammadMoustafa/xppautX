@@ -691,7 +691,10 @@ xpp::Result<> apply_session(xpp::Session &s, SessionRead r, const SavedFile &f)
     s.random.load(r.random.generator); /* read_random proved it loads */
     /* the added columns computed over the data put in place, with the
        values just restored */
-    if (r.data && r.data->rows() > 0) refresh_browser(s, s.data_store.rows);
+    if (r.data && r.data->rows() > 0) {
+        refresh_browser(s, s.data_store.rows);
+        s.numerics.storflag = 1; /* a run stored these rows: Continue stores on (storing is not in the .set) */
+    }
 
     apply_marks(s, std::move(r.marks), slot);
     s.sliders=std::move(r.sliders);

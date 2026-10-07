@@ -124,7 +124,7 @@ All of it reachable by keyboard and announced for screen readers.
 | W210 | Value undo/redo stack (bounded snapshots of parameters, initial conditions and numerics) replacing the checkpoint; Run from last state pushes the old values |
 | W211 | `keymap.json` owner module, all-or-nothing load, protocol command, security checks |
 | W212 | Keymap editor dialog and pinned quick-access toolbar |
-| W213 | One Continue (honours the output stride, remove the legacy `C` prompt), docs and servercheck |
+| W213 | One Continue (honours the output stride, remove the legacy `C` prompt), docs and servercheck (done: Alt+Enter is `continue`'s default key) |
 
 Decided 2026-10-06: `nout` is renamed first (W206 before W207), so the format
 change is tested early and every later card builds on the new name. The UI

@@ -61,10 +61,12 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         after = next((e for e in reversed(got) if e.get('ev') == 'state'), None)
         check('invalid signed NaN precision is rejected before integer conversion',
               idle is not None and any(e.get('error') for e in got) and after and after['now'] == state['now'] and after['time'] == old_time, got[-3:])
+        # Continue honours Store every 7 (W213): it ends on a 7-Dt output group, here 0.35, rounded up
+        group = .35
         got, after = command(server, cmd='continue', extra=1)
-        check('extra duration continues from the full core time and appends rows',
-              after and abs(after['time'] - (old_time + 1)) < 1e-8 and after['rows'] > old_rows and 'steady' not in after, after)
-        target = after['time'] + 1
+        check('extra duration continues from the full core time, rounded up to the output grid, and appends rows',
+              after and abs(after['time'] - (old_time + 3 * group)) < 1e-8 and after['rows'] == old_rows + 3 and 'steady' not in after, after)
+        target = after['time'] + 3 * group
         got, until = command(server, cmd='continue', until=target)
         check('until time continues to the chosen end time without asking a question',
               until and abs(until['time'] - target) < 1e-8 and not any(e.get('ev') == 'ask' for e in got), until)
@@ -72,11 +74,11 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
             got, after = command(server, cmd='continue', **invalid)
             check('invalid continuation does not mutate current values or time',
                   any(e.get('error') for e in got) and after and after['now'] == until['now'] and after['time'] == until['time'], invalid)
-        got, one_step = command(server, cmd='continue', until=until['time'] + .05)
-        check('continuation: one Dt is accepted despite subtraction rounding',
-              one_step and abs(one_step['time'] - (until['time'] + .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
-        # An `until` off the Dt grid ends at the next grid point (never short); state.time reports it.
-        for ask, steps in ((.075, 2), (1.02, 21), (.5, 10)):
+        got, one_step = command(server, cmd='continue', until=until['time'] + group)
+        check('continuation: one output interval is accepted despite subtraction rounding',
+              one_step and abs(one_step['time'] - (until['time'] + group)) < 1e-8 and not any(e.get('error') for e in got), one_step)
+        # An `until` off the output grid ends at the next grid point (never short); state.time reports it.
+        for ask, steps in ((.075, 7), (1.02, 21), (.5, 14)):
             start = one_step['time']
             got, one_step = command(server, cmd='continue', until=start + ask)
             check('continuation: until %+g ends at the next Dt grid point, reported as state.time' % ask,

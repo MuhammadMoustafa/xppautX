@@ -134,6 +134,7 @@ test('a run forbids a data command: the key says why, in the status bar', () => 
 test('the keys of a command are listed from the table', () => {
   const row = (id: string) => HELLO.command_table.find(r => r.id === id)!;
   assert.equal(shortcutLabel(row('savesession'), 'default'), 'Ctrl+S');
+  assert.equal(shortcutLabel(row('continue'), 'default'), 'Alt+Enter');
   assert.equal(shortcutLabel(row('saveinfo'), 'default'), '');
   assert.equal(shortcutLabel(row('saveinfo'), 'xppaut'), 'F S');
   assert.equal(shortcutLabel(row('initialconds'), 'xppaut'), 'I');

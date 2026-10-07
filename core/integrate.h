@@ -81,8 +81,13 @@ void send_halt(Session &s);
 void write_equilibrium(Session &s, const char *name, int shoot);
 void init_range(Session &s);
 int set_up_eq_range(Session &s);
-void cont_integ(Session &s, std::optional<double> until = std::nullopt);
+/* Continue (W213), the one way to extend the trajectory: to the time `until`, or for `extra` more,
+   either rounded up to the output grid (Dt times Store every N steps) and appending rows at that
+   stride; the end reached is the state's time */
 Result<> continue_to(Session &s, double until);
+Result<> continue_for(Session &s, double extra);
+/* ... for another Total (Run duration): the key c, a user button's `c`, a `continue` with no value */
+Result<> continue_total(Session &s);
 int range_item(Session &s);
 int range_item2(Session &s);
 int set_up_range(Session &s);
