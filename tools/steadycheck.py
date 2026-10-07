@@ -74,14 +74,19 @@ with tempfile.TemporaryDirectory(prefix='xpp-steady-') as temp:
         got, until = command(server, cmd='continue', until=target)
         check('until time continues to the chosen end time without asking a question',
               until and abs(until['time'] - target) < 1e-8 and not any(e.get('ev') == 'ask' for e in got), until)
-        for invalid in [dict(extra=0), dict(until=target - 1), dict(extra=1, until=target + 1), dict(extra='1'),
-                         dict(until=until['time'] + .075), dict(until=until['time'] + 1.02)]:
+        for invalid in [dict(extra=0), dict(until=target - 1), dict(extra=1, until=target + 1), dict(extra='1')]:
             got, after = command(server, cmd='continue', **invalid)
             check('invalid continuation does not mutate current values or time',
                   any(e.get('error') for e in got) and after and after['now'] == until['now'] and after['time'] == until['time'], invalid)
         got, one_step = command(server, cmd='continue', until=until['time'] + .05)
         check('continuation: one Dt is accepted despite subtraction rounding',
               one_step and abs(one_step['time'] - (until['time'] + .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
+        # An `until` off the Dt grid ends at the next grid point (never short); state.time reports it.
+        for ask, steps in ((.075, 2), (1.02, 21), (.5, 10)):
+            start = one_step['time']
+            got, one_step = command(server, cmd='continue', until=start + ask)
+            check('continuation: until %+g ends at the next Dt grid point, reported as state.time' % ask,
+                  one_step and abs(one_step['time'] - (start + steps * .05)) < 1e-8 and not any(e.get('error') for e in got), one_step)
         # An ordinary legacy run remains unchanged and clears the transient result.
         server.send(cmd='key', menu='main', item='initialconds')
         got, ask = server.collect(lambda e: e.get('ev') == 'ask')

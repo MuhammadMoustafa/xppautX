@@ -1457,12 +1457,11 @@ Result<> continue_to(Session &s, double until)
   if(!s.numerics.inflag||s.numerics.fft||s.numerics.hist)
     return fail("continue","Needs a prior trajectory; disable FFT and histogram modes",command_place());
   if(!std::isfinite(until)||!std::isfinite(duration)||duration<=0||!std::isfinite(interval)||interval<=0||
-     s.numerics.delta_t<=0||(duration<interval&&until<s.data_store.current_time+interval)||duration/interval>MAX_RUN_STEPS)
-    return fail("continue","End time must be at least one positive Dt beyond the current time, with a step count that fits the integrator",command_place());
-  const double steps=duration/interval;
-  if(std::fabs(steps-std::round(steps))>CONTINUE_GRID_TOLERANCE)
-    return fail("continue",format("End time must be a whole number of Dt ({}) beyond the current time",interval),command_place());
-  cont_integ(s,until);
+     s.numerics.delta_t<=0||duration/interval>MAX_RUN_STEPS)
+    return fail("continue","End time must be beyond the current time with a positive Dt and a step count that fits the integrator",command_place());
+  /* Round up to the next Dt grid point: never short of the end asked for. */
+  const double steps=std::ceil(duration/interval-CONTINUE_GRID_TOLERANCE);
+  cont_integ(s,s.data_store.current_time+std::max(steps,1.0)*interval);
   return {};
 }
 

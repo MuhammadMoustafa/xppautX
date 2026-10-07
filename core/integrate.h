@@ -28,11 +28,10 @@ inline constexpr double DEFAULT_STEADY_HOLD = 1; /* One model-time unit of uncha
 /* The integrator's iteration counters are int; a run of more steps than
    this (less one for its rounding) cannot be counted. */
 inline constexpr double MAX_RUN_STEPS = std::numeric_limits<int>::max() - 1;
-/* How far from a whole number of Dt a direct `continue until` may lie, as
-   a fraction of Dt: the integrator's own rounding of a run to its grid
-   (integrate()'s nit adds .1 Dt), so a longer remainder is refused rather
-   than silently dropped. */
-inline constexpr double CONTINUE_GRID_TOLERANCE = .1;
+/* How far above a whole number of Dt a direct `continue until` may lie, as
+   a fraction of Dt, and still count as on the grid (the rounding noise of
+   subtracting two times); any more rounds up to the next grid point. */
+inline constexpr double CONTINUE_GRID_TOLERANCE = 1e-6;
 struct SteadyStateSettings {
   int decimals;
   double hold, maximum;
