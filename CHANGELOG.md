@@ -58,6 +58,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- Playing a recording no longer makes the keymap read as the defaults (the user's keymap file is no longer served from the recording or recorded as a file the model read), and the keymap's folder is made when the working folder is on another drive on Windows (W220, [#274](https://github.com/MuhammadMoustafa/xppautX/issues/274)).
 - A name that clashes with a member of an array (`x[1..3]'=-x[j]` then `par x2=5`) is refused with `x2 is already a member of the array x[1..3]` at the later declaration, and a clash of two plain names shows the name as written, not in capitals, in `.ode` and `.odex` alike (W214, [#245](https://github.com/MuhammadMoustafa/xppautX/issues/245)).
 
 ### Build

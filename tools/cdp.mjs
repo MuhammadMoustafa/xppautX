@@ -158,6 +158,15 @@ export async function waitFor(read, timeoutMs = WAIT_TIMEOUT_MS) {
   }
 }
 
+/* The checks type XPPAUT's one-letter sequences (I, G, F then S): the preset that gives them is the user's
+   keymap (the core's, W211), off in a new settings folder; only the keymap sections test it off. Set through
+   the page and waited for until the core reports it (W220: web2check and uiworkflowcheck share this one). */
+export async function xppautSequences(cdp) {
+  await cdp.eval(`__xpp.keyPreset('xppaut')`);
+  if (!await waitFor(() => cdp.eval(`__xpp.state().keymap.info.preset === 'xppaut'`)))
+    throw new Error('the keymap preset was not set');
+}
+
 /* Draw and frame timing (W58: the program itself carries no code that
    exists only to measure or slow it -- performance is for CI). Injected
    into every document the page navigates to (Page.addScriptToEvaluateOnNewDocument

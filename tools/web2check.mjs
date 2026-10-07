@@ -89,7 +89,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {findBrowser, installPerfObserver, waitFor, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
+import {findBrowser, installPerfObserver, waitFor, xppautSequences, waitForExit, startBrowser, startServer, startWebView2, stopServer} from './cdp.mjs';
 
 const top = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const opt = {bin: `xppautX${process.platform === 'win32' ? '.exe' : ''}`};
@@ -208,16 +208,8 @@ async function reloadPage() {
   await cdp.eval('window.__left = true').catch(() => {});
   await cdp.send('Page.reload');
   const loaded = await until('!window.__left && s.hello', 'the reloaded page', 30000 * SLOW);
-  await xppautSequences();
+  await xppautSequences(cdp);
   return loaded;
-}
-
-/* the checks type XPPAUT's letters (I, G, F then S): the preset that gives them is the user's keymap (the
-   core's, W211), default in a new settings folder; only the keymap sections test it off */
-async function xppautSequences() {
-  await cdp.eval(`__xpp.keyPreset('xppaut')`);
-  if (!await until(`s.keymap.info.preset === 'xppaut'`, 'the XPPAUT preset set by the core'))
-    throw new Error('the keymap preset was not set');
 }
 
 async function metrics(value) {
@@ -3399,7 +3391,7 @@ async function playerCheck(dir) {
   check('player: Dismiss hides the banner', await until(`s.player.dismissed && !document.querySelector('.player-changed')`, 'dismissed'));
   /* W150: a view over the plots (AUTO) still has the player: caption, controls, step list in a dock; Close AUTO takes it back */
   await key('f');
-  await until('!s.busy', 'file menu (player)');
+  await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu (player)');
   await key('a');
   await until('s.diagram.open && s.diagram.shown && !s.busy', 'auto open (player)', 20000);
   check('player: over the AUTO view the caption, controls and step list are still on the page (a dock), one set of each',
@@ -3676,7 +3668,7 @@ async function keymapCheck() {
   await key('Escape');
   await until('!s.ask && !s.busy', 'the picker cancelled');
   /* what the system and the browser keep is never bound, whatever the preset */
-  await xppautSequences();
+  await xppautSequences(cdp);
   mark = await cdp.eval('__xpp.sentCount()');
   const reserved = await cdp.eval(`(() => [['F4', {altKey: true}], ['w', {ctrlKey: true}], ['q', {ctrlKey: true}], ['F11', {}], ['F12', {}], ['F5', {}]]
     .map(([key, mods]) => !document.querySelector('.plot-host').dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true, ...mods}))))()`);
@@ -3823,7 +3815,8 @@ async function keymapEditorCheck() {
     await cdp.eval(`(() => { const p = document.querySelector('[data-keymap-preset]'); p.value = 'xppaut'; p.dispatchEvent(new Event('change', {bubbles: true})); })()`);
     check('keymapeditor: Preset: XPPAUT sequences is the user\'s preset', await until(`s.keymap.info.preset === 'xppaut'`, 'preset'));
     await click('[data-key-pin="help"]');
-    await until(`s.keymap.info.pinned.join() === 'help'`, 'first pin');
+    /* the click handler closes over the rendered table: wait for the page to show the first pin (W220) */
+    await until(`s.keymap.info.pinned.join() === 'help' && document.querySelector('[data-key-pin=help]')?.getAttribute('aria-pressed') === 'true'`, 'first pin');
     await click('[data-key-pin="steady"]');
     check('keymapeditor: Pin to toolbar pins Help and Run to steady state, in that order',
       await until(`s.keymap.info.pinned.join() === 'help,steady'`, 'pinned') && await cdp.eval(`document.querySelector('[data-key-pin=help]').getAttribute('aria-pressed') === 'true'`));
@@ -5650,7 +5643,7 @@ async function sessionAttempt(ode, fn, expected, attempts) {
     await cdp.eval('window.__left = true').catch(() => {});
     await cdp.send('Page.navigate', {url: server.url});
     await until('!window.__left && s.hello && s.core && !s.busy', 'the new page', 60000);
-    if (fn !== keymapCheck && fn !== keymapEditorCheck) await xppautSequences();
+    if (fn !== keymapCheck && fn !== keymapEditorCheck) await xppautSequences(cdp);
     await fn(dir);
     const errors = (await S('__xpp.log().filter(l => l.kind === "error").map(l => l.text)')).filter(e => !expected.includes(e));
     check(`${path.basename(ode)}: no errors reported by the core`, errors.length === 0, JSON.stringify(errors));

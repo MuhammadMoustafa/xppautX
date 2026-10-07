@@ -72,6 +72,8 @@ bool make_dirs(std::string_view path)
     for (std::size_t end = 1; end <= path.size(); end++) {
         if (end != path.size() && path[end] != '/' && path[end] != SEP) continue;
         const std::string part(path.substr(0, end));
+        /* a bare drive ("C:") is no folder to make or test: stat fails on it and mkdir is refused (W220) */
+        if (part.size() == 2 && part[1] == ':' && std::isalpha(static_cast<unsigned char>(part[0]))) continue;
         if (!is_dir(part) && make_dir(part.c_str()) != 0 && errno != EEXIST) return false;
     }
     return true;

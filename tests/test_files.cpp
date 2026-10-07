@@ -85,6 +85,15 @@ int main()
         CHECK_STR(c.hex().c_str(), "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
     }
 
+    /* W220: make_dirs on an absolute path (a drive on Windows) with mixed separators, whatever the working folder's drive */
+    {
+        xpp::TempDir t;
+        const std::string deep = t.path() + "/one\\two/three";
+        CHECK(xpp::files::make_dirs(deep));
+        CHECK(xpp::files::is_dir(deep));
+        CHECK(xpp::files::make_dirs(deep)); /* already there */
+    }
+
     /* W121b: one basename suffix rule, including the bare-extension edge. */
     CHECK(xpp::files::has_extension("dir/model.ODEX", ".odex"));
     CHECK(!xpp::files::has_extension(".odex", ".odex"));

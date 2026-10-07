@@ -164,7 +164,9 @@ void check_file(const std::string &dir)
     xpp::keymap::Keymap map;
     map.bindings["reload"] = {"Ctrl+B"};
     map.pinned = {"help"};
-    CHECK(xpp::keymap::save(map).has_value());
+    const auto saved = xpp::keymap::save(map);
+    if (!saved) std::fprintf(stderr, "save: %s\n", saved.error().text().c_str()); /* why, when it fails (W220) */
+    CHECK(saved.has_value());
     CHECK(xpp::files::exists(file));
     auto loaded = xpp::keymap::load_keymap();
     CHECK(loaded && loaded->bindings == map.bindings && loaded->pinned == map.pinned);

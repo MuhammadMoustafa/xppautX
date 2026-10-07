@@ -501,8 +501,25 @@ struct FileServer {
     bool (*write)(std::string_view path, bool opening, int kind) = nullptr;
 } read_server;
 
+/* a file in the per-user settings folder (the keymap): the user's, not the model's, so a replay neither serves
+   it from the recording nor records it as a file the model read (W220: the keymap hello sent while a
+   recording opened could not read keymap.json and said "default") */
+bool user_settings(std::string_view path)
+{
+    const std::string folder = xpp::files::config_dir();
+    if (folder.empty() || !xpp::files::is_absolute(path)) return false;
+    const auto relative = std::filesystem::path(path).lexically_normal().lexically_relative(std::filesystem::path(folder).lexically_normal());
+    return !relative.empty() && *relative.begin() != "..";
+}
+
 /* a read the server has a say in */
-bool served_read(std::string_view path) { return read_server.read && !xpp::files::is_scratch(path); }
+bool served_read(std::string_view path) { return read_server.read && !user_settings(path) && !xpp::files::is_scratch(path); }
+
+/* a read the observer is told of */
+void observe_read(std::string_view path)
+{
+    if (read_observer && !user_settings(path)) read_observer(std::string(path));
+}
 
 } // namespace
 
@@ -547,7 +564,7 @@ FILE *open_read_within(std::string_view path, std::string_view folder)
     unsigned long long size;
     const int status = open_plain(checked.string().c_str(), fp, size);
     if (status != XPP_FILES_OK) { errno = status == XPP_FILES_NOT_FOUND ? ENOENT : EACCES; return nullptr; }
-    if (read_observer) read_observer(std::string(path));
+    observe_read(path);
     return fp.release();
 }
 
@@ -570,7 +587,7 @@ FILE *open_stream(std::string_view path, const char *mode)
         xpp::out_of_memory("serving a file");
     }
     FILE *f = std::fopen(served ? copy.c_str() : name.c_str(), mode);
-    if (f && read_observer && reading) read_observer(name);
+    if (f && reading) observe_read(name);
     return f;
 }
 
