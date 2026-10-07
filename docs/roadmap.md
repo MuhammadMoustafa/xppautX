@@ -850,7 +850,7 @@ Design: [command-design.md](command-design.md).
 | W205 | #259 | web2 fixes: trace colours, run-control defaults, key handling, until end shown | W203 | done |
 | W206 | #260 | Rename `nout` to `store_every` ("Store every N steps"), code names too | none | done (verify.sh and the UCRT build green; an embedded-snapshot gap and the XPPAUT set import fixed with W215) |
 | W207 | #261 | One command table (core/command_table.h; sidebar, search, native menus, hello) | W206 | done |
-| W208 | #262 | Key layer over the command table | W207 | in-progress |
+| W208 | #262 | Key layer over the command table | W207 | done |
 | W209 | #263 | Save / Save as | W207 | done |
 | W210 | #264 | Value undo/redo | W207 | open |
 | W211 | #265 | keymap.json | W208 | in-progress |
