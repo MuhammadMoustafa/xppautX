@@ -12,7 +12,7 @@ test('hello gives the keymap: the table\'s keys, nothing pinned, all default', (
   assert.equal(initialState.keymap.info, null);
   assert.equal(READY.keymap.info, HELLO.keymap);
   assert.deepEqual(keysOf(READY.keymap, 'openmodel'), ['Ctrl+O']);
-  assert.deepEqual(keysOf(READY.keymap, 'reload'), []);
+  assert.deepEqual(keysOf(READY.keymap, 'reload'), ['Ctrl+R']);
   assert.deepEqual(keysOf(READY.keymap, 'nosuch'), []);
   assert.deepEqual(userKeymap(HELLO.keymap), {preset: 'default', pinned: [], bindings: {}});
 });

@@ -6146,7 +6146,7 @@ def check_keymap():
         cmds = by_id(km)
         check("W211: hello gives the default keymap when there is no file: ok, preset default, nothing pinned, the table's keys, all source default",
               km['ok'] is True and km['preset'] == 'default' and km['pinned'] == [] and same(km['path'], path)
-              and cmds['openmodel']['keys'] == ['Ctrl+O'] and cmds['reload']['keys'] == []
+              and cmds['openmodel']['keys'] == ['Ctrl+O'] and cmds['reload']['keys'] == ['Ctrl+R']
               and all(c['source'] == 'default' for c in cmds.values()) and 'file' not in cmds, str(km)[:300])
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
               'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 2, 'key_bytes': 64},
@@ -6216,7 +6216,7 @@ def check_keymap():
         check('W211: a bad file is an error with its file, line and value; the keymap is the defaults, marked, nothing applied; no message event',
               len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == 3 and 'Ctrl+Q' in km['error']
               and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and km['preset'] == 'default'
-              and by_id(km)['reload']['keys'] == [] and not errors(evs), str(evs)[-400:])
+              and by_id(km)['reload']['keys'] == ['Ctrl+R'] and not errors(evs), str(evs)[-400:])
         snd(cmd='keymap', op='set', map={'pinned': ['help']})
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
