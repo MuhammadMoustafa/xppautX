@@ -19,6 +19,7 @@ export interface HelloEvent {
   file: string;
   output_names: {par: string; ic: string; csv: string; curves: string};
   state_inspection: {tail_intervals: number};
+  continue: {grid_tolerance: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};
   /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
   about: string;

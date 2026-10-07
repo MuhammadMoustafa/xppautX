@@ -2,7 +2,7 @@
 import {useEffect, useState} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {fieldKey, inspectNumber, sentText} from '../store/values';
-import {continueDefault, NUM_TOTAL, numericsField, runInterval, steadyDefaults, steadyError, type SteadyInput} from '../store/steady';
+import {continueDefault, continueEnd, NUM_TOTAL, numericsField, runInterval, steadyDefaults, steadyError, type SteadyInput} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
 import {Field} from './Field';
 
@@ -49,6 +49,8 @@ export function RunToolbar() {
   const continueProblem = continueValue !== null && (!continueValue.trim() || !Number.isFinite(continueDuration) || tooShort)
     ? 'Choose at least one Dt of additional time.' : null;
   const continueOff = !may({cmd: 'continue'}) || !hasNow || continueValue === null || !!continueProblem;
+  const continueEndsAt = continueMode === 'until' && hello && !continueProblem
+    ? continueEnd(continueNumber, Number(core?.time), interval, hello.continue.grid_tolerance) : undefined;
   const changeMode = (mode: 'extra' | 'until') => {
     if (mode === continueMode) return;
     const time = Number(core?.time);
@@ -86,7 +88,8 @@ export function RunToolbar() {
       <label>Continue <select aria-label="Continuation time mode" value={continueMode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>
       </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={continueValue ?? ''}
-        onInput={setContinueEdit} error={hasNow ? continueProblem : null} /></label>
+        onInput={setContinueEdit} error={hasNow ? continueProblem : null} />
+        {continueEndsAt !== undefined && <span class="continue-end" data-continue-end="">will end at t={inspectNumber(continueEndsAt)}</span>}</label>
     </div>
     {steady && hello && <details class="steady-settings">
       <summary>Steady: {steady.decimals} decimal places · hold {steady.hold} · limit {steady.maximum}</summary>

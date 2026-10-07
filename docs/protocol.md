@@ -169,7 +169,7 @@ without a prompt. Exactly one numeric extra/until field is required; the
 additional duration must be positive and at least one Dt, with finite times
 and counts. Requires a prior trajectory, positive Dt and no histogram/FFT.
 Direct continuation stores every Dt; numerical settings stay unchanged.
-End time is resolved on the configured Dt grid. The legacy C command keeps
+An `until` that is not on the Dt grid is rounded up to the next grid point (never short of the end asked for; a value within 1e-6 Dt of a grid point counts as on it), and the end actually reached is the `time` of the `state` event that follows. `hello.continue.grid_tolerance` carries that 1e-6 so the page shows the end before the command runs. The legacy C command keeps
 its prompt and output-stride behavior. Both commands are compute actions
 (`kind: X`) and recording steps with their raw command fields.
 

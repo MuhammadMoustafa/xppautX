@@ -11,6 +11,12 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- Continue until rounds the end up to the next Dt grid point, never short of the end asked for (a value within 1e-6 Dt of a grid point counts as on it); the run toolbar shows "will end at t=..." beside the field, from the core's own rule (W204, W205, [#258](https://github.com/MuhammadMoustafa/xppautX/issues/258)).
+
+- 2D Fit includes retained earlier runs, as 3D Fit did, from one bounds owner (W204, [#258](https://github.com/MuhammadMoustafa/xppautX/issues/258)).
+
+- Fix trace colour editing: Apply keeps a trace's own colour unless a new one was picked; run-control defaults follow Run duration, Dt and the core time; shortcuts act only when they can, and busy says why in the status bar (W205, [#259](https://github.com/MuhammadMoustafa/xppautX/issues/259)).
+
 - Start opened recordings automatically, show playback controls above plots/AUTO, and restore the step list when the desktop page connects after launch; use the established Continue menu command in the sandbox recording and include its AUTO diagram in both demo files (W201).
 - Show sampled tail rates for every state, independently of plotted columns, during a run and after snapshot loading (W202).
 - Refresh all state values from full-precision solver output while integrating, independently of plotted variables and stored trajectory filters (W200).

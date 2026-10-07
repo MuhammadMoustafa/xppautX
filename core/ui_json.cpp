@@ -936,6 +936,7 @@ void send_hello(xpp::Session &s)
     buf_str(&b, m.this_file);
     buf_format(&b, ",\"steady\":{{\"max_decimals\":{},\"default_decimals\":{},\"default_hold\":{}}}",
         xpp::MAX_STEADY_DECIMALS,xpp::DEFAULT_STEADY_DECIMALS,xpp::DEFAULT_STEADY_HOLD);
+    buf_format(&b, ",\"continue\":{{\"grid_tolerance\":{}}}", xpp::CONTINUE_GRID_TOLERANCE);
     buf_format(&b, ",\"state_inspection\":{{\"tail_intervals\":{}}}", STATE_TAIL_INTERVALS);
     BUF_LIT(&b, ",\"output_names\":{");
     static constexpr struct { std::string_view key, ext, what; } names[]={

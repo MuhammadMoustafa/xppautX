@@ -99,6 +99,9 @@ value stops the load with the file, line and value, and nothing is applied.
 | Data output | `output.dat`, the Data browser's Write | `.dat` unchanged, CSV with a header row, CSV.gz and NPZ from one registry; the Save data dialog lists them | W52, W26 |
 | Delete added data columns | unconditional placeholder ([finding 37](xppaut-findings.md#37-delete-column-is-an-unconditional-placeholder)) | removes added columns safely; rejects time/model columns and columns used by plots; remaining formulas recompute | W197 |
 | Plot retention and legends | native menus and separate frozen-curve commands | Freeze controls next-run retention; Continue appends; Fit preserves older runs; individual legend visibility and hover feedback; double click edits the local legend name/colour | W199 |
+| Fit with retained runs | Fit rescales to the live data only | 2D Fit includes visible retained earlier runs, as 3D Fit does (W204, #258) |
+| Continue until | an end time off the Dt grid stops where the integrator's step count falls | `until` is rounded up to the next Dt grid point, never short; the page shows "will end at t=" first, the `state` event's `time` is the end reached (W204, #258) |
+| Run from last state | Initial conditions > (L)ast, with its prompt | Run from current: one toolbar button that starts a new run from the last state (W192, #246) |
 | Axis editing and dismissal | Viewaxes menu and explicit Cancel | 2D axis labels and 3D controls open the existing variables/limits editor; AUTO axis popovers and dialogs dismiss with × or outside click | W196, W198 |
 | Saving what the plot shows | not verified | curves, frozen and earlier ones as one table (`curve,x,y[,z]`) | W52 |
 | Who writes files | the X client and the core | the core only; the page just downloads | W66 |

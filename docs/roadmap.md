@@ -734,9 +734,9 @@ organized by user tasks; existing one-letter shortcuts remain available.
 
 All six cards remain open pending review and integration of `codex/modern-navigation`.
 
-### W192 — Consolidate common run actions (approved 2026-10-04)
+### W192 — Consolidate common run actions (approved 2026-10-04) — #246
 
-Local follow-up card; no additional GitHub issue published. Depends on W186–W191.
+Depends on W186–W191.
 Permanent initial/current/continue/stop toolbar; remove repeated run controls;
 keep Values as the parameter/solver editing home and Files as the session
 home; retain every command in search and preserve legacy shortcuts.
@@ -745,9 +745,9 @@ to the existing trajectory, unavailable/busy actions are guarded, recording
 and responsive layouts work. Implemented locally; validation recorded in
 [modern-navigation-validation.md](modern-navigation-validation.md).
 
-### W193 — One-click run to unchanged digits (approved 2026-10-04)
+### W193 — One-click run to unchanged digits (approved 2026-10-04) — #247
 
-Local follow-up card; depends on W192. Compare every state, using full core
+Depends on W192. Compare every state, using full core
 values rounded to the selected decimal places (default 9), with its previous
 Dt interval. Require an uninterrupted hold in model time; reset the hold on
 any changed state. Stop at the maximum duration, storage capacity, invalid
@@ -756,16 +756,16 @@ in an optional toolbar disclosure and report the termination reason.
 Implemented locally; core, protocol and UI validation are recorded in
 [modern-navigation-validation.md](modern-navigation-validation.md).
 
-### W194 — Inline run and continuation time (approved 2026-10-04)
+### W194 — Inline run and continuation time (approved 2026-10-04) — #248
 
-Local follow-up card; depends on W192. Edit Run duration in place. Continue
+Depends on W192. Edit Run duration in place. Continue
 in one click either For another duration or Until time, using current core
 time. Keep the legacy C prompt and numerical settings. Prevent output stride
 from overshooting direct continuation; direct continuation stores every Dt.
-Time is resolved on the configured Dt grid. Implemented locally; validation
+Time is rounded up to the next Dt grid point (W204). Implemented locally; validation
 is recorded in [modern-navigation-validation.md](modern-navigation-validation.md).
 
-### W195 — Restore model selection and closing before model load (approved 2026-10-04)
+### W195 — Restore model selection and closing before model load (approved 2026-10-04) — #249
 
 Local regression card. Starting with no model asks for a file before hello;
 allow that answer and cancellation to reach the core. Close an unloaded
@@ -773,27 +773,27 @@ desktop session directly, without asking to save it. Cover startup selection,
 cancellation and closing independently from the already-loaded-model checks.
 Implemented locally; evidence in modern-navigation-validation.md.
 
-### W196 — Shortcut case and consistent dismissal (approved 2026-10-04)
+### W196 — Shortcut case and consistent dismissal (approved 2026-10-04) — #250
 
 Accept capital letters when only the lowercase command exists, preserving
 explicit case distinctions. Show Caps Lock in the status bar. Add × and
 outside-click cancellation to core dialogs, slider/AUTO settings, errors
 and updates. Keep focus restoration and Escape. Implemented locally.
 
-### W197 — Delete added data columns (approved 2026-10-04)
+### W197 — Delete added data columns (approved 2026-10-04) — #251
 
 Replace the inherited placeholder. Delete added columns only, reject columns
 still used by a plot, shift owned storage and axis indices safely, and retain
 the remaining formulas. Validate values before and after a fresh run.
 Implemented locally; see the workflow check and upstream finding 37.
 
-### W198 — Direct axis editing (approved 2026-10-04)
+### W198 — Direct axis editing (approved 2026-10-04) — #252
 
 Open the existing core variables/limits form from main/additional 2D axis
 labels and 3D X/Y/Z controls. Reuse AUTO's existing axis editor with × and
 outside dismissal. Implemented locally.
 
-### W199 — Retained runs, editable legends and dropdown dismissal (approved 2026-10-04)
+### W199 — Retained runs, editable legends and dropdown dismissal (approved 2026-10-04) — #253
 
 Freeze controls whether the next new run keeps older trajectories; Continue
 extends the current run. Fit/Redraw preserve history; 2D Fit includes visible
@@ -811,7 +811,7 @@ Protocol retention regression:
 [1582c750](https://github.com/MuhammadMoustafa/xppautX/commit/1582c750).
 These commits are local until the branch is published.
 
-### W200 — All-state live integration values and sandbox fixtures (approved 2026-10-06)
+### W200 — All-state live integration values and sandbox fixtures (approved 2026-10-06) — #254
 
 The States panel must show every state at the current accepted output step,
 independently of active plot columns and transient/Poincare storage filtering.
@@ -820,7 +820,7 @@ initial conditions and solver behavior unchanged, and verify every output step
 using the deterministic no-throttle check hook. Create and replay a portable
 PY_S1Bf recording and reload its saved session with trajectory data.
 
-### W201 — Sandbox playback, startup and AUTO example (approved 2026-10-06)
+### W201 — Sandbox playback, startup and AUTO example (approved 2026-10-06) — #255
 
 Reproduce `Unknown command continue` at step 3 against the user's older root
 executable. Record C → Continue until 400 through the existing menu owner;
@@ -830,10 +830,30 @@ automatically; retain explicit paused opening/restart for automation and review.
 Place controls above the plot and at the top of full views, avoid the empty-list
 Play again label, and resend the recording's metadata on page subscription.
 
-### W202 — Tail rates for all states (approved 2026-10-06)
+### W202 — Tail rates for all states (approved 2026-10-06) — #256
 
 Compute recent motion from all state columns in the storage owner, independently
 of active plot subscriptions. Publish every state's rate during live updates and
 in the final/snapshot state, preserve the ten-stored-interval definition and
 label float32 sampled differences clearly. Verify flat, moving, returning and
 backward-time samples; keep the solver-double unchanged-digits check unchanged.
+
+
+## Command design and integration — 2026-10-06
+
+Design: [command-design.md](command-design.md).
+
+| ID | Issue | Task | Needs | Status |
+|---|---|---|---|---|
+| W203 | #257 | Gate the navigation checks, one Checker, protocol docs | none | done |
+| W204 | #258 | Core cleanup: round-up `until`, one fit-bounds owner | W203 | done |
+| W205 | #259 | web2 fixes: trace colours, run-control defaults, key handling, until end shown | W203 | done |
+| W206 | #260 | Rename `nout` to its plain name | none | open |
+| W207 | #261 | One command table | W206 | open |
+| W208 | #262 | Key layer over the command table | W207 | open |
+| W209 | #263 | Save / Save as | W207 | open |
+| W210 | #264 | Value undo/redo | W207 | open |
+| W211 | #265 | keymap.json | W208 | open |
+| W212 | #266 | Keymap editor and quick access | W211 | open |
+| W213 | #267 | One Continue | W207 | open |
+| W214 | #245 | Duplicate-name message for array members | none | open |

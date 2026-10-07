@@ -40,6 +40,15 @@ export function steadyDefaults(steady: HelloEvent['steady'], total: number, inte
     hold: String(Math.min(total, Math.max(interval, steady.default_hold))), maximum: String(total)};
 }
 
+/** where Continue until ends: the core rounds the end asked for up to the next interval after the
+    core time, a value within the hello's tolerance of an interval counting as on it, and at least
+    one interval (core/integrate.cpp continue_to); undefined while the input cannot run */
+export function continueEnd(until: number, time: number, interval: number, tolerance: number): number | undefined {
+  const duration = until - time;
+  if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(interval) || interval <= 0) return undefined;
+  return time + Math.max(Math.ceil(duration / interval - tolerance), 1) * interval;
+}
+
 /** the continue field before the user types: the run duration more, or (until) the core time plus it */
 export function continueDefault(mode: 'extra' | 'until', total: number, time: number | undefined): string {
   return String(mode === 'extra' ? total : (time ?? 0) + total);

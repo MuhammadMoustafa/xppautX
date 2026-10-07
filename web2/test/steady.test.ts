@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {continueDefault, numericsField, runInterval, steadyDefaults, steadyError} from '../src/store/steady';
+import {continueDefault, continueEnd, numericsField, runInterval, steadyDefaults, steadyError} from '../src/store/steady';
 import {HELLO} from './hello';
 import {kindOf, mayStart} from '../src/protocol/kinds';
 
@@ -37,4 +37,14 @@ test('the run interval is one for a map and Dt otherwise; the defaults follow Ru
   assert.equal(continueDefault('extra', 20, 7), '20');
   assert.equal(continueDefault('until', 20, 7), '27');
   assert.equal(continueDefault('until', 20, undefined), '20');
+});
+
+test('Continue until ends at the next interval from the core time, as the core rounds it', () => {
+  const tol = HELLO.continue.grid_tolerance;
+  assert.equal(continueEnd(1, 0, 0.25, tol), 1);                 // on the grid
+  assert.equal(continueEnd(1 + 1e-9, 0, 0.25, tol), 1);          // within the tolerance counts as on it
+  assert.ok(Math.abs(continueEnd(1.01, 0, 0.25, tol)! - 1.25) < 1e-12); // rounded up, never short
+  assert.ok(Math.abs(continueEnd(5.1, 5, 0.25, tol)! - 5.25) < 1e-12);   // at least one interval
+  assert.equal(continueEnd(3, 3, 0.25, tol), undefined);          // nothing to continue
+  assert.equal(continueEnd(4, 3, NaN, tol), undefined);
 });
