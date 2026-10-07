@@ -566,6 +566,12 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   maintainer's to run.
 - Save lasting workflow rules the maintainer gives as memories, and add the
   ones other agents need to this file.
+- Clean up after yourself: delete what you created for a check or a run
+  (temp folders, test repos, logs, probe files, build output not meant to be
+  kept) before your final report, and say "none left" in it. Put scratch
+  work in the system temp folder or the session scratchpad, never in the
+  repo or beside it. Files meant to be kept are named in the report. Never
+  delete what you did not create.
 
 ## Architecture of the split (phase 2)
 
