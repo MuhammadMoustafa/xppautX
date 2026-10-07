@@ -853,7 +853,7 @@ Design: [command-design.md](command-design.md).
 | W208 | #262 | Key layer over the command table | W207 | done |
 | W209 | #263 | Save / Save as | W207 | done |
 | W210 | #264 | Value undo/redo | W207 | open |
-| W211 | #265 | keymap.json | W208 | in-progress |
+| W211 | #265 | keymap.json | W208 | done |
 | W212 | #266 | Keymap editor and quick access | W211 | open |
 | W213 | #267 | One Continue | W207 | open |
 | W214 | #245 | Duplicate-name message for array members | none | done |
