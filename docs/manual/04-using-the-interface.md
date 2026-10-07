@@ -160,7 +160,7 @@ beside the plot (a sheet on a phone):
 - **Numerics** holds the main numerical parameters of the Numerics menu
   ([Numerical parameters](06-numerical-parameters.md)): Total, Start
   time, Transient, Dt, the nullcline mesh, the equilibrium (Sing pt)
-  controls, nOutput, Bounds, the Method (a list) and its tolerances and
+  controls, Store every N steps, Bounds, the Method (a list) and its tolerances and
   step limits, the maximal delay (delay equations only) and the boundary
   value controls. A field the current method does not use is greyed. They
   are settings like the others: editable during a run, for the next one.

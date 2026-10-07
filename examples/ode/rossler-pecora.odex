@@ -20,7 +20,7 @@ aux liap = acc/ode_divisor(max(1, t))
 aux mya = alpha
 # rossler attractor
 @ bound=100000000
-@ dt=.025001, total=1000, nout=100, transient=999.99
+@ dt=.025001, total=1000, store_every=100, transient=999.99
 @ runnow=1
 
 fun ode_divisor(value) = if value then value else 2.23e-15

@@ -21,7 +21,7 @@
 int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, const double *par, integer ijac, double *f, double *dfdu, double *dfdp)
 {
    int i,j;
-   std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the NJMP steps' */
+   std::array<double,NAUTO> zz,y,yp,xp; /* getjactrans's scratch, and the store_every steps' */
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
    for(i=0;i<s.auto_state.npar;i++){
@@ -34,8 +34,8 @@ int func(xpp::Session &s, integer ndim, const double *u, const integer *icp, con
    if(ijac==1){
      xpp::getjactrans(s,x,y.data(),yp.data(),xp.data(),s.numerics.newt_err,dfdu,ndim);
    }
-   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.njmp==1)return 0;
-   for(i=1;i<s.numerics.njmp;i++){
+   if(!xpp::solver_info(s.numerics.method).traits.discrete||s.numerics.store_every==1)return 0;
+   for(i=1;i<s.numerics.store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
      s.integrator.rhs(0.0,zz.data(),f,ndim);

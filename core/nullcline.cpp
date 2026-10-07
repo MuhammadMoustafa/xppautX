@@ -641,7 +641,7 @@ void direct_field_com(xpp::Session &s, int c)
         double t=0.0;
         int start=1;
         phase_data_flow_next(s);
-        failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&start));
+        failure.keep(xpp::integrate(s,&t,y.data(),s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&start));
       }
     s.numerics.delta_t=-s.numerics.delta_t;
   }

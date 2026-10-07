@@ -25,5 +25,5 @@ par t0 = 0
 # and keep track of the stim
 # randomly initialize
 #
-@ meth=Discrete, total=16000, nout=8
+@ meth=Discrete, total=16000, store_every=8
 @ colormap=6

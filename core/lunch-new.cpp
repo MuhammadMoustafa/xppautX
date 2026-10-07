@@ -87,7 +87,7 @@ void write_numerics(const xpp::Session &s, FILE *fp)
 {
   const NumericsSettings &n=s.numerics;
   write_heading(fp,"# Numerical stuff");
-  write_whole(fp,n.njmp," nout");
+  write_whole(fp,n.store_every," store_every");
   write_whole(fp,n.nmesh," nullcline mesh");
   write_whole(fp,n.method,xpp::solver_info(n.method).set_label);
   write_real(fp,n.tend,"total");
@@ -209,8 +209,8 @@ void check_setting(Lines &l, std::string_view key, double v)
 void read_numerics(const xpp::Session &s, Lines &l, SetFile &f)
 {
   l.heading("# Numerical stuff");
-  f.njmp=l.whole("nout",true);
-  check_setting(l,"nout",f.njmp);
+  f.store_every=l.whole("store_every",true);
+  check_setting(l,"store_every",f.store_every);
   f.nmesh=l.whole("nullcline mesh",true);
   check_setting(l,"nmesh",f.nmesh);
   f.method=l.whole("the method");
@@ -535,7 +535,7 @@ void apply_set_file(xpp::Session &s, const SetFile &f, bool redraw)
 {
   const xpp::Model &m=s.model();
   NumericsSettings &n=s.numerics;
-  n.njmp=f.njmp;
+  n.store_every=f.store_every;
   n.nmesh=f.nmesh;
   n.method=f.method;
   xpp::do_meth(s);
@@ -644,8 +644,8 @@ void do_info(const xpp::Session &s, FILE *fp)
   put_equations(s,fp);
 
   xpp::print(fp,"\n\n Numerical parameters ...\n");
-  xpp::print(fp,"NJMP={}  NMESH={} METHOD={} EVEC_ITER={} \n",
-	 s.numerics.njmp,s.numerics.nmesh,xpp::solver_info(s.numerics.method).name,s.numerics.evec_iter);
+  xpp::print(fp,"STORE_EVERY={}  NMESH={} METHOD={} EVEC_ITER={} \n",
+	 s.numerics.store_every,s.numerics.nmesh,xpp::solver_info(s.numerics.method).name,s.numerics.evec_iter);
   xpp::print(fp,"BVP_EPS={:g},BVP_TOL={:g},BVP_MAXIT={} \n",
 	 s.numerics.bvp_eps,s.numerics.bvp_tol,s.numerics.bvp_maxit);
   xpp::print(fp,"DT={:g} T0={:g} TRANS={:g} TEND={:g} BOUND={:g} DELAY={:g} MaxPts={}\n",

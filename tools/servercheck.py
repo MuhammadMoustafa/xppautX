@@ -195,7 +195,9 @@ def check_load_error():
         # a value an option refuses (W119): the load stops at the option's line
         for name, text, src in (('badopt.ode', "par a=1\nx'=-x\n@ total=5\n@ ync=12\ndone\n", '@ ync=12'),
                                 ('badnum.ode', "par a=1\nx'=-x\n@ total=5\n@ dt=2*3\ndone\n", '@ dt=2*3'),
-                                ('badopt.odex', "par a = 1\nx' = -x\n@ total = 5\n@ ync = 12\n", '@ ync = 12')):
+                                ('badopt.odex', "par a = 1\nx' = -x\n@ total = 5\n@ ync = 12\n", '@ ync = 12'),
+                                # W206: XPPAUT's name for store_every is a .ode's; a .odex refuses it
+                                ('oldname.odex', "par a = 1\nx' = -x\n@ total = 5\n@ nout = 2\n", '@ nout = 2')):
             with open(os.path.join(bad_dir, name), 'w') as f:
                 f.write(text)
             p, evs = load(name)
@@ -3752,7 +3754,7 @@ def check_settings_during_run():
         check('W106: data numerics sends the numerics: total, dt, method (by number, with its choices)',
               n0 is not None and n0.get('total') == 30 and n0.get('dt') == 0.05
               and meth.get('choices', [None] * 4)[meth.get('value', 0)] == 'Runge-Kutta'
-              and next((f for f in fields if f['key'] == 'nout'), {}).get('integer') is True, str(n0))
+              and next((f for f in fields if f['key'] == 'store_every'), {}).get('integer') is True, str(n0))
         snd(cmd='set', kind='num', name='total', value=1e7)
         evs, _ = col(is_idle)
         check('W106: set kind num sets a numerics field (total), the numerics event says so',
@@ -3762,6 +3764,15 @@ def check_settings_during_run():
         errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
         check('W106: a bad numerics value is an error naming the field, nothing changes',
               errs == ['Numerics: Dt must be a number other than 0'] and num(evs) is None, str(errs))
+        # W206: Store every N steps is `store_every`; its old name nout is refused, as any unknown key
+        snd(cmd='set', kind='num', name='nout', value=1)
+        evs, _ = col(is_idle)
+        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W206: set num refuses the old key nout, naming it', len(errs) == 1 and 'nout' in errs[0], str(errs))
+        snd(cmd='set', kind='num', name='store_every', value=1)
+        evs, _ = col(is_idle)
+        errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+        check('W206: set num takes store_every', not errs, str(errs))
         # W116: what set, slide and default cannot take is the protocol's
         # error, the value left as it was (never a 0, never the ICs reset)
         snd(cmd='state')
@@ -3802,7 +3813,7 @@ def check_settings_during_run():
         evs, prog = col(is_prog, timeout=30 * SLOW)
         snd(cmd='set', kind='par', name='iapp', value=0.3)
         snd(cmd='set', kind='num', name='total', value=50)
-        snd(cmd='set', kind='num', name='nout', value=0)  # bad: its error comes after the run
+        snd(cmd='set', kind='num', name='store_every', value=0)  # bad: its error comes after the run
         snd(cmd='state')
         snd(cmd='browser', **{'from': 0, 'count': 1})  # control, behind the sets: they were taken
         evs, _ = col(lambda e: e.get('ev') == 'browser')
@@ -3823,7 +3834,7 @@ def check_settings_during_run():
         errs = [[e.get('error') for e in m if e.get('ev') == 'message'] for m in after]
         check('W106: then each setting is a command of its own, in order: the bad one an error after the run',
               iapp(after[0]) == 0.3 and (num(after[1]) or {}).get('total') == 50
-              and errs == [[], [], ['Numerics: nOutput must be a whole number of at least 1']], str(errs))
+              and errs == [[], [], ['Numerics: Store every N steps must be a whole number of at least 1']], str(errs))
         snd(cmd='browser', **{'from': rows - 1, 'count': 1})
         evs, br = col(lambda e: e.get('ev') == 'browser')
         col(is_idle)
@@ -4847,7 +4858,7 @@ def check_session_file():
         line_of = lambda rows, label: next(k + 1 for k in reversed(range(len(rows))) if rows[k].rstrip('\r').endswith(label))
         # the line of model.set's last value (the BVP range's high end)
         set_high = line_of(set_rows, 'BVP range high')
-        set_nout, set_dt = line_of(set_rows, ' nout'), line_of(set_rows, 'DeltaT')
+        set_store_every, set_dt = line_of(set_rows, ' store_every'), line_of(set_rows, 'DeltaT')
         # windows.set's added columns: their count, then VW's name and formula
         win_added = line_of(win_rows, 'added columns')
         generator = random_rows[-1].split(' ')
@@ -4877,8 +4888,8 @@ def check_session_file():
             ('latermanifest', lambda m: m.__setitem__('session.txt', m['session.txt'] + b'later 1\n'),
              ('latermanifest.snapx/session.txt:%d:' % (manifest_lines + 1), 'not a line it has')),
             # W145: every value checked by the rule that checks it anywhere else, before anything is applied
-            ('zeronout', lambda m: m.__setitem__('model.set', text_lines('model.set', set_nout, '0   nout')),
-             ('zeronout.snapx/model.set:%d:' % set_nout, 'nOutput must be a whole number of at least 1')),
+            ('zerostore_every', lambda m: m.__setitem__('model.set', text_lines('model.set', set_store_every, '0   store_every')),
+             ('zerostore_every.snapx/model.set:%d:' % set_store_every, 'Store every N steps must be a whole number of at least 1')),
             ('zerodt', lambda m: m.__setitem__('model.set', text_lines('model.set', set_dt, '0  DeltaT')),
              ('zerodt.snapx/model.set:%d:' % set_dt, 'Dt must be a number other than 0')),
             ('oldset', lambda m: m.__setitem__('model.set', m['model.set'].rstrip(b'\n') + b'\nRHS etc ...\ndV/dT=0\n'),

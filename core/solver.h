@@ -32,7 +32,7 @@ struct SolverTraits {
   /* the time counts iterations of a map (dt is +-1) */
   bool discrete = false;
   /* advances a number of steps of dt; otherwise it chooses its own steps
-     on to an output time (its NOUT is 1) */
+     on to an output time (its store_every is 1) */
   bool fixed_step = false;
   /* asks Tolerance, minimum and maximum step */
   bool step_tolerance = false;

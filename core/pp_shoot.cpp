@@ -295,7 +295,7 @@ xpp::Result<> last_shot(xpp::Session &s, int flag)
   s.data_store.rows=1;
 
 }
- return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start)
+ return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start)
    .transform([](int){});
 }
 

@@ -185,9 +185,9 @@ void cont_integ(xpp::Session &s, std::optional<double> until)
     dif=tetemp-fabs(s.data_store.current_time);
   }
   s.integrator.my_start=1;  /*  I know it is wasteful to restart, but lets be safe.... */
-  /* Direct time controls store every Dt, so nout cannot extend their end
+  /* Direct time controls store every Dt, so store_every cannot extend their end
      by a whole output group. The legacy prompt keeps its original stride. */
-  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,dif,s.numerics.delta_t,1,until?1:s.numerics.njmp,&s.integrator.my_start);
+  const xpp::Result<int> r=integrate(s,&s.data_store.current_time,x,dif,s.numerics.delta_t,1,until?1:s.numerics.store_every,&s.integrator.my_start);
   ping();
   refresh_browser(s,s.data_store.rows);
   if(!r)xpp::show_error(r.error());
@@ -740,7 +740,7 @@ if(fabs(s.data_store.current_time)>=s.numerics.trans&&s.numerics.storflag==1&&s.
     s.data_store.rows++;
   }
 
- const xpp::Result<int> run=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+ const xpp::Result<int> run=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
  if(!run||*run==1||xpp::job::cancelled()){
    if(!run)failure=run.error();
    ierr=-1;
@@ -1143,7 +1143,7 @@ int usual_integrate_stuff(xpp::Session &s, double *x)
  
   const xpp::Result<int> r=[&]{
     const xpp::Job job; /* Abort cancels it (xpp_job.h) */
-    return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&s.integrator.my_start);
+    return integrate(s,&s.data_store.current_time,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&s.integrator.my_start);
   }();
   
   ping();
@@ -1362,7 +1362,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
 {
  xpp::Solver &solver=*s.integrator.solver;
  int nodes=s.solver_work.xpv.node+s.solver_work.xpv.nvec;
- int nit,nout=s.numerics.njmp;
+ int nit,store_every=s.numerics.store_every;
  double tend=s.numerics.tend;
  double dt=s.numerics.delta_t;
   if(solver.traits().discrete){
@@ -1373,7 +1373,7 @@ xpp::Result<> ode_int(xpp::Session &s, double *y, double *t, int *istart, int is
  if(ishow==1){
  /* shown as it runs: a failure only ends the integration, the shooting
     goes on from where it stopped (the error is the caller's to show) */
- return integrate(s,t,y,tend,dt,1,nout,istart).transform([](int){});
+ return integrate(s,t,y,tend,dt,1,store_every,istart).transform([](int){});
 }
  mswtch(s,s.solver_work.xpv.x,y);
  evaluate_derived(s); 
@@ -1479,10 +1479,10 @@ Result<> run_to_steady_state(Session &s, SteadyStateSettings settings)
     Session &s;
     double duration;
     int stride;
-    ~Restore(){s.numerics.tend=duration;s.numerics.njmp=stride;s.integrator.steady.reset();}
-  } restore{s,s.numerics.tend,s.numerics.njmp};
+    ~Restore(){s.numerics.tend=duration;s.numerics.store_every=stride;s.integrator.steady.reset();}
+  } restore{s,s.numerics.tend,s.numerics.store_every};
   s.numerics.tend=std::floor(settings.maximum/interval)*interval;
-  s.numerics.njmp=1;
+  s.numerics.store_every=1;
   s.integrator.steady.emplace(settings);
   s.integrator.steady_result=SteadyStateResult{"failed",settings.decimals};
   s.integrator.last_time=s.numerics.t0;
@@ -1504,7 +1504,7 @@ std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 }
 }
 
-xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int nout, int *start)
+xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start)
 {
   if(!s.integrator.steady)s.integrator.steady_result.reset();
   xpp::Computation computing; /* what Escape stops (xpp_job.h) */
@@ -1547,7 +1547,7 @@ if(program.interactive) cwidth=get_command_width();
  }
  else nit=(tend+fabs(dt)*.1)/fabs(dt); 
  /* else nit=tend/fabs(dt); */
- nit=(nit+nout-1)/nout;
+ nit=(nit+store_every-1)/store_every;
  if(nit==0)return(rval);
  one_flag_step(s,s.solver_work.xpv.x,s.solver_work.xpv.x,&iflagstart,*t,&tnew,nodes,&sss);
  mswtch(s,x,s.solver_work.xpv.x);
@@ -1597,10 +1597,10 @@ if(program.interactive) cwidth=get_command_width();
 	     }
 	   }
 	   else{
-	     /* nout steps of dt */
+	     /* store_every steps of dt */
 	     mswtch(s,s.solver_work.xpv.x,x);
 	     xpp::Result<> r=solver.advance({.y=s.solver_work.xpv.x,.t=t,.neq=nodes,.start=start,
-						 .dt=dt,.steps=nout});
+						 .dt=dt,.steps=store_every});
 	     mswtch(s,x,s.solver_work.xpv.x);
 	     if(!r){
 	       /* a range or a run without bounds checks goes on */
@@ -1639,7 +1639,7 @@ if(program.interactive) cwidth=get_command_width();
 	   modified the out of bounds message as well
 	   print all the variables on the terminal window, haven't decide
 	   should I store them or not. 
-	   If use with nout=1, can pinpoint the offensive variable(s)
+	   If use with store_every=1, can pinpoint the offensive variable(s)
 	*/	    
 	    if(isnan(x[ieqn-1])!=0)
             {
@@ -1809,7 +1809,7 @@ poi:    for(i=0;i<s.model().neq;i++)oldx[i]=x[i];
      
           if(!(fabs(*t)<s.numerics.trans)&&program.interactive&&OnTheFly)
 	  {
-	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.njmp),torcross,0); 
+	     plot_the_graphs(s,xv,xvold,s.model().node,s.model().neq,fabs(dt*s.numerics.store_every),torcross,0); 
 
 	  }
 
@@ -2040,7 +2040,7 @@ xpp::Result<> shoot_easy(xpp::Session &s, double *x)
   double t=0.0;
   int i;
   s.integrator.suppress_bounds=1;
-  const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&i);
+  const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&i);
   s.integrator.suppress_bounds=0;
   return r.transform([](int){});
 }
@@ -2053,7 +2053,7 @@ xpp::Result<> shoot(xpp::Session &s, double *x, double *xg, double *evec, int sg
  for(i=0;i<s.model().node;i++)
  x[i]=xg[i]+sgn*evec[i]*s.numerics.delta_t*.1;
 i=1;
- const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.njmp,&i);
+ const xpp::Result<int> r=integrate(s,&t,x,s.numerics.tend,s.numerics.delta_t,1,s.numerics.store_every,&i);
  ping();
   s.integrator.suppress_bounds=0;
  return r.transform([](int){});

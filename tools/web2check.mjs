@@ -4119,13 +4119,13 @@ async function valuesBusy() {
   const BUSY_TIMEOUT_MS = 60000; /* the expensive first stored interval needs the values section's safety ceiling */
   await desktopMetrics();
   /* All heavy.odex ICs are zero: RK4 keeps that equilibrium exactly, and
-     unlike Stiff it honours nOutput instead of resetting it to one. */
+     unlike Stiff it honours Store every N steps instead of resetting it to one. */
   await cdp.eval(`__xpp.send({cmd: 'set', values: [
     {kind: 'num', name: 'method', text: 'rk4'},
     {kind: 'num', name: 'total', value: ${BUSY_TOTAL}},
-    {kind: 'num', name: 'nout', value: ${BUSY_JUMP}}]})`);
+    {kind: 'num', name: 'store_every', value: ${BUSY_JUMP}}]})`);
   if (!await until(`!s.busy && s.numerics.find(f => f.key === 'total')?.value === ${BUSY_TOTAL}
-    && s.numerics.find(f => f.key === 'nout')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
+    && s.numerics.find(f => f.key === 'store_every')?.value === ${BUSY_JUMP}`, 'heavy integration settings'))
     throw new Error('heavy.odex: heavy integration settings were not applied');
   const start = async () => {
     await focusPlot();

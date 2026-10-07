@@ -2,7 +2,7 @@
 import type {HelloEvent, MenuName} from '../protocol/types';
 
 export const COMMAND_GROUPS = [
-  {name: 'Run', main: ['initialconds', 'continue', 'parameters'], file: [], num: ['total', 'start', 'transient', 'dt', 'method', 'noutput', 'bounds']},
+  {name: 'Run', main: ['initialconds', 'continue', 'parameters'], file: [], num: ['total', 'start', 'transient', 'dt', 'method', 'store_every', 'bounds']},
   {name: 'Files', main: [], file: ['openmodel', 'opensession', 'savesession', 'reload', 'importset', 'saveinfo', 'quit'], num: []},
   {name: 'Analysis', main: ['singpts', 'nullcline', 'dirfield', 'bndryval'], file: ['auto'],
     num: ['ncline', 'singpt', 'delay', 'stochastic', 'poincare', 'ruelle', 'bndval', 'averaging']},

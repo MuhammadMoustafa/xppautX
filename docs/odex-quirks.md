@@ -301,6 +301,8 @@ comparisons beside arithmetic, and `&`/`|` beside arithmetic found:
   so none of them hit the "bare `if`" or "comparison beside arithmetic"
   quirks in a silent, wrong way.
 
+`@ nout=` and `@ njmp=` (XPPAUT's two names for how often a row is stored) are one option in a .odex, `store_every`; `--convert` writes the new name, and a .odex that says `nout` or `njmp` is refused at its line (W206, [#260](https://github.com/MuhammadMoustafa/xppautX/issues/260)).
+
 ## Open items carried from this inventory
 
 None: `e` is not reserved in .odex, and division by zero (hence NaN

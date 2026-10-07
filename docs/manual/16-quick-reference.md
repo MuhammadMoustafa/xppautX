@@ -269,7 +269,7 @@ The remaining options can be set from within the program. They are
 
 - DT=value sets the time step for the integrator (default is 0.05).
 
-- NJMP=`integer` tells XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step.
+- NJMP=`integer` (NOUT too; a .odex says `store_every`) tells XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step.
 
 - T0=value sets the starting time (default is 0).
 

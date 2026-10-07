@@ -140,11 +140,11 @@ constexpr OptionRow rows[] = {
    /* XPPAUT's */
    .reset = [](Session &s) { s.numerics.newt_err = .001; },
    .key = "jac_eps", .label = "Sing pt: Jacobian epsilon", .rule = OptionRule::positive},
-  {.name = "NOUT", .alias = "NJMP", .flag = Option::NOUT,
-   .whole = [](Session &s) -> int & { return s.numerics.njmp; },
+  {.name = "STORE_EVERY", .xppaut_names = {"NOUT", "NJMP"}, .flag = Option::STORE_EVERY,
+   .whole = [](Session &s) -> int & { return s.numerics.store_every; },
    /* every step stored */
-   .reset = [](Session &s) { s.numerics.njmp = 1; },
-   .key = "nout", .label = "nOutput", .rule = OptionRule::whole_positive},
+   .reset = [](Session &s) { s.numerics.store_every = 1; },
+   .key = "store_every", .label = "Store every N steps", .rule = OptionRule::whole_positive},
   {.name = "BOUND", .flag = Option::BOUND,
    .real = [](Session &s) -> double & { return s.numerics.bound; },
    /* XPPAUT's: past it a solution is taken to blow up */
@@ -758,12 +758,12 @@ const char *rule_problem(OptionRule rule, double v)
 
 std::span<const OptionRow> option_rows() { return rows; }
 
-const OptionRow *find_option(std::string_view upper_name, int &index)
+const OptionRow *find_option(std::string_view upper_name, int &index, bool xppaut_names)
 {
   const OptionRow *best = nullptr;
   std::size_t best_length = 0;
   for (const OptionRow &row : rows)
-    for (std::string_view n : {row.name, row.alias}) {
+    for (std::string_view n : {row.name, row.alias, xppaut_names ? row.xppaut_names[0] : "", xppaut_names ? row.xppaut_names[1] : ""}) {
       int i = 0;
       const std::size_t length = match_length(row, n, upper_name, i);
       if (length > best_length) {
@@ -773,6 +773,17 @@ const OptionRow *find_option(std::string_view upper_name, int &index)
       }
     }
   return best;
+}
+
+std::string odex_option_key(std::string_view key)
+{
+  const std::string upper = upper_case(std::string(key));
+  int index = 0;
+  const OptionRow *row = find_option(upper, index, true);
+  if (!row || row->xppaut_names[0].empty()) return std::string(key);
+  for (std::string_view n : row->xppaut_names)
+    if (upper == n) return lower_case(std::string(row->name));
+  return std::string(key);
 }
 
 const OptionRow *numerics_option(std::string_view key)
@@ -794,7 +805,7 @@ std::optional<std::string> option_value(Session &s, std::string_view name, std::
   /* the value as a NUL-ended text */
   const std::string text(value);
   int index = 0;
-  const OptionRow *row = find_option(upper, index);
+  const OptionRow *row = find_option(upper, index, true);
   if (!row) return unknown_option;
   const OptionSource source{force, mask};
   const OptionValue v{text.c_str(), index, source, apply};

@@ -510,7 +510,7 @@ void replace_column(xpp::Session &s, const char *var, char *form, float **dat, i
  float sum=0.0;
  if(n<2)return;
 
- dt=s.numerics.njmp*s.numerics.delta_t;
+ dt=s.numerics.store_every*s.numerics.delta_t;
 /* first check for derivative or integral symbol */
 i=0;
 while(i<static_cast<int>(strlen(form))){

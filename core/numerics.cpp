@@ -109,7 +109,7 @@ void  get_num_par(xpp::Session &s, char ch)
 			flash(5);
 			break;
 		case 'o': flash(6);
-			 numerics_settings_ask(s,"nout");
+			 numerics_settings_ask(s,"store_every");
 			flash(6);
 			break;
 		case 'b': flash(7);
@@ -434,8 +434,8 @@ void set_col_par_com(xpp::Session &s, int i)
   }
   if(minder>=0.0&&maxder>minder)
   {
-   s.plot_windows.current->color_scale=(maxder-minder)/(fabs(s.numerics.delta_t*s.numerics.njmp));
-   s.plot_windows.current->min_scale=minder/(fabs(s.numerics.delta_t*s.numerics.njmp));
+   s.plot_windows.current->color_scale=(maxder-minder)/(fabs(s.numerics.delta_t*s.numerics.store_every));
+   s.plot_windows.current->min_scale=minder/(fabs(s.numerics.delta_t*s.numerics.store_every));
   }
  }
  else
@@ -453,7 +453,7 @@ void do_meth(xpp::Session &s)
  const xpp::SolverTraits &traits=xpp::solver_info(s.numerics.method).traits;
  if(traits.discrete)s.numerics.delta_t=1;
  /* a method that picks its own steps stores every output time */
- if(!traits.fixed_step)s.numerics.njmp=1;
+ if(!traits.fixed_step)s.numerics.store_every=1;
  xpp::start_solver(s);
 }
 

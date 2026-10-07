@@ -57,10 +57,10 @@ struct XppSlider {
 /* The numerics settings in use (the nUmerics menu, the model's @ options,
    the command line), a Session's (session.h) */
 struct NumericsSettings {
-  /* the time span: from t0 for tend, step delta_t, every njmp-th step
+  /* the time span: from t0 for tend, step delta_t, every store_every-th step
      stored once |t| is past the transient trans */
   double t0 = 0, tend = 0, delta_t = 0, trans = 0;
-  int njmp = 0;
+  int store_every = 0;
   /* the method (numerics.cpp's numbers) and its step bounds, tolerances,
      the bound on the variables and the delays' maximum */
   int method = 0;

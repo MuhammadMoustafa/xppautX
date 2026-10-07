@@ -14,7 +14,7 @@ init v = -0.144, w = 0.03
 # step, so that 20 001 stored rows take about two seconds (a fast CI runner
 # still gives the checks that edit during a run time to do it): the live plot
 # checks (tools/servercheck.py, tools/web2check.mjs) watch it grow.
-@ total=1000, dt=.001, njmp=50, maxstor=30000
+@ total=1000, dt=.001, store_every=50, maxstor=30000
 @ xlo=-.6, xhi=1.2, ylo=-.25, yhi=1.2
 @ xplot=v, yplot=w
 

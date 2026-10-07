@@ -15,6 +15,7 @@
 #include "ode_read.h"
 #include "integrate.h"
 #include "load_eqn.h"
+#include "model_options.h"
 #include "model.h"
 #include "session.h"
 #include "solver.h"
@@ -1189,7 +1190,7 @@ private:
   {
     const std::string upper = xpp::upper_case(key);
     if (find_user_name(m_, ICBOX, upper) >= 0 || find_user_name(m_, PARAMBOX, upper) >= 0) return name(upper);
-    return key;
+    return xpp::odex_option_key(key);
   }
 
   /* a set's value as the .ode applies it: a number (atof's), or a name */
@@ -1326,7 +1327,7 @@ private:
       for (const auto &[key, value] : option_items(line.text, false, &ignored)) {
         const bool meth = xpp::equal_ignoring_case(key.substr(0, std::min<size_t>(key.size(), 4)), "meth");
         if (map && meth) continue;
-        items += (items.empty() ? "" : ", ") + key + "=" + (meth ? method_name(value) : option_value(key, value));
+        items += (items.empty() ? "" : ", ") + xpp::odex_option_key(key) + "=" + (meth ? method_name(value) : option_value(key, value));
       }
       if (!ignored.empty()) {
         std::string dropped;

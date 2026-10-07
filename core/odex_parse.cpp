@@ -535,11 +535,14 @@ private:
       o.pos = n.pos;
       expect_punct("=", xpp::format("after the option {}", o.name));
       int index = 0;
-      const OptionRow *row = find_option(upper_case(o.name), index);
+      const OptionRow *row = find_option(upper_case(o.name), index, false);
       const bool method = row && row->rule == OptionRule::method;
       /* Solver names include spaces and parentheses; the picker checks
          the whole value after the model's dimension and kernels are known. */
       o.value = raw_word(o.value_pos, method);
+      /* XPPAUT's name for an option is a .ode's, not this file's */
+      if (!row && find_option(upper_case(o.name), index, true))
+        fail(o.pos, xpp::format("`{}={}` is not an option of a .odex", o.name, o.value));
       if (!method || o.value.empty()) check_option_value(o);
       s.options.push_back(std::move(o));
       if (!at_punct(",")) break;

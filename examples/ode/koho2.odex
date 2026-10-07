@@ -30,7 +30,7 @@ par t0 = 0
 # and keep track of the stim
 # randomly initialize
 #
-@ meth=Discrete, total=20000, nout=8, trans=10000
+@ meth=Discrete, total=20000, store_every=8, trans=10000
 @ colormap=6
 
 # what followed the .ode's done:

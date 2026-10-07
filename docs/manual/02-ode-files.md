@@ -650,7 +650,7 @@ The remaining options can be set from within the program. They are
 
 - DT=value sets the time step for the integrator (default is 0.05).
 
-- NJMP=`integer`, NOUT=`integer` tell XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step. It is also used to specify a the period for maps in the continuation package AUTO.
+- NJMP=`integer`, NOUT=`integer` (a .odex says `store_every=`, and so does Store every N steps in the Numerics menu) tell XPP how frequently to output the solution to the ODE. The default is 1, which means at each integration step. It is also used to specify a the period for maps in the continuation package AUTO.
 
 - T0=value sets the starting time (default is 0).
 

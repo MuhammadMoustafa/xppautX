@@ -47,7 +47,7 @@ void copy_graph_settings(const GRAPH &from, GRAPH &to);
    active window's graphics, Transpose, the H functions' coupling, the
    array plot, the torus and the ranges. */
 struct SetFile {
-  int njmp = 0, nmesh = 0, method = 0;
+  int store_every = 0, nmesh = 0, method = 0;
   double tend = 0, delta_t = 0, t0 = 0, trans = 0, bound = 0, hmin = 0, hmax = 0, toler = 0, atoler = 0, delay = 0;
   int evec_iter = 0;
   double evec_err = 0, newt_err = 0, poipln = 0, bvp_tol = 0, bvp_eps = 0;

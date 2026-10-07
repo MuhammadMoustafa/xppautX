@@ -11,6 +11,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Changed
 
+- "nOutput" is now "Store every N steps", `store_every` in a `.odex`, a set file, the protocol and a recording (one row stored per N output steps; 1 stores every step). The old name is no longer accepted in our files: a `.odex` with `@ nout=` or `@ njmp=` and a `set num` of `nout` fail naming it; a `.ode` and an XPPAUT `.set` or `.xpprc` still use NOUT/NJMP and `--convert` writes `store_every` (W206, [#260](https://github.com/MuhammadMoustafa/xppautX/issues/260)).
+
 - Continue until rounds the end up to the next Dt grid point, never short of the end asked for (a value within 1e-6 Dt of a grid point counts as on it); the run toolbar shows "will end at t=..." beside the field, from the core's own rule (W204, W205, [#258](https://github.com/MuhammadMoustafa/xppautX/issues/258)).
 
 - 2D Fit includes retained earlier runs, as 3D Fit did, from one bounds owner (W204, [#258](https://github.com/MuhammadMoustafa/xppautX/issues/258)).

@@ -8,7 +8,7 @@ par tau = 6, g = 0.1, b = 0.2, n = 10
 # mackey.ode
 # mackey-glass equations
 # delayed value of x
-@ delay=30, total=600, nout=10
+@ delay=30, total=600, store_every=10
 @ xhi=600, yhi=2
 
 fun ode_divisor(value) = if value then value else 2.23e-15

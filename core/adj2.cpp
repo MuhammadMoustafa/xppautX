@@ -222,7 +222,7 @@ void new_h_fun(xpp::Session &s, int silent)
    a.h_rows=s.data_store.rows;
    data_back(s); 
    float **h=a.h_function.make(s.data_store,n,a.h_rows,s.model().neq);
-   if(make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,s.numerics.delta_t*s.numerics.njmp,s.model().node,silent )){
+   if(make_h(s,s.data_store.col,a.adjoint.table(),h,a.h_rows,s.numerics.delta_t*s.numerics.store_every,s.model().node,silent )){
      a.h_here=true;
      h_back(s);
    }
@@ -301,7 +301,7 @@ void new_adjoint(xpp::Session &s)
  }
  a.adjoint_rows=s.data_store.rows;
  float **adj=a.adjoint.make(s.data_store,n,a.adjoint_rows,s.model().neq);
- auto done=adjoint(s,s.data_store.col,adj,a.adjoint_rows,s.numerics.delta_t*s.numerics.njmp,ADJ_EPS,s.adjoint.err,s.adjoint.maxit,s.model().node );
+ auto done=adjoint(s,s.data_store.col,adj,a.adjoint_rows,s.numerics.delta_t*s.numerics.store_every,ADJ_EPS,s.adjoint.err,s.adjoint.maxit,s.model().node );
  if(done){
    a.adjoint_here=true;
  adj_back(s);

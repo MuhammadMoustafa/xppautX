@@ -24,7 +24,7 @@ export const HELLO: HelloEvent = {
     file_ids: ['source', 'importset', 'auto', 'calculator', 'saveinfo', 'help', 'quit', 'transpose',
       'getparset', 'clone', 'xpprc', 'tutorial', 'copyset', 'openmodel', 'reload', 'savesession', 'opensession',
       'record', 'play'],
-    num_ids: ['total', 'start', 'transient', 'dt', 'ncline', 'singpt', 'noutput', 'bounds', 'method', 'delay',
+    num_ids: ['total', 'start', 'transient', 'dt', 'ncline', 'singpt', 'store_every', 'bounds', 'method', 'delay',
       'colorcode', 'stochastic', 'poincare', 'ruelle', 'lookup', 'bndval', 'averaging', 'exit'],
   },
   windows: {

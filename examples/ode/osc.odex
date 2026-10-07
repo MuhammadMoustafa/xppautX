@@ -9,7 +9,7 @@ wiener z
 V' = 3*V-V^3+2-X+Input+sigma*z
 X' = eps*(gam*(1+tanh(V/ode_divisor(beta)))-X)
 @ parmin=0, parmax=6, ds=-0.001, dsmax=.01
-@ BUT=AUTO:fa, NOUT=10
+@ BUT=AUTO:fa, store_every=10
 @ MAXSTOR=100000, TOTAL=400, XP=V, YP=X, Xlo=-3, Xhi=3, Ylo=-3, Yhi=6
 @ METH=Euler
 @ AUTOVAR=V

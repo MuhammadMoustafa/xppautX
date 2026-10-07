@@ -133,7 +133,7 @@ bool left_out(const xpp::OptionRow &r)
    torus and ranges) */
 const std::set<std::string_view> in_set_file = {
     "TOTAL", "T0", "TRANS", "DT", "NMESH", "NEWT_ITER", "NEWT_TOL", "JAC_EPS",
-    "NOUT", "BOUND", "METH", "TOL", "DTMIN", "DTMAX", "ATOL", "DELAY",
+    "STORE_EVERY", "BOUND", "METH", "TOL", "DTMIN", "DTMAX", "ATOL", "DELAY",
     "bvp_maxit", "bvp_tol", "bvp_eps", "POIMAP", "POIVAR", "POISGN",
     "POISTOP", "POIPLN", "TOR_PER", "RANGEOVER", "RANGESTEP", "RANGELOW",
     "RANGEHIGH", "RANGERESET", "RANGEOLDIC",
@@ -247,12 +247,12 @@ int main(void)
 
     /* each name finds its row */
     for (const xpp::OptionRow &r : rows) {
-        for (std::string_view n : {r.name, r.alias}) {
+        for (std::string_view n : {r.name, r.alias, r.xppaut_names[0], r.xppaut_names[1]}) {
             if (n.empty()) continue;
             int index = -1;
             std::string name(n);
             if (r.first_digit) name += r.last_digit;
-            const xpp::OptionRow *found = xpp::find_option(name, index);
+            const xpp::OptionRow *found = xpp::find_option(name, index, true);
             CHECK(found == &r);
             if (found != &r) printf("  %s finds another row\n", name.c_str());
             if (r.first_digit) CHECK(index == r.last_digit - '0');
@@ -266,12 +266,14 @@ int main(void)
     /* the longest name wins: histlo2 is not histlo, dtmin not dt */
     {
         int index = 0;
-        CHECK(xpp::find_option("HISTLO2", index)->name == "HISTLO2");
-        CHECK(xpp::find_option("DTMINIMUM", index)->name == "DTMIN");
-        CHECK(xpp::find_option("METHOD", index)->name == "METH");
-        CHECK(xpp::find_option("XP9", index)->name == "XP");
-        CHECK(xpp::find_option("XP3", index)->first_digit == '2' && index == 3);
-        CHECK(xpp::find_option("NOSUCH", index) == nullptr);
+        CHECK(xpp::find_option("HISTLO2", index, true)->name == "HISTLO2");
+        CHECK(xpp::find_option("DTMINIMUM", index, true)->name == "DTMIN");
+        CHECK(xpp::find_option("METHOD", index, true)->name == "METH");
+        CHECK(xpp::find_option("XP9", index, true)->name == "XP");
+        CHECK(xpp::find_option("XP3", index, true)->first_digit == '2' && index == 3);
+        CHECK(xpp::find_option("NOSUCH", index, true) == nullptr);
+        CHECK(xpp::find_option("NOUT", index, true)->name == "STORE_EVERY" && xpp::find_option("NJMP", index, true) == xpp::find_option("NOUT", index, true));
+        CHECK(xpp::find_option("NOUT", index, false) == nullptr && xpp::odex_option_key("NJMP") == "store_every" && xpp::odex_option_key("dt") == "dt");
     }
 
     /* the defaults a model with no options gets */
@@ -366,10 +368,10 @@ int main(void)
        named; the model before stays */
     const char bad_ode[] = "build/test_options_bad.ode";
     const char bad_odex[] = "build/test_options_bad.odex";
-    for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "nout=2.5", "rangereset=maybe",
+    for (const char *bad : {"dt=abc", "ync=12", "xp=nosuch", "meth=k", "store_every=2.5", "nout=2.5", "rangereset=maybe",
                             "axes=4", "quiet=2", "seed=-1", "lt=3", "histcol=nosuch", "xlo2=1e",
                             /* a number the setting's rule refuses (OptionRule) */
-                            "nout=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
+                            "store_every=0", "njmp=0", "dt=0", "nmesh=0", "bound=-1", "delay=-1", "tol=0"}) {
         CHECK(write_file(bad_ode, std::string(model_text) + "@ total=5\n@ " + bad + "\ndone\n"));
         char arg0[] = "test_options";
         char file[] = "build/test_options_bad.ode";
@@ -399,6 +401,20 @@ int main(void)
             CHECK(l.error().what.find("ync=12") != std::string::npos);
             if (l.error().place.line != 3) printf("  odex: %s\n", l.error().text().c_str());
         }
+    }
+    /* XPPAUT's names for store_every are a .ode's: a .odex refuses them
+       at their line */
+    for (const char *old_name : {"nout", "njmp"}) {
+        CHECK(write_file(bad_odex, std::string("par a = 1\nx' = -a*x\n@ ") + old_name + "=2\n"));
+        char arg0[] = "test_options";
+        char file[] = "build/test_options_bad.odex";
+        char *argv[] = {arg0, file, nullptr};
+        const xpp::Loaded l = xpp::load_model(2, argv, 1);
+        CHECK(!l.has_value());
+        if (l) continue;
+        CHECK(l.error().place.file == bad_odex);
+        CHECK(l.error().place.line == 3);
+        CHECK(l.error().what.find(old_name) != std::string::npos);
     }
     CHECK(xpp::client_session().model().this_file == xpp::odex::odex_name(plain_ode));
 
@@ -430,8 +446,8 @@ int main(void)
         CHECK(t != nullptr);
         if (t) {
             int index = 0;
-            CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
-            CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
+            CHECK(value_of(*t, *xpp::find_option("TOTAL", index, true)) == xpp::number(7.0));
+            CHECK(value_of(*t, *xpp::find_option("DT", index, true)) == xpp::number(0.25));
         }
         remove(inc_file);
     }
@@ -446,8 +462,8 @@ int main(void)
         CHECK(t != nullptr);
         if (t) {
             int index = 0;
-            CHECK(value_of(*t, *xpp::find_option("TOTAL", index)) == xpp::number(7.0));
-            CHECK(value_of(*t, *xpp::find_option("DT", index)) == xpp::number(0.25));
+            CHECK(value_of(*t, *xpp::find_option("TOTAL", index, true)) == xpp::number(7.0));
+            CHECK(value_of(*t, *xpp::find_option("DT", index, true)) == xpp::number(0.25));
         }
         remove(inc_file);
     }

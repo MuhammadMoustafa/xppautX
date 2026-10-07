@@ -12,7 +12,7 @@ struct Place; /* xpp_error.h */
 
 /* The main numerics as data (W106, docs/protocol.md "The numerics as
    data"): what the Numerics menu's items that ask for a value edit (Total,
-   Start time, tRansient, Dt, Ncline mesh, Sing pt ctrl, nOutput, Bounds,
+   Start time, tRansient, Dt, Ncline mesh, Sing pt ctrl, store every, Bounds,
    Method and its tolerances, dElay, bndVal), sent as the "numerics" event
    and set by `set` with kind `num`, so a front end edits them in fields of
    its own. The menu (the keyboard, scripts) asks through the same

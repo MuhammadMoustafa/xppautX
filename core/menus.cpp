@@ -416,7 +416,7 @@ const char *const main_menu_ids[MAIN_ENTRIES] = {"initialconds", "continue", "nu
 const char *const file_menu_ids[FILE_ENTRIES] = {"source", "importset", "auto", "calculator", "saveinfo",
   "help", "quit", "transpose", "getparset", "clone", "xpprc", "tutorial", "copyset", "openmodel", "reload",
   "savesession", "opensession", "record", "play"};
-const char *const num_menu_ids[NUM_ENTRIES] = {"total", "start", "transient", "dt", "ncline", "singpt", "noutput",
+const char *const num_menu_ids[NUM_ENTRIES] = {"total", "start", "transient", "dt", "ncline", "singpt", "store_every",
   "bounds", "method", "delay", "colorcode", "stochastic", "poincare", "ruelle", "lookup", "bndval", "averaging",
   "exit"};
 

@@ -10,7 +10,7 @@
    nothing (W125): a set file, a parameter file or an initial-conditions
    file whose last value is bad leaves the session exactly as it was (the
    set file it writes, the same), and its error names the file and that
-   line. A numerics value the setting's rule refuses (0 nout, 0 DeltaT)
+   line. A numerics value the setting's rule refuses (0 store_every, 0 DeltaT)
    is refused as a bad number is. A session's set file ends at its last
    value; XPPAUT's, the import, has its model's equations after it, "RHS
    etc ..." (not read), and is refused without them. A parameter file's trailer
@@ -151,7 +151,7 @@ int main(void)
     std::string bad = whole;
     bad.replace(fifth, 1, "x");
     const std::string bad_error = read_error(b, bad);
-    CHECK(bad_error.starts_with(std::string(b) + ":5: \"x") && bad_error.find("is not a whole number (nout)") != std::string::npos);
+    CHECK(bad_error.starts_with(std::string(b) + ":5: \"x") && bad_error.find("is not a whole number (store_every)") != std::string::npos);
 
     /* all or nothing: the session changed, then a set file whose last
        value (the BVP range's high end) does not read is refused at that
@@ -183,7 +183,7 @@ int main(void)
     CHECK(!session_set && session_set.error().place.line == bvp_high + 1);
     CHECK(xpp::read_session_set(s, c, whole).has_value());
     /* a numerics value its rule refuses, at its line, nothing applied */
-    for (const auto &[label, value, why] : {std::tuple{" nout", "0", "nOutput must be a whole number of at least 1"},
+    for (const auto &[label, value, why] : {std::tuple{" store_every", "0", "Store every N steps must be a whole number of at least 1"},
                                             std::tuple{"DeltaT", "0", "Dt must be a number other than 0"},
                                             std::tuple{"Bound", "-1", "Bounds must be a number above 0"},
                                             std::tuple{"Max Delay", "-1", "Maximal delay must be a number of at least 0"}}) {

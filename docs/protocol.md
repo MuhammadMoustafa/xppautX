@@ -1073,7 +1073,7 @@ core/numerics_settings.cpp keeps it.
 {"ev":"numerics","fields":[
   {"key":"total","label":"Total","value":30},
   {"key":"dt","label":"Dt","value":0.05},
-  {"key":"nout","label":"nOutput","value":1,"integer":true},
+  {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
   {"key":"method","label":"Method","value":3,"integer":true,
    "choices":["Discrete","Euler","Mod. Euler","Runge-Kutta",...]},
   {"key":"tol","label":"Tolerance","value":0.001,"unused":true}, ...]}
@@ -1081,7 +1081,7 @@ core/numerics_settings.cpp keeps it.
 
 The fields, in the menu's order: `total` (below 0: integrate for ever, as
 the menu's), `t0`, `trans`, `dt`, `nmesh` (Ncline ctrl), `newt_iter`,
-`newt_tol`, `jac_eps` (sIng pt ctrl), `nout`, `bound`, `method` (its number,
+`newt_tol`, `jac_eps` (sIng pt ctrl), `store_every`, `bound`, `method` (its number,
 `choices` its names by number), `tol`, `dtmin`, `dtmax`, `atol`, `eul_tol`,
 `eul_iter` (the method's own), `delay` (only for a model with delays),
 `bvp_maxit`, `bvp_tol`, `bvp_eps` (bndVal). `integer` marks a whole-number
@@ -1089,7 +1089,7 @@ field; `unused` one the current method does not use.
 
 **`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one
 field. The core checks the value first and changes nothing on a bad one,
-with a `message` `error` naming the field (`Numerics: nOutput must be a
+with a `message` `error` naming the field (`Numerics: Store every N steps must be a
 whole number of at least 1`): a number; `dt` not 0; the tolerances,
 `bound`, `newt_tol`, `jac_eps` above 0; `delay` at least 0; the whole-number
 fields at least 1; `method` a name of `choices` (any case) or its number, one
@@ -1102,7 +1102,7 @@ remain IDs (8 is QualRK), while the legacy `@ meth=8` key means DoPri8(3).
 Then it applies the numerics as
 leaving the Numerics menu does (the delays' and integrals' memory for a new
 `dt` or `delay`, a fresh solver; a method that picks its own steps stores
-every output time, NOUT 1). The Numerics menu asks for the same fields
+every output time, store_every 1). The Numerics menu asks for the same fields
 with the same checks (W119): a value it refuses shows the same error and
 keeps the value before. The fields are the numerics rows of the model's
 option table (core/model_options.cpp), which also gives their `@` names
@@ -1388,7 +1388,7 @@ every frozen curve `marks.set` lists) or one whose member does not read: a
 line missing or not a number, a value out of range, a line after the
 last it holds, a variable, a window or a slot it does not have, a value
 of AUTO's it does not take; and (W145) a numerical setting its rule
-refuses, as `set` `num` and an `@` line refuse it (0 `nout`, 0 `DeltaT`),
+refuses, as `set` `num` and an `@` line refuse it (0 `store_every`, 0 `DeltaT`),
 more added columns than the model has room for or one whose formula does
 not compile, an arrow's or marker's type or a colour out of range, a
 manifest line given twice. Every member is read whole and checked
@@ -1809,7 +1809,7 @@ plotted columns. This is display pacing, not a solver step or accuracy setting.
 can lag `now` by the rows the run has not stored yet (a transient is not stored).
 The final `state` still supplies the exact end/stop values. No trajectory
 subscription is needed. `XPP_NO_THROTTLE` exposes every accepted output step for
-condition-based protocol checks. An output step follows configured Noutput;
+condition-based protocol checks. An output step follows configured `store_every`;
 adaptive solver internal substeps are not display steps.
 
 ### Recording startup and all-state inspection (W201, W202)

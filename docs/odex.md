@@ -141,7 +141,8 @@ grammar:
 - `fun NAME(ARG, ...) = EXPR` — a one-line function, usual precedence,
   may use the one-line `if`.
 - `fun NAME(ARG, ...) { ... }` — a block function (above).
-- `@ NAME = VALUE, NAME = VALUE, ...` — options, comma-separated, each
+- `@ NAME = VALUE, NAME = VALUE, ...` — options (one name each: `store_every`,
+  where a `.ode` says `nout` or `njmp`, which a `.odex` refuses at its line; W206), comma-separated, each
   parsed independently and never silently dropped; a bad value is an
   error naming the option and the bad text, not a silent truncation.
   Filename values include `~`, as in Windows 8.3 paths

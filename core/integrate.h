@@ -229,12 +229,12 @@ struct IntegratorState {
 };
 
 /* integrates x from *t over tend in steps of dt, storing the points
-   (count 0: none) and plotting every nout-th: 1 when it stopped early
+   (count 0: none) and plotting every store_every-th: 1 when it stopped early
    ('/', the step size under Hmin, a range's quiet failure of the
    method), else 0; or why it failed (a variable NaN or out of
    bounds, the method's own failure, a delay or DAE step), for the
    command that ran it to show (W63b) */
-Result<int> integrate(Session &s, double *t, double *x, double tend, double dt, int count, int nout, int *start);
+Result<int> integrate(Session &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start);
 /* shooting's integration over the whole interval (drawn as it runs when
    ishow, where a failure only ends the curve), or the method's failure */
 Result<> ode_int(Session &s, double *y, double *t, int *istart, int ishow);

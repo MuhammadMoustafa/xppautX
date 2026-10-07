@@ -9,6 +9,7 @@
    (set_option_defaults), and numerics_settings.cpp (the "numerics" event,
    `set num` and the menu's questions). model_options.cpp. */
 
+#include <array>
 #include <bitset>
 #include <cstddef>
 #include <span>
@@ -28,7 +29,7 @@ struct Session; /* session.h */
 enum class Option : unsigned char {
   none,
   /* the numerics */
-  TOTAL, T0, TRANS, DT, NMESH, NEWT_ITER, NEWT_TOL, JAC_EPS, NOUT, BOUND,
+  TOTAL, T0, TRANS, DT, NMESH, NEWT_ITER, NEWT_TOL, JAC_EPS, STORE_EVERY, BOUND,
   METH, TOL, DTMIN, DTMAX, ATOL, DELAY, VMAXPTS, MAXSTOR, TOR_PER, BANDUP,
   BANDLO, POIMAP, POIVAR, POISGN, POISTOP, POIPLN, SEED, STOCH, AUTOEVAL,
   /* the plot */
@@ -92,6 +93,9 @@ struct OptionValue {
 struct OptionRow {
   std::string_view name;          /* "" for a numerics setting the model cannot set */
   std::string_view alias;         /* a second name, or "" */
+  /* XPPAUT's names for it, read in a .ode, an .xpprc and the command line
+     (foreign formats) and refused in a .odex: "" when XPPAUT's name is the name */
+  std::array<std::string_view, 2> xppaut_names;
   char first_digit = 0, last_digit = 0; /* numbered: the digits after name */
   Option flag = Option::none;
   /* the member: a number (atof), a whole number (atoi) or text */
@@ -123,8 +127,14 @@ const char *rule_problem(OptionRule rule, double v);
 std::span<const OptionRow> option_rows();
 
 /* the row whose name the option name (upper case) starts with, the longest
-   such, and the digit after a numbered one; nullptr when none */
-const OptionRow *find_option(std::string_view upper_name, int &index);
+   such, and the digit after a numbered one; nullptr when none. xppaut_names:
+   XPPAUT's own names for a row count too (a .ode, .xpprc or command line),
+   as a .odex does not take them */
+const OptionRow *find_option(std::string_view upper_name, int &index, bool xppaut_names);
+
+/* the option key as a .odex writes it: XPPAUT's name for a row (NOUT,
+   NJMP) is the row's name in lower case, any other key stays as it is */
+std::string odex_option_key(std::string_view key);
 
 /* the numerics setting with key, nullptr when none */
 const OptionRow *numerics_option(std::string_view key);
