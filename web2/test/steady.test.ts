@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {steadyError} from '../src/store/steady';
+import {continueDefault, numericsField, runInterval, steadyDefaults, steadyError} from '../src/store/steady';
 import {HELLO} from './hello';
 import {kindOf, mayStart} from '../src/protocol/kinds';
 
@@ -20,4 +20,21 @@ test('steady and direct continuation are computations guarded during another run
     assert.equal(mayStart(kind, false, true), false);
     assert.equal(mayStart(kind, false, false), true);
   }
+});
+
+test('the run interval is one for a map and Dt otherwise; the defaults follow Run duration and the core time', () => {
+  const fields = (method: number) => [
+    {key: 'total', label: 'Total', value: 20}, {key: 'dt', label: 'Dt', value: 0.05},
+    {key: 'method', label: 'Method', value: method, choices: ['Discrete', 'Euler']}];
+  assert.equal(runInterval(fields(0)), 1);
+  assert.equal(runInterval(fields(1)), 0.05);
+  assert.ok(Number.isNaN(runInterval(null)));
+  assert.equal(numericsField(fields(1), 'total')?.value, 20);
+  assert.equal(numericsField(null, 'total'), undefined);
+  assert.deepEqual(steadyDefaults(HELLO.steady, 20, 0.05), {decimals: '9', hold: '1', maximum: '20'});
+  /* a new Run duration moves the limit, and a short run caps the hold */
+  assert.deepEqual(steadyDefaults(HELLO.steady, 0.5, 0.05), {decimals: '9', hold: '0.5', maximum: '0.5'});
+  assert.equal(continueDefault('extra', 20, 7), '20');
+  assert.equal(continueDefault('until', 20, 7), '27');
+  assert.equal(continueDefault('until', 20, undefined), '20');
 });

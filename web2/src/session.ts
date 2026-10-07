@@ -337,8 +337,14 @@ export class Session {
   /** A clicked command uses its stable identity; typing still uses legacy keys. */
   menuAction(menu: MenuName, item: string, ...then: string[]): void {
     const hello = this.store.getState().hello;
-    if (!hello || !hello.menus[`${menu}_ids`].includes(item)) return;
-    this.sendKeySequence({...menuCommand(menu, item), button: hello.menus[menu][hello.menus[`${menu}_ids`].indexOf(item)]}, then);
+    if (!hello) return;
+    const i = hello.menus[`${menu}_ids`].indexOf(item);
+    if (i < 0) {
+      /* the page and the core disagree on a command's name: shown, once, never skipped */
+      this.failed(`The command ${menu}/${item} is not in the core's menus.`);
+      return;
+    }
+    this.sendKeySequence({...menuCommand(menu, item), button: hello.menus[menu][i]}, then);
   }
 
   /** whether main-menu item `id` may go out now (may) */
@@ -388,11 +394,6 @@ export class Session {
       what runs; while it computes a key of the data or computation kind
       does nothing: it is not kept to go out later (W68, W95) */
   typeKey(k: string): void {
-    /* Labels use capitals. Accept Caps Lock/Shift where only the lowercase
-       letter is a command, preserving any explicitly distinct uppercase key. */
-    const state = this.store.getState();
-    if (k.length === 1 && !state.ask && kindOf(state.hello, state.core?.menu ?? 0, {cmd: 'key', key: k}) === null
-        && kindOf(state.hello, state.core?.menu ?? 0, {cmd: 'key', key: k.toLowerCase()}) !== null) k = k.toLowerCase();
     const {ask, busy, computing, stopping} = this.store.getState();
     if (ask) {
       const i = (ask.keys ?? '').toLowerCase().indexOf(k.toLowerCase());

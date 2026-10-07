@@ -165,6 +165,8 @@ export type Action =
   | {type: 'toast'; kind: Toast['kind']; text: string}
   | {type: 'dismiss'; id: number}
   | {type: 'drawer'; open: boolean}
+  /** the page's own line in the status bar (a key that cannot act now says why) */
+  | {type: 'bottom'; text: string}
   | {type: 'theme'; theme: Theme}
   | {type: 'values'; action: ValuesAction}
   | {type: 'valuesPanel'; open: boolean}
@@ -544,6 +546,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return {...state, toasts: state.toasts.filter(t => t.kind !== 'error')};
     case 'dismiss':
       return {...state, toasts: state.toasts.filter(t => t.id !== action.id)};
+    case 'bottom':
+      return {...state, bottom: action.text, bottomHelp: null};
     case 'drawer':
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':

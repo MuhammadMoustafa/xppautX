@@ -4,7 +4,7 @@ import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {menuHelp} from '../help/links';
 import {menuCommand, menuName} from '../protocol/kinds';
-import {contextualShortcut, navigationGroups} from './navigation';
+import {contextualShortcut, layerLabel, navigationGroups, navigationProblems} from './navigation';
 
 export function MenuPanel() {
   const session = useSession();
@@ -18,17 +18,14 @@ export function MenuPanel() {
   const close = () => session.store.dispatch({type: 'drawer', open: false});
   useFocusBackOnClose(open, nav, '.menu-toggle');
   useEffect(() => {
-    if (!open) return;
-    nav.current?.querySelector<HTMLInputElement>('input')?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || session.store.getState().ask) return;
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    if (open) nav.current?.querySelector<HTMLInputElement>('input')?.focus();
   }, [open]);
+  /* the groups and the core's menus must agree: a difference is shown once per hello (Escape is
+     hotkeys.ts's, the one handler) */
+  useEffect(() => {
+    const problems = hello ? navigationProblems(hello) : [];
+    if (problems.length) session.store.dispatch({type: 'toast', kind: 'error', text: problems.join(' ')});
+  }, [hello]);
   const name = menuName(hello, which);
   const groups = navigationGroups(hello, query).map(group => ({...group,
     items: !query.trim() && group.name === 'Run'
@@ -53,8 +50,8 @@ export function MenuPanel() {
       <label class="visually-hidden" htmlFor="command-search">Search commands</label>
       <input id="command-search" type="search" placeholder="Search commands…" value={query}
         onInput={e => setQuery((e.target as HTMLInputElement).value)} aria-keyshortcuts="Control+k Meta+k" />
-      {name && name !== 'main' && <div class="shortcut-context" role="status">
-        <strong>{name === 'file' ? 'File' : 'Numerics'} shortcuts active</strong>
+      {name && name !== 'main' && hello && <div class="shortcut-context">
+        <strong>{layerLabel(hello, name)} shortcuts active</strong>
         <span>The next letter selects a command here.</span>
         <button class="small" disabled={asking} onClick={() => session.typeKey('Escape')}>Main commands <kbd>Esc</kbd></button>
       </div>}
@@ -72,7 +69,7 @@ export function MenuPanel() {
                 button.tabIndex = button === e.currentTarget ? 0 : -1;
               });
             }} onClick={() => {close(); session.menuAction(item.menu, item.id);}}>
-            <span>{!query.trim() && item.id === 'initialconds' ? 'More run options…' : item.label}</span><kbd aria-hidden="true">{shortcut}</kbd>
+            <span>{item.label}</span><kbd aria-hidden="true">{shortcut}</kbd>
           </button></li>;
         })}</ul>
       </details>)}

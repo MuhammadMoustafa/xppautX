@@ -596,3 +596,7 @@ export interface NumericsField {
 }
 
 export type Command = {cmd: string; [k: string]: unknown};
+
+/** a `key` command naming a main-window menu item by its stable id (hello.menus.*_ids), not by a
+    shortcut key; `button` is the control clicked, for a recording's step */
+export type MenuItemCommand = {cmd: 'key'; menu: MenuName; item: string; button?: string};

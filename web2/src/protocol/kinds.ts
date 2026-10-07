@@ -7,7 +7,7 @@
    learns a window's keys), and `commands`. Only a running computation (the
    core's `computing` event, until the command's idle) or an open question
    disables anything; the page's own catch-up commands never do. */
-import type {Command, HelloEvent, MenuName} from './types';
+import type {Command, HelloEvent, MenuItemCommand, MenuName} from './types';
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
     shown) and setting (a parameter, an initial or boundary condition, a
@@ -73,8 +73,13 @@ export function mainKey(hello: HelloEvent | null, id: string): {cmd: 'key'; key:
 }
 
 /** A menu action does not depend on which legacy shortcut menu is active. */
-export function menuCommand(menu: MenuName, item: string): Command {
+export function menuCommand(menu: MenuName, item: string): MenuItemCommand {
   return {cmd: 'key', menu, item};
+}
+
+/** whether `cmd` is a menu item by id: a menu and an item and no shortcut key or window layer */
+function isMenuItemCommand(cmd: Command): cmd is MenuItemCommand {
+  return cmd.cmd === 'key' && typeof cmd.menu === 'string' && typeof cmd.item === 'string' && !('key' in cmd) && !('win' in cmd);
 }
 
 /** the key of item `id` of window `win`'s layer ('' before hello, or for no such item) */
@@ -103,13 +108,14 @@ export function kindOf(hello: HelloEvent | null, menu: number, cmd: Command): Ki
      Its answer and cancellation must reach the waiting core. */
   if (!hello) return cmd.cmd === 'answer' || cmd.cmd === 'abort' || cmd.cmd === 'quit' ? 'control' : null;
   if (cmd.cmd === 'key') {
-    if ('menu' in cmd || 'item' in cmd) {
-      if (typeof cmd.menu !== 'string' || typeof cmd.item !== 'string' || 'key' in cmd || 'win' in cmd) return null;
+    if (isMenuItemCommand(cmd)) {
       const name = hello.menus.names.find(n => n === cmd.menu);
       if (!name) return null;
       const i = hello.menus[`${name}_ids`].indexOf(cmd.item);
       return i >= 0 ? OF_LETTER[hello.menus[`${name}_kinds`][i]] ?? null : null;
     }
+    /* a menu or an item with the rest of a menu item missing or mixed with a key is no command */
+    if (cmd.menu !== undefined || cmd.item !== undefined) return null;
     const key = String(cmd.key ?? '');
     if (key === 'Escape') return 'control';
     if (typeof cmd.win === 'string') {
