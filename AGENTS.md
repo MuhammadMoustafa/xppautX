@@ -55,6 +55,7 @@ The sections below give the details.
 | Numerics change only on purpose, and are the same on every CPU, system and compiler: `xpp::math`'s correctly rounded functions, never the C library's, and no FMA contraction (W159) | examples md5s (one baseline, every platform), goldencheck, odexcheck, mathcheck |
 | What is ours and what is XPPAUT's is recorded as it changes, so it never needs a review from the beginning (maintainer, 2026-10-01): a card that changes what a user meets adds its line under Unreleased in CHANGELOG.md (W149), one that changes what an XPPAUT user meets (new, changed, removed, a limit lifted) updates its row in docs/xppautx-vs-xppaut.md (W148), one that fixes a bug of XPPAUT's own adds its entry to docs/xppaut-findings.md (below); each with its card | review (at merge) |
 | Tests check data, never pixels, and never pass or fail on machine speed (W58); a check waits for a condition, never for a time (maintainer, 2026-10-02: a sleep is not a synchronisation): a sleep in a check is only the poll interval inside a wait for a condition, or a lower bound proving something does not happen, its reason beside it | review; sleepcheck (W166) |
+| Every XPPAUT `.ode` model must load, convert (once, to `.odex`) and give the same results as XPPAUT (maintainer, 2026-10-07): a card that touches the parser, the converter, the solvers or a numerics setting keeps `odexcheck` and `examples_check` green; a deliberate difference is recorded in docs/odex-quirks.md and docs/xppautx-vs-xppaut.md, never left as a silent change | odexcheck, examples md5s, goldencheck; review |
 | Agents stop only their own processes, by PID, never by name | review |
 | A bug, wrong result or arbitrary limit found in XPPAUT itself is recorded in docs/xppaut-findings.md (for the paper), with its evidence and the lines in XPPAUT's own source, never our refactored code, as relative links into the local, git-ignored copies `reference/xppaut-8.0` (the 8.0 source xppautX was forked from, `git archive c021b51`) and `reference/xppaut-master` (XPPAUT's GitHub master), e.g. `[load_eqn.c:1544](../reference/xppaut-8.0/load_eqn.c#L1544)` (maintainer, 2026-10-01); the index number links to its entry, and every card and commit links to its GitHub issue or commit (maintainer, 2026-10-01) | review |
 
@@ -551,6 +552,10 @@ differences of its sandbox:
 ## Checks that can be trusted
 
 Beyond the "Tests check data" and sleep rows of Code quality:
+- A test never reads a clock to decide pass or fail (no `Date.now()` deadline, no elapsed-time assertion):
+  it waits for the event (an `idle` event, a socket reply, a signal, a count
+  reached). A timeout is only a safety limit that fails a hang; it never
+  decides a result and never serves as a synchronisation (maintainer, 2026-10-07).
 - Wait for a command's own completion signal, never for "not busy"; stop a
   run at a count, not by racing it.
 - A check that was rerun and passed is reported as flaky (Build: FLAKY),
