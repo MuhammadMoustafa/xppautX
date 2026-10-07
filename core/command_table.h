@@ -78,7 +78,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 59> COMMANDS = {{
+inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, 'c', "continue", "Continue integration", "Continue integration for specified time", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {}},
     {MAIN_MENU, 'p', "parameters", "Parameters", "Change problem parameters", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
@@ -89,6 +89,8 @@ inline constexpr std::array<CommandRow, 59> COMMANDS = {{
     {NUM_MENU, 'm', "method", "Solver method", "Integration method", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'o', "store_every", STORE_EVERY_LABEL, "Store one row per N output steps", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
     {NUM_MENU, 'b', "bounds", "Bounds", "Maximum allowed size of any variable", XPP_KIND_SETTING, CommandCategory::Run, true, false, {}},
+    {MAIN_MENU, 'z', "undo", "Undo value edit", "Take back the last edit of the parameters, initial conditions or numerics (not runs, plots or files)", XPP_KIND_SETTING, CommandCategory::Run, true, false, {"Ctrl+Z"}},
+    {MAIN_MENU, 'y', "redo", "Redo value edit", "Put back the value edit that was undone", XPP_KIND_SETTING, CommandCategory::Run, true, false, {"Ctrl+Shift+Z", "Ctrl+Y"}},
     {FILE_MENU, 'm', "openmodel", "Open model…", "Load another model in place of this one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+O"}},
     {FILE_MENU, 'n', "opensession", "Open session…", "Open a session file: its model, values, windows, data and diagram", XPP_KIND_DATA, CommandCategory::Files, true, true, {}},
     {FILE_MENU, 'v', "savesession", "Save session", "Save everything to this session's file (.snapx) to continue later; the first save asks for one", XPP_KIND_DATA, CommandCategory::Files, true, true, {"Ctrl+S"}},

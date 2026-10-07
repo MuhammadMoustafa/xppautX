@@ -7,7 +7,7 @@
    change of focus: never for a time. A key typed in a text field, a select, a dialog or a menu is the
    element's own; a button keeps its Enter, Space and arrows. Tab is never taken: it moves the focus. */
 import {useEffect} from 'preact/hooks';
-import {menuCommand} from '../protocol/kinds';
+import {menuCommand, noValueEdit} from '../protocol/kinds';
 import type {CommandRow} from '../protocol/kinds';
 import type {HelloEvent} from '../protocol/types';
 import type {KeyPreset} from '../store/state';
@@ -64,6 +64,10 @@ const BUTTONS = 'button, a, summary, [role="button"], [role="tab"], [role="slide
 const DIALOGS = '[role="dialog"], [aria-modal="true"]';
 /** a key the page takes wherever the focus is: with Ctrl or Alt, or a function key */
 const ANYWHERE = /^(Ctrl|Alt)\+|^F\d+$/;
+/** where Ctrl+Z is the browser's text undo */
+const TEXT_FIELD = 'input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]), textarea, [contenteditable]';
+/** the commands whose keys are a text field's own while it has the focus */
+const EDIT_COMMANDS = new Set(['undo', 'redo']);
 const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Dead']);
 
 /** a key an open menu or prompt can take: a single sign, or a named key without a modifier */
@@ -146,7 +150,7 @@ function closeTransient(session: Session): boolean {
     it (its kind, protocol/kinds.ts) the status bar says why. */
 function runCommand(session: Session, row: CommandRow): void {
   if (session.may(menuCommand(row.menu, row.id))) session.menuAction(row.menu, row.id);
-  else session.store.dispatch({type: 'bottom', text: `${row.label}: ${BUSY_TITLE}`});
+  else session.store.dispatch({type: 'bottom', text: `${row.label}: ${noValueEdit(session.store.getState().core, row.id) ? `nothing to ${row.id}` : BUSY_TITLE}`});
 }
 
 /** One key typed on the page. The browser's default is prevented only for a key the page acts on: a
@@ -191,6 +195,8 @@ export function handleKey(session: Session, e: KeyboardEvent): void {
   if (!ANYWHERE.test(name) && !isHotkeyTarget(target, e.key)) return;
   const keys = [...pendingKeys, plainName(name)];
   const {row, more} = resolveKeys(hello, keyPreset, keys);
+  /* in a text field Undo and Redo are the field's own (its typing), not the Values' */
+  if (row && EDIT_COMMANDS.has(row.id) && target?.closest?.(TEXT_FIELD)) return;
   if (!row && !more && !pendingKeys.length) return;
   e.preventDefault();
   dispatch({type: 'pendingKeys', keys: more ? keys : []});

@@ -3,12 +3,13 @@ import {useFocusBackOnClose} from './focusBack';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {HelpButton} from './HelpButton';
 import {menuHelp} from '../help/links';
-import {menuCommand} from '../protocol/kinds';
+import {menuCommand, noValueEdit} from '../protocol/kinds';
 import {navigationGroups, navigationProblems} from './navigation';
 
 export function MenuPanel() {
   const session = useSession();
   const hello = useStore(s => s.hello);
+  const core = useStore(s => s.core);
   const preset = useStore(s => s.keyPreset);
   const open = useStore(s => s.drawerOpen);
   const [query, setQuery] = useState('');
@@ -50,7 +51,7 @@ export function MenuPanel() {
         <ul>{group.items.map((item, i) => {
           const off = !may(menuCommand(item.menu, item.id));
           return <li key={`${item.menu}:${item.id}`}><button class="menu-item" data-menu={item.menu} data-item={item.id}
-            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? BUSY_TITLE : item.shortcut ? `${item.description} (${item.shortcut})` : item.description}
+            tabIndex={i === 0 ? 0 : -1} disabled={off} title={off ? noValueEdit(core, item.id) ? `Nothing to ${item.id}` : BUSY_TITLE : item.shortcut ? `${item.description} (${item.shortcut})` : item.description}
             aria-keyshortcuts={item.defaultKey.replace('Ctrl', 'Control')}
             onFocus={e => {
               e.currentTarget.closest('ul')?.querySelectorAll<HTMLButtonElement>('button').forEach(button => {

@@ -30,7 +30,7 @@ import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
-const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from current uses the last state and starts a new trajectory.';
+const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from last state uses the last state and starts a new trajectory.';
 
 /* ---- folded sections, remembered per viewer ---- */
 
@@ -331,8 +331,6 @@ function UserButtonsBlock() {
 
 export function ValuesPanel() {
   const session = useSession();
-  const checkpoint = useStore(s => s.values.checkpoint);
-  const recoveryOff = useStore(s => !s.core || s.busy || !!s.ask || s.values.inflight.length > 0 || Object.keys(s.values.errors).length > 0);
   const open = useStore(s => s.valuesOpen);
   const bcs = useStore(s => s.core?.bcs ?? []);
   const modelBcs = showsBcSection(bcs) ? bcs : [];
@@ -373,15 +371,6 @@ export function ValuesPanel() {
         <IndexedSection id="delay" title="Delay initial data" kind="delay" entries={delays}
           hint="An expression in t for t < 0" startFolded />
         <NumericsSection />
-        <details class="working-values">
-          <summary>Recovery</summary>
-          <p>Keep parameters and initial conditions before experimenting. Reset restores model defaults.</p>
-          <div class="dialog-actions">
-            <button class="small" disabled={recoveryOff} onClick={() => session.captureWorkingValues()}>{checkpoint ? 'Update checkpoint' : 'Keep working values'}</button>
-            <button class="small" disabled={recoveryOff || !checkpoint} onClick={() => session.restoreWorkingValues()}>Restore working values</button>
-          </div>
-          {checkpoint && <p role="status">Working values kept for this model.</p>}
-        </details>
       </div>
     </section>
   );

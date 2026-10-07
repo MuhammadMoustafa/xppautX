@@ -963,6 +963,7 @@ void do_init_data(xpp::Session &s, int com)
       command_error("initialconds","No prior solution");
       return;
     }
+    xpp::push_value_undo(s); /* Run from last state overwrites the initial conditions */
     get_ic(s,0,x);
     if(com==M_IS){
       s.numerics.t0=s.integrator.last_time;

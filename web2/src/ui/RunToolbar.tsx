@@ -71,7 +71,7 @@ export function RunToolbar() {
         title={initialOff ? BUSY_TITLE : 'Start a new trajectory from Initial values (I, G)'}>Run from initial</button>
       <button data-run="current" aria-disabled={currentOff}
         onClick={() => { if (!currentOff) session.menuAction('main', 'initialconds', INITIAL_LAST); }}
-        title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a current state' : 'Use the last state as Initial and start a new trajectory (I, L)'}>Run from current</button>
+        title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a current state' : 'Use the last state as Initial and start a new trajectory (I, L)'}>Run from last state</button>
       <button data-run="steady" aria-disabled={steadyOff}
         onClick={() => { if (!steadyOff && steady) session.send({cmd: 'steady', decimals: Number(steady.decimals), hold: Number(steady.hold), maximum: Number(steady.maximum)}); }}
         title={initialOff ? BUSY_TITLE : steadyProblem ?? 'Run from Initial until every state stops changing at the configured precision'}>Run to steady state</button>
@@ -84,7 +84,7 @@ export function RunToolbar() {
     <div class="run-time-controls">
       {total && <label>Run duration <Field data-run-duration="" spec={{kind: 'number', positive: true}}
         value={sentDuration ?? String(total.value ?? '')} onCommit={text => session.setNumeric('total', text)}
-        error={durationError} settling={sentDuration !== null} title="Total duration of Run from initial/current, in model time units" /></label>}
+        error={durationError} settling={sentDuration !== null} title="Total duration of Run from initial/last state, in model time units" /></label>}
       <label>Continue <select aria-label="Continuation time mode" value={continueMode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>
       </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={continueValue ?? ''}

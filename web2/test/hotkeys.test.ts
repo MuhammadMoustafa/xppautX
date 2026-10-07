@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {handleKey, keyName, resolveKeys, RESERVED_KEYS, shortcutLabel} from '../src/ui/hotkeys';
 import {BUSY_TITLE} from '../src/ui/context';
 import {initialState, reduce, type Action, type AppState, type KeyPreset} from '../src/store/state';
-import {mayStart, kindOf} from '../src/protocol/kinds';
+import {mayStart, kindOf, noValueEdit} from '../src/protocol/kinds';
 import type {Session} from '../src/session';
 import {HELLO} from './hello';
 
@@ -14,13 +14,13 @@ function keyEvent(key: string, mods: Partial<KeyboardEvent> = {}) {
 }
 
 /** a session with the parts handleKey uses: a store, may (as Session.may), menuAction, typeKey, awaitingMenu */
-function fakeSession(opts: {computing?: boolean; hello?: AppState['hello']; preset?: KeyPreset; waiting?: boolean; ask?: boolean} = {}) {
-  let state: AppState = {...initialState, hello: opts.hello === undefined ? HELLO : opts.hello, computing: opts.computing ?? false,
+function fakeSession(opts: {computing?: boolean; hello?: AppState['hello']; preset?: KeyPreset; waiting?: boolean; ask?: boolean; core?: Partial<NonNullable<AppState['core']>>} = {}) {
+  let state: AppState = {...initialState, hello: opts.hello === undefined ? HELLO : opts.hello, computing: opts.computing ?? false, core: (opts.core ?? null) as AppState['core'],
     keyPreset: opts.preset ?? 'default', ask: opts.ask ? {id: 1, kind: 'menu', keys: 'gl', items: []} as never : null};
   const calls: string[] = [];
   const session = {
     store: {getState: () => state, dispatch: (a: Action) => { state = reduce(state, a); }},
-    may: (cmd: Parameters<Session['may']>[0]) => mayStart(kindOf(state.hello, 0, cmd), state.computing, false),
+    may: (cmd: Parameters<Session['may']>[0]) => !(cmd.cmd === 'key' && noValueEdit(state.core, String(cmd.item))) && mayStart(kindOf(state.hello, 0, cmd), state.computing, false),
     menuAction: (menu: string, item: string) => { calls.push(`${menu}/${item}`); },
     typeKey: (k: string) => { calls.push(`key ${k}`); },
     awaitingMenu: () => opts.waiting ?? false,
@@ -137,4 +137,18 @@ test('the keys of a command are listed from the table', () => {
   assert.equal(shortcutLabel(row('saveinfo'), 'default'), '');
   assert.equal(shortcutLabel(row('saveinfo'), 'xppaut'), 'F S');
   assert.equal(shortcutLabel(row('initialconds'), 'xppaut'), 'I');
+});
+
+test('Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y are Undo and Redo value edit; a text field keeps them, and the status bar says when there is nothing to do', () => {
+  const idle = fakeSession();
+  type(idle, keyEvent('z', {ctrlKey: true, code: 'KeyZ'}), keyEvent('Z', {ctrlKey: true, shiftKey: true, code: 'KeyZ'}), keyEvent('y', {ctrlKey: true, code: 'KeyY'}));
+  assert.deepEqual(idle.calls, ['main/undo', 'main/redo', 'main/redo']);
+  const field = {closest: (selector: string) => selector.startsWith('input:not') ? {} : null};
+  const typing = fakeSession();
+  const [z] = type(typing, keyEvent('z', {ctrlKey: true, code: 'KeyZ', target: field as never}));
+  assert.deepEqual([typing.calls, z.prevented], [[], 0]);
+  const none = fakeSession({core: {can_undo: false, can_redo: true}});
+  type(none, keyEvent('z', {ctrlKey: true, code: 'KeyZ'}), keyEvent('y', {ctrlKey: true, code: 'KeyY'}));
+  assert.deepEqual(none.calls, ['main/redo']);
+  assert.equal(none.state().bottom, 'Undo value edit: nothing to undo');
 });

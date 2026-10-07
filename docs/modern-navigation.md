@@ -35,7 +35,7 @@ named parameter sets, preferences, tutorial, recording and playback.
 The header identifies the model by filename, with its full path available
 as a tooltip. Data, Model and Help remain immediate actions; session save
 lives in Files. A permanent toolbar above the plot contains Run from
-initial (I/G), Run from current (I/L), Run to steady state, Continue, and Stop. I/L copies
+initial (I/G), Run from last state (I/L), Run to steady state, Continue, and Stop. I/L copies
 the last state into Initial and starts a new trajectory at the configured
 start time. Inline Run duration and Continue For another / Until time fields
 make time changes immediate. Continue extends the existing trajectory in one

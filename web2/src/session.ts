@@ -11,7 +11,7 @@ import type {Ranges} from './plot/viewmath';
 import {HOME, windowOf, type Viewport} from './store/plots';
 import {sha256Hex, type FilesApi} from './protocol/files';
 import type {Transport} from './protocol/transport';
-import {commandRow, kindOf, mainKey, mayStart, menuCommand, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
+import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
 import {activeView, autoWindow} from './store/diagram';
@@ -323,6 +323,7 @@ export class Session {
       comes after it in turn. */
   may(cmd: Command): boolean {
     const {hello, core, computing, ask, player} = this.store.getState();
+    if (cmd.cmd === 'key' && typeof cmd.item === 'string' && noValueEdit(core, cmd.item)) return false;
     const kind = kindOf(hello, core?.menu ?? 0, cmd);
     /* a recording's step runs: only what steers the player or a view (W59b) */
     if (player.running >= 0) return kind === 'control' || kind === 'view';
@@ -918,7 +919,7 @@ export class Session {
     return this.store.getState().values.defaults?.[fieldKey(kind, name)] ?? null;
   }
 
-  /** one field back to the model file's value (GitHub #110: the way back, since there is no undo) */
+  /** one field back to the model file's value (GitHub #110: Undo value edit is the other way back) */
   resetValue(kind: 'par' | 'ic', name: string): void {
     const d = this.defaultOf(kind, name);
     if (d !== null) this.setValue(kind, name, String(d));
@@ -929,21 +930,6 @@ export class Session {
   defaultValues(kind: 'par' | 'ic'): void {
     this.store.dispatch({type: 'values', action: {type: 'defaulted', kind}});
     this.send({cmd: 'default', kind});
-  }
-
-  captureWorkingValues(): void {
-    const {core, values, busy, ask} = this.store.getState();
-    if (!core || busy || ask || values.inflight.length || Object.keys(values.errors).length) return;
-    if (![...core.pars, ...core.ics].every(([, value]) => Number.isFinite(value))) return;
-    this.store.dispatch({type: 'values', action: {type: 'checkpoint', pars: core.pars, ics: core.ics}});
-  }
-
-  restoreWorkingValues(): void {
-    const {values, busy, ask} = this.store.getState();
-    if (!values.checkpoint || busy || ask || values.inflight.length) return;
-    const fields = (['par', 'ic'] as const).flatMap(kind => values.checkpoint![kind === 'par' ? 'pars' : 'ics']
-      .map(([name, value]) => ({kind, name, value})));
-    this.send({cmd: 'set', values: fields, button: 'Restore working values'});
   }
 
   /** a numerics field (the values panel's Numerics, W106): `key` as the

@@ -3521,8 +3521,8 @@ async function navigationCheck() {
   await until('s.hello && !s.busy', 'hello');
   check('navigation: five stable command groups and model filename', await cdp.eval(`
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
-  check('navigation: Run first, States first, and recovery folded', await cdp.eval(`
-    document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic' && !document.querySelector('.working-values').open`));
+  check('navigation: Run first, States first', await cdp.eval(`
+    document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic'`));
   check('navigation: common run actions have one visible home and require a prior state where appropriate', await cdp.eval(`(() => {
     const toolbar = document.querySelector('.run-toolbar');
     return toolbar.getBoundingClientRect().height > 0 && toolbar.querySelectorAll('.run-actions button').length === 5 &&
@@ -3575,12 +3575,15 @@ async function navigationCheck() {
   check('navigation: Until time runs in one click without a prompt', await until(`!s.busy && Math.abs(s.core.time - ${nextTime}) < 1e-8 && !s.ask`, 'until continuation', 20000));
   const values = await S('[s.core.pars, s.core.ics]');
   const seriesCount = await S('s.seriesCount');
-  await cdp.eval(`document.querySelector('.working-values summary').click(); document.querySelector('.working-values button').click()`);
-  check('navigation: working checkpoint captured', await until('!!s.values.checkpoint', 'checkpoint'));
+  /* W210: Ctrl+Z takes back a value edit exactly, without integrating; Ctrl+Shift+Z puts it back */
+  check('navigation: with nothing to redo the core says so', await S('s.core.can_redo === false'));
   await cdp.eval(`__xpp.send({cmd:'set',kind:'par',name:'iapp',value:0.123456789012345})`);
-  await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && !s.busy', 'changed value');
-  await cdp.eval(`document.querySelectorAll('.working-values button')[1].click()`);
-  check('navigation: Restore preserves exact parameters and ICs without integrating', await until(`JSON.stringify([s.core.pars,s.core.ics]) === ${JSON.stringify(JSON.stringify(values))} && !s.busy`, 'restored values') && await S(`s.seriesCount === ${seriesCount}`));
+  await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && s.core.can_undo && !s.busy', 'changed value');
+  await focusPlot();
+  await key('z', 2);
+  check('navigation: Ctrl+Z restores exact parameters and ICs without integrating', await until(`JSON.stringify([s.core.pars,s.core.ics]) === ${JSON.stringify(JSON.stringify(values))} && !s.busy && s.core.can_redo`, 'undone values') && await S(`s.seriesCount === ${seriesCount}`));
+  await key('z', 10);
+  check('navigation: Ctrl+Shift+Z puts the edit back', await until('s.core.pars.some(p => p[0] === "iapp" && p[1] === 0.123456789012345) && !s.busy && !s.core.can_redo', 'redone value'));
   await focusPlot();
   await key('s', 2);
   check('navigation: Ctrl+S asks to save a session', await until('s.ask && s.ask.kind === "file" && s.ask.wild === "*.snapx"', 'save session'));
@@ -3954,11 +3957,11 @@ async function runsCheck(dir) {
   check('runs: Redraw shows the current data again',
     await until('!s.busy && !w.history.erased && __xpp.plot().curves[0].points === 601', 'redraw'), JSON.stringify(await S('w.history')));
 
-  /* Run from current is Initialconds/Last: the ICs become Now and a new run follows. */
+  /* Run from last state is Initialconds/Last: the ICs become Now and a new run follows. */
   const nowBefore = await S('s.core.now'), n1 = await S('s.seriesCount');
   const sentUse = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('[data-run=current]').click()`);
-  check('runs: Run from current targets Initialconds/Last, copies Now into Initial and runs',
+  check('runs: Run from last state targets Initialconds/Last, copies Now into Initial and runs',
     await until(`!s.busy && s.seriesCount > ${n1}`, 'use state')
     && JSON.stringify((await cdp.eval(`__xpp.sentFrom(${sentUse})`)).map(c => c.cmd === 'key' ? c.item ?? c.key : c.cmd)) === JSON.stringify(['initialconds', 'answer'])
     && JSON.stringify(await S('s.core.ics.map(p => p[1])')) === JSON.stringify(nowBefore),

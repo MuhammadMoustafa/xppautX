@@ -467,6 +467,8 @@ void commander(xpp::Session &s, int ch)
     case 'x': flash(16); run_the_commands(s, M_X); flash(16); break;
     case 'r': flash(17); run_the_commands(s, M_R); flash(17); break;
     case '3': run_the_commands(s, M_3); break;
+    case 'z': if (!xpp::undo_values(s)) command_error("undo", "No value edit to undo"); break;
+    case 'y': if (!xpp::redo_values(s)) command_error("redo", "No value edit to redo"); break;
     }
     break;
 

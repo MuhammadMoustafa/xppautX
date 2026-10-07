@@ -53,6 +53,7 @@
 #include "xpp_error.h"
 #include "xpp_log.h"
 #include "model_switch.h"
+#include "value_undo.h"
 #include "display_state.h"
 #include "xpp_session.h"
 
@@ -237,6 +238,8 @@ struct Session {
   /* the session file this session was last saved to or opened from
      (xpp_session.h) */
   SavedSession saved_session;
+  /* the Values edits that can be undone and redone (value_undo.h) */
+  ValueUndo value_undo;
 
 private:
   Model *model_;

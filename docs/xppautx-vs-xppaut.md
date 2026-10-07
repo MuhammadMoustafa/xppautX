@@ -67,7 +67,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Leaving | closes the window | one question, "Save this session first?"; a run is never stopped by it | W59d, W110 |
 | File dialogs | XPPAUT's own file selector | the OS's own dialog in the window, the browser's picker in browser mode | W88, W90 |
 | Navigation | menus arranged around letter shortcuts | permanent initial/current/steady/continue/stop run toolbar; inline duration and extra/until continuation; full-core unchanged-digits hold with bounded duration and termination reason; consolidated Values and Files actions; searchable groups; stable clicked actions and existing shortcuts | W186–W189, W192–W194 |
-| Experimental values | reset or manually re-enter values | explicit temporary parameter/initial-condition checkpoint and restore, alongside model-default Reset | W190 |
+| Experimental values | reset or manually re-enter values | Undo value edit / Redo value edit (Ctrl+Z, Ctrl+Shift+Z / Ctrl+Y): a bounded stack of parameter, initial-condition and numerics snapshots, alongside model-default Reset; XPPAUT has no undo | W190, W210 ([#264](https://github.com/MuhammadMoustafa/xppautX/issues/264)) |
 | Inspecting states and parameters | separate legacy value windows | compact States/Parameters panel with ten-digit inspection and full-precision editing; all states refresh from solver doubles during integration independently of plotted columns; sampled tail rates cover all states independently of plotted columns and indicate recent motion without certifying convergence | W187, W190, W200, W202 |
 | Busy | the program does not answer while it computes | Stop at any time; a command sent during a run is discarded at the source, except control, view and setting commands | W68, W95 |
 | Errors | `err_msg` text in a box | an error dialog with OK for a failed action; every error names its file and line | W104, W140 |
@@ -102,7 +102,7 @@ value stops the load with the file, line and value, and nothing is applied.
 | Plot retention and legends | native menus and separate frozen-curve commands | Freeze controls next-run retention; Continue appends; Fit preserves older runs; individual legend visibility and hover feedback; double click edits the local legend name/colour | W199 |
 | Fit with retained runs | Fit rescales to the live data only | 2D Fit includes visible retained earlier runs, as 3D Fit does (W204, #258) |
 | Continue until | an end time off the Dt grid stops where the integrator's step count falls | `until` is rounded up to the next Dt grid point, never short; the page shows "will end at t=" first, the `state` event's `time` is the end reached (W204, #258) |
-| Run from last state | Initial conditions > (L)ast, with its prompt | Run from current: one toolbar button that starts a new run from the last state (W192, #246) |
+| Run from last state | Initial conditions > (L)ast, with its prompt | Run from last state: one toolbar button that starts a new run from the last state; the overwritten initial conditions go on the undo stack (W192, #246; W210, #264) |
 | Axis editing and dismissal | Viewaxes menu and explicit Cancel | 2D axis labels and 3D controls open the existing variables/limits editor; AUTO axis popovers and dialogs dismiss with × or outside click | W196, W198 |
 | Saving what the plot shows | not verified | curves, frozen and earlier ones as one table (`curve,x,y[,z]`) | W52 |
 | Who writes files | the X client and the core | the core only; the page just downloads | W66 |

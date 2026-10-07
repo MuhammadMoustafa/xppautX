@@ -7,7 +7,7 @@
    learns a window's keys), and `commands`. Only a running computation (the
    core's `computing` event, until the command's idle) or an open question
    disables anything; the page's own catch-up commands never do. */
-import type {Command, HelloEvent, MenuItemCommand, MenuName} from './types';
+import type {Command, HelloEvent, MenuItemCommand, MenuName, StateEvent} from './types';
 
 /** control (Abort, Quit, an answer): always; view (only changes what is
     shown) and setting (a parameter, an initial or boundary condition, a
@@ -111,6 +111,11 @@ export function mainKey(hello: HelloEvent | null, id: string): {cmd: 'key'; key:
 /** A menu action does not depend on which legacy shortcut menu is active. */
 export function menuCommand(menu: MenuName, item: string): MenuItemCommand {
   return {cmd: 'key', menu, item};
+}
+
+/** whether `id` is undo or redo with no value edit to take back or put back (the state's can_undo, can_redo) */
+export function noValueEdit(core: StateEvent | null, id: string): boolean {
+  return !!core && (id === 'undo' && !core.can_undo || id === 'redo' && !core.can_redo);
 }
 
 /** whether `cmd` is a menu item by id: a menu and an item and no shortcut key or window layer */

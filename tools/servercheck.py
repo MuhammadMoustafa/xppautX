@@ -23,6 +23,7 @@ os.environ['XPP_CONFIG_DIR'] = os.path.join(CONFIG_ROOT, 'xppautX')
 atexit.register(shutil.rmtree, CONFIG_ROOT, ignore_errors=True)
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
+MAX_VALUE_UNDO = 100  # core/value_undo.h
 
 def _reject_non_finite(text):
     """json.loads' parse_constant: NaN/Infinity/-Infinity are not valid
@@ -243,7 +244,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 59)
+check('hello', hello is not None and len(hello["command_table"]) == 61)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -334,8 +335,9 @@ def check_command_table(table):
           and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
           str(layer))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
-    check('W208: Open model, Save session, Save session as and Reload model have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
-          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R']}, str(chords))
+    check('W208: Open model, Save session, Save session as, Reload model, Undo and Redo have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
+          chords == {'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
+                     'undo': ['Ctrl+Z'], 'redo': ['Ctrl+Shift+Z', 'Ctrl+Y']}, str(chords))
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
           and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
@@ -4772,6 +4774,58 @@ def check_save_session():
         check('W209: opening a session file clears changed and names it',
               state(evs).get('changed') is False and state(evs).get('session', {}).get('file', '').endswith('sv1.snapx'),
               str(state(evs).get('session')) + str(state(evs).get('changed')))
+        # W210: undo and redo of the value edits (a Reload starts the stacks empty)
+        evs = run({'key': 'd'}, cmd='reload')
+        pars = lambda evs: {k: v for k, v in state(evs)['pars']}
+        ics = lambda evs: {k: v for k, v in state(evs)['ics']}
+        errs = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+        undo = lambda: run(cmd='key', menu='main', item='undo')
+        redo = lambda: run(cmd='key', menu='main', item='redo')
+        edit = lambda v: run(cmd='set', values=[{'kind': 'par', 'name': 'phi', 'value': v}])
+        phi0 = pars(evs)['phi']
+        check('W210: a loaded model has nothing to undo or redo',
+              state(evs).get('can_undo') is False and state(evs).get('can_redo') is False, str(state(evs).get('can_undo')))
+        evs = undo()
+        check('W210: Undo with nothing to undo is an error naming the command, and changes nothing',
+              len(errs(evs)) == 1 and 'undo' in str(errs(evs)[0]) and pars(evs)['phi'] == phi0, str(errs(evs))[:200])
+        edit(0.1)
+        evs = edit(0.2)
+        check('W210: an edit can be undone', state(evs).get('can_undo') is True and state(evs).get('can_redo') is False)
+        evs = undo()
+        check('W210: Undo takes back the last edit, in one step', pars(evs)['phi'] == 0.1 and state(evs).get('can_redo') is True, str(pars(evs)['phi']))
+        evs = redo()
+        check('W210: Redo puts it back', pars(evs)['phi'] == 0.2 and state(evs).get('can_redo') is False, str(pars(evs)['phi']))
+        undo()
+        evs = undo()
+        check('W210: Undo twice reaches the first values, and the stack is then empty',
+              pars(evs)['phi'] == phi0 and state(evs).get('can_undo') is False and state(evs).get('can_redo') is True, str(pars(evs)['phi']))
+        evs = edit(0.3)
+        check('W210: a new edit forgets what could be redone', state(evs).get('can_redo') is False and state(evs).get('can_undo') is True)
+        evs = redo()
+        check('W210: Redo with nothing to redo is an error', len(errs(evs)) == 1 and 'redo' in str(errs(evs)[0]) and pars(evs)['phi'] == 0.3)
+        evs = run(cmd='set', values=[{'kind': 'num', 'name': 'total', 'value': 123}, {'kind': 'par', 'name': 'phi', 'value': 0.4}])
+        evs = undo()
+        check('W210: one set of a parameter and a numerics field is one undo step', pars(evs)['phi'] == 0.3, str(pars(evs)['phi']))
+        evs = run(cmd='default', kind='par')
+        check('W210: Reset all (default) goes on the stack too', pars(evs)['phi'] != 0.3)
+        evs = undo()
+        check('W210: ... and Undo brings the edited values back', pars(evs)['phi'] == 0.3)
+        # Run from last state pushes the initial conditions it overwrites
+        run({'key': 'g'}, cmd='key', key='i')
+        before = ics(run(cmd='state'))
+        evs = run({'key': 'l'}, cmd='key', key='i')
+        after = ics(evs)
+        check('W210: Run from last state copies the last state into the initial conditions', after != before)
+        evs = undo()
+        check('W210: Undo after Run from last state restores the old initial conditions', ics(evs) == before, str(ics(evs)) + str(before))
+        # the stack is bounded
+        for i in range(MAX_VALUE_UNDO + 5):
+            evs = edit(0.5 + i * 1e-3)
+        n = 0
+        while state(evs).get('can_undo') and n < MAX_VALUE_UNDO + 10:
+            evs = undo()
+            n += 1
+        check('W210: the undo stack keeps the last %d edits' % MAX_VALUE_UNDO, n == MAX_VALUE_UNDO, str(n))
     finally:
         stop_server(p, r, snd)
 
@@ -4891,7 +4945,7 @@ def check_session_file():
 
     def restored_as_saved(tag):
         st2 = no_t(last('state'))
-        drop = lambda s: {k: v for k, v in (s or {}).items() if k != 'session'}
+        drop = lambda s: {k: v for k, v in (s or {}).items() if k not in ('session', 'can_undo', 'can_redo')}  # the undo stacks are not saved
         check('%s: the state is the saved one' % tag, st2 and drop(st1) == drop(st2),
               str([k for k in drop(st1) if drop(st1).get(k) != drop(st2).get(k)]))
         check('%s: state.session names the file opened' % tag,

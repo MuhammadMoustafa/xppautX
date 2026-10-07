@@ -191,10 +191,6 @@ kbd {
 #command-search { width: 100%; min-height: var(--target); margin-bottom: var(--space-2); padding: var(--space-1) var(--space-2); font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--field-border); border-radius: var(--radius); }
 .key-pending { color: var(--accent); font-size: var(--text-xs); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .shortcut-instruction { font-size: var(--text-xs); color: var(--fg-muted); }
-.working-values { border-top: 1px solid var(--border); padding-top: var(--space-2); }
-.working-values summary { min-height: var(--target); cursor: pointer; color: var(--fg-muted); }
-.working-values p { margin-top: var(--space-2); font-size: var(--text-xs); }
-.working-values .dialog-actions { flex-wrap: wrap; }
 .unused-settings { margin-top: var(--space-3); }
 .unused-settings > summary { min-height: var(--target); cursor: pointer; }
 .spacer { flex: 1; }

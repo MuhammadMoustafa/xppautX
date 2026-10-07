@@ -45,7 +45,7 @@ command results use the arrow keys, Home and End. These shortcuts leave
 modal dialogs in control of their focus.
 
 The run toolbar stays above the plots. **Run from initial** (`I, G`)
-starts a new trajectory from Initial values. **Run from current** (`I, L`)
+starts a new trajectory from Initial values. **Run from last state** (`I, L`)
 copies the last state into Initial and starts a new trajectory at the
 configured start time. **Run duration** edits their total duration in place.
 **Continue** extends the existing trajectory in one click: use the inline
@@ -86,15 +86,18 @@ final core state when idle and stored float32 samples while integrating.
 Tail rate is maximum |Δstate/Δt| in up to the last ten stored intervals,
 in each variable's units per time unit. Small rates suggest settling;
 extend the run and inspect the trajectory before concluding steady state.
-This is a sampled diagnostic, not a convergence certificate. Numerics and
-Recovery start folded to leave values visible.
+This is a sampled diagnostic, not a convergence certificate. Numerics starts
+folded to leave values visible.
 
-In **Recovery**, **Keep working values** captures the parameters and initial
-conditions before an experiment. **Restore working values** applies them
-together, without changing plots or solver settings. This checkpoint is
-temporary and clears when a model/session is loaded or the page reconnects;
-save a `.snapx` session for durable recovery. **Reset** still restores model
-defaults. Edits apply on Enter or leaving the field, to the next run.
+**Undo value edit** (Ctrl+Z) takes back the last edit of the parameters,
+initial conditions or numerics, and **Redo value edit** (Ctrl+Shift+Z or
+Ctrl+Y) puts it back, in one step. **Run from last state** counts as an edit:
+it saves the initial conditions it overwrites, so Undo brings them back.
+The last 100 edits are kept; a new edit forgets what could be redone, and
+loading a model or session starts the list again. Undo does not touch runs,
+plots, data or files, and inside a text field Ctrl+Z is the field's own.
+Both commands are greyed when there is nothing to undo or redo. **Reset**
+still restores model defaults. Edits apply on Enter or leaving the field, to the next run.
 Numerics names the active solver and folds settings that solver does not
 use, explaining that changing them does not change its results.
 

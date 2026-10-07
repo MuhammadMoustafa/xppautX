@@ -173,7 +173,8 @@ void send_state(xpp::Session &s)
         buf_str(&b, saved.file.c_str());
         BUF_LIT(&b, "}");
     }
-    buf_format(&b, ",\"changed\":{}", xpp_session_changed(s) ? "true" : "false");
+    buf_format(&b, ",\"changed\":{},\"can_undo\":{},\"can_redo\":{}", xpp_session_changed(s) ? "true" : "false",
+               s.value_undo.undo.empty() ? "false" : "true", s.value_undo.redo.empty() ? "false" : "true");
     buf_recording(&b);
     buf_player(&b);
     BUF_LIT(&b, "}");
@@ -506,6 +507,7 @@ void apply_set(xpp::Session &s, const char *line)
         if (!v) return j_err_msg(v.error());
         list.push_back(*v);
     }
+    xpp::push_value_undo(s);
     bool loaded[5] = {};
     for (const SetValue &v : list) {
         if (v.type == 0) {
@@ -527,9 +529,13 @@ void default_command(xpp::Session &s, const char *line)
 {
     std::string kind;
     get_string(line, "kind", kind);
+    if (kind != "par" && kind != "ic") {
+        j_command_error("default", xpp::format("default takes kind par or ic, not \"{}\"", kind));
+        return;
+    }
+    xpp::push_value_undo(s);
     if (kind == "par") set_default_params(s);
-    else if (kind == "ic") set_default_ics(s);
-    else j_command_error("default", xpp::format("default takes kind par or ic, not \"{}\"", kind));
+    else set_default_ics(s);
 }
 
 /* Set a Session slider definition; the state event acknowledges it. */
@@ -571,6 +577,7 @@ void slide_command(xpp::Session &s, const char *line)
     else if (!js_number(js_find(line, "value"), &value))
         j_command_error("slide", xpp::format("slide {}: its value is not a number", name));
     else {
+        xpp::push_value_undo(s);
         set_par_or_var(s, name, type, index, value);
         session.state_dirty = 1;
     }
@@ -594,7 +601,10 @@ void values_command(xpp::Session &s, const char *line)
         for (std::size_t i = 0; j < 0 && i < sets.size(); i++)
             if (sets[i].name == name) j = static_cast<int>(i);
         if (j < 0) j_command_error("values", xpp::format("No internal set {}", name));
-        else use_intern_set(s, j);
+        else {
+            xpp::push_value_undo(s);
+            use_intern_set(s, j);
+        }
         session.state_dirty = 1;
         return;
     }
@@ -612,6 +622,7 @@ void values_command(xpp::Session &s, const char *line)
         else save_ic_file(s, name);
         session.state_dirty = 1;
     } else if (o == "read") {
+        xpp::push_value_undo(s);
         if (kind == "par") load_parameter_file(s, name);
         else load_ic_file(s, name);
         session.state_dirty = 1;
