@@ -1,6 +1,6 @@
 #ifndef JSON_NUMBER_H
 #define JSON_NUMBER_H
-/* The one JSON number writer (docs/protocol.md, CLAUDE.md "Single source"):
+/* The one JSON number writer (docs/protocol.md, AGENTS.md "Single source"):
    JSON has no NaN or Infinity, so a non-finite double becomes the literal
    "null" instead of "-nan"/"inf", which is not valid JSON. Everything that
    writes a JSON number -- the protocol front end (json_io.cpp and the

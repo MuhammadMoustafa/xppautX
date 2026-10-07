@@ -370,7 +370,7 @@ jobs:
       # runner-images' Install-Mingw64.ps1, which also copies
       # mingw32-make.exe to make.exe and adds the dir to the machine
       # PATH; toolsets/toolset-2025.json pins gcc "15.*" / runtime
-      # "ucrt", the same ABI CLAUDE.md's local native build targets, if
+      # "ucrt", the same ABI AGENTS.md's local native build targets, if
       # not quite the same gcc release), so no per-run package install
       # is needed; this only extends PATH in case a future image moves
       # or does not machine-wide it. https://github.com/actions/runner-images/blob/main/images/windows/scripts/build/Install-Mingw64.ps1

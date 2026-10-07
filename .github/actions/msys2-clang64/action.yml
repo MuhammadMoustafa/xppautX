@@ -1,7 +1,7 @@
 name: MSYS2 CLANG64 toolchain (cached)
 description: >-
   Sets up MSYS2's CLANG64 toolchain (clang, lld, libc++, compiler-rt) plus
-  make and python, the compiler CLAUDE.md's windows-clang and
+  make and python, the compiler AGENTS.md's windows-clang and
   windows-clang-sanitizers jobs build with (W23).
 
   Caches the installed clang64 tree as a single 7z archive

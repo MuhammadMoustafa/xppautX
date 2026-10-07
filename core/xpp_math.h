@@ -5,7 +5,7 @@
    Fourier transform, random numbers, the dense and banded linear solves,
    the equilibrium eigenvalues and the special functions the parser offers.
    A new routine of one of these kinds goes here, never into the file that
-   needs it (CLAUDE.md "Single source").
+   needs it (AGENTS.md "Single source").
 
    Left where they are, each for a reason:
    - AUTO's own Gaussian elimination, ge() in autlib1.cpp: complete
