@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {kindOf, menuCommand} from '../src/protocol/kinds';
-import {contextualShortcut, navigationGroups} from '../src/ui/navigation';
+import {COMMAND_GROUPS, LAYER_SWITCHES, contextualShortcut, layerLabel, navigationGroups, navigationProblems} from '../src/ui/navigation';
 import {initialState, reduce} from '../src/store/state';
 import {initialValues, reduceValues} from '../src/store/values';
 import {HELLO} from './hello';
@@ -60,4 +60,27 @@ test('working-value checkpoints copy authoritative values and clear on any model
   assert.equal(values.checkpoint?.ics[0][1], -0.144);
   const next = reduce({...initialState, values}, {type: 'event', ev: HELLO});
   assert.equal(next.values.checkpoint, null);
+});
+
+test('every hello menu id is in exactly one group, or is a shortcut-layer switch', () => {
+  assert.deepEqual(navigationProblems(HELLO), []);
+  const seen = new Map<string, number>();
+  for (const group of COMMAND_GROUPS) for (const menu of ['main', 'file', 'num'] as const)
+    for (const id of group[menu]) seen.set(`${menu}:${id}`, (seen.get(`${menu}:${id}`) ?? 0) + 1);
+  for (const menu of ['main', 'file', 'num'] as const) for (const id of HELLO.menus[`${menu}_ids`])
+    assert.equal(seen.get(`${menu}:${id}`) ?? 0, LAYER_SWITCHES[menu].includes(id) ? 0 : 1, `${menu}/${id}`);
+});
+
+test('a command the groups and the core disagree on is a problem, never skipped silently', () => {
+  const extra = {...HELLO, menus: {...HELLO.menus, main_ids: [...HELLO.menus.main_ids, 'brandnew']}};
+  assert.equal(navigationProblems(extra).length, 1);
+  assert.match(navigationProblems(extra)[0], /main\/brandnew.*0 command groups/);
+  const missing = {...HELLO, menus: {...HELLO.menus, file_ids: HELLO.menus.file_ids.filter(id => id !== 'reload')}};
+  assert.match(navigationProblems(missing).join(' '), /file\/reload, which the core does not have/);
+});
+
+test('a shortcut layer is named by the core\'s own label of the item that enters it', () => {
+  const labelled = {...HELLO, menus: {...HELLO.menus, main: HELLO.menus.main_ids.map(id => id === 'file' ? 'File' : id === 'numerics' ? 'Numerics' : id)}};
+  assert.equal(layerLabel(labelled, 'file'), 'File');
+  assert.equal(layerLabel(labelled, 'num'), 'Numerics');
 });

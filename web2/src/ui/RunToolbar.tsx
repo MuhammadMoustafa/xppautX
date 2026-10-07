@@ -2,9 +2,13 @@
 import {useEffect, useState} from 'preact/hooks';
 import {BUSY_TITLE, useMay, useMayMain, useSession, useStore} from './context';
 import {fieldKey, inspectNumber, sentText} from '../store/values';
-import {steadyError, type SteadyInput} from '../store/steady';
+import {continueDefault, NUM_TOTAL, numericsField, runInterval, steadyDefaults, steadyError, type SteadyInput} from '../store/steady';
 import {NUMBER} from '../store/fieldKinds';
 import {Field} from './Field';
+
+/** the keys of the Initial conditions command's own prompt (core/menus.cpp ic_items: (G)o runs from
+    the Initial values, (L)ast from the last state); its menu names no ids for them */
+const INITIAL_GO = 'g', INITIAL_LAST = 'l';
 
 export function RunToolbar() {
   const session = useSession();
@@ -16,26 +20,25 @@ export function RunToolbar() {
   const computing = useStore(s => s.computing);
   const stopping = useStore(s => s.stopping);
   const asking = useStore(s => !!s.ask);
-  const total = useStore(s => s.numerics?.find(f => f.key === 'total'));
-  const dt = useStore(s => s.numerics?.find(f => f.key === 'dt')?.value);
-  const discrete = useStore(s => {const f = s.numerics?.find(f => f.key === 'method'); return f?.choices?.[Number(f.value)] === 'Discrete';});
-  const interval = discrete ? 1 : Number(dt);
-  const durationField = fieldKey('num', 'total');
+  const total = useStore(s => numericsField(s.numerics, NUM_TOTAL));
+  const interval = useStore(s => runInterval(s.numerics));
+  const durationField = fieldKey('num', NUM_TOTAL);
   const sentDuration = useStore(s => sentText(s.values.inflight, durationField));
   const durationError = useStore(s => s.values.errors[durationField] ?? null);
   const storedTime = useStore(s => {
     const series = s.plots.windows.find(w => w.win === s.plots.active)?.series;
     return series?.rows ? series.columns.get(0)?.[series.rows - 1] : undefined;
   });
-  const [steady, setSteady] = useState<SteadyInput | null>(null);
+  /* what the user typed; anything else follows Run duration, Dt and the core time (steadyDefaults,
+     continueDefault), and a new Run duration drops the typed values so no old limit survives it */
+  const [steadyEdit, setSteadyEdit] = useState<Partial<SteadyInput>>({});
   const [continueMode, setContinueMode] = useState<'extra' | 'until'>('extra');
-  const [continueValue, setContinueValue] = useState<string | null>(null);
-  useEffect(() => {
-    if (!hello || total?.value === undefined || total.value === null || !Number.isFinite(interval) || interval <= 0) return;
-    if (!steady) setSteady({decimals: String(hello.steady.default_decimals),
-      hold: String(Math.min(total.value, Math.max(interval, hello.steady.default_hold))), maximum: String(total.value)});
-    if (continueValue === null) setContinueValue(String(total.value));
-  }, [hello, total?.value, interval, steady, continueValue]);
+  const [continueEdit, setContinueEdit] = useState<string | null>(null);
+  useEffect(() => { setSteadyEdit({}); setContinueEdit(null); }, [total?.value]);
+  const totalValue = total?.value ?? null;
+  const steady: SteadyInput | null = hello && totalValue !== null && Number.isFinite(interval) && interval > 0
+    ? {...steadyDefaults(hello.steady, totalValue, interval), ...steadyEdit} : null;
+  const continueValue = continueEdit ?? (totalValue !== null ? continueDefault(continueMode, totalValue, core?.time) : null);
   const initialOff = !mayMain('initialconds');
   const currentOff = initialOff || !hasNow;
   const steadyProblem = steady && hello ? steadyError(steady, interval, hello.steady.max_decimals) : null;
@@ -49,8 +52,8 @@ export function RunToolbar() {
   const changeMode = (mode: 'extra' | 'until') => {
     if (mode === continueMode) return;
     const time = Number(core?.time);
-    if (Number.isFinite(time) && continueValue !== null)
-      setContinueValue(String(mode === 'until' ? time + continueNumber : continueNumber - time));
+    if (Number.isFinite(time) && continueEdit !== null)
+      setContinueEdit(String(mode === 'until' ? time + continueNumber : continueNumber - time));
     setContinueMode(mode);
   };
   const result = core?.steady;
@@ -62,10 +65,10 @@ export function RunToolbar() {
   return <section class="run-toolbar" aria-label="Run controls">
     <div class="run-actions">
       <button class="primary" data-button="Integrate" aria-disabled={initialOff}
-        onClick={() => { if (!initialOff) session.menuAction('main', 'initialconds', 'g'); }}
+        onClick={() => { if (!initialOff) session.menuAction('main', 'initialconds', INITIAL_GO); }}
         title={initialOff ? BUSY_TITLE : 'Start a new trajectory from Initial values (I, G)'}>Run from initial</button>
       <button data-run="current" aria-disabled={currentOff}
-        onClick={() => { if (!currentOff) session.menuAction('main', 'initialconds', 'l'); }}
+        onClick={() => { if (!currentOff) session.menuAction('main', 'initialconds', INITIAL_LAST); }}
         title={initialOff ? BUSY_TITLE : !hasNow ? 'Run once to obtain a current state' : 'Use the last state as Initial and start a new trajectory (I, L)'}>Run from current</button>
       <button data-run="steady" aria-disabled={steadyOff}
         onClick={() => { if (!steadyOff && steady) session.send({cmd: 'steady', decimals: Number(steady.decimals), hold: Number(steady.hold), maximum: Number(steady.maximum)}); }}
@@ -83,17 +86,17 @@ export function RunToolbar() {
       <label>Continue <select aria-label="Continuation time mode" value={continueMode} onChange={e => changeMode(e.currentTarget.value as 'extra' | 'until')}>
         <option value="extra">For another</option><option value="until">Until time</option>
       </select><Field aria-label="Continuation time" data-continue-time="" spec={NUMBER} value={continueValue ?? ''}
-        onInput={setContinueValue} error={hasNow ? continueProblem : null} /></label>
+        onInput={setContinueEdit} error={hasNow ? continueProblem : null} /></label>
     </div>
     {steady && hello && <details class="steady-settings">
       <summary>Steady: {steady.decimals} decimal places · hold {steady.hold} · limit {steady.maximum}</summary>
       <div class="steady-fields">
         <label>Decimal places <Field data-steady="decimals" spec={{kind: 'integer', min: 0, max: hello.steady.max_decimals}} value={steady.decimals}
-          onInput={text => setSteady({...steady, decimals: text})} /></label>
+          onInput={text => setSteadyEdit({...steadyEdit, decimals: text})} /></label>
         <label>Hold duration <Field data-steady="hold" spec={{kind: 'number', positive: true}} value={steady.hold}
-          onInput={text => setSteady({...steady, hold: text})} /></label>
+          onInput={text => setSteadyEdit({...steadyEdit, hold: text})} /></label>
         <label>Maximum duration <Field data-steady="maximum" spec={{kind: 'number', positive: true}} value={steady.maximum}
-          onInput={text => setSteady({...steady, maximum: text})} /></label>
+          onInput={text => setSteadyEdit({...steadyEdit, maximum: text})} /></label>
       </div>
       {steadyProblem && <p class="field-error" role="alert">{steadyProblem}</p>}
       <p>Starts from Initial. Compares every Dt interval ({inspectNumber(interval)}) using core values; stores every interval for this run. Adaptive solvers may take internal substeps. Matching digits depend on Dt and do not prove equilibrium stability.</p>
