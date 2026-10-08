@@ -10,6 +10,10 @@ export const PROTOCOL = 3;
 /** a main-window menu's name (hello.menu_names, by state's menu number) */
 export type MenuName = 'main' | 'file' | 'num';
 
+/** a run of the About text: a link when `url` is there */
+export interface AboutPart {text: string; url?: string}
+export type AboutLine = AboutPart[];
+
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
@@ -21,8 +25,9 @@ export interface HelloEvent {
   state_inspection: {tail_intervals: number};
   continue: {grid_tolerance: number};
   steady: {max_decimals: number; default_decimals: number; default_hold: number};
-  /** Help > About's text (core/xpp_about.h), the desktop window's own box too */
-  about: string;
+  /** Help > About's lines (core/xpp_about.h), the desktop window's own box too: each a list of parts,
+      plain text or a link (`url`) */
+  about: AboutLine[];
   /** File > Quit's question as the core asks it (W59d), for the page's own while a computation runs
       (W110, store/state.ts LEAVE_ASK): the question, the one naming the recording in progress, the
       answers and their keys */

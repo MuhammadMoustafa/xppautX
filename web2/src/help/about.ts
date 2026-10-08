@@ -1,20 +1,19 @@
-/* Help > About: hello's `about` text (core/xpp_about.cpp) split into lines,
-   each a run of plain text and URLs, so the view can make the URLs links
-   without parsing anything the core did not say. Pure, no DOM. */
-export type AboutPart = {text: string; url?: string};
+/* Help > About: hello.about (core/xpp_about.h) is lines of parts, a part plain
+   text or a link (`url`); the view draws them and a click on a link opens it. */
+import type {AboutLine} from '../protocol/types';
 
-const URL_RE = /https?:\/\/[^\s]+/g;
+/** the first line's text, "xppautX <version>": what the update check compares */
+export function aboutVersionLine(about: AboutLine[]): string {
+  return about[0]?.map(p => p.text).join('') ?? '';
+}
 
-export function aboutLines(text: string): AboutPart[][] {
-  return text.split('\n').map(line => {
-    const parts: AboutPart[] = [];
-    let at = 0;
-    for (const m of line.matchAll(URL_RE)) {
-      if (m.index > at) parts.push({text: line.slice(at, m.index)});
-      parts.push({text: m[0], url: m[0]});
-      at = m.index + m[0].length;
-    }
-    if (at < line.length || parts.length === 0) parts.push({text: line.slice(at)});
-    return parts;
-  });
+/** Open an About link in the system's browser. The desktop window binds
+    `__xppOpenAboutLink` (core/xpp_window.cpp), which opens only the exact
+    addresses the core's About lists; in a browser the anchor's own
+    target=_blank does it and this is not called. False in a browser. */
+export function openAboutLink(url: string): boolean {
+  const bound = (window as unknown as {__xppOpenAboutLink?: (url: string) => Promise<unknown>}).__xppOpenAboutLink;
+  if (typeof bound !== 'function') return false;
+  void bound(url).catch(() => undefined);
+  return true;
 }

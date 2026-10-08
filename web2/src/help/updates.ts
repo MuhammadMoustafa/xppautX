@@ -1,4 +1,6 @@
 import {sourcePlace, type ErrorPlace} from '../protocol/errors';
+import type {AboutLine} from '../protocol/types';
+import {aboutVersionLine} from './about';
 
 /* W13c: an on-demand GitHub check. No assets or release notes are read. */
 export const RELEASE_API = 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest';
@@ -86,16 +88,17 @@ function version(tag: unknown): number[] {
 
 export type UpdateResult = {text: string; url?: string};
 
-export async function checkUpdates(about: string, signal?: AbortSignal): Promise<UpdateResult> {
-  // hello.about's first line is xpp_about_text's version: a release tag (v0.1.0), a pre-release tag
+export async function checkUpdates(about: AboutLine[], signal?: AbortSignal): Promise<UpdateResult> {
+  // hello.about's first line is the version (core/xpp_about.cpp): a release tag (v0.1.0), a pre-release tag
   // (v0.1.0-beta.1) or a git-describe build (v0.1.0-12-gabcdef, or v0.1.0-beta.1-12-gabcdef).
-  const found = /^xppautX (v\d+\.\d+\.\d+)(-[0-9A-Za-z.]+?)?(?:-\d+-g[0-9a-f]+)?\n/.exec(about);
+  const first = aboutVersionLine(about);
+  const found = /^xppautX (v\d+\.\d+\.\d+)(-[0-9A-Za-z.]+?)?(?:-\d+-g[0-9a-f]+)?$/.exec(first);
   const local = found?.[1];
   /* a pre-release is older than the release of its own numbers, which `releases/latest` can name */
   const preRelease = !!found?.[2];
   let current: number[];
   try { current = version(local); }
-  catch (e) { throw located(e, 'hello.about', about, 0); }
+  catch (e) { throw located(e, 'hello.about', first, 0); }
   try {
     const timeout = AbortSignal.timeout(CHECK_TIMEOUT_MS);
     const response = await fetch(RELEASE_API, {signal: signal ? AbortSignal.any([signal, timeout]) : timeout, credentials: 'omit'});

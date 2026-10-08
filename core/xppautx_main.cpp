@@ -311,7 +311,7 @@ int main(int argc, char **argv)
     session_argc = argc;
     session_argv = argv;
     /* the window runs the session itself; when it cannot open, the browser */
-    if (mode == MODE_WINDOW && !xpp::window::run(run_session, xpp_about_text().c_str())) xpp::http::show(true);
+    if (mode == MODE_WINDOW && !xpp::window::run(run_session, xpp_about_markup().c_str())) xpp::http::show(true);
     run_session();
     return 0;
 }

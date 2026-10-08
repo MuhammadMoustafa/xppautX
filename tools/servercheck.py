@@ -248,10 +248,18 @@ check('hello', hello is not None and len(hello["command_table"]) == 65)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
-check('hello carries the About text: author, email, issues URL, version',
-      hello is not None and all(t in hello.get('about', '') for t in
-          ('Author: Muhammad Ahmad', 'muhammadmoustafa22@gmail.com',
-           'https://github.com/MuhammadMoustafa/xppautX/issues', 'Protocol 3', 'xppautX ')),
+about_parts = [p for line in (hello or {}).get('about', []) for p in line]
+about_links = {p['text']: p['url'] for p in about_parts if 'url' in p}
+about_text = ''.join(p['text'] for p in about_parts)
+check('hello carries the About lines: version, author, credit, build, and the five links with their targets',
+      hello is not None and hello['about'][0][0]['text'].startswith('xppautX ')
+      and about_links == {'Email': 'mailto:muhammadmoustafa22@gmail.com',
+                          'GitHub': 'https://github.com/MuhammadMoustafa',
+                          'LinkedIn': 'https://www.linkedin.com/in/muhammad-ahmad-62743a125/',
+                          'Source': 'https://github.com/MuhammadMoustafa/xppautX',
+                          'Report a problem': 'https://github.com/MuhammadMoustafa/xppautX/issues'}
+      and 'by Muhammad Ahmad' in about_text and 'Based on XPPAUT 8.0 by G. Bard Ermentrout' in about_text
+      and 'Protocol 3' in about_text,
       str(hello and hello.get('about')))
 check('state after hello', st is not None and any(p[0] == 'iapp' for p in st['pars']), str(st))
 check('window 1 is created', any(e.get('ev') == 'window' and e.get('op') == 'create' and e.get('win') == 1

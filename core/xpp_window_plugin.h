@@ -15,7 +15,7 @@
    table, filled by the loader. The static builds (Windows, macOS) fill it
    with the same functions at compile time, so the window's code is one. */
 /* W177 adds the native picker's prompt-bound save grant to the host seam. */
-#define XPP_WINDOW_HOST_VERSION 6
+#define XPP_WINDOW_HOST_VERSION 7
 typedef struct XppWindowHost {
     int version; /* XPP_WINDOW_HOST_VERSION */
     const char *(*http_url)(void);
@@ -27,6 +27,7 @@ typedef struct XppWindowHost {
     /* Checked at the call site; formatted and delivered by the core. */
     void (*log_message)(XppLogLevel level, std::string_view fmt, std::format_args args) noexcept;
     xpp::Result<> (*open_release_page)(std::string_view url); /* checked in the core before opening */
+    xpp::Result<> (*open_about_link)(std::string_view url); /* only an About link's exact target */
     void (*authorize_save)(std::string_view ask, std::string_view path); /* the OS picker's exact choice */
     template <class... Args>
     void log(XppLogLevel level, std::format_string<Args...> fmt, Args &&...args) const noexcept

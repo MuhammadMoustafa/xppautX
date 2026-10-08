@@ -7,7 +7,7 @@
    regenerate and compare dist/manual.json against docs/manual/*.md. */
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {aboutLines} from '../src/help/about';
+import {aboutVersionLine, openAboutLink} from '../src/help/about';
 import {manualLinkTarget} from '../src/help/links';
 import type {ManualChapter} from '../src/help/manual';
 import {searchManual} from '../src/help/search';
@@ -87,13 +87,22 @@ test('manualLinkTarget leaves an ordinary link (mailto:, an outside doc) alone',
   assert.equal(manualLinkTarget('https://example.com', '01-introduction'), null);
 });
 
-test('About: the text splits into lines whose URLs are links', () => {
-  const lines = aboutLines('Author: Muhammad Ahmad\nGitHub: https://github.com/x/y\n\nReport: https://github.com/x/y/issues');
-  assert.equal(lines.length, 4);
-  assert.deepEqual(lines[0], [{text: 'Author: Muhammad Ahmad'}]);
-  assert.deepEqual(lines[1], [{text: 'GitHub: '}, {text: 'https://github.com/x/y', url: 'https://github.com/x/y'}]);
-  assert.deepEqual(lines[2], [{text: ''}]);
-  assert.equal(lines[3][1].url, 'https://github.com/x/y/issues');
+test('About: the version line is the first line\'s text', () => {
+  assert.equal(aboutVersionLine([[{text: 'xppautX v1.2.3'}], [{text: 'by someone'}]]), 'xppautX v1.2.3');
+  assert.equal(aboutVersionLine([]), '');
+});
+
+test('About: a link opens through the window\'s bound call, and not at all in a browser', () => {
+  const w = globalThis as unknown as {window?: object};
+  const had = w.window;
+  const opened: string[] = [];
+  w.window = {__xppOpenAboutLink: async (u: string) => { opened.push(u); }};
+  try {
+    assert.equal(openAboutLink('https://example.org/'), true);
+    assert.deepEqual(opened, ['https://example.org/']);
+    w.window = {};
+    assert.equal(openAboutLink('https://example.org/'), false);
+  } finally { w.window = had; }
 });
 
 test('About: the reducer shows it in place of a chapter, a chapter target leaves it', () => {

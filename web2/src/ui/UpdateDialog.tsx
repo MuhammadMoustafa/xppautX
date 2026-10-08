@@ -24,7 +24,7 @@ export function UpdateDialog() {
       setPlace(undefined);
       setResult({text: 'Checking for updates…'});
       try {
-        const answer = await checkUpdates(session.store.getState().hello?.about ?? '', request.signal);
+        const answer = await checkUpdates(session.store.getState().hello?.about ?? [], request.signal);
         if (controller.current === request) setResult(answer);
       }
       catch (e) {

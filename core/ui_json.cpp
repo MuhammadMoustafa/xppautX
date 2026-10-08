@@ -1032,7 +1032,25 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(&b,"}");
     BUF_LIT(&b, ",\"about\":");
-    buf_str(&b, xpp_about_text());
+    BUF_LIT(&b, "[");
+    bool first_line = true;
+    for (const AboutLine &line : xpp_about_lines()) {
+        if (!first_line) BUF_LIT(&b, ",");
+        first_line = false;
+        BUF_LIT(&b, "[");
+        for (std::size_t k = 0; k < line.parts.size(); ++k) {
+            if (k) BUF_LIT(&b, ",");
+            BUF_LIT(&b, "{\"text\":");
+            buf_str(&b, line.parts[k].text);
+            if (!line.parts[k].url.empty()) {
+                BUF_LIT(&b, ",\"url\":");
+                buf_str(&b, line.parts[k].url);
+            }
+            BUF_LIT(&b, "}");
+        }
+        BUF_LIT(&b, "]");
+    }
+    BUF_LIT(&b, "]");
     /* File > Quit's question, as the core asks it (model_switch.h): the
        page asks the same itself while a computation runs (W110) */
     BUF_LIT(&b, ",\"quit\":{\"question\":");

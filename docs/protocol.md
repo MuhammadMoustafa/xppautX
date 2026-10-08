@@ -39,7 +39,7 @@ once, and keeps any other command for after the one that asked. See
 
 ## Startup
 
-1. `hello`: protocol version (3), `about` (Help > About's text: version, commit, compiler, credit, the author's contact details and the issue tracker; core/xpp_about.cpp, the same string the desktop window's own About box shows), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
+1. `hello`: protocol version (3), `about` (Help > About's lines, from core/xpp_about.cpp, the same lines the desktop window's own About box shows: an array of lines, each an array of parts `{"text":...}`, with `"url"` too when the part is a link (`https:` or `mailto:`); the first line's text is `xppautX <version>`; a blank line is `[]`), `quit` (File > Quit's question as the core asks it, W110: `question`, `recording` (the question while a recording is in progress), `choices` (`["Save session","Don't save"]`) and `keys` (`sd`), for a client that asks it itself while a command runs: `quit` with `save` below), window title, the three main menus
    (`menu_names`, `command_categories` and `command_table`: "The command
    table"), the windows' key layers (`windows`), every command's kind and
    whether it is a step (`commands`): see "Action kinds"; the limits the
@@ -1922,7 +1922,7 @@ Sessions and recordings carrying a `.ode` model fail with a shown error.
 ### On-demand update check (W13c, #126)
 
 No protocol event or command changes: the page reads the program version
-from the first line of hello.about (xpp_about_text). A git-describe suffix
+from the first line of hello.about (the text of its first line, `xppautX <version>`). A git-describe suffix
 compares its base release tag. Only the page requests GitHub's latest-release
 API. The window binds __xppOpenRelease(url); the core bounds and validates
 the fixed https://github.com/MuhammadMoustafa/xppautX/releases/tag/ prefix and
@@ -1944,6 +1944,18 @@ an old request cannot clear the new request's pending state. Page errors use
 the existing error place/source representation: local version errors name
 hello.about line 1; API syntax/field errors retain their actual line and source
 when known; transport failures name the API without inventing a line.
+
+### About links (W224, #278)
+
+hello.about's links open in the system browser. In the desktop window an
+anchor would navigate the web view away, so the window binds
+`__xppOpenAboutLink(url)` (the page calls it from the link's click and
+cancels the navigation); in a browser the anchor opens a new tab and the
+binding does not exist. The core opens a URL only when it equals, byte for
+byte, the target of one of the About lines' links (xpp_about.h): any other
+request, whether another scheme, a file path, a lookalike or an addition
+to a listed address, is refused with an xpp::Error placed at About:1.
+The native About box (Win32 task dialog, GTK dialog) hands its link clicks to the same check.
 
 ### Live integration state (W200)
 

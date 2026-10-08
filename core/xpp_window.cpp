@@ -61,6 +61,7 @@ const char *xpp::window::launch_document() { return nullptr; }
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shobjidl.h>
+#include <commctrl.h>
 #elif defined(__APPLE__)
 #include <objc/message.h>
 #include <objc/runtime.h>
@@ -89,6 +90,7 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
                                   xpp::json_ui_push_open,
                                   xpp::log_message,
                                   xpp::http::open_release_page,
+                                  xpp::http::open_about_link,
                                   xpp::inbox::authorize_save};
 const XppWindowHost *const host = &host_table;
 #endif
@@ -413,6 +415,33 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     return picked;
 }
 
+/* Help > About: a task dialog, whose content markup carries the links (the
+   manifest asks for common controls 6, which has it); a click goes to the
+   core, which opens only the About set */
+HRESULT CALLBACK about_callback(HWND, UINT notification, WPARAM, LPARAM lp, LONG_PTR)
+{
+    if (notification == TDN_HYPERLINK_CLICKED)
+        if (xpp::Result<> r = host->open_about_link(narrow(reinterpret_cast<const wchar_t *>(lp))); !r)
+            host->log(XPP_LOG_WARN, "xppautX: {}\n", r.error().text());
+    return S_OK;
+}
+
+void show_about(HWND hwnd)
+{
+    const std::wstring content = wide(st->about);
+    TASKDIALOGCONFIG cfg{};
+    cfg.cbSize = sizeof cfg;
+    cfg.hwndParent = hwnd;
+    cfg.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_ALLOW_DIALOG_CANCELLATION;
+    cfg.dwCommonButtons = TDCBF_OK_BUTTON;
+    cfg.pszWindowTitle = L"About xppautX";
+    cfg.pszMainIcon = TD_INFORMATION_ICON;
+    cfg.pszContent = content.c_str();
+    cfg.pfCallback = about_callback;
+    if (HRESULT r = TaskDialogIndirect(&cfg, nullptr, nullptr, nullptr); FAILED(r))
+        host->log(XPP_LOG_WARN, "xppautX: the About box failed ({:#x})\n", static_cast<unsigned>(r));
+}
+
 WNDPROC webview_proc; /* the library's own window procedure */
 
 LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -435,7 +464,7 @@ LRESULT CALLBACK menu_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         case ID_KEYS: if (w) open_help(w, KEYS_CHAPTER); return 0;
         case ID_UPDATES: if (w) check_updates(w); return 0;
         case ID_ABOUT:
-            MessageBoxW(hwnd, wide(st->about).c_str(), L"About xppautX", MB_OK | MB_ICONINFORMATION);
+            show_about(hwnd);
             return 0;
         default: break;
         }
@@ -838,6 +867,13 @@ std::optional<std::string> pick_file(void *window, const FileDialog &d)
     return picked;
 }
 
+/* a link of the About box: the core opens it if it is one of the About set; TRUE says GTK need not */
+gboolean about_link_clicked(GtkLabel *, gchar *uri, gpointer)
+{
+    if (xpp::Result<> r = host->open_about_link(uri); !r) host->log(XPP_LOG_WARN, "xppautX: {}\n", r.error().text());
+    return TRUE;
+}
+
 void on_menu(GtkMenuItem *, gpointer id_ptr)
 {
     webview_t w = view_of_menu();
@@ -855,8 +891,13 @@ void on_menu(GtkMenuItem *, gpointer id_ptr)
     case ID_KEYS: open_help(w, KEYS_CHAPTER); break;
     case ID_UPDATES: check_updates(w); break;
     case ID_ABOUT: {
-        GtkWidget *dlg = gtk_message_dialog_new(win, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s",
-                                                st->about.c_str());
+        GtkWidget *dlg = gtk_message_dialog_new(win, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, nullptr);
+        gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dlg), st->about.c_str());
+        /* a link goes to the core, which opens only the About set; GTK's own launcher is not used */
+        GList *labels = gtk_container_get_children(GTK_CONTAINER(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(dlg))));
+        for (GList *l = labels; l; l = l->next)
+            if (GTK_IS_LABEL(l->data)) g_signal_connect(l->data, "activate-link", G_CALLBACK(about_link_clicked), nullptr);
+        g_list_free(labels);
         gtk_window_set_title(GTK_WINDOW(dlg), "About xppautX");
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
@@ -1016,22 +1057,34 @@ void file_dialog_cb(const char *id, const char *request, void *arg)
     webview_return(w, id, status, reply.c_str());
 }
 
-/* The binding may be called by a tampered page: the core checks the URL before opening it. */
-void open_release_cb(const char *id, const char *request, void *arg)
+/* A binding that opens a URL in the system browser. It may be called by a
+   tampered page: `open` is a core function that checks the URL before opening it. */
+void open_url_cb(const char *id, const char *request, void *arg, xpp::Result<> (*open)(std::string_view url),
+                 std::string_view what, std::string_view where)
 {
     webview_t w = static_cast<webview_t>(arg);
-    constexpr size_t REQUEST_LIMIT = 1024; /* JSON escaping of a bounded release URL */
-    xpp::Result<> result = xpp::fail("update check", "release request refused", xpp::Place{"Check for updates", 1});
+    constexpr size_t REQUEST_LIMIT = 1024; /* JSON escaping of a bounded URL */
+    xpp::Result<> result = xpp::fail(std::string(what), "request refused", xpp::Place{std::string(where), 1});
     try {
-        if (request && std::strlen(request) <= REQUEST_LIMIT)
-            result = host->open_release_page(xpp::webview_json_value(request, "", 0));
+        if (request && std::strlen(request) <= REQUEST_LIMIT) result = open(xpp::webview_json_value(request, "", 0));
     } catch (const std::exception &e) {
-        result = xpp::fail("update check", e.what(), xpp::Place{"Check for updates", 1});
+        result = xpp::fail(std::string(what), e.what(), xpp::Place{std::string(where), 1});
     } catch (...) {
-        result = xpp::fail("update check", "release request failed", xpp::Place{"Check for updates", 1});
+        result = xpp::fail(std::string(what), "request failed", xpp::Place{std::string(where), 1});
     }
     const std::string reply = result ? "null" : xpp::webview_json_quote(result.error().text());
     webview_return(w, id, result ? 0 : 1, reply.c_str());
+}
+
+void open_release_cb(const char *id, const char *request, void *arg)
+{
+    open_url_cb(id, request, arg, host->open_release_page, "update check", "Check for updates");
+}
+
+/* the page's About links, in the desktop window (a click on an anchor would navigate the web view away) */
+void open_about_link_cb(const char *id, const char *request, void *arg)
+{
+    open_url_cb(id, request, arg, host->open_about_link, "About", "About");
 }
 
 /* the window, on the thread that runs it; NULL when it cannot open, with
@@ -1058,6 +1111,7 @@ webview_t open_view()
     if (HAS_FILE_DIALOG) webview_bind(w, "__xppFileDialog", file_dialog_cb, w);
     webview_bind(w, "__xppCloseWindow", close_window_cb, w);
     webview_bind(w, "__xppOpenRelease", open_release_cb, w);
+    webview_bind(w, "__xppOpenAboutLink", open_about_link_cb, w);
     /* the token stays out of sight: the web view has no address bar */
     webview_navigate(w, host->http_url());
     return w;

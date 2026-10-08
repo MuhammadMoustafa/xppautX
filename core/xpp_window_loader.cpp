@@ -48,6 +48,7 @@ const XppWindowHost host = {XPP_WINDOW_HOST_VERSION,
                             xpp::json_ui_push_open,
                             xpp::log_message,
                                   xpp::http::open_release_page,
+                                  xpp::http::open_about_link,
                                   xpp::inbox::authorize_save};
 XppWindowApi api; /* the library's, once it is loaded */
 bool loaded;

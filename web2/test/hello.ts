@@ -45,7 +45,7 @@ const layer = (keys: string, kinds: string, ids: string[]) => ({items: ids, keys
 
 export const HELLO: HelloEvent = {
   ev: 'hello',
-  state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: '',
+  state_inspection: {tail_intervals: 10}, protocol: PROTOCOL, features: [], title: 't', file: 'f.ode', about: [],
   output_names: {par: 'lecar.par', ic: 'lecar.ic', csv: 'lecar.csv', curves: 'lecar-curves.csv'},
   continue: {grid_tolerance: 1e-6},
   steady: {max_decimals: 15, default_decimals: 9, default_hold: 1},

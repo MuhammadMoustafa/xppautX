@@ -19,6 +19,7 @@
 #define _DARWIN_C_SOURCE 1
 #endif
 #include "xpp_http.h"
+#include "xpp_about.h"
 #include "xpp_assets.h"
 #include "xpp_inbox.h"
 #include "xpp_files.h"
@@ -1240,6 +1241,15 @@ xpp::Result<> open_release_page(std::string_view url)
     return {};
 }
 
+xpp::Result<> open_about_link(std::string_view url)
+{
+    /* exactly one of the About links' targets (xpp_about.h), never a URL of the caller's making */
+    if (!xpp_about_has_link(url))
+        return xpp::fail("About", "link refused", xpp::Place{"About", 1});
+    if (!open_in_browser(std::string(url)))
+        return xpp::fail("About", "the system browser could not open", xpp::Place{"About", 1});
+    return {};
+}
 
 bool active() { return serving; }
 

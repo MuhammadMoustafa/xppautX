@@ -20,7 +20,8 @@ import {requestUpdateCheck} from '../help/updates';
    settles) renders and scrolls to, same as if it had already loaded. */
 import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {useFocusBackOnClose} from './focusBack';
-import {aboutLines} from '../help/about';
+import {openAboutLink} from '../help/about';
+import type {AboutLine} from '../protocol/types';
 import {manualLinkTarget, type HelpTarget} from '../help/links';
 import type {ManualChapter} from '../help/manual';
 import {searchManual} from '../help/search';
@@ -57,17 +58,16 @@ function useManual(load: boolean): {chapters: ManualChapter[] | null; error: str
   return {chapters, error};
 }
 
-/** the About text (hello.about). The desktop window has no way to open a
-    link in the system browser (a click would navigate the web view away
-    from the program), so there the URLs stay plain, selectable text. */
-function AboutBody({text}: {text: string}) {
-  const desktop = typeof (window as unknown as {__xppFileDialog?: unknown}).__xppFileDialog === 'function';
+/** the About text (hello.about). A link opens in a new tab in a browser; in the desktop window a click would
+    navigate the web view away from the program, so the window's bound call opens it in the system browser. */
+function AboutBody({lines}: {lines: AboutLine[]}) {
   return (
     <div class="help-about" aria-label="About">
-      {aboutLines(text).map((parts, i) => (
+      {lines.map((parts, i) => (
         <p key={i}>
-          {parts.map((p, j) => p.url && !desktop
-            ? <a key={j} href={p.url} target="_blank" rel="noopener noreferrer">{p.text}</a>
+          {parts.map((p, j) => p.url
+            ? <a key={j} href={p.url} target="_blank" rel="noopener noreferrer"
+                 onClick={e => { if (openAboutLink(p.url!)) e.preventDefault(); }}>{p.text}</a>
             : p.text)}
         </p>
       ))}
@@ -182,7 +182,7 @@ export function HelpView() {
         <Field type="search" spec={TEXT} placeholder="Search the manual" value={help.query} disabled={!chapters}
           onInput={query => session.store.dispatch({type: 'help', action: {type: 'query', query}})} />
       </label>
-      {help.about && !chapter && <AboutBody text={hello?.about ?? ''} />}
+      {help.about && !chapter && <AboutBody lines={hello?.about ?? []} />}
       {chapters && help.query.trim() !== '' && (
         <ul class="help-results" aria-label="Search results">
           {results.length === 0 && <li class="muted help-no-results">No match.</li>}
@@ -215,7 +215,7 @@ export function HelpView() {
           <div class="help-content" ref={content} onClick={onContentClick}>
             <KeyTable />
             {help.about
-              ? <AboutBody text={hello?.about ?? ''} />
+              ? <AboutBody lines={hello?.about ?? []} />
               : <>
                   <h1>{chapter.title}</h1>
                   <div dangerouslySetInnerHTML={{__html: chapter.html}} />

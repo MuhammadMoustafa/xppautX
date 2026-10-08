@@ -43,6 +43,8 @@ void release();
 bool active();
 /* W13c: only this repository's release pages, never an arbitrary opener argument. */
 xpp::Result<> open_release_page(std::string_view url);
+/* Help > About's links: only the exact targets xpp_about.h lists. */
+xpp::Result<> open_about_link(std::string_view url);
 /* one event, no newline */
 void emit(std::string_view line);
 

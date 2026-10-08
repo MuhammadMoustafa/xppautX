@@ -4432,11 +4432,41 @@ async function helpCheck() {
 
   /* Help > About: hello's about text (core/xpp_about.cpp), shown from Help's About button */
   await cdp.eval(`document.querySelector('.help-about-toggle').click()`);
-  check('help: the About button shows hello.about (author, email, issues URL)', await until(`(() => {
-    const t = document.querySelector('.help-about')?.textContent ?? '';
-    return s.help.about && t === s.hello.about.split(String.fromCharCode(10)).join('') && t.includes('Muhammad Ahmad')
-      && t.includes('muhammadmoustafa22@gmail.com') && t.includes('https://github.com/MuhammadMoustafa/xppautX/issues');
+  check('help: the About button shows hello.about, one paragraph per line, its links as anchors with their targets', await until(`(() => {
+    const box = document.querySelector('.help-about');
+    if (!box || !s.help.about) return false;
+    const lines = s.hello.about;
+    const paras = [...box.querySelectorAll('p')];
+    const urls = lines.flat().filter(p => p.url);
+    const anchors = [...box.querySelectorAll('a')];
+    return paras.length === lines.length
+      && paras.every((p, i) => p.textContent === lines[i].map(x => x.text).join(''))
+      && urls.length === 5 && anchors.length === 5
+      && anchors.every((a, i) => a.getAttribute('href') === urls[i].url && a.textContent === urls[i].text)
+      && box.textContent.includes('Based on XPPAUT 8.0 by G. Bard Ermentrout');
   })()`, 'about shown'), JSON.stringify(await S('s.help')));
+  if (opt.webview2) {
+    /* the window's real binding: it refuses whatever is not exactly an About link's target */
+    check('help: the window refuses an address that is not an About link (other schemes, paths, lookalikes, additions)', await cdp.eval(`(async () => {
+      if (typeof window.__xppOpenAboutLink !== 'function') return false;
+      for (const url of ['file:///C:/Windows/System32/cmd.exe', 'C:\Windows\System32\calc.exe', 'calc.exe', 'https://evil.example/',
+        'javascript:alert(1)', 'mailto:someone@example.org', 'mailto:muhammadmoustafa22@gmail.com?subject=x',
+        'https://github.com/MuhammadMoustafa/xppautX/', 'https://github.com/MuhammadMoustafa/xppautX?x=1',
+        'https://github.com/MuhammadMoustafa/xppautX/issues/1', 'https://github.com/MuhammadMoustafa/xppautX/issues&calc',
+        '', 'x'.repeat(5000)]) {
+        try { await window.__xppOpenAboutLink(url); return false; }
+        catch (e) { if (!String(e).includes('About')) return false; }
+      }
+      return true;
+    })()`));
+  }
+  /* in the desktop window the page calls the bound opener (stubbed here) instead of following the anchor */
+  await cdp.eval(`window.__aboutOpened = []; window.__realOpenAboutLink = window.__xppOpenAboutLink; window.__xppOpenAboutLink = async u => { window.__aboutOpened.push(u); };
+    document.querySelector('.help-about a').click(); true`);
+  check('help: a click on an About link calls the bound opener with its target and leaves About open',
+    await cdp.eval(`window.__aboutOpened.length === 1 && window.__aboutOpened[0] === __xpp.state().hello.about.flat().find(p => p.url).url
+      && !!document.querySelector('.help-about')`));
+  await cdp.eval(`${opt.webview2 ? 'window.__xppOpenAboutLink = window.__realOpenAboutLink' : 'delete window.__xppOpenAboutLink'}; true`);
   await cdp.eval(`[...document.querySelectorAll('.help-toc-item')][0].click()`);
   check('help: a chapter link leaves About', await until(`!s.help.about && !document.querySelector('.help-about')`, 'about left'));
 
@@ -5595,7 +5625,8 @@ async function updatesCheck() {
     await cdp.eval(`window.__updateAnswer = ${JSON.stringify(answer)}; window.__xppCheckUpdates(); true`);
     check(text, await until(`document.querySelector('[data-update-dialog]')?.textContent.includes(${JSON.stringify(text)})`, text));
   };
-  const about = await S('s.hello.about');
+  const aboutLines = await S('s.hello.about');
+  const about = aboutLines[0].map(p => p.text).join('');
   const tagged = /^xppautX (v\d+\.\d+\.\d+)/.exec(about);
   /* a build from a checkout without the release tags has a bare commit for its version */
   check('updates: the build has a release version to compare (git describe found a tag)', !!tagged, about);
@@ -5634,14 +5665,14 @@ async function updatesCheck() {
   }
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
-  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify('xppautX dev\n')}; true`);
+  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify([[{text: 'xppautX dev'}]])}; true`);
   const beforeInvalid = await cdp.eval('window.__updateRequests');
   await run(null, 'Check for updates failed: invalid release version');
   check('updates: local version failure shows hello.about and source without fetching', await cdp.eval(`
     window.__updateRequests === ${beforeInvalid} && document.querySelector('[data-error-place]').textContent === 'hello.about, line 1, column 1'
     && document.querySelector('[data-error-source]').textContent.includes('xppautX dev')`));
   await close();
-  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify(about)}; true`);
+  await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify(aboutLines)}; true`);
   await run('multiline', 'Check for updates failed:');
   check('updates: multiline syntax failure shows its actual API line and source', await cdp.eval(`
     document.querySelector('[data-error-place]').textContent.includes('line 3')
