@@ -544,8 +544,7 @@ id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8
    restored size); W230: zoom it to the screen's visible frame (untested) */
 void place_window(webview_t w)
 {
-    id win = static_cast<id>(webview_get_window(w));
-    if (win) msg<void>(win, "zoom:", static_cast<id>(nullptr));
+    msg<void>(static_cast<id>(webview_get_window(w)), "zoom:", static_cast<id>(nullptr));
 }
 
 /* ---- leaving (W110) -----------------------------------------------------
