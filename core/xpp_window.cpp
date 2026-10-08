@@ -95,13 +95,14 @@ const XppWindowHost host_table = {XPP_WINDOW_HOST_VERSION,
 const XppWindowHost *const host = &host_table;
 #endif
 
-/* what the window shows first: web2 needs room for its panels */
+/* the restored size (W230: the window opens maximized, and un-maximizing
+   gives this): web2 needs room for its panels */
 constexpr int WIDTH = 1280, HEIGHT = 840;
 
 /* Where the window opens (W13f): its size, which the display's scaling can
    make larger than the screen (1280x840 at 125% is 1600x1050), shrunk to
    95% of the work area (the monitor less the taskbar) when it does not
-   fit, and centred in it. */
+   fit, and centred in it; the window is then maximized (W230). */
 struct Placement {
     int x, y, width, height;
 };
@@ -524,12 +525,10 @@ void place_window(webview_t w)
     const RECT &a = mi.rcWork;
     Placement p = fit_in(r.right - r.left, r.bottom - r.top, a.left, a.top, a.right - a.left, a.bottom - a.top);
     SetWindowPos(hwnd, nullptr, p.x, p.y, p.width, p.height, SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(hwnd, SW_MAXIMIZE); /* W230: title bar, menu and taskbar stay */
 }
 
 #elif defined(__APPLE__)
-
-/* the library centres the window, and Cocoa keeps a window on its screen */
-void place_window(webview_t) {}
 
 constexpr bool HAS_FILE_DIALOG = true;
 
@@ -540,6 +539,14 @@ template <typename R = id, typename... A> R msg(id self, const char *sel, A... a
 }
 id cls(const char *name) { return reinterpret_cast<id>(objc_getClass(name)); }
 id ns_string(const std::string &s) { return msg(cls("NSString"), "stringWithUTF8String:", s.c_str()); }
+
+/* the library centres the window and Cocoa keeps it on its screen (the
+   restored size); W230: zoom it to the screen's visible frame (untested) */
+void place_window(webview_t w)
+{
+    id win = static_cast<id>(webview_get_window(w));
+    if (win) msg<void>(win, "zoom:", static_cast<id>(nullptr));
+}
 
 /* ---- leaving (W110) -----------------------------------------------------
    The window's close box and Cmd+Q (the app menu's Quit, the Dock's)
@@ -1001,6 +1008,7 @@ void place_window(webview_t w)
     Placement p = fit_in(width, height, a.x, a.y, a.width, a.height);
     gtk_window_resize(win, p.width, p.height);
     gtk_window_move(win, p.x, p.y);
+    gtk_window_maximize(win); /* W230: un-maximizing gives the size above */
 }
 #endif /* GTK 3 */
 

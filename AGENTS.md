@@ -669,8 +669,9 @@ Beyond the "Tests check data" and sleep rows of Code quality:
   tests/test_window_hint.cpp) and falls back to the browser;
   `XPP_WINDOW_FAIL_LOAD=1` makes the load fail as if WebKitGTK were
   missing (modecheck). Windows and macOS link the window statically, the
-  table filled at compile time. It opens centred on its monitor's work
-  area, shrunk to fit it (W13f, `place_window`). It shows the page the HTTP
+  table filled at compile time. It opens maximized (W230; title bar,
+  menu bar and taskbar kept), its restored size centred on the monitor's
+  work area and shrunk to fit it (W13f, `place_window`). It shows the page the HTTP
   server below serves, navigated to the tokened URL itself (browser mode
   prints it; the window shows it nowhere). Threads: the core keeps the
   main thread and stays single-threaded; the web view runs its own UI
