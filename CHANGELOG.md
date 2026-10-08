@@ -10,6 +10,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 ## [Unreleased]
 
 - Fixed: the Xlabel/Ylabel (and Zlabel in 3D) of the Viewaxes form now show on the plot at once, and clearing one goes back to the column name; a 3D plot titles its axes.
+- The Commands and Values panels can be hidden and shown with buttons in the title bar and resized by dragging their inner edge or with the arrow keys; the layout is remembered (W226, [#280](https://github.com/MuhammadMoustafa/xppautX/issues/280)).
 
 ## [0.1.0-beta.1] - 2026-10-08
 

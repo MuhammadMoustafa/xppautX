@@ -5853,6 +5853,7 @@ async function layoutCheck(dir) {
   await desktopMetrics();
   check('layout: the page connects', await until('s.hello && !s.busy', 'hello'));
   check('layout: a run stores rows for the plot', await integrate(601, 30000) || await until('s.seriesCount > 0 && !s.busy', 'rows'));
+  await panelsCheck();
 
   for (const h of [900, 560]) {
     const bad = [];
@@ -5959,6 +5960,152 @@ async function layoutCheck(dir) {
   check('layout: W102: after Back the main plot is in the layout, sized, and holds the rows',
     layoutProblems(L).length === 0 && !!pl && pl.curves.length > 0 && pl.curves[0].points > 0,
     JSON.stringify([layoutProblems(L), L.plot, pl && pl.curves.map(c => c.points)]));
+}
+
+/* W226 (#280): the Commands and Values panels collapse, reopen and resize by drag and by keyboard
+   within their limits, and keep their size across a reload; the plot re-fits each time */
+const panelRects = () => cdp.eval(`(() => {
+  const r = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect();
+    return {w: Math.round(b.width), h: Math.round(b.height), l: b.left, t: b.top, r: b.right, b: b.bottom, d: getComputedStyle(e).display}; };
+  const sep = sel => { const e = document.querySelector(sel); if (!e) return null;
+    return {role: e.getAttribute('role'), o: e.getAttribute('aria-orientation'), now: +e.getAttribute('aria-valuenow'),
+      min: +e.getAttribute('aria-valuemin'), max: +e.getAttribute('aria-valuemax'), tab: e.tabIndex, ...r(sel)}; };
+  const host = document.querySelector('.plot-view:not([hidden]) .plot-host');
+  const kids = host ? [...host.querySelectorAll('canvas,svg')].map(e => e.getBoundingClientRect().width) : [];
+  return {menu: r('.menu-panel'), vals: r('.values-panel'), plot: r('.plot-view:not([hidden]) .plot-host'), kids,
+    menuSep: sep('.splitter-menu'), valSep: sep('.splitter-values'), p: __xpp.state().panels,
+    menuBtn: document.querySelector('.menu-collapse')?.getAttribute('aria-expanded'),
+    valBtn: document.querySelector('.values-collapse')?.getAttribute('aria-expanded')}; })()`);
+const near = (a, b, tol = 2) => Math.abs(a - b) <= tol;
+
+async function panelsCheck() {
+  /* a full-screen AUTO view left open by an earlier section covers the panels' edges */
+  await cdp.eval(`document.querySelector('.auto-back')?.click()`);
+  await until(`!document.querySelector('.auto-panel')`, 'AUTO view hidden');
+  for (const [w, wide] of [[1100, false], [1880, true]]) {
+    const tag = `panels: ${w}px`;
+    await cdp.eval(`localStorage.removeItem('xppPanels')`);
+    await reloadPage();
+    await metrics({width: w, height: 900, deviceScaleFactor: 1, mobile: false});
+    await until('s.hello && !s.busy', 'ready');
+    let R = await panelRects();
+    check(`${tag}: both separators are focusable separators with a value and limits`,
+      R.menuSep.role === 'separator' && R.menuSep.o === 'vertical' && R.menuSep.tab === 0
+      && R.valSep.role === 'separator' && R.valSep.o === (wide ? 'vertical' : 'horizontal') && R.valSep.tab === 0
+      && R.menuSep.min < R.menuSep.now && R.menuSep.now <= R.menuSep.max && R.valSep.min <= R.valSep.now && R.valSep.now <= R.valSep.max
+      && R.menuBtn === 'true' && R.valBtn === 'true', JSON.stringify([R.menuSep, R.valSep, R.menuBtn, R.valBtn]));
+
+    /* collapse and reopen the Commands panel: the plot takes the room and gives it back */
+    const m0 = R.menu.w, plot0 = R.plot.w;
+    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
+    await until('s.panels.menuCollapsed', 'menu collapsed');
+    await rendered();
+    R = await panelRects();
+    check(`${tag}: the toggle collapses the Commands panel, the plot grows to fill it`,
+      R.menu.d === 'none' && R.menuBtn === 'false' && R.p.menuCollapsed && R.plot.w >= plot0 + m0 - 2
+      && R.kids.length > 0 && R.kids.every(k => k <= R.plot.w + 1) && R.kids.some(k => k >= R.plot.w - 8),
+      JSON.stringify([R.menu, R.plot.w, plot0, m0, R.kids]));
+    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
+    await until('!s.panels.menuCollapsed', 'menu reopened');
+    await rendered();
+    R = await panelRects();
+    check(`${tag}: ... and reopens it at its width, the plot back`,
+      R.menu.d !== 'none' && R.menu.w === m0 && near(R.plot.w, plot0) && R.menuBtn === 'true', JSON.stringify([R.menu.w, m0, R.plot.w, plot0]));
+
+    /* the keyboard: arrows move by a step, Home and End go to the limits, nothing passes them */
+    await cdp.eval(`document.querySelector('.splitter-menu').focus()`);
+    const step = 16;
+    await key('ArrowRight'); await key('ArrowRight'); await key('ArrowRight');
+    R = await panelRects();
+    check(`${tag}: Commands splitter: three Right arrows widen the panel by three steps`,
+      near(R.menu.w, m0 + 3 * step) && R.p.menuWidth === m0 + 3 * step && R.menuSep.now === R.menu.w, JSON.stringify([R.menu.w, m0, R.p, R.menuSep.now]));
+    await key('End');
+    R = await panelRects();
+    const menuMax = R.menuSep.max, menuMin = R.menuSep.min;
+    check(`${tag}: End goes to the limit, and another Right arrow does not pass it`,
+      R.p.menuWidth === menuMax && near(R.menu.w, menuMax), JSON.stringify([R.p, R.menu.w, menuMax]));
+    await key('ArrowRight');
+    check(`${tag}: ... (held at the limit)`, (await panelRects()).p.menuWidth === menuMax);
+    await key('Home');
+    R = await panelRects();
+    const atMin = R.p.menuWidth === menuMin && near(R.menu.w, menuMin);
+    await key('ArrowLeft');
+    check(`${tag}: Home goes to the minimum, and Left does not pass it`,
+      atMin && (await panelRects()).p.menuWidth === menuMin, JSON.stringify([R.p, R.menu.w, menuMin]));
+
+    /* a drag of the inner edge */
+    const dragFrom = async (sel, dx, dy) => {
+      const b = await cdp.eval(`(() => { const r = document.querySelector('${sel}').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+      await mouse('mouseMoved', b[0], b[1]);
+      await mouse('mousePressed', b[0], b[1], {button: 'left', buttons: 1, clickCount: 1});
+      for (let i = 1; i <= 4; i++) await mouse('mouseMoved', b[0] + dx * i / 4, b[1] + dy * i / 4, {buttons: 1});
+      await mouse('mouseReleased', b[0] + dx, b[1] + dy, {button: 'left', buttons: 0, clickCount: 1});
+      await rendered();
+    };
+    await dragFrom('.splitter-menu', 60, 0);
+    R = await panelRects();
+    check(`${tag}: dragging the Commands edge 60 px right widens it by 60`,
+      near(R.menu.w, menuMin + 60, 3) && R.p.menuWidth === R.menu.w, JSON.stringify([R.menu.w, menuMin, R.p]));
+    await dragFrom('.splitter-menu', 600, 0);
+    R = await panelRects();
+    check(`${tag}: ... and a drag far beyond stops at the limit`, R.p.menuWidth === menuMax, JSON.stringify([R.p, menuMax]));
+
+    /* the Values panel: a column on the right (wide) or a row under the plot, resized along its own axis */
+    const axis = wide ? 'w' : 'h', key0 = wide ? 'valuesWidth' : 'valuesHeight';
+    const grow = wide ? 'ArrowLeft' : 'ArrowUp', shrink = wide ? 'ArrowRight' : 'ArrowDown';
+    R = await panelRects();
+    const v0 = R.vals[axis], plotV0 = wide ? R.plot.w : R.plot.h;
+    await cdp.eval(`document.querySelector('.values-collapse').click()`);
+    await until('s.panels.valuesCollapsed', 'values collapsed');
+    await rendered();
+    R = await panelRects();
+    check(`${tag}: the toggle collapses the Values panel, the plot grows to fill it`,
+      R.vals.d === 'none' && R.valBtn === 'false' && (wide ? R.plot.w >= plotV0 + v0 - 3 : R.plot.h > plotV0) && R.kids.every(k => k <= R.plot.w + 1),
+      JSON.stringify([R.vals, R.plot, plotV0, v0]));
+    await cdp.eval(`document.querySelector('.values-collapse').click()`);
+    await until('!s.panels.valuesCollapsed', 'values reopened');
+    await rendered();
+    R = await panelRects();
+    check(`${tag}: ... and reopens it at its size`, R.vals.d !== 'none' && near(R.vals[axis], v0, 3), JSON.stringify([R.vals, v0]));
+    await cdp.eval(`document.querySelector('.splitter-values').focus()`);
+    await key(shrink); await key(shrink);
+    R = await panelRects();
+    check(`${tag}: Values splitter: two ${shrink} keys shrink it by two steps`,
+      near(R.vals[axis], v0 - 2 * step, 3) && R.p[key0] !== null && R.valSep.now === R.vals[axis], JSON.stringify([R.vals, v0, R.valSep, R.p]));
+    await key(grow);
+    R = await panelRects();
+    check(`${tag}: ${grow} grows it by a step`, near(R.vals[axis], v0 - step, 3), JSON.stringify([R.vals, v0]));
+    await key('Home');
+    R = await panelRects();
+    check(`${tag}: Home shrinks it to the minimum`, R.p[key0] === R.valSep.min && near(R.vals[axis], R.valSep.min, 3), JSON.stringify([R.p, R.vals, R.valSep]));
+    await key('End');
+    R = await panelRects();
+    check(`${tag}: End grows it to the limit`, R.p[key0] === R.valSep.max && R.valSep.max >= R.valSep.min + 100, JSON.stringify([R.p, R.valSep]));
+    await key('Home');
+    await dragFrom('.splitter-values', wide ? -80 : 0, wide ? 0 : -80);
+    R = await panelRects();
+    check(`${tag}: dragging the Values edge 80 px away from its panel's far side grows it by 80`,
+      near(R.vals[axis], R.valSep.min + 80, 3), JSON.stringify([R.vals, R.valSep]));
+
+    /* kept across a reload: the sizes and the collapsed state */
+    await cdp.eval(`document.querySelector('.menu-collapse').click()`);
+    await until('s.panels.menuCollapsed', 'menu collapsed for the reload');
+    const before = (await panelRects()).p;
+    await reloadPage();
+    await until('s.hello && !s.busy', 'ready');
+    await rendered();
+    R = await panelRects();
+    check(`${tag}: a reload keeps both panels' sizes and the collapsed Commands panel`,
+      JSON.stringify(R.p) === JSON.stringify(before) && R.p.menuCollapsed && R.menu.d === 'none' && R.menuBtn === 'false'
+      && near(R.vals[axis], before[key0], 3), JSON.stringify([before, R.p, R.vals]));
+    await cdp.eval(`localStorage.removeItem('xppPanels')`);
+  }
+  await cdp.eval(`localStorage.setItem('xppPanels', '{"menuCollapsed": 1}')`);
+  await reloadPage();
+  check('panels: a stored value that is not ours is ignored (the default layout)',
+    (await panelRects()).p.menuCollapsed === false);
+  await cdp.eval(`localStorage.removeItem('xppPanels')`);
+  await desktopMetrics();
 }
 
 /* Remove stale Chrome profiles older than an hour (W105) */

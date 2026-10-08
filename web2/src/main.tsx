@@ -9,10 +9,12 @@ import {installBrowserLeave, installDesktopHooks} from './desktop';
 import {Session} from './session';
 import {installTestHook} from './testhook';
 import {App} from './ui/App';
+import {savedPanels} from './store/panels';
 import {savedTheme} from './ui/theme';
 
 const session = new Session(new HttpTransport(), new HttpFiles());
 session.store.dispatch({type: 'theme', theme: savedTheme()});
+session.store.dispatch({type: 'panels', panels: savedPanels()});
 installTestHook(session);
 installDesktopHooks(session);
 installBrowserLeave();

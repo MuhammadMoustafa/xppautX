@@ -32,6 +32,23 @@ function ThemeIcon({theme}: {theme: Theme}) {
   );
 }
 
+/** the Commands and Values toggles of the wide layouts (the narrow ones are the drawers' menu-toggle and values-toggle) */
+function PanelToggle({panel, collapsed, name}: {panel: 'menu' | 'values'; collapsed: boolean; name: string}) {
+  const session = useSession();
+  const key = panel === 'menu' ? 'menuCollapsed' : 'valuesCollapsed';
+  const common = {width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
+    'stroke-linecap': 'round' as const, 'stroke-linejoin': 'round' as const, 'aria-hidden': 'true' as const, class: 'icon'};
+  return (
+    <button class={`panel-toggle icon-button ${panel}-collapse`} aria-controls={panel === 'menu' ? 'command-menu' : 'values-panel'}
+      aria-expanded={!collapsed} aria-label={`${name} panel`} title={`${collapsed ? 'Show' : 'Hide'} the ${name.toLowerCase()} panel`}
+      onClick={() => session.store.dispatch({type: 'panels', panels: {[key]: !collapsed}})}>
+      {panel === 'menu'
+        ? <svg {...common}><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+        : <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /></svg>}
+    </button>
+  );
+}
+
 export function TitleBar() {
   const tools = useRef<HTMLDetailsElement>(null);
   /* a click outside closes the menu (Escape is hotkeys.ts's, the one handler) */
@@ -52,6 +69,7 @@ export function TitleBar() {
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
   const aplotOpen = useStore(s => s.aplot.open);
+  const panels = useStore(s => s.panels);
   const aniOpen = useStore(s => s.ani.open);
   const helpOpen = useStore(s => s.help.open);
   const may = useMay();
@@ -65,6 +83,7 @@ export function TitleBar() {
   };
   return (
     <header class="title-bar">
+      <PanelToggle panel="menu" collapsed={panels.menuCollapsed} name="Commands" />
       <button class="menu-toggle" aria-controls="command-menu" aria-expanded={drawer}
         onClick={() => session.store.dispatch({type: 'drawer', open: !drawer})}>Menu</button>
       <h1 title={file}>{baseName(file) || 'xppautX'}</h1>
@@ -90,6 +109,7 @@ export function TitleBar() {
         aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
         <ThemeIcon theme={theme} />
       </button>
+      <PanelToggle panel="values" collapsed={panels.valuesCollapsed} name="Values" />
       <button class="values-toggle" aria-controls="values-panel" aria-expanded={valuesOpen}
         onClick={() => session.store.dispatch({type: 'valuesPanel', open: !valuesOpen})}>Values</button>
       <button class="table-toggle" aria-controls="table-panel" aria-expanded={tableOpen}

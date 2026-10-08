@@ -87,6 +87,21 @@ you wrote it (and, in an `.odex` model, a caret under the column), and
 what is wrong, such as a formula that stops making sense and where.
 Correct the line and start XPP again.
 
+**Making room for the plot.** From 48 rem wide the Commands panel (left) and
+the Values panel can each be hidden and shown again with their buttons in the
+title bar (the three-line button for Commands, the panel button for Values;
+the plot takes the room), and resized by dragging the edge between the panel
+and the plot, or from the keyboard: Tab to the edge (it is a separator named
+"Commands panel width" or "Values panel width"), then the arrow keys move it
+by a step, Home and End go to the smallest and largest size. Commands is
+resized sideways. Values is a column on the right from 80 rem wide and is
+resized sideways too (Left grows it); below that it is a row under the plot
+and its edge moves up and down (Up grows it). Each panel keeps within a
+minimum and a share of the window, so the plot always has room. The sizes and
+whether each panel is hidden are remembered by this browser or window for
+next time. On a phone-width screen the panels stay drawers, opened from the
+title bar's Menu and Values buttons.
+
 ## Tabs instead of windows
 
 The plot, AUTO, the animation, an array plot, the data browser, the

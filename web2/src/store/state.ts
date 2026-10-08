@@ -27,6 +27,7 @@ import {initialPlayer, reducePlayer, type PlayerAction, type PlayerState} from '
 import {initialKeymap, reduceKeymap, type KeymapAction, type KeymapState} from './keymap';
 import type {SteadyInput} from './steady';
 import {initialValues, reduceValues, type ValuesAction, type ValuesState} from './values';
+import {defaultPanels, type Panels} from './panels';
 import {
   initialAutoSettings, reduceAutoSettings, type AutoSettings, type AutoSettingsAction, type AutoSettingsState,
 } from './autoSettings';
@@ -117,6 +118,8 @@ export interface AppState {
   flash: number;
   nextToast: number;
   theme: Theme;
+  /** the side panels' collapsed state and sizes (W226), kept per viewer */
+  panels: Panels;
   /** the command menu, a drawer on narrow screens */
   drawerOpen: boolean;
   /** the Continue field of the run toolbar, which the Continue command's key reads too (W213) */
@@ -185,6 +188,7 @@ export type Action =
   /** the page's own line in the status bar (a key that cannot act now says why) */
   | {type: 'bottom'; text: string}
   | {type: 'theme'; theme: Theme}
+  | {type: 'panels'; panels: Partial<Panels>}
   | {type: 'values'; action: ValuesAction}
   | {type: 'valuesPanel'; open: boolean}
   | {type: 'table'; action: TableAction}
@@ -226,6 +230,7 @@ export const initialState: AppState = {
   flash: 0,
   nextToast: 1,
   theme: 'system',
+  panels: defaultPanels,
   drawerOpen: false,
   continueInput: CONTINUE_INPUT_DEFAULT,
   steadyEdit: {},
@@ -588,6 +593,8 @@ export function reduce(state: AppState, action: Action): AppState {
       return action.open === state.drawerOpen ? state : {...state, drawerOpen: action.open};
     case 'theme':
       return {...state, theme: action.theme};
+    case 'panels':
+      return {...state, panels: {...state.panels, ...action.panels}};
     case 'values':
       return {...state, values: reduceValues(state.values, action.action)};
     case 'valuesPanel':

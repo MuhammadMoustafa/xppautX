@@ -8,7 +8,10 @@ import {AplotView} from './AplotView';
 import {AniView} from './AniView';
 import {AskDialog} from './AskDialog';
 import {AutoShow, AutoView} from './AutoView';
+import {useEffect} from 'preact/hooks';
+import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
 import {SessionContext, useStore} from './context';
+import {Splitter, useMinWidth} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
 import {HelpView} from './Help';
 import {useHotkeys} from './hotkeys';
@@ -62,16 +65,42 @@ function Banner() {
   return null;
 }
 
+/** the stylesheet's wide layout (theme.css: the Values panel a right column) starts here */
+const WIDE_REM = 80;
+
+/** `px`, held to the window's share for `size` (the stylesheet's limit, so a narrowed window keeps room for the plot) */
+const track = (size: PanelSize, px: number, unit: 'vw' | 'vh') => `min(${px}px, ${PANEL_LIMITS[size].share * 100}${unit})`;
+
+/** the grid tracks the user's collapsing and dragging override (theme.css gives the defaults) */
+function panelStyle(p: Panels): Record<string, string> {
+  const style: Record<string, string> = {};
+  if (p.menuCollapsed) style['--menu-width'] = '0px';
+  else if (p.menuWidth !== null) style['--menu-width'] = track('menuWidth', p.menuWidth, 'vw');
+  if (p.valuesCollapsed) {
+    style['--values-col'] = '0px';
+    style['--values-row'] = '0px';
+  } else {
+    if (p.valuesWidth !== null) style['--values-col'] = track('valuesWidth', p.valuesWidth, 'vw');
+    if (p.valuesHeight !== null) style['--values-row'] = track('valuesHeight', p.valuesHeight, 'vh');
+  }
+  return style;
+}
+
 function Shell() {
   const theme = useStore(s => s.theme);
   const modelFile = useStore(s => s.hello?.file);
   const playerOpen = useStore(s => s.player.open);
   const dark = useDark(theme);
+  const panels = useStore(s => s.panels);
+  const wide = useMinWidth(WIDE_REM);
+  useEffect(() => savePanels(panels), [panels]);
   return (
-    <div class="shell">
+    <div class="shell" style={panelStyle(panels)} data-menu={panels.menuCollapsed ? 'collapsed' : 'open'}
+      data-values={panels.valuesCollapsed ? 'collapsed' : 'open'}>
       <a class="skip-link" href="#main">Skip to the plot</a>
       <TitleBar />
       <MenuPanel />
+      <Splitter controls="command-menu" size="menuWidth" className="splitter-menu" orientation="vertical" growth={1} />
       <main id="main" class="workspace">
         <Banner />
         {playerOpen ? null : <RunToolbar key={modelFile} />}
@@ -82,6 +111,9 @@ function Shell() {
         <Messages />
       </main>
       <ValuesPanel />
+      {wide
+        ? <Splitter controls="values-panel" size="valuesWidth" className="splitter-values" orientation="vertical" growth={-1} />
+        : <Splitter controls="values-panel" size="valuesHeight" className="splitter-values" orientation="horizontal" growth={-1} />}
       <TableView />
       <TextViews />
       <AutoView dark={dark} />

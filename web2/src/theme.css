@@ -162,7 +162,7 @@ kbd {
   /* the values row takes what its content needs, but at most 40% of the height:
      the plot row keeps the rest (W98: an auto row let a tall Values panel
      squeeze the plot to nothing between 48rem and 80rem) */
-  grid-template-rows: auto minmax(10rem, 1fr) fit-content(40%) auto;
+  grid-template-rows: auto minmax(10rem, 1fr) var(--values-row, fit-content(40%)) auto;
   grid-template-areas: 'title title' 'menu work' 'menu values' 'status status';
 }
 .title-bar {
@@ -199,6 +199,19 @@ kbd {
 .unused-settings > summary { min-height: var(--target); cursor: pointer; }
 .spacer { flex: 1; }
 .menu-toggle, .values-toggle { display: none; }
+/* the wide layouts' collapse buttons and splitters (W226): not on a phone, where the drawers do this */
+.splitter { display: none; }
+@media (min-width: 48rem) {
+  .splitter { display: block; z-index: 20; background: transparent; touch-action: none; }
+  .splitter:hover, .splitter:focus-visible { background: var(--accent); opacity: 0.5; }
+  .splitter-menu { grid-area: menu; justify-self: end; width: 0.5rem; margin-right: -0.25rem; cursor: col-resize; }
+  .splitter-values { grid-area: values; align-self: start; height: 0.5rem; margin-top: -0.25rem; cursor: row-resize; }
+  .shell[data-menu="collapsed"] .menu-panel, .shell[data-menu="collapsed"] .splitter-menu,
+  .shell[data-values="collapsed"] .values-panel, .shell[data-values="collapsed"] .splitter-values { display: none; }
+}
+@media (max-width: 47.999rem) {
+  .icon-button.panel-toggle { display: none; }
+}
 .menu-panel {
   grid-area: menu;
   overflow: auto;
@@ -1210,11 +1223,12 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 @media (min-width: 80rem) {
   :root { --menu-width: 15rem; }
   .shell {
-    grid-template-columns: var(--menu-width) minmax(0, 1fr) 30rem;
+    grid-template-columns: var(--menu-width) minmax(0, 1fr) var(--values-col, 30rem);
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: 'title title title' 'menu work values' 'status status status';
   }
   .values-panel { border-top: none; border-left: 1px solid var(--border); }
+  .splitter-values { align-self: stretch; width: 0.5rem; height: auto; margin: 0 0 0 -0.25rem; justify-self: start; cursor: col-resize; }
   .value-group[data-section="par"] .value-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
   .value-group[data-section="par"] .value-field { grid-template-columns: minmax(2.5rem, 1fr) minmax(0, 7.5rem) var(--target); gap: var(--space-1); }
   .value-group[data-section="par"] input { font-size: var(--text-xs); padding-inline: var(--space-1); }
