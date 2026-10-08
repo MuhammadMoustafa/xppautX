@@ -114,6 +114,11 @@ export function seriesColumnName(s: PlotSeries, col: number): string {
   return s.names.get(col) ?? (col === 0 ? 'T' : `#${col}`);
 }
 
+/** an axis title: the window's own label (Viewaxes), else the plotted column's name (none without a column) */
+export function axisTitle(s: PlotSeries, own: string, col: number | undefined): string {
+  return own || (col === undefined ? '' : seriesColumnName(s, col));
+}
+
 /** "W vs V": what a curve plots, as XPP titles a window */
 export function curveLabel(s: PlotSeries, c: Curve): string {
   return `${seriesColumnName(s, c.y)} vs ${seriesColumnName(s, c.x)}`;

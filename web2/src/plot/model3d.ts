@@ -3,7 +3,7 @@
    own wireframe. Pure, mirrors plot/model.ts. */
 import type {Box3, Point2} from './project3d';
 import {project, projectedBox} from './project3d';
-import {curveLabel, seriesColumnName, type PlotSeries} from '../store/series';
+import {axisTitle, curveLabel, type PlotSeries} from '../store/series';
 
 export interface Curve3D {
   label: string;
@@ -48,7 +48,6 @@ export function buildModel3d(
     };
   });
   const first = s.curves[0];
-  const name = (own: string, col: number | undefined) => own || (col === undefined ? '' : seriesColumnName(s, col));
   return {curves, box: projectedBox(box, theta, phi, persp, zplane, zview),
-    labels: {x: name(s.labels.x, first?.x), y: name(s.labels.y, first?.y), z: name(s.labels.z, first?.z)}};
+    labels: {x: axisTitle(s, s.labels.x, first?.x), y: axisTitle(s, s.labels.y, first?.y), z: axisTitle(s, s.labels.z, first?.z)}};
 }

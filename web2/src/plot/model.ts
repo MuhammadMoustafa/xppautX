@@ -1,7 +1,7 @@
 /* From the store's series to what the plot draws: one x/y pair of arrays per
    curve, and whether the curves share one increasing x (a time plot, uPlot's
    aligned mode 1) or not (a phase plane, uPlot's xy mode 2). Pure. */
-import {seriesColumnName, columnStats, curveLabel, type ColumnStats, type PlotSeries} from '../store/series';
+import {axisTitle, seriesColumnName, columnStats, curveLabel, type ColumnStats, type PlotSeries} from '../store/series';
 import type {Range} from '../store/plots';
 
 export interface CurveData {
@@ -85,8 +85,8 @@ export function buildModel(s: PlotSeries, erased = false): PlotModel {
   const firstX = erased && first ? (s.columns.get(first.x) ?? EMPTY) : null;
   const mode = shared && curves.length > 0
     && (firstX ? statsOf(s, first.x, firstX) : xStats[0]).increasing ? 1 : 2;
-  const xLabel = s.labels.x || (first ? seriesColumnName(s, first.x) : '');
-  const yLabel = s.labels.y || (s.curves.length === 1 && first ? seriesColumnName(s, first.y) : '');
+  const xLabel = axisTitle(s, s.labels.x, first?.x);
+  const yLabel = axisTitle(s, s.labels.y, s.curves.length === 1 ? first?.y : undefined);
   return {mode, curves, xLabel, yLabel, t: s.columns.get(0) ?? null,
     xRange: rangeOf(xStats), yRange: rangeOf(s.curves.map((c, i) => statsOf(s, c.y, curves[i].ys)))};
 }
