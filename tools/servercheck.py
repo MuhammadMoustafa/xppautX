@@ -845,14 +845,41 @@ evs, ask = collect(lambda e: e.get('ev') == 'ask')
 send(cmd='answer', id=ask['id'], key='2')
 evs, ask = collect(lambda e: e.get('ev') == 'ask')
 check('Viewaxes/2D opens a form', ask is not None and ask['kind'] == 'form' and 'Xmax' in ask['names'][4], str(ask))
-check("T31: the form's fields carry their kinds: the axes' pickers text, the ranges numbers, the labels text",
-      ask is not None and ask.get('kinds') == ['text', 'text', 'number', 'number', 'number', 'number', 'text', 'text'],
+check("T31: the form's fields carry their kinds: the axes' pickers names, the ranges numbers, the labels text",
+      ask is not None and ask.get('kinds') == ['name:0', 'name:0', 'number', 'number', 'number', 'number', 'text', 'text'],
       str(ask and ask.get('kinds')))
 if ask:
     vals = list(ask['values'])
     vals[4] = '40'
     send(cmd='answer', id=ask['id'], ok=1, values=vals)
     collect(is_idle)
+
+# W225: the 2D View is one dialog in columns (columns and rows of the form ask, the fields row by row),
+# read whole: a min at or above its max is an error naming the field, and nothing of that answer is applied
+send(cmd='key', key='v')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+send(cmd='answer', id=ask['id'], key='2')
+evs, ask = collect(lambda e: e.get('ev') == 'ask')
+check('W225: the 2D View form is laid out in columns X, Y and rows Variable, Min, Max, Label',
+      ask is not None and ask.get('columns') == ['X', 'Y'] and ask.get('rows') == ['Variable', 'Min', 'Max', 'Label'],
+      str(ask))
+if ask:
+    before_vals = list(ask['values'])
+    vals = list(before_vals)
+    vals[6], vals[3] = 'changed', '1e9'   # the X label is fine; Ymin above Ymax is not
+    send(cmd='answer', id=ask['id'], ok=1, values=vals)
+    evs = collect(is_idle)[0]
+    e = next((v for v in evs if v.get('ev') == 'message' and 'error' in v), {})
+    check('W225: Ymin above Ymax is an error naming Ymax', 'Ymax' in e.get('error', '') and 'Ymin' in e.get('error', ''), str(e))
+    send(cmd='key', key='v')
+    evs, ask = collect(lambda e: e.get('ev') == 'ask')
+    send(cmd='answer', id=ask['id'], key='2')
+    evs, ask = collect(lambda e: e.get('ev') == 'ask')
+    check('W225: ... and nothing of that answer was applied (the label, the limits, the variables)',
+          ask is not None and ask['values'] == before_vals, str(ask and ask['values']) + ' ' + str(before_vals))
+    if ask:
+        send(cmd='answer', id=ask['id'], ok=0)
+        collect(is_idle)
 
 # T31: an integer field (Initialconds/Range's Steps) and a name (Xi vs t: T or a variable, hello.lists[0])
 send(cmd='key', key='i')

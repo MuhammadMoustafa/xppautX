@@ -71,9 +71,11 @@ struct DataTable; /* data_formats.h */
    plot window (plot_windows.current) and the window drawn in (draw_win) */
 void change_view_com(Session &s, int com);
 void check_flags(Session &s);
-void get_2d_view(Session &s, int ind);
+/* The axes dialog of the active plot window: its curve ind's variables, limits and labels in
+   columns (X, Y, and Z when three, with the 3D view's window and parameters), read whole and
+   applied all or nothing; false when cancelled or when a field is refused (shown) */
+bool axes_dialog(Session &s, int ind, bool three);
 void axes_opts(Session &s);
-void get_3d_view(Session &s, int ind);
 void corner_cube(Session &s, double *xlo, double *xhi, double *ylo, double *yhi);
 void fit_window(Session &s);
 void user_window(Session &s);

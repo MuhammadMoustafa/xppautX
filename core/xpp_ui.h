@@ -182,6 +182,10 @@ typedef struct XppUi {
     /* kinds: one XPP_FIELD_* per field, or NULL (all text) */
     int (*string_box)(int row, int col, std::string_view title, const char *const *names,
                       std::span<std::string> values, const int *kinds);
+    /* string_box laid out as a grid: the first columns.size() * rows.size()
+       fields are its cells, row by row; the rest are plain fields below it */
+    int (*grid_box)(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
+                    const char *const *names, std::span<std::string> values, const int *kinds);
     int (*file_selector)(std::string_view title, std::string &file, std::string_view wild);
     /* one-line text entry with named buttons; returns 0 on cancel */
     int (*dialog)(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
@@ -410,6 +414,9 @@ int do_string_box(int row, int col, std::string_view title, const char *const *n
                   std::span<std::string> values);
 int do_string_box_of(int row, int col, std::string_view title, const char *const *names,
                      std::span<std::string> values, const int *kinds);
+/* do_string_box_of laid out as a grid (XppUi::grid_box) */
+int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
+                   const char *const *names, std::span<std::string> values, const int *kinds);
 /* a file name (base name or path, what the user picked) matching wild;
    0 on cancel or an empty name */
 int file_selector(std::string_view title, std::string &file, std::string_view wild);

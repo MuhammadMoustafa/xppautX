@@ -365,6 +365,7 @@ XppUi make_json_ui(void)
     u.respond_box = j_respond_box;
     u.checklist = j_checklist;
     u.string_box = j_string_box;
+    u.grid_box = j_grid_box;
     u.file_selector = j_file_selector;
     u.dialog = j_dialog;
     u.get_mouse_xy = j_get_mouse_xy;

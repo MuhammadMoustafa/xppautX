@@ -297,7 +297,8 @@ namespace {
 
 /* string_box: a form of named fields, each of kinds[i]
    (every one `all` when kinds is NULL) */
-int form(std::string_view title, const char *const *names, std::span<std::string> values, const int *kinds, int all)
+int form(std::string_view title, const char *const *names, std::span<std::string> values, const int *kinds, int all,
+         std::span<const char *const> columns = {}, std::span<const char *const> rows = {})
 {
     Buf b;
     const int n = static_cast<int>(values.size());
@@ -312,6 +313,12 @@ int form(std::string_view title, const char *const *names, std::span<std::string
     BUF_LIT(&b, ",\"values\":");
     buf_str_array(&b, shown.data(), n);
     buf_kinds(&b, kinds, all, n);
+    if (!columns.empty()) {
+        BUF_LIT(&b, ",\"columns\":");
+        buf_str_array(&b, columns.data(), static_cast<int>(columns.size()));
+        BUF_LIT(&b, ",\"rows\":");
+        buf_str_array(&b, rows.data(), static_cast<int>(rows.size()));
+    }
     if (!ask_wait(&b, id)) return 0;
     const char *arr = js_find(answer.c_str(), "values");
     for (int i = 0; i < n; i++) {
@@ -327,6 +334,12 @@ int j_string_box(int, int, std::string_view title, const char *const *names, std
                  const int *kinds)
 {
     return form(title, names, values, kinds, XPP_FIELD_TEXT);
+}
+
+int j_grid_box(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
+               const char *const *names, std::span<std::string> values, const int *kinds)
+{
+    return form(title, names, values, kinds, XPP_FIELD_TEXT, columns, rows);
 }
 
 /* the file selector lists a folder; an answer with "cd" goes into a folder

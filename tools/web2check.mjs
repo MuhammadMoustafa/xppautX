@@ -1441,6 +1441,113 @@ async function viewCheck() {
   check('Fit again with the axes already fitted still brings the data back (the page drops its pan)',
     await until('w.viewport.x === null && w.viewport.y === null && !s.busy', 'second corner fit'),
     JSON.stringify(await S('w.viewport')));
+  await axesDialogChecks(false);
+}
+
+/* W225: one axis dialog in columns, opened by clicking an axis name (2D and 3D). A field is set by the
+   caption the page gives it (a cell: "X min", "X variable"; a plain field: its name); Enter in it answers.
+   The core's truth is read back by opening the dialog again: its ask carries every value as the core holds it. */
+const axisName = which => cdp.eval(`document.querySelector('.plot-view:not([hidden]) [data-plot-axis=${which}]').click()`);
+const axesAsk = async which => {
+  await axisName(which);
+  await until(`s.ask && s.ask.kind === 'form' && !!document.querySelector('[role=dialog] [data-form-columns]')`, 'axes dialog');
+  return S('s.ask');
+};
+const setAxesField = (caption, value) => cdp.eval(`(() => {
+  const l = [...document.querySelectorAll('[role=dialog] label')].find(l => l.firstElementChild.textContent === ${JSON.stringify(caption)});
+  const i = l.querySelector('input, select');
+  i.value = ${JSON.stringify(String(value))};
+  i.dispatchEvent(new Event(i.tagName === 'SELECT' ? 'change' : 'input', {bubbles: true}));
+  i.focus();
+})()`);
+/* the values the core holds, read by opening the dialog and cancelling it */
+const axesValues = async which => {
+  const ask = await axesAsk(which);
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'axes dialog closed');
+  return ask.values;
+};
+const dismissErrors = async () => {
+  await cdp.eval(`document.querySelector('[data-error-ok]')?.click()`);
+  await until('!s.toasts.length', 'errors dismissed');
+};
+/* sets fields ({caption: value}) in the open dialog and answers with Enter from the last one */
+const fillAndEnter = async fields => {
+  for (const [caption, value] of Object.entries(fields)) await setAxesField(caption, value);
+  await rendered();
+  await key('Enter');
+  await until('!s.ask && !s.busy', 'axes dialog answered');
+};
+const sameValues = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+async function axesDialogChecks(three) {
+  const kind = three ? '3D' : '2D';
+  const lists = await S('s.hello.lists');
+  const ask = await axesAsk('x');
+  const cols = three ? ['X', 'Y', 'Z'] : ['X', 'Y'];
+  check(`W225: clicking an axis name opens ONE ${kind} dialog in columns (${cols.join(', ')}; Variable, Min, Max, Label)`,
+    ask.title === `${kind} View` && JSON.stringify(ask.columns) === JSON.stringify(cols)
+    && JSON.stringify(ask.rows) === JSON.stringify(['Variable', 'Min', 'Max', 'Label'])
+    && await cdp.eval(`document.querySelectorAll('[role=dialog] [data-form-columns] td label').length === ${cols.length * 4}`),
+    JSON.stringify({title: ask.title, columns: ask.columns, rows: ask.rows}));
+  check('... its first field has the focus (keyboard), and in 3D it also holds the view window and the 3D parameters',
+    await cdp.eval(`document.activeElement === document.querySelector('[role=dialog] [data-form-columns] select')`)
+    && (three ? ask.names.length === 26 && ask.names.includes('Theta') && ask.names.includes('Persp (1=On)') && ask.names.includes('XLo')
+      : ask.names.length === 8),
+    JSON.stringify(ask.names));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'dialog closed');
+
+  let fields, expect;
+  if (three) {
+    fields = {'X min': -31, 'Y min': -32, 'Z min': -3, 'X max': 33, 'Y max': 34, 'Z max': 65, 'X label': 'east', 'Y label': 'north',
+      'Z label': 'up', XLo: -2, XHi: 2.5, YLo: -3, YHi: 3.5, 'Persp (1=On)': 1, ZPlane: 5, ZView: 7, Theta: 100, Phi: 30};
+    expect = ['-31', '-32', '-3', '33', '34', '65', 'east', 'north', 'up', '-2', '2.5', '-3', '3.5', '1', '5', '7', '100', '30'];
+  } else {
+    fields = {'X min': -5, 'X max': 7, 'Y min': -3, 'Y max': 9, 'X label': 'ex', 'Y label': 'why', 'X variable': lists[0][2], 'Y variable': lists[0][1]};
+    expect = [lists[0][2], lists[0][1], '-5', '-3', '7', '9', 'ex', 'why'];
+  }
+  await axesAsk('y');
+  await fillAndEnter(fields);
+  const after = await axesValues('y');
+  /* 3D: the variables stay (3 first), then the grid and the 3D view's fields up to Phi */
+  const got = three ? [...after.slice(3, 21)] : after;
+  check(`W225: a change of every field of the ${kind} dialog applies (read back from the core)`, sameValues(got, expect),
+    JSON.stringify({got, expect}));
+  const info = await S('w.info');
+  check('... state shows the new axes' + (three ? ' and view' : ''),
+    three ? info.theta === 100 && info.phi === 30 && info.persp === 1 && info.zplane === 5 && info.zview === 7
+      : Math.abs(info.xlo + 5) < 1e-9 && Math.abs(info.xhi - 7) < 1e-9 && Math.abs(info.ylo + 3) < 1e-9 && Math.abs(info.yhi - 9) < 1e-9,
+    JSON.stringify(info));
+  const p = await cdp.eval('__xpp.plot()');
+  check('... and the labels reach the plot',
+    three ? p.labels.x === 'east' && p.labels.y === 'north' && p.labels.z === 'up' : p.xLabel === 'ex' && p.yLabel === 'why',
+    JSON.stringify(p));
+
+  /* a bad value applies nothing, though the same answer has good ones, and the error names the field */
+  const good = await axesValues('x');
+  await axesAsk('x');
+  await fillAndEnter(three ? {'X min': -1, 'Z min': 100, Theta: 50, 'X label': 'changed'} : {'Y min': 4, 'X min': 99, 'X label': 'changed'});
+  const bad = await S('s.toasts.map(t => t.text)');
+  check(`W225: a min at or above its max is an error naming the field (${three ? 'Zmax' : 'Xmax'}), shown once`,
+    bad.length === 1 && bad[0].includes(three ? 'Zmax' : 'Xmax'), JSON.stringify(bad));
+  await dismissErrors();
+  const unchanged = await axesValues('x');
+  check('... and nothing was applied, the other fields of that answer included', sameValues(unchanged, good), JSON.stringify([good, unchanged]));
+
+  /* a name that is no variable (a client other than this page can send one) */
+  await axesAsk('x');
+  const id = await S('s.ask.id');
+  const values = (await S('s.ask.values')).slice();
+  values[0] = 'nonesuch';
+  values[three ? 3 : 2] = '1';
+  await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
+  await until('!s.ask && !s.busy && s.toasts.length', 'bad variable refused');
+  const named = await S('s.toasts.map(t => t.text)');
+  await dismissErrors();
+  const unchanged2 = await axesValues('x');
+  check('W225: an unknown variable is refused, naming the X-axis field, and nothing is applied',
+    named.length === 1 && named[0].includes('X-axis') && sameValues(unchanged2, good), JSON.stringify([named, good, unchanged2]));
 }
 
 /* the 3D plot host's box on screen (docs/ui-v2.md T14): Plot3DView.tsx's
@@ -1557,7 +1664,7 @@ async function threePlot() {
     await menuKeys('v', '3');
     await until("s.ask && s.ask.kind === 'form'", '3D label form');
     const values = await S('s.ask.values');
-    [values[13], values[14], values[15]] = [xl, yl, zl];
+    [values[9], values[10], values[11]] = [xl, yl, zl];
     const id = await S('s.ask.id');
     await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
     await until('!s.busy && !s.ask', '3D labels set');
@@ -1570,6 +1677,7 @@ async function threePlot() {
   check('W223: clearing them goes back to the column names',
     await until(`(() => { const p = __xpp.plot(); return !!p && p.labels && p.labels.x.toLowerCase() === 'x' && p.labels.y.toLowerCase() === 'y' && p.labels.z.toLowerCase() === 'z'; })()`, '3D labels cleared'),
     JSON.stringify(await cdp.eval('__xpp.plot()')));
+  await axesDialogChecks(true);
 }
 
 async function touch(type, points) {
@@ -6250,8 +6358,8 @@ async function main() {
     if (run('busy')) await session(LIVE, busyAuto);
     if (run('busy')) await session(LIVE, busyKeys);
     if (run('busy')) await session(LIVE, statusBarLayout);
-    if (run('view')) await session(ODE, viewCheck);
-    if (run('three')) await session(LORENZ_ODE, threePlot);
+    if (run('view')) await session(ODE, viewCheck, ['command:1: Xmax: 7 is not above Xmin', 'command:1: X-axis: no variable named "nonesuch"']);
+    if (run('three')) await session(LORENZ_ODE, threePlot, ['command:1: Zmax: 65 is not above Zmin', 'command:1: X-axis: no variable named "nonesuch"']);
     if (run('marks')) await session(ODE, marks);
     if (run('aplot')) await session(APLOT_ODE, aplotView);
     if (run('files')) await session(ODE, opt.webview2 ? nativeFiles : files, ['gone.set: cannot open gone.set: No such file or directory']);

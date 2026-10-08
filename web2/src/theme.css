@@ -352,7 +352,7 @@ kbd {
 }
 /* a box that does not take its text (ui/Field.tsx): a red border, its message under its row */
 input[aria-invalid='true'] { border-color: var(--danger); outline-color: var(--danger); }
-.value-field > .field-error, .form-grid label > .field-error, .auto-mark-row > .field-error,
+.value-field > .field-error, .form-grid label > .field-error, .form-columns label > .field-error, .auto-mark-row > .field-error,
 .auto-axis-fields label > .field-error { grid-column: 1 / -1; order: 1; }
 .slider-card-head { flex-wrap: wrap; }
 .slider-card-head > .field-error { order: 1; flex-basis: 100%; }
@@ -999,7 +999,7 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 .form-grid { display: grid; gap: var(--space-2); }
 .form-grid label { display: grid; grid-template-columns: minmax(6rem, auto) minmax(0, 1fr); gap: var(--space-3); align-items: center; }
-.form-grid input, .form-grid select {
+.form-grid input, .form-grid select, .form-columns input, .form-columns select {
   font: inherit;
   color: var(--fg);
   background: var(--bg);
@@ -1009,6 +1009,13 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
   padding: 0 var(--space-2);
   min-width: 0;
 }
+
+/* a form ask laid out in columns (the axes dialog): a column per axis, a row per kind of value */
+.form-columns { border-collapse: separate; border-spacing: var(--space-2); width: 100%; margin: 0 0 var(--space-2); }
+.form-columns th { font-weight: 650; text-align: left; white-space: nowrap; }
+.form-columns thead th { padding-left: var(--space-2); }
+.form-columns td label { display: block; }
+.form-columns td input, .form-columns td select { width: 100%; box-sizing: border-box; }
 
 .checklist {
   display: grid;

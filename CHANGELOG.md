@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- **One axis dialog, in columns.** Clicking an axis name on a plot opens one dialog with a column per axis (X, Y, and Z on a 3D plot), each with its variable, min, max and label; on a 3D plot it also holds the view window and the 3D parameters (perspective, ZPlane, ZView, Theta, Phi, the rotation movie). It applies all or nothing: a bad variable, a number that is not one, or a Min not below its Max is an error naming the field, and nothing is changed (W225, [#279](https://github.com/MuhammadMoustafa/xppautX/issues/279)).
 - Fixed: the Xlabel/Ylabel (and Zlabel in 3D) of the Viewaxes form now show on the plot at once, and clearing one goes back to the column name; a 3D plot titles its axes.
 - The Commands and Values panels can be hidden and shown with buttons in the title bar and resized by dragging their inner edge or with the arrow keys; the layout is remembered (W226, [#280](https://github.com/MuhammadMoustafa/xppautX/issues/280)).
 - **About, with links that work.** Help > About (the page and the window's own box) now shows the author, links to the author's email, GitHub and LinkedIn, the source and the issue tracker, and credits XPPAUT and G. Bard Ermentrout. Every link opens in your default browser, in the desktop window as well (#278).

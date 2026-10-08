@@ -78,6 +78,11 @@ static int hl_string_box(int, int, std::string_view, const char *const *, std::s
 {
     return 0;
 }
+static int hl_grid_box(std::string_view, std::span<const char *const>, std::span<const char *const>,
+                       const char *const *, std::span<std::string>, const int *)
+{
+    return 0;
+}
 static int hl_file_selector(std::string_view, std::string &, std::string_view)
 {
     return 0;
@@ -163,6 +168,7 @@ XppUi ui = {
     .respond_box = hl_respond_box,
     .checklist = hl_checklist,
     .string_box = hl_string_box,
+    .grid_box = hl_grid_box,
     .file_selector = hl_file_selector,
     .dialog = hl_dialog,
     .get_mouse_xy = hl_get_mouse_xy,
@@ -330,6 +336,11 @@ int do_string_box_of(int row, int col, std::string_view title, const char *const
                      std::span<std::string> values, const int *kinds)
 {
     return ui.string_box(row, col, title, names, values, kinds);
+}
+int do_grid_box_of(std::string_view title, std::span<const char *const> columns, std::span<const char *const> rows,
+                   const char *const *names, std::span<std::string> values, const int *kinds)
+{
+    return ui.grid_box(title, columns, rows, names, values, kinds);
 }
 int file_selector(std::string_view title, std::string &file, std::string_view wild)
 {

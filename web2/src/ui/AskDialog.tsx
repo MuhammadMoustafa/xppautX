@@ -84,37 +84,63 @@ function FormAsk({ask}: {ask: AskEvent}) {
       (e.currentTarget as HTMLFormElement).requestSubmit();
     }
   };
+  /* a grid ask (`columns` and `rows`, the axes dialog): its first columns x rows fields are the table's
+     cells, row by row; the others are plain fields under it */
+  const columns = isString ? [] : ask.columns ?? [];
+  const rowLabels = ask.rows ?? [];
+  const gridCells = columns.length * rowLabels.length;
+  /* the field i: a select for a list, else a Field; in the table a cell, named by its column and row */
+  const control = (i: number, cell: boolean, cellLabel: string) => {
+    const n = names[i];
+    const spec = isString ? {label: n, list: null} : fieldSpec(n);
+    const items = spec.list !== null ? lists?.[spec.list] : undefined;
+    const set = (text: string) => {
+      const v = values.slice();
+      v[i] = text;
+      setValues(v);
+    };
+    const caption = cell ? <span class="visually-hidden">{cellLabel}</span> : <span>{spec.label}</span>;
+    if (items) {
+      /* the X11 scroll list of variables, parameters, colours, markers or methods */
+      const {options, selected} = selectOptions(items, values[i] ?? '');
+      return (
+        <label key={i}>
+          {caption}
+          <select value={selected} data-list={spec.list} data-autofocus={i === 0 ? '' : undefined}
+            onChange={(e: Event) => set((e.target as HTMLSelectElement).value)}>
+            {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </label>
+      );
+    }
+    return (
+      <label key={i}>
+        {caption}
+        <Field spec={specs[i]} value={values[i] ?? ''} data-autofocus={i === 0 ? '' : undefined} onInput={set} />
+      </label>
+    );
+  };
   return (
     <form onSubmit={submit} onKeyDown={onKeyDown}>
+      {columns.length > 0 && (
+        <table class="form-columns" data-form-columns>
+          <thead>
+            <tr><td />{columns.map(c => <th key={c} scope="col">{c}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rowLabels.map((r, row) => (
+              <tr key={r}>
+                <th scope="row">{r}</th>
+                {columns.map((c, col) => (
+                  <td key={c}>{control(row * columns.length + col, true, `${c} ${r.toLowerCase()}`)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <div class="form-grid">
-        {names.map((n, i) => {
-          const spec = isString ? {label: n, list: null} : fieldSpec(n);
-          const items = spec.list !== null ? lists?.[spec.list] : undefined;
-          const set = (text: string) => {
-            const v = values.slice();
-            v[i] = text;
-            setValues(v);
-          };
-          const change = (e: Event) => set((e.target as HTMLSelectElement).value);
-          if (items) {
-            /* the X11 scroll list of variables, parameters, colours, markers or methods */
-            const {options, selected} = selectOptions(items, values[i] ?? '');
-            return (
-              <label key={i}>
-                <span>{spec.label}</span>
-                <select value={selected} data-list={spec.list} data-autofocus={i === 0 ? '' : undefined} onChange={change}>
-                  {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-            );
-          }
-          return (
-            <label key={i}>
-              <span>{spec.label}</span>
-              <Field spec={specs[i]} value={values[i] ?? ''} data-autofocus={i === 0 ? '' : undefined} onInput={set} />
-            </label>
-          );
-        })}
+        {names.map((_, i) => (i < gridCells ? null : control(i, false, '')))}
       </div>
       <div class="dialog-actions">
         <button type="submit" class="primary" disabled={!valid}>{(ask.ok as string) || 'OK'}</button>

@@ -158,7 +158,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
         </div>
         <div class="plot-tools"><label title="Keep earlier trajectories on the next new run">
           <input type="checkbox" checked={info?.freeze !== 0} data-freeze-runs
-            onChange={e => session.send({cmd:'display',win,freeze:e.currentTarget.checked ? 1 : 0})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button disabled={!mayMain('viewaxes')}
+            onChange={e => session.send({cmd:'display',win,freeze:e.currentTarget.checked ? 1 : 0})} /> Freeze</label>{['X', 'Y', 'Z'].map(axis => <button data-plot-axis={axis.toLowerCase()} disabled={!mayMain('viewaxes')}
           onClick={() => session.editPlotAxes(win, true)} title="Edit axis variables and limits">{axis} axis</button>)}</div>
       </header>
       <div

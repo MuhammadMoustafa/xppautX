@@ -5,6 +5,9 @@
 #include "graf_par.h"
 #include "storage.h"
 #include "xpp_log.h"
+#include "xpp_io.h"
+#include <optional>
+#include <span>
 #include <array>
 #include <string>
 #include <vector>
@@ -65,9 +68,15 @@ void change_view_com(xpp::Session &s, int com)
    return;
  }
 
-  s.plot_windows.current->grtype=5*com; 
- if(s.plot_windows.current->grtype<5)get_2d_view(s,CurrentCurve);
- else get_3d_view(s,CurrentCurve);
+  GRAPH &g=*s.plot_windows.current;
+ const int oldtype=g.grtype,oldflag=g.ThreeDFlag;
+ g.grtype=5*com;
+ g.ThreeDFlag=com==1?1:0;
+ if(!axes_dialog(s,CurrentCurve,com==1)){
+   g.grtype=oldtype;
+   g.ThreeDFlag=oldflag;
+   return;
+ }
  check_flags(s);
  redraw_the_graph(s);
 } 
@@ -81,48 +90,192 @@ void check_flags(xpp::Session &s)
   else s.plot_windows.current->TimeFlag=0;
 }
 
-void get_2d_view(xpp::Session &s, int ind)
-{
- static const char *const n[]={"*0X-axis","*0Y-axis","Xmin", "Ymin",
-		   "Xmax", "Ymax", "Xlabel","Ylabel"};
- std::array<std::string, 8> values;
- int  status,i; 
- int i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind];
- values[0] = xpp::ind_to_sym(s,i1);
- values[1] = xpp::ind_to_sym(s,i2);
- values[2] = xpp::format("{:g}", s.plot_windows.current->xmin);
- values[3] = xpp::format("{:g}", s.plot_windows.current->ymin);
- values[4] = xpp::format("{:g}", s.plot_windows.current->xmax);
- values[5] = xpp::format("{:g}", s.plot_windows.current->ymax);
- values[6] = s.plot_windows.current->xlabel;
- values[7] = s.plot_windows.current->ylabel;
- s.plot_windows.current->ThreeDFlag=0;
- static const int kinds[]={XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(4,2,"2D View",n,values,kinds);
- if(status!=0){
-		/*  get variable names  */
-             find_variable(s,values[0].c_str(),&i);
-              if(i>-1)
-		s.plot_windows.current->xv[ind]=i;
-	     find_variable(s,values[1].c_str(),&i);
-              if(i>-1)
-		s.plot_windows.current->yv[ind]=i;
+namespace {
 
-	      s.plot_windows.current->xmin=atof(values[2].c_str());
-	      s.plot_windows.current->ymin=atof(values[3].c_str());
-	      s.plot_windows.current->xmax=atof(values[4].c_str());
-	      s.plot_windows.current->ymax=atof(values[5].c_str());
-	      s.plot_windows.current->xlo=s.plot_windows.current->xmin;
-	      s.plot_windows.current->ylo=s.plot_windows.current->ymin;
-	      s.plot_windows.current->xhi=s.plot_windows.current->xmax;
-	      s.plot_windows.current->yhi=s.plot_windows.current->ymax;
-	     s.plot_windows.current->xlabel=values[6];
-	     s.plot_windows.current->ylabel=values[7];
-	      xpp::check_windows(s);
-		     
-	      }
+/* One reading of what was typed in the axes dialog and 3D params: the
+   first fault is kept, with the field it belongs to, and no later field is
+   read once there is one. */
+class TypedFields {
+ public:
+  explicit TypedFields(xpp::Session &s) : s_(s) {}
+  double number(std::string_view field, const std::string &text)
+  {
+    if (error_) return 0;
+    const xpp::Result<double> r = xpp::typed_number(s_, text, field);
+    if (r) return *r;
+    fail(field, r.error().what);
+    return 0;
+  }
+  int integer(std::string_view field, const std::string &text)
+  {
+    int v = 0;
+    if (!error_ && !xpp::parse_int(text, v)) fail(field, xpp::format("\"{}\" is not a whole number", text));
+    return v;
+  }
+  void fail(std::string_view field, std::string_view what)
+  {
+    if (!error_) error_ = xpp::format("{}: {}", field, what);
+  }
+  const std::optional<std::string> &error() const { return error_; }
+
+ private:
+  xpp::Session &s_;
+  std::optional<std::string> error_;
+};
+
+/* the 3D view's parameters, in 3D params and in the axes dialog of a 3D plot */
+struct ViewParams {
+  int persp = 0;
+  double zplane = 0, zview = 0, theta = 0, phi = 0;
+  bool movie = false;
+  std::string yes, vary;
+  double start = 0, incr = 0;
+  int nclip = 0;
+};
+
+constexpr int VIEW_PARAM_COUNT = 10;
+const char *const view_param_names[VIEW_PARAM_COUNT] = {"Persp (1=On)", "ZPlane", "ZView", "Theta", "Phi", "Movie(Y/N)",
+                                                        "Vary (theta/phi)", "Start angle", "Increment", "Number increments"};
+const int view_param_kinds[VIEW_PARAM_COUNT] = {XPP_FIELD_INTEGER, XPP_FIELD_NUMBER, XPP_FIELD_NUMBER, XPP_FIELD_NUMBER,
+                                                XPP_FIELD_NUMBER,  XPP_FIELD_TEXT,   XPP_FIELD_TEXT,   XPP_FIELD_NUMBER,
+                                                XPP_FIELD_NUMBER,  XPP_FIELD_INTEGER};
+
+std::array<std::string, VIEW_PARAM_COUNT> view_param_values(const xpp::Session &s)
+{
+  const GRAPH &g = *s.plot_windows.current;
+  return {xpp::format("{:d}", g.PerspFlag), xpp::format("{:g}", g.ZPlane), xpp::format("{:g}", g.ZView),
+          xpp::format("{:g}", g.Theta),     xpp::format("{:g}", g.Phi),     s.movie_3d.yes,
+          s.movie_3d.angle,                 xpp::format("{:g}", s.movie_3d.start),
+          xpp::format("{:g}", s.movie_3d.incr), xpp::format("{:d}", s.movie_3d.nclip)};
 }
 
+/* the fields of view_param_names, read whole; the movie's only when it is asked for */
+ViewParams read_view_params(TypedFields &f, std::span<const std::string> v)
+{
+  ViewParams p;
+  p.persp = f.integer(view_param_names[0], v[0]);
+  p.zplane = f.number(view_param_names[1], v[1]);
+  p.zview = f.number(view_param_names[2], v[2]);
+  p.theta = f.number(view_param_names[3], v[3]);
+  p.phi = f.number(view_param_names[4], v[4]);
+  p.movie = !v[5].empty() && (v[5][0] == 'y' || v[5][0] == 'Y');
+  if (!p.movie) return p;
+  p.yes = v[5].substr(0, 2);
+  p.vary = v[6].substr(0, 19);
+  const char first = p.vary.empty() ? '\0' : static_cast<char>(std::tolower(static_cast<unsigned char>(p.vary[0])));
+  if (first != 't' && first != 'p') f.fail(view_param_names[6], "theta or phi");
+  p.start = f.number(view_param_names[7], v[7]);
+  p.incr = f.number(view_param_names[8], v[8]);
+  p.nclip = f.integer(view_param_names[9], v[9]);
+  return p;
+}
+
+/* the one place the 3D view's parameters are applied: set, the movie if asked, the rotation made, redrawn */
+void apply_view_params(xpp::Session &s, const ViewParams &p)
+{
+  GRAPH &g = *s.plot_windows.current;
+  g.PerspFlag = p.persp;
+  g.ZPlane = p.zplane;
+  g.ZView = p.zview;
+  g.Theta = p.theta;
+  g.Phi = p.phi;
+  if (p.movie) {
+    s.movie_3d.yes = p.yes;
+    s.movie_3d.angle = p.vary;
+    s.movie_3d.start = p.start;
+    s.movie_3d.incr = p.incr;
+    s.movie_3d.nclip = p.nclip;
+    movie_rot(s, p.start, p.incr, p.nclip, p.vary[0] == 'p' || p.vary[0] == 'P' ? 1 : 0);
+  }
+  make_rot(s, g.Theta, g.Phi);
+  redraw_the_graph(s);
+}
+
+/* The axes dialog: a column per axis, a row for each of the variable, limits and label */
+constexpr int AXIS_ROW_COUNT = 4;
+const char *const axis_rows[AXIS_ROW_COUNT] = {"Variable", "Min", "Max", "Label"};
+const char *const axis_columns[3] = {"X", "Y", "Z"};
+/* the 3D view's window on the screen, after the grid */
+const char *const view_window_names[4] = {"XLo", "XHi", "YLo", "YHi"};
+
+} // namespace
+
+bool axes_dialog(xpp::Session &s, int ind, bool three)
+{
+  GRAPH &g = *s.plot_windows.current;
+  const int n = three ? 3 : 2;
+  int *const var[3] = {&g.xv[ind], &g.yv[ind], &g.zv[ind]};
+  double *const lo[3] = {&g.xmin, &g.ymin, &g.zmin};
+  double *const hi[3] = {&g.xmax, &g.ymax, &g.zmax};
+  std::string *const label[3] = {&g.xlabel, &g.ylabel, &g.zlabel};
+  double *const view_window[4] = {&g.xlo, &g.xhi, &g.ylo, &g.yhi};
+
+  /* the grid row by row (n fields of each of axis_rows), then the 3D view's own fields */
+  std::vector<std::string> names, values;
+  std::vector<int> kinds;
+  const auto add = [&](std::string name, std::string value, int kind) {
+    names.push_back(std::move(name));
+    values.push_back(std::move(value));
+    kinds.push_back(kind);
+  };
+  for (int i = 0; i < n; i++) add(xpp::format("*0{}-axis", axis_columns[i]), xpp::ind_to_sym(s, *var[i]), XPP_FIELD_NAME_IN(0));
+  for (int i = 0; i < n; i++) add(xpp::format("{}min", axis_columns[i]), xpp::format("{:g}", *lo[i]), XPP_FIELD_NUMBER);
+  for (int i = 0; i < n; i++) add(xpp::format("{}max", axis_columns[i]), xpp::format("{:g}", *hi[i]), XPP_FIELD_NUMBER);
+  for (int i = 0; i < n; i++) add(xpp::format("{}label", axis_columns[i]), *label[i], XPP_FIELD_TEXT);
+  if (three) {
+    for (int i = 0; i < 4; i++) add(view_window_names[i], xpp::format("{:g}", *view_window[i]), XPP_FIELD_NUMBER);
+    const auto params = view_param_values(s);
+    for (int i = 0; i < VIEW_PARAM_COUNT; i++) add(view_param_names[i], params[i], view_param_kinds[i]);
+  }
+  std::vector<const char *> shown(names.size());
+  for (std::size_t i = 0; i < names.size(); i++) shown[i] = names[i].c_str();
+  if (!xpp::do_grid_box_of(three ? "3D View" : "2D View", std::span(axis_columns, n), axis_rows, shown.data(), values,
+                           kinds.data()))
+    return false;
+
+  /* everything read and checked before anything is set */
+  TypedFields f(s);
+  int newvar[3] = {0, 0, 0};
+  double newlo[3] = {0, 0, 0}, newhi[3] = {0, 0, 0}, newwindow[4] = {0, 0, 0, 0};
+  for (int i = 0; i < n; i++) {
+    find_variable(s, values[i], &newvar[i]);
+    if (newvar[i] < 0) f.fail(xpp::format("{}-axis", axis_columns[i]), xpp::format("no variable named \"{}\"", values[i]));
+    newlo[i] = f.number(names[n + i], values[n + i]);
+    newhi[i] = f.number(names[2 * n + i], values[2 * n + i]);
+    if (!f.error() && newlo[i] >= newhi[i])
+      f.fail(names[2 * n + i], xpp::format("{:g} is not above {}", newhi[i], names[n + i]));
+  }
+  ViewParams params;
+  if (three) {
+    for (int i = 0; i < 4; i++) newwindow[i] = f.number(view_window_names[i], values[4 * n + i]);
+    for (int i = 0; i < 4; i += 2)
+      if (!f.error() && newwindow[i] >= newwindow[i + 1])
+        f.fail(view_window_names[i + 1], xpp::format("{:g} is not above {}", newwindow[i + 1], view_window_names[i]));
+    params = read_view_params(f, std::span(values).subspan(4 * n + 4));
+  }
+  if (f.error()) {
+    xpp::command_error("Plot axes", *f.error());
+    return false;
+  }
+
+  for (int i = 0; i < n; i++) {
+    *var[i] = newvar[i];
+    *lo[i] = newlo[i];
+    *hi[i] = newhi[i];
+    *label[i] = values[3 * n + i];
+  }
+  if (three) {
+    for (int i = 0; i < 4; i++) *view_window[i] = newwindow[i];
+  } else {
+    g.xlo = g.xmin;
+    g.ylo = g.ymin;
+    g.xhi = g.xmax;
+    g.yhi = g.ymax;
+  }
+  xpp::check_windows(s);
+  if (three) apply_view_params(s, params);
+  return true;
+}
 void axes_opts(xpp::Session &s)
 {
   static const char *const n[]={"X-origin","Y-origin","Z-origin",
@@ -151,66 +304,6 @@ void axes_opts(xpp::Session &s)
    redraw_the_graph(s);
  }
    
-}
-
-void get_3d_view(xpp::Session &s, int ind)
-{
- static const char *const n[]={"*0X-axis","*0Y-axis", "*0Z-axis",
-		   "Xmin", "Xmax", "Ymin",
-		   "Ymax", "Zmin","Zmax",
-		   "XLo", "XHi", "YLo", "YHi","Xlabel","Ylabel","Zlabel"};
- std::array<std::string, 16> values;
- int  status,i,i1=s.plot_windows.current->xv[ind],i2=s.plot_windows.current->yv[ind],i3=s.plot_windows.current->zv[ind];
- values[0] = xpp::ind_to_sym(s,i1);
- values[1] = xpp::ind_to_sym(s,i2);
- values[2] = xpp::ind_to_sym(s,i3);
- values[3] = xpp::format("{:g}", s.plot_windows.current->xmin);
- values[5] = xpp::format("{:g}", s.plot_windows.current->ymin);
- values[7] = xpp::format("{:g}", s.plot_windows.current->zmin);
- values[4] = xpp::format("{:g}", s.plot_windows.current->xmax);
- values[6] = xpp::format("{:g}", s.plot_windows.current->ymax);
- values[8] = xpp::format("{:g}", s.plot_windows.current->zmax);
- values[9] = xpp::format("{:g}", s.plot_windows.current->xlo);
- values[11] = xpp::format("{:g}", s.plot_windows.current->ylo);
- values[10] = xpp::format("{:g}", s.plot_windows.current->xhi);
- values[12] = xpp::format("{:g}", s.plot_windows.current->yhi);
- values[13] = s.plot_windows.current->xlabel;
- values[14] = s.plot_windows.current->ylabel;
- values[15] = s.plot_windows.current->zlabel;
- s.plot_windows.current->ThreeDFlag=1;
- static const int kinds[]={XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),XPP_FIELD_NAME_IN(0),
-                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_TEXT};
- status=do_string_box_of(6,3,"3D View",n,values,kinds);
- if(status!=0){
-		/*  get variable names  */
-              find_variable(s,values[0].c_str(),&i);
- 	      if(i>-1)
-		s.plot_windows.current->xv[ind]=i;
-              find_variable(s,values[1].c_str(),&i);
-              if(i>-1)
-		s.plot_windows.current->yv[ind]=i;
-              find_variable(s,values[2].c_str(),&i);
-  		if(i>-1)
-		  s.plot_windows.current->zv[ind]=i;
-	      s.plot_windows.current->xlabel=values[13];
-	      s.plot_windows.current->ylabel=values[14];
-	      s.plot_windows.current->zlabel=values[15];
-
-	      s.plot_windows.current->xmin=atof(values[3].c_str());
-	      s.plot_windows.current->ymin=atof(values[5].c_str());
-	      s.plot_windows.current->zmin=atof(values[7].c_str());
-	      s.plot_windows.current->xmax=atof(values[4].c_str());
-	      s.plot_windows.current->ymax=atof(values[6].c_str());
-	      s.plot_windows.current->zmax=atof(values[8].c_str());
-	      s.plot_windows.current->xlo=atof(values[9].c_str());
-	      s.plot_windows.current->ylo=atof(values[11].c_str());
-	      s.plot_windows.current->xhi=atof(values[10].c_str());
-	      s.plot_windows.current->yhi=atof(values[12].c_str());
-              xpp::check_windows(s);
-
-	      }
 }
 
 void pretty(double *x1, double *x2)  /* this was always pretty ugly */
@@ -473,60 +566,17 @@ void movie_rot(xpp::Session &s, double start, double increment, int nclip, int a
 
 void get_3d_par_com(xpp::Session &s)
 {
-
- static const char *const n[]={"Persp (1=On)","ZPlane","ZView","Theta","Phi","Movie(Y/N)",
-                   "Vary (theta/phi)","Start angle", "Increment",
-		   "Number increments"};
- std::array<std::string, 10> values;
- int status;
- 
- int nclip=8,angle=0;
- double start,increment=45; 
   if(s.plot_windows.current->grtype<5)return;
-
- values[0] = xpp::format("{:d}", s.plot_windows.current->PerspFlag);
- values[1] = xpp::format("{:g}", s.plot_windows.current->ZPlane);
- values[2] = xpp::format("{:g}", s.plot_windows.current->ZView);
- values[3] = xpp::format("{:g}", s.plot_windows.current->Theta);
- values[4] = xpp::format("{:g}", s.plot_windows.current->Phi);
- values[5] = s.movie_3d.yes;
- values[6] = s.movie_3d.angle;
- values[7] = xpp::format("{:g}", s.movie_3d.start);
- values[8] = xpp::format("{:g}", s.movie_3d.incr);
- values[9] = xpp::format("{:d}", s.movie_3d.nclip);
- 
- static const int kinds[]={XPP_FIELD_INTEGER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,
-                           XPP_FIELD_TEXT,XPP_FIELD_TEXT,XPP_FIELD_NUMBER,XPP_FIELD_NUMBER,XPP_FIELD_INTEGER};
- status=do_string_box_of(5,2,"3D Parameters",n,values,kinds);
- if(status!=0){
-	      s.plot_windows.current->PerspFlag=atoi(values[0].c_str());
-	      s.plot_windows.current->ZPlane=atof(values[1].c_str());
-	      s.plot_windows.current->ZView=atof(values[2].c_str());
-	      s.plot_windows.current->Theta=atof(values[3].c_str());
-	      s.plot_windows.current->Phi=atof(values[4].c_str());
-             if(values[5][0]=='y'|| values[5][0]=='Y'){  
-	      s.movie_3d.yes=values[5].substr(0,2);
-	      s.movie_3d.angle=values[6].substr(0,19);
-              start=atof(values[7].c_str());
-	      increment=atof(values[8].c_str());
-	      nclip=atoi(values[9].c_str());
-	      s.movie_3d.start=start;
-	      s.movie_3d.incr=increment;
-	      s.movie_3d.nclip=nclip;
-	      angle=0;
-              if(s.movie_3d.angle[0]=='p'||s.movie_3d.angle[0]=='P')
-		angle=1;
-	      movie_rot(s,start,increment,nclip,angle);
-	     }
-	       
-                make_rot(s,s.plot_windows.current->Theta,s.plot_windows.current->Phi);   
-	    /*  Redraw the picture   */	
-	       redraw_the_graph(s);
-         
-	     }
-	     
+  auto values=view_param_values(s);
+  if(!do_string_box_of(5,2,"3D Parameters",view_param_names,values,view_param_kinds))return;
+  TypedFields f(s);
+  const ViewParams p=read_view_params(f,values);
+  if(f.error()){
+    xpp::command_error("3D params",*f.error());
+    return;
+  }
+  apply_view_params(s,p);
 }
-
 void update_view(xpp::Session &s, float xlo,float xhi, float ylo, float yhi)
 {
               s.plot_windows.current->xlo=xlo;
