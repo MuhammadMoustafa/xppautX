@@ -2598,6 +2598,7 @@ async function autoView(dir) {
    it took: Stop latency is a perf: line, measured, never failed. */
 async function autoStopRace() {
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
+  await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
   await key('f');
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu'); /* not only !busy: a sent too soon is lost (macos-ui, W93) */
   await key('a');
@@ -2945,6 +2946,9 @@ async function lostF() {
   await until('!s.diagram.shown', 'back during grab');
   check('lostF: Back during a grab cancels it: no ask stays open behind the main window',
     await until('!s.busy && !s.ask && !s.diagram.grabbing', 'grab cancelled'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
+  /* the hidden panel's render and effects (its focus back to the plot) are done: a focus moving after F
+     would cancel the chord (hotkeys.ts), and the store alone cannot say they ran */
+  await rendered();
   await key('f');
   check('lostF: ... and F starts the main File chord',
     await until('s.pendingKeys.join("") === "F" && !s.busy && !s.ask', 'file menu after grab'), JSON.stringify(await S('[s.ask && s.ask.kind, s.busy, s.core]')));
@@ -2983,6 +2987,7 @@ async function lostF() {
    menu is answered at once), not the main window's, and nothing is left hidden in the core. */
 async function lostFRunning() {
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
+  await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
   await key('f');
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('a');
@@ -3300,6 +3305,7 @@ async function recordCheck(dir) {
   /* W59d: File/Quit (F Q) asks one question, as the window's close box does:
      Save session (S), Don't save (D), Cancel; Escape keeps the session */
   await until('!s.busy && !s.ask && s.pendingKeys.length === 0', 'the command before ended');
+  await rendered(); /* the new page's effects are done: a focus moving after F would cancel the chord */
   await key('f');
   await until('!s.busy && s.pendingKeys.join("") === "F"', 'file menu');
   await key('q');

@@ -51,7 +51,7 @@
    click on a two-parameter diagram stores the point (`auto point`), marked
    on it. The info strip and the stability circle are ui/AutoInfo.tsx. */
 import {TraceDialog} from './TraceDialog';
-import {useEffect, useMemo, useRef, useState} from 'preact/hooks';
+import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, paletteColor, setDiagramChart} from '../plot/diagramChart';
 import {stopPoint} from '../plot/autoStatus';
 import {
@@ -642,8 +642,10 @@ export function AutoView({dark}: {dark: boolean}) {
   const wasShown = useRef(false);
 
   /* the focus goes back to the main plot when the panel is hidden or AUTO closes (T21):
-     the keys typed next are the main window's (Show AUTO is a Tab away) */
-  useEffect(() => {
+     the keys typed next are the main window's (Show AUTO is a Tab away). A layout effect, in the commit
+     that removes the panel: a later one could move the focus after a key began a chord, which a focus
+     change cancels (ui/hotkeys.ts) */
+  useLayoutEffect(() => {
     const inPanel = !!document.activeElement?.closest?.('.auto-panel') || document.activeElement === document.body;
     if (wasShown.current && (!shown || !open) && inPanel)
       document.querySelector<HTMLElement>('.plot-view:not([hidden]) .plot-host')?.focus();
