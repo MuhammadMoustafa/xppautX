@@ -13,7 +13,22 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Release files: a Windows installer `xppautX-<version>-windows-x64.msi` (per machine under Program Files, Start Menu shortcut, the `.ode`, `.odex`, `.snapx`, `.recx` file types, upgrades in place; unsigned, so SmartScreen may warn) joins the portable `.zip`; the bare `.exe`, the macOS `.tar.gz` files, the per-file `.sha256` files and our own source tarball are gone (the source is the tag's source archive); one `SHA256SUMS.txt` covers the rest: `.msi`, `.zip`, `.deb`, Linux `.tar.gz`, two `.dmg` (W221, [#275](https://github.com/MuhammadMoustafa/xppautX/issues/275)).
 
-## [0.1.0-beta.1] - 2026-10-07
+## [0.1.0-beta.1] - 2026-10-08
+
+First public beta of xppautX, a modernised XPPAUT 8.0: the same equations, solvers and AUTO, with a new interface.
+
+- **Your models work.** XPPAUT `.ode` files are converted once to `.odex` when opened; results match XPPAUT's, and are the same bit for bit on Windows, Linux and macOS.
+- **A new interface** in the desktop window or a browser: a command list with search (Ctrl+K), keyboard shortcuts you can change (Help > Change shortcuts), a toolbar you can pin commands to, and plots, values, tables and AUTO diagrams as live panels.
+- **Runs:** Run from initial, Run from last state, one Continue (Alt+Enter), Run to steady state (Alt+S), Store every N steps, and undo of value edits (Ctrl+Z).
+- **Sessions:** save everything with Ctrl+S (a dot in the title shows unsaved changes), Save as, Save a copy, Reload keeping your values; recordings (`.recx`) replay a whole analysis.
+- **Headless and scripting:** `--silent` runs and a JSON protocol on stdin/stdout or HTTP.
+- **Settings have descriptive names** (`total_time`, `transient_time`, `storage_rows`, ...); XPPAUT's old words are accepted only when converting a `.ode` or on the command line.
+
+Known limits of this beta: the macOS builds are tested by the automatic checks only, not by hand; the installers are not signed, so Windows SmartScreen or macOS Gatekeeper may warn; the one-letter XPPAUT key sequences are an optional preset (off by default).
+
+The detailed change log is CHANGELOG.md in the repository; how xppautX differs from XPPAUT, area by area, is docs/xppautx-vs-xppaut.md.
+
+## [Development before the first beta]
 
 ### Added
 
