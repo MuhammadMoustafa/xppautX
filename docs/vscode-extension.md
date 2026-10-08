@@ -43,8 +43,10 @@ release tag and offers the newer one (a setting turns this off).
 - Release assets (`.github/workflows/release.yml`, `tools/package_release.sh`,
   W221): `xppautX-<tag>-linux-x64.tar.gz` and `xppautX-<tag>-windows-x64.zip`
   hold the binary and `LICENSE` in one top-level folder; macOS has only a
-  `.dmg` (no macOS `.tar.gz` since W221), so the extension's download for
-  macOS must change to it (`hdiutil`).
+  `.dmg` (no macOS `.tar.gz` since W221), so an extension that downloads xppautX
+  takes the binary out of the `.dmg` (`hdiutil attach`); the Windows `.msi` is for
+  people, not for the extension. `SHA256SUMS.txt` lists every file's checksum. The
+  extension has no download code yet (checked 2026-10-08).
 - The page keeps working when framed from another origin: it uses only
   relative addresses and the token in its query string.
 
