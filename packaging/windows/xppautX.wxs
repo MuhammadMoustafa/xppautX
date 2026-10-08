@@ -24,7 +24,7 @@
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="StartMenuFolder" Name="xppautX" />
+      <Directory Id="AppMenuFolder" Name="xppautX" />
     </StandardDirectory>
 
     <Feature Id="Main" Title="xppautX" Level="1">
@@ -37,7 +37,7 @@
       <Component Id="Exe">
         <File Id="ExeFile" Source="$(var.SourceDir)\xppautX.exe" KeyPath="yes" />
         <!-- the same ProgId, extensions and open verb as xppautx-associate.ps1 -->
-        <ProgId Id="xppautX.Model" Description="xppautX Model" Icon="xppautx.ico" IconIndex="0">
+        <ProgId Id="xppautX.Model" Description="xppautX Model" Icon="ExeFile" IconIndex="0">
           <Extension Id="ode"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
           <Extension Id="odex"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
           <Extension Id="snapx"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
@@ -54,7 +54,7 @@
     </ComponentGroup>
 
     <!-- a per-user registry value is the shortcut component's key path (ICE rules) -->
-    <Component Id="StartMenuShortcut" Directory="StartMenuFolder">
+    <Component Id="StartMenuShortcut" Directory="AppMenuFolder">
       <Shortcut Id="StartMenuLink" Name="xppautX" Target="[#ExeFile]"
                 WorkingDirectory="INSTALLFOLDER" Icon="xppautx.ico" />
       <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
