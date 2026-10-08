@@ -205,7 +205,7 @@ void j_cput_text(xpp::Session &s)
     }
     float xd, yd;
     scale_to_real(s, x, y, &xd, &yd);
-    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a plot has at most {} texts", MAXLAB));
+    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
 }
 
 void j_draw_freeze(xpp::Session &s)
@@ -232,7 +232,7 @@ void text_command(xpp::Session &s, const char *line)
         return;
     }
     if (win < 0 || win >= MAXPOP || !s.plot_windows.graph[win].Use) {
-        j_command_error("text", "text: no such plot window");
+        j_command_error("text", "no such plot window");
         return;
     }
     const XppWinId w = s.plot_windows.graph[win].w;
@@ -254,19 +254,19 @@ void text_command(xpp::Session &s, const char *line)
     double x = add ? 0 : s.labels[id].x, y = add ? 0 : s.labels[id].y;
     const char *jx = js_find(line, "x"), *jy = js_find(line, "y");
     if ((add && (!jx || !jy)) || (jx && !js_number(jx, &x)) || (jy && !js_number(jy, &y)) || !std::isfinite(x) || !std::isfinite(y)) {
-        j_command_error("text", "text: x and y are the position in the plot's coordinates");
+        j_command_error("text", "x and y are the position in the plot's coordinates");
         return;
     }
     if (const char *jt = js_find(line, "text"); (jt && !js_string(jt, look.text)) || (add && !jt)) {
-        j_command_error("text", "text: text is a string");
+        j_command_error("text", "the text is a string");
         return;
     }
     if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style) || !get_whole(line, "color", look.color)) {
-        j_command_error("text", "text: size, style and color are whole numbers");
+        j_command_error("text", "size, style and color are whole numbers");
         return;
     }
     if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
-        j_command_error("text", "text: " + problem);
+        j_command_error("text", problem);
         return;
     }
     const float xd = static_cast<float>(x), yd = static_cast<float>(y);
@@ -274,7 +274,7 @@ void text_command(xpp::Session &s, const char *line)
         xpp::change_label(s, id, std::move(look), jx || jy, xd, yd);
         return;
     }
-    if (xpp::add_label(s, std::move(look), w, xd, yd) < 0) j_command_error("text", xpp::format("text: a session has at most {} texts", MAXLAB));
+    if (xpp::add_label(s, std::move(look), w, xd, yd) < 0) j_command_error("text", xpp::format("a session has at most {} texts", MAXLAB));
 }
 
 void display_command(xpp::Session &s, const char *line)
