@@ -448,23 +448,10 @@ for npts lines
 
 int select_table(const xpp::Session &s)
 {
- int j;
- char ch;
- std::string key;
  std::vector<std::string> names;
- std::vector<const char *> n;
- for(int i=0;i<s.ntable;i++){
-   key+=static_cast<char>('a'+i);
-   names.push_back(xpp::format("{}: {}",key[i],s.tables[i].name));
- }
- for(const std::string &s : names)n.push_back(s.c_str());
- {
-   XppMenu m={"table","Table",0,NULL,NULL,NULL,-1};
-   m.n=s.ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=NULL; /* no_hint has 14 entries; hints are optional */
-   ch=static_cast<char>(menu_choose(&m,0));
- }
- j=static_cast<int>(ch-'a');
- if(j<0||j>=s.ntable){
+ for(int i=0;i<s.ntable;i++)names.push_back(s.tables[i].name);
+ const int j=pick_from_list("table","Table",names);
+ if(j<0){
    command_error("table","Not a valid table");
    return -1;
  }

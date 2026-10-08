@@ -102,41 +102,18 @@ void do_movie_com(xpp::Session &s, int c)
   }
 }
 
-/* the sets that have a letter in File/Named parameter sets: a to z */
-static constexpr int MAX_SET_KEYS = 26;
-
-/* File/Named parameter sets: the first MAX_SET_KEYS sets have a letter, the rest are picked in the list
-   (menu_index gives the item either way) */
+/* File/Named parameter sets: one of the model's sets, applied */
 static void get_intern_set(xpp::Session &s)
 {
   const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
-  const int count = static_cast<int>(sets.size());
-  if (count == 0) {
+  if (sets.empty()) {
     bottom_msg(0, "This model has no named parameter sets: a set line in the model defines one");
     return;
   }
-
-  std::vector<std::string> labels;
-  std::vector<const char *> items;
-  std::string keys;
-  labels.reserve(sets.size());
-  items.reserve(sets.size());
-  for (int i = 0; i < count; i++) {
-    if (i < MAX_SET_KEYS) {
-      const char key = static_cast<char>('a' + i);
-      labels.push_back(xpp::format("{}: {}", key, sets[static_cast<std::size_t>(i)].name));
-      keys.push_back(key);
-    } else {
-      labels.push_back(sets[static_cast<std::size_t>(i)].name);
-    }
-  }
-  for (const auto &l : labels) items.push_back(l.c_str());
-
-  XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
-               nullptr, -1}; /* no hints: no_hint holds only 14, and a model has up to 500 sets */
+  std::vector<std::string> names;
+  for (const xpp::Model::InternalSet &set : sets) names.push_back(set.name);
   /* Esc or a dismissed menu chooses nothing: a cancel is not an error */
-  const int i = menu_pick(&m, 0);
-  if (i >= 0) use_intern_set(s, i);
+  if (const int i = pick_from_list("param_set", "Param set", names); i >= 0) use_intern_set(s, i);
 }
 
 void use_intern_set(xpp::Session &s, int j)

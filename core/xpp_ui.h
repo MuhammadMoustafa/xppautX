@@ -105,6 +105,10 @@ void respond_box(std::string_view button, std::string_view message);
 std::optional<std::string> ask_terminal(const std::string &question, const std::string &suggestion);
 void flash(int num);
 int menu_choose(const struct XppMenu *m, int def);
+/* A choice among names (named parameter sets, tables, frozen curves): the
+   first PICK_LETTERS lettered a to z ("a: name"), the rest picked from the
+   list by their index; the chosen name's index, -1 for none */
+int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names);
 int my_abort(void);
 int get_command_width(void);
 void plot_command(int nit, int icount, int cwidth);

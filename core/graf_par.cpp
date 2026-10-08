@@ -1158,23 +1158,18 @@ void frz_bd(xpp::Session &s)
 
 int get_frz_index(xpp::Session &s, XppWinId w)
 {
-  std::vector<std::string> labels;
-  std::vector<const char *> items;
-  std::string key;
-  int i;
-  int count=0;
-  for(i=0;i<MAXFRZ;i++){
+  /* window w's frozen curves: their names, and the slot each is in */
+  std::vector<std::string> names;
+  std::vector<int> slots;
+  for(int i=0;i<MAXFRZ;i++){
     if(s.frozen_curves.curve[i].use==1&&w==s.frozen_curves.curve[i].w){
-      labels.push_back(xpp::format("{}", s.frozen_curves.curve[i].name));
-      key.push_back(static_cast<char>('a'+i));
-      count++;
+      names.push_back(s.frozen_curves.curve[i].name);
+      slots.push_back(i);
     }
   }
-  if(count==0)return(-1);
-  for(const auto &l : labels) items.push_back(l.c_str());
-  XppMenu m={"freeze_curves","Curves",count,items.data(),key.c_str(),no_hint,-1};
-  char ch=static_cast<char>(menu_choose(&m,0));
-  return(static_cast<int>(ch-'a'));
+  if(names.empty())return(-1);
+  const int k=pick_from_list("freeze_curves","Curves",names);
+  return k<0?-1:slots[static_cast<std::size_t>(k)];
 }
 
 /* Graphic stuff > exp(O)rt: Save data of what the plot shows, the format

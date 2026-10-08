@@ -11,6 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "xpp_util.h"
+#include "menus.h"
+#include <span>
+#include <string>
+#include <vector>
 #include "xpp_win32.h"
 #include <chrono>
 #include <cerrno>
@@ -357,6 +361,27 @@ int get_dialog_of(std::string_view wname, std::string_view name, std::string &va
 int GetMouseXY(Session &s, int *x, int *y) { return ui.get_mouse_xy(s, x, y); }
 void flash(int num) { ui.menu_flash(num); }
 int menu_choose(const struct XppMenu *m, int def) { return ui.menu_choose(m, def); }
+
+int pick_from_list(std::string_view id, std::string_view title, std::span<const std::string> names)
+{
+  constexpr std::size_t PICK_LETTERS = 26; /* a to z; a name past them has no key (menus.h MENU_UNKEYED) */
+  std::vector<std::string> labels;
+  std::string keys;
+  for (std::size_t i = 0; i < names.size(); i++) {
+    if (i < PICK_LETTERS) {
+      keys += static_cast<char>('a' + i);
+      labels.push_back(xpp::format("{}: {}", keys.back(), names[i]));
+    } else {
+      labels.push_back(names[i]);
+    }
+  }
+  std::vector<const char *> items;
+  for (const std::string &l : labels) items.push_back(l.c_str());
+  const std::string name(id), head(title);
+  /* no hints: a list's items have none */
+  const XppMenu m = {name.c_str(), head.c_str(), static_cast<int>(items.size()), items.data(), keys.c_str(), nullptr, -1, nullptr};
+  return menu_index(&m, menu_choose(&m, 0));
+}
 /* the running job's checkpoint (xpp_job.h): Escape as soon as the job is
    cancelled, else the front end's own poll at most every 50 ms; its Escape
    (or Abort button) cancels the job, so later checks need no poll */
