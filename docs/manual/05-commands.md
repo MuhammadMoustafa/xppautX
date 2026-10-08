@@ -12,6 +12,15 @@ where its work is: **Model source** in the Model panel (Source tab),
 shortcuts** in Help, and **Record** and **Play a recording…** in the title
 bar's Tools menu. Their keys still work.
 
+The plot commands the plot itself offers are not in the sidebar either:
+**Zoom and view** is the plot's Fit, Reset view and Use this view,
+**Plot axes** and **3D view** are a click on an axis name (the axis dialog,
+with its 3D column). Their keys still work, and the page's buttons run
+them. **Plot windows** and **Captured frames** stay in the Plot group: the
+plot has buttons for New window, Close window, Capture, Play, Reset and
+Export GIF only, not for Kill all, Bottom, Auto, Manual, SimPlot, Autoplay
+or Save.
+
 ## Keyboard shortcuts
 
 Every command's key comes from one table, shown in **Help > Keyboard

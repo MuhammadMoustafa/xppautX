@@ -342,17 +342,20 @@ def check_command_table(table):
                   for r in table if r['id'] not in PAGE_COMMANDS)
           and all(r['legacy_keys'] == [] for r in table if r['id'] in PAGE_COMMANDS),
           str(keys))
+    # W229, W228: what the page runs from a panel, a button of the plot or the title bar has a row and no group or pin
+    PANEL_COMMANDS = ['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup',
+                      'window', 'viewaxes', '3dparams']
     layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
     check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
           'Quit and the commands of a panel are the only others that cannot',
           layer == [('main', 'file'), ('main', 'numerics'), ('num', 'exit')]
           and sorted(r['id'] for r in table if not r['pinnable'])
-          == sorted(['exit', 'file', 'numerics', 'quit'] + ['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup']),
+          == sorted(['exit', 'file', 'numerics', 'quit'] + PANEL_COMMANDS),
           str(layer))
     in_tools = [r['id'] for r in table if r['category'] == 'tools']
     in_panels = sorted(r['id'] for r in table if r['category'] == 'panels')
-    check('W229: Tools lists only the Calculator; the commands that live in a panel or the title bar are the panels category',
-          in_tools == ['calculator'] and in_panels == sorted(['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup']), str((in_tools, in_panels)))
+    check('W229, W228: Tools lists only the Calculator; the commands that live in a panel or the title bar are the panels category',
+          in_tools == ['calculator'] and in_panels == sorted(PANEL_COMMANDS), str((in_tools, in_panels)))
     gone = {'help', 'tutorial', 'xpprc', 'clone'}
     check('W229: Help, Tutorial, Preferences and Clone model are not commands any more',
           not gone & {r['id'] for r in table} and not {(r['menu'], r['key']) for r in table} & {('file', 'h'), ('file', 'u'), ('file', 'x'), ('file', 'l')},

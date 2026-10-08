@@ -3327,7 +3327,7 @@ async function busyKeys() {
       newWindow: tool('New window').disabled,
       save: [...document.querySelectorAll('[data-section="par"] .value-tools button')].find(b => b.textContent === 'Save').disabled,
       stop: document.querySelector('.status-bar button.danger').disabled,
-      viewItems: ['window', 'viewaxes', 'xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'kinescope', 'graphic'].every(id => !item(id).disabled),
+      viewItems: ['xivst', 'restore', 'erase', 'nullcline', 'dirfield', 'graphic', 'text', 'kinescope', 'makewindow'].every(id => !item(id).disabled),
     };
   })()`);
   check('busy keys: during a run the status says what runs and that Escape stops it; Integrate, the menu\'s computations '
@@ -4137,16 +4137,16 @@ async function keymapEditorCheck() {
     await menu('reload', 'Unpin');
     check('keymapeditor: Unpin removes it from the pins and the toolbar', await until(`s.keymap.info.pinned.join() === 'calculator,dirfield'`, 'unpinned') && (await order()) === 'calculator,dirfield');
     /* the command list pins too */
-    await click('[data-pin=window]');
-    check('keymapeditor: a row of the command list has Pin; it pins Zoom and view', await until(`s.keymap.info.pinned.includes('window')`, 'pinned from the list')
-      && await cdp.eval(`document.querySelector('[data-pin=window]').getAttribute('aria-pressed') === 'true'`));
+    await click('[data-pin=xivst]');
+    check('keymapeditor: a row of the command list has Pin; it pins Variable vs time', await until(`s.keymap.info.pinned.includes('xivst')`, 'pinned from the list')
+      && await cdp.eval(`document.querySelector('[data-pin=xivst]').getAttribute('aria-pressed') === 'true'`));
 
     /* overflow: every pin stays reachable at any width */
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload'], bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === 2`, 'two pins');
     await rendered();
     check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
-    const all = ['calculator', 'reload', 'dirfield', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total_time', 'method'];
+    const all = ['calculator', 'reload', 'dirfield', 'singpts', 'graphic', 'colorcode', 'xivst', 'text', 'nullcline', 'restore', 'erase', 'delay', 'parameters', 'total_time', 'method'];
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
     const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');

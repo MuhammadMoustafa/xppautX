@@ -101,6 +101,7 @@ void check_bad_files()
         {"pinned not an array", "{\"pinned\": {}}", 1, "{}"},
         {"pinned unknown", "{\"pinned\": [\n\"nosuch\"]}", 2, "nosuch"},
         {"pinned not pinnable", "{\"pinned\": [\"quit\"]}", 1, "quit"},
+        {"pinned a panel command", "{\"pinned\": [\n\"window\"]}", 2, "window"},
         {"pinned twice", "{\"pinned\": [\"reload\",\n\"reload\"]}", 2, "twice"},
         {"pinned not a string", "{\"pinned\": [true]}", 1, "true"},
     };

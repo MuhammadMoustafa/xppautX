@@ -57,10 +57,10 @@ test('the core table has no problems: every id once, in one known category', () 
   /* the shortcut-layer switches are exactly the unlisted category, and none is pinnable */
   assert.deepEqual(HELLO.command_table.filter(row => row.category === 'layer').map(row => `${row.menu}:${row.id}`),
     ['main:file', 'main:numerics', 'num:exit']);
-  /* W229: the Tools group is the Calculator; what lives in a panel or the title bar has a row but no group and no pin */
+  /* W229, W228: the Tools group is the Calculator; what lives in a panel or the title bar has a row but no group and no pin */
   assert.deepEqual(HELLO.command_table.filter(row => row.category === 'tools').map(row => row.id), ['calculator']);
   assert.deepEqual(HELLO.command_table.filter(row => row.category === 'panels').map(row => row.id).sort(),
-    ['copyset', 'getparset', 'keymapeditor', 'lookup', 'play', 'record', 'source', 'transpose']);
+    ['3dparams', 'copyset', 'getparset', 'keymapeditor', 'lookup', 'play', 'record', 'source', 'transpose', 'viewaxes', 'window']);
   assert.ok(HELLO.command_table.filter(row => row.category === 'panels').every(row => !row.pinnable));
   assert.ok(!HELLO.command_table.some(row => ['help', 'tutorial', 'xpprc', 'clone'].includes(row.id)));
 });
