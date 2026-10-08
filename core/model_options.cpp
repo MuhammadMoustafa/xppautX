@@ -583,9 +583,6 @@ constexpr OptionRow rows[] = {
    .text = [](Session &) -> std::string & { return batch_options.out_file; }},
   {.name = "RUNNOW", .flag = Option::RUNNOW,
    .whole = [](Session &s) -> int & { return s.run_immediately; }},
-  {.name = "TUTORIAL", .flag = Option::TUTORIAL,
-   .whole = [](Session &) -> int & { return program.tutorial; },
-   .zero_or_one = true},
 
   /* ---- AUTO ---- */
   {.name = "NTST", .flag = Option::NTST,
@@ -702,6 +699,7 @@ constexpr OptionRow rows[] = {
   /* the X11 window's bell, fonts, colours, image, size and paper: still
      accepted (old .ode and .xpprc files set them), no longer kept */
   {.name = "BELL", .zero_or_one = true},
+  {.name = "TUTORIAL", .zero_or_one = true}, /* the tutorial went with W229 */
   {.name = "BIGFONT", .alias = "BIG"},
   {.name = "SMALLFONT", .alias = "SMALL"},
   {.name = "FORECOLOR"},

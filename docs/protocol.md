@@ -166,13 +166,17 @@ protocol lines from the same rows. Each row:
 | `description` | one line |
 | `kind` | `c`, `v`, `s`, `d` or `x`: what the command needs ("Action kinds") |
 | `category` | an `id` of `hello.command_categories` |
-| `pinnable` | whether it may sit in the quick-access toolbar (W212): false for Quit and the three shortcut-layer switches |
+| `pinnable` | whether it may sit in the quick-access toolbar (W212): false for Quit, the three shortcut-layer switches and the commands of `panels` |
 | `primary` | listed in its group before a search; the others (Continue, Parameters and the Numerics values, under Run) appear only when searching |
 | `default_keys` | keys that run it from the page (`"Ctrl+O"`: Ctrl, or Cmd on macOS; several keys separated by a space are a chord); Open model, Save session as and Reload model have one (W208), Undo value edit Ctrl+Z, Redo value edit Ctrl+Shift+Z and Ctrl+Y (W210; the page leaves them to a text field that has the focus); the page never binds Alt+F4, Ctrl+W, Ctrl+Q, F11, F12 or F5 |
 | `legacy_keys` | the XPPAUT sequence: the shortcut layer's key, then the item's (`["F","S"]`, `["I"]`, `["U","Esc"]`); the page runs the command on it only when its preset "XPPAUT sequences" is on (off by default) |
 
 `hello.command_categories` is [{`id`, `label`, `listed`, `expanded`}...] (`expanded`: the group is open before a search): `run`, `files`,
-`analysis`, `plot`, `tools` (the sidebar's groups, in order, `listed`) and
+`analysis`, `plot`, `tools` (the sidebar's groups, in order, `listed`; Tools holds the Calculator),
+`panels`, not listed (W229): the commands the page opens from a panel or the title bar rather than the
+sidebar (`source` in the Model panel, `transpose` and `lookup` in the Data panel, `getparset` and `copyset` in the Values
+panel, `keymapeditor` in Help, `record` and `play` in the title bar's Tools menu); they keep their rows for
+their keys, `key` commands and recordings, and cannot be pinned; and
 `layer`, not listed: the rows File, Numerics and Return to main shortcuts
 only switch the legacy shortcut layer, which the page never enters (it
 sends a command by its id) and never lists; the XPPAUT-sequences preset
@@ -195,7 +199,7 @@ never disagree.
 
     {
       "preset": "default",
-      "pinned": ["reload", "help"],
+      "pinned": ["reload", "calculator"],
       "bindings": {
         "reload": ["Ctrl+B", "F S"],
         "savesession": []
@@ -923,7 +927,6 @@ model's start in every mode, before the script.
 | `player` | `file`, `model`, `intact`, `steps` [{`note`, `step`, ...}] | A recording opened in the player ("Playing a recording"), sent when its model has loaded and again after a `play` `note`: the `.recx` (absolute path), its model's file, whether its fingerprint matches (`false`: it was changed after it was made; it plays all the same), and its steps, each its line's object ("Recordings": `step`, `keys`, `button`, `win`, `cmd`, `answers`, `view`, `abort`, `during`, `files`) with its `note` ("" for none). |
 | `press` | `step`, `what`, `index`, `ms` | What the player sends next, before it sends it: `what` `key` (the step's `keys[index]`: its first key, the button's when the step has a `button`, or a menu's or a choice's answer), `answer` (`answers[index]`, a dialog's answer), `cmd` (the step's `cmd`) or `alert` (a message's OK); it goes `ms` milliseconds later (the pace at the speed set), so the page shows it first; 0 while running to a `from` step. A step's first `press` tells the page the step runs: the questions it asks until its `state` with `player.running` -1 are the player's to answer, never the page's (a `pixels` ask excepted). |
 | `menu` | `which` | The main menu switched (0 main, 1 file, 2 numerics). |
-| `help` | `chapter`, `anchor` (optional) | File/Help: open the manual at this chapter (and anchor). |
 | `copy` | `what`, `text` | File/cOpy set line (key `o`): text for the page to put on the clipboard (`what` is `set`: a `set <name> {par=value,...,var=value,...}` line, every parameter and initial condition as they are now, numbers printed to read back exactly). The core first asks the set's name (a `string` ask, pre-filled with the first free `set1`, `set2`, ...; refused with an `error` message if not a name the parser reads or already a set of the model), then a `choice` ask that shows the line (`Copy` `c` / `Cancel` `n`); both answers are recorded like any other. The page shows the line as well, so it can be copied by hand when the clipboard is refused. |
 | `title` | `text` | Title of the selected plot window: what it plots (`W vs V`). The server also labels unlabelled 2D axes with the plotted variables. |
 | `message` | one of `error`, `bottom`, `box`, `auto`, `calc`; with `error`, `file`, `line`, `col`, `source` | Status text. Results (a fit outcome, mean, Liapunov exponent, saved BVP point, or AUTO toggle) use `bottom` (W133). `box` with empty text removes a hint box. An `error` carries its place ("Errors" above, W140): `file` with `line` 0 is a file the command could not read (W118), which web2 offers to add and run the command again. |
@@ -1646,7 +1649,7 @@ sets `show` and view 1's zoom (the active view's without `view`).
 
 | kind | fields | answer fields |
 |---|---|---|
-| `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels) |
+| `menu` | `name`, `title`, `items`, `keys`, `hints`, `def` | `key` (empty or `ok:0` cancels); for an item past the end of `keys` (a menu with more items than keys: the named parameter sets past the 26th, W229), `index`, the item's place in `items` |
 | `choice` | `title`, `question`, `choices`, `keys` | `key` |
 | `string` | `title`, `name`, `value`, `ok`, `cancel`, `kinds` | `value` (any length: no dialog cuts what is typed, W76) |
 | `form` | `title`, `names`, `values`, `kinds` | `values` (same length, each of any length: W76 dropped `max`). A name starting with `*n` means the field picks from `hello.lists[n]`: a variable (`*0`), a parameter (`*2`), a colour (`*4`), a marker (`*5`), ...; for a list whose items start with a number (`2 Box`) the value is that number. A form may also carry `columns` and `rows` (arrays of text), asking for a grid: its first `columns.length * rows.length` fields are the cells, row by row (field `r * columns.length + c` is column `c`, row `r`), and the others follow as plain fields. Viewaxes' 2D View (`X`, `Y`; `Variable`, `Min`, `Max`, `Label`) and 3D View (`X`, `Y`, `Z`, then `XLo`, `XHi`, `YLo`, `YHi` and the 3D params' ten fields) are the only grids (W225): the core reads every field whole before it sets any, and a variable that is not one, a number that is not one, a Min not below its Max (or XLo/YLo not below XHi/YHi) is a `message` error naming the field, with nothing applied. |

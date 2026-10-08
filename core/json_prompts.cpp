@@ -496,7 +496,11 @@ int j_menu_choose(const struct XppMenu *m, int def)
     buf_format(&b, ",\"def\":{:d}", def);
     if (!ask_wait(&b, id)) return 27;
     get_string(answer.c_str(), "key", k);
-    const int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
+    int ch = k[0] ? static_cast<unsigned char>(k[0]) : 27;
+    /* an item with no key (past the keys the menu has) is answered by its index (menus.h MENU_UNKEYED) */
+    if (const int index = get_int(answer.c_str(), "index", -1);
+        !k[0] && index >= 0 && index < m->n && static_cast<std::size_t>(index) >= strlen(m->keys))
+        ch = MENU_UNKEYED + index;
     record_menu_pick(m, ch);
     return ch;
 }
@@ -506,19 +510,6 @@ void j_show_menu(int which)
     session.menu.store(which, std::memory_order_relaxed);
     Buf b;
     buf_format(&b, "{{\"ev\":\"menu\",\"which\":{:d}}}", which);
-    send_buf(&b);
-}
-
-void j_open_help(std::string_view chapter, std::string_view anchor)
-{
-    Buf b;
-    BUF_LIT(&b, "{\"ev\":\"help\",\"chapter\":");
-    buf_str(&b, chapter);
-    if (!anchor.empty()) {
-        BUF_LIT(&b, ",\"anchor\":");
-        buf_str(&b, anchor);
-    }
-    BUF_LIT(&b, "}");
     send_buf(&b);
 }
 

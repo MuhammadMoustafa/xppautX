@@ -460,7 +460,7 @@ int select_table(const xpp::Session &s)
  for(const std::string &s : names)n.push_back(s.c_str());
  {
    XppMenu m={"table","Table",0,NULL,NULL,NULL,-1};
-   m.n=s.ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=no_hint;
+   m.n=s.ntable; m.items=n.data(); m.keys=key.c_str(); m.hints=NULL; /* no_hint has 14 entries; hints are optional */
    ch=static_cast<char>(menu_choose(&m,0));
  }
  j=static_cast<int>(ch-'a');

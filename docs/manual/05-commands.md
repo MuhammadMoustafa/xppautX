@@ -3,9 +3,14 @@
 ## Finding commands
 
 The sidebar groups commands into **Files**, **Run**, **Analysis**, **Plot**,
-and **Tools**. Search by name or purpose using **Search commands**
+and **Tools** (the Calculator). Search by name or purpose using **Search commands**
 (Ctrl/Cmd+K). Clicking a command runs it by name; there is no File or
-Numerics mode.
+Numerics mode. A command whose place is a panel is not in the sidebar but
+where its work is: **Model source** in the Model panel (Source tab),
+**Transpose** and **Lookup tables** in the Data panel, **Named sets…** and
+**Copy set line** in the Values panel beside the parameters, **Keyboard
+shortcuts** in Help, and **Record** and **Play a recording…** in the title
+bar's Tools menu. Their keys still work.
 
 ## Keyboard shortcuts
 
@@ -22,8 +27,7 @@ when you try one): they stay theirs.
 
 ### The keyboard shortcuts editor
 
-**Keyboard shortcuts…** in the command list's Tools group (also found by
-the command search, and in Help > Keyboard shortcuts as *Change shortcuts…*) opens a dialog that lists every
+**Change shortcuts…** in Help > Keyboard shortcuts opens a dialog that lists every
 command with its category, its keys and where they come from: *default*
 (the table's), *changed* (yours, instead of the table's) or *user* (yours,
 for a command that has none by default). Type in the search box to find a
@@ -78,8 +82,8 @@ method and tolerances, or the run's data) changed since the session was
 loaded or saved; a save or an open of a session file clears it.
 
 The header identifies the model and gives access to Data, Model
-(equations/source), and Help. Files holds session open/save. Tools contains
-recording, playback, array plots and animation. F6 moves between Commands,
+(equations/source), and Help. Files holds session open/save. The title bar's
+Tools menu contains recording, playback, array plots and animation. F6 moves between Commands,
 Plot, Values and open Data/Model panels; Shift+F6 moves backwards. Within
 command results use the arrow keys, Home and End. These shortcuts leave
 modal dialogs in control of their focus.
@@ -266,12 +270,11 @@ This is so important that a section is devoted to it. See below.
 ### (F)ile
 
 This brings up a menu with several options. Type `Esc` to abort.
-- **(P)rt src**: Brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
+- **(P)rt src**: The Model panel's Source tab (title bar, Model): brings up a window with the source code for the ODE file. If you click on `Action` it brings up the active comments so you can make little tutorials.
 - **(R) Import XPPAUT set**: This imports a `.set` file that XPPAUT wrote (xppautX no longer writes one: **sa(V)e session** holds everything a set file did and more). The file is very tightly connected to the ODE file it was written for, so you should not import one from a different problem. The file must end with the equations XPPAUT writes after its last value (`RHS etc ...`, not read); one without them, such as a session's `model.set`, is refused. A set file is read whole and checked before anything is taken from it: every named value must have the open model's expected name (including variables, parameters and torus entries), and every setting its expected label. The first mismatch or bad value is an error naming the file, line and line as written, and nothing changes. On success the imported values are immediately saved as a session, `<name>.snapx` beside the `.set` (`name` is its base name), and that session is now open; one message names it. If saving fails, the error says so and the valid imported values stay applied.
 - **(A)uto**: This brings up the AUTO window. See below for a description of this.
 - **(C)alculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **(S)ave info**: This is like `(P)rt info` but saves the info to a file. It is human readable.
-- **(H)elp**: Opens this manual, at this chapter.
 - **(Q)uit**: Asks "Quit xppautX? Save this session first?", the one
   question every way of leaving a session asks (the desktop window's
   File > Quit and its close box too; **open (M)odel** and **r(E)load**
@@ -285,13 +288,13 @@ This brings up a menu with several options. Type `Esc` to abort.
   the browser,
   closing the tab does not end xppautX (the browser asks whether to leave
   the page): File/Quit is the way to end it there.
-- **(T)ranspose** : This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
+- **(T)ranspose** (the Data panel's Transpose button): This is not a very good place to put this but I stuck it here just to get it into the program. The point of this routine is to allow one to transpose chunks of the output. For example, if you are solving the discretization of some spatial problem and find a steady state, there is no way to plot the steady state as a function of the index of the discrete system. This routine lets you do that. The idea is to take something that looks like:
 - t1  x11  x21  x31 ... xm1      t2  x12  x22  x32 ... xm2     ...     tn  x1n  x2n  x3n ... xmn
 - and transpose some subset of it. You are prompted for 6 items. They are the name of the first column you want to index, the number of columns (`ncols` and amount you want to skip across columns, ` colskip` (so that `colskip = 2` would be every other column. You must also provide the starting row `j1`, the number of rows, ` nrows` and the row skip, `rowskip.` the The storage array is temporarily replaced by a new array that has `M=ncols` rows and `nrows+1` columns (since the data is transposed, the rows and columns are as well; confusing ain’t it). The form of the array is:
 - 1  x(i1,j1) x(i1,j2) x(i1,j3) ...     2  x(i2,j1) x(i2,j2) x(i2,j3) ...     ...     M  x(iM,j1) x(iM,j2) x(iM,j3) ...
 - where `i2=i1+colskip, i3=i1+2*colskip, ...` and `i1` is the index corresponding to the name of the first column you provide. Similarly, `j2=j1+rowskip, ...`. As a brief example, suppose that you solve a system of equations of the form: ``` math x_j' = f(x_{j-1},x_j,x_{j+1},I_j) ``` where $`j=1,\dots,20.`$ Click on transpose and choose `x1` as the first column, `colskip=1, ncols=20` and say `row1=350, nrows=1,rowskip=1` then a new array will be produced. The first column is the index from 1 to 20 and the second is `xj(350)` where 350 is the index and not the actual value of time. By plotting the second column versus the first you get a “spatial profile.”
-- **(G)et par set**: This loads one of the parameter sets that you have defined in the ODE file. Every item is checked first: an item whose value is not a number, or an option that does not take it, is an error at the set's line, and nothing of the set is applied.
-- **c(O)py set line**: Asks for a name for the set (`set1`, `set2`, ... is
+- **(G)et par set** (the Values panel's **Named sets…**): This loads one of the parameter sets that you have defined in the ODE file; a model with none says so. A model may define up to 500 sets: the first 26 have the letters a to z, the rest are picked from the list. Every item is checked first: an item whose value is not a number, or an option that does not take it, is an error at the set's line, and nothing of the set is applied.
+- **c(O)py set line** (the Values panel's **Copy set line**): Asks for a name for the set (`set1`, `set2`, ... is
   suggested; the name must be a valid name and not already a set of the
   model), shows the line and, on Copy, puts it on the clipboard:
   `set name {a=1,b=2,...,x=0.5,...}` with every parameter and initial
@@ -301,15 +304,6 @@ This brings up a menu with several options. Type `Esc` to abort.
   the regime is a named set in **(G)et par set**, keeping its meaning
   whatever else you change in the file. If the browser refuses the
   clipboard, the line stays on screen to copy by hand.
-- **c(L)one**: Asks for a file name and writes a new ODE file next to it that
-  reproduces the current model: the source lines, with the parameters and
-  boundary conditions replaced by their current (possibly since-edited)
-  values as comments for you to fold back in.
-- **.(X)pprc**: Opens your `~/.xpprc` (`%USERPROFILE%\.xpprc` on Windows) in
-  the editor named by the `XPPEDITOR` environment variable; an error if it
-  is not set.
-- **t(U)torial**: Steps through a series of short tips ("Did you know you
-  can...") one at a time; Next for another, Done to stop.
 - **open (M)odel**: A `.ode` converts and saves as `.odex` beside it,
   which becomes the open model (see [.odex](02-ode-files.md#odex)).
   Asks for a `.ode` or `.odex` file (or a `.snapx`

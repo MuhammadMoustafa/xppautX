@@ -345,7 +345,7 @@ or turn No into a write when the destination's existence changes.
 No keeps the destination as it was and delivers nothing. A failed save
 shows one error and keeps the old file. An empty export says
 **“Nothing to save”** before asking for a name.
-This also applies to Clone ODE, AUTO's Save diagram and the session written
+This also applies to AUTO's Save diagram and the session written
 beside an imported XPPAUT `.set`. Declining the last keeps the imported values
 applied, without changing the session file. Scripts can put `replace:1` on
 the saving command to authorize it, or `replace:-1` to decline it (W129).
@@ -402,11 +402,7 @@ Everything in xppautX works without a compiler. A model that called a
 compiled C library (`export`, `dll_lib`/`dll_fun`, a network's
 `import`) no longer loads: those statements were removed.
 
-File > Help opens this manual in the page's Help view. Its About button shows the version, the author, links to the author's email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (the desktop window's Help > About shows the same lines; a link opens in the system's default browser, from the page and from the window's own About box). "Edit .xpprc"
-opens an editor on the machine that runs the program, as in X11 (the
-`XPPEDITOR` environment variable, [Introduction](01-introduction.md)). If
-you ever run the server on another machine (a remote VS Code session,
-say), the editor appears there, not in front of you.
+The title bar's Help button (or F1) opens this manual in the page's Help view. Its About button shows the version, the author, links to the author's email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (the desktop window's Help > About shows the same lines; a link opens in the system's default browser, from the page and from the window's own About box).
 
 ## The log
 

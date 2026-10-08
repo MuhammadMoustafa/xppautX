@@ -215,11 +215,8 @@ static void run_session(void)
     /* the redraw loads a recording's model in the place of this one: the
        session from here is the one it ends in */
     xpp::Session &s = xpp::json_ui_handle("{\"cmd\":\"redraw\"}");
-    /* Tutorial and --runnow, after opening the window. */
-    if (program.tutorial == 1 || s.run_immediately == 1) {
-        if (program.tutorial == 1) xpp::do_tutorial();
-        xpp::json_ui_queue_runnow(s);
-    }
+    /* --runnow, after opening the window. */
+    if (s.run_immediately == 1) xpp::json_ui_queue_runnow(s);
     xpp::json_ui_loop();
 }
 

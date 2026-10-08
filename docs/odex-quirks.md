@@ -144,6 +144,7 @@ splitter, and can fuse two words together at a token boundary.
 | plain exponent | `aux z=1e-3` | `0.001` (see `e` section) | not flagged | same |
 | `@` option value cut by `atof` | `@ total=2*3` | silently `2`, not `6`: `.ode`'s numeric `@` options are read with `atof`, which stops at the first non-numeric character and never errors | `semanticCheckerCore.ts` `option-value`, **error**, names the exact cut (`"@ total=2*3"` gives 2) | `.odex`'s `@` values are still plain numbers, not expressions (unchanged, since AUTO/numerics options are not formulas), but a non-numeric suffix is a parse error, never a silent cut |
 | `@` option, no number at all | `@ total=(4)` | silently `0` (`atof` finds no number) | same check, error | parse error |
+| `set` value cut by `atof`: a dot for a comma | `set pp {xlo=-.6.xhi=1.2,ylo=-.25}` (examples/ode/lecar.ode had it) | the item is `xlo` = `-.6.xhi=1.2`, read with `atof` as `-0.6`: `xhi` is never set, and nothing says so (finding 38) | not flagged | conversion applies the cut (`set-value`, warning) and writes `xlo = -0.6` with a comment naming the .ode's text; the `.odex` is then plain, and a `.odex` item that is not a number is refused at its line, nothing applied (W125) |
 
 ## Several names or options on one line
 

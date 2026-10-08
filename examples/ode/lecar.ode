@@ -28,7 +28,7 @@ init v=-.144,w=.03
 # plot v vs time
 set vvst {xplot=t,yplot=v,xlo=0,xhi=100,ylo=-.6,yhi=.5,total=100,iapp=.1}
 # plot phaseplane
-set pp {xp=v,yp=w,xlo=-.6.xhi=1.2,ylo=-.25,yhi=1.2}
+set pp {xp=v,yp=w,xlo=-.6,xhi=1.2,ylo=-.25,yhi=1.2}
 # now some nice parameter sets for the homoclinic and the Hopf
 set snic {v3=.1,v4=.145,gca=1,phi=.333}
 set hopf {v3=0,v4=.3,gca=1.1,phi=.2}

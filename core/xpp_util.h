@@ -104,8 +104,6 @@ void plot_checked_vars(Session &s, int how, int *isck, int n);
 /* a comment's action (the source's "# ... {action}"), run on s when it is
    picked */
 void do_txt_action(Session &s, std::string_view action);
-/* File > Clone: s's model file with its values now */
-void clone_ode(Session &s);
 /* the model m's user functions, as lunch-new.cpp's file info writes them */
 void user_fun_info(const Model &m, FILE *fp);
 /* another model is loaded (File > Open model, Reload): a new, empty AUTO

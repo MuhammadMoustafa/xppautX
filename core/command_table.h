@@ -18,25 +18,32 @@
 namespace xpp {
 
 /* what a command is for, the sidebar's groups in the order they are listed;
-   Layer is not a group: it marks the three items that only switch the
+   Panels and Layer are not groups. Panels (W229, #283) are the commands
+   the page opens from a panel or the title bar (the Model panel's Source,
+   the Data panel's Transpose and Lookup tables, the Values panel's Named
+   parameter sets and Copy parameter set line, Help's Keyboard shortcuts,
+   the title bar's Record and Play): they keep a row for their keys, the
+   protocol and recordings, are not listed in the sidebar and cannot be
+   pinned. Layer marks the three items that only switch the
    legacy one-letter shortcut layer (File, Numerics and Return to main
    shortcuts), which the page has no use for: its XPPAUT sequences preset
    (off by default) types the layer's key as the first key of a chord */
-enum class CommandCategory { Run, Files, Analysis, Plot, Tools, Layer };
+enum class CommandCategory { Run, Files, Analysis, Plot, Tools, Panels, Layer };
 
 struct CategoryInfo {
   CommandCategory category;
   std::string_view id, label;
-  bool listed;   /* a sidebar group; false for Layer */
+  bool listed;   /* a sidebar group; false for Panels and Layer */
   bool expanded; /* the group is open before a search */
 };
 
-inline constexpr std::array<CategoryInfo, 6> COMMAND_CATEGORIES = {{
+inline constexpr std::array<CategoryInfo, 7> COMMAND_CATEGORIES = {{
   {CommandCategory::Run, "run", "Run", true, true},
   {CommandCategory::Files, "files", "Files", true, true},
   {CommandCategory::Analysis, "analysis", "Analysis", true, false},
   {CommandCategory::Plot, "plot", "Plot", true, false},
   {CommandCategory::Tools, "tools", "Tools", true, false},
+  {CommandCategory::Panels, "panels", "Opened from a panel", false, false},
   {CommandCategory::Layer, "layer", "Shortcut layer", false, false}}};
 
 /* the most keys one command has (a binding and one alternative, as redo has
@@ -82,7 +89,7 @@ struct CommandRow {
    build of GCC refuses to evaluate the table's search as a constant) */
 inline constexpr std::string_view STORE_EVERY_LABEL = "Store every N steps";
 
-inline constexpr std::array<CommandRow, 65> COMMANDS = {{
+inline constexpr std::array<CommandRow, 61> COMMANDS = {{
     {MAIN_MENU, 'i', "initialconds", "Initial conditions", "Integrate the equations", XPP_KIND_COMPUTE, CommandCategory::Run, true, true, {}},
     {MAIN_MENU, PAGE_KEY, "run_initial", "Run from initial", "Start a new trajectory from the Initial values", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Enter"}},
     {MAIN_MENU, PAGE_KEY, "run_last", "Run from last state", "Use the last state as Initial and start a new trajectory", XPP_KIND_COMPUTE, CommandCategory::Run, true, false, {"Ctrl+Shift+Enter"}},
@@ -132,19 +139,15 @@ inline constexpr std::array<CommandRow, 65> COMMANDS = {{
     {MAIN_MENU, 'e', "erase", "Clear plot", "Clear screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {MAIN_MENU, 'k', "kinescope", "Captured frames", "Take snapshots of the screen", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
     {NUM_MENU, 'c', "colorcode", "Color by value", "Color trajectories according to velocity,etc", XPP_KIND_VIEW, CommandCategory::Plot, true, true, {}},
-    {FILE_MENU, 'p', "source", "Model source", "Display source and active comments", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
+    {FILE_MENU, 'p', "source", "Model source", "Display source and active comments", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
     {FILE_MENU, 'c', "calculator", "Calculator", "A little calculator -- press ESC to exit", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 't', "transpose", "Transpose data", "Transpose storage", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'g', "getparset", "Named parameter sets", "Set predefined parameters", XPP_KIND_SETTING, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'l', "clone", "Clone model", "Clone the ode file", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'x', "xpprc", "Preferences", "Edit your .xpprc preferences file", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'u', "tutorial", "Tutorial", "Run a quick tutorial on XPPAUT", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'o', "copyset", "Copy parameter set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
-    {FILE_MENU, 'h', "help", "Help", "Browser help", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
-    {MAIN_MENU, PAGE_KEY, "keymapeditor", "Keyboard shortcuts…", "Change the keys of the commands and pin commands to the toolbar", XPP_KIND_VIEW, CommandCategory::Tools, true, true, {}},
-    {NUM_MENU, 'k', "lookup", "Lookup tables", "Modify lookup tables", XPP_KIND_DATA, CommandCategory::Tools, true, true, {}},
+    {FILE_MENU, 't', "transpose", "Transpose data", "Transpose storage", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'g', "getparset", "Named parameter sets", "Set predefined parameters", XPP_KIND_SETTING, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'o', "copyset", "Copy parameter set line", "Copy the current values as a named set line for the .ode", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'd', "record", "Record steps", "Record the steps you take to a .recx file; again to stop and save it", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {FILE_MENU, 'y', "play", "Play recording…", "Play a recording (.recx): its model, then its steps as they were taken", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
+    {MAIN_MENU, PAGE_KEY, "keymapeditor", "Keyboard shortcuts…", "Change the keys of the commands and pin commands to the toolbar", XPP_KIND_VIEW, CommandCategory::Panels, false, true, {}},
+    {NUM_MENU, 'k', "lookup", "Lookup tables", "Modify lookup tables", XPP_KIND_DATA, CommandCategory::Panels, false, true, {}},
     {MAIN_MENU, 'f', "file", "File", "Quit, save stuff, etc", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
     {MAIN_MENU, 'u', "numerics", "Numerics", "Numerics options", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},
     {NUM_MENU, '\033', "exit", "Return to main shortcuts", "Return to main menu", XPP_KIND_VIEW, CommandCategory::Layer, false, true, {}},

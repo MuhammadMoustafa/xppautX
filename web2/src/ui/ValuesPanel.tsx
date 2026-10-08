@@ -25,6 +25,7 @@ import {EXPRESSION, FORMULA, FORMULA_HINT, NUMBER, fieldMessage, type FieldSpec}
 import {fieldKey, foldKey, inspectNumber, isFolded, sentText, showsBcSection, sixSig, type ValueKind} from '../store/values';
 import type {NumericsField} from '../protocol/types';
 import {BUSY_TITLE, useMay, useSession, useStore} from './context';
+import {CommandButton} from './CommandButton';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
@@ -164,6 +165,10 @@ function Parameters() {
     <Section id="par" title="Parameters" hint="Edit for the next run; Enter or leave a field to apply." tools={(
       <>
         <FileTools kind="par" />
+        <CommandButton menu="file" item="getparset" label="Named sets…"
+          title="Set the parameters, and the options the set names, from one of the model's named sets (the set lines of the model)" />
+        <CommandButton menu="file" item="copyset" label="Copy set line"
+          title="Copy the current values as a named set line to paste into the model" />
         <button class="small" onClick={() => session.defaultValues('par')} title="Every parameter from the ODE file">
           Reset all
         </button>

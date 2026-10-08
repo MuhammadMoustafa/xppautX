@@ -15,8 +15,7 @@ aux ik = gk*w*(v-vk)
 aux rate = phi
 init v = -0.144, w = 0.03
 set vvst = xplot = t, yplot = v, xlo = 0, xhi = 100, ylo = -0.6, yhi = 0.5, total_time = 100, iapp = 0.1
-# xlo=-.6.xhi=1.2 in the .ode: XPP reads the number at its front, -0.6
-set pp = xp = v, yp = w, xlo = -0.6, ylo = -0.25, yhi = 1.2
+set pp = xp = v, yp = w, xlo = -0.6, xhi = 1.2, ylo = -0.25, yhi = 1.2
 set snic = v3 = 0.1, v4 = 0.145, gca = 1, phi = 0.333
 set hopf = v3 = 0, v4 = 0.3, gca = 1.1, phi = 0.2
 set hom = v3 = 0.1, v4 = 0.145, gca = 1, phi = 1.15

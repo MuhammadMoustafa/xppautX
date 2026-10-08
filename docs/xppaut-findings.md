@@ -67,6 +67,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [35](#35-array-print-invalid-render-text-selects-blue-red) | Array plot | malformed render text silently selects blue-red | [W177](https://github.com/MuhammadMoustafa/xppautX/issues/229) |
 | [36](#36-cvode-reverses-the-documented-tolerance-roles) | Numerics | CVODE receives TOLER as absolute and ATOLER as relative tolerance | [W34](https://github.com/MuhammadMoustafa/xppautX/issues/72), [W183](https://github.com/MuhammadMoustafa/xppautX/issues/235) |
 | [37](#37-delete-column-is-an-unconditional-placeholder) | Data browser | Delete column always reports an error and returns | W197 (local card) |
+| [38](#38-a-named-set-item-is-cut-at-its-numeric-prefix-and-the-rest-dropped-silently) | Named sets | a set item's value is read with `atof`: a dot for a comma silently drops the next item | [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283) |
 
 ## 1. Model options
 
@@ -632,3 +633,28 @@ lookup, derived-column computation and storage owner are reused.
 
 Implementation: [a1a664c1](https://github.com/MuhammadMoustafa/xppautX/commit/a1a664c1)
 (W197, local branch).
+
+## 38. A named set item is cut at its numeric prefix and the rest dropped silently
+
+A `set name {a=1,b=2,...}` line is split at commas, spaces and semicolons
+([load_eqn.c:819-837](../reference/xppaut-8.0/load_eqn.c#L819), master:
+[818](../reference/xppaut-master/load_eqn.c#L818)); each item is split at
+its first `=` ([load_eqn.c:1043-1064](../reference/xppaut-8.0/load_eqn.c#L1043))
+and the value is read with `atof` ([load_eqn.c:854-859](../reference/xppaut-8.0/load_eqn.c#L854),
+and for an option, e.g. `xlo`, [load_eqn.c:1697-1701](../reference/xppaut-8.0/load_eqn.c#L1697)).
+`atof` stops at the first character that is not part of a number and never
+reports it. A dot typed for a comma therefore changes the set without a word:
+XPPAUT's own `lecar.ode` has `set pp {xp=v,yp=w,xlo=-.6.xhi=1.2,ylo=-.25,yhi=1.2}`
+(line 31), whose third item is `xlo` = `-.6.xhi=1.2`: `xlo` is set to -0.6, `xhi`
+is never set (the window keeps its old right edge) and nothing is printed.
+
+- **Evidence:** load `examples/ode/lecar.ode` as it was before W229, choose
+  the set `pp` (Named parameter sets, or `--internset`): `xlo` becomes -0.6,
+  `xhi` stays what it was.
+- **xppautX:** a `.ode` is converted once and the cut is the conversion's
+  warning `set-value` (docs/odex-quirks.md), written into the `.odex` as
+  `xlo = -0.6` with a comment naming the original text, so the result is
+  XPPAUT's; in a `.odex` (and when a set is chosen) an item whose value is not
+  a number is an error at the set's line and nothing of the set is applied
+  (W125). The example's comma is fixed.
+- **Card:** [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283).

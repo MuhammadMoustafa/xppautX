@@ -136,16 +136,10 @@ struct Session; /* session.h */
 #define M_FA 203
 #define M_FC 204
 #define M_FS 205
-#define M_FH 207
 #define M_FQ 208
 #define M_FT 209
 #define M_FG 211
 
-#define M_FX 216
-#define M_FU 217
-
-/* CLONE change ! */
-#define M_FL 218
 /* File/cOpy set line (W67) */
 #define M_FO 219
 
@@ -202,8 +196,6 @@ struct Session; /* session.h */
 #define M_UE 409
 #define M_UC 410
 
-void edit_xpprc();
-void do_tutorial();
 /* make MAIN_MENU, FILE_MENU or NUM_MENU (menus.h) the main window's menu,
    the one its keys go to */
 void show_main_menu(Session &s, int which);

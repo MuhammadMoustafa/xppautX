@@ -421,7 +421,8 @@ const XppMenu menu_method = XPP_MENU("method", "Method", meth_items, "demragvbqs
 
 int menu_index(const XppMenu *m, int ch)
 {
-  for (int i = 0; i < m->n; i++)
+  if (ch >= MENU_UNKEYED) return ch - MENU_UNKEYED < m->n ? ch - MENU_UNKEYED : -1;
+  for (int i = 0; i < m->n && m->keys[i]; i++)
     if (ch == m->keys[i])
       return i;
   return -1;

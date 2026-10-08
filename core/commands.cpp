@@ -17,7 +17,6 @@
 #include "xpp_util.h"
 #include "menus.h"
 #include "menudrive.h"
-#include "tutor.h"
 
 #include "adj2.h"
 #include "auto_nox.h"
@@ -41,11 +40,6 @@
 #include <string.h>
 #include <string>
 #include <vector>
-#include <sys/types.h>
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
-#include <unistd.h>
 #include "many_pops.h"
 #include "kinescope.h"
 #include "expr.h"
@@ -76,59 +70,6 @@ void show_main_menu(xpp::Session &s, int which)
 }
 
 /* ---- things the File menu runs without a pop-up ---------------------- */
-
-void do_tutorial(void)
-{
-  int tut = 0;
-  xpp::log(XPP_LOG_INFO, "Running tutorial!\n");
-  while (1) {
-    char ans = static_cast<char>(ui.two_choice("Next", "Done", tutorial[tut], "nd",
-                                       "Did you know you can..."));
-    if (ans != 'n') /* 'd', or a front end that cannot ask */
-      break;
-    tut++;
-    tut = tut % N_TUTORIAL;
-  }
-}
-
-#ifdef _WIN32
-/* no fork on Windows: start the editor/browser and let it run on its own */
-void edit_xpprc(void)
-{
-  const char *ed = getenv("XPPEDITOR");
-  const char *home = getenv("USERPROFILE");
-  if (ed == NULL || ed[0] == '\0') {
-    command_error("editor", "Environment variable XPPEDITOR needs to be set.");
-    return;
-  }
-  std::string cmd = xpp::format("start \"\" \"{}\" \"{}\\.xpprc\"", ed, home ? home : ".");
-  if (system(cmd.c_str()) != 0) command_error("editor", "Unable to start the editor.");
-}
-#else
-void edit_xpprc(void)
-{
-  const char *ed = getenv("XPPEDITOR");
-
-  if (ed == NULL || ed[0] == '\0') {
-    command_error("editor", "Environment variable XPPEDITOR needs to be set.");
-    return;
-  }
-  std::string editor = ed;
-
-  pid_t child_pid = fork();
-  if (child_pid == 0) {
-    const char *home = getenv("HOME");
-    std::string rc = xpp::format("{}/.xpprc", home ? home : "");
-    char *const args[] = {editor.data(), rc.data(), NULL};
-    execvp(editor.c_str(), args);
-    int child_status;
-    wait(&child_status);
-    return;
-  }
-  if (child_pid == -1)
-    command_error("editor", "Unable to fork process for editor.");
-}
-#endif
 
 /* ---- commands that were in X11 files -------------------------------- */
 
@@ -161,30 +102,41 @@ void do_movie_com(xpp::Session &s, int c)
   }
 }
 
+/* the sets that have a letter in File/Named parameter sets: a to z */
+static constexpr int MAX_SET_KEYS = 26;
+
+/* File/Named parameter sets: the first MAX_SET_KEYS sets have a letter, the rest are picked in the list
+   (menu_index gives the item either way) */
 static void get_intern_set(xpp::Session &s)
 {
   const std::vector<xpp::Model::InternalSet> &sets = s.model().intern_sets;
-  int count = static_cast<int>(sets.size());
-  if (count <= 0 || count >= MAX_INTERN_SET) return;
+  const int count = static_cast<int>(sets.size());
+  if (count == 0) {
+    bottom_msg(0, "This model has no named parameter sets: a set line in the model defines one");
+    return;
+  }
 
   std::vector<std::string> labels;
   std::vector<const char *> items;
   std::string keys;
-  labels.reserve(static_cast<std::size_t>(count));
-  items.reserve(static_cast<std::size_t>(count));
+  labels.reserve(sets.size());
+  items.reserve(sets.size());
   for (int i = 0; i < count; i++) {
-    char key = static_cast<char>('a' + i);
-    labels.push_back(xpp::format("{}: {}", key, sets[i].name));
-    keys.push_back(key);
+    if (i < MAX_SET_KEYS) {
+      const char key = static_cast<char>('a' + i);
+      labels.push_back(xpp::format("{}: {}", key, sets[static_cast<std::size_t>(i)].name));
+      keys.push_back(key);
+    } else {
+      labels.push_back(sets[static_cast<std::size_t>(i)].name);
+    }
   }
   for (const auto &l : labels) items.push_back(l.c_str());
 
   XppMenu m = {"param_set", "Param set", count, items.data(), keys.c_str(),
-               no_hint, -1};
-  int ch = menu_choose(&m, 0);
+               nullptr, -1}; /* no hints: no_hint holds only 14, and a model has up to 500 sets */
   /* Esc or a dismissed menu chooses nothing: a cancel is not an error */
-  if (ch < 'a' || ch >= 'a' + count) return;
-  use_intern_set(s, ch - 'a');
+  const int i = menu_pick(&m, 0);
+  if (i >= 0) use_intern_set(s, i);
 }
 
 void use_intern_set(xpp::Session &s, int j)
@@ -357,11 +309,7 @@ static void do_file_com(xpp::Session &s, int com)
     break;
   case M_FC: q_calc(s); break;
   case M_FR: xpp::import_xppaut_set_command(s); break;
-  case M_FH: open_help("05-commands", "file"); break;
-  case M_FX: edit_xpprc(); break;
-  case M_FU: do_tutorial(); break;
   case M_FQ: xpp_quit(s); break;
-  case M_FL: xpp::clone_ode(s); break;
   case M_FO: copy_set_line(s); break;
   }
 }
@@ -491,13 +439,11 @@ void commander(xpp::Session &s, int ch)
       break;
     case 'c': flash(4); q_calc(s); flash(4); break;
     case 'r': flash(5); xpp::import_xppaut_set_command(s); flash(5); break;
-    case 'h': open_help("05-commands", "file"); break;
     case 'q':
       flash(7);
       xpp_quit(s);
       flash(7);
       break;
-    case 'l': xpp::clone_ode(s); break;
     case 'o': copy_set_line(s); break;
     case 'm': xpp_model_open(s, nullptr); break;
     case 'e': xpp_model_reload(s); break;
@@ -507,8 +453,6 @@ void commander(xpp::Session &s, int ch)
     case 'n': xpp_session_load(s, nullptr); break;
     case 'd': record_toggle(s); break;
     case 'y': play_recording(s,""); break;
-    case 'x': edit_xpprc(); break;
-    case 'u': do_tutorial(); break;
     }
     show_main_menu(s,MAIN_MENU);
     break;

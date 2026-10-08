@@ -95,9 +95,9 @@ void check_bad_files()
         {"reserved", "{\"bindings\": {\"reload\": [\n\"Ctrl+W\"]}}", 2, "Ctrl+W"},
         {"reserved in a chord", "{\"bindings\": {\"reload\": [\"Ctrl+K F12\"]}}", 1, "F12"},
         {"clash with a default", "{\"bindings\": {\n\"reload\": [\"Ctrl+O\"]}}", 2, "Open model"},
-        {"clash of two", "{\"bindings\": {\"reload\": [\"Ctrl+B\"],\n\"help\": [\"Ctrl+B\"]}}", 2, "Reload model"},
+        {"clash of two", "{\"bindings\": {\"reload\": [\"Ctrl+B\"],\n\"calculator\": [\"Ctrl+B\"]}}", 2, "Reload model"},
         {"one key twice", "{\"bindings\": {\"reload\": [\"Ctrl+B\",\n\"Ctrl+B\"]}}", 2, "clash"},
-        {"chord start", "{\"bindings\": {\"reload\": [\"F\"],\n\"help\": [\"F S\"]}}", 2, "F S"},
+        {"chord start", "{\"bindings\": {\"reload\": [\"F\"],\n\"calculator\": [\"F S\"]}}", 2, "F S"},
         {"pinned not an array", "{\"pinned\": {}}", 1, "{}"},
         {"pinned unknown", "{\"pinned\": [\n\"nosuch\"]}", 2, "nosuch"},
         {"pinned not pinnable", "{\"pinned\": [\"quit\"]}", 1, "quit"},
@@ -127,17 +127,17 @@ void check_good_files()
     CHECK(xpp::keymap::parse_keymap("", FILE_LABEL).has_value() == false);
 
     const std::string text =
-        "{\r\n \"preset\": \"xppaut\",\r\n \"pinned\": [\"reload\", \"help\"],\r\n"
+        "{\r\n \"preset\": \"xppaut\",\r\n \"pinned\": [\"reload\", \"calculator\"],\r\n"
         " \"bindings\": {\"reload\": [\"Ctrl+B\"], \"savesession\": [], \"initialconds\": [\"F S\", \"Alt+I\"]}}\r\n";
     auto map = xpp::keymap::parse_keymap(text, FILE_LABEL);
     CHECK(map.has_value());
     if (!map) return;
     CHECK(map->preset == "xppaut");
-    CHECK(map->pinned == std::vector<std::string>({"reload", "help"}));
+    CHECK(map->pinned == std::vector<std::string>({"reload", "calculator"}));
     CHECK(xpp::keymap::effective_keys(*map, "reload") == std::vector<std::string>({"Ctrl+B"}));
     CHECK(xpp::keymap::effective_keys(*map, "savesession").empty());       /* removed */
     CHECK(xpp::keymap::effective_keys(*map, "openmodel") == std::vector<std::string>({"Ctrl+O"})); /* the table's */
-    CHECK(xpp::keymap::effective_keys(*map, "help").empty());
+    CHECK(xpp::keymap::effective_keys(*map, "calculator").empty());
     /* a key a user took from a command that kept no other: free for another one */
     CHECK(xpp::keymap::parse_keymap("{\"bindings\": {\"openmodel\": [], \"reload\": [\"Ctrl+O\"]}}", FILE_LABEL).has_value());
     /* a default key moved back to the command that has it */
@@ -163,7 +163,7 @@ void check_file(const std::string &dir)
 
     xpp::keymap::Keymap map;
     map.bindings["reload"] = {"Ctrl+B"};
-    map.pinned = {"help"};
+    map.pinned = {"calculator"};
     const auto saved = xpp::keymap::save(map);
     if (!saved) std::fprintf(stderr, "save: %s\n", saved.error().text().c_str()); /* why, when it fails (W220) */
     CHECK(saved.has_value());

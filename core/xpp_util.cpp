@@ -72,7 +72,7 @@ void clr_scrn(xpp::Session &s)
 
 /* ---- moved function bodies follow (appended by tools/move_funcs.py) ---- */
 
-/* new_parameter, set_default_params, clone_ode: from init_conds.c */
+/* new_parameter, set_default_params: from init_conds.c */
 
 std::string ind_to_sym(const xpp::Session &s, int ind)
 {
@@ -369,71 +369,6 @@ void svg_restore(xpp::Session &s)
   do_batch_nclines(s);
   do_batch_dfield(s); 
  svg_end(s);
-}
-
-void clone_ode(xpp::Session &s)
-{
-  int i,j,x,y;
-  std::string clone=xpp::files::output_name(s.model().this_file,".ode","clone");
-  const char *line;
-  time_t ttt;
-  double z;
-  if(!save_ready(s.model().nlines()>0))return;
-  if(!file_selector("Clone ODE file",clone,"*.ode"))return;
-  xpp::Writer fp=xpp::open_writer_asking(clone.c_str());
-  if(!fp)return;
-  ttt=time(0);
-  fp.print("# clone of {} on {}",s.model().this_file,ctime(&ttt));
-  for(i=0;i<s.model().nlines();i++){
-    line=s.model().source[i].c_str();
-
-    if(line[0]=='p'||line[0]=='P'||line[0]=='b'||line[0]=='B'){
-      x=find_char(line,"'",0,&j);
-      y=find_char(line,"=",0,&j);
-
-      if(x!=0||y!=0){
-	fp.print("# original\n# {}\n",line);
-	continue;
-      }
-    }
-    if(strncasecmp("done",line,4)==0)continue;
-    fp.print("{}\n",line);
-  }
-  fp.print("# Cloned parameters etc here\n");
-  /* now we do parameters boundary conds and ICs */
-  j=0;
-  fp.print("init ");
-  for(i=0;i<(s.model().node+s.model().nmarkov);i++){
-    if(j==8){
-      fp.print("\ninit ");
-      j=0;
-    }
-    fp.print("{}={:g} ",s.model().uvar_names[i],s.last_ic[i]);
-    j++;
-  }
-  fp.print("\n");
-
-  /* BDRY conds */
-  if(s.bcs[0].string.data()[0]!='0'){
-    for(i=0;i<s.model().node;i++)
-      fp.print("bdry {}\n",s.bcs[i].string.data());
-  }
-  j=0;
-  if(s.model().nupar>0){
-    fp.print("par ");
-    for(i=0;i<s.model().nupar;i++){
-      if(j==8){
-	fp.print("\npar ");
-        j=0;
-      }
-      get_val(s,s.model().upar_names[i],&z);
-      fp.print("{}={:g} ",s.model().upar_names[i],z);
-      j++;
-    }
-  }
-  fp.print("\n");
-  fp.print("done \n");
-  xpp::ok_or_show(xpp::commit_save(fp));
 }
 
 void new_parameter(xpp::Session &s)

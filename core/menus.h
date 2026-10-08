@@ -79,7 +79,12 @@ enum AniWindowKey { NK_FILE, NK_GO, NK_RESET, NK_SKIP, NK_MPEG, NK_FLY, NK_GRAB 
 enum AplotWindowKey { PK_REDRAW, PK_EDIT, PK_FIT, PK_RANGE, PK_PRINT, PK_GIF };
 enum EquilibriumWindowKey { EK_IMPORT };
 
-/* the index of the item of m that key ch picks, -1 for none */
+/* What menu_choose returns, plus the item's index, for an item of a long list that has no key (the
+   named parameter sets past the 26th): the page answers such a menu with the item's `index` */
+inline constexpr int MENU_UNKEYED = 0x100;
+
+/* the index of the item of m that key ch picks (a MENU_UNKEYED + index picks that item), -1 for none;
+   m->keys may hold fewer keys than m->n items: the rest have none */
 int menu_index(const XppMenu *m, int ch);
 /* the kind of the item of m that key ch picks, 0 for none */
 char menu_kind(const XppMenu *m, int ch);

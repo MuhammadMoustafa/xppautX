@@ -25,7 +25,7 @@ test('the table has the three run commands and the editor, with the keys of the 
   assert.deepEqual(effectiveKeys(info, row('run_last')), ['Ctrl+Shift+Enter']);
   assert.deepEqual(effectiveKeys(info, row('steady')), ['Alt+S']);
   assert.deepEqual(effectiveKeys(info, row('keymapeditor')), []);
-  assert.ok(row('keymapeditor').pinnable && row('keymapeditor').key === '');
+  assert.ok(row('keymapeditor').key === '' && !row('keymapeditor').pinnable); /* a page command in Help (W229), not pinned */
 });
 
 test('a recorded key: Esc cancels, Backspace clears, a reserved key is refused, a taken key is a conflict', () => {
@@ -69,13 +69,13 @@ test('an edit is the user\'s differences with that change: set, add, remove, res
   const changed = bound('reload', ['Ctrl+B']);
   assert.deepEqual(withoutBinding(changed, 'reload').bindings, {});
   /* the other commands' bindings, the pins and the preset are carried */
-  const mixed: KeymapInfo = {...bound('help', ['F9']), pinned: ['help'], preset: 'xppaut'};
+  const mixed: KeymapInfo = {...bound('calculator', ['F9']), pinned: ['calculator'], preset: 'xppaut'};
   assert.deepEqual(withKey(mixed, row('reload'), 0, 'Ctrl+B'),
-    {preset: 'xppaut', pinned: ['help'], bindings: {help: ['F9'], reload: ['Ctrl+B']}});
+    {preset: 'xppaut', pinned: ['calculator'], bindings: {calculator: ['F9'], reload: ['Ctrl+B']}});
   /* Replace gives the key to the command and takes it from the one that had it */
   assert.deepEqual(replaceKey(info, rows, row('reload'), 0, 'Ctrl+S').bindings, {reload: ['Ctrl+S'], savesession: []});
   assert.deepEqual(withPreset(info, 'xppaut').preset, 'xppaut');
-  assert.deepEqual(withPinned(info, ['help']).pinned, ['help']);
+  assert.deepEqual(withPinned(info, ['calculator']).pinned, ['calculator']);
 });
 
 test('where a command\'s keys come from: default, changed (instead of the table\'s) or user (it had none)', () => {
@@ -93,7 +93,7 @@ test('the editor\'s search matches label, description, id and the keys pressed',
   assert.deepEqual(ids('alt s'), ['steady']);
   assert.ok(ids('trajectory').includes('run_initial'));
   /* the user's keys are searched, not the table's */
-  assert.deepEqual(ids('f9', bound('help', ['F9'])), ['help']);
+  assert.deepEqual(ids('f9', bound('calculator', ['F9'])), ['calculator']);
   assert.deepEqual(ids('f9'), []);
   /* the shortcut-layer switches take no keys and are not listed */
   assert.ok(!editorRows(info, rows, '').some(r => r.category === 'layer'));
@@ -101,10 +101,10 @@ test('the editor\'s search matches label, description, id and the keys pressed',
 });
 
 test('pins: the pinned commands that may be pinned, in order; toggled, moved', () => {
-  const pinned: KeymapInfo = {...info, pinned: ['help', 'reload', 'steady']};
-  assert.deepEqual(pinnedRows(pinned, rows).map(r => r.id), ['help', 'reload', 'steady']);
+  const pinned: KeymapInfo = {...info, pinned: ['calculator', 'reload', 'steady']};
+  assert.deepEqual(pinnedRows(pinned, rows).map(r => r.id), ['calculator', 'reload', 'steady']);
   assert.deepEqual(pinnedRows(null, rows), []);
-  assert.deepEqual(pinnedRows({...info, pinned: ['quit', 'nosuch', 'help']}, rows).map(r => r.id), ['help']);
+  assert.deepEqual(pinnedRows({...info, pinned: ['quit', 'nosuch', 'calculator']}, rows).map(r => r.id), ['calculator']);
   assert.deepEqual(togglePinned(['a', 'b'], 'c'), ['a', 'b', 'c']);
   assert.deepEqual(togglePinned(['a', 'b'], 'a'), ['b']);
   assert.deepEqual(movePinned(['a', 'b', 'c'], 'c', 0), ['c', 'a', 'b']);

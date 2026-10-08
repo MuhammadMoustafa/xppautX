@@ -3671,6 +3671,19 @@ async function navigationCheck() {
   await until('s.hello && !s.busy', 'hello');
   check('navigation: five stable command groups and model filename', await cdp.eval(`
     document.querySelectorAll('.command-group').length === 5 && document.querySelector('.title-bar h1').textContent === 'lecar.odex'`));
+  check('navigation: the Tools group holds only the Calculator; the commands that live in a panel are not in the command list (W229)', await cdp.eval(`(() => {
+    const tools = [...document.querySelectorAll('.command-group')].find(d => d.querySelector('summary').textContent === 'Tools');
+    const moved = ['source', 'transpose', 'lookup', 'getparset', 'copyset', 'keymapeditor', 'record', 'play', 'help', 'tutorial', 'xpprc', 'clone'];
+    return [...tools.querySelectorAll('.menu-item')].map(b => b.dataset.item).join() === 'calculator'
+      && !moved.some(id => document.querySelector('.menu-item[data-item=' + id + ']')); })()`));
+  check('navigation: each moved command is beside its work: Named sets and Copy set line in the Values panel, Transpose and Lookup tables in the Data panel (W229)',
+    await cdp.eval(`['#values-panel button[data-item=getparset]', '#values-panel button[data-item=copyset]',
+      '#table-panel button[data-item=transpose]', '#table-panel button[data-item=lookup]'].every(s => !!document.querySelector(s))`));
+  await cdp.eval(`document.querySelector('#values-panel button[data-item=getparset]').click()`);
+  check('navigation: Named sets… asks which set, in a menu with a letter for each (W229)',
+    await until(`s.ask && s.ask.kind === 'menu' && s.ask.name === 'param_set' && s.ask.items.length === s.ask.keys.length && s.ask.items.length > 1`, 'sets menu'), JSON.stringify(await S('s.ask')));
+  await key('Escape');
+  await until('!s.ask && !s.busy', 'the sets menu cancelled');
   check('navigation: Run first, States first', await cdp.eval(`
     document.querySelector('.command-group summary').textContent === 'Run' && document.querySelector('.values-body .value-group').dataset.section === 'ic'`));
   check('navigation: common run actions have one visible home and require a prior state where appropriate', await cdp.eval(`(() => {
@@ -3874,15 +3887,25 @@ async function keymapEditorCheck() {
     await click(`[data-key-cell="${id}"][data-index="${index}"]`);
     return until(`s.keymap.editor.recording?.id === ${JSON.stringify(id)} && document.activeElement?.dataset.keyCell === ${JSON.stringify(id)}`, 'recording ' + id);
   };
+  /* W229: the editor is opened from Help > Keyboard shortcuts > Change shortcuts…, no longer from the command list */
+  const openEditor = async () => {
+    await click('.help-toggle');
+    await until(`s.help.open && !!document.querySelector('.help-keys button')`, 'help open with its shortcuts');
+    await cdp.eval(`[...document.querySelectorAll('.help-keys button')].find(b => b.textContent.startsWith('Change shortcuts')).click()`);
+    const opened = await until(`s.keymap.editor.open`, 'open');
+    await click('.help-back');
+    await until('!s.help.open', 'help closed');
+    return opened;
+  };
   const ctrl = 2, alt = 1, shift = 8;
   try {
     /* the new commands, with the keys of the design */
     check('keymapeditor: Run from initial, Run from last state and Run to steady state are commands with Ctrl+Enter, Ctrl+Shift+Enter and Alt+S; the editor has no key',
       (await keysOf('run_initial')) === 'Ctrl+Enter' && (await keysOf('run_last')) === 'Ctrl+Shift+Enter' && (await keysOf('steady')) === 'Alt+S'
       && (await keysOf('keymapeditor')) === '');
-    /* open it from the command list */
-    await click('.menu-item[data-item=keymapeditor]');
-    check('keymapeditor: Keyboard shortcuts… in the command list opens the dialog, labelled and modal', await until(`s.keymap.editor.open`, 'open')
+    check('keymapeditor: the command list has no Keyboard shortcuts…, Help has Change shortcuts…',
+      !(await exists('.menu-item[data-item=keymapeditor]')));
+    check('keymapeditor: Change shortcuts… in Help opens the dialog, labelled and modal', await openEditor()
       && await cdp.eval(`(() => { const d = document.querySelector('[data-keymap-editor]');
         return d.getAttribute('role') === 'dialog' && d.getAttribute('aria-modal') === 'true' && document.getElementById(d.getAttribute('aria-labelledby')).textContent === 'Keyboard shortcuts'; })()`));
     check('keymapeditor: every command but the shortcut-layer switches is a row, with its category, keys and source',
@@ -3966,16 +3989,15 @@ async function keymapEditorCheck() {
     check('keymapeditor: Ctrl+S, taken from Save session, runs nothing', (await sentSince(mark)).filter(c => c.cmd === 'key').length === 0);
 
     /* the preset and Reset all */
-    await click('.menu-item[data-item=keymapeditor]');
-    await until(`s.keymap.editor.open`, 'open');
+    await openEditor();
     await cdp.eval(`(() => { const p = document.querySelector('[data-keymap-preset]'); p.value = 'xppaut'; p.dispatchEvent(new Event('change', {bubbles: true})); })()`);
     check('keymapeditor: Preset: XPPAUT sequences is the user\'s preset', await until(`s.keymap.info.preset === 'xppaut'`, 'preset'));
-    await click('[data-key-pin="help"]');
+    await click('[data-key-pin="calculator"]');
     /* the click handler closes over the rendered table: wait for the page to show the first pin (W220) */
-    await until(`s.keymap.info.pinned.join() === 'help' && document.querySelector('[data-key-pin=help]')?.getAttribute('aria-pressed') === 'true'`, 'first pin');
+    await until(`s.keymap.info.pinned.join() === 'calculator' && document.querySelector('[data-key-pin=calculator]')?.getAttribute('aria-pressed') === 'true'`, 'first pin');
     await click('[data-key-pin="steady"]');
-    check('keymapeditor: Pin to toolbar pins Help and Run to steady state, in that order',
-      await until(`s.keymap.info.pinned.join() === 'help,steady'`, 'pinned') && await cdp.eval(`document.querySelector('[data-key-pin=help]').getAttribute('aria-pressed') === 'true'`));
+    check('keymapeditor: Pin to toolbar pins Calculator and Run to steady state, in that order',
+      await until(`s.keymap.info.pinned.join() === 'calculator,steady'`, 'pinned') && await cdp.eval(`document.querySelector('[data-key-pin=calculator]').getAttribute('aria-pressed') === 'true'`));
     mark = await cdp.eval('__xpp.sentCount()');
     await click('[data-keymap-reset-all]');
     check('keymapeditor: Reset all asks first and sends nothing yet', await until(`s.keymap.editor.confirmingReset`, 'confirm') && (await sentSince(mark)).length === 0);
@@ -4006,7 +4028,7 @@ async function keymapEditorCheck() {
       await until(`!s.busy && s.core.steady`, 'steady', 30000) && (await sentSince(mark)).some(c => c.cmd === 'steady' && c.decimals === 9));
 
     /* the toolbar: the fixed part, then the pins in order */
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['help', 'reload', 'keymapeditor'], bindings: {}}})`);
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload', 'dirfield'], bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === 3`, 'three pins');
     const order = () => cdp.eval(`[...document.querySelectorAll('[data-pinned]')].map(b => b.dataset.pinned).join()`);
     check('keymapeditor: the toolbar has Run from initial, Run from last state, Continue and Stop first, then the pins in order with their labels',
@@ -4014,49 +4036,51 @@ async function keymapEditorCheck() {
         const fixed = [...t.querySelectorAll('.run-actions button')].map(b => b.textContent.trim());
         const pins = [...t.querySelectorAll('[data-pinned]')].map(b => b.textContent.trim());
         return fixed.includes('Run from initial') && fixed.includes('Run from last state') && fixed.includes('Continue') && fixed.includes('Stop')
-          && pins.join() === 'Help,Reload model,Keyboard shortcuts…'; })()`) && (await order()) === 'help,reload,keymapeditor');
-    await click('[data-pinned=keymapeditor]');
-    check('keymapeditor: a pinned command runs from the toolbar (it opens the editor)', await until(`s.keymap.editor.open`, 'opened from the toolbar'));
+          && pins.join() === 'Calculator,Reload model,Direction fields and flow'; })()`) && (await order()) === 'calculator,reload,dirfield');
+    mark = await cdp.eval('__xpp.sentCount()');
+    await click('[data-pinned=dirfield]');
+    check('keymapeditor: a pinned command runs from the toolbar (it sends its key command)',
+      await until(`!!s.ask`, 'asked') && (await sentSince(mark)).some(c => c.cmd === 'key' && c.menu === 'main' && c.item === 'dirfield'));
     await key('Escape');
-    await until(`!s.keymap.editor.open`, 'closed');
+    await until(`!s.ask && !s.busy`, 'closed');
     /* drag to reorder */
-    await cdp.eval(`(() => { const from = document.querySelector('[data-pinned=keymapeditor]'), to = document.querySelector('[data-pinned=help]');
+    await cdp.eval(`(() => { const from = document.querySelector('[data-pinned=dirfield]'), to = document.querySelector('[data-pinned=calculator]');
       const data = new DataTransfer();
       from.dispatchEvent(new DragEvent('dragstart', {bubbles: true, dataTransfer: data}));
       to.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: data}));
       to.dispatchEvent(new DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: data})); })()`);
-    check('keymapeditor: dragging a pinned button before another reorders the pins, through the keymap', await until(`s.keymap.info.pinned.join() === 'keymapeditor,help,reload'`, 'dragged')
-      && (await order()) === 'keymapeditor,help,reload');
+    check('keymapeditor: dragging a pinned button before another reorders the pins, through the keymap', await until(`s.keymap.info.pinned.join() === 'dirfield,calculator,reload'`, 'dragged')
+      && (await order()) === 'dirfield,calculator,reload');
     /* the context menu: Move later, then Unpin */
     const menu = async (id, item) => {
       await cdp.eval(`document.querySelector('[data-pinned=${id}]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 200, clientY: 200}))`);
       await until(`!!document.querySelector('.quick-menu')`, 'context menu');
       await cdp.eval(`[...document.querySelectorAll('.quick-menu button')].find(b => b.textContent === ${JSON.stringify(item)}).click()`);
     };
-    await menu('keymapeditor', 'Move later');
-    check('keymapeditor: the context menu\'s Move later moves a pinned command one place', await until(`s.keymap.info.pinned.join() === 'help,keymapeditor,reload'`, 'moved')
+    await menu('dirfield', 'Move later');
+    check('keymapeditor: the context menu\'s Move later moves a pinned command one place', await until(`s.keymap.info.pinned.join() === 'calculator,dirfield,reload'`, 'moved')
       && !(await exists('.quick-menu')));
-    await cdp.eval(`document.querySelector('[data-pinned=help]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 10, clientY: 10}))`);
+    await cdp.eval(`document.querySelector('[data-pinned=calculator]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 10, clientY: 10}))`);
     await until(`!!document.querySelector('.quick-menu')`, 'menu');
     check('keymapeditor: the context menu is a menu with three items, the first focused',
       await cdp.eval(`(() => { const m = document.querySelector('.quick-menu');
         return m.getAttribute('role') === 'menu' && m.querySelectorAll('[role=menuitem]').length === 3 && m.contains(document.activeElement); })()`));
     await key('Escape');
     check('keymapeditor: Esc closes the context menu and returns to the button', await until(`!document.querySelector('.quick-menu')`, 'closed')
-      && await cdp.eval(`document.activeElement.dataset.pinned === 'help'`));
+      && await cdp.eval(`document.activeElement.dataset.pinned === 'calculator'`));
     await menu('reload', 'Unpin');
-    check('keymapeditor: Unpin removes it from the pins and the toolbar', await until(`s.keymap.info.pinned.join() === 'help,keymapeditor'`, 'unpinned') && (await order()) === 'help,keymapeditor');
+    check('keymapeditor: Unpin removes it from the pins and the toolbar', await until(`s.keymap.info.pinned.join() === 'calculator,dirfield'`, 'unpinned') && (await order()) === 'calculator,dirfield');
     /* the command list pins too */
     await click('[data-pin=window]');
     check('keymapeditor: a row of the command list has Pin; it pins Zoom and view', await until(`s.keymap.info.pinned.includes('window')`, 'pinned from the list')
       && await cdp.eval(`document.querySelector('[data-pin=window]').getAttribute('aria-pressed') === 'true'`));
 
     /* overflow: every pin stays reachable at any width */
-    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['help', 'reload'], bindings: {}}})`);
+    await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ['calculator', 'reload'], bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === 2`, 'two pins');
     await rendered();
     check('keymapeditor: two pins fit: no More, both shown', await cdp.eval(`!document.querySelector('.quick-more') && document.querySelectorAll('[data-pinned]:not(.quick-over)').length === 2`));
-    const all = ['help', 'reload', 'keymapeditor', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total_time', 'method'];
+    const all = ['calculator', 'reload', 'dirfield', 'window', 'graphic', 'viewaxes', 'xivst', 'text', 'makewindow', 'restore', 'erase', 'kinescope', 'parameters', 'total_time', 'method'];
     await cdp.eval(`__xpp.send({cmd: 'keymap', op: 'set', map: {preset: 'default', pinned: ${JSON.stringify(all)}, bindings: {}}})`);
     await until(`s.keymap.info.pinned.length === ${all.length}`, 'many pins');
     const reach = () => cdp.eval(`(() => { const t = document.querySelector('.quick-access');
@@ -4141,8 +4165,8 @@ async function keysCheck() {
      and sends it; the page shows what it copies (the toast holds the line, copied or, when the
      clipboard is refused, to copy by hand) */
   const sentCopy0 = await cdp.eval('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('.menu-panel .menu-item[data-menu=file][data-item=copyset]').click()`);
-  check('copy set: its File menu button sends the key o',
+  await cdp.eval(`document.querySelector('#values-panel button[data-menu=file][data-item=copyset]').click()`);
+  check('copy set: its button beside the parameters sends the key o',
     await cdp.eval(`__xpp.sentFrom(${sentCopy0}).some(c => c.cmd === 'key' && c.menu === 'file' && c.item === 'copyset')`));
   check('copy set: the core asks the name, pre-filled set1 or the next free one',
     await until("s.ask && s.ask.kind === 'string' && /^set[0-9]+$/.test(s.ask.value)", 'name ask'), JSON.stringify(await S('s.ask')));
@@ -4609,18 +4633,13 @@ async function helpCheck() {
   await cdp.eval(`document.querySelector('.help-back').click()`);
   await until('!s.help.open', 'closed at the end');
 
-  /* File/Help (M_FH, key h): the core itself sends the `help` event (docs/protocol.md) */
+  /* W229: File/Help (key h) is gone with the core's `help` event: the title bar's Help button and F1 open it */
   await focusPlot();
   await key('f');
-  await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu for help');
+  await until('s.pendingKeys.join("") === "F" && !s.busy', 'file menu');
   await key('h');
-  check('help: File/Help opens Help at the File menu chapter (core-sent `help` event)',
-    await until(`s.help.open && s.help.chapter === '05-commands' && s.help.anchor === 'file'`, 'file help open'),
-    JSON.stringify(await S('s.help')));
-  await cdp.eval(`document.querySelector('.help-back').click()`);
-  await until('!s.help.open', 'closed after File/Help');
-  await key('Escape');
-  await until('!s.busy', 'main menu after help');
+  check('help: File/Help is gone: the key h opens nothing and the chord ends',
+    await until('s.pendingKeys.length === 0 && !s.busy', 'chord ended') && (await S('s.help.open')) === false, JSON.stringify(await S('s.help')));
 }
 
 /* W170: heavy.odex's expensive RHS with widely spaced stored rows leaves

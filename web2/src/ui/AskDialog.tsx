@@ -50,7 +50,7 @@ function MenuAsk({ask}: {ask: AskEvent}) {
         {items.map((item, i) => (
           <li key={i} role="none">
             <button role="menuitem" class="menu-item" title={ask.hints?.[i]}
-              aria-keyshortcuts={keys[i]} onClick={() => session.answer(ask, {key: keys[i]})}>
+              aria-keyshortcuts={keys[i]} onClick={() => session.answer(ask, keys[i] ? {key: keys[i]} : {index: i})}>
               <kbd aria-hidden="true">{keys[i]?.toUpperCase()}</kbd>
               <span>{item}</span>
             </button>

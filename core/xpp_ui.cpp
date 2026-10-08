@@ -141,7 +141,6 @@ static int hl_checklist(std::string_view, const char *const *, int *, int)
     return 0;
 }
 static void hl_movie_save(Session &, std::string_view, int) {}
-static void hl_open_help(std::string_view, std::string_view) {}
 static void hl_copy_text(std::string_view, std::string_view text) { xpp::log(XPP_LOG_INFO, "{}\n", text); }
 static void hl_record_toggle(Session &) { xpp::log(XPP_LOG_WARN, "Recording needs the page or --server\n"); }
 static void hl_play_recording(Session &, std::string_view) { xpp::log(XPP_LOG_WARN, "Playing a recording needs the page or --server\n"); }
@@ -268,7 +267,6 @@ XppUi ui = {
     .show_eq_box = hl_show_eq_box,
     .make_txtview = hl_s,
     .q_calc = hl_s,
-    .open_help = hl_open_help,
     .copy_text = hl_copy_text,
     .record_toggle = hl_record_toggle,
     .play_recording = hl_play_recording,
@@ -446,7 +444,6 @@ void new_vcr(Session &s) { ui.new_vcr(s); }
 void redraw_the_graph(Session &s) { ui.redraw_graph(s); }
 void make_txtview(Session &s) { ui.make_txtview(s); }
 void q_calc(Session &s) { ui.q_calc(s); }
-void open_help(std::string_view chapter, std::string_view anchor) { ui.open_help(chapter, anchor); }
 void copy_text(std::string_view what, std::string_view text) { ui.copy_text(what, text); }
 void record_toggle(Session &s) { ui.record_toggle(s); }
 void play_recording(Session &s, std::string_view path) { ui.play_recording(s, path); }

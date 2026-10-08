@@ -244,7 +244,7 @@ def last_state(evs):
 evs, _ = collect(is_idle)
 st = last_state(evs)
 hello = next((e for e in evs if e.get('ev') == 'hello'), None)
-check('hello', hello is not None and len(hello["command_table"]) == 65)
+check('hello', hello is not None and len(hello["command_table"]) == 61)
 check('hello says protocol 3, and no draw ops or palette follow (removed in 2)',
       hello is not None and hello.get('protocol') == 3 and not any(e.get('ev') in ('draw', 'palette') for e in evs),
       str(hello and hello.get('protocol')))
@@ -326,8 +326,8 @@ PAGE_COMMANDS = ('run_initial', 'run_last', 'steady', 'keymapeditor')
 def check_command_table(table):
     cats = {c['id']: c for c in hello.get('command_categories', [])}
     listed = [c['label'] for c in cats.values() if c['listed']]
-    check('W207: hello lists the sidebar groups in order, Run first, and the unlisted shortcut-layer category',
-          listed == ['Run', 'Files', 'Analysis', 'Plot', 'Tools'] and [c['id'] for c in cats.values() if not c['listed']] == ['layer'],
+    check('W207, W229: hello lists the sidebar groups in order, Run first, and the unlisted categories: the commands of a panel, the shortcut layer',
+          listed == ['Run', 'Files', 'Analysis', 'Plot', 'Tools'] and [c['id'] for c in cats.values() if not c['listed']] == ['panels', 'layer'],
           str(cats))
     ids = [(r['menu'], r['id']) for r in table]
     check('W207: every command is in the table once, with its menu, a key, a label, a description and one known category',
@@ -344,10 +344,19 @@ def check_command_table(table):
           str(keys))
     layer = [(r['menu'], r['id']) for r in table if r['category'] == 'layer']
     check('W207: the shortcut-layer switches are File, Numerics and Return to main shortcuts, and none can be pinned; '
-          'Quit is the only other command that cannot',
+          'Quit and the commands of a panel are the only others that cannot',
           layer == [('main', 'file'), ('main', 'numerics'), ('num', 'exit')]
-          and sorted(r['id'] for r in table if not r['pinnable']) == ['exit', 'file', 'numerics', 'quit'],
+          and sorted(r['id'] for r in table if not r['pinnable'])
+          == sorted(['exit', 'file', 'numerics', 'quit'] + ['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup']),
           str(layer))
+    in_tools = [r['id'] for r in table if r['category'] == 'tools']
+    in_panels = sorted(r['id'] for r in table if r['category'] == 'panels')
+    check('W229: Tools lists only the Calculator; the commands that live in a panel or the title bar are the panels category',
+          in_tools == ['calculator'] and in_panels == sorted(['source', 'transpose', 'getparset', 'copyset', 'record', 'play', 'keymapeditor', 'lookup']), str((in_tools, in_panels)))
+    gone = {'help', 'tutorial', 'xpprc', 'clone'}
+    check('W229: Help, Tutorial, Preferences and Clone model are not commands any more',
+          not gone & {r['id'] for r in table} and not {(r['menu'], r['key']) for r in table} & {('file', 'h'), ('file', 'u'), ('file', 'x'), ('file', 'l')},
+          str(sorted(gone & {r['id'] for r in table})))
     chords = {r['id']: r['default_keys'] for r in table if r['default_keys']}
     check('W208, W212, W213: Continue, Open model, Save session, Save session as, Reload model, Undo, Redo and the three run commands have default keys, none reserved (Alt+F4, Ctrl+W, Ctrl+Q, F11, F12, F5)',
           chords == {'continue': ['Alt+Enter'], 'openmodel': ['Ctrl+O'], 'savesession': ['Ctrl+S'], 'savesessionas': ['Ctrl+Shift+S'], 'reload': ['Ctrl+R'],
@@ -356,7 +365,7 @@ def check_command_table(table):
     check('W207: Run lists only Initial conditions before a search; every other command is primary; Run and Files are open',
           [r['id'] for r in table if not r['primary']] == [r['id'] for r in table if r['category'] == 'run' and r['id'] != 'initialconds']
           and [c['id'] for c in cats.values() if c['expanded']] == ['run', 'files'], str(cats))
-    order = [cats[r['category']]['label'] for r in table if r['category'] != 'layer']
+    order = [cats[r['category']]['label'] for r in table if cats[r['category']]['listed']]
     check('W207: the table is in the sidebar\'s order: by category, as listed', order == sorted(order, key=listed.index), str(order))
 
 
@@ -679,13 +688,15 @@ if acts:
     collect(is_idle)
     collect(is_idle)
 
-send(cmd='key', key='f')
-send(cmd='key', key='h')
-evs, help_ev = collect(lambda e: e.get('ev') == 'help')
-collect(is_idle)
-check('File/Help opens the manual at the File menu chapter',
-      help_ev is not None and help_ev.get('chapter') == '05-commands' and help_ev.get('anchor') == 'file',
-      str(help_ev))
+# W229: File/Help, Tutorial, Preferences and Clone model are gone: their keys (h, u, x, l) ask and open nothing
+for gone_key in 'huxl':
+    send(cmd='key', key='f')
+    collect(is_idle)
+    send(cmd='key', key=gone_key)
+    evs, _ = collect(is_idle)
+    check(f'W229: File key {gone_key} (a removed command) asks nothing, opens nothing and the menu is the main one again',
+          not [e for e in evs if e.get('ev') in ('ask', 'help', 'message')]
+          and (last_state(evs) or {}).get('menu') == 0, str(evs)[:300])
 
 send(cmd='key', key='f')
 send(cmd='key', key='s')
@@ -1622,6 +1633,61 @@ def check_param_set_cancel():
 
 
 check_param_set_cancel()
+
+
+def check_param_set_list():
+    """W229: the Named parameter sets menu says so when the model has none; with more than 26 sets the
+    first 26 have a letter and the others are answered by their index; the last of 500 is reachable"""
+    folder = tempfile.mkdtemp(prefix='w229sets')
+    try:
+        def model(name, count):
+            path = os.path.join(folder, name)
+            with open(path, 'w') as f:
+                f.write("par a=0\ninit x=0\nx'=-x\n" + ''.join(f'set s{i} {{a={i}}}\n' for i in range(1, count + 1)) + 'done\n')
+            return path
+
+        def pick_set(count, answer):
+            p, r, snd, col, _ = launch_server(ode=model(f'sets{count}.ode', count))
+            try:
+                col(is_idle)
+                snd(cmd='key', key='f')
+                col(is_idle)
+                snd(cmd='key', key='g')
+                evs, ask = col(lambda e: e.get('ev') == 'ask')
+                if ask:
+                    snd(cmd='answer', id=ask['id'], **answer)
+                evs2, _ = col(is_idle)
+                st = last_state(evs2)
+                return ask, evs + evs2, dict(st['pars']).get('a') if st else None
+            finally:
+                stop_server(p, r, snd)
+
+        p, r, snd, col, _ = launch_server(ode=model('none.ode', 0))
+        try:
+            col(is_idle)
+            snd(cmd='key', key='f')
+            col(is_idle)
+            snd(cmd='key', key='g')
+            evs, _ = col(is_idle)
+            check('W229: Named parameter sets of a model with none says so (a message, no ask, no error)',
+                  not [e for e in evs if e.get('ev') == 'ask' or (e.get('ev') == 'message' and 'error' in e)]
+                  and any('no named parameter sets' in str(e.get('bottom', '')) for e in evs), str(evs)[-300:])
+        finally:
+            stop_server(p, r, snd)
+        ask, evs, a = pick_set(30, {'index': 28})
+        check('W229: 30 sets: a menu of 30 items with 26 letters; the 29th is answered by its index',
+              ask is not None and ask['kind'] == 'menu' and len(ask['items']) == 30 and ask['keys'] == 'abcdefghijklmnopqrstuvwxyz'
+              and ask['items'][0] == 'a: s1' and ask['items'][26] == 's27' and a == 29, str((ask and ask['keys'], a)))
+        ask, evs, a = pick_set(30, {'key': 'c'})
+        check('W229: 30 sets: the letter c still picks the third', a == 3, str(a))
+        ask, evs, a = pick_set(500, {'index': 499})
+        check('W229: exactly 500 sets (the limit load_eqn admits): the menu opens and the last one can be picked',
+              ask is not None and len(ask['items']) == 500 and a == 500, str((ask and len(ask['items']), a)))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+check_param_set_list()
 
 
 def check_values_protocol():
@@ -6340,7 +6406,7 @@ def check_keymap():
               [e.get('op') for e in keymap_events(evs)] == ['get'] and keymap_events(evs)[0]['keymap'] == km
               and not errors(evs), str(evs)[-300:])
 
-        good = {'preset': 'xppaut', 'pinned': ['reload', 'help'],
+        good = {'preset': 'xppaut', 'pinned': ['reload', 'calculator'],
                 'bindings': {'reload': ['Ctrl+B', 'F S'], 'savesession': [], 'initialconds': ['Alt+I']}}
         snd(cmd='keymap', op='set', map=good)
         evs, _ = col(is_idle)
@@ -6348,7 +6414,7 @@ def check_keymap():
         cmds = by_id(ev[0]['keymap']) if ev else {}
         check('W211: set checks the map, makes the folder, writes the file and answers the effective keymap',
               len(ev) == 1 and ev[0]['op'] == 'set' and ev[0]['keymap']['ok'] is True and not errors(evs)
-              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['reload', 'help']
+              and ev[0]['keymap']['preset'] == 'xppaut' and ev[0]['keymap']['pinned'] == ['reload', 'calculator']
               and cmds['reload'] == {'id': 'reload', 'keys': ['Ctrl+B', 'F S'], 'source': 'user'}
               and cmds['savesession'] == {'id': 'savesession', 'keys': [], 'source': 'user'}
               and cmds['openmodel']['source'] == 'default' and os.path.isfile(path), str(evs)[-300:])
@@ -6359,8 +6425,10 @@ def check_keymap():
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'reload': ['Ctrl+W']}}, 1, 'Ctrl+W'),
-                ('a key two commands would share', {'bindings': {'help': ['Ctrl+O']}}, 1, 'Open model'),
+                ('a key two commands would share', {'bindings': {'calculator': ['Ctrl+O']}}, 1, 'Open model'),
                 ('an unknown command', {'pinned': ['nosuch']}, 1, 'nosuch'),
+                ('a removed command pinned', {'pinned': ['help']}, 1, 'help'),
+                ('a removed command bound', {'bindings': {'tutorial': ['Ctrl+T']}}, 1, 'tutorial'),
                 ('a command that cannot be pinned', {'pinned': ['quit']}, 1, 'quit'),
                 ('a malformed key', {'bindings': {'reload': ['ctrl+r']}}, 1, 'ctrl+r'),
                 ('an unknown preset', {'preset': 'emacs'}, 1, 'emacs'),
@@ -6386,7 +6454,7 @@ def check_keymap():
         evs, _ = col(is_idle)
         km = next(e for e in evs if e.get('ev') == 'hello')['keymap']
         check('W211: another server reads the same file: window and browser never disagree',
-              km['ok'] is True and by_id(km)['reload']['keys'] == ['Ctrl+B', 'F S'] and km['pinned'] == ['reload', 'help'], str(km)[:200])
+              km['ok'] is True and by_id(km)['reload']['keys'] == ['Ctrl+B', 'F S'] and km['pinned'] == ['reload', 'calculator'], str(km)[:200])
 
         # a bad file, written by hand: shown as an error at its line, the defaults marked, nothing applied
         with open(path, 'w', newline='\n') as f:
@@ -6399,11 +6467,11 @@ def check_keymap():
               len(ev) == 1 and km.get('ok') is False and same(km['file'], path) and km['line'] == 3 and 'Ctrl+Q' in km['error']
               and 'Ctrl+Q' in km['source'] and km['pinned'] == [] and km['preset'] == 'default'
               and by_id(km)['reload']['keys'] == ['Ctrl+R'] and not errors(evs), str(evs)[-400:])
-        snd(cmd='keymap', op='set', map={'pinned': ['help']})
+        snd(cmd='keymap', op='set', map={'pinned': ['calculator']})
         evs, _ = col(is_idle)
         ev = keymap_events(evs)
         check('W211: set replaces a bad file whole', len(ev) == 1 and ev[0]['keymap']['ok'] is True
-              and ev[0]['keymap']['pinned'] == ['help'], str(evs)[-300:])
+              and ev[0]['keymap']['pinned'] == ['calculator'], str(evs)[-300:])
 
         # a file too large is refused as it is read
         with open(path, 'w') as f:

@@ -38,7 +38,7 @@ export function navigationGroups(hello: HelloEvent | null, query: string, keymap
 }
 
 /** what the table disagrees with itself on: a row of an unknown menu or category, a menu and id (or a
-    menu and key) twice, a category with no commands, a shortcut-layer switch that is listed, or a
+    menu and key) twice, a category with no commands, a command of a category that is not a sidebar group that can be pinned, or a
     default key two commands share, or one the system or the browser keeps (hello.keymap.reserved); each is shown as an
     error once, never skipped silently. That every key a menu's handler takes has a row is core-side
     (tools/keycheck.py). */
@@ -63,7 +63,7 @@ export function navigationProblems(hello: HelloEvent): string[] {
       defaults.set(chord, where);
       if (chord.split(' ').some(key => hello.keymap.reserved.includes(key))) problems.push(`Command ${where} is on ${chord}, which the system or the browser keeps`);
     }
-    if (categories.get(row.category)?.listed === false && row.pinnable) problems.push(`Command ${where} is a shortcut-layer switch but can be pinned`);
+    if (categories.get(row.category)?.listed === false && row.pinnable) problems.push(`Command ${where} is in a category that is not a sidebar group (${row.category}) but can be pinned`);
   }
   for (const category of hello.command_categories)
     if (category.listed && !hello.command_table.some(row => row.category === category.id))

@@ -622,8 +622,6 @@ export type XppEvent =
   | {ev: 'computing'}
   | {ev: 'title'; text: string}
   | {ev: 'menu'; which: number}
-  /** File/Help: open the manual at this chapter (and anchor) */
-  | {ev: 'help'; chapter: string; anchor?: string}
   /** File/cOpy set line: text for the clipboard */
   | {ev: 'copy'; what: string; text: string}
   | {ev: 'window'; op: 'create' | 'select' | 'destroy'; win: number; w: number; h: number; title?: string}

@@ -267,15 +267,16 @@ line per xppautX invocation's worth of settings, for example:
 @ meth=qualrk,tol=1e-6,atol=1e-6
 ```
 
+xppautX reads the file at start; edit it with any editor (no command opens it).
+
 xppautX still reads a few environment variables, all optional:
 
 | Variable | Purpose |
 |---|---|
-| `XPPEDITOR` | Editor "Edit your .xpprc preferences file" (menu shortcut `fx`) opens |
 | `XPPSTART` | Folder the file dialogs open to, e.g. a shared course directory |
 
 Set them the usual way for your shell (`export XPPSTART=...` in
-`.bashrc`, `setx XPPEDITOR ...` or a Windows Environment Variables
+`.bashrc` or a Windows Environment Variables
 dialog). Nothing else — no `DISPLAY`, no X resources, no font or window
 colour settings — is needed or read any more.
 

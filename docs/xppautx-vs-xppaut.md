@@ -77,7 +77,10 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Help | the info/help files (`help/`) | the manual as Markdown in the Help view, linked from menus and dialogs | W12 |
 | Picture export | PostScript, GIF, SVG | PostScript, SVG and the GIFs from one registry | W53, W66 |
 | Kinescope | frames kept in the X window | frames captured as data in the page; the core writes the animated GIF | W6 (T-cards) |
-| `.xpprc`, `XPPEDITOR` | read at start ([load_eqn.c:1074](../reference/xppaut-8.0/load_eqn.c#L1074)); File > Xpprc edits it ([menudrive.c:120](../reference/xppaut-8.0/menudrive.c#L120)) | read at start (`core/load_eqn.cpp`) and still editable (`XPPEDITOR`) | W139 |
+| `.xpprc`, `XPPEDITOR` | read at start ([load_eqn.c:1074](../reference/xppaut-8.0/load_eqn.c#L1074)); File > Xpprc edits it ([menudrive.c:120](../reference/xppaut-8.0/menudrive.c#L120)) | read at start (`core/load_eqn.cpp`); no command opens an editor on it, and `XPPEDITOR` is not read: edit the file yourself | W139, W229 ([#283](https://github.com/MuhammadMoustafa/xppautX/issues/283)) |
+| File > Tutorial, Clone, Help | tips dialogs (`@ tutorial=1` runs them at start), a rewritten copy of the `.ode`, the info files | removed: `@ tutorial` is still accepted and ignored; the manual is Help (F1); the session and the model's `.odex` hold what a clone did | W229 |
+| Where the File items live | File menu: Get par set, Copy set line, Transpose, Lookup tables, Print source, Record, Play | the Values panel (Named sets…, Copy set line), the Data panel (Transpose, Lookup tables), the Model panel (Source) and the title bar's Tools menu (Record, Play recording…); their keys are unchanged | W229 |
+| Named parameter sets | a menu of up to 26 keyed sets, nothing said when there are none; 500 are admitted | any number up to 500: the first 26 have a letter, the rest are picked in the list; a model with none says so. A set line with a dot for a comma (`xlo=-.6.xhi=1.2`) is cut at its number as XPPAUT does, with a warning (finding 38) | W229 |
 
 ## Files and formats
 

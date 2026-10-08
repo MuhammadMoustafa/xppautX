@@ -69,7 +69,7 @@ std::string value_of(xpp::Session &s, const xpp::OptionRow &r)
 }
 
 /* the member lies in the Session (not a process-wide setting such as
-   program.tutorial, which a load keeps) */
+   batch_options.range, which a load keeps) */
 bool in_session(xpp::Session &s, const xpp::OptionRow &r)
 {
     const void *p = r.real ? static_cast<void *>(&r.real(s))
@@ -105,9 +105,9 @@ Sample sample(std::size_t k, const xpp::OptionRow &r)
         {"HISTCOL2", {"z", "3"}},
         {"SPECCOL", {"y", "2"}},
         {"SPECCOL2", {"z", "3"}},
-        {"TUTORIAL", {"1", "1"}},
         {"QUIET", {"1", ""}},
         {"BELL", {"1", ""}},
+        {"TUTORIAL", {"1", ""}},
         {"GRADS", {"1", ""}},
         {"FOLD", {"x", ""}},
         {"AUTOEVAL", {"1", ""}},

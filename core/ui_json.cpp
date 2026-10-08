@@ -437,7 +437,6 @@ XppUi make_json_ui(void)
     u.show_eq_box = j_show_eq_box;
     u.make_txtview = j_make_txtview;
     u.q_calc = j_q_calc;
-    u.open_help = j_open_help;
     u.copy_text = j_copy_text;
     u.record_toggle = j_record_toggle;
     u.play_recording = j_play_recording;
