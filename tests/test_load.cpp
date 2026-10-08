@@ -8,6 +8,7 @@
 #include "model.h"
 #include "xpp_batch.h"
 #include "xpp_io.h"
+#include "xpp_files.h"
 
 #include <optional>
 #include <string>
@@ -94,6 +95,9 @@ int main(void)
        one (its method is not made discrete) */
     const int method = xpp::client_session().numerics.method;
     CHECK(method != 0);
+    /* the conversion of an earlier run is used as it stands: this test starts from none
+       (an old one, from before an option was renamed, would no longer load) */
+    xpp::files::remove("build/test_load_map.odex");
     const char map[] = "build/test_load_map.ode";
     {
         xpp::Writer w(map);
