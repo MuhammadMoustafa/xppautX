@@ -36,12 +36,12 @@
     <ComponentGroup Id="Program" Directory="INSTALLFOLDER">
       <Component Id="Exe">
         <File Id="ExeFile" Source="$(var.SourceDir)\xppautX.exe" KeyPath="yes" />
-        <!-- the same ProgId, extensions and open verb as xppautx-associate.ps1 -->
+        <!-- the same ProgId, extensions and open verb as xppautx-associate.ps1; the verb is the ProgId's, written once -->
         <ProgId Id="xppautX.Model" Description="xppautX Model" Icon="ExeFile" IconIndex="0">
           <Extension Id="ode"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
-          <Extension Id="odex"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
-          <Extension Id="snapx"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
-          <Extension Id="recx"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
+          <Extension Id="odex" />
+          <Extension Id="snapx" />
+          <Extension Id="recx" />
         </ProgId>
       </Component>
     </ComponentGroup>
