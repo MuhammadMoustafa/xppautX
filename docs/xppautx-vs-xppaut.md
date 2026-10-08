@@ -37,7 +37,7 @@ Contents: [Platforms and install](#platforms-and-install) -
 |---|---|---|---|
 | Display | needs an X server: opens the display at start ([main.c:1432](../reference/xppaut-8.0/main.c#L1432)) | no X server; the page in a window of its own, or in a browser | W8, W13a |
 | Windows, macOS | through an X server or a port (its install notes: docs/installonwindows.html, docs/installonmac.html; not verified) | native: one program, built and checked in CI on Linux, Windows and macOS; the macOS window has not been run by hand ([README](../README.md#trying-the-macos-build)) | W13a, W13d, W17 |
-| Release files | source tarball and distribution packages (not verified) | Windows `.exe`, Linux `.deb` and archive, macOS `.dmg`/archive; unsigned ([README](../README.md#installing-a-release)) | W89, W14 |
+| Release files | source tarball and distribution packages (not verified) | Windows `.msi` and `.zip`, Linux `.deb` and `.tar.gz`, macOS `.dmg`, one `SHA256SUMS.txt`; the source is the tag's archive; unsigned ([README](../README.md#installing-a-release)) | W89, W14, W221 |
 | Linux window | X11 libraries linked | the window (WebKitGTK) is a library loaded only when it opens, so one binary starts on any Linux and falls back to the browser | W13e |
 | Opening models | the command line | also a double-click: `.ode`, `.odex`, `.snapx`, `.recx` registered per user or by the package | W13b, W59c, W91, W155 |
 | Build | per-system Makefiles (Makefile, Makefile.64, ... in the source) | one Makefile, C++23, 0 warnings on gcc and clang, CI on three systems | W0, W17 |

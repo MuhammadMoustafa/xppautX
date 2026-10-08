@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Windows installer (W221): built by tools/package_release.sh with
+     WiX v5 (`wix build -arch x64`), which passes ProductVersion (see the rule
+     there), SourceDir (the staged folder: xppautX.exe, LICENSE, README.txt,
+     CITATION.cff, examples/) and IconFile (assets/icon.ico).
+     Per machine, under Program Files\xppautX; a later version replaces an
+     earlier one (MajorUpgrade); the file types are the ones
+     tools/associate/xppautx-associate.ps1 registers per user, with its ProgId
+     and open verb, here for all users. Unsigned: SmartScreen may warn. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- UpgradeCode identifies the product across versions: it must never change. -->
+  <Package Name="xppautX" Manufacturer="Muhammad Moustafa"
+           Version="$(var.ProductVersion)" UpgradeCode="4A13A23D-5375-465A-B4DA-A755396870E7"
+           Scope="perMachine" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of xppautX is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="xppautx.ico" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="xppautx.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/MuhammadMoustafa/xppautX" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="xppautX">
+        <Directory Id="ExamplesFolder" Name="examples" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="StartMenuFolder" Name="xppautX" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="xppautX" Level="1">
+      <ComponentGroupRef Id="Program" />
+      <ComponentGroupRef Id="Documents" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <ComponentGroup Id="Program" Directory="INSTALLFOLDER">
+      <Component Id="Exe">
+        <File Id="ExeFile" Source="$(var.SourceDir)\xppautX.exe" KeyPath="yes" />
+        <!-- the same ProgId, extensions and open verb as xppautx-associate.ps1 -->
+        <ProgId Id="xppautX.Model" Description="xppautX Model" Icon="xppautx.ico" IconIndex="0">
+          <Extension Id="ode"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
+          <Extension Id="odex"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
+          <Extension Id="snapx"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
+          <Extension Id="recx"><Verb Id="open" Command="Open" TargetFile="ExeFile" Argument="&quot;%1&quot;" /></Extension>
+        </ProgId>
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="Documents" Directory="INSTALLFOLDER">
+      <Component Id="Licence"><File Source="$(var.SourceDir)\LICENSE" /></Component>
+      <Component Id="Readme"><File Source="$(var.SourceDir)\README.txt" /></Component>
+      <Component Id="Citation"><File Source="$(var.SourceDir)\CITATION.cff" /></Component>
+      <Component Id="ExampleLecar" Directory="ExamplesFolder"><File Source="$(var.SourceDir)\examples\lecar.odex" /></Component>
+    </ComponentGroup>
+
+    <!-- a per-user registry value is the shortcut component's key path (ICE rules) -->
+    <Component Id="StartMenuShortcut" Directory="StartMenuFolder">
+      <Shortcut Id="StartMenuLink" Name="xppautX" Target="[#ExeFile]"
+                WorkingDirectory="INSTALLFOLDER" Icon="xppautx.ico" />
+      <RemoveFolder Id="RemoveStartMenuFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\xppautX" Name="StartMenuShortcut"
+                     Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+  </Package>
+</Wix>

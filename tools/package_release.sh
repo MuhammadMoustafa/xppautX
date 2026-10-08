@@ -1,6 +1,9 @@
 #!/bin/sh
 # Pack the built X11-free programs for a release (used by .github/workflows/release.yml).
 # Usage: tools/package_release.sh PLATFORM     e.g. linux-x64, windows-x64, macos-arm64
+# Makes the release files of one platform (W221): linux-x64 a .tar.gz and a .deb,
+# windows-x64 an .msi (WiX, $WIX or `wix` on PATH) and a portable .zip, macos-* a .dmg. No checksum
+# files: the release job writes one SHA256SUMS.txt over all of them.
 cd "$(dirname "$0")/.." || exit 1
 platform=$1
 [ -n "$platform" ] || { echo "usage: $0 PLATFORM"; exit 2; }
@@ -23,16 +26,37 @@ esac
 cp LICENSE "build/$name/"
 [ -f CITATION.cff ] && cp CITATION.cff "build/$name/"
 mkdir -p "build/$name/examples" && cp examples/ode/lecar.odex "build/$name/examples/"
-# per-user .ode file association (tools/associate/, W13b): the Windows and
-# macOS pieces are plain text, small enough for every platform's archive;
-# Linux also needs the icons install-linux.sh installs into the hicolor
-# theme (tools/make_icons.py's assets/icons/hicolor/).
-mkdir -p "build/$name/tools/associate" && cp tools/associate/* "build/$name/tools/associate/"
+# the .tar.gz and the .zip carry the per-user .ode file association
+# (tools/associate/, W13b), Linux also the icons install-linux.sh installs
+# into the hicolor theme (tools/make_icons.py's assets/icons/hicolor/); the
+# MSI and the .dmg register the file types themselves
+case "$platform" in
+  linux-*|windows-*)
+    mkdir -p "build/$name/tools/associate" && cp tools/associate/* "build/$name/tools/associate/"
+    ;;
+esac
 case "$platform" in
   linux-*)
     [ -d assets/icons/hicolor ] || { echo "package_release: no assets/icons/hicolor (run tools/make_icons.py)" >&2; exit 1; }
     mkdir -p "build/$name/assets" && cp -r assets/icons "build/$name/assets/icons"
     ;;
+esac
+case "$platform" in
+  linux-*) notes='
+To open a .ode file by double-clicking it, run tools/associate/install-linux.sh
+once (per user, no admin rights); install-linux.sh --uninstall removes it.' ;;
+  windows-*) notes='
+To open a .ode file by double-clicking it, run
+powershell -File tools\associate\xppautx-associate.ps1 -Register once (per
+user, no admin rights; -Unregister undoes it). The .msi does this itself.
+The program is not signed, so Windows SmartScreen may warn the first time:
+choose "More info" then "Run anyway". The warning means nothing is wrong
+with the file.' ;;
+  *) notes='
+The program is not signed, so macOS asks you to allow it the first time:
+right-click xppautX.app and choose Open, or run
+"xattr -dr com.apple.quarantine" on it. The warning means nothing is wrong
+with the file.' ;;
 esac
 cat > "build/$name/README.txt" <<EOF
 xppautX $version ($platform)
@@ -59,39 +83,47 @@ xppautX --help the modes.
 Only this machine can reach it, and the address carries a one-time token.
 Every xppaut option still works; xppautX's own options have to come first.
 
-Installable files of the same release: xppautX-$version-windows-x64.exe
-(the bare program), xppautX-$version-linux-x64.deb (sudo apt install
-./xppautX-*.deb: /usr/bin, menu entry, icons, .ode file type) and
-xppautX-$version-macos-*.dmg (drag xppautX.app to Applications).
-
-To open a .ode file by double-clicking it, run the matching script in
-tools/associate/ once (per user, no admin rights): xppautx-associate.ps1
--Register on Windows, install-linux.sh on Linux; each has an
--Unregister/--uninstall counterpart.
-
-The macOS and Windows binaries are not signed, so the system asks you to
-allow them the first time: on macOS, run "xattr -dr com.apple.quarantine"
-on this unpacked folder, or right-click xppautX and choose Open; on
-Windows, SmartScreen's "More info" then "Run anyway". Neither warning
-means anything is wrong with the file.
-
+The release's installers: xppautX-$version-windows-x64.msi (Windows; the
+.zip is for a machine where you cannot install, no administrator rights
+needed),
+xppautX-$version-linux-x64.deb (sudo apt install ./xppautX-*.deb: /usr/bin,
+menu entry, icons, .ode file type) and xppautX-$version-macos-*.dmg (drag
+xppautX.app to Applications). SHA256SUMS.txt on the release page lists the
+checksum of every file.
+$notes
 XPPAUT is by Bard Ermentrout; xppautX is a fork that runs without X11.
-GPL v2: see LICENSE. The source of these binaries is the
-xppautX-$version-source.tar.gz of the same release, also at
+GPL v2: see LICENSE. The source of these binaries is the source archive of
+this release's tag on its release page, also at
 https://github.com/MuhammadMoustafa/xppautX
 EOF
+# the staged folder as an archive: Linux's .tar.gz, Windows's portable .zip
 case "$platform" in
-  windows-*) ( cd build && zip -qr "../$name.zip" "$name" ) && sha256sum "$name.zip" > "$name.zip.sha256" ;;
-  *) tar -czf "$name.tar.gz" -C build "$name" && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256" 2>/dev/null ||
-     sha256sum "$name.tar.gz" > "$name.tar.gz.sha256" ;;
+  linux-*) tar -czf "$name.tar.gz" -C build "$name" || exit 1 ;;
+  windows-*) ( cd build && zip -qr "../$name.zip" "$name" ) || exit 1 ;;
 esac
 
-# Installable files beside the archive (W89): the bare .exe, a .deb, a .dmg.
+# Installers (W89, W221): an .msi, a .deb, a .dmg.
 # Built from the stripped binary of the archive's folder.
 bin="build/$name/xppautX$suffix"
 case "$platform" in
   windows-*)
-    cp "$bin" "$name.exe" && sha256sum "$name.exe" > "$name.exe.sha256"
+    # The MSI's ProductVersion has three numbers that sort (Windows
+    # Installer ignores the fourth), so the tag vMAJOR.MINOR.PATCH[-pre.N] is
+    # MAJOR.MINOR.BUILD with BUILD = PATCH*1000 + N for a pre-release (beta.1
+    # is 1) and PATCH*1000 + 999 for the final release: v0.1.0-beta.1 is
+    # 0.1.1, v0.1.0-beta.2 0.1.2, v0.1.0 0.1.999, v0.1.1-beta.1 0.1.1001.
+    # Needs PATCH <= 64 and N < 999 (BUILD < 65536); the pre-release words
+    # (beta, rc) share one series, so their N must keep rising. A build that
+    # is not a tag (a dry run's git describe) is 0.0.1: it is never published.
+    msiver=$(printf '%s' "${version#v}" | awk -F'[.-]' '
+      /^[0-9]+\.[0-9]+\.[0-9]+$/ { print $1 "." $2 "." $3 * 1000 + 999; next }
+      /^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+\.[0-9]+$/ { print $1 "." $2 "." $3 * 1000 + $5; next }
+      { print "0.0.1" }')
+    case "$msiver" in
+      *.*.[0-9]*) [ "${msiver##*.}" -lt 65536 ] || { echo "package_release: $version does not fit an MSI version" >&2; exit 1; } ;;
+    esac
+    # relative paths only: MSYS2 rewrites absolute ones in a native program's arguments
+    MSYS2_ARG_CONV_EXCL='*' "${WIX:-wix}" build -arch x64 -o "$name.msi"       -d "ProductVersion=$msiver" -d "SourceDir=build/$name" -d "IconFile=assets/icon.ico"       packaging/windows/xppautX.wxs || exit 1
     ;;
   linux-x64)
     command -v dpkg-deb >/dev/null 2>&1 || { echo "package_release: dpkg-deb not found" >&2; exit 1; }
@@ -142,7 +174,6 @@ Description: xppautX, ODE simulation and bifurcation analysis (XPPAUT without X1
  Registers the .ode and .odex file types.
 EOF
     dpkg-deb --root-owner-group --build "$root" "$name.deb" >/dev/null || exit 1
-    sha256sum "$name.deb" > "$name.deb.sha256"
     ;;
   macos-*)
     # unsigned xppautX.app (Info.plist from the template the Makefile's
@@ -151,7 +182,6 @@ EOF
     rm -rf "build/$name-dmg" && tools/make_app.sh "$bin" "build/$name-dmg/xppautX.app" "$version" || exit 1
     ln -s /Applications "build/$name-dmg/Applications"
     hdiutil create -volname "xppautX $version" -srcfolder "build/$name-dmg" -ov -format UDZO "$name.dmg" >/dev/null || exit 1
-    shasum -a 256 "$name.dmg" > "$name.dmg.sha256"
     ;;
 esac
 ls -l "$name".*

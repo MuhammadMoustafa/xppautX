@@ -9,6 +9,10 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+### Changed
+
+- Release files: a Windows installer `xppautX-<version>-windows-x64.msi` (per machine under Program Files, Start Menu shortcut, the `.ode`, `.odex`, `.snapx`, `.recx` file types, upgrades in place; unsigned, so SmartScreen may warn) joins the portable `.zip`; the bare `.exe`, the macOS `.tar.gz` files, the per-file `.sha256` files and our own source tarball are gone (the source is the tag's source archive); one `SHA256SUMS.txt` covers the rest: `.msi`, `.zip`, `.deb`, Linux `.tar.gz`, two `.dmg` (W221, [#275](https://github.com/MuhammadMoustafa/xppautX/issues/275)).
+
 ## [0.1.0-beta.1] - 2026-10-07
 
 ### Added

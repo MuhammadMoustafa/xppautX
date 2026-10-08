@@ -126,11 +126,23 @@ browser and checks its state (docs/ui-v2.md).
 
 ## Installing a release
 
-Each release attaches one archive per platform, and a file that installs
-without unpacking anything:
+Each release attaches an installer per platform, a Linux archive, and
+`SHA256SUMS.txt` with the checksum of every file (`sha256sum -c
+SHA256SUMS.txt` in the folder you downloaded them to). The source (GPL v2) is
+the tag's source archive, which GitHub adds to the release page.
 
-- **Windows:** `xppautX-<version>-windows-x64.exe`, the bare program: put it
-  anywhere and run it.
+- **Windows:** `xppautX-<version>-windows-x64.msi`: double-click it. It
+  installs for all users under `C:\Program Files\xppautX` (it asks for
+  administrator rights), adds a Start Menu shortcut, registers the `.ode`,
+  `.odex`, `.snapx` and `.recx` file types for all users (double-click opens
+  xppautX on the file; uninstalling removes them), and installing a later version
+  replaces this one; Settings > Apps removes it. The installer is not signed,
+  so SmartScreen may show "Windows protected your PC": choose "More info" and
+  "Run anyway". On a machine where you cannot install, use
+  `xppautX-<version>-windows-x64.zip` instead: unzip it anywhere, no
+  administrator rights needed; it registers nothing itself
+  (`tools\associate\xppautx-associate.ps1 -Register` registers the file types
+  for your user, `-Unregister` undoes it).
 - **Linux:** `xppautX-<version>-linux-x64.deb` (amd64):
   `sudo apt install ./xppautX-<version>-linux-x64.deb` puts `xppautX` in
   `/usr/bin`, adds the menu entry and icons, and registers the `.ode`,
@@ -143,14 +155,15 @@ without unpacking anything:
   which the app handles), and one opened while it runs loads in the same
   window, asking first; starting the app on its own shows the Open dialog.
 
-The archives hold the same program with the examples and `tools/associate/`.
-Unpack one and run the program on a model:
+The Windows `.zip` and the Linux `.tar.gz` hold the same program with the
+examples and `tools/associate/`. Unpack one and run the program on a model:
 
 ```bash
 ./xppautX examples/ode/lecar.ode
 ```
 
-on Windows, `xppautX.exe examples\ode\lecar.ode`. Nothing else is needed:
+on Windows, `xppautX.exe examples\ode\lecar.ode` from the install folder or the unzipped one.
+Nothing else is needed:
 the front end opens in a window of its own (the system's web view:
 WebView2 on Windows, which ships with Windows 10 and 11; the system's
 WKWebView on macOS; WebKitGTK 4.1 on Linux, where a system without it
@@ -166,11 +179,12 @@ reads "xppautX — lecar.ode" with the xppautX icon, Help > Manual opens the
 page's Help, Help > About shows the version, the author and where to report a problem, and after File > Quit (or
 closing the window) no xppautX process is left.
 
-**Double-clicking a .ode file.** Each archive's `tools/associate/` sets
+**Double-clicking a .ode file.** The Windows installer and the .deb register
+the file types for all users. The archives' `tools/associate/` sets
 xppautX as the opener, per user (no admin rights, and easy to undo):
 
 ```bash
-# Windows (PowerShell)
+# Windows (PowerShell), from the unzipped folder
 powershell -File tools\associate\xppautx-associate.ps1 -Register    # -WhatIf first, to see what it would write
 powershell -File tools\associate\xppautx-associate.ps1 -Unregister  # undo
 
@@ -181,22 +195,21 @@ tools/associate/install-linux.sh --uninstall     # undo
 
 Run it once; after that, double-clicking a `.ode` file opens it in its own
 xppautX window (a second `.ode` opens a second window: the core cannot load
-a second model into a running session). The .deb does this for Linux and
-the .exe needs the script above; on macOS the .dmg's `xppautX.app` declares
+a second model into a running session). On macOS the .dmg's `xppautX.app` declares
 the types (and a second file opens in the running app's window instead).
 
 The binaries are not signed or notarized, because a signing identity costs
 money at both Apple and Microsoft, so each system asks once before running a
 program it downloaded. Neither warning means anything is wrong with the file.
 
-**macOS.** The release picks `xppautX-*-macos-arm64.tar.gz` for Apple
-silicon Macs (M1 and later) and `xppautX-*-macos-x64.tar.gz` for Intel
-Macs. The download is quarantined; clear the flag on the unpacked folder,
-then run it:
+**macOS.** The release has `xppautX-*-macos-arm64.dmg` for Apple silicon
+Macs (M1 and later) and `xppautX-*-macos-x64.dmg` for Intel Macs. The
+download is quarantined: right-click `xppautX.app` and choose Open, or clear
+the flag, then run it:
 
 ```bash
-xattr -dr com.apple.quarantine xppautX-*-macos-*/
-./xppautX-*-macos-*/xppautX examples/ode/lecar.ode
+xattr -dr com.apple.quarantine /Applications/xppautX.app
+/Applications/xppautX.app/Contents/MacOS/xppautX examples/ode/lecar.ode
 ```
 
 For a program you double-click instead, right-click it, choose **Open**, and
@@ -331,8 +344,11 @@ Objects go to `build/obj/`. `make clean` removes them and the binary.
 Tagging `v*` runs `.github/workflows/release.yml`, which builds xppautX
 on Linux, Windows and macOS (arm64 and x64), checks each build with
 `tools/servercheck.py` and `tools/webcheck.py`, and attaches one archive per
-platform plus the source of those binaries to the GitHub release.
-`tools/package_release.sh PLATFORM` makes such an archive locally, stripping
+platform (the `.msi` and portable `.zip`, the `.deb` and `.tar.gz`, and one `.dmg` per Mac) plus one
+`SHA256SUMS.txt` to the GitHub release; the source of those binaries is the
+tag's source archive on that page. `tools/package_release.sh PLATFORM` makes
+a platform's files locally (the `.msi` needs WiX v5: `dotnet tool install
+--global wix --version 5.0.2`, then set `WIX` to its wix.exe), stripping
 debug info from the binary it packages so the download is smaller (a local
 build with `make xppautx` keeps it: `OPT` defaults to `-g -O2`).
 
@@ -350,15 +366,15 @@ CI builds the macOS window, but nobody has opened it on a Mac yet: if
 you have one, this is the part that needs it.
 
 1. **Get a build.** Either a tagged [release](https://github.com/MuhammadMoustafa/xppautX/releases)
-   archive (`xppautX-*-macos-arm64.tar.gz` for Apple silicon,
-   `xppautX-*-macos-x64.tar.gz` for Intel), or, for the latest commit, the
+   `.dmg` (`xppautX-*-macos-arm64.dmg` for Apple silicon,
+   `xppautX-*-macos-x64.dmg` for Intel), or, for the latest commit, the
    `macos-arm64`/`macos-x64` artifact from a run of the `release` workflow
    in [Actions](https://github.com/MuhammadMoustafa/xppautX/actions), or
    the `xppautX-macos` artifact from a `build` workflow run (the plain
    binary, window included, not packaged with the README/examples/license
-   the release archive has).
-2. **Open it.** Unpack the archive, clear the quarantine flag
-   (`xattr -dr com.apple.quarantine` on the unpacked folder), then either
+   the release `.dmg` has).
+2. **Open it.** Drag `xppautX.app` out of the `.dmg`, clear the quarantine
+   flag (`xattr -dr com.apple.quarantine` on the app), then either
    run `./xppautX examples/ode/lecar.ode` in Terminal, or double-click
    `xppautX` in Finder and choose **Open** when Gatekeeper asks (then quit
    it and relaunch from Terminal with a model argument, since Finder

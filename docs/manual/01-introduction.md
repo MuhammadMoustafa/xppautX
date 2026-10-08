@@ -32,7 +32,8 @@ only where the interface changed (see `docs/manual/README.md`'s
 ## Getting it
 
 Each [release](https://github.com/MuhammadMoustafa/xppautX/releases) has
-one archive per platform (Linux, Windows, macOS). Unpack it and run the
+an installer per platform (a .msi for Windows, or a .zip where you cannot install, a .deb or .tar.gz for Linux,
+a .dmg for macOS). Install it and run the
 program on a model — nothing else needs installing, no X server, no
 Node:
 

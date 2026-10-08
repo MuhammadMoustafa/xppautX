@@ -40,11 +40,11 @@ release tag and offers the newer one (a setting turns this off).
 - `--version`: print `xppautX <tag>` and exit. The Makefile sets the tag
   from `XPP_VERSION`, which release.yml sets to the release tag
   (`v1.2.0`), or from `git describe` otherwise.
-- Release assets named `xppautX-<tag>-<platform>.tar.gz` (`.zip` on
-  Windows) for `windows-x64`, `linux-x64`, `macos-arm64` and `macos-x64`,
-  each holding the binary and `LICENSE` in one top-level folder
-  (`.github/workflows/release.yml`, `tools/package_release.sh`). The
-  extension downloads the one for the machine and extracts it with `tar`.
+- Release assets (`.github/workflows/release.yml`, `tools/package_release.sh`,
+  W221): `xppautX-<tag>-linux-x64.tar.gz` and `xppautX-<tag>-windows-x64.zip`
+  hold the binary and `LICENSE` in one top-level folder; macOS has only a
+  `.dmg` (no macOS `.tar.gz` since W221), so the extension's download for
+  macOS must change to it (`hdiutil`).
 - The page keeps working when framed from another origin: it uses only
   relative addresses and the token in its query string.
 
@@ -56,4 +56,4 @@ by the extension any more; it stays for tests and other embedders.
 xppautX is GPL v2 (XPPAUT is Bard Ermentrout's). The extension is MIT and
 ships no xppautX code; it downloads a release at the user's request and
 records its origin in a `SOURCE.txt` next to the binary. The source of every
-release is its `xppautX-<tag>-source.tar.gz` asset.
+release is its tag's source archive on the release page.

@@ -1,7 +1,9 @@
 name: release
 
-# Tagging v* builds the X11-free programs for each platform and attaches them,
-# with the source (GPL v2), to the GitHub release.
+# Tagging v* builds the X11-free programs for each platform and attaches the
+# installers to the GitHub release (the .msi and portable .zip, .deb, .tar.gz and two .dmg, and
+# one SHA256SUMS.txt over them); the GPL v2 source is the tag's source archive
+# GitHub adds to the release.
 on:
   push:
     tags: ['v*']
@@ -20,22 +22,6 @@ env:
   XPP_VERSION: ${{ inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
 
 jobs:
-  source:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-      - name: "Source archive (GPL v2: the binaries' exact source)"
-        run: |
-          name="xppautX-${XPP_VERSION:-$(git describe --tags --always)}-source"
-          git archive --format=tar.gz --prefix="$name/" -o "$name.tar.gz" HEAD
-          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: source
-          path: xppautX-*-source.tar.gz*
-
   linux:
     # the runner CI builds on: the binary needs Ubuntu 26.04's glibc or
     # newer (the .deb's libc6 dependency says which); an older system
@@ -83,8 +69,8 @@ jobs:
         with:
           name: linux-x64
           path: |
-            xppautX-*-*.tar.gz*
-            xppautX-*-*.deb*
+            xppautX-*-*.tar.gz
+            xppautX-*-*.deb
       # the .deb installs (dependencies resolved) and its program starts
       - name: Install the .deb
         run: |
@@ -118,16 +104,23 @@ jobs:
           python tools/servercheck.py --server ./xppautX.exe
           python tools/webcheck.py --bin ./xppautX.exe
           tools/examples_check.sh --bin xppautX.exe --platform windows
-      # package_release.sh strips the archived binary; this build itself
-      # is untouched
+      # WiX v5 builds the .msi (packaging/windows/xppautX.wxs); the version
+      # is pinned so a release does not change with the tool
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          "WIX=$env:USERPROFILE\.dotnet\tools\wix.exe" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      # package_release.sh strips the packed binary; this build itself is
+      # untouched
       - name: Package
         run: tools/package_release.sh windows-x64
       - uses: actions/upload-artifact@v7
         with:
           name: windows-x64
           path: |
-            xppautX-*.zip*
-            xppautX-*.exe*
+            xppautX-*-windows-x64.msi
+            xppautX-*-windows-x64.zip
 
   macos:
     # the window (WKWebView) is on by default since W13d (CI builds
@@ -174,12 +167,10 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.arch }}
-          path: |
-            xppautX-*-*.tar.gz*
-            xppautX-*-*.dmg*
+          path: xppautX-*-*.dmg
 
   publish:
-    needs: [source, linux, windows, macos]
+    needs: [linux, windows, macos]
     runs-on: ubuntu-26.04
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -205,12 +196,21 @@ jobs:
               sys.exit("CHANGELOG.md has no section for " + version)
           print(m.group(1).strip())
           print()
-          print("GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these binaries is the attached `*-source.tar.gz`.")
+          print("GPL v2, as upstream XPPAUT (Bard Ermentrout). The source of these binaries is the source archive of this tag, on this release page.")
           PY
+      # one checksum file over the final files, names only (sha256sum -c works
+      # in the folder the files are downloaded to)
+      - name: SHA256SUMS.txt
+        run: |
+          mkdir release
+          cp dist/*/* release/
+          ( cd release && sha256sum * > ../SHA256SUMS.txt )
+          mv SHA256SUMS.txt release/
+          cat release/SHA256SUMS.txt
       - name: Attach everything to the release
         uses: softprops/action-gh-release@v3
         with:
-          files: dist/*/*
+          files: release/*
           body_path: notes.md
           # a tag with a pre-release part (v0.1.0-beta.1) is published as a pre-release
           prerelease: ${{ contains(env.XPP_VERSION, '-') }}

@@ -44,4 +44,16 @@ if [ -n "$ps" ]; then
   check "windows: -WhatIf would register .snapx" sh -c 'printf "%s" "$1" | grep -q "Classes.\.snapx.(Default) = xppautX.Model"' _ "$out"
   check "windows: -WhatIf would register .recx" sh -c 'printf "%s" "$1" | grep -q "Classes.\.recx.(Default) = xppautX.Model"' _ "$out"
 fi
+
+# The MSI's registrations (W221, packaging/windows/xppautX.wxs, HKLM through
+# its ProgId table) are the per-user script's, so they must not drift: the
+# same ProgId and the same extensions, the open verb running the program with "%1".
+wxs=packaging/windows/xppautX.wxs
+ps1=tools/associate/xppautx-associate.ps1
+ps_progid=$(sed -n "s/^.ProgId = '\(.*\)'.*/\1/p" "$ps1")
+ps_exts=$(sed -n "s/^.Extensions = @(\(.*\)).*/\1/p" "$ps1" | tr -d "' " | tr ',' '\n' | sed 's/^\.//' | sort | tr '\n' ' ')
+wxs_exts=$(sed -n 's/.*<Extension Id="\([a-z]*\)">.*/\1/p' "$wxs" | sort | tr '\n' ' ')
+check "windows MSI: the ProgId is the script's ($ps_progid)" grep -q "<ProgId Id=\"$ps_progid\"" "$wxs"
+check "windows MSI: the extensions are the script's ($ps_exts)" test -n "$ps_exts" -a "$ps_exts" = "$wxs_exts"
+check "windows MSI: every extension has the open verb with \"%1\"" test "$(grep -c '<Verb Id="open" .*Argument="&quot;%1&quot;"' "$wxs")" = "$(printf '%s' "$ps_exts" | wc -w)"
 if [ $fail -ne 0 ]; then echo "associatecheck FAILED"; exit 1; fi
