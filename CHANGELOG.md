@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+## [0.1.0-beta.1] - 2026-10-07
+
 ### Added
 
 - Keyboard shortcuts editor (the command Keyboard shortcuts… in the command list's Tools group and its search, and Help > Keyboard shortcuts): every command with its category, keys and source (default, changed, user); search by name, description, id or the keys pressed; click a key and press the combination (Esc cancels, Backspace clears); a key another command has asks "Replace / Cancel"; the keys the system keeps are refused with a message; add a second key, reset one command or all, choose the preset Default or XPPAUT sequences. Fully keyboard reachable and announced to a screen reader. Pinned quick-access toolbar under the run buttons: pin a command from the command list or the editor, drag to reorder, Unpin / Move from its context menu, a More menu for what does not fit. Everything is saved in `keymap.json` through the one `keymap` command, and the page's keyboard layer now runs your keys (the core's reserved list, not a copy). New commands with keys: Run from initial (Ctrl+Enter), Run from last state (Ctrl+Shift+Enter), Run to steady state (Alt+S); the button "Run from current" is now "Run from last state" (W212, [#266](https://github.com/MuhammadMoustafa/xppautX/issues/266)).

@@ -212,3 +212,5 @@ jobs:
         with:
           files: dist/*/*
           body_path: notes.md
+          # a tag with a pre-release part (v0.1.0-beta.1) is published as a pre-release
+          prerelease: ${{ contains(env.XPP_VERSION, '-') }}
