@@ -33,6 +33,9 @@ export interface ChartInfo {
   curves: {label: string; points: number; visible: boolean; color: string}[];
   x: Range;
   y: Range;
+  /** the axis titles the chart was built with */
+  xLabel: string;
+  yLabel: string;
   width: number;
   height: number;
   /** how many draws there were (draw times are measured from outside, through CDP: W58) */
@@ -136,6 +139,7 @@ export class Chart {
   set(model: PlotModel, view: Ranges | null, viewport: Viewport, dark: boolean): void {
     const rebuild = !this.u || !this.model || this.model.mode !== model.mode
       || this.model.curves.length !== model.curves.length || this.dark !== dark
+      || this.model.xLabel !== model.xLabel || this.model.yLabel !== model.yLabel
       || this.model.curves.some((c, i) => c.color !== model.curves[i].color || c.line !== model.curves[i].line
         || c.label !== model.curves[i].label || c.cssColor !== model.curves[i].cssColor);
     this.visible = model.curves.map(c => c.visible !== false);
@@ -677,6 +681,8 @@ export class Chart {
       curves: m.curves.map((c, i) => ({label: c.label, points: c.xs.length, visible: this.visible[i],
         color: c.cssColor ?? curveColor(c.color, this.dark)})),
       ...this.ranges(),
+      xLabel: m.xLabel,
+      yLabel: m.yLabel,
       width: u.over.clientWidth,
       height: u.over.clientHeight,
       draws: this.draws,

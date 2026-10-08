@@ -245,7 +245,6 @@ export interface PlotWindowInfo {
   three: number;
   /** the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's */
   xlo: number; xhi: number; ylo: number; yhi: number;
-  xlabel: string; ylabel: string; zlabel: string;
   /** the 3D box: the data ranges of x, y and z */
   box: {xmin: number; xmax: number; ymin: number; ymax: number; zmin: number; zmax: number};
   /** the 3D view's angles, degrees */

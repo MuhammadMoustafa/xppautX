@@ -90,6 +90,10 @@ export function projectedBox(
   ));
 }
 
+/** the edges the x, y and z titles sit by (`BOX_CORNERS` indices): the
+    origin corner's three edges */
+export const BOX_AXIS_EDGES = {x: [0, 4], y: [0, 2], z: [0, 1]} as const;
+
 /** the wireframe's 12 edges, as pairs of `BOX_CORNERS` indices (every pair
     one bit apart: a cube's edges) */
 export const BOX_EDGES: [number, number][] = (() => {

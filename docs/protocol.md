@@ -912,7 +912,7 @@ model's start in every mode, before the script.
 | `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
 | `erase` | `win` | The Erase command blanked plot window `win`, for a client that asked for `series`: it shows nothing of that window's curves (nor the earlier runs it may keep) until the window's next series or `redraw` (the `runs` event carries the same as data). Only Erase sends it: a zoom also redraws the window, and keeps what a data client shows. See "The plot as data". |
 | `redraw` | `win` | The Redraw command drew window `win` again, for a client that asked for `series`: it shows the window's current series again (no series follows: the data did not change), and no earlier runs. |
-| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `xlabel`, `ylabel`, `zlabel`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
+| `plots` | `active`, `windows` [{`win`, `title`, `three`, `xlo`, `xhi`, `ylo`, `yhi`, `box`, `theta`, `phi`, `persp`, `zplane`, `zview`, `curves`, `shift`, `zoom`, `runs`}...] | Every plot window and the active one, for a client that asked (`data`); see "The plot as data". |
 | `nullclines` | `win`, `enc`, `xname`, `yname`, `xcolor`, `ycolor`, `x`, `y`, `frozen` [{`x`,`y`}...] | A plot window's nullclines as segments in plot coordinates, for a client that asked (`data`); see "The plot as data". |
 | `dfield` | `win`, `enc`, `scaled`, `color`, `n`, `du`, `dv`, `grid`, `speed`, `flows` [{`color`,`x`,`y`}...] | A plot window's direction field and Flow trajectories, for a client that asked (`data`); see "The plot as data". |
 | `marks` | `win`, `enc`, `equilibria`, `text`, `arrows`, `markers`, `frozen` | A plot window's equilibria, text, arrows, markers and frozen curves, for a client that asked (`data`); see "The plot as data". |
@@ -1274,7 +1274,7 @@ keeps the event whose `win` is the active one (`plots.active` or
 | `win` | the plot window (1..10), as in `window` and `plots` |
 | `rows` | stored rows: every column has this many values (0 before an integration) |
 | `three` | 1 when the window is a 3D plot (then `z` matters) |
-| `xlabel`, `ylabel`, `zlabel` | the window's axis labels; empty means "the plotted column's name" |
+| `xlabel`, `ylabel`, `zlabel` | the window's axis labels (Viewaxes), the only place they are sent; a change of a label alone sends the series again; empty means "the plotted column's name" |
 | `curves` | the window's curves (`MyGraph->nvars` of them): `x`, `y`, `z` are storage columns (0 is T, `i` is `cols[i]` of `browser`), `color` the XPP colour index (0 foreground, 1..10 red .. purple), `line` > 0 a line, <= 0 points of radius `-line` |
 | `shift` | row shifts of the x, y and z columns (a lag plot): point `i` pairs x row `i - shift[0]` with y row `i - shift[1]`, from row `max(shift)` on |
 | `columns` | T and each column a curve uses, once each: `col`, its `name`, and `data`, one value per row (`null` for NaN) |
@@ -1297,13 +1297,12 @@ sets them to where the last run ended) show while it runs; `state.now` is
 where the last run ended, or stopped.
 
 **`plots`**: the plot windows as a list, sent when anything in it changed
-(a window made or destroyed, the active one, a window's axes, curves,
-labels or 3D view); its text is compared with the last one sent.
+(a window made or destroyed, the active one, a window's axes, curves
+or 3D view); its text is compared with the last one sent.
 
 ```
 {"ev":"plots","active":2,"windows":[
  {"win":1,"title":"W vs V","three":0,"xlo":-0.6,"xhi":1.2,"ylo":-0.25,"yhi":1.2,
-  "xlabel":"","ylabel":"","zlabel":"",
   "box":{"xmin":-0.6,"xmax":1.2,"ymin":-0.25,"ymax":1.2,"zmin":-12,"zmax":12},
   "theta":45,"phi":45,"persp":0,"zplane":-1000,"zview":1000,
   "curves":[{"x":1,"y":2,"z":1,"color":0,"line":1}],"shift":[0,0,0]},
@@ -1317,7 +1316,6 @@ labels or 3D view); its text is compared with the last one sent.
 | `title` | what the window plots, `y vs x` (`z vs y vs x` in 3D), as its X11 title |
 | `three` | 1 for a 3D plot |
 | `xlo`, `xhi`, `ylo`, `yhi` | the window's axes (Viewaxes, Window/Zoom); in 3D the projected view's |
-| `xlabel`, `ylabel`, `zlabel` | the axis labels; empty means "the plotted column's name" |
 | `box` | the 3D box (3d-params, Viewaxes in 3D): the data ranges of x, y and z |
 | `theta`, `phi` | the 3D view's angles in degrees (3d-params, `3`) |
 | `persp`, `zplane`, `zview` | perspective on (1) or off, and its planes |

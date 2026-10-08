@@ -90,7 +90,7 @@ export function Plot3DView({win, dark, shown, tabbed}: Props) {
     [sources, info, view3d],
   );
   const traceKeys = rawModels.flatMap((m, run) => m.curves.map((_, i) => `${keys[run]}:${i}`));
-  const model = useMemo(() => rawModels.length ? ({box:rawModels[0].box,
+  const model = useMemo(() => rawModels.length ? ({box:rawModels[0].box, labels:rawModels[0].labels,
     curves:rawModels.flatMap((m, run) => m.curves.map((c, i) => {
       const key = `${keys[run]}:${i}`, a = appearance[key];
       return {...c, label:a?.label ?? `${c.label}${run ? ` · ${keys[run]}` : ''}`,

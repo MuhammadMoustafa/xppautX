@@ -1550,6 +1550,26 @@ async function threePlot() {
     await until('!s.busy', 'fit settled')
       && (await cdp.eval(`__xpp.sentFrom(${sentBeforeFit}).some(c => c.cmd === 'key' && (c.key === 'w' || c.key === 'f'))`)),
     JSON.stringify(await cdp.eval(`__xpp.sentFrom(${sentBeforeFit})`)));
+
+  /* W223: the 3D View form's Xlabel/Ylabel/Zlabel are the plot's axis titles, and clearing them goes back to the column names */
+  const setLabels3 = async (xl, yl, zl) => {
+    await focusPlot();
+    await menuKeys('v', '3');
+    await until("s.ask && s.ask.kind === 'form'", '3D label form');
+    const values = await S('s.ask.values');
+    [values[13], values[14], values[15]] = [xl, yl, zl];
+    const id = await S('s.ask.id');
+    await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
+    await until('!s.busy && !s.ask', '3D labels set');
+  };
+  await setLabels3('east', 'north', 'up');
+  check('W223: Xlabel/Ylabel/Zlabel of the 3D View form are the axis titles of the 3D plot',
+    await until(`(() => { const p = __xpp.plot(); return !!p && p.labels && p.labels.x === 'east' && p.labels.y === 'north' && p.labels.z === 'up'; })()`, '3D labels shown'),
+    JSON.stringify(await cdp.eval('__xpp.plot()')));
+  await setLabels3('', '', '');
+  check('W223: clearing them goes back to the column names',
+    await until(`(() => { const p = __xpp.plot(); return !!p && p.labels && p.labels.x.toLowerCase() === 'x' && p.labels.y.toLowerCase() === 'y' && p.labels.z.toLowerCase() === 'z'; })()`, '3D labels cleared'),
+    JSON.stringify(await cdp.eval('__xpp.plot()')));
 }
 
 async function touch(type, points) {
@@ -1778,6 +1798,28 @@ async function prompts() {
   await until("s.ask && s.ask.kind === 'form' && document.querySelector('[role=dialog] select')", 'form');
   await pickX('V');
   check('and V again: W against V', await until('!s.busy && w.series.curves[0].x === 1 && w.series.curves[0].y === 2', 'W vs V'));
+
+  /* W223: Xlabel/Ylabel of the form reach the plot at once (the series carries them, the chart rebuilds
+     its axis titles), and an empty label goes back to the column name */
+  const setLabels = async (xl, yl) => {
+    await focusPlot();
+    await menuKeys('v', '2');
+    await until("s.ask && s.ask.kind === 'form'", 'label form');
+    const values = await S('s.ask.values');
+    values[6] = xl;
+    values[7] = yl;
+    const id = await S('s.ask.id');
+    await cdp.eval(`__xpp.send({cmd: 'answer', id: ${id}, values: ${JSON.stringify(values)}})`);
+    await until('!s.busy && !s.ask', 'labels set');
+  };
+  await setLabels('time axis', 'vertical axis');
+  check("W223: Xlabel/Ylabel typed in the 2D View form are the plot model's labels",
+    await until(`(() => { const p = __xpp.plot(); return !!p && p.xLabel === 'time axis' && p.yLabel === 'vertical axis'; })()`, 'labels shown'),
+    JSON.stringify(await cdp.eval('__xpp.plot()')));
+  await setLabels('', '');
+  check('W223: clearing them goes back to the column names',
+    await until(`(() => { const p = __xpp.plot(); return !!p && p.xLabel === 'V' && p.yLabel === 'W'; })()`, 'labels cleared'),
+    JSON.stringify(await cdp.eval('__xpp.plot()')));
 
   /* T35d/T31: the form's fields take what the core says they take (the ask's kinds): a keystroke
      a number field never takes (a letter) is refused outright and never lands (T35d); one left

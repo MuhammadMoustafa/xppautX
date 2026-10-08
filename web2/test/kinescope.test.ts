@@ -20,7 +20,7 @@ const series = (win: number, v0: number): SeriesEvent => ({
 });
 
 const info = (win: number): PlotWindowInfo => ({
-  win, title: 'V vs T', three: 0, xlo: 0, xhi: 1, ylo: -1, yhi: 1, xlabel: '', ylabel: '', zlabel: '',
+  win, title: 'V vs T', three: 0, xlo: 0, xhi: 1, ylo: -1, yhi: 1,
   box: {xmin: 0, xmax: 1, ymin: -1, ymax: 1, zmin: -1, zmax: 1}, theta: 45, phi: 45, persp: 0, zplane: -1000,
   zview: 1000, curves: [{x: 0, y: 1, z: 0, color: 0, line: 1}], shift: [0, 0, 0],
 });

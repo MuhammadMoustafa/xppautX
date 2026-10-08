@@ -18,7 +18,7 @@ const series = (win: number, x: number, y: number): SeriesEvent => ({
 });
 
 const info = (win: number, title: string): PlotWindowInfo => ({
-  win, title, three: 0, xlo: -1, xhi: 1, ylo: -2, yhi: 2, xlabel: '', ylabel: '', zlabel: '',
+  win, title, three: 0, xlo: -1, xhi: 1, ylo: -2, yhi: 2,
   box: {xmin: -1, xmax: 1, ymin: -2, ymax: 2, zmin: -1, zmax: 1}, theta: 45, phi: 45, persp: 0, zplane: -1000,
   zview: 1000, curves: [{x: 1, y: 2, z: 1, color: 0, line: 1}], shift: [0, 0, 0],
 });

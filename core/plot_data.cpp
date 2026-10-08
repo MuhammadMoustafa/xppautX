@@ -37,6 +37,7 @@ namespace {
 struct SeriesSig : xpp::PlotCurves {
     unsigned long win, version;
     int rows;
+    std::string xlabel, ylabel, zlabel; /* a label change alone sends the series again */
     bool operator==(const SeriesSig &) const = default;
 };
 
@@ -112,6 +113,9 @@ SeriesSig series_sig(const xpp::Session &s, int pop)
     sig.version = client.data_version;
     sig.rows = s.browser.view.maxrow;
     sig.PlotCurves::operator=(curves_of(g));
+    sig.xlabel = g.xlabel;
+    sig.ylabel = g.ylabel;
+    sig.zlabel = g.zlabel;
     return sig;
 }
 
@@ -359,7 +363,6 @@ void runs_forget(xpp::Session &s, int pop) { disp(s, pop) = xpp::PlotDisplay(); 
 /* window pop's whole series: rows 0..rows of the columns its curves use */
 void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
 {
-    const GRAPH &g = s.plot_windows.graph[pop];
     const std::vector<int> cols = used_columns(sig, s.browser.view.maxcol);
     runs_on_full(s, pop, sig, cols, rows, !client.sent[pop].valid);
     std::string o = "{\"ev\":\"series\",\"win\":";
@@ -372,11 +375,11 @@ void send_series(xpp::Session &s, int pop, const SeriesSig &sig, int rows)
     add_int(o, sig.three);
     if (client.series_f32) o += ",\"enc\":\"f32\"";
     o += ",\"xlabel\":";
-    xpp::json_append_string(o, g.xlabel);
+    xpp::json_append_string(o, sig.xlabel);
     o += ",\"ylabel\":";
-    xpp::json_append_string(o, g.ylabel);
+    xpp::json_append_string(o, sig.ylabel);
     o += ",\"zlabel\":";
-    xpp::json_append_string(o, g.zlabel);
+    xpp::json_append_string(o, sig.zlabel);
     o += ',';
     add_curves(o, sig);
     o += ",\"columns\":[";
@@ -552,12 +555,6 @@ std::string plots_event(xpp::Session &s)
         xpp::json::json_append_field(o, "xhi", g.xhi);
         xpp::json::json_append_field(o, "ylo", g.ylo);
         xpp::json::json_append_field(o, "yhi", g.yhi);
-        o += ",\"xlabel\":";
-        xpp::json_append_string(o, g.xlabel);
-        o += ",\"ylabel\":";
-        xpp::json_append_string(o, g.ylabel);
-        o += ",\"zlabel\":";
-        xpp::json_append_string(o, g.zlabel);
         o += ",\"box\":{\"xmin\":";
         xpp::json::json_append_number_shortest(o, g.xmin);
         xpp::json::json_append_field(o, "xmax", g.xmax);

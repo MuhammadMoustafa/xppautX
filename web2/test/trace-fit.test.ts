@@ -14,7 +14,7 @@ test('Fit includes visible historical trajectories and ignores hidden and nonfin
 });
 
 test('3D hover uses the rendered projection and skips hidden traces and clipped points', () => {
-  const model = {box:[{x:-1,y:-1},{x:1,y:1}], curves:[
+  const model = {box:[{x:-1,y:-1},{x:1,y:1}], labels:{x:'x',y:'y',z:'z'}, curves:[
     {label:'hidden', color:0, line:true, radius:0, row0:0, points:[{x:0,y:0}], visible:false},
     {label:'visible', color:1, line:true, radius:0, row0:0, points:[null,{x:.5,y:.5}]}]};
   assert.equal(nearest3d(model, 200, 200, 138, 62), 1);

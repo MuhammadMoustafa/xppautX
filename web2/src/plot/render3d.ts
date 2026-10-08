@@ -6,7 +6,7 @@
    window at once, so the last drawing (for tests, __xpp.plot(),
    testhook.ts) is returned rather than kept in a module global; chart3d.ts
    keeps it per window. */
-import {BOX_EDGES} from './project3d';
+import {BOX_AXIS_EDGES, BOX_EDGES} from './project3d';
 import type {Point2} from './project3d';
 import {curveColor} from './colors';
 import type {Model3D} from './model3d';
@@ -20,8 +20,14 @@ export interface Draw3DInfo {
   curves: {label: string; points: number}[];
   /** the box's own corners on the canvas, for a test to check the frame moved */
   box: ({x: number; y: number} | null)[];
+  /** the axis titles drawn at the box's x, y and z edges */
+  labels: {x: string; y: string; z: string};
   at: number;
 }
+
+/** the axis titles' font, and how far they stand off the box edge in pixels */
+const AXIS_TITLE_FONT = '12px sans-serif';
+const AXIS_TITLE_GAP = 14;
 
 interface Frame {
   cx: number;
@@ -71,6 +77,26 @@ export function nearest3d(model: Model3D, cw: number, ch: number, x: number, y: 
   return nearest;
 }
 
+/** each axis title beside the middle of its box edge, pushed away from the box's centre */
+function drawAxisTitles(g: CanvasRenderingContext2D, f: Frame, model: Model3D, color: string): void {
+  const corners = model.box.filter((p): p is Point2 => p !== null);
+  if (!corners.length) return;
+  const mid = {x: corners.reduce((n, p) => n + p.x, 0) / corners.length, y: corners.reduce((n, p) => n + p.y, 0) / corners.length};
+  g.fillStyle = color;
+  g.font = AXIS_TITLE_FONT;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  for (const axis of ['x', 'y', 'z'] as const) {
+    const [i, j] = BOX_AXIS_EDGES[axis];
+    const a = model.box[i], b = model.box[j];
+    if (!a || !b) continue;
+    const e = {x: (a.x + b.x) / 2, y: (a.y + b.y) / 2};
+    const dx = e.x - mid.x, dy = e.y - mid.y, len = Math.hypot(dx, dy) || 1;
+    const [px, py] = toCanvas(f, e);
+    g.fillText(model.labels[axis], px + (dx / len) * AXIS_TITLE_GAP, py - (dy / len) * AXIS_TITLE_GAP);
+  }
+}
+
 /** draws `model` (or clears the canvas without one) on `canvas`, sized to
     cw x ch CSS pixels; returns what it drew, for a test (null with no
     model). `axisColor` is the wireframe's stroke, a muted foreground. */
@@ -99,6 +125,7 @@ export function draw3d(
     g.lineTo(x2, y2);
   }
   g.stroke();
+  drawAxisTitles(g, f, model, axisColor);
   g.lineCap = 'round';
   g.lineJoin = 'round';
   for (const c of model.curves) {
@@ -134,6 +161,7 @@ export function draw3d(
     width: cw, height: ch, theta, phi,
     curves: model.curves.map(c => ({label: c.label, points: c.visible === false ? 0 : c.points.filter(p => p).length})),
     box: model.box.map(p => (p ? {x: toCanvas(f, p)[0], y: toCanvas(f, p)[1]} : null)),
+    labels: model.labels,
     at: performance.now(),
   };
 }

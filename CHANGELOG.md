@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Fixed: the Xlabel/Ylabel (and Zlabel in 3D) of the Viewaxes form now show on the plot at once, and clearing one goes back to the column name; a 3D plot titles its axes.
+
 ## [0.1.0-beta.1] - 2026-10-08
 
 First public beta of xppautX, a modernised XPPAUT 8.0: the same equations, solvers and AUTO, with a new interface.
