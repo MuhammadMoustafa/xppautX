@@ -19,6 +19,7 @@ import {Field} from './Field';
 import {FileAsk} from './FileDialog';
 import {nativeFileDialog} from '../pickers';
 import {HelpButton} from './HelpButton';
+import {TextForm} from './TextDialog';
 import {MENU_ONE_COLUMN, menuRows} from './menuLayout';
 import {useSession, useStore} from './context';
 import {FOCUSABLE, useDialogFocus} from './dialogFocus';
@@ -181,6 +182,14 @@ function ChecklistAsk({ask}: {ask: AskEvent}) {
       </div>
     </form>
   );
+}
+
+/* Text,etc/Text: the text, size, style and colour of the text just placed */
+function TextAsk({ask}: {ask: AskEvent}) {
+  const session = useSession();
+  return <TextForm initial={{text: ask.value ?? '', size: Number(ask.size), style: Number(ask.style), color: Number(ask.color)}}
+    position={null} submit={(ask.ok as string) || 'OK'}
+    onSubmit={v => session.answer(ask, {ok: 1, value: v.text, size: v.size, style: v.style, color: v.color})} />;
 }
 
 /* what an ask this interface does not offer yet wants, in words (A13) */
@@ -346,6 +355,7 @@ export function AskDialog() {
     : ask.kind === 'string' || ask.kind === 'form' ? <FormAsk ask={ask} />
       : ask.kind === 'checklist' ? <ChecklistAsk ask={ask} />
         : ask.kind === 'file' ? <FileAsk ask={ask} />
-          : <PendingAsk ask={ask} />;
+          : ask.kind === 'text' ? <TextAsk ask={ask} />
+            : <PendingAsk ask={ask} />;
   return <Modal key={ask.id} ask={ask}>{body}</Modal>;
 }

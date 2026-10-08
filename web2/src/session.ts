@@ -14,6 +14,7 @@ import type {Transport} from './protocol/transport';
 import {commandRow, kindOf, mainKey, mayStart, menuCommand, noValueEdit, menuKey, menuName, windowCommand, type LayerWindow} from './protocol/kinds';
 import {PROTOCOL, type AskEvent, type Command, type FilmEvent, type MenuName, type UserKeymap, type XppEvent} from './protocol/types';
 import type {AplotHover} from './store/aplot';
+import type {TextPosition, TextValues} from './store/marks';
 import {activeView, autoWindow} from './store/diagram';
 import {
   answerName, keepBothName, menuKeys, safeName, uploadPlan, type ReplaceChoice, type RunAnswer, type Upload,
@@ -659,6 +660,16 @@ export class Session {
   }
 
   /** window `win`'s zoom changed (a wheel, a drag, a typed range, Reset view) */
+  /** a text of plot window `win` changed in its dialog: everything it takes, and where it is */
+  changeText(win: number, id: number, v: TextValues, at: TextPosition): void {
+    this.send({cmd: 'text', op: 'edit', win, id, text: v.text, size: v.size, style: v.style, color: v.color, x: at.x, y: at.y});
+  }
+
+  /** the text with this id of plot window `win` deleted */
+  deleteText(win: number, id: number): void {
+    this.send({cmd: 'text', op: 'delete', win, id});
+  }
+
   setViewport(win: number, viewport: Viewport): void {
     this.store.dispatch({type: 'viewport', viewport, win});
     this.display(win, rangesOf(viewport));

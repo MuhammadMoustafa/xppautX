@@ -421,14 +421,14 @@ The option allows you to create and destroy graphics windows. There are several 
 ### (T)ext, etc
 
 allows you to write text to the display in a variety of sizes and in two different fonts. You can also add other symbols to your graph.
-- **Text**: This prompts you for the text you want to add. Then you are asked for the size; there are five choices (0-5): 0-8pt, 1-12pt, 2-14pt, 3-18pt, 4-24pt. Text also has several escape sequences:
+- **Text**: In xppautX you first click where the text goes, then one dialog asks for the text, its size, its style (normal, bold, italic, bold italic) and its colour. Double-click a text on the plot to open the same dialog again: change any of it, move it by its X and Y, or Delete it. Style and colour are drawn by the page; the PostScript and SVG output draw the text as XPPAUT's did. A session file saves the texts with their size, style and colour. There are five sizes (0-4): 0-8pt, 1-12pt, 2-14pt, 3-18pt, 4-24pt. Text also has several escape sequences:
   - $`\backslash`$<!-- -->1 – switches to Greek font
   - $`\backslash`$<!-- -->0 – switches to Roman font
   - $`\backslash`$s – subscript
   - $`\backslash`$S – superscript
   - $`\backslash`$n – neither sub nor superscript
   - $`\backslash`${expr} – evaluate the expression in the braces before rendering.
-- Note that not all X-servers will have these fonts, but the postscript file will still draw them. Finally, place the text with the mouse.
+- Note that not all X-servers will have these fonts, but the postscript file will still draw them.
 - **Arrow**: This lets you draw an arrow-head to indicate a direction on a trajectory. You will be prompted for the size, which should be some positive number, usually less than 1. Then you must move the the mouse and select a direction and starting point. Click on the starting point and holding the mouse button down, drag the mouse to indicate the direction of the arrow-head. Then release the mouse-button and the arrow will be drawn.
 - **Pointer**: This is like an arrow, but draws the stem as well as the arrow head. It can be used to point to important features of your graph. The prompts are like those for `Arrow.`
 - **Marker**: This lets you draw little markers, such as triangles, squares, etc on the picture. When prompted to position the marker with the mouse, you can over-ride the mouse and manually type in coordinates if you hit the (Tab) key.

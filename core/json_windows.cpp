@@ -193,19 +193,19 @@ void j_kill_plot_windows(xpp::Session &s)
 
 void j_cput_text(xpp::Session &s)
 {
-    std::string string;
-    int x, y, size = 2;
-    if (new_string("Text: ", string) == 0) return;
-    if (string[0] == '%') string = fill_in_text(s, std::string_view(string).substr(1));
-    new_int("Size 0-4 :", &size);
-    if (size > 4) size = 4;
-    if (size < 0) size = 0;
+    int x, y;
     j_message_box("Place text with mouse");
-    if (j_get_mouse_xy(s, &x, &y)) {
-        const std::string text = fill_in_text(s, string);
-        marks_data_label(s, s.plot_windows.draw_win, add_label(s, string, x, y, size, 0), text);
-    }
+    const bool placed = j_get_mouse_xy(s, &x, &y);
     j_kill_message_box();
+    xpp::LabelLook look;
+    if (!placed || !j_text_dialog(look)) return;
+    if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
+        j_command_error("text", problem);
+        return;
+    }
+    float xd, yd;
+    scale_to_real(s, x, y, &xd, &yd);
+    if (add_label(s, look, s.plot_windows.draw_win, xd, yd) < 0) j_command_error("text", xpp::format("a plot has at most {} texts", MAXLAB));
 }
 
 void j_draw_freeze(xpp::Session &s)
@@ -218,6 +218,63 @@ void click_command(xpp::Session &s, const char *line)
 {
     int win = get_int(line, "win", 1) - 1;
     if (win >= 0 && win < MAXPOP && s.plot_windows.graph[win].Use && s.plot_windows.active != win) select_graph(s, win);
+}
+
+/* {"cmd":"text","op":"add"|"edit"|"delete","win":w,...}: the text labels of
+   plot window w, which the page's text dialog drives (docs/protocol.md) */
+void text_command(xpp::Session &s, const char *line)
+{
+    std::string op;
+    get_string(line, "op", op);
+    const int win = get_int(line, "win", 1) - 1;
+    if (op != "add" && op != "edit" && op != "delete") {
+        j_command_error("text", "text takes op add, edit or delete");
+        return;
+    }
+    if (win < 0 || win >= MAXPOP || !s.plot_windows.graph[win].Use) {
+        j_command_error("text", "text: no such plot window");
+        return;
+    }
+    const XppWinId w = s.plot_windows.graph[win].w;
+    const bool add = op == "add";
+    int id = -1;
+    if (!add) {
+        if (!get_whole(line, "id", id) || id < 0 || id >= MAXLAB || s.labels[id].use != 1 || s.labels[id].w != w) {
+            j_command_error("text", xpp::format("text {}: window {} has no text with that id", op, win + 1));
+            return;
+        }
+        if (op == "delete") {
+            xpp::delete_label(s, id);
+            return;
+        }
+    }
+    /* edit changes what is given; add takes the defaults of a new text */
+    xpp::LabelLook look;
+    if (!add) look = {s.labels[id].s, s.labels[id].size, s.labels[id].style, s.labels[id].color};
+    double x = add ? 0 : s.labels[id].x, y = add ? 0 : s.labels[id].y;
+    const char *jx = js_find(line, "x"), *jy = js_find(line, "y");
+    if ((add && (!jx || !jy)) || (jx && !js_number(jx, &x)) || (jy && !js_number(jy, &y)) || !std::isfinite(x) || !std::isfinite(y)) {
+        j_command_error("text", "text: x and y are the position in the plot's coordinates");
+        return;
+    }
+    if (const char *jt = js_find(line, "text"); (jt && !js_string(jt, look.text)) || (add && !jt)) {
+        j_command_error("text", "text: text is a string");
+        return;
+    }
+    if (!get_whole(line, "size", look.size) || !get_whole(line, "style", look.style) || !get_whole(line, "color", look.color)) {
+        j_command_error("text", "text: size, style and color are whole numbers");
+        return;
+    }
+    if (const std::string problem = xpp::label_problem(look); !problem.empty()) {
+        j_command_error("text", "text: " + problem);
+        return;
+    }
+    const float xd = static_cast<float>(x), yd = static_cast<float>(y);
+    if (!add) {
+        xpp::change_label(s, id, std::move(look), jx || jy, xd, yd);
+        return;
+    }
+    if (xpp::add_label(s, std::move(look), w, xd, yd) < 0) j_command_error("text", xpp::format("text: a session has at most {} texts", MAXLAB));
 }
 
 void display_command(xpp::Session &s, const char *line)

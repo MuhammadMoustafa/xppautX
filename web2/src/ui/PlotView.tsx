@@ -22,6 +22,7 @@ import {setChart} from '../plot/registry';
 import type {Ranges} from '../plot/viewmath';
 import type {PlotWindowInfo, View} from '../protocol/types';
 import type {Session} from '../session';
+import {TextDialog} from './TextDialog';
 import {TraceDialog} from './TraceDialog';
 import type {PlotSeries} from '../store/series';
 import {HOME, windowOf} from '../store/plots';
@@ -204,6 +205,8 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
   const [, setShown] = useState(0); /* the legend's toggles live in the chart */
   const [appearance, setAppearance] = useState<Record<string, {label?: string; color?: string; visible?: boolean}>>({});
   const [editing, setEditing] = useState<{key: string; label: string; color: string} | null>(null);
+  const [textEdit, setTextEdit] = useState<number | null>(null); /* the id of the text whose dialog is open */
+  const edited = textEdit === null ? undefined : marks?.text.find(t => t.id === textEdit);
   const [trace, setTrace] = useState<{run: number; curve: number; index: number} | null>(null);
   const runKeys = useRef(new WeakMap<PlotSeries, string>());
   const nextRun = useRef(0);
@@ -232,6 +235,7 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
     const c = new Chart(host.current!, {
       onViewport: v => session.setViewport(win, v),
       onTrace: hit => setTrace(hit),
+      onText: id => setTextEdit(id),
     });
     let detach = () => {};
     c.onArea = area => {
@@ -441,6 +445,10 @@ export function PlotView({win, dark, shown, tabbed}: Props) {
           </div>
         )}
       </div>
+      {edited && <TextDialog initial={{text: edited.source, size: edited.size, style: edited.style, color: edited.color}}
+        position={{x: edited.x, y: edited.y}} close={() => setTextEdit(null)}
+        apply={(v, at) => { session.changeText(win, edited.id, v, at); setTextEdit(null); }}
+        remove={() => { session.deleteText(win, edited.id); setTextEdit(null); }} />}
       {editing && <TraceDialog label={editing.label} color={editing.color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [editing.key]: {...a[editing.key], label, color}})); setEditing(null); }} />}
       <footer class="readout" role="status" aria-live="polite">

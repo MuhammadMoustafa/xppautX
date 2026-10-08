@@ -48,6 +48,8 @@ export interface HelloEvent {
   upload_error: string;
   player_speed: {min: number; max: number};
   limits: {upload: number; browser_rows: number; browser_cols: number};
+  /** what a plot text takes (core/grobs.h LABEL_*): its most characters, largest size, number of styles, last colour, the size a new text starts at */
+  text: {max_length: number; size_max: number; style_count: number; color_max: number; default_size: number};
   /** the windows' numbers in `window` events: plot windows are 1 to `plots` */
   window_ids: {plots: number; auto: number; ani: number; aplot: number};
   lists: string[][];
@@ -355,8 +357,9 @@ export interface MarksEvent {
   /** the symbol XPP draws for the stability: stable circle, unstable box, saddle triangle */
   equilibria: {x: number; y: number; type: 'stable' | 'unstable' | 'saddle'; symbol: string}[];
   /** XPP's text: backslash escapes switch the font (\1 symbol: Greek, \0 roman), \s \S \n
-      subscript, superscript, normal; size 0-4 */
-  text: {x: number; y: number; text: string; size: number; font: number}[];
+      subscript, superscript, normal; size 0-4; `source` is the text as written (its \{expr}s unfilled); `id` names the text for the `text` command; style 0 normal, 1 bold,
+      2 italic, 3 bold italic; color a curve colour's index */
+  text: {id: number; x: number; y: number; text: string; source: string; size: number; font: number; style: number; color: number}[];
   /** from (x1, y1), where the head's tip is, towards (x2, y2); a pointer has a shaft, an arrow only the head */
   arrows: {kind: 'arrow' | 'pointer'; x1: number; y1: number; x2: number; y2: number; size: number; color: number}[];
   markers: {x: number; y: number; shape: 'box' | 'diamond' | 'triangle' | 'plus' | 'cross' | 'circle'; size: number; color: number}[];
@@ -368,7 +371,7 @@ export interface AskEvent {
   ev: 'ask';
   id: number;
   kind: 'menu' | 'choice' | 'string' | 'form' | 'checklist' | 'file' | 'alert' | 'mouse' | 'rubber' | 'grab'
-    | 'drag' | 'pixels';
+    | 'drag' | 'pixels' | 'text';
   title?: string;
   name?: string;
   value?: string;

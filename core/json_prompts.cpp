@@ -222,6 +222,23 @@ int j_dialog(std::string_view title, std::string_view name, std::string &value, 
     return 1;
 }
 
+int j_text_dialog(xpp::LabelLook &look)
+{
+    Buf b;
+    const int id = ask_begin(&b, "text");
+    BUF_LIT(&b, ",\"title\":\"Text\",\"value\":");
+    buf_str(&b, look.text);
+    buf_format(&b, ",\"size\":{:d},\"style\":{:d},\"color\":{:d}", look.size, look.style, look.color);
+    if (!ask_wait(&b, id)) return 0;
+    get_string(answer.c_str(), "value", look.text);
+    if (!get_whole(answer.c_str(), "size", look.size) || !get_whole(answer.c_str(), "style", look.style) ||
+        !get_whole(answer.c_str(), "color", look.color)) {
+        j_command_error("text", "the size, style and colour of a text are whole numbers");
+        return 0;
+    }
+    return 1;
+}
+
 int j_new_string(std::string_view name, std::string &value, int kind)
 {
     return j_dialog("", name, value, "Ok", "Cancel", kind);

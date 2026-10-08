@@ -1347,3 +1347,10 @@ html.player-docked .ani-panel, html.player-docked .aplot-panel { top: var(--play
 .keymap-actions { white-space: nowrap; }
 .keymap-actions button, .keymap-keys button { font-size: var(--text-xs); }
 .keymap-actions button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+
+/* Text,etc/Text's colour choice (ui/TextDialog.tsx): the curves' colours as a row of swatches */
+.text-colors { display: grid; grid-template-columns: minmax(6rem, auto) minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+.text-color-row { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.text-color { width: 1.5rem; height: 1.5rem; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.text-color.chosen { border-color: var(--fg); outline: 2px solid var(--surface); outline-offset: -4px; }
+@media (max-width: 40rem) { .text-colors { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }

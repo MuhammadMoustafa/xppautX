@@ -40,6 +40,7 @@ typedef struct {
 		std::string s;
 		short use;
 		int font,size;
+		int style,color; /* grobs.h: LABEL_STYLE_COUNT, LAST_PLOT_COLOR */
 		} LABEL;
 
 typedef struct {

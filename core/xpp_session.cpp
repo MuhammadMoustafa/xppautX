@@ -30,6 +30,7 @@
 #include "colormap.h"
 #include "grobs.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -295,6 +296,8 @@ bool write_marks(xpp::Session &s, FILE *fp)
         xpp::write_real(fp, l.y, "y");
         xpp::write_whole(fp, l.size, "size");
         xpp::write_whole(fp, l.font, "font");
+        xpp::write_whole(fp, l.style, "style");
+        xpp::write_whole(fp, l.color, "color");
         xpp::write_text(fp, l.s);
     }
     n = 0;
@@ -362,9 +365,9 @@ std::vector<float> points_of(const xpp::DataTable &t, const std::string &name, i
 
 /* marks.set read: each mark with the saved window it is in */
 struct SavedLabel {
-    int window = 0, size = 0, font = 0;
+    int window = 0, font = 0;
     double x = 0, y = 0;
-    std::string text;
+    xpp::LabelLook look{"", 0, 0, 0};
 };
 struct SavedGrob {
     int window = 0, type = 0, color = 0;
@@ -418,10 +421,18 @@ MarksRead read_marks(xpp::Lines &l, const WindowsRead &windows, const xpp::DataT
         SavedLabel &m = r.labels.emplace_back();
         m.window = window_in(l, windows);
         m.x = l.real("x");
+        if (!std::isfinite(m.x)) l.fail(xpp::format("{} is not a position", m.x));
         m.y = l.real("y");
-        m.size = l.whole("size");
+        if (!std::isfinite(m.y)) l.fail(xpp::format("{} is not a position", m.y));
+        m.look.size = l.whole("size");
+        if (const std::string p = xpp::label_size_problem(m.look.size); !p.empty()) l.fail(p);
         m.font = l.whole("font");
-        m.text = l.next("the label's text");
+        if (m.font < 0 || m.font >= xpp::LABEL_FONT_COUNT) l.fail(xpp::format("{} is not a text font (0 to {})", m.font, xpp::LABEL_FONT_COUNT - 1));
+        m.look.style = l.whole("style");
+        if (const std::string p = xpp::label_style_problem(m.look.style); !p.empty()) l.fail(p);
+        m.look.color = color_in(l);
+        m.look.text = l.next("the label's text");
+        if (const std::string p = xpp::label_text_problem(m.look.text); !p.empty()) l.fail(p);
     }
     for (int k = count_of(l, "arrows and markers", MAXGROB); k > 0; k--) {
         SavedGrob &g = r.grobs.emplace_back();
@@ -476,9 +487,11 @@ void apply_marks(xpp::Session &s, MarksRead r, const std::map<int, int> &slot)
         l.w = w(m.window);
         l.x = static_cast<float>(m.x);
         l.y = static_cast<float>(m.y);
-        l.size = m.size;
+        l.size = m.look.size;
         l.font = m.font;
-        l.s = std::move(m.text);
+        l.style = m.look.style;
+        l.color = m.look.color;
+        l.s = std::move(m.look.text);
     }
     for (std::size_t k = 0; k < r.grobs.size(); k++) {
         const SavedGrob &g = r.grobs[k];

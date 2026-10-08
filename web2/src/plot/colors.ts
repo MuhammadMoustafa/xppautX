@@ -11,6 +11,10 @@ const DARK = ['#e5e7eb', '#ff6b6b', '#ff7a45', '#ffa94d', '#fcc419', '#ffe066', 
 
 export const CURVE_COLORS = {light: LIGHT, dark: DARK} as const;
 
+/** what each colour is called, by the same index */
+export const CURVE_COLOR_NAMES = ['Default', 'Red', 'Orange red', 'Orange', 'Gold', 'Yellow', 'Yellow green', 'Green', 'Teal',
+  'Blue', 'Purple'] as const;
+
 export function curveColor(index: number, dark: boolean): string {
   const p = dark ? DARK : LIGHT;
   return p[index >= 0 && index < p.length ? index : 0];

@@ -14,6 +14,8 @@
 #include "mykeydef.h"
 #include <algorithm>
 #include <cctype>
+#include <climits>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -265,6 +267,20 @@ int js_number(const char *v, double *out)
     if (!v || !(*v == '-' || (*v >= '0' && *v <= '9'))) return 0;
     const char *end = v + strcspn(v, ",}] \t\r\n");
     return xpp::parse_number(std::string_view(v, static_cast<size_t>(end - v)), *out);
+}
+
+int js_whole(const char *v, int *out)
+{
+    double d;
+    if (!js_number(v, &d) || d != std::floor(d) || d < INT_MIN || d > INT_MAX) return 0;
+    *out = static_cast<int>(d);
+    return 1;
+}
+
+bool get_whole(const char *obj, const char *key, int &out)
+{
+    const char *v = js_find(obj, key);
+    return !v || js_whole(v, &out);
 }
 
 /* key names as the client sends them (DOM KeyboardEvent.key or X keysym

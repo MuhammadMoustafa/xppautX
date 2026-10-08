@@ -15,7 +15,7 @@ import {ColumnTrace, LineTrace, sameFrame, tracePoints, type CurveTrace, type Pi
 import type {PlotModel} from './model';
 import {nearestPoint, type Nearest} from './nearest';
 import {
-  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, textPx, traceFrozen, type MarkKey, type MarkLayer,
+  arrowPath, equilibriumPath, MARKER_PX, markerPath, markLayers, TEXT_STYLES, textPx, traceFrozen, type MarkKey, type MarkLayer,
 } from './marks';
 import {arrowSegments, phaseLayers, tracePolyline, traceSegments, type Layer, type LayerKey} from './phase';
 import type {Marks} from '../store/marks';
@@ -26,6 +26,8 @@ import type {Range, Viewport} from '../store/state';
 export interface ChartCallbacks {
   onViewport(v: Viewport): void;
   onTrace?(hit: (Nearest & {run: number}) | null): void;
+  /** a double click on the text with this id (the core's name for it): edit it, and the view stays */
+  onText?(id: number): void;
 }
 
 export interface ChartInfo {
@@ -50,6 +52,9 @@ export interface ChartInfo {
   /** the nullclines, direction field and flow, then the marks, and what the
       last draw drew of each: segments, arrows, points, marks (0 when hidden) */
   layers: ((Layer | MarkLayer) & {visible: boolean; drawn: number; css: string})[];
+  /** each text the last draw drew: its id and the middle of its box in the page's CSS pixels, where a
+      double click opens its dialog */
+  texts: {id: number; x: number; y: number}[];
 }
 
 /** points of a line traced while drawing (a small curve, an append's rows);
@@ -108,6 +113,8 @@ export class Chart {
   private dfield: Dfield | null = null;
   private layers: Layer[] = [];
   private marks: Marks | null = null;
+  /** the texts of the last draw, as boxes of the canvas (device pixels) */
+  private textBoxes: {id: number; x0: number; y0: number; x1: number; y1: number}[] = [];
   private markLayers: MarkLayer[] = [];
   private hiddenLayers = new Set<LayerKey | MarkKey>();
   private runs: PlotModel[] = [];
@@ -290,7 +297,12 @@ export class Chart {
       cursor: {
         drag: {x: true, y: true, uni: 20, setScale: true},
         points: {show: false},
-        bind: {dblclick: () => () => { this.reset(); return null; }},
+        bind: {dblclick: u => () => {
+          const id = this.textAt(u.cursor.left ?? -1, u.cursor.top ?? -1);
+          if (id !== null) this.cb.onText?.(id);
+          else this.reset();
+          return null;
+        }},
       },
       hooks: {
         setScale: [() => this.scaleChanged()],
@@ -523,22 +535,34 @@ export class Chart {
         ctx.strokeStyle = bg; /* a halo, so the text keeps its contrast over curves */
         ctx.fillStyle = fg;
         let drawn = 0;
+        this.textBoxes = [];
         for (const t of m.text) {
           const base = textPx(t.size) * r, at = pixelOf(f, t.x, t.y);
           if (!at) continue;
           let x = at.x;
+          ctx.fillStyle = t.color === 0 ? fg : curveColor(t.color, this.dark);
           for (const run of t.runs) {
-            ctx.font = `${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
+            ctx.font = `${TEXT_STYLES[t.style].css} ${run.small ? Math.round(base * 0.75) : base}px Inter, system-ui, sans-serif`;
             const y = at.y - run.rise * 0.45 * base;
             ctx.strokeText(run.text, x, y);
             ctx.fillText(run.text, x, y);
             x += ctx.measureText(run.text).width;
           }
+          this.textBoxes.push({id: t.id, x0: at.x, y0: at.y - base, x1: x, y1: at.y + 0.3 * base});
           drawn++;
         }
         this.layerDrawn.set('text', drawn);
       }
     });
+  }
+
+  /** the text under (px, py), CSS pixels of the plotting area: its id, the one drawn last when they overlap */
+  private textAt(px: number, py: number): number | null {
+    const u = this.u;
+    if (!u) return null;
+    const x = u.bbox.left + px * uPlot.pxRatio, y = u.bbox.top + py * uPlot.pxRatio;
+    const hit = this.textBoxes.filter(b => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1).pop();
+    return hit ? hit.id : null;
   }
 
   private drawn(): void {
@@ -691,6 +715,10 @@ export class Chart {
       runs: {count: this.runs.length, shown: this.showRuns, drawn: this.runsDrawn},
       layers: [...this.layers, ...this.markLayers].map(l => ({...l, visible: this.isLayerVisible(l.key),
         drawn: this.layerDrawn.get(l.key) ?? 0, css: curveColor(l.color, this.dark)})),
+      texts: this.textBoxes.map(b => {
+        const c = u.ctx.canvas.getBoundingClientRect(), r = uPlot.pxRatio;
+        return {id: b.id, x: c.left + (b.x0 + b.x1) / 2 / r, y: c.top + (b.y0 + b.y1) / 2 / r};
+      }),
     };
   }
 

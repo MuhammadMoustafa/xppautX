@@ -596,6 +596,7 @@ const CommandInfo commands[] = {
     {"equations", nullptr, V, NOT_STEP, [](xpp::Session &s, const char *) { send_equations(s); }},
     {"click", nullptr, V, STEP, click_command},
     {"display", nullptr, V, STEP, display_command},
+    {"text", nullptr, V, STEP, text_command},
     {"redraw", nullptr, V, NOT_STEP,
      [](xpp::Session &s, const char *) {
          redraw_graph(s);
@@ -1075,6 +1076,8 @@ void send_hello(xpp::Session &s)
     BUF_LIT(&b, ",\"upload_error\":");
     buf_str(&b, xpp::files::status_text(XPP_FILES_TOO_LARGE));
     buf_format(&b, ",\"player_speed\":{{\"min\":{},\"max\":{}}}", PLAYER_SPEED_MIN, PLAYER_SPEED_MAX);
+    buf_format(&b, ",\"text\":{{\"max_length\":{},\"size_max\":{},\"style_count\":{},\"color_max\":{},\"default_size\":{}}}",
+               xpp::LABEL_TEXT_MAX, xpp::LABEL_SIZE_MAX, xpp::LABEL_STYLE_COUNT, xpp::LAST_PLOT_COLOR, xpp::LABEL_SIZE_DEFAULT);
     buf_format(&b, ",\"window_ids\":{{\"plots\":{},\"auto\":{},\"ani\":{},\"aplot\":{}}}", MAXPOP, WIN_AUTO,
                WIN_ANI, WIN_APLOT);
     /* the windows' key layers (menus.h window_layers) and the other

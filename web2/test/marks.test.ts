@@ -19,7 +19,7 @@ const f32 = (v: number[]) => Buffer.from(new Float32Array(v).buffer).toString('b
 const MARKS: MarksEvent = {
   ev: 'marks', win: 1,
   equilibria: [{x: -0.14, y: 0.03, type: 'saddle', symbol: 'triangle'}, {x: 0.3, y: 0.2, type: 'stable', symbol: 'circle'}],
-  text: [{x: 0.1, y: 0.5, text: '\\1a\\0-point', size: 3, font: 0}],
+  text: [{id: 4, x: 0.1, y: 0.5, text: '\\1a\\0-point', source: '\\1a\\0-point', size: 3, font: 0, style: 1, color: 5}],
   arrows: [{kind: 'pointer', x1: 0, y1: 0, x2: 1, y2: 0, size: 0.2, color: 5}],
   markers: [{x: 0.5, y: 0.5, shape: 'diamond', size: 2, color: 7}],
   frozen: [{key: 'first run', name: 'frz1', color: 4, line: 1, x: [0, 0.5, 1], y: [0, 1, null]},
@@ -59,6 +59,7 @@ test('marks decoded: stability, text runs, arrows, markers, frozen curves from J
   assert.deepEqual(m.equilibria.map(e => e.type), ['saddle', 'stable']);
   assert.equal(m.text[0].plain, 'α-point');
   assert.equal(m.text[0].raw, '\\1a\\0-point');
+  assert.deepEqual([m.text[0].id, m.text[0].source, m.text[0].style, m.text[0].color], [4, '\\1a\\0-point', 1, 5]);
   assert.equal(m.arrows[0].pointer, true);
   assert.equal(m.markers[0].shape, 'diamond');
   assert.equal(m.frozen[0].label, 'first run');

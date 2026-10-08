@@ -17,16 +17,35 @@ export interface EquilibriumMark {
 }
 
 export interface TextMark {
+  /** the core's name for it, which the `text` command takes */
+  id: number;
   x: number;
   y: number;
   /** as XPP has it, escapes and all */
   raw: string;
+  /** as written: what the dialog edits (raw has its \{expr}s filled in) */
+  source: string;
   runs: TextRun[];
   /** the runs' text, for names and descriptions */
   plain: string;
   /** 0-4 */
   size: number;
+  /** 0 normal, 1 bold, 2 italic, 3 bold italic */
+  style: number;
+  /** a curve colour's index */
+  color: number;
 }
+
+/** what a text takes in its dialog (core/grobs.h LabelLook) */
+export interface TextValues {
+  text: string;
+  size: number;
+  style: number;
+  color: number;
+}
+
+/** where a text is, in the plot's coordinates */
+export interface TextPosition {x: number; y: number}
 
 export interface ArrowMark {
   /** a pointer has a shaft; an arrow is only its head */
@@ -76,7 +95,8 @@ export function marksFromEvent(ev: MarksEvent): Marks {
     equilibria: ev.equilibria.map(e => ({x: e.x, y: e.y, type: e.type})),
     text: ev.text.map(t => {
       const runs = parseRichText(t.text, t.font === 1);
-      return {x: t.x, y: t.y, raw: t.text, runs, plain: runs.map(r => r.text).join(''), size: t.size};
+      return {id: t.id, x: t.x, y: t.y, raw: t.text, source: t.source, runs, plain: runs.map(r => r.text).join(''), size: t.size, style: t.style,
+        color: t.color};
     }),
     arrows: ev.arrows.map(a => ({pointer: a.kind === 'pointer', x1: a.x1, y1: a.y1, x2: a.x2, y2: a.y2, size: a.size,
       color: a.color})),

@@ -10,6 +10,8 @@
 #include "graphics.h"
 #include "browse.h"
 #include "marks_data.h"
+#include "colormap.h"
+#include <algorithm>
 #include <string>
 #include <array>
 #include <cstdio>
@@ -27,23 +29,81 @@ const double HTMARK = .0016;
 } // namespace
 
 
-int add_label(xpp::Session &s, std::string_view text, int x, int y, int size, int font)
+std::string label_text_problem(std::string_view text)
 {
-    float xp, yp;
-    scale_to_real(s,x, y, &xp, &yp);
+    if (text.empty()) return "a text is not empty";
+    if (text.size() > LABEL_TEXT_MAX) return xpp::format("a text is at most {} characters, not {}", LABEL_TEXT_MAX, text.size());
+    return {};
+}
+
+std::string label_size_problem(int size)
+{
+    return size < 0 || size > LABEL_SIZE_MAX ? xpp::format("{} is not a text size (0 to {})", size, LABEL_SIZE_MAX) : std::string();
+}
+
+std::string label_style_problem(int style)
+{
+    return style < 0 || style >= LABEL_STYLE_COUNT ? xpp::format("{} is not a text style (0 to {})", style, LABEL_STYLE_COUNT - 1)
+                                                    : std::string();
+}
+
+std::string label_color_problem(int color)
+{
+    return color < 0 || color > LAST_PLOT_COLOR ? xpp::format("{} is not a colour (0 to {})", color, LAST_PLOT_COLOR) : std::string();
+}
+
+std::string label_problem(const LabelLook &look)
+{
+    for (std::string p : {label_text_problem(look.text), label_size_problem(look.size), label_style_problem(look.style),
+                          label_color_problem(look.color)})
+        if (!p.empty()) return p;
+    return {};
+}
+
+namespace {
+/* the text as kept: one starting with % is its rest with the \{expr}s filled in, once */
+std::string stored_text(Session &s, const std::string &text)
+{
+    return text.starts_with('%') ? fill_in_text(s, std::string_view(text).substr(1)) : text;
+}
+} // namespace
+
+int add_label(xpp::Session &s, LabelLook look, XppWinId w, float x, float y)
+{
     for (int i = 0; i < MAXLAB; i++) {
-        if (s.labels[i].use == 0) {
-            s.labels[i].use = 1;
-            s.labels[i].x = xp;
-            s.labels[i].y = yp;
-            s.labels[i].w = s.plot_windows.draw_win;
-            s.labels[i].font = font;
-            s.labels[i].size = size;
-            s.labels[i].s = text;
+        LABEL &l = s.labels[i];
+        if (l.use == 0) {
+            l = LABEL{w, x, y, stored_text(s, look.text), 1, 0, look.size, look.style, look.color};
+            marks_data_label(s, l.w, i, shown_label_text(s, i));
             return i;
         }
     }
     return -1;
+}
+
+void change_label(xpp::Session &s, int id, LabelLook look, bool move, float x, float y)
+{
+    LABEL &l = s.labels[id];
+    l.s = stored_text(s, look.text);
+    l.size = look.size;
+    l.style = look.style;
+    l.color = look.color;
+    if (move) {
+        l.x = x;
+        l.y = y;
+    }
+    marks_data_label(s, l.w, id, shown_label_text(s, id));
+}
+
+void delete_label(xpp::Session &s, int id)
+{
+    s.labels[id].w = 0;
+    s.labels[id].use = 0;
+}
+
+std::string shown_label_text(xpp::Session &s, int id)
+{
+    return fill_in_text(s, s.labels[id].s);
 }
 
 void draw_marker(xpp::Session &s, double xd, double yd, double size, int type)
@@ -150,7 +210,7 @@ void draw_label(xpp::Session &s, XppWinId w)
         if (s.labels[i].use == 1 && s.labels[i].w == w) {
             /* \{expr} filled in once: an expression may set a parameter.
                The filled text has none left, so fancy_text_abs leaves it. */
-            const std::string text = fill_in_text(s, s.labels[i].s);
+            const std::string text = shown_label_text(s, i);
             marks_data_label(s,w, i, text);
             fancy_text_abs(s,s.labels[i].x, s.labels[i].y, text.c_str(), s.labels[i].size, s.labels[i].font);
         }
@@ -356,12 +416,11 @@ void edit_object_com(xpp::Session &s, int com)
         case 1:
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Change {} ?", s.labels[ilab].s), "yn"));
             if (ans == 'y') {
-                std::string text = s.labels[ilab].s;
-                new_string("Text: ", text);
-                s.labels[ilab].s = text;
-                new_int("Size 0-4 :", &s.labels[ilab].size);
-                if (s.labels[ilab].size > 4) s.labels[ilab].size = 4;
-                if (s.labels[ilab].size < 0) s.labels[ilab].size = 0;
+                LabelLook look{s.labels[ilab].s, s.labels[ilab].size, s.labels[ilab].style, s.labels[ilab].color};
+                new_string("Text: ", look.text);
+                new_int("Size 0-4 :", &look.size);
+                look.size = std::clamp(look.size, 0, LABEL_SIZE_MAX);
+                if (label_problem(look).empty()) change_label(s, ilab, look, false, 0, 0);
                 xpp::clr_scrn(s);
                 redraw_all(s);
             }
@@ -369,8 +428,7 @@ void edit_object_com(xpp::Session &s, int com)
         case 2:
             ans = static_cast<char>(TwoChoice("Yes", "No", xpp::format("Delete {} ?", s.labels[ilab].s), "yn"));
             if (ans == 'y') {
-                s.labels[ilab].w = 0;
-                s.labels[ilab].use = 0;
+                delete_label(s, ilab);
                 xpp::clr_scrn(s);
                 redraw_all(s);
             }

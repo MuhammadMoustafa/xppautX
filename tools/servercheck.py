@@ -2427,12 +2427,68 @@ def check_marks():
         cols = {c['col']: c['data'] for c in ser[-1]['columns']} if ser else {}
 
         typed = r'\1a\0-point \{2*3}'
-        evs = command('t', keys('t', {'value': typed}, {'value': '3'}, {'xd': -0.3, 'yd': 0.5}))
+        evs = command('t', keys('t', {'xd': -0.3, 'yd': 0.5}, {'value': typed, 'size': 3, 'style': 1, 'color': 4}))
         m = marks_of(evs)
         t = m['text'] if m else []
-        check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size and position',
-              len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['size'] == 3 and t[0]['font'] == 0
+        check('Text,etc/Text: a text mark with its text (\\{expr} filled in), size, style, colour and position',
+              len(t) == 1 and t[0]['text'] == r'\1a\0-point 6' and t[0]['source'] == typed and t[0]['size'] == 3
+              and t[0]['font'] == 0 and t[0]['style'] == 1 and t[0]['color'] == 4
               and near(t[0]['x'], -0.3, px) and near(t[0]['y'], 0.5, py), str(m)[:300])
+        asks = of(evs, 'ask')
+        check('W227: Text asks where first (mouse), then the text dialog (text) with the defaults',
+              [e['kind'] for e in asks] == ['menu', 'mouse', 'text'] and asks[2]['title'] == 'Text'
+              and asks[2]['size'] == hello6['text']['default_size'] and asks[2]['style'] == 0
+              and asks[2]['color'] == 0 and asks[2]['value'] == '',
+              str([(e['kind'], e.get('size')) for e in asks]))
+        check('W227: hello.text says what a text takes',
+              hello6.get('text') == {'max_length': 1000, 'size_max': 4, 'style_count': 4, 'color_max': 10, 'default_size': 2},
+              str(hello6.get('text')))
+        tid = t[0]['id'] if t else -1
+
+        # W227: the text command edits what is given, moves it, adds and deletes
+        def text_cmd(**fields):
+            evs = after(dict({'cmd': 'text', 'win': 1}, **fields))
+            return marks_of(evs), [e.get('error', '') for e in of(evs, 'message')]
+        m, errs = text_cmd(op='edit', id=tid, color=9)
+        t = m['text'] if m else []
+        check('W227: text edit with only a colour changes only the colour',
+              len(t) == 1 and t[0]['color'] == 9 and t[0]['style'] == 1 and t[0]['size'] == 3 and t[0]['source'] == typed
+              and not errs, str((m, errs))[:300])
+        m, errs = text_cmd(op='edit', id=tid, text='moved', size=0, style=3, color=0, x=0.25, y=0.75)
+        t = m['text'] if m else []
+        check('W227: text edit changes the text, size, style, colour and position',
+              len(t) == 1 and t[0]['text'] == 'moved' and t[0]['source'] == 'moved' and t[0]['size'] == 0
+              and t[0]['style'] == 3 and t[0]['color'] == 0 and t[0]['id'] == tid and near(t[0]['x'], 0.25, 1e-6)
+              and near(t[0]['y'], 0.75, 1e-6) and not errs, str((m, errs))[:300])
+        for what, fields, want in [
+                ('a size above 4', dict(op='edit', id=tid, size=9), '9 is not a text size (0 to 4)'),
+                ('a style of 4', dict(op='edit', id=tid, style=4), '4 is not a text style (0 to 3)'),
+                ('a colour of 11', dict(op='edit', id=tid, color=11), '11 is not a colour (0 to 10)'),
+                ('a size that is not whole', dict(op='edit', id=tid, size=1.5), 'whole numbers'),
+                ('an empty text', dict(op='edit', id=tid, text=''), 'not empty'),
+                ('a text of 1001 characters', dict(op='edit', id=tid, text='x' * 1001), 'at most 1000 characters'),
+                ('a position that is not a number', dict(op='edit', id=tid, x='left'), 'x and y'),
+                ('an id the window has not', dict(op='edit', id=7), 'no text with that id'),
+                ('a delete of an id the window has not', dict(op='delete', id=7), 'no text with that id'),
+                ('an add with no position', dict(op='add', text='a'), 'x and y'),
+                ('an add with no text', dict(op='add', x=0, y=0), 'text is a string'),
+                ('an op it has not', dict(op='move', id=tid), 'add, edit or delete'),
+                ('a window it has not', dict(op='edit', id=tid, win=9), 'no such plot window')]:
+            m, errs = text_cmd(**fields)
+            check('W227: text refuses %s, naming it, and changes nothing' % what,
+                  m is None and len(errs) == 1 and want in errs[0], str((m, errs))[:300])
+        m, errs = text_cmd(op='add', text=r'%a\{2*3}', x=0.5, y=-0.5, size=4, style=2, color=7)
+        t = m['text'] if m else []
+        added = next((x for x in t if x['id'] != tid), None)
+        check('W227: text add: a new label with its look, a % text stored as its value',
+              len(t) == 2 and added and added['text'] == added['source'] and added['text'] == 'a6'
+              and added['size'] == 4 and added['style'] == 2 and added['color'] == 7 and not errs, str((m, errs))[:300])
+        m, errs = text_cmd(op='delete', id=added['id'] if added else -1)
+        check('W227: text delete removes that label only', m is not None and [x['id'] for x in m['text']] == [tid] and not errs,
+              str((m, errs))[:300])
+        m, errs = text_cmd(op='edit', id=tid, text=typed, size=3, style=1, color=4, x=-0.3, y=0.5)
+        check('W227: ... and the first label is as Text left it', m is not None and len(m['text']) == 1
+              and m['text'][0]['text'] == r'\1a\0-point 6' and not errs, str((m, errs))[:300])
 
         evs = command('t', keys('p', {'value': '0.2'}, {'value': '5'},
                                 {'xd': 0.1, 'yd': 0.2, 'xd2': 0.6, 'yd2': 0.8}))
@@ -5046,7 +5102,7 @@ def check_session_file():
         answered(snd, col, (), cmd='auto', op='set', axes={'view': 1, 'plot': 1, 'fit': True})
         answered(snd, col, (), cmd='auto', op='display', view=1, x=None, y=[0, 0.5])
         answered(snd, col, (), cmd='auto', op='view', active=0)
-        key(snd, col, 't', 't', {'value': 'here'}, {'value': '2'}, {'xd': 10, 'yd': 0.1})
+        key(snd, col, 't', 't', {'xd': 10, 'yd': 0.1}, {'value': 'here', 'size': 2, 'style': 2, 'color': 4})
         key(snd, col, 'g', 'f', 'f', {'values': ['4', 'first', 'frz1']})
         key(snd, col, 'm', 'c')
         # W145: an added browser column is saved with the session and comes back computed
@@ -5267,6 +5323,23 @@ def check_session_file():
              ('spareflag.snapx/random.txt:%d:' % len(random_rows), "not a random generator's state")),
             ('aftergenerator', lambda m: m.__setitem__('random.txt', m['random.txt'] + b'\nnot_generator_state\n'),
              ('aftergenerator.snapx/random.txt:%d:' % (len(random_rows) + 1), '"not_generator_state" after the end')),
+            # W227: a label's every value is checked at its line (window, x, y, size, font, style, colour, text)
+            ('labelsize', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n9\n0\n0\n0\nhi\n0\n0\n0\n'),
+             ('labelsize.snapx/marks.set:5:', '9 is not a text size (0 to 4)')),
+            ('labelfont', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n5\n0\n0\nhi\n0\n0\n0\n'),
+             ('labelfont.snapx/marks.set:6:', '5 is not a text font (0 to 1)')),
+            ('labelstyle', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n7\n0\nhi\n0\n0\n0\n'),
+             ('labelstyle.snapx/marks.set:7:', '7 is not a text style (0 to 3)')),
+            ('labelcolor', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n99\nhi\n0\n0\n0\n'),
+             ('labelcolor.snapx/marks.set:8:', '99 is not a colour (0 to 10)')),
+            ('labelempty', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n0\n\n0\n0\n0\n'),
+             ('labelempty.snapx/marks.set:9:', 'a text is not empty')),
+            ('labellong', lambda m: m.__setitem__('marks.set', b'1\n0\n0.5\n0.5\n2\n0\n0\n0\n' + b'x' * 1001 + b'\n0\n0\n0\n'),
+             ('labellong.snapx/marks.set:9:', 'at most 1000 characters')),
+            ('labelmany', lambda m: m.__setitem__('marks.set', b'51\n'),
+             ('labelmany.snapx/marks.set:1:', '51 labels: there are 0 to 50')),
+            ('labelnan', lambda m: m.__setitem__('marks.set', b'1\n0\nnan\n0.5\n2\n0\n0\n0\nhi\n0\n0\n0\n'),
+             ('labelnan.snapx/marks.set:3:', 'is not')),
             ('marktype', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n999\n0\n1\n0\n0\n1\n1\n0\n0\n'),
              ('marktype.snapx/marks.set:4:', "999 is not an object's type (0 to 7)")),
             ('markcolor', lambda m: m.__setitem__('marks.set', b'0\n1\n0\n2\n999\n1\n0\n0\n1\n1\n0\n0\n'),

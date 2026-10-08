@@ -1011,20 +1011,86 @@ async function marks() {
   check('... an integration: no marks yet', await until('w.series && w.series.rows > 2', 'series')
     && await S('!w.marks || (w.marks.text.length + w.marks.equilibria.length + w.marks.frozen.length === 0)'));
 
-  await key('t');
-  await menu('t');
-  await answer('string', {value: '\\1a\\0-point'});
-  await answer('string', {value: '3'});
-  await answer('mouse', {xd: -0.3, yd: 0.5});
-  await idle();
-  check('Text,etc/Text: the store holds the text, Greek as Unicode', await until("w.marks && w.marks.text.length === 1", 'text')
-    && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"),
+  /* W227: Text asks where it goes (a click), then one dialog for the text, size, style and colour */
+  const addText = async look => {
+    await key('t');
+    await menu('t');
+    await answer('mouse', {xd: -0.3, yd: 0.5});
+    await answer('text', look);
+    await idle();
+  };
+  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: 4});
+  check('Text,etc/Text: the store holds the text, Greek as Unicode, with its size, style and colour',
+    await until("w.marks && w.marks.text.length === 1", 'text')
+    && await S("w.marks.text[0].plain === 'α-point' && w.marks.text[0].size === 3 && Math.abs(w.marks.text[0].x + 0.3) < 0.01"
+      + " && w.marks.text[0].style === 1 && w.marks.text[0].color === 4 && w.marks.text[0].source === '\\\\1a\\\\0-point'"),
     JSON.stringify(await S('w.marks && w.marks.text')));
   let t = await layer('text');
   check('... drawn as text, "Text" in the legend, named in the plot\'s label', t && t.drawn === 1 && t.visible
     && (await legendLabels()).includes('Text')
     && (await cdp.eval(`document.querySelector('.plot-view:not([hidden]) .plot-host').getAttribute('aria-label')`)).includes('α-point'),
     JSON.stringify(t));
+
+  /* W227: a double click on the text opens its dialog, filled in; each field edits; Delete deletes */
+  const dbl = async (x, y) => {
+    await mouse('mouseMoved', x, y);
+    for (const clickCount of [1, 2]) {
+      await mouse('mousePressed', x, y, {button: 'left', buttons: 1, clickCount});
+      await mouse('mouseReleased', x, y, {button: 'left', buttons: 0, clickCount});
+    }
+  };
+  const dialog = () => cdp.eval(`(() => { const d = document.querySelector('[data-text-dialog]'); if (!d) return null;
+    return {text: d.querySelector('[data-text-input]').value, size: d.querySelector('[data-text-size]').value,
+      style: d.querySelector('[data-text-style]').value, x: d.querySelector('[data-text-x]').value,
+      y: d.querySelector('[data-text-y]').value,
+      color: [...d.querySelectorAll('[data-text-color]')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.textColor)}; })()`);
+  const openDialog = async () => {
+    const at = await cdp.eval(`(() => { const t = __xpp.plot().texts[0]; return t ? [t.x, t.y] : null; })()`);
+    if (!at) return false;
+    await dbl(at[0], at[1]);
+    return await until("!!document.querySelector('[data-text-dialog]')", 'text dialog');
+  };
+  const sentText = () => cdp.eval(`__xpp.sent().filter(c => c.cmd === 'text')`);
+  const viewBefore = await S('JSON.stringify(w.viewport)');
+  check('W227: double click on the text opens the dialog filled in (text as written, size, style, colour, position)',
+    await openDialog() && JSON.stringify(await dialog()).includes('"text":"\\\\1a\\\\0-point","size":"3","style":"1"')
+    && (await dialog()).color.join() === '4' && Math.abs(Number((await dialog()).x) + 0.3) < 0.01,
+    JSON.stringify(await dialog()));
+  check('... and it does not reset the zoom', (await S('JSON.stringify(w.viewport)')) === viewBefore);
+  await cdp.eval(`(() => { const d = document.querySelector('[data-text-dialog]');
+    const set = (el, v, ev) => { el.value = v; el.dispatchEvent(new Event(ev, {bubbles: true})); };
+    set(d.querySelector('[data-text-input]'), 'plain words', 'input');
+    set(d.querySelector('[data-text-size]'), '0', 'change');
+    set(d.querySelector('[data-text-style]'), '3', 'change');
+    d.querySelector('[data-text-color="9"]').click();
+    set(d.querySelector('[data-text-x]'), '0.25', 'input');
+    set(d.querySelector('[data-text-y]'), '0.4', 'input'); })()`);
+  await until(`document.querySelector('[data-text-dialog] [data-text-color="9"]').getAttribute('aria-checked') === 'true'
+    && document.querySelector('[data-text-dialog] [data-text-y]').value === '0.4'`, 'dialog draft');
+  await cdp.eval("document.querySelector('[data-text-dialog] form').requestSubmit(); true");
+  await idle();
+  check('W227: Apply sends one text edit with every field, and the store holds the new text',
+    await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'plain words'", 'edited')
+    && await S("(() => { const x = w.marks.text[0]; return x.size === 0 && x.style === 3 && x.color === 9"
+      + " && Math.abs(x.x - 0.25) < 1e-6 && Math.abs(x.y - 0.4) < 1e-6; })()")
+    && JSON.stringify((await sentText()).at(-1)) === JSON.stringify({cmd: 'text', op: 'edit', win: 1, id: await S('w.marks.text[0].id'),
+      text: 'plain words', size: 0, style: 3, color: 9, x: 0.25, y: 0.4})
+    && !(await cdp.eval("!!document.querySelector('[data-text-dialog]')")),
+    JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
+  check('... drawn once, in the new look', (await layer('text'))?.drawn === 1);
+  check('W227: closing the dialog (x) sends nothing more',
+    await openDialog() && (await cdp.eval("document.querySelector('[data-text-dialog] .dialog-close').click(); true"), true)
+    && await until("!document.querySelector('[data-text-dialog]')", 'closed')
+    && (await sentText()).length === 1, JSON.stringify(await sentText()));
+  check('W227: Delete in the dialog removes the text: none in the store, none drawn, the legend entry gone',
+    await openDialog() && (await cdp.eval("document.querySelector('[data-text-delete]').click(); true"), true)
+    && await until("w.marks && w.marks.text.length === 0", 'deleted') && (await layer('text')) === null
+    && !(await legendLabels()).includes('Text') && (await sentText()).at(-1).op === 'delete',
+    JSON.stringify({marks: await S('w.marks.text'), sent: (await sentText()).at(-1)}));
+  await addText({value: '\\1a\\0-point', size: 3, style: 1, color: 4});
+  check('W227: the text added again is as the first was',
+    await until("w.marks && w.marks.text.length === 1 && w.marks.text[0].plain === 'α-point'", 'text again')
+    && (await layer('text'))?.drawn === 1);
 
   await key('t');
   await menu('p');

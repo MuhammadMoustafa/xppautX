@@ -38,12 +38,14 @@ const char *const MARKER_SHAPES[] = {"box", "diamond", "triangle", "plus", "cros
 static_assert(std::size(MARKER_SHAPES) == MARKER_SHAPE_COUNT);
 
 struct Label {
+    int id; /* the slot: the page names the label by it */
     float x, y;
-    std::string text;
-    int size, font;
+    std::string text, source; /* as drawn, and as written (its \{expr}s unfilled) */
+    int size, font, style, color;
     bool operator==(const Label &o) const
     {
-        return x == o.x && y == o.y && text == o.text && size == o.size && font == o.font;
+        return id == o.id && x == o.x && y == o.y && text == o.text && source == o.source && size == o.size && font == o.font
+               && style == o.style && color == o.color;
     }
 };
 
@@ -147,16 +149,24 @@ void send_marks(const xpp::Session &s, int pop, const Content &c)
     o += "],\"text\":[";
     for (std::size_t k = 0; k < c.labels.size(); k++) {
         const Label &l = c.labels[k];
-        o += k ? ",{\"x\":" : "{\"x\":";
+        o += k ? ",{\"id\":" : "{\"id\":";
+        add_int(o, l.id);
+        o += ",\"x\":";
         add_float(o, l.x);
         o += ",\"y\":";
         add_float(o, l.y);
         o += ",\"text\":";
         xpp::json_append_string(o, l.text.c_str());
+        o += ",\"source\":";
+        xpp::json_append_string(o, l.source.c_str());
         o += ",\"size\":";
         add_int(o, l.size);
         o += ",\"font\":";
         add_int(o, l.font);
+        o += ",\"style\":";
+        add_int(o, l.style);
+        o += ",\"color\":";
+        add_int(o, l.color);
         o += '}';
     }
     o += "],\"arrows\":[";
@@ -228,7 +238,7 @@ Content content_of(const xpp::Session &s, int pop, const MarksShown::Record &r)
     c.eqs = r.eqs;
     for (const auto &e : r.labels) {
         const LABEL &l = s.labels[e.first];
-        if (l.use == 1 && l.w == w) c.labels.push_back({l.x, l.y, e.second, l.size, l.font});
+        if (l.use == 1 && l.w == w) c.labels.push_back({e.first, l.x, l.y, e.second, l.s, l.size, l.font, l.style, l.color});
     }
     for (std::size_t i = 0; i < r.grobs.size(); i++) {
         const GROB &g = s.grobs[i];

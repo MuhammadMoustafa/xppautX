@@ -33,6 +33,7 @@
 #include "xpp_mem.h"
 #include "xpp_inbox.h"
 #include "display_state.h"
+#include "grobs.h"
 #include <stddef.h>
 #include <atomic>
 #include <climits>
@@ -289,6 +290,10 @@ bool read_line_refused(void);      /* whether classify() refused read_line()'s l
 
 double js_num(const char *v, double def);
 int js_number(const char *v, double *out);
+/* a JSON number at v that is a whole number an int holds, into *out; 0 for anything else */
+int js_whole(const char *v, int *out);
+/* key of obj, when present, as js_whole: true when absent (out untouched) or read, false when it is not a whole number */
+bool get_whole(const char *obj, const char *key, int &out);
 bool get_string(const char *obj, const char *key, std::string &out);
 double get_num(const char *obj, const char *key, double def);
 int get_int(const char *obj, const char *key, double def); /* get_num cut to an int */
@@ -328,6 +333,8 @@ void j_title_text(std::string_view s);
 int j_dialog(std::string_view title, std::string_view name, std::string &value, std::string_view ok,
              std::string_view cancel, int kind);
 int j_new_string(std::string_view name, std::string &value, int kind);
+/* the text dialog (ask kind `text`): look is the start and the answer; 0 when cancelled */
+int j_text_dialog(xpp::LabelLook &look);
 int j_yes_no_box(void);
 int j_two_choice(std::string_view c1, std::string_view c2, std::string_view q, std::string_view key,
                  std::string_view title);
@@ -385,6 +392,7 @@ void select_graph(xpp::Session &s, int i);
 void click_command(xpp::Session &s, const char *line);
 /* {"cmd":"display","win":N,"x":[lo,hi]|null,"y":...,"runs":bool}: the zoom shown in plot window N and whether its earlier runs are drawn (display_state.h) */
 void display_command(xpp::Session &s, const char *line);
+void text_command(xpp::Session &s, const char *line); /* text: add, edit or delete a label of a plot window */
 void j_get_draw_size(xpp::Session &s, unsigned int *w, unsigned int *h);
 void j_blank_draw_window(xpp::Session &s);
 void j_redraw_all(xpp::Session &s);

@@ -119,3 +119,12 @@ export const TEXT_PX = [10, 12, 14, 18, 24];
 export function textPx(size: number): number {
   return TEXT_PX[Math.max(0, Math.min(4, Math.round(size)))];
 }
+
+/** the text styles by the core's index (core/grobs.h LABEL_STYLE_*): the name in the dialog and the
+    font-style and weight the canvas draws it with */
+export const TEXT_STYLES = [
+  {name: 'Normal', css: 'normal'},
+  {name: 'Bold', css: 'bold'},
+  {name: 'Italic', css: 'italic'},
+  {name: 'Bold italic', css: 'italic bold'},
+] as const;

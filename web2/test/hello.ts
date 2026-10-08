@@ -82,6 +82,7 @@ export const HELLO: HelloEvent = {
   upload_error: 'larger than 64 MB',
   player_speed: {min: 0.25, max: 8},
   limits: {upload: 64 * 1024 * 1024, browser_rows: 2000, browser_cols: 500},
+  text: {max_length: 1000, size_max: 4, style_count: 4, color_max: 10, default_size: 2},
   window_ids: {plots: 21, auto: 101, ani: 104, aplot: 105},
 };
 
