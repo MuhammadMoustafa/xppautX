@@ -511,6 +511,27 @@ void man_ic(xpp::Session &s)
   }
 }
 
+double TypedFields::number(std::string_view field, const std::string &text)
+{
+  if(error_)return 0;
+  const Result<double> r=typed_number(s_,text,field);
+  if(r)return *r;
+  fail(field,r.error().what);
+  return 0;
+}
+
+int TypedFields::integer(std::string_view field, const std::string &text)
+{
+  int v=0;
+  if(!error_&&!parse_int(text,v))fail(field,xpp::format("\"{}\" is not a whole number",text));
+  return v;
+}
+
+void TypedFields::fail(std::string_view field, std::string_view what)
+{
+  if(!error_)error_=xpp::format("{}: {}",field,what);
+}
+
 /* the value typed for a number box: checked whole by typed_number, then a
    "%name:formula" also sets its name (do_calc), whose value the box takes */
 static Result<double> box_number(xpp::Session &s,std::string_view text,std::string_view field)

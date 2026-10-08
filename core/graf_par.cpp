@@ -92,37 +92,6 @@ void check_flags(xpp::Session &s)
 
 namespace {
 
-/* One reading of what was typed in the axes dialog and 3D params: the
-   first fault is kept, with the field it belongs to, and no later field is
-   read once there is one. */
-class TypedFields {
- public:
-  explicit TypedFields(xpp::Session &s) : s_(s) {}
-  double number(std::string_view field, const std::string &text)
-  {
-    if (error_) return 0;
-    const xpp::Result<double> r = xpp::typed_number(s_, text, field);
-    if (r) return *r;
-    fail(field, r.error().what);
-    return 0;
-  }
-  int integer(std::string_view field, const std::string &text)
-  {
-    int v = 0;
-    if (!error_ && !xpp::parse_int(text, v)) fail(field, xpp::format("\"{}\" is not a whole number", text));
-    return v;
-  }
-  void fail(std::string_view field, std::string_view what)
-  {
-    if (!error_) error_ = xpp::format("{}: {}", field, what);
-  }
-  const std::optional<std::string> &error() const { return error_; }
-
- private:
-  xpp::Session &s_;
-  std::optional<std::string> error_;
-};
-
 /* the 3D view's parameters, in 3D params and in the axes dialog of a 3D plot */
 struct ViewParams {
   int persp = 0;
@@ -150,7 +119,7 @@ std::array<std::string, VIEW_PARAM_COUNT> view_param_values(const xpp::Session &
 }
 
 /* the fields of view_param_names, read whole; the movie's only when it is asked for */
-ViewParams read_view_params(TypedFields &f, std::span<const std::string> v)
+ViewParams read_view_params(xpp::TypedFields &f, std::span<const std::string> v)
 {
   ViewParams p;
   p.persp = f.integer(view_param_names[0], v[0]);
@@ -160,8 +129,8 @@ ViewParams read_view_params(TypedFields &f, std::span<const std::string> v)
   p.phi = f.number(view_param_names[4], v[4]);
   p.movie = !v[5].empty() && (v[5][0] == 'y' || v[5][0] == 'Y');
   if (!p.movie) return p;
-  p.yes = v[5].substr(0, 2);
-  p.vary = v[6].substr(0, 19);
+  p.yes = v[5];
+  p.vary = v[6];
   const char first = p.vary.empty() ? '\0' : static_cast<char>(std::tolower(static_cast<unsigned char>(p.vary[0])));
   if (first != 't' && first != 'p') f.fail(view_param_names[6], "theta or phi");
   p.start = f.number(view_param_names[7], v[7]);
@@ -234,7 +203,7 @@ bool axes_dialog(xpp::Session &s, int ind, bool three)
     return false;
 
   /* everything read and checked before anything is set */
-  TypedFields f(s);
+  xpp::TypedFields f(s);
   int newvar[3] = {0, 0, 0};
   double newlo[3] = {0, 0, 0}, newhi[3] = {0, 0, 0}, newwindow[4] = {0, 0, 0, 0};
   for (int i = 0; i < n; i++) {
@@ -569,7 +538,7 @@ void get_3d_par_com(xpp::Session &s)
   if(s.plot_windows.current->grtype<5)return;
   auto values=view_param_values(s);
   if(!do_string_box_of(5,2,"3D Parameters",view_param_names,values,view_param_kinds))return;
-  TypedFields f(s);
+  xpp::TypedFields f(s);
   const ViewParams p=read_view_params(f,values);
   if(f.error()){
     xpp::command_error("3D params",*f.error());

@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -48,6 +49,23 @@ Result<double> evaluate_formula(Session &s, std::string_view expr);
    shown or set: the one reading of a typed number (W131), which new_float,
    the `set` command and every box go through. */
 Result<double> typed_number(Session &s, std::string_view typed, std::string_view field = {});
+/* One reading of the fields typed in a form, all or nothing: the first
+   fault is kept with the field it belongs to, no later field is read once
+   there is one, and the caller applies nothing when error() is set. */
+class TypedFields {
+ public:
+  explicit TypedFields(Session &s) : s_(s) {}
+  /* typed_number's reading of `text`; 0 after a fault */
+  double number(std::string_view field, const std::string &text);
+  /* a whole number (parse_int); 0 after a fault */
+  int integer(std::string_view field, const std::string &text);
+  void fail(std::string_view field, std::string_view what);
+  const std::optional<std::string> &error() const { return error_; }
+
+ private:
+  Session &s_;
+  std::optional<std::string> error_;
+};
 /* a slider names a parameter (*type PARAMBOX) or a variable (ICBOX) of
    m, *index its index; 0 if neither */
 int find_par_or_var(const Model &m, std::string_view name, int *type, int *index);
