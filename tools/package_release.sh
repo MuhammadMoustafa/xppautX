@@ -161,7 +161,7 @@ case "$platform" in
 Package: xppautx
 Version: $debver
 Architecture: amd64
-Maintainer: Muhammad Moustafa <engmuhammadmoustafa@gmail.com>
+Maintainer: Muhammad Ahmad <muhammadmoustafa22@gmail.com>
 Installed-Size: $size_kb
 Depends: $deps
 Recommends: libwebkit2gtk-4.1-0
