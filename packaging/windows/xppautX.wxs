@@ -9,7 +9,7 @@
      and open verb, here for all users. Unsigned: SmartScreen may warn. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <!-- UpgradeCode identifies the product across versions: it must never change. -->
-  <Package Name="xppautX" Manufacturer="Muhammad Moustafa"
+  <Package Name="xppautX" Manufacturer="Muhammad Ahmad"
            Version="$(var.ProductVersion)" UpgradeCode="4A13A23D-5375-465A-B4DA-A755396870E7"
            Scope="perMachine" Compressed="yes">
     <MajorUpgrade DowngradeErrorMessage="A newer version of xppautX is already installed." />
