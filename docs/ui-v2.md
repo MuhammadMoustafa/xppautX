@@ -478,7 +478,7 @@ Target: WCAG 2.2 AA. Rules:
 - **A3 Keyboard, all of it**: every command by its hotkey or the menu;
   Tab reaches every control in reading order (a skip link jumps to the
   plot); the plot has its own keys (arrows pan, `+`/`-` zoom, `0` reset,
-  `Ctrl+Z` undo, `[` `]` `PageUp` `PageDown` `Home` `End` step through the
+  `[` `]` `PageUp` `PageDown` `Home` `End` step through the
   points, `{` `}` change curve, Escape clears); Tab is never taken as an XPP
   key.
 - **A4 Dialogs**: `role=dialog`, `aria-modal`, labelled by their title;
@@ -524,11 +524,12 @@ Target: WCAG 2.2 AA. Rules:
   it (W83, GitHub #132).
 - **A11 Errors in a dialog, the rest quiet** (W104, GitHub #153): an error opens one centred dialog with OK (Enter/Escape; several before OK are lines of one dialog; it waits while an ask is on screen; "Add file…" lives in it); a warning (a core log line) flashes the status bar; the core's alerts are
   toasts that do not take the focus or stop the run, for six seconds; all of them also go to Messages.
-- **A12 No undo** (maintainer, 2026-09-27, decision 2, GitHub #110):
+- **A12 No view undo** (maintainer, 2026-09-27, decision 2, GitHub #110):
   zoom and pan have no history any more -- Reset view and Fit are the way
-  back; parameter and IC edits have no undo either -- Reset (one field,
-  or all) to the ODE file's value is the way back, through the core's
-  defaults.
+  back. Value edits do have an undo since W210 (maintainer, 2026-10-07,
+  #264): Ctrl+Z / Ctrl+Shift+Z over a bounded stack of the parameters,
+  initial conditions and numerics (docs/command-design.md); Reset (one
+  field, or all) to the ODE file's value stays.
 - **A13 Empty and error states**: no data says so and offers Integrate;
   a lost connection shows "Reconnecting…"; a stopped core says so and
   points to Messages; a prompt kind not built yet says so and offers

@@ -2,7 +2,8 @@
 
 Status: defaults approved by the maintainer, 2026-10-07. Built: the command table (W207), the key dispatcher
 (W208), the keymap file and its protocol command (W211), and the keymap editor and the pinned quick-access
-toolbar (W212). Not yet: undo/redo (W210) and the one Continue (W213).
+toolbar (W212), the value undo/redo (W210), the one Continue (W213) and Save a copy of the session (W218). All of the
+cards below are built.
 Decided in conversation: the XPPAUT one-letter sequences stop shaping the
 interface; Ctrl+S saves the session and Ctrl+Shift+S is Save as; Ctrl+Z
 undoes Values edits; users can rebind keys and choose quick-access commands.
