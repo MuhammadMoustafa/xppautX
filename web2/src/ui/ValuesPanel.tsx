@@ -28,6 +28,7 @@ import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {Field} from './Field';
 import {HelpButton} from './HelpButton';
 import {FOCUSABLE} from './dialogFocus';
+import {readPref, writePref} from '../store/prefs';
 
 const NUMBER_HINT = fieldMessage(FORMULA_HINT);
 const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. Run from initial uses Initial; Run from last state uses the last state and starts a new trajectory.';
@@ -36,14 +37,8 @@ const STATE_HINT = 'Edits apply on Enter or leaving the field, to the next run. 
 
 const FOLD_KEY = 'xpp.values.folded';
 
-function readFolded(): string[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(FOLD_KEY) ?? '[]');
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
-  } catch {
-    return [];
-  }
-}
+const readFolded = (): string[] =>
+  readPref(FOLD_KEY, v => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null), []);
 
 /* a section that starts folded (startFolded) is remembered by what the person opened:
    its entry is "+id", the others' is "id" for folded */
@@ -53,12 +48,8 @@ function useFolded(id: string, startFolded = false): [boolean, () => void] {
   const toggle = () => {
     const next = !folded;
     setFolded(next);
-    try {
-      const all = readFolded().filter(x => x !== key);
-      localStorage.setItem(FOLD_KEY, JSON.stringify(next !== startFolded ? [...all, key] : all));
-    } catch {
-      /* no storage: it lasts this page */
-    }
+    const all = readFolded().filter(x => x !== key);
+    writePref(FOLD_KEY, next !== startFolded ? [...all, key] : all);
   };
   return [folded, toggle];
 }

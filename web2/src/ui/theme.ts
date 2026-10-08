@@ -2,27 +2,16 @@
    system's. The CSS reads `data-theme` on <html>. */
 import {useEffect, useState} from 'preact/hooks';
 import type {Theme} from '../store/state';
+import {readPref, writePref} from '../store/prefs';
 
 const KEY = 'xppTheme';
 const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 
-export function savedTheme(): Theme {
-  try {
-    const t = localStorage.getItem(KEY);
-    return t === 'light' || t === 'dark' ? t : 'system';
-  } catch {
-    return 'system';
-  }
-}
+export const savedTheme = (): Theme =>
+  readPref<Theme>(KEY, t => (t === 'light' || t === 'dark' ? t : null), 'system');
 
-export function saveTheme(t: Theme): void {
-  try {
-    if (t === 'system') localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, t);
-  } catch {
-    /* storage blocked: the choice lasts for this page */
-  }
-}
+/** 'system' is no stored choice */
+export const saveTheme = (t: Theme): void => writePref(KEY, t === 'system' ? undefined : t);
 
 /** whether `theme` shows dark now, following the system when it is 'system' */
 export function useDark(theme: Theme): boolean {

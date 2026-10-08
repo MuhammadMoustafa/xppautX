@@ -1,6 +1,7 @@
 /* The side panels of the main screen (W226): the Commands panel on the left and the Values panel
    (a column on the right from 80rem, a row under the work area below that) can each be collapsed
-   and resized by dragging their inner edge. Kept per viewer, like the theme (ui/theme.ts). */
+   and resized by dragging their inner edge. Kept per viewer (store/prefs.ts). */
+import {readPref, writePref} from './prefs';
 
 /** sizes in CSS px; null is the stylesheet's default size */
 export interface Panels {
@@ -40,24 +41,12 @@ export function panelRange(size: PanelSize, room: number): {min: number; max: nu
 const isSize = (v: unknown, size: PanelSize): v is number | null =>
   v === null || (typeof v === 'number' && v >= PANEL_LIMITS[size].min && v <= PANEL_LIMITS[size].max);
 
-export function savedPanels(): Panels {
-  try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-    if (v && typeof v.menuCollapsed === 'boolean' && typeof v.valuesCollapsed === 'boolean'
-      && isSize(v.menuWidth, 'menuWidth') && isSize(v.valuesWidth, 'valuesWidth') && isSize(v.valuesHeight, 'valuesHeight')) {
-      return {menuCollapsed: v.menuCollapsed, menuWidth: v.menuWidth, valuesCollapsed: v.valuesCollapsed,
-        valuesWidth: v.valuesWidth, valuesHeight: v.valuesHeight};
-    }
-  } catch {
-    /* storage blocked or not ours: the defaults */
-  }
-  return defaultPanels;
-}
+const parsePanels = (v: any): Panels | null =>
+  v && typeof v.menuCollapsed === 'boolean' && typeof v.valuesCollapsed === 'boolean'
+    && isSize(v.menuWidth, 'menuWidth') && isSize(v.valuesWidth, 'valuesWidth') && isSize(v.valuesHeight, 'valuesHeight')
+    ? {menuCollapsed: v.menuCollapsed, menuWidth: v.menuWidth, valuesCollapsed: v.valuesCollapsed,
+      valuesWidth: v.valuesWidth, valuesHeight: v.valuesHeight}
+    : null;
 
-export function savePanels(p: Panels): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(p));
-  } catch {
-    /* storage blocked: the layout lasts for this page */
-  }
-}
+export const savedPanels = (): Panels => readPref(KEY, parsePanels, defaultPanels);
+export const savePanels = (p: Panels): void => writePref(KEY, p);
