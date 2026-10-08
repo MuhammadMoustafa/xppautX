@@ -11,7 +11,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 - Fixed: the Xlabel/Ylabel (and Zlabel in 3D) of the Viewaxes form now show on the plot at once, and clearing one goes back to the column name; a 3D plot titles its axes.
 - The Commands and Values panels can be hidden and shown with buttons in the title bar and resized by dragging their inner edge or with the arrow keys; the layout is remembered (W226, [#280](https://github.com/MuhammadMoustafa/xppautX/issues/280)).
-- **About, with links that work.** Help > About (the page and the window's own box) now shows the author, links to his email, GitHub and LinkedIn, the source and the issue tracker, and credits XPPAUT and G. Bard Ermentrout. Every link opens in your default browser, in the desktop window as well (#278).
+- **About, with links that work.** Help > About (the page and the window's own box) now shows the author, links to the author's email, GitHub and LinkedIn, the source and the issue tracker, and credits XPPAUT and G. Bard Ermentrout. Every link opens in your default browser, in the desktop window as well (#278).
 
 ## [0.1.0-beta.1] - 2026-10-08
 

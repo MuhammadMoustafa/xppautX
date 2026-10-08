@@ -402,7 +402,7 @@ Everything in xppautX works without a compiler. A model that called a
 compiled C library (`export`, `dll_lib`/`dll_fun`, a network's
 `import`) no longer loads: those statements were removed.
 
-File > Help opens this manual in the page's Help view. Its About button shows the version, the author, links to his email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (the desktop window's Help > About shows the same lines; a link opens in the system's default browser, from the page and from the window's own About box). "Edit .xpprc"
+File > Help opens this manual in the page's Help view. Its About button shows the version, the author, links to the author's email, GitHub and LinkedIn, the source and where to report a problem, and the credit to XPPAUT and its author (the desktop window's Help > About shows the same lines; a link opens in the system's default browser, from the page and from the window's own About box). "Edit .xpprc"
 opens an editor on the machine that runs the program, as in X11 (the
 `XPPEDITOR` environment variable, [Introduction](01-introduction.md)). If
 you ever run the server on another machine (a remote VS Code session,
