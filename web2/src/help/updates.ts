@@ -87,8 +87,12 @@ function version(tag: unknown): number[] {
 export type UpdateResult = {text: string; url?: string};
 
 export async function checkUpdates(about: string, signal?: AbortSignal): Promise<UpdateResult> {
-  // hello.about's first line is xpp_about_text's version; git-describe builds use its base tag.
-  const local = /^xppautX (v\d+\.\d+\.\d+)(?:-\d+-g[0-9a-f]+)?\n/.exec(about)?.[1];
+  // hello.about's first line is xpp_about_text's version: a release tag (v0.1.0), a pre-release tag
+  // (v0.1.0-beta.1) or a git-describe build (v0.1.0-12-gabcdef, or v0.1.0-beta.1-12-gabcdef).
+  const found = /^xppautX (v\d+\.\d+\.\d+)(-[0-9A-Za-z.]+?)?(?:-\d+-g[0-9a-f]+)?\n/.exec(about);
+  const local = found?.[1];
+  /* a pre-release is older than the release of its own numbers, which `releases/latest` can name */
+  const preRelease = !!found?.[2];
   let current: number[];
   try { current = version(local); }
   catch (e) { throw located(e, 'hello.about', about, 0); }
@@ -105,7 +109,8 @@ export async function checkUpdates(about: string, signal?: AbortSignal): Promise
     if (typeof url !== 'string' || url.length > URL_LIMIT || url !== `${RELEASE_PREFIX}tag/${tag}`)
       throw located(new Error('GitHub returned an invalid release page URL'), RELEASE_API, text, fieldOffset(text, 'html_url'));
     const differing = latest.findIndex((n, i) => n !== current[i]);
-    return differing >= 0 && latest[differing] > current[differing]
+    const newer = differing >= 0 ? latest[differing] > current[differing] : preRelease;
+    return newer
       ? {text: `xppautX ${latest.join('.')} is available. Nothing is downloaded or installed by xppautX.`, url}
       : {text: `xppautX ${current.join('.')} is the latest`};
   } catch (e) { throw e instanceof UpdateError ? e : located(e, RELEASE_API); }

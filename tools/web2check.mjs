@@ -5576,8 +5576,14 @@ async function updatesCheck() {
     : "window.__openedRelease = null; window.open = url => { window.__openedRelease = url; }; document.querySelector('[data-update-dialog] .dialog-actions button:first-child').click()");
   check('updates: opens only on choice', await cdp.eval("window.__openedRelease === 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/v999.0.0'"));
   await close();
-  await run(release(local), `xppautX ${local.slice(1)} is the latest`);
-  check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 1"));
+  /* a pre-release build (v0.1.0-beta.1) is older than the release of its own numbers; a release build is not */
+  if (/^xppautX v\d+\.\d+\.\d+-[A-Za-z]/.test(about)) {
+    await run(release(local), `xppautX ${local.slice(1)} is available`);
+    check('updates: a pre-release build is offered the release of its numbers', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 2"));
+  } else {
+    await run(release(local), `xppautX ${local.slice(1)} is the latest`);
+    check('updates: same has no release action', await cdp.eval("document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 1"));
+  }
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
   await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify('xppautX dev\n')}; true`);

@@ -12,6 +12,13 @@ test('updates compare numeric semver components and validate untrusted fields', 
     assert.ok((await checkUpdates('xppautX v0.9.0\n')).url);
     answer('v0.9.0');
     assert.equal((await checkUpdates('xppautX v0.10.0-12-gabcdef\n')).text, 'xppautX 0.10.0 is the latest');
+    /* a beta is older than the release of its own numbers (releases/latest never names a pre-release) */
+    answer('v0.1.0');
+    assert.ok((await checkUpdates('xppautX v0.1.0-beta.1\n')).url);
+    assert.ok((await checkUpdates('xppautX v0.1.0-beta.1-7-gabcdef\n')).url);
+    assert.equal((await checkUpdates('xppautX v0.1.0\n')).text, 'xppautX 0.1.0 is the latest');
+    answer('v0.0.9');
+    assert.equal((await checkUpdates('xppautX v0.1.0-beta.1\n')).text, 'xppautX 0.1.0 is the latest');
     answer('v01.0.0');
     await assert.rejects(checkUpdates('xppautX v0.1.0\n'), /invalid release version/);
     answer('v1.0.0', 'https://evil.example/');

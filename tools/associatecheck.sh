@@ -52,8 +52,9 @@ wxs=packaging/windows/xppautX.wxs
 ps1=tools/associate/xppautx-associate.ps1
 ps_progid=$(sed -n "s/^.ProgId = '\(.*\)'.*/\1/p" "$ps1")
 ps_exts=$(sed -n "s/^.Extensions = @(\(.*\)).*/\1/p" "$ps1" | tr -d "' " | tr ',' '\n' | sed 's/^\.//' | sort | tr '\n' ' ')
-wxs_exts=$(sed -n 's/.*<Extension Id="\([a-z]*\)">.*/\1/p' "$wxs" | sort | tr '\n' ' ')
+wxs_exts=$(sed -n 's/.*<Extension Id="\([a-z]*\)".*/\1/p' "$wxs" | sort | tr '\n' ' ')
 check "windows MSI: the ProgId is the script's ($ps_progid)" grep -q "<ProgId Id=\"$ps_progid\"" "$wxs"
 check "windows MSI: the extensions are the script's ($ps_exts)" test -n "$ps_exts" -a "$ps_exts" = "$wxs_exts"
-check "windows MSI: every extension has the open verb with \"%1\"" test "$(grep -c '<Verb Id="open" .*Argument="&quot;%1&quot;"' "$wxs")" = "$(printf '%s' "$ps_exts" | wc -w)"
+# WiX writes a verb under the ProgId once however many extensions point at it (a verb on each extension is a duplicate registry error)
+check "windows MSI: the open verb runs the program with \"%1\", once" test "$(grep -c '<Verb Id="open" .*Argument="&quot;%1&quot;"' "$wxs")" = 1
 if [ $fail -ne 0 ]; then echo "associatecheck FAILED"; exit 1; fi
