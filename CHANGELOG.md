@@ -9,10 +9,6 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-### Changed
-
-- Release files: a Windows installer `xppautX-<version>-windows-x64.msi` (per machine under Program Files, Start Menu shortcut, the `.ode`, `.odex`, `.snapx`, `.recx` file types, upgrades in place; unsigned, so SmartScreen may warn) joins the portable `.zip`; the bare `.exe`, the macOS `.tar.gz` files, the per-file `.sha256` files and our own source tarball are gone (the source is the tag's source archive); one `SHA256SUMS.txt` covers the rest: `.msi`, `.zip`, `.deb`, Linux `.tar.gz`, two `.dmg` (W221, [#275](https://github.com/MuhammadMoustafa/xppautX/issues/275)).
-
 ## [0.1.0-beta.1] - 2026-10-08
 
 First public beta of xppautX, a modernised XPPAUT 8.0: the same equations, solvers and AUTO, with a new interface.
@@ -23,6 +19,8 @@ First public beta of xppautX, a modernised XPPAUT 8.0: the same equations, solve
 - **Sessions:** save everything with Ctrl+S (a dot in the title shows unsaved changes), Save as, Save a copy, Reload keeping your values; recordings (`.recx`) replay a whole analysis.
 - **Headless and scripting:** `--silent` runs and a JSON protocol on stdin/stdout or HTTP.
 - **Settings have descriptive names** (`total_time`, `transient_time`, `storage_rows`, ...); XPPAUT's old words are accepted only when converting a `.ode` or on the command line.
+
+Downloads: Windows installer (`.msi`, installs for all users and opens our file types) or portable `.zip` (no admin rights); Linux `.deb` or `.tar.gz`; macOS `.dmg`; `SHA256SUMS.txt` to check them. The source is the tag's source archive.
 
 Known limits of this beta: the macOS builds are tested by the automatic checks only, not by hand; the installers are not signed, so Windows SmartScreen or macOS Gatekeeper may warn; the one-letter XPPAUT key sequences are an optional preset (off by default).
 
