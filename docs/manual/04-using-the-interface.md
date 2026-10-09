@@ -451,7 +451,10 @@ is no startup or background check. A newer release shows its version and
 browser (a new tab in browser mode), where you choose whether to download.
 xppautX downloads and installs nothing. A current or newer installed version
 says “xppautX X.Y.Z is the latest”; an unavailable network, invalid answer
-or unversioned development build shows why the check failed. Development
+or unversioned development build shows why the check failed. A pre-release build (a beta) is told of the
+highest newer version including pre-releases, by SemVer precedence (a beta
+is lower than the release of its own numbers); a release build is never
+offered a beta. Development
 builds described from a release tag compare that base version.
 Closing a pending check lets you immediately try again. Failures show their
 actual source: the program version or the API answer, with its line when

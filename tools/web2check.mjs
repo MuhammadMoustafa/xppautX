@@ -5912,6 +5912,24 @@ async function updatesCheck() {
   }
   await close();
   await run(release('v0.0.0'), 'is the latest'); await close();
+  /* W234: which endpoint a build asks, and what it is told of betas */
+  const preBuild = /^xppautX v\d+\.\d+\.\d+-[A-Za-z]/.test(about);
+  check('updates: a pre-release build asks the list, a release build releases/latest',
+    await cdp.eval(`window.__updateAsked.endsWith(${JSON.stringify(preBuild ? '/releases?per_page=10' : '/releases/latest')})`));
+  const withBeta = (n) => release(`${local}-beta.${n}`);
+  if (preBuild) {
+    const own = about.slice('xppautX '.length).replace(/-\d+-g[0-9a-f]+$/, '');
+    const num = Number(/-beta\.(\d+)$/.exec(own)?.[1] ?? 0);
+    await run([release(own), withBeta(num + 1)], `xppautX ${local.slice(1)}-beta.${num + 1} is available`);
+    check('updates: a newer beta is offered with its release page', await cdp.eval(`document.querySelectorAll('[data-update-dialog] .dialog-actions button').length === 2`)); await close();
+    await run([release(own), withBeta(num > 1 ? num - 1 : 0)], 'is the latest'); await close();
+    await run([release(own)], `xppautX ${own.slice(1)} is the latest`); await close();
+    await run([], 'Check for updates failed: GitHub returned no releases'); await close();
+    await run([release(own), 5], 'Check for updates failed: GitHub returned a bad release entry'); await close();
+    await run([{tag_name: local + '-beta.1/../../x', html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/x'}], 'Check for updates failed: invalid release version'); await close();
+  } else {
+    await run(withBeta(1), 'Check for updates failed: invalid release version'); await close();
+  }
   await cdp.eval(`__xpp.state().hello.about = ${JSON.stringify([[{text: 'xppautX dev'}]])}; true`);
   const beforeInvalid = await cdp.eval('window.__updateRequests');
   await run(null, 'Check for updates failed: invalid release version');
@@ -5956,19 +5974,25 @@ async function sessionAttempt(ode, fn, expected, attempts) {
       window.__updateRequests = 0;
       const originalFetch = window.fetch;
       window.fetch = async (url, options) => {
-        if (url !== 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases/latest') return originalFetch(url, options);
+        /* W234: a pre-release build asks the list, a stable one releases/latest; a single release answer is wrapped in a list */
+        const api = 'https://api.github.com/repos/MuhammadMoustafa/xppautX/releases';
+        const asksList = url === api + '?per_page=10';
+        if (!asksList && url !== api + '/latest') return originalFetch(url, options);
         window.__updateRequests++;
+        window.__updateAsked = url;
         if (window.__updateAnswer === 'pending') {
           options.signal.addEventListener('abort', () => { window.__pendingAborted = true; }, {once: true});
           const response = await new Promise(resolve => { window.__finishUpdate = resolve; });
           window.__pendingFinished = true;
-          return response;
+          const given = await response.json();
+          return new Response(JSON.stringify(asksList && !Array.isArray(given) ? [given] : given));
         }
         if (window.__updateAnswer === 'multiline') return new Response(${JSON.stringify('{\n"tag_name": "v1.0.0",\n"html_url": !\n}')});
         if (window.__updateAnswer === 'network') throw new Error('stub network unavailable');
         if (window.__updateAnswer === 'http') return new Response('unavailable', {status: 503});
         if (window.__updateAnswer === 'json') return new Response('{');
-        return new Response(JSON.stringify(window.__updateAnswer), {status: 200, headers: {'Content-Type': 'application/json'}});
+        const given = window.__updateAnswer;
+        return new Response(JSON.stringify(asksList && given && !Array.isArray(given) ? [given] : given), {status: 200, headers: {'Content-Type': 'application/json'}});
       };`});
     /* the new page, connected and idle, before `fn`: a check run between the navigation and the
        new document's first state read the last page's store, and a key typed then was lost (W20) */
