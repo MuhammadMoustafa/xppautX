@@ -5752,6 +5752,10 @@ async function startScreenCheck() {
         return b.length === 2 && b[0].getAttribute('aria-disabled') === 'false' && b[1].getAttribute('aria-disabled') === 'true'
           && !!document.querySelector('[data-start-open]') && !document.querySelector('.values-panel, .run-toolbar'); })()`));
     check('start screen: the core sent no state and no window', await S('s.core === null'));
+    check('start screen: with no examples folder beside the program the page says so, with the reason, and lists none',
+      await cdp.eval(`(() => { const n = document.querySelector('[data-start-no-examples]');
+        return !!n && n.innerText.includes(${JSON.stringify(start.examples.reason)}) && !document.querySelector('[data-start-example]'); })()`)
+        && start.examples.names.length === 0, JSON.stringify(start.examples));
 
     const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'open').length`);
     check('start screen: nothing was sent by the page yet (the core asked by itself)', (await opens()) === 0);
@@ -5768,6 +5772,37 @@ async function startScreenCheck() {
     check('start screen: a recent model that is there opens: its hello has no start, its state arrives, the screen goes',
       await until(`__xpp.sent().some(c => c.cmd === 'open' && c.file === ${JSON.stringify(ODE)}) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
         && await cdp.eval(`!document.querySelector('[data-start-screen]') && !!document.querySelector('.run-toolbar')`));
+    await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
+  } finally {
+    await stopServer(server);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
+/* W233: the bundled examples. A copy of the program with examples/ beside it lists the .odex files
+   there; a click sends the example's name only (never a path) and opens the copy the core makes in the
+   config folder, the start screen going. */
+async function startScreenExamplesCheck() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-examples-'));
+  const exe = path.join(dir, 'bin', path.basename(bin));
+  fs.mkdirSync(path.join(dir, 'bin', 'examples'), {recursive: true});
+  fs.copyFileSync(bin, exe);
+  fs.copyFileSync(ODE, path.join(dir, 'bin', 'examples', 'lecar.odex'));
+  fs.writeFileSync(path.join(dir, 'bin', 'examples', 'notes.txt'), 'not a model\n');
+  const server = await startServer(exe, dir, []);
+  try {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+    const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
+    await cdp.send('Page.navigate', {url: server.url});
+    check('start screen examples: the .odex files beside the program are listed, and only they',
+      await until(`s.hello && s.hello.start && !s.busy && !s.ask`, 'the start screen', 30000 * SLOW)
+        && await cdp.eval(`(() => { const b = [...document.querySelectorAll('[data-start-example]')];
+          return b.length === 1 && b[0].dataset.startExample === 'lecar.odex' && !document.querySelector('[data-start-no-examples]'); })()`));
+    await cdp.eval(`document.querySelector('[data-start-example]').click(); true`);
+    check('start screen examples: a click sends the name only; the copy opens and the screen goes',
+      await until(`__xpp.sent().some(c => c.cmd === 'open' && c.example === 'lecar.odex' && c.file === undefined) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
+        && await cdp.eval(`!document.querySelector('[data-start-screen]') && !!document.querySelector('.run-toolbar')`)
+        && fs.existsSync(path.join(dir, 'xpp-config', 'examples', 'lecar.odex')));
     await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
   } finally {
     await stopServer(server);
@@ -6543,7 +6578,7 @@ async function main() {
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
-    if (run('startscreen')) await startScreenCheck();
+    if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); }
     if (run('loaderror')) {
       await loadErrorCheck();
       await session(path.resolve('tools/models/check_quirks.ode'), async () => {

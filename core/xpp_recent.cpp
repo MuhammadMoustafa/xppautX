@@ -71,7 +71,7 @@ Result<> note(std::string_view model)
     return write_config_file(WHERE, FILE_NAME, serialize_recent(*entries));
 }
 
-std::string start_json(const Result<std::vector<std::string>> &loaded)
+std::string start_json(const Result<std::vector<std::string>> &loaded, std::string_view more)
 {
     std::string out = "{\"path\":";
     json_append_string(out, recent_path());
@@ -88,6 +88,7 @@ std::string start_json(const Result<std::vector<std::string>> &loaded)
     }
     out += ']';
     if (!loaded) json::append_error(out, loaded.error());
+    out += more;
     return out + "}";
 }
 

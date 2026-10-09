@@ -1044,6 +1044,12 @@ export class Session {
     this.send(path === undefined ? {cmd: 'open'} : {cmd: 'open', file: path});
   }
 
+  /** Open model of a bundled example (hello.start.examples): the core copies it into the user's config
+      folder and opens the copy; the page sends only the name */
+  openExample(name: string): void {
+    this.send({cmd: 'open', example: name});
+  }
+
   /** the recording bar's Stop: the core asks the file's name (a `file` ask) and writes it */
   stopRecording(): void {
     this.send({cmd: 'record', op: 'stop'});

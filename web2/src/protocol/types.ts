@@ -67,12 +67,21 @@ export interface RecentModel {
   missing: boolean;
 }
 
+/** hello.start.examples: the bundled .odex examples beside the program (base names, sorted); `reason`
+    says why there are none, and `folder` where they were looked for ("" when the program's folder is unknown) */
+export interface StartExamples {
+  folder: string;
+  names: string[];
+  reason?: string;
+}
+
 /** hello.start: the models opened lately, newest first, `limit` the most kept; `error` (and the
     `error` event's other fields) when recent.txt could not be read, with no models listed */
 export interface StartInfo {
   path: string;
   limit: number;
   recent: RecentModel[];
+  examples: StartExamples;
   error?: string;
   file?: string;
   line?: number;

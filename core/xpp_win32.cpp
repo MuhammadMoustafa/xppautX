@@ -178,6 +178,16 @@ std::string app_data_folder()
     return std::string(dir.data(), n);
 }
 
+std::string program_folder()
+{
+    std::array<char, MAX_PATH> exe; /* GetModuleFileNameA writes it */
+    const DWORD n = GetModuleFileNameA(nullptr, exe.data(), static_cast<DWORD>(exe.size()));
+    if (n == 0 || n >= exe.size()) return std::string(); /* n == size: cut short */
+    const std::string_view path(exe.data(), n);
+    const std::size_t slash = path.find_last_of('\\');
+    return slash == std::string_view::npos ? std::string() : std::string(path.substr(0, slash));
+}
+
 bool process_gone(unsigned long pid)
 {
     /* Limited query rights suffice; a denied query never authorizes scratch cleanup. */

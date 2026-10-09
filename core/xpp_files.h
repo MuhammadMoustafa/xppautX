@@ -211,6 +211,15 @@ std::string config_path(std::string_view name);
 /* the override: tests and CI point the settings at a folder of their own so
    they never read or write the user's real file */
 inline constexpr const char *CONFIG_DIR_ENV = "XPP_CONFIG_DIR";
+/* The folder the program's own read-only files are in (the bundled
+   examples): beside the running program's executable, found from the
+   system (Windows GetModuleFileNameA, Linux /proc/self/exe, macOS
+   _NSGetExecutablePath), never from the working folder or a name typed on
+   the command line. Inside a macOS .app (the executable in Contents/MacOS)
+   it is the bundle's Contents/Resources. Empty when the system does not say. */
+std::string program_dir();
+/* the file or folder `name` in the folder dir, with the platform's separator */
+std::string join(std::string_view dir, std::string_view name);
 /* path and its missing parents as folders, mode 0700 (POSIX); false when
    one cannot be made */
 bool make_dirs(std::string_view path);

@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cerrno>
 #include <charconv>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -25,7 +26,17 @@
 #include <sys/stat.h>
 #include <unistd.h> /* getcwd, chdir (MinGW's unistd.h provides both) */
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h> /* _NSGetExecutablePath */
+#endif
+
 namespace xpp::files {
+
+namespace {
+/* the room program_dir gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
+   1024); a longer one is no folder this program can be installed in */
+constexpr std::size_t PATH_BUFFER_BYTES = 4096;
+} // namespace
 
 std::string temp_base()
 {
@@ -58,13 +69,40 @@ std::string config_dir()
 #endif
 #endif
     if (base.empty()) return {};
-    return xpp::format("{}{}{}", base, SEP, APP);
+    return join(base, APP);
 }
+
+std::string program_dir()
+{
+    std::string exe_folder;
+#ifdef _WIN32
+    exe_folder = xpp::win32::program_folder();
+#elif defined(__APPLE__)
+    std::string exe(PATH_BUFFER_BYTES, '\0');
+    std::uint32_t size = static_cast<std::uint32_t>(exe.size());
+    if (_NSGetExecutablePath(exe.data(), &size) != 0) return {}; /* too long for the buffer: no folder */
+    exe.resize(std::strlen(exe.c_str()));
+    exe_folder = split_path(exe).first;
+    /* the .app bundle's layout: the executable in Contents/MacOS, the files it ships in Contents/Resources */
+    const std::string contents = split_path(exe_folder).first;
+    if (split_path(exe_folder).second == "MacOS" && split_path(contents).second == "Contents")
+        return join(contents, "Resources");
+#else
+    std::string exe(PATH_BUFFER_BYTES, '\0');
+    const ssize_t n = readlink("/proc/self/exe", exe.data(), exe.size());
+    if (n <= 0 || static_cast<std::size_t>(n) == exe.size()) return {}; /* an unreadable or cut-short link */
+    exe.resize(static_cast<std::size_t>(n));
+    exe_folder = split_path(exe).first;
+#endif
+    return exe_folder;
+}
+
+std::string join(std::string_view dir, std::string_view name) { return xpp::format("{}{}{}", dir, SEP, name); }
 
 std::string config_path(std::string_view name)
 {
     const std::string dir = config_dir();
-    return dir.empty() ? std::string() : xpp::format("{}{}{}", dir, SEP, name);
+    return dir.empty() ? std::string() : join(dir, name);
 }
 
 bool make_dirs(std::string_view path)

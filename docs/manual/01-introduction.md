@@ -134,8 +134,14 @@ ten, kept in `recent.txt` beside `keymap.json`). Click one to open it; one
 whose file is gone is listed as missing and cannot be opened (move or restore
 the file, or open another). If `recent.txt` cannot be read, the screen says
 which line is wrong and lists none; the file is left as it is for you to fix or
-delete. No bundled examples are listed yet: the release's `examples/` folder
-is beside the program, and xppautX does not look for it.
+delete. Under **Examples** are the `.odex` models of the release's `examples/`
+folder, beside the program (in `xppautX.app`, `Contents/Resources/examples`).
+Click one to open it: an installed folder is read-only, and a model writes
+its outputs beside itself, so xppautX opens a copy of the example in
+`examples/` of the settings folder (beside `keymap.json`) and says where it
+is. If a copy is there already (you may have changed it), it asks before
+replacing it. A program with no `examples/` folder beside it (a build run
+from a source checkout) says so instead of listing any.
 
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. Opening a `.ode` in any mode converts and saves `.odex` beside

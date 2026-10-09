@@ -61,14 +61,15 @@ def check_logging():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False):
+def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False, server=None):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
     second, differently-configured server (e.g. a bad HOME, another model)
     can be driven the same way without disturbing the main session. With
     `log` (a list), the server's stderr lines are appended to it. With
-    `no_model` the program starts with no file (the start screen, W232)."""
+    `no_model` the program starts with no file (the start screen, W232). `server` is another
+    copy of the program to run (W233: the bundled examples are found beside the executable)."""
     ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
     shutil.copy(ode, run_dir)
@@ -81,7 +82,7 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=
     # Windows box without the UTF-8 system locale is the ANSI code page
     # (cp1252 here), mojibake-ing a non-ASCII name on this side even though
     # the wire bytes and xppautX itself (card W35b) are correct UTF-8.
-    proc = subprocess.Popen([os.path.abspath(args.server), '--server'] + ([] if no_model else [os.path.basename(ode)]) + (extra_args or []), cwd=run_dir,
+    proc = subprocess.Popen([os.path.abspath(server or args.server), '--server'] + ([] if no_model else [os.path.basename(ode)]) + (extra_args or []), cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', bufsize=1, env=env)
     events = queue.Queue()
@@ -6692,6 +6693,90 @@ def check_start_screen():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 check_start_screen()
+
+def check_start_examples():
+    """W233, docs/protocol.md "Start screen": the bundled examples are the .odex files of examples/ beside
+    the executable, listed in hello.start.examples (none, with the reason, when there is no such folder); the
+    page opens one by its name only: a path, `..` or a name that is not listed is refused, and an example
+    is opened as a copy in the config folder's examples/, asking before it replaces one that is there."""
+    root = tempfile.mkdtemp(prefix='xppexamples')
+    config = os.path.join(root, 'config')
+    env = {'XPP_CONFIG_DIR': config}
+    same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    try:
+        # no examples/ beside the executable: none, and the reason is there to be shown
+        p, r, snd, col, _ = launch_server(extra_env=env, no_model=True)
+        try:
+            evs, _ = col(lambda e: e.get('ev') == 'ask')
+            ex = next(e for e in evs if e.get('ev') == 'hello')['start'].get('examples', {})
+            check('W233: with no examples folder beside the program, none are listed and the reason is given',
+                  ex.get('names') == [] and ex.get('reason') and ex.get('folder', '').endswith('examples'), str(ex))
+        finally:
+            stop_server(p, r, snd)
+
+        # a copy of the program with examples/ beside it
+        bin_dir = os.path.join(root, 'bin')
+        os.makedirs(os.path.join(bin_dir, 'examples', 'sub'))
+        exe = os.path.join(bin_dir, os.path.basename(args.server))
+        shutil.copy(args.server, exe)
+        shutil.copy(args.ode, os.path.join(bin_dir, 'examples', 'lecar.odex'))
+        shutil.copy(args.ode, os.path.join(bin_dir, 'examples', 'sub', 'deep.odex'))
+        with open(os.path.join(bin_dir, 'examples', 'notes.txt'), 'w') as f:
+            f.write('not a model\n')
+        copied = os.path.join(config, 'examples', 'lecar.odex')
+        p, r, snd, col, _ = launch_server(extra_env=env, no_model=True, server=exe)
+        try:
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            ex = next(e for e in evs if e.get('ev') == 'hello')['start'].get('examples', {})
+            check('W233: the .odex files of examples/ beside the program are listed, sorted, no folder or other file',
+                  ex.get('names') == ['lecar.odex'] and 'reason' not in ex, str(ex))
+            snd(cmd='answer', id=ask['id'], ok=0)
+            col(is_idle)
+            for name in ('../lecar.odex', '..', 'sub/deep.odex', os.path.join(bin_dir, 'examples', 'lecar.odex'), 'notes.txt', 'nothere.odex', ''):
+                snd(cmd='open', example=name)
+                evs, _ = col(is_idle)
+                err = errors(evs)
+                check('W233: the example %r is refused (not listed), nothing opened or written' % name,
+                      len(err) == 1 and 'not one of the bundled examples' in err[0]['error'] and not os.path.exists(config)
+                      and not any(e.get('ev') == 'hello' for e in evs), str(evs)[-300:])
+            snd(cmd='open', example='lecar.odex')
+            evs, _ = col(is_idle)
+            hello = next((e for e in evs if e.get('ev') == 'hello'), {})
+            with open(args.ode, 'rb') as a, open(copied, 'rb') as b:
+                same_bytes = a.read() == b.read()
+            check('W233: opening an example copies it into the config folder and opens the copy: a hello with no start, a state, no error, no question',
+                  hello and 'start' not in hello and last_state(evs) and not errors(evs) and not [e for e in evs if e.get('ev') == 'ask']
+                  and same_bytes and os.path.normcase(os.path.abspath(open(os.path.join(config, 'recent.txt')).read().split('\n')[0])) == os.path.normcase(os.path.abspath(copied)),
+                  str(evs)[-300:])
+            check('W233: and says where the copy is', any(same(e['bottom'].split(' is copied to ')[1].split(';')[0], copied) for e in evs if e.get('ev') == 'message' and ' is copied to ' in e.get('bottom', '')), str(evs)[-300:])
+            # a changed copy is asked about before it is replaced; No keeps it as it is
+            with open(copied, 'a') as f:
+                f.write('# mine\n')
+            changed = open(copied, 'rb').read()
+            snd(cmd='open', example='lecar.odex')
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            check('W233: a copy that is there is asked about: Replace?', ask and ask.get('question', '').endswith(' exists. Replace it?'), str(ask))
+            snd(cmd='answer', id=ask['id'], key='n')
+            evs, _ = col(is_idle)
+            check('W233: No keeps the copy as it was and opens nothing', open(copied, 'rb').read() == changed and not [e for e in evs if e.get('ev') == 'ask']
+                  and not any(e.get('ev') == 'hello' for e in evs), str(evs)[-300:])
+            snd(cmd='open', example='lecar.odex')
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            snd(cmd='answer', id=ask['id'], key='y')
+            evs, ask = col(lambda e: e.get('ev') == 'ask')
+            check('W233: Yes replaces the copy with the example, then Open model asks its usual question about this session',
+                  open(copied, 'rb').read() != changed and ask and ask.get('kind') == 'choice', str(ask))
+            snd(cmd='answer', id=ask['id'], key='d')
+            evs, _ = col(is_idle)
+            check('W233: and the example opens', any(e.get('ev') == 'hello' for e in evs) and not errors(evs), str(evs)[-300:])
+        finally:
+            stop_server(p, r, snd)
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+check_start_examples()
 
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

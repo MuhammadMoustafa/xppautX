@@ -16,6 +16,7 @@
 #include "xpp_session.h"
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -30,6 +31,12 @@ struct Session; /* session.h */
    then the whole session, after asking whether to save first.
    A recording (.recx) opens in the player (play_recording, W59b). */
 void xpp_model_open(xpp::Session &s, const char *path);
+/* Open model of a bundled example (W233, {"cmd":"open","example":name}):
+   `name` is one of the examples beside the program (xpp_examples.h), copied
+   into the user's config folder (asking before it replaces a copy that is
+   there; declining ends it, no change), and that copy opened by
+   xpp_model_open, the one owner. Says where the copy is. */
+void xpp_model_open_example(xpp::Session &s, std::string_view name);
 /* The one question before the session s goes (W59d): question, answered
    Save session (key s), Don't save (d) or Cancel (Esc). Save saves the
    session first (xpp_session_save, its file asked), and with_recording

@@ -64,7 +64,8 @@ cancelling it leaves the start screen: no error, the program keeps running.
 
 `start`: `{"path": the recent.txt file ("" when there is no config folder),
 "limit": how many models are kept, "recent": [{"path": absolute path,
-"missing": the file is no longer there}, ...]}`, newest first. A recent model
+"missing": the file is no longer there}, ...], "examples": {"folder": ...,
+"names": [...], "reason": ...}}`, newest first. A recent model
 that is missing is listed as missing, never dropped; opening it is an
 ordinary `open` that fails with the file named. When `recent.txt` cannot be
 read (a relative or repeated path, a control character, a path or a file
@@ -77,6 +78,20 @@ beside `keymap.json`: one absolute path per line, newest first; a model is
 put first when it is opened from Open model (the dialog, a path, a recent
 entry), from the command line or by the OS (a `.ode` is listed by the `.odex`
 it converts to), and not while a recording plays or in `--silent`.
+
+`examples` (W233): the bundled models. `folder` is `examples/` beside the
+program (found from the executable: Windows, Linux `/proc/self/exe`, macOS the
+`.app`'s `Contents/Resources`; no other place is searched, so a build run from a
+source checkout has none), `names` the `.odex` base names in it, sorted, at most
+100, and `reason` (only when `names` is empty) says why: the program's folder is
+unknown, there is no examples folder, or it holds no `.odex`. The page shows
+the reason. `{"cmd":"open","example":"lecar.odex"}` opens one: the name must be
+in `names` (a path, `..`, a link or any other name is the error "is not one of the
+bundled examples"), the example is copied into `examples/` of the config folder
+(an installed folder is read-only and a model writes beside itself), asking the
+Replace question of every save when a copy is there (declining ends the command
+with no change), a message says where the copy is, and the copy is opened by the
+`open` below. `file` is ignored when `example` is given.
 
 Open model has one owner, `{"cmd":"open","file":path}` (empty: the dialog),
 so the start screen's button, a recent entry, File > Open model, the desktop

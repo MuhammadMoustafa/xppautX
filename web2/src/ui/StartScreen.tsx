@@ -1,7 +1,8 @@
 /* The start screen (W232): what the program shows when it started with no
    model file and the Open model dialog was cancelled. Open model is the
    same operation as File > Open model (session.openModel), the recent
-   models are hello.start (core/xpp_recent.h); a recent model whose file is
+   models are hello.start (core/xpp_recent.h), and so are the bundled
+   examples (core/xpp_examples.h, W233; one opens as a copy in the settings folder); a recent model whose file is
    gone is listed as missing, never dropped. */
 import {placeWords} from '../protocol/errors';
 import {baseName} from '../store/files';
@@ -38,6 +39,18 @@ export function StartScreen() {
               {baseName(m.path)}{m.missing && <span class="start-missing"> (missing)</span>}
             </button>
             <span class="muted start-path">{m.path}</span>
+          </li>
+        ))}
+      </ul>
+      <h3>Examples</h3>
+      {start.examples.names.length === 0 && <p class="muted" data-start-no-examples>No examples are installed: {start.examples.reason}.</p>}
+      <ul class="start-recent">
+        {start.examples.names.map(name => (
+          <li key={name}>
+            <button data-start-example={name} aria-disabled={!may} title={may ? `Opens a copy of ${name} in your settings folder` : BUSY_TITLE}
+              onClick={() => { if (may) session.openExample(name); }}>
+              {name}
+            </button>
           </li>
         ))}
       </ul>

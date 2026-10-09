@@ -2,6 +2,7 @@
 #include "solver.h"
 #include "model_switch.h"
 #include "open_model.h"
+#include "xpp_examples.h"
 #include "xpp_recent.h"
 #include "session.h"
 #include "model.h"
@@ -104,6 +105,18 @@ void xpp_model_open(xpp::Session &s, const char *path)
     req=xpp::open_request(s,where.first,where.second);
   }
   s.model_request=std::move(req);
+}
+
+void xpp_model_open_example(xpp::Session &s, std::string_view name)
+{
+  const xpp::Result<std::string> copy=xpp::examples::install(name);
+  if(!copy){
+    xpp::show_error(copy.error());
+    return;
+  }
+  if(copy->empty())return;
+  xpp::bottom_msg(0,xpp::format("The example {} is copied to {}; this copy is opened, so the example stays as it was",name,*copy));
+  xpp_model_open(s,copy->c_str());
 }
 
 namespace {

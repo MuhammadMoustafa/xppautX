@@ -52,6 +52,7 @@
 #include "graf_par.h"
 #include "colormap.h"
 #include "xpp_files.h"
+#include "xpp_examples.h"
 #include "xpp_recent.h"
 
 /* the core's own globals and functions that have no header of their own */
@@ -629,9 +630,10 @@ const CommandInfo commands[] = {
     {"dfield", nullptr, D, STEP, write_command},
     {"open", nullptr, D, STEP,
      [](xpp::Session &s, const char *line) {
-         std::string file;
+         std::string file, example;
          get_string(line, "file", file);
-         xpp_model_open(s, file.c_str());
+         if (get_string(line, "example", example)) xpp_model_open_example(s, example);
+         else xpp_model_open(s, file.c_str());
      }},
     {"reload", nullptr, D, STEP, [](xpp::Session &s, const char *) { xpp_model_reload(s); }},
     {"record", "note", C, NOT_STEP, record_command},
@@ -1110,7 +1112,7 @@ void send_hello(xpp::Session &s)
     /* a session with no model: what the start screen shows (xpp_recent.h) */
     if (!m.loaded()) {
         BUF_LIT(&b, ",\"start\":");
-        const std::string start = xpp::recent::start_json(xpp::recent::load_recent());
+        const std::string start = xpp::recent::start_json(xpp::recent::load_recent(), ",\"examples\":" + xpp::examples::json());
         buf_add(&b, start.data(), start.size());
     }
     /* the limits the page keeps to and the windows' numbers in `window`

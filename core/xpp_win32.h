@@ -35,6 +35,10 @@ std::string temp_folder();
 /* %APPDATA%, the per-user roaming folder, without a trailing backslash; empty
    when it is not set (xpp_files_dir.cpp's config_dir) */
 std::string app_data_folder();
+/* the folder of the running program (GetModuleFileNameA, the narrow API the
+   rest of the core's paths use), without a trailing backslash; empty when
+   it cannot be had (xpp_files_dir.cpp's program_dir) */
+std::string program_folder();
 /* xppautX links -mwindows (a GUI-subsystem exe: no console pops up when
    Explorer or a file association starts it) so a command-line mode
    (--server, --silent, --version, --help, --browser, or any log to
