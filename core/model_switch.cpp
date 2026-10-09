@@ -1,6 +1,8 @@
 /* File > Open model and File > Reload: see model_switch.h. */
 #include "solver.h"
 #include "model_switch.h"
+#include "open_model.h"
+#include "xpp_recent.h"
 #include "session.h"
 #include "model.h"
 #include "recx.h"
@@ -55,13 +57,20 @@ int ic_index(const xpp::Model &m, const std::string &name)
   return i<m.node+m.nmarkov?i:-1;
 }
 
+/* the model the user opened is the newest of the recent ones; the open goes
+   on when the list cannot be kept (a bad recent.txt is shown, not changed) */
+void remember_opened(const std::string &file)
+{
+  if(const auto noted=xpp::recent::note(xpp::files::absolute(file));!noted)xpp::show_error(noted.error());
+}
+
 } // namespace
 
 void xpp_model_open(xpp::Session &s, const char *path)
 {
   std::string file=path?path:"";
   if(file.empty()){
-    if(!xpp::file_selector("Open model",file,"*.ode* *" + std::string(xpp::snapx::extension) + " *" + std::string(xpp::recx::extension)))return;
+    if(!xpp::file_selector(xpp::OPEN_MODEL_TITLE,file,xpp::open_model_wild()))return;
   }
   if (const auto checked = model_file_ok(file); !checked) {
     xpp::show_error(checked.error());
@@ -69,6 +78,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
   }
   /* a recording: its model, in the player (W59b) */
   if(xpp::files::has_extension(file,xpp::recx::extension)){
+    remember_opened(file);
     play_recording(s,file);
     return;
   }
@@ -82,6 +92,7 @@ void xpp_model_open(xpp::Session &s, const char *path)
      too: its values, data and diagram take the place of these), so it
      asks first, as File > Open does (W103 review) */
   if(!xpp_model_may_leave(s,file))return;
+  remember_opened(file);
   /* loaded from its own folder, as a double-click starts it: the folder
      the page's files are (xpp_files.h); a saved model from the folder of
      the file it is saved in, which its outputs go to */
@@ -115,6 +126,8 @@ bool leave_as(xpp::Session &s, int key, bool with_recording)
 
 bool xpp_session_may_leave(xpp::Session &s, const std::string &question, bool with_recording)
 {
+  /* the start screen's session has nothing to save */
+  if(!s.model().loaded())return true;
   return leave_as(s,xpp::TwoChoice(xpp::LEAVE_SAVE,xpp::LEAVE_DONT_SAVE,question,xpp::LEAVE_KEYS),with_recording);
 }
 
@@ -296,8 +309,9 @@ Session *load_requested(const Session &now, const ModelRequest &req)
     back();
     /* at the place the load failed at */
     const Error &e=loaded.error();
-    show_error(Error{"open",xpp::format("{} could not be loaded ({}); {} is still loaded",
-                                        req.restore?req.restore->name:req.file,e.what,before_file),e.place});
+    show_error(Error{"open",xpp::format("{} could not be loaded ({}){}",
+                                        req.restore?req.restore->name:req.file,e.what,
+                                        before_file.empty()?std::string():xpp::format("; {} is still loaded",before_file)),e.place});
     return nullptr;
   }
   return *loaded;

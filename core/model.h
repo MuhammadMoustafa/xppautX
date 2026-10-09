@@ -292,6 +292,9 @@ struct Model {
   std::vector<InternalSet> intern_sets;
   /* the loaded file's path, as given ("console" for standard input) */
   std::string this_file;
+  /* a model was loaded: the Model of a program started with no file (the
+     start screen, W232) has none */
+  bool loaded() const { return !this_file.empty(); }
   /* the model's own files as its load read them (model_files.h):
      this_file first, then each file included, each file table, the
      options file and --anifile's animation, in the order read; an AUTO

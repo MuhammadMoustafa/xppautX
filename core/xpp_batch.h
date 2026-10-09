@@ -62,6 +62,14 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved = nu
 Result<> inspect_model(int argc, char **argv, const std::function<void(Session &)> &read,
                       const std::function<std::optional<Error>(Session &)> &check = {},
                       const SavedModel *saved = nullptr);
+/* A start with no model file on the command line (a Start menu entry, the
+   Dock, a launcher) is not a load that failed: it is the error whose
+   `where` is NO_MODEL_WHERE, which load_model does not write to the log in
+   an interactive start. The program then serves the start screen, whose
+   Open model is File > Open model's (model_switch.h, W232); --silent, with
+   nothing to open, takes it as any other error. */
+inline constexpr std::string_view NO_MODEL_WHERE = "no model";
+inline bool is_no_model(const Error &e) { return e.where == NO_MODEL_WHERE; }
 /* the model cannot be loaded, for the reason e: during a load, the load
    fails (LoadFailed with e, the line e.place.line of e.place.file added
    as it is written; load_model writes it); otherwise e is written and the

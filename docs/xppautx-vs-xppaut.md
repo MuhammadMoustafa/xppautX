@@ -64,6 +64,7 @@ Row-by-row parity (what the X11 windows did and where it is now):
 | Values (ICs, parameters) | a box of fields with Ok/Cancel | a side panel, edits apply when a field is left; Reset one or all returns to the model's values | W6, W62 |
 | Numerics | the Numerics menu only | also a Numerics section of the values panel; edits during a run apply to the next run, never the one in progress | W106 |
 | Equation editor | Edit menu: right-hand sides, functions, Save as | removed; edit the model file and Reload | W54 |
+| Starting with no file | XPPAUT's file selector, and quitting if cancelled | Open model's dialog (one dialog for the start and File > Open model: `.ode`, `.odex`, `.snapx`, `.recx`); Cancel leaves a start screen with Open model and the recently opened models (`recent.txt` in the config folder; a missing file shown as missing) | W232 ([#288](https://github.com/MuhammadMoustafa/xppautX/issues/288)) |
 | Open another model | by restarting the program | File > Open model and Reload in the same process; a failed load keeps the model before; Reload keeps the session's file, so Ctrl+S still saves there | W61, W218 |
 | Leaving | closes the window | one question, "Save this session first?"; a run is never stopped by it | W59d, W110 |
 | File dialogs | XPPAUT's own file selector | the OS's own dialog in the window, the browser's picker in browser mode | W88, W90 |

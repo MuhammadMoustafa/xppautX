@@ -10,7 +10,7 @@ import {AskDialog} from './AskDialog';
 import {AutoShow, AutoView} from './AutoView';
 import {useEffect} from 'preact/hooks';
 import {PANEL_LIMITS, savePanels, type PanelSize, type Panels} from '../store/panels';
-import {SessionContext, useStore} from './context';
+import {SessionContext, useSession, useStore} from './context';
 import {Splitter, useMinWidth} from './Splitter';
 import {UpdateDialog} from './UpdateDialog';
 import {HelpView} from './Help';
@@ -32,6 +32,7 @@ import {Toasts} from './Toasts';
 import {SliderStrip} from './SliderStrip';
 import {ValuesPanel} from './ValuesPanel';
 import {RunToolbar} from './RunToolbar';
+import {StartScreen} from './StartScreen';
 
 /* a model that did not load (W63c): where, the line as written with a
    caret under the column when there is one, and what is wrong */
@@ -131,11 +132,43 @@ function Shell() {
   );
 }
 
+/* the session has no model (the program started with no file, hello.start): the start screen
+   instead of the model's panels, which have nothing to show; the manual, errors and prompts stay */
+function StartShell() {
+  const session = useSession();
+  return (
+    <div class="start-shell">
+      <header class="title-bar">
+        <h1>xppautX</h1>
+        <span class="spacer" />
+        <button class="help-toggle" aria-controls="help-panel" onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
+          title="The manual (F1)">Help</button>
+      </header>
+      <main id="main" class="workspace">
+        <Banner />
+        <StartScreen />
+        <Messages />
+      </main>
+      <HelpView />
+      <UpdateDialog />
+      <Toasts />
+      <AskDialog />
+      <ErrorDialog />
+      <KeymapEditor />
+      <ReplaceDialog />
+    </div>
+  );
+}
+
+function Root() {
+  return useStore(s => !!s.hello?.start) ? <StartShell /> : <Shell />;
+}
+
 export function App({session}: {session: Session}) {
   useHotkeys(session);
   return (
     <SessionContext.Provider value={session}>
-      <Shell />
+      <Root />
     </SessionContext.Provider>
   );
 }

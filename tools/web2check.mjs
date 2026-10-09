@@ -64,9 +64,13 @@
    reopening it where it was left. `loaderror` (W63c): a model that does not
    load shows the core's `error` event, its file, line and cause, with the
    line as written, and no hello.
+   `startscreen` (W232): a program started with no file shows the start
+   screen (hello.start) with its recent models, a missing one disabled;
+   Cancel at the start, its Open model button and a recent model go through
+   the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror] [-v]
+     [--only desktop,layout,phase,marks,auto,autoviews,lostf,keys,keymap,keymapeditor,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -5721,6 +5725,56 @@ async function loadErrorCheck() {
   }
 }
 
+/* W232: a program started with no file. hello.start lists the recent models (a missing one marked, not
+   dropped); the Open model dialog it opens at once is Cancelled (the desktop picker stubbed to answer
+   Cancel), which leaves the start screen; its Open model button is the same open command; a missing
+   recent model sends nothing; a recent model that is there opens it, and the start screen goes. */
+async function startScreenCheck() {
+  const clickRecent = file => cdp.eval(`[...document.querySelectorAll('[data-start-recent]')].find(b => b.dataset.startRecent === ${JSON.stringify(file)}).click(); true`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-'));
+  const gone = path.join(dir, 'gone.odex');
+  fs.mkdirSync(path.join(dir, 'xpp-config'));
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'recent.txt'), [ODE, gone, ''].join('\n'));
+  const server = await startServer(bin, dir, []);
+  try {
+    await cdp.eval('window.__left = true').catch(() => {});
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+    const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
+    await cdp.send('Page.navigate', {url: server.url});
+    check('start screen: Cancel at the start leaves hello.start, no dialog, no exit, no error',
+      await until('!window.__left && s.hello && s.hello.start && !s.ask && !s.busy && s.exited === null && !s.loadError', 'the start screen', 30000 * SLOW));
+    const start = await S('s.hello.start');
+    check('start screen: the recent models newest first, the missing one marked and kept',
+      start.recent.length === 2 && start.recent[0].path === ODE && !start.recent[0].missing
+        && start.recent[1].path === gone && start.recent[1].missing && !start.error, JSON.stringify(start));
+    check('start screen: the page lists them, the missing one disabled; no model panels',
+      await cdp.eval(`(() => { const b = [...document.querySelectorAll('[data-start-recent]')];
+        return b.length === 2 && b[0].getAttribute('aria-disabled') === 'false' && b[1].getAttribute('aria-disabled') === 'true'
+          && !!document.querySelector('[data-start-open]') && !document.querySelector('.values-panel, .run-toolbar'); })()`));
+    check('start screen: the core sent no state and no window', await S('s.core === null'));
+
+    const opens = () => S(`__xpp.sent().filter(c => c.cmd === 'open').length`);
+    check('start screen: nothing was sent by the page yet (the core asked by itself)', (await opens()) === 0);
+    await cdp.eval(`document.querySelector('[data-start-open]').click(); true`);
+    check('start screen: Open model sends the open command and Cancel leaves the start screen',
+      await until(`__xpp.sent().filter(c => c.cmd === 'open' && c.file === undefined).length === 1 && !s.ask && !s.busy && s.hello.start && s.exited === null`, 'open cancelled'));
+    await clickRecent(gone);
+    check('start screen: a missing recent model sends nothing', (await opens()) === 1);
+    check('start screen: a command that needs a model is refused with a shown error, not a state',
+      await cdp.eval(`(() => { __xpp.send({cmd: 'state'}); return true; })()`)
+        && await until(`!s.busy && __xpp.log().some(l => l.kind === 'error' && l.text.includes('No model is open'))`, 'refused'));
+
+    await clickRecent(ODE);
+    check('start screen: a recent model that is there opens: its hello has no start, its state arrives, the screen goes',
+      await until(`__xpp.sent().some(c => c.cmd === 'open' && c.file === ${JSON.stringify(ODE)}) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
+        && await cdp.eval(`!document.querySelector('[data-start-screen]') && !!document.querySelector('.run-toolbar')`));
+    await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
+  } finally {
+    await stopServer(server);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 /* W104: an error is one dialog with OK (Enter or Escape close it), kept in Messages; a warning
    flashes the status bar and opens no dialog */
 async function errorDialogCheck(dir) {
@@ -6465,6 +6519,7 @@ async function main() {
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
+    if (run('startscreen')) await startScreenCheck();
     if (run('loaderror')) {
       await loadErrorCheck();
       await session(path.resolve('tools/models/check_quirks.ode'), async () => {

@@ -1,6 +1,5 @@
 #include "command_table.h"
-#include "snapx.h"
-#include "recx.h"
+#include "open_model.h"
 /* The desktop window (xpp_window.h): web2 in the operating system's web
    view, through the vendored webview library (third_party/webview, built
    as its own object from src/webview.cc; this file sees only its C API).
@@ -324,7 +323,7 @@ std::string_view native_key(std::string_view id)
 [[maybe_unused]] void open_model(void *window)
 {
     const FileDialog models{false, dialog_title("openmodel"), "", "", "XPP models, sessions and recordings (*.ode, *.odex, *.snapx, *.recx)",
-                            {".ode", std::string(xpp::odex::extension), std::string(xpp::snapx::extension), std::string(xpp::recx::extension)}};
+                            {xpp::OPEN_MODEL_EXTENSIONS.begin(), xpp::OPEN_MODEL_EXTENSIONS.end()}};
     std::optional<std::string> path = pick_file(window, models);
     if (path && !path->empty()) host->open_model(path->c_str());
 }

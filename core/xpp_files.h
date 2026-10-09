@@ -145,6 +145,8 @@ void observe_reads(void (*observer)(const std::string &path));
    json_player.cpp). The core thread's alone; nullptr stops it. */
 void serve_reads(bool (*server)(const std::string &path, std::string *copy),
                  bool (*write)(std::string_view path, bool opening, int kind) = nullptr);
+/* serve_reads is set: a recording's step is running */
+bool serving_reads();
 /* While replay serves reads, writes stay in private scratch or the server's
    allowed output folder. opening confirms an existing output only once;
    atomic create/replace recheck the same path without another question. */

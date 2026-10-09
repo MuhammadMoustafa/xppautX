@@ -66,13 +66,14 @@ def check_logging():
         shutil.rmtree(run_dir, ignore_errors=True)
 
 
-def launch_server(extra_env=None, ode=None, log=None, extra_args=None):
+def launch_server(extra_env=None, ode=None, log=None, extra_args=None, no_model=False):
     """Start one xppautX --server instance in its own scratch directory and
     return (proc, run_dir, send, collect, events) -- send/collect work just
     like the module-level ones below but are bound to this instance, so a
     second, differently-configured server (e.g. a bad HOME, another model)
     can be driven the same way without disturbing the main session. With
-    `log` (a list), the server's stderr lines are appended to it."""
+    `log` (a list), the server's stderr lines are appended to it. With
+    `no_model` the program starts with no file (the start screen, W232)."""
     ode = ode or args.ode
     run_dir = tempfile.mkdtemp(prefix='xppserver')
     shutil.copy(ode, run_dir)
@@ -85,7 +86,7 @@ def launch_server(extra_env=None, ode=None, log=None, extra_args=None):
     # Windows box without the UTF-8 system locale is the ANSI code page
     # (cp1252 here), mojibake-ing a non-ASCII name on this side even though
     # the wire bytes and xppautX itself (card W35b) are correct UTF-8.
-    proc = subprocess.Popen([os.path.abspath(args.server), '--server', os.path.basename(ode)] + (extra_args or []), cwd=run_dir,
+    proc = subprocess.Popen([os.path.abspath(args.server), '--server'] + ([] if no_model else [os.path.basename(ode)]) + (extra_args or []), cwd=run_dir,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             text=True, encoding='utf-8', bufsize=1, env=env)
     events = queue.Queue()
@@ -6456,7 +6457,7 @@ def check_keymap():
     effective keys; `keymap` get / set / reset read, replace (checked whole, then written) and remove it;
     a bad file is an error with its place and the defaults shown as marked, never applied in part; a
     second server reads what the first wrote."""
-    folder = os.path.join(CONFIG_ROOT, 'nested', 'xppautX')     # not made: the first save makes it
+    folder = os.path.join(CONFIG_ROOT, 'nested', 'xppautX')     # the first start or save makes it
     path = os.path.join(folder, 'keymap.json')
     env = {'XPP_CONFIG_DIR': folder}
     same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
@@ -6475,7 +6476,8 @@ def check_keymap():
         check('W211: hello gives the reserved keys and the limits the editor keeps to',
               'Ctrl+W' in km['reserved'] and 'F12' in km['reserved'] and km['limits'] == {'keys': 8, 'parts': 2, 'key_bytes': 64},
               str(km['limits']))
-        check('W211: the folder is not made by reading', not os.path.exists(folder))
+        # W232: the start made the folder for recent.txt (the model it was started with); reading the keymap made no file
+        check('W211: reading the keymap makes no keymap.json', not os.path.exists(path))
         snd(cmd='keymap', op='get')
         evs, _ = col(is_idle)
         check('W211: get answers a keymap event with the same effective keymap, then state and idle',
@@ -6497,7 +6499,7 @@ def check_keymap():
         written = open(path, 'rb').read()
         check('W211: the file holds only the differences, one binding to a line, and no other file is left beside it',
               b'"reload": ["Ctrl+B", "F S"]' in written and b'openmodel' not in written
-              and os.listdir(folder) == ['keymap.json'], repr(written[:200]))
+              and sorted(os.listdir(folder)) == ['keymap.json', 'recent.txt'], repr(written[:200]))
 
         for what, bad, line, value in [
                 ('a reserved key', {'bindings': {'reload': ['Ctrl+W']}}, 1, 'Ctrl+W'),
@@ -6571,5 +6573,130 @@ def check_keymap():
         stop_server(p, r, snd)
 
 check_keymap()
+
+def check_start_screen():
+    """W232, docs/protocol.md "Start screen": a program started with no file has a session with no model.
+    hello carries `start` (the recent models, newest first, a missing file listed as missing) and no
+    state; Open model asks at once, the same ask File > Open model makes (the filter takes .ode, .odex,
+    .snapx and .recx); Cancel leaves the start screen (no error, no exit); a command that needs a model is
+    refused; Open model of a file, from the screen, is a normal open (new hello with no `start`, the model
+    in recent.txt); a bad recent.txt is an error with its file and line, no entries listed, and is not
+    overwritten by an open; a hostile file is refused whole."""
+    folder = os.path.join(CONFIG_ROOT, 'start', 'xppautX')
+    path = os.path.join(folder, 'recent.txt')
+    env = {'XPP_CONFIG_DIR': folder}
+    errors = lambda evs: [e for e in evs if e.get('ev') == 'message' and e.get('error')]
+    model = os.path.abspath(args.ode)
+    same = lambda a, b: os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
+
+    def start_up():
+        p, r, snd, col, _ = launch_server(extra_env=env, no_model=True)
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        return p, r, snd, col, evs, ask
+
+    p, r, snd, col, evs, ask = start_up()
+    try:
+        hello = next((e for e in evs if e.get('ev') == 'hello'), {})
+        start = hello.get('start', {})
+        check('W232: with no file hello carries the start screen: no recent model, the limit, the file, and no state',
+              start.get('recent') == [] and start.get('limit') == 10 and same(start.get('path', ''), path)
+              and 'error' not in start and not [e for e in evs if e.get('ev') in ('state', 'window')] and hello.get('file') == '', str(evs)[:300])
+        check('W232: Open model asks at once, as File > Open model does: one dialog, .ode .odex .snapx .recx',
+              ask and ask['kind'] == 'file' and ask['title'] == 'Open model' and ask['mode'] == 'read'
+              and ask['wild'].split() == ['*.ode', '*.odex', '*.snapx', '*.recx'], str(ask))
+        snd(cmd='answer', id=ask['id'], ok=0)
+        evs, _ = col(is_idle)
+        check('W232: Cancel at the start leaves the start screen: no error, no exit', not errors(evs) and p.poll() is None, str(evs)[-300:])
+        for cmd in ({'cmd': 'state'}, {'cmd': 'key', 'key': 'i'}, {'cmd': 'redraw'}):
+            snd(**cmd)
+            evs, _ = col(is_idle)
+            err = errors(evs)
+            check('W232: %s needs a model: refused once, ending in idle' % cmd['cmd'],
+                  len(err) == 1 and 'No model is open' in err[0]['error'] and not [e for e in evs if e.get('ev') == 'state'], str(evs)[-300:])
+        snd(cmd='data', events=['series'])
+        evs, _ = col(is_idle)
+        check('W232: data is accepted with nothing to send', not errors(evs), str(evs)[-200:])
+        snd(cmd='key', menu='file', item='openmodel')
+        evs, ask = col(lambda e: e.get('ev') == 'ask')
+        check('W232: File > Open model by its id is the same ask', ask and ask['title'] == 'Open model', str(evs)[-200:])
+        snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        check('W232: opening nothing wrote nothing', not os.path.exists(path), '')
+        # a model opened from the screen: no question about saving, a new hello with no start
+        snd(cmd='open', file=model)
+        evs, _ = col(is_idle)
+        hello = next((e for e in evs if e.get('ev') == 'hello'), {})
+        check('W232: Open model of a file loads it: a hello with no start screen, its state, no question, no error',
+              hello and 'start' not in hello and last_state(evs) and not [e for e in evs if e.get('ev') == 'ask'] and not errors(evs), str(evs)[-300:])
+        with open(path, encoding='utf-8') as f:
+            check('W232: the opened model is the first line of recent.txt, an absolute path',
+                  same(f.read().split('\n')[0], model), '')
+    finally:
+        stop_server(p, r, snd)
+
+    # a second start lists it; a file that was removed is listed as missing, not dropped
+    gone = os.path.join(CONFIG_ROOT, 'gone.odex')
+    with open(path, 'a', encoding='utf-8', newline='\n') as f:
+        f.write(gone + '\n')
+    p, r, snd, col, evs, ask = start_up()
+    try:
+        recent = next(e for e in evs if e.get('ev') == 'hello')['start']['recent']
+        check('W232: the next start lists the models, a missing file as missing and kept',
+              len(recent) == 2 and same(recent[0]['path'], model) and not recent[0]['missing']
+              and same(recent[1]['path'], gone) and recent[1]['missing'], str(recent))
+        snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        snd(cmd='open', file=gone)
+        evs, _ = col(is_idle)
+        err = errors(evs)
+        check('W232: opening a missing recent model is an ordinary open error naming it, the start screen stays',
+              len(err) == 1 and 'gone.odex' in err[0]['error'] + err[0].get('file', '') and p.poll() is None, str(evs)[-300:])
+        with open(path, encoding='utf-8') as f:
+            check('W232: and it is not made the newest', same(f.read().split('\n')[0], model), '')
+    finally:
+        stop_server(p, r, snd)
+
+    # a bad recent.txt: an error at its line, nothing listed, never overwritten
+    bad = model + '\nrelative.odex\n'
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(bad)
+    p, r, snd, col, evs, ask = start_up()
+    try:
+        start = next(e for e in evs if e.get('ev') == 'hello')['start']
+        check('W232: a bad recent.txt is an error with its file, line and value, and nothing is listed',
+              start['recent'] == [] and same(start['file'], path) and start['line'] == 2
+              and 'relative.odex' in start['error'] and start['source'] == 'relative.odex', str(start))
+        snd(cmd='answer', id=ask['id'], ok=0)
+        col(is_idle)
+        snd(cmd='open', file=model)
+        evs, _ = col(is_idle)
+        err = errors(evs)
+        check('W232: opening still works, the bad file shown once and left as it was',
+              len(err) == 1 and 'relative.odex' in err[0]['error'] and any(e.get('ev') == 'hello' and 'start' not in e for e in evs)
+              and open(path, encoding='utf-8', newline='').read() == bad, str(evs)[-300:])
+    finally:
+        stop_server(p, r, snd)
+
+    # a hostile file: too long, and too many lines
+    for what, text in (('a file over the limit', 'x' * 100000), ('more lines than are kept', ''.join(model + str(i) + '\n' for i in range(11)))):
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(text)
+        p, r, snd, col, evs, ask = start_up()
+        try:
+            start = next(e for e in evs if e.get('ev') == 'hello')['start']
+            check('W232: %s is refused whole' % what, start['recent'] == [] and start.get('error'), str(start)[:200])
+        finally:
+            stop_server(p, r, snd)
+
+    # --silent has nothing to open: an error and exit 1, as before
+    run_dir = tempfile.mkdtemp(prefix='xppnofile')
+    try:
+        q = subprocess.run([os.path.abspath(args.server), '--silent'], cwd=run_dir, capture_output=True, text=True, timeout=30 * SLOW)
+        check('W232: --silent with no file is an error and exit 1', q.returncode == 1 and 'no model file was named' in q.stderr, repr(q.stderr[-200:]))
+    finally:
+        shutil.rmtree(run_dir, ignore_errors=True)
+
+check_start_screen()
+
 print('server checks: %s' % ('all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

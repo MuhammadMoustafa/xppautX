@@ -22,7 +22,7 @@ core/session.cpp client_session 1 the session list: its definition
 core/ui_json.cpp client_session 2 handle_line chooses a command'"'"'s Session; client() is the front end'"'"'s
 core/xppautx_main.cpp client_session 2 the program'"'"'s start (AUTO'"'"'s scratch folder) and its exit
 core/ui_json_internal.h client 1 the front end'"'"'s client(): its declaration
-core/ui_json.cpp client 1 the front end'"'"'s client(): its definition
+core/ui_json.cpp client 2 the front end'"'"'s client(): its definition, and json_ui_start_screen (the hello of a session with no model, W232)
 core/json_prompts.cpp client 3 an ask (ask_wait), a checkpoint (j_check_abort) and the file selector, which starts in the dialog folder of the Session (W151)
 core/json_io.cpp client 1 the pending AUTO points before any event (flush_pending)
 core/json_state.cpp client 1 the state when it is dirty (send_state_if_dirty)

@@ -117,12 +117,12 @@ void choose_model_file(xpp::Session &s)
 {
  std::string &file=s.model().this_file;
  if(s.got_file&&!xpp::files::is_dir(file))return;
+ /* no file, or a folder: the start screen's Open model asks, in that folder
+    (xppautx_main.cpp); the dialog is File > Open model's, not a second one */
  if(s.got_file)xpp::files::change_dir(file.c_str());
  const char *start=getenv("XPPSTART");
  if(start&&xpp::files::is_dir(start))xpp::files::change_dir(start);
- file=xpp::files::working_dir()+"/";
- if(batch_options.enabled||!file_selector("Open model",file,"*.ode*"))
-   model_failed(Error{"open","model open cancelled or no model named",Place{file}});
+ model_failed(Error{std::string(xpp::NO_MODEL_WHERE),"no model file was named",Place{xpp::files::working_dir()}});
 }
 
 void load_eqn(xpp::Session &s)

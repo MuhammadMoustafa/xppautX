@@ -50,6 +50,44 @@ once, and keeps any other command for after the one that asked. See
 
 A client that draws sends `data` next (see "The plot as data").
 
+### Start screen (W232)
+
+A program started with no file (the Start menu, the Dock, a launcher; a
+folder instead of a file too) has a session with **no model**. `hello` then
+carries `start`, and has no `window` or `state` after it (`idle` instead);
+a `hello` of a loaded model has no `start`, so a client shows the start
+screen exactly while `hello.start` is there. The core queues the same
+`{"cmd":"open"}` that File > Open model sends, so the Open model dialog
+(a `file` ask, title `Open model`, `wild` `*.ode *.odex *.snapx *.recx`) comes at
+once; answering it with a file loads that model (a new `hello`), and
+cancelling it leaves the start screen: no error, the program keeps running.
+
+`start`: `{"path": the recent.txt file ("" when there is no config folder),
+"limit": how many models are kept, "recent": [{"path": absolute path,
+"missing": the file is no longer there}, ...]}`, newest first. A recent model
+that is missing is listed as missing, never dropped; opening it is an
+ordinary `open` that fails with the file named. When `recent.txt` cannot be
+read (a relative or repeated path, a control character, a path or a file
+longer than the limits, more lines than `limit`, any other bad line), `recent` is `[]` and
+`start` carries the common error fields (`error`, `file`, `line`, `col`,
+`source`, `field`: "Errors"); nothing of the file is used and the next Open
+model leaves it as it is (it is shown once more, as an error, and the model
+still opens). The file is the program's, in the per-user config folder
+beside `keymap.json`: one absolute path per line, newest first; a model is
+put first when it is opened from Open model (the dialog, a path, a recent
+entry), from the command line or by the OS (a `.ode` is listed by the `.odex`
+it converts to), and not while a recording plays or in `--silent`.
+
+Open model has one owner, `{"cmd":"open","file":path}` (empty: the dialog),
+so the start screen's button, a recent entry, File > Open model, the desktop
+window's native File menu and the OS's open-documents event after the start all
+send it. A session with no model refuses every other command with the error
+"No model is open: open one first (Open model)", ending in `idle` like any
+command, except `quit` (no question: there is nothing to save), `abort`,
+`answer`, `keymap`, `key` of File > Open model (`menu` `file`, `item`
+`openmodel`) and `data` (accepted, nothing to send).
+`--silent` with no file is the error "no model file was named", exit 1.
+
 ### A model that does not load
 
 When the model does not load (a line the reader does not understand, a

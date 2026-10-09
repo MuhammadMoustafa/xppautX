@@ -179,6 +179,16 @@ kbd {
 .title-bar h1 { font-size: var(--text-md); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .title-bar .unsaved { color: var(--accent); font-size: var(--text-xs); }
 .title-bar .file { font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ---- the start screen: no model is open (W232) ---- */
+.start-shell { display: flex; flex-direction: column; height: 100%; }
+.start-shell .workspace { flex: 1; overflow: auto; padding: var(--space-4); }
+.start-screen { max-width: 40rem; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.start-screen h2, .start-screen h3 { margin: 0; }
+.start-screen h3 { margin-top: var(--space-4); }
+.start-recent { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.start-recent li { display: flex; flex-direction: column; align-items: flex-start; }
+.start-path { font-size: var(--text-xs); overflow-wrap: anywhere; }
+.start-missing { color: var(--danger); }
 .workspace-tools { position: relative; }
 .workspace-tools > summary { min-height: var(--target); padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
 .workspace-tools-menu { position: absolute; z-index: 180; top: 100%; right: 0; min-width: 14rem; padding: var(--space-2); display: grid; gap: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }

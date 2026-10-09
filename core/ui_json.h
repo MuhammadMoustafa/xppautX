@@ -37,6 +37,13 @@ Session &json_ui_handle(const char *line);
 void json_ui_queue_runnow(Session &s);
 void json_ui_start_model(Session &s);
 
+/* The program started with no model file (xpp::is_no_model, xpp_batch.h): the
+   client's Session has no model, hello carries the start screen
+   (`start`: the recent models, docs/protocol.md "Start screen"), and the
+   Open model dialog opens at once, as File > Open model does; a cancel
+   leaves the start screen (json_model.cpp). */
+void json_ui_start_screen();
+
 /* the model did not load: why and where, as the `error` event (in place
    of hello; docs/protocol.md "A model that does not load") */
 void json_ui_load_error(const Error &e);

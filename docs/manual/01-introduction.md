@@ -123,7 +123,19 @@ Open model… loads one in place of the current model instead. On macOS,
 where Finder hands a file to the running app rather than to a new
 program, the first double-click starts `xppautX.app` on that model, and
 a later one opens in the same window as File > Open model… does, asking
-first; starting the app on its own shows the Open dialog.
+first; starting the app on its own shows the start screen below.
+
+**Starting without a file.** Started from the Start menu, the Dock or a
+launcher with no model named, xppautX opens the Open model dialog at once
+(the same one File > Open model… shows: it takes `.ode`, `.odex`, a `.snapx`
+session or a `.recx` recording). Cancel it and the **start screen** stays: an
+**Open model…** button and the models you opened lately, newest first (up to
+ten, kept in `recent.txt` beside `keymap.json`). Click one to open it; one
+whose file is gone is listed as missing and cannot be opened (move or restore
+the file, or open another). If `recent.txt` cannot be read, the screen says
+which line is wrong and lists none; the file is left as it is for you to fix or
+delete. No bundled examples are listed yet: the release's `examples/` folder
+is beside the program, and xppautX does not look for it.
 
 **Opening another model, reloading this one.** xppautX serves one model
 at a time. Opening a `.ode` in any mode converts and saves `.odex` beside

@@ -141,4 +141,5 @@ void json_ui_queue_runnow(xpp::Session &s)
 }
 
 void json_ui_start_model(Session &s) { json::start_model(s, nullptr); }
+
 } // namespace xpp

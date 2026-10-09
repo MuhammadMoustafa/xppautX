@@ -528,6 +528,8 @@ void observe_reads(void (*observer)(const std::string &path)) { read_observer = 
 void serve_reads(bool (*server)(const std::string &path, std::string *copy),
                  bool (*write)(std::string_view path, bool opening, int kind)) { read_server = {server, write}; }
 
+bool serving_reads() { return read_server.read != nullptr; }
+
 bool write_path_ok(std::string_view path, bool opening)
 {
     if (!read_server.read) return true;

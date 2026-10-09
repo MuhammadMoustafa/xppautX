@@ -52,6 +52,7 @@
 #include "graf_par.h"
 #include "colormap.h"
 #include "xpp_files.h"
+#include "xpp_recent.h"
 
 /* the core's own globals and functions that have no header of their own */
 
@@ -803,6 +804,20 @@ namespace {
    a set applied already, under a job that computed nothing
    (control_line), only ends. The Session the command ended in: the one
    it ran in, or the model's it loaded in that one's place. */
+/* the commands a session with no model runs (the start screen, W232):
+   Open model (the `open` command, or File > Open model's key), leaving, answering Open model's questions, and the user's
+   settings; `data` is the page asking for events a model would send, which
+   there are none of. Every other command needs a model and says so. */
+bool runs_without_model(const char *line)
+{
+    for (const char *cmd : {"open", "quit", "abort", "answer", "keymap", "data"})
+        if (is_cmd(line, cmd)) return true;
+    /* File > Open model by its stable id, as the page's menu and Ctrl+O send it */
+    std::string menu, item;
+    return is_cmd(line, "key") && get_string(line, "menu", menu) && get_string(line, "item", item) &&
+           menu == xpp::MENU_NAMES[FILE_MENU] && item == "openmodel";
+}
+
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp::job::begin(seq);
@@ -825,6 +840,9 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         std::string c;
         get_string(line, "cmd", c);
         j_command_error("command", xpp::format("{}: {} was refused", xpp::job::REFUSED_WHILE_COMPUTING, c));
+    } else if (!s->model().loaded() && !runs_without_model(line)) {
+        j_command_error("command", "No model is open: open one first (Open model)");
+    } else if (is_cmd(line, "data") && !s->model().loaded()) {
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
         record_begin(line);
@@ -841,6 +859,13 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
         xpp::Session *before = s;
         s = &switch_model(*s, *req);
         player_model_switched(s != before);
+    }
+    if (!s->model().loaded()) {
+        /* still the start screen (a cancelled Open model): nothing of a model to send */
+        json_flush();
+        xpp::job::end();
+        send_simple("idle");
+        return *s;
     }
     aplot_update(*s);
     browser_update(*s);
@@ -992,6 +1017,16 @@ int json_ui_silent(int argc, char **argv)
     return 0;
 }
 
+void json_ui_start_screen()
+{
+    program.interactive = 1;
+    send_hello(client());
+    send_simple("idle");
+    json_flush();
+    /* the one Open model: the same command the page's button and File > Open model send */
+    json_ui_push_open("");
+}
+
 void json_ui_load_error(const xpp::Error &e)
 {
     /* a script whose model does not load fails, as an error message does */
@@ -1011,7 +1046,8 @@ void send_hello(xpp::Session &s)
     int i;
     const std::string file = xpp::model_title(m);
     const std::string title_text =
-        file.size() < 60
+        !m.loaded() ? std::string("xppautX")
+        : file.size() < 60
             ? xpp::format("XPP Ver {:g}.{:g} >> {}", program.version_major, program.version_minor, file)
             : xpp::format("XPP Version {:g}.{:g}", program.version_major, program.version_minor);
     const char *title = title_text.c_str();
@@ -1069,6 +1105,12 @@ void send_hello(xpp::Session &s)
     BUF_LIT(&b, ",\"keymap\":");
     const std::string keymap = hello_keymap();
     buf_add(&b, keymap.data(), keymap.size());
+    /* a session with no model: what the start screen shows (xpp_recent.h) */
+    if (!m.loaded()) {
+        BUF_LIT(&b, ",\"start\":");
+        const std::string start = xpp::recent::start_json(xpp::recent::load_recent());
+        buf_add(&b, start.data(), start.size());
+    }
     /* the limits the page keeps to and the windows' numbers in `window`
        events (plot windows are 1 to plots) */
     buf_format(&b, ",\"limits\":{{\"upload\":{},\"browser_rows\":{},\"browser_cols\":{}}}", XPP_FILES_CAP,
@@ -1152,8 +1194,11 @@ void send_hello(xpp::Session &s)
     }
     BUF_LIT(&b, "]}}");
     send_buf(&b);
-    send_main_window(title);
-    send_state(s);
+    /* the start screen has no plot window and no state */
+    if (m.loaded()) {
+        send_main_window(title);
+        send_state(s);
+    }
 }
 
 } // namespace xpp::json

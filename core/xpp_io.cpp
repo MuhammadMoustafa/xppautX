@@ -842,4 +842,42 @@ bool base64_decode_append(std::string &out, std::string_view text)
     return d.finish();
 }
 
+/* ---- per-user settings files ------------------------------------------ */
+
+Error no_config_folder(std::string_view where, std::string_view name)
+{
+    return Error{std::string(where),
+                 xpp::format("there is no per-user config folder (no HOME or APPDATA, or {} is not an absolute path): set {} to one",
+                             files::CONFIG_DIR_ENV, files::CONFIG_DIR_ENV),
+                 Place{std::string(name)}};
+}
+
+Result<std::optional<std::string>> read_config_file(std::string_view where, std::string_view name, std::size_t limit)
+{
+    const std::string file = files::config_path(name);
+    if (file.empty()) return std::unexpected(no_config_folder(where, name));
+    if (!files::exists(file)) return std::optional<std::string>();
+    UniqueFile f(files::open_read_within(file, files::config_dir()));
+    std::string text;
+    if (!f || !read_bytes(f.get(), text, limit + 1))
+        return std::unexpected(files::open_error(std::string(where), file,
+                                                  xpp::format("it cannot be read, or is longer than {} bytes", limit)));
+    return std::optional<std::string>(std::move(text));
+}
+
+Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes)
+{
+    const std::string file = files::config_path(name);
+    if (file.empty()) return std::unexpected(no_config_folder(where, name));
+    if (!files::make_dirs(files::config_dir()))
+        return fail(std::string(where), "cannot be saved: its folder cannot be made", Place{files::config_dir()});
+    Writer w = Writer::binary(file);
+    if (!w) return fail(std::string(where), "cannot be saved: the file cannot be opened for writing", Place{file});
+    if (!w.write(bytes)) {
+        w.abort();
+        return fail(std::string(where), "cannot be saved: the write failed", Place{file});
+    }
+    return w.commit();
+}
+
 } // namespace xpp

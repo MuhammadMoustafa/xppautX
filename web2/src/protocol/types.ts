@@ -17,6 +17,9 @@ export type AboutLine = AboutPart[];
 export interface HelloEvent {
   ev: 'hello';
   protocol: number;
+  /** present exactly while the session has no model (the program started with no file): the start
+      screen's content (core/xpp_recent.h, docs/protocol.md "Start screen") */
+  start?: StartInfo;
   /** the data events the server sends, asked for at once (session.ts) */
   features: string[];
   title: string;
@@ -56,6 +59,26 @@ export interface HelloEvent {
   userbuttons: string[];
   /** the model file's own values, in the order of `state`'s pars and ics (what `default` restores) */
   defaults: {pars: number[]; ics: number[]};
+}
+
+/** one model of recent.txt: `missing` when its file is no longer there (listed, never dropped) */
+export interface RecentModel {
+  path: string;
+  missing: boolean;
+}
+
+/** hello.start: the models opened lately, newest first, `limit` the most kept; `error` (and the
+    `error` event's other fields) when recent.txt could not be read, with no models listed */
+export interface StartInfo {
+  path: string;
+  limit: number;
+  recent: RecentModel[];
+  error?: string;
+  file?: string;
+  line?: number;
+  col?: number;
+  source?: string;
+  field?: string;
 }
 
 /** one command's effective keys: the user's (source `user`) or the command table's (`default`) */

@@ -247,8 +247,9 @@ Loaded load_model(int argc, char **argv, int batch, const SavedModel *saved,
         }
     }
     /* the one place a model that does not load is written to the log */
-    if (!loaded) xpp::log(XPP_LOG_ERROR, "{}\n", loaded.error().text());
-    else if (!converted.empty()) {
+    if (!loaded) {
+        if (batch || !is_no_model(loaded.error())) xpp::log(XPP_LOG_ERROR, "{}\n", loaded.error().text());
+    } else if (!converted.empty()) {
         const std::string message = existing ? xpp::format("Opened the existing {}. The model now open is {}.", converted, converted)
                                             : xpp::format("Converted {} and saved as {}. The model now open is {}.", file, converted, converted);
         if (batch) xpp::log(XPP_LOG_WARN, "{}\n", message);

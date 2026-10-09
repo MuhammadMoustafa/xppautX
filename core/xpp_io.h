@@ -490,6 +490,19 @@ private:
     std::unique_ptr<State, Free> state_;
 };
 
+/* ---- A per-user settings file (keymap.json, recent.txt) ----------------
+   The file `name` in the config folder (files::config_dir), the one way
+   the settings files are read and written. `where` is the Error's
+   `where`. No config folder (no HOME or APPDATA, or an XPP_CONFIG_DIR that
+   is not absolute) is an error naming the variable to set. read: nullopt
+   for a file that is not there, else its whole contents, read only inside
+   the config folder (never through a link below it), and an error when it
+   cannot be read or is longer than `limit` bytes. write: makes the folder,
+   then the temp-then-rename write of a Writer. */
+Error no_config_folder(std::string_view where, std::string_view name);
+Result<std::optional<std::string>> read_config_file(std::string_view where, std::string_view name, std::size_t limit);
+Result<> write_config_file(std::string_view where, std::string_view name, std::string_view bytes);
+
 /* ---- A file of ours, loaded: all or nothing, strict (W125) ------------
    Loading one of xppautX's own files is one operation, the same for each
    kind: read the whole file into a value (no change to the Session yet),

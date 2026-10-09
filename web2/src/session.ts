@@ -1038,6 +1038,12 @@ export class Session {
     this.send({cmd: 'record', op: 'start'});
   }
 
+  /** Open model, from the start screen or anywhere: the core asks for the file (a `file` ask), or opens
+      `path` (a recent model), exactly as File > Open model does (core/model_switch.h) */
+  openModel(path?: string): void {
+    this.send(path === undefined ? {cmd: 'open'} : {cmd: 'open', file: path});
+  }
+
   /** the recording bar's Stop: the core asks the file's name (a `file` ask) and writes it */
   stopRecording(): void {
     this.send({cmd: 'record', op: 'stop'});

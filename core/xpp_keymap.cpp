@@ -301,50 +301,20 @@ std::vector<std::string> effective_keys(const Keymap &map, std::string_view id)
 
 std::string path() { return files::config_path(FILE_NAME); }
 
-namespace {
-
-Error no_folder()
-{
-    return Error{std::string(WHERE),
-                 xpp::format("there is no per-user config folder (no HOME or APPDATA, or {} is not an absolute path): set {} to one", files::CONFIG_DIR_ENV, files::CONFIG_DIR_ENV),
-                 Place{std::string(FILE_NAME)}};
-}
-
-} // namespace
-
 Result<Keymap> load_keymap()
 {
-    const std::string file = path();
-    if (file.empty()) return std::unexpected(no_folder());
-    if (!files::exists(file)) return Keymap{};
-    /* the file inside the config folder only, never through a link below it */
-    UniqueFile f(files::open_read_within(file, files::config_dir()));
-    std::string text;
-    if (!f || !read_bytes(f.get(), text, MAX_FILE_BYTES + 1))
-        return std::unexpected(files::open_error(std::string(WHERE), file,
-                                                  xpp::format("it cannot be read, or is longer than {} bytes", MAX_FILE_BYTES)));
-    return parse_keymap(text, file);
+    const Result<std::optional<std::string>> text = read_config_file(WHERE, FILE_NAME, MAX_FILE_BYTES);
+    if (!text) return std::unexpected(text.error());
+    if (!*text) return Keymap{};
+    return parse_keymap(**text, path());
 }
 
-Result<> save(const Keymap &map)
-{
-    const std::string file = path();
-    if (file.empty()) return std::unexpected(no_folder());
-    if (!files::make_dirs(files::config_dir()))
-        return fail(std::string(WHERE), "cannot be saved: its folder cannot be made", Place{files::config_dir()});
-    Writer w = Writer::binary(file);
-    if (!w) return fail(std::string(WHERE), "cannot be saved: the file cannot be opened for writing", Place{file});
-    if (!w.write(serialize(map))) {
-        w.abort();
-        return fail(std::string(WHERE), "cannot be saved: the write failed", Place{file});
-    }
-    return w.commit();
-}
+Result<> save(const Keymap &map) { return write_config_file(WHERE, FILE_NAME, serialize(map)); }
 
 Result<> reset()
 {
     const std::string file = path();
-    if (file.empty()) return std::unexpected(no_folder());
+    if (file.empty()) return std::unexpected(no_config_folder(WHERE, FILE_NAME));
     if (files::exists(file) && files::remove(file) != 0)
         return fail(std::string(WHERE), "cannot be reset: the file cannot be removed", Place{file});
     return {};

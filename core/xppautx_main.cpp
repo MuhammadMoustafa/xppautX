@@ -61,6 +61,7 @@
 #include "xpp_win32.h"
 #include "odex.h"
 #include "xpp_session.h"
+#include "xpp_recent.h"
 #include <functional>
 #include <stdio.h>
 #include <stdlib.h>
@@ -151,8 +152,8 @@ static void run_session(void)
     /* a document Finder or `open` gave xppautX.app when it launched it (an
        Apple Event, not an argument: xpp_window.h) is the model, loaded from
        its own folder as File > Open model loads one; without one, an app
-       Finder started (in "/") starts in the home folder, where the Open
-       dialog the load then shows begins */
+       Finder started (in "/") starts in the home folder, where the
+       start screen's Open model dialog begins */
     static std::string launch_name;
     static std::vector<char *> launch_argv;
     if (const char *doc = xpp::window::launch_document()) {
@@ -174,6 +175,7 @@ static void run_session(void)
        own folder as File > Open model loads one, then what the file adds */
     std::optional<SavedFile> saved;
     std::optional<xpp::RecordingLaunch> recording; /* a .recx: its model starts the session, the player opens it after */
+    std::string opened; /* the model file the user opened, as an absolute path: the newest recent one */
     std::vector<std::string> args;
     std::vector<char *> argv;
     args.assign(session_argv, session_argv + session_argc);
@@ -182,6 +184,7 @@ static void run_session(void)
         if (xpp::files::has_extension(args[i], xpp::recx::extension)) {
             recording = xpp::json_ui_recording_launch(args[i]);
             if (!recording) exit(1); /* the error said why */
+            opened = xpp::files::absolute(args[i]);
             xpp::files::change_dir(recording->folder.c_str());
             args[i] = recording->model;
             break;
@@ -189,6 +192,7 @@ static void run_session(void)
         if (!xpp_saved_file_name(args[i])) continue;
         saved = xpp_saved_read(args[i]);
         if (!saved) exit(1); /* the error message said why, at the file */
+        opened = xpp::files::absolute(args[i]);
         xpp::files::change_dir(xpp::files::split_path(saved->path).first.c_str());
         const std::vector<std::string> model = xpp_saved_args(*saved);
         args.erase(args.begin() + static_cast<std::ptrdiff_t>(i));
@@ -202,9 +206,21 @@ static void run_session(void)
     if (saved) check = [&saved](xpp::Session &fresh) { return xpp_saved_check(fresh, *saved); };
     const xpp::Loaded loaded = xpp::load_model(static_cast<int>(args.size()), argv.data(), 0,
                                                saved ? &saved->model : recording ? &recording->saved : nullptr, check);
+    if (!loaded && !silent && xpp::is_no_model(loaded.error())) {
+        /* no file named: the start screen, whose Open model is File > Open model's */
+        xpp::json_ui_start_screen();
+        xpp::json_ui_loop();
+    }
     if (!loaded) {
         if (!silent) json_ui_load_error(loaded.error()); /* load_model already logged the failure */
+        else if (xpp::is_no_model(loaded.error())) xpp::log(XPP_LOG_ERROR, "{}\n", loaded.error().text()); /* --silent has nothing to open */
         exit(1);
+    }
+    /* a model named on the command line is a recent one like any opened (a .ode's converted .odex is what is loaded) */
+    if (!silent) {
+        const xpp::Model &m = (**loaded).model();
+        const auto noted = xpp::recent::note(opened.empty() ? xpp::files::absolute(m.this_file, m.load_dir) : opened);
+        if (!noted) xpp::log(XPP_LOG_WARN, "{}\n", noted.error().text());
     }
     /* the session the load made, the program's until the redraw (a protocol
        command chooses its own, ui_json.cpp handle_line) */

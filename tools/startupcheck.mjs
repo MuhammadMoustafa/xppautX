@@ -1,4 +1,4 @@
-/* No-model startup must accept the picker answer before hello and remain closable.
+/* No-model startup (W232): the Open model dialog opens at once and accepts the picker answer; Cancel leaves the start screen; the window stays closable.
    Uses the shared browser driver; picker replies are fixtures, not OS dialog coverage. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -36,8 +36,9 @@ try {
         await browser.cdp.eval("document.querySelector('.run-toolbar button.primary').click(); true");
         assert.ok(await waitFor(() => browser.cdp.eval('window.__xpp.state().core.rows > 0 && !window.__xpp.state().busy')));
       } else if (mode === 'cancel') {
-        /* Load failure keeps the browser's diagnostic page available. */
-        assert.ok(await waitFor(() => browser.cdp.eval('window.__xpp?.state().exited === 1')));
+        /* W232: Cancel leaves the start screen; the program keeps running */
+        assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello?.start && !window.__xpp.state().ask && !window.__xpp.state().busy')));
+        assert.equal(await browser.cdp.eval('window.__xpp.state().exited'), null);
       } else {
         assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().ask')));
         await browser.cdp.eval('window.__xppQuit(); true');
