@@ -28,7 +28,7 @@ inline constexpr std::string_view FILE_NAME = "recent.txt";
    longer list is a search, which the Open model dialog does better */
 inline constexpr std::size_t MAX_ENTRIES = 10;
 /* the longest path of an entry: PATH_MAX on Linux and macOS; a Windows path
-   past it needs the \?\ form no model's folder uses. A hostile file cannot
+   past it needs the \\?\ form no model's folder uses. A hostile file cannot
    make the reader take more than MAX_ENTRIES lines of this length. */
 inline constexpr std::size_t MAX_PATH_BYTES = 4096;
 /* what a file may hold: every entry at its longest, with its line end */

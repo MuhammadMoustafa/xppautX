@@ -5,6 +5,8 @@ the token protects the event and command URLs.
 usage: tools/webcheck.py [--bin ./xppautX] [--ode examples/ode/lecar.odex]
 """
 import argparse, atexit, hashlib, http.client, json, os, queue, re, shutil, socket, subprocess, sys, tempfile, threading, time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import xppclient  # noqa: F401 -- importing it keeps the user's own settings folder untouched (XPP_CONFIG_DIR)
 
 LEAVE_LOWER_BOUND_SECONDS = 3.5  # exceed core LEAVE_MS (2000 ms) to prove a live stream prevents exit
 ALONE_LOWER_BOUND_SECONDS = 14  # exceed core ALONE_SECONDS (10 s), HEARTBEAT_MS (2 s), TICK_MS and time_t rounding

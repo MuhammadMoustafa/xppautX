@@ -7,20 +7,15 @@ Plays a fixed session (integrate, change a parameter, answer a menu, a
 string prompt and a form, find an equilibrium, open a second plot window)
 and prints PASS/FAIL per step. No display needed; runs in a few seconds.
 """
-import atexit, argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
+import argparse, base64, cmath, glob, hashlib, io, json, math, os, re, shutil, struct, subprocess, sys, tempfile, threading, time, queue, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from xppclient import Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
+from xppclient import CONFIG_ROOT, Checker, recording_text, read_recx, make_recording, replay_recording, run_commands, LogLines, SeriesMirror, drain_stderr, is_ask, placed, whole_series, save_permission
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--server', default='./xppautX')
 ap.add_argument('--ode', default='examples/ode/lecar.odex')
 ap.add_argument('-v', action='store_true')
 args = ap.parse_args()
-# W211: no check touches the user's real keymap.json: every server started here reads and writes a
-# folder of its own (XPP_CONFIG_DIR, core/xpp_files.h), removed at exit
-CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')
-os.environ['XPP_CONFIG_DIR'] = os.path.join(CONFIG_ROOT, 'xppautX')
-atexit.register(shutil.rmtree, CONFIG_ROOT, ignore_errors=True)
 # XPP_CHECK_SLOW=F multiplies every wait by F (tools/xppclient.py)
 SLOW = float(os.environ.get('XPP_CHECK_SLOW', '1'))
 MAX_VALUE_UNDO = 100  # core/value_undo.h

@@ -62,6 +62,8 @@ if [ "$(uname -s)" = Linux ]; then
 fi
 
 tmp=$(mktemp -d) || exit 1
+# the user's own settings stay untouched: every start here keeps its recent models in $tmp (W232)
+export XPP_CONFIG_DIR="$tmp/config"
 trap '[ -z "${pid:-}" ] || kill "$pid" 2>/dev/null; rm -rf "$tmp"' EXIT
 mkdir "$tmp/bin"
 for opener in xdg-open open; do

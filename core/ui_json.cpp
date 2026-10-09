@@ -798,16 +798,11 @@ xpp::Result<> reset_save_decision()
 
 namespace {
 
-/* one command, run as a job (xpp_job.h) numbered by its line's sequence
-   number: an abort cancels it from the reader thread. A line refused
-   during a computation (during_run) only says so, and ends as any does;
-   a set applied already, under a job that computed nothing
-   (control_line), only ends. The Session the command ended in: the one
-   it ran in, or the model's it loaded in that one's place. */
 /* the commands a session with no model runs (the start screen, W232):
-   Open model (the `open` command, or File > Open model's key), leaving, answering Open model's questions, and the user's
-   settings; `data` is the page asking for events a model would send, which
-   there are none of. Every other command needs a model and says so. */
+   Open model (the `open` command, or File > Open model's key), leaving,
+   answering Open model's questions, and the user's settings; `data` is the
+   page asking for events a model would send, which there are none of.
+   Every other command needs a model and says so. */
 bool runs_without_model(const char *line)
 {
     for (const char *cmd : {"open", "quit", "abort", "answer", "keymap", "data"})
@@ -818,6 +813,12 @@ bool runs_without_model(const char *line)
            menu == xpp::MENU_NAMES[FILE_MENU] && item == "openmodel";
 }
 
+/* one command, run as a job (xpp_job.h) numbered by its line's sequence
+   number: an abort cancels it from the reader thread. A line refused
+   during a computation (during_run) only says so, and ends as any does;
+   a set applied already, under a job that computed nothing
+   (control_line), only ends. The Session the command ended in: the one
+   it ran in, or the model's it loaded in that one's place. */
 xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, bool applied = false)
 {
     xpp::job::begin(seq);
@@ -843,6 +844,7 @@ xpp::Session &handle_line(const char *line, unsigned long seq, bool refused, boo
     } else if (!s->model().loaded() && !runs_without_model(line)) {
         j_command_error("command", "No model is open: open one first (Open model)");
     } else if (is_cmd(line, "data") && !s->model().loaded()) {
+        /* no model: no events to send, nothing to subscribe */
     } else if (handle_async(*s, line)) {
     } else if (const CommandInfo *e = command_of(line)) {
         record_begin(line);

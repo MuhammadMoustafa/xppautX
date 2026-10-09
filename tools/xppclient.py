@@ -8,7 +8,15 @@
 Each Server runs in its own scratch directory (the model is copied there),
 reads events on a thread and hands them out with collect().
 """
-import base64, copy, hashlib, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
+import atexit, base64, copy, hashlib, json, os, queue, shutil, struct, subprocess, tempfile, threading, time
+
+# No check touches the user's own per-user settings (keymap.json, W211;
+# recent.txt, W232): every xppautX a check script that imports this starts
+# reads and writes a folder of its own (XPP_CONFIG_DIR, core/xpp_files.h),
+# removed at exit
+CONFIG_ROOT = tempfile.mkdtemp(prefix='xppconfig')
+os.environ['XPP_CONFIG_DIR'] = os.path.join(CONFIG_ROOT, 'xppautX')
+atexit.register(shutil.rmtree, CONFIG_ROOT, ignore_errors=True)
 
 # XPP_CHECK_SLOW=F multiplies every wait by F, for a server under a slow
 # tool (tools/valgrindcheck.sh: memcheck runs it some 30 times slower)
