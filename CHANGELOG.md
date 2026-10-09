@@ -9,6 +9,12 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] - 2026-10-09
+
+Second beta: a start screen with recent models and the bundled examples, text on a plot as an object, one axis dialog, panels you can hide and resize, and fixes.
+
+**Updating from beta.1:** beta.1's Check for updates cannot see this release (it asked GitHub only for the latest stable release, and every release so far is a pre-release), so download beta.2 from this page by hand. From beta.2 on, a beta's Check for updates tells you of newer betas.
+
 - Fixed: **Check for updates in a beta** failed with HTTP 404, since GitHub's "latest release" never names a pre-release and every release is one. A pre-release build now reads the newest releases including pre-releases and offers the highest version by SemVer precedence (0.1.0-beta.2 over beta.1, the release 0.1.0 over any of its betas); a release build is never offered a beta. beta.1 itself still has the old check, so it cannot learn of beta.2; from beta.2 on the check works (W234, [#290](https://github.com/MuhammadMoustafa/xppautX/issues/290)).
 - **Opening the browser starts no shell** on Linux and macOS: the page address (and an About link) is passed to `xdg-open`/`open` as one argument with `posix_spawnp`, where a `'` in it could break out of the shell quoting; under WSL it opens with `rundll32.exe url.dll,FileProtocolHandler` instead of `cmd.exe /c start`, which parsed `&`, `^` and `%` (W231, [#287](https://github.com/MuhammadMoustafa/xppautX/issues/287)).
 - **The start screen lists the bundled examples.** The `.odex` models in the `examples/` folder beside the program (in the `.app`, Contents/Resources/examples) are listed under Examples; a click opens a copy of the example in `examples/` of the settings folder (an installed folder is read-only, and a model writes its files beside itself), asking before it replaces a copy you changed. A program with no examples folder says so on the start screen (W233, [#289](https://github.com/MuhammadMoustafa/xppautX/issues/289)).
