@@ -167,6 +167,33 @@ export async function xppautSequences(cdp) {
     throw new Error('the keymap preset was not set');
 }
 
+/* Page.navigate returns before the old document is gone: a wait right after it
+   can be met by the old page, and the next read then hits the new one while it
+   loads (GitHub #210). The old page is marked and the new one waited for (the
+   page has its hello); `ready` is a further condition on the new page. */
+export async function navigatePage(cdp, url, ready = 'true') {
+  await cdp.eval('window.__left = true').catch(() => undefined);
+  await cdp.send('Page.navigate', {url});
+  if (!await waitFor(() => cdp.eval(`!window.__left && !!window.__xpp?.state().hello && !!(${ready})`)))
+    throw new Error(`the page at ${url} did not load`);
+}
+
+/* AGENTS.md "Checks that can be trusted": a check that failed and passed on a
+   rerun is reported FLAKY, never silently passed (web2check's rule for its
+   sections, W40). The unit here is the whole script (`attempt`, which starts and
+   stops its own browser and servers): it has no per-check records to match up.
+   Fails twice: the second error is thrown. Exit code 0 for FLAKY, as web2check. */
+export async function runWithRerun(name, attempt) {
+  try {
+    await attempt();
+  } catch (first) {
+    console.log(`${name}: failed (${first.message || first}); rerunning once`);
+    await attempt();
+    console.log(`FLAKY ${name}  ${first.message || first}`);
+    console.log(`${name}: 1 FLAKY (passed only after a rerun)`);
+  }
+}
+
 /* Draw and frame timing (W58: the program itself carries no code that
    exists only to measure or slow it -- performance is for CI). Injected
    into every document the page navigates to (Page.addScriptToEvaluateOnNewDocument

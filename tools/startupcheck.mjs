@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {findBrowser, startBrowser, startServer, startWebView2, stopServer, waitFor, waitForExit} from './cdp.mjs';
+import {findBrowser, navigatePage, runWithRerun, startBrowser, startServer, startWebView2, stopServer, waitFor, waitForExit} from './cdp.mjs';
 
 const native = process.argv.includes('--webview2');
 const bin = path.resolve(process.argv.slice(2).find(a => a !== '--webview2') || `./xppautX${process.platform === 'win32' ? '.exe' : ''}`);
@@ -18,6 +18,7 @@ if (native) {
     console.log('PASS real native startup close bridge and process exit');
   } finally { server.cdp.ws.close(); await stopServer(server); }
 } else {
+await runWithRerun('startupcheck', async () => {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xpp-startup-'));
 let browser;
 try {
@@ -29,7 +30,7 @@ try {
         : mode === 'cancel' ? 'null' : 'new Promise(() => {})';
       const {identifier} = await browser.cdp.send('Page.addScriptToEvaluateOnNewDocument',
         {source: `window.__xppFileDialog = async () => ${reply};`});
-      await browser.cdp.send('Page.navigate', {url: server.url});
+      await navigatePage(browser.cdp, server.url);
       if (mode === 'select') {
         assert.ok(await waitFor(() => browser.cdp.eval('!!window.__xpp?.state().hello && !window.__xpp.state().busy')));
         assert.equal(path.basename(await browser.cdp.eval('window.__xpp.state().hello.file')), 'lecar.odex');
@@ -53,4 +54,5 @@ try {
   if (browser) { browser.cdp.ws.close(); browser.proc.kill(); await waitForExit(browser.proc); await browser.cleanup(); }
   fs.rmSync(root, {recursive: true, force: true, maxRetries: 5});
 }
+});
 }

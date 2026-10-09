@@ -4,9 +4,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {findBrowser, startBrowser, startServer, stopServer, waitFor, waitForExit, xppautSequences} from './cdp.mjs';
+import {findBrowser, navigatePage, runWithRerun, startBrowser, startServer, stopServer, waitFor, waitForExit, xppautSequences} from './cdp.mjs';
 
 const bin = path.resolve(process.argv[2] || './xppautX.exe');
+/* one whole run of the check; runWithRerun runs it again once if it fails (FLAKY) */
+async function attempt() {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xpp-ui-workflow-'));
 let browser, server;
 try {
@@ -19,12 +21,14 @@ try {
   const key = async k => { await cdp.eval(`document.querySelector('.plot-host').focus(); document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(k)}, bubbles:true})); true`); };
   const close = async () => { await cdp.eval("document.querySelector('.dialog-close').click(); true"); await ready(); };
   const run = async () => {
-    const n = await state('s.seriesCount');
+    const n = await state('s.seriesCount'), a = await state('s.seriesAppends');
     await cdp.eval("document.querySelector('[data-button=Integrate]').click(); true");
-    await until(`__xpp.state().seriesCount > ${n} && !__xpp.state().busy`, 'run finished');
+    /* the run's own rows streamed in (an append) and its series is whole: seriesCount alone is also met by the
+       model's first series, which arrives after hello (session.ts asks for `data` then) and may be after the click */
+    await until(`__xpp.state().seriesAppends > ${a} && __xpp.state().seriesCount > ${n} && !__xpp.state().busy`, 'run finished');
   };
   await cdp.send('Emulation.setDeviceMetricsOverride', {width:1280,height:860,deviceScaleFactor:1,mobile:false});
-  await cdp.send('Page.navigate', {url: server.url}); await ready(); await xppautSequences(cdp);
+  await navigatePage(cdp, server.url); await ready(); await xppautSequences(cdp);
   await key('F'); await until('__xpp.state().pendingKeys.join("") === "F"', 'uppercase F begins the File sequence (the XPPAUT preset)');
   await key('Escape'); await until('__xpp.state().pendingKeys.length === 0', 'Escape cancels the sequence');
   await key('I'); await until('__xpp.state().ask?.kind === "menu"', 'uppercase I opens initial conditions');
@@ -100,8 +104,10 @@ try {
   console.log('PASS additional-window axis editor');
   await stopServer(server);
   server = await startServer(bin, root, [path.resolve('examples/ode/lorenz.odex')]);
-  await cdp.send('Page.navigate', {url:server.url});
-  await until('window.__xpp?.state().hello?.file.endsWith("lorenz.odex") && __xpp.state().core.rows > 0 && !__xpp.state().busy', '3D model');
+  await navigatePage(cdp, server.url);
+  /* the window holds the model's series (it is what the next run retains as an earlier run), not only the core its rows */
+  await until('__xpp.state().hello?.file.endsWith("lorenz.odex") && __xpp.state().core.rows > 0 && !__xpp.state().busy && '
+    + '__xpp.state().plots.windows.find(w => w.win === __xpp.state().plots.active)?.series?.rows > 0', '3D model');
   await run();
   await until('__xpp.plot()?.curves.length >= 2 && document.querySelector("[data-trace-key^=run-]")', '3D retained trace and legend');
   const retained = await state('w.history.runs.length');
@@ -115,3 +121,6 @@ try {
   if (browser) { browser.cdp.ws.close(); browser.proc.kill(); await waitForExit(browser.proc); await browser.cleanup(); }
   fs.rmSync(root, {recursive:true, force:true, maxRetries:5});
 }
+}
+
+await runWithRerun('uiworkflowcheck', attempt);
