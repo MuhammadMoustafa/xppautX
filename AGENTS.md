@@ -143,11 +143,9 @@ third_party/core-math, each built twice on x86, once with FMA, the copy
 picked at run time; `tools/mathcheck.sh`, in sourcecheck, fails a direct
 call of the C library's), and the build passes `-ffp-contract=off`, so
 no target fuses `a*b+c`. One baseline, tests/examples.md5, for every
-platform: CI's windows-core and windows-clang compare with it strictly;
-macos-core (`--platform macos`, no tests/examples.macos.md5) still runs
-it in the first-run mode that reports differing models without failing
-(a crash still fails) until a run shows macOS matches, and then turns
-strict like Windows. A run with a differing model uploads its md5s and
+platform, macOS included, compared strictly (W235, #291: CI run 37720366396's
+macOS job and the v0.1.0-beta.1 release run 37724372829's macos and
+macos-x64 jobs each match all 183 outputs). A run with a differing model uploads its md5s and
 the differing outputs as the artifact `examples-md5-<platform>`; the
 programs are the artifacts `xppautX-<platform>` (kept 14 days, like the
 sanitizer reports; the md5 artifacts 30: W44). A platform that differs

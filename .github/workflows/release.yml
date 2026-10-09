@@ -103,7 +103,7 @@ jobs:
         run: |
           python tools/servercheck.py --server ./xppautX.exe
           python tools/webcheck.py --bin ./xppautX.exe
-          tools/examples_check.sh --bin xppautX.exe --platform windows
+          tools/examples_check.sh --bin xppautX.exe
       # WiX v5 builds the .msi (packaging/windows/xppautX.wxs); the version
       # is pinned so a release does not change with the tool
       - name: Install WiX
@@ -131,14 +131,10 @@ jobs:
       matrix:
         include:
           # macos-14's Apple clang has no -std=c++23
-          # md5: the examples baseline (tests/examples.<md5>.md5); Intel has
-          # none, so it only reports differences from Linux's (a crash fails)
           - runner: macos-15
             arch: macos-arm64
-            md5: macos
           - runner: macos-15-intel
             arch: macos-x64
-            md5: macos-x64
     runs-on: ${{ matrix.runner }}
     env:
       # the oldest macOS the binaries run on, not the runner's own: 13.3
@@ -154,7 +150,7 @@ jobs:
         run: |
           python3 tools/servercheck.py
           python3 tools/webcheck.py
-          tools/examples_check.sh --platform ${{ matrix.md5 }}
+          tools/examples_check.sh
       - name: Package
         run: tools/package_release.sh ${{ matrix.arch }}
       # the .app inside the .dmg starts (a model opened in the .app as

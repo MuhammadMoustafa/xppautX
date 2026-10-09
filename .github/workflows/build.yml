@@ -304,13 +304,11 @@ jobs:
       - name: "AUTO over the protocol (tolerant of libm's last-digit ULP differences, autocheck.py's lines_close)"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: python3 tools/autocheck.py
-      # tests/examples.macos.md5 when committed, else Linux's
-      # tests/examples.md5 in first-run mode (differences reported, not
-      # failed); a crash or timeout always fails (tools/examples_check.sh)
-      - name: "Every example: no crash, output md5s against this platform's baseline"
+      # compares strictly with tests/examples.md5 (one baseline for every
+      # platform, W235); a crash or timeout fails too (tools/examples_check.sh)
+      - name: "Every example: no crash, output md5s against tests/examples.md5"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: tools/examples_check.sh --platform macos --write examples.macos.md5 --keep examples-differ
-      # what this run computed, to commit as tests/examples.macos.md5
+      # what this run computed, kept as an artifact when a model differs
       # (when macOS differs from Linux, or its numerics change on purpose)
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
