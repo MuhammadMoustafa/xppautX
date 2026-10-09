@@ -308,8 +308,8 @@ jobs:
       # platform, W235); a crash or timeout fails too (tools/examples_check.sh)
       - name: "Every example: no crash, output md5s against tests/examples.md5"
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: tools/examples_check.sh --write examples.macos.md5 --keep examples-differ
       # what this run computed, kept as an artifact when a model differs
-      # (when macOS differs from Linux, or its numerics change on purpose)
       - name: Upload the examples' md5s (only when a model differs from the baseline)
         if: ${{ !cancelled() && hashFiles('examples-differ/**') != '' }}
         uses: actions/upload-artifact@v7
