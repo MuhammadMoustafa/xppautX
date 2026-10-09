@@ -32,11 +32,13 @@
 
 namespace xpp::files {
 
+#ifndef _WIN32
 namespace {
 /* the room program_dir gives the system to write the executable's path in: PATH_MAX on Linux and macOS (4096 and
-   1024); a longer one is no folder this program can be installed in */
+   1024); a longer one is no folder this program can be installed in (Windows: xpp_win32's program_folder) */
 constexpr std::size_t PATH_BUFFER_BYTES = 4096;
 } // namespace
+#endif
 
 std::string temp_base()
 {

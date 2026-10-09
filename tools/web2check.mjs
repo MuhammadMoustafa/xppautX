@@ -5794,10 +5794,13 @@ async function startScreenExamplesCheck() {
     await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
     await cdp.send('Page.navigate', {url: server.url});
+    /* the store has hello.start before the page has drawn it: wait for the list or the reason to be drawn */
+    const drawn = await until(`s.hello && s.hello.start && !s.busy && !s.ask
+      && (document.querySelector('[data-start-example]') || document.querySelector('[data-start-no-examples]'))`, 'the start screen', 30000 * SLOW);
     check('start screen examples: the .odex files beside the program are listed, and only they',
-      await until(`s.hello && s.hello.start && !s.busy && !s.ask`, 'the start screen', 30000 * SLOW)
-        && await cdp.eval(`(() => { const b = [...document.querySelectorAll('[data-start-example]')];
-          return b.length === 1 && b[0].dataset.startExample === 'lecar.odex' && !document.querySelector('[data-start-no-examples]'); })()`));
+      drawn && await cdp.eval(`(() => { const b = [...document.querySelectorAll('[data-start-example]')];
+          return b.length === 1 && b[0].dataset.startExample === 'lecar.odex' && !document.querySelector('[data-start-no-examples]'); })()`),
+      JSON.stringify(await cdp.eval(`(() => { const s = window.__xpp && __xpp.state(); return s && s.hello && s.hello.start ? s.hello.start.examples : null; })()`)));
     await cdp.eval(`document.querySelector('[data-start-example]').click(); true`);
     check('start screen examples: a click sends the name only; the copy opens and the screen goes',
       await until(`__xpp.sent().some(c => c.cmd === 'open' && c.example === 'lecar.odex' && c.file === undefined) && s.hello && !s.hello.start && s.core && !s.busy`, 'opened')
@@ -6426,7 +6429,9 @@ async function panelsCheck() {
 
     /* kept across a reload: the sizes and the collapsed state */
     await cdp.eval(`document.querySelector('.menu-collapse').click()`);
-    await until('s.panels.menuCollapsed', 'menu collapsed for the reload');
+    /* the page saves the panels in an effect after the next paint (App.tsx): reload once the saved value says so */
+    await until(`s.panels.menuCollapsed && JSON.parse(localStorage.getItem('xppPanels') || '{}').menuCollapsed === true`,
+      'menu collapsed and saved for the reload');
     const before = (await panelRects()).p;
     await reloadPage();
     await until('s.hello && !s.busy', 'ready');
