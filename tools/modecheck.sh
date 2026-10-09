@@ -67,7 +67,7 @@ export XPP_CONFIG_DIR="$tmp/config"
 trap '[ -z "${pid:-}" ] || kill "$pid" 2>/dev/null; rm -rf "$tmp"' EXIT
 mkdir "$tmp/bin"
 for opener in xdg-open open; do
-  printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/bin/$opener"
+  printf '#!/bin/sh\necho "$1" >> "%s/opened"\necho "$#" >> "%s/argc"\n' "$tmp" "$tmp" > "$tmp/bin/$opener"
   chmod +x "$tmp/bin/$opener"
 done
 cp examples/ode/lecar.odex "$tmp/"
@@ -138,8 +138,9 @@ else
   stop
   unset OPENER_PATH
   for opener in xdg-open open; do
-    printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/bin/$opener"
+    printf '#!/bin/sh\necho "$1" >> "%s/opened"\necho "$#" >> "%s/argc"\n' "$tmp" "$tmp" > "$tmp/bin/$opener"
   done
+  rm -f "$tmp/argc"
   start --browser --port 0
   wait_for_output . "$tmp/opened" || bad "the opener did not write its address"
   case "$url" in
@@ -150,6 +151,12 @@ else
     pass "--browser opens that same address"
   else
     bad "--browser opens that same address (opened: $(cat "$tmp/opened" 2>/dev/null))"
+  fi
+  # W231: no shell reads the address; the opener gets it as exactly one argument
+  if [ "$(head -1 "$tmp/argc" 2>/dev/null)" = 1 ]; then
+    pass "--browser hands the opener one argument"
+  else
+    bad "--browser hands the opener one argument (argc: $(cat "$tmp/argc" 2>/dev/null))"
   fi
   stop
 fi
