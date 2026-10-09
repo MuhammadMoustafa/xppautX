@@ -7,6 +7,8 @@ import path from 'node:path';
 import {findBrowser, navigatePage, runWithRerun, startBrowser, startServer, stopServer, waitFor, waitForExit, xppautSequences} from './cdp.mjs';
 
 const bin = path.resolve(process.argv[2] || './xppautX.exe');
+/* the active plot window, as a page expression */
+const ACTIVE = '__xpp.state().plots.windows.find(w => w.win === __xpp.state().plots.active)';
 /* one whole run of the check; runWithRerun runs it again once if it fails (FLAKY) */
 async function attempt() {
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'xpp-ui-workflow-'));
@@ -21,11 +23,12 @@ try {
   const key = async k => { await cdp.eval(`document.querySelector('.plot-host').focus(); document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(k)}, bubbles:true})); true`); };
   const close = async () => { await cdp.eval("document.querySelector('.dialog-close').click(); true"); await ready(); };
   const run = async () => {
-    const n = await state('s.seriesCount'), a = await state('s.seriesAppends');
+    /* the window's first series (of rows the core already holds) arrives after hello (session.ts asks for `data`
+       then): counted before it, the wait below would be met by it rather than by the run */
+    await until(`!__xpp.state().busy && __xpp.state().core && (__xpp.state().core.rows === 0 || ${ACTIVE}?.series?.rows > 0)`, 'the window holds the rows the core has');
+    const n = await state('s.seriesCount');
     await cdp.eval("document.querySelector('[data-button=Integrate]').click(); true");
-    /* the run's own rows streamed in (an append) and its series is whole: seriesCount alone is also met by the
-       model's first series, which arrives after hello (session.ts asks for `data` then) and may be after the click */
-    await until(`__xpp.state().seriesAppends > ${a} && __xpp.state().seriesCount > ${n} && !__xpp.state().busy`, 'run finished');
+    await until(`__xpp.state().seriesCount > ${n} && !__xpp.state().busy`, 'run finished');
   };
   await cdp.send('Emulation.setDeviceMetricsOverride', {width:1280,height:860,deviceScaleFactor:1,mobile:false});
   await navigatePage(cdp, server.url); await ready(); await xppautSequences(cdp);
@@ -105,9 +108,8 @@ try {
   await stopServer(server);
   server = await startServer(bin, root, [path.resolve('examples/ode/lorenz.odex')]);
   await navigatePage(cdp, server.url);
-  /* the window holds the model's series (it is what the next run retains as an earlier run), not only the core its rows */
-  await until('__xpp.state().hello?.file.endsWith("lorenz.odex") && __xpp.state().core.rows > 0 && !__xpp.state().busy && '
-    + '__xpp.state().plots.windows.find(w => w.win === __xpp.state().plots.active)?.series?.rows > 0', '3D model');
+  await until('__xpp.state().hello?.file.endsWith("lorenz.odex") && __xpp.state().core.rows > 0 && !__xpp.state().busy', '3D model');
+  /* run() waits for the window's own series first: it is what the run retains as an earlier run */
   await run();
   await until('__xpp.plot()?.curves.length >= 2 && document.querySelector("[data-trace-key^=run-]")', '3D retained trace and legend');
   const retained = await state('w.history.runs.length');
