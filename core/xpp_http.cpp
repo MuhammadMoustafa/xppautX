@@ -1147,20 +1147,14 @@ bool open_in_browser(const std::string &url)
     return reinterpret_cast<INT_PTR>(ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > SHELL_ERROR_MAX;
 #else
     /* No shell: the URL is one argv entry of the opener, whatever characters it holds. */
-    const char *opener = "xdg-open";
-    std::vector<const char *> argv;
 #ifdef __APPLE__
-    opener = "open";
+    std::vector<const char *> argv{"open"};
+#else
+    std::vector<const char *> argv{"xdg-open"};
 #endif
-    argv.push_back(opener);
     /* WSL: rundll32.exe takes the URL as one command-line argument and starts the Windows default browser
        with no command interpreter (cmd.exe /c start would parse & ^ % in it); it exits 0 when it started */
-    constexpr const char *WSL_OPENER = "rundll32.exe";
-    constexpr const char *WSL_OPENER_ARG = "url.dll,FileProtocolHandler";
-    if (getenv("WSL_DISTRO_NAME")) {
-        argv = {WSL_OPENER, WSL_OPENER_ARG};
-        opener = WSL_OPENER;
-    }
+    if (getenv("WSL_DISTRO_NAME")) argv = {"rundll32.exe", "url.dll,FileProtocolHandler"};
     argv.push_back(url.c_str());
     argv.push_back(nullptr);
     posix_spawn_file_actions_t actions;
@@ -1170,7 +1164,7 @@ bool open_in_browser(const std::string &url)
               posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0) == 0 &&
               posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0) == 0;
     pid_t child = 0;
-    ok = ok && posix_spawnp(&child, opener, &actions, nullptr, const_cast<char *const *>(argv.data()), environ) == 0;
+    ok = ok && posix_spawnp(&child, argv[0], &actions, nullptr, const_cast<char *const *>(argv.data()), environ) == 0;
     posix_spawn_file_actions_destroy(&actions);
     if (!ok) return false;
     int status = 0;
