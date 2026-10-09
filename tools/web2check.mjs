@@ -5742,7 +5742,9 @@ async function startScreenCheck() {
     const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
     await cdp.send('Page.navigate', {url: server.url});
     check('start screen: Cancel at the start leaves hello.start, no dialog, no exit, no error',
-      await until('!window.__left && s.hello && s.hello.start && !s.ask && !s.busy && s.exited === null && !s.loadError', 'the start screen', 30000 * SLOW));
+      /* the store has hello.start before the page has drawn it: wait for the drawn screen too */
+      await until(`!window.__left && s.hello && s.hello.start && !s.ask && !s.busy && s.exited === null && !s.loadError
+        && document.querySelector('[data-start-open]')`, 'the start screen', 30000 * SLOW));
     const start = await S('s.hello.start');
     check('start screen: the recent models newest first, the missing one marked and kept',
       start.recent.length === 2 && start.recent[0].path === ODE && !start.recent[0].missing
@@ -5918,7 +5920,10 @@ async function updatesCheck() {
   if (!tagged) return;
   const local = tagged[1];
   const release = tag => ({tag_name: tag, html_url: 'https://github.com/MuhammadMoustafa/xppautX/releases/tag/' + tag});
-  await cdp.eval("window.__updateAnswer = 'pending'; window.__xppCheckUpdates(); true");
+  /* UpdateDialog listens for a request from an effect after the page's first paint, so a request sent
+     before then is not heard: ask until the dialog is there (a request while one is pending is ignored) */
+  await cdp.eval("window.__updateAnswer = 'pending'; true");
+  await until("document.querySelector('[data-update-dialog]') || (window.__xppCheckUpdates(), false)", 'the update check listening');
   await until("typeof window.__finishUpdate === 'function' && document.querySelector('[data-update-dialog]')", 'pending update');
   await cdp.eval('window.__finishOldUpdate = window.__finishUpdate; window.__finishUpdate = null; true');
   await close();
