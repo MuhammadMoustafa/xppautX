@@ -84,6 +84,22 @@ std::string event_text(const xpp::Session &s)
             }
             o += ']';
         }
+        if (f.rule == OptionRule::choice) {
+            o += ",\"choices\":[";
+            std::string unavailable;
+            for (std::size_t i = 0; i < f.choices.size(); ++i) {
+                o += i ? "," : "";
+                xpp::json_append_string(o, f.choices[i]);
+                const std::string_view why = f.unavailable ? f.unavailable(s.model(), static_cast<int>(i)) : std::string_view();
+                if (why.empty()) continue;
+                unavailable += unavailable.empty() ? "{" : ",";
+                xpp::json_append_string(unavailable, f.choices[i]);
+                unavailable += ':';
+                xpp::json_append_string(unavailable, why);
+            }
+            o += ']';
+            if (!unavailable.empty()) o += ",\"unavailable\":" + unavailable + "}";
+        }
         o += '}';
     }
     o += "]}";
@@ -105,6 +121,20 @@ bool check(const xpp::Model &m_of, const OptionRow &f, std::string_view text, do
             return false;
         }
         v = *picked;
+        return true;
+    }
+    if (f.rule == OptionRule::choice) {
+        const int i = choice_index(f.choices, text);
+        if (i < 0) {
+            why = xpp::format("{} must be one of", f.label);
+            for (std::size_t k = 0; k < f.choices.size(); ++k) why += xpp::format("{}{}", k ? ", " : " ", f.choices[k]);
+            return false;
+        }
+        if (const std::string_view no = f.unavailable ? f.unavailable(m_of, i) : std::string_view(); !no.empty()) {
+            why = xpp::format("{}: {} is not available: {}", f.label, f.choices[static_cast<std::size_t>(i)], no);
+            return false;
+        }
+        v = i;
         return true;
     }
     if (!xpp::parse_number(text, v) || !std::isfinite(v)) {

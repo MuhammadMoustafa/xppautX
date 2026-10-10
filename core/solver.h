@@ -95,7 +95,9 @@ public:
   /* an integration begins from *start (1: afresh); a method whose own
      convention differs translates it */
   virtual void begin([[maybe_unused]] int *start) {}
-  virtual Result<> advance(const SolverStep &step) = 0;
+  /* one advance of the method; an exact Jacobian that failed on the way
+     (jacobian.h JacobianFailed) is its error */
+  Result<> advance(const SolverStep &step);
   /* an integration that went through has ended */
   virtual void finish() {}
 
@@ -109,6 +111,8 @@ protected:
   Result<> failed(std::string what, Place place) const { return fail(info_.name, std::move(what), std::move(place)); }
 
 private:
+  /* the method's own advance */
+  virtual Result<> step_by(const SolverStep &step) = 0;
   const SolverInfo &info_;
 };
 

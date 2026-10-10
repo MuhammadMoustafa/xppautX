@@ -1,0 +1,9 @@
+# W260 (#317): a Hopf normal form with a derived parameter, a user
+# function and a fixed variable, whose exact Jacobian AUTO uses
+par mu = -0.1, w = 1
+frequency = w
+fun square(q) = q*q
+r = square(x)+square(y)
+x' = mu*x-frequency*y-x*r
+y' = frequency*x+mu*y-y*r
+init x = 0.3, y = -0.2

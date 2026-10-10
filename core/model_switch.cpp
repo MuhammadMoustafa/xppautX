@@ -17,6 +17,7 @@
 #include "expr.h"
 #include "form_ode.h"
 #include "numerics.h"
+#include "jacobian.h"
 #include "storage.h"
 #include <functional>
 #include <optional>
@@ -265,6 +266,8 @@ void restore_values(Session &s, const KeptValues &kept)
     n.poincare_stop=loaded.poincare_stop;
   }else n.poincare_variable=poi;
   if(disc(m))n.method=pick_method(m, "Discrete", command_place()).value();
+  /* the exact Jacobian kept for a model that has none: the model's own */
+  if(n.jacobian==JACOBIAN_EXACT&&!m.jacobian.available())n.jacobian=loaded.jacobian;
   do_meth(s); /* starts the method's solver too */
   set_delay(s);
 

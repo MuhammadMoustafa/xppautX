@@ -159,6 +159,11 @@ grammar:
   parentheses (`@ method=Mod. Euler`, `@ method=DoPri8(3)`); the whole value
   ends at a comma or the end of its line and must name a suitable solver
   (W132, [#184](https://github.com/MuhammadMoustafa/xppautX/issues/184)).
+  `jacobian` (xppautX's own: XPPAUT has none) is `difference` (the default)
+  or `exact`; `exact` in a model with no exact Jacobian stops the load at
+  its line, with the reason (W260,
+  [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317); the
+  manual's "Numerical parameters").
 - `set NAME = EXPR, ...` — a named parameter set, as `.ode`.
 - `table NAME EXPR` / `table NAME FILE` — as `.ode`; a formula table
   may call a `fun` written after it (every function is compiled first,

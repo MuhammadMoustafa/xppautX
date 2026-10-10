@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace xpp {
 
@@ -34,6 +35,13 @@ struct Place {
   std::string source;
 };
 
+/* what the user can do about an error, offered with it (W260: "Switch to
+   differences and continue"): a label and the protocol commands, as JSON
+   objects, that do it when sent in order (docs/protocol.md "Errors") */
+struct ErrorAction {
+  std::string label;
+  std::vector<std::string> commands;
+};
 struct Error {
   /* the computation or reader that failed ("integration", "delay",
      "set file", ...), for the log */
@@ -50,6 +58,8 @@ struct Error {
      `set` of several values says which one it refused (docs/protocol.md
      "Errors") */
   std::string field{};
+  /* what the user can do about it, when something can be done */
+  std::optional<ErrorAction> action{};
 
   /* "file:line:col: what", leaving out what is not known ("line N: what"
      with no file) */

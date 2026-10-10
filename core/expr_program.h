@@ -58,9 +58,14 @@
                 COM(FUN1TYPE,RANDOM_UNIFORM) ..., random_instruction)
      ENDEXP     the end: the program's value is the stack's top */
 #include "expr.h"
+#include "xpp_error.h"
+#include "xpp_tcc.h"
 
 #include <array>
 #include <bit>
+#include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace xpp {
@@ -72,6 +77,34 @@ struct Program {
     std::vector<int> native_reads; /* variables read by this code and its user functions */
     bool array_pure = false; /* native code only uses c/v and immutable lookup tables */
     double (*native)(double *, double *, Session *, const int *) = nullptr;
+};
+
+/* Derivatives compile_model compiled (W260, expr_derivative.h): the
+   function writes the value of entry k into out[k], from the constants c
+   and the variables v (v[0] the time, v[1..] the state; only these are
+   read) and the Session S (its tables, only read), its temporaries into
+   w (ExactJacobian::workspace doubles). Entry k is d f_rows[k] / d x of
+   column columns[k] (a state's index from 0) in the state Jacobian, and
+   of the column's own variable in the others (columns empty). */
+struct JacobianProgram {
+    void (*function)(const double *c, const double *v, void *S, double *w, double *out) = nullptr;
+    std::vector<int> rows, columns;
+};
+
+/* The model's exact Jacobian (W260): with respect to the state, the time
+   and each constant that a right-hand side depends on (by_constant, by
+   the constant's index, ascending), or why the model has none. */
+struct ExactJacobian {
+    std::unique_ptr<tcc::Program> code;
+    JacobianProgram states, time;
+    std::vector<std::pair<int, JacobianProgram>> by_constant;
+    int workspace = 0;
+    /* why there is none, when states.function is null */
+    std::string unavailable;
+    /* where the model's own @ jacobian=exact is, for the error when there
+       is none */
+    Place requested;
+    bool available() const { return states.function != nullptr; }
 };
 }
 
@@ -119,11 +152,15 @@ constexpr int SUM_INDEX = 1;
 constexpr double CURRENT_INDEX = 0;
 
 /* the built-in functions FUN1TYPE and FUN2TYPE call, by index
-   (expr_functions.cpp) */
+   (expr_functions.cpp), FUN1_COUNT and FUN2_COUNT of them */
+constexpr std::size_t FUN1_COUNT = 26, FUN2_COUNT = 23;
 using Fun1 = double (*)(double);
 using Fun2 = double (*)(double, double);
-extern const std::array<Fun1, 26> fun1;
-extern const std::array<Fun2, 23> fun2;
+extern const std::array<Fun1, FUN1_COUNT> fun1;
+extern const std::array<Fun2, FUN2_COUNT> fun2;
+/* the FUN2TYPE indices of + - * / (an .ode model's guarded division),
+   which the evaluator does itself */
+constexpr int ADD = 0, SUBTRACT = 1, MULTIPLY = 2, DIVIDE = 3;
 
 /* the symbol table's indices of RAN(x) (FUN1TYPE), POISSON(m) (FUN1TYPE)
    and NORMAL(mean,sd) (FUN2TYPE): their table entries are null (the

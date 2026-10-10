@@ -13,10 +13,11 @@ class Random;   /* xpp_math.h */
 void get_evec(Random &random, double *a, double *anew, double *b, double *bp, int n, int maxit, double err, int *ipivot, double eval, int *ierr);
 double sqr2(double z);
 
-void do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
+Result<> do_sing_info(Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr);
 void pr_evec(Session &s, double *x, double *ev, int n, int pr, double eval,int type);
 void getjac(Session &s, double *x, double *y, double eps, double *dermat, int n);
-void rooter(Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n);
+/* (a failed exact Jacobian is its error, the point back where it was) */
+Result<> rooter(Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n);
 int gear(Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);
 int ggear(Session &s, int n, double *t, double tout, double *y, double hmin, double hmax, double eps, int mf, double *error, int *kflag, int *jstart, double *work, int *iwork);
 

@@ -62,7 +62,7 @@ xpp::Result<> do_sing(xpp::Session &s, double *x, double eps, double err, double
  b=eval+2*n;
  bp=b+n;
  ework=bp+n;
- rooter(s,x,err,eps,big,work,ierr,maxit,n);
+ if(auto r=rooter(s,x,err,eps,big,work,ierr,maxit,n);!r)return r;
  if(*ierr!=0)
  {
   for(i=0;i<n;i++)x[i]=old_x[i];
@@ -332,7 +332,7 @@ xpp::Result<> shoot_this_now(xpp::Session &s) /* this uses the current labeled s
 }
 
 /* fixed point with no requests and store manifolds */ 
-void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
+xpp::Result<> do_sing_info(xpp::Session &s, double *x, double eps, double err, double big, int maxit, int n, double *er, double *em, int *ierr)
 {
  int kmem,i,j,ipivot[MAXODE];
 
@@ -358,11 +358,11 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
  b=eval+2*n;
  bp=b+n;
  ework=bp+n;
- rooter(s,x,err,eps,big,work,ierr,maxit,n);
+ if(auto r=rooter(s,x,err,eps,big,work,ierr,maxit,n);!r)return r;
  if(*ierr!=0)
  {
   for(i=0;i<n;i++)x[i]=old_x[i];
-  return;
+  return {};
  }
 
  for(i=0;i<n*n;i++){
@@ -381,7 +381,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
  xpp::eigenvalues(n,work,eval,ework,ierr);
  if(*ierr!=0)
  {
-  return;
+  return {};
  }
 /* succesfully computed evals now lets work with them */
 
@@ -469,7 +469,7 @@ void do_sing_info(xpp::Session &s, double *x, double eps, double err, double big
 
  }
 
- return;
+ return {};
 }
 
 void pr_evec(xpp::Session &s, double *x, double *ev, int n, int pr, double eval, int type)
@@ -576,9 +576,9 @@ void getjac(xpp::Session &s, double *x, double *y, double eps, double *dermat, i
   xpp::jacobian(s,0.0,x,y,n,eps,{xpp::JacobianLayout::RowMajor,0,0,discrete},dermat);
 }
 
-void rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
+namespace {
+void newton(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
 {
- xpp::Computation computing; /* what Escape stops (xpp_job.h) */
  int i,iter,ipivot[MAXODE],info;
  char ch;
  double *y,*dermat,*dely;
@@ -645,6 +645,21 @@ void rooter(xpp::Session &s, double *x, double err, double eps, double big, doub
     return;
    }
  }
+}
+}
+
+xpp::Result<> rooter(xpp::Session &s, double *x, double err, double eps, double big, double *work, int *ierr, int maxit, int n)
+{
+ xpp::Computation computing; /* what Escape stops (xpp_job.h) */
+ const std::vector<double> start(x,x+n);
+ try {
+   newton(s,x,err,eps,big,work,ierr,maxit,n);
+ } catch (const xpp::JacobianFailed &failed) {
+   *ierr=1;
+   std::copy(start.begin(),start.end(),x);
+   return std::unexpected(failed.error);
+ }
+ return {};
 }
 
 double sqr2(double z)

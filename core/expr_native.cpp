@@ -1,6 +1,7 @@
 /* The sole owner of translating validated RPN into trusted C. No model text
    enters the translation; every emitted name and subscript is an index. */
 #include "expr_native.h"
+#include "expr_derivative.h"
 #include "expr_program.h"
 #include "session.h"
 #include "simplenet.h"
@@ -11,7 +12,10 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <map>
 #include <set>
+#include <span>
+#include <unordered_map>
 #include <string_view>
 #include <algorithm>
 #include "xpp_log.h"
@@ -43,12 +47,13 @@ constexpr int MAX_SUM_DEPTH = 16;
    prototypes: the code does the same operations in the same order and
    these do the arithmetic, so the results are the interpreter's, bit for
    bit. The first argument of each is the Session. */
-enum class Helper : size_t { Table, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
+enum class Helper : size_t { Table, TableSlope, Network, Vector, Kernel, Delay, DelayShift, Shift, IShift, Set, Uniform, Poisson, Normal, Argument, FunctionEnd, Count };
 struct HelperText {
     std::string_view name, prototype;
 };
 constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text{{
     {"h_tab", "double h_tab(void*,double,int)"},
+    {"h_tabs", "double h_tabs(void*,double,int)"},
     {"h_net", "double h_net(void*,double,int)"},
     {"h_vec", "double h_vec(void*,double,int)"},
     {"h_ker", "double h_ker(void*,int)"},
@@ -69,6 +74,7 @@ constexpr std::array<HelperText, static_cast<size_t>(Helper::Count)> helper_text
    was given. */
 Session &session(void *S) { return *static_cast<Session *>(S); }
 double h_tab(void *S, double x, int i) { return lookup(session(S), x, i); }
+double h_tabs(void *S, double x, int i) { return lookup_slope(session(S), x, i); }
 double h_net(void *S, double x, int i) { return network_value(session(S), x, i); }
 double h_vec(void *S, double x, int i) { return vector_value(session(S), x, i); }
 double h_ker(void *S, int i) { return ker_val(session(S), i); }
@@ -87,6 +93,7 @@ const void *helper_address(Helper h)
 {
     switch (h) {
     case Helper::Table: return reinterpret_cast<const void *>(&h_tab);
+    case Helper::TableSlope: return reinterpret_cast<const void *>(&h_tabs);
     case Helper::Network: return reinterpret_cast<const void *>(&h_net);
     case Helper::Vector: return reinterpret_cast<const void *>(&h_vec);
     case Helper::Kernel: return reinterpret_cast<const void *>(&h_ker);
@@ -127,6 +134,7 @@ struct Generator {
     std::vector<std::set<int>> function_reads;
     bool dynamic = false; /* a network updates its first two variable operands */
     std::vector<char> allowed; /* user functions with a fully compiled dependency graph */
+    std::unordered_map<int, int> number_slot; /* a derivative graph's number: its N[] */
 
     std::unexpected<Error> refuse(std::string reason) const
     {
@@ -146,7 +154,7 @@ struct Generator {
     std::string_view helper(Helper h)
     {
         used[static_cast<size_t>(h)] = true;
-        if (h != Helper::Table && h != Helper::IShift) array_pure = false;
+        if (h != Helper::Table && h != Helper::TableSlope && h != Helper::IShift) array_pure = false;
         return helper_text[static_cast<size_t>(h)].name;
     }
 
@@ -343,9 +351,9 @@ struct Generator {
                 if (!need(2)) return refuse("a binary stack underflow");
                 const Node right = pop(), left = pop();
                 std::string code;
-                if (in == 0 || in == 2) code = xpp::format("({}{}{})", right.text, in == 0 ? "+" : "*", left.text);
-                else if (in == 1 || in == expr::IEEE_DIVIDE) code = xpp::format("({}{}{})", left.text, in == 1 ? "-" : "/", right.text);
-                else if (in == 3) {
+                if (in == expr::ADD || in == expr::MULTIPLY) code = xpp::format("({}{}{})", right.text, in == expr::ADD ? "+" : "*", left.text);
+                else if (in == expr::SUBTRACT || in == expr::IEEE_DIVIDE) code = xpp::format("({}{}{})", left.text, in == expr::SUBTRACT ? "-" : "/", right.text);
+                else if (in == expr::DIVIDE) {
                     /* the guarded division: a zero divisor becomes N[0] */
                     if (right.atom) code = xpp::format("({}/({}==0.0?N[0]:{}))", left.text, right.text, right.text);
                     else code = xpp::format("dv({},{})", left.text, right.text);
@@ -415,6 +423,116 @@ struct Generator {
         if (user) pure_function[index] = !impure;
         return {};
     }
+
+    /* One C function, name, writing the value of terms[k] into o[k]
+       (W260): each node of the graph they need once, in the graph's order
+       (a node's arguments first), into the workspace w, of which it uses
+       the first `workspace` doubles. */
+    void derivatives(const expr::Symbolic &g, std::span<const expr::Term> terms, std::string_view name, int &workspace)
+    {
+        std::vector<char> needed(g.size(), 0);
+        std::vector<int> pending;
+        for (const expr::Term t : terms) pending.push_back(t.id);
+        while (!pending.empty()) {
+            const int id = pending.back();
+            pending.pop_back();
+            if (needed[static_cast<size_t>(id)]) continue;
+            needed[static_cast<size_t>(id)] = 1;
+            for (int a : g.node({id}).args)
+                if (a >= 0) pending.push_back(a);
+        }
+        std::unordered_map<int, int> slot;
+        auto text = [&](int id) {
+            const expr::Symbolic::Node &n = g.node({id});
+            switch (n.op) {
+            case expr::Symbolic::Op::Number: {
+                const auto [it, added] = number_slot.emplace(id, static_cast<int>(numbers.size()));
+                if (added) numbers.push_back(n.number);
+                return xpp::format("N[{}]", it->second);
+            }
+            case expr::Symbolic::Op::Constant: return xpp::format("c[{}]", n.index);
+            case expr::Symbolic::Op::Variable: return xpp::format("v[{}]", n.index);
+            default: return xpp::format("w[{}]", slot.at(id));
+            }
+        };
+        source += xpp::format("void {}(const double*c,const double*v,void*S,double*w,double*o){{", name);
+        for (size_t id = 0; id < g.size(); ++id) {
+            if (!needed[id]) continue;
+            const expr::Symbolic::Node &n = g.node({static_cast<int>(id)});
+            std::string value;
+            switch (n.op) {
+            case expr::Symbolic::Op::Number:
+            case expr::Symbolic::Op::Constant:
+            case expr::Symbolic::Op::Variable:
+                continue;
+            case expr::Symbolic::Op::Fun1:
+                unary.insert(n.index);
+                value = xpp::format("f1_{}({})", n.index, text(n.args[0]));
+                break;
+            case expr::Symbolic::Op::Fun2: {
+                const std::string x = text(n.args[0]), y = text(n.args[1]);
+                switch (n.index) {
+                case expr::ADD: value = xpp::format("({}+{})", x, y); break;
+                case expr::SUBTRACT: value = xpp::format("({}-{})", x, y); break;
+                case expr::MULTIPLY: value = xpp::format("({}*{})", x, y); break;
+                case expr::DIVIDE: value = xpp::format("dv({},{})", x, y); break;
+                case expr::IEEE_DIVIDE: value = xpp::format("({}/{})", x, y); break;
+                default:
+                    binary.insert(n.index);
+                    value = xpp::format("f2_{}({},{})", n.index, x, y);
+                }
+                break;
+            }
+            case expr::Symbolic::Op::Select:
+                value = xpp::format("({}==0.0?{}:{})", text(n.args[0]), text(n.args[2]), text(n.args[1]));
+                break;
+            case expr::Symbolic::Op::Table:
+            case expr::Symbolic::Op::TableSlope:
+                value = xpp::format("{}(S,{},{})", helper(n.op == expr::Symbolic::Op::Table ? Helper::Table : Helper::TableSlope), text(n.args[0]), n.index);
+                break;
+            }
+            const int k = static_cast<int>(slot.size());
+            slot.emplace(static_cast<int>(id), k);
+            source += xpp::format("w[{}]={};", k, value);
+        }
+        for (size_t k = 0; k < terms.size(); ++k) source += xpp::format("o[{}]={};", k, text(terms[k].id));
+        source += "}\n";
+        workspace = std::max(workspace, static_cast<int>(slot.size()));
+    }
+
+    /* the source written so far compiled by TinyCC, with the numbers and
+       the functions and helpers it calls; its errors at place */
+    Result<std::unique_ptr<tcc::Program>> build(const Place &place) const
+    {
+        /* Literals are host doubles in N[], never model text in generated C. */
+        std::string declarations=xpp::format("double N[{}];\nstatic double dv(double a,double b){{if(b==0.0)b=N[0];return a/b;}}\n",numbers.size());
+        std::vector<tcc::Symbol> symbols;
+        std::vector<std::string> names;
+        std::vector<const void *> addresses;
+        for (int i:unary) {
+            names.push_back(xpp::format("f1_{}",i));
+            declarations+=xpp::format("extern double f1_{}(double);\n",i);
+            addresses.push_back(reinterpret_cast<const void *>(expr::fun1[i]));
+        }
+        for (int i:binary) {
+            names.push_back(xpp::format("f2_{}",i));
+            declarations+=xpp::format("extern double f2_{}(double,double);\n",i);
+            addresses.push_back(reinterpret_cast<const void *>(expr::fun2[i]));
+        }
+        for (size_t i=0;i<used.size();++i) {
+            if (!used[i]) continue;
+            names.emplace_back(helper_text[i].name);
+            declarations+=xpp::format("extern {};\n",helper_text[i].prototype);
+            addresses.push_back(helper_address(static_cast<Helper>(i)));
+        }
+        for (size_t i=0;i<names.size();++i) symbols.push_back({names[i].c_str(),addresses[i]});
+        auto compiled=tcc::Program::compile(declarations+source,symbols,place);
+        if (!compiled) return std::unexpected(compiled.error());
+        auto table=(*compiled)->function("N");
+        if (!table) return std::unexpected(table.error());
+        std::copy(numbers.begin(),numbers.end(),static_cast<double *>(*table));
+        return std::move(*compiled);
+    }
 };
 }
 
@@ -455,10 +573,10 @@ std::vector<ModelProgram> model_programs(Model &m)
     return entries;
 }
 
-Result<std::vector<Error>> compile_model(Session &s)
+namespace {
+Result<std::vector<Error>> compile_programs(Session &s, const std::vector<ModelProgram> &entries)
 {
     Model &m=s.model();
-    const auto entries=model_programs(m);
     for (const auto &entry:entries) { entry.code->native=nullptr; entry.code->array_pure=false; entry.code->native_reads.clear(); }
     m.auto_rhs_pure=false;
     m.native_program.reset();
@@ -534,34 +652,8 @@ Result<std::vector<Error>> compile_model(Session &s)
         emitted.push_back(&entry);
     }
     if (emitted.empty()) return warnings;
-    const Place first=emitted.front()->place;
-    /* Literals are host doubles in N[], never model text in generated C. */
-    std::string declarations=xpp::format("double N[{}];\nstatic double dv(double a,double b){{if(b==0.0)b=N[0];return a/b;}}\n",g.numbers.size());
-    std::vector<tcc::Symbol> symbols;
-    std::vector<std::string> names;
-    std::vector<const void *> addresses;
-    for (int i:g.unary) {
-        names.push_back(xpp::format("f1_{}",i));
-        declarations+=xpp::format("extern double f1_{}(double);\n",i);
-        addresses.push_back(reinterpret_cast<const void *>(expr::fun1[i]));
-    }
-    for (int i:g.binary) {
-        names.push_back(xpp::format("f2_{}",i));
-        declarations+=xpp::format("extern double f2_{}(double,double);\n",i);
-        addresses.push_back(reinterpret_cast<const void *>(expr::fun2[i]));
-    }
-    for (size_t i=0;i<g.used.size();++i) {
-        if (!g.used[i]) continue;
-        names.emplace_back(helper_text[i].name);
-        declarations+=xpp::format("extern {};\n",helper_text[i].prototype);
-        addresses.push_back(helper_address(static_cast<Helper>(i)));
-    }
-    for (size_t i=0;i<names.size();++i) symbols.push_back({names[i].c_str(),addresses[i]});
-    auto compiled=tcc::Program::compile(declarations+g.source,symbols,first);
+    auto compiled=g.build(emitted.front()->place);
     if (!compiled) {g.place=compiled.error().place;return g.refuse("TinyCC: "+compiled.error().what);}
-    auto table=(*compiled)->function("N");
-    if (!table) {g.place=table.error().place;return g.refuse("TinyCC: "+table.error().what);}
-    std::copy(g.numbers.begin(),g.numbers.end(),static_cast<double *>(*table));
     std::vector<decltype(Program::native)> functions;
     for (const auto *entry:emitted) {
         auto address=(*compiled)->function(entry->symbol);
@@ -585,5 +677,78 @@ Result<std::vector<Error>> compile_model(Session &s)
         m.auto_rhs_pure=m.auto_rhs_pure && d.form.native && d.form.array_pure && d.form.native_reads.empty();
     log(XPP_LOG_INFO,"Compiled {} of {} programs\n",emitted.size(),entries.size());
     return warnings;
+}
+
+/* The model's exact Jacobian (W260): its derivatives (expr_derivative.h)
+   compiled by TinyCC as a program of their own, one function for the
+   state's columns, one for the time's and one for each constant's that a
+   right-hand side depends on; or why there is none. */
+ExactJacobian compile_jacobian(Session &s, const std::vector<ModelProgram> &entries)
+{
+    ExactJacobian j;
+    if (!::program.compile) {
+        j.unavailable = "the model is interpreted (--no-compile)";
+        return j;
+    }
+    auto derived = expr::differentiate_model(s, entries);
+    if (!derived) {
+        j.unavailable = derived.error().text();
+        return j;
+    }
+    const int node = s.model().node;
+    std::vector<expr::Term> states, time;
+    /* each constant's terms and their rows, by the constant's index */
+    std::map<int, std::pair<std::vector<expr::Term>, std::vector<int>>> by_constant;
+    for (const auto &e : derived->entries) {
+        if (e.column > 0 && e.column <= node) {
+            states.push_back(e.value);
+            j.states.rows.push_back(e.row);
+            j.states.columns.push_back(e.column - 1);
+        } else if (e.column == 0) {
+            time.push_back(e.value);
+            j.time.rows.push_back(e.row);
+        } else {
+            auto &[terms, rows] = by_constant[expr::column_constant(e.column)];
+            terms.push_back(e.value);
+            rows.push_back(e.row);
+        }
+    }
+    Generator g{s};
+    g.derivatives(derived->graph, states, "j_states", j.workspace);
+    g.derivatives(derived->graph, time, "j_time", j.workspace);
+    for (auto &[k, column] : by_constant) {
+        g.derivatives(derived->graph, column.first, xpp::format("j_c{}", k), j.workspace);
+        j.by_constant.emplace_back(k, JacobianProgram{nullptr, std::move(column.second), {}});
+    }
+    const Place place = entries.empty() ? Place{} : entries.front().place;
+    auto compiled = g.build(place);
+    if (!compiled) {
+        j.unavailable = "TinyCC: " + compiled.error().what;
+        return j;
+    }
+    auto function = [&](const std::string &name, JacobianProgram &p) -> bool {
+        const auto address = (*compiled)->function(name);
+        if (address) p.function = reinterpret_cast<decltype(JacobianProgram::function)>(*address);
+        else j.unavailable = "TinyCC: " + address.error().what;
+        return address.has_value();
+    };
+    for (auto &[k, column] : j.by_constant)
+        if (!function(xpp::format("j_c{}", k), column)) return j;
+    if (!function("j_time", j.time) || !function("j_states", j.states)) return j;
+    j.code = std::move(*compiled);
+    log(XPP_LOG_INFO, "Compiled the exact Jacobian: {} values, {} derivatives\n", derived->graph.size(), derived->entries.size());
+    return j;
+}
+}
+
+Result<std::vector<Error>> compile_model(Session &s)
+{
+    Model &m=s.model();
+    const auto entries=model_programs(m);
+    auto compiled=compile_programs(s,entries);
+    Place requested=std::move(m.jacobian.requested);
+    m.jacobian=compile_jacobian(s,entries);
+    m.jacobian.requested=std::move(requested);
+    return compiled;
 }
 }

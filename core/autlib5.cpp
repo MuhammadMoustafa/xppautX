@@ -337,7 +337,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
      */
     if (iap->lib->homcont.blhom.iequib != 0 && iap->lib->homcont.blhom.iequib != -1) {
-      func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
+      func(*iap->lib->session, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -345,7 +345,7 @@ fbho(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (iap->lib->homcont.blhom.iequib == -2) {
-	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2);
+	func(*iap->lib->session, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
 	  ++jb;
@@ -446,7 +446,7 @@ t=1 */
     /*        *NDM initial conditions for the equilibrium if IEQUIB=1,2,-2
  */
     if (iap->lib->homcont.blhom.iequib != 0 && iap->lib->homcont.blhom.iequib != -1) {
-      func(*iap->lib->session, ndm, xequib1.data(), icp, par, 0, f.data(), &dum1, &dum2);
+      func(*iap->lib->session, ndm, xequib1.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2);
       for (i = 0; i < ndm; ++i) {
 	fb[-1 + jb] = f[i];
 	++jb;
@@ -454,7 +454,7 @@ t=1 */
       /*        *NDM extra initial conditions for the equilibrium if IEQ
 		UIB=-2 */
       if (iap->lib->homcont.blhom.iequib == -2) {
-	func(*iap->lib->session, ndm, xequib2.data(), icp, par, 0, f.data(), &dum1, &dum2)
+	func(*iap->lib->session, ndm, xequib2.data(), icp, iap->nfpr, par, 0, f.data(), &dum1, &dum2)
 	  ;
 	for (i = 0; i < ndm; ++i) {
 	  fb[-1 + jb] = f[i];
@@ -1147,8 +1147,8 @@ psiho(const iap_type *iap, integer is, doublereal *rr, doublereal *ri, doublerea
 
   ndm = iap->ndm;
 
-  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu0.data(), icp, par, 0, f0.data(), &dum1, &dum2);
-  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu1.data(), icp, par, 0, f1.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu0.data(), icp, iap->nfpr, par, 0, f0.data(), &dum1, &dum2);
+  func(*iap->lib->session, ndm, iap->lib->homcont.blhmu.pu1.data(), icp, iap->nfpr, par, 0, f1.data(), &dum1, &dum2);
 
   ret_val = 0.;
 
@@ -1414,7 +1414,7 @@ eigho(const iap_type *iap, integer *isign, integer *itrans, doublereal *rr, doub
     
   ifail = 0;
 
-  func(*iap->lib->session, *ndm, xequib, icp, par, 1, f.data(), dfdu, 
+  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, f.data(), dfdu, 
        dfdp);
 
   if (*itrans == 1) {
@@ -1586,7 +1586,7 @@ prjctn(const iap_type *iap, doublereal *bound, doublereal *xequib, const integer
   bound -= ((*ndm)+1);
   dfdu_dim1 = *ndm;
   
-  func(*iap->lib->session, *ndm, xequib, icp, par, 1, fdum.data(), dfdu, dfdp);
+  func(*iap->lib->session, *ndm, xequib, icp, iap->nfpr, par, 1, fdum.data(), dfdu, dfdp);
 
   /* Compute transpose of A if ITRANS=1 */
   if (*itrans == 1) {

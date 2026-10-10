@@ -3994,6 +3994,144 @@ def check_method_refusal():
 check_method_refusal()
 
 
+def check_jacobian_setting():
+    """W260: the numerics' jacobian, difference (the default) or exact: the
+    numerics event shows it with its choices, `set num` takes a name or a
+    number, and a model with no exact Jacobian says why, refuses exact and
+    fails to load when its own @ line asks for it, at that line."""
+    model_dir = tempfile.mkdtemp(prefix='xppjacobian')
+
+    def fields_of(col, snd):
+        snd(cmd='data', events=['numerics'])
+        return next((e['fields'] for e in col(is_idle)[0] if e.get('ev') == 'numerics'), [])
+
+    try:
+        p, r, snd, col, _ = launch_server()
+        try:
+            col(is_idle)
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W260: the numerics event has jacobian, difference by default, its choices, available',
+                  jac.get('value') == 0 and jac.get('choices') == ['difference', 'exact'] and 'unavailable' not in jac
+                  and jac.get('integer') is True, str(jac))
+            snd(cmd='set', kind='num', name='jacobian', text='exact')
+            evs, _ = col(is_idle)
+            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W260: set num jacobian exact takes it', not errs and jac.get('value') == 1, '%s %s' % (errs, jac))
+            snd(cmd='set', kind='num', name='jacobian', text='0')
+            col(is_idle)
+            snd(cmd='set', kind='num', name='jacobian', text='finite')
+            evs, _ = col(is_idle)
+            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            check('W260: set num jacobian by number; a name that is no choice is refused, naming them',
+                  errs == ['Numerics: Jacobian must be one of difference, exact'] and jac.get('value') == 0, '%s %s' % (errs, jac))
+        finally:
+            p.stdin.close()
+            p.wait(timeout=10 * SLOW)
+            shutil.rmtree(r, ignore_errors=True)
+        noisy = os.path.join(model_dir, 'noisy.odex')
+        with open(noisy, 'w') as f:
+            f.write("par a = 1\nx' = -a*x + normal(0, 1)\n")
+        p, r, snd, col, _ = launch_server(ode=noisy)
+        try:
+            col(is_idle)
+            jac = next((f for f in fields_of(col, snd) if f['key'] == 'jacobian'), {})
+            why = jac.get('unavailable', {}).get('exact', '')
+            check('W260: a model with random numbers has no exact Jacobian; the field says why, at its line',
+                  jac.get('value') == 0 and why == 'noisy.odex:2:1: uses random numbers', str(jac))
+            snd(cmd='set', kind='num', name='jacobian', text='exact')
+            evs, _ = col(is_idle)
+            errs = [e.get('error') for e in evs if e.get('ev') == 'message' and 'error' in e]
+            check('W260: set num jacobian exact is refused there, with the reason',
+                  errs == ['Numerics: Jacobian: exact is not available: ' + why], str(errs))
+        finally:
+            p.stdin.close()
+            p.wait(timeout=10 * SLOW)
+            shutil.rmtree(r, ignore_errors=True)
+        with open(noisy, 'a') as f:
+            f.write('@ jacobian=exact\n')
+        run = subprocess.run([os.path.abspath(args.server), 'noisy.odex', '--silent'], capture_output=True, text=True, cwd=model_dir,
+                             timeout=60 * SLOW)
+        check('W260: @ jacobian=exact in a model with none fails the load at the @ line, with the reason',
+              run.returncode == 1 and 'noisy.odex:3:1: @ jacobian=exact: the model has no exact Jacobian: '
+              'noisy.odex:2:1: uses random numbers' in run.stderr, run.stderr[-400:])
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_jacobian_setting()
+
+
+def check_jacobian_failure():
+    """W260: an exact derivative that is not finite where the right-hand
+    side is (sqrt at 0) stops the run with an error at the equation's line,
+    naming the variable, the time and the state, and offering the action
+    "Switch to differences and continue": its commands, sent as they come,
+    finish the run with differences; a recording of it replays to the same
+    end; under differences the run goes through at once."""
+    model_dir = tempfile.mkdtemp(prefix='xppjacfail')
+    try:
+        model = os.path.join(model_dir, 'sqrt.odex')
+        with open(model, 'w') as f:
+            f.write("x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4, jacobian=exact\n")
+        p, r, snd, col, _ = launch_server(ode=model)
+        try:
+            col(is_idle)
+            snd(cmd='record', op='start')
+            col(is_idle)
+            snd(cmd='key', key='i')
+            _, ask = col(is_ask)
+            snd(cmd='answer', id=ask['id'], key='g')
+            evs, _ = col(is_idle)
+            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            err = errs[-1] if errs else {}
+            action = err.get('action') or {}
+            check('W260: sqrt(x) at x=0 under the exact Jacobian stops the run: its line, the variable, time and state, '
+                  'and what to do',
+                  len(errs) == 1 and err.get('file') == 'sqrt.odex' and err.get('line') == 1
+                  and err.get('error') == "the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: "
+                                          "switch the Numerics' Jacobian to difference", str(errs))
+            check('W260: the error offers Switch to differences and continue, as the commands that do it',
+                  action.get('label') == 'Switch to differences and continue'
+                  and action.get('commands') == [{'cmd': 'set', 'kind': 'num', 'name': 'jacobian', 'text': 'difference'},
+                                                 {'cmd': 'continue', 'until': 4}], str(action))
+            for c in action.get('commands', []):
+                snd(**c)
+                evs, _ = col(is_idle)
+            st = next((e for e in reversed(evs) if is_state(e)), {})
+            errs = [e for e in evs if e.get('ev') == 'message' and 'error' in e]
+            check('W260: sending them finishes the run with differences, to t=4',
+                  not errs and st.get('time') == 4 and st.get('rows', 0) > 1, '%s %s' % (errs, st))
+            snd(cmd='record', op='stop', name='click.recx')
+            col(is_idle)
+            replay = replay_recording(args.server, model, os.path.join(r, 'click.recx'), r)
+            replayed = [json.loads(l) for l in replay.stdout.splitlines() if l.strip()]
+            end = next((e for e in reversed(replayed) if is_state(e)), {})
+            # the replay meets the same failure (a step's error: exit 1, as any) and the click's commands after it
+            check('W260: a recording made with the click replays to the same end (time, rows, values), '
+                  'the failure on the way',
+                  replay.returncode == 1 and "dX'/dX is inf at t=0" in replay.stderr
+                  and all(end.get(k) == st.get(k) for k in ('time', 'rows', 'now')),
+                  '%d %s / %s %s' % (replay.returncode, {k: end.get(k) for k in ('time', 'rows', 'now')},
+                                     {k: st.get(k) for k in ('time', 'rows', 'now')}, replay.stderr[-300:]))
+        finally:
+            p.stdin.close()
+            p.wait(timeout=10 * SLOW)
+            shutil.rmtree(r, ignore_errors=True)
+        with open(model, 'w') as f:
+            f.write("x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4\n")
+        run = subprocess.run([os.path.abspath(args.server), 'sqrt.odex', '--silent'], capture_output=True, text=True,
+                             cwd=model_dir, timeout=60 * SLOW)
+        check('W260: under differences the same run goes through', run.returncode == 0 and 'Jacobian' not in run.stderr,
+              run.stderr[-300:])
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
+
+
+check_jacobian_failure()
+
+
 def check_settings_during_run():
     p, r, snd, col, _ = launch_server()
     is_prog = lambda e: e.get('ev') == 'progress'

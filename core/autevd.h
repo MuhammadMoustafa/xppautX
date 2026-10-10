@@ -16,8 +16,9 @@ int get_bif_type(int ibr, int ntot, int lab);
 void addbif(iap_type *iap, rap_type *rap, integer ntots, integer ibrs, double *par,integer *icp,int labw, double *a, double *uhigh, double *ulow, double *u0, double *ubar);
 
 /* the AUTO run's own parameters (st.run) from its settings (st.bifur,
-   the active view's parameters, the Mark values), for ndim variables */
-void init_auto(AutoState &st, int ndim);
+   the active view's parameters, the Mark values), for ndim variables;
+   exact: func gives the model's exact Jacobian (JAC=1, W260) */
+void init_auto(AutoState &st, int ndim, bool exact);
 
 } // namespace xpp
 #endif

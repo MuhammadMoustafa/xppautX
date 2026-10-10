@@ -46,6 +46,7 @@
 #include <ctype.h>
 
 #include "axes2.h"
+#include "jacobian.h"
 #include "graphics.h"
 
 #include "xpp_job.h"
@@ -568,7 +569,7 @@ void do_auto(xpp::Session &s, int iold, int isave, int itp)
 void set_auto(xpp::Session &s) /* Caution - need to include NICP here */
 {
   s.auto_state.nuzr=s.auto_state.bifur.nper;
-  init_auto(s.auto_state,s.model().node);
+  init_auto(s.auto_state,s.model().node,s.numerics.jacobian==JACOBIAN_EXACT);
   
 }
 int auto_name_to_index(const xpp::Session &s, std::string_view name)

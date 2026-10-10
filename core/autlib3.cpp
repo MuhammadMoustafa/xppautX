@@ -4103,7 +4103,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   } else {
     ijc = ijac;
   }
-  func(*iap->lib->session, ndim, u, icp, par, ijc, f, dfdu, 
+  func(*iap->lib->session, ndim, u, icp, nfpr, par, ijc, f, dfdu,
        dfdp, iap->lib);
 
   if (jac == 1 || ijac == 0) {
@@ -4114,7 +4114,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   ep = xpp::auto_jacobian::central(
       ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
-      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, par, 0, ff, dfdu, dfdp, iap->lib); },
+      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); },
       dfdu, dfdu_dim1);
 
   if (ijac == 1) {
@@ -4126,7 +4126,7 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
     ep = rtmp * (f2c::abs(par[icp[i]]) + 1);
     xpp::auto_jacobian::forward_parameters(
         1, ndim, icp + i, ep, par,
-        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, par, 0, ff, dfdu, dfdp, iap->lib); },
+        [&](doublereal *ff) { func(*iap->lib->session, ndim, u, icp, nfpr, par, 0, ff, dfdu, dfdp, iap->lib); },
         f, f1zz.data(), dfdp, dfdp_dim1, 0);
   }
 
@@ -4147,7 +4147,6 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal rtmp;
   integer i;
   doublereal ep;
-  integer jac, ijc;
 
   std::vector<doublereal> u1zz(iap->ndim);
   std::vector<doublereal> u2zz(iap->ndim);
@@ -4163,20 +4162,16 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
     /* Parameter adjustments */
   dbc_dim1 = nbc;
-  
-  jac = iap->jac;
+
   nfpr = iap->nfpr;
 
   /* Generate the function. */
 
-  if (jac == 0) {
-    ijc = 0;
-  } else {
-    ijc = ijac;
-  }
-  bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, ijc, f, dbc);
+  /* xppautX's bcnd supplies no derivatives: they are differenced whatever
+     JAC says (JAC=1 is the model's exact Jacobian in func, W260) */
+  bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1, 0, f, dbc);
 
-  if (jac == 1 || ijac == 0) {
+  if (ijac == 0) {
     return 0;
   }
 
@@ -4222,9 +4217,8 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   doublereal rtmp;
   integer i;
   doublereal ep;
-  integer jac, ijc;
 
-    
+
   std::vector<doublereal> f1zz(iap->nint);
   std::vector<doublereal> f2zz(iap->nint);
   std::vector<doublereal> u1zz(iap->ndim);
@@ -4236,21 +4230,17 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
     /* Parameter adjustments */
 
   dint_dim1 = nint;
-  
-  jac = iap->jac;
+
   nfpr = iap->nfpr;
 
   /* Generate the integrand. */
 
-  if (jac == 0) {
-    ijc = 0;
-  } else {
-    ijc = ijac;
-  }
-  icnd(ndim, par, icp, nint, u, uold, udot, upold, 
-       ijc, f, dint);
+  /* xppautX's icnd supplies no derivatives: they are differenced whatever
+     JAC says (JAC=1 is the model's exact Jacobian in func, W260) */
+  icnd(ndim, par, icp, nint, u, uold, udot, upold,
+       0, f, dint);
 
-  if (jac == 1 || ijac == 0) {
+  if (ijac == 0) {
     return 0;
   }
 
@@ -4289,7 +4279,6 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   doublereal rtmp;
   integer i;
   doublereal f1, f2, ep;
-  integer jac, ijc;
 
   std::vector<doublereal> u1zz(iap->ndim);
   std::vector<doublereal> u2zz(iap->ndim);
@@ -4300,19 +4289,15 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Parameter adjustments */
     
-  jac = iap->jac;
   nfpr = iap->nfpr;
 
   /* Generate the objective function. */
 
-  if (jac == 0) {
-    ijc = 0;
-  } else {
-    ijc = ijac;
-  }
-  fopt(ndim, u, icp, par, ijc, f, dfdu, dfdp);
+  /* xppautX's fopt supplies no derivatives: they are differenced whatever
+     JAC says (JAC=1 is the model's exact Jacobian in func, W260) */
+  fopt(ndim, u, icp, par, 0, f, dfdu, dfdp);
 
-  if (jac == 1 || ijac == 0) {
+  if (ijac == 0) {
     return 0;
   }
 

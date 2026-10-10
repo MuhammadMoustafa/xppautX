@@ -4784,6 +4784,35 @@ async function valuesBusy() {
     JSON.stringify({busyDrag, busyThen, out}));
 }
 
+/* W260: the Numerics section's Jacobian, a choice of difference and exact;
+   a model with no exact Jacobian shows exact disabled, with the reason. */
+async function valuesJacobian(dir) {
+  const select = `document.querySelector('[data-section="num"] [data-num="jacobian"] select')`;
+  const options = () => cdp.eval(`(() => { const s = ${select}; return s ? [...s.options].map(o => [o.textContent, o.disabled]) : null; })()`);
+  await cdp.eval(`(() => { const t = document.querySelector('[data-section="num"] .value-fold[aria-expanded="false"]'); if (t) t.click(); })()`);
+  await until(`!!${select}`, 'the Jacobian select');
+  check('W260: Numerics shows Jacobian as a choice of difference and exact, difference selected, both available',
+    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', false]])
+    && await cdp.eval(`${select}.value === '0'`), JSON.stringify(await options()));
+  const sent = await S('__xpp.sentCount()');
+  await cdp.eval(`(() => { const s = ${select}; s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })()`);
+  check('W260: choosing exact sends set num jacobian 1, and the core takes it',
+    await until(`!s.busy && s.numerics.find(f => f.key === 'jacobian')?.value === 1`, 'exact taken')
+    && JSON.stringify((await S(`__xpp.sentFrom(${sent})`)).filter(c => c.cmd === 'set'))
+      === JSON.stringify([{cmd: 'set', kind: 'num', name: 'jacobian', text: '1'}]),
+    JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
+  fs.writeFileSync(path.join(dir, 'w260noise.odex'), "par a = 1\nx' = -a*x + ran(1)\n");
+  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260noise.odex'})`);
+  await until("s.ask?.kind === 'choice'", 'save before Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until(`!s.busy && !s.ask && s.hello.file === 'w260noise.odex' && !!${select}`, 'the noisy model opened');
+  const hint = `document.querySelector('[data-section="num"] [data-num="jacobian"] [data-unavailable="exact"]')`;
+  check('W260: a model with random numbers shows exact disabled, and why, at its line',
+    JSON.stringify(await options()) === JSON.stringify([['difference', false], ['exact', true]])
+    && await cdp.eval(`${hint}?.textContent`) === 'No exact Jacobian: w260noise.odex:2:1: uses random numbers',
+    JSON.stringify([await options(), await cdp.eval(`${hint}?.textContent`)]));
+}
+
 /* live.odex: the IC fields do not move during a run, Now does. */
 async function valuesLive() {
   await desktopMetrics();
@@ -5822,6 +5851,33 @@ async function startScreenExamplesCheck() {
 
 /* W104: an error is one dialog with OK (Enter or Escape close it), kept in Messages; a warning
    flashes the status bar and opens no dialog */
+/* W260: a run a failed exact Jacobian stopped offers "Switch to differences
+   and continue" on its error; the button sends the core's commands and the
+   run ends where it was going, with differences. */
+async function jacobianOfferCheck(dir) {
+  fs.writeFileSync(path.join(dir, 'w260sqrt.odex'), "x' = sqrt(x) + 1\ninit x = 0\n@ method=stiff, total_time=4, jacobian=exact\n");
+  await cdp.eval(`__xpp.send({cmd: 'open', file: 'w260sqrt.odex'})`);
+  await until("s.ask?.kind === 'choice'", 'save before Open');
+  await cdp.eval("__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})");
+  await until(`!s.busy && !s.ask && s.hello.file === 'w260sqrt.odex'`, 'the sqrt model opened');
+  await focusPlot();
+  await key('i');
+  await until("s.ask && s.ask.kind === 'menu'", 'Integrate menu');
+  await key('g');
+  const offer = `document.querySelector('[data-error-dialog] [data-error-offer]')`;
+  check('W260: the error of a failed exact Jacobian offers Switch to differences and continue',
+    await until(`!s.busy && !!${offer}`, 'the offer on the error') && await cdp.eval(`${offer}.textContent`) === 'Switch to differences and continue',
+    JSON.stringify(await S('s.toasts')));
+  const sent = await S('__xpp.sentCount()');
+  await cdp.eval(`${offer}.click()`);
+  check('W260: the button sends the core\'s commands, closes the error, and the run ends at t=4 with differences',
+    await until(`!s.busy && !document.querySelector('[data-error-dialog]') && Math.abs(s.core.time - 4) < 1e-9
+      && s.numerics.find(f => f.key === 'jacobian')?.value === 0`, 'the run continued', 20000)
+    && JSON.stringify(await S(`__xpp.sentFrom(${sent})`)) === JSON.stringify([
+      {cmd: 'set', kind: 'num', name: 'jacobian', text: 'difference'}, {cmd: 'continue', until: 4}]),
+    JSON.stringify(await S(`__xpp.sentFrom(${sent})`)));
+}
+
 async function errorDialogCheck(dir) {
   const bad = () => cdp.eval(`__xpp.send({cmd: 'set', kind: 'par', name: 'iapp', text: '%('})`);
   const dialog = () => cdp.eval(`(() => { const d = document.querySelector('.error-dialog');
@@ -6585,6 +6641,7 @@ async function main() {
     /* WF-001: %bogus_symbol_zzz is refused on purpose, logging the core's own "Illegal formula
        .." (xpp_util.cpp evaluate_formula), named by the field (json_state.cpp read_value) */
     if (run('values')) await session(HEAVY_ODE, valuesBusy);
+    if (run('values')) await session(ODE, valuesJacobian);
     if (run('values')) await session(LIVE, valuesLive, ['set par iapp: Illegal formula ..', 'set par gca: Illegal formula ..']);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
     if (run('values')) await session(path.join(top, 'examples/ode/dumbbvp.odex'), bcSection(2));
@@ -6593,6 +6650,8 @@ async function main() {
     if (run('errordialog')) await session(ODE, errorDialogCheck, ['Illegal formula ..', 'set par iapp: Illegal formula ..',
       'w140bad.par:1: it is for 3 parameters, the model has 12']);
     if (run('errordialog')) await warningFlashCheck();
+    if (run('errordialog')) await session(ODE, jacobianOfferCheck,
+      ["w260sqrt.odex:1:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference"]);
     if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); }
     if (run('loaderror')) {
       await loadErrorCheck();

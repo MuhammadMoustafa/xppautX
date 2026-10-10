@@ -9,6 +9,8 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- An exact Jacobian, as a numerics setting: `@ jacobian=exact` (or the Numerics section's Jacobian) differentiates the model's right-hand sides symbolically, through its fixed variables, derived parameters, user functions and tables, and compiles the derivatives with the model; equilibria, Gear, CVODE, Rosenbrock, Backward Euler, Stiff, the adjoints and AUTO (`JAC=1`, its collocation threads included) all use it. `difference`, XPPAUT's finite differences, stays the default, so a model gives XPPAUT's numbers unless it asks. A model with random numbers, Markov variables, delays, sums and the like has none: the setting shows why, and its own `@ jacobian=exact` is a load error at that line. A run that meets a point where an exact derivative is not finite (`sqrt` at 0, ...) stops there with the equation's line, the variable, the time and the state; an integration's error offers **Switch to differences and continue** (W260, [#317](https://github.com/MuhammadMoustafa/xppautX/issues/317)).
+
 - `bessel_i` returns NaN for non-finite inputs or orders above 100000, handles negative integer orders by symmetry, and retains XPPAUT's truncation of non-integer orders (W271, [#328](https://github.com/MuhammadMoustafa/xppautX/issues/328)).
 
 - AUTO collocation uses a persistent pool on up to four threads for a compiled pure model; every result is unchanged across thread counts. Interpreted or impure models stay serial (W247, [#303](https://github.com/MuhammadMoustafa/xppautX/issues/303)).

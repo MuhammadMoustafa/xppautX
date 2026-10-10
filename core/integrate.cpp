@@ -13,6 +13,7 @@
 #include "xpp_log.h"
 #include "xpp_globals.h"
 #include "integrate.h"
+#include "jacobian.h"
 
 #include "storage.h"
 
@@ -373,7 +374,7 @@ xpp::Result<> do_monte_carlo_search(xpp::Session &s, int append, int stuffbrowse
     for(j=0;j<s.model().node;j++){ 
       x[j]=s.random.uniform()*(s.integrator.fixptguess.xhi[j]-s.integrator.fixptguess.xlo[j])+s.integrator.fixptguess.xlo[j];
     }
-    do_sing_info(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er,em,&ierr);
+    if(auto r=do_sing_info(s,x,s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,s.model().node,er,em,&ierr);!r)return r;
     if(ierr==0){
       m=s.integrator.fixptlist.n;
       if(m==0){ /* first fixed point found */
@@ -802,7 +803,7 @@ void write_equilibrium(xpp::Session &s, const char *name, int shoot)
   for(int i=0;i<n;i++)
     x[i]=s.last_ic[i];
 
-  do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,n,er.data(),em.data(),&ierr);
+  if(!xpp::ok_or_show(do_sing_info(s,x.data(),s.numerics.singpt_jacobian_epsilon,s.numerics.singpt_newton_tolerance,s.numerics.bound,s.numerics.singpt_max_iterates,n,er.data(),em.data(),&ierr)))return;
   if(ierr!=0)return;
   xpp::Writer w=xpp::open_writer_asking(name);
   if(!w)return;
@@ -1495,6 +1496,21 @@ std::unexpected<xpp::Error> take_step_error(xpp::Session &s)
 }
 }
 
+namespace {
+/* A run a failed exact Jacobian stopped (W260) is offered with what goes
+   on from there: the commands that switch the Jacobian to differences
+   and continue it to the end it was going to (end), when it went forward
+   (Continue's own condition); nothing switches without them. */
+xpp::Error stopped(xpp::Error e, double end, double dt)
+{
+  if(e.where!=xpp::JACOBIAN_FAILED||dt<=0)return e;
+  e.action=xpp::ErrorAction{"Switch to differences and continue",
+    {xpp::format(R"({{"cmd":"set","kind":"num","name":"{}","text":"{}"}})",xpp::JACOBIAN_KEY,xpp::jacobian_names[xpp::JACOBIAN_DIFFERENCE]),
+     xpp::format(R"({{"cmd":"continue","until":{}}})",xpp::number(end))}};
+  return e;
+}
+}
+
 xpp::Result<int> integrate(xpp::Session &s, double *t, double *x, double tend, double dt, int count, int store_every, int *start)
 {
   if(!s.integrator.steady)s.integrator.steady_result.reset();
@@ -1588,8 +1604,8 @@ if(program.interactive) cwidth=get_command_width();
 	     if(!r){
 	       ping();
 	       s.integrator.last_time=*t;
-	       if(s.integrator.range_flag||s.integrator.suppress_bounds)return(1);
-	       return std::unexpected(r.error());
+	       if((s.integrator.range_flag||s.integrator.suppress_bounds)&&r.error().where!=xpp::JACOBIAN_FAILED)return(1);
+	       return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	     }
 	   }
 	   else{
@@ -1601,9 +1617,9 @@ if(program.interactive) cwidth=get_command_width();
 	     if(!r){
 	       /* a range or a run without bounds checks goes on */
 	       ping();
-	       if(!(s.integrator.range_flag||s.integrator.suppress_bounds)){
+	       if(!(s.integrator.range_flag||s.integrator.suppress_bounds)||r.error().where==xpp::JACOBIAN_FAILED){
 		 s.integrator.last_time=*t;
-		 return std::unexpected(r.error());
+		 return std::unexpected(stopped(r.error(),tzero+tend,dt));
 	       }
 	     }
 	   }

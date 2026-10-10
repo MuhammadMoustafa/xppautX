@@ -407,8 +407,11 @@ struct Session; /* session.h */
 }
 /* the problem defined functions that run the model (autpp.cpp): its
    right-hand side and Jacobian, the starting point and the boundary
-   conditions, in the Session s whose run this is (iap->lib->session) */
-int func(xpp::Session &s, integer ndim, const doublereal *u, const integer *icp,
+   conditions, in the Session s whose run this is (iap->lib->session).
+   func gives dfdu for ijac 1 and the dfdp columns of the nfpr
+   continuation parameters icp too for ijac 2 (JAC=1: the model's exact
+   Jacobian, W260) */
+int func(xpp::Session &s, integer ndim, const doublereal *u, const integer *icp, integer nfpr,
 	 const doublereal *par, integer ijac,
 	 doublereal *f, doublereal *dfdu, doublereal *dfdp, AutoLib *worker=nullptr);
 int stpnt(xpp::Session &s, integer ndim, doublereal t,

@@ -1,11 +1,24 @@
 #ifndef _jacobian_h_
 #define _jacobian_h_
 
+#include <array>
 #include <functional>
+#include <string_view>
+#include "xpp_error.h"
 
 namespace xpp {
 
 struct Session; /* session.h */
+
+/* How the model's Jacobian is formed, the numerics' `jacobian` (W260):
+   by forward differences, XPPAUT's (the default: a model gives XPPAUT's
+   numbers), or exactly, from the derivatives compile_model made of the
+   model's right-hand sides (Model::jacobian). Their names, by value, are
+   what @ jacobian= and `set num` take. */
+constexpr int JACOBIAN_DIFFERENCE = 0, JACOBIAN_EXACT = 1;
+inline constexpr std::array<std::string_view, 2> jacobian_names{"difference", "exact"};
+/* its key in the numerics (`set num`, the numerics event) */
+inline constexpr std::string_view JACOBIAN_KEY = "jacobian";
 
 /* How the Jacobian is stored: d f_row / d x_col is out[row*n+col]
    (RowMajor) or out[row+n*col] (ColumnMajor); Banded, with `lower` and
@@ -42,11 +55,39 @@ using JacobianEvaluate = std::function<void(int i, double xi, double *f)>;
 /* The Jacobian of `evaluate` at x by forward differences, f0 = f(x). */
 void jacobian(const JacobianEvaluate &evaluate, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out);
 
-/* The model's Jacobian at (t, x), by forward differences: the one owner
-   of the step rule (W255). `f0` is f(t, x) (for a map, already f(x)-x),
-   `dfdt`, if given, receives df/dt. This is where an exact Jacobian
-   plugs in (W260). */
+/* The model's Jacobian at (t, x): by forward differences (the one owner
+   of the step rule, W255), or the exact one when the numerics say so
+   (W260; then eps and f0 are not used). `f0` is f(t, x) (for a map,
+   already f(x)-x), `dfdt`, if given, receives df/dt. */
 void jacobian(Session &s, double t, const double *x, const double *f0, int n, double eps, const JacobianForm &form, double *out, double *dfdt = nullptr);
+
+/* An exact derivative that is not finite where the right-hand side is
+   (W260: sqrt or log at 0, 1/x at 0, a power of a base at most 0): the
+   run stops there. The exact Jacobian's functions below throw it, with
+   the equation's line, the variable, the time and the state; the
+   computation that asked catches it where it ends and returns its error
+   (Solver::advance, the equilibria's rooter, the adjoint, AUTO's func as
+   an AutoFailed, which a collocation worker's caller rethrows). No
+   difference is taken instead. */
+struct JacobianFailed {
+  Error error;
+};
+/* its error's `where`, by which a run knows it (integrate.cpp offers to
+   go on with differences) */
+inline constexpr std::string_view JACOBIAN_FAILED = "exact jacobian";
+
+/* The model's exact Jacobian at (t, x) with the constants c (W260), its
+   n = Model::node equations' d f/d x in `form`, from the compiled
+   derivatives alone: nothing of the Session is written, so an AUTO
+   collocation worker gives its own constants and gets the same bits as
+   the caller's thread. f is the right-hand side there (for a map's form,
+   f(x)-x): an entry not finite where f is throws JacobianFailed. The
+   model must have one (Model::jacobian). */
+void exact_jacobian(const Session &s, const double *c, double t, const double *x, const double *f, int n, const JacobianForm &form, double *out);
+/* d f/d c[k] at (t, x) with the constants c into out[0..n), 0 where no
+   equation depends on constant k; d f/dt for the time; checked as above */
+void exact_constant_derivative(const Session &s, const double *c, int k, double t, const double *x, const double *f, int n, double *out);
+void exact_time_derivative(const Session &s, const double *c, double t, const double *x, const double *f, int n, double *out);
 
 } // namespace xpp
 #endif

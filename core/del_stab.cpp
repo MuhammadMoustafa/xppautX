@@ -42,7 +42,7 @@ xpp::Result<> do_delay_sing(xpp::Session &s, double *x, double eps, double err, 
  s.delay.stab_flag=0;
  for(i=0;i<n;i++)old_x[i]=x[i];
  std::vector<double> work(kmem);
- rooter(s,x,err,eps,big,work.data(),ierr,maxit,n);
+ if(auto r=rooter(s,x,err,eps,big,work.data(),ierr,maxit,n);!r)return r;
  if(*ierr!=0)
    {
      s.delay.stab_flag=1;

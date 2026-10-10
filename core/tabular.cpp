@@ -170,77 +170,83 @@ void new_lookup_com(xpp::Session &s, int i)
 
 }
 
-double lookupxy(double x, int n, double *xv, double *yv)
+namespace {
+
+/* a table's value at a point and the slope of its interpolation there
+   (W260: the exact Jacobian differentiates a lookup by it), each piece's
+   value computed as XPPAUT computes it */
+struct Interpolated {
+  double value, slope;
+};
+
+/* the table of n points (xv, yv), linearly interpolated, extrapolated
+   past its ends; past the last x with that end's slope reversed, as
+   XPPAUT does (docs/xppaut-findings.md) */
+Interpolated lookupxy(double x, int n, const double *xv, const double *yv)
 {
-  double dx,dy,x1,y1,x2,y2;
-  int i;
-  if(x<=xv[0])
-    return(yv[0]+(yv[1]-yv[0])*(x-xv[0])/(xv[1]-xv[0]));
+  if(x<=xv[0]){
+    const double slope=(yv[1]-yv[0])/(xv[1]-xv[0]);
+    return {yv[0]+(yv[1]-yv[0])*(x-xv[0])/(xv[1]-xv[0]),slope};
+  }
   if(x>=xv[n-1])
-    return(yv[n-1]+(yv[n-2]-yv[n-1])*(x-xv[n-1])/(xv[n-1]-xv[n-2]));
-  x1=xv[0];
-  y1=yv[0];
-  for(i=1;i<n;i++){
+    return {yv[n-1]+(yv[n-2]-yv[n-1])*(x-xv[n-1])/(xv[n-1]-xv[n-2]),(yv[n-2]-yv[n-1])/(xv[n-1]-xv[n-2])};
+  double x1=xv[0],y1=yv[0];
+  for(int i=1;i<n;i++){
     if(x<=xv[i]){
-      x2=xv[i];
-      y2=yv[i];
-      dx=x2-x1;
-      dy=y2-y1;
-      return(y1+dy*(x-x1)/dx);
+      const double dx=xv[i]-x1,dy=yv[i]-y1;
+      return {y1+dy*(x-x1)/dx,dy/dx};
     }
     x1=xv[i];
     y1=yv[i];
   }
-  return(yv[n-1]);
+  return {yv[n-1],0.0};
 }
 
-double tab_interp(double xlo, double h, double x, double *y, int n, int i)
+/* the cubic through y[i-1..i+2] (from xlo, step h) at x */
+Interpolated tab_interp(double xlo, double h, double x, const double *y, int i)
 {
-  double a,b,c,d;
-  double ym,y0,y1,y2;
-  double tt;
-  ym=y[i-1];
-  y0=y[i];
-  y1=y[i+1];
-  y2=y[i+2];
-  d=y0;
-  b=.5*(y1+ym-2*y0);
-  a=(3*(y0-y1)+y2-ym)/6;
-  c=(6*y1-y2-3*y0-2*ym)/6;
-  tt=(x-xlo)/h-i;
-  return d+tt*(c+tt*(b + tt*a));
+  const double ym=y[i-1],y0=y[i],y1=y[i+1],y2=y[i+2];
+  const double d=y0;
+  const double b=.5*(y1+ym-2*y0);
+  const double a=(3*(y0-y1)+y2-ym)/6;
+  const double c=(6*y1-y2-3*y0-2*ym)/6;
+  const double tt=(x-xlo)/h-i;
+  return {d+tt*(c+tt*(b + tt*a)),(c+tt*(2*b+3*tt*a))/h};
 }
+
+Interpolated interpolate(const xpp::TABULAR &t, double x)
+{
+  const double xlo=t.xlo,xhi=t.xhi,dx=t.dx;
+  const double *y=t.y;
+  const int n=t.n;
+  if(t.flag==0)return {0.0,0.0}; /* Not defined   */
+  if(t.xyvals==1)
+    return lookupxy(x,n,t.x,y);
+  const int i1=static_cast<int>((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
+  if(t.interp==2&&i1>0&&i1<(n-2))
+    return tab_interp(xlo,dx,x,y,i1); /* if it is on the edge - use linear */
+  const int i2=i1+1;
+  if(i1>-1&&i2<n){
+    const double x1=dx*i1+xlo,y1=y[i1],y2=y[i2];
+    if (t.interp==0||t.interp==2)
+      return {y1+(y2-y1)*(x-x1)/dx,(y2-y1)/dx};
+    return {y1,0.0};
+  }
+  if(i1<0)return {y[0]+(y[1]-y[0])*(x-xlo)/dx,(y[1]-y[0])/dx};
+  if(i2>=n)return {y[n-1]+(y[n-1]-y[n-2])*(x-xhi)/dx,(y[n-1]-y[n-2])/dx};
+  return {0.0,0.0};
+}
+
+}
+
 double lookup(const xpp::Session &s, double x, int index)
 {
-  double xlo=s.tables[index].xlo,xhi=s.tables[index].xhi,dx=s.tables[index].dx;
-  double *y;
-  double x1,y1,y2;
-  int i1,i2,n=s.tables[index].n;
-  y=s.tables[index].y;
- 
-  if(s.tables[index].flag==0)return(0.0); /* Not defined   */
-   if(s.tables[index].xyvals==1)
-    return(lookupxy(x,n,s.tables[index].x,y));
-  
-  i1=static_cast<int>((x-xlo)/dx);   /* (int)floor(x) instead of (int)x ??? */
-  if(s.tables[index].interp==2&&i1>0&&i1<(n-2))
-    return tab_interp(xlo,dx,x,y,n,i1); /* if it is on the edge - use linear */
-  i2=i1+1;
-    if(i1>-1&&i2<n){
-    x1=dx*i1+xlo;
-    y1=y[i1];
-    y2=y[i2];
-    if (s.tables[index].interp==0||s.tables[index].interp==2)
-      return(y1+(y2-y1)*(x-x1)/dx);
-    else
-      {
-	    return(y1);
-	};
-  }
-  if(i1<0)return(y[0]+(y[1]-y[0])*(x-xlo)/dx);
-  if(i2>=n)return(y[n-1]+(y[n-1]-y[n-2])*(x-xhi)/dx);
+  return interpolate(s.tables[index],x).value;
+}
 
-  return(0.0);
+double lookup_slope(const xpp::Session &s, double x, int index)
+{
+  return interpolate(s.tables[index],x).slope;
 }
 
 void init_table(xpp::Session &s)

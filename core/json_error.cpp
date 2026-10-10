@@ -13,5 +13,11 @@ void append_error(std::string &out, const xpp::Error &error)
     xpp::json_append_string(out, error.place.source);
     out += ",\"field\":";
     xpp::json_append_string(out, error.field);
+    if (!error.action) return;
+    out += ",\"action\":{\"label\":";
+    xpp::json_append_string(out, error.action->label);
+    out += ",\"commands\":[";
+    for (std::size_t i = 0; i < error.action->commands.size(); ++i) out += (i ? "," : "") + error.action->commands[i];
+    out += "]}";
 }
 } // namespace xpp::json

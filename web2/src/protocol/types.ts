@@ -444,7 +444,10 @@ export interface AskEvent {
     (0 when not known) and the line as written ("" when not read). A file
     with line 0 is one the command could not read. `field` is the value field
     the error belongs to (`par:gca`, as fieldKey writes it), "" when none: a
-    `set` of several values says which one it refused. */
+    `set` of several values says which one it refused. `action`, when the
+    core offers one, is what the user can do about it: a label and the
+    commands that do it, sent in order (W260: "Switch to differences and
+    continue"). */
 export interface ErrorFields {
   error: string;
   file: string;
@@ -452,6 +455,13 @@ export interface ErrorFields {
   col: number;
   source: string;
   field: string;
+  action?: ErrorAction;
+}
+
+/** what an error offers to do (docs/protocol.md "Errors") */
+export interface ErrorAction {
+  label: string;
+  commands: Command[];
 }
 
 /** an error (`error` with its place, ErrorFields), or a status line, an alert, ... */
@@ -675,8 +685,10 @@ export type XppEvent =
   | {ev: 'numerics'; fields: NumericsField[]};
 
 /** one field of the `numerics` event: `key` names it in `set` kind `num`;
-    `value` the method's number when `choices` (its names) are given;
-    `unused` when the current method does not use it */
+    `value` the choice's number when `choices` (their names: the method's,
+    the Jacobian's) are given, `unavailable` why the model cannot have a
+    choice, by its name (W260: no exact Jacobian); `unused` when the current
+    method does not use it */
 export interface NumericsField {
   key: string;
   label: string;
@@ -684,6 +696,7 @@ export interface NumericsField {
   integer?: boolean;
   unused?: boolean;
   choices?: string[];
+  unavailable?: Record<string, string>;
 }
 
 export type Command = {cmd: string; [k: string]: unknown};

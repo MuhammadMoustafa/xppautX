@@ -20,6 +20,7 @@
 namespace xpp {
 
 struct Session; /* session.h */
+struct Model;   /* model.h */
 
 /* An option that a source sets once: the first to set it keeps it
    (the command line, then the model, then .xpprc; a later @ line of the
@@ -33,7 +34,7 @@ enum class Option : unsigned char {
   SINGPT_NEWTON_TOLERANCE, SINGPT_JACOBIAN_EPSILON, STORE_EVERY, BOUND,
   METHOD, TOLERANCE, MIN_STEP, MAX_STEP, ABS_TOLERANCE, DELAY, VMAXPTS, STORAGE_ROWS,
   TORUS_PERIOD, BANDUP, BANDLO, POINCARE_MAP, POINCARE_VARIABLE, POINCARE_SIGN,
-  POINCARE_STOP, POINCARE_PLANE, SEED, STOCH, AUTOEVAL,
+  POINCARE_STOP, POINCARE_PLANE, SEED, STOCH, AUTOEVAL, JACOBIAN,
   /* the plot */
   XP, YP, ZP, NPLOT, AXES, XLO, XHI, YLO, YHI, XMIN, XMAX, YMIN, YMAX,
   ZMIN, ZMAX, PHI, THETA, LT, YNC, XNC, SMC, UMC, COLORMAP, PLOTFMT,
@@ -63,7 +64,8 @@ private:
 };
 
 /* what the Numerics menu and `set num` accept for a numerics setting */
-enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, method };
+/* (choice: one of the row's choices, by name or number) */
+enum class OptionRule { any, nonzero, positive, nonnegative, whole_positive, method, choice };
 /* which methods use a numerics setting (xpp::SolverTraits), so a front end
    can say the others do not */
 enum class OptionUse { always, step_or_rel, step, rel, newton, delays };
@@ -117,6 +119,10 @@ struct OptionRow {
   std::string_view key, label;
   OptionRule rule = OptionRule::any;
   OptionUse use = OptionUse::always;
+  /* OptionRule::choice: the names of the values 0, 1, ..., and why a
+     model cannot have value i ("" when it can) */
+  std::span<const std::string_view> choices;
+  std::string_view (*unavailable)(const Model &, int) = nullptr;
 };
 
 /* why the number v is not one rule accepts ("must be a number above 0"),
@@ -124,6 +130,10 @@ struct OptionRow {
    an @ line, the Numerics menu, `set num` and a set file alike
    (OptionRule::method's name is checked by numerics_settings.cpp) */
 const char *rule_problem(OptionRule rule, double v);
+
+/* the value text names among choices (its name in any case, or its
+   number), -1 when none */
+int choice_index(std::span<const std::string_view> choices, std::string_view text);
 
 /* the table, the numerics settings first, in the Numerics menu's order */
 std::span<const OptionRow> option_rows();

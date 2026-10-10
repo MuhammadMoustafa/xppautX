@@ -97,6 +97,9 @@ struct NumericsSettings {
   std::optional<int> last_seed;
   /* CVODE's banded Jacobian (the nUmerics menu's Stiff settings) */
   int cv_bandflag = 0, cv_bandupper = 1, cv_bandlower = 1;
+  /* how every Jacobian of the model is formed: JACOBIAN_DIFFERENCE or
+     JACOBIAN_EXACT (jacobian.h, W260) */
+  int jacobian = 0;
   /* the global flags' crossing tolerance */
   double stol = 1.e-10;
   /* recompute the tables and kernels when a parameter changes

@@ -163,6 +163,22 @@ fields, always all of them, and `field`:
   case or the `index`), "" when it is about none. A `set` of several values
   that refuses one sends it (W131), so the page shows the error on that
   field and not on the first value's.
+- `action` (only when the core offers one): what the user can do about it,
+  `{"label":LABEL,"commands":[COMMAND...]}`, the commands ordinary ones a
+  client sends in order when the user picks it (so a recording and the
+  session record them as any other steps). W260: an integration a failed
+  exact Jacobian stopped (an exact derivative not finite where the
+  right-hand side is: `sqrt` or `log` at 0, `1/x` at 0, a power of a base
+  at most 0) is the error at the equation's line, naming the variable, the
+  time and the state, offered with `"label":"Switch to differences and
+  continue"` and the commands
+  `{"cmd":"set","kind":"num","name":"jacobian","text":"difference"}`,
+  `{"cmd":"continue","until":END}`, END the end the run was going to (a run
+  going forward only, Continue's own condition): the run goes on from where
+  it stopped, with differences. Nothing switches without them. web2 shows
+  the action as a button on the error. An equilibrium, the adjoint or an
+  AUTO run (`AUTO stopped: ...`) a failed exact Jacobian stopped is the same
+  error, with no action yet.
 
 web2 shows `file`, `line` (and `col`) under the error's text in the
 error dialog, with `source` and a caret under `col` when there is one,
@@ -965,7 +981,7 @@ model's start in every mode, before the script.
 | `diagram` | `op` (`axes`, `reset`, `add`, `views`), `view`, ... | The AUTO diagram as data, each view of it; see "The AUTO diagram as data". |
 | `autoinfo` | `info`, `stab`, `stop` | AUTO's info strip and stability circle, and why the last branch ended, as data, for a client that asked (`data`); see "The AUTO diagram as data". |
 | `autosettings` | `numerics`, `pars`, `axes`, `marks` | AUTO's settings as data, for a client that asked (`data`); see "AUTO's settings as data". |
-| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
+| `numerics` | `fields` [{`key`, `label`, `value`, `integer`, `unused`, `choices`, `unavailable`}...] | The main numerics as data, for a client that asked (`data`); see "The numerics as data". |
 | `series` | `win`, `rows`, `three`, `enc`, `xlabel`, `ylabel`, `zlabel`, `curves`, `shift`, `columns`; or `op` `append`, `win`, `from`, `rows`, `enc`, `columns`; or `op` `end`, `win`, `rows`, `version` | A plot window's curves as numbers, one event per window, for a client that asked (`data`), and during an integration the active window's rows as they are stored; see "The plot as data". |
 | `runs` | `win`, `enc`, `erased`, `clear`, `drop`, `add` | A plot window's earlier runs changed, for a client that asked for `series`; see "Display state". |
 | `autoview` | `earlier`, `show`, `active`, `views` | AUTO's hidden branches, the active view and each view's zoom, for a client that asked for `autoinfo`; see "Display state". |
@@ -1263,25 +1279,32 @@ core/numerics_settings.cpp keeps it.
   {"key":"store_every","label":"Store every N steps","value":1,"integer":true},
   {"key":"method","label":"Method","value":3,"integer":true,
    "choices":["Discrete","Euler","Mod. Euler","Runge-Kutta",...]},
+  {"key":"jacobian","label":"Jacobian","value":0,"integer":true,
+   "choices":["difference","exact"]},
   {"key":"tolerance","label":"Tolerance","value":0.001,"unused":true}, ...]}
 ```
 
 The fields, in the menu's order: `total_time` (below 0: integrate for ever, as
 the menu's), `start_time`, `transient_time`, `dt`, `nullcline_mesh` (nullcline mesh),
 `singpt_max_iterates`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` (sIng pt ctrl),
-`store_every`, `bound`, `method` (its number, `choices` its names by number), `tolerance`,
+`store_every`, `bound`, `method` (its number, `choices` its names by number), `jacobian` (W260:
+how every Jacobian of the model is formed, `difference` by XPPAUT's forward differences or `exact`
+from the model's own derivatives, by number as `method`), `tolerance`,
 `min_step`, `max_step`, `abs_tolerance`, `eul_tol`, `eul_iter` (the method's own), `delay` (only
 for a model with delays), `bvp_max_iterates`, `bvp_tolerance`, `bvp_epsilon` (bndVal). Each key
 is the words of its label, and the XPPAUT words (`total`, `nmesh`, `newt_tol`, ...) are not keys
 (W216). `integer` marks a whole-number
-field; `unused` one the current method does not use.
+field; `unused` one the current method does not use; `unavailable` the choices the model
+cannot have, each by its name with why (`{"exact":"noisy.odex:2:1: uses random numbers"}`: a
+model with no exact Jacobian, "Numerics" in docs/manual/06-numerical-parameters.md).
 
 **`{"cmd":"set","kind":"num","name":KEY,"value":V}`** (or `"text"`) sets one
 field. The core checks the value first and changes nothing on a bad one,
 with a `message` `error` naming the field (`Numerics: Store every N steps must be a
 whole number of at least 1`): a number; `dt` not 0; the tolerances,
 `bound`, `singpt_newton_tolerance`, `singpt_jacobian_epsilon` above 0; `delay` at least 0; the whole-number
-fields at least 1; `method` a name of `choices` (any case) or its number, one
+fields at least 1; `jacobian` a name of `choices` (any case) or its number, one the
+model can have (`Numerics: Jacobian: exact is not available: WHY`); `method` a name of `choices` (any case) or its number, one
 the model can use (Volterra only for integral equations, and only it then;
 Symplectic only for an even dimension). W132 ([#184](https://github.com/MuhammadMoustafa/xppautX/issues/184))
 uses the same solver picker for the menu, values panel, model options and

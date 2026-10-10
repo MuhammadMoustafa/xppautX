@@ -54,7 +54,7 @@ ap.add_argument('--report', action='store_true', help='measure only; latency lim
 ap.add_argument('--list', action='store_true', help='print the selected sections and exit')
 ap.add_argument('--shard', help='run one round-robin partition of the sections, INDEX/COUNT (one-based)')
 ap.add_argument('sections', nargs='*', default=['diagram', 'grab', 'input', 'abort', 'control', 'files', 'csv', 'stability',
-                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors',
+                                                'sessions', 'session', 'sessiondata', 'sessiondiagram', 'recording', 'replay', 'play', 'names', 'scratch', 'errors', 'jacobian',
                                                 'memory'])
 args = ap.parse_args()
 if args.shard:
@@ -625,6 +625,56 @@ def section_files():
     check('the saved diagram of lecar is unchanged',
           len(lines) == len(want) and diff is None,
           'first difference at line %s; %d vs %d lines' % (diff, len(lines), len(want)))
+
+
+# ---- jacobian: AUTO with the exact Jacobian (W260) -------------------------
+
+def labelled_points(csv_text):
+    """a saved diagram.csv's labelled points: (branch, type, label, the
+    continuation parameter, the period), in order"""
+    lines = csv_text.splitlines()
+    head = lines[0].split(',')
+    col = {name: i for i, name in enumerate(head)}
+    points = []
+    for line in lines[1:]:
+        v = line.split(',')
+        if int(v[col['lab']]) != 0:
+            points.append((int(v[col['ibr']]), int(v[col['itp']]), int(v[col['lab']]), float(v[col['par1']]), float(v[col['per']])))
+    return points
+
+
+def section_jacobian():
+    """lecar's steady states and the periodic branch from its Hopf point
+    (lecar_diagram), with XPPAUT's differences and with @ jacobian=exact
+    (AUTO's JAC=1: func gives dfdu and dfdp): the same labelled points, of
+    the same types, the parameter and period alike to 1e-5; the numbers
+    are not the same bits (differences are not exact)"""
+    model_dir = tempfile.mkdtemp(prefix='xppjacobian')
+    try:
+        exact = os.path.join(model_dir, 'lecar.odex')
+        with open(LECAR) as f:
+            text = f.read()
+        with open(exact, 'w') as f:
+            f.write(text + '\n@ jacobian=exact\n')
+        diagrams = {}
+        for name, ode in (('difference', LECAR), ('exact', exact)):
+            s = Server(args.server, ode, verbose=args.v)
+            start = time.monotonic()
+            diagrams[name] = lecar_diagram(s)
+            perf('jacobian %s: lecar steady and periodic' % name, '%.2f s' % (time.monotonic() - start))
+            s.close()
+        check('jacobian: both runs save their diagrams', all(diagrams.values()))
+        if not all(diagrams.values()):
+            return
+        d, e = labelled_points(diagrams['difference']), labelled_points(diagrams['exact'])
+        same = len(d) == len(e) and all(a[:3] == b[:3] and all(abs(x - y) <= 1e-5 * max(1, abs(x)) for x, y in zip(a[3:], b[3:]))
+                                        for a, b in zip(d, e))
+        check('jacobian: the exact Jacobian finds the same labelled points (branch, type, label; parameter and period to 1e-5)',
+              same and len(d) > 3, '%s\n%s' % (d, e))
+        check('jacobian: and is its own computation (the diagrams are not the same bits)',
+              diagrams['difference'] != diagrams['exact'])
+    finally:
+        shutil.rmtree(model_dir, ignore_errors=True)
 
 
 # ---- csv: File/eXport CSV (W26, issue #42, core/csv_export.cpp) ----------

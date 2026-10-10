@@ -12,6 +12,8 @@
 #include "colormap.h"
 #include "command_table.h"
 #include "graphics.h"
+#include "jacobian.h"
+#include "model.h"
 #include "session.h"
 #include "solver.h"
 #include "tabular.h"
@@ -158,6 +160,26 @@ constexpr OptionRow rows[] = {
      s.numerics.method = pick_method(s.model(), s.model().nkernel > 0 ? "Volterra" : "Runge-Kutta", command_place()).value();
    },
    .key = "method", .label = "Method", .rule = OptionRule::method},
+  {.name = "JACOBIAN", .flag = Option::JACOBIAN,
+   .whole = [](Session &s) -> int & { return s.numerics.jacobian; },
+   /* during a load, exact is checked once the model is compiled
+      (xpp_batch.cpp), at the place kept here */
+   .parse = [](Session &s, const OptionValue &v) -> const char * {
+     const int i = choice_index(jacobian_names, v.text);
+     if (i < 0) return "not difference or exact";
+     if (i == JACOBIAN_EXACT && !Load::running() && !s.model().jacobian.available()) return s.model().jacobian.unavailable.c_str();
+     if (!v.apply) return nullptr;
+     if (i == JACOBIAN_EXACT && Load::running()) s.model().jacobian.requested = Load::place();
+     s.numerics.jacobian = i;
+     return nullptr;
+   },
+   /* XPPAUT's differences: a model gives XPPAUT's numbers unless it asks */
+   .reset = [](Session &s) { s.numerics.jacobian = JACOBIAN_DIFFERENCE; },
+   .key = JACOBIAN_KEY, .label = "Jacobian", .rule = OptionRule::choice,
+   .choices = jacobian_names,
+   .unavailable = [](const Model &m, int i) -> std::string_view {
+     return i == JACOBIAN_EXACT && !m.jacobian.available() ? std::string_view(m.jacobian.unavailable) : std::string_view();
+   }},
   {.name = "TOLERANCE", .xppaut_names = {"TOL"}, .flag = Option::TOLERANCE,
    .real = [](Session &s) -> double & { return s.numerics.tolerance; },
    /* XPPAUT's */
@@ -750,9 +772,20 @@ const char *rule_problem(OptionRule rule, double v)
     return v == std::floor(v) && v >= 1 && v <= INT_MAX ? nullptr : "must be a whole number of at least 1";
   case OptionRule::any:
   case OptionRule::method:
+  case OptionRule::choice:
     break;
   }
   return nullptr;
+}
+
+int choice_index(std::span<const std::string_view> choices, std::string_view text)
+{
+  const std::string lower = lower_case(std::string(text));
+  int i = 0;
+  for (std::size_t k = 0; k < choices.size(); ++k)
+    if (choices[k] == lower) return static_cast<int>(k);
+  if (parse_int(text, i) && i >= 0 && static_cast<std::size_t>(i) < choices.size()) return i;
+  return -1;
 }
 
 std::span<const OptionRow> option_rows() { return rows; }

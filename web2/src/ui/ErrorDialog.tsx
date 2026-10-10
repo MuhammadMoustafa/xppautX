@@ -52,6 +52,11 @@ export function ErrorDialog() {
                 {t.place?.source && <ErrorSource p={t.place} />}
               </div>
               {t.action?.kind === 'addFile' && <AddFile toast={t} />}
+              {t.offer && <button class="small" data-error-offer onClick={() => {
+                const offer = t.offer!;
+                close();
+                for (const c of offer.commands) session.send(c);
+              }}>{t.offer.label}</button>}
             </li>
           ))}
         </ul>

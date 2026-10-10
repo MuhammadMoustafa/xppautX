@@ -36,11 +36,6 @@ struct TABULAR {
   std::string name;
 };
 
-/* the value at x of the table of n points (xv, yv), linearly
-   interpolated; the cubic through y[i-1..i+2] (from xlo, step h) at x */
-double lookupxy(double x, int n, double *xv, double *yv);
-double tab_interp(double xlo, double h, double x, double *y, int n, int i);
-
 /* Tables return why they failed; the command (or the model load) shows it. */
 
 int get_lookup_len(Session &s, int i);
@@ -49,6 +44,9 @@ int get_lookup_len(Session &s, int i);
 Result<> redo_all_fun_tables(Session &s);
 /* table index's value at x in the Session s (the evaluator's TABTYPE) */
 double lookup(const Session &s, double x, int index);
+/* the slope of that table's interpolation at x: the derivative of lookup
+   (W260), 0 on a step table's steps */
+double lookup_slope(const Session &s, double x, int index);
 /* table index's formula worked out at n points of [xlo,xhi] into y (its
    error at the table's line); formula is a
    std::string (a table's own) and not a string_view: AUTO redoes the

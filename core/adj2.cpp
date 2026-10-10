@@ -361,7 +361,11 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
 	l=nt-1-k;  /* reverse the limit cycle  */
 	for(i=0;i<node;i++)yold[i]=static_cast<double>(orbit[i+1][l]);
         s.integrator.rhs(0.0,yold,fold,node);
-	xpp::jacobian(s,0.0,yold,fold,node,eps,xpp::JacobianForm{},dfdy);
+	try {
+	  xpp::jacobian(s,0.0,yold,fold,node,eps,xpp::JacobianForm{},dfdy);
+	} catch (const xpp::JacobianFailed &failed) {
+	  return std::unexpected(failed.error);
+	}
 	for(i=0;i<node;i++)
 	 for(j=0;j<node;j++)
 	  jac[i+node*j][k]=dfdy[i*node+j];

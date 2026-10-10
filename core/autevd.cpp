@@ -13,7 +13,7 @@
 
 namespace xpp {
 
-void init_auto(AutoState &st, int ndim)
+void init_auto(AutoState &st, int ndim, bool exact)
 {
   const xpp::BIFUR &b=st.bifur;
   /* here are the constants that we do not allow the user to change */
@@ -26,7 +26,7 @@ void init_auto(AutoState &st, int ndim)
   st.run.itmx=st.advanced.itmx;
   st.run.itnw=st.advanced.itnw;
   st.run.nwtn=st.advanced.nwtn;
-  st.run.jac=0;
+  st.run.jac=exact?1:0;
   st.run.iads=st.advanced.iads;
   st.run.nthl=1;
   st.run.ithl[0]=10;

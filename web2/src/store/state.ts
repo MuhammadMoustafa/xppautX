@@ -3,7 +3,7 @@
    viewports, the tab shown, hover, notifications, the menu drawer) as their
    own actions. Pure: no DOM, no I/O, no clock. */
 import {pickModeOf, startPick, type PickState} from '../plot/pick';
-import type {AskEvent, Command, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
+import type {AskEvent, Command, ErrorAction, HelloEvent, LoadErrorEvent, NumericsField, StateEvent, View, XppEvent} from '../protocol/types';
 import {errorPlace, errorText, unreadFile, type ErrorPlace} from '../protocol/errors';
 import {isWindowKey} from '../protocol/kinds';
 import {CONTINUE_INPUT_DEFAULT, type ContinueInput} from './steady';
@@ -77,6 +77,8 @@ export interface Toast {
   action?: ToastAction;
   /** an error's place, when the core named one (protocol/errors.ts): the dialog shows it */
   place?: ErrorPlace;
+  /** what the core offers to do about the error (W260): a button of the dialog */
+  offer?: ErrorAction;
 }
 
 export interface AppState {
@@ -275,8 +277,8 @@ function addLogText(state: AppState, text: string): AppState {
   return {...state, log: appendLog(state.log, lines.map(line => ({kind: classifyLogText(line), text: line})), joined)};
 }
 
-function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction, place?: ErrorPlace): AppState {
-  const toast: Toast = {id: state.nextToast, kind, text, ...(action ? {action} : {}), ...(place ? {place} : {})};
+function addToast(state: AppState, kind: Toast['kind'], text: string, action?: ToastAction, place?: ErrorPlace, offer?: ErrorAction): AppState {
+  const toast: Toast = {id: state.nextToast, kind, text, ...(action ? {action} : {}), ...(place ? {place} : {}), ...(offer ? {offer} : {})};
   const toasts = [...state.toasts, toast].slice(-TOASTS_KEEP);
   return {...state, toasts, nextToast: state.nextToast + 1};
 }
@@ -492,7 +494,7 @@ function onEvent(state: AppState, ev: XppEvent): AppState {
           ? reduceAutoSettings(state.autoSettings, {type: 'error', text: ev.error}) : state.autoSettings;
         const logged = addLog({...state, bottom: text, bottomHelp: null, files, values, autoSettings}, {kind: 'error', text});
         const claimed = values !== state.values || autoSettings !== state.autoSettings;
-        return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev));
+        return claimed ? logged : addToast(logged, 'error', ev.error, action, errorPlace(ev), ev.action);
       }
       if (ev.bottom !== undefined) return {...state, bottom: ev.bottom, bottomHelp: ev.help ?? null};
       if (ev.box !== undefined) return {...state, box: ev.box};

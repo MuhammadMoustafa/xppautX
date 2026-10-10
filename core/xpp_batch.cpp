@@ -8,6 +8,7 @@
 #include "model_files.h"
 #include "session.h"
 #include "expr_native.h"
+#include "jacobian.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "odesol2.h"
@@ -180,6 +181,14 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     for (const Error &warning:*compiled) {
         Load::at(warning.place.file,warning.place.line,warning.place.col);
         xpp::log(XPP_LOG_WARN,"{}\n",warning.what);
+    }
+    /* the exact Jacobian a model asks for is known to exist only now
+       (W260): none is an error at the @ line, not a quiet difference */
+    if (load.session().numerics.jacobian==JACOBIAN_EXACT && !m.jacobian.available()) {
+        program = program_before;
+        batch_options = batch_before;
+        return std::unexpected(Error{"options",xpp::format("@ jacobian=exact: the model has no exact Jacobian: {}",m.jacobian.unavailable),
+                                     m.jacobian.requested});
     }
     load.commit();
     return &load.session();

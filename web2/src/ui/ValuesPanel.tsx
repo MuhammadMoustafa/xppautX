@@ -248,8 +248,10 @@ function IndexedSection({id, title, kind, entries, hint, startFolded}: {
   );
 }
 
-/** a numerics field (W106): a number box, or the method's choices; the
-    core checks the value and its error shows on the field */
+/** a numerics field (W106): a number box, or its choices (the method's,
+    the Jacobian's), one the model cannot have disabled with the reason as
+    its hint (W260); the core checks the value and its error shows on the
+    field */
 function NumericField({f}: {f: NumericsField}) {
   const session = useSession();
   const field = fieldKey('num', f.key);
@@ -264,9 +266,12 @@ function NumericField({f}: {f: NumericsField}) {
         <label htmlFor={id} class="value-name" title={title}>{f.label}</label>
         <select id={id} value={value} title={title} aria-invalid={error ? true : undefined}
           onChange={e => session.setNumeric(f.key, (e.target as HTMLSelectElement).value)}>
-          {f.choices.map((c, i) => <option key={c} value={String(i)}>{c}</option>)}
+          {f.choices.map((c, i) => <option key={c} value={String(i)} disabled={!!f.unavailable?.[c]}
+            title={f.unavailable?.[c]}>{c}</option>)}
         </select>
         {error && <span class="field-error" role="alert">{error}</span>}
+        {f.unavailable && Object.entries(f.unavailable).map(([c, why]) =>
+          <span key={c} class="value-hint" data-unavailable={c}>No {c} {f.label}: {why}</span>)}
       </div>
     );
   }

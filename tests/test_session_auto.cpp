@@ -405,7 +405,7 @@ void check_import(const std::string &auto_text, const xpp::TempDir &tmp)
 // W247: a normal form with derived parameters, fixed variables and a user
 // function; compare all stored values, including Floquet eigenvalues.
 std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool impure=false,
-                                        const std::string &benchmark={})
+                                        const std::string &benchmark={}, bool exact=false)
 {
     xpp::TempDir tmp;
     const std::string file=benchmark.empty()?tmp.file("hopf.ode"):benchmark;
@@ -414,7 +414,7 @@ std::deque<DiagramPoint> collocation_run(unsigned threads, bool compiled, bool i
         "x'=mu*x-frequency*y-x*r"+std::string(impure?"+0*shift(x,0)":"")+"\n"
         "y'=frequency*x+mu*y-y*r\ninit x=0,y=0\n"
         "@ ntst=17,ncol=4,nmax=60,npr=10,ds=0.02,dsmax=0.05,dsmin=0.0001\n"
-        "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\ndone\n"));
+        "@ parmin=-1,parmax=1,epsl=1e-8,epsu=1e-8,epss=1e-8\n"+std::string(exact?"@ jacobian=exact\n":"")+"done\n"));
     program.compile=compiled;
     CHECK(load(file));
     xpp::Session &s=xpp::client_session();
@@ -478,6 +478,11 @@ void check_collocation()
         CHECK(same_vector(variables,xpp::client_session().parser.variables));
     }
     CHECK(same_diagram(serial,collocation_run(4,true,true)));
+    /* W260: the exact Jacobian (AUTO's JAC=1), computed on the workers
+       from their own constants: the same bits on every count */
+    const auto exact=collocation_run(1,true,false,{},true);
+    CHECK(!same_diagram(serial,exact));
+    for (unsigned threads:{2u,4u}) CHECK(same_diagram(exact,collocation_run(threads,true,false,{},true)));
     program.compile=true;
 
     // Failures are values observed after every worker has finished. A failed
