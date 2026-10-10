@@ -8,6 +8,7 @@
 #include "xpp_log.h"
 #include "session.h"
 #include "auto_c.h"
+#include "auto_jacobian.h"
 #include "xpp_math.h"
 
 /* The memory for these are taken care of in main, and setubv for the
@@ -37,11 +38,9 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer dfdu_dim1, dfdp_dim1;
 
   /* Local variables */
-  doublereal rtmp;
-  integer i, j;
+  integer j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
   /* Generates the equations for the 2-par continuation of folds. */
 
@@ -64,31 +63,10 @@ fnlp(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   
   /* Generate the Jacobian. */
   
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
- 
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    fflp(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    fflp(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { fflp(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   par[icp[0]] += ep;
 
@@ -309,11 +287,8 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer dfdu_dim1, dfdp_dim1;
 
   /* Local variables */
-  doublereal rtmp;
-  integer i, j;
-  doublereal ep;
+  integer i;
   integer ndm;
-  doublereal umx;
 
 
 
@@ -342,31 +317,10 @@ fnc2(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffc2(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffc2(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffc2(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < ndim; ++i) {
     ARRAY2D(dfdp, i, (icp[0])) = 0.;
@@ -626,11 +580,9 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  doublereal rtmp;
-  integer i, j;
+  integer j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
   
@@ -658,31 +610,10 @@ fnhd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffhd(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffhd(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   par[icp[0]] += ep;
 
@@ -858,11 +789,9 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  doublereal rtmp;
-  integer i, j;
+  integer j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
   
@@ -891,31 +820,10 @@ fnhb(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffhb(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffhb(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhb(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   par[icp[0]] += ep;
 
@@ -1079,11 +987,9 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Local variables */
 
-  doublereal rtmp;
-  integer i, j;
+  integer j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
   
@@ -1112,31 +1018,10 @@ fnhw(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffhw(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffhw(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffhw(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   par[icp[0]] += ep;
 
@@ -2194,11 +2079,9 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep; 
   integer ndm;
-  doublereal umx;
 
 
 
@@ -2224,31 +2107,10 @@ fnpl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffpl(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffpl(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -2601,11 +2463,9 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
 
@@ -2631,31 +2491,10 @@ fnpd(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffpd(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffpd(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpd(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -2980,11 +2819,9 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
 
@@ -3013,31 +2850,10 @@ fntr(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    fftr(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    fftr(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { fftr(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -3392,11 +3208,9 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep, period;
   integer ndm;
-  doublereal umx;
 
   std::vector<doublereal> upold(iap->ndim);
 
@@ -3431,31 +3245,10 @@ fnpo(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffpo(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, upold.data(), icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffpo(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, upold.data(), icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffpo(iap, rap, ndim, uu, uold, upold.data(), icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -3586,11 +3379,9 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
   integer nnt0;
 
   std::vector<doublereal> f1(iap->nint);
@@ -3620,33 +3411,10 @@ icpo(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, s.auto_lib.scratch.uu1, 
-	 uold, udot, upold, f1.data(), dnt.data(), ndm, s.auto_lib.scratch.dfu, 
-	 s.auto_lib.scratch.dfp);
-    fipo(iap, rap, ndim, par, icp, nint, nnt0, s.auto_lib.scratch.uu2, 
-	 uold, udot, upold, f2.data(), dnt.data(), ndm, s.auto_lib.scratch.dfu, 
-	 s.auto_lib.scratch.dfp);
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, i) = (f2[j] - f1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nint, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, f1.data(), f2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fipo(iap, rap, ndim, par, icp, nint, nnt0, uu, uold, udot, upold, ff, dnt.data(), ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dint, dint_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -3924,11 +3692,9 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
   doublereal ep;
   integer ndm;
-  doublereal umx;
 
 
 
@@ -3957,31 +3723,10 @@ fnbl(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      s.auto_lib.scratch.uu1[j] = u[j];
-      s.auto_lib.scratch.uu2[j] = u[j];
-    }
-    s.auto_lib.scratch.uu1[i] -= ep;
-    s.auto_lib.scratch.uu2[i] += ep;
-    ffbl(iap, rap, ndim, s.auto_lib.scratch.uu1, uold, icp, par, 
-	 s.auto_lib.scratch.ff1, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    ffbl(iap, rap, ndim, s.auto_lib.scratch.uu2, uold, icp, par, 
-	 s.auto_lib.scratch.ff2, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (s.auto_lib.scratch.ff2[j] - s.auto_lib.scratch.ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, s.auto_lib.scratch.uu1, s.auto_lib.scratch.uu2, s.auto_lib.scratch.ff1, s.auto_lib.scratch.ff2,
+      [&](const doublereal *uu, doublereal *ff) { ffbl(iap, rap, ndim, uu, uold, icp, par, ff, ndm, s.auto_lib.scratch.dfu, s.auto_lib.scratch.dfp); },
+      dfdu, dfdu_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -4048,9 +3793,8 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
-  doublereal ep, umx;
+  doublereal ep;
   integer nbc0;
 
   std::vector<doublereal> ff1(iap->nbc);
@@ -4084,55 +3828,17 @@ bcbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Derivatives with respect to U0. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u0[i]) > umx) {
-      umx = f2c::abs(u0[i]);
-    }
-  }
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      uu1[j] = u0[j];
-      uu2[j] = u0[j];
-    }
-    uu1[i] -= ep;
-    uu2[i] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu1.data(), u1, 
-	 ff1.data(), dfu.data());
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu2.data(), u1, 
-	 ff2.data(), dfu.data());
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nbc, u0, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, uu, u1, ff, dfu.data()); },
+      dbc, dbc_dim1);
 
   /* Derivatives with respect to U1. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u1[i]) > umx) {
-      umx = f2c::abs(u1[i]);
-    }
-  }
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      uu1[j] = u1[j];
-      uu2[j] = u1[j];
-    }
-    uu1[i] -= ep;
-    uu2[i] += ep;
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu1.data(), 
-	 ff1.data(), dfu.data());
-    fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu2.data(), 
-	 ff2.data(), dfu.data());
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, (ndim + i)) = (ff2[j] - ff1[j]) / ( ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nbc, u1, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fbbl(iap, rap, ndim, par, icp, nbc, nbc0, u0, uu, ff, dfu.data()); },
+      dbc + ndim * dbc_dim1, dbc_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -4198,9 +3904,8 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   /* Local variables */
 
   integer nfpr;
-  doublereal rtmp;
   integer i, j;
-  doublereal ep, umx;
+  doublereal ep;
   integer nnt0;
 
   std::vector<doublereal> ff1(iap->nint);
@@ -4234,31 +3939,10 @@ icbl(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the Jacobian. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      uu1[j] = u[j];
-      uu2[j] = u[j];
-    }
-    uu1[i] -= ep;
-    uu2[i] += ep;
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu1.data(), uold
-	 , udot, upold, ff1.data(), dfu.data());
-    fibl(iap, rap, ndim, par, icp, nint, nnt0, uu2.data(), uold
-	 , udot, upold, ff2.data(), dfu.data());
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, i) = (ff2[j] - ff1[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nint, u, uu1.data(), uu2.data(), ff1.data(), ff2.data(),
+      [&](const doublereal *uu, doublereal *ff) { fibl(iap, rap, ndim, par, icp, nint, nnt0, uu, uold , udot, upold, ff, dfu.data()); },
+      dint, dint_dim1);
 
   for (i = 0; i < nfpr; ++i) {
     par[icp[i]] += ep;
@@ -4474,7 +4158,6 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx;
 
 
   std::vector<doublereal> u1zz(iap->ndim);
@@ -4509,29 +4192,10 @@ funi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian by differencing. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      u1zz[j] = u[j];
-      u2zz[j] = u[j];
-    }
-    u1zz[i] -= ep;
-    u2zz[i] += ep;
-    func(*iap->lib->session, ndim, u1zz.data(), icp, par, 0, f1zz.data(), dfdu, dfdp);
-    func(*iap->lib->session, ndim, u2zz.data(), icp, par, 0, f2zz.data(), dfdu, dfdp);
-    for (j = 0; j < ndim; ++j) {
-      ARRAY2D(dfdu, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, ndim, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
+      [&](const doublereal *uu, doublereal *ff) { func(*iap->lib->session, ndim, uu, icp, par, 0, ff, dfdu, dfdp); },
+      dfdu, dfdu_dim1);
 
   if (ijac == 1) {
     return 0;
@@ -4567,7 +4231,6 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx;
 
   std::vector<doublereal> u1zz(iap->ndim);
   std::vector<doublereal> u2zz(iap->ndim);
@@ -4602,53 +4265,15 @@ bcni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the Jacobian by differencing. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u0[i]) > umx) {
-      umx = f2c::abs(u0[i]);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nbc, u0, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
+      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, uu, u1, 0, ff, dbc); },
+      dbc, dbc_dim1);
 
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      u1zz[j] = u0[j];
-      u2zz[j] = u0[j];
-    }
-    u1zz[i] -= ep;
-    u2zz[i] += ep;
-    bcnd(*iap->lib->session, ndim, par, icp, nbc, u1zz.data(), u1, 0, f1zz.data(), dbc);
-    bcnd(*iap->lib->session, ndim, par, icp, nbc, u2zz.data(), u1, 0, f2zz.data(), dbc);
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
-    }
-  }
-
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u1[i]) > umx) {
-      umx = f2c::abs(u1[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      u1zz[j] = u1[j];
-      u2zz[j] = u1[j];
-    }
-    u1zz[i] -= ep;
-    u2zz[i] += ep;
-    bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u1zz.data(), 0, f1zz.data(), dbc);
-    bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, u2zz.data(), 0, f2zz.data(), dbc);
-    for (j = 0; j < nbc; ++j) {
-      ARRAY2D(dbc, j, (ndim + i)) = (f2zz[j] - f1zz[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nbc, u1, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
+      [&](const doublereal *uu, doublereal *ff) { bcnd(*iap->lib->session, ndim, par, icp, nbc, u0, uu, 0, ff, dbc); },
+      dbc + ndim * dbc_dim1, dbc_dim1);
 
   if (ijac == 1) {
     return 0;
@@ -4683,7 +4308,6 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
   integer i, j;
   doublereal ep;
   integer jac, ijc;
-  doublereal umx;
 
     
   std::vector<doublereal> f1zz(iap->nint);
@@ -4717,29 +4341,10 @@ icni(const iap_type *iap, const rap_type *rap, integer ndim, doublereal *par, co
 
   /* Generate the Jacobian by differencing. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      u1zz[j] = u[j];
-      u2zz[j] = u[j];
-    }
-    u1zz[i] -= ep;
-    u2zz[i] += ep;
-    icnd(ndim, par, icp, nint, u1zz.data(), uold, udot, upold, 0, f1zz.data(), dint);
-    icnd(ndim, par, icp, nint, u2zz.data(), uold, udot, upold, 0, f2zz.data(), dint);
-    for (j = 0; j < nint; ++j) {
-      ARRAY2D(dint, j, i) = (f2zz[j] - f1zz[j]) / (ep * 2);
-    }
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, nint, u, u1zz.data(), u2zz.data(), f1zz.data(), f2zz.data(),
+      [&](const doublereal *uu, doublereal *ff) { icnd(ndim, par, icp, nint, uu, uold, udot, upold, 0, ff, dint); },
+      dint, dint_dim1);
 
   if (ijac == 1) {
     return 0;
@@ -4769,10 +4374,9 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
   integer nfpr;
 
   doublereal rtmp;
-  integer i, j;
+  integer i;
   doublereal f1, f2, ep;
   integer jac, ijc;
-  doublereal umx;
 
   std::vector<doublereal> u1zz(iap->ndim);
   std::vector<doublereal> u2zz(iap->ndim);
@@ -4801,27 +4405,10 @@ fopi(const iap_type *iap, const rap_type *rap, integer ndim, const doublereal *u
 
   /* Generate the Jacobian by differencing. */
 
-  umx = 0.;
-  for (i = 0; i < ndim; ++i) {
-    if (f2c::abs(u[i]) > umx) {
-      umx = f2c::abs(u[i]);
-    }
-  }
-
-  rtmp = HMACH;
-  ep = rtmp * (umx + 1);
-
-  for (i = 0; i < ndim; ++i) {
-    for (j = 0; j < ndim; ++j) {
-      u1zz[j] = u[j];
-      u2zz[j] = u[j];
-    }
-    u1zz[i] -= ep;
-    u2zz[i] += ep;
-    fopt(ndim, u1zz.data(), icp, par, 0, &f1, dfdu, dfdp);
-    fopt(ndim, u2zz.data(), icp, par, 0, &f2, dfdu, dfdp);
-    dfdu[i] = (f2 - f1) / (ep * 2);
-  }
+  ep = xpp::auto_jacobian::central(
+      ndim, 1, u, u1zz.data(), u2zz.data(), &f1, &f2,
+      [&](const doublereal *uu, doublereal *ff) { fopt(ndim, uu, icp, par, 0, ff, dfdu, dfdp); },
+      dfdu, 1);
 
   if (ijac == 1) {
     return 0;
