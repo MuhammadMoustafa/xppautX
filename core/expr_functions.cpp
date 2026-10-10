@@ -205,6 +205,26 @@ double do_ishift(double shift, double variable)
 
 }
 
+double do_set(xpp::Session &s, double shift, double variable, double value)
+{
+  const int index=static_cast<int>(shift)+((static_cast<int>(variable)) % MAXTYPE);
+  if(index>=0&&static_cast<size_t>(index)<s.parser.variables.size())s.parser.variables[index]=value;
+  return value;
+}
+
+double do_random_uniform(xpp::Session &s, double x)
+{
+  return x*s.random.uniform();
+}
+double do_random_poisson(xpp::Session &s, double mean)
+{
+  return s.random.poisson(mean);
+}
+double do_random_normal(xpp::Session &s, double mean, double sd)
+{
+  return s.random.normal(mean,sd);
+}
+
 double do_delay_shift(xpp::Session &s, double delay, double shift, double variable)
 {
  int in;

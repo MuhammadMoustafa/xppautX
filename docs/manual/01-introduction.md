@@ -225,11 +225,14 @@ way has nothing in Messages. See
 
 Core equations and user functions compile when the model loads, using the
 built-in TinyCC. Parameters and variables are read at each evaluation, and
-compiled execution preserves the interpreter's numerical operations. Models
-using other instructions or expressions (including tables, sums, random draws,
-events, derived parameters, delays, Markov chains and DAEs) run entirely in the
-interpreter; a warning identifies the first unsupported equation or statement.
-`--no-compile` selects the interpreter explicitly. Compilation happens once per
+compiled execution preserves the interpreter's numerical operations. The whole
+expression language compiles (tables, networks, vectorizers, kernels, sums,
+delays and shifts, `set`, `@` and random draws), the compiled code calling the
+interpreter's own functions for these, so values and random sequences are the
+same. The expressions of events, boundary conditions, derived parameters,
+Markov chains, DAEs and integral-equation kernels stay interpreted. A model
+with a recursive user function runs entirely in the interpreter; a warning
+identifies the equation. `--no-compile` selects the interpreter explicitly. Compilation happens once per
 load and can speed up integration and AUTO; the gain depends on the model.
 
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).

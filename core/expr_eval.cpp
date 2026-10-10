@@ -14,9 +14,6 @@ namespace xpp {
 
 namespace {
 
-/* the index @ of a vector formula (INDXCOM) */
-constexpr double CurrentIndex=0;
-
 /* Runs program equat on p's stacks and returns the value on top at its
    end (ENDEXP, or ENDSUM for the part SUMSYM runs).
 
@@ -35,7 +32,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
    const int *tmpeq;
   int is;
 
-  int low,high,ijmp,iv;
+  int low,high,ijmp;
   double temx,temy,temz;
   double sum;
   /* read on every token: the constants, variables and stacks once */
@@ -93,9 +90,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
      temx=pop();
      temy=pop();
      temz=pop();
-     iv=static_cast<int>(temy)+((static_cast<int>(temz)) % MAXTYPE);
-     variables[iv]=temx;
-     push(temx);
+     push(xpp::expr::do_set(s,temy,temz,temx));
      break;
    case ENDDELAY:
 		    temx=pop();
@@ -144,7 +139,7 @@ double eval_rpn(const int *equat, xpp::Session &s)
             save();
             return(temx);
    case INDXCOM:
-     push(CurrentIndex);
+     push(xpp::expr::CURRENT_INDEX);
      break;
    /* + - * /, the commonest instructions, dispatched here at once */
    case COM(FUN2TYPE,0):
@@ -164,13 +159,13 @@ double eval_rpn(const int *equat, xpp::Session &s)
      temx=pop();temy=pop();push(temy/temx);
      break;
    case RANDUNI:
-     push(pop()*s.random.uniform());
+     push(xpp::expr::do_random_uniform(s,pop()));
      break;
    case RANDPOI:
-     push(s.random.poisson(pop()));
+     push(xpp::expr::do_random_poisson(s,pop()));
      break;
    case RANDNORM:
-     temx=pop();temy=pop();push(s.random.normal(temy,temx));
+     temx=pop();temy=pop();push(xpp::expr::do_random_normal(s,temy,temx));
      break;
    default:
    {
@@ -265,7 +260,7 @@ double eval_program(Session &s, int index)
 {
   const Model &m=s.model();
   if (const auto function=m.native_functions[index])
-    return function(s.parser.constants.data(),s.parser.variables.data());
+    return function(s.parser.constants.data(),s.parser.variables.data(),&s);
   return evaluate(s,m.programs[index].data());
 }
 

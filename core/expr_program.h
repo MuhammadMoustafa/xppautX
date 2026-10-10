@@ -102,6 +102,9 @@ namespace xpp::expr {
    second constant init_rpn adds (after PI) */
 constexpr int SUM_INDEX = 1;
 
+/* the value of the vector index @ of a vector formula (INDXCOM) */
+constexpr double CURRENT_INDEX = 0;
+
 /* the built-in functions FUN1TYPE and FUN2TYPE call, by index
    (expr_functions.cpp) */
 using Fun1 = double (*)(double);
@@ -160,6 +163,15 @@ double do_delay(xpp::Session &s, double delay, double i);
 double do_delay_shift(xpp::Session &s, double delay, double shift, double variable);
 double do_shift(const xpp::Session &s, double shift, double variable);
 double do_ishift(double shift, double variable);
+/* ENDSET: variable v+shift becomes value (v and shift as the program
+   holds them); the value comes back. A variable outside the Session's
+   variables is not written. */
+double do_set(xpp::Session &s, double shift, double variable, double value);
+
+/* RANDUNI, RANDPOI and RANDNORM, from the Session's generator */
+double do_random_uniform(xpp::Session &s, double x);
+double do_random_poisson(xpp::Session &s, double mean);
+double do_random_normal(xpp::Session &s, double mean, double sd);
 
 }
 
