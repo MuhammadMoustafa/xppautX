@@ -107,6 +107,7 @@ static std::string usage_tail()
     "  --convert        write model.odex from model.ode (docs/odex.md); asks about\n"
     "                   names .odex reserves (--auto takes the suggested names)\n"
     "  --check          validate a model in memory; JSON diagnostics, no files or window\n"
+    "  --no-compile     run the equations in the interpreter, not as compiled code\n"
     "  --silent          (an xppaut option) a headless run that writes output.dat\n"
     "A session file (name.snapx, File/Save session or AUTO's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"

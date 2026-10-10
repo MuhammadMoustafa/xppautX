@@ -54,7 +54,7 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
    setvar(s,i+1,y__0[i]);
    setvar(s,i+n0+1,y__1[i]);
  }
-  for(i=n;i<n+s.model().fix_var;i++)setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
+  for(i=n;i<n+s.model().fix_var;i++)setvar(s,i+1,eval_program(s,i));
  
   for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com.data());
 }

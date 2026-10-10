@@ -170,7 +170,7 @@ void get_dae_fun(xpp::Session &s, double *y, double *f)
   for(i=0;i<m.nsvar;i++)
     setvar(s,m.svars[i].index,y[i]);
   for(i=m.node;i<m.node+m.fix_var;i++)
-    setvar(s,i+1,evaluate(s,m.programs[i].data()));
+    setvar(s,i+1,eval_program(s,i));
   for(i=0;i<m.naeqn;i++)
     f[i]=evaluate(s,m.aeqns[i].form.data());
 }

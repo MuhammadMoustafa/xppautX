@@ -7,6 +7,7 @@
 #include "model.h"
 #include "model_files.h"
 #include "session.h"
+#include "expr_native.h"
 #include "xpp_batch.h"
 #include "load_eqn.h"
 #include "odesol2.h"
@@ -174,6 +175,10 @@ Loaded in_model(const std::function<void(Session &)> &work, bool commit)
     }
     m.saved_copies.reset(); /* the load's readers are done with them */
     xpp_session_mark_clean(load.session()); /* what it loaded is not a change */
+    if (auto compiled=compile_model(load.session()); !compiled) {
+        Load::at(compiled.error().place.file,compiled.error().place.line,compiled.error().place.col);
+        xpp::log(XPP_LOG_WARN,"{}\n",compiled.error().what);
+    }
     load.commit();
     return &load.session();
 }

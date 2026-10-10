@@ -17,7 +17,7 @@
 
 namespace xpp {
 
-enum CommandId { SILENT, CONVERT, NEWSEED, SETFILE, RUNNOW, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT };
+enum CommandId { SILENT, CONVERT, NEWSEED, SETFILE, RUNNOW, PARFILE, OUTFILE, ICFILE, ITRNSETS, USET, RSET, INCLUDE, QSETS, QPARS, QICS, QUIET, LOGFILE, ANIFILE, VERSION, MKPLOT, PLOTFMT, NOOUT, DFDRAW, NCDRAW, READSET, WITH, EQUIL, VERBOSEOPT, DEBUGOPT, NOCOMPILE };
 
 namespace {
 
@@ -64,6 +64,7 @@ struct CommandOption {
 
 constexpr CommandOption my_cmd[] = {
   {"--silent", SILENT, false},
+  {"--no-compile", NOCOMPILE, false},
   {"--convert", CONVERT, false},
   {"--newseed", NEWSEED, false},
   {"--setfile", SETFILE, true},
@@ -366,6 +367,9 @@ int parse_it(xpp::Session &s, std::string_view com)
     switch(option->id){
     case MKPLOT:
       s.integrator.make_plot_flag=1;
+      break;
+    case NOCOMPILE:
+      s.model().no_compile=true;
       break;
     case SILENT:
       batch_options.enabled=1;

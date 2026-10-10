@@ -261,4 +261,12 @@ double evaluate(xpp::Session &s, const int *program)
   return(eval_rpn(program,s));
 }
 
+double eval_program(Session &s, int index)
+{
+  const Model &m=s.model();
+  if (const auto function=m.native_functions[index])
+    return function(s.parser.constants.data(),s.parser.variables.data());
+  return evaluate(s,m.programs[index].data());
+}
+
 } // namespace xpp

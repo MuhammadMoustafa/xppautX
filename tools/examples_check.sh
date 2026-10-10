@@ -14,8 +14,9 @@
 # difference on any of them is a bug to trace, never a baseline of its own.
 #
 # Usage: tools/examples_check.sh [--update] [--bin PATH] [--baseline FILE]
-#                                [--write FILE] [--keep DIR]
+#                                [--write FILE] [--keep DIR] [--no-compile]
 #   --bin PATH       the binary (default ./xppautX, or ./xppautX.exe)
+#   --no-compile     run the interpreter against the same numerical baseline
 #   --baseline FILE  compare with FILE (default tests/examples.md5)
 #   --write FILE     also write the md5s computed here to FILE
 #   --update         write the md5s computed here as the baseline
@@ -33,8 +34,10 @@ write=
 keep=
 update=0
 bin=
+no_compile=
 while [ $# -gt 0 ]; do
   case "$1" in
+    --no-compile) no_compile=--no-compile ;;
     --update) update=1 ;;
     --bin) bin=$2; shift ;;
     --baseline) base=$2; shift ;;
@@ -56,7 +59,7 @@ find examples -name '*.odex' -o -name '*.ode' | while read -r f; do
   case "$f" in *.ode) [ -e "${f%.ode}.odex" ] && continue ;; esac
   echo "$f"
 done | sort \
-  | xargs -P"$jobs" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" > "$out/failures" 2>&1
+  | xargs -P"$jobs" -I{} tools/run_example.sh {} "$bin" "${TIMEOUT:-300}" "$out" "$no_compile" > "$out/failures" 2>&1
 cat "$out"/*.sum | LC_ALL=C sort -k2 > "$out/all"
 n=$(wc -l < "$out/all" | tr -d ' ')
 if [ -n "$write" ]; then cp "$out/all" "$write"; echo "md5s written to $write"; fi

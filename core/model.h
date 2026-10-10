@@ -34,6 +34,7 @@
 #include "simplenet.h"
 #include "odex.h"
 #include "model_files.h"
+#include "xpp_tcc.h"
 
 #include <array>
 #include <memory>
@@ -102,6 +103,10 @@ struct Model {
      takes the next one. An unused index has "" and no program. */
   std::array<std::string,MAXODE> formulas;
   std::array<std::vector<int>,MAXODE> programs;
+  /* W258: executable code has exactly this Model's lifetime. */
+  std::unique_ptr<tcc::Program> native_program;
+  std::array<double (*)(double *, double *),MAXODE> native_functions{};
+  bool no_compile=false; /* --no-compile: explicitly use the interpreter. */
   /* a boundary condition, 0=string: string (at most 255 bytes, the rest
      NUL), com its compiled form (200 commands), name "0=" (10 bytes;
      pp_shoot writes its side into it). C buffers: the shooting code and

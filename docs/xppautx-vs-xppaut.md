@@ -144,6 +144,7 @@ Trailing `#` text in `.ode` lines is now read as a comment, unlike XPPAUT ([find
 | What | XPPAUT 8.0 | xppautX | Card |
 |---|---|---|---|
 | `.ode` quirks (comparisons bind tighter than `+`, `^` groups left, no sign after an operator, ...) | the parser's own | kept bit for bit; the list, measured, is [odex-quirks.md](odex-quirks.md) | W73 |
+| Equation execution | XPPAUT interprets every equation with its expression evaluator | Core equations and user functions compile at load with built-in TinyCC; unsupported models run entirely interpreted with a source warning. `--no-compile` explicitly selects the interpreter ([manual](manual/01-introduction.md#command-line-options)). | W258 [#315](https://github.com/MuhammadMoustafa/xppautX/issues/315) |
 | `.odex` | none | usual precedence, `^` right-associative, unary minus anywhere, case-sensitive names, `and`/`or`, arrays by `for j in a..b`, `const`, `near(a,b)` ([odex.md](odex.md)) | W73, W78, W80 |
 | Two syntaxes | one | the loader reads `.odex` only; the converter alone reads `.ode`, through the same Model builder; converted examples preserve their md5 | W79 |
 | `--check` (quirks as warnings) | none | decided; blocked | W75 |

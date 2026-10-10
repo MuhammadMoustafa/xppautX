@@ -228,7 +228,7 @@ void update_markov(xpp::Session &s, double *x, double t, double dt)
   for(i=0;i<s.model().node;i++)setvar(s,i+1,x[i]);
   for(i=s.model().node+s.model().fix_var;i<s.model().node+s.model().fix_var+s.model().nmarkov;i++)setvar(s,i+1,x[i-s.model().fix_var]);
   for(i=s.model().node;i<s.model().node+s.model().fix_var;i++)
-  setvar(s,i+1,evaluate(s,s.model().programs[i].data()));
+  setvar(s,i+1,eval_program(s,i));
   for(i=0;i<s.model().nmarkov;i++)
     yp[i]=new_state(s,x[s.model().node+i],i,dt);
   for(i=0;i<s.model().nmarkov;i++){

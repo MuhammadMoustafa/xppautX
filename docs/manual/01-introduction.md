@@ -223,6 +223,15 @@ way has nothing in Messages. See
 
 ### Command-line options
 
+Core equations and user functions compile when the model loads, using the
+built-in TinyCC. Parameters and variables are read at each evaluation, and
+compiled execution preserves the interpreter's numerical operations. Models
+using other instructions or expressions (including tables, sums, random draws,
+events, derived parameters, delays, Markov chains and DAEs) run entirely in the
+interpreter; a warning identifies the first unsupported equation or statement.
+`--no-compile` selects the interpreter explicitly. Compilation happens once per
+load and can speed up integration and AUTO; the gain depends on the model.
+
 Word options require two dashes; single letters use one (`-h`). Old single-dash words stop and name their new spelling. X11 options are removed and report ?no such option?. `--setfile` remains an import of XPPAUT `.set` files (W156, #208).
 
 xppautX's own options (`--browser`, `--web`, `--server`,
@@ -234,6 +243,7 @@ follow in any order. The options below control the model and its run.
 | Option | Does |
 |---|---|
 | `--silent` | Batch run: no interface, integrates and exits |
+| `--no-compile` | Run equations in the interpreter, for comparison with compiled execution |
 | `--runnow` | Runs the model immediately on startup (implied by `--silent`) |
 | `--outfile FILE` | Write batch output to FILE instead of `output.dat` |
 | `--noout` | Suppress writing rows to the output file |

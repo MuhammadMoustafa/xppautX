@@ -34,6 +34,7 @@ f=$1
 bin=$2
 timeout_s=${3:-300}
 result=${4:-}
+no_compile=${5:-}
 
 md5() {
   if command -v md5sum >/dev/null 2>&1; then md5sum | cut -d' ' -f1; else md5 -q; fi
@@ -50,10 +51,10 @@ if timeout --version >/dev/null 2>&1; then tmo=timeout
 elif gtimeout --version >/dev/null 2>&1; then tmo=gtimeout
 fi
 if [ -n "$tmo" ]; then
-  ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) || st=$?
+  ( cd "$run" && exec "$tmo" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 else
-  ( cd "$run" && exec python3 "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent >run.log 2>&1 ) || st=$?
+  ( cd "$run" && exec python3 "$TIMEOUT_RUNNER" "$timeout_s" "$bin" "$(basename "$f")" --silent ${no_compile:+"$no_compile"} >run.log 2>&1 ) || st=$?
   [ "$st" -eq 124 ] && timed_out=1
 fi
 if [ $timed_out -eq 1 ]; then
