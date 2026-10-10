@@ -248,6 +248,20 @@ CORE_OBJECTS += $(BUILDDIR)/miniz.o
 $(BUILDDIR)/miniz.o: $(MINIZ_DIR)/miniz.c $(MINIZ_DIR)/miniz.h $(BUILDDIR)/toolchain.stamp | $(BUILDDIR)
 	$(CC) $(call NOLTO,$(OPT)) $(MINIZ_DEFS) -w -c $< -o $@
 $(BUILDDIR)/xpp_zip.o: CXXFLAGS += $(MINIZ_DEFS) -isystem $(MINIZ_DIR)
+# TinyCC is unmodified C, compiled as one source with its own configuration
+# and warning policy. Generated predefs and the generator stay in BUILDDIR.
+TINYCC_DIR = third_party/tinycc
+TINYCC_BUILD = $(BUILDDIR)/tinycc
+CORE_OBJECTS += $(BUILDDIR)/libtcc.o
+$(TINYCC_BUILD):
+	mkdir -p $@
+$(TINYCC_BUILD)/c2str$(EXE): $(TINYCC_DIR)/conftest.c $(BUILDDIR)/toolchain.stamp | $(TINYCC_BUILD)
+	$(CC) -std=gnu99 $(call NOLTO,$(OPT)) $(LDSTATIC) -w -DC2STR -o $@ $<
+$(TINYCC_BUILD)/tccdefs_.h: $(TINYCC_DIR)/include/tccdefs.h $(TINYCC_BUILD)/c2str$(EXE)
+	$(TINYCC_BUILD)/c2str$(EXE) $< $@
+$(BUILDDIR)/libtcc.o: $(TINYCC_DIR)/libtcc.c tools/tinycc/config.h $(TINYCC_BUILD)/tccdefs_.h $(BUILDDIR)/toolchain.stamp Makefile
+	$(CC) -std=gnu99 $(call NOLTO,$(OPT)) $(FPFLAGS) -w -Itools/tinycc -I$(TINYCC_BUILD) -MMD -MP -c $< -o $@
+-include $(BUILDDIR)/libtcc.d
 # vendored third_party/core-math (xpp_math's exp, log, sin, ...: correctly
 # rounded, so the same bits on every CPU and system), one C object per
 # function in the core library, built like miniz: no warnings of ours, no

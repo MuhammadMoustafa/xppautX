@@ -25,6 +25,11 @@ whose outputs differ from Linux's: AGENTS.md says how CI makes those).
 
 ## What the tests pin
 
+`test_tcc.cpp` compiles arithmetic with an explicitly registered `xpp::math::exp`
+and compares its result bits with the native compiler's expression. It checks
+TinyCC syntax and relocation diagnostics, missing functions, unavailable
+standard headers, and a successful compilation after a failure (W254, #311).
+
 `test_bessel.cpp` compares J/Y orders 0, 1, 2 and 5 with John Burkardt's
 published TEST_VALUES tables (the source link is in the test). It allows
 16 ULP, or 64 ULP at selected near-zero inputs; checks repeat-call bits,

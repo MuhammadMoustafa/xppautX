@@ -434,3 +434,8 @@ inside another program: ship the licence text with the binaries and point to
 the source they were built from (each release attaches it). Software that
 only talks to `xppautX` over the protocol, in another process, is a separate
 program and can have its own licence, as the VS Code extension does.
+
+The embedded TinyCC compiler is LGPL 2.1; its pinned source, build settings
+and executable-memory requirements are documented in
+[third_party/tinycc/README.md](third_party/tinycc/README.md), with its licence
+in [COPYING](third_party/tinycc/COPYING) (W254, [#311](https://github.com/MuhammadMoustafa/xppautX/issues/311)).

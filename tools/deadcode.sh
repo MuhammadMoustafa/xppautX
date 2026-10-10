@@ -30,7 +30,8 @@ cd "$(dirname "$0")/.." || exit 1
 # What stays although no Linux link reaches it: "file symbol|reason", the
 # symbol as reported (C++ names demangled, without their parameters), or
 # "file *|reason" for a whole file.
-ALLOW="core/auto_stop.cpp xpp::auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol"
+ALLOW="core/auto_stop.cpp xpp::auto_stop_key|test_auto_stop's view of the keys auto_stop_last hands the protocol
+core/xpp_tcc.cpp *|W254 compiler owner is exercised by test_tcc; production caller arrives in W255"
 
 check=0
 build=1
@@ -67,9 +68,9 @@ fi
 
 # (object symbol class) of what the links dropped, from our own objects
 # only: not the tests', not generated code (web_assets, window_lib, icons)
-# nor the vendored web view's; class ro for read-only data
+# nor the vendored web view, miniz or TinyCC; class ro for read-only data
 cat $B/gc-*.log | sed -n "s/.*removing unused section '\([^']*\)' in file '\($(echo $B | sed 's/[/.]/\\&/g')\/[^']*\.o\)'.*/\2 \1/p" |
-  grep -v -e '/tests/' -e '/web_assets\.o ' -e '/window_lib\.o ' -e '/icon_assets\.o ' -e '/webview\.o ' -e '/miniz\.o ' |
+  grep -v -e '/tests/' -e '/web_assets\.o ' -e '/window_lib\.o ' -e '/icon_assets\.o ' -e '/webview\.o ' -e '/miniz\.o ' -e '/libtcc\.o ' |
   sed -E 's/ \.(rodata|data\.rel\.ro\.local|data\.rel\.ro)[.$]/ ro /; s/ \.(text|data|bss|tbss|tdata|data\.rel\.local|data\.rel)(\.(unlikely|startup|hot|exit))?[.$]/ x /' |
   awk 'NF == 3 && $3 !~ /[.]/ {print $1, $3, $2}' | sort -u > $B/dropped.txt
 
