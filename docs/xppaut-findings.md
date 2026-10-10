@@ -688,6 +688,5 @@ Jacobian.
   five, one pinned CPU), and the whole diagram (every point of the steady
   and periodic branches) is bit-identical in all runs
   (paper/benchmarks/auto-parallel, `results/wsl`).
-- **xppautX:** the same waste today; the fix (`f` only, or taken from the
-  Jacobian loop) changes no result and goes with W247.
-- **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307).
+- **xppautX:** since W253, the residual pass asks for `f` only (`ijac` 0); the same values are computed and no result changes.
+- **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310).

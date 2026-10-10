@@ -199,6 +199,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Settings | an X11 form | settings are data (`autosettings`); checked by AUTO's own rules | W92, W118 |
 | Orbit loading | trusts solution dimensions and existing storage ([finding 27](xppaut-findings.md#27-auto-orbit-loading-trusts-file-dimensions-and-storage-capacity)) | shared bounded restart reader; grows the data table before copying an orbit | W155 |
 | Exports | a table | `Write pts` and All info as CSV with names and LF line ends (including Windows, W137); `.auto` never written | W26, W92 |
+| Collocation residual | computes a finite-difference Jacobian that the residual discards | evaluates only `f`; same results, less work | W253 (#310) |
 
 ## Batch, the protocol, --server
 
