@@ -202,6 +202,7 @@ identical diagrams. The window: [manual 9](manual/09-auto.md).
 | Exports | a table | `Write pts` and All info as CSV with names and LF line ends (including Windows, W137); `.auto` never written | W26, W92 |
 | Collocation residual | computes a finite-difference Jacobian that the residual discards | evaluates only `f`; same results, less work | W253 (#310) |
 | Finite-difference Jacobian | five copies, with two step rules and the implicit solvers folding their scale into the difference | one formula, `(f(x+r)-f(x))/r`, `r = eps*max(eps,|x|)`, and Backward Euler and Rosenbrock scale afterwards; on `backeul` and `rb23` the last bits differ from XPPAUT's, the results are the same to the method's precision | W255 (#312) |
+| Jacobian in Gear and the adjoints | Gear folds `a0*h/r` into its difference ([gear.c:1372](../reference/xppaut-8.0/gear.c#L1372)); the adjoint steps `max(eps*|y|, eps)` ([adj2.c:504](../reference/xppaut-8.0/adj2.c#L504)) | both use the one formula `(f(x+r)-f(x))/r`, Gear scaling by `a0*h` afterwards; the adjoint's step floor is `eps^2`, not `eps`; the last bits differ from XPPAUT's (`hhred` under Gear; the adjoint of a periodic orbit by about 1e-7) | W264 (#321) |
 
 ## Batch, the protocol, --server
 

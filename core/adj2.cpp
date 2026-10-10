@@ -3,6 +3,7 @@
 #include "adj2.h"
 #include "storage.h"
 #include "odesol2.h"
+#include "jacobian.h"
 #include "xpp_log.h"
 #include "xpp_math.h"
 #include "my_rhs.h"
@@ -334,16 +335,16 @@ void new_adjoint(xpp::Session &s)
 xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, double dt, double eps, double minerr, int maxit, int node)
 {
   double ytemp;
-  double t,prod,del;
+  double t,prod;
   int i,j,k,l,k2;
   xpp::Result<> rval;
   int n2=node*node;
   double error;
 
    std::vector<double> work_v(static_cast<size_t>(n2)+4*node);
-   std::vector<double> yprime_v(node), yold_v(node), fold_v(node), fdev_v(node);
+   std::vector<double> yprime_v(node), yold_v(node), fold_v(node), fdev_v(node), dfdy_v(n2);
    double *work=work_v.data();
-   double *yprime=yprime_v.data(), *yold=yold_v.data(), *fold=fold_v.data(), *fdev=fdev_v.data();
+   double *yprime=yprime_v.data(), *yold=yold_v.data(), *fold=fold_v.data(), *fdev=fdev_v.data(), *dfdy=dfdy_v.data();
   std::vector<std::vector<double>> jac_store(n2);
   std::vector<double *> jac_v(n2);
 
@@ -360,18 +361,11 @@ xpp::Result<> adjoint(xpp::Session &s, float **orbit, float **adjnt, int nt, dou
 	l=nt-1-k;  /* reverse the limit cycle  */
 	for(i=0;i<node;i++)yold[i]=static_cast<double>(orbit[i+1][l]);
         s.integrator.rhs(0.0,yold,fold,node);
-	for(j=0;j<node;j++){
-		ytemp=yold[j];
-		del=eps*fabs(ytemp);
-		if(del<eps)del=eps;
-		
-		yold[j]+=del;
-		s.integrator.rhs(0.0,yold,fdev,node);
-		yold[j]=ytemp;
-		for(i=0;i<node;i++)
-			jac[i+node*j][k]=(fdev[i]-fold[i])/del;
-		
-	      }
+	xpp::jacobian(s,0.0,yold,fold,node,eps,xpp::JacobianForm{},dfdy);
+	for(i=0;i<node;i++)
+	 for(j=0;j<node;j++)
+	  jac[i+node*j][k]=dfdy[i*node+j];
+
  
       }
  
