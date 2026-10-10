@@ -64,8 +64,9 @@
 #include <vector>
 
 namespace xpp {
-/* RPN and the native code made from it travel together. The Model owns the
-   executable unit; R lets a network read its changing operand indices. */
+/* A program the Model holds: its RPN and the function compile_model made
+   from it (none: interpreted). The function's last argument is the RPN,
+   whose first two operands a network rewrites for each pair. */
 struct Program {
     std::vector<int> rpn;
     double (*native)(double *, double *, Session *, const int *) = nullptr;

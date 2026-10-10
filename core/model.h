@@ -112,7 +112,7 @@ struct Model {
      pp_shoot writes its side into it). C buffers: the shooting code and
      the dialogs write into them. */
   struct BoundaryCondition {
-    Program com;
+    std::vector<int> com;
     std::vector<char> string;
     std::vector<char> name;
   };

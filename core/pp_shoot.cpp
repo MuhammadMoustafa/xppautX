@@ -57,7 +57,7 @@ void do_bc(xpp::Session &s, double *y__0, double t0, double *y__1, double t1, do
  }
   for(i=n;i<n+s.model().fix_var;i++)setvar(s,i+1,xpp::evaluate(s,s.model().programs[i]));
  
-  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com.rpn.data());
+  for(i=0;i<n;i++)f[i]=evaluate(s,s.bcs[i].com.data());
 }
 
 void compile_bvp(xpp::Session &s)
@@ -72,7 +72,7 @@ void compile_bvp(xpp::Session &s)
  s.numerics.bvp_flag=0;
  for(i=0;i<s.model().node;i++){
 
-   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.rpn.data(),&len)){
+   if(add_expr(s,s.bcs[i].string.data(),s.bcs[i].com.data(),&len)){
      show_error(xpp::Error{"boundary",xpp::format("Bad syntax in boundary condition {}: {}",i+1,s.bcs[i].string.data()),
                            xpp::model_place(s.model(),xpp::odex::Statement::Kind::Boundary,i),xpp::format("bc:{}",i)});
      return;
