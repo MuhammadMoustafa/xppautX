@@ -8,6 +8,7 @@
 /* command-line stuff for xpp */
 #include <stdio.h>
 #include "xpp_batch.h"
+#include "xpp_globals.h"
 #include "aniparse.h"
 #include <algorithm>
 #include <cstdio>
@@ -369,7 +370,7 @@ int parse_it(xpp::Session &s, std::string_view com)
       s.integrator.make_plot_flag=1;
       break;
     case NOCOMPILE:
-      s.model().no_compile=true;
+      program.compile=false;
       break;
     case SILENT:
       batch_options.enabled=1;

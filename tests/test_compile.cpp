@@ -3,6 +3,7 @@
 #include "expr_program.h"
 #include "session.h"
 #include "xpp_log.h"
+#include "xpp_globals.h"
 #include <bit>
 #include <cstdint>
 #include <limits>
@@ -104,10 +105,11 @@ int main()
     CHECK(!xpp::compile_model(s));
     m.programs[0]={NUMSYM,0};
     CHECK(!xpp::compile_model(s));
-    m.no_compile=true;
+    program.compile=false;
     m.programs[0]=number(0.1);
     CHECK(xpp::compile_model(s).has_value());
     CHECK(!m.native_program);
     CHECK(xpp::eval_program(s,0)==0.1);
+    program.compile=true;
     TEST_REPORT("compiled equations");
 }

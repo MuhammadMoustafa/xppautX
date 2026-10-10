@@ -9,8 +9,8 @@
 #include <cstdint>
 #include <set>
 #include <algorithm>
-#include <chrono>
 #include "xpp_log.h"
+#include "xpp_globals.h"
 
 namespace xpp {
 namespace {
@@ -147,11 +147,10 @@ struct Generator {
 
 Result<> compile_model(Session &s)
 {
-    const auto started=std::chrono::steady_clock::now();
     Model &m = s.model();
     m.native_program.reset();
     m.native_functions.fill(nullptr);
-    if (m.no_compile) return {};
+    if (!program.compile) return {};
     Generator g{s, {}, {}, {}, {}, {}};
     /* Expressions owned by these kinds run outside Model::programs. Keep
        one execution mode for the entire model until W259 supports them. */
@@ -226,9 +225,8 @@ Result<> compile_model(Session &s)
     }
     m.native_program=std::move(*compiled);
     m.native_functions=functions;
-    const auto elapsed=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-started).count();
     const auto equations=std::count_if(functions.begin(),functions.end(),[](auto f){return f!=nullptr;});
-    log(XPP_LOG_INFO,"Compiled {} equations and {} user functions in {:.3f} ms\n",equations,m.nfun,elapsed);
+    log(XPP_LOG_INFO,"Compiled {} equations and {} user functions\n",equations,m.nfun);
     return {};
 }
 }
