@@ -242,9 +242,7 @@ double do_delay(xpp::Session &s, double delay, double i)
 {
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
-  variable = (static_cast<int>(i)) % MAXTYPE;
-
-  if(variable<0||static_cast<size_t>(variable)>=s.parser.variables.size()) return 0.0;
+    variable = (static_cast<int>(i)) % MAXTYPE;
 
   if(s.delay.stab_flag>0){
     if(s.delay.flag&&delay>0.0) {

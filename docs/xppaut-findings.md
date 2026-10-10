@@ -69,7 +69,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [37](#37-delete-column-is-an-unconditional-placeholder) | Data browser | Delete column always reports an error and returns | W197 (local card) |
 | [38](#38-a-named-set-item-is-cut-at-its-numeric-prefix-and-the-rest-dropped-silently) | Named sets | a set item's value is read with `atof`: a dot for a comma silently drops the next item | [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283) |
 | [39](#39-autos-collocation-computes-a-jacobian-at-every-point-and-throws-it-away) | AUTO | the residual pass of every collocation step differences a whole Jacobian per point to use only f: about half of the periodic continuation's model evaluations wasted | [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307) |
-| [40](#40-shift-and-delay-shift-read-outside-their-session-vectors) | Expressions | `shift` and `del_shft` read outside the Session vectors at runtime | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
+| [40](#40-shift-del_shft-and-set-reach-outside-the-variables) | Expressions | `shift` and `del_shft` read, and `set` writes, outside the variables with an index computed at run time | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
 
 ## 1. Model options
 
@@ -697,28 +697,27 @@ factored Jacobian (`ifst` 0), does the same: `ijac` 2, only `f` read
   result changes.
 - **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310).
 
-## 40. `shift` and `del_shft` read outside their Session vectors
+## 40. `shift`, `del_shft` and `set` reach outside the variables
 
-`shift(u,k)` and `del_shft(u,d,k)` compute an index from a model expression
-at runtime. XPPAUT checks only the upper fixed limit, so an index exactly at
-`ncon`/`MAXODE` reads one past the array, and a negative shift can read before
-the array. The same fixed upper limit and missing lower bound affect
-`del_shft`; `delay` also needs the resulting variable index checked against
-the Session's actual vector. `ishift` only adds its arguments, while `set`
-already checks the actual variable vector.
+`shift(u,k)`, `del_shft(u,d,k)` and `set(u,k,value)` index the variables
+(and `shift` the constants) with `u`'s index plus an integer a model
+expression computes at run time. XPPAUT bounds the reads only at the top,
+and one too high (`in>NCON`, `in>MAXODE`: an index at the end reads one
+past it), not at all below (a negative shift reads before the first
+variable), and does not bound `set`'s write at all.
 
-- **XPPAUT 8.0:** `do_shift` checks `in>NCON` and `in>MAXODE`, then reads
-  `constants[in]` or `variables[in]`; the corresponding check and reads are
-  [parserslow2.c:1854](../reference/xppaut-8.0/parserslow2.c#L1854) and
-  [parserslow2.c:1859](../reference/xppaut-8.0/parserslow2.c#L1859).
-  `do_delay_shift` repeats the fixed upper bound at
-  [parserslow2.c:1888](../reference/xppaut-8.0/parserslow2.c#L1888), and
-  `do_delay` reads `variables[variable]` without checking its vector at
-  [parserslow2.c:1910](../reference/xppaut-8.0/parserslow2.c#L1910) and
-  [parserslow2.c:1917](../reference/xppaut-8.0/parserslow2.c#L1917).
+- **XPPAUT 8.0:** `do_shift` checks `in>NCON` and `in>MAXODE` before
+  reading `constants[in]` or `variables[in]`
+  ([parserslow2.c:1854](../reference/xppaut-8.0/parserslow2.c#L1854),
+  [parserslow2.c:1860](../reference/xppaut-8.0/parserslow2.c#L1860));
+  `do_delay_shift` repeats the upper bound
+  ([parserslow2.c:1888](../reference/xppaut-8.0/parserslow2.c#L1888));
+  `ENDSET` writes `variables[iv]` with no bound
+  ([parserslow2.c:2179](../reference/xppaut-8.0/parserslow2.c#L2179)).
 - **Evidence:** `tests/test_compile.cpp` evaluates `shift(t,-1)`, a shift
-  exactly to `variables.size()`, and one past it, asserting `0.0` in both
-  compiled and interpreted execution.
-- **xppautX:** each indexed read checks `[0, vector.size())`; invalid
-  `shift`, `del_shft` and `delay` accesses return `0.0`.
+  to exactly `variables.size()` and one past it, each 0, compiled and
+  interpreted.
+- **xppautX:** each index is checked against the vector's real size on
+  both sides; a read outside gives 0 (what XPPAUT's check meant), a write
+  outside is not done ([W259](https://github.com/MuhammadMoustafa/xppautX/issues/316) for `set`).
 - **Card:** [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322).
