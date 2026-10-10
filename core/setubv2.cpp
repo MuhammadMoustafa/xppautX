@@ -432,7 +432,7 @@ void setubv_make_fa(const setubv_parallel_arglist &larg) {
       for (i = 0; i < NPARX; ++i) {
 	prm[i] = larg.par[i];
       }
-      /* The residual uses only f, so skip the finite-difference Jacobian. */
+      /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
       (*(larg.funi))(larg.iap, larg.rap, larg.ndim, u.data(), uold.data(), larg.icp, prm.data(), 0, f.data(), dfdu.data(), dfdp.data());
 
       ic1 = ic * (larg.ndim);

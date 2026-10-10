@@ -679,7 +679,10 @@ therefore evaluates the model 1 + 2·ndim + nfpr times per point to use one
 of them, an `f` the loop before it has just computed: about half of the
 right-hand-side evaluations of a periodic continuation are wasted. The code
 is AUTO2000's; AUTO-07p computes the residual in the same loop as the
-Jacobian.
+Jacobian. `setrhs`, the residual-only pass `solvbv` takes when it keeps the
+factored Jacobian (`ifst` 0), does the same: `ijac` 2, only `f` read
+([autlib2.c:640](../reference/xppaut-8.0/autlib2.c#L640), master:
+[640](../reference/xppaut-master/autlib2.c#L640)).
 
 - **Evidence:** W246's PY_S1Bf periodic branch (8 states, 2 free
   parameters: 19 evaluations per point for one), with `funi`'s `ijac` 0 in
@@ -688,5 +691,7 @@ Jacobian.
   five, one pinned CPU), and the whole diagram (every point of the steady
   and periodic branches) is bit-identical in all runs
   (paper/benchmarks/auto-parallel, `results/wsl`).
-- **xppautX:** since W253, the residual pass asks for `f` only (`ijac` 0); the same values are computed and no result changes.
+- **xppautX:** since W253 both residual passes (`setubv_make_fa`, `setrhs`)
+  ask for `f` only (`ijac` 0): the same values, computed the same way, so no
+  result changes.
 - **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310).

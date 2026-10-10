@@ -9,7 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
-- AUTO's periodic and boundary-value runs avoid unused Jacobian work in the residual pass; results are unchanged (W253, [#310](https://github.com/MuhammadMoustafa/xppautX/issues/310)).
+- AUTO's periodic and boundary-value runs are faster (1.32x on a measured periodic branch): the residual no longer computes a Jacobian it never reads; results are unchanged (W253, [#310](https://github.com/MuhammadMoustafa/xppautX/issues/310)).
 
 ## [0.1.0-beta.2] - 2026-10-09
 

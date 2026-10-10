@@ -406,7 +406,8 @@ setrhs(integer *ndim, integer *ips, integer *na, integer *ntst, integer *np, int
       for (i = 0; i < NPARX; ++i) {
 	prm[i] = par[i];
       }
-      (*funi)(iap, rap, *ndim, u.data(), uold.data(), icp, prm.data(), 2, f.data(), 
+      /* The residual reads only f: no Jacobian (docs/xppaut-findings.md #39). */
+      (*funi)(iap, rap, *ndim, u.data(), uold.data(), icp, prm.data(), 0, f.data(), 
 	      dfdu.data(), dfdp.data());
       ic1 = ic * *ndim;
       for (i = 0; i < *ndim; ++i) {
