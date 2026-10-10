@@ -174,7 +174,6 @@ const std::array<Fun2,23> fun2={
 
 double do_shift(const xpp::Session &s, double shift, double variable)
 {
-  const ParserState &p=s.parser;
   int it, in;
   int i=static_cast<int>(variable),ish=static_cast<int>(shift);
 
@@ -183,16 +182,11 @@ double do_shift(const xpp::Session &s, double shift, double variable)
    in = (i % MAXTYPE) + ish;
   switch(it){
   case CONTYPE:
-	if(in>p.ncon)
-	  return 0.0;
-	else
-	  return p.constants[in];
-	break;
+    if(in<0||static_cast<size_t>(in)>=s.parser.constants.size()) return 0.0;
+    return s.parser.constants[static_cast<size_t>(in)];
   case VARTYPE:
-	if(in>MAXODE)
-	  return 0.0;
-	else
-	  return p.variables[in];
+    if(in<0||static_cast<size_t>(in)>=s.parser.variables.size()) return 0.0;
+    return s.parser.variables[static_cast<size_t>(in)];
   default:
     xpp::log(XPP_LOG_WARN, "This can't happen: Invalid symbol index for SHIFT: i = {:d}\n", i);
     return 0.0;
@@ -232,7 +226,7 @@ double do_delay_shift(xpp::Session &s, double delay, double shift, double variab
   if(i<0) return(0.0);
   in=(i % MAXTYPE)+ish;
 
-  if(in>MAXODE)
+  if(in<0||static_cast<size_t>(in)>=s.parser.variables.size())
     return 0.0;
 
   if(s.delay.stab_flag>0){
@@ -248,7 +242,9 @@ double do_delay(xpp::Session &s, double delay, double i)
 {
   int variable;
     /* ram - this was a little weird, since i is a double... except I think it's secretely an integer */
-    variable = (static_cast<int>(i)) % MAXTYPE;
+  variable = (static_cast<int>(i)) % MAXTYPE;
+
+  if(variable<0||static_cast<size_t>(variable)>=s.parser.variables.size()) return 0.0;
 
   if(s.delay.stab_flag>0){
     if(s.delay.flag&&delay>0.0) {

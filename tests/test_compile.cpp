@@ -136,6 +136,10 @@ int main()
          "ran(1)-ran(1)", "normal(par,2)*poisson(3)", "normal(ran(1),ran(2))", "ran(par)+if(x)then(ran(2))else(normal(1,2))",
          "@+x", "delay(z0,2)+delay(x,1)", "del_shft(z0,1,2)-x", "q(x)+r(x,par)-r(par,x)", "x*q(par)+z0*r(x,x)+r(1,z1)",
          "r(ran(1),ran(2))", "r(set(z0,1,1),z1)"}) expression(text);
+    const int first_outside=count;
+    expression("shift(t,-1)");
+    expression("shift(t,"+std::to_string(s.parser.variables.size())+")");
+    expression("shift(t,"+std::to_string(s.parser.variables.size()+1)+")");
     auto compiled=xpp::compile_model(s);
     if (!compiled) printf("%s\n",compiled.error().text().c_str());
     CHECK(compiled.has_value());
@@ -145,6 +149,10 @@ int main()
         s.parser.variables[1]=x;
         s.parser.constants[2]=x+4.0;
         for (int i=0;i<count;++i) same_both_ways(s,i);
+    }
+    for (int i=first_outside;i<first_outside+3;++i) {
+        CHECK(xpp::eval_program(s,i)==0.0);
+        CHECK(xpp::evaluate(s,m.programs[i].data())==0.0);
     }
     /* Unsupported instructions remove all compiled equations. The returned
        warning is rendered by the loader once, with this equation's place. */

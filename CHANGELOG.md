@@ -9,6 +9,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ## [Unreleased]
 
+- Out of range `shift`, `del_shft` and `delay` variable indices now return zero instead of reading outside the Session vectors (W265, [#322](https://github.com/MuhammadMoustafa/xppautX/issues/322)).
 - One finite-difference Jacobian for the whole program (equilibria, AUTO, Backward Euler, Rosenbrock, the stiff integrator, delay stability): `(f(x+r)-f(x))/r`, the implicit solvers scaling afterwards, so Backward Euler and Rosenbrock (banded too) differ from XPPAUT in the last bits (W255, [#312](https://github.com/MuhammadMoustafa/xppautX/issues/312)).
 - Gear's method and the adjoints use that Jacobian too (W264, [#321](https://github.com/MuhammadMoustafa/xppautX/issues/321)): Gear scales by `a0*h` afterwards, the adjoint's step floor is `eps^2` instead of `eps`; last bits differ from XPPAUT.
 - Compile core equations and user functions with built-in TinyCC at load time; unsupported models run in the interpreter with a source warning. `--no-compile` selects interpreted execution (W258, [#315](https://github.com/MuhammadMoustafa/xppautX/issues/315)).

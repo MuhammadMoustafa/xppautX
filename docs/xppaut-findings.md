@@ -69,6 +69,7 @@ commit) is a link, in the index and the entries alike (maintainer,
 | [37](#37-delete-column-is-an-unconditional-placeholder) | Data browser | Delete column always reports an error and returns | W197 (local card) |
 | [38](#38-a-named-set-item-is-cut-at-its-numeric-prefix-and-the-rest-dropped-silently) | Named sets | a set item's value is read with `atof`: a dot for a comma silently drops the next item | [W229](https://github.com/MuhammadMoustafa/xppautX/issues/283) |
 | [39](#39-autos-collocation-computes-a-jacobian-at-every-point-and-throws-it-away) | AUTO | the residual pass of every collocation step differences a whole Jacobian per point to use only f: about half of the periodic continuation's model evaluations wasted | [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307) |
+| [40](#40-shift-and-delay-shift-read-outside-their-session-vectors) | Expressions | `shift` and `del_shft` read outside the Session vectors at runtime | [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322) |
 
 ## 1. Model options
 
@@ -695,3 +696,29 @@ factored Jacobian (`ifst` 0), does the same: `ijac` 2, only `f` read
   ask for `f` only (`ijac` 0): the same values, computed the same way, so no
   result changes.
 - **Card:** [W251](https://github.com/MuhammadMoustafa/xppautX/issues/307), [W253](https://github.com/MuhammadMoustafa/xppautX/issues/310).
+
+## 40. `shift` and `del_shft` read outside their Session vectors
+
+`shift(u,k)` and `del_shft(u,d,k)` compute an index from a model expression
+at runtime. XPPAUT checks only the upper fixed limit, so an index exactly at
+`ncon`/`MAXODE` reads one past the array, and a negative shift can read before
+the array. The same fixed upper limit and missing lower bound affect
+`del_shft`; `delay` also needs the resulting variable index checked against
+the Session's actual vector. `ishift` only adds its arguments, while `set`
+already checks the actual variable vector.
+
+- **XPPAUT 8.0:** `do_shift` checks `in>NCON` and `in>MAXODE`, then reads
+  `constants[in]` or `variables[in]`; the corresponding check and reads are
+  [parserslow2.c:1854](../reference/xppaut-8.0/parserslow2.c#L1854) and
+  [parserslow2.c:1859](../reference/xppaut-8.0/parserslow2.c#L1859).
+  `do_delay_shift` repeats the fixed upper bound at
+  [parserslow2.c:1888](../reference/xppaut-8.0/parserslow2.c#L1888), and
+  `do_delay` reads `variables[variable]` without checking its vector at
+  [parserslow2.c:1910](../reference/xppaut-8.0/parserslow2.c#L1910) and
+  [parserslow2.c:1917](../reference/xppaut-8.0/parserslow2.c#L1917).
+- **Evidence:** `tests/test_compile.cpp` evaluates `shift(t,-1)`, a shift
+  exactly to `variables.size()`, and one past it, asserting `0.0` in both
+  compiled and interpreted execution.
+- **xppautX:** each indexed read checks `[0, vector.size())`; invalid
+  `shift`, `del_shft` and `delay` accesses return `0.0`.
+- **Card:** [W265](https://github.com/MuhammadMoustafa/xppautX/issues/322).
